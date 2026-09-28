@@ -82,9 +82,11 @@ import type { SessionsService } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import type { WorldInfoService } from "#domain/world-info";
+import { env } from "#foundation/env";
 import { superviseDetached } from "#foundation/observability";
-import { fetchPluginBundle } from "#infra/network";
+import { fetchPluginBundle, pluginGitSource } from "#infra/network";
 import { createPluginHost } from "#infra/plugin-host";
+import { packPluginDir } from "#infra/plugin-source";
 import { publishAutomationEvent, publishNotification, publishUserEvent } from "../../transport/trpc/index.ts";
 import { createAutomationOps } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
@@ -869,7 +871,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
           description: reg.description,
           parameters: reg.parameters,
           installer: scope.installer,
-          invoke: (argsJson, chatScope) => invoke(reg.handler, argsJson, chatScope),
+          invoke: (argsJson, chatScope, signal) => invoke(reg.handler, argsJson, chatScope, signal),
           // PL-C: the invocation ceiling's principal is the INSTALLER, resolved per chat by ROW READ — the same
           // `loadPresentRole` op the transform registrar (`isInstallerHost`) and the event fan-out use. Never
           // the turn caller's membership: that made the read admission a no-op and took `canWrite` from whoever
@@ -950,8 +952,8 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       db,
       now,
       newPluginId: minter(ID_PREFIX.plugin),
-      // No `can` — plugin authority is OWNERSHIP, not a global role (D147). Every management verb decides on
-      // the owner-scoped row load alone, so there is nothing here for the privilege kernel to answer.
+      // Ordinary plugin authority is OWNERSHIP (D147). The development-only filesystem source is admitted
+      // inside its verb by the peer-gated fallback Principal before it reaches ordinary install/upgrade.
       assets: {
         store: (caller, bytes, mime) => assets.store({ principal: caller, bytes, kind: "plugin", mime }),
         // The owner-scoped `plugins` row was already loaded (getById) before activation reads its bundle, so the
@@ -975,6 +977,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // byte cap — NEVER a bare fetch). The domain calls it authority-blind and collapses any throw to a
       // leak-free `PluginBundleFetchError`; infra performs the guarded egress, the same division as `net.fetch`.
       fetchBundle: fetchPluginBundle,
+      development: env.NODE_ENV === "development",
+      packPluginDirectory: packPluginDir,
+      gitSource: pluginGitSource,
       // #1740 — the SECOND byte source an update can come from: the showcase bundles this build ships. Wired to
       // the SAME `@orb/showcase-plugins` reader the boot seeder's `packBundle`/`bundledVersion` ops use
       // (`entry/compose/services.ts`), so "what ships" has one answer for the auto-upgrade at boot and for the

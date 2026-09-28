@@ -1,5 +1,6 @@
-// infra/plugin-host/port — the sandbox-runtime seam impl (`PluginHostPort`). `createPluginHost` returns the
-// runtime the composition root injects UP into `domain/plugin`: boot a guest + install the membrane,
+// infra/plugin-host/port — the Worker-local sandbox-runtime seam impl. `process-runtime.ts` exposes the
+// `PluginHostPort` the composition root injects UP into `domain/plugin`; this file performs its guest work:
+// boot a guest + install the membrane,
 // run `main.js` under the invocation budget, collect its tool registrations, keep the instance RESIDENT, invoke
 // a collected handler under the per-invocation budget, RETAIN every drained log line in the instance's bounded
 // runtime ring (`readLog` — an operator's recent-activity view, in-memory and reset by a restart or a
@@ -29,12 +30,13 @@ import { randomUUID } from "node:crypto";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginInvokeArgs, PluginLogLevel } from "@orb/contracts/plugin";
 import { DomainConflictError } from "@orb/kit/errors";
 import { getLog, superviseDetached } from "#foundation/observability";
+import { createAdmission } from "./admission.ts";
 import {
   EVENT_QUEUE_DEPTH,
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
   PLUGIN_MEMORY_LIMIT_BYTES,
-  PLUGIN_RESIDENT_RUNTIME_MAX,
+  PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX,
   PLUGIN_SNIPPET_RUNTIME_MAX,
   SNIPPET_WALL_MS,
 } from "./budgets.ts";
@@ -48,10 +50,12 @@ export interface PluginHostSeamDeps {
   readonly nowEpochMs: () => number;
   readonly nextRandom: () => number;
   readonly mintId: () => string;
+  /** Receives accepted guest log lines when the runtime lives outside the app process. */
+  readonly mirrorLog?: (label: string, level: PluginLogLevel, message: string) => void;
 }
 
-/** The createInstance input (structurally the domain's `CreateInstanceInput` — compose bridges the type). The
- *  manifest is already validated/persisted; the runtime consumes `mainJs` + the membrane wiring the domain
+/** The Worker-wire create input. The process adapter strips the domain's durable source-loader operation before
+ *  serialization and sends only the freshly loaded `mainJs` plus membrane wiring. The
  *  built (grants + the pre-gated bridge). `chat` is the activation-run scope (`null` for an installed plugin —
  *  its `main.js` registers handlers, it does not operate on a chat; set for a snippet's single run). */
 export interface CreateInstanceInputIn {
@@ -75,13 +79,13 @@ export interface CreateInstanceInputIn {
 }
 
 /** One log line as the domain reads it (structurally the domain's `PluginLogView`). */
-interface PluginLogLineOut {
+export interface PluginLogLineOut {
   readonly level: PluginLogLevel;
   readonly message: string;
   readonly at: number;
 }
 
-type CreateInstanceOutcomeOut =
+export type CreateInstanceOutcomeOut =
   | { readonly ok: true; readonly instance: PluginInstance }
   | { readonly ok: false; readonly error: string; readonly log: readonly PluginLogLineOut[] };
 
@@ -153,32 +157,9 @@ interface Resident {
   disposing: boolean;
 }
 
-/** A process-wide context-admission counter, shared even if a test or future composition accidentally
- *  constructs more than one host facade. The reservation is taken BEFORE the first await of the path that
- *  mints the context, so simultaneous callers cannot all observe spare capacity and oversubscribe. Returns
- *  the RELEASE (idempotent — a double release must not hand a neighbour a free slot), or `null` when the
- *  pool is exhausted. */
-function createAdmission(max: number): () => (() => void) | null {
-  let inUse = 0;
-  return (): (() => void) | null => {
-    if (inUse >= max) {
-      return null;
-    }
-    inUse += 1;
-    let released = false;
-    return (): void => {
-      if (released) {
-        return;
-      }
-      released = true;
-      inUse -= 1;
-    };
-  };
-}
-
 /** The RESIDENT pool — held for an instance's whole enabled lifetime, released on activation failure or
  *  teardown. Reserved before the first await in `createInstance` (see above). */
-const acquireResidentAdmission = createAdmission(PLUGIN_RESIDENT_RUNTIME_MAX);
+const acquireResidentAdmission = createAdmission(PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX);
 
 /** The TRANSIENT snippet pool — one lease per `runSnippet` call, released after that call's sandbox is torn
  *  down. SEPARATE from the resident pool by design: the two lease lifetimes are incomparable, and sharing a
@@ -222,7 +203,7 @@ function retainLog(resident: Resident, lines: readonly string[], at: number): vo
  *  lines + an `error` iff the snippet threw / hit its 5 s wall. `errorKind`/`errorLine` mirror
  *  `GuestError.line` + the `SyntaxError`-caught-before-any-execution distinction (see `SnippetResult`
  *  for the full "didn't run vs ran empty" rationale). Structurally the domain's `SnippetResult`. */
-interface SnippetRunOut {
+export interface SnippetRunOut {
   readonly logLines: readonly string[];
   readonly error?: string;
   readonly errorKind?: "parse" | "runtime";
@@ -234,27 +215,35 @@ interface SnippetRunOut {
  *  tagged `plugin` for `?q=` filtering. `getLog()` resolves the request-scoped child when the push happens inside
  *  a request (a tool call) and the base logger when it happens in a detached pump (a float) — both the same
  *  stream. */
-function centralLogMirror(label: string): LogMirror {
+function centralLogMirror(label: string | undefined, mirrorLog: PluginHostSeamDeps["mirrorLog"]): LogMirror {
   return {
     mirror: (level, message): void => {
-      getLog()[level]({ plugin: label }, message);
+      if (mirrorLog === undefined && label !== undefined) {
+        getLog()[level]({ plugin: label }, message);
+        return;
+      }
+      mirrorLog?.(label ?? "", level, message);
     },
   };
 }
 
 /** The `Sandbox.create` options for a RESIDENT instance: the membrane wiring, the optional budget override, and
  *  the central-log mirror iff the domain supplied a `label` (absent ⇒ no mirror, never an invented tag). */
-function residentSandboxOptions(input: CreateInstanceInputIn, grants: ReadonlySet<PluginCapability>): Parameters<typeof Sandbox.create>[1] {
+function residentSandboxOptions(
+  input: CreateInstanceInputIn,
+  grants: ReadonlySet<PluginCapability>,
+  mirrorLog: PluginHostSeamDeps["mirrorLog"],
+): Parameters<typeof Sandbox.create>[1] {
   return {
     membrane: { grants, bridge: input.bridge, netHosts: input.netHosts ?? [] },
     ...(input.budgets !== undefined ? { limits: input.budgets } : {}),
-    ...(input.label !== undefined ? { logMirror: centralLogMirror(input.label) } : {}),
+    ...(input.label !== undefined || mirrorLog !== undefined ? { logMirror: centralLogMirror(input.label, mirrorLog) } : {}),
   };
 }
 
-/** Build the process runtime. One `QuickJSWASMModule` is shared (loaded lazily by `Sandbox.create`); each
- *  instance gets its own `QuickJSContext`. The returned shape is assigned to `PluginHostPort` at compose. */
-export function createPluginHost(seams: PluginHostSeamDeps): {
+/** Build one Worker-local runtime. One `QuickJSWASMModule` is loaded lazily by `Sandbox.create`; the broker
+ *  assigns one guest to this Worker so terminating it reclaims the module's linear-memory high-water mark. */
+export function createLocalPluginHost(seams: PluginHostSeamDeps): {
   readonly createInstance: (input: CreateInstanceInputIn) => Promise<CreateInstanceOutcomeOut>;
   readonly invoke: (instance: PluginInstance, handler: PluginHandlerRef, argsJson: PluginInvokeArgs, chat?: InvocationChat | null) => Promise<string>;
   readonly runSnippet: (input: {
@@ -275,7 +264,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
       if (releaseAdmission === null) {
         return {
           ok: false,
-          error: `plugin host: resident runtime capacity (${PLUGIN_RESIDENT_RUNTIME_MAX}) exhausted — activation refused`,
+          error: `plugin host: local resident runtime capacity (${PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX}) exhausted — activation refused`,
           log: [],
         };
       }
@@ -284,7 +273,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
         // Keep the WASM-module load failure surface here rather than mid-eval.
         await getPluginQuickJS();
         const grants = new Set(input.grants);
-        sandbox = await Sandbox.create(hostSeams, residentSandboxOptions(input, grants));
+        sandbox = await Sandbox.create(hostSeams, residentSandboxOptions(input, grants, seams.mirrorLog));
         // The activation run's chat scope (the membrane resolves `current()` against it); `null` for an installed
         // plugin's registration-only `main.js`.
         sandbox.setInvocationChat(input.chat);
@@ -296,6 +285,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
           await retireFailedActivation(failedSandbox, releaseAdmission);
           return { ok: false, error: outcome.error?.message ?? "activation failed", log: toLog(outcome.logs, at) };
         }
+        await sandbox.settleActivationJobs();
         // The collected tool + transform + event registrations — the domain hands each to its runtime
         // registrar (tools → tool-use registry; transforms → the shared prompt-transform registry, band-assigned
         // domain-side; events → the automation plugin-subscriber fan-out).

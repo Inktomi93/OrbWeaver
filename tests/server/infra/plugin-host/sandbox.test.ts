@@ -178,11 +178,10 @@ describe("Sandbox — DoS containment (the runtime pin)", () => {
     }
   });
 
-  // CONTAINMENT here is CORRECTNESS-containment (the guest OOMs, the process survives, isolation holds),
-  // NOT RSS reclamation. P1 FINDING (README §Sharp edges): `setMemoryLimit` bounds the guest's JS heap and
-  // makes the bomb a clean error, but the shared WASM linear memory grows to a MONOTONIC per-process
-  // high-water mark that dispose() does NOT return to the OS — so "process RSS stable" (03 §4) is an
-  // over-claim. Asserting a tight RSS delta is therefore deliberately omitted (it is unbounded here).
+  // `setMemoryLimit` makes the bomb a clean guest error; the separate custom WebAssembly.Memory maximum bounds
+  // this isolate's linear high-water allocation. `Sandbox.dispose()` still cannot reclaim that high-water mark,
+  // so the production broker terminates the guest's Worker. This direct-Sandbox test deliberately asserts the
+  // contained error + fresh context only; Worker reclamation belongs to the process-runtime failure tests.
   test("an allocation bomb dies contained; a fresh sandbox still works", { timeout: ALLOCATION_BOMB_TIMEOUT_MS }, async () => {
     const sandbox = await Sandbox.create(makeSeams(), { limits: { memoryLimitBytes: 4_194_304, cpuDeadlineMs: 2000 } });
     let bombOk = true;

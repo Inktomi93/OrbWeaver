@@ -120,7 +120,7 @@ export function createRegisterPluginTool(registry: ToolRegistry): (spec: PluginT
         }
         try {
           // The lifted-schema-parsed args cross to the guest as JSON; its string return IS the result verbatim.
-          const result = await spec.invoke(JSON.stringify(parsed.data), chat);
+          const result = await spec.invoke(JSON.stringify(parsed.data), chat, exec.signal);
           return { kind: "result", ok: true, value: result };
         } catch (err) {
           return { kind: "threw", message: errorMessage(err) };

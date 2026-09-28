@@ -89,7 +89,7 @@ export interface PluginToolSpec {
   readonly description: string;
   readonly parameters: Record<string, unknown>;
   readonly installer: Principal;
-  readonly invoke: (argsJson: string, chat: InvocationChat | null) => Promise<string>;
+  readonly invoke: (argsJson: string, chat: InvocationChat | null, signal?: AbortSignal) => Promise<string>;
   /** The INSTALLER's PRESENT participant role in an arbitrary chat — the PL-C ceiling's only honest input
    *  (`null` = not a present member of it). Injected per activation because the answer is a per-chat ROW READ
    *  and only the composition root may reach chat's roster — it binds chat's `loadPresentRole` over the db and

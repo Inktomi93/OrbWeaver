@@ -484,7 +484,7 @@ function parseFrameBody(ctx: QuickJSContext, defHandle: QuickJSHandle): FrameBod
  *   2. THE TIER IS OURS. `tier: "frame"` is supplied host-side; the guest cannot name a tier at this door, so
  *      the fork is not reachable from the argument.
  *   3. THE COUNT CAP. A frame BODY is up to 64 KiB held for the instance lifetime and multiplied by
- *      `PLUGIN_RESIDENT_RUNTIME_MAX`; `ui.register` needs no such cap because a spec is already bounded to
+ *      the configured broker Worker pool; `ui.register` needs no such cap because a spec is already bounded to
  *      32 KiB. The counter is per-CONTEXT (this closure is built once per sandbox), so it bounds ONE plugin
  *      instance, which is the thing whose memory it is protecting.
  *
@@ -585,6 +585,8 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     // belt as every other guest def value; the schema (enum biconditional, unique names, the arg caps) is what
     // turns a malformed arg into a REGISTRATION refusal rather than a live-value surprise at invoke time.
     using argsH = ctx.getProp(defHandle, "args");
+    using groupH = ctx.getProp(defHandle, "group");
+    using placementsH = ctx.getProp(defHandle, "placements");
     const onRun = ctx.getProp(defHandle, "onRun");
     let parsed: ReturnType<typeof pluginCommandRegistrationMetaSchema.safeParse>;
     // @orb-waive caught-failure-ownership(err): guest-supplied command metadata that fails to dump/validate is REFUSED registration (onRun handle disposed, warn logged) — a malformed untrusted plugin def can never register a live command, the fail-closed direction. Ends if a dump/parse failure ever returns a live command instead of ctx.undefined.
@@ -592,10 +594,18 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       const name = tryDumpGuestValue(ctx, nameH);
       const describe = tryDumpGuestValue(ctx, describeH);
       const args = tryDumpGuestValue(ctx, argsH);
-      if (!(name.ok && describe.ok && args.ok)) {
+      const group = tryDumpGuestValue(ctx, groupH);
+      const placements = tryDumpGuestValue(ctx, placementsH);
+      if (!(name.ok && describe.ok && args.ok && group.ok && placements.ok)) {
         throw new Error("metadata is too deeply nested or too large to validate");
       }
-      parsed = pluginCommandRegistrationMetaSchema.safeParse({ name: name.value, describe: describe.value, args: args.value });
+      parsed = pluginCommandRegistrationMetaSchema.safeParse({
+        name: name.value,
+        describe: describe.value,
+        args: args.value,
+        group: group.value,
+        placements: placements.value,
+      });
     } catch (err) {
       onRun.dispose();
       runtime.logWarn(`ui.registerCommand refused a command: ${err instanceof Error ? err.message : String(err)}`);

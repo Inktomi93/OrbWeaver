@@ -1,5 +1,5 @@
-// infra/plugin-host/module — the ONE process-wide QuickJS-ng WASM module (01 §0). Pins that the loader
-// is a singleton (one WASM instantiation shared) and that it actually produces working, ISOLATED
+// infra/plugin-host/module — the ONE Worker-isolate QuickJS-ng WASM module. Pins that the loader
+// is a singleton within the isolate and that it actually produces working, ISOLATED
 // contexts (own globals per context — the property the runtime was chosen for).
 
 import { getPluginQuickJS } from "@orb/server/infra/plugin-host";
@@ -22,7 +22,7 @@ function evalString(ctx: QuickJSContext, code: string): string {
 }
 
 describe("getPluginQuickJS", () => {
-  test("memoizes one module per process", async () => {
+  test("memoizes one module per Worker isolate", async () => {
     const a = await getPluginQuickJS();
     const b = await getPluginQuickJS();
     expect(a).toBe(b);

@@ -47,7 +47,7 @@ export interface PluginLifecycleLanes {
  *  handler's invocation-chat scope — a resident tool runs in the chat it was called from, with the caller's
  *  read/host authority resolved into `canWrite` by the registrar (`null` = no chat scope). The string in/out is
  *  the JSON-safe membrane boundary; the closure also drives the crash counter. */
-export type PluginInvokeHandler = (handler: PluginHandlerRef, argsJson: PluginInvokeArgs, chat: InvocationChat | null) => Promise<string>;
+export type PluginInvokeHandler = (handler: PluginHandlerRef, argsJson: PluginInvokeArgs, chat: InvocationChat | null, signal?: AbortSignal) => Promise<string>;
 
 /** The deregistration handle a registrar returns — `deactivate`/`uninstall` calls `unregister` so no ghost
  *  tools/transforms/subscriptions survive a disabled/removed plugin. */

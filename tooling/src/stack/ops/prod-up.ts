@@ -13,9 +13,10 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
-import { spawnFullPriorityChild } from "../../_shared/proc.ts";
+import { killPidGroup, spawnFullPriorityChild } from "../../_shared/proc.ts";
 import { childExitCode, forwardSignalsTo } from "../../_shared/proc-signals.ts";
 import { SERVER_ENTRY_REL } from "../../_shared/server-entry.ts";
+import { showcaseArtifactsAreCurrent } from "../../_shared/showcase-artifacts.ts";
 import type { ProdRecord, StackInvocation } from "../contract/types.ts";
 import { debugConflictMessage, resolveDebugArming } from "../lib/debug-env.ts";
 import { classifyInstance, decideUp } from "../lib/identity.ts";
@@ -48,8 +49,84 @@ import { buildClient, debugToken, distVerdict, removePidfile, reportDebugPosture
 refuseDirectInvocation(import.meta.url, "pnpm stack <verb> prod");
 
 const BOOT_POLL_MAX_MS = 120_000;
+const BOOT_ABORT_GRACE_MS = 5000;
 // Log lines echoed when a boot dies or times out — enough to carry a stack trace, short enough to read.
 const BOOT_FAILURE_LOG_LINES = 20;
+
+function processErrorHasCode(error: unknown, code: string): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === code;
+}
+
+function processGroupAlive(pgid: number): boolean {
+  try {
+    process.kill(-pgid, 0);
+    return true;
+    // @orb-waive caught-failure-ownership(error): ESRCH and EPERM are the documented kill(2) probe outcomes and are converted below into the caller's boolean verdict. Ends if this catch handles any other error without rethrowing it.
+  } catch (error) {
+    if (processErrorHasCode(error, "ESRCH")) {
+      return false;
+    }
+    if (processErrorHasCode(error, "EPERM")) {
+      return true;
+    }
+    throw error;
+  }
+}
+
+function signalFailedSpawn(deps: FailedSpawnDeps, pgid: number, signal: "SIGTERM" | "SIGKILL"): void {
+  try {
+    deps.signalGroup(pgid, signal);
+    // @orb-waive caught-failure-ownership(error): ESRCH means the exact just-spawned process group is already gone, which satisfies this cleanup step. Ends if any non-ESRCH failure stops being rethrown.
+  } catch (error) {
+    if (!processErrorHasCode(error, "ESRCH")) {
+      throw error;
+    }
+  }
+}
+
+async function waitForFailedSpawnExit(record: ProdRecord, deps: FailedSpawnDeps): Promise<boolean> {
+  const deadline = deps.now() + BOOT_ABORT_GRACE_MS;
+  while (deps.now() < deadline && deps.groupAlive(record.pgid)) {
+    await deps.pause(POLL_INTERVAL_MS);
+  }
+  return !deps.groupAlive(record.pgid);
+}
+
+export interface FailedSpawnDeps {
+  readonly groupAlive: (pgid: number) => boolean;
+  readonly signalGroup: (pgid: number, signal: "SIGTERM" | "SIGKILL") => void;
+  readonly pause: (ms: number) => Promise<void>;
+  readonly now: () => number;
+  readonly readRecord: typeof readRecord;
+  readonly removePidfile: typeof removePidfile;
+}
+
+const REAL_FAILED_SPAWN_DEPS: FailedSpawnDeps = {
+  groupAlive: processGroupAlive,
+  signalGroup: (pgid, signal) => {
+    killPidGroup(pgid, signal);
+  },
+  pause: (ms) => sleep(ms),
+  now: Date.now,
+  readRecord,
+  removePidfile,
+};
+
+/** Stop a server that failed to boot. Its app-owned watchdog and broker inherit the same detached process
+ *  group, so one bounded teardown covers the complete production process tree. */
+export async function terminateFailedSpawn(record: ProdRecord, deps: FailedSpawnDeps = REAL_FAILED_SPAWN_DEPS): Promise<void> {
+  signalFailedSpawn(deps, record.pgid, "SIGTERM");
+  if (!(await waitForFailedSpawnExit(record, deps))) {
+    signalFailedSpawn(deps, record.pgid, "SIGKILL");
+    await waitForFailedSpawnExit(record, deps);
+  }
+  if (deps.groupAlive(record.pgid)) {
+    throw new Error(`production server process group ${record.pgid} remained live after boot-timeout termination`);
+  }
+  if (mayRemovePidfile(deps.readRecord(), record.pid)) {
+    deps.removePidfile();
+  }
+}
 
 /** Resolve `--debug` into a spawn overlay, or refuse loudly. `undefined` = debug was not asked for; `null`
  *  = REFUSED (the caller returns EXIT.violations without touching the running instance). */
@@ -88,6 +165,11 @@ function preflightBundle(invocation: StackInvocation): ExitCode | null {
   }
   if (dist.state === "stale") {
     log(`WARN — ${dist.message}`);
+  }
+  if (!showcaseArtifactsAreCurrent()) {
+    log("REFUSED — showcase plugin artifacts are missing or stale. Re-run with --build.");
+    result("mode=prod status=no-showcase-artifacts");
+    return EXIT.violations;
   }
   return null;
 }
@@ -141,6 +223,37 @@ async function spawnProd(port: number, debug: boolean, overlay: Readonly<Record<
   }
 }
 
+async function waitForDetachedBoot(record: ProdRecord, plan: ReturnType<typeof buildProdSpawnPlan>, debug: boolean): Promise<ExitCode> {
+  const { pid, port } = record;
+  const deadline = Date.now() + BOOT_POLL_MAX_MS;
+  while (Date.now() < deadline) {
+    if (!processAlive(pid)) {
+      log("the server EXITED during boot — last log lines:");
+      print(tailLog(BOOT_FAILURE_LOG_LINES));
+      await terminateFailedSpawn(record);
+      result(`mode=prod status=boot-failed log=${plan.logPath}`);
+      return EXIT.violations;
+    }
+    const observed = await observe(port);
+    if (classifyInstance({ record, observed, recordProcessAlive: true }).verdict === "ours-healthy") {
+      log("up — verified by identity and answering /healthz");
+      await reportDebugPosture(port);
+      result(`mode=prod status=up pid=${pid} port=${port} debug=${debug} log=${plan.logPath}`);
+      return EXIT.clean;
+    }
+    await sleep(POLL_INTERVAL_MS);
+  }
+  log(`TIMEOUT after ${BOOT_POLL_MAX_MS / MS_PER_SECOND}s waiting for a verified-healthy instance — last log lines:`);
+  print(tailLog(BOOT_FAILURE_LOG_LINES));
+  await terminateFailedSpawn(record);
+  result(`mode=prod status=boot-timeout pid=${pid} log=${plan.logPath}`);
+  return EXIT.violations;
+}
+
+function failedBootCleanupError(error: unknown, cleanupError: unknown): AggregateError {
+  return new AggregateError([error, cleanupError], "production boot failed and its process tree could not be stopped", { cause: error });
+}
+
 /** The spawn itself, running under the spawn lock — see `acquireSpawnLock`. */
 async function spawnProdLocked(port: number, debug: boolean, overlay: Readonly<Record<string, string>> | undefined): Promise<ExitCode> {
   mkdirSync(runDir(), { recursive: true });
@@ -151,8 +264,8 @@ async function spawnProdLocked(port: number, debug: boolean, overlay: Readonly<R
     ...(overlay === undefined ? {} : { debugOverlay: overlay }),
     logPath: LOG_PATH(),
   });
-  // `detached:true` calls setsid(2) in the child BEFORE exec — so the child is its own session/group
-  // leader (pgid === pid), survives this launcher's exit, and one group-kill takes its whole tree.
+  // `detached:true` calls setsid(2) in the child BEFORE exec — so the app is its own session/group leader
+  // and its watchdog plus broker inherit that group. One group kill takes the whole production process tree.
   const child = spawnFullPriorityChild(plan.command, plan.args, { cwd: plan.cwd, env: { ...plan.env }, logPath: plan.logPath, detached: true });
   if (child.pid === undefined) {
     log("spawn failed — no pid.");
@@ -176,35 +289,18 @@ async function spawnProdLocked(port: number, debug: boolean, overlay: Readonly<R
   writeFileSync(PIDFILE(), serializeProdRecord(record));
   log(`spawned pid ${pid} (NODE_ENV=production node ${SERVER_ENTRY_REL}) — log ${plan.logPath}`);
 
-  const deadline = Date.now() + BOOT_POLL_MAX_MS;
-  while (Date.now() < deadline) {
-    if (!processAlive(pid)) {
-      log("the server EXITED during boot — last log lines:");
-      print(tailLog(BOOT_FAILURE_LOG_LINES));
-      // GUARDED, never unconditional: only clear the record if it is still OURS. An overlapping `up` whose
-      // child died on EADDRINUSE would otherwise delete the winner's pidfile, and `down prod` would then
-      // refuse to stop the instance this tool started.
-      if (mayRemovePidfile(readRecord(), pid)) {
-        removePidfile();
-      } else {
-        log("another launcher's record is on disk — leaving its pidfile intact.");
-      }
-      result(`mode=prod status=boot-failed log=${plan.logPath}`);
-      return EXIT.violations;
+  try {
+    return await waitForDetachedBoot(record, plan, debug);
+    // @orb-waive caught-failure-ownership(error): boot failure owns exact process-group cleanup, then rethrows; cleanup failure is combined with the primary error below. Ends if neither branch propagates the primary failure.
+  } catch (error) {
+    try {
+      await terminateFailedSpawn(record);
+      // @orb-waive caught-failure-ownership(cleanupError): both the boot failure and failed containment are returned in an AggregateError. Ends if failedBootCleanupError stops retaining either error.
+    } catch (cleanupError) {
+      throw failedBootCleanupError(error, cleanupError);
     }
-    const observed = await observe(port);
-    if (classifyInstance({ record, observed, recordProcessAlive: true }).verdict === "ours-healthy") {
-      log("up — verified by identity and answering /healthz");
-      await reportDebugPosture(port);
-      result(`mode=prod status=up pid=${pid} port=${port} debug=${debug} log=${plan.logPath}`);
-      return EXIT.clean;
-    }
-    await sleep(POLL_INTERVAL_MS);
+    throw error;
   }
-  log(`TIMEOUT after ${BOOT_POLL_MAX_MS / MS_PER_SECOND}s waiting for a verified-healthy instance — last log lines:`);
-  print(tailLog(BOOT_FAILURE_LOG_LINES));
-  result(`mode=prod status=boot-timeout pid=${pid} log=${plan.logPath}`);
-  return EXIT.violations;
 }
 
 /** `up-fg prod` — run the PRODUCTION server in the FOREGROUND: `NODE_ENV=production node <entry>.ts` in

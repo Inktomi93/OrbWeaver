@@ -1,4 +1,4 @@
-// The ONE QuickJSWASMModule per process. QuickJS-ng via `quickjs-emscripten-core` +
+// The ONE QuickJSWASMModule per broker Worker (module caches are isolate-local). QuickJS-ng via `quickjs-emscripten-core` +
 // `@jitl/quickjs-ng-wasmfile-release-sync` — the -ng variant loaded explicitly (the `quickjs-emscripten`
 // umbrella bundles only the ORIGINAL Bellard quickjs; honoring D46's "-ng" REQUIRES core + the -ng
 // variant, pnpm-workspace.yaml records the full pin rationale). SYNC variant (not asyncify): the
@@ -11,7 +11,12 @@
 
 import variantModule from "@jitl/quickjs-ng-wasmfile-release-sync";
 import type { QuickJSSyncVariant, QuickJSWASMModule } from "quickjs-emscripten-core";
-import { newQuickJSWASMModuleFromVariant } from "quickjs-emscripten-core";
+import { newQuickJSWASMModuleFromVariant, newVariant } from "quickjs-emscripten-core";
+import { PLUGIN_WASM_MEMORY_INITIAL_BYTES, PLUGIN_WASM_MEMORY_MAX_BYTES } from "./budgets.ts";
+
+const webAssemblyRuntime = Reflect.get(globalThis, "WebAssembly") as {
+  readonly ["Memory"]: new (descriptor: WebAssembly.MemoryDescriptor) => WebAssembly.Memory;
+};
 
 // The variant package ships ONE `dist/index.d.ts` for BOTH export conditions and declares no
 // `"type": "module"`, so `nodenext` types it as CJS (`typeof import(…)`, i.e. the namespace) while the
@@ -24,9 +29,28 @@ const variant: QuickJSSyncVariant =
 
 let modulePromise: Promise<QuickJSWASMModule> | undefined;
 
-/** Memoized loader for the single process-wide QuickJS-ng WASM module. Idempotent — every caller shares
- *  one WASM instantiation; contexts are cheap and per-plugin. */
+const KIBIBYTE = 1024;
+const WASM_PAGE_KIBIBYTES = 64;
+const WASM_PAGE_BYTES = WASM_PAGE_KIBIBYTES * KIBIBYTE;
+
+function pages(bytes: number): number {
+  return bytes / WASM_PAGE_BYTES;
+}
+
+/** Memoized loader for this Worker's QuickJS-ng WASM module. Idempotent within the isolate; terminating the
+ *  Worker reclaims this module's linear-memory high-water allocation. */
 export function getPluginQuickJS(): Promise<QuickJSWASMModule> {
-  modulePromise ??= newQuickJSWASMModuleFromVariant(variant);
+  modulePromise ??= newQuickJSWASMModuleFromVariant(
+    newVariant(variant, {
+      // The published Emscripten loader otherwise defaults to maximum:32768 pages (2 GiB). QuickJS's
+      // setMemoryLimit accounts live guest allocations and does not constrain that allocator high-water mark.
+      // One module lives in one recyclable Worker, so this WebAssembly-native maximum is both per guest and
+      // reclaimed when the broker terminates the Worker.
+      wasmMemory: new webAssemblyRuntime.Memory({
+        initial: pages(PLUGIN_WASM_MEMORY_INITIAL_BYTES),
+        maximum: pages(PLUGIN_WASM_MEMORY_MAX_BYTES),
+      }),
+    }),
+  );
   return modulePromise;
 }

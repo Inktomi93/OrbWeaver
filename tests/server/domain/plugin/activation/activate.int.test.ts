@@ -5,9 +5,10 @@
 // its composed-real serializer proof were stripped 2026-07-24 — enterprise spend enforcement.)
 
 import type { Db } from "@orb/db";
+import { DomainConflictError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { PluginHandlerRef, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle } from "@orb/server/domain/plugin";
+import type { PluginHandlerRef, PluginHostOps, PluginHostPort, PluginInvokeHandler, PluginRegistrationHandle } from "@orb/server/domain/plugin";
 import { PluginCrashedError } from "@orb/server/domain/plugin";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
 import { createActivate } from "../../../../../packages/server/src/domain/plugin/activation/activate.ts";
@@ -121,6 +122,82 @@ test("a bundle with no netHosts forwards no allowlist (fail-closed [] infra-side
   await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
 
   expect(h.port.created.at(-1)?.netHosts).toBeUndefined();
+});
+
+test("the cold-wake loader rereads and revalidates the durable bundle instead of closing over activation source", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const installed = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "durable" }, "'activation-source';"),
+    grant: [],
+  });
+  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  const row = await getById(h.ctx.db, owner, installed.id);
+  const loader = h.port.created.at(-1)?.reloadMainJs;
+  if (row === undefined || loader === undefined) {
+    throw new Error("test: activation did not publish its durable source loader");
+  }
+
+  h.storedBytes.set(row.bundleAssetId, makeBundle({ id: "durable" }, "'cold-source';"));
+  await expect(loader()).resolves.toBe("'cold-source';");
+
+  h.storedBytes.set(row.bundleAssetId, new Uint8Array([0, 1, 2]));
+  await expect(loader()).rejects.toThrow(/durable bundle re-validation failed/u);
+});
+
+test("typed host admission pressure does not count as a crash, but a guest-named AbortError does", async () => {
+  const db = await freshDb();
+  let invoke: PluginInvokeHandler | undefined;
+  const base = makeInertOps();
+  const ops: PluginHostOps = {
+    ...base,
+    registrar: {
+      ...base.registrar,
+      registerTool: (_reg, captured) => {
+        invoke = captured;
+        return { unregister: () => undefined };
+      },
+    },
+  };
+  const instance = {
+    tools: [{ name: "busy", description: "busy", parameters: {}, handler: HANDLER }],
+    transforms: [],
+    events: [],
+    pubsub: [],
+    surfaces: [],
+    commands: [],
+    displayTransforms: [],
+    macros: [],
+  } as const;
+  let rejection: Error = new DomainConflictError("plugin host busy");
+  const port: PluginHostPort = {
+    createInstance: () => Promise.resolve({ ok: true, instance }),
+    invoke: () => Promise.reject(rejection),
+    runSnippet: () => Promise.resolve({ logLines: [] }),
+    readLog: () => [],
+    dispose: () => undefined,
+  };
+  const h = makePluginHarness(db, { ops, port });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const installed = await h.service.install({
+    caller: ownerPrincipalFor(owner),
+    bundle: makeBundle({ id: "busy", capabilities: ["tools.register"] }),
+    grant: ["tools.register"],
+  });
+  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  if (invoke === undefined) {
+    throw new Error("test: activation did not register its invoker");
+  }
+
+  await expect(invoke(HANDLER, "{}", null)).rejects.toBeInstanceOf(DomainConflictError);
+  expect((await getById(h.ctx.db, owner, installed.id))?.consecutiveCrashes).toBe(0);
+
+  rejection = new Error("guest refused");
+  rejection.name = "AbortError";
+  await expect(invoke(HANDLER, "{}", null)).rejects.toBe(rejection);
+  expect((await getById(h.ctx.db, owner, installed.id))?.consecutiveCrashes).toBe(1);
 });
 
 test("a registrar refusal discards the whole activation atomically (rollback + errored + disposed)", async () => {

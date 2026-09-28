@@ -20,7 +20,7 @@ git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
 docker compose up -d --build
 ```
 
-Open <http://localhost:8788>. There is no login: the port is published on this machine only, and you are the owner. [`docker/README.md`](docker/README.md) covers login modes, LAN and HTTPS, tunnels, secrets and backups.
+Open <http://localhost:8788>. There is no login: the port is published on this machine only, and you are the owner. The app starts its plugin watchdog and isolated broker as child processes inside the container. [`docker/README.md`](docker/README.md) covers login modes, LAN and HTTPS, tunnels, secrets and backups.
 
 ### From source
 
@@ -44,7 +44,7 @@ pnpm start
 
 The first `pnpm start` in a terminal asks for the port and who uses the app, and saves the answers in `.env`. It builds the client bundle when needed, runs the server in this terminal, and opens the app in your default browser once the server answers. Set `OPEN_BROWSER=off` in `.env` to keep the browser closed. Ctrl-C stops the server. With no terminal (a service, CI, piped input) it asks nothing, opens nothing and starts on the defaults. Over SSH it opens no browser. `pnpm start --port 9000` uses another port for one run.
 
-On Windows, double-click `start.cmd` in the checkout after `pnpm install`. It runs `pnpm start` in its own console window and keeps the window open when the start fails, so you can read why. In a terminal, use PowerShell or Windows Terminal: under Git Bash's own terminal node sees no TTY, so setup asks nothing. The macOS and Windows boots are not yet verified on real hardware.
+On Windows, double-click `start.cmd` in the checkout after `pnpm install`. It runs `pnpm start` in its own console window and keeps the window open when the start fails, so you can read why. In a terminal, use PowerShell or Windows Terminal: under Git Bash's own terminal node sees no TTY, so setup asks nothing. Native starts on every platform run plugins in a separate bounded broker below an RSS and heartbeat watchdog. The macOS and Windows boots are not yet verified on real hardware.
 
 ### Who can sign in
 

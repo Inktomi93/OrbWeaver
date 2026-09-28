@@ -12,14 +12,14 @@ import type { ChatId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import {
-  createPluginHost,
+  createLocalPluginHost as createPluginHost,
   EVENT_QUEUE_DEPTH,
   HOST_FN_ARGS_MAX_BYTES,
   HOST_FN_DEADLINE_MS,
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
   PLUGIN_MEMORY_LIMIT_BYTES,
-  PLUGIN_RESIDENT_RUNTIME_MAX,
+  PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX,
   PLUGIN_SNIPPET_RUNTIME_MAX,
   Sandbox,
 } from "@orb/server/infra/plugin-host";
@@ -39,7 +39,7 @@ const INVOCATION_ENDED_RE = /invocation ended/u;
 const ARGS_CAP_RE = /arguments exceed/u;
 /** The resident-handler args channel's JSON-only refusal (a non-JSON payload never reaches the guest). */
 const ARGS_JSON_RE = /args must be a JSON document/u;
-const RESIDENT_CAPACITY_RE = /resident runtime capacity/u;
+const RESIDENT_CAPACITY_RE = /local resident runtime capacity/u;
 const HOST_FN_EXCEEDED_RE = /exceeded/u;
 const HOST_OPERATION_ABORTED_RE = /abort/u;
 const UNKNOWN_OR_DISPOSED_RE = /unknown\/disposed/u;
@@ -204,7 +204,7 @@ function makeHost(): ReturnType<typeof createPluginHost> {
   return createPluginHost(makeSeams());
 }
 
-describe("port.createInstance — process-wide resident admission", () => {
+describe("port.createInstance — direct-adapter resident admission", () => {
   test("held activations consume admission, exhaustion refuses softly, and dispose releases for retry", { timeout: LONG }, async () => {
     const hostA = makeHost();
     const hostB = makeHost();
@@ -233,7 +233,7 @@ describe("port.createInstance — process-wide resident admission", () => {
       budgets: { cpuDeadlineMs: 1000, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES, settleGraceMs: 20_000 },
     };
 
-    const held = Array.from({ length: PLUGIN_RESIDENT_RUNTIME_MAX }, (_, index) => (index % 2 === 0 ? hostA : hostB).createInstance(input));
+    const held = Array.from({ length: PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX }, (_, index) => (index % 2 === 0 ? hostA : hostB).createInstance(input));
     // Admitted instances land here (in `finally`, UNCONDITIONALLY) so they always get disposed — even
     // when an assertion throws before this point. Disposal is the only thing that frees a resident slot;
     // releasing the bridge gate alone unblocks the guest but leaves its admission held, so a throw
@@ -245,8 +245,8 @@ describe("port.createInstance — process-wide resident admission", () => {
       // Poll to settled instead of a fixed tick: under load the 16 WASM sandbox creations do not all
       // reach the bridge inside one macrotask spin, and a fixed wait here stranded the admitted leases
       // outside any `finally`, cascading a single flaky assertion into every later test in this file.
-      await waitForReleases(releases, PLUGIN_RESIDENT_RUNTIME_MAX);
-      expect(releases).toHaveLength(PLUGIN_RESIDENT_RUNTIME_MAX);
+      await waitForReleases(releases, PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX);
+      expect(releases).toHaveLength(PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX);
 
       await assertOverflowRefused(hostB, input);
     } finally {
@@ -258,7 +258,7 @@ describe("port.createInstance — process-wide resident admission", () => {
         (index % 2 === 0 ? hostA : hostB).dispose(instance);
       }
     }
-    expect(instances).toHaveLength(PLUGIN_RESIDENT_RUNTIME_MAX);
+    expect(instances).toHaveLength(PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX);
 
     const retry = await hostA.createInstance({ ...input, mainJs: "'ok'" });
     expect(retry.ok).toBe(true);
@@ -271,7 +271,7 @@ describe("port.createInstance — process-wide resident admission", () => {
     const host = makeHost();
     const base = fakeBridge().bridge;
     const anchors: PluginInstance[] = [];
-    for (let index = 0; index < PLUGIN_RESIDENT_RUNTIME_MAX - 1; index += 1) {
+    for (let index = 0; index < PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX - 1; index += 1) {
       const anchor = await host.createInstance({ mainJs: "'ok'", grants: [], bridge: base, chat: noChat });
       expect(anchor.ok).toBe(true);
       if (anchor.ok) {
@@ -1249,12 +1249,12 @@ describe("runSnippet — process-wide snippet admission", () => {
   // passing now that it takes one — which is exactly what would break if the two pools were ever merged.
   test("FENCE: a full RESIDENT pool cannot starve snippets (the two pools are separate by design)", { timeout: LONG }, async () => {
     // A resident lease is held for the plugin's whole enabled lifetime; a snippet's is one call. Sharing one
-    // counter would let PLUGIN_RESIDENT_RUNTIME_MAX installed plugins kill the console permanently.
+    // counter would let PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX direct-adapter residents kill the console permanently.
     const host = makeHost();
     const { bridge } = fakeBridge();
     const residents: PluginInstance[] = [];
     try {
-      for (let index = 0; index < PLUGIN_RESIDENT_RUNTIME_MAX; index += 1) {
+      for (let index = 0; index < PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX; index += 1) {
         const outcome = await host.createInstance({ mainJs: "'ok'", grants: [], bridge, chat: noChat });
         expect(outcome.ok).toBe(true);
         if (outcome.ok) {

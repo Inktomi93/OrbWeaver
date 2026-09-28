@@ -47,7 +47,7 @@ export interface SandboxLimits {
    *  BYTECODE only. It bounds the invocation AND each post-invocation job pump: one window per span of guest
    *  execution, never a bound on their sum (`cpu-guard.ts`). */
   readonly cpuDeadlineMs: number;
-  /** WASM memory cap for the whole instance, bytes. */
+  /** QuickJS live guest-allocation accounting cap for the instance, bytes; not a WASM or RSS ceiling. */
   readonly memoryLimitBytes: number;
   /** Grace above {@link cpuDeadlineMs} before the invocation is force-ENDED in real time
    *  (`cpuDeadlineMs + settleGraceMs` = the settlement deadline). This is the bound the interrupt CANNOT
@@ -498,6 +498,43 @@ export class Sandbox implements Disposable {
       return;
     }
     await Promise.all([...settlements]);
+  }
+
+  /** Give activation-time fire-and-forget continuations a bounded chance to finish before the port freezes the
+   *  registration catalog. `main.js` is allowed to start an async bootstrap without returning its Promise (the
+   *  Card Atlas seed does this after its synchronous fallback registration), so `evalGuest()` settling does not
+   *  by itself mean registration has quiesced. Each pass snapshots the guest Promises already created by host
+   *  calls; their `settled` hooks pump the guest jobs before this await resumes, and the loop sees any next host
+   *  call that continuation started. The absolute invocation wall prevents an unbounded promise chain from
+   *  turning activation into an unbounded command. Work still pending at the wall retains the existing posture:
+   *  it may finish later in the live runtime, but it is outside the catalog returned by this activation. */
+  async settleActivationJobs(): Promise<void> {
+    const deadline = performance.now() + this.limits.cpuDeadlineMs + this.limits.settleGraceMs;
+    while (this.state.pending.size > 0) {
+      const remainingMs = deadline - performance.now();
+      if (remainingMs <= 0) {
+        return;
+      }
+      const pending = [...this.state.pending].map((deferred) =>
+        // @orb-waive caught-failure-ownership(deferred.settled): the guest promise already received this host rejection; this barrier waits only for quiescence so either settlement advances activation. Ends if the guest projection stops owning the rejection.
+        deferred.settled.then(
+          () => undefined,
+          () => undefined,
+        ),
+      );
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          Promise.all(pending),
+          new Promise<void>((resolve) => {
+            timer = setTimeout(resolve, remainingMs);
+            timer.unref();
+          }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+    }
   }
 
   /** Drive one guest computation (an eval or a resident-handler call) under the per-invocation budget: pump the

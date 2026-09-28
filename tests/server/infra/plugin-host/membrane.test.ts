@@ -1480,6 +1480,44 @@ describe("host.ui — declarative surface registration + state publish (U1)", ()
     ]);
   });
 
+  test("#0237: registerCommand admits closed placement metadata and refuses duplicate targets", async () => {
+    const { bridge } = fakeBridge();
+    const collected: PluginCommandRegistrationMeta[] = [];
+    const runtime = makeRuntime(uiGrants, false, bridge, {
+      collectCommand: (meta, onRun): void => {
+        collected.push(meta);
+        onRun.dispose();
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      const out = ctx.evalCode(`
+        host.ui.registerCommand({
+          name: "draw", describe: "Draw", group: "Cards",
+          placements: [{ target: "composer-action", label: "Draw", icon: "star" }],
+          onRun: () => {},
+        });
+        host.ui.registerCommand({
+          name: "bad", describe: "Bad",
+          placements: [{ target: "composer-media", label: "One" }, { target: "composer-media", label: "Two" }],
+          onRun: () => {},
+        });
+        "ok";
+      `);
+      if (out.error) {
+        throw new Error(readString(ctx, out.error));
+      }
+      out.value.dispose();
+    });
+    expect(collected).toEqual([
+      {
+        name: "draw",
+        describe: "Draw",
+        group: "Cards",
+        placements: [{ target: "composer-action", label: "Draw", icon: "star" }],
+      },
+    ]);
+  });
+
   test("#791: an enum arg missing its enumValues is a SOFT refusal (the biconditional), never activation-fatal", async () => {
     const { bridge } = fakeBridge();
     const collected: string[] = [];

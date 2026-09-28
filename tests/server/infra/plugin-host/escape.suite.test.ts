@@ -70,7 +70,11 @@ function makeSeams(seed = 1): HostSeams {
 }
 
 function makeHost(): ReturnType<typeof createPluginHost> {
-  return createPluginHost(makeSeams());
+  const host = createPluginHost(makeSeams());
+  return {
+    ...host,
+    createInstance: (input) => host.createInstance({ ...input, reloadMainJs: () => Promise.resolve(input.mainJs) }),
+  };
 }
 
 /** Install a realm on a fresh context (caller disposes). */

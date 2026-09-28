@@ -9,6 +9,10 @@
 // time jump) must never be able to disable the DoS kill — so the interrupt reads real monotonic time, the
 // guest reads the seam.
 
+const BYTES_PER_MEBIBYTE = 1_048_576;
+const WASM_INITIAL_MEBIBYTES = 16;
+const WASM_MAX_MEBIBYTES = 48;
+
 /** Guest CPU budget for ONE SPAN of guest execution (installed plugin handler/tool/transform). Enforced by the
  *  QuickJS interrupt handler comparing REAL wall-time against the open window.
  *
@@ -22,34 +26,40 @@ export const PLUGIN_INVOCATION_CPU_MS = 1000;
 /** Inline snippet total wall-clock run — the whole snippet, not per-call. */
 export const SNIPPET_WALL_MS = 5000;
 
-/** WASM memory cap per QuickJSContext (setMemoryLimit), in bytes (= 32 MiB). Over-limit allocation fails
- *  guest-side and is CONTAINED to the instance — the property QuickJS-ng-WASM was chosen for (README
- *  rejected `isolated-vm` precisely because V8 cannot unwind OOM). */
+/** QuickJS's LIVE guest-allocation accounting ceiling (= 32 MiB). This is NOT a WebAssembly or process RSS
+ *  ceiling: the published Emscripten build may grow its allocator's linear-memory high-water mark while live
+ *  QuickJS allocations remain below this number. {@link PLUGIN_WASM_MEMORY_MAX_BYTES} is the independent
+ *  per-Worker linear-memory wall; the broker watchdog is the aggregate host backstop. */
 export const PLUGIN_MEMORY_LIMIT_BYTES = 33_554_432;
 
-/** Process-wide resident QuickJS contexts. Each context carries its own 32 MiB hard ceiling, so leaving the
- *  registry unbounded converts installed-plugin count directly into unbounded process memory. Admission is
- *  reserved before activation starts (not after the instance enters the resident map), and released only after
- *  activation failure or teardown. Explicit refusal is safer than evicting a live plugin behind its registrars. */
-export const PLUGIN_RESIDENT_RUNTIME_MAX = 16;
+/** The prebuilt QuickJS-ng module declares a 256-page imported-memory minimum. Probe receipt
+ *  `/tmp/orb-0238-capped-wasm-probe.log`: 1–15 MiB fail instantiation, 16 MiB boots the shipped Draft Polish
+ *  plugin. A fresh Worker starts here and grows only under actual guest demand. */
+export const PLUGIN_WASM_MEMORY_INITIAL_BYTES = WASM_INITIAL_MEBIBYTES * BYTES_PER_MEBIBYTE;
 
-/** Process-wide CONCURRENT snippet contexts — the transient half of the same ceiling, and a SEPARATE pool
- *  from {@link PLUGIN_RESIDENT_RUNTIME_MAX} on purpose. A snippet mints exactly the same 32 MiB
- *  `QuickJSContext` an activation does, so leaving `runSnippet` unadmitted made the process ceiling a
- *  fiction: `SNIPPET_CONCURRENCY_PER_USER` is a PER-USER cap, so N distinct members multiplied straight
- *  through it.
+/** Hard linear-memory maximum for ONE recyclable QuickJS Worker. The supported `newVariant({wasmMemory})`
+ *  hook enforces it in WebAssembly itself. Probe receipt: a 4 MiB guest allocation bomb fills this whole
+ *  48 MiB (confirming `setMemoryLimit` alone is not the wall) and then returns a contained OOM; a 31 MiB
+ *  typed allocation still succeeds under the normal 32 MiB guest-accounting cap. Worker termination returns
+ *  the high-water allocation to the OS. This does not bound Node/FFI memory; the broker RSS watchdog monitors
+ *  and terminates the isolated process when its aggregate crosses the configured ceiling. */
+export const PLUGIN_WASM_MEMORY_MAX_BYTES = WASM_MAX_MEBIBYTES * BYTES_PER_MEBIBYTE;
+
+/** Direct-adapter admission used by `createLocalPluginHost` tests and non-broker embeddings. The production
+ *  broker never treats this as an enabled-plugin or warm-Worker ceiling; its measured configured pool owns
+ *  that bound. A broker Worker still receives only one logical guest from `worker-runtime.ts`. */
+export const PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX = 16;
+
+/** Process-wide concurrent snippet REQUESTS. This is a queue/workload guard, not a second physical capacity
+ *  pool: snippets and warm residents both acquire the broker's configured Worker pool, so this number cannot
+ *  multiply past the aggregate memory envelope. It remains separate from enabled logical count because an
+ *  enabled sleeping plugin consumes no Worker and must not permanently starve the console.
  *
- *  WHY NOT ONE SHARED POOL. The two leases have incomparable lifetimes: a resident's is held for the whole
- *  time its plugin is enabled, a snippet's for one ≤5 s call. Sharing a counter lets the long-lived side
- *  monotonically eat it — 16 installed plugins would kill the snippet console PERMANENTLY, which is a
- *  starvation, not a refusal. Two pools mean a snippet storm cannot refuse an activation and a full
- *  install roster cannot refuse a REPL; each side's ceiling is the honest number for its own class.
- *
- *  THE PROCESS CEILING IS THEREFORE (16 + 8) × 32 MiB = 768 MiB of guest heap, worst case, and that sum is
- *  the number to review against soak data — never one constant alone. 8 is a LEAN with its resolution
- *  criterion: it is two members at their full per-user allowance of 4 at the same instant, which is the
- *  concurrency a personal REPL actually produces; raise it when real multi-member load refuses an honest
- *  snippet, lower it if measured abuse arrives first. */
+ *  8 is a LEAN with its resolution criterion: it is two members at their full per-user allowance of 4 at the
+ *  same instant, which is the concurrency a personal REPL actually produces; raise it when real multi-member
+ *  load refuses an honest snippet, lower it if measured abuse arrives first. The monitored RSS ceiling and
+ *  Worker maximum must be derived together from full-Worker measurements; the 48 MiB WASM ceiling omits larger
+ *  Node/FFI cost and cannot size the process by itself. */
 export const PLUGIN_SNIPPET_RUNTIME_MAX = 8;
 
 /** Explicit guest stack ceiling (bytes) — MANDATORY, not cosmetic. FINDING: QuickJS-ng's DEFAULT
@@ -198,6 +208,11 @@ export const PLUGIN_LOG_RING_CHARS = 131_072;
  *  bytecode only, so a guest awaiting a never-settling promise wedged the tail forever until the settlement
  *  deadline landed). */
 export const EVENT_QUEUE_DEPTH = 16;
+
+/** Process-side requests waiting for a physical broker Worker. This queue exists before broker admission, so
+ *  every entry retains its invocation arguments or activation source in the app process. Bounding it is the
+ *  aggregate app-memory wall for pressure that has not reached the broker process yet. */
+export const PLUGIN_RUNTIME_REQUEST_QUEUE_MAX = 32;
 
 // NOTE: the consecutive-crash auto-disable threshold is DOMAIN lifecycle policy, not a sandbox runtime
 // budget — it lives in `domain/plugin/activation/crash-policy.ts` (`PLUGIN_CRASH_DISABLE_THRESHOLD`). It is NOT

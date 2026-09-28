@@ -74,6 +74,23 @@ test("a registered plugin tool executes through the one pipeline; the guest stri
   expect(record?.result).toBe('echo:{"tag":"calm"}');
 });
 
+test("the turn cancellation signal reaches the plugin runtime admission request", async () => {
+  const service = serviceWith();
+  const controller = new AbortController();
+  let received: AbortSignal | undefined;
+  service.registerPluginTool(
+    specOf({
+      invoke: (_argsJson, _chat, signal) => {
+        received = signal;
+        return Promise.resolve("ok");
+      },
+    }),
+  );
+  const record = await runOne(service, "plugin_mood_report", { tag: "calm" }, { exec: execOf({ signal: controller.signal }) });
+  expect(record?.isError).toBe(false);
+  expect(received).toBe(controller.signal);
+});
+
 test("the lifted schema is ENFORCED — malformed guest args are errors-as-data, never reach the guest", async () => {
   const service = serviceWith();
   let invoked = false;

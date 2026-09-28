@@ -1,7 +1,6 @@
 # Orbweaver in Docker
 
-One image, one service, your models. The app ships without any model server: paste a cloud API key in
-Settings, or point it at a model server you already run.
+One image runs the app. The app starts its plugin watchdog and isolated broker as child processes; it ships without any model server. Paste a cloud API key in Settings, or point a connection at a model server you already run.
 
 ## Quick start
 
@@ -14,9 +13,11 @@ docker compose up -d --build        # builds the image from the checkout (a few 
 
 Open <http://localhost:8788>. You are the owner; there is no login. Settings → Connections: add an API
 key (OpenRouter, Anthropic, …) or a model server (below), choose it for Chat under "Model roles", then pick a
-character and chat. Nothing was edited to
-get here; every knob is optional and lives in `docker/orbweaver.env` (the tracked defaults, commented),
-overridable in `docker/orbweaver.local.env` (gitignored).
+character and chat. Nothing was edited to get here. The plugin broker has fixed guest, Worker, host-call, IPC,
+and queue bounds; its separate watchdog monitors whole-broker RSS and heartbeat and restarts it after a limit
+or liveness failure. The app and broker share this container's cgroup, so this monitored ceiling has bounded
+overshoot and is not a broker-only kernel memory limit. Every setting remains optional in `docker/orbweaver.env`,
+overridable in `docker/orbweaver.local.env`.
 
 There is no published image: the checkout is the source of truth and the build is part of `up`. To update:
 `git pull && docker compose up -d --build` (migrations run at boot, with a backup of the database first).

@@ -14,6 +14,7 @@
 import type { ProviderDef } from "@orb/contracts/inference";
 import type { PluginInstance } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
+import { DomainConflictError } from "@orb/kit/errors";
 import type { PluginActivationScope, PluginInvokeHandler, PluginRegistrationHandle } from "../contract/ops.ts";
 import type { ActivateInput, ActivateOutcome, CrashPolicy, PluginContext, PluginProviderLifecycle, PluginRegistry } from "../contract/service.ts";
 import { setStatus } from "../persistence/plugins.ts";
@@ -122,6 +123,28 @@ function revalidate(
   }
 }
 
+async function loadRevalidatedBundle(
+  ctx: PluginContext,
+  input: ActivateInput,
+): Promise<{ readonly ok: true; readonly bundle: RevalidatedBundle } | { readonly ok: false; readonly error: string }> {
+  const { bytes } = await ctx.assets.readBytes(input.caller, input.bundleAssetId);
+  return revalidate(bytes, input.withheldNetHosts);
+}
+
+function durableMainJsLoader(ctx: PluginContext, input: ActivateInput): () => Promise<string> {
+  return async (): Promise<string> => {
+    const reloaded = await loadRevalidatedBundle(ctx, input);
+    if (!reloaded.ok) {
+      throw new Error(`plugin host: durable bundle re-validation failed: ${reloaded.error}`);
+    }
+    return reloaded.bundle.mainJs;
+  };
+}
+
+function isHostAdmissionRefusal(error: unknown): boolean {
+  return error instanceof DomainConflictError;
+}
+
 async function providerActivationError(
   providerLifecycle: PluginProviderLifecycle,
   rows: readonly ProviderDef[],
@@ -144,8 +167,7 @@ export function createActivate(
   providerLifecycle: PluginProviderLifecycle,
 ): (input: ActivateInput) => Promise<ActivateOutcome> {
   return async (input: ActivateInput): Promise<ActivateOutcome> => {
-    const { bytes } = await ctx.assets.readBytes(input.caller, input.bundleAssetId);
-    const revalidated = revalidate(bytes, input.withheldNetHosts);
+    const revalidated = await loadRevalidatedBundle(ctx, input);
     if (!revalidated.ok) {
       await setStatus(ctx.db, input.pluginId, {
         status: "errored",
@@ -168,6 +190,7 @@ export function createActivate(
     // `/api/_debug/logs?q=<slug>`) — manifest-DERIVED like the slug and netHosts beside it, never guest-supplied.
     const outcome = await ctx.host.createInstance({
       mainJs,
+      reloadMainJs: durableMainJsLoader(ctx, input),
       grants: input.grants,
       bridge,
       chat: null,
@@ -184,12 +207,15 @@ export function createActivate(
     // `ctx.host.invoke` REJECTING → bump the consecutive-crash counter (auto-disable + owner-notify at the
     // threshold) and RE-THROW so the tool-use registrar catches it as `threw` (errors-as-data to the model); a
     // clean run resets the counter. `chat` is the registrar-resolved invocation scope (read admits, host writes).
-    const invoke: PluginInvokeHandler = async (handler, argsJson, chat) => {
+    const invoke: PluginInvokeHandler = async (handler, argsJson, chat, signal) => {
       try {
-        const result = await ctx.host.invoke(instance, handler, argsJson, chat);
+        const result = await ctx.host.invoke(instance, handler, argsJson, chat, signal);
         await crashPolicy.recordCleanRun(input.pluginId);
         return result;
       } catch (err) {
+        if (isHostAdmissionRefusal(err)) {
+          throw err;
+        }
         await crashPolicy.recordCrash({ pluginId: input.pluginId, recipientUserId: input.caller.userId, error: errorMessage(err) });
         throw err;
       }
