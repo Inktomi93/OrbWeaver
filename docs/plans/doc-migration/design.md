@@ -1,14 +1,14 @@
 ---
 kind: plan
 status: active
-updated: 2026-09-23
+updated: 2026-09-28
 ---
 
 # Doc migration: the legacy tree moves into the four homes
 
 ## Goal
 
-Move every document that survives out of docs/architecture/, docs/design/ and docs/history/ into `docs/law/`, `docs/adr/`, `docs/plans/` or the plan archive under `docs/plans/`, delete what does not survive, and remove the attestation catalog and the GitHub board tool, so that `pnpm check:agents` is the one docs checker and `tooling/src/doc/lib/rules.ts` its one rule home. The vendored-doc mirrors this plan formerly named already landed a straight deletion instead of a migration — nothing there survived to move. The ruling and the tool's design are both folded into `docs/adr/0222-docs-plans-adrs-no-archive.md`.
+The document tree and work tracker use the homes defined by `docs/law/docs-and-work.md`. The remaining work is `docs/work/0046-every-law-rule-is-enforced-by-a-gate.md`: name an enforcer or a reason for every standing law rule, or remove the rule.
 
 ## Shape
 

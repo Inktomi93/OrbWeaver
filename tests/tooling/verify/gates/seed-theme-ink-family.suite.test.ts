@@ -11,8 +11,13 @@ import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-gra
 import { readSeedPalettes } from "../../../../tooling/src/verify/lib/seed-theme-ink.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-test("seed-theme-ink-contrast keeps its three-arm proofs", () => {
+// The resource-backed proof costs 6 s inside an affected-instrument cohort; double that loaded lower bound
+// through the house load scaler so contention cannot impersonate a policy failure.
+const POLICY_PROOFS_TIMEOUT_MS = scaledBudget(12_000);
+
+test("seed-theme-ink-contrast keeps its three-arm proofs", { timeout: POLICY_PROOFS_TIMEOUT_MS }, () => {
   expect(verifyPolicyProofs([seedThemeInkContrast])).toEqual([]);
 });
 

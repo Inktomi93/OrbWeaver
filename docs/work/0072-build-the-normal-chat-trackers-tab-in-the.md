@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-09-23
+status: blocked
+updated: 2026-09-28
 priority: P3
 area: client
+blocked: on 52
 plan: world-state-clips
 ---
 

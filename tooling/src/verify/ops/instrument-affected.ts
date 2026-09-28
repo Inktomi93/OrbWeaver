@@ -17,11 +17,13 @@
 // `--full`. This lane runs the AFFECTED subset and nothing else, and refuses to run anything when the
 // branch touched no instrument.
 //
-// TWO REACHES, and the second is the one the measured failures needed:
+// THREE REACHES:
 //   1. THE MIRROR — `tooling/src/X.ts` → `tests/tooling/X<suffix>.ts`, through the shared
 //      `_shared/test-mirror.ts#resolveMirrors` the mutation probe already reads. Never re-derived here:
 //      `test-layout` enforces that relation in the other direction and one spelling of it is the point.
-//   2. THE GATE-ID STRING — a changed `tooling/src/verify/gates/<id>.ts` also selects every spec under
+//   2. THE IMPORT GRAPH — a data/helper module reaches every tooling spec that transitively imports it,
+//      including re-exports and cycles. This is the production path for split tables such as reviewed grants.
+//   3. THE GATE-ID STRING — a changed `tooling/src/verify/gates/<id>.ts` also selects every spec under
 //      `tests/tooling/verify/gates/` whose TEXT contains `"<id>"`. This is load-bearing and is the whole
 //      reason the mirror alone is not enough: a family test routinely lives under its WAVE's name rather
 //      than its gate's (`contract-shape-wave-1.test.ts`, `simple-visitors-wave-2.test.ts`, …), so the
@@ -51,7 +53,7 @@ import { emitLine, warn } from "@orb/tooling/_shared/log";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { resolveMirrors } from "@orb/tooling/_shared/test-mirror";
 import { NOTICE_MARKER } from "../contract/stage.ts";
-import { toolingTestsNaming } from "../lib/instrument-affected-reach.ts";
+import { toolingTestsImporting, toolingTestsNaming } from "../lib/instrument-affected-reach.ts";
 import { branchChangedPaths, existsRel, resolveMergeBase } from "../lib/repo-paths.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm verify --push  /  pnpm check:instrument-affected");
@@ -84,6 +86,8 @@ export interface InstrumentAffectedSelection {
   readonly sources: readonly string[];
   /** The `tests/tooling/**` specs those sources reach, sorted and de-duplicated. */
   readonly specs: readonly string[];
+  /** Changed sources with no mirror, import-graph or policy-family spec reach. */
+  readonly unreachedSources: readonly string[];
   /** Set when the branch answer was UNCOMPUTABLE: the caller must run the whole battery, never nothing. */
   readonly unknown: boolean;
 }
@@ -91,22 +95,34 @@ export interface InstrumentAffectedSelection {
 /** THE SELECTION, as a pure function of a changed set so the pin can drive it without a git repository. */
 export function selectAffectedInstrumentTests(root: string, changed: readonly string[] | null): InstrumentAffectedSelection {
   if (changed === null) {
-    return { sources: [], specs: [], unknown: true };
+    return { sources: [], specs: [], unreachedSources: [], unknown: true };
   }
   const sources = instrumentSources(root, changed);
+  if (sources.length === 0) {
+    return { sources, specs: [], unreachedSources: [], unknown: false };
+  }
+  const importReach = toolingTestsImporting(root, sources);
   const specs = new Set<string>();
+  const unreachedSources: string[] = [];
   for (const source of sources) {
+    const sourceSpecs = new Set<string>(importReach.get(source) ?? []);
     for (const mirror of resolveMirrors(root, source)) {
-      specs.add(mirror);
+      sourceSpecs.add(mirror);
     }
     const id = policyIdOf(source);
     if (id !== undefined) {
       for (const spec of toolingTestsNaming(root, id)) {
-        specs.add(spec);
+        sourceSpecs.add(spec);
       }
     }
+    if (sourceSpecs.size === 0) {
+      unreachedSources.push(source);
+    }
+    for (const spec of sourceSpecs) {
+      specs.add(spec);
+    }
   }
-  return { sources, specs: [...specs].toSorted(), unknown: false };
+  return { sources, specs: [...specs].toSorted(), unreachedSources, unknown: false };
 }
 
 /** `pnpm check:instrument-affected` — the stage body. */
@@ -134,12 +150,12 @@ export function runInstrumentAffected(root: string): number {
     );
     return EXIT.clean;
   }
-  if (selection.specs.length === 0) {
+  if (selection.unreachedSources.length > 0) {
     // A CHANGED INSTRUMENT THAT REACHES NO SPEC IS A FINDING, NOT A PASS. `test-presence` owns the
     // obligation; this stage would otherwise print a clean zero over the exact blindness #1967 is about.
     warn(
-      `instrument-affected: ${String(selection.sources.length)} changed instrument source(s) reach NO spec under tests/tooling — ` +
-        `${selection.sources.join(", ")}. A changed instrument with no test that names it is unrecertified, not clean (tooling/src/verify/gates/GATE-AUTHORING.md §8).`,
+      `instrument-affected: ${String(selection.unreachedSources.length)} of ${String(selection.sources.length)} changed instrument source(s) reach NO spec under tests/tooling — ` +
+        `${selection.unreachedSources.join(", ")}. A changed instrument with no test that reaches it is unrecertified, not clean (tooling/src/verify/gates/GATE-AUTHORING.md §8).`,
     );
     return EXIT.violations;
   }
