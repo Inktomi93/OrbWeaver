@@ -440,6 +440,33 @@ export const gate = defineGate({
     },
     {
       mode: "types",
+      files: proofFilesAt(
+        "packages/kit/src/json-schema/lift.ts",
+        'import * as z from "zod";\ndeclare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;\nclass RuntimeGeneratedSchemaBox<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\ntype RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\nnamespace Counterfeit {\n  export const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol = Symbol("counterfeit");\n  export class Box<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\n  export type Generated<Schema extends z.ZodType = z.ZodType> = Box<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\n  export function box<Schema extends z.ZodType>(schema: Schema): Generated<Schema> { return new Box(schema) as Generated<Schema>; }\n}\ntype State = { mode: "idle" | "busy" };\nconst counterfeit = Counterfeit.box(z.object({ mode: z.literal("idle") }));\nexport const schemas: readonly z.ZodType<State>[] = [counterfeit.schema];\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\n',
+      ),
+      expect: { count: 1, token: "counterfeit", messageIncludes: "authored type is not assignable to schema output" },
+      why: "a namespace-scoped same-file brand and carrier cannot impersonate the module-scope runtime-generated-schema declarations by coordinates",
+    },
+    {
+      mode: "types",
+      files: proofFilesAt(
+        "packages/kit/src/json-schema/lift.ts",
+        'import * as z from "zod";\ndeclare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;\nclass RuntimeGeneratedSchemaBox<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\ntype RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\nnamespace Counterfeit {\n  export class Box<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\n  export type Generated<Schema extends z.ZodType = z.ZodType> = Box<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\n  export function box<Schema extends z.ZodType>(schema: Schema): Generated<Schema> { return new Box(schema) as Generated<Schema>; }\n}\ntype State = { mode: "idle" | "busy" };\nconst counterfeit = Counterfeit.box(z.object({ mode: z.literal("idle") }));\nexport const schemas: readonly z.ZodType<State>[] = [counterfeit.schema];\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\n',
+      ),
+      expect: { count: 1, token: "counterfeit", messageIncludes: "authored type is not assignable to schema output" },
+      why: "a same-file wrapper using the canonical brand with a counterfeit carrier proves carrier identity independently",
+    },
+    {
+      mode: "types",
+      files: proofFilesAt(
+        "packages/kit/src/json-schema/lift.ts",
+        'import * as z from "zod";\ndeclare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;\nclass RuntimeGeneratedSchemaBox<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\ntype RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\nnamespace Counterfeit {\n  export const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol = Symbol("counterfeit");\n  export type Generated<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\n  export function box<Schema extends z.ZodType>(schema: Schema): Generated<Schema> { return new RuntimeGeneratedSchemaBox(schema) as Generated<Schema>; }\n}\ntype State = { mode: "idle" | "busy" };\nconst counterfeit = Counterfeit.box(z.object({ mode: z.literal("idle") }));\nexport const schemas: readonly z.ZodType<State>[] = [counterfeit.schema];\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\n',
+      ),
+      expect: { count: 1, token: "counterfeit", messageIncludes: "authored type is not assignable to schema output" },
+      why: "a same-file wrapper using the canonical carrier with a counterfeit brand proves brand identity independently",
+    },
+    {
+      mode: "types",
       files: proofFiles(
         'import * as z from "zod";\ntype State = { mode: "idle" | "busy" };\nconst holder: { readonly schema: z.ZodType<{ mode: "idle" }> } = { schema: z.object({ mode: z.literal("idle") }) };\nexport const schemas: readonly z.ZodType<State>[] = [holder.schema];\n',
       ),
@@ -588,6 +615,33 @@ export const gate = defineGate({
       ),
       expect: { messageIncludes: RECEIPT },
       why: "a same-named counterfeit wrapper using the intersected-brand shape with erased output remains unresolved rather than inheriting the canonical exemption",
+    },
+    {
+      mode: "types",
+      files: proofFilesAt(
+        "packages/kit/src/json-schema/lift.ts",
+        'import * as z from "zod";\ndeclare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;\nclass RuntimeGeneratedSchemaBox<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\ntype RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\nnamespace Counterfeit {\n  export const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol = Symbol("counterfeit");\n  export class Box<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\n  export type Generated<Schema extends z.ZodType = z.ZodType> = Box<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\n  export function box<Schema extends z.ZodType>(schema: Schema): Generated<Schema> { return new Box(schema) as Generated<Schema>; }\n}\ndeclare const erased: z.ZodType;\nconst counterfeit = Counterfeit.box(erased);\nconst generated: readonly z.ZodType[] = [counterfeit.schema];\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\nvoid generated;\n',
+      ),
+      expect: { messageIncludes: RECEIPT },
+      why: "a namespace-scoped same-file brand and carrier with erased output remains unresolved rather than inheriting the module-scope exemption",
+    },
+    {
+      mode: "types",
+      files: proofFilesAt(
+        "packages/kit/src/json-schema/lift.ts",
+        'import * as z from "zod";\ndeclare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;\nclass RuntimeGeneratedSchemaBox<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\ntype RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\nnamespace Counterfeit {\n  export class Box<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\n  export type Generated<Schema extends z.ZodType = z.ZodType> = Box<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\n  export function box<Schema extends z.ZodType>(schema: Schema): Generated<Schema> { return new Box(schema) as Generated<Schema>; }\n}\ndeclare const erased: z.ZodType;\nconst counterfeit = Counterfeit.box(erased);\nconst generated: readonly z.ZodType[] = [counterfeit.schema];\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\nvoid generated;\n',
+      ),
+      expect: { messageIncludes: RECEIPT },
+      why: "a same-file erased wrapper using the canonical brand with a counterfeit carrier proves carrier identity independently",
+    },
+    {
+      mode: "types",
+      files: proofFilesAt(
+        "packages/kit/src/json-schema/lift.ts",
+        'import * as z from "zod";\ndeclare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;\nclass RuntimeGeneratedSchemaBox<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\ntype RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\nnamespace Counterfeit {\n  export const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol = Symbol("counterfeit");\n  export type Generated<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\n  export function box<Schema extends z.ZodType>(schema: Schema): Generated<Schema> { return new RuntimeGeneratedSchemaBox(schema) as Generated<Schema>; }\n}\ndeclare const erased: z.ZodType;\nconst counterfeit = Counterfeit.box(erased);\nconst generated: readonly z.ZodType[] = [counterfeit.schema];\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\nvoid generated;\n',
+      ),
+      expect: { messageIncludes: RECEIPT },
+      why: "a same-file erased wrapper using the canonical carrier with a counterfeit brand proves brand identity independently",
     },
   ],
 });

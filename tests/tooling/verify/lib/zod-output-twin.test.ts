@@ -31,9 +31,8 @@ function firstSchemaAccess(source: string, path = "/packages/kit/src/json-schema
   return found;
 }
 
-// The real lift.ts shape (#2d68e7b): the brand lives on the type alias's intersected literal, not on the
-// carrier class itself, because a `declare` computed class field cannot survive Playwright's bundled Babel
-// transform when a CT spec transitively imports this module.
+// The lift.ts shape keeps the brand on the type alias's intersected literal because Playwright's bundled
+// Babel transform cannot parse a `declare` computed class field before its TypeScript transform runs.
 const CANONICAL_SOURCE = `
 import * as z from "zod";
 declare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;
@@ -61,6 +60,64 @@ const composed: readonly z.ZodType[] = [counterfeit.schema];
 `;
   const access = firstSchemaAccess(shadowSource, "/packages/contracts/src/x.ts");
   expect(readContextualZodOutputTwin(access).kind).not.toBe("none");
+});
+
+test("a namespace-scoped same-file brand and carrier cannot borrow the canonical exemption", () => {
+  const counterfeitSource = `
+import * as z from "zod";
+declare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;
+class RuntimeGeneratedSchemaBox<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }
+type RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };
+namespace Counterfeit {
+  export const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol = Symbol("counterfeit");
+  export class Box<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }
+  export type Generated<Schema extends z.ZodType = z.ZodType> = Box<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };
+  export function box<Schema extends z.ZodType>(schema: Schema): Generated<Schema> { return new Box(schema) as Generated<Schema>; }
+}
+type State = { mode: "idle" | "busy" };
+const counterfeit = Counterfeit.box(z.object({ mode: z.literal("idle") }));
+const composed: readonly z.ZodType<State>[] = [counterfeit.schema];
+`;
+  const access = firstSchemaAccess(counterfeitSource);
+  expect(readContextualZodOutputTwin(access)).toMatchObject({ kind: "pair" });
+});
+
+test("the canonical brand cannot exempt a counterfeit same-file carrier", () => {
+  const counterfeitSource = `
+import * as z from "zod";
+declare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;
+class RuntimeGeneratedSchemaBox<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }
+type RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };
+namespace Counterfeit {
+  export class Box<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }
+  export type Generated<Schema extends z.ZodType = z.ZodType> = Box<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };
+  export function box<Schema extends z.ZodType>(schema: Schema): Generated<Schema> { return new Box(schema) as Generated<Schema>; }
+}
+type State = { mode: "idle" | "busy" };
+const counterfeit = Counterfeit.box(z.object({ mode: z.literal("idle") }));
+const composed: readonly z.ZodType<State>[] = [counterfeit.schema];
+`;
+  const access = firstSchemaAccess(counterfeitSource);
+  expect(readContextualZodOutputTwin(access)).toMatchObject({ kind: "pair" });
+});
+
+test("the canonical carrier cannot exempt a counterfeit same-file brand", () => {
+  const counterfeitSource = `
+import * as z from "zod";
+declare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;
+class RuntimeGeneratedSchemaBox<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }
+type RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };
+namespace Counterfeit {
+  export const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol = Symbol("counterfeit");
+  export type Generated<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };
+  export function box<Schema extends z.ZodType>(schema: Schema): Generated<Schema> { return new RuntimeGeneratedSchemaBox(schema) as Generated<Schema>; }
+}
+type State = { mode: "idle" | "busy" };
+const counterfeit = Counterfeit.box(z.object({ mode: z.literal("idle") }));
+const composed: readonly z.ZodType<State>[] = [counterfeit.schema];
+`;
+  const access = firstSchemaAccess(counterfeitSource);
+  expect(readContextualZodOutputTwin(access)).toMatchObject({ kind: "pair" });
 });
 
 test("a bare member with no brand at all stays visible", () => {

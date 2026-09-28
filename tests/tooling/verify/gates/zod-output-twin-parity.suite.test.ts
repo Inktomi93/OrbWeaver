@@ -155,3 +155,76 @@ test("only the canonical branded generated-schema member is omitted from context
   expect(counterfeitResult.authority.withheldPolicyIds).toContain(gate.id);
   expect(counterfeitResult.policies[0]?.receipts[0]).toMatchObject({ members: 1, unresolved: 1 });
 });
+
+test("same-file namespace counterfeits cannot borrow module-scope brand and carrier identity", () => {
+  const narrowed = required(
+    gate.mustFlag.find((proof) => proof.why.includes("namespace-scoped same-file brand and carrier")),
+    "namespace-scoped same-file brand and carrier",
+  );
+  const narrowedResult = drive(narrowed.files);
+  expect(narrowedResult.toolErrors).toEqual([]);
+  expect(narrowedResult.authority.effectiveFindings).toHaveLength(1);
+  expect(narrowedResult.authority.effectiveFindings[0]?.token).toBe("counterfeit");
+  expect(narrowedResult.authority.withheldPolicyIds).toEqual([]);
+  expect(narrowedResult.policies[0]?.receipts).toEqual([
+    {
+      kind: "population",
+      source: "zod-output-twin-parity concrete authored pairs [declarations=0, expression-pairs=1, contextual-pairs=1, raw-casts=0]",
+      members: 2,
+      unresolved: 0,
+    },
+  ]);
+
+  const erased = required(
+    gate.mustRefuse.find((proof) =>
+      proof.why.includes("namespace-scoped same-file brand and carrier with erased output"),
+    ),
+    "namespace-scoped same-file brand and carrier with erased output",
+  );
+  const erasedResult = drive(erased.files);
+  expect(erasedResult.authority.effectiveFindings).toEqual([]);
+  expect(erasedResult.authority.withheldPolicyIds).toContain(gate.id);
+  expect(erasedResult.policies[0]?.receipts[0]).toMatchObject({ members: 1, unresolved: 1 });
+});
+
+test("single-axis same-file counterfeits independently prove brand and carrier identity", () => {
+  for (const axis of [
+    "canonical brand with a counterfeit carrier",
+    "canonical carrier with a counterfeit brand",
+  ] as const) {
+    const narrowed = required(
+      gate.mustFlag.find((proof) => proof.why.includes(axis)),
+      axis,
+    );
+    const narrowedResult = drive(narrowed.files);
+    expect(narrowedResult.toolErrors, axis).toEqual([]);
+    expect(narrowedResult.authority.effectiveFindings, axis).toHaveLength(1);
+    expect(narrowedResult.authority.effectiveFindings[0]?.token, axis).toBe("counterfeit");
+    expect(narrowedResult.authority.withheldPolicyIds, axis).toEqual([]);
+    expect(narrowedResult.policies[0]?.receipts, axis).toEqual([
+      {
+        kind: "population",
+        source: "zod-output-twin-parity concrete authored pairs [declarations=0, expression-pairs=1, contextual-pairs=1, raw-casts=0]",
+        members: 2,
+        unresolved: 0,
+      },
+    ]);
+
+    const erased = required(
+      gate.mustRefuse.find((proof) => proof.why.includes(axis)),
+      `erased ${axis}`,
+    );
+    const erasedResult = drive(erased.files);
+    expect(erasedResult.toolErrors, axis).toEqual([
+      {
+        policyId: gate.id,
+        phase: "receipt",
+        message:
+          'policy receipt refused: population "zod-output-twin-parity concrete authored pairs [declarations=0, expression-pairs=1, contextual-pairs=1, raw-casts=0] unresolved-sites=[\\"packages/kit/src/json-schema/lift.ts:12:42:generated\\"]" left 1 unresolved',
+      },
+    ]);
+    expect(erasedResult.authority.effectiveFindings, axis).toEqual([]);
+    expect(erasedResult.authority.withheldPolicyIds, axis).toContain(gate.id);
+    expect(erasedResult.policies[0]?.receipts[0], axis).toMatchObject({ members: 1, unresolved: 1 });
+  }
+});

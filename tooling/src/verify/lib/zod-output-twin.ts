@@ -1,13 +1,23 @@
 // Canonical ZodType declaration identity and exact OUTPUT parity for hand-authored schema/type twins.
 // Input is deliberately absent from this reader: defaults, coercions, preprocessors and transforms may
 // widen or narrow accepted input while preserving the output contract a twin promises.
-import type { Expression, Node as MorphNode, Symbol as MorphSymbol, PropertyDeclaration, Type, TypeNode, VariableDeclaration } from "ts-morph";
+import type {
+  Expression,
+  Node as MorphNode,
+  PropertyDeclaration,
+  SourceFile,
+  Symbol as MorphSymbol,
+  Type,
+  TypeNode,
+  VariableDeclaration,
+} from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ZodOutputTwinRead } from "../contract/zod-output-twin.ts";
 
 const ZOD_PACKAGE_SEGMENT = "/node_modules/zod/";
 const RUNTIME_GENERATED_SCHEMA_SOURCE = "/packages/kit/src/json-schema/lift.ts";
 const RUNTIME_GENERATED_SCHEMA_BRAND = "RUNTIME_GENERATED_SCHEMA_BRAND";
+const RUNTIME_GENERATED_SCHEMA_BOX = "RuntimeGeneratedSchemaBox";
 
 function canonicalZodType(type: Type): boolean {
   const symbol = type.getSymbol();
@@ -65,21 +75,34 @@ function unwrapSchemaExpression(node: Expression): Expression {
   return current;
 }
 
-function isCanonicalRuntimeGeneratedSchemaBrand(node: MorphNode): boolean {
-  return (
-    Node.isVariableDeclaration(node) &&
-    node.getName() === RUNTIME_GENERATED_SCHEMA_BRAND &&
-    node.getTypeNode()?.getText() === "unique symbol" &&
-    node.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(RUNTIME_GENERATED_SCHEMA_SOURCE)
-  );
+function canonicalRuntimeGeneratedSchemaDeclarations(sourceFile: SourceFile): {
+  readonly brand: VariableDeclaration;
+  readonly schema: PropertyDeclaration;
+} | null {
+  if (!sourceFile.getFilePath().replaceAll("\\", "/").endsWith(RUNTIME_GENERATED_SCHEMA_SOURCE)) {
+    return null;
+  }
+  const brand = sourceFile
+    .getVariableStatements()
+    .flatMap((statement) => statement.getDeclarations())
+    .find(
+      (declaration) =>
+        declaration.getName() === RUNTIME_GENERATED_SCHEMA_BRAND && declaration.getTypeNode()?.getText() === "unique symbol",
+    );
+  const schema = sourceFile.getClass(RUNTIME_GENERATED_SCHEMA_BOX)?.getProperty("schema");
+  return brand === undefined || schema === undefined ? null : { brand, schema };
 }
 
-/** Whether `type` (or, for an intersection, one of its constituents) itself declares the canonical
- * unique-symbol brand as a member — the brand can live directly on a class (the pre-#2d68e7b type
- * shape) or on a type-literal intersected onto a plain carrier class (the current
- * `RuntimeGeneratedSchemaBox<Schema> & { readonly [BRAND]: true }` shape; a `declare` computed class
- * field cannot survive Playwright's bundled Babel transform, so the brand moved off the class). Walking
- * the receiver's TYPE rather than the `.schema` member's owning class covers both. */
+function isCanonicalRuntimeGeneratedSchemaBrand(node: MorphNode): boolean {
+  if (!Node.isVariableDeclaration(node)) {
+    return false;
+  }
+  const canonical = canonicalRuntimeGeneratedSchemaDeclarations(node.getSourceFile());
+  return canonical !== null && node.compilerNode === canonical.brand.compilerNode;
+}
+
+/** Whether `type` (or an intersection constituent) declares the exact module-scope unique-symbol brand.
+ * The receiver owns the branded intersection; its `.schema` member belongs to the plain carrier class. */
 function typeCarriesCanonicalBrand(type: Type): boolean {
   const constituents = type.isIntersection() ? type.getIntersectionTypes() : [type];
   return constituents.some((constituent) =>
@@ -99,16 +122,21 @@ function typeCarriesCanonicalBrand(type: Type): boolean {
 }
 
 /** A contextual `ZodType<any | unknown>` is truthful only when the value comes through the canonical
- * runtime-generated-schema container. Resolve the `schema` property declaration and, from the receiver's
- * own type, its nominal unique-symbol brand; a same-named structural wrapper, a bare member, or an
- * authored schema stays visible. */
+ * carrier's `schema` property and the receiver carries the exact module-scope unique-symbol brand. */
 function isCanonicalRuntimeGeneratedSchemaMember(rawExpression: Expression): boolean {
   const expression = unwrapSchemaExpression(rawExpression);
   if (!Node.isPropertyAccessExpression(expression)) {
     return false;
   }
   const memberDeclarations = expression.getNameNode().getSymbol()?.getDeclarations() ?? [];
-  if (!memberDeclarations.some((memberDeclaration) => Node.isPropertyDeclaration(memberDeclaration))) {
+  const canonical = canonicalRuntimeGeneratedSchemaDeclarations(expression.getSourceFile());
+  if (
+    canonical === null ||
+    !memberDeclarations.some(
+      (memberDeclaration) =>
+        Node.isPropertyDeclaration(memberDeclaration) && memberDeclaration.compilerNode === canonical.schema.compilerNode,
+    )
+  ) {
     return false;
   }
   return typeCarriesCanonicalBrand(expression.getExpression().getType());
