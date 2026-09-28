@@ -133,7 +133,7 @@ test("the shared launch publishes an explicit acceleration backend and feature r
   });
 });
 
-test("a full mobile descriptor is distinguishable from a viewport-only desktop context", async () => {
+test("an explicitly sized mobile descriptor is distinguishable from a viewport-only desktop context", async () => {
   const viewport = { width: 430, height: 740 };
   const desktop = await launchProbeSession({
     headless: true,
@@ -145,6 +145,7 @@ test("a full mobile descriptor is distinguishable from a viewport-only desktop c
   const mobile = await launchProbeSession({
     headless: true,
     viewport,
+    viewportExplicit: true,
     device: MOBILE_DEVICE,
     colorScheme: null,
     reducedMotion: false,
@@ -164,7 +165,7 @@ test("a full mobile descriptor is distinguishable from a viewport-only desktop c
     });
     expect(mobile.environmentContract).toMatchObject({
       requested: { device: MOBILE_DEVICE, viewport },
-      applied: { deviceScaleFactor: 3, hasTouch: true, isMobile: true },
+      applied: { viewport, screen: viewport, deviceScaleFactor: 3, hasTouch: true, isMobile: true },
     });
     expect(desktopEvidence).toMatchObject({
       actual: {
@@ -183,6 +184,7 @@ test("a full mobile descriptor is distinguishable from a viewport-only desktop c
       actual: {
         device: { kind: "named", name: MOBILE_DEVICE },
         viewport,
+        screen: viewport,
         pointer: "coarse",
         hover: "none",
         hasTouch: true,

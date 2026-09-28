@@ -11,7 +11,7 @@ import { browserArgsWithAcceleration } from "./browser-acceleration.ts";
 import { createPageCapture, watchProbeContextPages } from "./browser-capture.ts";
 import { buildProbeContext, probeContext, probeSession, resolveDeviceDescriptor } from "./browser-context.ts";
 import type { ProbeAttachOptions, ProbeContext, ProbeLaunchOptions, ProbeSession } from "./browser-contract.ts";
-import { effectiveContextViewport, resolveBrowserEnvironmentContract } from "./browser-environment.ts";
+import { effectiveContextSize, resolveBrowserEnvironmentContract } from "./browser-environment.ts";
 import { resolveProbeMedia } from "./browser-media.ts";
 import { warn } from "./log.ts";
 import { DEV_PORTS } from "./ports.ts";
@@ -182,12 +182,11 @@ async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (t
   if (opts.persistentProfileDir === undefined) {
     return { browser: await chromium.launch({ headless: opts.headless, args: markedBrowserArgs(browserArgs), env: markedBrowserEnv() }) };
   }
-  // ONE SIZE ANSWER (#1668): the descriptor supplies touch/DPR/UA/isMobile, `effectiveContextViewport`
-  // supplies the SIZE — so an explicit `--viewport` under `--mobile` windows the device instead of
-  // silently demoting it to a desktop, and a run's receipt states the size the browser actually got.
+  // ONE SIZE ANSWER (#1668): the descriptor supplies touch/DPR/UA/isMobile while the shared size resolver
+  // composes viewport + screen, so the launch options and environment receipt cannot disagree.
   const sizing = {
     ...(deviceDescriptor ?? {}),
-    viewport: effectiveContextViewport(opts, deviceDescriptor),
+    ...effectiveContextSize(opts, deviceDescriptor),
     ...(opts.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: opts.deviceScaleFactor }),
   };
   const persistentContext = await chromium.launchPersistentContext(opts.persistentProfileDir, {

@@ -645,6 +645,36 @@ test("T8 — a --design-audit session call measures the session's DECLARED viewp
   }
 });
 
+test("T8 viewport identity — an explicit mobile session size is the screen identity its checkpoint verifies", async ({ plantedTree, runCli }) => {
+  const r = await rig(plantedTree, runCli);
+  const a = uniq("mobile-viewport");
+  try {
+    const boot = await r.snap([
+      "--session",
+      a,
+      "--mobile",
+      "--viewport",
+      "360x800",
+      "--file",
+      r.fixture,
+      "--eval",
+      "(() => ({ screenWidth: screen.width, screenHeight: screen.height }))()",
+      ...QUIET,
+    ]);
+    await expect(boot).toExitWith(EXIT.clean);
+    expect(boot.stdout).toContain('"screenWidth": 360');
+    expect(boot.stdout).toContain('"screenHeight": 800');
+
+    const checkpoint = await r.snap(["--session", a, "--checkpoint", ...QUIET]);
+    expect(checkpoint.stdout).toContain("scale=css/360x800");
+    expect(checkpoint.stdout).toContain("device=coarse:dpr3:360x800");
+    expect(checkpoint.stdout).toContain("environment-fails=0");
+    await expect(checkpoint).toExitWith(EXIT.clean);
+  } finally {
+    await r.close([a]);
+  }
+});
+
 test("attach — attachProbeSession drives the owner's LIVE page over the session's endpoint and the owner survives the disconnect", async ({
   plantedTree,
   runCli,

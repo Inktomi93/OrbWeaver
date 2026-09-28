@@ -179,12 +179,23 @@ export function effectiveContextViewport(
   return descriptor.viewport;
 }
 
+/** The complete size Playwright receives and the environment contract verifies. An explicit viewport
+ *  windows both viewport and screen while preserving the descriptor's touch, DPR, UA and mobile identity. */
+export function effectiveContextSize(
+  input: { readonly viewport: Viewport; readonly viewportExplicit?: boolean },
+  descriptor: BrowserDeviceDescriptor | null,
+): Pick<BrowserEnvironmentApplied, "viewport" | "screen"> {
+  const viewport = effectiveContextViewport(input, descriptor);
+  const screen = descriptor === null || input.viewportExplicit === true ? viewport : (descriptor.screen ?? descriptor.viewport);
+  return { viewport, screen };
+}
+
 /** Resolve the exact context contract before launch. A named descriptor supplies the touch/DPR/UA/mobile
- *  identity; the SIZE comes from {@link effectiveContextViewport}, which honours an explicit override. */
+ *  identity; the viewport and screen come from {@link effectiveContextSize}. */
 export function resolveBrowserEnvironmentContract(
   input: {
     readonly viewport: Viewport;
-    /** See {@link effectiveContextViewport} — an explicit size override survives a device (#1668). */
+    /** See {@link effectiveContextSize} — an explicit size override survives a device (#1668). */
     readonly viewportExplicit?: boolean;
     readonly device?: string | null;
     /** A caller-raised context DPR (snap's `--scale <n>`, #915). The APPLIED contract must carry it, or
@@ -200,6 +211,7 @@ export function resolveBrowserEnvironmentContract(
   descriptor: BrowserDeviceDescriptor | null,
 ): BrowserEnvironmentContract {
   const device = input.device ?? null;
+  const size = effectiveContextSize(input, descriptor);
   const media = {
     colorScheme: input.colorScheme ?? null,
     reducedMotion: input.reducedMotion ?? false,
@@ -208,12 +220,11 @@ export function resolveBrowserEnvironmentContract(
   };
   if (descriptor === null) {
     return {
-      requested: { device, viewport: input.viewport, ...media },
+      requested: { device, viewport: size.viewport, ...media },
       applied: {
         device,
-        viewport: input.viewport,
+        ...size,
         ...media,
-        screen: input.viewport,
         userAgent: null,
         deviceScaleFactor: input.deviceScaleFactor ?? 1,
         isMobile: false,
@@ -224,14 +235,12 @@ export function resolveBrowserEnvironmentContract(
   // The size the context ACTUALLY got: the descriptor's, unless the caller overrode it (#1668). Reading
   // `descriptor.viewport` unconditionally here is what would make `identityMismatches` red a run for
   // obeying its own argv — and, worse, make `scale=` on the RESULT line state a size nobody rendered.
-  const viewport = effectiveContextViewport(input, descriptor);
   return {
-    requested: { device, viewport, ...media },
+    requested: { device, viewport: size.viewport, ...media },
     applied: {
       device,
-      viewport,
+      ...size,
       ...media,
-      screen: descriptor.screen ?? descriptor.viewport,
       userAgent: descriptor.userAgent,
       deviceScaleFactor: descriptor.deviceScaleFactor,
       isMobile: descriptor.isMobile,
