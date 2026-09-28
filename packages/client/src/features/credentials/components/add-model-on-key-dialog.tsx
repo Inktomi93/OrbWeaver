@@ -49,7 +49,12 @@ export interface AddModelOnKeyDialogProps {
 
 export function AddModelOnKeyDialog({ open, onOpenChange, connection, provider, scope, trpc, invalidation }: AddModelOnKeyDialogProps): ReactElement {
   return (
-    <FormDialog description={addModelActionGloss(scope, providerDisplayLabel(provider))} onOpenChange={onOpenChange} open={open} title={addModelActionLabel(scope)}>
+    <FormDialog
+      description={addModelActionGloss(scope, providerDisplayLabel(provider))}
+      onOpenChange={onOpenChange}
+      open={open}
+      title={addModelActionLabel(scope)}
+    >
       <AddModelOnKeyBody connection={connection} invalidation={invalidation} onDone={(): void => onOpenChange(false)} provider={provider} trpc={trpc} />
     </FormDialog>
   );

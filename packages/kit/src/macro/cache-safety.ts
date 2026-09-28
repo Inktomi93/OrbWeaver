@@ -7,7 +7,8 @@
 import { applyArgDefaults, checkMacroArgs } from "./metadata.ts";
 import { parseMacros } from "./parser.ts";
 import { selectStaticIfChildren } from "./registry.ts";
-import { MACRO_MAX_DEPTH, type MacroAST, type MacroBlockNode, type MacroCallNode, type MacroNode, type MacroRegistry } from "./types.ts";
+import type { MacroAST, MacroBlockNode, MacroCallNode, MacroNode, MacroRegistry } from "./types.ts";
+import { MACRO_MAX_DEPTH } from "./types.ts";
 
 interface AnalysisResult {
   readonly dependsOnTurn: boolean;
@@ -15,6 +16,13 @@ interface AnalysisResult {
 }
 
 type DependencyAxis = "cache" | "volatile";
+
+interface AnalysisContext {
+  readonly registry: MacroRegistry;
+  readonly axis: DependencyAxis;
+  readonly expansionDepth: number;
+  readonly activeExpansions: ReadonlySet<string>;
+}
 
 const STATIC_RESULT: AnalysisResult = { dependsOnTurn: false, mutatesState: false };
 
@@ -57,17 +65,12 @@ function analyzeTextBinding(text: string, axis: DependencyAxis): AnalysisResult 
   };
 }
 
-function analyzeNestedBindings(
-  text: string,
-  registry: MacroRegistry,
-  axis: DependencyAxis,
-  expansionDepth: number,
-  activeExpansions: ReadonlySet<string>,
-): AnalysisResult {
-  if (!text.includes(RESOLVED_BINDING) && !text.includes(CACHE_BINDING) && !text.includes(VOLATILE_BINDING)) {
+function analyzeNestedBindings(text: string, context: AnalysisContext): AnalysisResult {
+  const hasBinding = text.includes(RESOLVED_BINDING) || text.includes(CACHE_BINDING) || text.includes(VOLATILE_BINDING);
+  if (!hasBinding) {
     return STATIC_RESULT;
   }
-  return analyzeAst(parseMacros(text), registry, axis, expansionDepth, activeExpansions);
+  return analyzeAst(parseMacros(text), context);
 }
 
 function argumentIndexes(count: number, usage: "all" | "none" | readonly number[]): readonly number[] {
@@ -87,7 +90,7 @@ function effectiveArguments(node: MacroCallNode | MacroBlockNode, registry: Macr
       const declared = node.args.slice(0, metadata.args.length);
       const extras = node.args.slice(metadata.args.length);
       const padded = applyArgDefaults(metadata, [...declared]);
-      const positioned = padded.length < metadata.args.length ? [...padded, ...Array<string>(metadata.args.length - padded.length).fill("")] : padded;
+      const positioned = padded.length < metadata.args.length ? [...padded, ...new Array<string>(metadata.args.length - padded.length).fill("")] : padded;
       return [...positioned, BLOCK_BODY_SENTINEL, ...extras];
     }
     return applyArgDefaults(metadata, [...node.args, BLOCK_BODY_SENTINEL]);
@@ -104,18 +107,12 @@ function validationArguments(node: MacroCallNode | MacroBlockNode, registry: Mac
   return effectiveArguments(node, registry).filter((arg) => arg !== BLOCK_BODY_SENTINEL);
 }
 
-function analyzeArguments(
-  node: MacroCallNode | MacroBlockNode,
-  registry: MacroRegistry,
-  axis: DependencyAxis,
-  expansionDepth: number,
-  activeExpansions: ReadonlySet<string>,
-): AnalysisResult {
-  const analysis = registry.getOptions(node.name)?.analysis;
-  const args = effectiveArguments(node, registry);
+function analyzeArguments(node: MacroCallNode | MacroBlockNode, context: AnalysisContext): AnalysisResult {
+  const analysis = context.registry.getOptions(node.name)?.analysis;
+  const args = effectiveArguments(node, context.registry);
   const contribution = node.type === "block" ? (analysis?.blockArguments ?? analysis?.arguments ?? "all") : (analysis?.arguments ?? "all");
   const consumed = new Set(argumentIndexes(args.length, contribution));
-  const lazy = usesLazyArguments(node, registry);
+  const lazy = usesLazyArguments(node, context.registry);
   const lazyEvaluation =
     node.type === "block" ? (analysis?.blockLazyArguments ?? analysis?.lazyArguments ?? contribution) : (analysis?.lazyArguments ?? contribution);
   const evaluated = new Set(argumentIndexes(args.length, lazy ? lazyEvaluation : "all"));
@@ -124,7 +121,7 @@ function analyzeArguments(
     if (arg === BLOCK_BODY_SENTINEL || !evaluated.has(index)) {
       continue;
     }
-    const nested = analyzeAst(parseMacros(arg), registry, axis, expansionDepth, activeExpansions);
+    const nested = analyzeAst(parseMacros(arg), context);
     results.push({
       dependsOnTurn: consumed.has(index) && nested.dependsOnTurn,
       // State writes survive even when the handler discards the resulting value. Eager delivery always
@@ -135,49 +132,31 @@ function analyzeArguments(
   return mergeResults(results);
 }
 
-function analyzeUnknown(
-  node: Exclude<MacroNode, { type: "text" }>,
-  registry: MacroRegistry,
-  axis: DependencyAxis,
-  expansionDepth: number,
-  activeExpansions: ReadonlySet<string>,
-): AnalysisResult {
+function analyzeUnknown(node: Exclude<MacroNode, { type: "text" }>, context: AnalysisContext): AnalysisResult {
   if (node.type === "macro") {
-    const bindingDependencies = mergeResults(
-      node.args.map((arg) => analyzeNestedBindings(arg, registry, axis, expansionDepth, activeExpansions)),
-    );
+    const bindingDependencies = mergeResults(node.args.map((arg) => analyzeNestedBindings(arg, context)));
     // A name-only unknown can resolve from ctx.env. Unknown calls with arguments reconstruct their raw
     // source byte-for-byte and never inspect those arguments.
-    return node.args.length === 0
-      ? axis === "cache"
-        ? { dependsOnTurn: true, mutatesState: false }
-        : STATIC_RESULT
-      : bindingDependencies;
+    if (node.args.length > 0) {
+      return bindingDependencies;
+    }
+    return context.axis === "cache" ? { dependsOnTurn: true, mutatesState: false } : STATIC_RESULT;
   }
   // Unknown blocks reconstruct their tags around an evaluated body. Ordinary open-tag args stay inert,
   // but a pre-resolved user binding changes those reconstructed bytes before parsing reaches here.
-  return mergeResults([
-    ...node.args.map((arg) => analyzeNestedBindings(arg, registry, axis, expansionDepth, activeExpansions)),
-    analyzeAst(node.children, registry, axis, expansionDepth, activeExpansions),
-  ]);
+  return mergeResults([...node.args.map((arg) => analyzeNestedBindings(arg, context)), analyzeAst(node.children, context)]);
 }
 
-function analyzeIf(
-  node: Exclude<MacroNode, { type: "text" }>,
-  registry: MacroRegistry,
-  axis: DependencyAxis,
-  expansionDepth: number,
-  activeExpansions: ReadonlySet<string>,
-): AnalysisResult {
-  const argumentsResult = analyzeArguments(node, registry, axis, expansionDepth, activeExpansions);
+function analyzeIf(node: Exclude<MacroNode, { type: "text" }>, context: AnalysisContext): AnalysisResult {
+  const argumentsResult = analyzeArguments(node, context);
   if (node.type === "macro") {
     return argumentsResult;
   }
   const selected = selectStaticIfChildren(node.args, node.children);
   if (selected !== null) {
-    return mergeResults([argumentsResult, analyzeAst(selected, registry, axis, expansionDepth, activeExpansions)]);
+    return mergeResults([argumentsResult, analyzeAst(selected, context)]);
   }
-  const branches = analyzeAst(node.children, registry, axis, expansionDepth, activeExpansions);
+  const branches = analyzeAst(node.children, context);
   // A predicate that needs MacroContext can select different rendered bytes even when neither branch
   // contains a registered volatile macro. Retain both branches conservatively for their possible writes.
   return { dependsOnTurn: true, mutatesState: argumentsResult.mutatesState || branches.mutatesState };
@@ -199,96 +178,96 @@ function nodeSource(ast: MacroAST): string {
   return source;
 }
 
-function analyzeKnown(
-  node: Exclude<MacroNode, { type: "text" }>,
-  registry: MacroRegistry,
-  axis: DependencyAxis,
-  expansionDepth: number,
-  activeExpansions: ReadonlySet<string>,
-): AnalysisResult {
-  const options = registry.getOptions(node.name);
+function declaredDependency(node: Exclude<MacroNode, { type: "text" }>, context: AnalysisContext): boolean {
+  const options = context.registry.getOptions(node.name);
   const analysis = options?.analysis;
-  const declaredDependency =
-    axis === "volatile"
-      ? node.type === "block"
-        ? (analysis?.blockVolatileDependent ?? analysis?.volatileDependent)
-        : analysis?.volatileDependent
-      : node.type === "block"
-        ? (analysis?.blockCacheDependent ?? analysis?.cacheDependent)
-        : analysis?.cacheDependent;
-  const directDependency = declaredDependency ?? options?.volatile === true;
-  const directMutation = analysis?.mutatesState === true;
-  if (analysis?.blockBody === "if") {
-    const conditional = analyzeIf(node, registry, axis, expansionDepth, activeExpansions);
-    return {
-      dependsOnTurn: directDependency || conditional.dependsOnTurn,
-      mutatesState: directMutation || conditional.mutatesState,
-    };
+  if (context.axis === "volatile") {
+    const declared = node.type === "block" ? (analysis?.blockVolatileDependent ?? analysis?.volatileDependent) : analysis?.volatileDependent;
+    return declared ?? options?.volatile === true;
   }
+  const declared = node.type === "block" ? (analysis?.blockCacheDependent ?? analysis?.cacheDependent) : analysis?.cacheDependent;
+  return declared ?? options?.volatile === true;
+}
 
-  const argumentsResult = analyzeArguments(node, registry, axis, expansionDepth, activeExpansions);
-  const metadata = registry.getMetadata(node.name);
-  const strictInvalid = metadata?.strict === true && checkMacroArgs(metadata, validationArguments(node, registry)).length > 0;
-  const expanded = strictInvalid
-    ? undefined
-    : analysis?.expand?.(
-        effectiveArguments(node, registry).filter((arg) => arg !== BLOCK_BODY_SENTINEL),
-        node.type === "block" ? nodeSource(node.children) : undefined,
-      );
-  const expansionKey = `${node.name.toLowerCase()}\u0000${expanded ?? ""}`;
-  const expandedResult =
-    expanded === undefined || activeExpansions.has(expansionKey) || expansionDepth >= MACRO_MAX_DEPTH
-      ? STATIC_RESULT
-      : analyzeAst(parseMacros(expanded), registry, axis, expansionDepth + 1, new Set([...activeExpansions, expansionKey]));
-  if (node.type === "macro") {
-    return {
-      dependsOnTurn: directDependency || argumentsResult.dependsOnTurn || expandedResult.dependsOnTurn,
-      mutatesState: directMutation || argumentsResult.mutatesState || expandedResult.mutatesState,
-    };
+function expandedSource(node: Exclude<MacroNode, { type: "text" }>, context: AnalysisContext): string | undefined {
+  const metadata = context.registry.getMetadata(node.name);
+  if (metadata?.strict === true && checkMacroArgs(metadata, validationArguments(node, context.registry)).length > 0) {
+    return;
   }
+  const args = effectiveArguments(node, context.registry).filter((arg) => arg !== BLOCK_BODY_SENTINEL);
+  const blockContent = node.type === "block" ? nodeSource(node.children) : undefined;
+  return context.registry.getOptions(node.name)?.analysis?.expand?.(args, blockContent);
+}
 
-  const body = analyzeAst(node.children, registry, axis, expansionDepth, activeExpansions);
-  const bodyContributes = (analysis?.blockBody ?? "all") === "all";
+function analyzeExpansion(node: Exclude<MacroNode, { type: "text" }>, context: AnalysisContext): AnalysisResult {
+  const expanded = expandedSource(node, context);
+  if (expanded === undefined || context.expansionDepth >= MACRO_MAX_DEPTH) {
+    return STATIC_RESULT;
+  }
+  const expansionKey = `${node.name.toLowerCase()}\u0000${expanded}`;
+  if (context.activeExpansions.has(expansionKey)) {
+    return STATIC_RESULT;
+  }
+  return analyzeAst(parseMacros(expanded), {
+    ...context,
+    expansionDepth: context.expansionDepth + 1,
+    activeExpansions: new Set([...context.activeExpansions, expansionKey]),
+  });
+}
+
+function addDirectFacts(dependency: boolean, mutation: boolean, result: AnalysisResult): AnalysisResult {
   return {
-    dependsOnTurn: directDependency || argumentsResult.dependsOnTurn || expandedResult.dependsOnTurn || (bodyContributes && body.dependsOnTurn),
-    // Universal block delivery evaluates the body before invoking the handler, including handlers that
-    // discard the resulting content. Handler-controlled blocks in this analyzer either consume it or
-    // explicitly declare `none`; both retain writes only when evaluation actually occurs.
-    mutatesState:
-      directMutation || argumentsResult.mutatesState || expandedResult.mutatesState || ((options?.blockChildren !== true || bodyContributes) && body.mutatesState),
+    dependsOnTurn: dependency || result.dependsOnTurn,
+    mutatesState: mutation || result.mutatesState,
   };
 }
 
-function analyzeAst(
-  ast: MacroAST,
-  registry: MacroRegistry,
-  axis: DependencyAxis,
-  expansionDepth = 1,
-  activeExpansions: ReadonlySet<string> = new Set(),
-): AnalysisResult {
+function analyzeKnown(node: Exclude<MacroNode, { type: "text" }>, context: AnalysisContext): AnalysisResult {
+  const options = context.registry.getOptions(node.name);
+  const analysis = options?.analysis;
+  const dependency = declaredDependency(node, context);
+  const mutation = analysis?.mutatesState === true;
+  if (analysis?.blockBody === "if") {
+    return addDirectFacts(dependency, mutation, analyzeIf(node, context));
+  }
+
+  const argumentsResult = analyzeArguments(node, context);
+  const expandedResult = analyzeExpansion(node, context);
+  if (node.type === "macro") {
+    return addDirectFacts(dependency, mutation, mergeResults([argumentsResult, expandedResult]));
+  }
+
+  const body = analyzeAst(node.children, context);
+  const bodyContributes = (analysis?.blockBody ?? "all") === "all";
+  return {
+    dependsOnTurn: dependency || argumentsResult.dependsOnTurn || expandedResult.dependsOnTurn || (bodyContributes && body.dependsOnTurn),
+    // Universal block delivery evaluates the body before invoking the handler, including handlers that
+    // discard the resulting content. Handler-controlled blocks retain writes only when evaluation occurs.
+    mutatesState:
+      mutation || argumentsResult.mutatesState || expandedResult.mutatesState || ((options?.blockChildren !== true || bodyContributes) && body.mutatesState),
+  };
+}
+
+function analyzeAst(ast: MacroAST, context: AnalysisContext): AnalysisResult {
   const results: AnalysisResult[] = [];
   for (const node of ast) {
     if (node.type === "text") {
-      results.push(analyzeTextBinding(node.value, axis));
+      results.push(analyzeTextBinding(node.value, context.axis));
       continue;
     }
-    results.push(
-      registry.get(node.name) === undefined
-        ? analyzeUnknown(node, registry, axis, expansionDepth, activeExpansions)
-        : analyzeKnown(node, registry, axis, expansionDepth, activeExpansions),
-    );
+    results.push(context.registry.get(node.name) === undefined ? analyzeUnknown(node, context) : analyzeKnown(node, context));
   }
   return mergeResults(results);
 }
 
 /** Whether rendering `text` can change cached-prefix bytes or mutate state that a later prefix read sees. */
 export function macroTextInvalidatesCache(text: string, registry: MacroRegistry): boolean {
-  const result = analyzeAst(parseMacros(text), registry, "cache");
+  const result = analyzeAst(parseMacros(text), { registry, axis: "cache", expansionDepth: 1, activeExpansions: new Set() });
   return result.dependsOnTurn || result.mutatesState;
 }
 
 /** The evaluator-aware volatile scan used while deriving user-macro registration metadata. */
 export function macroTextIsVolatile(text: string, registry: MacroRegistry): boolean {
-  const result = analyzeAst(parseMacros(text), registry, "volatile");
+  const result = analyzeAst(parseMacros(text), { registry, axis: "volatile", expansionDepth: 1, activeExpansions: new Set() });
   return result.dependsOnTurn || result.mutatesState;
 }

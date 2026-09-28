@@ -4,10 +4,10 @@ import { openConfigTo, parseConfigLink, resolveSectionPath, setActiveSection } f
 // Deep, not `#lib`: app-ready-signal is OUT of the barrel so its production import graph stays explicit.
 // Type-only, so this port itself lands nothing in the boot chunk.
 import type { RouteResolution } from "../lib/app-ready-signal.ts";
-import { observeRouterViewTransitions } from "../lib/view-transition.ts";
 import { rootRoute } from "./__root.tsx";
 import { LoginPage } from "./login-page.tsx";
 import { RoutePending } from "./route-pending.tsx";
+import { observeRouterViewTransitions } from "./router-view-transition.ts";
 
 // Hand-written code-based route tree — 2 rendered routes + 1 section ALIAS, no file-based codegen. The URL
 // stays effectively pinned at `/`; entity ids never enter the address bar. Admin is a pane inside the

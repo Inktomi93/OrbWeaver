@@ -68,6 +68,7 @@ import {
   openRoomInvite,
   SlashCommandRegistryProvider,
   selectChat,
+  setActiveSection,
   setFocusMode,
   setMobileViewport,
   startEditingMessage,
@@ -1451,6 +1452,43 @@ export function ComposerStory(props: ComposerStoryProps): ReactElement {
   return (
     <CtDataProviders>
       <ComposerStoryInner {...props} />
+    </CtDataProviders>
+  );
+}
+
+function ComposerConnectionRecoveryStoryInner(): ReactElement {
+  const section = useActiveSection();
+  const group = useActiveConfigGroup();
+  useEffect(() => {
+    setActiveSection("chats");
+  }, []);
+
+  if (section !== "chats") {
+    return (
+      <div>
+        <output data-testid="composer-connection-landing">{`section=${section} group=${group ?? "none"}`}</output>
+        {section === "config" ? (
+          <button type="button" onClick={(): void => setActiveSection("chats")}>
+            Return to chat
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <ComposerStoryInner />
+      <output data-testid="composer-connection-landing">{`section=${section} group=${group ?? "none"}`}</output>
+    </div>
+  );
+}
+
+/** The no-connection recovery trip through the real shell/config stores, with the composer remounted on return. */
+export function ComposerConnectionRecoveryStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ComposerConnectionRecoveryStoryInner />
     </CtDataProviders>
   );
 }

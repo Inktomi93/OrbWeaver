@@ -6,7 +6,16 @@
 // byte-parity pin (same defs + values ⇒ identical bytes on independently composed registries).
 
 import type { MacroDiagnostic, MacroRegistry, ProcessMacroOptions, UserMacroDef, UserMacroInputDef, VarOp } from "@orb/kit/macro";
-import { createDefaultRegistry, findOffVocabularyPicks, MACRO_MAX_DEPTH, macroTextInvalidatesCache, processMacros, registerUserMacros, resolveUserMacroInputs, ZWSP } from "@orb/kit/macro";
+import {
+  createDefaultRegistry,
+  findOffVocabularyPicks,
+  MACRO_MAX_DEPTH,
+  macroTextInvalidatesCache,
+  processMacros,
+  registerUserMacros,
+  resolveUserMacroInputs,
+  ZWSP,
+} from "@orb/kit/macro";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -131,10 +140,7 @@ describe("derived volatility", () => {
   });
 
   test("cache dependence propagates through user macros without entering commit-freeze volatility", () => {
-    const registry = registryWith([
-      def({ name: "recall", body: "{{memory}}" }),
-      def({ name: "outer_recall", body: "[{{recall}}]" }),
-    ]);
+    const registry = registryWith([def({ name: "recall", body: "{{memory}}" }), def({ name: "outer_recall", body: "[{{recall}}]" })]);
     expect(macroTextInvalidatesCache("{{recall}}", registry)).toBe(true);
     expect(macroTextInvalidatesCache("{{outer_recall}}", registry)).toBe(true);
     expect(registry.getMetadata("recall")?.volatile).toBe(false);
@@ -292,9 +298,8 @@ describe("evaluation", () => {
 
   test("a block body also overrides an input named content in runtime and cache analysis", () => {
     const contentInput = input({ kind: "random-pick", name: "content", options: [{ label: "Input", value: "input" }] });
-    const registry = registryWith([def({ name: "input_wrap", body: "[{{content}}]", inputs: [contentInput] })], {
-      input_wrap: { content: "input" },
-    });
+    const bindings = Object.fromEntries([["input_wrap", { content: "input" }]]);
+    const registry = registryWith([def({ name: "input_wrap", body: "[{{content}}]", inputs: [contentInput] })], bindings);
     expect(processMacros("{{input_wrap}}", opts(), registry)).toBe("[input]");
     expect(processMacros("{{input_wrap}}body{{/input_wrap}}", opts(), registry)).toBe("[body]");
     expect(macroTextInvalidatesCache("{{input_wrap}}", registry)).toBe(true);
@@ -316,15 +321,15 @@ describe("evaluation", () => {
   });
 
   test("binding-controlled conditionals follow explicit, default, input, and block-content values", () => {
-    const branch = '{{if::{{flag}}}}{{time}}{{else}}fixed{{/if}}';
+    const branch = "{{if::{{flag}}}}{{time}}{{else}}fixed{{/if}}";
     const inputFlag = input({ kind: "single-select", name: "flag" });
     const registry = registryWith(
       [
         def({ name: "choose", args: [{ name: "flag", type: "string", optional: true, default: '"0"' }], body: branch }),
         def({ name: "choose_input", inputs: [inputFlag], body: branch }),
-        def({ name: "choose_content", body: '{{if::{{content}}}}{{time}}{{else}}fixed{{/if}}' }),
+        def({ name: "choose_content", body: "{{if::{{content}}}}{{time}}{{else}}fixed{{/if}}" }),
       ],
-      { choose_input: { flag: '"0"' } },
+      Object.fromEntries([["choose_input", { flag: '"0"' }]]),
     );
     const fixedClock = opts({ nowMs: Date.UTC(2024, 0, 2, 3, 4, 5), timezone: "UTC" });
     expect(processMacros("{{choose}}", fixedClock, registry)).toBe("fixed");
@@ -345,7 +350,7 @@ describe("evaluation", () => {
     expect(processMacros("{{wrap_extra::{{time}}}}", opts({ nowMs: Date.UTC(2024, 0, 2, 3, 4, 5), timezone: "UTC" }), registry)).toBe("[03:04:05]");
     expect(macroTextInvalidatesCache("{{wrap_extra::{{time}}}}", registry)).toBe(true);
     expect(processMacros("{{?wrap_extra::{{incvar::counter}}}}", opts({ env }), registry)).toBe("[1]");
-    expect(env.counter).toBe("1");
+    expect(env["counter"]).toBe("1");
     expect(macroTextInvalidatesCache("{{?wrap_extra::{{incvar::counter}}}}", registry)).toBe(true);
   });
 
@@ -370,7 +375,7 @@ describe("evaluation", () => {
     const opLog: VarOp[] = [];
 
     expect(processMacros("{{?discard::{{incvar::counter}}}}", opts({ env, opLog }), registry)).toBe("fixed");
-    expect(env.counter).toBe("1");
+    expect(env["counter"]).toBe("1");
     expect(opLog).toEqual([{ op: "inc", key: "counter" }]);
     expect(macroTextInvalidatesCache("{{?discard::{{incvar::counter}}}}", registry)).toBe(true);
     expect(macroTextInvalidatesCache("{{outer_discard}}", registry)).toBe(true);

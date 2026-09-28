@@ -98,6 +98,7 @@ function canonRow(seq: number): MessageView {
     characterId: null,
     personaId: null,
     excludedFromPrompt: false,
+    outputCapReached: false,
     createdAt: 0,
     editedAt: null,
     selectedVariantId: mintTypeId(ID_PREFIX.messageVariant),

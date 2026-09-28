@@ -23,7 +23,7 @@ import type { Locator, Page } from "@playwright/test";
 import { routeImpersonateStream } from "../../../../support/node/route-impersonate-stream.ts";
 import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
-import { ChatRoomPhoneStory, ComposerStory } from "../_ct-stories.tsx";
+import { ChatRoomPhoneStory, ComposerConnectionRecoveryStory, ComposerStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessageView } from "../fixtures.ts";
 
 // A getUserSettings view with a chat-pref override — drives the composer's enterSends/continueOnSend read.
@@ -70,10 +70,8 @@ test("D111: the ⋯ chat-options menu renders in the composer, LEFT of the guide
 // THE REASON'S CARRIER MOVED (#2443, side-eye 2026-09-19). It used to be a native `title` beside a tooltip
 // copy of the same string — two homes for one concept, and neither reaches a phone (a `title` is invisible
 // on touch; Base UI 1.7.0's tooltip is `mouseOnly: true` with a `:focus-visible`-gated focus fallback). The
-// `title` is gone, so these assert the two homes that DO reach a touch user: the control's accessible
-// DESCRIPTION (an `sr-only` line the trigger's `aria-describedby` points at — read at rest, on any pointer),
-// and the band's visible refusal line at a coarse pointer, asserted in its own arm below. An assertion on
-// `title` would pass again the day someone re-adds it, which is the defect.
+// `title` is gone. The control's accessible DESCRIPTION reaches AT on every pointer; the band's line reaches
+// sighted touch users, and no-connection keeps that line plus its recovery action visible everywhere.
 //
 // THE CAUSE VOCABULARY MOVED (`@orb/inference` cut-over, 2026-09-20): with the in-server vLLM fleet gone
 // there is no engine to be off, so `engine-off` is RETIRED (an unbound task is `no-connection` like every
@@ -131,10 +129,14 @@ test("#54: runtime-missing — Send carries the runtime-missing reason (the caus
 test.describe("#2443: the band's refusal at a coarse pointer", () => {
   test.use({ hasTouch: true });
 
-  test("an unserveable connection states its reason as VISIBLE copy under the guided cluster", async ({ mount, page }) => {
-    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
+  test("an endpoint failure states its reason as VISIBLE copy under the guided cluster", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...CHAT_ROOM_ROUTES,
+      "chat.checkSendAvailability": () => ({ available: false, cause: "endpoint-unreachable" }),
+    });
     const component = await mount(<ComposerStory />);
-    await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveText(NO_CONNECTION_REASON);
+    await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveText(ENDPOINT_UNREACHABLE_REASON);
   });
 
   test("a serveable connection shows no refusal line (the band is not permanently annotated)", async ({ mount, page }) => {
@@ -145,12 +147,34 @@ test.describe("#2443: the band's refusal at a coarse pointer", () => {
   });
 });
 
-// The OTHER direction of the same pointer fragment. `SHOW_ONLY_AT_COARSE` is `pointer-fine:hidden`, i.e.
-// `display: none` — so on a fine pointer the line is out of layout AND out of the a11y tree, which is only
-// correct because the tooltip and the per-control descriptions carry the same string there. Without this arm
-// the coarse assertion above would also pass on a line that rendered unconditionally.
-test("#2443: at a FINE pointer the refusal line does not render — the tooltip is the carrier there", async ({ mount, page }) => {
+test("no-connection recovery opens Connections by keyboard and keeps the typed draft across the trip", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
+  const component = await mount(<ComposerConnectionRecoveryStory />);
+  const draft = "Keep this line while I add a connection";
+  const message = component.getByLabel("Message", { exact: true });
+  await message.fill(draft);
+
+  const openConnections = component.getByRole("button", { name: "Open Connections" });
+  await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveText(`${NO_CONNECTION_REASON}Open Connections`);
+  await expect(openConnections).toBeVisible();
+  await openConnections.focus();
+  await expect(openConnections).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  await expect(component.getByTestId("composer-connection-landing")).toHaveText("section=config group=connections");
+  await component.getByRole("button", { name: "Return to chat" }).click();
+  await expect(component.getByLabel("Message", { exact: true })).toHaveValue(draft);
+});
+
+// Other unavailable causes retain the pointer-specific carrier: the visible recovery row is reserved for
+// no-connection because it has a direct next action. At a fine pointer the tooltip and descriptions carry
+// an endpoint failure, so the duplicate line remains out of layout and the accessibility tree.
+test("#2443: at a FINE pointer a non-actionable refusal line stays hidden", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.checkSendAvailability": () => ({ available: false, cause: "endpoint-unreachable" }),
+  });
   const component = await mount(<ComposerStory />);
   const line = component.locator('[data-slot="composer-guided-refusal"]');
   // The node is in the DOM (the cause IS in force) but the fragment stands it down at this pointer.

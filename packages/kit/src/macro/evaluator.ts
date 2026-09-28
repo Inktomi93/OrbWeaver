@@ -1,6 +1,17 @@
 import { utf8ByteLength } from "./content.ts";
 import { applyArgDefaults, checkMacroArgs, macroArgDiagnostics } from "./metadata.ts";
-import type { MacroAST, MacroBlockNode, MacroCallNode, MacroContext, MacroEnv, MacroFlags, MacroHandler, MacroMetadata, MacroRegistry } from "./types.ts";
+import type {
+  MacroAST,
+  MacroBlockNode,
+  MacroCallNode,
+  MacroContext,
+  MacroEnv,
+  MacroFlags,
+  MacroHandler,
+  MacroMetadata,
+  MacroRegisterOptions,
+  MacroRegistry,
+} from "./types.ts";
 import { MACRO_FLAG_DEFS } from "./types.ts";
 
 /** Resolve an env entry by name, exact-case first then case-insensitively (registry parity).
@@ -157,6 +168,46 @@ function evalMacroNode(node: MacroCallNode, registry: MacroRegistry, ctx: MacroC
 //     evaluateAST seam — depth guard + budget fire; a body never escapes the MacroBudget), trimmed +
 //     indent-dedented (verbatim under the `#` PRESERVE_WHITESPACE flag), appended as its LAST unnamed
 //     argument. Declared defaults pad AFTER the body lands (the body is a real positional arg).
+interface KnownBlockEvaluation {
+  readonly handler: MacroHandler;
+  readonly node: MacroBlockNode;
+  readonly metadata: MacroMetadata | undefined;
+  readonly options: MacroRegisterOptions | undefined;
+  readonly resolvedArgs: readonly string[];
+  readonly context: MacroContext;
+}
+
+function postProcessBlock(value: string, context: MacroContext): string {
+  return context.postProcess ? context.postProcess(value) : value;
+}
+
+function evaluateKnownBlock(input: KnownBlockEvaluation): string {
+  const { handler, node, metadata, options, resolvedArgs, context } = input;
+  if (options?.blockChildren === true) {
+    const padded = applyArgDefaults(metadata, [...resolvedArgs]);
+    if (checkArgs(context, metadata, { node, args: padded, contentArgs: 0 })) {
+      return "";
+    }
+    return postProcessBlock(handler(padded, context, node.children), context);
+  }
+  const content = context.resolve(node.children, { trim: node.flags?.preserveWhitespace !== true });
+  if (options?.blockContentAfterDeclaredArgs === true && metadata !== undefined && !metadata.variadic) {
+    const declared = resolvedArgs.slice(0, metadata.args.length);
+    const extras = resolvedArgs.slice(metadata.args.length);
+    const padded = applyArgDefaults(metadata, [...declared]);
+    if (checkArgs(context, metadata, { node, args: [...padded, ...extras], contentArgs: 0 })) {
+      return "";
+    }
+    const missing = new Array<string>(Math.max(0, metadata.args.length - padded.length)).fill("");
+    return postProcessBlock(handler([...padded, ...missing, content, ...extras], context), context);
+  }
+  const padded = applyArgDefaults(metadata, [...resolvedArgs, content]);
+  if (checkArgs(context, metadata, { node, args: padded, contentArgs: 1 })) {
+    return "";
+  }
+  return postProcessBlock(handler(padded, context), context);
+}
+
 function evalKnownBlock(handler: MacroHandler, node: MacroBlockNode, registry: MacroRegistry, ctx: MacroContext): string {
   const meta = registry.getMetadata(node.name);
   const options = registry.getOptions(node.name);
@@ -165,32 +216,7 @@ function evalKnownBlock(handler: MacroHandler, node: MacroBlockNode, registry: M
   // @orb-waive caught-failure-ownership(err): same fail-open policy as evalKnownCall — consumed
   // via ctx.onWarn?.() plus a reconstructed open-tag fallback. Ends if the handler stops calling onWarn.
   try {
-    if (options?.blockChildren === true) {
-      const padded = applyArgDefaults(meta, resolvedArgs);
-      if (checkArgs(ctx, meta, { node, args: padded, contentArgs: 0 })) {
-        return "";
-      }
-      const val = handler(padded, ctx, node.children);
-      return ctx.postProcess ? ctx.postProcess(val) : val;
-    }
-    const content = ctx.resolve(node.children, { trim: node.flags?.preserveWhitespace !== true });
-    if (options?.blockContentAfterDeclaredArgs === true && meta !== undefined && !meta.variadic) {
-      const declared = resolvedArgs.slice(0, meta.args.length);
-      const extras = resolvedArgs.slice(meta.args.length);
-      const padded = applyArgDefaults(meta, declared);
-      if (checkArgs(ctx, meta, { node, args: [...padded, ...extras], contentArgs: 0 })) {
-        return "";
-      }
-      const positioned = padded.length < meta.args.length ? [...padded, ...Array<string>(meta.args.length - padded.length).fill("")] : padded;
-      const val = handler([...positioned, content, ...extras], ctx);
-      return ctx.postProcess ? ctx.postProcess(val) : val;
-    }
-    const padded = applyArgDefaults(meta, [...resolvedArgs, content]);
-    if (checkArgs(ctx, meta, { node, args: padded, contentArgs: 1 })) {
-      return "";
-    }
-    const val = handler(padded, ctx);
-    return ctx.postProcess ? ctx.postProcess(val) : val;
+    return evaluateKnownBlock({ handler, node, metadata: meta, options, resolvedArgs, context: ctx });
   } catch (err) {
     // FAIL-OPEN, and #1360 item 5 is what "open" has to mean for a BLOCK. This used to return the open
     // tag alone, and the comment justified it as "the same fail-open policy as inline calls" — but those

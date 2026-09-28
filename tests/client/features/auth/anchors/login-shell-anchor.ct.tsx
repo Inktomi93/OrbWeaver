@@ -9,9 +9,12 @@
 // query layer.
 
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
+import type { WeavePoint } from "@orb/ui/web-weave";
+import { buildWeb } from "@orb/ui/web-weave";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
+import { LOGIN_WEAVE_GEOMETRY } from "../../../../../packages/client/src/features/auth/lib/login-weave.ts";
 import { ambientCeiling, fingerprintDelta, frameFingerprint, touchDrag, waitFrames } from "../../../../support/browser/weave-drive.ts";
 import { LoginConfigTransitionStory, LoginSceneStory } from "../_ct-stories.tsx";
 
@@ -123,14 +126,16 @@ test("the sign-in card keeps the same top edge while auth config resolves", asyn
   await mount(<LoginConfigTransitionStory />);
   await expect(page.getByLabel("Loading sign-in options")).toBeVisible();
   const card = page.locator('[data-slot="card-root"]');
-  const loadingTop = (await card.boundingBox())?.y;
+  let loadingTop: number | undefined;
+  await expect
+    .poll(async () => {
+      loadingTop = (await card.boundingBox())?.y;
+      return loadingTop;
+    })
+    .toBeGreaterThanOrEqual(0);
   releaseConfig?.();
   await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-  const resolvedTop = (await card.boundingBox())?.y;
-
-  expect(loadingTop).toBeDefined();
-  expect(resolvedTop).toBeDefined();
-  expect(Math.abs((resolvedTop ?? 0) - (loadingTop ?? 0))).toBeLessThanOrEqual(1);
+  await expect.poll(async () => Math.abs(((await card.boundingBox())?.y ?? Number.POSITIVE_INFINITY) - (loadingTop ?? 0))).toBeLessThanOrEqual(1);
 });
 
 // ── The backdrop is LIVE under a thumb (#152) ─────────────────────────────────────────────────────
@@ -151,22 +156,39 @@ const RING_FACTOR = 3;
 test.describe("under a coarse pointer", () => {
   test.use({ hasTouch: true });
 
-  /** A horizontal drag through the larger free band around the real login content, in page coordinates. */
-  async function silkPath(weave: Locator, content: Locator): Promise<{ readonly from: { x: number; y: number }; readonly to: { x: number; y: number } }> {
-    const weaveBox = await weave.boundingBox();
-    const contentBox = await content.boundingBox();
-    const left = weaveBox?.x ?? 0;
-    const top = weaveBox?.y ?? 0;
-    const width = weaveBox?.width ?? 0;
-    const height = weaveBox?.height ?? 0;
-    const contentTop = contentBox?.y ?? top;
-    const contentBottom = contentTop + (contentBox?.height ?? 0);
+  /** A radial sweep through real deterministic capture silk, clear of the login content. */
+  async function silkPath(weave: Locator, content: Locator): Promise<{ readonly from: WeavePoint; readonly to: WeavePoint }> {
+    const [weaveBox, contentBox] = await Promise.all([weave.boundingBox(), content.boundingBox()]);
+    if (weaveBox === null || contentBox === null) {
+      throw new Error("login weave and content must have measurable boxes");
+    }
+    const web = buildWeb({ width: weaveBox.width, height: weaveBox.height, ...LOGIN_WEAVE_GEOMETRY });
+    const sweepHalf = 48;
     const inset = 12;
-    const upperBand = Math.max(0, contentTop - inset - top);
-    const lowerStart = contentBottom + inset;
-    const lowerBand = Math.max(0, top + height - lowerStart);
-    const y = lowerBand >= upperBand ? lowerStart + lowerBand / 2 : top + upperBand / 2;
-    return { from: { x: left + width * 0.14, y }, to: { x: left + width * 0.7, y } };
+    const contentBottom = contentBox.y + contentBox.height - weaveBox.y;
+    const candidates = web.capture.pts.filter(
+      (point, index) =>
+        index % 2 === 0 &&
+        point.y > contentBottom + sweepHalf + inset &&
+        point.x > sweepHalf + inset &&
+        point.x < weaveBox.width - sweepHalf - inset &&
+        point.y < weaveBox.height - sweepHalf - inset,
+    );
+    const target = candidates[Math.floor(candidates.length / 2)];
+    if (target === undefined) {
+      throw new Error("login weave has no capture strand clear of the content");
+    }
+    const dx = target.x - web.hub.x;
+    const dy = target.y - web.hub.y;
+    const length = Math.hypot(dx, dy);
+    if (length === 0) {
+      throw new Error("capture strand target must be outside the hub");
+    }
+    const step = { x: (dx / length) * sweepHalf, y: (dy / length) * sweepHalf };
+    return {
+      from: { x: weaveBox.x + target.x - step.x, y: weaveBox.y + target.y - step.y },
+      to: { x: weaveBox.x + target.x + step.x, y: weaveBox.y + target.y + step.y },
+    };
   }
 
   test("a THUMB drawn across the login backdrop RINGS the silk", async ({ mount, page }) => {
@@ -207,7 +229,7 @@ test.describe("under a coarse pointer", () => {
     const canvas = page.locator('[data-slot="web-weave-canvas"]');
     await expect.poll(async () => Number(await canvas.getAttribute("data-orb-weave-frames"))).toBeGreaterThan(2);
     const path = await silkPath(page.locator('[data-slot="web-weave"]'), page.getByRole("main"));
-    await touchDrag(page, path.from, { x: path.from.x, y: path.from.y + 240 }, 12);
+    await touchDrag(page, path.from, path.to, 12);
     // The scene box is `overflow-hidden min-h-dvh` — nothing to scroll, and the explainer stays put.
     await expect.poll(async () => scene.evaluate((el) => el.scrollTop)).toBe(0);
     await expect(page.getByRole("heading", { name: PROXY_HEADING })).toBeVisible();

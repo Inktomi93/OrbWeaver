@@ -3,6 +3,7 @@
 // (split out of this barrel so `row-macros.ts` below can import them without an import cycle).
 // The scoped-block body normalizer (trim + indent-dedent; the `#` flag bypasses it in the evaluator)
 // + the ZWSP macro-re-injection defense (re-homed from kit/guided, which re-exports it — one home).
+export { macroTextInvalidatesCache } from "./cache-safety.ts";
 export { type IdentityMapping, neutralizeMacros, swapIdentityMacros, type TrimContentOptions, trimContent, ZWSP } from "./content.ts";
 export {
   createMacroContext,
@@ -11,7 +12,6 @@ export {
   processMacros,
 } from "./engine.ts";
 export { evaluateMacros } from "./evaluator.ts";
-export { macroTextInvalidatesCache } from "./cache-safety.ts";
 // The macro-DX layer + the runtime-enforcement core: typed violations
 // (checkMacroArgs → MacroArgViolation) with validateMacroArgs deriving the positional diagnostics, and
 // the autocomplete query. Types + MACRO_CATEGORIES home in ./types (below) so the registry references
@@ -20,7 +20,7 @@ export { type CheckMacroArgsOptions, checkMacroArgs, queryMacros, validateMacroA
 // MACRO_NAME_RE: the fully-anchored macro-name shape — user-macro registration + the contracts-side
 // authoring schema both validate against it (one vocabulary with the parser's identifier scan).
 export { MACRO_NAME_RE, type MacroRun, parseMacros, scanMacroRuns, stripComments } from "./parser.ts";
-export { createDefaultRegistry, createNamesOnlyRegistry, createVolatileOnlyRegistry, selectStaticIfChildren, SimpleMacroRegistry } from "./registry.ts";
+export { createDefaultRegistry, createNamesOnlyRegistry, createVolatileOnlyRegistry, SimpleMacroRegistry, selectStaticIfChildren } from "./registry.ts";
 export type {
   RowCharacterName,
   RowMacroNameContext,

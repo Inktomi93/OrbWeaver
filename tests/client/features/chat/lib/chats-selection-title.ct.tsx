@@ -4,9 +4,9 @@
 //
 // IT HAD TWO ARMS AND THEY DRIFTED (side-eye 2026-08-07 finding 1): the DRAFT arm read `cast[0]?.data?.name`
 // while the desktop cluster joined the whole cast, so a three-hander read "Aldric Vane" on the phone. Both
-// arms were made to call one function — and then draft mode was deleted outright
-// (D166), so there is ONE arm and nothing left to drift: a room
-// has a chat row, and the row's title is the answer.
+// arms were made to call one function — and then draft mode was deleted outright (D166), so there is ONE
+// arm and nothing left to drift: a room has a chat row, and the canonical authored-title → character-names
+// → untitled chain is its answer.
 //
 // This is a DATA statement, not a layout one, so it needs no coarse emulation: the topbar prints the same
 // string at every width and the phone's only extra is that `truncate` may clip it — which is a geometry
@@ -17,6 +17,7 @@ import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatsSelectionTitleStory } from "../_ct-stories.tsx";
 import { chatListResponder, makeChatSummary } from "../fixtures.ts";
+import { makeParticipant } from "./_support.ts";
 
 /** THE ROSTER READ THIS HOOK NOW MAKES (#1676): with no room open the phone's topbar is the only place left
  *  to print the roster's size, so the hook composes the census the LIST band's shed title took with it. Fed
@@ -35,17 +36,21 @@ test("the open room's stored title IS the mobile screen title", async ({ mount, 
   await expect(page.getByTestId("selection-title")).toHaveText("The Ashfall Road");
 });
 
-test("an UNTITLED room yields null — the shell prints the section label rather than an invented name", async ({ mount, page }) => {
-  // Stored titles are "" until renamed; the mobile topbar must not print an empty string OR a fabricated
-  // one. `null` is the honest answer, and the shell's own fallback takes it from there.
-  //
-  // AND IT IS NOT THE ROSTER'S SIZE EITHER (#1676). The census arm added for the phone is gated on the
-  // SELECTION, not on "did a name land" — with a room open this screen is that room's, so a three-chat roster
-  // beside an untitled room must still read `(null)` here and `Chats` in the bar. Keyed off the name instead,
-  // this exact fixture would print `Chats · 3` over an open room: a true number about the wrong screen.
+test("a seeded character names an untitled new room on mobile through the canonical fallback", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...ROSTER_OF_THREE,
+    "chat.getChat": { title: "", participants: [makeParticipant({ displayName: "Elias Thorn" })], identities: [] },
+  });
+
+  await mount(<ChatsSelectionTitleStory />);
+
+  await expect(page.getByTestId("selection-title")).toHaveText("Elias Thorn");
+});
+
+test("a truly blank room uses the canonical untitled fallback instead of the section name or roster census", async ({ mount, page }) => {
   await routeTrpc(page, { ...ROSTER_OF_THREE, "chat.getChat": { title: "", participants: [], identities: [] } });
 
   await mount(<ChatsSelectionTitleStory />);
 
-  await expect(page.getByTestId("selection-title")).toHaveText("(null)");
+  await expect(page.getByTestId("selection-title")).toHaveText("Untitled chat");
 });

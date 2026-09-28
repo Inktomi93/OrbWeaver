@@ -234,7 +234,7 @@ export function CacheWarningStory({ placement }: { readonly placement: CacheWarn
         name: "choose",
         description: "",
         args: [{ name: "flag", type: "string", optional: true, default: '"0"' }],
-        body: '{{if::{{flag}}}}{{time}}{{else}}fixed{{/if}}',
+        body: "{{if::{{flag}}}}{{time}}{{else}}fixed{{/if}}",
         inputs: [],
         strict: false,
       },

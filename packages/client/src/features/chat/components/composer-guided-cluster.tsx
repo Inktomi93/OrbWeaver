@@ -11,9 +11,9 @@
 // with the same guidance, never re-typed).
 //
 // SHOW-EVERYTHING ([[no-separate-reduced-modes]]): all four icons ALWAYS render — a phase-unavailable icon
-// is aria-disabled (Base UI `focusableWhenDisabled` keeps it hoverable) with its reason in the tooltip, in
-// the control's `aria-describedby` description, and — for the band-wide send refusal — as visible copy at a
-// coarse pointer (#2443; the native `title` this line used to name was retired by side-eye 2026-08-21).
+// is aria-disabled (Base UI `focusableWhenDisabled` keeps it hoverable) with its reason in the tooltip and
+// the control's `aria-describedby` description. A no-connection refusal also carries a persistent direct
+// recovery action; other band-wide refusals render visible copy at a coarse pointer.
 // Response is never disabled (it generates a reply against any tail), which is why it hosts
 // empty-send-generate.
 //
@@ -36,9 +36,11 @@
 // terminal turn Stop remains in `Attach and send`: it aborts a chat TURN, which an impersonation is not.
 // While drafting runs, every icon's reason names the stream instead of a phantom current reply.
 
+import type { UnavailableCause } from "@orb/contracts/inference";
 import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
 import { FastForward, RotateCcw } from "@orb/ui/icons";
 import { Container, Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -47,6 +49,7 @@ import type { ReactElement, ReactNode } from "react";
 import { SHOW_ONLY_AT_COARSE } from "#components";
 import { useGatedQuery, useTRPC } from "#data";
 import { IMPERSONATE_IN_FLIGHT, IMPERSONATE_WAIT_FOR_TURN, STEER_CUE_CONTINUE, STEER_CUE_SWIPE, SWIPE_NEEDS_REPLY } from "#lib";
+import { openConfigTo } from "#state";
 import { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import { useGuidedActions } from "../hooks/use-guided-actions.ts";
 import { filterCharacters } from "../lib/roster.ts";
@@ -72,6 +75,7 @@ export interface ComposerGuidedClusterProps {
    *  `sendUnavailableReason`. Engine-agnostic; the reason wins over a phase reason (both are persistent). */
   readonly sendUnavailable: boolean;
   readonly sendUnavailableReason: string | undefined;
+  readonly sendUnavailableCause: UnavailableCause | null;
   /** The room-level action that leads the four-home action grid. */
   readonly chatControl: ReactNode;
   /** The composer-owned terminal send/stop control; kept beside attachment tools as one physical cluster. */
@@ -81,7 +85,19 @@ export interface ComposerGuidedClusterProps {
 /** The four dual-mode guided icons + the ✨ utility menu (grouped Input · Reply · Continuation · Images · Plot —
  *  everything busy is inside the menu; the top row is just the four icons + ✨). */
 export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactElement {
-  const { chatId, value, onChange, busy = false, tailIsAssistant, imageControls, sendUnavailable, sendUnavailableReason, chatControl, sendControl } = props;
+  const {
+    chatId,
+    value,
+    onChange,
+    busy = false,
+    tailIsAssistant,
+    imageControls,
+    sendUnavailable,
+    sendUnavailableReason,
+    sendUnavailableCause,
+    chatControl,
+    sendControl,
+  } = props;
   const guided = useGuidedActions({ chatId, onFireError: (firedText): void => onChange(firedText) });
   const utilities = useComposerUtilities(chatId);
   const trimmed = value.trim();
@@ -104,6 +120,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   const impersonating = guided.stopImpersonation !== null;
   const streamOffReason = impersonating ? IMPERSONATE_IN_FLIGHT : undefined;
   const sendRefusal = sendUnavailable ? sendUnavailableReason : undefined;
+  const canOpenConnections = sendRefusal !== undefined && sendUnavailableCause === "no-connection";
   const persistentOffReason = streamOffReason ?? sendRefusal;
   const reasonFor = (phaseReason: string): string => persistentOffReason ?? phaseReason;
 
@@ -201,22 +218,21 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             onApply={rewrite.apply}
           />
         </Grid>
-        {/* THE REFUSAL IS VISIBLE WHERE NO TOOLTIP CAN OPEN (#2443, side-eye 2026-09-19). When the cluster
-            is off for a PERSISTENT cause, every icon here and the Send beside them carry the same one
-            reason — and on a phone that reason had no carrier at all: Base UI 1.7.0's tooltip is
-            `mouseOnly: true` with a `:focus-visible`-gated focus fallback, and an aria-disabled Base UI
-            Button swallows its own click, so there is no press door to put it behind either. One line for
-            the whole band, not one per control: the cause is the band's, the icons' own
-            `aria-describedby` descriptions already name it per control for AT, and seven copies of one
-            sentence is the duplication this file's header exists to refuse. Fine pointers keep the
-            tooltip (`display:none` there, so the line is out of layout AND out of the a11y tree — the
-            spoken job is not lost, it is the descriptions'). A PHASE reason (no reply to target yet) is
-            deliberately not shown here: it turns two of four icons off, names its own next step, and
-            would otherwise stand under every empty chat on every phone. The IMPERSONATE-stream cause is
-            not shown either, for two reasons: its string is a fragment written to follow "<Label> — "
-            (`injection-copy.ts` guarantees full standalone sentences for the SEND causes only), and the
-            Stop that ends it is already rendered beside the icons as visible chrome. */}
-        {sendRefusal === undefined ? null : (
+        {/* A missing connection has a direct next step, so its status and action stay visible on every
+            pointer. Other persistent causes keep the coarse-pointer line because fine pointers already
+            expose the reason through each control's tooltip and accessible description. One line serves
+            the whole band; phase and impersonation-stream reasons remain on their own controls. */}
+        {sendRefusal !== undefined && canOpenConnections && (
+          <Row align="center" className="flex-wrap justify-between" data-slot="composer-guided-refusal" gap="field">
+            <Text as="span" voice="gloss">
+              {sendRefusal}
+            </Text>
+            <Button intent="secondary" onClick={(): void => openConfigTo("connections")} size="sm" type="button">
+              Open Connections
+            </Button>
+          </Row>
+        )}
+        {sendRefusal !== undefined && !canOpenConnections && (
           <Text as="span" className={SHOW_ONLY_AT_COARSE} data-slot="composer-guided-refusal" voice="gloss">
             {sendRefusal}
           </Text>

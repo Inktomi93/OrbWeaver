@@ -23,6 +23,10 @@ export interface LoginWeaveSpec {
   readonly dim: number;
 }
 
+/** The login web's deterministic geometry. Shared with the rendered touch proof so its drive crosses
+ *  real silk rather than guessing at a coordinate that can land between strands after layout changes. */
+export const LOGIN_WEAVE_GEOMETRY = { hub: { x: 0.5, y: 0.34 }, seed: 7 } as const;
+
 // Dim steps (mock-tuned): the card is the subject; the web is ambience.
 const DIM_DEFAULT = 0.6;
 const DIM_FIRST_RUN = 0.62;

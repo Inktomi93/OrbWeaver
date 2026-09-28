@@ -392,6 +392,7 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
             imageControls={imageControls}
             sendUnavailable={sendAvailability.unavailable}
             sendUnavailableReason={sendAvailability.reason}
+            sendUnavailableCause={sendAvailability.cause}
             chatControl={<ActiveChatOptionsMenu chatId={chatId} />}
             sendControl={
               <ComposerSendControl

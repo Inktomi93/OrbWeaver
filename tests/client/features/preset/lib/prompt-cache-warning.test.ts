@@ -54,7 +54,10 @@ test("recognizes volatile calls through every evaluable canonical flag spelling"
   const flagged = ["{{time}}", "{{#time}}", "{{!time}}", "{{?time}}", "{{~time}}", "{{>time}}", "{{#!?~>time}}"];
   for (const [index, content] of flagged.entries()) {
     const section: PromptSection = { type: "literal", id: `flag_${String(index)}`, name: content, role: "system", content, enabled: true };
-    expect(cacheInvalidatingSections(config([section, HISTORY]), PRESET_ID).map((candidate) => candidate.id), content).toEqual([section.id]);
+    expect(
+      cacheInvalidatingSections(config([section, HISTORY]), PRESET_ID).map((candidate) => candidate.id),
+      content,
+    ).toEqual([section.id]);
   }
 });
 
@@ -121,7 +124,15 @@ test("does not warn for nested bytes that the evaluator discards", () => {
 });
 
 test("finds direct staged data, recursive card prose, and runtime variable reads above history", () => {
-  const contents = ["{{memory}}", "{{databank}}", "{{guided_instruction}}", "{{description}}", "{{getvar::counter}}", "{{hasvar::counter}}", "{{getglobalvar::counter}}"];
+  const contents = [
+    "{{memory}}",
+    "{{databank}}",
+    "{{guided_instruction}}",
+    "{{description}}",
+    "{{getvar::counter}}",
+    "{{hasvar::counter}}",
+    "{{getglobalvar::counter}}",
+  ];
   const sections = contents.map(
     (content, index): PromptSection => ({ type: "literal", id: `dependency_${String(index)}`, name: content, role: "system", content, enabled: true }),
   );

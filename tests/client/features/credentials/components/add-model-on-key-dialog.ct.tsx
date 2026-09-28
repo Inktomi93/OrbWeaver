@@ -104,9 +104,7 @@ test("a distributed plugin provider copy keeps its plugin suffix in the row acti
   await expect(action).toContainText(`A new connection on ${relayLabel} with the same key — you only pick the model.`);
   await action.click();
   const dialog = dialogNamed(page, KEY_TITLE);
-  await expect(
-    dialog.getByText(`A new connection on ${relayLabel} with the same key — you only pick the model.`, { exact: true }),
-  ).toBeVisible();
+  await expect(dialog.getByText(`A new connection on ${relayLabel} with the same key — you only pick the model.`, { exact: true })).toBeVisible();
   await expect(dialog.getByRole("combobox", { name: `Search ${relayLabel} models` })).toBeVisible();
   await expect(dialog.getByRole("textbox", { name: "Label" })).toHaveAttribute("placeholder", `${relayLabel} · …`);
 });

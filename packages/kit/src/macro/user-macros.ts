@@ -305,18 +305,20 @@ export const USER_MACRO_CONTENT_BINDING = "content";
 // The input half of the template splice: the threaded per-turn bindings win; an unthreaded input
 // resolves its DEFAULTS per render (random-pick then draws from ctx.random — the {{pick}} preview
 // posture; injected PRNG ⇒ still deterministic).
-function spliceInputs(
-  template: string,
-  def: UserMacroDef,
-  provided: Readonly<Record<string, string>> | undefined,
-  ctx: MacroContext,
-  shadowed: ReadonlySet<string>,
-): string {
+interface InputSpliceContext {
+  readonly def: UserMacroDef;
+  readonly provided: Readonly<Record<string, string>> | undefined;
+  readonly macroContext: MacroContext;
+  readonly shadowed: ReadonlySet<string>;
+}
+
+function spliceInputs(template: string, context: InputSpliceContext): string {
+  const { def, provided, macroContext, shadowed } = context;
   const activeInputs = def.inputs.filter((input) => !shadowed.has(input.name.toLowerCase()));
   if (activeInputs.length === 0) {
     return template;
   }
-  const fallback = provided === undefined ? resolveUserMacroInputs(activeInputs, {}, { prng: ctx.random ?? Math.random }).bindings : undefined;
+  const fallback = provided === undefined ? resolveUserMacroInputs(activeInputs, {}, { prng: macroContext.random ?? Math.random }).bindings : undefined;
   let out = template;
   for (const input of activeInputs) {
     out = splice(out, input.name, provided?.[input.name] ?? fallback?.[input.name] ?? "");
@@ -334,7 +336,7 @@ function userMacroHandler(def: UserMacroDef, opts: RegisterUserMacrosOptions): M
     if (body !== undefined) {
       shadowedInputs.add(USER_MACRO_CONTENT_BINDING);
     }
-    let template = spliceInputs(def.body, def, provided, ctx, shadowedInputs);
+    let template = spliceInputs(def.body, { def, provided, macroContext: ctx, shadowed: shadowedInputs });
     // Declared args bind by NAME (the evaluator already padded declared defaults via applyArgDefaults).
     for (const [i, argDef] of def.args.entries()) {
       if (argDef.name.toLowerCase() === USER_MACRO_CONTENT_BINDING && body !== undefined) {
@@ -352,10 +354,6 @@ function userMacroHandler(def: UserMacroDef, opts: RegisterUserMacrosOptions): M
 
 // ── volatility + cache-dependency derivation ─────────────────────────────────────────────────────
 
-function templateUsesBinding(template: string, name: string): boolean {
-  return new RegExp(`\\{\\{\\s*${name}\\s*\\}\\}`, "i").test(template);
-}
-
 function spliceAnalysisBinding(template: string, name: string, value: string): string {
   return template.replace(new RegExp(`\\{\\{\\s*${name}\\s*\\}\\}`, "gi"), value);
 }
@@ -365,7 +363,7 @@ function analysisBindingValue(value: string): string {
 }
 
 function expandUserMacroForAnalysis(def: UserMacroDef, args: readonly string[], blockContent?: string): string {
-  const content = blockContent === undefined ? args[def.args.length] : blockContent;
+  const content = blockContent ?? args[def.args.length];
   const shadowedInputs = new Set(def.args.map((arg) => arg.name.toLowerCase()));
   if (content !== undefined) {
     shadowedInputs.add(USER_MACRO_CONTENT_BINDING);

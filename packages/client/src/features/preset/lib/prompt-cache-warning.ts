@@ -10,7 +10,7 @@ import type { MacroRegistry } from "@orb/kit/macro";
 import { createDefaultRegistry, macroTextInvalidatesCache, registerUserMacros } from "@orb/kit/macro";
 import { isTemplatedMarkerSection } from "./assembly-model.ts";
 
-const PER_TURN_MARKERS: ReadonlySet<MarkerType> = new Set(["memory", "databank", "guided_instruction", "world_info_before", "world_info_after"]);
+const PER_TURN_MARKERS: ReadonlySet<MarkerType> = new Set<MarkerType>(["memory", "databank", "guided_instruction", "world_info_before", "world_info_after"]);
 
 function sectionText(section: PromptSection): string | null {
   if (section.type === "literal") {

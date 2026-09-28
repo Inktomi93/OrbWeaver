@@ -7,10 +7,7 @@
 import { WebWeave } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
 import { useAuthConfig } from "#data";
-import { resolveLoginWeave } from "../lib/login-weave.ts";
-
-/** The login web hangs its hub above the card (the free zone + resting spider peek over it). */
-const LOGIN_HUB = { x: 0.5, y: 0.34 } as const;
+import { LOGIN_WEAVE_GEOMETRY, resolveLoginWeave } from "../lib/login-weave.ts";
 
 /** A FRESH document load — a deep-link, cold open, or reload (vs an in-SPA route change / bfcache restore).
  *  The deep-linker watches the web weave in; an in-SPA logout/expiry bounce stays settled. The `[0]` is
@@ -32,5 +29,14 @@ function isFreshDocumentLoad(): boolean {
 export function LoginWeaveBackdrop(): ReactElement {
   const config = useAuthConfig();
   const spec = resolveLoginWeave(config.data, globalThis.location.search, isFreshDocumentLoad());
-  return <WebWeave state={spec.state} dim={spec.dim} hub={LOGIN_HUB} interactive={true} className="absolute inset-0" />;
+  return (
+    <WebWeave
+      state={spec.state}
+      dim={spec.dim}
+      hub={LOGIN_WEAVE_GEOMETRY.hub}
+      seed={LOGIN_WEAVE_GEOMETRY.seed}
+      interactive={true}
+      className="absolute inset-0"
+    />
+  );
 }

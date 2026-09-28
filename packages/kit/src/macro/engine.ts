@@ -7,7 +7,8 @@ import { trimContent, utf8ByteLength } from "./content.ts";
 import { evaluateMacros } from "./evaluator.ts";
 import { parseMacros } from "./parser.ts";
 import { createDefaultRegistry } from "./registry.ts";
-import { MACRO_MAX_DEPTH, type MacroAST, type MacroBudget, type MacroContext, type MacroRegistry } from "./types.ts";
+import type { MacroAST, MacroBudget, MacroContext, MacroRegistry } from "./types.ts";
+import { MACRO_MAX_DEPTH } from "./types.ts";
 
 // Defense-in-depth caps. `{{setvar::a::{{a}}}}`-style chains are unbounded in one render pass
 // without these; trivially DoS-able if multi-user is ever turned on. Generous limits — real

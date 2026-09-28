@@ -272,6 +272,9 @@ test("CanonMessage mirrors MessageView (the canon rows every honesty spec reads)
       | "generationId"
       | "toolCalls"
       | "connectionId"
+      // The e2e canon helper does not inspect the output-cap disclosure; its rendered CT owns that truth
+      // until a live spec needs the field and adds it to `CanonMessage`.
+      | "outputCapReached"
     >
   >(keys<CanonMessage, MessageView>());
   expectTypeOf<MessageView>().toExtend<CanonMessage>();
