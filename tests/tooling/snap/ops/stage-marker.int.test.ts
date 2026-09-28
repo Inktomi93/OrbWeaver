@@ -16,9 +16,10 @@
 //    reads `live`; the same child with a DEAD daemon pid reads `stranded`. That is the binding
 //    ops/session-daemon.ts performs, not a hand-written `liveSessions` array;
 //  • the legacy `active.json` migrates ONCE and is gone — and a second read does not resurrect it.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import process from "node:process";
 import { REPO_ROOT } from "@orb/tooling/_shared/artifacts";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { vi } from "vitest";
@@ -34,6 +35,7 @@ import {
   releaseLockDir,
   touchRow,
   unbindSessionFromBand,
+  withBandsLock,
   writeBands,
   writeRow,
 } from "../../../../tooling/src/snap/ops/stage-marker.ts";
@@ -282,6 +284,83 @@ test("ONE process claims band 0 — the positive control for the concurrent arm 
   expect(child.code, child.stdout).toBe(0);
   expect(child.stdout).toContain("CLAIMED 0");
   expect(readBands(home).map((entry) => entry.band)).toEqual([0]);
+});
+
+test("an allocator does not steal the lock between mkdir and its holder's pid write", async () => {
+  const home = scratchHome("pending-pid");
+  const lockDir = join(home, STAGE_ROOT_REL, "bands.lock");
+  const attempted = join(home, "attempted");
+  mkdirSync(lockDir);
+  const childPath = join(home, "pending-pid-child.ts");
+  writeFileSync(
+    childPath,
+    `import { writeFileSync } from "node:fs";
+import { withBandsLock } from ${JSON.stringify(MARKER_SRC)};
+writeFileSync(${JSON.stringify(attempted)}, "ready");
+withBandsLock(${JSON.stringify(home)}, () => console.log("CLAIMED"));
+`,
+  );
+  const child = spawnNiced("node", [childPath], { timeoutMs: CASE_BUDGET_MS });
+  try {
+    for (let poll = 0; poll < 200 && !existsSync(attempted); poll += 1) {
+      await new Promise((done) => setTimeout(done, 25));
+    }
+    expect(existsSync(attempted)).toBe(true);
+    await new Promise((done) => setTimeout(done, CLAIM_HOLD_MS));
+    expect(existsSync(lockDir), "the new lock must survive its ownerless creation window").toBe(true);
+  } finally {
+    releaseLockDir(lockDir);
+  }
+  const result = await child;
+  expect(result.code, result.stdout + result.stderr).toBe(0);
+  expect(result.stdout).toContain("CLAIMED");
+});
+
+test("a dead holder is reaped and the new holder releases its own lock", () => {
+  const home = scratchHome("dead-holder");
+  const lockDir = join(home, STAGE_ROOT_REL, "bands.lock");
+  mkdirSync(lockDir);
+  writeFileSync(join(lockDir, "pid"), "2147483647\n");
+
+  expect(withBandsLock(home, () => readFileSync(join(lockDir, "pid"), "utf8"))).toBe(`${process.pid}\n`);
+  expect(existsSync(lockDir)).toBe(false);
+});
+
+test("an aged ownerless directory is reaped, but a fresh ownerless directory remains held", () => {
+  const home = scratchHome("ownerless-age");
+  const lockDir = join(home, STAGE_ROOT_REL, "bands.lock");
+  mkdirSync(lockDir);
+  expect(() => withBandsLock(home, () => "unexpected")).toThrow("timed out waiting for the stage band table lock");
+  expect(existsSync(lockDir)).toBe(true);
+
+  utimesSync(lockDir, new Date(0), new Date(0));
+  expect(withBandsLock(home, () => readFileSync(join(lockDir, "pid"), "utf8"))).toBe(`${process.pid}\n`);
+  expect(existsSync(lockDir)).toBe(false);
+});
+
+test("a live holder is never stolen when a waiter exhausts its budget", () => {
+  const home = scratchHome("live-holder-timeout");
+  const lockDir = join(home, STAGE_ROOT_REL, "bands.lock");
+  mkdirSync(lockDir);
+  writeFileSync(join(lockDir, "pid"), `${process.pid}\n`);
+
+  expect(() => withBandsLock(home, () => "unexpected")).toThrow("timed out waiting for the stage band table lock");
+  expect(readFileSync(join(lockDir, "pid"), "utf8")).toBe(`${process.pid}\n`);
+  releaseLockDir(lockDir);
+});
+
+test("a nested throw unwinds lock depth and releases the outer holder", () => {
+  const home = scratchHome("nested-throw");
+  const lockDir = join(home, STAGE_ROOT_REL, "bands.lock");
+  expect(() =>
+    withBandsLock(home, () =>
+      withBandsLock(home, () => {
+        throw new Error("nested failure");
+      }),
+    ),
+  ).toThrow("nested failure");
+  expect(existsSync(lockDir)).toBe(false);
+  expect(withBandsLock(home, () => "reacquired")).toBe("reacquired");
 });
 
 test("FOUR CONCURRENT PROCESSES CLAIM FOUR DISTINCT BANDS, and no two share a port", async () => {

@@ -17,6 +17,7 @@ export const OS_NEUTRAL_CASE_MESSAGES: Readonly<Record<OsNeutralCase, string>> =
   "tmpdir-without-temp": "an env object that sets `TMPDIR` without both `TEMP` and `TMP`, the temp dirs Windows programs read",
   "newline-split": 'a line split on a bare `"\\n"`: file, resource and child text carries CRLF on Windows, which leaves a `\\r` on every line',
   "git-bypass": "a git spawn outside the git door, so a hook's `GIT_*` variables reach the child",
+  "test-executable-mode": "an executable Git mode on a test file, which Windows contributor checkouts cannot preserve",
 };
 
 /** A Linux-only program and the flag that makes it Linux-only; `null` means the program itself is. */

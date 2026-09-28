@@ -9,8 +9,7 @@
 //   runCli       — spawn tooling/src/<tool>/cli.ts via _shared/proc.spawnNiced (the tooling process's
 //                  lowered priority, the owner rule); returns { code, stdout, stderr } for `toExitWith`. Tests name TOOLS, not
 //                  paths — a tool move never sweeps test literals again.
-//   fakeBin      — a temp executable prepended to PATH for the test (the work-item fake-`gh` shim,
-//                  generalized); auto-restored.
+//   fakeBin      — a Node-backed POSIX + Windows command pair prepended to PATH for the test; auto-restored.
 //   plantedTree  — materialize a throwaway violation tree under scratch (the conformance-harness
 //                  pattern as a fixture); fsBacked tool tests never write the REAL tree. Nothing else does
 //                  either since #2176 Phase F: the legacy gate self-test's `__g_` real-tree planters are
@@ -44,12 +43,18 @@ export interface ToolFixtures {
   repoRoot: string;
   scratch: string;
   runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;
-  fakeBin: (name: string, script: string) => Promise<void>;
+  fakeBin: (name: string, moduleSource: string) => Promise<void>;
   plantedTree: (files: Readonly<Record<string, string>>) => Promise<string>;
 }
 
 const REPO_ROOT = resolve(import.meta.dirname, "..", "..");
 const EXECUTABLE_MODE = 0o755;
+const FAKE_BIN_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/u;
+const WINDOWS_DEVICE_NAME_RE = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu;
+
+function windowsBatchLiteral(value: string): string {
+  return value.replaceAll("%", "%%");
+}
 
 function isContained(root: string, candidate: string): boolean {
   const rel = relative(root, candidate);
@@ -134,11 +139,20 @@ export const test = houseTest.extend<ToolFixtures>({
     // biome-ignore lint/style/noProcessEnv: PATH manipulation IS this fixture's job — a temp executable must shadow the real one for the spawned child; restored below.
     const originalPath = process.env["PATH"];
     let prepended = false;
-    await use(async (name, script) => {
+    await use(async (name, moduleSource) => {
+      if (!FAKE_BIN_NAME_RE.test(name) || name.endsWith(".") || WINDOWS_DEVICE_NAME_RE.test(name)) {
+        throw new Error(`fakeBin: ${JSON.stringify(name)} must be one command basename`);
+      }
       await mkdir(binDir, { recursive: true });
-      const file = join(binDir, name);
-      await writeFile(file, script, "utf8");
-      await chmod(file, EXECUTABLE_MODE);
+      const moduleName = `${name}.mjs`;
+      const posixLauncher = fixturePath(binDir, name);
+      const windowsLauncher = fixturePath(binDir, `${name}.cmd`);
+      await Promise.all([
+        writeFile(fixturePath(binDir, moduleName), moduleSource, "utf8"),
+        writeFile(posixLauncher, `#!/usr/bin/env node\nimport ${JSON.stringify(`./${moduleName}`)};\n`, "utf8"),
+        writeFile(windowsLauncher, `@echo off\r\n"${windowsBatchLiteral(process.execPath)}" "%~dp0${moduleName}" %*\r\n`, "utf8"),
+      ]);
+      await chmod(posixLauncher, EXECUTABLE_MODE);
       if (!prepended) {
         // biome-ignore lint/style/noProcessEnv: see above — the prepend is the mechanism.
         process.env["PATH"] = `${binDir}${delimiter}${originalPath ?? ""}`;

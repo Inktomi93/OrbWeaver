@@ -392,8 +392,5 @@ export interface BrowserNetworkRecord {
 }
 
 /** Environment identity supplied by a session registry row when a sibling attaches over CDP. */
-export type ProbeAttachOptions = Pick<
-  ProbeLaunchOptions,
-  "viewport" | "device" | "colorScheme" | "reducedMotion" | "deviceScaleFactor" | "evidenceLimits"
-> &
+export type ProbeAttachOptions = Pick<ProbeLaunchOptions, "viewport" | "device" | "colorScheme" | "reducedMotion" | "deviceScaleFactor" | "evidenceLimits"> &
   Required<Pick<ProbeLaunchOptions, "contrast" | "reducedTransparency">>;

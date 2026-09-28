@@ -17,9 +17,10 @@
 // both boot onto band 0 and the second would kill the first — which is the exact contention this table
 // exists to end. `withBandsLock` is a mkdir-based mutex (mkdir is atomic on every filesystem we run on)
 // held across the read-decide-claim window, so a band is CLAIMED by a written row before its 55 s stack
-// boot starts. A lock whose holder pid is gone, or which is older than `LOCK_STALE_MS`, is broken rather
-// than inherited: a crashed allocator must not wedge the box forever.
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+// boot starts. A dead holder's lock is reaped; an ownerless directory is reaped only after
+// `LOCK_STALE_MS` because mkdir and the holder's pid write are separate operations. A live holder is
+// never stolen, even when a waiter exhausts its budget.
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -43,9 +44,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const BANDS_FILE_VERSION = 1;
 const LOCK_REL = join(STAGE_ROOT_REL, "bands.lock");
-/** How long a held lock may live before the next allocator breaks it. Generous relative to the work it
- *  guards (a read, a decide and a write — milliseconds), tight relative to a stage boot, so a crashed
- *  allocator costs one waiter a short pause and never a wedged box. */
+/** An ownerless lock directory may be reaped after this age. A live holder is never stolen. */
 const LOCK_STALE_MS = 30_000;
 const LOCK_POLL_MS = 25;
 const LOCK_WAIT_MS = 5000;
@@ -340,18 +339,27 @@ export function releaseLockDir(path: string, onRenamed?: () => void): void {
   rmSync(releasing, { recursive: true, force: true });
 }
 
-function breakStaleLock(path: string, startedMs: number): void {
+function breakStaleLock(path: string): void {
   const pid = lockHolderPid(path);
-  const dead = pid === null || !pidAlive(pid);
-  if (dead || Date.now() - startedMs > LOCK_STALE_MS) {
-    releaseLockDir(path);
+  if (pid !== null) {
+    if (!pidAlive(pid)) {
+      releaseLockDir(path);
+    }
+    return;
+  }
+  // mkdir and writing pid are separate operations: another allocator may see this directory in between.
+  // @orb-waive caught-failure-ownership(catch): a removed lock is already free; its next claimant retries mkdir.
+  try {
+    if (Date.now() - statSync(path).mtimeMs > LOCK_STALE_MS) {
+      releaseLockDir(path);
+    }
+  } catch {
+    // Empty: see the waiver above.
   }
 }
 
-/** Run `fn` holding the table's mutex. The lock is BROKEN rather than waited on forever when its holder is
- *  gone or it has outlived `LOCK_STALE_MS`; when the wait budget runs out the lock is broken and taken
- *  anyway, because refusing to allocate over a stuck lock file would turn a crashed allocator into a
- *  box-wide outage — and the table write itself is a single atomic `writeFileSync`. */
+/** Run `fn` holding the table's mutex. Reap a dead holder or an aged ownerless directory, but refuse
+ *  after the wait budget rather than allowing two live processes into the critical section. */
 export function withBandsLock<T>(home: string, fn: () => T): T {
   const depth = LOCK_DEPTH.get(home) ?? 0;
   if (depth > 0) {
@@ -374,12 +382,9 @@ export function withBandsLock<T>(home: string, fn: () => T): T {
     } catch {
       // Held (or unwritable): judge the holder, then wait a beat.
     }
-    breakStaleLock(path, Date.now());
+    breakStaleLock(path);
     if (Date.now() > deadline) {
-      releaseLockDir(path);
-      mkdirSync(path, { recursive: true });
-      writeFileSync(join(path, "pid"), `${process.pid}\n`);
-      break;
+      throw new Error(`timed out waiting for the stage band table lock at ${path}`);
     }
     waitSync(LOCK_POLL_MS);
   }
@@ -388,7 +393,9 @@ export function withBandsLock<T>(home: string, fn: () => T): T {
     return fn();
   } finally {
     LOCK_DEPTH.delete(home);
-    releaseLockDir(path);
+    if (lockHolderPid(path) === process.pid) {
+      releaseLockDir(path);
+    }
   }
 }
 

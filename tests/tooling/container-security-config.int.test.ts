@@ -161,9 +161,9 @@ test("the sandbox launcher starts Claude permissive and passes extra args throug
   const callsPath = join(scratch, "npx-calls");
   await fakeBin(
     "npx",
-    `#!/usr/bin/env bash
-printf '%s\\n' '--- call ---' >> '${callsPath}'
-printf '<%s>\\n' "$@" >> '${callsPath}'
+    `import { appendFileSync } from "node:fs";
+const lines = ["--- call ---", ...process.argv.slice(2).map((argument) => \`<\${argument}>\`), ""];
+appendFileSync(${JSON.stringify(callsPath)}, lines.join("\\n"));
 `,
   );
 

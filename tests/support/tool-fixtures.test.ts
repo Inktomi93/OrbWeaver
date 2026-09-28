@@ -1,10 +1,11 @@
 // The tooling composed test's own proof (docs/law/Core-Tooling-Law.md §5): each serializer rule + a
 // planted NEGATIVE (a deterministic string must pass through byte-identical), the toExitWith contract
 // diff, runCli's fail-loud unknown-tool refusal, and the scratch/plantedTree/fakeBin seams.
-import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import process from "node:process";
+import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { expect, fixturePath, test } from "./tool-fixtures.ts";
 
 // The mismatch-diff contract: both codes by NAME + the stdout tail.
@@ -55,10 +56,27 @@ test("runCli refuses an unknown tool loudly instead of a spawn ENOENT", async ({
   await expect(runCli("no-such-tool", [])).rejects.toThrow('no such tool "no-such-tool"');
 });
 
-test("fakeBin shadows a real binary via PATH for code spawned after it", async ({ fakeBin }) => {
-  await fakeBin("orb-fake-probe-bin", "#!/usr/bin/env node\nprocess.stdout.write('fake-answer');\n");
-  const out = execFileSync("orb-fake-probe-bin", [], { encoding: "utf8" });
-  expect(out).toBe("fake-answer");
+test("fakeBin writes both native launchers and preserves argv through the production process door", async ({ fakeBin, scratch }) => {
+  const name = "orb-fake-probe-bin";
+  const observed = join(scratch, "fake-bin-argv.json");
+  await fakeBin(name, `import { writeFileSync } from "node:fs";\nwriteFileSync(${JSON.stringify(observed)}, JSON.stringify(process.argv.slice(2)));\n`);
+
+  const binDir = join(scratch, "fake-bin");
+  const moduleName = `${name}.mjs`;
+  expect(readFileSync(join(binDir, name), "utf8")).toBe(`#!/usr/bin/env node\nimport "./${moduleName}";\n`);
+  expect(readFileSync(join(binDir, `${name}.cmd`), "utf8")).toBe(`@echo off\r\n"${process.execPath.replaceAll("%", "%%")}" "%~dp0${moduleName}" %*\r\n`);
+  expect(readFileSync(join(binDir, moduleName), "utf8")).toContain("process.argv.slice(2)");
+
+  const result = await spawnNiced(name, ["argument with a space", "tail"], { cwd: scratch });
+  expect(result).toMatchObject({ code: 0, stderr: "", timedOut: false });
+  expect(JSON.parse(readFileSync(observed, "utf8"))).toEqual(["argument with a space", "tail"]);
+});
+
+test("fakeBin refuses a path instead of composing outside its owned bin directory", async ({ fakeBin, scratch }) => {
+  await expect(fakeBin("../escape", "process.exitCode = 0;\n")).rejects.toThrow("must be one command basename");
+  await expect(fakeBin("con", "process.exitCode = 0;\n")).rejects.toThrow("must be one command basename");
+  await expect(fakeBin("probe.", "process.exitCode = 0;\n")).rejects.toThrow("must be one command basename");
+  expect(existsSync(join(scratch, "escape"))).toBe(false);
 });
 
 test("toExitWith names both codes by contract and carries output tails on mismatch", async () => {

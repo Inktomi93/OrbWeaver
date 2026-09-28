@@ -14,20 +14,26 @@ test("worktree bootstrap drains a large inventory before linking from its first 
 
   await fakeBin(
     "git",
-    `#!/usr/bin/env bash
-if [ "$1 $2" = "rev-parse --show-toplevel" ]; then
-  printf '%s\\n' '${laneRoot}'
-elif [ "$1 $2 $3" = "worktree list --porcelain" ]; then
-  printf 'worktree %s\\n\\n' '${mainRoot}'
-  for ((i = 0; i < ${INVENTORY_ROWS}; i += 1)); do
-    printf 'worktree /synthetic/%06d\\n\\n' "$i"
-  done
-else
-  exit 64
-fi
+    `process.stdout.on("error", (error) => {
+  if (error.code === "EPIPE") process.exit(141);
+  throw error;
+});
+const args = process.argv.slice(2);
+if (args[0] === "rev-parse" && args[1] === "--show-toplevel") {
+  process.stdout.write(${JSON.stringify(`${laneRoot}\n`)});
+} else if (args[0] === "worktree" && args[1] === "list" && args[2] === "--porcelain") {
+  const rows = new Array(${String(INVENTORY_ROWS + 1)});
+  rows[0] = ${JSON.stringify(`worktree ${mainRoot}\n\n`)};
+  for (let index = 0; index < ${String(INVENTORY_ROWS)}; index += 1) {
+    rows[index + 1] = \`worktree /synthetic/\${String(index).padStart(6, "0")}\\n\\n\`;
+  }
+  process.stdout.write(rows.join(""));
+} else {
+  process.exitCode = 64;
+}
 `,
   );
-  await fakeBin("pnpm", "#!/usr/bin/env bash\nexit 0\n");
+  await fakeBin("pnpm", "process.exitCode = 0;\n");
 
   const oldPipeline = spawnSync("bash", ["-o", "pipefail", "-c", "git worktree list --porcelain | awk '/^worktree /{print $2; exit}'"], {
     cwd: laneRoot,

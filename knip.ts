@@ -62,7 +62,7 @@ const config = {
       // The full binary analysis sees these deliberately fake executables in missing-binary and PATH-shim controls.
       // mkfifo is the POSIX coreutils binary the orchestrator-inject hook test uses to plant a FIFO transcript path;
       // it is an OS tool, never an npm dependency, so knip has no package to credit it to.
-      ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "orb-fake-probe-bin", "mkfifo"],
+      ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "mkfifo"],
       // pino-pretty is a root devDependency the dev launcher's pretty log rides; its importer is the tooling
       // workspace (tooling/src/dev/ops/dev.ts), which knip credits to that workspace, not to the root.
       // ts7 (npm:typescript@7) is resolved by PATH STRING in scripts/ts7.ts (node_modules/ts7/bin/tsc) —

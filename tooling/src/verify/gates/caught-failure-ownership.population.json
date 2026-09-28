@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 623,
+    "sites": 624,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 623,
+      "deliberate-absorb": 624,
       "unproven": 0
     },
     "byGrammar": {
       "default": 153,
-      "empty": 319,
+      "empty": 320,
       "promise": 151
     }
   },
@@ -571,9 +571,9 @@
       "reason": "a value that can't stringify (a cycle, a BigInt) degrades to a placeholder log label — dev logging only, never a data path. Ends if this output feeds anything besides a dev log line."
     },
     {
-      "siteId": "packages/client/src/lib/view-transition.ts::withViewTransition::settled::1",
+      "siteId": "packages/client/src/lib/view-transition-settlement.ts::observeViewTransition.observe::settled::1",
       "verdict": "deliberate-absorb",
-      "reason": "only AbortError is absorbed as the platform's skipped-transition outcome; every other rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement."
+      "reason": "only AbortError from platform settlement is absorbed; callback settlement never absorbs it. Every other unique rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement."
     },
     {
       "siteId": "packages/client/src/main.tsx::reportClientError::trpcClient.clientError.mutate::1",
@@ -2709,6 +2709,11 @@
       "siteId": "tooling/src/snap/ops/session-registry.ts::withBootLock::error::1",
       "verdict": "deliberate-absorb",
       "reason": "only EEXIST is the expected lock-contention signal and it retries after a bounded poll; every other mkdir failure rethrows. Ends if the lock stops being represented by exclusive directory creation."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-marker.ts::breakStaleLock::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a removed lock is already free; its next claimant retries mkdir."
     },
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::lockHolderPid::catch::1",
