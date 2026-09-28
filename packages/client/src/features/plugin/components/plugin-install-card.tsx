@@ -394,10 +394,10 @@ export function PluginInstallCard(): ReactElement {
             // fills out the whole consent form only to learn at the 409 that they already have this plugin.
             <Stack gap="field">
               <Text prose={true} role="alert" voice="gloss">
-                "{alreadyInstalled.name}" ({alreadyInstalled.slug}) is already installed. Open its existing row to check for an update.
+                "{alreadyInstalled.name}" ({alreadyInstalled.slug}) is already installed. Open installed plugins to check for an update.
               </Text>
               <Button intent="primary" onClick={(): void => openConfigTo("plugins", "installed")} size="sm">
-                Open installed plugin
+                Open installed plugins
               </Button>
             </Stack>
           )}

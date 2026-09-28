@@ -428,7 +428,7 @@ test("the grant screen names every declared permission, its consequence, and the
   await expect(page.getByText("It will be installed turned off.", { exact: false })).toBeVisible();
 });
 
-test("a known duplicate source cannot install again and routes to the existing update row", async ({ mount, page }) => {
+test("a known duplicate source cannot install again and honestly opens the installed plugins section", async ({ mount, page }) => {
   const recorder = await routeTrpc(page, {
     "plugin.list": () => [INSTALLED_ROW],
     "plugin.listSurfaces": () => [],
@@ -439,7 +439,7 @@ test("a known duplicate source cannot install again and routes to the existing u
 
   await expect(page.getByRole("alert")).toContainText('"Weather Teller" (weather-teller) is already installed');
   await expect(page.getByRole("button", { name: "Install", exact: true })).toBeDisabled();
-  const existing = page.getByRole("button", { name: "Open installed plugin", exact: true });
+  const existing = page.getByRole("button", { name: "Open installed plugins", exact: true });
   await expect(existing).toBeVisible();
   await existing.click();
   await expect(page.getByRole("heading", { name: "Installed" })).toBeVisible();

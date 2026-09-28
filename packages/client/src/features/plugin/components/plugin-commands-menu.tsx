@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useActiveChatId } from "#state";
 import { usePluginCommands, useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
-import { pluginCommandActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
+import { pluginCommandActionLabel, pluginCommandAttribution, pluginCommandAttributedActionLabel } from "../lib/plugin-command-copy.ts";
 
 /** Group the flat command list by plugin, preserving the hook's (plugin, command) order. */
 function groupByPlugin(
@@ -54,7 +54,7 @@ export function PluginCommandsMenu({ presentation }: { readonly presentation: "b
       <>
         {commands.map((command) => (
           <Button disabled={isPending} intent="ghost" key={`${command.pluginId}:${command.name}`} onClick={(): void => runCommand(command)} size="sm">
-            <Text voice="label">{`${pluginCommandAttribution(command.pluginName, command.slug)} · ${command.group ?? "Commands"} · ${pluginCommandActionLabel(command.name)}`}</Text>
+            <Text voice="label">{pluginCommandAttributedActionLabel(command.pluginName, command.slug, command.group ?? "Commands", command.name)}</Text>
           </Button>
         ))}
       </>
@@ -76,7 +76,12 @@ export function PluginCommandsMenu({ presentation }: { readonly presentation: "b
                 plugin that registered it, so the menu can never present a plugin's command as the app's own. */}
             <MenuGroupLabel>{pluginCommandAttribution(group.pluginName, group.slug)}</MenuGroupLabel>
             {group.commands.map((command) => (
-              <MenuItem disabled={isPending} key={`${command.pluginId}:${command.name}`} onClick={(): void => runCommand(command)}>
+              <MenuItem
+                aria-label={`${pluginCommandAttributedActionLabel(command.pluginName, command.slug, command.group ?? "Commands", command.name)} · ${command.describe}`}
+                disabled={isPending}
+                key={`${command.pluginId}:${command.name}`}
+                onClick={(): void => runCommand(command)}
+              >
                 {command.group === null
                   ? `${pluginCommandActionLabel(command.name)} · ${command.describe}`
                   : `${command.group} · ${pluginCommandActionLabel(command.name)} · ${command.describe}`}

@@ -18,6 +18,7 @@
 // bundle asks for at the confirm step — an admin choosing what to push to every account should see what they
 // are pushing, even though they are not the one granting it.
 
+import { PLUGIN_BUNDLE_MAX_BYTES } from "@orb/contracts/plugin";
 import { Button } from "@orb/ui/button";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -27,12 +28,12 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary } from "#components";
+import { ConfirmDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { configAnchorId } from "#state";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
-import { PLUGIN_BUNDLE_MAX_BYTES, PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
+import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
 import { PLUGIN_DISTRIBUTE_SUBCATEGORY } from "../lib/plugin-distribute-nav.ts";
 import { useDistributePlugin, useWithdrawPlugin } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
@@ -205,24 +206,21 @@ function PluginDistributeBody(): ReactElement {
                 title={row.name}
                 subtitle={`${row.slug} · ${row.version}`}
                 actions={
-                  <Button
-                    intent="secondary"
-                    size="sm"
-                    loading={withdraw.isPending}
-                    onClick={(): void => {
-                      // @orb-waive caught-failure-ownership(withdraw.mutateAsync): useWithdrawPlugin carries
-                      // errorToast: serverReason("Couldn't withdraw that plugin.") — the toast is the surface.
-                      // Ends if that mutation drops its errorToast.
-                      withdraw.mutateAsync({ slug: row.slug }).then(
-                        (result) => {
-                          notify.success(withdrawSentence(result, row.name));
-                        },
-                        () => undefined,
-                      );
-                    }}
-                  >
-                    Stop giving it out
-                  </Button>
+                  <ConfirmDialog
+                    confirmLabel="Stop giving it out"
+                    description={`This removes ${row.name} ${row.version} from every account that still has the distributed version and stops adding it to new accounts. Copies people updated themselves stay installed.`}
+                    onConfirm={() =>
+                      withdraw.mutateAsync({ slug: row.slug }).then((result): void => {
+                        notify.success(withdrawSentence(result, row.name));
+                      })
+                    }
+                    title={`Stop giving out "${row.name}" to every account?`}
+                    trigger={
+                      <Button intent="secondary" size="sm">
+                        Stop giving it out
+                      </Button>
+                    }
+                  />
                 }
               />
             ))}

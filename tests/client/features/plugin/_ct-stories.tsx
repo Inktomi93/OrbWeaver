@@ -10,6 +10,7 @@
 // the capability list in as a prop would prove nothing about the path that actually produces it.
 
 import { CommandPaletteSurface } from "@orb/client/features/chat";
+import { useInvalidation, useTRPC } from "@orb/client/data";
 import {
   pluginChatFlankSurface,
   pluginChatSettingsSection,
@@ -42,6 +43,7 @@ import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Stack } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
@@ -54,6 +56,8 @@ import { PluginCommandArgsBody } from "../../../../packages/client/src/features/
 import { PluginCommandsMenu } from "../../../../packages/client/src/features/plugin/components/plugin-commands-menu.tsx";
 import { PluginComposerActions, PluginComposerMediaItems } from "../../../../packages/client/src/features/plugin/components/plugin-composer-placements.tsx";
 import { PluginDialogBody } from "../../../../packages/client/src/features/plugin/components/plugin-dialog-body.tsx";
+import { PluginSurfacesPanel } from "../../../../packages/client/src/features/plugin/components/plugin-surfaces-panel.tsx";
+import { useReportUiCrash, useUninstallPlugin, useWithdrawPlugin } from "../../../../packages/client/src/features/plugin/lib/plugin-mutations.ts";
 import {
   CtAppDataProviders,
   CtChatContributorSectionRegistry,
@@ -436,6 +440,54 @@ export function PluginComposerPlacementsStory({ chatId = CHAT_ID, width = 420 }:
           <PluginCommandArgsBody />
         </div>
       </CtToastSurface>
+    </CtDataProviders>
+  );
+}
+
+function PluginTerminalInvalidationBody({
+  pluginId,
+  transition,
+}: {
+  readonly pluginId: PluginId;
+  readonly transition: "uninstall" | "withdraw" | "auto-disable";
+}): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const uninstall = useUninstallPlugin({ trpc, invalidation });
+  const withdraw = useWithdrawPlugin({ trpc, invalidation });
+  const reportCrash = useReportUiCrash({ trpc, invalidation });
+  const pending = uninstall.isPending || withdraw.isPending || reportCrash.isPending;
+  const run = (): void => {
+    if (transition === "uninstall") {
+      uninstall.mutate({ pluginId });
+    } else if (transition === "withdraw") {
+      withdraw.mutate({ slug: "resident-plugin" });
+    } else {
+      reportCrash.mutate({ pluginId, surfaceId: "resident-settings", reason: "third client guest crash" });
+    }
+  };
+  return (
+    <Stack gap="block">
+      <PluginSurfacesPanel grants={["ui.surface"]} pluginId={pluginId} pluginName="Resident plugin" />
+      <PluginCommandsMenu presentation="bar" />
+      <Button disabled={pending} onClick={run}>
+        Run {transition}
+      </Button>
+    </Stack>
+  );
+}
+
+/** A warmed surface and command catalog beside the terminal lifecycle act that must evict both. */
+export function PluginTerminalInvalidationStory({
+  pluginId,
+  transition,
+}: {
+  readonly pluginId: PluginId;
+  readonly transition: "uninstall" | "withdraw" | "auto-disable";
+}): ReactElement {
+  return (
+    <CtDataProviders>
+      <PluginTerminalInvalidationBody pluginId={pluginId} transition={transition} />
     </CtDataProviders>
   );
 }

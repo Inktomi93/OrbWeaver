@@ -17,7 +17,7 @@ import { strToU8, zipSync } from "fflate";
 import { readEscapedAbsolutes } from "../../../../support/browser/settings-geometry.ts";
 import { makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
 import type { TrpcFixtureOutput, TrpcProcedurePath, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { defineTrpcRoutes, routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { defineTrpcRoutes, routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ConfigHostInScrollingHostStory, ConfigHostStory } from "../_ct-stories.tsx";
 
 /** The getUserSettings read-model the Appearance group suspends on — defaults are enough to render it. */
@@ -480,6 +480,55 @@ test("an ADMIN sees the Distribute section on the Plugins group, and publishing 
   // SETTLED: the published list repainted from the server's own truth after the invalidate.
   await expect(component.getByText("house-style · 1.0.0")).toBeVisible();
   await expect(component.getByRole("button", { name: "Stop giving it out" })).toBeVisible();
+});
+
+test("server-wide withdrawal names its account-wide effect and holds the confirm through cancel, failure, retry, and success", async ({ mount, page }) => {
+  let published: TrpcWireOutput<"plugin.listDistributed"> = [
+    { slug: "house-style", name: "House Style", version: "1.0.0", distributedAt: 0, updatedAt: 0 },
+  ];
+  let attempts = 0;
+  const firstWithdrawal = trpcHold();
+  await stub(page, {
+    "sessions.me": { userId: "user_admin", handle: "admin", globalRole: "admin" },
+    "plugin.listDistributed": () => published,
+    "plugin.uninstallForAllUsers": () => {
+      attempts += 1;
+      if (attempts === 1) {
+        return firstWithdrawal;
+      }
+      published = [];
+      return { slug: "house-style", name: "House Style", version: "1.0.0", applied: 3, skipped: [] };
+    },
+  });
+  const component = await mount(<ConfigHostStory />);
+
+  await component.getByRole("button", { name: "Plugins" }).click();
+  const trigger = component.getByRole("button", { name: "Stop giving it out" });
+  await trigger.click();
+  let dialog = page.getByRole("alertdialog");
+  await expect(dialog).toContainText('Stop giving out "House Style" to every account?');
+  await expect(dialog).toContainText("removes House Style 1.0.0 from every account that still has the distributed version");
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toBeHidden();
+  expect(attempts).toBe(0);
+
+  await trigger.click();
+  dialog = page.getByRole("alertdialog");
+  const confirm = dialog.getByRole("button", { name: "Stop giving it out" });
+  await confirm.click();
+  await firstWithdrawal.requested;
+  await expect(confirm).toBeDisabled();
+  await expect(dialog).toBeVisible();
+
+  firstWithdrawal.release(trpcError({ code: "INTERNAL_SERVER_ERROR", message: "the distribution ledger is locked" }));
+  await expect(dialog.locator('[data-slot="confirm-dialog-failure"]')).toContainText("the distribution ledger is locked");
+  await expect(confirm).toBeEnabled();
+
+  await confirm.click();
+  await expect(page.getByRole("alertdialog")).toBeHidden();
+  await expect(component.getByText("Nothing is being given out.", { exact: false })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Stop giving it out" })).toHaveCount(0);
+  expect(attempts).toBe(2);
 });
 
 test("an admin viewer sees the Admin band and it mounts the REAL group", async ({ mount, page }) => {

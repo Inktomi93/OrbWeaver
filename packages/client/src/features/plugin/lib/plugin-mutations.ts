@@ -23,6 +23,21 @@ import { createEntityMutation } from "#data";
  *  honest against the wire shape. */
 type PluginList = inferOutput<Trpc["plugin"]["list"]>;
 
+/** Plugin provider registration changes every connection read derived from that registry: the provider
+ *  roster itself, plus saved rows' labels, tasks, capabilities and catalogs. Keep that dependency at the
+ *  domain root so a lifecycle verb cannot refresh the picker while leaving an already-mounted row stale. */
+function providerDependentConnectionReads(trpc: Trpc): readonly ReturnType<Trpc["connection"]["pathFilter"]>[] {
+  return [trpc.connection.pathFilter()];
+}
+
+/** The resident contribution catalogs every lifecycle transition must reconcile together. */
+function pluginContributionCatalogReads(trpc: Trpc): readonly [
+  ReturnType<Trpc["plugin"]["listSurfaces"]["queryFilter"]>,
+  ReturnType<Trpc["plugin"]["listCommands"]["queryFilter"]>,
+] {
+  return [trpc.plugin.listSurfaces.queryFilter(), trpc.plugin.listCommands.queryFilter()];
+}
+
 /** The server's own refusal sentence when it threw one, else `fallback`. The lifecycle taxonomy
  *  (`ManifestInvalidError`, `PluginAlreadyInstalledError`, `PluginDowngradeRefusedError`,
  *  `PluginSnippetBusyError`) is already written to be read by the person who hit it. */
@@ -39,10 +54,10 @@ export const useInstallPlugin = createEntityMutation<inferInput<Trpc["plugin"]["
   errorToast: serverReason("Couldn't install that plugin."),
 });
 
-/** PREVIEW a plugin bundle at a caller-supplied URL (U8, seam 15) — the server fetches
- *  it THROUGH the egress guard and returns its MANIFEST, so the SAME consent/grant screen a file install shows
- *  can be built from a URL the client never fetched itself. Reconciles NOTHING (`invalidates: () => []`): it is
- *  a read-only probe that persists no row, exactly like `runSnippet`.
+/** PREVIEW a plugin bundle at a caller-supplied URL (U8, seam 15) — the server fetches it THROUGH the egress
+ *  guard and returns its manifest plus exact-byte identity, so the SAME consent/grant screen a file install
+ *  shows can be built from a URL the client never fetched itself and bound to the later install. Reconciles
+ *  NOTHING (`invalidates: () => []`): it is a read-only probe that persists no row, exactly like `runSnippet`.
  *
  *  NO `errorToast`, DELIBERATELY — the URL arm must NOT forward the server's reason. `previewFromUrl` throws two
  *  distinct shapes: `PluginBundleFetchError` (unreachable / refused / SSRF-blocked / non-2xx) and
@@ -54,12 +69,10 @@ export const usePreviewPluginFromUrl = createEntityMutation<inferInput<Trpc["plu
   invalidates: () => [],
 });
 
-/** Install a plugin from a URL with a CONFIRMED grant subset (U8, seam 15). The server
- *  re-fetches the bundle through the egress guard and runs it through the EXACT SAME funnel + consent checks a
- *  file `install` takes, minting the caller's own `disabled` row — so this reconciles `plugin.list` on settle
- *  just like `useInstallPlugin`. `errorToast` forwards the server's own sentence (`PluginBundleFetchError` and
- *  `PluginAlreadyInstalledError` are both host-readable and leak-free at the install act), falling back to a
- *  generic line only for an error that is not one of ours. */
+/** Install a plugin from a URL with a CONFIRMED grant subset and the preview's exact-byte identity (U8,
+ *  seam 15). The server re-fetches through the egress guard, refuses changed bytes, and only then runs the
+ *  EXACT SAME funnel + consent checks a file `install` takes. `errorToast` forwards the server's clear retry
+ *  sentence for a stale preview, falling back to a generic line only for an error that is not one of ours. */
 export const useInstallPluginFromUrl = createEntityMutation<inferInput<Trpc["plugin"]["installFromUrl"]>, inferOutput<Trpc["plugin"]["installFromUrl"]>>({
   options: (trpc) => trpc.plugin.installFromUrl.mutationOptions(),
   invalidates: (trpc) => [trpc.plugin.list.queryFilter()],
@@ -72,17 +85,17 @@ export const useInstallPluginFromUrl = createEntityMutation<inferInput<Trpc["plu
  *  a re-activation on the new bundle writes to it. */
 export const useUpgradePlugin = createEntityMutation<inferInput<Trpc["plugin"]["upgrade"]>, inferOutput<Trpc["plugin"]["upgrade"]>>({
   options: (trpc) => trpc.plugin.upgrade.mutationOptions(),
-  // `listSurfaces` too: a new bundle registers a different surface set, and the
-  // plugin lifecycle has no bus event — the write is the freshness driver.
+  // `listSurfaces` too: a new bundle registers a different surface set, and the plugin lifecycle has no
+  // bus event — the write is also the freshness driver for any provider rows the replacement changes.
   invalidates: (trpc, vars) => [
     trpc.plugin.list.queryFilter(),
     trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),
-    trpc.plugin.listSurfaces.queryFilter(),
-    trpc.plugin.listCommands.queryFilter(),
+    ...pluginContributionCatalogReads(trpc),
     // …and the bundle-image map (#820): an upgrade REPLACES the `ui/assets/` set, so a surface still holding
     // the old map would keep resolving a path this version dropped — or miss one it added. The upgrade write
     // is its only freshness driver (no bus event exists for the plugin lifecycle).
     trpc.plugin.listBundleAssets.queryFilter(),
+    ...providerDependentConnectionReads(trpc),
   ],
   errorToast: serverReason("Couldn't update that plugin."),
 });
@@ -105,7 +118,7 @@ export const useCheckForUpdates = createEntityMutation<inferInput<Trpc["plugin"]
  * place through the SAME server `upgrade` verb `useUpgradePlugin` drives — so a REACH-WIDENING update lands the
  * row `disabled` pending re-consent exactly the same way (never silent), and the caller reads the returned
  * `PluginView.status`/`reconsentPending` rather than assuming it kept running. Same invalidations as the file
- * upgrade: the new bundle can move the log, the surface set and the command set.
+ * upgrade: the new bundle can move the log, surfaces, commands and provider contributions.
  */
 export const useUpgradePluginFromStoredUrl = createEntityMutation<
   inferInput<Trpc["plugin"]["upgradeFromStoredUrl"]>,
@@ -115,12 +128,12 @@ export const useUpgradePluginFromStoredUrl = createEntityMutation<
   invalidates: (trpc, vars) => [
     trpc.plugin.list.queryFilter(),
     trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),
-    trpc.plugin.listSurfaces.queryFilter(),
-    trpc.plugin.listCommands.queryFilter(),
+    ...pluginContributionCatalogReads(trpc),
     // …and the bundle-image map (#820): an upgrade REPLACES the `ui/assets/` set, so a surface still holding
     // the old map would keep resolving a path this version dropped — or miss one it added. The upgrade write
     // is its only freshness driver (no bus event exists for the plugin lifecycle).
     trpc.plugin.listBundleAssets.queryFilter(),
+    ...providerDependentConnectionReads(trpc),
   ],
   errorToast: serverReason("Couldn't update that plugin."),
 });
@@ -130,8 +143,8 @@ export const useUpgradePluginFromStoredUrl = createEntityMutation<
  * twin of `useUpgradePluginFromStoredUrl` in every way that matters (same server `upgrade` verb underneath, so a
  * reach-widening bundle still lands the row `disabled` pending re-consent, and the caller reads the returned
  * `PluginView` rather than assuming it kept running) — only the byte source differs, which is why the
- * invalidation set is identical: a bundle swap can move the log, the surfaces, the commands and the image map
- * whichever source it came from.
+ * invalidation set is identical: a bundle swap can move the log, surfaces, commands, image map and provider
+ * contributions whichever source it came from.
  */
 export const useUpgradePluginFromShowcase = createEntityMutation<
   inferInput<Trpc["plugin"]["upgradeFromShowcase"]>,
@@ -141,9 +154,9 @@ export const useUpgradePluginFromShowcase = createEntityMutation<
   invalidates: (trpc, vars) => [
     trpc.plugin.list.queryFilter(),
     trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),
-    trpc.plugin.listSurfaces.queryFilter(),
-    trpc.plugin.listCommands.queryFilter(),
+    ...pluginContributionCatalogReads(trpc),
     trpc.plugin.listBundleAssets.queryFilter(),
+    ...providerDependentConnectionReads(trpc),
   ],
   errorToast: serverReason("Couldn't update that plugin."),
 });
@@ -154,10 +167,18 @@ export const useUpgradePluginFromShowcase = createEntityMutation<
  * asked-vs-allowed picture and sends back exactly what it displayed). This is what turns the re-consent
  * notice's escape into a real path instead of "remove and reinstall": before this verb existed, a widening
  * upgrade's un-granted capability was permanently un-grantable short of dropping the plugin's storage.
+ * A running row is torn down and re-activated under the new grant; a contained re-activation failure returns
+ * an `errored` row with its contributed providers absent. Reconcile the surface and command catalogs too: a
+ * successful answer can reactivate a widened upgrade, while failure must remove every stale contribution.
  */
 export const useSetPluginGrant = createEntityMutation<inferInput<Trpc["plugin"]["setGrant"]>, inferOutput<Trpc["plugin"]["setGrant"]>>({
   options: (trpc) => trpc.plugin.setGrant.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.plugin.list.queryFilter(), trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId })],
+  invalidates: (trpc, vars) => [
+    trpc.plugin.list.queryFilter(),
+    trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),
+    ...pluginContributionCatalogReads(trpc),
+    ...providerDependentConnectionReads(trpc),
+  ],
   errorToast: serverReason("Couldn't update that plugin's permissions."),
 });
 
@@ -176,13 +197,13 @@ export const useSetPluginEnabled = createEntityMutation<inferInput<Trpc["plugin"
     update: (old, vars) =>
       old === undefined ? old : old.map((row) => (row.id === vars.pluginId ? { ...row, status: vars.enabled ? "enabled" : "disabled" } : row)),
   },
-  // `listSurfaces` too: enabling brings a plugin's surfaces resident (disabling drops them), and the lifecycle
-  // has no bus event — this write is their freshness driver.
+  // Enabling brings a plugin's surfaces and provider rows resident; disabling drops both. With no lifecycle
+  // bus event, this write is the freshness driver for every dependent read.
   invalidates: (trpc, vars) => [
     trpc.plugin.list.queryFilter(),
     trpc.plugin.getLog.queryFilter({ pluginId: vars.pluginId }),
-    trpc.plugin.listSurfaces.queryFilter(),
-    trpc.plugin.listCommands.queryFilter(),
+    ...pluginContributionCatalogReads(trpc),
+    ...providerDependentConnectionReads(trpc),
   ],
   errorToast: serverReason("Couldn't change whether that plugin is on."),
 });
@@ -191,7 +212,11 @@ export const useSetPluginEnabled = createEntityMutation<inferInput<Trpc["plugin"
  *  behind a confirm, and a failed uninstall flashing a row back is worse than the brief settle refetch. */
 export const useUninstallPlugin = createEntityMutation<{ readonly pluginId: PluginId }, inferOutput<Trpc["plugin"]["uninstall"]>>({
   options: (trpc) => trpc.plugin.uninstall.mutationOptions(),
-  invalidates: (trpc) => [trpc.plugin.list.queryFilter(), trpc.plugin.listSurfaces.queryFilter(), trpc.plugin.listCommands.queryFilter()],
+  invalidates: (trpc) => [
+    trpc.plugin.list.queryFilter(),
+    ...pluginContributionCatalogReads(trpc),
+    ...providerDependentConnectionReads(trpc),
+  ],
   errorToast: serverReason("Couldn't remove that plugin."),
 });
 
@@ -209,10 +234,16 @@ export const useDistributePlugin = createEntityMutation<inferInput<Trpc["plugin"
 });
 
 /** ADMIN — withdraw a published plugin: drop it from the published set and uninstall every copy still at the
- *  distributed version. Same two invalidates, same reason (the admin's own copy goes with everyone else's). */
+ *  distributed version. The admin's own copy can go with everyone else's, so reconcile their plugin list and
+ *  connection reads as well as the published set. */
 export const useWithdrawPlugin = createEntityMutation<inferInput<Trpc["plugin"]["uninstallForAllUsers"]>, inferOutput<Trpc["plugin"]["uninstallForAllUsers"]>>({
   options: (trpc) => trpc.plugin.uninstallForAllUsers.mutationOptions(),
-  invalidates: (trpc) => [trpc.plugin.listDistributed.queryFilter(), trpc.plugin.list.queryFilter()],
+  invalidates: (trpc) => [
+    trpc.plugin.listDistributed.queryFilter(),
+    trpc.plugin.list.queryFilter(),
+    ...pluginContributionCatalogReads(trpc),
+    ...providerDependentConnectionReads(trpc),
+  ],
   errorToast: serverReason("Couldn't withdraw that plugin."),
 });
 
@@ -238,7 +269,8 @@ export const useInvokeUiAction = createEntityMutation<inferInput<Trpc["plugin"][
 /** Report a Tier-C client-guest crash — a hung guest the host `terminate()`d, a
  *  `ui.js` that failed to boot, or a tree the client schema refused. It feeds the SAME `consecutive_crashes`
  *  3-strike policy a throwing server handler drives, so a UI half that dies every mount auto-disables like a
- *  server half that throws.
+ *  server half that throws. The third strike also deregisters contributed providers, so connection reads
+ *  share the lifecycle invalidation rather than keeping the last enabled registry in cache.
  *
  *  NO ERROR TOAST, and that is the §4.9 posture rather than an omission: a crashed surface renders NOTHING, and
  *  the person's answer to "why is my widget gone" is the Plugins pane's log, not a toast interrupting whatever
@@ -246,7 +278,7 @@ export const useInvokeUiAction = createEntityMutation<inferInput<Trpc["plugin"][
  *  pane has to stop saying the plugin is enabled. */
 export const useReportUiCrash = createEntityMutation<inferInput<Trpc["plugin"]["reportUiCrash"]>, inferOutput<Trpc["plugin"]["reportUiCrash"]>>({
   options: (trpc) => trpc.plugin.reportUiCrash.mutationOptions(),
-  invalidates: (trpc) => [trpc.plugin.list.queryFilter()],
+  invalidates: (trpc) => [trpc.plugin.list.queryFilter(), ...pluginContributionCatalogReads(trpc), ...providerDependentConnectionReads(trpc)],
 });
 
 /** Run one registered plugin COMMAND — the `/plugin <slug> <name> …` dispatch and the

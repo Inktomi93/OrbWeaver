@@ -32,7 +32,7 @@ const ROUTES: TrpcRoutes<"chat.listChats" | "plugin.listCommands"> = {
       describe: "Second action",
       args: [],
       group: "Cards",
-      placements: [{ target: "composer-action", label: "Beta" }],
+      placements: [{ target: "composer-action", label: "Open" }],
     },
     {
       pluginId: SECOND_ID,
@@ -42,7 +42,7 @@ const ROUTES: TrpcRoutes<"chat.listChats" | "plugin.listCommands"> = {
       describe: "Overflow action from a distinct install",
       args: [],
       group: "Scenes",
-      placements: [{ target: "composer-action", label: "Charlie" }],
+      placements: [{ target: "composer-action", label: "Open" }],
     },
     {
       pluginId: SECOND_ID,
@@ -75,6 +75,8 @@ test("composer placements stay in one attributed action menu at narrow width and
   await component.getByRole("button", { name: "Plugin commands" }).click();
   await expect(page.getByText("Same Name (first)", { exact: true })).toBeVisible();
   await expect(page.getByText("Same Name (second)", { exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Same Name (first) · Cards · Run beta · Second action", exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Same Name (second) · Scenes · Run charlie · Overflow action from a distinct install", exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
 
   const actions = component.getByRole("button", { name: "Plugin actions" });
@@ -82,7 +84,8 @@ test("composer placements stay in one attributed action menu at narrow width and
   await page.keyboard.press("Enter");
   await expect(page.getByText("Same Name (first) · Cards")).toBeVisible();
   await expect(page.getByText("Same Name (second) · Scenes")).toBeVisible();
-  const placedItem = page.getByRole("menuitem", { name: "Run Charlie" });
+  await expect(page.getByRole("menuitem", { name: "Same Name (first) · Cards · Run Open", exact: true })).toBeVisible();
+  const placedItem = page.getByRole("menuitem", { name: "Same Name (second) · Scenes · Run Open", exact: true });
   await expect(placedItem).toBeVisible();
   await placedItem.press("Enter");
   await expect.poll(() => invoked).toContain("charlie");
@@ -103,7 +106,7 @@ test("a placed typed command collects values before dispatch through the shared 
   });
   const component = await mount(<PluginComposerPlacementsStory />);
   await component.getByRole("button", { name: "Plugin actions" }).click();
-  await page.getByRole("menuitem", { name: "Run Alpha" }).click();
+  await page.getByRole("menuitem", { name: "Same Name (first) · Cards · Run Alpha", exact: true }).click();
   const suit = component.getByRole("combobox", { name: "suit" });
   await suit.click();
   await page.getByRole("option", { name: "wands" }).click();
@@ -126,7 +129,7 @@ test("a running placed command locks the shared action affordance until the invo
   const component = await mount(<PluginComposerPlacementsStory />);
   const actions = component.getByRole("button", { name: "Plugin actions" });
   await actions.click();
-  await page.getByRole("menuitem", { name: "Run Beta" }).click();
+  await page.getByRole("menuitem", { name: "Same Name (first) · Cards · Run Open", exact: true }).click();
 
   await expect(actions).toBeDisabled();
   await component.getByRole("button", { name: "Message tools" }).click();

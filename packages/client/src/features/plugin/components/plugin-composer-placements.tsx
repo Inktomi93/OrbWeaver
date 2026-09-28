@@ -9,7 +9,7 @@ import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, Me
 import type { ReactElement } from "react";
 import { usePluginCommands, useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
 import { PLUGIN_ICON_GLYPHS } from "../lib/plugin-icon-glyphs.ts";
-import { pluginCommandActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
+import { pluginCommandActionLabel, pluginCommandAttribution, pluginCommandAttributedActionLabel } from "../lib/plugin-command-copy.ts";
 
 interface PlacedCommand {
   readonly command: ReturnType<typeof usePluginCommands>[number];
@@ -68,7 +68,12 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
             {group.commands.map((item) => {
               const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
               return (
-                <MenuItem disabled={isPending} key={`${item.command.pluginId}:${item.command.name}`} onClick={(): void => run(item.command)}>
+                <MenuItem
+                  aria-label={pluginCommandAttributedActionLabel(item.command.pluginName, item.command.slug, item.command.group ?? "Commands", item.label)}
+                  disabled={isPending}
+                  key={`${item.command.pluginId}:${item.command.name}`}
+                  onClick={(): void => run(item.command)}
+                >
                   <Icon icon={glyph} size="sm" />
                   {pluginCommandActionLabel(item.label)}
                 </MenuItem>
@@ -94,7 +99,7 @@ export function PluginComposerMediaItems({ chatId }: { readonly chatId: ChatId }
         <MenuGroupLabel>Plugin media</MenuGroupLabel>
         {placed.map((item) => (
           <MenuItem disabled={isPending} key={`${item.command.pluginId}:${item.command.name}`} onClick={(): void => run(item.command)}>
-            {`${pluginCommandAttribution(item.command.pluginName, item.command.slug)} · ${item.command.group ?? "Commands"} · ${pluginCommandActionLabel(item.label)}`}
+            {pluginCommandAttributedActionLabel(item.command.pluginName, item.command.slug, item.command.group ?? "Commands", item.label)}
           </MenuItem>
         ))}
       </MenuGroup>
