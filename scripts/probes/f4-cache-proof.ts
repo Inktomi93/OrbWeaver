@@ -124,6 +124,7 @@ function canonRow(seq: number): MessageView {
     genStartedAt: null,
     genFinishedAt: null,
     generationId: null,
+    connectionAttributionProvenance: "unrecorded",
     connectionId: null,
     contextBoundaryMessageId: null,
   };

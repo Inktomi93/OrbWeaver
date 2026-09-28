@@ -1,6 +1,9 @@
 import type { MessageSlot, MessageView, UserMacroDraws } from "@orb/contracts/chat";
 import {
+  CONNECTION_ATTRIBUTION_PROVENANCES,
   combineTokenProvenance,
+  connectionAttributionProvenanceSchema,
+  MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,
   messageSlotSchema,
   parseVariantMetadata,
@@ -36,6 +39,16 @@ test("token provenance combination makes estimates dominant and absence neutral"
   expect(combineTokenProvenance("measured", "estimated")).toBe("estimated");
   expect(combineTokenProvenance("unrecorded", "measured")).toBe("measured");
   expect(combineTokenProvenance("unrecorded", "unrecorded")).toBe("unrecorded");
+});
+
+test("connection attribution provenance distinguishes a recorded connection from an absent record", () => {
+  expect(CONNECTION_ATTRIBUTION_PROVENANCES).toEqual(["recorded", "unrecorded"]);
+  expect(connectionAttributionProvenanceSchema.options).toEqual([...CONNECTION_ATTRIBUTION_PROVENANCES]);
+  expect(connectionAttributionProvenanceSchema.safeParse("deleted").success).toBe(false);
+});
+
+test("message asset origins keep generated posts outside the inline-reply admission class", () => {
+  expect(MESSAGE_ASSET_ORIGINS).toEqual(["attached", "illustration", "generated-post", "inline-reply"]);
 });
 
 // ═══ D26 — the message SLOT carries NO content; content lives on the variant ════
@@ -146,6 +159,7 @@ test("MessageView is the slot joined with its selected variant (content + econom
     genStartedAt: 1000,
     genFinishedAt: 4400,
     generationId: null,
+    connectionAttributionProvenance: "unrecorded",
     connectionId: null,
     contextBoundaryMessageId: null,
     toolCalls: [],

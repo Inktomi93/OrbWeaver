@@ -7,14 +7,14 @@
 // the purge+reindex trigger.
 
 import type { ConnectionBinding, RoutableTask, UserConnection } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES, canFund, connectionTasks, isRoutableTask, ROUTABLE_TASKS, taskDef } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, canFund, connectionTasks, isRoutableTask, providerDisplayLabel, ROUTABLE_TASKS, taskDef } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { BindingActorInput, SetBindingParams, StoredActor } from "../contract/params.ts";
 import type { BindingView } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
-import { listBindingsForActor, upsertBinding } from "../persistence/bindings.ts";
+import { listBindingsForActor, lookupBinding, upsertBinding } from "../persistence/bindings.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
 import { VECTOR_TASKS } from "../substrate/embed-space.ts";
 import { curatedKindOf } from "../substrate/kind.ts";
@@ -71,6 +71,26 @@ function createListBindings(ctx: ConnectionContext): ConnectionService["listBind
       views.push(await bindingReadout(ctx, params, task, byTask.get(task) ?? null));
     }
     return views;
+  };
+}
+
+function createGetBoundConnection(ctx: ConnectionContext): ConnectionService["getBoundConnection"] {
+  return async ({ principal, task }) => {
+    const binding = await lookupBinding(ctx.db, { actorKind: "user", actorId: principal.userId }, task);
+    if (binding?.connectionId === null || binding?.connectionId === undefined) {
+      return null;
+    }
+    const row = await fetchOwnedConnection(ctx.db, principal.userId, binding.connectionId);
+    if (row === null) {
+      return null;
+    }
+    const provider = ctx.runtime.providers.registry.get(row.providerId, row.ownerId);
+    return {
+      label: row.label,
+      providerId: row.providerId,
+      providerLabel: provider === undefined ? row.providerId : providerDisplayLabel(provider),
+      model: row.model,
+    };
   };
 }
 
@@ -154,12 +174,13 @@ function createUseForEverything(ctx: ConnectionContext): ConnectionService["useF
 }
 
 /** The binding slice of `ConnectionService` this grouped file owns. */
-type BindingVerbs = Pick<ConnectionService, "listBindings" | "setBinding" | "useForEverything">;
+type BindingVerbs = Pick<ConnectionService, "listBindings" | "getBoundConnection" | "setBinding" | "useForEverything">;
 
 /** The `connection_bindings` verb bundle (`verb-naming`: one factory named for the file). */
 export function createBindings(ctx: ConnectionContext): BindingVerbs {
   return {
     listBindings: createListBindings(ctx),
+    getBoundConnection: createGetBoundConnection(ctx),
     setBinding: createSetBinding(ctx),
     useForEverything: createUseForEverything(ctx),
   };

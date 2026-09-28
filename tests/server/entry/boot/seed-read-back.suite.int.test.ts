@@ -12,6 +12,7 @@ import {
   chatDetailSchema,
   chatIdentitySchema,
   chatReasoningPartSchema,
+  connectionAttributionProvenanceSchema,
   macroFreezeRecordSchema,
   messageKindSchema,
   messageRoleSchema,
@@ -349,6 +350,7 @@ const messagePlan = view<MessageOut>({
   genStartedAt: TYPED_ONLY,
   genFinishedAt: TYPED_ONLY,
   generationId: TYPED_ONLY,
+  connectionAttributionProvenance: connectionAttributionProvenanceSchema,
   connectionId: TYPED_ONLY,
   toolCalls: z.array(toolCallRecordSchema),
 });

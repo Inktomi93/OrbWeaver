@@ -26,12 +26,12 @@ const SEQ_MIN = 0;
 /** Variant-grain token accounting provenance. This is the one canonical vocabulary shared by provider
  * turns, imports, canon, rollups, and rendering: a number without this origin is not honest accounting. */
 /** WHY a `message_assets` link exists (inference program §5.3b): `attached` = a user turn's upload;
- *  `illustration` = a narrator `/imagine` post (an ASSISTANT row with real `asset:` spans that must NOT ride
- *  back to the model); `inline-reply` = a picture the model itself emitted mid-turn (§6.7) — the ONLY origin
- *  the wire-history projection sends back as an assistant image part. `assets.kind` (`attachment` vs
- *  `generated`) cannot separate the last two; this per-LINK column is the reason it exists. NOT NULL, no
- *  default — every writer stamps it. */
-export const MESSAGE_ASSET_ORIGINS = ["attached", "illustration", "inline-reply"] as const;
+ *  `illustration` = a narrator `/imagine` post; `generated-post` = a caller-authored generated-picture post;
+ *  `inline-reply` = a picture the model itself emitted mid-turn (§6.7) — the ONLY origin the wire-history
+ *  projection sends back as an assistant image part. `assets.kind` (`attachment` vs `generated`) cannot
+ *  separate these three generated-image placements; this per-LINK column is the reason it exists. NOT NULL,
+ *  no default — every writer stamps it. */
+export const MESSAGE_ASSET_ORIGINS = ["attached", "illustration", "generated-post", "inline-reply"] as const;
 export type MessageAssetOrigin = (typeof MESSAGE_ASSET_ORIGINS)[number];
 
 /** The ONE origin `substrate/wire-history` rides back to the model as an assistant image part (§6.7) —
@@ -49,6 +49,12 @@ export type CueRole = (typeof CUE_ROLES)[number];
 export const TOKEN_PROVENANCES = ["measured", "estimated", "unrecorded"] as const;
 export type TokenProvenance = (typeof TOKEN_PROVENANCES)[number];
 export const tokenProvenanceSchema = z.enum(TOKEN_PROVENANCES) satisfies z.ZodType<TokenProvenance>;
+
+/** Whether a variant ever carried a connection id. The provenance survives the FK's SET NULL, so
+ *  `recorded` + null is a proven deleted connection while `unrecorded` + null is an honest missing record. */
+export const CONNECTION_ATTRIBUTION_PROVENANCES = ["recorded", "unrecorded"] as const;
+export type ConnectionAttributionProvenance = (typeof CONNECTION_ATTRIBUTION_PROVENANCES)[number];
+export const connectionAttributionProvenanceSchema = z.enum(CONNECTION_ATTRIBUTION_PROVENANCES) satisfies z.ZodType<ConnectionAttributionProvenance>;
 
 /** Combine accounting origins for a displayed total. One estimate makes the sum approximate; measured
  *  wins only over absence. Keeping this beside the vocabulary prevents cross-domain rollups from inventing
@@ -489,8 +495,12 @@ export interface MessageView {
    *  per-message cost readout settles with via `connection.generationCost`, resolved against
    *  `connectionId`. Null where the transport reports none (agent-sdk / endpoint rows / user/system rows). */
   generationId: string | null;
+  /** WHETHER this swipe ever carried a connection id. `recorded` + null means the referenced connection was
+   *  deleted; `unrecorded` + null means no connection was recorded for this variant. */
+  connectionAttributionProvenance: ConnectionAttributionProvenance;
   /** WHICH of the funder's connection rows generated this swipe (inference program §5.3b) — SET NULL after the
-   *  row is deleted, so attribution outlives the connection. Null on user-authored rows, imports and edits. */
+   *  row is deleted. Interpret null together with {@link connectionAttributionProvenance}; owner-scoped lookup
+   *  failure alone never proves deletion. */
   connectionId: UserConnectionId | null;
   /** The selected variant's persisted tool exchanges (D48), in emission/execution
    *  order — the client's ONLY tool read surface (chips render from this; NEVER body-parse). Empty on every

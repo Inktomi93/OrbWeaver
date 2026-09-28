@@ -3,16 +3,16 @@
 // FK: deleting the subject character nulls `subjectCharacterId` and the item survives un-charactered.
 
 import type { GalleryItemView } from "@orb/contracts/assets";
-import { characters } from "@orb/db";
+import { characters, chatParticipants } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, pngBytes, principal, row, seedCharacter, seedUser } from "../_support.ts";
+import { makeHarness, pngBytes, principal, row, seedCharacter, seedChatRow, seedMessage, seedMessageAsset, seedParticipant, seedUser } from "../_support.ts";
 
 const PNG = "image/png";
 const ALL = 100;
@@ -111,5 +111,45 @@ describe("listGallery", () => {
     expect(p2).toHaveLength(1); // short page = end of list
     const seen = [...p1, ...p2].map((r) => r.galleryItemId);
     expect(new Set(seen)).toEqual(expected); // no skip, no dup
+  });
+
+  test("room filter requires an actual linked post and present membership, while All rooms stays owner-scoped", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("room-owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("room-other") });
+    const room = await seedChatRow(db, "chat_gallery_room");
+    const elsewhere = await seedChatRow(db, "chat_gallery_elsewhere");
+    await seedParticipant(db, room, "human", { userId: owner, role: "host" });
+    await seedParticipant(db, elsewhere, "human", { userId: other, role: "host" });
+    const posted = await addAsset(svc, owner, 31);
+    const postedSecond = await addAsset(svc, owner, 34);
+    const unposted = await addAsset(svc, owner, 32);
+    const foreign = await addAsset(svc, other, 33);
+    const roomMessage = await seedMessage(db, room, { id: "message_gallery_room" });
+    const roomMessageSecond = await seedMessage(db, room, { id: "message_gallery_room_second", seq: 1 });
+    const elsewhereMessage = await seedMessage(db, elsewhere, { id: "message_gallery_elsewhere" });
+    await seedMessageAsset(db, roomMessage, posted.assetId);
+    await seedMessageAsset(db, roomMessageSecond, postedSecond.assetId);
+    await seedMessageAsset(db, elsewhereMessage, unposted.assetId);
+    await seedMessageAsset(db, elsewhereMessage, foreign.assetId);
+
+    const roomItems = await svc.listGallery({ principal: principal(owner), limit: ALL, chatId: room });
+    expect(new Set(roomItems.map((item) => item.galleryItemId))).toEqual(new Set([posted.galleryItemId, postedSecond.galleryItemId]));
+    const firstPage = await svc.listGallery({ principal: principal(owner), limit: 1, chatId: room });
+    const cursor = row(firstPage, 0);
+    const secondPage = await svc.listGallery({ principal: principal(owner), limit: 1, chatId: room, cursor: cursor.createdAt, cursorId: cursor.galleryItemId });
+    expect(new Set([...firstPage, ...secondPage].map((item) => item.galleryItemId))).toEqual(new Set([posted.galleryItemId, postedSecond.galleryItemId]));
+    expect(await svc.listGallery({ principal: principal(owner), limit: ALL, chatId: elsewhere })).toEqual([]);
+    expect(new Set((await svc.listGallery({ principal: principal(owner), limit: ALL })).map((item) => item.galleryItemId))).toEqual(
+      new Set([posted.galleryItemId, postedSecond.galleryItemId, unposted.galleryItemId]),
+    );
+    await db
+      .update(chatParticipants)
+      .set({ leftSeq: 1 })
+      .where(and(eq(chatParticipants.chatId, room), eq(chatParticipants.userId, owner)));
+    expect(await svc.listGallery({ principal: principal(owner), limit: ALL, chatId: room })).toEqual([]);
   });
 });

@@ -225,6 +225,34 @@ describe("listBindings", () => {
   });
 });
 
+describe("getBoundConnection", () => {
+  test("reads only the caller's persisted user chat binding, without a runtime resolution", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const other = await seedOwner(db, "user_other");
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "model-a",
+      label: "Private work model",
+    });
+    expect(await h.svc.getBoundConnection({ principal: owner.principal, task: "chat" })).toBeNull();
+    await h.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: row.id });
+    expect(await h.svc.getBoundConnection({ principal: owner.principal, task: "chat" })).toMatchObject({
+      label: "Private work model",
+      providerId: BYO_PROVIDER,
+      providerLabel: "Custom OpenAI-compatible",
+      model: row.model,
+    });
+    expect(await h.svc.getBoundConnection({ principal: other.principal, task: "chat" })).toBeNull();
+    await h.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: null });
+    expect(await h.svc.getBoundConnection({ principal: owner.principal, task: "chat" })).toBeNull();
+  });
+});
+
 describe("useForEverything", () => {
   test("binds every task the row can serve AND fund — a background task on a foreground-only row is SKIPPED, not refused", async () => {
     const db = await freshDb();

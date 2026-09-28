@@ -175,6 +175,9 @@ function forkVariantValues(args: {
     // Attribution outlives the row it names (SET NULL) and reveals only WHICH of the generator's connections
     // wrote the swipe — an id, not a secret; it rides beside `provider`/`model` as the same readout.
     connectionId: variant.connectionId,
+    // Copy the durable state independently of the nullable FK: `recorded` + null is proof that the source
+    // connection was deleted, while `unrecorded` + null means no connection was captured for this swipe.
+    connectionAttributionProvenance: variant.connectionAttributionProvenance,
     reasoningEffort: variant.reasoningEffort,
     tokensIn: variant.tokensIn,
     tokensOut: variant.tokensOut,

@@ -22,7 +22,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeImpersonateStream } from "../../../../support/node/route-impersonate-stream.ts";
 import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ChatRoomPhoneStory, ComposerConnectionRecoveryStory, ComposerStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessageView } from "../fixtures.ts";
 
@@ -40,9 +40,70 @@ function settingsWith(chat: Partial<(typeof DEFAULT_USER_SETTINGS)["chat"]>): Tr
 const TAIL_ASSISTANT_ID = castId<MessageId>("message_ct_tail_assistant");
 const EMPTY_TURN = { messages: [], aborted: false } satisfies TrpcWireOutput<"chat.generate">;
 const GENERATED_IMAGE_MESSAGE = makeMessageView({ content: "generated image" });
+const SHARED_MEMBER_ROOM: TrpcFixtureOutput<"chat.getChat"> = {
+  title: "Council",
+  participants: [
+    { id: "participant_host", kind: "human", role: "host", userId: "user_host", characterId: null, leftSeq: null },
+    { id: "participant_member", kind: "human", role: "member", userId: "user_member", characterId: null, leftSeq: null },
+  ],
+  viewerIsHost: false,
+};
 // The single clean accessible name for the Attach media row (P1-C — size-hinted, no doubled name; #317
 // widened the copy to images + video).
 const ATTACH_NAME = /^Attach images & video, up to [\d.]+ MB per file$/u;
+
+test("next-turn model readout and shared-room image destination are visible without exposing a host label", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": () => SHARED_MEMBER_ROOM,
+    "chat.getNextTurnConnection": () => ({
+      state: "configured",
+      connectionLabel: null,
+      provider: "openrouter",
+      providerLabel: "OpenRouter",
+      model: "model-a",
+    }),
+  });
+  const component = await mount(<ComposerStory />);
+  await expect(component.getByText("Room host's connection · OpenRouter · model-a")).toBeVisible();
+  await component.getByRole("button", { name: "Message tools" }).click();
+  await expect(page.getByText("Pictures you generate are posted in this room and stay in your uploads. Add them to a gallery when you want.")).toBeVisible();
+  await expect(component.getByText("Private work model")).toHaveCount(0);
+});
+
+test("solo-room composer shows its own connection label and omits shared-image destination copy", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getNextTurnConnection": () => ({
+      state: "configured",
+      connectionLabel: "Private work model",
+      provider: "anthropic",
+      providerLabel: "Anthropic",
+      model: "model-b",
+    }),
+  });
+  const component = await mount(<ComposerStory />);
+  await expect(component.getByText("Private work model · Anthropic · model-b")).toBeVisible();
+  await component.getByRole("button", { name: "Message tools" }).click();
+  await expect(page.getByText("Pictures you generate are posted in this room and stay in your uploads. Add them to a gallery when you want.")).toHaveCount(0);
+});
+
+test("next-turn readout keeps pending distinct from unset and shows a read failure honestly", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getNextTurnConnection": hold,
+  });
+  const component = await mount(<ComposerStory />);
+  await hold.requested;
+  await expect(component.getByText("Checking this room's next-turn model…")).toBeVisible();
+  await expect(component.getByText("No model connection is set for this room.")).toHaveCount(0);
+  hold.release(trpcError({ message: "read failed" }));
+  await expect(component.getByText("Couldn't read this room's next-turn model.")).toBeVisible();
+});
 
 // ── D111 ☰ RELOCATION: the ⋯ chat-options menu lives in the composer's LEFT gutter, and ONLY there ──
 // Owner ruling 2026-08-09 closed D111's parked "topbar vs composer" fork on the composer and removed the

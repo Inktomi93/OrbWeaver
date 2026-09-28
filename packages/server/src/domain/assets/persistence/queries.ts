@@ -6,7 +6,8 @@
 import type { AssetBlobRef, AssetKind, AssetListItem, GalleryItemView, StoredAsset } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
 import { assets, galleryItems } from "@orb/db";
-import type { AssetId, CharacterId, GalleryItemId, UserId } from "@orb/kit/ids";
+import { assetPostedInPresentRoom } from "@orb/db/kit";
+import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import { sniffImageBytes } from "@orb/kit/image-sniff";
 import { and, asc, desc, eq, inArray, isNull, like, lt, or } from "drizzle-orm";
 import type { Cas } from "#infra/storage";
@@ -296,6 +297,7 @@ export async function deleteGalleryItemRow(db: Db, galleryItemId: GalleryItemId)
 interface ListGalleryInput {
   readonly ownerId: UserId;
   readonly subjectCharacterId: CharacterId | undefined;
+  readonly chatId: ChatId | undefined;
   readonly limit: number;
   readonly cursor: number | undefined;
   readonly cursorId: GalleryItemId | undefined;
@@ -376,6 +378,7 @@ export async function listGalleryViewRows(db: Db, input: ListGalleryInput): Prom
       and(
         eq(assets.ownerId, input.ownerId),
         input.subjectCharacterId !== undefined ? eq(galleryItems.subjectCharacterId, input.subjectCharacterId) : undefined,
+        input.chatId !== undefined ? assetPostedInPresentRoom(db, input.chatId, input.ownerId) : undefined,
         keyset,
       ),
     )

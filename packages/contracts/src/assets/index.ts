@@ -136,6 +136,7 @@ export type GalleryAddParams = z.infer<typeof galleryAddParamsSchema>;
 /** `listGallery` wire params. `subjectCharacterId` omitted = the whole gallery. */
 export const galleryListParamsSchema = z.object({
   subjectCharacterId: characterIdSchema.optional(),
+  chatId: typeIdSchema(ID_PREFIX.chat).optional(),
   limit: z.number().int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
   cursor: z.number().int().optional(),
   cursorId: galleryItemIdSchema.optional(),

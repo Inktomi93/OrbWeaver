@@ -9,7 +9,16 @@
 // CASCADE on chat delete (all ten dependents vanish).
 
 import type { OpeningPolicy, ToolCallRecord } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, INVITE_STATUSES, JOIN_HISTORY_VISIBILITIES, MESSAGE_KINDS, PARTICIPANT_KINDS, TOKEN_PROVENANCES } from "@orb/contracts/chat";
+import {
+  CONNECTION_ATTRIBUTION_PROVENANCES,
+  DEFAULT_GROUP_CONFIG,
+  INVITE_STATUSES,
+  JOIN_HISTORY_VISIBILITIES,
+  MESSAGE_ASSET_ORIGINS,
+  MESSAGE_KINDS,
+  PARTICIPANT_KINDS,
+  TOKEN_PROVENANCES,
+} from "@orb/contracts/chat";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import {
@@ -21,9 +30,11 @@ import {
   chatParticipants,
   chatStreamEvents,
   chats,
+  messageAssets,
   messages,
   messageVariants,
   pendingTurns,
+  userConnections,
 } from "@orb/db";
 import { isConstraintViolation, parseRecord } from "@orb/db/kit";
 import type {
@@ -39,6 +50,7 @@ import type {
   MessageVariantId,
   PendingTurnId,
   PersonaId,
+  UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -48,6 +60,7 @@ import { eq, sql } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
 import { seedPersona } from "../../support/factories/persona.ts";
 import { expect, test } from "../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 import { seedChat, seedUser } from "./_support.ts";
 
 // A fixed clock value (epoch-ms number) for caller-set timestamps — deterministic, no ambient clock.
@@ -108,6 +121,55 @@ test("message variant token provenance defaults honestly and rejects values outs
   await expect(db.run(sql`update message_variants set token_provenance = 'inferred' where id = ${variantId}`)).rejects.toSatisfy(
     (error: unknown) => isConstraintViolation(error)?.kind === "check",
   );
+});
+
+test("message variant connection attribution preserves missing versus deleted and rejects a contradictory row", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_connection_provenance" });
+  const connectionId = castId<UserConnectionId>("user_connection_provenance");
+  await db.insert(userConnections).values({
+    id: connectionId,
+    ownerId,
+    label: "Recorded generator",
+    providerId: testProviderId("openrouter"),
+    model: testModelId("model-provenance"),
+  });
+  const chatId = await seedChat(db, { id: "chat_connection_provenance" });
+  const missing = await seedMessageWithVariant(db, {
+    chatId,
+    rawMsg: "msg_connection_missing",
+    rawVar: "mv_connection_missing",
+    content: "missing",
+    seq: 0,
+  });
+  const recorded = await seedMessageWithVariant(db, {
+    chatId,
+    rawMsg: "msg_connection_recorded",
+    rawVar: "mv_connection_recorded",
+    content: "recorded",
+    seq: 1,
+  });
+  await db.update(messageVariants).set({ connectionId, connectionAttributionProvenance: "recorded" }).where(eq(messageVariants.id, recorded.variantId));
+
+  const missingRow = (await db.select().from(messageVariants).where(eq(messageVariants.id, missing.variantId)))[0];
+  expect(missingRow?.connectionAttributionProvenance).toBe("unrecorded");
+  await db.delete(userConnections).where(eq(userConnections.id, connectionId));
+  const deletedRow = (await db.select().from(messageVariants).where(eq(messageVariants.id, recorded.variantId)))[0];
+  expect(deletedRow?.connectionId).toBeNull();
+  expect(deletedRow?.connectionAttributionProvenance).toBe("recorded");
+
+  await expect(
+    db.insert(userConnections).values({
+      id: connectionId,
+      ownerId,
+      label: "Contradiction",
+      providerId: testProviderId("openrouter"),
+      model: testModelId("model-contradiction"),
+    }),
+  ).resolves.toBeDefined();
+  await expect(
+    db.run(sql`update message_variants set connection_id = ${connectionId}, connection_attribution_provenance = 'unrecorded' where id = ${missing.variantId}`),
+  ).rejects.toSatisfy((error: unknown) => isConstraintViolation(error)?.kind === "check");
 });
 
 test("chats.metadata JSON round-trips through the @orb/db/kit read seam", async () => {
@@ -856,6 +918,8 @@ test("chat_invites status CHECK rejects an out-of-enum value", async () => {
 test("test-mirror: every chat enum column derives its canonical tuple", () => {
   expect([...messages.role.enumValues]).toEqual([...MESSAGE_ROLES]);
   expect([...messages.kind.enumValues]).toEqual([...MESSAGE_KINDS]);
+  expect([...messageAssets.origin.enumValues]).toEqual([...MESSAGE_ASSET_ORIGINS]);
+  expect([...messageVariants.connectionAttributionProvenance.enumValues]).toEqual([...CONNECTION_ATTRIBUTION_PROVENANCES]);
   expect([...messageVariants.tokenProvenance.enumValues]).toEqual([...TOKEN_PROVENANCES]);
   expect([...chatInjections.role.enumValues]).toEqual([...MESSAGE_ROLES]);
   expect([...chatParticipants.kind.enumValues]).toEqual([...PARTICIPANT_KINDS]);

@@ -47,6 +47,7 @@ export const CHAT_VERB_AUTHORITY = {
   getChatLineage: "lineage-per-ancestor", // the ancestry chain — each ancestor gated independently (inv §16)
   getChat: "member",
   checkSendAvailability: "member", // #54 — any participant reads the pre-send serveability verdict for the host's resolved connection (the composer disables SEND on it); leak-free NOT_FOUND for a non-participant/hostless room. Deterministic; no turn/API call.
+  getNextTurnConnection: "member", // present host binding only; non-host projection strips the private label.
   getMemberCard: "member-card", // D22 — read a roster character's card: present member, field-clamped to `memberCardVisibility` (host ⇒ full). The gate is `requireParticipant` (member floor) + a roster-seat check on `characterId`; the level clamp is `clampMemberCard` (clamp.ts). PROBED in the cross-tenant sweep (a stranger's chatId is NOT_FOUND before any card load). // D22 — read a roster character's card: present member, field-clamped to `memberCardVisibility` (host ⇒ full). The gate is `requireParticipant` (member floor) + a roster-seat check on `characterId`; the level clamp is `clampMemberCard` (clamp.ts). PROBED in the cross-tenant sweep (a stranger's chatId is NOT_FOUND before any card load).
   previewAssembly: "host", // the assembled prompt + TRACE is a host/admin debug surface
   getActivePresetConfig: "member", // the bare `PromptConfig` — preset TEMPLATES only, no assemble ctx is built, so no card/persona bytes can ride out

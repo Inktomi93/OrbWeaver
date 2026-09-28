@@ -45,6 +45,7 @@ import type {
   ChatInjection as ChatInjectionWire,
   ChatMetadata,
   ChatReasoningPart,
+  ConnectionAttributionProvenance,
   CueRole,
   DurableChatBusEvent,
   HandoffOffer,
@@ -58,6 +59,7 @@ import type {
 } from "@orb/contracts/chat";
 import {
   CHAT_BUS_EVENT_TYPES,
+  CONNECTION_ATTRIBUTION_PROVENANCES,
   CUE_ROLES,
   INVITE_STATUSES,
   JOIN_HISTORY_VISIBILITIES,
@@ -458,11 +460,16 @@ export const messageVariants = sqliteTable(
     cueRole: text("cue_role", { enum: CUE_ROLES }).$type<CueRole>(),
     model: text("model").$type<ModelId>(),
     // ATTRIBUTION (inference program §5.3b): which of the user's connections generated this swipe. SET NULL —
-    // a deleted connection never deletes history (`selectedVariantId`'s idiom); null on user-authored rows,
-    // imports and edits. Routing is a `connection_bindings` row; attribution is HERE and outlives the row.
+    // a deleted connection never deletes history (`selectedVariantId`'s idiom). The required provenance
+    // below distinguishes that deletion from rows whose connection was never recorded (imports, edits,
+    // user-authored messages). Routing is a `connection_bindings` row; attribution is HERE and outlives it.
     connectionId: text("connection_id")
       .$type<UserConnectionId>()
       .references(() => userConnections.id, { onDelete: "set null" }),
+    connectionAttributionProvenance: text("connection_attribution_provenance", { enum: CONNECTION_ATTRIBUTION_PROVENANCES })
+      .$type<ConnectionAttributionProvenance>()
+      .notNull()
+      .default("unrecorded"),
     // The PROVIDER REGISTRY ID (`Resolved.provider.id`), denormalised on purpose so attribution reads need no
     // join. Validated at the producer against the registry, NO CHECK — a plugin provider id is runtime data
     // (§5.3c class 2). The ST import narrows an unparseable source value to NULL; `(unknown)` belongs only
@@ -564,6 +571,11 @@ export const messageVariants = sqliteTable(
     check("message_variants_finish_reason_check", sql.raw(`finish_reason is null or finish_reason in (${checkList(NORMALIZED_FINISH_REASONS)})`)),
     check("message_variants_reasoning_effort_check", sql.raw(`reasoning_effort is null or reasoning_effort in (${checkList(EFFORT_LEVELS)})`)),
     check("message_variants_cue_role_check", sql.raw(`cue_role is null or cue_role in (${checkList(CUE_ROLES)})`)),
+    check(
+      "message_variants_connection_attribution_provenance_check",
+      sql.raw(`connection_attribution_provenance in (${checkList(CONNECTION_ATTRIBUTION_PROVENANCES)})`),
+    ),
+    check("message_variants_connection_attribution_coherence_check", sql.raw("connection_id is null or connection_attribution_provenance = 'recorded'")),
   ],
 );
 
@@ -593,8 +605,9 @@ export const messageAssets = sqliteTable(
       .notNull()
       .references(() => assets.id, { onDelete: "cascade" }),
     // WHY the link exists (`MESSAGE_ASSET_ORIGINS`): `attached` (a user upload) · `illustration` (a narrator
-    // `/imagine` post) · `inline-reply` (a picture the model emitted mid-turn — the ONLY origin the wire-history
-    // projection sends back as an assistant image part). NOT NULL, no default — every writer stamps it.
+    // `/imagine` post) · `generated-post` (a caller-authored generated-picture post) · `inline-reply` (a
+    // picture the model emitted mid-turn — the ONLY origin the wire-history projection sends back as an
+    // assistant image part). NOT NULL, no default — every writer stamps it.
     origin: text("origin", { enum: MESSAGE_ASSET_ORIGINS }).$type<MessageAssetOrigin>().notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },

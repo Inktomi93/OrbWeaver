@@ -5,7 +5,7 @@
 // non-participant is default-denied (leak-free NOT_FOUND). Reached through the BUNDLE `createRead(ctx, deps)`.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { AssemblePersona, ChatListCursor, ContextFitAnswer, ContextFitPreview, MemberCardVisibility } from "@orb/contracts/chat";
+import type { AssemblePersona, ChatListCursor, ContextFitAnswer, ContextFitPreview, MemberCardVisibility, MessageView } from "@orb/contracts/chat";
 import { characterRegexTierKey, SHAPE_BREAKPOINT_DECISIONS } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
@@ -16,10 +16,32 @@ import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import { characterBooks, chatParticipants, chats as chatsTable, messages, messageVariants, personaBooks, worldBooks, worldEntries } from "@orb/db";
+import {
+  characterBooks,
+  chatParticipants,
+  chats as chatsTable,
+  messages,
+  messageVariants,
+  personaBooks,
+  userConnections,
+  worldBooks,
+  worldEntries,
+} from "@orb/db";
 import { NoConnectionError } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, ChatInviteId, Handle, ModelId, PersonaId, PresetId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type {
+  CharacterId,
+  ChatId,
+  ChatInviteId,
+  Handle,
+  ModelId,
+  PersonaId,
+  PresetId,
+  UserConnectionId,
+  UserId,
+  WorldBookId,
+  WorldEntryId,
+} from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createTurnPersonaResolver, voicePersonaFor } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
@@ -86,6 +108,7 @@ function makeDeps(overrides?: Partial<Parameters<typeof createRead>[1]>): Parame
     loadParticipantViews,
     resolveConnection: () => Promise.resolve(makeResolved({ model: castId<ModelId>("test-model") })),
     checkSendAvailability: () => Promise.resolve({ available: true }),
+    getNextTurnConnection: () => Promise.resolve({ state: "unset" }),
     resolveForeignInputs: () =>
       Promise.resolve({
         promptConfig: DEFAULT_PROMPT_CONFIG,
@@ -1018,6 +1041,155 @@ describe("read — single reads", () => {
 
     const { checkSendAvailability } = createRead(makeChatContext(db), makeDeps());
     await expect(checkSendAvailability({ principal: principal(stranger), chatId })).rejects.toThrow(ChatNotFoundError);
+  });
+
+  test("getNextTurnConnection reads the present host binding and hides its private label from a member", async () => {
+    const host = await seedUser(db, castId<Handle>("next_host"));
+    const member = await seedUser(db, castId<Handle>("next_member"));
+    const chatId = await seedRoom("next_room", host);
+    await seedParticipant(db, { chatId, key: "next_m", userId: member, role: "member" });
+    const seen: UserId[] = [];
+    const { getNextTurnConnection } = createRead(
+      makeChatContext(db),
+      makeDeps({
+        getNextTurnConnection: ({ funderUserId }) => {
+          seen.push(funderUserId);
+          return Promise.resolve({
+            state: "configured",
+            connectionLabel: "Private work model",
+            provider: castId<ProviderId>("openrouter"),
+            providerLabel: "OpenRouter",
+            model: castId<ModelId>("model-a"),
+          });
+        },
+      }),
+    );
+    expect(await getNextTurnConnection({ principal: principal(host), chatId })).toEqual({
+      state: "configured",
+      connectionLabel: "Private work model",
+      provider: "openrouter",
+      providerLabel: "OpenRouter",
+      model: "model-a",
+    });
+    expect(await getNextTurnConnection({ principal: principal(member), chatId })).toEqual({
+      state: "configured",
+      connectionLabel: null,
+      provider: "openrouter",
+      providerLabel: "OpenRouter",
+      model: "model-a",
+    });
+    expect(seen).toEqual([host, host]);
+    await db
+      .update(chatParticipants)
+      .set({ role: "member" })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, host)));
+    await db
+      .update(chatParticipants)
+      .set({ role: "host" })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, member)));
+    expect(await getNextTurnConnection({ principal: principal(member), chatId })).toMatchObject({ connectionLabel: "Private work model" });
+    expect(await getNextTurnConnection({ principal: principal(host), chatId })).toMatchObject({ connectionLabel: null });
+    expect(seen).toEqual([host, host, member, member]);
+  });
+
+  test("getNextTurnConnection distinguishes unset from outsider and hostless NOT_FOUND", async () => {
+    const host = await seedUser(db, castId<Handle>("next_unset_host"));
+    const outsider = await seedUser(db, castId<Handle>("next_outsider"));
+    const chatId = await seedRoom("next_unset_room", host);
+    const { getNextTurnConnection } = createRead(makeChatContext(db), makeDeps());
+    expect(await getNextTurnConnection({ principal: principal(host), chatId })).toEqual({ state: "unset" });
+    await expect(getNextTurnConnection({ principal: principal(outsider), chatId })).rejects.toThrow(ChatNotFoundError);
+
+    const hostless = await seedChat(db, "next_hostless");
+    await seedParticipant(db, { chatId: hostless, key: "next_hostless_m", userId: host, role: "member" });
+    await expect(getNextTurnConnection({ principal: principal(host), chatId: hostless })).rejects.toThrow(ChatNotFoundError);
+  });
+
+  test("getNextTurnConnection exposes plugin provider identity but never the host's custom connection label to a member", async () => {
+    const host = await seedUser(db, castId<Handle>("plugin_host"));
+    const member = await seedUser(db, castId<Handle>("plugin_member"));
+    const chatId = await seedRoom("plugin_room", host);
+    await seedParticipant(db, { chatId, key: "plugin_m", userId: member, role: "member" });
+    const { getNextTurnConnection } = createRead(
+      makeChatContext(db),
+      makeDeps({
+        getNextTurnConnection: () =>
+          Promise.resolve({
+            state: "configured",
+            connectionLabel: "Only the host named this",
+            provider: castId<ProviderId>("plugin:story-tools/anthropic"),
+            providerLabel: "Anthropic · plugin story-tools",
+            model: castId<ModelId>("claude-sonnet"),
+          }),
+      }),
+    );
+    expect(await getNextTurnConnection({ principal: principal(member), chatId })).toEqual({
+      state: "configured",
+      connectionLabel: null,
+      provider: "plugin:story-tools/anthropic",
+      providerLabel: "Anthropic · plugin story-tools",
+      model: "claude-sonnet",
+    });
+  });
+
+  test("listMessages reads each selected swipe's complete recorded connection tuple, with honest null provenance after deletion", async () => {
+    const host = await seedUser(db, castId<Handle>("attribution_host"));
+    const chatId = await seedRoom("attribution_room", host);
+    const { messageId, variantId: first } = await seedMessage(db, chatId, 1, { role: "assistant", content: "first" });
+    const second = await addVariant(db, messageId, 1, "second");
+    const { listMessages } = createRead(makeChatContext(db), makeDeps());
+    expect((await listMessages({ principal: principal(host), chatId })).messages[0]).toMatchObject({
+      connectionId: null,
+      connectionAttributionProvenance: "unrecorded",
+    });
+    const firstConnection = castId<UserConnectionId>("user_connection_attribution_a");
+    const secondConnection = castId<UserConnectionId>("user_connection_attribution_b");
+    await db.insert(userConnections).values([
+      { id: firstConnection, ownerId: host, label: "Live A", providerId: castId<ProviderId>("openrouter"), model: castId<ModelId>("model-a") },
+      { id: secondConnection, ownerId: host, label: "Live B", providerId: castId<ProviderId>("anthropic"), model: castId<ModelId>("model-b") },
+    ]);
+    await db
+      .update(messageVariants)
+      .set({
+        connectionId: firstConnection,
+        connectionAttributionProvenance: "recorded",
+        provider: castId<ProviderId>("openrouter"),
+        model: castId<ModelId>("model-a"),
+      })
+      .where(eq(messageVariants.id, first));
+    await db
+      .update(messageVariants)
+      .set({
+        connectionId: secondConnection,
+        connectionAttributionProvenance: "recorded",
+        provider: castId<ProviderId>("anthropic"),
+        model: castId<ModelId>("model-b"),
+      })
+      .where(eq(messageVariants.id, second));
+    const selected = async (): Promise<MessageView | undefined> => (await listMessages({ principal: principal(host), chatId })).messages[0];
+    expect(await selected()).toMatchObject({
+      content: "first",
+      connectionId: firstConnection,
+      connectionAttributionProvenance: "recorded",
+      provider: "openrouter",
+      model: "model-a",
+    });
+    await db.update(messages).set({ selectedVariantId: second }).where(eq(messages.id, messageId));
+    expect(await selected()).toMatchObject({
+      content: "second",
+      connectionId: secondConnection,
+      connectionAttributionProvenance: "recorded",
+      provider: "anthropic",
+      model: "model-b",
+    });
+    await db.delete(userConnections).where(eq(userConnections.id, secondConnection));
+    expect(await selected()).toMatchObject({
+      content: "second",
+      connectionId: null,
+      connectionAttributionProvenance: "recorded",
+      provider: "anthropic",
+      model: "model-b",
+    });
   });
 
   test("listMessages returns the D26 slot⋈variant views in chronological order; hidden flag rides", async () => {
@@ -2713,6 +2885,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
       loadParticipantViews,
       resolveConnection: () => Promise.resolve(makeResolved({ generation: capability })),
       checkSendAvailability: () => Promise.resolve({ available: true }),
+      getNextTurnConnection: () => Promise.resolve({ state: "unset" }),
       resolveForeignInputs: () =>
         Promise.resolve({
           promptConfig: DEFAULT_PROMPT_CONFIG,
@@ -3295,6 +3468,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
       // dep type-honest without the double-cast the `no-test-fabrication` gate forbids.
       resolveConnection: () => Promise.resolve(makeResolved()),
       checkSendAvailability: () => Promise.resolve({ available: true }),
+      getNextTurnConnection: () => Promise.resolve({ state: "unset" }),
       resolveForeignInputs: () =>
         Promise.resolve({
           promptConfig: DEFAULT_PROMPT_CONFIG,
@@ -3373,6 +3547,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
       loadParticipantViews,
       resolveConnection: () => Promise.resolve(makeResolved()),
       checkSendAvailability: () => Promise.resolve({ available: true }),
+      getNextTurnConnection: () => Promise.resolve({ state: "unset" }),
       resolveForeignInputs: (args) => {
         presentHumanUserIds = args.presentHumanUserIds;
         return Promise.resolve({

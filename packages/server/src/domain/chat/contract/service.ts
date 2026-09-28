@@ -10,7 +10,7 @@
 // one participant-insert chokepoint AND the only public human-join path — there is no standalone `join`
 // verb. The two-party host handoff is modelled as two verbs (nominate + accept).
 
-import type { ChatReactionsView, EffectiveRegexView, GroupConfig, MemberCardView, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatReactionsView, EffectiveRegexView, GroupConfig, MemberCardView, NextTurnConnectionView, RoomOverrides } from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -173,6 +173,8 @@ export interface ChatService {
    *  WITHOUT firing a turn or an API call?" Engine-agnostic; a configured hosted connection reads available
    *  (never pre-flighted). Member-gated; the composer disables SEND + the guided fire actions on `!available`. */
   readonly checkSendAvailability: (params: GetChatParams) => Promise<SendAvailability>;
+  /** Current host's persisted chat binding; member-safe and independent of runtime availability. */
+  readonly getNextTurnConnection: (params: GetChatParams) => Promise<NextTurnConnectionView>;
   /** Read ONE roster character's card, field-clamped to the room's `memberCardVisibility` (D22 — the host
    *  always sees `full`). Member-gated + roster-scoped: a non-participant OR a `characterId` not seated in
    *  THIS chat is a leak-free NOT_FOUND. Fields above the effective level are NULL server-side (never sent);

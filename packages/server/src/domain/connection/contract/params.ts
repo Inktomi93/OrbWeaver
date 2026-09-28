@@ -91,6 +91,11 @@ export interface ListBindingsParams extends ActorParams {
   readonly actor?: BindingActorInput | undefined;
 }
 
+/** Read the caller's persisted user-actor binding for one routable task. */
+export interface GetBoundConnectionParams extends ActorParams {
+  readonly task: RoutableTask;
+}
+
 /** `setBinding` — point ONE routable task at a connection (or clear it with `null`). */
 export interface SetBindingParams extends ActorParams {
   readonly task: RoutableTask;

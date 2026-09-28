@@ -148,6 +148,7 @@ const BUS_FILTERS: BusFilterMap = {
   chatUpdated: (e, trpc) => [
     ...chatReads(trpc),
     trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
+    trpc.chat.getNextTurnConnection.queryFilter({ chatId: e.chatId }),
     trpc.chat.getGroupConfig.queryFilter({ chatId: e.chatId }),
     trpc.chat.listChatInjections.queryFilter({ chatId: e.chatId }),
     // `getUserMacroPicks` rides here for the SAME reason as `getGroupConfig`/`listChatInjections`: the MU
@@ -342,7 +343,7 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // (that rides enable/disable, a different write).
   pluginSurfaceStateChanged: (_e, trpc) => [trpc.plugin.getSurfaceState.pathFilter()],
   // Deferred member — never emitted today; the map entry is ready for when it lands.
-  connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter()],
+  connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter(), trpc.chat.getNextTurnConnection.pathFilter()],
 };
 
 /** The viewer triple: the server identity (`sessions.me`) plus the two reads a composed

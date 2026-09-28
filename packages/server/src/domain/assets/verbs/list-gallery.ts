@@ -11,10 +11,11 @@ import type { GalleryItemView } from "../contract/views.ts";
 import { listGalleryViewRows } from "../persistence/queries.ts";
 
 export function createListGallery(ctx: AssetsContext): AssetsService["listGallery"] {
-  return ({ principal, subjectCharacterId, limit, cursor, cursorId }: GalleryListParams): Promise<GalleryItemView[]> =>
+  return ({ principal, subjectCharacterId, chatId, limit, cursor, cursorId }: GalleryListParams): Promise<GalleryItemView[]> =>
     listGalleryViewRows(ctx.db, {
       ownerId: principal.userId,
       subjectCharacterId,
+      chatId,
       limit,
       cursor,
       cursorId,

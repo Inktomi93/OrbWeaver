@@ -30,10 +30,12 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { Row, Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useState } from "react";
-import { useUploadCaps } from "#data";
+import { useTRPC, useUploadCaps } from "#data";
 import type { SlashArgOffer, SlashCommandContribution } from "#lib";
 import { IMAGE_GEN_NEEDS_TEXT, notify, testId } from "#lib";
 import { openImagine, setComposerDraft, useComposerDraft } from "#state";
@@ -43,6 +45,7 @@ import { useComposerFocusOnRequest } from "../hooks/use-composer-focus.ts";
 import { useComposerMediaDrop } from "../hooks/use-composer-media-drop.ts";
 import { useContinueTurn } from "../hooks/use-continue-turn.ts";
 import { useGenerateImage } from "../hooks/use-generate-image.ts";
+import { useNextTurnConnection } from "../hooks/use-next-turn-connection.ts";
 import { useSendAvailability } from "../hooks/use-send-availability.ts";
 import { useSendMessage } from "../hooks/use-send-message.ts";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
@@ -50,6 +53,7 @@ import { useStopTurn } from "../hooks/use-stop-turn.ts";
 import { ATTACH_BUSY_MESSAGE, dropzoneRefusalMessage, triageAttachFiles } from "../lib/attach-media.ts";
 import { handleComposerKeyDown } from "../lib/composer-keydown.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
+import { presentMemberCount } from "../lib/roster.ts";
 import { matchSlashCommands, resolveSlashHighlight, slashArgsInProgress, slashCompletionAria } from "../lib/slash-command.ts";
 import { ComposerArgHintStrip } from "./composer-arg-hint-strip.tsx";
 import { ComposerAttachmentStrip } from "./composer-attachment-strip.tsx";
@@ -83,6 +87,19 @@ function resolveImageGenReason(hasText: boolean): string | undefined {
   return hasText ? undefined : IMAGE_GEN_NEEDS_TEXT;
 }
 
+function nextTurnReadoutLabel(nextTurn: ReturnType<typeof useNextTurnConnection>): string {
+  if (nextTurn.isPending) {
+    return "Checking this room's next-turn model…";
+  }
+  if (nextTurn.isError || nextTurn.view === undefined) {
+    return "Couldn't read this room's next-turn model.";
+  }
+  if (nextTurn.view.state === "unset") {
+    return "No model connection is set for this room.";
+  }
+  return `${nextTurn.view.connectionLabel ?? "Room host's connection"} · ${nextTurn.view.providerLabel} · ${nextTurn.view.model}`;
+}
+
 export interface ComposerProps {
   /** The room this composer belongs to — also its composer-draft SCOPE KEY (a room's id is stable for the
    *  pane's whole life now, so there is no separate key and no scope-flip to migrate across). */
@@ -94,6 +111,10 @@ export interface ComposerProps {
 }
 
 export function Composer({ chatId, tailRole = null, tailAssistantMessageId = null }: ComposerProps): ReactElement {
+  const trpc = useTRPC();
+  const room = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const nextTurn = useNextTurnConnection(chatId);
+  const sharedRoom = room.data !== undefined && presentMemberCount(room.data.participants) > 1;
   // The draft read/write is scoped to THIS composer — the subscription is intentionally NOT lifted into the
   // shared ancestor, so a keystroke re-renders only this subtree and never cascades to the message thread.
   const value = useComposerDraft(chatId);
@@ -299,6 +320,7 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
   // the sanctioned FileDropzone picker; generate-from-text still clears only on a green settle (F-P1). The
   // wand renders these as menu rows — the bar top row is just the guided icons + the ✨ menu.
   const imageControls: ComposerImageControls = {
+    sharedRoom,
     maxAttachmentBytes,
     uploadDisabled: sendMessage.isPending,
     onAddFiles: addAttachmentFiles,
@@ -317,6 +339,9 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
           Zero registrants renders nothing at all. */}
       {slash.mounts}
       <Stack gap="field">
+        <Text voice="gloss" className="min-w-0 truncate px-field" aria-live="polite">
+          {nextTurnReadoutLabel(nextTurn)}
+        </Text>
         <ComposerSlashStrip
           matches={slashMatches}
           notice={slashNotice}

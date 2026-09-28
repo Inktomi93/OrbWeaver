@@ -1,7 +1,8 @@
 // verb: generateImage — the explicit image-generation surface. Thin: gate → the
 // injected `imagery.generatePicture` op → persist ONE caller-authored message whose body is a STRING with n
 // `![alt](asset:<id>)` refs (D51 — a message body is stored as a STRING; render blocks are PARSED at render,
-// never stored) → emit `messageCommitted` → return the view. Authorship is the INITIATING principal (§2.2 —
+// never stored) + one `generated-post` structural link per picture in the SAME append → emit
+// `messageCommitted` → return the view. Authorship is the INITIATING principal (§2.2 —
 // a user post that happens to contain media; attribution-truthful under D19). Imagery is caller-blind — it
 // returns blocks + warnings; chat holds the message-write authority. Reuses the persist/emit pattern of
 // `turn.ts` `persistUserMessage` (the D26 canon-write dance + the durable-first bus emit).
@@ -12,7 +13,7 @@ import type { ClaimChatOp } from "../contract/context.ts";
 import type { GenerateImageParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
-import { buildCommittedMessageView, commitCanonAppend, insertCanonMessageStatements } from "../persistence/canon-write.ts";
+import { buildCommittedMessageView, commitCanonAppend, insertCanonMessageStatements, insertMessageAssetStatements } from "../persistence/canon-write.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
@@ -89,7 +90,18 @@ export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): 
           now: ctx.now(),
           variant: { content: body },
         };
-        const statements = insertCanonMessageStatements(ctx.db, params);
+        const statements = [
+          ...insertCanonMessageStatements(ctx.db, params),
+          ...insertMessageAssetStatements(ctx.db, {
+            rows: picture.images.map((image) => ({
+              id: ctx.newMessageAssetId(),
+              messageId: params.messageId,
+              assetId: image.assetId,
+            })),
+            origin: "generated-post",
+            now: params.now,
+          }),
+        ];
         ctx.applyStatsDelta(statements, ctx.db, userMessageDelta({ ownerId: hostUserId, characterId: null, content: body, now: params.now }));
         return { statements, result: buildCommittedMessageView(params) };
       });

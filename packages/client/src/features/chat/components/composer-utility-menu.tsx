@@ -25,6 +25,7 @@ import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Compass, Eraser, Icon, ImagePlus, Images, ListOrdered, Pencil, Redo2, RefreshCw, Sparkles, Undo2, WandSparkles } from "@orb/ui/icons";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
+import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useRef } from "react";
@@ -40,6 +41,7 @@ import { ATTACH_MEDIA_ACCEPT } from "../lib/attach-media.ts";
  *  composer (upload caps, the generate hook, the F-P1 clear-on-success); the wand only renders them. Homed
  *  HERE (the menu that renders them) so the cluster imports it DOWN this one edge — no import cycle. */
 export interface ComposerImageControls {
+  readonly sharedRoom: boolean;
   readonly maxAttachmentBytes: number;
   readonly uploadDisabled: boolean;
   readonly onAddFiles: (result: FileDropzoneResult) => void;
@@ -265,6 +267,11 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             <Icon icon={Images} size="sm" />
             Imagine — modes & preview…
           </MenuItem>
+          {image.sharedRoom ? (
+            <Text voice="gloss" className="px-row py-field">
+              Pictures you generate are posted in this room and stay in your uploads. Add them to a gallery when you want.
+            </Text>
+          ) : null}
         </MenuGroup>
         {/* PLOT — game-only (owner: "game steers go in the magic wand"). The six plot steers nest under one Plot
             submenu (side-eye P1-B — no more flat icon-less dump). "Offer choices" USED to sit here as its own

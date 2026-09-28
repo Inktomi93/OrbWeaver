@@ -153,6 +153,7 @@ export { CHAT_LIST_MAX_LIMIT, chatListCursorSchema } from "./listing.ts";
 // from `@orb/kit/macro`; contracts owns only the persisted/wire ARRAY (`MacroFreezeRecord`) + its parse seam.
 export type {
   ChatReasoningPart,
+  ConnectionAttributionProvenance,
   CueRole,
   MacroFreezeRecord,
   MessageAssetOrigin,
@@ -171,9 +172,11 @@ export type {
 } from "./messages.ts";
 export {
   CHAT_MESSAGE_LIST_MAX_LIMIT,
+  CONNECTION_ATTRIBUTION_PROVENANCES,
   CUE_ROLES,
   chatReasoningPartSchema,
   combineTokenProvenance,
+  connectionAttributionProvenanceSchema,
   INLINE_REPLY_ORIGIN,
   MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,
@@ -225,6 +228,7 @@ export {
   roomOverridesSchema,
   storedGroupConfigSchema,
 } from "./metadata.ts";
+export type { NextTurnConnectionView } from "./next-turn-connection.ts";
 export type { MessageKind, MessageKindPolicy, ParticipantKind, SpeakerRef } from "./participants.ts";
 // B7 — the narrator-voice predicate, promoted from the client (the server's segment-anchor validation and
 // the client picker must gate the plain-label span grammar identically).

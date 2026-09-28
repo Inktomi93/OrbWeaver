@@ -4,7 +4,7 @@
 // verbs via use-character-gallery.
 
 import { blobUrl } from "@orb/contracts/assets";
-import type { AssetId, CharacterId, GalleryItemId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, GalleryItemId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
 // @orb-waive dialog-via-composite(Dialog): this character-gallery picker owns its root and selection surface; ends if a gallery-dialog composite owns that species.
@@ -57,15 +57,26 @@ function toOwnedGridItem(asset: OwnedAsset): MediaGridItem {
 
 interface GalleryGridBodyProps {
   readonly isPending: boolean;
+  readonly thisRoom: boolean;
   readonly gridItems: readonly MediaGridItem[];
   readonly galleryLabel: string;
   readonly characterName: string;
   readonly onActivate: (item: MediaGridItem) => void;
   readonly onAddClick: () => void;
+  readonly onShowAllRooms: () => void;
 }
 
 // Pending reads as a skeleton, never the empty state.
-function GalleryGridBody({ isPending, gridItems, galleryLabel, characterName, onActivate, onAddClick }: GalleryGridBodyProps): ReactElement {
+function GalleryGridBody({
+  isPending,
+  thisRoom,
+  gridItems,
+  galleryLabel,
+  characterName,
+  onActivate,
+  onAddClick,
+  onShowAllRooms,
+}: GalleryGridBodyProps): ReactElement {
   if (isPending) {
     return <SkeletonRows count={6} shape="line" />;
   }
@@ -73,13 +84,23 @@ function GalleryGridBody({ isPending, gridItems, galleryLabel, characterName, on
     return (
       <EmptyState
         icon={<Icon icon={Images} size="lg" />}
-        title="No images yet"
-        description={`Curate images into ${characterName}'s gallery from your uploads.`}
+        title={thisRoom ? "No gallery images in this room" : "No images yet"}
+        description={
+          thisRoom
+            ? `No image from ${characterName}'s gallery has been posted in this room. Your other gallery images are still in All rooms.`
+            : `Curate images into ${characterName}'s gallery from your uploads.`
+        }
         action={
-          <Button intent="primary" onClick={onAddClick}>
-            <Icon icon={ImagePlus} size="sm" />
-            Add images
-          </Button>
+          thisRoom ? (
+            <Button intent="primary" onClick={onShowAllRooms}>
+              View all rooms
+            </Button>
+          ) : (
+            <Button intent="primary" onClick={onAddClick}>
+              <Icon icon={ImagePlus} size="sm" />
+              Add images
+            </Button>
+          )
         }
       />
     );
@@ -92,17 +113,33 @@ export interface CharacterGalleryDialogProps {
   readonly onOpenChange: (open: boolean) => void;
   readonly characterId: CharacterId;
   readonly characterName: string;
+  readonly chatId: ChatId;
 }
 
-export function CharacterGalleryDialog({ open, onOpenChange, characterId, characterName }: CharacterGalleryDialogProps): ReactElement {
+function addPickerDisabledReason(pending: boolean, failed: boolean): string | undefined {
+  let reason: string | undefined;
+  if (pending) {
+    reason = "Loading your gallery";
+  } else if (failed) {
+    reason = "Couldn't load your gallery";
+  }
+  return reason;
+}
+
+function galleryErrorLabel(thisRoom: boolean, allGalleryFailed: boolean): string {
+  return thisRoom && !allGalleryFailed ? "this room's gallery" : "the gallery";
+}
+
+export function CharacterGalleryDialog({ open, onOpenChange, characterId, characterName, chatId }: CharacterGalleryDialogProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const gallery = useQuery(
-    trpc.assets.listGallery.queryOptions({
-      subjectCharacterId: characterId,
-      limit: GALLERY_PAGE_LIMIT,
-    }),
-  );
+  const [thisRoom, setThisRoom] = useState(false);
+  const allGallery = useQuery(trpc.assets.listGallery.queryOptions({ subjectCharacterId: characterId, limit: GALLERY_PAGE_LIMIT }));
+  const roomGallery = useQuery({
+    ...trpc.assets.listGallery.queryOptions({ subjectCharacterId: characterId, chatId, limit: GALLERY_PAGE_LIMIT }),
+    enabled: thisRoom && allGallery.isSuccess,
+  });
+  const gallery = thisRoom && allGallery.isSuccess ? roomGallery : allGallery;
   const remove = useRemoveFromGallery({ trpc, invalidation });
 
   const [lightbox, setLightbox] = useState<GalleryItem | null>(null);
@@ -111,7 +148,9 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
 
   const items = gallery.data ?? [];
   const gridItems = items.map(toGalleryGridItem);
-  const existingAssetIds = new Set<AssetId>(items.map((i) => i.assetId));
+  // The room filter only narrows the visible grid. The add picker must still know which assets are already
+  // curated anywhere, or it offers duplicates whenever This room is active.
+  const existingAssetIds = new Set<AssetId>((allGallery.data ?? []).map((i) => i.assetId));
   const galleryLabel = `${characterName}'s gallery`;
 
   const openLightbox = (activated: MediaGridItem): void => {
@@ -138,20 +177,40 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
           <Stack gap="block">
             <Row justify="between" align="center" gap="row">
               <DialogTitle>{galleryLabel}</DialogTitle>
-              <Button intent="secondary" size="sm" onClick={(): void => setPickerOpen(true)}>
+              <Button
+                intent="secondary"
+                size="sm"
+                disabled={!allGallery.isSuccess}
+                title={addPickerDisabledReason(allGallery.isPending, allGallery.isError)}
+                onClick={(): void => setPickerOpen(true)}
+              >
                 <Icon icon={ImagePlus} size="sm" />
                 Add images
               </Button>
             </Row>
 
-            <GalleryGridBody
-              isPending={gallery.isPending}
-              gridItems={gridItems}
-              galleryLabel={galleryLabel}
-              characterName={characterName}
-              onActivate={openLightbox}
-              onAddClick={(): void => setPickerOpen(true)}
-            />
+            <Row gap="field" role="group" aria-label="Gallery rooms">
+              <Button intent={thisRoom ? "ghost" : "secondary"} size="sm" aria-pressed={!thisRoom} onClick={(): void => setThisRoom(false)}>
+                All rooms
+              </Button>
+              <Button intent={thisRoom ? "secondary" : "ghost"} size="sm" aria-pressed={thisRoom} onClick={(): void => setThisRoom(true)}>
+                This room
+              </Button>
+            </Row>
+            {gallery.isError ? (
+              <QueryErrorState label={galleryErrorLabel(thisRoom, allGallery.isError)} onRetry={(): void => void gallery.refetch()} />
+            ) : (
+              <GalleryGridBody
+                isPending={gallery.isPending}
+                thisRoom={thisRoom}
+                gridItems={gridItems}
+                galleryLabel={galleryLabel}
+                characterName={characterName}
+                onActivate={openLightbox}
+                onAddClick={(): void => setPickerOpen(true)}
+                onShowAllRooms={(): void => setThisRoom(false)}
+              />
+            )}
           </Stack>
         </DialogPopup>
       </Dialog>

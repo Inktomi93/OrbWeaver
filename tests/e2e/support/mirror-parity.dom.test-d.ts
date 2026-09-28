@@ -272,6 +272,8 @@ test("CanonMessage mirrors MessageView (the canon rows every honesty spec reads)
       | "generationId"
       | "toolCalls"
       | "connectionId"
+      // Durable connection provenance is asserted at the DB/read/CT boundaries; no e2e honesty spec reads it.
+      | "connectionAttributionProvenance"
       // The e2e canon helper does not inspect the output-cap disclosure; its rendered CT owns that truth
       // until a live spec needs the field and adds it to `CanonMessage`.
       | "outputCapReached"

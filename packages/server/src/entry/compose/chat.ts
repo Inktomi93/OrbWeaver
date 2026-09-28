@@ -272,7 +272,7 @@ export interface ChatComposeInput {
   /** The per-FUNDER role-client binder (§8.5b): every chat-side side call — arbiter, digests, extract-quiet —
    *  spends the TRIGGER's rows; the vector writes and reads use the room HOST's (vector tasks are owner-scoped). */
   readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
-  readonly connection: Pick<ConnectionService, "resolve" | "availability">;
+  readonly connection: Pick<ConnectionService, "resolve" | "availability" | "getBoundConnection">;
   /** The post-generation credential STRIKE-OUT (#1373) — the credentials domain's verb, wired DIRECT. */
   readonly maybeRevokeOnAuthFailed: ChatContext["maybeRevokeOnAuthFailed"];
   readonly character: CharacterService;
@@ -1444,11 +1444,16 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     activeTurns: createActiveTurns(),
     prng: () => Math.random(),
     delay: sleep,
-    // THE TURN'S OWN RESOLVE and the #54 pre-send gate, both keyed on the FUNDER (§8.4-3): the composer says
-    // AVAILABLE against the member's own connection and the turn spends that same connection — a host-keyed
-    // gate here was exactly the failure verify8 H1 named.
+    // THE TURN'S OWN RESOLVE and the #54 pre-send gate are both keyed on the room's resolved FUNDER
+    // (§8.4-3): today that is the current host, and the next-turn read below reports that same binding.
     resolveConnection: ({ funderUserId, actor }) => resolveChatFor(funderUserId, undefined, actor),
     checkSendAvailability: async ({ funderUserId }) => input.connection.availability({ task: "chat", principal: await realHostPrincipal(funderUserId) }),
+    getNextTurnConnection: async ({ funderUserId }) => {
+      const row = await input.connection.getBoundConnection({ task: "chat", principal: await realHostPrincipal(funderUserId) });
+      return row === null
+        ? { state: "unset" }
+        : { state: "configured", connectionLabel: row.label, provider: row.providerId, providerLabel: row.providerLabel, model: row.model };
+    },
     resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, presentHumanUserIds, humanSeats, trigger, voice, presetOverride }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);
 

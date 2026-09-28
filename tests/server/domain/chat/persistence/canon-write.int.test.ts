@@ -25,7 +25,7 @@ import { loadCanonHistory, loadMaxMessageSeq, loadSlotTarget } from "../../../..
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
-import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedUser } from "../_support.ts";
+import { FROZEN_AT, seedCharacter, seedChat, seedConnection, seedMessage, seedUser } from "../_support.ts";
 
 let db: Db;
 
@@ -74,6 +74,29 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
     expect(row?.model).toBe("opus");
     expect(row?.tokensIn).toBe(12);
     expect(row?.tokensOut).toBe(7);
+    expect(row?.connectionAttributionProvenance).toBe("unrecorded");
+  });
+
+  test("a generated variant records that its connection existed", async () => {
+    const ownerId = await seedUser(db, castId<Handle>("attribution-owner"));
+    const connectionId = await seedConnection(db, ownerId);
+    const chatId = await seedChat(db, "attribution");
+    const { messageId, variantId } = ids("attribution");
+    const params = {
+      messageId,
+      variantId,
+      chatId,
+      seq: 1,
+      role: "assistant" as const,
+      now: FROZEN_AT,
+      variant: { content: "generated", connectionId },
+    };
+
+    await db.batch(batchMany(insertCanonMessageStatements(db, params)));
+
+    const [stored] = await db.select().from(messageVariants).where(eq(messageVariants.id, variantId));
+    expect(stored?.connectionAttributionProvenance).toBe("recorded");
+    expect(buildCommittedMessageView(params).connectionAttributionProvenance).toBe("recorded");
   });
 
   test("buildCommittedMessageView equals the re-read row (no round-trip needed)", async () => {

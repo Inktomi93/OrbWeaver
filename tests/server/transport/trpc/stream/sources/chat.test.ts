@@ -418,6 +418,7 @@ const MESSAGE: MessageView = {
   genFinishedAt: null,
   generationId: null,
   connectionId: null,
+  connectionAttributionProvenance: "unrecorded",
   contextBoundaryMessageId: null,
   toolCalls: [],
 };

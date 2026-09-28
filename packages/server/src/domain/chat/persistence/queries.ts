@@ -148,6 +148,7 @@ const messageViewSelection = {
   genFinishedAt: messageVariants.genFinishedAt,
   generationId: messageVariants.generationId,
   connectionId: messageVariants.connectionId,
+  connectionAttributionProvenance: messageVariants.connectionAttributionProvenance,
   // Raw JSON blob — parsed at the read seam by `toMessageView` (never the drizzle `$type` cast).
   toolCalls: messageVariants.toolCalls,
 } as const;
@@ -644,8 +645,9 @@ export async function loadCanonHistory(db: Db, chatId: ChatId): Promise<MessageV
 /** THE §6.7 INLINE-REPLY ORIGIN SET — the (slot → asset ids) pairs whose `message_assets` link was stamped
  *  `inline-reply`, i.e. pictures THIS model emitted inside its own turn. It is the ONE input that lets
  *  `substrate/wire-history`'s media predicate relax for an assistant row without opening the row wholesale:
- *  an `/imagine` illustration on the very same kind of row is stamped `illustration` and is absent here, so
- *  it stays display-only (`verbs/post-narrator-message.ts` is that writer).
+ *  an `/imagine` illustration or caller-authored generated picture is stamped `illustration` or
+ *  `generated-post` and is absent here, so it stays display-only (`verbs/post-narrator-message.ts` and
+ *  `verbs/generate-image.ts` are those writers).
  *
  *  KEYED ON THE PAIR, never on the asset id alone. A chat-wide id set would let ANY assistant-delivered row
  *  that merely spells `![x](asset:<id>)` ride that asset back — a world-info entry, an author's note, a card

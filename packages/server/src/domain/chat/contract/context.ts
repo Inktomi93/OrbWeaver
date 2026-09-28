@@ -10,6 +10,7 @@ import type {
   HistoryFloorSeq,
   InvitePreview,
   LiveOnlyChatBusEvent,
+  NextTurnConnectionView,
   ParticipantView,
   PromptTransform,
   PromptTransformPoint,
@@ -1535,6 +1536,7 @@ export interface ChatServiceDeps {
   /** The deterministic pre-send serveability verdict for the room HOST's chat connection (#54) — the
    *  honest-refusal gate the composer disables SEND on. Fires no turn or API call. Wired at the composition root. */
   readonly checkSendAvailability: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<SendAvailability>;
+  readonly getNextTurnConnection: (args: { readonly funderUserId: UserId }) => Promise<NextTurnConnectionView>;
   readonly resolveForeignInputs: ResolveForeignInputsOp;
   /** The lock holder tag (this replica/turn id) for stale-takeover + holder-scoped release. */
   readonly holder: string;

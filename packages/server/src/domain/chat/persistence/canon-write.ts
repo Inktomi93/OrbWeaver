@@ -13,6 +13,7 @@
 
 import type {
   AssembledPrompt,
+  ConnectionAttributionProvenance,
   MacroFreezeRecord,
   MessageAssetOrigin,
   MessageKind,
@@ -157,6 +158,7 @@ interface VariantEconomics {
   readonly model: ModelId | null;
   readonly provider: ProviderId | null;
   readonly connectionId: UserConnectionId | null;
+  readonly connectionAttributionProvenance: ConnectionAttributionProvenance;
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;
   readonly tokenProvenance: TokenProvenance;
@@ -184,12 +186,14 @@ interface VariantEconomics {
 function variantEconomics(v: CanonVariantInput): VariantEconomics {
   const tokensIn = v.tokensIn ?? null;
   const tokensOut = v.tokensOut ?? null;
+  const connectionId = v.connectionId ?? null;
   return {
     content: v.content,
     reasoning: v.reasoning ?? null,
     model: v.model ?? null,
     provider: v.provider ?? null,
-    connectionId: v.connectionId ?? null,
+    connectionId,
+    connectionAttributionProvenance: connectionId === null ? "unrecorded" : "recorded",
     tokensIn,
     tokensOut,
     tokenProvenance: v.tokenProvenance ?? (tokensIn !== null || tokensOut !== null ? "measured" : "unrecorded"),
@@ -328,7 +332,7 @@ export function insertCanonMessageStatements(db: Db, params: InsertCanonMessageP
   ];
 }
 
-/** The `message_assets` retaining rows for a message's inline attachments (one per attached asset) —
+/** The `message_assets` retaining rows for a message's inline assets (one per structurally placed asset) —
  *  what the asset-ref registry sees for GC, since the body's `asset:<id>` refs are invisible text.
  *  Committed in the same atomic batch as the message slot + variant. Empty ids ⇒ no statements. */
 export function insertMessageAssetStatements(
@@ -597,7 +601,14 @@ export function editMessageContentStatements(
     batchStmt(
       db
         .update(messageVariants)
-        .set({ content: params.content, ...CLEARED_FREEZE_PROVENANCE })
+        .set({
+          content: params.content,
+          ...CLEARED_FREEZE_PROVENANCE,
+          // A hand-authored body is no longer evidence of what a connection generated. Keep the immutable
+          // provider/model snapshot for context, but clear the FK and mark the connection record absent.
+          connectionId: null,
+          connectionAttributionProvenance: "unrecorded",
+        })
         .where(eq(messageVariants.id, params.variantId)),
     ),
     batchStmt(db.update(messages).set({ editedAt: params.editedAt }).where(eq(messages.id, params.messageId))),

@@ -349,6 +349,9 @@ function messageStatements(args: MessageStatementsArgs): {
           content: v.content,
           model: importedModelId(v.model),
           provider: importedProviderId(v.provider),
+          // Foreign history has no durable local connection row to attribute. Preserve that as missing,
+          // never as a fabricated deletion of a connection this app did not record.
+          connectionAttributionProvenance: "unrecorded",
           // `tokensIn` is supplied by the orb-native bundle AND by the ST arm's user/system slots (the
           // role-routed `extra.token_count`); `variableDelta` stays orb-native-only.
           tokensIn: v.tokensIn ?? null,

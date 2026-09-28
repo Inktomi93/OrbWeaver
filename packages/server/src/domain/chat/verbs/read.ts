@@ -33,6 +33,7 @@ import type {
   MemberCardView,
   MemberCardVisibility,
   MessageView,
+  NextTurnConnectionView,
   ParticipantView,
 } from "@orb/contracts/chat";
 import { buildIdentityNameContext, CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
@@ -183,6 +184,7 @@ interface ReadDeps {
   /** The deterministic pre-send serveability verdict for the chat's own resolved connection (#54). Reads the
    *  SAME chat-row routing overlay `resolveConnection` reads; fires no turn/API call. Wired at compose. */
   readonly checkSendAvailability: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<SendAvailability>;
+  readonly getNextTurnConnection: (args: { readonly funderUserId: UserId }) => Promise<NextTurnConnectionView>;
   /** The foreign half of the assemble ctx (preset/persona/settings). The chat-internal half is gathered
    *  by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
@@ -196,6 +198,7 @@ type ReadVerbs = Pick<
   | "getChatLineage"
   | "getChat"
   | "checkSendAvailability"
+  | "getNextTurnConnection"
   | "getMemberCard"
   | "previewAssembly"
   | "previewActionTemplates"
@@ -789,6 +792,21 @@ function createCheckSendAvailability(ctx: ChatContext, deps: ReadDeps): ChatServ
       throw new ChatNotFoundError(chatId);
     }
     return deps.checkSendAvailability({ funderUserId: hostUserId, chatId });
+  };
+}
+
+function createGetNextTurnConnection(ctx: ChatContext, deps: ReadDeps): ChatService["getNextTurnConnection"] {
+  return async ({ principal, chatId }: GetChatParams): Promise<NextTurnConnectionView> => {
+    await requireParticipant(ctx, principal, chatId);
+    const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
+    if (hostUserId === null) {
+      throw new ChatNotFoundError(chatId);
+    }
+    const view = await deps.getNextTurnConnection({ funderUserId: hostUserId });
+    if (view.state === "unset" || principal.userId === hostUserId) {
+      return view;
+    }
+    return { ...view, connectionLabel: null };
   };
 }
 
@@ -1673,6 +1691,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     getChatLineage: createGetChatLineage(ctx, deps),
     getChat: createGetChat(ctx, deps),
     checkSendAvailability: createCheckSendAvailability(ctx, deps),
+    getNextTurnConnection: createGetNextTurnConnection(ctx, deps),
     getMemberCard: createGetMemberCard(ctx, deps),
     previewAssembly: createPreviewAssembly(ctx, deps),
     getActivePresetConfig: createGetActivePresetConfig(ctx, deps),

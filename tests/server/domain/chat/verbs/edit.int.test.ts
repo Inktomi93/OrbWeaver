@@ -31,7 +31,19 @@ import { principal as makePrincipal } from "../../../../support/factories/princi
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { emptyState, seedGame, snapshotId } from "../../rpg/_support.ts";
-import { addVariant, FROZEN_AT, makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
+import {
+  addVariant,
+  FROZEN_AT,
+  makeChatContext,
+  noClaim,
+  seedCharacter,
+  seedChat,
+  seedConnection,
+  seedMessage,
+  seedParticipant,
+  seedPersona,
+  seedUser,
+} from "../_support.ts";
 import { seedDigest } from "../memory/_support.ts";
 
 let db: Db;
@@ -106,6 +118,29 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
     expect(variants).toHaveLength(1);
     expect(variants[0]?.content).toBe("fixed");
     expect(emitted).toEqual([{ type: "messageEdited", chatId, messageId, view }]);
+  });
+
+  test("a hand edit clears connection attribution without erasing the provider/model snapshot", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    const connectionId = await seedConnection(db, host);
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "generated" });
+    await db
+      .update(messageVariants)
+      .set({
+        connectionId,
+        connectionAttributionProvenance: "recorded",
+        provider: testProviderId("openrouter"),
+        model: testModelId("model-before-edit"),
+      })
+      .where(eq(messageVariants.id, variantId));
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
+
+    const view = await edit.editMessage({ principal: principal(host), chatId, messageId, content: "authored replacement" });
+
+    expect(view.connectionId).toBeNull();
+    expect(view.connectionAttributionProvenance).toBe("unrecorded");
+    expect(view.provider).toBe("openrouter");
+    expect(view.model).toBe("model-before-edit");
   });
 
   test("a non-author member is refused with not_author; the host may edit any slot", async () => {
@@ -902,17 +937,26 @@ describe("moveMessage — host-only re-sequence", () => {
 describe("duplicateMessage / reattributeMessages", () => {
   test("duplicateMessage copies the slot + selected variant to a new tail; the original is intact", async () => {
     const { host, chatId, charA } = await seedRoom();
-    const { messageId } = await seedMessage(db, chatId, 1, {
+    const connectionId = await seedConnection(db, host);
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, {
       role: "assistant",
       characterId: charA,
       content: "echo",
     });
+    await db
+      .update(messageVariants)
+      .set({ connectionId, connectionAttributionProvenance: "recorded", provider: testProviderId("openrouter"), model: testModelId("source-model") })
+      .where(eq(messageVariants.id, variantId));
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     const dup = await edit.duplicateMessage({ principal: principal(host), chatId, messageId });
     expect(dup.content).toBe("echo");
     expect(dup.seq).toBe(2);
     expect(dup.id).not.toBe(messageId);
+    expect(dup.connectionId).toBeNull();
+    expect(dup.connectionAttributionProvenance).toBe("unrecorded");
+    expect(dup.provider).toBe("openrouter");
+    expect(dup.model).toBe("source-model");
     const rows = await db.select().from(messages).where(eq(messages.chatId, chatId));
     expect(rows).toHaveLength(2);
     expect(emitted.at(-1)?.type).toBe("messageCommitted");

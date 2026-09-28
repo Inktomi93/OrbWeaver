@@ -124,6 +124,7 @@ function makeService(
     delay: () => Promise.resolve(),
     resolveConnection: () => Promise.resolve(testConnection()),
     checkSendAvailability: () => Promise.resolve({ available: true }),
+    getNextTurnConnection: () => Promise.resolve({ state: "unset" }),
     resolveForeignInputs: () =>
       Promise.resolve({
         promptConfig: DEFAULT_PROMPT_CONFIG,

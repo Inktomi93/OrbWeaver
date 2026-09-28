@@ -23,6 +23,7 @@ import type {
   DropPluginProvidersParams,
   DropProviderParams,
   GenerationCostParams,
+  GetBoundConnectionParams,
   GetConnectionParams,
   ListBindingsParams,
   ListConnectionsParams,
@@ -99,6 +100,8 @@ export interface ConnectionService {
 
   // ── Model roles (`connection_bindings`)
   readonly listBindings: (params: ListBindingsParams) => Promise<readonly BindingView[]>;
+  /** One indexed binding read and one owner-scoped row read; no runtime resolution or secret projection. */
+  readonly getBoundConnection: (params: GetBoundConnectionParams) => Promise<Pick<ConnectionView, "label" | "providerId" | "providerLabel" | "model"> | null>;
   readonly setBinding: (params: SetBindingParams) => Promise<ConnectionBinding>;
   readonly useForEverything: (params: UseForEverythingParams) => Promise<readonly ConnectionBinding[]>;
 

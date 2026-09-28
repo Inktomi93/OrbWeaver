@@ -520,6 +520,9 @@ export const chatRouter = t.router({
   checkSendAvailability: authedProcedure
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.chat.checkSendAvailability({ principal: ctx.auth, chatId: input.chatId })),
+  getNextTurnConnection: authedProcedure
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .query(({ ctx, input }) => ctx.services.chat.getNextTurnConnection({ principal: ctx.auth, chatId: input.chatId })),
   // D22 member-card read — member-gated + roster-scoped INSIDE the verb (leak-free NOT_FOUND for a
   // non-participant OR a not-in-roster characterId); level-clamped fields are NULL server-side.
   getMemberCard: authedProcedure.input(getMemberCardSchema).query(({ ctx, input }) => ctx.services.chat.getMemberCard({ principal: ctx.auth, ...input })),

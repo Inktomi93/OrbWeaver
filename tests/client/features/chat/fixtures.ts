@@ -108,6 +108,7 @@ export const CHAT_AMBIENT_ROUTES: TrpcRoutes<
   | "regex.listScripts"
   | "regex.listRoomDisplayScripts"
   | "chat.checkSendAvailability"
+  | "chat.getNextTurnConnection"
   | "rosterPreset.list"
   | "stream.attach"
   | "chat.listReactions"
@@ -136,6 +137,7 @@ export const CHAT_AMBIENT_ROUTES: TrpcRoutes<
   // assumes; a null previously reached the same rendering through `!verdict`, which is why the gate's own
   // resolve path never ran.
   "chat.checkSendAvailability": { available: true },
+  "chat.getNextTurnConnection": { state: "unset" },
   // The saved-roster library (#26) — the new-chat picker's "Start from a saved roster" gate reads it. EMPTY is the
   // honest default (a fresh viewer owns no saved casts → the opener hides); the opener's own CT overrides it
   // after the spread with a populated list.
@@ -240,6 +242,7 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
     genFinishedAt: null,
     generationId: null,
     connectionId: null,
+    connectionAttributionProvenance: "unrecorded",
     contextBoundaryMessageId: null,
     ...overrides,
   };

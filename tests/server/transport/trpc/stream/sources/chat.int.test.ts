@@ -43,6 +43,7 @@ function readDeps(): Parameters<typeof createRead>[1] {
     loadParticipantViews: () => Promise.resolve([]),
     resolveConnection: () => Promise.reject(new Error("unused: the room's pump never previews a connection")),
     checkSendAvailability: () => Promise.reject(new Error("unused: the room's pump never checks availability")),
+    getNextTurnConnection: () => Promise.reject(new Error("unused: the room's pump never reads the next-turn connection")),
     resolveForeignInputs: () => Promise.reject(new Error("unused: the room's pump never resolves foreign inputs")),
   };
 }

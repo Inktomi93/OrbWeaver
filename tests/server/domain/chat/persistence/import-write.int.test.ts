@@ -251,6 +251,7 @@ describe("createBulkImportChats", () => {
     const variants = await db.select().from(messageVariants);
     expect(slots).toHaveLength(2);
     expect(variants).toHaveLength(2);
+    expect(variants.map((variant) => variant.connectionAttributionProvenance)).toEqual(["unrecorded", "unrecorded"]);
     for (const s of slots) {
       expect(s.selectedVariantId).not.toBeNull();
     }

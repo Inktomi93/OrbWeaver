@@ -9,7 +9,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { characters, chatInjections, chats, messages, messageVariants } from "@orb/db";
+import { characters, chatInjections, chats, messages, messageVariants, userConnections } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -28,6 +28,7 @@ import {
   makeLoadParticipantViews,
   seedCharacter,
   seedChat,
+  seedConnection,
   seedMessage,
   seedParticipant,
   seedPersona,
@@ -112,6 +113,7 @@ const FORK_COLUMN_CLASS = {
   // Attribution (§5.3b): which connection wrote the swipe + where its cost figure came from — an id and a
   // provenance word beside `provider`/`model`, member-readable on the same readout.
   connectionId: "copied",
+  connectionAttributionProvenance: "copied",
   costProvenance: "copied",
   cacheReadTokens: "copied",
   cacheWriteTokens: "copied",
@@ -1038,8 +1040,9 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
     /** Seed a room whose tail assistant variant has EVERY nullable column populated with a distinctive value,
      *  so the census can tell "copied" from "silently null" per column. Body prose is deliberately hidden-free
      *  and the game is non-deception, so the member-projected columns are identity here. */
-    async function seedFullyPopulatedRoom(key: string, human: UserId, role: ParticipantRole): Promise<ChatId> {
+    async function seedFullyPopulatedRoom(key: string, human: UserId, role: ParticipantRole, deleteConnection = false): Promise<ChatId> {
       const charA = await seedCharacter(db, human, `${key}_char`);
+      const connectionId = await seedConnection(db, human, `${key} connection`);
       const chatId = await seedChat(db, key);
       await seedParticipant(db, { chatId, key: "h", userId: human, role });
       await seedParticipant(db, { chatId, key: "c", characterId: charA });
@@ -1062,6 +1065,8 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
           reasoningEffort: "high",
           model: testModelId("m1"),
           provider: testProviderId("p1"),
+          connectionId,
+          connectionAttributionProvenance: "recorded",
           tokensIn: 11,
           tokensOut: 22,
           cacheReadTokens: 33,
@@ -1090,6 +1095,9 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
           contextBoundaryMessageId: castId(first.messageId),
         })
         .where(eq(messageVariants.id, castId(m.variantId)));
+      if (deleteConnection) {
+        await db.delete(userConnections).where(eq(userConnections.id, connectionId));
+      }
       return chatId;
     }
 
@@ -1151,6 +1159,18 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       const { leaked, dropped } = censusMismatches(src, copy, "host");
       expect(leaked, "a host forker's ids must still be remapped").toEqual([]);
       expect(dropped, "a HOST fork must copy every non-remapped column verbatim — including the host plane").toEqual([]);
+    });
+
+    test("a fork preserves recorded provenance after the source connection was deleted", async () => {
+      const host = await seedUser(db, castId<Handle>("census_deleted_connection"));
+      const chatId = await seedFullyPopulatedRoom("census_deleted_connection_src", host, "host", true);
+
+      const { src, copy } = await censusRows(chatId, host);
+
+      expect(src.connectionId).toBeNull();
+      expect(src.connectionAttributionProvenance).toBe("recorded");
+      expect(copy.connectionId).toBeNull();
+      expect(copy.connectionAttributionProvenance).toBe("recorded");
     });
   });
 

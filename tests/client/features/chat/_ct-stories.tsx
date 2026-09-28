@@ -2934,7 +2934,13 @@ export function CharacterGalleryDialogStory({ characterName = "Aria" }: { readon
   return (
     <CtDataProviders>
       <div>
-        <CharacterGalleryDialog open={open} onOpenChange={setOpen} characterId={castId<CharacterId>("character_ct_gallery")} characterName={characterName} />
+        <CharacterGalleryDialog
+          open={open}
+          onOpenChange={setOpen}
+          characterId={castId<CharacterId>("character_ct_gallery")}
+          characterName={characterName}
+          chatId={castId<ChatId>("chat_ct_gallery")}
+        />
       </div>
     </CtDataProviders>
   );
@@ -2949,7 +2955,13 @@ export function CharacterGalleryDialogToastStory(): ReactElement {
     <CtAppDataProviders>
       <CtToastSurface>
         <div>
-          <CharacterGalleryDialog open={open} onOpenChange={setOpen} characterId={castId<CharacterId>("character_ct_gallery")} characterName="Aria" />
+          <CharacterGalleryDialog
+            open={open}
+            onOpenChange={setOpen}
+            characterId={castId<CharacterId>("character_ct_gallery")}
+            characterName="Aria"
+            chatId={castId<ChatId>("chat_ct_gallery")}
+          />
         </div>
       </CtToastSurface>
     </CtAppDataProviders>

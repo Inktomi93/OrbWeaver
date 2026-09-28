@@ -40,6 +40,37 @@ async function openLightbox(page: Page): Promise<void> {
   await expect(page.getByRole("button", { name: "Remove from gallery" })).toBeVisible();
 }
 
+test("All rooms is the default; This room sends the room id and has its own empty state", async ({ mount, page }) => {
+  const inputs: TrpcInput<"assets.listGallery">[] = [];
+  await routeTrpc(page, {
+    "assets.listGallery": (input) => {
+      inputs.push(input);
+      return input.chatId === undefined ? [ITEM] : [];
+    },
+  });
+  await mount(<CharacterGalleryDialogStory />);
+  await expect(page.getByRole("gridcell", { name: "Gallery image" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "All rooms", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "This room" }).click();
+  await expect(page.getByText("No gallery images in this room")).toBeVisible();
+  await expect(page.getByRole("button", { name: "View all rooms" })).toBeVisible();
+  expect(inputs.some((input) => input.chatId === "chat_ct_gallery")).toBe(true);
+  await page.getByRole("button", { name: "All rooms", exact: true }).click();
+  await expect(page.getByRole("gridcell", { name: "Gallery image" })).toBeVisible();
+});
+
+test("This room narrows only the curated grid; the add picker still excludes items curated elsewhere", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "assets.listGallery": (input) => (input.chatId === undefined ? [ITEM] : []),
+    "assets.listOwned": () => [{ assetId: ITEM.assetId, hash: ITEM.hash, mime: ITEM.mime, size: 1024, uploadedAt: 1, animated: false, kind: "gallery" }],
+  });
+  await mount(<CharacterGalleryDialogStory />);
+  await page.getByRole("button", { name: "This room" }).click();
+  await expect(page.getByText("No gallery images in this room")).toBeVisible();
+  await page.getByRole("button", { name: "Add images" }).click();
+  await expect(page.getByText("Nothing left to add")).toBeVisible();
+});
+
 /** The viewport-space bottom edge of a lightbox action button (throws if it has no layout box). */
 async function buttonBottom(page: Page, name: string): Promise<number> {
   const box = await page.getByRole("button", { name }).boundingBox();

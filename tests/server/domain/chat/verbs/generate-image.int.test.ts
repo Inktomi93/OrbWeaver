@@ -7,18 +7,20 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { messages, messageVariants, ownerStats, statsCanonVersions } from "@orb/db";
+import { assets, messageAssets, messages, messageVariants, ownerStats, statsCanonVersions } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createAssetsService } from "@orb/server/domain/assets";
 import { asc, eq } from "drizzle-orm";
-import { beforeEach, describe } from "vitest";
+import { beforeEach, describe, onTestFinished } from "vitest";
 import { createGenerateImage } from "../../../../../packages/server/src/domain/chat/verbs/generate-image.ts";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, noClaim, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
+import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
+import { FROZEN_AT, makeChatContext, noClaim, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -37,6 +39,20 @@ function principal(userId: UserId): Principal {
   return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
+async function seedGeneratedAsset(ownerId: UserId, key: string): Promise<AssetId> {
+  const assetId = castId<AssetId>(`asset_${key}`);
+  await db.insert(assets).values({
+    id: assetId,
+    ownerId,
+    kind: "generated",
+    mime: "image/png",
+    size: 1,
+    hash: `hash_${key}`,
+    uploadedAt: FROZEN_AT,
+  });
+  return assetId;
+}
+
 describe("generateImage", () => {
   test("an unrelated unique failure stays loud instead of spinning the append retry", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
@@ -46,9 +62,9 @@ describe("generateImage", () => {
     let providerCalls = 0;
     const ctx = makeChatContext(db, {
       newMessageId: () => existing.messageId,
-      generatePicture: () => {
+      generatePicture: async () => {
         providerCalls += 1;
-        return Promise.resolve({ images: [{ assetId: castId<AssetId>("asset_one") }], warnings: [] });
+        return { images: [{ assetId: await seedGeneratedAsset(host, "one") }], warnings: [] };
       },
     });
     const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
@@ -56,6 +72,7 @@ describe("generateImage", () => {
     await expect(generateImage({ principal: principal(host), chatId, mode: "free" })).rejects.toThrow();
     expect(providerCalls).toBe(1);
     expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(1);
+    expect(await db.select().from(messageAssets)).toEqual([]);
   });
 
   test("concurrent completed generations both append canon without re-running either provider call", async () => {
@@ -77,8 +94,9 @@ describe("generateImage", () => {
           release?.();
         }
         await together;
+        const assetId = await seedGeneratedAsset(host, p.prompt ?? "none");
         return {
-          images: [{ assetId: castId<AssetId>(`asset_${p.prompt ?? "none"}`) }],
+          images: [{ assetId }],
           warnings: [],
         };
       },
@@ -103,12 +121,12 @@ describe("generateImage", () => {
     const calls: unknown[] = [];
     const ctx = makeChatContext(db, {
       applyStatsDelta: (batch, deltaDb, delta) => applyStatsDelta(batch as BatchStmt[], deltaDb, delta),
-      generatePicture: (p) => {
+      generatePicture: async (p) => {
         calls.push(p);
-        return Promise.resolve({
-          images: [{ assetId: castId<AssetId>("asset_one") }, { assetId: castId<AssetId>("asset_two") }],
+        return {
+          images: [{ assetId: await seedGeneratedAsset(host, "one") }, { assetId: await seedGeneratedAsset(host, "two") }],
           warnings: [],
-        });
+        };
       },
     });
     const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
@@ -137,6 +155,12 @@ describe("generateImage", () => {
     expect(body).toContain("a dragon");
     expect(body).toContain("![generated image](asset:asset_one)");
     expect(body).toContain("![generated image](asset:asset_two)");
+    const links = await db.select().from(messageAssets).where(eq(messageAssets.messageId, view.id)).orderBy(asc(messageAssets.assetId));
+    expect(links).toHaveLength(2);
+    expect(links.map(({ assetId, origin }) => ({ assetId, origin }))).toEqual([
+      { assetId: "asset_one", origin: "generated-post" },
+      { assetId: "asset_two", origin: "generated-post" },
+    ]);
 
     expect(emitted).toHaveLength(1);
     expect(emitted[0]).toMatchObject({ type: "messageCommitted", chatId, messageId: view.id });
@@ -150,11 +174,10 @@ describe("generateImage", () => {
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
 
     const ctx = makeChatContext(db, {
-      generatePicture: () =>
-        Promise.resolve({
-          images: [{ assetId: castId<AssetId>("asset_one") }],
-          warnings: [{ code: "image_edit_dropped", detail: "img-model lacks image-edit; generated without the avatar reference" }],
-        }),
+      generatePicture: async () => ({
+        images: [{ assetId: await seedGeneratedAsset(host, "one") }],
+        warnings: [{ code: "image_edit_dropped", detail: "img-model lacks image-edit; generated without the avatar reference" }],
+      }),
     });
     const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
 
@@ -163,6 +186,32 @@ describe("generateImage", () => {
     // The message still committed; the warning rides the one chat `warning` surface after it.
     const warnings = emitted.filter((e) => e.type === "warning");
     expect(warnings).toEqual([{ type: "warning", chatId, code: "image_edit_dropped" }]);
+  });
+
+  test("a generated-post structural link lets a present co-member resolve the caller's picture", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const chatId = await seedChat(db, "shared-picture");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "member", userId: member, role: "member" });
+    let generatedAssetId: AssetId | undefined;
+    const ctx = makeChatContext(db, {
+      generatePicture: async () => {
+        generatedAssetId = await seedGeneratedAsset(host, "shared-picture");
+        return { images: [{ assetId: generatedAssetId }], warnings: [] };
+      },
+    });
+    const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
+
+    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "shared view" });
+
+    const harness = await makeAssetsHarness(db);
+    onTestFinished(harness.cleanup);
+    if (generatedAssetId === undefined) {
+      throw new Error("the generated asset id was not captured");
+    }
+    const refs = await createAssetsService(harness.ctx).resolveChatAssetRefs(member, chatId, [generatedAssetId]);
+    expect(refs.map((ref) => ref.assetId)).toEqual([generatedAssetId]);
   });
 
   test("a non-participant is refused (leak-free NOT_FOUND) and never calls the op", async () => {
@@ -216,7 +265,7 @@ describe("generateImage", () => {
     // over the canon that exists when it runs, so this post's row must NOT be among them.
     let canonAtClaim = -1;
     const ctx = makeChatContext(db, {
-      generatePicture: () => Promise.resolve({ images: [{ assetId: castId<AssetId>("asset_ok") }], warnings: [] }),
+      generatePicture: async () => ({ images: [{ assetId: await seedGeneratedAsset(host, "ok") }], warnings: [] }),
     });
     const { generateImage } = createGenerateImage(ctx, {
       emit,
