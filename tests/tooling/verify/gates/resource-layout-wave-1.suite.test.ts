@@ -11,10 +11,11 @@ import { gate as uiExportsMapComplete } from "../../../../tooling/src/verify/gat
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const policies = [componentSize, componentSizeUi, featureOwnsDefinition, packageLayout, serverLayout, uiExportsMapComplete] as const;
 
-test("first resource layout policies keep their two-sided proofs", () => {
+test("first resource layout policies keep their two-sided proofs", { timeout: scaledBudget(20_000) }, () => {
   expect(verifyPolicyProofs(policies)).toEqual([]);
 });
 

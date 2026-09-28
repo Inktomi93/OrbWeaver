@@ -158,6 +158,40 @@ function assertProofLinks(proof: Readonly<Record<string, unknown>>, label: strin
   }
 }
 
+/** Executable metadata is a Git-index property, so only a resource fixture can express it. Every member
+ *  names bytes the row already declared; permitting an absent file or a link would make the index mode
+ *  describe a different identity from the proof's authored subject. */
+function assertProofExecutable(proof: Readonly<Record<string, unknown>>, label: string, files: Readonly<Record<string, unknown>>): void {
+  if (!Object.hasOwn(proof, "executable")) {
+    return;
+  }
+  if (proof["mode"] !== "resource") {
+    invalid(`${label}.executable is valid only in resource mode`);
+  }
+  const executable = proof["executable"];
+  if (!Array.isArray(executable) || executable.length === 0) {
+    invalid(`${label}.executable must be a nonempty array when present`);
+  }
+  const seen = new Set<string>();
+  const links = Object.hasOwn(proof, "links") ? record(proof["links"], `${label}.links`) : {};
+  for (const [index, path] of executable.entries()) {
+    if (typeof path !== "string") {
+      invalid(`${label}.executable[${String(index)}] must be a string path`);
+    }
+    assertFixtureDestination(path, `${label}.executable[${String(index)}]`);
+    if (seen.has(path)) {
+      invalid(`${label}.executable contains duplicate path: ${path}`);
+    }
+    seen.add(path);
+    if (Object.hasOwn(links, path)) {
+      invalid(`${label}.executable path is also a declared link: ${path}`);
+    }
+    if (!Object.hasOwn(files, path)) {
+      invalid(`${label}.executable path is not a declared file: ${path}`);
+    }
+  }
+}
+
 /** The `mustRefuse` expectation is the INVERSE of the other two arms': the pass produces no findings at all,
  *  so finding counts and coordinates have nothing to describe, and `messageIncludes` is the only thing that can
  *  discriminate a fired refusal from an unreachable branch. Requiring it here — at load, for every row — is
@@ -254,6 +288,7 @@ function assertProof(value: unknown, analysis: GatePolicyAnalysis, label: string
     invalid(`${label}.files may contain only .ts/.tsx source paths in ${String(proof["mode"])} mode`);
   }
   assertProofLinks(proof, label, files);
+  assertProofExecutable(proof, label, files);
   assertProofGrant(proof, label, context.authority, context.arm === "mustFlag");
   if (context.arm === "mustRefuse") {
     // The one REQUIREMENT rule here, so it reads the value rather than the key: an own `expect: undefined` is a

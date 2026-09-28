@@ -81,11 +81,21 @@
 //               out of the reader's view. The finding must land AT THAT PATH, as for ADD, except for a `delete`,
 //               which asserts over the whole run as REMOVE does. It changes what every policy in the pass reads,
 //               so a resource arm never shares a pass.
+//   INSTALLED-PACKAGE — one exact text request for a declared installed package. The production installed
+//               provider still resolves the real package and validates the real file before substituting
+//               this invocation-only source. It asserts over the whole run and always runs alone.
+//   TRACKED-MODE — one existing candidate-index path's executable bit. The production tracked-files provider
+//               still runs `git ls-files --stage` and validates membership before applying the invocation-only
+//               boolean. It reports at that path and always runs alone; source text and membership do not move.
 import { existsSync, readFileSync } from "node:fs";
 import type { GatePolicy } from "@orb/tooling/verify";
-import { projectCtx, reviewedGrantsFor, runPolicyPass } from "@orb/tooling/verify";
+import { projectCtx, resourceRequestIdentity, reviewedGrantsFor, runPolicyPass } from "@orb/tooling/verify";
 import type { Project } from "ts-morph";
 import { expect } from "./fixtures.ts";
+
+type LivenessResourceOptions = NonNullable<Parameters<typeof runPolicyPass>[0]["resourceOptions"]>;
+type InstalledPackageTextOverlay = NonNullable<LivenessResourceOptions["installedPackageTextOverlays"]>[number];
+type TrackedFileModeOverlay = NonNullable<LivenessResourceOptions["trackedFileModeOverlays"]>[number];
 
 /** What the overlay is FOR, which decides where the finding is allowed to land. See the header. */
 export type RealCorpusOverlay =
@@ -138,7 +148,9 @@ export type RealCorpusOverlay =
       /** A file, or a directory, taken out of every ResourceHost view (the reader's own deletion). */
       readonly path: string;
       readonly delete: true;
-    };
+    }
+  | ({ readonly kind: "installed-package" } & InstalledPackageTextOverlay)
+  | ({ readonly kind: "tracked-mode" } & TrackedFileModeOverlay);
 
 export interface RealCorpusLivenessArm {
   readonly policy: GatePolicy;
@@ -235,7 +247,11 @@ function refusals(result: PassResult): readonly string[] {
  *  and `remove` — read from the effective findings, or the granted ones for a `granted` arm. */
 function inScope(result: PassResult, arm: RealCorpusLivenessArm): readonly string[] {
   const wholeRun = arm.overlays.some(
-    (overlay) => overlay.kind === "neutralise" || overlay.kind === "remove" || (overlay.kind === "resource" && "delete" in overlay),
+    (overlay) =>
+      overlay.kind === "neutralise" ||
+      overlay.kind === "remove" ||
+      overlay.kind === "installed-package" ||
+      (overlay.kind === "resource" && "delete" in overlay),
   );
   const reported = arm.granted === true ? result.authority.grantedFindings.map(({ finding }) => finding) : result.authority.effectiveFindings;
   return (
@@ -243,7 +259,12 @@ function inScope(result: PassResult, arm: RealCorpusLivenessArm): readonly strin
       .filter((finding) => finding.policyId === arm.policy.id)
       // A blindness tripwire anchors its finding on a CONSTANT, not on the file whose subject vanished, so
       // scoping a `neutralise`/`remove` arm to the touched path would assert on an empty set forever.
-      .filter((finding) => wholeRun || arm.overlays.some((overlay) => overlay.path === finding.file) || (arm.reportsAt ?? []).includes(finding.file))
+      .filter(
+        (finding) =>
+          wholeRun ||
+          arm.overlays.some((overlay) => overlay.kind !== "installed-package" && overlay.path === finding.file) ||
+          (arm.reportsAt ?? []).includes(finding.file),
+      )
       // A finding's own `message` is OPTIONAL, and a policy that passes none is not anonymous — the sink
       // presents the POLICY's `message` for it, which is the text a reader actually sees. Falling back to a
       // "(no message)" placeholder instead made `windowed-infinite-query-health`'s arm unassertable: it
@@ -280,30 +301,33 @@ function removedOriginals(project: Project, repoRoot: string, arm: RealCorpusLiv
  *  would pass for the wrong reason; an `add` onto an existing file would silently become a `neutralise`.
  *  Both are the "passed, but not for the stated reason" shape this mechanism exists to end, so they THROW
  *  rather than assert — a thrown arm is a lane's problem, a silently-inverted one is nobody's. */
+function captureOverlayOriginals(project: Project, repoRoot: string, arm: RealCorpusLivenessArm, overlay: RealCorpusOverlay): Originals {
+  if (overlay.kind === "resource" || overlay.kind === "installed-package" || overlay.kind === "tracked-mode") {
+    // Resource-backed overlays never touch the project: they are handed to the pass's ResourceHost and die with it.
+    return new Map();
+  }
+  if (overlay.kind === "remove") {
+    return removedOriginals(project, repoRoot, arm, overlay.path);
+  }
+  const absolute = `${repoRoot}/${overlay.path}`;
+  const original = project.getSourceFile(absolute)?.getFullText();
+  if ((overlay.kind === "neutralise" || overlay.kind === "edit") && original === undefined) {
+    throw new Error(
+      `${arm.policy.id}: neutralise overlay ${overlay.path} is not in the structure run's corpus — the arm would ADD a file rather than blind the tripwire, and would then pass for the wrong reason.`,
+    );
+  }
+  if (overlay.kind === "add" && original !== undefined) {
+    throw new Error(`${arm.policy.id}: add overlay ${overlay.path} already EXISTS in the corpus — use \`neutralise\`, or pick an unused path.`);
+  }
+  return new Map([[absolute, original]]);
+}
+
 function captureOriginals(project: Project, repoRoot: string, arm: RealCorpusLivenessArm): Originals {
   const originals = new Map<string, string | undefined>();
   for (const overlay of arm.overlays) {
-    if (overlay.kind === "resource") {
-      // A resource overlay never touches the project: it is handed to the pass's ResourceHost and dies with it.
-      continue;
+    for (const [absolute, original] of captureOverlayOriginals(project, repoRoot, arm, overlay)) {
+      originals.set(absolute, original);
     }
-    if (overlay.kind === "remove") {
-      for (const [absolute, original] of removedOriginals(project, repoRoot, arm, overlay.path)) {
-        originals.set(absolute, original);
-      }
-      continue;
-    }
-    const absolute = `${repoRoot}/${overlay.path}`;
-    const original = project.getSourceFile(absolute)?.getFullText();
-    if ((overlay.kind === "neutralise" || overlay.kind === "edit") && original === undefined) {
-      throw new Error(
-        `${arm.policy.id}: neutralise overlay ${overlay.path} is not in the structure run's corpus — the arm would ADD a file rather than blind the tripwire, and would then pass for the wrong reason.`,
-      );
-    }
-    if (overlay.kind === "add" && original !== undefined) {
-      throw new Error(`${arm.policy.id}: add overlay ${overlay.path} already EXISTS in the corpus — use \`neutralise\`, or pick an unused path.`);
-    }
-    originals.set(absolute, original);
   }
   return originals;
 }
@@ -334,7 +358,7 @@ function applyOverlays(project: Project, repoRoot: string, arm: RealCorpusLivene
     } else if (overlay.kind === "edit") {
       const absolute = `${repoRoot}/${overlay.path}`;
       replaceSourceFile(project, absolute, editedText(project.getSourceFileOrThrow(absolute).getFullText(), arm, overlay.path, overlay.replace));
-    } else if (overlay.kind !== "resource") {
+    } else if (overlay.kind !== "resource" && overlay.kind !== "installed-package" && overlay.kind !== "tracked-mode") {
       replaceSourceFile(project, `${repoRoot}/${overlay.path}`, overlay.source);
     }
   }
@@ -386,6 +410,52 @@ function resourceOverlay(repoRoot: string, arms: readonly RealCorpusLivenessArm[
   return overlay;
 }
 
+/** Exact installed-text substitutions for one pass. Two controls cannot own one request identity. */
+function installedPackageTextOverlays(arms: readonly RealCorpusLivenessArm[]): readonly InstalledPackageTextOverlay[] {
+  const overlays = new Map<string, InstalledPackageTextOverlay>();
+  for (const arm of arms) {
+    for (const entry of arm.overlays.filter(
+      (candidate): candidate is Extract<RealCorpusOverlay, { readonly kind: "installed-package" }> => candidate.kind === "installed-package",
+    )) {
+      const key = resourceRequestIdentity({ kind: "installed-package", ...entry.request });
+      if (overlays.has(key)) {
+        throw new Error(`real-corpus liveness: two installed-package overlays in one pass name ${key}`);
+      }
+      overlays.set(key, { request: { ...entry.request }, source: entry.source });
+    }
+  }
+  return [...overlays.values()];
+}
+
+/** Candidate-index executable-bit substitutions for one pass. One path has one owner. */
+function trackedFileModeOverlays(arms: readonly RealCorpusLivenessArm[]): readonly TrackedFileModeOverlay[] {
+  const overlays = new Map<string, TrackedFileModeOverlay>();
+  for (const arm of arms) {
+    for (const entry of arm.overlays.filter(
+      (candidate): candidate is Extract<RealCorpusOverlay, { readonly kind: "tracked-mode" }> => candidate.kind === "tracked-mode",
+    )) {
+      if (overlays.has(entry.path)) {
+        throw new Error(`real-corpus liveness: two tracked-mode overlays in one pass name ${entry.path}`);
+      }
+      overlays.set(entry.path, { path: entry.path, executable: entry.executable });
+    }
+  }
+  return [...overlays.values()];
+}
+
+function resourceOptions(repoRoot: string, arms: readonly RealCorpusLivenessArm[]): LivenessResourceOptions | undefined {
+  const overlay = resourceOverlay(repoRoot, arms);
+  const installed = installedPackageTextOverlays(arms);
+  const trackedModes = trackedFileModeOverlays(arms);
+  return Object.keys(overlay).length === 0 && installed.length === 0 && trackedModes.length === 0
+    ? undefined
+    : {
+        ...(Object.keys(overlay).length === 0 ? {} : { overlay }),
+        ...(installed.length === 0 ? {} : { installedPackageTextOverlays: installed }),
+        ...(trackedModes.length === 0 ? {} : { trackedFileModeOverlays: trackedModes }),
+      };
+}
+
 /** Put the corpus back IN MEMORY. Not housekeeping: every arm shares the one project, so a leaked overlay
  *  would silently become part of the next arm's "real" corpus. */
 function restoreOriginals(project: Project, originals: Originals): void {
@@ -428,8 +498,10 @@ export function planLivenessBatches(arms: readonly RealCorpusLivenessArm[]): rea
       solo.set(key, [...(solo.get(key) ?? []), arm]);
       continue;
     }
-    const paths = new Set(arm.overlays.map((overlay) => overlay.path));
-    const fits = shared.find((batch) => batch.every((member) => member.overlays.every((overlay) => !paths.has(overlay.path))));
+    const paths = new Set(arm.overlays.flatMap((overlay) => (overlay.kind === "installed-package" ? [] : [overlay.path])));
+    const fits = shared.find((batch) =>
+      batch.every((member) => member.overlays.every((overlay) => overlay.kind === "installed-package" || !paths.has(overlay.path))),
+    );
     if (fits === undefined) {
       shared.push([arm]);
     } else {
@@ -477,7 +549,11 @@ function assertReported(arm: RealCorpusLivenessArm, verdict: RealCorpusArmVerdic
   expect(verdict.refusals, `${arm.policy.id}: the OVERLAID run refused, so its verdict is not a measurement`).toEqual([]);
   expect(
     verdict.messages.length,
-    `${arm.policy.id} reported NOTHING for a real-corpus positive control (${arm.overlays.map((overlay) => `${overlay.kind} ${overlay.path}`).join(", ")}) — it is silent when the tree is clean AND silent when it is broken (#2149). Effective findings outside the arm's scope: ${verdict.outOfScope}`,
+    `${arm.policy.id} reported NOTHING for a real-corpus positive control (${arm.overlays
+      .map((overlay) => (overlay.kind === "installed-package" ? `${overlay.kind} ${JSON.stringify(overlay.request)}` : `${overlay.kind} ${overlay.path}`))
+      .join(
+        ", ",
+      )}) — it is silent when the tree is clean AND silent when it is broken (#2149). Effective findings outside the arm's scope: ${verdict.outOfScope}`,
   ).toBeGreaterThan(0);
   expect(verdict.messages.join("\n"), `${arm.policy.id}: the control fired, but not with the expected verdict`).toContain(arm.messageIncludes);
   return verdict.messages;
@@ -510,7 +586,7 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
     corpus ??= projectCtx(repoRoot).project;
     return corpus;
   };
-  const pass = (selected: readonly GatePolicy[], overlay: Readonly<Record<string, string | null>> = {}): PassResult =>
+  const pass = (selected: readonly GatePolicy[], passResourceOptions?: LivenessResourceOptions): PassResult =>
     runPolicyPass({
       knownPolicies: policies,
       policies: selected,
@@ -518,7 +594,7 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
       project: project(),
       reviewedGrants,
       failOnWarnings: false,
-      ...(Object.keys(overlay).length === 0 ? {} : { resourceOptions: { overlay } }),
+      ...(passResourceOptions === undefined ? {} : { resourceOptions: passResourceOptions }),
     });
 
   const restoreOrDamage = (loaded: Project, originals: Originals, batch: readonly RealCorpusLivenessArm[]): void => {
@@ -549,7 +625,7 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
       }
       return pass(
         batch.map((arm) => arm.policy),
-        resourceOverlay(repoRoot, planters),
+        resourceOptions(repoRoot, planters),
       );
     } finally {
       restoreOrDamage(loaded, originals, batch);
@@ -567,7 +643,14 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
       const entangledWith = batch
         // A path the arm planted ITSELF is its own scope, whoever else planted it too.
         .filter(
-          (other) => other !== arm && other.overlays.some((overlay) => reported.has(overlay.path) && !arm.overlays.some((own) => own.path === overlay.path)),
+          (other) =>
+            other !== arm &&
+            other.overlays.some(
+              (candidate) =>
+                candidate.kind !== "installed-package" &&
+                reported.has(candidate.path) &&
+                !arm.overlays.some((own) => own.kind !== "installed-package" && own.path === candidate.path),
+            ),
         )
         .map((other) => other.policy.id);
       if (entangledWith.length > 0) {

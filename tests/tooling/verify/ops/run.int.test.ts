@@ -136,16 +136,17 @@ test("compact verification names the active stage before its held child exits an
   const heldOnce = join(scratch, "stage-held-once");
   await fakeBin(
     "pnpm",
-    `#!/usr/bin/env bash
-set -u
-if [ ! -f ${JSON.stringify(heldOnce)} ]; then
-  touch ${JSON.stringify(heldOnce)}
-  echo HELD VERIFY STAGE
-  touch ${JSON.stringify(ready)}
-  while [ ! -f ${JSON.stringify(release)} ]; do sleep 0.02; done
-  exit 1
-fi
-exit 0
+    `import { existsSync, writeFileSync, writeSync } from "node:fs";
+if (!existsSync(${JSON.stringify(heldOnce)})) {
+  writeFileSync(${JSON.stringify(heldOnce)}, "held");
+  writeSync(1, "HELD VERIFY STAGE\\n");
+  writeFileSync(${JSON.stringify(ready)}, "ready");
+  const barrier = new Int32Array(new SharedArrayBuffer(4));
+  while (!existsSync(${JSON.stringify(release)})) {
+    Atomics.wait(barrier, 0, 0, 20);
+  }
+  process.exitCode = 1;
+}
 `,
   );
   const runner = join(scratch, "run-verify.ts");
@@ -207,10 +208,10 @@ test("a stage child carries NO_COLOR and never an inherited FORCE_COLOR (#2469)"
   const seen = join(scratch, "stage-colour-env");
   await fakeBin(
     "pnpm",
-    `#!/usr/bin/env bash
-set -u
-printf 'NO_COLOR=[%s] FORCE_COLOR=[%s]\n' "\${NO_COLOR-unset}" "\${FORCE_COLOR-unset}" >> ${JSON.stringify(seen)}
-exit 0
+    `import { appendFileSync } from "node:fs";
+const noColor = process.env["NO_COLOR"] ?? "unset";
+const forceColor = process.env["FORCE_COLOR"] ?? "unset";
+appendFileSync(${JSON.stringify(seen)}, "NO_COLOR=[" + noColor + "] FORCE_COLOR=[" + forceColor + "]\\n");
 `,
   );
   const runner = join(scratch, "run-verify-colour.ts");

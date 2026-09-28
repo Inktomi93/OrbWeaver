@@ -184,6 +184,9 @@ function* runResourceExample({ policy, proof, grantSets = NO_GRANTS }: Omit<Exam
     ]) {
       execFixtureGit(root, args);
     }
+    if (proof.executable !== undefined) {
+      execFixtureGit(root, ["update-index", "--chmod=+x", "--", ...proof.executable]);
+    }
     const parser = new Project({ useInMemoryFileSystem: true });
     // The overlay is the AUTHORED transaction, and the reader refuses a non-authored segment outright
     // (`ops/resource-reader.ts`). An `installed-package` fixture legitimately plants `node_modules/…`, which

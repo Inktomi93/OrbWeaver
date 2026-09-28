@@ -16,7 +16,7 @@ import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ResourceLoad } from "../contract/resource.ts";
-import type { InstalledPackageFacts, InstalledPackageId, InstalledPackageRequest } from "../contract/resource-installed.ts";
+import type { InstalledPackageFacts, InstalledPackageId, InstalledPackageRequest, InstalledPackageTextOverlay } from "../contract/resource-installed.ts";
 import { INSTALLED_PACKAGE_DEFINITIONS } from "../contract/resource-installed.ts";
 import { assertRepoPathIdentity } from "../lib/policy-validation.ts";
 
@@ -107,7 +107,7 @@ function metadataFacts(root: string, id: InstalledPackageId, manifest: string): 
 /** A named file is JOINED to the package directory, never resolved: an `exports` map is a contract with a
  *  package's IMPORTERS, and this door observes rather than imports. Measured 2026-09-11:
  *  `playwright-core/browsers.json` is ERR_PACKAGE_PATH_NOT_EXPORTED through node's resolver. */
-function textFacts(id: InstalledPackageId, manifest: string, file: string): InstalledPackageFacts {
+function textFacts(id: InstalledPackageId, manifest: string, file: string, source?: string): InstalledPackageFacts {
   assertRepoPathIdentity(file, `installed package ${id} file`);
   const directory = realpathSync(dirname(manifest));
   const target = realpathSync(join(directory, file));
@@ -118,7 +118,7 @@ function textFacts(id: InstalledPackageId, manifest: string, file: string): Inst
   if (!statSync(target).isFile()) {
     throw new Error(`installed package ${id} file is not a regular file: ${file}`);
   }
-  return { id, mode: "text", file, text: readFileSync(target, "utf8") };
+  return { id, mode: "text", file, text: source ?? readFileSync(target, "utf8") };
 }
 
 function collectDeclarations(directory: string, into: string[]): void {
@@ -143,9 +143,16 @@ function astFacts(id: InstalledPackageId, manifest: string): Extract<InstalledPa
   return { id, mode: "ast", declarationPaths: declarationPaths.toSorted((left, right) => left.localeCompare(right)) };
 }
 
-export function loadInstalledPackage(root: string, request: InstalledPackageRequest): ResourceLoad<InstalledPackageFacts> {
+export function loadInstalledPackage(
+  root: string,
+  request: InstalledPackageRequest,
+  overlay?: InstalledPackageTextOverlay,
+): ResourceLoad<InstalledPackageFacts> {
   if (!Object.hasOwn(INSTALLED_PACKAGE_DEFINITIONS, request.id)) {
     return refused(`unknown installed package id: ${String(request.id)}`);
+  }
+  if (overlay !== undefined && (request.mode !== "text" || overlay.request.id !== request.id || overlay.request.file !== request.file)) {
+    return refused(`installed package text overlay does not match the requested identity: ${request.id}:${request.mode}`);
   }
   let manifest: string;
   try {
@@ -161,7 +168,7 @@ export function loadInstalledPackage(root: string, request: InstalledPackageRequ
       return { status: "ready", value: metadataFacts(root, request.id, manifest), paths: [], members: 1 };
     }
     if (request.mode === "text") {
-      return { status: "ready", value: textFacts(request.id, manifest, request.file), paths: [], members: 1 };
+      return { status: "ready", value: textFacts(request.id, manifest, request.file, overlay?.source), paths: [], members: 1 };
     }
     const value = astFacts(request.id, manifest);
     return { status: "ready", value, paths: [], members: value.declarationPaths.length };

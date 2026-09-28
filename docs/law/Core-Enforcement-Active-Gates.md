@@ -53,7 +53,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(351 registered gates)
+(352 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -298,7 +298,7 @@ in its own module header, never restated here.
 | `query-freshness-coverage-health` | query-freshness-coverage | hard/error | @client | the Invalidation anchor is present… |
 | `query-machine-seals` | — | reviewed-grant/error | @authored\* | useMutation or useInfiniteQuery is… |
 | `query-machine-seals-health` | query-machine-seals | hard/error | @client,@tests\* | the data public anchor exists but the… |
-| `real-corpus-liveness-manifest` | — | hard/warning | @tooling,@tests\* | Every final policy owes a real-corpus… |
+| `real-corpus-liveness-manifest` | — | hard/error | @tooling,@tests\* | Every final policy owes a real-corpus… |
 | `receded-ink-integrity` | tailwind-class-token | ordinary/error | @client,@ui | RECEDED_INK is carried behind a… |
 | `registry-assembly-at-door-only` | — | ordinary/error | @client\* | createRegistry()/createContributorRegi… |
 | `registry-context-via-mint` | react-origin | ordinary/error | @client | a createContext typed over a registry… |
@@ -342,6 +342,7 @@ in its own module header, never restated here.
 | `table-explicit-primary-key` | drizzle-schema | hard/error | @db\* | a sqliteTable has no PRIMARY KEY —… |
 | `table-scoping-class` | tenancy-scope | hard/error | @db\* | every schema table must declare HOW a… |
 | `test-determinism` | — | ordinary/error | @tests\* | ambient nondeterminism in a test… |
+| `test-executable-mode` | tooling-os-neutral | hard/error | @tests | an executable Git mode on a test… |
 | `test-factory-contract` | — | ordinary/error | @client,@ui,@server,@db,@contracts,@kit,@tooling,@tests,@scripts\* | a test factory violates the… |
 | `test-fixture-imports` | — | ordinary/error | @authored\* | a test/it/expect binding bypasses the… |
 | `test-layout` | mirror-index | hard/error | none | a test under tests/ has the wrong… |

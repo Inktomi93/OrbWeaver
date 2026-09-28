@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-23
+updated: 2026-09-28
 ---
 
 # Gate-runtime read first
@@ -14,7 +14,7 @@ whole reads. Everything else is selected by the question in front of you.
 | # | Read | Stop rule |
 | -: | - | - |
 | 1 | `gate-runtime-standardization.md` | read in full; standing contract and proof law |
-| 2 | `gate-runtime-orchestrator-playbook.md` | read in full when orchestrating or executing a conversion |
+| 2 | `.claude/skills/orchestrator/SKILL.md` | read in full when orchestrating lanes or a gate-conversion wave |
 | 3 | `tooling/src/verify/contract/*.ts` headers | read the headers governing the contract question |
 | 4 | `docs/law/Core-Enforcement-Active-Gates.md` | read the affected gate row and linked constraints |
 

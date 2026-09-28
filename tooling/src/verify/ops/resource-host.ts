@@ -7,12 +7,13 @@ import type { Project, SourceFile } from "ts-morph";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ConfigSnapshot, ConfigSnapshotRunner } from "../contract/config-snapshot.ts";
 import type { OrdinaryWaiverCarrierRefusal, OrdinaryWaiverCarriers, OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
-import type { ResourceFact, ResourceLoad, ResourceReceipt } from "../contract/resource.ts";
+import type { ResourceFact, ResourceLoad, ResourceReceipt, TrackedFileModeOverlay } from "../contract/resource.ts";
 import type { PackageResourceId, StaticConfigResourceId } from "../contract/resource-config.ts";
 import type { LedgerFacts, LedgerId } from "../contract/resource-document.ts";
 import type { ExactFile, ExactResourceId } from "../contract/resource-exact.ts";
 import type { ResourceHost, ResourceHostOptions, ResourceInvocation } from "../contract/resource-host.ts";
-import type { InstalledPackageFacts, InstalledPackageRequest } from "../contract/resource-installed.ts";
+import type { InstalledPackageFacts, InstalledPackageRequest, InstalledPackageTextOverlay } from "../contract/resource-installed.ts";
+import { installedPackageRequestIdentity } from "../contract/resource-installed.ts";
 import type { JsonResourceFacts, JsonResourceId } from "../contract/resource-json.ts";
 import type { MirrorFamilyId } from "../contract/resource-mirror.ts";
 import type { AuthoredTextCorpus, AuthoredTextFile, AuthoredTextRefusal } from "../contract/resource-text.ts";
@@ -49,7 +50,25 @@ function freezeValue<T>(value: T): T {
 /** Create once at the invocation root; release the returned object to release every cached resource. */
 export function createResourceHost(options: ResourceHostOptions): ResourceInvocation {
   const root = resolve(options.root);
-  const invocationOptions = { ...options, root, ...(options.overlay === undefined ? {} : { overlay: { ...options.overlay } }) };
+  const trackedFileModeOverlays: readonly TrackedFileModeOverlay[] = Object.freeze(
+    (options.trackedFileModeOverlays ?? []).map((entry) => freezeValue({ path: entry.path, executable: entry.executable })),
+  );
+  const installedTextOverlays = new Map<string, InstalledPackageTextOverlay>();
+  for (const entry of options.installedPackageTextOverlays ?? []) {
+    const snapshot = freezeValue({ request: { ...entry.request }, source: entry.source });
+    const key = `installed-package:${installedPackageRequestIdentity(snapshot.request)}`;
+    if (installedTextOverlays.has(key)) {
+      throw new Error(`duplicate installed package text overlay: ${key}`);
+    }
+    installedTextOverlays.set(key, snapshot);
+  }
+  const invocationOptions = {
+    ...options,
+    root,
+    ...(options.overlay === undefined ? {} : { overlay: { ...options.overlay } }),
+    ...(installedTextOverlays.size === 0 ? {} : { installedPackageTextOverlays: Object.freeze([...installedTextOverlays.values()]) }),
+    ...(trackedFileModeOverlays.length === 0 ? {} : { trackedFileModeOverlays }),
+  };
   const reader = createResourceReader(invocationOptions);
   const receipts = new Map<string, ResourceReceipt>();
   const acquiredPaths = new Set<string>();
@@ -132,10 +151,11 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
   // file and `ast` of the same package are two different acquisitions with two different receipts.
   const installedProviders = new Map<string, () => ResourceFact<InstalledPackageFacts>>();
   const installed = (request: InstalledPackageRequest): ResourceFact<InstalledPackageFacts> => {
-    const key = request.mode === "text" ? `${request.id}:text:${request.file}` : `${request.id}:${request.mode}`;
+    const key = `installed-package:${installedPackageRequestIdentity(request)}`;
     let provider = installedProviders.get(key);
     if (provider === undefined) {
-      provider = cached(`installed-package:${key}`, () => loadInstalledPackage(root, request));
+      const overlay = request.mode === "text" ? installedTextOverlays.get(key) : undefined;
+      provider = cached(key, () => loadInstalledPackage(root, request, overlay));
       installedProviders.set(key, provider);
     }
     return provider();
@@ -190,7 +210,7 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
     nativeConfig: keyed<ConfigSnapshotRunner, ConfigSnapshot>("native-config", (id) =>
       loadNativeConfig(reader, invocationOptions, id),
     ) as ResourceHost["nativeConfig"],
-    trackedFiles: cached("tracked-files", () => loadTrackedFiles(root)),
+    trackedFiles: cached("tracked-files", () => loadTrackedFiles(root, trackedFileModeOverlays)),
     candidateIndexDelta: demanded("candidate-index-delta", (paths) => loadCandidateIndexDelta(root, paths)),
     json: keyed<JsonResourceId, JsonResourceFacts>("json", (id) => loadJsonResource(reader, id)),
     installedPackage: (request: InstalledPackageRequest) => installed(request),

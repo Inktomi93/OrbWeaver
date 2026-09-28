@@ -53,6 +53,25 @@ test("text reads a file the package's own exports map REFUSES to resolve", () =>
   expect(JSON.parse(fact.value.text)).toHaveProperty("browsers");
 });
 
+test("text substitutes an exact overlay only after the real target validates", () => {
+  const request = { id: "playwright-core" as const, mode: "text" as const, file: "browsers.json" };
+  const fact = loadInstalledPackage(ROOT, request, { request, source: '{"browsers":[]}\n' });
+
+  expect(fact).toMatchObject({ status: "ready", value: { id: "playwright-core", mode: "text", file: "browsers.json", text: '{"browsers":[]}\n' } });
+});
+
+test("text overlays cannot invent a target or cross request identities", () => {
+  const missingRequest = { id: "playwright-core" as const, mode: "text" as const, file: "liveness-missing.json" };
+  expect(loadInstalledPackage(ROOT, missingRequest, { request: missingRequest, source: "{}\n" }).status).toBe("unresolved");
+
+  const request = { id: "playwright-core" as const, mode: "text" as const, file: "browsers.json" };
+  const mismatch = {
+    request: { id: "react-compiler" as const, mode: "text" as const, file: "dist/index.js" },
+    source: "export const compiler = true;\n",
+  };
+  expect(loadInstalledPackage(ROOT, request, mismatch)).toMatchObject({ status: "unresolved", reason: expect.stringContaining("does not match") });
+});
+
 test("text cannot escape the package directory", () => {
   const fact = loadInstalledPackage(ROOT, { id: "playwright-core", mode: "text", file: "package.json/../../../../etc/hostname" });
 

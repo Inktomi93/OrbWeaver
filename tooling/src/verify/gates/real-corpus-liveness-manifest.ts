@@ -34,9 +34,8 @@
 //
 // POPULATION PORT: NONE — born final, no legacy predecessor.
 //
-// HARD + WARNING: the obligation is being ESTABLISHED (~220+ of ~335 policies lack pins), so this gate
-// starts as a non-blocking debt tracker. Hard authority because the fix is to ADD the pin, not to waive
-// the requirement — an individual waiver would paper over a dead-code risk that only a real-corpus
+// HARD + ERROR: every final policy must carry a collected two-sided pin. A missing or dangling pin blocks
+// the structure run because an individual waiver would paper over a dead-code risk that only a real-corpus
 // control can close.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
@@ -208,8 +207,7 @@ export const gate = defineGate({
   id: "real-corpus-liveness-manifest",
   family: "real-corpus-liveness-manifest",
   authority: "hard",
-  severity: "warning",
-  workItem: 42,
+  severity: "error",
   population: {
     in: ["@tooling", "@tests"],
     under: ["tooling/src/verify/gates/**", "tests/tooling/verify/gates/_liveness/**"],

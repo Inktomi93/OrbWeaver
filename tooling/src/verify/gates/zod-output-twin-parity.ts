@@ -142,33 +142,120 @@ function typeDependsOnOwnerParameter(type: Type, owner: MorphNode, location: Mor
       ...candidateType.getAliasTypeArguments(),
       ...candidateType.getUnionTypes(),
       ...candidateType.getIntersectionTypes(),
+      ...[candidateType.getStringIndexType(), candidateType.getNumberIndexType()].filter((child): child is Type => child !== undefined),
     ];
     return children.some(visit) || candidateType.getProperties().some((property) => visit(property.getTypeAtLocation(location)));
   };
   return visit(type);
 }
 
-function belongsToInferredGenericCallShape(node: MorphNode, ctx: { checker: () => import("ts-morph").TypeChecker }): boolean {
+type AggregatePathSegment = { readonly kind: "property"; readonly name: string } | { readonly kind: "index"; readonly index: number };
+
+interface AggregateCallPath {
+  readonly call: import("ts-morph").CallExpression;
+  readonly argument: import("ts-morph").ObjectLiteralExpression | import("ts-morph").ArrayLiteralExpression;
+  readonly segments: readonly AggregatePathSegment[];
+}
+
+function enclosingAggregate(
+  current: AggregateCallPath["argument"],
+): { readonly argument: AggregateCallPath["argument"]; readonly segment: AggregatePathSegment } | undefined {
+  const parent = current.getParent();
+  if (Node.isPropertyAssignment(parent)) {
+    const argument = parent.getParentIfKind(SyntaxKind.ObjectLiteralExpression);
+    return argument === undefined ? undefined : { argument, segment: { kind: "property", name: parent.getName() } };
+  }
+  if (!Node.isArrayLiteralExpression(parent)) {
+    return;
+  }
+  const index = parent.getElements().indexOf(current);
+  return index < 0 ? undefined : { argument: parent, segment: { kind: "index", index } };
+}
+
+function aggregateCallPath(node: MorphNode, expression: Expression): AggregateCallPath | undefined {
+  const segments: AggregatePathSegment[] = [];
   let aggregate: import("ts-morph").ObjectLiteralExpression | import("ts-morph").ArrayLiteralExpression | undefined;
   if (Node.isPropertyAssignment(node)) {
     aggregate = node.getParentIfKind(SyntaxKind.ObjectLiteralExpression);
+    segments.unshift({ kind: "property", name: node.getName() });
   } else if (Node.isArrayLiteralExpression(node)) {
     aggregate = node;
+    const index = node.getElements().indexOf(expression);
+    if (index < 0) {
+      return;
+    }
+    segments.unshift({ kind: "index", index });
   }
   if (aggregate === undefined) {
+    return;
+  }
+
+  let current: import("ts-morph").ObjectLiteralExpression | import("ts-morph").ArrayLiteralExpression = aggregate;
+  for (;;) {
+    const parent: MorphNode | undefined = current.getParent();
+    if (Node.isCallExpression(parent)) {
+      return { call: parent, argument: current, segments };
+    }
+    const outer = enclosingAggregate(current);
+    if (outer !== undefined) {
+      segments.unshift(outer.segment);
+      current = outer.argument;
+      continue;
+    }
+    return;
+  }
+}
+
+function nestedMemberType(member: Type, segment: AggregatePathSegment, location: MorphNode): Type | undefined {
+  if (segment.kind === "property") {
+    const index = Number(segment.name);
+    const numberIndex = Number.isInteger(index) && String(index) === segment.name ? member.getNumberIndexType() : undefined;
+    return member.getProperty(segment.name)?.getTypeAtLocation(location) ?? numberIndex ?? member.getStringIndexType();
+  }
+  const tupleElements = member.getTupleElements();
+  if (tupleElements.length > 0) {
+    return tupleElements[segment.index];
+  }
+  const symbolName = member.getSymbol()?.getName();
+  return (
+    member.getArrayElementType() ??
+    member.getNumberIndexType() ??
+    (symbolName === "Array" || symbolName === "ReadonlyArray" ? member.getTypeArguments()[0] : undefined)
+  );
+}
+
+function memberTypeAtPath(type: Type, path: AggregateCallPath, owner: MorphNode, location: MorphNode): Type | undefined {
+  let member: Type | undefined = type;
+  for (const segment of path.segments) {
+    if (member === undefined) {
+      return;
+    }
+    // A parameter that is itself the owner's inferred type parameter supplies every nested member.
+    // Its constraint may expose a broad index type, but that constraint is not an independent owner.
+    if (isOwnerTypeParameter(member, owner)) {
+      return member;
+    }
+    member = nestedMemberType(member, segment, location);
+  }
+  return member;
+}
+
+function contextualMemberDerivesOwnerTypeParameter(node: MorphNode, expression: Expression, ctx: { checker: () => import("ts-morph").TypeChecker }): boolean {
+  const path = aggregateCallPath(node, expression);
+  if (path === undefined || path.call.getTypeArguments().length > 0) {
     return false;
   }
-  const call = aggregate.getParentIfKind(SyntaxKind.CallExpression);
-  if (call === undefined || call.getTypeArguments().length > 0) {
-    return false;
-  }
-  const declaration = ctx.checker().getResolvedSignature(call)?.getDeclaration();
+  const declaration = ctx.checker().getResolvedSignature(path.call)?.getDeclaration();
   if (declaration === undefined || !Node.isFunctionLikeDeclaration(declaration)) {
     return false;
   }
-  const argumentIndex = call.getArguments().indexOf(aggregate);
+  const argumentIndex = path.call.getArguments().indexOf(path.argument);
   const parameter = argumentIndex < 0 ? undefined : declaration.getParameters()[argumentIndex];
-  return parameter !== undefined && typeDependsOnOwnerParameter(parameter.getType(), declaration, parameter);
+  if (parameter === undefined) {
+    return false;
+  }
+  const member = memberTypeAtPath(parameter.getType(), path, declaration, parameter);
+  return member !== undefined && typeDependsOnOwnerParameter(member, declaration, parameter);
 }
 
 export const gate = defineGate({
@@ -246,13 +333,12 @@ export const gate = defineGate({
             SyntaxKind.BinaryExpression,
           ],
           visit: (node) => {
-            const inferredGenericShape = belongsToInferredGenericCallShape(node, ctx);
             for (const expression of contextualExpressions(node)) {
               const read = readContextualZodOutputTwin(expression);
               // An exact contextual type inferred from the same schema expression is generic construction
               // plumbing, not a second owner. Any mismatch remains visible, as does every explicit generic
               // instantiation whose type argument supplies a concrete independent target.
-              if (inferredGenericShape) {
+              if (contextualMemberDerivesOwnerTypeParameter(node, expression, ctx)) {
                 continue;
               }
               if (read.kind !== "none") {
@@ -385,6 +471,22 @@ export const gate = defineGate({
     {
       mode: "types",
       files: proofFiles(
+        'import * as z from "zod";\ntype State = { mode: "idle" | "busy" };\ndeclare function register<T>(input: { readonly schema: z.ZodType<State>; readonly metadata: T }): void;\nregister({ schema: z.object({ mode: z.literal("idle") }), metadata: { source: "probe" } });\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\n',
+      ),
+      expect: { count: 1, token: "z", messageIncludes: "authored type is not assignable to schema output" },
+      why: "a generic metadata field in the same aggregate cannot suppress its concrete schema sibling's output contract",
+    },
+    {
+      mode: "types",
+      files: proofFiles(
+        'import * as z from "zod";\ntype State = { mode: "idle" | "busy" };\ndeclare function register<T>(input: readonly [z.ZodType<T>, z.ZodType<State>, T]): void;\nregister([z.string(), z.object({ mode: z.literal("idle") }), "probe"]);\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\n',
+      ),
+      expect: { count: 1, token: "z", messageIncludes: "authored type is not assignable to schema output" },
+      why: "a generic tuple element cannot suppress a concrete schema sibling in the same direct tuple argument",
+    },
+    {
+      mode: "types",
+      files: proofFiles(
         'import * as z from "zod";\ntype State = { mode: "idle" | "busy" };\ndeclare function register(input: { readonly schema: z.ZodType<State>; readonly schemas: readonly z.ZodType<State>[] }): void;\nregister({ schema: z.object({ mode: z.literal("idle") }), schemas: [z.object({ mode: z.literal("idle") })] });\n',
       ),
       expect: { count: 2, token: "z", messageIncludes: "authored type is not assignable to schema output" },
@@ -481,6 +583,14 @@ export const gate = defineGate({
       expect: { count: 1, token: "fixed", messageIncludes: "authored type is not assignable to schema output" },
       why: "an authored fixed schema remains visible beside the generated-schema exception",
     },
+    {
+      mode: "types",
+      files: proofFiles(
+        'import * as z from "zod";\ntype State = { mode: "idle" | "busy" };\ndeclare function register(input: Readonly<Record<string, z.ZodType<State>>>): void;\nregister({ state: z.object({ mode: z.literal("idle") }) });\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\n',
+      ),
+      expect: { count: 1, token: "z", messageIncludes: "authored type is not assignable to schema output" },
+      why: "a concrete indexed Record schema target must still report narrowed output",
+    },
   ],
   mustPass: [
     {
@@ -562,11 +672,32 @@ export const gate = defineGate({
     },
     {
       mode: "types",
+      files: proofFiles(
+        'import * as z from "zod";\ntype State = { mode: "idle" | "busy" };\ndeclare function register<T>(input: { readonly schema: z.ZodType<State>; readonly metadata: T }): void;\nregister({ schema: z.object({ mode: z.union([z.literal("idle"), z.literal("busy")]) }), metadata: { source: "probe" } });\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\n',
+      ),
+      why: "a concrete schema member remains counted when a sibling in the same aggregate owns the inferred generic type",
+    },
+    {
+      mode: "types",
+      files: proofFiles(
+        'import * as z from "zod";\ndeclare function collect<T>(schemas: readonly z.ZodType<T>[]): void;\ndeclare function collectTuple<T>(schemas: readonly [z.ZodType<T>, z.ZodType<T>]): void;\ncollect([z.string(), z.string()]);\ncollectTuple([z.string(), z.string()]);\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\n',
+      ),
+      why: "direct inferred generic array and tuple arguments remain pass-through rather than independent authored output owners",
+    },
+    {
+      mode: "types",
       files: proofFilesAt(
         "packages/kit/src/json-schema/lift.ts",
         'import * as z from "zod";\ndeclare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;\nclass RuntimeGeneratedSchemaBox<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\ntype RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\nfunction boxGeneratedSchema<Schema extends z.ZodType>(schema: Schema): RuntimeGeneratedSchema<Schema> { return new RuntimeGeneratedSchemaBox(schema) as RuntimeGeneratedSchema<Schema>; }\nconst generated = boxGeneratedSchema(z.string());\nconst composed: readonly z.ZodType[] = [generated.schema];\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\nvoid composed;\n',
       ),
       why: "the canonical nominal runtime-generated-schema member is opaque by contract — the brand now lives on the intersected type alias rather than the class, since a `declare` computed class field cannot survive Playwright's Babel transform — while a healthy authored pair keeps the population live",
+    },
+    {
+      mode: "types",
+      files: proofFiles(
+        'import * as z from "zod";\ndeclare function collect<T>(schemas: Readonly<Record<string, z.ZodType<T>>>): void;\ncollect({ a: z.literal("a"), b: z.literal("b") });\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\n',
+      ),
+      why: "inferred generic indexed Record members remain pass-through rather than independent authored output owners",
     },
   ],
   mustRefuse: [

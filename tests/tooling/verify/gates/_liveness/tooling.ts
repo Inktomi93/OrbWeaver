@@ -1,6 +1,7 @@
 // Real-corpus liveness arms (#2149) for policies whose subject is the tooling tree, the gate corpus
 // included. DATA, collected by the one runner (`../real-corpus-liveness-family.suite.repo.int.test.ts`),
 // which loads the structure run's own corpus once and runs every arm against it (docs/work/0043).
+import { gate as testExecutableMode } from "../../../../../tooling/src/verify/gates/test-executable-mode.ts";
 import { gate as toolingOsNeutral } from "../../../../../tooling/src/verify/gates/tooling-os-neutral.ts";
 import { gate as warningWorkitemLiveness } from "../../../../../tooling/src/verify/gates/warning-workitem-liveness.ts";
 import type { RealCorpusLivenessArm } from "../../../../support/real-corpus-liveness.ts";
@@ -15,6 +16,19 @@ export const TOOLING_ARMS: readonly RealCorpusLivenessArm[] = [
     // report exactly that probe, at its literal.
     overlays: [{ kind: "add", path: "tooling/src/_shared/os-neutral-liveness-probe.ts", source: 'export const scratch = "/tmp/orb-liveness";\n' }],
     messageIncludes: "a hardcoded `/tmp` path",
+  },
+  {
+    policy: testExecutableMode,
+    // The real candidate index says this tracked test is ordinary. Preserve that identity and overlay only
+    // mode 100755; source bytes or a shebang would not exercise the tracked-files reader's mode evidence.
+    overlays: [
+      {
+        kind: "tracked-mode",
+        path: "tests/tooling/verify/gates/tooling-os-neutral.test.ts",
+        executable: true,
+      },
+    ],
+    messageIncludes: "an executable Git mode on a test file",
   },
   {
     policy: warningWorkitemLiveness,

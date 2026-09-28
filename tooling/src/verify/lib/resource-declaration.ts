@@ -13,6 +13,7 @@ import type { LedgerDefinition } from "../contract/resource-document.ts";
 import { DOCUMENT_CORPUS_ROOT, LEDGER_DEFINITIONS } from "../contract/resource-document.ts";
 import { EXACT_RESOURCE_PATHS } from "../contract/resource-exact.ts";
 import type { ResourceHost, ResourceHostOptions } from "../contract/resource-host.ts";
+import { installedPackageRequestIdentity } from "../contract/resource-installed.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import { MIRROR_FAMILY_DEFINITIONS } from "../contract/resource-mirror.ts";
 import { AUTHORED_TREE_PATHS } from "../contract/resource-tree.ts";
@@ -41,7 +42,7 @@ export function resourceRequestIdentity(request: GateResourceRequest): string {
     // The MODE and the named file are part of the identity: `text` of one file and `ast` of the same
     // package are two different acquisitions, and collapsing them would let one declaration authorize the
     // other.
-    return request.mode === "text" ? `${request.kind}:${request.id}:text:${request.file}` : `${request.kind}:${request.id}:${request.mode}`;
+    return `${request.kind}:${installedPackageRequestIdentity(request)}`;
   }
   return "id" in request ? `${request.kind}:${request.id}` : request.kind;
 }

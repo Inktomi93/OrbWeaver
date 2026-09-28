@@ -1,16 +1,7 @@
 // Canonical ZodType declaration identity and exact OUTPUT parity for hand-authored schema/type twins.
 // Input is deliberately absent from this reader: defaults, coercions, preprocessors and transforms may
 // widen or narrow accepted input while preserving the output contract a twin promises.
-import type {
-  Expression,
-  Node as MorphNode,
-  PropertyDeclaration,
-  SourceFile,
-  Symbol as MorphSymbol,
-  Type,
-  TypeNode,
-  VariableDeclaration,
-} from "ts-morph";
+import type { Expression, Node as MorphNode, Symbol as MorphSymbol, PropertyDeclaration, SourceFile, Type, TypeNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ZodOutputTwinRead } from "../contract/zod-output-twin.ts";
 
@@ -85,10 +76,7 @@ function canonicalRuntimeGeneratedSchemaDeclarations(sourceFile: SourceFile): {
   const brand = sourceFile
     .getVariableStatements()
     .flatMap((statement) => statement.getDeclarations())
-    .find(
-      (declaration) =>
-        declaration.getName() === RUNTIME_GENERATED_SCHEMA_BRAND && declaration.getTypeNode()?.getText() === "unique symbol",
-    );
+    .find((declaration) => declaration.getName() === RUNTIME_GENERATED_SCHEMA_BRAND && declaration.getTypeNode()?.getText() === "unique symbol");
   const schema = sourceFile.getClass(RUNTIME_GENERATED_SCHEMA_BOX)?.getProperty("schema");
   return brand === undefined || schema === undefined ? null : { brand, schema };
 }
@@ -133,8 +121,7 @@ function isCanonicalRuntimeGeneratedSchemaMember(rawExpression: Expression): boo
   if (
     canonical === null ||
     !memberDeclarations.some(
-      (memberDeclaration) =>
-        Node.isPropertyDeclaration(memberDeclaration) && memberDeclaration.compilerNode === canonical.schema.compilerNode,
+      (memberDeclaration) => Node.isPropertyDeclaration(memberDeclaration) && memberDeclaration.compilerNode === canonical.schema.compilerNode,
     )
   ) {
     return false;

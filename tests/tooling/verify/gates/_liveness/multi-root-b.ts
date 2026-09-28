@@ -11,11 +11,12 @@
 // they also report a batch-mate's plant; the runner's entanglement check proves those arms alone. A
 // resource-analysis policy that lists the tree through the ResourceHost gets its new file in both views.
 //
-// NO ARM YET for three multi-root policies (0042 Evidence names them): `open-json-column-key-parity-deferred`,
+// NO ARM YET for one multi-root policy (0042 Evidence names it): `open-json-column-key-parity-deferred`,
 // whose subject the real tree no longer has — `VariantMetadata` closed `messageVariants.metadata` and the stats
 // rollup stopped json_extracting it, and reopening the column with an open writer and a raw reader in memory
-// still left it silent; `open-json-column-key-parity-health` and `css-var-defined-health`, whose blindness
-// counts span every JSON column or every product stylesheet and class root, so no bounded overlay empties them.
+// still left it silent.
+import { PRODUCT_STYLESHEETS } from "../../../../../tooling/src/verify/contract/css-family.ts";
+import { gate as cssVarDefinedHealth } from "../../../../../tooling/src/verify/gates/css-var-defined-health.ts";
 import { gate as noCallerUserId } from "../../../../../tooling/src/verify/gates/no-caller-user-id.ts";
 import { gate as noDefaultProps } from "../../../../../tooling/src/verify/gates/no-default-props.ts";
 import { gate as noHandwrittenWireJsonSchema } from "../../../../../tooling/src/verify/gates/no-handwritten-wire-json-schema.ts";
@@ -27,6 +28,7 @@ import { gate as noRawContainerWidths } from "../../../../../tooling/src/verify/
 import { gate as noRawRandom } from "../../../../../tooling/src/verify/gates/no-raw-random.ts";
 import { gate as nullableColumnInequality } from "../../../../../tooling/src/verify/gates/nullable-column-inequality.ts";
 import { gate as openJsonColumnKeyParity } from "../../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
+import { gate as openJsonColumnKeyParityHealth } from "../../../../../tooling/src/verify/gates/open-json-column-key-parity-health.ts";
 import { gate as packageLayout } from "../../../../../tooling/src/verify/gates/package-layout.ts";
 import { gate as playwrightCssTopology } from "../../../../../tooling/src/verify/gates/playwright-css-topology.ts";
 import { gate as policyRefusalCoverage } from "../../../../../tooling/src/verify/gates/policy-refusal-coverage.ts";
@@ -71,6 +73,16 @@ function edit(path: string, search: string, replacement: string): RealCorpusOver
 }
 
 export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
+  {
+    policy: cssVarDefinedHealth,
+    overlays: [
+      { kind: "remove", path: "packages/client/src/" },
+      { kind: "remove", path: "packages/ui/src/" },
+      add("packages/client/src/liveness-css-health.tsx", "export const livenessCssHealth = true;\n"),
+      ...PRODUCT_STYLESHEETS.map((path): RealCorpusOverlay => ({ kind: "resource", path, source: ".liveness { color: inherit; }\n" })),
+    ],
+    messageIncludes: "css-var-defined measured zero",
+  },
   {
     policy: noCallerUserId,
     overlays: [
@@ -144,6 +156,18 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "Subject: auditLogs.metadata",
+  },
+  {
+    policy: openJsonColumnKeyParityHealth,
+    overlays: [
+      { kind: "remove", path: "packages/db/src/schema/" },
+      {
+        kind: "neutralise",
+        path: "packages/db/src/schema/index.ts",
+        source: 'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const liveness = sqliteTable("liveness", { id: text("id") });\n',
+      },
+    ],
+    messageIncludes: "DERIVED NOTHING",
   },
   {
     policy: packageLayout,

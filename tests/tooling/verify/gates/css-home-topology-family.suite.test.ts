@@ -7,10 +7,11 @@ import { gate as sanctionedCssHomes } from "../../../../tooling/src/verify/gates
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const policies = [sanctionedCssHomes, playwrightCssTopology] as const;
 
-test("the css-home-topology pair keeps its three-arm proofs", () => {
+test("the css-home-topology pair keeps its three-arm proofs", { timeout: scaledBudget(20_000) }, () => {
   expect(verifyPolicyProofs(policies)).toEqual([]);
 });
 

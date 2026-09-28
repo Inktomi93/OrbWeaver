@@ -2,14 +2,14 @@
 import type { SourceFile } from "ts-morph";
 import type { ConfigSnapshotByRunner, ConfigSnapshotRunner } from "./config-snapshot.ts";
 import type { OrdinaryWaiverCarriers } from "./ordinary-waiver-source.ts";
-import type { ResourceFact, ResourceReaderOptions, ResourceReceipt, ResourceTreeEntry, TrackedResourceIndex } from "./resource.ts";
+import type { ResourceFact, ResourceReaderOptions, ResourceReceipt, ResourceTreeEntry, TrackedFileModeOverlay, TrackedResourceIndex } from "./resource.ts";
 import type { DevToolsClosure, TokenContractResource } from "./resource-artifact.ts";
 import type { PackageMetadata, PackageResourceId, StaticConfigFacts, StaticConfigResourceId } from "./resource-config.ts";
 import type { CssFacts, CssInventoryRequest } from "./resource-css.ts";
 import type { DocumentIndex, LedgerFactsFor, LedgerId } from "./resource-document.ts";
 import type { ExactFile, ExactResourceId } from "./resource-exact.ts";
 import type { CandidateIndexDelta } from "./resource-index.ts";
-import type { InstalledPackageFacts, InstalledPackageRequest } from "./resource-installed.ts";
+import type { InstalledPackageFacts, InstalledPackageRequest, InstalledPackageTextOverlay } from "./resource-installed.ts";
 import type { JsonResourceFacts, JsonResourceId } from "./resource-json.ts";
 import type { MirrorFamilyId, MirrorIndex } from "./resource-mirror.ts";
 import type { AuthoredPathIndex } from "./resource-path.ts";
@@ -50,9 +50,12 @@ export interface ResourceHost {
   readonly authoredText: (paths: readonly string[]) => ResourceFact<AuthoredTextCorpus>;
 }
 
-/** Invocation composition only. The parser seam permits the fixture runner's shared workspace. */
+/** Invocation composition only. The parser seam permits the fixture runner's shared workspace; installed
+ *  text and tracked-mode overlays permit exact liveness controls without widening authored membership. */
 export interface ResourceHostOptions extends ResourceReaderOptions {
   readonly parseSource?: (path: string, text: string) => SourceFile;
+  readonly installedPackageTextOverlays?: readonly InstalledPackageTextOverlay[];
+  readonly trackedFileModeOverlays?: readonly TrackedFileModeOverlay[];
 }
 
 export interface ResourceInvocation {

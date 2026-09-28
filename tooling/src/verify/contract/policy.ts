@@ -62,6 +62,10 @@ export interface GatePolicyProofGrant {
 export interface GatePolicyProof {
   readonly mode: GatePolicyProofMode;
   readonly files: Readonly<Record<string, string>>;
+  /** File destinations whose candidate-index entry is executable. `resource` mode only; every member
+   *  names a declared file, never a link. The conformance substrate applies the mode to its own index,
+   *  so proofs exercise Git metadata without depending on the host filesystem's execute semantics. */
+  readonly executable?: readonly string[];
   /** Repo-relative link path → link TARGET, exactly as authored. `resource` mode only.
    *
    *  A symlink is not expressible as text, and the one verdict `authoredPaths` exists to produce — a
@@ -234,6 +238,7 @@ export type PolicyProofArm = (typeof POLICY_PROOF_ARMS)[number];
 const POLICY_PROOF_KEY_TABLE = {
   mode: true,
   files: true,
+  executable: true,
   links: true,
   expect: true,
   grant: true,

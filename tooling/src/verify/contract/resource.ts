@@ -52,4 +52,12 @@ export interface ResourceReaderOptions {
 
 export interface TrackedResourceIndex {
   readonly repoPaths: readonly string[];
+  /** Paths whose candidate-index mode is `100755`; Git metadata is authoritative across platforms. */
+  readonly executablePaths: readonly string[];
+}
+
+/** Invocation-only evidence control over one existing tracked path's candidate-index executable bit. */
+export interface TrackedFileModeOverlay {
+  readonly path: string;
+  readonly executable: boolean;
 }

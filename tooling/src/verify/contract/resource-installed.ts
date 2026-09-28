@@ -99,9 +99,25 @@ export interface InstalledPackageDeclarations {
 
 /** `text` mode names its file; the other two modes have nothing to name. A closed request rather than an
  *  optional field, so a `text` declaration that forgot its file cannot type-check. */
-export type InstalledPackageRequest =
-  | { readonly id: InstalledPackageId; readonly mode: "ast" | "metadata" }
-  | { readonly id: InstalledPackageId; readonly mode: "text"; readonly file: string };
+interface InstalledPackageTextRequest {
+  readonly id: InstalledPackageId;
+  readonly mode: "text";
+  readonly file: string;
+}
+
+export type InstalledPackageRequest = { readonly id: InstalledPackageId; readonly mode: "ast" | "metadata" } | InstalledPackageTextRequest;
+
+/** The exact installed acquisition identity, shared by declarations, invocation caches and overlays. */
+export function installedPackageRequestIdentity(request: InstalledPackageRequest): string {
+  return request.mode === "text" ? `${request.id}:text:${request.file}` : `${request.id}:${request.mode}`;
+}
+
+/** An invocation-only replacement for one installed text request. The provider still has to resolve the
+ *  declared package and validate the named real file before this source can be observed. */
+export interface InstalledPackageTextOverlay {
+  readonly request: InstalledPackageTextRequest;
+  readonly source: string;
+}
 
 export type InstalledPackageFacts =
   | ({ readonly id: InstalledPackageId; readonly mode: "metadata" } & InstalledPackageMetadata)

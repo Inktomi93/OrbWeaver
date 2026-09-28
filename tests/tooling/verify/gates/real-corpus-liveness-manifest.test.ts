@@ -14,16 +14,16 @@ test("the policy's own declared proofs hold through the production dispatcher", 
   expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
-test("the descriptor shape is the thing under test: hard, warning, entire-population, singleton family", () => {
+test("the descriptor shape is the thing under test: hard, error, entire-population, singleton family", () => {
   expect([gate.id, gate.family, gate.authority, gate.severity, gate.execution]).toEqual([
     "real-corpus-liveness-manifest",
     "real-corpus-liveness-manifest",
     "hard",
-    "warning",
+    "error",
     "entire-population",
   ]);
 });
 
-test("workItem is a positive number tracking the liveness coverage debt", () => {
-  expect(gate.workItem).toBeGreaterThan(0);
+test("the blocking manifest carries no warning debt work item", () => {
+  expect("workItem" in gate).toBe(false);
 });

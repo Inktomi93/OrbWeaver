@@ -57,7 +57,7 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
     nativeConfig: (): never => {
       throw new Error("native config requires an explicit fixture");
     },
-    trackedFiles: () => fact("tracked-files", ["z.ts", "a.ts"], { repoPaths: ["z.ts", "a.ts"] }),
+    trackedFiles: () => fact("tracked-files", ["z.ts", "a.ts"], { repoPaths: ["z.ts", "a.ts"], executablePaths: [] }),
     candidateIndexDelta: () => fact("candidate-index-delta", [], { files: [] }),
     json: (id) => fact(`json:${id}`, [JSON_RESOURCE_PATHS[id]], { id, path: JSON_RESOURCE_PATHS[id], value: {} }),
     // The three UNPOPULATED doors. Each returns a ready fact with ZERO paths, which is the exact shape the
@@ -169,7 +169,7 @@ test.each(["missing", "empty", "unresolved"] as const)("refuses a %s declared fa
 test("refuses duplicate requests and paths outside repo-relative resource identity", () => {
   expect(() => resolveResourceDeclarations(host(), [{ kind: "tracked-files" }, { kind: "tracked-files" }])).toThrow(/duplicate/i);
   expect(() =>
-    resolveResourceDeclarations(host({ trackedFiles: () => fact("tracked-files", ["../outside.ts"], { repoPaths: ["../outside.ts"] }) }), [
+    resolveResourceDeclarations(host({ trackedFiles: () => fact("tracked-files", ["../outside.ts"], { repoPaths: ["../outside.ts"], executablePaths: [] }) }), [
       { kind: "tracked-files" },
     ]),
   ).toThrow(/repo-relative|invalid segment/i);

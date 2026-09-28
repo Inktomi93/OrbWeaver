@@ -116,6 +116,58 @@ function armFor(policyId: string): RealCorpusLivenessArm {
   return arm;
 }
 
+function rosterArm(policyId: string): RealCorpusLivenessArm {
+  const arm = ARMS.find((candidate) => candidate.policy.id === policyId);
+  if (arm === undefined) {
+    throw new Error(`the liveness roster has no arm for ${policyId}`);
+  }
+  return arm;
+}
+
+function mapOverlays(
+  arm: RealCorpusLivenessArm,
+  map: (overlay: RealCorpusLivenessArm["overlays"][number]) => RealCorpusLivenessArm["overlays"][number],
+): RealCorpusLivenessArm {
+  const [first, ...rest] = arm.overlays;
+  return { ...arm, overlays: [map(first), ...rest.map(map)] };
+}
+
+function healthyCloseoutArm(policyId: string): RealCorpusLivenessArm {
+  const arm = rosterArm(policyId);
+  if (policyId === "css-var-defined-health") {
+    return mapOverlays(arm, (overlay) => {
+      if (overlay.kind === "add") {
+        return { ...overlay, source: 'export const livenessCssHealth = <div className="w-(--liveness)" />;\n' };
+      }
+      if (overlay.kind === "resource") {
+        return {
+          kind: "resource",
+          path: overlay.path,
+          source: ":root { --liveness: 1px; width: var(--anchor-width, 0px); } .liveness { width: var(--liveness); }\n",
+        };
+      }
+      return overlay;
+    });
+  }
+  if (policyId === "open-json-column-key-parity-health") {
+    return mapOverlays(arm, (overlay) =>
+      overlay.kind === "neutralise"
+        ? {
+            ...overlay,
+            source:
+              'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const liveness = sqliteTable("liveness", { payload: text("payload", { mode: "json" }) });\n',
+          }
+        : overlay,
+    );
+  }
+  if (policyId === "no-manual-memo-compiler-health") {
+    return mapOverlays(arm, (overlay) =>
+      overlay.kind === "installed-package" ? { ...overlay, source: 'const denylist = "@tanstack/react-virtual";\n' } : overlay,
+    );
+  }
+  throw new Error(`no healthy closeout overlay is declared for ${policyId}`);
+}
+
 test("every chunk declares arms, and no policy carries two", () => {
   // An empty chunk is an import that runs nothing; a duplicated id makes "which control fired" ambiguous.
   for (const [chunk, arms] of Object.entries(CHUNKS)) {
@@ -170,6 +222,31 @@ test.for(ARMS.map((arm) => [arm.policy.id, arm] as const))(
   },
 );
 
+test("the three closeout policies report their planted population loss", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
+  for (const policyId of ["css-var-defined-health", "open-json-column-key-parity-health", "no-manual-memo-compiler-health"] as const) {
+    const arm = rosterArm(policyId);
+    const verdict = liveness(repoRoot).proveBatch([arm]).get(policyId);
+    if (verdict === undefined) {
+      throw new Error(`${policyId}: the planted control produced no verdict`);
+    }
+    expect(assertArmVerdict(arm, verdict).join("\n"), `${policyId}: the planted control reported a different defect`).toContain(arm.messageIncludes);
+  }
+});
+
+test("the three closeout overlays stay silent when their watched population remains healthy", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
+  for (const policyId of ["css-var-defined-health", "open-json-column-key-parity-health", "no-manual-memo-compiler-health"] as const) {
+    const healthy = healthyCloseoutArm(policyId);
+    const verdict = liveness(repoRoot).proveBatch([healthy]).get(policyId);
+    if (verdict === undefined) {
+      throw new Error(`${policyId}: the healthy control produced no verdict`);
+    }
+    expect(verdict.refusals, `${policyId}: the healthy overlay refused instead of measuring the policy`).toEqual([]);
+    expect(() => assertArmVerdict(healthy, verdict), `${policyId}: the overlay itself manufactured a finding`).toThrow(
+      "reported NOTHING for a real-corpus positive control",
+    );
+  }
+});
+
 test("a DEAD arm batched beside a live one is still named dead", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
   // The planted negative for batching: two real armed policies in ONE overlaid pass, one of them handed a
   // source that violates nothing. Sharing the pass must not lend the dead arm the live one's finding.
@@ -217,7 +294,9 @@ test("a RESOURCE overlay that plants nothing is refused — the reader's overlay
   // The planted negative for `kind: "resource"`: the ownership arm's real sheet, handed a tail that is only a
   // comment. If the overlay alone made the policy report, every green resource arm would be unfalsified.
   const ownership = FRONTEND_ARMS.find((arm) => arm.grantConsumption !== true && arm.overlays.some((overlay) => overlay.kind === "resource"));
-  const [planted] = ownership?.overlays ?? [];
+  const planted = ownership?.overlays.find(
+    (overlay): overlay is Extract<RealCorpusLivenessArm["overlays"][number], { readonly kind: "resource" }> => overlay.kind === "resource",
+  );
   if (ownership === undefined || planted === undefined) {
     throw new Error("the frontend chunk carries no resource arm, so the control has nothing to drive");
   }
@@ -229,12 +308,31 @@ test("a RESOURCE overlay that plants nothing is refused — the reader's overlay
   expect(() => assertArmVerdict(dead, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
 });
 
+test("a TRACKED-MODE overlay that keeps the real test non-executable stays silent", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
+  const executableMode = rosterArm("test-executable-mode");
+  const planted = executableMode.overlays.find(
+    (overlay): overlay is Extract<RealCorpusLivenessArm["overlays"][number], { readonly kind: "tracked-mode" }> => overlay.kind === "tracked-mode",
+  );
+  if (planted === undefined) {
+    throw new Error("the executable-mode arm carries no tracked-mode overlay, so the control has nothing to drive");
+  }
+  const dead: RealCorpusLivenessArm = { ...executableMode, overlays: [{ ...planted, executable: false }] };
+  const verdict = liveness(repoRoot).proveBatch([dead]).get(dead.policy.id);
+  if (verdict === undefined) {
+    throw new Error("the tracked-mode control produced no verdict");
+  }
+  expect(verdict.refusals, "the ordinary-mode control refused instead of reading the real candidate index").toEqual([]);
+  expect(() => assertArmVerdict(dead, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
+});
+
 test("a GRANT-CONSUMPTION arm whose overlay leaves the licensed subject in place is refused", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
   // The planted negative for `grantConsumption`: the same policy, its real sheet plus a comment. The recipes
   // are still painted, so the grants stay consumed and the arm must fail — otherwise "went stale" would be
   // something the runner produces rather than something the policy's reading of the subject produces.
   const consuming = FRONTEND_ARMS.find((arm) => arm.grantConsumption === true);
-  const [planted] = consuming?.overlays ?? [];
+  const planted = consuming?.overlays.find(
+    (overlay): overlay is Extract<RealCorpusLivenessArm["overlays"][number], { readonly kind: "resource" }> => overlay.kind === "resource",
+  );
   if (consuming === undefined || planted === undefined) {
     throw new Error("the frontend chunk carries no grant-consumption arm, so the control has nothing to drive");
   }

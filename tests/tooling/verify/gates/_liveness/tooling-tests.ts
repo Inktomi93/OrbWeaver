@@ -9,10 +9,6 @@
 // these policies read every gate module or every test, so they also report a batch-mate's probe; the runner's
 // entanglement check proves those arms alone.
 //
-// `no-manual-memo-compiler-health` HAS NO ARM: its subject is the INSTALLED React Compiler under
-// `packages/client/node_modules/`, and the ResourceHost's overlay refuses to mutate a non-authored tree (the
-// production reader's own rule), so no overlay can take the denylist away. Its liveness needs an installed-package
-// overlay the runner does not have (docs/work/0145).
 import { gate as auditClientTests } from "../../../../../tooling/src/verify/gates/audit-client-tests.ts";
 import { gate as ctNoOneshotLiveReadAssert } from "../../../../../tooling/src/verify/gates/ct-no-oneshot-live-read-assert.ts";
 import { gate as ctPollScheduleAndPaint } from "../../../../../tooling/src/verify/gates/ct-poll-schedule-and-paint.ts";
@@ -20,6 +16,7 @@ import { gate as ctStorySingleImport } from "../../../../../tooling/src/verify/g
 import { gate as diagnosticLegibility } from "../../../../../tooling/src/verify/gates/diagnostic-legibility.ts";
 import { gate as gateModernization } from "../../../../../tooling/src/verify/gates/gate-modernization.ts";
 import { gate as noDirectReportsWrite } from "../../../../../tooling/src/verify/gates/no-direct-reports-write.ts";
+import { gate as noManualMemoCompilerHealth } from "../../../../../tooling/src/verify/gates/no-manual-memo-compiler-health.ts";
 import { gate as noOpaqueTestFixture } from "../../../../../tooling/src/verify/gates/no-opaque-test-fixture.ts";
 import { gate as policyBindingResolution } from "../../../../../tooling/src/verify/gates/policy-binding-resolution.ts";
 import { gate as policyFamilyReaders } from "../../../../../tooling/src/verify/gates/policy-family-readers.ts";
@@ -140,6 +137,17 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "reports/",
+  },
+  {
+    policy: noManualMemoCompilerHealth,
+    overlays: [
+      {
+        kind: "installed-package",
+        request: { id: "react-compiler", mode: "text", file: "dist/index.js" },
+        source: "export const compiler = true;\n",
+      },
+    ],
+    messageIncludes: "no longer denylists @tanstack/react-virtual",
   },
   {
     policy: noOpaqueTestFixture,

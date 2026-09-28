@@ -135,6 +135,17 @@ function resourcePolicy(overrides: Partial<Parameters<typeof defineGate>[0]> = {
   } as Parameters<typeof defineGate>[0]);
 }
 
+/** Feed a malformed proof row to the runtime validator after constructing a valid branded descriptor.
+ *  This models a loaded JavaScript gate whose row was never checked by TypeScript. */
+function resourcePolicyWithMalformedPass(row: Record<string, unknown>, overrides: Partial<Parameters<typeof defineGate>[0]> = {}): unknown {
+  const descriptor = resourcePolicy(overrides);
+  if (typeof descriptor !== "object" || descriptor === null) {
+    throw new Error("resourcePolicy did not construct a descriptor");
+  }
+  Reflect.set(descriptor, "mustPass", [row]);
+  return descriptor;
+}
+
 test("an installed-package request declares a closed MODE, and `file` is required exactly for text", () => {
   expect(() => assertGatePolicyDescriptor(resourcePolicy({ resources: [{ kind: "installed-package", id: "base-ui", mode: "ast" }] }))).not.toThrow();
   expect(() =>
@@ -211,6 +222,36 @@ test("a proof `links` map is resource-mode only and cannot collide with a declar
   expect(() => assertGatePolicyDescriptor(linked({ "biome.json": ".." }))).toThrow(/also a declared file/i);
   expect(() => assertGatePolicyDescriptor(linked({}))).toThrow(/links.*nonempty/i);
   expect(() => assertGatePolicyDescriptor(linked({ "/absolute.ts": ".." }))).toThrow(/repo-relative/i);
+});
+
+test("proof executable metadata is resource-mode only and names unique declared files, never links", () => {
+  const withExecutable = (executable: unknown, files: Record<string, string> = { "biome.json": "{}" }, links?: Record<string, string>): unknown =>
+    resourcePolicyWithMalformedPass({
+      mode: "resource",
+      files,
+      executable,
+      ...(links === undefined ? {} : { links }),
+      why: "the candidate-index mode fixture",
+    });
+
+  expect(() => assertGatePolicyDescriptor(withExecutable(["biome.json"]))).not.toThrow();
+  expect(() => assertGatePolicyDescriptor(withExecutable([]))).toThrow(/executable.*nonempty/i);
+  expect(() => assertGatePolicyDescriptor(withExecutable(["missing.ts"]))).toThrow(/not a declared file/i);
+  expect(() => assertGatePolicyDescriptor(withExecutable(["biome.json", "biome.json"]))).toThrow(/duplicate path/i);
+  expect(() => assertGatePolicyDescriptor(withExecutable(["selector.ts"], { "biome.json": "{}" }, { "selector.ts": "target" }))).toThrow(
+    /also a declared link/i,
+  );
+
+  const sourceProof = resourcePolicyWithMalformedPass(
+    { mode: "source", files: { "tooling/src/proof.ts": "export const c = 1;\n" }, executable: ["tooling/src/proof.ts"], why: "w" },
+    {
+      analysis: "syntax",
+      population: "@tooling",
+      resources: [],
+      mustFlag: [{ mode: "source", files: { "tooling/src/proof.ts": "export const p = 1;\n" }, why: "w" }],
+    },
+  );
+  expect(() => assertGatePolicyDescriptor(sourceProof)).toThrow(/executable.*resource mode/i);
 });
 
 test("a proof destination may not name a .git control segment in any case, while node_modules and .git-prefixed names stay valid (#2333)", () => {
@@ -773,6 +814,11 @@ test("every other proof-row and descriptor admission rule reads own-property pre
   expect(() => assertGatePolicyDescriptor(grantTrunk({ mustPass: [undefinedKeyRow("links")] }))).toThrow(
     /mustPass\[0\]\.links is valid only in resource mode/u,
   );
+  expect(() =>
+    assertGatePolicyDescriptor(
+      resourcePolicyWithMalformedPass({ mode: "resource", files: { "biome.json": "{}" }, executable: undefined, why: "nearest legal shape" }),
+    ),
+  ).toThrow(/mustPass\[0\]\.executable must be a nonempty array/u);
   for (const [key, message] of [
     ["count", "mustFlag[0].expect.count must be a positive integer"],
     ["line", "mustFlag[0].expect.line must be a positive integer"],

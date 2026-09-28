@@ -117,6 +117,81 @@ test("an unrelated generic call parameter does not remove an exact aggregate pai
   ]);
 });
 
+test("a generic sibling in the same aggregate does not remove its concrete schema pair", () => {
+  const proof = required(
+    gate.mustPass.find((candidate) => candidate.why.includes("sibling in the same aggregate owns the inferred generic type")),
+    "sibling in the same aggregate owns the inferred generic type",
+  );
+  const result = drive(proof.files);
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(result.policies[0]?.receipts).toEqual([
+    {
+      kind: "population",
+      source: "zod-output-twin-parity concrete authored pairs [declarations=0, expression-pairs=1, contextual-pairs=1, raw-casts=0]",
+      members: 2,
+      unresolved: 0,
+    },
+  ]);
+});
+
+test("direct inferred generic arrays and tuples remain pass-through", () => {
+  const proof = required(
+    gate.mustPass.find((candidate) => candidate.why.includes("direct inferred generic array and tuple arguments")),
+    "direct inferred generic array and tuple arguments",
+  );
+  const result = drive(proof.files);
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(result.policies[0]?.receipts).toEqual([
+    {
+      kind: "population",
+      source: "zod-output-twin-parity concrete authored pairs [declarations=0, expression-pairs=1, contextual-pairs=0, raw-casts=0]",
+      members: 1,
+      unresolved: 0,
+    },
+  ]);
+});
+
+test("indexed Record members separate inferred pass-through from concrete narrowing", () => {
+  const inferred = required(
+    gate.mustPass.find((candidate) => candidate.why.includes("inferred generic indexed Record members")),
+    "inferred generic indexed Record members",
+  );
+  const inferredResult = drive(inferred.files);
+  expect(inferredResult.toolErrors).toEqual([]);
+  expect(inferredResult.authority.effectiveFindings).toEqual([]);
+  expect(inferredResult.authority.withheldPolicyIds).toEqual([]);
+  expect(inferredResult.policies[0]?.receipts).toEqual([
+    {
+      kind: "population",
+      source: "zod-output-twin-parity concrete authored pairs [declarations=0, expression-pairs=1, contextual-pairs=0, raw-casts=0]",
+      members: 1,
+      unresolved: 0,
+    },
+  ]);
+
+  const concrete = required(
+    gate.mustFlag.find((candidate) => candidate.why.includes("concrete indexed Record schema target")),
+    "concrete indexed Record schema target",
+  );
+  const concreteResult = drive(concrete.files);
+  expect(concreteResult.toolErrors).toEqual([]);
+  expect(concreteResult.authority.effectiveFindings).toHaveLength(1);
+  expect(concreteResult.authority.effectiveFindings[0]?.message).toContain("authored type is not assignable to schema output");
+  expect(concreteResult.authority.withheldPolicyIds).toEqual([]);
+  expect(concreteResult.policies[0]?.receipts).toEqual([
+    {
+      kind: "population",
+      source: "zod-output-twin-parity concrete authored pairs [declarations=0, expression-pairs=1, contextual-pairs=1, raw-casts=0]",
+      members: 2,
+      unresolved: 0,
+    },
+  ]);
+});
+
 test("only the canonical branded generated-schema member is omitted from contextual parity", () => {
   const canonical = required(
     gate.mustPass.find((proof) => proof.why.includes("canonical nominal runtime-generated-schema member")),
@@ -176,9 +251,7 @@ test("same-file namespace counterfeits cannot borrow module-scope brand and carr
   ]);
 
   const erased = required(
-    gate.mustRefuse.find((proof) =>
-      proof.why.includes("namespace-scoped same-file brand and carrier with erased output"),
-    ),
+    gate.mustRefuse.find((proof) => proof.why.includes("namespace-scoped same-file brand and carrier with erased output")),
     "namespace-scoped same-file brand and carrier with erased output",
   );
   const erasedResult = drive(erased.files);
@@ -188,10 +261,7 @@ test("same-file namespace counterfeits cannot borrow module-scope brand and carr
 });
 
 test("single-axis same-file counterfeits independently prove brand and carrier identity", () => {
-  for (const axis of [
-    "canonical brand with a counterfeit carrier",
-    "canonical carrier with a counterfeit brand",
-  ] as const) {
+  for (const axis of ["canonical brand with a counterfeit carrier", "canonical carrier with a counterfeit brand"] as const) {
     const narrowed = required(
       gate.mustFlag.find((proof) => proof.why.includes(axis)),
       axis,
