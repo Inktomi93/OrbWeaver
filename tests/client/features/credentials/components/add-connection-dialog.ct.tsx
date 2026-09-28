@@ -64,7 +64,7 @@ function submit(dialog: Locator): Promise<void> {
 
 // ── a plugin provider is named as a plugin ──────────────────────────────────────────────────────────────
 
-test("a plugin provider labelled like a built-in is offered under its plugin's name, beside the real built-in", async ({ mount, page }) => {
+test("a distributed plugin provider copy keeps its plugin suffix in the picker and dialog copy", async ({ mount, page }) => {
   const relay = providerDefSchema.parse({
     id: "plugin:relay/anthropic",
     label: "Anthropic",
@@ -80,7 +80,11 @@ test("a plugin provider labelled like a built-in is offered under its plugin's n
   const dialog = await openAddDialog(page);
   await dialog.getByRole("combobox", { name: "Provider" }).click();
   await expect(page.getByRole("option", { name: "Anthropic", exact: true })).toHaveCount(1);
-  await expect(page.getByRole("option", { name: "Anthropic · plugin relay", exact: true })).toBeVisible();
+  await page.getByRole("option", { name: "Anthropic · plugin relay", exact: true }).click();
+  await expect(dialog.getByRole("textbox", { name: "Model" })).toHaveAccessibleDescription(
+    "Paste your key and list the models it can use, or type the id as Anthropic · plugin relay spells it.",
+  );
+  await expect(dialog.getByRole("textbox", { name: "Label" })).toHaveAttribute("placeholder", "Anthropic · plugin relay · …");
 });
 
 // ── the full add ────────────────────────────────────────────────────────────────────────────────────────

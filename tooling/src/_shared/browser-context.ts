@@ -83,7 +83,7 @@ export function probeSession(
   };
 }
 
-async function openRecordedContext(args: BuildContextArgs): Promise<BrowserContext> {
+async function openOwnedContext(args: BuildContextArgs): Promise<BrowserContext> {
   const { browser, opts, deviceDescriptor, ownedContexts, persistentContext } = args;
   // ONE SIZE ANSWER (#1668): the descriptor supplies touch/DPR/UA/isMobile, `effectiveContextViewport`
   // supplies the SIZE — so an explicit `--viewport` under `--mobile` windows the device instead of
@@ -93,12 +93,7 @@ async function openRecordedContext(args: BuildContextArgs): Promise<BrowserConte
     viewport: effectiveContextViewport(opts, deviceDescriptor),
     ...(opts.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: opts.deviceScaleFactor }),
   };
-  const context =
-    persistentContext ??
-    (await browser.newContext({
-      ...sizing,
-      ...(opts.recordVideoDir === undefined ? {} : { recordVideo: { dir: opts.recordVideoDir, size: opts.viewport } }),
-    }));
+  const context = persistentContext ?? (await browser.newContext(sizing));
   ownedContexts.push({ context });
   if (opts.trace === true) {
     await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
@@ -161,7 +156,7 @@ async function seedContext(context: BrowserContext, opts: ProbeLaunchOptions, se
 /** Build one fully isolated context. Cookie and settings seeds land before its first page opens. */
 export async function buildProbeContext(args: BuildContextArgs): Promise<ProbeContext> {
   const { opts, sessionCookie, deviceDescriptor, contextIndex } = args;
-  const context = await openRecordedContext(args);
+  const context = await openOwnedContext(args);
   if (opts.extraHTTPHeaders !== undefined) {
     await context.setExtraHTTPHeaders({ ...opts.extraHTTPHeaders });
   }

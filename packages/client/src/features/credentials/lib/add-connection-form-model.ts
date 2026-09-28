@@ -5,7 +5,7 @@
 // write-seam refusals as teaching; the verb stays the enforcement floor.
 
 import type { ProviderAuth, ProviderDef, Wire } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDisplayLabel } from "@orb/contracts/inference";
 import { clauseOf, MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 
 /** The command the Claude-subscription step asks the user to run (§5.3a: "a copyable `claude setup-token`"). */
@@ -73,9 +73,9 @@ export function listsOnDemand(provider: ProviderDef): boolean {
  *  soon as its provider is picked, so its reason is only the list's own. */
 const DRAFT_MODEL_REASONS: Record<ProviderAuth, (provider: ProviderDef) => string> = {
   endpoint: () => "Type the model id your server serves, or list them from the URL above.",
-  apiKey: (provider) => `Paste your key and list the models it can use, or type the id as ${provider.label} spells it.`,
-  oauthToken: (provider) => `Type the model id as ${provider.label} spells it.`,
-  none: (provider) => `Pick one of the models ${provider.label} runs.`,
+  apiKey: (provider) => `Paste your key and list the models it can use, or type the id as ${providerDisplayLabel(provider)} spells it.`,
+  oauthToken: (provider) => `Type the model id as ${providerDisplayLabel(provider)} spells it.`,
+  none: (provider) => `Pick one of the models ${providerDisplayLabel(provider)} runs.`,
 };
 
 export function draftModelReason(provider: ProviderDef): string {

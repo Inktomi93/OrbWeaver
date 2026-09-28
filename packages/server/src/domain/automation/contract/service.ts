@@ -113,7 +113,8 @@ export interface AutomationService {
   readonly setGlobalVariable: (params: SetGlobalVariableParams) => Promise<void>;
   /** Remove the caller's global by key. Idempotent on an absent key. */
   readonly deleteGlobalVariable: (params: DeleteGlobalVariableParams) => Promise<void>;
-  /** List the caller's globals (key-sorted); `prefix` narrows the read — the settings-page surface. */
+  /** Owner-scoped, key-sorted projection over the global-variable persistence query; `prefix` narrows the
+   *  read. No tRPC procedure or client reads it; CEL and test-rule call the persistence query directly. */
   readonly listGlobalVariables: (params: ListGlobalVariablesParams) => Promise<GlobalVariableView[]>;
 
   /** Create a rule in EITHER scope — a chat (host-gated) or the caller's owner-GLOBAL lane (`chatId: null`,

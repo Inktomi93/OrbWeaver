@@ -125,7 +125,6 @@ export interface ProbeLaunchOptions {
   readonly contrast?: "more" | "no-preference" | null;
   readonly reducedTransparency?: boolean;
   readonly localStorage: readonly LocalStorageSeed[];
-  readonly recordVideoDir?: string;
   readonly device?: string | null;
   readonly deviceScaleFactor?: number;
   readonly pages?: number;
@@ -395,6 +394,6 @@ export interface BrowserNetworkRecord {
 /** Environment identity supplied by a session registry row when a sibling attaches over CDP. */
 export type ProbeAttachOptions = Pick<
   ProbeLaunchOptions,
-  "viewport" | "device" | "colorScheme" | "reducedMotion" | "deviceScaleFactor" | "recordVideoDir" | "evidenceLimits"
+  "viewport" | "device" | "colorScheme" | "reducedMotion" | "deviceScaleFactor" | "evidenceLimits"
 > &
   Required<Pick<ProbeLaunchOptions, "contrast" | "reducedTransparency">>;

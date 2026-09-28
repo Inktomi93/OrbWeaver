@@ -8,6 +8,7 @@
 // the provider (or the user's own box), and a model can still be named by id where policy permits it.
 
 import type { ModelListing, ProviderDef } from "@orb/contracts/inference";
+import { providerDisplayLabel } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";
@@ -48,7 +49,7 @@ export interface AddModelOnKeyDialogProps {
 
 export function AddModelOnKeyDialog({ open, onOpenChange, connection, provider, scope, trpc, invalidation }: AddModelOnKeyDialogProps): ReactElement {
   return (
-    <FormDialog description={addModelActionGloss(scope, provider.label)} onOpenChange={onOpenChange} open={open} title={addModelActionLabel(scope)}>
+    <FormDialog description={addModelActionGloss(scope, providerDisplayLabel(provider))} onOpenChange={onOpenChange} open={open} title={addModelActionLabel(scope)}>
       <AddModelOnKeyBody connection={connection} invalidation={invalidation} onDone={(): void => onOpenChange(false)} provider={provider} trpc={trpc} />
     </FormDialog>
   );
@@ -68,6 +69,7 @@ function AddModelOnKeyBody({
   readonly onDone: () => void;
 }): ReactElement {
   const queryClient = useQueryClient();
+  const providerLabel = providerDisplayLabel(provider);
   const createConnection = useCreateConnection({ trpc, invalidation });
   const checkSignIn = useSignInCheckAfterSave({ trpc, invalidation });
   const catalogKey = trpc.connection.catalogModels.queryKey({ connectionId: connection.id });
@@ -98,7 +100,7 @@ function AddModelOnKeyBody({
   };
 
   const { form } = useAddModelOnKeyForm({ entityId: `add-model-on-key-${connection.id}`, serverValues: undefined, save });
-  const listOwner = connectionHost(connection.baseUrl) ?? provider.label;
+  const listOwner = connectionHost(connection.baseUrl) ?? providerLabel;
 
   return (
     <form.AppForm>
@@ -134,7 +136,7 @@ function AddModelOnKeyBody({
           </form.AppField>
           <form.AppField name="label">
             {(field): ReactElement => (
-              <field.TextField label="Label" hint={CONNECTION_FORM_COPY.labelHint} placeholder={`${provider.label} · …`} autoComplete="off" />
+              <field.TextField label="Label" hint={CONNECTION_FORM_COPY.labelHint} placeholder={`${providerLabel} · …`} autoComplete="off" />
             )}
           </form.AppField>
           <form.AppField name="allowBackground">

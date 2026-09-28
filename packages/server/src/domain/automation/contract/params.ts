@@ -27,7 +27,8 @@ export interface DeleteGlobalVariableParams extends AutomationActorParams {
   readonly key: string;
 }
 
-/** List the caller's globals; `prefix` narrows by key prefix (the settings-page filter). Absent = all. */
+/** Parameters for the owner-scoped service projection. `prefix` narrows by key prefix; absent reads all.
+ *  The CEL environment and test-rule verb call the shared persistence query directly. */
 export interface ListGlobalVariablesParams extends AutomationActorParams {
   readonly prefix?: string;
 }

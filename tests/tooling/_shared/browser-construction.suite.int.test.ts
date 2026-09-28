@@ -14,7 +14,7 @@ import { createPageCapture } from "@orb/tooling/_shared/browser-capture";
 import { buildProbeContext, probeContext, probeSession, probeSessionForContext } from "@orb/tooling/_shared/browser-context";
 import type { CapturedConsole, ProbeAttachOptions, ProbeContext, ProbeLaunchOptions, ProbeSession } from "@orb/tooling/_shared/browser-contract";
 import { instrumentPageError } from "@orb/tooling/_shared/browser-contract";
-import { readBrowserEnvironment, resolveBrowserEnvironmentContract } from "@orb/tooling/_shared/browser-environment";
+import { resolveBrowserEnvironmentContract } from "@orb/tooling/_shared/browser-environment";
 import { resolveProbeMedia } from "@orb/tooling/_shared/browser-media";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { vi } from "vitest";
@@ -197,7 +197,7 @@ test("launch, buildProbeContext, and probeSessionForContext preserve selection a
   expect(ownerPages.every((page) => page.isClosed())).toBe(true);
 });
 
-test("both attach paths preserve full environment identity; recorded attach clones the owner's auth and boot seeds", async ({ scratch }) => {
+test("attach preserves the shared projection and leaves the owner's browser running after disconnect", async ({ scratch }) => {
   const { server, base } = await startOrigin();
   const ownerOpts = launchOptions({
     viewport: SECOND_VIEWPORT,
@@ -237,37 +237,6 @@ test("both attach paths preserve full environment identity; recorded attach clon
     expectSessionProjection(attached, attached.browser, attachedContext, attached.contexts);
     plantConsole(attachedContext, attached, "attached-live-getter");
     await closeProbeSession(attached);
-    expect(await owner.page.evaluate("1 + 1")).toBe(2);
-
-    const recorded = await attachProbeSession(endpoint, { ...attachEnvironment, recordVideoDir: join(scratch, "video") });
-    const recordedContext = recorded.contexts[0] as ProbeContext;
-    const recordedPage = recorded.page;
-    try {
-      expectContextProjection(recordedContext, true);
-      expect(recordedContext.environmentContract).toEqual(resolveBrowserEnvironmentContract(attachEnvironment, null));
-      expectSessionProjection(recorded, recorded.browser, recordedContext, recorded.contexts);
-      plantConsole(recordedContext, recorded, "recorded-live-getter");
-      await recordedPage.goto(base);
-      expect(
-        await recordedPage.evaluate(`({
-          debugToken: localStorage.getItem("orb:debug-token"),
-          probeMode: localStorage.getItem("orb:probe-mode"),
-          seed: localStorage.getItem("planted-seed"),
-          cookie: document.cookie,
-        })`),
-      ).toEqual({
-        debugToken: "planted-debug-token",
-        probeMode: "1",
-        seed: "owner-value",
-        cookie: expect.stringContaining("planted_session=owner-cookie"),
-      });
-      const recordedEnvironment = await readBrowserEnvironment(recordedPage, recorded.environmentContract);
-      expect(recordedEnvironment.actual).toMatchObject({ contrast: "more", reducedTransparency: true });
-      expect(recordedEnvironment.mismatches).toEqual([]);
-    } finally {
-      await closeProbeSession(recorded);
-    }
-    expect(recordedPage.isClosed()).toBe(true);
     expect(await owner.page.evaluate("1 + 1")).toBe(2);
   } finally {
     await closeProbeSession(owner);

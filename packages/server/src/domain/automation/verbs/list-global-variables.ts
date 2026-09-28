@@ -1,5 +1,5 @@
-// verb: listGlobalVariables — owner-scoped enumeration of the per-user global plane, the
-// settings-page surface. Key-sorted; `prefix` narrows the read. Only ever the caller's own globals.
+// verb: listGlobalVariables — owner-scoped AutomationService wrapper over the persistence query.
+// Key-sorted; `prefix` narrows the read. CEL and test-rule call that query directly.
 
 import type { GlobalVariableView } from "@orb/contracts/automation";
 import type { ListGlobalVariablesParams } from "../contract/params.ts";

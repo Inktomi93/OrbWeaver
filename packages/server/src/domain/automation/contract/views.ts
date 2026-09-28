@@ -1,6 +1,5 @@
-// domain/automation/contract/views — the read-models the global-variable verbs return.
-// `GlobalVariableView` crosses the server↔client boundary (the settings page reads it), so its ONE home is
-// `@orb/contracts/automation`. This slot RE-EXPORTS — never re-declares (a second home the client could
-// disagree with; the resolve enforces single-home).
+// `GlobalVariableView` is the shared server projection for persistence, CEL environment construction and
+// rule tests. Its ONE existing home is `@orb/contracts/automation`; this slot re-exports it instead of
+// declaring a second shape. No tRPC procedure or client reads it.
 
 export type { GlobalVariableView } from "@orb/contracts/automation";

@@ -195,7 +195,6 @@ async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (t
     headless: opts.headless,
     args: markedBrowserArgs(browserArgs),
     env: markedBrowserEnv(),
-    ...(opts.recordVideoDir === undefined ? {} : { recordVideo: { dir: opts.recordVideoDir, size: opts.viewport } }),
   });
   const browser = persistentContext.browser();
   if (browser === null) {
@@ -254,68 +253,12 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
  *  its run (context-scoped shims keep applying to what an attached client drives — the spike's Q1).
  *  `environment` is what the session DECLARED: it feeds the environment contract and is never re-applied
  *  to the page (re-emulating media from an attacher would be the P3 leak this substrate ends). */
-/** The `record` half of `attachProbeSession`: a brand-new context (and its own single page) opened ON the
- *  attached browser, so `newContext({ recordVideo })` is legal. This context is `owned: true` — WE created
- *  it over an attached connection nobody else knows about, so `closeProbeSession` closing it (which flushes
- *  the video) is correct, unlike the owner's live context, which a disconnect must never touch. */
-async function attachRecordedContext(
-  browser: Browser,
-  ownerContext: BrowserContext,
-  environment: ProbeAttachOptions,
-  ownedContexts: { readonly context: BrowserContext }[],
-): Promise<ProbeSession> {
-  const deviceDescriptor = resolveDeviceDescriptor(environment);
-  const environmentContract = resolveBrowserEnvironmentContract(environment, deviceDescriptor);
-  // ONE SIZE ANSWER (#1668): the descriptor supplies touch/DPR/UA/isMobile, `effectiveContextViewport`
-  // supplies the SIZE — so an explicit `--viewport` under `--mobile` windows the device instead of
-  // silently demoting it to a desktop, and a run's receipt states the size the browser actually got.
-  const sizing = {
-    ...(deviceDescriptor ?? {}),
-    viewport: effectiveContextViewport(environment, deviceDescriptor),
-    ...(environment.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: environment.deviceScaleFactor }),
-  };
-  // The attached browser is the existing authorization boundary. Clone its live, memory-only storage
-  // state into the recording context so cookies and boot localStorage seeds (debug token/probe mode and
-  // generic --local-storage) survive without serializing credentials into SessionRow or inventing a
-  // second auth channel. The state never crosses the process wire or artifact boundary.
-  const storageState = await ownerContext.storageState();
-  const context = await browser.newContext({
-    ...sizing,
-    storageState,
-    ...(environment.recordVideoDir === undefined ? {} : { recordVideo: { dir: environment.recordVideoDir, size: environment.viewport } }),
-  });
-  ownedContexts.push({ context });
-  installCdpFaultInjector(context);
-  const page = await context.newPage();
-  const capture = createPageCapture(resolveProbeMedia(environment), 0, environment.evidenceLimits);
-  const pages = [page];
-  const wirePage = watchProbeContextPages(context, capture, pages);
-  await wirePage(page);
-  const attached = probeContext({
-    context,
-    pages,
-    capture,
-    settingsEvidence: { appearanceApplied: null, themeApplied: null, themeResolution: null, themeCatalog: null, backgroundLibraryFirst: null },
-    environmentContract,
-    owned: true,
-  });
-  return probeSession(browser, attached, [attached]);
-}
-
 export async function attachProbeSession(endpoint: string, environment: ProbeAttachOptions): Promise<ProbeSession> {
   const browser = await chromium.connectOverCDP(endpoint);
-  const ownedContexts: { readonly context: BrowserContext }[] = [];
   try {
     const ownerContext = browser.contexts()[0];
     if (ownerContext === undefined) {
       throw new Error(`attached browser at ${endpoint} exposes no context — the session has not booted yet`);
-    }
-    // `record` cannot reuse the session's live page: Playwright only records video from a context created
-    // WITH `recordVideo` set, and that option is fixed at `newContext()` time — it cannot be bolted onto the
-    // owner's existing context after the fact. So a `recordVideoDir` attach opens its OWN new context on the
-    // attached browser (§5's "record is not like the others") instead of joining `browser.contexts()[0]`.
-    if (environment.recordVideoDir !== undefined) {
-      return await attachRecordedContext(browser, ownerContext, environment, ownedContexts);
     }
     const context = ownerContext;
     installCdpFaultInjector(context);
@@ -342,7 +285,7 @@ export async function attachProbeSession(endpoint: string, environment: ProbeAtt
     });
     return probeSession(browser, attached, [attached]);
   } catch (error) {
-    return await closeProbeSessionAfterError({ browser, contexts: ownedContexts }, error);
+    return await closeProbeSessionAfterError({ browser, contexts: [] }, error);
   }
 }
 

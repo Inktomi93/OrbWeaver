@@ -23,6 +23,7 @@
 // which is the only thing they need in order to decide — and it omitted the one fact that stops a user
 // keeping a dead row out of fear: the CREDENTIAL survives, because a key is its own row (§5.3).
 
+import { providerDisplayLabel } from "@orb/contracts/inference";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -274,7 +275,7 @@ function ConnectionRow({
                     {addModelActionLabel(addModel)}
                   </Text>
                   <Text voice="gloss" as="span">
-                    {addModelActionGloss(addModel, provider.label)}
+                    {addModelActionGloss(addModel, providerDisplayLabel(provider))}
                   </Text>
                 </MenuItem>
               )}

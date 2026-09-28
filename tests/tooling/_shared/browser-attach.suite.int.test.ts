@@ -31,7 +31,7 @@ import { openProbeContext } from "@orb/tooling/_shared/browser-context";
 import type { ProbeSession } from "@orb/tooling/_shared/browser-contract";
 import { reassertOwnerDevice, reassertOwnerViewport } from "@orb/tooling/_shared/browser-emulation-guard";
 import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
-import type { BrowserContext, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { snapshot } from "lighthouse";
 import puppeteer from "puppeteer-core";
@@ -59,62 +59,6 @@ async function launchDebuggable(profileDir: string): Promise<ProbeSession> {
     browserArgs: ["--remote-debugging-port=0"],
   });
 }
-
-test("recorded attach closes each partially-created resource exactly once without taking over the daemon browser", async ({ scratch }) => {
-  const owner = await launchDebuggable(scratch);
-  try {
-    const endpoint = await debuggingEndpoint(scratch);
-    for (const step of ["newContext", "newPage", "wirePage"] as const) {
-      const attachedBrowser = await chromium.connectOverCDP(endpoint);
-      const closeBrowser = attachedBrowser.close.bind(attachedBrowser);
-      const createContext = attachedBrowser.newContext.bind(attachedBrowser);
-      let context: BrowserContext | null = null;
-      let browserCloseCalls = 0;
-      let contextCloseCalls = 0;
-      vi.spyOn(chromium, "connectOverCDP").mockResolvedValueOnce(attachedBrowser);
-      vi.spyOn(attachedBrowser, "close").mockImplementation(async () => {
-        browserCloseCalls += 1;
-        await closeBrowser();
-      });
-      vi.spyOn(attachedBrowser, "newContext").mockImplementation(async (options) => {
-        if (step === "newContext") {
-          throw new Error("planted newContext refusal");
-        }
-        context = await createContext(options);
-        const closeContext = context.close.bind(context);
-        vi.spyOn(context, "close").mockImplementation(async () => {
-          contextCloseCalls += 1;
-          await closeContext();
-        });
-        if (step === "newPage") {
-          vi.spyOn(context, "newPage").mockRejectedValueOnce(new Error("planted newPage refusal"));
-        } else {
-          vi.spyOn(context, "newCDPSession").mockRejectedValueOnce(new Error("planted wirePage refusal"));
-        }
-        return context;
-      });
-
-      await expect(
-        attachProbeSession(endpoint, {
-          viewport: VIEWPORT,
-          device: null,
-          colorScheme: null,
-          reducedMotion: false,
-          contrast: null,
-          reducedTransparency: false,
-          recordVideoDir: join(scratch, `video-${step}`),
-        }),
-      ).rejects.toThrow(`planted ${step} refusal`);
-      expect(browserCloseCalls).toBe(1);
-      expect(contextCloseCalls).toBe(step === "newContext" ? 0 : 1);
-      expect(await owner.page.evaluate("1 + 1")).toBe(2);
-      vi.restoreAllMocks();
-    }
-  } finally {
-    vi.restoreAllMocks();
-    await closeProbeSession(owner);
-  }
-});
 
 /** Chrome publishes its OS-assigned debugging port only after it binds; poll for it, loudly. */
 async function debuggingEndpoint(profileDir: string): Promise<string> {

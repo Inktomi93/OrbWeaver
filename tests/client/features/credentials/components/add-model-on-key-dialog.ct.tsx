@@ -13,12 +13,14 @@
 //   • A PICK MOVES NOTHING. Recent is written when the connection is saved, the sections keep their order, and
 //     the picked row is marked once.
 
+import { providerDefSchema } from "@orb/contracts/inference";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route-trpc.ts";
 import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import type { ConnectionRow } from "../_connection-fixtures.ts";
 import {
+  ALL_AVAILABLE,
   AUTHORING_ARMS,
   catalogEntry,
   catalogOf,
@@ -69,6 +71,45 @@ async function stubWith(
 }
 
 // ── which rows offer it, and in whose words ─────────────────────────────────────────────────────────────
+
+test("a distributed plugin provider copy keeps its plugin suffix in the row action and add-model dialog", async ({ mount, page }) => {
+  const relay = providerDefSchema.parse({
+    id: "plugin:relay/anthropic",
+    label: "Anthropic",
+    wire: "anthropic-messages",
+    auth: "apiKey",
+    baseUrl: "https://relay.plugin-author.example/v1",
+    apis: ["anthropic-messages"],
+    catalog: "url",
+    metered: true,
+  });
+  const relayLabel = "Anthropic · plugin relay";
+  const relayRow = connectionRow({
+    id: "user_connection_ctauthor0006",
+    label: "Relay Opus",
+    providerId: relay.id,
+    providerLabel: relayLabel,
+    model: "claude-opus-5",
+  });
+  await stubConnectionsPane(page, {
+    providers: [...ALL_AVAILABLE, { provider: relay, available: true }],
+    connections: [relayRow],
+    credentials: [credentialRow({ provider: relay.id })],
+    catalogModels: catalogOf([catalogEntry("claude-opus-5", "Claude Opus 5")]),
+  });
+  await mount(<ConnectionsAuthoringStory width={870} />);
+
+  await openRowMenu(page, "Relay Opus · claude-opus-5");
+  const action = page.getByRole("menuitem", { name: /Add another model on this key/ });
+  await expect(action).toContainText(`A new connection on ${relayLabel} with the same key — you only pick the model.`);
+  await action.click();
+  const dialog = dialogNamed(page, KEY_TITLE);
+  await expect(
+    dialog.getByText(`A new connection on ${relayLabel} with the same key — you only pick the model.`, { exact: true }),
+  ).toBeVisible();
+  await expect(dialog.getByRole("combobox", { name: `Search ${relayLabel} models` })).toBeVisible();
+  await expect(dialog.getByRole("textbox", { name: "Label" })).toHaveAttribute("placeholder", `${relayLabel} · …`);
+});
 
 test("a keyed row offers it by §5.3a's name; a keyless endpoint shares its server; a hosted row with no key offers nothing", async ({ mount, page }) => {
   await stubWith(page, OPENROUTER_CATALOG, [

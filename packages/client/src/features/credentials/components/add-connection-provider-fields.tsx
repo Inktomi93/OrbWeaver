@@ -3,6 +3,7 @@
 // add-connection-dialog.tsx (which composes this) to keep that file under the component-size cap.
 
 import type { ProviderDef } from "@orb/contracts/inference";
+import { providerDisplayLabel } from "@orb/contracts/inference";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -43,6 +44,7 @@ export interface ProviderFieldsProps {
 /** The fields that depend on the PICKED provider's auth kind: URL and/or key, the model, the api control only
  *  when the row lists more than one, label and the background switch. */
 export function ProviderFields({ form, provider, trpc, invalidation, held, modelSource, onListing, onUrlRefusal }: ProviderFieldsProps): ReactElement {
+  const providerLabel = providerDisplayLabel(provider);
   return (
     <>
       {needsBaseUrl(provider) ? (
@@ -50,7 +52,7 @@ export function ProviderFields({ form, provider, trpc, invalidation, held, model
           {(field): ReactElement => (
             <field.TextField
               label="Server URL"
-              description={`The OpenAI-compatible base URL your ${provider.label} server answers on.`}
+              description={`The OpenAI-compatible base URL your ${providerLabel} server answers on.`}
               placeholder="http://127.0.0.1:8000/v1"
               autoComplete="off"
             />
@@ -101,7 +103,7 @@ export function ProviderFields({ form, provider, trpc, invalidation, held, model
       ) : null}
       <form.AppField name="label">
         {(field): ReactElement => (
-          <field.TextField label="Label" hint={CONNECTION_FORM_COPY.labelHint} placeholder={`${provider.label} · …`} autoComplete="off" />
+          <field.TextField label="Label" hint={CONNECTION_FORM_COPY.labelHint} placeholder={`${providerLabel} · …`} autoComplete="off" />
         )}
       </form.AppField>
       <form.AppField name="allowBackground">
@@ -156,5 +158,5 @@ function keyLabel(provider: ProviderDef): string {
 /** Whose list the picker reads, in the user's words: an endpoint's host once a URL is typed, else the
  *  provider's label. */
 function listOwnerOf(provider: ProviderDef, baseUrl: string): string {
-  return (needsBaseUrl(provider) ? connectionHost(baseUrl.trim() === "" ? null : baseUrl.trim()) : null) ?? provider.label;
+  return (needsBaseUrl(provider) ? connectionHost(baseUrl.trim() === "" ? null : baseUrl.trim()) : null) ?? providerDisplayLabel(provider);
 }

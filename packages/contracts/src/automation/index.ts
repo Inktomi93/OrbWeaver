@@ -144,8 +144,8 @@ export const GLOBAL_VARIABLE_VALUE_MAX_BYTES = 65_536; // 64 KiB
 
 export const globalVariableKeySchema = z.string().min(1).max(GLOBAL_VARIABLE_KEY_MAX_CHARS);
 
-/** The settings-page read model for a per-user global variable (the `listGlobalVariables` surface). Never
- *  carries `ownerId` — the plane is single-owned, so a view is always the caller's own. */
+/** The server-side projection read while building the CEL environment and by the test-rule verb. Never carries
+ *  `ownerId` — the plane is single-owned, so a view is always the caller's own. */
 export interface GlobalVariableView {
   readonly key: string;
   readonly value: string;
