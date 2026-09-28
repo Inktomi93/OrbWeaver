@@ -9,6 +9,7 @@ import { LoginShellAnchor } from "@orb/client/features/auth";
 import { closeModal, openModal, useActiveChatId, useActiveSection, useOpenModal } from "@orb/client/state";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { StrictMode, useEffect, useState } from "react";
 // The form + the per-mode dispatcher are feature INTERNALS the front door doesn't re-export — the
@@ -20,6 +21,7 @@ import { LoginFirstRunForm } from "../../../../packages/client/src/features/auth
 import { LoginLocalForm } from "../../../../packages/client/src/features/auth/components/login-local-form.tsx";
 import { reauthModal } from "../../../../packages/client/src/features/auth/lib/reauth-modal.tsx";
 import { LoginBody } from "../../../../packages/client/src/features/auth/surfaces/login-surface.tsx";
+import { LoginPage } from "../../../../packages/client/src/routes/login-page.tsx";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 
 /** The per-mode login arm (LoginBody) — mounted router-free with a stub `onDone`, so the CT can prove
@@ -102,6 +104,22 @@ export function LoginSceneStory({ width, config }: { readonly width: number; rea
           />
         </LoginShellAnchor>
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The production login route with its real query-driven surface. This story exists for the load-to-form
+ *  geometry seam: the CT can hold `/api/auth/config` pending, measure the skeleton card, release the same
+ *  request, and measure the resolved sign-in form without substituting either state. */
+export function LoginConfigTransitionStory(): ReactElement {
+  const [router] = useState(() => {
+    const root = createRootRoute();
+    const login = createRoute({ getParentRoute: () => root, path: "/", component: LoginPage });
+    return createRouter({ routeTree: root.addChildren([login]), history: createMemoryHistory({ initialEntries: ["/"] }) });
+  });
+  return (
+    <CtDataProviders>
+      <RouterProvider router={router} />
     </CtDataProviders>
   );
 }

@@ -181,3 +181,72 @@ export function RackStory(): ReactElement {
     </ToastProvider>
   );
 }
+
+const CACHE_WARNING_CONTENT = {
+  static: "fixed",
+  below: "fixed",
+  flagged: "{{!time}}",
+  escaped: String.raw`\{{time}}`,
+  unknownNested: "{{not_registered::{{time}}}}",
+  discardedNested: "{{?noop::{{time}}}}",
+  discardedBlock: "{{banned}}{{time}}{{/banned}}",
+  transformedNested: "{{uppercase}}{{time}}{{/uppercase}}",
+  stagedMemory: "{{memory}}",
+  variableRead: "{{getvar::counter}}",
+  recursiveCardField: "{{description}}",
+  userRecall: "{{recall}}",
+  userConditionalStatic: "{{choose}}",
+  userConditionalVolatile: '{{choose::"1"}}',
+  userRole: "{{time}}",
+  injected: "{{time}}",
+  staticThen: '{{if::"1"}}fixed{{else}}{{time}}{{/if}}',
+  staticElse: '{{if::"0"}}{{time}}{{else}}fixed{{/if}}',
+  dynamicBranch: "{{if::flag}}fixed{{else}}{{time}}{{/if}}",
+} as const;
+type CacheWarningPlacement = keyof typeof CACHE_WARNING_CONTENT;
+
+export function CacheWarningStory({ placement }: { readonly placement: CacheWarningPlacement }): ReactElement {
+  const staticSection: PromptSection = {
+    type: "literal",
+    id: "cache_static",
+    name: "Static",
+    role: placement === "userRole" ? "user" : "system",
+    content: CACHE_WARNING_CONTENT[placement],
+    enabled: true,
+    ...(placement === "injected" ? { inject: { depth: 2 } } : {}),
+  };
+  const perTurnSection: PromptSection = {
+    type: "marker",
+    id: "cache_memory",
+    name: "Memory",
+    marker: "memory",
+    role: "system",
+    enabled: true,
+  };
+  const history: PromptSection = { type: "marker", id: "cache_history", name: "Chat History", marker: "chat_history", role: "system", enabled: true };
+  const sections = placement === "below" ? [staticSection, history, perTurnSection] : [staticSection, history];
+  let userMacros: PromptConfig["userMacros"] = DEFAULT_PROMPT_CONFIG.userMacros;
+  if (placement === "userRecall") {
+    userMacros = [{ name: "recall", description: "", args: [], body: "{{memory}}", inputs: [], strict: false }];
+  } else if (placement === "userConditionalStatic" || placement === "userConditionalVolatile") {
+    userMacros = [
+      {
+        name: "choose",
+        description: "",
+        args: [{ name: "flag", type: "string", optional: true, default: '"0"' }],
+        body: '{{if::{{flag}}}}{{time}}{{else}}fixed{{/if}}',
+        inputs: [],
+        strict: false,
+      },
+    ];
+  }
+  useFreshSectionDrill();
+  return (
+    <ToastProvider>
+      <StoryForm entityId={STORY_PRESET} save={(): Promise<void> => Promise.resolve()} serverValues={{ ...DEFAULT_PROMPT_CONFIG, sections, userMacros }}>
+        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} presetId={STORY_PRESET} tab="prompt" />}
+      </StoryForm>
+      <Toaster />
+    </ToastProvider>
+  );
+}

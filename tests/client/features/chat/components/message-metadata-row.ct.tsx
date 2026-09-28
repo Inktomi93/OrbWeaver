@@ -162,3 +162,11 @@ test("timestamps never render here even when showTimestamps is on (they live in 
   await expect(component.locator('[data-slot="message-metadata-timestamp"]')).toHaveCount(0);
   await expect(component.locator(ROW)).toHaveCount(0);
 });
+
+test("an output-cap continuation receipt stays visible when every optional metadata toggle is off", async ({ mount }) => {
+  const component = await mount(<MessageMetadataRowStory visibility={ALL_OFF} message={{ outputCapReached: true }} />);
+  await expect(component.locator('[data-slot="message-metadata-output-cap"]')).toHaveText(
+    "Output cap reached; the runtime continued this reply beyond the requested limit.",
+  );
+  await expect(component.locator(ROW)).toBeVisible();
+});

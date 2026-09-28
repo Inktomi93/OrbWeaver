@@ -623,6 +623,9 @@ importers:
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.101.4(react@19.2.7)
+      '@tanstack/react-router':
+        specifier: 'catalog:'
+        version: 1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@total-typescript/ts-reset':
         specifier: 'catalog:'
         version: 0.6.1

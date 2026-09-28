@@ -55,7 +55,7 @@ test("the editor's groupings are real headings, its rules show their resolved kn
 
   // Heading navigation: the roster name (h2) plus one heading per grouping.
   await expect(page.getByRole("heading", { level: 2, name: "Adventuring Roster" })).toBeVisible();
-  await expect(page.getByRole("heading", { level: 3, name: "Members" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 3, name: "Characters" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 3, name: "Rules" })).toBeVisible();
 
   // ONE talkativeness spelling with the room's Members tab: the 0–100 dial, the word "Talks", no percent.

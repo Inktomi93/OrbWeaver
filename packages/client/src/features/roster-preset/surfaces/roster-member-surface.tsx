@@ -212,7 +212,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
           label="RPG campaign"
           onChange={onCampaignChange}
         />
-        <Section kicker="Members">
+        <Section kicker="Characters">
           {roster.members.map((member) => (
             <Row align="center" gap="field" key={member.characterId}>
               <Text voice="label" className="min-w-0 flex-1 truncate">

@@ -6,7 +6,7 @@
 // byte-parity pin (same defs + values ⇒ identical bytes on independently composed registries).
 
 import type { MacroDiagnostic, MacroRegistry, ProcessMacroOptions, UserMacroDef, UserMacroInputDef, VarOp } from "@orb/kit/macro";
-import { createDefaultRegistry, findOffVocabularyPicks, processMacros, registerUserMacros, resolveUserMacroInputs, ZWSP } from "@orb/kit/macro";
+import { createDefaultRegistry, findOffVocabularyPicks, MACRO_MAX_DEPTH, macroTextInvalidatesCache, processMacros, registerUserMacros, resolveUserMacroInputs, ZWSP } from "@orb/kit/macro";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -81,6 +81,12 @@ describe("registration", () => {
     expect(result.registered).toEqual([]);
     expect(result.rejected[0]?.reason).toContain("invalid macro name");
   });
+
+  test("valid names resembling analyzer internals remain ordinary user macros", () => {
+    const registry = registryWith([def({ name: "orb_internal_resolved_binding_8f3c", body: "{{time}}" })]);
+    expect(macroTextInvalidatesCache("{{orb_internal_resolved_binding_8f3c}}", registry)).toBe(true);
+    expect(processMacros("{{orb_internal_resolved_binding_8f3c}}", opts({ nowMs: Date.UTC(2024, 0, 2, 3, 4, 5), timezone: "UTC" }), registry)).toBe("03:04:05");
+  });
 });
 
 // ── volatility derivation (D51 cache honesty) ────────────────────────────────────────────────────
@@ -105,6 +111,92 @@ describe("derived volatility", () => {
     expect(registry.getMetadata("inner")?.volatile).toBe(true);
     expect(registry.getMetadata("outer")?.volatile).toBe(true);
   });
+
+  test("unknown inline arguments and discarded builtin inputs do not make a user macro volatile", () => {
+    const registry = registryWith([
+      def({ name: "unknown_wrapper", body: "{{not_registered::{{time}}}}" }),
+      def({ name: "discarded", body: "{{noop::{{time}}}}" }),
+      def({ name: "discard_arg", args: [{ name: "value", type: "string", optional: false }], body: "{{noop::{{value}}}}" }),
+      def({ name: "outer_discard_arg", body: "{{discard_arg::{{time}}}}" }),
+      def({ name: "unknown_arg", args: [{ name: "value", type: "string", optional: false }], body: "{{not_registered::{{value}}}}" }),
+    ]);
+    expect(registry.getMetadata("unknown_wrapper")?.volatile).toBe(false);
+    expect(registry.getMetadata("discarded")?.volatile).toBe(false);
+    expect(macroTextInvalidatesCache("{{unknown_wrapper}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache("{{discarded}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache("{{discard_arg::{{time}}}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache("{{outer_discard_arg}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache("{{discard_arg::{{incvar::counter}}}}", registry)).toBe(true);
+    expect(macroTextInvalidatesCache("{{unknown_arg::{{time}}}}", registry)).toBe(true);
+  });
+
+  test("cache dependence propagates through user macros without entering commit-freeze volatility", () => {
+    const registry = registryWith([
+      def({ name: "recall", body: "{{memory}}" }),
+      def({ name: "outer_recall", body: "[{{recall}}]" }),
+    ]);
+    expect(macroTextInvalidatesCache("{{recall}}", registry)).toBe(true);
+    expect(macroTextInvalidatesCache("{{outer_recall}}", registry)).toBe(true);
+    expect(registry.getMetadata("recall")?.volatile).toBe(false);
+    expect(registry.getMetadata("outer_recall")?.volatile).toBe(false);
+  });
+
+  test("only user-macro inputs that reach the template make its output turn-dependent", () => {
+    const picked = input({ kind: "single-select", name: "mood" });
+    const registry = registryWith([
+      def({ name: "uses_pick", body: "{{mood}}", inputs: [picked] }),
+      def({ name: "ignores_pick", body: "fixed", inputs: [picked] }),
+    ]);
+    expect(macroTextInvalidatesCache("{{uses_pick}}", registry)).toBe(true);
+    expect(macroTextInvalidatesCache("{{ignores_pick}}", registry)).toBe(false);
+  });
+
+  test("macro-bearing optional defaults remain visible to direct and transitive cache analysis", () => {
+    const valueArg = (fallback: string) => [{ name: "value", type: "string", optional: true, default: fallback }] as const;
+    const registry = registryWith([
+      def({ name: "default_clock", args: valueArg("{{time}}"), body: "[{{value}}]" }),
+      def({ name: "outer_clock", body: "{{default_clock}}" }),
+      def({ name: "default_memory", args: valueArg("{{memory}}"), body: "[{{value}}]" }),
+      def({ name: "outer_memory", body: "{{default_memory}}" }),
+    ]);
+    expect(macroTextInvalidatesCache("{{default_clock}}", registry)).toBe(true);
+    expect(macroTextInvalidatesCache("{{outer_clock}}", registry)).toBe(true);
+    expect(macroTextInvalidatesCache("{{default_memory}}", registry)).toBe(true);
+    expect(macroTextInvalidatesCache("{{outer_memory}}", registry)).toBe(true);
+    expect(registry.getMetadata("default_clock")?.volatile).toBe(true);
+    expect(registry.getMetadata("default_memory")?.volatile).toBe(false);
+    const runtime = opts({ nowMs: Date.UTC(2024, 0, 2, 3, 4, 5), timezone: "UTC", memory: "remembered" });
+    expect(processMacros("{{default_clock}}", runtime, registry)).toBe("[03:04:05]");
+    expect(processMacros("{{outer_clock}}", runtime, registry)).toBe("[03:04:05]");
+    expect(processMacros("{{default_memory}}", runtime, registry)).toBe("[remembered]");
+    expect(processMacros("{{outer_memory}}", runtime, registry)).toBe("[remembered]");
+  });
+
+  test("stable recursion does not become a cache warning, while a volatile sibling still does", () => {
+    const registry = registryWith([
+      def({ name: "stable_cycle", body: "x{{stable_cycle}}" }),
+      def({ name: "volatile_cycle", body: "{{volatile_cycle}}{{time}}" }),
+    ]);
+    expect(macroTextInvalidatesCache("{{stable_cycle}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache("{{volatile_cycle}}", registry)).toBe(true);
+  });
+
+  test("analysis follows stable user-macro chains past 32 links without hiding a volatile tail", () => {
+    const chain = (tail: string): UserMacroDef[] =>
+      Array.from({ length: 40 }, (_unused, index) => def({ name: `chain_${index}`, body: index === 39 ? tail : `{{chain_${index + 1}}}` }));
+    const stable = registryWith(chain("fixed"));
+    const volatile = registryWith(chain("{{time}}"));
+    expect(macroTextInvalidatesCache("{{chain_0}}", stable)).toBe(false);
+    expect(macroTextInvalidatesCache("{{chain_0}}", volatile)).toBe(true);
+  });
+
+  test("analysis stops direct user-template expansion at the runtime depth cap", () => {
+    const chain = (length: number, tail: string): UserMacroDef[] =>
+      Array.from({ length }, (_unused, index) => def({ name: `depth_${index}`, body: index === length - 1 ? tail : `{{depth_${index + 1}}}` }));
+    expect(macroTextInvalidatesCache("{{depth_0}}", registryWith(chain(MACRO_MAX_DEPTH - 1, "{{time}}")))).toBe(true);
+    expect(macroTextInvalidatesCache("{{depth_0}}", registryWith(chain(MACRO_MAX_DEPTH, "fixed")))).toBe(false);
+    expect(macroTextInvalidatesCache("{{depth_0}}", registryWith(chain(MACRO_MAX_DEPTH, "{{time}}")))).toBe(false);
+  });
 });
 
 // ── evaluation: named args × defaults × strict × blocks × flags ──────────────────────────────────
@@ -118,6 +210,50 @@ describe("evaluation", () => {
   test("a declared optional default is padded (the metadata IS the runtime contract)", () => {
     const registry = registryWith([def({ name: "greet", args: [{ name: "who", type: "string", optional: true, default: "World" }], body: "Hello {{who}}!" })]);
     expect(processMacros("{{greet}}", opts(), registry)).toBe("Hello World!");
+  });
+
+  test("a user-macro block keeps declared defaults and required arity separate from its content binding", () => {
+    const registry = registryWith([
+      def({
+        name: "with_default",
+        args: [{ name: "value", type: "string", optional: true, default: "D" }],
+        body: "{{value}}[{{content}}]",
+      }),
+      def({
+        name: "strict_required",
+        args: [{ name: "value", type: "string", optional: false }],
+        body: "{{value}}[{{content}}]",
+        strict: true,
+      }),
+      def({
+        name: "strict_bad_default",
+        args: [{ name: "value", type: "number", optional: true, default: "bad" }],
+        body: "{{value}}[{{content}}]",
+        strict: true,
+      }),
+    ]);
+    expect(processMacros("{{with_default}}body{{/with_default}}", opts(), registry)).toBe("D[body]");
+    const diagnostics: MacroDiagnostic[] = [];
+    expect(processMacros("{{strict_required}}body{{/strict_required}}", opts({ diagnostics }), registry)).toBe("");
+    expect(diagnostics[0]).toMatchObject({ code: "bad-arity", severity: "error" });
+    expect(processMacros("{{strict_bad_default}}body{{/strict_bad_default}}", opts({ diagnostics }), registry)).toBe("");
+    expect(diagnostics[1]).toMatchObject({ code: "bad-arg-type", severity: "error" });
+    expect(macroTextInvalidatesCache("{{with_default}}fixed{{/with_default}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache("{{with_default}}{{time}}{{/with_default}}", registry)).toBe(true);
+  });
+
+  test("strict invalid calls suppress template dependencies but retain eagerly evaluated block writes", () => {
+    const registry = registryWith([
+      def({
+        name: "strict_memory",
+        args: [{ name: "required", type: "string", optional: false }],
+        body: "{{memory}}",
+        strict: true,
+      }),
+    ]);
+    expect(macroTextInvalidatesCache("{{strict_memory}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache("{{strict_memory}}fixed{{/strict_memory}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache("{{strict_memory}}{{incvar::counter}}{{/strict_memory}}", registry)).toBe(true);
   });
 
   test("checkMacroArgs enforces a user macro's declared args exactly like a builtin's", () => {
@@ -142,8 +278,75 @@ describe("evaluation", () => {
 
   test("a delivered block body overrides a declared arg named content (delivery order pins later-wins)", () => {
     const registry = registryWith([def({ name: "wrap", args: [{ name: "content", type: "string", optional: true, default: "arg" }], body: "[{{content}}]" })]);
+    const lazyEnv: Record<string, unknown> = {};
     expect(processMacros("{{wrap}}body{{/wrap}}", opts(), registry)).toBe("[body]");
     expect(processMacros("{{wrap::explicit}}", opts(), registry)).toBe("[explicit]");
+    expect(processMacros("{{wrap::explicit}}body{{/wrap}}", opts(), registry)).toBe("[body]");
+    expect(processMacros("{{?wrap::{{incvar::counter}}}}body{{/wrap}}", opts({ env: lazyEnv }), registry)).toBe("[body]");
+    expect(lazyEnv).toEqual({});
+    expect(macroTextInvalidatesCache("{{wrap::{{time}}}}fixed{{/wrap}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache("{{?wrap::{{incvar::counter}}}}fixed{{/wrap}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache("{{wrap::{{incvar::counter}}}}fixed{{/wrap}}", registry)).toBe(true);
+    expect(macroTextInvalidatesCache("{{wrap::fixed}}{{time}}{{/wrap}}", registry)).toBe(true);
+  });
+
+  test("a block body also overrides an input named content in runtime and cache analysis", () => {
+    const contentInput = input({ kind: "random-pick", name: "content", options: [{ label: "Input", value: "input" }] });
+    const registry = registryWith([def({ name: "input_wrap", body: "[{{content}}]", inputs: [contentInput] })], {
+      input_wrap: { content: "input" },
+    });
+    expect(processMacros("{{input_wrap}}", opts(), registry)).toBe("[input]");
+    expect(processMacros("{{input_wrap}}body{{/input_wrap}}", opts(), registry)).toBe("[body]");
+    expect(macroTextInvalidatesCache("{{input_wrap}}", registry)).toBe(true);
+    expect(macroTextInvalidatesCache("{{input_wrap}}fixed{{/input_wrap}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache("{{input_wrap}}{{time}}{{/input_wrap}}", registry)).toBe(true);
+  });
+
+  test("discarding bindings suppresses output dependencies but retains pre-splice writes", () => {
+    const picked = input({ kind: "random-pick", name: "pick", options: [{ label: "A", value: "a" }] });
+    const registry = registryWith([
+      def({ name: "discard_default", args: [{ name: "value", type: "string", optional: true, default: "{{time}}" }], body: "{{noop::{{value}}}}" }),
+      def({ name: "discard_input", inputs: [picked], body: "{{noop::{{pick}}}}" }),
+      def({ name: "discard_content", body: "{{noop::{{content}}}}" }),
+    ]);
+    expect(macroTextInvalidatesCache("{{discard_default}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache("{{discard_input}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache("{{discard_content}}{{time}}{{/discard_content}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache("{{discard_content}}{{incvar::counter}}{{/discard_content}}", registry)).toBe(true);
+  });
+
+  test("binding-controlled conditionals follow explicit, default, input, and block-content values", () => {
+    const branch = '{{if::{{flag}}}}{{time}}{{else}}fixed{{/if}}';
+    const inputFlag = input({ kind: "single-select", name: "flag" });
+    const registry = registryWith(
+      [
+        def({ name: "choose", args: [{ name: "flag", type: "string", optional: true, default: '"0"' }], body: branch }),
+        def({ name: "choose_input", inputs: [inputFlag], body: branch }),
+        def({ name: "choose_content", body: '{{if::{{content}}}}{{time}}{{else}}fixed{{/if}}' }),
+      ],
+      { choose_input: { flag: '"0"' } },
+    );
+    const fixedClock = opts({ nowMs: Date.UTC(2024, 0, 2, 3, 4, 5), timezone: "UTC" });
+    expect(processMacros("{{choose}}", fixedClock, registry)).toBe("fixed");
+    expect(processMacros('{{choose::"1"}}', fixedClock, registry)).toBe("03:04:05");
+    expect(processMacros("{{choose_input}}", fixedClock, registry)).toBe("fixed");
+    expect(processMacros('{{choose_content}}"0"{{/choose_content}}', fixedClock, registry)).toBe("fixed");
+    expect(processMacros('{{choose_content}}"1"{{/choose_content}}', fixedClock, registry)).toBe("03:04:05");
+    expect(macroTextInvalidatesCache("{{choose}}", registry)).toBe(false);
+    expect(macroTextInvalidatesCache('{{choose::"1"}}', registry)).toBe(true);
+    expect(macroTextInvalidatesCache("{{choose_input}}", registry)).toBe(true);
+    expect(macroTextInvalidatesCache('{{choose_content}}"0"{{/choose_content}}', registry)).toBe(false);
+    expect(macroTextInvalidatesCache('{{choose_content}}"1"{{/choose_content}}', registry)).toBe(true);
+  });
+
+  test("lenient inline content extras contribute bytes and delayed extras still execute writes", () => {
+    const registry = registryWith([def({ name: "wrap_extra", body: "[{{content}}]" })]);
+    const env: Record<string, unknown> = {};
+    expect(processMacros("{{wrap_extra::{{time}}}}", opts({ nowMs: Date.UTC(2024, 0, 2, 3, 4, 5), timezone: "UTC" }), registry)).toBe("[03:04:05]");
+    expect(macroTextInvalidatesCache("{{wrap_extra::{{time}}}}", registry)).toBe(true);
+    expect(processMacros("{{?wrap_extra::{{incvar::counter}}}}", opts({ env }), registry)).toBe("[1]");
+    expect(env.counter).toBe("1");
+    expect(macroTextInvalidatesCache("{{?wrap_extra::{{incvar::counter}}}}", registry)).toBe(true);
   });
 
   test("the # PRESERVE_WHITESPACE flag reaches a user macro's block body (flags work for free)", () => {
@@ -155,6 +358,22 @@ describe("evaluation", () => {
   test("the ? DELAYED flag delivers raw args — the user-macro handler resolves them itself", () => {
     const registry = registryWith([def({ name: "echo", args: [{ name: "value", type: "string", optional: false }], body: "[{{value}}]" })]);
     expect(processMacros("{{?echo::{{user}}}}", opts(), registry)).toBe("[Bob]");
+  });
+
+  test("a delayed unused declared argument still executes mutations, including through a user-macro wrapper", () => {
+    const defs = [
+      def({ name: "discard", args: [{ name: "value", type: "string", optional: false }], body: "fixed" }),
+      def({ name: "outer_discard", body: "{{?discard::{{incvar::counter}}}}" }),
+    ];
+    const registry = registryWith(defs);
+    const env: Record<string, unknown> = {};
+    const opLog: VarOp[] = [];
+
+    expect(processMacros("{{?discard::{{incvar::counter}}}}", opts({ env, opLog }), registry)).toBe("fixed");
+    expect(env.counter).toBe("1");
+    expect(opLog).toEqual([{ op: "inc", key: "counter" }]);
+    expect(macroTextInvalidatesCache("{{?discard::{{incvar::counter}}}}", registry)).toBe(true);
+    expect(macroTextInvalidatesCache("{{outer_discard}}", registry)).toBe(true);
   });
 
   test("macros in the TEMPLATE resolve; macros smuggled through a VALUE are neutralized (no injection)", () => {

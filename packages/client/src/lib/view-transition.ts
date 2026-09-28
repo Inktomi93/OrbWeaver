@@ -29,9 +29,11 @@ interface VtTransition {
   readonly finished?: Promise<unknown>;
   readonly updateCallbackDone?: Promise<unknown>;
 }
+type VtUpdate = () => void | Promise<void>;
+type VtStartArgument = VtUpdate | { readonly update: VtUpdate; readonly types?: readonly string[] };
 interface VtDocument {
   readonly querySelector?: (selector: string) => unknown;
-  readonly startViewTransition?: (update: () => void) => VtTransition | undefined;
+  startViewTransition?: (update: VtStartArgument) => VtTransition | undefined;
 }
 interface VtGlobals {
   readonly document?: VtDocument;
@@ -39,6 +41,57 @@ interface VtGlobals {
 
 function isSkippedTransition(error: unknown): boolean {
   return typeof error === "object" && error !== null && "name" in error && error.name === "AbortError";
+}
+
+function observeTransition(transition: VtTransition | undefined): void {
+  const surfacedFailures = new Set<unknown>();
+  const observe = (settled: Promise<unknown> | undefined, absorbSkipped: boolean): void => {
+    // @orb-waive caught-failure-ownership(settled): only AbortError from platform settlement is absorbed; callback settlement never absorbs it. Every other unique rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement.
+    settled?.catch((error: unknown) => {
+      if ((absorbSkipped && isSkippedTransition(error)) || surfacedFailures.has(error)) {
+        return;
+      }
+      surfacedFailures.add(error);
+      queueMicrotask(() => {
+        throw error;
+      });
+    });
+  };
+  observe(transition?.ready, true);
+  observe(transition?.finished, true);
+  // `updateCallbackDone` is the application's callback outcome. An AbortError here can be a real thrown
+  // failure and must surface; it is not evidence that the browser merely skipped the visual transition.
+  observe(transition?.updateCallbackDone, false);
+}
+
+interface RouterViewTransitionPort {
+  startViewTransition: (update: () => Promise<void>) => void;
+}
+
+/** Observe ViewTransition settlement for TanStack's retained navigation transitions. Router-core owns the
+ *  decision and the update callback; this adapter only intercepts the native return value that router-core
+ *  currently discards, then restores the document method before returning. */
+export function observeRouterViewTransitions(router: RouterViewTransitionPort): void {
+  const originalRouterStart = router.startViewTransition.bind(router);
+  router.startViewTransition = (update): void => {
+    const g = globalThis as VtGlobals;
+    const document = g.document;
+    const nativeStart = document?.startViewTransition;
+    if (document === undefined || nativeStart === undefined) {
+      originalRouterStart(update);
+      return;
+    }
+    document.startViewTransition = (argument): VtTransition | undefined => {
+      const transition = nativeStart.call(document, argument);
+      observeTransition(transition);
+      return transition;
+    };
+    try {
+      originalRouterStart(update);
+    } finally {
+      document.startViewTransition = nativeStart;
+    }
+  };
 }
 
 /**
@@ -81,12 +134,11 @@ let joinableUpdates: (() => void)[] | null = null;
  * fire-and-forget signature it had.
  *
  * A SUPERSEDED transition (a second one starting before the first settles — e.g. the draft→committed
- * promotion swapping the active chat while the context panel re-renders) rejects the ViewTransition's
- * `ready`/`finished`/`updateCallbackDone` promises with `AbortError: Transition was skipped`. That is
- * BENIGN — the update callback itself still ran — but the discarded promises would surface as UNCAUGHT
- * rejections (a red console error on a perfectly normal rapid pane swap). Swallow them HERE, the one
- * legal wrapper, so no call site re-derives the handling. Coalescing does not retire that handling: two
- * transitions raised from two different tasks still supersede each other exactly as before.
+ * promotion swapping the active chat while the context panel re-renders) rejects the visual settlement
+ * (`ready`/`finished`) with `AbortError: Transition was skipped`. That is BENIGN — the update callback
+ * itself still ran — but the discarded promises would surface as UNCAUGHT rejections. Swallow those HERE,
+ * while always surfacing `updateCallbackDone` failures (including an application-thrown AbortError).
+ * Coalescing does not retire that handling: transitions from different tasks still supersede each other.
  */
 export function withViewTransition(update: () => void): void {
   const g = globalThis as VtGlobals;
@@ -113,16 +165,5 @@ export function withViewTransition(update: () => void): void {
       run();
     }
   });
-  const surfacedFailures = new Set<unknown>();
-  for (const settled of [transition?.ready, transition?.finished, transition?.updateCallbackDone]) {
-    // @orb-waive caught-failure-ownership(settled): only AbortError is absorbed as the platform's skipped-transition outcome; every other rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement.
-    settled?.catch((error: unknown) => {
-      if (!(isSkippedTransition(error) || surfacedFailures.has(error))) {
-        surfacedFailures.add(error);
-        queueMicrotask(() => {
-          throw error;
-        });
-      }
-    });
-  }
+  observeTransition(transition);
 }

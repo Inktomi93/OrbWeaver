@@ -1,5 +1,5 @@
 import type { Db } from "@orb/db";
-import { messages } from "@orb/db";
+import { messages, messageVariants } from "@orb/db";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -275,6 +275,23 @@ describe("persistence/queries — canon reads (D26)", () => {
 
     const tail = await loadMessagesPage(db, chatId, { beforeSeq: undefined, limit: 2, floorSeq: 0 });
     expect(tail.map((m) => m.seq)).toStrictEqual([5, 4]);
+  });
+
+  test("message views disclose an output-cap continuation without exposing provider metadata", async () => {
+    const chatId = await seedChat(db, "output-cap");
+    const capped = await seedMessage(db, chatId, 1, { content: "continued reply" });
+    await seedMessage(db, chatId, 2, { content: "ordinary reply" });
+    await db
+      .update(messageVariants)
+      .set({ metadata: { providerMetadata: { provider: "claude-sub", outputCapReached: true, sdkSessionId: "sdk-session" } } })
+      .where(eq(messageVariants.id, capped.variantId));
+
+    const page = await loadMessagesPage(db, chatId, { beforeSeq: undefined, limit: 10, floorSeq: 0 });
+    expect(page.map((message) => ({ seq: message.seq, outputCapReached: message.outputCapReached }))).toEqual([
+      { seq: 2, outputCapReached: false },
+      { seq: 1, outputCapReached: true },
+    ]);
+    expect("variantMetadata" in (page[1] ?? {})).toBe(false);
   });
 
   // The D16 `joinHistoryVisibility` floor at the QUERY level (the verb resolves it from the caller's own row;

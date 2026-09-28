@@ -13,7 +13,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
 import { ambientCeiling, fingerprintDelta, frameFingerprint, touchDrag, waitFrames } from "../../../../support/browser/weave-drive.ts";
-import { LoginSceneStory } from "../_ct-stories.tsx";
+import { LoginConfigTransitionStory, LoginSceneStory } from "../_ct-stories.tsx";
 
 const PHONE_W = 390;
 const DESKTOP_W = 1280;
@@ -109,6 +109,30 @@ test("the first-run arm drives the HALF-WOVEN backdrop (mode→web map, B4)", as
   await expect(page.locator('[data-slot="web-weave"]')).toHaveAttribute("data-weave-state", "partial");
 });
 
+test("the sign-in card keeps the same top edge while auth config resolves", async ({ mount, page }) => {
+  const cfg = config({});
+  let releaseConfig: (() => void) | undefined;
+  const held = new Promise<void>((resolve) => {
+    releaseConfig = resolve;
+  });
+  await page.route("**/api/auth/config", async (route) => {
+    await held;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(cfg) });
+  });
+
+  await mount(<LoginConfigTransitionStory />);
+  await expect(page.getByLabel("Loading sign-in options")).toBeVisible();
+  const card = page.locator('[data-slot="card-root"]');
+  const loadingTop = (await card.boundingBox())?.y;
+  releaseConfig?.();
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  const resolvedTop = (await card.boundingBox())?.y;
+
+  expect(loadingTop).toBeDefined();
+  expect(resolvedTop).toBeDefined();
+  expect(Math.abs((resolvedTop ?? 0) - (loadingTop ?? 0))).toBeLessThanOrEqual(1);
+});
+
 // ── The backdrop is LIVE under a thumb (#152) ─────────────────────────────────────────────────────
 // The owner's report: "if I move my thumb over the web nothing happens". The primitive's touch seam
 // works (tests/ui/art/web-weave/web-weave-touch.ct.tsx proves a finger rings it) — what was missing is
@@ -127,14 +151,22 @@ const RING_FACTOR = 3;
 test.describe("under a coarse pointer", () => {
   test.use({ hasTouch: true });
 
-  /** A drag path across the upper web, clear of the centred card column, in page coordinates. */
-  async function silkPath(weave: Locator): Promise<{ readonly from: { x: number; y: number }; readonly to: { x: number; y: number } }> {
-    const box = await weave.boundingBox();
-    const left = box?.x ?? 0;
-    const top = box?.y ?? 0;
-    const w = box?.width ?? 0;
-    const h = box?.height ?? 0;
-    return { from: { x: left + w * 0.14, y: top + h * 0.1 }, to: { x: left + w * 0.7, y: top + h * 0.26 } };
+  /** A horizontal drag through the larger free band around the real login content, in page coordinates. */
+  async function silkPath(weave: Locator, content: Locator): Promise<{ readonly from: { x: number; y: number }; readonly to: { x: number; y: number } }> {
+    const weaveBox = await weave.boundingBox();
+    const contentBox = await content.boundingBox();
+    const left = weaveBox?.x ?? 0;
+    const top = weaveBox?.y ?? 0;
+    const width = weaveBox?.width ?? 0;
+    const height = weaveBox?.height ?? 0;
+    const contentTop = contentBox?.y ?? top;
+    const contentBottom = contentTop + (contentBox?.height ?? 0);
+    const inset = 12;
+    const upperBand = Math.max(0, contentTop - inset - top);
+    const lowerStart = contentBottom + inset;
+    const lowerBand = Math.max(0, top + height - lowerStart);
+    const y = lowerBand >= upperBand ? lowerStart + lowerBand / 2 : top + upperBand / 2;
+    return { from: { x: left + width * 0.14, y }, to: { x: left + width * 0.7, y } };
   }
 
   test("a THUMB drawn across the login backdrop RINGS the silk", async ({ mount, page }) => {
@@ -148,7 +180,7 @@ test.describe("under a coarse pointer", () => {
     await expect(weave).toHaveCSS("pointer-events", "auto");
     const canvas = page.locator('[data-slot="web-weave-canvas"]');
     await expect.poll(async () => Number(await canvas.getAttribute("data-orb-weave-frames"))).toBeGreaterThan(2);
-    const path = await silkPath(weave);
+    const path = await silkPath(weave, page.getByRole("main"));
     // Both ends genuinely land on the weave, not on the card column above it.
     const hits = await page.evaluate(
       (p) => [document.elementFromPoint(p.from.x, p.from.y), document.elementFromPoint(p.to.x, p.to.y)].map((el) => el?.getAttribute("data-slot") ?? "none"),
@@ -174,7 +206,7 @@ test.describe("under a coarse pointer", () => {
     await expect(scene).toBeVisible();
     const canvas = page.locator('[data-slot="web-weave-canvas"]');
     await expect.poll(async () => Number(await canvas.getAttribute("data-orb-weave-frames"))).toBeGreaterThan(2);
-    const path = await silkPath(page.locator('[data-slot="web-weave"]'));
+    const path = await silkPath(page.locator('[data-slot="web-weave"]'), page.getByRole("main"));
     await touchDrag(page, path.from, { x: path.from.x, y: path.from.y + 240 }, 12);
     // The scene box is `overflow-hidden min-h-dvh` — nothing to scroll, and the explainer stays put.
     await expect.poll(async () => scene.evaluate((el) => el.scrollTop)).toBe(0);

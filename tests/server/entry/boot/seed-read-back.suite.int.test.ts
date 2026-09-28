@@ -328,6 +328,7 @@ const messagePlan = view<MessageOut>({
   selectedVariantIdx: TYPED_ONLY,
   variantCount: TYPED_ONLY,
   hasContinuation: TYPED_ONLY,
+  outputCapReached: TYPED_ONLY,
   content: TYPED_ONLY,
   reasoning: TYPED_ONLY,
   model: TYPED_ONLY,

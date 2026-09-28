@@ -159,12 +159,13 @@ function evalMacroNode(node: MacroCallNode, registry: MacroRegistry, ctx: MacroC
 //     argument. Declared defaults pad AFTER the body lands (the body is a real positional arg).
 function evalKnownBlock(handler: MacroHandler, node: MacroBlockNode, registry: MacroRegistry, ctx: MacroContext): string {
   const meta = registry.getMetadata(node.name);
+  const options = registry.getOptions(node.name);
   const resolvedArgs = lazyArgs(node, registry) ? [...node.args] : node.args.map((arg) => resolveArg(arg, ctx));
   ctx.__currentSpan = node.span;
   // @orb-waive caught-failure-ownership(err): same fail-open policy as evalKnownCall — consumed
   // via ctx.onWarn?.() plus a reconstructed open-tag fallback. Ends if the handler stops calling onWarn.
   try {
-    if (registry.getOptions(node.name)?.blockChildren === true) {
+    if (options?.blockChildren === true) {
       const padded = applyArgDefaults(meta, resolvedArgs);
       if (checkArgs(ctx, meta, { node, args: padded, contentArgs: 0 })) {
         return "";
@@ -173,6 +174,17 @@ function evalKnownBlock(handler: MacroHandler, node: MacroBlockNode, registry: M
       return ctx.postProcess ? ctx.postProcess(val) : val;
     }
     const content = ctx.resolve(node.children, { trim: node.flags?.preserveWhitespace !== true });
+    if (options?.blockContentAfterDeclaredArgs === true && meta !== undefined && !meta.variadic) {
+      const declared = resolvedArgs.slice(0, meta.args.length);
+      const extras = resolvedArgs.slice(meta.args.length);
+      const padded = applyArgDefaults(meta, declared);
+      if (checkArgs(ctx, meta, { node, args: [...padded, ...extras], contentArgs: 0 })) {
+        return "";
+      }
+      const positioned = padded.length < meta.args.length ? [...padded, ...Array<string>(meta.args.length - padded.length).fill("")] : padded;
+      const val = handler([...positioned, content, ...extras], ctx);
+      return ctx.postProcess ? ctx.postProcess(val) : val;
+    }
     const padded = applyArgDefaults(meta, [...resolvedArgs, content]);
     if (checkArgs(ctx, meta, { node, args: padded, contentArgs: 1 })) {
       return "";

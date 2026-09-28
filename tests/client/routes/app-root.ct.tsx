@@ -257,6 +257,7 @@ test("picking a character in the library CREATES the chat and lands in it (the l
         selectedVariantIdx: 0,
         variantCount: 1,
         hasContinuation: false,
+        outputCapReached: false,
         reasoning: null,
         model: null,
         provider: null,

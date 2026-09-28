@@ -125,6 +125,8 @@ const messageViewSelection = {
   // The selected variant's D26 continue snapshot presence (both content columns set) → the client's
   // undo/revert phase-gate. SQLite has no bool; emit 1/0 and coerce in `toMessageView`.
   hasContinuation: sql<number>`(case when ${messageVariants.preContinueContent} is not null and ${messageVariants.lastContinuationContent} is not null then 1 else 0 end)`,
+  // The sidecar stays server-owned; `toMessageView` derives the one member-visible fact the client needs.
+  variantMetadata: messageVariants.metadata,
   content: messageVariants.content,
   reasoning: messageVariants.reasoning,
   model: messageVariants.model,
@@ -153,15 +155,25 @@ const messageViewSelection = {
 const toolCallsSchema = toolCallRecordSchema.array();
 const reasoningPartsSchema = chatReasoningPartSchema.array();
 
-// The `messageViewSelection` row → `MessageView`: every scalar column mirrors the view 1:1; the sole
-// re-map is the `toolCalls` JSON blob, safeParsed with `toolCallRecordSchema` (the `variableDelta` read
-// seam pattern — a malformed/absent blob degrades to `[]`, never throws, never a cast). The client's ONLY
-// tool read surface (D48).
+// The `messageViewSelection` row → `MessageView`: scalar columns mirror the view 1:1; JSON sidecars are
+// parsed at this read seam. Tool calls degrade malformed/absent blobs to `[]`, while provider metadata is
+// reduced to the one member-visible output-cap fact — neither raw blob crosses the boundary.
 function toMessageView(
-  row: Omit<MessageView, "toolCalls" | "hasContinuation"> & { toolCalls: readonly ToolCallRecord[] | null; hasContinuation: number },
+  row: Omit<MessageView, "toolCalls" | "hasContinuation" | "outputCapReached"> & {
+    toolCalls: readonly ToolCallRecord[] | null;
+    hasContinuation: number;
+    variantMetadata: VariantMetadata | null;
+  },
 ): MessageView {
   const parsed = toolCallsSchema.safeParse(row.toolCalls);
-  return { ...row, hasContinuation: row.hasContinuation === 1, toolCalls: parsed.success ? parsed.data : [] };
+  const { variantMetadata, ...view } = row;
+  const providerMetadata = parseVariantMetadata(variantMetadata).providerMetadata;
+  return {
+    ...view,
+    hasContinuation: row.hasContinuation === 1,
+    outputCapReached: providerMetadata?.provider === "claude-sub" && providerMetadata.outputCapReached === true,
+    toolCalls: parsed.success ? parsed.data : [],
+  };
 }
 
 function toChatRow(r: { readonly metadata: ChatMetadata | null } & Omit<ChatRow, "metadata">): ChatRow {

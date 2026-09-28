@@ -1,5 +1,5 @@
 // The /login containment PROVIDER (UI-Arch §4 — anchors own the box; the surface stays pure content):
-// a full-viewport centered card OUTSIDE the app shell (the /login route is a sibling of `/`, so the
+// a full-viewport top-anchored card OUTSIDE the app shell (the /login route is a sibling of `/`, so the
 // four-region frame never mounts here). Provides the named `@container` the login surface adapts to.
 //
 // The box now carries the BRAND SCENE: the settled web
@@ -23,12 +23,12 @@ export interface LoginShellAnchorProps {
 /** The wordmark glyph size (px) — between the rail's 24 and the boot veil's hero mark. */
 const WORDMARK_GLYPH_PX = 26;
 
-/** The centered login card box: full-viewport web backdrop + wordmark + one `max-w-sm` card. */
+/** The stable login card box: full-viewport web backdrop + wordmark + one `max-w-sm` card. */
 export function LoginShellAnchor({ children }: LoginShellAnchorProps): ReactElement {
   return (
     <Stack
       align="center"
-      justify="center"
+      justify="start"
       padding="section"
       className="relative min-h-dvh overflow-hidden bg-background text-foreground"
       data-testid={testId("loginPage")}

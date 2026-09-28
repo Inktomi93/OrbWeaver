@@ -4,6 +4,7 @@ import { openConfigTo, parseConfigLink, resolveSectionPath, setActiveSection } f
 // Deep, not `#lib`: app-ready-signal is OUT of the barrel so its production import graph stays explicit.
 // Type-only, so this port itself lands nothing in the boot chunk.
 import type { RouteResolution } from "../lib/app-ready-signal.ts";
+import { observeRouterViewTransitions } from "../lib/view-transition.ts";
 import { rootRoute } from "./__root.tsx";
 import { LoginPage } from "./login-page.tsx";
 import { RoutePending } from "./route-pending.tsx";
@@ -90,6 +91,10 @@ export const router = createRouter({
   // A free crossfade on the only real navigations (/ <-> /login); no-op without the View Transition API.
   defaultViewTransition: true,
 });
+
+// Router-core deliberately owns navigation transition timing and types; observe the native settlement it
+// discards so a normal superseded navigation cannot surface `AbortError: Transition was skipped`.
+observeRouterViewTransitions(router);
 
 // The readiness signal's ROUTE-RESOLUTION port (issue #145 — `lib/app-ready-signal.ts` declares the shape;
 // `lib/` is the floor tier and may not import this module, so the adapter lives here beside the singleton).

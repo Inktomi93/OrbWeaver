@@ -1073,6 +1073,56 @@ test("the host New-quest affordance fires upsertQuest (create) — the mutation 
   await expect.poll(() => trpc.count("rpg.upsertQuest"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });
 
+test("existing quest name and description editors send the quest identity and keep-on-omit payload", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Quests" }).click();
+
+  // An empty required name closes the editor without crossing the mutation boundary.
+  await component.getByRole("button", { name: "Quest name" }).click();
+  const blankName = component.getByRole("textbox", { name: "Quest name", exact: true });
+  await blankName.fill("   ");
+  await blankName.press("Enter");
+  await expect(blankName).toHaveCount(0);
+
+  await component.getByRole("button", { name: "Quest name" }).click();
+  const name = component.getByRole("textbox", { name: "Quest name", exact: true });
+  await name.fill("Guard the bone key");
+  await name.press("Enter");
+
+  await component.getByRole("button", { name: "Keep the bone key description" }).click();
+  const description = component.getByRole("textbox", { name: "Keep the bone key description" });
+  await description.fill("  Hidden beneath the old chapel  ");
+  await description.press("Enter");
+
+  await expect
+    .poll(() => trpc.inputs("rpg.upsertQuest"), { intervals: [20, 50, 100] })
+    .toEqual([
+      { chatId: "chat_ct_keystone", questId: "q1", name: "Guard the bone key" },
+      { chatId: "chat_ct_keystone", questId: "q1", name: "Keep the bone key", description: "Hidden beneath the old chapel" },
+    ]);
+});
+
+test("a MEMBER reads an existing quest with neither name nor description editor", async ({ mount, page }) => {
+  const memberTracker = trackerView(false);
+  await stubTakeover(page, {
+    chat: { ...gameChat(), viewerIsHost: false },
+    tracker: {
+      ...memberTracker,
+      quests: memberTracker.quests.map((quest) => ({ ...quest, description: "Hidden beneath the old chapel" })),
+    },
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Quests" }).click();
+
+  await expect(component.getByText("Keep the bone key", { exact: true })).toBeVisible();
+  await expect(component.getByText("Hidden beneath the old chapel", { exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Quest name" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Keep the bone key description" })).toHaveCount(0);
+  await expect(component.getByRole("textbox", { name: "Quest name", exact: true })).toHaveCount(0);
+  await expect(component.getByRole("textbox", { name: "Keep the bone key description" })).toHaveCount(0);
+});
+
 test("the host quest DELETE fires deleteQuest behind a confirm — the mutation COUNT", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);

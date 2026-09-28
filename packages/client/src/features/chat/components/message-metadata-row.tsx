@@ -37,9 +37,10 @@
 //   · TIME-TO-FIRST-TOKEN → `showGenerationTimer`. Same subject as the duration, same `durationLabel` shape.
 //   · The EDITED marker → `showTimestamps`, in the NAME ROW beside the timestamp ({@link MessageTimestamp}) —
 //     it is a fact about WHEN this text became what it is.
-// The outcome notice ("cut off — length cap") was KILLED (#1876, owner ruling): the badge caused confusion
-// (not role-gated, an edit triggered it, unreadable on some themes). The `messageOutcomeNotice` export and
-// its types were removed from `message-readout.ts` in the same commit.
+// The inferred outcome notice ("cut off — length cap") was KILLED (#1876, owner ruling): the badge caused
+// confusion (not role-gated, an edit triggered it, unreadable on some themes). The output-cap continuation
+// datum below is a distinct persisted provider receipt: it explains why tokens can exceed the requested cap
+// and never derives a verdict from finish reason or edited content.
 //
 // EVERYTHING HERE STAYS OFF THE PROSE BLOCK (the reading-surface law). These are chrome data in the metadata
 // footer and the name row; not one of them touches the message body.
@@ -122,6 +123,17 @@ function metadatum(slot: string, text: string, title?: string): ReactElement {
 export function MessageMetadataRow({ message, visibility, backingClass }: MessageMetadataRowProps): ReactElement | null {
   const tokens = tokenCount(message);
   const items: ReactElement[] = [];
+
+  // Essential provenance, not an appearance preference: the persisted output number can exceed the
+  // requested cap because the runtime continued the same reply after reaching it. State that distinction
+  // wherever the selected swipe carries the provider receipt, even when optional metadata is hidden.
+  if (message.outputCapReached) {
+    items.push(
+      <Fragment key="output-cap">
+        {metadatum("message-metadata-output-cap", "Output cap reached; the runtime continued this reply beyond the requested limit.")}
+      </Fragment>,
+    );
+  }
 
   if (visibility.showTokenCount && tokens !== null && message.tokenProvenance !== "unrecorded") {
     const prefix = message.tokenProvenance === "estimated" ? "~" : "";

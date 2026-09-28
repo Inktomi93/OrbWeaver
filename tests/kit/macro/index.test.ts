@@ -245,6 +245,13 @@ test("if treats false/off/0 as falsy", () => {
   expect(processMacros("{{if flag}}Y{{/if}}", opts({ env: { flag: "off" } }))).toBe("");
 });
 
+test("if static literal selection preserves branch behavior while bare numeric-looking keys remain context lookups", () => {
+  expect(processMacros('{{if::"1"}}Y{{else}}N{{/if}}', opts())).toBe("Y");
+  expect(processMacros('{{if::"0"}}Y{{else}}N{{/if}}', opts())).toBe("N");
+  expect(processMacros("{{if::1}}Y{{else}}N{{/if}}", opts())).toBe("N");
+  expect(processMacros("{{if::1}}Y{{else}}N{{/if}}", opts({ env: { "1": "yes" } }))).toBe("Y");
+});
+
 test("if comparator compares a bare identifier against a quoted literal", () => {
   expect(processMacros('{{if char == "Alice"}}match{{/if}}', opts())).toBe("match");
   expect(processMacros('{{if char != "Alice"}}no{{/if}}', opts())).toBe("");

@@ -449,6 +449,10 @@ export interface MessageView {
    *  snapshot is retained so revert can re-apply). Powers the ⋯ menu's undo/revert phase-gate — false ⇒ the
    *  items disable with the "continue this reply first" reason, never hidden. */
   hasContinuation: boolean;
+  /** The selected provider run reached its requested output cap and continued the same reply. This is
+   *  derived from the closed provider metadata at the server read seam; the opaque sidecar never crosses
+   *  into the client view. */
+  outputCapReached: boolean;
   content: string;
   reasoning: string | null;
   model: ModelId | null;

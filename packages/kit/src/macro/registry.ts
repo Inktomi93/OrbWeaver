@@ -208,6 +208,42 @@ function splitOnElse(children: MacroAST): [MacroAST, MacroAST] {
   return [children, []];
 }
 
+/** Select the one `{{if}}` child branch whose predicate is decidable without a MacroContext.
+ *
+ * `null` means context or macro evaluation can change the answer, so a static consumer must retain both
+ * branches. An empty AST means the predicate is statically empty and the handler evaluates no branch.
+ * Literal/comparator parsing shares the evaluator's own `COMPARATOR`/`BARE_IDENT`/`unquote` vocabulary in
+ * this module; callers never grow a second conditional grammar. */
+export function selectStaticIfChildren(args: readonly string[], children: MacroAST): MacroAST | null {
+  const rawArg = args.join(" ").trim();
+  if (rawArg === "") {
+    return [];
+  }
+  const cmpMatch = rawArg.match(COMPARATOR);
+  let pass: boolean;
+  if (cmpMatch) {
+    const lhsRaw = (cmpMatch[1] ?? "").trim();
+    const rhsRaw = (cmpMatch[3] ?? "").trim();
+    // The evaluator resolves a sub-macro and looks up a bare LHS identifier in context/env. Either can
+    // change per turn. The RHS is literal unless it contains a sub-macro.
+    if (lhsRaw.includes("{{") || BARE_IDENT.test(lhsRaw) || rhsRaw.includes("{{")) {
+      return null;
+    }
+    const lhs = unquote(lhsRaw);
+    const rhs = unquote(rhsRaw);
+    pass = (cmpMatch[2] ?? "==") === "==" ? lhs === rhs : lhs !== rhs;
+  } else {
+    // A bare identifier is context/env lookup, including numeric-looking keys under the current grammar.
+    // Only a non-identifier literal is decidable without the live MacroContext.
+    if (rawArg.includes("{{") || BARE_IDENT.test(rawArg)) {
+      return null;
+    }
+    pass = isIfTruthy(unquote(rawArg));
+  }
+  const [thenBranch, elseBranch] = splitOnElse(children);
+  return pass ? thenBranch : elseBranch;
+}
+
 // Three predicate shapes: {{if NAME}}, {{if NAME == "X"}}, {{if NAME != "X"}}; optional {{else}}.
 // (`::`-form args ({{if::NAME}}) rejoin to the same predicate string.)
 const ifHandler: MacroHandler = (args, ctx, children) => {
@@ -216,6 +252,11 @@ const ifHandler: MacroHandler = (args, ctx, children) => {
   const rawArg = args.join(" ").trim();
   if (!rawArg) {
     return "";
+  }
+
+  const staticChildren = selectStaticIfChildren(args, children ?? []);
+  if (staticChildren !== null) {
+    return ctx.evaluateAST(staticChildren);
   }
 
   // Comparator first — the LHS gets identifier-or-sub-macro treatment, the RHS gets unquoted.
@@ -601,6 +642,8 @@ export function createDefaultRegistry(): MacroRegistry {
   const registry = new SimpleMacroRegistry();
   const vol = { volatile: true } as const;
   const volChat = { volatile: true, requires: "chat" } as const;
+  const recursiveChar = { analysis: { cacheDependent: true }, requires: "char" } as const;
+  const recursiveChat = { analysis: { cacheDependent: true }, requires: "chat" } as const;
 
   registry.register("char", (_args, ctx) => ctx.char, { requires: "char" });
   registry.register("user", (_args, ctx) => ctx.user, { requires: "char" });
@@ -611,7 +654,7 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register(
     "persona",
     charField((ctx) => ctx.persona),
-    { requires: "char" },
+    recursiveChar,
   );
   // `{{scenario}}` is card-author PROSE (e.g. "{{user}} keeps running into {{char}}…"), so it re-processes
   // nested macros like every other card field (`charField`) + its own `{{charscenario}}` alias below — NOT raw
@@ -620,7 +663,7 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register(
     "scenario",
     charField((ctx) => ctx.scenario),
-    { requires: "char" },
+    recursiveChar,
   );
   registry.register("model", (_args, ctx) => ctx.model ?? "", { requires: "chat" });
   registry.register("chatid", (_args, ctx) => ctx.chatId ?? "", { requires: "chat" });
@@ -643,95 +686,91 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register(
     "description",
     charField((ctx) => ctx.description),
-    { requires: "char" },
+    recursiveChar,
   );
   registry.register(
     "chardescription",
     charField((ctx) => ctx.description),
-    { requires: "char" },
+    recursiveChar,
   );
   registry.register(
     "personality",
     charField((ctx) => ctx.personality),
-    { requires: "char" },
+    recursiveChar,
   );
   registry.register(
     "charpersonality",
     charField((ctx) => ctx.personality),
-    { requires: "char" },
+    recursiveChar,
   );
   registry.register(
     "charscenario",
     charField((ctx) => ctx.scenario),
-    { requires: "char" },
+    recursiveChar,
   );
   registry.register(
     "appearance",
     charField((ctx) => ctx.appearance),
-    { requires: "char" },
+    recursiveChar,
   );
   registry.register(
     "backstory",
     charField((ctx) => ctx.backstory),
-    { requires: "char" },
+    recursiveChar,
   );
   registry.register(
     "example",
     charField((ctx) => ctx.exampleMessages),
-    { requires: "char" },
+    recursiveChar,
   );
   registry.register(
     "mesexamples",
     charField((ctx) => ctx.exampleMessages),
-    { requires: "char" },
+    recursiveChar,
   );
   registry.register(
     "charsysinfo",
     charField((ctx) => ctx.charSysInfo),
-    { requires: "char" },
+    recursiveChar,
   );
   registry.register(
     "charposthistory",
     charField((ctx) => ctx.charPostHistory),
-    {
-      requires: "char",
-    },
+    recursiveChar,
   );
   // {{original}} — the preset-level Main Prompt / Jailbreak the character marker wraps.
   registry.register(
     "original",
     charField((ctx) => ctx.original),
-    { requires: "char" },
+    recursiveChar,
   );
   registry.register(
     "charfirstmessage",
     charField((ctx) => ctx.firstMessage),
-    { requires: "char" },
+    recursiveChar,
   );
 
   registry.register(
     "compact_summary",
     charField((ctx) => ctx.compactSummary),
-    { requires: "chat" },
+    recursiveChat,
   );
   registry.register(
     "memory",
     charField((ctx) => ctx.memory),
-    { requires: "chat" },
+    recursiveChat,
   );
   // Renders empty until domain/databank.gatherRetrieval stages `ctx.databank`; born now so preset
   // section templates can place it.
   registry.register(
     "databank",
     charField((ctx) => ctx.databank),
-    { requires: "chat" },
+    recursiveChat,
   );
   registry.register(
     "guided_instruction",
     charField((ctx) => ctx.guidedInstruction),
-    {
-      requires: "chat",
-    },
+    recursiveChat,
   );
 
   // The 8 rpg* data-fed macros — a game turn's GATHER stages `ctx.rpgMacros`; each reads its
@@ -749,18 +788,20 @@ export function createDefaultRegistry(): MacroRegistry {
     );
   }
 
-  registry.register("getvar", readVar);
-  registry.register("get", readVar); // back-compat alias for in-tree prompts written before the rename
-  registry.register("setvar", setVar, vol);
-  registry.register("addvar", addVar, vol);
-  registry.register("incvar", incVar, vol);
-  registry.register("decvar", decVar, vol);
-  registry.register("hasvar", hasVar);
-  registry.register("deletevar", deleteVar);
+  const stateRead = { analysis: { cacheDependent: true } } as const;
+  const stateWrite = { analysis: { mutatesState: true }, volatile: true } as const;
+  registry.register("getvar", readVar, stateRead);
+  registry.register("get", readVar, stateRead); // back-compat alias for in-tree prompts written before the rename
+  registry.register("setvar", setVar, stateWrite);
+  registry.register("addvar", addVar, stateWrite);
+  registry.register("incvar", incVar, stateWrite);
+  registry.register("decvar", decVar, stateWrite);
+  registry.register("hasvar", hasVar, stateRead);
+  registry.register("deletevar", deleteVar, stateWrite);
   // The per-user global plane — read from staged globals; setglobalvar collects a commit-time
   // write (volatile: a mutation, like setvar).
-  registry.register("getglobalvar", getGlobalVar);
-  registry.register("setglobalvar", setGlobalVar, vol);
+  registry.register("getglobalvar", getGlobalVar, stateRead);
+  registry.register("setglobalvar", setGlobalVar, stateWrite);
 
   // Registered via the shared helper so `createVolatileOnlyRegistry` resolves the exact same names.
   registerVolatileMacros(registry);
@@ -769,22 +810,23 @@ export function createDefaultRegistry(): MacroRegistry {
   // sub-macro-resolved value like `{{hasvar::flag}} → "true"`. `blockChildren: true` —
   // `if` branch-picks over the raw body AST itself, so the universal content-as-last-arg delivery
   // (which would eagerly resolve BOTH branches) must not apply.
-  registry.register("if", ifHandler, { delayArgResolution: true, blockChildren: true });
-  registry.register("else", () => ""); // structural marker; standalone use is a no-op
+  registry.register("if", ifHandler, { analysis: { blockBody: "if" }, delayArgResolution: true, blockChildren: true });
+  registry.register("else", () => "", { analysis: { arguments: "none", blockBody: "none" } }); // structural marker; standalone use is a no-op
 
   // {{expr::<cel>}} — CEL surfaced inside templates. Volatile: its value depends on the runtime
   // CEL env (vars/now), so a static-half occurrence must bust the cached prefix.
   registry.register("expr", exprHandler, vol);
 
-  registry.register("newline", () => "\n");
-  registry.register("space", () => " ");
-  registry.register("noop", () => "");
-  registry.register("banned", () => ""); // legacy upstreams strip the contents; mirror that
+  const ignoresInputs = { analysis: { arguments: "none", blockBody: "none" } } as const;
+  registry.register("newline", () => "\n", ignoresInputs);
+  registry.register("space", () => " ", ignoresInputs);
+  registry.register("noop", () => "", ignoresInputs);
+  registry.register("banned", () => "", ignoresInputs); // legacy upstreams strip the contents; mirror that
 
   // The whole-body transform family — `blockChildren: true`: each transforms its VERBATIM resolved
   // body, so the universal trim/dedent must not pre-mangle it (`{{trim}}` trimming a pre-trimmed body
   // would be vacuous; the case-folds must preserve the author's exact whitespace).
-  const block = { blockChildren: true } as const;
+  const block = { analysis: { arguments: "none", blockBody: "all" }, blockChildren: true } as const;
   registry.register("trim", (_args, ctx, children) => (children ? ctx.evaluateAST(children).trim() : ""), block);
   registry.register("trimstart", (_args, ctx, children) => (children ? ctx.evaluateAST(children).trimStart() : ""), block);
   registry.register("trimend", (_args, ctx, children) => (children ? ctx.evaluateAST(children).trimEnd() : ""), block);

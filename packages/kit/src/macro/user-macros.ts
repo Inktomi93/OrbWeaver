@@ -24,11 +24,12 @@
 // is deliberately NOT here — this module is the pure kit half; the server threads a values bag +
 // frozen-draw record through `resolveUserMacroInputs` and hands the bindings to `registerUserMacros`.
 
+import { macroAnalysisBinding, macroAnalysisInputBinding, macroTextIsVolatile } from "./cache-safety.ts";
 import { neutralizeMacros } from "./content.ts";
 import { isIfTruthy } from "./metadata.ts";
-import { MACRO_NAME_RE, parseMacros } from "./parser.ts";
+import { MACRO_NAME_RE } from "./parser.ts";
 import { unitDraw } from "./prng.ts";
-import type { MacroArgDef, MacroContext, MacroHandler, MacroRegistry, MacroSourceRef } from "./types.ts";
+import type { MacroAnalysisOptions, MacroArgDef, MacroContext, MacroHandler, MacroMetadataInput, MacroRegistry, MacroSourceRef } from "./types.ts";
 
 // ── the definition vocabulary ────────────────────────────────────────────────────────────────────
 
@@ -304,13 +305,20 @@ export const USER_MACRO_CONTENT_BINDING = "content";
 // The input half of the template splice: the threaded per-turn bindings win; an unthreaded input
 // resolves its DEFAULTS per render (random-pick then draws from ctx.random — the {{pick}} preview
 // posture; injected PRNG ⇒ still deterministic).
-function spliceInputs(template: string, def: UserMacroDef, provided: Readonly<Record<string, string>> | undefined, ctx: MacroContext): string {
-  if (def.inputs.length === 0) {
+function spliceInputs(
+  template: string,
+  def: UserMacroDef,
+  provided: Readonly<Record<string, string>> | undefined,
+  ctx: MacroContext,
+  shadowed: ReadonlySet<string>,
+): string {
+  const activeInputs = def.inputs.filter((input) => !shadowed.has(input.name.toLowerCase()));
+  if (activeInputs.length === 0) {
     return template;
   }
-  const fallback = provided === undefined ? resolveUserMacroInputs(def.inputs, {}, { prng: ctx.random ?? Math.random }).bindings : undefined;
+  const fallback = provided === undefined ? resolveUserMacroInputs(activeInputs, {}, { prng: ctx.random ?? Math.random }).bindings : undefined;
   let out = template;
-  for (const input of def.inputs) {
+  for (const input of activeInputs) {
     out = splice(out, input.name, provided?.[input.name] ?? fallback?.[input.name] ?? "");
   }
   return out;
@@ -321,13 +329,20 @@ function spliceInputs(template: string, def: UserMacroDef, provided: Readonly<Re
 function userMacroHandler(def: UserMacroDef, opts: RegisterUserMacrosOptions): MacroHandler {
   const provided = opts.inputBindings?.[def.name];
   return (args, ctx) => {
-    let template = spliceInputs(def.body, def, provided, ctx);
+    const body = args[def.args.length];
+    const shadowedInputs = new Set(def.args.map((arg) => arg.name.toLowerCase()));
+    if (body !== undefined) {
+      shadowedInputs.add(USER_MACRO_CONTENT_BINDING);
+    }
+    let template = spliceInputs(def.body, def, provided, ctx, shadowedInputs);
     // Declared args bind by NAME (the evaluator already padded declared defaults via applyArgDefaults).
     for (const [i, argDef] of def.args.entries()) {
+      if (argDef.name.toLowerCase() === USER_MACRO_CONTENT_BINDING && body !== undefined) {
+        continue;
+      }
       template = splice(template, argDef.name, resolveDelivered(args[i] ?? "", ctx));
     }
     // A scoped-block body arrives as the first arg PAST the declared set → `{{content}}`.
-    const body = args[def.args.length];
     if (body !== undefined) {
       template = splice(template, USER_MACRO_CONTENT_BINDING, resolveDelivered(body, ctx));
     }
@@ -335,98 +350,151 @@ function userMacroHandler(def: UserMacroDef, opts: RegisterUserMacrosOptions): M
   };
 }
 
-// ── volatility derivation (D51 cache honesty) ────────────────────────────────────────────────────
+// ── volatility + cache-dependency derivation ─────────────────────────────────────────────────────
 
-// Every macro name a template references, recursively through nested args/bodies — the volatility scan.
-function referencedNames(text: string, into: Set<string>): void {
-  for (const node of parseMacros(text)) {
-    if (node.type !== "text") {
-      collectNodeNames(node, into);
-    }
-  }
+function templateUsesBinding(template: string, name: string): boolean {
+  return new RegExp(`\\{\\{\\s*${name}\\s*\\}\\}`, "i").test(template);
 }
 
-function collectNodeNames(node: { name: string; args: string[]; raw?: string; children?: readonly unknown[] }, into: Set<string>): void {
-  into.add(node.name.toLowerCase());
-  for (const arg of node.args) {
-    if (arg.includes("{{")) {
-      referencedNames(arg, into);
-    }
-  }
-  // Block children are already AST — only the NAME set matters, so re-scan via raw bytes (present on
-  // parser output) or a minimal reconstruction.
-  for (const child of node.children ?? []) {
-    const c = child as { type: string; name?: string; args?: string[]; raw?: string };
-    if (c.type !== "text" && c.name !== undefined) {
-      referencedNames(c.raw ?? `{{${c.name}::${(c.args ?? []).join("::")}}}`, into);
-    }
-  }
+function spliceAnalysisBinding(template: string, name: string, value: string): string {
+  return template.replace(new RegExp(`\\{\\{\\s*${name}\\s*\\}\\}`, "gi"), value);
 }
 
-// Volatile honesty (the cache-buster scan, D51): a user macro is volatile when it has a random-pick
-// input (a per-turn draw) or its body reaches ANY volatile name — through the base registry or another
-// user macro (fixpoint over the set, bounded by defs.length passes).
-function computeVolatility(defs: readonly UserMacroDef[], base: MacroRegistry): Map<string, boolean> {
-  const refs = new Map<string, Set<string>>();
-  const volatile = new Map<string, boolean>();
+function analysisBindingValue(value: string): string {
+  return value.includes("{{") ? macroAnalysisBinding(value) : value;
+}
+
+function expandUserMacroForAnalysis(def: UserMacroDef, args: readonly string[], blockContent?: string): string {
+  const content = blockContent === undefined ? args[def.args.length] : blockContent;
+  const shadowedInputs = new Set(def.args.map((arg) => arg.name.toLowerCase()));
+  if (content !== undefined) {
+    shadowedInputs.add(USER_MACRO_CONTENT_BINDING);
+  }
+  let template = def.body;
+  for (const input of def.inputs) {
+    if (!shadowedInputs.has(input.name.toLowerCase())) {
+      template = spliceAnalysisBinding(template, input.name, macroAnalysisInputBinding(input.kind === "random-pick"));
+    }
+  }
+  for (const [index, arg] of def.args.entries()) {
+    if (arg.name.toLowerCase() !== USER_MACRO_CONTENT_BINDING || content === undefined) {
+      template = spliceAnalysisBinding(template, arg.name, analysisBindingValue(args[index] ?? ""));
+    }
+  }
+  return content === undefined ? template : spliceAnalysisBinding(template, USER_MACRO_CONTENT_BINDING, analysisBindingValue(content));
+}
+
+function userMacroAnalysis(def: UserMacroDef, facts: UserMacroDerivedFacts): MacroAnalysisOptions {
+  return {
+    // The expanded template below owns byte contribution; argument evaluation owns side effects only.
+    arguments: "none",
+    blockArguments: "none",
+    // userMacroHandler resolves every declared arg before splice, including a binding absent from body.
+    lazyArguments: [...def.args.map((_arg, index) => index), def.args.length],
+    blockLazyArguments: def.args.flatMap((arg, index) => (arg.name.toLowerCase() === USER_MACRO_CONTENT_BINDING ? [] : [index])),
+    blockBody: "none",
+    expand: (args, blockContent) => expandUserMacroForAnalysis(def, args, blockContent),
+    cacheDependent: facts.cacheDependent,
+    blockCacheDependent: facts.blockCacheDependent,
+    volatileDependent: facts.volatile,
+    blockVolatileDependent: facts.blockVolatile,
+  };
+}
+
+function symbolicBody(def: UserMacroDef): string {
+  let body = def.body;
+  for (const binding of [...def.args, ...def.inputs, { name: USER_MACRO_CONTENT_BINDING }]) {
+    body = spliceAnalysisBinding(body, binding.name, "{{noop}}");
+  }
+  return body;
+}
+
+interface UserMacroDerivedFacts {
+  readonly cacheDependent: boolean;
+  readonly blockCacheDependent: boolean;
+  readonly volatile: boolean;
+  readonly blockVolatile: boolean;
+  readonly metadataVolatile: boolean;
+}
+
+const STATIC_USER_MACRO_FACTS: UserMacroDerivedFacts = {
+  cacheDependent: false,
+  blockCacheDependent: false,
+  volatile: false,
+  blockVolatile: false,
+  metadataVolatile: false,
+};
+
+function userMacroMetadata(def: UserMacroDef, source: MacroSourceRef): MacroMetadataInput {
+  return {
+    name: def.name,
+    description: def.description,
+    category: "user",
+    args: def.args,
+    returnType: "string",
+    aliases: [],
+    variadic: false,
+    ...(def.strict ? { strict: true } : {}),
+    source,
+  };
+}
+
+// Register temporary inert handlers so the canonical analyzer can follow user→user calls with the same
+// registry lookup and case-folding as runtime. Re-registering the real handlers below replaces these
+// synchronously; no caller can observe the intermediate registry.
+function deriveUserMacroFacts(defs: readonly UserMacroDef[], registry: MacroRegistry, source: MacroSourceRef): ReadonlyMap<string, UserMacroDerivedFacts> {
+  const facts = new Map<string, UserMacroDerivedFacts>();
   for (const def of defs) {
-    const key = def.name.toLowerCase();
-    const names = new Set<string>();
-    referencedNames(def.body, names);
-    refs.set(key, names);
-    volatile.set(key, def.inputs.some((i) => i.kind === "random-pick") || [...names].some((name) => base.getOptions(name)?.volatile === true));
+    const direct = { ...STATIC_USER_MACRO_FACTS };
+    facts.set(def.name.toLowerCase(), direct);
+    registry.register(def.name, () => "", {
+      analysis: userMacroAnalysis(def, direct),
+      blockContentAfterDeclaredArgs: true,
+      metadata: userMacroMetadata(def, source),
+    });
   }
-  // Propagate through user→user references until stable (≤ defs.length passes by construction).
-  let passes = defs.length;
-  while (passes > 0 && propagateVolatility(defs, refs, volatile)) {
-    passes -= 1;
-  }
-  return volatile;
-}
-
-function propagateVolatility(defs: readonly UserMacroDef[], refs: Map<string, Set<string>>, volatile: Map<string, boolean>): boolean {
-  let changed = false;
   for (const def of defs) {
-    const key = def.name.toLowerCase();
-    if (volatile.get(key) !== true && [...(refs.get(key) ?? [])].some((name) => volatile.get(name) === true)) {
-      volatile.set(key, true);
-      changed = true;
-    }
+    const direct = facts.get(def.name.toLowerCase()) ?? STATIC_USER_MACRO_FACTS;
+    facts.set(def.name.toLowerCase(), {
+      ...direct,
+      metadataVolatile:
+        direct.volatile || direct.blockVolatile || macroTextIsVolatile(symbolicBody(def), registry) || macroTextIsVolatile(`{{${def.name}}}`, registry),
+    });
   }
-  return changed;
+  return facts;
 }
 
 /** Register preset/game-authored macros onto `registry` (a PER-RENDER composition the caller builds —
  *  never the process-wide singleton). A name colliding with an EXISTING registration (builtin or an
  *  earlier def — first wins) or failing MACRO_NAME_RE is REFUSED, never silently shadowed.
  *  Each accepted macro gets full DX metadata (category `user`, its declared args, `source`, `strict`)
- *  and a DERIVED volatile flag (random-pick input or a body reaching a volatile name). */
+ *  plus evaluator-derived volatile and cache-dependency facts. */
 export function registerUserMacros(registry: MacroRegistry, defs: readonly UserMacroDef[], opts: RegisterUserMacrosOptions): UserMacroRegistration {
   const registered: string[] = [];
   const rejected: RejectedUserMacro[] = [];
-  const volatility = computeVolatility(defs, registry);
+  const accepted: UserMacroDef[] = [];
+  const claimed = new Set(registry.names());
   for (const def of defs) {
     if (!MACRO_NAME_RE.test(def.name)) {
       rejected.push({ name: def.name, reason: "invalid macro name — must start with a letter and use only letters, digits, _ or -" });
       continue;
     }
-    if (registry.get(def.name) !== undefined) {
+    const key = def.name.toLowerCase();
+    if (claimed.has(key)) {
       rejected.push({ name: def.name, reason: "name collides with an existing macro — user macros never shadow" });
       continue;
     }
+    claimed.add(key);
+    accepted.push(def);
+  }
+  const facts = deriveUserMacroFacts(accepted, registry, opts.source);
+  for (const def of accepted) {
+    const derived = facts.get(def.name.toLowerCase()) ?? STATIC_USER_MACRO_FACTS;
     registry.register(def.name, userMacroHandler(def, opts), {
-      volatile: volatility.get(def.name.toLowerCase()) === true,
-      metadata: {
-        name: def.name,
-        description: def.description,
-        category: "user",
-        args: def.args,
-        returnType: "string",
-        aliases: [],
-        variadic: false,
-        ...(def.strict ? { strict: true } : {}),
-        source: opts.source,
-      },
+      analysis: userMacroAnalysis(def, derived),
+      ...(derived.metadataVolatile ? { volatile: true } : {}),
+      blockContentAfterDeclaredArgs: true,
+      metadata: userMacroMetadata(def, opts.source),
     });
     registered.push(def.name);
   }

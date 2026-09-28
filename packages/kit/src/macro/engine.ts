@@ -7,12 +7,11 @@ import { trimContent, utf8ByteLength } from "./content.ts";
 import { evaluateMacros } from "./evaluator.ts";
 import { parseMacros } from "./parser.ts";
 import { createDefaultRegistry } from "./registry.ts";
-import type { MacroAST, MacroBudget, MacroContext, MacroRegistry } from "./types.ts";
+import { MACRO_MAX_DEPTH, type MacroAST, type MacroBudget, type MacroContext, type MacroRegistry } from "./types.ts";
 
 // Defense-in-depth caps. `{{setvar::a::{{a}}}}`-style chains are unbounded in one render pass
 // without these; trivially DoS-able if multi-user is ever turned on. Generous limits — real
 // prompts are tiny compared to 1 MB / 64 levels — so legitimate usage never trips.
-const MAX_DEPTH = 64;
 const MAX_OUTPUT_BYTES = 1_000_000;
 
 // Defense-in-depth INPUT belt (2026-08-09 DoS audit). The parser is now O(n) (parser.ts spanFrom), but the
@@ -29,7 +28,7 @@ const MAX_INPUT_BYTES = 2_000_000;
 function createMacroBudget(): MacroBudget {
   return {
     depth: 0,
-    maxDepth: MAX_DEPTH,
+    maxDepth: MACRO_MAX_DEPTH,
     output: 0,
     maxOutput: MAX_OUTPUT_BYTES,
     tripped: false,

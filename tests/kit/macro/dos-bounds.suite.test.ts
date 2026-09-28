@@ -2,14 +2,12 @@
 // seam ST's suite never exercises against ours). The existing index.test.ts already pins: field
 // self-reference trips depth + warns once; the 1 MB output cap truncates + warns once. This file closes
 // the remaining gap — a legitimately-deep NESTED-BLOCK template renders, and one past MAX_DEPTH aborts to
-// "" with a single warning (engine.ts MAX_DEPTH = 64; the guard wraps every evaluateString/evaluateAST
+// "" with a single warning (MACRO_MAX_DEPTH; the guard wraps every evaluateString/evaluateAST
 // re-entry). A hostile card can nest blocks arbitrarily deep; this proves the cap catches it.
 
 import type { MacroRegistry, ProcessMacroOptions } from "@orb/kit/macro";
-import { createDefaultRegistry, parseMacros, processMacros } from "@orb/kit/macro";
+import { createDefaultRegistry, MACRO_MAX_DEPTH, parseMacros, processMacros } from "@orb/kit/macro";
 import { expect, test } from "../../support/fixtures.ts";
-
-const MAX_DEPTH = 64; // mirrors engine.ts (the value is @internal; this test-mirror is the intended pin)
 
 function opts(extra: Partial<ProcessMacroOptions> = {}): ProcessMacroOptions {
   return { char: "C", user: "U", persona: "P", scenario: "S", env: {}, ...extra };
@@ -30,7 +28,7 @@ test("deep-but-bounded block nesting renders without tripping the depth cap", ()
   // A few levels below MAX_DEPTH renders fully — the cap is generous, not hair-trigger (real prompts are
   // shallow). 60 nested uppercase blocks fold "x" → "X".
   const warnings: string[] = [];
-  const out = processMacros(nestUppercase(MAX_DEPTH - 4), opts({ onWarn: (m) => warnings.push(m) }));
+  const out = processMacros(nestUppercase(MACRO_MAX_DEPTH - 4), opts({ onWarn: (m) => warnings.push(m) }));
   expect(out).toBe("X");
   expect(warnings).toHaveLength(0);
 });
@@ -39,7 +37,7 @@ test("block nesting past MAX_DEPTH aborts to empty and warns exactly once", () =
   // Well past the 64-level cap → the depth guard trips, rendering aborts to "" (latched), and the depth
   // warning fires exactly once (not once per level).
   const warnings: string[] = [];
-  const out = processMacros(nestUppercase(MAX_DEPTH * 3), opts({ onWarn: (m) => warnings.push(m) }));
+  const out = processMacros(nestUppercase(MACRO_MAX_DEPTH * 3), opts({ onWarn: (m) => warnings.push(m) }));
   expect(out).toBe("");
   expect(warnings.filter((w) => w.includes("depth limit"))).toHaveLength(1);
 });
@@ -50,7 +48,7 @@ test("deep UNKNOWN-block nesting trips the depth cap (children route through ctx
   // Each unknown-block level re-enters via ctx.evaluateAST — the guard charges depth exactly like a
   // known transform, so a hostile card can't stack-bomb through unregistered names.
   let inner = "x";
-  for (let i = 0; i < MAX_DEPTH * 3; i += 1) {
+  for (let i = 0; i < MACRO_MAX_DEPTH * 3; i += 1) {
     inner = `{{mysterybox}}${inner}{{/mysterybox}}`;
   }
   const warnings: string[] = [];
@@ -85,7 +83,7 @@ test("nested lazy resolve() past MAX_DEPTH trips the depth cap and warns once", 
   // Each {{lazyecho::…}} level defers its arg and resolves it inside the handler — one ctx.resolve
   // re-entry per level. The depth guard charges the lazy path exactly like the eager one.
   let inner = "x";
-  for (let i = 0; i < MAX_DEPTH * 3; i += 1) {
+  for (let i = 0; i < MACRO_MAX_DEPTH * 3; i += 1) {
     inner = `{{lazyecho::${inner}}}`;
   }
   const warnings: string[] = [];

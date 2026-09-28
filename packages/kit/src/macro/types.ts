@@ -396,7 +396,41 @@ export interface MacroBudget {
   tripped: boolean;
 }
 
+/** Maximum nested macro resolutions in one render. Static expansion uses the same ceiling. */
+export const MACRO_MAX_DEPTH = 64;
+
 export type MacroHandler = (args: string[], ctx: MacroContext, children?: MacroAST) => string;
+
+/** Static facts about how a handler contributes bytes to its caller. The cache-safety analyzer reads
+ *  these through the registry instead of guessing from macro names or executing handlers without a
+ *  real MacroContext. Defaults match the evaluator's universal behavior: every delivered argument and
+ *  block body may contribute to the result. */
+export interface MacroAnalysisOptions {
+  /** The handler reads turn-staged state that can change the rendered bytes without being a
+   *  commit-freeze `volatile` (memory retrieval, runtime variables, recursively rendered card prose). */
+  readonly cacheDependent?: boolean;
+  /** Block-call override for `cacheDependent` when body delivery shadows a per-turn binding. */
+  readonly blockCacheDependent?: boolean;
+  /** Per-render dependency override used when a handler's inline and block forms differ. */
+  readonly volatileDependent?: boolean;
+  /** Block-call override for `volatileDependent`. */
+  readonly blockVolatileDependent?: boolean;
+  /** Which inline arguments can contribute to the handler's result. */
+  readonly arguments?: "all" | "none" | readonly number[];
+  /** Block-call override for `arguments`, used when a delivered body displaces a declared binding. */
+  readonly blockArguments?: "all" | "none" | readonly number[];
+  /** Which raw arguments a lazy handler evaluates even when their values do not contribute to its
+   *  result. Absent means the same set as `arguments`; eager delivery always evaluates every argument. */
+  readonly lazyArguments?: "all" | "none" | readonly number[];
+  /** Block-call override for `lazyArguments`, paired with `blockArguments`. */
+  readonly blockLazyArguments?: "all" | "none" | readonly number[];
+  /** How a scoped body contributes: universal result input, discarded result, or `{{if}}` branch. */
+  readonly blockBody?: "all" | "none" | "if";
+  /** Reconstruct the handler's result template from delivered arguments for evaluator-aware analysis. */
+  readonly expand?: (args: readonly string[], blockContent?: string) => string;
+  /** The handler mutates runtime state even when its own return value is empty. */
+  readonly mutatesState?: boolean;
+}
 
 /** Macro registration options. `delayArgResolution: true` is the seam for `if`-style handlers
  *  that need to disambiguate "bare identifier" (look up) from "resolved sub-macro value"
@@ -422,6 +456,12 @@ export interface MacroRegisterOptions {
    *  `ctx.evaluateAST`, is trimmed + indent-dedented (verbatim under the `#` flag), and arrives as the
    *  handler's LAST unnamed argument — any macro takes a body with zero registration work. */
   blockChildren?: boolean;
+  /** Keep a universal body after every declared fixed argument instead of letting it fill the next
+   *  positional slot. User template macros use this to preserve their reserved `content` binding. */
+  blockContentAfterDeclaredArgs?: boolean;
+  /** Evaluator-parity facts for static cache analysis. This axis is deliberately separate from
+   *  `volatile`: cache-dependent reads must stay live at assembly and must never enter commit freeze. */
+  analysis?: MacroAnalysisOptions;
   /** The macro-DX browser/validation record — REQUIRED for new (extension) registrations; the
    *  builtin set is backfilled in registry.ts so no metadata-less macro survives (a completeness test
    *  is the enforcer). AUTHORED shape (no `volatile`): the registry composes `volatile` from this

@@ -88,12 +88,18 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
       role: "assistant" as const,
       characterId: characterId as CharacterId,
       now: FROZEN_AT,
-      variant: { content: "voiced", costUsd: 0.002, finishReason: "stop" as const },
+      variant: {
+        content: "voiced",
+        costUsd: 0.002,
+        finishReason: "stop" as const,
+        metadata: { providerMetadata: { provider: "claude-sub" as const, outputCapReached: true as const } },
+      },
     };
 
     await db.batch(batchMany(insertCanonMessageStatements(db, params)));
 
     const [reread] = await loadCanonHistory(db, chatId);
+    expect(reread?.outputCapReached).toBe(true);
     expect(buildCommittedMessageView(params)).toEqual(reread);
   });
 

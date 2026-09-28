@@ -11,6 +11,7 @@ export {
   processMacros,
 } from "./engine.ts";
 export { evaluateMacros } from "./evaluator.ts";
+export { macroTextInvalidatesCache } from "./cache-safety.ts";
 // The macro-DX layer + the runtime-enforcement core: typed violations
 // (checkMacroArgs → MacroArgViolation) with validateMacroArgs deriving the positional diagnostics, and
 // the autocomplete query. Types + MACRO_CATEGORIES home in ./types (below) so the registry references
@@ -19,7 +20,7 @@ export { type CheckMacroArgsOptions, checkMacroArgs, queryMacros, validateMacroA
 // MACRO_NAME_RE: the fully-anchored macro-name shape — user-macro registration + the contracts-side
 // authoring schema both validate against it (one vocabulary with the parser's identifier scan).
 export { MACRO_NAME_RE, type MacroRun, parseMacros, scanMacroRuns, stripComments } from "./parser.ts";
-export { createDefaultRegistry, createNamesOnlyRegistry, createVolatileOnlyRegistry, SimpleMacroRegistry } from "./registry.ts";
+export { createDefaultRegistry, createNamesOnlyRegistry, createVolatileOnlyRegistry, selectStaticIfChildren, SimpleMacroRegistry } from "./registry.ts";
 export type {
   RowCharacterName,
   RowMacroNameContext,
@@ -31,6 +32,7 @@ export type {
 export { resolveRowMacros } from "./row-macros.ts";
 export type {
   GlobalVarWrite,
+  MacroAnalysisOptions,
   MacroArgDef,
   MacroArgType,
   MacroArgViolation,
@@ -62,7 +64,7 @@ export type {
 } from "./types.ts";
 // MACRO_FLAG_DEFS: the ONE reserved-flags vocabulary — the parser derives from it, the macro
 // browser documents from it.
-export { MACRO_ARG_TYPES, MACRO_CATEGORIES, MACRO_FLAG_DEFS, MACRO_SOURCE_KINDS } from "./types.ts";
+export { MACRO_ARG_TYPES, MACRO_CATEGORIES, MACRO_FLAG_DEFS, MACRO_MAX_DEPTH, MACRO_SOURCE_KINDS } from "./types.ts";
 // The #24 typed-input fold: preset/game-authored user macros as first-class registry entries + the typed
 // choice-block input vocabulary and its pure values-bag resolution (random-pick draws freeze-at-commit).
 export {

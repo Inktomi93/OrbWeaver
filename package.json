@@ -123,6 +123,7 @@
     "@tanstack/eslint-plugin-router": "catalog:",
     "@tanstack/react-form": "catalog:",
     "@tanstack/react-query": "catalog:",
+    "@tanstack/react-router": "catalog:",
     "@total-typescript/ts-reset": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",

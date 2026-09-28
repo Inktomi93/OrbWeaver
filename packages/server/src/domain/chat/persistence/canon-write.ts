@@ -23,7 +23,7 @@ import type {
   UserMacroDraws,
   VariantMetadata,
 } from "@orb/contracts/chat";
-import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
+import { DEFAULT_MESSAGE_KIND, parseVariantMetadata } from "@orb/contracts/chat";
 import type { CostDetails, NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -92,8 +92,8 @@ interface CanonVariantInput {
    *  (`VARIANT_METADATA_REASONING_MS_KEY`, #184), which the stats rollups extract by JSON path. Typed rather
    *  than a bag, so this writer and those readers are bound by `tsc` — the producer-side half of class 3.
    *  Absent/null ⇒ no sidecar (a turn that never reasoned, a verbatim/greeting seed). NOT on
-   *  `VariantEconomics`: the read `MessageView` does not carry it — it is a stats-plane fact, not a rendered
-   *  one — and the ST import writes the same column through its own path. */
+   *  `VariantEconomics`: the sidecar itself stays server-owned. `MessageView.outputCapReached` is the one
+   *  deliberately derived member-visible fact; the ST import writes the same column through its own path. */
   readonly metadata?: VariantMetadata | null | undefined;
   // The NORMALIZED reason (`NORMALIZED_FINISH_REASONS`, CHECK-enforced) — the per-wire raw → normalized fold
   // happens in the runtime; `stopReason` keeps the raw upstream word as provenance.
@@ -705,6 +705,7 @@ export function setMessageSeqStatement(db: Db, messageId: MessageId, seq: number
  * selected at idx 0) without a re-read — byte-for-byte what `loadCanonHistory` would return for this slot.
  */
 export function buildCommittedMessageView(params: InsertCanonMessageParams): MessageView {
+  const providerMetadata = parseVariantMetadata(params.variant.metadata).providerMetadata;
   return {
     id: params.messageId,
     chatId: params.chatId,
@@ -722,6 +723,7 @@ export function buildCommittedMessageView(params: InsertCanonMessageParams): Mes
     variantCount: 1,
     // A freshly-committed variant has never been continued — its D26 snapshot columns are null.
     hasContinuation: false,
+    outputCapReached: providerMetadata?.provider === "claude-sub" && providerMetadata.outputCapReached === true,
     ...variantEconomics(params.variant),
     // The freshly-committed view's tool exchanges — the read seam's `[]`-default (never null) for the
     // client's tool read surface; a non-tool turn commits an empty array (D48).

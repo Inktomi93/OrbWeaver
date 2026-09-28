@@ -14,6 +14,7 @@
 // nesting): rows are `ListRow`-skinned, hairline-separated, no border boxes.
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
+import type { PresetId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Stack, Surface } from "@orb/ui/layout";
@@ -24,6 +25,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { isPivotSection } from "../../lib/assembly-model.ts";
+import { cacheInvalidatingSections } from "../../lib/prompt-cache-warning.ts";
 import { deriveZones } from "./derive-zones.ts";
 import { MARKER_COPY } from "./marker-copy.ts";
 import { PivotBand } from "./pivot-band.tsx";
@@ -34,6 +36,7 @@ type AssemblyForm = AppFormInstance<PromptConfig>;
 
 export interface AssemblyRackProps {
   readonly form: AssemblyForm;
+  readonly presetId: PresetId;
   readonly selectedSectionId: string | null;
   /** SELECT (a row's name click) — the CONTEXT readout echoes; this is the INSPECT act. */
   readonly onSelectSection: (sectionId: string) => void;
@@ -59,6 +62,7 @@ function sectionName(section: PromptSection): string {
 
 export function AssemblyRack({
   form,
+  presetId,
   selectedSectionId,
   onSelectSection,
   onDrillSection,
@@ -67,10 +71,12 @@ export function AssemblyRack({
 }: AssemblyRackProps): ReactElement {
   const afterRackRef = useRef<HTMLDivElement>(null);
   return (
-    <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
-      {(sections): ReactElement => {
+    <form.Subscribe selector={(state): PromptConfig => state.values}>
+      {(config): ReactElement => {
+        const sections = config.sections;
         const zones = deriveZones(sections);
         const duplicateSet = new Set(zones.duplicatePivotIndexes);
+        const cacheBusters = cacheInvalidatingSections(config, presetId);
 
         const onReorder = (orderedKeys: SortableItemKey[]): void => {
           const before = sections.map((s) => s.id as SortableItemKey);
@@ -114,6 +120,16 @@ export function AssemblyRack({
                   <Button intent="secondary" onClick={onAddChatHistory} size="sm" type="button">
                     Add chat history
                   </Button>
+                </Row>
+              ) : null}
+              {cacheBusters.length > 0 ? (
+                <Row align="center" className="rounded-base border border-warning bg-warning/10 text-warning" gap="row" padding="row">
+                  <Icon icon={AlertTriangle} size="sm" />
+                  <Text data-slot="prompt-cache-warning" voice="label">
+                    {`Content that can change between turns above Chat History invalidates the history cache. Move ${cacheBusters
+                      .map(sectionName)
+                      .join(", ")} below Chat History to keep the cache.`}
+                  </Text>
                 </Row>
               ) : null}
 

@@ -126,6 +126,7 @@ test("MessageView is the slot joined with its selected variant (content + econom
     selectedVariantIdx: 0,
     variantCount: 1,
     hasContinuation: false,
+    outputCapReached: false,
     content: "hello there",
     reasoning: null,
     model: testModelId("claude-sonnet"),

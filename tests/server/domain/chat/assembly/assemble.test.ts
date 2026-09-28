@@ -1327,12 +1327,22 @@ describe("assemblePrompt — section gating and placement", () => {
     expect(assemblePrompt(config, ctxOf()).sendHistory).toBe(false);
   });
 
-  test("a NON-system section before the pivot rides at the top of history, not in the system block", () => {
-    const config = configOf([literal("USER-NOTE", { role: "user" }), marker({ marker: "chat_history" })]);
-    const out = assemblePrompt(config, ctxOf());
+  test("a volatile NON-system section before the pivot rides at the top of history, not in either system half", () => {
+    const config = configOf([literal("USER-NOTE {{time}}", { role: "user" }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf(CLOCK));
 
     expect(out.static).toBe("");
-    expect(out.afterHistory).toEqual([{ position: "in_chat", depth: BEFORE_HISTORY_DEPTH, role: "user", content: "USER-NOTE" }]);
+    expect(out.dynamic).toBe("");
+    expect(out.afterHistory).toEqual([{ position: "in_chat", depth: BEFORE_HISTORY_DEPTH, role: "user", content: "USER-NOTE 15:06:40" }]);
+  });
+
+  test("a volatile explicit-depth section before the pivot is an in-history injection, not either system half", () => {
+    const config = configOf([literal("DEPTH {{time}}", { inject: { depth: 2 } }), marker({ marker: "chat_history" })]);
+    const out = assemblePrompt(config, ctxOf(CLOCK));
+
+    expect(out.static).toBe("");
+    expect(out.dynamic).toBe("");
+    expect(out.afterHistory).toEqual([{ position: "in_chat", depth: 2, role: "system", content: "DEPTH 15:06:40" }]);
   });
 
   test("a system-block section is TRIMMED, and one that renders empty is dropped from bytes AND trace", () => {

@@ -397,6 +397,7 @@ const MESSAGE: MessageView = {
   selectedVariantIdx: 0,
   variantCount: 1,
   hasContinuation: false,
+  outputCapReached: false,
   content: "hi",
   reasoning: null,
   model: null,
