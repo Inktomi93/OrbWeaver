@@ -8,7 +8,7 @@ import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { PluginCommandArgsStory } from "../_ct-stories.tsx";
 
 const ARGS_PLUGIN_ID = castId<PluginId>("plugin_ct_argmodal0000001");
@@ -25,6 +25,8 @@ const ROUTES: TrpcRoutes<"chat.listChats" | "plugin.listCommands"> = {
       name: "cast",
       describe: "Cast a spell",
       args: [{ name: "suit", type: "enum", required: true, enumValues: ["cups", "wands"] }],
+      group: null,
+      placements: [],
     },
   ],
 };
@@ -72,4 +74,38 @@ test("a required arg left empty BLOCKS the dispatch with a clear message", async
   // The block is a visible sentence naming the offending arg — and the dispatch never ran.
   await expect(page.getByText("suit is required")).toBeVisible();
   expect(invoked).toBe(false);
+});
+
+test("a held invocation keeps the modal pending, and a rejected invocation preserves values for retry", async ({ mount, page }) => {
+  let attempt = 0;
+  const firstInvocation = trpcHold();
+  await routeTrpc(page, {
+    ...ROUTES,
+    "plugin.invokeUiCommand": () => {
+      attempt += 1;
+      if (attempt === 1) {
+        return firstInvocation;
+      }
+      return { toasts: [] };
+    },
+  });
+
+  const component = await mount(<PluginCommandArgsStory />);
+  await expect(component.getByText("From Oracle Deck (oracle-deck)", { exact: true })).toBeVisible();
+  const suit = component.getByRole("combobox", { name: "suit" });
+  await suit.click();
+  await page.getByRole("option", { name: "wands" }).click();
+  const run = component.getByRole("button", { name: "Run cast" });
+  await run.click();
+  await firstInvocation.requested;
+
+  await expect(run).toBeDisabled();
+  await expect(component.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  await expect(suit).toHaveAccessibleName("suit *");
+  firstInvocation.release(trpcError({ code: "INTERNAL_SERVER_ERROR", message: "the guest rejected the command" }));
+
+  await expect(run).toBeEnabled();
+  await expect(suit).toHaveText("wands");
+  await run.click();
+  await expect(component.getByText("No command selected.", { exact: true })).toBeVisible();
 });

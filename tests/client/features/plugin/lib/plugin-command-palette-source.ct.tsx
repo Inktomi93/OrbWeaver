@@ -27,8 +27,26 @@ const TWO_COMMANDS: TrpcRoutes<"chat.listChats" | "plugin.listCommands"> = {
   "chat.listChats": () => ({ items: [], nextCursor: null }),
   // `args: []` — these commands declare NO typed args (the U8 shape); a picked row dispatches directly.
   "plugin.listCommands": () => [
-    { pluginId: ORACLE_ID, slug: "oracle-deck", pluginName: "Oracle Deck", name: "draw", describe: "Draw a card from the deck", args: [] },
-    { pluginId: CHIPS_ID, slug: "scene-chips", pluginName: "Scene Chips", name: "shuffle", describe: "Shuffle the scene chips", args: [] },
+    {
+      pluginId: ORACLE_ID,
+      slug: "oracle-deck",
+      pluginName: "Oracle Deck",
+      name: "draw",
+      describe: "Draw a card from the deck",
+      args: [],
+      group: null,
+      placements: [],
+    },
+    {
+      pluginId: CHIPS_ID,
+      slug: "scene-chips",
+      pluginName: "Oracle Deck",
+      name: "shuffle",
+      describe: "Shuffle the scene chips",
+      args: [],
+      group: null,
+      placements: [],
+    },
   ],
 };
 
@@ -49,8 +67,8 @@ test("a plugin command is a FIRST-CLASS, plugin-labelled palette row (one per co
   await expect(page.getByRole("option", { name: "draw" })).toBeVisible();
   await expect(page.getByRole("option", { name: "shuffle" })).toBeVisible();
   // PLUGIN-LABELLED: the owning plugin's name is on the row (the disambiguator, visible AND in the acc name).
-  await expect(component.getByText("Oracle Deck")).toBeVisible();
-  await expect(component.getByText("Scene Chips")).toBeVisible();
+  await expect(component.getByText("Oracle Deck (oracle-deck)", { exact: true })).toBeVisible();
+  await expect(component.getByText("Oracle Deck (scene-chips)", { exact: true })).toBeVisible();
 });
 
 test("the palette search matches a plugin command by name (cmdk scores it like any row)", async ({ mount, page }) => {

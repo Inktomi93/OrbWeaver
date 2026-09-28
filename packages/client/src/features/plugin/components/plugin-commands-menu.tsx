@@ -19,16 +19,19 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useActiveChatId } from "#state";
 import { usePluginCommands, useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
+import { pluginCommandActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
 
 /** Group the flat command list by plugin, preserving the hook's (plugin, command) order. */
-function groupByPlugin(commands: ReturnType<typeof usePluginCommands>): readonly { readonly pluginName: string; readonly commands: typeof commands }[] {
-  const groups: { pluginName: string; commands: (typeof commands)[number][] }[] = [];
+function groupByPlugin(
+  commands: ReturnType<typeof usePluginCommands>,
+): readonly { readonly pluginId: string; readonly pluginName: string; readonly slug: string; readonly commands: typeof commands }[] {
+  const groups: { pluginId: string; pluginName: string; slug: string; commands: (typeof commands)[number][] }[] = [];
   for (const command of commands) {
     const last = groups.at(-1);
-    if (last !== undefined && last.pluginName === command.pluginName) {
+    if (last !== undefined && last.pluginId === command.pluginId) {
       last.commands.push(command);
     } else {
-      groups.push({ pluginName: command.pluginName, commands: [command] });
+      groups.push({ pluginId: command.pluginId, pluginName: command.pluginName, slug: command.slug, commands: [command] });
     }
   }
   return groups;
@@ -39,7 +42,7 @@ export function PluginCommandsMenu({ presentation }: { readonly presentation: "b
   // The ROOM the command runs in, when there is one. A command run from a non-chat screen carries `null` and
   // the server admits no chat scope — `chat.current()` throws in the guest, which is the honest answer.
   const chatId = useActiveChatId();
-  const runCommand = useRunPluginCommand(chatId);
+  const { isPending, run: runCommand } = useRunPluginCommand(chatId);
   if (commands.length === 0) {
     return null;
   }
@@ -50,8 +53,8 @@ export function PluginCommandsMenu({ presentation }: { readonly presentation: "b
     return (
       <>
         {commands.map((command) => (
-          <Button intent="ghost" key={`${command.pluginId}:${command.name}`} onClick={(): void => runCommand(command)} size="sm">
-            <Text voice="label">{`${command.pluginName} · ${command.name}`}</Text>
+          <Button disabled={isPending} intent="ghost" key={`${command.pluginId}:${command.name}`} onClick={(): void => runCommand(command)} size="sm">
+            <Text voice="label">{`${pluginCommandAttribution(command.pluginName, command.slug)} · ${command.group ?? "Commands"} · ${pluginCommandActionLabel(command.name)}`}</Text>
           </Button>
         ))}
       </>
@@ -68,13 +71,15 @@ export function PluginCommandsMenu({ presentation }: { readonly presentation: "b
       />
       <MenuPopup>
         {groups.map((group) => (
-          <MenuGroup key={group.pluginName}>
+          <MenuGroup key={group.pluginId}>
             {/* The group label IS the attribution: every command a person reads sits under the name of the
                 plugin that registered it, so the menu can never present a plugin's command as the app's own. */}
-            <MenuGroupLabel>{group.pluginName}</MenuGroupLabel>
+            <MenuGroupLabel>{pluginCommandAttribution(group.pluginName, group.slug)}</MenuGroupLabel>
             {group.commands.map((command) => (
-              <MenuItem key={`${command.pluginId}:${command.name}`} onClick={(): void => runCommand(command)}>
-                {command.describe}
+              <MenuItem disabled={isPending} key={`${command.pluginId}:${command.name}`} onClick={(): void => runCommand(command)}>
+                {command.group === null
+                  ? `${pluginCommandActionLabel(command.name)} · ${command.describe}`
+                  : `${command.group} · ${pluginCommandActionLabel(command.name)} · ${command.describe}`}
               </MenuItem>
             ))}
           </MenuGroup>

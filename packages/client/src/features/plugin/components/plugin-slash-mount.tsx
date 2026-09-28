@@ -18,7 +18,7 @@ import { parseCommandArgInputs, parsePluginArgContext, parsePluginCommand, plugi
 const INCOMPLETE = "Use /plugin <plugin> <command> — the Plugins menu lists what you have.";
 
 export function PluginSlashMount({ context, onRunner, onArgComplete }: SlashCommandMountProps): ReactElement | null {
-  const run = usePluginCommandRunner(context.chatId);
+  const { run } = usePluginCommandRunner(context.chatId);
   const commands = usePluginCommands();
   // #791 — publish the composer arg completer: given the partial `<slug> <cmd> <args…>` remainder, resolve the
   // command off the caller's own installs and yield its declared-arg hints + enum-value completions. Absent when
@@ -54,10 +54,10 @@ export function PluginSlashMount({ context, onRunner, onArgComplete }: SlashComm
           notify.error(`/plugin ${slug} ${name}: ${errors.join("; ")}`);
           return;
         }
-        run(slug, name, args, values);
+        void run(slug, name, args, values);
         return;
       }
-      run(slug, name, args, {});
+      void run(slug, name, args, {});
     });
   }, [onRunner, run, commands]);
   return null;

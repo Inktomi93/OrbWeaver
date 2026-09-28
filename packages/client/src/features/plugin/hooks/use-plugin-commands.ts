@@ -1,14 +1,14 @@
 // The COMMAND read + the ONE runner both consuming surfaces share: the
 // `/plugin` composer dispatch and the "Plugins" chrome menu.
 //
-// TWO SURFACES, ONE RUNNER — deliberately. The menu item and the slash line must do the identical thing
+// EVERY SURFACE, ONE RUNNER — deliberately. Menus, composer placements and the slash line do the identical thing
 // (resolve the command off the caller's own installs, invoke it, apply the outcome), and the moment that lives
 // twice they drift: one grows a toast the other does not, one forgets to pass the room. So the hook below IS
 // the behaviour, and each surface only decides how it is triggered.
 
-import type { PluginCommandArgSpec, PluginCommandArgValue } from "@orb/contracts/plugin";
+import type { PluginCommandArgSpec, PluginCommandArgValue, PluginCommandPlacement } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
-import { useQuery } from "@tanstack/react-query";
+import { useIsMutating, useQuery } from "@tanstack/react-query";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { openPluginCommandArgs } from "#state";
@@ -25,6 +25,19 @@ export interface PluginCommandView {
   readonly name: string;
   readonly describe: string;
   readonly args: readonly PluginCommandArgSpec[];
+  readonly group: string | null;
+  readonly placements: readonly PluginCommandPlacement[];
+}
+
+interface PluginCommandRunner {
+  readonly isPending: boolean;
+  /** Resolves true only after the command and its host-mediated outcome complete successfully. */
+  readonly run: (slug: string, name: string, args: string, values: Record<string, PluginCommandArgValue>) => Promise<boolean>;
+}
+
+interface PluginCommandAction {
+  readonly isPending: boolean;
+  readonly run: (command: PluginCommandView) => void;
 }
 
 /** Every command across the caller's granted-and-enabled plugins, in a stable (plugin, command) order. Not a
@@ -33,7 +46,14 @@ export interface PluginCommandView {
 export function usePluginCommands(): readonly PluginCommandView[] {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.plugin.listCommands.queryOptions());
-  return (data ?? []).toSorted((a, b) => a.pluginName.localeCompare(b.pluginName) || a.name.localeCompare(b.name));
+  return (data ?? []).toSorted(
+    (a, b) =>
+      a.pluginName.localeCompare(b.pluginName) ||
+      a.pluginId.localeCompare(b.pluginId) ||
+      (a.group ?? "").localeCompare(b.group ?? "") ||
+      (a.placements[0]?.label ?? "").localeCompare(b.placements[0]?.label ?? "") ||
+      a.name.localeCompare(b.name),
+  );
 }
 
 /** What a failed resolve tells the person. Written HERE, module-private, so the slash line and the menu say
@@ -48,32 +68,35 @@ const PLUGIN_COMMAND_UNKNOWN = "No plugin command by that name — try the Plugi
  *  `values` bag the surfaces collected against the command's declared args (`{}` for a command that declared
  *  none). The server re-validates `values` against the resident command's specs, so a mistyped/missing/off-enum
  *  value is refused there too. */
-export function usePluginCommandRunner(
-  chatId: ChatId | null,
-): (slug: string, name: string, args: string, values: Record<string, PluginCommandArgValue>) => void {
+export function usePluginCommandRunner(chatId: ChatId | null): PluginCommandRunner {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const invoke = useInvokeUiCommand({ trpc, invalidation });
+  const runningCommandCount = useIsMutating({ mutationKey: trpc.plugin.invokeUiCommand.mutationKey() });
   const commands = usePluginCommands();
   // No manual memoization — the React Compiler runs full-compile on this tree and already caches this closure
   // across renders (D54). A hand-rolled `useCallback` here would be a second, weaker cache beside its.
-  return (slug: string, name: string, args: string, values: Record<string, PluginCommandArgValue>): void => {
+  const run = (slug: string, name: string, args: string, values: Record<string, PluginCommandArgValue>): Promise<boolean> => {
     const command = commands.find((candidate) => candidate.slug === slug && candidate.name === name);
     if (command === undefined) {
       notify.error(PLUGIN_COMMAND_UNKNOWN);
-      return;
+      return Promise.resolve(false);
     }
     // @orb-waive caught-failure-ownership(mutateAsync): the comment below explains — the
     // mutation's own errorToast already told the person; this catch only keeps a handled rejection from
     // surfacing as unhandled on this fire-and-forget path. Ends if that mutation drops its errorToast.
-    void invoke
+    return invoke
       .mutateAsync({ pluginId: command.pluginId, name: command.name, args, values, chatId })
       // The outcome is the plugin's host-mediated chrome (§4.5a): its toasts, and at most one dialog open.
-      .then((outcome) => applyPluginUiOutcome(command.pluginId, outcome))
+      .then((outcome) => {
+        applyPluginUiOutcome(command.pluginId, outcome);
+        return true;
+      })
       // Handled already by the mutation's own `errorToast`; this keeps a handled rejection from surfacing as an
       // unhandled one on a fire-and-forget path.
-      .catch(() => undefined);
+      .catch(() => false);
   };
+  return { isPending: invoke.isPending || runningCommandCount > 0, run };
 }
 
 /** The ONE "run this command" entry the DISCRETE surfaces share (the palette rows, the wand menu) — a command
@@ -82,9 +105,9 @@ export function usePluginCommandRunner(
  *  through here so a with-args command can never be fired with a bare, invalid bag from one door but not another.
  *  (The composer takes the parallel path: it PARSES `name=value` inline rather than opening a modal — one grammar,
  *  two entry gestures.) */
-export function useRunPluginCommand(chatId: ChatId | null): (command: PluginCommandView) => void {
-  const run = usePluginCommandRunner(chatId);
-  return (command: PluginCommandView): void => {
+export function useRunPluginCommand(chatId: ChatId | null): PluginCommandAction {
+  const runner = usePluginCommandRunner(chatId);
+  const run = (command: PluginCommandView): void => {
     if (command.args.length > 0) {
       openPluginCommandArgs({
         pluginId: command.pluginId,
@@ -95,7 +118,8 @@ export function useRunPluginCommand(chatId: ChatId | null): (command: PluginComm
         chatId,
       });
     } else {
-      run(command.slug, command.name, "", {});
+      void runner.run(command.slug, command.name, "", {});
     }
   };
+  return { isPending: runner.isPending, run };
 }

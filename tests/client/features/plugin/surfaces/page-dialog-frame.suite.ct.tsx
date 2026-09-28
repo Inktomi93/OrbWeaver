@@ -21,7 +21,7 @@ import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ExtensionsPageStory, PluginDialogBodyStory } from "../_ct-stories.tsx";
 
 type PluginListRow = TrpcWireOutput<"plugin.list">[number];
@@ -66,6 +66,7 @@ function pluginRow(id: PluginId, slug: string, name: string): PluginListRow {
     status: "enabled",
     origin: "upload",
     sourceUrl: null,
+    sourceCommit: null,
     updateSource: null,
     declaredCapabilities: ["ui.surface", "ui.frame"],
     grantedCapabilities: ["ui.surface", "ui.frame"],
@@ -83,6 +84,10 @@ function pluginRow(id: PluginId, slug: string, name: string): PluginListRow {
  *  the server holds the frame. */
 function frameRow(pluginId: PluginId, id: string, anchor: PluginSurfaceRow["anchor"], title: string): PluginSurfaceRow {
   return { pluginId, id, anchor, title, tier: "frame" };
+}
+
+function staticRow(pluginId: PluginId, id: string, anchor: "page" | "dialog", title: string, value: string): PluginSurfaceRow {
+  return { pluginId, id, anchor, title, tier: "static", spec: { kind: "text", value, voice: "body" } };
 }
 
 /** Stub the tRPC reads + the doorway (mint POST → handle URL, document GET → the policied HTML). */
@@ -142,4 +147,55 @@ test("a DIALOG-anchored frame renders its own document inside the house modal bo
   await expect(frame).toHaveAttribute("title", "Chess — Chess board");
   await expect(page.getByText("Chess", { exact: false }).first()).toBeVisible();
   await expect(page.frameLocator(ROUTED_FRAME).locator("#board")).toHaveText("CHESS BOARD");
+});
+
+test("an open dialog shows catalog loading and failure before Retry recovers the registered surface", async ({ mount, page }) => {
+  const firstRead = trpcHold();
+  let reads = 0;
+  const recovered = staticRow(DIALOG_ID, "board", "dialog", "Chess board", "Recovered dialog");
+  await routeTrpc(page, {
+    "plugin.list": () => [pluginRow(DIALOG_ID, "chess", "Chess")],
+    "plugin.listSurfaces": () => {
+      reads += 1;
+      return reads === 1 ? firstRead : [recovered];
+    },
+    "plugin.getSurfaceState": () => null,
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginDialogBodyStory />);
+
+  await expect(page.getByText("Loading plugin dialog…", { exact: true })).toBeVisible();
+  firstRead.release(trpcError({ code: "INTERNAL_SERVER_ERROR" }));
+  await expect(page.getByText("Couldn't load this plugin dialog.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByRole("group", { name: "Chess — Chess board" })).toContainText("Recovered dialog");
+  await expect(page.getByText("That dialog is no longer available", { exact: true })).toHaveCount(0);
+});
+
+test("a selected page shows catalog loading and failure before Retry, never a false gone state", async ({ mount, page }) => {
+  const firstRead = trpcHold();
+  let reads = 0;
+  const recovered = staticRow(ORACLE_ID, "board_page", "page", "The Board", "Recovered page");
+  await routeTrpc(page, {
+    "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck")],
+    "plugin.listSurfaces": () => {
+      reads += 1;
+      return reads === 1 ? firstRead : [recovered];
+    },
+    "plugin.getSurfaceState": () => null,
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<ExtensionsPageStory selectKey={{ pluginId: ORACLE_ID, surfaceId: "board_page" }} />);
+
+  await expect(page.getByText("Loading extension page…", { exact: true })).toBeVisible();
+  firstRead.release(trpcError({ code: "INTERNAL_SERVER_ERROR" }));
+  await expect(page.getByText("Couldn't load this extension page.", { exact: true })).toBeVisible();
+  await expect(page.getByText("That extension page is gone", { exact: false })).toHaveCount(0);
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByTestId("plugin-page-attribution")).toContainText("Oracle Deck");
+  await expect(page.getByText("Recovered page", { exact: true })).toBeVisible();
 });

@@ -13,7 +13,7 @@
 // prevent. `listSurfaces` only ever returns the caller's own enabled plugins, so this arm is a race (a disable
 // between the two reads settling), not a state.
 
-import type { PluginSurfaceSpec, PluginSurfaceTier } from "@orb/contracts/plugin";
+import type { PluginCapability, PluginSurfaceSpec, PluginSurfaceTier } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
@@ -34,9 +34,20 @@ export interface PluginPageView {
    *  (U7) draws the plugin's own document in an isolated iframe and carries no `spec` at all — the content pane
    *  branches on this to mount a `PluginFrame` instead of the renderer. */
   readonly tier: PluginSurfaceTier;
-  /** The declarative tree, absent for a scripted-tier surface whose client guest lands at U4 (and for every
+  /** The plugin's current grants, exposed to a scripted guest for feature detection only. */
+  readonly grants: readonly PluginCapability[];
+  /** Every scripted id owned by this plugin; the guest rejects publications outside this allow-list. */
+  readonly scriptedIds: readonly string[];
+  /** The declarative tree, absent for a scripted-tier surface whose client guest computes it (and for every
    *  `frame`-tier surface, which produces a document, not a tree). */
   readonly spec: PluginSurfaceSpec | undefined;
+}
+
+export interface PluginPagesState {
+  readonly pages: readonly PluginPageView[];
+  readonly isPending: boolean;
+  readonly isError: boolean;
+  readonly retry: () => void;
 }
 
 /**
@@ -47,29 +58,46 @@ export interface PluginPageView {
  * Not a suspense read: the Extensions section renders its own boundary and its own empty, and a switcher that
  * suspends the whole CONTENT region while the page you are reading is already painted is the wrong trade.
  */
-export function usePluginPages(): readonly PluginPageView[] {
+export function usePluginPagesState(): PluginPagesState {
   const trpc = useTRPC();
-  const { data: surfaces } = useQuery(trpc.plugin.listSurfaces.queryOptions());
-  const { data: plugins } = useQuery(trpc.plugin.list.queryOptions());
-  const names = new Map((plugins ?? []).map((plugin) => [plugin.id, plugin.name] as const));
+  const surfacesQuery = useQuery(trpc.plugin.listSurfaces.queryOptions());
+  const pluginsQuery = useQuery(trpc.plugin.list.queryOptions());
+  const surfaces = surfacesQuery.data;
+  const plugins = pluginsQuery.data;
+  const rows = plugins ?? [];
+  const pluginsById = new Map(rows.map((plugin) => [plugin.id, plugin] as const));
+  const allSurfaces = surfaces ?? [];
   const pages: PluginPageView[] = [];
-  for (const surface of surfaces ?? []) {
+  for (const surface of allSurfaces) {
     if (surface.anchor !== "page") {
       continue;
     }
-    const pluginName = names.get(surface.pluginId);
-    if (pluginName === undefined) {
+    const plugin = pluginsById.get(surface.pluginId);
+    if (plugin === undefined) {
       continue;
     }
     pages.push({
       key: pluginPageKey(surface.pluginId, surface.id),
       pluginId: surface.pluginId,
       surfaceId: surface.id,
-      pluginName,
+      pluginName: plugin.name,
       title: surface.title,
       tier: surface.tier,
+      grants: plugin.grantedCapabilities,
+      scriptedIds: allSurfaces.filter((candidate) => candidate.pluginId === surface.pluginId && candidate.tier === "scripted").map((candidate) => candidate.id),
       spec: surface.spec,
     });
   }
-  return pages.toSorted((a, b) => a.pluginName.localeCompare(b.pluginName) || a.title.localeCompare(b.title));
+  return {
+    pages: pages.toSorted((a, b) => a.pluginName.localeCompare(b.pluginName) || a.title.localeCompare(b.title)),
+    isPending: surfacesQuery.isPending || pluginsQuery.isPending,
+    isError: surfacesQuery.isError || pluginsQuery.isError,
+    retry: (): void => {
+      void Promise.all([surfacesQuery.refetch(), pluginsQuery.refetch()]);
+    },
+  };
+}
+
+export function usePluginPages(): readonly PluginPageView[] {
+  return usePluginPagesState().pages;
 }

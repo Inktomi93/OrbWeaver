@@ -14,6 +14,7 @@ import {
   pluginChatFlankSurface,
   pluginChatSettingsSection,
   pluginCommandPaletteSource,
+  pluginCommandsChrome,
   pluginDistributeSection,
   pluginMessageFooterSurface,
   pluginsInstalledSection,
@@ -23,11 +24,12 @@ import {
 } from "@orb/client/features/plugin";
 import type { ChatSettingsSectionContribution, ChatSurfaceContribution, CommandPaletteSource, ToolRenderer } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
-import type { ConfigSectionContribution } from "@orb/client/state";
+import type { ChromeEntry, ConfigSectionContribution } from "@orb/client/state";
 import {
   __resetPluginCommandArgs,
   __resetPluginDialog,
   CommandPaletteSourceRegistryProvider,
+  ChromeRegistryProvider,
   clearPluginPage,
   openPluginCommandArgs,
   openPluginDialog,
@@ -39,15 +41,26 @@ import {
 import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
+import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
+import { YouSheet } from "../../../../packages/client/src/features/app-shell/components/you-sheet.tsx";
 import { MessageToolCalls } from "../../../../packages/client/src/features/chat/components/message-tool-calls.tsx";
 // The "This chat" tab as the component it is — the same relative-into-the-package import chat's own story
 // module takes for it (a story legitimately composes feature internals the front door does not re-export).
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
 import { PluginCommandArgsBody } from "../../../../packages/client/src/features/plugin/components/plugin-command-args-body.tsx";
+import { PluginCommandsMenu } from "../../../../packages/client/src/features/plugin/components/plugin-commands-menu.tsx";
+import { PluginComposerActions, PluginComposerMediaItems } from "../../../../packages/client/src/features/plugin/components/plugin-composer-placements.tsx";
 import { PluginDialogBody } from "../../../../packages/client/src/features/plugin/components/plugin-dialog-body.tsx";
-import { CtChatContributorSectionRegistry, CtConfigGroupBody, CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
+import {
+  CtAppDataProviders,
+  CtChatContributorSectionRegistry,
+  CtConfigGroupBody,
+  CtDataProviders,
+  CtRealSectionRegistry,
+} from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID } from "../chat/fixtures.ts";
 
@@ -69,10 +82,27 @@ const pluginsSections: ReturnType<typeof createContributorRegistry<ConfigSection
 export function PluginsSurfaceStory({ width = SETTINGS_PANE_WIDTH }: { readonly width?: number }): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ width }}>
-        <CtConfigGroupBody anchor="plugins" sections={pluginsSections} />
-      </div>
+      <PluginsGroupBody width={width} />
     </CtDataProviders>
+  );
+}
+
+function PluginsGroupBody({ width }: { readonly width: number }): ReactElement {
+  return (
+    <div style={{ width }}>
+      <CtConfigGroupBody anchor="plugins" sections={pluginsSections} />
+    </div>
+  );
+}
+
+/** The install-error path needs the production mutation error cache and its toast outlet. */
+export function PluginsErrorToastStory(): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <PluginsGroupBody width={SETTINGS_PANE_WIDTH} />
+      </CtToastSurface>
+    </CtAppDataProviders>
   );
 }
 
@@ -380,6 +410,47 @@ export function PluginCommandArgsStory(): ReactElement {
           <ArgsModalSeed />
         </div>
       </CtToastSurface>
+    </CtDataProviders>
+  );
+}
+
+export function PluginComposerPlacementsStory({ chatId = CHAT_ID, width = 420 }: { readonly chatId?: ChatId; readonly width?: number }): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <div style={{ display: "flex", gap: 8, width }}>
+          <PluginComposerActions chatId={chatId} />
+          <PluginCommandsMenu presentation="bar" />
+          <Menu>
+            <MenuTrigger
+              render={
+                <Button aria-label="Message tools" intent="ghost" size="sm">
+                  Message tools
+                </Button>
+              }
+            />
+            <MenuPopup>
+              <PluginComposerMediaItems chatId={chatId} />
+            </MenuPopup>
+          </Menu>
+          <PluginCommandArgsBody />
+        </div>
+      </CtToastSurface>
+    </CtDataProviders>
+  );
+}
+
+const pluginCommandsChromeRegistry = createContributorRegistry<ChromeEntry>("chrome", [pluginCommandsChrome]);
+
+/** The production plugin chrome contributor projected through the production mobile You sheet. */
+export function PluginCommandsYouSheetStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry>
+        <ChromeRegistryProvider value={pluginCommandsChromeRegistry}>
+          <YouSheet />
+        </ChromeRegistryProvider>
+      </CtFakeSectionRegistry>
     </CtDataProviders>
   );
 }

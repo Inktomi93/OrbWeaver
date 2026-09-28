@@ -20,7 +20,8 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { clearPluginCommandArgs, closeModal, usePluginCommandArgsSubject } from "#state";
-import { usePluginCommandRunner } from "../hooks/use-plugin-commands.ts";
+import { usePluginCommandRunner, usePluginCommands } from "../hooks/use-plugin-commands.ts";
+import { pluginCommandActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
 
 /** The initial string bag: booleans default to `"false"` (an unchecked toggle IS a value, not an omission);
  *  everything else starts empty (a required one blocks submit until filled, an optional one is dropped). */
@@ -99,9 +100,11 @@ function ArgInput({
 
 export function PluginCommandArgsBody(): ReactElement {
   const subject = usePluginCommandArgsSubject();
-  const run = usePluginCommandRunner(subject?.chatId ?? null);
+  const { run } = usePluginCommandRunner(subject?.chatId ?? null);
   const [values, setValues] = useState<Record<string, string>>(() => initialValues(subject?.args ?? []));
   const [errors, setErrors] = useState<readonly string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const commands = usePluginCommands();
 
   if (subject === undefined) {
     // The subject was cleared out from under an open modal — nothing to collect. The def's `onClose` normally
@@ -111,7 +114,13 @@ export function PluginCommandArgsBody(): ReactElement {
 
   const setValue = (name: string, next: string): void => setValues((prev) => ({ ...prev, [name]: next }));
 
+  const command = commands.find((candidate) => candidate.pluginId === subject.pluginId && candidate.name === subject.name);
+  const attribution = pluginCommandAttribution(command?.pluginName ?? subject.slug, subject.slug);
+
   const onSubmit = (): void => {
+    if (submitting) {
+      return;
+    }
     const coerced = coercePluginCommandArgs(subject.args, values);
     if (coerced.errors.length > 0) {
       setErrors(coerced.errors);
@@ -119,9 +128,15 @@ export function PluginCommandArgsBody(): ReactElement {
     }
     // The raw `args` remainder is empty on the palette path (the person filled fields, not a `name=value` line);
     // the TYPED bag carries the arguments. The runner re-resolves the command and the server re-validates.
-    run(subject.slug, subject.name, "", coerced.values);
-    closeModal();
-    clearPluginCommandArgs();
+    setErrors([]);
+    setSubmitting(true);
+    void run(subject.slug, subject.name, "", coerced.values).then((succeeded) => {
+      setSubmitting(false);
+      if (succeeded) {
+        closeModal();
+        clearPluginCommandArgs();
+      }
+    });
   };
 
   return (
@@ -138,6 +153,7 @@ export function PluginCommandArgsBody(): ReactElement {
       }}
     >
       <Text voice="gloss">{subject.describe}</Text>
+      <Text voice="gloss">From {attribution}</Text>
       <Stack gap="field">
         {subject.args.map((spec) => (
           <ArgInput key={spec.name} onChange={(next): void => setValue(spec.name, next)} spec={spec} value={values[spec.name] ?? ""} />
@@ -153,11 +169,11 @@ export function PluginCommandArgsBody(): ReactElement {
         </Stack>
       )}
       <Row gap="field" justify="end">
-        <Button intent="ghost" onClick={(): void => closeModal()} size="sm">
+        <Button disabled={submitting} intent="ghost" onClick={(): void => closeModal()} size="sm">
           Cancel
         </Button>
-        <Button intent="primary" onClick={onSubmit} size="sm">
-          Run {subject.name}
+        <Button intent="primary" loading={submitting} onClick={onSubmit} size="sm">
+          {pluginCommandActionLabel(subject.name)}
         </Button>
       </Row>
     </Stack>

@@ -25,6 +25,8 @@ import { timeLib, UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "#lib";
 /** What the host reports OUT to its React owner. Every arm is a rendered outcome, not an internal event: the
  *  component maps them straight to what a person sees. */
 interface PluginUiGuestEvents {
+  /** Boot completed. A ready guest may publish no tree; selected host surfaces render that as a confirmed empty. */
+  readonly onReady: () => void;
   /** A VALIDATED tree for one surface. Already through `pluginSurfaceSpecSchema` and already past the
    *  publish guard, so a caller may set state with it unconditionally. */
   readonly onTree: (surfaceId: string, tree: PluginSurfaceSpec) => void;
@@ -70,9 +72,8 @@ function spawnWorker(): Worker {
   return new Worker(new URL("./ui-guest.worker.ts", import.meta.url), { type: "module", name: "orb-plugin-ui-guest" });
 }
 
-/** Start a Tier-C guest. Returns immediately; the guest boots asynchronously and the first `onTree` is what a
- *  caller waits for (there is deliberately no "ready" promise — a surface that never boots must render nothing,
- *  which is the same arm as a surface that has not published yet, §4.9). */
+/** Start a Tier-C guest. Returns immediately; readiness and tree publication are separate events because a
+ *  valid guest may finish boot without publishing content for a registered surface. */
 export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest {
   const worker = spawnWorker();
   let disposed = false;
@@ -187,6 +188,8 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
       clearWall();
       if (!message.ok) {
         kill(`the plugin's interface failed to start: ${message.message}`);
+      } else {
+        options.events.onReady();
       }
       return;
     }

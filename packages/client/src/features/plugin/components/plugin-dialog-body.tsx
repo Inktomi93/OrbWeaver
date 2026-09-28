@@ -15,11 +15,13 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Blocks, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { openConfigTo, usePluginDialogSubject } from "#state";
 import { PluginFrame } from "./plugin-frame.tsx";
+import { PluginScriptedSurface } from "./plugin-scripted-surface.tsx";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
 import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
 
@@ -32,13 +34,33 @@ export function PluginDialogBody(): ReactElement {
   // Not a suspense read: the modal is already open when this mounts, and suspending a modal body behind a
   // spinner is exactly the bare-spinner state the three-states law refuses. The cache is warm in every path
   // that can open this (an action on a surface, or a command whose menu already read the catalog).
-  const { data: surfaces } = useQuery(trpc.plugin.listSurfaces.queryOptions());
-  const { data: plugins } = useQuery(trpc.plugin.list.queryOptions());
+  const surfacesQuery = useQuery(trpc.plugin.listSurfaces.queryOptions());
+  const pluginsQuery = useQuery(trpc.plugin.list.queryOptions());
+  const surfaces = surfacesQuery.data;
+  const plugins = pluginsQuery.data;
+  if (subject !== undefined && (surfacesQuery.isPending || pluginsQuery.isPending)) {
+    return (
+      <Stack gap="block" role="status">
+        <Text voice="label">Loading plugin dialog…</Text>
+        <SkeletonRows count={2} shape="line" />
+      </Stack>
+    );
+  }
+  if (subject !== undefined && (surfacesQuery.isError || pluginsQuery.isError)) {
+    return (
+      <QueryErrorState
+        label="this plugin dialog"
+        onRetry={(): void => {
+          void Promise.all([surfacesQuery.refetch(), pluginsQuery.refetch()]);
+        }}
+      />
+    );
+  }
   const surface = (surfaces ?? []).find(
     (candidate) => candidate.pluginId === subject?.pluginId && candidate.id === subject.surfaceId && candidate.anchor === "dialog",
   );
-  const pluginName = (plugins ?? []).find((plugin) => plugin.id === subject?.pluginId)?.name;
-  if (subject === undefined || surface === undefined || pluginName === undefined) {
+  const plugin = (plugins ?? []).find((candidate) => candidate.id === subject?.pluginId);
+  if (subject === undefined || surface === undefined || plugin === undefined) {
     return (
       <Stack align="center" justify="center">
         <EmptyState
@@ -60,11 +82,24 @@ export function PluginDialogBody(): ReactElement {
   // the house modal shell. `PluginFrame` draws its own (panel-scale) attribution band, so an un-minted frame
   // leaves no orphaned box in the modal — the flank-law posture, chrome included. A frame carries no `spec`.
   if (surface.tier === "frame") {
-    return <PluginFrame pluginId={subject.pluginId} pluginName={pluginName} surfaceId={surface.id} title={surface.title} />;
+    return <PluginFrame pluginId={subject.pluginId} pluginName={plugin.name} surfaceId={surface.id} title={surface.title} />;
+  }
+  const scriptedIds = (surfaces ?? [])
+    .filter((candidate) => candidate.pluginId === subject.pluginId && candidate.tier === "scripted")
+    .map((candidate) => candidate.id);
+  let body: ReactElement | null;
+  if (surface.tier === "scripted") {
+    body = (
+      <PluginScriptedSurface anchor="dialog" grants={plugin.grantedCapabilities} pluginId={subject.pluginId} surfaceId={surface.id} surfaceIds={scriptedIds} />
+    );
+  } else if (surface.spec === undefined) {
+    body = null;
+  } else {
+    body = <PluginSurfaceRenderer anchor="dialog" pluginId={subject.pluginId} spec={surface.spec} surfaceId={surface.id} />;
   }
   return (
-    <PluginSurfaceShell pluginName={pluginName} title={surface.title}>
-      {surface.spec === undefined ? null : <PluginSurfaceRenderer anchor="dialog" pluginId={subject.pluginId} spec={surface.spec} surfaceId={surface.id} />}
+    <PluginSurfaceShell pluginName={plugin.name} title={surface.title}>
+      {body}
     </PluginSurfaceShell>
   );
 }
