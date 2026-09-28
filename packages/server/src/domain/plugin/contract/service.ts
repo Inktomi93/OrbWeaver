@@ -326,10 +326,11 @@ export interface PluginContext {
    *  Injected at compose (the domain never imports chat) — `loadPresentRole` under the caller. */
   readonly resolveChatAuthority: (caller: Principal, chatId: ChatId) => Promise<ChatAuthority>;
   /** The process-wide capability BELTS every bridge closes over — the `notify` 60 s per-(plugin, chat)
-   *  cooldown (02 §2), the `net.fetch` hourly egress ceiling, and the `llm.quiet` hourly generation ceiling.
+   *  cooldown (02 §2), plus the separate `net.fetch`, `net.fetchAsset`, `llm.quiet`, and `search.query`
+   *  hourly ceilings for egress and hosted credential spend.
    *  All are process-wide state, so all are minted ONCE at compose and shared by every activation, exactly
    *  like the resident registry; the bridge claims the relevant one before each guarded op. Bundled because
-   *  three positional floors is where a seam stops being readable. */
+   *  positional floors would make the seam harder to read. */
   readonly belts: PluginBelts;
   /** The per-user concurrent-snippet ceiling — process-wide state, minted ONCE at compose
    *  (`createSnippetGate`) exactly like the notify floor. `runSnippet` claims a slot for the duration of the run.

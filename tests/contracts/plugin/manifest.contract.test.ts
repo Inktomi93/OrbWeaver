@@ -28,13 +28,10 @@ const BASE = {
 
 // THE ORDER IS THE CONFIRM-DIALOG DISPLAY ORDER (`manifest.ts` says so), so this `toEqual` is not a count pin
 // wearing a list's clothes — it is the consent screen's reading order, and the client's `CAPABILITY_COPY_ROWS`
-// is written to match it. `llm.quiet` sits at position 13: it is SPEND class, and the three spend capabilities
-// (`turn.trigger`, `imagery.generate`, `llm.quiet`) sit adjacent so the "Costs money" badge and the reading
-// order reinforce each other on a screen whose scan question is "what can this cost me". The two spend/benign
-// bands are unchanged by #788, which inserted THREE BENIGN READ capabilities in the read band (`worldinfo.read`
-// before its write, `assets.read` + `search.query` after `storage.kv`) — reads that reach nothing outside their
-// own sandbox, so they belong before the risk/spend rows and do NOT split the three adjacent spend rows (now at
-// positions 14-16, shifted +3 by the three inserted reads). `ui.surface` (#679) reads in the benign band — after `notify`,
+// is written to match it. The three generation capabilities (`turn.trigger`, `imagery.generate`, `llm.quiet`)
+// sit adjacent for a person scanning the "Costs money" badge. `search.query` remains beside the library reads
+// because its results are owner-scoped, but its query embedding can use a hosted, paid provider and the copy
+// marks that spend and egress risk explicitly. `ui.surface` (#679) reads in the benign band — after `notify`,
 // BEFORE the spend block — deliberately: it renders only for the installer, house-drawn, cannot impersonate host
 // chrome. `ui.frame` (U7) follows it and that adjacency is the point: it is the ESCALATION of the row above it
 // (the same "may this plugin draw" question, answered with an isolated frame that can beacon over a channel no
@@ -53,7 +50,7 @@ test("PLUGIN_CAPABILITIES is the pinned 24-member axis (02 §1; ui.surface + ui.
     "storage.kv",
     // #788 seam-11 — the benign CAS asset READ, placed after `storage.kv` (both "read your own private data").
     "assets.read",
-    // #788 F1 — the benign first-party RETRIEVAL read, placed beside `assets.read` (both "read your own library").
+    // #788 F1 — the owner-scoped RETRIEVAL read, placed beside `assets.read`; hosted query embedding can spend.
     "search.query",
     "notify",
     "ui.surface",
@@ -82,7 +79,7 @@ test("PLUGIN_CAPABILITIES is the pinned 24-member axis (02 §1; ui.surface + ui.
     "tools.register",
     "net.fetch",
     // #798 (plugin-remote-image) — the remote-image-into-CAS capability, placed right after `net.fetch`: both
-    // reach the open internet through the same manifest allowlist + the same hourly egress belt (egress delta
+    // reach the open internet through the same manifest allowlist but separate hourly belts (egress delta
     // zero), so a reader weighing "what can this fetch" meets them together. RISK (it reaches the internet AND
     // writes a durable asset into your library), not SPEND (no paid credential — the CAS write is local storage).
     "net.fetch_asset",

@@ -18,15 +18,15 @@
 // The copy is deliberately NOT derived from the manifest's own comments: those are developer notes about
 // which host function is gated. These are the reach a room owner is consenting to.
 //
-// `spends` marks the three SPEND-class capabilities (`turn.trigger`, `imagery.generate`, `llm.quiet`) — the
-// ones that draw on the installer's model budget every time the plugin uses them. Money is the one consequence
+// `spends` marks the capabilities that can draw on the installer's model/image budget — including
+// `search.query` when the active query embedding connection is hosted. Money is the one consequence
 // a checkbox label must never bury, and the automation surface already names its spend arms the same way. The
-// three sit ADJACENT in `PLUGIN_CAPABILITIES` (positions 11-13 since U7 inserted `ui.frame` at 10, after
-// `ui.surface`) so the badge and the reading order reinforce each other on a screen whose scan question is
+// generation capabilities sit ADJACENT in `PLUGIN_CAPABILITIES`, and search stays beside the other library
+// reads, so the badge carries its cost signal where a person scans for library access and asks
 // "what can this cost me".
 //
 // A consequence line STATES ITS BOUND when the capability has one (`notify`'s minute, `storage.kv`'s 256 keys,
-// `worldinfo.write`'s 64 entries, and the two HOURLY floors on `net.fetch` and `llm.quiet`). The numbers are
+// `worldinfo.write`'s 64 entries, and the hourly floors on `net.fetch`, `net.fetch_asset`, `llm.quiet` and `search.query`). The numbers are
 // prose copies of server constants (`domain/plugin/substrate/rate-floor.ts`) and drift is a copy bug, not a
 // security one — the belt is enforced server-side either way — but a bound a person cannot see is a bound
 // they cannot weigh.
@@ -116,11 +116,12 @@ export const CAPABILITY_COPY_ROWS = [
     consequence: "Reads back the contents of files in your own storage it has an id for — yours only, never another person's.",
   },
   {
-    // #788 F1 — first-party retrieval. BENIGN band (neither spend nor risk): it searches YOUR own indexed
-    // library and reaches nothing outside it; the search runs on your own box, not a paid model.
+    // #788 F1 — the result is owner-scoped, but query embedding may use the installer's hosted provider.
     id: "search.query",
     label: "Search your library",
-    consequence: "Runs a meaning-based search over your own documents and returns matching passages — your library only, never another person's.",
+    consequence: "Searches your own documents. Each query may go to your configured embedding provider and cost money, at most 120 queries an hour per plugin.",
+    spends: true,
+    risk: true,
   },
   {
     id: "notify",
@@ -221,18 +222,18 @@ export const CAPABILITY_COPY_ROWS = [
     id: "net.fetch",
     label: "Reach the internet",
     risk: true,
-    consequence: "Makes requests to the exact hosts its manifest lists, and nowhere else — at most 120 an hour.",
+    consequence: "Makes requests to the exact hosts its manifest lists, and nowhere else — at most 360 an hour per plugin.",
   },
   {
     // #798 — the remote-image-into-CAS arm. `risk`, on the `net.fetch` precedent (it reaches the open internet),
     // AND it writes durable personal state (an image into your library), so the consequence names both walls: the
-    // same allowlisted hosts + the same hourly egress limit as "Reach the internet", plus that the download lands
+    // same allowlisted hosts + its own hourly image-download limit, plus that the download lands
     // in your storage. NOT `spends` — it draws no paid model/image budget, only your own local storage.
     id: "net.fetch_asset",
     label: "Save images from the internet",
     risk: true,
     consequence:
-      "Downloads images from the exact hosts its manifest lists — the same hosts and the same hourly limit as 'Reach the internet' — into your own storage. Your library only, never another person's.",
+      "Downloads images from the exact hosts its manifest lists into your own storage — at most 1200 an hour per plugin, separately from internet text requests. Your library only, never another person's.",
   },
 ] as const satisfies readonly CapabilityCopy[];
 

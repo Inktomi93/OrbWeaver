@@ -5,7 +5,7 @@
 // postcard is painted INTO THE ROOM, and every keepsake the camera catches also lands in its album page
 // (the Extensions rail), where you can revisit or discard them.
 //
-// THREE THINGS THIS ARCHETYPE TEACHES THAT NO OTHER SEEDED EXAMPLE DOES:
+// FOUR THINGS THIS ARCHETYPE TEACHES THAT NO OTHER SEEDED EXAMPLE DOES:
 //
 //  1. STRUCTURED OUTPUT (`llm.quiet` with a `schema`). The second argument's `schema` arm routes the call to
 //     the installer's `structured`-role connection and constrains the answer to your JSON Schema. You get the
@@ -27,6 +27,10 @@
 //     partial grant degrades to a clear sentence instead of a crash. `imagery.generate` is also
 //     HOST-AUTHORITY gated: in a room the installer does not host, the paint becomes a CONFIRM CARD for the
 //     room's host and the call throws `PluginSuggestedError` — "it became a question", not a failure.
+//
+//  4. ASSET READBACK. A caught `assetId` can be read through the installer's owner-scoped CAS seam. The album
+//     keeps only MIME and byte size; a refused, absent or over-cap byte read never costs the postcard or album
+//     entry, because metadata is an optional enhancement to the already-complete generation result.
 
 const host = orb.host(1);
 
@@ -151,7 +155,8 @@ async function takeSnapshot(chat, styleKey, note) {
       reuse: "never",
       quiet: false,
     });
-    await keepMoment(chosen.title, styleKey, assetId);
+    const asset = await readAssetDetails(assetId);
+    await keepMoment(chosen.title, styleKey, assetId, asset);
     await host.ui.toast("success", `Kept: "${chosen.title}" — the postcard is in the room and the album.`);
   } catch (err) {
     const name = err && err.name ? err.name : "Error";
@@ -164,6 +169,22 @@ async function takeSnapshot(chat, styleKey, note) {
     // the pipeline finishes; only the album misses the catch. Say exactly that.
     host.log.info(`snapshot not caught: ${String(err)}`);
     await host.ui.toast("info", "The postcard is developing — it will appear in the room. (The album only keeps ones the camera catches in time.)");
+  }
+}
+
+/** Read optional metadata for the generated asset. `assets.read` is owner-scoped by the host and returns
+ *  `null` for absent or foreign ids. The album never depends on this enhancement: a refusal logs and degrades
+ *  to the same keepsake it stored before the capability existed. */
+async function readAssetDetails(assetId) {
+  if (!host.grants.includes("assets.read")) {
+    return null;
+  }
+  try {
+    const asset = await host.assets.read(assetId);
+    return asset === null ? null : { mime: asset.mime, sizeBytes: asset.sizeBytes };
+  } catch (err) {
+    host.log.info(`asset metadata skipped: ${String(err)}`);
+    return null;
   }
 }
 
@@ -202,7 +223,7 @@ async function nextSequence() {
 }
 
 /** File one caught keepsake, evicting past the album cap, and refresh the page. */
-async function keepMoment(title, styleKey, assetId) {
+async function keepMoment(title, styleKey, assetId, asset) {
   const seq = await nextSequence();
   if (seq === null) {
     // Contended past the bound. Say so rather than filing over someone else's moment — the postcard is still
@@ -210,7 +231,16 @@ async function keepMoment(title, styleKey, assetId) {
     host.log.info("album sequence stayed contended — this keepsake was not filed");
     return;
   }
-  await host.storage.set(momentKey(seq), JSON.stringify({ title, style: styleKey ?? "painterly", assetId, atMs: host.clock.nowEpochMs() }));
+  await host.storage.set(
+    momentKey(seq),
+    JSON.stringify({
+      title,
+      style: styleKey ?? "painterly",
+      assetId,
+      atMs: host.clock.nowEpochMs(),
+      ...(asset === null ? {} : { mime: asset.mime, sizeBytes: asset.sizeBytes }),
+    }),
+  );
   const keys = (await host.storage.list("moment:")).sort();
   for (const key of keys.slice(0, Math.max(0, keys.length - ALBUM_MAX))) {
     await host.storage.delete(key);
@@ -338,6 +368,8 @@ if (canShoot) {
                 kind: "keyValue",
                 rows: [
                   { key: "Style", value: { $state: "detail.style" } },
+                  { key: "Format", value: { $state: "detail.mime" } },
+                  { key: "Size", value: { $state: "detail.size" } },
                   { key: "Kept", value: { $state: "detail.kept" } },
                 ],
               },
@@ -374,7 +406,15 @@ if (canShoot) {
           }
           const m = JSON.parse(raw);
           await host.storage.set("open_key", key);
-          await publishAlbum({ key, title: m.title, style: m.style, assetId: m.assetId, kept: ago(host.clock.nowEpochMs(), m.atMs) });
+          await publishAlbum({
+            key,
+            title: m.title,
+            style: m.style,
+            assetId: m.assetId,
+            mime: typeof m.mime === "string" ? m.mime : "",
+            size: typeof m.sizeBytes === "number" ? `${m.sizeBytes} bytes` : "",
+            kept: ago(host.clock.nowEpochMs(), m.atMs),
+          });
           return;
         }
         if (a.actionId === "discard") {

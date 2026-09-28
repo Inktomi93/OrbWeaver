@@ -31,12 +31,16 @@ const PACKED_SHA256: Readonly<Record<(typeof SHOWCASE_PLUGIN_SLUGS)[number], str
   // Re-blessed after 563833950 (#1698): the hub import states its outcome, which changed the guest's main.js.
   "card-atlas": "9d0327e4147787dba5cb7a1a7bd7887631c09b933ec74e38736cb0e6390e344c",
   "draft-polish": "543a5cdaf0549ca64a366b7f0b2d866becf7dfe50b715d3568b3a1408a7347c4",
-  "keepsake-camera": "053696f2e17fc77668d255c5f7818a587dec4f18f34292301557aa34bc256e39",
+  // Re-pinned for 1.1.0: the camera reads owner-scoped metadata for the generated asset and publishes it in
+  // the album detail state, while keeping the read optional to the postcard and album write.
+  "keepsake-camera": "33442b6e5e175326ef1b90231123d91e02d1f77eae103808164ce08edd799a4f",
   // Re-pinned after 40b811064: the doc-citation sweep dropped a stale `plugin-ui-plane` section
   // cite from a comment in oracle-deck's main.js.
   "oracle-deck": "e40a169391384b38a4338da7b581e140856d56fde2cea6ab2757fad07aa5b329",
   "pocket-arcade": "7143d14c13b0e562e49b5834792e8205ba3e39c10bae4791508e9d4e768c4bbb",
-  "research-familiar": "618d950dc5be019212fb7793a4c60d715d24b1ed8ba303abe0cd0069acaaf01e",
+  // Re-pinned for 1.2.0: configured lookups verify the attached book and search the installer's corpus before
+  // falling back to Wikipedia; the guest names the hosted-embedding possibility honestly.
+  "research-familiar": "41544d2d800ef895a4b627712a2edc92bd0f8cb1391cd235d640fe00d9e82a60",
   "scene-chips": "f3cebbf02131bd20b2f7a5f2bfd34eabcbf29e1b3369ca3be8150582f531527e",
   // Re-pinned 2026-09-07 (#1865) + manifest 1.0.0 -> 1.0.1, so the auto-upgrade actually reaches installed
   // rows: the `advance_clock` tool declared `segments` as `{type:"integer", enum:[…]}`, which the host's

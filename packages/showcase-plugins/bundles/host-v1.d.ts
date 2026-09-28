@@ -650,7 +650,8 @@ interface PluginHostV1 {
 
   readonly search: {
     /** Semantic search over the INSTALLER's OWN indexed corpus (their databank shelves — including what your
-     *  `databank.ingest` wrote). Ranked hits, ≤ 20 per call (default 10). No chat scope needed.
+     *  `databank.ingest` wrote). Query text may reach the installer's hosted embedding provider and cost
+     *  money; the host admits at most 120 calls/hour per plugin. Ranked hits, ≤ 20 per call (default 10). No chat scope needed.
      *  capability: search.query */
     documents: (queryText: string, opts?: { limit?: number }) => Promise<readonly PluginSearchHit[]>;
   };

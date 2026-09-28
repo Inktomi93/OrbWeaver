@@ -223,7 +223,7 @@ describe("escape — the guest→host argument boundary is inert (no callable/li
       },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
-      // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
+      // Inert by design: this suite pins ISOLATION, not the belts. The hourly floors are domain state and
       // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
@@ -326,7 +326,7 @@ describe("escape — a stale chat handle cannot read a prior/other chat (single-
       },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
-      // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
+      // Inert by design: this suite pins ISOLATION, not the belts. The hourly floors are domain state and
       // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
@@ -425,7 +425,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
-      // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
+      // Inert by design: this suite pins ISOLATION, not the belts. The hourly floors are domain state and
       // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
@@ -508,7 +508,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
-      // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
+      // Inert by design: this suite pins ISOLATION, not the belts. The hourly floors are domain state and
       // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
@@ -598,7 +598,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
-      // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
+      // Inert by design: this suite pins ISOLATION, not the belts. The hourly floors are domain state and
       // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,
@@ -669,7 +669,7 @@ describe("escape — resource ceilings hold under adversarial load", () => {
       },
       notifications: { post: () => Promise.resolve() },
       surfaceQuickReply: () => Promise.resolve(),
-      // Inert by design: this suite pins ISOLATION, not the belts. The two hourly floors are domain state and
+      // Inert by design: this suite pins ISOLATION, not the belts. The hourly floors are domain state and
       // are proven in tests/server/domain/plugin/substrate/rate-floor.test.ts + the membrane's ordering pins.
       llm: { quiet: () => Promise.resolve({ text: "" }) },
       admitEgress: (): void => undefined,

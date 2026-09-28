@@ -17,8 +17,8 @@
 // to. Concretely, three things every arm renders:
 //   1. every DECLARED capability, in `PLUGIN_CAPABILITIES` order, each with the plain-English consequence
 //      of granting it (`plugin-copy.ts` — a capability with no sentence is a compile error, not a blank row);
-//   2. the SPEND mark on the two capabilities that draw on the installer's budget — never buried in prose;
-//   3. `netHosts` VERBATIM whenever `net.fetch` is declared. `net.fetch` is parameterized by its allowlist,
+//   2. the SPEND mark on every capability that can draw on the installer's budget — never buried in prose;
+//   3. `netHosts` VERBATIM whenever an egress capability is declared. Network reach is parameterized by its allowlist,
 //      so the capability NAME is not the reach — the hosts are. This is exactly why the server's re-consent
 //      rule treats a swapped host list as a widening (`domain/plugin/verbs/upgrade.ts`), and a consent screen
 //      that showed only the capability name would be consenting to the wrong thing.

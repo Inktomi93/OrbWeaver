@@ -41,6 +41,7 @@ import {
   PLUGIN_ASSET_EGRESS_PER_HOUR,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
+  PLUGIN_SEARCH_QUERY_PER_HOUR,
 } from "../../../../packages/server/src/domain/plugin/index.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { createSeededIds } from "../../../support/ids.ts";
@@ -186,9 +187,9 @@ export function makePluginHarness(
     readonly showcase?: PluginContext["showcase"];
     /** Narrow the per-user concurrent-snippet ceiling (default: the production constant). */
     readonly snippetConcurrency?: number;
-    /** Narrow the two HOURLY per-plugin ceilings (default: the production constants) so a suite can reach one
+    /** Narrow the HOURLY per-plugin ceilings (default: the production constants) so a suite can reach one
      *  in a couple of calls. The floors themselves stay REAL — only the limit moves. */
-    readonly rateLimits?: { readonly egress?: number; readonly assetEgress?: number; readonly quietLlm?: number };
+    readonly rateLimits?: { readonly egress?: number; readonly assetEgress?: number; readonly quietLlm?: number; readonly searchQuery?: number };
     /** The fan-out's recipient list (D147 clause (d)). Default EMPTY — a distribution suite states its own
      *  cast, and every other suite is unaffected by a fan-out it never calls. */
     readonly listRecipients?: PluginDistributionDeps["listRecipients"];
@@ -281,7 +282,7 @@ export function makePluginHarness(
     resolveChatAuthority: overrides.resolveChatAuthority ?? (() => Promise.resolve({ canRead: true, canWrite: true })),
     // The REAL belts over the harness's frozen clock (so `advance()` drives them) — never permissive fakes: a
     // lifecycle test must not be able to flood notices, egress or paid generations in a way production would
-    // refuse, and a belt only a test can dodge is a belt nobody proved. `rateLimits` narrows the two hourly
+    // refuse, and a belt only a test can dodge is a belt nobody proved. `rateLimits` narrows the hourly
     // ceilings so a suite can reach one in a couple of calls instead of thirty.
     belts: {
       notify: createNotifyFloor(() => clock.now()),
@@ -293,6 +294,10 @@ export function makePluginHarness(
       quietLlm: createPluginRateFloor(() => clock.now(), {
         capability: "llm.quiet",
         limit: overrides.rateLimits?.quietLlm ?? PLUGIN_QUIET_LLM_PER_HOUR,
+      }),
+      searchQuery: createPluginRateFloor(() => clock.now(), {
+        capability: "search.query",
+        limit: overrides.rateLimits?.searchQuery ?? PLUGIN_SEARCH_QUERY_PER_HOUR,
       }),
     },
     // The REAL snippet concurrency gate, same reason: a permissive fake would let a test prove a bound

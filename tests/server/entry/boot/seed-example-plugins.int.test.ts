@@ -11,17 +11,16 @@
 //
 // NOT EXERCISED HERE, stated so the coverage claim is honest: the familiar's outbound `net.fetch`.
 // `safeFetch` has no injection seam, so exercising it would mean a live request to en.wikipedia.org from CI.
-// The familiar is therefore driven to the seam BEFORE the fetch (its "no lore book configured" refusal), which
-// proves delivery → guest execution → host-function call. The lore write it would perform after a successful
-// fetch — the attachment gate, the per-plugin entry cap and `neutralizeMacros` — is pinned by
-// `tests/server/domain/plugin/substrate/bridge.test.ts`.
+// The familiar's configured drive instead finds a deterministic `search.query` hit, proving the host-call
+// path through the attached-book read and lore write without making CI depend on a public network or paid provider. The
+// bridge's attachment gate, per-plugin entry cap and `neutralizeMacros` remain pinned by its domain suite.
 
 import type { VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { historyFloor } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { InvocationChat, PluginCapability, PluginHandlerRef } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
-import type { AssetId, ChatId, Handle, MessageId, PluginId } from "@orb/kit/ids";
+import type { AssetId, ChatId, Handle, MessageId, PluginId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { liftJsonSchema } from "@orb/kit/json-schema";
 import { createResolveStandingAsks } from "@orb/server/domain/chat";
@@ -44,6 +43,7 @@ import { makeInertOps, makePluginHarness, ownerPrincipalFor, seedUser } from "..
 const DRAW_LINE_RE = /^\d+\. (.+)$/;
 /** The public commitment's shape — ten digits, zero-padded (`commitmentFor`). */
 const COMMITMENT_RE = /^\d{10}$/;
+const FAMILIAR_BOOK_ID = castId<WorldBookId>("wib_01h455vb4pex5vsknk084sn02q");
 
 /** The production runtime under DETERMINISTIC seams — the same object compose builds, so the membrane, the
  *  registration collection and the resident-invoke path are all real. */
@@ -75,6 +75,10 @@ interface Captured {
   /** Every `host.ui.toast` the guests asked for, at the OP seam (the compose-wired outbox is a compose
    *  concern; the drive asserts what the guest SAID, not how chrome delivers it). */
   readonly toasts: { readonly level: string; readonly message: string }[];
+  readonly worldBookReads: { readonly chatId: ChatId }[];
+  readonly searches: { readonly queryText: string; readonly limit?: number }[];
+  readonly worldWrites: { readonly bookId: string; readonly content: string }[];
+  readonly assetReads: string[];
   /** The per-activation invoke closure (crash-policy wrapped) — how a delivery/tool call actually re-enters. */
   invoke: PluginInvokeHandler | null;
   scope: PluginActivationScope | null;
@@ -94,6 +98,10 @@ function recordingOps(db: Db, globals: Map<string, string>): { ops: PluginHostOp
     pubsubEmits: [],
     chips: [],
     toasts: [],
+    worldBookReads: [],
+    searches: [],
+    worldWrites: [],
+    assetReads: [],
     invoke: null,
     scope: null,
   };
@@ -101,6 +109,38 @@ function recordingOps(db: Db, globals: Map<string, string>): { ops: PluginHostOp
     ...base,
     storage: buildPluginStorage(db, () => FROZEN_AT_MS),
     variables: { ...base.variables, get: (_ownerId, key): Promise<string | null> => Promise.resolve(globals.get(key) ?? null) },
+    worldInfo: {
+      ...base.worldInfo,
+      listBooksForChat: (_ownerId, chatId) => {
+        captured.worldBookReads.push({ chatId });
+        return Promise.resolve([{ id: FAMILIAR_BOOK_ID, name: "Field Notes" }]);
+      },
+      isBookAttachedToChat: (_ownerId, _chatId, bookId) => Promise.resolve(bookId === FAMILIAR_BOOK_ID),
+      upsertEntries: (req) => {
+        captured.worldWrites.push({ bookId: req.bookId, content: req.entries[0]?.content ?? "" });
+        return Promise.resolve({ inserted: 1, updated: 0, skippedHandEdited: 0 });
+      },
+    },
+    search: {
+      documents: ({ queryText, limit }) => {
+        captured.searches.push({ queryText, ...(limit === undefined ? {} : { limit }) });
+        return Promise.resolve([
+          {
+            documentId: "doc_01h455vb4pex5vsknk084sn02q",
+            documentName: "Aurora field notes",
+            content: "Charged particles excite gases high above the polar sky.",
+            score: 0.99,
+          },
+        ]);
+      },
+    },
+    assets: {
+      ...base.assets,
+      read: ({ assetId }) => {
+        captured.assetReads.push(assetId);
+        return Promise.resolve({ mime: "image/png", sizeBytes: 2_097_152, dataBase64: null });
+      },
+    },
     quickReply: {
       surface: ({ choices }): Promise<void> => {
         captured.chips.push(choices);
@@ -236,9 +276,11 @@ function messageFact(chatId: ChatId, content: string, role = "user"): string {
 
 const FAMILIAR_GRANT: readonly PluginCapability[] = [
   "chat.read",
+  "worldinfo.read",
   "worldinfo.write",
   "global_vars",
   "storage.kv",
+  "search.query",
   "events.subscribe",
   "net.fetch",
   "databank.ingest",
@@ -246,7 +288,8 @@ const FAMILIAR_GRANT: readonly PluginCapability[] = [
 
 test("research familiar: the real bundle installs consent-first, and its messageCommitted handler actually fires", async () => {
   const db = await freshDb();
-  const { ops, captured } = recordingOps(db, new Map());
+  const globals = new Map<string, string>();
+  const { ops, captured } = recordingOps(db, globals);
   const h = makePluginHarness(db, { port: realHost(), ops });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
 
@@ -300,6 +343,14 @@ test("research familiar: the real bundle installs consent-first, and its message
   await invoke(handler, messageFact(CHAT, "keep the whole article ((clip: Aurora borealis))"), chatScope(CHAT, true));
   const afterClip = await h.service.getLog({ caller, pluginId: installed.id });
   expect(afterClip.some((line) => line.level === "warn" && line.message.includes("databank.ingest"))).toBe(true);
+
+  // The configured lookup stays inside the host when the installer already has a useful document: it proves
+  // the destination is attached, asks the owner-scoped corpus, and files the local hit without public egress.
+  globals.set("familiar_book_id", FAMILIAR_BOOK_ID);
+  await invoke(handler, messageFact(CHAT, "we ride north ((lookup: Aurora borealis))"), chatScope(CHAT, true));
+  expect(captured.worldBookReads).toEqual([{ chatId: CHAT }]);
+  expect(captured.searches).toEqual([{ queryText: "Aurora borealis", limit: 1 }]);
+  expect(captured.worldWrites).toEqual([{ bookId: FAMILIAR_BOOK_ID, content: "Aurora borealis: Charged particles excite gases high above the polar sky." }]);
 });
 
 test("oracle deck: the real bundle registers both tools and a draw is verifiable against the reveal", async () => {
@@ -885,7 +936,7 @@ test("keepsake camera: the spend pipeline — structured quiet falls back, the p
     h,
     caller,
     slug: "keepsake-camera",
-    grant: ["chat.read", "storage.kv", "llm.quiet", "imagery.generate", "ui.surface"],
+    grant: ["chat.read", "storage.kv", "assets.read", "llm.quiet", "imagery.generate", "ui.surface"],
   });
 
   // The collected shape: one typed-args command and the ARM C album page (a masterDetail whose browse stage
@@ -904,6 +955,7 @@ test("keepsake camera: the spend pipeline — structured quiet falls back, the p
   expect(paints[0]?.quiet).toBe(false);
   expect(paints[0]?.prompt).toContain("ink and wash");
   expect(paints[0]?.prompt).toContain("keep the lantern lit");
+  expect(captured.assetReads).toEqual([validAsset]);
   expect(captured.toasts.some((t) => t.message.startsWith("Kept:"))).toBe(true);
 
   // The album published GLOBALLY (no chat key — a cross-room roll-up): one bound tile carrying the caught
@@ -918,7 +970,7 @@ test("keepsake camera: the spend pipeline — structured quiet falls back, the p
   await h.service.invokeUiAction({ caller, pluginId, surfaceId: "album_page", actionId: "open", values: { tile: tiles[0]?.id ?? "" } });
   const opened = await h.service.getSurfaceState({ caller, pluginId, surfaceId: "album_page" });
   expect(opened?.["stage"]).toBe("moment");
-  expect((opened?.["detail"] as { assetId: AssetId }).assetId).toBe(validAsset);
+  expect(opened?.["detail"]).toEqual(expect.objectContaining({ assetId: validAsset, mime: "image/png", size: "2097152 bytes" }));
 
   // …and `discard` forgets the album copy (the rooms keep their postcards) and returns home, empty.
   await h.service.invokeUiAction({ caller, pluginId, surfaceId: "album_page", actionId: "discard", values: {} });

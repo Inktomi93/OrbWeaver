@@ -40,11 +40,10 @@ export const PLUGIN_CAPABILITIES = [
   // The first-party RETRIEVAL read (#788 F1 residual / gap #9). A guest runs semantic document search over the
   // INSTALLER's OWN indexed corpus (the vectors-extension parity — plugins consume first-party RAG instead of
   // hand-rolling it). Owner-scoped by construction: the bridge closes the installer's `ownerId` over the search
-  // scope, so a guest names only the query text and can search no other owner's library. BENIGN band (neither
-  // risk nor spend): it reaches nothing outside the installer's own data, and the query embedding is LOCAL box
-  // compute (the embeddings domain's own model), never a paid hosted credential — which is why it carries no
-  // hourly rate floor (owner ruling: plain, not spend-classed). It sits beside `assets.read` in the "read your
-  // own library" band.
+  // scope, so a guest names only the query text and can search no other owner's library. The active embedding
+  // connection may be hosted and paid: the query can leave the box under the installer's credential. Consent
+  // names that reach and the bridge claims a per-plugin hourly rate slot before the search op. It sits beside
+  // `assets.read` for the library-read vocabulary, but belongs to the spend/risk band for consent.
   "search.query",
   "notify",
   "ui.surface", // draw its own house-rendered panels/controls (NOT spend, NOT admin-gated — renders only for the installer)
@@ -90,8 +89,8 @@ export const PLUGIN_CAPABILITIES = [
   "tools.register", // D48 tool-use registry, source (b)
   "net.fetch", // requires netHosts
   // The REMOTE-IMAGE-INTO-CAS capability (plugin-remote-image #798). `host.net.fetchAsset(url)` downloads an
-  // image from a manifest-allowlisted host through the SAME audited SSRF egress wall + the same hourly egress
-  // belt as `net.fetch` (EGRESS DELTA ZERO — a plugin that can `net.fetch` a host can already GET its bytes),
+  // image from a manifest-allowlisted host through the SAME audited SSRF egress wall, but a SEPARATE hourly
+  // image-download belt from `net.fetch` (EGRESS DELTA ZERO — a plugin that can `net.fetch` a host can already GET its bytes),
   // runs the remote-image guard, and writes the bytes into the INSTALLER's OWN CAS, returning an assetId. It is
   // its OWN consent line rather than folded into `net.fetch` because it adds a CAS-WRITE (a durable asset in
   // your library) on top of the identical egress reach: a plugin granted `net.fetch` to call a text API must
@@ -112,7 +111,7 @@ export const PLUGIN_HOST_VERSIONS = [1] as const;
 
 /** The capabilities that PERFORM allowlisted egress and therefore REQUIRE `netHosts` (the SSRF wall). Both
  *  `net.fetch` (text) and `net.fetch_asset` (a remote image → the installer's CAS) reach the network through
- *  the SAME manifest allowlist and the SAME hourly egress belt; declaring EITHER requires ≥ 1 host, and a host
+ *  the SAME manifest allowlist but separate hourly rate belts; declaring EITHER requires ≥ 1 host, and a host
  *  list is meaningless without at least one of them (the biconditional's integrity is the SSRF allowlist's).
  *  Derived once so a third egress capability lands in ONE place instead of a hand-updated `||` chain. */
 const EGRESS_CAPABILITIES = ["net.fetch", "net.fetch_asset"] as const satisfies readonly PluginCapability[];

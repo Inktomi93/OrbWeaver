@@ -18,7 +18,7 @@ pnpm plugin:pack keepsake-camera ./out
 ## The manifest
 
 ```json
-"capabilities": ["chat.read", "storage.kv", "llm.quiet", "imagery.generate", "ui.surface"]
+"capabilities": ["chat.read", "storage.kv", "assets.read", "llm.quiet", "imagery.generate", "ui.surface"]
 ```
 
 `llm.quiet` (30/hour per plugin) and `imagery.generate` are SPEND — they run on the installer's own
@@ -26,7 +26,10 @@ connections and cost real money. Both are feature-detected at USE, so a partial 
 sentence: without `llm.quiet` the titling falls back to a local one; without `imagery.generate` the whole
 camera says why it cannot click.
 
-## How it works — the three lessons
+`assets.read` reads optional MIME and byte-size metadata back from the installer's owner-scoped asset store.
+The album still keeps the postcard when that read is absent or refused.
+
+## How it works — the four lessons
 
 1. **Structured output.** `host.llm.quiet(prompt, { schema })` routes to the installer's `structured`-role
    connection and constrains the answer to your JSON Schema. You get the model's JSON back AS TEXT — parse
@@ -44,6 +47,10 @@ camera says why it cannot click.
 3. **Host authority on spend.** `imagery.generate` in a room the installer does not host becomes a CONFIRM
    CARD for the room's host — the call throws `PluginSuggestedError`, which means "it became a question", not
    "it failed". Catch it by `.name` and tell the person.
+
+4. **Asset readback is an enhancement.** After generation returns an `assetId`, `host.assets.read(assetId)`
+   returns the installer's own asset metadata. Foreign and absent ids collapse to `null`; a refused read is
+   logged and the album keeps the original title, style and image without metadata.
 
 ## The album (the bound-collection vocabulary)
 

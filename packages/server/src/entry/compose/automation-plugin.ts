@@ -73,6 +73,7 @@ import {
   PLUGIN_ASSET_EGRESS_PER_HOUR,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
+  PLUGIN_SEARCH_QUERY_PER_HOUR,
   PluginNotFoundError,
   recordPluginFetchedAsset,
 } from "#domain/plugin";
@@ -496,7 +497,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   let pluginTransformSeq = 0;
   const pluginHost: PluginHostPort = createPluginHost({ nowEpochMs: now, nextRandom: Math.random, mintId: () => randomUUID() });
   // The capability BELTS — process-wide state, minted ONCE here and shared by every activation (the
-  // resident-registry precedent); the domain's bridge claims the relevant one per guarded call. The two
+  // resident-registry precedent); the domain's bridge claims the relevant one per guarded call. The
   // HOURLY floors are the only bounds on a RATE anywhere in the sandbox: every other cap is per-call or
   // per-instance, and `HOST_CALLS_IN_FLIGHT_MAX` bounds concurrency, which is not a rate. Hoisted above the
   // op bundle because the CONFIRMED-ACT runner needs the same instances — a confirmed act must meet the same
@@ -506,6 +507,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     egress: createPluginRateFloor(now, { capability: "net.fetch", limit: PLUGIN_EGRESS_PER_HOUR }),
     assetEgress: createPluginRateFloor(now, { capability: "net.fetchAsset", limit: PLUGIN_ASSET_EGRESS_PER_HOUR }),
     quietLlm: createPluginRateFloor(now, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
+    searchQuery: createPluginRateFloor(now, { capability: "search.query", limit: PLUGIN_SEARCH_QUERY_PER_HOUR }),
   };
   // The UI-surface STATE plane — ONE per process, shared by the `ui.setState` write
   // op below, the `getSurfaceState` read verb (via `ctx.surfaceState`), and the deactivate sweep. Respawn wipes.
@@ -764,8 +766,9 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     },
     // #788 F1 — first-party retrieval. `scope: { ownerId: installerUserId }` is the WHOLE owner gate: the
     // installer's ownerId is closed over here, a guest names only the query, so a cross-owner search is not
-    // expressible (the databank/assets owner-closure). The query embedding is LOCAL box compute (no paid
-    // credential — the plain, no-belt ruling). The reduced projection withholds chunk plumbing and caps content
+    // expressible (the databank/assets owner-closure). The bridge claims a per-plugin rate slot before this
+    // call because the active embed connection may use a hosted, paid provider. The reduced projection
+    // withholds chunk plumbing and caps content
     // like the message read; `limit` maps onto the domain's `k` (already clamped ≤ PLUGIN_SEARCH_RESULTS_MAX at
     // the membrane).
     search: {
@@ -987,7 +990,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       surfaceState: pluginSurfaceState,
       uiOutbox: pluginUiOutbox,
       // The capability BELTS — process-wide state, minted ONCE here and shared by every activation (the
-      // resident-registry precedent); the domain's bridge claims the relevant one per guarded call. The two
+      // resident-registry precedent); the domain's bridge claims the relevant one per guarded call. The
       // HOURLY floors are the only bounds on a RATE anywhere in the sandbox: every other cap is per-call or
       // per-instance, and `HOST_CALLS_IN_FLIGHT_MAX` bounds concurrency, which is not a rate.
       belts: pluginBelts,

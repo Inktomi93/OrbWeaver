@@ -1,8 +1,8 @@
 // Research Familiar — the EVENT-DRIVEN archetype of an Orbweaver plugin.
 //
-// WHAT IT DOES. Someone writes `((lookup: Aurora borealis))` in the room. The familiar notices, fetches the
-// Wikipedia summary for that term, and files it as a world-info entry so every later turn can use it. No model
-// is called, so the whole feature costs nothing but one HTTP request.
+// WHAT IT DOES. Someone writes `((lookup: Aurora borealis))` in the room. The familiar notices, searches the
+// installer's own corpus first, falls back to Wikipedia, and files a short result into an attached world-info
+// book so every later turn can use it. No model is called.
 //
 // WHY IT IS SHAPED LIKE THIS — the three rules an event plugin lives or dies by:
 //   1. A HANDLER MUST NEVER THROW. Three consecutive rejected invocations auto-disable the plugin
@@ -24,9 +24,9 @@
 const host = orb.host(1);
 
 // ── configuration ──────────────────────────────────────────────────────────────────────────────────────────
-// The lore book the familiar files into. A plugin has NO way to browse your books (the host surface exposes
-// `worldInfo.upsertEntry` and nothing else), so the target is read from the installer's own global-variable
-// namespace — the same plane `{{getglobalvar}}` reads. Set it once from any chat:
+// The lore book the familiar files into. The target is read from the installer's own global-variable namespace
+// — the same plane `{{getglobalvar}}` reads — then checked against the books attached to this room. Set it once
+// from any chat:
 //
 //     {{setglobalvar::familiar_book_id::wib_01j…}}
 //
@@ -132,6 +132,39 @@ async function fetchSummary(term) {
   }
 }
 
+/** Search the installer's own indexed corpus before the Wikipedia fallback. Query embedding may use the
+ *  installer's hosted provider; the search grant discloses that spend and the host bounds its rate. */
+async function searchLibrary(term) {
+  if (!host.grants.includes("search.query")) {
+    return null;
+  }
+  try {
+    const [hit] = await host.search.documents(term, { limit: 1 });
+    if (hit === undefined || hit.content.length === 0) {
+      return null;
+    }
+    return { title: hit.documentName, extract: hit.content };
+  } catch (err) {
+    host.log.info(`library search for "${term}" skipped: ${String(err)}`);
+    return null;
+  }
+}
+
+/** When the lore-read grant is present, prove the configured destination belongs to this room before any
+ *  network request or write. The write membrane repeats the attachment gate; this early read gives the person
+ *  a quiet refusal instead of spending egress on a destination the write will reject. */
+async function configuredBookIsAttached(chat, bookId) {
+  if (!host.grants.includes("worldinfo.read")) {
+    return true;
+  }
+  const books = await host.worldInfo.listBooks(chat);
+  if (books.some((book) => book.id === bookId)) {
+    return true;
+  }
+  host.log.warn(`configured lore book ${bookId} is not attached to this room — skipping`);
+  return false;
+}
+
 /** File the entry. `chat` is the OPAQUE HANDLE for THIS invocation — it is a fresh token every time, it cannot
  *  be stored or reused, and passing a forged one is refused by the host. */
 async function fileEntry(chat, bookId, term, extract) {
@@ -222,11 +255,19 @@ if (host.grants.includes("events.subscribe")) {
         return;
       }
 
-      // Claim the gap BEFORE the fetch, not after: two deliveries can be in flight at once, and a gap stamped
-      // on success would let both through.
+      const chat = work.verb === "lookup" ? host.chat.current() : null;
+      if (chat !== null && !(await configuredBookIsAttached(chat, work.bookId))) {
+        return;
+      }
+
+      // Claim the gap before either source read, exactly as the original fetch-only path did. Two deliveries
+      // can be in flight at once, and a gap stamped on success would let both through.
       await host.storage.set(LAST_FETCH_KEY, String(host.clock.nowEpochMs()));
 
-      const summary = await fetchSummary(work.term);
+      let summary = work.verb === "lookup" ? await searchLibrary(work.term) : null;
+      if (summary === null) {
+        summary = await fetchSummary(work.term);
+      }
       if (summary === null) {
         return;
       }
@@ -250,7 +291,7 @@ if (host.grants.includes("events.subscribe")) {
       // domain-bus fact (`character.updated`) carries no room — so it is called only after we know we have
       // work to do. The excerpt is CUT here: a lore entry is injected into prompts, and a 4 KB one is a tax
       // on every turn forever.
-      await fileEntry(host.chat.current(), work.bookId, work.term, summary.extract.slice(0, EXTRACT_MAX_CHARS));
+      await fileEntry(chat, work.bookId, work.term, summary.extract.slice(0, EXTRACT_MAX_CHARS));
       await host.storage.set(seenKey("lookup", work.term), String(host.clock.nowEpochMs()));
       host.log.info(`filed "${work.term}"`);
     } catch (err) {

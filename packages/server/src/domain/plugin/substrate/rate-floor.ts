@@ -1,5 +1,5 @@
 // domain/plugin/substrate/rate-floor — the per-plugin HOURLY call floor: the belt that bounds a RATE, for the
-// two membrane capabilities whose per-call bounds do not add up to one.
+// membrane capabilities whose per-call bounds do not add up to one.
 //
 // WHY A RATE BELT EXISTS AT ALL, and why the existing caps are not it. Every other bound in the sandbox is
 // PER CALL or PER INSTANCE: `safeFetch` bounds one request (deadline, byte cap, redirect budget), the manifest
@@ -57,6 +57,12 @@ export const PLUGIN_ASSET_EGRESS_PER_HOUR = 1200;
  *  installer's own credential, and a plugin that needs a model call on more than one message in two is not a
  *  plugin, it is a co-author. */
 export const PLUGIN_QUIET_LLM_PER_HOUR = 30;
+
+/** Semantic queries may embed through the installer's hosted, paid connection. Two a minute sustained is a
+ *  generous interactive library-search cadence, while an event-driven loop would otherwise spend without a
+ *  ceiling. This is its own per-plugin budget: retrieval is cheaper than `llm.quiet` generation and must not
+ *  starve the separate `net.fetch` browse budget. The fixed-window boundary can admit 240 across two hours. */
+export const PLUGIN_SEARCH_QUERY_PER_HOUR = 120;
 
 /** Sweep threshold — one entry per plugin that has ever used the capability in this process, each dead after
  *  its window. A bounded lazy sweep keeps a long-lived process from accumulating rows for uninstalled plugins

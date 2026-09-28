@@ -20,6 +20,7 @@ import {
   PLUGIN_ASSET_EGRESS_PER_HOUR,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
+  PLUGIN_SEARCH_QUERY_PER_HOUR,
 } from "../../../../../packages/server/src/domain/plugin/substrate/rate-floor.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -63,6 +64,7 @@ function beltsWith(over: Partial<PluginBelts>): PluginBelts {
     egress: over.egress ?? createPluginRateFloor(() => FROZEN_AT_MS, { capability: "net.fetch", limit: PLUGIN_EGRESS_PER_HOUR }),
     assetEgress: over.assetEgress ?? createPluginRateFloor(() => FROZEN_AT_MS, { capability: "net.fetchAsset", limit: PLUGIN_ASSET_EGRESS_PER_HOUR }),
     quietLlm: over.quietLlm ?? createPluginRateFloor(() => FROZEN_AT_MS, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
+    searchQuery: over.searchQuery ?? createPluginRateFloor(() => FROZEN_AT_MS, { capability: "search.query", limit: PLUGIN_SEARCH_QUERY_PER_HOUR }),
   };
 }
 
@@ -923,5 +925,28 @@ describe("buildPluginBridge — #788 READ gaps are owner-scoped + leak-free", ()
     await otherBridge.search.documents("dragons", undefined);
 
     expect(rec.searchReqs).toEqual([{ installerUserId: OTHER, queryText: "dragons" }]);
+  });
+
+  test("search.query claims a per-plugin spend slot before embedding and cannot be called by a snippet", async () => {
+    const rec = readGapOps({});
+    const clock = createFrozenClock(FROZEN_AT_MS);
+    const belts = beltsWith({ searchQuery: createPluginRateFloor(() => clock.now(), { capability: "search.query", limit: 2 }) });
+    const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, belts);
+    const other = buildPluginBridge(rec.ops, INSTALLER, OTHER_PLUGIN_REF, belts);
+
+    await bridge.search.documents("first", 1);
+    await bridge.search.documents("second", 1);
+    expect(() => bridge.search.documents("third", 1)).toThrow(/search\.query is limited to 2 calls per hour/u);
+    expect(rec.searchReqs).toHaveLength(2);
+
+    await other.search.documents("other", 1);
+    expect(rec.searchReqs).toHaveLength(3);
+    clock.advance(ONE_HOUR_MS);
+    await bridge.search.documents("after window", 1);
+    expect(rec.searchReqs).toHaveLength(4);
+
+    const snippet = buildPluginBridge(rec.ops, INSTALLER, null, belts);
+    expect(() => snippet.search.documents("unattributed", 1)).toThrow(NEEDS_PLUGIN_RE);
+    expect(rec.searchReqs).toHaveLength(4);
   });
 });

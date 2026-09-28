@@ -268,7 +268,8 @@ export interface PluginHostV1 {
      *  arm the vectors extension hand-rolls). The guest supplies only the query text; the host closes the
      *  installer's `ownerId` over the search scope, so a guest can search no other owner's library — a read of
      *  the installer's own data, owner-scoped by construction. Results are ranked {@link PluginSearchHit}s,
-     *  clamped to {@link PLUGIN_SEARCH_RESULTS_MAX}. capability: search.query */
+     *  clamped to {@link PLUGIN_SEARCH_RESULTS_MAX}. The active embed connection may be hosted and paid;
+     *  the server bridge rate-limits calls per installed plugin. capability: search.query */
     documents: (queryText: string, opts?: { limit?: number /* ≤ PLUGIN_SEARCH_RESULTS_MAX, default 10 */ }) => Promise<readonly PluginSearchHit[]>;
   };
 
@@ -866,7 +867,7 @@ export const HOST_FUNCTION_CAPABILITY = {
  *     read already owner-gates, so the widening is small, but it is a widening — priced, never a free entry.
  *   - `search.documents` (#788 F1) — OUT. It IS an owner-scoped read (the bridge closes the installer's ownerId
  *     over the scope, so a proxied call would need no new ownership gate), but every call runs a QUERY EMBEDDING
- *     (local box compute), and a client guest firing it at animation rate would hammer the embedder — the
+ *     (which may call a hosted provider), and a client guest firing it at animation rate would hammer the embedder — the
  *     compute-cost class the read tuple deliberately does not admit (§4.6 bought LATENCY for local-immediate
  *     interaction over CHEAP reads, not for per-keystroke retrieval). A scripted surface that wants search fires
  *     an `actionId` round-trip whose server guest runs it under the same grant. Priced, not a free entry.

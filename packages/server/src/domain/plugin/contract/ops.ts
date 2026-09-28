@@ -560,8 +560,8 @@ export type RaisePluginSuggestion = (req: {
  *  makes it disappear. */
 export type VoidPluginSuggestions = (pluginId: PluginId) => void;
 
-/** The per-plugin HOURLY call floor for the two capabilities whose per-call bounds do not add up to a rate
- *  (`net.fetch` egress, `llm.quiet` spend) — `substrate/rate-floor.ts` implements it, one instance per
+/** The per-plugin HOURLY call floor for capabilities whose per-call bounds do not add up to a rate
+ *  (network egress or hosted credential spend) — `substrate/rate-floor.ts` implements it, one instance per
  *  capability, minted at compose beside the notify floor. `admit` THROWS when the plugin is over its ceiling. */
 export interface PluginRateFloor {
   /** CHECK-AND-CLAIM one call for `pluginId` in the current hour. Deliberately ONE synchronous step, for the
@@ -570,9 +570,9 @@ export interface PluginRateFloor {
   readonly admit: (pluginId: PluginId) => void;
 }
 
-/** The process-wide BELTS every plugin bridge closes over — bundled rather than passed as four positional
+/** The process-wide BELTS every plugin bridge closes over — bundled rather than passed as positional
  *  params (the `AsyncFnSpec` precedent: a seam that keeps gaining belts should not keep gaining arity, and a
- *  named bag makes "which belt did this bridge get" answerable at a glance). All three are minted ONCE at
+ *  named bag makes "which belt did this bridge get" answerable at a glance). They are minted ONCE at
  *  compose (the resident-registry posture) and shared by every activation. */
 export interface PluginBelts {
   /** The `notify` capability's 60 s per-(plugin, chat) cooldown (02 §2). */
@@ -586,6 +586,9 @@ export interface PluginBelts {
   /** The `llm.quiet` hourly generation ceiling — the only bound on how much of the installer's credential a
    *  granted plugin may spend over time. */
   readonly quietLlm: PluginRateFloor;
+  /** The `search.query` hourly query-embedding ceiling, keyed to the installed plugin whose grant may
+   *  spend the installer's hosted embedding credential. */
+  readonly searchQuery: PluginRateFloor;
 }
 
 export interface NotifyFloor {

@@ -28,15 +28,15 @@
 // `requestTurn`; its images are clamped n≤4 + the membrane's ≤32 concurrent-host-call cap. Cost visibility
 // rides the host-funded chat writes and the stats domain.
 //
-// THE BELTS THIS FILE CLAIMS, and why they are claimed HERE rather than at the membrane. Three capabilities
+// THE BELTS THIS FILE CLAIMS, and why they are claimed HERE rather than at the membrane. Four capabilities
 // have a bound that no per-call check can express — `notify` (a durable row per member, per call), `net.fetch`
-// (unbounded egress rate) and `llm.quiet` (unbounded spend rate). Each ceiling is per INSTALLED PLUGIN, and
+// (unbounded egress rate), `llm.quiet` and `search.query` (unbounded credential spend rate). Each ceiling is per INSTALLED PLUGIN, and
 // the membrane is authority-blind by construction: it holds no `pluginId` and no principal, so it cannot key
 // any of them. The bridge is the first place that knows whose call this is, so the claim lives here, always
 // BEFORE the first `await` — the membrane admits up to 32 concurrent host calls per instance, and a
 // check-then-await-then-record would let a burst of 32 all observe the pre-burst count and pass.
 
-import type { PluginBridge, PluginCharacterView, PluginMessageView, PluginWorldBookView, PluginWorldEntryView } from "@orb/contracts/plugin";
+import type { PluginBridge, PluginCharacterView, PluginMessageView, PluginSearchHit, PluginWorldBookView, PluginWorldEntryView } from "@orb/contracts/plugin";
 import type { PluginId, UserId, WorldBookId } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
 import type { PluginBelts, PluginHostOps, PluginIdentity } from "../contract/ops.ts";
@@ -66,11 +66,11 @@ function pluginEntryTitle(pluginId: PluginId | null, entryKey: string): string {
  *  writer and is dropped); imagery forwards the action args + admitted chat to the front door and hands the guest
  *  ONLY `{assetId}` (cost never crosses the realm boundary). */
 export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, plugin: PluginIdentity | null, belts: PluginBelts): PluginBridge {
-  // The plugin-scoped ops (storage / notify / quick_reply / llm.quiet / the net.fetch egress claim) are keyed
+  // The plugin-scoped ops (storage / notify / quick_reply / llm.quiet / net.fetch / search.query) are keyed
   // by a PERSISTENT pluginId — a transient snippet has none (`null`). Its fixed grant profile omits every one
   // of those capabilities, so the membrane's capability gate never reaches these closures on the snippet path;
   // a `null` here throws only if the membrane ever DID reach them (a defensive contradiction of the grant
-  // profile, never a live path). For the two BELTED capabilities the requirement is stronger than plumbing:
+  // profile, never a live path). For the BELTED capabilities the requirement is stronger than plumbing:
   // an hourly ceiling has to be keyed to something durable, and an anonymous one-shot has no identity to bill
   // or to bound — so "no pluginId" and "may not egress or spend" are the same fact, not two.
   const pluginId = plugin?.id ?? null;
@@ -220,10 +220,13 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     },
     // FIRST-PARTY RETRIEVAL (#788 F1). Closed over the INSTALLER only — the guest supplies the query text + the
     // (already host-clamped) limit and can name no owner, so the compose op's `scope: { ownerId: installer }`
-    // makes a cross-owner search structurally impossible (the `assets`/`databank` owner-closure pattern). NO
-    // `requirePluginId`: the read keys nothing on the pluginId — it is the installer's own library reach.
+    // makes a cross-owner search structurally impossible (the `assets`/`databank` owner-closure pattern).
+    // Query embedding may spend the installer's hosted credential, so claim this plugin's hourly slot first.
     search: {
-      documents: (queryText, limit) => ops.search.documents({ installerUserId, queryText, ...(limit !== undefined ? { limit } : {}) }),
+      documents: (queryText, limit): Promise<readonly PluginSearchHit[]> => {
+        belts.searchQuery.admit(requirePluginId("search.query"));
+        return ops.search.documents({ installerUserId, queryText, ...(limit !== undefined ? { limit } : {}) });
+      },
     },
     // Plugin-PRIVATE KV — closed over BOTH the pluginId AND the installer (owner), so a cross-plugin OR
     // cross-owner read is structurally impossible: the guest names only the key/prefix, never a scope.

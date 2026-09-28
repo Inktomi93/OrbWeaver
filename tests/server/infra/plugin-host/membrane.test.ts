@@ -31,7 +31,7 @@ const CHAT = "chat_test0000000000000000000" as ChatId;
 const TOKEN = "opaque-token-abc";
 
 /** A minimal fake bridge — the chat var fold is fixed; a write counter proves the gate is reached (or not).
- *  `llm.prompts` and `egress.count` are the same instrument for the two BELTED capabilities: they record what
+ *  `llm.prompts` and `egress.count` record what crossed these BELTED seams: they show what
  *  actually crossed the seam, so a test can tell "the membrane refused" from "the bridge was reached".
  *  `egressRefusal` scripts the domain floor throwing (the belt is domain state; infra only calls the closure). */
 function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
@@ -1141,7 +1141,8 @@ describe("attachMembrane — the hourly EGRESS floor is claimed before the fetch
     // The ORDER is the assertion. `netHosts` names the host being fetched, so an allowlist refusal is not
     // available as an excuse: if the message is the rate refusal, the claim ran BEFORE `safeFetch`. If the
     // claim ran after, this guest would see the network/allowlist path instead.
-    const { bridge, egress, assetEgress } = fakeBridge({ egressRefusal: "plugin host: net.fetch is limited to 120 calls per hour for this plugin" });
+    // Seven is a sentinel scripted by this fake bridge; the domain rate-floor suite owns the production limit.
+    const { bridge, egress, assetEgress } = fakeBridge({ egressRefusal: "plugin host: net.fetch is limited to 7 calls per hour for this plugin" });
     const runtime = makeRuntime(["net.fetch"], false, bridge, { netHosts: ["api.example.com"] });
     await withRuntime(runtime, async (ctx) => {
       const out = await runAsync(
@@ -1149,7 +1150,7 @@ describe("attachMembrane — the hourly EGRESS floor is claimed before the fetch
         "(async () => { try { await host.net.fetch('https://api.example.com/x'); return 'REACHED' } catch (e) { return 'caught:' + e.message } })()",
       );
       expect(out).not.toContain("REACHED");
-      expect(out).toContain("limited to 120 calls per hour");
+      expect(out).toContain("limited to 7 calls per hour");
       expect(out).not.toContain("allowlist");
       expect(egress.count).toBe(1);
       // #801's split, the other direction: a `net.fetch` claim never touches the asset belt.

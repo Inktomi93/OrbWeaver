@@ -92,7 +92,7 @@ want while experimenting.
 | `description` | ≤ 500 chars. Shown beside the grant list; write it for the person deciding. |
 | `author` | Optional, ≤ 120 chars. |
 | `capabilities` | A subset of the closed list below. **Declaring is asking**, not receiving. |
-| `netHosts` | Exact hostnames, ≤ 8. Required iff you declare `net.fetch`. |
+| `netHosts` | Exact hostnames, ≤ 8. Required iff you declare `net.fetch` or `net.fetch_asset`. |
 | `matchAutomationEvents` | Optional, default `false`: your event handlers see only human-caused (depth-0) facts. `true` opts into automation-caused ones, under the hard cascade cap. |
 | `builtAgainst` | Optional `{engineVersion, engineCommit?}` provenance; displayed, never a gate. |
 
@@ -100,7 +100,7 @@ Caps: `manifest.json` ≤ 64 KiB, `main.js` and `ui.js` ≤ 1 MiB each, the zip 
 
 ---
 
-## Capabilities: the twenty-three things a plugin can ask for
+## Capabilities: the twenty-four things a plugin can ask for
 
 Nothing is ambient. Every host function is gated at the **function**, by name, against the set the user
 actually allowed — which can be narrower than what you declared. Feature-detect with
@@ -124,13 +124,14 @@ actually allowed — which can be narrower than what you declared. Feature-detec
 | `assets.read` | `assets.read(assetId)` | Read back one of the installer's OWN CAS assets (e.g. the id `generatePicture` just returned) as base64 + mime. Foreign/absent → `null`, leak-free; owned-but-over-1-MiB → metadata with `dataBase64: null`, never a truncated read. |
 | `llm.quiet` | `llm.quiet(prompt, opts?)` | **Spend.** 30 calls/hour per plugin. `opts.schema` = structured output on the `structured` role (see keepsake-camera); `opts.imageAssetIds` attaches your installer's own CAS images for vision-capable models. Writes nothing — you get a string. |
 | `databank.ingest` | `databank.ingest({name, text})` | A canon write into the installer's OWN databank. Content-hash deduped; the indexer auto-runs. No host authority — your shelves are yours. |
-| `search.query` | `search.documents(queryText, opts?)` | Semantic search over the installer's OWN indexed corpus — including what your `databank.ingest` wrote (ingest, then retrieve: first-party RAG). Ranked hits, ≤ 20 per call (default 10). |
+| `search.query` | `search.documents(queryText, opts?)` | Semantic search over the installer's OWN indexed corpus — including what your `databank.ingest` wrote. Query text may go to your configured hosted embedding provider and cost money. 120 calls/hour per plugin; ranked hits, ≤ 20 per call (default 10). |
 | `character.ingest` | `character.ingest(card)` | Import a V2/V3 card (plain JSON) into the installer's OWN library. Byte-identical re-ingests dedupe (`created: false`). |
 | `character.card_state` | `character.setCardData()`, `getCardData()` | Your plugin's OWN portable blob on one of the installer's OWN characters (`data.extensions.plugin_<slug>` — host-stamped, unforgeable, survives export→import). |
 | `events.subscribe` | `events.on(type, handler)` | The closed trigger taxonomy (`messageCommitted`, `chatOpened`, `turnCompleted`, …). Installed plugins only. |
 | `plugin_events` | `pubsub.emit()`, `pubsub.on()` | The PRIVATE plane between YOUR OWN plugins: `plugin:<slug>:<name>` channels, installer-scoped, never a domain event, never automation. See oracle-deck (emit) + scene-chips (listen). |
 | `tools.register` | `tools.register()` | Into the one tool registry the model already uses. |
-| `net.fetch` | `net.fetch()` | Requires `netHosts`. 120 calls/hour per plugin, 5 s deadline, 1 MiB response cap, SSRF-guarded, GET/POST. |
+| `net.fetch` | `net.fetch()` | Requires `netHosts`. 360 calls/hour per plugin, 5 s deadline, 1 MiB response cap, SSRF-guarded, GET/POST. |
+| `net.fetch_asset` | `net.fetchAsset()` | Requires `netHosts`. Downloads a validated remote image into your OWN asset storage and returns its id. Separate 1200 calls/hour per plugin; shares the allowlist and SSRF guard with `net.fetch`, not its rate budget. |
 
 ### The postures — why a call can "succeed" without doing anything
 
@@ -267,8 +268,8 @@ three rules that keep a scripted surface alive (render immediately; never block;
 
 ## Debouncing is your job
 
-Two capabilities carry host-side hourly floors (`net.fetch` 120, `llm.quiet` 30). **Nothing else does** —
-event delivery has no rate belt at all. The floors are backstops, not budgets. Every example debounces
+Four capabilities carry separate host-side hourly floors (`net.fetch` 360, `net.fetchAsset` 1200,
+`llm.quiet` 30, `search.query` 120). Event delivery has no rate belt. The floors are backstops, not budgets. Every example debounces
 differently on purpose: the familiar's explicit marker + memory + gap; the tracker's every-Nth counter; the
 chips' claimed-before-spent cooldown. Claim a budget BEFORE you spend it — two deliveries can be in flight.
 

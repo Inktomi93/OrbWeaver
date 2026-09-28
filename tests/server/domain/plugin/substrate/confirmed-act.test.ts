@@ -20,6 +20,7 @@ import {
   PLUGIN_ASSET_EGRESS_PER_HOUR,
   PLUGIN_EGRESS_PER_HOUR,
   PLUGIN_QUIET_LLM_PER_HOUR,
+  PLUGIN_SEARCH_QUERY_PER_HOUR,
 } from "../../../../../packages/server/src/domain/plugin/substrate/rate-floor.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -40,6 +41,7 @@ function belts(): PluginBelts {
     egress: createPluginRateFloor(() => FROZEN_AT_MS, { capability: "net.fetch", limit: PLUGIN_EGRESS_PER_HOUR }),
     assetEgress: createPluginRateFloor(() => FROZEN_AT_MS, { capability: "net.fetchAsset", limit: PLUGIN_ASSET_EGRESS_PER_HOUR }),
     quietLlm: createPluginRateFloor(() => FROZEN_AT_MS, { capability: "llm.quiet", limit: PLUGIN_QUIET_LLM_PER_HOUR }),
+    searchQuery: createPluginRateFloor(() => FROZEN_AT_MS, { capability: "search.query", limit: PLUGIN_SEARCH_QUERY_PER_HOUR }),
   };
 }
 

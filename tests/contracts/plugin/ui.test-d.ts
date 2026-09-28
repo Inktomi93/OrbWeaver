@@ -3,7 +3,15 @@
 // the gap the client renderer's exhaustive `Record<NodeKind, Renderer>` exists to catch downstream, pinned
 // HERE at the vocabulary home so the two spellings are locked before any consumer reads them.
 
-import type { PluginCommandArgValue, PluginNodeKind, PluginSurfaceNode, PluginSurfaceSpec, pluginSurfaceNodeSchema } from "@orb/contracts/plugin";
+import type {
+  PluginCommandArgSpec,
+  PluginCommandArgs,
+  PluginCommandArgValue,
+  PluginNodeKind,
+  PluginSurfaceNode,
+  PluginSurfaceSpec,
+  pluginSurfaceNodeSchema,
+} from "@orb/contracts/plugin";
 import { pluginCommandArgsSchema } from "@orb/contracts/plugin";
 import { expectTypeOf, test } from "vitest";
 import type { z } from "zod";
@@ -25,4 +33,10 @@ test("plugin command schema output keeps literal required and optional argument 
   type Output = z.output<typeof schema>;
   expectTypeOf<Output["requiredArg"]>().toEqualTypeOf<PluginCommandArgValue>();
   expectTypeOf<Output["optionalArg"]>().toEqualTypeOf<PluginCommandArgValue | undefined>();
+});
+
+test("plugin command schema output keeps the open bag for dynamically collected specs", () => {
+  const dynamicSpecs: readonly PluginCommandArgSpec[] = [];
+  const dynamicSchema = pluginCommandArgsSchema(dynamicSpecs);
+  expectTypeOf<z.output<typeof dynamicSchema>>().toEqualTypeOf<PluginCommandArgs>();
 });

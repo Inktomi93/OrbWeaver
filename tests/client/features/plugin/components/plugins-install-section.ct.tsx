@@ -197,6 +197,7 @@ test("the grant screen names every declared permission, its consequence, and the
   await expect(page.getByText("Sees recent messages and the room's variables", { exact: false })).toBeVisible();
   await expect(page.getByText("Ask for a reply on its own")).toBeVisible();
   await expect(page.getByText("Reach the internet")).toBeVisible();
+  await expect(page.getByText("at most 360 an hour per plugin", { exact: false })).toBeVisible();
   // The wire vocabulary never reaches the screen.
   await expect(page.getByText("turn.trigger")).toHaveCount(0);
 
@@ -208,6 +209,46 @@ test("the grant screen names every declared permission, its consequence, and the
 
   // A person is told the outcome before they commit to it.
   await expect(page.getByText("It will be installed turned off.", { exact: false })).toBeVisible();
+});
+
+test("text fetch and image download disclose their separate hourly floors and shared host reach", async ({ mount, page }) => {
+  await routeTrpc(page, { "plugin.list": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
+  await mount(<PluginsSurfaceStory />);
+  await pickBundle(page, {
+    id: "image-collector",
+    name: "Image Collector",
+    version: "1.0.0",
+    hostVersion: 1,
+    entry: "main.js",
+    description: "Collects images from a named host.",
+    capabilities: ["net.fetch", "net.fetch_asset"],
+    netHosts: ["images.example"],
+  });
+
+  await expect(page.getByText("Reach the internet")).toBeVisible();
+  await expect(page.getByText("at most 360 an hour per plugin", { exact: false })).toBeVisible();
+  await expect(page.getByText("Save images from the internet")).toBeVisible();
+  await expect(page.getByText("at most 1200 an hour per plugin", { exact: false })).toBeVisible();
+  await expect(page.getByText("images.example")).toBeVisible();
+});
+
+test("search.query consent names hosted embedding spend before a plugin can be installed", async ({ mount, page }) => {
+  await routeTrpc(page, { "plugin.list": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
+  await mount(<PluginsSurfaceStory />);
+  await pickBundle(page, {
+    id: "library-reader",
+    name: "Library Reader",
+    version: "1.0.0",
+    hostVersion: 1,
+    entry: "main.js",
+    description: "Searches your library.",
+    capabilities: ["search.query"],
+  });
+
+  await expect(page.getByText("Search your library")).toBeVisible();
+  await expect(page.getByText("Each query may go to your configured embedding provider and cost money", { exact: false })).toBeVisible();
+  await expect(page.getByText("120 queries an hour per plugin", { exact: false })).toBeVisible();
+  await expect(page.getByText("Costs money")).toHaveCount(1);
 });
 
 test("the grant screen shows the owner-ruled ui.frame consent line verbatim, naming the granted-data reach (#106)", async ({ mount, page }) => {

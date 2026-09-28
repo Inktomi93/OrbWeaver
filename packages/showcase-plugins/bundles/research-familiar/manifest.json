@@ -1,11 +1,21 @@
 {
   "id": "research-familiar",
   "name": "Research Familiar",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "hostVersion": 1,
   "entry": "main.js",
-  "description": "Watches the room for ((lookup: Thing)) and quietly files what it finds into a lore book — or ((clip: Thing)) to keep the whole article in your databank. No model spend; it reads Wikipedia, not an LLM.",
+  "description": "Watches the room for ((lookup: Thing)), searches your corpus before Wikipedia, and files a short result into attached lore — or ((clip: Thing)) to keep the whole article in your databank.",
   "author": "Orbweaver",
-  "capabilities": ["chat.read", "worldinfo.write", "global_vars", "storage.kv", "events.subscribe", "net.fetch", "databank.ingest"],
+  "capabilities": [
+    "chat.read",
+    "worldinfo.read",
+    "worldinfo.write",
+    "global_vars",
+    "storage.kv",
+    "search.query",
+    "events.subscribe",
+    "net.fetch",
+    "databank.ingest"
+  ],
   "netHosts": ["en.wikipedia.org"]
 }

@@ -115,7 +115,9 @@ export interface PluginBridge {
   /** Semantic document search over the installer's OWN indexed corpus (`search.documents`, search.query — #788
    *  F1). The membrane passes ONLY the guest-supplied query text + the (host-clamped) limit; the domain builder
    *  closes the INSTALLER's ownerId over the search scope, so a guest searches no other owner's library. Returns
-   *  ranked reduced hits. Authority-agnostic like every bridge op — infra holds no principal. */
+   *  ranked reduced hits. Query embedding may use the installer's hosted, paid provider; the domain bridge
+   *  claims a per-plugin hourly slot before the search op. Authority-agnostic like every bridge op — infra
+   *  holds no principal. */
   readonly search: {
     readonly documents: (queryText: string, limit: number | undefined) => Promise<readonly PluginSearchHit[]>;
   };

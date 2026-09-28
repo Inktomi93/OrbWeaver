@@ -175,7 +175,7 @@ test("the EXCLUSIONS are excluded — residency, authority writes, spend, and eg
     "worldInfo.listEntries",
     "assets.read",
     // #788 F1 — first-party retrieval. An owner-scoped read (needs no new ownership gate to proxy), but every
-    // call runs a query embedding (local box compute), so it is the COMPUTE-COST class the read tuple keeps out
+    // call runs a query embedding (possibly through a paid hosted provider), so it is the COMPUTE-COST class the read tuple keeps out
     // (§4.6 bought latency over cheap reads, not per-keystroke retrieval). Priced widening, never a free entry.
     "search.documents",
   ];
