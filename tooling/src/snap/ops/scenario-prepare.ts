@@ -12,7 +12,7 @@ import { scenarioPresetFile } from "../contract/scenario-presets.ts";
 import type { Args } from "../contract/types.ts";
 import { checkpointArgErrors, identicalSeedsError, inheritSessionArgs } from "../lib/session-plan.ts";
 import { refuseFileMode } from "./guards.ts";
-import { parseSnapArgs } from "./parse.ts";
+import { parseSnapArgs, tapValidationErrors } from "./parse.ts";
 import { validateRouteSection } from "./parse-route.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --scenario <file>");
@@ -59,7 +59,11 @@ function scenarioCheckpointArgs(globalArgs: Args, spec: ScenarioSpec): Args[] {
   return spec.checkpoints.map((checkpoint) => {
     const args = parseSnapArgs([...spec.defaults, ...checkpoint.args], { scenarioCheckpoint: true });
     const inherited = inheritSessionArgs(globalArgs, args, `${spec.name}-${routeSlug(checkpoint.name)}`, true);
-    inherited.errors.push(...checkpointArgErrors(inherited, checkpoint.name, [...spec.defaults, ...checkpoint.args]), ...validateRouteSection(inherited));
+    inherited.errors.push(
+      ...checkpointArgErrors(inherited, checkpoint.name, [...spec.defaults, ...checkpoint.args]),
+      ...tapValidationErrors(inherited, inherited.device),
+      ...validateRouteSection(inherited),
+    );
     return inherited;
   });
 }

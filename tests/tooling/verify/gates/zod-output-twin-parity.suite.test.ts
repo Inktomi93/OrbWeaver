@@ -1,4 +1,5 @@
 import { Project } from "ts-morph";
+import { vi } from "vitest";
 import { gate } from "../../../../tooling/src/verify/gates/zod-output-twin-parity.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -14,17 +15,55 @@ function required<T>(value: T | undefined, label: string): T {
   return value;
 }
 
-function drive(files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
+function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
+  return project;
+}
+
+function driveProject(project: Project): ReturnType<typeof runPolicyPass> {
   return runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+}
+
+function drive(files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
+  return driveProject(projectOf(files));
 }
 
 test("zod-output-twin-parity proves its complete output/cast/refusal matrix through production conformance", () => {
   expect(gate.id).toBe("zod-output-twin-parity");
   expect(verifyPolicyProofs([gate])).toEqual([]);
+});
+
+test("signature resolution runs only for contextual Zod candidates", () => {
+  const unrelated = projectOf({
+    "packages/contracts/src/x.ts": 'function consume(input: { readonly label: string }): void { void input; }\nconsume({ label: "value" });\n',
+  });
+  const unrelatedSignatures = vi.spyOn(unrelated.getTypeChecker(), "getResolvedSignature");
+  const unrelatedResult = driveProject(unrelated);
+  expect(unrelatedResult.authority.withheldPolicyIds).toContain(gate.id);
+  expect(unrelatedSignatures).not.toHaveBeenCalled();
+
+  const candidate = required(
+    gate.mustPass.find((proof) => proof.why.includes("generic schema parameter derives T from its argument")),
+    "generic schema parameter derives T from its argument",
+  );
+  const source = required(candidate.files["packages/contracts/src/x.ts"], "direct generic call source");
+  const authoredPair = source.indexOf("type Exact =");
+  if (authoredPair < 0) {
+    throw new Error("direct generic call proof lost its independent authored pair");
+  }
+  const contextual = projectOf({
+    ...candidate.files,
+    "packages/contracts/src/x.ts": source.slice(0, authoredPair),
+  });
+  const contextualSignatures = vi.spyOn(contextual.getTypeChecker(), "getResolvedSignature");
+  const contextualResult = driveProject(contextual);
+  expect(contextualResult.toolErrors).toEqual([
+    expect.objectContaining({ policyId: gate.id, phase: "receipt", message: expect.stringContaining("resolved zero members") }),
+  ]);
+  expect(contextualSignatures).toHaveBeenCalledTimes(1);
 });
 
 test("the production pass exposes the concrete-pair denominator on a cast that tries to erase narrowing", () => {

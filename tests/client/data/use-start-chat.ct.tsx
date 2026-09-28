@@ -10,22 +10,38 @@
 // A CT, not a unit test: the hook composes `createEntityMutation` + the real tRPC client + `#state` module
 // actions, and its whole observable surface is what a mounted component sees.
 
-import type { CharacterId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRoutes } from "../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../support/node/route-trpc.ts";
+import { makeMessagesPage, makeMessageView } from "../features/chat/fixtures.ts";
 import { StartChatStory } from "./_ct-stories.tsx";
 
-const CREATED_ID = "chat_ct_start_chat";
+const CREATED_ID = castId<ChatId>("chat_ct_start_chat");
+const OPENING_TEXT = "Elias waits beside the ashfall road.";
+const AUTHORITATIVE_TEXT = "Elias points toward the northern pass.";
+const OPENING_MESSAGE = makeMessageView({
+  id: castId<MessageId>("msg_ct_start_opening"),
+  chatId: CREATED_ID,
+  content: OPENING_TEXT,
+});
+const AUTHORITATIVE_MESSAGE = makeMessageView({
+  id: castId<MessageId>("msg_ct_start_authoritative"),
+  chatId: CREATED_ID,
+  seq: 2,
+  content: AUTHORITATIVE_TEXT,
+});
 
 const CREATED_CHAT = {
   id: CREATED_ID,
   title: "The Ashfall Road",
+  identities: [],
 };
 
-const START_CHAT_ROUTES: TrpcRoutes<"chat.startChat"> = {
-  "chat.startChat": { chat: CREATED_CHAT, opening: null },
+const START_CHAT_ROUTES: TrpcRoutes<"chat.startChat" | "chat.listMessages"> = {
+  "chat.startChat": { chat: CREATED_CHAT, opening: { messages: [OPENING_MESSAGE], aborted: false } },
+  "chat.listMessages": makeMessagesPage([OPENING_MESSAGE]),
   // Deliberately NOT stubbed to the same row: `chat.getChat` answering `null` here is the CONTROL for the
   // seed pin below — if the response were not written into the cache, the reader would go cold.
 };
@@ -43,18 +59,46 @@ test("the Start seam creates the room, enters it, and lands the rail on Chats", 
   await expect(state).toHaveText(`chat=${CREATED_ID} section=chats pending=false`);
 });
 
-test("the response SEEDS chat.getChat — the room's first frame is warm with zero extra reads", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, START_CHAT_ROUTES);
+test("the response seeds both room reads while the authoritative message page refetches in the background", async ({ mount, page }) => {
+  const listMessages = trpcHold();
+  const trpc = await routeTrpc(page, {
+    "chat.startChat": START_CHAT_ROUTES["chat.startChat"],
+    "chat.listMessages": listMessages,
+  });
 
   const component = await mount(<StartChatStory />);
   await component.getByRole("button", { name: "start chat" }).click();
+  await listMessages.requested;
 
-  // The reader renders the row's title WITHOUT a `getChat` round-trip: `StartChatResult.chat` IS a full
-  // `ChatDetail`, so the write's own response is authoritative for that read (§4.10). The harness stubs
-  // `getChat` to the unlisted-proc `null`, which is exactly what a COLD read would render — so "cold" here
-  // is the planted control, and the real title is the claim.
-  await expect(component.getByTestId("seeded-room")).toHaveText("The Ashfall Road");
+  // The held request is the planted boundary: removing either seed leaves this reader on "cold" until release.
+  await expect(component.getByTestId("seeded-room")).toHaveText(`The Ashfall Road — ${OPENING_TEXT}`);
   await expect.poll(() => trpc.count("chat.getChat"), { intervals: [20, 50, 100] }).toBe(0);
+  await expect.poll(() => trpc.count("chat.listMessages")).toBe(1);
+
+  listMessages.release(makeMessagesPage([OPENING_MESSAGE, AUTHORITATIVE_MESSAGE]));
+
+  await expect(component.getByTestId("seeded-room")).toHaveText(`The Ashfall Road — ${OPENING_TEXT} | ${AUTHORITATIVE_TEXT}`);
+  await expect.poll(() => trpc.count("chat.listMessages")).toBe(1);
+});
+
+test("an opening-less response seeds an empty first frame and still closes the pre-attach gap", async ({ mount, page }) => {
+  const listMessages = trpcHold();
+  const trpc = await routeTrpc(page, {
+    "chat.startChat": { chat: CREATED_CHAT, opening: null },
+    "chat.listMessages": listMessages,
+  });
+
+  const component = await mount(<StartChatStory />);
+  await component.getByRole("button", { name: "start chat" }).click();
+  await listMessages.requested;
+
+  await expect(component.getByTestId("seeded-room")).toHaveText("The Ashfall Road — empty");
+  await expect.poll(() => trpc.count("chat.listMessages")).toBe(1);
+
+  listMessages.release(makeMessagesPage([AUTHORITATIVE_MESSAGE]));
+
+  await expect(component.getByTestId("seeded-room")).toHaveText(`The Ashfall Road — ${AUTHORITATIVE_TEXT}`);
+  await expect.poll(() => trpc.count("chat.listMessages")).toBe(1);
 });
 
 test("the wire carries CREATION INTENT ONLY — no draft carry rides along", async ({ mount, page }) => {

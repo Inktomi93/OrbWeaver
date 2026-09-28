@@ -1,7 +1,8 @@
 // Typecheck routing is derived from native compiler roots; intent only selects a primary among real roots.
-import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { processEnvValue, withProcessEnv } from "@orb/tooling/_shared/process-env";
 import { planTypecheckPrograms } from "@orb/tooling/verify";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -96,6 +97,31 @@ test("non-TypeScript inputs are explicit not-applicable results", ({ repoRoot })
   expect(plan.subjects.every((subject) => subject.disposition === "not-applicable")).toBe(true);
 });
 
+test("non-TypeScript planning bypasses malformed compiler configs while TypeScript planning refuses them", ({ scratch }) => {
+  execFixtureGit(scratch, ["init", "--quiet", "--template=", "--initial-branch=main"]);
+  mkdirSync(join(scratch, "src"), { recursive: true });
+  writeFileSync(join(scratch, "README.md"), "# Fixture\n");
+  writeFileSync(join(scratch, "src/owned.ts"), "export {};\n");
+  writeFileSync(join(scratch, "tsconfig.bad.json"), "{");
+
+  expect(planTypecheckPrograms(scratch, [present("README.md")], "primary")).toEqual({
+    mode: "primary",
+    coverage: "advisory-primary-programs",
+    programs: [],
+    subjects: [
+      {
+        ...present("README.md"),
+        disposition: "not-applicable",
+        rootedBy: [],
+        containedBy: [],
+        selectedPrograms: [],
+        reason: "not-type-input",
+      },
+    ],
+  });
+  expect(() => planTypecheckPrograms(scratch, [present("src/owned.ts")], "primary")).toThrow(/could not read|could not parse/u);
+});
+
 test("affected routing includes native imported consumers while direct DOM roots remain in their one world", { timeout: scaledBudget(30_000) }, ({
   repoRoot,
 }) => {
@@ -137,4 +163,36 @@ test("the in-process membership snapshot invalidates when authored bytes add a r
   writeFileSync(join(scratch, "tsconfig.json"), '{"include":["src/*.ts"]}\n');
   writeFileSync(join(scratch, "src/two.ts"), "export {};\n");
   expect(planTypecheckPrograms(scratch, [present("src/two.ts")], "primary").programs).toEqual(["tsconfig.json"]);
+});
+
+test("a warm membership snapshot rechecks authored bytes before returning an affected plan", { timeout: scaledBudget(30_000) }, async ({
+  scratch,
+  repoRoot,
+}) => {
+  execFixtureGit(scratch, ["init", "--quiet", "--template=", "--initial-branch=main"]);
+  mkdirSync(join(scratch, "scripts"));
+  mkdirSync(join(scratch, "bin"));
+  symlinkSync(join(repoRoot, "scripts/ts7.ts"), join(scratch, "scripts/ts7.ts"), "file");
+  symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
+  writeFileSync(join(scratch, ".gitignore"), "node_modules\nscripts/ts7.ts\n");
+  writeFileSync(join(scratch, "package.json"), JSON.stringify({ type: "module" }));
+  writeFileSync(join(scratch, "tsconfig.json"), JSON.stringify({ compilerOptions: { types: [] }, files: ["consumer.ts"] }));
+  writeFileSync(join(scratch, "consumer.ts"), 'import "./target";\n');
+  writeFileSync(join(scratch, "target.ts"), "export {};\n");
+  const wrapper = join(scratch, "bin/git");
+  writeFileSync(
+    wrapper,
+    '#!/usr/bin/env bash\n/usr/bin/git "$@"\nstatus=$?\nif [[ -f .git/mutate-on-diff && " $* " == *" diff --name-only "* ]]; then\n  printf "export {};\\n" > consumer.ts\n  rm .git/mutate-on-diff\nfi\nexit "$status"\n',
+  );
+  chmodSync(wrapper, 0o755);
+  execFixtureGit(scratch, ["add", ".gitignore", "package.json", "tsconfig.json", "consumer.ts", "target.ts", "bin/git"]);
+  execFixtureGit(scratch, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "commit", "--quiet", "-m", "fixture"]);
+  expect(planTypecheckPrograms(scratch, [present("target.ts")], "affected").programs).toEqual(["tsconfig.json"]);
+
+  // Git returns the old diff, then changes the imported consumer before the memo-hit plan returns.
+  writeFileSync(join(scratch, ".git/mutate-on-diff"), "");
+  await withProcessEnv("PATH", `${join(scratch, "bin")}:${processEnvValue("PATH") ?? ""}`, () => {
+    expect(() => planTypecheckPrograms(scratch, [present("target.ts")], "affected")).toThrow(/no native compiler closure/u);
+    return Promise.resolve();
+  });
 });

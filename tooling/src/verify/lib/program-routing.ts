@@ -37,7 +37,7 @@ function gitOutput(root: string, args: readonly string[]): string {
 
 /** Content identity for the native membership snapshot. Paths alone are insufficient: an import edit can
  * change closure membership without changing Git status. */
-function snapshotKey(root: string, inventory: PolicyRepositoryInventory): string {
+function snapshotKey(root: string, inventory?: PolicyRepositoryInventory): string {
   const headResult = runGit(root, [...GIT_READ_PREFIX, "rev-parse", "HEAD"]);
   const head = headResult.status === 0 ? headResult.stdout.trim() : "no-head";
   const dirty =
@@ -45,8 +45,16 @@ function snapshotKey(root: string, inventory: PolicyRepositoryInventory): string
       ? gitOutput(root, ["diff", "--name-only", "-z", "HEAD"])
           .split("\0")
           .filter((path) => path !== "")
-      : inventory.trackedPaths;
-  const paths = sortedUnique([...dirty, ...inventory.untrackedPaths]);
+      : (inventory?.trackedPaths ??
+        gitOutput(root, ["ls-files", "-z"])
+          .split("\0")
+          .filter((path) => path !== ""));
+  const untracked =
+    inventory?.untrackedPaths ??
+    gitOutput(root, ["ls-files", "--others", "--exclude-standard", "-z"])
+      .split("\0")
+      .filter((path) => path !== "");
+  const paths = sortedUnique([...dirty, ...untracked]);
   const digest = createHash("sha1");
   for (const path of paths) {
     const absolute = join(root, path);
@@ -239,6 +247,27 @@ function planSubject(context: SubjectContext, path: PolicySemanticPath): Typeche
   return selectedSubject(path, { rootedBy, containedBy, selectedPrograms: containedBy, reason: "affected-closure" });
 }
 
+function nonTypePlan(paths: readonly PolicySemanticPath[], mode: TypecheckPlanMode): TypecheckPlan | undefined {
+  if (paths.some((path) => path.status === "deleted" || isTypeWorldSource(path.path) || TSCONFIG_RE.test(path.path))) {
+    return;
+  }
+  return {
+    mode,
+    coverage: mode === "primary" ? "advisory-primary-programs" : "complete-affected-programs",
+    programs: [],
+    subjects: paths.map(
+      (path): TypecheckPlanSubject => ({
+        ...path,
+        disposition: "not-applicable",
+        rootedBy: [],
+        containedBy: [],
+        selectedPrograms: [],
+        reason: "not-type-input",
+      }),
+    ),
+  };
+}
+
 /** Plan the native programs that can judge the selected semantic paths.
  *
  * `primary` runs the authored root's intended primary program and every program affected by config or
@@ -251,6 +280,10 @@ function planStableSnapshot(root: string, paths: readonly PolicySemanticPath[], 
       throw new Error(`typecheck plan subject is not an authored file: ${path.path}`);
     }
   }
+  const direct = nonTypePlan(paths, mode);
+  if (direct !== undefined) {
+    return direct;
+  }
   const needsClosures = mode === "affected" && paths.some((path) => path.status !== "deleted" && isTypeWorldSource(path.path));
   const snapshot = compilerSnapshot(root, inventory, needsClosures);
   const programs = snapshot.programs;
@@ -259,8 +292,7 @@ function planStableSnapshot(root: string, paths: readonly PolicySemanticPath[], 
   const contained = snapshot.contained ?? new Map<string, readonly string[]>();
   const context: SubjectContext = { programs, everyProgram, rooted, contained, mode };
   const subjects = paths.map((path) => planSubject(context, path));
-  const finalInventory = readPolicyRepositoryInventory(root);
-  if (snapshotKey(root, finalInventory) !== snapshot.key) {
+  if (snapshotKey(root) !== snapshot.key) {
     if (retries > 0) {
       return planStableSnapshot(root, paths, mode, retries - 1);
     }

@@ -9,7 +9,7 @@
 //
 // What survives here, unchanged in mechanism:
 //   · THE RESERVATION (#149): `rpg.getTrackerView` is a suspending read behind this band's own boundary,
-//     and a `null` fallback made the band a bare rule until the tracker landed and then grew ~120-192px,
+//     and a `null` fallback made the band a bare rule until the tracker landed and then grew by its full content height,
 //     shoving the rail and every tab body down (side-eye-tracker 2026-08-17: a `nonVirtualizedCls` of 0.1143
 //     on room open; `[cls] shift 0.1056 … OVER BUDGET` at a coarse pointer). The box is DATA-dependent (how
 //     many trackers, orbs and cast chips this game carries), so it cannot be a static token: the height this
@@ -38,12 +38,8 @@ import { RpgHeaderBand } from "./rpg-header-band.tsx";
 
 /** The box-memory key for the HUD's waystone band (#149) — one band, one remembered height per device. */
 const RPG_HUD_BAND_BOX = "rpg.hud.band";
-/** The FIRST-EVER-open estimate, in CSS px: the top of the band's MEASURED range (side-eye-tracker
- *  2026-08-17 put the async growth at ~120-192px). Deliberately the top, not the middle — an over-tall
- *  reservation shrinks when the read lands, and #129-R1 ruled a shrink beats a push. From the second open
- *  on, this device's own measurement replaces it — since #885 both arms ride `QueryBoundary.reserveKey`
- *  (the `null` fallback reserves the box empty; the settled band is re-measured every commit). */
-const RPG_HUD_BAND_FIRST_OPEN_PX = 192;
+// First open covers wrapped time/weather plus tracker rows; later opens reuse this device's measured box.
+const RPG_HUD_BAND_FIRST_OPEN_PX = 224;
 
 export function RpgHudBand(): ReactElement | null {
   const chatId = useActiveChatId();

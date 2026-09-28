@@ -148,7 +148,7 @@ async function serveSerialized(state: SessionDaemonState, request: SessionReques
   let terminalReason: string | null = null;
   // @orb-waive caught-failure-ownership(error): the failure is printed to the caller as SESSION CALL ERROR and the request's `done` carries toolError — the caller's exit IS the report; the daemon stays up by design (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.
   try {
-    const call = request.kind === "call" ? parseSnapArgs([...request.argv]) : null;
+    const call = request.kind === "call" ? parseSnapArgs([...request.argv], { sessionDevice: state.bootArgs.device }) : null;
     const navigates = call !== null && (sessionCallTarget(call) !== "live" || call.matrix || call.scenario !== null);
     exit = await runSessionCallWithinBudget(state, op, run, sessionCallWatchdogBaseMs(navigates, call === null ? null : armSessionCallBaseMs(call)));
   } catch (error) {

@@ -222,6 +222,15 @@ test.for(ARMS.map((arm) => [arm.policy.id, arm] as const))(
   },
 );
 
+test("the Zod output twin control detects its real-corpus overlay alone", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
+  const arm = rosterArm("zod-output-twin-parity");
+  const verdict = liveness(repoRoot).proveBatch([arm]).get(arm.policy.id);
+  if (verdict === undefined) {
+    throw new Error(`${arm.policy.id}: the planted control produced no verdict`);
+  }
+  expect(assertArmVerdict(arm, verdict).join("\n")).toContain(arm.messageIncludes);
+});
+
 test("the three closeout policies report their planted population loss", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
   for (const policyId of ["css-var-defined-health", "open-json-column-key-parity-health", "no-manual-memo-compiler-health"] as const) {
     const arm = rosterArm(policyId);

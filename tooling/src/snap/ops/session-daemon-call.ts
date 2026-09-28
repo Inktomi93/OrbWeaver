@@ -81,7 +81,7 @@ export async function runSessionCallInDaemon(state: SessionCallState, request: S
   // The client already proved `--matrix` has either a stage arm or a stateful session binding. The raw
   // daemon argv intentionally omits `--session`; restore that parse context before the inherited binding
   // is merged below, or the second validation pass would reject the exact F10 route it is hosting.
-  const call = parseSnapArgs([...request.argv], { inheritedSessionBinding: true });
+  const call = parseSnapArgs([...request.argv], { inheritedSessionBinding: true, sessionDevice: state.bootArgs.device });
   const refusals = callRefusals(state, request, call);
   if (refusals.length > 0) {
     for (const refusal of refusals) {

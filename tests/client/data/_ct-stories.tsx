@@ -51,7 +51,7 @@ import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, MessageId, PersonaId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
-import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { CtAppDataProviders, CtDataProviders } from "../../support/browser/ct-data-providers.tsx";
@@ -1040,9 +1040,8 @@ export function SessionSwapStory(): ReactElement {
 const HUSK_CHAT_ID = castId<ChatId>("chat_ct_husk_probe");
 
 /** `useStartChat` — the ONE client creation seam. The probe fires it and publishes what a caller can
- *  observe: the active-chat pointer it navigated to, and the section it switched to. The CACHE SEED is the
- *  claim that needs a witness of its own, so a sibling reader renders `chat.getChat`'s cached title WITHOUT
- *  its own fetch — if the seed did not land, that read is cold on the first frame. */
+ *  observe: the active-chat pointer it navigated to, the section it switched to, and both suspense reads
+ *  the real room needs on its first frame. */
 function StartChatProbe({ characterIds }: { readonly characterIds: readonly CharacterId[] }): ReactElement {
   const { startChat, isPending } = useStartChat();
   const activeChatId = useActiveChatId();
@@ -1050,7 +1049,11 @@ function StartChatProbe({ characterIds }: { readonly characterIds: readonly Char
   return (
     <div>
       <output data-testid="start-chat-state">{`chat=${activeChatId ?? "none"} section=${activeSection} pending=${String(isPending)}`}</output>
-      {activeChatId === null ? null : <SeededRoomReader chatId={activeChatId} />}
+      {activeChatId === null ? null : (
+        <QueryBoundary fallback={<output data-testid="seeded-room">cold</output>}>
+          <SeededRoomReader chatId={activeChatId} />
+        </QueryBoundary>
+      )}
       <button type="button" onClick={(): void => void startChat({ characterIds })}>
         start chat
       </button>
@@ -1058,12 +1061,14 @@ function StartChatProbe({ characterIds }: { readonly characterIds: readonly Char
   );
 }
 
-/** Reads `chat.getChat` CACHE-FIRST. `useStartChat` seeds this exact key from `startChat`'s own response,
- *  so a room's first frame is warm with zero extra round-trips (the `echo` idiom, §4.10). */
+/** Reads the same two suspense dependencies as the production transcript. */
 function SeededRoomReader({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
-  const { data } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
-  return <output data-testid="seeded-room">{data?.title ?? "cold"}</output>;
+  const [{ data: messagesPage }, { data: chatDetail }] = useSuspenseQueries({
+    queries: [trpc.chat.listMessages.queryOptions({ chatId }), trpc.chat.getChat.queryOptions({ chatId })],
+  });
+  const transcript = messagesPage.messages.map((message) => message.content).join(" | ") || "empty";
+  return <output data-testid="seeded-room">{`${chatDetail.title ?? "untitled"} — ${transcript}`}</output>;
 }
 
 export function StartChatStory({ characterIds = [] }: { readonly characterIds?: readonly CharacterId[] } = {}): ReactElement {

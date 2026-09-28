@@ -35,6 +35,7 @@ import {
 } from "../lib/session-plan.ts";
 import { foreignSessionRefusal, sessionCapRefusal, sessionDeadText } from "../lib/session-refusals.ts";
 import { readSessionEvent } from "../lib/session-wire.ts";
+import { tapValidationErrors } from "./parse.ts";
 import { validateRouteSection } from "./parse-route.ts";
 import { registerSnapDiagnosticCompleteness, registerSnapFactBatch, registerSnapResultPairs, registerSnapSessionProvenance } from "./run-bundle.ts";
 import { liveRows, readRow, releaseSessionBoot, reserveSessionBoot, rowIsLive, sessionLimitsFromEnv, sessionRegistryHome } from "./session-registry.ts";
@@ -305,6 +306,22 @@ export function sessionRouteErrors(opts: Args): string[] {
   return validateRouteSection(target);
 }
 
+function refuseInvalidSessionTap(opts: Args, row: SessionRow | null, exporting: boolean): boolean {
+  if (opts.device !== null || exporting) {
+    return false;
+  }
+  const device = row === null ? null : row.environment.device;
+  const errors = tapValidationErrors(opts, device);
+  if (errors.length === 0) {
+    return false;
+  }
+  for (const error of errors) {
+    print(`ARG ERROR    ${error}`);
+  }
+  print("Run pnpm snap --help for supported flags and combinations.");
+  return true;
+}
+
 /** `--session <name> …` (boot + call) and `--session-export <name>` — both run inside THIS run's slot. */
 export async function runSessionCall(opts: Args, argv: readonly string[]): Promise<number> {
   const exporting = opts.sessionExport !== null;
@@ -325,6 +342,9 @@ export async function runSessionCall(opts: Args, argv: readonly string[]): Promi
   if (row !== null && access === "reclaim") {
     print(sessionDeadText(row, deadDetail(root, row)));
     return EXIT.toolError;
+  }
+  if (refuseInvalidSessionTap(opts, row, exporting)) {
+    return EXIT.misuse;
   }
   let boot = false;
   if (access === "absent") {

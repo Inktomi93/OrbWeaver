@@ -129,7 +129,7 @@ function isCanonicalRuntimeGeneratedSchemaMember(rawExpression: Expression): boo
   return typeCarriesCanonicalBrand(expression.getExpression().getType());
 }
 
-function pairWithTarget(target: Type, rawSchema: Expression, carrier: MorphNode, erasedTarget: "unresolved" | "ignore"): ZodOutputTwinRead {
+function pairWithTarget(target: Type, rawSchema: Expression, carrier: MorphNode, resolvedSchemaType?: Type): ZodOutputTwinRead {
   const targetOutput = target.getTypeArguments()[0];
   if (targetOutput === undefined) {
     return { kind: "unresolved", carrier, reason: "the canonical ZodType target exposed no readable output argument" };
@@ -137,12 +137,10 @@ function pairWithTarget(target: Type, rawSchema: Expression, carrier: MorphNode,
   // An explicit `ZodType<any | unknown>` annotation erases the very output contract this policy must
   // compare. Keep it in the population as unreadable so a healthy sibling cannot make the owner clean.
   if (targetOutput.isAny() || targetOutput.isUnknown()) {
-    return erasedTarget === "unresolved"
-      ? { kind: "unresolved", carrier, reason: "the authored ZodType target erases output as any/unknown" }
-      : { kind: "none" };
+    return { kind: "unresolved", carrier, reason: "the authored ZodType target erases output as any/unknown" };
   }
   const schema = unwrapSchemaExpression(rawSchema);
-  const schemaType = schema.getType();
+  const schemaType = resolvedSchemaType ?? schema.getType();
   // Exhaustive dispatch tails (`return assertNever(x)`) are control-flow proofs, not schema values.
   if (schemaType.isNever()) {
     return { kind: "none" };
@@ -173,7 +171,7 @@ function pair(targetNode: TypeNode, rawSchema: Expression, carrier: MorphNode): 
   if (identity === "unresolved") {
     return { kind: "unresolved", carrier, reason: "the authored ZodType target could not be resolved to the installed zod declaration" };
   }
-  return pairWithTarget(targetNode.getType(), rawSchema, carrier, "unresolved");
+  return pairWithTarget(targetNode.getType(), rawSchema, carrier);
 }
 
 function annotationOwnsInitializer(declaration: VariableDeclaration | PropertyDeclaration): boolean {
@@ -268,14 +266,15 @@ export function readContextualZodOutputTwin(expression: Expression, carrier: Mor
   if (isCanonicalRuntimeGeneratedSchemaMember(expression)) {
     return { kind: "none" };
   }
-  if (unwrapSchemaExpression(expression).getType().getProperty("_output") === undefined) {
+  const schemaType = unwrapSchemaExpression(expression).getType();
+  if (schemaType.getProperty("_output") === undefined) {
     return { kind: "none" };
   }
   const contextual = expression.getContextualType();
   if (contextual === undefined || !canonicalZodType(contextual) || isGenericSchemaPassThrough(expression, contextual)) {
     return { kind: "none" };
   }
-  return pairWithTarget(contextual, expression, carrier, "unresolved");
+  return pairWithTarget(contextual, expression, carrier, schemaType);
 }
 
 /** The expressions a function-like node returns from ITS OWN body: an expression body is its single return,

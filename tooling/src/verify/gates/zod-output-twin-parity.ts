@@ -258,6 +258,44 @@ function contextualMemberDerivesOwnerTypeParameter(node: MorphNode, expression: 
   return member !== undefined && typeDependsOnOwnerParameter(member, declaration, parameter);
 }
 
+interface ContextualCallCandidate {
+  readonly index: number;
+  readonly read: Exclude<ZodOutputTwinRead, { readonly kind: "none" }>;
+}
+
+function contextualCallCandidate(argument: MorphNode, index: number): ContextualCallCandidate | null {
+  if (!Node.isExpression(argument)) {
+    return null;
+  }
+  const read = readContextualZodOutputTwin(argument);
+  return read.kind === "none" ? null : { index, read };
+}
+
+function contextualCallReads(
+  node: MorphNode,
+  ctx: { checker: () => import("ts-morph").TypeChecker },
+): readonly Exclude<ZodOutputTwinRead, { readonly kind: "none" }>[] {
+  if (!Node.isCallExpression(node)) {
+    return [];
+  }
+  const reads: Exclude<ZodOutputTwinRead, { readonly kind: "none" }>[] = [];
+  let declaration: MorphNode | undefined;
+  for (const [index, argument] of node.getArguments().entries()) {
+    const candidate = contextualCallCandidate(argument, index);
+    if (candidate === null) {
+      continue;
+    }
+    declaration ??= ctx.checker().getResolvedSignature(node)?.getDeclaration();
+    if (declaration === undefined) {
+      return [];
+    }
+    if (!argumentDerivesOwnerTypeParameter(node, declaration, candidate.index)) {
+      reads.push(candidate.read);
+    }
+  }
+  return reads;
+}
+
 export const gate = defineGate({
   id: "zod-output-twin-parity",
   family: "zod-output-twin-parity",
@@ -335,15 +373,16 @@ export const gate = defineGate({
           visit: (node) => {
             for (const expression of contextualExpressions(node)) {
               const read = readContextualZodOutputTwin(expression);
+              if (read.kind === "none") {
+                continue;
+              }
               // An exact contextual type inferred from the same schema expression is generic construction
               // plumbing, not a second owner. Any mismatch remains visible, as does every explicit generic
               // instantiation whose type argument supplies a concrete independent target.
               if (contextualMemberDerivesOwnerTypeParameter(node, expression, ctx)) {
                 continue;
               }
-              if (read.kind !== "none") {
-                contextualSites += 1;
-              }
+              contextualSites += 1;
               consume(read);
             }
           },
@@ -351,24 +390,8 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.CallExpression],
           visit: (node) => {
-            if (!Node.isCallExpression(node)) {
-              return;
-            }
-            const declaration = ctx.checker().getResolvedSignature(node)?.getDeclaration();
-            if (declaration === undefined) {
-              return;
-            }
-            for (const [index, argument] of node.getArguments().entries()) {
-              if (!Node.isExpression(argument)) {
-                continue;
-              }
-              const read = readContextualZodOutputTwin(argument);
-              if (argumentDerivesOwnerTypeParameter(node, declaration, index)) {
-                continue;
-              }
-              if (read.kind !== "none") {
-                contextualSites += 1;
-              }
+            for (const read of contextualCallReads(node, ctx)) {
+              contextualSites += 1;
               consume(read);
             }
           },

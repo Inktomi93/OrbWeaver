@@ -1,5 +1,6 @@
 import type { Expression } from "ts-morph";
-import { Node, Project } from "ts-morph";
+import { Node, Project, SyntaxKind } from "ts-morph";
+import { vi } from "vitest";
 import { readContextualZodOutputTwin } from "../../../../tooling/src/verify/lib/zod-output-twin.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -128,4 +129,25 @@ const composed: readonly z.ZodType<{ id: string }>[] = [holder.schema];
 `;
   const access = firstSchemaAccess(bareSource, "/packages/contracts/src/x.ts");
   expect(readContextualZodOutputTwin(access).kind).not.toBe("none");
+});
+
+test("contextual reading rejects non-Zod expressions before requesting contextual types", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile("/node_modules/zod/index.d.ts", ZOD_PROOF_MODULE);
+  const source = project.createSourceFile(
+    "/packages/contracts/src/query-order.ts",
+    'import * as z from "zod";\nconst labels: readonly string[] = ["value"];\nconst schema: z.ZodType<string> = z.string();\n',
+  );
+  const label = source.getVariableDeclarationOrThrow("labels").getInitializerIfKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements()[0];
+  if (label === undefined || !Node.isExpression(label)) {
+    throw new Error("label fixture did not create an expression");
+  }
+  const labelContext = vi.spyOn(label, "getContextualType");
+  expect(readContextualZodOutputTwin(label)).toEqual({ kind: "none" });
+  expect(labelContext).not.toHaveBeenCalled();
+
+  const schema = source.getVariableDeclarationOrThrow("schema").getInitializerOrThrow();
+  const schemaType = vi.spyOn(schema, "getType");
+  expect(readContextualZodOutputTwin(schema).kind).toBe("pair");
+  expect(schemaType).toHaveBeenCalledTimes(1);
 });

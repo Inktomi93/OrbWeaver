@@ -59,7 +59,8 @@ Interaction (steps, __orb nav flags AND --eval run in ONE queue in TRUE argv ord
 mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled surface afterwards):
   --click <selector>      --dom-click <selector>   DOM el.click(); bypass Playwright actionability
   --force-click <selector> real pointer force-click for hover-revealed/overlaid controls
-  --tap <selector>        a REAL touch tap (Input.dispatchTouchEvent) — requires --mobile, and is the only
+  --tap <selector>        a REAL touch tap (Input.dispatchTouchEvent) — needs a touch device; for a session,
+                            pass --mobile on its boot call. It is the only
                             verb that answers "what does a finger get here". --click is a MOUSE dispatch
                             even under --mobile, so it fires pointerenter/mouseover and opens a hover-only
                             tooltip no thumb can open; --tap fires none of those.

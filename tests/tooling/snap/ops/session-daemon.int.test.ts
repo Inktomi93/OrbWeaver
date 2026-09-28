@@ -60,6 +60,12 @@ const AUDIT_FIXTURE_HTML =
 /** The same WCAG-failing plant tests/tooling/snap/cli.int.test.ts uses for the one-shot contrast proof. */
 const BAD_CONTRAST_HTML =
   '<!doctype html><html data-app-ready="settled"><body style="background:#8a8a8a"><p style="color:#7a7a7a;font-size:16px">barely there text</p><script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{}}</script></body></html>';
+const TAP_FIXTURE_HTML =
+  '<!doctype html><html lang="en" data-app-ready="settled"><body><button id="tap" type="button">Tap</button><script>' +
+  'globalThis.__tapPointers=[];globalThis.__tapClicks=0;const button=document.querySelector("#tap");' +
+  'button.addEventListener("pointerdown",(event)=>globalThis.__tapPointers.push(event.pointerType));' +
+  'button.addEventListener("click",()=>{globalThis.__tapClicks+=1});' +
+  "globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{}}</script></body></html>";
 const EVAL_RE = /EVAL\[0\][^\n]*\n(\d+)/u;
 const QUIET = ["--no-shot"];
 /** A promise-returning eval snap awaits — the in-flight window T2 and the busy case need. */
@@ -129,6 +135,7 @@ interface Rig {
   readonly fixture: string;
   readonly auditFixture: string;
   readonly bad: string;
+  readonly tapFixture: string;
   readonly env: Readonly<Record<string, string>>;
   /** The case's private CT host pool, where each booted daemon holds its slot. */
   readonly ctPool: string;
@@ -143,7 +150,13 @@ async function rig(
   runCli: (tool: string, args: readonly string[], opts?: { cwd?: string; env?: Readonly<Record<string, string>>; timeoutMs?: number }) => Promise<CliResult>,
   extraEnv: Readonly<Record<string, string>> = {},
 ): Promise<Rig> {
-  const root = await plantedTree({ "fixture.html": FIXTURE_HTML, "audit.html": AUDIT_FIXTURE_HTML, "bad.html": BAD_CONTRAST_HTML, "registry/.keep": "" });
+  const root = await plantedTree({
+    "fixture.html": FIXTURE_HTML,
+    "audit.html": AUDIT_FIXTURE_HTML,
+    "bad.html": BAD_CONTRAST_HTML,
+    "tap.html": TAP_FIXTURE_HTML,
+    "registry/.keep": "",
+  });
   const home = join(root, "registry");
   // A daemon takes a host CT slot, so the case gets its own pool: never queued behind a real CT run.
   const env = {
@@ -166,6 +179,7 @@ async function rig(
     fixture: join(root, "fixture.html"),
     auditFixture: join(root, "audit.html"),
     bad: join(root, "bad.html"),
+    tapFixture: join(root, "tap.html"),
     env,
     ctPool: hostPoolDir({ name: CT_HOST_POOL_NAME, label: "", slots: 1 }, env),
     snap,
@@ -410,6 +424,34 @@ test("DEVICE — a --mobile session's next call still sees a coarse pointer afte
     expect(evalValue(next.stdout), "the element shot must not have taken the device away").toBe(11);
   } finally {
     await r.close([a]);
+  }
+});
+
+test("DEVICE TAP — a retained mobile tap is touch; desktop and repeated boot flags refuse without activating", async ({ plantedTree, runCli }) => {
+  const r = await rig(plantedTree, runCli);
+  const mobile = uniq("tap-mobile");
+  const desktop = uniq("tap-desktop");
+  const observed = "__tapPointers.filter((pointer) => pointer === 'touch').length * 10 + __tapClicks";
+  try {
+    const boot = await r.snap(["--session", mobile, "--file", r.tapFixture, "--mobile", "--viewport", "390x780", "--eval", observed, ...QUIET]);
+    expect(evalValue(boot.stdout), "the mobile fixture begins without activation").toBe(0);
+    expect(rowOf(r.home, mobile).environment.device).not.toBeNull();
+    const tapped = await r.snap(["--session", mobile, "--tap", "#tap", "--eval", observed, ...QUIET]);
+    expect(evalValue(tapped.stdout), "one touch pointerdown and one activation").toBe(11);
+    expect(pairsOf(tapped.stdout)["steps-failed"]).toBe("0");
+
+    const repeatedBoot = await r.snap(["--session", mobile, "--mobile", "--tap", "#tap", "--eval", observed, ...QUIET]);
+    await expect(repeatedBoot).toExitWith(EXIT.misuse);
+    expect(repeatedBoot.stdout).toContain("boot call");
+    expect(evalValue((await r.snap(["--session", mobile, "--eval", observed, ...QUIET])).stdout)).toBe(11);
+
+    await expect(await r.snap(["--session", desktop, "--file", r.tapFixture, "--eval", observed, ...QUIET])).toExitWith(EXIT.clean);
+    const desktopTap = await r.snap(["--session", desktop, "--tap", "#tap", "--eval", observed, ...QUIET]);
+    await expect(desktopTap).toExitWith(EXIT.misuse);
+    expect(desktopTap.stdout).toContain("--tap needs a touch-capable context");
+    expect(evalValue((await r.snap(["--session", desktop, "--eval", observed, ...QUIET])).stdout)).toBe(0);
+  } finally {
+    await r.close([mobile, desktop]);
   }
 });
 

@@ -40,30 +40,28 @@ import { RpgSatelliteRow } from "./rpg-satellite-row.tsx";
 // The band renders the SERVER-derived orb set (satellites): the host's PINNED trackers, envelope-capped
 // SERVER-SIDE (`trackerOrbs`, and each orb carries its own host-picked color). The client renders them all — no second cap (a client
 // slice would silently drop a pinned orb the host asked for, the orb-pinning bug).
-/** Line 2's when/where caption from the ambient strip. `dateMode` (#9): `narrated` (the default) leads
- *  with the FREEFORM date string and drops the sequential `day N` counter (the model narrates the date;
- *  no forced day-count display); `structured` keeps the counter. Time-of-day + weather render in BOTH
- *  modes (they drive the Waystone visual). Empty segments drop. */
-function whenLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: RpgDateMode): string {
-  const parts: string[] = [];
+// Narrated context may yield width, but state is the text counterpart of the Waystone and stays readable.
+function whenParts(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: RpgDateMode): { readonly context: string; readonly state: string } {
+  const context: string[] = [];
+  const state: string[] = [];
   // A clock can carry a day with NO time (the story never stated an hour, or the host cleared it), so the
   // label and the counter are pushed independently — a `day 4` scene must not lose its counter just because
   // nobody has said whether it is morning.
   const label = clockTimeOfDay(ambient.clock);
   if (dateMode === "narrated") {
     if (ambient.calendarDate !== null) {
-      parts.push(ambient.calendarDate);
+      context.push(ambient.calendarDate);
     }
     if (label !== null) {
-      parts.push(label);
+      state.push(label);
     }
   } else if (ambient.clock !== null) {
-    parts.push(`day ${ambient.clock.day}`);
+    context.push(`day ${ambient.clock.day}`);
     if (label !== null) {
-      parts.push(label);
+      state.push(label);
     }
   } else if (ambient.calendarDate !== null) {
-    parts.push(ambient.calendarDate);
+    context.push(ambient.calendarDate);
   }
   // The numeric hour the Waystone actually draws from (side-eye F17): the stone points at 21:40 while the
   // text said only "night", so the picture carried a datum the text didn't. TEXT IS THE DATUM — it has to be
@@ -71,14 +69,14 @@ function whenLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: Rpg
   // decoration to be a superset of and the reading is omitted rather than printed as `--:--`.
   const reading = clockTime(ambient.clock);
   if (reading !== null) {
-    parts.push(reading);
+    state.push(reading);
   }
   if (ambient.weather !== null) {
     // The model's own phrasing when it wrote one ("torrential sleet"), else the canonical type — the band
     // TEXT is the datum, the stone's sky is the decoration bound to `weather.type`.
-    parts.push(rpgWeatherText(ambient.weather));
+    state.push(rpgWeatherText(ambient.weather));
   }
-  return parts.join(" · ");
+  return { context: context.join(" · "), state: state.join(" · ") };
 }
 
 /** The stored clock as a plain 24h reading (`21:40`) — the same number the stone's hand points at, or `null`
@@ -190,6 +188,30 @@ export interface RpgTakeoverHeaderProps {
   readonly veiledCue?: ReactNode;
 }
 
+function BandWhen({ when }: { readonly when: ReturnType<typeof whenParts> }): ReactElement | null {
+  if (when.context === "" && when.state === "") {
+    return null;
+  }
+  return (
+    <Row gap="field" align="start" className="min-w-0 flex-wrap tabular-nums" data-slot="rpg-band-when">
+      {when.context === "" ? null : (
+        <Text as="span" voice="gloss" className="min-w-0 flex-1 truncate" data-slot="rpg-band-when-context">
+          {when.context}
+        </Text>
+      )}
+      {when.state === "" ? null : (
+        <Text as="span" voice="gloss" className="line-clamp-2 max-w-full shrink-0 break-words" data-slot="rpg-band-when-state">
+          {when.context === "" ? when.state : `· ${when.state}`}
+        </Text>
+      )}
+    </Row>
+  );
+}
+
+function isAmbientUnset(location: string, when: ReturnType<typeof whenParts>): boolean {
+  return location === "" && when.context === "" && when.state === "";
+}
+
 /** The waystone band — the signature composite + the text lines that carry its data.
  *
  *  TWO ARRANGEMENTS, ONE ANATOMY (F6 defect 4's second half). With an ambient set, this is the
@@ -219,12 +241,12 @@ export function RpgTakeoverHeader({
   veiledCue,
 }: RpgTakeoverHeaderProps): ReactElement {
   const stoneClock = stoneClockOf(ambient?.clock ?? null);
-  const when = ambient === null ? "" : whenLine(ambient, dateMode);
+  const when = ambient === null ? { context: "", state: "" } : whenParts(ambient, dateMode);
   const location = ambient?.location ?? "";
-  // THE COMPRESSED ARM'S CONDITION: nothing to read. `when` already folds date + clock + weather into
-  // one string, so an empty location AND an empty when-line is exactly "no ambient set" — the same absence
+  // THE COMPRESSED ARM'S CONDITION: nothing to read. The two when groups cover date + clock + weather, so
+  // an empty location AND empty when groups are exactly "no ambient set" — the same absence
   // the copy below states, derived from the rendered text rather than re-walking the ambient shape.
-  const ambientUnset = location === "" && when === "";
+  const ambientUnset = isAmbientUnset(location, when);
 
   const cues = (
     <>
@@ -297,11 +319,7 @@ export function RpgTakeoverHeader({
           <Text as="span" voice="gloss" className="line-clamp-2">
             {withoutHeadingEcho(location, roomTitle) || "No location set"}
           </Text>
-          {when === "" ? null : (
-            <Text as="span" voice="gloss" className="truncate tabular-nums">
-              {when}
-            </Text>
-          )}
+          <BandWhen when={when} />
           <Row gap="field" align="center" className="flex-wrap">
             {cues}
           </Row>

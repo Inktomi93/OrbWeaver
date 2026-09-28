@@ -615,6 +615,100 @@ test("a tab body renders real tracker data (Status: participant row + pool meter
   await expect(component.getByText("poisoned")).toBeVisible();
 });
 
+test("the mobile Waystone keeps midnight, exact time, and weather visible beside a long narrated date", async ({ mount, page }) => {
+  const game = gameView(false);
+  const tracker = trackerView(false);
+  await stubTakeover(page, {
+    game: { ...game, publicConfig: { ...game.publicConfig, dateMode: "narrated" } },
+    tracker: {
+      ...tracker,
+      ambient: {
+        location: "The Gilded Ember tavern, lower Ashfall",
+        calendarDate: "14th of Emberfall, 3rd Age",
+        clock: { day: 3, hour: 0, minute: 0 },
+        weather: { type: "clear", label: "" },
+      },
+    },
+  });
+  const component = await mount(<RpgTakeoverStory width={390} height={780} />);
+  const header = component.locator('[data-slot="rpg-takeover-header"]');
+  const when = header.locator('[data-slot="rpg-band-when"]');
+  const context = header.locator('[data-slot="rpg-band-when-context"]');
+  const state = header.locator('[data-slot="rpg-band-when-state"]');
+
+  await expect(context).toHaveText("14th of Emberfall, 3rd Age");
+  await expect(state).toHaveText("· midnight · 00:00 · clear");
+  const aria = await header.ariaSnapshot();
+  expect(aria).toContain("14th of Emberfall, 3rd Age");
+  expect(aria).toContain("midnight · 00:00 · clear");
+
+  const [whenBox, stateBox, contextOverflow, stateOverflow] = await Promise.all([
+    when.boundingBox(),
+    state.boundingBox(),
+    context.evaluate((element) => element.scrollWidth - element.clientWidth),
+    state.evaluate((element) => ({ horizontal: element.scrollWidth - element.clientWidth, vertical: element.scrollHeight - element.clientHeight })),
+  ]);
+  if (whenBox === null || stateBox === null) {
+    throw new Error("expected the mobile Waystone state row and exact state to be laid out");
+  }
+  expect(contextOverflow).toBeGreaterThan(0);
+  expect(stateOverflow.horizontal).toBeLessThanOrEqual(1);
+  expect(stateOverflow.vertical).toBeLessThanOrEqual(1);
+  expect(stateBox.x).toBeGreaterThanOrEqual(whenBox.x - 1);
+  expect(stateBox.x + stateBox.width).toBeLessThanOrEqual(whenBox.x + whenBox.width + 1);
+  expect(stateBox.y).toBeGreaterThanOrEqual(whenBox.y - 1);
+  expect(stateBox.y + stateBox.height).toBeLessThanOrEqual(whenBox.y + whenBox.height + 1);
+});
+
+test("the mobile Waystone wraps a long authored weather reading without clipping its accessible text", async ({ mount, page }) => {
+  const game = gameView(false);
+  const tracker = trackerView(false);
+  const weatherLabel = "steady rain hammering against every shutter";
+  await stubTakeover(page, {
+    game: { ...game, publicConfig: { ...game.publicConfig, dateMode: "narrated" } },
+    tracker: {
+      ...tracker,
+      ambient: {
+        location: "The Gilded Ember tavern, lower Ashfall",
+        calendarDate: "14th of Emberfall, 3rd Age",
+        clock: { day: 3, hour: 21, minute: 40 },
+        weather: { type: "rain", label: weatherLabel },
+      },
+    },
+  });
+  const component = await mount(<RpgTakeoverStory width={390} height={780} />);
+  const header = component.locator('[data-slot="rpg-takeover-header"]');
+  const when = header.locator('[data-slot="rpg-band-when"]');
+  const state = header.locator('[data-slot="rpg-band-when-state"]');
+  const stateText = `· night · 21:40 · ${weatherLabel}`;
+
+  await expect(state).toHaveText(stateText);
+  expect(await header.ariaSnapshot()).toContain(`night · 21:40 · ${weatherLabel}`);
+
+  const [whenBox, stateBox, metrics] = await Promise.all([
+    when.boundingBox(),
+    state.boundingBox(),
+    state.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      clientWidth: element.clientWidth,
+      lineHeight: Number.parseFloat(getComputedStyle(element).lineHeight),
+      scrollHeight: element.scrollHeight,
+      scrollWidth: element.scrollWidth,
+    })),
+  ]);
+  if (whenBox === null || stateBox === null) {
+    throw new Error("expected the mobile Waystone state row and long weather state to be laid out");
+  }
+  expect(metrics.clientHeight).toBeGreaterThan(metrics.lineHeight);
+  expect(metrics.clientHeight).toBeLessThanOrEqual(metrics.lineHeight * 2 + 1);
+  expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
+  expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.clientHeight + 1);
+  expect(stateBox.x).toBeGreaterThanOrEqual(whenBox.x - 1);
+  expect(stateBox.x + stateBox.width).toBeLessThanOrEqual(whenBox.x + whenBox.width + 1);
+  expect(stateBox.y).toBeGreaterThanOrEqual(whenBox.y - 1);
+  expect(stateBox.y + stateBox.height).toBeLessThanOrEqual(whenBox.y + whenBox.height + 1);
+});
+
 // ── #1383 the Status region is a LIST OF PEOPLE, and it must announce like one ────────────────────────
 // Measured on main b767bedfc (`--aria '[aria-label="Chats details"]'`): `region "Status"` was one FLAT
 // tree — `button "Open Traveler"`, then bare `text: HP`, `button "HP value"`, `text: /`, `button "HP max"`
@@ -4673,7 +4767,7 @@ test("#149 the band holds its box open while `getTrackerView` is in flight, and 
 
   tracker.release(trackerView(false));
   // SETTLED: the reservation is gone (the real band replaced it), and the band did not grow into the rail
-  // below it. Pre-fix the pending band was chrome-only and this delta was the whole ~120-192px jump.
+  // below it. A chrome-only pending band would jump by the entire settled height.
   await expect(reservation).toHaveCount(0);
   await expect.poll(async () => await band.evaluate((el) => el.getBoundingClientRect().height)).toBeLessThanOrEqual(pending);
 });

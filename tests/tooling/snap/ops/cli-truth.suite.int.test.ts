@@ -120,6 +120,19 @@ test("scenario checkpoints refuse every explicit browser-lifetime flag while out
   expect(matrixPrepared.checkpoints[0]?.errors).toEqual([]);
 });
 
+test("scenario taps inherit the outer touch device and refuse a desktop outer context", async ({ scratch }) => {
+  const path = join(scratch, "tap-scenario.json");
+  await writeFile(path, JSON.stringify({ name: "tap", checkpoints: [{ name: "touch", args: ["/", "--tap", "#tap"] }] }));
+
+  const mobile = parseSnapArgs(["--scenario", path, "--mobile"]);
+  const mobilePlan = await prepareScenario(mobile, path);
+  expect(mobilePlan.checkpoints[0]?.device).toBe(mobile.device);
+  expect(mobilePlan.checkpoints[0]?.errors).toEqual([]);
+
+  const desktopPlan = await prepareScenario(parseSnapArgs(["--scenario", path]), path);
+  expect(desktopPlan.checkpoints[0]?.errors).toContainEqual(expect.stringContaining("--tap needs a touch-capable context"));
+});
+
 test("a later session call cannot silently replace no-failure-evidence, and ownerless modifiers refuse while parent twins pass", () => {
   expect(SESSION_ONLY_FLAGS.has("--no-failure-evidence")).toBe(true);
   expect(sessionOnlyFlagsIn(["--eval", "1", "--visitor"]), "the relay header is a context property, set once at boot").toEqual(["--visitor"]);

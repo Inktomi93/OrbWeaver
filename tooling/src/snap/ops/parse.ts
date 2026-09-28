@@ -205,14 +205,21 @@ function armValidationPairs(args: Args): ValidationPair[] {
  *  whose SHOTS still look like a drive that happened. The refusal names the device flag because the whole
  *  point of the verb is that `--click --mobile` is still a MOUSE: it fires pointerenter/mouseover and
  *  opens hover-only affordances (Base UI's tooltip trigger is `mouseOnly: true`) that a finger cannot. */
-function tapValidationPairs(args: Args): ValidationPair[] {
+function tapValidationPairs(args: Args, device: Args["device"]): ValidationPair[] {
   const taps = args.actions.filter((entry) => entry.type === "step" && entry.action.kind === "tap").length;
   return [
     [
-      taps > 0 && args.device === null,
-      "--tap needs a touch-capable context: pass --mobile (the iPhone 14 Pro Max descriptor carries hasTouch + pointer:coarse). A desktop context has no touchscreen, so every tap would throw. --click is NOT the fallback — it is a mouse dispatch even under --mobile, which is the difference this verb exists to measure",
+      taps > 0 && device === null,
+      "--tap needs a touch-capable context: pass --mobile on a one-shot run or at session/scenario boot (the iPhone 14 Pro Max descriptor carries hasTouch + pointer:coarse). A desktop context has no touchscreen, so every tap would throw. --click is NOT the fallback — it is a mouse dispatch even under --mobile, which is the difference this verb exists to measure",
     ],
   ];
+}
+
+/** Validate a tap against the browser-lifetime device after a session or scenario inherits it. */
+export function tapValidationErrors(args: Args, device: Args["device"]): string[] {
+  return tapValidationPairs(args, device)
+    .filter(([invalid]) => invalid)
+    .map(([, message]) => message);
 }
 
 function modifierValidationPairs(args: Args, seen: ReadonlySet<string>, scenarioCheckpoint: boolean): ValidationPair[] {
@@ -229,32 +236,49 @@ function modifierValidationPairs(args: Args, seen: ReadonlySet<string>, scenario
   ];
 }
 
-function validateParsedArgs(args: Args, inheritedSessionBinding: boolean, seen: ReadonlySet<string>, scenarioCheckpoint: boolean): string[] {
+interface ParsedValidationContext {
+  readonly inheritedSessionBinding: boolean;
+  readonly seen: ReadonlySet<string>;
+  readonly scenarioCheckpoint: boolean;
+  readonly sessionDevice: Args["device"] | undefined;
+}
+
+function contextualTapValidationPairs(args: Args, context: ParsedValidationContext): ValidationPair[] {
+  if (context.sessionDevice === undefined) {
+    return args.session !== null || context.scenarioCheckpoint ? [] : tapValidationPairs(args, args.device);
+  }
+  return tapValidationPairs(args, context.sessionDevice);
+}
+
+function validateParsedArgs(args: Args, context: ParsedValidationContext): string[] {
   const contextsMode = args.contexts > 1 || args.as !== null;
   const producesShot = args.shotOf !== null || args.shot || args.baseline || args.diff;
   const invalidModes = [
-    ...sessionValidationPairs(args, contextsMode, inheritedSessionBinding),
+    ...sessionValidationPairs(args, contextsMode, context.inheritedSessionBinding),
     ...stageKeeperValidationPairs(args),
     ...sessionModeValidationPairs(args, contextsMode),
     ...evidenceValidationPairs(args, producesShot),
-    ...tapValidationPairs(args),
+    ...contextualTapValidationPairs(args, context),
     ...armValidationPairs(args),
     ...filmstripValidationPairs(args),
-    ...modifierValidationPairs(args, seen, scenarioCheckpoint),
+    ...modifierValidationPairs(args, context.seen, context.scenarioCheckpoint),
   ];
   // The image budget is checked against the RAW viewport, which is the one a numeric --scale can reach
   // (the device arm is refused above, so a descriptor's own viewport is never the multiplicand here).
   const budget = args.device === null ? shotScaleBudgetRefusal(args.scale, args.viewport) : null;
   return [
     ...validatePageTargets(args, contextsMode),
-    ...validateParsedRouteSection(args, inheritedSessionBinding || scenarioCheckpoint),
+    ...validateParsedRouteSection(args, context.inheritedSessionBinding || context.scenarioCheckpoint),
     ...invalidModes.filter(([invalid]) => invalid).map(([, message]) => message),
     ...sessionNameErrors(args),
     ...(budget === null ? [] : [budget]),
   ];
 }
 
-export function parseSnapArgs(argv: string[], options: { readonly inheritedSessionBinding?: boolean; readonly scenarioCheckpoint?: boolean } = {}): Args {
+export function parseSnapArgs(
+  argv: string[],
+  options: { readonly inheritedSessionBinding?: boolean; readonly scenarioCheckpoint?: boolean; readonly sessionDevice?: Args["device"] } = {},
+): Args {
   const scan = scanArgv(argv);
   const errors = scan.errors;
   // The RUN's own defaults; every ARM-owned field comes from `armArgDefaults()` below, and tsc refuses
@@ -345,7 +369,14 @@ export function parseSnapArgs(argv: string[], options: { readonly inheritedSessi
       args.routeGiven = true;
     }
   }
-  args.errors.push(...validateParsedArgs(args, options.inheritedSessionBinding === true, scan.seen, options.scenarioCheckpoint === true));
+  args.errors.push(
+    ...validateParsedArgs(args, {
+      inheritedSessionBinding: options.inheritedSessionBinding === true,
+      seen: scan.seen,
+      scenarioCheckpoint: options.scenarioCheckpoint === true,
+      sessionDevice: options.sessionDevice,
+    }),
+  );
   if (args.perfCycles > 1) {
     const once = [...args.actions];
     for (let cycle = 1; cycle < args.perfCycles; cycle += 1) {
