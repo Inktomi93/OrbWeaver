@@ -12,7 +12,7 @@ import type {
 } from "./contract/process-protocol.ts";
 import { PLUGIN_BRIDGE_OPERATIONS, PLUGIN_COMMAND_OPERATIONS, PLUGIN_SYNC_OPERATIONS } from "./contract/process-protocol.ts";
 
-export const PLUGIN_BROKER_PROTOCOL_VERSION = 1;
+export const PLUGIN_BROKER_PROTOCOL_VERSION = 2;
 export const PLUGIN_BROKER_SYNC_TIMEOUT_MS = 10_000;
 export const PLUGIN_BROKER_SYNC_RESULT_BYTES = 2_097_152;
 /** Largest authenticated JSON-line frame. `net.fetchAsset` may carry a 5 MiB image as base64. */
@@ -88,6 +88,9 @@ export function parseWorkerBrokerMessage(message: unknown): WorkerBrokerMessage 
   }
   if (message["kind"] === "log") {
     return parseWorkerLog(message);
+  }
+  if (message["kind"] === "authority-released") {
+    return typeof message["authorityId"] === "string" ? { kind: "authority-released", authorityId: message["authorityId"] } : null;
   }
   return message["kind"] === "response" ? parseWorkerResponse(message) : null;
 }
@@ -232,6 +235,27 @@ function parseBrokerLog(value: Readonly<Record<string, unknown>>): BrokerParentM
   };
 }
 
+function parseBrokerRuntimeCrashed(value: Readonly<Record<string, unknown>>): BrokerParentMessage | null {
+  const error = parseRpcError(value["error"]);
+  return typeof value["runtimeId"] === "string" && error !== undefined ? { kind: "runtime-crashed", runtimeId: value["runtimeId"], error } : null;
+}
+
+function parseBrokerAuthorityReleased(value: Readonly<Record<string, unknown>>): BrokerParentMessage | null {
+  return typeof value["runtimeId"] === "string" && typeof value["authorityId"] === "string"
+    ? { kind: "authority-released", runtimeId: value["runtimeId"], authorityId: value["authorityId"] }
+    : null;
+}
+
+function parseBrokerRuntimeMessage(kind: string, value: Readonly<Record<string, unknown>>): BrokerParentMessage | null {
+  if (kind === "runtime-crashed") {
+    return parseBrokerRuntimeCrashed(value);
+  }
+  if (kind === "log") {
+    return parseBrokerLog(value);
+  }
+  return kind === "authority-released" ? parseBrokerAuthorityReleased(value) : null;
+}
+
 export function parseBrokerParentMessage(message: unknown): BrokerParentMessage | null {
   if (!isRecord(message) || typeof message["kind"] !== "string") {
     return null;
@@ -248,14 +272,7 @@ export function parseBrokerParentMessage(message: unknown): BrokerParentMessage 
   if (message["kind"] === "bridge-cancel") {
     return typeof message["id"] === "string" ? { kind: "bridge-cancel", id: message["id"] } : null;
   }
-  if (message["kind"] === "runtime-crashed") {
-    const error = parseRpcError(message["error"]);
-    return typeof message["runtimeId"] === "string" && error !== undefined ? { kind: "runtime-crashed", runtimeId: message["runtimeId"], error } : null;
-  }
-  if (message["kind"] === "log") {
-    return parseBrokerLog(message);
-  }
-  return null;
+  return parseBrokerRuntimeMessage(message["kind"], message);
 }
 
 function parseRpcError(errorValue: unknown): RpcError | undefined {

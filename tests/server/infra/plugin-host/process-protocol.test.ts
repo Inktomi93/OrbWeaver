@@ -39,6 +39,12 @@ test("the authenticated protocol rejects open operation names and bridge message
       authorityId: "authority-000000000",
     }),
   ).toMatchObject({ kind: "command", operation: "create" });
+  expect(parseBrokerParentMessage({ kind: "authority-released", runtimeId: "runtime-000000000" })).toBeNull();
+  expect(parseBrokerParentMessage({ kind: "authority-released", runtimeId: "runtime-000000000", authorityId: "authority-000000000" })).toEqual({
+    kind: "authority-released",
+    runtimeId: "runtime-000000000",
+    authorityId: "authority-000000000",
+  });
 });
 
 test("wire values preserve bytes and undefined without accepting an oversized frame", () => {

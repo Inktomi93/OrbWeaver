@@ -41,14 +41,65 @@ const identity = workerData as WorkerIdentity;
 const commandAuthority = new AsyncLocalStorage<string>();
 let nextRequest = 0;
 interface PendingBridgeCall {
+  readonly authorityId: string;
   readonly resolve: (value: unknown) => void;
   readonly reject: (error: Error) => void;
   unsubscribe?: () => void;
 }
 const pending = new Map<string, PendingBridgeCall>();
 
+// A command authority stays live in the parent until this Worker can no longer post a bridge call under it:
+// the command has completed and every call posted under it has settled. Guest bytecode runs only inside a
+// command or in the job pump a settlement triggers, so a guest continuation resumed by a late host result
+// still reaches the parent under the authority it inherited; the parent deletes the authority on release.
+interface AuthorityLease {
+  pendingCalls: number;
+  commandDone: boolean;
+}
+const authorityLeases = new Map<string, AuthorityLease>();
+
 function post(message: WorkerBrokerMessage): void {
   port.postMessage(message);
+}
+
+function leaseOf(authorityId: string): AuthorityLease {
+  let lease = authorityLeases.get(authorityId);
+  if (lease === undefined) {
+    lease = { pendingCalls: 0, commandDone: false };
+    authorityLeases.set(authorityId, lease);
+  }
+  return lease;
+}
+
+function releaseAuthorityIfIdle(authorityId: string): void {
+  const lease = authorityLeases.get(authorityId);
+  if (lease === undefined || !lease.commandDone || lease.pendingCalls > 0) {
+    return;
+  }
+  authorityLeases.delete(authorityId);
+  post({ kind: "authority-released", authorityId });
+}
+
+// The idle check waits one macrotask: the job pump this settlement triggers runs in the same microtask flush
+// and posts its follow-on calls first, so a release can never overtake a call posted under the same authority.
+function settleBridgeCall(id: string): PendingBridgeCall | undefined {
+  const request = pending.get(id);
+  if (request !== undefined) {
+    pending.delete(id);
+    request.unsubscribe?.();
+    const lease = authorityLeases.get(request.authorityId);
+    if (lease !== undefined) {
+      lease.pendingCalls -= 1;
+    }
+    setImmediate(() => releaseAuthorityIfIdle(request.authorityId));
+  }
+  return request;
+}
+
+function completeCommand(authorityId: string, response: Extract<WorkerBrokerMessage, { readonly kind: "response" }>): void {
+  post(response);
+  leaseOf(authorityId).commandDone = true;
+  releaseAuthorityIfIdle(authorityId);
 }
 
 function callAsync(operation: PluginBridgeOperation, args: readonly unknown[], liveness?: PluginInvocationLiveness): Promise<unknown> {
@@ -58,15 +109,14 @@ function callAsync(operation: PluginBridgeOperation, args: readonly unknown[], l
   }
   const id = `${identity.runtimeId}:bridge:${nextRequest++}`;
   return new Promise((resolve, reject) => {
-    const request: PendingBridgeCall = { resolve, reject };
+    const request: PendingBridgeCall = { authorityId, resolve, reject };
     pending.set(id, request);
+    leaseOf(authorityId).pendingCalls += 1;
     const unsubscribe = liveness?.onAbort(() => {
-      const active = pending.get(id);
+      const active = settleBridgeCall(id);
       if (active === undefined) {
         return;
       }
-      pending.delete(id);
-      active.unsubscribe?.();
       post({ kind: "bridge-cancel", id });
       const error = new Error("plugin bridge call cancelled with its invocation");
       error.name = "AbortError";
@@ -157,12 +207,10 @@ async function run(message: Extract<BrokerWorkerMessage, { readonly kind: "comma
 
 port.on("message", (message: BrokerWorkerMessage) => {
   if (message.kind === "bridge-result") {
-    const request = pending.get(message.id);
+    const request = settleBridgeCall(message.id);
     if (request === undefined) {
       return;
     }
-    pending.delete(message.id);
-    request.unsubscribe?.();
     if (message.ok) {
       request.resolve(message.value);
     } else {
@@ -171,10 +219,8 @@ port.on("message", (message: BrokerWorkerMessage) => {
     return;
   }
   if (message.kind === "bridge-cancel") {
-    const request = pending.get(message.id);
+    const request = settleBridgeCall(message.id);
     if (request !== undefined) {
-      pending.delete(message.id);
-      request.unsubscribe?.();
       request.reject(new Error("plugin broker: parent cancelled the bridge call"));
     }
     return;
@@ -183,8 +229,8 @@ port.on("message", (message: BrokerWorkerMessage) => {
   void commandAuthority
     .run(message.authorityId, () => run(message))
     .then(
-      (value) => post({ kind: "response", id: message.id, ok: true, value }),
-      (error) => post({ kind: "response", id: message.id, ok: false, error: rpcError(error) }),
+      (value) => completeCommand(message.authorityId, { kind: "response", id: message.id, ok: true, value }),
+      (error) => completeCommand(message.authorityId, { kind: "response", id: message.id, ok: false, error: rpcError(error) }),
     );
 });
 

@@ -50,6 +50,11 @@ const PUMP_CPU_MS = 200;
 const SLOW_HOST_MS = 400;
 /** §6's ceiling on how long the main thread may stay blocked by one continuation. */
 const PUMP_RELEASE_CEILING_MS = 2000;
+/** §6's settlement grace for a host call that must still be PARKED when activation returns. Activation holds
+ *  for `cpuDeadlineMs + settleGraceMs` while a host call is pending (`Sandbox.settleActivationJobs`), and the
+ *  membrane's own `HOST_FN_DEADLINE_MS` race rejects that call first, so a wider grace can never yield a late
+ *  FULFILMENT: the continuation would see a deadline rejection, never the host's value. */
+const PARKED_SETTLE_GRACE_MS = 0;
 /** §6's runaway: guest iterations costing SECONDS of unbounded main-thread CPU (measured ~2.3 s per 1e8 on
  *  this runtime/box). Big enough that "preempted" and "the loop simply finished" can never be confused;
  *  FINITE so a regressed run REPORTS instead of hanging the suite forever (a `while(true)` here would be a
@@ -822,7 +827,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
       grants: ["storage.kv"],
       bridge: pumpBridge(() => gate, wrote),
       chat: null,
-      budgets: { cpuDeadlineMs: PUMP_CPU_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES, settleGraceMs: HOST_FN_DEADLINE_MS },
+      budgets: { cpuDeadlineMs: PUMP_CPU_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES, settleGraceMs: PARKED_SETTLE_GRACE_MS },
     });
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) {
@@ -838,6 +843,49 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
     // ...and the main thread came back inside the window rather than after the whole loop (~2.3 s+). Generous
     // bound: the interrupt reads real monotonic time, so it fires at PUMP_CPU_MS regardless of box load.
     expect(blockedMs).toBeLessThan(PUMP_RELEASE_CEILING_MS);
+    host.dispose(outcome.instance);
+  });
+
+  test("a host call that settles AFTER activation returned still resumes its continuation, and the continuation's own host call is authorized", {
+    timeout: LONG,
+  }, async () => {
+    // The two halves of "resumed" are split on purpose. The log line needs no command authority to reach the
+    // parent, so it proves the pump woke; the follow-on `storage.set` crosses the broker under the authority the
+    // continuation inherited, so it proves that authority is still live after the activation command completed.
+    // A run that logs but never writes is an authority defect, not a pump defect.
+    const host = makeHost();
+    const wrote: string[] = [];
+    let release!: (value: string | null) => void;
+    const gate = new Promise<string | null>((resolve) => {
+      release = resolve;
+    });
+    const main = `
+      const h = orb.host(1);
+      h.storage.get('gate').then(function () {
+        h.log.info('continuation-ran');
+        return h.storage.set('late-resumed', '1').catch(function (e) { h.log.info('late-write-refused:' + e.message); });
+      });
+      'activated';`;
+    const outcome = await host.createInstance({
+      mainJs: main,
+      grants: ["storage.kv"],
+      bridge: pumpBridge(() => gate, wrote),
+      chat: null,
+      budgets: { cpuDeadlineMs: PUMP_CPU_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES, settleGraceMs: PARKED_SETTLE_GRACE_MS },
+    });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) {
+      return;
+    }
+    // Activation returned with the call still parked; nothing has resumed yet.
+    expect(host.readLog(outcome.instance).some((line) => line.message === "continuation-ran")).toBe(false);
+    release(null);
+    await vi.waitFor(() => expect(host.readLog(outcome.instance).some((line) => line.message === "continuation-ran")).toBe(true), {
+      timeout: POLL_MS,
+      interval: 5,
+    });
+    await vi.waitFor(() => expect(wrote).toContain("late-resumed"), { timeout: POLL_MS, interval: 5 });
+    expect(host.readLog(outcome.instance).some((line) => line.message.startsWith("late-write-refused:"))).toBe(false);
     host.dispose(outcome.instance);
   });
 

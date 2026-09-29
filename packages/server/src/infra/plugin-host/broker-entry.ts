@@ -279,6 +279,10 @@ function handleWorkerMessage(runtimeId: string, runtime: Runtime, message: Worke
     send({ kind: "log", runtimeId, label: message.label, level: message.level, message: message.message });
     return;
   }
+  if (message.kind === "authority-released") {
+    send({ kind: "authority-released", runtimeId, authorityId: message.authorityId });
+    return;
+  }
   handleWorkerCommandResponse(runtimeId, runtime, message);
 }
 

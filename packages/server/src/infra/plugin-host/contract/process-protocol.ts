@@ -95,7 +95,8 @@ export type BrokerParentMessage =
     }
   | { readonly kind: "bridge-cancel"; readonly id: string }
   | { readonly kind: "log"; readonly runtimeId: string; readonly label: string; readonly level: PluginLogLevel; readonly message: string }
-  | { readonly kind: "runtime-crashed"; readonly runtimeId: string; readonly error: RpcError };
+  | { readonly kind: "runtime-crashed"; readonly runtimeId: string; readonly error: RpcError }
+  | { readonly kind: "authority-released"; readonly runtimeId: string; readonly authorityId: string };
 
 export type BrokerWorkerMessage =
   | { readonly kind: "command"; readonly id: string; readonly operation: PluginCommandOperation; readonly authorityId: string; readonly value?: unknown }
@@ -115,4 +116,5 @@ export type WorkerBrokerMessage =
       readonly control: SharedArrayBuffer;
       readonly result: SharedArrayBuffer;
     }
-  | { readonly kind: "log"; readonly label: string; readonly level: PluginLogLevel; readonly message: string };
+  | { readonly kind: "log"; readonly label: string; readonly level: PluginLogLevel; readonly message: string }
+  | { readonly kind: "authority-released"; readonly authorityId: string };

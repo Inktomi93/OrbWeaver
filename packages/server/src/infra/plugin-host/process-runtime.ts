@@ -520,6 +520,10 @@ class BrokerClient {
       this.handleLog(message);
       return;
     }
+    if (message.kind === "authority-released") {
+      bindings.get(message.runtimeId)?.authorities.delete(message.authorityId);
+      return;
+    }
     if (message.kind === "bridge") {
       // A bridge delivery that fails outside its RPC result path invalidates the broker connection and all
       // live command authorities. The socket's disconnect owner rejects pending work and crashes residents.
@@ -933,20 +937,20 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       throw new Error("plugin host: physical runtime is not active");
     }
     const authorityId = randomUUID();
+    // The authority outlives the command: a guest continuation resumed by a host call that settles after the
+    // command returned still issues its own host calls under this id. The Worker reports `authority-released`
+    // once the command has completed and every call posted under the id has settled; retire, crash and
+    // disconnect clear the whole map. The membrane's in-flight cap bounds how many ids can be held open.
     binding.authorities.set(authorityId, { grants: binding.grants, chat, phase });
-    try {
-      return await broker.command({
-        operation,
-        runtimeId,
-        authorityId,
-        value,
-        onConnected: (): void => {
-          binding.dispatched = true;
-        },
-      });
-    } finally {
-      binding.authorities.delete(authorityId);
-    }
+    return await broker.command({
+      operation,
+      runtimeId,
+      authorityId,
+      value,
+      onConnected: (): void => {
+        binding.dispatched = true;
+      },
+    });
   };
 
   const retireRuntime = async (binding: Binding): Promise<void> => {
