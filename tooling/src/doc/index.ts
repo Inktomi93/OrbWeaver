@@ -16,6 +16,8 @@ export type {
   ItemState,
   NewDocInput,
   NewItemInput,
+  OverviewFilter,
+  OverviewState,
   PlanState,
   SectionContent,
   WorkItem,

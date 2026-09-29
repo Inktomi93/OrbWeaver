@@ -2,14 +2,14 @@
 // empty column is a fact and not an omission) and `drift` (the orchestrator nag over resolved git facts,
 // the plans' lifecycle included).
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { DriftFacts, PlanState, WorkItem } from "../contract/types.ts";
+import type { DriftFacts, OverviewFilter, PlanState, WorkItem } from "../contract/types.ts";
 import { PLAN_KIND } from "../contract/vocab.ts";
 import { closesTrailer, driftLines, planWakeConditions, wakeConditions } from "../lib/drift.ts";
 import { splitDocument } from "../lib/frontmatter-write.ts";
 import { planSlugOf } from "../lib/indexes.ts";
-import { padId } from "../lib/names.ts";
+import { basenameOf, padId, parseNumberedName } from "../lib/names.ts";
 import { loadItems } from "./items.ts";
-import { closingCommits, governedPaths, pathExists, readDoc, root, unmergedBranches, worktreeBranches } from "./tree.ts";
+import { closingCommits, governedPaths, pathExists, readDoc, root, unmergedBranches, workFileNamesAt, worktreeBranches } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <overview|drift>");
 
@@ -35,10 +35,14 @@ function ordered(items: readonly WorkItem[]): readonly WorkItem[] {
   });
 }
 
-function overviewLines(items: readonly WorkItem[]): readonly string[] {
+const UNFILTERED: OverviewFilter = { states: [], area: null };
+
+function overviewLines(items: readonly WorkItem[], filter: OverviewFilter): readonly string[] {
   const lines: string[] = [];
-  for (const state of STATES) {
-    const bucket = ordered(items.filter((item) => item.state === state));
+  const states = filter.states.length === 0 ? STATES : STATES.filter((state) => filter.states.some((named) => named === state));
+  const inArea = filter.area === null ? items : items.filter((item) => item.area === filter.area);
+  for (const state of states) {
+    const bucket = ordered(inArea.filter((item) => item.state === state));
     lines.push(`${state} (${String(bucket.length)})`);
     if (state === "done") {
       continue;
@@ -53,8 +57,8 @@ function overviewLines(items: readonly WorkItem[]): readonly string[] {
   return lines;
 }
 
-export function overview(repoRoot = root): readonly string[] {
-  return overviewLines(loadItems(repoRoot));
+export function overview(repoRoot = root, filter = UNFILTERED): readonly string[] {
+  return overviewLines(loadItems(repoRoot), filter);
 }
 
 /** Every plan design on the tree with the fields its lifecycle reads. */
@@ -66,6 +70,29 @@ export function loadPlans(repoRoot = root): readonly PlanState[] {
       return [];
     }
     return [{ path, slug, status: fields["status"] ?? "", blocked: fields["blocked"] ?? null }];
+  });
+}
+
+/** A `Closes: N` is dropped only when the closer's parent or its own tree held a file for N and none of
+ *  those files is today's file for N: a renumbering reused N for a different item, which was never
+ *  closed. No file for N in either place (filed later, filed on a merge's other side, a root commit)
+ *  keeps the close. Only ids still open on the tree pay for the git reads. */
+function closedOnMain(items: readonly WorkItem[], repoRoot: string): DriftFacts["closedOnMain"] {
+  const open = new Map(items.flatMap((item) => (item.state === "done" ? [] : [[item.id, item] as const])));
+  return closingCommits(repoRoot).map((commit) => {
+    const ids = closesTrailer(commit.message);
+    if (!ids.some((id) => open.has(id))) {
+      return { sha: commit.sha, ids };
+    }
+    const names = [...workFileNamesAt(`${commit.sha}^`, repoRoot), ...workFileNamesAt(commit.sha, repoRoot)];
+    return {
+      sha: commit.sha,
+      ids: ids.filter((id) => {
+        const item = open.get(id);
+        const then = names.filter((name) => parseNumberedName(name)?.id === id);
+        return item === undefined || then.length === 0 || then.includes(basenameOf(item.path));
+      }),
+    };
   });
 }
 
@@ -83,7 +110,7 @@ export function driftFacts(repoRoot = root): DriftFacts {
     wokenPlans,
     worktreeBranches: worktreeBranches(repoRoot),
     unmergedBranches: unmergedBranches(repoRoot),
-    closedOnMain: closingCommits(repoRoot).map((commit) => ({ sha: commit.sha, ids: closesTrailer(commit.message) })),
+    closedOnMain: closedOnMain(items, repoRoot),
     wokenItems: woken,
   };
 }

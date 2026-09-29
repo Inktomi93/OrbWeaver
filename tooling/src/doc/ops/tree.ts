@@ -299,6 +299,13 @@ export function highestHistoricId(tree: "adr" | "work", repoRoot = root): number
   return highest;
 }
 
+/** The item file names under the work tree at `rev`; empty when git cannot read `rev`, such as a root
+ *  commit's parent. */
+export function workFileNamesAt(rev: string, repoRoot = root): readonly string[] {
+  const out = git(repoRoot, ["ls-tree", "--name-only", rev, "--", DOC_TOOL_TREES.work]);
+  return out === null ? [] : out.split(/\r?\n/u).flatMap((line) => (line === "" ? [] : [basenameOf(line)]));
+}
+
 export function landedCommit(id: number, repoRoot = root): string | null {
   const out = git(repoRoot, ["log", "-1", "--format=%H", "--diff-filter=D", "--", `:(glob)${DOC_TOOL_TREES.work}${padId(id)}-*.md`])?.trim() ?? "";
   return out === "" ? null : out;

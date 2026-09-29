@@ -256,6 +256,65 @@ test("drift reads the repository: a stale doing item and an unlanded Closes trai
   ]);
 });
 
+function unlanded(sha: string): string {
+  return `main commit ${sha} closes 1 but the item is still on the tree (the merge ran without the landing hooks) — pnpm doc land 1 --evidence ${sha}`;
+}
+
+test("drift skips a Closes trailer whose id named a different item at the closing commit (a renumbering)", async ({ plantedTree }) => {
+  const root = await repo(plantedTree);
+  newItem({ title: "Gallery", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  commitAll(root, "chore(work): items");
+  // At the closer, 1 is a different item (another slug) than the one on the tree today.
+  writeFileSync(join(root, "gallery.txt"), "gallery\n");
+  commitAll(root, "fix(x): closes the gallery\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
+  git(root, "mv", "docs/work/0001-gallery.md", "docs/work/0001-plugin-frame-assets.md");
+  commitAll(root, "chore(work): renumber");
+  expect(drift(root)).toEqual([]);
+  // The same slug at the parent is the genuine unlanded close, and it still fires.
+  git(root, "commit", "--allow-empty", "-qm", "fix(x): closes the assets\n\nCloses: 1");
+  expect(drift(root)).toEqual([unlanded(git(root, "rev-parse", "HEAD"))]);
+});
+
+test("drift keeps a close when no file for the id exists at the closer's parent or in its tree", async ({ plantedTree }) => {
+  const item = { title: "A", kind: "work", priority: null, area: null, plan: null, lane: null } as const;
+  const closes = "fix(x): closes a\n\nCloses: 1";
+
+  // Filed and closed in one commit.
+  const same = await repo(plantedTree);
+  newItem(item, same, TODAY);
+  const sameCloser = commitAll(same, closes);
+  expect(drift(same)).toEqual([unlanded(sameCloser)]);
+
+  // A root commit: it has no parent to read.
+  const rootCommit = await plantedTree({ "README.md": "# planted\n" });
+  git(rootCommit, "init", "-q", "-b", "main");
+  newItem(item, rootCommit, TODAY);
+  const rootCloser = commitAll(rootCommit, closes);
+  expect(drift(rootCommit)).toEqual([unlanded(rootCloser)]);
+
+  // A merge whose item came from the second parent.
+  const merged = await repo(plantedTree);
+  git(merged, "checkout", "-qb", "lane");
+  newItem(item, merged, TODAY);
+  commitAll(merged, "chore(work): file on lane");
+  git(merged, "checkout", "-q", "main");
+  writeFileSync(join(merged, "main.txt"), "main\n");
+  commitAll(merged, "feat(x): main moves");
+  git(merged, "-c", "core.hooksPath=/dev/null", "merge", "-q", "--no-ff", "lane", "-m", closes);
+  expect(drift(merged)).toEqual([unlanded(git(merged, "rev-parse", "HEAD"))]);
+
+  // A lane that branched before the item was filed on main: the trailer predates the item.
+  const late = await repo(plantedTree);
+  git(late, "checkout", "-qb", "lane");
+  writeFileSync(join(late, "lane.txt"), "lane\n");
+  const closer = commitAll(late, closes);
+  git(late, "checkout", "-q", "main");
+  newItem(item, late, TODAY);
+  commitAll(late, "chore(work): file on main");
+  git(late, "-c", "core.hooksPath=/dev/null", "merge", "-q", "--no-ff", "lane", "-m", "Merge lane");
+  expect(drift(late)).toEqual([unlanded(closer)]);
+});
+
 // The two deep-history drift cases pay for 205 filler commits, one git process each. MEASURED alone: 20.4 s and
 // 31.7 s at per-core load 0.4 to 0.6, and 17.6 s and 23.2 s beside three whole typechecks. Each base is twice its worst
 // reading.
@@ -309,4 +368,27 @@ test("drift resolves wake conditions against the tree, never a shell: a present 
     "1 has a met wake condition (wake path README.md) — pnpm doc set 1 open",
     "3 has a met wake condition (wake gone never-there) — pnpm doc set 3 open",
   ]);
+});
+
+test("overview narrows to the named states and area; with no filter it is the full board", async ({ plantedTree }) => {
+  const root = await repo(plantedTree);
+  newItem({ title: "A", kind: "work", priority: "P1", area: "ui", plan: null, lane: null }, root, TODAY);
+  newItem({ title: "B", kind: "work", priority: null, area: "server", plan: null, lane: "cb-b" }, root, TODAY);
+  newItem({ title: "C", kind: "bug", priority: null, area: "ui", plan: null, lane: null, blocked: "on 1" }, root, TODAY);
+  newItem({ title: "D", kind: "bug", priority: null, area: "ui", plan: null, lane: "cb-d" }, root, TODAY);
+  const headers = (lines: readonly string[]): readonly string[] => lines.filter((line) => !line.startsWith("  "));
+  const ids = (lines: readonly string[]): readonly (string | undefined)[] =>
+    lines.filter((line) => line.startsWith("  ")).map((line) => line.trim().split(" ")[0]);
+  const full = overview(root);
+  expect(overview(root, { states: [], area: null })).toEqual(full);
+  expect(ids(full)).toHaveLength(4);
+  const open = overview(root, { states: ["open"], area: null });
+  expect(headers(open)).toEqual(["open (1)"]);
+  expect(ids(open)).toEqual(["0001"]);
+  const active = overview(root, { states: ["blocked", "doing"], area: "ui" });
+  expect(headers(active)).toEqual(["doing (1)", "blocked (1)"]);
+  expect(ids(active)).toEqual(["0004", "0003"]);
+  const server = overview(root, { states: [], area: "server" });
+  expect(headers(server)).toHaveLength(4);
+  expect(ids(server)).toEqual(["0002"]);
 });
