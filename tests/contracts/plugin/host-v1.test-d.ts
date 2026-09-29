@@ -140,8 +140,37 @@ test("every namespace of the published mirror is mutually assignable with the co
   acceptErased<"macros">(mirrorHost.macros);
   acceptMirror<"net">(erased.net);
   acceptErased<"net">(mirrorHost.net);
-  acceptMirror<"ui">(erased.ui);
-  acceptErased<"ui">(mirrorHost.ui);
+  acceptMirrorUi(erasedUi);
+  acceptErasedUi(mirrorUi);
+});
+
+/** The mirror's `register` and `registerCommand` are generic: they infer action ids and the typed values bag
+ *  from the author's literal declaration, which the contract's open signatures do not carry. The rest of `ui`
+ *  stays mutually assignable. Those two are pinned at their open instantiation: every definition the mirror
+ *  admits, the contract admits, and the contract's definitions differ only in the `args` the mirror narrows
+ *  (an enum arg must name `enumValues`, which the contract's schema also refuses). */
+type InferredUiMember = "register" | "registerCommand";
+type MirrorUiDef<K extends InferredUiMember> = Parameters<PublishedHost["ui"][K]>[0];
+type ContractUiDef<K extends InferredUiMember> = DeepUnbrand<Parameters<ContractHost["ui"][K]>[0]>;
+declare const erasedUi: Omit<DeepUnbrand<ContractHost["ui"]>, InferredUiMember>;
+declare const mirrorUi: Omit<PublishedHost["ui"], InferredUiMember>;
+
+function acceptMirrorUi(_value: Omit<PublishedHost["ui"], InferredUiMember>): void {
+  void _value;
+}
+function acceptErasedUi(_value: Omit<DeepUnbrand<ContractHost["ui"]>, InferredUiMember>): void {
+  void _value;
+}
+
+test("the inferring ui registrars admit only what the contract admits, at their open instantiation", () => {
+  // Exact key sets first: a definition that collapsed to `never` would satisfy every `toExtend` below.
+  expectTypeOf<keyof MirrorUiDef<"register">>().toEqualTypeOf<keyof ContractUiDef<"register">>();
+  expectTypeOf<keyof MirrorUiDef<"registerCommand">>().toEqualTypeOf<keyof ContractUiDef<"registerCommand">>();
+  expectTypeOf<MirrorUiDef<"register">>().toExtend<ContractUiDef<"register">>();
+  expectTypeOf<ContractUiDef<"register">>().toExtend<MirrorUiDef<"register">>();
+  expectTypeOf<MirrorUiDef<"registerCommand">>().toExtend<ContractUiDef<"registerCommand">>();
+  expectTypeOf<Omit<ContractUiDef<"registerCommand">, "args">>().toExtend<Omit<MirrorUiDef<"registerCommand">, "args">>();
+  expectTypeOf<PluginCommandArgSpec>().toExtend<ContractCommandArgSpec>();
 });
 
 test("the closed vocabularies are EXACT, not merely assignable", () => {

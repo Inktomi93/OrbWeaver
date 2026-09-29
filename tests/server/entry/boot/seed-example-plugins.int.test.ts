@@ -1369,3 +1369,38 @@ test("#803 a settled boot at EQUAL versions writes nothing at all", async () => 
   expect(second.map((row) => `${row.slug}@${row.version}`).sort()).toEqual(first.map((row) => `${row.slug}@${row.version}`).sort());
   expect(second.map((row) => row.updatedAt)).toEqual(first.map((row) => row.updatedAt));
 });
+
+test("an enabled older install upgrades to the release-built bundle and the new guest deals on from its stored session", async () => {
+  const db = await freshDb();
+  const { ops, captured } = recordingOps(db, new Map());
+  const h = makePluginHarness(db, {
+    port: realHost(),
+    ops,
+    showcase: {
+      slugs: new Set(SHOWCASE_PLUGIN_SLUGS),
+      bundle: packShowcaseBundle,
+      version: async (slug): Promise<string | null> => (await readShowcaseManifest(slug))?.version ?? null,
+    },
+  });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const shipped = (await readShowcaseManifest("oracle-deck"))?.version;
+  // The whole declared set: an upgrade re-activates an enabled row only when no declared capability is unanswered.
+  const grant: PluginCapability[] = ["storage.kv", "tools.register", "ui.surface", "chat.transform", "plugin_events"];
+  const installed = await h.service.install({ caller, bundle: await bundleAtVersion("oracle-deck", "0.0.1"), grant: [] });
+  await h.service.setGrant({ caller, pluginId: installed.id, grant, acknowledgedNetHosts: [] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+  const before = JSON.parse(await requireInvoke(captured)(requireHandler(captured.tools, 0, "tool"), JSON.stringify({ count: 2 }), null)) as { dealt: number };
+  expect(before.dealt).toBe(2);
+
+  const upgraded = await h.service.upgradeFromShowcase({ caller, pluginId: installed.id });
+
+  expect(upgraded.version).toBe(shipped);
+  expect(upgraded.status).toBe("enabled");
+  expect(upgraded.grantedCapabilities).toEqual(grant);
+  // The upgrade re-activated the release-built guest, which registered its own `draw` a second time.
+  const draws = captured.tools.filter((tool) => tool.name === "draw");
+  expect(draws).toHaveLength(2);
+  const draw = requireHandler(draws, 1, "draw tool");
+  const after = JSON.parse(await requireInvoke(captured)(draw, JSON.stringify({ count: 1 }), null)) as { dealt: number };
+  expect(after.dealt).toBe(3);
+});
