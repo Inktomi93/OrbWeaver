@@ -117,7 +117,45 @@ const ROWS: Row[] = [
   ["allow", "harness-piped", "cd /home/x/orbweaver && pnpm vitest run tests/server/x.test.ts 2>&1 | tail -8"],
   ["allow", "harness-piped", 'pnpm typecheck 2>&1 | /usr/bin/grep -a -v "^Scope" | head -60; '],
   ["allow", "harness-piped", "pnpm snap / --map 2>&1 | sed -n '1,50p'"],
-  ["allow", "harness-piped", "pnpm check 2>&1 | tee /tmp/out.log"],
+  // CHANGED (owner directive, 2026-09-29): a `tee` reader with nothing else in the chain is a pure
+  // capture sink — the harness's own reports/ artifacts exist regardless, so this drops the `tee` too.
+  ["allow", "harness-redirect", "pnpm check 2>&1 | tee /tmp/out.log"],
+  // ---- verify-family / known test-harness piped: REWRITE targets the REAL artifact, never a log
+  //      (owner directive, 2026-09-29) ----
+  ["allow", "harness-piped", "pnpm check 2>&1 | grep -c structure:full"], // stage-shaped pattern → --stage
+  ["allow", "harness-piped", "pnpm test:ct tests/client/x.ct.tsx 2>&1 | tail -20"],
+  // ---- negative: `pnpm check:show` is a READER, never rewritten as if it were the harness it reads ----
+  ["pass", null, "pnpm check:show --errors-only"],
+  ["pass", null, "pnpm check:show --stage lint:biome"],
+  ["pass", null, "pnpm check:show --errors-only | grep FAIL"],
+  ["allow", "harness-piped", "pnpm check:showcase-release 2>&1 | tail -10"], // NOT check:show — stays a harness
+  // ---- audit gap: the raw `node …/verify/cli.ts run` spelling of `pnpm check`/`pnpm verify` had no
+  //      floored door at all (HEAVY_VERIFY_VERBS lacked the `run` verb) — DENY naming the pnpm door ----
+  ["deny", "heavy-tool-unfloored", "node tooling/src/verify/cli.ts run --static 2>&1 | tail -20"],
+  // ---- harness redirected to a file, or piped into a pure `tee` sink — REWRITE by dropping it (owner
+  //      directive, 2026-09-29): the harness writes its own reports/ artifact regardless ----
+  ["allow", "harness-redirect", "pnpm typecheck > /tmp/tc.log 2>&1"],
+  ["allow", "harness-redirect", "pnpm check &> /tmp/c.log"],
+  ["allow", "harness-redirect", "pnpm test:ct tests/client/x.ct.tsx > /tmp/ct.log 2>&1"],
+  // negative: a redirect with a REAL filter chained after the tee is not a pure sink — the artifact/log
+  // rewrite handles it instead, never the drop
+  ["allow", "harness-piped", "pnpm check 2>&1 | tee /tmp/out.log | grep FAIL"],
+  // negative: `||` after a redirected harness is rule 5's swallow-deny, never this rewrite
+  ["deny", "harness-swallowed", "pnpm check > /tmp/c.log 2>&1 || echo fail"],
+  // negative: a plain harness with no redirect/tee at all has nothing to drop
+  ["pass", null, "pnpm check"],
+  ["pass", null, "pnpm snap --eval '()=>1'"],
+  // ---- pgrep/pidof/`ps | grep` WAIT LOOPS naming a harness — DENY (owner directive, 2026-09-29): the
+  //      pattern matches every checkout on the box, not just the caller's own run ----
+  ["deny", "pgrep-wait-loop", 'until ! pgrep -f "verify/cli.ts" > /dev/null; do sleep 3; done'],
+  ["deny", "pgrep-wait-loop", "while pgrep -f vitest > /dev/null; do sleep 3; done"],
+  ["deny", "pgrep-wait-loop", "while ps aux | grep playwright > /dev/null; do sleep 2; done"],
+  ["deny", "pgrep-wait-loop", 'until ! pgrep -f "pnpm test:ct"; do sleep 5; done'],
+  // negative: a ONE-SHOT pgrep (no enclosing loop) cannot poll anything — stays allowed
+  ["pass", null, 'pgrep -f "verify/cli.ts"'],
+  ["pass", null, "pgrep -f vitest"],
+  // negative: a wait loop that never names a harness process is not this rule's business
+  ["pass", null, "until ! pgrep -f myserver; do sleep 3; done"],
   // ---- harness piped: DENY the shapes with no single safe rewrite ----
   ["deny", "harness-piped", "pnpm check | tail -3 || echo failed"],
   ["deny", "harness-piped", "npx tsc | head -5; pnpm typecheck 2>&1 | tail -15"],
@@ -594,8 +632,11 @@ const ROWS: Row[] = [
   ["pass", null, "ls packages | grep client"],
   ["pass", null, "cat reports/verify.json | python3 -m json.tool"],
   ["pass", null, "pnpm check"],
-  ["pass", null, "pnpm check > reports/run.log 2>&1"],
-  ["pass", null, "pnpm verify --push > /tmp/push.log 2>&1"],
+  // CHANGED (owner directive, 2026-09-29): a harness redirected to a private log/tee is no longer a
+  // silent pass — the harness's own reports/ artifacts exist regardless of the redirect, so the redirect
+  // is dropped and the harness runs bare. `pnpm check:show` (or the test-report JSON) is the read path.
+  ["allow", "harness-redirect", "pnpm check > reports/run.log 2>&1"],
+  ["allow", "harness-redirect", "pnpm verify --push > /tmp/push.log 2>&1"],
   ["pass", null, "pnpm test:ct"],
   // CHANGED 2026-09-11 (#1943 F5, was pass/null): this spelling carries the heap floor but no supervisor
   // watchdog, no path preflight and no nice — the WARN names `pnpm test:scoped` and the command still RUNS.
@@ -685,11 +726,14 @@ const ROWS: Row[] = [
   // MUST-PASS — the live sanctioned shapes. `setsid nohup bash -c '<harness>'` is how every long run on
   // this box is launched (the 120s Bash ceiling); the inner command is judged ON ITS MERITS, so a
   // sanctioned one stays allowed. Breaking these would teach lanes to route around the guard.
-  ["pass", null, "setsid nohup bash -c 'pnpm check > /tmp/c.log 2>&1; echo $? > /tmp/c.exit' > /dev/null 2>&1 &"],
-  ["pass", null, "S=/tmp/sp; setsid nohup bash -c 'pnpm verify --push > $S/push.log 2>&1' < /dev/null &"],
-  // the backgrounded CT wrapper: the SANCTIONED spelling passes, and the raw one inside the quoted string
-  // is refused through the nested lift — a redirect is not a rewritable shape, so it must teach instead
-  ["pass", null, "(setsid nohup bash -c 'pnpm test:ct tests/client/x.ct.tsx > /tmp/ct.log 2>&1' &)"],
+  // CHANGED (owner directive, 2026-09-29): the manual nohup+redirect+capture idiom this represents is
+  // exactly what `run_in_background` (Bash tool) + `pnpm check:show` replaces — the inner harness clause
+  // now carries the same redirect-drop advisory it would outside the quotes, so these are WARN (still
+  // run), not a silent pass.
+  ["pass", "advisory", "setsid nohup bash -c 'pnpm check > /tmp/c.log 2>&1; echo $? > /tmp/c.exit' > /dev/null 2>&1 &"],
+  ["pass", "advisory", "S=/tmp/sp; setsid nohup bash -c 'pnpm verify --push > $S/push.log 2>&1' < /dev/null &"],
+  // the backgrounded CT wrapper: same advisory as above, inside the quoted string
+  ["pass", "advisory", "(setsid nohup bash -c 'pnpm test:ct tests/client/x.ct.tsx > /tmp/ct.log 2>&1' &)"],
   [
     "deny",
     "inline:playwright-ct",
@@ -754,21 +798,57 @@ test("corpus: every rule bites its measured shapes and passes the false-positive
   expect(failures).toEqual([]);
 });
 
+// `pnpm typecheck` has no single known artifact file (unlike check/verify/test), so it keeps the generic
+// private-log rewrite — this test is about THAT mechanism (the exit-code-preservation template), not about
+// the check:show/artifact substitution, which gets its own test below.
 test("rewrite: the piped-harness rewrite preserves the reader chain, the log target, and the exit code", () => {
-  const r = at(runBatch([{ command: "pnpm check 2>&1 | tail -40" }]), 0);
+  const r = at(runBatch([{ command: "pnpm typecheck 2>&1 | tail -40" }]), 0);
   expect(r.decision).toBe("allow");
   const log = `/repo/reports/tool-guard/run-${PINNED_NOW}.log`;
   // the exit-code restore is on its OWN LINE — see the comment-tail test below for why a `;` was wrong
-  const expected = `pnpm check > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec )`;
+  const expected = `pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec )`;
   expect(r.rewrite?.command).toBe(expected);
   expect(r.rewrite?.timeout).toBe(600_000); // verify/check legitimately outrun the 120s default
   // @orb-waive tooling-clock-budget(120_000): the guard's INPUT UNDER TEST — an agent-chosen value handed to runBatch so the suite can assert the guard does not override it; fixture data, not a clock this run pays, and scaling it would make the fixture describe a box instead of an agent. Ends if the suite stops feeding a literal timeout to the guard.
-  const withTimeout = at(runBatch([{ command: "pnpm check 2>&1 | tail -40", timeout: 120_000 }]), 0);
+  const withTimeout = at(runBatch([{ command: "pnpm typecheck 2>&1 | tail -40", timeout: 120_000 }]), 0);
   expect(withTimeout.rewrite?.timeout).toBeUndefined();
   // the rewritten command must not re-fire the guard (no rewrite loops)
   const again = at(runBatch([{ command: expected }]), 0);
   expect(again.decision).toBe("pass");
   expect(again.rule).toBeNull();
+});
+
+// Owner directive (2026-09-29): a verify-family or known-artifact test harness piped into a reader targets
+// the harness's REAL on-disk artifact, never a private log — and still preserves the harness's exit code.
+test("rewrite: a verify-family harness piped into a reader targets `pnpm check:show`, not a private log", () => {
+  const tail = at(runBatch([{ command: "pnpm check | tail -30" }]), 0);
+  expect(tail.decision).toBe("allow");
+  expect(tail.rule).toBe("harness-piped");
+  const expectedTail = "pnpm check; __tg_ec=$?; pnpm check:show --errors-only\n( exit $__tg_ec )";
+  expect(tail.rewrite?.command).toBe(expectedTail);
+  expect(tail.rewrite?.command).not.toContain("tool-guard/run-");
+  // a grep pattern shaped like a verify stage id (`word:word`) selects that ONE stage's transcript
+  const stage = at(runBatch([{ command: "pnpm check 2>&1 | grep -c lint:biome" }]), 0);
+  expect(stage.rewrite?.command).toBe("pnpm check; __tg_ec=$?; pnpm check:show --stage lint:biome\n( exit $__tg_ec )");
+  // a non-stage-shaped grep pattern falls back to the terse view, same as tail/head/wc
+  const errorGrep = at(runBatch([{ command: 'pnpm verify --push 2>&1 | grep -E "error|FAIL"' }]), 0);
+  expect(errorGrep.rewrite?.command).toBe("pnpm verify --push; __tg_ec=$?; pnpm check:show --errors-only\n( exit $__tg_ec )");
+  // the exit code preserved is the HARNESS's, not check:show's — proven the same way as the log template
+  const tmp = mkdtempSync(join(tmpdir(), "tg-template-"));
+  const cmd = `fake_harness() { return 3; }; fake_harness; __tg_ec=$?; pnpm --version > ${join(tmp, "x")}\n( exit $__tg_ec )`;
+  expect(spawnSync("bash", ["-c", cmd], { encoding: "utf8" }).status).toBe(3);
+});
+
+test("rewrite: a known test harness piped into a reader targets its own report artifact", () => {
+  const node = at(runBatch([{ command: "pnpm test:node 2>&1 | tail -20" }]), 0);
+  expect(node.rewrite?.command).toBe("pnpm test:node; __tg_ec=$?; < reports/test-report.json tail -20\n( exit $__tg_ec )");
+  const ct = at(runBatch([{ command: "pnpm test:ct 2>&1 | grep -i flak" }]), 0);
+  expect(ct.rewrite?.command).toBe("pnpm test:ct; __tg_ec=$?; < reports/ct-flaky.json grep -i flak\n( exit $__tg_ec )");
+  const tooling = at(runBatch([{ command: "pnpm test:tooling 2>&1 | tail -20" }]), 0);
+  expect(tooling.rewrite?.command).toBe("pnpm test:tooling; __tg_ec=$?; < reports/test-report-tooling.json tail -20\n( exit $__tg_ec )");
+  // `test:scoped` has no fixed report file — it keeps the generic private-log rewrite
+  const scoped = at(runBatch([{ command: "pnpm test:scoped tests/x.test.ts 2>&1 | tail -20" }]), 0);
+  expect(scoped.rewrite?.command).toContain("tool-guard/run-");
 });
 
 test("rewrite: the emitted template really preserves the harness exit code through the reader chain", () => {
@@ -789,11 +869,13 @@ test("rewrite: the emitted template really preserves the harness exit code throu
 // exact "a red run was reported green" failure the pipe rule exists to prevent, reintroduced by the fix
 // for it. Both halves are proven here: the emitted TEXT, and what bash does with it.
 test("rewrite: a trailing comment cannot swallow the exit-code restore", () => {
-  const r = at(runBatch([{ command: "pnpm check 2>&1 | tail -30 # note about the run" }]), 0);
+  // `pnpm typecheck` has no known artifact, so it keeps the generic log rewrite this hazard lives in — a
+  // verify-family/test-family harness discards the reader chain (and any comment riding on it) entirely.
+  const r = at(runBatch([{ command: "pnpm typecheck 2>&1 | tail -30 # note about the run" }]), 0);
   const log = `/repo/reports/tool-guard/run-${PINNED_NOW}.log`;
-  expect(r.rewrite?.command).toBe(`pnpm check > ${log} 2>&1; __tg_ec=$?; < ${log} tail -30 # note about the run\n( exit $__tg_ec )`);
+  expect(r.rewrite?.command).toBe(`pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -30 # note about the run\n( exit $__tg_ec )`);
   // …and the same for a comment in the clause AFTER the piped one
-  const suffixed = at(runBatch([{ command: "pnpm check | tail -5; echo done # all set" }]), 0);
+  const suffixed = at(runBatch([{ command: "pnpm typecheck | tail -5; echo done # all set" }]), 0);
   expect(suffixed.rewrite?.command).toMatch(SUFFIX_COMMENT_THEN_EXIT);
 
   const tmp = mkdtempSync(join(tmpdir(), "tg-template-"));
@@ -820,11 +902,12 @@ test("rewrite: a raw CT invocation becomes `pnpm test:ct`, carrying the runner f
   const piped = at(runBatch([{ command: "npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx 2>&1 | tail -20" }]), 0);
   expect(piped.decision).toBe("deny");
   expect(piped.reason).toContain("pnpm test:ct <paths>");
-  // …and the sanctioned spelling piped is the HARNESS rule's redirect, so the protection is not lost
+  // …and the sanctioned spelling piped is the HARNESS rule's redirect, so the protection is not lost —
+  // `test:ct` has a known artifact (reports/ct-flaky.json), so it targets that, never a private log.
   const sanctionedPiped = at(runBatch([{ command: "pnpm test:ct tests/client/x.ct.tsx 2>&1 | tail -20" }]), 0);
   expect(sanctionedPiped.decision).toBe("allow");
   expect(sanctionedPiped.rule).toBe("harness-piped");
-  expect(sanctionedPiped.rewrite?.command).toContain("< /repo/reports/tool-guard/run-");
+  expect(sanctionedPiped.rewrite?.command).toContain("< reports/ct-flaky.json tail -20");
 });
 
 // #1946 item 1. The rewrite head carried `timeout N` alone, so every OTHER wrapper prefix left rule 6 with
@@ -1328,11 +1411,11 @@ test("contract: deny emits the PreToolUse wire shape with the teaching reason", 
 
 test("contract: a rewrite emits updatedInput, creates the log dir, and logs the decision", () => {
   const tmp = mkdtempSync(join(tmpdir(), "tg-hook-"));
-  const { out } = runHook(bashInput("pnpm check 2>&1 | tail -40"), [["CLAUDE_PROJECT_DIR", tmp]]);
+  const { out } = runHook(bashInput("pnpm typecheck 2>&1 | tail -40"), [["CLAUDE_PROJECT_DIR", tmp]]);
   const h = out.hookSpecificOutput;
   expect(h?.permissionDecision).toBe("allow");
   const log = `${tmp}/reports/tool-guard/run-${PINNED_NOW}.log`;
-  expect(h?.updatedInput?.command).toBe(`pnpm check > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec )`);
+  expect(h?.updatedInput?.command).toBe(`pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec )`);
   expect(h?.updatedInput?.timeout).toBe(600_000);
   expect(h?.additionalContext).toContain("tool-guard rewrote this command");
   expect(existsSync(`${tmp}/reports/tool-guard`)).toBe(true); // the redirect target's dir exists before the shell needs it
@@ -1341,7 +1424,7 @@ test("contract: a rewrite emits updatedInput, creates the log dir, and logs the 
   expect(logged.decision).toBe("allow");
   expect(logged.rule).toBe("harness-piped");
   expect(logged.ms).toBeGreaterThanOrEqual(0);
-  expect(logged.rewrittenTo).toContain("pnpm check >");
+  expect(logged.rewrittenTo).toContain("pnpm typecheck >");
 });
 
 // AGENT-TOOLING-01 (the 2026-08-13 repository audit's security validation), through the SAME
@@ -1412,10 +1495,12 @@ test("contract: a command hidden in a quoted string reaches the wire as a deny, 
   }
   const logged = JSON.parse(readFileSync(`${tmp}/reports/tool-guard/decisions.jsonl`, "utf8").trim().split("\n").slice(-1).join("")) as { rule: string };
   expect(logged.rule).toBe("subst:git-destructive"); // triage can see WHERE the verdict came from
-  // MUST PASS on the wire: the sanctioned long-run launcher (the 120s Bash ceiling forces this shape)
+  // MUST PASS on the wire: the sanctioned long-run launcher (the 120s Bash ceiling forces this shape) —
+  // and now TEACHES (owner directive, 2026-09-29): the redirect it captures to is exactly what
+  // `run_in_background` + `pnpm check:show` replaces, so it still runs but carries the advisory.
   const sanctioned = runHook(bashInput("setsid nohup bash -c 'pnpm check > /tmp/c.log 2>&1' < /dev/null &"), [["CLAUDE_PROJECT_DIR", tmp]]);
   expect(sanctioned.out.hookSpecificOutput?.permissionDecision).toBe("allow");
-  expect(sanctioned.out.hookSpecificOutput?.additionalContext).toBeUndefined();
+  expect(sanctioned.out.hookSpecificOutput?.additionalContext).toContain("tool-guard dropped this redirect/tee");
 });
 
 // The quoted rm target through the SAME wire protocol — what the host acts on is the EMITTED decision, and

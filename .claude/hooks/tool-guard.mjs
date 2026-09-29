@@ -476,16 +476,63 @@ export function wrapperPrefixEnd(words, start = 0) {
     }
   }
 }
+// `pnpm check:show` is the READER every other harness's piped/redirected rewrite in this file points AT,
+// so it must never itself be classified as a harness to rewrite (`check:show | grep` piping a READER's
+// output is exactly as fine as `cat file | grep` — this hook is not the piping police for those). The
+// exclusion is a lookahead BEFORE `check` is allowed to match at all: an exclusion folded into the
+// OPTIONAL colon-suffix instead (`check(?::(?!show\b)[\w-]+)?`) only rejects the suffix, and the group
+// being optional lets the match backtrack to bare `check` and still fire — `.test()` doesn't require
+// consuming ":show", so that shape silently un-excludes itself. `showcase-release` stays a harness: the
+// lookahead's `show\b` needs a boundary right after "show", and "showcase" has none there.
+const NOT_CHECK_SHOW = String.raw`check(?!:show\b)`;
 const HARNESS_HEAD = new RegExp(
-  `^\\s*${WRAP_PREFIX}(?:(?:pnpm|npm|turbo)\\s+(?:run\\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\\w-]+)?\\b|pnpm\\s+(?:exec\\s+)?vitest\\b|pnpm\\s+snap\\b)`,
+  `^\\s*${WRAP_PREFIX}(?:(?:pnpm|npm|turbo)\\s+(?:run\\s+)?(?:${NOT_CHECK_SHOW}|verify|test|lint|typecheck|e2e|gate)\\b(?::[\\w-]+)?\\b|pnpm\\s+(?:exec\\s+)?vitest\\b|pnpm\\s+snap\\b)`,
 );
 // Readers we know how to re-target at a file (a rewrite's reader chain must be built from these; the
 // optional path prefix admits the doctrine's own `/usr/bin/grep` spelling).
 const READER = /^\s*(?:\S*\/)?(?:tail|head|grep|egrep|fgrep|rg|wc|cat|tee|sort|uniq|cut|awk|sed|tr|column|less|more|jq)\b/;
+// A reader stage that is ONLY a capture sink (`tee <file>`, no filtering) carries no information a real
+// artifact does not already have — `pnpm check`/`pnpm test` write their own reports/ files regardless of
+// where stdout goes, so a `tee` stage adds nothing worth preserving. `bareHarnessRewrite` treats an
+// all-`tee` reader chain the same as a bare `>` redirect: drop it.
+const TEE_READER = /^\s*(?:\S*\/)?tee\b/;
 // Long-lived-child commands beyond the harness (census: `git push origin main 2>&1 | tail -8` timed out
 // at exactly 120s — git's credential/network child holds the pipe open after the visible push finishes).
 const LONG_LIVED = /^\s*git\s+(?:push|pull|fetch|clone)\b/;
 const STDERR_MERGE_TAIL = /\s*2>&1\s*$/;
+// ── owner directive (2026-09-29): agents must not redirect harness output to a private log or `tee`
+// sink and read that instead of the artifacts the harness itself writes, and must not poll a harness's
+// completion with `pgrep` — the harness's own exit code and `pnpm check:show` exist for exactly this. ──
+// A redirect/tee-only stage carries NO reader to preserve, so — unlike `pipeRewrite`'s reader-preserving
+// rewrite below — this cuts the redirect off entirely rather than retargeting anything at it. Matches a
+// bare `>`/`>>`/`&>`/`&>>` to a file AND an fd-merge (`2>&1`): both are noise once the harness's own
+// on-disk artifacts are the read path, and normalizing both through the one stripper keeps the cut point
+// one regex instead of two disagreeing ones.
+const REDIRECT_TOKEN = /\s(?:\d*>{1,2}|&>{1,2}|<)\s*\S+/g;
+// What is left of a stage after every redirect token is cut — a subshell, backtick or a REAL background
+// `&` (not the `&` inside `2>&1`/`&>`, which REDIRECT_TOKEN above already consumed) still makes the shape
+// too complex for this rewrite to trust; deny/leave it to the general rules instead of guessing.
+const UNSAFE_AFTER_REDIRECT_STRIP = /[()`&]/;
+// The verify-family harness proper (`pnpm check`, `pnpm check:<x>`, `pnpm verify …`) — every OTHER
+// `check:<x>` member except `check:show` itself (NOT_CHECK_SHOW, above), which is the READER and must
+// never be rewritten as if it were the thing it reads.
+const VERIFY_FAMILY_HEAD = new RegExp(`^\\s*${WRAP_PREFIX}pnpm\\s+(?:run\\s+)?(?:verify|${NOT_CHECK_SHOW})\\b(?::[\\w-]+)?`);
+// Test harnesses with ONE fixed, known artifact file (AGENTS.md "Read the harness artifacts") — checked
+// most-specific-first so `test:tooling`/`test:ct`/`test:node` never fall through to the bare `test\b`
+// entry. `test:scoped` is deliberately absent: it takes explicit path operands and writes no fixed report
+// file, so it keeps the generic private-log rewrite (pipeRewrite) — see the dispatch site.
+const TEST_FAMILY_ARTIFACTS = [
+  [new RegExp(`^\\s*${WRAP_PREFIX}pnpm\\s+(?:run\\s+)?test:tooling\\b`), "reports/test-report-tooling.json"],
+  [new RegExp(`^\\s*${WRAP_PREFIX}pnpm\\s+(?:run\\s+)?test:ct\\b`), "reports/ct-flaky.json"],
+  [new RegExp(`^\\s*${WRAP_PREFIX}pnpm\\s+(?:run\\s+)?test:node\\b`), "reports/test-report.json"],
+  [new RegExp(`^\\s*${WRAP_PREFIX}pnpm\\s+(?:run\\s+)?test\\b(?!:)`), "reports/test-report.json"],
+];
+// A grep pattern shaped like a verify stage id (`lint:biome`, `structure:full` — tooling/src/verify/lib/
+// registry.ts `name` fields are all `word:word`) is read as "show me that one stage", never hard-coded
+// against the registry itself: the registry is a live import chain of every gate module, so pulling it
+// into a hook that runs on EVERY Bash call would pay that whole load per call. The shape is stable even
+// as stage names come and go.
+const STAGE_LIKE_PATTERN = /^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$/;
 const REDIRECT_FD_MERGE = /\d?>>?&\d/g;
 // The guard's own validation tooling, identified by CANONICAL REALPATH — never by mention, and (since
 // 2026-08-14) never by path SUFFIX either. Suffix matching made the exemption forgeable: `node
@@ -631,6 +678,10 @@ const HEAVY_VERIFY_VERBS = {
   structure: "`pnpm check:structure`",
   "gate-contract": "`pnpm gate:contract`",
   "tests-membership": "`pnpm check:type-ownership`",
+  // AUDIT GAP (2026-09-29): `run` was absent, so a bare `node tooling/src/verify/cli.ts run …` — the
+  // whole-battery verb behind `pnpm check`/`pnpm verify` — passed through un-floored and un-rewritten:
+  // neither this deny nor HARNESS_HEAD (which only names the pnpm/npm/turbo spellings) knew the raw form.
+  run: "`pnpm check` (add `--full`/`--push` for other tiers) or `pnpm verify`",
 };
 const NPX_HEAD = /^(?:\S*\/)?npx$/;
 const BIN_DIR_TOOL = /(?:^|\/)node_modules\/\.bin\/([\w.-]+)$/;
@@ -675,6 +726,15 @@ const GREP_BROAD_ROOT = /^(\.|\.\/|packages\/?|tests\/?|src\/?|scripts\/?|\*)$/;
 // is unambiguous and passes — only the glued-cluster shape silently mangles.
 const RG_HEAD = /^\s*(?:\S*\/)?rg\b/;
 const RG_REPLACE_MANGLE = /(?:^|\s)-r[A-Za-z]/;
+// ── pgrep/pidof/`ps | grep` wait loops (owner directive, 2026-09-29) ──
+const LOOP_HEAD = /\b(?:until|while)\b/g;
+const DO_KEYWORD = /\bdo\b/;
+const PGREP_OR_PIDOF = /(?:^|[\s;&|(])(?:\S*\/)?(?:pgrep|pidof)\b/;
+const PS_PIPE_GREP = /(?:^|[\s;&|(])(?:\S*\/)?ps\b[^\n;]*\|\s*(?:\S*\/)?e?grep\b/;
+// A wait loop's condition names a HARNESS only when it names the actual process the harness spawns
+// (verify/cli.ts, vitest, playwright) or the pnpm door that launches one — a loop polling for an
+// unrelated process name is this rule's business only when it says so explicitly.
+const HARNESS_NAME_HINT = /verify\/cli\.ts|\bvitest\b|\bplaywright\b|pnpm\s+(?:run\s+)?(?:check|test|verify)(?::[\w-]+)?/;
 const SQLITE_HEAD = /^\s*sqlite3\b/;
 const SQLITE_SAFE_HINT = /\/tmp\/|scratchpad|:memory:|test|\.bak\b/i;
 // The hook-bypass family — the ONE sanctioned skip is `LEFTHOOK_EXCLUDE=check git commit/merge …` (whole-tree
@@ -910,6 +970,8 @@ const REASONS = {
     `\`${tool}\` run this way has NO HEAP FLOOR: measured on this box, a bare \`node\`/\`npx\` child gets heap_size_limit 4192 MiB and no NODE_OPTIONS, while anything spawned through pnpm gets 16480 (the workspace-wide --max-old-space-size=16384 in pnpm-workspace.yaml, which \`npx\` never carries). This is the whole tool family, not a pair of tools, and an OOM under that ceiling reads as a tool error nobody can distinguish from a real finding (a bare in-process ts-morph verb exit-134'd on this box). Use the floored door: ${door}. \`pnpm exec <tool> …\` also carries the floor when you genuinely need the tool's own CLI.`,
   workerOverCap: (asked, cap) =>
     `\`--workers=${asked}\` is above the fleet cap of ${cap}. The SHIPPED defaults ARE the shared-host values (tooling/concurrency-profile.json is their ONE home, #1835): this box co-hosts the homelab and runs up to three lanes per account, and per-run caps multiplying across lanes is exactly what put node_load1 at 105.8 on 24 cores. Pass NO worker flag — or pass one only to go LOWER. If you genuinely have the box to yourself, the switch is \`ORB_DEDICATED_BOX=1\` in the SHELL environment, which retunes every reader at once.`,
+  pgrepWaitLoop:
+    "A `pgrep`/`pidof`/`ps | grep` WAIT LOOP for a harness process matches every checkout on the box, not just yours — a sibling lane's orphaned `verify/cli.ts`/vitest/playwright process blocks you, and outlives your own run's end (measured: 38+ minutes blocked, waiters outliving their lane by 80+ minutes). Start the run with the Bash tool's `run_in_background` and wait for ITS notification when the harness exits — never poll a process name. A ONE-SHOT `pgrep` (no loop) stays allowed.",
   rgReplaceMangle:
     "`rg -r`/`--replace` glued directly to another flag letter (e.g. `-rln`) is parsed by ripgrep as `-r` TAKING the glued letters as its REPLACEMENT VALUE — so the intended listing/count flag silently vanishes and the command REPLACES matched text instead of listing matches, with no error (four paid offenses this era). Spell it out: `-n`/`--files-with-matches`/`--count` for listing, or `-r 'text'`/`--replace='text'` (a SEPARATE token) when you actually mean a replacement.",
   scriptBody: (script, line, inner) =>
@@ -945,6 +1007,10 @@ const NESTED_LABEL = {
 const CONTEXTS = {
   rewritePiped: (log) =>
     `tool-guard rewrote this command: piping the harness hangs (forked descendants hold the pipe's write end — measured 28×–55× wall-clock inflation, census 2026-08-03) and swallows its exit code. The harness now writes ${log}, your reader chain ran against that file, and the harness's REAL exit code is preserved. Full artifacts: reports/verify.json + reports/verify/<stage>.log (pnpm check) / reports/test-report.json (pnpm test).`,
+  rewritePipedArtifact: (target) =>
+    `tool-guard rewrote this command: piping the harness hangs and swallows its exit code (see \`rewritePiped\`), and a private log is unnecessary here — the harness already writes its own artifact regardless of where stdout goes. It ran bare, and your reader now targets ${target} instead; the harness's REAL exit code is preserved.`,
+  rewriteRedirectDropped:
+    "tool-guard dropped this redirect/tee: the harness writes its own artifacts under reports/ regardless of where its stdout goes, so capturing stdout to a private file or `tee` sink is never necessary and only tempts a later poll of that file instead of reading the harness's own exit code. Run it bare and read the artifact — `pnpm check:show` for check/verify, reports/test-report.json (or reports/ct-flaky.json for test:ct) for a test run.",
   rewriteLongLived: (log) =>
     `tool-guard rewrote this command: git spawns credential/network children that hold a pipe open after the visible command finishes (census: \`git push … | tail\` hit the 120s tool timeout). Output went to ${log}, your reader ran against the file, and the real exit code is preserved.`,
   rewritePlaywright:
@@ -1110,6 +1176,141 @@ function pipeRewrite(command, blank, clauses, headRe, ctx) {
     log,
     command: `${prefix}${harness} > ${log} 2>&1; __tg_ec=$?; < ${log} ${readerChain}${suffix}\n( exit $__tg_ec )`,
   };
+}
+
+/** Which known artifact (if any) a harness clause's stage0 writes, as `{kind: "verify"}` or
+ *  `{kind: "test", artifact}` — or null for a harness with no single fixed reader (lint, typecheck, e2e,
+ *  gate, snap, bare vitest, `test:scoped`), which keeps the generic `pipeRewrite` log instead. */
+function classifyHarnessFamily(stage0Blank) {
+  if (VERIFY_FAMILY_HEAD.test(stage0Blank)) {
+    return { kind: "verify" };
+  }
+  for (const [re, artifact] of TEST_FAMILY_ARTIFACTS) {
+    if (re.test(stage0Blank)) {
+      return { kind: "test", artifact };
+    }
+  }
+  return null;
+}
+
+/** `pnpm check:show`'s flags for a reader chain that used to grep/tail/head the harness's raw stdout —
+ *  `--stage <name>` when a reader's grep pattern is shaped like one stage id (owner directive example:
+ *  "grepping one stage"), else the terse `--errors-only` view (owner directive's other example) that
+ *  covers tail/head/wc/a non-stage-shaped grep alike. Reads the PATTERN off `command` (the raw text), not
+ *  `blank` — a quoted grep pattern is blanked to spaces there, so the stage-id text only survives in the
+ *  original. */
+function checkShowFlags(command, blank, readers) {
+  for (const r of readers) {
+    if (!/^\s*(?:\S*\/)?e?f?grep\b/.test(blank.slice(r.start, r.end))) {
+      continue;
+    }
+    const tokens = command.slice(r.start, r.end).trim().split(/\s+/).slice(1);
+    const pattern = tokens.find((t) => !t.startsWith("-"))?.replace(/^['"]|['"]$/g, "");
+    if (pattern !== undefined && STAGE_LIKE_PATTERN.test(pattern)) {
+      return `--stage ${pattern}`;
+    }
+  }
+  return "--errors-only";
+}
+
+/** Owner directive (2026-09-29): a verify-family or known-artifact test harness piped into a reader is
+ *  rewritten against the REAL artifact the harness already writes on disk — never a private log — because
+ *  that artifact exists regardless of where the harness's stdout goes. Verify-family (`pnpm check[:x]`,
+ *  `pnpm verify`) gets `pnpm check:show` in place of the whole reader chain: it is a structured view over
+ *  `reports/check-structure.json` / the verify run's stage transcripts, strictly better than grepping raw
+ *  console text. A known test harness keeps the agent's OWN reader chain, just retargeted at its report
+ *  file instead of a captured copy of stdout. Same shape constraints as `pipeRewrite` (one piped clause,
+ *  no `||`, a safe stage0, every reader from the known set) — and null for anything `classifyHarnessFamily`
+ *  does not recognize, or an all-`tee` reader chain (that shape is `bareHarnessRewrite`'s, not this one's:
+ *  there is no filter to preserve). */
+function artifactPipeRewrite(command, blank, clauses) {
+  if (blank.includes("||") || command.includes("PIPESTATUS")) {
+    return null;
+  }
+  const piped = clauses.filter((cl) => cl.stages.length > 1);
+  if (piped.length !== 1) {
+    return null;
+  }
+  const [clause] = piped;
+  const [stage0, ...readers] = clause.stages;
+  const stage0Blank = blank.slice(stage0.start, stage0.end);
+  if (UNSAFE_STAGE0.test(stripFdMerges(stage0Blank))) {
+    return null;
+  }
+  const family = classifyHarnessFamily(stage0Blank);
+  if (family === null) {
+    return null;
+  }
+  if (readers.every((r) => TEE_READER.test(blank.slice(r.start, r.end)))) {
+    return null; // a pure capture sink is bareHarnessRewrite's shape, not this one's
+  }
+  for (const r of readers) {
+    const rBlank = blank.slice(r.start, r.end);
+    if (!READER.test(rBlank) || UNSAFE_READER.test(stripFdMerges(rBlank))) {
+      return null;
+    }
+  }
+  const harness = command.slice(stage0.start, stage0.end).replace(STDERR_MERGE_TAIL, "").trim();
+  const prefix = command.slice(0, clause.start);
+  const rawSuffix = command.slice(clause.end);
+  const suffix = /^[\s;]*$/.test(rawSuffix) ? "" : rawSuffix;
+  const target = family.kind === "verify" ? `pnpm check:show ${checkShowFlags(command, blank, readers)}` : family.artifact;
+  const readerReplacement = family.kind === "verify" ? target : `< ${target} ${command.slice(readers[0].start, clause.end).trim()}`;
+  // Same exit-code-restore-on-its-own-line rule as pipeRewrite: the suffix/reader chain is sliced from the
+  // ORIGINAL text and can end in a comment, which runs to end-of-line and would swallow a `;`-joined restore.
+  return {
+    command: `${prefix}${harness}; __tg_ec=$?; ${readerReplacement}${suffix}\n( exit $__tg_ec )`,
+    target,
+  };
+}
+
+/** Owner directive (2026-09-29): a harness redirected to a file (`> x.log 2>&1`, `&> x.log`) or piped into
+ *  a pure capture sink (`| tee x.log`, no further filter) writes its real artifacts to `reports/` on disk
+ *  regardless — there is nothing in the private copy worth keeping, so this drops the redirect/tee outright
+ *  and runs the harness bare. Unlike `pipeRewrite`/`artifactPipeRewrite` there is no reader chain to
+ *  preserve, so the safety check is looser on `<>&` (those characters ARE the redirect being cut) and
+ *  stricter on what is left AFTER the cut (`UNSAFE_AFTER_REDIRECT_STRIP`) — a subshell, backtick or a REAL
+ *  backgrounding `&` past every redirect token is still too complex to trust. Returns null for anything
+ *  that is not exactly this shape (including a plain harness with no redirect/tee at all — nothing to
+ *  drop, so no rewrite). */
+function bareHarnessRewrite(command, blank, clauses, headRe) {
+  if (blank.includes("||")) {
+    return null; // `harness || true`-shaped swallowing is rule 5's business, never this one's
+  }
+  if (command.includes("__tg_ec=$?")) {
+    return null; // this IS a prior rewrite's own redirect-to-log — never re-fire on the guard's own output
+  }
+  const candidates = clauses.filter((cl) => headRe.test(blank.slice(cl.stages[0].start, cl.stages[0].end)));
+  if (candidates.length !== 1) {
+    return null;
+  }
+  const [clause] = candidates;
+  const [stage0, ...readers] = clause.stages;
+  const isSafeTeeSink = (r) => {
+    const rBlank = blank.slice(r.start, r.end);
+    return TEE_READER.test(rBlank) && !UNSAFE_READER.test(rBlank.replace(REDIRECT_TOKEN, " "));
+  };
+  if (readers.length > 0 && !readers.every(isSafeTeeSink)) {
+    return null;
+  }
+  const stage0Blank = blank.slice(stage0.start, stage0.end);
+  const hasRedirect = REDIRECT_TOKEN.test(stage0Blank);
+  REDIRECT_TOKEN.lastIndex = 0; // `.test` on a `g` regex advances lastIndex — reset before the next use
+  if (!hasRedirect && readers.length === 0) {
+    return null; // nothing to drop
+  }
+  const stripped = stage0Blank.replace(REDIRECT_TOKEN, " ");
+  if (UNSAFE_AFTER_REDIRECT_STRIP.test(stripped)) {
+    return null;
+  }
+  const cut = stage0Blank.search(REDIRECT_TOKEN);
+  REDIRECT_TOKEN.lastIndex = 0;
+  const harnessRaw = command.slice(stage0.start, stage0.end);
+  const harness = (cut === -1 ? harnessRaw : harnessRaw.slice(0, cut)).trim();
+  const prefix = command.slice(0, clause.start);
+  const rawSuffix = command.slice(clause.end);
+  const suffix = /^[\s;]*$/.test(rawSuffix) ? "" : rawSuffix;
+  return { command: `${prefix}${harness}${suffix}` };
 }
 
 // The same four spellings, anchored at a clause head so the rewrite knows exactly what to replace. Its
@@ -2354,6 +2555,28 @@ function heavyToolDoor(blank, clauses) {
   return null;
 }
 
+/** Is this an `until`/`while … do` loop whose condition polls for a harness process with `pgrep`/`pidof`/
+ *  `ps | grep`? A ONE-SHOT pgrep — no enclosing loop — never reaches this: the loop head must be found
+ *  first, and the condition text is everything between it and the loop's own `do`. The harness-name check
+ *  reads the RAW command (quoting still applies inside `-f "…"`, which `blank` erases), so the pattern
+ *  actually has to name a harness, not merely sit near the word `until`. */
+function pgrepHarnessWaitLoop(command, blank) {
+  LOOP_HEAD.lastIndex = 0;
+  let m = LOOP_HEAD.exec(blank);
+  while (m !== null) {
+    const doMatch = DO_KEYWORD.exec(blank.slice(m.index));
+    if (doMatch !== null) {
+      const condEnd = m.index + doMatch.index;
+      const condBlank = blank.slice(m.index, condEnd);
+      if ((PGREP_OR_PIDOF.test(condBlank) || PS_PIPE_GREP.test(condBlank)) && HARNESS_NAME_HINT.test(command.slice(m.index, condEnd))) {
+        return true;
+      }
+    }
+    m = LOOP_HEAD.exec(blank);
+  }
+  return false;
+}
+
 /** An explicit worker count above the fleet cap, as `{asked, cap}` — or null. Only asked of a stage that
  *  IS a CT or vitest invocation: `--workers` on an unrelated tool is that tool's own business, and the two
  *  runners have different caps. */
@@ -2514,10 +2737,30 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "deny", rule: "worker-over-cap", reason: REASONS.workerOverCap(overCap.asked, overCap.cap), contexts };
   }
 
-  // 4. harness piped — REWRITE the simple shape, DENY the rest (the headline 45-hour class). The harness
-  //    must be at a pipeline HEAD (env/timeout/nice wrappers allowed) — mid-text mentions can never fire.
+  // 4a. harness redirected to a file, or piped into a pure `tee` capture sink — REWRITE by dropping the
+  //     redirect/sink outright (owner directive, 2026-09-29): the harness writes its own reports/
+  //     artifacts regardless of where stdout goes, so a private capture is never necessary and only
+  //     tempts a later poll of that file instead of reading the harness's own exit code.
+  const bareRewrite = bareHarnessRewrite(command, blank, clauses, HARNESS_HEAD);
+  if (bareRewrite) {
+    contexts.push(CONTEXTS.rewriteRedirectDropped);
+    return { decision: "allow", rule: "harness-redirect", rewrite: { command: bareRewrite.command }, contexts };
+  }
+
+  // 4b. harness piped into a real reader — REWRITE the simple shape, DENY the rest (the headline 45-hour
+  //     class). The harness must be at a pipeline HEAD (env/timeout/nice wrappers allowed) — mid-text
+  //     mentions can never fire. A verify-family harness (`pnpm check[:x]`, `pnpm verify`) or a known-
+  //     artifact test harness (`pnpm test`/`test:node`/`test:tooling`/`test:ct`) is rewritten against its
+  //     REAL on-disk artifact (`artifactPipeRewrite`) rather than a private log; anything else (lint,
+  //     typecheck, e2e, gate, snap, bare vitest, `test:scoped`) keeps the general private-log rewrite.
   const harnessPiped = clauses.some((cl) => cl.stages.length > 1 && HARNESS_HEAD.test(blank.slice(cl.stages[0].start, cl.stages[0].end)));
   if (harnessPiped) {
+    const artifact = artifactPipeRewrite(command, blank, clauses);
+    if (artifact) {
+      contexts.push(CONTEXTS.rewritePipedArtifact(artifact.target));
+      const timeout = ctx.timeout === undefined ? REWRITE_TIMEOUT_MS : undefined;
+      return { decision: "allow", rule: "harness-piped", rewrite: { command: artifact.command, timeout }, contexts };
+    }
     const rewrite = pipeRewrite(command, blank, clauses, HARNESS_HEAD, ctx);
     if (rewrite) {
       contexts.push(CONTEXTS.rewritePiped(rewrite.log));
@@ -2605,6 +2848,16 @@ function classifyCommandLine(command, blank, clauses, ctx) {
         return { decision: "deny", rule: "rg-replace-mangle", reason: REASONS.rgReplaceMangle, contexts };
       }
     }
+  }
+
+  // 9d. a pgrep/pidof/`ps … | grep` WAIT LOOP polling for a harness — DENY (owner directive, 2026-09-29):
+  //     the pattern matches EVERY checkout on the box, so a sibling's orphaned `verify/cli.ts` process
+  //     blocks a lane that has nothing to do with it (measured: one orphaned pre-commit verify in a
+  //     FINISHED worktree blocked unrelated lanes for 38+ minutes, and the waiters outlived their own
+  //     lanes by 80+ minutes). Scoped to `until`/`while … do` — a ONE-SHOT `pgrep` inspection outside a
+  //     loop stays allowed; it cannot poll anything.
+  if (pgrepHarnessWaitLoop(command, blank)) {
+    return { decision: "deny", rule: "pgrep-wait-loop", reason: REASONS.pgrepWaitLoop, contexts };
   }
 
   // NOTE — deliberately NO `git reset` rule. The owner's GLOBAL settings wildcard-allow `git reset *`
