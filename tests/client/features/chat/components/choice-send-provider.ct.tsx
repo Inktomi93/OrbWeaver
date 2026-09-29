@@ -35,7 +35,12 @@ const FIRST_OPTION = "Draw your blade.";
 // `rpg.getGame` — it only queries the game (and thus honors the `send` knob) on a LIVE game room. So the
 // story's room must present an ENGAGED rpg pointer here, or the provider falls back to `compose` and never
 // sends. (The prod fix that added this gate stopped `rpg.getGame` 404-looping on non-game chats.)
-const engagedRpgPointer = { rpg: { gameId: "rpg_game_ct", engaged: true } };
+//
+// Merged onto `CHAT_ROOM_ROUTES["chat.getChat"]` rather than replacing it: a bare `{ rpg }` literal starves
+// every OTHER `chat.getChat` reader the mounted room also runs — `useRoomGalleryDoor`'s
+// `viewerGalleryCharacter` reads `.participants`, which is absent (`undefined`, not `[]`) on the bare
+// literal and throws inside `Array.prototype.find` (the unfed-read ratchet this override missed).
+const engagedRpgPointer = { ...CHAT_ROOM_ROUTES["chat.getChat"], rpg: { gameId: "rpg_game_ct", engaged: true } };
 
 test("cyoaChoiceBehavior:send — a choice click fires chat.send with the option text; the composer stays empty", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
