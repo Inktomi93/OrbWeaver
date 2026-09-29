@@ -518,10 +518,10 @@ test("the chips row rests as one disclosure and expands the whole set", async ({
 
   const component = await mount(<ChatControlsStory fixture="chips-over-cap" />);
 
-  await expect(component.locator(`${CHIPS} button[data-mode]`)).toHaveCount(0);
+  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
   await expect(component.getByRole("button", { name: "Show 6 controls" })).toBeVisible();
   await expandChips(component);
-  await expect(component.locator(`${CHIPS} button[data-mode]`)).toHaveCount(6);
+  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(6);
   await expect(component.locator(CHIPS)).toHaveCSS("flex-wrap", "wrap");
 });
 
@@ -537,7 +537,8 @@ test("separate non-dice control sources keep contextual disclosure groups", asyn
 
   await rules.click();
   await expect(component.getByRole("region", { name: "Show fewer Rule prompts", exact: true })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Choose one", exact: true })).toBeVisible();
+  // The visible label is "Choose one"; the accessible name carries the execute mode's word prefix (#684 P1).
+  await expect(component.getByRole("button", { name: "Run Choose one", exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Accept the clue", exact: true })).toHaveCount(0);
 });
 
@@ -560,9 +561,12 @@ test("#684 the chip disclosure is an EXPANDER: all N chips reachable by keyboard
   await expect(disclosure).toBeFocused();
   await page.keyboard.press("Enter");
 
+  // The accessible name flips to the collapse label on expand, so re-resolve rather than reuse `disclosure`.
+  const expanded = component.getByRole("button", { name: "Show fewer 6 controls" });
+
   // ALL SIX are now in the row — the resting strip hid no partial, misleading subset.
-  await expect(component.locator(`${CHIPS} button[data-mode]`)).toHaveCount(6);
-  await expect(disclosure).toHaveAttribute("aria-controls", NON_EMPTY);
+  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(6);
+  await expect(expanded).toHaveAttribute("aria-controls", NON_EMPTY);
   await expect(component.getByRole("region", { name: "Show fewer 6 controls", exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Chip five" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Chip six" })).toBeVisible();
@@ -570,10 +574,9 @@ test("#684 the chip disclosure is an EXPANDER: all N chips reachable by keyboard
   await expect(component.getByRole("button", { name: "Chip one" })).toBeFocused();
 
   // …and it goes back to the single resting door.
-  const collapse = component.getByRole("button", { name: "Show fewer 6 controls" });
-  await expect(collapse).toHaveAttribute("aria-expanded", "true");
-  await collapse.click();
-  await expect(component.locator(`${CHIPS} button[data-mode]`)).toHaveCount(0);
+  await expect(expanded).toHaveAttribute("aria-expanded", "true");
+  await expanded.click();
+  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
 });
 
 test("ONE visible card, its dismiss, and the pending count for the rest", async ({ mount, page }) => {
