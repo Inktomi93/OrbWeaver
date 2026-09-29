@@ -22,6 +22,7 @@ import type {
 } from "@orb/contracts/plugin";
 import {
   PLUGIN_CAPABILITIES,
+  PLUGIN_COMMAND_PLACEMENT_LABEL_MAX,
   PLUGIN_FRAME_HTML_MAX_CHARS,
   PLUGIN_FRAME_SURFACES_MAX,
   PLUGIN_TOOL_NAME_LOCAL_MAX,
@@ -1526,6 +1527,44 @@ describe("host.ui — declarative surface registration + state publish (U1)", ()
         placements: [{ target: "composer-action", label: "Draw", icon: "star" }],
       },
     ]);
+  });
+
+  test("#0237: registerCommand collects a placement label at the bound and softly refuses one over it", async () => {
+    const { bridge } = fakeBridge();
+    const collected: PluginCommandRegistrationMeta[] = [];
+    const warnings: string[] = [];
+    const runtime = makeRuntime(uiGrants, false, bridge, {
+      collectCommand: (meta, onRun): void => {
+        collected.push(meta);
+        onRun.dispose();
+      },
+      logWarn: (message): void => {
+        warnings.push(message);
+      },
+    });
+    const atBound = "a".repeat(PLUGIN_COMMAND_PLACEMENT_LABEL_MAX);
+    await withRuntime(runtime, (ctx) => {
+      const out = ctx.evalCode(`
+        host.ui.registerCommand({
+          name: "at_bound", describe: "At the bound",
+          placements: [{ target: "composer-action", label: ${JSON.stringify(atBound)} }],
+          onRun: () => {},
+        });
+        host.ui.registerCommand({
+          name: "over_bound", describe: "One over the bound",
+          placements: [{ target: "composer-action", label: ${JSON.stringify(`${atBound}a`)} }],
+          onRun: () => {},
+        });
+        "ok";
+      `);
+      if (out.error) {
+        throw new Error(readString(ctx, out.error));
+      }
+      out.value.dispose();
+    });
+    expect(collected.map((meta) => meta.name)).toEqual(["at_bound"]);
+    expect(collected[0]?.placements?.[0]?.label).toBe(atBound);
+    expect(warnings).toHaveLength(1);
   });
 
   test("#791: an enum arg missing its enumValues is a SOFT refusal (the biconditional), never activation-fatal", async () => {

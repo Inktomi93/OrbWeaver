@@ -16,6 +16,8 @@ import {
   pluginChatSettingsSection,
   pluginCommandPaletteSource,
   pluginCommandsChrome,
+  pluginComposerActionSurface,
+  pluginComposerMediaSurface,
   pluginDistributeSection,
   pluginMessageFooterSurface,
   pluginsInstalledSection,
@@ -57,7 +59,12 @@ import { PluginCommandsMenu } from "../../../../packages/client/src/features/plu
 import { PluginComposerActions, PluginComposerMediaItems } from "../../../../packages/client/src/features/plugin/components/plugin-composer-placements.tsx";
 import { PluginDialogBody } from "../../../../packages/client/src/features/plugin/components/plugin-dialog-body.tsx";
 import { PluginSurfacesPanel } from "../../../../packages/client/src/features/plugin/components/plugin-surfaces-panel.tsx";
-import { useReportUiCrash, useUninstallPlugin, useWithdrawPlugin } from "../../../../packages/client/src/features/plugin/lib/plugin-mutations.ts";
+import {
+  useReportUiCrash,
+  useSetPluginEnabled,
+  useUninstallPlugin,
+  useWithdrawPlugin,
+} from "../../../../packages/client/src/features/plugin/lib/plugin-mutations.ts";
 import {
   CtAppDataProviders,
   CtChatContributorSectionRegistry,
@@ -168,6 +175,28 @@ export function PluginChatFlankRoomStory({ registered = true }: { readonly regis
       <CtChatContributorSectionRegistry surfaceContributors={registered ? pluginFlankContributors : noContributors}>
         <ChatRoomHarness />
       </CtChatContributorSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The REAL composer placement contributions, registered exactly as the door registers them. */
+const pluginComposerContributors: ReturnType<typeof createContributorRegistry<ChatSurfaceContribution>> = createContributorRegistry<ChatSurfaceContribution>(
+  "chat-surface",
+  [pluginComposerActionSurface, pluginComposerMediaSurface],
+);
+
+/** The room's own composer with the plugin `composer-action` and `composer-media` contributions at the door. */
+export function PluginComposerRoomStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <CtChatContributorSectionRegistry surfaceContributors={pluginComposerContributors}>
+          <ChatRoomHarness />
+        </CtChatContributorSectionRegistry>
+      </CtToastSurface>
     </CtDataProviders>
   );
 }
@@ -418,9 +447,10 @@ export function PluginCommandArgsStory(): ReactElement {
   );
 }
 
+/** On the app query client, whose mutation cache is the production error-toast channel for a refused command. */
 export function PluginComposerPlacementsStory({ chatId = CHAT_ID, width = 420 }: { readonly chatId?: ChatId; readonly width?: number }): ReactElement {
   return (
-    <CtDataProviders>
+    <CtAppDataProviders>
       <CtToastSurface>
         <div style={{ display: "flex", gap: 8, width }}>
           <PluginComposerActions chatId={chatId} />
@@ -440,6 +470,53 @@ export function PluginComposerPlacementsStory({ chatId = CHAT_ID, width = 420 }:
           <PluginCommandArgsBody />
         </div>
       </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
+
+function PluginComposerRemovalBody({ pluginId, transition }: { readonly pluginId: PluginId; readonly transition: "disable" | "uninstall" }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const setEnabled = useSetPluginEnabled({ trpc, invalidation });
+  const uninstall = useUninstallPlugin({ trpc, invalidation });
+  const run = (): void => {
+    if (transition === "disable") {
+      setEnabled.mutate({ pluginId, enabled: false });
+    } else {
+      uninstall.mutate({ pluginId });
+    }
+  };
+  return (
+    <div style={{ display: "flex", gap: 8, width: 420 }}>
+      <PluginComposerActions chatId={CHAT_ID} />
+      <Menu>
+        <MenuTrigger
+          render={
+            <Button aria-label="Message tools" intent="ghost" size="sm">
+              Message tools
+            </Button>
+          }
+        />
+        <MenuPopup>
+          <PluginComposerMediaItems chatId={CHAT_ID} />
+        </MenuPopup>
+      </Menu>
+      <Button onClick={run}>Run {transition}</Button>
+    </div>
+  );
+}
+
+/** Mounted placement homes beside the lifecycle write that must remove one plugin's entries from them. */
+export function PluginComposerRemovalStory({
+  pluginId,
+  transition,
+}: {
+  readonly pluginId: PluginId;
+  readonly transition: "disable" | "uninstall";
+}): ReactElement {
+  return (
+    <CtDataProviders>
+      <PluginComposerRemovalBody pluginId={pluginId} transition={transition} />
     </CtDataProviders>
   );
 }

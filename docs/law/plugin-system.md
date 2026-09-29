@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-28
+updated: 2026-09-29
 ---
 
 # Plugin system
@@ -30,7 +30,7 @@ The bundle may come from an upload, a development directory, a bundle URL, or a 
 
 ## Placement and assets
 
-The host owns application chrome. Plugin commands currently reach the Plugins menu, command palette, and slash flow. [D267](../adr/0267-plugin-ui-placement-boundary.md) rules the typed placement boundary for other host menus. General composer and media menu placements are not yet built; [the placement item](../work/0237-expose-typed-plugin-action-placement-in-host-menus.md) names the work.
+The host owns application chrome. Plugin commands reach the Plugins menu, command palette, and slash flow. [D267](../adr/0267-plugin-ui-placement-boundary.md) rules the typed placement boundary for other host menus. A command may also request a target from `PLUGIN_COMMAND_PLACEMENT_TARGETS` in `packages/contracts/src/plugin/ui.ts`: the composer action menu or the composer media menu. The plugin supplies only a bounded label and a curated icon. The host draws attribution, ordering, pending and error states in `packages/client/src/features/plugin/components/plugin-composer-placements.tsx`, and every entry runs through the shared command runner.
 
 House surfaces resolve admitted bundle images through owner-scoped asset links. An isolated frame reads its plugin's installed images through its own frame handle at `GET /api/plugin-frame/:id/asset`, which checks owner, plugin, asset, size and revocation on every request (`packages/server/src/entry/http/plugin-frame.ts`). Guest isolation alone does not authorize a browser asset request.
 

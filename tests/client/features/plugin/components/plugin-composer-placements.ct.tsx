@@ -1,60 +1,66 @@
 // CT: the real host-rendered composer placement homes. The route supplies registration metadata; the host
 // chooses the rail/menu chrome and every click crosses the existing typed command runner.
 
+import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { PluginCommandsYouSheetStory, PluginComposerPlacementsStory } from "../_ct-stories.tsx";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage } from "../../chat/fixtures.ts";
+import { PluginCommandsYouSheetStory, PluginComposerPlacementsStory, PluginComposerRemovalStory, PluginComposerRoomStory } from "../_ct-stories.tsx";
 
 const FIRST_ID = castId<PluginId>("plugin_ct_same_name000001");
 const SECOND_ID = castId<PluginId>("plugin_ct_same_name000002");
+const ALPHA_ID = castId<PluginId>("plugin_ct_order_alpha00001");
+const ZETA_ID = castId<PluginId>("plugin_ct_order_zeta000001");
+
+const COMMANDS: TrpcWireOutput<"plugin.listCommands"> = [
+  {
+    pluginId: FIRST_ID,
+    slug: "first",
+    pluginName: "Same Name",
+    name: "alpha",
+    describe: "Typed alpha action",
+    args: [{ name: "suit", type: "enum", required: true, enumValues: ["cups", "wands"] }],
+    group: "Cards",
+    placements: [{ target: "composer-action", label: "Alpha", icon: "star" }],
+  },
+  {
+    pluginId: FIRST_ID,
+    slug: "first",
+    pluginName: "Same Name",
+    name: "beta",
+    describe: "Second action",
+    args: [],
+    group: "Cards",
+    placements: [{ target: "composer-action", label: "Open" }],
+  },
+  {
+    pluginId: SECOND_ID,
+    slug: "second",
+    pluginName: "Same Name",
+    name: "charlie",
+    describe: "Overflow action from a distinct install",
+    args: [],
+    group: "Scenes",
+    placements: [{ target: "composer-action", label: "Open" }],
+  },
+  {
+    pluginId: SECOND_ID,
+    slug: "second",
+    pluginName: "Same Name",
+    name: "illustrate",
+    describe: "Illustrate this scene",
+    args: [],
+    group: "Scenes",
+    placements: [{ target: "composer-media", label: "Illustrate", icon: "images" }],
+  },
+];
 
 const ROUTES: TrpcRoutes<"chat.listChats" | "plugin.listCommands"> = {
   "chat.listChats": () => ({ items: [], nextCursor: null }),
-  "plugin.listCommands": () => [
-    {
-      pluginId: FIRST_ID,
-      slug: "first",
-      pluginName: "Same Name",
-      name: "alpha",
-      describe: "Typed alpha action",
-      args: [{ name: "suit", type: "enum", required: true, enumValues: ["cups", "wands"] }],
-      group: "Cards",
-      placements: [{ target: "composer-action", label: "Alpha", icon: "star" }],
-    },
-    {
-      pluginId: FIRST_ID,
-      slug: "first",
-      pluginName: "Same Name",
-      name: "beta",
-      describe: "Second action",
-      args: [],
-      group: "Cards",
-      placements: [{ target: "composer-action", label: "Open" }],
-    },
-    {
-      pluginId: SECOND_ID,
-      slug: "second",
-      pluginName: "Same Name",
-      name: "charlie",
-      describe: "Overflow action from a distinct install",
-      args: [],
-      group: "Scenes",
-      placements: [{ target: "composer-action", label: "Open" }],
-    },
-    {
-      pluginId: SECOND_ID,
-      slug: "second",
-      pluginName: "Same Name",
-      name: "illustrate",
-      describe: "Illustrate this scene",
-      args: [],
-      group: "Scenes",
-      placements: [{ target: "composer-media", label: "Illustrate", icon: "images" }],
-    },
-  ],
+  "plugin.listCommands": () => COMMANDS,
 };
 
 test("composer placements stay in one attributed action menu at narrow width and remain keyboard reachable", async ({ mount, page }) => {
@@ -170,3 +176,163 @@ for (const width of [320, 390] as const) {
     });
   });
 }
+
+test("a placed command with no args shows the refusal and releases the shared affordance", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...ROUTES,
+    "plugin.invokeUiCommand": () => trpcError({ code: "BAD_REQUEST", message: "The deck is empty." }),
+  });
+  const component = await mount(<PluginComposerPlacementsStory />);
+  const actions = component.getByRole("button", { name: "Plugin actions" });
+  await actions.click();
+  await page.getByRole("menuitem", { name: "Same Name (first) · Cards · Run Open", exact: true }).click();
+
+  await expect(page.getByLabel("Alerts").getByText("The deck is empty.", { exact: true })).toBeVisible();
+  await expect(actions).toBeEnabled();
+});
+
+for (const transition of ["disable", "uninstall"] as const) {
+  test(`${transition} removes the plugin's entries from both mounted placement menus`, async ({ mount, page }) => {
+    let resident = true;
+    await routeTrpc(page, {
+      "chat.listChats": () => ({ items: [], nextCursor: null }),
+      "plugin.list": () => [],
+      "plugin.getLog": () => [],
+      "plugin.listSurfaces": () => [],
+      "plugin.listCommands": () => (resident ? COMMANDS : COMMANDS.filter((command) => command.pluginId !== SECOND_ID)),
+      "plugin.setEnabled": () => {
+        resident = false;
+        return null;
+      },
+      "plugin.uninstall": () => {
+        resident = false;
+        return null;
+      },
+    });
+    const component = await mount(<PluginComposerRemovalStory pluginId={SECOND_ID} transition={transition} />);
+    const actions = component.getByRole("button", { name: "Plugin actions" });
+    const media = component.getByRole("button", { name: "Message tools" });
+    const secondAction = page.getByRole("menuitem", { name: "Same Name (second) · Scenes · Run Open", exact: true });
+    const secondMedia = page.getByRole("menuitem", { name: "Same Name (second) · Scenes · Run Illustrate", exact: true });
+
+    await actions.click();
+    await expect(secondAction).toBeVisible();
+    await page.keyboard.press("Escape");
+    await media.click();
+    await expect(secondMedia).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    await component.getByRole("button", { name: `Run ${transition}`, exact: true }).click();
+
+    await actions.click();
+    await expect(page.getByRole("menuitem", { name: "Same Name (first) · Cards · Run Open", exact: true })).toBeVisible();
+    await expect(secondAction).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await media.click();
+    await expect(secondMedia).toHaveCount(0);
+    await expect(page.getByText("Same Name (second) · Scenes", { exact: true })).toHaveCount(0);
+  });
+}
+
+// Input order is deliberately not the host order: plugins arrive Zeta first, and each command's first
+// placement label disagrees with its media label.
+const ORDER_COMMANDS: TrpcWireOutput<"plugin.listCommands"> = [
+  {
+    pluginId: ZETA_ID,
+    slug: "zeta",
+    pluginName: "Zeta Deck",
+    name: "open",
+    describe: "Open a scene",
+    args: [],
+    group: "Scenes",
+    placements: [
+      { target: "composer-action", label: "Open" },
+      { target: "composer-media", label: "Frame" },
+    ],
+  },
+  {
+    pluginId: ALPHA_ID,
+    slug: "alpha",
+    pluginName: "Alpha Deck",
+    name: "shuffle",
+    describe: "Shuffle the deck",
+    args: [],
+    group: "Cards",
+    placements: [
+      { target: "composer-action", label: "Shuffle" },
+      { target: "composer-media", label: "Burn" },
+    ],
+  },
+  {
+    pluginId: ALPHA_ID,
+    slug: "alpha",
+    pluginName: "Alpha Deck",
+    name: "draw",
+    describe: "Draw a card",
+    args: [],
+    group: "Cards",
+    placements: [
+      { target: "composer-action", label: "Draw" },
+      { target: "composer-media", label: "Cut" },
+    ],
+  },
+];
+
+const ORDERED_MENUS = [
+  {
+    trigger: "Plugin actions",
+    names: ["Alpha Deck (alpha) · Cards · Run Draw", "Alpha Deck (alpha) · Cards · Run Shuffle", "Zeta Deck (zeta) · Scenes · Run Open"],
+  },
+  {
+    trigger: "Message tools",
+    names: ["Alpha Deck (alpha) · Cards · Run Burn", "Alpha Deck (alpha) · Cards · Run Cut", "Zeta Deck (zeta) · Scenes · Run Frame"],
+  },
+] as const;
+
+test("the host orders placements by plugin, group and the target's own label, whatever the input order", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": () => ({ items: [], nextCursor: null }), "plugin.listCommands": () => ORDER_COMMANDS });
+  const component = await mount(<PluginComposerPlacementsStory />);
+
+  for (const menu of ORDERED_MENUS) {
+    await component.getByRole("button", { name: menu.trigger }).click();
+    const items = page.getByRole("menu").getByRole("menuitem");
+    await expect(items).toHaveCount(menu.names.length);
+    for (const [index, name] of menu.names.entries()) {
+      await expect(items.nth(index)).toHaveAccessibleName(name);
+    }
+    await page.keyboard.press("Escape");
+  }
+});
+
+test("the room composer mounts the production placement contributions and runs placed commands in this room", async ({ mount, page }) => {
+  const invoked: unknown[] = [];
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...ROUTES,
+    "chat.listMessages": () => makeMessagesPage([]),
+    "chat.getChat": () => ({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
+    "chat.previewContextFit": () => ({
+      boundaryMessageId: null,
+      usedTokens: 120,
+      ceilingTokens: 32_768,
+      ceilingEstimated: false,
+      reserveOutputTokens: 2048,
+      droppedCount: 0,
+      compactSummary: null,
+    }),
+    "plugin.invokeUiCommand": (input: unknown) => {
+      invoked.push(input);
+      return { toasts: [] };
+    },
+  });
+  const component = await mount(<PluginComposerRoomStory />);
+
+  await component.getByRole("button", { name: "Plugin actions" }).click();
+  await page.getByRole("menuitem", { name: "Same Name (second) · Scenes · Run Open", exact: true }).click();
+  await expect.poll(() => invoked).toEqual([expect.objectContaining({ pluginId: SECOND_ID, name: "charlie", chatId: CHAT_ID })]);
+
+  await component.getByRole("button", { name: "Message tools" }).click();
+  await page.getByRole("menuitem", { name: "Same Name (second) · Scenes · Run Illustrate", exact: true }).click();
+  await expect.poll(() => invoked).toHaveLength(2);
+  expect(invoked[1]).toMatchObject({ pluginId: SECOND_ID, name: "illustrate", chatId: CHAT_ID });
+});

@@ -23,11 +23,25 @@ interface PlacedCommandGroup {
   readonly commands: readonly PlacedCommand[];
 }
 
+// Host order: attribution, then group, then the label shown at THIS target. The catalog's own order keys on a
+// command's first placement, which is a different label when a command is placed at both targets.
+function comparePlaced(a: PlacedCommand, b: PlacedCommand): number {
+  return (
+    a.command.pluginName.localeCompare(b.command.pluginName) ||
+    a.command.pluginId.localeCompare(b.command.pluginId) ||
+    (a.command.group ?? "").localeCompare(b.command.group ?? "") ||
+    a.label.localeCompare(b.label) ||
+    a.command.name.localeCompare(b.command.name)
+  );
+}
+
 function usePlacedCommands(target: PluginCommandPlacementTarget): readonly PlacedCommand[] {
-  return usePluginCommands().flatMap((command) => {
-    const placement = command.placements.find((candidate) => candidate.target === target);
-    return placement === undefined ? [] : [{ command, label: placement.label, icon: placement.icon }];
-  });
+  return usePluginCommands()
+    .flatMap((command) => {
+      const placement = command.placements.find((candidate) => candidate.target === target);
+      return placement === undefined ? [] : [{ command, label: placement.label, icon: placement.icon }];
+    })
+    .toSorted(comparePlaced);
 }
 
 function groupPlacedCommands(placed: readonly PlacedCommand[]): readonly PlacedCommandGroup[] {

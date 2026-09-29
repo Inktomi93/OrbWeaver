@@ -17,6 +17,7 @@ import {
   PLUGIN_COMMAND_ARG_TYPES,
   PLUGIN_COMMAND_ARGS_DECLARED_MAX,
   PLUGIN_COMMAND_DESCRIBE_MAX,
+  PLUGIN_COMMAND_PLACEMENT_LABEL_MAX,
   PLUGIN_FOOTER_MAX_DEPTH,
   PLUGIN_FOOTER_MAX_NODES,
   PLUGIN_FOOTER_NODE_KIND_ALLOWED,
@@ -1156,4 +1157,40 @@ test("#0237: command placements accept only the closed unique composer targets",
       ],
     }).success,
   ).toBe(false);
+});
+
+test("#0237: a placement label is bounded at PLUGIN_COMMAND_PLACEMENT_LABEL_MAX, inclusive", () => {
+  const withLabel = (label: string): unknown => ({ name: "draw", describe: "Draw a card", placements: [{ target: "composer-action", label }] });
+  expect(pluginCommandRegistrationMetaSchema.safeParse(withLabel("a".repeat(PLUGIN_COMMAND_PLACEMENT_LABEL_MAX))).success).toBe(true);
+  expect(pluginCommandRegistrationMetaSchema.safeParse(withLabel("a".repeat(PLUGIN_COMMAND_PLACEMENT_LABEL_MAX + 1))).success).toBe(false);
+});
+
+// The whole anchor-by-tier admission matrix, pinned by value. The narrower tests above each guard one column
+// or row; this one makes any cell change a deliberate edit here, and checks the registration gate honours
+// every cell rather than only the table's own shape.
+const ADMITTED_ANCHOR_TIERS = {
+  settings: { static: true, scripted: true, frame: true },
+  "chat-flank": { static: true, scripted: true, frame: true },
+  "chat-settings-section": { static: true, scripted: true, frame: false },
+  "tool-card": { static: true, scripted: true, frame: true },
+  "message-footer": { static: true, scripted: false, frame: false },
+  page: { static: true, scripted: true, frame: true },
+  dialog: { static: true, scripted: true, frame: true },
+} as const;
+
+test("#0234: PLUGIN_ANCHOR_TIERS is the admitted matrix, and the registration gate admits exactly its cells", () => {
+  expect(PLUGIN_ANCHOR_TIERS).toEqual(ADMITTED_ANCHOR_TIERS);
+  for (const anchor of PLUGIN_SURFACE_ANCHORS) {
+    for (const tier of PLUGIN_SURFACE_TIERS) {
+      const meta = {
+        id: "surface",
+        anchor,
+        title: "Surface",
+        tier,
+        ...(tier === "static" ? { spec: { kind: "badge", text: "seen" } } : {}),
+        ...(anchor === "tool-card" ? { toolName: "draw" } : {}),
+      };
+      expect(pluginSurfaceRegistrationMetaSchema.safeParse(meta).success, `${anchor} × ${tier}`).toBe(ADMITTED_ANCHOR_TIERS[anchor][tier]);
+    }
+  }
 });
