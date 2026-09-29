@@ -24,4 +24,4 @@ Both starters install with `pnpm install --frozen-lockfile` from a clean clone w
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Owner ruled: the release waits until orbweaver goes public.
