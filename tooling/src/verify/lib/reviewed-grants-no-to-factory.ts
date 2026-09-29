@@ -179,14 +179,6 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     endsWhen: "generation records are persisted as orbweaver rows, at which point the column can carry a real FK.",
   },
   {
-    id: "open-json-column-key-parity:character-extensions",
-    policyId: "open-json-column-key-parity",
-    subject: "characters.extensions",
-    operation: "open-json-key-read",
-    why: "The ST/V2 card extensions field is a foreign-authored residue bucket with an intentionally open vocabulary; import and serde promote known keys defensively while preserving unknown keys losslessly.",
-    endsWhen: "all named extension readers move onto a typed promoted contract and the residue has no named reader, or the column closes its vocabulary.",
-  },
-  {
     id: "owner-role-split:admin-create-user",
     policyId: "owner-role-split",
     subject: "packages/server/src/domain/admin/verbs/create-user.ts",
