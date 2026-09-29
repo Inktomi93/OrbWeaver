@@ -38,7 +38,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 ### Commit
 
-- Commit through the hooks. Pre-commit runs `pnpm verify --static --changed`, which takes no host-wide slot; commit-msg runs `scripts/commit-msg-check.sh`.
+- Commit through the hooks, in the foreground. Pre-commit runs `pnpm verify --static --changed`, which takes no host-wide slot and finishes well inside the tool timeout; commit-msg runs `scripts/commit-msg-check.sh`.
 - Write the header as `type(scope): subject`, name the floor you ran, and end with a `Co-Authored-By` trailer.
 - Keep your own checks scoped. Do not run the full battery only to commit.
 - Bypass a hook only when the user or orchestrator names the exception. Use `LEFTHOOK_EXCLUDE=check git commit ...`, which keeps the commit-msg check, and record the reason and the owed checks.
@@ -105,7 +105,7 @@ List each command and its result in the report. The whole-tree check is the orch
 ## Long runs
 
 - Run a harness bare: `pnpm check`, `pnpm verify …`, `pnpm test:scoped …`. Its exit code is the verdict.
-- Start a run that outlasts one call with the Bash tool's `run_in_background`. The harness notifies you when it exits.
+- Start a run that outlasts one call with the Bash tool's `run_in_background`. The harness notifies you when it exits; until then, make no call about it. If your work is done, write your report; otherwise end your turn.
 - Read results with `pnpm check:show` and the artifacts `AGENTS.md` names, not a log you wrote.
 - Never wait on `pgrep` of a harness name. It matches every checkout on the box, so a sibling's run blocks you.
 - Stop your own verify with the orchestrator skill's checkout-scoped stop. Killing `git commit` leaves its hook running.
