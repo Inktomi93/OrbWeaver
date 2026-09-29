@@ -42,7 +42,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CharacterHandle } from "@orb/kit/ids";
 
-export type { SeedItemKind, SeedManifestItem } from "./manifest.ts";
+export type { SeedManifestItem } from "./manifest.ts";
 export { SEED_ITEM_KINDS, SEED_MANIFEST } from "./manifest.ts";
 
 /** The content ROOT — `packages/default-content/`, resolved off THIS module rather than off a repo-relative

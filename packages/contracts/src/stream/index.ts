@@ -119,6 +119,7 @@ export type StreamFrame = StreamDataFrame | StreamControlFrame;
 
 /** `stream.connect` — the ONE EventSource. `socketId` is minted per tab by the client. */
 export const streamConnectInputSchema = z.object({ socketId: brandedId<SocketId>() });
+/** @public twin: streamConnectInputSchema */
 export type StreamConnectInput = z.output<typeof streamConnectInputSchema>;
 
 /** `stream.attach` — rides the batched HTTP link (zero connections, inherits the CSRF header + rate limit).
@@ -130,6 +131,7 @@ export const streamAttachInputSchema = z.object({
   ref: streamRoomRefSchema,
   sinceSeq: z.number().int().min(0).nullish(),
 });
+/** @public twin: streamAttachInputSchema */
 export type StreamAttachInput = z.output<typeof streamAttachInputSchema>;
 
 /** `stream.detach` — drop one room. Idempotent (detaching an unattached room is a no-op). */
@@ -137,4 +139,5 @@ export const streamDetachInputSchema = z.object({
   socketId: brandedId<SocketId>(),
   ref: streamRoomRefSchema,
 });
+/** @public twin: streamDetachInputSchema */
 export type StreamDetachInput = z.output<typeof streamDetachInputSchema>;

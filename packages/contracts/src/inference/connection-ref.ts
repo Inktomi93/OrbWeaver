@@ -8,6 +8,7 @@ import { z } from "zod";
 import { routableTaskSchema } from "./tasks.ts";
 
 export const connectionRefSchema = z.object({ connectionId: typeIdSchema(ID_PREFIX.userConnection) });
+/** @public twin: connectionRefSchema */
 export type ConnectionRef = z.output<typeof connectionRefSchema>;
 
 /** WHICH connection a capability read describes: a role, resolved through the caller's own bindings as a turn

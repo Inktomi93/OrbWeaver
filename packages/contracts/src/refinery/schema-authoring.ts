@@ -231,9 +231,6 @@ export const refinerySchemaDocumentSchema = z
       ctx.addIssue({ code: "custom", path: ["schema"], message: `${issue.message} (at ${issue.path})` });
     }
   });
-/** @public twin: refinerySchemaDocumentSchema — the STATIC document shape; every live consumer
- *  (create/update/test-schema verbs, the server refinery substrate) calls `.parse`/`.safeParse` on the
- *  schema value (cross-package PUBLIC) and never imports this alias. */
 export type RefinerySchemaDocument = z.infer<typeof refinerySchemaDocumentSchema>;
 
 /** The schema-library wire row (the stage-config picker + the editor's library list). `version` bumps on

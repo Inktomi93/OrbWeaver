@@ -334,24 +334,46 @@ export const rpgListTurnToolCallsInputSchema = z.object({
 });
 
 // Public post-parse faces for the transport schemas above. These are the branded/defaulted values the
-// router actually hands to the server domain, rather than pre-parse caller input approximations.
+// router actually hands to the server domain, rather than pre-parse caller input approximations. Each
+// schema is a cross-package PUBLIC surface (the `rpg` tRPC router consumes it directly); the type alias
+// is that schema's unconsumed type face, kept for a caller that types against the output shape.
+/** @public twin: rpgCreateGameInputSchema */
 export type RpgCreateGameInput = z.output<typeof rpgCreateGameInputSchema>;
+/** @public twin: rpgUpdateConfigInputSchema */
 export type RpgUpdateConfigInput = z.output<typeof rpgUpdateConfigInputSchema>;
+/** @public twin: rpgPatchSheetInputSchema */
 export type RpgPatchSheetInput = z.output<typeof rpgPatchSheetInputSchema>;
+/** @public twin: rpgPopulateFromCharacterInputSchema */
 export type RpgPopulateFromCharacterInput = z.output<typeof rpgPopulateFromCharacterInputSchema>;
+/** @public twin: rpgEditSnapshotInputSchema */
 export type RpgEditSnapshotInput = z.output<typeof rpgEditSnapshotInputSchema>;
+/** @public twin: rpgPatchActorInputSchema */
 export type RpgPatchActorInput = z.output<typeof rpgPatchActorInputSchema>;
+/** @public twin: rpgDismissActorInputSchema */
 export type RpgDismissActorInput = z.output<typeof rpgDismissActorInputSchema>;
+/** @public twin: rpgPromoteActorInputSchema */
 export type RpgPromoteActorInput = z.output<typeof rpgPromoteActorInputSchema>;
+/** @public twin: rpgUpsertQuestInputSchema */
 export type RpgUpsertQuestInput = z.output<typeof rpgUpsertQuestInputSchema>;
+/** @public twin: rpgEditQuestObjectiveInputSchema */
 export type RpgEditQuestObjectiveInput = z.output<typeof rpgEditQuestObjectiveInputSchema>;
+/** @public twin: rpgDeleteQuestInputSchema */
 export type RpgDeleteQuestInput = z.output<typeof rpgDeleteQuestInputSchema>;
+/** @public twin: rpgAddJournalEntryInputSchema */
 export type RpgAddJournalEntryInput = z.output<typeof rpgAddJournalEntryInputSchema>;
+/** @public twin: rpgEditJournalEntryInputSchema */
 export type RpgEditJournalEntryInput = z.output<typeof rpgEditJournalEntryInputSchema>;
+/** @public twin: rpgDeleteJournalEntryInputSchema */
 export type RpgDeleteJournalEntryInput = z.output<typeof rpgDeleteJournalEntryInputSchema>;
+/** @public twin: rpgCreateCheckpointInputSchema */
 export type RpgCreateCheckpointInput = z.output<typeof rpgCreateCheckpointInputSchema>;
+/** @public twin: rpgRestoreCheckpointInputSchema */
 export type RpgRestoreCheckpointInput = z.output<typeof rpgRestoreCheckpointInputSchema>;
+/** @public twin: rpgRollDiceInputSchema */
 export type RpgRollDiceInput = z.output<typeof rpgRollDiceInputSchema>;
+/** @public twin: rpgReadGameInputSchema */
 export type RpgReadGameInput = z.output<typeof rpgReadGameInputSchema>;
+/** @public twin: rpgListJournalInputSchema */
 export type RpgListJournalInput = z.output<typeof rpgListJournalInputSchema>;
+/** @public twin: rpgListTurnToolCallsInputSchema */
 export type RpgListTurnToolCallsInput = z.output<typeof rpgListTurnToolCallsInputSchema>;

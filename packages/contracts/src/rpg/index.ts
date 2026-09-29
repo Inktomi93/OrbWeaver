@@ -59,7 +59,7 @@ export {
   rpgPromotedCardDescription,
   rpgRelationshipSchema,
 } from "./actor.ts";
-export type { RpgClockTime, RpgWeather, RpgWeatherLabel, RpgWeatherType, TimeOfDay } from "./ambient.ts";
+export type { RpgClockTime, RpgWeather, RpgWeatherType, TimeOfDay } from "./ambient.ts";
 export {
   clockTimeOfDay,
   RPG_WEATHER_TYPES,

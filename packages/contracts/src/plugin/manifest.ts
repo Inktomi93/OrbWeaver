@@ -414,5 +414,3 @@ export const pluginManifestSchema = z
     refineManifestProviders(m, ctx, declaresEgress);
   });
 export type PluginManifest = z.infer<typeof pluginManifestSchema>;
-/** One fully validated provider contribution as stored in a plugin manifest. */
-export type PluginProviderContribution = ProviderDef;

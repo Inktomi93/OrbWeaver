@@ -508,8 +508,6 @@ export const guidedActionConfigSchema = z.object({
    *  role: that steer rides the `guided_instruction` marker, whose placement is its prompt-order position. */
   depth: z.number().int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH).optional(),
 });
-/** One guided-action template as accepted by the preset wire. */
-export type GuidedActionConfig = z.output<typeof guidedActionConfigSchema>;
 
 export const guidedActionsSchema = z.object({
   response: guidedActionConfigSchema,
@@ -2199,8 +2197,6 @@ export const formatStringsSchema = z.object({
   wiFormat: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
   newChatMarker: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
 });
-/** The per-preset format-string override bag. */
-export type FormatStrings = z.output<typeof formatStringsSchema>;
 
 export const promptConfigSchema = z.object({
   schemaVersion: z.number().int().positive().default(PROMPT_CONFIG_SCHEMA_VERSION),

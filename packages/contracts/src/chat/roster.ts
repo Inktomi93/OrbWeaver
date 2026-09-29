@@ -90,7 +90,6 @@ export const characterMemberSpecSchema = z.object({
   position: z.number().int().nonnegative(),
   ...seatKnobsSchema.shape,
 });
-export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
 
 /** A seat the caller WANTS to exist — the ONE template/creation-time member vocabulary (D16/D61/D60). Every
  *  membership-template lifetime PROJECTS through it; nothing mints a flat characterId array beside it.
@@ -100,7 +99,6 @@ export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
  *  template cannot carry an invite's runtime preconditions); `observer` and `agent` were purged 2026-07-25
  *  (the rebuild re-adds their arms here if either domain returns) — `character` is the only live arm. */
 export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMemberSpecSchema]);
-export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
 
 /** The RESOLVED per-participant content-render policy (D44 §12.0/§12.3). The chat domain resolves each
  *  character's tri-state overrides against the deployment effective config at roster-build time (the ONE
@@ -681,6 +679,7 @@ export type SignupRequest = z.infer<typeof signupRequestSchema>;
 
 /** D259 — the signup route's success body: the room the new account is seated in, so the client lands there. */
 export const signupResultSchema = z.strictObject({ ok: z.literal(true), chatId: typeIdSchema(ID_PREFIX.chat) });
+/** @public twin: signupResultSchema */
 export type SignupResult = z.infer<typeof signupResultSchema>;
 
 /** D260 — the local sign-up form's invite preview body: the stashed token alone. STRICT, like the signup body. */
@@ -698,6 +697,7 @@ export type PendingJoinConfirmRequest = z.infer<typeof pendingJoinConfirmRequest
 
 /** D259 — the confirm's answer. `signedIn` is false when the new account waits for an admin's approval. */
 export const pendingJoinConfirmResultSchema = z.strictObject({ signedIn: z.boolean(), chatId: typeIdSchema(ID_PREFIX.chat) });
+/** @public twin: pendingJoinConfirmResultSchema */
 export type PendingJoinConfirmResult = z.infer<typeof pendingJoinConfirmResultSchema>;
 
 /** D259 — the pending-join routes' refusal codes (`{ error: <code> }`). The client maps each to its own copy. */

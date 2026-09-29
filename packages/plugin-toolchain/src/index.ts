@@ -464,10 +464,6 @@ export async function stalePluginArtifacts(result: PluginAuthorResult): Promise<
   return stale;
 }
 
-export function pluginNameFromArtifact(artifact: PluginAuthorArtifact): string {
-  return basename(dirname(artifact.sourcePath));
-}
-
 const BUNDLE_MTIME_MS = 331_257_600_000;
 
 async function optionalAssetEntries(pluginDirectory: string): Promise<ReadonlyArray<readonly [string, Uint8Array]>> {

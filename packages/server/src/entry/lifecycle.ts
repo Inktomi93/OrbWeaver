@@ -118,7 +118,6 @@ export const HTTP_SERVER_TIMEOUTS = {
 /** Start the Node HTTP/1 adapter with the production timeout policy. The final parameters are focused test
  *  seams for proving adapter forwarding and timeout semantics quickly; boot omits both and receives the
  *  real Hono adapter with {@link HTTP_SERVER_TIMEOUTS}.
- * @public Test-anchored module surface; focused tests pin the production adapter options and SSE behavior.
  */
 export function serveHttpServer(
   options: Pick<Parameters<typeof serve>[0], "fetch" | "port" | "hostname">,
@@ -170,7 +169,6 @@ interface OwnedWorkloadsWorker {
 
 /** Abort and JOIN the workload worker. Exported so the held-worker ordering is behaviorally pinned without
  * booting the whole composition root; lifecycle calls this immediately before DB pre-close.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export async function drainWorkloadsWorker(worker: OwnedWorkloadsWorker): Promise<void> {
   worker.abort();
@@ -190,7 +188,6 @@ export async function drainWorkloadsWorker(worker: OwnedWorkloadsWorker): Promis
  *
  *  Exported (not a `createLifecycle` closure) so the forced path is directly testable against a real open
  *  socket, rather than only provable live (`DRAIN-UNBOUNDED`).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export async function drainHttpServer(handle: ServerType, log: DrainLog, drainMs: number = SHUTDOWN_DRAIN_MS): Promise<void> {
   const closed = new Promise<void>((resolve) => {
