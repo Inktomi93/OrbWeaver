@@ -794,6 +794,8 @@ const DOC_WRITE_VERBS = new Set(["item", "set", "land", "remove", "index", "stat
 const DOC_READER = /^\s*(?:head|tail|grep)\b/;
 const DOC_STDERR_MERGE = /\s+2>&1(?=\s*\|)/;
 const DOC_PIPE_UNSAFE = /[<>&`]|\$\(/;
+// git's global options that take their value as a separate word: `git -C <dir> commit`, `git -c k=v merge`.
+const GIT_VALUE_OPTIONS = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace"]);
 // A repeat of the same task-output range inside this window is a poll; after it, a reread is allowed.
 const TASK_REREAD_WINDOW_MS = 120_000;
 const TAIL_FOLLOW_FLAG = /^-[A-Za-z0-9]*[fF]|^--follow\b/;
@@ -1125,6 +1127,8 @@ const CONTEXTS = {
     "tool-guard ran this `pnpm doc` bare: its output is short and the paths it prints are the result, so a head/tail/grep or a captured log can cut them off.",
   wholeTreeRun:
     "This is a whole-tree run: it can hold the host verify slot for up to an hour, and the orchestrator runs the whole-tree barrier after merging. Run it only if your brief asked for it or your scoped floor cannot answer the question. Run it with run_in_background, make no call while it runs, and put its verdict in your report.",
+  rewriteGitCommitPiped:
+    "tool-guard ran this `git commit`/`git merge` bare: a pipe reports the reader's exit status, so a failed hook reads as success and a following `&&` still runs, and the hook's verify children can hold the pipe open. The rest of your chain is unchanged.",
   rewriteLongLived: (log) =>
     `tool-guard rewrote this command: git spawns credential/network children that hold a pipe open after the visible command finishes (census: \`git push … | tail\` hit the 120s tool timeout). Output went to ${log}, your reader ran against the file, and the real exit code is preserved.`,
   rewritePlaywright:
@@ -1467,6 +1471,49 @@ function docBareRewrite(command, blank, clauses) {
     return null;
   }
   return { command: command.slice(stage0.start, stage0.end).replace(STDERR_MERGE_TAIL, "").trim(), clause };
+}
+
+/** Is this stage `git [global options] commit|merge …`? */
+function isGitCommitOrMerge(stageBlank) {
+  const { tokens, index, exec } = execHead(stageBlank);
+  if (exec === undefined || !/^(?:\S*\/)?git$/.test(exec[0])) {
+    return false;
+  }
+  const rest = tokens.slice(index + 1).map((t) => t[0]);
+  let at = 0;
+  while (rest[at]?.startsWith("-") === true) {
+    at += GIT_VALUE_OPTIONS.has(rest[at]) ? 2 : 1;
+  }
+  return rest[at] === "commit" || rest[at] === "merge";
+}
+
+/** The command with its one `git commit|merge … | head|tail|grep …` pipeline replaced in place by the bare git
+ *  stage, or null. The rest of the command is kept byte for byte. Only the simple shape qualifies: no heredoc
+ *  anywhere (checked on the raw text, since `blank` has already erased it), and no newline, redirect other
+ *  than a trailing `2>&1`, `&` or substitution, quoted or not, in that clause. */
+function gitCommitPipeRewrite(command, blank, clauses) {
+  if (command.includes("<<")) {
+    return null;
+  }
+  const piped = clauses.filter((cl) => cl.stages.length > 1 && isGitCommitOrMerge(blank.slice(cl.stages[0].start, cl.stages[0].end)));
+  if (piped.length !== 1) {
+    return null;
+  }
+  const [clause] = piped;
+  const [stage0, ...readers] = clause.stages;
+  const clauseBlank = blank.slice(clause.start, clause.end);
+  // A lone `&` after the clause backgrounds it, and the clause scan has already split it off.
+  const backgrounded = blank[clause.end] === "&" && blank[clause.end + 1] !== "&";
+  const clauseRaw = command.slice(clause.start, clause.end);
+  if (backgrounded || clauseRaw.includes("\n") || /\$\(|`/.test(clauseRaw) || DOC_PIPE_UNSAFE.test(clauseBlank.replace(DOC_STDERR_MERGE, ""))) {
+    return null;
+  }
+  if (!readers.every((r) => DOC_READER.test(blank.slice(r.start, r.end)))) {
+    return null;
+  }
+  const bare = command.slice(stage0.start, stage0.end).replace(STDERR_MERGE_TAIL, "").trimEnd();
+  const trailing = command.slice(clause.start, clause.end).match(/\s*$/)[0];
+  return { command: `${command.slice(0, stage0.start)}${bare}${trailing}${command.slice(clause.end)}`, clause };
 }
 
 // The same four spellings, anchored at a clause head so the rewrite knows exactly what to replace. Its
@@ -3423,6 +3470,13 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   if (docRewrite) {
     contexts.push(CONTEXTS.rewriteDocBare);
     return gateRewrite({ decision: "allow", rule: "doc-bare", rewrite: { command: docRewrite.command }, contexts }, command, docRewrite.clause, ctx);
+  }
+
+  // 4d. a piped `git commit`/`git merge` — REWRITE in place so the commit's own exit code gates the chain.
+  const gitPipe = gitCommitPipeRewrite(command, blank, clauses);
+  if (gitPipe) {
+    contexts.push(CONTEXTS.rewriteGitCommitPiped);
+    return gateRewrite({ decision: "allow", rule: "git-commit-piped", rewrite: { command: gitPipe.command }, contexts }, command, gitPipe.clause, ctx);
   }
 
   // 5. harness failure swallowed (`|| true`) — DENY

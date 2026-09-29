@@ -1357,6 +1357,38 @@ test("rewrite: only a lone `pnpm doc … | head/tail/grep` pipeline runs bare; e
     "cd /x && pnpm doc due | tail -3",
   ];
   const out = runBatch(untouched.map((command) => ({ command })));
+  // the one exception is a piped commit in the chain, which its own rule runs bare in place
+  const expected = untouched.map((command): string | undefined =>
+    command.includes("--no-edit 2>&1 | tail -3") ? command.replace(" 2>&1 | tail -3", "") : undefined,
+  );
+  expect(out.map((r) => r.rewrite?.command)).toEqual(expected);
+  expect(out.some((r) => r.rule === "doc-bare")).toBe(false);
+});
+
+// A piped commit or merge reports the reader's exit status, so a failed hook reads as success and `&&` runs
+// on. The pipe is dropped in place; the rest of the chain is kept byte for byte.
+test("rewrite: a piped `git commit`/`git merge` runs bare so its own exit code gates the chain", () => {
+  const rewritten = runBatch([
+    { command: "git commit -F /tmp/m 2>&1 | tail -n 1 && git log --oneline -1" },
+    { command: "cd /x && git merge main | tail -5; git status --short" },
+    { command: "git -C /wt commit -m x | grep -c ok", ...LANE },
+  ]);
+  expect(rewritten.map((r) => [r.rule, r.rewrite?.command])).toEqual([
+    ["git-commit-piped", "git commit -F /tmp/m && git log --oneline -1"],
+    ["git-commit-piped", "cd /x && git merge main; git status --short"],
+    ["git-commit-piped", "git -C /wt commit -m x"],
+  ]);
+  const untouched = [
+    "git commit -F - <<'EOF'\nfix: x\nEOF",
+    "git commit -F - <<'EOF' 2>&1 | tail -1\nfix: x\nEOF",
+    "git commit -m x | tee /tmp/l",
+    "git commit -m x | sort",
+    'git commit -m "$(cat /tmp/m)" | tail -1',
+    "git commit -m x > /tmp/l 2>&1 | tail -1",
+    "git commit -m x | tail -1 &",
+    "git log --oneline | head -3",
+  ];
+  const out = runBatch(untouched.map((command) => ({ command })));
   expect(out.map((r) => r.rewrite?.command)).toEqual(untouched.map(() => undefined));
 });
 
