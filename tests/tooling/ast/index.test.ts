@@ -388,6 +388,23 @@ describe("ast orphan-candidate substrate", () => {
     expect(isProdConsumed(live, declOf("RotShape"))).toBe(false);
   });
 
+  test("an export reached only by a scripts/** probe is NOT prod-consumed — a dev script is a real reader, never a shipped one", () => {
+    const project = projectOf({
+      "packages/contracts/src/thing/shapes.ts": "export interface ProbedShape { a: number; }\n",
+      "scripts/probes/reads-probed-shape.ts":
+        'import type { ProbedShape } from "../../packages/contracts/src/thing/shapes"; export const y: ProbedShape | null = null;',
+    });
+
+    const live = buildLiveness(project);
+    const shapes = project.getSourceFileOrThrow(`${ROOT}/packages/contracts/src/thing/shapes.ts`);
+    const candidates = collectOrphanCandidates(project, live, (fp) => fp.includes("/packages/contracts/src/"));
+    // Reached — not an orphan candidate at all (a probe script is a real reader, and every other lens
+    // must keep treating it as alive) — but NOT prod-consumed for the ratchet's stale-`@public` question:
+    // marking this export `@public` naming the probe stays a legal, non-stale claim.
+    expect(candidates.map((c) => c.name)).not.toContain("ProbedShape");
+    expect(isProdConsumed(live, shapes.getInterfaceOrThrow("ProbedShape"))).toBe(false);
+  });
+
   test("same-spelled shadow and named re-export do not consume an export, while a genuine own-file reference does", () => {
     const project = projectOf({
       "packages/contracts/src/thing/shapes.ts": `

@@ -33,10 +33,12 @@ export function collectOrphanCandidates(project: SourceCorpus, live: Liveness, i
   return out;
 }
 
-/** Is this ORIGIN declaration reached by a prod (non-test) consumer? The keying lives here, never at a
- *  caller: the ratchet's stale-`@public` arm asks this question and must not re-derive `declKey`. */
+/** Is this ORIGIN declaration reached by a prod (non-test, non-`scripts/**`) consumer? The keying lives
+ *  here, never at a caller: the ratchet's stale-`@public` arm asks this question and must not re-derive
+ *  `declKey`. Reads `usedProdNonScripts`, not `usedProd`: a dev-only probe script is a real reader but
+ *  never a shipped one, so it must not make a `@public` marker stale. */
 export function isProdConsumed(live: Liveness, decl: Node): boolean {
-  return live.usedProd.has(declKey(decl));
+  return live.usedProdNonScripts.has(declKey(decl));
 }
 
 // The `@public` marker plus the REST OF ITS LINE — the reason. Read per-line and stripped of the JSDoc

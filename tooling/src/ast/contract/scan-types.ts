@@ -44,6 +44,12 @@ export interface NamespaceSite {
 
 export interface Liveness {
   usedProd: Set<string>;
+  /** `usedProd` minus anything reached ONLY from `scripts/**` — dev-only one-off probes, never shipped
+   *  (mirrors knip.ts's own production-entry scope, which carries no `!` on `scripts/**\/*.ts`). The
+   *  ratchet's stale-`@public` arm reads this instead of `usedProd`: a probe script is a real reader, but
+   *  not a shippable one, so marking an export `@public` for it is not a false "deliberately unconsumed"
+   *  claim the way marking one already reached by shipped code would be. */
+  usedProdNonScripts: Set<string>;
   usedClientProd: Set<string>;
   usedServerProd: Set<string>;
   usedTest: Set<string>;
