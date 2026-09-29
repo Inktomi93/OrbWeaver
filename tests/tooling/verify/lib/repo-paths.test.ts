@@ -14,8 +14,10 @@ import {
   branchChangedPaths,
   FIXTURE_GIT_CONFIG_ARGS,
   fixtureGitEnvironment,
+  publishChangedPaths,
   repoGitEnvironment,
   resolveMergeBase,
+  resolvePublishBase,
 } from "../../../../tooling/src/verify/lib/repo-paths.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -226,4 +228,70 @@ test("no usable base ref is UNCOMPUTABLE (null), never an empty changed set", ({
   // The control: give the SAME repository a `main` ref and the identical call answers.
   git(repo, "branch", "main", "HEAD");
   expect(resolveMergeBase(repo)).not.toBeNull();
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE PUBLISH-BASE WIDENING (cb-240c). `resolveMergeBase`'s closest-to-HEAD rule reports `isHead: true`
+// when this checkout IS `main` and `origin/main` sits behind — which is exactly the shape a checkout takes
+// when the owner has committed to local main and not yet pushed. A push-tier reader that trusts `isHead`
+// there never recertifies the commits it is about to publish. `resolvePublishBase` widens ONLY that case.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** `main` sitting N commits ahead of `origin/main`, with no separate branch: the shape `pnpm verify --push`
+ *  sees on this repo, where the owner pushes by hand and rarely. */
+function unpublishedMainRepo(scratch: string, name: string): string {
+  const repo = join(scratch, name);
+  mkdirSync(repo, { recursive: true });
+  git(repo, "init", "--quiet", "--initial-branch", "main");
+  commit(repo, "published.ts");
+  git(repo, "update-ref", "refs/remotes/origin/main", git(repo, "rev-parse", "HEAD"));
+  commit(repo, "unpublished.ts");
+  return repo;
+}
+
+test("on a checkout AT the tip of main with unpushed commits, the publish base is origin/main, not HEAD", ({ scratch }) => {
+  const repo = unpublishedMainRepo(scratch, "unpublished");
+  // Red-first receipt against the OLD helpers: the merge base IS head here, and the old `branchChangedPaths`
+  // answers empty over the exact commit a push tier must recertify.
+  expect(resolveMergeBase(repo)?.isHead).toBe(true);
+  expect(branchChangedPaths(repo)).toEqual([]);
+
+  const base = resolvePublishBase(repo);
+  expect(base?.isHead).toBe(false);
+  expect(base?.ref).toBe("origin/main");
+  expect(base?.commit).toBe(git(repo, "rev-parse", "refs/remotes/origin/main"));
+  expect(publishChangedPaths(repo)).toContain("unpublished.ts");
+});
+
+test("when main truly equals origin/main, the publish base still reports isHead — there is nothing to widen to", ({ scratch }) => {
+  const repo = join(scratch, "published-equal");
+  mkdirSync(repo, { recursive: true });
+  git(repo, "init", "--quiet", "--initial-branch", "main");
+  commit(repo, "published.ts");
+  git(repo, "update-ref", "refs/remotes/origin/main", git(repo, "rev-parse", "HEAD"));
+
+  const base = resolvePublishBase(repo);
+  expect(base?.isHead).toBe(true);
+  expect(publishChangedPaths(repo)).toEqual([]);
+});
+
+test("a real branch's own base is never HEAD, so the publish widening never fires there", ({ scratch }) => {
+  const repo = laneRepo(scratch, "publish-lane");
+  const merge = resolveMergeBase(repo);
+  const publish = resolvePublishBase(repo);
+  expect(merge?.isHead).toBe(false);
+  expect(publish).toEqual(merge);
+  expect(publishChangedPaths(repo)).toEqual(branchChangedPaths(repo));
+});
+
+test("no origin/main ref at all falls back to the plain merge-base answer, including a bare isHead", ({ scratch }) => {
+  const repo = join(scratch, "no-origin");
+  mkdirSync(repo, { recursive: true });
+  git(repo, "init", "--quiet", "--initial-branch", "main");
+  commit(repo, "solo.ts");
+
+  const base = resolvePublishBase(repo);
+  expect(base?.ref).toBe("main");
+  expect(base?.isHead).toBe(true);
+  expect(publishChangedPaths(repo)).toEqual([]);
 });

@@ -40,7 +40,7 @@
 //
 // THE BRANCH ANSWER, NEVER THE WORKING-TREE ONE. At `--push` the changes are COMMITTED and the working
 // tree is clean, so a working-tree read selects nothing and the stage passes vacuously — the #1967 defect
-// in a new costume. `branchChangedPaths` unions the merge-base diff with the working tree and returns
+// in a new costume. `publishChangedPaths` unions the merge-base diff with the working tree and returns
 // `null` when it cannot answer; `null` RUNS THE WHOLE BATTERY rather than selecting nothing, because an
 // uncomputable precondition that reads as "nothing changed" is a silent false clean (the bare-zero law).
 //
@@ -48,11 +48,14 @@
 // which on this checkout — the owner pushes by hand and rarely — sat 280 commits behind local main, so
 // "the instruments this branch changed" resolved to 488 `tooling/src` sources: essentially the whole
 // `tests:tooling` battery #1842 deliberately moved to `--full`, run at every `static` barrier, forever.
-// `lib/repo-paths.ts#resolveMergeBase` now takes the candidate base CLOSEST to HEAD. The consequence is
-// stated rather than hidden: on the mainline tip itself the base IS HEAD, this stage measures nothing, and
-// it SAYS SO through the `[verify-notice]` channel — the row's own design ("a branch that touched no
-// tooling/src source runs NOTHING and exits clean in well under a second") with the base that makes the
-// sentence true. Whole-battery coverage of an integrated tree is `pnpm verify --full`, not this row.
+// `lib/repo-paths.ts#resolveMergeBase` now takes the candidate base CLOSEST to HEAD, which on a real
+// branch is its own fork point. `resolvePublishBase` widens ONLY the one case that derivation cannot
+// answer: a checkout that IS `main` itself, with commits `origin/main` has never seen. Those are exactly
+// the commits a push or a merge-train landing is about to publish, so this stage measures the gap against
+// `origin/main` there instead of reporting `isHead` over unrecertified work — a push tier that always saw
+// `isHead` never recertifies the instruments it is about to publish. `isHead` still reports through the
+// `[verify-notice]` channel when there truly is nothing unpublished (origin/main IS the tip, or no remote
+// answers at all).
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
@@ -65,7 +68,7 @@ import { INSTRUMENT_AFFECTED_POLICIES_ENV } from "../contract/instrument-affecte
 import { NOTICE_MARKER } from "../contract/stage.ts";
 import { encodeInstrumentAffectedPolicyIds } from "../lib/instrument-affected-liveness.ts";
 import { toolingImportReach, toolingTestsNaming } from "../lib/instrument-affected-reach.ts";
-import { branchChangedPaths, existsRel, resolveMergeBase } from "../lib/repo-paths.ts";
+import { existsRel, publishChangedPaths, resolvePublishBase } from "../lib/repo-paths.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm verify --push  /  pnpm check:instrument-affected");
 
@@ -201,7 +204,7 @@ export function selectAffectedInstrumentTests(root: string, changed: readonly st
 
 /** `pnpm check:instrument-affected` — the stage body. */
 export function runInstrumentAffected(root: string): number {
-  const selection = selectAffectedInstrumentTests(root, branchChangedPaths(root));
+  const selection = selectAffectedInstrumentTests(root, publishChangedPaths(root));
   if (selection.unknown) {
     warn(
       "instrument-affected: the branch's changed set could not be computed (no usable merge base, or git failed) — running the WHOLE instrument battery rather than selecting nothing, because an uncomputable precondition that reads as 'nothing changed' is a silent false clean.",
@@ -216,7 +219,7 @@ export function runInstrumentAffected(root: string): number {
     // `notices` for this stage, where the tail block renders it beside the ✓ (contract/stage.ts).
     // The COMPENSATING control for that inertness is the orchestrator's, not this predicate's: a merge
     // train touching `tooling/src` owes `pnpm verify --full`, the tier that runs the whole battery.
-    const base = resolveMergeBase(root);
+    const base = resolvePublishBase(root);
     emitLine(
       base !== null && base.isHead
         ? `${NOTICE_MARKER} instrument-affected measured NOTHING: the merge base resolved to HEAD itself (${base.ref} @ ${base.commit.slice(0, SHORT_SHA)}), so this checkout is ON the mainline tip and has no branch to recertify. This is a fact about the checkout, not a clean bill of health for tooling/src — the whole instrument battery is \`pnpm verify --full\`.`
