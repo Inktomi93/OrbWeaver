@@ -190,6 +190,10 @@ Track work however the owner says, with `pnpm doc item`, `pnpm doc set`, `pnpm d
 Fix an instrument that reports a false clean, a false failure, or runs near its budget in the same
 session. The tooling path rule owns how to fix it.
 
+- Fix a slow gate before you dispatch work that must pass it. Lanes queued behind a slow gate make no progress.
+- Commit a change when its verifier returns CONFIRMED. Confirmed work held behind a later barrier piles up and goes stale.
+- File a review finding outside the item's done criteria as a new item, then land the item. Otherwise review rounds never end.
+
 ## Session start
 
 At startup, resume, compaction, and clear, `.claude/hooks/orchestrator-inject.mjs` injects this skill into a
