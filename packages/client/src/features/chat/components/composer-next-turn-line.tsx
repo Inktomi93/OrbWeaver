@@ -56,7 +56,15 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
       <Text
         as="p"
         voice="gloss"
-        className={cn("min-w-0 max-w-(--reading-measure-prose) break-words", STATE_INK[line.state])}
+        // #883 — this line sits below the composer's own opaque card, directly on the room's art with no
+        // surface of its own (measured 1.035:1 over worst legal art). The transcript's translucent reading
+        // plate (`BG_PHOTO_READING_PLATE`) has a STATED dark-arm hole for a custom pivot palette (D144(d)/
+        // #217) and does not clear AA here either — so this line takes an opaque fill instead: `bg-card`'s
+        // AA floor is proven unconditionally for every ink this line ever paints
+        // (`palette-contrast.suite.test.ts`'s `bodyPairs` + intent-token sweep). No `rounded-card`: this is
+        // a text backdrop, not a second elevated surface nested under the composer's own card (UI-Density-
+        // Law.md §3/§5.1 reserves that radius for the ELEVATED family, and a box-in-box is at most one deep).
+        className={cn("min-w-0 max-w-(--reading-measure-prose) break-words bg-card px-field py-tight", STATE_INK[line.state])}
         data-slot="composer-next-turn"
         data-unset={line.state === "unset" ? "" : undefined}
         data-failed={line.state === "failed" ? "" : undefined}
