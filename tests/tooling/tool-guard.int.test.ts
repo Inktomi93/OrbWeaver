@@ -90,7 +90,8 @@ function runHook(input: unknown, envPairs: [string, string][] = [], rawStdin?: s
     encoding: "utf8",
     env: env(envPairs),
   });
-  return { status: r.status, out: JSON.parse(r.stdout) as HookRun["out"] };
+  // An empty stdout is the hook having no decision, so the normal permission flow runs.
+  return { status: r.status, out: (r.stdout.trim() === "" ? {} : JSON.parse(r.stdout)) as HookRun["out"] };
 }
 
 function bashInput(command: string, extraPairs: [string, unknown][] = [], toolInputExtra: Record<string, unknown> = {}): Record<string, unknown> {
@@ -927,7 +928,16 @@ const ROWS: Row[] = [
   ["pass", null, "pnpm doc new item 'x'"],
   ["allow", "doc-bare", "pnpm doc overview | head -20"],
   ["allow", "doc-bare", "pnpm doc drift 2>&1 | tail -5"],
-  ["allow", "doc-bare", "pnpm doc due > /tmp/d.log; tail /tmp/d.log"],
+  ["pass", null, "pnpm doc due > /tmp/d.log; tail /tmp/d.log"],
+  // a board-writing verb inside a compound command, or behind `pnpm -C/--dir`, is still a lane write
+  ["deny", "doc-write-lane", "for n in 1 2; do pnpm doc set $n open; done", LANE],
+  ["deny", "doc-write-lane", "if true; then pnpm doc land 3; fi", LANE],
+  ["deny", "doc-write-lane", "! pnpm doc land 3", LANE],
+  ["deny", "doc-write-lane", "pnpm -C /x doc set 12 open", LANE],
+  ["deny", "doc-write-lane", "pnpm --dir /x doc land 3", LANE],
+  ["deny", "doc-write-lane", "pnpm --dir=/x doc land 3", LANE],
+  ["pass", null, "pnpm doc set --help", LANE],
+  ["pass", null, "pnpm doc land -h", LANE],
   ["allow", "doc-bare", "pnpm doc overview | grep 0250", LANE],
   // ---- hand-polling family (owner directive, 2026-09-29 addendum) ----
   // true/`:`-only filler: EVERY clause must reduce to the bare word.
@@ -1243,20 +1253,23 @@ test("contract: a second Read of the same task output file denies, per agent, an
   const read = (filePath: string, agentPairs: [string, unknown][], rangePairs: [string, number][] = []): string | undefined =>
     runHook(readInput(filePath, agentPairs, rangePairs), envPairs).out.hookSpecificOutput?.permissionDecision;
   const agentA: [string, unknown][] = [["agent_id", "agent-read-a"]];
-  expect(read(taskFile, agentA)).toBe("defer");
+  // no decision is an empty stdout: `defer` is a real outcome that stops a `claude -p` run
+  const first = spawnSync(process.execPath, [HOOK], { input: JSON.stringify(readInput("/tmp/x.log", agentA)), encoding: "utf8", env: env(envPairs) });
+  expect([first.status, first.stdout]).toEqual([0, ""]);
+  expect(read(taskFile, agentA)).toBe(undefined);
   expect(read(taskFile, agentA)).toBe("deny");
   expect(read(taskFile, agentA)).toBe("deny");
-  expect(read(`${TASKS}/other.output`, agentA)).toBe("defer"); // a different task file is its own first read
-  expect(read(taskFile, [["agent_id", "agent-read-b"]])).toBe("defer"); // another agent keeps its own record
-  expect(read("/tmp/x.log", agentA)).toBe("defer"); // not a task output file
-  expect(read("/tmp/x.log", agentA)).toBe("defer");
-  expect(read(taskFile, [])).toBe("defer"); // the main session is treated the same way
+  expect(read(`${TASKS}/other.output`, agentA)).toBe(undefined); // a different task file is its own first read
+  expect(read(taskFile, [["agent_id", "agent-read-b"]])).toBe(undefined); // another agent keeps its own record
+  expect(read("/tmp/x.log", agentA)).toBe(undefined); // not a task output file
+  expect(read("/tmp/x.log", agentA)).toBe(undefined);
+  expect(read(taskFile, [])).toBe(undefined); // the main session is treated the same way
   const mainSecond = runHook(readInput(taskFile, []), envPairs);
   expect(mainSecond.out.hookSpecificOutput?.permissionDecision).toBe("deny");
   expect(mainSecond.out.hookSpecificOutput?.permissionDecisionReason).toContain("write your final report now");
   // one Read of a task file, then two Bash reads of it, is the third consecutive read of that target
   const agentC: [string, unknown][] = [["agent_id", "agent-read-c"]];
-  expect(read(`${TASKS}/c.output`, agentC)).toBe("defer");
+  expect(read(`${TASKS}/c.output`, agentC)).toBe(undefined);
   const bash = (): string | undefined => runHook(bashInput(`tail -5 ${TASKS}/c.output`, agentC), envPairs).out.hookSpecificOutput?.permissionDecision;
   expect(bash()).toBe("allow");
   expect(bash()).toBe("deny");
@@ -1268,9 +1281,15 @@ test("contract: a second Read of the same task output file denies, per agent, an
       ["offset", offset],
       ["limit", 2000],
     ]);
-  expect([chunk(1), chunk(2001), chunk(4001)]).toEqual(["defer", "defer", "defer"]);
+  expect([chunk(1), chunk(2001), chunk(4001)]).toEqual([undefined, undefined, undefined]);
   expect(chunk(2001)).toBe("deny");
   expect(runHook(bashInput(`tail -5 ${TASKS}/d.output`, agentD), envPairs).out.hookSpecificOutput?.permissionDecision).toBe("allow");
+  // a reread after the window passes: the task may have finished, and reading its output then is the point
+  const agentE: [string, unknown][] = [["agent_id", "agent-read-e"]];
+  const readAt = (offsetMs: number): string | undefined =>
+    runHook(readInput(`${TASKS}/e.output`, agentE), [...envPairs, ["ORB_TOOL_GUARD_NOW_FOR_TEST", String(Number(PINNED_NOW) + offsetMs)]]).out
+      .hookSpecificOutput?.permissionDecision;
+  expect([readAt(0), readAt(60_000), readAt(181_000)]).toEqual([undefined, "deny", undefined]);
 });
 
 // `pnpm typecheck` has no single known artifact file (unlike check/verify/test), so it keeps the generic
@@ -1314,14 +1333,31 @@ test("rewrite: a verify-family harness piped into a reader targets `pnpm check:s
   expect(spawnSync("bash", ["-c", cmd], { encoding: "utf8" }).status).toBe(3);
 });
 
-test("rewrite: a piped or captured `pnpm doc` runs bare, and a later read of its capture file is dropped", () => {
+test("rewrite: only a lone `pnpm doc … | head/tail/grep` pipeline runs bare; every other shape is untouched", () => {
   const rows = runBatch([
     { command: "pnpm doc overview | head -20" },
     { command: "pnpm doc drift 2>&1 | tail -5" },
-    { command: "cd /x && pnpm doc due > /tmp/d.log; tail /tmp/d.log" },
-    { command: "pnpm doc due > /tmp/d.log && echo ok" },
+    { command: "pnpm doc overview | grep 0250 | head -3" },
   ]);
-  expect(rows.map((r) => r.rewrite?.command)).toEqual(["pnpm doc overview", "pnpm doc drift", "cd /x && pnpm doc due", "pnpm doc due && echo ok"]);
+  expect(rows.map((r) => r.rewrite?.command)).toEqual(["pnpm doc overview", "pnpm doc drift", "pnpm doc overview"]);
+  // real commands the clause-rebuilding rewrite corrupted: each must come out byte-identical, never rewritten
+  const untouched = [
+    "pnpm doc land 10 --evidence 220991d39 > /tmp/claude/land10.log 2>&1; echo EXIT=$?; tail -5 /tmp/claude/land10.log; git status --short | rg -v '^( D|D |\\?\\?)' | head",
+    "pnpm doc land 2 3 4 --evidence c80f0bcda > /tmp/claude/land234.log 2>&1; echo EXIT=$?; tail -6 /tmp/claude/land234.log",
+    "pnpm doc --help 2>&1 | head -40; ls docs/work | rg '^0027'",
+    "pnpm doc index >/dev/null 2>&1; echo $?; git add docs/work/README.md && git status --short | head; LEFTHOOK_EXCLUDE=check git commit --no-edit 2>&1 | tail -3",
+    "W=/tmp/wt\ncd \"$W\" && pnpm doc --help 2>&1 | sed -n '1,200p'",
+    "cd /repo; pnpm doc set 248 doing --lane main >/dev/null 2>&1; python3 - <<'EOF'\nimport glob\nf=glob.glob('docs/work/0248-*.md')[0]\nEOF",
+    "pnpm doc index > /dev/null 2>&1; cat > /tmp/m.txt <<'EOF'\nhello\nEOF\ngit status",
+    "pnpm doc overview | head\ngit status",
+    "cd /tmp\npnpm doc overview | head",
+    "pnpm doc drift > /tmp/d.log\ncat /tmp/d.log\nls",
+    "pnpm doc overview | head &",
+    "pnpm doc overview | head > /tmp/o.txt",
+    "cd /x && pnpm doc due | tail -3",
+  ];
+  const out = runBatch(untouched.map((command) => ({ command })));
+  expect(out.map((r) => r.rewrite?.command)).toEqual(untouched.map(() => undefined));
 });
 
 test("rewrite: a known test harness piped into a reader targets its own report artifact", () => {
@@ -2083,11 +2119,11 @@ test("contract: a push asks the owner from main, and DENIES a lane with the esca
   }
 });
 
-test("fail-open: garbage stdin, a non-Bash tool, and an internal crash all defer with exit 0", () => {
+test("fail-open: garbage stdin, a non-Bash tool, and an internal crash all emit no decision with exit 0", () => {
   const tmp = mkdtempSync(join(tmpdir(), "tg-hook-"));
   const garbage = runHook(null, [["CLAUDE_PROJECT_DIR", tmp]], "this is not json{{{");
   expect(garbage.status).toBe(0);
-  expect(garbage.out.hookSpecificOutput?.permissionDecision).toBe("defer");
+  expect(garbage.out).toEqual({});
   const nonBash = runHook(
     Object.fromEntries([
       ["tool_name", "Edit"],
@@ -2095,14 +2131,14 @@ test("fail-open: garbage stdin, a non-Bash tool, and an internal crash all defer
     ]),
     [["CLAUDE_PROJECT_DIR", tmp]],
   );
-  expect(nonBash.out.hookSpecificOutput?.permissionDecision).toBe("defer");
+  expect(nonBash.out).toEqual({});
   // a deny-worthy command + a forced internal throw MUST fail open — a broken guard never blocks work
   const crashed = runHook(bashInput("git stash"), [
     ["CLAUDE_PROJECT_DIR", tmp],
     ["ORB_TOOL_GUARD_CRASH_FOR_TEST", "1"],
   ]);
   expect(crashed.status).toBe(0);
-  expect(crashed.out.hookSpecificOutput?.permissionDecision).toBe("defer");
+  expect(crashed.out).toEqual({});
 });
 
 test("kill switch: ORB_TOOL_GUARD=off bypasses every rule and logs the bypass", () => {
@@ -2111,7 +2147,7 @@ test("kill switch: ORB_TOOL_GUARD=off bypasses every rule and logs the bypass", 
     ["CLAUDE_PROJECT_DIR", tmp],
     ["ORB_TOOL_GUARD", "off"],
   ]);
-  expect(out.hookSpecificOutput?.permissionDecision).toBe("defer");
+  expect(out).toEqual({});
   const logged = JSON.parse(readFileSync(`${tmp}/reports/tool-guard/decisions.jsonl`, "utf8").trim().split("\n").slice(-1).join("")) as { rule: string };
   expect(logged.rule).toBe("kill-switch");
 });

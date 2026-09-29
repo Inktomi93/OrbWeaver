@@ -67,9 +67,10 @@
 // │ a real transient is ragged. "0 denies, so it isn't the hook" was asserted TWICE and was wrong  │
 // │ both times: the guard denied nothing and was still the cause, because defer ≠ allow.          │
 // │                                                                                               │
-// │ `defer` now survives ONLY where this guard has genuinely not judged the command — the kill     │
-// │ switch, an internal error, unparseable stdin, a non-Bash tool. If you are adding a rule and    │
-// │ reach for `defer`, you almost certainly want `allow` (with a WARN context) or `deny`.          │
+// │ No decision survives ONLY where this guard has genuinely not judged the command — the kill     │
+// │ switch, an internal error, unparseable stdin, a tool it does not judge — and it is printed as  │
+// │ NOTHING, never as `defer` (a real outcome: it stops a `claude -p` run with `tool_deferred`).   │
+// │ If you are adding a rule and reach for it, you almost certainly want `allow` or `deny`.        │
 // │ TRIAGE: node -e "const r=require('fs').readFileSync('reports/tool-guard/decisions.jsonl','utf8')\
 // │   .trim().split('\n').map(JSON.parse); console.log(r.filter(x=>x.agent&&x.agent!=='main').slice(-10))"│
 // └──────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -112,7 +113,7 @@
 //     path-scoped / `--only=`-scoped `biome check --write` is the CORRECT mechanical-migration form
 //     (tsx-shedding spec Stage 1) and is warn-tier, never deny. A rule that catches the right way of
 //     doing something teaches agents to route around the hook, and then it protects nothing.
-//   · FAIL-OPEN — any internal error, unparseable stdin, or stdin stall emits "defer" and exits 0. The
+//   · FAIL-OPEN — any internal error, unparseable stdin, or stdin stall emits no decision and exits 0. The
 //     guard breaking must never block work (proven by test).
 //   · SELF-EXEMPT — IDENTITY-based and deliberately narrow: a SOLE invocation of this guard, its replay,
 //     or the census miner (one clause, one stage, no subshell / substitution / backgrounding) passes
@@ -178,7 +179,7 @@
 // via /reports/) with rule, decision, latency and a command prefix — tune from evidence, not vibes.
 //
 // KILL SWITCH (emergencies only, greppable): ORB_TOOL_GUARD=off (also "0"/"false") disables all rules —
-// the hook logs the bypass and defers. `export ORB_TOOL_GUARD=off` in the session env, or prefix the
+// the hook logs the bypass and prints no decision. `export ORB_TOOL_GUARD=off` in the session env, or prefix the
 // `claude` launch. Re-enable by unsetting.
 //
 // ENTRY POINTS:
@@ -788,8 +789,13 @@ const HARNESS_TASK_OUTPUT = /^\/tmp\/claude-\d+\/.+\/tasks\/[^/]+\.output$/;
 // `pnpm doc` verbs that change shared board state (item numbering, transitions, landing), which the
 // orchestrator owns. `new adr|plan|law` and `review` author a doc in the lane's own worktree and stay open.
 const DOC_WRITE_VERBS = new Set(["item", "set", "land", "remove", "index", "status"]);
-// A file a stage's stdout is captured into (`> log`, `&> log`); an fd merge such as `2>&1` names no file.
-const CAPTURE_FILE = /(?:^|\s)(?:\d*>{1,2}|&>{1,2})\s*([^\s&]\S*)/g;
+// The one `pnpm doc` shape `docBareRewrite` touches: a lone pipeline into head/tail/grep. The stderr merge
+// `2>&1` on the doc stage is the only redirect it accepts; anything else leaves the command as written.
+const DOC_READER = /^\s*(?:head|tail|grep)\b/;
+const DOC_STDERR_MERGE = /\s+2>&1(?=\s*\|)/;
+const DOC_PIPE_UNSAFE = /[<>&`]|\$\(/;
+// A repeat of the same task-output range inside this window is a poll; after it, a reread is allowed.
+const TASK_REREAD_WINDOW_MS = 120_000;
 const TAIL_FOLLOW_FLAG = /^-[A-Za-z0-9]*[fF]|^--follow\b/;
 // Shell tokens for `shellLoops`, on the BLANKED text: a redirect (`2>&1`, `>`, `<`) first so its `&` is not
 // read as an operator, then the control operators, then words.
@@ -1068,7 +1074,7 @@ const REASONS = {
   sleepOnly: `A command whose only work is \`sleep\` is a wait, backgrounded or not: it spends a tool call and re-bills your whole context to do nothing. ${WAIT_DENY_NEXT_STEP}`,
   taskFileWait: `This loop waits on a Claude Code background task file. The harness already notifies you when that task exits, so the loop only spends tool calls. ${WAIT_DENY_NEXT_STEP}`,
   taskOutputReread: (file) =>
-    `You already read \`${file}\`. It is a background task's output file, and the harness notifies you when that task exits, so reading it again is a poll. ${WAIT_DENY_NEXT_STEP}`,
+    `You read this range of \`${file}\` less than ${TASK_REREAD_WINDOW_MS / 1000} s ago, and rereading it this soon is a poll. ${WAIT_DENY_NEXT_STEP}`,
   docWriteLane: (verb) =>
     `\`pnpm doc ${verb}\` changes the board, and the orchestrator owns the board (items, status, landing); put the item's title, what, why and done in your report. Authoring a plan, ADR or law in your worktree with \`pnpm doc new\` is fine.`,
   trueOrColonFiller: `A command that is only \`true\`/\`:\` is filler: it re-bills your whole context and does nothing. ${WAIT_DENY_NEXT_STEP}`,
@@ -1423,66 +1429,44 @@ function bareHarnessRewrite(command, blank, clauses, headRe) {
   return { command: `${prefix}${harness}${suffix}`, clause };
 }
 
-/** The verb of a `pnpm doc` stage (`""` for a bare `pnpm doc`), or null when the stage is not one. */
-function docVerb(stageBlank) {
-  const { tokens, index, exec } = execHead(stageBlank);
+/** A `pnpm doc` stage as `{verb, help}` (`verb` is `""` for a bare `pnpm doc`), or null when the stage is
+ *  not one. Reads through compound-command lead words and pnpm's own `-C`/`--dir` option. */
+function docCall(stageBlank) {
+  const { tokens, index, exec } = execHead(stripCompoundLead(stageBlank));
   if (exec === undefined || !/^(?:\S*\/)?pnpm$/.test(exec[0])) {
     return null;
   }
   const rest = tokens.slice(index + 1).map((t) => t[0]);
-  const at = rest[0] === "run" ? 1 : 0;
+  let at = 0;
+  while (rest[at] === "-C" || rest[at] === "--dir" || rest[at]?.startsWith("--dir=") === true) {
+    at += rest[at].includes("=") ? 1 : 2;
+  }
+  if (rest[at] === "run") {
+    at += 1;
+  }
   if (rest[at] !== "doc") {
     return null;
   }
-  return rest.slice(at + 1).find((w) => !w.startsWith("-")) ?? "";
+  const args = rest.slice(at + 1);
+  return { verb: args.find((w) => !w.startsWith("-")) ?? "", help: args.includes("--help") || args.includes("-h") };
 }
 
-/** `pnpm doc` with its output piped into a reader or captured to a file, rebuilt to run bare. A later clause
- *  that only reads the capture file is dropped too, since it would read a stale or missing file. Null when
- *  there is nothing to drop or the shape is not this simple. */
+/** A command that is only `pnpm doc <args> [2>&1] | head|tail|grep …`, as the bare `pnpm doc` stage to run
+ *  instead, or null. Any other shape (another clause, a newline, a redirect, a heredoc, `&`, a
+ *  substitution) is left exactly as written. */
 function docBareRewrite(command, blank, clauses) {
-  if (blank.includes("||")) {
+  if (clauses.length !== 1 || command.includes("\n") || DOC_PIPE_UNSAFE.test(blank.replace(DOC_STDERR_MERGE, ""))) {
     return null;
   }
-  const docClauses = clauses.filter((cl) => docVerb(blank.slice(cl.stages[0].start, cl.stages[0].end)) !== null);
-  if (docClauses.length !== 1) {
-    return null;
-  }
-  const [clause] = docClauses;
+  const [clause] = clauses;
   const [stage0, ...readers] = clause.stages;
-  for (const r of readers) {
-    const text = blank.slice(r.start, r.end);
-    if (!READER.test(text) || UNSAFE_READER.test(stripFdMerges(text))) {
-      return null;
-    }
-  }
-  const stage0Blank = blank.slice(stage0.start, stage0.end);
-  const cut = stage0Blank.search(REDIRECT_TOKEN);
-  if ((cut === -1 && readers.length === 0) || UNSAFE_AFTER_REDIRECT_STRIP.test(stage0Blank.replace(REDIRECT_TOKEN, " "))) {
+  if (readers.length === 0 || docCall(blank.slice(stage0.start, stage0.end)) === null) {
     return null;
   }
-  const raw0 = command.slice(stage0.start, stage0.end);
-  const capture = cut === -1 ? undefined : [...raw0.slice(cut).matchAll(CAPTURE_FILE)][0]?.[1];
-  const readsCapture = (cl) =>
-    capture !== undefined &&
-    cl.stages.length === 1 &&
-    READER.test(blank.slice(cl.start, cl.end)) &&
-    command.slice(cl.start, cl.end).trim().split(/\s+/).at(-1) === capture;
-  let out = "";
-  let prev = null;
-  for (const cl of clauses) {
-    if (cl !== clause && readsCapture(cl)) {
-      continue;
-    }
-    const text = cl === clause ? (cut === -1 ? raw0 : raw0.slice(0, cut)).trim() : command.slice(cl.start, cl.end).trim();
-    if (prev !== null) {
-      const sep = command.slice(prev.end, cl.start).trim();
-      out += sep === ";" ? "; " : sep === "" ? "\n" : ` ${sep} `;
-    }
-    out += text;
-    prev = cl;
+  if (!readers.every((r) => DOC_READER.test(blank.slice(r.start, r.end)))) {
+    return null;
   }
-  return { command: out, clause };
+  return { command: command.slice(stage0.start, stage0.end).replace(STDERR_MERGE_TAIL, "").trim(), clause };
 }
 
 // The same four spellings, anchored at a clause head so the rewrite knows exactly what to replace. Its
@@ -3118,8 +3102,8 @@ function wholeTreeNote(ctx, blank, clauses) {
   return CONTEXTS.wholeTreeRun;
 }
 
-/** The Read tool on a background task's output file. The first Read per agent is a check-in and a later
- *  one is a poll, so it denies. Every such Read also counts as a status read of that path, so a Bash
+/** The Read tool on a background task's output file. A repeat of the same range within
+ *  TASK_REREAD_WINDOW_MS of the previous one is a poll, so it denies; a first read or a later reread passes. Every such Read also counts as a status read of that path, so a Bash
  *  re-read after it continues the same streak. Null when the Read is not this rule's business. */
 function taskOutputReadVerdict(filePath, range, ctx) {
   if (!HARNESS_TASK_OUTPUT.test(filePath)) {
@@ -3133,9 +3117,10 @@ function taskOutputReadVerdict(filePath, range, ctx) {
   const count = prev !== null && prev.kind === "log" && prev.target === target ? prev.count + 1 : 1;
   writeStreakState(ctx.projectDir, key, { kind: "log", target, count });
   const seenKey = `${key}.task-output`;
-  const seen = readStreakState(ctx.projectDir, seenKey) ?? [];
-  if (!seen.includes(target)) {
-    writeStreakState(ctx.projectDir, seenKey, [...seen, target]);
+  const seen = readStreakState(ctx.projectDir, seenKey) ?? {};
+  const last = seen[target];
+  writeStreakState(ctx.projectDir, seenKey, { ...seen, [target]: ctx.now });
+  if (last === undefined || ctx.now - last > TASK_REREAD_WINDOW_MS) {
     return null;
   }
   return { decision: "deny", rule: "task-output-reread", reason: REASONS.taskOutputReread(filePath) };
@@ -3423,13 +3408,13 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "deny", rule: "harness-piped", reason: REASONS.harnessPipedDeny, contexts };
   }
 
-  // 4c. `pnpm doc`: a lane never runs a board-writing verb, and a piped or captured run is rewritten bare.
+  // 4c. `pnpm doc`: a lane never runs a board-writing verb, and a lone piped run is rewritten bare.
   if (ctx.agentId) {
     for (const clause of clauses) {
       for (const stage of clause.stages) {
-        const verb = docVerb(blank.slice(stage.start, stage.end));
-        if (verb !== null && DOC_WRITE_VERBS.has(verb)) {
-          return { decision: "deny", rule: "doc-write-lane", reason: REASONS.docWriteLane(verb), contexts };
+        const call = docCall(blank.slice(stage.start, stage.end));
+        if (call !== null && !call.help && DOC_WRITE_VERBS.has(call.verb)) {
+          return { decision: "deny", rule: "doc-write-lane", reason: REASONS.docWriteLane(call.verb), contexts };
         }
       }
     }
@@ -3704,7 +3689,9 @@ function firstContact(projectDir, agentId) {
 }
 
 function emit(output) {
-  process.stdout.write(`${JSON.stringify(output)}\n`);
+  if (output !== NO_DECISION) {
+    process.stdout.write(`${JSON.stringify(output)}\n`);
+  }
 }
 
 function hookOutput(fields) {
@@ -3712,9 +3699,11 @@ function hookOutput(fields) {
 }
 
 // Reserved for the paths where the guard has NOT judged the command: the kill switch, an internal
-// error, unparseable stdin, a non-Bash tool. There, "no opinion" is the honest answer and the normal
-// permission flow should decide. Everywhere the guard HAS looked and is content, it says `allow`.
-const DEFER = hookOutput({ permissionDecision: "defer" });
+// error, unparseable stdin, a tool it does not judge. There, "no opinion" is the honest answer, so the hook
+// prints nothing and the normal permission flow decides. `permissionDecision: "defer"` is NOT that: it is a
+// real outcome that logs a warning in an interactive session and stops a `claude -p` run with
+// `tool_deferred`. Everywhere the guard HAS looked and is content, it says `allow`.
+const NO_DECISION = null;
 const PASS_REASON = "tool-guard: no objection";
 const SUBAGENT_ASK_SUFFIX =
   "You are a subagent and cannot answer a permission prompt, so this is a DENY rather than a stall. " +
@@ -3780,7 +3769,7 @@ function toHookOutput(result, ctx) {
   // An explicit `defer` from the classifier means it did NOT judge this command (classifier-error).
   // That must stay a defer — auto-allowing something nobody looked at is not the fix we are making.
   if (result.decision === "defer") {
-    return DEFER;
+    return NO_DECISION;
   }
   // PASS-THROUGH IS `allow`, NEVER `defer`. This guard shapes HOW a command runs; it is not the
   // gatekeeper of WHAT an agent may run (owner ruling 2026-08-03: "our issue was never permissions of
@@ -3820,18 +3809,19 @@ async function runBatchMode() {
   process.stdout.write(JSON.stringify(out, null, 2));
 }
 
-/** The Read branch of the hook: deny a re-read of a task output file, otherwise defer. It never allows, so
- *  every other Read keeps the normal permission flow. */
+/** The Read branch of the hook: deny a quick re-read of a task output file, otherwise print nothing. It never
+ *  allows, so every other Read keeps the normal permission flow. */
 function runReadHook(input, filePath) {
   const projectDir = process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd();
   if (ENV_KILL.test(process.env.ORB_TOOL_GUARD ?? "")) {
-    emit(DEFER);
+    emit(NO_DECISION);
     return;
   }
   const range = { offset: input.tool_input.offset, limit: input.tool_input.limit };
-  const result = taskOutputReadVerdict(filePath, range, { agentId: input.agent_id ?? null, sessionId: input.session_id ?? null, projectDir });
+  const now = Number(process.env.ORB_TOOL_GUARD_NOW_FOR_TEST ?? Date.now());
+  const result = taskOutputReadVerdict(filePath, range, { agentId: input.agent_id ?? null, sessionId: input.session_id ?? null, projectDir, now });
   if (result === null) {
-    emit(DEFER);
+    emit(NO_DECISION);
     return;
   }
   logDecision(projectDir, {
@@ -3851,7 +3841,7 @@ async function runHookMode() {
   try {
     const raw = await readStdin(STDIN_DEADLINE_MS);
     if (raw === null) {
-      emit(DEFER);
+      emit(NO_DECISION);
       return;
     }
     const input = JSON.parse(raw);
@@ -3862,13 +3852,13 @@ async function runHookMode() {
     }
     const command = input?.tool_input?.command;
     if (input?.tool_name !== "Bash" || typeof command !== "string") {
-      emit(DEFER);
+      emit(NO_DECISION);
       return;
     }
     projectDir = process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd();
     if (ENV_KILL.test(process.env.ORB_TOOL_GUARD ?? "")) {
       logDecision(projectDir, { t: new Date().toISOString(), decision: "defer", rule: "kill-switch", cmd: command.slice(0, CMD_LOG_MAX) });
-      emit(DEFER);
+      emit(NO_DECISION);
       return;
     }
     if (process.env.ORB_TOOL_GUARD_CRASH_FOR_TEST) {
@@ -3912,7 +3902,7 @@ async function runHookMode() {
   } catch (err) {
     // FAIL OPEN — a broken guard must never block work.
     logDecision(projectDir, { t: new Date().toISOString(), decision: "defer", rule: "guard-error", error: String(err) });
-    emit(DEFER);
+    emit(NO_DECISION);
   }
 }
 
@@ -3923,6 +3913,6 @@ if (invokedDirectly) {
       process.stdout.write("[]");
     });
   } else {
-    runHookMode().catch(() => emit(DEFER));
+    runHookMode().catch(() => emit(NO_DECISION));
   }
 }
