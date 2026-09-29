@@ -23,7 +23,8 @@ const PRESSURE_WORKER_MAXIMUM = 4;
 const PRESSURE_LIMIT_HEADROOM_BYTES = 32 * 1_048_576;
 const PRESSURE_ALLOCATION_MEBIBYTES = 20;
 
-type ChildMode = "baseline" | "churn" | "pressure";
+const CHILD_MODES = ["baseline", "churn", "pressure"] as const;
+type ChildMode = (typeof CHILD_MODES)[number];
 
 interface ProcessSample {
   readonly pid: number;
@@ -227,7 +228,9 @@ async function waitForProcessTree(probe: ProbeChild): Promise<PluginProcessTree>
   if (appPid === undefined) {
     throw new Error("plugin platform proof: app child has no pid");
   }
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real startup latency this proof measures against the real spawned broker process, no frozen clock to inject (#828)
   const deadline = performance.now() + CHILD_TIMEOUT_MS;
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real startup latency this proof measures against the real spawned broker process, no frozen clock to inject (#828)
   while (performance.now() < deadline) {
     const samples = await processTable();
     const app = samples.find((sample) => sample.pid === appPid);
@@ -248,12 +251,18 @@ async function waitForProcessTree(probe: ProbeChild): Promise<PluginProcessTree>
 }
 
 async function waitForOwnedProcessesToExit(pids: ReadonlySet<number>, marker: string): Promise<number> {
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real process-exit latency this proof measures against the real OS reaping the broker after the app dies, no frozen clock to inject (#828)
   const startedAt = performance.now();
   const deadline = startedAt + PROCESS_CLEANUP_TIMEOUT_MS;
-  while (performance.now() < deadline) {
+  // Narrow statement carriers for the waiver below: a marker directly above `while (…) {` binds to the
+  // WHOLE loop, including the nested return's own call, so this reads the clock through a named check.
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real process-exit latency this proof measures against the real OS reaping the broker after the app dies, no frozen clock to inject (#828)
+  const withinDeadline = (): boolean => performance.now() < deadline;
+  while (withinDeadline()) {
     const samples = await processTable();
     const live = new Set(samples.map((sample) => sample.pid));
     if ([...pids].every((pid) => !live.has(pid)) && !samples.some((sample) => sample.command.includes(marker))) {
+      // @orb-waive test-determinism(performance.now): the SUBJECT is real process-exit latency this proof measures against the real OS reaping the broker after the app dies, no frozen clock to inject (#828)
       return performance.now() - startedAt;
     }
     await sleep(PROCESS_POLL_MS);
@@ -315,7 +324,9 @@ function spawnProbe(root: string, mode: ChildMode, memoryLimitBytes: number, wor
     stdout: () => stdout,
     stderr: () => stderr,
     waitFor: async <T extends ChildMessage["kind"]>(kind: T): Promise<Extract<ChildMessage, { readonly kind: T }>> => {
+      // @orb-waive test-determinism(performance.now): the SUBJECT is real child message latency this proof waits on against the real spawned child process, no frozen clock to inject (#828)
       const deadline = performance.now() + CHILD_TIMEOUT_MS;
+      // @orb-waive test-determinism(performance.now): the SUBJECT is real child message latency this proof waits on against the real spawned child process, no frozen clock to inject (#828)
       while (performance.now() < deadline) {
         const message = messages.find((candidate): candidate is Extract<ChildMessage, { readonly kind: T }> => candidate.kind === kind);
         if (message !== undefined) {
@@ -639,29 +650,37 @@ async function runChurnChild(root: string): Promise<never> {
   const host = await childRuntime(root);
   const residents: { readonly instance: PluginInstance; readonly handler: PluginHandlerRef }[] = [];
   const coldReloads = { count: 0 };
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real plugin activation latency this proof reports to the parent process, measured against the real broker, no frozen clock to inject (#828)
   const activationStartedAt = performance.now();
   for (let index = 0; index < LOGICAL_PLUGIN_COUNT; index += 1) {
     const expected = `value-${index}`;
     const source = `const h=orb.host(1);h.tools.register({name:"tool_${index}",description:"proof",parameters:{type:"object",properties:{}},handler:()=>${JSON.stringify(expected)}});`;
     residents.push(await activateTool(host, source, countedReload(source, coldReloads)));
   }
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real plugin activation latency this proof reports to the parent process, measured against the real broker, no frozen clock to inject (#828)
   const activationMs = performance.now() - activationStartedAt;
   const newest = residents.at(-1);
   const oldest = residents[0];
   if (newest === undefined || oldest === undefined) {
     throw new Error("plugin platform proof: churn residents were not created");
   }
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real warm-invocation latency this proof reports to the parent process, measured against the real broker, no frozen clock to inject (#828)
   const warmStartedAt = performance.now();
   await host.invoke(newest.instance, newest.handler, "{}", null);
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real warm-invocation latency this proof reports to the parent process, measured against the real broker, no frozen clock to inject (#828)
   const warmMs = performance.now() - warmStartedAt;
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real cold-invocation latency this proof reports to the parent process, measured against the real broker, no frozen clock to inject (#828)
   const coldStartedAt = performance.now();
   await host.invoke(oldest.instance, oldest.handler, "{}", null);
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real cold-invocation latency this proof reports to the parent process, measured against the real broker, no frozen clock to inject (#828)
   const coldMs = performance.now() - coldStartedAt;
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real churn latency this proof reports to the parent process, measured against the real broker, no frozen clock to inject (#828)
   const churnStartedAt = performance.now();
   const values: string[] = [];
   for (const resident of residents) {
     values.push(await host.invoke(resident.instance, resident.handler, "{}", null));
   }
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real churn latency this proof reports to the parent process, measured against the real broker, no frozen clock to inject (#828)
   const churnMs = performance.now() - churnStartedAt;
   if (!values.every((value, index) => value === `value-${index}`)) {
     throw new Error("plugin platform proof: churn returned a value from the wrong logical plugin");
@@ -694,7 +713,9 @@ async function runPressureChild(root: string): Promise<never> {
   const residents = attempts.flatMap((attempt) => (attempt.status === "fulfilled" ? [attempt.value] : []));
   const activationFailure = attempts.find((attempt): attempt is PromiseRejectedResult => attempt.status === "rejected");
   let failure: unknown = activationFailure?.reason;
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real OOM-pressure failure latency this proof measures against the real broker process under memory pressure, no frozen clock to inject (#828)
   const failureDeadline = performance.now() + CHILD_TIMEOUT_MS;
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real OOM-pressure failure latency this proof measures against the real broker process under memory pressure, no frozen clock to inject (#828)
   while (failure === undefined && performance.now() < failureDeadline) {
     const resident = residents[0];
     if (resident === undefined) {
@@ -711,7 +732,9 @@ async function runPressureChild(root: string): Promise<never> {
   const errorName = failure instanceof Error ? failure.name : "UnknownFailure";
   sendChildMessage({ kind: "pressure-failure", errorName });
 
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real OOM-pressure recovery latency this proof measures against the real broker process, no frozen clock to inject (#828)
   const recoveryDeadline = performance.now() + PRESSURE_RECOVERY_TIMEOUT_MS;
+  // @orb-waive test-determinism(performance.now): the SUBJECT is real OOM-pressure recovery latency this proof measures against the real broker process, no frozen clock to inject (#828)
   for (let attempt = 0; performance.now() < recoveryDeadline; attempt += 1) {
     const source = `const h=orb.host(1);h.tools.register({name:"recovery_${attempt}",description:"proof",parameters:{type:"object",properties:{}},handler:()=>"recovered"});`;
     const result = await Promise.allSettled([activateTool(host, source)]);
