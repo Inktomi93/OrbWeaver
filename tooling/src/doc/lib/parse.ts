@@ -289,7 +289,7 @@ function parseStatus(args: readonly string[]): DocCommand {
   if (status === undefined || paths.length === 0) {
     throw new UsageError(`status takes a status and one or more paths\n${USAGE}`);
   }
-  if (paths.every((path) => ID_RE.test(path))) {
+  if (isItemState(status) && paths.every((path) => ID_RE.test(path))) {
     throw new UsageError(
       `status moves ADRs, plans and laws by path; an item's state is set by id: pnpm doc set ${paths.join(" ")} ${status}\n${usageFor("set")}`,
     );
@@ -328,7 +328,12 @@ function parseOverview(args: readonly string[]): DocCommand {
     const hint = stray.every(isOverviewState) ? ` — a state filter is --status ${stray.join(",")}` : "";
     throw new UsageError(`overview takes only flags, not ${stray.join(" ")}${hint}\n${usageFor("overview")}`);
   }
-  const named = flagValues(args, "--status").flatMap((value) => value.split(",").map((state) => state.trim()));
+  const named = flagValues(args, "--status").flatMap((value) =>
+    value
+      .split(",")
+      .map((state) => state.trim())
+      .filter((state) => state !== ""),
+  );
   const unknown = named.filter((state) => !isOverviewState(state));
   if (unknown.length > 0) {
     throw new UsageError(`overview --status takes ${OVERVIEW_STATES.join("|")}, not ${unknown.join(", ")}`);

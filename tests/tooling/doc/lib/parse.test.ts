@@ -105,6 +105,7 @@ test("overview reads repeated or comma-separated --status and one --area; no fil
     kind: "overview",
     filter: { states: ["open", "doing", "blocked"], area: "ui" },
   });
+  expect(parseDocCommand(["overview", "--status", "open,"])).toEqual({ kind: "overview", filter: { states: ["open"], area: null } });
   for (const argv of [
     ["overview", "--status", "done"],
     ["overview", "--status", "open,bogus"],
@@ -128,6 +129,8 @@ test("a likely misspelling is refused with the corrected command in the message"
   for (const [argv, fix] of cases) {
     expect(() => parseDocCommand(argv)).toThrow(fix);
   }
+  // `set` is offered only for an item state; a doc status on an id goes on to the tool's own refusal.
+  expect(parseDocCommand(["status", "accepted", "12"])).toMatchObject({ kind: "status", status: "accepted", paths: ["12"] });
 });
 
 test("misuse is a UsageError: an unknown verb, a bad slug, a missing required flag, an unknown flag, a non-numeric id", () => {

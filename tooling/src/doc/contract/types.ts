@@ -151,7 +151,7 @@ export interface DriftFacts {
   /** Branch names not merged into `main`. */
   readonly unmergedBranches: readonly string[];
   /** `Closes:` ids per `main` commit carrying that trailer, across the whole branch, newest first. An id
-   *  still open on the tree is kept only when the commit's parent held the same item file. */
+   *  still open on the tree is dropped when the commit or its parent held only a different file for it. */
   readonly closedOnMain: readonly { readonly sha: string; readonly ids: readonly number[] }[];
   /** Items whose wake condition the tree meets, by id. */
   readonly wokenItems: ReadonlySet<number>;
