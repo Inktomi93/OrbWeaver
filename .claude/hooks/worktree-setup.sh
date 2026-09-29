@@ -58,10 +58,16 @@ if [ -f "$dir/package.json" ]; then
 fi
 
 # A worktree nested under main otherwise borrows main's CodeGraph index, which never shows the
-# lane's own edits. Index the worktree itself, detached so the spawn does not wait on it.
+# lane's own edits. Seed it from main's index (a consistent sqlite snapshot) and sync the delta: ~11 s,
+# inline so the index is complete before the lane's first query (a mid-build db answers "locked").
 if [ -f "$root/.codegraph/codegraph.db" ] && [ ! -e "$dir/.codegraph" ] && command -v codegraph >/dev/null; then
-  setsid codegraph init --yes "$dir" </dev/null >"/tmp/claude-worktree-codegraph-$$.log" 2>&1 &
-  log "codegraph index started ($name)"
+  mkdir -p "$dir/.codegraph"
+  if sqlite3 "$root/.codegraph/codegraph.db" ".backup '$dir/.codegraph/codegraph.db'" && codegraph sync "$dir" </dev/null >/tmp/claude-worktree-codegraph.log 2>&1; then
+    log "codegraph index ready ($name)"
+  else
+    rm -rf "$dir/.codegraph"
+    log "codegraph index FAILED — see /tmp/claude-worktree-codegraph.log; this lane queries main's index"
+  fi
 fi
 
 printf '%s\n' "$dir"
