@@ -86,6 +86,10 @@ function agentRowText(m: ChatHistoryMessage, parts: readonly HistoryPart[] = m.c
  * agent-sdk capability cell declares (only a live probe may flip one). This walk-back would lift a mid-array run
  * out of position if one ever reached it, so a future cell declaring `historySystemRows` on this wire MUST come
  * here first — the enforcer is the capability cell, and this is the coupling it protects.
+ *
+ * @public Test-anchored module surface; tests/inference/backends/agent-sdk/turn-input.test.ts and the
+ *  scripts/probes/f4-cache-proof.ts dev probe call it directly, in addition to the in-file use by
+ *  {@link toAgentSdkChatRequest}.
  */
 export function extractTrailingSystemRows(history: readonly ChatHistoryMessage[]): {
   readonly rows: readonly ChatHistoryMessage[];
@@ -172,6 +176,10 @@ const AGENT_SEED_FRAMES: Record<ChatHistoryMessage["role"], { readonly frame: Ag
  *
  * AN EMPTY-TEXT ROW IS NOT A TURN and never becomes a frame: `message.content: [{type:"text", text:""}]` is a
  * body the Anthropic wire rejects, which would fail every later turn on that lineage rather than this one.
+ *
+ * @public Test-anchored module surface; tests/inference/backends/agent-sdk/turn-input.test.ts and the
+ *  scripts/probes/f4-cache-proof.ts dev probe call it directly, in addition to the in-file use by
+ *  {@link toAgentSdkChatRequest}.
  */
 export function splitAgentHistory(history: readonly ChatHistoryMessage[]): { readonly seed: readonly AgentSeedTurn[]; readonly prompt: string } {
   let tailStart = history.length;

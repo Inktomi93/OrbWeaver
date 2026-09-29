@@ -35,7 +35,9 @@ export interface PickerEntry {
   readonly supportedParameters: readonly string[];
 }
 
-/** A catalog row's display name. Most `/v1/models` lists carry no name, so theirs is the id. */
+/** A catalog row's display name. Most `/v1/models` lists carry no name, so theirs is the id.
+ *  @public Test-anchored module surface; tests/client/features/credentials/lib/model-picker-model.test.ts
+ *  calls it directly. */
 export function modelEntryLabel(entry: Pick<ModelCatalogEntry, "id" | "name">): string {
   return entry.name.trim() === "" ? entry.id : entry.name;
 }
@@ -53,7 +55,9 @@ export function pickerEntryOf(entry: ModelCatalogEntry): PickerEntry {
 }
 
 /** The render cap across ALL provider groups together — a large catalog is sliced so the list never mounts
- *  hundreds of rows. */
+ *  hundreds of rows.
+ *  @public Test-anchored module surface; tests/client/features/credentials/lib/model-picker-model.test.ts
+ *  pins the cap by name (no magic number leaked). */
 export const MODEL_PICKER_RENDER_CAP = 50;
 
 const MILLION = 1_000_000;

@@ -130,6 +130,8 @@ export function renderUnicodeHandleKeyData(sources: UnicodeSources): string {
     `//   ${UNICODE_SOURCES.aliases} sha256 ${digest(sources.aliases)}`,
     "// Entries are hex code points: `source>target` (a target may be a space-separated sequence), or `first-last`.",
     "",
+    "/** @public Test-anchored module surface; tests/kit/handle-key/index.test.ts asserts it against the",
+    " *  engine's live Unicode version. */",
     `export const UNICODE_DATA_VERSION = ${JSON.stringify(UNICODE_DATA_VERSION)};`,
     "",
     constant("CASE_FOLDING", "CaseFolding.txt, statuses C and F: the full case folding.", tables.caseFolding),

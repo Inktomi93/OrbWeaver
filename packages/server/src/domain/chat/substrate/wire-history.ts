@@ -592,7 +592,10 @@ function shiftBreakpoint(
  *  `fitHistory` exactly this: the turn pipeline, whose `droppedCount` then slices the kept wire rows back
  *  out of the same array, and the read verb's previews, which read only the boundary + the numbers. Spelling
  *  it once is the point of the ticket: a second `.map(w => w.costRow)` on the read side is how the two
- *  paths silently disagreed about what a card-heavy history costs. */
+ *  paths silently disagreed about what a card-heavy history costs.
+ *
+ *  @public Test-anchored module surface; tests/server/domain/chat/substrate/wire-history.test.ts asserts
+ *  the CONTRACT this spelling carries directly, in addition to the in-file callers. */
 export function wireCostRows(converted: readonly WireRow[]): ShapedHistoryRow[] {
   return converted.map((w) => w.costRow);
 }
