@@ -6,6 +6,7 @@
 // (scripts/probes/guard-replay.mjs); the rows below pin the shapes that corpus surfaced, including the
 // owner's own false-positive case (a commit MESSAGE mentioning `pnpm check | tail` must never fire) and
 // the heredoc-body leak that once turned a commit message into a `lane-git-push` ask.
+import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { accessSync, constants, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -24,7 +25,7 @@ const PINNED_NOW = "1700000000000";
 // suite executes can never leak a push-in-flight context into an unrelated row
 const EMPTY_PROC = mkdtempSync(join(tmpdir(), "tg-proc-none-"));
 // the exit-code restore survives a trailing comment in the clause AFTER the piped one (it is on its own line)
-const SUFFIX_COMMENT_THEN_EXIT = /echo done # all set\n\( exit \$__tg_ec \)$/;
+const SUFFIX_COMMENT_THEN_EXIT = /\n\( exit \$__tg_ec \); \}; echo done # all set$/;
 const NESTED_DEPTH_CAP_RULE = /nested-depth-cap$/; // the rule id carries one `subst:`/`inline:` per level
 
 interface BatchCase {
@@ -907,6 +908,16 @@ const ROWS: Row[] = [
   // …as is one inside a comment or a heredoc body, which are text guard-wide
   ["pass", null, 'ls packages # never echo "$(git stash)"'],
   ["pass", null, "python3 - <<'PY'\nprint(\"$(git stash)\")\nPY"],
+  // git's bare global flags take no value, so a log/grep argument that reads `commit`/`merge` is not one
+  ["pass", null, "git --no-pager log -S commit | head"],
+  ["pass", null, 'git -C "$WT" log --grep merge | head'],
+  ["allow", "longlived-piped", 'git -C "$WT" commit -m x 2>&1 | tail -3'], // a quoted value is still one word
+  ["deny", "git-destructive", "git --no-pager stash"],
+  ["deny", "git-destructive", 'git -C "$WT" stash'],
+  // a piped `pnpm doc` that cannot be rewritten does not hide a later piped git clause
+  ["advisory", "advisory", "pnpm doc overview | head; git fetch | tail"],
+  // a backgrounded harness keeps its redirect: dropping it would send a background job's output to the tool
+  ["pass", null, "pnpm test:scoped tests/x.test.ts > /tmp/l.log 2>&1 &"],
   // a harness asked only to list its stages or print help is not a run: no artifact, nothing to rewrite
   ["pass", null, "pnpm verify --list | head -n 70"],
   ["pass", null, "pnpm check --help | head"],
@@ -955,6 +966,7 @@ const ROWS: Row[] = [
   ["pass", null, "pnpm doc land -h", LANE],
   ["pass", null, "pnpm doc --help", LANE],
   ["pass", null, "pnpm doc item --help > /tmp/help.txt 2>&1", LANE], // a redirect is not an argument
+  ["deny", "doc-write-lane", 'pnpm doc item "Fix foo" "--kind" "bug" -h', LANE], // quoted words still count
   // the help exemption is only `<verb> --help|-h` alone; a real write carrying `-h` still writes
   ["deny", "doc-write-lane", 'pnpm doc item "Fix foo" --kind bug -h', LANE],
   ["deny", "doc-write-lane", "pnpm doc set 5 done --help", LANE],
@@ -1331,7 +1343,7 @@ test("rewrite: the piped-harness rewrite preserves the reader chain, the log tar
   expect(r.decision).toBe("allow");
   const log = `/repo/reports/tool-guard/run-${PINNED_NOW}.log`;
   // the exit-code restore is on its OWN LINE — see the comment-tail test below for why a `;` was wrong
-  const expected = `pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec )`;
+  const expected = `{ pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec ); }`;
   expect(r.rewrite?.command).toBe(expected);
   expect(r.rewrite?.timeout).toBe(600_000); // verify/check legitimately outrun the 120s default
   // @orb-waive tooling-clock-budget(120_000): the guard's INPUT UNDER TEST — an agent-chosen value handed to runBatch so the suite can assert the guard does not override it; fixture data, not a clock this run pays, and scaling it would make the fixture describe a box instead of an agent. Ends if the suite stops feeding a literal timeout to the guard.
@@ -1349,15 +1361,15 @@ test("rewrite: a verify-family harness piped into a reader targets `pnpm check:s
   const tail = at(runBatch([{ command: "pnpm check | tail -30" }]), 0);
   expect(tail.decision).toBe("allow");
   expect(tail.rule).toBe("harness-piped");
-  const expectedTail = "pnpm check; __tg_ec=$?; pnpm check:show --errors-only\n( exit $__tg_ec )";
+  const expectedTail = "{ pnpm check; __tg_ec=$?; pnpm check:show --errors-only\n( exit $__tg_ec ); }";
   expect(tail.rewrite?.command).toBe(expectedTail);
   expect(tail.rewrite?.command).not.toContain("tool-guard/run-");
   // a grep pattern shaped like a verify stage id (`word:word`) selects that ONE stage's transcript
   const stage = at(runBatch([{ command: "pnpm check 2>&1 | grep -c lint:biome" }]), 0);
-  expect(stage.rewrite?.command).toBe("pnpm check; __tg_ec=$?; pnpm check:show --stage lint:biome\n( exit $__tg_ec )");
+  expect(stage.rewrite?.command).toBe("{ pnpm check; __tg_ec=$?; pnpm check:show --stage lint:biome\n( exit $__tg_ec ); }");
   // a non-stage-shaped grep pattern falls back to the terse view, same as tail/head/wc
   const errorGrep = at(runBatch([{ command: 'pnpm verify --push 2>&1 | grep -E "error|FAIL"' }]), 0);
-  expect(errorGrep.rewrite?.command).toBe("pnpm verify --push; __tg_ec=$?; pnpm check:show --errors-only\n( exit $__tg_ec )");
+  expect(errorGrep.rewrite?.command).toBe("{ pnpm verify --push; __tg_ec=$?; pnpm check:show --errors-only\n( exit $__tg_ec ); }");
   // the exit code preserved is the HARNESS's, not check:show's — proven the same way as the log template
   const tmp = mkdtempSync(join(tmpdir(), "tg-template-"));
   const cmd = `fake_harness() { return 3; }; fake_harness; __tg_ec=$?; pnpm --version > ${join(tmp, "x")}\n( exit $__tg_ec )`;
@@ -1488,6 +1500,16 @@ test("rewrite: a piped `pnpm doc` or `git commit/merge` is a valid pipeRewrite o
     ].map((command) => ({ command })),
   );
   expect(simple.map((r) => r.rule)).toEqual(["doc-piped", "longlived-piped", "longlived-piped", null, null]);
+  // a piped foreground commit/merge also gets the long timeout, unless the caller set one or backgrounded it
+  expect([at(simple, 1).rewrite?.timeout, at(simple, 2).rewrite?.timeout]).toEqual([600_000, 600_000]);
+  const piped = runBatch([
+    { command: "git commit -m x | tail -3", runInBackground: true },
+    { command: "git commit -m x | tail -3", ...AGENT_TIMEOUT },
+  ]);
+  expect(piped.map((r) => [r.rule, r.rewrite?.timeout])).toEqual([
+    ["longlived-piped", undefined],
+    ["longlived-piped", undefined],
+  ]);
   // a backgrounded pipeline still rewrites; the lone `&` left in the remainder is not `true` filler
   const backgrounded = runBatch(["pnpm doc overview | head &", "git commit -m x | tail &"].map((command) => ({ command })));
   expect(backgrounded.map((r) => [r.decision, r.rule])).toEqual([
@@ -1495,7 +1517,7 @@ test("rewrite: a piped `pnpm doc` or `git commit/merge` is a valid pipeRewrite o
     ["allow", "longlived-piped"],
   ]);
   expect(at(simple, 1).rewrite?.command).toMatch(
-    /^git commit -m x > \/repo\/reports\/tool-guard\/run-\d+\.log 2>&1; __tg_ec=\$\?; < \S+ tail -3\n\( exit \$__tg_ec \)$/,
+    /^\{ git commit -m x > \/repo\/reports\/tool-guard\/run-\d+\.log; __tg_ec=\$\?; < \S+ tail -3\n\( exit \$__tg_ec \); \}$/,
   );
 });
 
@@ -1512,6 +1534,8 @@ test("commit timeout: a foreground commit/merge with no timeout gets the long ti
     { command: "git merge-base a b" },
     { command: "git commit -m x; rm -rf /" },
     { command: "git commit -F - <<'EOF'\nfix: the body mentions git stash\nEOF" },
+    { command: 'git -C "$WT" log --grep merge' },
+    { command: "git --no-pager log -S commit" },
   ]);
   expect(rows.map((r) => [r.decision, r.rule, r.rewrite?.command, r.rewrite?.timeout])).toEqual([
     ["allow", "commit-timeout", "git commit -m x", 600_000],
@@ -1524,19 +1548,76 @@ test("commit timeout: a foreground commit/merge with no timeout gets the long ti
     ["ask", "rm-rf-unsafe", undefined, undefined],
     // a heredoc body is text, not a command, even though this rule touches the call
     ["allow", "commit-timeout", "git commit -F - <<'EOF'\nfix: the body mentions git stash\nEOF", 600_000],
+    ["pass", null, undefined, undefined],
+    ["pass", null, undefined, undefined],
   ]);
   const wire = runHook(bashInput("git commit -m 'x y'"), [["CLAUDE_PROJECT_DIR", mkdtempSync(join(tmpdir(), "tg-commit-timeout-"))]]);
   // @orb-waive tooling-clock-budget(600_000): the guard's OUTPUT under test (its REWRITE_TIMEOUT_MS on the wire), not a clock this run pays.
   expect(wire.out.hookSpecificOutput?.updatedInput).toEqual({ command: "git commit -m 'x y'", timeout: 600_000 });
 });
 
+// `updatedInput` REPLACES the tool's arguments, so a rewrite that returned only `command` dropped
+// `run_in_background`, `description` and the rest: every rewrite spreads the original tool_input.
+test("contract: a rewrite keeps every other tool_input field, including run_in_background", () => {
+  const project = mkdtempSync(join(tmpdir(), "tg-tool-input-"));
+  const extra = (pairs: [string, unknown][]): Record<string, unknown> => Object.fromEntries(pairs);
+  const piped = runHook(
+    bashInput(
+      "git commit -m x | tail -3",
+      [],
+      extra([
+        ["run_in_background", true],
+        ["description", "commit"],
+      ]),
+    ),
+    [["CLAUDE_PROJECT_DIR", project]],
+  ).out.hookSpecificOutput?.updatedInput as Record<string, unknown> | undefined;
+  expect(piped?.["run_in_background"]).toBe(true);
+  expect(piped?.["description"]).toBe("commit");
+  expect(piped?.["timeout"]).toBeUndefined();
+  expect(String(piped?.["command"])).toContain("__tg_ec");
+  const timed = runHook(bashInput("git commit -m x", [], extra([["description", "commit"]])), [["CLAUDE_PROJECT_DIR", project]]).out.hookSpecificOutput
+    ?.updatedInput as Record<string, unknown> | undefined;
+  expect(timed).toEqual(
+    extra([
+      ["command", "git commit -m x"],
+      ["description", "commit"],
+      ["timeout", 600_000],
+    ]),
+  );
+});
+
+// The rewritten pipeline is a brace group ending in the exit restore, so what follows the pipeline (`&&`,
+// `||`, `;`, a backgrounding `&`) applies to the group, which carries the command's real status.
+test("rewrite: the chain after a rewritten pipe sees the command's real exit code, and stdout alone reaches the reader", () => {
+  const project = mkdtempSync(join(tmpdir(), "tg-group-"));
+  mkdirSync(join(project, "reports", "tool-guard"), { recursive: true });
+  const rewrite = (command: string): string => String(at(runBatch([{ command, projectDir: project, ...AGENT_TIMEOUT }]), 0).rewrite?.command);
+  const run = (stub: string, command: string): SpawnSyncReturns<string> => spawnSync("bash", ["-c", `${stub}\n${command}`], { encoding: "utf8" });
+  const failing = "git() { echo out; return 3; }";
+  // the positive control: the original pipe runs NEXT after a failed commit
+  expect(run(failing, "git commit -m x | tail -5 && echo NEXT").stdout).toContain("NEXT");
+  const chained = run(failing, rewrite("git commit -m x | tail -5 && echo NEXT"));
+  expect([chained.stdout.trim(), chained.status]).toEqual(["out", 3]);
+  // a backgrounded pipeline stays in the background: `bg` prints before the slow command finishes
+  const slow = "git() { sleep 1; echo late; }";
+  const bg = run(slow, rewrite("git commit -m x | tail -3 & echo bg"));
+  expect(bg.stdout.split("\n").filter((l) => l !== "")).toEqual(["bg", "late"]);
+  // without `2>&1` in the original, stderr stays on the terminal and the reader sees stdout alone
+  const split = run("git() { echo stdout-line; echo err-line >&2; }", rewrite("git commit -m 'a|b' | tail -1"));
+  expect([split.stdout.trim(), split.stderr.trim()]).toEqual(["stdout-line", "err-line"]);
+  // …and with it, both reach the reader, as before
+  const merged = run("git() { echo stdout-line; echo err-line >&2; }", rewrite("git commit -m x 2>&1 | tail -2"));
+  expect(merged.stdout.trim().split("\n")).toEqual(["stdout-line", "err-line"]);
+});
+
 test("rewrite: a known test harness piped into a reader targets its own report artifact", () => {
   const node = at(runBatch([{ command: "pnpm test:node 2>&1 | tail -20" }]), 0);
-  expect(node.rewrite?.command).toBe("pnpm test:node; __tg_ec=$?; < reports/test-report.json tail -20\n( exit $__tg_ec )");
+  expect(node.rewrite?.command).toBe("{ pnpm test:node; __tg_ec=$?; < reports/test-report.json tail -20\n( exit $__tg_ec ); }");
   const ct = at(runBatch([{ command: "pnpm test:ct 2>&1 | grep -i flak" }]), 0);
-  expect(ct.rewrite?.command).toBe("pnpm test:ct; __tg_ec=$?; < reports/ct-flaky.json grep -i flak\n( exit $__tg_ec )");
+  expect(ct.rewrite?.command).toBe("{ pnpm test:ct; __tg_ec=$?; < reports/ct-flaky.json grep -i flak\n( exit $__tg_ec ); }");
   const tooling = at(runBatch([{ command: "pnpm test:tooling 2>&1 | tail -20" }]), 0);
-  expect(tooling.rewrite?.command).toBe("pnpm test:tooling; __tg_ec=$?; < reports/test-report-tooling.json tail -20\n( exit $__tg_ec )");
+  expect(tooling.rewrite?.command).toBe("{ pnpm test:tooling; __tg_ec=$?; < reports/test-report-tooling.json tail -20\n( exit $__tg_ec ); }");
   // `test:scoped` has no fixed report file — it keeps the generic private-log rewrite
   const scoped = at(runBatch([{ command: "pnpm test:scoped tests/x.test.ts 2>&1 | tail -20" }]), 0);
   expect(scoped.rewrite?.command).toContain("tool-guard/run-");
@@ -1547,7 +1628,7 @@ test("rewrite: the emitted template really preserves the harness exit code throu
   // would be a load bomb): red run → reader still sees output, final exit code is the harness's 3.
   const tmp = mkdtempSync(join(tmpdir(), "tg-template-"));
   const log = join(tmp, "run.log");
-  const cmd = `fake_harness() { echo ok; echo bad >&2; return 3; }; fake_harness > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec )`;
+  const cmd = `fake_harness() { echo ok; echo bad >&2; return 3; }; { fake_harness > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec ); }`;
   const r = spawnSync("bash", ["-c", cmd], { encoding: "utf8" });
   expect(r.stdout).toContain("ok");
   expect(r.stdout).toContain("bad"); // stderr was merged into the log, so the reader surfaces it
@@ -1564,7 +1645,7 @@ test("rewrite: a trailing comment cannot swallow the exit-code restore", () => {
   // verify-family/test-family harness discards the reader chain (and any comment riding on it) entirely.
   const r = at(runBatch([{ command: "pnpm typecheck 2>&1 | tail -30 # note about the run" }]), 0);
   const log = `/repo/reports/tool-guard/run-${PINNED_NOW}.log`;
-  expect(r.rewrite?.command).toBe(`pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -30 # note about the run\n( exit $__tg_ec )`);
+  expect(r.rewrite?.command).toBe(`{ pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -30 # note about the run\n( exit $__tg_ec ); }`);
   // …and the same for a comment in the clause AFTER the piped one
   const suffixed = at(runBatch([{ command: "pnpm typecheck | tail -5; echo done # all set" }]), 0);
   expect(suffixed.rewrite?.command).toMatch(SUFFIX_COMMENT_THEN_EXIT);
@@ -1575,7 +1656,7 @@ test("rewrite: a trailing comment cannot swallow the exit-code restore", () => {
   // the OLD template, planted as a positive control: the comment eats the restore and the red run reads 0
   expect(runTemplate(`${body(join(tmp, "a.log"))}; ( exit $__tg_ec )`)).toBe(0);
   // the emitted one: the newline ends the comment, so the harness's 3 survives
-  expect(runTemplate(`${body(join(tmp, "b.log"))}\n( exit $__tg_ec )`)).toBe(3);
+  expect(runTemplate(`{ ${body(join(tmp, "b.log"))}\n( exit $__tg_ec ); }`)).toBe(3);
 });
 
 test("rewrite: a raw CT invocation becomes `pnpm test:ct`, carrying the runner flags and dropping -c", () => {
@@ -2106,7 +2187,7 @@ test("contract: a rewrite emits updatedInput, creates the log dir, and logs the 
   const h = out.hookSpecificOutput;
   expect(h?.permissionDecision).toBe("allow");
   const log = `${tmp}/reports/tool-guard/run-${PINNED_NOW}.log`;
-  expect(h?.updatedInput?.command).toBe(`pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec )`);
+  expect(h?.updatedInput?.command).toBe(`{ pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec ); }`);
   expect(h?.updatedInput?.timeout).toBe(600_000);
   expect(h?.additionalContext).toContain("tool-guard rewrote this command");
   expect(existsSync(`${tmp}/reports/tool-guard`)).toBe(true); // the redirect target's dir exists before the shell needs it
