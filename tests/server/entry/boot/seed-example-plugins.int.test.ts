@@ -34,9 +34,10 @@ import { buildPluginStorage, createSurfaceStatePublisher } from "@orb/server/dom
 import { createPluginHost } from "@orb/server/infra/plugin-host";
 import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { unzipSync, zipSync } from "fflate";
-import { beforeAll } from "vitest";
+import { afterEach, beforeAll } from "vitest";
 import type { ExamplePluginSeederDeps } from "../../../../packages/server/src/entry/boot/seed-example-plugins.ts";
 import { createExamplePluginSeeder } from "../../../../packages/server/src/entry/boot/seed-example-plugins.ts";
+import { __terminateManagedPluginBrokerForTest } from "../../../../packages/server/src/infra/plugin-host/process-runtime.ts";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "../../../../packages/showcase-plugins/src/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
@@ -52,6 +53,14 @@ const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 beforeAll(async () => {
   const built = await writeShowcaseArtifacts(REPO_ROOT);
   expect(built.diagnostics).toEqual([]);
+});
+
+// Every `realHost()` below opens its own logical pool, but all of them share the one physical broker
+// process (`process-runtime.ts`'s module-level singleton) and its fixed Worker cap. Without a terminate
+// between tests, activated-but-never-disposed runtimes from earlier tests pin that shared capacity and
+// starve later ones — the same reset `tests/server/infra/plugin-host/process-runtime.test.ts` takes.
+afterEach(async () => {
+  await __terminateManagedPluginBrokerForTest();
 });
 
 /** The production runtime under DETERMINISTIC seams — the same object compose builds, so the membrane, the
