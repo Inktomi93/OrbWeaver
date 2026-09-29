@@ -2664,10 +2664,10 @@ function classifyCommandLine(command, blank, clauses, ctx) {
 // a permission defer and the guard was repeatedly (wrongly) exonerated.
 const BRIEFING = [
   "TOOL-GUARD IS ACTIVE on Bash in this repo (.claude/hooks/tool-guard.mjs). What it does to you:",
-  "· REWRITES a harness command piped into tail/head/grep into a redirect + reader — your exit code and",
-  "  artifacts survive. A pipeline returns the READER's status, and it can hang forever because",
-  "  playwright/vite/stack children inherit the pipe. Just redirect: `<cmd> > run.log 2>&1`, then read",
-  "  the log and reports/verify.json.",
+  "· REWRITES a harness command piped into tail/head/grep into a redirect + reader, so the exit code",
+  "  survives. A pipeline returns the READER's status and can hang, because playwright/vite/stack children",
+  "  inherit the pipe. Run the harness bare instead: its exit code is the verdict. Start a long run with",
+  "  run_in_background and read results with `pnpm check:show`, not a log you wrote.",
   "· REWRITES a raw `playwright test` CT run into `pnpm test:ct <paths>` — the script owns the config, the",
   "  per-invocation build cache, the exclusion lock that catches a racing sibling runner, and the nice floor.",
   "· DENIES: `git stash`/`restore`/`checkout <path>`/`checkout-index -f` (they destroy uncommitted work — use",

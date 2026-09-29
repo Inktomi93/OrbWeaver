@@ -104,9 +104,11 @@ List each command and its result in the report. The whole-tree check is the orch
 
 ## Long runs
 
-- Redirect a run under ten minutes to a log: `<cmd> > <log> 2>&1; echo EXIT=$?`. Read the log in a later call of the same turn.
-- Start a longer run detached with its exit code written to a file. Report the log path and stop; the orchestrator resumes you.
-- A finished turn is never woken by its own background job.
+- Run a harness bare: `pnpm check`, `pnpm verify …`, `pnpm test:scoped …`. Its exit code is the verdict.
+- Start a run that outlasts one call with the Bash tool's `run_in_background`. The harness notifies you when it exits.
+- Read results with `pnpm check:show` and the artifacts `AGENTS.md` names, not a log you wrote.
+- Never wait on `pgrep` of a harness name. It matches every checkout on the box, so a sibling's run blocks you.
+- Stop your own verify with the orchestrator skill's checkout-scoped stop. Killing `git commit` leaves its hook running.
 
 ## Rendered proof
 
