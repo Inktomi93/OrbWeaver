@@ -373,6 +373,113 @@ test("prefixBound: stated for opus-5-5 and the 5.1 point releases, not for the i
   }
 });
 
+// Every Claude generation released before 2026-10-01 other than Opus 5.5 and Fable 5.1 runs no prefix check
+// (platform.claude.com/docs/en/build-with-claude/preserved-thinking); every later model runs it on every account.
+// The older ids keep an absent cell in every spelling they arrive in: an alias, a dated snapshot, an OpenRouter id.
+const UNCHECKED_CLAUDE = [
+  "claude-opus-5",
+  "claude-sonnet-5",
+  "claude-fable-5",
+  "claude-mythos-5",
+  "claude-opus-4-8",
+  "claude-opus-4-7",
+  "claude-opus-4-6",
+  "claude-opus-4-5",
+  "claude-opus-4-1",
+  "claude-opus-4-0",
+  "claude-opus-4",
+  "claude-sonnet-4-6",
+  "claude-sonnet-4-5",
+  "claude-sonnet-4-0",
+  "claude-sonnet-4",
+  "claude-haiku-4-5",
+  "claude-opus-4-5-20251101",
+  "claude-sonnet-4-5-20250929",
+  "claude-haiku-4-5-20251001",
+  "claude-opus-4-1-20250805",
+  "claude-sonnet-4-20250514",
+  "claude-opus-5-20260915",
+  "claude-3-7-sonnet-20250219",
+  "claude-3-5-haiku-latest",
+  "anthropic/claude-opus-4.8",
+  "anthropic/claude-sonnet-4.5",
+  "anthropic/claude-haiku-4.5",
+  "anthropic/claude-3.7-sonnet:thinking",
+];
+
+// An id no row measured: a point release, a new family, a snapshot dated on or after 2026-10-01, in either spelling.
+const UNMEASURED_CLAUDE = [
+  "claude-opus-5-6",
+  "claude-sonnet-5-1",
+  "claude-fable-5-2",
+  "claude-mythos-5-2",
+  "claude-opus-4-9",
+  "claude-haiku-5",
+  "claude-opus-6",
+  "claude-opus-5-20261001",
+  "claude-sonnet-5-20270101",
+  "anthropic/claude-opus-5.6",
+  "anthropic/claude-sonnet-5.1:thinking",
+];
+
+test("prefixBound fails closed: an unmeasured Claude id is prefix-bound on every route, and no older id changes", () => {
+  for (const model of UNMEASURED_CLAUDE) {
+    expect(direct(model).reasoning.prefixBound, model).toBe(true);
+    expect(viaOpenRouter(model).reasoning.prefixBound, model).toBe(true);
+  }
+  for (const model of UNCHECKED_CLAUDE) {
+    expect(direct(model).reasoning.prefixBound, model).toBeUndefined();
+    expect(viaOpenRouter(model).reasoning.prefixBound, model).toBeUndefined();
+  }
+});
+
+function onRoute(route: typeof DIRECT | typeof OPENROUTER | typeof AGENT_SDK_ROUTE, model: string): GenerationCapability {
+  const out = synthesizeCapability("generation", "anthropic", { curated: curatedRows({ model, ...route }) });
+  if (out.capability.kind !== "generation") {
+    throw new Error("expected a generation capability");
+  }
+  return out.capability.generation;
+}
+
+// The direct wire sends `drop_block` on a carried turn, and the Claude runtime carries none of our thinking, so a
+// prefix edit cannot fail the turn there. OpenRouter's chat-completions body has no `block_binding` field.
+test("prefixEditSafe: stated on the direct wire and the agent-sdk runtime, absent on OpenRouter", () => {
+  for (const model of ["claude-opus-5-5", "claude-fable-5-1", "claude-opus-5-6", "claude-opus-5"]) {
+    expect(onRoute(DIRECT, model).reasoning.prefixEditSafe, model).toBe(true);
+    expect(onRoute(AGENT_SDK_ROUTE, model).reasoning.prefixEditSafe, model).toBe(true);
+    expect(onRoute(OPENROUTER, `anthropic/${model}`).reasoning.prefixEditSafe, model).toBeUndefined();
+  }
+});
+
+const CONVERSATION = { effort: "high", carryReasoning: "conversation" } as const;
+
+function carryDowngrades(knobs: ReturnType<typeof resolveChat>): readonly string[] {
+  return knobs.warnings.flatMap((w) => (w.code === "carry_reasoning_downgraded" ? [w.knob ?? "no knob"] : []));
+}
+
+// OpenRouter may enforce the prefix check and cannot ask the API to drop a stale block, so a prefix-bound model
+// there replays thinking only inside one turn's tool loop, where the prefix does not change. Unverified on
+// OpenRouter's side (its docs are unreachable here), so the route fails closed and says so on the turn.
+test("carry `conversation` on OpenRouter runs as `tool-chain` for a prefix-bound model, with carry_reasoning_downgraded", () => {
+  for (const model of ["anthropic/claude-opus-5.5", "anthropic/claude-fable-5.1", "anthropic/claude-opus-5.6"]) {
+    const knobs = resolveChat(CONVERSATION, viaOpenRouter(model));
+    expect(knobs.carryReasoning, model).toBe("tool-chain");
+    expect(carryDowngrades(knobs), model).toStrictEqual(["carryReasoning"]);
+  }
+  // CONTROLS: an older id on the same route, the same model on the direct wire, and a `tool-chain` ask.
+  for (const knobs of [
+    resolveChat(CONVERSATION, viaOpenRouter("anthropic/claude-opus-5")),
+    resolveChat(CONVERSATION, direct("claude-opus-5-5")),
+    resolveChat(CONVERSATION, direct("claude-opus-5-6")),
+  ]) {
+    expect(knobs.carryReasoning).toBe("conversation");
+    expect(carryDowngrades(knobs)).toStrictEqual([]);
+  }
+  const toolChain = resolveChat({ effort: "high", carryReasoning: "tool-chain" }, viaOpenRouter("anthropic/claude-opus-5.5"));
+  expect(toolChain.carryReasoning).toBe("tool-chain");
+  expect(carryDowngrades(toolChain)).toStrictEqual([]);
+});
+
 // ── The system-row facts and the message-handling floor, per route and model (SHAPING-MATRIX §5, §7) ─────────
 // A system row stays a `system` row only where the model takes it in that slot: the tail
 // (`midConversationSystem`) and mid-array (`historySystemRows`) are measured separately, and a model that takes

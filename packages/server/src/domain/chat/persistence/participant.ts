@@ -94,6 +94,25 @@ export function parseParticipant(row: ParticipantRowShape): ParticipantActor {
   return actor;
 }
 
+/** Every character seat's id, in roster order, each once (a corrupt row is skipped, as {@link classifyParticipant} does). */
+export function characterIdsOf(rows: readonly ParticipantRowShape[]): CharacterId[] {
+  const ids: CharacterId[] = [];
+  for (const row of rows) {
+    const actor = classifyParticipant(row);
+    if (actor?.kind === "character" && !ids.includes(actor.characterId)) {
+      ids.push(actor.characterId);
+    }
+  }
+  return ids;
+}
+
+/** The room's subject character when a request names none: the first character seat in roster order. The
+ *  imagery shaper resolves `{{char}}` to it, so a chat-generated picture was generated for it and joins its
+ *  gallery. `null` for a room with no character seat. */
+export function firstCharacterIdOf(rows: readonly ParticipantRowShape[]): CharacterId | null {
+  return characterIdsOf(rows)[0] ?? null;
+}
+
 /** A `character` participant is always `role='member'` — a character can never be the host. */
 export function assertForcedCharacterMember(p: { readonly kind: ParticipantKind; readonly role: ParticipantRole }): void {
   if (p.kind === "character" && p.role !== "member") {

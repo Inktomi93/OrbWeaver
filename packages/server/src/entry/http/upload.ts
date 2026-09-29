@@ -9,12 +9,14 @@
 //
 // The import route accepts already-extracted card files; a profile ZIP / dir collection is a later wave.
 
-import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
+import type { AssetKind, AssetUploadRefusal, StoredAsset } from "@orb/contracts/assets";
 import { assetKindSchema } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { AssetContentRejectedError } from "#domain/assets";
 import type { DatabankService } from "#domain/databank";
 import { hasCsrfHeader } from "#infra/auth";
 import type { ImportAssetPort, ImportCharacterPort, ImportFile, ImportTagPort, ImportWorldInfoPort, ProfileImportResult } from "../import/index.ts";
@@ -25,6 +27,9 @@ const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
 const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
+const UNSUPPORTED_MEDIA_TYPE = 415;
+/** The store verb's over-cap refusal code (`domain/assets/verbs/store.ts`). */
+const ASSET_TOO_LARGE = "asset_too_large";
 const FALLBACK_MIME = "application/octet-stream";
 const ASSET_UPLOAD_ROUTE = "/api/assets/upload";
 const IMPORT_ROUTE = "/api/import";
@@ -102,6 +107,23 @@ function bodyCap(maxBytes: number): ReturnType<typeof bodyLimit> {
   return bodyLimit({ maxSize: maxBytes, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) });
 }
 
+/** The reason sent for an upload over the effective size cap. */
+const TOO_LARGE_REASON = "it is over the upload size limit";
+
+/** The typed answer for a store refusal the person can act on; rethrows any other fault. */
+function uploadRefusal(
+  c: { readonly json: (body: AssetUploadRefusal, status: typeof UNSUPPORTED_MEDIA_TYPE | typeof PAYLOAD_TOO_LARGE) => Response },
+  err: unknown,
+): Response {
+  if (err instanceof AssetContentRejectedError) {
+    return c.json({ error: err.reason }, UNSUPPORTED_MEDIA_TYPE);
+  }
+  if (err instanceof DomainOperationError && err.code === ASSET_TOO_LARGE) {
+    return c.json({ error: TOO_LARGE_REASON }, PAYLOAD_TOO_LARGE);
+  }
+  throw err;
+}
+
 /** Register `POST /api/assets/upload` + `POST /api/import` on `app`. Each: auth-first → CSRF → body cap → handler. */
 export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void {
   app.post(ASSET_UPLOAD_ROUTE, authCsrfGuard, bodyCap(ASSET_UPLOAD_MAX_BYTES), async (c) => {
@@ -123,15 +145,20 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     // kind (document/plugin bundle) keeps the fixed route cap. Keyed on the mime family the store's magic
     // sniff verifies anyway, so the cap matches the bytes actually being stored.
     const maxBytes = mime.startsWith(IMAGE_MIME_PREFIX) ? Math.min(ASSET_UPLOAD_MAX_BYTES, deps.maxImageBytes()) : ASSET_UPLOAD_MAX_BYTES;
-    const stored = await deps.assets.store({
-      principal,
-      bytes: await fileBytes(file),
-      kind: kind.data,
-      mime,
-      enforceMagic: true,
-      maxBytes,
-    });
-    return c.json(stored);
+    // @orb-waive caught-failure-ownership(err): answered — a refusal the person can fix becomes a 4xx carrying its reason; any other fault is rethrown to the app's error boundary. Ends if this stops being the terminal HTTP handler.
+    try {
+      const stored = await deps.assets.store({
+        principal,
+        bytes: await fileBytes(file),
+        kind: kind.data,
+        mime,
+        enforceMagic: true,
+        maxBytes,
+      });
+      return c.json(stored);
+    } catch (err) {
+      return uploadRefusal(c, err);
+    }
   });
 
   // The databank doc-upload route: a single source document → databank.upload (CAS store → extract → row →

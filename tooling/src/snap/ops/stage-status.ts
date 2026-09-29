@@ -26,7 +26,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import { readConcurrencyProfile } from "../../_shared/concurrency-profile.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runGit } from "../../_shared/git.ts";
-import { listeningPids } from "../../_shared/platform.ts";
+import { listeningPids, socketTableOrThrow } from "../../_shared/platform.ts";
 import { RESERVED_PORTS, STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
 import { processEnvValue } from "../../_shared/process-env.ts";
 import { pidAlive } from "../../_shared/run-retention.ts";
@@ -51,10 +51,10 @@ import { sessionStatusSummary } from "./session-registry.ts";
 import { stageBandViews, stageLimits } from "./stage-census.ts";
 import { repoRoot } from "./stage-git.ts";
 import { clearRow, markerRoot, readBands } from "./stage-marker.ts";
-import { killProcessGroup, pidElapsedSeconds, pidIsStageRooted, stageDirs } from "./stage-probe.ts";
+import { pidElapsedSeconds, stageBandPortPid, stageDirs } from "./stage-probe.ts";
 import { describeStageReaps, recordStageReap } from "./stage-reap-log.ts";
 import { removeStageDir } from "./stage-source.ts";
-import { stopStage } from "./stage-teardown.ts";
+import { reapStrandedBand, stopStage, tearDownRowlessBand } from "./stage-teardown.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -80,22 +80,21 @@ function bandCensus(
 ): {
   readonly views: readonly StageBandView[];
   readonly verdicts: ReadonlyMap<number, StageSweepVerdict>;
-  readonly pids: ReadonlyMap<number, readonly number[]>;
 } {
   const rows = readBands(markerRoot(root));
   // `targetSha: null` — the status read arbitrates nothing, so no row is a shared-reuse candidate and no
   // health probe is taken. A visibility read must never spawn a served-probe child per band.
   const views = stageBandViews({ rows, root, checkout: root, targetSha: null, nowMs });
-  const bound = listeningPids();
+  const bound = socketTableOrThrow(listeningPids());
   const verdicts = new Map<number, StageSweepVerdict>();
-  const pids = new Map<number, readonly number[]>();
   for (const view of views) {
     const ports = stageBandPorts(view.band);
-    const held = [bound.get(ports.server), bound.get(ports.vite)].filter((pid): pid is number => pid !== undefined);
-    pids.set(view.band, held);
+    // Named pids only: an unnamed holder has no age or group to read, and it already keeps the band from
+    // reading stage-rooted, so no verdict here reaps it.
+    const held = [stageBandPortPid(ports.server, bound), stageBandPortPid(ports.vite, bound)].filter((pid): pid is number => pid !== null);
     verdicts.set(view.band, stageSweepVerdict(evidenceFor(view, held, nowMs), stageLimits().ttlMs));
   }
-  return { views, verdicts, pids };
+  return { views, verdicts };
 }
 
 function evidenceFor(view: StageBandView, pids: readonly number[], nowMs: number): StageSweepEvidence {
@@ -176,12 +175,12 @@ export function sweepStages(): string {
   const root = repoRoot();
   const home = markerRoot(root);
   const nowMs = Date.now();
-  const { views, verdicts, pids } = bandCensus(root, nowMs);
+  const { views, verdicts } = bandCensus(root, nowMs);
   const done: string[] = [];
   for (const view of views) {
     const verdict = verdicts.get(view.band) ?? "unbound";
     if (verdict === "stranded") {
-      done.push(reapBand(home, view, pids.get(view.band) ?? []));
+      done.push(reapStrandedBand(home, view));
     } else if (rowIsDangling(view.row, verdict) && view.row !== null) {
       done.push(reconcileDanglingRow(root, home, view.row, nowMs));
     }
@@ -201,20 +200,6 @@ export function sweepStages(): string {
     return "nothing to sweep — no stranded stage, no dangling row, no orphaned stage dirs";
   }
   return done.join("; ");
-}
-
-/** Stop it the polite way first when we know its dir (the stack's own `stop` reaps its pidfiles); the
- *  group kill is the backstop for exactly the detached-leader case that made #324. */
-function reapBand(home: string, view: StageBandView, pids: readonly number[]): string {
-  if (view.row !== null) {
-    stopStage(view.row.dir, { server: view.row.serverPort, vite: view.row.vitePort });
-  }
-  const killed = pids.filter((pid) => pidIsStageRooted(pid) && killProcessGroup(pid));
-  clearRow(home, view.band);
-  if (view.row !== null) {
-    recordStageReap(home, view.row, "sweep");
-  }
-  return `band ${view.band}: reaped a stranded stage (stopped ${view.row === null ? "(no row)" : shortSha(view.row.sha)}, killed ${killed.length} process group(s), cleared the row)`;
 }
 
 function reconcileDanglingRow(root: string, home: string, row: StageRow, nowMs: number): string {
@@ -243,10 +228,10 @@ export function teardownStage(selection: { readonly force: boolean; readonly own
   const root = repoRoot();
   const home = markerRoot(root);
   const nowMs = Date.now();
-  const { views, verdicts, pids } = bandCensus(root, nowMs);
+  const { views, verdicts } = bandCensus(root, nowMs);
   const results: string[] = [];
   for (const view of views) {
-    results.push(...teardownView({ root, home, view, verdict: verdicts.get(view.band) ?? "unbound", pids: pids.get(view.band) ?? [], selection, nowMs }));
+    results.push(...teardownView({ root, home, view, verdict: verdicts.get(view.band) ?? "unbound", selection, nowMs }));
   }
   // Same fourth residue as the sweep's (#1848): a browser whose snap run is gone survives every kill above,
   // because playwright gives each one its own session. `--stage-down` is a teardown too, so it reaps them.
@@ -273,13 +258,12 @@ function teardownView(input: {
   readonly home: string;
   readonly view: StageBandView;
   readonly verdict: StageSweepVerdict;
-  readonly pids: readonly number[];
   readonly selection: { readonly force: boolean; readonly owner: string | null };
   readonly nowMs: number;
 }): readonly string[] {
-  const { root, home, view, verdict, pids, selection, nowMs } = input;
+  const { root, home, view, verdict, selection, nowMs } = input;
   if (view.row === null) {
-    return selection.owner === null ? teardownRowlessBand(view, pids) : [];
+    return selection.owner === null ? tearDownRowlessBand(view) : [];
   }
   if (!selectsTeardownRow(view.row, root, selection.owner)) {
     return [];
@@ -306,7 +290,10 @@ function foreignSkipLine(row: StageRow, inUse: boolean, checkout: string, nowMs:
 function teardownRow(root: string, home: string, row: StageRow): string {
   const whose = row.checkout === root ? "" : ` owned by ${row.checkout}`;
   try {
-    stopStage(row.dir, { server: row.serverPort, vite: row.vitePort });
+    const stop = stopStage(row.dir, { server: row.serverPort, vite: row.vitePort });
+    if (stop.kind === "unconfirmed") {
+      return `band ${row.band}: partial teardown of ${shortSha(row.sha)}${whose}: the stack stop is not confirmed (${stop.reason}); the row and ${row.sha === DIRTY_STAGE_KEY ? "dir" : "worktree"} are kept`;
+    }
     removeStageDir(row.checkout, row);
   } catch (e) {
     return `band ${row.band}: partial teardown of ${shortSha(row.sha)}${whose}: ${errorMessage(e)}`;
@@ -314,14 +301,4 @@ function teardownRow(root: string, home: string, row: StageRow): string {
   clearRow(home, row.band);
   recordStageReap(home, row, "down");
   return `band ${row.band}: tore down stage ${shortSha(row.sha)}${whose} (stack stopped, ${row.sha === DIRTY_STAGE_KEY ? "dir" : "worktree"} removed) — last used ${describeStageAgePhrase(row.lastUsedAt, Date.now())}, idle ${Math.round(stageIdleMs(row, Date.now()) / MS_PER_MINUTE)}m`;
-}
-
-/** The row-less fallback: a band bound by a stage-rooted process no row accounts for (a killed-mid-write
- *  table, or a pre-#1276 stage). Kill its group; never touch a holder we could not identify. */
-function teardownRowlessBand(view: StageBandView, pids: readonly number[]): readonly string[] {
-  if (!(view.bandBound && view.bandIsStageRooted)) {
-    return [];
-  }
-  const killed = pids.filter((pid) => killProcessGroup(pid));
-  return [`band ${view.band}: row-less teardown — killed ${killed.length} stage-rooted band process group(s)`];
 }

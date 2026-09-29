@@ -173,6 +173,13 @@ export interface ImageryContext {
    *  character DOMAIN view (`CharacterCard` carries no `contentHash` — it lives on the flat row). */
   readonly getCard: (caller: Principal, characterId: CharacterId) => Promise<ImageryCard>;
   readonly recordStats: (delta: StatsDelta) => Promise<void>;
+  /** Does `ownerId` own `characterId`? The auto-curation gate, read before any spend so a picture made in a
+   *  shared room never targets another principal's character. Wired to the same owner-scoped `characters`
+   *  read the gallery add verb gates on. */
+  readonly ownsCharacter: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
+  /** `assets.addToGallery` under the caller's principal: join an owned picture to the caller's gallery as
+   *  this character's. Idempotent on `(assetId, subjectCharacterId)`. */
+  readonly addToGallery: (caller: Principal, assetId: AssetId, subjectCharacterId: CharacterId) => Promise<void>;
 }
 
 /** The imagery surface — the orchestrator + the standalone extraction preview. */

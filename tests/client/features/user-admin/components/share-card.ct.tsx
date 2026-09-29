@@ -1,12 +1,15 @@
 // CT: the owner's Share card, mounted inside the real Multi-user section. It proves the precondition rows and their
 // fixes, the link and its copy button on `up`, the "link changed" notice, where focus lands after each action that
-// unmounts its own control, the refusal announcement, and that nothing above the card moves as the relay changes.
+// unmounts its own control, the refusal announcement, that nothing above the card moves as the relay changes, the
+// IP certificate block in its offer, in-progress, active and failed states (D275), and that the plain-http warning
+// shows exactly when a password on this page crosses a network in clear.
 // Assertions ride roles, focus, geometry and the card's data attributes; no copy is asserted.
 
-import type { AuthMode, ShareStatus } from "@orb/contracts/identity";
+import type { AuthMode, IpCertificateSetting, IpCertificateStatus, ShareStatus } from "@orb/contracts/identity";
 import { copyActionName } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { GovernanceSectionsStory } from "../_ct-stories.tsx";
@@ -20,32 +23,38 @@ const DELEGATED_ADMIN = { userId: "user_admin", handle: "admin", globalRole: "ad
 const FIRST_URL = "https://first-words-here.trycloudflare.com";
 const SECOND_URL = "https://other-words-now.trycloudflare.com";
 
-const OFF: ShareStatus = { relay: { state: "off" }, liveSocketCount: 0, publicAddresses: [], standingRefusal: null };
+const CERTIFICATE_OFF: IpCertificateStatus = { state: "off" };
+const OFF: ShareStatus = { relay: { state: "off" }, liveSocketCount: 0, publicAddresses: [], certificate: CERTIFICATE_OFF };
 const STARTING: ShareStatus = {
   relay: { state: "starting", relay: "quick", restartAfter: null },
   liveSocketCount: 0,
   publicAddresses: [],
-  standingRefusal: null,
+  certificate: CERTIFICATE_OFF,
 };
-const UP_FIRST: ShareStatus = { relay: { state: "up", relay: "quick", url: FIRST_URL }, liveSocketCount: 3, publicAddresses: [], standingRefusal: null };
-const UP_SECOND: ShareStatus = { relay: { state: "up", relay: "quick", url: SECOND_URL }, liveSocketCount: 1, publicAddresses: [], standingRefusal: null };
+const UP_FIRST: ShareStatus = { relay: { state: "up", relay: "quick", url: FIRST_URL }, liveSocketCount: 3, publicAddresses: [], certificate: CERTIFICATE_OFF };
+const UP_SECOND: ShareStatus = {
+  relay: { state: "up", relay: "quick", url: SECOND_URL },
+  liveSocketCount: 1,
+  publicAddresses: [],
+  certificate: CERTIFICATE_OFF,
+};
 const DOWN_RESTARTING: ShareStatus = {
   relay: { state: "down", relay: "quick", reason: "exited", restarting: true },
   liveSocketCount: 0,
   publicAddresses: [],
-  standingRefusal: null,
+  certificate: CERTIFICATE_OFF,
 };
 const RESTART_STARTING: ShareStatus = {
   relay: { state: "starting", relay: "quick", restartAfter: "exited" },
   liveSocketCount: 0,
   publicAddresses: [],
-  standingRefusal: null,
+  certificate: CERTIFICATE_OFF,
 };
 const GAVE_UP: ShareStatus = {
   relay: { state: "down", relay: "quick", reason: "launch_failed", restarting: false },
   liveSocketCount: 0,
   publicAddresses: [],
-  standingRefusal: null,
+  certificate: CERTIFICATE_OFF,
 };
 
 const SEATING_ON: Partial<EffectiveAppSettings> = { localMultiUser: true, discreetLogin: true };
@@ -67,9 +76,11 @@ interface ShareStub {
   readonly initial: ShareStatus;
   /** What `share.start` makes the server hold next, in call order; `null` refuses that call. */
   readonly starts?: readonly (ShareStatus | null)[];
-  /** The refusal a `null` start answers with. Defaults to the container refusal. */
+  /** The refusal a `null` start answers with. Defaults to a failed relay download. */
   readonly refusal?: { readonly reason: string; readonly message: string };
   readonly users?: readonly ListedUser[];
+  /** How the owner's own request reached the server. Defaults to plain http from a private network. */
+  readonly reach?: Pick<AuthConfig, "transport" | "clientScope">;
 }
 
 interface ShareServer {
@@ -81,7 +92,7 @@ interface ShareServer {
 // The server's relay is one mutable status: start and stop move it, the test moves it between polls, and every poll
 // reads it. The settings write lands in the settings read, as the real server's does.
 async function stubShare(page: Page, stub: ShareStub): Promise<ShareServer> {
-  await stubAuthConfig(page, stub.mode);
+  await stubAuthConfig(page, stub.mode, stub.reach);
   let current = stub.initial;
   let resolved = stub.resolved ?? SEATING_ON;
   const starts = [...(stub.starts ?? [])];
@@ -100,10 +111,23 @@ async function stubShare(page: Page, stub: ShareStub): Promise<ShareServer> {
       current = OFF;
       return current;
     },
+    // The IP certificate: a home-network address is the server's coded refusal, anything else starts an order.
+    "share.enableIpCertificate": (input: unknown) => {
+      const setting = input as IpCertificateSetting;
+      if (setting.address.startsWith("192.168.")) {
+        return trpcError({ code: "BAD_REQUEST", reason: "ip_certificate_not_public", message: `${setting.address} is not a public internet address.` });
+      }
+      current = { ...current, certificate: { state: "obtaining", setting } };
+      return current;
+    },
+    "share.disableIpCertificate": () => {
+      current = { ...current, certificate: CERTIFICATE_OFF };
+      return current;
+    },
     "share.start": () => {
       const next = starts.shift();
       if (next === null || next === undefined) {
-        const refusal = stub.refusal ?? { reason: "share_in_container", message: "This server runs in a container, which carries no relay." };
+        const refusal = stub.refusal ?? { reason: "relay_binary_download_failed", message: "Could not download the relay: HTTP 503." };
         return trpcError({ code: "BAD_REQUEST", ...refusal });
       }
       current = next;
@@ -302,6 +326,30 @@ test("the running card orders the link, its warning, the room picker, then the n
     .toBe(true);
 });
 
+// The owner's own page is on plain http. From another machine, private or public, the owner's password crosses a
+// network in clear; from this machine it crosses none, and over https it is encrypted.
+const PLAIN_HTTP_CASES: readonly { readonly reach: Pick<AuthConfig, "transport" | "clientScope">; readonly warns: boolean }[] = [
+  { reach: { transport: "http", clientScope: "private" }, warns: true },
+  { reach: { transport: "http", clientScope: "public" }, warns: true },
+  { reach: { transport: "http", clientScope: "loopback" }, warns: false },
+  { reach: { transport: "https", clientScope: "public" }, warns: false },
+];
+
+for (const { reach, warns } of PLAIN_HTTP_CASES) {
+  test(`${reach.transport} from a ${reach.clientScope} client ${warns ? "warns" : "does not warn"} that a password crosses the network in clear`, async ({
+    mount,
+    page,
+  }) => {
+    await stubShare(page, { mode: "local", initial: UP_FIRST, reach });
+    await mount(<GovernanceSectionsStory />);
+
+    const card = shareCard(page);
+    // The running panel is up in every case, so a missing warning is the predicate's answer, not an unmounted panel.
+    await expect(card.locator('[data-share-warning="public-link"]')).toBeVisible();
+    await expect(card.locator('[data-share-warning="plain-http"]')).toHaveCount(warns ? 1 : 0);
+  });
+}
+
 // Rows read as separate items: the space between two rows is wider than the space inside one.
 test("before a share, the gap between precondition rows is wider than the gap inside a row", async ({ mount, page }) => {
   await stubShare(page, { mode: "local", resolved: SEATING_OFF, initial: OFF });
@@ -341,23 +389,6 @@ test("a refused start is announced on the row it belongs to, and Start sharing s
   await expect(card.locator("[data-share-state]")).toHaveAttribute("data-share-state", "off");
   await expect(card.getByRole("button", { name: "Start sharing" })).not.toHaveAttribute("aria-disabled", "true");
   await expect.poll(() => trpc.count("share.start")).toBe(1);
-});
-
-// A container carries no relay, and the server knows it without a start: the relay row shows that refusal before any
-// press and holds Start, instead of reading "checked on start" and refusing only after the press.
-test("in a container the relay row shows its refusal before any press, and Start sharing is held", async ({ mount, page }) => {
-  const standing = { code: "share_in_container", message: "This server runs in a container, which carries no relay." } as const;
-  const { trpc } = await stubShare(page, { mode: "local", initial: { ...OFF, standingRefusal: standing } });
-  await mount(<GovernanceSectionsStory />);
-
-  const card = shareCard(page);
-  await expect(precondition(card, "relay")).toHaveAttribute("data-verdict", "unavailable");
-  await expect(precondition(card, "relay").getByRole("alert")).toHaveCount(0);
-  const start = card.getByRole("button", { name: "Start sharing" });
-  await expect(start).toHaveAttribute("aria-disabled", "true");
-  // Nothing on the card fixes a container, so the held reason sends the owner to the row's way out, not to a fix.
-  await expect(start).toHaveAccessibleDescription("This card cannot share this server. The row marked Not available here names another way to share it.");
-  await expect.poll(() => trpc.count("share.start")).toBe(0);
 });
 
 test("a relay restarting after a death reads Down until its new link, with Stop and no link", async ({ mount, page }) => {
@@ -562,7 +593,7 @@ test.describe("at the narrowest content width", () => {
   test("the running card stays inside its own width, and its link wraps only after a dot, slash or hyphen", async ({ mount, page }) => {
     await stubShare(page, {
       mode: "local",
-      initial: { relay: { state: "up", relay: "quick", url: LongUrl }, liveSocketCount: 1, publicAddresses: [], standingRefusal: null },
+      initial: { relay: { state: "up", relay: "quick", url: LongUrl }, liveSocketCount: 1, publicAddresses: [], certificate: CERTIFICATE_OFF },
     });
     await mount(<GovernanceSectionsStory width={360} />);
 
@@ -605,3 +636,122 @@ test.describe("at the narrowest content width", () => {
       .toEqual({ wraps: true, midWord: [] });
   });
 });
+
+const SETTING: IpCertificateSetting = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 };
+const HOUR_MS = 3_600_000;
+const ISSUED_AT = 1_750_000_000_000;
+const ACTIVE: IpCertificateStatus = {
+  state: "active",
+  setting: SETTING,
+  url: "https://81.2.69.160",
+  notAfter: ISSUED_AT + 160 * HOUR_MS,
+  renewAt: ISSUED_AT + 80 * HOUR_MS,
+  renewalFailure: null,
+};
+const FAILED: IpCertificateStatus = {
+  state: "failed",
+  setting: SETTING,
+  failure: { code: "validation_failed", message: "Fetching http://81.2.69.160/.well-known/acme-challenge/tok: Timeout during connect" },
+};
+
+function certificateBlock(card: Locator): Locator {
+  return card.locator("[data-ip-certificate-state]");
+}
+
+test("IP certificate offer: a home-network address is refused in an alert; a public one is sent with the two ports", async ({ mount, page }) => {
+  const { trpc } = await stubShare(page, { mode: "local", initial: OFF });
+  await mount(<GovernanceSectionsStory />);
+
+  const block = certificateBlock(shareCard(page));
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "off");
+  await expect(block.locator('[data-ip-certificate-offer="new"]')).toBeVisible();
+  const get = block.getByRole("button", { name: "Get a certificate" });
+  // With no address the form holds the press and names the field; nothing is sent.
+  await get.click();
+  await expect(block.getByRole("textbox", { name: "Public IP address" })).toHaveAttribute("aria-invalid", "true");
+  await expect.poll(() => trpc.count("share.enableIpCertificate")).toBe(0);
+  const address = block.getByRole("textbox", { name: "Public IP address" });
+  await address.fill("192.168.1.20");
+  await get.click();
+  await expect(block.getByRole("alert")).toBeVisible();
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "off");
+
+  await address.fill("81.2.69.160");
+  await get.click();
+  await expect.poll(() => trpc.lastInput("share.enableIpCertificate")).toStrictEqual(SETTING);
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "obtaining");
+});
+
+test("IP certificate in progress: the order shows with only Turn off, which clears it", async ({ mount, page }) => {
+  const { trpc } = await stubShare(page, { mode: "local", initial: { ...OFF, certificate: { state: "obtaining", setting: SETTING } } });
+  await mount(<GovernanceSectionsStory />);
+
+  const block = certificateBlock(shareCard(page));
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "obtaining");
+  await expect(block.locator("[data-ip-certificate-offer]")).toHaveCount(0);
+  await expect(block.getByRole("textbox")).toHaveCount(0);
+  await block.getByRole("button", { name: "Turn off https" }).click();
+  await expect.poll(() => trpc.count("share.disableIpCertificate")).toBe(1);
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "off");
+});
+
+test("IP certificate active: the https address with its copy button and Turn off, and no renewal warning", async ({ mount, page }) => {
+  await stubShare(page, { mode: "local", initial: { ...OFF, certificate: ACTIVE } });
+  await mount(<GovernanceSectionsStory />);
+
+  const block = certificateBlock(shareCard(page));
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "active");
+  await expect(block.locator('[data-ip-certificate-url="https://81.2.69.160"]')).toBeVisible();
+  await expect(block.getByRole("button", { name: copyActionName("the https address https://81.2.69.160"), exact: true })).toBeVisible();
+  await expect(block.locator('[data-ip-certificate-warning="renewal-failed"]')).toHaveCount(0);
+  await expect(block.getByRole("button", { name: "Turn off https" })).toBeVisible();
+});
+
+test("IP certificate active after a failed renewal: still serving, with the failure warned beside the address", async ({ mount, page }) => {
+  await stubShare(page, {
+    mode: "local",
+    initial: { ...OFF, certificate: { ...ACTIVE, renewalFailure: { code: "validation_failed", message: "Timeout during connect" } } },
+  });
+  await mount(<GovernanceSectionsStory />);
+
+  const block = certificateBlock(shareCard(page));
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "active");
+  await expect(block.locator('[data-ip-certificate-url="https://81.2.69.160"]')).toBeVisible();
+  await expect(block.locator('[data-ip-certificate-warning="renewal-failed"]')).toBeVisible();
+});
+
+test("IP certificate failed: the plain-http warning, and Try again resends the setting it tried", async ({ mount, page }) => {
+  const { trpc } = await stubShare(page, { mode: "local", initial: { ...OFF, certificate: FAILED } });
+  await mount(<GovernanceSectionsStory />);
+
+  const block = certificateBlock(shareCard(page));
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "failed");
+  await expect(block.locator('[data-ip-certificate-warning="plain-http"]')).toBeVisible();
+  await expect(block.locator('[data-ip-certificate-warning="plain-http"]').getByRole("alert")).toBeVisible();
+  await expect(block.getByRole("textbox", { name: "Public IP address" })).toHaveValue(SETTING.address);
+  await block.getByRole("button", { name: "Try again" }).click();
+  await expect.poll(() => trpc.lastInput("share.enableIpCertificate")).toStrictEqual(SETTING);
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "obtaining");
+});
+
+// Only local mode can take a certificate, so every other mode shows no block at all. Each case first waits on a sign
+// of its own mode, so an absent block is never just a card that has not read its mode yet.
+const NOT_LOCAL: readonly { readonly mode: Exclude<AuthMode, "local">; readonly ready: string }[] = [
+  { mode: "single-user", ready: '[data-precondition="mode"][data-verdict="unmet"]' },
+  { mode: "forward-header", ready: '[data-precondition="mode"][data-verdict="unmet"]' },
+  { mode: "oidc", ready: '[data-share-public="oidc"]' },
+];
+
+for (const { mode, ready } of NOT_LOCAL) {
+  test(`IP certificate under ${mode}: the card shows no certificate block`, async ({ mount, page }) => {
+    const { trpc } = await stubShare(page, { mode, resolved: SEATING_OFF, initial: OFF });
+    await mount(<GovernanceSectionsStory />);
+
+    const card = shareCard(page);
+    await expect(card.locator(ready)).toBeVisible();
+    await expect.poll(() => trpc.count("share.status")).toBeGreaterThan(0);
+    await expect(certificateBlock(card)).toHaveCount(0);
+    await expect(card.getByText("HTTPS at your public address")).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "Get a certificate" })).toHaveCount(0);
+  });
+}

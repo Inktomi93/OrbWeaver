@@ -22,13 +22,11 @@ import { Button } from "@orb/ui/button";
 import { ChevronLeft, ChevronRight, Icon, RefreshCw } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { skipToken, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { cn, turnMutationToast } from "#lib";
 import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";
-import { connectionAttribution } from "../lib/connection-attribution.ts";
 import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "../lib/message-action-names.ts";
 import { PAGER_CHIP, PAGER_CHIP_COMPACT, PAGER_COUNTER, PAGER_LABEL_QUIET_WHEN_TIGHT, PAGER_TRACK } from "../lib/pager-chrome.ts";
 
@@ -74,18 +72,6 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
   const swipe = useSwipeMutation({ trpc, invalidation });
   const selectVariant = useSelectVariantMutation({ trpc, invalidation });
   const history = useVariantHistory(message);
-  const needsConnectionResolution = message.connectionAttributionProvenance === "recorded" && message.connectionId !== null;
-  const chat = useQuery(trpc.chat.getChat.queryOptions(needsConnectionResolution ? { chatId: message.chatId } : skipToken));
-  // `connection.list` is owner-scoped. Only the current host can resolve this room's funding row, so a
-  // member never makes the request and can never receive another principal's custom label.
-  const connections = useQuery(trpc.connection.list.queryOptions(chat.data?.viewerIsHost === true ? undefined : skipToken));
-  const matchedConnection = connections.isSuccess ? connections.data.find((connection) => connection.id === message.connectionId) : undefined;
-  const attribution = connectionAttribution(message, {
-    viewerIsHost: chat.data?.viewerIsHost,
-    connectionsSettled: connections.isSuccess,
-    matchedConnectionLabel: matchedConnection?.label,
-    matchedProviderLabel: matchedConnection?.providerId === message.provider ? matchedConnection.providerLabel : undefined,
-  });
 
   const { chatId, id: messageId, selectedVariantIdx: idx } = message;
   const total = Math.max(message.variantCount, 1);
@@ -185,28 +171,13 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
           and nothing else — the contained track absorbs any overflow, and the column is unaffected either
           way, which is the whole point of rule 1. The chip still hugs (`max-content` IS the hug) — what it
           no longer does is shrink below the controls it backs. */}
-      {/* The owner-authored connection label is unbounded prose. Cap only that new content-driven growth at
-          the existing xs width; the control row remains well below the cap and therefore keeps PAGER_CHIP's
-          no-crush guarantee. Each readout truncates inside the cap and exposes its full value via `title`. */}
-      <Stack gap="field" data-slot="swipe-strip" className={cn(PAGER_CHIP, PAGER_CHIP_COMPACT, "max-w-xs", backingClass)}>
-        <Stack gap="tight" data-slot="swipe-attribution" className="min-w-0 max-w-full">
-          <Text as="span" voice="gloss" className="truncate" title={attribution.connection}>
-            Connection · {attribution.connection}
-          </Text>
-          <Text as="span" voice="gloss" className="truncate" title={attribution.provider}>
-            Provider · {attribution.provider}
-          </Text>
-          <Text as="span" voice="gloss" className="truncate" title={attribution.model}>
-            Model · {attribution.model}
-          </Text>
-        </Stack>
-        <Row gap="field" align="center" data-slot="swipe-strip-controls" className={PAGER_CHIP_COMPACT}>
-          {showPager ? (
-            <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label={VARIANT_PREV_NAME} onClick={goPrev}>
-              <Icon icon={ChevronLeft} size="sm" />
-            </Button>
-          ) : null}
-          {/* The counter is a VALUE you read — the `datum` voice, whose tabular mono figures stop the count
+      <Row gap="field" align="center" data-slot="swipe-strip" className={cn(PAGER_CHIP, PAGER_CHIP_COMPACT, backingClass)}>
+        {showPager ? (
+          <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label={VARIANT_PREV_NAME} onClick={goPrev}>
+            <Icon icon={ChevronLeft} size="sm" />
+          </Button>
+        ) : null}
+        {/* The counter is a VALUE you read — the `datum` voice, whose tabular mono figures stop the count
             from nudging the chevrons sideways as it ticks (UI-Density-Law.md §2.3).
             IT IS NAMED FOR THE EYE NOW (#490). `‹ 8 / 8 ›` under a transcript is the universal pagination
             shape, and it was read as one BY THE REVIEWER, with the source open — "8 / 8" says there are seven
@@ -228,19 +199,19 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
             FLOW without leaving the tree (absolutely positioned ⇒ zero width contribution, and an abspos
             child is not a flex item, so its gap goes too): the band still reads "Variant 2 / 3", pinned by an
             ariaSnapshot at a narrow mount. #490's subject holds wherever the surface can hold it. */}
-          {showPager ? (
-            <>
-              <Text as="span" voice="kicker" className={PAGER_LABEL_QUIET_WHEN_TIGHT}>
-                Variant
-              </Text>
-              {/* …and in a tight chip it surrenders the two spaces around its slash (`PAGER_COUNTER`) — 15.6px
+        {showPager ? (
+          <>
+            <Text as="span" voice="kicker" className={PAGER_LABEL_QUIET_WHEN_TIGHT}>
+              Variant
+            </Text>
+            {/* …and in a tight chip it surrenders the two spaces around its slash (`PAGER_COUNTER`) — 15.6px
                 that buy the chevrons their touch box back. The TEXT never changes; only its word-spacing. */}
-              <Text as="span" voice="datum" data-slot="swipe-strip-counter" className={PAGER_COUNTER}>
-                {current} / {total}
-              </Text>
-            </>
-          ) : null}
-          {/* THE SINGLE-VARIANT ARM IS A NAMED VERB, NOT A NAKED CHEVRON (#849). The pager arm above is
+            <Text as="span" voice="datum" data-slot="swipe-strip-counter" className={PAGER_COUNTER}>
+              {current} / {total}
+            </Text>
+          </>
+        ) : null}
+        {/* THE SINGLE-VARIANT ARM IS A NAMED VERB, NOT A NAKED CHEVRON (#849). The pager arm above is
             unchanged; this is the OTHER arm, and shipped it was the only affordance in the app whose visible
             label is the empty string — a 34×34 transparent `›` floating over the room's background art
             between the plate and the composer, with an empty `textContent` AND an empty parent text. A
@@ -260,18 +231,17 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
             "Generate" IS A SUBSTRING OF THE ACCESSIBLE NAME, deliberately: #570 ruled the accname at one
             variant is "Generate a variant", and WCAG 2.5.3 requires the visible label to appear in it, so
             the visible word is the verb the accname already opens with rather than a synonym. */}
-          {showPager ? (
-            <Button intent="ghost" size="icon" loading={busy} aria-label={nextChevronLabel} onClick={goNext}>
-              <Icon icon={ChevronRight} size="sm" />
-            </Button>
-          ) : (
-            <Button intent="ghost" size="sm" loading={busy} aria-label={nextChevronLabel} onClick={goNext}>
-              <Icon icon={RefreshCw} size="sm" />
-              Generate
-            </Button>
-          )}
-        </Row>
-      </Stack>
+        {showPager ? (
+          <Button intent="ghost" size="icon" loading={busy} aria-label={nextChevronLabel} onClick={goNext}>
+            <Icon icon={ChevronRight} size="sm" />
+          </Button>
+        ) : (
+          <Button intent="ghost" size="sm" loading={busy} aria-label={nextChevronLabel} onClick={goNext}>
+            <Icon icon={RefreshCw} size="sm" />
+            Generate
+          </Button>
+        )}
+      </Row>
     </Stack>
   );
 }

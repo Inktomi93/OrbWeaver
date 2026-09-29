@@ -28,6 +28,7 @@ import {
   setFocusMode,
   useActiveChatId,
   useActiveSection,
+  useCharacterGalleryTarget,
   useSectionRegistry,
   useSelectedCharacterId,
   useSelectedRefinerySessionId,
@@ -590,10 +591,15 @@ export function CharacterActionsMenuStory({ menuCharacterId }: CharacterActionsM
 function RefineryJumpReadout(): ReactElement {
   const section = useActiveSection();
   const sessionId = useSelectedRefinerySessionId();
+  const gallery = useCharacterGalleryTarget();
   return (
     <div>
       <p data-testid="active-section">{`section=${section}`}</p>
       <p data-testid="refinery-session">{`session=${sessionId ?? "none"}`}</p>
+      {/* The gallery the "Open gallery" door asked the app root's host to show (`none` = no room scope). */}
+      <p data-testid="gallery-target">
+        {gallery === undefined ? "gallery=closed" : `gallery=${gallery.characterId}|${gallery.characterName}|${gallery.chatId ?? "none"}`}
+      </p>
     </div>
   );
 }

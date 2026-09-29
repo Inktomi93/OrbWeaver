@@ -196,7 +196,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D220 | [Rejected neo-derived and report-only enforcement proposals](0220-rejected-neo-and-report-only-gates.md) | rejected |
 | D221 | [Resource-policy contract: alternatives rejected](0221-resource-policy-contract-rejected-alternatives.md) | active |
 | D222 | [Docs, plans and ADRs are markdown with one structural writer](0222-docs-plans-adrs-no-archive.md) | active |
-| D223 | [Pre-commit runs the static tier over the working change](0223-scoped-static-at-commit.md) | active |
+| D223 | [Pre-commit runs the static tier over the working change](0223-scoped-static-at-commit.md) | superseded by [0273-pre-commit-runs-the-static-tier-over-the-staged-change.md](0273-pre-commit-runs-the-static-tier-over-the-staged-change.md) |
 | D250 | [The anchor human's persona binds prompt-config {{user}}](0250-anchor-human-binds-preset-user.md) | active |
 | D251 | [Prompt sections keep their prompt-order position on every model](0251-prompt-sections-keep-prompt-order.md) | active |
 | D252 | [A cross-platform pnpm dev is the self-hoster's front door](0252-cross-platform-pnpm-dev.md) | active |
@@ -219,3 +219,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D269 | [RPG dice actions live in the composer utility menu](0269-rpg-dice-actions-in-composer-utility-menu.md) | active |
 | D270 | [Chat options uses a hamburger glyph in the composer](0270-chat-options-hamburger-glyph.md) | active |
 | D271 | [Phone tabs and Corpus mode landings](0271-phone-tabs-and-corpus-mode-landings.md) | active |
+| D272 | [A container shares through the pinned relay download](0272-a-container-shares-through-the-pinned-relay-download.md) | active |
+| D273 | [Pre-commit runs the static tier over the staged change](0273-pre-commit-runs-the-static-tier-over-the-staged-change.md) | superseded by [0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md](0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) |
+| D274 | [The commit gate runs only what narrows to the staged files](0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) | active |
+| D275 | [The IP certificate comes from acme-client over HTTP-01](0275-the-ip-certificate-comes-from-acme-client-over-http-01.md) | active |

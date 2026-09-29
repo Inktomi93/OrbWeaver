@@ -35,10 +35,10 @@ export interface DialogPopupProps extends Omit<BasePopupProps, "className">, Var
 
 /** Bundles Portal → Backdrop → Viewport → Popup so the anatomy cannot be mis-assembled. */
 export function DialogPopup(props: DialogPopupProps): ReactElement {
-  const { className, children, container, keepMounted, forceRender, size, ...rest } = props;
+  const { className, children, container, keepMounted, forceRender, size, anchor, ...rest } = props;
   const portalContainer = usePortalContainer();
-  // The size variant reshapes both the viewport and the popup, so compute a per-call slot set.
-  const sized = dialogVariants({ size });
+  // The size and anchor variants reshape the viewport as well as the popup, so compute a per-call slot set.
+  const sized = dialogVariants({ size, anchor });
   return (
     <BaseDialog.Portal container={container ?? portalContainer} keepMounted={keepMounted}>
       <BaseDialog.Backdrop className={sized.backdrop()} data-slot="dialog-backdrop" forceRender={forceRender} />

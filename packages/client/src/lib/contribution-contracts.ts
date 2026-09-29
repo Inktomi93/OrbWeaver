@@ -312,6 +312,9 @@ export const SLASH_COMMAND_GROUP_LABELS: Record<SlashCommandGroup, string> = {
  *  non-chat section); a command that needs a room says so through `unavailableReason`. */
 export interface SlashCommandContext {
   readonly chatId: ChatId | null;
+  /** The room character whose gallery the viewer owns (`ChatDetail.viewerGalleryCharacterId`), or `null` when
+   *  the viewer owns none there or there is no room. */
+  readonly viewerGalleryCharacterId: CharacterId | null;
 }
 
 /** A command's imperative runner — receives the raw remainder AFTER `/<id>` (trimmed), so a command owns its

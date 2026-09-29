@@ -84,8 +84,9 @@ test("SHARED is the default and its CEILINGS carry the exact numbers the doctrin
   expect(shared.ts7Checkers, "ts7 --checkers default").toBe(4);
   expect(shared.pnpmWorkspaceConcurrency, "pnpm -r --workspace-concurrency default").toBe(1);
   // The ONE cap here that RAISES parallelism: ESLint ships `--concurrency off` (single-threaded), so this
-  // row is a speed-up we are choosing to spend, not a ceiling we are imposing.
-  expect(shared.eslintConcurrency, "eslint --concurrency default").toBe(4);
+  // row is a speed-up we are choosing to spend, not a ceiling we are imposing. Each worker loads every typed
+  // program its files span, so three is what the 24 GB share holds at the measured worker price.
+  expect(shared.eslintConcurrency, "eslint --concurrency default").toBe(3);
   expect(shared.strykerConcurrency, "Stryker calibration-preserving worker pool").toBe(6);
   expect(shared.cpdWorkers, "jscpd workers on the shared host").toBe(4);
   expect(shared.hookPoolSlots, "the edit hook's HOST-WIDE pool, shared by its file-scoped legs").toBe(4);

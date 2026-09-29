@@ -23,7 +23,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 /** The vocabulary, spelled out — the exact accessible names each surface is allowed to render. */
 const EXPECTED_LABELS_BY_SCOPE = {
   row: ["Archive", "Duplicate", "Export card", "Delete"],
-  open: ["Open in Refinery", "Archive", "Duplicate", "Export card", "Convert to persona", "Set as welcome greeter", "Delete"],
+  open: ["Open in Refinery", "Open gallery", "Archive", "Duplicate", "Export card", "Convert to persona", "Set as welcome greeter", "Delete"],
   bulk: ["Tag", "Archive", "Delete"],
 } as const;
 

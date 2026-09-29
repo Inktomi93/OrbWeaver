@@ -206,6 +206,12 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
         description: "This model can't be made to call a tool, so the tools were offered and it chose whether to use one.",
         title: "A required tool call became optional",
       };
+    case "carry_reasoning_downgraded":
+      return {
+        description:
+          "This model's earlier thinking stays valid only while the conversation before it is unchanged, and this connection can't protect a reply from an earlier edit. So the model kept its thinking only within this reply's tool calls.",
+        title: "Reasoning carry was limited to this reply",
+      };
     // NOT a "wasn't used" sentence: the setting DID apply, with the provider's own value in place of the one
     // this model spells differently. Naming the knob when it is known keeps the notice actionable.
     case "provider_compatibility_mode":

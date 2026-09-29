@@ -9,12 +9,13 @@ import type { ProviderId } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ChatEvent, ChatRequest, ChatResult, WarningCode } from "@orb/inference";
 import { AGENT_CONTINUATION_PROMPT_STUB, createInferenceRuntime, DEFAULT_EMBED_MODEL } from "@orb/inference";
-import type { AssetId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, ImageryGenerationId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { HumanSeatPersona, TurnMessage, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
 import {
   activePersonaIdFor,
   buildChatToolOps,
+  createGeneratePictureOp,
   createRunChatTurnBridge,
   createTaskWindowReaders,
   createTurnPersonaResolver,
@@ -24,6 +25,7 @@ import { describe } from "vitest";
 import { z } from "zod";
 import type { ChatToolExecFrame, ChatToolOps } from "../../../../packages/server/src/domain/chat/contract/context.ts";
 import { runTurnPipeline } from "../../../../packages/server/src/domain/chat/engine/pipeline.ts";
+import type { ImageryService } from "../../../../packages/server/src/domain/imagery/index.ts";
 import type { PersonaListView } from "../../../../packages/server/src/domain/persona/contract/views.ts";
 import type { ToolExecutionContext, ToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
 import { createToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
@@ -872,5 +874,34 @@ describe("createTaskWindowReaders — a missing window names its cause", () => {
     await expect(summarize.readers.summarize(summarize.ownerId)).resolves.toBeGreaterThan(0);
     const embed = await readersFor({ task: "embed", allowBackground: true });
     await expect(embed.readers.embed(embed.ownerId)).resolves.toBeGreaterThan(0);
+  });
+});
+
+describe("createGeneratePictureOp — chat's generatePicture op over imagery", () => {
+  test("forwards every request field imagery reads, the size preset included", async () => {
+    const calls: Parameters<ImageryService["generatePicture"]>[0][] = [];
+    const op = createGeneratePictureOp((p) => {
+      calls.push(p);
+      return Promise.resolve({
+        images: [
+          { assetId: castId<AssetId>("asset_one"), generationId: castId<ImageryGenerationId>("imagery_generation_one"), block: { kind: "markdown", md: "" } },
+        ],
+        prompt: "a dragon",
+        promptSource: "user",
+        mode: "free",
+        model: castId<ModelId>("img-model"),
+        costUsd: null,
+        reused: false,
+        warnings: [{ code: "image_edit_dropped", detail: "dropped" }],
+      });
+    });
+    const caller = principalOf(castId<UserId>("user_host"));
+    const chatId = castId<ChatId>("chat_room");
+    const subjectCharacterId = castId<CharacterId>("character_aria");
+
+    const result = await op({ caller, chatId, mode: "free", prompt: "a dragon", n: 2, size: "portrait", gallery: { subjectCharacterId } });
+
+    expect(calls).toEqual([{ caller, chatId, mode: "free", prompt: "a dragon", n: 2, size: "portrait", gallery: { subjectCharacterId } }]);
+    expect(result).toEqual({ images: [{ assetId: "asset_one" }], warnings: [{ code: "image_edit_dropped", detail: "dropped" }] });
   });
 });

@@ -34,6 +34,9 @@ export const IMAGE_GEN_SPENDS_NOW = "Spends right away — your typed text is se
 /** The ✨-menu row that opens the `/imagine` modal — the mode + preview door, findable without typing `/`. */
 export const IMAGINE_DOOR_HELPER = "Pick a mode, preview the prompt (and its price) before the image spend — the /imagine surface.";
 
+/** The shared-room sentence at the image doors: both post the generated picture into the chat. */
+export const ROOM_PICTURES_NOTE = "Pictures you generate post to this chat, where everyone in it sees them.";
+
 // `IMAGE_GEN_NEEDS_CHAT` ("Send the first message, then generate images from your text") was DELETED
 // 2026-08-14: image generation posts into a real chat, and the room now HAS one from the creation click.
 
@@ -169,10 +172,17 @@ export const STEER_CUE_IMPERSONATE = "Uses your typed text as drafting direction
 // The copy adapts to the CAUSE (the gate is ONE engine-agnostic check); each names the ACTIONABLE unlock,
 // never a bare "unavailable". Full sentences (composed alone, not after an em-dash) with a trailing period.
 
+/** Where the user binds a connection to a role: the one spelling of the path, as its settings trail plus the
+ *  leaf a door can land on (`openConfigTo("connections", "model-roles")`). */
+export const MODEL_ROLES_PATH = { trail: "Settings → Connections", leaf: "Model roles" } as const;
+
+/** {@link MODEL_ROLES_PATH} as one run of prose. */
+export const MODEL_ROLES_PATH_TEXT = `${MODEL_ROLES_PATH.trail} → ${MODEL_ROLES_PATH.leaf}`;
+
 const SEND_UNAVAILABLE_REASON: Record<UnavailableCause, string> = {
   // No connection is BOUND to your Chat role (§7.2). A saved connection binds nothing on its own, so the copy
   // names the role picker, not only "add one".
-  "no-connection": "No connection is set for Chat — add one or pick one under Model roles in Settings → Connections to send.",
+  "no-connection": `No chat connection is set — choose one under ${MODEL_ROLES_PATH_TEXT} to send.`,
   // The bound endpoint row's server did not answer its reachability probe (or a wake timed out).
   "endpoint-unreachable": "Can't reach your model's server — it may be down.",
   // A `claude-sub` row on a deployment where the Claude runtime does not resolve (§5.3a).
@@ -187,25 +197,8 @@ const SEND_UNAVAILABLE_REASON: Record<UnavailableCause, string> = {
   "model-load-failed": "Your connection's built-in model failed to load on this server — send again to retry.",
 };
 
-// The composer's visible connection line is intentionally terse: the full actionable sentence already
-// describes every disabled fire control, while this status has to share a shallow rail with those controls.
-const SEND_UNAVAILABLE_STATUS: Record<UnavailableCause, string> = {
-  "no-connection": "No connection",
-  "endpoint-unreachable": "Model server unreachable",
-  "runtime-missing": "Claude runtime unavailable",
-  "background-refused": "Background work blocked",
-  "requirement-unmet": "Connection incompatible",
-  unavailable: "Connection unavailable",
-  "model-load-failed": "Model failed to load",
-};
-
 /** The composer disabled-reason for an unavailable cause — the single home the Send button + the guided fire
  *  actions read, so the copy can't drift between the two surfaces. Exhaustive over `UnavailableCause`. */
 export function sendUnavailableReason(cause: UnavailableCause): string {
   return SEND_UNAVAILABLE_REASON[cause];
-}
-
-/** Compact visible status for the composer's single connection home. */
-export function sendUnavailableStatus(cause: UnavailableCause): string {
-  return SEND_UNAVAILABLE_STATUS[cause];
 }

@@ -11,10 +11,11 @@ import type { CompilerProgram, PolicyRepositoryInventory, PolicySemanticPath } f
 import type { TypecheckPlan, TypecheckPlanMode, TypecheckPlanSubject } from "../contract/typecheck-plan.ts";
 import { readCompilerProgramsFromInventory, resolvePolicyPathOwnership } from "./policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "./policy-repo-inventory.ts";
-import { GIT_READ_PREFIX } from "./repo-paths.ts";
+import { GIT_READ_PREFIX, gitLsFiles } from "./repo-paths.ts";
 
 const TSCONFIG_RE = /(?:^|\/)tsconfig(?:[.-][^/]*)?\.json$/u;
 const LIST_FILES_MAX_BUFFER = 67_108_864;
+const UNSTABLE_PLAN = "typecheck planning inputs changed while compiler membership was being read; no stable plan is available";
 
 function compare(left: string, right: string): number {
   if (left === right) {
@@ -36,8 +37,9 @@ function gitOutput(root: string, args: readonly string[]): string {
 }
 
 /** Content identity for the native membership snapshot. Paths alone are insufficient: an import edit can
- * change closure membership without changing Git status. */
-function snapshotKey(root: string, inventory?: PolicyRepositoryInventory): string {
+ * change closure membership without changing Git status. The key reads Git's path lists itself rather
+ * than the validated inventory, whose per-file stat walk is most of a warm plan's cost. */
+function snapshotKey(root: string): string {
   const headResult = runGit(root, [...GIT_READ_PREFIX, "rev-parse", "HEAD"]);
   const head = headResult.status === 0 ? headResult.stdout.trim() : "no-head";
   const dirty =
@@ -45,16 +47,8 @@ function snapshotKey(root: string, inventory?: PolicyRepositoryInventory): strin
       ? gitOutput(root, ["diff", "--name-only", "-z", "HEAD"])
           .split("\0")
           .filter((path) => path !== "")
-      : (inventory?.trackedPaths ??
-        gitOutput(root, ["ls-files", "-z"])
-          .split("\0")
-          .filter((path) => path !== ""));
-  const untracked =
-    inventory?.untrackedPaths ??
-    gitOutput(root, ["ls-files", "--others", "--exclude-standard", "-z"])
-      .split("\0")
-      .filter((path) => path !== "");
-  const paths = sortedUnique([...dirty, ...untracked]);
+      : gitLsFiles(root, []);
+  const paths = sortedUnique([...dirty, ...gitLsFiles(root, ["--others", "--exclude-standard"])]);
   const digest = createHash("sha1");
   for (const path of paths) {
     const absolute = join(root, path);
@@ -73,22 +67,24 @@ interface PlanningSnapshot {
   readonly contained?: ReadonlyMap<string, readonly string[]>;
 }
 
+// The one process-wide snapshot. It holds only a snapshot whose key was read again, unchanged, after its
+// membership was read, so a key always names the bytes its snapshot came from.
 let planningMemo: PlanningSnapshot | undefined;
 
-function compilerSnapshot(root: string, inventory: PolicyRepositoryInventory, needsClosures: boolean): PlanningSnapshot {
-  const key = snapshotKey(root, inventory);
-  if (planningMemo?.root === root && planningMemo.key === key && (!needsClosures || planningMemo.contained !== undefined)) {
-    return planningMemo;
-  }
-  const programs = planningMemo?.root === root && planningMemo.key === key ? planningMemo.programs : readCompilerProgramsFromInventory(inventory);
-  let contained: ReadonlyMap<string, readonly string[]> | undefined;
-  if (needsClosures) {
-    contained = closuresByFile(root, programs);
-  } else if (planningMemo?.root === root && planningMemo.key === key) {
-    contained = planningMemo.contained;
-  }
-  planningMemo = { root, key, programs, ...(contained === undefined ? {} : { contained }) };
-  return planningMemo;
+/** The memo when it already answers this key and mode. A hit reads nothing from the tree; the caller reads
+ *  the key once more after planning, so a hit never answers for bytes that moved under the first read. */
+function warmSnapshot(root: string, key: string, needsClosures: boolean): PlanningSnapshot | undefined {
+  const memo = planningMemo;
+  return memo?.root === root && memo.key === key && (!needsClosures || memo.contained !== undefined) ? memo : undefined;
+}
+
+/** Read membership for `key`, reusing the memo's programs when only its closures are missing. The caller
+ *  commits the result only after the key reads the same again. */
+function readSnapshot(root: string, key: string, inventory: PolicyRepositoryInventory, needsClosures: boolean): PlanningSnapshot {
+  const reusable = planningMemo?.root === root && planningMemo.key === key ? planningMemo : undefined;
+  const programs = reusable?.programs ?? readCompilerProgramsFromInventory(inventory);
+  const contained = needsClosures ? closuresByFile(root, programs) : reusable?.contained;
+  return { root, key, programs, ...(contained === undefined ? {} : { contained }) };
 }
 
 function repoRelative(root: string, file: string, config: string): string | undefined {
@@ -187,13 +183,6 @@ function primaryPrograms(path: PolicySemanticPath, rootedBy: readonly string[], 
   throw new Error(`typecheck primary for ${path.path} has no native compiler root`);
 }
 
-function configPrograms(programs: readonly CompilerProgram[], path: PolicySemanticPath): readonly string[] {
-  if (path.status === "deleted") {
-    return programs.map((program) => program.id);
-  }
-  return resolvePolicyPathOwnership(programs, [path])[0]?.programIds ?? [];
-}
-
 interface SubjectSelection {
   readonly rootedBy: readonly string[];
   readonly containedBy: readonly string[];
@@ -213,10 +202,10 @@ interface SubjectContext {
   readonly mode: TypecheckPlanMode;
 }
 
-function planSubject(context: SubjectContext, path: PolicySemanticPath): TypecheckPlanSubject {
+/** `configs` is the path's compiler ownership, resolved for every subject in one pass by the caller. */
+function planSubject(context: SubjectContext, path: PolicySemanticPath, configs: readonly string[]): TypecheckPlanSubject {
   const rootedBy = context.rooted.get(path.path) ?? [];
   const containedBy = context.contained.get(path.path) ?? [];
-  const configs = configPrograms(context.programs, path);
   if (path.status === "deleted") {
     return selectedSubject(path, { rootedBy, containedBy, selectedPrograms: context.everyProgram, reason: "deleted-conservative" });
   }
@@ -272,11 +261,18 @@ function nonTypePlan(paths: readonly PolicySemanticPath[], mode: TypecheckPlanMo
  *
  * `primary` runs the authored root's intended primary program and every program affected by config or
  * ambient input. It is intentionally an editor advisory. `affected` expands authored files through each
- * compiler's native import closure and is the complete selection used by scoped verification. */
+ * compiler's native import closure and is the complete selection used by scoped verification.
+ *
+ * One plan reads the inventory once and the key twice. A cold plan reads the key again after its membership
+ * read and keeps the snapshot only if the key is unchanged; a warm plan reads it again after planning and
+ * retries when the memo it answered from no longer names the tree. The key is read before the inventory, so
+ * the second read spans every tree read the plan depends on. */
 function planStableSnapshot(root: string, paths: readonly PolicySemanticPath[], mode: TypecheckPlanMode, retries: number): TypecheckPlan {
+  const key = snapshotKey(root);
   const inventory = readPolicyRepositoryInventory(root);
+  const authored = new Set(inventory.paths);
   for (const path of paths) {
-    if (path.status !== "deleted" && !inventory.paths.includes(path.path)) {
+    if (path.status !== "deleted" && !authored.has(path.path)) {
       throw new Error(`typecheck plan subject is not an authored file: ${path.path}`);
     }
   }
@@ -285,18 +281,28 @@ function planStableSnapshot(root: string, paths: readonly PolicySemanticPath[], 
     return direct;
   }
   const needsClosures = mode === "affected" && paths.some((path) => path.status !== "deleted" && isTypeWorldSource(path.path));
-  const snapshot = compilerSnapshot(root, inventory, needsClosures);
+  const warm = warmSnapshot(root, key, needsClosures);
+  let snapshot = warm;
+  if (snapshot === undefined) {
+    const read = readSnapshot(root, key, inventory, needsClosures);
+    if (snapshotKey(root) !== key) {
+      return replanOrRefuse(root, paths, mode, retries);
+    }
+    planningMemo = read;
+    snapshot = read;
+  }
   const programs = snapshot.programs;
   const everyProgram = programs.map((program) => program.id).toSorted(compare);
   const rooted = rootsByFile(programs);
   const contained = snapshot.contained ?? new Map<string, readonly string[]>();
   const context: SubjectContext = { programs, everyProgram, rooted, contained, mode };
-  const subjects = paths.map((path) => planSubject(context, path));
-  if (snapshotKey(root) !== snapshot.key) {
-    if (retries > 0) {
-      return planStableSnapshot(root, paths, mode, retries - 1);
-    }
-    throw new Error("typecheck planning inputs changed while compiler membership was being read; no stable plan is available");
+  const subjects = resolvePolicyPathOwnership(programs, paths).map(({ path, status, previousPath, programIds }) =>
+    planSubject(context, { path, status, previousPath }, programIds),
+  );
+  // A warm hit read nothing after its key, so the key is read once more here: bytes that moved while the key was
+  // being read would otherwise return a plan for the memo's tree, not this one.
+  if (warm !== undefined && snapshotKey(root) !== key) {
+    return replanOrRefuse(root, paths, mode, retries);
   }
 
   return {
@@ -305,6 +311,14 @@ function planStableSnapshot(root: string, paths: readonly PolicySemanticPath[], 
     programs: sortedUnique(subjects.flatMap((subject) => subject.selectedPrograms)),
     subjects,
   };
+}
+
+/** The key moved under a plan: plan again while a retry remains, else refuse rather than answer for other bytes. */
+function replanOrRefuse(root: string, paths: readonly PolicySemanticPath[], mode: TypecheckPlanMode, retries: number): TypecheckPlan {
+  if (retries > 0) {
+    return planStableSnapshot(root, paths, mode, retries - 1);
+  }
+  throw new Error(UNSTABLE_PLAN);
 }
 
 export function planTypecheckPrograms(rootInput: string, paths: readonly PolicySemanticPath[], mode: TypecheckPlanMode): TypecheckPlan {

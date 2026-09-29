@@ -125,19 +125,6 @@ test("non-TypeScript planning bypasses malformed compiler configs while TypeScri
   expect(() => planTypecheckPrograms(scratch, [present("src/owned.ts")], "primary")).toThrow(/could not read|could not parse/u);
 });
 
-test("affected routing includes native imported consumers while direct DOM roots remain in their one world", { timeout: scaledBudget(30_000) }, ({
-  repoRoot,
-}) => {
-  const plan = planTypecheckPrograms(repoRoot, [present("packages/kit/src/ids/index.ts"), present("tests/client/agent-nav/index.dom.test.ts")], "affected");
-  const kit = plan.subjects.find((subject) => subject.path === "packages/kit/src/ids/index.ts");
-  const dom = plan.subjects.find((subject) => subject.path === "tests/client/agent-nav/index.dom.test.ts");
-  expect(plan.coverage).toBe("complete-affected-programs");
-  expect(kit?.containedBy).toContain("packages/kit/tsconfig.json");
-  expect(kit?.containedBy).toContain("tsconfig.json");
-  expect(kit?.containedBy).toContain("tsconfig.tests-dom.json");
-  expect(dom?.selectedPrograms).toEqual(["tsconfig.tests-dom.json"]);
-});
-
 test("unknown TS roots and malformed configs refuse while an unused empty template is not applicable", ({ scratch }) => {
   execFixtureGit(scratch, ["init", "--quiet", "--template=", "--initial-branch=main"]);
   const write = (path: string, text: string): void => {
@@ -155,6 +142,124 @@ test("unknown TS roots and malformed configs refuse while an unused empty templa
   expect(() => planTypecheckPrograms(scratch, [present("outside/unknown.ts")], "primary")).toThrow(/no native compiler root/u);
   write("tsconfig.bad.json", "{");
   expect(() => planTypecheckPrograms(scratch, [present("src/owned.ts")], "primary")).toThrow(/could not read|could not parse/u);
+});
+
+/** A git fixture of native programs that list their closures through the real TS7 wrapper. */
+function closureFixture(scratch: string, repoRoot: string, files: Readonly<Record<string, string>>): void {
+  execFixtureGit(scratch, ["init", "--quiet", "--template=", "--initial-branch=main"]);
+  mkdirSync(join(scratch, "scripts"));
+  symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
+  for (const [path, text] of Object.entries({ ".gitignore": "node_modules\nscripts/\n", "package.json": JSON.stringify({ type: "module" }), ...files })) {
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), text);
+  }
+}
+
+function program(files: readonly string[]): string {
+  return JSON.stringify({ compilerOptions: { types: [] }, files });
+}
+
+function containedBy(plan: ReturnType<typeof planTypecheckPrograms>): Readonly<Record<string, readonly string[]>> {
+  return Object.fromEntries(plan.subjects.map((subject) => [subject.path, subject.containedBy]));
+}
+
+// The repository's world split in miniature: the root program's test glob matches the DOM test and excludes it, and
+// only the package program roots the leaf file, so the other two programs reach it through imports alone.
+// Three cold native closure reads. MEASURED: 1.4 s to 1.6 s at per-core load 0.5. The base matches the sibling closure cases.
+test("affected routing includes native imported consumers while direct DOM roots remain in their one world", { timeout: scaledBudget(30_000) }, ({
+  scratch,
+  repoRoot,
+}) => {
+  const leaf = "packages/kit/src/ids/index.ts";
+  const domTest = "tests/client/agent-nav/index.dom.test.ts";
+  closureFixture(scratch, repoRoot, {
+    "packages/kit/tsconfig.json": JSON.stringify({ compilerOptions: { types: [] }, include: ["src"] }),
+    "tsconfig.json": JSON.stringify({ compilerOptions: { types: [] }, include: ["tests/**/*.ts"], exclude: ["tests/**/*.dom.test.ts"] }),
+    "tsconfig.tests-dom.json": JSON.stringify({ compilerOptions: { types: [], lib: ["esnext", "dom"] }, include: ["tests/**/*.dom.test.ts"] }),
+    [leaf]: "export const id = 1;\n",
+    "tests/kit/ids/index.test.ts": 'import { id } from "../../../packages/kit/src/ids/index";\nexport const node = id;\n',
+    [domTest]: 'import { id } from "../../../packages/kit/src/ids/index";\nexport const dom = id;\n',
+  });
+  symlinkSync(join(repoRoot, "scripts/ts7.ts"), join(scratch, "scripts/ts7.ts"), "file");
+
+  const plan = planTypecheckPrograms(scratch, [present(leaf), present(domTest)], "affected");
+  expect(plan.coverage).toBe("complete-affected-programs");
+  expect(plan.subjects).toMatchObject([
+    {
+      path: leaf,
+      rootedBy: ["packages/kit/tsconfig.json"],
+      containedBy: ["packages/kit/tsconfig.json", "tsconfig.json", "tsconfig.tests-dom.json"],
+      selectedPrograms: ["packages/kit/tsconfig.json", "tsconfig.json", "tsconfig.tests-dom.json"],
+    },
+    { path: domTest, rootedBy: ["tsconfig.tests-dom.json"], containedBy: ["tsconfig.tests-dom.json"], selectedPrograms: ["tsconfig.tests-dom.json"] },
+  ]);
+});
+
+// Three cold native closure reads per plan. MEASURED: 2.7 s, and 4.1 s at per-core load 0.8 to 1.4.
+// The base matches the sibling closure cases.
+test("the membership snapshot invalidates on a tracked edit against HEAD and on an untracked edit", { timeout: scaledBudget(30_000) }, ({
+  scratch,
+  repoRoot,
+}) => {
+  closureFixture(scratch, repoRoot, {
+    "tsconfig.json": program(["a.ts", "c.ts"]),
+    "tsconfig.b.json": program(["b.ts"]),
+    "tsconfig.d.json": program(["d.ts"]),
+    "a.ts": "export {};\n",
+    "b.ts": "export const b = 1;\n",
+    "d.ts": "export const d = 1;\n",
+  });
+  symlinkSync(join(repoRoot, "scripts/ts7.ts"), join(scratch, "scripts/ts7.ts"), "file");
+  execFixtureGit(scratch, ["add", "--all"]);
+  execFixtureGit(scratch, ["-c", "user.email=fixture@example.test", "-c", "user.name=fixture", "commit", "--quiet", "--message=fixture"]);
+  writeFileSync(join(scratch, "c.ts"), "export {};\n");
+  const subjects = [present("b.ts"), present("d.ts")];
+
+  expect(containedBy(planTypecheckPrograms(scratch, subjects, "affected"))).toEqual({ "b.ts": ["tsconfig.b.json"], "d.ts": ["tsconfig.d.json"] });
+  // Only the tracked importer changes: Git status names it, and only its bytes move the answer.
+  writeFileSync(join(scratch, "a.ts"), 'import "./b";\n');
+  expect(containedBy(planTypecheckPrograms(scratch, subjects, "affected"))).toEqual({
+    "b.ts": ["tsconfig.b.json", "tsconfig.json"],
+    "d.ts": ["tsconfig.d.json"],
+  });
+  // Only the untracked importer changes: its path was already untracked, so only its bytes move the answer.
+  writeFileSync(join(scratch, "c.ts"), 'import "./d";\n');
+  expect(containedBy(planTypecheckPrograms(scratch, subjects, "affected"))).toEqual({
+    "b.ts": ["tsconfig.b.json", "tsconfig.json"],
+    "d.ts": ["tsconfig.d.json", "tsconfig.json"],
+  });
+});
+
+// The fixture's wrapper rewrites the importer before its first two `tsconfig.json` listings, then delegates to the
+// real wrapper. Both planning attempts therefore read membership while their key moves.
+const REWRITING_WRAPPER = (realWrapper: string): string => `import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+const args = process.argv.slice(2);
+const count = existsSync("scripts/rewrites") ? Number(readFileSync("scripts/rewrites", "utf8")) : 0;
+const variants = ['import "./b";\\n', "export const two = 2;\\n"];
+if (args.includes("tsconfig.json") && count < variants.length) {
+  writeFileSync("scripts/rewrites", String(count + 1));
+  writeFileSync("a.ts", variants[count]);
+}
+const result = spawnSync(process.execPath, [${JSON.stringify(realWrapper)}, ...args], { stdio: "inherit" });
+process.exit(result.status ?? 1);
+`;
+
+// Three planning attempts over two cold native closure reads each. MEASURED: 2.2 s, and 2.9 s at per-core load 0.8 to
+// 1.4. The base matches the sibling closure cases.
+test("an unstable membership read refuses and leaves no snapshot behind for its key", { timeout: scaledBudget(30_000) }, ({ scratch, repoRoot }) => {
+  closureFixture(scratch, repoRoot, {
+    "tsconfig.json": program(["a.ts"]),
+    "tsconfig.b.json": program(["b.ts"]),
+    "a.ts": "export {};\n",
+    "b.ts": "export const b = 1;\n",
+    "scripts/ts7.ts": REWRITING_WRAPPER(join(repoRoot, "scripts/ts7.ts")),
+  });
+
+  expect(() => planTypecheckPrograms(scratch, [present("b.ts")], "affected")).toThrow(/no stable plan is available/u);
+  // Restore the bytes the second attempt keyed on. Its membership was read at other bytes, so it must not answer.
+  writeFileSync(join(scratch, "a.ts"), 'import "./b";\n');
+  expect(containedBy(planTypecheckPrograms(scratch, [present("b.ts")], "affected"))).toEqual({ "b.ts": ["tsconfig.b.json", "tsconfig.json"] });
 });
 
 test("the in-process membership snapshot invalidates when authored bytes add a root", ({ scratch }) => {

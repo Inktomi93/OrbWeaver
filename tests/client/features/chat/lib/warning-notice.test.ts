@@ -95,6 +95,12 @@ test("the forced-tool downgrade says the call became the model's choice, not tha
   expect(adjusted("tool_choice_downgraded").description).toContain("chose whether to use one");
 });
 
+test("the carry downgrade says thinking still rode within the reply, not that the carry was dropped", () => {
+  const notice = adjusted("carry_reasoning_downgraded");
+  expect(notice.title).toBe("Reasoning carry was limited to this reply");
+  expect(notice.description).toContain("only within this reply's tool calls");
+});
+
 test("every provider-degradation class has its own distinct, split notice (exhaustive)", () => {
   const notices = PROVIDER_ADJUSTMENT_KINDS.map((kind) => adjusted(kind));
   for (const notice of notices) {

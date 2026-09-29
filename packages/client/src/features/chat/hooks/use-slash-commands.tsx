@@ -12,8 +12,10 @@
 // Runners live in a ref, read at EVENT time (never in render — the refs-in-render ban).
 
 import type { ChatId } from "@orb/kit/ids";
+import { skipToken, useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { use, useRef } from "react";
+import { useTRPC } from "#data";
 import type { SlashArgCompleter, SlashArgOffer, SlashCommandContext, SlashCommandContribution, SlashCommandRunner } from "#lib";
 import { SlashCommandRegistryContext } from "#state";
 import { commandNotReadyNotice, parseSlashDraft, unknownCommandNotice } from "../lib/slash-command.ts";
@@ -26,6 +28,7 @@ type SlashDispatch = { readonly kind: "send"; readonly text: string } | { readon
  *  builds the {@link SlashCommandContext} projection from it — ONE place, so a future context field (a
  *  permission, a capability) is added here and reaches every command and every host at once. */
 export function useSlashCommands(chatId: ChatId | null): {
+  readonly context: SlashCommandContext;
   readonly commands: readonly SlashCommandContribution[];
   readonly mounts: ReactNode;
   readonly unavailableFor: (command: SlashCommandContribution) => string | null;
@@ -35,7 +38,10 @@ export function useSlashCommands(chatId: ChatId | null): {
 } {
   const registry = use(SlashCommandRegistryContext);
   const commands = registry?.list() ?? [];
-  const context: SlashCommandContext = { chatId };
+  const trpc = useTRPC();
+  // Cache-first: the room in view has already read its detail.
+  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions(chatId === null ? skipToken : { chatId }));
+  const context: SlashCommandContext = { chatId, viewerGalleryCharacterId: chat?.viewerGalleryCharacterId ?? null };
   const runnersRef = useRef<Map<string, SlashCommandRunner>>(new Map());
   // The #791 arg completers, published by the same mounts (a command with a declared arg grammar publishes one),
   // read at composer keystroke time — the runners-in-a-ref pattern, for the same reason (event-time, never render).
@@ -91,5 +97,5 @@ export function useSlashCommands(chatId: ChatId | null): {
   // event time (never render). No completer (a command with no declared arg grammar) ⇒ no offers ⇒ no arg strip.
   const argOffers = (commandId: string, argsText: string): readonly SlashArgOffer[] => completersRef.current.get(commandId)?.(argsText) ?? [];
 
-  return { commands, mounts, unavailableFor, dispatch, run, argOffers };
+  return { context, commands, mounts, unavailableFor, dispatch, run, argOffers };
 }

@@ -168,6 +168,8 @@ export function inviteResults(joiner: UserId): InviteResults {
         viewerActivePersonaId: joinerRow.activePersonaId,
         viewerIsHost: false,
         viewerUserId: joiner,
+        viewerOwnedCharacterIds: [],
+        viewerGalleryCharacterId: null,
         pendingHostUserId: null,
         group: DEFAULT_GROUP_CONFIG,
         roomOverrides: DEFAULT_ROOM_OVERRIDES,

@@ -1,7 +1,7 @@
 // The portable replacement for the `nice` binary, which does not exist on Windows: lowers ITS OWN
 // priority, then runs the real command, so the child inherits it. A package.json script invokes this
-// directly for a third-party binary with no tooling CLI entry of ours; `proc.ts`'s niced doors spawn it
-// too, as `process.execPath [this file, cmd, ...args]`, exactly where they used to spawn `nice -n 19 cmd`.
+// directly for a third-party binary with no tooling CLI entry of ours; on win32, `proc.ts`'s sync niced
+// doors spawn it too (`nicedCommand` in ./process-priority.ts), because win32 has no `nice`.
 //
 // Spawns through `spawnFullPriorityChild` rather than `node:child_process` directly (reviewed grant
 // `tooling-child-process-door:niced-exec`, docs/law/Core-Tooling-Law.md §4.4) — this file has already

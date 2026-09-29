@@ -295,7 +295,7 @@ function lockPath(home: string): string {
 /** A synchronous pause. The whole stage path is sync (spawnSync boots, `ss` probes, JSON writes), so the
  *  waiter cannot yield to an event loop — `Atomics.wait` on a throwaway buffer is node's sanctioned
  *  sync sleep and burns no CPU, unlike a spin. */
-function waitSync(ms: number): void {
+export function waitSync(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT)), 0, 0, ms);
 }
 

@@ -1038,6 +1038,8 @@ export type GeneratePictureOp = (p: {
   readonly prompt?: string | undefined;
   readonly n?: number | undefined;
   readonly size?: SizePresetName | undefined;
+  /** The character whose gallery each picture joins; imagery adds it only when the caller owns that character. */
+  readonly gallery?: { readonly subjectCharacterId: CharacterId } | undefined;
 }) => Promise<{
   readonly images: readonly { readonly assetId: AssetId }[];
   // Imagery's native warning vocabulary (e.g. `image_edit_dropped` — an edit/avatar-reference input dropped for

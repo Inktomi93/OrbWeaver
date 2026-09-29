@@ -96,6 +96,32 @@ test("carry: the COHERENCE rule — reasoning OFF for the turn leaves nothing to
   expect(carryDrops(knobs)[0]).toContain("reasoning is off");
 });
 
+// A prefix-bound model refuses a carried block whose earlier prefix changed. A route that cannot keep that from
+// failing the turn (`prefixEditSafe` absent) runs `conversation` as `tool-chain`, whose replay stays inside one turn.
+const BOUND = { ...SIGNED_REPLAY, prefixBound: true } as const;
+
+const carryDowngrades = (knobs: ReturnType<typeof resolveChat>): readonly (string | undefined)[] =>
+  knobs.warnings.flatMap((w) => (w.code === "carry_reasoning_downgraded" ? [w.knob] : []));
+
+test("carry: `conversation` on a prefix-bound model runs as `tool-chain` where a prefix edit could fail the turn", () => {
+  const knobs = resolveChat({ effort: "high", carryReasoning: "conversation" } satisfies UserIntent, generation({ reasoning: BOUND }));
+  expect(knobs.carryReasoning).toBe("tool-chain");
+  expect(carryDowngrades(knobs)).toStrictEqual(["carryReasoning"]);
+  expect(carryDrops(knobs)).toStrictEqual([]);
+});
+
+test("carry: the prefix clamp leaves a safe route, an unbound model and a `tool-chain` ask alone", () => {
+  for (const [label, reasoning, carryReasoning] of [
+    ["safe route", { ...BOUND, prefixEditSafe: true }, "conversation"],
+    ["unbound model", SIGNED_REPLAY, "conversation"],
+    ["tool-chain ask", BOUND, "tool-chain"],
+  ] as const) {
+    const knobs = resolveChat({ effort: "high", carryReasoning } satisfies UserIntent, generation({ reasoning }));
+    expect(knobs.carryReasoning, label).toBe(carryReasoning);
+    expect(carryDowngrades(knobs), label).toStrictEqual([]);
+  }
+});
+
 test("carry: a MANDATORY-reasoning model clamps effort UP, and the carry survives that clamp", () => {
   // The coherence rule reads the POST-clamp answer: `effort: none` on a mandatory model becomes `low`, so
   // reasoning IS on and the carry stands. Reading the requested effort instead would drop it here.

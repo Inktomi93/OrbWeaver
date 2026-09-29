@@ -1,24 +1,26 @@
 // Unit: the Share card's view-model. The row verdicts, which row a start refusal lands on, the link memory that
-// raises the "link changed" notice, and the poll interval per state.
+// raises the "link changed" notice, the poll interval per state, and the IP certificate's refusal and poll (D275).
 
 import type { AuthMode, RelayStatus } from "@orb/contracts/identity";
-import { AUTH_MODES, RELAY_BINARY_REFUSALS, SHARE_REFUSALS } from "@orb/contracts/identity";
+import { AUTH_MODES, IP_CERTIFICATE_REFUSALS, RELAY_BINARY_REFUSALS, SHARE_REFUSALS } from "@orb/contracts/identity";
 import { describe } from "vitest";
 import type { ShareFactsView } from "../../../../../packages/client/src/features/user-admin/lib/share-model.ts";
 import {
   canStartSharing,
   dismissLinkChange,
   EMPTY_SHARE_LINK_MEMORY,
+  ipCertificateRefusal,
   refusalRow,
   rememberShareLink,
   sharePollMs,
   sharePreconditions,
   shareStartFailure,
+  shareStatusPollMs,
   shareView,
 } from "../../../../../packages/client/src/features/user-admin/lib/share-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-const READY_LOCAL: ShareFactsView = { mode: "local", localMultiUser: true, discreetLogin: true, refusal: null, standing: null };
+const READY_LOCAL: ShareFactsView = { mode: "local", localMultiUser: true, discreetLogin: true, refusal: null };
 
 function verdicts(facts: ShareFactsView): Record<string, string> {
   return Object.fromEntries(sharePreconditions(facts).map((row) => [row.id, row.verdict]));
@@ -53,16 +55,9 @@ describe("sharePreconditions", () => {
     const unclaimed = { ...READY_LOCAL, refusal: "share_owner_unclaimed" } as const;
     expect(verdicts(unclaimed)["owner"]).toBe("refused");
     expect(canStartSharing(sharePreconditions(unclaimed))).toBe(true);
-    const container = { ...READY_LOCAL, refusal: "share_in_container" } as const;
-    expect(verdicts(container)["relay"]).toBe("refused");
-    expect(canStartSharing(sharePreconditions(container))).toBe(true);
-  });
-
-  test("a standing container refusal marks the relay row unavailable and holds Start before any press; a mode one leaves the relay row alone", () => {
-    const boxed = { ...READY_LOCAL, standing: "share_in_container" } as const;
-    expect(verdicts(boxed)["relay"]).toBe("unavailable");
-    expect(canStartSharing(sharePreconditions(boxed))).toBe(false);
-    expect(verdicts({ ...READY_LOCAL, mode: "single-user", standing: "share_single_user" })["relay"]).toBe("unchecked");
+    const download = { ...READY_LOCAL, refusal: "relay_binary_download_failed" } as const;
+    expect(verdicts(download)["relay"]).toBe("refused");
+    expect(canStartSharing(sharePreconditions(download))).toBe(true);
   });
 
   test("every mode yields the four rows in order", () => {
@@ -73,11 +68,10 @@ describe("sharePreconditions", () => {
 });
 
 describe("refusalRow", () => {
-  test("the relay binary refusals and the container land on the relay row", () => {
+  test("the relay binary refusals land on the relay row", () => {
     for (const code of RELAY_BINARY_REFUSALS) {
       expect(refusalRow(code)).toBe("relay");
     }
-    expect(refusalRow("share_in_container")).toBe("relay");
   });
 
   test("the mode refusals land on the mode row and the unclaimed owner on the owner row", () => {
@@ -143,6 +137,38 @@ describe("sharePollMs", () => {
     expect(starting).toBeLessThan(up);
     expect(up).toBeLessThan(off);
     expect(gaveUp).toBe(off);
+  });
+});
+
+describe("shareStatusPollMs", () => {
+  const setting = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 };
+
+  test("an IP certificate order polls as fast as a relay transition, even while the relay is off", () => {
+    const starting = sharePollMs({ state: "starting", relay: "quick", restartAfter: null });
+    expect(shareStatusPollMs({ relay: { state: "off" }, certificate: { state: "obtaining", setting } })).toBe(starting);
+  });
+
+  test("a settled certificate leaves the relay's own interval in charge", () => {
+    expect(shareStatusPollMs({ relay: FIRST, certificate: { state: "failed", setting, failure: { code: "expired", message: "m" } } })).toBe(sharePollMs(FIRST));
+    expect(shareStatusPollMs({ relay: { state: "off" }, certificate: { state: "off" } })).toBe(sharePollMs({ state: "off" }));
+  });
+});
+
+describe("ipCertificateRefusal", () => {
+  function wireError(reason: string, message: string): Error {
+    return Object.assign(new Error(message), { data: { code: "BAD_REQUEST", httpStatus: 400, reason } });
+  }
+
+  test("every coded IP certificate refusal comes back with the server's sentence", () => {
+    for (const code of IP_CERTIFICATE_REFUSALS) {
+      expect(ipCertificateRefusal(wireError(code, `sentence for ${code}`))).toStrictEqual({ code, message: `sentence for ${code}` });
+    }
+  });
+
+  test("a relay refusal or an uncoded failure is not a certificate refusal, so the toast reports it", () => {
+    expect(ipCertificateRefusal(wireError("share_single_user", "relay sentence"))).toBeNull();
+    expect(ipCertificateRefusal(new Error("network down"))).toBeNull();
+    expect(ipCertificateRefusal(null)).toBeNull();
   });
 });
 

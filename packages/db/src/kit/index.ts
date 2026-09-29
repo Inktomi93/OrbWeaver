@@ -5,7 +5,7 @@
 export type { AwaitableBatchStmt, BatchStmt, DbBatchInput } from "./batch.ts";
 export { batchMany, batchStmt } from "./batch.ts";
 export type { ChatVisibilityLens } from "./chat-visibility.ts";
-export { assetPostedInPresentRoom, chatRecencyExpr, memberVisibleChatScope } from "./chat-visibility.ts";
+export { chatRecencyExpr, memberVisibleChatScope } from "./chat-visibility.ts";
 export { checkList } from "./check-list.ts";
 export type { ConstraintKind, ConstraintViolation } from "./db-errors.ts";
 export { CONSTRAINT_KINDS, isConstraintViolation } from "./db-errors.ts";

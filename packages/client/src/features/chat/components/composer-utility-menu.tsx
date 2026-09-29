@@ -12,47 +12,26 @@
 //              NOT a focus target inside the menuitem's accessible name — P1-C; accepts image/* + mp4/webm,
 //              #317) · the TWO image doors: Generate image from text (fast, spends on click — its typed text
 //              IS the prompt) and Imagine (opens the /imagine modal: mode strip + preview-before-spend). Both
-//              are here because both cost money and only one used to be findable (#623 P1-IA).
+//              are here because both cost money and only one used to be findable (#623 P1-IA) · the room
+//              character's gallery. The group renders from `composer-media-group.tsx`.
 //   • Plot   — game-only: the six plot steers nested under a Plot submenu (P1-B)
 // Each item is the omit-doctrine's disabled-affordance law: rendered enabled, or disabled-with-a-legible-reason,
-// never hidden.
+// never hidden — except a permission-gated one (the gallery door, for a viewer who owns no character here).
 
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import { RPG_PLOT_STEER_KINDS, RPG_PLOT_STEERS } from "@orb/kit/guided";
 import { Button } from "@orb/ui/button";
-import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Compass, Eraser, Icon, Images, ListOrdered, Pencil, Redo2, RefreshCw, Sparkles, Undo2, WandSparkles } from "@orb/ui/icons";
+import { Compass, Eraser, Icon, ListOrdered, Pencil, Redo2, RefreshCw, Undo2, WandSparkles } from "@orb/ui/icons";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
-import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
-import { IMAGE_GEN_SPENDS_NOW, IMAGINE_DOOR_HELPER, OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
+import { OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
 import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import type { useGuidedActions } from "../hooks/use-guided-actions.ts";
-import { AttachMediaItem } from "./composer-attach-media-item.tsx";
-
-/** The image controls re-homed into the ✨ utility menu (owner) — attach + generate-from-text. Owned by the
- *  composer (upload caps, the generate hook, the F-P1 clear-on-success); the wand only renders them. Homed
- *  HERE (the menu that renders them) so the cluster imports it DOWN this one edge — no import cycle. */
-export interface ComposerImageControls {
-  readonly sharedRoom: boolean;
-  readonly maxAttachmentBytes: number;
-  readonly uploadDisabled: boolean;
-  readonly onAddFiles: (result: FileDropzoneResult) => void;
-  readonly canGenerate: boolean;
-  readonly generateReason: string | undefined;
-  readonly generating: boolean;
-  readonly onGenerate: () => void;
-  /** Opens the `/imagine` modal seeded with whatever is typed (#623 P1-IA) — the SECOND, safer image door.
-   *
-   *  ALWAYS actionable, and that asymmetry is the point: generate-from-text needs a prompt because the typed
-   *  text IS the prompt, while an extraction mode reads the conversation instead — so on the empty composer
-   *  a first-timer meets an enabled door that shows the price before spending, not a greyed-out one. Free
-   *  mode with no text is a legal seed (the modal's own Generate carries the gate). */
-  readonly onOpenImagine: () => void;
-}
+import type { ComposerImageControls } from "./composer-media-group.tsx";
+import { ComposerMediaGroup } from "./composer-media-group.tsx";
 
 interface UtilityMenuProps {
   readonly hasText: boolean;
@@ -267,37 +246,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
         </MenuGroup>
         <MenuSeparator />
         {/* MEDIA — the re-homed image/video controls (owner: image things into the menu, NOT back on the bar). */}
-        <MenuGroup>
-          <MenuGroupLabel>Media</MenuGroupLabel>
-          <AttachMediaItem maxAttachmentBytes={image.maxAttachmentBytes} disabled={image.uploadDisabled} onAddFiles={image.onAddFiles} />
-          {/* TWO IMAGE DOORS, BOTH FINDABLE (#623 P1-IA). The split itself is a RULING, not an accident —
-              `features/imagery/index.ts`'s scope fence keeps this fast composer-owned door in chat and calls
-              /imagine "the richer surface (mode + preview) BESIDE it, not a replacement". What was defective
-              was that only the blind-spend door was discoverable: /imagine was reachable only by knowing to
-              type `/`, so a first-timer's default path spends with no mode, no preview and no stated price.
-              So the ruling stands and its symptom is closed by putting the beside-door literally beside it.
-              This row names its spend (an enabled `title` is the Regenerate/`helper` idiom, not a disabled
-              reason); the row under it is the one that lets you look first. */}
-          <MenuItem
-            closeOnClick={false}
-            disabled={!image.canGenerate}
-            title={image.canGenerate ? IMAGE_GEN_SPENDS_NOW : image.generateReason}
-            data-testid={testId("composerGenerateImage")}
-            onClick={image.canGenerate ? image.onGenerate : undefined}
-          >
-            <Icon icon={Sparkles} size="sm" />
-            {image.generating ? "Generating image…" : "Generate image from text"}
-          </MenuItem>
-          <MenuItem data-testid={testId("composerOpenImagine")} onClick={image.onOpenImagine} title={IMAGINE_DOOR_HELPER}>
-            <Icon icon={Images} size="sm" />
-            Imagine — modes & preview…
-          </MenuItem>
-          {image.sharedRoom ? (
-            <Text voice="gloss" className="px-row py-field">
-              Pictures you generate are posted in this room and stay in your uploads. Add them to a gallery when you want.
-            </Text>
-          ) : null}
-        </MenuGroup>
+        <ComposerMediaGroup image={image} />
         {mediaContributions}
         {/* PLOT — game-only (owner: "game steers go in the magic wand"). The six plot steers nest under one Plot
             submenu (side-eye P1-B — no more flat icon-less dump). "Offer choices" USED to sit here as its own

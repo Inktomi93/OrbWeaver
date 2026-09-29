@@ -101,6 +101,10 @@ function scopeSelectorCount(v: ParsedValues): number {
   return [v.file, v.changed, v.package !== undefined, v.scope !== undefined].filter(Boolean).length;
 }
 
+// The two `--changed` sentinels: the working change vs HEAD, and the index vs HEAD.
+const CHANGED_GIT = "git";
+const CHANGED_STAGED = "staged";
+
 /** No scope flag → whole scope. A distinct sentinel (not `undefined`) so the resolver stays total. */
 const WHOLE_SCOPE = { none: true } as const;
 type ScopeResult = SelectionRequest | typeof WHOLE_SCOPE | { readonly error: string };
@@ -122,9 +126,14 @@ function fileRequest(positionals: readonly string[]): SelectionRequest | { reado
   return { kind: "file", paths: positionals };
 }
 
-/** The --changed branch: `--changed git` (or bare) = git diff vs HEAD; other positionals = explicit paths. */
+/** The --changed branch: `--changed staged` = the index vs HEAD (the commit gate); `--changed git` (or bare) = the
+ *  working change vs HEAD; other positionals = explicit paths. */
 function changedRequest(positionals: readonly string[]): SelectionRequest {
-  const paths = positionals.length === 1 && positionals[0] === "git" ? [] : positionals;
+  const [only] = positionals;
+  if (positionals.length === 1 && only === CHANGED_STAGED) {
+    return { kind: "staged" };
+  }
+  const paths = positionals.length === 1 && only === CHANGED_GIT ? [] : positionals;
   return { kind: "changed", paths };
 }
 

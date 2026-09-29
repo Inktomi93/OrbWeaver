@@ -121,17 +121,19 @@ export {
   IMPERSONATE_IN_FLIGHT,
   IMPERSONATE_STOP_LABEL,
   IMPERSONATE_WAIT_FOR_TURN,
+  MODEL_ROLES_PATH,
+  MODEL_ROLES_PATH_TEXT,
   NEEDS_CONTINUATION,
   OFFER_CHOICES_ONE_SHOT,
   REGENERATE_PLAIN_HELPER,
   RESPONSE_SPEAKER_CUE,
+  ROOM_PICTURES_NOTE,
   STEER_CUE_CONTINUE,
   STEER_CUE_IMPERSONATE,
   STEER_CUE_RESPONSE,
   STEER_CUE_SWIPE,
   SWIPE_NEEDS_REPLY,
   sendUnavailableReason,
-  sendUnavailableStatus,
 } from "./injection-copy.ts";
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence, memberCountPhrase } from "./invite-copy.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";

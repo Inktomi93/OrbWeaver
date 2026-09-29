@@ -12,6 +12,7 @@ import { automationActivityTab, automationQuickReplySource, automationSuggestion
 import { characterSlashCommands } from "@orb/client/features/character";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
+  CharacterGalleryAnchor,
   ChatLandingSurface,
   ChatListAnchor,
   ChatListSurface,
@@ -64,11 +65,11 @@ import {
   enterSelectionMode,
   isLiveTurnPhase,
   MessageToolsRendererRegistryProvider,
+  openCharacterGallery,
   openNewChatPicker,
   openRoomInvite,
   SlashCommandRegistryProvider,
   selectChat,
-  setActiveSection,
   setFocusMode,
   setMobileViewport,
   startEditingMessage,
@@ -76,6 +77,8 @@ import {
   useActiveConfigGroup,
   useActiveConfigSub,
   useActiveSection,
+  useCharacterGalleryTarget,
+  useConfigTarget,
   useContextTab,
   useImagineSeed,
   useNewChatIntent,
@@ -639,17 +642,19 @@ export function MessageToolCallsStory({ records, customToolName, prefixToolName,
 
 export interface MessageActionsRowStoryProps {
   readonly message?: MessageView;
+  /** Shows the generation credit (the row's `showModelIcon` gate). @defaultValue false */
+  readonly generationCredit?: boolean;
 }
 
 /** The actions row in isolation — Edit/Hide/Delete/Fork/Copy, gated per role (message-actions-row.tsx).
  *  Wrapped in a `.group` host (the reveal hook the real `message-row` provides, UIP-305): the cluster
  *  rests hidden (opacity-0 / pointer-events-none) and reveals on hover/focus-within — the CT hovers the
  *  host before interacting. */
-export function MessageActionsRowStory({ message }: MessageActionsRowStoryProps = {}): ReactElement {
+export function MessageActionsRowStory({ message, generationCredit = false }: MessageActionsRowStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
       <div className="group" data-testid="actions-host">
-        <MessageActionsRow message={message ?? makeMessageView()} />
+        <MessageActionsRow message={message ?? makeMessageView()} generationCredit={generationCredit} />
       </div>
     </CtDataProviders>
   );
@@ -1434,8 +1439,25 @@ function ComposerStoryInner({ tailRole = null, tailAssistantMessageId = null }: 
           shell's imagine modal reads. This story has no ModalHost, so the seed IS the observable — read
           through the real `useImagineSeed` selector, never a story-local mirror. */}
       <ImagineSeedProbe />
+      <ConfigTargetProbe />
+      <GalleryTargetProbe />
     </div>
   );
+}
+
+/** Prints the shell section and the settings address a door wrote, as `<section>|<group>|<sub>|<setting>`.
+ *  The story mounts no settings shell, so the store action is the observable. */
+function ConfigTargetProbe(): ReactElement {
+  const target = useConfigTarget();
+  return <p data-testid="composer-config-target">{`${useActiveSection()}|${target?.group ?? ""}|${target?.sub ?? ""}|${target?.setting ?? ""}`}</p>;
+}
+
+/** Prints the gallery the ✨ menu's gallery door or `/gallery` asked the host to show, as
+ *  `<characterId>|<name>|<chatId>` (`none` outside a chat). The story mounts no host, so the store is the
+ *  observable; the host's own CT proves the store opens the dialog. */
+function GalleryTargetProbe(): ReactElement {
+  const target = useCharacterGalleryTarget();
+  return <p data-testid="composer-gallery-target">{target === undefined ? "" : `${target.characterId}|${target.characterName}|${target.chatId ?? "none"}`}</p>;
 }
 
 /** Prints the imagery intent store's current `/imagine` seed as `<mode>|<prompt>` (empty when nothing has
@@ -1452,43 +1474,6 @@ export function ComposerStory(props: ComposerStoryProps): ReactElement {
   return (
     <CtDataProviders>
       <ComposerStoryInner {...props} />
-    </CtDataProviders>
-  );
-}
-
-function ComposerConnectionRecoveryStoryInner(): ReactElement {
-  const section = useActiveSection();
-  const group = useActiveConfigGroup();
-  useEffect(() => {
-    setActiveSection("chats");
-  }, []);
-
-  if (section !== "chats") {
-    return (
-      <div>
-        <output data-testid="composer-connection-landing">{`section=${section} group=${group ?? "none"}`}</output>
-        {section === "config" ? (
-          <button type="button" onClick={(): void => setActiveSection("chats")}>
-            Return to chat
-          </button>
-        ) : null}
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <ComposerStoryInner />
-      <output data-testid="composer-connection-landing">{`section=${section} group=${group ?? "none"}`}</output>
-    </div>
-  );
-}
-
-/** The no-connection recovery trip through the real shell/config stores, with the composer remounted on return. */
-export function ComposerConnectionRecoveryStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <ComposerConnectionRecoveryStoryInner />
     </CtDataProviders>
   );
 }
@@ -2654,7 +2639,7 @@ export function InviteDialogStory(): ReactElement {
 }
 
 export interface ChatOptionsMenuStoryProps {
-  /** @defaultValue false — seed one character seat (enables "New chat with the same characters" + the solo gallery). */
+  /** @defaultValue false — seed one owned character seat (enables "New chat with the same characters" + the solo gallery). */
   readonly withCharacters?: boolean;
 }
 
@@ -2669,7 +2654,12 @@ export function ChatOptionsMenuStory({ withCharacters = false }: ChatOptionsMenu
       {/* A wrapping div so `component` is the WRAPPER (the popup renders through a Portal — item
           assertions use the PAGE locator, the composer-guided-cluster precedent). */}
       <div>
-        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={withCharacters ? CT_OPTIONS_CHARACTERS : []} />
+        <ChatOptionsMenu
+          chatId={CHAT_ID}
+          title="Test chat"
+          characters={withCharacters ? CT_OPTIONS_CHARACTERS : []}
+          galleryCharacters={withCharacters ? CT_OPTIONS_CHARACTERS : []}
+        />
       </div>
     </CtDataProviders>
   );
@@ -2684,7 +2674,7 @@ export function ChatGameModeMenuStory(): ReactElement {
   return (
     <CtDataProviders>
       <div>
-        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={[]} />
+        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={[]} galleryCharacters={[]} />
         <GameModeShellReadout />
         <GameMarkerCensus />
       </div>
@@ -2939,9 +2929,30 @@ export function CharacterGalleryDialogStory({ characterName = "Aria" }: { readon
           onOpenChange={setOpen}
           characterId={castId<CharacterId>("character_ct_gallery")}
           characterName={characterName}
-          chatId={castId<ChatId>("chat_ct_gallery")}
+          chatId={CHAT_ID}
         />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The app root's gallery host with two openers: one from inside a chat (`CHAT_ID`), one from outside any
+ *  chat. The host shows whatever the store names, so the buttons stand in for every door. */
+export function CharacterGalleryAnchorStory(): ReactElement {
+  const characterId = castId<CharacterId>("character_ct_gallery");
+  return (
+    <CtDataProviders>
+      <button type="button" data-testid="ct-open-gallery-outside" onClick={(): void => openCharacterGallery(characterId, { characterName: "Aria" })}>
+        outside
+      </button>
+      <button
+        type="button"
+        data-testid="ct-open-gallery-in-chat"
+        onClick={(): void => openCharacterGallery(characterId, { characterName: "Aria", chatId: CHAT_ID })}
+      >
+        in chat
+      </button>
+      <CharacterGalleryAnchor />
     </CtDataProviders>
   );
 }
@@ -2960,7 +2971,7 @@ export function CharacterGalleryDialogToastStory(): ReactElement {
             onOpenChange={setOpen}
             characterId={castId<CharacterId>("character_ct_gallery")}
             characterName="Aria"
-            chatId={castId<ChatId>("chat_ct_gallery")}
+            chatId={CHAT_ID}
           />
         </div>
       </CtToastSurface>

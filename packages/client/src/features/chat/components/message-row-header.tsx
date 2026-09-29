@@ -271,9 +271,8 @@ export function renderRowActions(args: {
   readonly messageActions: "expanded" | "hover" | undefined;
   /** WIREBTN — gates the kebab's host-only "View wire trace…" item (see `MessageActionsRow`). */
   readonly viewerIsHost: boolean | undefined;
-  /** #167 — the raw model identifier this reply is credited to, already gated by the `showModelIcon`
-   *  appearance toggle upstream; null ⇒ no credit. The cluster derives its DISPLAY name. */
-  readonly modelCredit: string | null;
+  /** Show the generation credit, already gated by the `showModelIcon` appearance toggle upstream. */
+  readonly generationCredit: boolean;
   /** B7 — the room's present characters names (the picker's segment-target parse; see `MessageActionsRowProps`). */
   readonly characterNames?: readonly string[] | undefined;
 }): ReactNode {
@@ -286,7 +285,7 @@ export function renderRowActions(args: {
       onChatForked={args.onChatForked}
       messageActions={args.messageActions}
       viewerIsHost={args.viewerIsHost}
-      modelCredit={args.modelCredit}
+      generationCredit={args.generationCredit}
       characterNames={args.characterNames}
     />
   );

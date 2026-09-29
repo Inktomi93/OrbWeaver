@@ -14,13 +14,14 @@ import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, onTestFinished } from "vitest";
+import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import { createGenerateImage } from "../../../../../packages/server/src/domain/chat/verbs/generate-image.ts";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
-import { FROZEN_AT, makeChatContext, noClaim, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
+import { FROZEN_AT, makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -305,5 +306,84 @@ describe("generateImage", () => {
     await expect(generateImage({ principal: principal(host), chatId, mode: "free", prompt: "x" })).rejects.toThrow("no host");
     expect(claims).toEqual([]);
     expect(pictures).toBe(0);
+  });
+});
+
+describe("generateImage — gallery auto-add target", () => {
+  type PictureCall = Parameters<ChatContext["generatePicture"]>[0];
+
+  function recordingContext(calls: PictureCall[]): ChatContext {
+    return makeChatContext(db, {
+      generatePicture: (p) => {
+        calls.push(p);
+        return Promise.resolve({ images: [{ assetId: castId<AssetId>("asset_one") }], warnings: [] });
+      },
+    });
+  }
+
+  test("by default the pictures join the room character's gallery", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    // The recording context answers with `asset_one`; the generated-post link the verb writes needs that row to exist.
+    await seedGeneratedAsset(host, "one");
+    const aria = await seedCharacter(db, host, "aria");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "aria", characterId: aria });
+    const calls: PictureCall[] = [];
+    const { generateImage } = createGenerateImage(recordingContext(calls), { emit, claimChat: noClaim });
+
+    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "a dragon" });
+
+    expect(calls[0]?.gallery).toEqual({ subjectCharacterId: aria });
+  });
+
+  test("gallery:false keeps the pictures out of every gallery", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    // The recording context answers with `asset_one`; the generated-post link the verb writes needs that row to exist.
+    await seedGeneratedAsset(host, "one");
+    const aria = await seedCharacter(db, host, "aria");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "aria", characterId: aria });
+    const calls: PictureCall[] = [];
+    const { generateImage } = createGenerateImage(recordingContext(calls), { emit, claimChat: noClaim });
+
+    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "a dragon", gallery: false });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.gallery).toBeUndefined();
+  });
+
+  test("a group chat names one character, the room's subject, never every member", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    // The recording context answers with `asset_one`; the generated-post link the verb writes needs that row to exist.
+    await seedGeneratedAsset(host, "one");
+    const aria = await seedCharacter(db, host, "aria");
+    const bram = await seedCharacter(db, host, "bram");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 0 });
+    await seedParticipant(db, { chatId, key: "bram", characterId: bram, joinSeq: 1 });
+    const calls: PictureCall[] = [];
+    const { generateImage } = createGenerateImage(recordingContext(calls), { emit, claimChat: noClaim });
+
+    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "a dragon" });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.gallery).toEqual({ subjectCharacterId: aria });
+  });
+
+  test("a room with no character seat asks for no gallery", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    // The recording context answers with `asset_one`; the generated-post link the verb writes needs that row to exist.
+    await seedGeneratedAsset(host, "one");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    const calls: PictureCall[] = [];
+    const { generateImage } = createGenerateImage(recordingContext(calls), { emit, claimChat: noClaim });
+
+    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "a dragon" });
+
+    expect(calls[0]?.gallery).toBeUndefined();
   });
 });

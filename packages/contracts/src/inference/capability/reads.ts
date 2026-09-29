@@ -76,6 +76,12 @@ export function bindsThinkingToPrefix(capability: GenerationCapability): boolean
   return capability.reasoning.prefixBound === true;
 }
 
+/** Can a prefix edit before a carried thinking block NOT fail the turn on this route (`reasoning.prefixEditSafe`)?
+ *  Absent ⇒ false: the route may send a stale block the API refuses. */
+export function survivesPrefixEdit(capability: GenerationCapability): boolean {
+  return capability.reasoning.prefixEditSafe === true;
+}
+
 /** MAY a mid-conversation system row carry `clearAt: "next_user_message"` on this wire (`turns.clearAt`)? */
 export function acceptsTurnScopedSystem(capability: GenerationCapability): boolean {
   return capability.turns?.clearAt === true;

@@ -16,6 +16,12 @@ export const DEFAULT_DATA_DIR = "./data";
 export const DB_FILE_NAME = "orbweaver.db";
 /** The generated boot secrets' file names under `secrets/`; the container entrypoint writes the same names. */
 export const SECRET_FILE_NAMES = { credentialsKey: "credentials_key", sessionSecret: "session_secret" } as const;
+/** The IP certificate's secret files under `secrets/` (D275): the ACME account key, the certificate chain and its key. */
+export const IP_CERTIFICATE_FILE_NAMES = {
+  accountKey: "acme_account_key.pem",
+  certificate: "ip_certificate.pem",
+  certificateKey: "ip_certificate_key.pem",
+} as const;
 /** The generated boot secrets' legacy names at the root, before the layout moved them under `secrets/`. */
 export const LEGACY_SECRET_FILE_NAMES = { credentialsKey: ".credentials-key", sessionSecret: ".session-secret" } as const;
 /** The env key naming the legacy root entries a layout migration leaves in place, comma-separated. */
@@ -33,6 +39,7 @@ export const DATA_LAYOUT_DIRS = {
   models: "cache/models/transformers",
   variants: "cache/variants",
   importStaging: "cache/import-staging",
+  relay: "cache/relay",
 } as const;
 
 /** The legacy root entries a layout migration moves, in move order (the db last, so a failure on any other
@@ -133,6 +140,7 @@ export function resolveDataLayout(input: DataLayoutInput): DataLayout {
     models: isSet(input.LOCAL_LIGHT_CACHE_DIR) ? input.LOCAL_LIGHT_CACHE_DIR : under(root, DATA_LAYOUT_DIRS.models),
     variants: under(root, DATA_LAYOUT_DIRS.variants),
     importStaging: isSet(input.IMPORT_STAGING_DIR) ? input.IMPORT_STAGING_DIR : under(root, DATA_LAYOUT_DIRS.importStaging),
+    relay: under(root, DATA_LAYOUT_DIRS.relay),
     explicit,
     skip,
   };

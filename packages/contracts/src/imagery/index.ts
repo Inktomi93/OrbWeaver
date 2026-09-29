@@ -234,12 +234,15 @@ const MAX_IMAGE_COUNT = 4;
 
 /** The chat-client wire for `chat.generateImage` → `imagery.generatePicture`.
  *  Phase-5 drives `mode:"free"` with a required `prompt` (the caller refines it); the Phase-7 fields
- *  (`negative`/`subjectCharacterId`/`useAvatarReference`/`reuse`) are additive optionals. */
+ *  (`negative`/`subjectCharacterId`/`useAvatarReference`/`reuse`) are additive optionals. `gallery` is the
+ *  per-request opt-out of the auto-add: absent or `true` joins each picture to the room character's gallery,
+ *  `false` keeps it out (SillyTavern's `gallery=false`). */
 export const generatePictureRequestSchema = z.object({
   mode: promptTemplateModeSchema,
   prompt: z.string().max(MAX_PROMPT_CHARS).optional(),
   n: z.number().int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
   size: sizePresetSchema.optional(),
+  gallery: z.boolean().optional(),
 });
 /** @public twin: generatePictureRequestSchema — the live `generateImage` tRPC input (cross-package PUBLIC). */
 export type GeneratePictureRequest = z.infer<typeof generatePictureRequestSchema>;

@@ -118,14 +118,12 @@ function resolveMessageFooter(
   );
 }
 
-/** THE MODEL CREDIT RIDES THE ACTION CLUSTER NOW (#167, owner ruling 2026-08-18), not the metadata row: it
- *  is an attribution ABOUT the reply, and at rest the transcript owes the reader prose — a raw weights path
- *  sat under every message as the loudest low-contrast thing on an art background. Same gate as before
- *  (`showModelIcon`, the "Show model" appearance toggle, default off); a row with no model (a
- *  greeting/draft) credits nothing. A bare helper, not inlined, so the row body stays under the
- *  cognitive-complexity ceiling. */
-function resolveModelCredit(message: MessageView, visibility: MessageMetadataVisibility): string | null {
-  return visibility.showModelIcon ? message.model : null;
+/** THE GENERATION CREDIT RIDES THE ACTION CLUSTER, not the metadata row: it is an attribution ABOUT
+ *  the reply, and at rest the transcript owes the reader prose. Gated by `showModelIcon`, the "Show model"
+ *  appearance toggle; `GenerationCredit` itself renders nothing for a row with no model (a greeting/draft).
+ *  A bare helper, not inlined, so the row body stays under the cognitive-complexity ceiling. */
+function resolveGenerationCredit(visibility: MessageMetadataVisibility): boolean {
+  return visibility.showModelIcon;
 }
 
 /** #245 — the content column's style: the skin's own width override (echo's art pane) plus, while this row
@@ -331,7 +329,7 @@ export function MessageRow({
 
   // §6c/M8 message-footer: absent for a pre-commit draft-greeting row (no `surfaceContributors` passed).
   const footerContributions = resolveMessageFooter(surfaceContributors, message);
-  const modelCredit = resolveModelCredit(message, metadataVisibility);
+  const generationCredit = resolveGenerationCredit(metadataVisibility);
   // #288 — THE HEADER IS BUILT ONCE AND PLACED ONCE. `inside` (seven of the eight skins) hands it to the
   // bubble, which renders it as the container's own header row; `outside` (tide, whose train of pills has
   // no single container to be inside) keeps the pre-#288 sibling above the box. Splitting the node from
@@ -354,7 +352,7 @@ export function MessageRow({
         onChatForked,
         messageActions,
         viewerIsHost,
-        modelCredit,
+        generationCredit,
         characterNames: [...speakerThemes.keys()],
       }),
     }),

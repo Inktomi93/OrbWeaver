@@ -18,10 +18,9 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { SnapFlagDescriptor } from "../../../snap/index.ts";
 import { SNAP_FLAG_GROUP_ORDER, snapFlagDescriptors } from "../../../snap/index.ts";
+import { SNAP_FLAGS_INDEX_REL } from "../../contract/ledger-paths.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline snap-flags-index");
-
-export const SNAP_FLAGS_INDEX_REL = ".claude/skills/snap-driving/reference/flags.md";
 
 const REGEN_COMMAND = "pnpm exec node tooling/src/verify/cli.ts baseline snap-flags-index";
 

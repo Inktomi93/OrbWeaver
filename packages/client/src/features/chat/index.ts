@@ -5,6 +5,7 @@
 // pair directly if it needs the transcript alone); the reducer deps (`busDeps`) are assembled at that
 // root (a feature may not import the write store).
 
+export { CharacterGalleryAnchor } from "./anchors/character-gallery-anchor.tsx";
 export type { ChatListAnchorProps } from "./anchors/chat-list-anchor.tsx";
 export { ChatListAnchor } from "./anchors/chat-list-anchor.tsx";
 export type { JoinInviteDialogProps } from "./anchors/join-invite-dialog.tsx";

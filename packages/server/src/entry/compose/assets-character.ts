@@ -26,7 +26,7 @@ import {
 import { readSeedAvatar, readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
 import type { RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
-import type { AssetId, CharacterHandle, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
@@ -103,6 +103,8 @@ export interface AssetsCharacterComposeResult {
    *  card pack dresses through its `resolvePlate`. */
   readonly backgroundSeeder: DefaultBackgroundSeeder;
   readonly materializeBackgroundOp: MaterializeBackgroundOp;
+  /** Does `ownerId` own `characterId`? The same read `assetsCtx.assertCharacterOwned` gates the gallery add on. */
+  readonly characterOwned: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
 }
 
 /** The default-persona seeder's three SETTINGS/LIBRARY-backed ops: the persisted latch (layer 1), the
@@ -171,6 +173,17 @@ export function createPersonaSeedLatch(deps: {
 export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCharacterComposeResult {
   const { db, now, cas, variants, imageAdapter, tag, roleClientsFor, settings } = deps;
 
+  // The one owner-scoped "does this user own this character?" read: the gallery add verb's subject gate and
+  // imagery's auto-add gate both close over it.
+  const characterOwned = async (ownerId: UserId, characterId: CharacterId): Promise<boolean> => {
+    const rows = await db
+      .select({ id: charactersTable.id })
+      .from(charactersTable)
+      .where(and(eq(charactersTable.id, characterId), eq(charactersTable.ownerId, ownerId)))
+      .limit(1);
+    return rows.length > 0;
+  };
+
   // Captured as a named const so the portability registry's gallery descriptor can reuse it.
   const assetsCtx: AssetsContext = {
     db,
@@ -187,14 +200,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     // `characters.avatarAssetId`) — the persona `createBulkImportPersonas` shape. Built from character's
     // own persistence factory, not re-implemented here.
     linkCharacterAvatars: createLinkCharacterAvatars({ db, now }),
-    assertCharacterOwned: async (ownerId, characterId) => {
-      const rows = await db
-        .select({ id: charactersTable.id })
-        .from(charactersTable)
-        .where(and(eq(charactersTable.id, characterId), eq(charactersTable.ownerId, ownerId)))
-        .limit(1);
-      return rows.length > 0;
-    },
+    assertCharacterOwned: characterOwned,
     // Roster-avatar reference-check, not a hash→any-owner oracle. Returns an owner only if `hash` is the
     // asset-hash of the `avatarAssetId` of either (a) a character currently rostered in a chat where
     // `callerId` is a present member, or (b) a persona that is a present human participant's
@@ -497,5 +503,5 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     ...createPersonaSeedLatch({ settings, getPersona: deps.getPersona }),
   });
 
-  return { assetsCtx, assets, character, galleryCtx, characterSeeder, personaSeeder, backgroundSeeder, materializeBackgroundOp };
+  return { assetsCtx, assets, character, galleryCtx, characterSeeder, personaSeeder, backgroundSeeder, materializeBackgroundOp, characterOwned };
 }

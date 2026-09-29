@@ -14,6 +14,7 @@ import type { GenerateImageParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
 import { buildCommittedMessageView, commitCanonAppend, insertCanonMessageStatements, insertMessageAssetStatements } from "../persistence/canon-write.ts";
+import { firstCharacterIdOf } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
@@ -48,12 +49,16 @@ interface GenerateImageDeps {
 
 export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): Pick<ChatService, "generateImage"> {
   return {
-    generateImage: async ({ principal, chatId, mode, prompt, n, size }: GenerateImageParams): Promise<MessageView> => {
+    generateImage: async ({ principal, chatId, mode, prompt, n, size, gallery }: GenerateImageParams): Promise<MessageView> => {
       await requireParticipant(ctx, principal, chatId);
-      const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
+      const participants = await loadParticipants(ctx.db, chatId);
+      const hostUserId = hostUserIdOf(participants);
       if (hostUserId === null) {
         throw new Error(`generateImage: chat ${chatId} has no host to own the committed message economics`);
       }
+      // The picture joins the gallery of the character it was generated for — the room's subject, one
+      // character, never every member. Imagery adds it only when the caller owns that character.
+      const galleryCharacterId = gallery === false ? null : firstCharacterIdOf(participants);
       const picture = await ctx.generatePicture({
         caller: principal,
         chatId,
@@ -61,6 +66,7 @@ export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): 
         ...(prompt !== undefined ? ({ prompt } satisfies Pick<PictureParams, "prompt">) : {}),
         ...(n !== undefined ? ({ n } satisfies Pick<PictureParams, "n">) : {}),
         ...(size !== undefined ? ({ size } satisfies Pick<PictureParams, "size">) : {}),
+        ...(galleryCharacterId !== null ? ({ gallery: { subjectCharacterId: galleryCharacterId } } satisfies Pick<PictureParams, "gallery">) : {}),
       });
 
       // ONE message body STRING: the prompt (if any) + one markdown image ref per generated asset (D51).

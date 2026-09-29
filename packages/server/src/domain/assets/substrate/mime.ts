@@ -10,9 +10,11 @@
 //     the ZIP local-file header `PK\x03\x04`) — kit's sniff is image-only, so these dispatch here.
 //   • `text/*` → NO magic exists; the strongest cheap check a text format admits is a strict-UTF-8 decode
 //     (binary garbage fails it). The upload size cap is the route/`maxBytes` belt, not re-checked here.
-// Throws a plain Error on any mismatch — the ONE verification point `storeBlob` calls when `enforceMagic` is set.
+// Throws `AssetContentRejectedError` (a person-facing reason + the operator detail) on any mismatch — the ONE
+// verification point `storeBlob` calls when `enforceMagic` is set.
 
 import { sniffMime } from "@orb/kit/image-sniff";
+import { AssetContentRejectedError } from "../contract/errors.ts";
 
 const OCTET_STREAM = "application/octet-stream";
 const IMAGE_PREFIX = "image/";
@@ -58,6 +60,18 @@ function baseMime(mime: string): string {
   return (mime.split(";")[0] ?? "").trim().toLowerCase();
 }
 
+/** The upload-facing names of the image types the sniff accepts, for a refusal the person can act on. */
+const IMAGE_NAMES: Readonly<Record<string, string>> = { "image/png": "PNG", "image/jpeg": "JPEG", "image/gif": "GIF", "image/webp": "WebP" };
+
+function imageName(mime: string): string {
+  return IMAGE_NAMES[mime] ?? mime;
+}
+
+/** The one refusal for bytes that are not the type they claim; `detail` is the operator's `message`. */
+function refuse(reason: string, detail: string): never {
+  throw new AssetContentRejectedError(reason, `assets.store: ${detail}`);
+}
+
 /** True iff `bytes[offset..]` equals the given ASCII/byte signature (a short buffer simply fails to match). */
 function matchesAt(bytes: Uint8Array, offset: number, signature: string): boolean {
   if (bytes.length < offset + signature.length) {
@@ -81,17 +95,17 @@ function startsWith(bytes: Uint8Array, signature: string): boolean {
 function assertVideoMagic(bytes: Uint8Array, base: string, claimedMime: string): void {
   if (base === MP4_MIME) {
     if (!matchesAt(bytes, FTYP_OFFSET, FTYP_SIGNATURE)) {
-      throw new Error(`assets.store: magic-byte mismatch — claimed ${claimedMime}, missing the ISO-BMFF ftyp box`);
+      refuse("its contents are not an MP4 video", `magic-byte mismatch — claimed ${claimedMime}, missing the ISO-BMFF ftyp box`);
     }
     return;
   }
   if (base === WEBM_MIME) {
     if (!startsWith(bytes, EBML_SIGNATURE)) {
-      throw new Error(`assets.store: magic-byte mismatch — claimed ${claimedMime}, missing the WebM/EBML header`);
+      refuse("its contents are not a WebM video", `magic-byte mismatch — claimed ${claimedMime}, missing the WebM/EBML header`);
     }
     return;
   }
-  throw new Error(`assets.store: cannot enforce magic for unsupported video mime ${claimedMime}`);
+  refuse("that video type is not accepted; use MP4 or WebM", `cannot enforce magic for unsupported video mime ${claimedMime}`);
 }
 
 /** True iff `bytes` decodes as strict UTF-8 (the text-family fallback — no signature exists for text). */
@@ -122,14 +136,17 @@ function isValidUtf8(bytes: Uint8Array): boolean {
 function assertImageMagic(bytes: Uint8Array, base: string, claimedMime: string): void {
   const sniffed = sniffMime(bytes);
   if (sniffed === OCTET_STREAM) {
-    throw new Error(`assets.store: unrecognized magic bytes — claimed ${claimedMime}, no known image signature`);
+    refuse("its contents are not a PNG, JPEG, GIF or WebP image", `unrecognized magic bytes — claimed ${claimedMime}, no known image signature`);
   }
   // The animated-PNG edge: `image/apng` bytes carry the PNG signature, so accept the png sniff as a match.
   if (base === APNG_MIME && sniffed === PNG_MIME) {
     return;
   }
   if (sniffed !== base) {
-    throw new Error(`assets.store: magic-byte mismatch — claimed ${claimedMime}, sniffed ${sniffed}`);
+    refuse(
+      `its contents are a ${imageName(sniffed)} image, not the ${imageName(base)} it claims`,
+      `magic-byte mismatch — claimed ${claimedMime}, sniffed ${sniffed}`,
+    );
   }
 }
 
@@ -142,7 +159,7 @@ export function assertMagicMatches(bytes: Uint8Array, claimedMime: string): void
 
   // #709: an active document/script type is never a servable asset — reject before any family check.
   if (ACTIVE_MIMES.has(base)) {
-    throw new Error(`assets.store: refusing an executable/document mime ${claimedMime} — not a servable asset type`);
+    refuse("that file type can't be stored", `refusing an executable/document mime ${claimedMime} — not a servable asset type`);
   }
 
   if (base.startsWith(IMAGE_PREFIX)) {
@@ -157,24 +174,24 @@ export function assertMagicMatches(bytes: Uint8Array, claimedMime: string): void
 
   if (base === PDF_MIME) {
     if (!startsWith(bytes, PDF_SIGNATURE)) {
-      throw new Error(`assets.store: magic-byte mismatch — claimed ${claimedMime}, missing the %PDF signature`);
+      refuse("its contents are not a PDF", `magic-byte mismatch — claimed ${claimedMime}, missing the %PDF signature`);
     }
     return;
   }
 
   if (ZIP_CONTAINER_MIMES.has(base)) {
     if (!startsWith(bytes, ZIP_SIGNATURE)) {
-      throw new Error(`assets.store: magic-byte mismatch — claimed ${claimedMime}, missing the zip-container signature`);
+      refuse("its contents are not the document it claims", `magic-byte mismatch — claimed ${claimedMime}, missing the zip-container signature`);
     }
     return;
   }
 
   if (base.startsWith(TEXT_PREFIX)) {
     if (!isValidUtf8(bytes)) {
-      throw new Error(`assets.store: magic-byte mismatch — claimed ${claimedMime} but the bytes are not valid UTF-8`);
+      refuse("its contents are not readable text", `magic-byte mismatch — claimed ${claimedMime} but the bytes are not valid UTF-8`);
     }
     return;
   }
 
-  throw new Error(`assets.store: cannot enforce magic for unverifiable mime ${claimedMime}`);
+  refuse("that file type can't be stored", `cannot enforce magic for unverifiable mime ${claimedMime}`);
 }

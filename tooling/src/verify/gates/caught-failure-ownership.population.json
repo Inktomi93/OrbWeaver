@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 641,
+    "sites": 648,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 641,
+      "deliberate-absorb": 648,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 153,
-      "empty": 329,
-      "promise": 159
+      "default": 154,
+      "empty": 334,
+      "promise": 160
     }
   },
   "rows": [
@@ -156,6 +156,11 @@
       "reason": "a null/unauthenticated read falls through to the ladder's fail-closed `signOut()` floor at the end of the function. Ends if this branch stops reaching signOut()."
     },
     {
+      "siteId": "packages/client/src/data/upload-asset.ts::uploadAsset::json::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a refusal body that is not JSON falls through to `throwHttpError` below, which throws with the status. Ends if that fallthrough is removed."
+    },
+    {
       "siteId": "packages/client/src/data/use-card-frame.ts::mintCardFrame::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "documented in the JSDoc above — any failure resolves to undefined and the caller renders the floor. Ends if the floor stops being an acceptable fallback UI."
@@ -239,6 +244,16 @@
       "siteId": "packages/client/src/features/chat/components/chat-list-row-menu.tsx::ChatListRowMenu.confirmDelete::actions.remove::1",
       "verdict": "deliberate-absorb",
       "reason": "useDeleteChat carries errorToast: \"Couldn't delete the chat.\" — the toast is the surface. Ends if useDeleteChat drops errorToast."
+    },
+    {
+      "siteId": "packages/client/src/features/chat/components/gallery-upload-zone.tsx::GalleryUploadZone.landOne::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed add is named on the dropzone's error line (`notAdded`); the mutation carries no toast. Ends if that line stops rendering."
+    },
+    {
+      "siteId": "packages/client/src/features/chat/components/gallery-upload-zone.tsx::GalleryUploadZone.landOne::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a refused upload is named on the dropzone's error line (`notUploaded`), with the server's reason when it gave one. Ends if that line stops rendering."
     },
     {
       "siteId": "packages/client/src/features/chat/components/home-quick-picks-tile-body.tsx::HomeQuickPicksTileBody.startChatWith::startChat::1",
@@ -1246,6 +1261,16 @@
       "reason": "propagated — `run` is what this function RETURNS to the caller, so a failed write reaches the caller unmuted through `run`'s own rejection. Ends if `run` stops being the returned promise."
     },
     {
+      "siteId": "packages/server/src/domain/share/certificate/controller.ts::createCertificateController.obtain::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "owned by `orderFailed`, which sets the status the Share card shows (a renewal failure beside the live certificate, or the `failed` fallback) and logs it. Ends if `orderFailed` stops setting that status."
+    },
+    {
+      "siteId": "packages/server/src/domain/share/certificate/controller.ts::createCertificateController.serve::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "owned by `fail`, which sets the `failed` status the Share card shows and logs the security line naming plain http. Ends if `fail` stops setting that status."
+    },
+    {
       "siteId": "packages/server/src/domain/tool-use/verbs/execute-tool-calls.ts::runCall::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "client-input — the model's own tool-call arguments failed to parse as JSON; this IS the caller's malformed-request answer, returned as data (the model reads it and can retry). Ends if this stops being a client-input surface."
@@ -1436,6 +1461,11 @@
       "reason": "leak-free collapse — documented below: every domain refusal (foreign plugin, torn CAS entry, unparseable bundle) collapses to ONE NOT_FOUND, the same containment `blob.ts` gives a torn blob. Ends if a caller needs to distinguish those causes."
     },
     {
+      "siteId": "packages/server/src/entry/http/upload.ts::registerUpload::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "answered — a refusal the person can fix becomes a 4xx carrying its reason; any other fault is rethrown to the app's error boundary. Ends if this stops being the terminal HTTP handler."
+    },
+    {
       "siteId": "packages/server/src/entry/import/run-bundle-import.ts::importEntity::err::1",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded as an `ok: false` outcome (with message) pushed into `outcomes`, the function's own return value; one bad file never aborts the batch. Ends if `outcomes` stops being read by the caller."
@@ -1524,6 +1554,11 @@
       "siteId": "packages/server/src/foundation/version/index.ts::readVersionStamp::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a stamp that is not JSON is INDISTINGUISHABLE from an absent stamp for this reader's purpose — both mean \"no stamped answer\", and the `.git` fallback below handles both identically. Ends if a corrupt stamp ever needs to be reported differently from a missing one."
+    },
+    {
+      "siteId": "packages/server/src/infra/acme/issuer.ts::createAcmeIssuer.issue::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "propagated as the returned failed outcome, whose code and detail the certificate controller turns into the status and log line. Ends if `issue` starts throwing to its caller."
     },
     {
       "siteId": "packages/server/src/infra/auth/config.ts::jwksAllowlistFromEnv::catch::1",
@@ -2013,7 +2048,7 @@
     {
       "siteId": "tooling/src/_shared/platform-probes.ts::readLinkOrNull::catch::1",
       "verdict": "deliberate-absorb",
-      "reason": "an unreadable `/proc/<pid>/cwd` answers null, which every caller reads as \"unknown\", never as \"not ours\". Ends if null ever authorizes a signal."
+      "reason": "an unreadable `/proc/<pid>/cwd` or fd link answers null, which every caller reads as \"unknown\" (no cwd, no socket owner), never as \"not ours\". Ends if null ever authorizes a signal."
     },
     {
       "siteId": "tooling/src/_shared/platform.ts::win32Processes::catch::1",

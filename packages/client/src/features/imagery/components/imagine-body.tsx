@@ -22,13 +22,17 @@
 // elapsed count, a time expectation, and the fact that CLOSING IS SAFE — the generate flow is busDriven, so
 // the image posts into the room whether or not this modal is still open, and nothing used to say so.
 
+import { viewerGalleryCharacter } from "@orb/contracts/chat";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import { EXTRACTION_MODES } from "@orb/contracts/imagery";
+import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
 import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useId, useState } from "react";
@@ -80,8 +84,12 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
   const [mode, setMode] = useState<ImagineMode>(isImagineMode(seed.mode) ? seed.mode : "free");
   const [prompt, setPrompt] = useState(seed.prompt);
   const [receipt, setReceipt] = useState<ExtractedPromptResult | undefined>(undefined);
+  const [toGallery, setToGallery] = useState(true);
   const modeLabelId = useId();
+  const galleryLabelId = useId();
+  const galleryCheckboxId = useId();
   const trpc = useTRPC();
+  const galleryCharacterName = useGalleryCharacterName(trpc, seed.chatId);
   const invalidation = useInvalidation();
   const extract = useExtractPrompt({ trpc, invalidation });
   const generate = useGeneratePicture({ trpc, invalidation });
@@ -113,7 +121,8 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
     }
     // A present prompt IS the image — sent verbatim as free mode (an extraction mode previewed-then-edited
     // lands here too). An extraction mode with no prompt defers resolution to the server.
-    const request = trimmed.length > 0 ? { chatId: seed.chatId, mode: "free" as const, prompt: trimmed } : { chatId: seed.chatId, mode };
+    const base = { chatId: seed.chatId, gallery: toGallery };
+    const request = trimmed.length > 0 ? { ...base, mode: "free" as const, prompt: trimmed } : { ...base, mode };
     void generate
       .mutateAsync(request)
       .then(() => closeModal())
@@ -184,6 +193,23 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
           </Stack>
         ) : null}
       </Stack>
+      {galleryCharacterName === undefined ? null : (
+        <Row align="center" gap="field">
+          <Checkbox
+            aria-labelledby={galleryLabelId}
+            checked={toGallery}
+            disabled={busy}
+            id={galleryCheckboxId}
+            onCheckedChange={(next): void => setToGallery(next === true)}
+          />
+          {/* A real label, so a tap on the words toggles the box as well as naming it. */}
+          <label htmlFor={galleryCheckboxId}>
+            <Text as="span" id={galleryLabelId} voice="label">
+              Add to {galleryCharacterName}'s gallery
+            </Text>
+          </label>
+        </Row>
+      )}
       {generate.isPending ? (
         <Stack data-slot="imagine-generating" gap="tight">
           <PendingLine label="Generating the image" verb="Generating the image…" />
@@ -199,6 +225,14 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
       </Row>
     </Stack>
   );
+}
+
+/** The name of the character whose gallery this viewer's picture joins, or `undefined` when there is none. The
+ *  server names that character (`viewerGalleryCharacterId`) only for its owner, so a guest gets `undefined`
+ *  and is offered no add the server would refuse. The room read is cache-first. */
+function useGalleryCharacterName(trpc: Trpc, chatId: ChatId): string | undefined {
+  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  return chat === undefined ? undefined : viewerGalleryCharacter(chat)?.displayName;
 }
 
 /** The read call's one line: what it will cost you before, what it DID cost after. `costUsd: null` means the

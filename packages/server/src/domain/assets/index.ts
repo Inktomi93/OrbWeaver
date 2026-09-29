@@ -2,6 +2,7 @@
 // in `@orb/contracts/assets` instead; maintenance/DR verb param types are domain-internal (contract/maintenance.ts).
 
 export type { AssetsContext } from "./context.ts";
+export { AssetContentRejectedError } from "./contract/errors.ts";
 export type {
   AssetMetadata,
   GalleryImportOutcome,

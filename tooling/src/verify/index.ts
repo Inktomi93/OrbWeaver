@@ -30,6 +30,7 @@ export type { GateIgnoreMarker } from "./contract/gate-ignore-marker.ts";
 export type { CheckContext, Violation } from "./contract/harness.ts";
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
 export type { ContractBannedShape, SchemaBannedShape } from "./contract/ledger-banned-shapes.ts";
+export { ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL } from "./contract/ledger-paths.ts";
 export type { GatePolicy, GatePolicyContext, GatePolicyHooks, GatePolicyProof } from "./contract/policy.ts";
 export { defineGate, GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "./contract/policy.ts";
 export type {
@@ -159,12 +160,7 @@ export type { Ledger } from "./ops/debt.ts";
 export { LEDGERS, liveAdmitted, readLedgerRows, reconcileLedgers, runDebtWalk } from "./ops/debt.ts";
 export { runEslint } from "./ops/eslint.ts";
 export { runGateContract } from "./ops/gate-contract.ts";
-export {
-  ACTIVE_GATES_INDEX_REL,
-  deriveActiveGatesIndex,
-  deriveActiveGatesIndexMarkdown,
-  generateActiveGatesIndex,
-} from "./ops/gen/active-gates-index.ts";
+export { deriveActiveGatesIndex, deriveActiveGatesIndexMarkdown, generateActiveGatesIndex } from "./ops/gen/active-gates-index.ts";
 export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";
 export {
   deriveCaughtFailurePopulation,
@@ -173,7 +169,7 @@ export {
   POPULATION_REL,
 } from "./ops/gen/caught-failure-population.ts";
 export { generateProseBaseline } from "./ops/gen/prose.ts";
-export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex, SNAP_FLAGS_INDEX_REL } from "./ops/gen/snap-flags-index.ts";
+export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex } from "./ops/gen/snap-flags-index.ts";
 export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";
 export type { InstrumentAffectedSelection } from "./ops/instrument-affected.ts";
 export { runInstrumentAffected, selectAffectedInstrumentTests } from "./ops/instrument-affected.ts";

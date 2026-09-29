@@ -14,7 +14,7 @@
 
 // The helper copy is asserted from its ONE home, never re-typed here — a re-spelled literal is how a copy
 // change goes green against a string nobody ships.
-import { IMPERSONATE_STOP_LABEL, IMAGE_GEN_SPENDS_NOW as SPENDS_RIGHT_AWAY, sendUnavailableReason, sendUnavailableStatus } from "@orb/client/lib";
+import { IMPERSONATE_STOP_LABEL, MODEL_ROLES_PATH_TEXT, IMAGE_GEN_SPENDS_NOW as SPENDS_RIGHT_AWAY, sendUnavailableReason } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -22,8 +22,8 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeImpersonateStream } from "../../../../support/node/route-impersonate-stream.ts";
 import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { ChatRoomPhoneStory, ComposerConnectionRecoveryStory, ComposerStory } from "../_ct-stories.tsx";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { ChatRoomPhoneStory, ComposerStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessageView } from "../fixtures.ts";
 
 // A getUserSettings view with a chat-pref override — drives the composer's enterSends/continueOnSend read.
@@ -40,70 +40,9 @@ function settingsWith(chat: Partial<(typeof DEFAULT_USER_SETTINGS)["chat"]>): Tr
 const TAIL_ASSISTANT_ID = castId<MessageId>("message_ct_tail_assistant");
 const EMPTY_TURN = { messages: [], aborted: false } satisfies TrpcWireOutput<"chat.generate">;
 const GENERATED_IMAGE_MESSAGE = makeMessageView({ content: "generated image" });
-const SHARED_MEMBER_ROOM: TrpcFixtureOutput<"chat.getChat"> = {
-  title: "Council",
-  participants: [
-    { id: "participant_host", kind: "human", role: "host", userId: "user_host", characterId: null, leftSeq: null },
-    { id: "participant_member", kind: "human", role: "member", userId: "user_member", characterId: null, leftSeq: null },
-  ],
-  viewerIsHost: false,
-};
 // The single clean accessible name for the Attach media row (P1-C — size-hinted, no doubled name; #317
 // widened the copy to images + video).
 const ATTACH_NAME = /^Attach images & video, up to [\d.]+ MB per file$/u;
-
-test("next-turn model readout and shared-room image destination are visible without exposing a host label", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    ...CHAT_AMBIENT_ROUTES,
-    ...CHAT_ROOM_ROUTES,
-    "chat.getChat": () => SHARED_MEMBER_ROOM,
-    "chat.getNextTurnConnection": () => ({
-      state: "configured",
-      connectionLabel: null,
-      provider: "openrouter",
-      providerLabel: "OpenRouter",
-      model: "model-a",
-    }),
-  });
-  const component = await mount(<ComposerStory />);
-  await expect(component.getByText("Room host's connection · OpenRouter · model-a")).toBeVisible();
-  await component.getByRole("button", { name: "Message tools" }).click();
-  await expect(page.getByText("Pictures you generate are posted in this room and stay in your uploads. Add them to a gallery when you want.")).toBeVisible();
-  await expect(component.getByText("Private work model")).toHaveCount(0);
-});
-
-test("solo-room composer shows its own connection label and omits shared-image destination copy", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    ...CHAT_AMBIENT_ROUTES,
-    ...CHAT_ROOM_ROUTES,
-    "chat.getNextTurnConnection": () => ({
-      state: "configured",
-      connectionLabel: "Private work model",
-      provider: "anthropic",
-      providerLabel: "Anthropic",
-      model: "model-b",
-    }),
-  });
-  const component = await mount(<ComposerStory />);
-  await expect(component.getByText("Private work model · Anthropic · model-b")).toBeVisible();
-  await component.getByRole("button", { name: "Message tools" }).click();
-  await expect(page.getByText("Pictures you generate are posted in this room and stay in your uploads. Add them to a gallery when you want.")).toHaveCount(0);
-});
-
-test("next-turn readout keeps pending distinct from unset and shows a read failure honestly", async ({ mount, page }) => {
-  const hold = trpcHold();
-  await routeTrpc(page, {
-    ...CHAT_AMBIENT_ROUTES,
-    ...CHAT_ROOM_ROUTES,
-    "chat.getNextTurnConnection": hold,
-  });
-  const component = await mount(<ComposerStory />);
-  await hold.requested;
-  await expect(component.getByText("Checking this room's next-turn model…")).toBeVisible();
-  await expect(component.getByText("No model connection is set for this room.")).toHaveCount(0);
-  hold.release(trpcError({ message: "read failed" }));
-  await expect(component.getByText("Couldn't read this room's next-turn model.")).toBeVisible();
-});
 
 // ── D111 ☰ RELOCATION: the chat-options menu lives in the composer's LEFT gutter, and ONLY there ──
 // Owner ruling 2026-08-09 closed D111's parked "topbar vs composer" fork on the composer and removed the
@@ -132,8 +71,10 @@ test("D111: the ☰ chat-options menu renders in the composer, LEFT of the guide
 // THE REASON'S CARRIER MOVED (#2443, side-eye 2026-09-19). It used to be a native `title` beside a tooltip
 // copy of the same string — two homes for one concept, and neither reaches a phone (a `title` is invisible
 // on touch; Base UI 1.7.0's tooltip is `mouseOnly: true` with a `:focus-visible`-gated focus fallback). The
-// `title` is gone. The control's accessible DESCRIPTION reaches AT on every pointer; the band's compact
-// cause status reaches sighted touch users, and no-connection keeps that status plus recovery visible.
+// `title` is gone, so these assert the two homes that DO reach a touch user: the control's accessible
+// DESCRIPTION (an `sr-only` line the trigger's `aria-describedby` points at — read at rest, on any pointer),
+// and the band's visible refusal line at a coarse pointer, asserted in its own arm below. An assertion on
+// `title` would pass again the day someone re-adds it, which is the defect.
 //
 // THE CAUSE VOCABULARY MOVED (`@orb/inference` cut-over, 2026-09-20): with the in-server vLLM fleet gone
 // there is no engine to be off, so `engine-off` is RETIRED (an unbound task is `no-connection` like every
@@ -145,7 +86,13 @@ const NO_CONNECTION_REASON = sendUnavailableReason("no-connection");
 const ENDPOINT_UNREACHABLE_REASON = sendUnavailableReason("endpoint-unreachable");
 const RUNTIME_MISSING_REASON = sendUnavailableReason("runtime-missing");
 
-test("#54: no-connection — Send is aria-disabled and DESCRIBED by the cause reason, with no native title", async ({ mount, page }) => {
+// The next-turn line under the card states the no-connection refusal, so it is the one statement of it: every
+// control the refusal idles is DESCRIBED by the line rather than carrying its own copy.
+const NEXT_TURN_LINE = '[data-slot="composer-next-turn"]';
+const NO_CONNECTION_LINE = `Next reply: no chat connection is set. Choose one under ${MODEL_ROLES_PATH_TEXT}`;
+const NO_CONNECTION_IDLED = ["Draft your line", "Try another reply", "Generate reply", "Continue the reply", "Send message"] as const;
+
+test("#54: no-connection — Send is aria-disabled and DESCRIBED by the next-turn line, with no native title", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
   const component = await mount(<ComposerStory />); // committed; text present so it's not draft-empty-disabled
   await component.getByLabel("Message", { exact: true }).fill("hello");
@@ -155,8 +102,38 @@ test("#54: no-connection — Send is aria-disabled and DESCRIBED by the cause re
   await expect(send).not.toHaveAttribute("disabled", "");
   // The name still NAMES the control (what a voice-control user says); the reason is its DESCRIPTION.
   await expect(send).toHaveAccessibleName("Send message");
-  await expect(send).toHaveAccessibleDescription(NO_CONNECTION_REASON);
+  await expect(send).toHaveAccessibleDescription(NO_CONNECTION_LINE);
   await expect(send).not.toHaveAttribute("title");
+});
+
+test("#54: no-connection — the room holds ONE accessible statement of the refusal, and every idled control points at it", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
+  const component = await mount(<ComposerStory />);
+  const line = component.locator(NEXT_TURN_LINE);
+  await expect(line).toHaveAttribute("data-unset", "");
+  await expect(line).toHaveAttribute("id", /.+/u);
+  // The id is minted once per mount (`useId`), so the settled attribute is the value every control must cite.
+  const lineId = await line.getAttribute("id");
+
+  for (const name of NO_CONNECTION_IDLED) {
+    const control = component.getByRole("button", { name, exact: true });
+    await expect(control, `${name} is idled by the refusal`).toHaveAttribute("aria-disabled", "true");
+    await expect(control, `${name} is described by the line`).toHaveAttribute("aria-describedby", lineId ?? "");
+  }
+  // Every rendered text run that states it, `sr-only` copy included (clipped, still rendered) and `display: none`
+  // excluded: the line alone.
+  const statements = (): Promise<number> =>
+    component.getByTestId("composer").evaluate((footer: HTMLElement) => {
+      const walker = document.createTreeWalker(footer, NodeFilter.SHOW_TEXT);
+      let count = 0;
+      for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+        if (/connection is set/iu.test(node.textContent ?? "") && node.parentElement?.checkVisibility() === true) {
+          count += 1;
+        }
+      }
+      return count;
+    });
+  await expect.poll(statements).toBe(1);
 });
 
 test("#54: endpoint-unreachable — Send carries the unreachable-endpoint reason (a bound server that did not answer)", async ({ mount, page }) => {
@@ -184,94 +161,55 @@ test("#54: runtime-missing — Send carries the runtime-missing reason (the caus
   expect(new Set([NO_CONNECTION_REASON, ENDPOINT_UNREACHABLE_REASON, RUNTIME_MISSING_REASON]).size).toBe(3);
 });
 
-// The composer has one visible connection-status home. It replaces the healthy next-turn readout with the
-// refusal instead of adding another warning row beside it; per-control descriptions remain the AT carrier.
-test.describe("the canonical connection status", () => {
+// #2443 — the SIGHTED touch user's half. A disabled Base UI Button swallows its own click, so the refusal
+// cannot hide behind a press door either; it is visible copy under the band, once for the whole cluster
+// (every icon here and the Send share the one cause). `hasTouch` flips `matchMedia("(pointer: coarse)")` in
+// chromium, which is the media the `SHOW_ONLY_AT_COARSE` fragment keys on.
+test.describe("#2443: the band's refusal at a coarse pointer", () => {
   test.use({ hasTouch: true });
 
-  test("an endpoint failure replaces the next-turn readout with one visible warning", async ({ mount, page }) => {
+  test("an unserveable connection states its reason as VISIBLE copy under the guided cluster", async ({ mount, page }) => {
     await routeTrpc(page, {
       ...CHAT_AMBIENT_ROUTES,
       ...CHAT_ROOM_ROUTES,
       "chat.checkSendAvailability": () => ({ available: false, cause: "endpoint-unreachable" }),
     });
     const component = await mount(<ComposerStory />);
-    const status = component.locator('[data-slot="composer-connection-status"]');
-    await expect(status).toHaveText(sendUnavailableStatus("endpoint-unreachable"));
-    await expect(component.getByText("No model connection is set for this room.")).toHaveCount(0);
+    await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveText(ENDPOINT_UNREACHABLE_REASON);
   });
 
-  test("a serveable connection keeps the model identity in that same status home", async ({ mount, page }) => {
+  test("no-connection is stated once, by the next-turn line: the band's refusal line stands down", async ({ mount, page }) => {
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
+    const component = await mount(<ComposerStory />);
+    await expect(component.locator(NEXT_TURN_LINE)).toHaveText(NO_CONNECTION_LINE);
+    await expect(component.locator(NEXT_TURN_LINE)).toBeVisible();
+    await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveCount(0);
+  });
+
+  test("a serveable connection shows no refusal line (the band is not permanently annotated)", async ({ mount, page }) => {
     await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
     const component = await mount(<ComposerStory />);
     await expect(component.getByLabel("Message", { exact: true })).toBeVisible();
-    const status = component.locator('[data-slot="composer-connection-status"]');
-    await expect(status).toBeVisible();
-    await expect(status).toHaveText("No model connection is set for this room.");
-    await expect(status).not.toContainText(ENDPOINT_UNREACHABLE_REASON);
+    await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveCount(0);
   });
 });
 
-test("no-connection recovery opens Connections by keyboard and keeps the typed draft across the trip", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
-  const component = await mount(<ComposerConnectionRecoveryStory />);
-  const draft = "Keep this line while I add a connection";
-  const message = component.getByLabel("Message", { exact: true });
-  await message.fill(draft);
-
-  const openConnections = component.getByRole("button", { name: "Open Connections" });
-  await expect(component.locator('[data-slot="composer-connection-status"]')).toHaveText(`${sendUnavailableStatus("no-connection")}Connect`);
-  await expect(openConnections).toBeVisible();
-  await openConnections.focus();
-  await expect(openConnections).toBeFocused();
-  await page.keyboard.press("Enter");
-
-  await expect(component.getByTestId("composer-connection-landing")).toHaveText("section=config group=connections");
-  await component.getByRole("button", { name: "Return to chat" }).click();
-  await expect(component.getByLabel("Message", { exact: true })).toHaveValue(draft);
-});
-
-test.describe("compact no-connection recovery", () => {
-  test.use({ hasTouch: true, viewport: { width: 320, height: 720 } });
-
-  test("shares the final action row instead of claiming a full warning row", async ({ mount, page }) => {
-    await routeTrpc(page, {
-      ...CHAT_AMBIENT_ROUTES,
-      ...CHAT_ROOM_ROUTES,
-      "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }),
-    });
-    const component = await mount(<ComposerStory />);
-    const status = component.locator('[data-slot="composer-connection-status"]');
-    const attachAndSend = component.getByRole("group", { name: "Attach and send", exact: true });
-    const connect = component.getByRole("button", { name: "Open Connections", exact: true });
-
-    await expect(status).toHaveText(`${sendUnavailableStatus("no-connection")}Connect`);
-    await expect(connect).toHaveText("Connect");
-    const [statusBox, attachBox, railBox] = await Promise.all([
-      status.boundingBox(),
-      attachAndSend.boundingBox(),
-      component.locator('[data-slot="composer-guided-cluster"]').boundingBox(),
-    ]);
-    expect(statusBox, "the connection status must have rendered geometry").not.toBeNull();
-    expect(attachBox, "the terminal action group must have rendered geometry").not.toBeNull();
-    expect(railBox, "the guided action rail must have rendered geometry").not.toBeNull();
-    const statusCenter = (statusBox?.y ?? 0) + (statusBox?.height ?? 0) / 2;
-    const attachCenter = (attachBox?.y ?? 0) + (attachBox?.height ?? 0) / 2;
-    expect(Math.abs(statusCenter - attachCenter), "recovery and terminal actions share one centered final row").toBeLessThanOrEqual(0.5);
-    expect(statusBox?.width ?? 0, "the recovery point must not reserve the whole rail").toBeLessThan(railBox?.width ?? 0);
-  });
-});
-
-test("at a fine pointer an endpoint failure uses the same single visible status home", async ({ mount, page }) => {
+// The OTHER direction of the same pointer fragment. `SHOW_ONLY_AT_COARSE` is `pointer-fine:hidden`, i.e.
+// `display: none` — so on a fine pointer the line is out of layout AND out of the a11y tree, which is only
+// correct because the tooltip and the per-control descriptions carry the same string there. Without this arm
+// the coarse assertion above would also pass on a line that rendered unconditionally.
+test("#2443: at a FINE pointer the refusal line does not render — the tooltip is the carrier there", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "chat.checkSendAvailability": () => ({ available: false, cause: "endpoint-unreachable" }),
   });
   const component = await mount(<ComposerStory />);
-  const status = component.locator('[data-slot="composer-connection-status"]');
-  await expect(status).toBeVisible();
-  await expect(status).toHaveText(sendUnavailableStatus("endpoint-unreachable"));
+  const line = component.locator('[data-slot="composer-guided-refusal"]');
+  // The node is in the DOM (the cause IS in force) but the fragment stands it down at this pointer.
+  await expect(line).toHaveCount(1);
+  await expect(line).toBeHidden();
+  await expect(line).toHaveCSS("display", "none");
 });
 
 test("#54: an unserveable connection refuses the SEND click — no chat.send fires", async ({ mount, page }) => {
@@ -1553,9 +1491,7 @@ for (const width of [430, 390, 320]) {
         expect(height).toBeGreaterThanOrEqual(COARSE_TOUCH_FLOOR);
       }
       // THE RANGE PROPERTY: rows are driven by FIT, so the expected count is derived, not asserted.
-      // `connectionStatus` is the fifth direct rail item between the four named homes. It can shrink to zero
-      // while healthy, but still contributes one inter-item gap to the fit calculation.
-      const needed = bar.homeWidths.reduce((sum, w) => sum + w, 0) + bar.homeInnerGap * bar.homeWidths.length;
+      const needed = bar.homeWidths.reduce((sum, w) => sum + w, 0) + bar.homeInnerGap * (bar.homeWidths.length - 1);
       const expectedRows = needed <= bar.barWidth ? 1 : 2;
       expect(bar.rows, `homes need ${needed}px of a ${bar.barWidth}px bar at ${width}px, yet rendered ${bar.rows} rows`).toBe(expectedRows);
       // …and a wrapped line still ENDS at the bar's right edge, so the terminal Send home never falls back to
@@ -1633,7 +1569,7 @@ test.describe("#539 the group-room phone composer", () => {
     for (const height of bar.controlHeights) {
       expect(height).toBeGreaterThanOrEqual(COARSE_TOUCH_FLOOR);
     }
-    const needed = bar.homeWidths.reduce((sum, w) => sum + w, 0) + bar.homeInnerGap * bar.homeWidths.length;
+    const needed = bar.homeWidths.reduce((sum, w) => sum + w, 0) + bar.homeInnerGap * (bar.homeWidths.length - 1);
     expect(needed, `a group room's four homes must fit a ${String(bar.barWidth)}px phone bar`).toBeLessThanOrEqual(bar.barWidth);
     expect(bar.rows, "a group room must not buy a second action row for a duplicate door").toBe(1);
   });

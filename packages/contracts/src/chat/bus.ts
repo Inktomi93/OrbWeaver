@@ -221,6 +221,10 @@ export const PROVIDER_ADJUSTMENT_KINDS = [
   // A FORCED tool choice went out as `auto`: this model rejects forced tool use outright, so the tools were
   // offered and the model decided whether to call one.
   "tool_choice_downgraded",
+  // The reasoning carry was asked for the whole conversation and ran only inside this turn's tool loop: the model
+  // binds its thinking to the conversation so far, and this connection cannot keep an earlier edit from failing
+  // the reply.
+  "carry_reasoning_downgraded",
   // The provider ran the turn in a COMPATIBILITY mode: it substituted its own value where this model spells
   // a setting differently (a default thinking budget, an output cap guessed for a model it does not know) or
   // accepted a deprecated spelling. Distinct from the drop classes above because the setting DID apply —

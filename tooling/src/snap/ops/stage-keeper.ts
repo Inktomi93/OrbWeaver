@@ -39,10 +39,11 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { spawnNicedChild } from "../../_shared/proc.ts";
 import { pidAlive } from "../../_shared/run-retention.ts";
-import type { StageKeeperEvidence, StageRow } from "../contract/stage.ts";
+import type { StageKeeperEvidence, StageRow, StageStopVerdict } from "../contract/stage.ts";
 import {
   keeperPollMs,
   reservedRowPorts,
@@ -134,6 +135,11 @@ function pollEvidence(input: {
   };
 }
 
+/** A reap whose stop was not confirmed kept its row, so the keeper exits as a tool error, not a clean reap. */
+function reapExit(stop: StageStopVerdict): ExitCode {
+  return stop.kind === "stopped" ? EXIT.clean : EXIT.toolError;
+}
+
 /** `snap --stage-keeper <band>` — the keeper process itself. Resolves when it has released, reaped or
  *  refused; the exit is the process's. Never returns while the band is in use. */
 export async function runStageKeeper(band: number): Promise<number> {
@@ -167,8 +173,7 @@ export async function runStageKeeper(band: number): Promise<number> {
     }
     if (verdict === "reap") {
       print(stageKeeperReapLine(row, nowMs, ttlMs));
-      tearDownStageRow(home, row, "timer", nowMs);
-      return EXIT.clean;
+      return reapExit(tearDownStageRow(home, row, "timer", nowMs));
     }
     await sleep(pollMs);
   }

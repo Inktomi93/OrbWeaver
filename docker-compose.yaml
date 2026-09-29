@@ -12,7 +12,7 @@
 #   -f docker-compose.yaml -f docker/compose.host-network.yaml   single-user, no login, via host networking (Linux/Podman)
 #   -f docker-compose.yaml -f docker/compose.secrets.yaml        secrets as mounted files, never env values
 #   -f docker-compose.yaml -f docker/compose.dev.yaml            the DEVELOPMENT stack from this checkout (hot reload)
-#   -f docker-compose.yaml -f docker/compose.cloudflared.yaml    a Cloudflare Tunnel sidecar (needs a login mode)
+#   -f docker-compose.yaml -f docker/compose.cloudflared.yaml    a named Cloudflare Tunnel on your hostname (needs a login mode)
 #
 # Interpolated knobs (shell env, or a `.env` file beside this compose file):
 #   ORB_PORT   host port                     default 8788

@@ -9,7 +9,7 @@
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import type { EffortLevel, GenerationCapability, Range, Verbosity } from "@orb/contracts/inference";
-import { EFFORT_LEVELS, reasoningReplayOf } from "@orb/contracts/inference";
+import { bindsThinkingToPrefix, EFFORT_LEVELS, reasoningReplayOf, survivesPrefixEdit } from "@orb/contracts/inference";
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { CARRY_REASONING_DEFAULT, QUALITY_EFFORT, QUALITY_LEVELS, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "../contract/resolve.ts";
@@ -22,6 +22,8 @@ const VERBOSITY_DROPPED_WARNING = "verbosity ignored: model does not expose a ve
 const REPLY_MEDIA_DROPPED_WARNING = "reply pictures ignored: this model produces text only";
 const CARRY_NEEDS_REASONING_WARNING = "carryReasoning ignored: reasoning is off for this turn, so there is no thinking to carry back";
 const CARRY_UNSUPPORTED_WARNING = "carryReasoning ignored: this model does not accept its own prior thinking back (capability.reasoning.replay: none)";
+const CARRY_PREFIX_WARNING =
+  "carryReasoning conversation ran as tool-chain: this model binds thinking to its prefix and this route cannot keep a prefix edit from failing the turn (capability.reasoning.prefixEditSafe)";
 
 function clampRange(value: number, range: Range): number {
   return Math.min(Math.max(value, range.min), range.max);
@@ -209,6 +211,8 @@ function reasoningEnabledFor(
  *   1. COHERENCE (from ST, kept): carry above `off` requires reasoning to be ON for this turn — a carry knob on
  *      a non-reasoning turn has nothing to carry. An unset effort is on at the model's own default.
  *   2. CAPABILITY: `reasoning.replay: "none"` means the wire refuses replayed thinking outright.
+ *  Then one clamp, with `carry_reasoning_downgraded`: `conversation` on a prefix-bound model runs as `tool-chain`
+ *  on a route where a prefix edit could fail the turn. Inside one turn's tool loop the prefix does not change.
  *  The `text` rung needs no arm here: the parts carry their prose either way, and a wire that round-trips no
  *  provenance simply receives a part whose `meta` its converter ignores. */
 export function resolveCarryReasoning(params: UserIntent, capability: GenerationCapability, warnings: ResolvedWarning[]): CarryReasoning {
@@ -223,6 +227,10 @@ export function resolveCarryReasoning(params: UserIntent, capability: Generation
   if (reasoningReplayOf(capability) === "none") {
     warnings.push({ code: "sampling_knob_dropped", knob: "carryReasoning", message: CARRY_UNSUPPORTED_WARNING });
     return "off";
+  }
+  if (wanted === "conversation" && bindsThinkingToPrefix(capability) && !survivesPrefixEdit(capability)) {
+    warnings.push({ code: "carry_reasoning_downgraded", knob: "carryReasoning", message: CARRY_PREFIX_WARNING });
+    return "tool-chain";
   }
   return wanted;
 }

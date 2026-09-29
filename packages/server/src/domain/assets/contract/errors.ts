@@ -6,8 +6,19 @@
 // extend the kit `DomainNotFoundError` so the transport maps them to NOT_FOUND uniformly while tests can
 // discriminate (`rejects.toBeInstanceOf(...)`).
 
-import { DomainNotFoundError } from "@orb/kit/errors";
+import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, GalleryItemId } from "@orb/kit/ids";
+
+/** The bytes handed to the store are not what their claimed type says, or are a type the store never serves.
+ *  `reason` is the sentence an upload door shows the person; `message` keeps the operator's detail. */
+export class AssetContentRejectedError extends DomainOperationError {
+  public readonly reason: string;
+  constructor(reason: string, detail: string) {
+    super("asset_content_rejected", detail);
+    this.reason = reason;
+    this.name = this.constructor.name;
+  }
+}
 
 /** The asset an `addToGallery` referenced is missing OR isn't the caller's (the two collapse — no
  *  foreign-existence leak). */

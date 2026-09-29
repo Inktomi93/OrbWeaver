@@ -44,6 +44,7 @@ export {
 } from "./appearance-boot-hint.ts";
 export type { AssembleChromeInput } from "./assemble-chrome.ts";
 export { assembleChrome } from "./assemble-chrome.ts";
+export { closeCharacterGallery, openCharacterGallery, useCharacterGalleryTarget } from "./character-gallery-store.ts";
 export type { CharacterViewMode } from "./character-library-store.ts";
 export {
   __resetTagFilter,

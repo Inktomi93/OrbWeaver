@@ -33,25 +33,11 @@
 // here for exactly this reason — a scope predicate needed by more than one domain, needing drizzle types, and
 // with no legal home inside either domain.
 
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, eq, exists, isNotNull, isNull, max, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, max, sql } from "drizzle-orm";
 import type { Db } from "../client/index.ts";
-import { assets, chatParticipants, chats, messageAssets, messages, messageVariants } from "../schema/index.ts";
-
-/** Correlated on the outer asset row. An owned curated item belongs to this room only when its asset
- * has an actual message link in the room and the viewer is a present room member. No owner stamp
- * or displayed/selected variant is inferred from the image bytes. */
-export function assetPostedInPresentRoom(db: Db, chatId: ChatId, viewerId: UserId): SQL {
-  return exists(
-    db
-      .select({ one: sql`1` })
-      .from(messageAssets)
-      .innerJoin(messages, eq(messages.id, messageAssets.messageId))
-      .innerJoin(chatParticipants, eq(chatParticipants.chatId, messages.chatId))
-      .where(and(eq(messageAssets.assetId, assets.id), eq(messages.chatId, chatId), eq(chatParticipants.userId, viewerId), isNull(chatParticipants.leftSeq))),
-  );
-}
+import { chatParticipants, chats, messages, messageVariants } from "../schema/index.ts";
 
 /** The lens the visibility scope leaves to its caller: archived rooms are hidden unless asked for. */
 export interface ChatVisibilityLens {

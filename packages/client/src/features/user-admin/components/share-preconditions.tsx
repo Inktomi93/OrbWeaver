@@ -2,8 +2,8 @@
 // Start button, held with a visible reason while any row blocks it. The server re-checks every row on start.
 // The seating confirm stays mounted above its row: its write unmounts the row, so a confirm hands focus to Start.
 
-import type { AuthMode, ShareRefusalNotice } from "@orb/contracts/identity";
-import { CONTAINER_SHARE_GUIDE, SETUP_COMMAND } from "@orb/contracts/identity";
+import type { AuthMode } from "@orb/contracts/identity";
+import { SETUP_COMMAND } from "@orb/contracts/identity";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -41,7 +41,6 @@ const MODE_UNMET: Record<AuthMode, string> = {
 const VERDICT_BADGE: Record<PreconditionRow["verdict"], { readonly label: string; readonly intent: "success" | "warning" | "neutral" | "danger" }> = {
   met: { label: "Ready", intent: "success" },
   unmet: { label: "Needs a fix", intent: "warning" },
-  unavailable: { label: "Not available here", intent: "danger" },
   waiting: { label: "Waiting", intent: "neutral" },
   unchecked: { label: "Checked on start", intent: "neutral" },
   refused: { label: "Refused", intent: "danger" },
@@ -78,8 +77,6 @@ export interface SharePreconditionsProps extends SeatingFacts {
   /** Undefined until `/api/auth/config` lands; the rows wait for it. */
   readonly mode: AuthMode | undefined;
   readonly failure: ShareStartFailure | null;
-  /** The refusal the server knows without a start; only a relay one (a container) shows on its row. */
-  readonly standing: ShareRefusalNotice | null;
   readonly onStart: () => void;
   readonly starting: boolean;
   /** The Start button, which the card and the seating confirm send focus to. */
@@ -97,7 +94,6 @@ export function SharePreconditions({ mode, ...rest }: SharePreconditionsProps): 
 function PreconditionList({
   mode,
   failure,
-  standing,
   onStart,
   starting,
   startRef,
@@ -111,8 +107,7 @@ function PreconditionList({
   const seatingReturn = useRef<HTMLElement | null>(null);
   // The confirm keeps the settings it was opened for: the write empties `off` while the dialog is still closing.
   const [seatingAsk, setSeatingAsk] = useState<{ readonly open: boolean; readonly settings: readonly SeatingSetting[] }>({ open: false, settings: [] });
-  const rows = sharePreconditions({ mode, localMultiUser, discreetLogin, refusal: failure?.code ?? null, standing: standing?.code ?? null });
-  const relayStanding = standing !== null && refusalRow(standing.code) === "relay" ? standing : null;
+  const rows = sharePreconditions({ mode, localMultiUser, discreetLogin, refusal: failure?.code ?? null });
   const ready = canStartSharing(rows);
   const seating: Record<SeatingSetting, boolean> = { localMultiUser, discreetLogin };
   const off = SEATING_SETTINGS.filter((setting) => !seating[setting]);
@@ -125,7 +120,6 @@ function PreconditionList({
             row={row}
             mode={mode}
             failure={failure !== null && refusalRow(failure.code) === row.id ? failure : null}
-            standing={row.id === "relay" ? relayStanding : null}
             seatingOff={off}
             onFixSeating={(): void => {
               seatingReturn.current = null;
@@ -150,7 +144,7 @@ function PreconditionList({
             Start sharing
           </Button>
         </Row>
-        {ready ? null : <ShareProse id={blockedId}>{heldReason(rows)}</ShareProse>}
+        {ready ? null : <ShareProse id={blockedId}>{HELD_REASON}</ShareProse>}
       </Stack>
       <ConfirmDialog
         open={seatingAsk.open}
@@ -170,12 +164,8 @@ function PreconditionList({
   );
 }
 
-// Why Start is held. A row nothing on this card can fix is named as such, never as a fix to make.
-function heldReason(rows: readonly PreconditionRow[]): string {
-  return rows.some((row) => row.verdict === "unavailable")
-    ? `This card cannot share this server. The row marked ${VERDICT_BADGE.unavailable.label} names another way to share it.`
-    : `Fix every row marked ${VERDICT_BADGE.unmet.label} first; a waiting row clears when the row above it does.`;
-}
+// Why Start is held.
+const HELD_REASON = `Fix every row marked ${VERDICT_BADGE.unmet.label} first; a waiting row clears when the row above it does.`;
 
 function seatingNames(off: readonly SeatingSetting[]): string {
   return off.map((setting) => SEATING_NAME[setting]).join(" and ");
@@ -195,12 +185,11 @@ interface PreconditionItemProps {
   readonly row: PreconditionRow;
   readonly mode: AuthMode;
   readonly failure: ShareStartFailure | null;
-  readonly standing: ShareRefusalNotice | null;
   readonly seatingOff: readonly SeatingSetting[];
   readonly onFixSeating: () => void;
 }
 
-function PreconditionItem({ row, mode, failure, standing, seatingOff, onFixSeating }: PreconditionItemProps): ReactElement {
+function PreconditionItem({ row, mode, failure, seatingOff, onFixSeating }: PreconditionItemProps): ReactElement {
   const badge = VERDICT_BADGE[row.verdict];
   return (
     <Stack gap="tight" role="listitem" data-precondition={row.id} data-verdict={row.verdict}>
@@ -211,7 +200,7 @@ function PreconditionItem({ row, mode, failure, standing, seatingOff, onFixSeati
       {/* The server's refusal names its own fix, so it replaces the row's standing detail; `alert` because it lands
           after the press while the status line above still reads Not sharing. */}
       {failure === null ? (
-        <PreconditionDetail row={row} mode={mode} standing={standing} seatingOff={seatingOff} onFixSeating={onFixSeating} />
+        <PreconditionDetail row={row} mode={mode} seatingOff={seatingOff} onFixSeating={onFixSeating} />
       ) : (
         <ShareProse role="alert">{`Sharing was refused. ${failure.message}`}</ShareProse>
       )}
@@ -219,7 +208,7 @@ function PreconditionItem({ row, mode, failure, standing, seatingOff, onFixSeati
   );
 }
 
-function PreconditionDetail({ row, mode, standing, seatingOff, onFixSeating }: Omit<PreconditionItemProps, "failure">): ReactNode {
+function PreconditionDetail({ row, mode, seatingOff, onFixSeating }: Omit<PreconditionItemProps, "failure">): ReactNode {
   const id: PreconditionRow["id"] = row.id;
   switch (id) {
     case "mode":
@@ -233,12 +222,7 @@ function PreconditionDetail({ row, mode, standing, seatingOff, onFixSeating }: O
         <SeatingFix off={seatingOff} onFix={onFixSeating} />
       );
     case "relay":
-      // The standing refusal names its own fix; it is shown at rest, so it is not announced.
-      return standing === null ? (
-        <ShareProse>The first share downloads the relay program and runs it only if it matches its pinned checksum.</ShareProse>
-      ) : (
-        <ShareProse>{standing.message}</ShareProse>
-      );
+      return <ShareProse>The first share downloads the relay program and runs it only if it matches its pinned checksum.</ShareProse>;
     default: {
       const exhaustive: never = id;
       return exhaustive;
@@ -272,8 +256,7 @@ function ModeFix({ mode }: { readonly mode: AuthMode }): ReactElement {
             </ShareProse>
             <ShareProse>
               In Docker, set the lines below in the <ShareCode>environment:</ShareCode> block of <ShareCode>docker-compose.yaml</ShareCode>, then run{" "}
-              <ShareCode>docker compose up -d</ShareCode>. This card cannot start a relay inside a container; to share one, run a Cloudflare tunnel beside it (
-              {CONTAINER_SHARE_GUIDE}).
+              <ShareCode>docker compose up -d</ShareCode>.
             </ShareProse>
             <CopyButton text={CONTAINER_LOGIN_LINES} what="the docker-compose environment lines">
               <Text voice="label" className="min-w-0 font-mono whitespace-pre-wrap wrap-anywhere">

@@ -49,6 +49,8 @@ export interface DataLayout {
   readonly models: string;
   readonly variants: string;
   readonly importStaging: string;
+  /** The pinned cloudflared a share downloads on its first start, bare metal and container alike. */
+  readonly relay: string;
   readonly explicit: ReadonlySet<DataLayoutKeeperKey>;
   readonly skip: ReadonlySet<string>;
 }

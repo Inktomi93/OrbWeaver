@@ -1,8 +1,8 @@
 // app-root.tsx — the `/` route (O7, renamed from home-page): a THIN mount of the four-region AppShell.
 // The section + modal + chrome registries (assembled in main.tsx) drive rail/list/content/header/
 // placeholder/context/topbar-trail + every modal; this route keeps only §7 residue (the always-on user
-// bus, the aria announcer, the ?join handoff, first-run persona). The ONE sanctioned composition route —
-// it may import feature front doors (G1 exempts it, like router.tsx→auth); a
+// bus, the aria announcer, the ?join handoff, first-run persona, the character gallery host). The ONE
+// sanctioned composition route — it may import feature front doors (G1 exempts it, like router.tsx→auth); a
 // `sections={{…}}`/`modals={{…}}` god-map is RED. The notifications bell is no longer wired here — it's a
 // registered `topbar.trail` chrome widget (`notificationsChrome`), and since #1627 it carries no capability
 // gate at all: the inbox has single-human sources.
@@ -22,7 +22,7 @@ import {
   useUserBus,
 } from "#data";
 import { AppShell } from "#features/app-shell";
-import { JoinInviteDialog } from "#features/chat";
+import { CharacterGalleryAnchor, JoinInviteDialog } from "#features/chat";
 import { FirstRunPersonaDialog, useViewerCanSpeak } from "#features/persona";
 import { announceStatus, useActiveChatId, useActiveSection, useSelectedCharacterId, useStatusAnnouncement } from "#state";
 import { AppRootSessionBoundary } from "./app-root-session-boundary/index.ts";
@@ -135,6 +135,8 @@ function HydratedAppRoot({ multiHumanCapable, joinToken, setJoinToken }: Hydrate
       {/* The /join link landing — mounts only when a token arrived, the deployment is capable, and the viewer has a
           persona to be seated as. */}
       {multiHumanCapable && joinToken !== null && canSpeak ? <JoinInviteDialog token={joinToken} onDone={(): void => setJoinToken(null)} /> : null}
+      {/* The character gallery, opened from any surface through `openCharacterGallery`; renders nothing when closed. */}
+      <CharacterGalleryAnchor />
     </>
   );
 }

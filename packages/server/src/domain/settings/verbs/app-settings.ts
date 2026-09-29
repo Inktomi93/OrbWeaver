@@ -20,7 +20,7 @@ interface AppSettingsVerbs {
 }
 
 // The owner-box governance fields — flipping any of these requires the box owner, not a delegated admin.
-const OWNER_GATED_FIELDS = ["privateEndpointAllowlist", "localMultiUser"] as const satisfies readonly (keyof AppSettings)[];
+const OWNER_GATED_FIELDS = ["privateEndpointAllowlist", "localMultiUser", "ipCertificate"] as const satisfies readonly (keyof AppSettings)[];
 
 /** Does this patch touch a governance field? Key-presence (even an explicit `null` clear counts). */
 function touchesOwnerGatedField(partial: AppSettings): boolean {

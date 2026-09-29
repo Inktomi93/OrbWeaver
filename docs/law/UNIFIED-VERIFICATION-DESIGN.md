@@ -110,7 +110,7 @@ demand. Query `pnpm verify --list` for its current tier membership.
 **Conditional tier membership, the mechanism.** One step of the ladder CAN be narrowed by a fact about the
 RUN, declared as registry DATA beside the tiers list (`StageDef.tierPrecondition`) and rendered by
 `verify --list` on the tier it narrows. No row declares one today — the field, the runner's plan/notice
-path (`ops/run.ts`) and their producer-driven proof (`tests/tooling/verify/ops/run.int.test.ts` against a
+path (`lib/stage-plan.ts`) and their producer-driven proof (`tests/tooling/verify/ops/run.int.test.ts` against a
 synthetic row) are kept for the next expensive stage that needs a conditional step, and
 `tests/tooling/verify/lib/registry.test.ts` reds if a row grows one without this text moving.
 
@@ -487,7 +487,7 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
 **The tiers ARE the hook wiring (§3):** "run everything" is a named tier, not a folklore N-command pipe
 (`lefthook.yml`).
 
-- **pre-commit and pre-merge-commit → `pnpm verify --static --changed`.** A type, lint, boundary or file-local structure red in the change ⇒ cannot commit (§4.3).
+- **pre-commit and pre-merge-commit → `pnpm verify --static --changed staged`.** A type, lint, boundary or file-local structure red in the staged change ⇒ cannot commit (§4.3).
 - **pre-push → `pnpm verify --push`.** ONE command, ONE summary, ONE exit, ONE json. Its membership comes
   from the registry; it replaces a piped multi-command sequence with run-all-report-all and a max-severity exit.
 - **CI → `pnpm verify --full`** (`.github/workflows/ci.yml`), `workflow_dispatch`-only — the hooks are the
@@ -495,14 +495,16 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
 
 ### 4.3 Scoped static at commit
 
-Pre-commit runs the static-tier stages over the working change, not the whole tree (D223). `--changed`
+Pre-commit runs the stages that narrow to the staged change, not the whole tree (D274): `--changed staged`
+selects the index against `HEAD`, so an unstaged or untracked file stays out of the commit's scope. `--changed`
 beside an explicit tier is only the selector, so the related tests of the `changed` tier stay out of the
 commit gate. A scoped run takes no host-wide whole-run slot, so a commit never waits behind another
 checkout's run.
 
 - The type check runs every native program whose import closure contains a changed file.
 - The structure walk runs the file-local policies. It defers and prints the cross-file policies.
-- A whole-only stage runs its whole command when its path trigger matches (`tooling/src/verify/lib/registry-triggers.ts`). `deps:knip` has no trigger and defers.
+- A whole-only stage defers when its path trigger matches and skips when it does not
+  (`tooling/src/verify/lib/registry-triggers.ts`). Other scoped selections run a triggered whole command.
 
 The whole static tier (`pnpm check`) stays the verdict for done. It runs at pre-push inside `verify --push`
 and as the merge-train barrier on main. A half-registration across two maps can commit clean and fail

@@ -35,6 +35,7 @@ import type {
   ChatServiceDeps,
   ChatToolOps,
   ChatToolSet,
+  GeneratePictureOp,
   GetMembership,
   GetPendingUserText,
   HumanSeatPersona,
@@ -727,6 +728,30 @@ export function createTaskWindowReaders(deps: {
 }
 
 /**
+ * Chat's `generatePicture` op over imagery's orchestrator: forwards the request and maps imagery's
+ * `GeneratedPicture` onto chat's chat-local structural result (chat cannot import imagery's types).
+ *
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
+export function createGeneratePictureOp(generatePicture: ImageryService["generatePicture"]): GeneratePictureOp {
+  return async (p) => {
+    const picture = await generatePicture({
+      caller: p.caller,
+      chatId: p.chatId,
+      mode: p.mode,
+      ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
+      ...(p.n !== undefined ? { n: p.n } : {}),
+      ...(p.size !== undefined ? { size: p.size } : {}),
+      ...(p.gallery !== undefined ? { gallery: p.gallery } : {}),
+    });
+    return {
+      images: picture.images.map((img) => ({ assetId: img.assetId })),
+      warnings: picture.warnings.map((w) => ({ code: w.code, detail: w.detail })),
+    };
+  };
+}
+
+/**
  * Construct the chat `ChatService` + its bus, wiring every {@link ChatContext} op + {@link ChatServiceDeps}
  * collaborator. Returns the service AND the bus emit.
  */
@@ -1252,19 +1277,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     readPresence: input.readPresence,
     // Maps imagery's GeneratedPicture → chat's chat-local structural result (chat can't import
     // domain/imagery's types).
-    generatePicture: async (p) => {
-      const picture = await input.generatePicture({
-        caller: p.caller,
-        chatId: p.chatId,
-        mode: p.mode,
-        ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
-        ...(p.n !== undefined ? { n: p.n } : {}),
-      });
-      return {
-        images: picture.images.map((img) => ({ assetId: img.assetId })),
-        warnings: picture.warnings.map((w) => ({ code: w.code, detail: w.detail })),
-      };
-    },
+    generatePicture: createGeneratePictureOp(input.generatePicture),
     // A chat's digest/segment SPACE is its HOST's (`chatParticipants` role='host' — vector tasks are owner-scoped,
     // §7.5; D18 chats have no owner column, so the host is resolved per write). A hostless/stale room has no
     // space to write into, so the builder skips it before reaching this owner-coherence guard.

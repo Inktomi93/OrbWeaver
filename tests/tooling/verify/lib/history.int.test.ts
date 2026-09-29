@@ -22,6 +22,7 @@ function entry(over: Partial<RunHistoryEntry> = {}): RunHistoryEntry {
     sha: "abc1234",
     exitCode: 0,
     totalMs: 0,
+    wallMs: null,
     stages: [],
     ...over,
   };

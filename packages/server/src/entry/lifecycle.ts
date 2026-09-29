@@ -8,7 +8,6 @@ import { randomUUID } from "node:crypto";
 import type { ServerOptions } from "node:http";
 import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
-import { join } from "node:path";
 import process from "node:process";
 import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
@@ -25,8 +24,8 @@ import { authorizationCodeGrant, discovery } from "openid-client";
 import type { ServerRestartPort } from "#domain/admin";
 import { startAutomationWatcher } from "#domain/automation";
 import { createOidcStore, createSessionsService, isReservedSignupHandle, ownerHandles } from "#domain/sessions";
-import type { ShareBootOutcome } from "#domain/share";
-import { createRelayController } from "#domain/share";
+import type { CertificateBootOutcome, CertificateController, ShareBootOutcome } from "#domain/share";
+import { createCertificateController, createRelayController } from "#domain/share";
 import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
 import {
   bindPostureInput,
@@ -35,6 +34,8 @@ import {
   diagnosticsPostureWarnings,
   env,
   launchedBySupervisor,
+  loopbackCompanion,
+  loopbackOrigin,
   ownerFallbackCredentialInput,
   ownerFallbackPeerInput,
   ownerFallbackPeerWarnings,
@@ -45,6 +46,7 @@ import {
 } from "#foundation/env";
 import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
+import { ACME_POLLING, createAcmeIssuer, createCertificateStore, LETS_ENCRYPT_DIRECTORY, openChallengeResponder } from "#infra/acme";
 import type { OwnerClaimCode } from "#infra/auth";
 import {
   createBackchannelLogoutVerifier,
@@ -58,8 +60,8 @@ import {
   ownerFallbackAllowed,
 } from "#infra/auth";
 import { bootSecretProvenance, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
-import { fetchPinnedDownload, installEgressFirewall, parseAllowlist } from "#infra/network";
-import type { RelayLauncher } from "#infra/relay";
+import { fetchPinnedDownload, installEgressFirewall, parseAllowlist, startTlsTerminator } from "#infra/network";
+import type { CloudflaredPin, RelayAssetFetch, SpawnRelay } from "#infra/relay";
 import { CLOUDFLARED_PIN, createCloudflaredBinary, createQuickTunnelLauncher, extractTgzWithTar, spawnQuickTunnel } from "#infra/relay";
 import { createCas } from "#infra/storage";
 import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler.ts";
@@ -228,6 +230,22 @@ function scheduleInterval(fn: () => void, ms: number): () => void {
   };
 }
 
+/** Serve the app on one address and await the bind: a bind failure (EADDRINUSE) is a server "error" event, not a throw,
+ *  and boot must fail loudly on a dead listener. An omitted `hostname` binds every interface. Every listener goes
+ *  through `serveHttpServer`, so the loopback companion carries the same {@link HTTP_SERVER_TIMEOUTS} as the primary. */
+function listenApp(options: Parameters<typeof serveHttpServer>[0]): Promise<{ readonly handle: ServerType; readonly address: Readonly<AddressInfo> }> {
+  return new Promise((resolve, reject) => {
+    const onBindError = (err: Error): void => {
+      reject(err);
+    };
+    const handle = serveHttpServer(options, (info: AddressInfo) => {
+      handle.removeListener("error", onBindError);
+      resolve({ handle, address: { address: info.address, family: info.family, port: info.port } });
+    });
+    handle.once("error", onBindError);
+  });
+}
+
 /** One `setTimeout` as a cancel-function, unref'd so a pending relay restart never holds the process open. */
 function scheduleOnce(run: () => void, ms: number): () => void {
   const handle = setTimeout(run, ms);
@@ -237,12 +255,25 @@ function scheduleOnce(run: () => void, ms: number): () => void {
   };
 }
 
-/** The URL the share relay forwards to: this listener, reached over loopback when it listens on every interface. */
-function relayOrigin(address: Readonly<AddressInfo> | null, port: number): string {
-  if (address === null || address.address === "0.0.0.0" || address.address === "::") {
-    return `http://127.0.0.1:${port}`;
+/** The log line for the boot start of a stored IP certificate choice; the controller logs what the order does next. */
+function logCertificateBootOutcome(log: ReturnType<typeof getLog>, outcome: CertificateBootOutcome): void {
+  switch (outcome.kind) {
+    case "not_configured":
+      return;
+    case "refused":
+      log.warn(
+        { share: true, security: true, code: outcome.refusal.code },
+        `share: the stored IP certificate choice did not start. ${outcome.refusal.message}`,
+      );
+      return;
+    case "started":
+      log.info({ share: true, state: outcome.certificate.state }, "share: the stored IP certificate choice started");
+      return;
+    default: {
+      const _exhaustive: never = outcome;
+      throw new Error(`share: unknown certificate boot outcome ${JSON.stringify(_exhaustive)}`);
+    }
   }
-  return address.family === "IPv6" ? `http://[${address.address}]:${port}` : `http://${address.address}:${port}`;
 }
 
 /** The log line for a boot-time or post-claim share start; the relay's own `up` line carries the link. */
@@ -407,9 +438,10 @@ interface LifecycleOptions {
    *  boot test that must exercise the REAL graph while replacing a backend edge that would otherwise do
    *  something a test may not (fetch multi-GB model weights). Production omits it. */
   readonly providerSeams?: Parameters<typeof createServices>[0]["providerSeams"];
-  /** Composition-root test seam: the share relay's launcher, so a boot test never downloads or runs cloudflared.
-   *  Production omits it and gets the pinned, checksummed quick tunnel. */
-  readonly relayLauncher?: RelayLauncher;
+  /** Composition-root test seam: the share relay's pin, download and spawn, so a boot test never reaches the network
+   *  or runs cloudflared. The checksum verifier and its directory in the data layout stay production's. Production
+   *  omits it and gets the pinned release over the pinned-download door and a real quick tunnel. */
+  readonly relaySeams?: { readonly pin: CloudflaredPin; readonly fetch: RelayAssetFetch; readonly spawn: SpawnRelay };
 }
 
 /** Construct the lifecycle. Side-effect-free until `boot()` runs (so `index.ts` can wire signals first). */
@@ -421,6 +453,8 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   let credentialsKeyOk = false;
   let db: Db | null = null;
   let server: ServerType | null = null;
+  // The loopback listener a bind to one named interface adds (`loopbackCompanion`); null on every other bind.
+  let loopbackServer: ServerType | null = null;
   let listenerAddress: Readonly<AddressInfo> | null = null;
   let stopScheduler: (() => void) | null = null;
   let stopScheduleScheduler: (() => void) | null = null;
@@ -430,6 +464,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   let stopAutomationWatcher: (() => void) | null = null;
   let stopLocalLightPrefetch: (() => void) | null = null;
   let stopRelay: (() => void) | null = null;
+  let certificateController: CertificateController | null = null;
   let booted = false;
   // The one relay host registry for this process: the Host allowlist reads `hosts`; `writer` is the relay controller's.
   const relayHosts = createRelayHostRegistry();
@@ -632,29 +667,50 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       },
     };
 
+    // The DEPLOY-MODE INVARIANT (foundation/env/bind.ts holds the model): `hostname` is OMITTED rather than
+    // defaulted to "0.0.0.0" so the production path stays byte-identical to node's own default — passing
+    // "0.0.0.0" would silently drop the IPv6 listener. The IP certificate's listeners take the same interface.
+    const bind = resolveBindPosture(bindPostureInput());
+
     // The share relay: the server's one long-lived child, spawned in this process group. Built once, before compose,
     // because it holds the relay registry's write side; the port is read when a relay starts, after the bind.
     const listenPort = (): number => listenerAddress?.port ?? options.listenPort ?? env.PORT;
+    const relaySeams: NonNullable<LifecycleOptions["relaySeams"]> = options.relaySeams ?? {
+      pin: CLOUDFLARED_PIN,
+      fetch: (url, limits) => fetchPinnedDownload(url, { allowedHosts: CLOUDFLARED_PIN.downloadHosts, ...limits }),
+      spawn: spawnQuickTunnel,
+    };
     const relay = createRelayController({
       relay: "quick",
-      launcher:
-        options.relayLauncher ??
-        createQuickTunnelLauncher({
-          binary: createCloudflaredBinary({
-            pin: CLOUDFLARED_PIN,
-            target: `${process.platform}-${process.arch}`,
-            dir: join(env.DATA_LAYOUT.cache, "relay"),
-            fetch: (url, limits) => fetchPinnedDownload(url, { allowedHosts: CLOUDFLARED_PIN.downloadHosts, ...limits }),
-            extractTgz: extractTgzWithTar,
-          }),
-          spawn: spawnQuickTunnel,
+      launcher: createQuickTunnelLauncher({
+        binary: createCloudflaredBinary({
+          pin: relaySeams.pin,
+          target: `${process.platform}-${process.arch}`,
+          dir: env.DATA_LAYOUT.relay,
+          fetch: relaySeams.fetch,
+          extractTgz: extractTgzWithTar,
         }),
+        spawn: relaySeams.spawn,
+      }),
       hosts: relayHosts.writer,
-      origin: () => relayOrigin(listenerAddress, listenPort()),
+      // Over loopback, never the bound interface address, so the app believes the relay's forwarded headers (D255).
+      origin: () => loopbackOrigin(bind.host, listenPort()),
       now,
       schedule: scheduleOnce,
     });
     stopRelay = relay.stop;
+    // The IP certificate (D275): its https listener forwards to the app listener over loopback, never the bound interface
+    // address, so the app sees a trusted loopback peer (D255); its HTTP-01 responder opens on the app's interface only
+    // while a challenge is pending.
+    const certificate = createCertificateController({
+      issuer: createAcmeIssuer({ directoryUrl: LETS_ENCRYPT_DIRECTORY, openResponder: openChallengeResponder, polling: ACME_POLLING }),
+      store: createCertificateStore(env.DATA_LAYOUT.secrets),
+      startHttps: (https) => startTlsTerminator({ ...https, host: bind.host, upstream: () => loopbackOrigin(bind.host, listenPort()) }),
+      bindHost: bind.host,
+      now,
+      schedule: scheduleOnce,
+    });
+    certificateController = certificate;
 
     const built = await createServices({
       db,
@@ -669,7 +725,13 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       holder,
       ...(options.providerSeams === undefined ? {} : { providerSeams: options.providerSeams }),
       serverRestart,
-      share: { relay, localSetupUrl: () => `http://localhost:${listenPort()}` },
+      share: {
+        relay,
+        certificate,
+        localSetupUrl: () => `http://localhost:${listenPort()}`,
+        appPort: listenPort,
+        publicBind: bind.publicBind,
+      },
     });
 
     credentialsKeyOk = await built.services.credentials.probeKeyDecrypt();
@@ -893,10 +955,6 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       ...(oidcWiring === undefined ? {} : { oidc: oidcWiring.oidc }),
     });
 
-    // The DEPLOY-MODE INVARIANT (foundation/env/bind.ts holds the model): `hostname` is OMITTED rather than
-    // defaulted to "0.0.0.0" so the production path stays byte-identical to node's own default — passing
-    // "0.0.0.0" would silently drop the IPv6 listener.
-    const bind = resolveBindPosture(bindPostureInput());
     const ownerPeers = resolveOwnerFallbackPeers(ownerFallbackPeerInput());
 
     // THE BOOT DISCLAIMER (`boot/disclaimer.ts`): ONE contiguous group, logged just before the listener binds,
@@ -922,30 +980,25 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       }
     }
 
-    // Await the bind, don't assume it: serve() binds asynchronously, and a bind failure (EADDRINUSE)
-    // surfaces as a server "error" event, not a throw. Boot must fail loudly on a dead listener.
-    await new Promise<void>((resolve, reject) => {
-      const onBindError = (err: Error): void => {
-        reject(err);
-      };
-      // overrideGlobalObjects would swap global Response for hono's class, so a native fetch() result fails
-      // `instanceof Response`; transformers.js then never caches a downloaded model file and every local-light load fails.
-      const handle = serveHttpServer(
-        {
-          fetch: app.fetch,
-          port: options.listenPort ?? env.PORT,
-          ...(bind.host === undefined ? {} : { hostname: bind.host }),
-        },
-        (info: AddressInfo) => {
-          handle.removeListener("error", onBindError);
-          listenerAddress = { address: info.address, family: info.family, port: info.port };
-          log.info({ port: info.port, address: info.address }, "boot: listening — healthz live");
-          resolve();
-        },
-      );
-      server = handle;
-      handle.once("error", onBindError);
+    // overrideGlobalObjects would swap global Response for hono's class, so a native fetch() result fails
+    // `instanceof Response`; transformers.js then never caches a downloaded model file and every local-light load fails.
+    const primary = await listenApp({
+      fetch: app.fetch,
+      port: options.listenPort ?? env.PORT,
+      ...(bind.host === undefined ? {} : { hostname: bind.host }),
     });
+    server = primary.handle;
+    listenerAddress = primary.address;
+    log.info({ port: primary.address.port, address: primary.address.address }, "boot: listening — healthz live");
+    // SECURITY: a bind to one named interface also listens on loopback at the same port, so the relay and the https
+    // listener reach the app as a loopback peer (D275). It binds the loopback address only, never a wildcard: it admits
+    // only this machine, as every wildcard bind already does, and each loopback gate still refuses a relay tell.
+    const companion = loopbackCompanion(bind.host);
+    if (companion !== null) {
+      const loopback = await listenApp({ fetch: app.fetch, port: primary.address.port, hostname: companion });
+      loopbackServer = loopback.handle;
+      log.info({ port: loopback.address.port, address: loopback.address.address }, "boot: also listening on loopback for the relay and https");
+    }
 
     // After the bind: the relay forwards to the listener, so it starts only once there is one to reach.
     if (env.SHARE_RELAY !== undefined) {
@@ -953,6 +1006,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         logShareBootOutcome(log, await built.services.share.startAtBoot());
       });
     }
+    // After the bind too: the https listener forwards to the app listener, so a stored certificate serves only once it is up.
+    superviseDetached(`ip-certificate-boot:${randomUUID()}`, "share.resumeIpCertificate", {}, async () => {
+      logCertificateBootOutcome(log, await built.services.share.resumeIpCertificate());
+    });
 
     // AFTER THE BIND, ON PURPOSE — and the only boot step that is. The local-light weights are hundreds of
     // megabytes to gigabytes (jina-clip-v2 is 874 MB at the `q8` default, 3.455 GB at fp32 —
@@ -988,10 +1045,18 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       stopRelay();
       stopRelay = null;
     }
+    // The https listener next, for the same reason; its certificate files stay for the next boot.
+    if (certificateController !== null) {
+      const controller = certificateController;
+      certificateController = null;
+      await controller.stop();
+    }
 
     if (server !== null) {
-      await drainHttpServer(server, log);
+      const loopback = loopbackServer;
+      await Promise.all([drainHttpServer(server, log), ...(loopback === null ? [] : [drainHttpServer(loopback, log)])]);
       server = null;
+      loopbackServer = null;
       listenerAddress = null;
       // STAGE BREADCRUMB (#1936). Everything between `draining` and `complete` used to be silent, so when
       // `stack down prod` escalated to SIGKILL the log said only that the process had not finished — never

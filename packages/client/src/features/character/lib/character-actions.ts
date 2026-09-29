@@ -24,7 +24,7 @@
 // is about to destroy ("Delete \"Sabine\"?" vs "Delete 3 characters?"), which only the calling surface knows.
 
 import type { LucideIcon } from "@orb/ui/icons";
-import { Archive, Copy, Download, Drama, FlaskConical, Handshake, Tag, Trash2 } from "@orb/ui/icons";
+import { Archive, Copy, Download, Drama, FlaskConical, Handshake, LayoutGrid, Tag, Trash2 } from "@orb/ui/icons";
 
 /**
  * The three surfaces one character's verbs are offered on.
@@ -55,7 +55,7 @@ type CharacterActionScope = (typeof CHARACTER_ACTION_SCOPES)[number];
  */
 export const CHARACTER_ACTION_SCOPE_IDS = {
   row: ["archive", "duplicate", "exportCard", "delete"],
-  open: ["openInRefinery", "archive", "duplicate", "exportCard", "convertToPersona", "setWelcomeGreeter", "delete"],
+  open: ["openInRefinery", "openGallery", "archive", "duplicate", "exportCard", "convertToPersona", "setWelcomeGreeter", "delete"],
   bulk: ["tag", "archive", "delete"],
 } as const satisfies Readonly<Record<CharacterActionScope, readonly string[]>>;
 
@@ -101,6 +101,7 @@ export interface CharacterActionDef<Id extends CharacterActionId = CharacterActi
  *  each entry's own `id` to its key, so a copy-pasted row that kept the wrong id cannot compile. */
 export const CHARACTER_ACTIONS: { readonly [Id in CharacterActionId]: CharacterActionDef<Id> } = {
   openInRefinery: { id: "openInRefinery", label: "Open in Refinery", toggledLabel: null, destructive: false, glyph: FlaskConical, formats: [] },
+  openGallery: { id: "openGallery", label: "Open gallery", toggledLabel: null, destructive: false, glyph: LayoutGrid, formats: [] },
   tag: { id: "tag", label: "Tag", toggledLabel: null, destructive: false, glyph: Tag, formats: [] },
   archive: { id: "archive", label: "Archive", toggledLabel: "Unarchive", destructive: false, glyph: Archive, formats: [] },
   duplicate: { id: "duplicate", label: "Duplicate", toggledLabel: null, destructive: false, glyph: Copy, formats: [] },

@@ -34,6 +34,10 @@ export const WARNING_CODES = [
   // A forced tool choice (`required` / a named `tool`) went out as `auto`: the model rejects forced tool use
   // with a 400 (`capability.tools.forcedChoice: false`). The tools still ride; only the forcing was withdrawn.
   "tool_choice_downgraded",
+  // A `conversation` reasoning carry ran as `tool-chain`: the model binds thinking to its prefix and this route
+  // cannot keep a prefix edit from failing the turn (`capability.reasoning.prefixEditSafe`), so thinking rides
+  // back only inside the turn's own tool loop, where the prefix does not change.
+  "carry_reasoning_downgraded",
   // A CONTENT prefill with thinking on ⇒ an empty reply on a server whose folded
   // `features.prefillSuppressesThinking` says so; the prefill wins and the thinking toggle is dropped.
   "reasoning_dropped_for_prefill",

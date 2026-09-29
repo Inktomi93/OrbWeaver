@@ -10,8 +10,10 @@
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, Handle, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { AssetContentRejectedError } from "@orb/server/domain/assets";
 import type { UploadAssetsPort, UploadDeps } from "@orb/server/entry/http";
 import { registerUpload } from "@orb/server/entry/http";
 import type { ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "@orb/server/entry/import";
@@ -234,6 +236,41 @@ describe("registerUpload — asset upload", () => {
       enforceMagic: true,
       maxBytes: ROUTE_CAP_BYTES,
     });
+  });
+
+  // A refused upload is the person's to fix, so it answers as a 4xx carrying the store's reason, never a 500.
+  test("bytes that are not the image they claim → 415 carrying the store's reason", async () => {
+    const deps: UploadDeps = {
+      ...okDeps,
+      assets: { store: (): Promise<StoredAsset> => Promise.reject(new AssetContentRejectedError("its contents are not an image", "operator detail")) },
+    };
+    const form = new FormData();
+    form.append("file", new File([new Uint8Array([1, 2, 3])], "spoof.png", { type: "image/png" }));
+    form.append("kind", "gallery");
+    const res = await handlerFor(deps, ASSET_ROUTE)(makeCtx(OWNER, form));
+    expect(res.status).toBe(415);
+    expect(await res.json()).toEqual({ error: "its contents are not an image" });
+  });
+
+  test("bytes over the effective image cap → 413 carrying a reason", async () => {
+    const deps: UploadDeps = {
+      ...okDeps,
+      assets: { store: (): Promise<StoredAsset> => Promise.reject(new DomainOperationError("asset_too_large", "asset is 9 bytes, over the 3-byte cap")) },
+    };
+    const form = new FormData();
+    form.append("file", new File([new Uint8Array([1, 2, 3])], "big.png", { type: "image/png" }));
+    form.append("kind", "gallery");
+    const res = await handlerFor(deps, ASSET_ROUTE)(makeCtx(OWNER, form));
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ error: "it is over the upload size limit" });
+  });
+
+  test("an unexpected store failure still propagates (the app's error boundary owns a real fault)", async () => {
+    const deps: UploadDeps = { ...okDeps, assets: { store: (): Promise<StoredAsset> => Promise.reject(new Error("disk full")) } };
+    const form = new FormData();
+    form.append("file", new File([new Uint8Array([1, 2, 3])], "a.png", { type: "image/png" }));
+    form.append("kind", "gallery");
+    await expect(handlerFor(deps, ASSET_ROUTE)(makeCtx(OWNER, form))).rejects.toThrow("disk full");
   });
 
   test("image kind honors the TIGHTER of the route cap and the admin maxImageBytes", async () => {

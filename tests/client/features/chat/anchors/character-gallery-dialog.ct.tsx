@@ -6,70 +6,24 @@
 // only after the explicit confirm (the chat-delete rule). Network is stubbed via routeTrpc.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { TrpcInput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CharacterGalleryDialogStory, CharacterGalleryDialogToastStory } from "../_ct-stories.tsx";
+import { GALLERY_CELL, ITEM, OWNED_CELL, ownedItem, PAGE_SIZE, pagedItem, TOAST_ROOT } from "../_gallery-fixtures.ts";
 
-const ITEM = {
-  galleryItemId: "galleryitem_ct_1",
-  assetId: "asset_ct_1",
-  hash: "a".repeat(64),
-  mime: "image/png",
-  animated: false,
-  subjectCharacterId: "character_ct_gallery",
-  createdAt: 1,
-};
-
-const OWNED = [
-  { assetId: "asset_ct_owned_1", hash: "b".repeat(64), mime: "image/png", size: 1024, uploadedAt: 1, animated: false, kind: "gallery" },
-  { assetId: "asset_ct_owned_2", hash: "c".repeat(64), mime: "image/png", size: 2048, uploadedAt: 2, animated: false, kind: "gallery" },
-] satisfies TrpcWireOutput<"assets.listOwned">;
+const OWNED = [ownedItem(0), ownedItem(1)] satisfies TrpcWireOutput<"assets.listOwned">;
 
 /** The one asset the partial-batch pin scripts a rejection for — named, so the stub reads no indexed
  *  element and the claim "the SECOND one failed" is legible where the assertion is. */
-const FAILING_ASSET = "asset_ct_owned_2";
-
-/** THE app's toast outlet — `CtToastSurface`'s production `AppToaster` renders one root per notice. */
-const TOAST_ROOT = '[data-slot="toast-root"]';
+const FAILING_ASSET = ownedItem(1).assetId;
 
 async function openLightbox(page: Page): Promise<void> {
-  const cell = page.getByRole("gridcell", { name: "Gallery image" });
+  const cell = page.getByRole("gridcell", { name: GALLERY_CELL }).first();
   await expect(cell).toBeVisible();
   await cell.click();
   await expect(page.getByRole("button", { name: "Remove from gallery" })).toBeVisible();
 }
-
-test("All rooms is the default; This room sends the room id and has its own empty state", async ({ mount, page }) => {
-  const inputs: TrpcInput<"assets.listGallery">[] = [];
-  await routeTrpc(page, {
-    "assets.listGallery": (input) => {
-      inputs.push(input);
-      return input.chatId === undefined ? [ITEM] : [];
-    },
-  });
-  await mount(<CharacterGalleryDialogStory />);
-  await expect(page.getByRole("gridcell", { name: "Gallery image" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "All rooms", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "This room" }).click();
-  await expect(page.getByText("No gallery images in this room")).toBeVisible();
-  await expect(page.getByRole("button", { name: "View all rooms" })).toBeVisible();
-  expect(inputs.some((input) => input.chatId === "chat_ct_gallery")).toBe(true);
-  await page.getByRole("button", { name: "All rooms", exact: true }).click();
-  await expect(page.getByRole("gridcell", { name: "Gallery image" })).toBeVisible();
-});
-
-test("This room narrows only the curated grid; the add picker still excludes items curated elsewhere", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "assets.listGallery": (input) => (input.chatId === undefined ? [ITEM] : []),
-    "assets.listOwned": () => [{ assetId: ITEM.assetId, hash: ITEM.hash, mime: ITEM.mime, size: 1024, uploadedAt: 1, animated: false, kind: "gallery" }],
-  });
-  await mount(<CharacterGalleryDialogStory />);
-  await page.getByRole("button", { name: "This room" }).click();
-  await expect(page.getByText("No gallery images in this room")).toBeVisible();
-  await page.getByRole("button", { name: "Add images" }).click();
-  await expect(page.getByText("Nothing left to add")).toBeVisible();
-});
 
 /** The viewport-space bottom edge of a lightbox action button (throws if it has no layout box). */
 async function buttonBottom(page: Page, name: string): Promise<number> {
@@ -143,10 +97,9 @@ test("P2: cancelling the confirm removes nothing", async ({ mount, page }) => {
 });
 
 async function selectOwnedImages(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Add images" }).first().click();
+  await page.getByRole("button", { name: "Add images" }).click();
   await expect(page.getByText("Add images to the gallery")).toBeVisible();
-  // The picker names each cell `${kind} image`; OWNED is `kind: "gallery"`.
-  const cells = page.getByRole("gridcell", { name: "gallery image", exact: true });
+  const cells = page.getByRole("gridcell", { name: OWNED_CELL });
   await expect(cells).toHaveCount(2);
   await cells.nth(0).click();
   await cells.nth(1).click();
@@ -299,9 +252,7 @@ test("a PARTIAL add prunes the selection to what did not land (#1501)", async ({
   });
 
   await mount(<CharacterGalleryDialogStory />);
-  // `.first()`: an EMPTY gallery renders its own "Add images" CTA as well as the header's, and this test
-  // deliberately starts empty so the picker's candidates are the two owned assets.
-  await page.getByRole("button", { name: "Add images" }).first().click();
+  await page.getByRole("button", { name: "Add images" }).click();
   const picker = page.getByRole("dialog").filter({ hasText: "Add images to the gallery" });
   await picker.getByRole("gridcell").first().click();
   await picker.getByRole("gridcell").nth(1).click();
@@ -318,3 +269,319 @@ test("a PARTIAL add prunes the selection to what did not land (#1501)", async ({
   await picker.getByRole("button", { name: "Add selected" }).click();
   await expect.poll(() => trpc.count("assets.addToGallery"), { intervals: [20, 50, 100] }).toBe(3);
 });
+
+// ── THE ROOM FILTER (item 0024 part 6). The grid's scope strip narrows the gallery to pictures generated in
+// the chat the dialog was opened from. The server applies `chatId` inside the caller's own gallery (the
+// cross-tenant refusal is pinned in `list-gallery.int.test.ts`); these pin that the client sends it only for
+// "This chat", keeps the character scope, and reads an empty or failed room scope honestly.
+
+/** The chat `CharacterGalleryDialogStory` opens the dialog from (`fixtures.ts` `CHAT_ID`). */
+const STORY_CHAT_ID = "chat_ct_keystone";
+const ROOM_ITEM = { ...ITEM, galleryItemId: "galleryitem_ct_room", assetId: "asset_ct_room", hash: "d".repeat(64) };
+
+function galleryFor(input: TrpcInput<"assets.listGallery">): TrpcWireOutput<"assets.listGallery"> {
+  return input?.chatId === STORY_CHAT_ID ? [ROOM_ITEM] : [ITEM, ROOM_ITEM];
+}
+
+test("the scope strip starts on Everywhere and 'This chat' re-reads the gallery for this chat only", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "assets.listGallery": galleryFor });
+  await mount(<CharacterGalleryDialogStory />);
+
+  const strip = page.getByRole("radiogroup", { name: "Show images from" });
+  await expect(strip.getByRole("radio", { name: "Everywhere" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("gridcell", { name: GALLERY_CELL })).toHaveCount(2);
+  await expect
+    .poll(() => trpc.lastInput("assets.listGallery"))
+    .toEqual({ subjectCharacterId: "character_ct_gallery", limit: 100, sort: "newest", direction: "forward" });
+
+  await strip.getByRole("radio", { name: "This chat" }).click();
+  await expect(strip.getByRole("radio", { name: "This chat" })).toHaveAttribute("aria-checked", "true");
+  await expect
+    .poll(() => trpc.lastInput("assets.listGallery"))
+    .toEqual({ subjectCharacterId: "character_ct_gallery", chatId: STORY_CHAT_ID, limit: 100, sort: "newest", direction: "forward" });
+  await expect(page.getByRole("gridcell", { name: GALLERY_CELL })).toHaveCount(1);
+});
+
+test("an empty 'This chat' scope says so and offers the way back to everywhere", async ({ mount, page }) => {
+  await routeTrpc(page, { "assets.listGallery": (input: TrpcInput<"assets.listGallery">) => (input?.chatId === undefined ? [ITEM] : []) });
+  await mount(<CharacterGalleryDialogStory />);
+
+  await page.getByRole("radio", { name: "This chat" }).click();
+  await expect(page.getByText("No images from this chat")).toBeVisible();
+  await page.getByRole("button", { name: "Show everywhere" }).click();
+  await expect(page.getByRole("radio", { name: "Everywhere" })).toHaveAttribute("aria-checked", "true");
+  // The button unmounts with the empty state; focus lands on the radio it selected, never the dialog shell.
+  await expect(page.getByRole("radio", { name: "Everywhere" })).toBeFocused();
+  await expect(page.getByRole("gridcell", { name: GALLERY_CELL })).toHaveCount(1);
+});
+
+// A full gallery everywhere and none in this chat: the largest height change the scope strip can cause. Enough
+// rows to reach the grid's height cap at the desktop dialog's width, where a dozen fit in the empty state's height.
+const FULL_GALLERY = Array.from({ length: 40 }, (_, index) => ({
+  ...ITEM,
+  galleryItemId: `galleryitem_ct_full_${String(index)}`,
+  assetId: `asset_ct_full_${String(index)}`,
+  hash: index.toString(16).padStart(2, "0").repeat(32),
+}));
+
+for (const viewport of [
+  { name: "desktop", width: 1440, height: 900 },
+  { name: "mobile", width: 360, height: 780 },
+] as const) {
+  test(`${viewport.name}: switching to an empty 'This chat' leaves the heading and the scope strip where they were`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { "assets.listGallery": (input: TrpcInput<"assets.listGallery">) => (input?.chatId === undefined ? FULL_GALLERY : []) });
+    await mount(<CharacterGalleryDialogStory />);
+
+    const heading = page.getByRole("dialog").getByRole("heading").first();
+    const strip = page.getByRole("radiogroup", { name: "Show images from" });
+    await expect(page.getByRole("gridcell", { name: GALLERY_CELL }).first()).toBeVisible();
+    // Read the first position after the popup's open motion has settled, or a transform skews it.
+    await expect
+      .poll(() =>
+        page
+          .locator('[data-slot="dialog-popup"]')
+          .first()
+          .evaluate((el) => el.getAnimations().length),
+      )
+      .toBe(0);
+    const tops = async (): Promise<readonly number[]> => [(await heading.boundingBox())?.y ?? Number.NaN, (await strip.boundingBox())?.y ?? Number.NaN];
+    const before = await tops();
+
+    await strip.getByRole("radio", { name: "This chat" }).click();
+    await expect(page.getByText("No images from this chat")).toBeVisible();
+    // Past the popup's own open/resize motion: the reading is the settled layout.
+    await expect.poll(tops).toEqual(before);
+  });
+}
+
+test("a failed gallery read shows its error state, never 'No images yet'", async ({ mount, page }) => {
+  await routeTrpc(page, { "assets.listGallery": () => trpcError({ message: "gallery boom" }) });
+  await mount(<CharacterGalleryDialogStory />);
+
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(page.getByText("No images yet")).toHaveCount(0);
+});
+
+for (const viewport of [
+  { name: "desktop", width: 1280, height: 800 },
+  { name: "narrow", width: 900, height: 800 },
+  { name: "mobile", width: 390, height: 844 },
+] as const) {
+  test(`${viewport.name}: the scope strip sits inside the dialog and inside the viewport`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { "assets.listGallery": galleryFor });
+    await mount(<CharacterGalleryDialogStory />);
+
+    const strip = page.getByRole("radiogroup", { name: "Show images from" });
+    await expect(strip).toBeVisible();
+    await expect(strip).toBeInViewport({ ratio: 1 });
+    await expect
+      .poll(() =>
+        strip.evaluate((el: HTMLElement) => {
+          const dialog = el.closest('[role="dialog"]');
+          const own = el.getBoundingClientRect();
+          const box = dialog === null ? own : dialog.getBoundingClientRect();
+          return own.left >= box.left - 1 && own.right <= box.right + 1;
+        }),
+      )
+      .toBe(true);
+  });
+}
+
+// ── PAGING AND DATE ORDER (gallery parity, gap 4). The grid reads one keyset page of 100; "Load more" asks for the
+// next page from the last row's `(createdAt, galleryItemId)`, and leaves once a short page ends the list. The
+// order strip re-reads the gallery in the other date order from the first page.
+
+const SECOND_PAGE = 20;
+
+const NEWEST_FIRST = Array.from({ length: PAGE_SIZE + SECOND_PAGE }, (_, index) => pagedItem(index));
+
+/** Serves `NEWEST_FIRST` (or its reverse for `oldest`) a page at a time, continuing after the cursor's row. */
+function pagedGallery(input: TrpcInput<"assets.listGallery">): TrpcWireOutput<"assets.listGallery"> {
+  const ordered = input?.sort === "oldest" ? [...NEWEST_FIRST].reverse() : NEWEST_FIRST;
+  const cursor = input?.cursor;
+  const start = cursor === undefined ? 0 : ordered.findIndex((item) => item.galleryItemId === cursor.galleryItemId) + 1;
+  return ordered.slice(start, start + PAGE_SIZE);
+}
+
+/** How many gallery rows the grid lays out: its ARIA row count at its ARIA column count. */
+async function gridCapacity(page: Page): Promise<{ readonly rows: number; readonly columns: number }> {
+  const grid = page.getByRole("grid", { name: "Aria's gallery" });
+  return { rows: Number(await grid.getAttribute("aria-rowcount")), columns: Number(await grid.getAttribute("aria-colcount")) };
+}
+
+for (const viewport of [
+  { name: "mobile", width: 360, height: 780 },
+  { name: "desktop", width: 1440, height: 900 },
+] as const) {
+  test(`${viewport.name}: Load more reads the next page after the last row, and leaves at the end of the gallery`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const trpc = await routeTrpc(page, { "assets.listGallery": pagedGallery });
+    await mount(<CharacterGalleryDialogStory />);
+
+    const loadMore = page.getByRole("button", { name: "Load more" });
+    await expect(loadMore).toBeVisible();
+    await expect(loadMore).toBeInViewport();
+    await expect.poll(async () => (await gridCapacity(page)).rows * (await gridCapacity(page)).columns).toBeGreaterThanOrEqual(PAGE_SIZE);
+    await loadMore.click();
+
+    const lastOfFirstPage = NEWEST_FIRST[PAGE_SIZE - 1];
+    await expect
+      .poll(() => trpc.lastInput("assets.listGallery"))
+      .toEqual({
+        subjectCharacterId: "character_ct_gallery",
+        limit: PAGE_SIZE,
+        sort: "newest",
+        cursor: { createdAt: lastOfFirstPage?.createdAt, galleryItemId: lastOfFirstPage?.galleryItemId },
+        direction: "forward",
+      });
+    // Both pages are in the grid, and the short second page ended the list.
+    await expect.poll(async () => (await gridCapacity(page)).rows).toBe(Math.ceil((PAGE_SIZE + SECOND_PAGE) / (await gridCapacity(page)).columns));
+    await expect(loadMore).toHaveCount(0);
+  });
+
+  test(`${viewport.name}: the order strip re-reads the gallery oldest first from the first page`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const trpc = await routeTrpc(page, { "assets.listGallery": pagedGallery });
+    await mount(<CharacterGalleryDialogStory />);
+
+    const order = page.getByRole("radiogroup", { name: "Order" });
+    await expect(order).toBeInViewport({ ratio: 1 });
+    await expect(order.getByRole("radio", { name: "Newest first" })).toHaveAttribute("aria-checked", "true");
+    const firstCell = page.getByRole("gridcell", { name: GALLERY_CELL }).first().locator("img");
+    const newest = NEWEST_FIRST[0];
+    const oldest = NEWEST_FIRST.at(-1);
+    await expect(firstCell).toHaveAttribute("src", new RegExp(newest?.hash ?? "missing", "u"));
+
+    await order.getByRole("radio", { name: "Oldest first" }).click();
+    await expect(order.getByRole("radio", { name: "Oldest first" })).toHaveAttribute("aria-checked", "true");
+    await expect
+      .poll(() => trpc.lastInput("assets.listGallery"))
+      .toEqual({ subjectCharacterId: "character_ct_gallery", limit: PAGE_SIZE, sort: "oldest", direction: "forward" });
+    await expect(firstCell).toHaveAttribute("src", new RegExp(oldest?.hash ?? "missing", "u"));
+  });
+}
+
+// ── FOCUS, NAMES AND THE EMPTY GALLERY (gallery parity, leg F). Every image is named by its place in the grid and
+// the day it joined. Focus never leaves the dialog: a removal lands on the next image, or the heading once
+// the gallery is empty, and "Load more" hands focus to the first new image.
+
+type GalleryRow = TrpcWireOutput<"assets.listGallery">[number];
+
+const THREE = [pagedItem(0), pagedItem(1), pagedItem(2)];
+
+/** A gallery of `rows` that drops a row once `assets.removeFromGallery` names it. */
+function removableGallery(rows: readonly GalleryRow[]): {
+  readonly list: () => TrpcWireOutput<"assets.listGallery">;
+  readonly remove: (input: TrpcInput<"assets.removeFromGallery">) => null;
+} {
+  const removed = new Set<string>();
+  return {
+    list: (): TrpcWireOutput<"assets.listGallery"> => rows.filter((row) => !removed.has(row.galleryItemId)),
+    remove: (input): null => {
+      removed.add(input?.galleryItemId ?? "");
+      return null;
+    },
+  };
+}
+
+/** The grid cell showing `row`, found by its thumbnail. */
+function cellShowing(page: Page, row: GalleryRow | undefined): Locator {
+  return page.getByRole("gridcell").filter({ has: page.locator(`img[src*="${row?.hash ?? "missing"}"]`) });
+}
+
+for (const viewport of [
+  { name: "mobile", width: 360, height: 780 },
+  { name: "desktop", width: 1440, height: 900 },
+] as const) {
+  test(`${viewport.name}: the header's Close button closes the gallery`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { "assets.listGallery": () => [ITEM] });
+    await mount(<CharacterGalleryDialogStory />);
+
+    const heading = page.getByRole("heading", { name: "Aria's gallery" });
+    await expect(heading).toBeVisible();
+    const close = page.getByRole("dialog", { name: "Aria's gallery" }).getByRole("button", { name: "Close", exact: true });
+    await expect(close).toBeInViewport();
+    await close.click();
+    await expect(heading).toHaveCount(0);
+  });
+
+  test(`${viewport.name}: images are named by position and date, and the lightbox opens on Close`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { "assets.listGallery": () => THREE });
+    await mount(<CharacterGalleryDialogStory />);
+
+    const cells = page.getByRole("gridcell", { name: GALLERY_CELL });
+    await expect(cells).toHaveCount(THREE.length);
+    await expect(cells.nth(1)).toHaveAccessibleName(/^Image 2, added /u);
+    await cells.nth(1).click();
+
+    const lightbox = page.getByRole("dialog", { name: /^Image 2, added /u });
+    await expect(lightbox).toBeVisible();
+    await expect(lightbox.getByRole("img")).toHaveAccessibleName(/^Image 2, added /u);
+    await expect(lightbox.getByRole("button", { name: "Close", exact: true })).toBeFocused();
+  });
+
+  test(`${viewport.name}: removing an image from the lightbox puts focus on the next image`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const gallery = removableGallery(THREE);
+    await routeTrpc(page, { "assets.listGallery": gallery.list, "assets.removeFromGallery": gallery.remove });
+    await mount(<CharacterGalleryDialogStory />);
+
+    await cellShowing(page, THREE[1]).click();
+    await page.getByRole("button", { name: "Remove from gallery" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Remove", exact: true }).click();
+
+    await expect(page.getByRole("gridcell", { name: GALLERY_CELL })).toHaveCount(THREE.length - 1);
+    await expect(cellShowing(page, THREE[2])).toBeFocused();
+  });
+
+  test(`${viewport.name}: removing the last image puts focus on the gallery's heading`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const gallery = removableGallery([ITEM]);
+    await routeTrpc(page, { "assets.listGallery": gallery.list, "assets.removeFromGallery": gallery.remove });
+    await mount(<CharacterGalleryDialogStory />);
+
+    await openLightbox(page);
+    await page.getByRole("button", { name: "Remove from gallery" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Remove", exact: true }).click();
+
+    await expect(page.getByText("No images yet")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Aria's gallery" })).toBeFocused();
+  });
+
+  test(`${viewport.name}: an empty gallery offers one Add images action and no order strip`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { "assets.listGallery": () => [] });
+    await mount(<CharacterGalleryDialogStory />);
+
+    await expect(page.getByText("No images yet")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add images" })).toHaveCount(1);
+    await expect(page.getByRole("radiogroup", { name: "Order" })).toHaveCount(0);
+    await expect(page.getByRole("radiogroup", { name: "Show images from" })).toBeVisible();
+  });
+
+  test(`${viewport.name}: the upload zone is on screen when a full gallery opens`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { "assets.listGallery": () => FULL_GALLERY });
+    await mount(<CharacterGalleryDialogStory />);
+
+    await expect(page.getByRole("gridcell", { name: GALLERY_CELL }).first()).toBeVisible();
+    await expect(page.locator('[role="dialog"] [data-slot="file-dropzone"]')).toBeInViewport({ ratio: 1 });
+  });
+
+  test(`${viewport.name}: the last Load more hands focus to the first new image`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { "assets.listGallery": pagedGallery });
+    await mount(<CharacterGalleryDialogStory />);
+
+    const loadMore = page.getByRole("button", { name: "Load more" });
+    await loadMore.click();
+    await expect(loadMore).toHaveCount(0);
+    const firstNew = cellShowing(page, NEWEST_FIRST[PAGE_SIZE]);
+    await expect(firstNew).toBeFocused();
+    await expect(firstNew).toHaveAccessibleName(new RegExp(`^Image ${String(PAGE_SIZE + 1)}, added `, "u"));
+  });
+}

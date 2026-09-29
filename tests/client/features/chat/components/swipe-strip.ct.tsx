@@ -8,40 +8,18 @@
 // the ArrowLeft/ArrowRight keyboard equivalents (ignored while an editable control has focus).
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { MessageId, MessageVariantId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
-import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { SwipeStripStory } from "../_ct-stories.tsx";
-import { CHAT_ROOM_ROUTES, makeMessageView } from "../fixtures.ts";
+import { makeMessageView } from "../fixtures.ts";
 
 const MESSAGE_ID = castId<MessageId>("msg_ct_swipe");
 const VARIANT_0 = castId<MessageVariantId>("mv_ct_0");
 const VARIANT_1 = castId<MessageVariantId>("mv_ct_1");
-const CONNECTION_ID = castId<UserConnectionId>("user_connection_ct_swipe");
-const CONNECTION = {
-  id: CONNECTION_ID,
-  ownerId: castId<UserId>("user_ct_swipe_host"),
-  label: "My quiet route",
-  providerId: testProviderId("openrouter"),
-  providerLabel: "OpenRouter",
-  credentialId: null,
-  baseUrl: null,
-  model: testModelId("model-live"),
-  api: "auto" as const,
-  declared: null,
-  extras: null,
-  transport: null,
-  modelCheck: "listed" as const,
-  allowBackground: false,
-  promptCache: null,
-  createdAt: 1,
-  updatedAt: 1,
-  tasks: ["chat" as const],
-} satisfies TrpcWireOutput<"connection.list">[number];
 
 // The full sibling set `chat.listMessageVariants` would return for the 2-variant slot below — both
 // cold-load tests route this SAME list regardless of which idx is currently selected (the real read is
@@ -70,133 +48,6 @@ const backAtIdx0Of2: MessageView = makeMessageView({
   selectedVariantId: VARIANT_0,
 });
 const EMPTY_TURN = { messages: [], aborted: false } satisfies TrpcWireOutput<"chat.swipe">;
-
-test("renders honest missing attribution from durable provenance", async ({ mount }) => {
-  const missing = makeMessageView({
-    connectionAttributionProvenance: "unrecorded",
-    connectionId: null,
-    provider: testProviderId("openrouter"),
-    model: testModelId("model-recorded"),
-  });
-  const component = await mount(<SwipeStripStory message={missing} />);
-
-  await expect(component.getByText("Connection · Connection not recorded", { exact: true })).toBeVisible();
-  await expect(component.getByText("Provider · OpenRouter", { exact: true })).toBeVisible();
-  await expect(component.getByText("Model · model-recorded", { exact: true })).toBeVisible();
-});
-
-test("renders a recorded connection deleted after generation", async ({ mount }) => {
-  const component = await mount(<SwipeStripStory message={makeMessageView({ connectionAttributionProvenance: "recorded", connectionId: null })} />);
-  await expect(component.getByText("Connection · Deleted connection", { exact: true })).toBeVisible();
-});
-
-test("a current host sees an exact live connection label and its safe provider label", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "chat.getChat": CHAT_ROOM_ROUTES["chat.getChat"],
-    "connection.list": () => [CONNECTION],
-  });
-  const component = await mount(
-    <SwipeStripStory
-      message={makeMessageView({
-        connectionAttributionProvenance: "recorded",
-        connectionId: CONNECTION_ID,
-        provider: testProviderId("openrouter"),
-        model: testModelId("model-recorded"),
-      })}
-    />,
-  );
-
-  await expect(component.getByText("Connection · My quiet route", { exact: true })).toBeVisible();
-  await expect(component.getByText("Provider · OpenRouter", { exact: true })).toBeVisible();
-  await expect(component.getByText("Model · model-recorded", { exact: true })).toBeVisible();
-});
-
-test("a member never requests or sees the host's custom connection label", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, {
-    "chat.getChat": { ...CHAT_ROOM_ROUTES["chat.getChat"], viewerIsHost: false },
-    "connection.list": () => [CONNECTION],
-  });
-  const component = await mount(
-    <SwipeStripStory
-      message={makeMessageView({
-        connectionAttributionProvenance: "recorded",
-        connectionId: CONNECTION_ID,
-        provider: testProviderId("openrouter"),
-        model: testModelId("model-recorded"),
-      })}
-    />,
-  );
-
-  await expect(component.getByText("Connection · Room connection", { exact: true })).toBeVisible();
-  await expect(component.getByText("My quiet route", { exact: false })).toHaveCount(0);
-  await expect.poll(() => trpc.count("connection.list")).toBe(0);
-});
-
-test("an owner-list miss stays a recorded room connection and never becomes deleted", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "chat.getChat": CHAT_ROOM_ROUTES["chat.getChat"],
-    "connection.list": () => [],
-  });
-  const component = await mount(
-    <SwipeStripStory
-      message={makeMessageView({
-        connectionAttributionProvenance: "recorded",
-        connectionId: CONNECTION_ID,
-        provider: testProviderId("anthropic"),
-        model: testModelId("model-historical"),
-      })}
-    />,
-  );
-
-  await expect(component.getByText("Connection · Room connection", { exact: true })).toBeVisible();
-  await expect(component.getByText("Connection · Deleted connection", { exact: true })).toHaveCount(0);
-  await expect(component.getByText("Provider · Anthropic", { exact: true })).toBeVisible();
-});
-
-test("an unresolved owner list uses generic recorded copy and provider/model absence is explicit", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "chat.getChat": CHAT_ROOM_ROUTES["chat.getChat"],
-    "connection.list": () => trpcError({ message: "list unavailable" }),
-  });
-  const component = await mount(
-    <SwipeStripStory
-      message={makeMessageView({
-        connectionAttributionProvenance: "recorded",
-        connectionId: CONNECTION_ID,
-        provider: null,
-        model: null,
-      })}
-    />,
-  );
-
-  await expect(component.getByText("Connection · Recorded connection", { exact: true })).toBeVisible();
-  await expect(component.getByText("Provider · Not recorded", { exact: true })).toBeVisible();
-  await expect(component.getByText("Model · Not recorded", { exact: true })).toBeVisible();
-});
-
-test("a long connection label stays reachable without widening a narrow viewport", async ({ mount, page }) => {
-  await page.setViewportSize({ width: 360, height: 640 });
-  const longLabel = "A deliberately long owner connection label that must stay inside the swipe detail chrome";
-  await routeTrpc(page, {
-    "chat.getChat": CHAT_ROOM_ROUTES["chat.getChat"],
-    "connection.list": () => [{ ...CONNECTION, label: longLabel }],
-  });
-  const component = await mount(
-    <SwipeStripStory
-      message={makeMessageView({
-        connectionAttributionProvenance: "recorded",
-        connectionId: CONNECTION_ID,
-        provider: testProviderId("openrouter"),
-        model: testModelId("model-recorded"),
-      })}
-    />,
-  );
-
-  const connection = component.getByText(`Connection · ${longLabel}`, { exact: true });
-  await expect(connection).toBeVisible();
-  await expect.poll(() => connection.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-});
 
 test("renders the n/m counter and fires swipe (generate) on the next chevron at the tip", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {

@@ -3,7 +3,7 @@
 //
 //   pnpm verify              → --static  (today's `pnpm check`, byte-compatible)
 //   pnpm verify --changed    → the inner loop (scoped, related tests)
-//   pnpm verify --static     → the whole static tier (= `pnpm check`); pre-commit adds `--changed`
+//   pnpm verify --static     → the whole static tier (= `pnpm check`); pre-commit adds `--changed staged`
 //   pnpm verify --push       → static + node tests + CT + e2e-smoke (the pre-push bar)
 //   pnpm verify --full       → push + cpd + full e2e + mutation-gate
 //   pnpm verify --list       → print every registry row (incl. manual) with its tiers/reason
@@ -42,7 +42,7 @@ import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { inheritedRunMarker, mintRunMarker, runLeaseEnv, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/_shared/run-marker";
 import type { Selection } from "../contract/selection.ts";
-import type { StageDef, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
+import type { StageDef, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
 import { NOTICE_MARKER, VERIFY_INSTRUMENT, VERIFY_REPORT_NAME } from "../contract/stage.ts";
 import { colourNeutralParentEnv } from "../lib/child-env.ts";
 import { aggregateExit, noVerdictStages } from "../lib/exit-classifiers.ts";
@@ -52,66 +52,10 @@ import type { Parsed } from "../lib/run-argv.ts";
 import { printHeadBanner, printList, printSummary, stageLine } from "../lib/run-render.ts";
 import { stageHangCeilingBaseMs } from "../lib/stage-budget.ts";
 import { refuseUnrunnableRows, resolveStageCommand, unresolvableCommandTranscript } from "../lib/stage-command.ts";
+import { nonRunningStageResult, planStage } from "../lib/stage-plan.ts";
 import { enterWholeRunQueue } from "../lib/whole-run-queue.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full])");
-
-/** Resolve how a stage runs at this tier+scope: its concrete argv, or a mode sentinel. */
-export function planStage(
-  stage: StageDef,
-  selection: Selection | undefined,
-  tier?: Tier,
-  root?: string,
-): {
-  readonly mode: StageMode;
-  readonly argv: readonly [string, ...string[]] | null;
-  readonly runsAt: string | null;
-} {
-  if (selection === undefined) {
-    // CONDITIONAL TIER MEMBERSHIP (#1523). A whole-tier run has no Selection, so a stage that belongs to
-    // this tier only under a condition asks its own precondition here. `null` (cannot tell) RUNS: an
-    // expensive stage skipped on an unanswerable question is a false clean wearing a tier's clothes.
-    const precondition = stage.tierPrecondition;
-    if (precondition !== undefined && tier !== undefined && precondition.tiers.includes(tier) && precondition.satisfied(root ?? process.cwd()) === false) {
-      return { mode: "skipped", argv: null, runsAt: unconditionalTier(stage) };
-    }
-    return { mode: "full", argv: stage.argv, runsAt: null };
-  }
-  // Scoped run: a stage with no scopedArgv is whole-only ⇒ deferred.
-  if (stage.scopedArgv === undefined) {
-    return { mode: "deferred", argv: null, runsAt: pushOrStatic(stage) };
-  }
-  const scoped = stage.scopedArgv(selection);
-  if (scoped === "whole-only") {
-    return { mode: "deferred", argv: null, runsAt: pushOrStatic(stage) };
-  }
-  if (scoped === "skip-empty") {
-    return { mode: "skipped", argv: null, runsAt: null };
-  }
-  return { mode: "scoped", argv: scoped, runsAt: null };
-}
-
-/** Where a precondition-skipped stage DOES run unconditionally — the notice must name a tier that will
- *  actually run it, never the one that just declined. */
-function unconditionalTier(stage: StageDef): string {
-  const conditional = new Set(stage.tierPrecondition?.tiers ?? []);
-  for (const t of ["static", "push", "full"] as const) {
-    if (stage.tiers.includes(t) && !conditional.has(t)) {
-      return `verify --${t}`;
-    }
-  }
-  return "verify --full";
-}
-
-/** The tier a deferred stage runs at — the lowest non-changed tier it belongs to (for the notice). */
-function pushOrStatic(stage: StageDef): string {
-  for (const t of ["static", "push", "full"] as const) {
-    if (stage.tiers.includes(t)) {
-      return `verify --${t}`;
-    }
-  }
-  return "verify --full";
-}
 
 /** Where per-stage transcripts live inside a run's slot; published as the `reports/verify/` alias. */
 const STAGES_SEGMENT = "stages";
@@ -200,31 +144,6 @@ interface RunContext {
    *  (stages are sequential, so a timeout's reach is unchanged). */
   readonly runMarker: string;
   readonly runLease: string;
-}
-
-/** THE RESULT A STAGE THAT DID NOT RUN PUBLISHES — one home, and EXPORTED so the notice has a producer
- *  test (#1566). It was inline, which left the notice provable only through a hand-built `StageResult`:
- *  a renderer pin that stayed green with the notice line deleted. This is the smallest honest seam — the
- *  planner decides, this shapes the row, and both are now reachable from a test.
- *
- *  THE NOTICE IS THE CONDITION, in the stage's own words. `stageLine` says THAT the precondition
- *  declined; this says WHICH one, so a reader can tell "my diff touched no instrument" from "the gate is
- *  broken" without opening the registry — and because `notices` is a `StageResult` field, the same string
- *  is in verify.json by construction. */
-export function nonRunningStageResult(stage: StageDef, plan: { readonly mode: StageMode; readonly runsAt: string | null }): StageResult {
-  return {
-    name: stage.name,
-    group: stage.group,
-    mode: plan.mode,
-    ok: true, // a deferred/skipped stage is not a failure — it just didn't run here
-    exitCode: EXIT.clean,
-    durationMs: 0,
-    logFile: null,
-    failureExcerpt: null,
-    runsAt: plan.runsAt,
-    notices:
-      plan.mode === "skipped" && plan.runsAt !== null && stage.tierPrecondition !== undefined ? [`tier precondition: ${stage.tierPrecondition.reason}`] : [],
-  };
 }
 
 /** The stage door's HANG ceiling (#1508) — the line past which a stage is WEDGED, never a performance
@@ -381,8 +300,8 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
       });
       continue;
     }
-    // Sequential BY DESIGN: stages share the CPU, the reports dir and the console — they run one at a
-    // time in registry order, exactly as the old sync loop ran them. The await IS the ordering.
+    // Sequential BY DESIGN: stages share the CPU, the memory, the reports dir and the console. Concurrent commit
+    // stages were measured to thrash a 15 GB box: type-aware ESLint, tsc and the structure walk each hold gigabytes.
     results.push(await runOneStage({ root, slot, verbose: parsed.verbose, runMarker, runLease }, stage, parsed.selection, parsed.tier));
   }
 

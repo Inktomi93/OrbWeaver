@@ -12,7 +12,8 @@
 // (#863's title-attribute lesson, and the same mechanism `composer-guided-buttons.tsx` documents). The
 // `title` is gone; the reason is the control's DESCRIPTION via an `sr-only` line (so AT reads it at rest,
 // on any pointer, without displacing the name a voice-control user says), and the SIGHTED touch user reads
-// the same string as visible copy under the guided cluster, which renders it once for the whole band.
+// the same string as visible copy under the guided cluster, which renders it once for the whole band. When the
+// next-turn line states the refusal, Send is described by that line instead and carries no copy of its own.
 
 import { Button } from "@orb/ui/button";
 import { Icon, Send, Square } from "@orb/ui/icons";
@@ -32,10 +33,12 @@ export interface ComposerSendControlProps {
   readonly sendPending: boolean;
   readonly unavailable: boolean;
   readonly unavailableReason: string | undefined;
+  /** The id of the element that already states the refusal; Send is described by it and carries no copy. */
+  readonly unavailableStatedBy: string | undefined;
 }
 
 export function ComposerSendControl(props: ComposerSendControlProps): ReactElement {
-  const reasonId = useId();
+  const ownReasonId = useId();
   if (props.showStop) {
     return (
       <Tooltip>
@@ -59,14 +62,16 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
       </Tooltip>
     );
   }
+  const ownReason = props.unavailableStatedBy === undefined ? props.unavailableReason : undefined;
+  const describedBy = props.unavailableStatedBy ?? (ownReason === undefined ? undefined : ownReasonId);
   // `describesTrigger={false}`: this control already owns the reason's ONE description home (the `sr-only`
-  // line below) and the tooltip is its visible twin. #2455 made the seal describe every trigger with its
+  // line below, or the element that states the refusal) and the tooltip is its visible twin. #2455 made the seal describe every trigger with its
   // own text; taking it here would restore the "two homes for one concept" this control's header records
   // as the #2443 defect — and with no reason the tooltip is the bare name "Send message".
   return (
     <Tooltip describesTrigger={false}>
       <TooltipTrigger
-        {...(props.unavailableReason === undefined ? {} : { "aria-describedby": reasonId })}
+        {...(describedBy === undefined ? {} : { "aria-describedby": describedBy })}
         render={
           <Button
             type="button"
@@ -86,9 +91,9 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
         }
       />
       <TooltipPopup side="top">{props.unavailableReason ?? "Send message"}</TooltipPopup>
-      {props.unavailableReason === undefined ? null : (
-        <Text as="span" className="sr-only" id={reasonId}>
-          {props.unavailableReason}
+      {ownReason === undefined ? null : (
+        <Text as="span" className="sr-only" id={ownReasonId}>
+          {ownReason}
         </Text>
       )}
     </Tooltip>

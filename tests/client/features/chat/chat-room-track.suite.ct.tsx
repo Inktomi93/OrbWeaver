@@ -39,6 +39,7 @@ const MESSAGE_ROW = '[data-slot="message-row"]';
 const ROW_BODY = '[data-slot="message-row-body"]';
 const COMPOSER = '[data-slot="composer"]';
 const SWIPE_STRIP = '[data-slot="swipe-strip"]';
+const NEXT_TURN_LINE = '[data-slot="composer-next-turn"]';
 
 /** The widest a row's identity gutter may be before the reading column's own centre drifts visibly off
  *  the track's: an avatar chip (32px at `md`) plus the row gap. The column sits beside it by law (§B.1 —
@@ -219,6 +220,31 @@ for (const state of PANE_STATES) {
     expect(composer.right - composer.left).toBeLessThanOrEqual(state.paneWidth + AXIS_TOLERANCE_PX);
   });
 }
+
+// The next-turn line sits under the composer card: it starts at the card's edge rather than the pane's, and
+// its paragraph is capped at the prose reading measure, resolved in the line's own font.
+test("the next-turn line starts on the composer's track and is capped at the prose measure — full width", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1360, height: 900 });
+  await routeRoom(page, "flat");
+  await mount(<ChatRoomTrackStory paneWidth={1212} />);
+  const line = page.locator(NEXT_TURN_LINE);
+  await expect(line).toBeVisible();
+
+  const composer = await boxOf(page, COMPOSER);
+  const own = await boxOf(page, NEXT_TURN_LINE);
+  expect(Math.abs(own.left - composer.left)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+  // The cap is the token resolved in the line's own font: a positive width, and the line's max-width within a pixel.
+  const cappedAtMeasure = (): Promise<boolean> =>
+    line.evaluate((el: HTMLElement, tolerance: number) => {
+      const probe = document.createElement("span");
+      probe.style.cssText = "position:absolute;visibility:hidden;width:var(--reading-measure-prose)";
+      el.append(probe);
+      const tokenPx = probe.getBoundingClientRect().width;
+      probe.remove();
+      return tokenPx > 0 && Math.abs(Number.parseFloat(getComputedStyle(el).maxWidth) - tokenPx) <= tolerance;
+    }, AXIS_TOLERANCE_PX);
+  await expect.poll(cappedAtMeasure).toBe(true);
+});
 
 interface MeasureReading {
   /** `--reading-measure` resolved inside the BUBBLE — i.e. in the PROSE font the reader actually reads. */

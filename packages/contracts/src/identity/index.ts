@@ -40,10 +40,6 @@ export const authModeSchema = z.enum(AUTH_MODES) satisfies z.ZodType<AuthMode>;
  *  under it, and the server's refusals name it, so both read this one spelling. */
 export const SETUP_COMMAND = "pnpm start --setup";
 
-/** Where a container's way to share lives: the repository guide section that runs a tunnel beside the container. The
- *  server's container refusal and the Share card's Docker note both name it, so both read this one spelling. */
-export const CONTAINER_SHARE_GUIDE = 'docker/README.md, "Cloudflare Tunnel, as a sidecar"';
-
 /** The `environment:` lines of `docker-compose.yaml` that switch a container to the local sign-in mode, in print
  *  order. The shipped `docker/orbweaver.env` pairs single-user with the owner fallback and the bridge peers, which
  *  production refuses beside a login mode, so all three keys move. A server env test boots these over that file. */
@@ -61,7 +57,8 @@ export function isCookieAuthMode(mode: AuthMode): boolean {
   return (COOKIE_AUTH_MODES as readonly AuthMode[]).includes(mode);
 }
 
-/** How a request reached the box. `https` only when a trusted proxy asserts it: the app never terminates TLS.
+/** How a request reached the box. `https` only when a trusted hop asserts it, the IP certificate's own listener
+ *  included: the app's handler never sees TLS.
  *  It picks the session cookie's name and `Secure` attribute, and the OIDC callback scheme. */
 export const REQUEST_TRANSPORTS = ["https", "http"] as const;
 export type RequestTransport = (typeof REQUEST_TRANSPORTS)[number];
@@ -89,7 +86,7 @@ export type RelayDownReason = (typeof RELAY_DOWN_REASONS)[number];
  *  request is never the owner, so single-user answers 401 to every visitor; a same-host relay delivers each visitor
  *  from a loopback peer, so a loopback-trusted forward-header proxy would take a visitor's forged identity header; an
  *  identity provider returns people only to its registered redirect addresses, which a relay's random name never is. */
-export const SHARE_REFUSALS = ["share_single_user", "share_forward_header", "share_oidc", "share_in_container", "share_owner_unclaimed"] as const;
+export const SHARE_REFUSALS = ["share_single_user", "share_forward_header", "share_oidc", "share_owner_unclaimed"] as const;
 export type ShareRefusal = (typeof SHARE_REFUSALS)[number];
 
 /** The one home for which sign-in modes can share over a relay: null where a relayed visitor can sign in, else the
@@ -126,15 +123,78 @@ export type RelayStatus = z.infer<typeof relayStatusSchema>;
 const shareRefusalNoticeSchema = z.strictObject({ code: z.enum(SHARE_REFUSALS), message: z.string() });
 export type ShareRefusalNotice = z.infer<typeof shareRefusalNoticeSchema>;
 
+// The TCP port range a listener may take, and the longest IP literal's text (a full IPv6 address with an IPv4 tail).
+const PORT_MIN = 1;
+const PORT_MAX = 65_535;
+const IP_LITERAL_MAX_LENGTH = 45;
+const listenerPortSchema = z.number().int().min(PORT_MIN).max(PORT_MAX);
+
+/** The owner's IP certificate choice (D275): this server's public address, and the two ports on this machine the
+ *  router forwards to, 443 to `httpsPort` and 80 to `challengePort`. The server refuses any address that is not
+ *  public before it asks a certificate authority for anything. */
+export const ipCertificateSettingSchema = z.strictObject({
+  address: z.string().min(1).max(IP_LITERAL_MAX_LENGTH),
+  httpsPort: listenerPortSchema,
+  challengePort: listenerPortSchema,
+});
+export type IpCertificateSetting = z.infer<typeof ipCertificateSettingSchema>;
+
+/** The IP certificate's states: off, getting its first certificate, serving https, or failed back to plain http. */
+export const IP_CERTIFICATE_STATES = ["off", "obtaining", "active", "failed"] as const;
+export type IpCertificateState = (typeof IP_CERTIFICATE_STATES)[number];
+
+/** Why a certificate is not serving: the certificate authority could not reach the challenge through port 80, any
+ *  other issuance error, the https port could not open, or every renewal failed until the certificate expired. */
+export const IP_CERTIFICATE_FAILURES = ["validation_failed", "issuance_failed", "listener_failed", "expired"] as const;
+export type IpCertificateFailureCode = (typeof IP_CERTIFICATE_FAILURES)[number];
+
+/** The coded refusals of `share.enableIpCertificate`: a sign-in mode a visitor over https cannot use safely, an
+ *  unclaimed owner, an address a public certificate authority can never reach, a listener bound to this machine only,
+ *  and ports that collide. Nothing is asked of a certificate authority until every one holds. */
+export const IP_CERTIFICATE_REFUSALS = [
+  "ip_certificate_mode",
+  "ip_certificate_owner_unclaimed",
+  "ip_certificate_not_public",
+  "ip_certificate_loopback_bind",
+  "ip_certificate_ports",
+] as const;
+export type IpCertificateRefusal = (typeof IP_CERTIFICATE_REFUSALS)[number];
+
+const ipCertificateFailureSchema = z.strictObject({ code: z.enum(IP_CERTIFICATE_FAILURES), message: z.string() });
+export type IpCertificateFailure = z.infer<typeof ipCertificateFailureSchema>;
+
+// One arm per certificate state, keyed by its own `state` literal. Times are epoch milliseconds.
+const ipCertificateStatusSchemas = {
+  off: z.strictObject({ state: z.literal("off") }),
+  obtaining: z.strictObject({ state: z.literal("obtaining"), setting: ipCertificateSettingSchema }),
+  active: z.strictObject({
+    state: z.literal("active"),
+    setting: ipCertificateSettingSchema,
+    url: z.url({ protocol: /^https$/u }),
+    notAfter: z.number().int(),
+    renewAt: z.number().int(),
+    renewalFailure: ipCertificateFailureSchema.nullable(),
+  }),
+  failed: z.strictObject({ state: z.literal("failed"), setting: ipCertificateSettingSchema, failure: ipCertificateFailureSchema }),
+} as const satisfies { readonly [S in IpCertificateState]: z.ZodObject<{ state: z.ZodLiteral<S> }> };
+
+/** The IP certificate as the owner's Share card reads it. */
+export const ipCertificateStatusSchema = z.discriminatedUnion("state", [
+  ipCertificateStatusSchemas.off,
+  ipCertificateStatusSchemas.obtaining,
+  ipCertificateStatusSchemas.active,
+  ipCertificateStatusSchemas.failed,
+]);
+export type IpCertificateStatus = z.infer<typeof ipCertificateStatusSchema>;
+
 /** `share.status`: the relay, the live sockets of every account but the caller's, the addresses this server already
  *  answers at from the internet (under oidc the origins of `OIDC_REDIRECT_URIS`, under local the public names in
- *  `ALLOWED_HOSTS`), so the card can send friends there instead of through a relay, and the refusal a start would
- *  meet that is known without starting (the sign-in mode, or a container), so the card shows it before any press. */
+ *  `ALLOWED_HOSTS`), so the card can send friends there instead of through a relay, and the IP certificate. */
 export const shareStatusSchema = z.strictObject({
   relay: relayStatusSchema,
   liveSocketCount: z.number().int().nonnegative(),
   publicAddresses: z.array(z.string()),
-  standingRefusal: shareRefusalNoticeSchema.nullable(),
+  certificate: ipCertificateStatusSchema,
 });
 export type ShareStatus = z.infer<typeof shareStatusSchema>;
 

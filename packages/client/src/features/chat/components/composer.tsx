@@ -1,7 +1,8 @@
 // The chat composer is a compact message-first footer: the growing textarea owns the main line, followed by
-// one wrapping action rail with room, guided-reply, utility and terminal-send groups. The rail also carries
-// the one visible connection-status/recovery home. Image controls live inside Message tools; attachments
-// still upload local media to CAS and ride the send as attachmentAssetIds.
+// one wrapping action rail with room, guided-reply, utility and terminal-send groups. Image controls live
+// inside Message tools; attachments still upload local media to CAS and ride the send as attachmentAssetIds.
+// Under the card, a quiet line names the connection and model the next reply uses (`ComposerNextTurnLine`);
+// it is the one home for the no-connection refusal and its recovery door.
 //
 // ATTACH HAS THREE GESTURES (#376), one seam: the ✨ menu's picker, a file DRAGGED onto the composer card,
 // and a clipboard PASTE. All three land in `receiveAttachFiles` → `triageAttachFiles` (lib/attach-media.ts),
@@ -27,42 +28,41 @@
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
-import { Button } from "@orb/ui/button";
 import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { Row, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
-import { useQuery } from "@tanstack/react-query";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
-import { useState } from "react";
-import { useTRPC, useUploadCaps } from "#data";
+import { useId, useState } from "react";
+import { useUploadCaps } from "#data";
 import type { SlashArgOffer, SlashCommandContribution } from "#lib";
-import { IMAGE_GEN_NEEDS_TEXT, notify, sendUnavailableStatus, testId } from "#lib";
-import { openConfigTo, openImagine, setComposerDraft, useComposerDraft } from "#state";
+import { IMAGE_GEN_NEEDS_TEXT, notify, testId } from "#lib";
+import { openImagine, setComposerDraft, useComposerDraft } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useComposerAttachments } from "../hooks/use-composer-attachments.ts";
 import { useComposerFocusOnRequest } from "../hooks/use-composer-focus.ts";
 import { useComposerMediaDrop } from "../hooks/use-composer-media-drop.ts";
 import { useContinueTurn } from "../hooks/use-continue-turn.ts";
 import { useGenerateImage } from "../hooks/use-generate-image.ts";
-import { useNextTurnConnection } from "../hooks/use-next-turn-connection.ts";
+import { useRoomGalleryDoor } from "../hooks/use-room-gallery-door.ts";
 import { useSendAvailability } from "../hooks/use-send-availability.ts";
 import { useSendMessage } from "../hooks/use-send-message.ts";
+import { useSharedRoom } from "../hooks/use-shared-room.ts";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
 import { useStopTurn } from "../hooks/use-stop-turn.ts";
 import { ATTACH_BUSY_MESSAGE, dropzoneRefusalMessage, triageAttachFiles } from "../lib/attach-media.ts";
 import { handleComposerKeyDown } from "../lib/composer-keydown.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
-import { presentMemberCount } from "../lib/roster.ts";
-import { matchSlashCommands, resolveSlashHighlight, slashArgsInProgress, slashCompletionAria } from "../lib/slash-command.ts";
+import { nextTurnStatesRefusal } from "../lib/next-turn-line.ts";
+import { matchSlashCommands, parseSlashDraft, resolveSlashHighlight, slashArgsInProgress, slashCompletionAria } from "../lib/slash-command.ts";
 import { ComposerArgHintStrip } from "./composer-arg-hint-strip.tsx";
 import { ComposerAttachmentStrip } from "./composer-attachment-strip.tsx";
 import { ActiveChatOptionsMenu } from "./composer-chat-options.tsx";
 import { ComposerDropTarget } from "./composer-drop-target.tsx";
 import { ComposerGuidedCluster } from "./composer-guided-cluster.tsx";
+import type { ComposerImageControls } from "./composer-media-group.tsx";
+import { ComposerNextTurnLine } from "./composer-next-turn-line.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
 import { ComposerSlashStrip } from "./composer-slash-strip.tsx";
-import type { ComposerImageControls } from "./composer-utility-menu.tsx";
 
 // Teach the empty-Enter action in the placeholder, including the adjacent Response icon when it generates.
 function resolvePlaceholder(emptyAction: "continue" | "generate" | null): string {
@@ -78,19 +78,6 @@ function resolvePlaceholder(emptyAction: "continue" | "generate" | null): string
 // The typed text is the image prompt, so an empty composer needs a visible disabled reason.
 function resolveImageGenReason(hasText: boolean): string | undefined {
   return hasText ? undefined : IMAGE_GEN_NEEDS_TEXT;
-}
-
-function nextTurnReadoutLabel(nextTurn: ReturnType<typeof useNextTurnConnection>): string {
-  if (nextTurn.isPending) {
-    return "Checking this room's next-turn model…";
-  }
-  if (nextTurn.isError || nextTurn.view === undefined) {
-    return "Couldn't read this room's next-turn model.";
-  }
-  if (nextTurn.view.state === "unset") {
-    return "No model connection is set for this room.";
-  }
-  return `${nextTurn.view.connectionLabel ?? "Room host's connection"} · ${nextTurn.view.providerLabel} · ${nextTurn.view.model}`;
 }
 
 export interface ComposerProps {
@@ -112,10 +99,6 @@ export function Composer({
   actionContributions = [],
   mediaContributions = [],
 }: ComposerProps): ReactElement {
-  const trpc = useTRPC();
-  const room = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
-  const nextTurn = useNextTurnConnection(chatId);
-  const sharedRoom = room.data !== undefined && presentMemberCount(room.data.participants) > 1;
   // The draft read/write is scoped to THIS composer — the subscription is intentionally NOT lifted into the
   // shared ancestor, so a keystroke re-renders only this subtree and never cascades to the message thread.
   const value = useComposerDraft(chatId);
@@ -141,6 +124,10 @@ export function Composer({
   // turn). It reaches EVERY room now: the gate used to be structurally blind on the one surface where it
   // mattered most (a fresh chat had no row to check against, §2.6 #1) — the room has a row from frame one.
   const sendAvailability = useSendAvailability(chatId);
+  // While the next-turn line states the refusal it is the room's one statement of it: the band's own refusal
+  // line stands down and every disabled control is described by the line.
+  const nextTurnId = useId();
+  const refusalStatedBy = nextTurnStatesRefusal(sendAvailability.cause) ? nextTurnId : undefined;
   const { attachments, addFiles, removeAttachment, clearAttachments } = useComposerAttachments();
 
   // P5 CYOA compose-mode focus (§5.4): a choice click in `compose` mode seeds the draft (through `value`)
@@ -161,6 +148,8 @@ export function Composer({
   // Free-mode in-chat AI image generation (imagery I5 base slice): the typed composer text IS the prompt.
   // The verb posts one user message with asset: refs (D51), so it renders through the normal stream.
   const generateImage = useGenerateImage(chatId);
+  const sharedRoom = useSharedRoom(chatId);
+  const galleryDoor = useRoomGalleryDoor(chatId);
 
   const trimmed = value.trim();
   const hasAttachments = attachments.length > 0;
@@ -238,10 +227,19 @@ export function Composer({
       onChange("");
       return;
     }
+    // Only a real send needs the connection; a command above runs in any room.
+    if (sendAvailability.unavailable) {
+      return;
+    }
     sendMessage.send(outcome.text, files);
   };
 
   const submit = (): void => {
+    // A draft with text classifies first: a slash command is not a turn, so the send gate below never holds it.
+    if (canSubmitText) {
+      submitText(attachments.map((a) => a.file));
+      return;
+    }
     // The pre-send gate: a chat whose resolved connection can't serve refuses up front (the disabled Send is
     // the click path; this guards the Enter-key path the keydown handler calls). A draft is never unavailable.
     if (sendAvailability.unavailable) {
@@ -257,14 +255,15 @@ export function Composer({
       }
       return;
     }
-    const files = attachments.map((a) => a.file);
     // An attachment-only draft can't name a command — straight to the original send path.
-    if (canSubmitText) {
-      submitText(files);
-      return;
-    }
-    sendMessage.send(value, files);
+    sendMessage.send(
+      value,
+      attachments.map((a) => a.file),
+    );
   };
+
+  // Send stays live for a slash command in a room that cannot serve a turn: the command is not a turn.
+  const sendGated = sendAvailability.unavailable && parseSlashDraft(value).kind !== "command";
 
   const stripOpen = slashMatches.length > 0;
   const { command: highlightedCommand, activeOptionId: activeSlashOptionId } = resolveSlashHighlight(slashMatches, slashHighlight);
@@ -321,7 +320,6 @@ export function Composer({
   // the sanctioned FileDropzone picker; generate-from-text still clears only on a green settle (F-P1). The
   // wand renders these as menu rows, keeping the compact action rail free of separate image controls.
   const imageControls: ComposerImageControls = {
-    sharedRoom,
     maxAttachmentBytes,
     uploadDisabled: sendMessage.isPending,
     onAddFiles: addAttachmentFiles,
@@ -329,9 +327,11 @@ export function Composer({
     generateReason: imageGenReason,
     generating: generateImage.isPending,
     onGenerate: generateFromText,
+    sharedRoom,
     // The SECOND image door (#623) — the same `openImagine` #state action the `/imagine` slash runner fires
     // (never a `#features/imagery` import, §5.1). Seeded, not cleared: nothing has been spent yet.
     onOpenImagine: (): void => openImagine({ chatId, mode: "free", prompt: trimmed }),
+    gallery: galleryDoor,
   };
 
   return (
@@ -409,41 +409,26 @@ export function Composer({
             imageControls={imageControls}
             sendUnavailable={sendAvailability.unavailable}
             sendUnavailableReason={sendAvailability.reason}
+            refusalStatedBy={refusalStatedBy}
             chatControl={<ActiveChatOptionsMenu chatId={chatId} />}
             actionContributions={actionContributions}
             mediaContributions={mediaContributions}
-            connectionStatus={
-              <Row
-                align="center"
-                aria-live="polite"
-                className={sendAvailability.unavailable ? "shrink-0" : "min-w-0 flex-1 justify-center"}
-                data-slot="composer-connection-status"
-                gap="field"
-              >
-                <Text as="span" className="min-w-0 truncate" voice="gloss">
-                  {sendAvailability.cause === null ? nextTurnReadoutLabel(nextTurn) : sendUnavailableStatus(sendAvailability.cause)}
-                </Text>
-                {sendAvailability.cause === "no-connection" ? (
-                  <Button aria-label="Open Connections" intent="secondary" onClick={(): void => openConfigTo("connections")} size="sm" type="button">
-                    Connect
-                  </Button>
-                ) : null}
-              </Row>
-            }
             sendControl={
               <ComposerSendControl
                 showStop={showStop}
                 stopping={stopping}
                 onStop={stopTurn.stop}
                 onSend={submit}
-                sendDisabled={sendAvailability.unavailable || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
+                sendDisabled={sendGated || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
                 sendPending={sendMessage.isPending || continueOnEmpty.isPending}
-                unavailable={sendAvailability.unavailable}
-                unavailableReason={sendAvailability.reason}
+                unavailable={sendGated}
+                unavailableReason={sendGated ? sendAvailability.reason : undefined}
+                unavailableStatedBy={sendGated ? refusalStatedBy : undefined}
               />
             }
           />
         </ComposerDropTarget>
+        <ComposerNextTurnLine chatId={chatId} availability={sendAvailability} id={nextTurnId} />
       </Stack>
     </footer>
   );

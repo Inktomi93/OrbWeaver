@@ -29,6 +29,12 @@ declare module "@tanstack/react-query" {
 const GC_TIME_MS = 300_000; // 5 minutes
 const QUERY_RETRIES = 2;
 
+/** The default retry schedule, minus a `BAD_REQUEST`: the server refused the input itself, so the same read
+ *  gets the same refusal. Every query's default in `createAppQueryClient`; a query that needs another policy sets its own. */
+export function retryUnlessBadRequest(failureCount: number, error: unknown): boolean {
+  return (error as { data?: { code?: string } } | null | undefined)?.data?.code !== "BAD_REQUEST" && failureCount < QUERY_RETRIES;
+}
+
 function toastFromMeta(meta: AppMeta | undefined, error: unknown): void {
   if (meta?.errorToast === undefined) {
     return;
@@ -46,7 +52,7 @@ export function createAppQueryClient(): QueryClient {
       queries: {
         staleTime: Number.POSITIVE_INFINITY, // Infinity, NOT 'static' — see header
         gcTime: GC_TIME_MS,
-        retry: QUERY_RETRIES,
+        retry: retryUnlessBadRequest,
         refetchOnWindowFocus: false,
         refetchOnReconnect: true, // the SSE-gap closer — do not flip
         refetchOnMount: true,

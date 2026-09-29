@@ -48,14 +48,15 @@ interface GuidedIconButtonProps {
   readonly reason: string;
   readonly buttonTestId: "composerGuidedSwipe" | "composerGuidedContinue";
   readonly onFire: () => void;
+  readonly refusalStatedBy: string | undefined;
 }
 
 /** A dual-mode guided icon: charges when the composer has text and keeps disabled reasons discoverable. */
 export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
-  const { icon, label, steerCue, hasText, disabled, reason, onFire, buttonTestId } = props;
+  const { icon, label, steerCue, hasText, disabled, reason, onFire, buttonTestId, refusalStatedBy } = props;
   const detail = resolveGuidedDetail({ disabled, hasText, steerCue, reason });
   const title = joinTitle(label, detail);
-  const detailId = useId();
+  const description = useControlDescription(detail, refusalStatedBy);
   return (
     // `describesTrigger={false}`: this control owns its description below (`ControlDetail`), and the
     // tooltip string DELIBERATELY leads with the label. #2455 made the tooltip seal describe every trigger
@@ -63,7 +64,7 @@ export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
     // detail, which is the exact double `resolveGuidedDetail` exists to prevent.
     <Tooltip describesTrigger={false}>
       <TooltipTrigger
-        {...(detail === undefined ? {} : { "aria-describedby": detailId })}
+        {...description.triggerProps}
         render={
           <Button
             type="button"
@@ -82,7 +83,7 @@ export function GuidedIconButton(props: GuidedIconButtonProps): ReactElement {
         }
       />
       <TooltipPopup side="top">{title}</TooltipPopup>
-      <ControlDetail detail={detail} id={detailId} />
+      <ControlDetail description={description} />
     </Tooltip>
   );
 }
@@ -102,16 +103,32 @@ function joinTitle(label: string, detail: string | undefined): string {
   return detail === undefined ? label : `${label} — ${detail}`;
 }
 
+// A control's description: its own `sr-only` copy of the detail, or the element that already states it.
+interface ControlDescription {
+  readonly triggerProps: { readonly "aria-describedby"?: string };
+  readonly own: { readonly id: string; readonly detail: string } | undefined;
+}
+
+// `refusalStatedBy` is set only while the control is off for the band refusal an element already states; the
+// control is then described by that element, so the room holds one statement of the refusal.
+function useControlDescription(detail: string | undefined, refusalStatedBy: string | undefined): ControlDescription {
+  const id = useId();
+  if (refusalStatedBy !== undefined) {
+    return { triggerProps: { "aria-describedby": refusalStatedBy }, own: undefined };
+  }
+  return detail === undefined ? { triggerProps: {}, own: undefined } : { triggerProps: { "aria-describedby": id }, own: { id, detail } };
+}
+
 /** The touch/AT carrier for a composer control's reason or cue (#2443): announced as the control's
  *  DESCRIPTION, so it reaches a pointer that cannot open a tooltip without displacing the name a
  *  voice-control user says. Renders nothing when the tooltip carries only the name. */
-function ControlDetail({ detail, id }: { readonly detail: string | undefined; readonly id: string }): ReactElement | null {
-  if (detail === undefined) {
+function ControlDetail({ description }: { readonly description: ControlDescription }): ReactElement | null {
+  if (description.own === undefined) {
     return null;
   }
   return (
-    <Text as="span" className="sr-only" id={id}>
-      {detail}
+    <Text as="span" className="sr-only" id={description.own.id}>
+      {description.own.detail}
     </Text>
   );
 }
@@ -167,23 +184,25 @@ export function ImpersonateGuidedButton({
   hasText,
   onPick,
   reason,
+  refusalStatedBy,
 }: {
   readonly disabled: boolean;
   readonly hasText: boolean;
   readonly onPick: (person: GuidedImpersonatePerson) => void;
   readonly reason: string;
+  readonly refusalStatedBy: string | undefined;
 }): ReactElement {
   const detail = resolveGuidedDetail({ disabled, hasText, steerCue: STEER_CUE_IMPERSONATE, reason });
   const title = joinTitle("Draft your line", detail);
   const name = resolveGuidedName("Draft your line", hasText);
-  const detailId = useId();
+  const description = useControlDescription(detail, refusalStatedBy);
   return (
     <Menu>
       {/* `describesTrigger={false}` — see GuidedIconButton above: the tooltip string leads with the
           control's own name, and `ControlDetail` is this control's description. */}
       <Tooltip describesTrigger={false}>
         <TooltipTrigger
-          {...(detail === undefined ? {} : { "aria-describedby": detailId })}
+          {...description.triggerProps}
           render={
             <MenuTrigger
               disabled={disabled}
@@ -207,7 +226,7 @@ export function ImpersonateGuidedButton({
           }
         />
         <TooltipPopup side="top">{title}</TooltipPopup>
-        <ControlDetail detail={detail} id={detailId} />
+        <ControlDetail description={description} />
       </Tooltip>
       <MenuPopup>
         {(["first", "second", "third"] as const).map((person) => (
@@ -226,12 +245,14 @@ export function ResponseGuidedButton({
   characters,
   onFire,
   disabledReason,
+  refusalStatedBy,
 }: {
   readonly hasText: boolean;
   readonly idle: boolean;
   readonly characters: ReturnType<typeof filterCharacters>;
   readonly onFire: (speakerCharacterId: CharacterId | null) => void;
   readonly disabledReason: string | undefined;
+  readonly refusalStatedBy: string | undefined;
 }): ReactElement {
   const label = "Generate reply";
   // The submenu arm is the same size-gate the retired speak-as dropdown carried (D16 roster-of-1): a solo room
@@ -240,14 +261,14 @@ export function ResponseGuidedButton({
   const detail = responseDetail(hasText, disabledReason, multiCharacter);
   const title = joinTitle(label, detail);
   const name = resolveGuidedName(label, hasText);
-  const detailId = useId();
+  const description = useControlDescription(detail, refusalStatedBy);
   if (!multiCharacter) {
     // `describesTrigger={false}` — see GuidedIconButton above: the tooltip string leads with the control's
     // own name, and `ControlDetail` is this control's description.
     return (
       <Tooltip describesTrigger={false}>
         <TooltipTrigger
-          {...(detail === undefined ? {} : { "aria-describedby": detailId })}
+          {...description.triggerProps}
           render={
             <Button
               type="button"
@@ -266,7 +287,7 @@ export function ResponseGuidedButton({
           }
         />
         <TooltipPopup side="top">{title}</TooltipPopup>
-        <ControlDetail detail={detail} id={detailId} />
+        <ControlDetail description={description} />
       </Tooltip>
     );
   }
@@ -276,7 +297,7 @@ export function ResponseGuidedButton({
           control's own name, and `ControlDetail` is this control's description. */}
       <Tooltip describesTrigger={false}>
         <TooltipTrigger
-          {...(detail === undefined ? {} : { "aria-describedby": detailId })}
+          {...description.triggerProps}
           render={
             <MenuTrigger
               disabled={!idle}
@@ -299,7 +320,7 @@ export function ResponseGuidedButton({
           }
         />
         <TooltipPopup side="top">{title}</TooltipPopup>
-        <ControlDetail detail={detail} id={detailId} />
+        <ControlDetail description={description} />
       </Tooltip>
       <MenuPopup>
         <MenuItem onClick={(): void => onFire(null)}>Auto (arbitrate)</MenuItem>

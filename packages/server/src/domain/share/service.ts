@@ -3,6 +3,9 @@
 import { createShareContext } from "./context.ts";
 import type { ShareService, ShareServiceDeps } from "./contract/service.ts";
 import { createBootShare } from "./verbs/boot-share.ts";
+import { createDisableIpCertificate } from "./verbs/disable-ip-certificate.ts";
+import { createEnableIpCertificate } from "./verbs/enable-ip-certificate.ts";
+import { createResumeIpCertificate } from "./verbs/resume-ip-certificate.ts";
 import { createStart } from "./verbs/start.ts";
 import { createStatus } from "./verbs/status.ts";
 import { createStop } from "./verbs/stop.ts";
@@ -14,5 +17,8 @@ export function createShareService(deps: ShareServiceDeps): ShareService {
     stop: createStop(ctx),
     status: createStatus(ctx),
     ...createBootShare(ctx),
+    enableIpCertificate: createEnableIpCertificate(ctx),
+    disableIpCertificate: createDisableIpCertificate(ctx),
+    resumeIpCertificate: createResumeIpCertificate(ctx),
   };
 }

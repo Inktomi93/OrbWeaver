@@ -16,7 +16,8 @@ import process from "node:process";
 import { print } from "../../_shared/artifacts.ts";
 import { readConcurrencyProfile } from "../../_shared/concurrency-profile.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { listeningPids } from "../../_shared/platform.ts";
+import type { PortOwner } from "../../_shared/platform.ts";
+import { listeningPids, socketTableOrThrow } from "../../_shared/platform.ts";
 import { STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
 import type { StageAllocation, StageBandView, StageHealth, StageLimits, StageRow } from "../contract/stage.ts";
 import { allocateStageBand, resolveStageLimits, stageHealthVerdict } from "../lib/stage-bands.ts";
@@ -74,7 +75,7 @@ export function stageRowHealth(row: StageRow, nowMs: number): StageHealth {
 
 /** Both halves of a session's registered band must still be listening. One missing half is a dead stage,
  *  not a degraded-but-usable base; the session records the transition and refuses later calls. */
-export function stageBindingAlive(home: string, band: number, bound: ReadonlyMap<number, number> = listeningPids()): boolean {
+export function stageBindingAlive(home: string, band: number, bound: ReadonlyMap<number, PortOwner>): boolean {
   const row = readBands(home).find((candidate) => candidate.band === band);
   return row !== undefined && bound.has(row.serverPort) && bound.has(row.vitePort);
 }
@@ -88,21 +89,24 @@ export function stageBandViews(input: {
   readonly targetSha: string | null;
   readonly nowMs: number;
 }): readonly StageBandView[] {
-  const bound = listeningPids();
+  // An unreadable table throws (a tool error): every band would read unbound, and an unbound band with a
+  // foreign row is a corpse to reclaim, so allocation would boot onto a live sibling's ports.
+  const bound = socketTableOrThrow(listeningPids());
   const live = liveSessionNames(input.root);
   return STAGE_BANDS.map((band) => {
     const row = input.rows.find((candidate) => candidate.band === band) ?? null;
     const ports = stageBandPorts(band);
     const bandBound = bandIsBound(ports, bound);
-    const pids = [bound.get(ports.server), bound.get(ports.vite)].filter((pid): pid is number => pid !== undefined);
+    const owners = [bound.get(ports.server), bound.get(ports.vite)].filter((owner): owner is PortOwner => owner !== undefined);
     const sharedCandidate = row !== null && row.checkout !== input.checkout && row.sha === input.targetSha && bandBound;
     return {
       band,
       row,
       bandBound,
       // EVERY bound port must be a stage's; one unidentified holder is enough to keep our hands off the
-      // band entirely, because killing its group could take an unrelated server with it (#324's fence).
-      bandIsStageRooted: pids.length > 0 && pids.every((pid) => pidIsStageRooted(pid)),
+      // band entirely, because killing its group could take an unrelated server with it (#324's fence). An
+      // owner the OS will not name is such a holder.
+      bandIsStageRooted: owners.length > 0 && owners.every((owner) => owner.kind === "pid" && pidIsStageRooted(owner.pid)),
       healthy: sharedCandidate && stageRowHealth(row, input.nowMs) === "warm",
       liveSessions: row === null ? [] : row.sessions.filter((name) => live.has(name)),
     };

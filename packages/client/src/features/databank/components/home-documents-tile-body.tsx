@@ -128,7 +128,8 @@ export function HomeDocumentsTileBody(): ReactElement {
             The old ruling's reason — "not a second button competing with the hero across the gutter" —
             is answered by the hero itself: it is an ELEVATED, glowing island now rather than a form-tier
             box, so an `sm` secondary on the shelf is no longer in the same weight class. */}
-        <Row gap="field">
+        {/* The two doors wrap: side by side they overrun a phone's column. */}
+        <Row className="flex-wrap" gap="field">
           <Button intent="secondary" onClick={(): void => openModal("addDocument")} size="sm">
             <Icon icon={Plus} size="sm" />
             Add your first document

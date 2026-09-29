@@ -312,9 +312,8 @@ did not change when the fleet moved.
 toolError: 2, misuse: 3 }` and `run-tool.ts` is the exit-honesty runner every `cli.ts` enters through:
 crash ≠ verdict (an uncaught throw becomes a hard `toolError`, never a silent 1), verdicts set
 `process.exitCode` so stdout drains, and a verdict never downgrades. `proc.ts` is the ONE
-`node:child_process` door — every niced spawn rides `niced-exec.ts`, a launcher that lowers its own
-priority to `TOOLING_PRIORITY` (10, every OS) before running the real command, because the box
-co-hosts other services; an un-niced spawn needs a cited census row stating why that priority is wrong
+`node:child_process` door — every niced spawn runs its child at `TOOLING_PRIORITY` (10, every OS),
+because the box co-hosts other services; an un-niced spawn needs a cited census row stating why that priority is wrong
 there.
 
 **`scripts/` is the research zone, not a second tool tree** — explicitly throwaway probes, one-shot
