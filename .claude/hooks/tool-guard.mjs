@@ -150,8 +150,8 @@ export function blankHeredocs(raw, blank) {
 
 /** Every heredoc in the command, as index ranges: `opStart`/`opEnd` bound the operator + delimiter,
  *  `bodyStart`/`bodyEnd` bound the BODY ALONE (terminator line excluded), `spanEnd` is where the
- *  terminator line ends. ONE scanner, because two consumers need different slices of the same shape and
- *  a second scanner would eventually disagree with this one: `heredocSpans` blanks operator + body +
+ *  terminator line ends, and `quoted` says the delimiter was quoted, which keeps the body literal. ONE
+ *  scanner, because two consumers need different slices of the same shape and a second scanner would eventually disagree with this one: `heredocSpans` blanks operator + body +
  *  terminator (a heredoc body is TEXT to every rule), while the script pass needs the body TEXT — a
  *  `<<EOF` fed to a SHELL, or written into a file the same command then runs, is a PROGRAM. */
 export function heredocUnits(raw, blank) {
@@ -182,7 +182,7 @@ export function heredocUnits(raw, blank) {
       }
       lineStart = lineEnd + 1;
     }
-    units.push({ opStart: m.index, opEnd: m.index + m[0].length, bodyStart, bodyEnd, spanEnd: end });
+    units.push({ opStart: m.index, opEnd: m.index + m[0].length, bodyStart, bodyEnd, spanEnd: end, quoted: m[1] !== "" });
     HEREDOC_OPERATOR.lastIndex = end;
   }
   return units;
@@ -446,8 +446,11 @@ const GIT_LONG_LIVED_VERBS = new Set(["push", "pull", "fetch", "clone", "commit"
 const GIT_HOOKED_VERBS = new Set(["commit", "merge"]);
 // Unlike GIT_GLOBAL_OPTS (which the destructive-git bans share), only git's real value options take the
 // next word: every other flag is bare, so `git --no-pager log -S commit` does not read `log` as a value.
-const GIT_VALUE_OPTIONS = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace"]);
-const GIT_EXEC_HEAD = new RegExp(String.raw`^\s*${WRAP_PREFIX}git\s`);
+const GIT_VALUE_OPTIONS = new Set(["-C", "-c", "--config-env", "--git-dir", "--work-tree", "--namespace"]);
+// Shell prefix keywords that `wrapperPrefixEnd` does not skip: `command git commit`, `time sleep 5`.
+const PREFIX_KEYWORDS = new Set(["command", "time"]);
+// A path-prefixed binary (`/usr/bin/git`) is the same git.
+const GIT_EXEC_HEAD = new RegExp(String.raw`^\s*${WRAP_PREFIX}(?:(?:${[...PREFIX_KEYWORDS].join("|")})\s+(?:-p\s+)?${WRAP_PREFIX})*(?:\S*\/)?git\s`);
 // A piped `pnpm doc` goes through the same log rewrite: its output is short and the paths it prints are the
 // result, so the reader runs against the full log and the exit code survives.
 const DOC_PIPE_HEAD = new RegExp(String.raw`^\s*${WRAP_PREFIX}pnpm\s+(?:run\s+)?doc(?=\s|$)`);
@@ -590,8 +593,6 @@ const SLEEP_LITERAL_SECONDS = /^([0-9]+(?:\.[0-9]+)?)s?$/;
 const NOOP_CLAUSE = /^(?:true|:|cd(?:\s+\S+)?|echo(?:\s+[^<>]*)?|printf(?:\s+[^<>]*)?)$/;
 // A pipe stage after a sleep that does nothing with its empty input, so `sleep 300 | cat` is still a sleep.
 const NOOP_CONSUMER = /^(?:cat|tee(?:\s+\S+)*|true|:)$/;
-// Prefix words before a sleep that `wrapperPrefixEnd` does not skip: `command sleep`, `time sleep`.
-const SLEEP_PREFIX_WORDS = new Set(["command", "time"]);
 const SUBSTITUTION_OPEN = /\$\(|`/;
 // A Claude Code background task's own files (`<task>.output`, `.done`, `.exit`) under the per-session
 // `/tmp/claude-<uid>/…/tasks/` dir. The harness already notifies the agent when that task exits, so a wait on
@@ -616,6 +617,8 @@ const SHELL_TOKEN = /\d*[<>]+&?\d*|&&|\|\||\|&|[;&|\n()`]|[^\s;&|()<>`]+/g;
 // `{` opens a group or a function body (`f() {`, `function f {`), so a command can start right after it.
 // Parentheses and case patterns are tracked by `shellLoops` itself.
 const SHELL_OPERATOR = /^(?:&&|\|\||\|&|[;&|\n{])$/;
+// The character glued before an extglob group's `(` in a case pattern: `?(…)`, `*(…)`, `+(…)`, `@(…)`, `!(…)`.
+const EXTGLOB_OPERATOR = /^[?*+@!]$/;
 const LOOP_KEYWORDS = new Set(["for", "select", "while", "until"]);
 const RESERVED_CLOSERS = new Set(["done", "fi", "esac", "}"]);
 // The rest of one simple command, from its first word up to the next operator or group boundary.
@@ -1053,7 +1056,7 @@ function pipeRewrite(command, blank, clauses, isHead, ctx) {
   }
   // A stage ending in a backslash met an escaped `\|` or `\ |`, which the clause scan splits as a pipe; the
   // shell does not, so a rewrite would change what runs.
-  if (clause.stages.slice(0, -1).some((st) => command.slice(st.start, st.end).trimEnd().endsWith("\\"))) {
+  if (clause.stages.slice(0, -1).some((st) => endsEscaped(command.slice(st.start, st.end)))) {
     return null;
   }
   for (const r of readers) {
@@ -1108,9 +1111,43 @@ function clauseHasHeredoc(command, clause) {
 }
 
 /** Does the clause's last line end in `\`? The escaped newline joins it to the next operator, and a rewrite
- *  that cuts or moves the clause text breaks that join. */
+ *  that cuts or moves the clause text breaks that join. Read with comments blanked, because a `\` inside a
+ *  trailing comment is comment text and joins nothing. */
 function clauseContinues(command, clause) {
-  return command.slice(clause.start, clause.end).trimEnd().endsWith("\\");
+  return endsEscaped(blankComments(command, blankQuoted(command)).slice(clause.start, clause.end));
+}
+
+/** Is the character at `i` escaped? Only an odd run of backslashes before it escapes: a `\\` pair is one
+ *  literal backslash and escapes nothing after it. */
+function escapedAt(text, i) {
+  let run = 0;
+  while (text[i - 1 - run] === "\\") {
+    run += 1;
+  }
+  return run % 2 === 1;
+}
+
+/** Does `text` end in a backslash that escapes whatever follows it (a newline, or the next operator)? */
+function endsEscaped(text) {
+  const trimmed = text.trimEnd();
+  return escapedAt(trimmed, trimmed.length);
+}
+
+// A line continuation in the BLANKED text: an odd backslash run, then a newline. Quotes, comments and
+// heredoc bodies are already blanks there, so a `\` in any of them never matches.
+const LINE_CONTINUATION = /(?<!\\)(?:\\\\)*\\\n/g;
+
+/** `raw` and `blank` with every line continuation's `\` and newline turned into two spaces. Bash deletes
+ *  the pair, so the two lines are one command. Same length, so every index still points into `command`. */
+function joinContinuations(command, blank) {
+  let raw = command;
+  let joined = blank;
+  for (const m of blank.matchAll(LINE_CONTINUATION)) {
+    const at = m.index + m[0].length - 2;
+    raw = `${raw.slice(0, at)}  ${raw.slice(at + 2)}`;
+    joined = `${joined.slice(0, at)}  ${joined.slice(at + 2)}`;
+  }
+  return { raw, blank: joined };
 }
 
 /** Did the original stage send stderr down the pipe too: a trailing `2>&1`, or a `|&` right after it? */
@@ -1288,8 +1325,8 @@ function gitSubcommand(stageBlank, stageRaw) {
   }
   // stripOperandTail: a group's `(`/`)` is glued to the raw word, so `(git commit)` ends in `commit)`
   const words = shellWords(stageRaw).map((w) => stripOperandTail(w).value);
-  let at = wrapperPrefixEnd(words);
-  if (words[at] !== "git") {
+  let at = prefixKeywordsEnd(words, wrapperPrefixEnd(words));
+  if (words[at]?.replace(/^.*\//, "") !== "git") {
     return null;
   }
   at += 1;
@@ -1305,30 +1342,29 @@ function gitSubcommand(stageBlank, stageRaw) {
 function docCall(stageBlank, stageRaw) {
   // Every blanking keeps the length, so a token's offset here is its offset in `stageRaw`.
   const text = stripCompoundLead(stageBlank.replace(CASE_ARM_LEAD, (lead) => " ".repeat(lead.length))).replace(REDIRECT_TOKEN, (r) => " ".repeat(r.length));
-  const { tokens, index, exec } = execHead(text);
+  const { exec } = execHead(text);
   if (exec === undefined || !/^(?:\S*\/)?pnpm$/.test(exec[0])) {
     return null;
   }
-  const rest = tokens.slice(index + 1).map((t) => t[0]);
+  // The blanked stage proves which token is `pnpm`; every word after it is read off the raw text, where a
+  // quoted option value (`-C "$WT"`) is one word rather than blank space, and `'doc'` is `doc`.
+  const words = docArgs(stageRaw.slice(exec.index + exec[0].length));
   let at = 0;
-  while (rest[at]?.startsWith("-") === true) {
-    at += PNPM_VALUE_OPTIONS.has(rest[at]) ? 2 : 1;
+  while (words[at]?.startsWith("-") === true) {
+    at += PNPM_VALUE_OPTIONS.has(words[at]) ? 2 : 1;
   }
-  if (rest[at] === "run") {
+  if (words[at] === "run") {
     at += 1;
   }
-  if (rest[at] !== "doc") {
+  if (words[at] !== "doc") {
     return null;
   }
-  // The blanked stage proves which token is the `doc` script; its arguments are read off the raw text after it.
-  const doc = tokens[index + 1 + at];
-  const args = docArgs(stageRaw.slice(doc.index + doc[0].length));
+  const args = words.slice(at + 1);
   return { verb: args.find((w) => !w.startsWith("-")) ?? "", help: args.length === 2 && (args[1] === "--help" || args[1] === "-h") };
 }
 
-/** The raw text after a `pnpm … doc` script word, as shell words: a quoted argument is still one word
- *  (`'set'` is `set`), so a quoted verb still writes and a quoted title still counts. Redirects and their
- *  targets are not arguments. */
+/** Raw text as shell words: a quoted argument is still one word (`'set'` is `set`), so a quoted verb
+ *  still writes and a quoted title still counts. Redirects and their targets are not arguments. */
 function docArgs(argsRaw) {
   const words = shellWords(argsRaw);
   const args = [];
@@ -2388,15 +2424,22 @@ function substitutionEnd(command, from) {
  *  quotes. Inside SINGLE quotes it is literal text and is skipped — extracting it would be a false tighten
  *  on a string nobody executes. Comments and heredoc bodies are skipped for the same reason, and they need
  *  their own SPANS to detect: `ls # echo "$(git stash)"` puts the substitution inside a double-quoted span
- *  that is itself inside a comment, which the quote map alone reads as live. Nested substitutions are not
+ *  that is itself inside a comment, which the quote map alone reads as live. The exception is the body of
+ *  a heredoc whose delimiter is unquoted (`<<EOF`): bash expands a substitution there, quotes in it are
+ *  plain characters, and only a backslash makes a `$(` or backtick literal. Nested substitutions are not
  *  returned separately — the recursion through
  *  `classify` reaches them from the body it is handed. */
 export function commandSubstitutions(command) {
   const quoted = blankQuoted(command);
-  const text = [...commentSpans(command, quoted), ...heredocSpans(command, blankComments(command, quoted))];
+  const units = heredocUnits(command, blankComments(command, quoted));
+  const text = [
+    ...commentSpans(command, quoted),
+    ...units.flatMap((u) => [[u.opStart, u.opEnd], u.quoted ? [u.bodyStart, u.spanEnd] : [u.bodyEnd, u.spanEnd]]),
+  ];
   const spans = quoteSpans(command);
   const spanAt = (at) => spans.find((s) => at > s.start && at < s.end);
   const isText = (at) => text.some(([start, stop]) => at >= start && at < stop);
+  const inExpandedBody = (at) => units.some((u) => !u.quoted && at >= u.bodyStart && at < u.bodyEnd);
   const found = [];
   let i = 0;
   while (i < command.length) {
@@ -2405,7 +2448,8 @@ export function commandSubstitutions(command) {
       i += 1;
       continue;
     }
-    if (isText(i) || spanAt(i)?.quote === "'") {
+    const literal = inExpandedBody(i) ? escapedAt(command, i) : spanAt(i)?.quote === "'";
+    if (isText(i) || literal) {
       i += 1;
       continue;
     }
@@ -2645,11 +2689,17 @@ function sleepClauseOperands(blank, clause) {
 function sleepHeadOperands(text) {
   const { tokens, index } = execHead(text.replace(REDIRECT_TOKEN, " "));
   const words = tokens.map((t) => t[0]);
-  let i = index;
-  while (SLEEP_PREFIX_WORDS.has(words[i])) {
+  const i = prefixKeywordsEnd(words, index);
+  return words[i] !== undefined && SLEEP_BIN.test(words[i]) ? words.slice(i + 1) : null;
+}
+
+/** Advance past `command`/`time` prefix keywords, and the wrapper prefix after each, to the exec head. */
+function prefixKeywordsEnd(words, start) {
+  let i = start;
+  while (PREFIX_KEYWORDS.has(words[i])) {
     i = wrapperPrefixEnd(words, words[i] === "time" && words[i + 1] === "-p" ? i + 2 : i + 1);
   }
-  return words[i] !== undefined && SLEEP_BIN.test(words[i]) ? words.slice(i + 1) : null;
+  return i;
 }
 
 /** Is the command's only work `sleep`: every clause a sleep or a no-op, and at least one sleep? Nothing
@@ -2691,7 +2741,12 @@ function shellLoops(blank) {
     const closerAllowed = closerOnly && RESERVED_CLOSERS.has(token);
     closerOnly = false;
     if (kase?.phase === "pattern") {
-      if (token === ")") {
+      // An extglob group (`@(a|b)`, `+(x)`) opens glued to its operator and closes inside the pattern.
+      if (token === "(" && EXTGLOB_OPERATOR.test(blank[m.index - 1] ?? "")) {
+        kase.extglob += 1;
+      } else if (token === ")" && kase.extglob > 0) {
+        kase.extglob -= 1;
+      } else if (token === ")") {
         kase.phase = "body";
         commandPosition = true;
       } else if (token === "esac") {
@@ -2700,11 +2755,11 @@ function shellLoops(blank) {
       }
       continue;
     }
-    if (token === "`") {
-      [backtick, commandPosition] = backtick === null ? [commandPosition, true] : [null, backtick];
+    if ((token === "`" || token === "(" || token === ")") && escapedAt(blank, m.index)) {
       continue;
     }
-    if ((token === "(" || token === ")") && blank[m.index - 1] === "\\") {
+    if (token === "`") {
+      [backtick, commandPosition] = backtick === null ? [commandPosition, true] : [null, backtick];
       continue;
     }
     if (token === "(") {
@@ -2736,7 +2791,7 @@ function shellLoops(blank) {
       continue;
     }
     if (token === "case") {
-      cases.push({ phase: "head" });
+      cases.push({ phase: "head", extglob: 0 });
     } else if (token === "esac" && kase !== undefined) {
       cases.pop();
     } else if (LOOP_KEYWORDS.has(token)) {
@@ -3216,11 +3271,13 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "deny", rule: "harness-piped", reason: REASONS.harnessPipedDeny, contexts };
   }
 
-  // 4c. `pnpm doc`: a lane never runs a board-writing verb.
+  // 4c. `pnpm doc`: a lane never runs a board-writing verb. Read with line continuations joined, so
+  //     `pnpm doc \⏎ set 5` is one call rather than a bare `pnpm doc` and a separate `set` command.
   if (ctx.agentId) {
-    for (const clause of clauses) {
+    const joined = joinContinuations(command, blank);
+    for (const clause of parseStructure(joined.blank)) {
       for (const stage of clause.stages) {
-        const call = docCall(blank.slice(stage.start, stage.end), command.slice(stage.start, stage.end));
+        const call = docCall(joined.blank.slice(stage.start, stage.end), joined.raw.slice(stage.start, stage.end));
         if (call !== null && !call.help && DOC_WRITE_VERBS.has(call.verb)) {
           return { decision: "deny", rule: "doc-write-lane", reason: REASONS.docWriteLane(call.verb), contexts };
         }

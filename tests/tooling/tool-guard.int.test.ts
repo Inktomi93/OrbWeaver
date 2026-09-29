@@ -909,6 +909,14 @@ const ROWS: Row[] = [
   // …as is one inside a comment or a heredoc body, which are text guard-wide
   ["pass", null, 'ls packages # never echo "$(git stash)"'],
   ["pass", null, "python3 - <<'PY'\nprint(\"$(git stash)\")\nPY"],
+  ["pass", null, 'tee /tmp/h.txt <<"EOF"\n$(git stash)\nEOF'],
+  // …but bash expands a substitution in an UNQUOTED-delimiter heredoc body, where a quote is a plain
+  // character and only an odd backslash run makes the `$(` literal
+  ["ask", "subst:rm-rf-unsafe", "git commit -F - <<EOF\n$(rm -rf /)\nEOF", AGENT_TIMEOUT],
+  ["deny", "subst:git-destructive", "tee /tmp/h.txt <<EOF\n`git stash`\nEOF"],
+  ["deny", "subst:git-destructive", "tee /tmp/h.txt <<EOF\nit's $(git stash)\nEOF"],
+  ["deny", "subst:git-destructive", "tee /tmp/h.txt <<EOF\n\\\\$(git stash)\nEOF"],
+  ["pass", null, "tee /tmp/h.txt <<EOF\n\\$(git stash)\nEOF"],
   // git's bare global flags take no value, so a log/grep argument that reads `commit`/`merge` is not one
   ["pass", null, "git --no-pager log -S commit | head"],
   ["pass", null, 'git -C "$WT" log --grep merge | head'],
@@ -988,6 +996,19 @@ const ROWS: Row[] = [
   ["deny", "doc-write-lane", "pnpm -C /wt run doc set 5 x", LANE],
   ["deny", "doc-write-lane", "case x in x) pnpm doc set 5 x;; esac", LANE],
   ["deny", "doc-write-lane", "case x in a) echo;; (b) pnpm doc land 5;; esac", LANE],
+  // a quoted option value, a quoted `doc` and a continued line are read as the shell reads them
+  ...[
+    'pnpm -C "$WT" doc set 5 x',
+    "pnpm -C '/w t' doc set 5 x",
+    "pnpm --filter 'root' doc set 5 x",
+    'pnpm --filter "doc" doc set 5 x',
+    "pnpm 'doc' set 5 x",
+    "pnpm d'o'c set 5 x",
+    "pnpm doc \\\n set 5 x",
+    "pnpm \\\n doc set 5 x",
+  ].map((command): Row => ["deny", "doc-write-lane", command, LANE]),
+  ["pass", null, "pnpm -C '/w t' doc new adr x", LANE],
+  ["pass", null, "pnpm doc overview # \\\nset 5 x", LANE], // a `\` in a comment continues nothing
   ["allow", "doc-piped", "pnpm doc overview | grep 0250", LANE],
   // ---- hand-polling family (owner directive, 2026-09-29 addendum) ----
   // true/`:`-only filler: EVERY clause must reduce to the bare word.
@@ -1065,6 +1086,10 @@ const ROWS: Row[] = [
   ["pass", null, `echo $(date) while building; tail -5 ${TASKS}/x.output`],
   ["pass", null, `echo $((1+2)) until; cat ${TASKS}/x.output`],
   ["pass", null, `echo \\) while; cat ${TASKS}/x.output`],
+  ["pass", null, `echo \\\` while; cat ${TASKS}/x.output`],
+  // an extglob group closes inside the case pattern, so the arm's body starts after the pattern's own `)`
+  ["deny", "task-file-wait", `case $x in @(a|b)) until [ -f ${TASKS}/x.done ]; do sleep 2; done;; esac`, BG],
+  ["deny", "task-file-wait", `case $x in +(a|@(b|c))) while [ ! -f ${TASKS}/x.done ]; do sleep 2; done;; esac`, BG],
   ["pass", null, `(cd /tmp && ls) until; cat ${TASKS}/x.output`],
   ["pass", null, `for f in ${TASKS}/*.output; do grep -c sleep $f; done`, BG],
   // a prefixed sleep in a `for` body is still the loop's sleep
@@ -1553,6 +1578,11 @@ test("commit timeout: a foreground commit/merge with no timeout gets the long ti
     { command: "git -c user.name='Alex X' commit -m x" },
     { command: 'git -C "$HOME/My Repo" merge feature' },
     { command: "(cd /x && git commit)" },
+    // `command`, a path-prefixed binary and a value-taking `--config-env` still reach the subcommand
+    { command: "command git commit -m x" },
+    { command: "/usr/bin/git commit -m x" },
+    { command: "git --config-env k=V commit -m x" },
+    { command: "command -v git" },
   ]);
   expect(rows.map((r) => [r.decision, r.rule, r.rewrite?.command, r.rewrite?.timeout])).toEqual([
     ["allow", "commit-timeout", "git commit -m x", 600_000],
@@ -1572,6 +1602,10 @@ test("commit timeout: a foreground commit/merge with no timeout gets the long ti
     ["allow", "commit-timeout", "git -c user.name='Alex X' commit -m x", 600_000],
     ["allow", "commit-timeout", 'git -C "$HOME/My Repo" merge feature', 600_000],
     ["allow", "commit-timeout", "(cd /x && git commit)", 600_000],
+    ["allow", "commit-timeout", "command git commit -m x", 600_000],
+    ["allow", "commit-timeout", "/usr/bin/git commit -m x", 600_000],
+    ["allow", "commit-timeout", "git --config-env k=V commit -m x", 600_000],
+    ["pass", null, undefined, undefined],
   ]);
   const wire = runHook(bashInput("git commit -m 'x y'"), [["CLAUDE_PROJECT_DIR", mkdtempSync(join(tmpdir(), "tg-commit-timeout-"))]]);
   // @orb-waive tooling-clock-budget(600_000): the guard's OUTPUT under test (its REWRITE_TIMEOUT_MS on the wire), not a clock this run pays.
@@ -1676,6 +1710,51 @@ test("rewrite: a continued reader line, a mid-stage fd merge and a status-checki
   expect(run(3, plain.rewrite?.command).status).toBe(3);
   const tail = run(3, classify("pnpm test:scoped a | tail -1 && echo NEXT").rewrite?.command);
   expect([tail.status, tail.stdout]).toEqual([3, "out-line\n"]);
+});
+
+// A `\` inside a trailing comment, or the second of a `\\` pair, continues nothing; `command git`,
+// `/usr/bin/git` and `git --config-env k=V` are plain commits. Each rewrites, and runs as the original did
+// with the harness's exit code in place of the reader's.
+test("rewrite: a commented or paired trailing backslash and every git head spelling rewrite with the original's output", () => {
+  const project = mkdtempSync(join(tmpdir(), "tg-escape-"));
+  mkdirSync(join(project, "reports", "tool-guard"), { recursive: true });
+  // PATH stubs, not shell functions: `command git` skips a function
+  const bin = mkdtempSync(join(tmpdir(), "tg-stub-bin-"));
+  for (const tool of ["git", "pnpm"]) {
+    writeFileSync(join(bin, tool), '#!/bin/bash\necho "out:$*"\nexit "${STUB_EC:-0}"\n', { mode: 0o755 });
+  }
+  const run = (ec: number, command: string): SpawnSyncReturns<string> =>
+    spawnSync("bash", ["-c", command], {
+      encoding: "utf8",
+      env: env([
+        ["PATH", `${bin}:/usr/bin:/bin`],
+        ["STUB_EC", String(ec)],
+      ]),
+    });
+  const shapes = [
+    "pnpm test:scoped a | tail -5 # note \\",
+    "pnpm test:scoped a | tail -5 # note \\\necho next",
+    "pnpm test:scoped a | grep -cF x\\\\",
+    "pnpm test:scoped a\\\\ | tail -1",
+    "git commit -m x | tail -1 # note \\",
+    "command git commit -m x | tail -1",
+    "git --config-env k=HOME commit -m x | tail -1",
+  ];
+  const out = runBatch(shapes.map((command) => ({ command, projectDir: project })));
+  shapes.forEach((command, i) => {
+    const r = at(out, i);
+    expect([command, r.decision, r.rewrite?.timeout]).toEqual([command, "allow", 600_000]);
+    for (const ec of [0, 3]) {
+      const [original, rewritten] = [run(ec, command), run(ec, String(r.rewrite?.command))];
+      // the shape with a second line ends on that line's status, as the original does
+      expect([command, ec, rewritten.stdout, rewritten.status]).toEqual([command, ec, original.stdout, command.includes("\n") ? 0 : ec]);
+    }
+  });
+  // the real binary cannot be stubbed: the rewrite must still be the parsing log form
+  const usrBin = at(runBatch([{ command: "/usr/bin/git commit -m x | tail -3", projectDir: project }]), 0);
+  expect(usrBin.rule).toBe("longlived-piped");
+  expect(spawnSync("bash", ["-n", "-c", String(usrBin.rewrite?.command)]).status).toBe(0);
+  expect(usrBin.rewrite?.command).toContain("\n( exit $__tg_ec )");
 });
 
 test("rewrite: a known test harness piped into a reader targets its own report artifact", () => {
