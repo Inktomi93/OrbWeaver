@@ -1,56 +1,43 @@
 # Lefthook — git hooks, worktree-safe by construction.
 #
-# Installed by the root `prepare` script (`scripts/prepare.ts`), which runs `lefthook install --force` on a `pnpm install`
-# in the main checkout only; a linked worktree skips it and uses the shared hooks. Lefthook 2.1.10 writes the hook stubs into the SHARED `.git/hooks`
-# of the common gitdir and does NOT set `core.hooksPath` (probed 2026-09-18 from main and from a worktree,
-# with and without a config change — the earlier claim here that it does was wrong). Git resolves a
-# worktree's hooks from the common dir, and this file is tracked, so hooks fire in every worktree with
-# zero per-worktree setup. `--force` because a stray `core.hooksPath` (pointing at that same default dir)
-# appeared in .git/config twice on 2026-09-18 from an unidentified external writer, and plain
-# `lefthook install` REFUSES under it — which failed every worktree's post-checkout install and every
-# `isolation: "worktree"` dispatch. With --force the chain survives the key. Commands run from the worktree root (lefthook resolves it per-worktree), so a
-# fresh worktree just needs `pnpm install` (or `pnpm run worktree:bootstrap`) and the gates work.
+# The root `prepare` script (`scripts/prepare.ts`) installs the hooks with `lefthook install --force`,
+# and only from the main checkout; a linked worktree shares the main checkout's `.git/hooks` and skips
+# its own install. Git resolves a worktree's hooks from the common gitdir, and this file is tracked, so
+# hooks fire in every worktree with zero per-worktree setup. `--force` survives a stray `core.hooksPath`
+# in `.git/config`, under which a plain `lefthook install` refuses. Commands run from the worktree root
+# (lefthook resolves it per-worktree), so a fresh worktree just needs `pnpm install` (or `pnpm run
+# worktree:bootstrap`) and the gates work.
 #
-# GREEN-TO-COMMIT is enforced HERE, not by discipline: the stages that narrow to what the commit records run
-# over it, so a type/lint/boundary-red change cannot be committed.
+# GREEN-TO-COMMIT is enforced here, not by discipline: the stages that narrow to what the commit records
+# run over it, so a type/lint/boundary-red change cannot be committed.
 #
-# Split (scoped static gate at COMMIT, whole static + behavioral tests at PUSH) — both via the ONE
-# `pnpm verify` entry (UNIFIED-VERIFICATION-DESIGN.md §3 and §4.3): the tiers ARE the hook wiring.
-#   • pre-commit → `pnpm verify --static --changed staged`: the index vs HEAD (D274). An unstaged or untracked
-#     file is not in the commit, so it is not in the scope, and lefthook hides the unstaged hunks of a
-#     partially staged file while the hook runs. Only the stages that narrow to the staged files run. Every
-#     whole-command stage (tooling/src/verify/lib/registry-triggers.ts), the cross-file
-#     structure policies and `deps:knip` defer to the whole static tier, which runs at pre-push and at the
-#     merge-train barrier (`pnpm check` on main). A scoped run takes no host-wide whole-run slot, so a commit
-#     never queues behind another checkout's battery. Stage durations: `reports/verify-history.jsonl`,
-#     written by tooling/src/verify/lib/history.ts.
-#   • pre-push → `pnpm verify --push` (ONE command, ONE summary, ONE exit code, ONE json): the static
-#     bundle + `pnpm test` (unit/integration/contract AND the Playwright CT suite — merged 2026-07-17,
-#     the test script composes `pnpm test:ct --retries=2` so parallelism flakes retry instead of blocking)
-#     + `pnpm e2e:smoke` (the fast `@smoke` model-free subset).
-#     This REPLACES the old 4-command `piped` pipe: run-all-report-all (every stage runs, all failures shown
-#     at once) instead of piped early-abort — strictly more informative, and the max-severity exit (§3.3) is
-#     the single verdict. Browser suites never gate the STATIC tier (vitest-browser hangs, Spine-Testing §7):
-#     CT rides the `pnpm test` lane (green-to-PUSH — this bullet describes the pre-push hook; the
-#     "GREEN-TO-COMMIT" doctrine term above is about the scoped static check at pre-commit, a different tier),
-#     e2e-smoke gates HERE. NOTE: needs Playwright chromium on the
-#     pushing machine (`pnpm exec playwright install chromium` once); the sandbox can't push, so this fires
-#     on the host.
-#   • e2e ANTI-ROT (2026-07-12): the full e2e suite is manual (`pnpm e2e`) and CI is workflow_dispatch-only
-#     (auto-triggers off, 2026-07-05 — the real gate is these hooks), so a smoke SUBSET gates HERE (the only
-#     automated per-push surface). It boots the stack via playwright's webServer (reuses a running dev daemon,
-#     else ~5s cold), then runs the `@smoke`-tagged specs — enough to catch the UI-selector/landing drift that
-#     silently rotted the suite to 8/11-red. The live-model spec (`@live`) is EXCLUDED (never in any gate).
-# Bypass for genuine emergencies only: `git commit --no-verify` / `git push --no-verify`.
+# Split (scoped static gate at commit, whole static + behavioral tests at push) — both via the one
+# `pnpm verify` entry: the tiers are the hook wiring.
+#   • pre-commit → `pnpm verify --static --changed staged`: scoped to the index vs HEAD. An unstaged or
+#     untracked file is not in the commit, so it is not in scope, and lefthook hides the unstaged hunks
+#     of a partially staged file while the hook runs. Every whole-command stage, the cross-file structure
+#     policies and `deps:knip` defer to the whole static tier, which runs at pre-push and at the
+#     merge-train barrier (`pnpm check` on main). A scoped run takes no host-wide whole-run slot, so a
+#     commit never queues behind another checkout's battery.
+#   • pre-push → `pnpm verify --push` (one command, one summary, one exit code, one json): the static
+#     bundle + `pnpm test` (unit/integration/contract and the Playwright CT suite, which retries flakes
+#     instead of blocking) + `pnpm e2e:smoke` (the fast `@smoke` model-free subset). It runs every stage
+#     and reports every failure, then exits at the max severity. Browser suites never gate the static
+#     tier; CT rides the `pnpm test` lane, e2e-smoke gates here. Needs Playwright chromium on the pushing
+#     machine (`pnpm exec playwright install chromium` once); the sandbox can't push, so this fires on
+#     the host.
+#   • The full e2e suite stays manual (`pnpm e2e`); only a `@smoke` subset gates here, since it is the
+#     only automated per-push surface and catches UI-selector/landing drift a manual-only suite would
+#     miss silently. The live-model spec (`@live`) is excluded from every gate.
+# The only sanctioned bypass is `LEFTHOOK_EXCLUDE=check`, used when the owner or orchestrator authorizes
+# it (`.claude/skills/orchestrator/SKILL.md` "Hooks and pushes"); lanes and the orchestrator never use
+# `--no-verify`.
 #
-# OUTPUT is tuned for agent/CI consumption (the recurring pain: lefthook's truecolor banner blew the
-# commit output to ~30KB of ANSI, which truncates to a useless preview — you can't even tell the commit
-# landed). `colors:false` drops lefthook's own ANSI; `output` keeps only the summary + a FAILED command's
-# output (no banner or per-step chrome); `follow:true` on each long gate forwards its compact progress as
-# it happens instead of withholding every byte until the command exits. `NO_COLOR:"1"` on each command
-# makes the gate tools (Biome/tsc/depcruise/vitest) emit plain, greppable text. An interactive `pnpm check`
-# in a TTY is unaffected (still colorizes).
-# The staged scope leans on lefthook's pre-commit hiding of unstaged hunks (D274); older lefthook lacks it.
+# OUTPUT is tuned for agent/CI consumption: `colors:false` drops lefthook's own ANSI, which otherwise
+# blows the commit output to an ANSI wall that truncates to a useless preview; `output` keeps only the
+# summary and a failed command's output; `follow:true` on each long gate forwards its compact progress
+# as it happens instead of withholding every byte until the command exits. `NO_COLOR:"1"` on each command
+# makes the gate tools emit plain, greppable text. An interactive `pnpm check` in a TTY is unaffected.
 min_version: 2.1.10
 
 colors: false
@@ -67,12 +54,11 @@ pre-commit:
       env:
         NO_COLOR: "1"
 
-# The MERGE-commit twin of pre-commit (added 2026-08-01 — main went red twice in one day from exactly
-# this hole): git runs `pre-merge-commit` (NOT `pre-commit`) for a NON-conflicted auto-merge commit
-# (`git merge <branch>` that commits by itself), so merges skipped the gate entirely. A CONFLICTED merge
-# concluded via `git commit` already runs pre-commit — this hook covers precisely the uncovered path.
-# Same body as pre-commit: the merge result is staged when the hook fires, and the index against HEAD is
-# everything the merge brings in. Bypass: `git merge --no-verify` (emergencies).
+# The merge-commit twin of pre-commit: git runs `pre-merge-commit`, not `pre-commit`, for a
+# non-conflicted auto-merge commit (`git merge <branch>` that commits by itself), so a clean merge would
+# otherwise skip the gate. A conflicted merge concluded via `git commit` already runs pre-commit. Same
+# body as pre-commit: the merge result is staged when the hook fires, and the index against HEAD is
+# everything the merge brings in.
 pre-merge-commit:
   follow: true
   commands:
@@ -81,32 +67,26 @@ pre-merge-commit:
       env:
         NO_COLOR: "1"
 
-# The RAW-`git worktree add` gap (added 2026-08-02). The WorktreeCreate agent hook installs deps for the
-# worktrees IT creates; a worktree added by hand gets a tree with no `node_modules`, and then every gate
-# LIES (§L rule 5 — `git worktree add` does not fire the install hook, so `pnpm check` runs against nothing).
-# git DOES fire `post-checkout` in the new worktree (probed: cwd = the new tree, $1 = the null sha, $3 = 1),
-# so this is the one place that gap can be closed generically.
+# A worktree added by hand (not through the WorktreeCreate agent hook) gets a tree with no
+# `node_modules`, and every gate then runs against nothing. Git fires `post-checkout` in the new
+# worktree, so this is the one place that gap closes generically.
 #
-# GUARDED TO A NO-OP ON EVERY NORMAL CHECKOUT — this hook fires on `git checkout <file>` too, and its exit
-# status IS `git checkout`'s, so it must never be slow and never be red:
-#   • `{3}` is git's third post-checkout argument — 1 = a BRANCH checkout (a switch, or a new worktree),
-#     0 = a FILE checkout. Probed for all three shapes; lefthook templates the raw git args.
-#   • `node_modules` present ⇒ nothing to do. So a plain branch switch on an installed tree does zero work,
-#     and the install only runs on a tree that genuinely has no deps.
-# The `if` exits 0 when the guard is false (no `|| true` — a FAILING install must stay visible, not be
-# swallowed into a green checkout). ~3s from the store on the hit path.
+# Guarded to a no-op on every normal checkout: this hook also fires on `git checkout <file>`, and its
+# exit status is `git checkout`'s, so it must never be slow and never be red.
+#   • `{3}` is git's third post-checkout argument: 1 for a branch checkout (a switch, or a new
+#     worktree), 0 for a file checkout.
+#   • `node_modules` present means nothing to do, so a plain branch switch on an installed tree does
+#     zero work and the install only runs on a tree that genuinely has no deps.
+# The `if` exits 0 when the guard is false; a failing install must stay visible, not be swallowed into a
+# green checkout.
 #
-# The `.git/hooks/post-checkout` FILE is synced by lefthook itself (config-checksum auto-sync on the next
-# `lefthook run` / `pnpm install`'s `prepare`) — nothing to install by hand. One caveat, pre-existing and
-# not fixable here: the generated hook script resolves the lefthook BINARY through `$worktree/node_modules`
-# (plus the main checkout's path baked in by `lefthook install`), so on a hand-added worktree with no
-# node_modules, while that baked path is dead, this hook prints "Can't find lefthook in PATH" and exits 0 — the gap re-opens for that
-# one case, and `pnpm install --prefer-offline` by hand is still the fallback (§L rule 5).
-# Commit-message contract (2026-09-18): `type(scope): subject`, a body, and a well-formed
-# `Co-Authored-By: Name <local@domain>` trailer. Cheap (pure bash, no toolchain), so it stays on even when a
-# lane bypasses the pre-commit check — and because a bypass skips THIS too, the orchestrator
-# runs the same script at landing: `scripts/commit-msg-check.sh --range main..<branch>`. Rules + the
-# ORB_HUMAN_COMMIT=1 owner waiver (trailer rule only) are in the script header.
+# A hand-added worktree with no `node_modules` also has no lefthook binary path to resolve, so this hook
+# prints "Can't find lefthook in PATH" and exits 0; `pnpm install --prefer-offline` by hand is the
+# fallback for that case.
+# The commit-message contract runs pure bash with no toolchain, so it stays on even when a lane bypasses
+# the pre-commit check with `LEFTHOOK_EXCLUDE=check`. The orchestrator runs the same script at landing
+# (`scripts/commit-msg-check.sh --range main..<branch>`). Rules and the owner trailer waiver are in the
+# script header.
 commit-msg:
   commands:
     message-contract:
@@ -119,27 +99,25 @@ post-checkout:
       env:
         NO_COLOR: "1"
 
-# AUTO-LAND for the in-repo work items (docs/work/, a plan's `docs/plans/<slug>/design.md`). After a merge
-# INTO main that `git merge` itself completes (a fast-forward or a clean `--no-ff`), `pnpm doc land
-# --merged` reads the `Closes: 12, 14` trailers of the commits the merge brought in (ORIG_HEAD..HEAD),
-# DELETES those items with the merge commit as evidence (the commit message records each one), regenerates
-# the indexes and commits ONLY those paths through git plumbing (a temporary index from HEAD plus those
-# paths, so a sibling's staged file never rides along). Plumbing, because this hook runs while git's
-# MERGE_HEAD still exists and a porcelain pathspec commit there is refused as a partial commit during a
-# merge; the message contract is checked by running scripts/commit-msg-check.sh on the message first,
-# since no commit-msg hook fires on that path. On any other branch, or when no merged commit carries a
-# trailer, it writes and prints nothing. An id already landed is skipped; an id neither on the tree nor
-# landed in git refuses the whole batch and names the by-hand landing.
-# THE GAP git LEAVES: a merge finished by a separate `git commit` — `--no-ff --no-commit` + `git commit`,
-# or a conflict resolved the same way — runs NO post-merge hook; git only fires post-commit for it. The
-# post-commit command below covers that gap: it is a no-op unless HEAD itself is a merge commit (a second
-# parent), so an ordinary feature commit never touches it. It passes `--head-merge`, which reads
-# `HEAD^1..HEAD` instead of post-merge's `ORIG_HEAD..HEAD` (mergedCommits, tooling/src/doc/ops/tree.ts) —
-# the range is picked by WHICH HOOK FIRED, never by HEAD's shape: a fast-forward onto a branch whose tip is
-# already a merge commit still fires post-merge (not post-commit), and `HEAD^1..HEAD` there would see only
-# that merge's second-parent side and drop every id the fast-forward carried in on the first-parent side.
-# landItems is idempotent — an already-landed id is skipped — so the rare case where both hooks would fire
-# for the same merge costs nothing.
+# Auto-lands the in-repo work items (docs/work/, a plan's `docs/plans/<slug>/design.md`). After a merge
+# into main that `git merge` itself completes, `pnpm doc land --merged` reads the `Closes: 12, 14`
+# trailers of the commits the merge brought in, deletes those items with the merge commit as evidence,
+# regenerates the indexes and commits only those paths through git plumbing, so a sibling's staged file
+# never rides along. Plumbing, because this hook runs while git's MERGE_HEAD still exists and a
+# porcelain pathspec commit there is refused as a partial commit during a merge; the message contract is
+# checked by running `scripts/commit-msg-check.sh` on the message first, since no commit-msg hook fires
+# on that path. On any other branch, or when no merged commit carries a trailer, it writes and prints
+# nothing. An id already landed is skipped; an id neither on the tree nor landed in git refuses the
+# whole batch and names the by-hand landing.
+#
+# A merge finished by a separate `git commit` (`--no-ff --no-commit` + `git commit`, or a conflict
+# resolved the same way) fires no post-merge hook; git only fires post-commit for it. The post-commit
+# command below covers that gap: it is a no-op unless HEAD itself is a merge commit, so an ordinary
+# feature commit never touches it. It passes `--head-merge`, which reads `HEAD^1..HEAD` instead of
+# post-merge's `ORIG_HEAD..HEAD`, because the range is picked by which hook fired, never by HEAD's
+# shape: a fast-forward onto a branch whose tip is already a merge commit still fires post-merge, and
+# `HEAD^1..HEAD` there would see only that merge's second-parent side. `land --merged` is idempotent, so
+# the rare case where both hooks fire for the same merge costs nothing.
 post-merge:
   commands:
     land-work-items:
@@ -157,22 +135,17 @@ post-commit:
 pre-push:
   follow: true
   commands:
-    # The ONE push-tier command (V3 repoint): static + deps:orphan-ratchet + tests:node (`pnpm test` =
-    # the configured vitest RUNTIME projects + the CT suite, merged 2026-07-17) + e2e-smoke + `quality:cpd`,
-    # with the unified summary + max-severity exit. Replaces the 4-command piped pipe —
-    # verify runs ALL stages and reports ALL failures, then exits max-severity.
+    # The push tier: static + deps:orphan-ratchet + tests:node (`pnpm test`, the configured vitest
+    # runtime projects plus the CT suite) + e2e-smoke + `quality:cpd`, with a unified summary and a
+    # max-severity exit. Runs every stage and reports every failure, rather than aborting on the first.
     #
-    # cpd PROMOTED here 2026-08-03 (measured 0.86s): it sat in `full` for historical reasons, not cost,
-    # and a tier nobody invokes gates nothing. `tests:parity` rode here on the same promotion and was
-    # REMOVED 2026-08-22 with the neo parity suite (#428 — the neo floor was exceeded; git preserves it).
-    #
-    # STILL NOT at push, both deliberately:
-    #   • `quality:mutation-gate` — calibrated to `break: 50` on 2026-08-14, so it is a real regression
-    #     gate. A current run takes roughly 72 minutes, though; it belongs in `full`, not in every push.
-    #   • the full `browser:e2e` — the 2026-07-12 anti-rot ruling: the `@smoke` SUBSET gates every push,
-    #     the full suite stays manual (`pnpm e2e`). Changing that is an owner call, not a drift.
-    # Anything else claiming a different tier list is folklore — `tooling/src/verify/lib/registry.ts` is the
-    # authority, and `pnpm verify --list` prints every stage with its tier.
+    # Still not at push, both deliberately:
+    #   • `quality:mutation-gate` is a real regression gate, but a current run takes roughly 72 minutes,
+    #     so it belongs in `full`, not in every push.
+    #   • the full `browser:e2e` suite stays manual (`pnpm e2e`); the `@smoke` subset gates every push.
+    #     Changing that is an owner call.
+    # `tooling/src/verify/lib/registry.ts` is the authority on the tier list; `pnpm verify --list` prints
+    # every stage with its tier.
     verify:push:
       run: pnpm verify --push
       env:
