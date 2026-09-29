@@ -6,7 +6,7 @@
 import { HOST_FUNCTION_CAPABILITY, HostVersionError, PLUGIN_CAPABILITIES, PLUGIN_ORIGINS, PluginCapabilityError } from "@orb/contracts/plugin";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("PLUGIN_ORIGINS is [upload, url, git] — the file arm, the URL-install arm, and the git-install arm (U8 2b; docs/plans/plugin-distribution/design.md)", () => {
+test("PLUGIN_ORIGINS is [upload, url, git] — the file arm, the URL-install arm, and the git-install arm (U8 2b; D276)", () => {
   // ORDER IS LOAD-BEARING: `upload` first (the historical single-arm), `url` appended (U8 2b makes a URL install's
   // origin honest — 2a recorded it as `upload` behind the source-agnostic funnel), `git` appended last (the git
   // install door — see design.md's "PLUGIN_ORIGINS gains `git`"). A new origin APPENDS; the db CHECK

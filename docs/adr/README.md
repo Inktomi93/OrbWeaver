@@ -223,3 +223,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D273 | [Pre-commit runs the static tier over the staged change](0273-pre-commit-runs-the-static-tier-over-the-staged-change.md) | superseded by [0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md](0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) |
 | D274 | [The commit gate runs only what narrows to the staged files](0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) | active |
 | D275 | [The IP certificate comes from acme-client over HTTP-01](0275-the-ip-certificate-comes-from-acme-client-over-http-01.md) | active |
+| D276 | [Every plugin install door lands through the one bundle funnel](0276-plugin-install-doors-share-one-funnel.md) | active |
