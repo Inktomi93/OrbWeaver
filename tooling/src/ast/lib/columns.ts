@@ -28,9 +28,10 @@ import { rawInsertHeaders } from "./sql-insert-header.ts";
 // VariableDeclaration — so an identifier alias or a `schema.<table>` namespace access cannot fork a table.
 //
 // THE THREE ARMS, AND WHY THE READ SIDE NEEDS TWO OF THEM (measured, not assumed):
-//   • READ arm 1 — QUERY references, via the language service. `findReferencesAsNodes()` on the column's
-//     PropertyAssignment name node returns every `<table>.<col>` reference (a `where`/`eq`/`orderBy`/join/
-//     select projection/`returning`). Exact, and unreachable any other way.
+//   • READ arm 1 — QUERY references, resolved by the checker in one pass over the consumer files: every
+//     column-named identifier whose symbol (or its root) is the column's PropertyAssignment is a
+//     `<table>.<col>` reference (a `where`/`eq`/`orderBy`/join/select projection/`returning`). The same
+//     relations `findReferences` applies, without one whole-program search per column.
 //   • READ arm 2 — ROW-SHAPE accesses, structural, because arm 1 IS NOT ENOUGH and believing it was would
 //     have shipped a lying lens. `typeof <table>.$inferSelect` is a mapped type too, so a `row.<col>` read
 //     THROUGH a declared row alias resolves to a synthesized property with zero declarations and comes back
@@ -74,7 +75,7 @@ import { rawInsertHeaders } from "./sql-insert-header.ts";
 //      or a CHECK is DDL, not consumption. Counting it would make every indexed column permanently "read".
 //
 // CANDIDATE lens, never a death sentence — same posture as `swallowed`/`typeonly-alive`, and MANUAL-tier for
-// the same reason plus cost (one reference resolution per column). A deliberate keep is
+// the same reason plus cost (a checker pass over every consumer file). A deliberate keep is
 // `// @column-ok: <reason>` on the column property, and that marker is TWO-SIDED: a marker on a column the
 // lens no longer flags (it is READ+WRITE now) is reported STALE and exits 1.
 //
