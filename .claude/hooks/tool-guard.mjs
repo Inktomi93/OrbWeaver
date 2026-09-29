@@ -517,9 +517,6 @@ const READER = /^\s*(?:\S*\/)?(?:tail|head|grep|egrep|fgrep|rg|wc|cat|tee|sort|u
 // where stdout goes, so a `tee` stage adds nothing worth preserving. `bareHarnessRewrite` treats an
 // all-`tee` reader chain the same as a bare `>` redirect: drop it.
 const TEE_READER = /^\s*(?:\S*\/)?tee\b/;
-// Long-lived-child commands beyond the harness (census: `git push origin main 2>&1 | tail -8` timed out
-// at exactly 120s — git's credential/network child holds the pipe open after the visible push finishes).
-const LONG_LIVED = /^\s*git\s+(?:push|pull|fetch|clone)\b/;
 const STDERR_MERGE_TAIL = /\s*2>&1\s*$/;
 // ── owner directive (2026-09-29): agents must not redirect harness output to a private log or `tee`
 // sink and read that instead of the artifacts the harness itself writes, and must not poll a harness's
@@ -618,6 +615,14 @@ const CD_WORKTREE = /\b(?:cd|pushd)\s+[^\s;&|]*\.claude\/worktrees\/([^\s/;&|]+)
 // token at all — hence the value group is optional, and JS backtracking covers the boolean-flag case
 // (`git --no-pager stash`: the value group first eats `stash`, fails, then gives it back).
 const GIT_GLOBAL_OPTS = String.raw`(?:-{1,2}[A-Za-z][^\s;|&]*\s+(?:[^\s;|&-][^\s;|&]*\s+)?)*`;
+// git commands whose children hold a pipe open after the visible command ends: the credential/network helper
+// of push/pull/fetch/clone (census: `git push origin main 2>&1 | tail -8` hit the 120s timeout), and the
+// commit/merge hooks with their verify runs. Piped, a commit also reports the reader's exit code, so a failed
+// hook reads as success. The subcommand must end the word, so `commit-tree` and `merge-base` never match.
+const LONG_LIVED = new RegExp(String.raw`^\s*${WRAP_PREFIX}git\s+${GIT_GLOBAL_OPTS}(?:push|pull|fetch|clone|commit|merge)(?![\w-])`);
+// A piped `pnpm doc` goes through the same log rewrite: its output is short and the paths it prints are the
+// result, so the reader runs against the full log and the exit code survives.
+const DOC_PIPE_HEAD = new RegExp(String.raw`^\s*${WRAP_PREFIX}pnpm\s+(?:run\s+)?doc(?=\s|$)`);
 // stash: read-only subcommands (list/show) destroy nothing and pass; everything else is the ban.
 const GIT_STASH = new RegExp(String.raw`\bgit\s+${GIT_GLOBAL_OPTS}stash\b(?:\s+(list|show))?`);
 // restore: `--staged` WITHOUT `--worktree`/-W only unstages (index-only) — safe; all else destroys.
@@ -789,13 +794,6 @@ const HARNESS_TASK_OUTPUT = /^\/tmp\/claude-\d+\/.+\/tasks\/[^/]+\.output$/;
 // `pnpm doc` verbs that change shared board state (item numbering, transitions, landing), which the
 // orchestrator owns. `new adr|plan|law` and `review` author a doc in the lane's own worktree and stay open.
 const DOC_WRITE_VERBS = new Set(["item", "set", "land", "remove", "index", "status"]);
-// The one `pnpm doc` shape `docBareRewrite` touches: a lone pipeline into head/tail/grep. The stderr merge
-// `2>&1` on the doc stage is the only redirect it accepts; anything else leaves the command as written.
-const DOC_READER = /^\s*(?:head|tail|grep)\b/;
-const DOC_STDERR_MERGE = /\s+2>&1(?=\s*\|)/;
-const DOC_PIPE_UNSAFE = /[<>&`]|\$\(/;
-// git's global options that take their value as a separate word: `git -C <dir> commit`, `git -c k=v merge`.
-const GIT_VALUE_OPTIONS = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace"]);
 // A repeat of the same task-output range inside this window is a poll; after it, a reread is allowed.
 const TASK_REREAD_WINDOW_MS = 120_000;
 const TAIL_FOLLOW_FLAG = /^-[A-Za-z0-9]*[fF]|^--follow\b/;
@@ -1123,14 +1121,12 @@ const CONTEXTS = {
     `tool-guard rewrote this command: piping the harness hangs and swallows its exit code (see \`rewritePiped\`), and a private log is unnecessary here — the harness already writes its own artifact regardless of where stdout goes. It ran bare, and your reader now targets ${target} instead; the harness's REAL exit code is preserved.`,
   rewriteRedirectDropped:
     "tool-guard dropped this redirect/tee: the harness writes its own artifacts under reports/ regardless of where its stdout goes, so capturing stdout to a private file or `tee` sink is never necessary and only tempts a later poll of that file instead of reading the harness's own exit code. Run it bare and read the artifact — `pnpm check:show` for check/verify, reports/test-report.json (or reports/ct-flaky.json for test:ct) for a test run.",
-  rewriteDocBare:
-    "tool-guard ran this `pnpm doc` bare: its output is short and the paths it prints are the result, so a head/tail/grep or a captured log can cut them off.",
   wholeTreeRun:
     "This is a whole-tree run: it can hold the host verify slot for up to an hour, and the orchestrator runs the whole-tree barrier after merging. Run it only if your brief asked for it or your scoped floor cannot answer the question. Run it with run_in_background, make no call while it runs, and put its verdict in your report.",
-  rewriteGitCommitPiped:
-    "tool-guard ran this `git commit`/`git merge` bare: a pipe reports the reader's exit status, so a failed hook reads as success and a following `&&` still runs, and the hook's verify children can hold the pipe open. The rest of your chain is unchanged.",
   rewriteLongLived: (log) =>
-    `tool-guard rewrote this command: git spawns credential/network children that hold a pipe open after the visible command finishes (census: \`git push … | tail\` hit the 120s tool timeout). Output went to ${log}, your reader ran against the file, and the real exit code is preserved.`,
+    `tool-guard rewrote this command: git's children (a push/pull/fetch credential helper, or commit/merge hooks and their verify runs) hold a pipe open after the visible command ends, and a pipe reports the reader's exit code, so a failed hook would read as success. Output went to ${log}, your reader ran against the file, and git's real exit code is preserved.`,
+  rewriteDocPiped: (log) =>
+    `tool-guard rewrote this command: the \`pnpm doc\` output went to ${log}, your reader ran against the file, and the real exit code is preserved.`,
   rewritePlaywright:
     "tool-guard routed this CT run through the sanctioned script (`pnpm test:ct <paths>`): driving playwright directly skips the per-invocation build cache, the exclusion lock that catches a racing sibling runner, the host-wide slot pool and the nice floor. Your runner flags were carried over verbatim.",
   sgDeprecated:
@@ -1149,7 +1145,7 @@ const CONTEXTS = {
   pushInFlight:
     "A `git push` is RUNNING on this box right now. The push window is not atomic: with a long pre-push hook, git re-reads the ref at transfer time, so a commit landed mid-window ships silently while the push's own summary line reports the stale range (measured incident, 2026-08-03). Hold this commit until the push returns, or verify afterwards exactly what landed on origin.",
   longLivedPipe:
-    "A piped `git push/pull/fetch` can hang to the full 120s tool timeout — git's credential/network child holds the pipe open after the visible command finishes (measured in the census). Drop the pipe, or redirect to a file and read it.",
+    "A piped `git push/pull/fetch/commit/merge` can hang to the full 120s tool timeout — git's credential/network child or a commit hook holds the pipe open after the visible command finishes — and a pipe reports the reader's exit code, not git's. Drop the pipe, or redirect to a file and read it.",
   // (playwrightPiped retired 2026-09-11 with rule 6's piped branch: a raw CT run is now rewritten into
   //  `pnpm test:ct`, which is a harness head, so a piped CT run is rule 4's redirect — not a bare notice.)
   cdWorktreeLaneCtx:
@@ -1270,6 +1266,11 @@ function pipeRewrite(command, blank, clauses, headRe, ctx) {
   const [stage0, ...readers] = clause.stages;
   const stage0Blank = blank.slice(stage0.start, stage0.end);
   if (!headRe.test(stage0Blank) || UNSAFE_STAGE0.test(stripFdMerges(stage0Blank))) {
+    return null;
+  }
+  // A stage ending in a backslash met an escaped `\|` or `\ |`, which the clause scan splits as a pipe; the
+  // shell does not, so a rewrite would change what runs.
+  if (clause.stages.slice(0, -1).some((st) => command.slice(st.start, st.end).trimEnd().endsWith("\\"))) {
     return null;
   }
   for (const r of readers) {
@@ -1453,67 +1454,6 @@ function docCall(stageBlank) {
   }
   const args = rest.slice(at + 1);
   return { verb: args.find((w) => !w.startsWith("-")) ?? "", help: args.includes("--help") || args.includes("-h") };
-}
-
-/** A command that is only `pnpm doc <args> [2>&1] | head|tail|grep …`, as the bare `pnpm doc` stage to run
- *  instead, or null. Any other shape (another clause, a newline, a redirect, a heredoc, `&`, a
- *  substitution) is left exactly as written. */
-function docBareRewrite(command, blank, clauses) {
-  if (clauses.length !== 1 || command.includes("\n") || DOC_PIPE_UNSAFE.test(blank.replace(DOC_STDERR_MERGE, ""))) {
-    return null;
-  }
-  const [clause] = clauses;
-  const [stage0, ...readers] = clause.stages;
-  if (readers.length === 0 || docCall(blank.slice(stage0.start, stage0.end)) === null) {
-    return null;
-  }
-  if (!readers.every((r) => DOC_READER.test(blank.slice(r.start, r.end)))) {
-    return null;
-  }
-  return { command: command.slice(stage0.start, stage0.end).replace(STDERR_MERGE_TAIL, "").trim(), clause };
-}
-
-/** Is this stage `git [global options] commit|merge …`? */
-function isGitCommitOrMerge(stageBlank) {
-  const { tokens, index, exec } = execHead(stageBlank);
-  if (exec === undefined || !/^(?:\S*\/)?git$/.test(exec[0])) {
-    return false;
-  }
-  const rest = tokens.slice(index + 1).map((t) => t[0]);
-  let at = 0;
-  while (rest[at]?.startsWith("-") === true) {
-    at += GIT_VALUE_OPTIONS.has(rest[at]) ? 2 : 1;
-  }
-  return rest[at] === "commit" || rest[at] === "merge";
-}
-
-/** The command with its one `git commit|merge … | head|tail|grep …` pipeline replaced in place by the bare git
- *  stage, or null. The rest of the command is kept byte for byte. Only the simple shape qualifies: no heredoc
- *  anywhere (checked on the raw text, since `blank` has already erased it), and no newline, redirect other
- *  than a trailing `2>&1`, `&` or substitution, quoted or not, in that clause. */
-function gitCommitPipeRewrite(command, blank, clauses) {
-  if (command.includes("<<")) {
-    return null;
-  }
-  const piped = clauses.filter((cl) => cl.stages.length > 1 && isGitCommitOrMerge(blank.slice(cl.stages[0].start, cl.stages[0].end)));
-  if (piped.length !== 1) {
-    return null;
-  }
-  const [clause] = piped;
-  const [stage0, ...readers] = clause.stages;
-  const clauseBlank = blank.slice(clause.start, clause.end);
-  // A lone `&` after the clause backgrounds it, and the clause scan has already split it off.
-  const backgrounded = blank[clause.end] === "&" && blank[clause.end + 1] !== "&";
-  const clauseRaw = command.slice(clause.start, clause.end);
-  if (backgrounded || clauseRaw.includes("\n") || /\$\(|`/.test(clauseRaw) || DOC_PIPE_UNSAFE.test(clauseBlank.replace(DOC_STDERR_MERGE, ""))) {
-    return null;
-  }
-  if (!readers.every((r) => DOC_READER.test(blank.slice(r.start, r.end)))) {
-    return null;
-  }
-  const bare = command.slice(stage0.start, stage0.end).replace(STDERR_MERGE_TAIL, "").trimEnd();
-  const trailing = command.slice(clause.start, clause.end).match(/\s*$/)[0];
-  return { command: `${command.slice(0, stage0.start)}${bare}${trailing}${command.slice(clause.end)}`, clause };
 }
 
 // The same four spellings, anchored at a clause head so the rewrite knows exactly what to replace. Its
@@ -3455,7 +3395,7 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "deny", rule: "harness-piped", reason: REASONS.harnessPipedDeny, contexts };
   }
 
-  // 4c. `pnpm doc`: a lane never runs a board-writing verb, and a lone piped run is rewritten bare.
+  // 4c. `pnpm doc`: a lane never runs a board-writing verb.
   if (ctx.agentId) {
     for (const clause of clauses) {
       for (const stage of clause.stages) {
@@ -3465,18 +3405,6 @@ function classifyCommandLine(command, blank, clauses, ctx) {
         }
       }
     }
-  }
-  const docRewrite = docBareRewrite(command, blank, clauses);
-  if (docRewrite) {
-    contexts.push(CONTEXTS.rewriteDocBare);
-    return gateRewrite({ decision: "allow", rule: "doc-bare", rewrite: { command: docRewrite.command }, contexts }, command, docRewrite.clause, ctx);
-  }
-
-  // 4d. a piped `git commit`/`git merge` — REWRITE in place so the commit's own exit code gates the chain.
-  const gitPipe = gitCommitPipeRewrite(command, blank, clauses);
-  if (gitPipe) {
-    contexts.push(CONTEXTS.rewriteGitCommitPiped);
-    return gateRewrite({ decision: "allow", rule: "git-commit-piped", rewrite: { command: gitPipe.command }, contexts }, command, gitPipe.clause, ctx);
   }
 
   // 5. harness failure swallowed (`|| true`) — DENY
@@ -3591,7 +3519,11 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   // 9e. a command that is NOTHING BUT `true`/`:` — DENY (owner directive, 2026-09-29): turn-filler for
   //     "still waiting", never a real step. Every clause must reduce to the bare word; `true foo` or
   //     `cmd || true` are the tool doing something else and are not this shape.
-  if (clauses.every((clause) => clause.stages.length === 1 && TRUE_OR_COLON_CLAUSE.test(blank.slice(clause.stages[0].start, clause.stages[0].end).trim()))) {
+  // A command with no clause at all (the lone `&` a rewrite's remainder leaves) is not filler.
+  if (
+    clauses.length > 0 &&
+    clauses.every((clause) => clause.stages.length === 1 && TRUE_OR_COLON_CLAUSE.test(blank.slice(clause.stages[0].start, clause.stages[0].end).trim()))
+  ) {
     return { decision: "deny", rule: "true-filler", reason: REASONS.trueOrColonFiller, contexts };
   }
 
@@ -3621,12 +3553,27 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   // The ones genuinely absent are `git push`, `git stash`, `git restore` — and stash/restore are DENIED
   // above on their destructive arms, which is this guard's own doctrine call, not a permissions gap.)
 
-  // 10. long-lived non-harness command piped — REWRITE simple, WARN otherwise
+  // 10. long-lived non-harness command piped — REWRITE simple, WARN otherwise. A piped `pnpm doc` takes the
+  //     same rewrite; when its shape is too complex it is left as written, with no note.
   for (const clause of clauses) {
     if (clause.stages.length < 2) {
       continue;
     }
-    if (!LONG_LIVED.test(blank.slice(clause.stages[0].start, clause.stages[0].end))) {
+    const stage0 = blank.slice(clause.stages[0].start, clause.stages[0].end);
+    if (DOC_PIPE_HEAD.test(stage0)) {
+      const rewrite = pipeRewrite(command, blank, clauses, DOC_PIPE_HEAD, ctx);
+      if (rewrite) {
+        contexts.push(CONTEXTS.rewriteDocPiped(rewrite.log));
+        return gateRewrite(
+          { decision: "allow", rule: "doc-piped", rewrite: { command: rewrite.command, log: rewrite.log }, contexts },
+          command,
+          rewrite.clause,
+          ctx,
+        );
+      }
+      break;
+    }
+    if (!LONG_LIVED.test(stage0)) {
       continue;
     }
     const rewrite = pipeRewrite(command, blank, clauses, LONG_LIVED, ctx);

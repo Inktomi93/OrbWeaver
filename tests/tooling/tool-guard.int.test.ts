@@ -926,8 +926,8 @@ const ROWS: Row[] = [
     (args): Row => ["pass", null, `pnpm doc ${args}`, LANE],
   ),
   ["pass", null, "pnpm doc new item 'x'"],
-  ["allow", "doc-bare", "pnpm doc overview | head -20"],
-  ["allow", "doc-bare", "pnpm doc drift 2>&1 | tail -5"],
+  ["allow", "doc-piped", "pnpm doc overview | head -20"],
+  ["allow", "doc-piped", "pnpm doc drift 2>&1 | tail -5"],
   ["pass", null, "pnpm doc due > /tmp/d.log; tail /tmp/d.log"],
   // a board-writing verb inside a compound command, or behind `pnpm -C/--dir`, is still a lane write
   ["deny", "doc-write-lane", "for n in 1 2; do pnpm doc set $n open; done", LANE],
@@ -938,7 +938,7 @@ const ROWS: Row[] = [
   ["deny", "doc-write-lane", "pnpm --dir=/x doc land 3", LANE],
   ["pass", null, "pnpm doc set --help", LANE],
   ["pass", null, "pnpm doc land -h", LANE],
-  ["allow", "doc-bare", "pnpm doc overview | grep 0250", LANE],
+  ["allow", "doc-piped", "pnpm doc overview | grep 0250", LANE],
   // ---- hand-polling family (owner directive, 2026-09-29 addendum) ----
   // true/`:`-only filler: EVERY clause must reduce to the bare word.
   ["deny", "true-filler", "true"],
@@ -1333,63 +1333,136 @@ test("rewrite: a verify-family harness piped into a reader targets `pnpm check:s
   expect(spawnSync("bash", ["-c", cmd], { encoding: "utf8" }).status).toBe(3);
 });
 
-test("rewrite: only a lone `pnpm doc … | head/tail/grep` pipeline runs bare; every other shape is untouched", () => {
-  const rows = runBatch([
-    { command: "pnpm doc overview | head -20" },
-    { command: "pnpm doc drift 2>&1 | tail -5" },
-    { command: "pnpm doc overview | grep 0250 | head -3" },
-  ]);
-  expect(rows.map((r) => r.rewrite?.command)).toEqual(["pnpm doc overview", "pnpm doc drift", "pnpm doc overview"]);
-  // real commands the clause-rebuilding rewrite corrupted: each must come out byte-identical, never rewritten
-  const untouched = [
-    "pnpm doc land 10 --evidence 220991d39 > /tmp/claude/land10.log 2>&1; echo EXIT=$?; tail -5 /tmp/claude/land10.log; git status --short | rg -v '^( D|D |\\?\\?)' | head",
-    "pnpm doc land 2 3 4 --evidence c80f0bcda > /tmp/claude/land234.log 2>&1; echo EXIT=$?; tail -6 /tmp/claude/land234.log",
-    "pnpm doc --help 2>&1 | head -40; ls docs/work | rg '^0027'",
-    "pnpm doc index >/dev/null 2>&1; echo $?; git add docs/work/README.md && git status --short | head; LEFTHOOK_EXCLUDE=check git commit --no-edit 2>&1 | tail -3",
-    "W=/tmp/wt\ncd \"$W\" && pnpm doc --help 2>&1 | sed -n '1,200p'",
-    "cd /repo; pnpm doc set 248 doing --lane main >/dev/null 2>&1; python3 - <<'EOF'\nimport glob\nf=glob.glob('docs/work/0248-*.md')[0]\nEOF",
-    "pnpm doc index > /dev/null 2>&1; cat > /tmp/m.txt <<'EOF'\nhello\nEOF\ngit status",
-    "pnpm doc overview | head\ngit status",
-    "cd /tmp\npnpm doc overview | head",
-    "pnpm doc drift > /tmp/d.log\ncat /tmp/d.log\nls",
-    "pnpm doc overview | head &",
-    "pnpm doc overview | head > /tmp/o.txt",
-    "cd /x && pnpm doc due | tail -3",
-  ];
-  const out = runBatch(untouched.map((command) => ({ command })));
-  // the one exception is a piped commit in the chain, which its own rule runs bare in place
-  const expected = untouched.map((command): string | undefined =>
-    command.includes("--no-edit 2>&1 | tail -3") ? command.replace(" 2>&1 | tail -3", "") : undefined,
-  );
-  expect(out.map((r) => r.rewrite?.command)).toEqual(expected);
-  expect(out.some((r) => r.rule === "doc-bare")).toBe(false);
-});
+// Every command a verifier found corrupted by an earlier hand-rolled rewrite. Each must come out either
+// untouched or as a pipeRewrite that bash accepts and that restores the real exit code on its own line.
+const PIPED_DOC_AND_GIT_CASES = [
+  // pnpm doc
+  "pnpm doc overview | head -20",
+  "pnpm doc drift 2>&1 | tail -5",
+  "pnpm doc overview | grep 00 | head -3",
+  "(pnpm doc overview | head)",
+  "( pnpm doc overview | head )",
+  "{ pnpm doc overview | head; }",
+  "for i in 1; do pnpm doc overview | head; done",
+  "if true; then pnpm doc overview | head; fi",
+  "! pnpm doc overview | head",
+  "time pnpm doc overview | head",
+  "pnpm doc overview 2>&1 --json | head",
+  "pnpm doc overview | head 2>&1",
+  "pnpm doc overview |& head",
+  "pnpm doc overview 2>/dev/null | head",
+  "pnpm doc overview | head > /tmp/x",
+  "pnpm doc overview | head | tee /tmp/x",
+  "pnpm doc overview | head\r\n",
+  "pnpm doc overview\r | head",
+  "pnpm doc overview | head;",
+  "pnpm doc overview | head &",
+  "FOO=1 pnpm doc overview | head",
+  "pnpm doc overview | head # note",
+  "pnpm doc overview # | head",
+  'pnpm doc item "$(whoami)" | head',
+  "pnpm doc overview <<EOF | head\nx\nEOF",
+  "pnpm doc overview <<< x | head",
+  "pnpm doc overview <(ls) | head",
+  "pnpm doc overview \\| head",
+  "pnpm doc overview\\ | head",
+  'pnpm doc new adr foo --title "x | y" | head',
+  'pnpm doc new adr foo --title "a \\" | b" | head',
+  "pnpm doc land 10 --evidence abc > /tmp/l.log 2>&1; echo EXIT=$?; tail -5 /tmp/l.log",
+  "pnpm doc --help 2>&1 | head -40; ls docs/work | rg '^0027'",
+  "W=/tmp/wt\ncd \"$W\" && pnpm doc --help 2>&1 | sed -n '1,200p'",
+  "cd /repo; pnpm doc set 248 doing >/dev/null 2>&1; python3 - <<'EOF'\nimport glob\nEOF",
+  "pnpm doc overview | head\ngit status",
+  "cd /tmp\npnpm doc overview | head",
+  // git commit / merge
+  "git commit -m x | tail -3",
+  "git commit -F /tmp/m 2>&1 | tail -n 1 && git log --oneline -1",
+  "cd /x && git merge main | tail -5; git status --short",
+  "git -C /wt commit -m x | grep -c ok",
+  "git -c user.name=x commit -m y | tail",
+  "git --git-dir=/x/.git commit -m y | tail",
+  "(git commit -m x | tail)",
+  "(git commit -m x | tail) && git push",
+  "{ git commit -m x | tail; }",
+  "for i in 1; do git commit -m x | tail; done",
+  "if git commit -m x | tail; then echo ok; fi",
+  "git commit -m x |& tail",
+  "git commit -m x 2>/dev/null | tail",
+  "git commit -F - <<EOF | tail\nmsg\nEOF",
+  "git commit -m x | tail; cat <<EOF\nhi\nEOF",
+  "git commit -m x | tail\necho hi",
+  "git commit -m x | tail\r\n",
+  "git commit -m x\r | tail",
+  "git commit -m x | tail\r && echo ok",
+  'git commit -m "$(date)" | tail',
+  "git commit -m `date` | tail",
+  "git commit -m x | tail > /tmp/l",
+  "git commit -m x | tail & echo hi",
+  "git commit -m a | tail; git commit -m b | tail",
+  "git commit -m x | tail # c",
+  "git commit -m x | tail || echo fail",
+  "git commit -m x \\| tail",
+  'git commit -m "a \\" | b" | tail',
+  "env -C /wt git commit -m x | tail",
+  "timeout 60 git commit -m x | tail",
+  "   git commit -m x | tail   ",
+  "git commit -m x|tail;echo ok",
+  "git\tcommit -m x\t|\ttail",
+  "LEFTHOOK_EXCLUDE=check git commit --no-edit 2>&1 | tail -3",
+];
 
-// A piped commit or merge reports the reader's exit status, so a failed hook reads as success and `&&` runs
-// on. The pipe is dropped in place; the rest of the chain is kept byte for byte.
-test("rewrite: a piped `git commit`/`git merge` runs bare so its own exit code gates the chain", () => {
-  const rewritten = runBatch([
-    { command: "git commit -F /tmp/m 2>&1 | tail -n 1 && git log --oneline -1" },
-    { command: "cd /x && git merge main | tail -5; git status --short" },
-    { command: "git -C /wt commit -m x | grep -c ok", ...LANE },
-  ]);
-  expect(rewritten.map((r) => [r.rule, r.rewrite?.command])).toEqual([
-    ["git-commit-piped", "git commit -F /tmp/m && git log --oneline -1"],
-    ["git-commit-piped", "cd /x && git merge main; git status --short"],
-    ["git-commit-piped", "git -C /wt commit -m x"],
-  ]);
-  const untouched = [
-    "git commit -F - <<'EOF'\nfix: x\nEOF",
-    "git commit -F - <<'EOF' 2>&1 | tail -1\nfix: x\nEOF",
-    "git commit -m x | tee /tmp/l",
-    "git commit -m x | sort",
-    'git commit -m "$(cat /tmp/m)" | tail -1',
-    "git commit -m x > /tmp/l 2>&1 | tail -1",
-    "git commit -m x | tail -1 &",
-    "git log --oneline | head -3",
+test("rewrite: a piped `pnpm doc` or `git commit/merge` is a valid pipeRewrite or untouched, never a broken command", () => {
+  const out = runBatch(PIPED_DOC_AND_GIT_CASES.map((command) => ({ command })));
+  const broken: string[] = [];
+  out.forEach((r, i) => {
+    const input = at(PIPED_DOC_AND_GIT_CASES, i);
+    const rewritten = r.rewrite?.command;
+    if (rewritten === undefined) {
+      return;
+    }
+    if (r.rule !== "doc-piped" && r.rule !== "longlived-piped") {
+      broken.push(`[${i}] unexpected rewrite rule ${r.rule} :: ${JSON.stringify(input)}`);
+      return;
+    }
+    // a rewrite must parse wherever the input parses, and must restore the real exit code on its own line
+    const inputParses = spawnSync("bash", ["-n", "-c", input], { encoding: "utf8" }).status === 0;
+    const outputParses = spawnSync("bash", ["-n", "-c", rewritten], { encoding: "utf8" }).status === 0;
+    if ((inputParses && !outputParses) || !rewritten.includes("\n( exit $__tg_ec )")) {
+      broken.push(`[${i}] ${JSON.stringify(input)} => ${JSON.stringify(rewritten)}`);
+    }
+  });
+  expect(broken).toEqual([]);
+  // a stage the pipe split in the middle of a word, or one inside a group, is never rewritten
+  const mustStay = [
+    "(pnpm doc overview | head)",
+    "{ pnpm doc overview | head; }",
+    "pnpm doc overview \\| head",
+    "pnpm doc overview\\ | head",
+    "(git commit -m x | tail)",
+    "git commit -m x \\| tail",
   ];
-  const out = runBatch(untouched.map((command) => ({ command })));
-  expect(out.map((r) => r.rewrite?.command)).toEqual(untouched.map(() => undefined));
+  const stay = runBatch(mustStay.map((command) => ({ command })));
+  expect(stay.map((r) => r.rewrite?.command)).toEqual(mustStay.map(() => undefined));
+  // the simple shapes do rewrite, and git's subcommand look-alikes do not
+  const simple = runBatch(
+    [
+      "pnpm doc overview | head -20",
+      "git commit -m x | tail -3",
+      "git -C /wt merge main | tail",
+      "git commit-tree abc | tail",
+      "git merge-base a b | tail",
+    ].map((command) => ({ command })),
+  );
+  expect(simple.map((r) => r.rule)).toEqual(["doc-piped", "longlived-piped", "longlived-piped", null, null]);
+  // a backgrounded pipeline still rewrites; the lone `&` left in the remainder is not `true` filler
+  const backgrounded = runBatch(["pnpm doc overview | head &", "git commit -m x | tail &"].map((command) => ({ command })));
+  expect(backgrounded.map((r) => [r.decision, r.rule])).toEqual([
+    ["allow", "doc-piped"],
+    ["allow", "longlived-piped"],
+  ]);
+  expect(at(simple, 1).rewrite?.command).toMatch(
+    /^git commit -m x > \/repo\/reports\/tool-guard\/run-\d+\.log 2>&1; __tg_ec=\$\?; < \S+ tail -3\n\( exit \$__tg_ec \)$/,
+  );
 });
 
 test("rewrite: a known test harness piped into a reader targets its own report artifact", () => {
