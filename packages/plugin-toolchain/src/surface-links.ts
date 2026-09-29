@@ -14,6 +14,17 @@ const STATIC_TIER = "static";
 // A tool-card spec binds the tool call record, not state published through `setState`.
 const TOOL_CARD_ANCHOR = "tool-card";
 const STATE_PATH_SEPARATOR = ".";
+// The only kinds known to hold no nested path. Every other kind the checker cannot enumerate stays open.
+const CLOSED_LEAF_FLAGS: readonly ts.TypeFlags[] = [
+  ts.TypeFlags.StringLike,
+  ts.TypeFlags.NumberLike,
+  ts.TypeFlags.BigIntLike,
+  ts.TypeFlags.BooleanLike,
+  ts.TypeFlags.ESSymbolLike,
+  ts.TypeFlags.VoidLike,
+  ts.TypeFlags.Null,
+  ts.TypeFlags.Never,
+];
 
 /** A problem located at one node of the checked source. */
 export interface SurfaceLinkProblem {
@@ -153,16 +164,18 @@ function statePathResolves(checker: ts.TypeChecker, type: ts.Type, segments: rea
     return true;
   }
   const value = checker.getNonNullableType(type);
-  if (value.isUnion()) {
+  if (value.isUnionOrIntersection()) {
     return value.types.some((member) => statePathResolves(checker, member, segments));
   }
-  if (hasTypeFlag(value, ts.TypeFlags.Any) || hasTypeFlag(value, ts.TypeFlags.Unknown) || hasTypeFlag(value, ts.TypeFlags.NonPrimitive)) {
-    return true;
+  if (hasTypeFlag(value, ts.TypeFlags.InstantiableNonPrimitive)) {
+    // A type parameter, indexed access, conditional or substitution type holds what its constraint holds.
+    const constraint = checker.getBaseConstraintOfType(value);
+    return constraint === undefined || constraint === value || statePathResolves(checker, constraint, segments);
   }
-  if (!hasTypeFlag(value, ts.TypeFlags.Object)) {
+  if (CLOSED_LEAF_FLAGS.some((flag) => hasTypeFlag(value, flag))) {
     return false;
   }
-  if (checker.isArrayType(value) || checker.isTupleType(value) || value.getStringIndexType() !== undefined) {
+  if (!hasTypeFlag(value, ts.TypeFlags.Object) || checker.isArrayType(value) || checker.isTupleType(value) || value.getStringIndexType() !== undefined) {
     return true;
   }
   const property = value.getProperty(segment);

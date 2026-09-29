@@ -49,6 +49,9 @@ and network APIs inside isolated frames are rejected before emit.
 - A literal `{ $state }` path in a static spec must be one that a `setState` call for that surface can publish.
   A `tool-card` spec binds the tool call record instead, so it is not linked.
 - A reference whose type is wider than a string literal is not checked.
+- A published state type the checker cannot enumerate, such as an index signature, is not checked.
+- Only a `.setState(…)` or `.openDialog(…)` property call is linked. `host.ui["setState"](…)` and a
+  destructured `setState(…)` are not checked.
 
 The application installs only the emitted
 JavaScript and never executes this toolchain or repository build scripts.

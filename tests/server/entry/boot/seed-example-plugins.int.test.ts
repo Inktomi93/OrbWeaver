@@ -633,15 +633,25 @@ function seederDeps(h: ReturnType<typeof makePluginHarness>, latch: SeedLatch, o
 
 /** A REAL shipped bundle with one field changed: its manifest `version`. Used to stand in for "a later release
  *  of this showcase plugin" without committing a second copy of a bundle — the packer's fixed mtime is reused
- *  so the forged bytes stay a pure function of their inputs, exactly like the shipped ones. */
-async function bundleAtVersion(slug: string, version: string): Promise<Uint8Array> {
+ *  so the forged bytes stay a pure function of their inputs, exactly like the shipped ones. `rewriteMain`
+ *  forges different guest code too, so a test can tell which version's code is running. */
+async function bundleAtVersion(slug: string, version: string, rewriteMain?: (mainJs: string) => string): Promise<Uint8Array> {
   const packed = await packShowcaseBundle(slug);
   const entries = unzipSync(packed as Uint8Array);
   const manifest = JSON.parse(new TextDecoder().decode(entries["manifest.json"])) as Record<string, unknown>;
   manifest["version"] = version;
+  const mainJs = new TextDecoder().decode(entries["main.js"]);
+  const rewritten = rewriteMain === undefined ? mainJs : rewriteMain(mainJs);
+  expect(rewritten === mainJs, "the main.js rewrite must change the guest").toBe(rewriteMain === undefined);
   const rebuilt: Record<string, [Uint8Array, { mtime: number }]> = {};
   for (const [name, bytes] of Object.entries(entries)) {
-    rebuilt[name] = [name === "manifest.json" ? new TextEncoder().encode(JSON.stringify(manifest)) : bytes, { mtime: FORGED_BUNDLE_MTIME_MS }];
+    let replaced = bytes;
+    if (name === "manifest.json") {
+      replaced = new TextEncoder().encode(JSON.stringify(manifest));
+    } else if (name === "main.js") {
+      replaced = new TextEncoder().encode(rewritten);
+    }
+    rebuilt[name] = [replaced, { mtime: FORGED_BUNDLE_MTIME_MS }];
   }
   return zipSync(rebuilt);
 }
@@ -1386,11 +1396,16 @@ test("an enabled older install upgrades to the release-built bundle and the new 
   const shipped = (await readShowcaseManifest("oracle-deck"))?.version;
   // The whole declared set: an upgrade re-activates an enabled row only when no declared capability is unanswered.
   const grant: PluginCapability[] = ["storage.kv", "tools.register", "ui.surface", "chat.transform", "plugin_events"];
-  const installed = await h.service.install({ caller, bundle: await bundleAtVersion("oracle-deck", "0.0.1"), grant: [] });
+  // The older release labels its draws differently, so each draw names the guest code that dealt it.
+  const olderGuest = (mainJs: string): string => mainJs.replace("`${taken.length} cards`", "`${taken.length} cards (older release)`");
+  const installed = await h.service.install({ caller, bundle: await bundleAtVersion("oracle-deck", "0.0.1", olderGuest), grant: [] });
   await h.service.setGrant({ caller, pluginId: installed.id, grant, acknowledgedNetHosts: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
-  const before = JSON.parse(await requireInvoke(captured)(requireHandler(captured.tools, 0, "tool"), JSON.stringify({ count: 2 }), null)) as { dealt: number };
-  expect(before.dealt).toBe(2);
+  const before = JSON.parse(await requireInvoke(captured)(requireHandler(captured.tools, 0, "tool"), JSON.stringify({ count: 2 }), null)) as {
+    dealt: number;
+    countLabel: string;
+  };
+  expect(before).toMatchObject({ dealt: 2, countLabel: "2 cards (older release)" });
 
   const upgraded = await h.service.upgradeFromShowcase({ caller, pluginId: installed.id });
 
@@ -1401,6 +1416,6 @@ test("an enabled older install upgrades to the release-built bundle and the new 
   const draws = captured.tools.filter((tool) => tool.name === "draw");
   expect(draws).toHaveLength(2);
   const draw = requireHandler(draws, 1, "draw tool");
-  const after = JSON.parse(await requireInvoke(captured)(draw, JSON.stringify({ count: 1 }), null)) as { dealt: number };
-  expect(after.dealt).toBe(3);
+  const after = JSON.parse(await requireInvoke(captured)(draw, JSON.stringify({ count: 2 }), null)) as { dealt: number; countLabel: string };
+  expect(after).toMatchObject({ dealt: 4, countLabel: "2 cards" });
 });

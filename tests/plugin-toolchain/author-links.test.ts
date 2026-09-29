@@ -103,6 +103,29 @@ test("an action id outside the spec, a non-dialog target, and an unpublished bin
   ]);
 });
 
+test("state published through composed and generic types links its bound paths", async ({ repoRoot, scratch }) => {
+  const surfaces = ["inter", "generic", "mapped", "indexed", "conditional"];
+  const diagnostics = await checkMain(repoRoot, scratch, [
+    "const host = orb.host(1);",
+    ...surfaces.map(
+      (id) =>
+        `host.ui.register({ id: "${id}", anchor: "settings", title: "S", tier: "static", spec: { kind: "stack", children: [{ kind: "text", value: { $state: "count" } }, { kind: "text", value: { $state: "missing" } }] } });`,
+    ),
+    "type Base = { version: number };",
+    'async function inter(state: Base & { count: number }): Promise<void> { await host.ui.setState("inter", state); }',
+    'async function generic<T extends { count: number }>(state: T): Promise<void> { await host.ui.setState("generic", state); }',
+    'async function mapped<T extends { count: number }>(state: Readonly<T>): Promise<void> { await host.ui.setState("mapped", state); }',
+    'async function indexed<S extends { panel: { count: number } }>(all: S): Promise<void> { await host.ui.setState("indexed", all["panel"]); }',
+    "type Shaped<T> = T extends string ? { count: number; label: T } : { count: number };",
+    'async function conditional<T>(state: Shaped<T>): Promise<void> { await host.ui.setState("conditional", state); }',
+    "void inter({ version: 1, count: 1 }); void generic({ count: 1 }); void mapped({ count: 1 });",
+    'void indexed({ panel: { count: 1 } }); void conditional<string>({ count: 1, label: "x" });',
+  ]);
+
+  // Each surface's published type holds `count` and not `missing`, so only the `missing` binding is refused.
+  expect(byLine(diagnostics)).toEqual(surfaces.map((id, index) => [index + 2, expect.stringContaining(`surface "${id}" binds $state "missing"`)]));
+});
+
 test("a tool-card binding reads the call record and a computed surface id stays unchecked", async ({ repoRoot, scratch }) => {
   const diagnostics = await checkMain(repoRoot, scratch, [
     "const host = orb.host(1);",
