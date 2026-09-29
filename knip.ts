@@ -117,14 +117,17 @@ const config = {
       // keeps it PRODUCTION-only, so the default view still accounts for the package normally.
       ignoreDependencies: ["@ai-sdk/provider!"],
     },
-    // @orb/showcase-plugins: the TS surface is one reader module; `bundles/**` is guest .js + content that
-    // no import graph reaches by construction (the QuickJS realm has no module loader), so the project glob
-    // stays scoped to src/ rather than accusing nine shipped bundles of being dead files.
+    // @orb/showcase-plugins: the imported TS surface is one reader module; `bundles/**` is authored guest TS
+    // compiled by @orb/plugin-toolchain and no import graph reaches it by construction (the QuickJS realm has
+    // no module loader), so the project glob stays scoped to src/ rather than accusing nine build inputs of
+    // being dead files.
     // @orb/default-content: same shape as showcase-plugins — one reader module under src/, while
     // `avatars/**` + `demo-chats/**` are shipped BYTES no import graph reaches, so the project glob stays
     // scoped to src/ rather than accusing the content of being dead files.
     "packages/default-content": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/showcase-plugins": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
+    "packages/plugin-sdk": {},
+    "packages/plugin-toolchain": { project: ["src/**/*.ts"] },
     "packages/ui": {
       // Entry set = the package.json subpath exports map (knip reads it) + tokens.build.ts, which is
       // auto-detected as an entry via the `tokens:build` package script that runs it.

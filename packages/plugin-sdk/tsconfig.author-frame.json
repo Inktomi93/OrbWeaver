@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.world-browser.json",
+  "compilerOptions": {
+    "lib": ["es2023", "dom"],
+    "moduleDetection": "force",
+    "skipLibCheck": false,
+    "target": "es2023",
+    "types": []
+  },
+  "include": ["frame.d.ts", "../../reset.d.ts", "../../platform.d.ts"],
+  "exclude": ["**/node_modules"]
+}

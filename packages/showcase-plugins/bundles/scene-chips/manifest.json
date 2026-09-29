@@ -1,10 +1,10 @@
 {
   "id": "scene-chips",
   "name": "Scene Chips",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "hostVersion": 1,
   "entry": "main.js",
-  "description": "When the narrator finishes a long beat, it offers three quiet doors — continue, time skip, new scene — as quick-reply chips you can edit before you send. If the Oracle Deck just drew a card, a fourth door follows the omen.",
+  "description": "When the narrator finishes a long beat, it offers three quiet doors \u2014 continue, time skip, new scene \u2014 as quick-reply chips you can edit before you send. If the Oracle Deck just drew a card, a fourth door follows the omen.",
   "author": "Orbweaver",
   "capabilities": ["chat.read", "chat.quick_reply", "storage.kv", "events.subscribe", "plugin_events"]
 }

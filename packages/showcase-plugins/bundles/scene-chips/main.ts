@@ -40,7 +40,11 @@ const CHOICES = [
   { label: "New scene", sendText: "Cut to somewhere else — a different place, a little later." },
 ];
 
-const cooldownKey = (chatId) => `chips:${chatId}`;
+const cooldownKey = (chatId: string): string => `chips:${chatId}`;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 /** The plugin-private key holding the most recent oracle omen (see the pubsub subscription below). */
 const OMEN_KEY = "omen";
@@ -51,17 +55,17 @@ const OMEN_FRESH_MS = 600_000;
 
 /** The freshest omen card, or `null`. Reads the note `pubsub.on` stored — malformed/stale answers `null`,
  *  because a decoration must never become a reason to throw. */
-async function freshOmen() {
+async function freshOmen(): Promise<string | null> {
   const raw = await host.storage.get(OMEN_KEY);
   if (raw === null) {
     return null;
   }
   try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed.card !== "string" || typeof parsed.atMs !== "number") {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed) || typeof parsed["card"] !== "string" || typeof parsed["atMs"] !== "number") {
       return null;
     }
-    return host.clock.nowEpochMs() - parsed.atMs <= OMEN_FRESH_MS ? parsed.card : null;
+    return host.clock.nowEpochMs() - parsed["atMs"] <= OMEN_FRESH_MS ? parsed["card"] : null;
   } catch {
     return null;
   }
@@ -69,7 +73,7 @@ async function freshOmen() {
 
 /** Is this fact a substantial NARRATOR beat? A member's own message is not a stall — the stall is the pause
  *  AFTER the story moved. `role` comes straight off the delivered fact; the host resolved it, not the guest. */
-function isLongNarratorBeat(fact) {
+function isLongNarratorBeat(fact: PluginTriggerFact): boolean {
   const message = fact ? fact.message : undefined;
   if (message === undefined || message.role === "user") {
     return false;
@@ -79,7 +83,7 @@ function isLongNarratorBeat(fact) {
 
 /** The per-room cooldown, in the plugin's private KV. Claimed BEFORE the surface call, not after: two
  *  deliveries can be in flight at once and a stamp written on success would let both strips through. */
-async function claimCooldown(chatId) {
+async function claimCooldown(chatId: string): Promise<boolean> {
   const key = cooldownKey(chatId);
   const raw = await host.storage.get(key);
   const now = host.clock.nowEpochMs();
@@ -140,7 +144,7 @@ if (host.grants.includes("events.subscribe")) {
 if (host.grants.includes("plugin_events")) {
   host.pubsub.on("oracle-deck", "draw", async (event) => {
     try {
-      const cards = Array.isArray(event?.data?.cards) ? event.data.cards : [];
+      const cards = Array.isArray(event?.data?.["cards"]) ? event.data["cards"] : [];
       const last = cards.length > 0 ? cards.at(-1) : null;
       if (typeof last !== "string") {
         return;

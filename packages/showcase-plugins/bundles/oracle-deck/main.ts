@@ -31,6 +31,20 @@
 
 const host = orb.host(1);
 
+interface OracleSession {
+  readonly seed: string;
+  readonly dealt: number;
+}
+
+interface CardClaim {
+  readonly session: OracleSession;
+  readonly taken: readonly string[];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 /** The deck. Ordered, fixed, and part of the contract: `reveal` is only checkable against a deck the verifier
  *  also has, so changing this list is a BREAKING change to every commitment already in a transcript. */
 const DECK = [
@@ -79,7 +93,7 @@ const COMMITMENT_DIGITS = 10;
 
 /** A polynomial rolling hash over a string → an integer in `[0, HASH_MODULUS)`. Used for BOTH the commitment
  *  and the PRNG seed, so a verifier needs exactly this one five-line function to check a reveal. */
-function hashOf(text) {
+function hashOf(text: string): number {
   let hash = 0;
   for (let i = 0; i < text.length; i += 1) {
     hash = (hash * HASH_MULTIPLIER + text.charCodeAt(i)) % HASH_MODULUS;
@@ -90,7 +104,7 @@ function hashOf(text) {
 /** MINSTD (Lehmer) — a tiny deterministic PRNG in `[0, 1)`. Deliberately NOT `host.random.next()`: the host
  *  PRNG is an injected seam whose stream a verifier has no access to, so a shuffle drawn from it could never
  *  be re-derived from a published seed. The host seam mints the SECRET; this turns the secret into the ORDER. */
-function makeRng(seedInt) {
+function makeRng(seedInt: number): () => number {
   // 0 is the one fixed point of a Lehmer generator (it would emit 0 forever), so it is nudged off it.
   let state = seedInt % HASH_MODULUS === 0 ? 1 : seedInt % HASH_MODULUS;
   return () => {
@@ -100,40 +114,45 @@ function makeRng(seedInt) {
 }
 
 /** Fisher-Yates over a copy of `DECK`, driven entirely by `seed`. Pure: same seed ⇒ same order, forever. */
-function shuffleFor(seed) {
+function shuffleFor(seed: string): string[] {
   const rng = makeRng(hashOf(seed));
   const cards = [...DECK];
   for (let i = cards.length - 1; i > 0; i -= 1) {
     const j = Math.floor(rng() * (i + 1));
     const swap = cards[i];
-    cards[i] = cards[j];
-    cards[j] = swap;
+    const target = cards[j];
+    if (swap !== undefined && target !== undefined) {
+      cards[i] = target;
+      cards[j] = swap;
+    }
   }
   return cards;
 }
 
 /** The public commitment for a secret seed — printed BEFORE any card is dealt, checkable AFTER the reveal. */
-function commitmentFor(seed) {
+function commitmentFor(seed: string): string {
   return String(hashOf(`commit:${seed}`)).padStart(COMMITMENT_DIGITS, "0");
 }
 
 /** Parse one stored session record. A malformed value (hand-edited, or written by an older version of this
  *  plugin) is treated as absent rather than thrown on — a plugin that crashes on its own stored state is a
  *  plugin that auto-disables three invocations later. */
-function parseSession(raw) {
+function parseSession(raw: string | null): OracleSession | null {
   if (raw === null) {
     return null;
   }
   try {
-    const parsed = JSON.parse(raw);
-    return typeof parsed.seed === "string" && typeof parsed.dealt === "number" ? parsed : null;
+    const parsed: unknown = JSON.parse(raw);
+    return isRecord(parsed) && typeof parsed["seed"] === "string" && typeof parsed["dealt"] === "number"
+      ? { seed: parsed["seed"], dealt: parsed["dealt"] }
+      : null;
   } catch {
     return null;
   }
 }
 
 /** Load the live session, or `null`. Read-only — every WRITE goes through `claimCards`. */
-async function loadSession() {
+async function loadSession(): Promise<OracleSession | null> {
   return parseSession(await host.storage.get(SESSION_KEY));
 }
 
@@ -161,7 +180,7 @@ const CAS_ATTEMPTS = 5;
  *
  *  `host.storage.compareAndSet` writes only while the record still holds what we read, which is what turns a
  *  deal into a claim. */
-async function claimCards(count) {
+async function claimCards(count: number): Promise<CardClaim | null> {
   let raw = await host.storage.get(SESSION_KEY);
   for (let attempt = 0; attempt < CAS_ATTEMPTS; attempt += 1) {
     const session = parseSession(raw) ?? { seed: host.ids.mint(), dealt: 0 };
@@ -182,7 +201,7 @@ async function claimCards(count) {
 
 /** Clamp a model-supplied count into the legal range. `Number()` on an absent/garbage argument yields NaN,
  *  which fails both comparisons and lands on `MIN_DRAW`. */
-function clampCount(raw) {
+function clampCount(raw: unknown): number {
   const n = Math.floor(Number(raw));
   if (!Number.isFinite(n) || n < MIN_DRAW) {
     return MIN_DRAW;
@@ -200,7 +219,7 @@ function clampCount(raw) {
  *  EVERY FIELD IS ALWAYS PRESENT, deliberately. A binding whose path is missing renders empty, so a field
  *  that appears only sometimes is a card that is sometimes half-blank. The spent-deck arm below therefore
  *  returns the same shape with zero cards, not a different one. */
-function drawResult(session, taken, narration) {
+function drawResult(session: OracleSession, taken: readonly string[], narration: string): string {
   return JSON.stringify({
     // What the model reads first, and what the card's markdown node draws.
     drawn: narration,
@@ -230,7 +249,7 @@ function drawResult(session, taken, narration) {
 //   3. A subscriber's handler runs with NO chat scope, so put everything it needs IN the payload (that is
 //      why `card` rides here rather than "go read my storage").
 // Guarded per-call: `plugin_events` may be unticked, and a decoration must never crash a draw.
-async function announceDraw(cards, dealt, commitment) {
+async function announceDraw(cards: readonly string[], dealt: number, commitment: string): Promise<void> {
   if (!host.grants.includes("plugin_events")) {
     return;
   }
@@ -269,7 +288,8 @@ if (canDeal) {
       additionalProperties: false,
     },
     handler: async (args) => {
-      const count = clampCount(args ? args.count : MIN_DRAW);
+      const input = isRecord(args) ? args : {};
+      const count = clampCount(input["count"] ?? MIN_DRAW);
       const claim = await claimCards(count);
       if (claim === null) {
         return "The deck is being dealt from somewhere else right now — ask again in a moment.";
@@ -336,7 +356,7 @@ if (host.grants.includes("chat.transform") && host.grants.includes("storage.kv")
         return "";
       }
       const cards = shuffleFor(session.seed);
-      return cards[Math.min(session.dealt, cards.length) - 1];
+      return cards[Math.min(session.dealt, cards.length) - 1] ?? "";
     },
   });
 }
@@ -412,7 +432,7 @@ if (host.grants.includes("ui.surface")) {
 // All four ride the SAME `ui.surface` grant as the card, so the same feature-detect guard covers them.
 if (host.grants.includes("ui.surface")) {
   /** The page's published state — the deck's own dashboard. `setState` replaces it whole. */
-  const publishDeckState = async () => {
+  const publishDeckState = async (): Promise<void> => {
     const session = await loadSession();
     await host.ui.setState("deck_page", {
       status: session === null ? "No session open" : `Session open · ${session.dealt} dealt`,
@@ -444,8 +464,8 @@ if (host.grants.includes("ui.surface")) {
     onRun: async (a) => {
       // The values bag is TYPED: `count` is a number (or absent), `spread` is one of the declared members
       // (or absent). No parsing, no trimming, no "is it a string" — the platform did that on both sides.
-      const spread = a.values.spread === "past_present_future" ? SPREAD_CARDS : MIN_DRAW;
-      const count = clampCount(a.values.count ?? spread);
+      const spread = a.values["spread"] === "past_present_future" ? SPREAD_CARDS : MIN_DRAW;
+      const count = clampCount(a.values["count"] ?? spread);
       const claim = await claimCards(count);
       if (claim === null) {
         await host.ui.toast("warn", "The deck is being dealt from somewhere else right now — try again in a moment.");
@@ -462,7 +482,7 @@ if (host.grants.includes("ui.surface")) {
       // person who typed it is right there, which is exactly the audience a transient notice is for.
       const labels = ["Past", "Present", "Future"];
       const line =
-        a.values.spread === "past_present_future" && taken.length === SPREAD_CARDS
+        a.values["spread"] === "past_present_future" && taken.length === SPREAD_CARDS
           ? taken.map((card, i) => `${labels[i]}: ${card}`).join(" · ")
           : taken.join(", ");
       await host.ui.toast("info", `${line} (${session.dealt + taken.length} of ${DECK.length} dealt)`);

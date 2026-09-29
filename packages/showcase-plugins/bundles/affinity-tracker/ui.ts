@@ -39,25 +39,30 @@ const MAX_ROWS = 20;
 
 /** Everything this surface knows. Loaded ONCE at startup, then never re-fetched — the filter below is a pure
  *  function of this array and the query string. */
-let readings = [];
+interface Reading {
+  readonly label: string;
+  readonly score: number;
+}
+
+let readings: Reading[] = [];
 let query = "";
 let loaded = false;
 
 /** Sort by warmth, descending — the interesting rooms first. Stable enough for a display list. */
-function byScore(a, b) {
+function byScore(a: Reading, b: Reading): number {
   return b.score - a.score;
 }
 
 /** The whole tree, rebuilt from local state. Retained-mode: we hand over the COMPLETE surface every time and
  *  the app works out what changed, so there is no patching to get wrong. */
-function draw() {
+function draw(): void {
   const needle = query.trim().toLowerCase();
   const matches = readings
     .filter((row) => needle === "" || row.label.toLowerCase().includes(needle))
     .sort(byScore)
     .slice(0, MAX_ROWS);
 
-  const children = [
+  const children: PluginSurfaceNode[] = [
     {
       kind: "text",
       voice: "gloss",
@@ -82,7 +87,7 @@ function draw() {
 
 /** Load every reading ONCE. `storage.list`/`storage.get` are relayed to the server and re-checked against this
  *  plugin's own grants there — but they happen exactly here, at startup, and never again. */
-async function load() {
+async function load(): Promise<void> {
   try {
     const keys = await ui.host.storage.list("score:");
     // In parallel: the host caps concurrent calls, and a handful of rooms is well inside it.

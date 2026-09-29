@@ -1,7 +1,7 @@
 {
   "id": "keepsake-camera",
   "name": "Keepsake Camera",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "hostVersion": 1,
   "entry": "main.js",
   "description": "Snap a moment of the scene into a painted postcard: a quiet model call titles it, the image pipeline paints it into the room, and the album page keeps every keepsake the camera catches.",

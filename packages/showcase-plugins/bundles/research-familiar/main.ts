@@ -23,6 +23,26 @@
 
 const host = orb.host(1);
 
+type ResearchVerb = "lookup" | "clip";
+
+interface ResearchMarker {
+  readonly verb: ResearchVerb;
+  readonly term: string;
+}
+
+interface ResearchSummary {
+  readonly title: string;
+  readonly extract: string;
+}
+
+type AdmittedResearch =
+  | { readonly verb: "lookup"; readonly term: string; readonly bookId: string }
+  | { readonly verb: "clip"; readonly term: string; readonly bookId: null };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 // ── configuration ──────────────────────────────────────────────────────────────────────────────────────────
 // The lore book the familiar files into. The target is read from the installer's own global-variable namespace
 // — the same plane `{{getglobalvar}}` reads — then checked against the books attached to this room. Set it once
@@ -68,33 +88,33 @@ const LAST_FETCH_KEY = "lastFetchAtMs";
 /** Per-VERB memory: a term already filed as lore may still be clipped, and vice versa — two destinations,
  *  two memories. (The databank additionally dedupes clips by content hash host-side; this key just saves
  *  the fetch.) */
-const seenKey = (verb, term) => `${verb}:${term.toLowerCase()}`;
+const seenKey = (verb: ResearchVerb, term: string): string => `${verb}:${term.toLowerCase()}`;
 
 /** Extract the message's marker as `{verb, term}`, or `null`. Kept pure + tiny: the guest CPU deadline is
  *  per invocation, and a regex over an arbitrarily long message is the one place a handler can accidentally
  *  spend it. One marker per message; `lookup` wins when both appear. */
-function readMarker(fact) {
+function readMarker(fact: PluginTriggerFact): ResearchMarker | null {
   const content = fact?.message ? fact.message.content : "";
   if (typeof content !== "string" || content.length === 0) {
     return null;
   }
   const lookup = LOOKUP_RE.exec(content);
   if (lookup !== null) {
-    return { verb: "lookup", term: lookup[1].trim() };
+    return { verb: "lookup", term: lookup[1]?.trim() ?? "" };
   }
   const clip = CLIP_RE.exec(content);
-  return clip === null ? null : { verb: "clip", term: clip[1].trim() };
+  return clip === null ? null : { verb: "clip", term: clip[1]?.trim() ?? "" };
 }
 
 /** Has this term already been handled BY THIS VERB? The FIRST debounce layer, and the one that matters:
  *  without it every re-read of a scrollback message would re-fetch. */
-async function alreadyFiled(verb, term) {
+async function alreadyFiled(verb: ResearchVerb, term: string): Promise<boolean> {
   return (await host.storage.get(seenKey(verb, term))) !== null;
 }
 
 /** Is the global fetch gap satisfied? `host.clock.nowEpochMs()` is the injected clock — the guest realm has no
  *  `Date`, and that is the point: a plugin cannot measure the host's real time to game a budget. */
-async function gapElapsed() {
+async function gapElapsed(): Promise<boolean> {
   const raw = await host.storage.get(LAST_FETCH_KEY);
   if (raw === null) {
     return true;
@@ -108,7 +128,7 @@ async function gapElapsed() {
  *  expected. Silence is the correct behaviour for all of them: the room should never see the familiar fail.
  *  The CALLERS decide how much to keep — `lookup` cuts to `EXTRACT_MAX_CHARS` (a lore entry taxes every
  *  prompt), `clip` keeps the whole thing (a databank document is indexed, not injected). */
-async function fetchSummary(term) {
+async function fetchSummary(term: string): Promise<ResearchSummary | null> {
   try {
     // `net.fetch` returns JSON-safe primitives only — `{status, body}`. There is no `Response` object, no
     // streaming, and the body is already UTF-8 decoded and byte-capped host-side.
@@ -117,12 +137,11 @@ async function fetchSummary(term) {
       host.log.info(`no article for "${term}" (status ${res.status})`);
       return null;
     }
-    const parsed = JSON.parse(res.body);
-    const extract = parsed.extract;
-    if (typeof extract !== "string" || extract.length === 0) {
+    const parsed: unknown = JSON.parse(res.body);
+    if (!isRecord(parsed) || typeof parsed["extract"] !== "string" || parsed["extract"].length === 0) {
       return null;
     }
-    return { title: typeof parsed.title === "string" && parsed.title.length > 0 ? parsed.title : term, extract };
+    return { title: typeof parsed["title"] === "string" && parsed["title"].length > 0 ? parsed["title"] : term, extract: parsed["extract"] };
   } catch (err) {
     // Includes the host's own refusals (an allowlist miss, the hourly egress floor). Logged, never rethrown.
     // `String(err)` rather than `err.message`: it never throws (a guest realm can `throw null`) and an Error
@@ -134,7 +153,7 @@ async function fetchSummary(term) {
 
 /** Search the installer's own indexed corpus before the Wikipedia fallback. Query embedding may use the
  *  installer's hosted provider; the search grant discloses that spend and the host bounds its rate. */
-async function searchLibrary(term) {
+async function searchLibrary(term: string): Promise<ResearchSummary | null> {
   if (!host.grants.includes("search.query")) {
     return null;
   }
@@ -153,7 +172,7 @@ async function searchLibrary(term) {
 /** When the lore-read grant is present, prove the configured destination belongs to this room before any
  *  network request or write. The write membrane repeats the attachment gate; this early read gives the person
  *  a quiet refusal instead of spending egress on a destination the write will reject. */
-async function configuredBookIsAttached(chat, bookId) {
+async function configuredBookIsAttached(chat: ChatHandle, bookId: string): Promise<boolean> {
   if (!host.grants.includes("worldinfo.read")) {
     return true;
   }
@@ -167,7 +186,7 @@ async function configuredBookIsAttached(chat, bookId) {
 
 /** File the entry. `chat` is the OPAQUE HANDLE for THIS invocation — it is a fresh token every time, it cannot
  *  be stored or reused, and passing a forged one is refused by the host. */
-async function fileEntry(chat, bookId, term, extract) {
+async function fileEntry(chat: ChatHandle, bookId: string, term: string, extract: string): Promise<void> {
   await host.worldInfo.upsertEntry(chat, {
     bookId,
     // `entryKey` is the idempotency key: writing the same key again UPDATES the entry instead of adding a
@@ -190,7 +209,7 @@ async function fileEntry(chat, bookId, term, extract) {
  *  nothing to configure), while `lookup` needs its grant AND a configured destination book. Feature-detect
  *  with `host.grants` at the moment of use — a marker for an ungranted verb logs once and stays silent, it
  *  never throws. */
-async function admit(fact) {
+async function admit(fact: PluginTriggerFact): Promise<AdmittedResearch | null> {
   const marker = readMarker(fact);
   if (marker === null) {
     return null; // The overwhelmingly common path. Cheap, silent, no host call at all.
@@ -227,8 +246,8 @@ async function admit(fact) {
  *  because a throw out of a handler is a strike against the auto-disable counter and a network is allowed to
  *  be flaky. `err.name` crosses the sandbox boundary intact, which is why branching on it is legitimate and
  *  message-substring matching is not. */
-function logFailure(err) {
-  const name = err?.name ? err.name : "Error";
+function logFailure(err: unknown): void {
+  const name = isRecord(err) && typeof err["name"] === "string" ? err["name"] : "Error";
   if (name === "PluginSuggestedError") {
     host.log.info("not the host of this room — the write became a card for the host to confirm");
     return;
@@ -256,7 +275,7 @@ if (host.grants.includes("events.subscribe")) {
       }
 
       const chat = work.verb === "lookup" ? host.chat.current() : null;
-      if (chat !== null && !(await configuredBookIsAttached(chat, work.bookId))) {
+      if (work.verb === "lookup" && (chat === null || !(await configuredBookIsAttached(chat, work.bookId)))) {
         return;
       }
 
@@ -284,6 +303,10 @@ if (host.grants.includes("events.subscribe")) {
         });
         await host.storage.set(seenKey("clip", work.term), String(host.clock.nowEpochMs()));
         host.log.info(`clipped "${summary.title}" into the databank (${documentId})`);
+        return;
+      }
+
+      if (chat === null) {
         return;
       }
 

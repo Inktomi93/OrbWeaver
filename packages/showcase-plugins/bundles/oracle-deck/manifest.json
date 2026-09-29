@@ -1,10 +1,10 @@
 {
   "id": "oracle-deck",
   "name": "Oracle Deck",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "hostVersion": 1,
   "entry": "main.js",
-  "description": "A commit-and-reveal card deck the narrator can draw from mid-turn. Every draw is reproducible from a seed the plugin commits to before the first card is dealt — and every draw is announced so your other plugins can play along.",
+  "description": "A commit-and-reveal card deck the narrator can draw from mid-turn. Every draw is reproducible from a seed the plugin commits to before the first card is dealt \u2014 and every draw is announced so your other plugins can play along.",
   "author": "Orbweaver",
   "capabilities": ["storage.kv", "tools.register", "ui.surface", "chat.transform", "plugin_events"]
 }

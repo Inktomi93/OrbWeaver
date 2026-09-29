@@ -52,7 +52,7 @@ const SPACE_BEFORE_PUNCT_RE = / +([,.;:!?])/g;
 const TRAILING_SPACE_RE = /[ \t]+$/gm;
 
 /** The rules BOTH seams share — ellipses, stranded spaces, runs of spaces. One pure function of a string. */
-function tidy(text) {
+function tidy(text: string): string {
   return text.replaceAll(ELLIPSIS_RE, "…").replaceAll(SPACE_BEFORE_PUNCT_RE, "$1").replaceAll(RUN_OF_SPACES_RE, " ");
 }
 
@@ -61,7 +61,7 @@ function tidy(text) {
  *  `TRAILING_SPACE_RE`'s `$` anchor matches a segment's end — so "ran `echo`" lost the space before its
  *  backtick. A rule that is safe on a whole draft is not automatically safe on a slice of one. On screen,
  *  trailing whitespace is invisible anyway; in a prompt it is bytes, which is why the prompt side keeps it. */
-function polish(draft) {
+function polish(draft: string): string {
   return tidy(draft).replaceAll(TRAILING_SPACE_RE, "");
 }
 
@@ -81,7 +81,7 @@ const CLOSE_DQUOTE_RE = /"/g;
 
 /** Smart-set ONE prose segment. Straight quotes → curly, `--` → em dash, on top of the shared `tidy` (NOT
  *  `polish` — see its header for why trailing-space stripping must not run on a segment). */
-function typesetProse(text) {
+function typesetProse(text: string): string {
   return tidy(text).replaceAll(DOUBLE_DASH_RE, "$1—").replaceAll(APOSTROPHE_RE, "$1’").replaceAll(OPEN_DQUOTE_RE, "$1“").replaceAll(CLOSE_DQUOTE_RE, "”");
 }
 
@@ -92,7 +92,7 @@ function typesetProse(text) {
  *  contain backticks), typeset only the prose between them, and reassemble byte-for-byte around the code. */
 const CODE_SPAN_RE = /(```[\s\S]*?```|`[^`\n]*`)/g;
 
-function typeset(text) {
+function typeset(text: string): string {
   return text
     .split(CODE_SPAN_RE)
     .map((segment, i) => (i % 2 === 1 ? segment : typesetProse(segment)))
@@ -119,10 +119,10 @@ if (host.grants.includes("chat.transform")) {
       // context-sensitive transform uses. `polishOff` in the room's variables turns the plugin off for that
       // room without touching the grant, which is the courtesy an always-on transform owes its users.
       const vars = input?.env?.vars ? input.env.vars : {};
-      if (vars.polishOff === "1") {
-        return draft;
+      if (vars["polishOff"] === "1") {
+        return Promise.resolve(draft);
       }
-      return polish(draft);
+      return Promise.resolve(polish(draft));
     },
   });
 

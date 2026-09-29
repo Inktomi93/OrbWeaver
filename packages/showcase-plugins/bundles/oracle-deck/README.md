@@ -11,8 +11,9 @@ before the first card was dealt.
 
 ```bash
 cp -r packages/showcase-plugins/bundles/oracle-deck /tmp/my-plugin
-# change `id` and `name` in manifest.json, edit main.js, then pack and install:
-pnpm plugin:pack oracle-deck ./out    # → ./out/oracle-deck-1.0.0.zip
+# change `id` and `name` in manifest.json, edit main.ts, build the checked JavaScript, then pack and install:
+pnpm --filter @orb/showcase-plugins build
+pnpm plugin:pack oracle-deck ./out    # → ./out/oracle-deck-1.1.1.zip
 ```
 
 Settings → Plugins → drop the zip → tick the capabilities → turn it on. Same `id` upgrades your existing copy

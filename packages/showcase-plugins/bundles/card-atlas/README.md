@@ -14,7 +14,8 @@ grid → sort/filter → page → preview → import, dedupe-aware and provenanc
 
 ```bash
 cp -r packages/showcase-plugins/bundles/card-atlas /tmp/my-plugin
-# change `id` and `name` in manifest.json, edit main.js, then pack and install:
+# change `id` and `name` in manifest.json, edit main.ts, build the checked JavaScript, then pack and install:
+pnpm --filter @orb/showcase-plugins build
 pnpm plugin:pack card-atlas ./out
 ```
 

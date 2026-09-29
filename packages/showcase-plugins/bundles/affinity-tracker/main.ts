@@ -45,12 +45,12 @@ const LOG_EXCERPT_CHARS = 80;
  *  "Warmth: 7 — they finally sat down together" is the common case, not the exception. */
 const FIRST_INT_RE = /-?\d+/;
 
-const countKey = (chatId) => `count:${chatId}`;
-const scoreKey = (chatId) => `score:${chatId}`;
+const countKey = (chatId: string): string => `count:${chatId}`;
+const scoreKey = (chatId: string): string => `score:${chatId}`;
 
 /** The prompt. Short, closed, and stated as a FORMAT instruction, because the parse below is the contract:
  *  every word you spend asking for prose is a word you then have to defend against. */
-function buildPrompt(messages) {
+function buildPrompt(messages: readonly PluginMessageView[]): string {
   const transcript = messages.map((m) => `${m.authorDisplayName}: ${m.content}`).join("\n");
   return `Read this excerpt from a roleplay scene and rate how warm and close the participants are toward each other, from ${SCORE_MIN} (hostile) to ${SCORE_MAX} (intimate). Answer with the number and nothing else.\n\n${transcript}`;
 }
@@ -74,7 +74,7 @@ const CAS_ATTEMPTS = 5;
  *  `host.storage.compareAndSet` writes only while the key still holds what we read, and reports the value
  *  that won when it does not — which is exactly the input the next attempt needs, so a retry costs no extra
  *  read. Copy this helper; it is the house idiom for a counter. */
-async function updateStored(key, nextFrom) {
+async function updateStored(key: string, nextFrom: (current: string | null) => string): Promise<string | null> {
   let current = await host.storage.get(key);
   for (let attempt = 0; attempt < CAS_ATTEMPTS; attempt += 1) {
     const next = nextFrom(current);
@@ -90,13 +90,13 @@ async function updateStored(key, nextFrom) {
 /** Read + bump the per-chat message counter. Returns the new count, or `null` when the counter stayed
  *  contended. The counter lives in the plugin's OWN KV (per plugin × installing owner), so it is invisible to
  *  every other plugin and to the room. */
-async function bumpCount(chatId) {
+async function bumpCount(chatId: string): Promise<number | null> {
   const next = await updateStored(countKey(chatId), (raw) => String((Number(raw) || 0) + 1));
   return next === null ? null : Number(next);
 }
 
 /** Ask the model, parse strictly, clamp. `null` for every failure shape — an unusable answer is not a score. */
-async function readScore(chat) {
+async function readScore(chat: ChatHandle): Promise<number | null> {
   const messages = await host.chat.listMessages(chat, { limit: WINDOW });
   if (messages.length === 0) {
     return null;
@@ -113,7 +113,7 @@ async function readScore(chat) {
 /** Tell the installer only when the reading MOVED. `"host"` is the recipient selector — the host membrane
  *  resolves it DOMAIN-side to the installing user, so a plugin can never notify someone who is not a
  *  participant, and can never name a recipient at all. */
-async function announceIfMoved(chat, chatId, score) {
+async function announceIfMoved(chat: ChatHandle, chatId: string, score: number): Promise<void> {
   const previous = await host.storage.get(scoreKey(chatId));
   // COMPARE-AND-SET, not `set`. If anything recorded a reading between this read and this write — a Tier-C
   // surface, another tab; not another of THIS plugin's server handlers, which the host serializes — that
@@ -207,12 +207,12 @@ const AFFINITY_PANEL_SPEC = {
     { kind: "text", value: { $state: "summary" } },
     { kind: "button", actionId: "refresh", label: "Refresh readings", variant: "outline" },
   ],
-};
+} satisfies PluginSurfaceSpec;
 
 /** Recompute the roll-up from the plugin's OWN per-chat score keys and publish it. `storage.list("score:")`
  *  returns this plugin's keys only (per plugin × installing owner), so the summary can never leak another
  *  plugin's or another person's data. */
-async function publishSummary() {
+async function publishSummary(): Promise<void> {
   const keys = await host.storage.list("score:");
   // Read the scores in parallel (a person tracks a handful of rooms; the membrane caps concurrent host calls
   // at 32 and contains any overflow), then fold — no per-key await in the loop.
@@ -282,13 +282,13 @@ const AFFINITY_FLANK_SPEC = {
     { kind: "meter", label: "Warmth", max: SCORE_MAX, value: { $state: "score" } },
     { kind: "text", voice: "gloss", value: { $state: "caption" } },
   ],
-};
+} satisfies PluginSurfaceSpec;
 
 /** Publish the latest reading to the room widget, keyed to THIS ROOM. Called from the event handler — that is
  *  what makes the widget LIVE: the app is told the surface changed and repaints it wherever it is on screen.
  *  Grant-guarded HERE (not at the caller): the event handler runs headless too, and a `setState` for a
  *  surface that was never registered is a refusal we can simply not ask for. */
-async function publishFlank(chat, score) {
+async function publishFlank(chat: ChatHandle, score: number): Promise<void> {
   if (!host.grants.includes("ui.surface")) {
     return;
   }

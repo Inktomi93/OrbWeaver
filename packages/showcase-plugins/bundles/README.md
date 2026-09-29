@@ -1,8 +1,10 @@
 # Writing an Orbweaver plugin
 
-This directory holds the nine example plugins every Orbweaver user is given, one per **archetype**. They are
-not decoration: they are the templates. Pick the one shaped like the thing you want, copy its folder, and
-edit it. Each has its own README; reading an example's code IS the documentation for the capabilities it uses.
+This directory holds the nine checked example plugins every Orbweaver user is given, one per **archetype**.
+Each has its own README; reading an example's source is the documentation for the capabilities it uses. The
+reusable project templates and their generator are separate #0233 work. The authoring architecture is ruled
+by [D266](../../../docs/adr/0266-plugin-build-artifact-boundary.md); its mechanism and acceptance map live
+in the [plugin-authoring design](../../../docs/plans/plugin-authoring/design.md).
 
 ```
 research-familiar/     event reactor      watches the room, reaches the network, files lore + databank clips
@@ -10,7 +12,7 @@ oracle-deck/           tool provider      gives the model tools — plus the who
                                           tool card, page, dialog, typed-arg commands, toasts, a macro,
                                           a pubsub announcement, the footer mark
 affinity-tracker/      quiet thinker      asks the model privately, keeps private state, notifies;
-                                          ships a scripted (browser-side) surface in ui.js
+                                          authors a scripted (browser-side) surface in ui.ts
 draft-polish/          text pipeline      one capability, two seams: prompt transform + display transform
 scene-chips/           room surface       quick-reply chips the room can see; subscribes to a sibling's
                                           pubsub channel (install it with oracle-deck and watch)
@@ -25,28 +27,74 @@ card-atlas/            hub browser        the flagship: search two community hub
 
 ---
 
-## The whole loop, in five lines
+## Start from a template and install its Git repository
+
+Choose the server plugin template for tools and static house UI, or the visual plugin template for scripted
+house UI and isolated frames. On GitHub, select **Use this template**, edit `src/main.ts` and the manifest,
+and use the template's build command to refresh the checked root `main.js` and optional `ui.js`. Commit the
+source and generated runtime entries together. The template action typechecks every runtime and refuses a
+push whose committed JavaScript is missing, stale, or obsolete.
+
+Copy the public Git repository URL into **Settings → Plugins → Install from Git**. Orbweaver downloads and
+validates the prebuilt root entries while the server is running; after you approve its capabilities and
+enable it, the plugin works without a restart. Bump the manifest version and push the rebuilt entries when
+you change the plugin so installed copies can see the update. A GitHub Release is not required.
+
+The template owns the SDK and toolchain versions in its lockfile and workflow. Ordinary authors never need
+to publish packages, install an Orbweaver checkout, or manage the two author-tool tarballs.
+
+The reusable template repositories and their workflows are separate #0233 work. Until they land, these nine
+showcases are the canonical source examples; the commands below are the maintainer loop inside this repo.
+
+## Maintainer build and pack loop
 
 ```bash
-cp -r packages/showcase-plugins/bundles/oracle-deck /tmp/my-plugin
-# edit /tmp/my-plugin/manifest.json  (give it your own `id` and `name`)
-# edit /tmp/my-plugin/main.js        (and ui.js, if you ship a scripted surface)
-pnpm plugin:pack oracle-deck ./out       # packs a SEEDED example, for reference
-# for your own folder: point the packer at it, or zip the entries yourself
+cp -r packages/showcase-plugins/bundles/oracle-deck packages/showcase-plugins/bundles/my-plugin
+# edit manifest.json and the authored main.ts (plus ui.ts or frame.ts when that realm exists)
+pnpm --filter @orb/showcase-plugins build
+pnpm plugin:pack my-plugin ./out
+# → ./out/<manifest-id>-<manifest-version>.zip
 ```
 
 Then open **Settings → Plugins**, drop the zip on the install card, tick the capabilities you are willing to
-allow, and turn it on.
+allow, and turn it on. This zip loop is optional for template authors; their normal distribution path is
+the public Git repository with checked built root entries.
 
-A bundle is a zip containing **`manifest.json` + `main.js`** at the root — plus, optionally, **`ui.js`**
-(the browser-side half of a `scripted` surface; declaring `uiEntry` in the manifest and shipping the file
-must agree, in both directions). Nothing else is admitted. `pnpm plugin:pack <slug>` produces exactly that
-from a source directory under this folder, and validates the manifest before it writes, so a bundle that
-would be rejected at install is rejected on your machine instead.
+`main.ts`, optional `ui.ts`, and optional `frame.ts` are the authored files. The build gives each realm only
+its own `@orb/plugin-sdk` declarations, rejects imports and unavailable globals, and deterministically packs
+the emitted `main.js` and optional `ui.js` into one ignored `dist/bundles/<slug>.zip`. `frame.ts` is
+DOM-checked separately and injected into Pocket Arcade's frame HTML marker. Commit source, manifests, assets,
+and prose. Generated JavaScript and zips are ignored release output for the first-party showcase package.
+Standalone templates deliberately commit generated root JavaScript because the Git installer consumes it
+without running untrusted build commands.
 
-**Editor support:** copy `host-v1.d.ts` (in this directory) next to your `main.js`/`ui.js` and any
-TypeScript-aware editor gives you completion and checking against the full host surface in plain JavaScript —
-`orb.host(1)` for the server half, `orb.ui(1)` for the scripted half.
+A bundle contains **`manifest.json` + `main.js`** at the root, optional **`ui.js`**, and admitted
+`ui/assets/<name>` images. The manifest's `uiEntry` and the presence of `ui.js` must agree. TypeScript source
+and SDK declarations are author inputs, not runtime bundle entries; QuickJS has no module loader.
+
+External projects install the zero-dependency `@orb/plugin-sdk` declarations and the standalone
+`@orb/plugin-toolchain` CLI from the public `plugin-authoring-v0.1.0` GitHub Release. The SDK has separate
+`main`, `ui`, and `frame` entry points; the toolchain selects the matching entry automatically and has no
+Orbweaver application dependency. There is no npm-registry publication or credential requirement:
+
+```bash
+pnpm add -D \
+  https://github.com/Inktomi93/orbweaver/releases/download/plugin-authoring-v0.1.0/orb-plugin-sdk-0.1.0.tgz \
+  https://github.com/Inktomi93/orbweaver/releases/download/plugin-authoring-v0.1.0/orb-plugin-toolchain-0.1.0.tgz
+orb-plugin build . --source-dir src --out-dir .
+orb-plugin check . --source-dir src --out-dir .
+# optional upload/bundle-URL artifact:
+orb-plugin pack . --source-dir src --out dist/my-plugin.zip
+```
+
+The Orbweaver repository command `pnpm plugin:author-release [outDir]` builds each `.tgz` twice, refuses
+nondeterministic bytes, and writes the two reviewable GitHub Release assets. It does not publish or push.
+Those tarballs distribute author infrastructure; ordinary plugin repositories are installed directly from
+their checked built root and do not need their own release asset.
+
+The toolchain creates one compiler program per realm: `@orb/plugin-sdk/main` for `main.ts`,
+`@orb/plugin-sdk/ui` for `ui.ts`, and `@orb/plugin-sdk/frame` for frame code. It emits no runtime imports;
+the installed artifact remains one self-contained JavaScript file per declared entry.
 
 ### Tinkering with a plugin that is already installed
 
@@ -70,7 +118,7 @@ want while experimenting.
 {
   "id": "oracle-deck",
   "name": "Oracle Deck",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "hostVersion": 1,
   "entry": "main.js",
   "uiEntry": "ui.js",
@@ -87,7 +135,7 @@ want while experimenting.
 | `name` | ≤ 80 chars. What the pane and every attribution frame call it. |
 | `version` | Exactly `major.minor.patch`. Display + downgrade refusal only. |
 | `hostVersion` | `1`. The membrane major. A future host that no longer serves 1 refuses your bundle loudly rather than half-running it. |
-| `entry` | Always the literal `"main.js"`. One file, no module loader — inline what you need (esbuild `--bundle` if you write in modules). |
+| `entry` | Always the literal `"main.js"`, emitted from `main.ts`. One runtime file, no module loader. |
 | `uiEntry` | Optional, always the literal `"ui.js"` — the browser-side guest for `tier:"scripted"` surfaces. Requires `ui.surface` in `capabilities`. |
 | `description` | ≤ 500 chars. Shown beside the grant list; write it for the person deciding. |
 | `author` | Optional, ≤ 120 chars. |
@@ -232,7 +280,9 @@ pass the same format wall and the same owner-scoped resolve as declared ones —
 **Commands** (`ui.registerCommand`) ride `/plugin <your-slug> <name> …`, the Plugins wand menu, and the
 command palette. Declare typed `args` (string/number/enum/boolean, required?) and the platform collects,
 autocompletes and validates them on both surfaces before `onRun` sees the typed `values` bag; the raw `args`
-remainder always arrives too. **Toasts** (`ui.toast`) are transient, app-stamped with your name, rate-floored
+remainder always arrives too. Optional `group` nests a command inside the attributed Plugins menu; optional
+`placements` exposes it at most once in each closed composer target (`composer-action`, `composer-media`) with
+a bounded label and curated icon. **Toasts** (`ui.toast`) are transient, app-stamped with your name, rate-floored
 (10 s per plugin), and delivered on the round-trip the person just made — durable notices are `notify`.
 **Dialogs** open only via `ui.openDialog(id)` of your OWN registered `dialog` surface, only as a round-trip
 outcome: spontaneous modals are unspellable.
@@ -291,7 +341,9 @@ chips' claimed-before-spent cooldown. Claim a budget BEFORE you spend it — two
 
 ## Where these files live, and why they are not in a top-level `examples/`
 
-The deployed image copies `packages/*/src` and nothing else, and the per-user seeder reads these sources at
-runtime to pack each bundle. A repo-root `examples/` directory would not exist in a running container. They
-sit here, beside the seeded avatars and the seeded example transcripts, for the same reason those do — and
-`host-v1.d.ts` sits here with them so the SDK folder is one folder.
+The per-user seeder resolves this workspace package and reads only the release-built zip tree. `pnpm build`,
+Docker builds, and bare-metal launch preflights materialize that ignored tree before a server starts; the
+server does not load TypeScript or the author toolchain. A source change must bump that plugin's manifest
+version, and `pnpm check:showcase-release` enforces the input-to-version edge so pristine seeded installs
+receive the new bytes through the existing upgrade verb. The public SDK has its own package because external
+authors must install the same realm declarations without copying repository files.

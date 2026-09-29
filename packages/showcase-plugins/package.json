@@ -7,9 +7,12 @@
     "node": ">=26"
   },
   "sideEffects": false,
+  "scripts": {
+    "build": "node ../../tooling/src/plugin-author-showcase/cli.ts build",
+    "check:artifacts": "node ../../tooling/src/plugin-author-showcase/cli.ts check"
+  },
   "exports": {
-    ".": "./src/index.ts",
-    "./bundles/*": "./bundles/*"
+    ".": "./src/index.ts"
   },
   "dependencies": {
     "@orb/contracts": "workspace:*",

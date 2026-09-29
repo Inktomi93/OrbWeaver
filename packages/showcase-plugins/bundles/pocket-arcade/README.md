@@ -10,7 +10,8 @@ keys or the on-screen pad; the board inherits whatever theme the app is wearing.
 
 ```bash
 cp -r packages/showcase-plugins/bundles/pocket-arcade /tmp/my-plugin
-# change `id` and `name` in manifest.json, edit main.js, then pack and install:
+# change `id` and `name` in manifest.json, edit main.ts, build the checked JavaScript, then pack and install:
+pnpm --filter @orb/showcase-plugins build
 pnpm plugin:pack pocket-arcade ./out
 ```
 
@@ -40,7 +41,7 @@ scenes. A grid of merging tiles is exactly that.
   own response policy.
 * **Host calls ride `postMessage`**: there is no `orb` inside a frame. Post
   `{ orbPluginFrameCall: { callId, fn, args } }` to `parent` and read the `orbPluginFrameResult` reply
-  (`host-v1.d.ts`, `registerFrame`). Each call is re-gated against this plugin's grants. Before obeying any
+  (`@orb/plugin-sdk/frame`, `registerFrame`). Each call is re-gated against this plugin's grants. Before obeying any
   message, check `event.source === parent`, because other frames on the page can post to yours. This game
   makes no host calls.
 * **Two theme tokens**, injected and live: `--sandbox-bg` and `--sandbox-fg` (plus the app's font). This

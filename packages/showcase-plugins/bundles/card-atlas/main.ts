@@ -102,6 +102,121 @@
 
 const host = orb.host(1);
 
+type SourceKey = "tavern" | "realm" | "chub" | "wyvern" | "aicc" | "charavault" | "botbooru" | "pygmalion" | "datacat";
+type PagingKind = "server" | "held-set";
+type SortKey =
+  | "relevance"
+  | "trending"
+  | "downloads"
+  | "stars"
+  | "likes"
+  | "favorites"
+  | "views"
+  | "chats"
+  | "rating"
+  | "newest"
+  | "oldest"
+  | "updated"
+  | "name";
+type StatKey = "downloads" | "stars" | "likes" | "favorites" | "views" | "chats" | "messages" | "comments" | "rating" | "tokens" | "created" | "updated";
+type ImportOutcome = "added" | "already";
+
+interface SortOption {
+  readonly value: SortKey;
+  readonly label: string;
+}
+
+interface AtlasRow {
+  readonly source: SourceKey;
+  readonly ref: string;
+  readonly name: string;
+  readonly creator: string;
+  readonly pop: string;
+  readonly n: Partial<Record<StatKey, number | undefined>>;
+  readonly nsfw: boolean | undefined;
+  readonly tagline: string;
+  readonly art: string;
+  readonly heroArt?: string;
+  readonly tags: readonly string[];
+}
+
+interface SearchJob {
+  readonly sourceKey: SourceKey;
+  readonly sortKey: SortKey;
+  readonly q: string;
+  readonly include: readonly string[];
+  readonly exclude: readonly string[];
+  readonly sfw: boolean;
+}
+
+interface SearchRequest {
+  readonly sortKey: SortKey;
+  readonly q: string;
+  readonly include: readonly string[];
+  readonly exclude: readonly string[];
+  readonly sfw: boolean;
+  readonly page: number;
+}
+
+interface SearchResult {
+  readonly rows: readonly AtlasRow[];
+  readonly totalPages: number;
+}
+
+interface DetailResult {
+  readonly blurb: string;
+  readonly raw: unknown;
+}
+
+interface SourceAdapter {
+  readonly label: string;
+  readonly paging: PagingKind;
+  readonly rowTags: boolean;
+  readonly serverInclude: boolean;
+  readonly serverExclude: boolean;
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly sortOptions: readonly SortOption[];
+  readonly search: (request: SearchRequest) => Promise<SearchResult | null>;
+  readonly detail: (result: AtlasRow) => Promise<DetailResult | null>;
+  readonly heroUrl: (result: AtlasRow) => string | null;
+  readonly cardPngUrl: (result: AtlasRow) => string | null;
+  readonly fetchCard: (result: AtlasRow, raw: unknown) => Promise<Record<string, unknown> | null>;
+}
+
+interface BrowseSession extends SearchJob {
+  page: number;
+  totalPages: number;
+  allRows: readonly AtlasRow[] | null;
+  pageRows: readonly AtlasRow[];
+}
+
+interface OpenResult {
+  readonly result: AtlasRow;
+  readonly raw: unknown;
+  readonly blurb: string;
+}
+
+interface NetInit {
+  readonly method?: "GET" | "POST";
+  readonly headers?: Record<string, string>;
+  readonly body?: string;
+}
+type ArtCache = Record<string, unknown>;
+
+function isSourceKey(value: unknown): value is SourceKey {
+  return (
+    value === "tavern" ||
+    value === "realm" ||
+    value === "chub" ||
+    value === "wyvern" ||
+    value === "aicc" ||
+    value === "charavault" ||
+    value === "botbooru" ||
+    value === "pygmalion" ||
+    value === "datacat"
+  );
+}
+
 /** Rows per page where the plugin owns the size (held-set slicing, `first`/`limit` params). Character
  *  Tavern's server page is a fixed 30 (its `hitsPerPage` param is ignored) and Wyvern's a fixed 10 — a
  *  server-paged hub's own size wins; this is the harmonized ask everywhere the hub listens. */
@@ -154,7 +269,7 @@ const MILLION = 1_000_000;
  *  OFF = show everything (the owner's no-gate posture, #800). */
 const SFW_KEY = "sfw_mode";
 /** The last SFW value this resident wrote — saves a kv write per search when nothing changed. */
-let lastSfwWritten = null;
+let lastSfwWritten: boolean | null = null;
 
 // ── the resident browse session ────────────────────────────────────────────────────────────────────────────
 /** The whole browse session, module state: what was searched (q/source/sort/filters — pager clicks page THIS,
@@ -162,9 +277,9 @@ let lastSfwWritten = null;
  *  what `r0`…`rN` tile clicks resolve against), and — held-set hubs only — the ONE whole result set the route
  *  serves (`allRows`, filtered + sorted once; page flips slice it locally, no wire). Alive for the resident's
  *  lifetime, gone on respawn, which is the honest lifetime of a browse session. */
-let session = null;
+let session: BrowseSession | null = null;
 /** The result currently on the detail stage (the add-to-library button's subject). */
-let openResult = null;
+let openResult: OpenResult | null = null;
 
 // ── shared fetch/parse helpers (every response is untrusted data) ──────────────────────────────────────────
 
@@ -172,14 +287,15 @@ let openResult = null;
  *  bare UA, or the POST body a connect-RPC hub wants). `null` for EVERY failure shape — non-2xx, a body
  *  that is not JSON, the host's own refusals (off-allowlist, the hourly egress floor, the 5 s deadline, the
  *  byte cap). The CALLER folds the failure into the status line; nothing here ever throws into a handler. */
-async function getJson(url, init) {
+async function getJson(url: string, init?: NetInit): Promise<unknown | null> {
   try {
     const res = await host.net.fetch(url, init);
     if (res.status < HTTP_OK_MIN || res.status >= HTTP_OK_MAX) {
       host.log.info(`fetch ${res.status}: ${url}`);
       return null;
     }
-    return JSON.parse(res.body);
+    const parsed: unknown = JSON.parse(res.body);
+    return parsed;
   } catch (err) {
     host.log.warn(`fetch failed: ${String(err)}`);
     return null;
@@ -187,7 +303,7 @@ async function getJson(url, init) {
 }
 
 /** POST a JSON body (the connect-RPC / token-mint dialect) — the same failure fold as {@link getJson}. */
-function postJson(url, body, headers) {
+function postJson(url: string, body: Readonly<Record<string, unknown>>, headers?: Record<string, string>): Promise<unknown | null> {
   return getJson(url, {
     method: "POST",
     // biome-ignore lint/style/useNamingConvention: an HTTP header name is a wire token.
@@ -196,12 +312,12 @@ function postJson(url, body, headers) {
   });
 }
 
-const str = (v) => (typeof v === "string" && v.length > 0 ? v : undefined);
-const isObj = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+const str = (v: unknown): string | undefined => (typeof v === "string" && v.length > 0 ? v : undefined);
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
 /** Downloads arrive as a number (most hubs) or a compact string like "16.3k" (RisuRealm). ONE parser to a
  *  plain number, `-1` for unknowable — so sorting and display treat every hub identically. */
-function parseCount(raw) {
+function parseCount(raw: unknown): number {
   if (typeof raw === "number" && Number.isFinite(raw)) {
     return Math.round(raw);
   }
@@ -209,7 +325,7 @@ function parseCount(raw) {
     const m = /^([0-9]+(?:\.[0-9]+)?)([km]?)$/i.exec(raw.trim());
     if (m !== null) {
       const n = Number(m[1]);
-      const suffix = m[2].toLowerCase();
+      const suffix = m[2]?.toLowerCase() ?? "";
       if (suffix === "k") {
         return Math.round(n * THOUSAND);
       }
@@ -223,11 +339,11 @@ function parseCount(raw) {
 }
 
 /** ONE compact display formatter — "7406" and "26.9k" both render the same dialect. */
-function fmtCount(n) {
+function fmtCount(n: number): string {
   if (n < 0) {
     return "—";
   }
-  const trim = (s) => (s.endsWith(".0") ? s.slice(0, -2) : s);
+  const trim = (s: string): string => (s.endsWith(".0") ? s.slice(0, -2) : s);
   if (n >= MILLION) {
     return `${trim((n / MILLION).toFixed(1))}m`;
   }
@@ -238,13 +354,13 @@ function fmtCount(n) {
 }
 
 /** A finite number, else `undefined` — the stat bag's "unknowable" (never -1 sentinels inside `n`). */
-function num(v) {
+function num(v: unknown): number | undefined {
   return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
 
 /** A content-rating tri-state: an explicit yes wins, an explicit no follows, silence stays `undefined`
  *  (the hub doesn't say — no Content row, no chip, and the SFW filter has nothing to judge). */
-function triState(isTrue, isFalse) {
+function triState(isTrue: boolean, isFalse: boolean): boolean | undefined {
   if (isTrue) {
     return true;
   }
@@ -252,7 +368,7 @@ function triState(isTrue, isFalse) {
 }
 
 /** A count that may arrive numeric or compact-string ("26.9k") → number, `undefined` unknowable. */
-function cnt(v) {
+function cnt(v: unknown): number | undefined {
   const parsed = parseCount(v);
   return parsed < 0 ? undefined : parsed;
 }
@@ -318,21 +434,21 @@ const DAYS_IN_MONTH = [
 ];
 
 /** Proleptic-Gregorian leap year. */
-function isLeapYear(year) {
+function isLeapYear(year: number): boolean {
   return year % LEAP_CYCLE_YEARS === 0 && (year % CENTURY_YEARS !== 0 || year % YEARS_PER_ERA === 0);
 }
 
 /** Does `year-month-day` name a real civil date? (month 13, February 30 do not.) */
-function isCivilDate(year, month, day) {
+function isCivilDate(year: number, month: number, day: number): boolean {
   if (month < 1 || month > MONTHS_PER_YEAR) {
     return false;
   }
-  const monthDays = DAYS_IN_MONTH[month - 1] + (month === FEBRUARY && isLeapYear(year) ? 1 : 0);
+  const monthDays = (DAYS_IN_MONTH[month - 1] ?? 0) + (month === FEBRUARY && isLeapYear(year) ? 1 : 0);
   return day >= 1 && day <= monthDays;
 }
 
 /** Days since 1970-01-01 for a civil date (Hinnant's days_from_civil; the caller validated the date). */
-function daysFromCivil(year, month, day) {
+function daysFromCivil(year: number, month: number, day: number): number {
   const y = month <= FEBRUARY ? year - 1 : year;
   const era = Math.floor(y / YEARS_PER_ERA);
   const yoe = y - era * YEARS_PER_ERA;
@@ -343,7 +459,7 @@ function daysFromCivil(year, month, day) {
 }
 
 /** The civil date for a day count since 1970-01-01 (Hinnant's civil_from_days). */
-function civilFromDays(days) {
+function civilFromDays(days: number): { readonly year: number; readonly month: number; readonly day: number } {
   const z = days + CIVIL_EPOCH_SHIFT;
   const era = Math.floor(z / DAYS_PER_ERA);
   const doe = z - era * DAYS_PER_ERA;
@@ -359,7 +475,7 @@ function civilFromDays(days) {
 }
 
 /** A stamp's zone suffix → the offset to SUBTRACT, ms (`Z`/absent = 0); `undefined` for an impossible offset. */
-function zoneOffsetMs(zone) {
+function zoneOffsetMs(zone: string | undefined): number | undefined {
   if (zone === undefined || zone === "Z" || zone === "z") {
     return 0;
   }
@@ -374,7 +490,12 @@ function zoneOffsetMs(zone) {
 }
 
 /** The time-of-day groups of a stamp → ms past midnight; `undefined` for an impossible clock reading. */
-function timeOfDayMs(hourText, minuteText, secondText, fractionText) {
+function timeOfDayMs(
+  hourText: string | undefined,
+  minuteText: string | undefined,
+  secondText: string | undefined,
+  fractionText: string | undefined,
+): number | undefined {
   const hour = hourText === undefined ? 0 : Number(hourText);
   const minute = minuteText === undefined ? 0 : Number(minuteText);
   const second = secondText === undefined ? 0 : Number(secondText);
@@ -387,7 +508,7 @@ function timeOfDayMs(hourText, minuteText, secondText, fractionText) {
 
 /** An ISO-shaped stamp (see the grammar above) → epoch ms, `undefined` when it does not parse or names a
  *  date/time/offset that does not exist (month 13, February 30, hour 24, zone +25:00). */
-function parseIsoStamp(text) {
+function parseIsoStamp(text: string): number | undefined {
   const m = ISO_STAMP_RE.exec(text);
   if (m === null) {
     return;
@@ -407,7 +528,7 @@ function parseIsoStamp(text) {
 }
 
 /** An ISO string / epoch-seconds / epoch-ms date → epoch ms, `undefined` when absent/unparseable. */
-function epochMs(v) {
+function epochMs(v: unknown): number | undefined {
   if (typeof v === "number" && Number.isFinite(v)) {
     return v > EPOCH_SECONDS_CEILING_MS ? Math.round(v) : Math.round(v * THOUSAND);
   }
@@ -421,7 +542,7 @@ function epochMs(v) {
 }
 
 /** Epoch ms → the date the stat sheet shows (YYYY-MM-DD — a card's age, not a timestamp), in UTC. */
-function fmtDate(ms) {
+function fmtDate(ms: number): string {
   const { year, month, day } = civilFromDays(Math.floor(ms / MS_PER_DAY));
   return `${String(year).padStart(YEAR_DIGITS, "0")}-${String(month).padStart(TWO_DIGITS, "0")}-${String(day).padStart(TWO_DIGITS, "0")}`;
 }
@@ -429,7 +550,7 @@ function fmtDate(ms) {
 // ── the sort vocabulary (per-hub MENUS over one comparator dialect) ────────────────────────────────────────
 /** Every sort key's display label — ONE dialect, so "Most viewed" reads identically on every hub that can
  *  answer it. A hub's menu is a SUBSET (its `sortOptions`), assembled by {@link sortOpts}. */
-const SORT_LABELS = {
+const SORT_LABELS: Readonly<Record<SortKey, string>> = {
   relevance: "Hub default",
   trending: "Trending",
   downloads: "Most downloaded",
@@ -447,13 +568,13 @@ const SORT_LABELS = {
 
 /** Build one hub's sort menu from its honored keys (+ per-hub label overrides — a hub whose default order
  *  IS newest says so on the first entry instead of pretending "Hub default" is a distinct mode). */
-function sortOpts(keys, overrides) {
+function sortOpts(keys: readonly SortKey[], overrides?: Partial<Record<SortKey, string>>): readonly SortOption[] {
   return keys.map((key) => ({ value: key, label: overrides?.[key] || SORT_LABELS[key] }));
 }
 
 /** Which normalized-row stat field each sort key reads (page-side / held-set-side ordering). `relevance`
  *  and `trending` are absent on purpose: they are PROVIDER orderings with no per-row datum to re-derive. */
-const SORT_FIELD = {
+const SORT_FIELD: Partial<Record<SortKey, StatKey>> = {
   downloads: "downloads",
   stars: "stars",
   likes: "likes",
@@ -468,7 +589,7 @@ const SORT_FIELD = {
 
 /** The stat sheet's row order + formatters — ONE list, so every hub's detail reads in the same order and
  *  dialect, showing ONLY the stats its rows actually carried (the `rowsFrom` honesty: no page of "—"). */
-const STAT_ROWS = [
+const STAT_ROWS: readonly (readonly [field: StatKey, label: string, format: (value: number) => string])[] = [
   ["downloads", "Downloads", fmtCount],
   ["stars", "Stars", fmtCount],
   ["likes", "Likes", fmtCount],
@@ -477,16 +598,16 @@ const STAT_ROWS = [
   ["chats", "Chats", fmtCount],
   ["messages", "Messages", fmtCount],
   ["comments", "Comments", fmtCount],
-  ["rating", "Rating", (v) => `${Math.round(v * 10) / 10} / 5`],
-  ["tokens", "Tokens", (v) => String(v)],
+  ["rating", "Rating", (v: number): string => `${Math.round(v * 10) / 10} / 5`],
+  ["tokens", "Tokens", (v: number): string => String(v)],
   ["created", "Created", fmtDate],
   ["updated", "Updated", fmtDate],
 ];
 
 /** One row's display stat rows — the detail keyValue's bound data, plus the Content row where the hub
  *  flags content at all (true/false = a real answer; undefined = the hub doesn't say, so no row). */
-function statRows(row) {
-  const rows = [];
+function statRows(row: AtlasRow): { readonly key: string; readonly value: string }[] {
+  const rows: { readonly key: string; readonly value: string }[] = [];
   for (const [field, label, fmt] of STAT_ROWS) {
     const value = row.n[field];
     if (value !== undefined) {
@@ -501,11 +622,11 @@ function statRows(row) {
 
 /** ONE tag dialect for every hub (and for the filter inputs): lowercased, trimmed, deduped, clamped — so a
  *  row's chips and a person's typed filter words compare equal by construction. */
-function normTags(raw) {
+function normTags(raw: unknown): string[] {
   if (!Array.isArray(raw)) {
     return [];
   }
-  const out = [];
+  const out: string[] = [];
   for (const tag of raw) {
     if (out.length >= TAGS_PER_ROW_MAX) {
       break;
@@ -522,18 +643,18 @@ function normTags(raw) {
 }
 
 /** A comma-separated filter field → the same normalized dialect (empty entries dropped, capped). */
-function parseTagList(raw) {
+function parseTagList(raw: unknown): string[] {
   return normTags(String(raw ?? "").split(",")).slice(0, FILTER_TAGS_MAX);
 }
 
 /** Query-string builder for the GUEST REALM — QuickJS ships no `URLSearchParams` (measured live: a floated
  *  search died on the ReferenceError), so the param dialect is encodeURIComponent + join, nothing fancier. */
-function qs(pairs) {
+function qs(pairs: readonly (readonly [string, string])[]): string {
   return pairs.map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&");
 }
 
 /** Page count from a corpus total + a page size; 1 when the hub reports none. */
-function pagesOf(total, perPage) {
+function pagesOf(total: number | undefined, perPage: number): number {
   return typeof total === "number" && Number.isFinite(total) && total > 0 ? Math.max(1, Math.ceil(total / perPage)) : 1;
 }
 
@@ -559,20 +680,25 @@ const DEVALUE_SENTINELS = new Map([
 ]);
 
 /** Hydrate one pool slot already known to be an array/object; `recurse` chases its pointers. */
-function hydrateSlot(seen, index, value, recurse) {
+function hydrateSlot(
+  seen: Map<number, unknown>,
+  index: number,
+  value: readonly unknown[] | Record<string, unknown>,
+  recurse: (value: unknown) => unknown,
+): unknown {
   if (Array.isArray(value)) {
     if (typeof value[0] === "string") {
       seen.set(index, value);
       return value; // A tagged tuple — hand back verbatim.
     }
-    const arr = [];
+    const arr: unknown[] = [];
     seen.set(index, arr);
     for (const ptr of value) {
       arr.push(recurse(ptr));
     }
     return arr;
   }
-  const obj = {};
+  const obj: Record<string, unknown> = {};
   seen.set(index, obj);
   for (const [k, v] of Object.entries(value)) {
     obj[k] = recurse(v);
@@ -580,9 +706,9 @@ function hydrateSlot(seen, index, value, recurse) {
   return obj;
 }
 
-function unflattenDevalue(flat) {
-  const seen = new Map();
-  const hydrate = (index) => {
+function unflattenDevalue(flat: readonly unknown[]): unknown {
+  const seen = new Map<number, unknown>();
+  const hydrate = (index: unknown): unknown => {
     if (typeof index !== "number") {
       return index;
     }
@@ -604,14 +730,14 @@ function unflattenDevalue(flat) {
 
 /** Pull the LAST node carrying a `data` array out of the SvelteKit envelope and hydrate it. `null` on any
  *  shape drift — a hub redesign must degrade to "no results", never a crash. */
-function decodeDataRoute(json) {
-  if (!(isObj(json) && Array.isArray(json.nodes))) {
+function decodeDataRoute(json: unknown): Record<string, unknown> | null {
+  if (!(isObj(json) && Array.isArray(json["nodes"]))) {
     return null;
   }
-  for (let i = json.nodes.length - 1; i >= 0; i -= 1) {
-    const node = json.nodes[i];
-    if (isObj(node) && Array.isArray(node.data)) {
-      const root = unflattenDevalue(node.data);
+  for (let i = json["nodes"].length - 1; i >= 0; i -= 1) {
+    const node = json["nodes"][i];
+    if (isObj(node) && Array.isArray(node["data"])) {
+      const root = unflattenDevalue(node["data"]);
       return isObj(root) ? root : null;
     }
   }
@@ -658,7 +784,7 @@ const DATACAT_BASE = "https://datacat.run";
 const DATACAT_AVATAR_BASE = "https://ella.janitorai.com/bot-avatars/";
 
 /** A `author/slug`-style path, segment-encoded for a URL (slashes survive). */
-const encPath = (p) =>
+const encPath = (p: string): string =>
   p
     .split("/")
     .map((seg) => encodeURIComponent(seg))
@@ -666,25 +792,25 @@ const encPath = (p) =>
 
 /** ONE Tavern hit → the normalized row. NSFW is a per-row FLAG here (the search API has no rating param) —
  *  kept and labeled; the SFW config drops it row-side when ON. */
-function tavernRow(hit) {
+function tavernRow(hit: unknown): AtlasRow | null {
   if (!isObj(hit)) {
     return null;
   }
-  const ref = str(hit.path);
-  const name = str(hit.name);
+  const ref = str(hit["path"]);
+  const name = str(hit["name"]);
   if (ref === undefined || name === undefined) {
     return null; // A malformed row is dropped, never fatal — one bad hit must not blank the page.
   }
-  const downloads = cnt(hit.downloads);
+  const downloads = cnt(hit["downloads"]);
   return {
     source: "tavern",
     ref,
     name: name.slice(0, NAME_MAX_CHARS),
-    creator: str(hit.author) ?? "unknown",
+    creator: str(hit["author"]) ?? "unknown",
     pop: downloads === undefined ? "" : `${fmtCount(downloads)}↓`,
-    n: { downloads, likes: num(hit.likes), messages: num(hit.messages), tokens: num(hit.totalTokens) },
-    nsfw: hit.isNSFW === true,
-    tagline: str(hit.tagline) ?? "",
+    n: { downloads, likes: num(hit["likes"]), messages: num(hit["messages"]), tokens: num(hit["totalTokens"]) },
+    nsfw: hit["isNSFW"] === true,
+    tagline: str(hit["tagline"]) ?? "",
     // The grid cover: the CDN's 320-wide variant (~85 KB) — a tile never needs the full card file.
     art: `${TAVERN_CDN}/${encPath(ref)}.png?width=320&quality=85&format=auto`,
     tags: [], // Tavern projects NO tags into any public JSON surface (probed 2026-08-29).
@@ -693,22 +819,22 @@ function tavernRow(hit) {
 
 /** ONE realm card → the normalized row (tags present on ~half the rows; the server's nsfw param filters, so
  *  a row that arrives does not self-identify — `nsfw` stays undefined). */
-function realmRow(card) {
+function realmRow(card: unknown): AtlasRow | null {
   if (!isObj(card)) {
     return null;
   }
-  const ref = str(card.id);
-  const name = str(card.name);
+  const ref = str(card["id"]);
+  const name = str(card["name"]);
   if (ref === undefined || name === undefined) {
     return null;
   }
-  const downloads = cnt(card.download);
-  const img = str(card.img);
+  const downloads = cnt(card["download"]);
+  const img = str(card["img"]);
   return {
     source: "realm",
     ref,
     name: name.slice(0, NAME_MAX_CHARS),
-    creator: str(card.authorname) ?? "unknown",
+    creator: str(card["authorname"]) ?? "unknown",
     pop: downloads === undefined ? "" : `${fmtCount(downloads)}↓`,
     // NO `created` here: realm's `date` field is not a recognizable epoch (a live drive rendered 1970
     // dates from it) — an unverifiable datum stays OFF the sheet rather than showing nonsense.
@@ -717,46 +843,46 @@ function realmRow(card) {
     tagline: "",
     // The cover by content hash on realm's resource CDN — full-size already, so it doubles as the hero.
     art: img === undefined ? "" : `${REALM_CDN}/resource/${encodeURIComponent(img)}`,
-    tags: normTags(card.tags),
+    tags: normTags(card["tags"]),
   };
 }
 
 /** ONE chub node → the normalized row. Chub's live popularity signal is `starCount` (its `nDownloads` comes
  *  back null on today's wire — probed 2026-08-29), so stars fill the popularity slot with an honest ★ label;
  *  the row also carries favorites/rating/chats/messages/dates — the fullest stat sheet in the roster. */
-function chubRow(node) {
+function chubRow(node: unknown): AtlasRow | null {
   if (!isObj(node)) {
     return null;
   }
-  const ref = str(node.fullPath);
-  const name = str(node.name);
+  const ref = str(node["fullPath"]);
+  const name = str(node["name"]);
   if (ref === undefined || name === undefined) {
     return null;
   }
-  const stars = num(node.starCount);
-  const ratingCount = num(node.ratingCount) ?? 0;
+  const stars = num(node["starCount"]);
+  const ratingCount = num(node["ratingCount"]) ?? 0;
   return {
     source: "chub",
     ref,
     name: name.slice(0, NAME_MAX_CHARS),
-    creator: ref.includes("/") ? ref.split("/")[0] : "unknown",
+    creator: ref.includes("/") ? (ref.split("/")[0] ?? "unknown") : "unknown",
     pop: stars === undefined ? "" : `${fmtCount(stars)}★`,
     n: {
       stars,
-      favorites: num(node.n_favorites),
-      rating: ratingCount > 0 ? num(node.rating) : undefined, // 0-vote rating is "unrated", not "0 / 5".
-      chats: num(node.nChats),
-      messages: num(node.nMessages),
-      tokens: num(node.nTokens),
-      created: epochMs(node.createdAt),
-      updated: epochMs(node.lastActivityAt),
+      favorites: num(node["n_favorites"]),
+      rating: ratingCount > 0 ? num(node["rating"]) : undefined, // 0-vote rating is "unrated", not "0 / 5".
+      chats: num(node["nChats"]),
+      messages: num(node["nMessages"]),
+      tokens: num(node["nTokens"]),
+      created: epochMs(node["createdAt"]),
+      updated: epochMs(node["lastActivityAt"]),
     },
-    nsfw: node.nsfw_image === true,
-    tagline: str(node.tagline) ?? "",
+    nsfw: node["nsfw_image"] === true,
+    tagline: str(node["tagline"]) ?? "",
     // Prefer the row's OWN avatar_url when it lives on the allowlisted CDN — the constructed path 404s
     // for a minority of cards (live-drive finding); fall back to the constructed spelling otherwise.
-    art: str(node.avatar_url)?.startsWith(`${CHUB_CDN}/`) === true ? node.avatar_url : `${CHUB_CDN}/avatars/${encPath(ref)}/avatar.webp`,
-    tags: normTags(node.topics),
+    art: str(node["avatar_url"])?.startsWith(`${CHUB_CDN}/`) === true ? (str(node["avatar_url"]) ?? "") : `${CHUB_CDN}/avatars/${encPath(ref)}/avatar.webp`,
+    tags: normTags(node["topics"]),
   };
 }
 
@@ -766,112 +892,118 @@ const WYVERN_SFW_RATINGS = ["sfw", "safe", "everyone", "pg", "teen"];
 /** ONE wyvern result → the normalized row. Its rating is a free string ("none" on most of the public
  *  approved feed ⇒ undefined — the hub doesn't say); the per-view statistics rows are minted fresh on read
  *  (probed: views=1 on an old card), so only tokens/likes/dates/messages are trusted onto the sheet. */
-function wyvernRow(node) {
+function wyvernRow(node: unknown): AtlasRow | null {
   if (!isObj(node)) {
     return null;
   }
-  const ref = str(node.id);
-  const name = str(node.name);
+  const ref = str(node["id"]);
+  const name = str(node["name"]);
   if (ref === undefined || name === undefined) {
     return null;
   }
-  const rating = typeof node.rating === "string" ? node.rating.toLowerCase() : "";
+  const rating = typeof node["rating"] === "string" ? node["rating"].toLowerCase() : "";
   const nsfw = triState(WYVERN_NSFW_RATINGS.includes(rating), WYVERN_SFW_RATINGS.includes(rating));
-  const likes = num(node.likes);
-  const stats = isObj(node.entity_statistics) ? node.entity_statistics : {};
+  const likes = num(node["likes"]);
+  const stats = isObj(node["entity_statistics"]) ? node["entity_statistics"] : {};
   return {
     source: "wyvern",
     ref,
     name: name.slice(0, NAME_MAX_CHARS),
-    creator: (isObj(node.creator) ? str(node.creator.displayName) : undefined) ?? "unknown",
+    creator: (isObj(node["creator"]) ? str(node["creator"]["displayName"]) : undefined) ?? "unknown",
     pop: likes === undefined || likes === 0 ? "" : `${fmtCount(likes)}♥`,
-    n: { likes, messages: num(stats.total_messages), tokens: num(node.token_count), created: epochMs(node.created_at), updated: epochMs(node.updated_at) },
+    n: {
+      likes,
+      messages: num(stats["total_messages"]),
+      tokens: num(node["token_count"]),
+      created: epochMs(node["created_at"]),
+      updated: epochMs(node["updated_at"]),
+    },
     nsfw,
-    tagline: str(node.tagline) ?? "",
-    art: str(node.avatar) ?? "", // A full Cloudflare-Images URL on the allowlisted imagedelivery.net apex.
-    tags: normTags(node.tags ?? node.community_tags),
+    tagline: str(node["tagline"]) ?? "",
+    art: str(node["avatar"]) ?? "", // A full Cloudflare-Images URL on the allowlisted imagedelivery.net apex.
+    tags: normTags(node["tags"] ?? node["community_tags"]),
   };
 }
 
 /** ONE AICC card → the normalized row (tags arrive as `[{id, name}]` — the names are the vocabulary). */
-function aiccRow(card) {
+function aiccRow(card: unknown): AtlasRow | null {
   if (!isObj(card)) {
     return null;
   }
-  const name = str(card.title);
-  if (typeof card.id !== "number" || name === undefined) {
+  const name = str(card["title"]);
+  if (typeof card["id"] !== "number" || name === undefined) {
     return null;
   }
-  const downloads = cnt(card.downloadCount);
-  const ratingCount = num(card.ratingCount) ?? 0;
-  const image = str(card.imageUrl);
+  const downloads = cnt(card["downloadCount"]);
+  const ratingCount = num(card["ratingCount"]) ?? 0;
+  const image = str(card["imageUrl"]);
   return {
     source: "aicc",
-    ref: String(card.id),
+    ref: String(card["id"]),
     name: name.slice(0, NAME_MAX_CHARS),
-    creator: str(card.author) ?? "unknown",
+    creator: str(card["author"]) ?? "unknown",
     pop: downloads === undefined ? "" : `${fmtCount(downloads)}↓`,
     n: {
       downloads,
-      rating: ratingCount > 0 ? num(card.ratingAvg) : undefined,
-      tokens: num(card.tokenCount),
-      created: epochMs(card.createdAt),
+      rating: ratingCount > 0 ? num(card["ratingAvg"]) : undefined,
+      tokens: num(card["tokenCount"]),
+      created: epochMs(card["createdAt"]),
     },
-    nsfw: card.isNsfw === true,
-    tagline: str(card.excerpt) ?? "",
+    nsfw: card["isNsfw"] === true,
+    tagline: str(card["excerpt"]) ?? "",
     art: image === undefined ? "" : `${AICC_BASE}${image.startsWith("/") ? "" : "/"}${image}`,
-    tags: normTags(Array.isArray(card.tags) ? card.tags.map((t) => (isObj(t) ? t.name : undefined)) : []),
+    tags: normTags(Array.isArray(card["tags"]) ? card["tags"].map((t) => (isObj(t) ? t["name"] : undefined)) : []),
   };
 }
 
 /** ONE CharaVault result → the normalized row. Its cover IS the card PNG (no separate art endpoint) — heavy
  *  but honest; the host's asset cap folds an outsized one to the placeholder. */
-function charavaultRow(row) {
+function charavaultRow(row: unknown): AtlasRow | null {
   if (!isObj(row)) {
     return null;
   }
-  const folder = str(row.folder);
-  const file = str(row.file);
-  const name = str(row.name);
+  const folder = str(row["folder"]);
+  const file = str(row["file"]);
+  const name = str(row["name"]);
   if (folder === undefined || file === undefined || name === undefined) {
     return null;
   }
   const ref = `${folder}/${file}`;
-  const ratingCount = num(row.rating_count) ?? 0;
+  const ratingCount = num(row["rating_count"]) ?? 0;
   return {
     source: "charavault",
     ref,
     name: name.slice(0, NAME_MAX_CHARS),
-    creator: str(row.creator) ?? "unknown",
+    creator: str(row["creator"]) ?? "unknown",
     pop: "", // no download/star counter on a row.
-    n: { rating: ratingCount > 0 ? num(row.avg_rating) : undefined, comments: num(row.comment_count), tokens: num(row.token_count) },
-    nsfw: row.nsfw === true,
-    tagline: str(row.description_preview) ?? "",
+    n: { rating: ratingCount > 0 ? num(row["avg_rating"]) : undefined, comments: num(row["comment_count"]), tokens: num(row["token_count"]) },
+    nsfw: row["nsfw"] === true,
+    tagline: str(row["description_preview"]) ?? "",
     art: `${CHARAVAULT_BASE}/api/cards/download/${encPath(ref)}`,
-    tags: normTags(row.tags),
+    tags: normTags(row["tags"]),
   };
 }
 
 /** ONE BotBooru post → the normalized row. The rating derives from its Meta tags (sfw/nsfw/nsfl — the booru
  *  taxonomy); "Auto" category tags (origin_chub, tagme…) are machine housekeeping and stay off the chip row;
  *  the cover IS the card PNG (`/images/<filename>` — no thumbnail variant exists, probed 2026-08-29). */
-function botbooruRow(post) {
+function botbooruRow(post: unknown): AtlasRow | null {
   if (!isObj(post)) {
     return null;
   }
-  if (typeof post.id !== "number") {
+  if (typeof post["id"] !== "number") {
     return null;
   }
-  const ref = String(post.id);
-  const name = str(post.character_name) ?? str(post.meta_name) ?? ref;
-  const rawTags = Array.isArray(post.tags) ? post.tags.filter(isObj) : [];
-  const tagNames = rawTags.map((t) => (typeof t.name === "string" ? t.name.toLowerCase() : ""));
+  const ref = String(post["id"]);
+  const name = str(post["character_name"]) ?? str(post["meta_name"]) ?? ref;
+  const rawTags = Array.isArray(post["tags"]) ? post["tags"].filter(isObj) : [];
+  const tagNames = rawTags.map((t) => (typeof t["name"] === "string" ? t["name"].toLowerCase() : ""));
   const nsfw = triState(
     tagNames.some((t) => t === "nsfw" || t === "nsfl" || t === "explicit"),
     tagNames.some((t) => t === "sfw" || t === "safe"),
   );
-  const downloads = num(post.downloads);
-  const filename = str(post.filename);
+  const downloads = num(post["downloads"]);
+  const filename = str(post["filename"]);
   return {
     source: "botbooru",
     ref,
@@ -880,93 +1012,94 @@ function botbooruRow(post) {
     pop: downloads === undefined ? "" : `${fmtCount(downloads)}↓`,
     n: {
       downloads,
-      favorites: num(post.favorite_count),
-      views: num(post.views),
-      comments: num(post.comments_count),
-      tokens: num(post.token_count),
-      created: epochMs(post.created_at),
+      favorites: num(post["favorite_count"]),
+      views: num(post["views"]),
+      comments: num(post["comments_count"]),
+      tokens: num(post["token_count"]),
+      created: epochMs(post["created_at"]),
     },
     nsfw,
-    tagline: str(post.tagline) ?? "",
+    tagline: str(post["tagline"]) ?? "",
     art: filename === undefined ? `${BOTBOORU_BASE}/download/png/${encodeURIComponent(ref)}` : `${BOTBOORU_BASE}/images/${encodeURIComponent(filename)}`,
-    tags: normTags(rawTags.filter((t) => t.category !== "Auto").map((t) => t.name)),
+    tags: normTags(rawTags.filter((t) => t["category"] !== "Auto").map((t) => t["name"])),
   };
 }
 
 /** ONE Pygmalion character → the normalized row. The public API serves the SFW-curated catalog only
  *  (`includeSensitive` is auth-gated), so every row is honestly SFW; dates arrive as epoch-second strings. */
-function pygmalionRow(c) {
+function pygmalionRow(c: unknown): AtlasRow | null {
   if (!isObj(c)) {
     return null;
   }
-  const ref = str(c.id);
-  const name = str(c.displayName);
+  const ref = str(c["id"]);
+  const name = str(c["displayName"]);
   if (ref === undefined || name === undefined) {
     return null;
   }
-  const downloads = num(c.downloads);
+  const downloads = num(c["downloads"]);
   return {
     source: "pygmalion",
     ref,
     name: name.slice(0, NAME_MAX_CHARS),
-    creator: (isObj(c.owner) ? str(c.owner.displayName) : undefined) ?? "unknown",
+    creator: (isObj(c["owner"]) ? str(c["owner"]["displayName"]) : undefined) ?? "unknown",
     pop: downloads === undefined ? "" : `${fmtCount(downloads)}↓`,
     n: {
       downloads,
-      stars: num(c.stars),
-      views: num(c.views),
-      chats: num(c.chatCount),
-      tokens: num(c.personalityTokenCount),
-      created: epochMs(c.createdAt),
-      updated: epochMs(c.updatedAt),
+      stars: num(c["stars"]),
+      views: num(c["views"]),
+      chats: num(c["chatCount"]),
+      tokens: num(c["personalityTokenCount"]),
+      created: epochMs(c["createdAt"]),
+      updated: epochMs(c["updatedAt"]),
     },
     nsfw: false, // the unauthenticated catalog is SFW-curated by the hub itself.
-    tagline: str(c.description) ?? "",
-    art: str(c.avatarUrl) ?? "", // a full URL on the allowlisted assets.pygmalion.chat apex.
+    tagline: str(c["description"]) ?? "",
+    art: str(c["avatarUrl"]) ?? "", // a full URL on the allowlisted assets.pygmalion.chat apex.
     tags: [], // rows carry no tags (probed 2026-08-29).
   };
 }
 
 /** ONE Datacat character → the normalized row. The mirror's rows carry chat/message/favorite counters and a
  *  real `isNsfw` flag; covers ride its variant CDN (thumb for the tile, card for the hero — `heroArt`). */
-function datacatRow(c) {
+function datacatRow(c: unknown): AtlasRow | null {
   if (!isObj(c)) {
     return null;
   }
-  const ref = str(c.characterId);
-  const name = str(c.name);
+  const ref = str(c["characterId"]);
+  const name = str(c["name"]);
   if (ref === undefined || name === undefined) {
     return null;
   }
-  const variants = isObj(c.avatarVariantUrls) ? c.avatarVariantUrls : {};
-  const stats = isObj(c.stats) ? c.stats : {};
-  const chats = num(stats.chat);
-  const favorites = isObj(stats.favoritesCount) ? num(stats.favoritesCount.favoritesCount) : undefined;
-  const fallbackAvatar = str(c.avatarDisplayUrl) ?? (str(c.avatar) === undefined ? "" : `${DATACAT_AVATAR_BASE}${encodeURIComponent(str(c.avatar))}`);
+  const variants = isObj(c["avatarVariantUrls"]) ? c["avatarVariantUrls"] : {};
+  const stats = isObj(c["stats"]) ? c["stats"] : {};
+  const chats = num(stats["chat"]);
+  const favorites = isObj(stats["favoritesCount"]) ? num(stats["favoritesCount"]["favoritesCount"]) : undefined;
+  const avatar = str(c["avatar"]);
+  const fallbackAvatar = str(c["avatarDisplayUrl"]) ?? (avatar === undefined ? "" : `${DATACAT_AVATAR_BASE}${encodeURIComponent(avatar)}`);
   return {
     source: "datacat",
     ref,
     name: name.slice(0, NAME_MAX_CHARS),
-    creator: str(c.creatorName) ?? "unknown",
+    creator: str(c["creatorName"]) ?? "unknown",
     pop: chats === undefined ? "" : `${fmtCount(chats)} chats`,
     n: {
       chats,
-      messages: num(stats.message),
+      messages: num(stats["message"]),
       favorites,
-      tokens: num(c.totalTokens),
-      created: epochMs(c.firstPublishedAt ?? c.createdAt),
+      tokens: num(c["totalTokens"]),
+      created: epochMs(c["firstPublishedAt"] ?? c["createdAt"]),
     },
-    nsfw: c.isNsfw === true,
+    nsfw: c["isNsfw"] === true,
     tagline: "",
-    art: str(variants.thumb) ?? fallbackAvatar,
-    heroArt: str(variants.card) ?? str(variants.original) ?? "",
+    art: str(variants["thumb"]) ?? fallbackAvatar,
+    heroArt: str(variants["card"]) ?? str(variants["original"]) ?? "",
     tags: [], // summary rows carry no tags (they exist only on the detail payload — probed 2026-08-29).
   };
 }
 
 /** Collect normalized rows through one mapper, dropping nulls — every hub's search tail. */
-function mapRows(items, mapper) {
-  const rows = [];
+function mapRows(items: readonly unknown[], mapper: (item: unknown) => AtlasRow | null): AtlasRow[] {
+  const rows: AtlasRow[] = [];
   for (const item of items) {
     const row = mapper(item);
     if (row !== null) {
@@ -986,13 +1119,13 @@ const SOURCES = {
     // No server sort exists (three param spellings probed ignored, third era of refutation) — downloads and
     // likes ride the rows, so those orderings are page-side; the menu says only what can be answered.
     sortOptions: sortOpts(["relevance", "downloads", "likes", "name"]),
-    async search({ q, include, page }) {
+    async search({ q, include, page }): Promise<SearchResult | null> {
       // The live param grammar, probed 2026-08-29: `query=` is the text search (the older `q=` is DEAD — it
       // returns the unfiltered firehose), `tags=a,b` is a server-side AND filter over the hub's own tag
       // index (rows never carry the tags back — see `rowTags`), `page=` is real (30 hits fixed, `totalPages`
       // in every response). No sort, exclude, genre or rating params exist (all probed ignored) — the SFW
       // config judges the per-row `isNSFW` flag instead.
-      const params = [
+      const params: [string, string][] = [
         ["query", q],
         ["page", String(page)],
       ];
@@ -1000,53 +1133,56 @@ const SOURCES = {
         params.push(["tags", include.join(",")]);
       }
       const json = await getJson(`https://character-tavern.com/api/search/cards?${qs(params)}`);
-      const hits = isObj(json) && Array.isArray(json.hits) ? json.hits : null;
+      const hits = isObj(json) && Array.isArray(json["hits"]) ? json["hits"] : null;
       if (hits === null) {
         return null;
       }
-      const totalPages = isObj(json) && typeof json.totalPages === "number" && json.totalPages > 0 ? Math.round(json.totalPages) : 1;
+      const totalPages = isObj(json) && typeof json["totalPages"] === "number" && json["totalPages"] > 0 ? Math.round(json["totalPages"]) : 1;
       return { rows: mapRows(hits, tavernRow), totalPages };
     },
-    async detail(result) {
+    async detail(result): Promise<DetailResult | null> {
       // The detail endpoint's `card` carries BOTH the listing prose and the full `definition_*` fields —
       // one fetch serves the preview and the import fold (cached on the open result).
       const json = await getJson(`https://character-tavern.com/api/character/${encPath(result.ref)}`);
-      const card = isObj(json) && isObj(json.card) ? json.card : null;
+      const card = isObj(json) && isObj(json["card"]) ? json["card"] : null;
       if (card === null) {
         return null;
       }
       return {
-        blurb: (str(card.description) ?? result.tagline ?? "").slice(0, BLURB_MAX_CHARS),
+        blurb: (str(card["description"]) ?? result.tagline ?? "").slice(0, BLURB_MAX_CHARS),
         raw: card,
       };
     },
     /** The detail hero's sharper variant (640-wide) — fetched lazily when a card opens, cached like a cover. */
-    heroUrl(result) {
+    heroUrl(result): string | null {
       return `${TAVERN_CDN}/${encPath(result.ref)}.png?width=640&quality=60&format=auto`;
     },
     /** The card AS A FILE: the bare CDN png embeds the full definition in its `chara` chunk, so the PNG-first
      *  import lands definition + avatar in one funnel pass, byte-deterministic (re-adds dedupe). */
-    cardPngUrl(result) {
+    cardPngUrl(result): string | null {
       return `${TAVERN_CDN}/${encPath(result.ref)}.png`;
     },
-    fetchCard(_result, raw) {
+    fetchCard(_result, raw): Promise<Record<string, unknown> | null> {
       // The JSON FOLD (no PNG grant, or an over-cap/refused file): the detail payload's foreign
       // `definition_*` keys RESHAPED into the canonical `{data:{…}}` the import funnel reads. Field order is
       // FIXED and minimal: deterministic bytes ⇒ a re-add dedupes by importHash instead of minting a twin.
-      const data = { name: str(raw.name) ?? "unnamed" };
-      const put = (key, value) => {
+      if (!isObj(raw)) {
+        return Promise.resolve(null);
+      }
+      const data: Record<string, unknown> = { name: str(raw["name"]) ?? "unnamed" };
+      const put = (key: string, value: unknown): void => {
         if (typeof value === "string" && value.length > 0) {
           data[key] = value;
         }
       };
-      put("description", raw.definition_character_description);
-      put("personality", raw.definition_personality);
-      put("scenario", raw.definition_scenario);
-      put("first_mes", raw.definition_first_message);
-      put("mes_example", raw.definition_example_messages);
-      put("system_prompt", raw.definition_system_prompt);
-      put("post_history_instructions", raw.definition_post_history_prompt);
-      put("creator", str(raw.author));
+      put("description", raw["definition_character_description"]);
+      put("personality", raw["definition_personality"]);
+      put("scenario", raw["definition_scenario"]);
+      put("first_mes", raw["definition_first_message"]);
+      put("mes_example", raw["definition_example_messages"]);
+      put("system_prompt", raw["definition_system_prompt"]);
+      put("post_history_instructions", raw["definition_post_history_prompt"]);
+      put("creator", str(raw["author"]));
       return Promise.resolve({ data });
     },
   },
@@ -1059,12 +1195,12 @@ const SOURCES = {
     // The data route DOES honor `sort=` (trending/downloads — probed 2026-08-29, distinct server-sorted
     // sets; the v1.2 "no realm sort" premise died). Include/exclude stay row-side over the held set.
     sortOptions: sortOpts(["relevance", "trending", "downloads", "name"]),
-    async search({ q, sortKey, sfw }) {
+    async search({ q, sortKey, sfw }): Promise<SearchResult | null> {
       // Held-set source: the data route returns ONE whole result set (~60 rows) and 500s on any `page` > 1
       // (probed 2026-08-29) — the session pages it locally. The route's DEFAULT feed excludes NSFW;
       // `nsfw=true` opts it in — so the param rides exactly when the SFW filter is OFF (the show-all
       // default), and rows never self-identify (server-filtered ⇒ no per-row flag).
-      const params = [["search", q]];
+      const params: [string, string][] = [["search", q]];
       if (sortKey === "trending") {
         params.push(["sort", "trending"]);
       } else if (sortKey === "downloads") {
@@ -1075,31 +1211,31 @@ const SOURCES = {
       }
       const json = await getJson(`https://realm.risuai.net/__data.json?${qs(params)}`);
       const root = decodeDataRoute(json);
-      const cards = root !== null && Array.isArray(root.cards) ? root.cards : null;
+      const cards = root !== null && Array.isArray(root["cards"]) ? root["cards"] : null;
       if (cards === null) {
         return null;
       }
       return { rows: mapRows(cards, realmRow), totalPages: 1 }; // the session re-derives pages after filter+slice.
     },
-    async detail(result) {
+    async detail(result): Promise<DetailResult | null> {
       const json = await getJson(`https://realm.risuai.net/character/${encodeURIComponent(result.ref)}/__data.json`);
       const root = decodeDataRoute(json);
-      const card = root !== null && isObj(root.card) ? root.card : null;
+      const card = root !== null && isObj(root["card"]) ? root["card"] : null;
       if (card === null) {
         return null;
       }
-      return { blurb: (str(card.desc) ?? "").slice(0, BLURB_MAX_CHARS), raw: card };
+      return { blurb: (str(card["desc"]) ?? "").slice(0, BLURB_MAX_CHARS), raw: card };
     },
     /** Realm covers are served full-size — the grid asset IS the hero; no sharper variant to fetch. */
-    heroUrl(_result) {
+    heroUrl(_result): string | null {
       return null;
     },
     /** Realm's documented png-v3 card download. Per-card licensing 403s it for many cards — the import
      *  ladder folds those to the JSON path below. */
-    cardPngUrl(result) {
+    cardPngUrl(result): string | null {
       return `https://realm.risuai.net/api/v1/download/png-v3/${encodeURIComponent(result.ref)}`;
     },
-    async fetchCard(result) {
+    async fetchCard(result): Promise<Record<string, unknown> | null> {
       // The JSON FOLD: realm's documented download API serves the card as native chara_card_v3 JSON — ingest
       // takes it as-is (`parseCardJson` reads V2 and V3 alike). An asset-heavy card can exceed the response
       // cap; the null fold below turns that into an honest sentence rather than a crash.
@@ -1119,12 +1255,12 @@ const SOURCES = {
     // relevance order regardless, which the page-side re-sort corrects). `download_count` is NOT offered:
     // it returns the star order (the downloads counter is dead on today's wire).
     sortOptions: sortOpts(["relevance", "trending", "stars", "favorites", "rating", "newest", "updated", "name"]),
-    async search({ q, include, exclude, sortKey, page, sfw }) {
+    async search({ q, include, exclude, sortKey, page, sfw }): Promise<SearchResult | null> {
       // Chub is the FULL-capability hub: native include (`topics=`) AND exclude (`excludetopics=`), a server
       // sort, and a server rating toggle — its `nsfw` bool is an INCLUDE switch, so it rides `true` under
       // the show-all default and `false` when the SFW filter is ON. `first=30` harmonizes its page size
       // with the roster. (The legacy geo-block note did not reproduce — probed 200 from this box.)
-      const sortParam = {
+      const sortParam: Partial<Record<SortKey, string>> = {
         trending: "trending_downloads",
         stars: "star_count",
         favorites: "n_favorites",
@@ -1132,7 +1268,7 @@ const SOURCES = {
         newest: "created_at",
         updated: "last_activity_at",
       };
-      const params = [
+      const params: [string, string][] = [
         ["search", q],
         ["namespace", "characters"],
         ["first", String(PAGE_SIZE)],
@@ -1148,32 +1284,32 @@ const SOURCES = {
         params.push(["excludetopics", exclude.join(",")]);
       }
       const json = await getJson(`https://api.chub.ai/search?${qs(params)}`, { headers: BROWSER_HEADERS });
-      const body = isObj(json) && isObj(json.data) ? json.data : json;
-      const nodes = isObj(body) && Array.isArray(body.nodes) ? body.nodes : null;
+      const body = isObj(json) && isObj(json["data"]) ? json["data"] : json;
+      const nodes = isObj(body) && Array.isArray(body["nodes"]) ? body["nodes"] : null;
       if (nodes === null) {
         return null;
       }
-      const total = isObj(body) && typeof body.count === "number" ? body.count : undefined;
+      const total = isObj(body) && typeof body["count"] === "number" ? body["count"] : undefined;
       return { rows: mapRows(nodes, chubRow), totalPages: pagesOf(total, PAGE_SIZE) };
     },
-    async detail(result) {
+    async detail(result): Promise<DetailResult | null> {
       const json = await getJson(`https://api.chub.ai/api/characters/${encPath(result.ref)}?full=true`, { headers: BROWSER_HEADERS });
-      const node = isObj(json) && isObj(json.node) ? json.node : null;
+      const node = isObj(json) && isObj(json["node"]) ? json["node"] : null;
       if (node === null) {
         return null;
       }
-      return { blurb: (str(node.description) ?? str(node.tagline) ?? "").slice(0, BLURB_MAX_CHARS), raw: node };
+      return { blurb: (str(node["description"]) ?? str(node["tagline"]) ?? "").slice(0, BLURB_MAX_CHARS), raw: node };
     },
     /** The full card PNG doubles as the sharper hero (the grid cover is the light avatar.webp). */
-    heroUrl(result) {
+    heroUrl(result): string | null {
       return `${CHUB_CDN}/avatars/${encPath(result.ref)}/chara_card_v2.png`;
     },
-    cardPngUrl(result) {
+    cardPngUrl(result): string | null {
       return `${CHUB_CDN}/avatars/${encPath(result.ref)}/chara_card_v2.png`;
     },
     /** PNG is chub's only card format (the legacy adapter shipped `format:"png"`, no JSON arm) — a failed
      *  PNG arm answers the honest error toast rather than a lossy fabricated card. */
-    fetchCard(_result, _raw) {
+    fetchCard(_result, _raw): Promise<Record<string, unknown> | null> {
       return Promise.resolve(null);
     },
   },
@@ -1186,35 +1322,35 @@ const SOURCES = {
     // No server sort (re-probed ignored 2026-08-29) and no reliable per-row counters — name is the one
     // page-side ordering the rows can answer.
     sortOptions: sortOpts(["relevance", "name"]),
-    async search({ q, page }) {
+    async search({ q, page }): Promise<SearchResult | null> {
       // The cleanest hub: `exploreSearch/characters?search=&page=` (no auth, no quirk headers). Its own page
       // size is 10 and `totalPages` arrives in the response (probed 2026-08-29). No tag/sort/nsfw params —
       // filters apply row-side per page; the public approved feed carries no usable rating.
       const json = await getJson(`https://api.wyvern.chat/exploreSearch/characters?search=${encodeURIComponent(q)}&page=${String(page)}`);
-      const results = isObj(json) && Array.isArray(json.results) ? json.results : null;
+      const results = isObj(json) && Array.isArray(json["results"]) ? json["results"] : null;
       if (results === null) {
         return null;
       }
-      const totalPages = isObj(json) && typeof json.totalPages === "number" && json.totalPages > 0 ? Math.round(json.totalPages) : 1;
+      const totalPages = isObj(json) && typeof json["totalPages"] === "number" && json["totalPages"] > 0 ? Math.round(json["totalPages"]) : 1;
       return { rows: mapRows(results, wyvernRow), totalPages };
     },
-    async detail(result) {
+    async detail(result): Promise<DetailResult | null> {
       // The by-id route returns the character NODE directly — and it is NATIVE V2 card JSON (first_mes/
       // mes_example/… at the root), so this one payload serves the preview AND the import fold.
       const json = await getJson(`https://api.wyvern.chat/characters/${encodeURIComponent(result.ref)}`);
       if (!isObj(json)) {
         return null;
       }
-      return { blurb: (str(json.description) ?? str(json.tagline) ?? "").slice(0, BLURB_MAX_CHARS), raw: json };
+      return { blurb: (str(json["description"]) ?? str(json["tagline"]) ?? "").slice(0, BLURB_MAX_CHARS), raw: json };
     },
-    heroUrl(_result) {
+    heroUrl(_result): string | null {
       return null; // the row's Cloudflare-Images URL is already the full cover.
     },
-    cardPngUrl(_result) {
+    cardPngUrl(_result): string | null {
       return null; // wyvern serves no card PNG — the JSON fold below is the import path.
     },
     /** Wyvern's card IS the detail payload (native V2 at the root) — ingest takes it as-is. */
-    fetchCard(_result, raw) {
+    fetchCard(_result, raw): Promise<Record<string, unknown> | null> {
       return Promise.resolve(isObj(raw) ? raw : null);
     },
   },
@@ -1227,11 +1363,11 @@ const SOURCES = {
     // `orderBy` honors downloadCount, ratingAvg and createdAt (= its own default order) — each probed to a
     // distinct/monotonic set 2026-08-29. No tag params — filters apply row-side per page.
     sortOptions: sortOpts(["relevance", "downloads", "rating", "newest", "name"]),
-    async search({ q, sortKey, page }) {
+    async search({ q, sortKey, page }): Promise<SearchResult | null> {
       // Curated, low-volume. No rating param — the per-card `isNsfw` flag is judged row-side by the SFW
       // config (and labeled either way).
-      const orderBy = { downloads: "downloadCount", rating: "ratingAvg", newest: "createdAt" };
-      const params = [
+      const orderBy: Partial<Record<SortKey, string>> = { downloads: "downloadCount", rating: "ratingAvg", newest: "createdAt" };
+      const params: [string, string][] = [
         ["search", q],
         ["limit", String(PAGE_SIZE)],
         ["skip", String((page - 1) * PAGE_SIZE)],
@@ -1240,30 +1376,30 @@ const SOURCES = {
         params.push(["orderBy", orderBy[sortKey]]);
       }
       const json = await getJson(`${AICC_BASE}/api/cards?${qs(params)}`);
-      const data = isObj(json) && Array.isArray(json.data) ? json.data : null;
+      const data = isObj(json) && Array.isArray(json["data"]) ? json["data"] : null;
       if (data === null) {
         return null;
       }
-      const total = isObj(json) && isObj(json.pagination) && typeof json.pagination.total === "number" ? json.pagination.total : undefined;
+      const total = isObj(json) && isObj(json["pagination"]) && typeof json["pagination"]["total"] === "number" ? json["pagination"]["total"] : undefined;
       return { rows: mapRows(data, aiccRow), totalPages: pagesOf(total, PAGE_SIZE) };
     },
-    async detail(result) {
+    async detail(result): Promise<DetailResult | null> {
       // The by-id route returns the card object directly; `description` is the long listing prose.
       const json = await getJson(`${AICC_BASE}/api/cards/${encodeURIComponent(result.ref)}`);
       if (!isObj(json)) {
         return null;
       }
-      return { blurb: (str(json.description) ?? str(json.excerpt) ?? result.tagline ?? "").slice(0, BLURB_MAX_CHARS), raw: json };
+      return { blurb: (str(json["description"]) ?? str(json["excerpt"]) ?? result.tagline ?? "").slice(0, BLURB_MAX_CHARS), raw: json };
     },
     /** The native V2 card PNG doubles as the sharper hero (the grid cover is the light webp). */
-    heroUrl(result) {
+    heroUrl(result): string | null {
       return `${AICC_BASE}/api/cards/${encodeURIComponent(result.ref)}/download`;
     },
-    cardPngUrl(result) {
+    cardPngUrl(result): string | null {
       return `${AICC_BASE}/api/cards/${encodeURIComponent(result.ref)}/download`;
     },
     /** PNG is AICC's only card format (native V2 PNG download; the listing JSON is metadata, not the card). */
-    fetchCard(_result, _raw) {
+    fetchCard(_result, _raw): Promise<Record<string, unknown> | null> {
       return Promise.resolve(null);
     },
   },
@@ -1277,11 +1413,11 @@ const SOURCES = {
     // `sort=newest` and `sort=oldest` are its two honored server sorts (probed distinct 2026-08-29;
     // rating/tokens spellings ignored). No tag params — filters apply row-side per page.
     sortOptions: sortOpts(["relevance", "newest", "oldest", "name"]),
-    async search({ q, sortKey, page }) {
+    async search({ q, sortKey, page }): Promise<SearchResult | null> {
       // The 95K-card aggregator: `?q=&limit=&offset=` (+ the browser-UA pair — it bot-filters a bare client
       // UA). Per-card `nsfw` is judged row-side by the SFW config. Mirrors chub/janitor content, so the
       // import-side byte dedupe matters here most.
-      const params = [
+      const params: [string, string][] = [
         ["q", q],
         ["limit", String(PAGE_SIZE)],
         ["offset", String((page - 1) * PAGE_SIZE)],
@@ -1290,26 +1426,26 @@ const SOURCES = {
         params.push(["sort", sortKey]);
       }
       const json = await getJson(`${CHARAVAULT_BASE}/api/cards?${qs(params)}`, { headers: BROWSER_HEADERS });
-      const results = isObj(json) && Array.isArray(json.results) ? json.results : null;
+      const results = isObj(json) && Array.isArray(json["results"]) ? json["results"] : null;
       if (results === null) {
         return null;
       }
-      const total = isObj(json) && typeof json.total === "number" ? json.total : undefined;
+      const total = isObj(json) && typeof json["total"] === "number" ? json["total"] : undefined;
       return { rows: mapRows(results, charavaultRow), totalPages: pagesOf(total, PAGE_SIZE) };
     },
-    detail(result) {
+    detail(result): Promise<DetailResult | null> {
       // No separate detail endpoint is needed: the search row already carries the description preview (and
       // the full definition lives in the card PNG the import rides). The preview is the honest blurb.
       return Promise.resolve({ blurb: (result.tagline || "(this card ships no description preview)").slice(0, BLURB_MAX_CHARS), raw: null });
     },
-    heroUrl(_result) {
+    heroUrl(_result): string | null {
       return null; // the cover IS the card PNG already.
     },
-    cardPngUrl(result) {
+    cardPngUrl(result): string | null {
       return `${CHARAVAULT_BASE}/api/cards/download/${encPath(result.ref)}`;
     },
     /** PNG is CharaVault's only card format. */
-    fetchCard(_result, _raw) {
+    fetchCard(_result, _raw): Promise<Record<string, unknown> | null> {
       return Promise.resolve(null);
     },
   },
@@ -1324,11 +1460,11 @@ const SOURCES = {
     // legacy adapter's `curated` sorts (top_rated/trending) are DEAD on today's wire (five spellings
     // probed ignored), and so is its `tags=` filter param — tag filters run row-side (rows carry tags).
     sortOptions: sortOpts(["relevance", "downloads", "favorites", "views", "name"], { relevance: "Newest (default)" }),
-    async search({ q, sortKey, page, sfw }) {
+    async search({ q, sortKey, page, sfw }): Promise<SearchResult | null> {
       // The browse JSON gates on the XHR header (without it the route returns the SPA HTML shell). Its
       // default feed includes NSFW — `sfw_only=true` rides exactly when the SFW filter is ON.
-      const sortParam = { downloads: "downloads", favorites: "favorites", views: "views" };
-      const params = [
+      const sortParam: Partial<Record<SortKey, string>> = { downloads: "downloads", favorites: "favorites", views: "views" };
+      const params: [string, string][] = [
         ["q", q],
         ["page", String(page)],
         ["limit", String(PAGE_SIZE)],
@@ -1340,32 +1476,32 @@ const SOURCES = {
         params.push(["sfw_only", "true"]);
       }
       const json = await getJson(`${BOTBOORU_BASE}/posts/?${qs(params)}`, { headers: BOTBOORU_XHR_HEADERS });
-      const posts = isObj(json) && Array.isArray(json.posts) ? json.posts : null;
+      const posts = isObj(json) && Array.isArray(json["posts"]) ? json["posts"] : null;
       if (posts === null) {
         return null;
       }
-      const total = isObj(json) && typeof json.total === "number" ? json.total : undefined;
+      const total = isObj(json) && typeof json["total"] === "number" ? json["total"] : undefined;
       return { rows: mapRows(posts, botbooruRow), totalPages: pagesOf(total, PAGE_SIZE) };
     },
-    async detail(result) {
+    async detail(result): Promise<DetailResult | null> {
       // BotBooru has NO JSON detail route (`/posts/{id}` returns the SPA shell) — the detail is the
       // DOWNLOADED card body itself (native chara_card_v2). A card past the 1 MiB wire cap folds to the
       // row's tagline — an honest thinner preview, never a crash; the PNG import arm still works.
       const card = await getJson(`${BOTBOORU_BASE}/download/json/${encodeURIComponent(result.ref)}`);
-      const data = isObj(card) && isObj(card.data) ? card.data : null;
+      const data = isObj(card) && isObj(card["data"]) ? card["data"] : null;
       if (data === null) {
         return { blurb: (result.tagline || "(the card body was too large to preview — Add to library still works)").slice(0, BLURB_MAX_CHARS), raw: null };
       }
-      return { blurb: (str(data.description) ?? result.tagline ?? "").slice(0, BLURB_MAX_CHARS), raw: card };
+      return { blurb: (str(data["description"]) ?? result.tagline ?? "").slice(0, BLURB_MAX_CHARS), raw: card };
     },
-    heroUrl(_result) {
+    heroUrl(_result): string | null {
       return null; // the cover IS the full card PNG already.
     },
-    cardPngUrl(result) {
+    cardPngUrl(result): string | null {
       return `${BOTBOORU_BASE}/download/png/${encodeURIComponent(result.ref)}`;
     },
     /** The detail already fetched the native card JSON — ingest takes it as-is when the PNG arm folds. */
-    fetchCard(_result, raw) {
+    fetchCard(_result, raw): Promise<Record<string, unknown> | null> {
       return Promise.resolve(isObj(raw) ? raw : null);
     },
   },
@@ -1380,58 +1516,58 @@ const SOURCES = {
     // Its `tagsNamesInclude` param exists but returns empty for common words (an opaque taxonomy) and rows
     // carry no tags, so tag filters are honestly not offered here.
     sortOptions: sortOpts(["relevance", "downloads", "stars", "views", "newest", "name"]),
-    async search({ q, sortKey, page }) {
+    async search({ q, sortKey, page }): Promise<SearchResult | null> {
       // Connect-RPC: ONE POST with a JSON message; `page` is 0-based upstream. The unauthenticated service
       // serves the SFW-curated catalog only (`includeSensitive` is auth-gated — not a seeded plugin's
       // token to carry), so the SFW filter has nothing to do here.
-      const orderBy = { downloads: "downloads", stars: "stars", views: "views", newest: "created" };
-      const message = { query: q, orderDescending: true, pageSize: PAGE_SIZE, page: page - 1 };
+      const orderBy: Partial<Record<SortKey, string>> = { downloads: "downloads", stars: "stars", views: "views", newest: "created" };
+      const message: Record<string, unknown> = { query: q, orderDescending: true, pageSize: PAGE_SIZE, page: page - 1 };
       if (orderBy[sortKey] !== undefined) {
-        message.orderBy = orderBy[sortKey];
+        message["orderBy"] = orderBy[sortKey];
       }
       const json = await postJson(`${PYG_API}/CharacterSearch`, message);
-      const characters = isObj(json) && Array.isArray(json.characters) ? json.characters : null;
+      const characters = isObj(json) && Array.isArray(json["characters"]) ? json["characters"] : null;
       if (characters === null) {
         return null;
       }
-      const total = cnt(json.totalItems); // arrives as a STRING ("4452") — one parser, like every count.
+      const total = cnt(isObj(json) ? json["totalItems"] : undefined); // arrives as a STRING ("4452") — one parser, like every count.
       return { rows: mapRows(characters, pygmalionRow), totalPages: pagesOf(total, PAGE_SIZE) };
     },
-    async detail(result) {
+    async detail(result): Promise<DetailResult | null> {
       // The Character RPC carries the DEFINITION (`personality: {name, persona, greeting}`) — the preview
       // and the JSON import fold in one payload.
       const json = await postJson(`${PYG_API}/Character`, { characterMetaId: result.ref });
-      const character = isObj(json) && isObj(json.character) ? json.character : null;
+      const character = isObj(json) && isObj(json["character"]) ? json["character"] : null;
       if (character === null) {
         return null;
       }
-      return { blurb: (str(character.description) ?? result.tagline ?? "").slice(0, BLURB_MAX_CHARS), raw: character };
+      return { blurb: (str(character["description"]) ?? result.tagline ?? "").slice(0, BLURB_MAX_CHARS), raw: character };
     },
-    heroUrl(_result) {
+    heroUrl(_result): string | null {
       return null; // the row's avatarUrl is already the full asset.
     },
-    cardPngUrl(_result) {
+    cardPngUrl(_result): string | null {
       return null; // pygmalion serves no card file — the JSON fold below is the import path.
     },
     /** Reshape the RPC's `personality` into the canonical card the import funnel reads. Field order is
      *  FIXED and minimal (deterministic bytes ⇒ re-adds dedupe by importHash). */
-    fetchCard(result, raw) {
-      if (!(isObj(raw) && isObj(raw.personality))) {
+    fetchCard(result, raw): Promise<Record<string, unknown> | null> {
+      if (!(isObj(raw) && isObj(raw["personality"]))) {
         return Promise.resolve(null);
       }
-      const p = raw.personality;
-      const data = { name: str(p.name) ?? result.name };
-      if (str(raw.description) !== undefined) {
-        data.description = raw.description;
+      const p = raw["personality"];
+      const data: Record<string, unknown> = { name: str(p["name"]) ?? result.name };
+      if (str(raw["description"]) !== undefined) {
+        data["description"] = raw["description"];
       }
-      if (str(p.persona) !== undefined) {
-        data.personality = p.persona;
+      if (str(p["persona"]) !== undefined) {
+        data["personality"] = p["persona"];
       }
-      if (str(p.greeting) !== undefined) {
-        data.first_mes = p.greeting;
+      if (str(p["greeting"]) !== undefined) {
+        data["first_mes"] = p["greeting"];
       }
       if (result.creator !== "unknown") {
-        data.creator = result.creator;
+        data["creator"] = result.creator;
       }
       return Promise.resolve({ data });
     },
@@ -1445,8 +1581,8 @@ const SOURCES = {
     // The default feed is newest-first; `sortBy=chat_count` reorders (probed 2026-08-29). Its `nsfw=`
     // param is IGNORED (probed: flagged rows still arrive) — the SFW filter judges the row flag instead.
     sortOptions: sortOpts(["relevance", "chats", "name"], { relevance: "Newest (default)" }),
-    async search({ q, sortKey, page }) {
-      const params = [
+    async search({ q, sortKey, page }): Promise<SearchResult | null> {
+      const params: [string, string][] = [
         ["limit", String(PAGE_SIZE)],
         ["offset", String((page - 1) * PAGE_SIZE)],
         ["summary", "1"],
@@ -1459,22 +1595,22 @@ const SOURCES = {
         params.push(["sortBy", "chat_count"]);
       }
       const json = await dcGet(`/api/characters/recent-public?${qs(params)}`);
-      const characters = isObj(json) && Array.isArray(json.characters) ? json.characters : null;
+      const characters = isObj(json) && Array.isArray(json["characters"]) ? json["characters"] : null;
       if (characters === null) {
         return null;
       }
-      const total = isObj(json) && typeof json.totalCount === "number" ? json.totalCount : undefined;
+      const total = isObj(json) && typeof json["totalCount"] === "number" ? json["totalCount"] : undefined;
       return { rows: mapRows(characters, datacatRow), totalPages: pagesOf(total, PAGE_SIZE) };
     },
-    async detail(result) {
+    async detail(result): Promise<DetailResult | null> {
       const json = await dcGet(`/api/characters/${encodeURIComponent(result.ref)}`);
-      const character = isObj(json) && isObj(json.character) ? json.character : null;
+      const character = isObj(json) && isObj(json["character"]) ? json["character"] : null;
       if (character === null) {
         return null;
       }
       // Janitor descriptions arrive as HTML fragments; the markdown node escapes tags (untrusted tier),
       // so they would render as literal `<p>` noise — strip the tags, keep the words.
-      const blurb = (str(character.description) ?? str(character.rawDescription) ?? "")
+      const blurb = (str(character["description"]) ?? str(character["rawDescription"]) ?? "")
         .replace(/<[^>]+>/g, " ")
         .replace(/\s{2,}/g, " ")
         .trim();
@@ -1482,20 +1618,20 @@ const SOURCES = {
     },
     /** The sharper hero is the row's `card`/`original` variant URL (held on the normalized row — datacat's
      *  variant CDN has no deterministic per-ref path to rebuild it from). */
-    heroUrl(result) {
+    heroUrl(result): string | null {
       return typeof result.heroArt === "string" && result.heroArt.length > 0 ? result.heroArt : null;
     },
-    cardPngUrl(_result) {
+    cardPngUrl(_result): string | null {
       return null; // the mirror's PNG download route sits behind a Turnstile wall (probed) — not reachable.
     },
     /** The detail carries `chara_card_v2_json` (the recovered card) — parse it when present; else build a
      *  minimal card from the recovered fields. A DEGRADED row (nothing recovered) answers null ⇒ the honest
      *  error toast: this mirror only recovered the profile, not the definition. */
-    fetchCard(result, raw) {
+    fetchCard(result, raw): Promise<Record<string, unknown> | null> {
       if (!isObj(raw)) {
         return Promise.resolve(null);
       }
-      const cardJson = raw.chara_card_v2_json;
+      const cardJson = raw["chara_card_v2_json"];
       if (typeof cardJson === "string" && cardJson.length > 0) {
         try {
           const parsed = JSON.parse(cardJson);
@@ -1508,27 +1644,27 @@ const SOURCES = {
       } else if (isObj(cardJson)) {
         return Promise.resolve(cardJson);
       }
-      const data = { name: str(raw.name) ?? result.name };
-      const put = (key, value) => {
+      const data: Record<string, unknown> = { name: str(raw["name"]) ?? result.name };
+      const put = (key: string, value: unknown): void => {
         if (typeof value === "string" && value.length > 0) {
           data[key] = value;
         }
       };
-      put("description", raw.description);
-      put("personality", raw.personality);
-      put("scenario", raw.scenario);
-      put("first_mes", raw.first_message ?? raw.extracted_first_message);
-      put("creator", str(raw.creator_name));
+      put("description", raw["description"]);
+      put("personality", raw["personality"]);
+      put("scenario", raw["scenario"]);
+      put("first_mes", raw["first_message"] ?? raw["extracted_first_message"]);
+      put("creator", str(raw["creator_name"]));
       return Promise.resolve(Object.keys(data).length > 1 ? { data } : null);
     },
   },
-};
+} satisfies Record<SourceKey, SourceAdapter>;
 
 // ── the datacat session token (an anonymous mint, cached in kv, re-minted once on a 401/403) ───────────────
 /** kv key holding the minted session token — reused across respawns; a stale one re-mints. */
 const DC_TOKEN_KEY = "dc_token";
 /** Module cache so a browse session pays the kv read once. */
-let dcTokenCache = null;
+let dcTokenCache: string | null = null;
 /** HTTP statuses that mean "this token is done" — re-mint once, then give up honestly. */
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_FORBIDDEN = 403;
@@ -1541,7 +1677,7 @@ const DC_ORIGIN_HEADERS = Object.fromEntries([
 ]);
 
 /** The full header set a tokened datacat call sends. */
-function dcHeaders(token) {
+function dcHeaders(token: string): Record<string, string> {
   return Object.fromEntries([...Object.entries(BROWSER_HEADERS), ...Object.entries(DC_ORIGIN_HEADERS), ["X-Session-Token", token]]);
 }
 
@@ -1551,11 +1687,11 @@ const DEVICE_TOKEN_TAIL_DIGITS = 11;
 
 /** Mint an anonymous session (`liberator/identify`). The deviceToken only needs UUID SHAPE — the guest has
  *  no entropy source (by design), so it derives from the clock: unique enough for an anonymous mint. */
-async function dcMint() {
+async function dcMint(): Promise<string | null> {
   const ms = String(host.clock.nowEpochMs()).padStart(EPOCH_MS_DIGITS, "0");
   const deviceToken = `00000000-0000-4000-8000-a${ms.slice(-DEVICE_TOKEN_TAIL_DIGITS)}`;
   const json = await postJson(`${DATACAT_BASE}/api/liberator/identify`, { deviceToken }, { ...BROWSER_HEADERS, ...DC_ORIGIN_HEADERS });
-  const token = isObj(json) ? str(json.sessionToken) : undefined;
+  const token = isObj(json) ? str(json["sessionToken"]) : undefined;
   if (token === undefined) {
     return null;
   }
@@ -1566,7 +1702,7 @@ async function dcMint() {
 
 /** GET a datacat API path with the session token; ONE re-mint on a 401/403 (an expired anonymous session),
  *  then the standard null fold. Uses `host.net.fetch` directly — it needs the STATUS, which getJson folds. */
-async function dcGet(path) {
+async function dcGet(path: string): Promise<unknown | null> {
   try {
     let token = dcTokenCache;
     if (token === null) {
@@ -1591,7 +1727,8 @@ async function dcGet(path) {
       host.log.info(`datacat ${res.status}: ${path}`);
       return null;
     }
-    return JSON.parse(res.body);
+    const parsed: unknown = JSON.parse(res.body);
+    return parsed;
   } catch (err) {
     host.log.warn(`datacat fetch failed: ${String(err)}`);
     return null;
@@ -1602,17 +1739,17 @@ async function dcGet(path) {
 
 /** Can this install fetch remote art at all? Feature-detected at USE (the grant is the user's call) — with
  *  the grant absent every arm below degrades to the placeholder-tile pre-art behavior, never a crash. */
-const canFetchArt = () => host.grants.includes("net.fetch_asset");
+const canFetchArt = (): boolean => host.grants.includes("net.fetch_asset");
 
 /** Read the art cache — defensively (the value is our own, but an older version's shape must not wedge an
  *  upgrade). Returns a plain mutable map object. */
-async function loadArtCache() {
+async function loadArtCache(): Promise<ArtCache> {
   try {
     const raw = await host.storage.get(ART_CACHE_KEY);
     if (raw === null) {
       return {};
     }
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     return isObj(parsed) ? parsed : {};
   } catch {
     return {};
@@ -1620,22 +1757,27 @@ async function loadArtCache() {
 }
 
 /** Persist the cache, LRU-trimmed by fetch time so it can never crowd the 64 KiB value cap. */
-async function saveArtCache(cache) {
-  const entries = Object.entries(cache).filter(([, v]) => isObj(v) && typeof v.a === "string" && typeof v.t === "number");
+async function saveArtCache(cache: ArtCache): Promise<void> {
+  const entries: [string, { readonly a: string; readonly t: number }][] = [];
+  for (const [key, value] of Object.entries(cache)) {
+    if (isObj(value) && typeof value["a"] === "string" && typeof value["t"] === "number") {
+      entries.push([key, { a: value["a"], t: value["t"] }]);
+    }
+  }
   entries.sort((a, b) => b[1].t - a[1].t);
   await host.storage.set(ART_CACHE_KEY, JSON.stringify(Object.fromEntries(entries.slice(0, ART_CACHE_MAX_ENTRIES))));
 }
 
 /** A cache entry's assetId, iff present and fresh. */
-function cachedArt(cache, key) {
+function cachedArt(cache: ArtCache, key: string): string | undefined {
   const entry = cache[key];
-  if (!(isObj(entry) && typeof entry.a === "string" && typeof entry.t === "number")) {
+  if (!(isObj(entry) && typeof entry["a"] === "string" && typeof entry["t"] === "number")) {
     return;
   }
-  if (host.clock.nowEpochMs() - entry.t >= ART_TTL_MS) {
+  if (host.clock.nowEpochMs() - entry["t"] >= ART_TTL_MS) {
     return; // Expired — a re-fetch is the cheap self-heal (see ART_TTL_MS).
   }
-  return entry.a;
+  return entry["a"];
 }
 
 /** The guest's own parallelism ceiling. The membrane admits ≤32 concurrent host calls PER PLUGIN and
@@ -1647,14 +1789,17 @@ const GUEST_PARALLEL_MAX = 8;
 
 /** Run `fn` over `items` at most {@link GUEST_PARALLEL_MAX} at a time, results in item order. `fn` must
  *  fold its own failures (both callers do) — a rejection here would abandon the remaining lanes. */
-async function mapLimit(items, fn) {
-  const results = new Array(items.length);
+async function mapLimit<Input, Output>(items: readonly Input[], fn: (item: Input) => Promise<Output>): Promise<Output[]> {
+  const results: Output[] = [];
   let next = 0;
-  const lane = async () => {
+  const lane = async (): Promise<void> => {
     while (next < items.length) {
       const index = next;
       next += 1;
-      results[index] = await fn(items[index]);
+      const item = items[index];
+      if (item !== undefined) {
+        results[index] = await fn(item);
+      }
     }
   };
   await Promise.all(Array.from({ length: Math.min(GUEST_PARALLEL_MAX, items.length) }, lane));
@@ -1665,7 +1810,12 @@ async function mapLimit(items, fn) {
  *  {@link GUEST_PARALLEL_MAX}; each call claims the art belt). A per-cover failure is a placeholder,
  *  never fatal; one summarizing log line reports the batch. Mutates + persists the cache; returns how
  *  many new covers landed. */
-async function fetchMissingArt(cache, rows, keyOf, urlOf) {
+async function fetchMissingArt(
+  cache: ArtCache,
+  rows: readonly AtlasRow[],
+  keyOf: (row: AtlasRow) => string,
+  urlOf: (row: AtlasRow) => string,
+): Promise<number> {
   const misses = rows.filter((row) => urlOf(row) !== "" && cachedArt(cache, keyOf(row)) === undefined);
   if (misses.length === 0 || !canFetchArt()) {
     return 0;
@@ -1690,8 +1840,8 @@ async function fetchMissingArt(cache, rows, keyOf, urlOf) {
   return landed;
 }
 
-const artKey = (result) => `${result.source}:${result.ref}`;
-const heroKey = (result) => `${result.source}:${result.ref}:hero`;
+const artKey = (result: AtlasRow): string => `${result.source}:${result.ref}`;
+const heroKey = (result: AtlasRow): string => `${result.source}:${result.ref}:hero`;
 
 // ── filtering (ONE dialect, applied where the rows can answer) ─────────────────────────────────────────────
 
@@ -1701,7 +1851,7 @@ const heroKey = (result) => `${result.source}:${result.ref}:hero`;
  *  The SFW arm is a BELT even on server-filtered hubs: a flagged row that slips a server filter is still
  *  dropped (row flags and server params are independent honesty). `filters` is the job/session itself —
  *  both carry `include`/`exclude`/`sfw`. */
-function matchesFilters(source, row, filters) {
+function matchesFilters(source: SourceAdapter, row: AtlasRow, filters: Pick<SearchJob, "include" | "exclude" | "sfw">): boolean {
   if (filters.sfw && row.nsfw === true) {
     return false;
   }
@@ -1714,11 +1864,11 @@ function matchesFilters(source, row, filters) {
  *  capability gaps: a hub that neither filters server-side nor publishes row tags cannot judge EITHER side
  *  (Pygmalion, Datacat — one note covers both fields), and one that only lacks row tags cannot exclude
  *  (Character Tavern). A filter that silently no-ops is the failure these sentences exist to prevent. */
-function filterNote(source, include, exclude) {
+function filterNote(source: SourceAdapter, include: readonly string[], exclude: readonly string[]): string {
   if ((include.length > 0 || exclude.length > 0) && !(source.rowTags || source.serverInclude || source.serverExclude)) {
     return ` (tag filters need published tags — ${source.label} has none)`;
   }
-  const parts = [];
+  const parts: string[] = [];
   if (include.length > 0) {
     parts.push(`with ${include.join(", ")}`);
   }
@@ -1744,7 +1894,7 @@ let sessionSeq = 0;
 
 /** Land one prepared page: publish the text grid instantly (with whatever covers the cache holds), then land
  *  the missing covers and republish ONCE. The shared tail of every search/page continuation. */
-async function presentPage(seq, status) {
+async function presentPage(seq: number, status: string): Promise<void> {
   await publishBrowse(status);
   if (!canFetchArt() || session === null) {
     return;
@@ -1757,7 +1907,7 @@ async function presentPage(seq, status) {
 }
 
 /** The page's status sentence: what's showing, from where, for what, under which filters and ordering. */
-function pageStatus(source, q) {
+function pageStatus(source: SourceAdapter, q: string): string {
   if (session === null) {
     return "";
   }
@@ -1774,7 +1924,7 @@ function pageStatus(source, q) {
 /** Build the session a fresh search establishes, from what the hub answered. Held-set hubs (`allRows`):
  *  filter row-side, sort ONCE globally, hold the whole set — page flips slice it locally. Server-paged hubs:
  *  server-filtered sides arrive filtered; row-side judges the rest per page; sort within the page in hand. */
-function buildSession(source, job, res) {
+function buildSession(source: SourceAdapter, job: SearchJob, res: SearchResult): BrowseSession {
   const base = { q: job.q, sourceKey: job.sourceKey, sortKey: job.sortKey, include: job.include, exclude: job.exclude, sfw: job.sfw, page: 1 };
   const kept = sortRows(
     res.rows.filter((row) => matchesFilters(source, row, job)),
@@ -1788,7 +1938,7 @@ function buildSession(source, job, res) {
 
 /** The floating SEARCH continuation: fetch → normalize → filter → sort → slice → publish → land covers.
  *  Every hub await lives HERE, past the settlement wall. */
-async function runSearch(seq, job) {
+async function runSearch(seq: number, job: SearchJob): Promise<void> {
   const source = SOURCES[job.sourceKey];
   const res = await source.search({ q: job.q, include: job.include, exclude: job.exclude, sortKey: job.sortKey, page: 1, sfw: job.sfw });
   if (seq !== sessionSeq) {
@@ -1805,21 +1955,22 @@ async function runSearch(seq, job) {
 
 /** The floating PAGE continuation: same session, different page — a wire fetch for a server-paged hub, a
  *  local slice for a held-set one. */
-async function runPage(seq) {
-  if (session === null) {
+async function runPage(seq: number): Promise<void> {
+  const activeSession = session;
+  if (activeSession === null) {
     return;
   }
-  const source = SOURCES[session.sourceKey];
+  const source = SOURCES[activeSession.sourceKey];
   if (source.paging === "held-set") {
-    session.pageRows = session.allRows.slice((session.page - 1) * PAGE_SIZE, session.page * PAGE_SIZE);
+    activeSession.pageRows = (activeSession.allRows ?? []).slice((activeSession.page - 1) * PAGE_SIZE, activeSession.page * PAGE_SIZE);
   } else {
     const res = await source.search({
-      q: session.q,
-      include: session.include,
-      exclude: session.exclude,
-      sortKey: session.sortKey,
-      page: session.page,
-      sfw: session.sfw,
+      q: activeSession.q,
+      include: activeSession.include,
+      exclude: activeSession.exclude,
+      sortKey: activeSession.sortKey,
+      page: activeSession.page,
+      sfw: activeSession.sfw,
     });
     if (seq !== sessionSeq) {
       return;
@@ -1828,19 +1979,19 @@ async function runPage(seq) {
       await publishBrowse(`${source.label} didn't answer — try again in a moment.`);
       return;
     }
-    session.totalPages = res.totalPages;
-    session.pageRows = sortRows(
-      res.rows.filter((row) => matchesFilters(source, row, session)),
-      session.sortKey,
+    activeSession.totalPages = res.totalPages;
+    activeSession.pageRows = sortRows(
+      res.rows.filter((row) => matchesFilters(source, row, activeSession)),
+      activeSession.sortKey,
     );
   }
   openResult = null;
-  await presentPage(seq, pageStatus(source, session.q));
+  await presentPage(seq, pageStatus(source, activeSession.q));
 }
 
 /** The floating OPEN continuation: fetch the detail → flip the stage → lazily upgrade the hero where the hub
  *  serves a sharper variant. */
-async function runOpen(seq, result) {
+async function runOpen(seq: number, result: AtlasRow): Promise<void> {
   const detail = await SOURCES[result.source].detail(result);
   if (seq !== sessionSeq) {
     return;
@@ -1863,12 +2014,12 @@ async function runOpen(seq, result) {
 }
 
 // ── the owned-index (fast lookup) + the card stamp (durable provenance) ────────────────────────────────────
-const ownedKey = (result) => `owned:${result.source}:${result.ref}`;
+const ownedKey = (result: AtlasRow): string => `owned:${result.source}:${result.ref}`;
 
 /** The PNG-first import arm: card file → installer CAS → the SAME import funnel a hand-uploaded PNG takes,
  *  so the character arrives WITH its embedded avatar. `null` on ANY failure (no grant, no PNG on this hub,
  *  an over-cap file, a per-card license 403) — the caller folds to the JSON path. */
-async function addViaPng(result) {
+async function addViaPng(result: AtlasRow): Promise<{ readonly characterId: string; readonly created: boolean } | null> {
   if (!canFetchArt()) {
     return null;
   }
@@ -1892,7 +2043,7 @@ async function addViaPng(result) {
  *  index below it, and stopped the caller from republishing the page at all. A second add inside ten seconds
  *  therefore changed nothing on screen and lost the card's provenance. The notice is BEST-EFFORT; the writes
  *  and the page are not. Logged rather than swallowed: the refusal is a real fact about this plugin's budget. */
-async function say(level, message) {
+async function say(level: PluginToastLevel, message: string): Promise<void> {
   try {
     await host.ui.toast(level, message);
   } catch (err) {
@@ -1908,7 +2059,7 @@ async function say(level, message) {
  *  succeeded the page said "Already in your library", i.e. the one moment the surface exists for reported
  *  that nothing had happened. Ownership-at-rest and what-just-happened are two different facts; the caller
  *  now hands the second one to `publishDetail`. `"added"` / `"already"` / `null` (the hub refused). */
-async function addToLibrary(result, raw) {
+async function addToLibrary(result: AtlasRow, raw: unknown): Promise<ImportOutcome | null> {
   let outcome = await addViaPng(result);
   if (outcome === null) {
     const card = await SOURCES[result.source].fetchCard(result, raw);
@@ -1944,7 +2095,7 @@ async function addToLibrary(result, raw) {
 
 /** A tile's chip row: the row's tags, with `nsfw` PREPENDED where the hub flagged the row — labeling is
  *  separate honesty from filtering (a flagged card wears its flag whether or not the filter is on). */
-function tileTags(result) {
+function tileTags(result: AtlasRow): readonly string[] {
   if (result.nsfw !== true) {
     return result.tags;
   }
@@ -1955,7 +2106,7 @@ function tileTags(result) {
  *  immediate-feedback publish (its menu must swap the moment the select changes), the session's afterward,
  *  the default before any search. `loading` drives the grid's SKELETON (#799): true on the pre-wire publish
  *  of a search or a page flip, false on every settled one. */
-async function publishBrowse(status, sourceKey, loading) {
+async function publishBrowse(status: string, sourceKey?: SourceKey, loading = false): Promise<void> {
   const cache = await loadArtCache();
   const rows = session === null ? [] : session.pageRows;
   // Bounded, and each read folds its own failure — the owned badge is decoration, never worth an action.
@@ -1991,7 +2142,14 @@ const OUTCOME_LINE = {
   already: "Already in your library — nothing was duplicated.",
 };
 
-async function publishDetail(result, blurb, outcome) {
+function outcomeLine(outcome: ImportOutcome | undefined, ownedId: string | null): string {
+  if (outcome !== undefined) {
+    return OUTCOME_LINE[outcome];
+  }
+  return ownedId === null ? "" : "Already in your library — adding again just re-checks the bytes.";
+}
+
+async function publishDetail(result: AtlasRow, blurb: string, outcome?: ImportOutcome): Promise<void> {
   const cache = await loadArtCache();
   const ownedId = await host.storage.get(ownedKey(result));
   // The hero: the sharper cached variant when one has landed, else the grid cover — so the decision surface
@@ -2021,7 +2179,7 @@ async function publishDetail(result, blurb, outcome) {
       // The OUTCOME wins where there is one — this render is the answer to a button press, and the person is
       // owed what just happened rather than a standing property of the library. `undefined` (every publish
       // that is not an add's) falls back to the rest state.
-      owned: OUTCOME_LINE[outcome] ?? (ownedId === null ? "" : "Already in your library — adding again just re-checks the bytes."),
+      owned: outcomeLine(outcome, ownedId),
       art,
     },
   });
@@ -2038,7 +2196,7 @@ if (!canBrowse) {
  *  kv-persisted SFW setting says ON — a control that showed a default while the code filtered by the
  *  remembered value would be a lying switch, and a registration that ONLY floated raced the very next
  *  `listSurfaces` (measured in the seed int test). */
-function registerAtlasPage(sfwOn) {
+function registerAtlasPage(sfwOn: boolean): void {
   host.ui.register({
     id: "atlas_page",
     anchor: "page",
@@ -2196,7 +2354,7 @@ if (canBrowse) {
   // page renders on first open (a bound spec is withheld until state lands; an empty atlas is a
   // publishable, teaching state).
   registerAtlasPage(false);
-  void (async () => {
+  void (async (): Promise<void> => {
     let sfwOn = false;
     try {
       sfwOn = (await host.storage.get(SFW_KEY)) === "on";
@@ -2217,7 +2375,7 @@ if (canBrowse) {
  *  Held-set hubs sort the WHOLE set (so paging respects it); server-paged hubs sort the page in hand.
  *  Rows missing the datum sort LAST (an unknown is not a zero). `relevance`/`trending` have no per-row
  *  datum — the provider's order stands. */
-function sortRows(rows, key) {
+function sortRows(rows: readonly AtlasRow[], key: SortKey): readonly AtlasRow[] {
   if (key === "name") {
     return [...rows].sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -2243,16 +2401,19 @@ function sortRows(rows, key) {
  *  settles in milliseconds no matter how a hub behaves. An EMPTY query browses the hub's whole catalog
  *  (that is a real thing to want — page through what's out there), so nothing blocks on typing. Fired by the
  *  Search button, Enter in the query box, AND the live Hub/Sort selects. */
-async function searchAction(values) {
-  const q = String(values.q ?? "").trim();
-  const sourceKey = typeof values.source === "string" && values.source in SOURCES ? values.source : "tavern";
+async function searchAction(values: Readonly<Record<string, string>>): Promise<void> {
+  const q = String(values["q"] ?? "").trim();
+  const sourceKey: SourceKey = isSourceKey(values["source"]) ? values["source"] : "tavern";
   const source = SOURCES[sourceKey];
   // The sort is validated against the PICKED hub's own menu — a hub switch can strand a value the new hub
   // doesn't offer (botbooru's "views" on tavern), which folds to the hub's default rather than pretending.
-  const sortKey = source.sortOptions.some((o) => o.value === values.sort) ? values.sort : "relevance";
-  const include = parseTagList(values.include_tags);
-  const exclude = parseTagList(values.exclude_tags);
-  const sfw = values.sfw === "true";
+  const requestedSort = values["sort"];
+  const sortKey: SortKey = source.sortOptions.some((option) => option.value === requestedSort)
+    ? (source.sortOptions.find((option) => option.value === requestedSort)?.value ?? "relevance")
+    : "relevance";
+  const include = parseTagList(values["include_tags"]);
+  const exclude = parseTagList(values["exclude_tags"]);
+  const sfw = values["sfw"] === "true";
   // Persist the SFW setting when it changed — it is a per-person config, and the NEXT activation registers
   // the toggle with this remembered value (the boot continuation).
   if (sfw !== lastSfwWritten) {
@@ -2272,7 +2433,7 @@ async function searchAction(values) {
 
 /** `prev_page`/`next_page`: page the EXECUTED search (the session), never a half-edited form. Edge clicks
  *  answer in the status line — the pager is structural, so honesty lives in the handler. */
-async function pageAction(delta) {
+async function pageAction(delta: number): Promise<void> {
   if (session === null) {
     await publishBrowse("Search first — then page through the results.");
     return;
@@ -2296,8 +2457,8 @@ async function pageAction(delta) {
 }
 
 /** `open_result`: resolve the clicked tile against the resident session, speak, SCHEDULE the detail fetch. */
-async function openAction(values) {
-  const index = Number(String(values.tile ?? "").slice(1));
+async function openAction(values: Readonly<Record<string, string>>): Promise<void> {
+  const index = Number(String(values["tile"] ?? "").slice(1));
   const result = session === null ? undefined : session.pageRows[index];
   if (result === undefined) {
     await publishBrowse("That result went stale — search again."); // A respawn between search and click.
@@ -2310,7 +2471,7 @@ async function openAction(values) {
 
 /** `add_to_library`: the canon write, feature-detected at USE, then the detail republished with its owned
  *  line. */
-async function addAction() {
+async function addAction(): Promise<void> {
   if (openResult === null) {
     await publishBrowse("");
     return;
@@ -2328,7 +2489,7 @@ async function addAction() {
 }
 
 /** The action router — one verb per affordance, dispatched by id; `back` (and any unknown id) goes home. */
-async function runAtlasAction(actionId, values) {
+async function runAtlasAction(actionId: string, values: Readonly<Record<string, string>>): Promise<void> {
   if (actionId === "search") {
     await searchAction(values);
   } else if (actionId === "prev_page") {

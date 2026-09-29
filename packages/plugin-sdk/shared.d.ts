@@ -1,9 +1,8 @@
-// host-v1.d.ts — the PUBLISHED TypeScript surface of the Orbweaver plugin host, version 1.
+// Shared declarations for the public Orbweaver plugin SDK, version 1.
 //
-// COPY THIS FILE next to your `main.js` (and `ui.js`, if you ship one) and any TypeScript-aware editor gives
-// you completion and type-checking against the whole host API in plain JavaScript — no build step, no
-// package. It is a SCRIPT-kind declaration file on purpose: no imports, no exports, so every name below is
-// simply in scope for your project the moment the file exists.
+// This is a script-kind declaration shared by the realm-specific package entry points. Authors select
+// `@orb/plugin-sdk/main`, `@orb/plugin-sdk/ui`, or `@orb/plugin-sdk/frame`; no source program receives two
+// runtime doors.
 //
 // IT IS A MIRROR, NOT A SOURCE. The one true contract lives in the application
 // (`@orb/contracts/plugin` — host-v1.ts, manifest.ts, ui.ts); this file re-states it for authors outside the
@@ -21,16 +20,6 @@
 //   - Every host call rejects after a 5 s real-time bound; three consecutive crashed invocations
 //     auto-disable the plugin.
 //   - Handlers must never throw: wrap, log, return.
-
-// ── the global door ─────────────────────────────────────────────────────────────────────────────────────────
-
-/** The one global in both guest realms. `orb.host(1)` in `main.js`; `orb.ui(1)` in `ui.js`. Asking for a
- *  version this host does not serve throws `HostVersionError` (branch on `err.name` — the class NAME crosses
- *  the sandbox boundary intact; messages do not). */
-declare const orb: {
-  readonly host: (version: 1) => PluginHostV1;
-  readonly ui: (version: 1) => PluginUiV1;
-};
 
 // ── capabilities (the manifest's closed axis — declaring is ASKING; `host.grants` is what was ANSWERED) ─────
 
@@ -373,13 +362,14 @@ interface PluginListNode {
   readonly kind: "list";
   readonly items: readonly PluginBoundString[];
 }
-/** An image is an asset in the INSTALLER's own CAS — a URL is unspellable (the exfil wall). Exactly one of
- *  `assetId` (declared) / `assetFrom` (bound: the id lives in published state, format-checked at resolve;
- *  an id the installer does not own paints the placeholder, never a foreign blob). */
+/** An image source is exactly one of an installer-owned CAS id, a state-bound CAS id, or a flat raster path
+ *  shipped under `ui/assets/`. A bundle path is a name resolved through this plugin's install-time asset map,
+ *  never a URL or filesystem location. */
 interface PluginImageNode {
   readonly kind: "image";
   readonly assetId?: string | undefined;
   readonly assetFrom?: PluginStateBinding | undefined;
+  readonly bundleAsset?: string | undefined;
   readonly alt?: string | undefined;
   readonly aspect?: PluginImageAspect | undefined;
 }
@@ -476,7 +466,10 @@ interface PluginGridTile {
   readonly subtitle?: PluginBoundString | undefined;
   readonly badge?: PluginBoundString | undefined;
   readonly assetId?: string | undefined;
+  /** A declared flat raster path shipped by this plugin, such as `ui/assets/cover.png`. */
+  readonly bundleAsset?: string | undefined;
   readonly alt?: string | undefined;
+  readonly tags?: readonly string[] | undefined;
   readonly actionId?: string | undefined;
 }
 /** One BOUND grid tile as you publish it in state (the `tilesFrom` arm) — plain strings, no per-tile action
@@ -489,6 +482,7 @@ interface PluginBoundGridTile {
   readonly badge?: string | undefined;
   readonly assetId?: string | undefined;
   readonly alt?: string | undefined;
+  readonly tags?: readonly string[] | undefined;
 }
 /** The media-forward tile grid. Exactly one of `tiles` (declared — the set is spec structure) /
  *  `tilesFrom` (bound — the set is published state, so its COUNT is data: search results, growing albums). */
@@ -507,7 +501,14 @@ interface PluginPageStage {
   readonly id: string;
   readonly kind: PluginPageStageKind;
   readonly title?: PluginBoundString | undefined;
-  readonly hero?: { readonly assetId?: string | undefined; readonly assetFrom?: PluginStateBinding | undefined; readonly alt?: string | undefined } | undefined;
+  readonly hero?:
+    | {
+        readonly assetId?: string | undefined;
+        readonly assetFrom?: PluginStateBinding | undefined;
+        readonly bundleAsset?: string | undefined;
+        readonly alt?: string | undefined;
+      }
+    | undefined;
   readonly body: PluginSurfaceNode;
 }
 /** The page arrangement: declared stages, one active — and `active` is a BINDING, so stage navigation is
@@ -556,6 +557,15 @@ type PluginSurfaceNode =
   | PluginTabsNode;
 
 type PluginSurfaceSpec = PluginSurfaceNode;
+
+/** A host-owned composer target for a registered command. A command may name each target at most once;
+ *  the host validates the bounded label and curated icon before exposing the affordance. */
+type PluginCommandPlacementTarget = "composer-action" | "composer-media";
+interface PluginCommandPlacement {
+  readonly target: PluginCommandPlacementTarget;
+  readonly label: string;
+  readonly icon?: PluginIconName | undefined;
+}
 
 /** One declared command argument (#791 typed args). `enumValues` iff `type === "enum"`. The platform
  *  collects, autocompletes and validates on both client surfaces AND re-validates at the membrane; your
@@ -809,19 +819,23 @@ interface PluginHostV1 {
       anchor: PluginSurfaceAnchor;
       title: string;
       tier: PluginSurfaceTier;
+      toolName?: string;
       spec?: PluginSurfaceSpec;
       onAction?: (a: { actionId: string; values: Record<string, string>; chat: ChatHandle | null }) => void | Promise<void>;
     }) => void;
     /** Publish the state your spec's `{ $state }` bindings resolve against (≤ 16 KiB, replaces whole).
      *  With `chat`: a PER-ROOM row (only that room sees it); without: one plugin-wide row. */
     setState: (surfaceId: string, state: Record<string, unknown>, chat?: ChatHandle) => Promise<void>;
-    /** Register a command: `/plugin <slug> <name> …`, the Plugins wand menu, and the palette. Declare typed
-     *  `args` (≤ 16) and `values` arrives validated; the raw remainder always arrives as `args`. Inside a
-     *  room the command's invocation carries that room — reach it via `chat.current()`. */
+    /** Register a command: `/plugin <slug> <name> …`, the Plugins wand menu, the palette, and optional
+     *  host-owned composer placements. Declare typed `args` (≤ 16) and `values` arrives validated; the raw
+     *  remainder always arrives as `args`. Inside a room the command's invocation carries that room — reach
+     *  it via `chat.current()`. */
     registerCommand: (def: {
       name: string;
       describe: string;
       args?: readonly PluginCommandArgSpec[];
+      group?: string;
+      placements?: readonly PluginCommandPlacement[];
       onRun: (a: { args: string; values: Record<string, PluginCommandArgValue> }) => void | Promise<void>;
     }) => void;
     /** A transient house toast, prefixed with your plugin's name (host-stamped), ≤ 200 chars, rate-floored
@@ -835,7 +849,7 @@ interface PluginHostV1 {
      *  network, ≤ 64 000/16 000 chars, ≤ 8 frames. Anchors: settings, chat-flank, tool-card.
      *  There is no `orb` inside a frame. It reaches the host by
      *  `parent.postMessage({ orbPluginFrameCall: { callId, fn, args } }, "*")`, where `fn` is one of the
-     *  functions `ui.host` proxies for a scripted surface, `args` is a positional array, and the call is
+     *  functions `ui.host` proxies for a scripted surface, `args` is that function's opaque wire input, and the call is
      *  re-gated against this plugin's grants. The answer arrives as `{ orbPluginFrameResult: { callId, ok,
      *  value } }` or, on any refusal, `{ callId, ok: false, error: "refused" }`, with at most 4 calls in flight.
      *  Frame code must check that `event.source === parent` before obeying a received message, because other

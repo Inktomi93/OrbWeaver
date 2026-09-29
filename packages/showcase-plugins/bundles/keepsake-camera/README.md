@@ -11,7 +11,8 @@ catches also lands in its album page under the Extensions rail.
 
 ```bash
 cp -r packages/showcase-plugins/bundles/keepsake-camera /tmp/my-plugin
-# change `id` and `name` in manifest.json, edit main.js, then pack and install:
+# change `id` and `name` in manifest.json, edit main.ts, build the checked JavaScript, then pack and install:
+pnpm --filter @orb/showcase-plugins build
 pnpm plugin:pack keepsake-camera ./out
 ```
 

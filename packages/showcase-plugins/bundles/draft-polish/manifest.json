@@ -1,7 +1,7 @@
 {
   "id": "draft-polish",
   "name": "Draft Polish",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "hostVersion": 1,
   "entry": "main.js",
   "description": "Typographic care on both sides of the wire: tidies a draft on its way to the model (ellipses, stray spaces), and typesets what your own screen shows (curly quotes, em dashes) without touching canon.",

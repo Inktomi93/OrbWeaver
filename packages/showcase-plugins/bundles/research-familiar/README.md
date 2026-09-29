@@ -12,8 +12,9 @@ at 120 queries an hour for this plugin.
 
 ```bash
 cp -r packages/showcase-plugins/bundles/research-familiar /tmp/my-plugin
-# change `id` and `name` in manifest.json, edit main.js, then pack and install:
-pnpm plugin:pack research-familiar ./out    # → ./out/research-familiar-1.2.0.zip
+# change `id` and `name` in manifest.json, edit main.ts, build the checked JavaScript, then pack and install:
+pnpm --filter @orb/showcase-plugins build
+pnpm plugin:pack research-familiar ./out    # → ./out/research-familiar-1.2.1.zip
 ```
 
 Settings → Plugins → drop the zip → tick the capabilities → turn it on. Keep the same `id` and it upgrades

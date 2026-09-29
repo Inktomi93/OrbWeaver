@@ -11,8 +11,9 @@ only when the reading moves by three or more. Nothing it does is ever visible in
 
 ```bash
 cp -r packages/showcase-plugins/bundles/affinity-tracker /tmp/my-plugin
-# change `id` and `name` in manifest.json, edit main.js, then pack and install:
-pnpm plugin:pack affinity-tracker ./out    # → ./out/affinity-tracker-1.0.0.zip
+# change `id` and `name` in manifest.json, edit main.ts, build the checked JavaScript, then pack and install:
+pnpm --filter @orb/showcase-plugins build
+pnpm plugin:pack affinity-tracker ./out    # → ./out/affinity-tracker-1.1.1.zip
 ```
 
 Settings → Plugins → drop the zip → tick the capabilities → turn it on. Same `id` upgrades in place; a new

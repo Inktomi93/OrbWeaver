@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.world-node.json",
+  "include": ["src", "../../reset.d.ts", "../../platform.d.ts"],
+  "exclude": ["**/node_modules"]
+}

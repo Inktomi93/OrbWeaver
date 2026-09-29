@@ -10,8 +10,9 @@ drops its text into your composer, where you edit it and send it as your own lin
 
 ```bash
 cp -r packages/showcase-plugins/bundles/scene-chips /tmp/my-plugin
-# change `id` and `name` in manifest.json, edit main.js, then pack and install:
-pnpm plugin:pack scene-chips ./out    # → ./out/scene-chips-1.0.0.zip
+# change `id` and `name` in manifest.json, edit main.ts, build the checked JavaScript, then pack and install:
+pnpm --filter @orb/showcase-plugins build
+pnpm plugin:pack scene-chips ./out    # → ./out/scene-chips-1.1.1.zip
 ```
 
 Settings → Plugins → drop the zip → tick the capabilities → turn it on. Same `id` upgrades in place; a new

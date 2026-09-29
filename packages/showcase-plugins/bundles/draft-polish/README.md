@@ -12,8 +12,9 @@ exactly what was typed; one seam changes what the model reads, the other what yo
 
 ```bash
 cp -r packages/showcase-plugins/bundles/draft-polish /tmp/my-plugin
-# change `id` and `name` in manifest.json, edit main.js, then pack and install:
-pnpm plugin:pack draft-polish ./out    # → ./out/draft-polish-1.0.0.zip
+# change `id` and `name` in manifest.json, edit main.ts, build the checked JavaScript, then pack and install:
+pnpm --filter @orb/showcase-plugins build
+pnpm plugin:pack draft-polish ./out    # → ./out/draft-polish-1.1.1.zip
 ```
 
 Settings → Plugins → drop the zip → allow `chat.transform` → turn it on.

@@ -38,6 +38,21 @@
 
 const host = orb.host(1);
 
+interface ClockValue {
+  readonly cur: number;
+  readonly max: number;
+}
+
+interface StoryClock extends ClockValue {
+  readonly slug: string;
+}
+
+type TickResult = { readonly clock: StoryClock; readonly filled: boolean; readonly contended?: false } | { readonly contended: true };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 /** Chat-variable key prefix. The KEY carries the clock's identity (`clock:the_ritual`); the VALUE is the
  *  compact `"cur/max"` everyone — macros, CEL, this plugin — parses the same way. */
 const VAR_PREFIX = "clock:";
@@ -67,7 +82,7 @@ const EMPTY = "○";
 
 /** Lowercase a human name into the variable-key slug: `The Ritual` → `the_ritual`. Returns null for input
  *  that leaves nothing (symbols only) — a clock needs a name a person can say. */
-function slugify(name) {
+function slugify(name: unknown): string | null {
   const slug = String(name ?? "")
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, "_")
@@ -76,12 +91,12 @@ function slugify(name) {
 }
 
 /** `the_ritual` → `the ritual` — the display name is derived, never stored twice. */
-function displayName(slug) {
+function displayName(slug: string): string {
   return slug.replaceAll("_", " ");
 }
 
 /** Parse a `"cur/max"` value. `null` for anything malformed — a hand-edited variable is user input. */
-function parseClock(value) {
+function parseClock(value: unknown): ClockValue | null {
   const match = /^(\d{1,2})\/(\d{1,2})$/.exec(String(value ?? ""));
   if (match === null) {
     return null;
@@ -95,8 +110,8 @@ function parseClock(value) {
 }
 
 /** Every clock in a variables snapshot, in key order — `[{slug, cur, max}]`. */
-function clocksIn(vars) {
-  const out = [];
+function clocksIn(vars: Readonly<Record<string, string>>): StoryClock[] {
+  const out: StoryClock[] = [];
   for (const key of Object.keys(vars).sort()) {
     if (!key.startsWith(VAR_PREFIX)) {
       continue;
@@ -110,7 +125,7 @@ function clocksIn(vars) {
 }
 
 /** One clock as its display line: `the ritual  ●●●○○○ 3/6`. */
-function clockLine(clock) {
+function clockLine(clock: StoryClock): string {
   return `${displayName(clock.slug)}  ${FILLED.repeat(clock.cur)}${EMPTY.repeat(clock.max - clock.cur)} ${clock.cur}/${clock.max}`;
 }
 
@@ -120,22 +135,23 @@ function clockLine(clock) {
  *  and every room would show the same publication; a clock is a fact about ONE room). The state shape is the
  *  flank's slot model: four line slots, blank when unused — a static spec declares its nodes up front, so
  *  absent clocks publish as "" and render as nothing-worth-reading rather than broken furniture. */
-async function publishClocks(chat, vars) {
+async function publishClocks(chat: ChatHandle, vars: Readonly<Record<string, string>>): Promise<void> {
   if (!host.grants.includes("ui.surface")) {
     return; // Headless is a fine way to run — the model can still tick clocks and macros still read them.
   }
   const clocks = clocksIn(vars);
-  const state = { count: clocks.length };
+  const state: Record<string, unknown> = { count: clocks.length };
   for (let i = 0; i < MAX_CLOCKS; i += 1) {
-    state[`line${i}`] = i < clocks.length ? clockLine(clocks[i]) : "";
+    const clock = clocks[i];
+    state[`line${i}`] = clock === undefined ? "" : clockLine(clock);
   }
-  state.summary = clocks.length === 0 ? "No clocks yet — the host starts one below." : `${clocks.length} of ${MAX_CLOCKS} clocks running.`;
+  state["summary"] = clocks.length === 0 ? "No clocks yet — the host starts one below." : `${clocks.length} of ${MAX_CLOCKS} clocks running.`;
   await host.ui.setState("clock_flank", state, chat);
   await host.ui.setState("clock_panel", state, chat);
 }
 
 /** Read-then-publish, the refresh everything funnels through. */
-async function refresh(chat) {
+async function refresh(chat: ChatHandle): Promise<void> {
   await publishClocks(chat, await host.chat.getVariables(chat));
 }
 
@@ -144,7 +160,7 @@ async function refresh(chat) {
 /** Apply one clock mutation via the delta seam. `ops` ride the SAME `set`/`delete` vocabulary the automation
  *  `set_variable` action uses — a plugin write is indistinguishable from a rule's, by design. Throws the
  *  host's own refusal in a room the installer does not host (the callers catch and translate). */
-async function writeClock(chat, slug, value) {
+async function writeClock(chat: ChatHandle, slug: string, value: string | null): Promise<void> {
   const key = `${VAR_PREFIX}${slug}`;
   await host.chat.applyVariableOps(chat, value === null ? [{ op: "delete", key }] : [{ op: "set", key, value }]);
 }
@@ -163,9 +179,9 @@ const TICK_ATTEMPTS = 4;
  *
  *  Returns `{clock, filled}` after the write, `null` when the clock is absent, or `{contended: true}` when the
  *  room out-ticked us `TICK_ATTEMPTS` times — an honest "try again", never a silent no-op. */
-async function tick(chat, slug, vars) {
+async function tick(chat: ChatHandle, slug: string, vars: Readonly<Record<string, string>>): Promise<TickResult | null> {
   const key = `${VAR_PREFIX}${slug}`;
-  let live = vars[key] ?? null;
+  let live: string | null = vars[key] ?? null;
   for (let attempt = 0; attempt < TICK_ATTEMPTS; attempt += 1) {
     const existing = parseClock(live);
     if (existing === null) {
@@ -183,7 +199,7 @@ async function tick(chat, slug, vars) {
 
 /** The filled-clock consequence: ask the narrator to take a turn about it. Suggest-shaped spend — see the
  *  file header. Called ONLY from the human tick path. */
-async function narrateFill(chat, slug) {
+async function narrateFill(chat: ChatHandle, slug: string): Promise<void> {
   if (!host.grants.includes("turn.trigger")) {
     return; // Ungranted is a fine answer: the clock still filled, the room just narrates it themselves.
   }
@@ -196,8 +212,8 @@ async function narrateFill(chat, slug) {
 
 /** Classify a `requestTurn` refusal by its class NAME (it crosses the sandbox boundary intact), behind a
  *  null-tolerant read — a guest realm can `throw null`, so the guard is load-bearing, not defensive noise. */
-function logTurnRefusal(err) {
-  const name = err?.name ? err.name : "Error";
+function logTurnRefusal(err: unknown): void {
+  const name = isRecord(err) && typeof err["name"] === "string" ? err["name"] : "Error";
   if (name === "PluginSuggestedError") {
     // Not the host of this room: the turn became a confirm card for the host. That is the designed outcome,
     // not a failure — do not retry (a retry only replaces the pending card).
@@ -233,7 +249,8 @@ if (host.grants.includes("tools.register") && host.grants.includes("chat.read") 
       additionalProperties: false,
     },
     handler: async (args) => {
-      const slug = slugify(args ? args.name : "");
+      const input = isRecord(args) ? args : {};
+      const slug = slugify(input["name"] ?? "");
       if (slug === null) {
         return "That clock needs a speakable name.";
       }
@@ -247,7 +264,7 @@ if (host.grants.includes("tools.register") && host.grants.includes("chat.read") 
           if (clocksIn(vars).length >= MAX_CLOCKS) {
             return `The room already runs ${MAX_CLOCKS} clocks — clear one before starting another.`;
           }
-          const rawSegments = Number(args ? args.segments : DEFAULT_SEGMENTS);
+          const rawSegments = Number(input["segments"] ?? DEFAULT_SEGMENTS);
           const max = CLOCK_SIZES.includes(rawSegments) ? rawSegments : DEFAULT_SEGMENTS;
           await writeClock(chat, slug, `1/${max}`);
           await refresh(chat);
@@ -281,7 +298,7 @@ if (host.grants.includes("tools.register") && host.grants.includes("chat.read") 
 // ── the host-panel actions (split per verb so each reads as its own small story) ──────────────────────────
 
 /** `Start`: refuse a duplicate or a fifth clock; otherwise mint at `0/max` from the select's value. */
-async function startAction(chat, slug, vars, segmentsValue) {
+async function startAction(chat: ChatHandle, slug: string, vars: Readonly<Record<string, string>>, segmentsValue: string | undefined): Promise<void> {
   if (parseClock(vars[`${VAR_PREFIX}${slug}`]) !== null) {
     await host.ui.toast("warn", `"${displayName(slug)}" is already running — Tick it instead.`);
     return;
@@ -297,7 +314,7 @@ async function startAction(chat, slug, vars, segmentsValue) {
 }
 
 /** `Tick`: advance by one; a FILL celebrates and asks the narrator to land it (the turn.trigger arm). */
-async function tickAction(chat, slug, vars) {
+async function tickAction(chat: ChatHandle, slug: string, vars: Readonly<Record<string, string>>): Promise<void> {
   const result = await tick(chat, slug, vars);
   if (result === null) {
     await host.ui.toast("warn", `No clock named "${displayName(slug)}" — Start it first.`);
@@ -319,10 +336,10 @@ async function tickAction(chat, slug, vars) {
 
 /** Dispatch one panel action. The vars snapshot is read ONCE per action, here, so every branch judges the
  *  same moment — two reads could disagree mid-click. */
-async function runClockAction(chat, actionId, slug, values) {
+async function runClockAction(chat: ChatHandle, actionId: string, slug: string, values: Readonly<Record<string, string>>): Promise<void> {
   const vars = await host.chat.getVariables(chat);
   if (actionId === "start") {
-    await startAction(chat, slug, vars, values.segments);
+    await startAction(chat, slug, vars, values["segments"]);
   } else if (actionId === "tick") {
     await tickAction(chat, slug, vars);
   } else if (actionId === "clear") {
@@ -335,7 +352,7 @@ async function runClockAction(chat, actionId, slug, values) {
 if (host.grants.includes("ui.surface") && host.grants.includes("chat.read") && host.grants.includes("chat.variables.write")) {
   /** The flank line slots — `text` nodes bound per slot. An empty slot's "" renders as nothing to read; the
    *  summary line beneath carries the honest empty state (the three-states law reaching a plugin surface). */
-  const LINE_SLOTS = Array.from({ length: MAX_CLOCKS }, (_unused, i) => ({ kind: "text", value: { $state: `line${i}` } }));
+  const LINE_SLOTS: PluginSurfaceNode[] = Array.from({ length: MAX_CLOCKS }, (_unused, i) => ({ kind: "text", value: { $state: `line${i}` } }));
 
   // THE ROOM READOUT (chat-flank): pure projection, no actions — everyone in the room sees the host's app
   // draw it, but the DATA is per-room published state, so each room shows its own clocks.
@@ -401,7 +418,7 @@ if (host.grants.includes("ui.surface") && host.grants.includes("chat.read") && h
       if (a.chat === null) {
         return;
       }
-      const slug = slugify(a.values.name);
+      const slug = slugify(a.values["name"]);
       if (slug === null) {
         await host.ui.toast("warn", "Name the clock first — the field above the buttons.");
         return;
