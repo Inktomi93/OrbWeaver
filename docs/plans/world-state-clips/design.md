@@ -1,8 +1,7 @@
 ---
 kind: plan
-status: parked
-updated: 2026-09-28
-blocked: owner
+status: active
+updated: 2026-09-29
 ---
 
 # World state: clips, trackers and a reconciled story snapshot

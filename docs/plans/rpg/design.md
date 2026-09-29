@@ -1,8 +1,7 @@
 ---
 kind: plan
-status: parked
-updated: 2026-09-28
-blocked: owner
+status: active
+updated: 2026-09-29
 ---
 
 # RPG: the game engines beyond the lite substrate
