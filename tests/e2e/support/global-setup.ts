@@ -6,7 +6,8 @@
 //   1. ≥1 CHARACTER exists — the library→chat flow needs a card. The boot seeder is a one-shot per-user latch;
 //      a wiped library won't re-seed, so if the API reports zero we author a deterministic anchor.
 //   2. ≥1 committed CHAT with ≥1 durable message — the persistence/sequence/injection/multi-tab specs reuse
-//      an existing chat; seeding one model-free (chat.startChat) keeps the non-live suite MODEL-FREE.
+//      an existing chat; seeding one model-free (chat.startChat, then a title write that claims the husk)
+//      keeps the non-live suite MODEL-FREE.
 //   3. ONE `vllm` CONNECTION at the shared local generation engine, with the `chat` + `summarize` Model
 //      roles bound to it (the @live specs' local chat wire). There is no `routing` settings section any
 //      more and there are no defaults: without this row every task reads `no-connection`.
@@ -28,7 +29,7 @@
 import { execFileSync } from "node:child_process";
 import process from "node:process";
 import type { ModelListing } from "@orb/contracts/inference";
-import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import type { Browser } from "@playwright/test";
 import { chromium, devices } from "@playwright/test";
 import { openNewestChat } from "./chat-room.ts";
@@ -57,6 +58,8 @@ const ANCHOR = {
   description: "Deterministic e2e anchor character (globalSetup seed).",
   greetings: [{ text: "Hello from the e2e anchor." }],
 };
+// The title that claims the seeded chat out of husk state (see `ensureChat`).
+const SEED_CHAT_TITLE = "E2E seed chat";
 
 interface CharacterListPage {
   readonly items: readonly { readonly id: CharacterId; readonly handle: CharacterHandle }[];
@@ -105,13 +108,16 @@ async function ensureCharacter(baseUrl: string): Promise<CharacterId> {
   return created.id;
 }
 
-/** Ensure ≥1 committed chat exists (model-free) so the reuse path in support/chat-room.ts always hits. */
+/** Ensure ≥1 LISTED chat exists (model-free) so the reuse path in support/chat-room.ts always hits.
+ *  `chat.startChat` mints a husk, which every Chats list hides; the title write claims it. `totalCount`
+ *  counts the same husk-free scope the list renders. */
 async function ensureChat(baseUrl: string, characterId: CharacterId): Promise<void> {
-  const chats = await query<readonly unknown[]>(baseUrl, "chat.listChats", {});
-  if (chats.length > 0) {
+  const listed = await query<{ readonly totalCount: number }>(baseUrl, "chat.listChats", {});
+  if (listed.totalCount > 0) {
     return;
   }
-  await mutation(baseUrl, "chat.startChat", { characterIds: [characterId] });
+  const started = await mutation<{ readonly chat: { readonly id: ChatId } }>(baseUrl, "chat.startChat", { characterIds: [characterId] });
+  await mutation(baseUrl, "chat.updateTitle", { chatId: started.chat.id, title: SEED_CHAT_TITLE });
 }
 
 /** A `user_connections` row as this seed reads it back (`connection.list` / `connection.create`). */
