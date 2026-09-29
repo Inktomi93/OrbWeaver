@@ -509,6 +509,9 @@ const NOT_CHECK_SHOW = String.raw`check(?!:show\b)`;
 const HARNESS_HEAD = new RegExp(
   `^\\s*${WRAP_PREFIX}(?:(?:pnpm|npm|turbo)\\s+(?:run\\s+)?(?:${NOT_CHECK_SHOW}|verify|test|lint|typecheck|e2e|gate)\\b(?::[\\w-]+)?\\b|pnpm\\s+(?:exec\\s+)?vitest\\b|pnpm\\s+snap\\b)`,
 );
+// A harness head that actually runs: one asked only to list its stages or print help (`--list`, `--help`,
+// `-h`) writes no artifact and forks nothing, so its pipe is left as written.
+const HARNESS_RUN_HEAD = new RegExp(String.raw`^(?![^\n]*\s(?:--list|--help|-h)(?:\s|$))` + HARNESS_HEAD.source.slice(1));
 // Readers we know how to re-target at a file (a rewrite's reader chain must be built from these; the
 // optional path prefix admits the doctrine's own `/usr/bin/grep` spelling).
 const READER = /^\s*(?:\S*\/)?(?:tail|head|grep|egrep|fgrep|rg|wc|cat|tee|sort|uniq|cut|awk|sed|tr|column|less|more|jq)\b/;
@@ -3334,7 +3337,7 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   //     redirect/sink outright (owner directive, 2026-09-29): the harness writes its own reports/
   //     artifacts regardless of where stdout goes, so a private capture is never necessary and only
   //     tempts a later poll of that file instead of reading the harness's own exit code.
-  const bareRewrite = bareHarnessRewrite(command, blank, clauses, HARNESS_HEAD);
+  const bareRewrite = bareHarnessRewrite(command, blank, clauses, HARNESS_RUN_HEAD);
   if (bareRewrite) {
     contexts.push(CONTEXTS.rewriteRedirectDropped);
     return gateRewrite({ decision: "allow", rule: "harness-redirect", rewrite: { command: bareRewrite.command }, contexts }, command, bareRewrite.clause, ctx);
@@ -3346,7 +3349,7 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   //     artifact test harness (`pnpm test`/`test:node`/`test:tooling`/`test:ct`) is rewritten against its
   //     REAL on-disk artifact (`artifactPipeRewrite`) rather than a private log; anything else (lint,
   //     typecheck, e2e, gate, snap, bare vitest, `test:scoped`) keeps the general private-log rewrite.
-  const harnessPiped = clauses.some((cl) => cl.stages.length > 1 && HARNESS_HEAD.test(blank.slice(cl.stages[0].start, cl.stages[0].end)));
+  const harnessPiped = clauses.some((cl) => cl.stages.length > 1 && HARNESS_RUN_HEAD.test(blank.slice(cl.stages[0].start, cl.stages[0].end)));
   if (harnessPiped) {
     const artifact = artifactPipeRewrite(command, blank, clauses);
     if (artifact) {
@@ -3359,7 +3362,7 @@ function classifyCommandLine(command, blank, clauses, ctx) {
         ctx,
       );
     }
-    const rewrite = pipeRewrite(command, blank, clauses, HARNESS_HEAD, ctx);
+    const rewrite = pipeRewrite(command, blank, clauses, HARNESS_RUN_HEAD, ctx);
     if (rewrite) {
       contexts.push(CONTEXTS.rewritePiped(rewrite.log));
       const timeout = ctx.timeout === undefined ? REWRITE_TIMEOUT_MS : undefined;

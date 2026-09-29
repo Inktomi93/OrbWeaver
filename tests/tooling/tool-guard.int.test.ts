@@ -907,6 +907,11 @@ const ROWS: Row[] = [
   // …as is one inside a comment or a heredoc body, which are text guard-wide
   ["pass", null, 'ls packages # never echo "$(git stash)"'],
   ["pass", null, "python3 - <<'PY'\nprint(\"$(git stash)\")\nPY"],
+  // a harness asked only to list its stages or print help is not a run: no artifact, nothing to rewrite
+  ["pass", null, "pnpm verify --list | head -n 70"],
+  ["pass", null, "pnpm check --help | head"],
+  ["pass", null, "pnpm check -h 2>&1 | tail -5"],
+  ["allow", "harness-piped", "pnpm verify --push | tail"],
   // loop bodies come from shell structure: a `sleep`/`done`/`while`/`do` used as a plain word is not one
   ["pass", null, "while true; do echo sleep; done"],
   ["pass", null, "for i in 1 2; do echo done; sleep 5; done"],
