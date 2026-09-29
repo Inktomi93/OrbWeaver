@@ -38,8 +38,6 @@ export type { SeedDefaultBackgroundsDeps } from "./seed-default-backgrounds.ts";
 export { seedDefaultBackgrounds } from "./seed-default-backgrounds.ts";
 export type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "./seed-default-persona.ts";
 export { createDefaultPersonaSeeder } from "./seed-default-persona.ts";
-export type { SeedDefaultPersonaDeps } from "./seed-default-persona-step.ts";
-export { seedDefaultPersona } from "./seed-default-persona-step.ts";
 export type { SeedDefaultPresetDeps } from "./seed-default-preset.ts";
 export { seedDefaultPreset } from "./seed-default-preset.ts";
 export type { ExamplePluginSeeder, ExamplePluginSeederDeps } from "./seed-example-plugins.ts";

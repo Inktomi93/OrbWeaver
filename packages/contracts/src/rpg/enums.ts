@@ -83,8 +83,6 @@ export const rpgTrackerCarrierClassSchema = z.enum(RPG_TRACKER_CARRIER_CLASSES) 
  *  schema-enforcing backend, §2.3) but CAN reach anything through `{kind:"custom", label:"…"}`. */
 export const RPG_RELATIONSHIP_KINDS = ["lover", "friend", "ally", "neutral", "enemy", "custom"] as const;
 export type RpgRelationshipKind = (typeof RPG_RELATIONSHIP_KINDS)[number];
-/** @public twin: RPG_RELATIONSHIP_KINDS — the canonical validation face shared by actor state and the
- *  relationship-write tool; `RpgRelationshipKind` is the type face of the same public tuple. */
 export const rpgRelationshipKindSchema = z.enum(RPG_RELATIONSHIP_KINDS) satisfies z.ZodType<RpgRelationshipKind>;
 
 /** P5 — what a CYOA choice CLICK does (§5.4). `compose` = the option text lands in the composer DRAFT + the
@@ -94,7 +92,4 @@ export const rpgRelationshipKindSchema = z.enum(RPG_RELATIONSHIP_KINDS) satisfie
  *  knob only shapes the click handler's behavior. */
 export const RPG_CYOA_CHOICE_BEHAVIORS = ["compose", "send"] as const;
 export type RpgCyoaChoiceBehavior = (typeof RPG_CYOA_CHOICE_BEHAVIORS)[number];
-/** @public twin: RPG_CYOA_CHOICE_BEHAVIORS — the canonical validation face shared by the live config and
- *  update-input consumers; `RpgCyoaChoiceBehavior` is the type face of the same tuple
- *  (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export const rpgCyoaChoiceBehaviorSchema = z.enum(RPG_CYOA_CHOICE_BEHAVIORS) satisfies z.ZodType<RpgCyoaChoiceBehavior>;

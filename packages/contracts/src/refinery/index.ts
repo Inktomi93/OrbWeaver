@@ -259,13 +259,17 @@ export type RefinerySelectionPatch = z.infer<typeof refinerySelectionPatchSchema
  *  ONE home for the `refinery_sessions.guidance` bound: R1's start/iterate inputs parse through THIS, and
  *  the prompt substrate neutralizes it before splicing (the `{{input}}` guided precedent). */
 export const refineryGuidanceSchema = z.string().max(HOST_PROSE_MAX_CHARS);
-/** The bounded host-authored steering text persisted on a refinery session. */
+/** The bounded host-authored steering text persisted on a refinery session.
+ * @public twin: refineryGuidanceSchema
+ */
 export type RefineryGuidance = z.output<typeof refineryGuidanceSchema>;
 
 /** The session's optional roster label — host-authored, never model-facing. Bounded like the card's own
  *  `name`: it is a row label rendered in the D62 LIST pane, not a prose field. */
 export const refinerySessionNameSchema = z.string().max(SESSION_NAME_MAX);
-/** The bounded optional roster label persisted on a refinery session. */
+/** The bounded optional roster label persisted on a refinery session.
+ * @public twin: refinerySessionNameSchema
+ */
 export type RefinerySessionName = z.output<typeof refinerySessionNameSchema>;
 
 // ── Per-stage payload config — the kind-tagged union (the SF seam, now TWO-ARMED on score/analyze) ──────
@@ -309,11 +313,9 @@ export type RefineryCustomStageConfig = z.infer<typeof refineryCustomStageConfig
 
 /** Session score config: fixed mode, or a custom schema pointer. */
 export const refineryScoreConfigSchema = z.union([refineryScoreFixedConfigSchema, refineryCustomStageConfigSchema]);
-export type RefineryScoreConfig = z.output<typeof refineryScoreConfigSchema>;
 
 /** Session analyze config: fixed mode, or a custom schema pointer. */
 export const refineryAnalyzeConfigSchema = z.union([refineryAnalyzeFixedConfigSchema, refineryCustomStageConfigSchema]);
-export type RefineryAnalyzeConfig = z.output<typeof refineryAnalyzeConfigSchema>;
 
 /** The session's in-force per-stage config (stored on `refinery_sessions.stage_config`). */
 export const refineryStageConfigSchema = z.object({
@@ -378,8 +380,6 @@ export const refineryFieldScoreSchema = z.object({
   weaknesses: critiqueProseSchema,
   suggestions: critiqueProseSchema,
 });
-/** One field-level score row emitted by the score stage. */
-export type RefineryFieldScore = z.output<typeof refineryFieldScoreSchema>;
 export const refineryScorePayloadSchema = z.object({
   fieldScores: z.array(refineryFieldScoreSchema).max(ENTRIES_MAX),
   /** Weighted average over `fieldScores` — the value R1 stamps into `characters.refinery.score` (F6). */

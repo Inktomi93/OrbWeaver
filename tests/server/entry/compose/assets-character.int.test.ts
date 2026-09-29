@@ -11,8 +11,9 @@
 // This file exercises the REAL-STACK arm, which is what the test env IS: `foundation/env` parses ONCE at
 // module load, so a per-test `vi.stubEnv` cannot flip the composed knob (the automation arm is the injected
 // unit test's job). The two calls below are the seeder's TWO trigger sites — boot-owner (`lifecycle.ts` →
-// `seedDefaultPersona`) and every user's first authed request (`app.ts` → `seedUserCharacters`) — and the
-// force must gate BOTH, or the deployment owner is the one user who never gets asked.
+// `seedUserContent` → its `seedPersona` dep) and every user's first authed request (`app.ts` →
+// `seedUserCharacters`) — and the force must gate BOTH, or the deployment owner is the one user who never
+// gets asked.
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";

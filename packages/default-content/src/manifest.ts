@@ -8,7 +8,6 @@ import { castId } from "@orb/kit/ids";
 
 /** The kinds of seeded item; the seeder handles each kind in its own door. */
 export const SEED_ITEM_KINDS = ["character", "persona", "rosterPreset"] as const;
-export type SeedItemKind = (typeof SEED_ITEM_KINDS)[number];
 
 /** One seeded item. `key` is the ledger key and never changes once shipped: renaming it reseeds the item. */
 export type SeedManifestItem =

@@ -51,17 +51,18 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
     connections,
   });
   return (
-    // The card's own track, so the fill spans the card's width; the measure caps the paragraph inside it.
-    // This line sits below the composer's opaque card, directly on the room's art. The transcript's
-    // translucent reading plate has a stated dark-arm hole for a custom pivot palette (D144(d)), so the
-    // line takes an opaque fill: `bg-card`'s AA floor is proven for every ink it paints
-    // (`palette-contrast.suite.test.ts`). No `rounded-card`: a text backdrop is not a second elevated
-    // surface (UI-Density-Law.md §3/§5.1).
-    <Container className={cn(CHAT_TRACK, "bg-card px-field py-tight")}>
+    // The card's own track, so the fill spans the card's width AND the text starts at the card's edge — the
+    // horizontal inset rides the paragraph's own padding (which insets its content, not its box), never the
+    // container's, or the fill's left edge stops matching the composer's. This line sits below the
+    // composer's opaque card, directly on the room's art. The transcript's translucent reading plate has a
+    // stated dark-arm hole for a custom pivot palette (D144(d)), so the line takes an opaque fill: `bg-card`'s
+    // AA floor is proven for every ink it paints (`palette-contrast.suite.test.ts`). No `rounded-card`: a text
+    // backdrop is not a second elevated surface (UI-Density-Law.md §3/§5.1).
+    <Container className={cn(CHAT_TRACK, "bg-card py-tight")}>
       <Text
         as="p"
         voice="gloss"
-        className={cn("min-w-0 max-w-(--reading-measure-prose) break-words", STATE_INK[line.state])}
+        className={cn("min-w-0 max-w-(--reading-measure-prose) break-words px-field", STATE_INK[line.state])}
         data-slot="composer-next-turn"
         data-unset={line.state === "unset" ? "" : undefined}
         data-failed={line.state === "failed" ? "" : undefined}

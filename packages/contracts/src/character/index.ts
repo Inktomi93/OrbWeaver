@@ -149,8 +149,6 @@ export const cardAssetSchema = z
     ext: z.string().catch(""),
   })
   .loose();
-/** One preserved Character Card V3 asset manifest entry. */
-export type CardAsset = z.output<typeof cardAssetSchema>;
 
 // Character's Note @ Depth: reuses the shared `@orb/kit/injection` `{depth, role?}` directive.
 export const cardDepthPromptSchema = injectionDirectiveSchema.extend({
@@ -205,7 +203,9 @@ export type Greeting = z.infer<typeof greetingSchema>;
 /** The always-a-list DB read-seam coercion for the `characters.greetings` JSON column (+ snapshot blobs): a
  *  corrupt/non-array value collapses to `[]`. The ONE home the row→view readers share (queries `cardOf`). */
 export const greetingsColumnSchema = z.array(greetingSchema).catch([]);
-/** The healed DB/snapshot representation emitted by {@link greetingsColumnSchema}. */
+/** The healed DB/snapshot representation emitted by {@link greetingsColumnSchema}.
+ * @public twin: greetingsColumnSchema
+ */
 export type GreetingsColumn = z.output<typeof greetingsColumnSchema>;
 
 // Identity-free (no id/handle/ownerId — those are row identity columns, not card content).

@@ -57,7 +57,6 @@ export function renderInjection(injection: ChatInjection, resolveContent: (conte
  * `originalRole` names the author's role when a caller re-roled a system or assistant injection to user for the
  * wire. A system note stays bare; an assistant note takes its neutral frame, which carries no speaker label.
  * `prose` is the preset's overrides for the note frames; `{}` ⇒ the shipped frames.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function frameInjection(role: MessageRole, content: string, originalRole?: ReRoledInjection, prose: ProseOverrides = {}): string {
   const trimmed = content.trim();

@@ -114,9 +114,7 @@ export class PluginNotShowcaseError extends DomainOperationError {
 }
 
 /** The manifest pins a `hostVersion` this build does not serve. Separate from a generic manifest
- *  fault so the caller can be told to rebuild against the served major, not "fix your manifest".
- *
- *  @public thrown by the common bundle funnel before install, upgrade, preview, or activation accepts bytes. */
+ *  fault so the caller can be told to rebuild against the served major, not "fix your manifest". */
 export class HostVersionUnservedError extends DomainOperationError {
   readonly requested: number;
   readonly served: readonly number[];
