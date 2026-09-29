@@ -29,6 +29,7 @@ import { ROLE_ROWS_ORDERED, ROLE_STATUS_LABELS } from "../../../../../packages/c
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { ALL_AVAILABLE } from "../_connection-fixtures.ts";
 import { ConnectionsPaneNarrowStory, ConnectionsPaneWideStory, ConnectionsSettingsHostedStory, ConnectionsSettingsStory } from "../_ct-stories.tsx";
 
 const AUTOSAVE_STATUS = '[data-slot="autosave-status"]';
@@ -178,8 +179,10 @@ async function stubPane(
     "connection.list": () => opts.connections ?? [CHAT_ROW, UTILITY_ROW, EMBED_ROW],
     "connection.listBindings": () => opts.bindings ?? UNBOUND,
     // Saved keys turns a credential's registry id into the provider's user-facing LABEL through the
-    // registry rows — the one home for `ProviderDef.label`.
-    "connection.providersAvailable": () => [],
+    // registry rows — the one home for `ProviderDef.label`. The connections list row also reads this to
+    // decide whether a row's provider is still registered (its background switch disables when it is not),
+    // so every fixture row's `providerId` needs a matching entry here.
+    "connection.providersAvailable": () => ALL_AVAILABLE,
     "credentials.list": () => opts.credentials ?? [],
     "connection.setBinding": () => binding("chat", CHAT_CONNECTION_ID),
     "connection.update": () => CHAT_ROW,
