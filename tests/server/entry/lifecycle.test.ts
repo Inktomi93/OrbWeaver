@@ -97,6 +97,17 @@ describe("HTTP server timeout policy", () => {
     );
   });
 
+  test("boot's default call forwards the chosen timeout values, not Node's implicit ones", () => {
+    const serveAdapter = vi.fn<NonNullable<Parameters<typeof serveHttpServer>[3]>>(() => createServer());
+
+    // Boot omits the options argument; the literals pin the chosen policy against a silent edit.
+    serveHttpServer({ fetch: (): Response => new Response("ok"), port: 0 }, vi.fn(), undefined, serveAdapter);
+
+    expect(serveAdapter.mock.calls[0]?.[0]).toMatchObject({
+      serverOptions: { keepAliveTimeout: 5000, requestTimeout: 300_000, headersTimeout: 60_000 },
+    });
+  });
+
   test("requestTimeout bounds request receipt, not an SSE response served through Hono", async () => {
     const listening = Promise.withResolvers<void>();
     const controllerReady = Promise.withResolvers<ReadableStreamDefaultController<Uint8Array>>();

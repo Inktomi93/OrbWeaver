@@ -7,9 +7,10 @@
 # content-addressable store makes the per-worktree install fast via hard-links — no re-download,
 # minimal disk.
 #
-# `pnpm install` also runs the root `prepare` script (`node scripts/prepare.ts`), which installs
-# lefthook, so git hooks are wired for this worktree automatically. The only thing install can't
-# provide is the gitignored .env (secrets), which we link from the main checkout if present.
+# The git hooks live in the shared `.git/hooks`, installed only from the main checkout
+# (`scripts/prepare.ts` skips a linked worktree), and they run this worktree's own lefthook.yml.
+# The only thing install can't provide is the gitignored .env (secrets), which we link from the main
+# checkout if present.
 #
 # Usage:  pnpm run worktree:bootstrap   (or:  bash scripts/worktree-bootstrap.sh)
 set -euo pipefail
@@ -18,7 +19,7 @@ ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 echo "worktree-bootstrap: $ROOT"
 
-# 1. Per-worktree deps (hard-linked from the global store) + hooks (via prepare).
+# 1. Per-worktree deps (hard-linked from the global store).
 pnpm install
 
 # 2. Provision .env from the main checkout if this worktree lacks one.
