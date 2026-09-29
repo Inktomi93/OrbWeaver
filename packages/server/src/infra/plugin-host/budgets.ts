@@ -87,6 +87,13 @@ export const GUEST_MAX_STACK_BYTES = 262_144;
  *  lengthens how long a hung invocation holds its context. */
 export const HOST_FN_DEADLINE_MS = 5000;
 
+/** How long a command authority stays live in the parent after its command returned while a bridge call posted
+ *  under it is still pending. The legitimate late case is one call fired inside the command settling at most
+ *  {@link HOST_FN_DEADLINE_MS} later, then one job pump (bounded by {@link PLUGIN_INVOCATION_CPU_MS}) posting its
+ *  follow-on; the sum admits that and nothing longer. Without the tail a guest keeps an authority alive forever
+ *  by chaining `storage.get(k).then(loop)`, each settlement re-arming the pending count before the idle check. */
+export const PLUGIN_AUTHORITY_TAIL_MS = PLUGIN_INVOCATION_CPU_MS + HOST_FN_DEADLINE_MS;
+
 /** Max serialized (JSON) byte size of any host-function result crossing back into the guest (= 1 MiB). */
 export const HOST_FN_RESULT_CAP_BYTES = 1_048_576;
 

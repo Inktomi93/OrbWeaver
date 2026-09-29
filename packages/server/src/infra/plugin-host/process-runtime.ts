@@ -47,7 +47,13 @@ import { getLog } from "#foundation/observability";
 import { createAdmission } from "./admission.ts";
 import type { BridgeAuthority } from "./bridge-rpc.ts";
 import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall, dispatchSyncCall } from "./bridge-rpc.ts";
-import { PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES, PLUGIN_RUNTIME_REQUEST_QUEUE_MAX, PLUGIN_SNIPPET_RUNTIME_MAX } from "./budgets.ts";
+import {
+  PLUGIN_AUTHORITY_TAIL_MS,
+  PLUGIN_LOG_RING_CHARS,
+  PLUGIN_LOG_RING_LINES,
+  PLUGIN_RUNTIME_REQUEST_QUEUE_MAX,
+  PLUGIN_SNIPPET_RUNTIME_MAX,
+} from "./budgets.ts";
 import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, PluginHostSeamDeps, PluginLogLineOut, SnippetRunOut } from "./contract/port.ts";
 import type { BrokerParentMessage, ParentBrokerMessage } from "./contract/process-protocol.ts";
 import {
@@ -81,6 +87,8 @@ interface Binding {
   readonly bridge: PluginBridge;
   readonly grants: ReadonlySet<PluginCapability>;
   readonly authorities: Map<string, BridgeAuthority>;
+  /** Per-authority tail timers armed when a command completes; the parent's own bound on a lying Worker. */
+  readonly authorityTails: Map<string, NodeJS.Timeout>;
   readonly seams: PluginHostSeamDeps;
   readonly invokeArgs: Map<string, (chatHandle: string | null) => string>;
   readonly log: PluginLogLineOut[];
@@ -185,6 +193,42 @@ const acquireSnippetAdmission = createAdmission(PLUGIN_SNIPPET_RUNTIME_MAX);
 
 function releaseBinding(binding: Binding): void {
   binding.releaseAdmission?.();
+}
+
+let liveAuthorityTails = 0;
+
+function disarmAuthorityTail(binding: Binding, authorityId: string): void {
+  const timer = binding.authorityTails.get(authorityId);
+  if (timer === undefined) {
+    return;
+  }
+  clearTimeout(timer);
+  binding.authorityTails.delete(authorityId);
+  liveAuthorityTails -= 1;
+}
+
+function releaseAuthority(binding: Binding, authorityId: string): void {
+  disarmAuthorityTail(binding, authorityId);
+  binding.authorities.delete(authorityId);
+}
+
+function clearAuthorities(binding: Binding): void {
+  for (const authorityId of binding.authorityTails.keys()) {
+    disarmAuthorityTail(binding, authorityId);
+  }
+  binding.authorities.clear();
+}
+
+// Armed once the command has returned. The Worker reports release when its calls have settled; this timer is
+// the parent's own bound, so a hung or lying Worker cannot keep the command's frozen phase and chat alive.
+function armAuthorityTail(binding: Binding, authorityId: string): void {
+  if (!binding.authorities.has(authorityId) || binding.authorityTails.has(authorityId)) {
+    return;
+  }
+  const timer = setTimeout(() => releaseAuthority(binding, authorityId), PLUGIN_AUTHORITY_TAIL_MS);
+  timer.unref();
+  binding.authorityTails.set(authorityId, timer);
+  liveAuthorityTails += 1;
 }
 
 function retainLog(binding: Binding, level: PluginLogLevel, message: string): void {
@@ -521,7 +565,10 @@ class BrokerClient {
       return;
     }
     if (message.kind === "authority-released") {
-      bindings.get(message.runtimeId)?.authorities.delete(message.authorityId);
+      const binding = bindings.get(message.runtimeId);
+      if (binding !== undefined) {
+        releaseAuthority(binding, message.authorityId);
+      }
       return;
     }
     if (message.kind === "bridge") {
@@ -566,7 +613,7 @@ class BrokerClient {
     binding.runtimeId = undefined;
     const error = fromRpcError(message.error, "plugin worker crashed");
     binding.crashed = error;
-    binding.authorities.clear();
+    clearAuthorities(binding);
     binding.invokeArgs.clear();
     releaseBinding(binding);
     binding.onCrash(error);
@@ -686,7 +733,7 @@ class BrokerClient {
         continue;
       }
       binding.crashed = error;
-      binding.authorities.clear();
+      clearAuthorities(binding);
       binding.invokeArgs.clear();
       releaseBinding(binding);
       binding.onCrash(error);
@@ -697,7 +744,7 @@ class BrokerClient {
         continue;
       }
       binding.crashed = error;
-      binding.authorities.clear();
+      clearAuthorities(binding);
       binding.invokeArgs.clear();
       releaseBinding(binding);
       binding.onCrash(error);
@@ -752,6 +799,11 @@ export function __pauseManagedPluginBridgeDeliveryForTest(operation: Extract<Bro
 /** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
 export function __pauseManagedPluginConnectChaseForTest(): { readonly reached: Promise<void>; readonly release: () => void } {
   return broker.pauseConnectChaseForTest();
+}
+
+/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+export function __countLiveAuthorityTailsForTest(): number {
+  return liveAuthorityTails;
 }
 
 function requireRegistrationGrant(grants: ReadonlySet<PluginCapability>, capability: PluginCapability, registrations: readonly unknown[], label: string): void {
@@ -939,18 +991,22 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     const authorityId = randomUUID();
     // The authority outlives the command: a guest continuation resumed by a host call that settles after the
     // command returned still issues its own host calls under this id. The Worker reports `authority-released`
-    // once the command has completed and every call posted under the id has settled; retire, crash and
-    // disconnect clear the whole map. The membrane's in-flight cap bounds how many ids can be held open.
+    // once the command has completed and every call posted under the id has settled; the tail armed below
+    // ends it regardless; retire, crash and disconnect clear the whole map.
     binding.authorities.set(authorityId, { grants: binding.grants, chat, phase });
-    return await broker.command({
-      operation,
-      runtimeId,
-      authorityId,
-      value,
-      onConnected: (): void => {
-        binding.dispatched = true;
-      },
-    });
+    try {
+      return await broker.command({
+        operation,
+        runtimeId,
+        authorityId,
+        value,
+        onConnected: (): void => {
+          binding.dispatched = true;
+        },
+      });
+    } finally {
+      armAuthorityTail(binding, authorityId);
+    }
   };
 
   const retireRuntime = async (binding: Binding): Promise<void> => {
@@ -971,7 +1027,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
         if (binding.runtimeId === runtimeId) {
           binding.runtimeId = undefined;
         }
-        binding.authorities.clear();
+        clearAuthorities(binding);
         binding.invokeArgs.clear();
       }
     })();
@@ -1160,6 +1216,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       bridge,
       grants: new Set(grants),
       authorities: new Map(),
+      authorityTails: new Map(),
       seams,
       invokeArgs: new Map(),
       log: [],

@@ -7,6 +7,7 @@ import type { MessagePort } from "node:worker_threads";
 import { parentPort, workerData } from "node:worker_threads";
 import type { PluginHandlerRef, PluginInstance, PluginInvocationLiveness, PluginInvokeArgs } from "@orb/contracts/plugin";
 import { createRemoteBridge } from "./bridge-rpc.ts";
+import { PLUGIN_AUTHORITY_TAIL_MS } from "./budgets.ts";
 import type { CreateInstanceInputIn } from "./contract/port.ts";
 import type { BrokerWorkerMessage, PluginBridgeOperation, PluginSyncOperation, WorkerBrokerMessage } from "./contract/process-protocol.ts";
 import { createLocalPluginHost } from "./port.ts";
@@ -49,12 +50,15 @@ interface PendingBridgeCall {
 const pending = new Map<string, PendingBridgeCall>();
 
 // A command authority stays live in the parent until this Worker can no longer post a bridge call under it:
-// the command has completed and every call posted under it has settled. Guest bytecode runs only inside a
-// command or in the job pump a settlement triggers, so a guest continuation resumed by a late host result
-// still reaches the parent under the authority it inherited; the parent deletes the authority on release.
+// the command has completed and every call posted under it has settled, or the fixed tail after completion
+// has expired. Guest bytecode runs only inside a command or in the job pump a settlement triggers, so a guest
+// continuation resumed by a late host result still reaches the parent under the authority it inherited. The
+// tail is the bound: a chain that re-arms `pendingCalls` on every settlement never idles, so idleness alone
+// would keep the command's frozen phase and chat alive forever. The parent enforces the same tail itself.
 interface AuthorityLease {
   pendingCalls: number;
   commandDone: boolean;
+  tail: ReturnType<typeof setTimeout> | undefined;
 }
 const authorityLeases = new Map<string, AuthorityLease>();
 
@@ -62,13 +66,23 @@ function post(message: WorkerBrokerMessage): void {
   port.postMessage(message);
 }
 
-function leaseOf(authorityId: string): AuthorityLease {
+function openLease(authorityId: string): AuthorityLease {
   let lease = authorityLeases.get(authorityId);
   if (lease === undefined) {
-    lease = { pendingCalls: 0, commandDone: false };
+    lease = { pendingCalls: 0, commandDone: false, tail: undefined };
     authorityLeases.set(authorityId, lease);
   }
   return lease;
+}
+
+function releaseAuthority(authorityId: string): void {
+  const lease = authorityLeases.get(authorityId);
+  if (lease === undefined) {
+    return;
+  }
+  clearTimeout(lease.tail);
+  authorityLeases.delete(authorityId);
+  post({ kind: "authority-released", authorityId });
 }
 
 function releaseAuthorityIfIdle(authorityId: string): void {
@@ -76,8 +90,7 @@ function releaseAuthorityIfIdle(authorityId: string): void {
   if (lease === undefined || !lease.commandDone || lease.pendingCalls > 0) {
     return;
   }
-  authorityLeases.delete(authorityId);
-  post({ kind: "authority-released", authorityId });
+  releaseAuthority(authorityId);
 }
 
 // The idle check waits one macrotask: the job pump this settlement triggers runs in the same microtask flush
@@ -98,8 +111,14 @@ function settleBridgeCall(id: string): PendingBridgeCall | undefined {
 
 function completeCommand(authorityId: string, response: Extract<WorkerBrokerMessage, { readonly kind: "response" }>): void {
   post(response);
-  leaseOf(authorityId).commandDone = true;
-  releaseAuthorityIfIdle(authorityId);
+  const lease = openLease(authorityId);
+  lease.commandDone = true;
+  if (lease.pendingCalls === 0) {
+    releaseAuthority(authorityId);
+    return;
+  }
+  lease.tail = setTimeout(() => releaseAuthority(authorityId), PLUGIN_AUTHORITY_TAIL_MS);
+  lease.tail.unref();
 }
 
 function callAsync(operation: PluginBridgeOperation, args: readonly unknown[], liveness?: PluginInvocationLiveness): Promise<unknown> {
@@ -111,7 +130,11 @@ function callAsync(operation: PluginBridgeOperation, args: readonly unknown[], l
   return new Promise((resolve, reject) => {
     const request: PendingBridgeCall = { authorityId, resolve, reject };
     pending.set(id, request);
-    leaseOf(authorityId).pendingCalls += 1;
+    // A call posted after the lease expired is not counted: the parent refuses it as stale.
+    const lease = authorityLeases.get(authorityId);
+    if (lease !== undefined) {
+      lease.pendingCalls += 1;
+    }
     const unsubscribe = liveness?.onAbort(() => {
       const active = settleBridgeCall(id);
       if (active === undefined) {
@@ -225,6 +248,7 @@ port.on("message", (message: BrokerWorkerMessage) => {
     }
     return;
   }
+  openLease(message.authorityId);
   // @orb-waive caught-failure-ownership(run): every command rejection is encoded into the response with the same command id. Ends if the error response stops carrying the rejection.
   void commandAuthority
     .run(message.authorityId, () => run(message))

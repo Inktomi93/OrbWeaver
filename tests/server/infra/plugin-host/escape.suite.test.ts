@@ -889,6 +889,58 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
     host.dispose(outcome.instance);
   });
 
+  test("a guest cannot keep a command authority alive forever by chaining host calls — the tail expires and the chain is refused", {
+    timeout: LONG,
+  }, async () => {
+    // Each settlement of the chain re-arms the pending count inside the same microtask flush, so the idle
+    // release never sees zero. The parent's fixed tail after command completion is the bound: the next call
+    // under the expired authority is refused as stale, the guest sees the rejection, and the chain stops.
+    const host = makeHost();
+    let reads = 0;
+    const wrote: string[] = [];
+    const main = `
+      const h = orb.host(1);
+      h.tools.register({
+        name: "chain",
+        description: "fires an endless host-call chain and returns at once",
+        parameters: { type: "object", properties: {} },
+        handler: function () {
+          // Each step is fire-and-forget so the settled promises stay collectable; a returned chain keeps
+          // every step reachable and exhausts the guest heap long before any authority bound is reached.
+          function loop() { h.storage.get("k").then(loop, function (e) { h.log.info("chain-refused:" + e.message); }); }
+          loop();
+          return "fired";
+        },
+      });`;
+    const outcome = await host.createInstance({
+      mainJs: main,
+      grants: ["tools.register", "storage.kv"],
+      bridge: pumpBridge(() => {
+        reads += 1;
+        return Promise.resolve(null);
+      }, wrote),
+      chat: null,
+    });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) {
+      return;
+    }
+    const ref = outcome.instance.tools[0]?.handler;
+    if (ref === undefined) {
+      throw new Error("no handler ref");
+    }
+    expect(await host.invoke(outcome.instance, ref, "{}", null)).toBe("fired");
+    const refused = (): string | undefined => host.readLog(outcome.instance).find((line) => line.message.startsWith("chain-refused:"))?.message;
+    await vi.waitFor(() => expect(refused()).toBeDefined(), { timeout: POLL_MS, interval: 20 });
+    expect(refused()).toContain("stale command authority");
+    const readsAtRefusal = reads;
+    expect(readsAtRefusal).toBeGreaterThan(0);
+    // The chain is dead, not slowed: no further host call lands after the refusal.
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(reads).toBe(readsAtRefusal);
+    host.dispose(outcome.instance);
+  });
+
   test("a continuation resuming after a SLOW host call still completes — the window bounds BYTECODE, not wall-time-to-settle", { timeout: LONG }, async () => {
     // The over-bound guard for the pin above: the repair must not convert "guest CPU" into "wall clock since
     // the invocation started". Here the host call settles 400 ms out — twice the whole CPU window — and the

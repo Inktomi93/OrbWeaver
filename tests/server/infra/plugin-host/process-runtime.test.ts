@@ -3,12 +3,13 @@ import type { PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance }
 import { PLUGIN_MAIN_ENTRY } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
-import { createPluginHost } from "@orb/server/infra/plugin-host";
+import { createPluginHost, PLUGIN_MEMORY_LIMIT_BYTES } from "@orb/server/infra/plugin-host";
 import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { unzipSync } from "fflate";
-import { afterEach, beforeAll } from "vitest";
+import { afterEach, beforeAll, vi } from "vitest";
 import { env } from "../../../../packages/server/src/foundation/env/index.ts";
 import {
+  __countLiveAuthorityTailsForTest,
   __hasManagedPluginBrokerForTest,
   __killManagedPluginBrokerOnBridgeForTest,
   __killManagedPluginBrokerOnCommandForTest,
@@ -326,6 +327,29 @@ test("a bridge frame already on the parent wire cannot dispatch after dispose re
     delivery.release();
     host.dispose(outcome.instance);
   }
+});
+
+test("disposing a runtime clears the command-authority tail timers it holds", { timeout: LONG }, async () => {
+  const base = bridge();
+  const parkedBridge: PluginBridge = {
+    ...base,
+    storage: { ...base.storage, get: () => new Promise<string | null>(() => undefined) },
+  };
+  const host = createPluginHost(seams());
+  // A zero settlement grace returns activation with the call still parked, so its authority is in its tail.
+  const outcome = await host.createInstance({
+    ...durableSource("orb.host(1).storage.get('parked').then(function () {}); 'activated';"),
+    grants: ["storage.kv"],
+    bridge: parkedBridge,
+    chat: noChat,
+    budgets: { cpuDeadlineMs: 200, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES, settleGraceMs: 0 },
+  });
+  if (!outcome.ok) {
+    throw new Error(outcome.error);
+  }
+  expect(__countLiveAuthorityTailsForTest()).toBe(1);
+  host.dispose(outcome.instance);
+  await vi.waitFor(() => expect(__countLiveAuthorityTailsForTest()).toBe(0));
 });
 
 test("broker exit during deactivation releases the runtime and a later lifecycle may reactivate", { timeout: LONG }, async () => {

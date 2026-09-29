@@ -36,12 +36,16 @@ runtime id and live authority id, rechecks the original grant through `HOST_FUNC
 chat id to the invocation's admitted chat, rechecks `canWrite`, and rechecks request-turn cascade depth. Unknown
 operation names, malformed argument envelopes, oversized frames, and stale ids are refused.
 
-An authority id stays live after its command returns while a bridge call posted under it is still pending. A
-guest continuation resumed by that call's late result runs in the Worker's job pump under the same id, so its
-own host calls are re-authorized against the phase and chat of the command that started the chain. The Worker
-sends `authority-released` once the command has completed and no call posted under the id remains pending; the
-app deletes the id then. Retire, crash and disconnect clear every id at once. The membrane's in-flight cap bounds
-the number of ids a runtime can hold open.
+An authority id stays live after its command returns while a bridge call posted under it is still pending, for
+at most `PLUGIN_AUTHORITY_TAIL_MS` after the command completed. A guest continuation resumed by that call's late
+result runs in the Worker's job pump under the same id, so its own host calls are re-authorized against the phase
+and chat of the command that started the chain. The Worker sends `authority-released` once the command has
+completed and no call posted under the id remains pending, or when the tail expires; the app deletes the id on
+that message and runs the same tail timer itself, so a Worker that never reports cannot extend an authority. A
+call under an expired id is refused as stale. Retire, crash and disconnect clear every id and timer at once. A
+runtime holding a tail authority is still reusable by its own logical plugin and evictable: reuse carries the same
+grants, a chat-scoped call must match both the membrane's current handle and the frozen authority's chat, and
+eviction retires the runtime, which drops the chain.
 
 The physical Worker pool is configured independently from logical enabled count. Requests enter a bounded FIFO and
 idle guests are evicted least-recently-used; a pinned invocation is never evicted. Snippets share this same
