@@ -25,9 +25,15 @@
  *   --pointers        the pointer-liveness inventory.
  *   --help, -h        usage.
  *
- * Exit code: mirrors the report's overall `ok` (0 clean / 1 dirty) — unless a filter is active,
- * in which case ordinary violations are an inspection view (0). Broken evidence is always toolError (2),
- * and invalid argv is always misuse (3), filters or not.
+ * THE FAILED-VERIFY-RUN SUMMARY (#0267). The bare default and `--errors-only` also read `reports/verify.json`
+ * — when the latest verify run did not pass, every failing stage is named with its own extracted failure
+ * lines BEFORE the structure verdict, so a stage `check:structure` cannot see (`tests:node`, `browser:ct`,
+ * a boot or budget stage) is never silent under a clean structure verdict. `lib/show-run-summary.ts` owns
+ * this reader; `--gate`/`--file` stay a narrow, unaugmented structure-only ask.
+ *
+ * Exit code: mirrors the report's overall `ok` (0 clean / 1 dirty), and is never clean when the latest
+ * verify run failed — unless a filter is active, in which case ordinary violations are an inspection view
+ * (0). Broken evidence is always toolError (2), and invalid argv is always misuse (3), filters or not.
  */
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
@@ -50,6 +56,7 @@ import {
 } from "../lib/show-artifact.ts";
 import { pointerView } from "../lib/show-pointers.ts";
 import { failedHeaderLine, finalBlockLines, finalBrokenEvidenceCount, finalRowHeader, passLine, violationLine } from "../lib/show-policy.ts";
+import { readLatestVerifyRun, structureProvenanceNote, verifyFailureSummary } from "../lib/show-run-summary.ts";
 import { stageView } from "../lib/show-stage.ts";
 import { structureCountLine } from "../lib/structure-report.ts";
 
@@ -96,6 +103,8 @@ interface Filter {
  *  answer (cli.ts VERB_HELP, #809). */
 export const SHOW_HELP =
   "Usage: pnpm check:show [options]\n\n" +
+  "  The default view and --errors-only also name every failing stage of the last verify run, with its\n" +
+  "  own extracted failure lines, before the structure verdict below.\n\n" +
   "  --errors-only     Failing gate names + counts only, no per-site detail.\n" +
   "  --gate <substr>   Filter to gates whose name contains <substr> (shows it even if clean).\n" +
   "  --file <substr>   Filter violations whose file path contains <substr>.\n" +
@@ -322,6 +331,27 @@ function printGateList(report: StructureReport, filter: Filter): void {
   }
 }
 
+/** THE FAILED-VERIFY-RUN SUMMARY (#0267) — printed before the structure verdict when the latest verify run
+ *  did not pass, so a stage this artifact alone cannot see (`tests:node`, `browser:ct`, a budget or boot
+ *  stage) is never silent under a clean structure verdict. Returns whether the run failed, so the caller can
+ *  keep the exit code honest even when structure alone is green. Split out of `runShow` to keep it under the
+ *  cognitive-complexity cap. */
+function printVerifyFailureSummary(root: string, structureRun: StructureReport["run"], filter: Filter): boolean {
+  const verifyReport = readLatestVerifyRun(root);
+  if (verifyReport === null || verifyReport.ok) {
+    return false;
+  }
+  const summary = verifyFailureSummary(root, verifyReport, filter.limit, ANSI);
+  if (summary !== null) {
+    for (const line of summary) {
+      print(line);
+    }
+  }
+  print(structureProvenanceNote(verifyReport.run, structureRun, ANSI));
+  print("");
+  return true;
+}
+
 /** THE OTHER TWO ARTIFACTS THIS ONE DOOR READS (#2502), answered before the structure read: the verify run's
  *  per-stage transcripts and the pointer inventory. Returns the exit code when one of them was asked for,
  *  and null when this is an ordinary structure read.
@@ -380,7 +410,12 @@ export function runShow(root: string, argv: readonly string[]): number {
   const filtersActive = filter.gate !== null || filter.file !== null;
   const evidenceBroken = brokenEvidenceCount(report) > 0;
 
-  if (report.ok && !filtersActive && !evidenceBroken) {
+  // A `--gate`/`--file` request is an explicit, narrow ask about the structure artifact and is left
+  // untouched; the bare default and `--errors-only` are where a red `tests:node`/`browser:ct`/other
+  // non-structure stage used to go unreported while a clean structure verdict printed underneath it.
+  const verifyFailed = !filtersActive && printVerifyFailureSummary(root, report.run, filter);
+
+  if (report.ok && !filtersActive && !evidenceBroken && !verifyFailed) {
     // The admitted total rides the PASS line: a ratchet baseline is declared debt a green run is still
     // carrying, and "green" was the only thing this line said until 2026-08-13 (Codex GA-H-02).
     print(passLine(report.gates, report.policy, ANSI));
@@ -395,6 +430,10 @@ export function runShow(root: string, argv: readonly string[]): number {
 
   if (evidenceBroken) {
     return EXIT.toolError;
+  }
+  if (verifyFailed) {
+    // The run failed even though structure alone did not — never a clean exit for a red `pnpm verify`.
+    return EXIT.violations;
   }
   return filtersActive || report.ok ? EXIT.clean : EXIT.violations;
 }
