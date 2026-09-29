@@ -727,6 +727,17 @@ const ROWS: Row[] = [
   ["deny", "git-hook-bypass", "git commit --no-verify -m x -- docs"],
   ["deny", "git-hook-bypass", "git commit -n -m x -- docs"],
   ["deny", "git-hook-bypass", "git merge --no-verify main"],
+  // git's global options, a value-taking one included, and a quoted flag do not hide the skip
+  ...["-C /x", "-c user.name=x", "--config-env k=V"].flatMap((opts): Row[] => [
+    ["deny", "git-hook-bypass", `git ${opts} commit --no-verify -m x`, AGENT_TIMEOUT],
+    ["deny", "git-hook-bypass", `git ${opts} commit -n -m x`, AGENT_TIMEOUT],
+  ]),
+  ["deny", "git-hook-bypass", "git -C /x merge --no-verify main", AGENT_TIMEOUT],
+  ["deny", "git-hook-bypass", 'git -C /x commit "--no-verify" -m x', AGENT_TIMEOUT],
+  ["deny", "git-hook-bypass", "time -p git -C /x commit -n -m x", AGENT_TIMEOUT],
+  ["pass", null, "git -C /x merge -n main", AGENT_TIMEOUT], // `-n` on merge is --no-stat
+  ["pass", null, "git -C /x log -n 5"],
+  ["pass", null, "git commit -m 'skip --no-verify here'", AGENT_TIMEOUT],
   ["deny", "git-hook-bypass", "git -c core.hooksPath=/dev/null commit -m x -- docs"],
   ["deny", "git-hook-bypass", "git -c core.hooksPath=/dev/null -C /abs/wt push origin main"],
   ["deny", "git-hook-bypass", "git config core.hooksPath /dev/null"],
@@ -917,6 +928,15 @@ const ROWS: Row[] = [
   ["deny", "subst:git-destructive", "tee /tmp/h.txt <<EOF\nit's $(git stash)\nEOF"],
   ["deny", "subst:git-destructive", "tee /tmp/h.txt <<EOF\n\\\\$(git stash)\nEOF"],
   ["pass", null, "tee /tmp/h.txt <<EOF\n\\$(git stash)\nEOF"],
+  // bash has no comments inside a heredoc body, so a `#` there hides nothing
+  ["deny", "subst:git-destructive", "cat <<EOF\n# $(git stash)\nEOF"],
+  ["ask", "subst:rm-rf-unsafe", "cat > run.md <<EOF\n# Notes $(rm -rf /)\nEOF"],
+  ["deny", "subst:git-destructive", "tee /tmp/h.txt <<EOF\nx # y $(git stash)\nEOF"],
+  ["pass", null, "tee /tmp/h.txt <<'EOF'\n# $(git stash)\nEOF"],
+  // a quote character in a heredoc body is text, and opens no quoted span over the commands after it
+  ["deny", "git-destructive", "cat <<EOF\nit's fine\nEOF\ngit stash"],
+  ["deny", "git-destructive", 'tee /tmp/h.txt <<EOF\nsay "hi\nEOF\ngit stash'],
+  ["pass", null, "tee /tmp/h.txt <<EOF\nit's fine\nEOF\necho 'git stash'"],
   // git's bare global flags take no value, so a log/grep argument that reads `commit`/`merge` is not one
   ["pass", null, "git --no-pager log -S commit | head"],
   ["pass", null, 'git -C "$WT" log --grep merge | head'],
@@ -945,6 +965,12 @@ const ROWS: Row[] = [
   ["ask", "rm-rf-unsafe", "{ rm -rf /; }"],
   ["ask", "rm-rf-unsafe", "if true; then rm -rf /; fi"],
   ["ask", "rm-rf-unsafe", "! rm -rf /"],
+  // `command` and `time` prefixes, with the wrappers after them, do not hide an rm or a sudo
+  ["ask", "rm-rf-unsafe", "command rm -rf /"],
+  ["ask", "rm-rf-unsafe", "if [ -d x ]; then command rm -rf /; fi"],
+  ["ask", "rm-rf-unsafe", "time command rm -rf /"],
+  ["ask", "rm-rf-unsafe", "time env rm -rf /"],
+  ["ask", "sudo", "time timeout 5 sudo ls"],
   ["ask", "sudo", "for i in 1; do sudo ls; done"],
   ["ask", "sudo", "(sudo ls)"],
   ["ask", "sudo", "{ sudo ls; }"],
@@ -1520,6 +1546,9 @@ test("rewrite: a piped `pnpm doc` or `git commit/merge` is a valid pipeRewrite o
     "pnpm doc overview\\ | head",
     "(git commit -m x | tail)",
     "git commit -m x \\| tail",
+    // the artifact rewrite reads the same escape
+    "pnpm check \\| tail -5",
+    "pnpm test:node \\| tail -5",
   ];
   const stay = runBatch(mustStay.map((command) => ({ command, ...AGENT_TIMEOUT })));
   expect(stay.map((r) => r.rewrite?.command)).toEqual(mustStay.map(() => undefined));
@@ -1583,6 +1612,7 @@ test("commit timeout: a foreground commit/merge with no timeout gets the long ti
     { command: "/usr/bin/git commit -m x" },
     { command: "git --config-env k=V commit -m x" },
     { command: "command -v git" },
+    { command: "time -p git commit -m x" },
   ]);
   expect(rows.map((r) => [r.decision, r.rule, r.rewrite?.command, r.rewrite?.timeout])).toEqual([
     ["allow", "commit-timeout", "git commit -m x", 600_000],
@@ -1606,6 +1636,7 @@ test("commit timeout: a foreground commit/merge with no timeout gets the long ti
     ["allow", "commit-timeout", "/usr/bin/git commit -m x", 600_000],
     ["allow", "commit-timeout", "git --config-env k=V commit -m x", 600_000],
     ["pass", null, undefined, undefined],
+    ["allow", "commit-timeout", "time -p git commit -m x", 600_000],
   ]);
   const wire = runHook(bashInput("git commit -m 'x y'"), [["CLAUDE_PROJECT_DIR", mkdtempSync(join(tmpdir(), "tg-commit-timeout-"))]]);
   // @orb-waive tooling-clock-budget(600_000): the guard's OUTPUT under test (its REWRITE_TIMEOUT_MS on the wire), not a clock this run pays.

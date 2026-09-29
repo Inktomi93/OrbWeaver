@@ -57,21 +57,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 // ── quote blanking (same length in, same length out — indexes into the blank map into the original) ──
 
 export function blankQuoted(cmd) {
-  let out = "";
-  let quote = null;
-  for (let i = 0; i < cmd.length; i += 1) {
-    const ch = cmd[i];
-    if (quote === null && (ch === '"' || ch === "'")) {
-      quote = ch;
-      out += " ";
-    } else if (quote !== null && ch === quote && cmd[i - 1] !== "\\") {
-      quote = null;
-      out += " ";
-    } else {
-      out += quote === null ? ch : " ";
-    }
+  const out = cmd.split(""); // UTF-16 units, the same indexes quoteSpans reports
+  for (const { start, end } of quoteSpans(cmd)) {
+    out.fill(" ", start, Math.min(end + 1, cmd.length));
   }
-  return out;
+  return out.join("");
 }
 
 // ── comment blanking: bash ends a line at an unquoted WORD-INITIAL `#`, so everything after it is text,
@@ -107,15 +97,39 @@ export function commentSpans(raw, blank) {
 }
 
 /** Quoted spans of the RAW text as `{start, end, quote}` — the indexes of the opening and closing quote
- *  CHARACTERS (end = the string length when unterminated). Same state machine as blankQuoted, kept beside
- *  it so the two can never disagree about what is quoted; the only addition is WHICH quote opened the span,
- *  which is the whole question for a `$( … )`: live inside `"`, literal text inside `'`. */
+ *  CHARACTERS (end = the string length when unterminated). blankQuoted is built from these spans, so the
+ *  two can never disagree about what is quoted; the spans also say WHICH quote opened each one, which is
+ *  the whole question for a `$( … )`: live inside `"`, literal text inside `'`.
+ *
+ *  A heredoc body is skipped: a quote character there is plain text, and an apostrophe (`it's`) read as
+ *  an opening quote would blank every command after the heredoc. The operator is found the way
+ *  heredocUnits finds it (outside quotes and comments, one heredoc per line), and the body ends where
+ *  `heredocBodyEnd` says. */
 export function quoteSpans(cmd) {
   const spans = [];
   let quote = null;
   let start = 0;
+  let inComment = false;
+  let heredoc = null;
   for (let i = 0; i < cmd.length; i += 1) {
     const ch = cmd[i];
+    if (heredoc !== null && i === heredoc.bodyStart) {
+      if (quote === null) {
+        i = heredocBodyEnd(cmd, heredoc.bodyStart, heredoc.delim).spanEnd - 1;
+      }
+      heredoc = null;
+      continue;
+    }
+    if (quote === null && ch === "\n") {
+      inComment = false;
+    } else if (quote === null && ch === "#" && (i === 0 || /\s/.test(cmd[i - 1]))) {
+      inComment = true;
+    } else if (quote === null && ch === "<" && !inComment && heredoc === null) {
+      HEREDOC_OPERATOR_AT.lastIndex = i;
+      const m = HEREDOC_OPERATOR_AT.exec(cmd);
+      const bodyStart = m === null ? -1 : cmd.indexOf("\n", i + m[0].length);
+      heredoc = bodyStart === -1 ? null : { bodyStart, delim: m[2] };
+    }
     if (quote === null && (ch === '"' || ch === "'")) {
       quote = ch;
       start = i;
@@ -138,6 +152,8 @@ export function quoteSpans(cmd) {
 // scanner would take the first body word for the delimiter. An operator inside a quoted span (blanked at
 // that index) is skipped: that `<<` is string content, not a heredoc.
 const HEREDOC_OPERATOR = /<<-?\s*(['"]?)(\w+)\1/g;
+// The same operator, matched only at a given index (quoteSpans walks the text one character at a time).
+const HEREDOC_OPERATOR_AT = new RegExp(HEREDOC_OPERATOR.source, "y");
 
 export function blankHeredocs(raw, blank) {
   let out = blank;
@@ -151,9 +167,10 @@ export function blankHeredocs(raw, blank) {
 /** Every heredoc in the command, as index ranges: `opStart`/`opEnd` bound the operator + delimiter,
  *  `bodyStart`/`bodyEnd` bound the BODY ALONE (terminator line excluded), `spanEnd` is where the
  *  terminator line ends, and `quoted` says the delimiter was quoted, which keeps the body literal. ONE
- *  scanner, because two consumers need different slices of the same shape and a second scanner would eventually disagree with this one: `heredocSpans` blanks operator + body +
- *  terminator (a heredoc body is TEXT to every rule), while the script pass needs the body TEXT — a
- *  `<<EOF` fed to a SHELL, or written into a file the same command then runs, is a PROGRAM. */
+ *  scanner, because two consumers need different slices of the same shape and a second scanner would
+ *  eventually disagree with this one: `heredocSpans` blanks operator + body + terminator (a heredoc body
+ *  is TEXT to every rule), while the script pass needs the body TEXT — a `<<EOF` fed to a SHELL, or
+ *  written into a file the same command then runs, is a PROGRAM. */
 export function heredocUnits(raw, blank) {
   const units = [];
   HEREDOC_OPERATOR.lastIndex = 0;
@@ -161,31 +178,33 @@ export function heredocUnits(raw, blank) {
     if (blank[m.index] !== "<") {
       continue; // the operator is inside a quoted span — string content, not a heredoc
     }
-    const delim = m[2];
     const bodyStart = raw.indexOf("\n", m.index + m[0].length);
     if (bodyStart === -1) {
       break;
     }
-    // the terminator line may carry leading tabs under `<<-`
-    let end = raw.length;
-    let bodyEnd = raw.length;
-    for (let lineStart = bodyStart + 1; lineStart < raw.length; ) {
-      const lineEnd = raw.indexOf("\n", lineStart);
-      const stop = lineEnd === -1 ? raw.length : lineEnd;
-      if (raw.slice(lineStart, stop).replace(/^\t+/, "") === delim) {
-        end = stop;
-        bodyEnd = lineStart;
-        break;
-      }
-      if (lineEnd === -1) {
-        break;
-      }
-      lineStart = lineEnd + 1;
-    }
-    units.push({ opStart: m.index, opEnd: m.index + m[0].length, bodyStart, bodyEnd, spanEnd: end, quoted: m[1] !== "" });
-    HEREDOC_OPERATOR.lastIndex = end;
+    const { bodyEnd, spanEnd } = heredocBodyEnd(raw, bodyStart, m[2]);
+    units.push({ opStart: m.index, opEnd: m.index + m[0].length, bodyStart, bodyEnd, spanEnd, quoted: m[1] !== "" });
+    HEREDOC_OPERATOR.lastIndex = spanEnd;
   }
   return units;
+}
+
+/** Where a heredoc body that starts at the newline `bodyStart` ends: `bodyEnd` is the terminator line's
+ *  start, `spanEnd` its end. An unterminated body runs to the end of the text. */
+function heredocBodyEnd(raw, bodyStart, delim) {
+  for (let lineStart = bodyStart + 1; lineStart < raw.length; ) {
+    const lineEnd = raw.indexOf("\n", lineStart);
+    const stop = lineEnd === -1 ? raw.length : lineEnd;
+    // the terminator line may carry leading tabs under `<<-`
+    if (raw.slice(lineStart, stop).replace(/^\t+/, "") === delim) {
+      return { bodyEnd: lineStart, spanEnd: stop };
+    }
+    if (lineEnd === -1) {
+      break;
+    }
+    lineStart = lineEnd + 1;
+  }
+  return { bodyEnd: raw.length, spanEnd: raw.length };
 }
 
 /** The `[start, stop)` spans blankHeredocs blanks — the operator + delimiter, and the body + terminator
@@ -1231,8 +1250,8 @@ function artifactPipeRewrite(command, blank, clauses) {
     return null;
   }
   const family = classifyHarnessFamily(stage0Blank);
-  if (family === null) {
-    return null;
+  if (family === null || clause.stages.slice(0, -1).some((st) => endsEscaped(command.slice(st.start, st.end)))) {
+    return null; // an escaped `\|` is an argument to bash, not a pipe (see pipeRewrite)
   }
   if (readers.every((r) => TEE_READER.test(blank.slice(r.start, r.end)))) {
     return null; // a pure capture sink is bareHarnessRewrite's shape, not this one's
@@ -1320,6 +1339,11 @@ function bareHarnessRewrite(command, blank, clauses, headRe) {
  *  BLANKED stage, so a comment or quoted text never reads as git; the options are walked on the RAW stage's
  *  shell words, where a quoted value with a space (`-C "/w t"`) is one word. */
 function gitSubcommand(stageBlank, stageRaw) {
+  return gitCall(stageBlank, stageRaw)?.verb ?? null;
+}
+
+/** The git call a stage runs as `{verb, args}` (the words after the subcommand, quotes removed), or null. */
+function gitCall(stageBlank, stageRaw) {
   if (!GIT_EXEC_HEAD.test(stageBlank)) {
     return null;
   }
@@ -1333,7 +1357,17 @@ function gitSubcommand(stageBlank, stageRaw) {
   while (words[at]?.startsWith("-") === true) {
     at += GIT_VALUE_OPTIONS.has(words[at]) ? 2 : 1;
   }
-  return words[at] ?? null;
+  return words[at] === undefined ? null : { verb: words[at], args: words.slice(at + 1) };
+}
+
+/** Does a stage run a commit or merge with its hooks skipped (`--no-verify`, or `-n` on commit)? Read
+ *  through git's global options (`git -C <wt> commit --no-verify`) and a quoted flag. */
+function gitSkipsHooks(stageBlank, stageRaw) {
+  const call = gitCall(stripCompoundLead(stageBlank), stripCompoundLead(stageRaw));
+  if (call === null || !GIT_HOOKED_VERBS.has(call.verb)) {
+    return false;
+  }
+  return call.args.includes("--no-verify") || (call.verb === "commit" && call.args.includes("-n"));
 }
 
 /** A `pnpm doc` stage as `{verb, help}` (`verb` is `""` for a bare `pnpm doc`), or null when the stage is
@@ -1489,11 +1523,25 @@ function collectGrepWarn(command, blank, clauses, contexts) {
 const SUDO_HEAD = /^\s*(?:sudo|doas)\b/;
 // The words that can open a stage without being its command: a subshell or group opener, or a reserved word
 // of an enclosing `if`/loop (`do rm -rf /`, `(sudo ls)`, `{ rm -rf /; }`). Blanked to spaces, never removed,
-// so every index into the stage still points at the same character of the raw command.
-const COMPOUND_LEAD = /^(?:\s*(?:\(|\{(?=\s)|(?:do|then|else|elif|if|while|until|time|!)(?=\s)))+/;
+// so every index into the stage still points at the same character of the raw command. `time` and
+// `command` (with `time -p`) are stepped over by prefixKeywordsEnd, the one reader of those prefixes.
+const COMPOUND_LEAD = /^(?:\s*(?:\(|\{(?=\s)|(?:do|then|else|elif|if|while|until|!)(?=\s)))+/;
 
 function stripCompoundLead(text) {
-  return text.replace(COMPOUND_LEAD, (lead) => " ".repeat(lead.length));
+  let out = text;
+  for (;;) {
+    out = out.replace(COMPOUND_LEAD, (lead) => " ".repeat(lead.length));
+    const words = [...out.matchAll(/\S+/g)];
+    const end = prefixKeywordsEnd(
+      words.map((w) => w[0]),
+      0,
+    );
+    if (end === 0) {
+      return out;
+    }
+    const cut = words[end]?.index ?? out.length;
+    out = " ".repeat(cut) + out.slice(cut);
+  }
 }
 const NET_FETCH_HEAD = /^\s*(?:\S*\/)?(?:curl|wget)\b/;
 // shells + `node -e` only. `python3 -c` is a sanctioned everyday tool here and is NOT a sink.
@@ -2432,8 +2480,10 @@ function substitutionEnd(command, from) {
 export function commandSubstitutions(command) {
   const quoted = blankQuoted(command);
   const units = heredocUnits(command, blankComments(command, quoted));
+  const inBody = (at) => units.some((u) => at >= u.bodyStart && at < u.bodyEnd);
   const text = [
-    ...commentSpans(command, quoted),
+    // bash has no comments inside a heredoc body: a `#` there is text, and a `$(` after it still expands
+    ...commentSpans(command, quoted).filter(([start]) => !inBody(start)),
     ...units.flatMap((u) => [[u.opStart, u.opEnd], u.quoted ? [u.bodyStart, u.spanEnd] : [u.bodyEnd, u.spanEnd]]),
   ];
   const spans = quoteSpans(command);
@@ -3156,7 +3206,8 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   //     `commit-msg` contract). `--no-verify`/`-n` on commit/merge, a `-c core.hooksPath=` global option,
   //     `git config core.hooksPath …` when it SETS the key, and a `LEFTHOOK=0`/`LEFTHOOK=false` env prefix
   //     all disable hooks entirely.
-  if (GIT_NO_VERIFY.test(blank) || GIT_C_HOOKSPATH.test(blank)) {
+  const skipsHooks = clauses.some((cl) => cl.stages.some((st) => gitSkipsHooks(blank.slice(st.start, st.end), command.slice(st.start, st.end))));
+  if (skipsHooks || GIT_NO_VERIFY.test(blank) || GIT_C_HOOKSPATH.test(blank)) {
     return { decision: "deny", rule: "git-hook-bypass", reason: REASONS.gitHookBypass, contexts };
   }
   const configHooksPath = blank.match(GIT_CONFIG_HOOKSPATH);
