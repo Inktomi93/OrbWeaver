@@ -177,29 +177,64 @@ export function resolveMergeBase(root: string = ROOT): MergeBaseResolution | nul
   return { ...closest, isHead: head.status === 0 && head.stdout === closest.commit };
 }
 
-/** EVERY PATH THIS BRANCH TOUCHED: the merge-base diff UNIONED with the working tree vs HEAD (#1523).
- *
- *  `null` means the question could not be answered — no usable base ref, or git failed. That is NOT an
- *  empty set: a caller gating work on "did this touch X" must RUN the work when the answer is unknown,
- *  because an uncomputable precondition that reads as "nothing changed" is the exact shape of a silent
- *  false clean. The caller (`ops/instrument-affected.ts`) fails safe on `null`. */
-export function branchChangedPaths(root: string = ROOT): readonly string[] | null {
+/** EVERY PATH SINCE `base`: the merge-base diff UNIONED with the working tree vs HEAD (#1523). Shared by
+ *  `branchChangedPaths` and `publishChangedPaths`, which differ only in how they resolve `base`. */
+function changedPathsSince(root: string, base: MergeBaseResolution): readonly string[] | null {
   // `runNicedSync` over `execNicedSync` DELIBERATELY: the latter returns the child's STDERR on failure,
   // which a splitter would happily turn into "changed paths". A status check is the only honest read.
   const git = (args: readonly string[]): string | null => {
     const res = runGit(root, [...GIT_READ_PREFIX, ...args]);
     return res.status === 0 ? res.stdout : null;
   };
-  const base = resolveMergeBase(root);
-  if (base === null) {
-    return null;
-  }
   const committed = git(["diff", "--name-only", "-z", base.commit, "HEAD"]);
   const working = git(["diff", "--name-only", "-z", "HEAD"]);
   if (committed === null || working === null) {
     return null;
   }
   return [...new Set([...committed.split("\0"), ...working.split("\0")].filter((path) => path !== ""))];
+}
+
+/** EVERY PATH THIS BRANCH TOUCHED, against the derived closest-to-HEAD base (#1523/#2472).
+ *
+ *  `null` means the question could not be answered — no usable base ref, or git failed. That is NOT an
+ *  empty set: a caller gating work on "did this touch X" must RUN the work when the answer is unknown,
+ *  because an uncomputable precondition that reads as "nothing changed" is the exact shape of a silent
+ *  false clean. The caller (`ops/instrument-affected.ts`) fails safe on `null`. */
+export function branchChangedPaths(root: string = ROOT): readonly string[] | null {
+  const base = resolveMergeBase(root);
+  return base === null ? null : changedPathsSince(root, base);
+}
+
+/** THE PUBLISH-BASE AMENDMENT: `resolveMergeBase`'s closest-to-HEAD rule is right for a lane branch (#2472
+ *  is not reopened here), but it answers `isHead: true` for a checkout that IS `main` itself — there is no
+ *  separate branch tip to measure, even when `origin/main` sits behind with commits this checkout is about
+ *  to publish (by push, or by a merge-train commit landing on `main`). Those commits are exactly what a
+ *  publish-tier reader needs to see, so THIS resolver only widens the `isHead` case: when the closest base
+ *  already IS `HEAD` and `origin/main` independently resolves to a DIFFERENT commit, that gap is the
+ *  unpublished work, and reporting `isHead` over it would be the #1967 defect in the publish costume. A
+ *  real branch's own base is never `HEAD` (it always has commits ahead of its fork point), so this widening
+ *  never fires there — it changes nothing for `branchChangedPaths`'s callers. */
+export function resolvePublishBase(root: string = ROOT): MergeBaseResolution | null {
+  const base = resolveMergeBase(root);
+  if (base === null || !base.isHead || base.ref === "origin/main") {
+    return base;
+  }
+  const git = (args: readonly string[]): { readonly status: number; readonly stdout: string } => {
+    const res = runGit(root, [...GIT_READ_PREFIX, ...args]);
+    return { status: res.status ?? 1, stdout: res.stdout.trim() };
+  };
+  const origin = git(["merge-base", "HEAD", "origin/main"]);
+  if (origin.status !== 0 || !MERGE_BASE_SHA_RE.test(origin.stdout) || origin.stdout === base.commit) {
+    return base;
+  }
+  return { ref: "origin/main", commit: origin.stdout, isHead: false };
+}
+
+/** Every path unpublished on this checkout, against `resolvePublishBase` rather than the plain closest
+ *  base. Same `null`-is-uncomputable contract as `branchChangedPaths`. */
+export function publishChangedPaths(root: string = ROOT): readonly string[] | null {
+  const base = resolvePublishBase(root);
+  return base === null ? null : changedPathsSince(root, base);
 }
 
 /** Explicit changed/file requests carry no git status vocabulary. Classify by the one fact direct tools

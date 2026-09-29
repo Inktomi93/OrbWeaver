@@ -215,7 +215,7 @@ test("a PRODUCT-ONLY change selects nothing without constructing the tooling gra
   expect({ sources: selection.sources, specs: selection.specs, unknown: selection.unknown }).toEqual({ sources: [], specs: [], unknown: false });
 });
 
-// THE BARE-ZERO ARM. `branchChangedPaths` answers `null` when there is no usable merge base or git failed,
+// THE BARE-ZERO ARM. `publishChangedPaths` answers `null` when there is no usable merge base or git failed,
 // and `null` must never collapse into the empty set: an uncomputable precondition that reads as "nothing
 // changed" is a silent false clean, which is the same class of defect as the gap this stage closes.
 test("an UNCOMPUTABLE branch answer is flagged, never read as an empty changed set", () => {
