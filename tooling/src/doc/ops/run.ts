@@ -74,6 +74,18 @@ function runFormat(write: boolean, explicit: readonly string[]): ExitCode {
   return EXIT.violations;
 }
 
+// A landing can drain a plan or wake a blocked item, and nothing else reports that at the moment it
+// happens; print the board's drift right after any landing that wrote.
+function reportLanding(verb: string, outcome: WriteOutcome): ExitCode {
+  const code = report(verb, outcome);
+  if (outcome.written.length > 0) {
+    for (const line of drift()) {
+      print(`drift: ${line}`);
+    }
+  }
+  return code;
+}
+
 function runDue(patterns: readonly string[]): ExitCode {
   const docs = due(patterns);
   for (const doc of docs) {
@@ -107,9 +119,9 @@ export function runDocCommand(command: DocCommand): ExitCode {
     case "remove":
       return report("remove", removeDocs(command.targets));
     case "land":
-      return report("land", landItems(command.ids, command.evidence));
+      return reportLanding("land", landItems(command.ids, command.evidence));
     case "land-merged":
-      return report("land --merged", landMerged(undefined, undefined, command.headMerge));
+      return reportLanding("land --merged", landMerged(undefined, undefined, command.headMerge));
     case "index":
       return report("index", { written: regenerateIndexes(), refusals: [] });
     case "review":

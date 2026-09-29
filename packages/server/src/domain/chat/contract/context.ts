@@ -489,13 +489,21 @@ export interface PostNarratorMessageDeps {
 export type GetMembership = (chatId: ChatId, userId: UserId) => Promise<{ readonly role: ParticipantRole } | null>;
 
 /** The opaque rpg-pointer WRITE op (docs/plans/rpg/design.md): merge the healed `metadata.rpg` `{gameId}` sub-blob so
- *  the client's takeover gate is a sync read off `ChatDetail`. Called ONCE by rpg's `createGame`; chat never
+ *  the client's takeover gate is a sync read off `ChatDetail`. Called by rpg's `createGame`, the `updateConfig`
+ *  engaged toggle, the game fork and (with `null`) `detachDanglingPointer`; chat never
  *  dereferences it (the truth is `rpg_games` — this is a SYNC SIGNAL). STANDALONE + principal-free (createGame
  *  gated host authority; the `GetMembership`/`PostNarratorMessage` injected-op precedent). The pointer schema is
  *  rpg's (`ChatRpgPointer`) — the foreign-schema precedent (chat stores it blind). A `null` pointer DELETES the
  *  `metadata.rpg` sub-blob (the dangling-pointer heal, fork-clones-the-game §3.3 — `detachDanglingPointer`
  *  nulls a pointer at a game that no longer exists). */
 export type SetRpgPointer = (chatId: ChatId, pointer: ChatRpgPointer | null) => Promise<void>;
+
+/** The pointer op's collaborators (the `PostNarratorMessageDeps` shape; not on `ChatContext`). */
+export interface SetRpgPointerDeps {
+  /** The husk→real transition (R0). Every non-null pointer write is a host act (creating a game, or the engaged
+   *  toggle either way), so it claims; the null detach is a server heal and never claims. */
+  readonly claimChat: ClaimChatOp;
+}
 
 /** One present roster participant projected for rpg's tracker view (roster ∪ sheets, docs/plans/rpg/design.md): a
  *  `character`/`user` actor ref + the RESOLVED display name + avatar hash. rpg stays table-blind — the

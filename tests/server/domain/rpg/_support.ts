@@ -282,6 +282,8 @@ export interface RpgFakes {
   pointerFailuresRemaining: number;
   /** The chatIds a `setPointer(chatId, null)` DETACHED (the §3.3 dangling-pointer heal — assert the null write). */
   readonly detaches: string[];
+  /** Every chat a verb CLAIMED through the injected `claimChat` op, in call order. */
+  readonly claims: ChatId[];
   /** Every narrator post a verb made. D124 killed the blank "state anchor" post, and the fake enforces the
    *  same write-boundary refusal the real op does — so `narratorPosts` is now a list of REAL content, and a
    *  test that expects zero posts for a hand write is asserting the row class is gone, not filtered. */
@@ -395,6 +397,7 @@ export function makeRpgService(
     pointers: [],
     pointerFailuresRemaining: 0,
     detaches: [],
+    claims: [],
     narratorPosts: [],
     toolRoundCalls: [],
     foldCalls: [],
@@ -524,6 +527,10 @@ export function makeRpgService(
       return Promise.resolve();
     },
     resolveParticipants,
+    claimChat: (chatId) => {
+      fakes.claims.push(chatId);
+      return Promise.resolve();
+    },
     // R4 — the PROMOTION's durable half. The real impl mints a character card + a chat participant seat over the
     // character/chat front doors; the fake mints a stable id and SEATS her on `fakes.participants`, because the seat
     // is not decoration: the tracker view projects a `character:` actor only when the participants carry it, so a

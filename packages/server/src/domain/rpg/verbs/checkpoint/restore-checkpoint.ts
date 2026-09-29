@@ -17,6 +17,7 @@ const RESTORE_MESSAGE = "— scene restored —";
 export function createRestoreCheckpoint(ctx: RpgContext): Pick<RpgService, "restoreCheckpoint"> {
   async function restoreCheckpoint(params: RestoreCheckpointParams): Promise<void> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
+    await ctx.claimChat(params.chatId);
     const checkpoint = await findCheckpoint(ctx.db, params.checkpointId);
     if (checkpoint === undefined || checkpoint.gameId !== game.id) {
       throw new DomainNotFoundError("checkpoint", params.checkpointId);

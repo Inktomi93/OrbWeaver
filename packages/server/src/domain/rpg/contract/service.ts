@@ -295,10 +295,15 @@ export type RpgResolveViewerVisibility = (
   userId: UserId,
 ) => Promise<{ readonly role: ParticipantRole; readonly historyFloorSeq: HistoryFloorSeq; readonly readsHidden: boolean } | null>;
 
-/** The opaque pointer write (chat's `setRpgPointer`, §3.1). `createGame` calls it ONCE so the client's takeover
- *  gate is a sync read off `ChatDetail` — rpg never reads it back. `null` DELETES the pointer (the
- *  dangling-pointer heal §3.3 — `detachDanglingPointer` nulls a pointer at a vanished game). */
+/** The opaque pointer write (chat's `setRpgPointer`, §3.1). `createGame`, the `updateConfig` engaged toggle and the
+ *  game fork call it so the client's takeover gate is a sync read off `ChatDetail` — rpg never reads it back.
+ *  `null` DELETES the pointer (the dangling-pointer heal §3.3 — `detachDanglingPointer` nulls a pointer at a
+ *  vanished game). */
 export type RpgSetPointer = (chatId: ChatId, pointer: ChatRpgPointer | null) => Promise<void>;
+
+/** Chat's husk→real transition (R0 F4(a)). Every host write verb calls it right after its authority gate, so a
+ *  room whose game the host authored is listed and never reaped. Idempotent; a claimed room is a no-op. */
+export type RpgClaimChat = (chatId: ChatId) => Promise<void>;
 
 /** One participant actor projected for the tracker view (participants ∪ sheets, §4.3). The injected `resolveParticipants` op
  *  resolves the chat's present participants into `character`/`user` actor refs + display name + avatar — the
@@ -660,6 +665,7 @@ export interface RpgContext {
    *  class). Collapsing the two is the defect the spine's three-questions clause names. */
   readonly resolveViewerVisibility: RpgResolveViewerVisibility;
   readonly setPointer: RpgSetPointer;
+  readonly claimChat: RpgClaimChat;
   readonly resolveParticipants: RpgResolveParticipants;
   /** R4 — promotion's DURABLE half (mint the card + seat it among the participants), wired at compose over the
    *  character + chat front doors. rpg owns neither table; the verb owns the snapshot re-key alone. */

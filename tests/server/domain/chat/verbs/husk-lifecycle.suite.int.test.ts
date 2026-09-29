@@ -28,7 +28,7 @@ import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns.ts";
@@ -39,6 +39,7 @@ import { characterSeatedInAnotherChat } from "../../../../../packages/server/src
 import { listMemberChats } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle.ts";
 import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
+import { createSetRpgPointer } from "../../../../../packages/server/src/domain/chat/verbs/set-rpg-pointer.ts";
 import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -252,6 +253,22 @@ describe("claim — the one-way, idempotent stamp", () => {
 
     await lifecycle(ctx).star({ principal: principal(host), chatId, starred: true });
     expect(deltas).toStrictEqual([]);
+  });
+});
+
+describe("game mode — turning a husk into a game is doing something with it", () => {
+  test("the rpg pointer write claims the room into the list; the dangling-pointer detach does not", async () => {
+    const { host, chatId } = await seedHusk("game");
+    const ctx = makeChatContext(db);
+    const setRpgPointer = createSetRpgPointer(ctx, { claimChat: createClaimChat(ctx) });
+
+    // The detach is a heal the server runs on a pointer at a vanished game, never the host's own act.
+    await setRpgPointer(chatId, null);
+    expect(await startedAtOf(chatId)).toBeNull();
+
+    // `rpg.createGame` on an unsent room ("Turn on game mode", the dev game seeder) ends in this write.
+    await setRpgPointer(chatId, { gameId: mintTypeId(ID_PREFIX.rpgGame), engaged: true });
+    expect((await listMemberChats(db, host, { limit: TEST_PAGE_LIMIT })).map((c) => c.id)).toStrictEqual([chatId]);
   });
 });
 

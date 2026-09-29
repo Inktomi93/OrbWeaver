@@ -1,7 +1,8 @@
 // The opaque rpg-pointer WRITE op (docs/plans/rpg/design.md): merge the healed `metadata.rpg` `{gameId}` sub-blob so
 // the client's takeover gate is a sync read off `ChatDetail` (chat never dereferences it — the truth is
-// `rpg_games`). Called ONCE by rpg's `createGame`, inside the same logical commit as the game row. STANDALONE +
-// principal-free (rpg gated host authority in createGame): the `getMembership`/`postNarratorMessage`
+// `rpg_games`). Callers: rpg's `createGame` (through `mintLiteGame`, after the game row), `updateConfig` when the
+// patch flips `engaged`, the game fork (`chat-ops/fork-game.ts`) for the new chat, and `detachDanglingPointer`
+// with `null`. STANDALONE + principal-free (each rpg caller gated host authority): the `getMembership`/`postNarratorMessage`
 // injected-op precedent — a compose-built factory, not a `ChatService` verb (it takes no principal).
 //
 // The write touches the `$.rpg` JSON PATH ONLY (`persistence/chat-metadata-write.ts`), so the pointer never
@@ -20,7 +21,7 @@ import { chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
-import type { SetRpgPointer } from "../contract/context.ts";
+import type { SetRpgPointer, SetRpgPointerDeps } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import { carriedBackgroundAvailable } from "../persistence/background-write.ts";
 import { chatMetadataDropStatement, chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
@@ -36,11 +37,16 @@ function dropRpgPointer(metadata: ChatMetadata): ChatMetadata {
   return rest;
 }
 
-export function createSetRpgPointer(ctx: ChatContext): SetRpgPointer {
+export function createSetRpgPointer(ctx: ChatContext, deps: SetRpgPointerDeps): SetRpgPointer {
   return async (chatId: ChatId, pointer: ChatRpgPointer | null): Promise<void> => {
     const chat = await loadChatRow(ctx.db, chatId);
     if (chat === undefined) {
       return; // racing delete — nothing to point at
+    }
+    // A husk that points at a game is hidden from the Chats list and reaped with its game, so the set claims.
+    // The detach is a server heal, not the host acting, so it never claims.
+    if (pointer !== null) {
+      await deps.claimChat(chatId);
     }
     // ONE JSON PATH, NEVER THE WHOLE BLOB (#1450). The old shape read the row, merged `rpg` in memory and
     // wrote the ENTIRE metadata column back, so a host knob written between that read and this write was

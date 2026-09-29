@@ -4,6 +4,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import process from "node:process";
 import { zipSync } from "fflate";
 import ts from "typescript";
+import { surfaceLinkProblems } from "./surface-links.ts";
 
 export { PLUGIN_AUTHOR_SUPPORT } from "./support.generated.ts";
 export {
@@ -253,6 +254,7 @@ async function compileSource(
   const diagnostics = [
     ...syntaxDiagnostics(source, runtime),
     ...ts.getPreEmitDiagnostics(program).map((diagnostic) => formatCompilerDiagnostic(diagnostic, absolute)),
+    ...(runtime === "main" ? surfaceLinkProblems(program.getTypeChecker(), source).map(({ node, message }) => sourcePosition(source, node, message)) : []),
   ];
   return { text: diagnostics.length === 0 ? emitScript(text, absolute, runtime) : "", diagnostics };
 }

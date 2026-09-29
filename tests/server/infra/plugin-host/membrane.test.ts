@@ -7,6 +7,9 @@
 // hand-built, i.e. here; the cross-invocation half of that invariant is the escape suite's (it needs a Sandbox).
 // The full end-to-end runtime lives in port.test.ts; this is the module's own-seam mirror.
 
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { VariableWriteResult } from "@orb/contracts/chat";
 import type {
   InvocationChat,
@@ -23,8 +26,10 @@ import {
   PLUGIN_FRAME_HTML_MAX_CHARS,
   PLUGIN_FRAME_SURFACES_MAX,
   PLUGIN_TOOL_NAME_LOCAL_MAX,
+  parsePluginFrameCall,
 } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
+import { compilePluginDirectory } from "@orb/plugin-toolchain";
 import { getPluginQuickJS, HOST_FN_DEADLINE_MS, HOST_FN_RESULT_CAP_BYTES } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 import { describe } from "vitest";
@@ -2172,5 +2177,80 @@ describe("attachMembrane — pubsub.emit / pubsub.on are grant-gated (plugin_eve
     });
     expect(collected).toEqual([]);
     expect(warnings.length).toBe(2);
+  });
+});
+
+// Author types check the shape a guest writes; they never vouch for data the guest received at runtime. A
+// checked, toolchain-compiled guest that forwards raw parsed data must still meet every runtime schema.
+describe("checked TypeScript guests still meet the runtime schemas with raw data", () => {
+  const sdkDirectory = join(import.meta.dirname, "..", "..", "..", "..", "packages", "plugin-sdk");
+  const rawForwardingGuest = [
+    "declare const RAW_INPUT: string;",
+    "const host = orb.host(1);",
+    "const raw: { readonly event: string; readonly url: string; readonly schema: Record<string, unknown> } = JSON.parse(RAW_INPUT);",
+    "function reason(error: unknown): string { return error instanceof Error ? error.message : String(error); }",
+    "async function forward(): Promise<string> {",
+    "  const outcomes: string[] = [];",
+    '  try { host.tools.register({ name: "lookup", description: "d", parameters: raw.schema, handler: async () => "" }); outcomes.push("tool:collected"); }',
+    "  catch (error) { outcomes.push(`tool:${reason(error)}`); }",
+    '  try { await host.pubsub.emit(raw.event, {}); outcomes.push("event:emitted"); } catch (error) { outcomes.push(`event:${reason(error)}`); }',
+    '  try { await host.net.fetch(raw.url); outcomes.push("network:reached"); } catch (error) { outcomes.push(`network:${reason(error)}`); }',
+    "  return outcomes.join(OUTCOME_SEPARATOR);",
+    "}",
+    'const OUTCOME_SEPARATOR = "|";',
+    "forward();",
+  ].join("\n");
+
+  async function compileGuest(source: string): Promise<string> {
+    const directory = await mkdtemp(join(tmpdir(), "orb-raw-guest-"));
+    try {
+      await writeFile(join(directory, "main.ts"), `${source}\n`);
+      const result = await compilePluginDirectory({ pluginDirectory: directory, sdkDirectory });
+      expect(result.diagnostics).toEqual([]);
+      return new TextDecoder().decode(result.artifacts.find((artifact) => artifact.runtime === "main")?.bytes);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+
+  test("raw tool, event, and network data from a checked guest are refused by the membrane", async () => {
+    const guest = await compileGuest(rawForwardingGuest);
+    let schema: Record<string, unknown> = { type: "object" };
+    for (let depth = 0; depth < 96; depth += 1) {
+      schema = { child: schema };
+    }
+    const rawInput = JSON.stringify({ event: "Bad Name!", url: "https://evil.example/steal", schema });
+    const { bridge, performed } = fakeBridge();
+    const collected: string[] = [];
+    const runtime = makeRuntime(["tools.register", "plugin_events", "net.fetch"], false, bridge, {
+      netHosts: ["api.example.com"],
+      collectTool: (registration, handler): void => {
+        collected.push(registration.name);
+        handler.dispose();
+      },
+    });
+
+    await withRuntime(runtime, async (ctx) => {
+      const out = await runAsync(
+        ctx,
+        `const RAW_INPUT = ${JSON.stringify(rawInput)}; globalThis.orb = ((surface) => ({ host: () => surface }))(globalThis.host);\n${guest}`,
+      );
+      const [tool, event, network] = out.split("|");
+      expect(tool).toContain("too deeply nested");
+      expect(event).toContain("valid event name");
+      expect(network).toContain("allowlist");
+    });
+    expect(collected).toEqual([]);
+    expect(performed.pubsubEmits).toEqual([]);
+  });
+
+  test("raw frame data is parsed by the frame schema: a malformed call is dropped and args stay opaque", () => {
+    expect(parsePluginFrameCall({ orbPluginFrameCall: { callId: "", fn: "storage.get", args: ["k"] } })).toBeUndefined();
+    expect(parsePluginFrameCall({ orbPluginFrameCall: { callId: "c1", fn: "x".repeat(65), args: [] } })).toBeUndefined();
+    expect(parsePluginFrameCall({ orbPluginFrameCall: { callId: "c1", fn: "storage.get", args: { key: 7 } } })).toEqual({
+      callId: "c1",
+      fn: "storage.get",
+      args: { key: 7 },
+    });
   });
 });

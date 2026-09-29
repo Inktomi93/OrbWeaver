@@ -86,6 +86,7 @@ export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resync
   async function resyncFromStory(params: ResyncFromStoryParams): Promise<ResyncResult> {
     // HOST GATE at the model-call boundary — a member can never reach the host-principal model call.
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
+    await ctx.claimChat(params.chatId);
     // The caller IS the host (resolveHost enforced it), so the host principal funding the model call is the
     // caller's own userId — NEVER a params-supplied id (no foreign-principal injection).
     const hostUserId = params.principal.userId;

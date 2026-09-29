@@ -1745,6 +1745,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     // question `guard.ts` gates with.
     resolveViewerVisibility: deps.resolveViewerVisibility,
     setPointer: deps.rpgChatOps.setRpgPointer,
+    claimChat: deps.rpgChatOps.claimChat,
     resolveParticipants: deps.rpgChatOps.resolveRpgParticipants,
     // R4 — promotion's durable half (card + roster seat), the ONE rpg write that reaches outside the game.
     promoteToCharacter: buildPromoteToCharacter(deps),

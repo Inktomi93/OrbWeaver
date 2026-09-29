@@ -16,7 +16,7 @@ The author guide is `packages/showcase-plugins/bundles/README.md`. Showcase Type
 
 Third-party Git repositories author TypeScript under `src/` and commit deterministic built entry files beside the root manifest. Their trusted CI refuses missing, stale, or obsolete generated JavaScript. Git-backed installation fetches those built root entries through the live bundle validator and consent path while the server is running; the application never compiles fetched TypeScript or runs repository scripts. Zip upload and bundle-URL sources remain valid prebuilt forms. The SDK and toolchain themselves ship as deterministic tarballs on a versioned public GitHub Release so locked author projects can install them anonymously without a package-registry credential.
 
-The bundle may come from an upload, a development directory, a bundle URL, or a Git repository. Each source must pass the same admission and consent path. `docs/plans/plugin-distribution/design.md` tracks those install doors. A repository name does not set plugin identity: the admitted manifest does.
+The bundle may come from an upload, a development directory, a bundle URL, or a Git repository. Each source must pass the same admission and consent path. [D276](../adr/0276-plugin-install-doors-share-one-funnel.md) rules those install doors. A repository name does not set plugin identity: the admitted manifest does.
 
 ## Execution planes
 

@@ -589,6 +589,7 @@ export interface PluginHostV1 {
       anchor: PluginSurfaceAnchor;
       title: string; // the shell label line (≤ 80 chars)
       tier: PluginSurfaceTier; // scripted requires the bundle's ui.js (U4)
+      toolName?: string; // required for, and only for, the tool-card anchor (ui.ts registration schema)
       spec?: PluginSurfaceSpec; // REQUIRED for the static tier; zod-validated host-side (ui.ts)
       onAction?: (a: { actionId: string; values: Record<string, string>; chat: ChatHandle | null }) => void | Promise<void>;
     }) => void;

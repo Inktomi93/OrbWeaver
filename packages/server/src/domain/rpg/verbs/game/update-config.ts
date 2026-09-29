@@ -188,6 +188,7 @@ function mergeConfig(params: UpdateConfigParams, current: RpgGameConfig, nextPro
 export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateConfig"> {
   async function updateConfig(params: UpdateConfigParams): Promise<void> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
+    await ctx.claimChat(params.chatId);
 
     if (params.extractionMode !== undefined && !(RPG_EXTRACTION_MODES as readonly string[]).includes(params.extractionMode)) {
       throw new DomainOperationError("rpg_invalid_extraction_mode", `unknown extractionMode "${params.extractionMode}"`);
