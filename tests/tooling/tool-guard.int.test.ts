@@ -971,6 +971,15 @@ const ROWS: Row[] = [
   ["deny", "task-file-wait", `for i in $(seq 100); do [ -f ${TASKS}/x.done ] && break; sleep 5; done`, BG],
   ["pass", null, `for f in ${TASKS}/*.output; do wc -l $f; done`],
   ["pass", null, `case $x in while) echo hi;; esac; cat ${TASKS}/x.output`],
+  // a `)` that closes a substitution resumes the word it sits in; a word after it is an argument
+  ["deny", "task-file-wait", `while true; do echo $(date) done; [ -f ${TASKS}/x.done ] && break; sleep 5; done`, BG],
+  ["deny", "task-file-wait", `for i in 1 2 3; do echo $(date) done; [ -f ${TASKS}/x.done ] && break; sleep 5; done`, BG],
+  ["pass", null, `echo $(date) until ready; cat ${TASKS}/x.output`],
+  ["pass", null, `echo $(date) while building; tail -5 ${TASKS}/x.output`],
+  ["pass", null, `echo $((1+2)) until; cat ${TASKS}/x.output`],
+  ["pass", null, `echo \\) while; cat ${TASKS}/x.output`],
+  ["pass", null, `(cd /tmp && ls) until; cat ${TASKS}/x.output`],
+  ["pass", null, `for f in ${TASKS}/*.output; do grep -c sleep $f; done`, BG],
   ["pass", null, `cat ${TASKS}/bb98qi3t2.output`], // a one-shot read of a finished task's output
   // the loop keywords as plain words, outside command position, are not a loop
   ["pass", null, `echo waiting until ready; tail -5 ${TASKS}/x.output`],
@@ -991,6 +1000,7 @@ const ROWS: Row[] = [
   ["deny", "sleep-only", "sleep 300 | cat"],
   ["deny", "sleep-only", "sleep 300 | tee /tmp/x"],
   ["deny", "sleep-only", "time sleep 300"],
+  ["deny", "sleep-only", "time -p sleep 300"],
   ["pass", null, "time pnpm check", BG],
   ["deny", "sleep-only", "nohup sleep 300", BG],
   ["deny", "sleep-only", "( sleep 30 )", BG],

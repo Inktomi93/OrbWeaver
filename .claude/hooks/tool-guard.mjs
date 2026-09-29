@@ -786,10 +786,10 @@ const TAIL_BIN = /^(?:\S*\/)?tail$/;
 const TAIL_FOLLOW_FLAG = /^-[A-Za-z0-9]*[fF]|^--follow\b/;
 // Shell tokens for `shellLoops`, on the BLANKED text: a redirect (`2>&1`, `>`, `<`) first so its `&` is not
 // read as an operator, then the control operators, then words.
-const SHELL_TOKEN = /\d*[<>]+&?\d*|&&|\|\||\|&|[;&|\n()]|[^\s;&|()<>]+/g;
-// `)` ends a case pattern (`a)`, `(a)`) and `{` opens a function body (`f() {`, `function f {`); a command
-// can start right after either.
-const SHELL_OPERATOR = /^(?:&&|\|\||\|&|[;&|\n(){])$/;
+const SHELL_TOKEN = /\d*[<>]+&?\d*|&&|\|\||\|&|[;&|\n()`]|[^\s;&|()<>`]+/g;
+// `{` opens a group or a function body (`f() {`, `function f {`), so a command can start right after it.
+// Parentheses and case patterns are tracked by `shellLoops` itself.
+const SHELL_OPERATOR = /^(?:&&|\|\||\|&|[;&|\n{])$/;
 const LOOP_KEYWORDS = new Set(["for", "select", "while", "until"]);
 // Reserved words after which the next word is again in command position.
 const COMMAND_FOLLOWS = new Set(["do", "then", "else", "elif", "if", "while", "until", "!", "time"]);
@@ -2775,7 +2775,7 @@ function sleepClauseOperands(blank, clause) {
   const words = tokens.map((t) => t[0]);
   let i = index;
   while (SLEEP_PREFIX_WORDS.has(words[i])) {
-    i = wrapperPrefixEnd(words, i + 1);
+    i = wrapperPrefixEnd(words, words[i] === "time" && words[i + 1] === "-p" ? i + 2 : i + 1);
   }
   return words[i] !== undefined && SLEEP_BIN.test(words[i]) ? words.slice(i + 1) : null;
 }
@@ -2797,29 +2797,80 @@ function sleepOnlyCommand(command, blank, clauses) {
   return sawSleep;
 }
 
-/** Every `for`/`select`/`while`/`until` loop in the command as `{kind, start, end}`, found from shell
+/** Every `for`/`select`/`while`/`until` loop in the command as `{kind, start, end, sleeps}`, found from shell
  *  structure: the keyword counts only in command position, and each loop closes at its own `done` with
  *  nesting counted. A loop keyword used as a plain word (`echo waiting until ready`, `ls src/while`) and
  *  a `done` that is an argument (`echo not done`) are neither. An unclosed loop runs to the end. */
 function shellLoops(blank) {
   const loops = [];
   const open = [];
+  // One entry per open `(`: a `$(`/`$((` substitution restores the state saved at its opener when it closes,
+  // since it sits inside a word; a subshell or arithmetic group is followed by operators only.
+  const parens = [];
+  const cases = [];
+  let backtick = null;
   let commandPosition = true;
   for (const m of blank.matchAll(SHELL_TOKEN)) {
     const token = m[0];
+    const kase = cases.at(-1);
+    if (kase?.phase === "pattern") {
+      if (token === ")") {
+        kase.phase = "body";
+        commandPosition = true;
+      } else if (token === "esac") {
+        cases.pop();
+        commandPosition = false;
+      }
+      continue;
+    }
+    if (token === "`") {
+      [backtick, commandPosition] = backtick === null ? [commandPosition, true] : [null, backtick];
+      continue;
+    }
+    if ((token === "(" || token === ")") && blank[m.index - 1] === "\\") {
+      continue;
+    }
+    if (token === "(") {
+      parens.push({ substitution: blank[m.index - 1] === "$", saved: commandPosition });
+      commandPosition = true;
+      continue;
+    }
+    if (token === ")") {
+      const paren = parens.pop();
+      commandPosition = paren?.substitution === true ? paren.saved : false;
+      continue;
+    }
+    if (kase?.phase === "body" && token === ";" && (blank[m.index + 1] === ";" || blank[m.index + 1] === "&")) {
+      kase.phase = "pattern";
+      continue;
+    }
     if (SHELL_OPERATOR.test(token)) {
       commandPosition = true;
+      continue;
+    }
+    if (kase?.phase === "head") {
+      if (token === "in") {
+        kase.phase = "pattern";
+      }
       continue;
     }
     if (!commandPosition) {
       continue;
     }
-    if (LOOP_KEYWORDS.has(token)) {
-      open.push({ kind: token, start: m.index });
+    if (token === "case") {
+      cases.push({ phase: "head" });
+    } else if (token === "esac" && kase !== undefined) {
+      cases.pop();
+    } else if (LOOP_KEYWORDS.has(token)) {
+      open.push({ kind: token, start: m.index, sleeps: false });
     } else if (token === "done") {
       const loop = open.pop();
       if (loop !== undefined) {
         loops.push({ ...loop, end: m.index + token.length });
+      }
+    } else if (SLEEP_BIN.test(token)) {
+      for (const loop of open) {
+        loop.sleeps = true;
       }
     }
     commandPosition = COMMAND_FOLLOWS.has(token) || ASSIGN_PREFIX.test(token);
@@ -2833,7 +2884,7 @@ function shellLoops(blank) {
 function harnessTaskFileWait(command, blank, clauses) {
   const readsTaskFile = (start, end) => HARNESS_TASK_FILE.test(expandAssigned(command.slice(start, end), assignedVars(command, blank, clauses, start)));
   for (const loop of shellLoops(blank)) {
-    const waits = loop.kind === "while" || loop.kind === "until" || SLEEP_WORD.test(blank.slice(loop.start, loop.end));
+    const waits = loop.kind === "while" || loop.kind === "until" || loop.sleeps;
     if (waits && readsTaskFile(loop.start, loop.end)) {
       return true;
     }
