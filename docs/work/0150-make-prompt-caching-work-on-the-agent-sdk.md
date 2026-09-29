@@ -23,4 +23,4 @@ Consecutive speaker calls in a group round on agent-sdk read the previous call's
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Owner kept this parked; a live cache check spends the subscription.

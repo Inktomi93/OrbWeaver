@@ -23,4 +23,4 @@ Wake when Safari ships stable Temporal. Done when kit uses Temporal, luxon is go
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Wakes when Safari ships Temporal in a stable release. Chrome, Firefox and Node already ship it.

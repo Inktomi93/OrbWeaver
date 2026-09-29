@@ -30,4 +30,4 @@ items. An integration test with a fixture profile proves both. The import report
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Waits for the owner to stage a SillyTavern profile with Data Bank files and gallery images.
