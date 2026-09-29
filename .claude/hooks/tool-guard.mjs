@@ -441,14 +441,13 @@ const GIT_GLOBAL_OPTS = String.raw`(?:-{1,2}[A-Za-z][^\s;|&]*\s+(?:[^\s;|&-][^\s
 // of push/pull/fetch/clone, and the commit/merge hooks with their verify runs. Piped, a commit also reports
 // the reader's exit code, so a failed hook reads as success. The subcommand must end the word, so
 // `commit-tree` and `merge-base` never match.
+const GIT_LONG_LIVED_VERBS = new Set(["push", "pull", "fetch", "clone", "commit", "merge"]);
+// A commit or merge runs its hooks: a stage that starts one, for the commit-timeout rule.
+const GIT_HOOKED_VERBS = new Set(["commit", "merge"]);
 // Unlike GIT_GLOBAL_OPTS (which the destructive-git bans share), only git's real value options take the
 // next word: every other flag is bare, so `git --no-pager log -S commit` does not read `log` as a value.
-// A quoted value is blanked to nothing, so the value is optional here and a caller also tests the RAW
-// stage, where `-C "$WT"` is one word and the match is exact. Both must match.
-const GIT_VALUE_OPTS = String.raw`(?:(?:-C|-c|--git-dir|--work-tree|--namespace)\s+(?:\S+\s+)?|(?!(?:-C|-c|--git-dir|--work-tree|--namespace)\s)--?[A-Za-z][^\s=]*(?:=\S*)?\s+)*`;
-const LONG_LIVED = new RegExp(String.raw`^\s*${WRAP_PREFIX}git\s+${GIT_VALUE_OPTS}(?:push|pull|fetch|clone|commit|merge)(?![\w-])`);
-// A commit or merge runs its hooks: a stage that starts one, for the commit-timeout rule.
-const GIT_HOOKED_HEAD = new RegExp(String.raw`^\s*${WRAP_PREFIX}git\s+${GIT_VALUE_OPTS}(?:commit|merge)(?![\w-])`);
+const GIT_VALUE_OPTIONS = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace"]);
+const GIT_EXEC_HEAD = new RegExp(String.raw`^\s*${WRAP_PREFIX}git\s`);
 // A piped `pnpm doc` goes through the same log rewrite: its output is short and the paths it prints are the
 // result, so the reader runs against the full log and the exit code survives.
 const DOC_PIPE_HEAD = new RegExp(String.raw`^\s*${WRAP_PREFIX}pnpm\s+(?:run\s+)?doc(?=\s|$)`);
@@ -907,6 +906,8 @@ const CONTEXTS = {
     `tool-guard rewrote this command: git's children (a push/pull/fetch credential helper, or commit/merge hooks and their verify runs) hold a pipe open after the visible command ends, and a pipe reports the reader's exit code, so a failed hook would read as success. Output went to ${log}, your reader ran against the file, and git's real exit code is preserved.`,
   commitTimeout: (ms) =>
     `tool-guard raised this call's timeout to ${ms / 60_000} min: commit and merge hooks often run past the 120 s Bash default, and a timed-out commit leaves its hook running. The command is unchanged.`,
+  rewriteReaderStatus:
+    "Your chain continues with `&&` after a status-checking reader (`grep -q`/`-c`, `rg -q`/`-c`), so that `&&` still tests the reader, as it did in the original pipe. The exit code is not carried past the reader here: run the command and the check as separate steps to see it.",
   rewriteDocPiped: (log) =>
     `tool-guard rewrote this command: the \`pnpm doc\` output went to ${log}, your reader ran against the file, and the real exit code is preserved.`,
   rewritePlaywright:
@@ -1027,12 +1028,14 @@ export function pushInFlight(procRoot = "/proc") {
 }
 
 /** `…; <harness> [2>&1] | <readers> [; …]`  →  redirect the harness to a log, run the
- *  agent's own reader chain against the file, preserve the real exit code. Clauses BEFORE and AFTER the
- *  piped one (the ubiquitous `cd <repo> && …` prefix, a trailing `; echo done`) are kept verbatim with
- *  their original separators. Returns null when the shape is not unambiguous (callers deny/warn instead):
- *  `||` chains, more than one piped clause, subshells/backticks/backgrounding in the piped clause, or a
- *  reader outside the known re-targetable set. */
-function pipeRewrite(command, blank, clauses, headRe, ctx) {
+ *  agent's own reader chain against the file, preserve the real exit code (unless `&&` tests a status-checking
+ *  last reader: see `chainTestsReader`). Clauses BEFORE and AFTER the piped one (the ubiquitous `cd <repo> && …`
+ *  prefix, a trailing `; echo done`) are kept verbatim with their original separators. `isHead(stageBlank,
+ *  stageRaw)` says whether stage 0 is the command this caller rewrites. Returns null when the shape is not
+ *  unambiguous (callers deny/warn instead): `||` chains, more than one piped clause, subshells/backticks/
+ *  backgrounding or a mid-stage fd merge in stage 0, a reader line continued with `\`, or a reader outside the
+ *  known re-targetable set. */
+function pipeRewrite(command, blank, clauses, isHead, ctx) {
   // PIPESTATUS anywhere means the command inspects the pipe we are about to remove — bail to deny.
   if (blank.includes("||") || command.includes("PIPESTATUS")) {
     return null;
@@ -1044,7 +1047,8 @@ function pipeRewrite(command, blank, clauses, headRe, ctx) {
   const [clause] = piped;
   const [stage0, ...readers] = clause.stages;
   const stage0Blank = blank.slice(stage0.start, stage0.end);
-  if (!headRe.test(stage0Blank) || UNSAFE_STAGE0.test(stripFdMerges(stage0Blank))) {
+  const stage0Raw = command.slice(stage0.start, stage0.end);
+  if (!isHead(stage0Blank, stage0Raw) || UNSAFE_STAGE0.test(stripFdMerges(stage0Blank)) || hasInnerFdMerge(stage0Blank)) {
     return null;
   }
   // A stage ending in a backslash met an escaped `\|` or `\ |`, which the clause scan splits as a pipe; the
@@ -1058,16 +1062,43 @@ function pipeRewrite(command, blank, clauses, headRe, ctx) {
       return null;
     }
   }
-  if (clauseHasHeredoc(command, clause)) {
+  const readerChain = command.slice(readers[0].start, clause.end).trim();
+  if (clauseHasHeredoc(command, clause) || readerChain.endsWith("\\")) {
     return null;
   }
   const log = `${ctx.projectDir}/reports/tool-guard/run-${ctx.now}.log`;
-  const stage0Raw = command.slice(stage0.start, stage0.end);
   const harness = stage0Raw.replace(STDERR_MERGE_TAIL, "").trim();
   // stderr joins the log only when the original sent it down the pipe; otherwise it stays on the terminal.
   const merge = mergesStderr(blank, stage0, stage0Raw) ? " 2>&1" : "";
-  const readerChain = command.slice(readers[0].start, clause.end).trim();
-  return { log, clause, command: groupRewrite(command, clause, `${harness} > ${log}${merge}; __tg_ec=$?; < ${log} ${readerChain}`) };
+  const readerStatus = chainTestsReader(command, clause);
+  const body = readerStatus
+    ? `${harness} > ${log}${merge}; < ${log} ${readerChain}\n`
+    : `${harness} > ${log}${merge}; __tg_ec=$?; < ${log} ${readerChain}${EXIT_RESTORE}`;
+  return { log, clause, readerStatus, command: groupRewrite(command, clause, body) };
+}
+
+/** Does stage 0 merge or move a file descriptor anywhere but a trailing `2>&1`? A mid-stage `2>&1` still sends
+ *  stderr down the pipe, and the log rewrite can only reproduce the trailing form. */
+function hasInnerFdMerge(stage0Blank) {
+  return /\d?>>?&\d/.test(stage0Blank.replace(STDERR_MERGE_TAIL, ""));
+}
+
+/** Does the chain after this pipe test the LAST reader's status (`… | grep -q X && next`)? Then the group ends
+ *  with that reader, as the original pipe did, instead of the harness's exit restore. */
+function chainTestsReader(command, clause) {
+  if (!command.slice(clause.end).trimStart().startsWith("&&")) {
+    return false;
+  }
+  const words = shellWords(command.slice(clause.stages.at(-1).start, clause.end)).map((w) => w.value);
+  const tool = words[0]?.replace(/^.*\//, "");
+  const flags = words.slice(1, words.includes("--") ? words.indexOf("--") : undefined).filter((w) => w.startsWith("-"));
+  if (tool === "grep" || tool === "egrep" || tool === "fgrep") {
+    return flags.some((f) => f === "--quiet" || f === "--silent" || f === "--count" || /^-[A-Za-z]*[qc]/.test(f));
+  }
+  if (tool === "rg") {
+    return flags.some((f) => f === "--quiet" || f === "--count" || /^-[A-Za-z]*[qc]/.test(f));
+  }
+  return false;
 }
 
 /** Does a heredoc start in this clause? Its body follows the clause's line, so the group's closing line
@@ -1081,17 +1112,20 @@ function mergesStderr(blank, stage0, stage0Raw) {
   return STDERR_MERGE_TAIL.test(stage0Raw) || blank[stage0.end + 1] === "&";
 }
 
-/** The command with `clause` replaced by `body` inside a brace group that ends with the exit restore. What
- *  followed the pipeline (`&&`, `||`, `;`, a backgrounding `&`) now applies to the group, which carries the
- *  real exit code: appended after the reader, a `&& next` would test the reader's status instead. The
- *  restore goes on its OWN LINE because the reader chain is sliced from the ORIGINAL text and can end in a
- *  comment, which runs to end-of-line. */
+// Ends a rewrite's group body with the command's real exit code. It goes on its OWN LINE because the reader
+// chain is sliced from the ORIGINAL text and can end in a comment, which runs to end-of-line.
+const EXIT_RESTORE = "\n( exit $__tg_ec ); ";
+
+/** The command with `clause` replaced by a brace group around `body`, which ends in a newline or
+ *  `EXIT_RESTORE`. What followed the pipeline (`&&`, `||`, `;`, a backgrounding `&`) now applies to the
+ *  group, which carries the real exit code: appended after the reader, a `&& next` would test the reader's
+ *  status instead. */
 function groupRewrite(command, clause, body) {
   const prefix = command.slice(0, clause.start);
   const rawSuffix = command.slice(clause.end);
   const suffix = /^[\s;]*$/.test(rawSuffix) ? "" : rawSuffix; // a bare trailing `;` would yield `; ;` — a bash syntax error
   const joiner = prefix === "" || /\s$/.test(prefix) ? "" : " ";
-  return `${prefix}${joiner}{ ${body}\n( exit $__tg_ec ); }${suffix}`;
+  return `${prefix}${joiner}{ ${body}}${suffix}`;
 }
 
 /** Which known artifact (if any) a harness clause's stage0 writes, as `{kind: "verify"}` or
@@ -1150,7 +1184,7 @@ function artifactPipeRewrite(command, blank, clauses) {
   const [clause] = piped;
   const [stage0, ...readers] = clause.stages;
   const stage0Blank = blank.slice(stage0.start, stage0.end);
-  if (UNSAFE_STAGE0.test(stripFdMerges(stage0Blank))) {
+  if (UNSAFE_STAGE0.test(stripFdMerges(stage0Blank)) || hasInnerFdMerge(stage0Blank)) {
     return null;
   }
   const family = classifyHarnessFamily(stage0Blank);
@@ -1170,9 +1204,21 @@ function artifactPipeRewrite(command, blank, clauses) {
     return null;
   }
   const harness = command.slice(stage0.start, stage0.end).replace(STDERR_MERGE_TAIL, "").trim();
-  const target = family.kind === "verify" ? `pnpm check:show ${checkShowFlags(command, blank, readers)}` : family.artifact;
-  const readerReplacement = family.kind === "verify" ? target : `< ${target} ${command.slice(readers[0].start, clause.end).trim()}`;
-  return { command: groupRewrite(command, clause, `${harness}; __tg_ec=$?; ${readerReplacement}`), target, clause };
+  const readerStatus = chainTestsReader(command, clause);
+  if (family.kind === "verify") {
+    if (readerStatus) {
+      return null; // `pnpm check:show` replaces the reader whose status the chain tests; the private-log rewrite keeps it
+    }
+    const target = `pnpm check:show ${checkShowFlags(command, blank, readers)}`;
+    return { command: groupRewrite(command, clause, `${harness}; __tg_ec=$?; ${target}${EXIT_RESTORE}`), target, clause, readerStatus };
+  }
+  const readerChain = command.slice(readers[0].start, clause.end).trim();
+  if (readerChain.endsWith("\\")) {
+    return null;
+  }
+  const target = family.artifact;
+  const body = readerStatus ? `${harness}; < ${target} ${readerChain}\n` : `${harness}; __tg_ec=$?; < ${target} ${readerChain}${EXIT_RESTORE}`;
+  return { command: groupRewrite(command, clause, body), target, clause, readerStatus };
 }
 
 /** A harness redirected to a file (`> x.log 2>&1`, `&> x.log`) or piped into
@@ -1227,6 +1273,26 @@ function bareHarnessRewrite(command, blank, clauses, headRe) {
   return { command: `${prefix}${harness}${suffix}`, clause };
 }
 
+/** The git subcommand a stage runs, or null when the stage does not run git. The exec head is found in the
+ *  BLANKED stage, so a comment or quoted text never reads as git; the options are walked on the RAW stage's
+ *  shell words, where a quoted value with a space (`-C "/w t"`) is one word. */
+function gitSubcommand(stageBlank, stageRaw) {
+  if (!GIT_EXEC_HEAD.test(stageBlank)) {
+    return null;
+  }
+  // stripOperandTail: a group's `(`/`)` is glued to the raw word, so `(git commit)` ends in `commit)`
+  const words = shellWords(stageRaw).map((w) => stripOperandTail(w).value);
+  let at = wrapperPrefixEnd(words);
+  if (words[at] !== "git") {
+    return null;
+  }
+  at += 1;
+  while (words[at]?.startsWith("-") === true) {
+    at += GIT_VALUE_OPTIONS.has(words[at]) ? 2 : 1;
+  }
+  return words[at] ?? null;
+}
+
 /** A `pnpm doc` stage as `{verb, help}` (`verb` is `""` for a bare `pnpm doc`), or null when the stage is
  *  not one. Reads through a case-arm pattern, compound-command lead words, redirects and pnpm's own
  *  options ahead of `doc`. */
@@ -1247,28 +1313,29 @@ function docCall(stageBlank, stageRaw) {
   if (rest[at] !== "doc") {
     return null;
   }
-  const args = rest.slice(at + 1);
-  return { verb: args.find((w) => !w.startsWith("-")) ?? "", help: docHelpOnly(stageRaw) };
+  // The blanked stage proves this is a `pnpm doc` call; its arguments are read off the raw one.
+  const args = docArgs(stageRaw);
+  return { verb: args.find((w) => !w.startsWith("-")) ?? "", help: args.length === 2 && (args[1] === "--help" || args[1] === "-h") };
 }
 
-/** Is the raw `pnpm … doc` stage exactly `<verb> --help` or `<verb> -h`? Counted on the RAW words, where a
- *  quoted argument is still a word, so a real write that also carries `-h` still writes. Redirects and their
+/** The raw `pnpm … doc` stage's arguments after `doc`, as shell words: a quoted argument is still one word
+ *  (`'set'` is `set`), so a quoted verb still writes and a quoted title still counts. Redirects and their
  *  targets are not arguments. */
-function docHelpOnly(stageRaw) {
+function docArgs(stageRaw) {
   const words = shellWords(stageRaw);
-  const docAt = words.findIndex((w) => w.value === "doc");
-  if (docAt === -1) {
-    return false;
-  }
+  const docAt = words.findIndex((w) => stripOperandTail(w).value === "doc");
   const args = [];
+  if (docAt === -1) {
+    return args;
+  }
   for (let i = docAt + 1; i < words.length; i += 1) {
     if (REDIRECT_OPERATOR_ONLY.test(words[i].raw)) {
       i += 1;
     } else if (!REDIRECT_WORD.test(words[i].raw)) {
-      args.push(words[i].value);
+      args.push(stripOperandTail(words[i]).value); // `(pnpm doc index)`: the group's `)` is glued to the verb
     }
   }
-  return args.length === 2 && (args[1] === "--help" || args[1] === "-h");
+  return args;
 }
 
 // The same four spellings, anchored at a clause head so the rewrite knows exactly what to replace. Its
@@ -3117,6 +3184,9 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     const artifact = artifactPipeRewrite(command, blank, clauses);
     if (artifact) {
       contexts.push(CONTEXTS.rewritePipedArtifact(artifact.target));
+      if (artifact.readerStatus) {
+        contexts.push(CONTEXTS.rewriteReaderStatus);
+      }
       const timeout = ctx.timeout === undefined ? REWRITE_TIMEOUT_MS : undefined;
       return gateRewrite(
         { decision: "allow", rule: "harness-piped", rewrite: { command: artifact.command, timeout }, contexts },
@@ -3125,9 +3195,12 @@ function classifyCommandLine(command, blank, clauses, ctx) {
         ctx,
       );
     }
-    const rewrite = pipeRewrite(command, blank, clauses, HARNESS_RUN_HEAD, ctx);
+    const rewrite = pipeRewrite(command, blank, clauses, (b) => HARNESS_RUN_HEAD.test(b), ctx);
     if (rewrite) {
       contexts.push(CONTEXTS.rewritePiped(rewrite.log));
+      if (rewrite.readerStatus) {
+        contexts.push(CONTEXTS.rewriteReaderStatus);
+      }
       const timeout = ctx.timeout === undefined ? REWRITE_TIMEOUT_MS : undefined;
       return gateRewrite(
         { decision: "allow", rule: "harness-piped", rewrite: { command: rewrite.command, timeout, log: rewrite.log }, contexts },
@@ -3293,9 +3366,12 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     const stage0 = blank.slice(clause.stages[0].start, clause.stages[0].end);
     const stage0Raw = command.slice(clause.stages[0].start, clause.stages[0].end);
     if (DOC_PIPE_HEAD.test(stage0)) {
-      const rewrite = pipeRewrite(command, blank, clauses, DOC_PIPE_HEAD, ctx);
+      const rewrite = pipeRewrite(command, blank, clauses, (b) => DOC_PIPE_HEAD.test(b), ctx);
       if (rewrite) {
         contexts.push(CONTEXTS.rewriteDocPiped(rewrite.log));
+        if (rewrite.readerStatus) {
+          contexts.push(CONTEXTS.rewriteReaderStatus);
+        }
         return gateRewrite(
           { decision: "allow", rule: "doc-piped", rewrite: { command: rewrite.command, log: rewrite.log }, contexts },
           command,
@@ -3305,14 +3381,18 @@ function classifyCommandLine(command, blank, clauses, ctx) {
       }
       continue; // a later piped git clause still gets its advisory
     }
-    if (!LONG_LIVED.test(stage0) || !LONG_LIVED.test(stage0Raw)) {
+    const verb = gitSubcommand(stage0, stage0Raw);
+    if (!GIT_LONG_LIVED_VERBS.has(verb)) {
       continue;
     }
-    const rewrite = pipeRewrite(command, blank, clauses, LONG_LIVED, ctx);
+    const rewrite = pipeRewrite(command, blank, clauses, (b, r) => GIT_LONG_LIVED_VERBS.has(gitSubcommand(b, r)), ctx);
     if (rewrite) {
       contexts.push(CONTEXTS.rewriteLongLived(rewrite.log));
+      if (rewrite.readerStatus) {
+        contexts.push(CONTEXTS.rewriteReaderStatus);
+      }
       // a piped foreground commit/merge runs its hooks too, so it gets the same long timeout as a bare one
-      const timeout = ctx.timeout === undefined && !ctx.runInBackground && GIT_HOOKED_HEAD.test(stage0) ? REWRITE_TIMEOUT_MS : undefined;
+      const timeout = ctx.timeout === undefined && !ctx.runInBackground && GIT_HOOKED_VERBS.has(verb) ? REWRITE_TIMEOUT_MS : undefined;
       return gateRewrite(
         { decision: "allow", rule: "longlived-piped", rewrite: { command: rewrite.command, timeout, log: rewrite.log }, contexts },
         command,
@@ -3348,9 +3428,8 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   //     unchanged, and judging it with the git clause cut out would turn a heredoc body into commands.
   if (ctx.timeout === undefined && !ctx.runInBackground) {
     const hooked = clauses.some((cl) =>
-      cl.stages.some(
-        (st) =>
-          GIT_HOOKED_HEAD.test(stripCompoundLead(blank.slice(st.start, st.end))) && GIT_HOOKED_HEAD.test(stripCompoundLead(command.slice(st.start, st.end))),
+      cl.stages.some((st) =>
+        GIT_HOOKED_VERBS.has(gitSubcommand(stripCompoundLead(blank.slice(st.start, st.end)), stripCompoundLead(command.slice(st.start, st.end)))),
       ),
     );
     if (hooked) {

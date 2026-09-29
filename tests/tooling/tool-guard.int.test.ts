@@ -974,6 +974,9 @@ const ROWS: Row[] = [
   ["deny", "doc-write-lane", "pnpm doc item --title --help", LANE],
   // pnpm's own options before `doc`, and a case arm, do not hide the verb
   ["deny", "doc-write-lane", "pnpm -w doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "pnpm doc 'set' 5 done", LANE], // a quoted verb is the same verb
+  ["deny", "doc-write-lane", 'pnpm doc "land" 5', LANE],
+  ["deny", "doc-write-lane", "(pnpm doc index)", LANE],
   ["deny", "doc-write-lane", "pnpm --filter root doc set 5 x", LANE],
   ["deny", "doc-write-lane", "pnpm --silent doc set 5 x", LANE],
   ["deny", "doc-write-lane", "pnpm -C=/wt doc set 5 x", LANE],
@@ -1498,11 +1501,13 @@ test("rewrite: a piped `pnpm doc` or `git commit/merge` is a valid pipeRewrite o
       "git -C /wt merge main | tail",
       "git commit-tree abc | tail",
       "git merge-base a b | tail",
+      "git -C '/w t' commit -m x | tail -3",
+      "git --no-pager log -S commit | head",
     ].map((command) => ({ command })),
   );
-  expect(simple.map((r) => r.rule)).toEqual(["doc-piped", "longlived-piped", "longlived-piped", null, null]);
+  expect(simple.map((r) => r.rule)).toEqual(["doc-piped", "longlived-piped", "longlived-piped", null, null, "longlived-piped", null]);
   // a piped foreground commit/merge also gets the long timeout, unless the caller set one or backgrounded it
-  expect([at(simple, 1).rewrite?.timeout, at(simple, 2).rewrite?.timeout]).toEqual([600_000, 600_000]);
+  expect([at(simple, 1).rewrite?.timeout, at(simple, 2).rewrite?.timeout, at(simple, 5).rewrite?.timeout]).toEqual([600_000, 600_000, 600_000]);
   const piped = runBatch([
     { command: "git commit -m x | tail -3", runInBackground: true },
     { command: "git commit -m x | tail -3", ...AGENT_TIMEOUT },
@@ -1537,6 +1542,12 @@ test("commit timeout: a foreground commit/merge with no timeout gets the long ti
     { command: "git commit -F - <<'EOF'\nfix: the body mentions git stash\nEOF" },
     { command: 'git -C "$WT" log --grep merge' },
     { command: "git --no-pager log -S commit" },
+    // a quoted option value with a space is still one word
+    { command: 'git -C "/w t" commit -m x' },
+    { command: 'git -c "user.name=Alex X" commit -m x', ...LANE },
+    { command: "git -c user.name='Alex X' commit -m x" },
+    { command: 'git -C "$HOME/My Repo" merge feature' },
+    { command: "(cd /x && git commit)" },
   ]);
   expect(rows.map((r) => [r.decision, r.rule, r.rewrite?.command, r.rewrite?.timeout])).toEqual([
     ["allow", "commit-timeout", "git commit -m x", 600_000],
@@ -1551,6 +1562,11 @@ test("commit timeout: a foreground commit/merge with no timeout gets the long ti
     ["allow", "commit-timeout", "git commit -F - <<'EOF'\nfix: the body mentions git stash\nEOF", 600_000],
     ["pass", null, undefined, undefined],
     ["pass", null, undefined, undefined],
+    ["allow", "commit-timeout", 'git -C "/w t" commit -m x', 600_000],
+    ["allow", "commit-timeout", 'git -c "user.name=Alex X" commit -m x', 600_000],
+    ["allow", "commit-timeout", "git -c user.name='Alex X' commit -m x", 600_000],
+    ["allow", "commit-timeout", 'git -C "$HOME/My Repo" merge feature', 600_000],
+    ["allow", "commit-timeout", "(cd /x && git commit)", 600_000],
   ]);
   const wire = runHook(bashInput("git commit -m 'x y'"), [["CLAUDE_PROJECT_DIR", mkdtempSync(join(tmpdir(), "tg-commit-timeout-"))]]);
   // @orb-waive tooling-clock-budget(600_000): the guard's OUTPUT under test (its REWRITE_TIMEOUT_MS on the wire), not a clock this run pays.
@@ -1610,6 +1626,48 @@ test("rewrite: the chain after a rewritten pipe sees the command's real exit cod
   // …and with it, both reach the reader, as before
   const merged = run("git() { echo stdout-line; echo err-line >&2; }", rewrite("git commit -m x 2>&1 | tail -2"));
   expect(merged.stdout.trim().split("\n")).toEqual(["stdout-line", "err-line"]);
+});
+
+// Each shape runs as written and as rewritten against a stub harness; the rewrite must parse, and must give
+// the chain what the original gave it, or not happen at all.
+test("rewrite: a continued reader line, a mid-stage fd merge and a status-checking last reader keep the original's meaning", () => {
+  const project = mkdtempSync(join(tmpdir(), "tg-reader-status-"));
+  mkdirSync(join(project, "reports", "tool-guard"), { recursive: true });
+  const classify = (command: string): BatchResult => at(runBatch([{ command, projectDir: project, ...AGENT_TIMEOUT }]), 0);
+  const stub = (ec: number): string => `pnpm() { echo out-line; echo err-line >&2; return ${ec}; }`;
+  // a missing rewrite runs as `exit 99`, which no assertion below accepts
+  const run = (ec: number, command: string | undefined): SpawnSyncReturns<string> =>
+    spawnSync("bash", ["-c", `${stub(ec)}\n${command ?? "exit 99"}`], { encoding: "utf8" });
+  // a reader line ending in `\` continues into the next operator; the restore line would land inside it
+  for (const command of [
+    "pnpm test:scoped a 2>&1 | tail -20 \\\n  && echo ok",
+    "pnpm test:scoped a | tail -5 \\",
+    "git commit -m x 2>&1 | tail -3 \\\n && git log -1",
+  ]) {
+    const r = classify(command);
+    expect([command, r.rewrite === undefined || r.rewrite.command === command]).toEqual([command, true]);
+  }
+  // a `2>&1` before other arguments still merges stderr into the pipe; the log rewrite cannot keep that
+  expect(classify("pnpm test:scoped a 2>&1 --reporter=dot | tail -2").rewrite).toBeUndefined();
+  // `grep -q X && next`: the chain tests the reader, as the original did, whatever the harness exit code
+  for (const command of [
+    "pnpm test:scoped a | grep -q out-line && echo FOUND",
+    "pnpm test:scoped a | grep -q nope && echo FOUND",
+    "pnpm test:scoped a | grep -qc out && echo N",
+  ]) {
+    const r = classify(command);
+    expect(r.rewrite?.command).toContain("/reports/tool-guard/run-");
+    expect(r.contexts.join("\n")).toContain("exit code is not carried");
+    for (const ec of [0, 3]) {
+      const [original, rewritten] = [run(ec, command), run(ec, r.rewrite?.command)];
+      expect([command, ec, rewritten.status, rewritten.stdout]).toEqual([command, ec, original.status, original.stdout]);
+    }
+  }
+  // with no chain after it, or a non-status reader, the harness's own exit code still wins
+  const plain = classify("pnpm test:scoped a | grep -q out-line");
+  expect(run(3, plain.rewrite?.command).status).toBe(3);
+  const tail = run(3, classify("pnpm test:scoped a | tail -1 && echo NEXT").rewrite?.command);
+  expect([tail.status, tail.stdout]).toEqual([3, "out-line\n"]);
 });
 
 test("rewrite: a known test harness piped into a reader targets its own report artifact", () => {
