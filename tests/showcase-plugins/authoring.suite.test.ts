@@ -9,9 +9,9 @@ import { expect, test } from "../support/tool-fixtures.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..");
 const BUNDLES_ROOT = join(REPO_ROOT, "packages", "showcase-plugins", "bundles");
-// Compiling every showcase plugin is real work (~5s even on a quiet box); vitest.config.ts's project-wide
-// budget(5000) testTimeout is already tight for a single pass, let alone the determinism check's two.
-const COMPILE_SHOWCASE_TIMEOUT = budget(15_000);
+// Compiling every showcase plugin twice took 19.3 s at load 34.6/24, which budget() scales from this base,
+// so the project-wide budget(5000) default is far too tight for the determinism check.
+const COMPILE_SHOWCASE_TIMEOUT = budget(30_000);
 
 test("a clean source tree materializes the complete deterministic runtime zip tree", { tags: "source-freshness", timeout: COMPILE_SHOWCASE_TIMEOUT }, async ({
   scratch,
