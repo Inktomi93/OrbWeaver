@@ -1,4 +1,4 @@
-// The boot step for the example-plugin seeder (the `seed-default-persona-step.ts` mirror): seed the
+// The boot step for the example-plugin seeder: seed the
 // deployment owner once at boot; every other user is seeded by the app's first-authed-request hook through
 // the SAME instance. Idempotent; never throws.
 

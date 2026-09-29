@@ -31,7 +31,7 @@ packages/server/src/entry/
 │                             + domain/sessions (resolve/validate/upsert) (per §7 D1)
 ├── boot/                     migrate.ts (backup → FK-off migrations → foreign_key_check) · seed-owner.ts ·
 │                             seed-credential.ts (env→DB-once) · seed-default-preset.ts ·
-│                             seed-default-characters.ts · seed-default-persona.ts (+ seed-default-persona-step.ts) ·
+│                             seed-default-characters.ts · seed-default-persona.ts ·
 │                             seed-themes.ts · reclaim-locks.ts. The default CONTENT the seeders lay
 │                             down is NOT here — avatars + demo-chat transcripts ship as
 │                             `@orb/default-content`, plugin bundles as `@orb/showcase-plugins` (D160)
