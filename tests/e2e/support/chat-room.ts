@@ -19,6 +19,7 @@
 
 import { rowActionsName } from "@orb/client/lib";
 import type { MessageId } from "@orb/kit/ids";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { HOST_BAND, openContextSections } from "../../support/node/open-context-sections.ts";
@@ -36,7 +37,7 @@ const BOOTSTRAP_MESSAGE = "Hi";
 // marked itself ready. Vite then reloads the page and compiles the route graph; the cold push-gate receipt
 // measured 42s before the list appeared. This budget stays below the spec's 60s ceiling while covering
 // that one-time dev-server restart. Warm navigation remains immediate.
-const COLD_CHAT_SURFACE_TIMEOUT = 45_000;
+const COLD_CHAT_SURFACE_TIMEOUT = budget(45_000);
 
 // The dev introspection handle's shape, as read from inside a browser-context `page.evaluate`. Declared
 // locally (not imported from the client's ambient `declare global`) — the e2e support tree stays
