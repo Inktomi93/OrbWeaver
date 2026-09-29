@@ -9,11 +9,11 @@ import { expect, test } from "../support/tool-fixtures.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..");
 const BUNDLES_ROOT = join(REPO_ROOT, "packages", "showcase-plugins", "bundles");
-// Compiles every showcase plugin TWICE (the determinism check), so the default 5s ceiling is too tight
-// under contention even though a quiet box clears it comfortably.
-const COMPILE_TWICE_TIMEOUT = budget(5000);
+// Compiling every showcase plugin is real work (~5s even on a quiet box); vitest.config.ts's project-wide
+// budget(5000) testTimeout is already tight for a single pass, let alone the determinism check's two.
+const COMPILE_SHOWCASE_TIMEOUT = budget(15_000);
 
-test("a clean source tree materializes the complete deterministic runtime zip tree", { tags: "source-freshness", timeout: COMPILE_TWICE_TIMEOUT }, async ({
+test("a clean source tree materializes the complete deterministic runtime zip tree", { tags: "source-freshness", timeout: COMPILE_SHOWCASE_TIMEOUT }, async ({
   scratch,
 }) => {
   const result = await compileShowcasePlugins(REPO_ROOT);
@@ -49,7 +49,7 @@ test("a clean source tree materializes the complete deterministic runtime zip tr
   expect(new TextDecoder().decode(pocketArcade?.bytes)).not.toContain("/* @orb-frame-script */");
 });
 
-test("every emitted QuickJS artifact parses and activates with no ambient Node or DOM globals", async () => {
+test("every emitted QuickJS artifact parses and activates with no ambient Node or DOM globals", { timeout: COMPILE_SHOWCASE_TIMEOUT }, async () => {
   const result = await compileShowcasePlugins(REPO_ROOT);
   expect(result.diagnostics).toEqual([]);
   const quickjs = await getPluginQuickJS();
