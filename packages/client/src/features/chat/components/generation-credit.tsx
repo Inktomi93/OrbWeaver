@@ -14,7 +14,7 @@ import { MESSAGE_ACTION_ICON_CLASS } from "../lib/message-actions-reveal.ts";
 import { generationCreditSentence } from "../lib/swipe-attribution.ts";
 
 export interface GenerationCreditProps {
-  readonly message: Pick<MessageView, "model" | "provider" | "connectionId">;
+  readonly message: Pick<MessageView, "model" | "provider" | "connectionId" | "connectionAttributionProvenance">;
 }
 
 /** Renders nothing for a swipe with no recorded model (a greeting or a draft was never generated). */

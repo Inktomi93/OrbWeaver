@@ -34,8 +34,10 @@ export const IMAGE_GEN_SPENDS_NOW = "Spends right away — your typed text is se
 /** The ✨-menu row that opens the `/imagine` modal — the mode + preview door, findable without typing `/`. */
 export const IMAGINE_DOOR_HELPER = "Pick a mode, preview the prompt (and its price) before the image spend — the /imagine surface.";
 
-/** The shared-room sentence at the image doors: both post the generated picture into the chat. */
-export const ROOM_PICTURES_NOTE = "Pictures you generate post to this chat, where everyone in it sees them.";
+/** The shared-room sentence at the image doors: both post the generated picture into the chat, and the file
+ *  itself stays in the caller's uploads until they add it to a gallery. */
+export const ROOM_PICTURES_NOTE =
+  "Pictures you generate post to this chat, where everyone in it sees them. They stay in your uploads until you add them to a gallery.";
 
 // `IMAGE_GEN_NEEDS_CHAT` ("Send the first message, then generate images from your text") was DELETED
 // 2026-08-14: image generation posts into a real chat, and the room now HAS one from the creation click.
