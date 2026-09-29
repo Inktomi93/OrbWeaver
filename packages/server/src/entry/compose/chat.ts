@@ -35,6 +35,7 @@ import type {
   ChatServiceDeps,
   ChatToolOps,
   ChatToolSet,
+  ClaimChatOp,
   GeneratePictureOp,
   GetMembership,
   GetPendingUserText,
@@ -68,7 +69,6 @@ import {
   createActiveTurns,
   createChatService,
   createChatTeachingContributions,
-  createClaimChat,
   createGetMembership,
   createGetPendingUserText,
   createPostNarratorMessage,
@@ -346,8 +346,10 @@ export interface ChatComposeResult {
     readonly getMembership: GetMembership;
     readonly postNarratorMessage: PostNarratorMessage;
     readonly getPendingUserText: GetPendingUserText;
-    /** The opaque pointer write — `createGame` calls it once. */
+    /** The opaque pointer write — `createGame`, the `updateConfig` engaged toggle and the game fork call it. */
     readonly setRpgPointer: SetRpgPointer;
+    /** The husk→real transition (R0), the chat service's own instance: every rpg host write claims its room. */
+    readonly claimChat: ClaimChatOp;
     /** The roster projection — the tracker view's roster ∪ sheets source. */
     readonly resolveRpgParticipants: ResolveRpgParticipants;
     /** The chat's PRESENT host userId (role='host', D19) — the human the rpg resync resolves its
@@ -1535,18 +1537,18 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   if (input.toolUse !== undefined) {
     input.toolUse.register(createReactToolDefinition({ reactAsCharacter: createReactAsCharacter(chatCtx, { emit: emitChatEvent }) }));
   }
-  // The narrator and pointer ops are built OUTSIDE createChatService (injected rpg ops, not routed verbs), so
-  // they get their own claim chokepoint from the same factory — one behavior, two construction sites. The two
-  // share it so a same-room race between them serializes on one in-flight map.
-  const rpgClaimChat = createClaimChat(chatCtx);
+  // Every op built outside createChatService claims through the chat service's own instance: a second instance
+  // has its own in-flight map, and two first claims racing on one room would replay the creation stats twice.
+  const { claimChat } = chatBundle;
   return {
     service: chatBundle.service,
     emitBusEvent: emitChatEvent,
     rpgChatOps: {
       getMembership: createGetMembership(chatCtx),
-      postNarratorMessage: createPostNarratorMessage(chatCtx, { emit: emitChatEvent, claimChat: rpgClaimChat }),
+      postNarratorMessage: createPostNarratorMessage(chatCtx, { emit: emitChatEvent, claimChat }),
       getPendingUserText: createGetPendingUserText(chatCtx),
-      setRpgPointer: createSetRpgPointer(chatCtx, { claimChat: rpgClaimChat }),
+      setRpgPointer: createSetRpgPointer(chatCtx, { claimChat }),
+      claimChat,
       resolveRpgParticipants: createResolveRpgParticipants(chatCtx),
       resolveHostUserId: resolveChatHostUserId,
       resolveCanonWindow: createResolveCanonWindow(chatCtx),

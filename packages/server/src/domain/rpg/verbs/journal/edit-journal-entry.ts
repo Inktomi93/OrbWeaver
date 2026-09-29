@@ -11,6 +11,7 @@ import { updateJournalEntry } from "../../persistence/journal.ts";
 export function createEditJournalEntry(ctx: RpgContext): Pick<RpgService, "editJournalEntry"> {
   async function editJournalEntry(params: EditJournalEntryParams): Promise<void> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
+    await ctx.claimChat(params.chatId);
     if (!(await updateJournalEntry(ctx.db, game.id, params.entryId, params.patch))) {
       throw new DomainNotFoundError("journal", params.entryId);
     }

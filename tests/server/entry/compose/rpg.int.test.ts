@@ -32,7 +32,7 @@ import { RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/r
 import type { StructuredOutputShape } from "@orb/contracts/settings";
 import { DEFAULT_STRUCTURED_OUTPUT_SHAPE } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import { characters, chatParticipants, messages, messageVariants, presets } from "@orb/db";
+import { characters, chatParticipants, messages, messageVariants, ownerStats, presets } from "@orb/db";
 import type { ChatResult, ResolveOutcome } from "@orb/inference";
 import type { ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -197,6 +197,35 @@ test("createGame on an unsent room claims it into the host's Chats list (compose
   await services.rpg.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
 
   expect(await listed()).toStrictEqual({ ids: [chatId], totalCount: 1 });
+});
+
+test("a start-as-game room the host edits is claimed: listed, and the nav-away reap leaves it (composed-real)", async ({ services, db }) => {
+  const hostId = await seedUser(db, castId<Handle>("rpghost_startgame"));
+  const principal = hostPrincipal(hostId);
+  const characterId = await seedCharacter(db, hostId, "startgame", { id: mintTypeId(ID_PREFIX.character) });
+  const { chat } = await services.chat.startChat({ principal, characterIds: [characterId], opening: "none", startAsGame: {} });
+  const listedIds = async (): Promise<readonly ChatId[]> => (await services.chat.listChats({ principal })).items.map((c) => c.id);
+  expect(await listedIds()).toStrictEqual([]);
+
+  await services.rpg.patchSheet({ principal, chatId: chat.id, actorRef: { kind: "user", userId: hostId }, patch: { className: "Warden" } });
+  expect(await listedIds()).toStrictEqual([chat.id]);
+
+  await services.chat.reapHusk({ principal, chatId: chat.id });
+  expect(await listedIds()).toStrictEqual([chat.id]);
+});
+
+// The chat-side write is a title rather than a send: a send needs a bound model connection this graph lacks, and
+// a title claims through the same chat-service chokepoint a send does.
+test("a chat write racing createGame on an unsent room replays the creation stats once (one shared claim)", async ({ services, db }) => {
+  const hostId = await seedUser(db, castId<Handle>("rpghost_race"));
+  const chatId = await seedChat(db, "race", { startedAt: null, id: mintTypeId(ID_PREFIX.chat) });
+  await seedParticipant(db, { chatId, key: "race_host", userId: hostId, role: "host", joinSeq: 0 });
+  const principal = hostPrincipal(hostId);
+
+  await Promise.all([services.chat.updateTitle({ principal, chatId, title: "We ride at dawn" }), services.rpg.createGame({ principal, chatId, mode: "lite" })]);
+
+  const stats = await db.select({ chats: ownerStats.chats }).from(ownerStats).where(eq(ownerStats.ownerId, hostId));
+  expect(stats).toStrictEqual([{ chats: 1 }]);
 });
 
 async function provePlantedPromotionRecovery(args: {

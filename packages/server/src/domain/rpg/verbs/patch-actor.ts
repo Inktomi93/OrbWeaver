@@ -35,6 +35,7 @@ export function createPatchActor(ctx: RpgContext): Pick<RpgService, "patchActor"
   async function patchActor(params: PatchActorParams): Promise<HandDoorResult> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
     assertHostRole(ctx.can, params.principal, role, "host authority required to hand-edit an actor");
+    await ctx.claimChat(params.chatId);
     const targetKey = actorRefKey(params.targetRef);
 
     const written = await writeHandState(ctx, game, (head) => {

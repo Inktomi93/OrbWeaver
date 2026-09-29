@@ -11,6 +11,7 @@ import { insertJournalEntry } from "../../persistence/journal.ts";
 export function createAddJournalEntry(ctx: RpgContext): Pick<RpgService, "addJournalEntry"> {
   async function addJournalEntry(params: AddJournalEntryParams): Promise<RpgJournalId> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
+    await ctx.claimChat(params.chatId);
     const id = ctx.ids.journal();
     await insertJournalEntry(ctx.db, {
       id,

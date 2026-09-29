@@ -10,6 +10,7 @@ import { deleteJournalEntry as deleteJournalEntryRow } from "../../persistence/j
 export function createDeleteJournalEntry(ctx: RpgContext): Pick<RpgService, "deleteJournalEntry"> {
   async function deleteJournalEntry(params: DeleteJournalEntryParams): Promise<void> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
+    await ctx.claimChat(params.chatId);
     if (!(await deleteJournalEntryRow(ctx.db, game.id, params.entryId))) {
       throw new DomainNotFoundError("journal", params.entryId);
     }

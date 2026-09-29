@@ -28,6 +28,7 @@ export function createDismissActor(ctx: RpgContext): Pick<RpgService, "dismissAc
   async function dismissActor(params: DismissActorParams): Promise<HandDoorResult> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
     assertHostRole(ctx.can, params.principal, role, "host authority required to dismiss an actor");
+    await ctx.claimChat(params.chatId);
     const ref = params.targetRef;
     const targetKey = actorRefKey(ref);
     const lockBase = rpgActorLockBase(ref);

@@ -1,7 +1,8 @@
 // The opaque rpg-pointer WRITE op (docs/plans/rpg/design.md): merge the healed `metadata.rpg` `{gameId}` sub-blob so
 // the client's takeover gate is a sync read off `ChatDetail` (chat never dereferences it — the truth is
-// `rpg_games`). Called ONCE by rpg's `createGame`, inside the same logical commit as the game row. STANDALONE +
-// principal-free (rpg gated host authority in createGame): the `getMembership`/`postNarratorMessage`
+// `rpg_games`). Callers: rpg's `createGame` (through `mintLiteGame`, after the game row), `updateConfig` when the
+// patch flips `engaged`, the game fork (`chat-ops/fork-game.ts`) for the new chat, and `detachDanglingPointer`
+// with `null`. STANDALONE + principal-free (each rpg caller gated host authority): the `getMembership`/`postNarratorMessage`
 // injected-op precedent — a compose-built factory, not a `ChatService` verb (it takes no principal).
 //
 // The write touches the `$.rpg` JSON PATH ONLY (`persistence/chat-metadata-write.ts`), so the pointer never

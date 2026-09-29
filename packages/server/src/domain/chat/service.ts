@@ -5,6 +5,7 @@
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { AssetId, ChatId, Handle } from "@orb/kit/ids";
 import type { ChatContext, ChatServiceDeps } from "./context.ts";
+import type { ClaimChatOp } from "./contract/context.ts";
 import type { RequestTurnOp } from "./contract/results.ts";
 import type { ChatService } from "./contract/service.ts";
 import type { SignupInviteOps } from "./contract/signup.ts";
@@ -54,12 +55,13 @@ function resolveSeatDisplayName(
 /** Assemble the chat composition-root product: the routed {@link ChatService} PLUS the PRINCIPAL-FREE
  *  `requestTurn` seam. `requestTurn` is deliberately OFF `ChatService` — it is an
  *  injected op the entry root hands automation's `trigger_turn` arm + the plugin membrane's `turn.trigger`,
- *  never a routed verb (no principal; the turn triple is resolved internally, not passed). The return shape is
+ *  never a routed verb (no principal; the turn triple is resolved internally, not passed). `claimChat` is the one
+ *  claim chokepoint, shared with the rpg-facing ops. The return shape is
  *  inline (not a named export) per `no-inline-types` — its one consumer destructures `{ service, requestTurn }`. */
 export function createChatService(
   ctx: ChatContext,
   deps: ChatServiceDeps,
-): { readonly service: ChatService; readonly requestTurn: RequestTurnOp; readonly signupInvites: SignupInviteOps } {
+): { readonly service: ChatService; readonly requestTurn: RequestTurnOp; readonly signupInvites: SignupInviteOps; readonly claimChat: ClaimChatOp } {
   // The quiet-generation seam: a non-canon generation through the chat's OWN resolved connection (the marker
   // build's model access — never the summarizer rail). Standalone factory, the ExtractQuiet precedent.
   const quietGenerate = createQuietGenerate({ runChatTurn: ctx.runChatTurn, resolveChatPresetParams: ctx.resolveChatPresetParams });
@@ -183,5 +185,8 @@ export function createChatService(
     },
     requestTurn,
     signupInvites,
+    // Returned so the compose root hands the SAME instance to the ops built outside this bundle: the in-flight
+    // map is what stops two concurrent first claims from replaying the creation stats twice.
+    claimChat,
   };
 }

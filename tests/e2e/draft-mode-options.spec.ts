@@ -4,7 +4,7 @@
 // and the library row proves the hidden→visible transition without driving a turn.
 
 import { chatWithActionName } from "@orb/client/lib";
-import type { CharacterHandle } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -17,7 +17,7 @@ import {
   renameOpenChat,
   waitForAppReady,
 } from "./support/chat-room.ts";
-import { mintFreshCharacter, removeCharacter } from "./support/trpc.ts";
+import { createLiteGame, mintFreshCharacter, removeCharacter, trpcMutation } from "./support/trpc.ts";
 
 // The spec-owned character is re-minted chatless for every run, so its Chat CTA must create a fresh husk
 // rather than resume an existing room.
@@ -76,6 +76,24 @@ test("start click mounts the real room surface and the first row write claims th
     await renameOpenChat(page, claimedTitle);
     await gotoChatsList(page);
     await expect(page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: claimedTitle }).first()).toBeVisible({ timeout: 15_000 });
+  } finally {
+    await removeCharacter(characterId);
+  }
+});
+
+test("turning game mode on in an unsent room claims it into the Chats list", async ({ page }) => {
+  const characterId = await mintFreshCharacter(DRAFT_HANDLE, DRAFT_CHARACTER, DRAFT_GREETING);
+  const gameTitle = `e2e-game-claimed-${Date.now()}`;
+  try {
+    // A title given at creation does not claim, so the row is hidden until the game is created.
+    const started = await trpcMutation<{ readonly chat: { readonly id: ChatId } }>("chat.startChat", { characterIds: [characterId], title: gameTitle });
+    const gameRow = page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: gameTitle });
+    await gotoChatsList(page);
+    await expect(gameRow).toHaveCount(0);
+
+    await createLiteGame(started.chat.id);
+    await gotoChatsList(page);
+    await expect(gameRow.first()).toBeVisible({ timeout: 15_000 });
   } finally {
     await removeCharacter(characterId);
   }

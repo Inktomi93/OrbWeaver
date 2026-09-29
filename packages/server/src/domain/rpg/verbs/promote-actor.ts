@@ -44,6 +44,7 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
   async function promoteActor(params: PromoteActorParams): Promise<PromoteActorResult> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
     assertHostRole(ctx.can, params.principal, role, "host authority required to promote an actor to the room's characters");
+    await ctx.claimChat(params.chatId);
     const from = params.targetRef;
     const fromKey = actorRefKey(from);
 
