@@ -22,6 +22,7 @@ export type {
   ChatToolOps,
   ChatToolSet,
   ChatUserMacroDefs,
+  ClaimChatOp,
   EmitChatChanged,
   ExtractQuiet,
   ExtractQuietDeps,
@@ -154,9 +155,6 @@ export { applyStandaloneVariableOps } from "./substrate/variable-ops.ts";
 export { createChatTeachingContributions } from "./teaching-contribution.ts";
 // The rpg-facing generic chat surface (docs/plans/rpg/design.md) — wired into `RpgContext.chat` at the composition
 // root; each is principal-free (rpg gates game authority) and teaches chat nothing rpg-shaped.
-// THE husk→real claim chokepoint (R0). Exported because the narrator op is built OUTSIDE
-// `createChatService` (it is an injected rpg op, not a routed verb) and needs the SAME one behavior.
-export { createClaimChat } from "./verbs/claim-chat.ts";
 // The imagery quiet-extraction shaper — imagery consumes it as an injected op at the
 // composition root; chat owns the history window + the {{char}}/{{user}} MacroContext.
 export { createExtractQuiet } from "./verbs/extract-quiet.ts";

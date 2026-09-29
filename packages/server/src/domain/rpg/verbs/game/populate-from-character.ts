@@ -83,6 +83,7 @@ export function createPopulateFromCharacter(ctx: RpgContext): Pick<RpgService, "
   async function populateFromCharacter(params: PopulateFromCharacterParams): Promise<PopulateResult> {
     // HOST GATE at the model-call boundary — a member can never reach the host-principal model call.
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
+    await ctx.claimChat(params.chatId);
     const characterId = characterIdOf(params);
     // The caller IS the host (resolveHost enforced it), so the host principal funding the model call is the
     // caller's own userId — NEVER a params-supplied id (no foreign-principal injection).

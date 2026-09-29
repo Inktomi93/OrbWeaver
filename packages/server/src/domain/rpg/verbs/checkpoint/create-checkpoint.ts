@@ -13,6 +13,7 @@ import { resolveSnapshotForTurn } from "../../persistence/snapshots.ts";
 export function createCreateCheckpoint(ctx: RpgContext): Pick<RpgService, "createCheckpoint"> {
   async function createCheckpoint(params: CreateCheckpointParams): Promise<RpgCheckpointId> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
+    await ctx.claimChat(params.chatId);
     const head = await resolveSnapshotForTurn(ctx.db, { id: game.id, chatId: game.chatId });
     if (head === undefined) {
       throw new DomainNotFoundError("snapshot", game.id);
