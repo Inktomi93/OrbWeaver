@@ -938,6 +938,20 @@ const ROWS: Row[] = [
   ["deny", "doc-write-lane", "pnpm --dir=/x doc land 3", LANE],
   ["pass", null, "pnpm doc set --help", LANE],
   ["pass", null, "pnpm doc land -h", LANE],
+  ["pass", null, "pnpm doc --help", LANE],
+  ["pass", null, "pnpm doc item --help > /tmp/help.txt 2>&1", LANE], // a redirect is not an argument
+  // the help exemption is only `<verb> --help|-h` alone; a real write carrying `-h` still writes
+  ["deny", "doc-write-lane", 'pnpm doc item "Fix foo" --kind bug -h', LANE],
+  ["deny", "doc-write-lane", "pnpm doc set 5 done --help", LANE],
+  ["deny", "doc-write-lane", "pnpm doc item --title --help", LANE],
+  // pnpm's own options before `doc`, and a case arm, do not hide the verb
+  ["deny", "doc-write-lane", "pnpm -w doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "pnpm --filter root doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "pnpm --silent doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "pnpm -C=/wt doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "pnpm -C /wt run doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "case x in x) pnpm doc set 5 x;; esac", LANE],
+  ["deny", "doc-write-lane", "case x in a) echo;; (b) pnpm doc land 5;; esac", LANE],
   ["allow", "doc-piped", "pnpm doc overview | grep 0250", LANE],
   // ---- hand-polling family (owner directive, 2026-09-29 addendum) ----
   // true/`:`-only filler: EVERY clause must reduce to the bare word.
@@ -1266,7 +1280,9 @@ test("contract: a second Read of the same task output file denies, per agent, an
   expect(read(taskFile, [])).toBe(undefined); // the main session is treated the same way
   const mainSecond = runHook(readInput(taskFile, []), envPairs);
   expect(mainSecond.out.hookSpecificOutput?.permissionDecision).toBe("deny");
-  expect(mainSecond.out.hookSpecificOutput?.permissionDecisionReason).toContain("write your final report now");
+  expect(mainSecond.out.hookSpecificOutput?.permissionDecisionReason).toBe(
+    `You read this range of \`${taskFile}\` less than 120 s ago; rereading it this soon is a poll. If the job has finished, its output is what you already read. If your work is done, write your final report now; otherwise do other work or end your turn.`,
+  );
   // one Read of a task file, then two Bash reads of it, is the third consecutive read of that target
   const agentC: [string, unknown][] = [["agent_id", "agent-read-c"]];
   expect(read(`${TASKS}/c.output`, agentC)).toBe(undefined);

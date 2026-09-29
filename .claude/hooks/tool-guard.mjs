@@ -796,6 +796,10 @@ const HARNESS_TASK_OUTPUT = /^\/tmp\/claude-\d+\/.+\/tasks\/[^/]+\.output$/;
 const DOC_WRITE_VERBS = new Set(["item", "set", "land", "remove", "index", "status"]);
 // A repeat of the same task-output range inside this window is a poll; after it, a reread is allowed.
 const TASK_REREAD_WINDOW_MS = 120_000;
+// pnpm's own options that take their value as a separate word, ahead of the script name.
+const PNPM_VALUE_OPTIONS = new Set(["-C", "--dir", "--filter", "-F", "--filter-prod", "--reporter", "--loglevel", "--workspace-dir"]);
+// A case arm's pattern ahead of the command it runs: `case x in a)`, `a|b)` after a pipe split, `(b)`.
+const CASE_ARM_LEAD = /^\s*(?:case\s+\S+\s+in\s+)?\(?[^\s()|;]+\)/;
 const TAIL_FOLLOW_FLAG = /^-[A-Za-z0-9]*[fF]|^--follow\b/;
 // Shell tokens for `shellLoops`, on the BLANKED text: a redirect (`2>&1`, `>`, `<`) first so its `&` is not
 // read as an operator, then the control operators, then words.
@@ -1074,7 +1078,7 @@ const REASONS = {
   sleepOnly: `A command whose only work is \`sleep\` is a wait, backgrounded or not: it spends a tool call and re-bills your whole context to do nothing. ${WAIT_DENY_NEXT_STEP}`,
   taskFileWait: `This loop waits on a Claude Code background task file. The harness already notifies you when that task exits, so the loop only spends tool calls. ${WAIT_DENY_NEXT_STEP}`,
   taskOutputReread: (file) =>
-    `You read this range of \`${file}\` less than ${TASK_REREAD_WINDOW_MS / 1000} s ago, and rereading it this soon is a poll. ${WAIT_DENY_NEXT_STEP}`,
+    `You read this range of \`${file}\` less than ${TASK_REREAD_WINDOW_MS / 1000} s ago; rereading it this soon is a poll. If the job has finished, its output is what you already read. If your work is done, write your final report now; otherwise do other work or end your turn.`,
   docWriteLane: (verb) =>
     `\`pnpm doc ${verb}\` changes the board, and the orchestrator owns the board (items, status, landing); put the item's title, what, why and done in your report. Authoring a plan, ADR or law in your worktree with \`pnpm doc new\` is fine.`,
   trueOrColonFiller: `A command that is only \`true\`/\`:\` is filler: it re-bills your whole context and does nothing. ${WAIT_DENY_NEXT_STEP}`,
@@ -1437,14 +1441,15 @@ function bareHarnessRewrite(command, blank, clauses, headRe) {
 /** A `pnpm doc` stage as `{verb, help}` (`verb` is `""` for a bare `pnpm doc`), or null when the stage is
  *  not one. Reads through compound-command lead words and pnpm's own `-C`/`--dir` option. */
 function docCall(stageBlank) {
-  const { tokens, index, exec } = execHead(stripCompoundLead(stageBlank));
+  const text = stripCompoundLead(stageBlank.replace(CASE_ARM_LEAD, (lead) => " ".repeat(lead.length))).replace(REDIRECT_TOKEN, " ");
+  const { tokens, index, exec } = execHead(text);
   if (exec === undefined || !/^(?:\S*\/)?pnpm$/.test(exec[0])) {
     return null;
   }
   const rest = tokens.slice(index + 1).map((t) => t[0]);
   let at = 0;
-  while (rest[at] === "-C" || rest[at] === "--dir" || rest[at]?.startsWith("--dir=") === true) {
-    at += rest[at].includes("=") ? 1 : 2;
+  while (rest[at]?.startsWith("-") === true) {
+    at += PNPM_VALUE_OPTIONS.has(rest[at]) ? 2 : 1;
   }
   if (rest[at] === "run") {
     at += 1;
@@ -1453,7 +1458,8 @@ function docCall(stageBlank) {
     return null;
   }
   const args = rest.slice(at + 1);
-  return { verb: args.find((w) => !w.startsWith("-")) ?? "", help: args.includes("--help") || args.includes("-h") };
+  // Only `<verb> --help` or `<verb> -h`, alone, is a help call; a write that also carries `-h` still writes.
+  return { verb: args.find((w) => !w.startsWith("-")) ?? "", help: args.length === 2 && (args[1] === "--help" || args[1] === "-h") };
 }
 
 // The same four spellings, anchored at a clause head so the rewrite knows exactly what to replace. Its
