@@ -1200,6 +1200,29 @@ test("contract: the repeated-status-read streak survives across separate hook in
   expect(read("agent-y").out.hookSpecificOutput?.permissionDecision).toBe("allow");
 });
 
+// A whole-tree run from a subagent still runs, with a note that it is normally the orchestrator's, shown
+// once per agent per command family. The main session never sees the note.
+test("whole-tree runs: a subagent gets a once-per-family note, main gets none, scoped runs get none", () => {
+  const lane = { agentId: "cb-g3-whole-tree" };
+  const rows = runBatch([
+    { command: "pnpm check", ...lane },
+    { command: "pnpm check", ...lane }, // same family: the note is not repeated
+    { command: "pnpm verify --push", ...lane },
+    { command: "pnpm verify --static", ...lane }, // the verify family already had its note
+    { command: "pnpm check:instrument-affected", ...lane },
+    { command: "pnpm test", ...lane },
+    { command: "pnpm e2e:smoke", ...lane },
+    { command: "pnpm check" }, // main session
+    { command: "pnpm verify --static --changed", agentId: "cb-g3-scoped" },
+    { command: "pnpm test:scoped tests/a.test.ts", agentId: "cb-g3-scoped" },
+    { command: "pnpm test:ct tests/ct/a.ct.tsx", agentId: "cb-g3-scoped" },
+    { command: "pnpm check:structure", agentId: "cb-g3-scoped" },
+  ]);
+  const noted = rows.map((r) => r.contexts.some((c) => c.startsWith("This is a whole-tree run")));
+  expect(noted).toEqual([true, false, true, false, true, true, true, false, false, false, false, false]);
+  expect(rows.every((r) => r.decision === "pass")).toBe(true);
+});
+
 // The Read tool on a harness task's output file is the same poll as a Bash read of it: the first Read is a
 // check-in, a second Read of the same file by the same agent is waiting on a notification that is coming.
 test("contract: a second Read of the same task output file denies, per agent, and counts into the read streak", () => {

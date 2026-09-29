@@ -1116,6 +1116,8 @@ const CONTEXTS = {
     "tool-guard dropped this redirect/tee: the harness writes its own artifacts under reports/ regardless of where its stdout goes, so capturing stdout to a private file or `tee` sink is never necessary and only tempts a later poll of that file instead of reading the harness's own exit code. Run it bare and read the artifact — `pnpm check:show` for check/verify, reports/test-report.json (or reports/ct-flaky.json for test:ct) for a test run.",
   rewriteDocBare:
     "tool-guard ran this `pnpm doc` bare: its output is short and the paths it prints are the result, so a head/tail/grep or a captured log can cut them off.",
+  wholeTreeRun:
+    "This is a whole-tree run: it can hold the host verify slot for up to an hour, and the orchestrator runs the whole-tree barrier after merging. Run it only if your brief asked for it or your scoped floor cannot answer the question. Run it with run_in_background, make no call while it runs, and put its verdict in your report.",
   rewriteLongLived: (log) =>
     `tool-guard rewrote this command: git spawns credential/network children that hold a pipe open after the visible command finishes (census: \`git push … | tail\` hit the 120s tool timeout). Output went to ${log}, your reader ran against the file, and the real exit code is preserved.`,
   rewritePlaywright:
@@ -3076,6 +3078,45 @@ function repeatedStatusReadDeny(ctx, command, blank, clauses) {
   return count >= STATUS_READ_STREAK_DENY_AT ? { target: read.target, count } : null;
 }
 
+/** The whole-tree family a stage runs (`check`, `verify`, `test`, `check:instrument-affected`, `e2e`), or
+ *  null. `pnpm check`/`pnpm verify` with `--changed` are scoped, and so is every other `check:<gate>`. */
+function wholeTreeFamily(stageBlank) {
+  const { tokens, index, exec } = execHead(stageBlank);
+  if (exec === undefined || !/^(?:\S*\/)?pnpm$/.test(exec[0])) {
+    return null;
+  }
+  const rest = tokens.slice(index + 1).map((t) => t[0]);
+  const at = rest[0] === "run" ? 1 : 0;
+  const script = rest[at];
+  const args = rest.slice(at + 1);
+  if ((script === "check" || script === "verify") && !args.includes("--changed")) {
+    return script;
+  }
+  if (script === "test" || script === "check:instrument-affected") {
+    return script;
+  }
+  return script?.startsWith("e2e") === true ? "e2e" : null;
+}
+
+/** The whole-tree note for a subagent, once per agent per family. */
+function wholeTreeNote(ctx, blank, clauses) {
+  if (!ctx.agentId) {
+    return null;
+  }
+  const families = clauses.flatMap((cl) => cl.stages.map((st) => wholeTreeFamily(blank.slice(st.start, st.end)))).filter((f) => f !== null);
+  if (families.length === 0) {
+    return null;
+  }
+  const key = `${streakKey(ctx)}.whole-tree`;
+  const noted = readStreakState(ctx.projectDir, key) ?? [];
+  const fresh = families.filter((f) => !noted.includes(f));
+  if (fresh.length === 0) {
+    return null;
+  }
+  writeStreakState(ctx.projectDir, key, [...noted, ...fresh]);
+  return CONTEXTS.wholeTreeRun;
+}
+
 /** The Read tool on a background task's output file. The first Read per agent is a check-in and a later
  *  one is a poll, so it denies. Every such Read also counts as a status read of that path, so a Bash
  *  re-read after it continues the same streak. Null when the Read is not this rule's business. */
@@ -3235,6 +3276,13 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   const repeatedRead = repeatedStatusReadDeny(ctx, command, blank, clauses);
   if (repeatedRead !== null) {
     return { decision: "deny", rule: "repeated-status-read", reason: REASONS.repeatedStatusRead(repeatedRead.target, repeatedRead.count), contexts };
+  }
+
+  // 0f. a whole-tree run from a subagent still runs, with a once-per-family note that it is normally the
+  //     orchestrator's. Pushed first so a rewrite of the same command carries it too.
+  const wholeTree = wholeTreeNote(ctx, blank, clauses);
+  if (wholeTree !== null) {
+    contexts.push(wholeTree);
   }
 
   // 1. destructive git (doctrine ban; near-zero legitimate sightings) — DENY. Read-only forms pass:
