@@ -102,63 +102,128 @@ export function commentSpans(raw, blank) {
  *  the whole question for a `$( … )`: live inside `"`, literal text inside `'`.
  *
  *  A heredoc body is skipped: a quote character there is plain text, and an apostrophe (`it's`) read as
- *  an opening quote would blank every command after the heredoc. The operator is found the way
- *  heredocUnits finds it (outside quotes and comments, one heredoc per line), and the body ends where
- *  `heredocBodyEnd` says. */
+ *  an opening quote would blank every command after the heredoc. See `shellScan`. */
 export function quoteSpans(cmd) {
-  const spans = [];
-  let quote = null;
-  let start = 0;
+  return shellScan(cmd).quotes;
+}
+
+// The last scan, keyed by its text: one classify asks for the quote map and the heredoc list of the same
+// command many times over.
+let lastScan = { raw: null, result: null };
+
+/** ONE walk of the raw text that finds both the quoted spans and the heredocs, because each decides the
+ *  other: a `<<` inside quotes is text, and a quote character inside a heredoc body is text.
+ *
+ *  Contexts nest the way bash nests them: a `$( … )` opens an unquoted context even inside `"…"`, so a
+ *  heredoc there is live. In an unquoted context a `<<` operator joins a queue (a here-string `<<<` and
+ *  an arithmetic `$(( … ))`/`(( … ))` shift are not heredocs); at the next unquoted newline every
+ *  queued body is read, in order, each ending where `heredocBodyEnd` says. Outside a substitution, a
+ *  quote opens and closes as it always has here: a backslash is checked only when a quote closes. */
+function shellScan(cmd) {
+  if (lastScan.raw === cmd) {
+    return lastScan.result;
+  }
+  const quotes = [];
+  const heredocs = [];
+  const queue = [];
+  // each entry: {kind: "'" | '"' | "subst", start, depth, arith}
+  const stack = [];
   let inComment = false;
-  let heredoc = null;
   for (let i = 0; i < cmd.length; i += 1) {
     const ch = cmd[i];
-    if (heredoc !== null && i === heredoc.bodyStart) {
-      if (quote === null) {
-        i = heredocBodyEnd(cmd, heredoc.bodyStart, heredoc.delim).spanEnd - 1;
+    const ctx = stack.at(-1);
+    if (ctx?.kind === "'" || ctx?.kind === '"') {
+      if (ch === ctx.kind && cmd[i - 1] !== "\\") {
+        quotes.push({ start: ctx.start, end: i, quote: ctx.kind });
+        stack.pop();
+      } else if (ctx.kind === '"' && ch === "$" && cmd[i + 1] === "(" && !escapedAt(cmd, i)) {
+        i = openSubstitution(cmd, i, stack);
       }
-      heredoc = null;
       continue;
     }
-    if (quote === null && ch === "\n") {
+    if (ch === "\n") {
       inComment = false;
-    } else if (quote === null && ch === "#" && (i === 0 || /\s/.test(cmd[i - 1]))) {
+      if (queue.length > 0) {
+        i = readHeredocBodies(cmd, i, queue, heredocs) - 1;
+      }
+      continue;
+    }
+    if (inComment) {
+      continue;
+    }
+    if (ch === "#" && (i === 0 || /\s/.test(cmd[i - 1]))) {
       inComment = true;
-    } else if (quote === null && ch === "<" && !inComment && heredoc === null) {
+    } else if (ch === "'" || ch === '"') {
+      stack.push({ kind: ch, start: i });
+    } else if (ch === "$" && cmd[i + 1] === "(") {
+      i = openSubstitution(cmd, i, stack);
+    } else if (ch === "(" && cmd[i + 1] === "(" && (i === 0 || /[\s;&|(]/.test(cmd[i - 1]))) {
+      stack.push({ kind: "subst", start: i, depth: 1, arith: true });
+      i += 1;
+    } else if (ch === "(" && ctx?.kind === "subst") {
+      ctx.depth += 1;
+    } else if (ch === ")" && ctx?.kind === "subst") {
+      ctx.depth -= 1;
+      if (ctx.depth < 0) {
+        stack.pop();
+      }
+    } else if (ch === "<" && cmd.startsWith("<<<", i)) {
+      i += 2; // a here-string: its word is on this line, there is no body
+    } else if (ch === "<" && ctx?.arith !== true) {
       HEREDOC_OPERATOR_AT.lastIndex = i;
       const m = HEREDOC_OPERATOR_AT.exec(cmd);
-      const bodyStart = m === null ? -1 : cmd.indexOf("\n", i + m[0].length);
-      heredoc = bodyStart === -1 ? null : { bodyStart, delim: m[2] };
-    }
-    if (quote === null && (ch === '"' || ch === "'")) {
-      quote = ch;
-      start = i;
-    } else if (quote !== null && ch === quote && cmd[i - 1] !== "\\") {
-      spans.push({ start, end: i, quote });
-      quote = null;
+      if (m !== null) {
+        queue.push({ opStart: i, opEnd: i + m[0].length, delim: m[2], quoted: m[1] !== "" });
+      }
     }
   }
-  if (quote !== null) {
-    spans.push({ start, end: cmd.length, quote });
+  for (const ctx of stack) {
+    if (ctx.kind === "'" || ctx.kind === '"') {
+      quotes.push({ start: ctx.start, end: cmd.length, quote: ctx.kind });
+      break; // the outermost open quote already runs to the end
+    }
   }
-  return spans;
+  quotes.sort((a, b) => a.start - b.start);
+  const result = { quotes, heredocs };
+  lastScan = { raw: cmd, result };
+  return result;
+}
+
+/** Push the context a `$(` (or an arithmetic `$((`) at `i` opens, and return the index of its last
+ *  opening character. */
+function openSubstitution(cmd, i, stack) {
+  const arith = cmd[i + 2] === "(";
+  stack.push({ kind: "subst", start: i, depth: arith ? 1 : 0, arith });
+  return arith ? i + 2 : i + 1;
+}
+
+/** Read every queued heredoc body, in order, starting at the newline `at`. Records each as a unit, empties
+ *  the queue, and returns where the last terminator line ends. */
+function readHeredocBodies(cmd, at, queue, heredocs) {
+  let bodyStart = at;
+  for (const op of queue.splice(0)) {
+    const { bodyEnd, spanEnd } = heredocBodyEnd(cmd, bodyStart, op.delim);
+    heredocs.push({ opStart: op.opStart, opEnd: op.opEnd, bodyStart, bodyEnd, spanEnd, quoted: op.quoted });
+    bodyStart = spanEnd;
+    if (spanEnd >= cmd.length) {
+      break;
+    }
+  }
+  return bodyStart;
 }
 
 // ── heredoc blanking: a `<<DELIM` body is TEXT, not commands (a python heredoc that mentions `pnpm check |
 //    grep` is not a piped harness). Blanks the operator, delimiter, body and terminator line, keeping
 //    newlines so clause indexes stay honest. Runs on the quote-blanked text, reading delimiters from raw. ──
 
-// Scanned on the RAW text: a quoted delimiter like <<'EOF' is already spaces in the blanked text, so the
-// scanner would take the first body word for the delimiter. An operator inside a quoted span (blanked at
-// that index) is skipped: that `<<` is string content, not a heredoc.
-const HEREDOC_OPERATOR = /<<-?\s*(['"]?)(\w+)\1/g;
-// The same operator, matched only at a given index (quoteSpans walks the text one character at a time).
-const HEREDOC_OPERATOR_AT = new RegExp(HEREDOC_OPERATOR.source, "y");
+// A heredoc operator and its delimiter, matched on the RAW text at one index of shellScan's walk: a quoted
+// delimiter like <<'EOF' is spaces in the blanked text.
+const HEREDOC_OPERATOR_AT = /<<-?\s*(['"]?)(\w+)\1/y;
 
 export function blankHeredocs(raw, blank) {
   let out = blank;
   const blankSpan = (text, from, to) => text.slice(0, from) + text.slice(from, to).replace(/[^\n]/g, " ") + text.slice(to);
-  for (const [start, stop] of heredocSpans(raw, blank)) {
+  for (const [start, stop] of heredocSpans(raw)) {
     out = blankSpan(out, start, stop);
   }
   return out;
@@ -171,22 +236,8 @@ export function blankHeredocs(raw, blank) {
  *  eventually disagree with this one: `heredocSpans` blanks operator + body + terminator (a heredoc body
  *  is TEXT to every rule), while the script pass needs the body TEXT — a `<<EOF` fed to a SHELL, or
  *  written into a file the same command then runs, is a PROGRAM. */
-export function heredocUnits(raw, blank) {
-  const units = [];
-  HEREDOC_OPERATOR.lastIndex = 0;
-  for (let m = HEREDOC_OPERATOR.exec(raw); m !== null; m = HEREDOC_OPERATOR.exec(raw)) {
-    if (blank[m.index] !== "<") {
-      continue; // the operator is inside a quoted span — string content, not a heredoc
-    }
-    const bodyStart = raw.indexOf("\n", m.index + m[0].length);
-    if (bodyStart === -1) {
-      break;
-    }
-    const { bodyEnd, spanEnd } = heredocBodyEnd(raw, bodyStart, m[2]);
-    units.push({ opStart: m.index, opEnd: m.index + m[0].length, bodyStart, bodyEnd, spanEnd, quoted: m[1] !== "" });
-    HEREDOC_OPERATOR.lastIndex = spanEnd;
-  }
-  return units;
+export function heredocUnits(raw) {
+  return shellScan(raw).heredocs;
 }
 
 /** Where a heredoc body that starts at the newline `bodyStart` ends: `bodyEnd` is the terminator line's
@@ -211,8 +262,8 @@ function heredocBodyEnd(raw, bodyStart, delim) {
  *  line. Split out for the same reason as commentSpans: a caller that needs to know whether a position is
  *  TEXT rather than command cannot tell from the blanked string (a blanked heredoc body and a blanked
  *  quoted span both read as spaces). */
-export function heredocSpans(raw, blank) {
-  return heredocUnits(raw, blank).flatMap((u) => [
+export function heredocSpans(raw) {
+  return heredocUnits(raw).flatMap((u) => [
     [u.opStart, u.opEnd],
     [u.bodyStart, u.spanEnd],
   ]);
@@ -463,6 +514,34 @@ const GIT_GLOBAL_OPTS = String.raw`(?:-{1,2}[A-Za-z][^\s;|&]*\s+(?:[^\s;|&-][^\s
 const GIT_LONG_LIVED_VERBS = new Set(["push", "pull", "fetch", "clone", "commit", "merge"]);
 // A commit or merge runs its hooks: a stage that starts one, for the commit-timeout rule.
 const GIT_HOOKED_VERBS = new Set(["commit", "merge"]);
+// The options of `git commit`/`git merge` that take a value, so a `-n` given as that value is not the flag:
+// `short` letters take the rest of the word or the next word, `attached` letters take only the rest of the
+// word (`-S<keyid>`, `-u<mode>`), and `long` options take the next word when written without `=`.
+const GIT_HOOKED_VALUE_OPTIONS = {
+  commit: {
+    short: "mFCct",
+    attached: "uS",
+    long: new Set([
+      "--message",
+      "--file",
+      "--reuse-message",
+      "--reedit-message",
+      "--fixup",
+      "--squash",
+      "--author",
+      "--date",
+      "--template",
+      "--cleanup",
+      "--trailer",
+      "--pathspec-from-file",
+    ]),
+  },
+  merge: {
+    short: "mFsX",
+    attached: "S",
+    long: new Set(["--message", "--file", "--strategy", "--strategy-option", "--into-name", "--cleanup"]),
+  },
+};
 // Unlike GIT_GLOBAL_OPTS (which the destructive-git bans share), only git's real value options take the
 // next word: every other flag is bare, so `git --no-pager log -S commit` does not read `log` as a value.
 const GIT_VALUE_OPTIONS = new Set(["-C", "-c", "--config-env", "--git-dir", "--work-tree", "--namespace"]);
@@ -668,8 +747,9 @@ const SQLITE_SAFE_HINT = /\/tmp\/|scratchpad|:memory:|test|\.bak\b/i;
 // banned outright: `--no-verify`/`-n` on commit or merge, `-c core.hooksPath=`, `git config … core.hooksPath`
 // (setting, not reading/unsetting), and a `LEFTHOOK=0`/`LEFTHOOK=false` env prefix.
 // `-n` is git's own documented shorthand for `--no-verify` on `commit` (not `merge`, where `-n` means
-// "no diffstat") — so the `-n` arm is commit-only.
-const GIT_NO_VERIFY = /\bgit\s+(?:commit|merge)\b[^\n;|&]*--no-verify\b|\bgit\s+commit\b[^\n;|&]*(?:^|\s)-n\b/;
+// "no diffstat") — so `-n` counts on commit only. `gitSkipsHooks` reads both flags off the parsed words;
+// this text match is the second check for `--no-verify` behind a head the word walk does not resolve.
+const GIT_NO_VERIFY = /\bgit\s+(?:commit|merge)\b[^\n;|&]*--no-verify\b/;
 const GIT_COMMIT_OR_MERGE = /\bgit\s+(?:[^\s;|&]+\s+)*?(?:commit|merge)\b/;
 // `-c core.hooksPath=<anything>` is a git GLOBAL OPTION on ANY subcommand — it retargets the hooks dir for
 // that one invocation, same effect as `--no-verify` but not caught by the commit/merge-scoped rule above.
@@ -1126,7 +1206,7 @@ function chainTestsReader(command, clause) {
 /** Does a heredoc start in this clause? Its body follows the clause's line, so the group's closing line
  *  would land inside the body. */
 function clauseHasHeredoc(command, clause) {
-  return heredocUnits(command, blankComments(command, blankQuoted(command))).some((u) => u.opStart >= clause.start && u.opStart < clause.end);
+  return heredocUnits(command).some((u) => u.opStart >= clause.start && u.opStart < clause.end);
 }
 
 /** Does the clause's last line end in `\`? The escaped newline joins it to the next operator, and a rewrite
@@ -1367,7 +1447,38 @@ function gitSkipsHooks(stageBlank, stageRaw) {
   if (call === null || !GIT_HOOKED_VERBS.has(call.verb)) {
     return false;
   }
-  return call.args.includes("--no-verify") || (call.verb === "commit" && call.args.includes("-n"));
+  const values = GIT_HOOKED_VALUE_OPTIONS[call.verb];
+  for (let i = 0; i < call.args.length; i += 1) {
+    const arg = call.args[i];
+    if (arg === "--") {
+      return false; // pathspecs follow
+    }
+    if (arg === "--no-verify") {
+      return true;
+    }
+    if (arg.startsWith("--")) {
+      i += values.long.has(arg) ? 1 : 0;
+      continue;
+    }
+    if (!arg.startsWith("-") || arg === "-") {
+      continue;
+    }
+    // A short-flag cluster (`-an` is `-a -n`) ends at the first flag that takes a value: the rest of the
+    // word is that value, or, at the end of the word, the next word is.
+    for (let j = 1; j < arg.length; j += 1) {
+      if (arg[j] === "n" && call.verb === "commit") {
+        return true;
+      }
+      if (values.short.includes(arg[j])) {
+        i += j === arg.length - 1 ? 1 : 0;
+        break;
+      }
+      if (values.attached.includes(arg[j])) {
+        break;
+      }
+    }
+  }
+  return false;
 }
 
 /** A `pnpm doc` stage as `{verb, help}` (`verb` is `""` for a bare `pnpm doc`), or null when the stage is
@@ -1902,7 +2013,7 @@ function stageHeredoc(command, units, stage) {
  *  about to be replaced. Order is deliberately not checked: a write anywhere in the command makes the
  *  file's disk content untrustworthy for this call. */
 function commandWrites(command, blank, clauses, ctx) {
-  const units = heredocUnits(command, blankComments(command, blankQuoted(command)));
+  const units = heredocUnits(command);
   const writes = new Map();
   const base = ctx?.cwd ?? ctx?.projectDir ?? process.cwd();
   for (const clause of clauses) {
@@ -1981,7 +2092,7 @@ function literalWriterText(words, vars) {
  *  where the program actually comes from. */
 export function scriptTargets(command, blank, clauses) {
   const found = [];
-  const units = heredocUnits(command, blankComments(command, blankQuoted(command)));
+  const units = heredocUnits(command);
   for (const clause of clauses) {
     for (let si = 0; si < clause.stages.length; si += 1) {
       const stage = clause.stages[si];
@@ -2479,7 +2590,7 @@ function substitutionEnd(command, from) {
  *  `classify` reaches them from the body it is handed. */
 export function commandSubstitutions(command) {
   const quoted = blankQuoted(command);
-  const units = heredocUnits(command, blankComments(command, quoted));
+  const units = heredocUnits(command);
   const inBody = (at) => units.some((u) => at >= u.bodyStart && at < u.bodyEnd);
   const text = [
     // bash has no comments inside a heredoc body: a `#` there is text, and a `$(` after it still expands

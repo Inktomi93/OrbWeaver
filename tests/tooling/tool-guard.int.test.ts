@@ -736,6 +736,13 @@ const ROWS: Row[] = [
   ["deny", "git-hook-bypass", 'git -C /x commit "--no-verify" -m x', AGENT_TIMEOUT],
   ["deny", "git-hook-bypass", "time -p git -C /x commit -n -m x", AGENT_TIMEOUT],
   ["pass", null, "git -C /x merge -n main", AGENT_TIMEOUT], // `-n` on merge is --no-stat
+  // a short-flag cluster is split, and a flag that takes a value consumes it
+  ...["git commit -an", "git commit -na", "git commit -anm x", "git -C /x commit -am x -n"].map(
+    (command): Row => ["deny", "git-hook-bypass", command, AGENT_TIMEOUT],
+  ),
+  ...["git commit -m -n", "git commit -am -n", "git commit --message -n", "git commit -m x -- -n", "git merge -m -n main"].map(
+    (command): Row => ["pass", null, command, AGENT_TIMEOUT],
+  ),
   ["pass", null, "git -C /x log -n 5"],
   ["pass", null, "git commit -m 'skip --no-verify here'", AGENT_TIMEOUT],
   ["deny", "git-hook-bypass", "git -c core.hooksPath=/dev/null commit -m x -- docs"],
@@ -937,6 +944,18 @@ const ROWS: Row[] = [
   ["deny", "git-destructive", "cat <<EOF\nit's fine\nEOF\ngit stash"],
   ["deny", "git-destructive", 'tee /tmp/h.txt <<EOF\nsay "hi\nEOF\ngit stash'],
   ["pass", null, "tee /tmp/h.txt <<EOF\nit's fine\nEOF\necho 'git stash'"],
+  // every heredoc on a line is queued and its body read in order; a here-string and an arithmetic shift
+  // are not heredocs; a heredoc inside a double-quoted `$( )` is live
+  ["deny", "git-destructive", "cat <<A <<B\nok\nA\nit's\nB\ngit stash"],
+  ["deny", "git-destructive", "tee /tmp/h.txt <<A; cat <<B\nx\nA\nit's\nB\ngit stash"],
+  ["ask", "rm-rf-unsafe", "tee /tmp/h.txt <<A <<B\nok\nA\nit's\nB\nrm -rf /"],
+  ["pass", null, "diff <(cat) - <<A <<B\nok\nA\nit's\nB\necho 'git stash'"],
+  ["pass", null, "tee /tmp/h.txt <<A <<B\ngit stash\nA\ngit stash\nB"],
+  ["deny", "subst:git-destructive", "tee /tmp/h.txt <<A <<B\nok\nA\n$(git stash)\nB"],
+  ["pass", null, "tee /tmp/h.txt <<A <<'B'\nok\nA\n$(git stash)\nB"],
+  ["deny", "git-destructive", "echo $((1<<2))\ngit stash"],
+  ["deny", "git-destructive", "tee /tmp/h.txt <<<x\ngit stash"],
+  ["deny", "git-destructive", 'echo "$(cat <<EOF\nsay "hi\nEOF\n)"\ngit stash'],
   // git's bare global flags take no value, so a log/grep argument that reads `commit`/`merge` is not one
   ["pass", null, "git --no-pager log -S commit | head"],
   ["pass", null, 'git -C "$WT" log --grep merge | head'],
