@@ -74,7 +74,10 @@ function readItems(): readonly WorkItem[] {
 
 const items = readItems();
 const itemOf = (id: number): WorkItem | undefined => items.find((item) => item.id === id);
-const openPrograms = items.filter((item) => item.status !== DONE_STATUS && PROGRAM_TITLE_RE.test(item.title));
+// A program item links the plan under `docs/plans/` that holds its unbuilt remainder (`plan:` frontmatter);
+// a tooling item can still say "program" in its title (0262: "one typed program per process") without being
+// one, so the title match alone over-collects. Both conditions together are what a program item actually is.
+const openPrograms = items.filter((item) => item.status !== DONE_STATUS && item.plan !== null && PROGRAM_TITLE_RE.test(item.title));
 const byNumber = (a: number, b: number): number => a - b;
 
 test("CONTROL — the work items actually parsed (a broken read would pass every pin below vacuously)", () => {
