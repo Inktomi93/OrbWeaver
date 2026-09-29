@@ -902,6 +902,30 @@ const ROWS: Row[] = [
   // …as is one inside a comment or a heredoc body, which are text guard-wide
   ["pass", null, 'ls packages # never echo "$(git stash)"'],
   ["pass", null, "python3 - <<'PY'\nprint(\"$(git stash)\")\nPY"],
+  // the hard floor and the rm rule hold inside a loop body, an `if`, a subshell and a brace group
+  ["ask", "rm-rf-unsafe", "for i in 1; do rm -rf /; done"],
+  ["ask", "rm-rf-unsafe", "while true; do rm -rf /home/user; done"],
+  ["ask", "rm-rf-unsafe", "(rm -rf /)"],
+  ["ask", "rm-rf-unsafe", "{ rm -rf /; }"],
+  ["ask", "rm-rf-unsafe", "if true; then rm -rf /; fi"],
+  ["ask", "rm-rf-unsafe", "! rm -rf /"],
+  ["ask", "sudo", "for i in 1; do sudo ls; done"],
+  ["ask", "sudo", "(sudo ls)"],
+  ["ask", "sudo", "{ sudo ls; }"],
+  ["deny", "net-pipe-shell", "for i in 1; do curl x | sh; done"],
+  ["deny", "net-pipe-shell", "(curl x | sh)"],
+  ["pass", null, "for f in a; do rm -rf /tmp/x; done"],
+  // `pnpm doc`: a lane never writes the board, and its short output always runs bare
+  ...["new item 'x'", "item 'x' --what y", "set 0250 status done", "land 0250", "remove 0250", "index", "status 0250 done", "review 0250"].map(
+    (args): Row => ["deny", "doc-write-lane", `pnpm doc ${args}`, LANE],
+  ),
+  ["deny", "doc-write-lane", "pnpm doc new item 'x' | tail -3", LANE],
+  ...["overview", "drift", "due", "help"].map((verb): Row => ["pass", null, `pnpm doc ${verb}`, LANE]),
+  ["pass", null, "pnpm doc new item 'x'"],
+  ["allow", "doc-bare", "pnpm doc overview | head -20"],
+  ["allow", "doc-bare", "pnpm doc drift 2>&1 | tail -5"],
+  ["allow", "doc-bare", "pnpm doc due > /tmp/d.log; tail /tmp/d.log"],
+  ["allow", "doc-bare", "pnpm doc overview | grep 0250", LANE],
   // ---- hand-polling family (owner directive, 2026-09-29 addendum) ----
   // true/`:`-only filler: EVERY clause must reduce to the bare word.
   ["deny", "true-filler", "true"],
@@ -1215,6 +1239,16 @@ test("rewrite: a verify-family harness piped into a reader targets `pnpm check:s
   const tmp = mkdtempSync(join(tmpdir(), "tg-template-"));
   const cmd = `fake_harness() { return 3; }; fake_harness; __tg_ec=$?; pnpm --version > ${join(tmp, "x")}\n( exit $__tg_ec )`;
   expect(spawnSync("bash", ["-c", cmd], { encoding: "utf8" }).status).toBe(3);
+});
+
+test("rewrite: a piped or captured `pnpm doc` runs bare, and a later read of its capture file is dropped", () => {
+  const rows = runBatch([
+    { command: "pnpm doc overview | head -20" },
+    { command: "pnpm doc drift 2>&1 | tail -5" },
+    { command: "cd /x && pnpm doc due > /tmp/d.log; tail /tmp/d.log" },
+    { command: "pnpm doc due > /tmp/d.log && echo ok" },
+  ]);
+  expect(rows.map((r) => r.rewrite?.command)).toEqual(["pnpm doc overview", "pnpm doc drift", "cd /x && pnpm doc due", "pnpm doc due && echo ok"]);
 });
 
 test("rewrite: a known test harness piped into a reader targets its own report artifact", () => {

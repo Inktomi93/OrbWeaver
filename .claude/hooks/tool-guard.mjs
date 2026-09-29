@@ -783,6 +783,10 @@ const SUBSTITUTION_OPEN = /\$\(|`/;
 // one only polls for a notification that is coming anyway. The second form catches a variable-prefixed dir.
 const HARNESS_TASK_FILE = /\/tmp\/claude-\d+\/\S*\/tasks\/|\/tasks\/[\w.-]+\.(?:done|exit|output)\b/;
 const TAIL_BIN = /^(?:\S*\/)?tail$/;
+// `pnpm doc` verbs that write the board. The orchestrator owns the board, so a lane reports instead.
+const DOC_WRITE_VERBS = new Set(["new", "item", "set", "land", "remove", "index", "status", "review"]);
+// A file a stage's stdout is captured into (`> log`, `&> log`); an fd merge such as `2>&1` names no file.
+const CAPTURE_FILE = /(?:^|\s)(?:\d*>{1,2}|&>{1,2})\s*([^\s&]\S*)/g;
 const TAIL_FOLLOW_FLAG = /^-[A-Za-z0-9]*[fF]|^--follow\b/;
 // Shell tokens for `shellLoops`, on the BLANKED text: a redirect (`2>&1`, `>`, `<`) first so its `&` is not
 // read as an operator, then the control operators, then words.
@@ -1060,6 +1064,8 @@ const REASONS = {
   foregroundSleep: `A foreground \`sleep\` blocks this turn and re-bills your whole context while it waits. A literal sleep of 2s or less between real steps, or inside a bounded \`for\` loop, still runs. ${WAIT_DENY_NEXT_STEP}`,
   sleepOnly: `A command whose only work is \`sleep\` is a wait, backgrounded or not: it spends a tool call and re-bills your whole context to do nothing. ${WAIT_DENY_NEXT_STEP}`,
   taskFileWait: `This loop waits on a Claude Code background task file. The harness already notifies you when that task exits, so the loop only spends tool calls. ${WAIT_DENY_NEXT_STEP}`,
+  docWriteLane: (verb) =>
+    `\`pnpm doc ${verb}\` writes the board, and the orchestrator owns the board: put the item's title, what, why and done in your report.`,
   trueOrColonFiller: `A command that is only \`true\`/\`:\` is filler: it re-bills your whole context and does nothing. ${WAIT_DENY_NEXT_STEP}`,
   drizzleKitSubagent: (verb) =>
     `A SUBAGENT ran \`drizzle-kit ${verb}\` — migration generation and application run on main by the orchestrator: parallel lanes generating migrations collide on migration numbers. Report the schema change and stop.`,
@@ -1104,6 +1110,8 @@ const CONTEXTS = {
     `tool-guard rewrote this command: piping the harness hangs and swallows its exit code (see \`rewritePiped\`), and a private log is unnecessary here — the harness already writes its own artifact regardless of where stdout goes. It ran bare, and your reader now targets ${target} instead; the harness's REAL exit code is preserved.`,
   rewriteRedirectDropped:
     "tool-guard dropped this redirect/tee: the harness writes its own artifacts under reports/ regardless of where its stdout goes, so capturing stdout to a private file or `tee` sink is never necessary and only tempts a later poll of that file instead of reading the harness's own exit code. Run it bare and read the artifact — `pnpm check:show` for check/verify, reports/test-report.json (or reports/ct-flaky.json for test:ct) for a test run.",
+  rewriteDocBare:
+    "tool-guard ran this `pnpm doc` bare: its output is short and the paths it prints are the result, so a head/tail/grep or a captured log can cut them off.",
   rewriteLongLived: (log) =>
     `tool-guard rewrote this command: git spawns credential/network children that hold a pipe open after the visible command finishes (census: \`git push … | tail\` hit the 120s tool timeout). Output went to ${log}, your reader ran against the file, and the real exit code is preserved.`,
   rewritePlaywright:
@@ -1408,6 +1416,68 @@ function bareHarnessRewrite(command, blank, clauses, headRe) {
   return { command: `${prefix}${harness}${suffix}`, clause };
 }
 
+/** The verb of a `pnpm doc` stage (`""` for a bare `pnpm doc`), or null when the stage is not one. */
+function docVerb(stageBlank) {
+  const { tokens, index, exec } = execHead(stageBlank);
+  if (exec === undefined || !/^(?:\S*\/)?pnpm$/.test(exec[0])) {
+    return null;
+  }
+  const rest = tokens.slice(index + 1).map((t) => t[0]);
+  const at = rest[0] === "run" ? 1 : 0;
+  if (rest[at] !== "doc") {
+    return null;
+  }
+  return rest.slice(at + 1).find((w) => !w.startsWith("-")) ?? "";
+}
+
+/** `pnpm doc` with its output piped into a reader or captured to a file, rebuilt to run bare. A later clause
+ *  that only reads the capture file is dropped too, since it would read a stale or missing file. Null when
+ *  there is nothing to drop or the shape is not this simple. */
+function docBareRewrite(command, blank, clauses) {
+  if (blank.includes("||")) {
+    return null;
+  }
+  const docClauses = clauses.filter((cl) => docVerb(blank.slice(cl.stages[0].start, cl.stages[0].end)) !== null);
+  if (docClauses.length !== 1) {
+    return null;
+  }
+  const [clause] = docClauses;
+  const [stage0, ...readers] = clause.stages;
+  for (const r of readers) {
+    const text = blank.slice(r.start, r.end);
+    if (!READER.test(text) || UNSAFE_READER.test(stripFdMerges(text))) {
+      return null;
+    }
+  }
+  const stage0Blank = blank.slice(stage0.start, stage0.end);
+  const cut = stage0Blank.search(REDIRECT_TOKEN);
+  if ((cut === -1 && readers.length === 0) || UNSAFE_AFTER_REDIRECT_STRIP.test(stage0Blank.replace(REDIRECT_TOKEN, " "))) {
+    return null;
+  }
+  const raw0 = command.slice(stage0.start, stage0.end);
+  const capture = cut === -1 ? undefined : [...raw0.slice(cut).matchAll(CAPTURE_FILE)][0]?.[1];
+  const readsCapture = (cl) =>
+    capture !== undefined &&
+    cl.stages.length === 1 &&
+    READER.test(blank.slice(cl.start, cl.end)) &&
+    command.slice(cl.start, cl.end).trim().split(/\s+/).at(-1) === capture;
+  let out = "";
+  let prev = null;
+  for (const cl of clauses) {
+    if (cl !== clause && readsCapture(cl)) {
+      continue;
+    }
+    const text = cl === clause ? (cut === -1 ? raw0 : raw0.slice(0, cut)).trim() : command.slice(cl.start, cl.end).trim();
+    if (prev !== null) {
+      const sep = command.slice(prev.end, cl.start).trim();
+      out += sep === ";" ? "; " : sep === "" ? "\n" : ` ${sep} `;
+    }
+    out += text;
+    prev = cl;
+  }
+  return { command: out, clause };
+}
+
 // The same four spellings, anchored at a clause head so the rewrite knows exactly what to replace. Its
 // match LENGTH is now what the argument slice is taken from (see playwrightRewrite): the `cli.js` form
 // carries no `playwright test` substring to search for, and a length-based slice is the one that reads the
@@ -1525,6 +1595,14 @@ function collectGrepWarn(command, blank, clauses, contexts) {
 // pattern list will always lose to a determined bypass. Its job is to stop an ACCIDENT (a wrong path
 // in an rm, a copy-pasted install one-liner), which is the realistic failure here.
 const SUDO_HEAD = /^\s*(?:sudo|doas)\b/;
+// The words that can open a stage without being its command: a subshell or group opener, or a reserved word
+// of an enclosing `if`/loop (`do rm -rf /`, `(sudo ls)`, `{ rm -rf /; }`). Blanked to spaces, never removed,
+// so every index into the stage still points at the same character of the raw command.
+const COMPOUND_LEAD = /^(?:\s*(?:\(|\{(?=\s)|(?:do|then|else|elif|if|while|until|time|!)(?=\s)))+/;
+
+function stripCompoundLead(text) {
+  return text.replace(COMPOUND_LEAD, (lead) => " ".repeat(lead.length));
+}
 const NET_FETCH_HEAD = /^\s*(?:\S*\/)?(?:curl|wget)\b/;
 // shells + `node -e` only. `python3 -c` is a sanctioned everyday tool here and is NOT a sink.
 const SHELL_SINK_HEAD = /^\s*(?:\S*\/)?(?:sh|bash|zsh|dash|ksh)\b/;
@@ -1570,7 +1648,7 @@ function detectHardFloor(blank, clauses, command) {
   for (const clause of clauses) {
     for (let i = 0; i < clause.stages.length; i += 1) {
       const stage = clause.stages[i];
-      const text = blank.slice(stage.start, stage.end);
+      const text = stripCompoundLead(blank.slice(stage.start, stage.end));
       if (SUDO_HEAD.test(text)) {
         return { decision: "ask", rule: "sudo", reason: REASONS.sudo };
       }
@@ -1657,7 +1735,7 @@ function collectStageWarns(command, blank, clauses, contexts) {
   let rmrf = false;
   for (const clause of clauses) {
     for (const stage of clause.stages) {
-      const text = blank.slice(stage.start, stage.end);
+      const text = stripCompoundLead(blank.slice(stage.start, stage.end));
       vitest ||= VITEST_HEAD.test(text);
       if (SQLITE_HEAD.test(text) && !SQLITE_SAFE_HINT.test(command.slice(stage.start, stage.end))) {
         sqlite = true;
@@ -3265,6 +3343,23 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "deny", rule: "harness-piped", reason: REASONS.harnessPipedDeny, contexts };
   }
 
+  // 4c. `pnpm doc`: a lane never runs a board-writing verb, and a piped or captured run is rewritten bare.
+  if (ctx.agentId) {
+    for (const clause of clauses) {
+      for (const stage of clause.stages) {
+        const verb = docVerb(blank.slice(stage.start, stage.end));
+        if (verb !== null && DOC_WRITE_VERBS.has(verb)) {
+          return { decision: "deny", rule: "doc-write-lane", reason: REASONS.docWriteLane(verb), contexts };
+        }
+      }
+    }
+  }
+  const docRewrite = docBareRewrite(command, blank, clauses);
+  if (docRewrite) {
+    contexts.push(CONTEXTS.rewriteDocBare);
+    return gateRewrite({ decision: "allow", rule: "doc-bare", rewrite: { command: docRewrite.command }, contexts }, command, docRewrite.clause, ctx);
+  }
+
   // 5. harness failure swallowed (`|| true`) — DENY
   if (HARNESS_OR_TRUE.test(blank) || HARNESS_SEMI_TRUE.test(blank)) {
     return { decision: "deny", rule: "harness-swallowed", reason: REASONS.harnessSwallowed, contexts };
@@ -3492,6 +3587,8 @@ const BRIEFING = [
   "  a foreground `until`/`while` loop with `sleep` in its body, any loop on a harness task file, and a",
   "  third consecutive read of the same log/pid/artifact. If your work is done, write your final report",
   "  now. Otherwise end your turn; the harness wakes you when your background job exits.",
+  "· DENIES a SUBAGENT running a board-writing `pnpm doc` verb; report the item instead. A piped or captured",
+  "  `pnpm doc` is REWRITTEN to run bare.",
   "· DENIES a SUBAGENT running `drizzle-kit generate/migrate/push/drop/up/studio` (any runner spelling —",
   "  bare, `npx`, `pnpm exec`/`pnpm dlx`, `pnpm --filter <pkg> exec`): migrations run on main. `drizzle-kit",
   "  check` stays allowed for everyone.",
