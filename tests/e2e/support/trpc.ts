@@ -188,9 +188,12 @@ interface StartedChat {
   readonly chat: { readonly id: ChatId };
 }
 
-/** Start a fresh committed chat with the given character(s) (model-free — seeds the greeting row). */
+/** Start a fresh CLAIMED chat with the given character(s) (model-free — seeds the greeting row).
+ *  `chat.startChat` alone mints a husk that every Chats list hides, so `openNewestChat` would open another
+ *  chat. Rewriting the untitled chat's `null` title claims it without changing what the list shows. */
 export async function startChat(characterIds: readonly CharacterId[]): Promise<ChatId> {
   const started = await trpcMutation<StartedChat>("chat.startChat", { characterIds });
+  await trpcMutation("chat.updateTitle", { chatId: started.chat.id, title: null });
   return started.chat.id;
 }
 
