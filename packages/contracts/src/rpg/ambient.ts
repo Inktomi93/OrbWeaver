@@ -53,7 +53,7 @@ const WEATHER_LABEL_MAX = 40;
 
 /** The free flavor label beside the closed `type` — ONE home for the field (the stored shape below and the
  *  `update_scene` write share it, so the cap can never diverge between the wire and the store). */
-export const rpgWeatherLabelSchema = z.string().max(WEATHER_LABEL_MAX);
+export const rpgWeatherLabelSchema = z.string().max(WEATHER_LABEL_MAX) satisfies z.ZodType<string>;
 
 /** Weather — a CLOSED `type` + an optional free `label`, everything else optional (the relationship-kind
  *  `{kind, label}` precedent, §2.1). `type` is the eight-state vocabulary the Waystone renders and the

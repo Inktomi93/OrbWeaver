@@ -312,10 +312,10 @@ export const refineryCustomStageConfigSchema = z.object({
 export type RefineryCustomStageConfig = z.infer<typeof refineryCustomStageConfigSchema>;
 
 /** Session score config: fixed mode, or a custom schema pointer. */
-export const refineryScoreConfigSchema = z.union([refineryScoreFixedConfigSchema, refineryCustomStageConfigSchema]);
+const refineryScoreConfigSchema = z.union([refineryScoreFixedConfigSchema, refineryCustomStageConfigSchema]);
 
 /** Session analyze config: fixed mode, or a custom schema pointer. */
-export const refineryAnalyzeConfigSchema = z.union([refineryAnalyzeFixedConfigSchema, refineryCustomStageConfigSchema]);
+const refineryAnalyzeConfigSchema = z.union([refineryAnalyzeFixedConfigSchema, refineryCustomStageConfigSchema]);
 
 /** The session's in-force per-stage config (stored on `refinery_sessions.stage_config`). */
 export const refineryStageConfigSchema = z.object({
@@ -372,7 +372,7 @@ export type RefineryStagePayloadConfig =
  *  (the extension's builtin score schema, not arrays). `greetingIndex` is present ⇔ `field` is
  *  `greetings` — a flat optional (not a per-entry union) for small-model structured-output reliability;
  *  the invariant's one enforcement consumer is R1's apply/render belt. */
-export const refineryFieldScoreSchema = z.object({
+const refineryFieldScoreSchema = z.object({
   field: refinableFieldSchema,
   greetingIndex: z.number().int().min(0).max(GREETING_INDEX_MAX).optional(),
   score: z.number().min(SCORE_MIN).max(SCORE_MAX),

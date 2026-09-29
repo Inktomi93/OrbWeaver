@@ -89,7 +89,7 @@ export const entryMetadataWriteSchema = z.record(z.string(), z.unknown()).superR
       ctx.addIssue({ code: "custom", message: issue.message, path: issue.path });
     }
   }
-});
+}) satisfies z.ZodType<Record<string, unknown>>;
 
 export const createEntrySchema = z.object({
   title: z.string().min(1).max(NAME_MAX),

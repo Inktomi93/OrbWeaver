@@ -80,25 +80,29 @@ export const seatKnobsSchema = z.object({
 });
 export type SeatKnobs = z.infer<typeof seatKnobsSchema>;
 
-/** The `character` arm of {@link rosterMemberSpecSchema} — extracted so a surface that persists characters
- *  ONLY narrows to it without re-spelling the shape (derive, one home). LIVE consumer: roster presets v1
- *  (#26 — `@orb/contracts/roster-preset`'s `rosterPresetMemberSchema` IS this schema). A card seat: a
- *  `characterId` + `position` + the AI-seat knobs. */
+/** The card-seat shape every membership-template lifetime PROJECTS through (D16/D61/D60) — extracted so a
+ *  surface that persists characters ONLY narrows to it without re-spelling the shape (derive, one home).
+ *  LIVE consumer: roster presets v1 (#26 — `@orb/contracts/roster-preset`'s `rosterPresetMemberSchema` IS
+ *  this schema). A card seat: a `characterId` + `position` + the AI-seat knobs. Nothing mints a flat
+ *  characterId array beside it; founding character sets and saved-rosters v2 remain unbuilt.
+ *  `human` is UNREPRESENTABLE by design (invites are the only human join path — a template cannot carry an
+ *  invite's runtime preconditions); `observer` and `agent` were purged 2026-07-25 (the rebuild re-adds
+ *  their arms here if either domain returns). */
 export const characterMemberSpecSchema = z.object({
   kind: z.literal("character"),
   characterId: typeIdSchema(ID_PREFIX.character),
   position: z.number().int().nonnegative(),
   ...seatKnobsSchema.shape,
 });
+export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
 
-/** A seat the caller WANTS to exist — the ONE template/creation-time member vocabulary (D16/D61/D60). Every
- *  membership-template lifetime PROJECTS through it; nothing mints a flat characterId array beside it.
- *  Roster presets are BUILT (#26) and project through the `character` arm; founding character sets and
- *  saved-rosters v2 remain unbuilt (they graft onto this shape). Kind-discriminated like
- *  {@link SpeakerRef}. `human` is UNREPRESENTABLE by design (invites are the only human join path — a
- *  template cannot carry an invite's runtime preconditions); `observer` and `agent` were purged 2026-07-25
- *  (the rebuild re-adds their arms here if either domain returns) — `character` is the only live arm. */
+/** A seat the caller WANTS to exist — kind-discriminated like {@link SpeakerRef}. `human` is
+ *  UNREPRESENTABLE by design (invites are the only human join path — a template cannot carry an invite's
+ *  runtime preconditions); `observer` and `agent` were purged 2026-07-25 (the rebuild re-adds their arms
+ *  here if either domain returns) — `character` is the only live arm. */
 export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMemberSpecSchema]);
+/** @public future: founding character sets and saved-rosters v2 (unbuilt — the union's own header) */
+export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
 
 /** The RESOLVED per-participant content-render policy (D44 §12.0/§12.3). The chat domain resolves each
  *  character's tri-state overrides against the deployment effective config at roster-build time (the ONE
