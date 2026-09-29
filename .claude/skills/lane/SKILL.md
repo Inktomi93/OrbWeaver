@@ -165,6 +165,8 @@ Name your lane, state your default, and keep working. Send nothing else.
 ## Report
 
 - Lead with the outcome. List every command you ran and its result, what you refused, and what you deferred.
+- If the hand-back of your final report is refused, send the same report with SendMessage to `main`. A lane that ends without a delivered report loses its work.
+- A new board item goes in the report as title, what, why and done. The orchestrator files it.
 - Name coupled risks, such as a moved file or a removed last importer.
 - Put authored text such as specs, copy or ledger rows in a `docs/` file, and cite the path. Report text is not kept.
 - Report a new lesson as text. The orchestrator decides its home.

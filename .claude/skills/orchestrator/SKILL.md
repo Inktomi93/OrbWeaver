@@ -37,6 +37,7 @@ CodeGraph's server instructions say to answer directly instead of delegating a l
 - Dispatch a named role with no `model` override. Each role file declares its model and effort.
 - Set `model` on every ad-hoc agent and workflow fan-out. The default, `inherit`, runs the main model.
 - Change a role's model in its role file, never at dispatch. The `agent-authoring` skill owns role files.
+- A running session keeps the agent and skill definitions it loaded. Test an edited role with a fresh `claude -p --agent <role>`; the owner runs `/reload-plugins` to pick it up here.
 
 ## Lane shape
 
