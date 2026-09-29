@@ -82,6 +82,16 @@ const NO_CONTENT = 204;
 
 const HTML_MIME = "text/html; charset=utf-8";
 
+/** This doorway serves only the four raster extensions `getFrameAsset`'s mime-sniff can ever answer
+ *  with (PNG/JPEG/GIF/WebP — work item 0236's "done when"). Checked HERE, at the query-string boundary,
+ *  alongside {@link PLUGIN_UI_ASSET_ENTRY_RE} rather than instead of it: the shared regex is the
+ *  install-time flat-name grammar (deliberately extension-agnostic — content, not spelling, is what
+ *  `sniffMime` polices for a house surface's `bundleAsset` lookup). This route additionally answers a
+ *  bare HTTP GET into a browser with its own `Cross-Origin-Resource-Policy: cross-origin`, so its own
+ *  admission is narrower than the general one: an extension outside this set 404s before the owner-scoped
+ *  read even runs, rather than relying solely on the byte-content recheck one layer down. */
+const FRAME_ASSET_EXTENSION_RE = /\.(?:png|jpe?g|gif|webp)$/iu;
+
 /** The plugin frame's media policy — see the header for why both halves are decisions, not defaults. */
 const PLUGIN_FRAME_MEDIA: CardFrameMediaPolicy = { allowExternalMedia: false, allowInlineData: true };
 
@@ -228,7 +238,8 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
       entry?.plugin === undefined ||
       (principal !== null && principal.userId !== entry.userId) ||
       bundlePath === undefined ||
-      !PLUGIN_UI_ASSET_ENTRY_RE.test(bundlePath)
+      !PLUGIN_UI_ASSET_ENTRY_RE.test(bundlePath) ||
+      !FRAME_ASSET_EXTENSION_RE.test(bundlePath)
     ) {
       return c.body(null, NOT_FOUND);
     }
