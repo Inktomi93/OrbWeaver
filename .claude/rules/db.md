@@ -5,12 +5,13 @@ paths:
 
 # Database
 
-## Schema changes are forward migrations
+## Schema changes follow the launch state
 
-The baseline is frozen. Never edit, regenerate, or move the baseline or an applied migration.
-Fix a mistake with a new migration.
+Use `docs/law/Tier-1-DB.md` "Regime 1" while the owner declares the program prelaunch and its data disposable.
+Back up local data before regenerating the baseline. The boot guard never resets a diverged database automatically.
+After launch, preserve every applied migration and use "Regime 2" forward migrations.
 
-1. Edit the schema file, then run
+1. For a postlaunch schema change, edit the schema file, then run
    `pnpm --filter @orb/db exec drizzle-kit generate --name <what-changed> --config=drizzle.config.ts`.
 2. Commit the generated SQL, snapshot, and journal. Review the SQL by hand.
 3. Put any data backfill in the same migration file, after the DDL.

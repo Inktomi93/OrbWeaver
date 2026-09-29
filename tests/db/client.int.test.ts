@@ -6,7 +6,7 @@
 // Wave-1 slices that land real FKs.
 
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
@@ -224,6 +224,31 @@ test("the 0000_baseline migration applies on a fresh db and passes assertReferen
   await Promise.all(SENTINEL_TABLES.map((table) => db.run(sql.raw(`select count(*) from ${table}`))));
 });
 
+test("the prelaunch baseline accepts Git provenance and rejects malformed commits", async () => {
+  const db = await createDb(":memory:");
+  await runMigrations(db, MIGRATIONS_DIR);
+  await db.run(sql.raw("insert into users (id, handle, handle_key) values ('user_baseline', 'baseline', 'baseline')"));
+  await db.run(
+    sql.raw(
+      "insert into assets (id, owner_id, kind, mime, size, hash) values ('asset_baseline', 'user_baseline', 'generated', 'application/zip', 1, 'baseline-hash')",
+    ),
+  );
+  const commit = "a".repeat(40);
+  await db.run(
+    sql`insert into plugins (id, owner_id, slug, name, version, manifest, bundle_asset_id, granted_capabilities, status, origin, source_url, installed_at, updated_at, source_commit)
+        values ('plugin_baseline', 'user_baseline', 'baseline', 'Baseline', '1.0.0', '{}', 'asset_baseline', '[]', 'enabled', 'git', 'https://example.com/plugin.git', 1, 1, ${commit})`,
+  );
+  expect(await db.get<Record<string, unknown>>(sql.raw("select origin, source_commit as sourceCommit from plugins where id = 'plugin_baseline'"))).toEqual({
+    origin: "git",
+    sourceCommit: commit,
+  });
+  await expect(
+    db.run(sql`insert into plugins (id, owner_id, slug, name, version, manifest, bundle_asset_id, granted_capabilities, status, origin, source_url, installed_at, updated_at, source_commit)
+               values ('plugin_bad', 'user_baseline', 'bad', 'Bad', '1.0.0', '{}', 'asset_baseline', '[]', 'enabled', 'git', 'https://example.com/plugin.git', 1, 1, ${"g".repeat(40)})`),
+  ).rejects.toThrow();
+  await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
+});
+
 test("runMigrations restores foreign_keys ON afterward (the finally-restore contract)", async () => {
   // runMigrations toggles FK enforcement OFF for the table-rebuild, then restores ON in finally. If a
   // future migration left it OFF, every subsequent write would bypass FK enforcement silently.
@@ -231,110 +256,6 @@ test("runMigrations restores foreign_keys ON afterward (the finally-restore cont
   await runMigrations(db, MIGRATIONS_DIR);
   const row = await db.get<Record<string, number>>(sql`PRAGMA foreign_keys`);
   expect(row?.["foreign_keys"]).toBe(FK_ON);
-});
-
-test("the forward chat rebuild preserves populated attribution, asset links, and every variant FK child", async () => {
-  const root = mkdtempSync(join(tmpdir(), `orb-forward-migration-${pid}-`));
-  const baselineFolder = join(root, "migrations");
-  try {
-    mkdirSync(join(baselineFolder, "meta"), { recursive: true });
-    copyFileSync(join(MIGRATIONS_DIR, "0000_baseline.sql"), join(baselineFolder, "0000_baseline.sql"));
-    writeFileSync(
-      join(baselineFolder, "meta", "_journal.json"),
-      `${JSON.stringify({
-        version: "7",
-        dialect: "sqlite",
-        entries: [{ idx: 0, version: "6", when: 1_790_406_773_600, tag: "0000_baseline", breakpoints: true }],
-      })}\n`,
-    );
-
-    const db = await createDb(":memory:");
-    await runMigrations(db, baselineFolder);
-    await db.run(sql.raw("insert into users (id, handle, handle_key) values ('user_migration', 'migration', 'migration')"));
-    await db.run(sql.raw("insert into chats (id, title) values ('chat_migration', 'Migration')"));
-    await db.run(
-      sql.raw(
-        "insert into user_connections (id, owner_id, label, provider_id, model) values ('user_connection_migration', 'user_migration', 'Migration connection', 'openrouter', 'migration-model')",
-      ),
-    );
-    await db.run(
-      sql.raw(
-        "insert into assets (id, owner_id, kind, mime, size, hash) values ('asset_migration', 'user_migration', 'generated', 'image/png', 1, 'migration-hash')",
-      ),
-    );
-    await db.run(
-      sql.raw(
-        "insert into chat_participants (id, chat_id, kind, user_id, role, join_seq) values ('chat_participant_migration', 'chat_migration', 'human', 'user_migration', 'host', 0)",
-      ),
-    );
-    await db.run(
-      sql.raw("insert into messages (id, chat_id, seq, role, author_user_id) values ('message_migration', 'chat_migration', 0, 'user', 'user_migration')"),
-    );
-    await db.run(
-      sql.raw(
-        "insert into message_variants (id, message_id, idx, content, connection_id, provider, model) values ('message_variant_connected', 'message_migration', 0, 'connected', 'user_connection_migration', 'openrouter', 'migration-model'), ('message_variant_unrecorded', 'message_migration', 1, 'unrecorded', null, null, null)",
-      ),
-    );
-    await db.run(sql.raw("update messages set selected_variant_id = 'message_variant_connected' where id = 'message_migration'"));
-    await db.run(
-      sql.raw(
-        "insert into message_assets (id, message_id, asset_id, origin) values ('message_asset_migration', 'message_migration', 'asset_migration', 'attached')",
-      ),
-    );
-    await db.run(
-      sql.raw(
-        "insert into message_reactions (id, variant_id, reactor_participant_id, emoji) values ('message_reaction_migration', 'message_variant_connected', 'chat_participant_migration', 'ok')",
-      ),
-    );
-    await db.run(sql.raw("insert into rpg_games (id, chat_id, mode, status, config) values ('rpg_game_migration', 'chat_migration', 'lite', 'active', '{}')"));
-    await db.run(
-      sql.raw(
-        "insert into rpg_journal (id, game_id, type, title, content, variant_id, source_message_id) values ('rpg_journal_migration', 'rpg_game_migration', 'note', 'Entry', 'Body', 'message_variant_connected', 'message_migration')",
-      ),
-    );
-    await db.run(
-      sql.raw(
-        "insert into rpg_snapshots (id, game_id, message_id, variant_id) values ('rpg_snapshot_migration', 'rpg_game_migration', 'message_migration', 'message_variant_connected')",
-      ),
-    );
-    await db.run(
-      sql.raw(
-        "insert into rpg_turn_tool_calls (id, game_id, message_id, variant_id, calls) values ('rpg_tool_calls_migration', 'rpg_game_migration', 'message_migration', 'message_variant_connected', '[]')",
-      ),
-    );
-
-    await runMigrations(db, MIGRATIONS_DIR);
-
-    expect(
-      await db.all<Record<string, unknown>>(
-        sql.raw(
-          "select id, connection_id as connectionId, connection_attribution_provenance as connectionAttributionProvenance from message_variants order by idx",
-        ),
-      ),
-    ).toEqual([
-      { id: "message_variant_connected", connectionId: "user_connection_migration", connectionAttributionProvenance: "recorded" },
-      { id: "message_variant_unrecorded", connectionId: null, connectionAttributionProvenance: "unrecorded" },
-    ]);
-    expect(
-      await db.get<Record<string, unknown>>(sql.raw("select selected_variant_id as selectedVariantId from messages where id = 'message_migration'")),
-    ).toEqual({
-      selectedVariantId: "message_variant_connected",
-    });
-    expect(await db.get<Record<string, unknown>>(sql.raw("select message_id as messageId, asset_id as assetId, origin from message_assets"))).toEqual({
-      messageId: "message_migration",
-      assetId: "asset_migration",
-      origin: "attached",
-    });
-    expect(await db.get<Record<string, number>>(sql.raw("select count(*) as count from message_reactions"))).toEqual({ count: 1 });
-    expect(await db.get<Record<string, number>>(sql.raw("select count(*) as count from rpg_journal"))).toEqual({ count: 1 });
-    expect(await db.get<Record<string, number>>(sql.raw("select count(*) as count from rpg_snapshots"))).toEqual({ count: 1 });
-    expect(await db.get<Record<string, number>>(sql.raw("select count(*) as count from rpg_turn_tool_calls"))).toEqual({ count: 1 });
-    await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
-    const foreignKeys = await db.get<Record<string, number>>(sql`PRAGMA foreign_keys`);
-    expect(foreignKeys?.["foreign_keys"]).toBe(FK_ON);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
 });
 
 test("assertReferentialIntegrity THROWS on an orphan FK row (the foreign_key_check gate)", async () => {

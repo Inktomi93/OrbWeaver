@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "70ad2a59-cc0b-4b0c-94c4-0c54201a320e",
+  "id": "b7743eee-6c5d-45e9-9fa6-aa5423d0b136",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -2237,7 +2237,7 @@
       "checkConstraints": {
         "message_assets_origin_check": {
           "name": "message_assets_origin_check",
-          "value": "origin in ('attached', 'illustration', 'inline-reply')"
+          "value": "origin in ('attached', 'illustration', 'generated-post', 'inline-reply')"
         }
       }
     },
@@ -2457,6 +2457,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "connection_attribution_provenance": {
+          "name": "connection_attribution_provenance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'unrecorded'"
         },
         "provider": {
           "name": "provider",
@@ -2761,6 +2769,14 @@
         "message_variants_cue_role_check": {
           "name": "message_variants_cue_role_check",
           "value": "cue_role is null or cue_role in ('user', 'turn-scoped-system')"
+        },
+        "message_variants_connection_attribution_provenance_check": {
+          "name": "message_variants_connection_attribution_provenance_check",
+          "value": "connection_attribution_provenance in ('recorded', 'unrecorded')"
+        },
+        "message_variants_connection_attribution_coherence_check": {
+          "name": "message_variants_connection_attribution_coherence_check",
+          "value": "connection_id is null or connection_attribution_provenance = 'recorded'"
         }
       }
     },
@@ -6551,6 +6567,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "source_commit": {
+          "name": "source_commit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "pending_reconsent": {
           "name": "pending_reconsent",
           "type": "integer",
@@ -6638,11 +6661,15 @@
         },
         "plugins_origin_check": {
           "name": "plugins_origin_check",
-          "value": "origin in ('upload', 'url')"
+          "value": "origin in ('upload', 'url', 'git')"
         },
         "plugins_source_url_check": {
           "name": "plugins_source_url_check",
           "value": "(origin = 'upload' and source_url is null) or (origin <> 'upload' and source_url is not null)"
+        },
+        "plugins_source_commit_check": {
+          "name": "plugins_source_commit_check",
+          "value": "(origin = 'git' and source_commit is not null and length(source_commit) = 40 and source_commit not glob '*[^0-9a-f]*') or (origin <> 'git' and source_commit is null)"
         },
         "plugins_widened_hosts_check": {
           "name": "plugins_widened_hosts_check",

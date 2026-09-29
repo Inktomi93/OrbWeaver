@@ -51,15 +51,18 @@ export const plugins = sqliteTable(
     grantedCapabilities: text("granted_capabilities", { mode: "json" }).$type<PluginCapability[]>().notNull(),
     // Enum narrows to the contract union; a tuple-built CHECK enforces it at the SQL level.
     status: text("status", { enum: PLUGIN_STATUSES }).notNull(),
-    // How the host obtained the bytes (`upload` file install · `url` fetched through the egress guard; a
+    // How the host obtained the bytes (`upload` file/folder · `url` bundle fetch · guarded `git` clone; a
     // future `catalog` rides an additive member — the CHECK derives from the ONE contract tuple).
     origin: text("origin", { enum: PLUGIN_ORIGINS }).notNull(),
-    // The URL a `url`-origin install was FETCHED FROM (U8 2b), remembered so the auto
+    // The URL a `url` bundle or `git` repository install was fetched from, remembered so the auto
     // update-check re-fetches the manifest and the one-click upgrade re-fetches the bundle without the owner
     // re-pasting it. NULL for an `upload` install (a handed-over file has no remembered source). It is not
     // derivable from anything else — the bytes are in the CAS but the URL they came from is not — which is the
     // whole reason it earns a column. Owner-scoped by the row it rides; a guest can name no other owner's row.
     sourceUrl: text("source_url"),
+    // Exact installed revision for a guarded Git source. The CHECK below makes it a lowercase 40-hex OID
+    // exactly for `git`; SHA-1 is the object format isomorphic-git currently resolves and validates.
+    sourceCommit: text("source_commit"),
     // THE SYSTEM'S OWN REFUSAL, recorded — set when an UPGRADE widened declared reach and forced the row
     // `disabled`, cleared when the owner re-consents to the whole ask (`setGrant`) and on a fresh install.
     // It is a stored EVENT, not a derivable state, and that is what earns it a column: "declared ⊄ granted"
@@ -111,6 +114,12 @@ export const plugins = sqliteTable(
     // than `<> 'url'` so a future URL-bearing member inherits the constraint by construction — the only thing
     // that ever needs re-stating is which origins are URL-less, and there is exactly one.
     check("plugins_source_url_check", sql.raw("(origin = 'upload' and source_url is null) or (origin <> 'upload' and source_url is not null)")),
+    check(
+      "plugins_source_commit_check",
+      sql.raw(
+        "(origin = 'git' and source_commit is not null and length(source_commit) = 40 and source_commit not glob '*[^0-9a-f]*') or (origin <> 'git' and source_commit is null)",
+      ),
+    ),
     // The delta's lockstep with the flag, at the physics tier (constitution §2 — push enforcement up the
     // ladder; a lifecycle that lives only in the verbs' comments is a wish). A settled row cannot carry a
     // "New" mark for an ask nobody is being asked about. `json_array_length` rather than a `= '[]'` string

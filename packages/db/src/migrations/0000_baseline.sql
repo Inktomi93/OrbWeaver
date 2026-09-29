@@ -343,7 +343,7 @@ CREATE TABLE `message_assets` (
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "message_assets_origin_check" CHECK(origin in ('attached', 'illustration', 'inline-reply'))
+	CONSTRAINT "message_assets_origin_check" CHECK(origin in ('attached', 'illustration', 'generated-post', 'inline-reply'))
 );
 --> statement-breakpoint
 CREATE INDEX `message_assets_message_idx` ON `message_assets` (`message_id`);--> statement-breakpoint
@@ -381,6 +381,7 @@ CREATE TABLE `message_variants` (
 	`cue_role` text,
 	`model` text,
 	`connection_id` text,
+	`connection_attribution_provenance` text DEFAULT 'unrecorded' NOT NULL,
 	`provider` text,
 	`reasoning_effort` text,
 	`tokens_in` integer,
@@ -421,7 +422,9 @@ CREATE TABLE `message_variants` (
 	CONSTRAINT "message_variants_cost_provenance_check" CHECK(cost_provenance in ('measured', 'estimated', 'unrecorded')),
 	CONSTRAINT "message_variants_finish_reason_check" CHECK(finish_reason is null or finish_reason in ('stop', 'length', 'filter', 'tool', 'other')),
 	CONSTRAINT "message_variants_reasoning_effort_check" CHECK(reasoning_effort is null or reasoning_effort in ('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')),
-	CONSTRAINT "message_variants_cue_role_check" CHECK(cue_role is null or cue_role in ('user', 'turn-scoped-system'))
+	CONSTRAINT "message_variants_cue_role_check" CHECK(cue_role is null or cue_role in ('user', 'turn-scoped-system')),
+	CONSTRAINT "message_variants_connection_attribution_provenance_check" CHECK(connection_attribution_provenance in ('recorded', 'unrecorded')),
+	CONSTRAINT "message_variants_connection_attribution_coherence_check" CHECK(connection_id is null or connection_attribution_provenance = 'recorded')
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `message_variants_message_idx_unique` ON `message_variants` (`message_id`,`idx`);--> statement-breakpoint
@@ -1023,6 +1026,7 @@ CREATE TABLE `plugins` (
 	`status` text NOT NULL,
 	`origin` text NOT NULL,
 	`source_url` text,
+	`source_commit` text,
 	`pending_reconsent` integer DEFAULT false NOT NULL,
 	`widened_net_hosts` text DEFAULT '[]' NOT NULL,
 	`consecutive_crashes` integer DEFAULT 0 NOT NULL,
@@ -1032,8 +1036,9 @@ CREATE TABLE `plugins` (
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`bundle_asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE restrict,
 	CONSTRAINT "plugins_status_check" CHECK(status in ('disabled', 'enabled', 'errored')),
-	CONSTRAINT "plugins_origin_check" CHECK(origin in ('upload', 'url')),
+	CONSTRAINT "plugins_origin_check" CHECK(origin in ('upload', 'url', 'git')),
 	CONSTRAINT "plugins_source_url_check" CHECK((origin = 'upload' and source_url is null) or (origin <> 'upload' and source_url is not null)),
+	CONSTRAINT "plugins_source_commit_check" CHECK((origin = 'git' and source_commit is not null and length(source_commit) = 40 and source_commit not glob '*[^0-9a-f]*') or (origin <> 'git' and source_commit is null)),
 	CONSTRAINT "plugins_widened_hosts_check" CHECK(pending_reconsent = 1 or json_array_length(widened_net_hosts) = 0)
 );
 --> statement-breakpoint

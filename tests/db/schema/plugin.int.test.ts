@@ -113,7 +113,7 @@ test("origin enum mirrors PLUGIN_ORIGINS (derives the tuple, never re-spells)", 
   expect(plugins.origin.enumValues).toEqual([...PLUGIN_ORIGINS]);
 });
 
-test("the source_url CHECK pairs origin with source_url: upload ⟺ null, url ⟺ non-null (U8 2b)", async () => {
+test("source provenance CHECKs pair origin with its URL and exact Git commit", async () => {
   // The physics tier of the `origin ⟺ source_url` invariant. `upload` is the ONE origin with no remembered URL;
   // every other origin (today `url`) MUST carry one, because the whole point of a non-upload origin is the source
   // the auto update-check re-fetches. The CHECK makes the two broken combinations UNWRITABLE, so a future writer
@@ -134,23 +134,71 @@ test("the source_url CHECK pairs origin with source_url: upload ⟺ null, url �
     updatedAt: 1000,
   };
 
-  // PLANTED POSITIVE CONTROLS — both broken combinations are refused.
+  // PLANTED POSITIVE CONTROLS — every malformed provenance combination is refused.
   await expect(
     db.insert(plugins).values({ ...base, id: castId<PluginId>("plugin_src_bad1"), slug: "src-bad-1", origin: "url", sourceUrl: null }),
   ).rejects.toSatisfy(isConstraintErr); // a `url` install with no remembered URL — the update-check would have nothing to fetch
   await expect(
     db.insert(plugins).values({ ...base, id: castId<PluginId>("plugin_src_bad2"), slug: "src-bad-2", origin: "upload", sourceUrl: "https://x.example/p.zip" }),
   ).rejects.toSatisfy(isConstraintErr); // an `upload` install carrying a stray URL
+  await expect(
+    db
+      .insert(plugins)
+      .values({ ...base, id: castId<PluginId>("plugin_src_bad3"), slug: "src-bad-3", origin: "git", sourceUrl: "https://x.example/p.git", sourceCommit: null }),
+  ).rejects.toSatisfy(isConstraintErr);
+  await expect(
+    db.insert(plugins).values({
+      ...base,
+      id: castId<PluginId>("plugin_src_bad4"),
+      slug: "src-bad-4",
+      origin: "url",
+      sourceUrl: "https://x.example/p.zip",
+      sourceCommit: "abc",
+    }),
+  ).rejects.toSatisfy(isConstraintErr);
+  await expect(
+    db.insert(plugins).values({
+      ...base,
+      id: castId<PluginId>("plugin_src_bad5"),
+      slug: "src-bad-5",
+      origin: "git",
+      sourceUrl: "https://x.example/p.git",
+      sourceCommit: "not-an-object-id",
+    }),
+  ).rejects.toSatisfy(isConstraintErr);
 
-  // …and both legitimate shapes pass — so the CHECK is a pairing guard, not a blanket refusal.
+  // …and all legitimate shapes pass — so the CHECKs are pairing guards, not blanket refusals.
   await db.insert(plugins).values({ ...base, id: castId<PluginId>("plugin_src_upload"), slug: "src-upload", origin: "upload", sourceUrl: null });
   await db.insert(plugins).values({ ...base, id: castId<PluginId>("plugin_src_url"), slug: "src-url", origin: "url", sourceUrl: "https://x.example/p.zip" });
+  await db.insert(plugins).values({
+    ...base,
+    id: castId<PluginId>("plugin_src_git"),
+    slug: "src-git",
+    origin: "git",
+    sourceUrl: "https://x.example/p.git",
+    sourceCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  });
   const urlRows = await db
     .select()
     .from(plugins)
     .where(eq(plugins.id, castId<PluginId>("plugin_src_url")));
   expect(urlRows[0]?.origin).toBe("url");
   expect(urlRows[0]?.sourceUrl).toBe("https://x.example/p.zip");
+
+  const gitId = castId<PluginId>("plugin_src_git");
+  const gitRows = await db.select().from(plugins).where(eq(plugins.id, gitId));
+  expect(gitRows[0]).toMatchObject({
+    origin: "git",
+    sourceUrl: "https://x.example/p.git",
+    sourceCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  });
+
+  // UPDATE is subject to the same physics: Git provenance cannot be cleared in place, while a valid next
+  // commit survives the write and projection. This catches a CHECK that only appears to constrain inserts.
+  await expect(db.update(plugins).set({ sourceCommit: null }).where(eq(plugins.id, gitId))).rejects.toSatisfy(isConstraintErr);
+  await db.update(plugins).set({ sourceCommit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }).where(eq(plugins.id, gitId));
+  const updatedGit = await db.select().from(plugins).where(eq(plugins.id, gitId));
+  expect(updatedGit[0]?.sourceCommit).toBe("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 });
 
 test("the widened-hosts CHECK refuses a SETTLED row that still carries a re-consent delta", async () => {
