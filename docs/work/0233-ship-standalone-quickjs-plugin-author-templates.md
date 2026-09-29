@@ -1,10 +1,10 @@
 ---
 kind: work
 status: blocked
-updated: 2026-09-28
+updated: 2026-09-29
 priority: P1
 area: plugin
-blocked: on 0232
+blocked: on 242
 plan: plugin-authoring
 ---
 
