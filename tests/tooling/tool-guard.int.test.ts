@@ -111,6 +111,10 @@ const LANE = { agentId: "agent-1", cwd: "/x/.claude/worktrees/agent-abc" };
 // the self-exemption is a REALPATH identity, so a row about it must run from the real checkout
 const AT_REPO = { projectDir: REPO, cwd: REPO };
 const BG = { runInBackground: true };
+// A tool timeout the agent set itself. The corpus rows are about other rules, so they carry one and a plain
+// `git commit` in them is not also a commit-timeout row; that rule has its own test.
+// @orb-waive tooling-clock-budget(120_000): an agent-chosen tool timeout handed to the guard as input, not a clock this run pays.
+const AGENT_TIMEOUT = { timeout: 120_000 };
 const TASKS = "/tmp/claude/-home-p/sess/tasks";
 type Row = [BatchResult["decision"] | "advisory", string | null, string, Omit<BatchCase, "command">?];
 
@@ -1117,7 +1121,7 @@ const DRIZZLE_KIT_CHAIN_ROWS: Row[] = [
 ROWS.push(...DRIZZLE_KIT_ROWS, ...DRIZZLE_KIT_CHECK_ROWS, ...DRIZZLE_KIT_CHAIN_ROWS);
 
 test("corpus: every rule bites its measured shapes and passes the false-positive traps", () => {
-  const results = runBatch(ROWS.map(([, , command, ctx]) => ({ command, ...ctx })));
+  const results = runBatch(ROWS.map(([, , command, ctx]) => ({ ...AGENT_TIMEOUT, command, ...ctx })));
   const failures: string[] = [];
   ROWS.forEach(([expected, rule, command], i) => {
     const got = at(results, i);
@@ -1436,6 +1440,9 @@ test("rewrite: a piped `pnpm doc` or `git commit/merge` is a valid pipeRewrite o
     if (rewritten === undefined) {
       return;
     }
+    if (r.rule === "commit-timeout" && rewritten === input) {
+      return; // only the tool timeout changed; the command is byte-identical
+    }
     if (r.rule !== "doc-piped" && r.rule !== "longlived-piped") {
       broken.push(`[${i}] unexpected rewrite rule ${r.rule} :: ${JSON.stringify(input)}`);
       return;
@@ -1457,7 +1464,7 @@ test("rewrite: a piped `pnpm doc` or `git commit/merge` is a valid pipeRewrite o
     "(git commit -m x | tail)",
     "git commit -m x \\| tail",
   ];
-  const stay = runBatch(mustStay.map((command) => ({ command })));
+  const stay = runBatch(mustStay.map((command) => ({ command, ...AGENT_TIMEOUT })));
   expect(stay.map((r) => r.rewrite?.command)).toEqual(mustStay.map(() => undefined));
   // the simple shapes do rewrite, and git's subcommand look-alikes do not
   const simple = runBatch(
@@ -1479,6 +1486,37 @@ test("rewrite: a piped `pnpm doc` or `git commit/merge` is a valid pipeRewrite o
   expect(at(simple, 1).rewrite?.command).toMatch(
     /^git commit -m x > \/repo\/reports\/tool-guard\/run-\d+\.log 2>&1; __tg_ec=\$\?; < \S+ tail -3\n\( exit \$__tg_ec \)$/,
   );
+});
+
+// Commit and merge hooks run past the Bash tool's 120 s default, and a killed commit leaves its hook running.
+test("commit timeout: a foreground commit/merge with no timeout gets the long timeout, command byte-identical", () => {
+  const rows = runBatch([
+    { command: "git commit -m x" },
+    { command: "git -C /wt merge main", ...LANE },
+    { command: "cd /x && LEFTHOOK_EXCLUDE=check git commit -F /tmp/m" },
+    // @orb-waive tooling-clock-budget(120_000): an agent-chosen tool timeout handed to the guard as input; the guard must not override it.
+    { command: "git commit -m x", timeout: 120_000 },
+    { command: "git commit -m x", runInBackground: true },
+    { command: "git commit-tree abc" },
+    { command: "git merge-base a b" },
+    { command: "git commit -m x; rm -rf /" },
+    { command: "git commit -F - <<'EOF'\nfix: the body mentions git stash\nEOF" },
+  ]);
+  expect(rows.map((r) => [r.decision, r.rule, r.rewrite?.command, r.rewrite?.timeout])).toEqual([
+    ["allow", "commit-timeout", "git commit -m x", 600_000],
+    ["allow", "commit-timeout", "git -C /wt merge main", 600_000],
+    ["allow", "commit-timeout", "cd /x && LEFTHOOK_EXCLUDE=check git commit -F /tmp/m", 600_000],
+    ["pass", null, undefined, undefined],
+    ["pass", null, undefined, undefined],
+    ["pass", null, undefined, undefined],
+    ["pass", null, undefined, undefined],
+    ["ask", "rm-rf-unsafe", undefined, undefined],
+    // a heredoc body is text, not a command, even though this rule touches the call
+    ["allow", "commit-timeout", "git commit -F - <<'EOF'\nfix: the body mentions git stash\nEOF", 600_000],
+  ]);
+  const wire = runHook(bashInput("git commit -m 'x y'"), [["CLAUDE_PROJECT_DIR", mkdtempSync(join(tmpdir(), "tg-commit-timeout-"))]]);
+  // @orb-waive tooling-clock-budget(600_000): the guard's OUTPUT under test (its REWRITE_TIMEOUT_MS on the wire), not a clock this run pays.
+  expect(wire.out.hookSpecificOutput?.updatedInput).toEqual({ command: "git commit -m 'x y'", timeout: 600_000 });
 });
 
 test("rewrite: a known test harness piped into a reader targets its own report artifact", () => {
@@ -1620,8 +1658,8 @@ test("push-in-flight: a live `git push` process turns a commit into a warn (neve
   mkdirSync(join(procRoot, "999999"));
   writeFileSync(join(procRoot, "999999", "cmdline"), "git\u0000push\u0000origin\u0000main");
   const results = runBatch([
-    { command: 'git commit -m "x" -- docs', procRoot },
-    { command: 'git commit -m "x" -- docs', procRoot: mkdtempSync(join(tmpdir(), "tg-proc-empty-")) },
+    { command: 'git commit -m "x" -- docs', procRoot, ...AGENT_TIMEOUT },
+    { command: 'git commit -m "x" -- docs', procRoot: mkdtempSync(join(tmpdir(), "tg-proc-empty-")), ...AGENT_TIMEOUT },
   ]);
   const withPush = at(results, 0);
   const withoutPush = at(results, 1);
@@ -1894,7 +1932,7 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
     ["ls . 2>/dev/null", "pass", null],
     [`setsid nohup bash ${clean} </dev/null > /dev/null 2>&1 & disown`, "pass", null], // `< /dev/null` is a detach, not a program
   ];
-  const results = runBatch(rows.map(([command, , , ctx]) => ({ command, ...ctx })));
+  const results = runBatch(rows.map(([command, , , ctx]) => ({ ...AGENT_TIMEOUT, command, ...ctx })));
   const failures: string[] = [];
   rows.forEach(([command, decision, rule], i) => {
     const got = at(results, i);

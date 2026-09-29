@@ -620,6 +620,8 @@ const GIT_GLOBAL_OPTS = String.raw`(?:-{1,2}[A-Za-z][^\s;|&]*\s+(?:[^\s;|&-][^\s
 // commit/merge hooks with their verify runs. Piped, a commit also reports the reader's exit code, so a failed
 // hook reads as success. The subcommand must end the word, so `commit-tree` and `merge-base` never match.
 const LONG_LIVED = new RegExp(String.raw`^\s*${WRAP_PREFIX}git\s+${GIT_GLOBAL_OPTS}(?:push|pull|fetch|clone|commit|merge)(?![\w-])`);
+// A commit or merge runs its hooks: a stage that starts one, for the commit-timeout rule.
+const GIT_HOOKED_HEAD = new RegExp(String.raw`^\s*${WRAP_PREFIX}git\s+${GIT_GLOBAL_OPTS}(?:commit|merge)(?![\w-])`);
 // A piped `pnpm doc` goes through the same log rewrite: its output is short and the paths it prints are the
 // result, so the reader runs against the full log and the exit code survives.
 const DOC_PIPE_HEAD = new RegExp(String.raw`^\s*${WRAP_PREFIX}pnpm\s+(?:run\s+)?doc(?=\s|$)`);
@@ -1129,6 +1131,8 @@ const CONTEXTS = {
     "This is a whole-tree run: it can hold the host verify slot for up to an hour, and the orchestrator runs the whole-tree barrier after merging. Run it only if your brief asked for it or your scoped floor cannot answer the question. Run it with run_in_background, make no call while it runs, and put its verdict in your report.",
   rewriteLongLived: (log) =>
     `tool-guard rewrote this command: git's children (a push/pull/fetch credential helper, or commit/merge hooks and their verify runs) hold a pipe open after the visible command ends, and a pipe reports the reader's exit code, so a failed hook would read as success. Output went to ${log}, your reader ran against the file, and git's real exit code is preserved.`,
+  commitTimeout: (ms) =>
+    `tool-guard raised this call's timeout to ${ms / 60_000} min: commit and merge hooks often run past the 120 s Bash default, and a timed-out commit leaves its hook running. The command is unchanged.`,
   rewriteDocPiped: (log) =>
     `tool-guard rewrote this command: the \`pnpm doc\` output went to ${log}, your reader ran against the file, and the real exit code is preserved.`,
   rewritePlaywright:
@@ -3617,6 +3621,17 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   // "pass" = the guard LOOKED and has no objection. It becomes `allow` at the hook boundary. It is
   // deliberately NOT called "defer": deferring hands the decision to a permission flow that prompts a
   // human, and a subagent has no human — see the box at the top of this file.
+  // 12. a foreground commit/merge with no timeout of its own — ALLOW with only the tool timeout raised. Last on
+  //     purpose: every rule above has already judged the WHOLE command and none objected, and `classify` still
+  //     merges the script-body and nested verdicts over this one. No `gateRewrite`: the command text is
+  //     unchanged, and judging it with the git clause cut out would turn a heredoc body into commands.
+  if (ctx.timeout === undefined && !ctx.runInBackground) {
+    const hooked = clauses.some((cl) => cl.stages.some((st) => GIT_HOOKED_HEAD.test(stripCompoundLead(blank.slice(st.start, st.end)))));
+    if (hooked) {
+      contexts.push(CONTEXTS.commitTimeout(REWRITE_TIMEOUT_MS));
+      return { decision: "allow", rule: "commit-timeout", rewrite: { command, timeout: REWRITE_TIMEOUT_MS }, contexts };
+    }
+  }
   return { decision: "pass", rule: contexts.length > 0 ? "advisory" : null, contexts };
 }
 
