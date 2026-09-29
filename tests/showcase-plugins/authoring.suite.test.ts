@@ -2,14 +2,20 @@ import { readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { HOST_FUNCTION_CAPABILITY, UI_PROXYABLE_HOST_FUNCTIONS } from "@orb/contracts/plugin";
 import { getPluginQuickJS } from "@orb/server/infra/plugin-host";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { compileShowcasePlugins, writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { isFail } from "quickjs-emscripten-core";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..");
 const BUNDLES_ROOT = join(REPO_ROOT, "packages", "showcase-plugins", "bundles");
+// Compiling every showcase plugin twice took 19.3 s at load 34.6/24, which budget() scales from this base,
+// so the project-wide budget(5000) default is far too tight for the determinism check.
+const COMPILE_SHOWCASE_TIMEOUT = budget(30_000);
 
-test("a clean source tree materializes the complete deterministic runtime zip tree", { tags: "source-freshness" }, async ({ scratch }) => {
+test("a clean source tree materializes the complete deterministic runtime zip tree", { tags: "source-freshness", timeout: COMPILE_SHOWCASE_TIMEOUT }, async ({
+  scratch,
+}) => {
   const result = await compileShowcasePlugins(REPO_ROOT);
   const repeated = await compileShowcasePlugins(REPO_ROOT);
   expect(result.diagnostics).toEqual([]);
@@ -43,7 +49,7 @@ test("a clean source tree materializes the complete deterministic runtime zip tr
   expect(new TextDecoder().decode(pocketArcade?.bytes)).not.toContain("/* @orb-frame-script */");
 });
 
-test("every emitted QuickJS artifact parses and activates with no ambient Node or DOM globals", async () => {
+test("every emitted QuickJS artifact parses and activates with no ambient Node or DOM globals", { timeout: COMPILE_SHOWCASE_TIMEOUT }, async () => {
   const result = await compileShowcasePlugins(REPO_ROOT);
   expect(result.diagnostics).toEqual([]);
   const quickjs = await getPluginQuickJS();

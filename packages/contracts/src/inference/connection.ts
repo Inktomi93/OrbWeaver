@@ -18,7 +18,7 @@ import { routableTaskSchema } from "./tasks.ts";
 
 /** A custom endpoint's REQUEST/RESPONSE transforms — a CLOSED object (four fields), one owner, never queried
  *  by field (§5.3's JSON-column defence). Shown only on `auth: endpoint` rows. */
-export const responseMapSchema = z.object({
+const responseMapSchema = z.object({
   contentPath: z.string().optional(),
   reasoningPath: z.string().optional(),
   finishReasonPath: z.string().optional(),

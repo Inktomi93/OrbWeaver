@@ -56,7 +56,7 @@ export const personaMetadataWriteSchema = z.record(z.string(), z.unknown()).supe
       ctx.addIssue({ code: "custom", message: issue.message, path: issue.path });
     }
   }
-});
+}) satisfies z.ZodType<Record<string, unknown>>;
 
 // The FACE fields spread `cardFaceFields` (D137(E) — one home, reference-equality-pinned); the wraps
 // (`description` bare = REQUIRED, starred/avatarAssetId `.optional()`) are persona's write semantics.

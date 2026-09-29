@@ -18,9 +18,9 @@
 import type { CharacterId, PersonaId, RosterPresetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import type { RulePresetId, RulePresetKnobValues } from "#automation";
+import type { RulePresetId, RulePresetKnobValueInputs, RulePresetKnobValues } from "#automation";
 import { RULE_PRESET_IDS, rulePresetIdSchema, rulePresetKnobValuesSchema } from "#automation";
-import type { GroupConfigInput } from "#chat";
+import type { CharacterMemberSpec, GroupConfigInput } from "#chat";
 import { characterMemberSpecSchema, groupConfigSchema } from "#chat";
 import type { RpgGameTemplate } from "#rpg";
 import { rpgGameTemplateSchema } from "#rpg";
@@ -43,14 +43,14 @@ export const rosterPresetMembersSchema = z
   .max(ROSTER_PRESET_MEMBER_MAX)
   .refine((members) => new Set(members.map((m) => m.characterId)).size === members.length, {
     message: "a roster lists each character once",
-  });
+  }) satisfies z.ZodType<CharacterMemberSpec[]>;
 
 /** One captured automation rule preset on the wire (B10's rules rider — build record §6): the CLOSED
  *  catalogue id + the knob bag as the capture read it (`RuleView.rulePresetKnobs` — the room rule's own
  *  mint provenance). Shape-only here; the write verb fully re-resolves the bag against the preset's own
  *  descriptors through automation's injected belt and stores the resolved OUTPUT (the `groupConfig`
  *  posture: garbage refuses at the boundary, a stale bag degrades loudly at apply). */
-export const rosterPresetRuleSchema = z.object({
+const rosterPresetRuleSchema = z.object({
   rulePresetId: rulePresetIdSchema,
   knobs: rulePresetKnobValuesSchema.default({}),
 });
@@ -63,7 +63,7 @@ export const rosterPresetRulesSchema = z
   .max(RULE_PRESET_IDS.length)
   .refine((rules) => new Set(rules.map((r) => r.rulePresetId)).size === rules.length, {
     message: "a roster lists each rule preset once",
-  });
+  }) satisfies z.ZodType<{ rulePresetId: RulePresetId; knobs: RulePresetKnobValueInputs }[]>;
 
 /** `create` — the authored artifact: a name + the curated roster, plus the optional chat-open POV anchor
  *  and the optional room-behavior blob. `update` deliberately reuses this WHOLE shape (full replace,

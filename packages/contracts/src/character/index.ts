@@ -141,7 +141,7 @@ export function parsePluginImportedFrom(importedFrom: string | null): { readonly
 // MUST ride the H1 egress firewall: a card is untrusted, so a URI fetch is an SSRF surface. The serde stays
 // pure parse-and-validate (kit is isomorphic, zero I/O). `.loose()` keeps unknown asset keys; the fields are
 // lenient (a real-world asset with a missing `type`/`name` never throws — ST defaults them to `""`).
-export const cardAssetSchema = z
+const cardAssetSchema = z
   .object({
     type: z.string().catch(""),
     uri: z.string().catch(""),

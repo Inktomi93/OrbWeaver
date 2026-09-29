@@ -507,7 +507,7 @@ export const guidedActionConfigSchema = z.object({
    *  blob keeps its exact bytes and today's fixed behavior becomes the declared default. Inert on a `system`
    *  role: that steer rides the `guided_instruction` marker, whose placement is its prompt-order position. */
   depth: z.number().int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH).optional(),
-});
+}) satisfies z.ZodType<{ readonly prompt: string; readonly role: MessageRole; readonly depth?: number | undefined }>;
 
 export const guidedActionsSchema = z.object({
   response: guidedActionConfigSchema,
@@ -2190,7 +2190,7 @@ const SCHEMA_VERSION_V8 = 8;
  *  here on purpose — this schema is also the READ path (`parsePromptConfig` degrades a failed parse to
  *  DEFAULT_PROMPT_CONFIG), so refusing on read would nuke an entire stored preset over one bad wrapper. The
  *  guard rides `promptConfigWriteSchema` below. */
-export const formatStringsSchema = z.object({
+const formatStringsSchema = z.object({
   continueNudge: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
   impersonateNudge: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
   responseNudge: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),

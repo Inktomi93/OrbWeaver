@@ -21,7 +21,7 @@ import { embeddingCapabilitySchema } from "./embedding.ts";
 import { generationCapabilitySchema } from "./generation.ts";
 import { rerankCapabilitySchema } from "./rerank.ts";
 
-export const capabilityMatchSchema = z
+const capabilityMatchSchema = z
   .object({
     /** A regex source over the model id, OR an explicit id list — never both. */
     model: z.string().min(1).optional(),
@@ -33,7 +33,7 @@ export const capabilityMatchSchema = z
   .refine((match) => (match.model === undefined) !== (match.ids === undefined), { message: "a match names `model` (a regex) or `ids`, not both" });
 
 /** A DATED, CITED provenance line: which tier this row is evidence at, when, and where the reader can look. */
-export const capabilityEvidenceSchema = z.object({
+const capabilityEvidenceSchema = z.object({
   tier: evidenceTierSchema,
   dated: z.string().min(1),
   cite: z.string().min(1),
