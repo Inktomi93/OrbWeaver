@@ -256,6 +256,27 @@ test("drift reads the repository: a stale doing item and an unlanded Closes trai
   ]);
 });
 
+test("drift skips a Closes trailer whose id named a different item at the closing commit's parent (a renumbering)", async ({ plantedTree }) => {
+  const root = await repo(plantedTree);
+  // The trailer predates the item: at the closer's parent there is no file for 1 at all.
+  writeFileSync(join(root, "early.txt"), "early\n");
+  commitAll(root, "fix(x): closes an item from another numbering\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
+  newItem({ title: "Gallery", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  commitAll(root, "chore(work): items");
+  // At the second closer's parent, 1 is a different item (another slug) than the one on the tree today.
+  writeFileSync(join(root, "gallery.txt"), "gallery\n");
+  commitAll(root, "fix(x): closes the gallery\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
+  git(root, "mv", "docs/work/0001-gallery.md", "docs/work/0001-plugin-frame-assets.md");
+  commitAll(root, "chore(work): renumber");
+  expect(drift(root)).toEqual([]);
+  // The same slug at the parent is the genuine unlanded close, and it still fires.
+  git(root, "commit", "--allow-empty", "-qm", "fix(x): closes the assets\n\nCloses: 1");
+  const closer = git(root, "rev-parse", "HEAD");
+  expect(drift(root)).toEqual([
+    `main commit ${closer} closes 1 but the item is still on the tree (the merge ran without the landing hooks) — pnpm doc land 1 --evidence ${closer}`,
+  ]);
+});
+
 // The two deep-history drift cases pay for 205 filler commits, one git process each. MEASURED alone: 20.4 s and
 // 31.7 s at per-core load 0.4 to 0.6, and 17.6 s and 23.2 s beside three whole typechecks. Each base is twice its worst
 // reading.

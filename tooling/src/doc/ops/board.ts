@@ -7,9 +7,9 @@ import { PLAN_KIND } from "../contract/vocab.ts";
 import { closesTrailer, driftLines, planWakeConditions, wakeConditions } from "../lib/drift.ts";
 import { splitDocument } from "../lib/frontmatter-write.ts";
 import { planSlugOf } from "../lib/indexes.ts";
-import { padId } from "../lib/names.ts";
+import { basenameOf, padId } from "../lib/names.ts";
 import { loadItems } from "./items.ts";
-import { closingCommits, governedPaths, pathExists, readDoc, root, unmergedBranches, worktreeBranches } from "./tree.ts";
+import { closingCommits, governedPaths, pathExists, readDoc, root, unmergedBranches, workFileNamesAt, worktreeBranches } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <overview|drift>");
 
@@ -73,6 +73,27 @@ export function loadPlans(repoRoot = root): readonly PlanState[] {
   });
 }
 
+/** A `Closes: N` counts against today's item N only when the closer's parent held that same file (id and
+ *  slug). A renumbering, such as a merge that renumbered another checkout's items, reuses N for a
+ *  different item, and that item was never closed. Only ids still open on the tree pay for the git read. */
+function closedOnMain(items: readonly WorkItem[], repoRoot: string): DriftFacts["closedOnMain"] {
+  const open = new Map(items.flatMap((item) => (item.state === "done" ? [] : [[item.id, item] as const])));
+  return closingCommits(repoRoot).map((commit) => {
+    const ids = closesTrailer(commit.message);
+    if (!ids.some((id) => open.has(id))) {
+      return { sha: commit.sha, ids };
+    }
+    const atParent = new Set(workFileNamesAt(`${commit.sha}^`, repoRoot));
+    return {
+      sha: commit.sha,
+      ids: ids.filter((id) => {
+        const item = open.get(id);
+        return item === undefined || atParent.has(basenameOf(item.path));
+      }),
+    };
+  });
+}
+
 export function driftFacts(repoRoot = root): DriftFacts {
   const items = loadItems(repoRoot);
   const plans = loadPlans(repoRoot);
@@ -87,7 +108,7 @@ export function driftFacts(repoRoot = root): DriftFacts {
     wokenPlans,
     worktreeBranches: worktreeBranches(repoRoot),
     unmergedBranches: unmergedBranches(repoRoot),
-    closedOnMain: closingCommits(repoRoot).map((commit) => ({ sha: commit.sha, ids: closesTrailer(commit.message) })),
+    closedOnMain: closedOnMain(items, repoRoot),
     wokenItems: woken,
   };
 }
