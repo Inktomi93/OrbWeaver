@@ -169,11 +169,11 @@ function shellScan(cmd) {
       }
     } else if (ch === "<" && cmd.startsWith("<<<", i)) {
       i += 2; // a here-string: its word is on this line, there is no body
-    } else if (ch === "<" && ctx?.arith !== true) {
-      HEREDOC_OPERATOR_AT.lastIndex = i;
-      const m = HEREDOC_OPERATOR_AT.exec(cmd);
-      if (m !== null) {
-        queue.push({ opStart: i, opEnd: i + m[0].length, delim: m[2], quoted: m[1] !== "" });
+    } else if (ch === "<" && cmd[i + 1] === "<" && ctx?.arith !== true) {
+      const op = heredocOperatorAt(cmd, i);
+      if (op !== null) {
+        queue.push(op);
+        i = op.opEnd - 1;
       }
     }
   }
@@ -202,7 +202,7 @@ function openSubstitution(cmd, i, stack) {
 function readHeredocBodies(cmd, at, queue, heredocs) {
   let bodyStart = at;
   for (const op of queue.splice(0)) {
-    const { bodyEnd, spanEnd } = heredocBodyEnd(cmd, bodyStart, op.delim);
+    const { bodyEnd, spanEnd } = heredocBodyEnd(cmd, bodyStart, op.delim, op.stripTabs);
     heredocs.push({ opStart: op.opStart, opEnd: op.opEnd, bodyStart, bodyEnd, spanEnd, quoted: op.quoted });
     bodyStart = spanEnd;
     if (spanEnd >= cmd.length) {
@@ -216,9 +216,41 @@ function readHeredocBodies(cmd, at, queue, heredocs) {
 //    grep` is not a piped harness). Blanks the operator, delimiter, body and terminator line, keeping
 //    newlines so clause indexes stay honest. Runs on the quote-blanked text, reading delimiters from raw. ──
 
-// A heredoc operator and its delimiter, matched on the RAW text at one index of shellScan's walk: a quoted
-// delimiter like <<'EOF' is spaces in the blanked text.
-const HEREDOC_OPERATOR_AT = /<<-?\s*(['"]?)(\w+)\1/y;
+// The characters that end an unquoted shell word: whitespace and the metacharacters.
+const WORD_END = /[\s;&|<>()]/;
+
+/** The heredoc operator at `i` (`<<` or `<<-`, then the delimiter word), read on the RAW text, or null when
+ *  no delimiter word follows. The delimiter is a shell word: its quotes and backslashes are removed
+ *  (`E"O"F` is `EOF`, `\EOF` is `EOF`), and any quoting at all makes the body literal. */
+function heredocOperatorAt(cmd, i) {
+  const stripTabs = cmd[i + 2] === "-";
+  let at = i + (stripTabs ? 3 : 2);
+  while (cmd[at] === " " || cmd[at] === "\t") {
+    at += 1;
+  }
+  let delim = "";
+  let quoted = false;
+  while (at < cmd.length && !WORD_END.test(cmd[at])) {
+    const ch = cmd[at];
+    if (ch === "'" || ch === '"') {
+      const close = cmd.indexOf(ch, at + 1);
+      if (close === -1) {
+        return null;
+      }
+      delim += cmd.slice(at + 1, close);
+      quoted = true;
+      at = close + 1;
+    } else if (ch === "\\" && at + 1 < cmd.length) {
+      delim += cmd[at + 1];
+      quoted = true;
+      at += 2;
+    } else {
+      delim += ch;
+      at += 1;
+    }
+  }
+  return delim === "" ? null : { opStart: i, opEnd: at, delim, quoted, stripTabs };
+}
 
 export function blankHeredocs(raw, blank) {
   let out = blank;
@@ -241,13 +273,14 @@ export function heredocUnits(raw) {
 }
 
 /** Where a heredoc body that starts at the newline `bodyStart` ends: `bodyEnd` is the terminator line's
- *  start, `spanEnd` its end. An unterminated body runs to the end of the text. */
-function heredocBodyEnd(raw, bodyStart, delim) {
+ *  start, `spanEnd` its end. Only `<<-` (`stripTabs`) lets the terminator line carry leading tabs. An
+ *  unterminated body runs to the end of the text. */
+function heredocBodyEnd(raw, bodyStart, delim, stripTabs) {
   for (let lineStart = bodyStart + 1; lineStart < raw.length; ) {
     const lineEnd = raw.indexOf("\n", lineStart);
     const stop = lineEnd === -1 ? raw.length : lineEnd;
-    // the terminator line may carry leading tabs under `<<-`
-    if (raw.slice(lineStart, stop).replace(/^\t+/, "") === delim) {
+    const line = raw.slice(lineStart, stop);
+    if ((stripTabs ? line.replace(/^\t+/, "") : line) === delim) {
       return { bodyEnd: lineStart, spanEnd: stop };
     }
     if (lineEnd === -1) {
@@ -518,7 +551,9 @@ const GIT_HOOKED_VERBS = new Set(["commit", "merge"]);
 // `short` letters take the rest of the word or the next word, `attached` letters take only the rest of the
 // word (`-S<keyid>`, `-u<mode>`), and `long` options take the next word when written without `=`.
 const GIT_HOOKED_VALUE_OPTIONS = {
+  // git takes any unambiguous prefix of a long option; `--no-ver` is still `--no-verbose` or `--no-verify`
   commit: {
+    noVerifyPrefix: "--no-veri",
     short: "mFCct",
     attached: "uS",
     long: new Set([
@@ -536,7 +571,9 @@ const GIT_HOOKED_VALUE_OPTIONS = {
       "--pathspec-from-file",
     ]),
   },
+  // on merge, `--no-verif` is still `--no-verify-signatures` or `--no-verify`
   merge: {
+    noVerifyPrefix: "--no-verify",
     short: "mFsX",
     attached: "S",
     long: new Set(["--message", "--file", "--strategy", "--strategy-option", "--into-name", "--cleanup"]),
@@ -750,6 +787,8 @@ const SQLITE_SAFE_HINT = /\/tmp\/|scratchpad|:memory:|test|\.bak\b/i;
 // "no diffstat") — so `-n` counts on commit only. `gitSkipsHooks` reads both flags off the parsed words;
 // this text match is the second check for `--no-verify` behind a head the word walk does not resolve.
 const GIT_NO_VERIFY = /\bgit\s+(?:commit|merge)\b[^\n;|&]*--no-verify\b/;
+// The commit-only `-n` text match, for a stage whose head the word walk cannot resolve.
+const GIT_COMMIT_SHORT_NO_VERIFY = /\bgit\s+commit\b[^\n;|&]*(?:^|\s)-n\b/;
 const GIT_COMMIT_OR_MERGE = /\bgit\s+(?:[^\s;|&]+\s+)*?(?:commit|merge)\b/;
 // `-c core.hooksPath=<anything>` is a git GLOBAL OPTION on ANY subcommand — it retargets the hooks dir for
 // that one invocation, same effect as `--no-verify` but not caught by the commit/merge-scoped rule above.
@@ -1441,10 +1480,14 @@ function gitCall(stageBlank, stageRaw) {
 }
 
 /** Does a stage run a commit or merge with its hooks skipped (`--no-verify`, or `-n` on commit)? Read
- *  through git's global options (`git -C <wt> commit --no-verify`) and a quoted flag. */
+ *  through git's global options (`git -C <wt> commit --no-verify`) and a quoted flag. A stage whose head
+ *  the word walk cannot resolve (`xargs git commit -n`, `eval git commit -n`) falls back to a text match. */
 function gitSkipsHooks(stageBlank, stageRaw) {
   const call = gitCall(stripCompoundLead(stageBlank), stripCompoundLead(stageRaw));
-  if (call === null || !GIT_HOOKED_VERBS.has(call.verb)) {
+  if (call === null) {
+    return GIT_COMMIT_SHORT_NO_VERIFY.test(stageBlank);
+  }
+  if (!GIT_HOOKED_VERBS.has(call.verb)) {
     return false;
   }
   const values = GIT_HOOKED_VALUE_OPTIONS[call.verb];
@@ -1453,7 +1496,7 @@ function gitSkipsHooks(stageBlank, stageRaw) {
     if (arg === "--") {
       return false; // pathspecs follow
     }
-    if (arg === "--no-verify") {
+    if (arg.startsWith(values.noVerifyPrefix) && "--no-verify".startsWith(arg)) {
       return true;
     }
     if (arg.startsWith("--")) {

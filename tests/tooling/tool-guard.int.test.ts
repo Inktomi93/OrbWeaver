@@ -743,6 +743,22 @@ const ROWS: Row[] = [
   ...["git commit -m -n", "git commit -am -n", "git commit --message -n", "git commit -m x -- -n", "git merge -m -n main"].map(
     (command): Row => ["pass", null, command, AGENT_TIMEOUT],
   ),
+  // a head the word walk cannot resolve still meets the commit-only `-n` text match
+  ...[
+    "eval git commit -n -m x",
+    "stdbuf -o0 git commit -n -m x",
+    "ionice -c3 git commit -n -m x",
+    "echo . | xargs git commit -n -m x",
+    "flock /tmp/l git commit -n -m x",
+    "taskset -c 0 git commit -n -m x",
+    "unbuffer git commit -n -m x",
+    "watch -n1 git commit -n",
+    "chronic git commit -n",
+  ].map((command): Row => ["deny", "git-hook-bypass", command, AGENT_TIMEOUT]),
+  // git takes an unambiguous prefix of a long option; below `--no-veri`, git itself rejects the ambiguity
+  ["deny", "git-hook-bypass", "git commit --no-veri -m x", AGENT_TIMEOUT],
+  ["deny", "git-hook-bypass", "git commit --no-verif -m x", AGENT_TIMEOUT],
+  ["pass", null, "git commit --no-verb -m x", AGENT_TIMEOUT],
   ["pass", null, "git -C /x log -n 5"],
   ["pass", null, "git commit -m 'skip --no-verify here'", AGENT_TIMEOUT],
   ["deny", "git-hook-bypass", "git -c core.hooksPath=/dev/null commit -m x -- docs"],
@@ -956,6 +972,14 @@ const ROWS: Row[] = [
   ["deny", "git-destructive", "echo $((1<<2))\ngit stash"],
   ["deny", "git-destructive", "tee /tmp/h.txt <<<x\ngit stash"],
   ["deny", "git-destructive", 'echo "$(cat <<EOF\nsay "hi\nEOF\n)"\ngit stash'],
+  // the delimiter is a shell word with its quotes removed, and only `<<-` strips a terminator's tabs
+  ["deny", "git-destructive", 'tee /tmp/h.txt <<E"O"F\nhi\nEOF\ngit stash'],
+  ["deny", "git-destructive", 'tee /tmp/h.txt <<"E"OF\nhi\nEOF\ngit stash'],
+  ["deny", "git-destructive", "tee /tmp/h.txt <<\\EOF\nit's\nEOF\ngit stash"],
+  ["deny", "git-destructive", "tee /tmp/h.txt <<END-OF\nit's\nEND-OF\ngit stash"],
+  ["pass", null, "tee /tmp/h.txt <<E'O'F\n$(git stash)\nEOF"],
+  ["deny", "git-destructive", "tee /tmp/h.txt <<A\n\tA\nit's\nA\ngit stash"],
+  ["deny", "git-destructive", "tee /tmp/h.txt <<-A\n\tit's\n\tA\ngit stash"],
   // git's bare global flags take no value, so a log/grep argument that reads `commit`/`merge` is not one
   ["pass", null, "git --no-pager log -S commit | head"],
   ["pass", null, 'git -C "$WT" log --grep merge | head'],
