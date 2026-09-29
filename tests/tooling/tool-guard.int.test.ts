@@ -916,11 +916,14 @@ const ROWS: Row[] = [
   ["deny", "net-pipe-shell", "(curl x | sh)"],
   ["pass", null, "for f in a; do rm -rf /tmp/x; done"],
   // `pnpm doc`: a lane never writes the board, and its short output always runs bare
-  ...["new item 'x'", "item 'x' --what y", "set 0250 status done", "land 0250", "remove 0250", "index", "status 0250 done", "review 0250"].map(
+  ...["item 'x' --what y", "set 0250 status done", "set 12 open", "land 0250", "remove 0250", "index", "status 0250 done"].map(
     (args): Row => ["deny", "doc-write-lane", `pnpm doc ${args}`, LANE],
   ),
-  ["deny", "doc-write-lane", "pnpm doc new item 'x' | tail -3", LANE],
-  ...["overview", "drift", "due", "help"].map((verb): Row => ["pass", null, `pnpm doc ${verb}`, LANE]),
+  ["deny", "doc-write-lane", "pnpm doc set 12 open | tail -3", LANE],
+  // authoring a doc in the lane's own worktree is not board state (forge writes its plan this way)
+  ...["new plan x", "new adr x", "new law x", "review docs/plans/x.md", "overview", "drift", "due", "help"].map(
+    (args): Row => ["pass", null, `pnpm doc ${args}`, LANE],
+  ),
   ["pass", null, "pnpm doc new item 'x'"],
   ["allow", "doc-bare", "pnpm doc overview | head -20"],
   ["allow", "doc-bare", "pnpm doc drift 2>&1 | tail -5"],
@@ -1229,16 +1232,16 @@ test("contract: a second Read of the same task output file denies, per agent, an
   const tmp = mkdtempSync(join(tmpdir(), "tg-task-read-"));
   const envPairs: [string, string][] = [["CLAUDE_PROJECT_DIR", tmp]];
   const taskFile = `${TASKS}/bb98qi3t2.output`;
-  const readInput = (filePath: string, agentPairs: [string, unknown][]): Record<string, unknown> =>
+  const readInput = (filePath: string, agentPairs: [string, unknown][], rangePairs: [string, number][] = []): Record<string, unknown> =>
     Object.fromEntries([
       ["tool_name", "Read"],
-      ["tool_input", Object.fromEntries([["file_path", filePath]])],
+      ["tool_input", Object.fromEntries([["file_path", filePath], ...rangePairs])],
       ["cwd", "/repo"],
       ["session_id", "test-session-read"],
       ...agentPairs,
     ]);
-  const read = (filePath: string, agentPairs: [string, unknown][]): string | undefined =>
-    runHook(readInput(filePath, agentPairs), envPairs).out.hookSpecificOutput?.permissionDecision;
+  const read = (filePath: string, agentPairs: [string, unknown][], rangePairs: [string, number][] = []): string | undefined =>
+    runHook(readInput(filePath, agentPairs, rangePairs), envPairs).out.hookSpecificOutput?.permissionDecision;
   const agentA: [string, unknown][] = [["agent_id", "agent-read-a"]];
   expect(read(taskFile, agentA)).toBe("defer");
   expect(read(taskFile, agentA)).toBe("deny");
@@ -1257,6 +1260,17 @@ test("contract: a second Read of the same task output file denies, per agent, an
   const bash = (): string | undefined => runHook(bashInput(`tail -5 ${TASKS}/c.output`, agentC), envPairs).out.hookSpecificOutput?.permissionDecision;
   expect(bash()).toBe("allow");
   expect(bash()).toBe("deny");
+  // a finished output read in chunks is not a poll: each new range is its own first read, and only an
+  // identical range repeats. A chunked read does not start a streak for a later `tail` of the whole file.
+  const agentD: [string, unknown][] = [["agent_id", "agent-read-d"]];
+  const chunk = (offset: number): string | undefined =>
+    read(`${TASKS}/d.output`, agentD, [
+      ["offset", offset],
+      ["limit", 2000],
+    ]);
+  expect([chunk(1), chunk(2001), chunk(4001)]).toEqual(["defer", "defer", "defer"]);
+  expect(chunk(2001)).toBe("deny");
+  expect(runHook(bashInput(`tail -5 ${TASKS}/d.output`, agentD), envPairs).out.hookSpecificOutput?.permissionDecision).toBe("allow");
 });
 
 // `pnpm typecheck` has no single known artifact file (unlike check/verify/test), so it keeps the generic

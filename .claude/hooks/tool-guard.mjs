@@ -785,8 +785,9 @@ const HARNESS_TASK_FILE = /\/tmp\/claude-\d+\/\S*\/tasks\/|\/tasks\/[\w.-]+\.(?:
 const TAIL_BIN = /^(?:\S*\/)?tail$/;
 // A background task's output file as the Read tool names it: always an absolute path.
 const HARNESS_TASK_OUTPUT = /^\/tmp\/claude-\d+\/.+\/tasks\/[^/]+\.output$/;
-// `pnpm doc` verbs that write the board. The orchestrator owns the board, so a lane reports instead.
-const DOC_WRITE_VERBS = new Set(["new", "item", "set", "land", "remove", "index", "status", "review"]);
+// `pnpm doc` verbs that change shared board state (item numbering, transitions, landing), which the
+// orchestrator owns. `new adr|plan|law` and `review` author a doc in the lane's own worktree and stay open.
+const DOC_WRITE_VERBS = new Set(["item", "set", "land", "remove", "index", "status"]);
 // A file a stage's stdout is captured into (`> log`, `&> log`); an fd merge such as `2>&1` names no file.
 const CAPTURE_FILE = /(?:^|\s)(?:\d*>{1,2}|&>{1,2})\s*([^\s&]\S*)/g;
 const TAIL_FOLLOW_FLAG = /^-[A-Za-z0-9]*[fF]|^--follow\b/;
@@ -1069,7 +1070,7 @@ const REASONS = {
   taskOutputReread: (file) =>
     `You already read \`${file}\`. It is a background task's output file, and the harness notifies you when that task exits, so reading it again is a poll. ${WAIT_DENY_NEXT_STEP}`,
   docWriteLane: (verb) =>
-    `\`pnpm doc ${verb}\` writes the board, and the orchestrator owns the board: put the item's title, what, why and done in your report.`,
+    `\`pnpm doc ${verb}\` changes the board, and the orchestrator owns the board (items, status, landing); put the item's title, what, why and done in your report. Authoring a plan, ADR or law in your worktree with \`pnpm doc new\` is fine.`,
   trueOrColonFiller: `A command that is only \`true\`/\`:\` is filler: it re-bills your whole context and does nothing. ${WAIT_DENY_NEXT_STEP}`,
   drizzleKitSubagent: (verb) =>
     `A SUBAGENT ran \`drizzle-kit ${verb}\` — migration generation and application run on main by the orchestrator: parallel lanes generating migrations collide on migration numbers. Report the schema change and stop.`,
@@ -3120,18 +3121,21 @@ function wholeTreeNote(ctx, blank, clauses) {
 /** The Read tool on a background task's output file. The first Read per agent is a check-in and a later
  *  one is a poll, so it denies. Every such Read also counts as a status read of that path, so a Bash
  *  re-read after it continues the same streak. Null when the Read is not this rule's business. */
-function taskOutputReadVerdict(filePath, ctx) {
+function taskOutputReadVerdict(filePath, range, ctx) {
   if (!HARNESS_TASK_OUTPUT.test(filePath)) {
     return null;
   }
+  // A chunked read of a large finished output is not a poll, so each offset/limit range is its own target.
+  // A whole-file Read keys on the bare path, the same target a Bash `tail` of that file records.
+  const target = range.offset === undefined && range.limit === undefined ? filePath : `${filePath}#${range.offset ?? ""}:${range.limit ?? ""}`;
   const key = streakKey(ctx);
   const prev = readStreakState(ctx.projectDir, key);
-  const count = prev !== null && prev.kind === "log" && prev.target === filePath ? prev.count + 1 : 1;
-  writeStreakState(ctx.projectDir, key, { kind: "log", target: filePath, count });
+  const count = prev !== null && prev.kind === "log" && prev.target === target ? prev.count + 1 : 1;
+  writeStreakState(ctx.projectDir, key, { kind: "log", target, count });
   const seenKey = `${key}.task-output`;
   const seen = readStreakState(ctx.projectDir, seenKey) ?? [];
-  if (!seen.includes(filePath)) {
-    writeStreakState(ctx.projectDir, seenKey, [...seen, filePath]);
+  if (!seen.includes(target)) {
+    writeStreakState(ctx.projectDir, seenKey, [...seen, target]);
     return null;
   }
   return { decision: "deny", rule: "task-output-reread", reason: REASONS.taskOutputReread(filePath) };
@@ -3824,7 +3828,8 @@ function runReadHook(input, filePath) {
     emit(DEFER);
     return;
   }
-  const result = taskOutputReadVerdict(filePath, { agentId: input.agent_id ?? null, sessionId: input.session_id ?? null, projectDir });
+  const range = { offset: input.tool_input.offset, limit: input.tool_input.limit };
+  const result = taskOutputReadVerdict(filePath, range, { agentId: input.agent_id ?? null, sessionId: input.session_id ?? null, projectDir });
   if (result === null) {
     emit(DEFER);
     return;
