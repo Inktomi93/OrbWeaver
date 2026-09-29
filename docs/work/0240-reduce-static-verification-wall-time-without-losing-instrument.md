@@ -60,4 +60,6 @@ Main owns red-first controls, suites, the barrier, and one benchmark after sourc
 
 ## Evidence
 
+Runtime and benchmark results remain pending.
+
 Liveness narrowing is on main in `e9fe219ff`, but the wall-time target is not met. Measured over 15 whole static runs: `tests:instrument-affected` has a median of 25.6 minutes while shared tooling sources are dirty, and 2.5 seconds on a clean tree. Two causes: the pre-commit `--changed` scope is the whole working tree against HEAD (`branchChangedPaths` in `tooling/src/verify/lib/repo-paths.ts`), not the staged diff, so each commit on a shared dirty tree recertifies every dirty instrument; and the stage runs in the commit tier (`registry-test-lanes.ts`). Next: scope pre-commit to the staged index and move this stage off the commit tier.
