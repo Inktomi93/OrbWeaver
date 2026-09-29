@@ -103,7 +103,86 @@ const LANE = { agentId: "agent-1", cwd: "/x/.claude/worktrees/agent-abc" };
 const AT_REPO = { projectDir: REPO, cwd: REPO };
 type Row = [BatchResult["decision"] | "advisory", string | null, string, Omit<BatchCase, "command">?];
 
+// SECURITY (verifier-refuted c7ca3094e, leg 2, 2026-09-29): a rewrite rule proves only the ONE clause it
+// rewrites is safe. `pnpm check > /tmp/x; rm -rf /` and `pnpm check > log; git push --force` both
+// classified `allow` before `gateRewrite` existed — the rewrite rule's early return meant a dangerous
+// clause elsewhere in the SAME command never reached rules 8/9/9b/9c/9d/11. Every verb below must still be
+// caught chained BEFORE and AFTER a harness a rewrite rule is about to allow, through `;`, `&&` and a
+// newline — generated, since the combinations are the point, not the row count.
+const CHAIN_HARNESSES: readonly string[] = [
+  "pnpm check > /tmp/cb-chain.log 2>&1", // rule 4a: harness-redirect
+  "pnpm check | tail -30", // rule 4b: harness-piped, verify-family artifact
+  "pnpm test:node 2>&1 | tail -20", // rule 4b: harness-piped, known test artifact
+];
+const CHAIN_SEPARATORS: readonly string[] = [";", "&&", "\n"];
+interface ChainVerb {
+  readonly command: string;
+  readonly decision: Row[0];
+  /** The chained command's own `blank` still has global reach into rules 5/8/9/9b (they test the whole
+   *  blanked text, not per clause) — but the ONE exception is a verb carrying `||`: it makes rule 4b's own
+   *  `harnessPiped` branch DENY first (blank.includes("||") is also global, so the rewrite it would
+   *  otherwise offer bails), before rule 5 gets a turn. A PIPED chain-harness therefore reports
+   *  `harness-piped`, not `harness-swallowed`, for that one verb — still deny, just the earlier rule's
+   *  name. `rule` is a function only where that distinction applies. */
+  readonly rule: string | ((harness: string) => string);
+  readonly ctx?: Omit<BatchCase, "command">;
+}
+const CHAIN_VERBS: readonly ChainVerb[] = [
+  { command: "rm -rf packages/server/src", decision: "ask", rule: "rm-rf-unsafe" },
+  { command: "git push --force origin main", decision: "ask", rule: "git-push-force" },
+  { command: "git push origin main", decision: "ask", rule: "lane-git-push", ctx: LANE },
+  { command: "git stash", decision: "deny", rule: "git-destructive" },
+  { command: "rg -rln foo .", decision: "deny", rule: "rg-replace-mangle" },
+  { command: "until ! pgrep -f vitest; do sleep 3; done", decision: "deny", rule: "pgrep-wait-loop" },
+  // trailing space: HARNESS_OR_TRUE requires a boundary (whitespace or end-of-string) right after `true`,
+  // so `true;`/`true&&` glued with no space would silently miss — spelling that gap shut is a SEPARATE,
+  // pre-existing rule-5 precision question this security fix does not own.
+  { command: "pnpm typecheck || true ", decision: "deny", rule: (h) => (h.includes("|") ? "harness-piped" : "harness-swallowed") },
+];
+function chainRow(decision: Row[0], rule: string, command: string, ctx: Omit<BatchCase, "command"> | undefined): Row {
+  return ctx === undefined ? [decision, rule, command] : [decision, rule, command, ctx];
+}
+const CHAIN_ROWS: Row[] = CHAIN_VERBS.flatMap((verb) =>
+  CHAIN_HARNESSES.flatMap((harness) => {
+    const rule = typeof verb.rule === "function" ? verb.rule(harness) : verb.rule;
+    return CHAIN_SEPARATORS.flatMap((sep): Row[] => [
+      chainRow(verb.decision, rule, `${verb.command}${sep}${harness}`, verb.ctx),
+      chainRow(verb.decision, rule, `${harness}${sep}${verb.command}`, verb.ctx),
+    ]);
+  }),
+);
+
+// The SAME gate, proven against the pre-existing generic `pipeRewrite` (rule 4b's fallback for a harness
+// with no known artifact, and rule 10's `git pull/fetch/clone | reader`) and `playwrightRewrite` (rule 6)
+// — `gateRewrite` wraps every `allow`-returning rewrite site, not just the two new ones.
+const OLD_PATH_HARNESSES: readonly string[] = [
+  "pnpm typecheck 2>&1 | tail -20", // rule 4b generic pipeRewrite (no known artifact)
+  "git pull origin main | tail -8", // rule 10 longlived-piped
+];
+const OLD_PATH_VERBS: readonly ChainVerb[] = [
+  { command: "rm -rf packages/server/src", decision: "ask", rule: "rm-rf-unsafe" },
+  { command: "git push --force origin main", decision: "ask", rule: "git-push-force" },
+];
+const OLD_PATH_ROWS: Row[] = OLD_PATH_VERBS.flatMap((verb) =>
+  OLD_PATH_HARNESSES.flatMap((harness) =>
+    CHAIN_SEPARATORS.flatMap((sep): Row[] => [
+      chainRow(verb.decision, verb.rule as string, `${verb.command}${sep}${harness}`, verb.ctx),
+      chainRow(verb.decision, verb.rule as string, `${harness}${sep}${verb.command}`, verb.ctx),
+    ]),
+  ),
+);
+// `playwrightRewrite` (rule 6) only ever succeeds when its clause is the LAST one (documented at
+// `playwrightRewrite`) — a verb chained AFTER it never reaches that rewrite at all, and DENIES on its own
+// terms instead (still no less safe, just a different, already-covered rule). The one shape that actually
+// exercises `gateRewrite` for rule 6 is the verb FIRST, playwright LAST.
+const PLAYWRIGHT_GATE_ROWS: Row[] = OLD_PATH_VERBS.map(
+  (verb): Row => [verb.decision, verb.rule as string, `${verb.command};npx playwright test tests/client/x.ct.tsx`],
+);
+
 const ROWS: Row[] = [
+  ...CHAIN_ROWS,
+  ...OLD_PATH_ROWS,
+  ...PLAYWRIGHT_GATE_ROWS,
   // ---- harness piped: REWRITE the unambiguous shape (the measured 45-hour class) ----
   ["allow", "harness-piped", "pnpm check | tail -30"],
   ["allow", "harness-piped", "pnpm verify --push 2>&1 | tail -40"],

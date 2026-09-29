@@ -1174,6 +1174,7 @@ function pipeRewrite(command, blank, clauses, headRe, ctx) {
   // about the template changes.
   return {
     log,
+    clause,
     command: `${prefix}${harness} > ${log} 2>&1; __tg_ec=$?; < ${log} ${readerChain}${suffix}\n( exit $__tg_ec )`,
   };
 }
@@ -1261,6 +1262,7 @@ function artifactPipeRewrite(command, blank, clauses) {
   return {
     command: `${prefix}${harness}; __tg_ec=$?; ${readerReplacement}${suffix}\n( exit $__tg_ec )`,
     target,
+    clause,
   };
 }
 
@@ -1310,7 +1312,7 @@ function bareHarnessRewrite(command, blank, clauses, headRe) {
   const prefix = command.slice(0, clause.start);
   const rawSuffix = command.slice(clause.end);
   const suffix = /^[\s;]*$/.test(rawSuffix) ? "" : rawSuffix;
-  return { command: `${prefix}${harness}${suffix}` };
+  return { command: `${prefix}${harness}${suffix}`, clause };
 }
 
 // The same four spellings, anchored at a clause head so the rewrite knows exactly what to replace. Its
@@ -2505,6 +2507,32 @@ function mergeVerdicts(outer, script) {
   return merged;
 }
 
+/** SECURITY (verifier-refuted 2026-09-29, leg 2 of cb-guard): what would `classify` have said about
+ *  `command` with `clause` — the ONE clause a rewrite rule just vetted and is about to `allow` — deleted?
+ *  A rewrite rule (`bareHarnessRewrite`, `pipeRewrite`, `artifactPipeRewrite`, `playwrightRewrite`) proves
+ *  only the clause it rewrites is safe; before this existed, its early `return` meant rules 8/9/9b/9c/9d/11
+ *  never got a turn at a DIFFERENT clause in the same command — `pnpm check > /tmp/x; rm -rf /` and
+ *  `pnpm check > log; git push --force` both classified as a clean `allow`. The remainder is always
+ *  STRICTLY SHORTER than `command` (the excluded clause's own span is gone), so recursing through the
+ *  full `classify` cannot loop forever, and reusing it (rather than a second copy of rules 1-11) is what
+ *  keeps this catching a heredoc/script-body/nested-command danger in the OTHER clause too, not just a
+ *  flat regex scan. The two replaces trim the ONE separator now dangling where the deleted clause used to
+ *  join to its neighbor — at most one of them ever matches (the clause was first, last, or the whole
+ *  command), and a doubled `&&` `;` from a MIDDLE deletion is left for `classify` to parse as it lands:
+ *  still no less safe than doing nothing, since the danger-detecting rules test `blank` as a whole string,
+ *  not per well-formed clause. */
+function remainderVerdict(command, clause, ctx) {
+  const remainder = (command.slice(0, clause.start) + command.slice(clause.end)).replace(/^\s*(?:&&|\|\||;)\s*/, "").replace(/\s*(?:&&|\|\||;)\s*$/, "");
+  return remainder.trim() === "" ? null : classify(remainder, ctx);
+}
+
+/** Gate a rewrite's `allow` against `remainderVerdict` — the stricter of the two wins (`mergeVerdicts`),
+ *  so a rewrite can never launder a dangerous clause it did not itself vet. Every `decision: "allow",
+ *  rewrite: …` a rewrite rule builds must be returned through this, never directly. */
+function gateRewrite(pending, command, clause, ctx) {
+  return mergeVerdicts(pending, remainderVerdict(command, clause, ctx));
+}
+
 /** The first stage that runs a heavy tool through a spelling with no heap floor, as `{tool, door}` — or
  *  null. Head-anchored per stage through `execHead`, so a tool NAME inside an argument, a commit message
  *  or a `pnpm` script's own text can never fire it. */
@@ -2744,7 +2772,7 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   const bareRewrite = bareHarnessRewrite(command, blank, clauses, HARNESS_HEAD);
   if (bareRewrite) {
     contexts.push(CONTEXTS.rewriteRedirectDropped);
-    return { decision: "allow", rule: "harness-redirect", rewrite: { command: bareRewrite.command }, contexts };
+    return gateRewrite({ decision: "allow", rule: "harness-redirect", rewrite: { command: bareRewrite.command }, contexts }, command, bareRewrite.clause, ctx);
   }
 
   // 4b. harness piped into a real reader — REWRITE the simple shape, DENY the rest (the headline 45-hour
@@ -2759,13 +2787,23 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     if (artifact) {
       contexts.push(CONTEXTS.rewritePipedArtifact(artifact.target));
       const timeout = ctx.timeout === undefined ? REWRITE_TIMEOUT_MS : undefined;
-      return { decision: "allow", rule: "harness-piped", rewrite: { command: artifact.command, timeout }, contexts };
+      return gateRewrite(
+        { decision: "allow", rule: "harness-piped", rewrite: { command: artifact.command, timeout }, contexts },
+        command,
+        artifact.clause,
+        ctx,
+      );
     }
     const rewrite = pipeRewrite(command, blank, clauses, HARNESS_HEAD, ctx);
     if (rewrite) {
       contexts.push(CONTEXTS.rewritePiped(rewrite.log));
       const timeout = ctx.timeout === undefined ? REWRITE_TIMEOUT_MS : undefined;
-      return { decision: "allow", rule: "harness-piped", rewrite: { command: rewrite.command, timeout, log: rewrite.log }, contexts };
+      return gateRewrite(
+        { decision: "allow", rule: "harness-piped", rewrite: { command: rewrite.command, timeout, log: rewrite.log }, contexts },
+        command,
+        rewrite.clause,
+        ctx,
+      );
     }
     return { decision: "deny", rule: "harness-piped", reason: REASONS.harnessPipedDeny, contexts };
   }
@@ -2807,7 +2845,7 @@ function classifyCommandLine(command, blank, clauses, ctx) {
       const rewritten = playwrightRewrite(command, blank, clauses);
       if (rewritten) {
         contexts.push(CONTEXTS.rewritePlaywright);
-        return { decision: "allow", rule: "playwright-ct", rewrite: { command: rewritten, timeout }, contexts };
+        return gateRewrite({ decision: "allow", rule: "playwright-ct", rewrite: { command: rewritten, timeout }, contexts }, command, clauses.at(-1), ctx);
       }
       return { decision: "deny", rule: "playwright-ct", reason: REASONS.playwrightCt, contexts };
     }
@@ -2878,7 +2916,12 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     const rewrite = pipeRewrite(command, blank, clauses, LONG_LIVED, ctx);
     if (rewrite) {
       contexts.push(CONTEXTS.rewriteLongLived(rewrite.log));
-      return { decision: "allow", rule: "longlived-piped", rewrite: { command: rewrite.command, log: rewrite.log }, contexts };
+      return gateRewrite(
+        { decision: "allow", rule: "longlived-piped", rewrite: { command: rewrite.command, log: rewrite.log }, contexts },
+        command,
+        rewrite.clause,
+        ctx,
+      );
     }
     contexts.push(CONTEXTS.longLivedPipe);
     break;
