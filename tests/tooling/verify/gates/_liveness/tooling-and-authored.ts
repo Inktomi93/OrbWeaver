@@ -50,6 +50,7 @@ const TOOL_CLIS = [
   "doc",
   "mutation-arid",
   "mutation-probe",
+  "plugin-author-showcase",
   "render-trace",
   "review-mirror",
   "seed",
