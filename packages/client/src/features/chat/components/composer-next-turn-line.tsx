@@ -51,20 +51,17 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
     connections,
   });
   return (
-    // The card's own track, so the line starts at the card's edge; the measure caps the paragraph itself.
-    <Container className={CHAT_TRACK}>
+    // The card's own track, so the fill spans the card's width; the measure caps the paragraph inside it.
+    // This line sits below the composer's opaque card, directly on the room's art. The transcript's
+    // translucent reading plate has a stated dark-arm hole for a custom pivot palette (D144(d)), so the
+    // line takes an opaque fill: `bg-card`'s AA floor is proven for every ink it paints
+    // (`palette-contrast.suite.test.ts`). No `rounded-card`: a text backdrop is not a second elevated
+    // surface (UI-Density-Law.md §3/§5.1).
+    <Container className={cn(CHAT_TRACK, "bg-card px-field py-tight")}>
       <Text
         as="p"
         voice="gloss"
-        // #883 — this line sits below the composer's own opaque card, directly on the room's art with no
-        // surface of its own (measured 1.035:1 over worst legal art). The transcript's translucent reading
-        // plate (`BG_PHOTO_READING_PLATE`) has a STATED dark-arm hole for a custom pivot palette (D144(d)/
-        // #217) and does not clear AA here either — so this line takes an opaque fill instead: `bg-card`'s
-        // AA floor is proven unconditionally for every ink this line ever paints
-        // (`palette-contrast.suite.test.ts`'s `bodyPairs` + intent-token sweep). No `rounded-card`: this is
-        // a text backdrop, not a second elevated surface nested under the composer's own card (UI-Density-
-        // Law.md §3/§5.1 reserves that radius for the ELEVATED family, and a box-in-box is at most one deep).
-        className={cn("min-w-0 max-w-(--reading-measure-prose) break-words bg-card px-field py-tight", STATE_INK[line.state])}
+        className={cn("min-w-0 max-w-(--reading-measure-prose) break-words", STATE_INK[line.state])}
         data-slot="composer-next-turn"
         data-unset={line.state === "unset" ? "" : undefined}
         data-failed={line.state === "failed" ? "" : undefined}
