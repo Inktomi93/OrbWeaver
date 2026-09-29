@@ -124,6 +124,17 @@ WT_COUNT=$(git worktree list 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')
 echo "--- worktrees: ${WT_COUNT:-?} beyond main (run: git worktree list — resume live lanes via SendMessage to the dispatch map's agentIds, NEVER respawn; sweep only under containment proofs)"
 DIRTY=$(git status --short 2>/dev/null | head -5)
 if [ -n "$DIRTY" ]; then echo "--- UNCOMMITTED on main (investigate before merging anything):"; echo "$DIRTY"; else echo "--- main working tree: clean"; fi
+
+# ORIGIN SYNC. Work pushed from another machine or a cloud session is invisible until fetched, and a
+# session that starts on a stale main duplicates it. Fetch with a bound and warn when main lags origin.
+if timeout 15 git fetch -q origin main 2>/dev/null; then
+  BEHIND=$(git rev-list --count main..origin/main 2>/dev/null)
+  if [ "${BEHIND:-0}" -gt 0 ]; then
+    echo "!!! main is ${BEHIND} commit(s) BEHIND origin/main — merge origin before any work or dispatch (git log main..origin/main)"
+  fi
+else
+  echo "--- origin fetch failed — main's sync with origin is unverified"
+fi
 echo "--- standing posture and procedure: the injected orchestrator skill (FIRST ACTION 2 above). claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
 
 # MEMORY.md GUARD. The harness injects the orchestrator's MEMORY.md and truncates it silently past 200

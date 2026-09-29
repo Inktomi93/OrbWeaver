@@ -49,7 +49,7 @@ Do not delegate a single read you need now, a decision, or anything the user ask
 
 ## Lane cap
 
-Run at most four lanes at once. Raise the cap only on an explicit owner ruling, written here.
+Run at most three lanes at once. Raise the cap only on an explicit owner ruling, written here.
 
 - Let over-cap lanes finish. Never refill above the cap.
 - Start gate-heavy lanes minutes apart. Simultaneous verification spikes load and makes gates flaky.
