@@ -783,6 +783,8 @@ const SUBSTITUTION_OPEN = /\$\(|`/;
 // one only polls for a notification that is coming anyway. The second form catches a variable-prefixed dir.
 const HARNESS_TASK_FILE = /\/tmp\/claude-\d+\/\S*\/tasks\/|\/tasks\/[\w.-]+\.(?:done|exit|output)\b/;
 const TAIL_BIN = /^(?:\S*\/)?tail$/;
+// A background task's output file as the Read tool names it: always an absolute path.
+const HARNESS_TASK_OUTPUT = /^\/tmp\/claude-\d+\/.+\/tasks\/[^/]+\.output$/;
 // `pnpm doc` verbs that write the board. The orchestrator owns the board, so a lane reports instead.
 const DOC_WRITE_VERBS = new Set(["new", "item", "set", "land", "remove", "index", "status", "review"]);
 // A file a stage's stdout is captured into (`> log`, `&> log`); an fd merge such as `2>&1` names no file.
@@ -1064,6 +1066,8 @@ const REASONS = {
   foregroundSleep: `A foreground \`sleep\` blocks this turn and re-bills your whole context while it waits. A literal sleep of 2s or less between real steps, or inside a bounded \`for\` loop, still runs. ${WAIT_DENY_NEXT_STEP}`,
   sleepOnly: `A command whose only work is \`sleep\` is a wait, backgrounded or not: it spends a tool call and re-bills your whole context to do nothing. ${WAIT_DENY_NEXT_STEP}`,
   taskFileWait: `This loop waits on a Claude Code background task file. The harness already notifies you when that task exits, so the loop only spends tool calls. ${WAIT_DENY_NEXT_STEP}`,
+  taskOutputReread: (file) =>
+    `You already read \`${file}\`. It is a background task's output file, and the harness notifies you when that task exits, so reading it again is a poll. ${WAIT_DENY_NEXT_STEP}`,
   docWriteLane: (verb) =>
     `\`pnpm doc ${verb}\` writes the board, and the orchestrator owns the board: put the item's title, what, why and done in your report.`,
   trueOrColonFiller: `A command that is only \`true\`/\`:\` is filler: it re-bills your whole context and does nothing. ${WAIT_DENY_NEXT_STEP}`,
@@ -3055,8 +3059,12 @@ function writeStreakState(projectDir, key, state) {
 /** Update this agent/session's read streak for the current command and say whether it is the THIRD (or
  *  later) consecutive read of the same target. Any command that is NOT one of the tracked status-read
  *  shapes resets the streak — "no other command between" is the rule, so real work in between clears it. */
+function streakKey(ctx) {
+  return String(ctx.agentId ?? ctx.sessionId ?? "main").replace(/[^\w.-]/g, "_");
+}
+
 function repeatedStatusReadDeny(ctx, command, blank, clauses) {
-  const key = String(ctx.agentId ?? ctx.sessionId ?? "main").replace(/[^\w.-]/g, "_");
+  const key = streakKey(ctx);
   const read = statusReadTargetKind(command, blank, clauses);
   if (read === null) {
     writeStreakState(ctx.projectDir, key, null);
@@ -3066,6 +3074,26 @@ function repeatedStatusReadDeny(ctx, command, blank, clauses) {
   const count = prev !== null && prev.kind === read.kind && prev.target === read.target ? prev.count + 1 : 1;
   writeStreakState(ctx.projectDir, key, { kind: read.kind, target: read.target, count });
   return count >= STATUS_READ_STREAK_DENY_AT ? { target: read.target, count } : null;
+}
+
+/** The Read tool on a background task's output file. The first Read per agent is a check-in and a later
+ *  one is a poll, so it denies. Every such Read also counts as a status read of that path, so a Bash
+ *  re-read after it continues the same streak. Null when the Read is not this rule's business. */
+function taskOutputReadVerdict(filePath, ctx) {
+  if (!HARNESS_TASK_OUTPUT.test(filePath)) {
+    return null;
+  }
+  const key = streakKey(ctx);
+  const prev = readStreakState(ctx.projectDir, key);
+  const count = prev !== null && prev.kind === "log" && prev.target === filePath ? prev.count + 1 : 1;
+  writeStreakState(ctx.projectDir, key, { kind: "log", target: filePath, count });
+  const seenKey = `${key}.task-output`;
+  const seen = readStreakState(ctx.projectDir, seenKey) ?? [];
+  if (!seen.includes(filePath)) {
+    writeStreakState(ctx.projectDir, seenKey, [...seen, filePath]);
+    return null;
+  }
+  return { decision: "deny", rule: "task-output-reread", reason: REASONS.taskOutputReread(filePath) };
 }
 
 // ── drizzle-kit, subagent-scoped (owner directive, 2026-09-29): parallel lanes generating migrations
@@ -3740,6 +3768,30 @@ async function runBatchMode() {
   process.stdout.write(JSON.stringify(out, null, 2));
 }
 
+/** The Read branch of the hook: deny a re-read of a task output file, otherwise defer. It never allows, so
+ *  every other Read keeps the normal permission flow. */
+function runReadHook(input, filePath) {
+  const projectDir = process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd();
+  if (ENV_KILL.test(process.env.ORB_TOOL_GUARD ?? "")) {
+    emit(DEFER);
+    return;
+  }
+  const result = taskOutputReadVerdict(filePath, { agentId: input.agent_id ?? null, sessionId: input.session_id ?? null, projectDir });
+  if (result === null) {
+    emit(DEFER);
+    return;
+  }
+  logDecision(projectDir, {
+    t: new Date().toISOString(),
+    sid: input.session_id ?? null,
+    agent: input.agent_type ?? "main",
+    decision: result.decision,
+    rule: result.rule,
+    read: filePath,
+  });
+  emit(hookOutput({ permissionDecision: "deny", permissionDecisionReason: result.reason }));
+}
+
 async function runHookMode() {
   const started = Date.now();
   let projectDir = process.cwd();
@@ -3750,6 +3802,11 @@ async function runHookMode() {
       return;
     }
     const input = JSON.parse(raw);
+    const filePath = input?.tool_input?.file_path;
+    if (input?.tool_name === "Read" && typeof filePath === "string") {
+      runReadHook(input, filePath);
+      return;
+    }
     const command = input?.tool_input?.command;
     if (input?.tool_name !== "Bash" || typeof command !== "string") {
       emit(DEFER);

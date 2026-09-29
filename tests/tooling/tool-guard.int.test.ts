@@ -1200,6 +1200,42 @@ test("contract: the repeated-status-read streak survives across separate hook in
   expect(read("agent-y").out.hookSpecificOutput?.permissionDecision).toBe("allow");
 });
 
+// The Read tool on a harness task's output file is the same poll as a Bash read of it: the first Read is a
+// check-in, a second Read of the same file by the same agent is waiting on a notification that is coming.
+test("contract: a second Read of the same task output file denies, per agent, and counts into the read streak", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "tg-task-read-"));
+  const envPairs: [string, string][] = [["CLAUDE_PROJECT_DIR", tmp]];
+  const taskFile = `${TASKS}/bb98qi3t2.output`;
+  const readInput = (filePath: string, agentPairs: [string, unknown][]): Record<string, unknown> =>
+    Object.fromEntries([
+      ["tool_name", "Read"],
+      ["tool_input", Object.fromEntries([["file_path", filePath]])],
+      ["cwd", "/repo"],
+      ["session_id", "test-session-read"],
+      ...agentPairs,
+    ]);
+  const read = (filePath: string, agentPairs: [string, unknown][]): string | undefined =>
+    runHook(readInput(filePath, agentPairs), envPairs).out.hookSpecificOutput?.permissionDecision;
+  const agentA: [string, unknown][] = [["agent_id", "agent-read-a"]];
+  expect(read(taskFile, agentA)).toBe("defer");
+  expect(read(taskFile, agentA)).toBe("deny");
+  expect(read(taskFile, agentA)).toBe("deny");
+  expect(read(`${TASKS}/other.output`, agentA)).toBe("defer"); // a different task file is its own first read
+  expect(read(taskFile, [["agent_id", "agent-read-b"]])).toBe("defer"); // another agent keeps its own record
+  expect(read("/tmp/x.log", agentA)).toBe("defer"); // not a task output file
+  expect(read("/tmp/x.log", agentA)).toBe("defer");
+  expect(read(taskFile, [])).toBe("defer"); // the main session is treated the same way
+  const mainSecond = runHook(readInput(taskFile, []), envPairs);
+  expect(mainSecond.out.hookSpecificOutput?.permissionDecision).toBe("deny");
+  expect(mainSecond.out.hookSpecificOutput?.permissionDecisionReason).toContain("write your final report now");
+  // one Read of a task file, then two Bash reads of it, is the third consecutive read of that target
+  const agentC: [string, unknown][] = [["agent_id", "agent-read-c"]];
+  expect(read(`${TASKS}/c.output`, agentC)).toBe("defer");
+  const bash = (): string | undefined => runHook(bashInput(`tail -5 ${TASKS}/c.output`, agentC), envPairs).out.hookSpecificOutput?.permissionDecision;
+  expect(bash()).toBe("allow");
+  expect(bash()).toBe("deny");
+});
+
 // `pnpm typecheck` has no single known artifact file (unlike check/verify/test), so it keeps the generic
 // private-log rewrite — this test is about THAT mechanism (the exit-code-preservation template), not about
 // the check:show/artifact substitution, which gets its own test below.
@@ -2137,6 +2173,9 @@ test("registration: settings.json wires this guard on PreToolUse, at a path that
   // the registration is a PATH CLAIM: it must resolve to this file, and the file must be runnable AS one
   // (shebang + exec bit) — this form invokes it directly, not through `bash`, which cannot run an .mjs.
   expect(at(guard, 0)).toContain("$CLAUDE_PROJECT_DIR/.claude/hooks/tool-guard.mjs");
+  // the same guard judges the Read tool, for the task-output-file poll
+  const read = (settings.hooks["PreToolUse"] ?? []).filter((entry) => entry.matcher === "Read");
+  expect(read.flatMap((entry) => entry.hooks.map((h) => h.command))).toEqual(["$CLAUDE_PROJECT_DIR/.claude/hooks/tool-guard.mjs"]);
   expect(existsSync(HOOK)).toBe(true);
   expect(() => accessSync(HOOK, constants.X_OK)).not.toThrow();
   expect(readFileSync(HOOK, "utf8").split("\n")[0]).toBe("#!/usr/bin/env node");
