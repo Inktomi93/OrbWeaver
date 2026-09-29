@@ -975,18 +975,22 @@ function validateUrl(url: URL, options: SafeFetchOptions): void {
   } else if (url.protocol !== "https:") {
     blockEgress("scheme", host, `scheme ${url.protocol} is not allowed (https only)`);
   }
-  // URL userinfo is implicit Authorization state owned by the URL parser/fetch implementation rather than
-  // by our redirect header policy. Refuse it outright so credentials can neither reach hop zero nor survive
-  // into a cross-origin redirect through implementation-specific fetch behavior.
-  if (url.username !== "" || url.password !== "") {
-    blockEgress("credentials", host, "URL-embedded credentials are not allowed");
-  }
   // The user's own configured backend may legitimately be an IP literal (BYO vLLM at 192.168.x.y).
   if (!ownerConfigured && isIpLiteralHost(url.hostname)) {
     blockEgress("ip-literal", host, "IP-literal hosts are not allowed (a hostname is required)");
   }
   if (options.allowedHosts !== ANY_HOST && !hostAllowed(host, options.allowedHosts)) {
     blockEgress("host-not-allowed", host, `host ${host} is not in the allowlist`);
+  }
+  // URL userinfo is implicit Authorization state owned by the URL parser/fetch implementation rather than
+  // by our redirect header policy. Refuse it outright so credentials can neither reach hop zero nor survive
+  // into a cross-origin redirect through implementation-specific fetch behavior. Checked LAST, after the host
+  // allowlist: userinfo (`user@host`) sits before the real authority the URL parser resolves into `url.hostname`,
+  // so a security pin proving that resolution is correct (`https://api.chub.ai@evil.com` must fail as
+  // `host-not-allowed`, not merely "refused") would silently stop proving anything the moment ANY userinfo
+  // short-circuited the reason first.
+  if (url.username !== "" || url.password !== "") {
+    blockEgress("credentials", host, "URL-embedded credentials are not allowed");
   }
 }
 
