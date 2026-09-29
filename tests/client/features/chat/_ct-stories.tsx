@@ -34,9 +34,9 @@ import { HomeSurface } from "@orb/client/features/home";
 // #618 — the shell-level detail modal the room-image click opens; imported through the SAME front door the
 // providers use, never a relative path (a relative import gets a different React context instance).
 import { ImageDetailBody, ImageEditBody } from "@orb/client/features/imagery";
-// B8: the REAL rpg dice ASK source + in-thread RESULT renderer, through the
+// B8/D269: the REAL rpg dice composer contribution + in-thread RESULT renderer, through the
 // same front door the providers use (a relative import gets a different React context instance).
-import { rpgDiceAskSource, rpgDiceToolRenderer } from "@orb/client/features/rpg";
+import { rpgDiceComposerMediaSurface, rpgDiceToolRenderer } from "@orb/client/features/rpg";
 import type {
   ChatContextState,
   ChatControl,
@@ -3645,6 +3645,7 @@ function ChatsSelectionTitleProbe(): ReactElement {
 const CHAT_CONTROLS_FIXTURES = [
   "empty",
   "chips",
+  "grouped-chips",
   "chips-over-cap",
   "card",
   "card-unstyled-detail",
@@ -3700,6 +3701,21 @@ function buildCtControls(fixture: ChatControlsFixture, deps: CtControlDeps): rea
     }
     case "chips": {
       return [chip("chip-send", "Draw your blade", "send", "I draw my blade."), chip("chip-compose", "Time skip", "compose", "Some hours later,")];
+    }
+    case "grouped-chips": {
+      const grouped = ["one", "two"].map(
+        (name): ChatControl => ({
+          kind: "chip",
+          id: `chip-${name}`,
+          disclosureLabel: "Rule prompts",
+          action: { id: `chip-${name}-action`, label: `Choose ${name}`, mode: "execute", run: runOnce, pending: false },
+        }),
+      );
+      return [
+        ...grouped,
+        chip("chip-automation-send", "Accept the clue", "send", "I accept the clue."),
+        chip("chip-automation-compose", "Answer later", "compose", "Later,"),
+      ];
     }
     case "chips-over-cap": {
       // SIX chips against the band's display cap of four (one rule's arm caps at 4; N rules do not).
@@ -3949,15 +3965,31 @@ export function AutomationSuggestionCardStory(): ReactElement {
   );
 }
 
-// ── B8: the REAL rpg dice ASK source, wired the door's way ──────────────
-// The GAME-ARM twin of the automation chips story: `rpgDiceAskSource` from `features/rpg`, in the SAME registry
-// `authed-app.tsx` builds, rendered blind through the one `above-composer` mount. The source gates on
-// `isRpgEngaged` off `chat.getChat.rpg`, so the CT presents an ENGAGED pointer to open it (a plain chat gets no
-// chips — that acceptance arm rides the CT). Full room (not a bare band) so the CT can read THIS room's real
-// composer draft: an `execute` chip rolls `rpg.rollDice` and appends the baked stamp for the member to send.
-export function RpgDiceAskStory(): ReactElement {
-  const sources = createContributorRegistry<ChatControlSource>("chat-controls", [rpgDiceAskSource]);
+/** The always-mounted automation control source and Activity context share one room so a rule terminal
+ * proves cross-surface invalidation through the production subscribers. */
+export function AutomationActivityFreshnessStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  const sources = createContributorRegistry<ChatControlSource>("chat-controls", [automationSuggestionSource]);
   const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [makeChatControlsContribution(sources)]);
+  const contextContributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", [automationActivityTab]);
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <CtChatContributorSectionRegistry contextContributors={contextContributors} surfaceContributors={surfaceContributors}>
+          <ChatControlsRoom surfaceContributors={surfaceContributors} />
+          <ChatContextHostHarness />
+        </CtChatContributorSectionRegistry>
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+// ── D269: the REAL rpg dice contribution, wired through the composer utility menu ──────────────
+// Full room so the CT exercises both the contextual menu and this room's real composer draft.
+export function RpgDiceComposerStory(): ReactElement {
+  const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [rpgDiceComposerMediaSurface]);
   return (
     <CtDataProviders>
       <SocketHost>

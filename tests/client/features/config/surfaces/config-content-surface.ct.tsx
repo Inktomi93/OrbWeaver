@@ -483,9 +483,7 @@ test("an ADMIN sees the Distribute section on the Plugins group, and publishing 
 });
 
 test("server-wide withdrawal names its account-wide effect and holds the confirm through cancel, failure, retry, and success", async ({ mount, page }) => {
-  let published: TrpcWireOutput<"plugin.listDistributed"> = [
-    { slug: "house-style", name: "House Style", version: "1.0.0", distributedAt: 0, updatedAt: 0 },
-  ];
+  let published: TrpcWireOutput<"plugin.listDistributed"> = [{ slug: "house-style", name: "House Style", version: "1.0.0", distributedAt: 0, updatedAt: 0 }];
   let attempts = 0;
   const firstWithdrawal = trpcHold();
   await stub(page, {

@@ -1,4 +1,4 @@
-// The Databank CONTEXT panel's ACTIVE IN block — where this document is switched on, as DOORS.
+// The Databank CONTEXT panel's ACTIVE IN block — its server-confirmed scope plus owner-character controls.
 //
 // ── THE COUNT-VS-LIST FORK, AND WHY IT REOPENED (#276, 2026-08-19) ──────────────────────────────────
 // This block shipped as two integer Badges, and `databank-context-body.tsx`'s header recorded the ruling
@@ -28,25 +28,26 @@
 // share a title — the same pairing the regex list and the chats list use.
 
 import type { VisibleRoomRef } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
+import type { ChatId, DocumentId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Icon, MessagesSquare, Users } from "@orb/ui/icons";
+import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryErrorState, useTRPC } from "#data";
 import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
-import { selectCharacter, selectChat, setActiveSection } from "#state";
+import { selectChat, setActiveSection } from "#state";
+import { CharacterAttachments } from "./databank-character-attachments.tsx";
 
 /**
- * Read-only provenance: WHERE this document is switched on, and a way into each of them.
+ * Server-confirmed provenance: WHERE this document is switched on, plus owner-character writes.
  *
  * Non-suspending — the panel's own two reads already resolved, and a slow junction read must not blank the
  * Everywhere toggle above it.
  */
-export function ActiveInSection({ documentId }: { readonly documentId: DocumentId }): ReactElement {
+export function ActiveInSection({ documentId, documentName }: { readonly documentId: DocumentId; readonly documentName: string }): ReactElement {
   const trpc = useTRPC();
   const attachments = useQuery(trpc.databank.listAttachments.queryOptions({ id: documentId }));
 
@@ -75,14 +76,10 @@ export function ActiveInSection({ documentId }: { readonly documentId: DocumentI
           </Row>
         ) : null}
         <RoomDoors rooms={rooms} />
-        <Stack gap="tight">
-          {characters.map((character) => (
-            <CharacterDoor id={character.id} key={character.id} name={character.name} />
-          ))}
-        </Stack>
+        <CharacterAttachments characters={characters} documentId={documentId} documentName={documentName} />
         {/* Never render nothing: "no attachments" is a real, common state and a blank block reads as a
             failed load (empty states are load-bearing). */}
-        {nowhere ? <Text voice="gloss">Nowhere yet — it only feeds chats you attach it to.</Text> : null}
+        {nowhere ? <Text voice="gloss">Nowhere yet — attach it to one of your characters, or from a chat's Databank panel.</Text> : null}
       </Stack>
     );
   }
@@ -124,28 +121,9 @@ function RoomDoor({ room, stamp }: { readonly room: VisibleRoomRef; readonly sta
   );
 }
 
-/** One character card that carries this document — its name is its own, so there is no chain to run. */
-function CharacterDoor({ id, name }: { readonly id: CharacterId; readonly name: string }): ReactElement {
-  return (
-    <Button className="w-full justify-start" intent="ghost" onClick={(): void => openCharacter(id)} size="sm" type="button">
-      <Icon icon={Users} size="xs" />
-      <Text as="span" className="min-w-0 truncate" voice="label">
-        {name}
-      </Text>
-    </Button>
-  );
-}
-
 /** Open the room this document feeds — section first, then the room, so CONTENT is already showing chats
  *  when the active chat changes (`notification-bell.tsx` / the corpus omnibox spell it identically). */
 function openChat(chatId: ChatId): void {
   setActiveSection("chats");
   selectChat(chatId);
-}
-
-/** Open the card that carries this document — the same two writes one section over, through the SAME store
- *  action a library-row click calls. */
-function openCharacter(characterId: CharacterId): void {
-  setActiveSection("characters");
-  selectCharacter(characterId);
 }

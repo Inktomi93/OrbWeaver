@@ -1,4 +1,4 @@
-// THE CARD-ATLAS GUEST HARNESS — the REAL shipped `main.js` running in a bare `node:vm` context under the
+// THE CARD-ATLAS GUEST HARNESS — the release compiler's real `main.js` bytes running in a bare `node:vm` context under the
 // realm's OWN exported `AMBIENT_STUBS`, over a fake `orb.host(1)`.
 //
 // WHY THE DENIAL COMES FROM THE REALM AND NOT FROM HERE (#805): the five "parked" hubs of the v1.3 live drive
@@ -16,11 +16,13 @@
 // WHAT THE REAL SANDBOX ADDS (marshalling, caps, the belts) is pinned in `tests/server/infra/plugin-host/`;
 // the atlas's registration + activation publish in the REAL sandbox is `seed-example-plugins.int.test.ts`.
 
-import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import vm from "node:vm";
+import { packPluginDirectory } from "@orb/plugin-toolchain";
 import { AMBIENT_STUBS } from "@orb/server/infra/plugin-host";
+import { unzipSync } from "fflate";
 
-const MAIN_JS = new URL("../../packages/showcase-plugins/bundles/card-atlas/main.js", import.meta.url);
+const REPO_ROOT = join(import.meta.dirname, "..", "..");
 const FIXED_EPOCH = 1_700_000_000_000;
 /** Macrotask spins per settle — enough for the guest's floated search/open continuations to land. */
 const SETTLE_TICKS = 24;
@@ -89,10 +91,25 @@ async function settle(): Promise<void> {
 
 const DEFAULT_GRANTS: readonly string[] = ["storage.kv", "ui.surface", "net.fetch"];
 
+const ATLAS_SOURCE = (async (): Promise<string> => {
+  const built = await packPluginDirectory({
+    pluginDirectory: join(REPO_ROOT, "packages", "showcase-plugins", "bundles", "card-atlas"),
+    sdkDirectory: join(REPO_ROOT, "packages", "plugin-sdk"),
+  });
+  if (built.diagnostics.length > 0 || built.bundle === null) {
+    throw new Error(`card-atlas author build failed: ${built.diagnostics.map(({ message }) => message).join("; ")}`);
+  }
+  const main = unzipSync(built.bundle)["main.js"];
+  if (main === undefined) {
+    throw new Error("card-atlas release bundle has no main.js");
+  }
+  return new TextDecoder().decode(main);
+})();
+
 /** Boot the real `main.js` under the realm's denial with the given wire + host surface, activation included. */
 export async function bootAtlas(options: AtlasBootOptions = {}): Promise<AtlasDrive> {
   const responses = options.responses ?? [];
-  const source = await readFile(MAIN_JS, "utf8");
+  const source = await ATLAS_SOURCE;
   const published: AtlasPublish[] = [];
   const logs: string[] = [];
   const fetched: string[] = [];

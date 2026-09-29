@@ -136,7 +136,8 @@ function ValueCell({
   readonly maxEditTitle?: string;
 }): ReactElement {
   return (
-    <Row gap="field" align="center" className="shrink-0">
+    // The inline buttons' token-sized hit pseudos extend beyond their text boxes; reserve that edge inside the row.
+    <Row gap="field" align="center" className="shrink-0 pr-block">
       <TrackerValue
         ariaLabel={`${name} value`}
         // Unset ⇒ an EMPTY field wearing the em-dash placeholder, never a `0` the host has to notice is fake.

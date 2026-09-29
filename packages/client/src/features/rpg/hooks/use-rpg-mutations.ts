@@ -399,17 +399,16 @@ export const useRestoreCheckpoint = createEntityMutation<inferInput<Trpc["rpg"][
   errorToast: "Couldn't restore the mark.",
 });
 
-/** The baked roll read off the wire, never re-spelled — the B8 dice-ask source reads `result.stamp`. */
+/** The baked roll read off the wire, never re-spelled — the composer dice action reads `result.stamp`. */
 type RollDiceOutcome = inferOutput<Trpc["rpg"]["rollDice"]>;
 
 /** `rpg.rollDice` — the B8 member-facing CHECK verb (server CSPRNG, bake-once; member-gated, the verb refuses
  *  a non-member). The roll happens ONCE server-side and comes back as data — the `stamp` (`[dice: 2d6 → 7]`)
- *  the dice-ask source inserts into THIS room's composer for the member to send as their turn (canon), and the
+ *  the composer dice action inserts into THIS room's draft for the member to send as their turn (canon), and the
  *  narration reacts. Reconciles NOTHING: the roll is zero-state (no durable row, no covering bus event — the
  *  stamp becomes canon only when the member's own `chat.send` fires, which the chat bus already covers), so
  *  the settle invalidates an empty filter list. Not `busDriven`: no verb-emitted event covers it. */
 export const useRollDice = createEntityMutation<inferInput<Trpc["rpg"]["rollDice"]>, RollDiceOutcome>({
   options: (trpc) => trpc.rpg.rollDice.mutationOptions(),
   invalidates: () => [],
-  errorToast: "Couldn't roll the dice.",
 });

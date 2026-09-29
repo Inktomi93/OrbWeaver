@@ -2,8 +2,8 @@
 // Exports ONLY components (a mixed component+constant export breaks playwright-ct's named-import rewrite).
 // The story wraps the REAL `RulesSection` in `<CtDataProviders>` (Query + real tRPC over the stubbed
 // network) plus the `QueryBoundary` the "This chat" tab supplies in production, so a CT exercises the real
-// suspense + tRPC query-key + mutation path. The automation-room subscription the section mounts is inert
-// here (no `useOrbSocket`, so the room is recorded-but-never-announced — no SSE stub needed).
+// suspense + tRPC query-key + mutation path. The production automation-room subscription lives in chat's
+// always-mounted control source, not this section, so this focused story needs no socket host or SSE stub.
 //
 // The SECOND story mounts the REAL "This chat" tab body with the REAL section contribution in its registry
 // — the #616 graft end to end (chat renders a foreign feature's section, importing nothing from it). It is
@@ -26,6 +26,7 @@ import type { ConfigSectionContribution } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { RoomActivityLog } from "../../../../packages/client/src/features/automation/components/room-activity-log.tsx";
 import { CommittedSettingsTab } from "../../../../packages/client/src/features/chat/components/settings-context-tab.tsx";
 import { CtAppDataProviders, CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
@@ -48,6 +49,29 @@ export function RulesSectionStory({ chatId, width = CONTEXT_PANE_WIDTH }: { read
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's rules" onRetry={retry} />}
         >
           <RulesSection chatId={chatId} />
+        </QueryBoundary>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** Work 0066's local-writer control: the real Rules surface and room Activity observer share one client.
+ * `testRule` emits no bus event, so its mutation settle must repaint the already-mounted activity log. */
+export function RulesActivityFreshnessStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: CONTEXT_PANE_WIDTH }}>
+        <QueryBoundary
+          fallback={<Text voice="gloss">Loading rules…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's rules" onRetry={retry} />}
+        >
+          <RulesSection chatId={chatId} />
+        </QueryBoundary>
+        <QueryBoundary
+          fallback={<Text voice="gloss">Loading activity…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's activity" onRetry={retry} />}
+        >
+          <RoomActivityLog chatId={chatId} />
         </QueryBoundary>
       </div>
     </CtDataProviders>

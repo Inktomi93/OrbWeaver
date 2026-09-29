@@ -333,6 +333,32 @@ test("Simple send fires chat.commitMessage (post without generating) and clears 
 // to decide which steers render; a plot steer fires chat.generate with a trusted-template gameSteer KIND.
 const GAME_CHAT = { participants: [], rpg: { gameId: "rpg_game_ct_steer", engaged: true } };
 
+test("an unavailable connection disables menu generation but keeps Simple send available", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": () => GAME_CHAT,
+    "rpg.getGame": () => ({ chatId: COMPOSER_CHAT_ID, publicConfig: { plotProgression: true } }),
+    "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }),
+    "chat.commitMessage": () => EMPTY_TURN,
+  });
+  const component = await mount(<ComposerStory />);
+  await component.getByRole("textbox", { name: "Message" }).fill("Save this note without a reply");
+  await component.getByRole("button", { name: "Message tools" }).click();
+
+  const choices = page.getByRole("menuitem", { name: "Offer choices" });
+  const plot = page.getByRole("menuitem", { name: "Plot", exact: true });
+  await expect(choices).toBeDisabled();
+  await expect(plot).toBeDisabled();
+  await expect(choices).toHaveAttribute("title", /connection/iu);
+  await expect(plot).toHaveAttribute("title", /connection/iu);
+  const simpleSend = page.getByRole("menuitem", { name: "Simple send" });
+  await expect(simpleSend).toBeEnabled();
+  await simpleSend.click();
+  await expect.poll(() => trpc.count("chat.commitMessage")).toBe(1);
+  await expect.poll(() => trpc.count("chat.generate")).toBe(0);
+});
+
 /**
  * Wait for a just-opened Base UI menu popup to STOP MOVING before pointing at anything inside it.
  *

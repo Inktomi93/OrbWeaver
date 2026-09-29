@@ -37,6 +37,9 @@
 // The footer REMAINS for the honest count (`totalCount` is a real server COUNT over the same scope this page
 // windows, so "showing N of M" states the walk) and for CLEAR: a search that matches nothing left "No
 // characters match." as the whole pane, with the only way out being to hand-delete the term you typed.
+// Exclusions are applied AFTER each server page because `character.list` deliberately has no arbitrary-id
+// exclusion input. Filtered pages therefore advance until the remaining rows have a pointer-scrollable
+// tail or exhaust the walk; a rejected tail remains visible as an error + retry beside retained pages.
 //
 // OWNER RULING: lives client-shared (NOT @orb/ui — it wires #data/#state client seams). Named `CharacterPicker`
 // (not the spec's generic "EntityPicker"): both consumers pick characters and the row is character-shaped
@@ -147,6 +150,7 @@ function CharacterPickerBody({
   autoFocusSearch = false,
 }: CharacterPickerProps): ReactElement {
   const searchRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   // The SWAP hook, not the guarded one: this body mounts as the direct result of a user activation, and
   // the control that opened it is gone (or the popup has already taken focus), so the `<body>` guard would
   // decline exactly when the caret is wanted.
@@ -169,7 +173,9 @@ function CharacterPickerBody({
     ),
   );
   const excluded = new Set<string>(excludeIds ?? []);
-  const candidates = query.data.pages.flatMap((page) => page.items).filter((c) => !excluded.has(c.id));
+  const loaded = query.data.pages.flatMap((page) => page.items);
+  const candidates = loaded.filter((c) => !excluded.has(c.id));
+  const excludedLoadedCount = loaded.length - candidates.length;
   // The server's own COUNT over this exact scope (search included), off the newest page — never
   // `candidates.length`, which is "how far the walk has got", i.e. the number the footer contrasts it with.
   const totalCount = query.data.pages.at(-1)?.totalCount ?? candidates.length;
@@ -178,9 +184,18 @@ function CharacterPickerBody({
   const { hasNextPage, isFetching, fetchNextPage } = query;
   const fetchMore = (): void => {
     if (hasNextPage && !isFetching) {
-      fetchNextPage().catch(() => undefined); // Query state owns the fetch error.
+      // The retained-page error below owns the rejection; the promise is consumed so it cannot become an
+      // unhandled rejection while TanStack exposes the same failure through `isFetchNextPageError`.
+      fetchNextPage().catch(() => undefined);
     }
   };
+  useEffect(() => {
+    const list = listRef.current;
+    const cannotScrollToTail = candidates.length === 0 || (list !== null && list.clientHeight > 0 && list.scrollHeight <= list.clientHeight);
+    if (cannotScrollToTail && hasNextPage && !isFetching && !query.isFetchNextPageError) {
+      fetchNextPage().catch(() => undefined);
+    }
+  }, [candidates.length, fetchNextPage, hasNextPage, isFetching, query.isFetchNextPageError]);
   const onScroll = (event: UIEvent<HTMLDivElement>): void => {
     const el = event.currentTarget;
     if (el.scrollHeight - el.scrollTop - el.clientHeight <= TAIL_FETCH_SLACK_PX) {
@@ -195,7 +210,7 @@ function CharacterPickerBody({
   return (
     <Command className="min-h-0" label={label} {...(onEscape === undefined ? {} : { onEscape })}>
       <CommandInput aria-label={placeholder} onValueChange={setTerm} placeholder={placeholder} ref={searchRef} value={term} />
-      <CommandList className={listClassName ?? "max-h-80"} onScroll={onScroll}>
+      <CommandList className={listClassName ?? "max-h-80"} onScroll={onScroll} ref={listRef}>
         <CommandEmpty>{emptyText}</CommandEmpty>
         {leadingGroup}
         {rowsHeading === undefined ? rows : <CommandGroup heading={rowsHeading}>{rows}</CommandGroup>}
@@ -209,12 +224,24 @@ function CharacterPickerBody({
           `role="listbox"`, which is what made the old paging control announce as a character. Rendered only
           when it has something to say: an exhausted walk with no search is a footer about nothing. Carries
           the honest count and CLEAR — the tail load itself is now keyboard/scroll-driven, no button. */}
-      {hasNextPage || term !== "" ? (
+      {hasNextPage || term !== "" || query.isFetchNextPageError || excludedLoadedCount > 0 ? (
         <Row align="center" className="border-border border-t" gap="row" padding="row">
           <Text as="span" voice="gloss">
-            Showing {candidates.length} of {totalCount}
+            {excludedLoadedCount === 0
+              ? `Showing ${candidates.length} of ${totalCount}`
+              : `Showing ${candidates.length} available · checked ${loaded.length} of ${totalCount}`}
           </Text>
           <Row className="flex-1" gap="field" justify="end">
+            {query.isFetchNextPageError ? (
+              <>
+                <Text role="alert" voice="gloss">
+                  Couldn't load more characters.
+                </Text>
+                <Button intent="secondary" onClick={fetchMore} size="sm">
+                  Retry loading more characters
+                </Button>
+              </>
+            ) : null}
             {term === "" ? null : (
               <Button
                 intent="ghost"

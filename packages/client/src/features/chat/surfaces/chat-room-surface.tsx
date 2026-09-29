@@ -44,7 +44,7 @@ export interface ChatRoomSurfaceProps {
  *  ⇒ an empty array, so callers can gate layout on `.length` (the thread-flank conditional, §17 M8). */
 function resolveRoomAnchor(
   registry: ContributorRegistry<ChatSurfaceContribution>,
-  anchor: "thread-flank" | "above-composer",
+  anchor: "thread-flank" | "above-composer" | "composer-action" | "composer-media",
   state: ChatRoomSurfaceState,
 ): readonly { readonly id: string; readonly node: ReactNode }[] {
   return registry
@@ -83,6 +83,8 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
   const roomState: ChatRoomSurfaceState = { chatId };
   const flankContributions = resolveRoomAnchor(surfaceContributors, "thread-flank", roomState);
   const aboveComposerContributions = resolveRoomAnchor(surfaceContributors, "above-composer", roomState);
+  const composerActionContributions = resolveRoomAnchor(surfaceContributors, "composer-action", roomState);
+  const composerMediaContributions = resolveRoomAnchor(surfaceContributors, "composer-media", roomState);
 
   // `min-w-0` beside `min-h-0`: inside the flank ROW the thread is a horizontal flex child, and without it
   // a long unbreakable line in the transcript would push the column past its share instead of scrolling.
@@ -204,7 +206,11 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
               ))}
             </Stack>
           )}
-          <ComposerSlot chatId={chatId} />
+          <ComposerSlot
+            chatId={chatId}
+            actionContributions={composerActionContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+            mediaContributions={composerMediaContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+          />
         </Stack>
       </Surface>
     </ThemeScope>
@@ -220,7 +226,15 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
 // reports `undefined` until warm, mapping to tailRole=null — identical to the old fallback state, but
 // WITHOUT a remount when it fills in. A DIFFERENT chat still fully resets the composer: chat-content.tsx
 // keys ChatRoomSurface by the chat id, so an entity switch remounts this whole subtree deliberately.
-function ComposerSlot({ chatId }: { readonly chatId: ChatId }): ReactElement {
+function ComposerSlot({
+  chatId,
+  actionContributions,
+  mediaContributions,
+}: {
+  readonly chatId: ChatId;
+  readonly actionContributions: readonly ReactNode[];
+  readonly mediaContributions: readonly ReactNode[];
+}): ReactElement {
   const trpc = useTRPC();
   const { data: messagesPage } = useQuery(trpc.chat.listMessages.queryOptions({ chatId }));
   // The raw tail IS the tail a reader means (D124: every canon row is a real message now).
@@ -228,5 +242,13 @@ function ComposerSlot({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const tailRole: MessageRole | null = tail?.role ?? null;
   // continue-on-empty's target: only meaningful when the tail is an assistant turn.
   const tailAssistantMessageId = tail !== undefined && tail.role === "assistant" ? tail.id : null;
-  return <Composer chatId={chatId} tailRole={tailRole} tailAssistantMessageId={tailAssistantMessageId} />;
+  return (
+    <Composer
+      chatId={chatId}
+      tailRole={tailRole}
+      tailAssistantMessageId={tailAssistantMessageId}
+      actionContributions={actionContributions}
+      mediaContributions={mediaContributions}
+    />
+  );
 }

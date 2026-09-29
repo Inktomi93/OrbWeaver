@@ -1,5 +1,5 @@
 // S1 — THE in-chat control band: the ONE surface every transient
-// control near the transcript renders through (rule chips, suggestion/confirm cards, a game's dice ask).
+// control near the transcript renders through (rule chips and suggestion/confirm cards).
 // Mounted once per room at the `above-composer` anchor by `lib/chat-controls-contribution.tsx`.
 //
 // IT OWNS THE CONSUMPTION CONTRACT, generalized from `choice-send-provider.tsx` (which stays the
@@ -17,10 +17,10 @@
 //
 // THE STACKING LAW (§3-S1 + authoring law 5, the attention budget). `CHAT_CONTROL_KINDS` declares the
 // stack order (cards above chips) and the renderer map below is exhaustive over it, so a new kind fails
-// `tsc` until it has both. Cards: exactly ONE visible (the newest), the rest disclosed as a mono count —
-// the per-arm `max(4)` bounds one rule's chips, nothing bounds N rules firing on one event. Chips: one row,
-// a display cap, the remainder behind an EXPANDER (#684 P2 — a count is a dead end when the hidden chips are
-// another rule's vote options). Card buttons are neutral/outline and each card
+// `tsc` until it has both. Cards: exactly ONE visible (the newest), the rest disclosed as a mono count.
+// Chips rest behind contextual named disclosures on every pointer, so distinct sources remain legible
+// without becoming a permanent strip between the reader and the composer.
+// Card buttons are neutral/outline and each card
 // carries an explicit dismiss; the composer's Send stays CONTENT's one `primary` (UI §4.3 rule 3).
 //
 // THE BAND OWNS THE READING SURFACE, not the controls on it (#674 — `BAND_READING_SURFACE` below states the
@@ -37,7 +37,6 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useId, useState } from "react";
-import { HIDE_AT_COARSE, SHOW_ONLY_AT_COARSE } from "#components";
 import type { ChatControl, ChatControlAction, ChatControlKind, ChatControlMode, ChatControlSource, ContributorRegistry } from "#lib";
 import { CHAT_CONTROL_KINDS, CONTROL_CHIPS_COLLAPSE, CONTROL_MODE_CONSEQUENCE, CONTROL_MODE_WORD, controlOverflowNotice, controlStripNotice } from "#lib";
 import { requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
@@ -46,8 +45,6 @@ import { useSendMessage } from "../hooks/use-send-message.ts";
 import type { ChatControlTurnState } from "../lib/chat-control-availability.ts";
 import { resolveControlAvailability } from "../lib/chat-control-availability.ts";
 
-/** How many chips the row shows before disclosing the rest as a count (law 5 — one row, never a wall). */
-const CHIP_DISPLAY_CAP = 4;
 /** How many cards are visible at once. ONE, by law: the newest; the rest are a "+N pending" count. */
 const CARD_DISPLAY_CAP = 1;
 
@@ -142,15 +139,10 @@ function runControlAction(action: ChatControlAction, consumer: ControlConsumer):
 interface ControlActionButtonProps {
   readonly action: ChatControlAction;
   readonly consumer: ControlConsumer;
-  /** `chip` is the pill in the capped row; `card` is a neutral button inside the card's action row. */
+  /** `chip` is the pill in the disclosed row; `card` is a neutral button inside the card's action row. */
   readonly as: ChatControlKind;
-  /** #2426 — the chip row's per-pointer stand-down fragment (`HIDE_AT_COARSE`), or nothing. It rides the
-   *  chip rather than a wrapper element on purpose: a wrapper would give the disclosure a sibling box to
-   *  be pushed past at a FINE pointer, which is the 2026-08-24 P3 defect the wrapping row exists to
-   *  prevent. REQUIRED, and `""` where there is nothing to say: `exactOptionalPropertyTypes` makes an
-   *  explicit `undefined` a different shape from an absent key, and one required string keeps every call
-   *  site honest about which arm it is in. */
-  readonly className: string;
+  /** Standing chips return to their resting disclosure once their action has been invoked. */
+  readonly onInvoked?: () => void;
 }
 
 /** The leading GLYPH per consumption mode — one half of a chip's visible tell that `send` POSTS as your turn,
@@ -196,7 +188,7 @@ const MODE_GLYPH: Record<ChatControlMode, LucideIcon> = {
  *  THE CHIP GLYPH IS SIZED AT THE CALL SITE (#674 P2). A bare lucide component renders at its intrinsic 24px;
  *  the house body-adjacent step is 16px (`ICON_SM`, `Icon size="sm"`). The fix belongs here and NOT on
  *  `@orb/ui` Button's base — a `[&_svg]:size-*` rule there would resize every bare glyph in the app. */
-function ControlActionButton({ action, consumer, as, className }: ControlActionButtonProps): ReactElement {
+function ControlActionButton({ action, consumer, as, onInvoked }: ControlActionButtonProps): ReactElement {
   const availability = resolveControlAvailability(action, consumer.turn);
   const chip = as === "chip";
   const reasonId = useId();
@@ -206,12 +198,14 @@ function ControlActionButton({ action, consumer, as, className }: ControlActionB
       <Button
         aria-describedby={availability.reason === null ? undefined : reasonId}
         aria-label={chip ? `${CONTROL_MODE_WORD[action.mode]} ${action.label}` : undefined}
-        className={className}
         data-mode={action.mode}
         disabled={availability.disabled}
         focusableWhenDisabled={true}
         intent={chip ? "outline" : "secondary"}
-        onClick={(): void => runControlAction(action, consumer)}
+        onClick={(): void => {
+          runControlAction(action, consumer);
+          onInvoked?.();
+        }}
         shape={chip ? "pill" : "control"}
         size={chip ? "chip" : "sm"}
         title={availability.reason ?? CONTROL_MODE_CONSEQUENCE[action.mode]}
@@ -278,7 +272,7 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
                 same-labelled actions (two "Apply" rows over different targets), and a label key collides
                 them into one — which is why the id is a required field on the descriptor. */}
             {newest.actions.map((action) => (
-              <ControlActionButton action={action} as="card" className="" consumer={consumer} key={action.id} />
+              <ControlActionButton action={action} as="card" consumer={consumer} key={action.id} />
             ))}
           </Row>
         </Stack>
@@ -288,100 +282,72 @@ function ControlCards({ controls, consumer }: { readonly controls: readonly Chat
   );
 }
 
-/** The CHIP row: capped, remainder REACHABLE — and it WRAPS. At a phone width four long-label chips overrun
- *  the available inline space and an ancestor clips the overflow, so the "+N more" disclosure (and later
- *  chips) were pushed off the right edge, unreachable with no scrollbar (side-eye 2026-08-24 P3). A second
- *  line is cheap above the composer, so the row wraps rather than clips — every capped chip and its
- *  disclosure stay on screen.
- *
- *  ── #2426: THE RESTING BAND IS ONE ROW AT A COARSE POINTER — THE WRAP RULING SURVIVES, ITS INPUT
- *  CHANGED ───────────────────────────────────────────────────────────────────────────────────────────
- *  The paragraph above is the 2026-08-24 P3 ruling and it is NOT reversed. What changed is the arm it was
- *  ruled for. Measured live 2026-09-19 at `device=coarse:dpr3:430x740` in a game room: this row wrapped to
- *  **115px** inside a **127px** band, against a **185px** transcript — the reading port was a quarter of
- *  the screen, four lines hard-clipped mid-glyph, and the wrap tax GREW with the chip count. The owner's
- *  ruling: on a coarse pointer the band collapses to a ONE-ROW SUMMARY STRIP that expands on tap, the
- *  composer stays, and the transcript gets a floor (`CHAT_READING_PORT_MIN_PX` below).
- *
- *  WHAT THE 2026-08-24 RULING ACTUALLY GUARANTEED is "every capped chip and its disclosure stay on screen,
- *  reachable, with no scrollbar" — and CLIPPING is what it forbade. That guarantee is intact here, by a
- *  stronger mechanism: at coarse-collapsed the chips are not clipped, they are STOOD DOWN
- *  (`HIDE_AT_COARSE`, `display:none` — out of layout and out of the a11y tree, not half-visible past an
- *  edge), and the one thing left in the row is the disclosure itself, which therefore can never be pushed
- *  anywhere. Expanding restores TODAY'S BAND VERBATIM: the same wrapping row, the same chips, the same
- *  accessible names. The row still carries `flex-wrap` for the expanded arm and for every fine pointer.
- *
- *  WHY `display:none` AND NOT `sr-only` for the stood-down chips: `sr-only` would keep them announced at
- *  no layout cost, but they are BUTTONS — a focusable control with no visible box is a worse affordance
- *  than a disclosed one. The strip's `aria-expanded` names the path to them instead.
- *
- *  WHY NOT A RENDER-TIME POINTER READ: `coarsePointerNow()` (`@orb/ui/lib`) is a point-in-time imperative
- *  read with no subscription — correct for a bug-report capture, wrong as a render input. The pointer arm
- *  is CSS, homed in `#components`' fragments because `pointer-coarse:` is gate-banned in features/**.
- *
- *  THE DISCLOSURE IS AN EXPANDER, NOT A COUNT (#684 P2). The cap is a per-ROW budget, but the chips crossing
- *  it belong to RULES: one rule that surfaces three openers and another that surfaces three vote options put
- *  six chips in the row, so the member saw one vote option and a dead `<p>` reading "+2 more" — the other two
- *  options were not hidden behind an affordance, they were GONE, with no pointer trick and no keyboard path
- *  to them. The alternative arm (budget the cap per SOURCE) does not answer it: the quick-reply source
- *  flattens every live rule's set into ONE source's publish (`quick-reply-chip-mount.tsx`), so a per-source
- *  budget is the row budget with extra steps. So the count becomes a real `<button>` with `aria-expanded`:
- *  focusable, keyboard-operable, and reversible. The cap still governs the RESTING row (law 5 — one row,
- *  never a wall); expansion is the member's own choice, and it is per-mount transient state, exactly like the
- *  chips it discloses. */
-function ControlChips({ controls, consumer }: { readonly controls: readonly ChatControl[]; readonly consumer: ControlConsumer }): ReactElement | null {
-  const [expanded, setExpanded] = useState(false);
-  const chips = controls.filter((control) => control.kind === "chip");
-  if (chips.length === 0) {
-    return null;
-  }
-  const hidden = chips.length - CHIP_DISPLAY_CAP;
-  const shown = expanded ? chips : chips.slice(0, CHIP_DISPLAY_CAP);
-  // #2426 — AT A COARSE POINTER THE RESTING BAND IS ONE ROW: the chips stand down and the disclosure IS
-  // the strip. A fine pointer is byte-identical to before (both fragments are inert there).
-  const chipStandDown = expanded ? "" : HIDE_AT_COARSE;
-  // The disclosure exists in BOTH pointer arms at coarse — a row UNDER the display cap discloses nothing
-  // at a fine pointer but is the whole strip at a coarse one — so it renders unconditionally and stands
-  // itself down at fine when the cap hides nothing, which is exactly what it has always meant there.
-  const disclosureStandDown = hidden > 0 ? "" : SHOW_ONLY_AT_COARSE;
-  return (
-    <Row align="center" className="flex-wrap" data-slot="chat-control-chips" gap="field">
-      {shown.map((chip) => (
-        <ControlActionButton action={chip.action} as="chip" className={chipStandDown} consumer={consumer} key={chip.id} />
-      ))}
-      {/* No `data-slot` override on the disclosure: `@orb/ui` Button owns that attribute (tiers.css keys
-          padding/height off `data-slot=button`, and the density-tier gate proves those rules are live). It is
-          addressable as the row's one `aria-expanded` button, which is also how a member's AT finds it.
+type ChipControl = Extract<ChatControl, { readonly kind: "chip" }>;
 
-          TWO COLLAPSED LABELS, ONE PER POINTER, because the button reveals a DIFFERENT set in each arm: at
-          fine it reveals the remainder past the display cap (`+N more`), at coarse it reveals the whole row
-          (`Show N controls`). Spelled as two device-swapped spans rather than a render-time pointer read —
-          `coarsePointerNow()` is a point-in-time imperative read with no subscription, not a render input —
-          and `display: none` takes the inert one out of the a11y tree, so the accessible name is the one
-          true sentence in each arm rather than both concatenated. */}
+interface ChipGroup {
+  readonly disclosureLabel: string | undefined;
+  readonly controls: readonly ChipControl[];
+}
+
+function groupChips(controls: readonly ChipControl[]): readonly ChipGroup[] {
+  const groups = new Map<string | undefined, ChipControl[]>();
+  for (const control of controls) {
+    const group = groups.get(control.disclosureLabel);
+    if (group === undefined) {
+      groups.set(control.disclosureLabel, [control]);
+    } else {
+      group.push(control);
+    }
+  }
+  return [...groups].map(([disclosureLabel, groupedControls]) => ({ disclosureLabel, controls: groupedControls }));
+}
+
+/** One contextual disclosure. Its controlled region follows the trigger in DOM order, so expanding from
+ *  the keyboard leaves the first revealed chip at the next Tab stop instead of inserting it behind focus. */
+function ControlChipGroup({ group, consumer }: { readonly group: ChipGroup; readonly consumer: ControlConsumer }): ReactElement {
+  const [expanded, setExpanded] = useState(false);
+  const disclosureId = useId();
+  const regionId = useId();
+  const restingLabel = controlStripNotice(group.controls.length, group.disclosureLabel);
+  const expandedLabel = `${CONTROL_CHIPS_COLLAPSE} ${group.disclosureLabel ?? `${String(group.controls.length)} controls`}`;
+  const visibleLabel: string = expanded ? CONTROL_CHIPS_COLLAPSE : restingLabel;
+  return (
+    <>
       <Button
+        aria-controls={regionId}
         aria-expanded={expanded}
-        className={disclosureStandDown}
+        aria-label={expanded ? expandedLabel : undefined}
+        id={disclosureId}
         intent="ghost"
         onClick={(): void => setExpanded((open) => !open)}
         shape="pill"
         size="chip"
       >
-        {expanded ? (
-          CONTROL_CHIPS_COLLAPSE
-        ) : (
-          <>
-            {hidden <= 0 ? null : (
-              <Text as="span" className={HIDE_AT_COARSE} ink="inherit" voice="interactiveKicker">
-                {controlOverflowNotice(hidden, "more")}
-              </Text>
-            )}
-            <Text as="span" className={SHOW_ONLY_AT_COARSE} ink="inherit" voice="interactiveKicker">
-              {controlStripNotice(chips.length)}
-            </Text>
-          </>
-        )}
+        <Text as="span" ink="inherit" voice="interactiveKicker">
+          {visibleLabel}
+        </Text>
       </Button>
+      <Row aria-labelledby={disclosureId} className="flex-wrap" gap="field" hidden={!expanded} id={regionId} role="region">
+        {group.controls.map((chip) => (
+          <ControlActionButton action={chip.action} as="chip" consumer={consumer} key={chip.id} onInvoked={(): void => setExpanded(false)} />
+        ))}
+      </Row>
+    </>
+  );
+}
+
+/** Standing chips are grouped by their source-supplied contextual label. Unlabeled controls retain the
+ * generic count grammar. RPG dice actions live in the composer utility menu under D269. */
+function ControlChips({ controls, consumer }: { readonly controls: readonly ChatControl[]; readonly consumer: ControlConsumer }): ReactElement | null {
+  const chips = controls.filter((control): control is ChipControl => control.kind === "chip");
+  if (chips.length === 0) {
+    return null;
+  }
+  return (
+    <Row align="center" className="flex-wrap" data-slot="chat-control-chips" gap="field">
+      {groupChips(chips).map((group) => (
+        <ControlChipGroup consumer={consumer} group={group} key={group.disclosureLabel === undefined ? "unlabeled" : `labeled:${group.disclosureLabel}`} />
+      ))}
     </Row>
   );
 }

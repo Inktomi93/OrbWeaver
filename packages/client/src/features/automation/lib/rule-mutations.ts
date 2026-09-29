@@ -3,13 +3,11 @@
 // hand-rolls `useMutation` + cache surgery). TVars/TData are tRPC-INFERRED, so a wire reshape breaks here
 // at compile time.
 //
-// FRESHNESS — why `invalidates`, never `busDriven`: the automation bus IS live (rulesChanged/ruleFired/
-// ruleErrored reach the client), but its client consumer is a REDUCER over the pending-ask list
-// (`apply-automation-bus-event.ts`), not an invalidation seam — that bus has no query behind its pending
-// asks. The rule-lifecycle READS (`listRules`/`listFires`) have no bus-driven invalidation, so a write
-// reconciles them itself. `rules-section.tsx` ALSO invalidates these same reads off the live bus (a rule
-// firing from a real turn moves `lastFiredAt`/the fire log with no local mutation) — the two paths cover
-// the local-action edge and the remote-fire edge respectively.
+// FRESHNESS — why `invalidates`, never `busDriven`: every local rule verb settles its own reads. Real rule
+// terminals ALSO reach the central automation-room invalidation seam, which covers remote fires and the
+// room-wide Activity read. `testRule` is deliberately different: a dry run writes a `test_run` fire row but
+// emits no bus event, so its settle is Activity's only freshness driver and must carry that chat-scoped read
+// alongside the per-rule fire log.
 //
 // `chatId` rides the vars of the ruleId-keyed verbs PURELY to address the rule LIST for invalidation — the
 // wire schema is `{ruleId, …}` and zod strips the extra key server-side (the setChatInjection precedent,
@@ -99,7 +97,10 @@ export const useDeleteRule = createEntityMutation<RuleActionVars, inferOutput<Tr
  *  returned `TestRunResult` (predicate verdict + per-arm previews) via `mutateAsync` to show it inline. */
 export const useTestRule = createEntityMutation<RuleActionVars, inferOutput<Trpc["automation"]["testRule"]>>({
   options: (trpc) => trpc.automation.testRule.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.automation.listFires.queryFilter({ ruleId: vars.ruleId })],
+  invalidates: (trpc, vars) => [
+    trpc.automation.listFires.queryFilter({ ruleId: vars.ruleId }),
+    ...(vars.chatId === null ? [] : [trpc.automation.listChatActivity.queryFilter({ chatId: vars.chatId })]),
+  ],
   errorToast: "Couldn't test that rule.",
 });
 

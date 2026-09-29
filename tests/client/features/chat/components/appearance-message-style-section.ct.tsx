@@ -97,7 +97,26 @@ test("all EIGHT previews are structurally distinct — no two modes draw the sam
   const cards = page.getByRole("radiogroup", { name: "Chat display" });
   await expect(cards.getByRole("radio")).toHaveCount(CHAT_STYLE_COUNT);
 
-  const previews = await cards.evaluate((group): readonly string[] => [...group.querySelectorAll('[data-slot="picker-cell-art"]')].map((art) => art.innerHTML));
+  const previews = await cards.evaluate((group): readonly string[] =>
+    [...group.querySelectorAll('[data-slot="picker-cell-art"]')].map((art) =>
+      [...art.querySelectorAll("*")]
+        .map((element) =>
+          [
+            element.tagName,
+            element.className,
+            element.getAttribute("data-slot"),
+            element.getAttribute("data-placement"),
+            element.getAttribute("data-side"),
+            element
+              .getAttribute("style")
+              ?.split(";")
+              .map((declaration) => declaration.split(":")[0])
+              .join(","),
+          ].join("|"),
+        )
+        .join("\n"),
+    ),
+  );
   // Positive control first: an empty list would satisfy "all distinct" vacuously — and an empty preview
   // set is a live defect class here (the Layered elevation diagram painted nothing for a whole era).
   // @orb-waive ct-no-oneshot-live-read-assert(expect): read after the awaited toHaveCount barrier — the eight cells are mounted and their art is static markup.
@@ -106,6 +125,70 @@ test("all EIGHT previews are structurally distinct — no two modes draw the sam
     expect(markup.length).toBeGreaterThan(0);
   }
   expect(new Set(previews).size).toBe(CHAT_STYLE_COUNT);
+});
+
+test("each miniature draws the runtime mode's defining message anatomy", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<AppearanceMessageStyleSectionStory />);
+  const preview = (style: string): ReturnType<Page["locator"]> => page.locator(`[data-slot="chat-style-preview"][data-chat-style="${style}"]`);
+
+  for (const style of ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple", "tide"] as const) {
+    const messageCount = style === "whisper" || style === "tide" ? 1 : 2;
+    await expect(preview(style).locator('[data-slot="chat-style-preview-message"]')).toHaveCount(messageCount);
+    await expect(preview(style).locator('[data-slot="chat-style-preview-header"]')).toHaveCount(messageCount);
+    await expect(preview(style).getByText("Mara", { exact: true })).toBeVisible();
+    await expect(preview(style).getByText("The lantern is still warm.", { exact: true })).toBeVisible();
+  }
+
+  // Ordinary avatar gutters mirror with role: assistant leads, user trails.
+  await expect
+    .poll(
+      async (): Promise<(string | null)[][]> =>
+        preview("bubble")
+          .locator('[data-slot="chat-style-preview-message"]')
+          .evaluateAll((messages) =>
+            messages.map((message) => [...(message.querySelector('[class*="justify-"]')?.children ?? [])].map((child) => child.getAttribute("data-slot"))),
+          ),
+    )
+    .toEqual([
+      ["chat-style-preview-bubble", "chat-style-preview-avatar"],
+      ["chat-style-preview-avatar", "chat-style-preview-bubble"],
+    ]);
+
+  await expect(preview("echo").locator('[data-slot="chat-style-preview-edge"]')).toHaveCount(2);
+  await expect(preview("echo").locator('[data-role="user"] [data-slot="chat-style-preview-edge"]')).toHaveAttribute("data-side", "left");
+  await expect(preview("echo").locator('[data-role="assistant"] [data-slot="chat-style-preview-edge"]')).toHaveAttribute("data-side", "right");
+  // Whisper carries character art only on the assistant row; the persona row keeps the accent without
+  // pretending that the character's banner belongs to the user.
+  await expect(preview("whisper").locator('[data-role="assistant"] [data-slot="chat-style-preview-band"]')).toHaveCount(1);
+  await expect(preview("whisper").locator('[data-role="user"] [data-slot="chat-style-preview-band"]')).toHaveCount(0);
+  const whisperBand = preview("whisper").locator('[data-slot="chat-style-preview-band"]');
+  await expect.poll(async (): Promise<number> => (await whisperBand.boundingBox())?.width ?? 0).toBeGreaterThan(90);
+  await expect.poll(async (): Promise<number> => (await whisperBand.boundingBox())?.height ?? 0).toBeGreaterThan(30);
+  await expect(preview("hush").locator('[data-slot="chat-style-preview-bubble"]').first()).toHaveCSS("border-left-style", "solid");
+  await expect(preview("hush").locator('[data-slot="chat-style-preview-edge-accent"]')).toHaveCount(0);
+
+  // Ripple replaces the outside chip with a portrait inside each message container.
+  await expect(preview("ripple").locator('[data-slot="chat-style-preview-avatar"]')).toHaveCount(0);
+  await expect(preview("ripple").locator('[data-slot="chat-style-preview-bubble"] [data-slot="chat-style-preview-welded-avatar"]')).toHaveCount(2);
+
+  // Tide is a train: its illustrated message owns an outside attribution row and two paragraph bubbles.
+  await expect(preview("tide").locator('[data-slot="chat-style-preview-header"][data-placement="outside"]')).toHaveCount(1);
+  await expect(preview("tide").locator('[data-slot="chat-style-preview-train"]')).toHaveCount(1);
+  await expect(preview("tide").locator('[data-slot="chat-style-preview-bubble"]')).toHaveCount(2);
+
+  // Document seats the production manuscript cap in one centered miniature column; Flat stays full width.
+  await expect(preview("document").locator('[data-slot="chat-style-preview-manuscript"]')).toHaveClass(/w-3\/5/u);
+  await expect(preview("document").locator('[data-slot="chat-style-preview-bubble"]').first()).toHaveClass(/max-w-prose/u);
+  await expect(preview("flat").locator('[data-slot="chat-style-preview-bubble"]').first()).not.toHaveClass(/max-w-prose/u);
+});
+
+test("narrow message-style picker keeps every illustrated choice inside the phone viewport", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await stub(page);
+  await mount(<AppearanceMessageStyleNarrowStory />);
+  await expect(page.getByRole("radiogroup", { name: "Chat display" }).getByRole("radio")).toHaveCount(CHAT_STYLE_COUNT);
+  await expect.poll((): Promise<boolean> => page.locator("body").evaluate((body) => body.scrollWidth > body.clientWidth)).toBe(false);
 });
 
 // #981 F20 — one tab stop, roving focus, arrows change selection. The old anatomy was eight independent

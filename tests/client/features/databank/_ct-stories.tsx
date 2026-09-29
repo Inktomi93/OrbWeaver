@@ -7,6 +7,7 @@
 // This module exports COMPONENTS ONLY — playwright-ct rewrites named imports of a story module into
 // generated component consts, so a mixed export (component + constant) fails to parse.
 
+import { useInvalidation, useOrbSocket, useUserBus } from "@orb/client/data";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -187,6 +188,26 @@ export function DatabankContextStory(): ReactElement {
   );
 }
 
+/** Mounts the same socket + always-on user-room hooks as AppRoot after a CT proves the pre-event state. */
+function DatabankUserBusHost(): null {
+  const invalidation = useInvalidation();
+  useOrbSocket();
+  useUserBus({ invalidateUser: invalidation.invalidateUser, invalidateAllUserRoots: invalidation.invalidateAllUserRoots });
+  return null;
+}
+
+function DatabankBusConnector(): ReactElement {
+  const [connected, setConnected] = useState(false);
+  return (
+    <>
+      <button disabled={connected} type="button" onClick={(): void => setConnected(true)}>
+        connect databank user bus
+      </button>
+      {connected ? <DatabankUserBusHost /> : null}
+    </>
+  );
+}
+
 /** The nav-store probe every CONTEXT-pane DOOR is asserted through: `openConfigTo`, `openChat` and
  *  `openCharacter` all write the shell/selection stores, so a deep link is proven at the STORE ACTION (the
  *  config target's group + sub, or the section + the id it selected), never at a rendered echo —
@@ -270,11 +291,12 @@ export function DatabankHomeTileNarrowStory(): ReactElement {
 /** The whole tri-pane — LIST + CONTENT + CONTEXT at their production widths. The selection handoff (a row
  *  click opens THAT document in both other panes) is a property of the three TOGETHER, and a CT mounts once
  *  per test (`ct-mount-is-once-per-test`), so the pair cannot be assembled out of two mounts. */
-export function DatabankWorkspaceStory(): ReactElement {
+export function DatabankWorkspaceStory({ withUserBusConnector = false }: { readonly withUserBusConnector?: boolean }): ReactElement {
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
         <DatabankSettingsProbe />
+        {withUserBusConnector ? <DatabankBusConnector /> : null}
         <DatabankTriPane />
       </CtRealSectionRegistry>
     </CtDataProviders>

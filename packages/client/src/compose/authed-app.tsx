@@ -53,6 +53,8 @@ import {
   pluginCommandArgsModal,
   pluginCommandPaletteSource,
   pluginCommandsChrome,
+  pluginComposerActionSurface,
+  pluginComposerMediaSurface,
   pluginDialogModal,
   pluginMessageFooterSurface,
   pluginSlashCommands,
@@ -64,7 +66,7 @@ import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexGroup } from "#features/regex";
 import { rosterGroup, savedRostersModal } from "#features/roster-preset";
-import { makeRpgContextTabs, makeRpgHudRegion, rpgDiceAskSource, rpgDiceToolRenderer, rpgTurnToolCallsSurface } from "#features/rpg";
+import { makeRpgContextTabs, makeRpgHudRegion, rpgDiceComposerMediaSurface, rpgDiceToolRenderer, rpgTurnToolCallsSurface } from "#features/rpg";
 import { analyticsSection } from "#features/stats";
 import { tagsGroup } from "#features/tag";
 import { adminGroup } from "#features/user-admin";
@@ -150,7 +152,7 @@ const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContex
 // imports the other. Its SECOND is the S1 control mount below.
 //
 // The S1 CONTROL-SOURCE seam — the TWELFTH contributor family:
-// transient interactive controls near the transcript (rule chips, confirm cards, a dice ask). A feature
+// transient interactive controls near the transcript (rule chips and confirm cards). A feature
 // appends a source here without importing chat, and chat renders it blind through the one band.
 //
 // ITS TENANTS: automation's S4 suggest/confirm CARDS (A4) and B3's member-visible quick-reply CHIPS — two
@@ -160,14 +162,7 @@ const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContex
 // no control seam — but the array is no longer empty, so the honest statement of the property is now "a room
 // with no live control renders no band chrome", which each source delivers by publishing nothing until its
 // own bus event arrives.
-// …and B8's THIRD tenant + first game arm: rpg's dice ASK. A clean tuple
-// append — the chips appear only on an engaged game chat (the source's own `isRpgEngaged` gate), so a plain
-// chat is byte-identical. rpg raises it; chat renders it blind; neither imports the other.
-const chatControlSources = createContributorRegistry<ChatControlSource>("chat-controls", [
-  automationSuggestionSource,
-  automationQuickReplySource,
-  rpgDiceAskSource,
-]);
+const chatControlSources = createContributorRegistry<ChatControlSource>("chat-controls", [automationSuggestionSource, automationQuickReplySource]);
 
 const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [
   rpgTurnToolCallsSurface,
@@ -192,6 +187,10 @@ const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContributio
   // plugin). It carries no `when` — "does this person have a chat-flank surface?" is DATA the seam's sync
   // predicate cannot see — so it mounts in every room and renders null where it does not apply.
   pluginChatFlankSurface,
+  pluginComposerActionSurface,
+  // D269: RPG's ruleset-gated dice actions join the existing Message tools menu, away from the persistent band.
+  rpgDiceComposerMediaSurface,
+  pluginComposerMediaSurface,
   // U6 (#679, §5.4): the ONE plugin `message-footer` tenant — the per-ROW decoration strip, LAST so the
   pluginMessageFooterSurface, // house's own per-row disclosures read above third-party decoration.
 ]);

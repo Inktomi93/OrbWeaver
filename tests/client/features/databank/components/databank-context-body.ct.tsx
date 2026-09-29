@@ -8,8 +8,14 @@
 //   · it states WHERE the document is active as a NAMED roster of doors — and the leak that once forced two
 //     bare counts is closed on the WIRE (chat's `resolveVisibleRooms`), not by hiding names in the client.
 
+import type { StreamFrame } from "@orb/contracts/stream";
+import type { DocumentId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
+import type { TrpcInput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 import { DatabankContextStory, DatabankWorkspaceListModeStory, DatabankWorkspaceStory } from "../_ct-stories.tsx";
 import { ATTACHED_CHARACTER, ATTACHED_ROOM, READY_DOC, stubDatabank } from "../fixtures.ts";
 
@@ -24,7 +30,22 @@ const ROSTER_PROMISE = /which chats and characters it already feeds/u;
 /** The two Active-in DOORS, by the name a reader meets them under — the room is titled by its CAST (the
  *  fixture's room carries no authored title, which is the point), the card by its own name. */
 const ROOM_DOOR = /Azarael/;
-const CARD_DOOR = /Duskwater Warden/;
+const CARD_DOOR = "Duskwater Warden";
+const NEW_CHARACTER = makeCharacterSummary({ id: "character_0000000000000000002", name: "Mirelight Cartographer" });
+const DATABANK_CHANGED: StreamFrame = {
+  channel: "user",
+  event: { type: "databankChanged", documentId: castId<DocumentId>(READY_DOC.id) },
+};
+
+type AttachmentView = TrpcWireOutput<"databank.listAttachments">;
+
+function attachmentView(characters: AttachmentView["characters"]): AttachmentView {
+  return {
+    global: true,
+    chats: [{ id: ATTACHED_ROOM, title: null, participantNames: ["Azarael"], at: 1_750_000_000_000 }],
+    characters,
+  };
+}
 
 test("CONTEXT with nothing open says what the pane WILL show (its own words, F-12)", async ({ mount, page }) => {
   await stubDatabank(page);
@@ -101,7 +122,7 @@ test("the activation body owns the Everywhere write and states where the documen
   // NAMES, not "1 chat": the room is named by the client's ONE title chain off the cast the wire carries
   // (the fixture's room has no authored title, so a server-side name would read "Untitled chat" here).
   await expect(workspace.getByRole("button", { name: ROOM_DOOR })).toBeVisible();
-  await expect(workspace.getByRole("button", { name: CARD_DOOR })).toBeVisible();
+  await expect(workspace.getByRole("button", { name: CARD_DOOR, exact: true })).toBeVisible();
 
   // GEOMETRY AT THE NARROWEST REAL MOUNT (the 320px CONTEXT rail this story renders at): a door is a glyph +
   // a truncating title + a `shrink-0` recency stamp, which is exactly the cluster shape that overflows its
@@ -172,7 +193,7 @@ test("an Active-in row OPENS the room / the card it names (#276)", async ({ moun
   await expect(probe).toContainText("section=chats");
   await expect(probe).toContainText(`chat=${ATTACHED_ROOM}`);
 
-  await workspace.getByRole("button", { name: CARD_DOOR }).click();
+  await workspace.getByRole("button", { name: CARD_DOOR, exact: true }).click();
   await expect(probe).toContainText("section=characters");
   await expect(probe).toContainText(`character=${ATTACHED_CHARACTER}`);
 });
@@ -248,4 +269,183 @@ test("a FAILED attachments read never claims the document is attached NOWHERE (#
   const before = trpc.count("databank.listAttachments");
   await workspace.getByRole("button", { name: "Retry" }).click();
   await expect.poll(() => trpc.count("databank.listAttachments"), { intervals: [20, 50, 100] }).toBe(before + 1);
+});
+
+test("an exact character attach changes no roster before the production user-bus event, then repaints from its read", async ({ mount, page }) => {
+  let characters: AttachmentView["characters"] = [{ id: ATTACHED_CHARACTER, name: "Duskwater Warden" }];
+  const trpc = await stubDatabank(page, {
+    "character.list": characterListResponder([makeCharacterSummary({ id: ATTACHED_CHARACTER, name: "Duskwater Warden" }), NEW_CHARACTER]),
+    "databank.listAttachments": () => attachmentView(characters),
+    "databank.attachToCharacter": (input: TrpcInput<"databank.attachToCharacter">) => {
+      characters = [...characters, { id: input.characterId, name: NEW_CHARACTER.name }];
+      return null;
+    },
+  });
+  await routeOrbSocket(page, { frames: [DATABANK_CHANGED], awaitAttaches: 1 });
+  const workspace = await mount(<DatabankWorkspaceStory withUserBusConnector={true} />);
+  await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  await expect(workspace.getByRole("button", { name: CARD_DOOR, exact: true })).toBeVisible();
+  const readsBeforeWrite = trpc.count("databank.listAttachments");
+
+  await workspace.getByRole("button", { name: "Attach to a character" }).click();
+  const dialog = page.getByRole("dialog", { name: "Attach to a character" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("combobox")).toHaveAttribute("aria-expanded", "true");
+  await expect(dialog.getByRole("option", { name: NEW_CHARACTER.name })).toBeVisible();
+  await dialog.getByRole("option", { name: NEW_CHARACTER.name }).click();
+
+  await expect
+    .poll(() => trpc.lastInput("databank.attachToCharacter"), { intervals: [20, 50, 100] })
+    .toEqual({
+      characterId: NEW_CHARACTER.id,
+      documentId: READY_DOC.id,
+    });
+  await expect(workspace.getByRole("button", { name: "Attach to a character" })).toBeEnabled();
+  await expect(workspace.getByRole("button", { name: NEW_CHARACTER.name, exact: true })).toHaveCount(0);
+
+  await workspace.getByRole("button", { name: "connect databank user bus" }).click();
+  await expect.poll(() => trpc.count("databank.listAttachments"), { intervals: [20, 50, 100] }).toBeGreaterThan(readsBeforeWrite);
+  await expect(workspace.getByRole("button", { name: NEW_CHARACTER.name, exact: true })).toBeVisible();
+});
+
+test("an exact character detach stays rendered before the production user-bus event, then its readback removes the row", async ({ mount, page }) => {
+  let characters: AttachmentView["characters"] = [
+    { id: ATTACHED_CHARACTER, name: "Duskwater Warden" },
+    { id: NEW_CHARACTER.id, name: NEW_CHARACTER.name },
+  ];
+  const trpc = await stubDatabank(page, {
+    "databank.listAttachments": () => attachmentView(characters),
+    "databank.detachFromCharacter": (input: TrpcInput<"databank.detachFromCharacter">) => {
+      characters = characters.filter((character) => character.id !== input.characterId);
+      return null;
+    },
+  });
+  await routeOrbSocket(page, { frames: [DATABANK_CHANGED], awaitAttaches: 1 });
+  const workspace = await mount(<DatabankWorkspaceStory withUserBusConnector={true} />);
+  await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  await expect(workspace.getByRole("button", { name: NEW_CHARACTER.name, exact: true })).toBeVisible();
+  const readsBeforeWrite = trpc.count("databank.listAttachments");
+  const detach = workspace.getByRole("button", { name: `Detach ${READY_DOC.name} from ${NEW_CHARACTER.name}` });
+  await detach.click();
+
+  await expect
+    .poll(() => trpc.lastInput("databank.detachFromCharacter"), { intervals: [20, 50, 100] })
+    .toEqual({
+      characterId: NEW_CHARACTER.id,
+      documentId: READY_DOC.id,
+    });
+  await expect(detach).toBeEnabled();
+  await expect(workspace.getByRole("button", { name: NEW_CHARACTER.name, exact: true })).toBeVisible();
+
+  await workspace.getByRole("button", { name: "connect databank user bus" }).click();
+  await expect.poll(() => trpc.count("databank.listAttachments"), { intervals: [20, 50, 100] }).toBeGreaterThan(readsBeforeWrite);
+  await expect(workspace.getByRole("button", { name: NEW_CHARACTER.name, exact: true })).toHaveCount(0);
+});
+
+test("the character picker walks pages and sends search to the owner-scoped server list", async ({ mount, page }) => {
+  const library = [
+    ...Array.from({ length: 204 }, (_unused, index) =>
+      makeCharacterSummary({ id: `character_${String(index + 10).padStart(20, "0")}`, name: `Library character ${String(index)}` }),
+    ),
+    makeCharacterSummary({ id: "character_0000000000000000999", name: "Zephyrine Vale" }),
+  ];
+  const trpc = await stubDatabank(page, { "character.list": characterListResponder(library) });
+  const workspace = await mount(<DatabankWorkspaceStory />);
+  await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  await workspace.getByRole("button", { name: "Attach to a character" }).click();
+  const dialog = page.getByRole("dialog", { name: "Attach to a character" });
+
+  await expect(dialog.getByText("Showing 100 of 205")).toBeVisible();
+  await dialog.locator('[data-slot="command-list"]').evaluate((list) => {
+    list.scrollTop = list.scrollHeight;
+    list.dispatchEvent(new Event("scroll", { bubbles: true }));
+  });
+  await expect(dialog.getByRole("option", { name: "Library character 100" })).toBeVisible();
+
+  await dialog.getByRole("combobox").fill("zephyrine");
+  await expect.poll(() => (trpc.lastInput("character.list") as { search?: string } | undefined)?.search, { intervals: [50, 100, 200] }).toBe("zephyrine");
+  await expect(dialog.getByRole("option", { name: "Zephyrine Vale" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Clear search" })).toBeVisible();
+});
+
+test("an attach failure stays legible and retryable, then its bus-confirmed result joins the roster", async ({ mount, page }) => {
+  let attempts = 0;
+  let characters: AttachmentView["characters"] = [{ id: ATTACHED_CHARACTER, name: "Duskwater Warden" }];
+  const trpc = await stubDatabank(page, {
+    "character.list": characterListResponder([NEW_CHARACTER]),
+    "databank.listAttachments": () => attachmentView(characters),
+    "databank.attachToCharacter": (input: TrpcInput<"databank.attachToCharacter">) => {
+      attempts += 1;
+      if (attempts === 1) {
+        return trpcError({ message: "attach failed" });
+      }
+      characters = [...characters, { id: input.characterId, name: NEW_CHARACTER.name }];
+      return null;
+    },
+  });
+  await routeOrbSocket(page, { frames: [DATABANK_CHANGED], awaitAttaches: 1 });
+  const workspace = await mount(<DatabankWorkspaceStory withUserBusConnector={true} />);
+  await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  await workspace.getByRole("button", { name: "Attach to a character" }).click();
+  await page.getByRole("dialog", { name: "Attach to a character" }).getByRole("option", { name: NEW_CHARACTER.name }).click();
+
+  await expect(workspace.getByRole("alert")).toHaveText(`Couldn't attach ${NEW_CHARACTER.name}.`);
+  await workspace.getByRole("button", { name: "Retry" }).click();
+  await expect.poll(() => trpc.count("databank.attachToCharacter"), { intervals: [20, 50, 100] }).toBe(2);
+  await expect(workspace.getByRole("button", { name: NEW_CHARACTER.name, exact: true })).toHaveCount(0);
+  await workspace.getByRole("button", { name: "connect databank user bus" }).click();
+  await expect(workspace.getByRole("button", { name: NEW_CHARACTER.name, exact: true })).toBeVisible();
+});
+
+test("the picker exposes read failure recovery without dropping its dialog semantics", async ({ mount, page }) => {
+  let reads = 0;
+  await stubDatabank(page, {
+    "character.list": (input: TrpcInput<"character.list">) => {
+      reads += 1;
+      return reads === 1 ? trpcError({ message: "library failed" }) : characterListResponder([NEW_CHARACTER])(input);
+    },
+  });
+  const workspace = await mount(<DatabankWorkspaceStory />);
+  await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  await workspace.getByRole("button", { name: "Attach to a character" }).click();
+  const dialog = page.getByRole("dialog", { name: "Attach to a character" });
+
+  await expect(dialog.getByText("Couldn't load the character library.")).toBeVisible();
+  await dialog.getByRole("button", { name: "Retry" }).click();
+  await expect(dialog.getByRole("combobox")).toBeVisible();
+  await expect(dialog.getByRole("option", { name: NEW_CHARACTER.name })).toBeVisible();
+});
+
+test("the picker keeps its labeled dialog and rendered loading rows while the owner library is pending", async ({ mount, page }) => {
+  const held = trpcHold();
+  await stubDatabank(page, { "character.list": () => held });
+  const workspace = await mount(<DatabankWorkspaceStory />);
+  await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  await workspace.getByRole("button", { name: "Attach to a character" }).click();
+  const dialog = page.getByRole("dialog", { name: "Attach to a character" });
+  await held.requested;
+
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('[data-slot="skeleton"]')).toHaveCount(5);
+  held.release({ items: [NEW_CHARACTER], nextCursor: null, totalCount: 1 });
+  await expect(dialog.getByRole("combobox")).toBeVisible();
+  await expect(dialog.getByRole("option", { name: NEW_CHARACTER.name })).toBeVisible();
+});
+
+test("an in-flight attach announces its target and locks duplicate attachment", async ({ mount, page }) => {
+  const held = trpcHold();
+  await stubDatabank(page, {
+    "character.list": characterListResponder([NEW_CHARACTER]),
+    "databank.attachToCharacter": () => held,
+  });
+  const workspace = await mount(<DatabankWorkspaceStory />);
+  await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  await workspace.getByRole("button", { name: "Attach to a character" }).click();
+  await page.getByRole("dialog", { name: "Attach to a character" }).getByRole("option", { name: NEW_CHARACTER.name }).click();
+  await held.requested;
+
+  await expect(workspace.getByRole("status").filter({ hasText: `Attaching ${NEW_CHARACTER.name}…` })).toBeVisible();
+  await expect(workspace.getByRole("button", { name: "Attach to a character" })).toBeDisabled();
+  held.release(null);
+  await expect(workspace.getByRole("button", { name: "Attach to a character" })).toBeEnabled();
 });

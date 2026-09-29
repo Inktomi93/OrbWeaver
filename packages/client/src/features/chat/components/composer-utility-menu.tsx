@@ -21,21 +21,17 @@ import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import { RPG_PLOT_STEER_KINDS, RPG_PLOT_STEERS } from "@orb/kit/guided";
 import { Button } from "@orb/ui/button";
 import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
-import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Compass, Eraser, Icon, ImagePlus, Images, ListOrdered, Pencil, Redo2, RefreshCw, Sparkles, Undo2, WandSparkles } from "@orb/ui/icons";
+import { Compass, Eraser, Icon, Images, ListOrdered, Pencil, Redo2, RefreshCw, Sparkles, Undo2, WandSparkles } from "@orb/ui/icons";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
-import type { ReactElement } from "react";
-import { useRef } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { IMAGE_GEN_SPENDS_NOW, IMAGINE_DOOR_HELPER, OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
 import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import type { useGuidedActions } from "../hooks/use-guided-actions.ts";
-// The picker's file-type filter is DERIVED from the shared attach vocabulary (#376) — the drop and paste
-// gestures gate on the same tuple, so the dialog filter and the runtime gate cannot drift.
-import { ATTACH_MEDIA_ACCEPT } from "../lib/attach-media.ts";
+import { AttachMediaItem } from "./composer-attach-media-item.tsx";
 
 /** The image controls re-homed into the ✨ utility menu (owner) — attach + generate-from-text. Owned by the
  *  composer (upload caps, the generate hook, the F-P1 clear-on-success); the wand only renders them. Homed
@@ -60,6 +56,8 @@ export interface ComposerImageControls {
 
 interface UtilityMenuProps {
   readonly hasText: boolean;
+  readonly generationEnabled: boolean;
+  readonly generationUnavailableReason: string;
   readonly canTargetTail: boolean;
   readonly canUndoRevert: boolean;
   readonly onRewrite: () => void;
@@ -79,12 +77,14 @@ interface UtilityMenuProps {
   readonly onOfferChoices: () => void;
   /** The re-homed image controls (attach + generate-from-text). */
   readonly image: ComposerImageControls;
+  readonly mediaContributions: readonly ReactNode[];
 }
 
 interface ComposerGuidedUtilityMenuProps {
   readonly hasText: boolean;
   readonly trimmed: string;
   readonly idle: boolean;
+  readonly generationUnavailableReason: string;
   readonly canTargetTail: boolean;
   readonly guided: ReturnType<typeof useGuidedActions>;
   readonly utilities: ReturnType<typeof useComposerUtilities>;
@@ -92,16 +92,19 @@ interface ComposerGuidedUtilityMenuProps {
   readonly onRewrite: () => void;
   readonly game: { readonly isGame: boolean; readonly plotAvailable: boolean };
   readonly image: ComposerImageControls;
+  readonly mediaContributions: readonly ReactNode[];
 }
 
 /** Adapts the guided cluster's resolved action bundles to the utility menu without making the cluster own
  *  the menu's phase-specific wiring. */
 export function ComposerGuidedUtilityMenu(props: ComposerGuidedUtilityMenuProps): ReactElement {
-  const { hasText, trimmed, idle, canTargetTail, guided, utilities, onChange, onRewrite, game, image } = props;
+  const { hasText, trimmed, idle, generationUnavailableReason, canTargetTail, guided, utilities, onChange, onRewrite, game, image, mediaContributions } = props;
   const tailId = guided.tailAssistantMessageId;
   return (
     <UtilityMenu
       hasText={hasText}
+      generationEnabled={idle}
+      generationUnavailableReason={generationUnavailableReason}
       canTargetTail={canTargetTail}
       canUndoRevert={guided.tailHasContinuation}
       onRewrite={onRewrite}
@@ -119,13 +122,30 @@ export function ComposerGuidedUtilityMenu(props: ComposerGuidedUtilityMenuProps)
       onOfferChoices={(): void => guided.fireGameSteer("choices")}
       game={game.isGame ? { plotAvailable: game.plotAvailable, onSteer: guided.fireGameSteer } : undefined}
       image={image}
+      mediaContributions={mediaContributions}
     />
   );
 }
 
 function UtilityMenu(props: UtilityMenuProps): ReactElement {
-  const { hasText, canTargetTail, canUndoRevert, onRewrite, onRecall, onUndo, onRevert, onClear, onSimpleSend, onRegenerate, onOfferChoices, game, image } =
-    props;
+  const {
+    hasText,
+    generationEnabled,
+    generationUnavailableReason,
+    canTargetTail,
+    canUndoRevert,
+    onRewrite,
+    onRecall,
+    onUndo,
+    onRevert,
+    onClear,
+    onSimpleSend,
+    onRegenerate,
+    onOfferChoices,
+    game,
+    image,
+    mediaContributions,
+  } = props;
   const recentSteers = useRecentSteers();
   return (
     <Menu>
@@ -216,7 +236,12 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
               room, and the chip click composes in any room — so a one-shot ask that works everywhere must be
               REACHABLE everywhere. Rendered ONCE: moving it out of Plot rather than duplicating it is the
               #568/#570 one-door rule, so a game chat gets the same single item, in the same place. */}
-          <MenuItem data-testid={testId("composerGuidedGameSteer")} onClick={onOfferChoices} title={OFFER_CHOICES_ONE_SHOT}>
+          <MenuItem
+            data-testid={testId("composerGuidedGameSteer")}
+            disabled={!generationEnabled}
+            onClick={generationEnabled ? onOfferChoices : undefined}
+            title={generationEnabled ? OFFER_CHOICES_ONE_SHOT : generationUnavailableReason}
+          >
             <Icon icon={ListOrdered} size="sm" />
             Offer choices
           </MenuItem>
@@ -273,6 +298,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             </Text>
           ) : null}
         </MenuGroup>
+        {mediaContributions}
         {/* PLOT — game-only (owner: "game steers go in the magic wand"). The six plot steers nest under one Plot
             submenu (side-eye P1-B — no more flat icon-less dump). "Offer choices" USED to sit here as its own
             item; R3 moved it up to Reply, where it is reachable in every room (see its comment there). Plot
@@ -284,7 +310,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             <MenuSeparator />
             <MenuGroup>
               <MenuGroupLabel>Plot</MenuGroupLabel>
-              <PlotSteersSubmenu onSteer={game.onSteer} />
+              <PlotSteersSubmenu enabled={generationEnabled} reason={generationUnavailableReason} onSteer={game.onSteer} />
             </MenuGroup>
           </>
         ) : null}
@@ -320,85 +346,30 @@ function UtilityActionItem({
 
 /** The six plot steers nested under one submenu (side-eye P1-B) — renders from the RPG_PLOT_STEER_KINDS tuple
  *  (kit-homed, the axis-home rule). Each fires its steer KIND through the trusted-template guided funnel. */
-function PlotSteersSubmenu({ onSteer }: { readonly onSteer: (kind: GuidedGameSteerKind) => void }): ReactElement {
+function PlotSteersSubmenu({
+  enabled,
+  reason,
+  onSteer,
+}: {
+  readonly enabled: boolean;
+  readonly reason: string;
+  readonly onSteer: (kind: GuidedGameSteerKind) => void;
+}): ReactElement {
   return (
     <MenuSubmenuRoot>
-      <MenuSubmenuTrigger data-testid={testId("composerPlotSteers")}>
+      <MenuSubmenuTrigger data-testid={testId("composerPlotSteers")} disabled={!enabled} title={enabled ? undefined : reason}>
         <Icon icon={Compass} size="sm" />
         Plot
       </MenuSubmenuTrigger>
       <MenuPopup>
         {RPG_PLOT_STEER_KINDS.map((kind) => (
-          <MenuItem key={kind} onClick={(): void => onSteer(kind)}>
+          <MenuItem disabled={!enabled} key={kind} onClick={enabled ? (): void => onSteer(kind) : undefined}>
             {RPG_PLOT_STEERS[kind].label}
           </MenuItem>
         ))}
       </MenuPopup>
     </MenuSubmenuRoot>
   );
-}
-
-// Attach images & video — the sanctioned FileDropzone picker (a raw file input is gate-banned in features).
-// The input is kept OUT of the menuitem's accessible-name subtree (P1-C): it renders hidden (aria-hidden +
-// tabIndex -1 so it is neither a focus target nor an announced control), and the menuitem TRIGGERS it via a
-// ref click. The menuitem carries the single clean accessible name; `closeOnClick={false}` keeps the menu
-// open through the OS dialog. Screen readers see exactly one control: "Attach images & video, up to {size}
-// per file."
-function AttachMediaItem({
-  maxAttachmentBytes,
-  disabled,
-  onAddFiles,
-}: {
-  readonly maxAttachmentBytes: number;
-  readonly disabled: boolean;
-  readonly onAddFiles: ComposerImageControls["onAddFiles"];
-}): ReactElement {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const openPicker = (): void => {
-    inputRef.current?.click();
-  };
-  return (
-    <>
-      <MenuItem
-        closeOnClick={false}
-        disabled={disabled}
-        aria-label={`Attach images & video, up to ${formatMib(maxAttachmentBytes)} per file`}
-        data-testid={testId("composerAttachImages")}
-        onClick={disabled ? undefined : openPicker}
-      >
-        <Icon icon={ImagePlus} size="sm" />
-        Attach images & video
-      </MenuItem>
-      {/* The real picker, hidden off the accessible tree — the row above triggers its input via the ref. Kept
-          inside the popup so its focus/portal context is the menu's, never a stray body-level input. */}
-      <FileDropzone
-        ref={inputRef}
-        accept={ATTACH_MEDIA_ACCEPT}
-        multiple={true}
-        maxSizeBytes={maxAttachmentBytes}
-        disabled={disabled}
-        onFilesSelected={onAddFiles}
-        instructions=""
-        aria-hidden={true}
-        tabIndex={-1}
-        // `hidden` (display:none) drops the whole picker from BOTH layout and the accessibility tree — the row
-        // above is the only visible/announced control; a display:none file input still opens on a programmatic
-        // .click() (Chromium) and accepts setInputFiles, so the upload + CT paths are unaffected.
-        className="hidden"
-      />
-    </>
-  );
-}
-
-// The accessible-name byte-size hint (MB, one decimal) — a plain decimal render of the served image cap so the
-// menuitem's name states the limit without depending on the dropzone's own visible hint copy.
-const BYTES_PER_KIB = 1024;
-const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
-const ONE_DECIMAL = 10;
-function formatMib(bytes: number): string {
-  const mib = bytes / BYTES_PER_MIB;
-  const rounded = Math.round(mib * ONE_DECIMAL) / ONE_DECIMAL;
-  return `${rounded} MB`;
 }
 
 /** Recall a fired steer back into the composer (the D57 ring). The ring is DE-DUPED on push

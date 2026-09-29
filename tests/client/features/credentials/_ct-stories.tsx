@@ -6,10 +6,11 @@
 
 import { useInvalidation, useTRPC } from "@orb/client/data";
 import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "@orb/client/features/credentials";
+import { pluginsInstalledSection } from "@orb/client/features/plugin";
 import { SaveStatusHostContext } from "@orb/client/forms";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
-import { useAggregateSaveStatus } from "@orb/client/state";
+import { useActiveConfigGroup, useAggregateSaveStatus } from "@orb/client/state";
 import type { CredRevokedReason } from "@orb/contracts/credentials";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { UserConnectionId, UserCredentialId } from "@orb/kit/ids";
@@ -25,6 +26,11 @@ const connectionsSections: ReturnType<typeof createContributorRegistry<ConfigSec
   "config-sections",
   [connectionsListSection, connectionsRolesSection, connectionsKeysSection],
 );
+
+const providerLifecycleConnectionSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> =
+  createContributorRegistry<ConfigSectionContribution>("config-sections", [connectionsListSection]);
+const providerLifecyclePluginSections: ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> =
+  createContributorRegistry<ConfigSectionContribution>("config-sections", [pluginsInstalledSection]);
 
 /** `<CredentialKeyRow>` under the data layer (`trpc`/`invalidation` read inside the provider tree — the
  *  row's own wiring); its mutations are stubbed per-test via routeTrpc. */
@@ -301,13 +307,32 @@ export function ConnectionsAuthoringStory({ width }: { readonly width: number })
   );
 }
 
+/** Plugin lifecycle and its dependent connection list under one query client, so invalidation is observable
+ *  across both production sections rather than simulated by remounting either side with a cold cache. */
+function ActiveConfigGroupProbe(): ReactElement {
+  const activeGroup = useActiveConfigGroup();
+  return <p data-testid="active-config-group">{activeGroup ?? "none"}</p>;
+}
+
+export function PluginProviderConnectionLifecycleStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 870 }}>
+        <CtConfigGroupBody anchor="plugins" sections={providerLifecyclePluginSections} />
+        <CtConfigGroupBody anchor="connections" sections={providerLifecycleConnectionSections} />
+        <ActiveConfigGroupProbe />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** THE CONNECTION EDITOR at the same two load-bearing widths. Mounted DIRECTLY rather than through the
  *  config host, because here the width is the SUBJECT: the story fixes the box and the editor's own
  *  `@container` decides every reflow inside it — which is also what makes the pair a proof of the mechanism,
  *  since the VIEWPORT is identical in both arms and a `@media` rule could not tell them apart. Every read
  *  (`connection.get`, `connection.providersAvailable`, `connection.capabilities`, `connection.catalogModels`,
  *  `sessions.me`, `settings.getAppSettingsWithOverrides`) and every write (`connection.update`,
- *  `connection.probe`, `settings.updateAppSettings`) is stubbed per-test via routeTrpc. */
+ *  `connection.remove`, `connection.probe`, `settings.updateAppSettings`) is stubbed per-test via routeTrpc. */
 function ConnectionEditorInner({ connectionId }: { readonly connectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();

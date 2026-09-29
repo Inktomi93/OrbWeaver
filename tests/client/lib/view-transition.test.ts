@@ -1,5 +1,5 @@
 import { afterEach, describe, vi } from "vitest";
-import { withViewTransition } from "../../../packages/client/src/lib/view-transition.ts";
+import { runAfterViewTransition, withViewTransition } from "../../../packages/client/src/lib/view-transition.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {
@@ -46,6 +46,66 @@ describe("withViewTransition", () => {
     expect(start).toHaveBeenCalledTimes(2);
   });
 
+  test("defers follow-up work until this task's visual transition has finished", async () => {
+    let finish: (() => void) | undefined;
+    const finished = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const effect = vi.fn();
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    vi.stubGlobal("document", {
+      querySelector: () => null,
+      startViewTransition: (update: () => void) => {
+        update();
+        return { ready: Promise.resolve(), finished, updateCallbackDone: Promise.resolve() };
+      },
+    });
+
+    withViewTransition(() => undefined);
+    runAfterViewTransition(effect);
+
+    expect(effect).not.toHaveBeenCalled();
+    finish?.();
+    await finished;
+    await Promise.resolve();
+    expect(effect).toHaveBeenCalledOnce();
+  });
+
+  test("carries deferred work through a skipped transition to its superseding transition", async () => {
+    const abort = Object.assign(new Error("transition skipped"), { name: "AbortError" });
+    let finishSecond: (() => void) | undefined;
+    const firstFinished = Promise.reject(abort);
+    const secondFinished = new Promise<void>((resolve) => {
+      finishSecond = resolve;
+    });
+    let starts = 0;
+    const effect = vi.fn();
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    vi.stubGlobal("document", {
+      querySelector: () => null,
+      startViewTransition: (update: () => void) => {
+        update();
+        starts += 1;
+        return starts === 1
+          ? { ready: Promise.reject(abort), finished: firstFinished, updateCallbackDone: Promise.resolve() }
+          : { ready: Promise.resolve(), finished: secondFinished, updateCallbackDone: Promise.resolve() };
+      },
+    });
+
+    withViewTransition(() => undefined);
+    runAfterViewTransition(effect);
+    withViewTransition(() => undefined);
+    await firstFinished.catch(() => undefined);
+    await Promise.resolve();
+
+    expect(effect).not.toHaveBeenCalled();
+    finishSecond?.();
+    await secondFinished;
+    await Promise.resolve();
+
+    expect(effect).toHaveBeenCalledOnce();
+  });
+
   test("skips the native snapshot when the app-level reduced-motion preference is active", () => {
     const update = vi.fn();
     const start = vi.fn();
@@ -53,9 +113,12 @@ describe("withViewTransition", () => {
     vi.stubGlobal("document", { querySelector: (selector: string) => (selector === '[data-reduced-motion="true"]' ? {} : null), startViewTransition: start });
 
     withViewTransition(update);
+    const after = vi.fn();
+    runAfterViewTransition(after);
 
     expect(start).not.toHaveBeenCalled();
     expect(update).toHaveBeenCalledOnce();
+    expect(after).toHaveBeenCalledOnce();
   });
 
   test("absorbs only skipped-transition AbortError and surfaces update failures", async () => {

@@ -32,7 +32,8 @@ const NO_CONTROLS: ReadonlyMap<string, readonly ChatControl[]> = new Map();
  *  WHAT IS DELIBERATELY NOT COMPARED: the closures and a card's `detail` node (a ReactNode is rebuilt per
  *  render by construction, so comparing it would re-open the loop). An ignored publish therefore KEEPS the
  *  previous objects — which is why `ChatControlSourceMountProps` states the source's half of the deal: a
- *  control whose behaviour changes gets a new `id`. */
+ *  control whose behaviour changes gets a new `id`. A chip's `disclosureLabel` is compared because it
+ *  changes the resting control a member sees. */
 function sameAction(a: ChatControlAction, b: ChatControlAction): boolean {
   if (a.id !== b.id || a.label !== b.label || a.mode !== b.mode) {
     return false;
@@ -60,7 +61,7 @@ function sameControl(a: ChatControl, b: ChatControl): boolean {
     return false;
   }
   if (a.kind === "chip") {
-    return b.kind === "chip" && sameAction(a.action, b.action);
+    return b.kind === "chip" && a.disclosureLabel === b.disclosureLabel && sameAction(a.action, b.action);
   }
   return b.kind === "card" && a.title === b.title && sameActions(a.actions, b.actions);
 }

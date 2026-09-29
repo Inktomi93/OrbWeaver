@@ -11,17 +11,14 @@
 //
 // WHAT A ROW LOOKS LIKE IS NOT HERE (C5): `rule-row.tsx` owns it, shared with the owner-global Automation
 // settings pane, so the two lists of the same thing cannot drift about what an affordance costs. What stays
-// here is what is genuinely PER-ROOM — the room's rule read, the room's live feed, and the room's empty copy.
+// here is what is genuinely PER-ROOM — the room's rule read, per-rule fire disclosures, and empty copy.
 //
-// LIVE FRESHNESS: rule CRUD/enable/Test/Run-now reconcile through each mutation's own `invalidates`. But a
-// rule also fires from a REAL turn with no local mutation — so this section additionally subscribes to the
-// chat's `automation` room and invalidates the rules list + the affected fire log off `ruleFired`/
-// `ruleErrored`/`ruleAutoDisabled`/`rulesChanged` (the members `apply-automation-bus-event.ts` names as
-// "B2's rules panel's" — the reducer folds only the pending-ask members). The room is a SECOND subscriber
-// on the same multiplexed socket as the S4 card mount; the registry fans one room to a Set of subscribers.
-// The owner-global pane has NO such feed — that bus is per-chat — and says so at its own file.
+// LIVE FRESHNESS: rule CRUD/enable/Test/Run-now reconcile through each mutation's own `invalidates`. A real
+// turn has no local mutation, so the always-mounted automation control source routes its room events through
+// the central invalidation seam. That one subscription refreshes this section's rule/fire reads and the
+// separate Activity tab without adding a rules-only room subscriber. The owner-global pane has no such feed
+// — that bus is per-chat — and says so at its own file.
 
-import type { StreamRoomRef } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
@@ -32,7 +29,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, useBusRoom, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, useTRPC } from "#data";
 import { RulePresetPicker } from "./rule-preset-picker.tsx";
 import { RuleRow } from "./rule-row.tsx";
 
@@ -41,26 +38,6 @@ import { RuleRow } from "./rule-row.tsx";
  *  (`no-inline-types`), and the client feature tree has no `contract/` to move it to. The alias is one line
  *  off the SAME inferred source in both places, so the two cannot drift. */
 type Rule = inferOutput<Trpc["automation"]["listRules"]>[number];
-
-/** Subscribe to the chat's `automation` room and invalidate the rules list + affected fire log when a rule
- *  fires, errors, auto-disables, or the set changes from a REAL turn (no local mutation moved them). */
-function useRuleFeedInvalidation(chatId: ChatId): void {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const ref: Extract<StreamRoomRef, { channel: "automation" }> = { channel: "automation", chatId };
-  useBusRoom<"automation">(ref, {
-    onEvent: (frame) => {
-      const event = frame.event;
-      if (event.type === "quickReplySurfaced" || event.type === "suggestionRaised") {
-        return; // the S4 card mount's members; they move no rule state.
-      }
-      invalidation.invalidateFilters([trpc.automation.listRules.queryFilter({ chatId: event.chatId })]);
-      if (event.type === "ruleFired" || event.type === "ruleErrored") {
-        invalidation.invalidateFilters([trpc.automation.listFires.queryFilter({ ruleId: event.ruleId })]);
-      }
-    },
-  });
-}
 
 /** The section's opening line — one gloss, painted in BOTH arms (settled and reserving) because it depends
  *  on no read. Every sibling section in this pane opens with one. */
@@ -147,7 +124,6 @@ interface RulesSectionProps {
 export function RulesSection({ chatId }: RulesSectionProps): ReactElement {
   const trpc = useTRPC();
   const { data: rules } = useSuspenseQuery(trpc.automation.listRules.queryOptions({ chatId }));
-  useRuleFeedInvalidation(chatId);
 
   return (
     <Stack gap="section">

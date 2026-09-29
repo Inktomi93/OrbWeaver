@@ -7,7 +7,7 @@
 //     so a d20 game is BORN with the six d20 attributes), and one `RpgStatProfile` field of six.
 //   · `publicConfig.dateMode` was absent from both, and `ruleset` from one — required members of
 //     `RpgGameView["publicConfig"]` that the `unknown` return type made invisible to tsc.
-// Neither lie changed a verdict TODAY (the dice row keys on `ruleset` alone, the choice provider on
+// Neither lie changed a verdict TODAY (the dice menu keys on `ruleset` alone, the choice provider on
 // `cyoaChoiceBehavior`), which is exactly the #900 hazard: a fixture the server cannot mint is a test of a
 // product nobody ships, and the next reader of those fields inherits a green pin over a fiction.
 //

@@ -36,7 +36,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { QueryBoundary, RowActionsMenu, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
@@ -55,6 +55,9 @@ type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 type BindingView = inferOutput<Trpc["connection"]["listBindings"]>[number];
 type CredentialListItem = inferOutput<Trpc["credentials"]["list"]>[number];
 type ProviderDef = inferOutput<Trpc["connection"]["providersAvailable"]>[number]["provider"];
+type ListFocusIntent =
+  | { readonly kind: "row"; readonly connectionId: ConnectionListItem["id"] }
+  | { readonly kind: "removed"; readonly connectionId: ConnectionListItem["id"]; readonly index: number };
 
 export function ConnectionsListSection(): ReactElement {
   return (
@@ -85,11 +88,45 @@ function ConnectionsBody(): ReactElement {
   // view replacing the list, which is what keeps the four tiers inside the settings body at 486 instead of
   // inside a modal that has its own width.
   const [editingId, setEditingId] = useState<ConnectionListItem["id"] | null>(null);
+  const addConnectionFocus = useRef<HTMLButtonElement>(null);
+  const listFocusIntent = useRef<ListFocusIntent | null>(null);
+  const rowRoots = useRef(new Map<ConnectionListItem["id"], HTMLDivElement>());
+
+  useEffect(() => {
+    const intent = listFocusIntent.current;
+    if (editingId !== null || intent === null) {
+      return;
+    }
+    if (intent.kind === "removed" && connections.some((connection) => connection.id === intent.connectionId)) {
+      return;
+    }
+    const targetId = intent.kind === "row" ? intent.connectionId : connections[intent.index]?.id;
+    listFocusIntent.current = null;
+    const target = targetId === undefined ? null : rowRoots.current.get(targetId)?.querySelector<HTMLElement>('[data-slot="list-row-body"]');
+    (target ?? addConnectionFocus.current)?.focus();
+  }, [connections, editingId]);
 
   if (editingId !== null) {
     return (
       <Section divider={true} heading={CONNECTIONS_LIST_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_LIST_SUBCATEGORY.id)}>
-        <ConnectionEditor connectionId={editingId} invalidation={invalidation} onDone={(): void => setEditingId(null)} trpc={trpc} />
+        <ConnectionEditor
+          connectionId={editingId}
+          invalidation={invalidation}
+          onDone={(): void => {
+            listFocusIntent.current = { kind: "row", connectionId: editingId };
+            setEditingId(null);
+          }}
+          onRemoved={(): void => {
+            listFocusIntent.current = {
+              kind: "removed",
+              connectionId: editingId,
+              index: connections.findIndex((connection) => connection.id === editingId),
+            };
+            setEditingId(null);
+          }}
+          removalFinalFocus={addConnectionFocus}
+          trpc={trpc}
+        />
       </Section>
     );
   }
@@ -100,7 +137,7 @@ function ConnectionsBody(): ReactElement {
         <Text voice="gloss">One provider and one model per connection. Every turn you trigger — in any room — runs on your own connections.</Text>
         {/* ONE "Add connection" PER VIEWPORT: the empty state owns the verb while the list is empty. */}
         {connections.length === 0 ? null : (
-          <Button intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>
+          <Button ref={addConnectionFocus} intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>
             <Icon icon={Plus} size="sm" />
             Add connection
           </Button>
@@ -113,7 +150,7 @@ function ConnectionsBody(): ReactElement {
           title="No connections yet"
           description="Add a provider key or your own server so your roles can reach a model."
           action={
-            <Button intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>
+            <Button ref={addConnectionFocus} intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>
               <Icon icon={Plus} size="sm" />
               Add connection
             </Button>
@@ -128,6 +165,13 @@ function ConnectionsBody(): ReactElement {
               bindings={bindings}
               credentials={credentials}
               provider={available.find((row) => row.provider.id === connection.providerId)?.provider ?? null}
+              rowRef={(node): void => {
+                if (node === null) {
+                  rowRoots.current.delete(connection.id);
+                } else {
+                  rowRoots.current.set(connection.id, node);
+                }
+              }}
               trpc={trpc}
               invalidation={invalidation}
               onEdit={setEditingId}
@@ -165,6 +209,7 @@ function ConnectionRow({
   bindings,
   credentials,
   provider,
+  rowRef,
   trpc,
   invalidation,
   onEdit,
@@ -174,6 +219,7 @@ function ConnectionRow({
   readonly credentials: readonly CredentialListItem[];
   /** The row's registry entry; `null` when the registry no longer lists its provider. */
   readonly provider: ProviderDef | null;
+  readonly rowRef: (node: HTMLDivElement | null) => void;
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
   readonly onEdit: (connectionId: ConnectionListItem["id"]) => void;
@@ -183,6 +229,7 @@ function ConnectionRow({
   const update = useUpdateConnection(deps);
   const applyEverywhere = useUseForEverything(deps);
   const [addModelOpen, setAddModelOpen] = useState(false);
+  const providerUnavailable = provider === null;
   const addModel = provider === null ? null : addModelScope({ auth: provider.auth, credentialId: connection.credentialId });
 
   const name = connectionSummary(connection);
@@ -199,10 +246,10 @@ function ConnectionRow({
   // The Model-roles REPAIR switch is the opposite case and spells its subject visibly: it sits in a role
   // row and writes a DIFFERENT row's flag, so there is no context to inherit.
   const switchLabel = CONNECTION_FORM_COPY.backgroundLabel;
-  const switchName = `${switchLabel} on ${name}`;
+  const switchName = providerUnavailable ? `${switchLabel} unavailable on ${name} because its provider is unavailable` : `${switchLabel} on ${name}`;
 
   return (
-    <Stack gap="tight">
+    <Stack gap="tight" ref={rowRef}>
       {/* THE ROW IS THE EDITOR'S DOOR. `clickable` makes the identity block (leading + title + subtitle) ONE
           native `<button>` with the actions cluster kept a SIBLING — which is also what keeps this from being
           the stretched link the mock review caught as a P1 `obscured-target` (an `inset: 0` overlay covers
@@ -240,7 +287,7 @@ function ConnectionRow({
               <Switch
                 aria-label={switchName}
                 checked={connection.allowBackground}
-                disabled={update.isPending}
+                disabled={providerUnavailable || update.isPending}
                 onCheckedChange={(checked): void => update.mutate({ connectionId: connection.id, patch: { allowBackground: checked } })}
               />
               <Text voice="gloss" as="span">
@@ -257,18 +304,20 @@ function ConnectionRow({
                 title: `Remove "${connection.label}"?`,
               }}
             >
-              <MenuItem
-                className="flex-col items-start"
-                disabled={applyEverywhere.isPending || sweepRoles.length === 0}
-                onClick={(): void => applyEverywhere.mutate({ connectionId: connection.id })}
-              >
-                <Text voice="label" as="span" ink="inherit">
-                  Use this connection for everything it can serve
-                </Text>
-                <Text voice="gloss" as="span">
-                  Sets {joinRoleLabels(sweepRoles)} to this connection. You can change any of them after.
-                </Text>
-              </MenuItem>
+              {sweepRoles.length === 0 ? null : (
+                <MenuItem
+                  className="flex-col items-start"
+                  disabled={applyEverywhere.isPending}
+                  onClick={(): void => applyEverywhere.mutate({ connectionId: connection.id })}
+                >
+                  <Text voice="label" as="span" ink="inherit">
+                    Use this connection for everything it can serve
+                  </Text>
+                  <Text voice="gloss" as="span">
+                    Sets {joinRoleLabels(sweepRoles)} to this connection. You can change any of them after.
+                  </Text>
+                </MenuItem>
+              )}
               {provider === null || addModel === null ? null : (
                 <MenuItem className="flex-col items-start" onClick={(): void => setAddModelOpen(true)}>
                   <Text voice="label" as="span" ink="inherit">
@@ -283,7 +332,7 @@ function ConnectionRow({
           </>
         }
       />
-      <ConnectionBadges connection={connection} />
+      <ConnectionBadges connection={connection} providerUnavailable={providerUnavailable} />
       {provider === null || addModel === null ? null : (
         <AddModelOnKeyDialog
           connection={connection}
@@ -299,12 +348,23 @@ function ConnectionRow({
   );
 }
 
-/** The row's status rail: the Model roles this connection CAN serve (a statement about the model, never
- *  about what the user bound), plus the two CONDITION badges. `task` is SEALED — the badge text is always
- *  the Model-roles label, never the schema word. */
-function ConnectionBadges({ connection }: { readonly connection: ConnectionListItem }): ReactElement {
+/** The row's status rail: provider availability, the Model roles this connection CAN serve (a statement
+ *  about the model, never what the user bound), and the other two condition badges. `task` is sealed —
+ *  badge text is always the Model-roles label, never the schema word. */
+function ConnectionBadges({
+  connection,
+  providerUnavailable,
+}: {
+  readonly connection: ConnectionListItem;
+  readonly providerUnavailable: boolean;
+}): ReactElement {
   return (
     <Row gap="field" align="center" className="flex-wrap">
+      {providerUnavailable ? (
+        <Badge intent="warning" size="sm" tone="soft">
+          Provider unavailable
+        </Badge>
+      ) : null}
       {connectionRoleLabels(connection.tasks).map((label) => (
         <Badge key={label} intent="primary" size="sm" tone="soft">
           {label}

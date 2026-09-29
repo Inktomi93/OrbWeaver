@@ -86,18 +86,13 @@ export function controlOverflowNotice(hidden: number, noun: "pending" | "more"):
   return `+${hidden} ${noun}`;
 }
 
-/** The chip disclosure's EXPANDED label (#684 P2). The collapsed one is `controlOverflowNotice` — the same
- *  "+N more" grammar the cards use — but on a chip row it now labels a real expander rather than a dead
- *  `<p>`, so it needs a way back. */
+/** The chip disclosure's expanded label; the resting label comes from `controlStripNotice`. */
 export const CONTROL_CHIPS_COLLAPSE = "Show fewer";
 
-/** The chip row's COARSE resting label (#2426). At a coarse pointer the band's resting state is ONE ROW —
- *  the disclosure alone — so what it reveals is the WHOLE row rather than the remainder past the display
- *  cap, and the `+N more` grammar would be naming the wrong number. Reads as the pair of
- *  {@link CONTROL_CHIPS_COLLAPSE} ("Show N controls" / "Show fewer"), the same verb-led disclosure register
- *  the Characters pane's `More filters` / `Fewer filters` uses (docs/law/vocabulary-map.md). */
-export function controlStripNotice(count: number): string {
-  return `Show ${String(count)} ${count === 1 ? "control" : "controls"}`;
+/** The chip row's resting label. The disclosure reveals the whole set; a shared contextual label names
+ *  related controls such as dice rolls, while mixed sources use the generic count. */
+export function controlStripNotice(count: number, disclosureLabel?: string): string {
+  return disclosureLabel === undefined ? `Show ${String(count)} ${count === 1 ? "control" : "controls"}` : `Show ${disclosureLabel} (${String(count)})`;
 }
 
 // The composer GUIDED-CLUSTER phase reasons (W-D — the four always-visible dual-mode icons). Each icon is
@@ -192,8 +187,25 @@ const SEND_UNAVAILABLE_REASON: Record<UnavailableCause, string> = {
   "model-load-failed": "Your connection's built-in model failed to load on this server — send again to retry.",
 };
 
+// The composer's visible connection line is intentionally terse: the full actionable sentence already
+// describes every disabled fire control, while this status has to share a shallow rail with those controls.
+const SEND_UNAVAILABLE_STATUS: Record<UnavailableCause, string> = {
+  "no-connection": "No connection",
+  "endpoint-unreachable": "Model server unreachable",
+  "runtime-missing": "Claude runtime unavailable",
+  "background-refused": "Background work blocked",
+  "requirement-unmet": "Connection incompatible",
+  unavailable: "Connection unavailable",
+  "model-load-failed": "Model failed to load",
+};
+
 /** The composer disabled-reason for an unavailable cause — the single home the Send button + the guided fire
  *  actions read, so the copy can't drift between the two surfaces. Exhaustive over `UnavailableCause`. */
 export function sendUnavailableReason(cause: UnavailableCause): string {
   return SEND_UNAVAILABLE_REASON[cause];
+}
+
+/** Compact visible status for the composer's single connection home. */
+export function sendUnavailableStatus(cause: UnavailableCause): string {
+  return SEND_UNAVAILABLE_STATUS[cause];
 }

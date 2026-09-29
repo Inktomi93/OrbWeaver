@@ -56,10 +56,48 @@ export function motionIsReduced(): boolean {
   return prefersReducedMotionNow() || (g.document?.querySelector?.('[data-reduced-motion="true"]') ?? null) !== null;
 }
 
-/** The updates already queued into a transition that has STARTED but whose update callback has not run
- *  yet — i.e. the ones raised by the task we are still inside. `null` between tasks (see the coalescing
- *  note on `withViewTransition`). */
-let joinableUpdates: (() => void)[] | null = null;
+/** The transition raised by the current task. It admits updates only until its update callback runs, but
+ *  retains visual settlement until task-end so the originating intent can sequence follow-up work. */
+interface TaskTransition {
+  readonly updates: (() => void)[];
+  acceptingUpdates: boolean;
+  finished: Promise<unknown> | undefined;
+}
+
+let taskTransition: TaskTransition | null = null;
+let activeTransition: TaskTransition | null = null;
+
+function surfaceDeferredFailure(error: unknown): never {
+  throw error;
+}
+
+function runWhenTransitionsSettle(observed: TaskTransition, effect: () => void): void {
+  const finished = observed.finished;
+  if (finished === undefined) {
+    effect();
+    return;
+  }
+  const settled = (): void => {
+    const current = activeTransition;
+    if (current !== null && current !== observed) {
+      runWhenTransitionsSettle(current, effect);
+      return;
+    }
+    effect();
+  };
+  Promise.allSettled([finished]).then(settled).catch(surfaceDeferredFailure);
+}
+
+/** Run work after the active native crossfade settles. With no visual transition there is nothing to wait
+ *  for, so the work runs synchronously. A superseding transition carries the work forward to its settlement. */
+export function runAfterViewTransition(effect: () => void): void {
+  const current = activeTransition;
+  if (current === null) {
+    effect();
+    return;
+  }
+  runWhenTransitionsSettle(current, effect);
+}
 
 /**
  * Run a view-state update inside a View Transition when the platform supports it (and the user
@@ -91,26 +129,37 @@ export function withViewTransition(update: () => void): void {
   const g = globalThis as VtGlobals;
   const start = g.document?.startViewTransition;
   if (start === undefined || motionIsReduced()) {
+    taskTransition = null;
     update();
     return;
   }
-  if (joinableUpdates !== null) {
-    joinableUpdates.push(update);
+  if (taskTransition?.acceptingUpdates === true) {
+    taskTransition.updates.push(update);
     return;
   }
-  const updates: (() => void)[] = [update];
-  joinableUpdates = updates;
+  const current: TaskTransition = { updates: [update], acceptingUpdates: true, finished: undefined };
+  taskTransition = current;
   // End of THIS task — anything raised later is a different intent and gets its own transition.
   queueMicrotask(() => {
-    if (joinableUpdates === updates) {
-      joinableUpdates = null;
+    if (taskTransition === current) {
+      taskTransition = null;
     }
   });
   const transition = start.call(g.document, () => {
-    joinableUpdates = null;
-    for (const run of updates) {
+    current.acceptingUpdates = false;
+    for (const run of current.updates) {
       run();
     }
   });
+  current.finished = transition?.finished;
+  if (current.finished !== undefined) {
+    activeTransition = current;
+    const clear = (): void => {
+      if (activeTransition === current) {
+        activeTransition = null;
+      }
+    };
+    Promise.allSettled([current.finished]).then(clear).catch(surfaceDeferredFailure);
+  }
   observeViewTransition(transition);
 }

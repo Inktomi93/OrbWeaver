@@ -194,13 +194,14 @@ const errorFrame = (code: string): SubscriptionErrorPayload => ({ __subscription
 test("an UNAUTHORIZED socket fault ENTERS the recovery ladder (it used to stop at a toast)", async ({ mount, page }) => {
   const authMe = await routeAuthMe(page, true);
   await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "chat.getChat": getChat });
-  // The user frame rides AFTER the error frame, so seeing it rendered proves the error frame was already
-  // routed — the strict barrier an "and then this happened" assertion needs.
-  await routeOrbSocket(page, { frames: [errorFrame("UNAUTHORIZED"), USER_FRAME], awaitAttaches: 1 });
+  await routeOrbSocket(page, { frames: [errorFrame("UNAUTHORIZED")], awaitAttaches: 1 });
 
   await mount(<UserBusStory />);
 
-  await expect(page.getByTestId("user-events")).toHaveText("tagsChanged");
+  // The auth probe is the recovery edge under test and therefore the barrier. A later room frame is unsafe
+  // here: the ladder fails closed when this CT has no bound shell identity and may navigate before that frame
+  // renders, destroying the page the assertion was waiting on. This poll is also the planted old-source red:
+  // remove `recoverIfUnauthorizedCode` from the socket path and `/api/auth/me` is never requested.
   await expect.poll(() => authMe()).toBeGreaterThan(0);
 });
 

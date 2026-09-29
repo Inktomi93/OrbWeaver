@@ -1,10 +1,10 @@
-// The chat options ⋯ menu at its ONE home: the composer's LEFT gutter (D111 §3's drawn control map — ☰ ✨
+// The chat options ☰ menu at its ONE home: the composer's LEFT gutter (D111 §3's drawn control map — ☰ ✨
 // [textarea] 🎭 ⟳ ▷ ⏩ ➤; owner ruling 2026-08-09 closed the parked "topbar vs composer" fork on the
 // composer, and the topbar affordance was REMOVED in the same commit — never two homes for one menu).
 //
-// PURE RELOCATION, as D111 specifies: `ChatOptionsMenu` and every item in it are untouched, and the ⋯ glyph
-// stays ours (the map's ☰ is how the owner drew our three-dots, not a request to re-skin it). What changed
-// is the mount point: the topbar wrapper resolved the active chat from the shell store because chrome has no
+// PURE RELOCATION, as D111 specifies: `ChatOptionsMenu` and every item in it are untouched. The trigger uses
+// the map's ☰ glyph while retaining the existing `Chat options` name and menu behavior. The mount point is
+// unchanged: the former topbar wrapper resolved the active chat from the shell store because chrome has no
 // props; the composer already HOLDS the room it renders for, so the id comes down as a PROP and the landing
 // case is unrepresentable here.
 //
@@ -20,8 +20,8 @@ import { useTRPC } from "#data";
 import { filterCharacters } from "../lib/roster.ts";
 import { ChatOptionsMenu } from "./chat-options-menu.tsx";
 
-/** The composer-left ⋯: the ONE options menu for the room this composer belongs to. Resolves the roster + server host gate (`viewerIsHost`) from the shared getChat query and
- *  renders the ⋯ menu — the same wiring the topbar trail used before the D111 relocation. */
+/** The composer-left ☰: the ONE options menu for the room this composer belongs to. Resolves the roster + server host gate (`viewerIsHost`) from the shared getChat query and
+ *  renders the chat-options menu — the same wiring the topbar trail used before the D111 relocation. */
 export function ActiveChatOptionsMenu({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));

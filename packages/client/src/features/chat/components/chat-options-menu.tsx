@@ -15,7 +15,7 @@
 
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { Icon, Images, ListChecks, MessagesSquare, Pencil, Swords, X } from "@orb/ui/icons";
+import { Icon, Images, ListChecks, Menu as MenuIcon, MessagesSquare, Pencil, Swords, X } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
@@ -188,6 +188,7 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
   return (
     <>
       <RowActionsMenu
+        icon={MenuIcon}
         label="Chat options"
         // The hover/focus explanation is the LABEL, not a twin of it (#869): the popup used to read "Manage
         // this chat" over an accessible name of "Chat options", and on an icon-only trigger the popup IS the

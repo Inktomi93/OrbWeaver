@@ -42,15 +42,14 @@ import type { DeclaredCapability } from "@orb/contracts/inference";
 import { providerDisplayLabel } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
-import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Field } from "@orb/ui/field";
-import { ArrowLeft, Icon } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import type { ReactElement, ReactNode } from "react";
+import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { ReactElement, ReactNode, RefObject } from "react";
 import { useId, useState } from "react";
 import { QueryBoundary, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
@@ -71,6 +70,7 @@ import { promptCacheChangedCount, showsPromptCache } from "../lib/prompt-cache-m
 import { ConnectionAccount } from "./connection-account.tsx";
 import { ModelField, SavedTextField } from "./connection-editor-essential.tsx";
 import { CapabilityRail, KindVerdict } from "./connection-editor-purpose.tsx";
+import { ConnectionEditorHeader, ConnectionEditorUnavailable } from "./connection-editor-unavailable.tsx";
 import { ConnectionExtrasEditor } from "./connection-extras-editor.tsx";
 import { FactRowList } from "./connection-fact-rows.tsx";
 import { ConnectionInspector } from "./connection-inspector.tsx";
@@ -82,9 +82,15 @@ export interface ConnectionEditorProps {
   readonly connectionId: UserConnectionId;
   /** Back out of the editor — the list section owns which view it shows. */
   readonly onDone: () => void;
+  /** Return to the list after a successful removal, where the list restores focus to a live control. */
+  readonly onRemoved?: (() => void) | undefined;
+  readonly removalFinalFocus?: RefObject<HTMLElement | null> | undefined;
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
 }
+
+type ConnectionView = inferOutput<Trpc["connection"]["get"]>;
+type ProviderDef = inferOutput<Trpc["connection"]["providersAvailable"]>[number]["provider"];
 
 export function ConnectionEditor(props: ConnectionEditorProps): ReactElement {
   return (
@@ -99,14 +105,47 @@ export function ConnectionEditor(props: ConnectionEditorProps): ReactElement {
   );
 }
 
-function ConnectionEditorBody({ connectionId, onDone, trpc, invalidation }: ConnectionEditorProps): ReactElement {
+function ConnectionEditorBody({ connectionId, onDone, onRemoved, removalFinalFocus, trpc, invalidation }: ConnectionEditorProps): ReactElement {
   const { data: connection } = useSuspenseQuery(trpc.connection.get.queryOptions({ connectionId }));
   const { data: available } = useSuspenseQuery(trpc.connection.providersAvailable.queryOptions());
+  const provider = available.find((row) => row.provider.id === connection.providerId)?.provider;
+
+  if (provider === undefined) {
+    return (
+      <ConnectionEditorUnavailable
+        connection={connection}
+        finalFocus={removalFinalFocus}
+        invalidation={invalidation}
+        onDone={onDone}
+        onRemoved={onRemoved}
+        trpc={trpc}
+      />
+    );
+  }
+
+  return (
+    <AvailableConnectionEditorBody
+      connection={connection}
+      connectionId={connectionId}
+      invalidation={invalidation}
+      onDone={onDone}
+      provider={provider}
+      trpc={trpc}
+    />
+  );
+}
+
+function AvailableConnectionEditorBody({
+  connection,
+  connectionId,
+  onDone,
+  provider,
+  trpc,
+  invalidation,
+}: ConnectionEditorProps & { readonly connection: ConnectionView; readonly provider: ProviderDef }): ReactElement {
   const { data: capabilityView } = useSuspenseQuery(trpc.connection.capabilities.queryOptions({ connectionId }));
   const update = useUpdateConnection({ trpc, invalidation });
-
-  const provider = available.find((row) => row.provider.id === connection.providerId)?.provider;
-  const providerLabel = provider === undefined ? connection.providerId : providerDisplayLabel(provider);
+  const providerLabel = providerDisplayLabel(provider);
   const declared = connection.declared;
   const busy = update.isPending;
 
@@ -118,17 +157,7 @@ function ConnectionEditorBody({ connectionId, onDone, trpc, invalidation }: Conn
     // THE NAMED CONTAINER (see the header): every reflow below keys off THIS box, not the viewport.
     <Container className="@container/connection-editor" name="connection-editor">
       <Stack data-slot="connection-editor" gap="block">
-        <Row align="center" gap="field">
-          <Button aria-label="Back to Connections" intent="ghost" onClick={onDone} size="sm">
-            <Icon icon={ArrowLeft} size="sm" />
-          </Button>
-          <Text voice="label">{connection.label}</Text>
-          <Row className="grow" gap="field" justify="end">
-            <Button intent="secondary" onClick={onDone} size="sm">
-              Done
-            </Button>
-          </Row>
-        </Row>
+        <ConnectionEditorHeader label={connection.label} onDone={onDone} />
 
         <EditorTier defaultOpen={true} title="Essential">
           <Stack gap="row">
@@ -247,7 +276,7 @@ function ConnectionEditorBody({ connectionId, onDone, trpc, invalidation }: Conn
               declared={declared}
               onOverride={(row, value): void => patch({ declared: withDeclaredOverride(declared, row, value) })}
               onReset={(row): void => patch({ declared: withoutDeclaredOverride(declared, row) })}
-              providerFeatures={provider?.features}
+              providerFeatures={provider.features}
               providerLabel={providerLabel}
             />
           </Stack>
@@ -276,9 +305,9 @@ function ConnectionEditorBody({ connectionId, onDone, trpc, invalidation }: Conn
               connectionId={connectionId}
               invalidation={invalidation}
               trpc={trpc}
-              wakeable={provider?.features?.sleep !== undefined}
+              wakeable={provider.features?.sleep !== undefined}
             />
-            {provider === undefined ? null : <ConnectionAccount connectionId={connectionId} invalidation={invalidation} provider={provider} trpc={trpc} />}
+            <ConnectionAccount connectionId={connectionId} invalidation={invalidation} provider={provider} trpc={trpc} />
           </Stack>
         </EditorTier>
       </Stack>

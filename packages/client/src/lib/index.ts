@@ -131,6 +131,7 @@ export {
   STEER_CUE_SWIPE,
   SWIPE_NEEDS_REPLY,
   sendUnavailableReason,
+  sendUnavailableStatus,
 } from "./injection-copy.ts";
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence, memberCountPhrase } from "./invite-copy.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
@@ -243,4 +244,4 @@ export { isSilencedTurnAbort, TURN_LOCKED_COPY, TURN_STALE_ABORT_COPY, turnAbort
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { useDebouncedValue } from "./use-debounced-value.ts";
 export { useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
-export { motionIsReduced } from "./view-transition.ts";
+export { motionIsReduced, runAfterViewTransition } from "./view-transition.ts";

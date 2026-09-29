@@ -1,6 +1,5 @@
-// The composer's GUIDED CLUSTER (W-D — the ST-style control map's right half). FOUR always-visible
-// dual-mode icons — Impersonate · Swipe · Response · Continue — plus the ✨ UTILITY menu. Replaces the old
-// nested-menu `ComposerWand` (whose submenus ate the first click; whose steer was invisible state).
+// The composer's compact action rail: four always-visible guided actions, room/tools doors, terminal send,
+// and the room's one connection-status slot. It wraps only when the controls no longer fit.
 //
 // DUAL-MODE: empty composer = the plain action; typed text = the guided action (the text IS the steer,
 // fired through the existing `steerFor` → `guided` funnel). The typed-text-becomes-steer contract is taught
@@ -36,20 +35,15 @@
 // terminal turn Stop remains in `Attach and send`: it aborts a chat TURN, which an impersonation is not.
 // While drafting runs, every icon's reason names the stream instead of a phantom current reply.
 
-import type { UnavailableCause } from "@orb/contracts/inference";
 import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { Button } from "@orb/ui/button";
 import { FastForward, RotateCcw } from "@orb/ui/icons";
-import { Container, Grid, Row, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Container, Row } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { SHOW_ONLY_AT_COARSE } from "#components";
 import { useGatedQuery, useTRPC } from "#data";
 import { IMPERSONATE_IN_FLIGHT, IMPERSONATE_WAIT_FOR_TURN, STEER_CUE_CONTINUE, STEER_CUE_SWIPE, SWIPE_NEEDS_REPLY } from "#lib";
-import { openConfigTo } from "#state";
 import { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import { useGuidedActions } from "../hooks/use-guided-actions.ts";
 import { filterCharacters } from "../lib/roster.ts";
@@ -75,15 +69,18 @@ export interface ComposerGuidedClusterProps {
    *  `sendUnavailableReason`. Engine-agnostic; the reason wins over a phase reason (both are persistent). */
   readonly sendUnavailable: boolean;
   readonly sendUnavailableReason: string | undefined;
-  readonly sendUnavailableCause: UnavailableCause | null;
-  /** The room-level action that leads the four-home action grid. */
+  /** The room-level action that leads the action rail. */
   readonly chatControl: ReactNode;
+  /** The one visible home for next-turn connection identity, warnings, and recovery. */
+  readonly connectionStatus: ReactNode;
+  readonly actionContributions: readonly ReactNode[];
+  readonly mediaContributions: readonly ReactNode[];
   /** The composer-owned terminal send/stop control; kept beside attachment tools as one physical cluster. */
   readonly sendControl: ReactNode;
 }
 
-/** The four dual-mode guided icons + the ✨ utility menu (grouped Input · Reply · Continuation · Images · Plot —
- *  everything busy is inside the menu; the top row is just the four icons + ✨). */
+/** The composer's compact action rail: room actions, guided message/reply actions, one connection-status
+ *  slot, then attachment utilities and the terminal send control. */
 export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactElement {
   const {
     chatId,
@@ -94,8 +91,10 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
     imageControls,
     sendUnavailable,
     sendUnavailableReason,
-    sendUnavailableCause,
     chatControl,
+    connectionStatus,
+    actionContributions,
+    mediaContributions,
     sendControl,
   } = props;
   const guided = useGuidedActions({ chatId, onFireError: (firedText): void => onChange(firedText) });
@@ -120,7 +119,6 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   const impersonating = guided.stopImpersonation !== null;
   const streamOffReason = impersonating ? IMPERSONATE_IN_FLIGHT : undefined;
   const sendRefusal = sendUnavailable ? sendUnavailableReason : undefined;
-  const canOpenConnections = sendRefusal !== undefined && sendUnavailableCause === "no-connection";
   const persistentOffReason = streamOffReason ?? sendRefusal;
   const reasonFor = (phaseReason: string): string => persistentOffReason ?? phaseReason;
 
@@ -144,100 +142,66 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
 
   return (
     <Container className="w-full min-w-0">
-      {/* The refusal line below is a SECOND row under the action grid, so the two are spaced by a Stack's
-          gap rather than a margin (`Container` is a plain block — the house rule is "space via Stack/Grid
-          gap", variants.ts). With no refusal the Stack has one child and spends nothing. */}
-      <Stack gap="field">
-        {/* NARROW = FIT, NOT A BREAKPOINT (#531). Below `@md` the recipe is a wrapping flex line, so the four
-            homes hold ONE row wherever they fit and take a second only when they do not — the old fixed 2×2
-            (and its `@max-xs` third row) spent 48px + a section gap on every phone unconditionally, which was
-            the larger half of the mobile composer's chrome tax. The `@max-md:gap-field` is part of the same
-            measurement: at `section` (24px) the four homes need 426px and cannot fit any phone; at `field`
-            they need 372px and fit a 430px phone's 392px card. Each home keeps its own start/end alignment —
-            `ms-auto` on the two LATER homes is what reproduces the wide row's `1fr` spacer once the arm is
-            flex, and what keeps the terminal Send home right-aligned on a wrapped second line. */}
-        <Grid cols="actionBar" gap="section" className="min-w-0 @max-md:gap-field" data-slot="composer-guided-cluster">
-          <Row aria-label="Chat actions" className="shrink-0 justify-self-start" data-slot="composer-chat-actions" gap="field" role="group">
-            {chatControl}
-          </Row>
-          <Row aria-label="Your message" className="shrink-0 justify-self-start" data-slot="composer-you-actions" gap="field" role="group">
-            <ImpersonateGuidedButton disabled={!idle} hasText={hasText} onPick={fireImpersonate} reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)} />
-            {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
-          </Row>
-          <Row
-            aria-label="Their reply"
-            className="min-w-0 shrink-0 justify-self-end @max-md:ms-auto"
-            data-slot="composer-them-actions"
-            gap="field"
-            role="group"
-          >
-            <GuidedIconButton
-              icon={RotateCcw}
-              label={hasText ? "Try another reply with this direction" : "Try another reply"}
-              steerCue={STEER_CUE_SWIPE}
-              hasText={hasText}
-              disabled={!(canTargetTail && idle)}
-              reason={reasonFor(SWIPE_NEEDS_REPLY)}
-              buttonTestId="composerGuidedSwipe"
-              onFire={(): void => guided.fireSwipe(trimmed)}
-            />
-            <ResponseGuidedButton hasText={hasText} idle={idle} characters={characters} onFire={fireResponse} disabledReason={persistentOffReason} />
-            <GuidedIconButton
-              icon={FastForward}
-              label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
-              steerCue={STEER_CUE_CONTINUE}
-              hasText={hasText}
-              disabled={!(canTargetTail && idle)}
-              reason={reasonFor(SWIPE_NEEDS_REPLY)}
-              buttonTestId="composerGuidedContinue"
-              onFire={(): void => fireAndClear(guided.fireContinue)}
-            />
-          </Row>
-          <Row aria-label="Attach and send" className="shrink-0 justify-self-end @max-md:ms-auto" data-slot="composer-attach-actions" gap="field" role="group">
-            <ComposerGuidedUtilityMenu
-              hasText={hasText}
-              trimmed={trimmed}
-              idle={idle}
-              canTargetTail={canTargetTail}
-              guided={guided}
-              utilities={utilities}
-              onChange={onChange}
-              onRewrite={rewrite.open}
-              game={game}
-              image={imageControls}
-            />
-            {sendControl}
-          </Row>
-          <RewriteDialog
-            open={rewrite.isOpen}
-            onOpenChange={rewrite.setOpen}
-            instruction={rewrite.instruction}
-            onInstructionChange={rewrite.setInstruction}
-            selected={rewrite.toggles}
-            onToggle={rewrite.toggle}
-            onApply={rewrite.apply}
+      <Row align="center" className="min-w-0 flex-wrap" data-slot="composer-guided-cluster" gap="field">
+        <Row aria-label="Chat actions" className="shrink-0" data-slot="composer-chat-actions" gap="field" role="group">
+          {chatControl}
+        </Row>
+        <Row aria-label="Your message" className="shrink-0" data-slot="composer-you-actions" gap="field" role="group">
+          <ImpersonateGuidedButton disabled={!idle} hasText={hasText} onPick={fireImpersonate} reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)} />
+          {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
+        </Row>
+        <Row aria-label="Their reply" className="min-w-0 shrink-0" data-slot="composer-them-actions" gap="field" role="group">
+          <GuidedIconButton
+            icon={RotateCcw}
+            label={hasText ? "Try another reply with this direction" : "Try another reply"}
+            steerCue={STEER_CUE_SWIPE}
+            hasText={hasText}
+            disabled={!(canTargetTail && idle)}
+            reason={reasonFor(SWIPE_NEEDS_REPLY)}
+            buttonTestId="composerGuidedSwipe"
+            onFire={(): void => guided.fireSwipe(trimmed)}
           />
-        </Grid>
-        {/* A missing connection has a direct next step, so its status and action stay visible on every
-            pointer. Other persistent causes keep the coarse-pointer line because fine pointers already
-            expose the reason through each control's tooltip and accessible description. One line serves
-            the whole band; phase and impersonation-stream reasons remain on their own controls. */}
-        {sendRefusal !== undefined && canOpenConnections && (
-          <Row align="center" className="flex-wrap justify-between" data-slot="composer-guided-refusal" gap="field">
-            <Text as="span" voice="gloss">
-              {sendRefusal}
-            </Text>
-            <Button intent="secondary" onClick={(): void => openConfigTo("connections")} size="sm" type="button">
-              Open Connections
-            </Button>
-          </Row>
-        )}
-        {sendRefusal !== undefined && !canOpenConnections && (
-          <Text as="span" className={SHOW_ONLY_AT_COARSE} data-slot="composer-guided-refusal" voice="gloss">
-            {sendRefusal}
-          </Text>
-        )}
-      </Stack>
+          <ResponseGuidedButton hasText={hasText} idle={idle} characters={characters} onFire={fireResponse} disabledReason={persistentOffReason} />
+          <GuidedIconButton
+            icon={FastForward}
+            label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
+            steerCue={STEER_CUE_CONTINUE}
+            hasText={hasText}
+            disabled={!(canTargetTail && idle)}
+            reason={reasonFor(SWIPE_NEEDS_REPLY)}
+            buttonTestId="composerGuidedContinue"
+            onFire={(): void => fireAndClear(guided.fireContinue)}
+          />
+        </Row>
+        {actionContributions}
+        {connectionStatus}
+        <Row aria-label="Attach and send" className="ms-auto shrink-0" data-slot="composer-attach-actions" gap="field" role="group">
+          <ComposerGuidedUtilityMenu
+            hasText={hasText}
+            trimmed={trimmed}
+            idle={idle}
+            generationUnavailableReason={reasonFor("Wait for the current reply to finish")}
+            canTargetTail={canTargetTail}
+            guided={guided}
+            utilities={utilities}
+            onChange={onChange}
+            onRewrite={rewrite.open}
+            game={game}
+            image={imageControls}
+            mediaContributions={mediaContributions}
+          />
+          {sendControl}
+        </Row>
+        <RewriteDialog
+          open={rewrite.isOpen}
+          onOpenChange={rewrite.setOpen}
+          instruction={rewrite.instruction}
+          onInstructionChange={rewrite.setInstruction}
+          selected={rewrite.toggles}
+          onToggle={rewrite.toggle}
+          onApply={rewrite.apply}
+        />
+      </Row>
     </Container>
   );
 }

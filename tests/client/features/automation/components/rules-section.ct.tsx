@@ -26,7 +26,7 @@ import { HOST_BAND, openContextSections } from "../../../../support/node/open-co
 import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ctSnapPath } from "../../../../support/node/snap-out.ts";
-import { RulesInThisChatTabStory, RulesSectionStory, RulesSectionToastStory } from "../_ct-stories.tsx";
+import { RulesActivityFreshnessStory, RulesInThisChatTabStory, RulesSectionStory, RulesSectionToastStory } from "../_ct-stories.tsx";
 
 const CHAT = castId<ChatId>("chat_ct_rules_0001");
 
@@ -209,6 +209,7 @@ interface StubOverrides {
   readonly mint?: TrpcResponder<"automation.createRuleFromPreset">;
   readonly setEnabled?: TrpcResponder<"automation.setRuleEnabled">;
   readonly testRule?: TrpcResponder<"automation.testRule">;
+  readonly activity?: TrpcResponder<"automation.listChatActivity">;
   /** The rule's own bindings (its Connections disclosure); the default binds nothing, falling back to the author. */
   readonly ruleBindings?: TrpcResponder<"connection.listBindings">;
 }
@@ -222,6 +223,7 @@ function stub(page: Page, overrides: StubOverrides = {}): Promise<TrpcRecorder> 
     "automation.setRuleEnabled": overrides.setEnabled ?? (() => null),
     "automation.setRuleSuggestOnRefusal": () => null,
     "automation.testRule": overrides.testRule ?? (() => TEST_RULE_RESULT),
+    "automation.listChatActivity": overrides.activity ?? (() => []),
     "automation.runRuleNow": () => ({ outcome: "fired" }),
     "automation.createRuleFromPreset": overrides.mint ?? (() => [RULE]),
     "automation.deleteRule": () => null,
@@ -376,6 +378,36 @@ test("Test runs the dry-run — testRule fires and the predicate verdict + arm p
   await expect.poll(() => trpc.lastInput("automation.testRule")).toMatchObject({ ruleId: "automationrule_ct1" });
   await expect(page.getByText("Condition would match.")).toBeVisible();
   await expect(page.getByText("a moody scenario shot")).toBeVisible();
+});
+
+test("Test refreshes an already-visible room Activity log after writing its test_run row", async ({ mount, page }) => {
+  let activityReads = 0;
+  const trpc = await stub(page, {
+    activity: () => {
+      activityReads += 1;
+      return activityReads === 1
+        ? []
+        : [
+            {
+              id: "automationfire_ct_test_activity",
+              ruleId: RULE.id,
+              chatId: CHAT,
+              triggerType: RULE.trigger.type,
+              outcome: "test_run",
+              detail: { predicate: true, arms: [] },
+              firedAt: A_PAST_INSTANT,
+            },
+          ];
+    },
+  });
+  const component = await mount(<RulesActivityFreshnessStory chatId={CHAT} />);
+  await expect(component.getByText("Nothing yet", { exact: false })).toBeVisible();
+
+  await openRule(page, "Illustrate the scene");
+  await component.getByRole("button", { name: "Test Illustrate the scene" }).click();
+
+  await expect(component.getByText("Test run", { exact: true })).toBeVisible();
+  await expect.poll(() => trpc.count("automation.listChatActivity"), { intervals: [20, 50, 100] }).toBe(2);
 });
 
 test("Run now dispatches the rule — runRuleNow fires with the ruleId", async ({ mount, page }) => {

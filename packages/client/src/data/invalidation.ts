@@ -5,14 +5,16 @@
 // The chat half ALSO APPLIES the event's `view` carrier into the room's message-list cache before it
 // invalidates (`applyCanonView`) — the refetch stays, but the row it will confirm is already correct.
 
+import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { USER_BUS_EVENT_TYPES } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
-import { busDupCheck, busInvalidate, IS_DEV } from "#lib";
+import { busDupCheck, busInvalidate, IS_DEV, runAfterViewTransition } from "#lib";
 import { collapseFilters, filterKeyName } from "./collapse-filters.ts";
+import { allAutomationRoomFilters, automationEventFilters } from "./invalidation-automation.ts";
 import { applyCanonView } from "./invalidation-carrier.ts";
 import type { InvalidateFilter } from "./invalidation-reads.ts";
 import {
@@ -41,6 +43,10 @@ export interface Invalidation {
   /** The rpg-bus half — routes an `RpgBusEvent` through `RPG_BUS_FILTERS` (the feature-root game bus,
    *  `rpg.stream`). Fire-and-forget. */
   readonly invalidateRpg: (event: RpgBusEvent) => void;
+  /** The automation-room half — routes an `AutomationBusEvent` through its exhaustive central map. */
+  readonly invalidateAutomation: (event: AutomationBusEvent) => void;
+  /** Gap-heal — on automation-room reconnect, blanket-invalidate the durable reads its live-only events move. */
+  readonly gapHealAutomation: (chatId: ChatId) => void;
   /** Gap-heal — on rpg-bus (re)connect for an open game, blanket-invalidate every read that game covers. */
   readonly gapHealRpg: (chatId: ChatId) => void;
   /** Gap-heal — on user-bus RE-connect, blanket-invalidate every filter the user map covers. Never on the
@@ -366,13 +372,18 @@ function allUserRootFilters(trpc: Trpc): readonly InvalidateFilter[] {
 
 export function createInvalidation(deps: { readonly queryClient: QueryClient; readonly trpc: Trpc }): Invalidation {
   const invalidateFilters = (filters: readonly InvalidateFilter[]): void => {
-    for (const filter of collapseFilters(filters)) {
-      if (IS_DEV) {
-        busDupCheck(filterKeyName(filter));
+    const collapsed = collapseFilters(filters);
+    // A wire confirmation repainting a cold pane mid-crossfade is motion jank; outside native motion this
+    // seam stays synchronous, and the already-applied event carrier remains visible immediately either way.
+    runAfterViewTransition(() => {
+      for (const filter of collapsed) {
+        if (IS_DEV) {
+          busDupCheck(filterKeyName(filter));
+        }
+        // @orb-waive caught-failure-ownership(deps.queryClient.invalidateQueries): refetch failures surface on the queries' own error state; consume the aggregate Promise here.
+        deps.queryClient.invalidateQueries(filter).catch(() => undefined);
       }
-      // @orb-waive caught-failure-ownership(deps.queryClient.invalidateQueries): refetch failures surface on the queries' own error state; consume the aggregate Promise here.
-      deps.queryClient.invalidateQueries(filter).catch(() => undefined);
-    }
+    });
   };
   return {
     invalidate: (event): void => {
@@ -402,6 +413,13 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       }
       invalidateFilters(filters);
     },
+    invalidateAutomation: (event): void => {
+      const filters = automationEventFilters(event, deps.trpc);
+      if (IS_DEV) {
+        busInvalidate(event.type, event.chatId, filters.map(filterKeyName));
+      }
+      invalidateFilters(filters);
+    },
     invalidateAllUserRoots: (): void => {
       invalidateFilters(allUserRootFilters(deps.trpc));
     },
@@ -410,6 +428,9 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
     },
     gapHealRpg: (chatId): void => {
       invalidateFilters(allRpgGameFilters(deps.trpc, chatId));
+    },
+    gapHealAutomation: (chatId): void => {
+      invalidateFilters(allAutomationRoomFilters(chatId, deps.trpc));
     },
     invalidateFilters,
   };

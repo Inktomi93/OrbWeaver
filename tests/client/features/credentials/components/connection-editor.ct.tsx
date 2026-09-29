@@ -121,6 +121,9 @@ async function stubEditor(
     readonly catalogModels?: TrpcResponder<"connection.catalogModels">;
     /** The row's provider; the default is the vLLM row the connection fixture is on. */
     readonly provider?: TrpcWireOutput<"connection.providersAvailable">[number]["provider"];
+    /** Replaces the whole caller-visible registry, including the provider-absent case. */
+    readonly providers?: TrpcWireOutput<"connection.providersAvailable">;
+    readonly removeConnection?: TrpcResponder<"connection.remove">;
     readonly accountCredits?: TrpcResponder<"connection.accountCredits">;
     readonly verifyAuth?: TrpcResponder<"connection.verifyAuth">;
     readonly inspectEndpoint?: TrpcResponder<"connection.inspectEndpoint">;
@@ -131,7 +134,7 @@ async function stubEditor(
   return await routeTrpc(page, {
     "sessions.me": () => ({ userId: "user_ct_editor", handle: "owner", globalRole: opts.role ?? "owner" }),
     "connection.get": () => row,
-    "connection.providersAvailable": () => [{ provider: opts.provider ?? VLLM_PROVIDER, available: true }],
+    "connection.providersAvailable": () => opts.providers ?? [{ provider: opts.provider ?? VLLM_PROVIDER, available: true }],
     "connection.accountCredits": opts.accountCredits ?? { total: 10, used: 5.8 },
     "connection.verifyAuth": opts.verifyAuth ?? SIGNED_IN,
     "connection.inspectEndpoint": opts.inspectEndpoint ?? INSPECTED,
@@ -143,6 +146,7 @@ async function stubEditor(
       row = { ...row, model: patch.model ?? row.model, modelCheck: patch.modelCheck ?? row.modelCheck };
       return row;
     },
+    "connection.remove": opts.removeConnection ?? ((): undefined => undefined),
     "connection.probe": () => ({ status: "unreachable", checkedAt: 0, reason: "connect ECONNREFUSED" }),
     "settings.getAppSettingsWithOverrides": () => ({
       resolved: { privateEndpointAllowlist: opts.allowlist ?? [] },
@@ -156,6 +160,74 @@ async function stubEditor(
 function tier(page: Page, name: string): Locator {
   return page.getByRole("button", { name, exact: false }).filter({ hasText: name });
 }
+
+// ── provider absent from this caller's registry ───────────────────────────────────────────────────────
+
+const UNAVAILABLE_PROVIDER_CASES = [
+  [
+    "plugin:relay/anthropic",
+    "No enabled plugin on your account currently supplies this provider. This connection can't run or be edited until you enable that provider again.",
+  ],
+  ["retired-provider", "This provider is no longer registered on this server. This connection can't run or be edited until the provider is restored."],
+] as const;
+
+for (const [providerId, reason] of UNAVAILABLE_PROVIDER_CASES) {
+  test(`an unavailable ${providerId} connection explains why without asking provider-owned routes`, async ({ mount, page }) => {
+    const recorder = await stubEditor(page, {
+      connection: connectionRow({ label: "Legacy connection", providerId, providerLabel: providerId, tasks: [] }),
+      providers: [],
+    });
+    const component = await mount(<ConnectionEditorStory />);
+
+    await expect(component.getByRole("heading", { name: "Provider unavailable" })).toBeVisible();
+    await expect(component.getByText(reason, { exact: true })).toBeVisible();
+    await expect(component.getByText(providerId, { exact: true })).toBeVisible();
+    await expect(component.getByRole("button", { name: "Back to Connections" })).toBeVisible();
+    await expect(component.getByRole("button", { name: "Done" })).toBeVisible();
+    await expect(component.getByRole("button", { name: "Remove connection" })).toBeVisible();
+    await expect.poll(() => recorder.count("connection.capabilities"), { intervals: [20, 50, 100] }).toBe(0);
+    await expect.poll(() => recorder.count("connection.catalogModels"), { intervals: [20, 50, 100] }).toBe(0);
+    await expect.poll(() => recorder.count("connection.update"), { intervals: [20, 50, 100] }).toBe(0);
+  });
+}
+
+test("a known provider whose runtime is unavailable still gets the full editor", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, { providers: [{ provider: VLLM_PROVIDER, available: false, cause: "runtime-missing" }] });
+  const component = await mount(<ConnectionEditorStory />);
+
+  await expect(component.getByText("Provider", { exact: true })).toBeVisible();
+  await expect(component.getByText("Model", { exact: true }).first()).toBeVisible();
+  await expect(component.getByText("Name", { exact: true })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Provider unavailable" })).toHaveCount(0);
+  await expect.poll(() => recorder.count("connection.capabilities"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+test("removing an unavailable connection keeps the confirm open for a failed attempt and retries the awaited mutation", async ({ mount, page }) => {
+  let attempts = 0;
+  const recorder = await stubEditor(page, {
+    connection: connectionRow({ label: "Legacy relay", providerId: "plugin:relay/anthropic", providerLabel: "plugin:relay/anthropic", tasks: [] }),
+    providers: [],
+    removeConnection: () => {
+      attempts += 1;
+      return attempts === 1 ? trpcError({ code: "INTERNAL_SERVER_ERROR", message: "delete failed" }) : undefined;
+    },
+  });
+  const component = await mount(<ConnectionEditorStory />);
+
+  await component.getByRole("button", { name: "Remove connection" }).click();
+  const confirm = page.getByRole("alertdialog", { name: 'Remove "Legacy relay"?' });
+  await expect(confirm).toContainText(
+    "This removes the saved connection and unsets any model roles that use it. Past messages keep their attribution, and any saved key remains under Saved keys. This can't be undone.",
+  );
+  await confirm.getByRole("button", { name: "Remove" }).click();
+  await expect(confirm.getByRole("alert")).toContainText("That didn't go through — delete failed");
+  await expect(confirm.getByRole("button", { name: "Remove" })).toBeFocused();
+  await expect.poll(() => recorder.inputs("connection.remove")).toEqual([{ connectionId: CONNECTION_ID }]);
+
+  await confirm.getByRole("button", { name: "Remove" }).click();
+  await expect(confirm).toHaveCount(0);
+  await expect.poll(() => recorder.inputs("connection.remove")).toEqual([{ connectionId: CONNECTION_ID }, { connectionId: CONNECTION_ID }]);
+});
 
 // ── the default state ──────────────────────────────────────────────────────────────────────────────────
 

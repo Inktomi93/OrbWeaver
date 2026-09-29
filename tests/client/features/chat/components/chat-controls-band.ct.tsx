@@ -13,7 +13,7 @@
 //   2. BUSY IS PER MODE — a turn in flight disables the SEND chip (reason on `title`) while the COMPOSE
 //      chip beside it stays live and the EXECUTE chip stays live. A band that reused the `:::choices`
 //      block's blanket rule would pass the send arm and fail both others.
-//   3. THE CAPS — one visible card + "+N pending"; four chips + "+N more".
+//   3. THE ATTENTION BUDGET — one visible card + "+N pending"; chips collapsed behind one expander.
 //   4. THE STACK — cards above chips, asserted by GEOMETRY, from a fixture that publishes the chip FIRST
 //      so DOM order cannot accidentally produce the right answer.
 //
@@ -25,7 +25,7 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
 import type { TrpcProcedurePath, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
@@ -47,6 +47,14 @@ const BAND = '[data-slot="chat-controls"]';
 const ABOVE_COMPOSER = '[data-slot="chat-above-composer"]';
 const CARDS = '[data-slot="chat-control-cards"]';
 const CHIPS = '[data-slot="chat-control-chips"]';
+
+async function expandChips(component: Locator): Promise<void> {
+  const disclosure = component.locator(`${CHIPS} button[aria-expanded]`);
+  await expect(disclosure).toBeVisible();
+  await expect(disclosure).toHaveAttribute("aria-expanded", "false");
+  await disclosure.click();
+  await expect(disclosure).toHaveAttribute("aria-expanded", "true");
+}
 
 /** The room's floor reads: the transcript, the roster, and the divider's present-tense preview (an
  *  unlisted proc's `data: null` default is out-of-contract for the last one and crashes the surface). */
@@ -151,6 +159,7 @@ for (const { label, width, height } of CONTRAST_WIDTHS) {
         <ChatControlsStory fixture="chips" />
       </div>,
     );
+    await expandChips(component);
 
     // The room is live (the barrier — a blank mount would make every locator below vacuous).
     await expect(component.getByText("The corridor forks.")).toBeVisible();
@@ -179,6 +188,7 @@ for (const theme of PIVOT_THEMES) {
     const component = await mount(<ChatControlsStory fixture="chips" />, {
       hooksConfig: { theme: { background: theme.background, accent: theme.accent } },
     });
+    await expandChips(component);
 
     await expect(component.getByText("The corridor forks.")).toBeVisible();
     // `[data-mode]` is the CHIP discriminator (the count idiom this file uses elsewhere): since #2426 the
@@ -282,6 +292,7 @@ test("#674 an ENABLED control names its mode's CONSEQUENCE on title — both chi
   await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="chips" />);
+  await expandChips(component);
 
   const sendChip = component.locator(`${CHIPS} button[data-mode="send"]`);
   const composeChip = component.locator(`${CHIPS} button[data-mode="compose"]`);
@@ -295,6 +306,7 @@ test("#674 the chip's mode glyph renders at the house 16px step, not lucide's in
   await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="chips" />);
+  await expandChips(component);
 
   for (const mode of ["send", "compose"] as const) {
     const glyph = component.locator(`${CHIPS} button[data-mode="${mode}"] svg`);
@@ -312,6 +324,7 @@ test("chips render their labels in one row", async ({ mount, page }) => {
   await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="chips" />);
+  await expandChips(component);
 
   await expect(component.getByRole("button", { name: "Draw your blade" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Time skip" })).toBeVisible();
@@ -325,6 +338,7 @@ test("chips are DISTINGUISHABLE by mode: a per-mode glyph, a mode-prefixed acces
   await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="chips" />);
+  await expandChips(component);
 
   const sendChip = component.locator(`${CHIPS} button[data-mode="send"]`);
   const composeChip = component.locator(`${CHIPS} button[data-mode="compose"]`);
@@ -351,6 +365,7 @@ test("#684 a chip carries its MODE AS A WORD, in the visible label, not only as 
   await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="chips" />);
+  await expandChips(component);
 
   const sendChip = component.locator(`${CHIPS} button[data-mode="send"]`);
   const composeChip = component.locator(`${CHIPS} button[data-mode="compose"]`);
@@ -370,6 +385,7 @@ test("send mode: a chip click fires chat.send with the chip's text and leaves th
   const trpc = await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="chips" />);
+  await expandChips(component);
   await component.getByRole("button", { name: "Draw your blade" }).click();
 
   await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
@@ -379,15 +395,19 @@ test("send mode: a chip click fires chat.send with the chip's text and leaves th
   await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("");
 });
 
-test("compose mode: a chip click seeds THIS room's composer draft and fires NO send", async ({ mount, page }) => {
+test("compose mode: a chip click seeds THIS room's draft, fires no send, and collapses the standing set", async ({ mount, page }) => {
   const trpc = await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="chips" />);
+  await expandChips(component);
   await component.getByRole("button", { name: "Time skip" }).click();
 
   const composer = component.getByRole("textbox", { name: "Message" });
   await expect(composer).toHaveValue("Some hours later,");
   await expect(composer).toBeFocused();
+  // A used standing action returns the band to its compact resting door without disturbing the action.
+  await expect(component.getByRole("button", { name: "Time skip" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Show 2 controls" })).toHaveAttribute("aria-expanded", "false");
   // Settled snapshot: a NEGATIVE about a synchronous click path that has already produced its full effect (the
   // draft landed and focus moved, both asserted web-first above) — there is no later moment at which a send
   // this click did not make could appear.
@@ -398,6 +418,7 @@ test("BUSY IS PER MODE: a turn in flight disables the send chip with its reason;
   await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="chips" />);
+  await expandChips(component);
   const sendChip = component.getByRole("button", { name: "Draw your blade" });
   const composeChip = component.getByRole("button", { name: "Time skip" });
   await expect(sendChip).toBeEnabled();
@@ -425,6 +446,7 @@ test("execute mode: NOT turn-gated — it runs its own verb while a turn is in f
   // would then only prove "an idle execute chip is clickable"), which is exactly how this row was vacuous
   // when first written.
   const component = await mount(<ChatControlsStory fixture="execute" />);
+  await expandChips(component);
   const sendChip = component.getByRole("button", { name: "Draw your blade" });
   const roll = component.getByRole("button", { name: "Roll 1d20" });
   await expect(sendChip).toBeEnabled();
@@ -444,6 +466,7 @@ test("execute mode: disabled ONLY while its own call pends, with the running rea
   await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="execute-pending" />);
+  await expandChips(component);
   const roll = component.getByRole("button", { name: "Roll 1d20" });
 
   await expect(roll).toBeDisabled();
@@ -462,6 +485,7 @@ test("a same-content republish is a NO-OP: the band keeps the controls it alread
   await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="republish" />);
+  await expandChips(component);
   const roll = component.getByRole("button", { name: "Roll 1d20" });
   await expect(roll).toBeVisible();
 
@@ -479,6 +503,7 @@ test("a changed-content republish IS adopted — the guard never swallows a real
   await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="republish" />);
+  await expandChips(component);
   await expect(component.getByRole("button", { name: "Roll 1d20" })).toBeVisible();
 
   // Epoch 2 changes the label — a compared field, so the band takes the new control.
@@ -488,34 +513,45 @@ test("a changed-content republish IS adopted — the guard never swallows a real
   await expect(component.getByRole("button", { name: "Roll 1d20" })).toHaveCount(0);
 });
 
-test("the chips row caps its display and discloses the remainder", async ({ mount, page }) => {
+test("the chips row rests as one disclosure and expands the whole set", async ({ mount, page }) => {
   await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="chips-over-cap" />);
 
-  // FOUR chips + the disclosure BUTTON (#684 P2 — the disclosure is itself a control now, so the row's
-  // button count is cap+1; the chips themselves are still capped, which is what law 5 asks).
-  await expect(component.locator(`${CHIPS} button[data-mode]`)).toHaveCount(4);
-  await expect(component.getByRole("button", { name: "+2 more" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Chip five" })).toHaveCount(0);
-  // side-eye 2026-08-24 P3: the row WRAPS rather than clipping — at a phone width four long-label chips
-  // overran the inline space and pushed "+2 more" off the (un-scrollable) right edge. A second line keeps
-  // every capped chip and its disclosure reachable.
+  await expect(component.locator(`${CHIPS} button[data-mode]`)).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Show 6 controls" })).toBeVisible();
+  await expandChips(component);
+  await expect(component.locator(`${CHIPS} button[data-mode]`)).toHaveCount(6);
   await expect(component.locator(CHIPS)).toHaveCSS("flex-wrap", "wrap");
 });
 
-// ── #684 P2: EVERY CAPPED CHIP IS REACHABLE, BY KEYBOARD ─────────────────────────────────────────────
+test("separate non-dice control sources keep contextual disclosure groups", async ({ mount, page }) => {
+  await routeRoom(page);
+
+  const component = await mount(<ChatControlsStory fixture="grouped-chips" />);
+  const rules = component.getByRole("button", { name: "Show Rule prompts (2)", exact: true });
+  const automation = component.getByRole("button", { name: "Show 2 controls", exact: true });
+  await expect(rules).toBeVisible();
+  await expect(automation).toBeVisible();
+  await expect(component.getByRole("button", { name: "Show 4 controls", exact: true })).toHaveCount(0);
+
+  await rules.click();
+  await expect(component.getByRole("region", { name: "Show fewer Rule prompts", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Choose one", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Accept the clue", exact: true })).toHaveCount(0);
+});
+
+// ── Every collapsed chip is reachable by keyboard ────────────────────────────────────────────────────
 // The finding's specimen: one rule surfaces three openers and another three vote options, so the member saw
 // ONE vote option and a dead `<p>` reading "+2 more" — the other two were not disclosed, they were gone.
 // This row is the defect proof (RED against the pre-fix source: the overflow was a `<p>`, so
-// `getByRole("button", { name: "+2 more" })` found nothing and `Chip five` never appeared), and it drives
 // the disclosure with the KEYBOARD, because "reachable without a pointer trick" is the actual property.
 test("#684 the chip disclosure is an EXPANDER: all N chips reachable by keyboard, and reversible", async ({ mount, page }) => {
   await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="chips-over-cap" />);
 
-  const disclosure = component.getByRole("button", { name: "+2 more" });
+  const disclosure = component.getByRole("button", { name: "Show 6 controls" });
   await expect(disclosure).toHaveAttribute("aria-expanded", "false");
   await expect(component.getByRole("button", { name: "Chip six" })).toHaveCount(0);
 
@@ -524,16 +560,20 @@ test("#684 the chip disclosure is an EXPANDER: all N chips reachable by keyboard
   await expect(disclosure).toBeFocused();
   await page.keyboard.press("Enter");
 
-  // ALL SIX are now in the row — the two the cap hid are real, operable chips, not a count.
+  // ALL SIX are now in the row — the resting strip hid no partial, misleading subset.
   await expect(component.locator(`${CHIPS} button[data-mode]`)).toHaveCount(6);
+  await expect(disclosure).toHaveAttribute("aria-controls", NON_EMPTY);
+  await expect(component.getByRole("region", { name: "Show fewer 6 controls", exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Chip five" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Chip six" })).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(component.getByRole("button", { name: "Chip one" })).toBeFocused();
 
-  // …and it goes back (the cap governs the RESTING row — expansion is the member's choice, not a one-way door).
-  const collapse = component.getByRole("button", { name: "Show fewer" });
+  // …and it goes back to the single resting door.
+  const collapse = component.getByRole("button", { name: "Show fewer 6 controls" });
   await expect(collapse).toHaveAttribute("aria-expanded", "true");
   await collapse.click();
-  await expect(component.locator(`${CHIPS} button[data-mode]`)).toHaveCount(4);
+  await expect(component.locator(`${CHIPS} button[data-mode]`)).toHaveCount(0);
 });
 
 test("ONE visible card, its dismiss, and the pending count for the rest", async ({ mount, page }) => {
@@ -599,8 +639,8 @@ test("the band sits between the transcript and the composer (the room's own trac
 // Driven live 2026-09-19 (side-eye `side-eye-F`) at `device=coarse:dpr3:430x740` in a game room: the chip
 // row wrapped to 115px inside a 127px band, the composer took 212px, and the transcript was left **185px**
 // of a 740px viewport — four lines of prose, hard-clipped mid-glyph, with the wrap tax GROWING as more
-// rules fired. Owner ruling: on a coarse pointer the band collapses to a ONE-ROW SUMMARY STRIP that
-// expands on tap, the composer stays, and the transcript gets a floor.
+// rules fired. The compact band now rests behind a ONE-ROW SUMMARY STRIP on every pointer and expands on
+// demand; the coarse arm additionally pins the transcript floor.
 //
 // THE MOUNT IS THE PRODUCTION CHAIN, NOT A STORY BOX. `columnHeight={610}` is the room column at a
 // 430x740 phone — the viewport less the shell's 60px topbar and 70px tab bar, both of which live outside
@@ -626,13 +666,12 @@ test.describe("#2426 the coarse resting strip", () => {
     const component = await mount(<ChatControlsStory fixture="chips-over-cap" columnHeight={PHONE_COLUMN_PX} />);
 
     // The strip IS the band: every chip is out of layout, and the one thing left is the disclosure, whose
-    // label names the whole row it reveals rather than the remainder past the display cap.
+    // label names the whole row it reveals.
     await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
     const strip = component.getByRole("button", { name: "Show 6 controls" });
     await expect(strip).toBeVisible();
     await expect(strip).toHaveAttribute("aria-expanded", "false");
-    // …and the fine-pointer label is NOT in the accessible name — `display:none` takes it out of the tree,
-    // so the strip announces one sentence rather than both.
+    // Hidden overflow copy is absent from the accessibility tree, so the disclosure announces one sentence.
     await expect(component.getByRole("button", { name: "+2 more" })).toHaveCount(0);
 
     // THE FLOOR, measured on the rendered scroller against the budget the band states.
@@ -667,9 +706,7 @@ test.describe("#2426 the coarse resting strip", () => {
     await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
   });
 
-  test("the strip exists even when the display cap hides nothing — a two-chip band is still one row", async ({ mount, page }) => {
-    // The arm a fine pointer renders with NO disclosure at all: under the cap there is no remainder to
-    // disclose there, but at coarse the strip is what stands the row down, so it has to exist anyway.
+  test("the strip exists for a two-chip set too", async ({ mount, page }) => {
     await routeRoom(page);
 
     const component = await mount(<ChatControlsStory fixture="chips" columnHeight={PHONE_COLUMN_PX} />);
@@ -679,26 +716,21 @@ test.describe("#2426 the coarse resting strip", () => {
   });
 });
 
-test("#2426 FINE POINTER CONTROL: desktop is untouched — the chips rest visible and the strip label is absent", async ({ mount, page }) => {
-  // The density half of the ruling, and the pin that catches a "fix" that reaches the desktop band. This
-  // block has no `hasTouch`, so it runs at the default FINE pointer.
+test("fine pointers get the same compact resting disclosure as touch", async ({ mount, page }) => {
   await expect.poll(() => page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
   await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="chips-over-cap" />);
 
-  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(4);
-  await expect(component.getByRole("button", { name: "+2 more" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Show 6 controls" })).toHaveCount(0);
+  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Show 6 controls" })).toBeVisible();
 });
 
-test("#2426 FINE POINTER CONTROL: a band under the display cap still discloses NOTHING on desktop", async ({ mount, page }) => {
-  // The coarse-only disclosure must not become a desktop affordance that says "Show 2 controls" beside two
-  // already-visible chips.
+test("a short chip set still rests behind one disclosure on desktop", async ({ mount, page }) => {
   await routeRoom(page);
 
   const component = await mount(<ChatControlsStory fixture="chips" />);
 
-  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(2);
-  await expect(component.locator(`${CHIPS} button[aria-expanded]:visible`)).toHaveCount(0);
+  await expect(component.locator(`${CHIPS} button[data-mode]:visible`)).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Show 2 controls" })).toBeVisible();
 });

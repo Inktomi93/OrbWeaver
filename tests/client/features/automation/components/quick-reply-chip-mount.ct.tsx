@@ -103,7 +103,10 @@ test("a hand-fired quickReplySurfaced renders its choices as chips above the com
 
   // The room is really rendered (the discriminator) before the socket-driven chips are trusted.
   await expect(component.getByText("The corridor forks.")).toBeVisible();
-  // The frame folded into two chips in the one row — the arm's labels, on the real band.
+  const disclosure = component.getByRole("button", { name: "Show 2 controls" });
+  await expect(disclosure).toBeVisible();
+  await disclosure.click();
+  // The frame folded into two chips behind the band's compact resting door.
   await expect(component.getByRole("button", { name: "Draw your blade" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Time skip" })).toBeVisible();
   const chipsBox = await component.locator(CHIPS).boundingBox();
@@ -115,6 +118,7 @@ test("send mode: clicking a chip posts the arm's rendered sendText as the member
   const trpc = await routeRoom(page, [chipsFrame([{ label: "Draw your blade", sendText: "I draw my blade.", mode: "send" }])]);
 
   const component = await mount(<AutomationChipsStory />);
+  await component.getByRole("button", { name: "Show 1 control" }).click();
   await component.getByRole("button", { name: "Draw your blade" }).click();
 
   await expect.poll(() => trpc.count("chat.send"), { intervals: [20, 50, 100] }).toBe(1);
@@ -126,6 +130,7 @@ test("compose mode: clicking a chip seeds THIS room's composer draft and fires N
   const trpc = await routeRoom(page, [chipsFrame([{ label: "Time skip", sendText: "Some hours later,", mode: "compose" }])]);
 
   const component = await mount(<AutomationChipsStory />);
+  await component.getByRole("button", { name: "Show 1 control" }).click();
   await component.getByRole("button", { name: "Time skip" }).click();
 
   const composer = component.getByRole("textbox", { name: "Message" });

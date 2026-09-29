@@ -1,8 +1,7 @@
-// The chat composer is a TWO-ROW footer. Row 1 owns Chat actions plus three wrapping action groups: Your
-// message (Draft + its conditional stream Stop), Their reply (reroll/generate/continue + speaker), and Attach
-// and send (message tools + the terminal Send/turn-Stop slot). Row 2 is the growing textarea alone. Image
-// controls (attach + generate-from-text) live inside Message tools; attach still uploads local images to CAS
-// and rides the send as attachmentAssetIds.
+// The chat composer is a compact message-first footer: the growing textarea owns the main line, followed by
+// one wrapping action rail with room, guided-reply, utility and terminal-send groups. The rail also carries
+// the one visible connection-status/recovery home. Image controls live inside Message tools; attachments
+// still upload local media to CAS and ride the send as attachmentAssetIds.
 //
 // ATTACH HAS THREE GESTURES (#376), one seam: the ✨ menu's picker, a file DRAGGED onto the composer card,
 // and a clipboard PASTE. All three land in `receiveAttachFiles` → `triageAttachFiles` (lib/attach-media.ts),
@@ -28,17 +27,18 @@
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
+import { Button } from "@orb/ui/button";
 import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
-import type { KeyboardEvent, ReactElement } from "react";
+import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { useTRPC, useUploadCaps } from "#data";
 import type { SlashArgOffer, SlashCommandContribution } from "#lib";
-import { IMAGE_GEN_NEEDS_TEXT, notify, testId } from "#lib";
-import { openImagine, setComposerDraft, useComposerDraft } from "#state";
+import { IMAGE_GEN_NEEDS_TEXT, notify, sendUnavailableStatus, testId } from "#lib";
+import { openConfigTo, openImagine, setComposerDraft, useComposerDraft } from "#state";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useComposerAttachments } from "../hooks/use-composer-attachments.ts";
 import { useComposerFocusOnRequest } from "../hooks/use-composer-focus.ts";
@@ -64,25 +64,18 @@ import { ComposerSendControl } from "./composer-send-control.tsx";
 import { ComposerSlashStrip } from "./composer-slash-strip.tsx";
 import type { ComposerImageControls } from "./composer-utility-menu.tsx";
 
-// The placeholder teaches the empty-Enter affordance in play. On an assistant tail with continue-on-empty
-// live, an empty Enter continues; on a non-assistant tail with generate-on-empty live, an empty Enter
-// prompts a reply (name the ▷ icon so the affordance is discoverable from the empty state).
+// Teach the empty-Enter action in the placeholder, including the adjacent Response icon when it generates.
 function resolvePlaceholder(emptyAction: "continue" | "generate" | null): string {
   if (emptyAction === "continue") {
     return "Continue, or type a message…";
   }
   if (emptyAction === "generate") {
-    // Name the ▷ Response icon in the cluster ABOVE — the adjacent Send button is a paper-plane, not ▷, so
-    // "hit ▷" pointed at the wrong control (side-eye P3-placeholder). The ▷ affordance lives in row 1.
-    return "Type a message, or hit ▷ above to let the reply come…";
+    return "Type a message, or use ▷ to let the reply come…";
   }
   return "Type a message…";
 }
 
-// The disabled generate-image button's hover reason (undefined when it's actionable, or when disabled only
-// transiently mid-send/mid-generate): the typed text IS the image prompt, so an empty composer needs one.
-// The old "send the first message first" arm is gone with draft mode — the room always has a chat row to
-// post into (D166).
+// The typed text is the image prompt, so an empty composer needs a visible disabled reason.
 function resolveImageGenReason(hasText: boolean): string | undefined {
   return hasText ? undefined : IMAGE_GEN_NEEDS_TEXT;
 }
@@ -108,9 +101,17 @@ export interface ComposerProps {
   readonly tailRole?: MessageRole | null | undefined;
   /** The tail assistant message's id (continue-on-empty's target) — null unless the tail is an assistant turn. */
   readonly tailAssistantMessageId?: MessageId | null | undefined;
+  readonly actionContributions?: readonly ReactNode[] | undefined;
+  readonly mediaContributions?: readonly ReactNode[] | undefined;
 }
 
-export function Composer({ chatId, tailRole = null, tailAssistantMessageId = null }: ComposerProps): ReactElement {
+export function Composer({
+  chatId,
+  tailRole = null,
+  tailAssistantMessageId = null,
+  actionContributions = [],
+  mediaContributions = [],
+}: ComposerProps): ReactElement {
   const trpc = useTRPC();
   const room = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const nextTurn = useNextTurnConnection(chatId);
@@ -316,9 +317,9 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
   // Drag-drop onto the composer surface + Ctrl/Cmd+V in the textarea, both feeding the seam above.
   const mediaDrop = useComposerMediaDrop(receiveAttachFiles);
 
-  // The image controls, re-homed OFF the composer bar and INTO the ✨ utility menu (owner). Attach still uses
+  // The image controls, re-homed into the ✨ utility menu (owner). Attach still uses
   // the sanctioned FileDropzone picker; generate-from-text still clears only on a green settle (F-P1). The
-  // wand renders these as menu rows — the bar top row is just the guided icons + the ✨ menu.
+  // wand renders these as menu rows, keeping the compact action rail free of separate image controls.
   const imageControls: ComposerImageControls = {
     sharedRoom,
     maxAttachmentBytes,
@@ -339,9 +340,6 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
           Zero registrants renders nothing at all. */}
       {slash.mounts}
       <Stack gap="field">
-        <Text voice="gloss" className="min-w-0 truncate px-field" aria-live="polite">
-          {nextTurnReadoutLabel(nextTurn)}
-        </Text>
         <ComposerSlashStrip
           matches={slashMatches}
           notice={slashNotice}
@@ -357,15 +355,10 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
             the text CHANGE announces (its own header states the never-unmount rule). */}
         <AriaAnnouncer message={stripOpen ? `${String(slashMatches.length)} slash commands` : ""} />
         <ComposerAttachmentStrip attachments={attachments} onRemove={removeAttachment} />
-        {/* TWO ROWS (wand v2): the guided cluster sits ABOVE the textarea so the busy controls aren't crammed
-            beside it. One outer card holds both rows so the focus-lift/backing spans the whole composer.
-            DOM ORDER is textarea-first (#1382): Tab from the message field reaches the action buttons (Send,
-            Swipe, Response…) instead of dropping focus out of the chat. CSS `order-last` on the textarea row
-            keeps the visual layout — actions on top, textarea below — while the DOM order fixes the tab
-            sequence for keyboard and screen-reader users. */}
+        {/* One shallow frame keeps the message central and its actions on a compact rail below it. DOM and
+            visual order now agree: Tab leaves the textarea for the action buttons without crossing the room. */}
         <ComposerDropTarget dragActive={mediaDrop.dragActive} dropTargetProps={mediaDrop.dropTargetProps}>
-          {/* ROW 2 (DOM-first for tab order) — the textarea owns the full input line. */}
-          <Row gap="field" align="center" data-slot="composer-input" className="order-last">
+          <Row gap="field" align="center" data-slot="composer-input">
             <Textarea
               ref={textareaRef}
               aria-label="Message"
@@ -407,7 +400,6 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
               rows={1}
             />
           </Row>
-          {/* ROW 1 (DOM-second for tab order) — four truthful action homes on explicit container-responsive tracks. */}
           <ComposerGuidedCluster
             chatId={chatId}
             value={value}
@@ -417,8 +409,27 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
             imageControls={imageControls}
             sendUnavailable={sendAvailability.unavailable}
             sendUnavailableReason={sendAvailability.reason}
-            sendUnavailableCause={sendAvailability.cause}
             chatControl={<ActiveChatOptionsMenu chatId={chatId} />}
+            actionContributions={actionContributions}
+            mediaContributions={mediaContributions}
+            connectionStatus={
+              <Row
+                align="center"
+                aria-live="polite"
+                className={sendAvailability.unavailable ? "shrink-0" : "min-w-0 flex-1 justify-center"}
+                data-slot="composer-connection-status"
+                gap="field"
+              >
+                <Text as="span" className="min-w-0 truncate" voice="gloss">
+                  {sendAvailability.cause === null ? nextTurnReadoutLabel(nextTurn) : sendUnavailableStatus(sendAvailability.cause)}
+                </Text>
+                {sendAvailability.cause === "no-connection" ? (
+                  <Button aria-label="Open Connections" intent="secondary" onClick={(): void => openConfigTo("connections")} size="sm" type="button">
+                    Connect
+                  </Button>
+                ) : null}
+              </Row>
+            }
             sendControl={
               <ComposerSendControl
                 showStop={showStop}

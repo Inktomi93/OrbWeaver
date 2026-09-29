@@ -59,8 +59,29 @@ test("the Start seam creates the room, enters it, and lands the rail on Chats", 
   await expect(state).toHaveText(`chat=${CREATED_ID} section=chats pending=false`);
 });
 
-test("the response seeds both room reads while the authoritative message page refetches in the background", async ({ mount, page }) => {
+test("the response seeds both room reads and confirms the message page after the native crossfade", async ({ mount, page }) => {
   const listMessages = trpcHold();
+  await page.addInitScript(() => {
+    let finish: (() => void) | undefined;
+    const finished = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: (update: () => void | Promise<void>) => {
+        const updateCallbackDone = Promise.resolve().then(update);
+        return { ready: updateCallbackDone, finished: updateCallbackDone.then(() => finished), updateCallbackDone };
+      },
+    });
+    (globalThis as typeof globalThis & { __finishStartChatTransition: () => void }).__finishStartChatTransition = (): void => {
+      if (finish === undefined) {
+        throw new Error("held View Transition has no release function");
+      }
+      finish();
+    };
+  });
+  // CT's document is already loaded before the test body. The init script only installs on navigation.
+  await page.reload();
   const trpc = await routeTrpc(page, {
     "chat.startChat": START_CHAT_ROUTES["chat.startChat"],
     "chat.listMessages": listMessages,
@@ -68,11 +89,15 @@ test("the response seeds both room reads while the authoritative message page re
 
   const component = await mount(<StartChatStory />);
   await component.getByRole("button", { name: "start chat" }).click();
-  await listMessages.requested;
 
-  // The held request is the planted boundary: removing either seed leaves this reader on "cold" until release.
+  // The held transition is the planted boundary: the canonical confirmation must not land mid-crossfade.
   await expect(component.getByTestId("seeded-room")).toHaveText(`The Ashfall Road — ${OPENING_TEXT}`);
   await expect.poll(() => trpc.count("chat.getChat"), { intervals: [20, 50, 100] }).toBe(0);
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+  await expect.poll(() => trpc.count("chat.listMessages")).toBe(0);
+
+  await page.evaluate(() => (globalThis as typeof globalThis & { __finishStartChatTransition: () => void }).__finishStartChatTransition());
+  await listMessages.requested;
   await expect.poll(() => trpc.count("chat.listMessages")).toBe(1);
 
   listMessages.release(makeMessagesPage([OPENING_MESSAGE, AUTHORITATIVE_MESSAGE]));

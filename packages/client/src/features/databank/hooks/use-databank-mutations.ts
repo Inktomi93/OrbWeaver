@@ -1,4 +1,4 @@
-// The databank CRUD + global-attachment mutations, one `createEntityMutation` per verb.
+// The databank CRUD + owner-scoped attachment mutations, one `createEntityMutation` per verb.
 //
 // FRESHNESS IS BUS-DRIVEN (event-bus coverage survey H3, 2026-08-14). This file's previous header said the
 // opposite — "there is NO databank bus event; `USER_BUS_EVENT_TYPES` has ten members and none is databank"
@@ -110,4 +110,18 @@ export const useDetachDocumentGlobal = createEntityMutation<inferInput<Trpc["dat
   options: (trpc) => trpc.databank.detachGlobal.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't change the document's scope.",
+});
+
+/** Feed a document to every chat that includes one of the owner's selected characters. */
+export const useAttachDocumentToCharacter = createEntityMutation<inferInput<Trpc["databank"]["attachToCharacter"]>, unknown>({
+  options: (trpc) => trpc.databank.attachToCharacter.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't attach the document to that character.",
+});
+
+/** Stop a document following one of the owner's characters into chats. */
+export const useDetachDocumentFromCharacter = createEntityMutation<inferInput<Trpc["databank"]["detachFromCharacter"]>, unknown>({
+  options: (trpc) => trpc.databank.detachFromCharacter.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't detach the document from that character.",
 });

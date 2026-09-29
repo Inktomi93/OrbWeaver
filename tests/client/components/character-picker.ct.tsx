@@ -4,13 +4,12 @@
 // dependence on cmdk's `scrollIntoView` happening to trip the pointer `onScroll` guard. The pointer
 // scroll-load and the server search are unchanged and guarded here against regression.
 //
-// Red-first against the OLD source: every assertion speaks through rendered affordances (a role=button
-// count, row text), never the new hook, so it compiles against HEAD. On the old source (a) finds the
-// present button and (b) — with the list held open so no scroll can occur — never loads page 2 because the
-// old tail-load is scroll-only; both go RED, which is the defect proof.
 
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../support/node/route-trpc.ts";
+import type { TrpcInput } from "../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../features/character/fixtures.ts";
 import { CharacterPickerHarness } from "./character-picker.fixtures.tsx";
 
@@ -37,12 +36,13 @@ test("the 'Load more characters' button is GONE — the tail has no button affor
 test("keyboard roving to the last loaded row loads the next page — no scroll required (#334)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { "character.list": characterListResponder(LIBRARY) });
 
-  // `max-h-none`: a whole page fits with no overflow, so the list CANNOT scroll — this isolates the keyboard
-  // state signal from the pointer `onScroll` path. On the old (scroll-only) source, End moves the highlight
-  // but fires no scroll, so page 2 never loads and `Page2 0` stays absent.
-  const component = await mount(<CharacterPickerHarness listClassName="max-h-none" />);
+  const component = await mount(<CharacterPickerHarness listClassName="h-48" />);
   await expect(component.getByText("Page1 0")).toBeVisible();
   await expect(page.getByText("Page2 0")).toHaveCount(0);
+  // Suppress cmdk's incidental scrollIntoView so only the active-item state signal can request page two.
+  await page.evaluate(() => {
+    Element.prototype.scrollIntoView = (): void => undefined;
+  });
 
   // End jumps cmdk's roving highlight straight to the last loaded row (a standard keyboard affordance) —
   // reaching the tail by keyboard.
@@ -65,6 +65,57 @@ test("pointer scroll to the bottom still loads the next page (#334 regression gu
   });
 
   await expect(component.getByText("Page2 0")).toBeVisible();
+});
+
+test("an all-excluded first page advances until an available character is rendered", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "character.list": characterListResponder(LIBRARY) });
+  const excluded = PAGE_ONE.map((character) => castId<CharacterId>(character.id));
+
+  const component = await mount(<CharacterPickerHarness excludeIds={excluded} />);
+  await expect(component.getByText("Page1 0")).toHaveCount(0);
+  await expect.poll(() => trpc.count("character.list"), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(2);
+  await expect(component.getByText("Page2 0")).toBeVisible();
+  await expect(component.getByText("Showing 30 available · checked 130 of 130")).toBeVisible();
+});
+
+test("a filtered first page with one visible row advances until pointer scrolling can reach the tail", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "character.list": characterListResponder(LIBRARY) });
+  const excluded = PAGE_ONE.slice(0, 99).map((character) => castId<CharacterId>(character.id));
+
+  const component = await mount(<CharacterPickerHarness excludeIds={excluded} />);
+  await expect(component.getByText("Page1 99")).toBeVisible();
+  await expect.poll(() => trpc.count("character.list"), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(2);
+  await expect(component.getByText("Page2 0")).toBeVisible();
+  await expect(component.getByText("Showing 31 available · checked 130 of 130")).toBeVisible();
+});
+
+test("a failed later page keeps loaded rows visible and offers a working retry", async ({ mount, page }) => {
+  const responder = characterListResponder(LIBRARY);
+  let tailAttempts = 0;
+  const trpc = await routeTrpc(page, {
+    "character.list": (input: TrpcInput<"character.list">) => {
+      if (input?.cursor !== undefined && input.cursor !== null) {
+        tailAttempts += 1;
+        if (tailAttempts === 1) {
+          return trpcError({ message: "tail failed" });
+        }
+      }
+      return responder(input);
+    },
+  });
+  const component = await mount(<CharacterPickerHarness />);
+  await expect(component.getByText("Page1 0")).toBeVisible();
+
+  await component.locator('[data-slot="command-list"]').evaluate((el: HTMLElement): void => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await expect(component.getByRole("alert")).toHaveText("Couldn't load more characters.");
+  await expect(component.getByText("Page1 0")).toBeVisible();
+  await component.getByRole("button", { name: "Retry loading more characters" }).click();
+
+  await expect.poll(() => trpc.count("character.list"), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(3);
+  await expect(component.getByText("Page2 0")).toBeVisible();
+  await expect(component.getByRole("alert")).toHaveCount(0);
 });
 
 test("the search input still filters the rows (#334 unchanged)", async ({ mount, page }) => {

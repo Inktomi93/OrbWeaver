@@ -1176,14 +1176,11 @@ export function PluginDisplayTextWithoutRowStory({ text = "a rendered line" }: {
   );
 }
 
-// ── THE FRAME-MINT MEMOS (#1486) ──────────────────────────────────────────────────────────────────
+// ── THE FRAME-HANDLE LIFECYCLE ─────────────────────────────────────────────────────────────────────
 //
-// Both frame hooks memoize the mint promise per SERIALIZED BODY, module-wide, for the tab's life — and both
-// collapse every failure into a resolved `undefined`. So a memo that keeps the failed promise answers one
-// bad second forever: the card renders the srcdoc floor and the plugin surface renders NOTHING, for those
-// exact bytes, until the page is reloaded. The probes below remount a reader at the SAME body (the `key`
-// bump), which is what a collapse/expand, a scroll-back or a re-opened panel does in the app — so a second
-// attempt either re-mints or proves the memo poisoned itself.
+// Card handles remain memoized. Plugin handles are mounted resources: the server injects a capability URL for
+// installed assets, so unmount revokes the handle and a later mount mints a new one. These probes remount a
+// reader at the SAME body to exercise both lifecycles through a real effect cleanup.
 
 const MEMO_CARD_REQUEST: CardFrameRequest = {
   chatId: castId<ChatId>("chat_ct_frame_memo"),

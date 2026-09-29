@@ -23,6 +23,7 @@ import type { Page } from "@playwright/test";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../support/node/route-trpc.ts";
+import { STREAM_MUTATION_ROUTES } from "../../data/bus/fixtures.ts";
 
 /** Comfortably past the model's 5-minute stall threshold — a frozen row, not a slow one. */
 const WEDGED_AGO_MS = 3_600_000;
@@ -179,6 +180,7 @@ export async function stubDatabank(
   // the rows below are dated against, on every run and every machine.
   await page.clock.setFixedTime(NOW);
   return routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
     // The viewer's settings row (#649). Not any databank test's subject — but unfed it resolved `routeTrpc`'s
     // null, so every appearance/tier reader in these mounts fell to its default branch and the settings-driven
     // presentation path never ran in ANY of the three files this helper routes. Production defaults, so no
@@ -213,6 +215,8 @@ export async function stubDatabank(
     "databank.reindex": () => ({ workloadId: "workload_0000000000000000001" }),
     "databank.attachGlobal": () => null,
     "databank.detachGlobal": () => null,
+    "databank.attachToCharacter": () => null,
+    "databank.detachFromCharacter": () => null,
     "databank.remove": () => null,
     "databank.rename": () => READY_DOC,
     ...over,

@@ -21,9 +21,10 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
-import { AutomationSuggestionCardStory } from "../../chat/_ct-stories.tsx";
+import { AutomationActivityFreshnessStory, AutomationSuggestionCardStory } from "../../chat/_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
 
 /** The attach handshake's poll ceiling — 200 × 25ms = 5s as a deterministic iteration count (no wall-clock
@@ -56,7 +57,14 @@ function rewriteCardFrame(): StreamFrame {
 
 /** The room floor (the chips CT's own `routeRoom`), then the socket with an attach handshake gated on the
  *  AUTOMATION room specifically. */
-async function routeRoom(page: Page, frames: readonly StreamFrame[]): Promise<{ readonly count: (p: string) => number }> {
+async function routeRoom(
+  page: Page,
+  frames: readonly StreamFrame[],
+  options?: {
+    readonly activity?: () => TrpcWireOutput<"automation.listChatActivity">;
+    readonly releaseFramesWhen?: () => boolean;
+  },
+): Promise<{ readonly count: (p: string) => number }> {
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...STREAM_MUTATION_ROUTES,
@@ -69,15 +77,25 @@ async function routeRoom(page: Page, frames: readonly StreamFrame[]): Promise<{ 
       droppedCount: 0,
       compactSummary: null,
     }),
-    "chat.getChat": (): { participants: never[]; anchorPersonaId: null; identities: readonly ChatIdentity[]; group: GroupConfig } => ({
+    "chat.getChat": (): {
+      title: null;
+      participants: never[];
+      anchorPersonaId: null;
+      identities: readonly ChatIdentity[];
+      group: GroupConfig;
+      viewerIsHost: true;
+    } => ({
+      title: null,
       participants: [],
       anchorPersonaId: null,
       identities: [],
       group: DEFAULT_GROUP_CONFIG,
+      viewerIsHost: true,
     }),
     "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_audit_room"), role: "assistant", content: BEFORE, seq: 1 })]),
     "automation.confirmSuggestion": () => ({ ran: "stashed-arm", outcome: "fired" }),
     "automation.dismissSuggestion": () => null,
+    "automation.listChatActivity": options?.activity ?? (() => []),
   });
   const socket = await routeOrbSocket(page, { frames });
   await page.route("**/api/trpc/**", async (route) => {
@@ -85,10 +103,22 @@ async function routeRoom(page: Page, frames: readonly StreamFrame[]): Promise<{ 
       for (let i = 0; i < MAX_ATTACH_POLLS && !socket.attachedChannels().some((key) => key.startsWith("automation:")); i += 1) {
         await new Promise((resolve) => setTimeout(resolve, 25));
       }
+      for (let i = 0; i < MAX_ATTACH_POLLS && options?.releaseFramesWhen?.() === false; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
     }
     await route.fallback();
   });
   return trpc;
+}
+
+function ruleFiredFrame(): StreamFrame {
+  const event: AutomationBusEvent = {
+    type: "ruleFired",
+    chatId: CHAT_ID,
+    ruleId: castId<AutomationRuleId>("automationrule_ct_activity"),
+  };
+  return { channel: "automation", chatId: CHAT_ID, event };
 }
 
 test("a rewrite card renders its question with the diff COLLAPSED, and the disclosure opens it", async ({ mount, page }) => {
@@ -113,6 +143,34 @@ test("a rewrite card renders its question with the diff COLLAPSED, and the discl
   // Opened: the word-granularity diff marks the duplicated sentence as REMOVED and keeps the rest unchanged.
   await expect(component.locator('[data-diff="removed"]').first()).toBeVisible();
   await expect(component.locator('[data-diff="unchanged"]').first()).toContainText("The door was open.");
+});
+
+test("a rule terminal refreshes the visible room Activity list through the always-mounted automation source", async ({ mount, page }) => {
+  let activityReads = 0;
+  const freshRow = {
+    id: "automationfire_ct_activity",
+    ruleId: "automationrule_ct_activity",
+    chatId: CHAT_ID,
+    triggerType: "messageCommitted",
+    outcome: "fired",
+    detail: null,
+    firedAt: 1_700_000_002_000,
+  } satisfies TrpcWireOutput<"automation.listChatActivity">[number];
+  await routeRoom(page, [ruleFiredFrame()], {
+    activity: () => {
+      activityReads += 1;
+      return activityReads === 1 ? [] : [freshRow];
+    },
+    // Hold the hand-fired terminal until the Activity body has completed its first read. That makes the
+    // subsequently painted row proof of a refetch; a frame that lands before the query exists proves nothing.
+    releaseFramesWhen: () => activityReads > 0,
+  });
+
+  const component = await mount(<AutomationActivityFreshnessStory />);
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Activity", exact: true }).click();
+
+  await expect(component.getByText("Fired", { exact: true })).toBeVisible();
+  expect(activityReads).toBeGreaterThanOrEqual(2);
 });
 
 test("confirming the card calls confirmSuggestion once — the card's action is a front-door verb, not a turn", async ({ mount, page }) => {

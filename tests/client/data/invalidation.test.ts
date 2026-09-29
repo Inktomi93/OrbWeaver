@@ -11,14 +11,16 @@
 
 import { createInvalidation, createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import { __resetBusDupBursts } from "@orb/client/lib";
+import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
-import type { CharacterId, ChatId, ChatTurnId, DocumentId, MessageId, PluginId, PresetId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
+import type { AutomationRuleId, CharacterId, ChatId, ChatTurnId, DocumentId, MessageId, PluginId, PresetId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { QueryClient } from "@tanstack/react-query";
-import { describe, vi } from "vitest";
+import { afterEach, describe, vi } from "vitest";
+import { withViewTransition } from "../../../packages/client/src/lib/view-transition.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { makeMessageView } from "../features/chat/fixtures.ts";
 
@@ -27,6 +29,11 @@ const MESSAGE_ID = castId<MessageId>("msg_invalidationtest0");
 const CHARACTER_ID = castId<CharacterId>("char_invalidationtest");
 const PLUGIN_ID = castId<PluginId>("plugin_invalidationtest0");
 const PRESET_ID = castId<PresetId>("preset_invalidationtest");
+const AUTOMATION_RULE_ID = castId<AutomationRuleId>("automationrule_invalidationtest");
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 /** Fresh client + proxy per test — no shared cache state to bleed across assertions. The duplicate-invalidate
  *  burst windows are module state in `lib/bus-devlog.ts` and are reset with the client for the SAME reason:
@@ -41,6 +48,23 @@ function setup(): ReturnType<typeof createInvalidation> & {
   const queryClient = new QueryClient();
   const trpc = createTrpcProxy(createTrpcClient("http://localhost/api/trpc"), queryClient);
   return { ...createInvalidation({ queryClient, trpc }), queryClient, trpc };
+}
+
+function holdNativeTransition(): { readonly finish: () => void; readonly finished: Promise<void> } {
+  let finish: (() => void) | undefined;
+  const finished = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  vi.stubGlobal("matchMedia", () => ({ matches: false }));
+  vi.stubGlobal("document", {
+    querySelector: () => null,
+    startViewTransition: (update: () => void) => {
+      update();
+      return { ready: Promise.resolve(), finished, updateCallbackDone: Promise.resolve() };
+    },
+  });
+  withViewTransition(() => undefined);
+  return { finish: (): void => finish?.(), finished };
 }
 
 function isInvalidated(queryClient: QueryClient, queryKey: readonly unknown[]): boolean {
@@ -302,7 +326,82 @@ describe("invalidation — the bus half (invalidate)", () => {
   });
 });
 
-// ── The USER-bus half (PD user-bus lane): the SECOND exhaustive event→filter contract ─────────────
+// ── The AUTOMATION-room half: durable fire/activity reads over a live-only bus ────────────────────
+
+const AUTOMATION_TRACKED_KEYS = ["rules", "fires", "activity"] as const;
+type AutomationTrackedKey = (typeof AUTOMATION_TRACKED_KEYS)[number];
+
+const AUTOMATION_EXPECTED: Record<AutomationBusEvent["type"], readonly AutomationTrackedKey[]> = {
+  quickReplySurfaced: [],
+  suggestionRaised: [],
+  suggestionResolved: [],
+  ruleFired: ["rules", "fires", "activity"],
+  ruleErrored: ["rules", "fires", "activity"],
+  ruleAutoDisabled: ["rules"],
+  rulesChanged: ["rules", "activity"],
+};
+
+function automationEventOf(type: AutomationBusEvent["type"]): AutomationBusEvent {
+  switch (type) {
+    case "quickReplySurfaced":
+      return { type, chatId: CHAT_ID, source: { kind: "rule", ruleId: AUTOMATION_RULE_ID }, choices: [] };
+    case "suggestionRaised":
+      return {
+        type,
+        chatId: CHAT_ID,
+        source: { kind: "rule", ruleId: AUTOMATION_RULE_ID },
+        suggestionId: castId("automationsuggestion_invalidationtest"),
+        kind: "confirm",
+        summary: "confirm",
+        expiresAt: 1,
+      };
+    case "suggestionResolved":
+      return { type, chatId: CHAT_ID, suggestionId: castId("automationsuggestion_invalidationtest") };
+    case "ruleFired":
+    case "ruleErrored":
+    case "ruleAutoDisabled":
+      return { type, chatId: CHAT_ID, ruleId: AUTOMATION_RULE_ID };
+    case "rulesChanged":
+      return { type, chatId: CHAT_ID };
+  }
+}
+
+describe("invalidation — the automation-room half", () => {
+  test("the event→filter contract preserves the rule reads and adds the room Activity read", () => {
+    const actual: Record<string, readonly AutomationTrackedKey[]> = {};
+    for (const type of Object.keys(AUTOMATION_EXPECTED) as AutomationBusEvent["type"][]) {
+      const { invalidateAutomation, queryClient, trpc } = setup();
+      const keys: Record<AutomationTrackedKey, readonly unknown[]> = {
+        rules: trpc.automation.listRules.queryKey({ chatId: CHAT_ID }),
+        fires: trpc.automation.listFires.queryKey({ ruleId: AUTOMATION_RULE_ID }),
+        activity: trpc.automation.listChatActivity.queryKey({ chatId: CHAT_ID, limit: 50 }),
+      };
+      seedReads(queryClient, Object.values(keys));
+
+      invalidateAutomation(automationEventOf(type));
+
+      actual[type] = AUTOMATION_TRACKED_KEYS.filter((key) => isInvalidated(queryClient, keys[key])).sort();
+    }
+    const expected = Object.fromEntries(Object.entries(AUTOMATION_EXPECTED).map(([type, keys]) => [type, keys.toSorted()]));
+    expect(actual).toEqual(expected);
+  });
+
+  test("the live-only room's reconnect gap-heal covers rules, every fire log, and room Activity", () => {
+    const { gapHealAutomation, queryClient, trpc } = setup();
+    const keys = [
+      trpc.automation.listRules.queryKey({ chatId: CHAT_ID }),
+      trpc.automation.listFires.queryKey({ ruleId: AUTOMATION_RULE_ID }),
+      trpc.automation.listChatActivity.queryKey({ chatId: CHAT_ID, limit: 50 }),
+    ];
+    seedReads(queryClient, keys);
+
+    gapHealAutomation(CHAT_ID);
+
+    expect(keys.every((key) => isInvalidated(queryClient, key))).toBe(true);
+  });
+});
+
+// ── The USER-bus half (PD user-bus lane): the next exhaustive event→filter contract ───────────────
 // The reads any `USER_BUS_FILTERS` entry can touch — one representative read per domain root the map
 // path-invalidates (pathFilter matches every read under that router, so one seeded read per root suffices).
 const USER_TRACKED_KEYS = [
@@ -789,6 +888,42 @@ describe("invalidation — the mutation half (invalidateFilters)", () => {
     invalidateFilters([]);
 
     expect(isInvalidated(queryClient, listTagsKey)).toBe(false);
+  });
+
+  test("an external write waits for the active native crossfade, then invalidates its exact filter once", async () => {
+    const { invalidateFilters, queryClient, trpc } = setup();
+    const transition = holdNativeTransition();
+    const recorder = recordSpend(queryClient);
+
+    invalidateFilters([trpc.tag.listTags.queryFilter()]);
+
+    expect(recorder.filters()).toEqual([]);
+    transition.finish();
+    await transition.finished;
+    await Promise.resolve();
+
+    expect(recorder.filters().map((filter) => keyParts(filter).path.join("."))).toEqual(["tag.listTags"]);
+  });
+});
+
+describe("invalidation — native content transition isolation", () => {
+  test("chatUpdated cannot refetch the room while its native crossfade is painting, and is not lost", async () => {
+    const { invalidate, queryClient, trpc } = setup();
+    const transition = holdNativeTransition();
+    const messageList = trpc.chat.listMessages.queryKey({ chatId: CHAT_ID });
+    const chatDetail = trpc.chat.getChat.queryKey({ chatId: CHAT_ID });
+    seedReads(queryClient, [messageList, chatDetail]);
+
+    invalidate({ type: "chatUpdated", chatId: CHAT_ID });
+
+    expect(isInvalidated(queryClient, messageList)).toBe(false);
+    expect(isInvalidated(queryClient, chatDetail)).toBe(false);
+    transition.finish();
+    await transition.finished;
+    await Promise.resolve();
+
+    expect(isInvalidated(queryClient, messageList)).toBe(true);
+    expect(isInvalidated(queryClient, chatDetail)).toBe(true);
   });
 });
 

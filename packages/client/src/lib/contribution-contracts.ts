@@ -26,7 +26,7 @@ import type { ReactNode } from "react";
 /** The chat SURFACE-ANCHOR vocabulary (§6c/M8) — closed `as const` tuple, so an unlisted anchor is
  *  unspellable. `thread-flank`/`above-composer` are ROOM-level (mounted once per open room);
  *  `message-footer` is PER-ROW (mounted once per committed message). */
-export const CHAT_SURFACE_ANCHORS = ["thread-flank", "above-composer", "message-footer"] as const;
+export const CHAT_SURFACE_ANCHORS = ["thread-flank", "above-composer", "composer-action", "composer-media", "message-footer"] as const;
 export type ChatSurfaceAnchor = (typeof CHAT_SURFACE_ANCHORS)[number];
 
 /** The room-level surface projection — `thread-flank` + `above-composer` read this. `chatId` is `null`
@@ -49,7 +49,7 @@ export interface ChatMessageSurfaceState {
 export type ChatSurfaceContribution =
   | {
       readonly id: string;
-      readonly anchor: Extract<ChatSurfaceAnchor, "thread-flank" | "above-composer">;
+      readonly anchor: Extract<ChatSurfaceAnchor, "thread-flank" | "above-composer" | "composer-action" | "composer-media">;
       readonly when?: (state: ChatRoomSurfaceState) => boolean;
       readonly body: (state: ChatRoomSurfaceState) => ReactNode;
     }
@@ -159,11 +159,17 @@ export type ChatControlAction =
       readonly pending: boolean;
     };
 
-/** A TRANSIENT control the band renders. `chip` is one affordance in the capped single row; `card` is the
- *  host-tier ask — a title, optional detail, its own actions, and an ALWAYS-PRESENT dismiss (a card that
+/** A TRANSIENT control the band renders. `chip` is one affordance in a collapsed, expandable set; `card` is
+ *  the host-tier ask — a title, optional detail, its own actions, and an ALWAYS-PRESENT dismiss (a card that
  *  cannot be dismissed is a modal wearing a card's clothes). */
 export type ChatControl =
-  | { readonly kind: Extract<ChatControlKind, "chip">; readonly id: string; readonly action: ChatControlAction }
+  | {
+      readonly kind: Extract<ChatControlKind, "chip">;
+      readonly id: string;
+      readonly action: ChatControlAction;
+      /** Optional shared name for a collapsed set of related chips, such as "Dice rolls". */
+      readonly disclosureLabel?: string;
+    }
   | {
       readonly kind: Extract<ChatControlKind, "card">;
       readonly id: string;
@@ -182,8 +188,8 @@ export type ChatControl =
  *
  *  THE PUBLISH GUARD, and the ONE constraint it puts on you (read this before writing a source). The band
  *  IGNORES a publish whose controls are CONTENT-equal to the last one — same kind/id/title, same per-action
- *  id/label/mode/text/pending — because a source that rebuilds its list every render (the natural bus-driven
- *  shape) would otherwise re-render the band, which re-renders the source, forever. Two things are NOT
+ *  id/disclosureLabel/action label/mode/text/pending — because a source that rebuilds its list every render
+ *  (the natural bus-driven shape) would otherwise re-render the band, which re-renders the source, forever. Two things are NOT
  *  compared, and are therefore yours to keep honest:
  *   - the ACTION CLOSURES (`run`, `dismiss`) and a card's `detail` node. An ignored publish keeps the
  *     PREVIOUS objects, so a source must never change what a control DOES (or what its detail shows)

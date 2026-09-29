@@ -11,8 +11,8 @@
 // intent-named module action the rest of the app calls.
 //
 // THE FIRST FRAME IS WARM. `StartChatResult` carries the full `ChatDetail` plus the exact persisted opening,
-// so the response SEEDS both room reads before navigation. The message page is then marked stale: its mount
-// refetch closes the bus's pre-attach gap without making the native view-transition wait on that round-trip.
+// so the response SEEDS both room reads before navigation. The message page is marked stale after the native
+// crossfade settles: that refetch closes the bus's pre-attach gap without repainting the room mid-transition.
 // (Not the factory's `echo` arm: that seeds a key with the whole mutation DATA, and this response wraps the
 // row alongside `opening`.) Cache surgery is legal here and only here (`client-cache-surgery-only-in-data`).
 
@@ -75,15 +75,16 @@ export function useStartChat(): UseStartChatResult {
         ...(intent.startAsGame === undefined ? {} : { startAsGame: intent.startAsGame }),
       });
       const chatId = result.chat.id;
-      // The response carries both canonical first-frame reads; the stale message page refetches on mount.
+      // The response carries both canonical first-frame reads; the message page is confirmed after motion.
       queryClient.setQueryData(trpc.chat.getChat.queryKey({ chatId }), result.chat);
       queryClient.setQueryData(trpc.chat.listMessages.queryKey({ chatId }), {
         messages: result.opening?.messages ?? [],
         identities: result.chat.identities,
       });
-      invalidation.invalidateFilters([trpc.chat.listMessages.queryFilter({ chatId })]);
       enterCreatedChat(chatId);
       setActiveSection("chats");
+      // A confirming response must not re-render the cold room in the middle of its native crossfade.
+      invalidation.invalidateFilters([trpc.chat.listMessages.queryFilter({ chatId })]);
       return chatId;
     },
   };

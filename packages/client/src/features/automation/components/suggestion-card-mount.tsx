@@ -12,11 +12,10 @@
 // the subscription that feeds it and start lying on the next room.
 //
 // THE RECONNECT RULE — the one place a live-only room forces a decision. The automation room is
-// `resumable: false`: no cursor, no replay, no gap-heal read (there is nothing to re-read). So on every
-// transition into a live socket the list is CLEARED rather than kept: during a disconnect the server may
-// have swept, voided (a host handoff), or replaced any ask, and a card that survives a gap is a card whose
-// confirm can only refuse. Losing a still-valid ask costs one re-fire; keeping a dead one costs the host a
-// click that fails.
+// `resumable: false`: no cursor and no replay. On every transition into a live socket the transient ask list
+// is CLEARED rather than kept: during a disconnect the server may have swept, voided (a host handoff), or
+// replaced any ask, and a card that survives a gap is a card whose confirm can only refuse. The durable rule
+// reads this room also drives are gap-healed through the central invalidation seam.
 //
 // CARD SHAPE, per §3-S1 + authoring law 5: one `execute`-mode action (a front-door verb, never a turn — so
 // it is disabled ONLY while its own mutation pends, never by the room's turn phase), plus the REQUIRED
@@ -103,9 +102,17 @@ export function AutomationSuggestionMount({ state, publish }: ChatControlSourceM
 
   const ref: Extract<StreamRoomRef, { channel: "automation" }> | null = chatId === null ? null : { channel: "automation", chatId };
   useBusRoom<"automation">(ref, {
-    onEvent: (frame) => setAsks((prev) => applyAutomationBusEvent(pruneExpiredAsks(prev, timeLib.now()), frame.event)),
+    onEvent: (frame) => {
+      invalidation.invalidateAutomation(frame.event);
+      setAsks((prev) => applyAutomationBusEvent(pruneExpiredAsks(prev, timeLib.now()), frame.event));
+    },
     // A live-only room's reconnect: nothing to replay, so nothing may be trusted (see the header).
-    onSocketLive: () => setAsks(NO_ASKS),
+    onSocketLive: () => {
+      if (chatId !== null) {
+        invalidation.gapHealAutomation(chatId);
+      }
+      setAsks(NO_ASKS);
+    },
   });
 
   // The TTL edge. The server sweeps on its own injected clock; this timer is the client half of the SAME
