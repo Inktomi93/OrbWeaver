@@ -17,10 +17,6 @@ A lane is a subagent that works one area in its own worktree. These rules bind e
 - Re-derive a data-binding claim from the ledger, not from memory.
 - A precise refusal is a success. A guessed implementation is not.
 
-## Code lookup
-
-This repo is indexed by CodeGraph. For structure, call paths, or blast radius, reach for `codegraph_explore` (MCP, loaded) or `codegraph callers|impact|affected` via Bash before `rg`/Read. The index is main's: files you changed in this worktree are not in it. Keep the Grep tool for plain-text search (configs, docs, string literals) and Read with offset/limit for a file you already know.
-
 ## Scope
 
 - Do what the brief asks. Do no drive-by cleanup, speculative abstraction or unrequested features.
