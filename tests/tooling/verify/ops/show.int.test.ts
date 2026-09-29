@@ -313,3 +313,352 @@ test("an unknown stage name answers with the names that DO exist, rather than an
   await expect(unknown).toExitWith(EXIT.misuse);
   expect(unknown.stderr + unknown.stdout).toContain("lint:biome, tests:node");
 });
+
+// ── THE FAILED-VERIFY-RUN SUMMARY (docs/work item 0267) ────────────────────────────────────────────
+//
+// THE DEFECT THIS CLOSES. `--errors-only` (and the bare default) read ONLY `reports/check-structure.json`.
+// After a `pnpm verify --push` whose `tests:node`/`browser:ct`/`browser:e2e-smoke`/`deps:orphan-ratchet`/
+// `quality:boot-chunk` stages failed but whose structure gates happened to be clean, the reader printed a
+// green structure verdict and nothing else — a false clean nobody reading only `check:show` could catch.
+
+const FAIL_RUN = "main-444-2026-09-29T12-00-00-000Z";
+
+function failingVerifyReport(runId: string): string {
+  return JSON.stringify({
+    tier: "push",
+    scope: "whole",
+    run: {
+      runId,
+      checkout: "main",
+      artifactDir: `reports/runs/verify/${runId}`,
+      startedAt: "2026-09-29T12:00:00.000Z",
+      finishedAt: "2026-09-29T12:30:00.000Z",
+      concurrent: [],
+    },
+    ok: false,
+    exitCode: 1,
+    failed: 6,
+    noVerdict: [],
+    stages: [
+      {
+        name: "lint:biome",
+        group: "lint",
+        mode: "full",
+        ok: true,
+        exitCode: 0,
+        childExit: 0,
+        durationMs: 100,
+        logFile: `reports/runs/verify/${runId}/stages/lint-biome.log`,
+        failureExcerpt: null,
+        runsAt: null,
+        notices: [],
+      },
+      {
+        name: "structure:full",
+        group: "structure",
+        mode: "full",
+        ok: false,
+        exitCode: 1,
+        childExit: 1,
+        durationMs: 150,
+        logFile: `reports/runs/verify/${runId}/stages/structure-full.log`,
+        failureExcerpt: "check:structure FAILED — 1 violation(s)",
+        runsAt: null,
+        notices: [],
+      },
+      {
+        name: "tests:node",
+        group: "tests",
+        mode: "full",
+        ok: false,
+        exitCode: 1,
+        childExit: 1,
+        durationMs: 200,
+        logFile: `reports/runs/verify/${runId}/stages/tests-node.log`,
+        failureExcerpt: "Test Files  1 failed | 1 passed (2)",
+        runsAt: null,
+        notices: [],
+      },
+      {
+        name: "browser:ct",
+        group: "browser",
+        mode: "full",
+        ok: false,
+        exitCode: 1,
+        childExit: 1,
+        durationMs: 250,
+        logFile: `reports/runs/verify/${runId}/stages/browser-ct.log`,
+        failureExcerpt: "CT SUMMARY — FAILED",
+        runsAt: null,
+        notices: [],
+      },
+      {
+        name: "deps:orphan-ratchet",
+        group: "deps",
+        mode: "full",
+        ok: false,
+        exitCode: 1,
+        childExit: 1,
+        durationMs: 50,
+        logFile: `reports/runs/verify/${runId}/stages/deps-orphan-ratchet.log`,
+        failureExcerpt: "orphan-export-ratchet — 2 unexempted orphan export(s)",
+        runsAt: null,
+        notices: [],
+      },
+      {
+        name: "quality:boot-chunk",
+        group: "quality",
+        mode: "full",
+        ok: false,
+        exitCode: 1,
+        childExit: 1,
+        durationMs: 60,
+        logFile: `reports/runs/verify/${runId}/stages/quality-boot-chunk.log`,
+        failureExcerpt: "boot-chunk-ratchet — boot payload over ceiling",
+        runsAt: null,
+        notices: [],
+      },
+      {
+        name: "browser:e2e-smoke",
+        group: "browser",
+        mode: "full",
+        ok: false,
+        exitCode: 1,
+        childExit: 1,
+        durationMs: 300,
+        logFile: `reports/runs/verify/${runId}/stages/browser-e2e-smoke.log`,
+        failureExcerpt: "Error: Timed out waiting 180000ms from config.webServer.",
+        runsAt: null,
+        notices: [],
+      },
+    ],
+  });
+}
+
+const STRUCTURE_STAGE_LOG = "$ node tooling/src/verify/cli.ts structure\n✗ some-gate (1 violation)\n  ✗ packages/a/b.ts:1  a planted structure violation\n";
+const TESTS_NODE_LOG =
+  "some setup\n\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n\n FAIL  |unit| tests/x/y.test.ts > widget renders the roster\nAssertionError: expected 1 to be 2\n\n Test Files  1 failed | 1 passed (2)\n      Tests  1 failed | 1 passed (2)\n";
+const CT_LOG =
+  "  CT SUMMARY — FAILED  ·  10 passed · 1 failed · 0 flaky · 0 skipped\n  FAILED (1):\n  ✗ tests/client/features/foo.ct.tsx:10  chromium › foo › bar breaks\n";
+const ORPHAN_LOG =
+  "orphan-export-ratchet — 2 unexempted orphan export(s)\n  ✗ packages/contracts/src/a.ts:1  `Foo` — reached by nobody (prod or test) and unused in its own file\n  ✗ packages/contracts/src/b.ts:2  `Bar` — reached by nobody (prod or test) and unused in its own file\n";
+const BOOT_CHUNK_LOG = "boot-chunk-ratchet — boot payload = 100 B (ceiling 90 B)\n  ✗ OVER by 10 B (11.1%)\n";
+const E2E_SMOKE_LOG = "[WebServer] dev: booting the server\nError: Timed out waiting 180000ms from config.webServer.\n";
+
+function failingSlot(runId: string): Readonly<Record<string, string>> {
+  return {
+    [`reports/runs/verify/${runId}/verify.json`]: failingVerifyReport(runId),
+    [`reports/runs/verify/${runId}/stages/lint-biome.log`]: "lint-biome: no findings\n",
+    [`reports/runs/verify/${runId}/stages/structure-full.log`]: STRUCTURE_STAGE_LOG,
+    [`reports/runs/verify/${runId}/stages/tests-node.log`]: TESTS_NODE_LOG,
+    [`reports/runs/verify/${runId}/stages/browser-ct.log`]: CT_LOG,
+    [`reports/runs/verify/${runId}/stages/deps-orphan-ratchet.log`]: ORPHAN_LOG,
+    [`reports/runs/verify/${runId}/stages/quality-boot-chunk.log`]: BOOT_CHUNK_LOG,
+    [`reports/runs/verify/${runId}/stages/browser-e2e-smoke.log`]: E2E_SMOKE_LOG,
+    [`reports/runs/verify/${runId}/.published`]: '["verify.json","verify"]\n',
+    "reports/check-structure.json": JSON.stringify({ gates: [], toolErrors: [], scanAlarms: [], total: 0, ok: true }),
+  };
+}
+
+function publishVerify(root: string, runId: string): void {
+  symlinkSync(join("runs", "verify", runId, "verify.json"), join(root, "reports", "verify.json"));
+  symlinkSync(join("runs", "verify", runId, "stages"), join(root, "reports", "verify"));
+}
+
+test("--errors-only names every failing stage of a red verify run, not only check:structure's", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree(failingSlot(FAIL_RUN));
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
+  // The run failed — a clean exit here would BE the false clean this item closes, even though the
+  // structure artifact alone is green.
+  await expect(result).toExitWith(EXIT.violations);
+  expect(result.stdout).toContain(`run ${FAIL_RUN}`);
+  expect(result.stdout).toContain("structure:full");
+  expect(result.stdout).toContain("a planted structure violation");
+  expect(result.stdout).toContain("tests:node");
+  expect(result.stdout).toContain("FAIL  |unit| tests/x/y.test.ts > widget renders the roster");
+  expect(result.stdout).toContain("browser:ct");
+  expect(result.stdout).toContain("tests/client/features/foo.ct.tsx:10  chromium › foo › bar breaks");
+  expect(result.stdout).toContain("deps:orphan-ratchet");
+  expect(result.stdout).toContain("`Foo` — reached by nobody");
+  expect(result.stdout).toContain("`Bar` — reached by nobody");
+  expect(result.stdout).toContain("quality:boot-chunk");
+  expect(result.stdout).toContain("OVER by 10 B");
+  expect(result.stdout).toContain("browser:e2e-smoke");
+  expect(result.stdout).toContain("Timed out waiting 180000ms from config.webServer.");
+  // The one PASSING stage stays out of the failure summary.
+  expect(result.stdout).not.toMatch(/✗ lint:biome/u);
+});
+
+test("the bare default also names every failing stage of a red verify run", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree(failingSlot(FAIL_RUN));
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show"], { cwd: root });
+  await expect(result).toExitWith(EXIT.violations);
+  expect(result.stdout).toContain("tests:node");
+  expect(result.stdout).toContain("browser:e2e-smoke");
+});
+
+test("a failing stage's lines are capped with a count and the widening flag", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree(failingSlot(FAIL_RUN));
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only", "--limit", "1"], { cwd: root });
+  expect(result.stdout).toContain("…and 1 more (pnpm check:show --stage deps:orphan-ratchet to widen)");
+});
+
+function checkStructureAt(runId: string, startedAt: string): string {
+  return JSON.stringify({
+    run: { runId, complete: true, ran: 1, active: 1, startedAt },
+    gates: [],
+    toolErrors: [],
+    scanAlarms: [],
+    total: 0,
+    ok: true,
+  });
+}
+
+test("check:show says whether the structure verdict is from this verify run or an older one", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree({
+    ...failingSlot(FAIL_RUN),
+    "reports/check-structure.json": checkStructureAt("main-1-2026-09-01T00-00-00-000Z", "2026-09-01T00:00:00.000Z"),
+  });
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
+  expect(result.stdout).toContain("structure verdict is from an OLDER run (main-1-2026-09-01T00-00-00-000Z");
+  expect(result.stdout).toContain(`before this verify run (${FAIL_RUN}) started`);
+});
+
+test("check:show says a structure run AFTER the verify run finished is NEWER, not older", async ({ runCli, plantedTree }) => {
+  // The verify run's window is [12:00:00, 12:30:00] (failingVerifyReport) — a structure run that started
+  // an hour after it finished is not "older": the original two-way compare mislabeled every post-window
+  // run as OLDER.
+  const root = await plantedTree({
+    ...failingSlot(FAIL_RUN),
+    "reports/check-structure.json": checkStructureAt("main-9-2026-09-29T13-30-00-000Z", "2026-09-29T13:30:00.000Z"),
+  });
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
+  expect(result.stdout).toContain("structure verdict is from a NEWER run (main-9-2026-09-29T13-30-00-000Z");
+  expect(result.stdout).toContain(`after this verify run (${FAIL_RUN}) finished`);
+});
+
+test("check:show says a structure run inside the verify window started DURING it, without claiming it IS that stage", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree({
+    ...failingSlot(FAIL_RUN),
+    "reports/check-structure.json": checkStructureAt("main-5-2026-09-29T12-15-00-000Z", "2026-09-29T12:15:00.000Z"),
+  });
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
+  expect(result.stdout).toContain("structure verdict is from a run (main-5-2026-09-29T12-15-00-000Z) started DURING this verify run");
+  expect(result.stdout).toContain("not necessarily its own structure:full stage");
+});
+
+test("--gate keeps the narrow structure-only view even when the verify run failed", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree({
+    ...failingSlot(FAIL_RUN),
+    "reports/check-structure.json": JSON.stringify({
+      gates: [{ name: "dirty-gate", ok: false, violations: [{ file: "x.ts", line: 1, message: "violation" }] }],
+      toolErrors: [],
+      scanAlarms: [],
+      total: 1,
+      ok: false,
+    }),
+  });
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show", "--gate", "dirty"], { cwd: root });
+  expect(result.stdout).not.toContain("stage(s) failed");
+  expect(result.stdout).not.toContain("tests:node");
+});
+
+test("a clean verify run adds nothing to the structure view", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree({
+    ...publishedSlot(OLD_RUN),
+    "reports/check-structure.json": JSON.stringify({ gates: [], toolErrors: [], scanAlarms: [], total: 0, ok: true }),
+  });
+  publish(root, OLD_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
+  await expect(result).toExitWith(EXIT.clean);
+  expect(result.stdout).not.toContain("stage(s) failed");
+  expect(result.stdout).toContain("check:structure passed");
+  // No `--gate`/`--file` was given — "(filter view)" would falsely claim this is a narrowed inspection.
+  expect(result.stdout).not.toContain("(filter view)");
+});
+
+test('the bare default drops "(filter view)" from a clean structure header when a red verify run forced the gate list open', async ({
+  runCli,
+  plantedTree,
+}) => {
+  const root = await plantedTree(failingSlot(FAIL_RUN));
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show"], { cwd: root });
+  expect(result.stdout).toContain("✓ check:structure passed");
+  expect(result.stdout).not.toContain("(filter view)");
+});
+
+test("an ABANDONED latest verify run gets a one-line advisory instead of a silent fall-through, and exits toolError", async ({ runCli, plantedTree }) => {
+  // Same shape as the existing "a run that DIED after the published one REFUSES the read" --stage case
+  // (show-stage.ts's own precedent): a `.inflight` marker whose pid is certainly dead.
+  const root = await plantedTree({
+    ...publishedSlot(OLD_RUN),
+    "reports/check-structure.json": JSON.stringify({ gates: [], toolErrors: [], scanAlarms: [], total: 0, ok: true }),
+    [`reports/runs/verify/${LIVE_RUN}/.inflight`]: JSON.stringify({ runId: LIVE_RUN, pid: DEAD_PID, checkout: "main", startedAt: "2026-09-20T12:00:00.000Z" }),
+  });
+  publish(root, OLD_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
+  await expect(result).toExitWith(EXIT.toolError);
+  expect(result.stdout).toContain("NEVER FINISHED");
+  expect(result.stdout).toContain(LIVE_RUN);
+  // The structure verdict still renders beneath the advisory — this is a notice, not a silent fall-through.
+  expect(result.stdout).toContain("check:structure passed");
+});
+
+test("an UNPARSEABLE verify.json gets a one-line advisory instead of a silent fall-through, and exits toolError", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree({
+    [`reports/runs/verify/${OLD_RUN}/verify.json`]: "{not json",
+    [`reports/runs/verify/${OLD_RUN}/.published`]: '["verify.json","verify"]\n',
+    "reports/check-structure.json": JSON.stringify({ gates: [], toolErrors: [], scanAlarms: [], total: 0, ok: true }),
+  });
+  publish(root, OLD_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
+  await expect(result).toExitWith(EXIT.toolError);
+  expect(result.stdout).toContain(`reports/verify.json resolves to ${OLD_RUN} but will not parse`);
+  expect(result.stdout).toContain("check:structure passed");
+});
+
+test("a red stage with an empty log says so, rather than printing only the header", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree({
+    ...failingSlot(FAIL_RUN),
+    [`reports/runs/verify/${FAIL_RUN}/stages/deps-orphan-ratchet.log`]: "",
+  });
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
+  expect(result.stdout).toContain(
+    "deps:orphan-ratchet (exit 1)\n  (this stage's log is empty — no output was captured — pnpm check:show --stage deps:orphan-ratchet)",
+  );
+});
+
+test("the fallback tail (no extractor matched) reports how many lines it dropped", async ({ runCli, plantedTree }) => {
+  const many = Array.from({ length: 30 }, (_, i) => `plain line ${i}`).join("\n");
+  const root = await plantedTree({
+    ...failingSlot(FAIL_RUN),
+    [`reports/runs/verify/${FAIL_RUN}/stages/quality-boot-chunk.log`]: many,
+  });
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only", "--limit", "3"], { cwd: root });
+  // The last 3 lines (a tail), and an honest count of how many were dropped ahead of them.
+  expect(result.stdout).toContain("plain line 29");
+  expect(result.stdout).toContain("…and 27 more (pnpm check:show --stage quality:boot-chunk to widen)");
+});
