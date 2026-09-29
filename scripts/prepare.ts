@@ -5,7 +5,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import process from "node:process";
 
 // pnpm runs `prepare` with the package root as cwd, and cwd is also where lefthook looks for the repository.
@@ -13,6 +13,15 @@ import process from "node:process";
 if (!existsSync(join(process.cwd(), ".git"))) {
   // Messages carry no "prepare:" prefix: pnpm already labels every lifecycle output line with the script name.
   console.log("no .git here (a source archive, not a clone), so there are no git hooks to install. Skipping lefthook.");
+  process.exit(0);
+}
+
+// A linked worktree shares the main checkout's `.git/hooks`, and `lefthook install` bakes this checkout's
+// absolute lefthook path into them, so a disposable lane would own every checkout's hooks until it is removed.
+// The hooks already run a worktree's own lefthook.yml; only the main checkout installs them.
+const gitDirs = spawnSync("git", ["rev-parse", "--git-dir", "--git-common-dir"], { encoding: "utf8" }).stdout.trim().split("\n");
+if (gitDirs.length === 2 && resolve(gitDirs[0] ?? "") !== resolve(gitDirs[1] ?? "")) {
+  console.log("linked worktree: the main checkout owns the shared git hooks. Skipping lefthook install.");
   process.exit(0);
 }
 
