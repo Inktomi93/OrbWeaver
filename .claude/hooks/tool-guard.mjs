@@ -183,7 +183,8 @@
 //
 // ENTRY POINTS:
 //   echo '<PreToolUse json>' | tool-guard.mjs     real mode (hook contract on stdin, JSON on stdout)
-//   tool-guard.mjs --classify-batch               stdin: JSON array of {command, cwd?, agentId?, timeout?}
+//   tool-guard.mjs --classify-batch               stdin: JSON array of {command, cwd?, agentId?, sessionId?,
+//                                                 timeout?, runInBackground?}
 //                                                 stdout: JSON array of decisions (no side effects) —
 //                                                 used by tests/tooling/tool-guard.int.test.ts and
 //                                                 scripts/probes/guard-replay.ts (corpus validation).
@@ -192,7 +193,7 @@
 // timestamp), ORB_TOOL_GUARD_CRASH_FOR_TEST (forces an internal throw — proves fail-open).
 
 import { spawnSync } from "node:child_process";
-import { appendFileSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { appendFileSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -751,6 +752,39 @@ const PS_PIPE_GREP = /(?:^|[\s;&|(])(?:\S*\/)?ps\b[^\n;]*\|\s*(?:\S*\/)?e?grep\b
 // (verify/cli.ts, vitest, playwright) or the pnpm door that launches one — a loop polling for an
 // unrelated process name is this rule's business only when it says so explicitly.
 const HARNESS_NAME_HINT = /verify\/cli\.ts|\bvitest\b|\bplaywright\b|pnpm\s+(?:run\s+)?(?:check|test|verify)(?::[\w-]+)?/;
+// `do`/`done` are shared by the harness-name loop check above and the three polling rules below (owner
+// directive, 2026-09-29 addendum): a wait loop's DANGEROUS content is in its BODY (after `do`, before the
+// matching `done`), not its condition — `sleep` lives there, not in `until grep -q X log`.
+const DONE_KEYWORD = /\bdone\b/;
+const FOR_HEAD = /\bfor\b/g;
+const SLEEP_WORD = /(?:^|[\s;&|(])sleep\b/;
+// A command that is NOTHING BUT `true`/`:`, chained with `;` — the reported "still waiting" filler (one
+// lane: 63 in a row). `true foo` (an argument) or `cmd || true` (real work in another clause) are not this
+// shape — every clause must reduce to the bare word.
+const TRUE_OR_COLON_CLAUSE = /^(?:true|:)$/;
+// A bare foreground `sleep`, alone or chained: the whole CLAUSE is nothing but `sleep <n>[unit]`. Matched
+// per-clause (not per-command) so `sleep 300; tail -25 log` — the reported poll shape — is caught by its
+// OWN clause, same as a single `sleep 300`.
+const SLEEP_ONLY_CLAUSE = /^sleep\s+([0-9]+(?:\.[0-9]+)?)\s*(s|m|h|d)?$/;
+// Corpus threshold (scripts/probes/guard-replay.ts sleep-duration scan, 2026-09-29): bare foreground
+// sleeps AT OR UNDER 2s are dominated by a settle-delay idiom (`kill …; sleep 2; ps …` / `pkill …; sleep 2;
+// ps aux | grep …` — 402 sightings outside any loop), not a wait. Everything over 2s outside a loop is
+// dominated by the hand-polling shape ("sleep N; tail log") this rule exists to remove.
+const SLEEP_EXEMPT_MAX_SECONDS = 2;
+// Reads that are ONLY a status check when they are the WHOLE command (single clause, single stage) — a
+// `tail`/`head`/`wc`/`cat`/`grep` chained into something ELSE is doing real work, not just polling.
+const LOG_READ_HEAD = /^\s*(?:\S*\/)?(?:tail|head|wc|cat|grep|egrep|fgrep)\b/;
+const PS_P_HEAD = /^\s*(?:\S*\/)?ps\s+(?:[\w-]+\s+)*-p\b/;
+const KILL_ZERO_HEAD = /^\s*(?:\S*\/)?kill\s+-0\b/;
+const PNPM_CHECK_SHOW_HEAD = /^\s*pnpm\s+check:show\b/;
+// The status-read TARGET is the command's last token — every shape this rule cares about (`tail -c 3000
+// log`, `wc -l log`, `ps -p $PID`, `kill -0 $PID`) puts the thing being polled last. A trailing `2>&1`
+// would otherwise BECOME the "target" (its own last token is `1`), so it is stripped first.
+const TRAILING_REDIRECT_MERGE = /\s+\d*>&\d+\s*$/;
+// Third consecutive read of the same target, nothing else run in between, is the deny (owner directive,
+// 2026-09-29): the first two are a normal check-in, the third is hand-polling instead of using the ONE
+// notification a background job's own exit gives.
+const STATUS_READ_STREAK_DENY_AT = 3;
 const SQLITE_HEAD = /^\s*sqlite3\b/;
 const SQLITE_SAFE_HINT = /\/tmp\/|scratchpad|:memory:|test|\.bak\b/i;
 // The hook-bypass family — the ONE sanctioned skip is `LEFTHOOK_EXCLUDE=check git commit/merge …` (whole-tree
@@ -987,7 +1021,17 @@ const REASONS = {
   workerOverCap: (asked, cap) =>
     `\`--workers=${asked}\` is above the fleet cap of ${cap}. The SHIPPED defaults ARE the shared-host values (tooling/concurrency-profile.json is their ONE home, #1835): this box co-hosts the homelab and runs up to three lanes per account, and per-run caps multiplying across lanes is exactly what put node_load1 at 105.8 on 24 cores. Pass NO worker flag — or pass one only to go LOWER. If you genuinely have the box to yourself, the switch is \`ORB_DEDICATED_BOX=1\` in the SHELL environment, which retunes every reader at once.`,
   pgrepWaitLoop:
-    "A `pgrep`/`pidof`/`ps | grep` WAIT LOOP for a harness process matches every checkout on the box, not just yours — a sibling lane's orphaned `verify/cli.ts`/vitest/playwright process blocks you, and outlives your own run's end (measured: 38+ minutes blocked, waiters outliving their lane by 80+ minutes). Start the run with the Bash tool's `run_in_background` and wait for ITS notification when the harness exits — never poll a process name. A ONE-SHOT `pgrep` (no loop) stays allowed.",
+    "A `pgrep`/`pidof`/`ps | grep` WAIT LOOP for a harness process matches every checkout on the box, not just yours — a sibling lane's orphaned `verify/cli.ts`/vitest/playwright process blocks you, and outlives your own run's end (measured: 38+ minutes blocked, waiters outliving their lane by 80+ minutes). A ONE-SHOT `pgrep` (no loop) stays allowed. End your turn — a background job notifies you when it exits; to wait on a condition, run the until-loop with run_in_background.",
+  foregroundWaitLoopSleep:
+    "A foreground `until`/`while` loop with `sleep` in its body re-runs the wait on every single poll, and each cycle re-bills your WHOLE context to check one condition (measured: 437 foreground wait loops in the corpus this rule was tuned against). End your turn — a background job notifies you when it exits; to wait on a condition, run the until-loop with run_in_background.",
+  foregroundSleep:
+    "A foreground `sleep` blocks this whole turn until it wakes, and re-bills your WHOLE context for nothing while it does (measured: 869 foreground sleeps, 29 hours of plain waiting). A sleep of 2s or less chained into a command that does real work — a kill-then-verify settle delay, or a bounded `for` retry loop — still runs. End your turn — a background job notifies you when it exits; to wait on a condition, run the until-loop with run_in_background.",
+  trueOrColonFiller:
+    'A command that is nothing but `true`/`:` is turn-filler for "still waiting" (measured: one lane, 63 in a row) — it does real work, then re-bills your WHOLE context to say nothing happened. End your turn — a background job notifies you when it exits; to wait on a condition, run the until-loop with run_in_background.',
+  drizzleKitSubagent: (verb) =>
+    `A SUBAGENT ran \`drizzle-kit ${verb}\` — migration generation and application run on main by the orchestrator: parallel lanes generating migrations collide on migration numbers. Report the schema change and stop.`,
+  repeatedStatusRead: (target, count) =>
+    `This is the ${count}${count === 3 ? "rd" : "th"} consecutive read of \`${target}\` with nothing else run in between — a status re-check like this re-bills your WHOLE context each time instead of waiting for the one notification a background job's own exit gives you. Read it once; if you need to know when it changes, run the condition as an until-loop with run_in_background.`,
   rgReplaceMangle:
     "`rg -r`/`--replace` glued directly to another flag letter (e.g. `-rln`) is parsed by ripgrep as `-r` TAKING the glued letters as its REPLACEMENT VALUE — so the intended listing/count flag silently vanishes and the command REPLACES matched text instead of listing matches, with no error (four paid offenses this era). Spell it out: `-n`/`--files-with-matches`/`--count` for listing, or `-r 'text'`/`--replace='text'` (a SEPARATE token) when you actually mean a replacement.",
   scriptBody: (script, line, inner) =>
@@ -2621,6 +2665,211 @@ function pgrepHarnessWaitLoop(command, blank) {
   return false;
 }
 
+/** Is this an `until`/`while … do … done` loop with a `sleep` in its BODY (the part that actually runs
+ *  each cycle) — any condition, not only a harness name? Broader than `pgrepHarnessWaitLoop` above: that
+ *  one is scoped to the specific cross-checkout collision a process-name poll causes, this one is the
+ *  general case (a `curl`/`grep`/`test -f` condition polls exactly as wastefully). The two never fire on
+ *  the same loop redundantly in practice — `pgrepHarnessWaitLoop` returns first and this one is only
+ *  reached for loops it did not already catch — but either alone is a complete deny for its own shape. */
+function foregroundWaitLoopWithSleep(blank) {
+  LOOP_HEAD.lastIndex = 0;
+  let m = LOOP_HEAD.exec(blank);
+  while (m !== null) {
+    const doMatch = DO_KEYWORD.exec(blank.slice(m.index));
+    if (doMatch !== null) {
+      const bodyStart = m.index + doMatch.index + doMatch[0].length;
+      const doneMatch = DONE_KEYWORD.exec(blank.slice(bodyStart));
+      const bodyEnd = doneMatch === null ? blank.length : bodyStart + doneMatch.index;
+      if (SLEEP_WORD.test(blank.slice(bodyStart, bodyEnd))) {
+        return true;
+      }
+    }
+    m = LOOP_HEAD.exec(blank);
+  }
+  return false;
+}
+
+/** Body spans (after `do`, before the matching `done`) of every `for … do … done` loop in the command —
+ *  a BOUNDED iteration count, unlike `until`/`while`. A retry idiom capped at N tries (`for i in $(seq 1
+ *  60); do curl … && break; sleep 1; done`) is real, sanctioned work (it appears in this repo's own dev-
+ *  stack-boot scripts), so a `sleep` clause inside one of these spans is exempt from the bare-foreground-
+ *  sleep rule below regardless of its duration. */
+function forLoopBodySpans(blank) {
+  const spans = [];
+  FOR_HEAD.lastIndex = 0;
+  let m = FOR_HEAD.exec(blank);
+  while (m !== null) {
+    const doMatch = DO_KEYWORD.exec(blank.slice(m.index));
+    if (doMatch !== null) {
+      const bodyStart = m.index + doMatch.index + doMatch[0].length;
+      const doneMatch = DONE_KEYWORD.exec(blank.slice(bodyStart));
+      const bodyEnd = doneMatch === null ? blank.length : bodyStart + doneMatch.index;
+      spans.push([bodyStart, bodyEnd]);
+    }
+    m = FOR_HEAD.exec(blank);
+  }
+  return spans;
+}
+
+/** Is any CLAUSE in this command nothing but a foreground `sleep <n>`, above the settle-delay threshold,
+ *  and outside a bounded `for` loop's body? Checked per clause so a chained shape (`sleep 300; tail log`)
+ *  is caught by its own clause — the clause after it does not need to be a sleep too. */
+function bareForegroundSleepClause(blank, clauses) {
+  const forSpans = forLoopBodySpans(blank);
+  for (const clause of clauses) {
+    if (clause.stages.length !== 1) {
+      continue;
+    }
+    const stage = clause.stages[0];
+    if (forSpans.some(([start, end]) => stage.start >= start && stage.end <= end)) {
+      continue;
+    }
+    const m = blank.slice(stage.start, stage.end).trim().match(SLEEP_ONLY_CLAUSE);
+    if (m === null) {
+      continue;
+    }
+    const seconds = Number(m[1]);
+    const unit = m[2];
+    if ((unit === undefined || unit === "s") && seconds <= SLEEP_EXEMPT_MAX_SECONDS) {
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
+/** The (kind, target) a whole command reads as a status check — or null if it is not, in whole, one of
+ *  the shapes this rule tracks. Scoped to a command that IS ONLY the read (one clause, one stage): a read
+ *  chained into real work is not a poll, it is a step. */
+function statusReadTargetKind(command, blank, clauses) {
+  if (clauses.length !== 1 || clauses[0].stages.length !== 1) {
+    return null;
+  }
+  const stage = clauses[0].stages[0];
+  const stageBlank = blank.slice(stage.start, stage.end);
+  const stageRaw = command.slice(stage.start, stage.end).replace(TRAILING_REDIRECT_MERGE, "").trim();
+  const target = stageRaw.split(/\s+/).at(-1) ?? "";
+  if (PNPM_CHECK_SHOW_HEAD.test(stageBlank)) {
+    return { kind: "artifact", target: "pnpm check:show" };
+  }
+  if (PS_P_HEAD.test(stageBlank) || KILL_ZERO_HEAD.test(stageBlank)) {
+    return { kind: "pid", target };
+  }
+  if (LOG_READ_HEAD.test(stageBlank)) {
+    return { kind: "log", target };
+  }
+  return null;
+}
+
+// Read-streak state, one record per agent/session key: `{kind, target, count}`. A real hook invocation is
+// a FRESH PROCESS per Bash call, so the record has to survive on disk (reports/tool-guard/reads/<key>.json,
+// same shape as `firstContact`'s marker directory — bounded, one small file per key). `--classify-batch`
+// and the corpus replay call `classify` many times in ONE process, so the in-memory cache below is what
+// actually does the work there (the batch entry point's own "no side effects" promise is about the tree
+// this guard protects, not about an internal counter it needs to judge the third read of the same thing) —
+// `ctx.projectDir` is pinned to a nonexistent path in replay on purpose, so the fs half no-ops there and
+// the cache is load-bearing for those numbers.
+const READ_STREAK_CACHE = new Map();
+
+function readStreakState(projectDir, key) {
+  if (READ_STREAK_CACHE.has(key)) {
+    return READ_STREAK_CACHE.get(key);
+  }
+  try {
+    return JSON.parse(readFileSync(path.join(projectDir, "reports", "tool-guard", "reads", `${key}.json`), "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function writeStreakState(projectDir, key, state) {
+  READ_STREAK_CACHE.set(key, state);
+  try {
+    const dir = path.join(projectDir, "reports", "tool-guard", "reads");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, `${key}.json`), JSON.stringify(state));
+  } catch {
+    // best-effort fs persistence — the in-memory cache above already gives the SAME-process callers
+    // (--classify-batch, replay) a correct answer even when projectDir is unwritable.
+  }
+}
+
+/** Update this agent/session's read streak for the current command and say whether it is the THIRD (or
+ *  later) consecutive read of the same target. Any command that is NOT one of the tracked status-read
+ *  shapes resets the streak — "no other command between" is the rule, so real work in between clears it. */
+function repeatedStatusReadDeny(ctx, command, blank, clauses) {
+  const key = String(ctx.agentId ?? ctx.sessionId ?? "main").replace(/[^\w.-]/g, "_");
+  const read = statusReadTargetKind(command, blank, clauses);
+  if (read === null) {
+    writeStreakState(ctx.projectDir, key, null);
+    return null;
+  }
+  const prev = readStreakState(ctx.projectDir, key);
+  const count = prev !== null && prev.kind === read.kind && prev.target === read.target ? prev.count + 1 : 1;
+  writeStreakState(ctx.projectDir, key, { kind: read.kind, target: read.target, count });
+  return count >= STATUS_READ_STREAK_DENY_AT ? { target: read.target, count } : null;
+}
+
+// ── drizzle-kit, subagent-scoped (owner directive, 2026-09-29): parallel lanes generating migrations
+// collide on migration numbers, so a SUBAGENT never runs a verb that writes one or touches the live db.
+// `check` (this repo's own `pnpm check:drizzle-kit`) reads the schema against the migrations on disk and
+// writes nothing — never this rule's business, for anyone. ──
+const DRIZZLE_KIT_BIN = /^(?:\S*\/)?drizzle-kit$/;
+const DRIZZLE_KIT_DENY_VERBS = new Set(["generate", "migrate", "push", "drop", "up", "studio"]);
+
+/** The drizzle-kit VERB a stage invokes, through every sanctioned runner spelling — bare/path-prefixed,
+ *  `npx`, and `pnpm` (`exec`/`dlx`, with an optional `--filter <pkg>` ahead of `exec`) — or null if this
+ *  stage does not invoke drizzle-kit at all. Reuses `execHead`'s wrapper-prefix skip (env/timeout/nice/
+ *  setsid stack ahead of any of these still resolves to the real exec head). */
+function drizzleKitVerb(blank, clauses) {
+  for (const clause of clauses) {
+    for (const stage of clause.stages) {
+      const { tokens, index, exec } = execHead(blank.slice(stage.start, stage.end));
+      if (exec === undefined) {
+        continue;
+      }
+      const rest = tokens.slice(index + 1).map((t) => t[0]);
+      const verbAfter = (words) => words.find((w) => !w.startsWith("-"));
+      if (DRIZZLE_KIT_BIN.test(exec[0])) {
+        const verb = verbAfter(rest);
+        if (verb !== undefined) {
+          return verb;
+        }
+        continue;
+      }
+      if (NPX_HEAD.test(exec[0])) {
+        const toolIndex = rest.findIndex((w) => !w.startsWith("-"));
+        if (toolIndex !== -1 && DRIZZLE_KIT_BIN.test(rest[toolIndex])) {
+          const verb = verbAfter(rest.slice(toolIndex + 1));
+          if (verb !== undefined) {
+            return verb;
+          }
+        }
+        continue;
+      }
+      if (!/^(?:\S*\/)?pnpm$/.test(exec[0])) {
+        continue;
+      }
+      let i = 0;
+      if (rest[i] === "--filter") {
+        i += 2; // `--filter <pkg>` — the value is a separate word, consumed with the flag
+      }
+      if (rest[i] === "exec" || rest[i] === "dlx") {
+        i += 1;
+      } else {
+        continue; // `pnpm --filter <pkg> drizzle-kit …` with no `exec` is not a runnable pnpm shape
+      }
+      if (rest[i] !== undefined && DRIZZLE_KIT_BIN.test(rest[i])) {
+        const verb = verbAfter(rest.slice(i + 1));
+        if (verb !== undefined) {
+          return verb;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 /** An explicit worker count above the fleet cap, as `{asked, cap}` — or null. Only asked of a stage that
  *  IS a CT or vitest invocation: `--workers` on an unrelated tool is that tool's own business, and the two
  *  runners have different caps. */
@@ -2651,8 +2900,8 @@ function overCapWorkers(blank, clauses) {
 
 /**
  * @param {string} command  the raw Bash command
- * @param {{cwd?: string, agentId?: string|null, projectDir: string, timeout?: number, now: number,
- *          procRoot?: string, scriptDepth?: number, nestedDepth?: number}} ctx
+ * @param {{cwd?: string, agentId?: string|null, sessionId?: string|null, projectDir: string, timeout?: number,
+ *          now: number, procRoot?: string, scriptDepth?: number, nestedDepth?: number, runInBackground?: boolean}} ctx
  * @returns {{decision: "deny"|"ask"|"allow"|"defer", rule: string|null, reason?: string,
  *           rewrite?: {command: string, timeout?: number, log?: string}, contexts: string[]}}
  */
@@ -2689,6 +2938,18 @@ export function classify(command, ctx) {
  *  pre-pass can merge with a complete verdict rather than being threaded through every early return. */
 function classifyCommandLine(command, blank, clauses, ctx) {
   const contexts = [];
+
+  // 0e. a third (or later) consecutive read of the same status target — DENY (owner directive,
+  //     2026-09-29): `tail`/`head`/`wc`/`cat`/`grep` on the same log, `ps -p`/`kill -0` on the same pid, or
+  //     `pnpm check:show`, re-run with nothing else in between. The first two are a normal check-in. FIRST
+  //     in this function on purpose (not grouped with 9e-9g below): its state update has to run for EVERY
+  //     command that reaches here, including one an later rule allows or denies for an unrelated reason —
+  //     a real command running between two reads has to break the streak, and it can only do that if this
+  //     check sees it before an early return elsewhere skips the rest of the function.
+  const repeatedRead = repeatedStatusReadDeny(ctx, command, blank, clauses);
+  if (repeatedRead !== null) {
+    return { decision: "deny", rule: "repeated-status-read", reason: REASONS.repeatedStatusRead(repeatedRead.target, repeatedRead.count), contexts };
+  }
 
   // 1. destructive git (doctrine ban; near-zero legitimate sightings) — DENY. Read-only forms pass:
   //    `stash list`/`stash show` destroy nothing, and `restore --staged` (no --worktree) only unstages.
@@ -2840,6 +3101,17 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "deny", rule: "heavy-tool-unfloored", reason: REASONS.heavyToolUnfloored(heavy.tool, heavy.door), contexts };
   }
 
+  // 5c. drizzle-kit, subagent-scoped — DENY a verb that writes a migration or touches the live db
+  //     (owner directive, 2026-09-29): a parallel lane generating a migration collides with a sibling's
+  //     migration NUMBER, and only the orchestrator on main serializes that. `check` (read-only) and a
+  //     main-session caller (no agentId) both pass untouched.
+  if (ctx.agentId) {
+    const verb = drizzleKitVerb(blank, clauses);
+    if (verb !== null && DRIZZLE_KIT_DENY_VERBS.has(verb)) {
+      return { decision: "deny", rule: "drizzle-kit-subagent", reason: REASONS.drizzleKitSubagent(verb), contexts };
+    }
+  }
+
   // 6. playwright CT — the sanctioned spelling is the SCRIPT (`pnpm test:ct <paths>`), so every raw
   //    playwright run with CT intent is rewritten into it, or denied when the shape is too complex to
   //    rewrite. e2e invocations (no CT hint) are not this rule's business.
@@ -2909,9 +3181,32 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   //     blocks a lane that has nothing to do with it (measured: one orphaned pre-commit verify in a
   //     FINISHED worktree blocked unrelated lanes for 38+ minutes, and the waiters outlived their own
   //     lanes by 80+ minutes). Scoped to `until`/`while … do` — a ONE-SHOT `pgrep` inspection outside a
-  //     loop stays allowed; it cannot poll anything.
-  if (pgrepHarnessWaitLoop(command, blank)) {
+  //     loop stays allowed; it cannot poll anything. Gated on `!ctx.runInBackground`: the SANCTIONED fix
+  //     this reason teaches — the identical loop run with the Bash tool's `run_in_background` — used to
+  //     fail this exact check, because nothing here ever looked at the field. It does now (rule 9f shares
+  //     the same gate for the general-condition case).
+  if (!ctx.runInBackground && pgrepHarnessWaitLoop(command, blank)) {
     return { decision: "deny", rule: "pgrep-wait-loop", reason: REASONS.pgrepWaitLoop, contexts };
+  }
+
+  // 9e. a command that is NOTHING BUT `true`/`:` — DENY (owner directive, 2026-09-29): turn-filler for
+  //     "still waiting", never a real step. Every clause must reduce to the bare word; `true foo` or
+  //     `cmd || true` are the tool doing something else and are not this shape.
+  if (clauses.every((clause) => clause.stages.length === 1 && TRUE_OR_COLON_CLAUSE.test(blank.slice(clause.stages[0].start, clause.stages[0].end).trim()))) {
+    return { decision: "deny", rule: "true-filler", reason: REASONS.trueOrColonFiller, contexts };
+  }
+
+  // 9f. a foreground until/while loop with `sleep` in its body, ANY condition — DENY (owner directive,
+  //     2026-09-29): the general case of 9d — a `curl`/`grep`/`test -f` condition polls exactly as
+  //     wastefully as a `pgrep`. Gated on `!ctx.runInBackground` the same way.
+  if (!ctx.runInBackground && foregroundWaitLoopWithSleep(blank)) {
+    return { decision: "deny", rule: "sleep-wait-loop", reason: REASONS.foregroundWaitLoopSleep, contexts };
+  }
+
+  // 9g. a bare foreground `sleep`, alone or chained — DENY (owner directive, 2026-09-29), except a
+  //     settle-delay of 2s or less, or a `sleep` inside a bounded `for` loop's body (see the two helpers).
+  if (!ctx.runInBackground && bareForegroundSleepClause(blank, clauses)) {
+    return { decision: "deny", rule: "foreground-sleep", reason: REASONS.foregroundSleep, contexts };
   }
 
   // NOTE — deliberately NO `git reset` rule. The owner's GLOBAL settings wildcard-allow `git reset *`
@@ -3002,6 +3297,12 @@ const BRIEFING = [
   "  quoted string. Single-quoted `'$(…)'` is literal text and is left alone.",
   "· WARNS on bare `npx vitest` (drops the json reporter), `grep -r` without --exclude-dir=node_modules,",
   "  and `sg` (use `ast-grep` — `sg` is deprecated upstream and is `newgrp` on most boxes). A warn RUNS.",
+  "· DENIES hand-polling: a bare `true`/`:`, a foreground `sleep` over 2s, a foreground `until`/`while`",
+  "  loop with `sleep` in its body, and a third consecutive read of the same log/pid/artifact. Run the",
+  "  same wait with the Bash tool's `run_in_background` — it notifies you on exit instead of you polling.",
+  "· DENIES a SUBAGENT running `drizzle-kit generate/migrate/push/drop/up/studio` (any runner spelling —",
+  "  bare, `npx`, `pnpm exec`/`pnpm dlx`, `pnpm --filter <pkg> exec`): migrations run on main. `drizzle-kit",
+  "  check` stays allowed for everyone.",
   "· EVERYTHING ELSE RUNS. This guard is about HOW you run a command, never about what you are allowed",
   "  to do — it does not gate your toolbox, so do not narrow your work in anticipation of it.",
   "If a command is refused, the message names the correct form — use it rather than working around it,",
@@ -3134,10 +3435,12 @@ async function runBatchMode() {
     const ctx = {
       cwd: c.cwd,
       agentId: c.agentId ?? null,
+      sessionId: c.sessionId ?? null,
       projectDir: c.projectDir ?? "/repo",
       timeout: c.timeout,
       now: Number(process.env.ORB_TOOL_GUARD_NOW_FOR_TEST ?? Date.now()),
       procRoot: c.procRoot,
+      runInBackground: c.runInBackground === true,
     };
     try {
       return classify(c.command, ctx);
@@ -3175,9 +3478,13 @@ async function runHookMode() {
     const ctx = {
       cwd: input.cwd,
       agentId: input.agent_id ?? null,
+      sessionId: input.session_id ?? null,
       projectDir,
       timeout: input.tool_input.timeout,
       now: Number(process.env.ORB_TOOL_GUARD_NOW_FOR_TEST ?? Date.now()),
+      // The Bash tool's own field for the sanctioned wait: `run_in_background: true` means the harness
+      // notifies the agent on exit instead of the agent blocking this turn on it — see BRIEFING.
+      runInBackground: input.tool_input.run_in_background === true,
     };
     const result = classify(command, ctx);
     if (result.rewrite?.log) {

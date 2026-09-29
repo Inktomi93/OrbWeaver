@@ -31,9 +31,11 @@ interface BatchCase {
   command: string;
   cwd?: string;
   agentId?: string;
+  sessionId?: string;
   timeout?: number;
   projectDir?: string;
   procRoot?: string;
+  runInBackground?: boolean;
 }
 
 interface BatchResult {
@@ -91,8 +93,14 @@ function runHook(input: unknown, envPairs: [string, string][] = [], rawStdin?: s
   return { status: r.status, out: JSON.parse(r.stdout) as HookRun["out"] };
 }
 
-function bashInput(command: string, extraPairs: [string, unknown][] = []): Record<string, unknown> {
-  return Object.fromEntries([["tool_name", "Bash"], ["tool_input", { command }], ["cwd", "/repo"], ["session_id", "test-session"], ...extraPairs]);
+function bashInput(command: string, extraPairs: [string, unknown][] = [], toolInputExtra: Record<string, unknown> = {}): Record<string, unknown> {
+  return Object.fromEntries([
+    ["tool_name", "Bash"],
+    ["tool_input", { command, ...toolInputExtra }],
+    ["cwd", "/repo"],
+    ["session_id", "test-session"],
+    ...extraPairs,
+  ]);
 }
 
 // ── the corpus table ──────────────────────────────────────────────────────────────────────────────────
@@ -255,18 +263,24 @@ const ROWS: Row[] = [
   // negative: a ONE-SHOT pgrep (no enclosing loop) cannot poll anything — stays allowed
   ["pass", null, 'pgrep -f "verify/cli.ts"'],
   ["pass", null, "pgrep -f vitest"],
-  // negative: a wait loop that never names a harness process is not this rule's business
-  ["pass", null, "until ! pgrep -f myserver; do sleep 3; done"],
+  // CHANGED (owner directive, 2026-09-29 addendum): a wait loop that never names a harness is still a
+  // foreground `sleep`-in-a-loop poll — rule 9f (`sleep-wait-loop`) catches ANY condition, not only a
+  // harness name; `pgrep-wait-loop` above stays the narrower, harness-specific rule.
+  ["deny", "sleep-wait-loop", "until ! pgrep -f myserver; do sleep 3; done"],
   // ---- harness piped: DENY the shapes with no single safe rewrite ----
   ["deny", "harness-piped", "pnpm check | tail -3 || echo failed"],
   ["deny", "harness-piped", "npx tsc | head -5; pnpm typecheck 2>&1 | tail -15"],
   ["deny", "harness-piped", 'pnpm lint 2>&1 | tail -4; echo "exit: ${PIPESTATUS[0]}"'],
   ["deny", "harness-piped", "(cd packages/ui && pnpm exec tsc --noEmit 2>&1 | head -10); pnpm test:ct 2>&1 | tail -25"],
-  // CHANGED (parseStructure now splits a lone backgrounding `&` into its own clause, 2026-09-29): `sleep 5`
-  // is its OWN clause now, not stray text glued to the reader chain, and `gateRewrite`'s remainder check
-  // confirms it names nothing dangerous — so the piped harness rewrites normally instead of denying on a
-  // `&` it used to merely see and refuse to parse past.
-  ["allow", "harness-piped", "pnpm test tests/server/x.int.test.ts 2>&1 | tail -25 & sleep 5"],
+  // CHANGED (parseStructure now splits a lone backgrounding `&` into its own clause, 2026-09-29): `echo
+  // done` is its OWN clause now, not stray text glued to the reader chain, and `gateRewrite`'s remainder
+  // check confirms it names nothing dangerous — so the piped harness rewrites normally instead of denying
+  // on a `&` it used to merely see and refuse to parse past.
+  ["allow", "harness-piped", "pnpm test tests/server/x.int.test.ts 2>&1 | tail -25 & echo done"],
+  // CHANGED (owner directive, 2026-09-29 addendum): the SAME `&`-split composition now also catches a
+  // genuinely dangerous remainder — a bare foreground `sleep` chained after the backgrounded pipe is
+  // rule 9g's business, and `gateRewrite`'s strictest-wins merge carries that deny through the rewrite.
+  ["deny", "foreground-sleep", "pnpm test tests/server/x.int.test.ts 2>&1 | tail -25 & sleep 5"],
   // ---- harness failure swallowed ----
   ["deny", "harness-swallowed", "pnpm check || true"],
   ["deny", "harness-swallowed", "pnpm typecheck >/dev/null 2>&1 && echo PASS || echo FAIL"],
@@ -885,7 +899,62 @@ const ROWS: Row[] = [
   // …as is one inside a comment or a heredoc body, which are text guard-wide
   ["pass", null, 'ls packages # never echo "$(git stash)"'],
   ["pass", null, "python3 - <<'PY'\nprint(\"$(git stash)\")\nPY"],
+  // ---- hand-polling family (owner directive, 2026-09-29 addendum) ----
+  // true/`:`-only filler: EVERY clause must reduce to the bare word.
+  ["deny", "true-filler", "true"],
+  ["deny", "true-filler", ":"],
+  ["deny", "true-filler", "true;true"],
+  ["deny", "true-filler", "true ; : ;"],
+  ["pass", null, "true foo"], // an argument is real content, not filler
+  ["pass", null, "echo done || true"], // real work in the other clause
+  ["pass", null, "export FOO=true"], // an assignment, not a bare command
+  ["pass", null, "if true; then echo hi; fi"], // `if true` is its own clause text, never bare `true`
+  // bare foreground sleep, any condition in the loop body (broader than pgrep-wait-loop, which stays the
+  // harness-specific rule and is proven separately above)
+  ["deny", "sleep-wait-loop", "until curl -sf http://127.0.0.1:5173 >/dev/null; do sleep 5; done"],
+  ["deny", "sleep-wait-loop", "while [ ! -f /tmp/x.done ]; do sleep 10; done"],
+  // bare foreground sleep — alone, chained, or over the settle-delay threshold
+  ["deny", "foreground-sleep", "sleep 300"],
+  ["deny", "foreground-sleep", "sleep 5; tail -25 /tmp/x.log"], // the reported poll shape: sleep, then check
+  ["deny", "foreground-sleep", "sleep 2.5"],
+  ["deny", "foreground-sleep", "sleep 1m"], // any non-second unit is well past the threshold
+  ["pass", null, "sleep 2"], // settle-delay threshold: at or under 2s outside a loop stays allowed
+  ["pass", null, "sleep 1.5"],
+  ["pass", null, "sleep 2s"],
+  // MUST-PASS: the everyday kill-then-verify idiom — a short settle sleep chained with real work on
+  // either side, never the sole content of the command (669 sightings in the corpus this rule was tuned
+  // against carry exactly this shape)
+  ["pass", null, "kill -TERM 634343 2>/dev/null; sleep 2; pgrep -af 'verify/cli.ts run'"],
+  // MUST-PASS: a BOUNDED `for` retry loop — capped iteration count, not indefinite polling (this repo's
+  // own dev-stack-boot idiom)
+  ["pass", null, "for i in $(seq 1 10); do curl -sf http://127.0.0.1:5173 >/dev/null && break; sleep 5; done"],
 ];
+
+// ---- drizzle-kit, subagent-scoped (owner directive, 2026-09-29) — every deny/pass verb × spelling combo.
+const DRIZZLE_KIT_VERBS_MATRIX = ["generate", "migrate", "push", "drop", "up", "studio"];
+const DRIZZLE_KIT_SPELLINGS = (verb: string): string[] => [
+  `drizzle-kit ${verb}`,
+  `npx drizzle-kit ${verb}`,
+  `pnpm exec drizzle-kit ${verb}`,
+  `pnpm --filter @orb/db exec drizzle-kit ${verb}`,
+  `pnpm dlx drizzle-kit ${verb}`,
+];
+const DRIZZLE_KIT_ROWS: Row[] = DRIZZLE_KIT_VERBS_MATRIX.flatMap((verb) =>
+  DRIZZLE_KIT_SPELLINGS(verb).flatMap((command): Row[] => [
+    ["deny", "drizzle-kit-subagent", command, LANE],
+    ["pass", null, command], // main session (no agentId) — the orchestrator's own call to make
+  ]),
+);
+const DRIZZLE_KIT_CHECK_ROWS: Row[] = DRIZZLE_KIT_SPELLINGS("check").flatMap((command): Row[] => [
+  ["pass", null, command, LANE], // read-only — never this rule's business, for anyone
+  ["pass", null, command],
+]);
+// a chained verb still bites — the rule scans every stage, not just a whole-command match
+const DRIZZLE_KIT_CHAIN_ROWS: Row[] = [
+  ["deny", "drizzle-kit-subagent", "cd packages/db && pnpm exec drizzle-kit generate", LANE],
+  ["deny", "drizzle-kit-subagent", "pnpm exec drizzle-kit migrate; echo done", LANE],
+];
+ROWS.push(...DRIZZLE_KIT_ROWS, ...DRIZZLE_KIT_CHECK_ROWS, ...DRIZZLE_KIT_CHAIN_ROWS);
 
 test("corpus: every rule bites its measured shapes and passes the false-positive traps", () => {
   const results = runBatch(ROWS.map(([, , command, ctx]) => ({ command, ...ctx })));
@@ -901,6 +970,100 @@ test("corpus: every rule bites its measured shapes and passes the false-positive
     }
   });
   expect(failures).toEqual([]);
+});
+
+// `run_in_background` is the Bash tool's OWN field, sibling to `command` — this is the sanctioned fix the
+// two loop rules teach, and it has to actually reach `ctx.runInBackground` for that teaching to be true.
+test("run_in_background: the identical wait loop and bare sleep stay allowed when the tool field is set", () => {
+  const loop = "until curl -sf http://127.0.0.1:5173 >/dev/null; do sleep 5; done";
+  const denied = at(runBatch([{ command: loop }]), 0);
+  expect([denied.decision, denied.rule]).toEqual(["deny", "sleep-wait-loop"]);
+  const backgrounded = at(runBatch([{ command: loop, runInBackground: true }]), 0);
+  expect([backgrounded.decision, backgrounded.rule]).toEqual(["pass", null]);
+  const pgrepLoop = "while pgrep -f vitest > /dev/null; do sleep 3; done";
+  const pgrepBackgrounded = at(runBatch([{ command: pgrepLoop, runInBackground: true }]), 0);
+  expect([pgrepBackgrounded.decision, pgrepBackgrounded.rule]).toEqual(["pass", null]);
+  const sleepDenied = at(runBatch([{ command: "sleep 300" }]), 0);
+  expect([sleepDenied.decision, sleepDenied.rule]).toEqual(["deny", "foreground-sleep"]);
+  const sleepBackgrounded = at(runBatch([{ command: "sleep 300", runInBackground: true }]), 0);
+  expect([sleepBackgrounded.decision, sleepBackgrounded.rule]).toEqual(["pass", null]);
+});
+
+// The read-streak state is keyed by agent/session (repeatedStatusReadDeny) and lives in the SAME process
+// for a `--classify-batch` call (the in-memory cache), so a single `runBatch` array can prove the counting
+// rule directly: the first two reads of a target are a normal check-in, the third denies, a DIFFERENT
+// target or a non-read command in between resets it, and two concurrent agent_ids never share a streak.
+test("repeated status read: the third consecutive read of the same target denies; a different command or target, or a different agent, resets it", () => {
+  const agentA = { agentId: "cb-gd2-read-streak-a" };
+  const rows = runBatch([
+    { command: "tail -c 3000 /tmp/x.log", ...agentA }, // 1st — allowed
+    { command: "tail -c 3000 /tmp/x.log", ...agentA }, // 2nd — still allowed
+    { command: "tail -c 3000 /tmp/x.log", ...agentA }, // 3rd — DENY
+    { command: "tail -c 3000 /tmp/x.log", ...agentA }, // streak already broken by the deny above? no — the
+    // deny above still recorded state (count 3), so this is the 4th and still denies
+    { command: "echo real work", ...agentA }, // breaks the streak — not a status-read shape at all
+    { command: "tail -c 3000 /tmp/x.log", ...agentA }, // fresh streak: 1st again — allowed
+    { command: "wc -l /tmp/x.log", ...agentA }, // the SAME path through a DIFFERENT reader is one streak —
+    // this is still "read x.log again", so it is the 2nd, not a reset
+    { command: "cat /tmp/x.log", ...agentA }, // 3rd — DENY
+    { command: "tail -c 3000 /tmp/other.log", ...agentA }, // a DIFFERENT target — resets, allowed
+    { command: "tail -c 3000 /tmp/other.log", ...agentA }, // 2nd of the new target — allowed
+    { command: "tail -c 3000 /tmp/other.log", ...agentA }, // 3rd — DENY
+  ]);
+  expect(rows.map((r) => [r.decision, r.rule])).toEqual([
+    ["pass", null],
+    ["pass", null],
+    ["deny", "repeated-status-read"],
+    ["deny", "repeated-status-read"],
+    ["pass", null],
+    ["pass", null],
+    ["pass", null],
+    ["deny", "repeated-status-read"],
+    ["pass", null],
+    ["pass", null],
+    ["deny", "repeated-status-read"],
+  ]);
+  expect(rows[2]?.reason).toContain("/tmp/x.log");
+  // `pnpm check:show` re-reads count too, keyed as one target regardless of flags.
+  const checkShow = runBatch([
+    { command: "pnpm check:show --errors-only", ...agentA },
+    { command: "pnpm check:show --stage lint:biome", ...agentA },
+    { command: "pnpm check:show", ...agentA },
+  ]);
+  expect(checkShow.map((r) => r.decision)).toEqual(["pass", "pass", "deny"]);
+  // two DIFFERENT agents reading the SAME target concurrently never share a streak — each gets its own
+  // two free reads, proving the state is keyed per agent/session, not global.
+  const agentB = { agentId: "cb-gd2-read-streak-b" };
+  const interleaved = runBatch([
+    { command: "tail -50 /tmp/shared.log", ...agentA },
+    { command: "tail -50 /tmp/shared.log", ...agentB },
+    { command: "tail -50 /tmp/shared.log", ...agentA },
+    { command: "tail -50 /tmp/shared.log", ...agentB },
+  ]);
+  expect(interleaved.map((r) => r.decision)).toEqual(["pass", "pass", "pass", "pass"]);
+  // a `ps -p`/`kill -0` pid check counts too, and a plain `cat` of a finished artifact.
+  const pidChecks = runBatch([
+    { command: "ps -p 12345", ...agentA },
+    { command: "ps -p 12345", ...agentA },
+    { command: "ps -p 12345", ...agentA },
+  ]);
+  expect(pidChecks.map((r) => r.decision)).toEqual(["pass", "pass", "deny"]);
+});
+
+// The real hook is ONE PROCESS PER BASH CALL — the in-memory cache above is empty every time, so this
+// proves the FS-backed half of `repeatedStatusReadDeny` (reports/tool-guard/reads/<key>.json) actually
+// survives across separate invocations, and that two agents on the SAME project dir do not collide.
+test("contract: the repeated-status-read streak survives across separate hook invocations (real process-per-call)", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "tg-read-streak-"));
+  const envPairs: [string, string][] = [["CLAUDE_PROJECT_DIR", tmp]];
+  const read = (agentId: string): HookRun => runHook(bashInput("tail -c 3000 /tmp/cb-gd2.log", [["agent_id", agentId]]), envPairs);
+  expect(read("agent-x").out.hookSpecificOutput?.permissionDecision).toBe("allow");
+  expect(read("agent-x").out.hookSpecificOutput?.permissionDecision).toBe("allow");
+  const third = read("agent-x");
+  expect(third.out.hookSpecificOutput?.permissionDecision).toBe("deny");
+  expect(third.out.hookSpecificOutput?.permissionDecisionReason).toContain("consecutive read");
+  // a DIFFERENT agent on the same project dir is not blocked by agent-x's streak
+  expect(read("agent-y").out.hookSpecificOutput?.permissionDecision).toBe("allow");
 });
 
 // `pnpm typecheck` has no single known artifact file (unlike check/verify/test), so it keeps the generic

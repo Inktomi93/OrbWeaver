@@ -15,9 +15,12 @@
  * Extraction mirrors transcript-census.ts (streaming readline + cheap substring pre-filter
  * before JSON.parse — that miner's header documents the transcript shape). Classification is
  * NOT re-derived: it imports `classify` from the hook itself, so what is measured is exactly
- * what will run. Replay context: subagent lines get a synthetic agentId (so lane-scoped rules
- * engage), projectDir is pinned to /repo (deterministic rewrite text), and the push-in-flight
- * /proc scan is pointed at a nonexistent root (deterministic: never fires).
+ * what will run. Replay context: a subagent line gets a synthetic agentId of `<file>:sub` (so
+ * lane-scoped rules engage, and the read-streak rule is keyed per transcript file + scope — see
+ * `recordCommand`), projectDir is pinned to /repo (deterministic rewrite text, and it means the
+ * read-streak rule's fs half no-ops here — the hook module's in-memory cache is what actually
+ * measures it across one replay run), and the push-in-flight /proc scan is pointed at a
+ * nonexistent root (deterministic: never fires).
  */
 
 import { createReadStream } from "node:fs";
@@ -37,6 +40,8 @@ interface ClassifyCtx {
   procRoot: string;
   cwd: string;
   agentId: string | null;
+  sessionId: string | null;
+  runInBackground: boolean;
 }
 interface ClassifyResult {
   decision: string;
@@ -52,7 +57,7 @@ type Scope = "main" | "subagent";
 interface ContentItem {
   type?: string;
   name?: string;
-  input?: { command?: string };
+  input?: { command?: string; run_in_background?: boolean };
 }
 interface TranscriptRecord {
   type?: string;
@@ -182,14 +187,33 @@ function classifySafe(cmd: string, ctx: ClassifyCtx): ClassifyResult {
   }
 }
 
-function recordCommand(cmd: string, scope: Scope, cwd: string | undefined): void {
+interface RecordCommandCtx {
+  scope: Scope;
+  cwd: string | undefined;
+  sessionKey: string;
+  runInBackground: boolean;
+}
+
+function recordCommand(cmd: string, { scope, cwd, sessionKey, runInBackground }: RecordCommandCtx): void {
   stats.bashCallsTotal += 1;
   stats[scope === "main" ? "bashCallsMain" : "bashCallsSubagent"] += 1;
   if (GIT_REMOTE_TOUCH.test(cmd)) {
     stats.gitRemoteTouch.total += 1;
     stats.gitRemoteTouch[scope] += 1;
   }
-  const ctx: ClassifyCtx = { ...REPLAY_CTX_BASE, cwd: cwd ?? "/repo", agentId: scope === "subagent" ? "replay-agent" : null };
+  // The read-streak rule (repeated-status-read) is keyed by ctx.agentId ?? ctx.sessionId — one key PER
+  // TRANSCRIPT FILE, split by scope, so a main-session streak and its subagent lines' streak never merge,
+  // and two unrelated conversations never share one either. This is coarser than real per-lane identity
+  // (several concurrent subagent lanes logged inline in one transcript share one key here), but it is a
+  // strict improvement on the CONSTANT "replay-agent" this replaced, and is what the magnitude in the
+  // corpus report below is measured against.
+  const ctx: ClassifyCtx = {
+    ...REPLAY_CTX_BASE,
+    cwd: cwd ?? "/repo",
+    agentId: scope === "subagent" ? `${sessionKey}:sub` : null,
+    sessionId: sessionKey,
+    runInBackground,
+  };
   const result = classifySafe(cmd, ctx);
   const rule = result.rule ?? "none";
   const bucket = bucketFor(rule, result.decision);
@@ -220,7 +244,7 @@ async function findJsonlFiles(root: string): Promise<string[]> {
   return out;
 }
 
-function handleLine(line: string): void {
+function handleLine(line: string, sessionKey: string): void {
   let rec: TranscriptRecord;
   try {
     rec = JSON.parse(line) as TranscriptRecord;
@@ -232,7 +256,12 @@ function handleLine(line: string): void {
   }
   for (const item of rec.message.content) {
     if (item.type === "tool_use" && item.name === "Bash" && typeof item.input?.command === "string") {
-      recordCommand(item.input.command, rec.isSidechain ? "subagent" : "main", rec.cwd);
+      recordCommand(item.input.command, {
+        scope: rec.isSidechain ? "subagent" : "main",
+        cwd: rec.cwd,
+        sessionKey,
+        runInBackground: item.input.run_in_background === true,
+      });
     }
   }
 }
@@ -242,7 +271,7 @@ async function processFile(file: string): Promise<void> {
   const rl = createInterface({ input: createReadStream(file, { encoding: "utf8" }), crlfDelay: Number.POSITIVE_INFINITY });
   for await (const line of rl) {
     if (line.includes(LOOKS_LIKE_BASH_USE_NAME) && line.includes(LOOKS_LIKE_TOOL_USE)) {
-      handleLine(line);
+      handleLine(line, file);
     }
   }
 }
