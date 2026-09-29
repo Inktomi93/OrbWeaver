@@ -98,6 +98,22 @@ test("line comments bind in leading and same-line trailing trivia with exact mar
   expect(trailingResult.alarms).toEqual([]);
 });
 
+test("a marker written into a file edited in place binds on the next engine", () => {
+  const marked = `// @orb-waive ${ORDINARY}(forbidden): accepted occurrence\nexport const value = forbidden();\n`;
+  const unmarked = marked.replace("@orb-waive", "@orb-waivX");
+  const { sourceFiles, engine } = fixture({ [FILE]: unmarked });
+  expect(completed(engine, [finding(unmarked, "forbidden", { nth: 2 })]).match.waiverIds).toEqual([null]);
+
+  // The same SourceFile wrapper now holds a marker; markers read for the old text must not be reused.
+  const sourceFile = sourceFiles.get(FILE);
+  if (sourceFile === undefined) {
+    throw new Error("the fixture lost its source file");
+  }
+  sourceFile.replaceWithText(marked);
+  const next = createOrdinaryWaiverEngine({ sources: [{ kind: "typescript", path: FILE, sourceFile }], knownPolicies: POLICIES });
+  expect(completed(next, [finding(marked, "forbidden", { nth: 2 })]).match.waiverIds).toEqual([`${FILE}:1:1`]);
+});
+
 test("block comments bind before and after an authored occurrence", () => {
   const before = `export const value = /* @orb-waive ${ORDINARY}(forbidden): exact inline block */ forbidden();\n`;
   const beforeResult = completed(fixture({ [FILE]: before }).engine, [finding(before, "forbidden", { nth: 2 })]);

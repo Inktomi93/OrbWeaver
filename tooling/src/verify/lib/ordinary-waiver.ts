@@ -123,7 +123,22 @@ function parseMarker(comment: string): ParsedMarker | undefined {
   return position === "" || reason === "" ? { policyId, malformed: true, scope: "line" } : { policyId, position, reason, malformed: false, scope: "line" };
 }
 
-function collectMarkers(sourceFile: SourceFile): MutableMarker[] {
+// Every pass re-acquires markers from the whole corpus, and one process can run many passes over mostly
+// unchanged files. Keyed on the parsed ts.SourceFile: its text and nodes never change, and an edited file
+// gets a new one.
+const markersBySource = new WeakMap<ts.SourceFile, readonly MutableMarker[]>();
+
+function collectMarkers(sourceFile: SourceFile): readonly MutableMarker[] {
+  const cached = markersBySource.get(sourceFile.compilerNode);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const markers = collectMarkersUncached(sourceFile);
+  markersBySource.set(sourceFile.compilerNode, markers);
+  return markers;
+}
+
+function collectMarkersUncached(sourceFile: SourceFile): MutableMarker[] {
   const text = sourceFile.getFullText();
   const byPosition = new Map<number, MutableMarker>();
   const record = (input: {
