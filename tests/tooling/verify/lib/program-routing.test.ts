@@ -57,6 +57,9 @@ test("primary routing follows native roots for DOM runtime/type tests, Node test
     ["tests/support/browser/ct-data-providers.tsx", "tsconfig.tests-dom.json"],
     ["tooling/src/verify/lib/program-routing.ts", "tooling/tsconfig.json"],
     ["packages/client/src/main.tsx", "packages/client/tsconfig.json"],
+    ["packages/plugin-sdk/main.d.ts", "packages/plugin-sdk/tsconfig.author-main.json"],
+    ["packages/showcase-plugins/bundles/card-atlas/main.ts", "packages/showcase-plugins/tsconfig.author-main.json"],
+    ["packages/showcase-plugins/bundles/pocket-arcade/frame.ts", "packages/showcase-plugins/tsconfig.author-frame.json"],
     ["packages/client/vite.config.ts", "tsconfig.json"],
     ["vitest.config.ts", "tsconfig.json"],
   ];

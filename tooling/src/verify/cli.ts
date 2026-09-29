@@ -52,6 +52,7 @@ import {
   runScopedCli,
   runScopedTest,
   runShow,
+  runShowcaseRelease,
   runStructure,
   runStructureDelta,
   runTestsExecutionMembership,
@@ -140,6 +141,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return await runEslint(root);
     case "instrument-affected":
       return runInstrumentAffected(root);
+    case "showcase-release":
+      return runShowcaseRelease(root);
     default:
       throw new UsageError(`unknown verb "${verb}"\n${USAGE}`);
   }

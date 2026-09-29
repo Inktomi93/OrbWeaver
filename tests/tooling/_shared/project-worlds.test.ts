@@ -15,6 +15,15 @@ test("worldOf: package src by PACKAGE_WORLDS, the test surface by directory then
   expect(worldOf("packages/server/src/app.ts")).toBe("node");
   expect(worldOf("packages/ui/src/primitives/button/button.tsx")).toBe("browser");
   expect(worldOf("packages/unknown/src/x.ts")).toBeUndefined();
+  expect(worldOf("packages/plugin-sdk/main.d.ts")).toBe("iso");
+  expect(worldOf("packages/plugin-sdk/ui.d.ts")).toBe("iso");
+  expect(worldOf("packages/plugin-sdk/frame.d.ts")).toBe("browser");
+  expect(worldOf("packages/plugin-sdk/shared.d.ts")).toBe("iso");
+  expect(worldOf("packages/showcase-plugins/bundles/example/main.ts")).toBe("iso");
+  expect(worldOf("packages/showcase-plugins/bundles/example/ui.ts")).toBe("iso");
+  expect(worldOf("packages/showcase-plugins/bundles/example/frame.ts")).toBe("browser");
+  expect(worldOf("packages/plugin-sdk/src/index.ts")).toBeUndefined();
+  expect(worldOf("packages/plugin-toolchain/src/index.ts")).toBe("node");
   expect(worldOf("tooling/src/verify/cli.ts")).toBe("node");
   expect(worldOf("tests/support/node/route-trpc.ts")).toBe("node");
   expect(worldOf("tests/support/browser/pixel-contrast.ts")).toBe("browser");
@@ -42,6 +51,8 @@ test("primary compiler ownership follows package homes and the complete test-wor
   expect(predictedProgram("tests/ui/primitives/badge/badge.ct.tsx")).toBe(TEST_WORLD_PROGRAMS.browser);
   expect(predictedProgram("tests/server/foundation/env/index.test.ts")).toBe(TEST_WORLD_PROGRAMS.node);
   expect(predictedProgram("packages/ui/src/x.ts")).toBe("packages/ui/tsconfig.json");
+  expect(predictedProgram("packages/plugin-sdk/main.d.ts")).toBe("packages/plugin-sdk/tsconfig.author-main.json");
+  expect(predictedProgram("packages/showcase-plugins/bundles/example/frame.ts")).toBe("packages/showcase-plugins/tsconfig.author-frame.json");
   expect(predictedProgram("tests/support/iso/value.ts")).toBe("tsconfig.tests-iso.json");
   expect(predictedProgram("tests/support/iso/view.tsx")).toBe("tsconfig.tests-iso.json");
 });
@@ -79,7 +90,6 @@ test("ambient scope and browser-kind roots are explicit shared intent", () => {
     "reset.d.ts": "all-programs",
     "platform.d.ts": "all-programs",
     "aggregator-assets.d.ts": "graph-only",
-    "packages/showcase-plugins/bundles/host-v1.d.ts": "graph-only",
   });
   const browserRoots = browserTestRootPatterns(TEST_KIND_DEFINITIONS);
   expect(browserRoots).toContain("tests/**/*.ct.tsx");
@@ -93,6 +103,8 @@ test("ambient scope and browser-kind roots are explicit shared intent", () => {
 test("program worlds are derived from registered package and test intent, never observed roots", () => {
   expect(programWorldOf("packages/kit/tsconfig.json")).toBe("iso");
   expect(programWorldOf("packages/server/tsconfig.json")).toBe("node");
+  expect(programWorldOf("packages/plugin-sdk/tsconfig.author-main.json")).toBe("iso");
+  expect(programWorldOf("packages/showcase-plugins/tsconfig.author-frame.json")).toBe("browser");
   expect(programWorldOf("tsconfig.tests-dom.json")).toBe("browser");
   expect(programWorldOf("packages/fresh/tsconfig.json")).toBeUndefined();
   expect(programWorldOf("tsconfig.unknown.json")).toBeUndefined();

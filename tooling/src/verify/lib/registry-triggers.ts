@@ -55,7 +55,7 @@ export interface StageTrigger {
 
 /**
  * EVERY STAGE THAT RUNS ITS WHOLE COMMAND OR NOT AT ALL, with its trigger or its stated absence. That is
- * the twelve whole-only static rows. Repo-relative, forward-slashed paths — the same shape
+ * the whole-only static rows. Repo-relative, forward-slashed paths — the same shape
  * `Selection.paths` carries.
  *
  * Each `why` names the SUBJECT from the stage's own registry header, because that header is where the
@@ -117,6 +117,10 @@ export const WHOLE_COMMAND_PATH_TRIGGERS: Readonly<Record<string, StageTrigger>>
   "ledgers:fresh": {
     paths: /./u,
     why: "the caught-failure census is derived from a whole-repo ts-morph walk, so any source edit can add, remove or re-verdict a site; the doc ledgers add authored documents. The identity trigger is intentionally complete and runs the whole reconciler.",
+  },
+  "release:showcase-versions": {
+    paths: /./u,
+    why: "the release gate compares branch changes with the base revision, including the toolchain lock importer and showcase membership. Its own cheap no-affected-input result makes the identity trigger complete without a second, drift-prone input map.",
   },
   // Knip remains declined: it is materially different from the three cheap identity-triggered rows above.
   "deps:knip": {

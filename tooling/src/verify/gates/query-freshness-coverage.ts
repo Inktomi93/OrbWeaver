@@ -8,13 +8,12 @@ import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts
 import { readMemberAccess } from "../lib/symbol-reference.ts";
 
 export const QUERY_FRESHNESS_OPERATION = "uncovered-query-freshness";
-export const QUERY_FRESHNESS_DEBT = "automation.listChatActivity";
 const MESSAGE =
   "a client-consumed tRPC query key appears in zero reachable invalidation rows, so with staleTime:Infinity " +
   "and no focus refetch its surface freezes at the first fetch. The token and subject are the query key. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX =
   "add the narrowest reachable pathFilter/queryFilter row in the invalidation seam, or take one exact central " +
-  "reviewed grant documenting the independent freshness driver. automation.listChatActivity is warning debt owned by work item 66.";
+  "reviewed grant documenting the independent freshness driver.";
 
 /** WHERE THE FINDING ANCHORS. A dotted chain carries its key verbatim (`trpc.ghost.frozenRead.queryOptions`
  *  contains `ghost.frozenRead`), so the key IS the authored token. A bracket-spelled chain names the same key
@@ -57,7 +56,7 @@ export const gate = defineGate({
       reportReviewedGrantCandidates(
         ctx.report,
         [...fact.consumed].flatMap(([key, node]) =>
-          !fact.covered(key) && key !== QUERY_FRESHNESS_DEBT ? [{ ...anchorOf(node, key), subject: key, operation: QUERY_FRESHNESS_OPERATION }] : [],
+          !fact.covered(key) ? [{ ...anchorOf(node, key), subject: key, operation: QUERY_FRESHNESS_OPERATION }] : [],
         ),
         { message: MESSAGE, fix: FIX, unreadableMessage: MESSAGE },
       );
@@ -144,6 +143,17 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/data/invalidation.ts":
+          "import { automationEventFilters } from './invalidation-automation.ts';\nexport interface Invalidation { readonly invalidateAutomation: () => void }\nexport function createInvalidation(trpc: Trpc) { return { invalidateAutomation: (event: Event) => automationEventFilters(event, trpc) }; }\n",
+        "packages/client/src/data/invalidation-automation.ts":
+          "export function automationEventFilters(event: Event, trpc: Trpc) { return [trpc.automation.listChatActivity.queryFilter({ chatId: event.chatId })]; }\n",
+        "packages/client/src/features/automation/components/activity.tsx": "export const q = trpc.automation.listChatActivity.queryOptions({ chatId: 'c' });\n",
+      },
+      why: "work 0066's consumed Activity read is covered through the central seam's called automation-bus helper",
+    },
     {
       mode: "types",
       files: {

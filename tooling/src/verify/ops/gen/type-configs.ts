@@ -1,6 +1,8 @@
 // Deterministic complete TypeScript leaf configs, derived from authored world/test/ambient intent.
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
+import type { PluginAuthorWorld } from "@orb/plugin-toolchain";
+import { PLUGIN_AUTHOR_WORLDS } from "@orb/plugin-toolchain";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import type { TypeConfigIntentInput } from "@orb/tooling/_shared/type-config-intent";
 import {
@@ -95,6 +97,49 @@ function packageConfig(packageName: string, world: Parameters<typeof worldTempla
   };
 }
 
+function authorConfig(configPath: string, runtime: PluginAuthorWorld, include: readonly string[]): JsonObject {
+  const world = runtime === "frame" ? "browser" : "iso";
+  return {
+    extends: `../../${worldTemplateFor(world)}`,
+    compilerOptions: {
+      lib: runtime === "frame" ? ["es2023", "dom"] : ["es2023"],
+      moduleDetection: "force",
+      skipLibCheck: false,
+      target: "es2023",
+      types: [],
+    },
+    include: [...include, ...relativeAmbientRoots(configPath, ambientRootsForProgram(configPath) ?? [])],
+    exclude: TYPE_CONFIG_EXCLUDES,
+  };
+}
+
+function sdkAuthorConfigs(): Readonly<Record<string, JsonObject>> {
+  const packageDirectory = "packages/plugin-sdk";
+  return Object.fromEntries(
+    PLUGIN_AUTHOR_WORLDS.map((runtime) => {
+      const configPath = `${packageDirectory}/tsconfig.author-${runtime}.json`;
+      return [configPath, authorConfig(configPath, runtime, runtime === "frame" ? ["frame.d.ts"] : [`${runtime}.d.ts`, "shared.d.ts"])] as const;
+    }),
+  );
+}
+
+function showcaseAuthorConfigs(): Readonly<Record<string, JsonObject>> {
+  const packageDirectory = "packages/showcase-plugins";
+  return Object.fromEntries(
+    PLUGIN_AUTHOR_WORLDS.map((runtime) => {
+      const configPath = `${packageDirectory}/tsconfig.author-${runtime}.json`;
+      return [
+        configPath,
+        authorConfig(configPath, runtime, [
+          `bundles/*/${runtime}.ts`,
+          `../plugin-sdk/${runtime}.d.ts`,
+          ...(runtime === "frame" ? [] : ["../plugin-sdk/shared.d.ts"]),
+        ]),
+      ] as const;
+    }),
+  );
+}
+
 function toolingConfig(): JsonObject {
   const configPath = "tooling/tsconfig.json";
   return {
@@ -130,6 +175,7 @@ function graphConfig(intent: TypeConfigIntentInput): JsonObject {
       "playwright",
       "scripts/probes/st-goldens",
       "scripts/probes/st-goldens/sillytavern-runtime",
+      "packages/plugin-sdk/*.d.ts",
     ],
   };
 }
@@ -178,6 +224,8 @@ export function deriveTypeConfigFiles(root: string, intent: TypeConfigIntentInpu
     ["tsconfig.tests-iso.json", isoTestsConfig()],
     ["tsconfig.tests-dom.json", browserTestsConfig(intent)],
     ["tooling/tsconfig.json", toolingConfig()],
+    ...Object.entries(sdkAuthorConfigs()),
+    ...Object.entries(showcaseAuthorConfigs()),
   ]);
   for (const [packageName, world] of Object.entries(intent.packageWorlds)) {
     configs.set(packageConfigPath(packageName), packageConfig(packageName, world));

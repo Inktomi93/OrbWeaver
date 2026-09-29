@@ -19,6 +19,8 @@
     "@orb/default-content": "workspace:*",
     "@orb/inference": "workspace:*",
     "@orb/kit": "workspace:*",
+    "@orb/plugin-toolchain": "workspace:*",
+    "@orb/showcase-plugins": "workspace:*",
     "@orb/server": "workspace:*",
     "@playwright/test": "catalog:",
     "chrome-devtools-mcp": "catalog:",

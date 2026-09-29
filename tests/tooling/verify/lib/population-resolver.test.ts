@@ -13,6 +13,7 @@ test.describe("population vocabulary", () => {
       "@contracts": ["packages/contracts/src/"],
       "@kit": ["packages/kit/src/"],
       "@showcase": ["packages/showcase-plugins/src/"],
+      "@plugin-toolchain": ["packages/plugin-toolchain/src/"],
       "@default-content": ["packages/default-content/src/"],
       "@inference": ["packages/inference/src/"],
       "@tooling": ["tooling/src/"],
@@ -24,7 +25,21 @@ test.describe("population vocabulary", () => {
       "@backend": ["@server", "@db", "@contracts"],
       "@packages": ["@client", "@ui", "@server", "@db", "@contracts", "@kit"],
       "@product": ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@showcase", "@default-content", "@inference"],
-      "@authored": ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@showcase", "@default-content", "@inference", "@tooling", "@tests", "@scripts"],
+      "@authored": [
+        "@client",
+        "@ui",
+        "@server",
+        "@db",
+        "@contracts",
+        "@kit",
+        "@showcase",
+        "@plugin-toolchain",
+        "@default-content",
+        "@inference",
+        "@tooling",
+        "@tests",
+        "@scripts",
+      ],
     });
   });
 });

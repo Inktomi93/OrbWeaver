@@ -47,6 +47,8 @@ const PACKAGE_MANIFESTS = [
   "packages/server/package.json",
   "packages/default-content/package.json",
   "packages/showcase-plugins/package.json",
+  "packages/plugin-sdk/package.json",
+  "packages/plugin-toolchain/package.json",
   "packages/ui/package.json",
   "packages/client/package.json",
   "tooling/package.json",

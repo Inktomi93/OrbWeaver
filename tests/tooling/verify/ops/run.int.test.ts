@@ -477,6 +477,7 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     // vs a fresh derivation. Their freshness checks were vitest suites, so `pnpm check` stayed green while
     // main sat red on the next whole node run.
     "ledgers:fresh",
+    "release:showcase-versions",
     // #2074: the RULE half of biome grant liveness, successor to the policy arm `97e68be91` deleted under
     // §12.3 (a write plus a spawn). Path liveness proves the granted SUBJECT exists; nothing proved the
     // granted RULE still fires, so a rule-off override on a file that stopped violating it was unpoliced.
@@ -883,7 +884,7 @@ test("#2277 — the DECLINED rows keep deferring: no path set over-approximates 
 });
 
 test("#2304 — the cheap identity-triggered checks run their whole command for every changed selection", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
-  for (const name of ["types:testd", "config:biome-rule-liveness", "config:knip-negative-liveness", "ledgers:fresh"]) {
+  for (const name of ["types:testd", "config:biome-rule-liveness", "config:knip-negative-liveness", "ledgers:fresh", "release:showcase-versions"]) {
     const row = stage(name);
     for (const path of ["README.md", "packages/kit/src/ids/index.ts"]) {
       const selection = resolveSelection({ kind: "file", paths: [path] });

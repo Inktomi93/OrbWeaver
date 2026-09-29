@@ -204,22 +204,6 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
   },
   {
-    id: "query-freshness-coverage:automation-listrules",
-    policyId: "query-freshness-coverage",
-    subject: "automation.listRules",
-    operation: "uncovered-query-freshness",
-    why: "TWO feature-local drivers (blind spot 4). (1) Every rule-lifecycle mutation `invalidates` it — setRuleEnabled/deleteRule/runRuleNow/createRuleFromPreset in features/automation/lib/rule-mutations.ts all carry trpc.automation.listRules.queryFilter({chatId}). (2) The REMOTE-fire edge, which no mutation can see: rules-section.tsx's `useRuleFeedInvalidation` joins the chat's `automation` bus room and calls invalidation.invalidateFilters([listRules.queryFilter]) on ruleFired/ruleErrored/ruleAutoDisabled/rulesChanged, so a rule firing from a real turn moves `enabled`/`lastFiredAt`/`lastError` without a local write. Proven by tests/client/features/automation/components/rules-section.ct.tsx (toggle/Test/Run-now each drive the proc and the list reconciles).",
-    endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
-  },
-  {
-    id: "query-freshness-coverage:automation-listfires",
-    policyId: "query-freshness-coverage",
-    subject: "automation.listFires",
-    operation: "uncovered-query-freshness",
-    why: "Same TWO drivers as automation.listRules, keyed by ruleId: testRule/runRuleNow `invalidates` trpc.automation.listFires.queryFilter({ruleId}) (rule-mutations.ts), and the automation-room feed in rules-section.tsx invalidates the fired rule's log on ruleFired/ruleErrored. This is the host's 'why didn't my rule fire' log, so the REMOTE edge is the one that matters — a bus-driven fire is exactly the row it exists to show.",
-    endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
-  },
-  {
     id: "query-freshness-coverage:automation-listownerrules",
     policyId: "query-freshness-coverage",
     subject: "automation.listOwnerRules",

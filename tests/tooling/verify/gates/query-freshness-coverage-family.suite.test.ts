@@ -2,7 +2,6 @@ import process from "node:process";
 import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
 import type { GateOwnerResult, ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate as coverage } from "../../../../tooling/src/verify/gates/query-freshness-coverage.ts";
-import { gate as debt } from "../../../../tooling/src/verify/gates/query-freshness-coverage-debt.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/query-freshness-coverage-health.ts";
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -11,7 +10,7 @@ import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-g
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const POLICIES = [coverage, health, debt] as const;
+const POLICIES = [coverage, health] as const;
 const STATIC_SUBJECTS = [
   "assets.resolveBlobRefs",
   "assets.resolveChatBlobRefs",
@@ -35,8 +34,6 @@ const STATIC_SUBJECTS = [
   "rpg.listCheckpoints",
   "assets.listGallery",
   "assets.listOwned",
-  "automation.listRules",
-  "automation.listFires",
   "automation.listOwnerRules",
   "automation.getOwnerBudgets",
   "automation.listRulePresets",
@@ -50,11 +47,11 @@ const STATIC_SUBJECTS = [
   "plugin.getLog",
 ] as const;
 
-test("the coverage, blindness, and listChatActivity debt owners pass all declared proofs", () => {
+test("the coverage and blindness owners pass all declared proofs", () => {
   expect(verifyPolicyProofs(POLICIES)).toEqual([]);
 });
 
-test("every production classification is an exact central grant and the listChatActivity debt remains independently visible", () => {
+test("every production classification is an exact central grant and listChatActivity is covered by the live seam", () => {
   const grants = reviewedGrantsFor(POLICIES);
   expect(grants).toHaveLength(STATIC_SUBJECTS.length);
   expect(grants.map(({ subject }) => subject).toSorted()).toEqual([...STATIC_SUBJECTS].toSorted());
@@ -77,7 +74,6 @@ test("every production classification is an exact central grant and the listChat
       .toSorted(),
   ).toEqual([...STATIC_SUBJECTS].toSorted());
   expect(result.policies.find(({ id }) => id === health.id)?.findings).toEqual([]);
-  expect(result.policies.find(({ id }) => id === debt.id)?.findings).toHaveLength(1);
   expect(result.authority.reviewedGrantConsumption).toEqual(
     grants.map(({ id }) => ({ id, count: 1 })).toSorted((left, right) => left.id.localeCompare(right.id)),
   );
@@ -103,7 +99,7 @@ test("every production classification is an exact central grant and the listChat
         return grant;
       }),
     ).effectiveFindings,
-  ).toHaveLength(3);
+  ).toHaveLength(2);
   const withoutCoverage = owners.map((owner) => (owner.policyId === coverage.id ? { ...owner, findings: [] } : owner));
   expect(reconcile(grants, withoutCoverage).authorityAlarms.map(({ kind }) => kind)).toEqual(
     Array.from({ length: STATIC_SUBJECTS.length }, () => "stale-reviewed-grant"),

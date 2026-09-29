@@ -203,11 +203,17 @@ export function execNicedSync(cmd: string, args: readonly string[], opts: Captur
 /** Sync exec through niced-exec.ts's lowered priority returning RAW BYTES — the same throw-on-non-zero
  *  semantics as execNicedSync. Exists because a caller that HASHES its output (`git show <commit>:<path>`
  *  → sha256) must never round-trip through a utf8 decode: the hash is over the blob's bytes, not a re-encoding. */
-export function execNicedSyncBuffer(cmd: string, args: readonly string[], opts: { readonly cwd?: string } = {}): Buffer {
+export function execNicedSyncBuffer(
+  cmd: string,
+  args: readonly string[],
+  opts: CaptureCeilingOption & { readonly cwd?: string; readonly env?: NodeJS.ProcessEnv } = {},
+): Buffer {
   try {
     return execFileSync(process.execPath, nicedArgv(cmd, args), {
       stdio: capturedStdio(),
       ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
+      ...(opts.env === undefined ? {} : { env: opts.env }),
+      ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
     });
   } catch (error) {
     return withCapturedStderr(error);

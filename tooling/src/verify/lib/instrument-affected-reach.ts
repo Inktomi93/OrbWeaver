@@ -23,6 +23,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, join, relative as relativePath, sep } from "node:path";
 import { ts } from "ts-morph";
 import { classifyTestFilename, runtimeForTestFamily } from "../../_shared/test-kinds.ts";
+import type { InstrumentAffectedPolicyReach } from "../contract/instrument-affected.ts";
 
 const GATE_TESTS_DIR = "tests/tooling/verify/gates";
 const SPEC_SUFFIX = ".ts";
@@ -30,6 +31,8 @@ const IMPORT_GRAPH_ROOTS = ["tooling/src", "tests", "scripts"] as const;
 const TOOLING_TESTS_PREFIX = "tests/tooling/";
 const SOURCE_SUFFIXES = [".ts", ".tsx"] as const;
 const TOOLING_TSCONFIG = "tooling/tsconfig.json";
+const GATES_PREFIX = "tooling/src/verify/gates/";
+const TYPESCRIPT_SUFFIX = ".ts";
 
 /** Every spec under the gate-tests directory, repo-relative, recursively. An ABSENT directory (a synthetic
  *  fixture root) yields none — the caller's empty-specs arm is what reports a policy with no proofs. */
@@ -158,13 +161,100 @@ function importingSpecs(source: string, importers: ReadonlyMap<string, readonly 
   return [...reachedSpecs].toSorted();
 }
 
-/** Specs that transitively import `source`. Literal static imports, re-exports and literal `import()`
- *  calls come from TypeScript's fast preprocessor. Type-only edges deliberately over-select: running an
- *  extra spec is safe, while trying to infer runtime use here can silently miss a test. A computed dynamic
- *  target has no provable file identity and credits nothing, leaving the source unreached unless another
- *  proof door reaches it. */
-export function toolingTestsImporting(root: string, sources: readonly string[]): ReadonlyMap<string, readonly string[]> {
+function basenamePolicyId(path: string): string | undefined {
+  if (!(path.startsWith(GATES_PREFIX) && path.endsWith(TYPESCRIPT_SUFFIX))) {
+    return;
+  }
+  const id = path.slice(GATES_PREFIX.length, -TYPESCRIPT_SUFFIX.length);
+  return id.includes("/") ? undefined : id;
+}
+
+function unwrapExpression(expression: ts.Expression): ts.Expression {
+  if (ts.isParenthesizedExpression(expression) || ts.isAsExpression(expression) || ts.isSatisfiesExpression(expression)) {
+    return unwrapExpression(expression.expression);
+  }
+  return expression;
+}
+
+function policyIdFromCall(call: ts.CallExpression): string | undefined {
+  const argument = call.arguments[0] === undefined ? undefined : unwrapExpression(call.arguments[0]);
+  if (argument === undefined || !ts.isObjectLiteralExpression(argument)) {
+    return;
+  }
+  const property = argument.properties.find(
+    (candidate): candidate is ts.PropertyAssignment =>
+      ts.isPropertyAssignment(candidate) &&
+      ((ts.isIdentifier(candidate.name) && candidate.name.text === "id") || (ts.isStringLiteral(candidate.name) && candidate.name.text === "id")),
+  );
+  const value = property === undefined ? undefined : unwrapExpression(property.initializer);
+  return value !== undefined && (ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value)) ? value.text : undefined;
+}
+
+/** The literal descriptor ID authored by `export const gate = defineGate({ id: "…" })`. Any other shape
+ * is deliberately unreadable here: the runtime loader gives the precise refusal, while affected selection
+ * keeps the full roster rather than trusting a filename that may not name the actual policy. */
+function authoredPolicyId(root: string, path: string): string | undefined {
+  const source = ts.createSourceFile(path, readFileSync(join(root, path), "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const statement = source.statements.find(
+    (candidate): candidate is ts.VariableStatement =>
+      ts.isVariableStatement(candidate) && candidate.declarationList.declarations.some((entry) => ts.isIdentifier(entry.name) && entry.name.text === "gate"),
+  );
+  if (statement === undefined) {
+    return;
+  }
+  const declaration = statement.declarationList.declarations.find((candidate) => ts.isIdentifier(candidate.name) && candidate.name.text === "gate");
+  const initializer = declaration?.initializer === undefined ? undefined : unwrapExpression(declaration.initializer);
+  if (initializer === undefined || !ts.isCallExpression(initializer)) {
+    return;
+  }
+  const exported = statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true;
+  const callee = unwrapExpression(initializer.expression);
+  if (!(exported && ts.isIdentifier(callee)) || callee.text !== "defineGate") {
+    return;
+  }
+  return policyIdFromCall(initializer);
+}
+
+function importingPolicies(source: string, importers: ReadonlyMap<string, readonly string[]>, root: string): InstrumentAffectedPolicyReach {
+  const reachedPolicies = new Set<string>();
+  const unclassifiableGatePaths = new Set<string>();
+  const seen = new Set<string>();
+  const pending = [source];
+  for (let current = pending.pop(); current !== undefined; current = pending.pop()) {
+    if (seen.has(current)) {
+      continue;
+    }
+    seen.add(current);
+    const basenameId = basenamePolicyId(current);
+    if (basenameId !== undefined) {
+      const authoredId = authoredPolicyId(root, current);
+      if (authoredId === basenameId) {
+        reachedPolicies.add(authoredId);
+      } else {
+        unclassifiableGatePaths.add(current);
+      }
+    }
+    pending.push(...(importers.get(current) ?? []));
+  }
+  return { policyIds: [...reachedPolicies].toSorted(), unclassifiableGatePaths: [...unclassifiableGatePaths].toSorted() };
+}
+
+/** Specs and policies that transitively import each source, derived from ONE graph construction. Literal
+ *  static imports, re-exports and literal `import()` calls come from TypeScript's fast preprocessor.
+ *  Type-only edges deliberately over-select: running an extra spec/policy is safe, while trying to infer
+ *  runtime use here can silently miss a test. A computed dynamic target has no provable file identity and
+ *  credits nothing, leaving the source unreached unless another proof door reaches it.
+ *
+ *  The tuple keeps the two maps on one parse/resolution pass. Building a second TypeScript graph just to
+ *  derive policy reach would add compiler startup to the stage whose job is to remove verification cost. */
+export function toolingImportReach(
+  root: string,
+  sources: readonly string[],
+): readonly [ReadonlyMap<string, readonly string[]>, ReadonlyMap<string, InstrumentAffectedPolicyReach>] {
   const modules = IMPORT_GRAPH_ROOTS.flatMap((relative) => graphModules(root, relative)).toSorted();
   const importers = reverseImportGraph(root, modules);
-  return new Map(sources.map((source) => [source, importingSpecs(source, importers)]));
+  return [
+    new Map(sources.map((source) => [source, importingSpecs(source, importers)])),
+    new Map(sources.map((source) => [source, importingPolicies(source, importers, root)])),
+  ];
 }

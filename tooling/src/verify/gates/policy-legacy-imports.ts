@@ -16,7 +16,7 @@
 //     RED on the real tree by design (owner ruling 2026-09-12: the red is the finding).
 //     THE LIST IS BEING BURNED DOWN, and the 2026-09-12 measurement above is kept verbatim as the mint's record.
 //     Re-measured 2026-09-14 (#2176 Phase F): the whole policy reports EIGHT, of which SEVEN are this burn-down and
-//     one is ARM B's (`query-freshness-coverage-debt` importing its sibling, a pre-existing red outside Phase F).
+//     one was ARM B's former query-freshness debt sibling import, retired when that query gained its live driver.
 //     `lib/raw-spacing-tier.ts` and `lib/raw-typography-tier.ts` then left the list — NOT by relocating a table, but
 //     because a cp-probe proved the rows are SCAN-SCOPE rather than exemptions (both tables emptied → all four
 //     consumers still ZERO findings, so nothing was being forgiven and a reviewed grant could not be consumed even

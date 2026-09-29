@@ -1,92 +1,6 @@
-// REAL-TREE LIVENESS for a FINAL policy (#2149) — the arm that tells "silent because the tree is clean"
-// apart from "silent because the policy is dead".
-//
-// THE DEFECT CLASS. A `-health` tripwire is quiet when healthy and quiet when broken, and nothing on the
-// tree distinguishes the two. Conformance rows cannot close it: they run on VIRTUAL projects with no real
-// layout (guide §5), so a policy can be green on fixtures and dead on the corpus — which is exactly how
-// `conversion-refusal-liveness` shipped two findings red against its one live subject while every proof row
-// passed. The only thing that discriminates is a positive control the policy must report ON THE REAL
-// CORPUS.
-//
-// ONE RUNNER, ONE CORPUS — VERIFY'S OWN (owner ruling, docs/work/0043). `check:structure` loads ONE shared
-// pure-AST project through `projectCtx` (`lib/project-context.ts` → `_shared/ts-workspace.ts#getWorkspace`,
-// the harness globs), hands it to ONE `runPolicyPass`, and every `analysis: "types"` policy in that pass
-// asks the SAME project for its checker (`lib/policy-pass.ts#sharedChecker`), so the structure run has
-// exactly one compiler world and one type graph. This runner loads that same corpus through that same door,
-// ONCE, and runs every declared arm against it:
-//   · it cannot drift from what verify judges — an arm over a hand-picked corpus proved liveness under
-//     conditions the real run never has (a tsconfig-loaded graph verify never builds, or a glob set that
-//     silently omits half a population);
-//   · it retires the per-arm GLOB field and the hazard it carried. Globs narrower than a policy's declared
-//     population MANUFACTURED findings (the since-retired `contract-derives-not-respells-health` read two
-//     stale-allowlist rows in its BASELINE when built over `@server` without `@db`); a corpus that IS the
-//     structure run's corpus covers every population by construction;
-//   · the BASELINE is the structure run's shape too: every armed policy in ONE pass through ONE walker,
-//     with the central grant table (`reviewedGrantsFor`), so a finding verify licenses is licensed here.
-//
-// A VIRTUAL OVERLAY, NEVER A WORKING-TREE PLANT. `project.createSourceFile` adds the file to the loaded
-// ts-morph project in memory only — nothing is written, nothing is cleaned up, and a killed run leaves no
-// debris. ZERO final policies plant by construction (guide §6.5), and as of #2176 Phase F NOTHING plants
-// into the working tree at all; a new planter would be a new shared-tree hazard for every lane, to prove a
-// property that does not need one.
-//
-// IT WORKS BECAUSE POPULATION RESOLUTION READS THE PROJECT, NOT THE DISK. `lib/policy-pass-resolve.ts`
-// builds its candidate set from `input.project.getSourceFiles()`, so an in-memory file inside the policy's
-// declared population is admitted exactly like a real one. If that ever changes, every arm fails loudly
-// rather than passing vacuously, because the overlaid run would stop reporting.
-//
-// TWO DIRECTIONS OR IT PROVES NOTHING. Every arm must be silent in its scope WITHOUT its overlay and must
-// report WITH it. A one-directional arm that only ever asserts a finding cannot tell a live policy from one
-// that reports on everything. For an `add` arm the first direction holds by construction — its scope is a
-// path that does not exist until the overlay plants it (`captureOriginals` throws if it does) — so only the
-// arms that rewrite, remove, read a resource or consume grants are measured in the shared baseline pass.
-//
-// THE OVERLAID DIRECTION IS BATCHED, BECAUSE THE TYPE PROGRAM IS THE COST (leg 2 of docs/work/0043). Every
-// overlay invalidates the shared program, so one pass per arm rebuilt it once per arm — measured at 6-26s a
-// `types` arm, which at the full roster is most of an hour. Instead the add-only arms share ONE overlaid
-// pass: every overlay applied together, every policy run through one walker, each finding attributed by
-// (policy id, overlay path). Two rules keep a shared pass honest:
-//   · an arm that rewrites or removes a REAL file (`neutralise`/`remove`) asserts over the whole run and
-//     changes what every other policy reads, so it never shares a pass;
-//   · a policy that reports on ANOTHER member's path in the shared pass is reading that member's file, so
-//     that file may be what made it speak at its own; its batched verdict is discarded and it is proved
-//     ALONE (`entangledWith` names who it was entangled with). Two planted controls in the runner suite
-//     hold both halves: a dead arm batched beside a live one is still named dead, and an arm that can only
-//     speak BECAUSE of its batch-mate is caught by the detector and fails alone.
-//
-// AND THERE IS MORE THAN ONE KIND OF OVERLAY, WHICH IS THE PART A FIRST PASS GETS WRONG. `-health`
-// BLINDNESS TRIPWIRES on `execution: "entire-population"` fire when their SUBJECT DISAPPEARS ("no longer
-// calls", "derived ZERO entity-id type names"), so ADDING a bad file cannot make them speak — planting a
-// positive at a new path leaves them silent and the arm would "prove" liveness by asserting nothing. Their
-// control is the INVERSE: take away what the tripwire watches.
-//
-//   ADD       — an occurrence policy: a new file at a path the population admits, which the policy reports.
-//               The finding must land AT THAT PATH.
-//   NEUTRALISE — a blindness tripwire over CONTENT: an EXISTING file overwritten so the watched subject is
-//               gone. The finding lands wherever the tripwire anchors (usually a constant), NOT at the
-//               overwritten path, so the assertion scope is the whole run.
-//   EDIT      — an occurrence policy whose defect is a MEMBER of a real declaration (a field on a real
-//               interface, a code on a real tuple, a row in a real registry): one exact search/replace of an
-//               existing file, the search text matching exactly once. A new file cannot express it and a
-//               NEUTRALISE would bury it under every other change. The finding must land AT THAT PATH.
-//   REMOVE   — a blindness tripwire over PRESENCE: every corpus file at a path (or under a directory path
-//               ending in `/`) taken out of the project. Minted for `pointer-capability-tier-health`, whose
-//               subject is that the reviewed shell home HAS files at all — overwriting them leaves them
-//               present, so no content overlay can reach it. Whole-run scope, as for NEUTRALISE.
-//   RESOURCE  — a file a policy reads through the ResourceHost (CSS, the token vault, any `analysis:
-//               "resource"` subject), not through the ts-morph project, so no project overlay reaches it. The
-//               overlay rides the production reader's OWN seam (`ResourceHostOptions.overlay`, the one
-//               conformance's resource rows use): `source` is the whole text, `append` is the real file's disk
-//               text plus a planted tail, `replace` is one exact edit of it, `delete` takes a file or directory
-//               out of the reader's view. The finding must land AT THAT PATH, as for ADD, except for a `delete`,
-//               which asserts over the whole run as REMOVE does. It changes what every policy in the pass reads,
-//               so a resource arm never shares a pass.
-//   INSTALLED-PACKAGE — one exact text request for a declared installed package. The production installed
-//               provider still resolves the real package and validates the real file before substituting
-//               this invocation-only source. It asserts over the whole run and always runs alone.
-//   TRACKED-MODE — one existing candidate-index path's executable bit. The production tracked-files provider
-//               still runs `git ls-files --stage` and validates membership before applying the invocation-only
-//               boolean. It reports at that path and always runs alone; source text and membership do not move.
+// Real-corpus liveness uses verify's shared project and virtual interventions only.
+// Each policy sees exactly its own ordered overlays; identical interventions may share a pass.
+// Restoration failure poisons the runner so later results cannot describe a damaged corpus.
 import { existsSync, readFileSync } from "node:fs";
 import type { GatePolicy } from "@orb/tooling/verify";
 import { projectCtx, resourceRequestIdentity, reviewedGrantsFor, runPolicyPass } from "@orb/tooling/verify";
@@ -97,7 +11,7 @@ type LivenessResourceOptions = NonNullable<Parameters<typeof runPolicyPass>[0]["
 type InstalledPackageTextOverlay = NonNullable<LivenessResourceOptions["installedPackageTextOverlays"]>[number];
 type TrackedFileModeOverlay = NonNullable<LivenessResourceOptions["trackedFileModeOverlays"]>[number];
 
-/** What the overlay is FOR, which decides where the finding is allowed to land. See the header. */
+/** The intervention kind determines whether findings must name its path or may span the whole run. */
 export type RealCorpusOverlay =
   | {
       /** `add` for an occurrence policy, `neutralise` for a content tripwire. */
@@ -194,9 +108,6 @@ export interface RealCorpusArmVerdict {
   readonly outOfScope: string;
   /** The policy ids that shared the pass that produced this verdict. */
   readonly batch: readonly string[];
-  /** Members whose file this arm's policy ALSO reported on in the shared pass, which forced the solo
-   *  re-proof this verdict came from. Empty for a verdict proved in its batch. */
-  readonly entangledWith: readonly string[];
   /** The `stale-reviewed-grant` alarms the pass raised for the arm's policy, as `<grant id>: <message>`. */
   readonly staleGrants: readonly string[];
 }
@@ -204,12 +115,9 @@ export interface RealCorpusArmVerdict {
 /** The runner over ONE shared corpus. Heavy work is lazy: nothing loads until the first call, so declaring
  *  the runner at module scope costs a test file nothing. */
 export interface RealCorpusLivenessRunner {
-  /** The shared first direction, in ONE pass as the structure run does, over every arm whose silence is a
-   *  measurement: refusal-free, silent in its own assertion scope, and (for a `grantConsumption` arm) every
-   *  central grant consumed. An `add` arm is NOT in it — its scope is a path the overlay creates, so it is
-   *  silent there by construction and running its policy to confirm that is pure cost; its refusals are
-   *  still checked, in the overlaid pass. Returns the policy ids the pass RAN, so a caller can assert the
-   *  denominator — a pass that silently dropped a policy would otherwise read as that policy's silence. */
+  /** Measure refusal-free silence and grant consumption in one shared baseline pass.
+   *  Only add-only controls without explicit report anchors have structurally absent assertion scopes.
+   *  Returns the measured policy ids so callers can verify that no required baseline was omitted. */
   assertBaseline: () => readonly string[];
   /** The arms `assertBaseline` measures. */
   baselineArms: () => readonly RealCorpusLivenessArm[];
@@ -219,8 +127,19 @@ export interface RealCorpusLivenessRunner {
   proveAll: (onBatch?: (progress: LivenessBatchProgress) => void) => ReadonlyMap<string, RealCorpusArmVerdict>;
   /** One arm's verdict out of `proveAll`. */
   verdict: (arm: RealCorpusLivenessArm) => RealCorpusArmVerdict;
-  /** One EXPLICIT batch, proved now and not kept — the door the runner's own controls drive. */
+  /** Explicit controls, partitioned by identical intervention, proved now and not kept. */
   proveBatch: (batch: readonly RealCorpusLivenessArm[]) => ReadonlyMap<string, RealCorpusArmVerdict>;
+}
+
+export interface LivenessPassMeasurement {
+  readonly preparationMs: number;
+  readonly overlayMs: number;
+  readonly executionMs: number;
+  readonly restorationMs: number;
+  /** Existing runtime timings include lazy compiler work performed inside policy and fact hooks. */
+  readonly pass: PassResult["timing"];
+  readonly policies: readonly Pick<PassResult["policies"][number], "id" | "timing">[];
+  readonly facts: readonly Pick<PassResult["facts"][number], "id" | "timing">[];
 }
 
 export interface LivenessBatchProgress {
@@ -228,9 +147,16 @@ export interface LivenessBatchProgress {
   readonly of: number;
   readonly arms: readonly string[];
   readonly ms: number;
+  readonly passes: number;
+  readonly measurements: readonly LivenessPassMeasurement[];
 }
 
 type PassResult = ReturnType<typeof runPolicyPass>;
+
+interface MeasuredPass {
+  readonly result: PassResult;
+  readonly measurement: LivenessPassMeasurement;
+}
 
 function refusals(result: PassResult): readonly string[] {
   // Every refusal channel, flattened: a policy WITHHELD by a resource refusal reports nothing, which would
@@ -471,44 +397,28 @@ function restoreOriginals(project: Project, originals: Originals): void {
   }
 }
 
-/** Can this arm share an overlaid pass? Only when every overlay ADDS a new file. A `neutralise`/`remove`
- *  arm rewrites or takes away a REAL file every other policy in the pass also reads, and asserts over the
- *  whole run — so anything another arm plants could land in its scope. It always runs alone. */
-function isBatchable(arm: RealCorpusLivenessArm): boolean {
-  return arm.overlays.every((overlay) => overlay.kind === "add");
+function needsMeasuredBaseline(arm: RealCorpusLivenessArm): boolean {
+  return arm.overlays.some((overlay) => overlay.kind !== "add") || (arm.reportsAt?.length ?? 0) > 0;
 }
 
-/** An arm's overlay set, canonically spelled: two arms with one key plant exactly the same thing. */
+// Preserve order: edits to the same source can depend on an earlier edit.
 function overlayKey(arm: RealCorpusLivenessArm): string {
-  return JSON.stringify(arm.overlays.map((overlay) => JSON.stringify(overlay)).toSorted());
+  return JSON.stringify(arm.overlays);
 }
 
-/** Pack the arms into overlaid passes: every whole-run arm alone, the add-only arms together, a new batch
- *  opening only when an add path would repeat (two arms cannot own one path). Declaration order is kept, so
- *  the plan is deterministic. */
+/** Share only identical interventions; report locations do not reveal a policy's input dependencies. */
 export function planLivenessBatches(arms: readonly RealCorpusLivenessArm[]): readonly (readonly RealCorpusLivenessArm[])[] {
-  const shared: RealCorpusLivenessArm[][] = [];
-  // Rewriting arms share a pass ONLY with arms carrying the IDENTICAL overlay set (the three tier-home
-  // tripwires all take the markdown home away): the pass then plants nothing any member did not plant alone,
-  // so each verdict is exactly its solo verdict, for one program rebuild instead of three.
-  const solo = new Map<string, RealCorpusLivenessArm[]>();
+  const batches = new Map<string, RealCorpusLivenessArm[]>();
   for (const arm of arms) {
-    if (!isBatchable(arm)) {
-      const key = overlayKey(arm);
-      solo.set(key, [...(solo.get(key) ?? []), arm]);
-      continue;
-    }
-    const paths = new Set(arm.overlays.flatMap((overlay) => (overlay.kind === "installed-package" ? [] : [overlay.path])));
-    const fits = shared.find((batch) =>
-      batch.every((member) => member.overlays.every((overlay) => overlay.kind === "installed-package" || !paths.has(overlay.path))),
-    );
-    if (fits === undefined) {
-      shared.push([arm]);
+    const key = overlayKey(arm);
+    const batch = batches.get(key);
+    if (batch === undefined) {
+      batches.set(key, [arm]);
     } else {
-      fits.push(arm);
+      batch.push(arm);
     }
   }
-  return [...shared, ...solo.values()];
+  return [...batches.values()];
 }
 
 /** The refusals that belong to ONE arm's policy in a shared pass. A fact refusal belongs to every policy that
@@ -522,15 +432,6 @@ function refusalsFor(result: PassResult, arm: RealCorpusLivenessArm): readonly s
     ...result.authority.toolErrors.filter((error) => error.policyId === undefined || error.policyId === id).map((error) => JSON.stringify(error)),
     ...result.authority.withheldPolicyIds.filter((withheld) => withheld === id),
   ];
-}
-
-/** Where a policy reported in a pass, over BOTH authority channels — the entanglement detector's input. */
-function reportedPaths(result: PassResult, policyId: string): ReadonlySet<string> {
-  return new Set(
-    [...result.authority.effectiveFindings, ...result.authority.grantedFindings.map(({ finding }) => finding)]
-      .filter((finding) => finding.policyId === policyId)
-      .map((finding) => finding.file),
-  );
 }
 
 /** The overlaid direction for a `grantConsumption` arm: the policy's grants went stale. */
@@ -605,74 +506,67 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
       throw error;
     }
   };
-  const overlaid = (batch: readonly RealCorpusLivenessArm[]): PassResult => {
+  const overlaid = (batch: readonly RealCorpusLivenessArm[]): MeasuredPass => {
+    const preparationStarted = performance.now();
     const loaded = project();
-    const originals = new Map<string, string | undefined>();
-    // A batch whose members all carry ONE overlay set plants it once; any other batch plants every member's.
     const [first] = batch;
-    const planters = first !== undefined && batch.every((arm) => overlayKey(arm) === overlayKey(first)) ? [first] : batch;
-    for (const arm of planters) {
-      for (const [absolute, original] of captureOriginals(loaded, repoRoot, arm)) {
-        if (originals.has(absolute)) {
-          throw new Error(`real-corpus liveness: two arms in one batch touch ${absolute} — a path has one owner per pass`);
-        }
-        originals.set(absolute, original);
-      }
+    if (first === undefined || batch.some((arm) => overlayKey(arm) !== overlayKey(first))) {
+      throw new Error("real-corpus liveness: an overlaid pass requires one nonempty identical intervention");
     }
+    const originals = captureOriginals(loaded, repoRoot, first);
+    const preparationMs = performance.now() - preparationStarted;
+    let result: PassResult;
+    let overlayMs: number;
+    let executionMs: number;
+    let restorationMs: number;
     try {
-      for (const arm of planters) {
-        applyOverlays(loaded, repoRoot, arm);
-      }
-      return pass(
+      const overlayStarted = performance.now();
+      applyOverlays(loaded, repoRoot, first);
+      const options = resourceOptions(repoRoot, [first]);
+      overlayMs = performance.now() - overlayStarted;
+      const executionStarted = performance.now();
+      result = pass(
         batch.map((arm) => arm.policy),
-        resourceOptions(repoRoot, planters),
+        options,
       );
+      executionMs = performance.now() - executionStarted;
     } finally {
+      const restorationStarted = performance.now();
       restoreOrDamage(loaded, originals, batch);
+      restorationMs = performance.now() - restorationStarted;
     }
+    return {
+      result,
+      measurement: {
+        preparationMs,
+        overlayMs,
+        executionMs,
+        restorationMs,
+        pass: result.timing,
+        policies: result.policies.map(({ id, timing }) => ({ id, timing })),
+        facts: result.facts.map(({ id, timing }) => ({ id, timing })),
+      },
+    };
   };
 
-  const proveBatch = (batch: readonly RealCorpusLivenessArm[]): ReadonlyMap<string, RealCorpusArmVerdict> => {
-    const result = overlaid(batch);
+  const proveBatch = (requested: readonly RealCorpusLivenessArm[], measurements?: LivenessPassMeasurement[]): ReadonlyMap<string, RealCorpusArmVerdict> => {
     const verdicts = new Map<string, RealCorpusArmVerdict>();
-    for (const arm of batch) {
-      // THE ENTANGLEMENT DETECTOR. An arm's finding counts only at its own paths, but a policy that ALSO
-      // reported at another member's path is reading that member's file — which means the other file can be
-      // what made it speak at its own. Such an arm's batched verdict is not evidence; it is proved again ALONE.
-      const reported = reportedPaths(result, arm.policy.id);
-      const entangledWith = batch
-        // A path the arm planted ITSELF is its own scope, whoever else planted it too.
-        .filter(
-          (other) =>
-            other !== arm &&
-            other.overlays.some(
-              (candidate) =>
-                candidate.kind !== "installed-package" &&
-                reported.has(candidate.path) &&
-                !arm.overlays.some((own) => own.kind !== "installed-package" && own.path === candidate.path),
-            ),
-        )
-        .map((other) => other.policy.id);
-      if (entangledWith.length > 0) {
-        const alone = proveBatch([arm]).get(arm.policy.id);
-        if (alone === undefined) {
-          throw new Error(`real-corpus liveness: ${arm.policy.id}'s solo re-proof produced no verdict`);
-        }
-        verdicts.set(arm.policy.id, { ...alone, entangledWith });
-        continue;
+    for (const batch of planLivenessBatches(requested)) {
+      const { result, measurement } = overlaid(batch);
+      measurements?.push(measurement);
+      for (const arm of batch) {
+        verdicts.set(arm.policy.id, {
+          messages: inScope(result, arm),
+          refusals: refusalsFor(result, arm),
+          outOfScope: JSON.stringify(
+            result.authority.effectiveFindings.filter((finding) => finding.policyId === arm.policy.id).map(({ file, message }) => ({ file, message })),
+          ),
+          batch: batch.map((member) => member.policy.id),
+          staleGrants: result.authority.authorityAlarms
+            .filter((alarm) => alarm.kind === "stale-reviewed-grant" && alarm.policyId === arm.policy.id)
+            .map((alarm) => ("grantId" in alarm ? `${alarm.grantId}: ${alarm.message}` : alarm.message)),
+        });
       }
-      verdicts.set(arm.policy.id, {
-        messages: inScope(result, arm),
-        refusals: refusalsFor(result, arm),
-        outOfScope: JSON.stringify(
-          result.authority.effectiveFindings.filter((finding) => finding.policyId === arm.policy.id).map(({ file, message }) => ({ file, message })),
-        ),
-        batch: batch.map((member) => member.policy.id),
-        entangledWith: [],
-        staleGrants: result.authority.authorityAlarms
-          .filter((alarm) => alarm.kind === "stale-reviewed-grant" && alarm.policyId === arm.policy.id)
-          .map((alarm) => ("grantId" in alarm ? `${alarm.grantId}: ${alarm.message}` : alarm.message)),
-      });
     }
     return verdicts;
   };
@@ -684,10 +578,18 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
       const batches = planLivenessBatches(arms);
       for (const [index, batch] of batches.entries()) {
         const started = performance.now();
-        for (const [id, verdict] of proveBatch(batch)) {
+        const measurements: LivenessPassMeasurement[] = [];
+        for (const [id, verdict] of proveBatch(batch, measurements)) {
           all.set(id, verdict);
         }
-        onBatch?.({ index, of: batches.length, arms: batch.map((arm) => arm.policy.id), ms: Math.round(performance.now() - started) });
+        onBatch?.({
+          index,
+          of: batches.length,
+          arms: batch.map((arm) => arm.policy.id),
+          ms: Math.round(performance.now() - started),
+          passes: measurements.length,
+          measurements,
+        });
       }
       proved = all;
     }
@@ -696,10 +598,9 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
 
   return {
     assertBaseline: (): readonly string[] => {
-      const measured = arms.filter((arm) => !isBatchable(arm));
+      const measured = arms.filter(needsMeasuredBaseline);
       if (measured.length === 0) {
-        // Every arm is an add arm, silent by construction: there is nothing to measure, and the dispatcher
-        // refuses an empty policy list.
+        // Every assertion scope is created by its add overlays; the dispatcher refuses an empty policy list.
         return [];
       }
       const baseline = pass(measured.map((arm) => arm.policy));
@@ -721,7 +622,7 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
       expect(unconsumed, "these grant-consumption arms' policies left central grants unconsumed on the real tree — the policy is dead").toEqual({});
       return baseline.policies.map((result) => result.id);
     },
-    baselineArms: (): readonly RealCorpusLivenessArm[] => arms.filter((arm) => !isBatchable(arm)),
+    baselineArms: (): readonly RealCorpusLivenessArm[] => arms.filter(needsMeasuredBaseline),
     proveAll,
     verdict: (arm: RealCorpusLivenessArm): RealCorpusArmVerdict => {
       const found = proveAll().get(arm.policy.id);

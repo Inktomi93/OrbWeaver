@@ -1,57 +1,21 @@
-// THE ONE REAL-CORPUS LIVENESS RUNNER (#2149, owner ruling docs/work/0043) — the arm that tells "silent
-// because the tree is clean" apart from "silent because the policy is dead", for every final policy that
-// declares one.
-//
-// WHY ONE RUNNER. Every final policy owes a real-corpus pin, and the pins used to build their own corpora:
-// one ts-morph project per glob-set here, a tsconfig-loaded type graph over four files in
-// `ct-config-mirror-parity.test.ts`, a 300-second `@ui`+`@client` build in each of two family tests. At ~350
-// policies that is hundreds of project builds, and a `types` corpus over `@client` alone pushed this file
-// past the integration ceiling (0043). The ruling mirrors verify's shared design: `check:structure` loads ONE
-// corpus and runs every policy through ONE walker, so this runner loads THAT corpus once
-// (`tests/support/real-corpus-liveness.ts` — the header says why it is verify's corpus and no other), runs
-// every armed policy through one shared BASELINE pass, then proves the overlays in BATCHED passes over the
-// same project: every add-only arm in one pass, each rewriting arm alone (or with arms planting the
-// identical overlay set), and any arm whose policy reported on a batch-mate's file proved again alone. Each
-// arm still has its own test, reading its batch's verdict, so a failure names its arm.
-//
-// THE ARMS ARE DATA in `_liveness/<chunk>.ts`, one exported array per chunk, and that directory is the only
-// place `real-corpus-liveness-manifest` counts a pin (it reads `policy:` rows in files there that import both
-// a gate module and the liveness vocabulary). A chunk this file does not import runs nowhere, and knip
-// (whose `tests/**` project set admits it and whose entries are the test files) reports it as an unused
-// file — the one door from "declared" to "run" is the import list.
-//
-// THE TIER IS THE MEASURED COST OF THE ONE SHARED RUN (0043). Measured 2026-09-23 at 47 arms, back to back
-// on the same box (loadavg 5-8): one pass PER ARM took 142s of test time, because every overlay invalidates
-// the shared type program and each `types` arm re-ran its checker work cold (6-26s apiece); the BATCHED plan
-// (one 37-arm pass plus ten solo rewriting arms) takes 54s: baseline 22s, every overlaid pass together 25s,
-// the two controls 6s. At 82 arms (the `@client` + `@ui` chunk added heavier policies: its members cost
-// ~45s of the structure run's own policy time) the file measured 392-414s of test time on a box at loadavg
-// 21-31: baseline 104-209s, every overlaid pass together 186-238s, controls 50s. No quiet-box figure exists
-// for 82 arms yet; the budgets below are quiet-box bases that `scaledBudget` stretches under load. At 109
-// arms the baseline was scoped to the arms whose silence is a measurement (an `add` arm is silent by
-// construction): measured back to back at loadavg 27-36, the scoped pass over 24 policies took 153s and the
-// old whole-roster pass over 109 took 290s. The whole file at 109 arms, detached at c2f212f2b with loadavg
-// 34 rising to 48: 117 tests green in 697s of test time (718s wall) — baseline 151s, every overlaid pass
-// together 449s, the four controls 94s.
-//
-// OWNER RULING (2026-09-23): this suite stays ONE serial file inside `--full` and gets no parallel project.
-// That is the reason it is not split per chunk: the `repository` project runs its files one at a time
-// (`fileParallelism: false`, vitest.config.ts; Core-Tooling-Law.md serialises repository-resource tests), so N
-// files would each pay a corpus load and a baseline, in series. Cost is cut inside the file instead: the add
-// arms share one pass, rewriting arms with one overlay set share one, and the baseline measures only the arms
-// whose silence is not structural. Solo passes are the growth term: each rewriting arm that plants a
-// distinct overlay costs one program rebuild.
-//
-// THE FILE OUTLASTS THE SUPERVISOR'S NO-OUTPUT CEILING. At 347 arms (1fa08a626) the whole file ran past the
-// 1800s ceiling twice and was killed, because vitest prints a file's results only when the file ends. Per
-// batch, measured at loadavg 18-23: baseline 83s, the one 256-arm add pass 719s (47 of its arms entangled
-// and re-proved alone inside it), the 89 solo passes 418s together, none over 30s. So the overlaid-batch
-// test logs one line per settled batch: the ceiling still catches any one batch that hangs, and the file
-// stays one serial file under the ruling above.
+// One serial real-corpus runner retains every selected policy and its complete intervention.
+// Only identical ordered overlays share a pass; report paths cannot prove input independence.
+// Affected runs keep the controls associated with their selected policies.
 
+import { processEnvValue } from "../../../../tooling/src/_shared/process-env.ts";
+import { INSTRUMENT_AFFECTED_POLICIES_ENV } from "../../../../tooling/src/verify/contract/instrument-affected.ts";
+import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as queryBoundaryReservation } from "../../../../tooling/src/verify/gates/query-boundary-reservation.ts";
 import { gate as queryBoundaryReservationHealth } from "../../../../tooling/src/verify/gates/query-boundary-reservation-health.ts";
-import type { RealCorpusLivenessArm, RealCorpusLivenessRunner } from "../../../support/real-corpus-liveness.ts";
+import {
+  decodeInstrumentAffectedPolicyIds,
+  includeInstrumentAffectedControlPolicies,
+  instrumentAffectedIncludes,
+  selectedInstrumentAffectedPolicyIds,
+  selectInstrumentAffectedArms,
+} from "../../../../tooling/src/verify/lib/instrument-affected-liveness.ts";
+import { QUERY_BOUNDARY_HOME } from "../../../../tooling/src/verify/lib/query-boundary-vocabulary.ts";
+import type { LivenessBatchProgress, RealCorpusArmVerdict, RealCorpusLivenessArm, RealCorpusLivenessRunner } from "../../../support/real-corpus-liveness.ts";
 import { assertArmVerdict, openRealCorpusLiveness, planLivenessBatches } from "../../../support/real-corpus-liveness.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -88,13 +52,22 @@ const CHUNKS = {
   toolingAndAuthored: TOOLING_AND_AUTHORED_ARMS,
   toolingTests: TOOLING_TESTS_ARMS,
 } as const;
-const ARMS: readonly RealCorpusLivenessArm[] = Object.values(CHUNKS).flat();
+const ALL_ARMS: readonly RealCorpusLivenessArm[] = Object.values(CHUNKS).flat();
+const AFFECTED_POLICY_IDS = decodeInstrumentAffectedPolicyIds(processEnvValue(INSTRUMENT_AFFECTED_POLICIES_ENV));
+const CLOSEOUT_POLICY_IDS = ["css-var-defined-health", "open-json-column-key-parity-health", "no-manual-memo-compiler-health"] as const;
+const DEAD_BATCH_CONTROL_IDS = ["chrome-registry-completeness", "testid-typed-only"] as const;
+const DEPENDENCY_CONTROL_IDS = [queryBoundaryReservationHealth.id, queryBoundaryReservation.id] as const;
+const RESOURCE_CONTROL_IDS = FRONTEND_ARMS.filter((arm) => arm.grantConsumption !== true && arm.overlays.some((overlay) => overlay.kind === "resource"))
+  .slice(0, 1)
+  .map((arm) => arm.policy.id);
+const GRANT_CONSUMPTION_CONTROL_IDS = FRONTEND_ARMS.filter((arm) => arm.grantConsumption === true)
+  .slice(0, 1)
+  .map((arm) => arm.policy.id);
+const REPORT_ANCHOR_CONTROL_IDS = ALL_ARMS.filter((arm) => (arm.reportsAt?.length ?? 0) > 0).map((arm) => arm.policy.id);
+const RUNNER_POLICY_IDS = includeInstrumentAffectedControlPolicies(AFFECTED_POLICY_IDS, [DEAD_BATCH_CONTROL_IDS, DEPENDENCY_CONTROL_IDS]);
+const ARMS = selectInstrumentAffectedArms(ALL_ARMS, RUNNER_POLICY_IDS);
 
-// Base ceilings that `scaledBudget` stretches under measured load, so a contended box never reads as a
-// false RED. No quiet-box figure exists past 47 arms, so each base clears the slowest LOADED measurement
-// above on its own (baseline 151s; overlaid passes 1137s at 347 arms) with room for the next chunk. The per-arm tests
-// carry the BATCH budget: they only read a kept verdict, but a filtered run that starts at one of them
-// proves every batch first.
+// A filtered per-policy assertion can trigger every planned pass before reading its cached verdict.
 const BASELINE_BASE_MS = 300_000;
 const BATCHES_BASE_MS = 1_500_000;
 const CONTROL_BASE_MS = 60_000;
@@ -117,7 +90,7 @@ function armFor(policyId: string): RealCorpusLivenessArm {
 }
 
 function rosterArm(policyId: string): RealCorpusLivenessArm {
-  const arm = ARMS.find((candidate) => candidate.policy.id === policyId);
+  const arm = ALL_ARMS.find((candidate) => candidate.policy.id === policyId);
   if (arm === undefined) {
     throw new Error(`the liveness roster has no arm for ${policyId}`);
   }
@@ -173,43 +146,76 @@ test("every chunk declares arms, and no policy carries two", () => {
   for (const [chunk, arms] of Object.entries(CHUNKS)) {
     expect(arms.length, `chunk ${chunk} declares no arms`).toBeGreaterThan(0);
   }
-  const ids = ARMS.map((arm) => arm.policy.id);
+  const ids = ALL_ARMS.map((arm) => arm.policy.id);
   expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([]);
 });
 
-test("the batch plan puts every arm in exactly one pass, and a rewriting arm shares only an identical overlay set", () => {
-  const plan = planLivenessBatches(ARMS);
+test("the batch plan retains every arm and shares only identical ordered interventions", () => {
+  const plan = planLivenessBatches(ALL_ARMS);
+  expect(plan.flat()).toHaveLength(ALL_ARMS.length);
   expect(
     plan
       .flat()
       .map((arm) => arm.policy.id)
       .toSorted(),
-  ).toEqual(ARMS.map((arm) => arm.policy.id).toSorted());
-  const spelled = (arm: RealCorpusLivenessArm): string => JSON.stringify(arm.overlays.map((overlay) => JSON.stringify(overlay)).toSorted());
-  const mixedRewriters = plan
-    .filter((batch) => batch.some((arm) => arm.overlays.some((overlay) => overlay.kind !== "add")))
-    .filter((batch) => new Set(batch.map(spelled)).size > 1)
-    .map((batch) => batch.map((arm) => arm.policy.id));
-  expect(mixedRewriters, "a rewriting arm shares its pass with an arm that plants something else").toEqual([]);
+  ).toEqual(ALL_ARMS.map((arm) => arm.policy.id).toSorted());
+  for (const batch of plan) {
+    expect(new Set(batch.map((arm) => JSON.stringify(arm.overlays))).size).toBe(1);
+  }
 });
 
-test("every measured arm's policy is refusal-free and silent in its scope on the real tree", { timeout: scaledBudget(BASELINE_BASE_MS) }, ({ repoRoot }) => {
-  const opened = liveness(repoRoot);
-  const ran = opened.assertBaseline();
-  expect(ran.toSorted(), "the shared pass ran every measured arm's policy").toEqual(
-    opened
-      .baselineArms()
-      .map((arm) => arm.policy.id)
-      .toSorted(),
-  );
+test("identical interventions share a pass without a synthetic-file cutoff", () => {
+  const first = rosterArm(queryBoundaryReservationHealth.id);
+  const second = rosterArm(queryBoundaryReservation.id);
+  const [ownSite, secondSite, ...rest] = first.overlays;
+  if (secondSite === undefined) {
+    throw new Error("the ordering control needs two overlays");
+  }
+  const large: RealCorpusLivenessArm = {
+    ...first,
+    overlays: [
+      ownSite,
+      secondSite,
+      ...rest,
+      ...Array.from({ length: ALL_ARMS.length }, (_, index) => ({
+        kind: "add" as const,
+        path: `packages/client/src/components/liveness-plan-${String(index)}.tsx`,
+        source: "export const control = true;\n",
+      })),
+    ],
+  };
+  const identical = { ...second, overlays: large.overlays };
+  expect(planLivenessBatches([large, identical])).toEqual([[large, identical]]);
+  const reordered: RealCorpusLivenessArm = { ...second, overlays: [secondSite, ...rest, ownSite] };
+  expect(planLivenessBatches([first, reordered])).toEqual([[first], [reordered]]);
 });
 
-test("the overlaid batches produce a verdict for every arm", { timeout: scaledBudget(BATCHES_BASE_MS) }, ({ repoRoot }) => {
-  // One line per settled batch: this test alone outlasts the supervisor's no-output ceiling (measured in the header).
-  const verdicts = liveness(repoRoot).proveAll(({ index, of, arms, ms }) => {
-    console.log(
-      `liveness batch ${String(index + 1)}/${String(of)}: ${String(arms.length)} arm(s), ${String(ms)}ms (${arms[0] ?? ""}${arms.length > 1 ? ", ..." : ""})`,
+test.runIf(ARMS.length > 0)(
+  "every measured arm's policy is refusal-free and silent in its scope on the real tree",
+  { timeout: scaledBudget(BASELINE_BASE_MS) },
+  ({ repoRoot }) => {
+    const opened = liveness(repoRoot);
+    const ran = opened.assertBaseline();
+    expect(ran.toSorted(), "the shared pass ran every measured arm's policy").toEqual(
+      opened
+        .baselineArms()
+        .map((arm) => arm.policy.id)
+        .toSorted(),
     );
+  },
+);
+
+test.runIf(ARMS.length > 0)("the overlaid batches produce a verdict for every arm", { timeout: scaledBudget(BATCHES_BASE_MS) }, ({ repoRoot }) => {
+  // Settled batches show progress while preserving the supervisor's hung-pass detection.
+  const verdicts = liveness(repoRoot).proveAll((progress) => {
+    const { index, of, arms, ms, passes } = progress;
+    console.log(
+      `liveness batch ${String(index + 1)}/${String(of)}: ${String(arms.length)} arm(s), ${String(passes)} corpus pass(es), ${String(ms)}ms (${arms[0] ?? ""}${arms.length > 1 ? ", ..." : ""})`,
+    );
+    console.log(`liveness timing ${JSON.stringify(progress)}`);
+    const expectedFacts = [...new Set(ARMS.filter((arm) => arms.includes(arm.policy.id)).flatMap((arm) => arm.policy.facts.map(({ id }) => id)))];
+    expect(progress.measurements.flatMap((measurement) => measurement.policies.map(({ id }) => id)).toSorted()).toEqual(arms.toSorted());
+    expect(progress.measurements.flatMap((measurement) => measurement.facts.map(({ id }) => id)).toSorted()).toEqual(expectedFacts.toSorted());
   });
   expect([...verdicts.keys()].toSorted()).toEqual(ARMS.map((arm) => arm.policy.id).toSorted());
 });
@@ -222,133 +228,297 @@ test.for(ARMS.map((arm) => [arm.policy.id, arm] as const))(
   },
 );
 
-test("the Zod output twin control detects its real-corpus overlay alone", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
-  const arm = rosterArm("zod-output-twin-parity");
-  const verdict = liveness(repoRoot).proveBatch([arm]).get(arm.policy.id);
-  if (verdict === undefined) {
-    throw new Error(`${arm.policy.id}: the planted control produced no verdict`);
-  }
-  expect(assertArmVerdict(arm, verdict).join("\n")).toContain(arm.messageIncludes);
-});
-
-test("the three closeout policies report their planted population loss", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
-  for (const policyId of ["css-var-defined-health", "open-json-column-key-parity-health", "no-manual-memo-compiler-health"] as const) {
-    const arm = rosterArm(policyId);
-    const verdict = liveness(repoRoot).proveBatch([arm]).get(policyId);
+test.runIf(instrumentAffectedIncludes(AFFECTED_POLICY_IDS, ["zod-output-twin-parity"]))(
+  "the Zod output twin control detects its real-corpus overlay alone",
+  { timeout: scaledBudget(CONTROL_BASE_MS) },
+  ({ repoRoot }) => {
+    const arm = rosterArm("zod-output-twin-parity");
+    const verdict = liveness(repoRoot).proveBatch([arm]).get(arm.policy.id);
     if (verdict === undefined) {
-      throw new Error(`${policyId}: the planted control produced no verdict`);
+      throw new Error(`${arm.policy.id}: the planted control produced no verdict`);
     }
-    expect(assertArmVerdict(arm, verdict).join("\n"), `${policyId}: the planted control reported a different defect`).toContain(arm.messageIncludes);
-  }
-});
+    expect(assertArmVerdict(arm, verdict).join("\n")).toContain(arm.messageIncludes);
+  },
+);
 
-test("the three closeout overlays stay silent when their watched population remains healthy", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
-  for (const policyId of ["css-var-defined-health", "open-json-column-key-parity-health", "no-manual-memo-compiler-health"] as const) {
-    const healthy = healthyCloseoutArm(policyId);
-    const verdict = liveness(repoRoot).proveBatch([healthy]).get(policyId);
-    if (verdict === undefined) {
-      throw new Error(`${policyId}: the healthy control produced no verdict`);
+test.runIf(instrumentAffectedIncludes(AFFECTED_POLICY_IDS, CLOSEOUT_POLICY_IDS))(
+  "the selected closeout policies report their planted population loss",
+  { timeout: scaledBudget(CONTROL_BASE_MS) },
+  ({ repoRoot }) => {
+    for (const policyId of selectedInstrumentAffectedPolicyIds(AFFECTED_POLICY_IDS, CLOSEOUT_POLICY_IDS)) {
+      const arm = rosterArm(policyId);
+      const verdict = liveness(repoRoot).proveBatch([arm]).get(policyId);
+      if (verdict === undefined) {
+        throw new Error(`${policyId}: the planted control produced no verdict`);
+      }
+      expect(assertArmVerdict(arm, verdict).join("\n"), `${policyId}: the planted control reported a different defect`).toContain(arm.messageIncludes);
     }
-    expect(verdict.refusals, `${policyId}: the healthy overlay refused instead of measuring the policy`).toEqual([]);
-    expect(() => assertArmVerdict(healthy, verdict), `${policyId}: the overlay itself manufactured a finding`).toThrow(
-      "reported NOTHING for a real-corpus positive control",
+  },
+);
+
+test.runIf(instrumentAffectedIncludes(AFFECTED_POLICY_IDS, CLOSEOUT_POLICY_IDS))(
+  "the selected closeout overlays stay silent when their watched population remains healthy",
+  { timeout: scaledBudget(CONTROL_BASE_MS) },
+  ({ repoRoot }) => {
+    for (const policyId of selectedInstrumentAffectedPolicyIds(AFFECTED_POLICY_IDS, CLOSEOUT_POLICY_IDS)) {
+      const healthy = healthyCloseoutArm(policyId);
+      const verdict = liveness(repoRoot).proveBatch([healthy]).get(policyId);
+      if (verdict === undefined) {
+        throw new Error(`${policyId}: the healthy control produced no verdict`);
+      }
+      expect(verdict.refusals, `${policyId}: the healthy overlay refused instead of measuring the policy`).toEqual([]);
+      expect(() => assertArmVerdict(healthy, verdict), `${policyId}: the overlay itself manufactured a finding`).toThrow(
+        "reported NOTHING for a real-corpus positive control",
+      );
+    }
+  },
+);
+
+test.runIf(instrumentAffectedIncludes(AFFECTED_POLICY_IDS, DEAD_BATCH_CONTROL_IDS))(
+  "partitioning preserves a live verdict and a DEAD batch-mate is still named dead",
+  { timeout: scaledBudget(CONTROL_BASE_MS) },
+  ({ repoRoot }) => {
+    // Partitioning must not lend the dead control the live policy's finding.
+    const live = armFor("chrome-registry-completeness");
+    const deadOf = armFor("testid-typed-only");
+    const dead: RealCorpusLivenessArm = {
+      ...deadOf,
+      overlays: [{ kind: "add", path: "packages/client/src/components/liveness-clean-control.tsx", source: "export const clean = 1;\n" }],
+    };
+    const verdicts = liveness(repoRoot).proveBatch([live, dead]);
+    const liveVerdict = verdicts.get(live.policy.id);
+    const deadVerdict = verdicts.get(dead.policy.id);
+    if (liveVerdict === undefined || deadVerdict === undefined) {
+      throw new Error("the control batch produced no verdict for one of its two arms");
+    }
+    const isolatedLive = liveness(repoRoot).proveBatch([live]).get(live.policy.id);
+    if (isolatedLive === undefined) {
+      throw new Error("the isolated partition produced no verdict for the live arm");
+    }
+    const evidence = (verdict: RealCorpusArmVerdict): Pick<RealCorpusArmVerdict, "messages" | "refusals" | "outOfScope" | "staleGrants"> => ({
+      messages: verdict.messages,
+      refusals: verdict.refusals,
+      outOfScope: verdict.outOfScope,
+      staleGrants: verdict.staleGrants,
+    });
+    expect(evidence(liveVerdict), "partitioning changed the live arm's verdict evidence").toEqual(evidence(isolatedLive));
+    expect(deadVerdict.batch, "distinct interventions are proved separately").toEqual([dead.policy.id]);
+    expect(assertArmVerdict(live, liveVerdict).join("\n")).toContain(live.messageIncludes);
+    expect(() => assertArmVerdict(dead, deadVerdict)).toThrow("reported NOTHING for a real-corpus positive control");
+  },
+);
+
+test.runIf(instrumentAffectedIncludes(AFFECTED_POLICY_IDS, DEPENDENCY_CONTROL_IDS))(
+  "a duplicate-key finding that depends on a companion intervention is not credited",
+  { timeout: scaledBudget(CONTROL_BASE_MS) },
+  ({ repoRoot }) => {
+    // Each duplicate site alone is healthy; another policy cannot supply the missing site.
+    const health = armFor(queryBoundaryReservationHealth.id);
+    const [ownSite, mateSite] = health.overlays;
+    if (mateSite === undefined) {
+      throw new Error("the reservation-health arm no longer carries its two duplicate sites");
+    }
+    const identicalMate: RealCorpusLivenessArm = { ...armFor(queryBoundaryReservation.id), overlays: health.overlays };
+    const shared = liveness(repoRoot).proveBatch([health, identicalMate]).get(health.policy.id);
+    if (shared === undefined) {
+      throw new Error("the identical intervention control produced no verdict");
+    }
+    expect(shared.batch).toEqual([health.policy.id, identicalMate.policy.id]);
+    expect(assertArmVerdict(health, shared).join("\n")).toContain(health.messageIncludes);
+    const halfHealth: RealCorpusLivenessArm = { ...health, overlays: [ownSite] };
+    const mate: RealCorpusLivenessArm = { ...armFor(queryBoundaryReservation.id), overlays: [mateSite] };
+    const verdict = liveness(repoRoot).proveBatch([halfHealth, mate]).get(health.policy.id);
+    if (verdict === undefined) {
+      throw new Error("the control batch produced no verdict for the health arm");
+    }
+    expect(verdict.batch, "the verdict measures only the policy's own intervention").toEqual([health.policy.id]);
+    expect(() => assertArmVerdict(halfHealth, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
+  },
+);
+
+test.runIf(instrumentAffectedIncludes(AFFECTED_POLICY_IDS, DEPENDENCY_CONTROL_IDS))(
+  "an own-path-only finding cannot borrow an unreported dependency from a companion",
+  { timeout: scaledBudget(CONTROL_BASE_MS) },
+  ({ repoRoot }) => {
+    const original = armFor(queryBoundaryReservationHealth.id);
+    const [own, companion] = original.overlays;
+    if (own.kind !== "add" || companion?.kind !== "add") {
+      throw new Error("the reservation-health control needs two added source files");
+    }
+    const dependent: RealCorpusLivenessArm = {
+      ...original,
+      overlays: [own],
+      policy: defineGate({
+        ...original.policy,
+        create: (ctx) => ({
+          evaluate: () => {
+            const paths = new Set(ctx.files.map((file) => ctx.relativePath(file)));
+            if (paths.has(own.path) && paths.has(companion.path)) {
+              ctx.report.file(own.path, { line: 1, message: original.messageIncludes });
+            }
+          },
+        }),
+      }),
+    };
+    const mate: RealCorpusLivenessArm = { ...armFor(queryBoundaryReservation.id), overlays: [companion] };
+    const complete: RealCorpusLivenessArm = { ...dependent, overlays: [own, companion] };
+    const plantedRunner = openRealCorpusLiveness(repoRoot, [dependent, mate]);
+    const positive = plantedRunner.proveBatch([complete]).get(dependent.policy.id);
+    if (positive === undefined) {
+      throw new Error("the complete hidden-dependency control produced no verdict");
+    }
+    expect(assertArmVerdict(complete, positive)).toEqual([original.messageIncludes]);
+    expect(positive.outOfScope).toBe(JSON.stringify([{ file: own.path, message: original.messageIncludes }]));
+
+    const isolated = plantedRunner.proveBatch([dependent]).get(dependent.policy.id);
+    if (isolated === undefined) {
+      throw new Error("the isolated hidden-dependency control produced no verdict");
+    }
+    expect(isolated.refusals).toEqual([]);
+    expect(() => assertArmVerdict(dependent, isolated)).toThrow("reported NOTHING for a real-corpus positive control");
+
+    const separated = plantedRunner.proveBatch([dependent, mate]).get(dependent.policy.id);
+    if (separated === undefined) {
+      throw new Error("the separated hidden-dependency control produced no verdict");
+    }
+    expect(separated.refusals).toEqual([]);
+    expect(() => assertArmVerdict(dependent, separated)).toThrow("reported NOTHING for a real-corpus positive control");
+    expect(separated.batch).toEqual([dependent.policy.id]);
+
+    const progress: LivenessBatchProgress[] = [];
+    const measured = plantedRunner.proveAll((batch) => progress.push(batch));
+    expect(measured.get(dependent.policy.id)).toEqual(isolated);
+    expect([...measured.keys()].toSorted()).toEqual([dependent.policy.id, mate.policy.id].toSorted());
+    expect(progress.map((batch) => batch.arms)).toEqual([[dependent.policy.id], [mate.policy.id]]);
+    for (const batch of progress) {
+      expect(batch.passes).toBe(batch.measurements.length);
+      expect(batch.measurements.flatMap((measurement) => measurement.policies.map(({ id }) => id))).toEqual(batch.arms);
+      for (const measurement of batch.measurements) {
+        expect(measurement.facts).toEqual([]);
+        expect(measurement.pass.policyMs).toBe(measurement.policies.reduce((sum, policy) => sum + policy.timing.totalMs, 0));
+        expect(measurement.pass.factMs).toBe(0);
+        const timings = [
+          measurement.preparationMs,
+          measurement.overlayMs,
+          measurement.executionMs,
+          measurement.restorationMs,
+          ...Object.values(measurement.pass),
+          ...measurement.policies.flatMap((policy) => [policy.timing.totalMs, ...Object.values(policy.timing.phaseMs)]),
+        ];
+        expect(timings.every((ms) => Number.isFinite(ms) && ms >= 0)).toBe(true);
+      }
+    }
+    expect(plantedRunner.proveAll((batch) => progress.push(batch))).toBe(measured);
+    expect(progress).toHaveLength(2);
+  },
+);
+
+test.runIf(instrumentAffectedIncludes(AFFECTED_POLICY_IDS, REPORT_ANCHOR_CONTROL_IDS))(
+  "an add-only control cannot credit an existing report anchor without baseline silence",
+  { timeout: scaledBudget(CONTROL_BASE_MS) },
+  ({ repoRoot }) => {
+    const original = armFor(queryBoundaryReservationHealth.id);
+    const [own] = original.overlays;
+    if (own.kind !== "add") {
+      throw new Error("the baseline anchor control needs an added source file");
+    }
+    const anchoredRunnerFor = (reportWithoutOverlay: boolean): RealCorpusLivenessRunner => {
+      const anchored: RealCorpusLivenessArm = {
+        ...original,
+        overlays: [own],
+        reportsAt: [QUERY_BOUNDARY_HOME],
+        policy: defineGate({
+          ...original.policy,
+          create: (ctx) => ({
+            evaluate: () => {
+              if (reportWithoutOverlay || ctx.files.some((file) => ctx.relativePath(file) === own.path)) {
+                ctx.report.file(QUERY_BOUNDARY_HOME, { line: 1, message: original.messageIncludes });
+              }
+            },
+          }),
+        }),
+      };
+      const anchoredRunner = openRealCorpusLiveness(repoRoot, [anchored]);
+      const overlaid = anchoredRunner.proveBatch([anchored]).get(anchored.policy.id);
+      if (overlaid === undefined) {
+        throw new Error("the existing-anchor control produced no verdict");
+      }
+      expect(assertArmVerdict(anchored, overlaid)).toEqual([original.messageIncludes]);
+      expect(overlaid.outOfScope).toBe(JSON.stringify([{ file: QUERY_BOUNDARY_HOME, message: original.messageIncludes }]));
+      expect(anchoredRunner.baselineArms()).toEqual([anchored]);
+      return anchoredRunner;
+    };
+    const polluted = anchoredRunnerFor(true);
+    const healthy = anchoredRunnerFor(false);
+    expect(() => polluted.assertBaseline()).toThrow("already report in their arm's scope before any overlay");
+    expect(healthy.assertBaseline()).toEqual([original.policy.id]);
+  },
+);
+
+test.runIf(instrumentAffectedIncludes(AFFECTED_POLICY_IDS, RESOURCE_CONTROL_IDS))(
+  "a RESOURCE overlay that plants nothing is refused — the reader's overlay seam cannot make a policy speak",
+  {
+    timeout: scaledBudget(CONTROL_BASE_MS),
+  },
+  ({ repoRoot }) => {
+    // The planted negative for `kind: "resource"`: the ownership arm's real sheet, handed a tail that is only a
+    // comment. If the overlay alone made the policy report, every green resource arm would be unfalsified.
+    const ownership = FRONTEND_ARMS.find((arm) => arm.grantConsumption !== true && arm.overlays.some((overlay) => overlay.kind === "resource"));
+    const planted = ownership?.overlays.find(
+      (overlay): overlay is Extract<RealCorpusLivenessArm["overlays"][number], { readonly kind: "resource" }> => overlay.kind === "resource",
     );
-  }
-});
+    if (ownership === undefined || planted === undefined) {
+      throw new Error("the frontend chunk carries no resource arm, so the control has nothing to drive");
+    }
+    const dead: RealCorpusLivenessArm = { ...ownership, overlays: [{ kind: "resource", path: planted.path, append: "\n/* liveness clean control */\n" }] };
+    const verdict = liveness(repoRoot).proveBatch([dead]).get(dead.policy.id);
+    if (verdict === undefined) {
+      throw new Error("the control batch produced no verdict for its arm");
+    }
+    expect(() => assertArmVerdict(dead, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
+  },
+);
 
-test("a DEAD arm batched beside a live one is still named dead", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
-  // The planted negative for batching: two real armed policies in ONE overlaid pass, one of them handed a
-  // source that violates nothing. Sharing the pass must not lend the dead arm the live one's finding.
-  const live = armFor("chrome-registry-completeness");
-  const deadOf = armFor("testid-typed-only");
-  const dead: RealCorpusLivenessArm = {
-    ...deadOf,
-    overlays: [{ kind: "add", path: "packages/client/src/components/liveness-clean-control.tsx", source: "export const clean = 1;\n" }],
-  };
-  const verdicts = liveness(repoRoot).proveBatch([live, dead]);
-  const liveVerdict = verdicts.get(live.policy.id);
-  const deadVerdict = verdicts.get(dead.policy.id);
-  if (liveVerdict === undefined || deadVerdict === undefined) {
-    throw new Error("the control batch produced no verdict for one of its two arms");
-  }
-  expect(deadVerdict.batch, "the two arms really shared one pass").toEqual([live.policy.id, dead.policy.id]);
-  expect(assertArmVerdict(live, liveVerdict).join("\n")).toContain(live.messageIncludes);
-  expect(() => assertArmVerdict(dead, deadVerdict)).toThrow("reported NOTHING for a real-corpus positive control");
-});
+test.runIf(instrumentAffectedIncludes(AFFECTED_POLICY_IDS, ["test-executable-mode"]))(
+  "a TRACKED-MODE overlay that keeps the real test non-executable stays silent",
+  { timeout: scaledBudget(CONTROL_BASE_MS) },
+  ({ repoRoot }) => {
+    const executableMode = rosterArm("test-executable-mode");
+    const planted = executableMode.overlays.find(
+      (overlay): overlay is Extract<RealCorpusLivenessArm["overlays"][number], { readonly kind: "tracked-mode" }> => overlay.kind === "tracked-mode",
+    );
+    if (planted === undefined) {
+      throw new Error("the executable-mode arm carries no tracked-mode overlay, so the control has nothing to drive");
+    }
+    const dead: RealCorpusLivenessArm = { ...executableMode, overlays: [{ ...planted, executable: false }] };
+    const verdict = liveness(repoRoot).proveBatch([dead]).get(dead.policy.id);
+    if (verdict === undefined) {
+      throw new Error("the tracked-mode control produced no verdict");
+    }
+    expect(verdict.refusals, "the ordinary-mode control refused instead of reading the real candidate index").toEqual([]);
+    expect(() => assertArmVerdict(dead, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
+  },
+);
 
-test("an arm that speaks only BECAUSE of its batch-mate is caught and proved alone", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
-  // The planted negative for the entanglement detector. `query-boundary-reservation-health` reports a
-  // `reserveKey` minted at TWO sites. Hand it ONE site, and give the other to a batch-mate of a different
-  // policy: in the shared pass the pair exists and the health policy reports at BOTH paths, so a detector
-  // that trusted the batch would credit the health arm with a finding its own overlay cannot make.
-  const health = armFor(queryBoundaryReservationHealth.id);
-  const [ownSite, mateSite] = health.overlays;
-  if (mateSite === undefined) {
-    throw new Error("the reservation-health arm no longer carries its two duplicate sites");
-  }
-  const halfHealth: RealCorpusLivenessArm = { ...health, overlays: [ownSite] };
-  const mate: RealCorpusLivenessArm = { ...armFor(queryBoundaryReservation.id), overlays: [mateSite] };
-  const verdict = liveness(repoRoot).proveBatch([halfHealth, mate]).get(health.policy.id);
-  if (verdict === undefined) {
-    throw new Error("the control batch produced no verdict for the health arm");
-  }
-  expect(verdict.entangledWith, "the detector saw the health policy report on its batch-mate's file").toEqual([mate.policy.id]);
-  expect(verdict.batch, "the verdict is the SOLO re-proof, not the shared pass").toEqual([health.policy.id]);
-  expect(() => assertArmVerdict(halfHealth, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
-});
-
-test("a RESOURCE overlay that plants nothing is refused — the reader's overlay seam cannot make a policy speak", {
-  timeout: scaledBudget(CONTROL_BASE_MS),
-}, ({ repoRoot }) => {
-  // The planted negative for `kind: "resource"`: the ownership arm's real sheet, handed a tail that is only a
-  // comment. If the overlay alone made the policy report, every green resource arm would be unfalsified.
-  const ownership = FRONTEND_ARMS.find((arm) => arm.grantConsumption !== true && arm.overlays.some((overlay) => overlay.kind === "resource"));
-  const planted = ownership?.overlays.find(
-    (overlay): overlay is Extract<RealCorpusLivenessArm["overlays"][number], { readonly kind: "resource" }> => overlay.kind === "resource",
-  );
-  if (ownership === undefined || planted === undefined) {
-    throw new Error("the frontend chunk carries no resource arm, so the control has nothing to drive");
-  }
-  const dead: RealCorpusLivenessArm = { ...ownership, overlays: [{ kind: "resource", path: planted.path, append: "\n/* liveness clean control */\n" }] };
-  const verdict = liveness(repoRoot).proveBatch([dead]).get(dead.policy.id);
-  if (verdict === undefined) {
-    throw new Error("the control batch produced no verdict for its arm");
-  }
-  expect(() => assertArmVerdict(dead, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
-});
-
-test("a TRACKED-MODE overlay that keeps the real test non-executable stays silent", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
-  const executableMode = rosterArm("test-executable-mode");
-  const planted = executableMode.overlays.find(
-    (overlay): overlay is Extract<RealCorpusLivenessArm["overlays"][number], { readonly kind: "tracked-mode" }> => overlay.kind === "tracked-mode",
-  );
-  if (planted === undefined) {
-    throw new Error("the executable-mode arm carries no tracked-mode overlay, so the control has nothing to drive");
-  }
-  const dead: RealCorpusLivenessArm = { ...executableMode, overlays: [{ ...planted, executable: false }] };
-  const verdict = liveness(repoRoot).proveBatch([dead]).get(dead.policy.id);
-  if (verdict === undefined) {
-    throw new Error("the tracked-mode control produced no verdict");
-  }
-  expect(verdict.refusals, "the ordinary-mode control refused instead of reading the real candidate index").toEqual([]);
-  expect(() => assertArmVerdict(dead, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
-});
-
-test("a GRANT-CONSUMPTION arm whose overlay leaves the licensed subject in place is refused", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
-  // The planted negative for `grantConsumption`: the same policy, its real sheet plus a comment. The recipes
-  // are still painted, so the grants stay consumed and the arm must fail — otherwise "went stale" would be
-  // something the runner produces rather than something the policy's reading of the subject produces.
-  const consuming = FRONTEND_ARMS.find((arm) => arm.grantConsumption === true);
-  const planted = consuming?.overlays.find(
-    (overlay): overlay is Extract<RealCorpusLivenessArm["overlays"][number], { readonly kind: "resource" }> => overlay.kind === "resource",
-  );
-  if (consuming === undefined || planted === undefined) {
-    throw new Error("the frontend chunk carries no grant-consumption arm, so the control has nothing to drive");
-  }
-  const dead: RealCorpusLivenessArm = { ...consuming, overlays: [{ kind: "resource", path: planted.path, append: "\n/* liveness clean control */\n" }] };
-  const verdict = liveness(repoRoot).proveBatch([dead]).get(dead.policy.id);
-  if (verdict === undefined) {
-    throw new Error("the control batch produced no verdict for its arm");
-  }
-  expect(() => assertArmVerdict(dead, verdict)).toThrow("its grants stayed consumed");
-});
+test.runIf(instrumentAffectedIncludes(AFFECTED_POLICY_IDS, GRANT_CONSUMPTION_CONTROL_IDS))(
+  "a GRANT-CONSUMPTION arm whose overlay leaves the licensed subject in place is refused",
+  { timeout: scaledBudget(CONTROL_BASE_MS) },
+  ({ repoRoot }) => {
+    // The planted negative for `grantConsumption`: the same policy, its real sheet plus a comment. The recipes
+    // are still painted, so the grants stay consumed and the arm must fail — otherwise "went stale" would be
+    // something the runner produces rather than something the policy's reading of the subject produces.
+    const consuming = FRONTEND_ARMS.find((arm) => arm.grantConsumption === true);
+    const planted = consuming?.overlays.find(
+      (overlay): overlay is Extract<RealCorpusLivenessArm["overlays"][number], { readonly kind: "resource" }> => overlay.kind === "resource",
+    );
+    if (consuming === undefined || planted === undefined) {
+      throw new Error("the frontend chunk carries no grant-consumption arm, so the control has nothing to drive");
+    }
+    const dead: RealCorpusLivenessArm = { ...consuming, overlays: [{ kind: "resource", path: planted.path, append: "\n/* liveness clean control */\n" }] };
+    const verdict = liveness(repoRoot).proveBatch([dead]).get(dead.policy.id);
+    if (verdict === undefined) {
+      throw new Error("the control batch produced no verdict for its arm");
+    }
+    expect(() => assertArmVerdict(dead, verdict)).toThrow("its grants stayed consumed");
+  },
+);

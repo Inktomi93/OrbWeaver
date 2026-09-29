@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 624,
+    "sites": 642,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 624,
+      "deliberate-absorb": 642,
       "unproven": 0
     },
     "byGrammar": {
       "default": 153,
-      "empty": 320,
-      "promise": 151
+      "empty": 330,
+      "promise": 159
     }
   },
   "rows": [
@@ -171,6 +171,16 @@
       "reason": "documented in the JSDoc above — any failure resolves to undefined and the caller renders nothing. Ends if rendering nothing stops being an acceptable fallback."
     },
     {
+      "siteId": "packages/client/src/data/use-plugin-frame.ts::revokeFrameInBackground::revokePluginFrame::1",
+      "verdict": "deliberate-absorb",
+      "reason": "revokePluginFrame contains network failures, and teardown must remain best-effort. Ends if revocation gains a user-visible failure path."
+    },
+    {
+      "siteId": "packages/client/src/data/use-plugin-frame.ts::revokePluginFrame::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "cleanup is best-effort; server TTL remains the final bound if navigation wins the race or the network is already gone. Ends if handle revocation becomes user-visible."
+    },
+    {
       "siteId": "packages/client/src/data/use-plugin-frame.ts::usePluginFrameSrc::pending::1",
       "verdict": "deliberate-absorb",
       "reason": "mintPluginFrame's own catch already collapsed any failure to `undefined`; the reject arm here only exists for symmetry and sets the same render-floor state as the resolve arm. Ends if mintPluginFrame stops swallowing its own failures."
@@ -291,11 +301,6 @@
       "reason": "createEntityMutation's own errorToast already surfaced the failure — nothing to expand. Ends if useCreatePersona drops its errorToast."
     },
     {
-      "siteId": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx::PluginDistributeBody::withdraw.mutateAsync::1",
-      "verdict": "deliberate-absorb",
-      "reason": "useWithdrawPlugin carries errorToast: serverReason(\"Couldn't withdraw that plugin.\") — the toast is the surface. Ends if that mutation drops its errorToast."
-    },
-    {
       "siteId": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx::PluginDistributeBody.onDistribute::distribute.mutateAsync::1",
       "verdict": "deliberate-absorb",
       "reason": "useDistributePlugin carries errorToast: serverReason(\"Couldn't distribute that plugin.\") — the toast is the surface. Ends if that mutation drops its errorToast."
@@ -308,12 +313,7 @@
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-install-card.tsx::PluginInstallCard.onInstall::settled::1",
       "verdict": "deliberate-absorb",
-      "reason": "both useInstallPlugin and useInstallPluginFromUrl carry an errorToast (serverReason-wrapped) — the toast is the surface; the dialog just stays open. Ends if either mutation drops its errorToast."
-    },
-    {
-      "siteId": "packages/client/src/features/plugin/components/plugin-install-card.tsx::UrlInstallArm.onFetch::previewFromUrl.mutateAsync::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the rejection is caught below and sets a fixed leak-free error line (deliberately not error.message, an SSRF-oracle concern) — a rendered error state. Ends if the fixed message is replaced with a forwarded server reason."
+      "reason": "each install mutation carries an errorToast — the toast is the surface; the dialog stays open for retry. Ends if any install mutation drops its errorToast."
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::UpdateCheckRow::applyUpgrade::1",
@@ -326,9 +326,9 @@
       "reason": "runCheck already catches its own mutation's rejection internally, so it never rejects — belt-and-suspenders. Ends if runCheck stops catching internally."
     },
     {
-      "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::UpdateCheckRow.applyUpgrade::upgrade.mutateAsync::1",
+      "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::UpdateCheckRow.applyUpgrade::pending::1",
       "verdict": "deliberate-absorb",
-      "reason": "both upgrade mutations carry errorToast: serverReason(\"Couldn't update that plugin.\") — the toast is the surface. Ends if either mutation drops its errorToast."
+      "reason": "each upgrade mutation carries errorToast: serverReason(\"Couldn't update that plugin.\"); the toast owns the failure. Ends if any mutation drops it."
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-row-leaves.tsx::UpdateCheckRow.runCheck::check.mutateAsync::1",
@@ -341,11 +341,6 @@
       "reason": "useUpgradePlugin carries errorToast: serverReason(\"Couldn't update that plugin.\") — the toast is the surface. Ends if that mutation drops its errorToast."
     },
     {
-      "siteId": "packages/client/src/features/plugin/components/plugin-scripted-surface.tsx::PluginScriptedSurface::boot::1",
-      "verdict": "deliberate-absorb",
-      "reason": "\"FAILURE IS SILENCE (§4.9)\" is the file header's stated design law — a surface with no tree renders null exactly like a Tier-S surface with nothing published, and a crash still feeds reportCrash + the 3-strike policy. Ends if that law is retired."
-    },
-    {
       "siteId": "packages/client/src/features/plugin/components/plugin-surface-renderer.tsx::PluginSurfaceForm.submit::mutateAsync::1",
       "verdict": "deliberate-absorb",
       "reason": "the comment above explains — the mutation's own errorToast already told the person; this catch only keeps a handled rejection from surfacing as unhandled on this fire-and-forget path. Ends if that mutation drops its errorToast."
@@ -354,11 +349,6 @@
       "siteId": "packages/client/src/features/plugin/components/snippet-console.tsx::SnippetConsole.onRun::runSnippet.mutateAsync::1",
       "verdict": "deliberate-absorb",
       "reason": "useRunSnippet carries errorToast: serverReason(\"Couldn't run that snippet.\") — the toast is the surface. Ends if that mutation drops its errorToast."
-    },
-    {
-      "siteId": "packages/client/src/features/plugin/hooks/use-plugin-commands.ts::usePluginCommandRunner::mutateAsync::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the comment below explains — the mutation's own errorToast already told the person; this catch only keeps a handled rejection from surfacing as unhandled on this fire-and-forget path. Ends if that mutation drops its errorToast."
     },
     {
       "siteId": "packages/client/src/features/plugin/lib/plugin-tool-card-state.ts::parseJsonOrRaw::catch::1",
@@ -444,6 +434,11 @@
       "siteId": "packages/client/src/features/roster-preset/hooks/use-start-roster.ts::useStartRoster.startRoster::startChat::1",
       "verdict": "deliberate-absorb",
       "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the roster survives for retry. Ends if either mutation stops owning its failure copy."
+    },
+    {
+      "siteId": "packages/client/src/features/rpg/components/rpg-dice-composer-items.tsx::RpgDiceComposerItems::rollIntoDraft::1",
+      "verdict": "deliberate-absorb",
+      "reason": "mutation failures already show a notice; any later exceptional rejection reaches the browser error reporter. Ends if the reporter stops surfacing errors."
     },
     {
       "siteId": "packages/client/src/features/rpg/components/rpg-dice-tool-card.tsx::parseDiceResult::catch::1",
@@ -1426,6 +1421,16 @@
       "reason": "leak-free collapse — documented below: a foreign/unknown pluginId, \"no such surface\", and \"grant revoked\" all answer the SAME NOT_FOUND, the card-frame doorway's fail-closed posture. Ends if a caller needs to distinguish those causes."
     },
     {
+      "siteId": "packages/server/src/entry/http/plugin-frame.ts::registerPluginFrame::catch::3",
+      "verdict": "deliberate-absorb",
+      "reason": "every stale/removed/foreign asset condition is the same leak-free 404 at this passive resource boundary. Ends if this route starts returning typed errors."
+    },
+    {
+      "siteId": "packages/server/src/entry/http/plugin-frame.ts::registerPluginFrame::catch::4",
+      "verdict": "deliberate-absorb",
+      "reason": "a frame-body failure closes this passive handle read as the same leak-free miss as a revoked grant or removed surface. Ends if this route returns typed errors."
+    },
+    {
       "siteId": "packages/server/src/entry/http/plugin-ui.ts::registerPluginUi::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "leak-free collapse — documented below: every domain refusal (foreign plugin, torn CAS entry, unparseable bundle) collapses to ONE NOT_FOUND, the same containment `blob.ts` gives a torn blob. Ends if a caller needs to distinguish those causes."
@@ -1571,6 +1576,31 @@
       "reason": "an attacker-influenceable provider image URL where every failure (SSRF egress-block, non-2xx, byte-cap, network) collapses to null and the caller drops the image; the SSRF block is already securityEvent'd at the connector before this catch, so returning null never opens egress or loses the event. Ends if a block reaches here un-logged."
     },
     {
+      "siteId": "packages/server/src/infra/plugin-host/broker-entry.ts::<module>::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed authenticated wire input destroys the sole parent socket; close then resets every runtime and pending bridge. Ends if socket close stops owning full broker reset."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/broker-entry.ts::handleCommand::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed, stale, or capacity-refused commands become the matching RPC error response to the authenticated parent. Ends if send stops carrying the caught error."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/broker-entry.ts::handleWorkerCommandResponse::terminateRuntime::1",
+      "verdict": "deliberate-absorb",
+      "reason": "termination failure becomes the command's explicit error response; success is not acknowledged before the physical Worker exits. Ends if the rejection arm stops carrying the error."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/broker-entry.ts::readOrCreateToken::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ENOENT alone is the create-new-token state; every other read or validation failure is rethrown. Ends if a second error code is accepted here."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/broker-entry.ts::terminateDetached::worker.terminate::1",
+      "verdict": "deliberate-absorb",
+      "reason": "detached termination fails the broker closed on the microtask queue. Ends if the queued throw is removed."
+    },
+    {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::attachAsync::Promise.race::1",
       "verdict": "deliberate-absorb",
       "reason": "the GUEST owns it — the rejection arm below reaches `deferred.reject(err)`, preserving the Error's NAME so a plugin can feature-detect by type. The one path that DROPS is the `!ctx.alive` guard, and dropping there is required: the guest promise this would settle no longer exists, so touching the disposed context is a use-after-free that escapes as an unhandled rejection. Ends if a disposed context gains a safe late-failure sink."
@@ -1586,9 +1616,84 @@
       "reason": "guest-supplied command metadata that fails to dump/validate is REFUSED registration (onRun handle disposed, warn logged) — a malformed untrusted plugin def can never register a live command, the fail-closed direction. Ends if a dump/parse failure ever returns a live command instead of ctx.undefined."
     },
     {
-      "siteId": "packages/server/src/infra/plugin-host/port.ts::createPluginHost.invoke::run::1",
+      "siteId": "packages/server/src/infra/plugin-host/port.ts::createLocalPluginHost.invoke::run::1",
       "verdict": "deliberate-absorb",
       "reason": "the comment above is the contract — the tail is a `void`-typed BARRIER that must never reject, or one deadlined invoke wedges the chain for every later one. Both arms do the identical bookkeeping on purpose, and the caller still gets the real outcome from `return await run` on the next line. Ends if the tail becomes the only reader of `run`."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.command::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the command promise is rejected with the write failure and the unusable socket is destroyed. Ends if either caller delivery or connection teardown is removed."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.command::this.terminateManagedForTest::1",
+      "verdict": "deliberate-absorb",
+      "reason": "forced broker death reaches the disconnect owner, which invalidates bindings and rejects pending work. Ends if that error path stops reaching onDisconnect."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.connectWithRetry::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a live broker's transient connection failure is retried until success; the deadline, replaced endpoint, or exited child rethrows the failure to the caller. Ends if retry can stop without success or propagation."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.handle::this.handleBridge::1",
+      "verdict": "deliberate-absorb",
+      "reason": "socket teardown routes a detached bridge failure to the disconnect owner. Ends if teardown no longer rejects pending work and crashes residents."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.handleBridge::dispatchBridgeCall::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the failed host operation is sent as the matching bridge error and its liveness record is removed. Ends if either action is removed."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.handleBridge::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "authorization refusal is serialized back to the worker as this bridge call's explicit failure result. Ends if sendBridgeResult stops carrying the caught error."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.handleBridge::error::2",
+      "verdict": "deliberate-absorb",
+      "reason": "synchronous authorization or dispatch refusal is serialized back to the worker as this bridge call's explicit failure result. Ends if sendBridgeResult stops carrying the caught error."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.handleBridge::this.terminateManagedForTest::1",
+      "verdict": "deliberate-absorb",
+      "reason": "forced broker death reaches the disconnect owner, which invalidates bindings and rejects pending work. Ends if that error path stops reaching onDisconnect."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.parseBrokerLine::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed or oversized broker bytes are transferred to socket.destroy, which rejects pending work through the disconnect owner. Ends if socket destruction stops carrying the failure."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.sendBridgeResult::serializationError::1",
+      "verdict": "deliberate-absorb",
+      "reason": "serialization failure is replaced by a minimal protocol error response carrying that failure. Ends if the fallback response stops preserving the error."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.sendBridgeResult::socketError::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failure to send even the minimal response destroys the socket with that failure, rejecting all pending work through the disconnect owner. Ends if socket.destroy stops carrying it."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/sandbox.ts::Sandbox.settleActivationJobs::deferred.settled::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the guest promise already received this host rejection; this barrier waits only for quiescence so either settlement advances activation. Ends if the guest projection stops owning the rejection."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/warm-runtime-pool.ts::WarmRuntimePool.retireCancelled::this.retire::1",
+      "verdict": "deliberate-absorb",
+      "reason": "failed terminal retirement cancels the target with the same error and releases the capacity reservation. Ends if acquire can proceed for the target."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/warm-runtime-pool.ts::WarmRuntimePool.startDrain::this.drainChain::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a drain failure rejects every queued caller, then leaves the chain usable for later lifecycle work. Ends if a queued request can remain unresolved."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/worker-runtime.ts::<module>::run::1",
+      "verdict": "deliberate-absorb",
+      "reason": "every command rejection is encoded into the response with the same command id. Ends if the error response stops carrying the rejection."
     },
     {
       "siteId": "packages/server/src/infra/storage/cas.ts::createCas.putBytes::err::1",
@@ -1634,26 +1739,6 @@
       "siteId": "packages/server/src/transport/trpc/subscriptions.ts::withSubscriptionErrors::err::1",
       "verdict": "deliberate-absorb",
       "reason": "documented above — a modelled error becomes a typed terminal frame consumed by the client (and, when it is a provider fault, one log line); an unmodelled error is re-thrown. Ends if the re-throw for unmodelled errors is removed."
-    },
-    {
-      "siteId": "packages/showcase-plugins/src/index.ts::packShowcaseBundle::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — SCOPED to the read only (the comment below states why: a blanket catch around the whole function once turned a real fflate refusal into a silent \"bundle missing\"). Ends if the zip step below is folded back into this try."
-    },
-    {
-      "siteId": "packages/showcase-plugins/src/index.ts::readBundleAssets::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — a bundle with no `ui/assets/` directory ships no bundle assets, which is every one authored before #820. Ends if the directory becomes required rather than optional."
-    },
-    {
-      "siteId": "packages/showcase-plugins/src/index.ts::readOptionalEntry::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — the header states the contract: a missing `ui.js` means \"this bundle is Tier-S\" (skip that entry), not a failure. Ends if this entry becomes required rather than optional."
-    },
-    {
-      "siteId": "packages/showcase-plugins/src/index.ts::readShowcaseManifest::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — \"this package ships no such bundle\" is the contract (the `packShowcaseBundle` arm one function up). Ends if a missing bundle becomes a failure rather than an absence."
     },
     {
       "siteId": "packages/ui/src/content/message-media/message-media.tsx::hostOf::catch::1",
@@ -2859,6 +2944,11 @@
       "siteId": "tooling/src/stack/ops/prod-support.ts::tailLog::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable optional log renders the explicit no-log sentinel to the operator. Ends if missing logs become a clean shutdown claim."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/prod-up.ts::signalFailedSpawn::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH means the exact just-spawned process group is already gone, which satisfies this cleanup step. Ends if any non-ESRCH failure stops being rethrown."
     },
     {
       "siteId": "tooling/src/stack/ops/served-probe.ts::fetchServed::catch::1",

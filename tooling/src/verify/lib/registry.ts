@@ -223,6 +223,16 @@ const GATING_STAGES: readonly StageDef[] = [
   },
 
   {
+    name: "release:showcase-versions",
+    group: "structure",
+    tiers: STATIC,
+    argv: ["pnpm", "check:showcase-release"],
+    classify: ownScheme,
+    // The current compiled entry receipt and the base revision's receipt are the evidence plane; a
+    // narrowed file selection cannot prove that every changed installable byte has a version increase.
+  },
+
+  {
     name: "config:biome-rule-liveness",
     group: "structure",
     tiers: STATIC,

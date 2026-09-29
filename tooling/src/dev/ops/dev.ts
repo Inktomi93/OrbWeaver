@@ -20,6 +20,7 @@ import type { ChildExit, FullPriorityChild } from "../../_shared/proc.ts";
 import { spawnFullPriorityChild } from "../../_shared/proc.ts";
 import { childExitCode, forwardSignalsTo } from "../../_shared/proc-signals.ts";
 import { inheritedProcessEnv, processEnvValue } from "../../_shared/process-env.ts";
+import { buildShowcaseArtifacts, showcaseArtifactsAreCurrent } from "../../_shared/showcase-artifacts.ts";
 import type { DevChildName, DevLeaderHooks, WorkspacePackage } from "../contract/types.ts";
 import { awaitServerReady, SERVER_HEALTHZ_BASE_MS } from "../lib/boot.ts";
 import prettyOptions from "../lib/pino-pretty.json" with { type: "json" };
@@ -182,27 +183,10 @@ function prettyDestination(hooks: DevLeaderHooks): NodeJS.WritableStream {
   return hooks.logs === undefined ? process.stdout : createWriteStream(hooks.logs.server, { flags: "a" });
 }
 
-/** `pnpm dev`'s whole dispatch, and the leader body a detached supervisor runs. argv is without the
- *  node/script prefix. */
-export async function runDev(argv: readonly string[], hooks: DevLeaderHooks = {}): Promise<number> {
-  const parsed = parseDevArgv(argv);
-  if (!parsed.ok) {
-    warn(`dev: ${parsed.error}\n${DEV_USAGE}`);
-    return EXIT.misuse;
-  }
-  const serverEnv = await preflightServerEnv();
-  if (serverEnv === null) {
-    return EXIT.violations;
-  }
-  const vitePort = resolveVitePort(processEnvValue(VITE_PORT_ENV));
-  if (!vitePort.ok) {
-    warn(`dev: not starting; ${vitePort.error}`);
-    return EXIT.violations;
-  }
-  const packages = readWorkspacePackages();
+async function runDevChildren(serverEnv: ServerEnv, vitePort: number, packages: readonly WorkspacePackage[], hooks: DevLeaderHooks): Promise<number> {
   const server = findPackage(packages, SERVER_PACKAGE);
   const client = findPackage(packages, CLIENT_PACKAGE);
-  const env = devChildEnv(inheritedProcessEnv(), { server: serverEnv.PORT, vite: vitePort.port });
+  const env = devChildEnv(inheritedProcessEnv(), { server: serverEnv.PORT, vite: vitePort });
 
   const supervision = armSupervision();
   const serverPlan = serverSpawnPlan({ nodePath: process.execPath, server, watchRoots: serverWatchRoots(packages), cwd: process.cwd(), env });
@@ -245,8 +229,32 @@ export async function runDev(argv: readonly string[], hooks: DevLeaderHooks = {}
   if (viteChild.pid !== undefined) {
     hooks.onChild?.("vite", viteChild.pid);
   }
-  for (const line of devBannerLines({ vitePort: vitePort.port, serverPort: serverEnv.PORT, authMode: serverEnv.AUTH_MODE })) {
+  for (const line of devBannerLines({ vitePort, serverPort: serverEnv.PORT, authMode: serverEnv.AUTH_MODE })) {
     print(line);
   }
   return await superviseDev(supervision, serverExit, viteChild);
+}
+
+/** `pnpm dev`'s whole dispatch, and the leader body a detached supervisor runs. argv is without the
+ *  node/script prefix. */
+export async function runDev(argv: readonly string[], hooks: DevLeaderHooks = {}): Promise<number> {
+  const parsed = parseDevArgv(argv);
+  if (!parsed.ok) {
+    warn(`dev: ${parsed.error}\n${DEV_USAGE}`);
+    return EXIT.misuse;
+  }
+  if (!(showcaseArtifactsAreCurrent() || buildShowcaseArtifacts())) {
+    warn("dev: showcase plugin artifact build failed; no server was started.");
+    return EXIT.violations;
+  }
+  const serverEnv = await preflightServerEnv();
+  if (serverEnv === null) {
+    return EXIT.violations;
+  }
+  const vitePort = resolveVitePort(processEnvValue(VITE_PORT_ENV));
+  if (!vitePort.ok) {
+    warn(`dev: not starting; ${vitePort.error}`);
+    return EXIT.violations;
+  }
+  return await runDevChildren(serverEnv, vitePort.port, readWorkspacePackages(), hooks);
 }

@@ -21,15 +21,21 @@
 // READER SHAPES (all four the audit found): a `json_extract`/`json_each` `'$.k'` path in a `sql` template
 // (the column resolved through the template's own FROM/JOIN aliases or a drizzle `${table.col}`
 // interpolation), `blob["k"]`, `blob.k`, and the one-hop `f(blob, "k")` helper — the last three fenced on an
-// OPEN-BAG receiver TYPE (a string index signature / `unknown`), so a same-named local object is never
-// mistaken for the column.
+// OPEN-BAG receiver TYPE (a string index signature / `unknown`) and a member on the schema table's
+// `$inferSelect` row (including an array callback element or immutable local flow), so a same-named generic
+// payload is not a column. Immutable object destructuring preserves the source row and authored column name.
+// Destructuring defaults and dynamic column selectors on schema-bearing rows refuse. Parameter destructuring,
+// nested key bindings, rest-created row copies, and mutable destructured bindings remain outside this reader.
 //
 // DECLARED LIMITS, each with a mustPass row: a TYPED column is never judged (the type is the enforcer); an
 // INTERPOLATED json path (`json_extract(${col}, ${sel.path})` — the live allowlisted caption drill) names no
 // literal key; `Object.keys(blob)` / `blob[key]` iterate rather than name; a reader whose blob reached it
 // through an untyped hop (a Map, a parameter named nothing like the column) is invisible to a column-scoped
 // reader index — the audit's §9.1 limit, inherited deliberately because the alternative (a corpus-wide
-// name sweep) is contaminated by the READER's own vocabulary map.
+// name sweep) is contaminated by the READER's own vocabulary map. A bare parameter or structurally similar
+// payload has no schema-row provenance and is likewise invisible to the TypeScript reader. A row supplied by
+// a dynamic call with no declared schema-derived type cannot be proven and needs an explicit typed read seam.
+// A mixed schema/payload union whose live arm cannot be resolved refuses instead of silently choosing one.
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { openJsonParityFact } from "../lib/open-json-parity-fact.ts";
@@ -37,6 +43,10 @@ import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 
 const OPERATION = "open-json-key-read";
+
+const SQLITE_ROW_PROOF =
+  "export declare function text(name: string, options?: unknown): { $type<T>(): { notNull(): unknown } };\n" +
+  "export declare function sqliteTable(name: string, columns: Record<string, unknown>): { $inferSelect: { key: string; value: Record<string, unknown> } };\n";
 
 const MESSAGE =
   'an OPEN JSON column (mode:"json" + $type<Record<string, unknown>|unknown|JsonValue>) is READ by a key ' +
@@ -83,6 +93,48 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function read(row: typeof settings.$inferSelect): unknown { const { value } = row; return (value as Record<string, unknown>)["parameters"]; }\n',
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "immutable object destructuring retains exact schema-row provenance; rejecting BindingElement makes this missing key silently pass",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function read(row: typeof settings.$inferSelect): unknown { const key = "value"; const { [key]: blob } = row; const alias = blob; return alias["parameters"]; }\n',
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "a computed immutable property name, renamed binding and const alias still select the same schema column",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function read(row: typeof settings.$inferSelect, payload: { kind: "payload"; value: Record<string, unknown> }): unknown[] { const rows = [payload, row]; return rows.map((item) => { if ("kind" in item) { const { value } = item; return value["parameters"]; } const { value: blob } = item; return blob["parameters"]; }); }\n',
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "destructuring uses the original initializer occurrence so only the narrowed schema branch contributes a finding",
+    },
+    {
+      mode: "types",
       grant: { subject: "imageEmbeddings.captionMeta:artStyle", operation: OPERATION },
       files: {
         "packages/db/src/schema/embeddings.ts":
@@ -104,7 +156,7 @@ export const gate = defineGate({
         "packages/server/src/domain/embeddings/indexer/caption.ts":
           "export async function analyse(db, id, model) {\n  await db.insert(imageEmbeddings).values({ captionMeta: { model } });\n}\n",
         "packages/server/src/domain/discovery/image-analytics/facets.ts":
-          'export function label(row: { captionMeta: { [k: string]: unknown } }): unknown {\n  return row.captionMeta["palette"];\n}\n',
+          'import { imageEmbeddings } from "../../../../../db/src/schema/embeddings.ts";\nexport function label(row: typeof imageEmbeddings.$inferSelect): unknown {\n  return (row.captionMeta as Record<string, unknown>)["palette"];\n}\n',
       },
       expect: { count: 1, messageIncludes: "imageEmbeddings.captionMeta:palette" },
       why: 'the `blob["k"]` spelling of the same defect — a string-keyed read off an open bag, which is text and not a type at every tier (audit §0.3). A name/shape matcher would pass it',
@@ -118,10 +170,118 @@ export const gate = defineGate({
         "packages/server/src/domain/embeddings/persistence/queries.ts":
           "export async function store(db, input: { captionMeta: { [k: string]: unknown } }) {\n  await db.insert(imageEmbeddings).values({ captionMeta: input.captionMeta });\n}\n",
         "packages/server/src/domain/discovery/image-analytics/facets.ts":
-          'export function label(row: { captionMeta: { [k: string]: unknown } }): unknown {\n  return row.captionMeta["artStyle"];\n}\n',
+          'import { imageEmbeddings } from "../../../../../db/src/schema/embeddings.ts";\nexport function label(row: typeof imageEmbeddings.$inferSelect): unknown {\n  return (row.captionMeta as Record<string, unknown>)["artStyle"];\n}\n',
       },
       expect: { count: 1, messageIncludes: "imageEmbeddings.captionMeta" },
       why: "the UNPROVABLE arm: the writer carries an OPEN-typed value end to end, so nothing in the tree can say whether `artStyle` is ever produced — the exact shape that let the founding defect exist. Reported at the schema column, where CLOSING THE TYPE fixes it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function read(row: typeof settings.$inferSelect): unknown {\n  return (row.value as Record<string, unknown>)["parameters"];\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "a real column-shaped member read still reports a key absent from settings.value writers after excluding unproven bare parameters",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function read(row: typeof settings.$inferSelect): unknown {\n  const value = row.value as Record<string, unknown>;\n  return value["parameters"];\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "a local alias of a column-shaped member retains the same open-JSON reader provenance and still reports the missing key",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function read(rows: Array<typeof settings.$inferSelect>): unknown[] {\n  return rows.map((row) => (row.value as Record<string, unknown>)["parameters"]);\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "a callback row inferred from an array of schema $inferSelect rows retains the exact table identity even without a callback parameter annotation",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\ntype Rows = readonly (typeof settings.$inferSelect)[];\nexport function read(rows: Rows): unknown[] { return rows.map((row) => row.value["parameters"]); }\n',
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "readonly array syntax and its alias preserve the schema row origin through a callback rather than silently returning clean",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function read(row: typeof settings.$inferSelect): unknown[] {\n  const rows = [row];\n  return rows.map((item) => (item.value as Record<string, unknown>)["parameters"]);\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "an inferred array literal of schema rows carries the same table identity through its immutable binding into the callback",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\ntype Row = typeof settings.$inferSelect | { kind: "payload"; value: Record<string, unknown> };\nexport function read(row: Row): unknown {\n  if ("kind" in row) return null;\n  return row.value["parameters"];\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "the branch narrowed away from a discriminated payload arm retains the schema-row origin and reports its missing key",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function read(row: typeof settings.$inferSelect, payload: { kind: "payload"; value: Record<string, unknown> }): unknown[] {\n  const rows = [row, payload];\n  return rows.map((item) => { if ("kind" in item) return null; return (item.value as Record<string, unknown>)["parameters"]; });\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "an inferred mixed array still reports the schema branch after control-flow narrowing removes its generic payload element",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function read(row: typeof settings.$inferSelect, payload: { kind: "payload"; value: Record<string, unknown> }): unknown[] {\n  const payloads = [payload]; const schemaRows = [row]; const rows = [...payloads, ...schemaRows];\n  return rows.map((item) => { if ("kind" in item) return null; return item.value["parameters"]; });\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "settings.value:parameters" },
+      why: "reversed spread elements preserve their source types so a narrowed schema branch still reports its missing key",
     },
     {
       // THE DRIZZLE-SQL WRITE FENCE (D148 #679 U8, RED-FIRST discriminating). A `.set({ col: sql`…` })` write
@@ -150,7 +310,176 @@ export const gate = defineGate({
       why: "the drizzle-SQL write fence, red-first: WITHOUT it `typeKeys` harvests the `SQL` interface's prototype members as a fake vocabulary and the reader key misses it, emitting the per-key parity token `widgets.residue:someKey` (this row, expecting the whole-column UNPROVABLE token, then fails); WITH it the write is opaque, so the read is UNPROVABLE and the token is `widgets.residue`. A synthetic non-DOORWAY column is used because the real `characters.extensions` (the U8 carrier) is exempt and would swallow the finding.",
     },
   ],
+  mustRefuse: [
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function read(row: typeof settings.$inferSelect): unknown { const { value = {} } = row; return value["parameters"]; }\n',
+      },
+      expect: { messageIncludes: "cannot prove destructured column origin" },
+      why: "a schema-bearing destructuring default introduces another possible value origin and refuses exact column attribution",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function read(row: typeof settings.$inferSelect, key: string): unknown { const { [key]: value } = row; return (value as Record<string, unknown>)["parameters"]; }\n',
+      },
+      expect: { messageIncludes: "cannot prove destructured column origin" },
+      why: "a dynamic selector on a schema-bearing row cannot prove which column was captured",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function read(row: typeof settings.$inferSelect | Partial<typeof settings.$inferSelect>): unknown { const { value } = row; return (value as Record<string, unknown>)["parameters"]; }\n',
+      },
+      expect: { messageIncludes: "cannot prove schema-row origin" },
+      why: "destructuring preserves unresolved schema alternatives instead of converting them into a clean zero",
+    },
+  ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function parse(row: { value: Record<string, unknown> }, key: string): unknown[] { const { value } = row; const { value: blob } = row; const { ["value"]: computed } = row; const { value: fallback = {} } = row; const { [key]: dynamic } = row; return [value["parameters"], blob["parameters"], computed["parameters"], fallback["parameters"], dynamic["parameters"]]; }\n',
+      },
+      why: "generic payload destructuring never mints schema provenance, including renamed, computed and fallback bindings",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", { value: text("value", { mode: "json" }).$type<JsonValue>().notNull() });\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) { await db.insert(settings).values({ value: { theme: 1 } }); }\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function parameter({ value }: typeof settings.$inferSelect): unknown { return value["parameters"]; }\nexport function nested(row: typeof settings.$inferSelect): unknown { const { value: { parameters } } = row; return parameters; }\nexport function rest(row: typeof settings.$inferSelect): unknown { const { ...copy } = row; return copy.value["parameters"]; }\nexport function mutable(row: typeof settings.$inferSelect, payload: Record<string, unknown>): unknown { let { value } = row; value = payload; return value["parameters"]; }\n',
+      },
+      why: "declared limit: parameter and nested key destructuring, rest-created rows and mutable bindings do not enter the immutable column projection reader",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/infra/plugin-host/parse.ts":
+          'function isRecord(input: unknown): input is Record<string, unknown> { return typeof input === "object" && input !== null && !Array.isArray(input); }\nexport function isToolRegistration(value: unknown): boolean {\n  return isRecord(value) && isRecord(value["parameters"]);\n}\n',
+      },
+      why: "a generic wire-parser parameter narrowed to Record<string, unknown> is not settings.value merely because its name is value; removing the receiver-provenance fence reports a false missing parameters key",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/infra/plugin-host/parse.ts":
+          'export function parsePayload(payload: { value: Record<string, unknown> }): unknown {\n  return payload.value["parameters"];\n}\n',
+      },
+      why: "a structurally identical payload.value member has no schema-row origin; allowing same-named property access to fall back to settings.value recreates the false finding",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/infra/plugin-host/parse.ts":
+          'export function parsePayloads(payloads: Array<{ value: Record<string, unknown> }>): unknown[] {\n  return payloads.map((payload) => payload.value["parameters"]);\n}\n',
+      },
+      why: "array callback inference from a structural payload type does not mint schema-row provenance merely because its element has a value property",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/infra/plugin-host/parse.ts":
+          'export function parse(payload: { value: Record<string, unknown> }): unknown[] {\n  const payloads = [payload];\n  return payloads.map((item) => item.value["parameters"]);\n}\n',
+      },
+      why: "an inferred array literal of generic payloads keeps its non-schema origin even when the callback element has the same open value shape",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\ntype Row = typeof settings.$inferSelect | { kind: "payload"; value: Record<string, unknown> };\nexport function parse(row: Row): unknown {\n  if ("kind" in row) return row.value["parameters"];\n  return null;\n}\n',
+      },
+      why: "the branch narrowed to the discriminated payload arm is not a settings row even though the union annotation also names settings",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function parse(row: typeof settings.$inferSelect, payload: { kind: "payload"; value: Record<string, unknown> }): unknown[] {\n  const rows = [row, payload];\n  return rows.map((item) => { if ("kind" in item) return item.value["parameters"]; return null; });\n}\n',
+      },
+      why: "an inferred mixed array does not blame the settings column for a read in the payload-only branch",
+    },
+    {
+      mode: "types",
+      files: {
+        "node_modules/drizzle-orm/sqlite-core/index.d.ts": SQLITE_ROW_PROOF,
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\ntype JsonValue = Record<string, unknown>;\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/domain/settings/persistence/read.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function parse(row: typeof settings.$inferSelect, payload: { kind: "payload"; value: Record<string, unknown> }): unknown[] {\n  const payloads = [payload]; const schemaRows = [row]; const rows = [...payloads, ...schemaRows];\n  return rows.map((item) => { if ("kind" in item) return item.value["parameters"]; return null; });\n}\n',
+      },
+      why: "reversed spread elements do not make the narrowed generic payload branch a settings column read",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const settings = sqliteTable("settings", {\n  value: text("value", { mode: "json" }).$type<JsonValue>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/write.ts":
+          "export async function save(db) {\n  await db.insert(settings).values({ value: { theme: 1 } });\n}\n",
+        "packages/server/src/infra/plugin-host/parse.ts":
+          'import { settings } from "../../../../../db/src/schema/settings.ts";\nexport function parse(row: typeof settings.$inferSelect, payload: { [key: string]: unknown }): unknown {\n  let value = row.value as Record<string, unknown>;\n  value = payload;\n  return value["parameters"];\n}\n',
+      },
+      why: "a mutable local once assigned from a column can be replaced by unrelated input, so its later key access has no column provenance",
+    },
     {
       mode: "types",
       files: {

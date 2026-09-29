@@ -25,8 +25,8 @@
 //          final pair, differences CLASSIFIED, with a PER-EXAMPLE coverage statement for each split arm.
 //          The `ui-variant-axes-stamped` tripwire has ZERO legacy coverage by construction (no legacy
 //          example loads its real-tree anchor), which is asserted rather than left to look like a pass.
-//   THE POPULATION PORT — `testid-liveness` retains showcase but deliberately excludes inference and
-//          default-content from its producer census; the exact legacy-only difference is measured below.
+//   THE POPULATION PORT — `testid-liveness` retains showcase but excludes package roots that cannot
+//          produce UI selectors; the exact legacy-only difference is measured below.
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { POPULATION_ROOTS } from "../../../../tooling/src/verify/contract/population.ts";
@@ -74,7 +74,7 @@ test("all four policies preserve their founding fixtures", () => {
 });
 
 // ─── THE POPULATION PORT — measured, not asserted ───────────────────────────────────────────────────────
-test("testid-liveness deliberately excludes inference and default-content from the legacy producer census", () => {
+test("testid-liveness excludes non-UI package roots from the legacy producer census", () => {
   // The legacy predicate, verbatim from `9e2eca320`.
   const legacyAdmits = (path: string): boolean => (path.includes("packages/") && path.includes("/src/")) || path.includes("tests/");
   const roots = testid.population as readonly ("@packages" | "@showcase" | "@tests")[];
@@ -87,12 +87,12 @@ test("testid-liveness deliberately excludes inference and default-content from t
   }
   // Showcase remains a real producer root even though `@packages` excludes it.
   expect(prefixes).toContain("packages/showcase-plugins/src/");
-  // The two newer package roots are admitted by the legacy path predicate but intentionally absent from
+  // These package roots are admitted by the legacy path predicate but intentionally absent from
   // this producer census. An unreviewed widening or a newly omitted package changes this exact difference.
   const legacyOnly = Object.values(POPULATION_ROOTS)
     .flat()
     .filter((prefix) => legacyAdmits(`${prefix}x.ts`) && !prefixes.includes(prefix));
-  expect(legacyOnly).toEqual(["packages/default-content/src/", "packages/inference/src/"]);
+  expect(legacyOnly).toEqual(["packages/plugin-toolchain/src/", "packages/default-content/src/", "packages/inference/src/"]);
   // `scripts/` stays OUT — the legacy predicate rejects it, and the gate corpus spells `data-testid` there.
   expect(legacyAdmits("scripts/dev/x.ts")).toBe(false);
   expect(prefixes).not.toContain("scripts/");

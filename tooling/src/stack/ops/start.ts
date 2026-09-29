@@ -42,6 +42,7 @@ import { httpOk } from "../../_shared/http-probe.ts";
 import { warn } from "../../_shared/log.ts";
 import { isWsl2, openUrl, pnpmInvocation } from "../../_shared/platform.ts";
 import { spawnFullPriorityChild, spawnFullPrioritySync } from "../../_shared/proc.ts";
+import { buildShowcaseArtifacts, showcaseArtifactsAreCurrent } from "../../_shared/showcase-artifacts.ts";
 import type { SetupMachine, SetupResult, StartInvocation, StartSpawn } from "../contract/types.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
 import { healthzUrl } from "../lib/stack-plan.ts";
@@ -150,6 +151,17 @@ async function prepareLaunch(invocation: StartInvocation): Promise<number | null
   if (distVerdict().state === "missing") {
     warn(`start: there is no ${CLIENT_DIST_INDEX_REL} and --no-build was given — production boot would throw. Re-run \`pnpm start\` without --no-build.`);
     return EXIT.violations;
+  }
+  if (!showcaseArtifactsAreCurrent()) {
+    if (invocation.build === "skip") {
+      warn("start: showcase plugin artifacts are missing or stale and --no-build was given. Re-run without --no-build.");
+      return EXIT.violations;
+    }
+    log("building release showcase plugin artifacts");
+    if (!buildShowcaseArtifacts()) {
+      warn("start: showcase plugin artifact build failed; no server was started.");
+      return EXIT.violations;
+    }
   }
   return null;
 }

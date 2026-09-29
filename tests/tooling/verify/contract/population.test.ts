@@ -51,6 +51,10 @@ const MEMBERS_WITHOUT_A_ROOT: readonly ExclusionRow[] = [
     key: ".",
     why: 'the workspace ROOT manifest is a member of the pnpm workspace but is not an authored source tree — it has no `src/`. Its own authored files are NOT all claimed by a root: the repo-root configs and declarations (`knip.ts`, `platform.d.ts`, the vitest/playwright/stryker configs), the package files outside `src/` and `playwright/` join no root. A root for them would widen every `@authored` policy at once, so the gate corpus loads them instead (`_shared/ts-workspace.ts#harnessGlobs`, held by the corpus test below), and a policy that must judge every authored file declares `of: "all"` (`suppressions`, work item 0036).',
   },
+  {
+    key: "packages/plugin-sdk",
+    why: "the public SDK is a declaration-only package with runtime-specific root declarations and no `src/` tree; generated compiler programs own its files",
+  },
 ];
 
 /** Population roots that deliberately name NO workspace member — guide §4's "top-level authored trees". */
@@ -179,11 +183,11 @@ test("`@product` is a strict subset of `@authored` — the two classification ma
   // The drive's own positive control: an empty or single-root product set makes the subset vacuously true.
   expect(POPULATION_SETS["@product"].length).toBeGreaterThan(1);
   expect(POPULATION_SETS["@product"].filter((root) => !authored.has(root))).toEqual([]);
-  expect(POPULATION_SETS["@authored"].filter((root) => !product.has(root))).toEqual(["@tooling", "@tests", "@scripts"]);
+  expect(POPULATION_SETS["@authored"].filter((root) => !product.has(root))).toEqual(["@plugin-toolchain", "@tooling", "@tests", "@scripts"]);
 });
 
 test("shipped showcase and default-content packages belong to both generic composites", () => {
-  expect(POPULATION_SETS["@authored"]).toHaveLength(12);
+  expect(POPULATION_SETS["@authored"]).toHaveLength(13);
   expect(POPULATION_SETS["@product"]).toHaveLength(9);
   expect(POPULATION_SETS["@authored"]).toEqual(expect.arrayContaining(["@showcase", "@default-content"]));
   expect(POPULATION_SETS["@product"]).toEqual(expect.arrayContaining(["@showcase", "@default-content"]));

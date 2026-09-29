@@ -17,6 +17,7 @@ import { selectAffectedInstrumentTests } from "../../../../tooling/src/verify/op
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
+const REAL_CORPUS_LIVENESS_SPEC = "tests/tooling/verify/gates/real-corpus-liveness-family.suite.repo.int.test.ts";
 const TOOLING_TSCONFIG = JSON.stringify({
   compilerOptions: {
     allowImportingTsExtensions: true,
@@ -42,6 +43,103 @@ test("a changed GATE MODULE reaches the family test that names it, wherever that
   expect(selection.unknown).toBe(false);
   expect(selection.sources).toEqual(["tooling/src/verify/gates/integer-line-boxes.ts"]);
   expect(selection.specs).toContain("tests/tooling/verify/gates/integer-line-boxes.int.test.ts");
+  expect(selection.livenessScope).toEqual({ kind: "policies", policyIds: ["integer-line-boxes"] });
+});
+
+test("policy reach narrows to the importing gate and excludes an unrelated gate", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    "tooling/tsconfig.json": TOOLING_TSCONFIG,
+    "tooling/src/verify/lib/shared.ts": "export const shared = true;\n",
+    "tooling/src/verify/gates/affected.ts":
+      'import { shared } from "../lib/shared.ts";\ndeclare function defineGate(input: { readonly id: string }): unknown;\nexport const gate = defineGate({ id: "affected" });\nvoid shared;\n',
+    "tooling/src/verify/gates/unrelated.ts":
+      'declare function defineGate(input: { readonly id: string }): unknown;\nexport const gate = defineGate({ id: "unrelated" });\n',
+    "tests/tooling/verify/lib/shared.test.ts": 'import "../../../../tooling/src/verify/lib/shared.ts";\n',
+    [REAL_CORPUS_LIVENESS_SPEC]: 'import "../../../../tooling/src/verify/gates/affected.ts";\n',
+  });
+
+  const selection = selectAffectedInstrumentTests(root, ["tooling/src/verify/lib/shared.ts"]);
+  expect(selection.livenessScope).toEqual({ kind: "policies", policyIds: ["affected"] });
+});
+
+test("an unrelated changed source cannot widen the roster selected by a policy-affecting source", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    "tooling/tsconfig.json": TOOLING_TSCONFIG,
+    "tooling/src/verify/lib/shared.ts": "export const shared = true;\n",
+    "tooling/src/verify/lib/independent.ts": "export const independent = true;\n",
+    "tooling/src/verify/gates/affected.ts":
+      'import { shared } from "../lib/shared.ts";\ndeclare function defineGate(input: { readonly id: string }): unknown;\nexport const gate = defineGate({ id: "affected" });\nvoid shared;\n',
+    "tests/tooling/verify/lib/independent.test.ts": 'import "../../../../tooling/src/verify/lib/independent.ts";\n',
+    [REAL_CORPUS_LIVENESS_SPEC]: 'import "../../../../tooling/src/verify/gates/affected.ts";\n',
+  });
+
+  const selection = selectAffectedInstrumentTests(root, ["tooling/src/verify/lib/shared.ts", "tooling/src/verify/lib/independent.ts"]);
+  expect(selection.specs).toContain("tests/tooling/verify/lib/independent.test.ts");
+  expect(selection.livenessScope).toEqual({ kind: "policies", policyIds: ["affected"] });
+});
+
+test("shared contract infrastructure keeps the full liveness roster", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    "tooling/tsconfig.json": TOOLING_TSCONFIG,
+    "tooling/src/verify/contract/policy.ts": "export interface Policy { readonly id: string }\n",
+    "tooling/src/verify/gates/affected.ts":
+      'import type { Policy } from "../contract/policy.ts";\ndeclare function defineGate(input: { readonly id: string }): unknown;\nexport const gate = defineGate({ id: "affected" });\nexport type Seen = Policy;\n',
+    "tests/tooling/verify/contract/policy.test.ts": 'import type { Policy } from "../../../../tooling/src/verify/contract/policy.ts";\ntype Seen = Policy;\n',
+    [REAL_CORPUS_LIVENESS_SPEC]: 'import "../../../../tooling/src/verify/gates/affected.ts";\n',
+  });
+
+  const selection = selectAffectedInstrumentTests(root, ["tooling/src/verify/contract/policy.ts"]);
+  expect(selection.livenessScope).toEqual({
+    kind: "full",
+    reason: "tooling/src/verify/contract/policy.ts is shared liveness harness, registry, or contract infrastructure",
+  });
+});
+
+test("shared policy-pass runner infrastructure keeps the full liveness roster", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    "tooling/tsconfig.json": TOOLING_TSCONFIG,
+    "tooling/src/verify/lib/policy-pass.ts": "export const pass = true;\n",
+    "tooling/src/verify/gates/affected.ts":
+      'import { pass } from "../lib/policy-pass.ts";\ndeclare function defineGate(input: { readonly id: string }): unknown;\nexport const gate = defineGate({ id: "affected" });\nvoid pass;\n',
+    "tests/tooling/verify/lib/policy-pass.test.ts": 'import "../../../../tooling/src/verify/lib/policy-pass.ts";\n',
+    [REAL_CORPUS_LIVENESS_SPEC]: 'import "../../../../tooling/src/verify/gates/affected.ts";\n',
+  });
+
+  const selection = selectAffectedInstrumentTests(root, ["tooling/src/verify/lib/policy-pass.ts"]);
+  expect(selection.livenessScope).toEqual({
+    kind: "full",
+    reason: "tooling/src/verify/lib/policy-pass.ts is shared liveness harness, registry, or contract infrastructure",
+  });
+});
+
+test("a gate whose authored ID disagrees with its basename keeps the full liveness roster", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    "tooling/tsconfig.json": TOOLING_TSCONFIG,
+    "tooling/src/verify/lib/shared.ts": "export const shared = true;\n",
+    "tooling/src/verify/gates/wrong-basename.ts":
+      'import { shared } from "../lib/shared.ts";\ndeclare function defineGate(input: { readonly id: string }): unknown;\nexport const gate = defineGate({ id: "actual-policy-id" });\nvoid shared;\n',
+    "tests/tooling/verify/lib/shared.test.ts": 'import "../../../../tooling/src/verify/lib/shared.ts";\n',
+    [REAL_CORPUS_LIVENESS_SPEC]: 'import "../../../../tooling/src/verify/gates/wrong-basename.ts";\n',
+  });
+
+  const selection = selectAffectedInstrumentTests(root, ["tooling/src/verify/lib/shared.ts"]);
+  expect(selection.livenessScope).toEqual({
+    kind: "full",
+    reason:
+      "tooling/src/verify/lib/shared.ts reaches gate module(s) whose authored ID cannot be proven from their basename: tooling/src/verify/gates/wrong-basename.ts",
+  });
+});
+
+test("a source with no proven policy reach keeps the full liveness roster", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    "tooling/tsconfig.json": TOOLING_TSCONFIG,
+    "tooling/src/verify/lib/standalone.ts": "export const standalone = true;\n",
+    "tests/tooling/verify/lib/standalone.test.ts": 'import "../../../../tooling/src/verify/lib/standalone.ts";\n',
+    [REAL_CORPUS_LIVENESS_SPEC]: 'import "../../../../tooling/src/verify/lib/standalone.ts";\n',
+  });
+
+  const selection = selectAffectedInstrumentTests(root, ["tooling/src/verify/lib/standalone.ts"]);
+  expect(selection.livenessScope).toEqual({ kind: "full", reason: "tooling/src/verify/lib/standalone.ts has no proven policy reach" });
 });
 
 // THE ARM THE MIRROR CANNOT DO, and the reason the ID search exists. `freeze-provenance-write-pairing`'s

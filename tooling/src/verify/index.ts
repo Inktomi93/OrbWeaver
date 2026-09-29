@@ -196,6 +196,7 @@ export { auditedExit, auditLine, auditOf, noticesIn, runVerify } from "./ops/run
 export { runScopedCli, SCOPED_USAGE } from "./ops/scoped.ts";
 export { runScopedTest, SCOPED_TEST_USAGE } from "./ops/scoped-test.ts";
 export { runShow, SHOW_HELP } from "./ops/show.ts";
+export { runShowcaseRelease, showcaseVersionViolations } from "./ops/showcase-release.ts";
 export { runStructure } from "./ops/structure.ts";
 export { runStructureDelta, STRUCTURE_DELTA_USAGE } from "./ops/structure-delta.ts";
 export { findMultiMembershipFiles, findUnrunFiles, runTestsExecutionMembership, unclassifiedVitestProjects } from "./ops/tests-execution-membership.ts";

@@ -4,8 +4,8 @@
 // EVERY HOP OF THE `trpc.<router>.<proc>.<terminal>` CHAIN IS READ THROUGH `lib/symbol-reference.ts`
 // (#2353). Keyed on `PropertyAccessExpression` alone, this reader saw neither side of the graph under a
 // bracket respelling: `trpc["automation"]["listChatActivity"]["queryOptions"]({})` was not a CONSUMED read
-// (so `query-freshness-coverage` and `query-freshness-coverage-debt` both stopped flagging their own
-// fixtures) and `trpc["x"]["y"]["pathFilter"]()` was not a COVERAGE filter (so the acquitting side would
+// (so the coverage policy stopped flagging its own fixtures) and
+// `trpc["x"]["y"]["pathFilter"]()` was not a COVERAGE filter (so the acquitting side would
 // have gone blind in the same edit). Both halves move together here, which is the only safe direction: a
 // widened accusing side alone would have turned correctly invalidated bracket-spelled reads into findings.
 // The visitor subscribes `MEMBER_ACCESS_KINDS`, not half the family.

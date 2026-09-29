@@ -1,6 +1,6 @@
 // Authored TypeScript program intent. Native config expansion remains an independent observation.
 import type { World } from "./project-worlds.ts";
-import { BROWSER_SURFACE_DIRS, HELPER_WORLD_DIRS, PACKAGE_WORLDS, packageWorld, TEST_WORLD_PROGRAMS } from "./project-worlds.ts";
+import { authorProgramWorld, BROWSER_SURFACE_DIRS, HELPER_WORLD_DIRS, PACKAGE_WORLDS, packageWorld, TEST_WORLD_PROGRAMS } from "./project-worlds.ts";
 import { TEST_KIND_DEFINITIONS } from "./test-kinds.ts";
 
 export const TYPE_WORLD_TEMPLATE_PATHS = {
@@ -15,7 +15,6 @@ const AMBIENT_INTENT = [
   { path: "reset.d.ts", scope: "all-programs" },
   { path: "platform.d.ts", scope: "all-programs" },
   { path: "aggregator-assets.d.ts", scope: "graph-only" },
-  { path: "packages/showcase-plugins/bundles/host-v1.d.ts", scope: "graph-only" },
   { path: "packages/ui/src/markdown/css-modules.d.ts", scope: "ui-and-browser-tests" },
   { path: "packages/client/src/styles/vite-env.d.ts", scope: "client-source" },
   { path: "playwright/globals.d.ts", scope: "browser-tests" },
@@ -36,6 +35,10 @@ const PACKAGE_CONFIG_RE = /^packages\/([^/]+)\/tsconfig\.json$/u;
 /** Intended world of a runnable config. An unknown config is unresolved intent, never permission inferred
  * from the compiler roots or libraries it happens to carry. */
 export function programWorldOf(config: string): World | undefined {
+  const authorWorld = authorProgramWorld(config);
+  if (authorWorld !== undefined) {
+    return authorWorld;
+  }
   const packageName = PACKAGE_CONFIG_RE.exec(config)?.[1];
   if (packageName !== undefined) {
     return packageWorld(packageName);

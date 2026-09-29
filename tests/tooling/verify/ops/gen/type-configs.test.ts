@@ -35,11 +35,34 @@ test("fresh packages and browser test kinds enter generated roots without anothe
   expect(files["tsconfig.json"]).toContain("tests/**/*.visual.test.ts");
 });
 
+test("plugin author declarations and sources have separate strict runtime programs", ({ scratch }) => {
+  plantBase(scratch);
+  const files = deriveTypeConfigFiles(scratch);
+  const sdkMain = JSON.parse(files["packages/plugin-sdk/tsconfig.author-main.json"] ?? "null") as {
+    compilerOptions?: { skipLibCheck?: boolean };
+    include?: string[];
+  };
+  const showcaseMain = JSON.parse(files["packages/showcase-plugins/tsconfig.author-main.json"] ?? "null") as { include?: string[] };
+  const showcaseFrame = JSON.parse(files["packages/showcase-plugins/tsconfig.author-frame.json"] ?? "null") as {
+    compilerOptions?: { lib?: string[] };
+    include?: string[];
+  };
+
+  expect(sdkMain.compilerOptions?.skipLibCheck).toBe(false);
+  expect(sdkMain.include).toEqual(expect.arrayContaining(["main.d.ts", "shared.d.ts"]));
+  expect(sdkMain.include).not.toEqual(expect.arrayContaining(["ui.d.ts", "frame.d.ts"]));
+  expect(showcaseMain.include).toEqual(expect.arrayContaining(["bundles/*/main.ts", "../plugin-sdk/main.d.ts", "../plugin-sdk/shared.d.ts"]));
+  expect(showcaseFrame.compilerOptions?.lib).toEqual(["es2023", "dom"]);
+  expect(showcaseFrame.include).toEqual(expect.arrayContaining(["bundles/*/frame.ts", "../plugin-sdk/frame.d.ts"]));
+  expect(showcaseFrame.include).not.toContain("../plugin-sdk/shared.d.ts");
+});
+
 test("writer is deterministic and idempotent, and freshness checks every complete output", ({ scratch }) => {
   plantBase(scratch);
   for (const pkg of Object.keys(PACKAGE_WORLDS)) {
     mkdirSync(join(scratch, "packages", pkg), { recursive: true });
   }
+  mkdirSync(join(scratch, "packages", "plugin-sdk"), { recursive: true });
   mkdirSync(join(scratch, "tooling"), { recursive: true });
   expect(generateTypeConfigs(scratch)).toBe(0);
   const first = readFileSync(join(scratch, "tsconfig.json"), "utf8");
@@ -61,6 +84,7 @@ test("fresh helper TSX roots compile in their declared worlds while ISO rejects 
     mkdirSync(join(scratch, "packages", pkg, "src"), { recursive: true });
     writeFileSync(join(scratch, "packages", pkg, "src", "anchor.ts"), "export {};\n");
   }
+  mkdirSync(join(scratch, "packages", "plugin-sdk"), { recursive: true });
   mkdirSync(join(scratch, "tooling", "src"), { recursive: true });
   writeFileSync(join(scratch, "tooling", "src", "anchor.ts"), "export {};\n");
   for (const world of ["iso", "node", "browser"] as const) {
@@ -104,6 +128,7 @@ test("native NodeNext rejects extensionless imports and the node world rejects D
   for (const pkg of Object.keys(PACKAGE_WORLDS)) {
     mkdirSync(join(scratch, "packages", pkg), { recursive: true });
   }
+  mkdirSync(join(scratch, "packages", "plugin-sdk"), { recursive: true });
   mkdirSync(join(scratch, "tooling"), { recursive: true });
   generateTypeConfigs(scratch);
   writeFileSync(join(scratch, "package.json"), JSON.stringify({ type: "module" }));
@@ -144,7 +169,4 @@ test("real compiler roots own the formerly missing configs and package-root tool
   expect(programs.filter(({ files }) => files.includes("reset.d.ts")).length).toBe(programs.length);
   expect(programs.filter(({ files }) => files.includes("platform.d.ts")).length).toBe(programs.length);
   expect(programs.filter(({ files }) => files.includes("aggregator-assets.d.ts")).map(({ config }) => config)).toEqual(["tsconfig.json"]);
-  expect(programs.filter(({ files }) => files.includes("packages/showcase-plugins/bundles/host-v1.d.ts")).map(({ config }) => config)).toEqual([
-    "tsconfig.json",
-  ]);
 });

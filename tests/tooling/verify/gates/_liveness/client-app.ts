@@ -33,7 +33,6 @@ import { gate as pointerCapabilityTierPermission } from "../../../../../tooling/
 import { gate as queryBoundaryReservation } from "../../../../../tooling/src/verify/gates/query-boundary-reservation.ts";
 import { gate as queryBoundaryReservationHealth } from "../../../../../tooling/src/verify/gates/query-boundary-reservation-health.ts";
 import { gate as queryFreshnessCoverage } from "../../../../../tooling/src/verify/gates/query-freshness-coverage.ts";
-import { gate as queryFreshnessCoverageDebt } from "../../../../../tooling/src/verify/gates/query-freshness-coverage-debt.ts";
 import { gate as queryFreshnessCoverageHealth } from "../../../../../tooling/src/verify/gates/query-freshness-coverage-health.ts";
 import { gate as registryContextViaMint } from "../../../../../tooling/src/verify/gates/registry-context-via-mint.ts";
 import { gate as renderErrorViaBattery } from "../../../../../tooling/src/verify/gates/render-error-via-battery.ts";
@@ -272,19 +271,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "STATIC count and no `reserveKey`",
-  },
-  {
-    policy: queryFreshnessCoverageDebt,
-    // A second consumer of the one debt key the policy tracks. The debt reports ONCE, at the key's first
-    // consumer, so this path sorts before the real `room-activity-log.tsx`. The read is spelled as real client
-    // code spells it: `trpc` bound from `useTRPC()`, then the chain.
-    overlays: [
-      add(
-        "packages/client/src/features/automation/components/activity-liveness.tsx",
-        'import { useTRPC } from "#data";\nexport function useActivity() {\n  const trpc = useTRPC();\n  return trpc.automation.listChatActivity.queryOptions({ chatId: "c", limit: 1 });\n}\n',
-      ),
-    ],
-    messageIncludes: "automation.listChatActivity lacks",
   },
   {
     policy: queryFreshnessCoverageHealth,

@@ -4,6 +4,21 @@ import { classifyTestFilename } from "./test-kinds.ts";
 export const WORLDS = ["iso", "node", "browser"] as const;
 export type World = (typeof WORLDS)[number];
 
+export const PACKAGE_NAMES = Object.freeze([
+  "kit",
+  "contracts",
+  "db",
+  "inference",
+  "server",
+  "default-content",
+  "showcase-plugins",
+  "plugin-toolchain",
+  "ui",
+  "client",
+  "plugin-sdk",
+] as const);
+export type PackageName = (typeof PACKAGE_NAMES)[number];
+
 export const HELPER_WORLD_DIRS = {
   iso: "tests/support/iso",
   node: "tests/support/node",
@@ -15,7 +30,8 @@ export function isWorldHelperPath(rel: string): boolean {
 }
 
 /** Package directory name → the world its `src` is written for. INTENT: kit/contracts are isomorphic (no node,
- *  no dom), db/server and the two default-content packages run under node, ui/client run in the browser. A
+ *  no dom), db/server, the author toolchain, and the two default-content packages run under node, ui/client
+ *  run in the browser. A
  *  package absent here has no world, and `worldOf` says so rather than guessing. */
 const PACKAGE_WORLD_DEFINITIONS = {
   kit: "iso",
@@ -27,18 +43,16 @@ const PACKAGE_WORLD_DEFINITIONS = {
   server: "node",
   "default-content": "node",
   "showcase-plugins": "node",
+  "plugin-toolchain": "node",
   ui: "browser",
   client: "browser",
-} as const satisfies Readonly<Record<string, World>>;
+} as const satisfies Partial<Readonly<Record<PackageName, World>>>;
 
-export type PackageName = keyof typeof PACKAGE_WORLD_DEFINITIONS;
-export const PACKAGE_WORLDS: Readonly<Record<PackageName, World>> = Object.freeze(PACKAGE_WORLD_DEFINITIONS);
-
-/** Canonical generic workspace membership projected from world intent. */
-export const PACKAGE_NAMES: readonly PackageName[] = Object.freeze(Object.keys(PACKAGE_WORLD_DEFINITIONS) as PackageName[]);
+export type RunnablePackageName = keyof typeof PACKAGE_WORLD_DEFINITIONS;
+export const PACKAGE_WORLDS: Readonly<Record<RunnablePackageName, World>> = Object.freeze(PACKAGE_WORLD_DEFINITIONS);
 
 export function packageWorld(packageName: string): World | undefined {
-  return Object.hasOwn(PACKAGE_WORLDS, packageName) ? PACKAGE_WORLDS[packageName as PackageName] : undefined;
+  return Object.hasOwn(PACKAGE_WORLDS, packageName) ? PACKAGE_WORLDS[packageName as RunnablePackageName] : undefined;
 }
 
 /** The packages whose src is browser-world — derived from PACKAGE_WORLDS, never spelled twice. */
@@ -60,6 +74,9 @@ export const TEST_WORLD_PROGRAMS = {
 
 const PKG_SRC_RE = /^packages\/([^/]+)\/src\//u;
 const PKG_TOOL_RE = /^packages\/([^/]+)\/[^/]+$/u;
+const PLUGIN_SDK_DECLARATION_RE = /^packages\/plugin-sdk\/(main|ui|frame|shared)\.d\.ts$/u;
+const SHOWCASE_AUTHOR_SOURCE_RE = /^packages\/showcase-plugins\/bundles\/[^/]+\/(main|ui|frame)\.ts$/u;
+const AUTHOR_CONFIG_RE = /^packages\/(plugin-sdk|showcase-plugins)\/tsconfig\.author-(main|ui|frame)\.json$/u;
 const TEST_SURFACE_RE = /^(?:tests|scripts|playwright)\//u;
 const TS_SOURCE_RE = /\.(?:ts|tsx|mts|cts)$/u;
 const DECLARATION_RE = /\.d\.(?:ts|mts|cts)$/u;
@@ -77,10 +94,41 @@ export function isTypeWorldSource(rel: string): boolean {
   return TS_SOURCE_RE.test(rel);
 }
 
+function authorRuntimeWorld(runtime: string): World | undefined {
+  if (runtime === "main" || runtime === "ui") {
+    return "iso";
+  }
+  return runtime === "frame" ? "browser" : undefined;
+}
+
+export function authorProgramWorld(config: string): World | undefined {
+  return authorRuntimeWorld(AUTHOR_CONFIG_RE.exec(config)?.[2] ?? "");
+}
+
+function authorProgramForSource(rel: string): string | undefined {
+  const sdkRuntime = PLUGIN_SDK_DECLARATION_RE.exec(rel)?.[1];
+  if (sdkRuntime !== undefined) {
+    return `packages/plugin-sdk/tsconfig.author-${sdkRuntime === "shared" ? "main" : sdkRuntime}.json`;
+  }
+  const showcaseRuntime = SHOWCASE_AUTHOR_SOURCE_RE.exec(rel)?.[1];
+  return showcaseRuntime === undefined ? undefined : `packages/showcase-plugins/tsconfig.author-${showcaseRuntime}.json`;
+}
+
+function testSourceWorld(rel: string): World {
+  if (rel.endsWith(".tsx") || BROWSER_SURFACE_DIRS.some((dir) => rel.startsWith(`${dir}/`))) {
+    return "browser";
+  }
+  return classifyTestFilename(rel)?.definition.compilerWorld ?? "node";
+}
+
 /** Intended world by authored home and suffix; declarations without a package home remain unresolved. */
 export function worldOf(rel: string): World | undefined {
   if (!isTypeWorldSource(rel)) {
     return;
+  }
+  const authorProgram = authorProgramForSource(rel);
+  if (authorProgram !== undefined) {
+    return authorProgramWorld(authorProgram);
   }
   const pkg = PKG_SRC_RE.exec(rel)?.[1];
   if (pkg !== undefined) {
@@ -95,11 +143,7 @@ export function worldOf(rel: string): World | undefined {
     }
   }
   if (TEST_SURFACE_RE.test(rel)) {
-    const testKind = classifyTestFilename(rel);
-    if (rel.endsWith(".tsx") || BROWSER_SURFACE_DIRS.some((dir) => rel.startsWith(`${dir}/`))) {
-      return "browser";
-    }
-    return testKind?.definition.compilerWorld ?? "node";
+    return testSourceWorld(rel);
   }
   if (DECLARATION_RE.test(rel)) {
     return;
@@ -110,6 +154,10 @@ export function worldOf(rel: string): World | undefined {
 
 /** Required primary compiler owner; package source may also participate in consumer programs. */
 export function predictedProgram(rel: string): string | undefined {
+  const authorProgram = authorProgramForSource(rel);
+  if (authorProgram !== undefined) {
+    return authorProgram;
+  }
   const world = worldOf(rel);
   if (world === undefined) {
     return;

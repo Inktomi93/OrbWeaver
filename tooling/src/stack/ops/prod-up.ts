@@ -61,7 +61,6 @@ function processGroupAlive(pgid: number): boolean {
   try {
     process.kill(-pgid, 0);
     return true;
-    // @orb-waive caught-failure-ownership(error): ESRCH and EPERM are the documented kill(2) probe outcomes and are converted below into the caller's boolean verdict. Ends if this catch handles any other error without rethrowing it.
   } catch (error) {
     if (processErrorHasCode(error, "ESRCH")) {
       return false;
@@ -291,11 +290,9 @@ async function spawnProdLocked(port: number, debug: boolean, overlay: Readonly<R
 
   try {
     return await waitForDetachedBoot(record, plan, debug);
-    // @orb-waive caught-failure-ownership(error): boot failure owns exact process-group cleanup, then rethrows; cleanup failure is combined with the primary error below. Ends if neither branch propagates the primary failure.
   } catch (error) {
     try {
       await terminateFailedSpawn(record);
-      // @orb-waive caught-failure-ownership(cleanupError): both the boot failure and failed containment are returned in an AggregateError. Ends if failedBootCleanupError stops retaining either error.
     } catch (cleanupError) {
       throw failedBootCleanupError(error, cleanupError);
     }

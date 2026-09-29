@@ -36,6 +36,9 @@ export const POPULATION_ROOTS = {
    *  whose census records four live sites here; without the root the conversion would have narrowed the
    *  policy and dead-lettered those markers. */
   "@showcase": ["packages/showcase-plugins/src/"],
+  /** Standalone plugin author compiler and packer. It is a workspace package with executable source, so it
+   *  joins authored policy coverage even though the running application never imports it. */
+  "@plugin-toolchain": ["packages/plugin-toolchain/src/"],
   /** The default-content package (D160's second family — the seed manifest, the seeded avatars and
    *  their reader). Same standing as `@showcase`: an independently selectable shipped workspace member
    *  admitted to `@authored` and `@product`, while the fixed `@packages` snapshot remains unchanged. Added
@@ -95,6 +98,7 @@ const AUTHORED_MEMBERSHIP: Readonly<Record<PopulationRoot, AuthoredMembership>> 
   "@contracts": { authored: true },
   "@kit": { authored: true },
   "@showcase": { authored: true },
+  "@plugin-toolchain": { authored: true },
   "@default-content": { authored: true },
   "@inference": { authored: true },
   "@tooling": { authored: true },
@@ -145,6 +149,10 @@ const PRODUCT_MEMBERSHIP = {
   "@contracts": { product: true },
   "@kit": { product: true },
   "@showcase": { product: true },
+  "@plugin-toolchain": {
+    product: false,
+    why: "the author compiler and packer run during development and release packaging; no application runtime imports this package",
+  },
   "@default-content": { product: true },
   "@inference": { product: true },
   "@tooling": {

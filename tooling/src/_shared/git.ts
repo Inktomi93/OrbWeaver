@@ -3,7 +3,7 @@
 // command aimed at a planted repository never lands in the checkout running the hook. The
 // `tooling-os-neutral` policy reports a git spawn that bypasses this module.
 import type { RunNicedSyncOptions, RunNicedSyncResult } from "./proc.ts";
-import { runNicedSync } from "./proc.ts";
+import { execNicedSyncBuffer, runNicedSync } from "./proc.ts";
 import { inheritedProcessEnv } from "./process-env.ts";
 
 /** Read-only git commands take `--no-optional-locks`, so a concurrent read never contends for the index lock. */
@@ -42,4 +42,13 @@ export function execGit(root: string, args: readonly string[], opts: RunGitOptio
     throw new Error(`git ${args[0] ?? ""} failed (${result.errorCode ?? `exit ${String(result.status)}`})${said === "" ? "" : `: ${said}`}`);
   }
   return result.stdout;
+}
+
+/** Read raw Git output without decoding binary blobs; preserve the same repository and environment fence. */
+export function execGitBytes(root: string, args: readonly string[], opts: RunGitOptions = {}): Buffer {
+  return execNicedSyncBuffer("git", args, {
+    cwd: root,
+    env: { ...repoGitEnvironment(opts.env), ...opts.extra },
+    ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
+  });
 }

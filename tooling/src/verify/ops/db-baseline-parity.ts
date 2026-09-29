@@ -46,10 +46,10 @@ const MAX_SHOWN = 8;
 const SNAPSHOT_INDEX_WIDTH = 4;
 
 const FIX_HINT =
-  "emit the forward migration the schema edit owes (post-launch policy — the baseline is FROZEN and is " +
-  "never regenerated): `pnpm --filter @orb/db exec drizzle-kit generate --name <what-changed>` with the " +
-  "migrations dir untouched, READ the emitted SQL, then biome-format the meta files. See " +
-  'docs/law/Tier-1-DB.md §"Regime 2".';
+  "prelaunch: regenerate the squashed baseline from the complete schema per " +
+  'docs/law/Tier-1-DB.md §"Regime 1". Postlaunch: emit a forward migration with ' +
+  "`pnpm --filter @orb/db exec drizzle-kit generate --name <what-changed>` per Regime 2. " +
+  "Review the SQL and format the meta files.";
 
 function normalize(statement: string): string {
   return statement.replace(WS_RE, " ").replace(TRAILING_SEMI_RE, "").trim();

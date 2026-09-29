@@ -60,14 +60,14 @@ export function distVerdict(): DistVerdict {
   });
 }
 
-/** The ONLY build in this repo: `@orb/client`'s own `vite build`, invoked through its package script (never
- *  a hand-rolled vite call). Runs BEFORE anything is stopped, so a failed build never leaves a live
- *  instance killed and a dead bundle behind. */
+/** The release build: showcase install artifacts, UI tokens, then the client bundle. It runs before
+ * anything is stopped, so a failed build never leaves a live instance killed and an incomplete runtime
+ * tree behind. */
 export function buildClient(): boolean {
-  log("building the client bundle (pnpm --filter @orb/client build)…");
-  const res = runNicedSync("pnpm", ["--filter", "@orb/client", "build"], { cwd: REPO_ROOT, stdio: "inherit" });
+  log("building release artifacts (pnpm build)…");
+  const res = runNicedSync("pnpm", ["build"], { cwd: REPO_ROOT, stdio: "inherit" });
   if (res.status !== 0) {
-    log("client build FAILED — nothing was stopped; the running instance (if any) is untouched.");
+    log("release build FAILED — nothing was stopped; the running instance (if any) is untouched.");
     return false;
   }
   return true;
