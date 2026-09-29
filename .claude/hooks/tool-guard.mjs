@@ -755,20 +755,12 @@ const GREP_BROAD_ROOT = /^(\.|\.\/|packages\/?|tests\/?|src\/?|scripts\/?|\*)$/;
 const RG_HEAD = /^\s*(?:\S*\/)?rg\b/;
 const RG_REPLACE_MANGLE = /(?:^|\s)-r[A-Za-z]/;
 // ── pgrep/pidof/`ps | grep` wait loops (owner directive, 2026-09-29) ──
-const LOOP_HEAD = /\b(?:until|while)\b/g;
-const DO_KEYWORD = /\bdo\b/;
 const PGREP_OR_PIDOF = /(?:^|[\s;&|(])(?:\S*\/)?(?:pgrep|pidof)\b/;
 const PS_PIPE_GREP = /(?:^|[\s;&|(])(?:\S*\/)?ps\b[^\n;]*\|\s*(?:\S*\/)?e?grep\b/;
 // A wait loop's condition names a HARNESS only when it names the actual process the harness spawns
 // (verify/cli.ts, vitest, playwright) or the pnpm door that launches one — a loop polling for an
 // unrelated process name is this rule's business only when it says so explicitly.
 const HARNESS_NAME_HINT = /verify\/cli\.ts|\bvitest\b|\bplaywright\b|pnpm\s+(?:run\s+)?(?:check|test|verify)(?::[\w-]+)?/;
-// `do`/`done` are shared by the harness-name loop check above and the three polling rules below (owner
-// directive, 2026-09-29 addendum): a wait loop's DANGEROUS content is in its BODY (after `do`, before the
-// matching `done`), not its condition — `sleep` lives there, not in `until grep -q X log`.
-const DONE_KEYWORD = /\bdone\b/;
-const FOR_HEAD = /\bfor\b/g;
-const SLEEP_WORD = /(?:^|[\s;&|(])sleep\b/;
 // A command that is NOTHING BUT `true`/`:`, chained with `;` — the reported "still waiting" filler (one
 // lane: 63 in a row). `true foo` (an argument) or `cmd || true` (real work in another clause) are not this
 // shape — every clause must reduce to the bare word.
@@ -2748,20 +2740,13 @@ function heavyToolDoor(blank, clauses) {
  *  reads the RAW command (quoting still applies inside `-f "…"`, which `blank` erases), so the pattern
  *  actually has to name a harness, not merely sit near the word `until`. */
 function pgrepHarnessWaitLoop(command, blank) {
-  LOOP_HEAD.lastIndex = 0;
-  let m = LOOP_HEAD.exec(blank);
-  while (m !== null) {
-    const doMatch = DO_KEYWORD.exec(blank.slice(m.index));
-    if (doMatch !== null) {
-      const condEnd = m.index + doMatch.index;
-      const condBlank = blank.slice(m.index, condEnd);
-      if ((PGREP_OR_PIDOF.test(condBlank) || PS_PIPE_GREP.test(condBlank)) && HARNESS_NAME_HINT.test(command.slice(m.index, condEnd))) {
-        return true;
-      }
+  return shellLoops(blank).some((loop) => {
+    if ((loop.kind !== "while" && loop.kind !== "until") || loop.doAt === undefined) {
+      return false;
     }
-    m = LOOP_HEAD.exec(blank);
-  }
-  return false;
+    const condBlank = blank.slice(loop.start, loop.doAt);
+    return (PGREP_OR_PIDOF.test(condBlank) || PS_PIPE_GREP.test(condBlank)) && HARNESS_NAME_HINT.test(command.slice(loop.start, loop.doAt));
+  });
 }
 
 /** Is this an `until`/`while … do … done` loop with a `sleep` in its BODY (the part that actually runs
@@ -2771,21 +2756,7 @@ function pgrepHarnessWaitLoop(command, blank) {
  *  the same loop redundantly in practice — `pgrepHarnessWaitLoop` returns first and this one is only
  *  reached for loops it did not already catch — but either alone is a complete deny for its own shape. */
 function foregroundWaitLoopWithSleep(blank) {
-  LOOP_HEAD.lastIndex = 0;
-  let m = LOOP_HEAD.exec(blank);
-  while (m !== null) {
-    const doMatch = DO_KEYWORD.exec(blank.slice(m.index));
-    if (doMatch !== null) {
-      const bodyStart = m.index + doMatch.index + doMatch[0].length;
-      const doneMatch = DONE_KEYWORD.exec(blank.slice(bodyStart));
-      const bodyEnd = doneMatch === null ? blank.length : bodyStart + doneMatch.index;
-      if (SLEEP_WORD.test(blank.slice(bodyStart, bodyEnd))) {
-        return true;
-      }
-    }
-    m = LOOP_HEAD.exec(blank);
-  }
-  return false;
+  return shellLoops(blank).some((loop) => (loop.kind === "while" || loop.kind === "until") && loop.bodySleeps);
 }
 
 /** Body spans (after `do`, before the matching `done`) of every `for … do … done` loop in the command —
@@ -2794,20 +2765,9 @@ function foregroundWaitLoopWithSleep(blank) {
  *  stack-boot scripts), so a `sleep` clause inside one of these spans is exempt from the bare-foreground-
  *  sleep rule below regardless of its duration. */
 function forLoopBodySpans(blank) {
-  const spans = [];
-  FOR_HEAD.lastIndex = 0;
-  let m = FOR_HEAD.exec(blank);
-  while (m !== null) {
-    const doMatch = DO_KEYWORD.exec(blank.slice(m.index));
-    if (doMatch !== null) {
-      const bodyStart = m.index + doMatch.index + doMatch[0].length;
-      const doneMatch = DONE_KEYWORD.exec(blank.slice(bodyStart));
-      const bodyEnd = doneMatch === null ? blank.length : bodyStart + doneMatch.index;
-      spans.push([bodyStart, bodyEnd]);
-    }
-    m = FOR_HEAD.exec(blank);
-  }
-  return spans;
+  return shellLoops(blank)
+    .filter((loop) => loop.kind === "for" && loop.bodyStart !== undefined)
+    .map((loop) => [loop.bodyStart, loop.bodyEnd]);
 }
 
 /** Is any CLAUSE in this command nothing but a foreground `sleep <n>`, above the settle-delay threshold,
@@ -2871,7 +2831,8 @@ function sleepOnlyCommand(command, blank, clauses) {
   return sawSleep;
 }
 
-/** Every `for`/`select`/`while`/`until` loop in the command as `{kind, start, end, sleeps}`, found from shell
+/** Every `for`/`select`/`while`/`until` loop in the command as `{kind, start, doAt, bodyStart, bodyEnd, end,
+ *  sleeps, bodySleeps}` (`doAt`/`bodyStart` are unset for a loop with no `do`), found from shell
  *  structure: the keyword counts only in command position, and each loop closes at its own `done` with
  *  nesting counted. A loop keyword used as a plain word (`echo waiting until ready`, `ls src/while`) and
  *  a `done` that is an argument (`echo not done`) are neither. An unclosed loop runs to the end. */
@@ -2941,20 +2902,27 @@ function shellLoops(blank) {
     } else if (token === "esac" && kase !== undefined) {
       cases.pop();
     } else if (LOOP_KEYWORDS.has(token)) {
-      open.push({ kind: token, start: m.index, sleeps: false });
+      open.push({ kind: token, start: m.index, sleeps: false, bodySleeps: false });
+    } else if (token === "do") {
+      const loop = open.at(-1);
+      if (loop !== undefined && loop.doAt === undefined) {
+        loop.doAt = m.index;
+        loop.bodyStart = m.index + token.length;
+      }
     } else if (token === "done") {
       const loop = open.pop();
       if (loop !== undefined) {
-        loops.push({ ...loop, end: m.index + token.length });
+        loops.push({ ...loop, bodyEnd: m.index, end: m.index + token.length });
       }
     } else if (sleepHeadOperands(blank.slice(m.index).match(SIMPLE_COMMAND_TEXT)[0]) !== null) {
       for (const loop of open) {
         loop.sleeps = true;
+        loop.bodySleeps ||= loop.bodyStart !== undefined;
       }
     }
     commandPosition = COMMAND_FOLLOWS.has(token) || ASSIGN_PREFIX.test(token);
   }
-  return [...loops, ...open.map((loop) => ({ ...loop, end: blank.length }))];
+  return [...loops, ...open.map((loop) => ({ ...loop, bodyEnd: blank.length, end: blank.length }))];
 }
 
 /** Does the command wait on a harness task file: an `until`/`while` loop that reads one, a `for`/`select`

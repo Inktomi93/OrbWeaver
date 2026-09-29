@@ -907,6 +907,12 @@ const ROWS: Row[] = [
   // …as is one inside a comment or a heredoc body, which are text guard-wide
   ["pass", null, 'ls packages # never echo "$(git stash)"'],
   ["pass", null, "python3 - <<'PY'\nprint(\"$(git stash)\")\nPY"],
+  // loop bodies come from shell structure: a `sleep`/`done`/`while`/`do` used as a plain word is not one
+  ["pass", null, "while true; do echo sleep; done"],
+  ["pass", null, "for i in 1 2; do echo done; sleep 5; done"],
+  ["pass", null, "for i in 1 2; do for j in 1; do :; done; sleep 30; done"],
+  ["pass", null, "echo while; pgrep -f vitest; echo do"],
+  ["deny", "sleep-wait-loop", "while pgrep -f x >/dev/null; do for i in 1; do :; done; sleep 5; done"],
   // the hard floor and the rm rule hold inside a loop body, an `if`, a subshell and a brace group
   ["ask", "rm-rf-unsafe", "for i in 1; do rm -rf /; done"],
   ["ask", "rm-rf-unsafe", "while true; do rm -rf /home/user; done"],
