@@ -150,7 +150,8 @@ export interface DriftFacts {
   readonly worktreeBranches: readonly string[];
   /** Branch names not merged into `main`. */
   readonly unmergedBranches: readonly string[];
-  /** `Closes:` ids per `main` commit carrying that trailer, across the whole branch, newest first. */
+  /** `Closes:` ids per `main` commit carrying that trailer, across the whole branch, newest first. An id
+   *  still open on the tree is dropped when the commit or its parent held only a different file for it. */
   readonly closedOnMain: readonly { readonly sha: string; readonly ids: readonly number[] }[];
   /** Items whose wake condition the tree meets, by id. */
   readonly wokenItems: ReadonlySet<number>;
@@ -158,8 +159,17 @@ export interface DriftFacts {
   readonly wokenPlans: ReadonlySet<string>;
 }
 
+/** The states `overview --status` can name; `done` is a count-only column. */
+export type OverviewState = Exclude<ItemState, "done">;
+
+/** An empty `states` list and a null `area` leave the board unfiltered. */
+export interface OverviewFilter {
+  readonly states: readonly OverviewState[];
+  readonly area: string | null;
+}
+
 export type DocCommand =
-  | { readonly kind: "help" }
+  | { readonly kind: "help"; readonly text: string }
   | { readonly kind: "new-adr"; readonly slug: string; readonly title: string | null; readonly content: SectionContent<AdrSectionFlag> }
   | { readonly kind: "new-plan"; readonly slug: string; readonly title: string | null; readonly content: SectionContent<PlanSectionFlag> }
   | { readonly kind: "new-law"; readonly slug: string; readonly title: string | null }
@@ -180,6 +190,6 @@ export type DocCommand =
   | { readonly kind: "index" }
   | { readonly kind: "review"; readonly patterns: readonly string[] }
   | { readonly kind: "due"; readonly patterns: readonly string[] }
-  | { readonly kind: "overview" }
+  | { readonly kind: "overview"; readonly filter: OverviewFilter }
   | { readonly kind: "drift" }
   | { readonly kind: "format"; readonly write: boolean; readonly files: readonly string[] };

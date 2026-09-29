@@ -58,7 +58,7 @@ repository path and wakes the item when that path exists (`path`) or no longer d
 an item is ever executed. Any transition is legal; the checker validates the final shape. Lanes never
 write item state: add a `Closes: 12, 14` trailer and the merge hook lands the items on `main`, whether
 `git merge` or a later `git commit` finished the merge; `drift` names any landing still owed. `pnpm doc
-overview` is the column view; `pnpm doc drift` names each inconsistency with its fix.
+overview` is the column view, and `--status` and `--area` narrow it; `pnpm doc drift` names each inconsistency with its fix.
 
 ## Checks
 

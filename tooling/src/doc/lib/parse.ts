@@ -2,31 +2,51 @@
 // a UsageError so the cli maps it to exit 3 (misuse). Every list-taking verb reads a leading run of ids
 // or paths, so `set 12 14 17 done` is one call.
 import { UsageError } from "../../_shared/run-tool.ts";
-import type { DocCommand, ItemPatch, SectionContent } from "../contract/types.ts";
+import type { DocCommand, ItemPatch, OverviewState, SectionContent } from "../contract/types.ts";
 import { ADR_SECTION_FLAGS, ITEM_SECTION_FLAGS, PLAN_SECTION_FLAGS } from "../contract/types.ts";
+import { ITEM_STATES } from "../contract/vocab.ts";
 import { isItemKind, isItemState } from "./items.ts";
 import { isSlug } from "./names.ts";
 
 const ID_RE = /^\d+$/u;
 
-export const USAGE = [
-  "usage: pnpm doc <verb> …",
-  "  new adr <slug> [--title <t>] [--context <text>] [--decision <text>] [--consequences <text>] [--alternatives <text>]",
-  "  new plan <slug> [--title <t>] [--goal <text>] [--shape <text>] [--rejected <text>] [--coupled <text>] [--test-plan <text>]",
-  "  new law <slug> [--title <t>]",
-  "  item <title> --kind bug|work|decision|tooling [--priority P0..P3] [--area a] [--plan slug] [--lane x | --blocked <reason>]",
-  "       [--what <text>] [--why <text>] [--done <text>]",
-  "  item --from <file.json>             a JSON array of items (title, kind, priority, area, plan, lane, blocked,",
-  "                                      what, why, done), written all-or-nothing",
-  "  status <status> <path…> [--by <path>] [--kind <k>] [--blocked <reason> (status parked, a plan)]",
-  "  set <id…> [open|doing|blocked|done] [--kind k] [--title <t> (one id)] [--lane x] [--blocked <reason>] [--priority P] [--area a]",
-  "       [--plan s] [--reviewed x] [--evidence sha]      (--<field> - or --<field> none clears a field)",
-  "  remove <id|path…>                   delete governed docs nothing cites (a plan by its design.md)",
-  "  land <id…> --evidence <sha>       land --merged [--head-merge]       (landing deletes the item and commits the record)",
-  "  index      review <path|glob…>      due [glob…]",
-  "  overview      drift",
-  "  format <--check|--write> [file…]    write/list compact markdown across the living docs trees",
-].join("\n");
+// Each verb's lines start with `  <verb>`; a continuation line is indented deeper. `<verb> --help` prints
+// only its own entry, so a verb's lines live here and nowhere else.
+const VERB_USAGE = {
+  new: [
+    "  new adr <slug> [--title <t>] [--context <text>] [--decision <text>] [--consequences <text>] [--alternatives <text>]",
+    "  new plan <slug> [--title <t>] [--goal <text>] [--shape <text>] [--rejected <text>] [--coupled <text>] [--test-plan <text>]",
+    "  new law <slug> [--title <t>]",
+  ],
+  item: [
+    "  item <title> --kind bug|work|decision|tooling [--priority P0..P3] [--area a] [--plan slug] [--lane x | --blocked <reason>]",
+    "       [--what <text>] [--why <text>] [--done <text>]      (the title is positional, not --title)",
+    "  item --from <file.json>             a JSON array of items (title, kind, priority, area, plan, lane, blocked,",
+    "                                      what, why, done), written all-or-nothing",
+  ],
+  status: ["  status <status> <path…> [--by <path>] [--kind <k>] [--blocked <reason> (status parked, a plan)]"],
+  set: [
+    "  set <id…> [open|doing|blocked|done] [--kind k] [--title <t> (one id)] [--lane x] [--blocked <reason>] [--priority P] [--area a]",
+    "       [--plan s] [--reviewed x] [--evidence sha]      (--<field> - or --<field> none clears a field)",
+  ],
+  remove: ["  remove <id|path…>                   delete governed docs nothing cites (a plan by its design.md)"],
+  land: ["  land <id…> --evidence <sha>         landing deletes the item and commits the record", "  land --merged [--head-merge]"],
+  index: ["  index                               regenerate the generated indexes"],
+  review: ["  review <path|glob…>                 mark docs reviewed today"],
+  due: ["  due [glob…]                         list docs whose cited code changed since their review"],
+  overview: ["  overview [--status open|doing|blocked[,…]]… [--area <a>]"],
+  drift: ["  drift"],
+  format: ["  format <--check|--write> [file…]    write/list compact markdown across the living docs trees"],
+} as const satisfies Record<string, readonly string[]>;
+type UsageVerb = keyof typeof VERB_USAGE;
+
+export const USAGE = ["usage: pnpm doc <verb> …", ...Object.values(VERB_USAGE).flat()].join("\n");
+
+function usageFor(verb: UsageVerb): string {
+  return VERB_USAGE[verb].join("\n");
+}
+
+const HELP_FLAGS: readonly string[] = ["--help", "-h"];
 
 function flagValue(args: readonly string[], flag: string): string | null {
   const index = args.indexOf(flag);
@@ -48,10 +68,17 @@ function requiredFlag(args: readonly string[], flag: string): string {
   return value;
 }
 
-function refuseUnknownFlags(args: readonly string[], allowed: readonly string[], verb: string): void {
+/** Every value of a repeatable flag, in order. */
+function flagValues(args: readonly string[], flag: string): readonly string[] {
+  return args.flatMap((token, index) => (token === flag ? [flagValue(args.slice(index), flag) ?? ""] : []));
+}
+
+/** `fix` names the corrected command for an unknown flag an agent is known to reach for. */
+function refuseUnknownFlags(args: readonly string[], allowed: readonly string[], verb: string, fix?: (flag: string) => string | null): void {
   const unknown = args.find((token) => token.startsWith("--") && !allowed.includes(token));
   if (unknown !== undefined) {
-    throw new UsageError(`${verb} does not recognize ${unknown} — flags: ${allowed.join(" ")}`);
+    const hint = fix?.(unknown) ?? null;
+    throw new UsageError(`${verb} does not recognize ${unknown}${hint === null ? "" : ` — ${hint}`} — flags: ${allowed.join(" ")}`);
   }
 }
 
@@ -109,6 +136,9 @@ const ITEM_CONTENT_FLAGS = ITEM_SECTION_FLAGS;
 
 function parseNew(args: readonly string[]): DocCommand {
   const [kind, slug, ...rest] = args;
+  if (kind === "item") {
+    throw new UsageError(`new takes adr, plan or law — an item is its own verb: pnpm doc item "<title>" --kind …\n${usageFor("item")}`);
+  }
   if (kind !== "adr" && kind !== "plan" && kind !== "law") {
     throw new UsageError(`new takes adr, plan or law\n${USAGE}`);
   }
@@ -138,7 +168,9 @@ function parseItemBatch(args: readonly string[]): DocCommand {
 }
 
 function parseItem(args: readonly string[]): DocCommand {
-  refuseUnknownFlags(args, ITEM_FLAGS, "item");
+  refuseUnknownFlags(args, ITEM_FLAGS, "item", (flag) =>
+    flag === "--title" ? `the title is positional: pnpm doc item "${args[args.indexOf(flag) + 1] ?? "<title>"}" --kind …` : null,
+  );
   if (args.includes(FROM_FLAG)) {
     return parseItemBatch(args);
   }
@@ -207,10 +239,17 @@ function parseIdentity(args: readonly string[], idCount: number): Pick<ItemPatch
 
 /** The state is optional so a field-only edit (`set 12 --kind work`) needs no state. */
 function parseSet(args: readonly string[]): DocCommand {
-  refuseUnknownFlags(args, SET_FLAGS, "set");
+  refuseUnknownFlags(args, SET_FLAGS, "set", (flag) =>
+    flag === "--state" || flag === "--status"
+      ? `the state is positional: pnpm doc set ${[...positionals(args, [...SET_FLAGS, flag]), args[args.indexOf(flag) + 1] ?? "<state>"].join(" ")}`
+      : null,
+  );
   const tokens = positionals(args, SET_FLAGS);
   const last = tokens.at(-1);
   const state = isItemState(last) ? last : undefined;
+  if (state === undefined && tokens.length > 1 && last !== undefined && !ID_RE.test(last)) {
+    throw new UsageError(`set: ${last} is not a state — states: ${ITEM_STATES.join(" ")}\n${usageFor("set")}`);
+  }
   const idList = ids(state === undefined ? tokens : tokens.slice(0, -1), "set");
   const patch: ItemPatch = { ...(state === undefined ? {} : { state }), ...parseIdentity(args, idList.length), ...parsePatch(args) };
   if (Object.keys(patch).length === 0) {
@@ -232,7 +271,14 @@ function parseLand(args: readonly string[]): DocCommand {
     return { kind: "land-merged", headMerge: rest[0] === "--head-merge" };
   }
   refuseUnknownFlags(args, ["--evidence"], "land");
-  return { kind: "land", ids: ids(positionals(args, ["--evidence"]), "land"), evidence: requiredFlag(args, "--evidence") };
+  const tokens = positionals(args, ["--evidence"]);
+  const sha = tokens.find((token) => !ID_RE.test(token));
+  if (sha !== undefined && !args.includes("--evidence")) {
+    throw new UsageError(
+      `land takes the evidence as a flag: pnpm doc ${["land", ...tokens.filter((token) => token !== sha), "--evidence", sha].join(" ")}\n${usageFor("land")}`,
+    );
+  }
+  return { kind: "land", ids: ids(tokens, "land"), evidence: requiredFlag(args, "--evidence") };
 }
 
 const STATUS_FLAGS = ["--by", "--kind", "--blocked"];
@@ -242,6 +288,11 @@ function parseStatus(args: readonly string[]): DocCommand {
   const [status, ...paths] = positionals(args, STATUS_FLAGS);
   if (status === undefined || paths.length === 0) {
     throw new UsageError(`status takes a status and one or more paths\n${USAGE}`);
+  }
+  if (isItemState(status) && paths.every((path) => ID_RE.test(path))) {
+    throw new UsageError(
+      `status moves ADRs, plans and laws by path; an item's state is set by id: pnpm doc set ${paths.join(" ")} ${status}\n${usageFor("set")}`,
+    );
   }
   return { kind: "status", status, paths, by: flagValue(args, "--by"), docKind: flagValue(args, "--kind"), blocked: flagValue(args, "--blocked") };
 }
@@ -262,7 +313,35 @@ function parseListVerb(name: "review" | "due", args: readonly string[]): DocComm
   return { kind: name, patterns: args };
 }
 
-function parseBare(name: "index" | "overview" | "drift", args: readonly string[]): DocCommand {
+// `done` is a count-only column, so filtering to it would print a bare header.
+const OVERVIEW_STATES = ITEM_STATES.filter((state): state is OverviewState => state !== "done");
+const OVERVIEW_FLAGS = ["--status", "--area"];
+
+function isOverviewState(value: string): value is OverviewState {
+  return OVERVIEW_STATES.some((state) => state === value);
+}
+
+function parseOverview(args: readonly string[]): DocCommand {
+  refuseUnknownFlags(args, OVERVIEW_FLAGS, "overview");
+  const stray = positionals(args, OVERVIEW_FLAGS);
+  if (stray.length > 0) {
+    const hint = stray.every(isOverviewState) ? ` — a state filter is --status ${stray.join(",")}` : "";
+    throw new UsageError(`overview takes only flags, not ${stray.join(" ")}${hint}\n${usageFor("overview")}`);
+  }
+  const named = flagValues(args, "--status").flatMap((value) =>
+    value
+      .split(",")
+      .map((state) => state.trim())
+      .filter((state) => state !== ""),
+  );
+  const unknown = named.filter((state) => !isOverviewState(state));
+  if (unknown.length > 0) {
+    throw new UsageError(`overview --status takes ${OVERVIEW_STATES.join("|")}, not ${unknown.join(", ")}`);
+  }
+  return { kind: "overview", filter: { states: OVERVIEW_STATES.filter((state) => named.includes(state)), area: flagValue(args, "--area") } };
+}
+
+function parseBare(name: "index" | "drift", args: readonly string[]): DocCommand {
   if (args.length > 0) {
     throw new UsageError(`${name} takes no arguments`);
   }
@@ -280,34 +359,38 @@ function parseFormat(args: readonly string[]): DocCommand {
   return { kind: "format", write: mode === "--write", files };
 }
 
-/** Verb name → parser. A verb absent here is unknown, which is misuse. */
+/** Verb name → parser; keyed by {@link VERB_USAGE}, so a verb with usage lines always has a parser. */
 type Parser = (tail: readonly string[]) => DocCommand;
-const help: Parser = () => ({ kind: "help" });
-const VERBS: ReadonlyMap<string, Parser> = new Map<string, Parser>([
-  ["help", help],
-  ["--help", help],
-  ["new", parseNew],
-  ["item", parseItem],
-  ["status", parseStatus],
-  ["set", parseSet],
-  ["remove", parseRemove],
-  ["land", parseLand],
-  ["review", (tail): DocCommand => parseListVerb("review", tail)],
-  ["due", (tail): DocCommand => parseListVerb("due", tail)],
-  ["index", (tail): DocCommand => parseBare("index", tail)],
-  ["overview", (tail): DocCommand => parseBare("overview", tail)],
-  ["drift", (tail): DocCommand => parseBare("drift", tail)],
-  ["format", parseFormat],
-]);
+const VERBS: Readonly<Record<UsageVerb, Parser>> = {
+  new: parseNew,
+  item: parseItem,
+  status: parseStatus,
+  set: parseSet,
+  remove: parseRemove,
+  land: parseLand,
+  review: (tail) => parseListVerb("review", tail),
+  due: (tail) => parseListVerb("due", tail),
+  index: (tail) => parseBare("index", tail),
+  overview: parseOverview,
+  drift: (tail) => parseBare("drift", tail),
+  format: parseFormat,
+};
+
+function isUsageVerb(name: string): name is UsageVerb {
+  return Object.hasOwn(VERBS, name);
+}
 
 export function parseDocCommand(argv: readonly string[]): DocCommand {
   const [name, ...tail] = argv;
-  if (name === undefined) {
-    return { kind: "help" };
+  if (name === undefined || name === "help" || HELP_FLAGS.includes(name)) {
+    return { kind: "help", text: USAGE };
   }
-  const verb = VERBS.get(name);
-  if (verb === undefined) {
+  if (!isUsageVerb(name)) {
     throw new UsageError(`unknown verb ${name}\n${USAGE}`);
   }
-  return verb(tail);
+  // Help wins over every other token, so `<verb> --help` never trips the verb's own argument checks.
+  if (tail.some((token) => HELP_FLAGS.includes(token))) {
+    return { kind: "help", text: usageFor(name) };
+  }
+  return VERBS[name](tail);
 }

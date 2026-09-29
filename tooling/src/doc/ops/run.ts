@@ -6,7 +6,6 @@ import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
 import type { DocCommand } from "../contract/types.ts";
-import { USAGE } from "../lib/parse.ts";
 import { drift, overview } from "./board.ts";
 import { formatDocs, formatTargets } from "./format.ts";
 import { regenerateIndexes } from "./indexes.ts";
@@ -89,7 +88,7 @@ function runDue(patterns: readonly string[]): ExitCode {
 export function runDocCommand(command: DocCommand): ExitCode {
   switch (command.kind) {
     case "help":
-      print(USAGE);
+      print(command.text);
       return EXIT.clean;
     case "new-adr":
       return report("new adr", newAdr(command));
@@ -118,7 +117,7 @@ export function runDocCommand(command: DocCommand): ExitCode {
     case "due":
       return runDue(command.patterns);
     case "overview":
-      for (const line of overview()) {
+      for (const line of overview(undefined, command.filter)) {
         print(line);
       }
       return EXIT.clean;

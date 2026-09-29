@@ -22,6 +22,14 @@ test("item --from a file that does not exist is misuse and writes nothing", asyn
   expect(res.stdout).toBe("");
 });
 
+test("<verb> --help and -h exit 0 through the real binary, even on a verb that takes no flags", async ({ runCli }) => {
+  const help = await runCli("doc", ["item", "--help"]);
+  await expect(help).toExitWith(0);
+  expect(help.stdout).toContain("item");
+  expect(help.stdout).not.toContain("overview");
+  await expect(await runCli("doc", ["overview", "-h"])).toExitWith(0);
+});
+
 test("the read verbs exit 0 on the real tree, and help is 0", async ({ runCli }) => {
   await expect(await runCli("doc", ["help"])).toExitWith(0);
   const overview = await runCli("doc", ["overview"]);
