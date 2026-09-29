@@ -16,13 +16,17 @@
 // byte cap, NEVER a bare fetch of an attacker-named URL); `fetchBundleThroughGuard` collapses any fetch failure
 // to a leak-free `PluginBundleFetchError`. Nothing persists on a fetch failure OR a bad-zip refusal.
 
+import { PluginBundlePreviewStaleError } from "../contract/errors.ts";
 import type { InstallFromUrlParams } from "../contract/params.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
-import { fetchBundleThroughGuard } from "../substrate/manifest.ts";
+import { fetchBundleThroughGuard, hashPluginBundle } from "../substrate/manifest.ts";
 
 export function createInstallFromUrl(ctx: PluginContext, deps: { readonly install: PluginService["install"] }): PluginService["installFromUrl"] {
-  return async ({ caller, url, grant }: InstallFromUrlParams) => {
+  return async ({ caller, url, expectedBundleHash, grant }: InstallFromUrlParams) => {
     const bundle = await fetchBundleThroughGuard(ctx.fetchBundle, url);
-    return deps.install({ caller, bundle, grant, source: { origin: "url", sourceUrl: url } });
+    if (hashPluginBundle(bundle) !== expectedBundleHash) {
+      throw new PluginBundlePreviewStaleError();
+    }
+    return deps.install({ caller, bundle, grant, source: { origin: "url", sourceUrl: url, sourceCommit: null } });
   };
 }

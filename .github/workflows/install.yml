@@ -1,9 +1,10 @@
 name: install
 
 # Proves the README's "Run it" paths on fresh runners. Each source job runs the README's install lines, a
-# non-interactive `pnpm start` (start.cmd on Windows), waits for /healthz and stops the server. The docker job
-# runs the README's Docker lines the same way. No job installs Node: package.json `devEngines.runtime`
-# (onFail: download) makes pnpm fetch the pinned Node itself, which is the README's path.
+# non-interactive `pnpm start` (start.cmd on Windows), waits for /healthz and stops the server, then runs the
+# targeted plugin-broker process-tree proof. The docker job runs the README's Docker lines and the same proof
+# inside the production image. No job installs Node: package.json `devEngines.runtime` (onFail: download) makes
+# pnpm fetch the pinned Node itself, which is the README's path.
 # Manual only, like ci.yml.
 on:
   workflow_dispatch:
@@ -126,6 +127,34 @@ jobs:
         shell: bash
         run: cat "$RUNNER_TEMP"/start*.log || true
 
+      - name: Prove plugin broker containment and residency
+        env:
+          PLUGIN_BROKER_PROOF_RECEIPT: ${{ runner.temp }}/plugin-broker-proof.json
+        run: pnpm test:scoped tests/server/infra/plugin-host/platform-proof.suite.test.ts
+
+      - name: Add plugin broker receipt to the run summary
+        if: always()
+        shell: bash
+        run: |
+          pnpm exec node --input-type=module - <<'NODE'
+          import { appendFile, readFile } from "node:fs/promises";
+          import { resolve } from "node:path";
+          const receipt = resolve(process.env.RUNNER_TEMP, "plugin-broker-proof.json");
+          const result = await Promise.allSettled([readFile(receipt, "utf8")]);
+          if (result[0]?.status === "fulfilled") {
+            await appendFile(process.env.GITHUB_STEP_SUMMARY, `### Plugin broker proof (${process.env.RUNNER_OS})\n\`\`\`json\n${result[0].value}\`\`\`\n`);
+          }
+          NODE
+
+      - name: Upload plugin broker receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-broker-proof-${{ matrix.os }}
+          path: ${{ runner.temp }}/plugin-broker-proof.json
+          if-no-files-found: warn
+          retention-days: 14
+
   docker:
     name: docker (ubuntu-latest)
     runs-on: ubuntu-latest
@@ -143,6 +172,38 @@ jobs:
             sleep 5
           done
           curl -fsS "$HEALTHZ"
+
+      - name: Prove plugin broker containment and residency in the production image
+        run: |
+          docker compose exec --user node -T orbweaver sh -c 'cat > /app/.cache/plugin-platform-proof.ts' < tests/server/infra/plugin-host/_platform-proof.ts
+          docker compose exec --user node -T orbweaver node /app/.cache/plugin-platform-proof.ts \
+            --run-proof --root=/app --json=/app/.cache/plugin-broker-proof.json
+
+      - name: Copy Docker plugin broker receipt
+        if: always()
+        run: docker compose cp orbweaver:/app/.cache/plugin-broker-proof.json "$RUNNER_TEMP/plugin-broker-proof-docker.json" || true
+
+      - name: Add Docker plugin broker receipt to the run summary
+        if: always()
+        run: |
+          receipt="$RUNNER_TEMP/plugin-broker-proof-docker.json"
+          if [ -f "$receipt" ]; then
+            {
+              echo "### Plugin broker proof (Docker)"
+              echo '```json'
+              cat "$receipt"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload Docker plugin broker receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-broker-proof-docker
+          path: ${{ runner.temp }}/plugin-broker-proof-docker.json
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Show the container log
         if: always()

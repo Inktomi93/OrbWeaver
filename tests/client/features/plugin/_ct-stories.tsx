@@ -9,8 +9,8 @@
 // and the declared list comes from a client-side manifest read of the uploaded bytes — a story that passed
 // the capability list in as a prop would prove nothing about the path that actually produces it.
 
-import { CommandPaletteSurface } from "@orb/client/features/chat";
 import { useInvalidation, useTRPC } from "@orb/client/data";
+import { CommandPaletteSurface } from "@orb/client/features/chat";
 import {
   pluginChatFlankSurface,
   pluginChatSettingsSection,
@@ -29,8 +29,8 @@ import type { ChromeEntry, ConfigSectionContribution } from "@orb/client/state";
 import {
   __resetPluginCommandArgs,
   __resetPluginDialog,
-  CommandPaletteSourceRegistryProvider,
   ChromeRegistryProvider,
+  CommandPaletteSourceRegistryProvider,
   clearPluginPage,
   openPluginCommandArgs,
   openPluginDialog,
@@ -498,11 +498,11 @@ const pluginCommandsChromeRegistry = createContributorRegistry<ChromeEntry>("chr
 export function PluginCommandsYouSheetStory(): ReactElement {
   return (
     <CtDataProviders>
-      <CtFakeSectionRegistry>
+      <CtRealSectionRegistry>
         <ChromeRegistryProvider value={pluginCommandsChromeRegistry}>
           <YouSheet />
         </ChromeRegistryProvider>
-      </CtFakeSectionRegistry>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }

@@ -40,6 +40,7 @@ function pluginRow(id: PluginId, slug: string, name: string, lifecycle: Partial<
     status: "enabled",
     origin: "upload",
     sourceUrl: null,
+    sourceCommit: null,
     updateSource: null,
     declaredCapabilities: ["ui.surface"],
     grantedCapabilities: ["ui.surface"],

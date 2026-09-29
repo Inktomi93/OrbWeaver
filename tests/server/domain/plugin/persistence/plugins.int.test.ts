@@ -68,6 +68,7 @@ async function seedPlugin(db: Db, ownerId: UserId, id: string, slug = "test-plug
     status: "disabled",
     origin: "upload",
     sourceUrl: null,
+    sourceCommit: null,
     installedAt: AT,
     updatedAt: AT,
   });
@@ -115,6 +116,7 @@ test("listOwned returns the owner's plugins newest-installed first", async () =>
     status: "disabled",
     origin: "upload",
     sourceUrl: null,
+    sourceCommit: null,
     installedAt: AT + 100,
     updatedAt: AT + 100,
   });
@@ -164,6 +166,9 @@ test("applyUpgrade swaps the manifest-derived fields + grant + bundle asset", as
     bundleAssetId: newAsset,
     grantedCapabilities: ["chat.read", "storage.kv"],
     status: "disabled",
+    origin: "upload",
+    sourceUrl: null,
+    sourceCommit: null,
     pendingReconsent: true,
     widenedNetHosts: ["collector.attacker.example"],
     updatedAt: AT + 5,
@@ -203,6 +208,9 @@ test("the widened_hosts CHECK rejects a SETTLED row that still carries a delta (
       bundleAssetId: newAsset,
       grantedCapabilities: ["chat.read"],
       status: "disabled",
+      origin: "upload",
+      sourceUrl: null,
+      sourceCommit: null,
       pendingReconsent: false,
       widenedNetHosts: ["collector.attacker.example"],
       updatedAt: AT + 5,
@@ -234,6 +242,7 @@ test("a fresh install writes an EMPTY delta and a CLEARED flag — a new row nev
     status: "disabled",
     origin: "upload",
     sourceUrl: null,
+    sourceCommit: null,
     installedAt: AT,
     updatedAt: AT,
   });
@@ -262,6 +271,7 @@ test("deletePlugin removes the row; toPluginView lifts builtAgainst from the man
     status: "disabled",
     origin: "upload",
     sourceUrl: null,
+    sourceCommit: null,
     installedAt: AT,
     updatedAt: AT,
   });

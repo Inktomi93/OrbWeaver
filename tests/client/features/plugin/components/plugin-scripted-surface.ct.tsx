@@ -132,6 +132,7 @@ function enabledRow(id: PluginId, name: string): PluginListRow {
     status: "enabled",
     origin: "upload",
     sourceUrl: null,
+    sourceCommit: null,
     updateSource: null,
     declaredCapabilities: ["ui.surface", "storage.kv"],
     grantedCapabilities: ["ui.surface", "storage.kv"],

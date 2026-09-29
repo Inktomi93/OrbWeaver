@@ -11,9 +11,10 @@
  *      The row records the URL it came from (`plugins.source_url`) so the auto update-check + one-click upgrade
  *      can re-fetch it re-paste-free. This is the honest origin the 2a placeholder deferred: 2a recorded a URL
  *      install as `"upload"` while the source-agnostic funnel was the only thing built; 2b makes it truthful.
+ *    - `"git"` — packed from a guarded shallow clone; records repository URL and exact installed commit.
  *  A future first-party catalog adds `"catalog"` the same way. INVARIANT (a `plugins` CHECK enforces it):
  *  `"upload"` is the ONE origin with no source URL — every non-upload origin carries one. */
-export const PLUGIN_ORIGINS = ["upload", "url"] as const;
+export const PLUGIN_ORIGINS = ["upload", "url", "git"] as const;
 export type PluginOrigin = (typeof PLUGIN_ORIGINS)[number];
 
 /** A plugin row's lifecycle status. `disabled` = installed/granted but not activated (the default —

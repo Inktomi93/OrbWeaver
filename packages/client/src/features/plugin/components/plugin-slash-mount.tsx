@@ -54,10 +54,10 @@ export function PluginSlashMount({ context, onRunner, onArgComplete }: SlashComm
           notify.error(`/plugin ${slug} ${name}: ${errors.join("; ")}`);
           return;
         }
-        void run(slug, name, args, values);
+        run({ slug, name, args, values });
         return;
       }
-      void run(slug, name, args, {});
+      run({ slug, name, args, values: {} });
     });
   }, [onRunner, run, commands]);
   return null;

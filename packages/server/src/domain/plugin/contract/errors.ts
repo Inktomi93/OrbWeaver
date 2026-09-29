@@ -5,6 +5,7 @@
 // host-side lifecycle failures a CALLER sees, never a guest.
 
 import { DomainConflictError, DomainNotFoundError, DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
+import type { PluginId } from "@orb/kit/ids";
 
 /** The bundle failed unzip/validation: a bad zip, extra/unknown entries, a decompression-bomb over the caps,
  *  malformed `manifest.json`, or a manifest that fails `pluginManifestSchema` (bad slug/version/hostVersion shape/
@@ -37,6 +38,45 @@ export class PluginBundleFetchError extends DomainOperationError {
     if (options?.cause !== undefined) {
       this.cause = options.cause;
     }
+  }
+}
+
+/** Leak-free collapse for every guarded Git transport/clone/ref failure. */
+export class PluginGitSourceError extends DomainOperationError {
+  constructor(options?: { readonly cause?: unknown }) {
+    // Never echo the supplied URL: the refusal class includes embedded credentials, and errors are a durable
+    // log/client surface. The server-side cause retains the operational reason without retaining the secret.
+    super("plugin_git_source_failed", "could not read that plugin repository (unreachable, refused, changed, or not a permitted destination)");
+    if (options?.cause !== undefined) {
+      this.cause = options.cause;
+    }
+  }
+}
+
+/** Remote HEAD moved after the consent preview or update check. No bytes persist; the owner must review again. */
+export class PluginGitPreviewStaleError extends DomainConflictError {
+  constructor() {
+    super("the Git repository changed after review — check it again and review the current permissions before continuing");
+  }
+}
+
+/** The URL served different bytes after the consent preview or update check. No lifecycle mutation ran. */
+export class PluginBundlePreviewStaleError extends DomainConflictError {
+  constructor() {
+    super("the plugin bundle changed since it was fetched — fetch it or check for updates again before continuing");
+  }
+}
+
+/** The local-directory door is deliberately absent outside a development server. */
+export class PluginUnpackedUnavailableError extends DomainOperationError {
+  constructor() {
+    super("plugin_unpacked_unavailable", "unpacked plugin loading is available only in development");
+  }
+}
+
+export class PluginNoGitSourceError extends DomainOperationError {
+  constructor(pluginId: PluginId) {
+    super("plugin_no_git_source", `plugin ${pluginId} was not installed from Git — choose an update source that matches its provenance`);
   }
 }
 

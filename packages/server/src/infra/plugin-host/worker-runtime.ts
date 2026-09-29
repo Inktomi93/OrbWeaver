@@ -1,11 +1,15 @@
+// infra/plugin-host/worker-runtime — one isolated guest runtime and its broker bridge.
+// ASSUMES(single-replica): pending calls are promises owned by this Worker; multi-replica coordination belongs
+// at the broker's DB-backed runtime lease and command queue, never inside a Worker-local promise table.
+
 import { AsyncLocalStorage } from "node:async_hooks";
-import { parentPort, workerData } from "node:worker_threads";
 import type { MessagePort } from "node:worker_threads";
+import { parentPort, workerData } from "node:worker_threads";
 import type { PluginHandlerRef, PluginInstance, PluginInvocationLiveness, PluginInvokeArgs } from "@orb/contracts/plugin";
 import { createRemoteBridge } from "./bridge-rpc.ts";
+import type { CreateInstanceInputIn } from "./contract/port.ts";
+import type { BrokerWorkerMessage, PluginBridgeOperation, PluginSyncOperation, WorkerBrokerMessage } from "./contract/process-protocol.ts";
 import { createLocalPluginHost } from "./port.ts";
-import type { CreateInstanceInputIn } from "./port.ts";
-import type { BrokerWorkerMessage, PluginBridgeOperation, PluginSyncOperation, WorkerBrokerMessage } from "./process-protocol.ts";
 import { decodeProcessValue, fromRpcError, PLUGIN_BROKER_SYNC_RESULT_BYTES, PLUGIN_BROKER_SYNC_TIMEOUT_MS, rpcError } from "./process-protocol.ts";
 
 interface WorkerIdentity {
@@ -175,7 +179,7 @@ port.on("message", (message: BrokerWorkerMessage) => {
     }
     return;
   }
-  // @orb-waive caught-failure-ownership(commandAuthority.run): every command rejection is encoded into the response with the same command id, while the returned chain is fulfilled by that rejection arm. Ends if the error response stops carrying the rejection.
+  // @orb-waive caught-failure-ownership(run): every command rejection is encoded into the response with the same command id. Ends if the error response stops carrying the rejection.
   void commandAuthority
     .run(message.authorityId, () => run(message))
     .then(

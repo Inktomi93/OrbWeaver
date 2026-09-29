@@ -340,11 +340,10 @@ export function reConsentLine(addedCapabilities: readonly PluginCapability[], ad
   return `This update changed what this plugin can reach, ${tail}`;
 }
 
-/** U8 2b — the auto update-check vocabulary, ONE home so the row and its CT read the same words. It is written
- *  for BOTH update sources (`PluginView.updateSource`, #1740) and stays one vocabulary deliberately: "its
- *  source" is the remembered URL for a `url` install and the copy Orbweaver ships for a seeded example, and the
- *  person is asking the same question of both. A hand-uploaded plugin has neither and never shows these.
- *  `CHECK_FOR_UPDATES_LABEL` triggers the check; the three verdicts map 1:1 to the `PluginUpdateCheck` arms
+/** U8 2b — the auto update-check vocabulary, ONE home so the row and its CT read the same words. It spans every
+ *  update source (`PluginView.updateSource`, #1740/#0081): a remembered bundle URL, a remembered Git
+ *  repository, or the copy Orbweaver ships for a seeded example. A hand-uploaded plugin has none and never
+ *  shows these. `CHECK_FOR_UPDATES_LABEL` triggers the check; the verdicts map 1:1 to `PluginUpdateCheck`
  *  (a showcase row can only reach `unreachable` by dropping out of the batch — nothing was fetched for it). */
 export const CHECK_FOR_UPDATES_LABEL = "Check for updates";
 /** The settled `up-to-date` line. */
@@ -354,6 +353,17 @@ export const UPDATE_UNREACHABLE_LINE = "Couldn't reach its source to check for u
 /** The one-click affordance's label — names the version to move to, so the act is legible before the click. */
 export function updateAvailableLabel(newVersion: string): string {
   return `Update to ${newVersion}`;
+}
+
+const SOURCE_IDENTITY_ABBREVIATION_LENGTH = 12;
+
+/** The stable short commit spelling used by update copy and accessible names. */
+export function abbreviateSourceCommit(sourceCommit: string): string {
+  return sourceCommit.slice(0, SOURCE_IDENTITY_ABBREVIATION_LENGTH);
+}
+
+export function updateCommitAvailableLabel(sourceCommit: string): string {
+  return `Update from commit ${abbreviateSourceCommit(sourceCommit)}`;
 }
 
 /** The one canonical explanation of what removing a plugin does — the row's overflow menu and the

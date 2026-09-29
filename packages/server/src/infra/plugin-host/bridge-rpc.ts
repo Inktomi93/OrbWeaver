@@ -1,10 +1,10 @@
 import { PLUGIN_NOTIFICATION_RECIPIENTS } from "@orb/contracts/notifications";
-import { HOST_FUNCTION_CAPABILITY, PLUGIN_TOAST_LEVELS } from "@orb/contracts/plugin";
 import type { HostFunctionRef, InvocationChat, PluginBridge, PluginCapability, PluginInvocationLiveness, PluginWorldEntryUpsert } from "@orb/contracts/plugin";
+import { HOST_FUNCTION_CAPABILITY, PLUGIN_TOAST_LEVELS } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
-import type { PluginHostSeamDeps } from "./port.ts";
-import type { PluginBridgeOperation, PluginSyncOperation } from "./process-protocol.ts";
+import type { PluginHostSeamDeps } from "./contract/port.ts";
+import type { PluginBridgeOperation, PluginSyncOperation } from "./contract/process-protocol.ts";
 
 type AsyncCall = (operation: PluginBridgeOperation, args: readonly unknown[], liveness?: PluginInvocationLiveness) => Promise<unknown>;
 type SyncCall = (operation: PluginSyncOperation, args: readonly unknown[]) => unknown;
@@ -320,7 +320,10 @@ function syncCapability(operation: PluginSyncOperation): PluginCapability | null
       return "net.fetch";
     case "admitAssetEgress":
       return "net.fetch_asset";
-    default:
+    case "seam.nowEpochMs":
+    case "seam.nextRandom":
+    case "seam.mintId":
+    case "invokeArgs":
       return null;
   }
 }

@@ -33,6 +33,7 @@ const CAPTIONER = {
   status: "enabled",
   origin: "upload",
   sourceUrl: null,
+  sourceCommit: null,
   updateSource: null,
   declaredCapabilities: ["chat.read", "llm.quiet"],
   grantedCapabilities: ["chat.read", "llm.quiet"],

@@ -26,7 +26,7 @@ import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { QueryErrorState, SkeletonRows, fetchPluginUiSource, useInvalidation, useTRPC } from "#data";
+import { fetchPluginUiSource, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { usePluginHostCall } from "../hooks/use-plugin-host-call.ts";
 import { useReportUiCrash } from "../lib/plugin-mutations.ts";
 import type { PluginUiGuest } from "../lib/ui-guest/plugin-ui-guest-host.ts";
@@ -49,21 +49,31 @@ export interface PluginScriptedSurfaceProps {
   readonly chatId?: ChatId;
   /** Canonical host content retained while the guest has no tree. Tool cards use their generic call record. */
   readonly fallback?: ReactElement;
+  /** Host-owned binding state for a per-call surface. Tool cards bind against their persisted call record. */
+  readonly state?: Record<string, unknown>;
 }
 
 type ScriptedSurfaceState =
-  | { readonly kind: "booting" }
-  | { readonly kind: "ready-empty" }
-  | { readonly kind: "ready-tree"; readonly tree: PluginSurfaceSpec }
-  | { readonly kind: "failed" };
+  | { readonly bootKey: string; readonly kind: "booting" }
+  | { readonly bootKey: string; readonly kind: "ready-empty" }
+  | { readonly bootKey: string; readonly kind: "ready-tree"; readonly tree: PluginSurfaceSpec }
+  | { readonly bootKey: string; readonly kind: "failed" };
 
-export function PluginScriptedSurface({ pluginId, anchor, surfaceId, surfaceIds, grants, chatId, fallback }: PluginScriptedSurfaceProps): ReactElement | null {
+export function PluginScriptedSurface({
+  pluginId,
+  anchor,
+  surfaceId,
+  surfaceIds,
+  grants,
+  chatId,
+  fallback,
+  state: bindingState,
+}: PluginScriptedSurfaceProps): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const reportCrash = useReportUiCrash({ trpc, invalidation });
   // The shared relay, bound to THIS mount's plugin and room (`use-plugin-host-call.ts`).
   const hostCall = usePluginHostCall(pluginId, chatId);
-  const [state, setState] = useState<ScriptedSurfaceState>({ kind: "booting" });
   const [attempt, setAttempt] = useState(0);
   const guestRef = useRef<PluginUiGuest | null>(null);
 
@@ -77,6 +87,12 @@ export function PluginScriptedSurface({ pluginId, anchor, surfaceId, surfaceIds,
   // feature-detection surface is stale.
   const grantsKey = grants.join(",");
   const surfaceIdsKey = surfaceIds.join(",");
+  const bootKey = `${pluginId}:${surfaceId}:${grantsKey}:${surfaceIdsKey}:${String(attempt)}`;
+  const [state, setState] = useState<ScriptedSurfaceState>({ bootKey, kind: "booting" });
+  if (state.bootKey !== bootKey) {
+    setState({ bootKey, kind: "booting" });
+  }
+  const renderedState: ScriptedSurfaceState = state.bootKey === bootKey ? state : { bootKey, kind: "booting" };
   // The per-render handles the boot's CALLBACKS need, read through a ref so they are not boot dependencies.
   // Written in an EFFECT, never during render (the refs-render ban).
   const latest = useRef({ reportCrash, hostCall });
@@ -86,7 +102,6 @@ export function PluginScriptedSurface({ pluginId, anchor, surfaceId, surfaceIds,
 
   useEffect(() => {
     let cancelled = false;
-    setState({ kind: "booting" });
     // The dynamic import is INSIDE the effect, not at module scope: that is what keeps the interpreter and its
     // WASM out of every other chunk. `Promise.all` so the ~1 MiB engine and the source download overlap.
     const boot = async (): Promise<void> => {
@@ -95,7 +110,7 @@ export function PluginScriptedSurface({ pluginId, anchor, surfaceId, surfaceIds,
         return;
       }
       if (source === null) {
-        setState({ kind: "failed" });
+        setState((current) => (current.bootKey === bootKey ? { bootKey, kind: "failed" } : current));
         return;
       }
       guestRef.current = startPluginUiGuest({
@@ -105,19 +120,19 @@ export function PluginScriptedSurface({ pluginId, anchor, surfaceId, surfaceIds,
         surfaceIds: surfaceIdsKey === "" ? [] : surfaceIdsKey.split(","),
         events: {
           onReady: (): void => {
-            setState((current) => (current.kind === "ready-tree" ? current : { kind: "ready-empty" }));
+            setState((current) => (current.bootKey !== bootKey || current.kind === "ready-tree" ? current : { bootKey, kind: "ready-empty" }));
           },
           onTree: (published, next): void => {
             // Only THIS surface's trees. One worker serves every scripted surface a plugin registered, so a
             // sibling's publication must not repaint this mount.
             if (published === surfaceId) {
-              setState({ kind: "ready-tree", tree: next });
+              setState((current) => (current.bootKey === bootKey ? { bootKey, kind: "ready-tree", tree: next } : current));
             }
           },
           onCrash: (reason): void => {
             // COLLAPSE, then REPORT — in that order, because the person's room must stop showing a dead widget
             // whether or not the report reaches the server.
-            setState({ kind: "failed" });
+            setState((current) => (current.bootKey === bootKey ? { bootKey, kind: "failed" } : current));
             latest.current.reportCrash.mutate({ pluginId, surfaceId, reason });
           },
           onLog: (): void => {
@@ -132,10 +147,13 @@ export function PluginScriptedSurface({ pluginId, anchor, surfaceId, surfaceIds,
         },
       });
     };
-    // @orb-waive caught-failure-ownership(boot): the rejection becomes the component's explicit failed state;
-    // selected surfaces render Retry while optional anchors keep their canonical fallback. Ends if the catch
-    // stops owning that rendered failure.
-    void boot().catch(() => setState({ kind: "failed" }));
+    void boot().catch((error: unknown) => {
+      // A stale mount cannot paint a failure, but its rejected load still reaches the operator.
+      globalThis.reportError(error);
+      if (!cancelled) {
+        setState((current) => (current.bootKey === bootKey ? { bootKey, kind: "failed" } : current));
+      }
+    });
     return (): void => {
       cancelled = true;
       guestRef.current?.dispose();
@@ -145,13 +163,13 @@ export function PluginScriptedSurface({ pluginId, anchor, surfaceId, surfaceIds,
     // proxied host call is scoped, and the call reads the CURRENT room off the ref — it does not change what
     // the guest IS, so re-booting an interpreter over it would throw away a person's filter state every time
     // they moved rooms.
-  }, [pluginId, surfaceId, grantsKey, surfaceIdsKey, attempt]);
+  }, [pluginId, surfaceId, grantsKey, surfaceIdsKey, bootKey]);
 
   const selected = anchor === "page" || anchor === "dialog";
-  if (!selected && state.kind !== "ready-tree") {
+  if (!selected && renderedState.kind !== "ready-tree") {
     return fallback ?? null;
   }
-  if (state.kind === "booting") {
+  if (renderedState.kind === "booting") {
     return (
       <Stack gap="block" role="status">
         <Text voice="label">Loading plugin content…</Text>
@@ -159,10 +177,10 @@ export function PluginScriptedSurface({ pluginId, anchor, surfaceId, surfaceIds,
       </Stack>
     );
   }
-  if (state.kind === "failed") {
+  if (renderedState.kind === "failed") {
     return <QueryErrorState label="this plugin content" onRetry={(): void => setAttempt((current) => current + 1)} />;
   }
-  if (state.kind === "ready-empty") {
+  if (renderedState.kind === "ready-empty") {
     return (
       <Stack gap="field">
         <Text prose={true} voice="gloss">
@@ -179,11 +197,11 @@ export function PluginScriptedSurface({ pluginId, anchor, surfaceId, surfaceIds,
       anchor={anchor}
       pluginId={pluginId}
       sink={{
-        state: {},
+        state: bindingState ?? {},
         submit: (actionId, values): void => guestRef.current?.deliverEvent(surfaceId, { type: "action", actionId }, values),
         onFieldChange: (name, value): void => guestRef.current?.deliverEvent(surfaceId, { type: "field", name, value }, { [name]: value }),
       }}
-      spec={state.tree}
+      spec={renderedState.tree}
       surfaceId={surfaceId}
       {...(chatId === undefined ? {} : { chatId })}
     />

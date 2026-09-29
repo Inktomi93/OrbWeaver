@@ -13,6 +13,7 @@ import {
   PLUGIN_FRAME_RESULT_KEY,
   PLUGIN_FRAME_ROUTE,
   parsePluginFrameCall,
+  pluginFrameAssetUrl,
   pluginFrameMintRequestSchema,
   pluginFrameResultMessage,
   pluginFrameUrl,
@@ -57,6 +58,12 @@ test("the document prefix is DERIVED from the route — the app-CSP exemption ca
   // 'self'`, no `sandbox` directive), i.e. an isolated frame that is not isolated.
   expect(PLUGIN_FRAME_DOC_PREFIX).toBe(`${PLUGIN_FRAME_ROUTE}/`);
   expect(pluginFrameUrl("0123456789abcdef0123456789abcdef").startsWith(PLUGIN_FRAME_DOC_PREFIX)).toBe(true);
+});
+
+test("the frame asset URL carries only the handle and encoded bundle path", () => {
+  expect(pluginFrameAssetUrl("0123456789abcdef0123456789abcdef", "ui/assets/piece one.png")).toBe(
+    "/api/plugin-frame/0123456789abcdef0123456789abcdef/asset?path=ui%2Fassets%2Fpiece%20one.png",
+  );
 });
 
 // ── The BRIDGE parser (the payload half of the postMessage boundary) ─────────────────────────────────────────

@@ -16,19 +16,22 @@
 // byte cap, NEVER a bare fetch); `fetchBundleThroughGuard` collapses any fetch failure to a leak-free
 // `PluginBundleFetchError`. Nothing changes on a fetch failure or a bad-zip refusal.
 
-import { PluginNotFoundError } from "../contract/errors.ts";
+import { PluginBundlePreviewStaleError, PluginNotFoundError } from "../contract/errors.ts";
 import type { UpgradeFromUrlParams } from "../contract/params.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
 import { getById } from "../persistence/plugins.ts";
-import { fetchBundleThroughGuard } from "../substrate/manifest.ts";
+import { fetchBundleThroughGuard, hashPluginBundle } from "../substrate/manifest.ts";
 
 export function createUpgradeFromUrl(ctx: PluginContext, deps: { readonly upgrade: PluginService["upgrade"] }): PluginService["upgradeFromUrl"] {
-  return async ({ caller, pluginId, url }: UpgradeFromUrlParams) => {
+  return async ({ caller, pluginId, url, expectedBundleHash }: UpgradeFromUrlParams) => {
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
       throw new PluginNotFoundError(pluginId);
     }
     const bundle = await fetchBundleThroughGuard(ctx.fetchBundle, url);
-    return deps.upgrade({ caller, pluginId, bundle });
+    if (hashPluginBundle(bundle) !== expectedBundleHash) {
+      throw new PluginBundlePreviewStaleError();
+    }
+    return deps.upgrade({ caller, pluginId, bundle, source: { origin: "url", sourceUrl: url, sourceCommit: null } });
   };
 }

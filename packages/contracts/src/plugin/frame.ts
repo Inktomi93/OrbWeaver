@@ -39,6 +39,12 @@ export function pluginFrameUrl(id: string): string {
   return `${PLUGIN_FRAME_ROUTE}/${id}`;
 }
 
+/** Build the bounded asset URL behind one active frame handle. The caller names only the installed bundle
+ * path; the route derives the owner and plugin from the handle and resolves the CAS id server-side. */
+export function pluginFrameAssetUrl(id: string, bundlePath: string): string {
+  return `${pluginFrameUrl(id)}/asset?path=${encodeURIComponent(bundlePath)}`;
+}
+
 /** The DOCUMENT path prefix the app-CSP middleware must step aside for (`entry/http/security-headers.ts`).
  *
  *  IT IS EXPORTED, NOT RE-SPELLED, AND THAT IS LOAD-BEARING. `hono/secure-headers` writes its headers AFTER the

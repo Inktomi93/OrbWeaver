@@ -23,6 +23,7 @@
 // The document is served by a route stub carrying the REAL response CSP, so the frame in this test is a genuine
 // opaque-origin sandboxed document running its own script — not a same-origin stand-in.
 
+import { Buffer } from "node:buffer";
 import {
   HOST_FUNCTION_CAPABILITY,
   isUiProxyableHostFunction,
@@ -50,6 +51,8 @@ const VAULT_ID = castId<PluginId>("plugin_ct_vault0000000001");
 const USER_VIEWER = { userId: "user_ct_plugin", handle: "plugin_user", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
 const HANDLE = "0123456789abcdef0123456789abcdef";
 const FRAME_URL = `${PLUGIN_FRAME_ROUTE}/${HANDLE}`;
+const ASSET_URL = `${FRAME_URL}/asset?path=ui%2Fassets%2Fpixel.png`;
+const PIXEL_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 
 /** The frame document's REAL response policy (the `interactive` document arm at the media floor + the `data:`
  *  door — `entry/http/plugin-frame.ts` builds exactly this). Served here so the frame under test is a true
@@ -84,6 +87,17 @@ const BOARD_DOC = `<!doctype html><html><head><style>body{margin:0}</style><scri
     }
   });
 </script></head><body><div id="board" style="height:640px">CHESS BOARD</div><div id="results"></div></body></html>`;
+
+/** Server-shaped document for the installed-asset control: the injected helper receives only a bundle path,
+ * then the browser performs a real image load under the opaque frame's CSP. */
+const ASSET_DOC = `<!doctype html><html><head><script>
+  (()=>{const p=${JSON.stringify(`${FRAME_URL}/asset?path=`)};Object.defineProperty(globalThis,"orbPluginAssetUrl",{value:(path)=>p+encodeURIComponent(String(path)),writable:false,configurable:false});})();
+</script></head><body><output id="asset-status">waiting</output><img id="piece" alt="installed piece"><script>
+  const piece = document.getElementById("piece");
+  piece.addEventListener("load", () => { document.getElementById("asset-status").textContent = "loaded"; });
+  piece.addEventListener("error", () => { document.getElementById("asset-status").textContent = "failed"; });
+  piece.src = orbPluginAssetUrl("ui/assets/pixel.png");
+</script></body></html>`;
 
 const FRAME_SELECTOR = '[data-slot="sandbox-frame"][data-delivery="routed"]';
 
@@ -148,6 +162,7 @@ function enabledRow(declared: PluginListRow["declaredCapabilities"]): PluginList
     status: "enabled",
     origin: "upload",
     sourceUrl: null,
+    sourceCommit: null,
     updateSource: null,
     declaredCapabilities: declared,
     grantedCapabilities: declared,
@@ -179,6 +194,7 @@ async function setup(
     readonly mintable: boolean;
     readonly hostCall?: TrpcRoutes<"plugin.uiHostCall">["plugin.uiHostCall"];
     readonly surface?: PluginSurfaceRow;
+    readonly document?: string;
   },
 ): Promise<TrpcRecorder> {
   const recorder = await routeTrpc(page, {
@@ -198,8 +214,9 @@ async function setup(
   );
   // The DOCUMENT (GET) — served with its own policy, exactly as the route does.
   await page.route(`**${FRAME_URL}`, (route) =>
-    route.fulfill({ contentType: "text/html; charset=utf-8", headers: { "content-security-policy": FRAME_CSP }, body: BOARD_DOC }),
+    route.fulfill({ contentType: "text/html; charset=utf-8", headers: { "content-security-policy": FRAME_CSP }, body: opts.document ?? BOARD_DOC }),
   );
+  await page.route(`**${ASSET_URL}`, (route) => route.fulfill({ contentType: "image/png", body: PIXEL_PNG }));
   return recorder;
 }
 
@@ -226,6 +243,16 @@ test("THE OWNER'S TEST — a frame surface draws its own pixels, inside the plug
   await expect(frame).toHaveAttribute("loading", "lazy");
   // It loads the ROUTED document — the only delivery whose response can carry its own policy.
   await expect(frame).toHaveAttribute("src", FRAME_URL);
+});
+
+test("an isolated frame renders its installed image through the injected bundle-path URL", async ({ mount, page }) => {
+  await setup(page, { mintable: true, document: ASSET_DOC });
+  await mount(<PluginsSurfaceStory />);
+
+  const frame = page.frameLocator(FRAME_SELECTOR);
+  await expect(frame.locator("#asset-status")).toHaveText("loaded");
+  await expect(frame.locator("#piece")).toHaveAttribute("src", ASSET_URL);
+  await expect(frame.locator("#piece")).toHaveJSProperty("naturalWidth", 1);
 });
 
 test("WINDOW IDENTITY — the frame's own height report is honoured; a byte-identical one from another window is not", async ({ mount, page }) => {

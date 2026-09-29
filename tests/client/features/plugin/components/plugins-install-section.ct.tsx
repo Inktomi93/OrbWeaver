@@ -25,10 +25,9 @@
 // assertion, because the claims INVERTED and a reader meeting only the new text would not know a recorded
 // ruling (#658's per-row granularity) was superseded rather than forgotten.
 
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import process from "node:process";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -43,6 +42,8 @@ import { PluginsErrorToastStory, PluginsSurfaceStory, SnippetConsoleStory } from
  *  from the install card's dropzone, so a different slot). */
 const FILE_TRIGGER_INPUT = '[data-slot="file-trigger-input"]';
 const MALFORMED_FOLDER_ROOT = mkdtempSync(join(tmpdir(), "orb-plugin-folder-"));
+const ADMITTED_FOLDER_ROOT = mkdtempSync(join(tmpdir(), "orb-plugin-admitted-"));
+const ORACLE_FOLDER = join(ADMITTED_FOLDER_ROOT, "oracle-deck");
 const CHAT = castId<ChatId>("chat_ct_plugin_0001");
 /** A re-consent row's accessible name carries the "New" pill after the label, so match by prefix. (A prefix
  *  matcher is right for a row whose identity is the point and wrong for the NAME's own shape — the exact-name
@@ -68,6 +69,7 @@ const ORB_HOST_CALL_RE = /orb\.host\(1\)/u;
 
 test.afterAll(() => {
   rmSync(MALFORMED_FOLDER_ROOT, { recursive: true, force: true });
+  rmSync(ADMITTED_FOLDER_ROOT, { recursive: true, force: true });
 });
 
 type UrlPreviewFixture = TrpcWireOutput<"plugin.previewFromUrl">;
@@ -223,6 +225,23 @@ const GIT_MANIFEST = {
   capabilities: ["chat.read"],
 } satisfies ManifestFixture;
 
+// The showcase source tree carries main.ts, not an installable main.js. Feed the folder picker a stable
+// browser-selected root with exactly the admitted files, so this CT proves the folder packing path.
+mkdirSync(ORACLE_FOLDER);
+writeFileSync(
+  join(ORACLE_FOLDER, "manifest.json"),
+  JSON.stringify({
+    id: "oracle-deck",
+    name: "Oracle Deck",
+    version: "1.1.0",
+    hostVersion: 1,
+    entry: "main.js",
+    description: "A deck for this room.",
+    capabilities: ["storage.kv", "tools.register", "ui.surface", "chat.transform", "plugin_events"],
+  } satisfies ManifestFixture),
+);
+writeFileSync(join(ORACLE_FOLDER, "main.js"), "export function activate() {}\n");
+
 test("a selected plugin folder reaches shared consent and installs the packed bundle", async ({ mount, page }) => {
   let installed = false;
   const oracleRow = pluginRow({
@@ -245,11 +264,9 @@ test("a selected plugin folder reaches shared consent and installs the packed bu
   });
   await mount(<PluginsSurfaceStory />);
 
-  await page
-    .getByRole("button", { name: "Choose an unpacked plugin folder", exact: true })
-    .setInputFiles(join(process.cwd(), "packages/showcase-plugins/bundles/oracle-deck"));
+  await page.getByRole("button", { name: "Choose an unpacked plugin folder", exact: true }).setInputFiles(ORACLE_FOLDER);
 
-  await expect(page.getByText(/Oracle Deck 1\./u)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Review Oracle Deck 1.1.0", exact: true })).toBeVisible();
   await expect(page.getByText("Source folder: oracle-deck", { exact: true })).toBeVisible();
   await expect(page.getByText("What it's asking for", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Install", exact: true }).click();
@@ -282,8 +299,13 @@ test("installing from Git discloses arbitrary code, previews through the server,
   await page.getByRole("textbox", { name: "Repository URL" }).fill(GIT_URL);
   await page.getByRole("button", { name: "Fetch Git repository", exact: true }).click();
 
-  await expect(page.getByText("Git Teller 1.0.0")).toBeVisible();
-  await expect(page.getByText(`Source repository: ${GIT_URL} at commit aaaaaaaaaaaa`, { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Review Git Teller 1.0.0", exact: true })).toBeVisible();
+  await expect(page.getByText(GIT_URL, { exact: true })).toBeVisible();
+  const reviewedCommit = page.getByText(GIT_ROW.sourceCommit, { exact: true });
+  await expect(reviewedCommit).toBeVisible();
+  await expect(reviewedCommit).toHaveCSS("user-select", "all");
+  await expect(reviewedCommit).toHaveCSS("overflow-wrap", "anywhere");
+  await expect(reviewedCommit).toHaveCSS("font-family", /mono/iu);
   await expect(page.getByText("What it's asking for", { exact: true })).toBeVisible();
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the consent screen only renders after previewFromGit's response settled, so the recorded preview input is final.
   expect(recorder.lastInput("plugin.previewFromGit")).toEqual({ url: GIT_URL });
@@ -297,11 +319,10 @@ test("installing from Git discloses arbitrary code, previews through the server,
       expectedCommit: GIT_ROW.sourceCommit,
       grant: ["chat.read"],
     });
-  // @orb-waive ct-no-oneshot-live-read-assert(expect): the installed row and settled installFromGit input prove the mutually exclusive byte-upload path is final.
-  expect(recorder.count("plugin.install")).toBe(0);
+  await expect.poll(() => recorder.count("plugin.install")).toBe(0);
 });
 
-test("same-task URL and Git previews keep only the latest consent result", async ({ mount, page }) => {
+test("the latest Git preview owns consent after both batched previews settle", async ({ mount, page }) => {
   const urlPreview = trpcHold();
   const gitPreview = trpcHold();
   await routeTrpc(page, {
@@ -330,10 +351,53 @@ test("same-task URL and Git previews keep only the latest consent result", async
   await expect(page.getByRole("button", { name: "Choose a plugin bundle", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Choose an unpacked plugin folder", exact: true })).toBeDisabled();
 
+  // httpBatchLink gives these two same-tick clicks one HTTP response. Release both held entries before
+  // asserting settlement; one held entry cannot independently fulfill a batched response.
   urlPreview.release({ manifest: WEATHER_MANIFEST, bundleHash: REVIEWED_BUNDLE_HASH });
   gitPreview.release({ manifest: GIT_MANIFEST, sourceCommit: GIT_ROW.sourceCommit });
-  await expect(page.getByText(`Source repository: ${GIT_URL} at commit aaaaaaaaaaaa`, { exact: true })).toBeVisible();
-  await expect(page.getByText(`Source URL: ${WEATHER_URL}`, { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Review Git Teller 1.0.0", exact: true })).toBeVisible();
+  await expect(page.getByText(GIT_ROW.sourceCommit, { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Install", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Choose a plugin bundle", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Choose an unpacked plugin folder", exact: true })).toBeEnabled();
+
+  await expect(page.getByRole("heading", { name: "Review Git Teller 1.0.0", exact: true })).toBeVisible();
+  await expect(page.getByText(REVIEWED_BUNDLE_HASH, { exact: true })).toHaveCount(0);
+});
+
+test("a stale preview settlement keeps every door locked until the latest preview settles", async ({ mount, page }) => {
+  const urlPreview = trpcHold();
+  const gitPreview = trpcHold();
+  await routeTrpc(page, {
+    "plugin.list": () => [],
+    "plugin.previewFromGit": gitPreview,
+    "plugin.previewFromUrl": urlPreview,
+    "plugin.listSurfaces": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+  await page.getByRole("textbox", { name: "Plugin URL" }).fill(WEATHER_URL);
+  await page.getByRole("textbox", { name: "Repository URL" }).fill(GIT_URL);
+
+  await page.evaluate(() => {
+    (document.querySelector('button[aria-label="Fetch plugin bundle URL"]') as HTMLButtonElement).click();
+    (document.querySelector('button[aria-label="Fetch Git repository"]') as HTMLButtonElement).click();
+  });
+  await Promise.all([urlPreview.requested, gitPreview.requested]);
+
+  urlPreview.release({ manifest: WEATHER_MANIFEST, bundleHash: REVIEWED_BUNDLE_HASH });
+  await expect(page.getByRole("button", { name: "Fetch Git repository", exact: true })).toHaveAttribute("aria-busy", "true");
+  await expect(page.getByRole("button", { name: "Choose a plugin bundle", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Choose an unpacked plugin folder", exact: true })).toBeDisabled();
+  await expect(page.getByText(REVIEWED_BUNDLE_HASH, { exact: true })).toHaveCount(0);
+
+  gitPreview.release({ manifest: GIT_MANIFEST, sourceCommit: GIT_ROW.sourceCommit });
+  await expect(page.getByRole("heading", { name: "Review Git Teller 1.0.0", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Install", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Choose a plugin bundle", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Choose an unpacked plugin folder", exact: true })).toBeEnabled();
 });
 
 test("a queued folder selection supersedes a late URL preview", async ({ mount, page }) => {
@@ -349,16 +413,15 @@ test("a queued folder selection supersedes a late URL preview", async ({ mount, 
   await page.getByRole("button", { name: "Fetch plugin bundle URL", exact: true }).click();
   await urlPreview.requested;
 
-  await page
-    .getByRole("button", { name: "Choose an unpacked plugin folder", exact: true })
-    .setInputFiles(join(process.cwd(), "packages/showcase-plugins/bundles/oracle-deck"));
+  await page.getByRole("button", { name: "Choose an unpacked plugin folder", exact: true }).setInputFiles(ORACLE_FOLDER);
   await expect(page.getByText("Source folder: oracle-deck", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Install", exact: true })).toBeDisabled();
+  // The local folder has already passed validation; a superseded URL fetch must not hold its consent.
+  await expect(page.getByRole("button", { name: "Install", exact: true })).toBeEnabled();
 
   urlPreview.release({ manifest: WEATHER_MANIFEST, bundleHash: REVIEWED_BUNDLE_HASH });
   await expect(page.getByRole("button", { name: "Install", exact: true })).toBeEnabled();
   await expect(page.getByText("Source folder: oracle-deck", { exact: true })).toBeVisible();
-  await expect(page.getByText(`Source URL: ${WEATHER_URL}`, { exact: true })).toHaveCount(0);
+  await expect(page.getByText(REVIEWED_BUNDLE_HASH, { exact: true })).toHaveCount(0);
 });
 
 test("a held install retains its source and locks Cancel until settlement", async ({ mount, page }) => {
@@ -405,7 +468,7 @@ test("the grant screen names every declared permission, its consequence, and the
   await pickBundle(page, WEATHER_MANIFEST);
 
   // The bundle's own identity, so a person knows WHAT they are about to trust.
-  await expect(page.getByText("Weather Teller 1.0.0")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Review Weather Teller 1.0.0", exact: true })).toBeVisible();
   await expect(page.getByText("Source file: weather-teller.zip", { exact: true })).toBeVisible();
   await expect(page.getByText("Tells the room what the weather is doing.")).toBeVisible();
 
@@ -443,7 +506,7 @@ test("a known duplicate source cannot install again and honestly opens the insta
   await expect(existing).toBeVisible();
   await existing.click();
   await expect(page.getByRole("heading", { name: "Installed" })).toBeVisible();
-  expect(recorder.count("plugin.install")).toBe(0);
+  await expect.poll(() => recorder.count("plugin.install")).toBe(0);
 });
 
 test("text fetch and image download disclose their separate hourly floors and shared host reach", async ({ mount, page }) => {
@@ -502,7 +565,7 @@ test("the grant screen shows the owner-ruled ui.frame consent line verbatim, nam
     capabilities: ["ui.surface", "ui.frame"],
   });
 
-  await expect(page.getByText("Frame Plugin 1.0.0")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Review Frame Plugin 1.0.0", exact: true })).toBeVisible();
   await expect(page.getByText("Show its own screens in an isolated frame")).toBeVisible();
   await expect(
     page.getByText(
@@ -527,7 +590,7 @@ test("the grant screen shows the ui.surface consent line when a plugin declares 
     capabilities: ["ui.surface"],
   });
 
-  await expect(page.getByText("Panel Plugin 1.0.0")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Review Panel Plugin 1.0.0", exact: true })).toBeVisible();
   // The new line, by its plain-English label and consequence — never the `ui.surface` wire spelling.
   await expect(page.getByText("Show its own panels and controls")).toBeVisible();
   await expect(page.getByText("always inside a box labelled with the plugin's name", { exact: false })).toBeVisible();
@@ -619,15 +682,23 @@ test("installing from a URL previews the manifest on the server, shows the SAME 
   });
   await mount(<PluginsSurfaceStory />);
 
-  await expect(page.getByRole("button", { name: "Fetch plugin bundle URL", exact: true })).toBeVisible();
+  const urlFetch = page.getByRole("button", { name: "Fetch plugin bundle URL", exact: true });
+  await expect(urlFetch).toBeVisible();
   await expect(page.getByRole("button", { name: "Fetch Git repository", exact: true })).toBeVisible();
   await page.getByRole("textbox", { name: "Plugin URL" }).fill(WEATHER_URL);
-  await page.getByRole("button", { name: "Fetch plugin bundle URL", exact: true }).click();
+  await urlFetch.click();
 
   // The ONE shared consent surface — the bundle's identity, each capability in the person's words, and the
   // verbatim host — from a manifest the client never fetched. Never the wire vocabulary.
-  await expect(page.getByText("Weather Teller 1.0.0")).toBeVisible();
-  await expect(page.getByText(`Source URL: ${WEATHER_URL}`, { exact: true })).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText("Weather Teller 1.0.0 preview ready. Review what it's asking for below.");
+  await expect(page.getByRole("heading", { name: "Review Weather Teller 1.0.0", exact: true })).toBeVisible();
+  await expect(urlFetch).toBeFocused();
+  await expect(page.getByText(WEATHER_URL, { exact: true })).toBeVisible();
+  const reviewedHash = page.getByText(REVIEWED_BUNDLE_HASH, { exact: true });
+  await expect(reviewedHash).toBeVisible();
+  await expect(reviewedHash).toHaveCSS("user-select", "all");
+  await expect(reviewedHash).toHaveCSS("overflow-wrap", "anywhere");
+  await expect(reviewedHash).toHaveCSS("font-family", /mono/iu);
   await expect(page.getByText("Read this room's messages")).toBeVisible();
   await expect(page.getByText("Ask for a reply on its own")).toBeVisible();
   await expect(page.getByText("Reach the internet")).toBeVisible();
@@ -679,12 +750,13 @@ test("a changed URL bundle keeps the consent screen open and succeeds only after
 
   await page.getByRole("textbox", { name: "Plugin URL" }).fill(WEATHER_URL);
   await page.getByRole("button", { name: "Fetch plugin bundle URL", exact: true }).click();
-  await expect(page.getByText("Weather Teller 1.0.0")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Review Weather Teller 1.0.0", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Install", exact: true }).click();
 
   await expect(page.getByRole("region", { name: "Alerts" }).getByText("fetch it or check for updates again", { exact: false })).toBeVisible();
-  await expect(page.getByText("Weather Teller 1.0.0")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Review Weather Teller 1.0.0", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Fetch plugin bundle URL", exact: true }).click();
+  await expect(page.getByText(UPDATE_BUNDLE_HASH, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Install", exact: true }).click();
 
   await expect(page.getByRole("switch", { name: "Turn Weather Teller on" })).toBeVisible();

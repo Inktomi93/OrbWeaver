@@ -86,8 +86,21 @@ function frameRow(pluginId: PluginId, id: string, anchor: PluginSurfaceRow["anch
   return { pluginId, id, anchor, title, tier: "frame" };
 }
 
-function staticRow(pluginId: PluginId, id: string, anchor: "page" | "dialog", title: string, value: string): PluginSurfaceRow {
-  return { pluginId, id, anchor, title, tier: "static", spec: { kind: "text", value, voice: "body" } };
+function staticRow(input: {
+  readonly pluginId: PluginId;
+  readonly id: string;
+  readonly anchor: "page" | "dialog";
+  readonly title: string;
+  readonly value: string;
+}): PluginSurfaceRow {
+  return {
+    pluginId: input.pluginId,
+    id: input.id,
+    anchor: input.anchor,
+    title: input.title,
+    tier: "static",
+    spec: { kind: "text", value: input.value, voice: "body" },
+  };
 }
 
 /** Stub the tRPC reads + the doorway (mint POST → handle URL, document GET → the policied HTML). */
@@ -152,7 +165,7 @@ test("a DIALOG-anchored frame renders its own document inside the house modal bo
 test("an open dialog shows catalog loading and failure before Retry recovers the registered surface", async ({ mount, page }) => {
   const firstRead = trpcHold();
   let reads = 0;
-  const recovered = staticRow(DIALOG_ID, "board", "dialog", "Chess board", "Recovered dialog");
+  const recovered = staticRow({ pluginId: DIALOG_ID, id: "board", anchor: "dialog", title: "Chess board", value: "Recovered dialog" });
   await routeTrpc(page, {
     "plugin.list": () => [pluginRow(DIALOG_ID, "chess", "Chess")],
     "plugin.listSurfaces": () => {
@@ -177,7 +190,7 @@ test("an open dialog shows catalog loading and failure before Retry recovers the
 test("a selected page shows catalog loading and failure before Retry, never a false gone state", async ({ mount, page }) => {
   const firstRead = trpcHold();
   let reads = 0;
-  const recovered = staticRow(ORACLE_ID, "board_page", "page", "The Board", "Recovered page");
+  const recovered = staticRow({ pluginId: ORACLE_ID, id: "board_page", anchor: "page", title: "The Board", value: "Recovered page" });
   await routeTrpc(page, {
     "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck")],
     "plugin.listSurfaces": () => {

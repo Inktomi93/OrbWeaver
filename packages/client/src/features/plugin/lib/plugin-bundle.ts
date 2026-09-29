@@ -27,19 +27,26 @@
 // zip verbatim, and the preview's whole job is the metadata half.
 
 import type { PluginManifest } from "@orb/contracts/plugin";
-import { pluginManifestSchema } from "@orb/contracts/plugin";
-import { unzipSync } from "fflate";
+import {
+  PLUGIN_BUNDLE_MAX_BYTES,
+  PLUGIN_MAIN_ENTRY,
+  PLUGIN_MANIFEST_ENTRY,
+  PLUGIN_MANIFEST_ENTRY_MAX_BYTES,
+  PLUGIN_SCRIPT_ENTRY_MAX_BYTES,
+  PLUGIN_UI_ASSET_ENTRY_RE,
+  PLUGIN_UI_ASSET_MAX_BYTES,
+  PLUGIN_UI_ASSETS_MAX_COUNT,
+  PLUGIN_UI_ASSETS_TOTAL_MAX_BYTES,
+  PLUGIN_UI_ENTRY,
+  pluginManifestSchema,
+} from "@orb/contracts/plugin";
+import { unzipSync, zipSync } from "fflate";
 import { z } from "zod";
 
-const BYTES_PER_KIB = 1024;
-const MANIFEST_MAX_KIB = 64;
-/** Mirrors the server funnel's compressed-bundle cap (`MAX_BUNDLE_BYTES`) so an over-cap pick is refused in
- *  the dropzone rather than after a wasted 1 MiB+ round-trip. */
-export const PLUGIN_BUNDLE_MAX_BYTES = BYTES_PER_KIB * BYTES_PER_KIB;
 /** Mirrors the funnel's decompressed `manifest.json` cap. */
-const MANIFEST_MAX_BYTES = MANIFEST_MAX_KIB * BYTES_PER_KIB;
-const MANIFEST_ENTRY = "manifest.json";
-const MAIN_ENTRY = "main.js";
+const MANIFEST_MAX_BYTES = PLUGIN_MANIFEST_ENTRY_MAX_BYTES;
+const MANIFEST_ENTRY = PLUGIN_MANIFEST_ENTRY;
+const MAIN_ENTRY = PLUGIN_MAIN_ENTRY;
 
 /** A preview failure, already phrased for the person holding the file. */
 export class PluginBundlePreviewError extends Error {}
@@ -49,6 +56,96 @@ export interface PluginBundlePreview {
   readonly manifest: PluginManifest;
   /** The untouched zip — what `install`/`upgrade` send, base64-encoded at the call site. */
   readonly bytes: Uint8Array;
+}
+
+const BUNDLE_MTIME_MS = 331_257_600_000;
+
+function selectedFolderPath(file: File): { readonly root: string | null; readonly path: string } | null {
+  const relative = Reflect.get(file, "webkitRelativePath");
+  if (typeof relative !== "string" || relative.length === 0) {
+    return { root: null, path: file.name };
+  }
+  if (relative.includes("\\")) {
+    return null;
+  }
+  const segments = relative.split("/");
+  if (segments.length < 2 || segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+    return null;
+  }
+  const [root, ...entrySegments] = segments;
+  return root === undefined ? null : { root, path: entrySegments.join("/") };
+}
+
+function entryCap(path: string): number | null {
+  if (path === MANIFEST_ENTRY) {
+    return PLUGIN_MANIFEST_ENTRY_MAX_BYTES;
+  }
+  if (path === MAIN_ENTRY || path === PLUGIN_UI_ENTRY) {
+    return PLUGIN_SCRIPT_ENTRY_MAX_BYTES;
+  }
+  return PLUGIN_UI_ASSET_ENTRY_RE.test(path) ? PLUGIN_UI_ASSET_MAX_BYTES : null;
+}
+
+interface FolderSelection {
+  readonly assetBytes: number;
+  readonly assetCount: number;
+  readonly root: string | null | undefined;
+}
+
+function admitFolderFile(selected: Map<string, File>, file: File, selection: FolderSelection): FolderSelection {
+  const selectedPath = selectedFolderPath(file);
+  if (selectedPath === null) {
+    return selection;
+  }
+  const cap = entryCap(selectedPath.path);
+  if (cap === null) {
+    return selection;
+  }
+  if (selection.root !== undefined && selection.root !== selectedPath.root) {
+    throw new PluginBundlePreviewError("Choose one plugin source folder at a time.");
+  }
+  if (selected.has(selectedPath.path)) {
+    throw new PluginBundlePreviewError(`That folder contains more than one ${selectedPath.path} entry.`);
+  }
+  if (file.size > cap) {
+    throw new PluginBundlePreviewError(`That folder's ${selectedPath.path} exceeds its ${cap}-byte cap.`);
+  }
+
+  let { assetBytes, assetCount } = selection;
+  if (PLUGIN_UI_ASSET_ENTRY_RE.test(selectedPath.path)) {
+    assetCount += 1;
+    assetBytes += file.size;
+    if (assetCount > PLUGIN_UI_ASSETS_MAX_COUNT || assetBytes > PLUGIN_UI_ASSETS_TOTAL_MAX_BYTES) {
+      throw new PluginBundlePreviewError("That folder carries too many or too-large ui/assets files.");
+    }
+  }
+  selected.set(selectedPath.path, file);
+  return { assetBytes, assetCount, root: selectedPath.root };
+}
+
+/** Pack a browser-selected folder into the one bundle shape the server judges. Files outside the admitted
+ * root entries are ignored; traversal, nested assets and platform separators cannot match the closed names. */
+export async function packPluginFolder(files: readonly File[]): Promise<Uint8Array> {
+  const selected = new Map<string, File>();
+  let selection: FolderSelection = { assetBytes: 0, assetCount: 0, root: undefined };
+  for (const file of files) {
+    selection = admitFolderFile(selected, file, selection);
+  }
+
+  const entries: Record<string, [Uint8Array, { mtime: number }]> = {};
+  for (const [path, file] of [...selected].sort(([a], [b]) => a.localeCompare(b))) {
+    entries[path] = [new Uint8Array(await file.arrayBuffer()), { mtime: BUNDLE_MTIME_MS }];
+  }
+  let bytes: Uint8Array;
+  try {
+    bytes = zipSync(entries);
+  } catch (cause) {
+    throw new PluginBundlePreviewError("That folder couldn't be packed as a plugin bundle.", { cause });
+  }
+  if (bytes.byteLength > PLUGIN_BUNDLE_MAX_BYTES) {
+    throw new PluginBundlePreviewError("That folder packs to more than the 1 MB plugin bundle limit.");
+  }
+  return bytes;
 }
 
 /** Decode a `manifest.json` entry's bytes, refusing a lying/oversized entry the same way the funnel does. */
@@ -70,6 +167,16 @@ export async function readPluginBundle(file: File): Promise<PluginBundlePreview>
     throw new PluginBundlePreviewError("A plugin bundle must be 1 MB or smaller.");
   }
   const bytes = new Uint8Array(await file.arrayBuffer());
+  return previewPluginBundleBytes(bytes);
+}
+
+/** Pack and preview a browser-selected plugin source folder. The server re-runs the authoritative funnel on
+ * these exact bytes during install. */
+export async function readPluginFolder(files: readonly File[]): Promise<PluginBundlePreview> {
+  return previewPluginBundleBytes(await packPluginFolder(files));
+}
+
+function previewPluginBundleBytes(bytes: Uint8Array): PluginBundlePreview {
   if (bytes.byteLength === 0) {
     throw new PluginBundlePreviewError("That file is empty.");
   }

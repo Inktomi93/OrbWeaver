@@ -40,6 +40,7 @@ async function seedPlugin(db: Db, ownerId: UserId, id: string, slug: string): Pr
     status: "disabled",
     origin: "upload",
     sourceUrl: null,
+    sourceCommit: null,
     installedAt: AT,
     updatedAt: AT,
   });

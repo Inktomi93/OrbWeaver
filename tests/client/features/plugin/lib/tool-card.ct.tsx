@@ -44,6 +44,7 @@ const PLUGIN_ROW = {
   status: "enabled",
   origin: "upload",
   sourceUrl: null,
+  sourceCommit: null,
   updateSource: "showcase",
   declaredCapabilities: ["storage.kv", "tools.register", "ui.surface"],
   grantedCapabilities: ["storage.kv", "tools.register", "ui.surface"],

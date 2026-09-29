@@ -1,9 +1,11 @@
-// The PUBLISHED-SDK conformance pin (#774): `@orb/showcase-plugins`'s `bundles/host-v1.d.ts` is the copyable, script-kind
-// mirror of the plugin contract a plugin author drops next to their `main.js` — and a mirror is only safe
-// while something makes drift RED. This file is that something.
+// The PUBLISHED-SDK conformance pin (#774): `@orb/plugin-sdk` is the declaration-only mirror of the plugin
+// contract an author installs while writing TypeScript — and a mirror is only safe while something makes
+// drift RED. This file is that something.
 //
-// MECHANISM. The triple-slash reference pulls the script-kind globals into THIS program; the contract types
-// import normally; and the two are held MUTUALLY ASSIGNABLE through `DeepUnbrand`, a targeted erasure of the
+// MECHANISM. The triple-slash reference pulls the SDK's shared script-kind declarations into THIS program;
+// the realm-specific `orb` doors are compiled separately by plugin-author's main/ui programs so they can
+// never merge into one false ambient world. The contract types import normally; and the two are held
+// MUTUALLY ASSIGNABLE through `DeepUnbrand`, a targeted erasure of the
 // three branded id types that cross the guest surface (`ChatHandle`, `AssetId`, `CharacterId` → `string` —
 // the published file's one documented simplification: a guest never constructs a brand, only passes it back).
 // Mutual assignability catches every drift class: a member the contract GAINS that the mirror lacks fails
@@ -17,13 +19,16 @@
 // and THIS comment is the instruction: add the brand to `GuestBrand` below AND spell it `string` (documented)
 // in the published file — never widen the mirror to carry a brand an author cannot construct.
 
-/// <reference path="../../../packages/showcase-plugins/bundles/host-v1.d.ts" />
+/// <reference path="../../../packages/plugin-sdk/shared.d.ts" />
+/// <reference path="../../../packages/plugin-sdk/frame.d.ts" />
 
 import type {
   PluginSurfaceAnchor as ContractAnchor,
+  PluginBoundGridTile as ContractBoundGridTile,
   PluginCapability as ContractCapability,
   ChatHandle as ContractChatHandle,
   PluginCommandArgSpec as ContractCommandArgSpec,
+  PluginCommandPlacement as ContractCommandPlacement,
   PluginHostV1 as ContractHost,
   PluginSurfaceNode as ContractNode,
   PluginSurfaceTier as ContractTier,
@@ -51,10 +56,9 @@ type DeepUnbrand<T> = T extends GuestBrand
           : T;
 type DeepUnbrandTuple<A extends readonly unknown[]> = { [K in keyof A]: DeepUnbrand<A[K]> };
 
-// The published GLOBALS (script-kind — no import possible; the reference above is what brings them in).
+// The published shared types (script-kind — no import possible; the reference above is what brings them in).
 type PublishedHost = PluginHostV1;
 type PublishedUi = PluginUiV1;
-type PublishedOrb = typeof orb;
 
 test("the namespace SET is exact — a namespace added to or removed from the contract goes red by NAME", () => {
   expectTypeOf<keyof PublishedHost>().toEqualTypeOf<keyof ContractHost>();
@@ -147,6 +151,8 @@ test("the closed vocabularies are EXACT, not merely assignable", () => {
   expectTypeOf<PluginToastLevel>().toEqualTypeOf<ContractToastLevel>();
   expectTypeOf<PluginSurfaceNode["kind"]>().toEqualTypeOf<ContractNode["kind"]>();
   expectTypeOf<PluginCommandArgSpec["type"]>().toEqualTypeOf<ContractCommandArgSpec["type"]>();
+  expectTypeOf<PluginCommandPlacement["target"]>().toEqualTypeOf<ContractCommandPlacement["target"]>();
+  expectTypeOf<PluginCommandPlacement>().toEqualTypeOf<ContractCommandPlacement>();
 });
 
 /** One node kind's own slot type, brand-erased and `undefined`-stripped — the shape a per-leaf vocabulary pin
@@ -184,7 +190,32 @@ test("the node vocabulary round-trips whole (brands erased) — the mirror's spe
   expectTypeOf<PluginSurfaceNode>().toExtend<DeepUnbrand<ContractNode>>();
 });
 
-test("the global door serves exactly the two guest surfaces at version 1", () => {
-  expectTypeOf<PublishedOrb["host"]>().toEqualTypeOf<(version: 1) => PublishedHost>();
-  expectTypeOf<PublishedOrb["ui"]>().toEqualTypeOf<(version: 1) => PublishedUi>();
+type ImageNode<N> = Extract<N, { kind: "image" }>;
+type GridTile<N> = Extract<N, { kind: "grid" }> extends { readonly tiles?: readonly (infer Tile)[] } ? Tile : never;
+type PageHero<N> =
+  Extract<N, { kind: "masterDetail" }> extends { readonly stages: readonly (infer Stage)[] }
+    ? Stage extends { readonly hero?: infer Hero }
+      ? NonNullable<Hero>
+      : never
+    : never;
+
+test("bundle-image fields are exact on images, declared grid tiles, and detail heroes", () => {
+  expectTypeOf<keyof ImageNode<PluginSurfaceNode>>().toEqualTypeOf<keyof DeepUnbrand<ImageNode<ContractNode>>>();
+  expectTypeOf<ImageNode<PluginSurfaceNode>["bundleAsset"]>().toEqualTypeOf<DeepUnbrand<ImageNode<ContractNode>["bundleAsset"]>>();
+  expectTypeOf<keyof GridTile<PluginSurfaceNode>>().toEqualTypeOf<keyof DeepUnbrand<GridTile<ContractNode>>>();
+  expectTypeOf<GridTile<PluginSurfaceNode>["bundleAsset"]>().toEqualTypeOf<DeepUnbrand<GridTile<ContractNode>["bundleAsset"]>>();
+  expectTypeOf<keyof PageHero<PluginSurfaceNode>>().toEqualTypeOf<keyof DeepUnbrand<PageHero<ContractNode>>>();
+  expectTypeOf<PageHero<PluginSurfaceNode>["bundleAsset"]>().toEqualTypeOf<DeepUnbrand<PageHero<ContractNode>["bundleAsset"]>>();
+  expectTypeOf<keyof PluginBoundGridTile>().toEqualTypeOf<keyof DeepUnbrand<ContractBoundGridTile>>();
+  expectTypeOf<"bundleAsset" extends keyof PluginBoundGridTile ? never : true>().toEqualTypeOf<true>();
+});
+
+test("the frame SDK exposes the routed asset helper and opaque host-call input", () => {
+  expectTypeOf(orbPluginAssetUrl).toEqualTypeOf<(bundlePath: string) => string>();
+  expectTypeOf<OrbPluginFrameCall["orbPluginFrameCall"]["args"]>().toEqualTypeOf<unknown>();
+});
+
+test("the shared SDK keeps both versioned surfaces available to their separate realm entries", () => {
+  expectTypeOf<PublishedHost["version"]>().toEqualTypeOf<1>();
+  expectTypeOf<PublishedUi["version"]>().toEqualTypeOf<1>();
 });

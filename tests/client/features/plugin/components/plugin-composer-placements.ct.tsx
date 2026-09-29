@@ -5,7 +5,7 @@ import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { PluginCommandsYouSheetStory, PluginComposerPlacementsStory } from "../_ct-stories.tsx";
 
 const FIRST_ID = castId<PluginId>("plugin_ct_same_name000001");
@@ -76,7 +76,9 @@ test("composer placements stay in one attributed action menu at narrow width and
   await expect(page.getByText("Same Name (first)", { exact: true })).toBeVisible();
   await expect(page.getByText("Same Name (second)", { exact: true })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Same Name (first) · Cards · Run beta · Second action", exact: true })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Same Name (second) · Scenes · Run charlie · Overflow action from a distinct install", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("menuitem", { name: "Same Name (second) · Scenes · Run charlie · Overflow action from a distinct install", exact: true }),
+  ).toBeVisible();
   await page.keyboard.press("Escape");
 
   const actions = component.getByRole("button", { name: "Plugin actions" });
@@ -91,7 +93,7 @@ test("composer placements stay in one attributed action menu at narrow width and
   await expect.poll(() => invoked).toContain("charlie");
 
   await component.getByRole("button", { name: "Message tools" }).click();
-  await expect(page.getByText("Plugin media")).toBeVisible();
+  await expect(page.getByText("Same Name (second) · Scenes", { exact: true })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Same Name (second) · Scenes · Run Illustrate" })).toBeVisible();
 });
 
@@ -116,25 +118,21 @@ test("a placed typed command collects values before dispatch through the shared 
 });
 
 test("a running placed command locks the shared action affordance until the invocation settles", async ({ mount, page }) => {
-  let finishInvocation = (): void => {
-    throw new Error("plugin invocation did not start");
-  };
+  const invocation = trpcHold();
   await routeTrpc(page, {
     ...ROUTES,
-    "plugin.invokeUiCommand": () =>
-      new Promise((resolve) => {
-        finishInvocation = (): void => resolve({ toasts: [] });
-      }),
+    "plugin.invokeUiCommand": () => invocation,
   });
   const component = await mount(<PluginComposerPlacementsStory />);
   const actions = component.getByRole("button", { name: "Plugin actions" });
   await actions.click();
   await page.getByRole("menuitem", { name: "Same Name (first) · Cards · Run Open", exact: true }).click();
+  await invocation.requested;
 
   await expect(actions).toBeDisabled();
   await component.getByRole("button", { name: "Message tools" }).click();
   await expect(page.getByRole("menuitem", { name: "Same Name (second) · Scenes · Run Illustrate" })).toBeDisabled();
-  finishInvocation();
+  invocation.release({ toasts: [] });
   await expect(actions).toBeEnabled();
 });
 
@@ -147,7 +145,7 @@ test("disabled or removed commands leave no plugin placement affordance", async 
   await expect(component.getByRole("button", { name: "Plugin actions" })).toHaveCount(0);
   await expect(component.getByRole("button", { name: /Same Name/ })).toHaveCount(0);
   await component.getByRole("button", { name: "Message tools" }).click();
-  await expect(page.getByText("Plugin media")).toHaveCount(0);
+  await expect(page.getByText(/Same Name/)).toHaveCount(0);
 });
 
 for (const width of [320, 390] as const) {
@@ -158,17 +156,17 @@ for (const width of [320, 390] as const) {
       await routeTrpc(page, ROUTES);
       const component = await mount(<PluginCommandsYouSheetStory />);
 
-      expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       const first = component.getByRole("button", { name: "Same Name (first) · Cards · Run alpha" });
       const second = component.getByRole("button", { name: "Same Name (second) · Scenes · Run charlie" });
       await expect(first).toBeVisible();
       await expect(second).toBeVisible();
-      const boxes = await Promise.all([first.boundingBox(), second.boundingBox()]);
-      for (const box of boxes) {
-        expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-        expect(box?.x ?? -1).toBeGreaterThanOrEqual(0);
-        expect((box?.x ?? width) + (box?.width ?? 0)).toBeLessThanOrEqual(width);
-      }
+      await expect
+        .poll(async () => {
+          const boxes = await Promise.all([first.boundingBox(), second.boundingBox()]);
+          return boxes.map((box) => (box === null ? false : box.height >= 44 && box.x >= 0 && box.x + box.width <= width));
+        })
+        .toEqual([true, true]);
     });
   });
 }

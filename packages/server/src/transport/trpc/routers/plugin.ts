@@ -16,7 +16,8 @@
 // The client wave landed: `packages/client/src/features/plugin` is the install/list/grant pane and it calls
 // `trpc.plugin.*` for real. `upgrade`/`setGrant`/`setEnabled`/`uninstall` are PROBED by the cross-tenant sweep
 // as a stranger holding another user's real pluginId; `install`/`list` are exempt there because neither takes
-// a foreign id (install mints the caller's own row, list takes no input at all).
+// a foreign id (install mints the caller's own row, list takes no input at all). #0081's unpacked/Git
+// self-scoped procedures are classified beside them; the stored-Git upgrade is probed like stored-URL.
 //
 // The UI-surface READ side: `getSurfaceState`/`invokeUiAction` join the PROBED set
 // (both take a foreign pluginId; the service gates each on the owner-scoped `getById`); `listSurfaces` is
@@ -42,6 +43,7 @@ import {
   PLUGIN_LOG_LIST_MAX_LIMIT,
   PLUGIN_SURFACE_ID_RE,
   PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES,
+  pluginBundleHashSchema,
   pluginNetHostSchema,
   pluginSlugSchema,
 } from "@orb/contracts/plugin";
@@ -86,7 +88,10 @@ function decodeBundle(bundleBase64: string): Uint8Array {
  *  string; the REAL SSRF wall is the server-side egress guard (`safeFetch` ANY_HOST — https-only + private-range
  *  denial + byte cap), never this parse. The length cap keeps an unbounded string out of the log/error path. */
 const URL_MAX = 2048;
+const LOCAL_PLUGIN_DIRECTORY_MAX = 4096;
 const bundleUrlSchema = z.url().max(URL_MAX);
+const localPluginDirectorySchema = z.string().min(1).max(LOCAL_PLUGIN_DIRECTORY_MAX);
+const gitCommitSchema = z.string().regex(/^[0-9a-f]{40}$/u);
 
 export const pluginRouter = t.router({
   install: authedProcedure
@@ -104,33 +109,63 @@ export const pluginRouter = t.router({
   //    wire; the SSRF wall is the service's `ctx.fetchBundle` (safeFetch ANY_HOST — https + private-range denial
   //    + byte cap), and the fetched bytes ride the SAME `parseBundle` funnel + consent a file install does.
   //
-  //    `previewFromUrl` fetches+parses and returns the MANIFEST (the consent-screen + update-version primitive):
-  //    no owned id, SELF-authority ⇒ sweep-EXEMPT. `installFromUrl` mints the CALLER's own row (no foreign id ⇒
-  //    EXEMPT).
+  //    `previewFromUrl` fetches+parses and returns the MANIFEST plus an exact-bundle SHA-256 for the consent
+  //    screen. `installFromUrl` requires that identity back and refuses if a re-fetch changed before it mints
+  //    the CALLER's own row. Neither takes a foreign id, so both remain sweep-EXEMPT.
   previewFromUrl: authedProcedure
     .input(z.object({ url: bundleUrlSchema }))
     .mutation(({ ctx, input }) => ctx.services.plugin.previewFromUrl({ caller: ctx.auth, url: input.url })),
 
   installFromUrl: authedProcedure
-    .input(z.object({ url: bundleUrlSchema, grant: grantSchema }))
-    .mutation(({ ctx, input }) => ctx.services.plugin.installFromUrl({ caller: ctx.auth, url: input.url, grant: input.grant })),
+    .input(z.object({ url: bundleUrlSchema, expectedBundleHash: pluginBundleHashSchema, grant: grantSchema }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.plugin.installFromUrl({ caller: ctx.auth, url: input.url, expectedBundleHash: input.expectedBundleHash, grant: input.grant }),
+    ),
+
+  // #0081's additional source doors. `installUnpacked` is server-gated off before filesystem I/O unless the
+  // process is in development and the Principal came through the peer-gated local fallback. Git preview/
+  // install are mutations because each performs guarded server egress;
+  // `pluginGitSource` routes every smart-HTTP request through safeFetch, then the domain uses the same bundle
+  // parse/install funnel above. All three are self-scoped: no foreign row id; an install mints the caller's row.
+  installUnpacked: authedProcedure
+    .input(z.object({ directory: localPluginDirectorySchema, grant: grantSchema }))
+    .mutation(({ ctx, input }) => ctx.services.plugin.installUnpacked({ caller: ctx.auth, directory: input.directory, grant: input.grant })),
+
+  previewFromGit: authedProcedure
+    .input(z.object({ url: bundleUrlSchema }))
+    .mutation(({ ctx, input }) => ctx.services.plugin.previewFromGit({ caller: ctx.auth, url: input.url })),
+
+  installFromGit: authedProcedure
+    .input(z.object({ url: bundleUrlSchema, expectedCommit: gitCommitSchema, grant: grantSchema }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.plugin.installFromGit({ caller: ctx.auth, url: input.url, expectedCommit: input.expectedCommit, grant: input.grant }),
+    ),
 
   // ── AUTO UPDATE-CHECK + TRUE ONE-CLICK UPGRADE (U8 2b). BOTH are MUTATIONS for the same
   //    reason the URL preview is: each triggers SERVER EGRESS to a plugin's remembered URL,
   //    and a GET-shaped door onto egress is cacheable + outside the CSRF belt (which covers mutations only).
   //
   //    `checkForUpdates` takes NO input — it walks the CALLER's own plugins (`listOwned` filters
-  //    owner_id = caller), re-fetching each `url`-origin remote manifest through `ctx.fetchBundle` and reading
-  //    each SEEDED SHOWCASE row's version off the bundle this build ships (#1740) — so it is sweep-EXEMPT
-  //    like `list`/`listSurfaces` (no foreign id). `upgradeFromStoredUrl` takes a FOREIGN pluginId and joins the
-  //    PROBED sweep set: the service loads the owner-scoped row and NOT_FOUNDs a
-  //    stranger BEFORE any fetch (a stranger never triggers egress on someone else's stored URL), and #615's
-  //    reach-widening→disabled re-consent wall applies to the re-fetched bundle unchanged (never a silent update).
+  //    owner_id = caller), re-fetching each `url` manifest, asking each `git` remote for HEAD without cloning,
+  //    and reading each SEEDED SHOWCASE row's version from the bundle this build ships — so it is sweep-EXEMPT
+  //    like `list`/`listSurfaces` (no foreign id). Both stored-source upgrade verbs take a FOREIGN pluginId and
+  //    join the PROBED set: each loads the owner-scoped row and NOT_FOUNDs a stranger BEFORE egress, then uses
+  //    the unchanged reach-widening→disabled re-consent wall (never a silent update). Git additionally requires
+  //    the exact 40-hex commit the check returned, binding the displayed verdict to the later clone. URL
+  //    upgrades likewise require the exact bundle hash returned by the check.
   checkForUpdates: authedProcedure.mutation(({ ctx }) => ctx.services.plugin.checkForUpdates({ caller: ctx.auth })),
 
   upgradeFromStoredUrl: authedProcedure
-    .input(z.object({ pluginId: pluginIdSchema }))
-    .mutation(({ ctx, input }) => ctx.services.plugin.upgradeFromStoredUrl({ caller: ctx.auth, pluginId: input.pluginId })),
+    .input(z.object({ pluginId: pluginIdSchema, expectedBundleHash: pluginBundleHashSchema }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.plugin.upgradeFromStoredUrl({ caller: ctx.auth, pluginId: input.pluginId, expectedBundleHash: input.expectedBundleHash }),
+    ),
+
+  upgradeFromStoredGit: authedProcedure
+    .input(z.object({ pluginId: pluginIdSchema, expectedCommit: gitCommitSchema }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.plugin.upgradeFromStoredGit({ caller: ctx.auth, pluginId: input.pluginId, expectedCommit: input.expectedCommit }),
+    ),
 
   // ── THE SEEDED-EXAMPLE TWIN (#1740). `upgradeFromShowcase` sources the bytes from the bundle this build
   //    SHIPS rather than from a URL, so it triggers NO egress at all — it stays a mutation because it WRITES

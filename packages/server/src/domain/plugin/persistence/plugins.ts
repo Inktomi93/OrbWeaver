@@ -28,6 +28,9 @@ type PluginRow = typeof plugins.$inferSelect;
  *  source. It is their plugin — pointing its update button at our copy is precisely the takeover the seeder's
  *  divergence oracle refuses to perform. */
 function updateSourceFor(row: PluginRow, showcaseSlugs: ReadonlySet<string>): PluginView["updateSource"] {
+  if (row.origin === "git") {
+    return "git";
+  }
   if (row.sourceUrl !== null) {
     return "url";
   }
@@ -55,6 +58,7 @@ export function toPluginView(row: PluginRow, showcaseSlugs: ReadonlySet<string>)
     status: row.status,
     origin: row.origin,
     sourceUrl: row.sourceUrl,
+    sourceCommit: row.sourceCommit,
     updateSource: updateSourceFor(row, showcaseSlugs),
     grantedCapabilities: row.grantedCapabilities,
     declaredCapabilities: row.manifest.capabilities,
@@ -83,6 +87,7 @@ interface InsertPluginRow {
   readonly origin: PluginOrigin;
   /** The remembered fetch URL (U8 2b) — NULL for a file (`upload`) install; the db CHECK pairs it with `origin`. */
   readonly sourceUrl: string | null;
+  readonly sourceCommit: string | null;
   readonly installedAt: number;
   readonly updatedAt: number;
 }
@@ -116,6 +121,7 @@ function buildInsertPluginStatement(db: Db, row: InsertPluginRow): AwaitableBatc
     status: row.status,
     origin: row.origin,
     sourceUrl: row.sourceUrl,
+    sourceCommit: row.sourceCommit,
     // A fresh install has nothing to re-consent TO: the owner just chose this grant against this manifest.
     // Written explicitly rather than left to the column default so the insert states the whole row. The
     // empty delta rides with it — and it is the reinstall arm that makes this load-bearing rather than
@@ -227,6 +233,9 @@ interface UpgradePluginRow {
   readonly bundleAssetId: AssetId;
   readonly grantedCapabilities: readonly PluginCapability[];
   readonly status: PluginStatus;
+  readonly origin: PluginOrigin;
+  readonly sourceUrl: string | null;
+  readonly sourceCommit: string | null;
   /** Did THIS upgrade widen declared reach and force the disable? Written here because this is the one
    *  moment the PRIOR manifest — the only source of the "what widened" fact — still exists before being
    *  overwritten. A non-widening upgrade writes `false`, which is also the honest answer: nothing new was
@@ -268,6 +277,9 @@ function buildApplyUpgradeStatement(db: Db, pluginId: PluginId, row: UpgradePlug
       bundleAssetId: row.bundleAssetId,
       grantedCapabilities: [...row.grantedCapabilities],
       status: row.status,
+      origin: row.origin,
+      sourceUrl: row.sourceUrl,
+      sourceCommit: row.sourceCommit,
       pendingReconsent: row.pendingReconsent,
       widenedNetHosts: [...row.widenedNetHosts],
       lastError: null,

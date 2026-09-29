@@ -1,5 +1,5 @@
-// The SHOWCASE PLUGIN examples, proven end to end on their REAL packed bytes — no hand-built bundle double.
-// `packShowcaseBundle` zips the two source files exactly as the per-user seeder does, the real `install`
+// The SHOWCASE PLUGIN examples, proven end to end on their REAL release-built bytes — no hand-built bundle double.
+// The suite materializes the ignored runtime zip tree first; `packShowcaseBundle` then reads exactly the bytes the per-user seeder reads, and the real `install`
 // verb parses and stores them, the real `setGrant` records consent, the real `setEnabled` activates them in
 // the REAL `infra/plugin-host` sandbox, and the collected registrations are driven through the SAME
 // `invoke(handler, argsJson, chatScope)` closure the compose fan-out and the tool registrar call.
@@ -15,6 +15,7 @@
 // path through the attached-book read and lore write without making CI depend on a public network or paid provider. The
 // bridge's attachment gate, per-plugin entry cap and `neutralizeMacros` remain pinned by its domain suite.
 
+import { join } from "node:path";
 import type { VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { historyFloor } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
@@ -31,7 +32,9 @@ import { createNotificationsService } from "@orb/server/domain/notifications";
 import type { PluginActivationScope, PluginHostOps, PluginHostPort, PluginInvokeHandler, PluginRegistrationHandle } from "@orb/server/domain/plugin";
 import { buildPluginStorage, createSurfaceStatePublisher } from "@orb/server/domain/plugin";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
+import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { unzipSync, zipSync } from "fflate";
+import { beforeAll } from "vitest";
 import type { ExamplePluginSeederDeps } from "../../../../packages/server/src/entry/boot/seed-example-plugins.ts";
 import { createExamplePluginSeeder } from "../../../../packages/server/src/entry/boot/seed-example-plugins.ts";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "../../../../packages/showcase-plugins/src/index.ts";
@@ -44,6 +47,12 @@ const DRAW_LINE_RE = /^\d+\. (.+)$/;
 /** The public commitment's shape — ten digits, zero-padded (`commitmentFor`). */
 const COMMITMENT_RE = /^\d{10}$/;
 const FAMILIAR_BOOK_ID = castId<WorldBookId>("wib_01h455vb4pex5vsknk084sn02q");
+const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
+
+beforeAll(async () => {
+  const built = await writeShowcaseArtifacts(REPO_ROOT);
+  expect(built.diagnostics).toEqual([]);
+});
 
 /** The production runtime under DETERMINISTIC seams — the same object compose builds, so the membrane, the
  *  registration collection and the resident-invoke path are all real. */
@@ -632,7 +641,7 @@ async function bundleAtVersion(slug: string, version: string): Promise<Uint8Arra
  *  TEST forging bytes is not a second packer and must not make the real one's constant part of an API. */
 const FORGED_BUNDLE_MTIME_MS = 331_257_600_000;
 
-test("the per-user seeder lands every example installed, disabled and UNGRANTED — and re-runs are a no-op", async () => {
+test("a fresh user's first pass lands every built showcase without a server restart, disabled and UNGRANTED", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));

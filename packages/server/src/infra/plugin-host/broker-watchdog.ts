@@ -5,25 +5,21 @@ import { spawn } from "node:child_process";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { brokerWatchdogFailure, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS, PLUGIN_BROKER_RSS_LIMIT_DEFAULT_BYTES } from "./watchdog-policy.ts";
+import { parsePluginBrokerWatchdogArguments } from "./process-argv.ts";
+import { brokerWatchdogFailure, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS } from "./watchdog-policy.ts";
 
-const MEMORY_LIMIT_ENV = "PLUGIN_BROKER_MEMORY_LIMIT_BYTES";
 const BROKER_ENTRY = fileURLToPath(new URL("./broker-entry.ts", import.meta.url));
 const BROKER_RESTART_DELAY_MS = 1000;
-const { env: brokerEnvironment } = process;
-const memoryLimitRaw = brokerEnvironment[MEMORY_LIMIT_ENV] ?? String(PLUGIN_BROKER_RSS_LIMIT_DEFAULT_BYTES);
-if (!(/^[1-9]\d*$/u.test(memoryLimitRaw) && Number.isSafeInteger(Number(memoryLimitRaw)))) {
-  throw new Error(`plugin broker watchdog: ${MEMORY_LIMIT_ENV} must be a safe positive byte count`);
-}
-const memoryLimitBytes = Number(memoryLimitRaw);
-let stopping = false;
+const { socketPath, tokenPath, workerMaximum, memoryLimitBytes, nodeEnvironment } = parsePluginBrokerWatchdogArguments(process.argv.slice(2));
+const stop = Promise.withResolvers<void>();
 let activeBroker: ChildProcess | undefined;
 
 interface BrokerHeartbeat {
   readonly kind: "plugin-broker-memory";
   readonly rssBytes: number;
+  readonly peakPhysicalWorkers: number;
   readonly execArgv: readonly string[];
-  readonly nodeOptions: string | null;
+  readonly nodeOptions: null;
 }
 
 function parseHeartbeat(message: unknown): BrokerHeartbeat | null {
@@ -32,27 +28,32 @@ function parseHeartbeat(message: unknown): BrokerHeartbeat | null {
   }
   const kind = Reflect.get(message, "kind");
   const rssBytes = Reflect.get(message, "rssBytes");
+  const peakPhysicalWorkers = Reflect.get(message, "peakPhysicalWorkers");
   const execArgv = Reflect.get(message, "execArgv");
   const nodeOptions = Reflect.get(message, "nodeOptions");
   return kind === "plugin-broker-memory" &&
     typeof rssBytes === "number" &&
     Number.isSafeInteger(rssBytes) &&
     rssBytes >= 0 &&
+    typeof peakPhysicalWorkers === "number" &&
+    Number.isSafeInteger(peakPhysicalWorkers) &&
+    peakPhysicalWorkers >= 0 &&
     Array.isArray(execArgv) &&
     execArgv.every((value) => typeof value === "string") &&
-    (typeof nodeOptions === "string" || nodeOptions === null)
-    ? { kind, rssBytes, execArgv, nodeOptions }
+    nodeOptions === null
+    ? { kind, rssBytes, peakPhysicalWorkers, execArgv, nodeOptions }
     : null;
 }
 
 async function superviseOneBroker(): Promise<string> {
-  const startedAt = Date.now();
+  const startedAt = performance.now();
   let lastHeartbeatAt: number | undefined;
   let rssBytes: number | undefined;
   let failure: string | undefined;
   let runtimeReported = false;
-  const broker = spawn(process.execPath, [BROKER_ENTRY], {
-    env: brokerEnvironment,
+  let reportedPeakPhysicalWorkers = -1;
+  const broker = spawn(process.execPath, [BROKER_ENTRY, socketPath, tokenPath, String(workerMaximum), nodeEnvironment], {
+    env: { ["NODE_ENV"]: nodeEnvironment },
     stdio: ["ignore", "inherit", "inherit", "ipc"],
   });
   activeBroker = broker;
@@ -73,8 +74,12 @@ async function superviseOneBroker(): Promise<string> {
         broker.kill("SIGKILL");
         return;
       }
-      lastHeartbeatAt = Date.now();
+      lastHeartbeatAt = performance.now();
       rssBytes = heartbeat.rssBytes;
+      if (heartbeat.peakPhysicalWorkers > reportedPeakPhysicalWorkers) {
+        reportedPeakPhysicalWorkers = heartbeat.peakPhysicalWorkers;
+        process.stderr.write(`plugin broker watchdog: residency ${JSON.stringify({ peakPhysicalWorkers: heartbeat.peakPhysicalWorkers, workerMaximum })}\n`);
+      }
       if (!runtimeReported) {
         runtimeReported = true;
         process.stderr.write(
@@ -86,7 +91,7 @@ async function superviseOneBroker(): Promise<string> {
     broker.once("exit", (code, signal) => settle(failure ?? `plugin broker watchdog: broker exited (${signal ?? code ?? "unknown"})`));
 
     const monitor = setInterval(() => {
-      const reason = brokerWatchdogFailure(Date.now(), memoryLimitBytes, {
+      const reason = brokerWatchdogFailure(performance.now(), memoryLimitBytes, {
         startedAt,
         ...(lastHeartbeatAt === undefined ? {} : { lastHeartbeatAt }),
         ...(rssBytes === undefined ? {} : { rssBytes }),
@@ -107,17 +112,24 @@ async function superviseOneBroker(): Promise<string> {
 }
 
 function stopBroker(): void {
-  stopping = true;
+  stop.resolve();
   activeBroker?.kill("SIGTERM");
 }
 process.on("SIGINT", stopBroker);
 process.on("SIGTERM", stopBroker);
 process.on("disconnect", stopBroker);
 
-while (!stopping) {
-  const failure = await superviseOneBroker();
-  if (!stopping) {
-    process.stderr.write(`${failure}; restarting in ${BROKER_RESTART_DELAY_MS}ms\n`);
-    await sleep(BROKER_RESTART_DELAY_MS);
+for (;;) {
+  const outcome = await Promise.race([
+    superviseOneBroker().then((failure) => ({ kind: "failure", failure }) as const),
+    stop.promise.then(() => ({ kind: "stop" }) as const),
+  ]);
+  if (outcome.kind === "stop") {
+    break;
+  }
+  process.stderr.write(`${outcome.failure}; restarting in ${BROKER_RESTART_DELAY_MS}ms\n`);
+  const restart = await Promise.race([sleep(BROKER_RESTART_DELAY_MS).then(() => true), stop.promise.then(() => false)]);
+  if (!restart) {
+    break;
   }
 }

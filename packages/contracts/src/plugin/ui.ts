@@ -396,8 +396,8 @@ export const PLUGIN_FRAME_HTML_MAX_CHARS = 64_000;
 export const PLUGIN_FRAME_CSS_MAX_CHARS = 16_000;
 /** How many `frame` surfaces ONE resident instance may register. `ui.register` has no count cap today because a
  *  declarative spec is already bounded to 32 KiB by {@link PLUGIN_SPEC_MAX_BYTES}; a frame body is 5× that, held for
- *  the instance lifetime, and multiplied by `PLUGIN_RESIDENT_RUNTIME_MAX`. Eight bounds the worst case to a few
- *  hundred KiB per plugin, and no honest plugin needs a ninth isolated document. */
+ *  the physical runtime lifetime, and multiplied by the configured broker warm-Worker maximum. Eight bounds the
+ *  worst case to a few hundred KiB per plugin, and no honest plugin needs a ninth isolated document. */
 export const PLUGIN_FRAME_SURFACES_MAX = 8;
 
 /** The `frame` tier's document body — held server-side, assembled into the isolated document by the plugin-frame
@@ -1434,7 +1434,7 @@ export const PLUGIN_UI_ROUTE = "/api/plugin-ui";
 
 // ── COMMANDS (U5, §4.5) — `host.ui.registerCommand` ──────────────────────────────────────────────────────────
 // A plugin command is NOT a slash-command contribution: the door assembles ONE static `/plugin` dispatcher and
-// a first-party "Plugins" chrome menu, and both fan per-plugin off `plugin.listCommands`. The door therefore
+// first-party host chrome, and every surface fans per-plugin off `plugin.listCommands`. The door therefore
 // never grows when a person installs a plugin (the one-assembly law, G8), and a plugin can never invent a
 // top-level token — `/plugin <slug> <name> …` is the whole grammar it reaches. Per-command FIRST-CLASS palette
 // rows are U8 (the dynamic palette source), deliberately not this.
@@ -1447,6 +1447,18 @@ export const PLUGIN_COMMAND_DESCRIBE_MAX = 200;
 /** The arg-string a `/plugin <slug> <name> <rest>` dispatch hands the guest, capped at the membrane. A command
  *  is a control affordance, not a paste target — a plugin that needs a document takes it through its own surface. */
 export const PLUGIN_COMMAND_ARGS_MAX = 2000;
+export const PLUGIN_COMMAND_PLACEMENT_TARGETS = ["composer-action", "composer-media"] as const;
+export type PluginCommandPlacementTarget = (typeof PLUGIN_COMMAND_PLACEMENT_TARGETS)[number];
+export interface PluginCommandPlacement {
+  readonly target: PluginCommandPlacementTarget;
+  readonly label: string;
+  readonly icon?: PluginIconName | undefined;
+}
+export const pluginCommandPlacementSchema = z.object({
+  target: z.enum(PLUGIN_COMMAND_PLACEMENT_TARGETS),
+  label: z.string().min(1).max(LABEL_MAX),
+  icon: z.enum(PLUGIN_ICON_NAMES).optional(),
+}) satisfies z.ZodType<PluginCommandPlacement>;
 
 // ── TYPED ARG GRAMMAR (#791) — the deep half of the ST SlashCommandParser, cut to the CLEAN core ────────────────
 // U5 gave a command ONE opaque `args` remainder ("a command owns its own argument grammar"). #791 lets a command
@@ -1538,17 +1550,23 @@ export const pluginCommandRegistrationMetaSchema = z
     name: z.string().regex(PLUGIN_COMMAND_NAME_RE),
     describe: z.string().min(1).max(PLUGIN_COMMAND_DESCRIBE_MAX),
     args: z.array(pluginCommandArgSpecSchema).max(PLUGIN_COMMAND_ARGS_DECLARED_MAX).optional(),
+    group: z.string().min(1).max(LABEL_MAX).optional(),
+    placements: readonlyArrayOutput(z.array(pluginCommandPlacementSchema).max(PLUGIN_COMMAND_PLACEMENT_TARGETS.length)).optional(),
   })
   .superRefine((meta, ctx) => {
-    if (meta.args === undefined) {
-      return;
-    }
     const seen = new Set<string>();
-    for (const arg of meta.args) {
+    for (const arg of meta.args ?? []) {
       if (seen.has(arg.name)) {
         ctx.addIssue({ code: "custom", message: `duplicate command arg name '${arg.name}'`, path: ["args"] });
       }
       seen.add(arg.name);
+    }
+    const targets = new Set<PluginCommandPlacementTarget>();
+    for (const placement of meta.placements ?? []) {
+      if (targets.has(placement.target)) {
+        ctx.addIssue({ code: "custom", message: `duplicate command placement target '${placement.target}'`, path: ["placements"] });
+      }
+      targets.add(placement.target);
     }
   });
 export type PluginCommandRegistrationMeta = z.infer<typeof pluginCommandRegistrationMetaSchema>;

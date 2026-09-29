@@ -500,6 +500,12 @@ describe("a plugin provider is scoped to the owners of its enabled installs", ()
     await upsertBinding(w.db, { id: castId<ConnectionBindingId>("connection_binding_relay_chat"), actor, task: "chat", connectionId: rowId });
     await upsertBinding(w.db, { id: castId<ConnectionBindingId>("connection_binding_relay_sum"), actor, task: "summarize", connectionId: rowId });
 
+    const beforeLabelUpdate = await w.connection.svc.get({ principal: w.stranger, connectionId: rowId });
+    await expect(w.connection.svc.update({ principal: w.stranger, connectionId: rowId, patch: { label: "Renamed legacy relay" } })).rejects.toMatchObject(
+      PROVIDER_UNKNOWN,
+    );
+    expect(await w.connection.svc.get({ principal: w.stranger, connectionId: rowId })).toEqual(beforeLabelUpdate);
+    expect(w.relayRequests()).toEqual([]);
     await expect(w.connection.svc.catalogModels({ principal: w.stranger, connectionId: rowId })).rejects.toMatchObject(PROVIDER_UNKNOWN);
     await expect(w.connection.svc.capabilities({ principal: w.stranger, connectionId: rowId })).rejects.toThrow(/not registered/u);
     await expect(w.connection.svc.resolve({ task: "chat", principal: w.stranger })).rejects.toBeInstanceOf(NoConnectionError);

@@ -40,8 +40,10 @@ import { PluginFrame } from "../components/plugin-frame.tsx";
 import { PluginScriptedSurface } from "../components/plugin-scripted-surface.tsx";
 import { PluginSurfaceRenderer } from "../components/plugin-surface-renderer.tsx";
 import { PluginSurfaceShell } from "../components/plugin-surface-shell.tsx";
-import { type ExtensionsEmptyView, useExtensionsEmpty } from "../hooks/use-extensions-empty.ts";
-import { type PluginPageView, usePluginPagesState } from "../hooks/use-plugin-pages.ts";
+import type { ExtensionsEmptyView } from "../hooks/use-extensions-empty.ts";
+import { useExtensionsEmpty } from "../hooks/use-extensions-empty.ts";
+import type { PluginPageView } from "../hooks/use-plugin-pages.ts";
+import { usePluginPagesState } from "../hooks/use-plugin-pages.ts";
 import {
   EXTENSIONS_EMPTY_COPY,
   EXTENSIONS_GONE_BODY,

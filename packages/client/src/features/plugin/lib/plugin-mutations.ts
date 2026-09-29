@@ -26,15 +26,14 @@ type PluginList = inferOutput<Trpc["plugin"]["list"]>;
 /** Plugin provider registration changes every connection read derived from that registry: the provider
  *  roster itself, plus saved rows' labels, tasks, capabilities and catalogs. Keep that dependency at the
  *  domain root so a lifecycle verb cannot refresh the picker while leaving an already-mounted row stale. */
-function providerDependentConnectionReads(trpc: Trpc): readonly ReturnType<Trpc["connection"]["pathFilter"]>[] {
+export function providerDependentConnectionReads(trpc: Trpc): readonly ReturnType<Trpc["connection"]["pathFilter"]>[] {
   return [trpc.connection.pathFilter()];
 }
 
 /** The resident contribution catalogs every lifecycle transition must reconcile together. */
-function pluginContributionCatalogReads(trpc: Trpc): readonly [
-  ReturnType<Trpc["plugin"]["listSurfaces"]["queryFilter"]>,
-  ReturnType<Trpc["plugin"]["listCommands"]["queryFilter"]>,
-] {
+function pluginContributionCatalogReads(
+  trpc: Trpc,
+): readonly [ReturnType<Trpc["plugin"]["listSurfaces"]["queryFilter"]>, ReturnType<Trpc["plugin"]["listCommands"]["queryFilter"]>] {
   return [trpc.plugin.listSurfaces.queryFilter(), trpc.plugin.listCommands.queryFilter()];
 }
 
@@ -212,11 +211,7 @@ export const useSetPluginEnabled = createEntityMutation<inferInput<Trpc["plugin"
  *  behind a confirm, and a failed uninstall flashing a row back is worse than the brief settle refetch. */
 export const useUninstallPlugin = createEntityMutation<{ readonly pluginId: PluginId }, inferOutput<Trpc["plugin"]["uninstall"]>>({
   options: (trpc) => trpc.plugin.uninstall.mutationOptions(),
-  invalidates: (trpc) => [
-    trpc.plugin.list.queryFilter(),
-    ...pluginContributionCatalogReads(trpc),
-    ...providerDependentConnectionReads(trpc),
-  ],
+  invalidates: (trpc) => [trpc.plugin.list.queryFilter(), ...pluginContributionCatalogReads(trpc), ...providerDependentConnectionReads(trpc)],
   errorToast: serverReason("Couldn't remove that plugin."),
 });
 

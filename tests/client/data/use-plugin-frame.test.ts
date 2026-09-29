@@ -12,7 +12,7 @@
 //      surface into an error instead of collapsing it cleanly.
 
 import type { PluginFrameRequest } from "@orb/client/data";
-import { mintPluginFrame, pluginFrameMintBody } from "@orb/client/data";
+import { mintPluginFrame, pluginFrameMintBody, revokePluginFrame } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -82,5 +82,28 @@ describe("mintPluginFrame — degrade to NOTHING, never block", () => {
     // A response that parses as JSON but not as the contract — a proxy's error page, a version skew.
     stubFetch(() => ({ ok: true, json: () => Promise.resolve({ nope: true }) }));
     await expect(mintPluginFrame("{}")).resolves.toBeUndefined();
+  });
+});
+
+describe("revokePluginFrame — teardown", () => {
+  test("deletes the minted handle with the CSRF header", async () => {
+    let seen: { readonly url: string; readonly method: string; readonly csrf: string | undefined } | undefined;
+    vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
+      seen = { url, method: init.method ?? "GET", csrf: (init.headers as Record<string, string>)[CSRF_HEADER] };
+      return { ok: true };
+    });
+    await revokePluginFrame("/api/plugin-frame/0123456789abcdef0123456789abcdef");
+    expect(seen).toEqual({
+      url: "/api/plugin-frame/0123456789abcdef0123456789abcdef",
+      method: "DELETE",
+      csrf: "1",
+    });
+  });
+
+  test("a network loss during cleanup is contained", async () => {
+    stubFetch(() => {
+      throw new Error("offline");
+    });
+    await expect(revokePluginFrame("/api/plugin-frame/0123456789abcdef0123456789abcdef")).resolves.toBeUndefined();
   });
 });

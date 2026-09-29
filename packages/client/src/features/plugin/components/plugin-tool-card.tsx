@@ -12,9 +12,9 @@
 //
 // THE FALLBACK IS THE NULL STATE HERE, and that is the opposite of the flank (§4.9). A tool call is CANON: it
 // happened, the model read its result, and the transcript owes the reader a record of it. So every arm that is
-// not "this plugin registered a static card for this exact tool" renders the GENERIC BLOCK, never nothing —
-// no surface, a scripted-tier card with no spec yet (U4), a plugin whose name has not resolved (the §4.8
-// labelled-or-absent wall), a not-yet-loaded list. Silence would delete evidence from a conversation.
+// not "this plugin registered a card for this exact tool" renders the GENERIC BLOCK, never nothing — no
+// surface, a scripted guest before its first publish or after a crash, a plugin whose name has not resolved
+// (the §4.8 labelled-or-absent wall), a not-yet-loaded list. Silence would delete evidence from a conversation.
 //
 // The card BINDS the record, not the published plane (`plugin-tool-card-state.ts`): a card is per-CALL, so an
 // old draw keeps showing the cards it drew.
@@ -27,6 +27,7 @@ import { useTRPC } from "#data";
 import { useActiveChatId } from "#state";
 import { toolCardState } from "../lib/plugin-tool-card-state.ts";
 import { PluginFrame } from "./plugin-frame.tsx";
+import { PluginScriptedSurface } from "./plugin-scripted-surface.tsx";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
 import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
 
@@ -51,9 +52,11 @@ export function PluginToolCard({ record }: PluginToolCardProps): ReactElement {
 
   // `toolWireName` is the SERVER's projection of `plugin_<slug'>_<toolName>` (the one mint lives in contracts;
   // the client never re-derives the namespacing rule). A surface only carries it at the `tool-card` anchor.
-  const surface = (surfaces ?? []).find((row) => row.toolWireName === record.name && (row.tier === "frame" || row.spec !== undefined));
-  const pluginName = surface === undefined ? undefined : plugins?.find((row) => row.id === surface.pluginId)?.name;
-  if (surface === undefined || pluginName === undefined) {
+  const surface = (surfaces ?? []).find(
+    (row) => row.toolWireName === record.name && (row.tier === "scripted" || row.tier === "frame" || row.spec !== undefined),
+  );
+  const plugin = surface === undefined ? undefined : plugins?.find((row) => row.id === surface.pluginId);
+  if (surface === undefined || plugin === undefined) {
     return <ToolCallBlock record={record} />;
   }
   // U7 — the ARBITRARY-CARD-ART arm (§6.1). LAZY, never per-row-eager: the mint happens on mount and the iframe
@@ -67,20 +70,39 @@ export function PluginToolCard({ record }: PluginToolCardProps): ReactElement {
   if (surface.tier === "frame") {
     return (
       <PluginFrame
-        chatId={chatId ?? undefined}
         fallback={<ToolCallBlock record={record} />}
         pluginId={surface.pluginId}
-        pluginName={pluginName}
+        pluginName={plugin.name}
         surfaceId={surface.id}
         title={surface.title}
+        {...(chatId === null ? {} : { chatId })}
       />
     );
   }
+  const scriptedIds = (surfaces ?? [])
+    .filter((candidate) => candidate.pluginId === surface.pluginId && candidate.tier === "scripted")
+    .map((candidate) => candidate.id);
   if (surface.spec === undefined) {
-    return <ToolCallBlock record={record} />;
+    if (surface.tier !== "scripted") {
+      return <ToolCallBlock record={record} />;
+    }
+    return (
+      <PluginSurfaceShell pluginName={plugin.name} title={surface.title}>
+        <PluginScriptedSurface
+          anchor="tool-card"
+          fallback={<ToolCallBlock record={record} />}
+          grants={plugin.grantedCapabilities}
+          pluginId={surface.pluginId}
+          state={toolCardState(record)}
+          surfaceId={surface.id}
+          surfaceIds={scriptedIds}
+          {...(chatId === null ? {} : { chatId })}
+        />
+      </PluginSurfaceShell>
+    );
   }
   return (
-    <PluginSurfaceShell pluginName={pluginName} title={surface.title}>
+    <PluginSurfaceShell pluginName={plugin.name} title={surface.title}>
       <PluginSurfaceRenderer anchor="tool-card" pluginId={surface.pluginId} spec={surface.spec} state={toolCardState(record)} surfaceId={surface.id} />
     </PluginSurfaceShell>
   );

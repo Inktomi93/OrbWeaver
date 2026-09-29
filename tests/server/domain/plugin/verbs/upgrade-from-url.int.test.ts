@@ -11,11 +11,11 @@
 import { plugins } from "@orb/db";
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { PluginNotFoundError } from "@orb/server/domain/plugin";
+import { PluginBundlePreviewStaleError, PluginNotFoundError } from "@orb/server/domain/plugin";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
+import { hashBundle, makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const URL = "https://plugins.example.com/my-plugin.zip";
 
@@ -35,7 +35,12 @@ test("upgradeFromUrl with a reach-WIDENING bundle lands the row DISABLED pending
   });
   await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
 
-  const upgraded = await h.service.upgradeFromUrl({ caller: ownerPrincipalFor(owner), pluginId: installed.id, url: URL });
+  const upgraded = await h.service.upgradeFromUrl({
+    caller: ownerPrincipalFor(owner),
+    pluginId: installed.id,
+    url: URL,
+    expectedBundleHash: hashBundle(v2),
+  });
 
   // The wall: a widened-reach upgrade comes back disabled + reconsent-pending, and the new cap is NOT granted.
   expect(upgraded.status).toBe("disabled");
@@ -56,10 +61,32 @@ test("upgradeFromUrl with a strict NARROWING bundle carries the enabled state fo
   });
   await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
 
-  const upgraded = await h.service.upgradeFromUrl({ caller: ownerPrincipalFor(owner), pluginId: installed.id, url: URL });
+  const upgraded = await h.service.upgradeFromUrl({
+    caller: ownerPrincipalFor(owner),
+    pluginId: installed.id,
+    url: URL,
+    expectedBundleHash: hashBundle(v2),
+  });
 
   expect(upgraded.version).toBe("1.1.0");
   expect(upgraded.status).toBe("enabled");
+});
+
+test("upgradeFromUrl refuses bytes that changed after review and preserves the enabled installation", async () => {
+  const db = await freshDb();
+  const reviewed = makeBundle({ id: "scraper", version: "1.1.0", capabilities: ["chat.read"] }, "orb.host(1).log.info('reviewed');");
+  const changed = makeBundle({ id: "scraper", version: "1.1.0", capabilities: ["chat.read"] }, "orb.host(1).log.info('changed');");
+  const h = makePluginHarness(db, { fetchBundle: returns(changed) });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const caller = ownerPrincipalFor(owner);
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "scraper", capabilities: ["chat.read"] }), grant: ["chat.read"] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+
+  await expect(h.service.upgradeFromUrl({ caller, pluginId: installed.id, url: URL, expectedBundleHash: hashBundle(reviewed) })).rejects.toBeInstanceOf(
+    PluginBundlePreviewStaleError,
+  );
+  const [preserved] = await h.service.list({ caller });
+  expect(preserved).toMatchObject({ id: installed.id, version: "1.0.0", status: "enabled", reconsentPending: false });
 });
 
 test("upgradeFromUrl on a FOREIGN / missing pluginId is NOT_FOUND — and the server NEVER fetches on a stranger's behalf", async () => {
@@ -74,7 +101,14 @@ test("upgradeFromUrl on a FOREIGN / missing pluginId is NOT_FOUND — and the se
   const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
   const foreignId = castId<PluginId>("plugin_ffffffffffffffffffffffff");
 
-  await expect(h.service.upgradeFromUrl({ caller: ownerPrincipalFor(stranger), pluginId: foreignId, url: URL })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(
+    h.service.upgradeFromUrl({
+      caller: ownerPrincipalFor(stranger),
+      pluginId: foreignId,
+      url: URL,
+      expectedBundleHash: hashBundle(new Uint8Array()),
+    }),
+  ).rejects.toBeInstanceOf(PluginNotFoundError);
   // THE ORDERING IS THE SECURITY PROPERTY: the owner-scoped row load ran and refused BEFORE `ctx.fetchBundle`.
   expect(fetched).toBe(false);
 });

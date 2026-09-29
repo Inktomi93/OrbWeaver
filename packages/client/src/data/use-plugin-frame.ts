@@ -5,7 +5,8 @@
 // The request is a SELECTOR plus theme values: `{pluginId, surfaceId, themeTokens, fontFamily}`. It carries no
 // document bytes and no policy field, and `strictObject` on the server refuses a smuggled key outright — so
 // nothing this file sends can widen a policy or choose what gets rendered, which is why it may run in the
-// browser at all.
+// browser at all. A successful mint is a MOUNTED resource: cleanup DELETEs its capability handle, which also
+// closes the installed-asset URLs injected into that document.
 //
 // DEGRADE TO NOTHING, NEVER TO A FLOOR. This is the one place where the plugin frame deliberately diverges from
 // `useCardFrameSrc`: a failed CARD mint falls back to the srcdoc floor, which is strictly TIGHTER and still
@@ -19,7 +20,6 @@ import type { PluginFrameMintRequest, PluginFrameMintResponse } from "@orb/contr
 import { PLUGIN_FRAME_ROUTE, pluginFrameMintResponseSchema } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { useEffect, useState } from "react";
-import { forgetIfCurrent, rememberBounded } from "./bounded-memo.ts";
 
 /** What a caller knows about ONE frame surface. Everything here is either an id the caller already holds or a
  *  theme value the server re-clamps. */
@@ -33,20 +33,6 @@ export interface PluginFrameRequest {
   readonly styleTokens: Readonly<Record<string, string>>;
   readonly fontFamily: string | undefined;
 }
-
-/** Per-tab memo so a re-render, a collapse/expand, or a scroll-back re-uses one handle instead of minting a
- *  fresh document per paint. Keyed on the SERIALIZED body, which is both the natural cache key and the effect's
- *  only dependency — a theme flip changes the bytes, hence the key, hence mints anew rather than serving a frame
- *  built under a stale palette.
- *
- *  BOUNDED, exactly as the card memo is (`use-card-frame.ts`, #711 D3): each distinct body is a fresh key, so a
- *  long-lived tab with many theme flips and many visited surfaces would grow this map without limit.
- *  `rememberBounded` caps it at {@link MINTED_CACHE_CAP} with LRU eviction — an evicted key just re-mints. */
-const minted = new Map<string, Promise<string | undefined>>();
-
-/** Cap on the per-tab mint memo. Comfortably above the handful of frame surfaces a page shows at once; older
- *  keys (a since-replaced theme, a closed surface) evict rather than accreting for the tab's lifetime. */
-const MINTED_CACHE_CAP = 128;
 
 /** The wire body for one frame. Pure + exported so the shape is testable without a browser. */
 export function pluginFrameMintBody(request: PluginFrameRequest): PluginFrameMintRequest {
@@ -79,6 +65,23 @@ export async function mintPluginFrame(body: string): Promise<string | undefined>
   return parsed.url;
 }
 
+/** Revoke a minted frame handle. Best-effort: teardown must never surface an error into React cleanup. */
+export async function revokePluginFrame(url: string): Promise<void> {
+  // @orb-waive caught-failure-ownership(catch): cleanup is best-effort; server TTL remains the final bound if
+  // navigation wins the race or the network is already gone. Ends if handle revocation becomes user-visible.
+  try {
+    await fetch(url, { method: "DELETE", headers: { [CSRF_HEADER]: "1" } });
+  } catch {
+    // The server-side TTL still bounds the abandoned handle.
+  }
+}
+
+function revokeFrameInBackground(url: string): void {
+  // @orb-waive caught-failure-ownership(revokePluginFrame): revokePluginFrame contains network failures, and
+  // teardown must remain best-effort. Ends if revocation gains a user-visible failure path.
+  revokePluginFrame(url).catch(() => undefined);
+}
+
 /**
  * The routed frame URL for one plugin frame surface, or `undefined` while it resolves / when it cannot be had.
  *
@@ -95,24 +98,19 @@ export function usePluginFrameSrc(request: PluginFrameRequest | undefined): stri
       return;
     }
     let live = true;
-    const pending = minted.get(body) ?? mintPluginFrame(body);
-    rememberBounded(minted, body, pending, MINTED_CACHE_CAP);
+    let handle: string | undefined;
+    const pending = mintPluginFrame(body);
     // @orb-waive caught-failure-ownership(pending): mintPluginFrame's own catch already collapsed any failure to `undefined`; the reject arm here only exists for symmetry and sets the same render-floor state as the resolve arm. Ends if mintPluginFrame stops swallowing its own failures.
     pending.then(
       (url) => {
-        // A FAILED MINT IS NOT AN ANSWER, so it must not be remembered as one: `mintPluginFrame` collapses a
-        // 404, an offline blip and a version-skewed body alike into `undefined`, and caching that settled
-        // promise would render this surface as NOTHING for the rest of the tab's life over one bad second.
-        // Evicted OUTSIDE the `live` gate — an unmounted surface must not leave the poison behind.
-        if (url === undefined) {
-          forgetIfCurrent(minted, body, pending);
-        }
+        handle = url;
         if (live) {
           setResolved({ body, url });
+        } else if (url !== undefined) {
+          revokeFrameInBackground(url);
         }
       },
       () => {
-        forgetIfCurrent(minted, body, pending);
         if (live) {
           setResolved({ body, url: undefined });
         }
@@ -120,6 +118,9 @@ export function usePluginFrameSrc(request: PluginFrameRequest | undefined): stri
     );
     return (): void => {
       live = false;
+      if (handle !== undefined) {
+        revokeFrameInBackground(handle);
+      }
     };
   }, [body]);
 

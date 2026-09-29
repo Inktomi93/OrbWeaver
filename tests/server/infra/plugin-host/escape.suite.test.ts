@@ -21,7 +21,15 @@ import process from "node:process";
 import type { PluginBridge } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
-import { createPluginHost, getPluginQuickJS, installRealm, LogRing, PLUGIN_MEMORY_LIMIT_BYTES, Sandbox } from "@orb/server/infra/plugin-host";
+import {
+  createPluginHost,
+  getPluginQuickJS,
+  HOST_FN_DEADLINE_MS,
+  installRealm,
+  LogRing,
+  PLUGIN_MEMORY_LIMIT_BYTES,
+  Sandbox,
+} from "@orb/server/infra/plugin-host";
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
 import { describe, vi } from "vitest";
@@ -814,7 +822,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
       grants: ["storage.kv"],
       bridge: pumpBridge(() => gate, wrote),
       chat: null,
-      budgets: { cpuDeadlineMs: PUMP_CPU_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES },
+      budgets: { cpuDeadlineMs: PUMP_CPU_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES, settleGraceMs: HOST_FN_DEADLINE_MS },
     });
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) {
@@ -851,7 +859,7 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
       grants: ["storage.kv"],
       bridge: pumpBridge(() => new Promise<string | null>((resolve) => setTimeout(() => resolve(null), SLOW_HOST_MS)), wrote),
       chat: null,
-      budgets: { cpuDeadlineMs: PUMP_CPU_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES },
+      budgets: { cpuDeadlineMs: PUMP_CPU_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES, settleGraceMs: HOST_FN_DEADLINE_MS },
     });
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) {

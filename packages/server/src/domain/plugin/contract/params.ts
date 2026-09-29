@@ -5,19 +5,18 @@
 // is the inline-mode input — TYPE HOME ONLY here; the verb implementation lives with the other verbs.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { PluginCapability, PluginCommandArgValue, PluginOrigin } from "@orb/contracts/plugin";
+import type { PluginBundleHash, PluginCapability, PluginCommandArgValue } from "@orb/contracts/plugin";
 import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
 
-/** WHERE an install got its bytes — the honest origin + the URL to remember (U8 2b). The
+/** WHERE an install got its bytes — the honest origin + source provenance to remember (U8 2b). The
  *  install verb is source-agnostic (`substrate/manifest.ts`); the CALLING verb states the source, never the
- *  client. Absent ⇒ a file upload (`origin:"upload"`, no `sourceUrl`); `installFromUrl` passes
- *  `{ origin:"url", sourceUrl:url }` so the row records the honest origin AND the URL the update-check re-fetches.
- *  The `origin ⟺ sourceUrl` pairing is enforced at the db CHECK, so this type carries both together rather than
- *  letting a caller set one without the other. */
-interface PluginInstallSource {
-  readonly origin: PluginOrigin;
-  readonly sourceUrl: string | null;
-}
+ *  client. Absent ⇒ a file/folder/unpacked upload (`origin:"upload"`, no remembered source); URL and Git
+ *  callers pass the source URL, and Git also passes the exact resolved commit. The URL/commit pairings are
+ *  enforced at DB CHECKs, so this type carries every coupled field together. */
+type PluginInstallSource =
+  | { readonly origin: "upload"; readonly sourceUrl: null; readonly sourceCommit: null }
+  | { readonly origin: "url"; readonly sourceUrl: string; readonly sourceCommit: null }
+  | { readonly origin: "git"; readonly sourceUrl: string; readonly sourceCommit: string };
 
 /** `installPlugin` — unzip+validate the bundle, store its bytes in the CAS, insert a `disabled` row.
  *  `grant` is the confirmed capability subset (⊆ the manifest's declared set — `CapabilityNotGrantedError`
@@ -41,13 +40,40 @@ export interface UpgradePluginParams {
   readonly caller: Principal;
   readonly pluginId: PluginId;
   readonly bundle: Uint8Array;
+  readonly source?: PluginInstallSource;
 }
 
-/** `previewFromUrl` — fetch a bundle at a caller-supplied URL through the egress guard and return its MANIFEST
- *  for the consent screen (U8, seam 15). READ-ONLY: nothing persists, no owned id. It is
- *  the primitive behind both "show the same consent screen a file install shows" and the update-version check
- *  (the client compares the previewed `version` to the installed one). SELF-authority: any authenticated
- *  principal — the fetch spends the server's egress, so it is authed, but it touches no owned row. */
+export interface InstallUnpackedPluginParams {
+  readonly caller: Principal;
+  readonly directory: string;
+  readonly grant: readonly PluginCapability[];
+}
+
+export interface PreviewFromGitParams {
+  readonly caller: Principal;
+  readonly url: string;
+}
+
+export interface InstallFromGitParams {
+  readonly caller: Principal;
+  readonly url: string;
+  /** Exact commit returned with the manifest the owner consented to. Installation refuses if HEAD moved. */
+  readonly expectedCommit: string;
+  readonly grant: readonly PluginCapability[];
+}
+
+export interface UpgradeFromStoredGitParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+  /** Exact remote commit returned by `checkForUpdates`; upgrade refuses if the repository moved before clone. */
+  readonly expectedCommit: string;
+}
+
+/** `previewFromUrl` — fetch a bundle at a caller-supplied URL through the egress guard and return its manifest
+ *  plus exact-bundle SHA-256 for the consent screen (U8, seam 15). READ-ONLY: nothing persists, no owned id.
+ *  The client must echo that identity on install so a mutable URL cannot substitute different bytes after
+ *  consent. SELF-authority: any authenticated principal — the fetch spends the server's egress, so it is
+ *  authed, but it touches no owned row. */
 export interface PreviewFromUrlParams {
   readonly caller: Principal;
   readonly url: string;
@@ -56,11 +82,13 @@ export interface PreviewFromUrlParams {
 /** `installFromUrl` — fetch a bundle at a caller-supplied URL through the egress guard, then run it through the
  *  EXACT SAME funnel + consent/grant checks a file install takes (U8, seam 15). The
  *  distinct-from-runtime-loading arm: this is an INSTALL ACT under the user's eyes (they picked the URL and
- *  confirmed the grant), not code loaded at runtime (row 23, refused). Origin stays `"upload"` — the bundle
- *  funnel is source-agnostic (a URL is just another byte source; `substrate/manifest.ts`'s own header). */
+ *  confirmed the grant), not code loaded at runtime (row 23, refused). The source-agnostic bundle funnel does
+ *  not decide provenance; this calling verb records the `url` origin and remembered URL beside the bytes. */
 export interface InstallFromUrlParams {
   readonly caller: Principal;
   readonly url: string;
+  /** SHA-256 returned beside the manifest the owner reviewed. */
+  readonly expectedBundleHash: PluginBundleHash;
   readonly grant: readonly PluginCapability[];
 }
 
@@ -74,13 +102,13 @@ export interface UpgradeFromUrlParams {
   readonly caller: Principal;
   readonly pluginId: PluginId;
   readonly url: string;
+  readonly expectedBundleHash: PluginBundleHash;
 }
 
-/** `checkForUpdates` — the auto update-check (U8 2b, the thing ST's loader does: check every
- *  URL-installed extension's version). BATCH + SELF-scoped: no id, like `list`/`listSurfaces` — it walks the
- *  caller's OWN plugins, checks only the `url`-origin ones (a file install has no source to check, so it is
- *  simply absent from the result, never a dishonest "unreachable"), and re-fetches each remote manifest through
- *  the SAME egress guard the install rode (`ctx.fetchBundle`). No foreign id ⇒ sweep-EXEMPT. */
+/** `checkForUpdates` — the auto update-check (U8 2b). BATCH + SELF-scoped: no id, like
+ *  `list`/`listSurfaces` — it walks the caller's OWN plugins. URL rows re-fetch their manifest through the same
+ *  egress guard, Git rows ask the guarded remote for HEAD without cloning, and shipped showcase rows compare
+ *  the bundled manifest. A hand upload with no source is absent, never a dishonest "unreachable". */
 export interface CheckForUpdatesParams {
   readonly caller: Principal;
 }
@@ -94,6 +122,8 @@ export interface CheckForUpdatesParams {
 export interface UpgradeFromStoredUrlParams {
   readonly caller: Principal;
   readonly pluginId: PluginId;
+  /** SHA-256 returned by the update check that offered this exact bundle. */
+  readonly expectedBundleHash: PluginBundleHash;
 }
 
 /** `upgradeFromShowcase` — the same one-click upgrade for a SEEDED showcase install (#1740). The byte source is
@@ -292,6 +322,14 @@ export interface GetFrameBodyParams {
   readonly caller: Principal;
   readonly pluginId: PluginId;
   readonly surfaceId: string;
+}
+
+/** `getFrameAsset` — one admitted bundle image for an active frame handle. The entry layer supplies the
+ * owner/plugin identity captured at mint; the browser supplies only the bounded bundle path. */
+export interface GetFrameAssetParams {
+  readonly caller: Principal;
+  readonly pluginId: PluginId;
+  readonly bundlePath: string;
 }
 
 /** `invokeUiAction` — the guest-action round-trip. Owner-scoped on `pluginId`

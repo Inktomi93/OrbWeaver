@@ -11,6 +11,7 @@ import {
   PLUGIN_TOOL_NAME_LOCAL_MAX,
   PLUGIN_TOOL_NAME_RE,
   PLUGIN_TOOL_WIRE_NAME_MAX,
+  pluginBundleHashSchema,
   pluginManifestSchema,
   pluginToolWireName,
 } from "@orb/contracts/plugin";
@@ -25,6 +26,13 @@ const BASE = {
   description: "does a thing",
   capabilities: ["chat.read"] as const,
 };
+
+test("pluginBundleHashSchema accepts exactly a lowercase SHA-256 hex identity", () => {
+  expect(pluginBundleHashSchema.safeParse("a".repeat(64)).success).toBe(true);
+  expect(pluginBundleHashSchema.safeParse("A".repeat(64)).success).toBe(false);
+  expect(pluginBundleHashSchema.safeParse("a".repeat(63)).success).toBe(false);
+  expect(pluginBundleHashSchema.safeParse(`${"a".repeat(63)}g`).success).toBe(false);
+});
 
 // THE ORDER IS THE CONFIRM-DIALOG DISPLAY ORDER (`manifest.ts` says so), so this `toEqual` is not a count pin
 // wearing a list's clothes — it is the consent screen's reading order, and the client's `CAPABILITY_COPY_ROWS`

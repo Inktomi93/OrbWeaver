@@ -12,6 +12,7 @@
 // build with no plugin plane at all. That is the contribution law's "zero registrants ⇒ the host renders its own
 // default" applied to a widget whose registrants are DATA rather than door members.
 
+import type { PluginId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Icon, WandSparkles } from "@orb/ui/icons";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
@@ -19,13 +20,13 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useActiveChatId } from "#state";
 import { usePluginCommands, useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
-import { pluginCommandActionLabel, pluginCommandAttribution, pluginCommandAttributedActionLabel } from "../lib/plugin-command-copy.ts";
+import { pluginCommandActionLabel, pluginCommandAttributedActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
 
 /** Group the flat command list by plugin, preserving the hook's (plugin, command) order. */
 function groupByPlugin(
   commands: ReturnType<typeof usePluginCommands>,
-): readonly { readonly pluginId: string; readonly pluginName: string; readonly slug: string; readonly commands: typeof commands }[] {
-  const groups: { pluginId: string; pluginName: string; slug: string; commands: (typeof commands)[number][] }[] = [];
+): readonly { readonly pluginId: PluginId; readonly pluginName: string; readonly slug: string; readonly commands: typeof commands }[] {
+  const groups: { pluginId: PluginId; pluginName: string; slug: string; commands: (typeof commands)[number][] }[] = [];
   for (const command of commands) {
     const last = groups.at(-1);
     if (last !== undefined && last.pluginId === command.pluginId) {

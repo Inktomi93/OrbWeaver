@@ -93,7 +93,7 @@ export function usePluginPagesState(): PluginPagesState {
     isPending: surfacesQuery.isPending || pluginsQuery.isPending,
     isError: surfacesQuery.isError || pluginsQuery.isError,
     retry: (): void => {
-      void Promise.all([surfacesQuery.refetch(), pluginsQuery.refetch()]);
+      void Promise.all([surfacesQuery.refetch(), pluginsQuery.refetch()]).catch((error: unknown) => globalThis.reportError(error));
     },
   };
 }

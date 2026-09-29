@@ -29,6 +29,7 @@ export {
   PLUGIN_FRAME_RESULT_KEY,
   PLUGIN_FRAME_ROUTE,
   parsePluginFrameCall,
+  pluginFrameAssetUrl,
   pluginFrameMintRequestSchema,
   pluginFrameMintResponseSchema,
   pluginFrameResultMessage,
@@ -64,14 +65,17 @@ export {
 } from "./host-v1.ts";
 export type { PluginOrigin, PluginStatus } from "./lifecycle.ts";
 export { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "./lifecycle.ts";
-export type { PluginBuiltAgainst, PluginCapability, PluginManifest, PluginProviderContribution, PluginSlug } from "./manifest.ts";
+export type { PluginBuiltAgainst, PluginBundleHash, PluginCapability, PluginManifest, PluginProviderContribution, PluginSlug } from "./manifest.ts";
 export {
   NET_HOSTS_MAX,
+  PLUGIN_BUNDLE_MAX_BYTES,
   PLUGIN_CAPABILITIES,
   PLUGIN_HOST_VERSIONS,
   PLUGIN_MAIN_ENTRY,
   PLUGIN_MANIFEST_ENTRY,
+  PLUGIN_MANIFEST_ENTRY_MAX_BYTES,
   PLUGIN_PROVIDERS_MAX,
+  PLUGIN_SCRIPT_ENTRY_MAX_BYTES,
   PLUGIN_SLUG_MAX,
   PLUGIN_TOOL_NAME_LOCAL_MAX,
   PLUGIN_TOOL_WIRE_NAME_MAX,
@@ -82,6 +86,7 @@ export {
   PLUGIN_UI_ASSETS_TOTAL_MAX_BYTES,
   PLUGIN_UI_ENTRY,
   pluginBuiltAgainstSchema,
+  pluginBundleHashSchema,
   pluginManifestSchema,
   pluginNetHostSchema,
   pluginSlugSchema,
@@ -124,6 +129,8 @@ export type {
   PluginCommandArgsFor,
   PluginCommandArgType,
   PluginCommandArgValue,
+  PluginCommandPlacement,
+  PluginCommandPlacementTarget,
   PluginCommandRegistrationMeta,
   PluginConfirmButtonNode,
   PluginFrameBody,
@@ -183,6 +190,7 @@ export {
   PLUGIN_COMMAND_DESCRIBE_MAX,
   PLUGIN_COMMAND_ENUM_VALUES_MAX,
   PLUGIN_COMMAND_NAME_RE,
+  PLUGIN_COMMAND_PLACEMENT_TARGETS,
   PLUGIN_FOOTER_MAX_DEPTH,
   PLUGIN_FOOTER_MAX_NODES,
   PLUGIN_FOOTER_NODE_KIND_ALLOWED,
@@ -225,6 +233,7 @@ export {
   pluginChildNodes,
   pluginCommandArgSpecSchema,
   pluginCommandArgsSchema,
+  pluginCommandPlacementSchema,
   pluginCommandRegistrationMetaSchema,
   pluginFrameBodySchema,
   pluginSurfaceNodeSchema,

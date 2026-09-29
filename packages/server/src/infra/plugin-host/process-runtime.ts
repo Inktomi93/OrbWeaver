@@ -1,4 +1,6 @@
 // infra/plugin-host/process-runtime — authority-bearing parent adapter and logical-to-physical runtime pool.
+// ASSUMES(single-replica): the maps below own live process handles for this app replica; a multi-replica
+// replacement requires a DB-backed runtime lease and command queue, while bridge authority stays app-local.
 
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
@@ -9,44 +11,58 @@ import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
+import { CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES } from "@orb/contracts/automation";
+import { PROMPT_TRANSFORM_POINTS } from "@orb/contracts/chat";
 import type {
   InvocationChat,
   PluginBridge,
   PluginCapability,
+  PluginCommandRegistration,
+  PluginDisplayTransformRegistration,
+  PluginEventSubscription,
   PluginHandlerRef,
   PluginInstance,
   PluginInvocationLiveness,
   PluginInvokeArgs,
   PluginLogLevel,
+  PluginMacroRegistration,
+  PluginPubsubSubscription,
+  PluginSurfaceRegistration,
+  PluginToolRegistration,
+  PluginTransformRegistration,
 } from "@orb/contracts/plugin";
-import { PLUGIN_SURFACE_TIERS } from "@orb/contracts/plugin";
+import {
+  PLUGIN_LOG_LEVELS,
+  PLUGIN_SURFACE_TIERS,
+  pluginCommandRegistrationMetaSchema,
+  pluginFrameBodySchema,
+  pluginSurfaceRegistrationMetaSchema,
+} from "@orb/contracts/plugin";
 import { DomainConflictError } from "@orb/kit/errors";
+import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
 import { createAdmission } from "./admission.ts";
 import type { BridgeAuthority } from "./bridge-rpc.ts";
 import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall, dispatchSyncCall } from "./bridge-rpc.ts";
 import { PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES, PLUGIN_RUNTIME_REQUEST_QUEUE_MAX, PLUGIN_SNIPPET_RUNTIME_MAX } from "./budgets.ts";
-import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, PluginHostSeamDeps, PluginLogLineOut, SnippetRunOut } from "./port.ts";
-import type { BrokerParentMessage, ParentBrokerMessage } from "./process-protocol.ts";
+import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, PluginHostSeamDeps, PluginLogLineOut, SnippetRunOut } from "./contract/port.ts";
+import type { BrokerParentMessage, ParentBrokerMessage } from "./contract/process-protocol.ts";
 import {
   fromRpcError,
   isBridgeOperation,
-  parseBrokerParentMessage,
-  parseMessageLine,
   PLUGIN_BROKER_MESSAGE_MAX_BYTES,
   PLUGIN_BROKER_PROTOCOL_VERSION,
+  parseBrokerParentMessage,
+  parseMessageLine,
   rpcError,
   serializeMessage,
 } from "./process-protocol.ts";
 import type { WarmRuntimeLease } from "./warm-runtime-pool.ts";
 import { WarmRuntimePool } from "./warm-runtime-pool.ts";
-import { resolvePluginBrokerWorkerMaximum } from "./worker-capacity.ts";
 
-const SOCKET_ENV = "PLUGIN_BROKER_SOCKET";
-const TOKEN_FILE_ENV = "PLUGIN_BROKER_TOKEN_FILE";
-const EXIT_ON_DISCONNECT_ENV = "PLUGIN_BROKER_EXIT_ON_PARENT_DISCONNECT";
 const COMMAND_TIMEOUT_MS = {
   create: 30_000,
   invoke: 120_000,
@@ -58,10 +74,10 @@ const CONNECT_RETRY_MS = 25;
 const TOKEN_BYTES = 32;
 const TOKEN_MIN_CHARS = 32;
 const TOKEN_MAX_CHARS = 128;
-const { env: runtimeEnvironment } = process;
 
 interface Binding {
   runtimeId: string | undefined;
+  lifecycleGeneration: number;
   readonly bridge: PluginBridge;
   readonly grants: ReadonlySet<PluginCapability>;
   readonly authorities: Map<string, BridgeAuthority>;
@@ -78,6 +94,7 @@ interface Binding {
   readonly runtimeConfig?: Omit<CreateInstanceInputIn, "bridge" | "mainJs">;
   readonly reloadMainJs?: () => Promise<string>;
   catalog?: PluginInstance;
+  retirement: { readonly runtimeId: string; readonly done: Promise<void> } | undefined;
 }
 
 interface CreateLogicalInstanceInputIn extends CreateInstanceInputIn {
@@ -90,6 +107,13 @@ interface PendingCommand {
   readonly resolve: (value: unknown) => void;
   readonly reject: (error: Error) => void;
   readonly timer: NodeJS.Timeout;
+}
+
+interface BridgeDeliveryPause {
+  readonly operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"];
+  readonly reached: () => void;
+  readonly wait: Promise<void>;
+  readonly resume: () => void;
 }
 
 interface SocketConnectionState {
@@ -208,9 +232,12 @@ class BrokerClient {
   private readonly liveness = new Map<string, MutableLiveness>();
   private killOnCommand: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"] | undefined;
   private killOnBridge: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"] | undefined;
+  private bridgeDeliveryPause: BridgeDeliveryPause | undefined;
   private nextCommand = 0;
 
   async terminateManagedForTest(): Promise<void> {
+    this.bridgeDeliveryPause?.resume();
+    this.bridgeDeliveryPause = undefined;
     const child = this.managedChild;
     if (child === undefined || child.exitCode !== null) {
       return;
@@ -233,6 +260,20 @@ class BrokerClient {
 
   killManagedOnBridgeForTest(operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"]): void {
     this.killOnBridge = operation;
+  }
+
+  pauseBridgeDeliveryForTest(operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"]): {
+    readonly reached: Promise<void>;
+    readonly release: () => void;
+  } {
+    if (this.bridgeDeliveryPause !== undefined) {
+      throw new Error("plugin host test: a bridge delivery is already paused");
+    }
+    const reached = Promise.withResolvers<void>();
+    const wait = Promise.withResolvers<void>();
+    const resume = (): void => wait.resolve();
+    this.bridgeDeliveryPause = { operation, reached: (): void => reached.resolve(), wait: wait.promise, resume };
+    return { reached: reached.promise, release: resume };
   }
 
   async command(
@@ -275,7 +316,7 @@ class BrokerClient {
       }
       if (this.killOnCommand === operation) {
         this.killOnCommand = undefined;
-        // @orb-waive caught-failure-ownership(error): the test-only forced broker death is transferred to the same disconnect owner as a real child exit. Ends if onDisconnect stops rejecting pending work and invalidating bindings.
+        // @orb-waive caught-failure-ownership(this.terminateManagedForTest): forced broker death reaches the disconnect owner, which invalidates bindings and rejects pending work. Ends if that error path stops reaching onDisconnect.
         this.terminateManagedForTest().catch((error: unknown) => this.onDisconnect(error instanceof Error ? error : unavailableError()));
       }
     });
@@ -299,10 +340,21 @@ class BrokerClient {
       const tokenPath = join(directory, "token");
       mkdirSync(directory, { recursive: true, mode: 0o700 });
       writeFileSync(tokenPath, randomBytes(TOKEN_BYTES).toString("base64url"), { mode: 0o600, flag: "wx" });
-      const child = spawn(process.execPath, [fileURLToPath(new URL("./broker-watchdog.ts", import.meta.url))], {
-        env: { ...runtimeEnvironment, [SOCKET_ENV]: socketPath, [TOKEN_FILE_ENV]: tokenPath, [EXIT_ON_DISCONNECT_ENV]: "1" },
-        stdio: ["ignore", "inherit", "inherit", "ipc"],
-      });
+      const child = spawn(
+        process.execPath,
+        [
+          fileURLToPath(new URL("./broker-watchdog.ts", import.meta.url)),
+          socketPath,
+          tokenPath,
+          String(env.PLUGIN_BROKER_WORKER_MAX),
+          String(env.PLUGIN_BROKER_MEMORY_LIMIT_BYTES),
+          env.NODE_ENV,
+        ],
+        {
+          env: { ["NODE_ENV"]: env.NODE_ENV },
+          stdio: ["ignore", "inherit", "inherit", "ipc"],
+        },
+      );
       child.unref();
       child.channel?.unref();
       this.managedChild = child;
@@ -324,7 +376,7 @@ class BrokerClient {
         }
       });
     }
-    await this.connectWithRetry(endpoint.socketPath, endpoint.tokenPath, Date.now() + CONNECT_TIMEOUT_MS);
+    await this.connectWithRetry(endpoint.socketPath, endpoint.tokenPath, performance.now() + CONNECT_TIMEOUT_MS);
   }
 
   private async connectWithRetry(socketPath: string, tokenPath: string, deadline: number): Promise<void> {
@@ -334,16 +386,16 @@ class BrokerClient {
         throw new Error("plugin broker: token file length is outside the accepted range");
       }
       await this.openSocket(socketPath, token);
-      // @orb-waive caught-failure-ownership(error): connection failures are retried only inside the bounded deadline; the terminal failure is rethrown unchanged. Ends if the deadline no longer forces a throw.
+      // @orb-waive caught-failure-ownership(error): a live broker's transient connection failure is retried until success; the deadline, replaced endpoint, or exited child rethrows the failure to the caller. Ends if retry can stop without success or propagation.
     } catch (error) {
       if (
-        Date.now() >= deadline ||
+        performance.now() >= deadline ||
         this.managedEndpoint?.socketPath !== socketPath ||
         (this.managedChild !== undefined && this.managedChild.exitCode !== null)
       ) {
         throw error;
       }
-      await new Promise((resolve) => setTimeout(resolve, CONNECT_RETRY_MS));
+      await sleep(CONNECT_RETRY_MS);
       await this.connectWithRetry(socketPath, tokenPath, deadline);
     }
   }
@@ -353,7 +405,6 @@ class BrokerClient {
       const socket = connect(socketPath);
       const state: SocketConnectionState = { buffer: "", authenticated: false };
       const onError = (error: Error): void => {
-        // @orb-waive caught-failure-ownership(error): pre-authentication failures reject the connection attempt; post-authentication failures enter the global disconnect owner. Ends if either state loses its error delivery.
         if (!state.authenticated) {
           reject(error);
         } else {
@@ -436,7 +487,12 @@ class BrokerClient {
       return;
     }
     if (message.kind === "bridge") {
-      this.handleBridge(message);
+      // A bridge delivery that fails outside its RPC result path invalidates the broker connection and all
+      // live command authorities. The socket's disconnect owner rejects pending work and crashes residents.
+      // @orb-waive caught-failure-ownership(this.handleBridge): socket teardown routes a detached bridge failure to the disconnect owner. Ends if teardown no longer rejects pending work and crashes residents.
+      void this.handleBridge(message).catch((error: unknown) => {
+        this.socket?.destroy(error instanceof Error ? error : unavailableError());
+      });
     }
   }
 
@@ -489,16 +545,29 @@ class BrokerClient {
     }
   }
 
-  private handleBridge(message: Extract<BrokerParentMessage, { readonly kind: "bridge" }>): void {
+  private async handleBridge(message: Extract<BrokerParentMessage, { readonly kind: "bridge" }>): Promise<void> {
     if (this.killOnBridge === message.operation) {
       this.killOnBridge = undefined;
-      // @orb-waive caught-failure-ownership(error): the test-only forced broker death is transferred to the same disconnect owner as a real child exit. Ends if onDisconnect stops rejecting pending work and invalidating bindings.
+      // @orb-waive caught-failure-ownership(this.terminateManagedForTest): forced broker death reaches the disconnect owner, which invalidates bindings and rejects pending work. Ends if that error path stops reaching onDisconnect.
       this.terminateManagedForTest().catch((error: unknown) => this.onDisconnect(error instanceof Error ? error : unavailableError()));
       return;
     }
+    const bindingBeforePause = bindings.get(message.runtimeId);
+    if (bindingBeforePause === undefined || bindingBeforePause.crashed !== null || bindingBeforePause.disposed) {
+      this.sendBridgeResult(message.id, false, undefined, new Error("plugin broker: stale, crashed, or disposed runtime id"));
+      return;
+    }
+    const pause = this.bridgeDeliveryPause;
+    if (pause?.operation === message.operation) {
+      pause.reached();
+      await pause.wait;
+      if (this.bridgeDeliveryPause === pause) {
+        this.bridgeDeliveryPause = undefined;
+      }
+    }
     const binding = bindings.get(message.runtimeId);
-    if (binding === undefined || binding.crashed !== null) {
-      this.sendBridgeResult(message.id, false, undefined, new Error("plugin broker: stale or crashed runtime id"));
+    if (binding === undefined || binding.crashed !== null || binding.disposed) {
+      this.sendBridgeResult(message.id, false, undefined, new Error("plugin broker: stale, crashed, or disposed runtime id"));
       return;
     }
     const authority = binding.authorities.get(message.authorityId);
@@ -516,13 +585,13 @@ class BrokerClient {
       }
       const liveness = createLiveness();
       this.liveness.set(message.id, liveness);
+      // @orb-waive caught-failure-ownership(dispatchBridgeCall): the failed host operation is sent as the matching bridge error and its liveness record is removed. Ends if either action is removed.
       dispatchBridgeCall(binding.bridge, message.operation, message.args, liveness).then(
         (value) => {
           this.liveness.delete(message.id);
           this.sendBridgeResult(message.id, true, value);
         },
         (error) => {
-          // @orb-waive caught-failure-ownership(error): the rejected async bridge operation is serialized back to the worker and its liveness record is removed. Ends if either ownership action is removed.
           this.liveness.delete(message.id);
           this.sendBridgeResult(message.id, false, undefined, error);
         },
@@ -625,42 +694,102 @@ export function __killManagedPluginBrokerOnBridgeForTest(operation: Extract<Brok
   broker.killManagedOnBridgeForTest(operation);
 }
 
+/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+export function __pauseManagedPluginBridgeDeliveryForTest(operation: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"]): {
+  readonly reached: Promise<void>;
+  readonly release: () => void;
+} {
+  return broker.pauseBridgeDeliveryForTest(operation);
+}
+
 function requireRegistrationGrant(grants: ReadonlySet<PluginCapability>, capability: PluginCapability, registrations: readonly unknown[], label: string): void {
   if (registrations.length > 0 && !grants.has(capability)) {
     throw new Error(`plugin broker: activation returned ${label} without capability ${capability}`);
   }
 }
 
-function requireRegistrationRecords(registrations: Readonly<Record<string, readonly unknown[]>>): void {
-  const requiredHandler = new Map<string, string>([
-    ["tools", "handler"],
-    ["transforms", "handler"],
-    ["events", "handler"],
-    ["pubsub", "handler"],
-    ["commands", "onRun"],
-    ["displayTransforms", "handler"],
-    ["macros", "handler"],
-  ]);
-  for (const [label, values] of Object.entries(registrations)) {
-    for (const value of values) {
-      requireRegistrationRecord(label, value, requiredHandler.get(label));
-    }
-  }
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function requireRegistrationRecord(label: string, value: unknown, handlerKey: string | undefined): void {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error(`plugin broker: malformed ${label} registration`);
+function hasString(value: Readonly<Record<string, unknown>>, key: string): boolean {
+  return typeof value[key] === "string";
+}
+
+function isPluginLogLevel(value: unknown): value is PluginLogLevel {
+  return typeof value === "string" && PLUGIN_LOG_LEVELS.some((level) => level === value);
+}
+
+function isToolRegistration(value: unknown): value is PluginToolRegistration {
+  return isRecord(value) && hasString(value, "name") && hasString(value, "description") && isRecord(value["parameters"]) && hasString(value, "handler");
+}
+
+function isTransformRegistration(value: unknown): value is PluginTransformRegistration {
+  return (
+    isRecord(value) &&
+    hasString(value, "name") &&
+    typeof value["point"] === "string" &&
+    PROMPT_TRANSFORM_POINTS.some((point) => point === value["point"]) &&
+    hasString(value, "handler")
+  );
+}
+
+function isEventRegistration(value: unknown): value is PluginEventSubscription {
+  return (
+    isRecord(value) &&
+    typeof value["type"] === "string" &&
+    (CHAT_TRIGGER_TYPES.some((type) => type === value["type"]) || DOMAIN_TRIGGER_TYPES.some((type) => type === value["type"])) &&
+    hasString(value, "handler")
+  );
+}
+
+function isPubsubRegistration(value: unknown): value is PluginPubsubSubscription {
+  return isRecord(value) && hasString(value, "emitterSlug") && hasString(value, "name") && hasString(value, "handler");
+}
+
+function isSurfaceRegistration(value: unknown): value is PluginSurfaceRegistration {
+  if (!(isRecord(value) && pluginSurfaceRegistrationMetaSchema.safeParse(value).success)) {
+    return false;
   }
-  if (handlerKey !== undefined && typeof Reflect.get(value, handlerKey) !== "string") {
-    throw new Error(`plugin broker: malformed ${label} handler reference`);
+  const onAction = value["onAction"];
+  const frame = value["frame"];
+  return (onAction === undefined || typeof onAction === "string") && (frame === undefined || pluginFrameBodySchema.safeParse(frame).success);
+}
+
+function isCommandRegistration(value: unknown): value is PluginCommandRegistration {
+  return isRecord(value) && pluginCommandRegistrationMetaSchema.safeParse(value).success && hasString(value, "onRun");
+}
+
+function isDisplayTransformRegistration(value: unknown): value is PluginDisplayTransformRegistration {
+  return isRecord(value) && hasString(value, "name") && hasString(value, "handler");
+}
+
+function isMacroRegistration(value: unknown): value is PluginMacroRegistration {
+  return isRecord(value) && hasString(value, "name") && hasString(value, "description") && hasString(value, "handler");
+}
+
+function isPluginInstance(value: unknown): value is PluginInstance {
+  if (!isRecord(value) || Object.keys(value).some((key) => !PLUGIN_INSTANCE_KEYS.some((candidate) => candidate === key))) {
+    return false;
   }
-  if (label === "surfaces") {
-    const onAction = Reflect.get(value, "onAction");
-    if (onAction !== undefined && typeof onAction !== "string") {
-      throw new Error("plugin broker: malformed surface handler reference");
-    }
-  }
+  return (
+    Array.isArray(value["tools"]) &&
+    value["tools"].every(isToolRegistration) &&
+    Array.isArray(value["transforms"]) &&
+    value["transforms"].every(isTransformRegistration) &&
+    Array.isArray(value["events"]) &&
+    value["events"].every(isEventRegistration) &&
+    Array.isArray(value["pubsub"]) &&
+    value["pubsub"].every(isPubsubRegistration) &&
+    Array.isArray(value["surfaces"]) &&
+    value["surfaces"].every(isSurfaceRegistration) &&
+    Array.isArray(value["commands"]) &&
+    value["commands"].every(isCommandRegistration) &&
+    Array.isArray(value["displayTransforms"]) &&
+    value["displayTransforms"].every(isDisplayTransformRegistration) &&
+    Array.isArray(value["macros"]) &&
+    value["macros"].every(isMacroRegistration)
+  );
 }
 
 function parseActivationFailure(value: Readonly<Record<string, unknown>>): CreateInstanceOutcomeOut {
@@ -669,34 +798,24 @@ function parseActivationFailure(value: Readonly<Record<string, unknown>>): Creat
   if (typeof error !== "string" || !Array.isArray(log)) {
     throw new Error("plugin broker: malformed activation failure");
   }
+  const parsedLog: PluginLogLineOut[] = [];
   for (const line of log) {
     if (
-      typeof line !== "object" ||
-      line === null ||
-      !("level" in line) ||
-      !["info", "warn", "error"].includes(String(line.level)) ||
-      !("message" in line) ||
-      typeof line.message !== "string" ||
-      !("at" in line) ||
-      typeof line.at !== "number" ||
-      !Number.isFinite(line.at)
+      !(isRecord(line) && isPluginLogLevel(line["level"])) ||
+      typeof line["message"] !== "string" ||
+      typeof line["at"] !== "number" ||
+      !Number.isFinite(line["at"])
     ) {
       throw new Error("plugin broker: malformed activation log");
     }
+    parsedLog.push({ level: line["level"], message: line["message"], at: line["at"] });
   }
-  return { ok: false, error, log: log as readonly PluginLogLineOut[] };
+  return { ok: false, error, log: parsedLog };
 }
 
-function requireSurfaceGrants(surfaces: readonly unknown[], grants: ReadonlySet<PluginCapability>): void {
+function requireSurfaceGrants(surfaces: readonly PluginSurfaceRegistration[], grants: ReadonlySet<PluginCapability>): void {
   for (const surface of surfaces) {
-    if (
-      typeof surface !== "object" ||
-      surface === null ||
-      Array.isArray(surface) ||
-      !("tier" in surface) ||
-      typeof surface.tier !== "string" ||
-      !PLUGIN_SURFACE_TIERS.includes(surface.tier as (typeof PLUGIN_SURFACE_TIERS)[number])
-    ) {
+    if (!PLUGIN_SURFACE_TIERS.some((tier) => tier === surface.tier)) {
       throw new Error("plugin broker: malformed surface registration");
     }
     const capability: PluginCapability = surface.tier === "frame" ? "ui.frame" : "ui.surface";
@@ -706,19 +825,11 @@ function requireSurfaceGrants(surfaces: readonly unknown[], grants: ReadonlySet<
   }
 }
 
-function requireActivationInstance(value: unknown): Record<string, readonly unknown[]> {
-  if (typeof value !== "object" || value === null) {
+function requireActivationInstance(value: unknown): PluginInstance {
+  if (!isPluginInstance(value)) {
     throw new Error("plugin broker: malformed activation instance");
   }
-  if (Object.keys(value).some((key) => !PLUGIN_INSTANCE_KEYS.includes(key as (typeof PLUGIN_INSTANCE_KEYS)[number]))) {
-    throw new Error("plugin broker: activation instance contains an unknown registration class");
-  }
-  for (const key of PLUGIN_INSTANCE_KEYS) {
-    if (!Array.isArray(Reflect.get(value, key))) {
-      throw new Error("plugin broker: malformed activation registrations");
-    }
-  }
-  return value as Record<string, readonly unknown[]>;
+  return value;
 }
 
 function parseCreateOutcome(value: unknown, grants: ReadonlySet<PluginCapability>): CreateInstanceOutcomeOut {
@@ -729,16 +840,15 @@ function parseCreateOutcome(value: unknown, grants: ReadonlySet<PluginCapability
     return parseActivationFailure(value);
   }
   const registrations = requireActivationInstance(Reflect.get(value, "instance"));
-  requireRegistrationRecords(registrations);
-  requireRegistrationGrant(grants, "tools.register", registrations["tools"] ?? [], "tools");
-  requireRegistrationGrant(grants, "chat.transform", registrations["transforms"] ?? [], "transforms");
-  requireRegistrationGrant(grants, "chat.transform", registrations["displayTransforms"] ?? [], "display transforms");
-  requireRegistrationGrant(grants, "chat.transform", registrations["macros"] ?? [], "macros");
-  requireRegistrationGrant(grants, "events.subscribe", registrations["events"] ?? [], "event subscriptions");
-  requireRegistrationGrant(grants, "plugin_events", registrations["pubsub"] ?? [], "private-event subscriptions");
-  requireRegistrationGrant(grants, "ui.surface", registrations["commands"] ?? [], "commands");
-  requireSurfaceGrants(registrations["surfaces"] ?? [], grants);
-  return { ok: true, instance: registrations as PluginInstance };
+  requireRegistrationGrant(grants, "tools.register", registrations.tools, "tools");
+  requireRegistrationGrant(grants, "chat.transform", registrations.transforms, "transforms");
+  requireRegistrationGrant(grants, "chat.transform", registrations.displayTransforms, "display transforms");
+  requireRegistrationGrant(grants, "chat.transform", registrations.macros, "macros");
+  requireRegistrationGrant(grants, "events.subscribe", registrations.events, "event subscriptions");
+  requireRegistrationGrant(grants, "plugin_events", registrations.pubsub, "private-event subscriptions");
+  requireRegistrationGrant(grants, "ui.surface", registrations.commands, "commands");
+  requireSurfaceGrants(registrations.surfaces, grants);
+  return { ok: true, instance: registrations };
 }
 
 function parseSnippetOutcome(value: unknown): SnippetRunOut {
@@ -765,7 +875,7 @@ function parseSnippetOutcome(value: unknown): SnippetRunOut {
 }
 
 export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
-  const workerMaximum = resolvePluginBrokerWorkerMaximum(runtimeEnvironment);
+  const workerMaximum = env.PLUGIN_BROKER_WORKER_MAX;
   const instances = new Map<PluginInstance, Binding>();
   let pool: WarmRuntimePool<Binding>;
 
@@ -788,15 +898,39 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     if (runtimeId === undefined) {
       return;
     }
-    try {
-      await commandWithAuthority({ binding, operation: "dispose", phase: "lifecycle", chat: null });
-    } finally {
-      bindings.delete(runtimeId);
-      if (binding.runtimeId === runtimeId) {
-        binding.runtimeId = undefined;
+    const existing = binding.retirement;
+    if (existing?.runtimeId === runtimeId) {
+      await existing.done;
+      return;
+    }
+    const done = (async (): Promise<void> => {
+      try {
+        await commandWithAuthority({ binding, operation: "dispose", phase: "lifecycle", chat: null });
+      } finally {
+        bindings.delete(runtimeId);
+        if (binding.runtimeId === runtimeId) {
+          binding.runtimeId = undefined;
+        }
+        binding.authorities.clear();
+        binding.invokeArgs.clear();
       }
-      binding.authorities.clear();
-      binding.invokeArgs.clear();
+    })();
+    const retirement = { runtimeId, done };
+    binding.retirement = retirement;
+    try {
+      await done;
+    } finally {
+      if (binding.retirement === retirement) {
+        binding.retirement = undefined;
+      }
+    }
+  };
+
+  const lifecycleError = (): Error => new Error("plugin host: invocation refused because the logical instance lifecycle changed");
+
+  const requireLifecycle = (binding: Binding, generation: number): void => {
+    if (binding.disposed || binding.lifecycleGeneration !== generation) {
+      throw lifecycleError();
     }
   };
 
@@ -825,7 +959,6 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     if (binding.runtimeId === runtimeId && binding.crashed === null) {
       try {
         await retireRuntime(binding);
-        // @orb-waive caught-failure-ownership(cleanupError): failed activation cleanup is combined with the primary activation error and both are thrown to the caller. Ends if activationCleanupError stops retaining either failure.
       } catch (cleanupError) {
         bindings.delete(runtimeId);
         if (binding.runtimeId === runtimeId) {
@@ -852,12 +985,19 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     return { ok: true, instance: binding.catalog };
   };
 
-  const startRuntime = async (binding: Binding, phase: "activation" | "rehydration", initialMainJs?: string): Promise<CreateInstanceOutcomeOut> => {
+  const startRuntime = async (
+    binding: Binding,
+    phase: "activation" | "rehydration",
+    generation: number,
+    initialMainJs?: string,
+  ): Promise<CreateInstanceOutcomeOut> => {
+    requireLifecycle(binding, generation);
     const runtimeConfig = binding.runtimeConfig;
     if (runtimeConfig === undefined) {
       throw new Error("plugin host: resident runtime is missing its activation configuration");
     }
     const mainJs = initialMainJs ?? (await binding.reloadMainJs?.());
+    requireLifecycle(binding, generation);
     if (mainJs === undefined) {
       throw new Error("plugin host: resident runtime is missing its durable source loader");
     }
@@ -868,7 +1008,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     let outcome: CreateInstanceOutcomeOut;
     try {
       outcome = await activateRuntime(binding, phase, serializable);
-      // @orb-waive caught-failure-ownership(error): cleanupFailedActivation always throws the primary error or an aggregate containing it after retiring the partial runtime. Ends if it gains a returning path.
+      requireLifecycle(binding, generation);
     } catch (error) {
       return await cleanupFailedActivation(binding, runtimeId, error);
     }
@@ -879,11 +1019,18 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       }
       return outcome;
     }
-    return await retainCatalog(binding, outcome);
+    try {
+      const retained = await retainCatalog(binding, outcome);
+      requireLifecycle(binding, generation);
+      return retained;
+    } catch (error) {
+      return await cleanupFailedActivation(binding, runtimeId, error);
+    }
   };
 
-  const wakeBinding = async (binding: Binding): Promise<void> => {
-    const outcome = await startRuntime(binding, "rehydration");
+  const wakeBinding = async (binding: Binding, generation: number): Promise<void> => {
+    const outcome = await startRuntime(binding, "rehydration", generation);
+    requireLifecycle(binding, generation);
     if (!outcome.ok) {
       pool.discard(binding);
       throw new Error(`plugin host: sleeping runtime could not be rebuilt: ${outcome.error}`);
@@ -912,11 +1059,13 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     lease.release();
   };
 
-  const invokeWithLease = async ({ binding, lease, handler, argsJson, chat }: LeasedInvokeInput): Promise<string> => {
+  const invokeWithLease = async ({ binding, lease, handler, argsJson, chat }: LeasedInvokeInput, generation: number): Promise<string> => {
     let builderId: string | undefined;
     try {
+      requireLifecycle(binding, generation);
       if (lease.cold) {
-        await wakeBinding(binding);
+        await wakeBinding(binding, generation);
+        requireLifecycle(binding, generation);
         lease.ready();
       }
       if (binding.crashed !== null) {
@@ -924,6 +1073,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       }
       const boundArgs = bindInvokeArgs(binding, argsJson);
       builderId = boundArgs.builderId;
+      requireLifecycle(binding, generation);
       const result = await commandWithAuthority({
         binding,
         operation: "invoke",
@@ -935,7 +1085,6 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
         throw new Error("plugin broker: malformed invoke response");
       }
       return result;
-      // @orb-waive caught-failure-ownership(error): failed leased invocation discards an unpublished cold slot when needed, then rethrows the same failure; the finally block releases arguments and lease. Ends if the rethrow is removed.
     } catch (error) {
       discardFailedColdLease(binding, lease);
       throw error;
@@ -947,6 +1096,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
   const newBinding = ({ bridge, grants, runtimeConfig, reloadMainJs, label, releaseAdmission }: NewBindingInput): Binding => {
     const binding: Binding = {
       runtimeId: undefined,
+      lifecycleGeneration: 0,
       bridge,
       grants: new Set(grants),
       authorities: new Map(),
@@ -957,6 +1107,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       suppressLogs: false,
       crashed: null,
       disposed: false,
+      retirement: undefined,
       onCrash: (error) => pool.fail(binding, error),
       ...(runtimeConfig === undefined ? {} : { runtimeConfig }),
       ...(reloadMainJs === undefined ? {} : { reloadMainJs }),
@@ -978,13 +1129,12 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       });
       logicalBindings.add(binding);
       const lease = await pool.acquire(binding).catch((error: unknown) => {
-        // @orb-waive caught-failure-ownership(error): admission refusal removes the not-yet-published logical binding and rethrows to createInstance. Ends if the rethrow is removed.
         binding.disposed = true;
         logicalBindings.delete(binding);
         throw error;
       });
       try {
-        const outcome = await startRuntime(binding, "activation", mainJs);
+        const outcome = await startRuntime(binding, "activation", binding.lifecycleGeneration, mainJs);
         if (!outcome.ok) {
           binding.disposed = true;
           logicalBindings.delete(binding);
@@ -994,7 +1144,6 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
         lease.ready();
         instances.set(outcome.instance, binding);
         return outcome;
-        // @orb-waive caught-failure-ownership(error): activation failure removes every unpublished logical and pool entry, then rethrows to the domain lifecycle. Ends if the rethrow is removed.
       } catch (error) {
         binding.disposed = true;
         logicalBindings.delete(binding);
@@ -1013,8 +1162,9 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       if (binding.crashed !== null) {
         throw binding.crashed;
       }
+      const generation = binding.lifecycleGeneration;
       const lease = await pool.acquire(binding, { signal });
-      return await invokeWithLease({ binding, lease, handler, argsJson, chat });
+      return await invokeWithLease({ binding, lease, handler, argsJson, chat }, generation);
     },
     runSnippet: async (input): Promise<SnippetRunOut> => {
       const releaseAdmission = acquireSnippetAdmission();
@@ -1023,7 +1173,6 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       }
       const binding = newBinding({ bridge: input.bridge, grants: input.grants, releaseAdmission });
       const lease = await pool.acquire(binding).catch((error: unknown) => {
-        // @orb-waive caught-failure-ownership(error): snippet admission refusal releases its separate process admission and rethrows to the caller. Ends if the rethrow is removed.
         releaseBinding(binding);
         throw error;
       });
@@ -1062,6 +1211,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       instances.delete(instance);
       logicalBindings.delete(binding);
       binding.disposed = true;
+      binding.lifecycleGeneration += 1;
       const error = new Error("plugin host: invocation refused because the logical instance was disposed");
       pool.remove(binding, error);
     },

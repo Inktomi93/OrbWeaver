@@ -43,6 +43,7 @@ const BOARD: PluginFrameBody = { html: "<canvas id='board'></canvas><script>draw
 interface Harness {
   readonly mint: (body: unknown, opts?: { readonly csrf?: boolean; readonly as?: Principal | null }) => Promise<Response>;
   readonly serve: (url: string, as?: Principal | null) => Promise<Response>;
+  readonly revoke: (url: string, as?: Principal | null) => Promise<Response>;
 }
 
 function harness(
@@ -53,6 +54,8 @@ function harness(
     readonly throws?: boolean;
     /** Mount the APP's own `securityHeaders` above the route, exactly as `entry/app.ts` does. */
     readonly withAppHeaders?: boolean;
+    readonly asset?: { readonly bytes: Uint8Array; readonly mime: "image/png" } | null;
+    readonly liveBody?: () => PluginFrameBody | null;
   } = {},
 ): Harness {
   let actor: Principal | null = ALICE;
@@ -62,8 +65,13 @@ function harness(
         if (overrides.throws === true) {
           return Promise.reject(new Error("plugin not found"));
         }
+        if (overrides.liveBody !== undefined) {
+          return Promise.resolve(overrides.liveBody());
+        }
         return Promise.resolve(overrides.body ?? (overrides.body === null ? null : BOARD));
       },
+      getFrameAsset: (): Promise<{ readonly bytes: Uint8Array; readonly mime: "image/png" } | null> =>
+        Promise.resolve(overrides.asset ?? (overrides.asset === null ? null : { bytes: PNG, mime: "image/png" })),
     },
     now: () => 1_000_000,
   };
@@ -89,8 +97,14 @@ function harness(
       actor = as;
       return await app.request(url);
     },
+    revoke: async (url, as = ALICE): Promise<Response> => {
+      actor = as;
+      return await app.request(url, { method: "DELETE", headers: { [CSRF_HEADER]: "1" } });
+    },
   };
 }
+
+const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 const SELECTOR = { pluginId: PLUGIN, surfaceId: "board" };
 
@@ -168,6 +182,8 @@ describe("plugin-frame — the client cannot supply the document", () => {
     expect(doc).toContain("body{background:#111}");
     // The height channel is the card frame's, reused: hash-pinned, clamped and monotonic on the embedder side.
     expect(doc).toContain(CARD_FRAME_HEIGHT_SCRIPT);
+    expect(doc).toContain('Object.defineProperty(globalThis,"orbPluginAssetUrl"');
+    expect(doc).toMatch(/\/api\/plugin-frame\/[0-9a-f]{32}\/asset\?path=/u);
   });
 
   test("theme values are RE-CLAMPED on our side of the boundary — a caller's word for them is not taken", async () => {
@@ -182,6 +198,66 @@ describe("plugin-frame — the client cannot supply the document", () => {
     expect(doc).toContain("--sandbox-bg: #101014;");
     expect(doc).not.toContain("display:none");
     expect(doc).not.toContain("notacustomprop");
+  });
+});
+
+describe("plugin-frame — installed asset doorway", () => {
+  test("the composed app response lets the opaque frame load its authorized passive asset", async () => {
+    const h = harness({ withAppHeaders: true });
+    const url = await mintUrl(h);
+    const asset = await h.serve(`${url}/asset?path=ui%2Fassets%2Fpiece.png`, null);
+    expect(asset.status).toBe(200);
+    expect(asset.headers.get("content-type")).toBe("image/png");
+    expect(asset.headers.get("content-length")).toBe(String(PNG.byteLength));
+    expect(asset.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(asset.headers.get("cache-control")).toBe("private, no-store");
+    expect(asset.headers.get("content-security-policy")).toContain("default-src 'self'");
+    expect(asset.headers.get("cross-origin-resource-policy")).toBe("cross-origin");
+    expect(new Uint8Array(await asset.arrayBuffer())).toEqual(PNG);
+  });
+
+  test("foreign and removed asset refusals keep the normal app CORP policy", async () => {
+    const live = harness({ withAppHeaders: true });
+    const url = await mintUrl(live);
+    const foreign = await live.serve(`${url}/asset?path=ui%2Fassets%2Fpiece.png`, MALLORY);
+
+    const removed = harness({ asset: null, withAppHeaders: true });
+    const removedUrl = await mintUrl(removed);
+    const missing = await removed.serve(`${removedUrl}/asset?path=ui%2Fassets%2Fpiece.png`, null);
+    expect(foreign.status).toBe(404);
+    expect(missing.status).toBe(404);
+    expect(await foreign.text()).toBe(await missing.text());
+    for (const refusal of [foreign, missing]) {
+      expect(refusal.headers.get("content-security-policy")).toContain("default-src 'self'");
+      expect(refusal.headers.get("cross-origin-resource-policy")).toBe("same-origin");
+    }
+  });
+
+  test("removing the frame surface revokes its existing asset handle even when the plugin remains active", async () => {
+    let frame: PluginFrameBody | null = BOARD;
+    const h = harness({ liveBody: () => frame });
+    const url = await mintUrl(h);
+    expect((await h.serve(`${url}/asset?path=ui%2Fassets%2Fpiece.png`, null)).status).toBe(200);
+
+    frame = null;
+    expect((await h.serve(`${url}/asset?path=ui%2Fassets%2Fpiece.png`, null)).status).toBe(404);
+  });
+
+  test("the route accepts only the admitted flat bundle grammar, never an asset id or traversing path", async () => {
+    const h = harness();
+    const url = await mintUrl(h);
+    for (const query of ["assetId=asset_stolen", "path=..%2Fsecret.png", "path=ui%2Fassets%2Fnested%2Fx.png", "path=ui%2Fassets%2Fx.svg"]) {
+      expect((await h.serve(`${url}/asset?${query}`, null)).status, query).toBe(404);
+    }
+  });
+
+  test("teardown revokes the document and every asset URL immediately", async () => {
+    const h = harness();
+    const url = await mintUrl(h);
+    expect((await h.serve(`${url}/asset?path=ui%2Fassets%2Fpiece.png`, null)).status).toBe(200);
+    expect((await h.revoke(url)).status).toBe(204);
+    expect((await h.serve(url)).status).toBe(404);
+    expect((await h.serve(`${url}/asset?path=ui%2Fassets%2Fpiece.png`, null)).status).toBe(404);
   });
 });
 

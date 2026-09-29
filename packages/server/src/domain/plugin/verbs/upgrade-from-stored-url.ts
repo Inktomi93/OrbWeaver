@@ -15,14 +15,14 @@
 // (BAD_REQUEST — "upload a new bundle instead"), thrown AFTER the owner load and BEFORE any fetch. `upgrade`
 // re-loads + re-checks ownership/slug/downgrade itself (TOCTOU + defense in depth).
 
-import { PluginNoSourceUrlError, PluginNotFoundError } from "../contract/errors.ts";
+import { PluginBundlePreviewStaleError, PluginNoSourceUrlError, PluginNotFoundError } from "../contract/errors.ts";
 import type { UpgradeFromStoredUrlParams } from "../contract/params.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
 import { getById } from "../persistence/plugins.ts";
-import { fetchBundleThroughGuard } from "../substrate/manifest.ts";
+import { fetchBundleThroughGuard, hashPluginBundle } from "../substrate/manifest.ts";
 
 export function createUpgradeFromStoredUrl(ctx: PluginContext, deps: { readonly upgrade: PluginService["upgrade"] }): PluginService["upgradeFromStoredUrl"] {
-  return async ({ caller, pluginId }: UpgradeFromStoredUrlParams) => {
+  return async ({ caller, pluginId, expectedBundleHash }: UpgradeFromStoredUrlParams) => {
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
       throw new PluginNotFoundError(pluginId);
@@ -31,6 +31,9 @@ export function createUpgradeFromStoredUrl(ctx: PluginContext, deps: { readonly 
       throw new PluginNoSourceUrlError(pluginId);
     }
     const bundle = await fetchBundleThroughGuard(ctx.fetchBundle, existing.sourceUrl);
-    return deps.upgrade({ caller, pluginId, bundle });
+    if (hashPluginBundle(bundle) !== expectedBundleHash) {
+      throw new PluginBundlePreviewStaleError();
+    }
+    return deps.upgrade({ caller, pluginId, bundle, source: { origin: "url", sourceUrl: existing.sourceUrl, sourceCommit: null } });
   };
 }

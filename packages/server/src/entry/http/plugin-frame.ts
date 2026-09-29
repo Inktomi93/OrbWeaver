@@ -55,7 +55,14 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PluginFrameBody } from "@orb/contracts/plugin";
-import { PLUGIN_FRAME_MINT_BODY_MAX_BYTES, PLUGIN_FRAME_ROUTE, pluginFrameMintRequestSchema, pluginFrameUrl } from "@orb/contracts/plugin";
+import {
+  PLUGIN_FRAME_MINT_BODY_MAX_BYTES,
+  PLUGIN_FRAME_ROUTE,
+  PLUGIN_UI_ASSET_ENTRY_RE,
+  pluginFrameAssetUrl,
+  pluginFrameMintRequestSchema,
+  pluginFrameUrl,
+} from "@orb/contracts/plugin";
 import type { CardFrameMediaPolicy } from "@orb/kit/card-frame";
 import { buildCardFrameCsp, buildCardFrameDocument } from "@orb/kit/card-frame";
 import type { PluginId } from "@orb/kit/ids";
@@ -71,6 +78,7 @@ const FORBIDDEN = 403;
 const NOT_FOUND = 404;
 const BAD_REQUEST = 400;
 const PAYLOAD_TOO_LARGE = 413;
+const NO_CONTENT = 204;
 
 const HTML_MIME = "text/html; charset=utf-8";
 
@@ -100,6 +108,11 @@ const MISS_DOC = buildCardFrameDocument({
  *  the surface's own tier) are documented on the verb. */
 export interface PluginFrameSurfacePort {
   readonly getFrameBody: (params: { readonly caller: Principal; readonly pluginId: PluginId; readonly surfaceId: string }) => Promise<PluginFrameBody | null>;
+  readonly getFrameAsset: (params: {
+    readonly caller: Principal;
+    readonly pluginId: PluginId;
+    readonly bundlePath: string;
+  }) => Promise<{ readonly bytes: Uint8Array; readonly mime: "image/png" | "image/jpeg" | "image/gif" | "image/webp" } | null>;
 }
 
 export interface PluginFrameDeps {
@@ -118,6 +131,26 @@ function frameHeaders(): Record<string, string> {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
   };
+}
+
+function assetHeaders(mime: string, byteLength: number): Record<string, string> {
+  return {
+    "Content-Type": mime,
+    "Content-Length": String(byteLength),
+    "Content-Security-Policy": "default-src 'none'; sandbox",
+    "Cache-Control": "private, no-store",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Cross-Origin-Resource-Policy": "cross-origin",
+  };
+}
+
+/** Install the frame's only asset-address constructor before plugin-authored script runs. It accepts a bundle
+ * path, never an asset id; the route re-validates that path and derives every authority-bearing coordinate
+ * from the active handle. */
+function assetUrlBootstrap(id: string): string {
+  const prefix = JSON.stringify(pluginFrameAssetUrl(id, ""));
+  return `<script>(()=>{const p=${prefix};Object.defineProperty(globalThis,"orbPluginAssetUrl",{value:(path)=>p+encodeURIComponent(String(path)),writable:false,configurable:false});})();</script>`;
 }
 
 /** Register `POST /api/plugin-frame` (mint) + `GET /api/plugin-frame/:id` (serve) on `app`. */
@@ -163,21 +196,80 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
     // regardless of what the caller already did — the same rule the card mint states. So the only
     // client-supplied content that reaches the document is `--*` values that passed `isSafeColor` and a
     // font-family list that passed the kit grammar.
-    const doc = buildCardFrameDocument({
-      html: frame.html,
-      css: frame.css,
-      themeTokens: body.themeTokens,
-      // The NON-COLOR half of the widened slice (#799) — radius + the mono family. Clamped inside
-      // `buildCardFrameDocument` by its own grammar (a CSS length or a font-family list), on OUR side of the
-      // boundary, exactly as the color half is.
-      styleTokens: body.styleTokens,
-      fontFamily: body.fontFamily,
+    const id = store.put({
+      userId: principal.userId,
+      plugin: { caller: principal, pluginId: body.pluginId, surfaceId: body.surfaceId },
+      doc: (handleId) =>
+        buildCardFrameDocument({
+          html: `${assetUrlBootstrap(handleId)}${frame.html}`,
+          css: frame.css,
+          themeTokens: body.themeTokens,
+          // The NON-COLOR half of the widened slice (#799) — radius + the mono family. Clamped inside
+          // `buildCardFrameDocument` by its own grammar (a CSS length or a font-family list), on OUR side of the
+          // boundary, exactly as the color half is.
+          styleTokens: body.styleTokens,
+          fontFamily: body.fontFamily,
+        }),
+      csp: PLUGIN_FRAME_CSP,
+      expiresAt: deps.now() + FRAME_HANDLE_TTL_MS,
     });
-    const id = store.put({ userId: principal.userId, doc, csp: PLUGIN_FRAME_CSP, expiresAt: deps.now() + FRAME_HANDLE_TTL_MS });
     return c.json({ url: pluginFrameUrl(id), expiresInMs: FRAME_HANDLE_TTL_MS });
   });
 
-  app.get(`${PLUGIN_FRAME_ROUTE}/:id`, (c) => {
+  // Opaque-origin frame subresources cannot carry the app's SameSite session cookie. The unguessable ACTIVE
+  // handle is therefore the credential on this one passive-image route. If a session is present, it must still
+  // be the minting owner; a foreign authenticated fetch gets the same miss as an unknown handle.
+  app.get(`${PLUGIN_FRAME_ROUTE}/:id/asset`, async (c) => {
+    const id = c.req.param("id");
+    const entry = FRAME_HANDLE_SHAPE.test(id) ? store.peekByHandle(id) : undefined;
+    const principal = c.get("principal");
+    const bundlePath = c.req.query("path");
+    if (
+      entry?.plugin === undefined ||
+      (principal !== null && principal.userId !== entry.userId) ||
+      bundlePath === undefined ||
+      !PLUGIN_UI_ASSET_ENTRY_RE.test(bundlePath)
+    ) {
+      return c.body(null, NOT_FOUND);
+    }
+    let asset: Awaited<ReturnType<PluginFrameSurfacePort["getFrameAsset"]>>;
+    // @orb-waive caught-failure-ownership(catch): every stale/removed/foreign asset condition is the same
+    // leak-free 404 at this passive resource boundary. Ends if this route starts returning typed errors.
+    try {
+      // A handle names one live frame surface, not the plugin's entire asset namespace. An upgrade can remove
+      // that surface while leaving the plugin enabled and its other assets installed.
+      const frame = await deps.surfaces.getFrameBody({
+        caller: entry.plugin.caller,
+        pluginId: entry.plugin.pluginId,
+        surfaceId: entry.plugin.surfaceId,
+      });
+      asset = frame === null ? null : await deps.surfaces.getFrameAsset({ caller: entry.plugin.caller, pluginId: entry.plugin.pluginId, bundlePath });
+    } catch {
+      asset = null;
+    }
+    if (asset === null) {
+      return c.body(null, NOT_FOUND);
+    }
+    store.touch(id);
+    return new Response(new Uint8Array(asset.bytes), { status: OK, headers: assetHeaders(asset.mime, asset.bytes.byteLength) });
+  });
+
+  app.delete(`${PLUGIN_FRAME_ROUTE}/:id`, (c) => {
+    const principal = c.get("principal");
+    if (principal === null) {
+      return c.body(null, UNAUTHORIZED);
+    }
+    if (!hasCsrfHeader(c.req.raw.headers)) {
+      return c.body(null, FORBIDDEN);
+    }
+    const id = c.req.param("id");
+    if (FRAME_HANDLE_SHAPE.test(id)) {
+      store.drop(id, principal.userId);
+    }
+    return c.body(null, NO_CONTENT);
+  });
+
+  app.get(`${PLUGIN_FRAME_ROUTE}/:id`, async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
@@ -188,6 +280,22 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
     const entry = FRAME_HANDLE_SHAPE.test(id) ? store.take(id, principal.userId) : undefined;
     if (entry === undefined) {
       return c.body(MISS_DOC, NOT_FOUND, frameHeaders());
+    }
+    if (entry.plugin !== undefined) {
+      // A handle is not a snapshot of consent. Recheck current residency/grant so disable and uninstall revoke
+      // the document as well as its assets before the sliding TTL expires.
+      let live: PluginFrameBody | null;
+      // @orb-waive caught-failure-ownership(catch): a frame-body failure closes this passive handle read as the
+      // same leak-free miss as a revoked grant or removed surface. Ends if this route returns typed errors.
+      try {
+        live = await deps.surfaces.getFrameBody({ caller: entry.plugin.caller, pluginId: entry.plugin.pluginId, surfaceId: entry.plugin.surfaceId });
+      } catch {
+        live = null;
+      }
+      if (live === null) {
+        store.drop(id, principal.userId);
+        return c.body(MISS_DOC, NOT_FOUND, frameHeaders());
+      }
     }
     return c.body(entry.doc, OK, frameHeaders());
   });

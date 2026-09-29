@@ -1,5 +1,6 @@
 // verb test: checkForUpdates (U8 2b — the auto update-check ST's loader does). What it pins:
-//   - a url-origin plugin whose REMOTE version is newer surfaces `update-available` + the newVersion to offer;
+//   - a url-origin plugin whose REMOTE version is newer surfaces `update-available` + the newVersion and exact
+//     bundle identity the one-click upgrade must echo;
 //   - an equal remote is `up-to-date` (not update-available — equality is neither newer nor a downgrade);
 //   - an UNREACHABLE source (SSRF block / non-2xx / un-parseable remote) collapses to ONE leak-free arm —
 //     the block reason never surfaces, the same no-SSRF-oracle posture the install funnel holds;
@@ -16,7 +17,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeBundle, makePluginHarness, makeShowcaseShipping, ownerPrincipalFor, seedUser } from "../_support.ts";
+import { hashBundle, makeBundle, makePluginHarness, makeShowcaseShipping, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const URL = "https://plugins.example.com/my-plugin.zip";
 
@@ -33,19 +34,25 @@ test("checkForUpdates flags a url-origin plugin whose REMOTE version is newer (u
   let served = makeBundle({ id: "scraper", version: "1.0.0", capabilities: ["chat.read"] });
   const h = makePluginHarness(db, { fetchBundle: () => Promise.resolve(served) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const view = await h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, grant: ["chat.read"] });
+  const view = await h.service.installFromUrl({
+    caller: ownerPrincipalFor(owner),
+    url: URL,
+    expectedBundleHash: hashBundle(served),
+    grant: ["chat.read"],
+  });
 
   served = makeBundle({ id: "scraper", version: "1.1.0", capabilities: ["chat.read"] });
   const checks = await h.service.checkForUpdates({ caller: ownerPrincipalFor(owner) });
 
-  expect(checks).toEqual([{ pluginId: view.id, status: "update-available", newVersion: "1.1.0" }]);
+  expect(checks).toEqual([{ pluginId: view.id, status: "update-available", source: "url", newVersion: "1.1.0", bundleHash: hashBundle(served) }]);
 });
 
 test("checkForUpdates reports up-to-date when the remote version matches the installed one", async () => {
   const db = await freshDb();
-  const h = makePluginHarness(db, { fetchBundle: returns(makeBundle({ id: "scraper", version: "2.0.0", capabilities: ["chat.read"] })) });
+  const bundle = makeBundle({ id: "scraper", version: "2.0.0", capabilities: ["chat.read"] });
+  const h = makePluginHarness(db, { fetchBundle: returns(bundle) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const view = await h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, grant: ["chat.read"] });
+  const view = await h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, expectedBundleHash: hashBundle(bundle), grant: ["chat.read"] });
 
   const checks = await h.service.checkForUpdates({ caller: ownerPrincipalFor(owner) });
 
@@ -59,7 +66,7 @@ test("checkForUpdates on an UNREACHABLE source is leak-free (the arm collapses; 
   const good = makeBundle({ id: "scraper", version: "1.0.0", capabilities: ["chat.read"] });
   const h = makePluginHarness(db, { fetchBundle: () => (mode === "install" ? Promise.resolve(good) : blockedFetch()) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const view = await h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, grant: ["chat.read"] });
+  const view = await h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, expectedBundleHash: hashBundle(good), grant: ["chat.read"] });
 
   mode = "blocked";
   const checks = await h.service.checkForUpdates({ caller: ownerPrincipalFor(owner) });
@@ -82,7 +89,7 @@ test("checkForUpdates flags a DIVERGED seeded showcase install when a NEWER bund
 
   const checks = await h.service.checkForUpdates({ caller: ownerPrincipalFor(owner) });
 
-  expect(checks).toEqual([{ pluginId: view.id, status: "update-available", newVersion: "1.2.0" }]);
+  expect(checks).toEqual([{ pluginId: view.id, status: "update-available", source: "showcase", newVersion: "1.2.0" }]);
 });
 
 test("checkForUpdates reports a PRISTINE seeded showcase install up-to-date — the auto-upgrade already handled it", async () => {
@@ -114,10 +121,16 @@ test("checkForUpdates OMITS an upload plugin this build ships no bundle for — 
 
 test("checkForUpdates OMITS a file (upload-origin) plugin — nothing to check, never a dishonest 'unreachable'", async () => {
   const db = await freshDb();
-  const h = makePluginHarness(db, { fetchBundle: returns(makeBundle({ id: "urlplug", version: "1.0.0", capabilities: ["chat.read"] })) });
+  const urlBundle = makeBundle({ id: "urlplug", version: "1.0.0", capabilities: ["chat.read"] });
+  const h = makePluginHarness(db, { fetchBundle: returns(urlBundle) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   // One url-origin plugin (checkable) + one file-origin plugin (NOT checkable).
-  const urlView = await h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, grant: ["chat.read"] });
+  const urlView = await h.service.installFromUrl({
+    caller: ownerPrincipalFor(owner),
+    url: URL,
+    expectedBundleHash: hashBundle(urlBundle),
+    grant: ["chat.read"],
+  });
   await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "fileplug", capabilities: [] }), grant: [] });
 
   const checks = await h.service.checkForUpdates({ caller: ownerPrincipalFor(owner) });

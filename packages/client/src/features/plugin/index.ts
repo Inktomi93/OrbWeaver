@@ -17,7 +17,13 @@ export { SnippetConsole } from "./components/snippet-console.tsx";
 // The two U2 CHAT-anchor contributions (seam 7) — assembled into chat's surface + section
 // registries at the door, never imported by chat itself.
 // U6 (§5.4) added the `message-footer` per-row anchor to the same two-contribution family.
-export { pluginChatFlankSurface, pluginChatSettingsSection, pluginMessageFooterSurface } from "./lib/chat-anchors.tsx";
+export {
+  pluginChatFlankSurface,
+  pluginChatSettingsSection,
+  pluginComposerActionSurface,
+  pluginComposerMediaSurface,
+  pluginMessageFooterSurface,
+} from "./lib/chat-anchors.tsx";
 // The U5 set (seam 16): the tenth rail SECTION (the platform's full-page
 // home), the ONE `/plugin` slash contribution, the "Plugins" wand chrome widget, and the ONE house modal a
 // plugin `dialog` surface renders inside. Four door members for the whole platform — none of them grows when a

@@ -111,6 +111,32 @@ test("removing a pinned logical plugin retires its runtime immediately and makes
   replacement.release();
 });
 
+test("removing a cold-starting target cancels the unpublished lease and makes late ready inert", async () => {
+  const retired: string[] = [];
+  const target = { id: "loading" };
+  const pool = new WarmRuntimePool<Target>(
+    1,
+    (retiring) => {
+      retired.push(retiring.id);
+      return Promise.resolve();
+    },
+    4,
+  );
+  const lease = await pool.acquire(target);
+
+  const removed = new Error("disabled while source was loading");
+  pool.remove(target, removed);
+  lease.ready();
+  lease.release();
+
+  expect(retired).toEqual(["loading"]);
+  await expect(pool.acquire(target)).rejects.toBe(removed);
+  const replacement = await pool.acquire({ id: "replacement" });
+  expect(replacement.cold).toBe(true);
+  replacement.ready();
+  replacement.release();
+});
+
 test("a second acquire for one cold target waits until replay publishes the runtime", async () => {
   const target = { id: "sleeping" };
   const pool = new WarmRuntimePool<Target>(1, () => Promise.resolve(), 4);

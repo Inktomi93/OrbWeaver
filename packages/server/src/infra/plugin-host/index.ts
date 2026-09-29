@@ -17,24 +17,24 @@ export {
   LOG_BYTES_PER_INVOCATION,
   LOG_LINES_PER_INVOCATION,
   PLUGIN_INVOCATION_CPU_MS,
+  PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX,
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
   PLUGIN_MEMORY_LIMIT_BYTES,
-  PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX,
   PLUGIN_RUNTIME_REQUEST_QUEUE_MAX,
   PLUGIN_SNIPPET_RUNTIME_MAX,
   SNIPPET_WALL_MS,
 } from "./budgets.ts";
+export type { PluginHostSeamDeps } from "./contract/port.ts";
 export { getPluginQuickJS } from "./module.ts";
+export { createLocalPluginHost } from "./port.ts";
 export { createPluginHost } from "./process-runtime.ts";
-export { createLocalPluginHost, type PluginHostSeamDeps } from "./port.ts";
+export { AMBIENT_STUBS, type HostSeams, installRealm, LogRing } from "./realm.ts";
+export { type EvalOutcome, type GuestError, PLUGIN_INVOCATION_ENDED, Sandbox, type SandboxLimits } from "./sandbox.ts";
 export { PluginHostBusyError } from "./warm-runtime-pool.ts";
 export {
   brokerWatchdogFailure,
   PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS,
   PLUGIN_BROKER_HEARTBEAT_TIMEOUT_MS,
-  PLUGIN_BROKER_RSS_LIMIT_DEFAULT_BYTES,
   PLUGIN_BROKER_STARTUP_TIMEOUT_MS,
 } from "./watchdog-policy.ts";
-export { AMBIENT_STUBS, type HostSeams, installRealm, LogRing } from "./realm.ts";
-export { type EvalOutcome, type GuestError, PLUGIN_INVOCATION_ENDED, Sandbox, type SandboxLimits } from "./sandbox.ts";

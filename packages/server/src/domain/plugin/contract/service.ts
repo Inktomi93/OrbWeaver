@@ -1,7 +1,7 @@
 // domain/plugin/contract/service — the typed API surface: the infra seam TYPE the domain declares for the
 // sandbox runtime (`PluginHostPort` — `domain/plugin` never imports `#infra/plugin-host`; the runtime is wired
 // upward at compose), the resident-instance registry the lifecycle owns, the DI bundle (`PluginContext`), and
-// the `PluginService` (7 verbs incl. the inline `runSnippet`). Every cross-tier value is a declared type here; the
+// the `PluginService` surface including inline `runSnippet`. Every cross-tier value is a declared type here; the
 // runtime is assembled at the composition root (one-directional flow: transport → domain/plugin →
 // infra/plugin-host → nothing).
 
@@ -16,7 +16,6 @@ import type {
   PluginHandlerRef,
   PluginInstance,
   PluginInvokeArgs,
-  PluginManifest,
   PluginToastLevel,
   PluginUiOutcome,
 } from "@orb/contracts/plugin";
@@ -26,13 +25,16 @@ import type { PluginBelts, PluginHostOps, PluginIdentity, PluginInvokeHandler, P
 import type {
   ApplyDistributedPluginsParams,
   CheckForUpdatesParams,
+  GetFrameAssetParams,
   GetFrameBodyParams,
   GetPluginLogParams,
   GetSurfaceStateParams,
   GetUiBundleParams,
   InstallForAllUsersParams,
+  InstallFromGitParams,
   InstallFromUrlParams,
   InstallPluginParams,
+  InstallUnpackedPluginParams,
   InvokeUiActionParams,
   InvokeUiCommandParams,
   ListBundleAssetsParams,
@@ -41,6 +43,7 @@ import type {
   ListDistributedPluginsParams,
   ListPluginsParams,
   ListSurfacesParams,
+  PreviewFromGitParams,
   PreviewFromUrlParams,
   ReportUiCrashParams,
   RunSnippetParams,
@@ -51,6 +54,7 @@ import type {
   UninstallForAllUsersParams,
   UninstallPluginParams,
   UpgradeFromShowcaseParams,
+  UpgradeFromStoredGitParams,
   UpgradeFromStoredUrlParams,
   UpgradeFromUrlParams,
   UpgradePluginParams,
@@ -62,10 +66,13 @@ import type {
   PluginCommandView,
   PluginDisplayTransformView,
   PluginFanoutResult,
+  PluginFrameAsset,
+  PluginGitPreview,
   PluginLogView,
   PluginSurfaceState,
   PluginSurfaceView,
   PluginUpdateCheck,
+  PluginUrlPreview,
   PluginView,
   SnippetResult,
 } from "./results.ts";
@@ -84,10 +91,11 @@ interface ChatAuthority {
 export interface PluginBudgets {
   readonly cpuDeadlineMs: number;
   readonly memoryLimitBytes: number;
+  readonly settleGraceMs: number;
 }
 
-/** The input to `createInstance`: the guest source + the confirmed grants + the authority-agnostic
- *  membrane BRIDGE the domain built (per-installer: `substrate/bridge.ts` closes global-vars over the installer
+/** The input to `createInstance`: the guest source + its durable re-reader + the confirmed grants + the
+ *  authority-agnostic membrane BRIDGE the domain built (per-installer: `substrate/bridge.ts` closes global-vars over the installer
  *  and passes chat ops through) + the activation-run chat scope + the optional budget override. The domain
  *  gated the invocation-chat-context (`can(installer,"read",chat)`) + folded host-authority into `grants` /
  *  `chat.canWrite` BEFORE this call — infra is authority-blind (a plugin can never exceed its installer).
@@ -95,6 +103,10 @@ export interface PluginBudgets {
  *  ONCE at the trust boundary, never guest-supplied. */
 export interface CreateInstanceInput {
   readonly mainJs: string;
+  /** Re-read and re-validate this plugin's durable bundle, returning only its executable source. The process
+   *  host retains this operation instead of retaining `mainJs`, so a sleeping logical plugin carries no bundle
+   *  bytes in the app heap. Required by type: every installed runtime must have a cold-wake source. */
+  readonly reloadMainJs: () => Promise<string>;
   readonly grants: readonly PluginCapability[];
   readonly bridge: PluginBridge;
   readonly chat: InvocationChat | null;
@@ -127,7 +139,13 @@ export interface PluginHostPort {
   /** Invoke a collected guest handler (a tool/transform/event callback) with JSON-encoded args under the
    *  per-invocation budget. `chat` sets the handler's invocation-chat scope (a resident tool runs in the
    *  chat it was called from — the domain resolves read/host authority before threading it; `null` = no scope). */
-  readonly invoke: (instance: PluginInstance, handler: PluginHandlerRef, argsJson: PluginInvokeArgs, chat: InvocationChat | null) => Promise<string>;
+  readonly invoke: (
+    instance: PluginInstance,
+    handler: PluginHandlerRef,
+    argsJson: PluginInvokeArgs,
+    chat: InvocationChat | null,
+    signal?: AbortSignal,
+  ) => Promise<string>;
   /** Run an inline snippet: a FRESH transient instance, run once as the caller under the 5 s wall, then
    *  disposed — no residency. The fixed capability profile + the admitted chat scope are the domain's; the port
    *  returns the drained log + a contained `error` (a snippet crash is data, never a resident-crash counter).
@@ -295,6 +313,14 @@ export interface PluginContext {
    *  the `fetchWebDocument`→`ScrapeFailedError` precedent); the URL verbs collapse every throw to a single
    *  leak-free {@link PluginBundleFetchError}, so no SSRF oracle crosses the boundary. */
   readonly fetchBundle: (url: string) => Promise<Uint8Array>;
+  /** Local-source doors stay injected: the domain owns lifecycle policy, while filesystem/Git I/O stays in
+   * outer tiers. The unpacked-directory verb admits only the peer-gated fallback Principal before this I/O. */
+  readonly development: boolean;
+  readonly packPluginDirectory: (directory: string) => Promise<Uint8Array>;
+  readonly gitSource: {
+    readonly clone: (url: string) => Promise<{ readonly bundle: Uint8Array; readonly commit: string }>;
+    readonly head: (url: string) => Promise<string>;
+  };
   /** The SHOWCASE bundles this build ships (#1740) — the SECOND byte source an update can come from, beside
    *  `fetchBundle`'s remembered URL. Injected rather than imported for the same reason every other byte source
    *  is: `@orb/showcase-plugins` reads its bundles off DISK (`node:fs`), and the domain tier does not touch the
@@ -395,19 +421,25 @@ export interface PluginService {
   readonly install: (params: InstallPluginParams) => Promise<PluginView>;
   /** Replace the bundle for an installed plugin (slug must match; downgrade refused; new caps ⇒ disabled). */
   readonly upgrade: (params: UpgradePluginParams) => Promise<PluginView>;
-  /** Fetch a bundle at a URL through the egress guard and return its MANIFEST for the consent screen
-   *  (U8, seam 15). Read-only; SELF-authority; a fetch failure is a leak-free
+  readonly installUnpacked: (params: InstallUnpackedPluginParams) => Promise<PluginView>;
+  readonly previewFromGit: (params: PreviewFromGitParams) => Promise<PluginGitPreview>;
+  readonly installFromGit: (params: InstallFromGitParams) => Promise<PluginView>;
+  readonly upgradeFromStoredGit: (params: UpgradeFromStoredGitParams) => Promise<PluginView>;
+  /** Fetch a bundle at a URL through the egress guard and return its manifest plus exact-byte SHA-256 for the
+   *  consent screen (U8, seam 15). Read-only; SELF-authority; a fetch failure is a leak-free
    *  {@link PluginBundleFetchError}, a bad zip a `ManifestInvalidError` — same funnel as a file install. */
-  readonly previewFromUrl: (params: PreviewFromUrlParams) => Promise<PluginManifest>;
-  /** Fetch a bundle at a URL through the egress guard, then run it through the SAME funnel + consent as a file
-   *  install (delegates to {@link install}). SELF-authority — mints the caller's own row. */
+  readonly previewFromUrl: (params: PreviewFromUrlParams) => Promise<PluginUrlPreview>;
+  /** Fetch a bundle at a URL through the egress guard, require its SHA-256 to match the consented preview, then
+   *  run it through the SAME funnel + consent as a file install (delegates to {@link install}). SELF-authority
+   *  — mints the caller's own row. */
   readonly installFromUrl: (params: InstallFromUrlParams) => Promise<PluginView>;
   /** Fetch a NEW bundle at a URL through the egress guard, then upgrade the OWNED plugin through {@link upgrade}
    *  — #615's re-consent wall applies (reach-widening ⇒ DISABLED). Owner-scoped: a foreign pluginId is a
    *  leak-free NOT_FOUND checked BEFORE any fetch, so a stranger never triggers server egress. NEVER silent. */
   readonly upgradeFromUrl: (params: UpgradeFromUrlParams) => Promise<PluginView>;
   /** AUTO UPDATE-CHECK (U8 2b — the thing ST's loader does): for the caller's OWN `url`-origin plugins, re-fetch
-   *  each remote manifest through the same egress guard and compare versions. BATCH + SELF-scoped (no id); a
+   *  each remote bundle through the same egress guard and return exact-byte identity with a newer version.
+   *  BATCH + SELF-scoped (no id); a
    *  file install is absent from the result (nothing to check), a fetch/parse failure is a leak-free
    *  `unreachable`. Read-only — nothing persists. */
   readonly checkForUpdates: (params: CheckForUpdatesParams) => Promise<readonly PluginUpdateCheck[]>;
@@ -463,6 +495,8 @@ export interface PluginService {
    *  disabled, no resident, unknown surface, wrong tier — so the doorway serves one identical miss. Its ONE
    *  caller is `entry/http/plugin-frame.ts`; nothing projects these bytes to a client. */
   readonly getFrameBody: (params: GetFrameBodyParams) => Promise<PluginFrameBody | null>;
+  /** One current bundle image for an active frame. Identity comes from the minted handle, never the request. */
+  readonly getFrameAsset: (params: GetFrameAssetParams) => Promise<PluginFrameAsset | null>;
   /** Re-enter a surface's `onAction` under the crash policy (owner-scoped, leak-free). Returns the drained UI
    *  OUTCOME (U5): the host-mediated toasts + at most one dialog-open the guest asked for while it ran. Any STATE
    *  the handler published still rides the `pluginSurfaceStateChanged` bus poke — the outcome carries chrome, not

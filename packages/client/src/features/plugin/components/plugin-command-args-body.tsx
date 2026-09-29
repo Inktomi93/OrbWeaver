@@ -130,7 +130,7 @@ export function PluginCommandArgsBody(): ReactElement {
     // the TYPED bag carries the arguments. The runner re-resolves the command and the server re-validates.
     setErrors([]);
     setSubmitting(true);
-    void run(subject.slug, subject.name, "", coerced.values).then((succeeded) => {
+    run({ slug: subject.slug, name: subject.name, args: "", values: coerced.values }, (succeeded): void => {
       setSubmitting(false);
       if (succeeded) {
         closeModal();

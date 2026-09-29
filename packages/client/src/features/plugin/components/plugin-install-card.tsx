@@ -48,7 +48,7 @@ import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Row, Stack } from "@orb/ui/layout";
 import { scrollBehavior } from "@orb/ui/lib";
 import { Separator } from "@orb/ui/separator";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -57,15 +57,15 @@ import { notify } from "#lib";
 import { openConfigTo } from "#state";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, readPluginFolder, toBundleBase64 } from "../lib/plugin-bundle.ts";
-import { abbreviateSourceCommit, builtAgainstLine, grantSummaryLine } from "../lib/plugin-copy.ts";
+import { builtAgainstLine, grantSummaryLine } from "../lib/plugin-copy.ts";
 import { useInstallPluginFromGit } from "../lib/plugin-distribution-mutations.ts";
 import { useInstallPlugin, useInstallPluginFromUrl } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 import { PluginInstallGitArm } from "./plugin-install-git-arm.tsx";
+import { LocalSourceIdentity, RemoteSourceIdentity } from "./plugin-install-source-identity.tsx";
 import { PluginInstallUrlArm } from "./plugin-install-url-arm.tsx";
 
-/** WHERE a confirmed manifest came from. Local files carry admitted bytes; remote sources carry the URL plus
- * exact reviewed identity the server checks on re-fetch. `onInstall` dispatches on this. */
+/** The reviewed source carried from preview to the matching install verb. */
 type InstallSource =
   | { readonly kind: "file"; readonly bytes: Uint8Array; readonly name: string }
   | { readonly kind: "folder"; readonly bytes: Uint8Array; readonly name: string }
@@ -124,19 +124,6 @@ function selectedFolderName(files: readonly File[]): string {
   return root === undefined || root === "" ? "selected folder" : root;
 }
 
-function sourceIdentityLine(source: InstallSource): string {
-  if (source.kind === "file") {
-    return `Source file: ${source.name}`;
-  }
-  if (source.kind === "folder") {
-    return `Source folder: ${source.name}`;
-  }
-  if (source.kind === "git") {
-    return `Source repository: ${source.url} at commit ${abbreviateSourceCommit(source.expectedCommit)}`;
-  }
-  return `Source URL: ${source.url}`;
-}
-
 function isReadingSource(state: InstallState, sourceKind: PluginInstallSourceKind): boolean {
   return state.step === "reading" && state.sourceKind === sourceKind;
 }
@@ -160,6 +147,16 @@ function localPreviewFailure(error: unknown, sourceKind: "file" | "folder"): str
   return sourceKind === "file" ? "That file couldn't be read as a plugin bundle." : "That folder couldn't be read as a plugin bundle.";
 }
 
+function localPreviewState(result: PromiseSettledResult<PluginBundlePreview>, sourceKind: "file" | "folder", name: string): InstallState {
+  if (result.status === "fulfilled") {
+    if (sourceKind === "file") {
+      return { step: "confirm", manifest: result.value.manifest, source: { kind: "file", bytes: result.value.bytes, name } };
+    }
+    return { step: "confirm", manifest: result.value.manifest, source: { kind: "folder", bytes: result.value.bytes, name } };
+  }
+  return { step: "rejected", sourceKind, message: localPreviewFailure(result.reason, sourceKind) };
+}
+
 /** The build-provenance line, when the manifest carried one — display/warn only, never an install gate. */
 function BuiltAgainstLine({ manifest }: { readonly manifest: PluginManifest }): ReactElement | null {
   const line = builtAgainstLine(manifest.builtAgainst ?? null);
@@ -176,6 +173,13 @@ function GrantSummary({ capabilities }: { readonly capabilities: readonly Plugin
   return summary === null ? null : <Text voice="label">{summary}</Text>;
 }
 
+function SourceIdentity({ source }: { readonly source: InstallSource }): ReactElement {
+  if (source.kind === "file" || source.kind === "folder") {
+    return <LocalSourceIdentity kind={source.kind} name={source.name} />;
+  }
+  return <RemoteSourceIdentity identity={source.kind === "git" ? source.expectedCommit : source.expectedBundleHash} kind={source.kind} url={source.url} />;
+}
+
 export function PluginInstallCard(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -183,7 +187,7 @@ export function PluginInstallCard(): ReactElement {
   const installFromUrl = useInstallPluginFromUrl({ trpc, invalidation });
   const installFromGit = useInstallPluginFromGit({ trpc, invalidation });
   const [state, setState] = useState<InstallState>({ step: "pick" });
-  const [selectionsInFlight, setSelectionsInFlight] = useState(0);
+  const [activeSelectionEpoch, setActiveSelectionEpoch] = useState<number | null>(null);
   const confirmRef = useRef<HTMLDivElement>(null);
   const selectionEpoch = useRef(0);
 
@@ -195,19 +199,19 @@ export function PluginInstallCard(): ReactElement {
   const alreadyInstalled = alreadyInstalledFor(state, installed);
 
   const installing = install.isPending || installFromUrl.isPending || installFromGit.isPending;
-  const selecting = selectionsInFlight > 0;
+  const selecting = activeSelectionEpoch !== null;
   const doorsDisabled = selecting || installing;
 
   const beginSelection = (sourceKind: PluginInstallSourceKind, sourceLabel: string): number => {
     selectionEpoch.current += 1;
-    setSelectionsInFlight((count) => count + 1);
+    setActiveSelectionEpoch(selectionEpoch.current);
     setState({ step: "reading", sourceKind, sourceLabel });
     return selectionEpoch.current;
   };
 
   const finishSelection = (epoch: number, next: InstallState): void => {
-    setSelectionsInFlight((count) => count - 1);
     if (selectionEpoch.current === epoch) {
+      setActiveSelectionEpoch(null);
       setState(next);
     }
   };
@@ -225,16 +229,7 @@ export function PluginInstallCard(): ReactElement {
     const epoch = beginSelection("file", file.name);
     Promise.allSettled([readPluginBundle(file)])
       .then(([result]) => {
-        if (result.status === "fulfilled") {
-          const preview: PluginBundlePreview = result.value;
-          finishSelection(epoch, { step: "confirm", manifest: preview.manifest, source: { kind: "file", bytes: preview.bytes, name: file.name } });
-        } else {
-          finishSelection(epoch, {
-            step: "rejected",
-            sourceKind: "file",
-            message: localPreviewFailure(result.reason, "file"),
-          });
-        }
+        finishSelection(epoch, localPreviewState(result, "file", file.name));
       })
       .catch((error: unknown) => globalThis.reportError(error));
   };
@@ -244,15 +239,7 @@ export function PluginInstallCard(): ReactElement {
     const epoch = beginSelection("folder", name);
     Promise.allSettled([readPluginFolder(files)])
       .then(([result]) => {
-        if (result.status === "fulfilled") {
-          finishSelection(epoch, { step: "confirm", manifest: result.value.manifest, source: { kind: "folder", bytes: result.value.bytes, name } });
-        } else {
-          finishSelection(epoch, {
-            step: "rejected",
-            sourceKind: "folder",
-            message: localPreviewFailure(result.reason, "folder"),
-          });
-        }
+        finishSelection(epoch, localPreviewState(result, "folder", name));
       })
       .catch((error: unknown) => globalThis.reportError(error));
   };
@@ -291,6 +278,9 @@ export function PluginInstallCard(): ReactElement {
 
   return (
     <Stack gap="block">
+      <Text as="span" className="sr-only" role="status">
+        {state.step === "confirm" ? `${state.manifest.name} ${state.manifest.version} preview ready. Review what it's asking for below.` : ""}
+      </Text>
       <Text prose={true} voice="gloss">
         A plugin has a manifest and one script. Choose a .zip, a source folder, a bundle link, or a Git repository. It runs sandboxed and can only do what you
         allow here.
@@ -371,15 +361,13 @@ export function PluginInstallCard(): ReactElement {
         <Stack gap="section" ref={confirmRef}>
           <Separator />
           <Stack gap="tight">
-            <Text voice="promoted">
-              {state.manifest.name} {state.manifest.version}
-            </Text>
+            <Heading level={3}>
+              Review {state.manifest.name} {state.manifest.version}
+            </Heading>
             <Text prose={true} voice="gloss">
               {state.manifest.description}
             </Text>
-            <Text prose={true} voice="gloss">
-              {sourceIdentityLine(state.source)}
-            </Text>
+            <SourceIdentity source={state.source} />
             {state.manifest.author === undefined ? null : (
               <Text prose={true} voice="gloss">
                 By {state.manifest.author}

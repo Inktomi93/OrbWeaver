@@ -58,6 +58,24 @@ describe("frame-handle-store — the no-existence-leak contract", () => {
 
     expect(store.take(id, OWNER)?.doc).toBe("<html>private</html>");
   });
+
+  test("a document factory receives the opaque id, and owner teardown revokes both lookup modes", () => {
+    const clock = createFrozenClock();
+    const store = createFrameHandleStore(clock.now);
+    const id = store.put({
+      userId: OWNER,
+      doc: (handleId) => `<html data-handle="${handleId}"></html>`,
+      csp: CSP,
+      expiresAt: clock.now() + FRAME_HANDLE_TTL_MS,
+    });
+
+    expect(store.take(id, OWNER)?.doc).toContain(id);
+    expect(store.peekByHandle(id)?.doc).toContain(id);
+    expect(store.drop(id, STRANGER)).toBe(false);
+    expect(store.drop(id, OWNER)).toBe(true);
+    expect(store.take(id, OWNER)).toBeUndefined();
+    expect(store.peekByHandle(id)).toBeUndefined();
+  });
 });
 
 describe("frame-handle-store — expiry and the sliding TTL", () => {

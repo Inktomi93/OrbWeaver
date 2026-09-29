@@ -1,0 +1,396 @@
+diff --git a/index.cjs b/index.cjs
+index 27d19da57e8a2d2e5be0aec4d9988f1fc28c1e3b..74fa4b08d669d9b2694e2a75c9c1f0cb308f75ae 100644
+--- a/index.cjs
++++ b/index.cjs
+@@ -2864,6 +2864,36 @@ async function readObjectLoose({ fs, gitdir, oid }) {
+  * @param {Buffer} source
+  * @returns {Buffer}
+  */
++const ORB_PACK_MAX_OBJECTS = 4096;
++const ORB_PACK_MAX_OBJECT_BYTES = 2 * 1024 * 1024;
++const ORB_PACK_MAX_INFLATED_BYTES = 16 * 1024 * 1024;
++const ORB_PACK_MAX_RESOLUTION_BYTES = 64 * 1024 * 1024;
++const ORB_PACK_MAX_DELTA_DEPTH = 32;
++
++class PackLimitError extends Error {
++  constructor(message) {
++    super(`pack resource limit: ${message}`);
++    this.name = 'PackLimitError';
++  }
++}
++
++function accountPackBytes(budget, bytes, label) {
++  budget.total += bytes;
++  if (budget.total > budget.limit) {
++    throw new PackLimitError(
++      `${label} exceeded aggregate inflated-byte cap ${budget.limit}`
++    )
++  }
++}
++
++function assertPackDeltaDepth(depth) {
++  if (!Number.isSafeInteger(depth) || depth < 0 || depth > ORB_PACK_MAX_DELTA_DEPTH) {
++    throw new PackLimitError(
++      `delta chain exceeded depth cap ${ORB_PACK_MAX_DELTA_DEPTH}`
++    )
++  }
++}
++
+ function applyDelta(delta, source) {
+   const reader = new BufferCursor(delta);
+   const sourceSize = readVarIntLE(reader);
+@@ -2874,9 +2904,19 @@ function applyDelta(delta, source) {
+     )
+   }
+   const targetSize = readVarIntLE(reader);
++  if (targetSize > ORB_PACK_MAX_OBJECT_BYTES) {
++    throw new PackLimitError(
++      `delta target declared ${targetSize} bytes (cap ${ORB_PACK_MAX_OBJECT_BYTES})`
++    )
++  }
+   let target;
+ 
+   const firstOp = readOp(reader, source);
++  if (firstOp.byteLength > ORB_PACK_MAX_OBJECT_BYTES) {
++    throw new PackLimitError(
++      `delta operation produced ${firstOp.byteLength} bytes (cap ${ORB_PACK_MAX_OBJECT_BYTES})`
++    )
++  }
+   // Speed optimization - return raw buffer if it's just single simple copy
+   if (firstOp.byteLength === targetSize) {
+     target = firstOp;
+@@ -2891,8 +2931,13 @@ function applyDelta(delta, source) {
+ 
+     while (!reader.eof()) {
+       const op = readOp(reader, source);
+-      chunks.push(op);
+       tell += op.byteLength;
++      if (tell > ORB_PACK_MAX_OBJECT_BYTES) {
++        throw new PackLimitError(
++          `delta operations produced more than ${ORB_PACK_MAX_OBJECT_BYTES} bytes`
++        )
++      }
++      chunks.push(op);
+     }
+ 
+     if (targetSize !== tell) {
+@@ -3130,13 +3175,44 @@ async function listpack(stream, onData) {
+ 
+   let numObjects = await reader.read(4);
+   numObjects = numObjects.readUInt32BE(0);
++  if (numObjects > ORB_PACK_MAX_OBJECTS) {
++    throw new PackLimitError(
++      `pack declared ${numObjects} objects (cap ${ORB_PACK_MAX_OBJECTS})`
++    )
++  }
+   // If (for some godforsaken reason) this is an empty packfile, abort now.
+   if (numObjects < 1) return
+ 
++  let declaredBytes = 0;
++  const actualBudget = { total: 0, limit: ORB_PACK_MAX_INFLATED_BYTES };
++
+   while (!reader.eof() && numObjects--) {
+     const offset = reader.tell();
+     const { type, length, ofs, reference } = await parseHeader(reader);
++    if (length > ORB_PACK_MAX_OBJECT_BYTES) {
++      throw new PackLimitError(
++        `object declared ${length} bytes (cap ${ORB_PACK_MAX_OBJECT_BYTES})`
++      )
++    }
++    declaredBytes += length;
++    if (declaredBytes > ORB_PACK_MAX_INFLATED_BYTES) {
++      throw new PackLimitError(
++        `declared object bytes exceeded aggregate cap ${ORB_PACK_MAX_INFLATED_BYTES}`
++      )
++    }
+     const inflator = new pako.Inflate();
++    const emitInflatedChunk = inflator.onData.bind(inflator);
++    let objectActualBytes = 0;
++    inflator.onData = chunk => {
++      objectActualBytes += chunk.byteLength;
++      if (objectActualBytes > ORB_PACK_MAX_OBJECT_BYTES) {
++        throw new PackLimitError(
++          `inflated object exceeded per-object cap ${ORB_PACK_MAX_OBJECT_BYTES}`
++        )
++      }
++      accountPackBytes(actualBudget, chunk.byteLength, 'pack receive');
++      emitInflatedChunk(chunk);
++    };
+     while (!inflator.result) {
+       const chunk = await reader.chunk();
+       if (!chunk) break
+@@ -3221,6 +3297,30 @@ async function inflate(buffer) {
+     : pako.inflate(buffer)
+ }
+ 
++async function inflatePackObject(buffer, budget) {
++  const inflator = new pako.Inflate();
++  const onData = inflator.onData.bind(inflator);
++  let objectBytes = 0;
++  inflator.onData = chunk => {
++    objectBytes += chunk.byteLength;
++    if (objectBytes > ORB_PACK_MAX_OBJECT_BYTES) {
++      throw new PackLimitError(
++        `inflated object exceeded per-object cap ${ORB_PACK_MAX_OBJECT_BYTES}`
++      )
++    }
++    accountPackBytes(budget, chunk.byteLength, 'pack resolution');
++    onData(chunk);
++  };
++  inflator.push(buffer, false);
++  if (inflator.err) {
++    throw new InternalError(`Pako error: ${inflator.msg}`)
++  }
++  if (!inflator.result) {
++    throw new InternalError('Pako produced no result')
++  }
++  return inflator.result
++}
++
+ async function browserInflate(buffer) {
+   const ds = new DecompressionStream('deflate');
+   const d = new Blob([buffer]).stream().pipeThrough(ds);
+@@ -3274,6 +3374,11 @@ class GitPackIndex {
+   constructor(stuff) {
+     Object.assign(this, stuff);
+     this.offsetCache = {};
++    this.logicalDepthCache = {};
++    this.inflateBudget = {
++      total: 0,
++      limit: ORB_PACK_MAX_RESOLUTION_BYTES,
++    };
+   }
+ 
+   static async fromIdx({ idx, getExternalRefDelta }) {
+@@ -3402,7 +3507,7 @@ class GitPackIndex {
+     // Resolve deltas and compute the oids
+     lastPercent = null;
+     let count = 0;
+-    const objectsByDepth = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
++    const objectsByDepth = Array(ORB_PACK_MAX_DELTA_DEPTH + 1).fill(0);
+     for (let offset in offsetToObject) {
+       offset = Number(offset);
+       const percent = Math.floor((count * 100) / totalObjectCount);
+@@ -3421,16 +3526,18 @@ class GitPackIndex {
+       const o = offsetToObject[offset];
+       if (o.oid) continue
+       try {
+-        p.readDepth = 0;
+-        p.externalReadDepth = 0;
+-        const { type, object } = await p.readSlice({ start: offset });
+-        objectsByDepth[p.readDepth] += 1;
++        const { type, object, logicalDepth } = await p.readSlice({
++          start: offset,
++          deltaDepth: 0,
++        });
++        objectsByDepth[logicalDepth] += 1;
+         const oid = await shasum(GitObject.wrap({ type, object }));
+         o.oid = oid;
+         hashes.push(oid);
+         offsets.set(oid, offset);
+         crcs[oid] = o.crc;
+       } catch (err) {
++        if (err instanceof PackLimitError) throw err
+         continue
+       }
+     }
+@@ -3492,24 +3599,30 @@ class GitPackIndex {
+     this.pack = null;
+   }
+ 
+-  async read({ oid }) {
++  async read({ oid, deltaDepth = 0 }) {
++    assertPackDeltaDepth(deltaDepth);
+     if (!this.offsets.get(oid)) {
+       if (this.getExternalRefDelta) {
+-        this.externalReadDepth++;
+-        return this.getExternalRefDelta(oid)
++        return this.getExternalRefDelta(oid, deltaDepth)
+       } else {
+         throw new InternalError(`Could not read object ${oid} from packfile`)
+       }
+     }
+     const start = this.offsets.get(oid);
+-    return this.readSlice({ start })
++    return this.readSlice({ start, deltaDepth })
+   }
+ 
+-  async readSlice({ start }) {
++  async readSlice({ start, deltaDepth = 0 }) {
++    assertPackDeltaDepth(deltaDepth);
+     if (this.offsetCache[start]) {
++      assertPackDeltaDepth(
++        deltaDepth + this.offsetCache[start].logicalDepth
++      );
+       return Object.assign({}, this.offsetCache[start])
+     }
+-    this.readDepth++;
++    if (this.logicalDepthCache[start] !== undefined) {
++      assertPackDeltaDepth(deltaDepth + this.logicalDepthCache[start]);
++    }
+     const types = {
+       0b0010000: 'commit',
+       0b0100000: 'tree',
+@@ -3543,21 +3656,38 @@ class GitPackIndex {
+     if (multibyte) {
+       length = otherVarIntDecode(reader, lastFour);
+     }
++    if (length > ORB_PACK_MAX_OBJECT_BYTES) {
++      throw new PackLimitError(
++        `object declared ${length} bytes (cap ${ORB_PACK_MAX_OBJECT_BYTES})`
++      )
++    }
+     let base = null;
+     let object = null;
++    let logicalDepth = 0;
+     // Handle deltified objects
+     if (type === 'ofs_delta') {
+       const offset = decodeVarInt(reader);
+       const baseOffset = start - offset
+-      ;({ object: base, type } = await this.readSlice({ start: baseOffset }));
++      const resolved = await this.readSlice({
++        start: baseOffset,
++        deltaDepth: deltaDepth + 1,
++      });
++      ;({ object: base, type } = resolved);
++      logicalDepth = resolved.logicalDepth + 1;
+     }
+     if (type === 'ref_delta') {
+       const oid = reader.slice(20).toString('hex')
+-      ;({ object: base, type } = await this.read({ oid }));
++      const resolved = await this.read({
++        oid,
++        deltaDepth: deltaDepth + 1,
++      });
++      ;({ object: base, type } = resolved);
++      logicalDepth = resolved.logicalDepth + 1;
+     }
++    assertPackDeltaDepth(deltaDepth + logicalDepth);
+     // Handle undeltified objects
+     const buffer = raw.slice(reader.tell());
+-    object = Buffer.from(await inflate(buffer));
++    object = Buffer.from(await inflatePackObject(buffer, this.inflateBudget));
+     // Assert that the object length is as expected.
+     if (object.byteLength !== length) {
+       throw new InternalError(
+@@ -3566,13 +3696,15 @@ class GitPackIndex {
+     }
+     if (base) {
+       object = Buffer.from(applyDelta(object, base));
++      accountPackBytes(this.inflateBudget, object.byteLength, 'delta output');
+     }
+-    // Cache the result based on depth.
+-    if (this.readDepth > 3) {
++    this.logicalDepthCache[start] = logicalDepth;
++    // Cache the result based on logical depth.
++    if (logicalDepth > 3) {
+       // hand tuned for speed / memory usage tradeoff
+-      this.offsetCache[start] = { type, object };
++      this.offsetCache[start] = { type, object, logicalDepth };
+     }
+-    return { type, format: 'content', object }
++    return { type, format: 'content', object, logicalDepth }
+   }
+ }
+ 
+@@ -3632,6 +3764,7 @@ async function readObjectPacked({
+   gitdir,
+   oid,
+   format = 'content',
++  deltaDepth = 0,
+   getExternalRefDelta,
+ }) {
+   // Check to see if it's in a packfile.
+@@ -3695,7 +3828,7 @@ async function readObjectPacked({
+         p._checksumVerified = true;
+       }
+ 
+-      const result = await p.read({ oid, getExternalRefDelta });
++      const result = await p.read({ oid, deltaDepth });
+       result.format = 'content';
+       result.source = `objects/pack/${filename.replace(/idx$/, 'pack')}`;
+       return result
+@@ -3719,14 +3852,17 @@ async function _readObject({
+   gitdir,
+   oid,
+   format = 'content',
++  deltaDepth = 0,
+ }) {
++  assertPackDeltaDepth(deltaDepth);
+   if (!['deflated', 'wrapped', 'content'].includes(format)) {
+     throw new InternalError(`invalid requested format "${format}"`)
+   }
+ 
+   // Curry the current read method so that the packfile un-deltification
+   // process can acquire external ref-deltas.
+-  const getExternalRefDelta = oid => _readObject({ fs, cache, gitdir, oid });
++  const getExternalRefDelta = (oid, nextDeltaDepth = 0) =>
++    _readObject({ fs, cache, gitdir, oid, deltaDepth: nextDeltaDepth });
+ 
+   let result;
+   // Empty tree - hard-coded so we can use it as a shorthand.
+@@ -3746,6 +3882,7 @@ async function _readObject({
+       cache,
+       gitdir,
+       oid,
++      deltaDepth,
+       getExternalRefDelta,
+     });
+ 
+@@ -3757,6 +3894,8 @@ async function _readObject({
+     return result
+   }
+ 
++  result.logicalDepth = 0;
++
+   // Loose objects are always deflated, return early
+   if (format === 'deflated') {
+     return result
+@@ -9753,7 +9892,8 @@ async function hasObject({
+ }) {
+   // Curry the current read method so that the packfile un-deltification
+   // process can acquire external ref-deltas.
+-  const getExternalRefDelta = oid => _readObject({ fs, cache, gitdir, oid });
++  const getExternalRefDelta = (oid, deltaDepth = 0) =>
++    _readObject({ fs, cache, gitdir, oid, deltaDepth });
+ 
+   // Look for it in the loose object directory.
+   let result = await hasObjectLoose({ fs, gitdir, oid });
+@@ -9767,6 +9907,7 @@ async function hasObject({
+       getExternalRefDelta,
+     });
+   }
++
+   // Finally
+   return result
+ }
+@@ -10474,7 +10615,8 @@ async function _fetch({
+     res.packfile = `objects/pack/pack-${packfileSha}.pack`;
+     const fullpath = join(gitdir, res.packfile);
+     await fs.write(fullpath, packfile);
+-    const getExternalRefDelta = oid => _readObject({ fs, cache, gitdir, oid });
++    const getExternalRefDelta = (oid, deltaDepth = 0) =>
++    _readObject({ fs, cache, gitdir, oid, deltaDepth });
+     const idx = await GitPackIndex.fromPack({
+       pack: packfile,
+       getExternalRefDelta,
+@@ -11174,7 +11316,8 @@ async function expandOidPacked({
+ async function _expandOid({ fs, cache, gitdir, oid: short }) {
+   // Curry the current read method so that the packfile un-deltification
+   // process can acquire external ref-deltas.
+-  const getExternalRefDelta = oid => _readObject({ fs, cache, gitdir, oid });
++  const getExternalRefDelta = (oid, deltaDepth = 0) =>
++    _readObject({ fs, cache, gitdir, oid, deltaDepth });
+ 
+   const results = await expandOidLoose({ fs, gitdir, oid: short });
+   const packedOids = await expandOidPacked({
+@@ -12457,7 +12600,8 @@ async function _indexPack({
+   try {
+     filepath = join(dir, filepath);
+     const pack = await fs.read(filepath);
+-    const getExternalRefDelta = oid => _readObject({ fs, cache, gitdir, oid });
++    const getExternalRefDelta = (oid, deltaDepth = 0) =>
++    _readObject({ fs, cache, gitdir, oid, deltaDepth });
+     const idx = await GitPackIndex.fromPack({
+       pack,
+       getExternalRefDelta,

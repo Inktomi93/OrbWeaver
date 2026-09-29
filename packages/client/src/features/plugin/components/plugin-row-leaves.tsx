@@ -1,12 +1,12 @@
 // plugin-row leaf components — the two sub-rows `PluginRow` composes, split out for `component-size` (the
 // `plugin-leaf-nodes.tsx` precedent). Both close over their OWN mutation hooks and local UI state, so they are
 // genuine leaves the parent only mounts:
-//   · UpdateCheckRow — the U8 2b auto update-check + one-click "Update to X", for either update source the
-//     server names on the row (`updateSource`: a remembered URL, or the showcase copy this build ships, #1740).
+//   · UpdateCheckRow — the U8 2b auto update-check + one-click update, for the source the server names on the
+//     row (`updateSource`: remembered bundle URL, remembered Git repository, or shipped showcase copy).
 //   · ReConsentNotice — the #650/#658 re-consent surface a reach-widening upgrade forces (rendered by the
 //     parent whenever `plugin.reconsentPending` is the server's own durable verdict).
 
-import type { PluginCapability } from "@orb/contracts/plugin";
+import type { PluginBundleHash, PluginCapability } from "@orb/contracts/plugin";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -18,6 +18,7 @@ import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import {
+  abbreviateSourceCommit,
   CHECK_FOR_UPDATES_LABEL,
   grantSummaryLine,
   REMOVE_PLUGIN_DESCRIPTION,
@@ -25,7 +26,9 @@ import {
   UPDATE_UNREACHABLE_LINE,
   UPDATE_UP_TO_DATE_LINE,
   updateAvailableLabel,
+  updateCommitAvailableLabel,
 } from "../lib/plugin-copy.ts";
+import { useUpgradePluginFromStoredGit } from "../lib/plugin-distribution-mutations.ts";
 import { useCheckForUpdates, useUpgradePluginFromShowcase, useUpgradePluginFromStoredUrl } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 
@@ -36,7 +39,15 @@ type PluginView = inferOutput<Trpc["plugin"]["list"]>[number];
 /** The auto update-check's local verdict for ONE row (U8 2b). Local, not server state: the check writes
  *  nothing, so its result is transient UI feedback until the person acts on it (a one-click upgrade is what
  *  makes a DURABLE change, and that rides the list refetch). `idle` before the first check. */
-type UpdateVerdict = { readonly kind: "idle" | "up-to-date" | "unreachable" } | { readonly kind: "available"; readonly newVersion: string };
+type UpdateVerdict =
+  | { readonly kind: "idle" | "up-to-date" | "unreachable" }
+  | {
+      readonly kind: "available";
+      readonly label: string;
+      readonly ariaLabel: string;
+      readonly expectedGitCommit: string | null;
+      readonly expectedBundleHash: PluginBundleHash | null;
+    };
 
 /** The update-check + one-click upgrade affordance for a plugin SOMETHING can serve a newer version for (U8 2b —
  *  the thing ST's loader does). "Check for updates" runs the server batch check and shows this row's verdict;
@@ -45,19 +56,19 @@ type UpdateVerdict = { readonly kind: "idle" | "up-to-date" | "unreachable" } | 
  *  renders (never silent). The verdict resets after a successful one-click: the list refetch carries the new
  *  version/consent state, which is the durable truth.
  *
- *  ONE ROW, TWO SOURCES (#1740). `plugin.updateSource` is the SERVER's answer to "who can serve the next
- *  version": `"url"` re-fetches the remembered source, `"showcase"` takes the copy this build ships (the only
- *  path a DIVERGED seeded example has — the boot auto-upgrade passes those over on purpose). The parent mounts
- *  this component only when that field is non-null, so there is no third arm here. Splitting it into two
- *  components would duplicate the verdict machine, and the verdict is the same question either way. Both hooks
- *  are called unconditionally (hooks rules) and only the one this row's source names is ever fired. */
+ *  ONE ROW, THREE SOURCES (#1740/#0081). `plugin.updateSource` is the SERVER's answer to "who can serve the
+ *  next version": `"url"` re-fetches the remembered bundle, `"git"` clones the remembered repository, and
+ *  `"showcase"` takes the copy this build ships (the only path a DIVERGED seeded example has — the boot
+ *  auto-upgrade passes those over on purpose). The parent mounts this component only when that field is
+ *  non-null. Splitting it by source would duplicate the verdict machine; all hooks are unconditional and only
+ *  the mutation named by the row fires. */
 export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const check = useCheckForUpdates({ trpc, invalidation });
   const upgradeStored = useUpgradePluginFromStoredUrl({ trpc, invalidation });
   const upgradeShowcase = useUpgradePluginFromShowcase({ trpc, invalidation });
-  const upgrade = plugin.updateSource === "showcase" ? upgradeShowcase : upgradeStored;
+  const upgradeGit = useUpgradePluginFromStoredGit({ trpc, invalidation });
   const [verdict, setVerdict] = useState<UpdateVerdict>({ kind: "idle" });
 
   const runCheck = async (): Promise<void> => {
@@ -79,17 +90,46 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
       return;
     }
     if (mine.status === "update-available") {
-      setVerdict({ kind: "available", newVersion: mine.newVersion });
+      setVerdict({
+        kind: "available",
+        label: updateAvailableLabel(mine.newVersion),
+        ariaLabel: `Update ${plugin.name} to ${mine.newVersion}`,
+        expectedGitCommit: null,
+        expectedBundleHash: mine.source === "url" ? mine.bundleHash : null,
+      });
+      return;
+    }
+    if (mine.status === "source-changed") {
+      setVerdict({
+        kind: "available",
+        label: updateCommitAvailableLabel(mine.sourceCommit),
+        ariaLabel: `Update ${plugin.name} from commit ${abbreviateSourceCommit(mine.sourceCommit)}`,
+        expectedGitCommit: mine.sourceCommit,
+        expectedBundleHash: null,
+      });
       return;
     }
     setVerdict({ kind: "up-to-date" });
   };
 
   const applyUpgrade = async (): Promise<void> => {
-    // @orb-waive caught-failure-ownership(upgrade.mutateAsync): both upgrade mutations carry
-    // errorToast: serverReason("Couldn't update that plugin.") — the toast is the surface. Ends if either
-    // mutation drops its errorToast.
-    const updated = await upgrade.mutateAsync({ pluginId: plugin.id }).catch(() => undefined);
+    let pending: Promise<PluginView>;
+    if (plugin.updateSource === "git") {
+      if (verdict.kind !== "available" || verdict.expectedGitCommit === null) {
+        return;
+      }
+      pending = upgradeGit.mutateAsync({ pluginId: plugin.id, expectedCommit: verdict.expectedGitCommit });
+    } else if (plugin.updateSource === "showcase") {
+      pending = upgradeShowcase.mutateAsync({ pluginId: plugin.id });
+    } else {
+      if (verdict.kind !== "available" || verdict.expectedBundleHash === null) {
+        return;
+      }
+      pending = upgradeStored.mutateAsync({ pluginId: plugin.id, expectedBundleHash: verdict.expectedBundleHash });
+    }
+    // @orb-waive caught-failure-ownership(pending): each upgrade mutation carries errorToast:
+    // serverReason("Couldn't update that plugin."); the toast owns the failure. Ends if any mutation drops it.
+    const updated = await pending.catch(() => undefined);
     if (updated === undefined) {
       return;
     }
@@ -122,9 +162,9 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
       </Button>
       {verdict.kind === "available" ? (
         <Button
-          aria-label={`Update ${plugin.name} to ${verdict.newVersion}`}
+          aria-label={verdict.ariaLabel}
           intent="primary"
-          loading={upgrade.isPending}
+          loading={upgradeStored.isPending || upgradeShowcase.isPending || upgradeGit.isPending}
           onClick={(): void => {
             // @orb-waive caught-failure-ownership(applyUpgrade): applyUpgrade already
             // catches its own mutation's rejection internally, so it never rejects — belt-and-suspenders. Ends
@@ -133,7 +173,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
           }}
           size="sm"
         >
-          {updateAvailableLabel(verdict.newVersion)}
+          {verdict.label}
         </Button>
       ) : null}
       {verdict.kind === "up-to-date" ? (

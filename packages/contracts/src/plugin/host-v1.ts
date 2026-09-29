@@ -15,7 +15,15 @@ import type { PromptTransformOutcome, PromptTransformPoint, VariablePrecondition
 import type { GenerateImageActionArgs } from "#imagery";
 import type { PluginNotificationRecipient } from "#notifications";
 import type { PluginCapability } from "./manifest.ts";
-import type { PluginCommandArgSpec, PluginCommandArgValue, PluginSurfaceAnchor, PluginSurfaceSpec, PluginSurfaceTier, PluginToastLevel } from "./ui.ts";
+import type {
+  PluginCommandArgSpec,
+  PluginCommandArgValue,
+  PluginCommandPlacement,
+  PluginSurfaceAnchor,
+  PluginSurfaceSpec,
+  PluginSurfaceTier,
+  PluginToastLevel,
+} from "./ui.ts";
 
 // ── Opaque handles (branded strings; minted host-side; forged values fail resolution) ──────────────────────
 export type ChatHandle = Branded<"PluginChatHandle">;
@@ -623,6 +631,8 @@ export interface PluginHostV1 {
       name: string; // /^[a-z][a-z0-9_]{0,40}$/, unique per plugin
       describe: string; // the palette/menu one-liner (≤ 200 chars)
       args?: readonly PluginCommandArgSpec[]; // the declared typed args (≤ 16); absent ⇒ one opaque `args` remainder
+      group?: string; // optional subgroup inside the attributed Plugins menu
+      placements?: readonly PluginCommandPlacement[]; // closed host-owned composer placement vocabulary
       onRun: (a: { args: string; values: Record<string, PluginCommandArgValue> }) => void | Promise<void>;
     }) => void;
     /** Raise a HOUSE toast, prefixed with the plugin's name (stamped host-side — a guest-supplied prefix is the

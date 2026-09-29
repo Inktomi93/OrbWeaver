@@ -29,7 +29,16 @@ test("projects the caller's OWN enabled plugin's commands, carrying the slug + p
     // The SLUG is the dispatch token and the NAME is the menu group label — both projected here, because only
     // this side knows the install's slug and re-deriving either client-side would be a second home. `args` is the
     // #791 typed-arg grammar — empty for a command that declared none.
-    { pluginId: installed.id, slug: "oracle-deck", pluginName: "Oracle Deck", name: "draw", describe: "Draw a card", args: [] },
+    {
+      pluginId: installed.id,
+      slug: "oracle-deck",
+      pluginName: "Oracle Deck",
+      name: "draw",
+      describe: "Draw a card",
+      args: [],
+      group: null,
+      placements: [],
+    },
   ]);
   // The guest handler ref stays server-side — a client never sees a handle it could forge.
   expect(JSON.stringify(commands)).not.toContain("plugin-handler-0");
@@ -44,6 +53,8 @@ test("#791: a command's DECLARED typed args are projected verbatim for the surfa
       name: "cast",
       describe: "Cast a spell",
       args: [{ name: "suit", type: "enum", required: true, enumValues: ["cups", "wands"] }],
+      group: "Divination",
+      placements: [{ target: "composer-action", label: "Cast", icon: "sparkles" }],
       onRun: castId<PluginHandlerRef>("plugin-handler-1"),
     },
   ];
@@ -59,6 +70,8 @@ test("#791: a command's DECLARED typed args are projected verbatim for the surfa
       name: "cast",
       describe: "Cast a spell",
       args: [{ name: "suit", type: "enum", required: true, enumValues: ["cups", "wands"] }],
+      group: "Divination",
+      placements: [{ target: "composer-action", label: "Cast", icon: "sparkles" }],
     },
   ]);
 });

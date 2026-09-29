@@ -31,8 +31,14 @@ export interface PluginCommandView {
 
 interface PluginCommandRunner {
   readonly isPending: boolean;
-  /** Resolves true only after the command and its host-mediated outcome complete successfully. */
-  readonly run: (slug: string, name: string, args: string, values: Record<string, PluginCommandArgValue>) => Promise<boolean>;
+  readonly run: (request: PluginCommandRunRequest, onSettled?: (succeeded: boolean) => void) => void;
+}
+
+interface PluginCommandRunRequest {
+  readonly slug: string;
+  readonly name: string;
+  readonly args: string;
+  readonly values: Record<string, PluginCommandArgValue>;
 }
 
 interface PluginCommandAction {
@@ -76,25 +82,25 @@ export function usePluginCommandRunner(chatId: ChatId | null): PluginCommandRunn
   const commands = usePluginCommands();
   // No manual memoization — the React Compiler runs full-compile on this tree and already caches this closure
   // across renders (D54). A hand-rolled `useCallback` here would be a second, weaker cache beside its.
-  const run = (slug: string, name: string, args: string, values: Record<string, PluginCommandArgValue>): Promise<boolean> => {
-    const command = commands.find((candidate) => candidate.slug === slug && candidate.name === name);
+  const run = (request: PluginCommandRunRequest, onSettled?: (succeeded: boolean) => void): void => {
+    const command = commands.find((candidate) => candidate.slug === request.slug && candidate.name === request.name);
     if (command === undefined) {
       notify.error(PLUGIN_COMMAND_UNKNOWN);
-      return Promise.resolve(false);
+      onSettled?.(false);
+      return;
     }
-    // @orb-waive caught-failure-ownership(mutateAsync): the comment below explains — the
-    // mutation's own errorToast already told the person; this catch only keeps a handled rejection from
-    // surfacing as unhandled on this fire-and-forget path. Ends if that mutation drops its errorToast.
-    return invoke
-      .mutateAsync({ pluginId: command.pluginId, name: command.name, args, values, chatId })
-      // The outcome is the plugin's host-mediated chrome (§4.5a): its toasts, and at most one dialog open.
-      .then((outcome) => {
+    // The mutation's error toast owns the visible failure. Keep a collecting surface open with its values,
+    // and report the rejection for diagnostics even when no collecting surface is mounted.
+    invoke
+      .mutateAsync({ pluginId: command.pluginId, name: command.name, args: request.args, values: request.values, chatId })
+      .then((outcome): void => {
         applyPluginUiOutcome(command.pluginId, outcome);
-        return true;
+        onSettled?.(true);
       })
-      // Handled already by the mutation's own `errorToast`; this keeps a handled rejection from surfacing as an
-      // unhandled one on a fire-and-forget path.
-      .catch(() => false);
+      .catch((error: unknown): void => {
+        onSettled?.(false);
+        globalThis.reportError(error);
+      });
   };
   return { isPending: invoke.isPending || runningCommandCount > 0, run };
 }
@@ -118,7 +124,7 @@ export function useRunPluginCommand(chatId: ChatId | null): PluginCommandAction 
         chatId,
       });
     } else {
-      void runner.run(command.slug, command.name, "", {});
+      runner.run({ slug: command.slug, name: command.name, args: "", values: {} });
     }
   };
   return { isPending: runner.isPending, run };

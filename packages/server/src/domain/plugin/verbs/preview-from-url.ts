@@ -1,8 +1,7 @@
 // verb: previewFromUrl — fetch a bundle at a caller-supplied URL through the EGRESS GUARD and return its
-// MANIFEST for the consent screen (U8, seam 15). READ-ONLY — nothing persists, no owned
-// row is touched. It is the primitive behind two things: "show the SAME consent screen a file install shows"
-// (the manifest carries the declared capabilities + netHosts) AND the update-version check (the client compares
-// the previewed `version` against the installed one — no server-side persistence needed).
+// MANIFEST plus exact-bundle SHA-256 for the consent screen (U8, seam 15). READ-ONLY — nothing persists, no
+// owned row is touched. The manifest displays capabilities + netHosts; the hash binds the later install to
+// these exact bytes even when the URL or a redirect target is mutable.
 //
 // SELF-AUTHORITY: any authenticated principal. The fetch spends the server's egress, so it is authed; it reads
 // no owned entity, so there is no cross-tenant surface (the sweep classifies it EXEMPT — no foreign id). The
@@ -13,12 +12,12 @@
 
 import type { PreviewFromUrlParams } from "../contract/params.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
-import { fetchBundleThroughGuard, parseBundle } from "../substrate/manifest.ts";
+import { fetchBundleThroughGuard, hashPluginBundle, parseBundle } from "../substrate/manifest.ts";
 
 export function createPreviewFromUrl(ctx: PluginContext): PluginService["previewFromUrl"] {
   return async ({ url }: PreviewFromUrlParams) => {
     const bytes = await fetchBundleThroughGuard(ctx.fetchBundle, url);
     const { manifest } = parseBundle(bytes);
-    return manifest;
+    return { manifest, bundleHash: hashPluginBundle(bytes) };
   };
 }

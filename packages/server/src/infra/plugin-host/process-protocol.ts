@@ -1,4 +1,16 @@
 import { timingSafeEqual } from "node:crypto";
+import type { PluginLogLevel } from "@orb/contracts/plugin";
+import { PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
+import type {
+  BrokerParentMessage,
+  ParentBrokerMessage,
+  PluginBridgeOperation,
+  PluginCommandOperation,
+  PluginSyncOperation,
+  RpcError,
+  WorkerBrokerMessage,
+} from "./contract/process-protocol.ts";
+import { PLUGIN_BRIDGE_OPERATIONS, PLUGIN_COMMAND_OPERATIONS, PLUGIN_SYNC_OPERATIONS } from "./contract/process-protocol.ts";
 
 export const PLUGIN_BROKER_PROTOCOL_VERSION = 1;
 export const PLUGIN_BROKER_SYNC_TIMEOUT_MS = 10_000;
@@ -6,121 +18,6 @@ export const PLUGIN_BROKER_SYNC_RESULT_BYTES = 2_097_152;
 /** Largest authenticated JSON-line frame. `net.fetchAsset` may carry a 5 MiB image as base64. */
 export const PLUGIN_BROKER_MESSAGE_MAX_BYTES = 10_485_760;
 const PROCESS_ID_MIN_CHARS = 16;
-
-export const PLUGIN_BRIDGE_OPERATIONS = [
-  "chat.listMessages",
-  "chat.getVariables",
-  "chat.listCharacters",
-  "chat.applyVariableOps",
-  "chat.requestTurn",
-  "worldInfo.listBooks",
-  "worldInfo.listEntries",
-  "worldInfo.upsertEntry",
-  "imagery.generatePicture",
-  "variables.get",
-  "variables.set",
-  "variables.delete",
-  "assets.read",
-  "assets.storeFetched",
-  "search.documents",
-  "storage.get",
-  "storage.set",
-  "storage.delete",
-  "storage.list",
-  "storage.compareAndSet",
-  "notifications.post",
-  "llm.quiet",
-  "suggest",
-  "surfaceQuickReply",
-  "ui.setState",
-  "ui.toast",
-  "ui.openDialog",
-  "databank.ingest",
-  "character.ingest",
-  "character.ingestAsset",
-  "character.setCardData",
-  "character.getCardData",
-  "pubsub.emit",
-] as const;
-
-export type PluginBridgeOperation = (typeof PLUGIN_BRIDGE_OPERATIONS)[number];
-
-export const PLUGIN_SYNC_OPERATIONS = ["seam.nowEpochMs", "seam.nextRandom", "seam.mintId", "admitEgress", "admitAssetEgress", "invokeArgs"] as const;
-export type PluginSyncOperation = (typeof PLUGIN_SYNC_OPERATIONS)[number];
-
-const BRIDGE_OPERATION_SET: ReadonlySet<string> = new Set(PLUGIN_BRIDGE_OPERATIONS);
-const SYNC_OPERATION_SET: ReadonlySet<string> = new Set(PLUGIN_SYNC_OPERATIONS);
-
-export interface RpcError {
-  readonly name: string;
-  readonly message: string;
-}
-
-interface BrokerCommand {
-  readonly kind: "command";
-  readonly id: string;
-  readonly operation: "create" | "invoke" | "snippet" | "dispose";
-  readonly runtimeId: string;
-  readonly authorityId: string;
-  readonly value?: unknown;
-}
-
-export interface BrokerBridgeResult {
-  readonly kind: "bridge-result";
-  readonly id: string;
-  readonly ok: boolean;
-  readonly value?: unknown;
-  readonly error?: RpcError;
-}
-
-export type ParentBrokerMessage =
-  | { readonly kind: "authenticate"; readonly version: number; readonly token: string }
-  | BrokerCommand
-  | BrokerBridgeResult
-  | { readonly kind: "bridge-cancel"; readonly id: string };
-
-export type BrokerParentMessage =
-  | { readonly kind: "authenticated"; readonly version: number }
-  | { readonly kind: "response"; readonly id: string; readonly ok: boolean; readonly value?: unknown; readonly error?: RpcError }
-  | {
-      readonly kind: "bridge";
-      readonly id: string;
-      readonly runtimeId: string;
-      readonly authorityId: string;
-      readonly operation: PluginBridgeOperation | PluginSyncOperation;
-      readonly args: readonly unknown[];
-    }
-  | { readonly kind: "bridge-cancel"; readonly id: string }
-  | { readonly kind: "log"; readonly runtimeId: string; readonly label: string; readonly level: "info" | "warn" | "error"; readonly message: string }
-  | { readonly kind: "runtime-crashed"; readonly runtimeId: string; readonly error: RpcError };
-
-interface WorkerCommand {
-  readonly kind: "command";
-  readonly id: string;
-  readonly operation: "create" | "invoke" | "snippet" | "dispose";
-  readonly authorityId: string;
-  readonly value?: unknown;
-}
-
-export type BrokerWorkerMessage =
-  | WorkerCommand
-  | { readonly kind: "bridge-result"; readonly id: string; readonly ok: boolean; readonly value?: unknown; readonly error?: RpcError }
-  | { readonly kind: "bridge-cancel"; readonly id: string };
-
-export type WorkerBrokerMessage =
-  | { readonly kind: "ready" }
-  | { readonly kind: "response"; readonly id: string; readonly ok: boolean; readonly value?: unknown; readonly error?: RpcError }
-  | { readonly kind: "bridge"; readonly id: string; readonly authorityId: string; readonly operation: PluginBridgeOperation; readonly args: readonly unknown[] }
-  | { readonly kind: "bridge-cancel"; readonly id: string }
-  | {
-      readonly kind: "sync-bridge";
-      readonly authorityId: string;
-      readonly operation: PluginSyncOperation;
-      readonly args: readonly unknown[];
-      readonly control: SharedArrayBuffer;
-      readonly result: SharedArrayBuffer;
-    }
-  | { readonly kind: "log"; readonly label: string; readonly level: "info" | "warn" | "error"; readonly message: string };
 
 function parseWorkerResponse(value: Readonly<Record<string, unknown>>): WorkerBrokerMessage | null {
   if (typeof value["id"] !== "string" || typeof value["ok"] !== "boolean") {
@@ -167,34 +64,32 @@ function parseWorkerSyncBridge(value: Readonly<Record<string, unknown>>): Worker
 }
 
 function parseWorkerLog(value: Readonly<Record<string, unknown>>): WorkerBrokerMessage | null {
-  return typeof value["label"] === "string" &&
-    (value["level"] === "info" || value["level"] === "warn" || value["level"] === "error") &&
-    typeof value["message"] === "string"
+  return typeof value["label"] === "string" && isPluginLogLevel(value["level"]) && typeof value["message"] === "string"
     ? { kind: "log", label: value["label"], level: value["level"], message: value["message"] }
     : null;
 }
 
 /** Validate the untyped worker_threads message before the broker trusts its routing fields. */
-export function parseWorkerBrokerMessage(value: unknown): WorkerBrokerMessage | null {
-  if (!isRecord(value) || typeof value["kind"] !== "string") {
+export function parseWorkerBrokerMessage(message: unknown): WorkerBrokerMessage | null {
+  if (!isRecord(message) || typeof message["kind"] !== "string") {
     return null;
   }
-  if (value["kind"] === "ready") {
+  if (message["kind"] === "ready") {
     return { kind: "ready" };
   }
-  if (value["kind"] === "bridge-cancel") {
-    return typeof value["id"] === "string" ? { kind: "bridge-cancel", id: value["id"] } : null;
+  if (message["kind"] === "bridge-cancel") {
+    return typeof message["id"] === "string" ? { kind: "bridge-cancel", id: message["id"] } : null;
   }
-  if (value["kind"] === "bridge") {
-    return parseWorkerBridge(value);
+  if (message["kind"] === "bridge") {
+    return parseWorkerBridge(message);
   }
-  if (value["kind"] === "sync-bridge") {
-    return parseWorkerSyncBridge(value);
+  if (message["kind"] === "sync-bridge") {
+    return parseWorkerSyncBridge(message);
   }
-  if (value["kind"] === "log") {
-    return parseWorkerLog(value);
+  if (message["kind"] === "log") {
+    return parseWorkerLog(message);
   }
-  return value["kind"] === "response" ? parseWorkerResponse(value) : null;
+  return message["kind"] === "response" ? parseWorkerResponse(message) : null;
 }
 
 export function rpcError(error: unknown): RpcError {
@@ -214,11 +109,19 @@ export function fromRpcError(error: RpcError | undefined, fallback: string): Err
 }
 
 export function isBridgeOperation(value: string): value is PluginBridgeOperation {
-  return BRIDGE_OPERATION_SET.has(value);
+  return PLUGIN_BRIDGE_OPERATIONS.some((operation) => operation === value);
 }
 
-export function isSyncOperation(value: string): value is PluginSyncOperation {
-  return SYNC_OPERATION_SET.has(value);
+function isSyncOperation(value: string): value is PluginSyncOperation {
+  return PLUGIN_SYNC_OPERATIONS.some((operation) => operation === value);
+}
+
+function isCommandOperation(value: string): value is PluginCommandOperation {
+  return PLUGIN_COMMAND_OPERATIONS.some((operation) => operation === value);
+}
+
+function isPluginLogLevel(value: unknown): value is PluginLogLevel {
+  return typeof value === "string" && PLUGIN_LOG_LEVELS.some((level) => level === value);
 }
 
 export function tokenMatches(expected: string, received: string): boolean {
@@ -243,7 +146,7 @@ function parseParentCommand(value: Readonly<Record<string, unknown>>): ParentBro
   if (typeof value["id"] !== "string" || typeof value["operation"] !== "string") {
     return null;
   }
-  if (!["create", "invoke", "snippet", "dispose"].includes(value["operation"])) {
+  if (!isCommandOperation(value["operation"])) {
     return null;
   }
   if (
@@ -257,29 +160,29 @@ function parseParentCommand(value: Readonly<Record<string, unknown>>): ParentBro
   return {
     kind: "command",
     id: value["id"],
-    operation: value["operation"] as BrokerCommand["operation"],
+    operation: value["operation"],
     runtimeId: value["runtimeId"],
     authorityId: value["authorityId"],
     value: value["value"],
   };
 }
 
-export function parseParentBrokerMessage(value: unknown): ParentBrokerMessage | null {
-  if (!isRecord(value) || typeof value["kind"] !== "string") {
+export function parseParentBrokerMessage(message: unknown): ParentBrokerMessage | null {
+  if (!isRecord(message) || typeof message["kind"] !== "string") {
     return null;
   }
-  if (value["kind"] === "authenticate") {
-    return typeof value["version"] === "number" && typeof value["token"] === "string"
-      ? { kind: "authenticate", version: value["version"], token: value["token"] }
+  if (message["kind"] === "authenticate") {
+    return typeof message["version"] === "number" && typeof message["token"] === "string"
+      ? { kind: "authenticate", version: message["version"], token: message["token"] }
       : null;
   }
-  if (value["kind"] === "bridge-cancel") {
-    return typeof value["id"] === "string" ? { kind: "bridge-cancel", id: value["id"] } : null;
+  if (message["kind"] === "bridge-cancel") {
+    return typeof message["id"] === "string" ? { kind: "bridge-cancel", id: message["id"] } : null;
   }
-  if (value["kind"] === "bridge-result") {
-    return parseParentBridgeResult(value);
+  if (message["kind"] === "bridge-result") {
+    return parseParentBridgeResult(message);
   }
-  return value["kind"] === "command" ? parseParentCommand(value) : null;
+  return message["kind"] === "command" ? parseParentCommand(message) : null;
 }
 
 function parseBrokerResponse(value: Readonly<Record<string, unknown>>): BrokerParentMessage | null {
@@ -315,7 +218,7 @@ function parseBrokerLog(value: Readonly<Record<string, unknown>>): BrokerParentM
   if (
     typeof value["runtimeId"] !== "string" ||
     typeof value["label"] !== "string" ||
-    !["info", "warn", "error"].includes(String(value["level"])) ||
+    !isPluginLogLevel(value["level"]) ||
     typeof value["message"] !== "string"
   ) {
     return null;
@@ -324,42 +227,42 @@ function parseBrokerLog(value: Readonly<Record<string, unknown>>): BrokerParentM
     kind: "log",
     runtimeId: value["runtimeId"],
     label: value["label"],
-    level: value["level"] as "info" | "warn" | "error",
+    level: value["level"],
     message: value["message"],
   };
 }
 
-export function parseBrokerParentMessage(value: unknown): BrokerParentMessage | null {
-  if (!isRecord(value) || typeof value["kind"] !== "string") {
+export function parseBrokerParentMessage(message: unknown): BrokerParentMessage | null {
+  if (!isRecord(message) || typeof message["kind"] !== "string") {
     return null;
   }
-  if (value["kind"] === "authenticated") {
-    return typeof value["version"] === "number" ? { kind: "authenticated", version: value["version"] } : null;
+  if (message["kind"] === "authenticated") {
+    return typeof message["version"] === "number" ? { kind: "authenticated", version: message["version"] } : null;
   }
-  if (value["kind"] === "response") {
-    return parseBrokerResponse(value);
+  if (message["kind"] === "response") {
+    return parseBrokerResponse(message);
   }
-  if (value["kind"] === "bridge") {
-    return parseBrokerBridge(value);
+  if (message["kind"] === "bridge") {
+    return parseBrokerBridge(message);
   }
-  if (value["kind"] === "bridge-cancel") {
-    return typeof value["id"] === "string" ? { kind: "bridge-cancel", id: value["id"] } : null;
+  if (message["kind"] === "bridge-cancel") {
+    return typeof message["id"] === "string" ? { kind: "bridge-cancel", id: message["id"] } : null;
   }
-  if (value["kind"] === "runtime-crashed") {
-    const error = parseRpcError(value["error"]);
-    return typeof value["runtimeId"] === "string" && error !== undefined ? { kind: "runtime-crashed", runtimeId: value["runtimeId"], error } : null;
+  if (message["kind"] === "runtime-crashed") {
+    const error = parseRpcError(message["error"]);
+    return typeof message["runtimeId"] === "string" && error !== undefined ? { kind: "runtime-crashed", runtimeId: message["runtimeId"], error } : null;
   }
-  if (value["kind"] === "log") {
-    return parseBrokerLog(value);
+  if (message["kind"] === "log") {
+    return parseBrokerLog(message);
   }
   return null;
 }
 
-function parseRpcError(value: unknown): RpcError | undefined {
-  if (!isRecord(value) || typeof value["name"] !== "string" || typeof value["message"] !== "string") {
+function parseRpcError(errorValue: unknown): RpcError | undefined {
+  if (!isRecord(errorValue) || typeof errorValue["name"] !== "string" || typeof errorValue["message"] !== "string") {
     return;
   }
-  return { name: value["name"], message: value["message"] };
+  return { name: errorValue["name"], message: errorValue["message"] };
 }
 
 const BYTE_TAG = "$orbBytes";
@@ -389,23 +292,23 @@ export function encodeProcessValue(value: unknown): unknown {
   return encodeAtDepth(value, 0);
 }
 
-function decodeAtDepth(value: unknown, depth: number): unknown {
+function decodeAtDepth(encoded: unknown, depth: number): unknown {
   if (depth > PROCESS_VALUE_MAX_DEPTH) {
     throw new RangeError(`plugin broker: process value exceeds depth ${PROCESS_VALUE_MAX_DEPTH}`);
   }
-  if (Array.isArray(value)) {
-    return value.map((child) => decodeAtDepth(child, depth + 1));
+  if (Array.isArray(encoded)) {
+    return encoded.map((child) => decodeAtDepth(child, depth + 1));
   }
-  if (!isRecord(value)) {
-    return value;
+  if (!isRecord(encoded)) {
+    return encoded;
   }
-  if (value[UNDEFINED_TAG] === true && Object.keys(value).length === 1) {
+  if (encoded[UNDEFINED_TAG] === true && Object.keys(encoded).length === 1) {
     return;
   }
-  if (typeof value[BYTE_TAG] === "string" && Object.keys(value).length === 1) {
-    return Uint8Array.from(Buffer.from(value[BYTE_TAG], "base64"));
+  if (typeof encoded[BYTE_TAG] === "string" && Object.keys(encoded).length === 1) {
+    return Uint8Array.from(Buffer.from(encoded[BYTE_TAG], "base64"));
   }
-  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, decodeAtDepth(child, depth + 1)]));
+  return Object.fromEntries(Object.entries(encoded).map(([key, child]) => [key, decodeAtDepth(child, depth + 1)]));
 }
 
 export function decodeProcessValue(value: unknown): unknown {

@@ -1,13 +1,14 @@
 import { readFileSync } from "node:fs";
-import process from "node:process";
 import type { PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
-import { afterAll, afterEach, beforeAll } from "vitest";
+import { afterEach } from "vitest";
+import { env } from "../../../../packages/server/src/foundation/env/index.ts";
 import {
   __killManagedPluginBrokerOnBridgeForTest,
   __killManagedPluginBrokerOnCommandForTest,
+  __pauseManagedPluginBridgeDeliveryForTest,
   __terminateManagedPluginBrokerForTest,
 } from "../../../../packages/server/src/infra/plugin-host/process-runtime.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -15,23 +16,8 @@ import { expect, test } from "../../../support/fixtures.ts";
 const LONG = 30_000;
 const CHAT = "chat_process0000000000000000" as ChatId;
 const noChat: null = null;
-const { env: testEnvironment } = process;
-const priorWorkerMaximum = testEnvironment["PLUGIN_BROKER_WORKER_MAX"];
-
-beforeAll(() => {
-  testEnvironment["PLUGIN_BROKER_WORKER_MAX"] ??= "2";
-});
-
 afterEach(async () => {
   await __terminateManagedPluginBrokerForTest();
-});
-
-afterAll(() => {
-  if (priorWorkerMaximum === undefined) {
-    testEnvironment["PLUGIN_BROKER_WORKER_MAX"] = undefined;
-  } else {
-    testEnvironment["PLUGIN_BROKER_WORKER_MAX"] = priorWorkerMaximum;
-  }
 });
 
 function seams(): HostSeams {
@@ -129,36 +115,12 @@ test("broker exit during activation rejects the call and permits an explicit lat
   }
 });
 
-test("production uses the same app-owned watchdog without a preconfigured broker endpoint", { timeout: LONG }, async () => {
-  const priorNodeEnv = testEnvironment["NODE_ENV"];
-  const priorSocket = testEnvironment["PLUGIN_BROKER_SOCKET"];
-  const priorToken = testEnvironment["PLUGIN_BROKER_TOKEN_FILE"];
-  testEnvironment["NODE_ENV"] = "production";
-  testEnvironment["PLUGIN_BROKER_SOCKET"] = undefined;
-  testEnvironment["PLUGIN_BROKER_TOKEN_FILE"] = undefined;
-  try {
-    const host = createPluginHost(seams());
-    const outcome = await host.createInstance({ ...durableSource("'production watchdog';"), grants: [], bridge: bridge(), chat: noChat });
-    expect(outcome.ok).toBe(true);
-    if (outcome.ok) {
-      host.dispose(outcome.instance);
-    }
-  } finally {
-    if (priorNodeEnv === undefined) {
-      testEnvironment["NODE_ENV"] = undefined;
-    } else {
-      testEnvironment["NODE_ENV"] = priorNodeEnv;
-    }
-    if (priorSocket === undefined) {
-      testEnvironment["PLUGIN_BROKER_SOCKET"] = undefined;
-    } else {
-      testEnvironment["PLUGIN_BROKER_SOCKET"] = priorSocket;
-    }
-    if (priorToken === undefined) {
-      testEnvironment["PLUGIN_BROKER_TOKEN_FILE"] = undefined;
-    } else {
-      testEnvironment["PLUGIN_BROKER_TOKEN_FILE"] = priorToken;
-    }
+test("the app creates and owns the watchdog without a preconfigured broker endpoint", { timeout: LONG }, async () => {
+  const host = createPluginHost(seams());
+  const outcome = await host.createInstance({ ...durableSource("'app-owned watchdog';"), grants: [], bridge: bridge(), chat: noChat });
+  expect(outcome.ok).toBe(true);
+  if (outcome.ok) {
+    host.dispose(outcome.instance);
   }
 });
 
@@ -234,6 +196,55 @@ test("disposing a pinned logical plugin cancels its Worker and rejects late call
   await expect(invocation).rejects.toThrow();
   release();
   await expect(host.invoke(resident.instance, resident.handler, "{}", noChat)).rejects.toThrow(/unknown\/disposed/u);
+});
+
+test("a bridge frame already on the parent wire cannot dispatch after dispose revokes its authority", { timeout: LONG }, async () => {
+  let writes = 0;
+  const base = bridge();
+  const writingBridge: PluginBridge = {
+    ...base,
+    variables: {
+      ...base.variables,
+      set: () => {
+        writes += 1;
+        return Promise.resolve();
+      },
+    },
+  };
+  const host = createPluginHost(seams());
+  const outcome = await host.createInstance({
+    ...durableSource(`
+      const h = orb.host(1);
+      h.tools.register({
+        name: "write",
+        description: "write",
+        parameters: { type: "object", properties: {} },
+        handler: async () => { await h.variables.set("revoked", "must-not-land"); return "done"; },
+      });`),
+    grants: ["tools.register", "global_vars"],
+    bridge: writingBridge,
+    chat: noChat,
+  });
+  if (!outcome.ok) {
+    throw new Error(outcome.error);
+  }
+  const handler = outcome.instance.tools[0]?.handler;
+  if (handler === undefined) {
+    throw new Error("test: write tool did not register");
+  }
+  const delivery = __pauseManagedPluginBridgeDeliveryForTest("variables.set");
+  try {
+    const invocation = host.invoke(outcome.instance, handler, "{}", noChat);
+    await delivery.reached;
+    host.dispose(outcome.instance);
+    delivery.release();
+
+    await expect(invocation).rejects.toThrow();
+    expect(writes).toBe(0);
+  } finally {
+    delivery.release();
+    host.dispose(outcome.instance);
+  }
 });
 
 test("broker exit during deactivation releases the runtime and a later lifecycle may reactivate", { timeout: LONG }, async () => {
@@ -441,5 +452,191 @@ test("Card Atlas and Keepsake Camera retain async registrations across a cold wa
   ];
   for (const row of cases) {
     await assertShowcaseColdWake(row);
+  }
+});
+
+test.each(["disable", "upgrade", "uninstall"] as const)("%s during a deferred cold loader cannot publish a Worker or reach the retired bridge", {
+  timeout: 180_000,
+}, async (lifecycle) => {
+  let bridgeEffects = 0;
+  const base = bridge();
+  const staleBridge: PluginBridge = {
+    ...base,
+    variables: {
+      ...base.variables,
+      get: () => {
+        bridgeEffects += 1;
+        return Promise.resolve("stale");
+      },
+    },
+  };
+  let loaderStarted!: () => void;
+  const started = new Promise<void>((resolve) => {
+    loaderStarted = resolve;
+  });
+  let releaseLoader!: () => void;
+  const loaderGate = new Promise<void>((resolve) => {
+    releaseLoader = resolve;
+  });
+  const source = `
+      const h = orb.host(1);
+      void h.variables.get("activation");
+      h.tools.register({
+        name: "stale",
+        description: "stale",
+        parameters: { type: "object", properties: {} },
+        handler: async () => { await h.variables.get("invoke"); return "stale"; },
+      });`;
+  const host = createPluginHost(seams());
+  const victim = await host.createInstance({
+    ...durableSource(source, async () => {
+      loaderStarted();
+      await loaderGate;
+      return source;
+    }),
+    grants: ["tools.register", "global_vars"],
+    bridge: staleBridge,
+    chat: noChat,
+  });
+  if (!victim.ok) {
+    throw new Error(victim.error);
+  }
+  const handler = victim.instance.tools[0]?.handler;
+  if (handler === undefined) {
+    throw new Error("test: victim tool did not register");
+  }
+  const fillers: PluginInstance[] = [];
+  let replacement: PluginInstance | undefined;
+  try {
+    for (let index = 0; index < env.PLUGIN_BROKER_WORKER_MAX; index += 1) {
+      const filler = await host.createInstance({ ...durableSource(`'filler-${index}'`), grants: [], bridge: base, chat: noChat });
+      if (!filler.ok) {
+        throw new Error(filler.error);
+      }
+      fillers.push(filler.instance);
+    }
+    bridgeEffects = 0;
+    const invocation = host.invoke(victim.instance, handler, "{}", noChat);
+    await started;
+
+    // Disable and uninstall both terminate the resident. Upgrade does the same first, then publishes a
+    // replacement binding; the paused old loader must be unable to cross either lifecycle transition.
+    host.dispose(victim.instance);
+    if (lifecycle === "upgrade") {
+      const upgraded = await host.createInstance({
+        ...durableSource("'replacement';"),
+        grants: [],
+        bridge: base,
+        chat: noChat,
+      });
+      if (!upgraded.ok) {
+        throw new Error(upgraded.error);
+      }
+      replacement = upgraded.instance;
+    }
+    releaseLoader();
+
+    await expect(invocation).rejects.toThrow(/lifecycle changed/u);
+    expect(bridgeEffects).toBe(0);
+  } finally {
+    releaseLoader();
+    host.dispose(victim.instance);
+    if (replacement !== undefined) {
+      host.dispose(replacement);
+    }
+    for (const filler of fillers) {
+      host.dispose(filler);
+    }
+  }
+});
+
+test("dispose during cold activation retires the partially published runtime before replacement", { timeout: 180_000 }, async () => {
+  let activationCalls = 0;
+  const coldStarted = Promise.withResolvers<void>();
+  const coldGate = Promise.withResolvers<string | null>();
+  const base = bridge();
+  const runtimeBridge: PluginBridge = {
+    ...base,
+    variables: {
+      ...base.variables,
+      get: () => {
+        activationCalls += 1;
+        if (activationCalls === 1) {
+          return Promise.resolve("ready");
+        }
+        if (activationCalls === 2) {
+          coldStarted.resolve();
+          return coldGate.promise;
+        }
+        return Promise.resolve("invoked");
+      },
+    },
+  };
+  const source = `
+    const h = orb.host(1);
+    void (async () => {
+      await h.variables.get("activation");
+      h.tools.register({
+        name: "partial",
+        description: "partial",
+        parameters: { type: "object", properties: {} },
+        handler: async () => { await h.variables.get("invoke"); return "stale"; },
+      });
+    })().catch(() => {});`;
+  const host = createPluginHost(seams());
+  const victim = await host.createInstance({
+    ...durableSource(source),
+    grants: ["tools.register", "global_vars"],
+    bridge: runtimeBridge,
+    chat: noChat,
+  });
+  if (!victim.ok) {
+    throw new Error(victim.error);
+  }
+  const handler = victim.instance.tools[0]?.handler;
+  if (handler === undefined) {
+    throw new Error("test: partial tool did not register");
+  }
+  const fillers: PluginInstance[] = [];
+  let replacement: PluginInstance | undefined;
+  try {
+    for (let index = 0; index < env.PLUGIN_BROKER_WORKER_MAX; index += 1) {
+      const filler = await host.createInstance({
+        ...durableSource(`'partial-filler-${index}'`),
+        grants: [],
+        bridge: base,
+        chat: noChat,
+      });
+      if (!filler.ok) {
+        throw new Error(filler.error);
+      }
+      fillers.push(filler.instance);
+    }
+    const invocation = host.invoke(victim.instance, handler, "{}", noChat);
+    await coldStarted.promise;
+    host.dispose(victim.instance);
+    coldGate.resolve("ready");
+
+    await expect(invocation).rejects.toThrow();
+    expect(activationCalls).toBe(2);
+    const created = await host.createInstance({
+      ...durableSource("'replacement';"),
+      grants: [],
+      bridge: base,
+      chat: noChat,
+    });
+    expect(created.ok).toBe(true);
+    if (created.ok) {
+      replacement = created.instance;
+    }
+  } finally {
+    coldGate.resolve("ready");
+    host.dispose(victim.instance);
+    if (replacement !== undefined) {
+      host.dispose(replacement);
+    }
+    for (const filler of fillers) {
+      host.dispose(filler);
+    }
   }
 });

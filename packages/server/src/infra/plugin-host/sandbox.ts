@@ -522,15 +522,12 @@ export class Sandbox implements Disposable {
           () => undefined,
         ),
       );
+      const timeout = Promise.withResolvers<void>();
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
-        await Promise.race([
-          Promise.all(pending),
-          new Promise<void>((resolve) => {
-            timer = setTimeout(resolve, remainingMs);
-            timer.unref();
-          }),
-        ]);
+        timer = setTimeout(timeout.resolve, remainingMs);
+        timer.unref();
+        await Promise.race([Promise.all(pending), timeout.promise]);
       } finally {
         clearTimeout(timer);
       }

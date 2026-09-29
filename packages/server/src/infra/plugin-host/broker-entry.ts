@@ -1,29 +1,30 @@
+// infra/plugin-host/broker-entry — authenticated parent socket and physical Worker owner.
+// ASSUMES(single-replica): these maps own live Workers inside one broker; a multi-replica replacement is a
+// DB-backed runtime lease and command queue, while each Worker remains owned by exactly one broker process.
+
 import { randomBytes, randomUUID } from "node:crypto";
 import { chmodSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { createServer } from "node:net";
 import type { Socket } from "node:net";
+import { createServer } from "node:net";
 import { dirname } from "node:path";
 import process from "node:process";
 import { Worker } from "node:worker_threads";
-import type { BrokerBridgeResult, BrokerParentMessage, BrokerWorkerMessage, ParentBrokerMessage } from "./process-protocol.ts";
+import type { BrokerBridgeResult, BrokerParentMessage, BrokerWorkerMessage, ParentBrokerMessage, WorkerBrokerMessage } from "./contract/process-protocol.ts";
+import { parsePluginBrokerArguments } from "./process-argv.ts";
 import {
   encodeProcessValue,
-  parseMessageLine,
-  parseParentBrokerMessage,
-  parseWorkerBrokerMessage,
   PLUGIN_BROKER_MESSAGE_MAX_BYTES,
   PLUGIN_BROKER_PROTOCOL_VERSION,
   PLUGIN_BROKER_SYNC_TIMEOUT_MS,
+  parseMessageLine,
+  parseParentBrokerMessage,
+  parseWorkerBrokerMessage,
   rpcError,
   serializeMessage,
   tokenMatches,
 } from "./process-protocol.ts";
-import { resolvePluginBrokerWorkerMaximum } from "./worker-capacity.ts";
 import { PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS } from "./watchdog-policy.ts";
 
-const SOCKET_ENV = "PLUGIN_BROKER_SOCKET";
-const TOKEN_FILE_ENV = "PLUGIN_BROKER_TOKEN_FILE";
-const NODE_ENV = "NODE_ENV";
 const TOKEN_MIN_CHARS = 32;
 const TOKEN_MAX_CHARS = 128;
 const PRIVATE_MODE_BASE = 0o100;
@@ -31,20 +32,16 @@ const SYNC_TIMEOUT_MARGIN_MS = 500;
 const AUTH_TIMEOUT_MS = 5000;
 const PRIVATE_DIRECTORY_MODE = 0o700;
 const PRIVATE_FILE_MODE = 0o600;
-const { env: brokerEnvironment } = process;
-const socketPath = brokerEnvironment[SOCKET_ENV];
-const tokenPath = brokerEnvironment[TOKEN_FILE_ENV];
-if (socketPath === undefined || socketPath.length === 0 || tokenPath === undefined || tokenPath.length === 0) {
-  throw new Error(`plugin broker: ${SOCKET_ENV} and ${TOKEN_FILE_ENV} are required`);
-}
+const { socketPath, tokenPath, workerMaximum, nodeEnvironment } = parsePluginBrokerArguments(process.argv.slice(2));
 if (process.send !== undefined) {
   const heartbeat = setInterval(
     () =>
       process.send?.({
         kind: "plugin-broker-memory",
         rssBytes: process.memoryUsage.rss(),
+        peakPhysicalWorkers,
         execArgv: process.execArgv,
-        nodeOptions: brokerEnvironment["NODE_OPTIONS"] ?? null,
+        nodeOptions: null,
       }),
     PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS,
   );
@@ -90,13 +87,12 @@ type PendingBridge =
   | { readonly kind: "sync"; readonly runtimeId: string; readonly control: Int32Array; readonly result: Uint8Array; readonly timer: NodeJS.Timeout };
 
 const token = readOrCreateToken(tokenPath);
-const workerMaximum = resolvePluginBrokerWorkerMaximum(brokerEnvironment);
 const runtimes = new Map<string, Runtime>();
 const pendingBridge = new Map<string, PendingBridge>();
 let physicalWorkerCount = 0;
+let peakPhysicalWorkers = 0;
 let activeSocket: Socket | undefined;
 let authenticated = false;
-const exitOnParentDisconnect = brokerEnvironment["PLUGIN_BROKER_EXIT_ON_PARENT_DISCONNECT"] === "1";
 const socketIsNamedPipe = process.platform === "win32" && socketPath.startsWith("\\\\.\\pipe\\");
 
 function send(message: BrokerParentMessage): void {
@@ -167,8 +163,8 @@ function releaseWorkerSlot(runtime: Runtime): void {
 }
 
 function terminateDetached(worker: Worker): void {
+  // @orb-waive caught-failure-ownership(worker.terminate): detached termination fails the broker closed on the microtask queue. Ends if the queued throw is removed.
   worker.terminate().catch((error: unknown) => {
-    // @orb-waive caught-failure-ownership(error): detached termination cannot be awaited by the event callback, so its failure is rethrown on the broker microtask queue and fails the broker closed. Ends if the queued throw is removed.
     queueMicrotask(() => {
       throw error;
     });
@@ -202,10 +198,11 @@ function createRuntime(runtimeId: string): Runtime {
     workerData: { runtimeId },
     // The broker owns the socket and token-file path. A guest Worker needs neither, so do not inherit
     // process.env across this trust boundary even though QuickJS itself has no ambient Node surface.
-    env: { [NODE_ENV]: brokerEnvironment[NODE_ENV] ?? "production" },
+    env: { ["NODE_ENV"]: nodeEnvironment },
   });
   const runtime: Runtime = { worker, pendingCommands: new Map(), expectedExit: false, counted: true };
   physicalWorkerCount += 1;
+  peakPhysicalWorkers = Math.max(peakPhysicalWorkers, physicalWorkerCount);
   runtimes.set(runtimeId, runtime);
   worker.on("message", (value: unknown) => {
     const message = parseWorkerBrokerMessage(value);
@@ -409,9 +406,7 @@ const server = createServer((socket) => {
       activeSocket = undefined;
       authenticated = false;
       resetAll();
-      if (exitOnParentDisconnect) {
-        server.close(() => process.exit(0));
-      }
+      server.close(() => process.exit(0));
     }
   });
 });

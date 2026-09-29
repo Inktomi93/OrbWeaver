@@ -6,6 +6,8 @@
 //   - THE FUNNEL IS THE SAME ONE A FILE INSTALL RIDES: a malicious / non-zip payload is refused by `parseBundle`
 //     (`ManifestInvalidError`) before any write; the grant ⊆ declared check is `install`'s own
 //     (`CapabilityNotGrantedError`).
+//   - THE PREVIEW BINDS EXACT BYTES: script-only or manifest reach changes at a mutable URL are refused before
+//     the install funnel runs; a fresh preview supplies the retry identity.
 //   - THE ORIGIN IS HONEST (U8 2b): a URL install records `origin:"url"` + the fetch URL (so the update-check and
 //     one-click upgrade can re-fetch it), where a FILE install records `origin:"upload"` and no sourceUrl.
 //
@@ -18,11 +20,11 @@ import type { Db } from "@orb/db";
 import { plugins } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { CapabilityNotGrantedError, ManifestInvalidError, PluginBundleFetchError } from "@orb/server/domain/plugin";
+import { CapabilityNotGrantedError, ManifestInvalidError, PluginBundleFetchError, PluginBundlePreviewStaleError } from "@orb/server/domain/plugin";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
+import { hashBundle, makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const URL = "https://plugins.example.com/my-plugin.zip";
 
@@ -41,7 +43,12 @@ test("installFromUrl mints the CALLER's own disabled row through the same funnel
   const h = makePluginHarness(db, { fetchBundle: returns(bundle) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  const view = await h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, grant: ["chat.read"] });
+  const view = await h.service.installFromUrl({
+    caller: ownerPrincipalFor(owner),
+    url: URL,
+    expectedBundleHash: hashBundle(bundle),
+    grant: ["chat.read"],
+  });
 
   expect(view.status).toBe("disabled");
   // U8 2b — the origin is HONEST now ("url", not the 2a "upload" placeholder) and the fetch URL is REMEMBERED, so
@@ -49,12 +56,13 @@ test("installFromUrl mints the CALLER's own disabled row through the same funnel
   expect(view.origin).toBe("url");
   expect(view.sourceUrl).toBe(URL);
   const [row] = await db
-    .select({ ownerId: plugins.ownerId, origin: plugins.origin, sourceUrl: plugins.sourceUrl })
+    .select({ ownerId: plugins.ownerId, origin: plugins.origin, sourceUrl: plugins.sourceUrl, sourceCommit: plugins.sourceCommit })
     .from(plugins)
     .where(eq(plugins.id, view.id));
   expect(row?.ownerId).toBe(owner);
   expect(row?.origin).toBe("url");
   expect(row?.sourceUrl).toBe(URL);
+  expect(row?.sourceCommit).toBeNull();
 });
 
 test("a FILE install records origin 'upload' and NO sourceUrl (the update-check has nothing to re-fetch)", async () => {
@@ -70,10 +78,13 @@ test("a FILE install records origin 'upload' and NO sourceUrl (the update-check 
 
 test("installFromUrl grant ⊄ declared is refused by install's own consent check (CapabilityNotGrantedError)", async () => {
   const db = await freshDb();
-  const h = makePluginHarness(db, { fetchBundle: returns(makeBundle({ id: "scraper", capabilities: ["chat.read"] })) });
+  const bundle = makeBundle({ id: "scraper", capabilities: ["chat.read"] });
+  const h = makePluginHarness(db, { fetchBundle: returns(bundle) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  await expect(h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, grant: ["notify"] })).rejects.toBeInstanceOf(CapabilityNotGrantedError);
+  await expect(
+    h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, expectedBundleHash: hashBundle(bundle), grant: ["notify"] }),
+  ).rejects.toBeInstanceOf(CapabilityNotGrantedError);
 });
 
 test("installFromUrl on an SSRF-blocked fetch is a leak-free refusal AND persists NOTHING", async () => {
@@ -81,15 +92,57 @@ test("installFromUrl on an SSRF-blocked fetch is a leak-free refusal AND persist
   const h = makePluginHarness(db, { fetchBundle: blockedFetch });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  await expect(h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, grant: [] })).rejects.toBeInstanceOf(PluginBundleFetchError);
+  await expect(
+    h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, expectedBundleHash: hashBundle(new Uint8Array()), grant: [] }),
+  ).rejects.toBeInstanceOf(PluginBundleFetchError);
   expect(await ownedPluginCount(db, owner)).toBe(0);
 });
 
 test("installFromUrl on a malicious / non-zip payload persists NOTHING (parseBundle refuses before any write)", async () => {
   const db = await freshDb();
-  const h = makePluginHarness(db, { fetchBundle: returns(new TextEncoder().encode("PK corrupt")) });
+  const corrupt = new TextEncoder().encode("PK corrupt");
+  const h = makePluginHarness(db, { fetchBundle: returns(corrupt) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  await expect(h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, grant: [] })).rejects.toBeInstanceOf(ManifestInvalidError);
+  await expect(
+    h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, expectedBundleHash: hashBundle(corrupt), grant: [] }),
+  ).rejects.toBeInstanceOf(ManifestInvalidError);
+  expect(await ownedPluginCount(db, owner)).toBe(0);
+});
+
+test("installFromUrl refuses changed script bytes under the same manifest, then succeeds after a fresh preview", async () => {
+  const db = await freshDb();
+  const reviewed = makeBundle({ id: "scraper", capabilities: ["chat.read"] }, "orb.host(1).log.info('reviewed');");
+  const changed = makeBundle({ id: "scraper", capabilities: ["chat.read"] }, "orb.host(1).log.info('changed');");
+  let served = reviewed;
+  const h = makePluginHarness(db, { fetchBundle: () => Promise.resolve(served) });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const caller = ownerPrincipalFor(owner);
+  const firstPreview = await h.service.previewFromUrl({ caller, url: URL });
+
+  served = changed;
+  await expect(h.service.installFromUrl({ caller, url: URL, expectedBundleHash: firstPreview.bundleHash, grant: ["chat.read"] })).rejects.toBeInstanceOf(
+    PluginBundlePreviewStaleError,
+  );
+  expect(await ownedPluginCount(db, owner)).toBe(0);
+
+  const refreshed = await h.service.previewFromUrl({ caller, url: URL });
+  const installed = await h.service.installFromUrl({ caller, url: URL, expectedBundleHash: refreshed.bundleHash, grant: ["chat.read"] });
+  expect(installed.slug).toBe("scraper");
+  expect(await ownedPluginCount(db, owner)).toBe(1);
+});
+
+test("installFromUrl refuses a capability and net-host change before any grant or row is written", async () => {
+  const db = await freshDb();
+  let served = makeBundle({ id: "scraper", capabilities: ["net.fetch"], netHosts: ["reviewed.example"] });
+  const h = makePluginHarness(db, { fetchBundle: () => Promise.resolve(served) });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const caller = ownerPrincipalFor(owner);
+  const preview = await h.service.previewFromUrl({ caller, url: URL });
+
+  served = makeBundle({ id: "scraper", capabilities: ["notify", "net.fetch"], netHosts: ["changed.example"] });
+  await expect(h.service.installFromUrl({ caller, url: URL, expectedBundleHash: preview.bundleHash, grant: ["net.fetch"] })).rejects.toBeInstanceOf(
+    PluginBundlePreviewStaleError,
+  );
   expect(await ownedPluginCount(db, owner)).toBe(0);
 });

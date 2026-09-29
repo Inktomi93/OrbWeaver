@@ -6,14 +6,29 @@
 
 import type {
   PluginBuiltAgainst,
+  PluginBundleHash,
   PluginCapability,
   PluginCommandArgSpec,
+  PluginCommandPlacement,
   PluginLogLevel,
+  PluginManifest,
   PluginOrigin,
   PluginStatus,
   PluginSurfaceRegistrationMeta,
 } from "@orb/contracts/plugin";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
+
+/** A Git consent preview binds the displayed manifest to the exact cloned revision. */
+export interface PluginGitPreview {
+  readonly manifest: PluginManifest;
+  readonly sourceCommit: string;
+}
+
+/** A URL consent preview binds the displayed manifest to the complete fetched zip. */
+export interface PluginUrlPreview {
+  readonly manifest: PluginManifest;
+  readonly bundleHash: PluginBundleHash;
+}
 
 /** One installed plugin as its owner sees it — the `plugins` row projected, minus the bundle bytes
  *  and the full manifest json. `builtAgainst` is lifted from the persisted manifest (display/warn provenance);
@@ -34,19 +49,21 @@ export interface PluginView {
   readonly version: string;
   readonly status: PluginStatus;
   readonly origin: PluginOrigin;
-  /** The URL a `url`-origin install was fetched from (U8 2b) — what the auto update-check
+  /** The URL a `url` bundle or `git` repository install was fetched from — what the auto update-check
    *  re-fetches and what the one-click upgrade re-uses, so neither needs the owner to re-paste it. `null` for an
    *  `upload` install (the `origin ⟺ source_url` invariant: null exactly when `origin === "upload"`), which also
    *  tells a management surface whether to offer the "check for updates / update" affordance at all. */
   readonly sourceUrl: string | null;
+  readonly sourceCommit: string | null;
   /** WHERE a one-click update for this row would come from — `null` when nothing can serve one (#1740). ONE
-   *  question, answered once by the server, because the surface cannot answer half of it: `"url"` is derivable
-   *  from `origin`, but `"showcase"` is NOT — it means "this row is a SEEDED copy of a bundle this build ships"
+   *  question, answered once by the server, because the surface cannot answer half of it: `"url"` and `"git"`
+   *  are derivable from `origin`, but `"showcase"` is NOT — it means "this row is a SEEDED copy of a bundle this build ships"
    *  (`@orb/showcase-plugins`), and the shipped slug set is server-side content the client must never re-spell.
    *  A hand-uploaded plugin is `null` and keeps only the manual bundle upload.
    *
-   *  IT IS NOT A SECOND HOME FOR `origin`. `origin` records HOW THE BYTES ARRIVED (an immutable provenance fact
-   *  the db CHECK pairs with `source_url`); this records WHO CAN SERVE THE NEXT VERSION, which for a seeded row
+   *  IT IS NOT A SECOND HOME FOR `origin`. `origin` records HOW THE CURRENT BYTES ARRIVED (provenance updated
+   *  atomically with a bundle replacement, with its source fields held by db CHECKs); this records WHO CAN SERVE
+   *  THE NEXT VERSION, which for a seeded row
    *  is the app itself even though its bytes arrived as an `upload`. Collapsing them would either need a new
    *  origin member (breaking the `upload` ⟺ no-source-url invariant, and needing a backfill for every row seeded
    *  before #1740) or leave the client guessing from the slug. */
@@ -115,6 +132,12 @@ export interface PluginBundleAssetView {
   readonly assetId: AssetId;
 }
 
+/** Bytes served to an isolated frame after current ownership, consent, residency, path and MIME checks. */
+export interface PluginFrameAsset {
+  readonly bytes: Uint8Array;
+  readonly mime: "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+}
+
 /** One registered COMMAND as the CALLER's client sees it (`listCommands` U5). The
  *  registration meta (name/describe — the `onRun` handle stays server-side) plus the identity BOTH consuming
  *  surfaces need: the `pluginId` the invoke round-trip names, and the plugin's `slug` + `name`, which are the
@@ -135,6 +158,8 @@ export interface PluginCommandView {
    *  command declared none (its own opaque `args` grammar). BOTH consuming surfaces read it: the palette to build
    *  its typed input strip, the composer to parse/complete `name=value`. */
   readonly args: readonly PluginCommandArgSpec[];
+  readonly group: string | null;
+  readonly placements: readonly PluginCommandPlacement[];
 }
 
 /** One registered DISPLAY transform as the caller's client sees it (`listDisplayTransforms`
@@ -221,17 +246,19 @@ export interface SnippetResult {
   readonly errorLine?: number;
 }
 
-/** The two things that can serve a NEWER bundle for an installed row (#1740) — the axis
+/** The things that can serve a NEWER bundle for an installed row (#1740/#0081) — the axis
  *  {@link PluginView.updateSource} and the client's one-click affordance both dispatch on. ONE importable home
  *  (§5.5): `"url"` = the remembered `source_url` the install rode, re-fetched through the egress guard;
- *  `"showcase"` = the copy this build SHIPS (`@orb/showcase-plugins`), which is what makes a DIVERGED seeded
+ *  `"git"` = the remembered repository at a newer remote HEAD; `"showcase"` = the copy this build SHIPS
+ *  (`@orb/showcase-plugins`), which is what makes a DIVERGED seeded
  *  install updatable at all — the boot auto-upgrade deliberately passes over it, so the owner's own click is
  *  the only path left.
  *
  *  It deliberately does NOT re-spell `PLUGIN_ORIGINS`: same-looking members, different axis (origin = how the
- *  bytes arrived, this = who serves the next version), so it is its own tuple-free union rather than a subset
- *  alias of one that would drift the moment a `catalog` origin lands. */
-type PluginUpdateSource = "url" | "showcase";
+ *  bytes arrived, this = who serves the next version), so it has its own tuple-derived union rather than a
+ *  subset alias of one that would drift the moment a `catalog` origin lands. */
+const PLUGIN_UPDATE_SOURCES = ["url", "git", "showcase"] as const;
+type PluginUpdateSource = (typeof PLUGIN_UPDATE_SOURCES)[number];
 
 /** One plugin's update-check outcome. A discriminated union rather than a flat shape with an optional
  *  `newVersion`, so `newVersion` is present EXACTLY on `update-available` — a version can be neither forgotten
@@ -242,5 +269,13 @@ type PluginUpdateSource = "url" | "showcase";
  *  the batch as un-checkable rather than reporting a source failure that did not happen. */
 export type PluginUpdateCheck =
   | { readonly pluginId: PluginId; readonly status: "up-to-date" }
-  | { readonly pluginId: PluginId; readonly status: "update-available"; readonly newVersion: string }
+  | {
+      readonly pluginId: PluginId;
+      readonly status: "update-available";
+      readonly source: "url";
+      readonly newVersion: string;
+      readonly bundleHash: PluginBundleHash;
+    }
+  | { readonly pluginId: PluginId; readonly status: "update-available"; readonly source: "showcase"; readonly newVersion: string }
+  | { readonly pluginId: PluginId; readonly status: "source-changed"; readonly sourceCommit: string }
   | { readonly pluginId: PluginId; readonly status: "unreachable" };

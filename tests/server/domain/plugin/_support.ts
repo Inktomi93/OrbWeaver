@@ -1,7 +1,7 @@
 // Shared test harness for the domain/plugin slice (NOT a test file — no `.test` suffix). Builds a real-db
-// `PluginContext` with fakes at the edges per "fake at the edges, inject at the root". There is no `can()`
-// seam to inject: plugin authority is the OWNER-SCOPED ROW LOAD against the real db (D147), so the authority
-// decision is exercised for real by every test here rather than mocked. Also: a real assets fake that writes an `assets` row so the
+// `PluginContext` with fakes at the edges per "fake at the edges, inject at the root". Ordinary plugin authority
+// is the OWNER-SCOPED ROW LOAD (D147); local-filesystem source admission reads the Principal's peer-gated
+// `via` signal before touching the injected packer. Also: a real assets fake that writes an `assets` row so the
 // `plugins.bundle_asset_id` FK resolves + a reference-aware `reapOrphans` (mirrors `reapIfOrphan` — never reaps
 // a still-referenced bundle), the frozen clock + seeded ids, and a scriptable `PluginHostPort` fake. A separate
 // `makeSandboxPort` wires the REAL P1 `infra/plugin-host` `Sandbox` for the determinism-floor round-trip.
@@ -9,7 +9,8 @@
 import { createHash } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDef } from "@orb/contracts/inference";
-import type { PluginCapability, PluginInstance } from "@orb/contracts/plugin";
+import type { PluginBundleHash, PluginCapability, PluginInstance } from "@orb/contracts/plugin";
+import { pluginBundleHashSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { assets, pluginAssets, plugins } from "@orb/db";
 import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
@@ -47,6 +48,11 @@ import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
 export { seedUser } from "../embeddings/_support.ts";
+
+/** The wire identity a URL preview returns for these exact fixture bytes. */
+export function hashBundle(bytes: Uint8Array): PluginBundleHash {
+  return pluginBundleHashSchema.parse(createHash("sha256").update(bytes).digest("hex"));
+}
 
 /** Parse a `[level] message` host.log line back into a structured `PluginLogView`. */
 const LOG_LINE_RE = /^\[(info|warn|error)\]\s(.*)$/su;
@@ -179,6 +185,9 @@ export function makePluginHarness(
     /** The URL-install bundle fetch (U8 seam 15). Default REJECTS — a URL-install/upgrade suite injects its own
      *  (returning a bundle, or throwing to simulate an SSRF block), and every other suite never reaches it. */
     readonly fetchBundle?: PluginContext["fetchBundle"];
+    readonly development?: boolean;
+    readonly packPluginDirectory?: PluginContext["packPluginDirectory"];
+    readonly gitSource?: PluginContext["gitSource"];
     /** The SHOWCASE bundles the build "ships" (#1740). Default: SHIPS NOTHING — every suite that predates the
      *  showcase update path keeps projecting `updateSource: null` for its upload-origin rows, and a suite that
      *  exercises the path states its own shipped set with `makeBundle`, so the fixture versions are the test's
@@ -204,6 +213,7 @@ export function makePluginHarness(
   const clock = createFrozenClock(FROZEN_AT_MS);
   const ids = createSeededIds();
   const storedBytes = new Map<AssetId, Uint8Array>();
+  const storedMimes = new Map<AssetId, string>();
   const fakePort = makeFakePort();
 
   // CONTENT-ADDRESSED, like the real CAS: the id is a function of (owner, bytes), so re-storing identical
@@ -229,6 +239,7 @@ export function makePluginHarness(
     }
     const assetId = castId<AssetId>(ids.next("asset"));
     storedBytes.set(assetId, new Uint8Array(bytes));
+    storedMimes.set(assetId, mime);
     await db.insert(assets).values({ id: assetId, ownerId: caller.userId, kind: "plugin", mime, size: bytes.length, hash, uploadedAt: clock.now() });
     return { assetId, hash, size: bytes.length, created: true };
   };
@@ -237,7 +248,7 @@ export function makePluginHarness(
     if (bytes === undefined) {
       return Promise.reject(new Error(`asset ${assetId} not found`));
     }
-    return Promise.resolve({ bytes, mime: "application/zip" });
+    return Promise.resolve({ bytes, mime: storedMimes.get(assetId) ?? "application/octet-stream" });
   };
   // Reference-aware reap (mirrors reapIfOrphan): only delete an asset row still unreferenced by any plugins row
   // — the bundle FK — OR by any surviving `plugin_assets` fetch link (#802: a cover a SECOND plugin also fetched
@@ -249,6 +260,7 @@ export function makePluginHarness(
       const fetchRefs = await db.select({ id: pluginAssets.pluginId }).from(pluginAssets).where(eq(pluginAssets.assetId, assetId)).limit(1);
       if (refs.length === 0 && fetchRefs.length === 0) {
         storedBytes.delete(assetId);
+        storedMimes.delete(assetId);
         unreferenced.push(assetId);
       }
     }
@@ -265,6 +277,14 @@ export function makePluginHarness(
     // The URL-install bundle fetch (U8 seam 15). Default REJECTS: a suite exercising previewFromUrl/installFromUrl/
     // upgradeFromUrl injects its own (a bundle, or a throw simulating an SSRF block), and no other suite reaches it.
     fetchBundle: overrides.fetchBundle ?? (() => Promise.reject(new Error("test: fetchBundle not wired"))),
+    development: overrides.development ?? false,
+    packPluginDirectory: overrides.packPluginDirectory ?? (() => Promise.reject(new Error("test: packPluginDirectory not wired"))),
+    gitSource:
+      overrides.gitSource ??
+      ({
+        clone: () => Promise.reject(new Error("test: git clone not wired")),
+        head: () => Promise.reject(new Error("test: git head not wired")),
+      } satisfies PluginContext["gitSource"]),
     // The shipped showcase set (#1740) — EMPTY by default, so a suite that never mentions it sees exactly the
     // pre-#1740 behaviour (no row is a showcase row, `updateSource` is null, the batch check skips them).
     showcase: overrides.showcase ?? { slugs: new Set<string>(), bundle: () => Promise.resolve(null), version: () => Promise.resolve(null) },

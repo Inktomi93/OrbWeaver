@@ -1133,3 +1133,27 @@ test("#799: resolvePluginBoundBoolean is TRUE only on a real true — a binding 
   expect(resolvePluginBoundBoolean({ busy: 1 }, { $state: "busy" })).toBe(false);
   expect(resolvePluginBoundBoolean({ a: 5 }, { $state: "a.b" })).toBe(false);
 });
+
+test("#0237: command placements accept only the closed unique composer targets", () => {
+  const base = { name: "draw", describe: "Draw a card" };
+  expect(
+    pluginCommandRegistrationMetaSchema.safeParse({
+      ...base,
+      group: "Cards",
+      placements: [
+        { target: "composer-action", label: "Draw", icon: "star" },
+        { target: "composer-media", label: "Illustrate" },
+      ],
+    }).success,
+  ).toBe(true);
+  expect(pluginCommandRegistrationMetaSchema.safeParse({ ...base, placements: [{ target: "topbar", label: "Draw" }] }).success).toBe(false);
+  expect(
+    pluginCommandRegistrationMetaSchema.safeParse({
+      ...base,
+      placements: [
+        { target: "composer-action", label: "Draw" },
+        { target: "composer-action", label: "Again" },
+      ],
+    }).success,
+  ).toBe(false);
+});

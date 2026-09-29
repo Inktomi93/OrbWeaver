@@ -24,9 +24,10 @@ import { PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
 
 export function createInstall(ctx: PluginContext): PluginService["install"] {
   return async ({ caller, bundle, grant, source }: InstallPluginParams) => {
-    // Where the bytes came from. Absent ⇒ a file upload (the transport `install` proc + the admin fan-out);
-    // `installFromUrl` passes `{ origin:"url", sourceUrl:url }`. The pairing is the db CHECK's to enforce.
-    const { origin, sourceUrl } = source ?? { origin: "upload" as const, sourceUrl: null };
+    // Where the bytes came from. Absent ⇒ a file/folder/unpacked upload (the transport `install` proc + the
+    // admin fan-out); URL/Git callers carry their remembered source, with Git's exact resolved commit. The
+    // URL/commit pairings are the db CHECKs' to enforce.
+    const { origin, sourceUrl, sourceCommit } = source ?? { origin: "upload" as const, sourceUrl: null, sourceCommit: null };
     const { manifest, uiAssets } = parseBundle(bundle);
 
     const ungrantable = ungrantableCapabilities(manifest.capabilities, grant);
@@ -73,6 +74,7 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
       status: "disabled" as const,
       origin,
       sourceUrl,
+      sourceCommit,
       // Nothing to re-consent TO: the owner just chose this grant against this manifest — so no refusal is
       // recorded and there is no host delta to mark. This is also the arm that keeps a REINSTALL honest:
       // uninstall deletes the row, so installing the same slug again mints a fresh one, and the delta has to

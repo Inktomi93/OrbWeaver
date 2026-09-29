@@ -5,7 +5,8 @@
 // (`upload`) install of a plugin this build does not ship has neither a remembered source nor a bundled copy,
 // so it is simply ABSENT from the result rather than reported as a dishonest "unreachable".
 //
-// TWO SOURCES, ONE BATCH (#1740). A `url` row is re-fetched; a SEEDED SHOWCASE row (upload-origin, its slug in
+// THREE SOURCES, ONE BATCH (#1740/#0081). A `url` row is re-fetched; a `git` row asks for remote HEAD without
+// cloning; a SEEDED SHOWCASE row (upload-origin, its slug in
 // the set this build ships) is compared against the BUNDLED manifest version through the same injected reader
 // the boot seeder uses (`ctx.showcase.version` → `readShowcaseManifest`), so the check and the auto-upgrade can
 // never disagree about what ships. A PRISTINE seeded row needs no special case and gets none: the boot pass
@@ -19,7 +20,8 @@
 // block, a non-2xx, a network error (`fetchBundleThroughGuard` → `PluginBundleFetchError`) OR a remote that
 // served un-parseable bytes (`parseBundle` → `ManifestInvalidError`) — collapses to the ONE leak-free
 // `unreachable` arm: distinguishing "blocked" from "404" from "garbage" would re-open the SSRF oracle the
-// install funnel closed. Nothing is persisted; this verb only READS a version off the remote manifest.
+// install funnel closed. Nothing is persisted; this verb reads the version and exact-byte identity needed by
+// the later one-click upgrade.
 //
 // The checks run CONCURRENTLY (each url check is an independent owner-scoped fetch bounded by the guard's caps;
 // a showcase check is a local manifest read); the set is the caller's own checkable plugin count, a handful in
@@ -30,23 +32,34 @@ import type { CheckForUpdatesParams } from "../contract/params.ts";
 import type { PluginUpdateCheck } from "../contract/results.ts";
 import type { PluginContext, PluginService } from "../contract/service.ts";
 import { listOwned } from "../persistence/plugins.ts";
-import { fetchBundleThroughGuard, isVersionNewer, parseBundle } from "../substrate/manifest.ts";
+import { fetchBundleThroughGuard, hashPluginBundle, isVersionNewer, parseBundle } from "../substrate/manifest.ts";
 
 export function createCheckForUpdates(ctx: PluginContext): PluginService["checkForUpdates"] {
-  /** The URL arm — re-fetch the remembered source through the egress guard and read its version. */
+  /** The URL arm — re-fetch the remembered source through the egress guard and read its version + identity. */
   async function checkUrl(id: PluginId, sourceUrl: string, version: string): Promise<PluginUpdateCheck> {
     let remoteVersion: string;
+    let bundleHash: ReturnType<typeof hashPluginBundle>;
     try {
       const bytes = await fetchBundleThroughGuard(ctx.fetchBundle, sourceUrl);
       remoteVersion = parseBundle(bytes).manifest.version;
+      bundleHash = hashPluginBundle(bytes);
     } catch {
       // Leak-free: a fetch block, a non-2xx, or an un-parseable remote all collapse to the same arm — the
       // caller learns "couldn't determine", never what the URL resolved to (the no-SSRF-oracle posture).
       return { pluginId: id, status: "unreachable" };
     }
     return isVersionNewer(remoteVersion, version)
-      ? { pluginId: id, status: "update-available", newVersion: remoteVersion }
+      ? { pluginId: id, status: "update-available", source: "url", newVersion: remoteVersion, bundleHash }
       : { pluginId: id, status: "up-to-date" };
+  }
+
+  async function checkGit(id: PluginId, sourceUrl: string, sourceCommit: string): Promise<PluginUpdateCheck> {
+    try {
+      const remoteCommit = await ctx.gitSource.head(sourceUrl);
+      return remoteCommit === sourceCommit ? { pluginId: id, status: "up-to-date" } : { pluginId: id, status: "source-changed", sourceCommit: remoteCommit };
+    } catch {
+      return { pluginId: id, status: "unreachable" };
+    }
   }
 
   /** The SHOWCASE arm (#1740) — read the version off the bundle this build SHIPS. `null` means the shipped set
@@ -57,7 +70,9 @@ export function createCheckForUpdates(ctx: PluginContext): PluginService["checkF
     if (shipped === null) {
       return null;
     }
-    return isVersionNewer(shipped, version) ? { pluginId: id, status: "update-available", newVersion: shipped } : { pluginId: id, status: "up-to-date" };
+    return isVersionNewer(shipped, version)
+      ? { pluginId: id, status: "update-available", source: "showcase", newVersion: shipped }
+      : { pluginId: id, status: "up-to-date" };
   }
 
   return async ({ caller }: CheckForUpdatesParams): Promise<readonly PluginUpdateCheck[]> => {
@@ -68,6 +83,9 @@ export function createCheckForUpdates(ctx: PluginContext): PluginService["checkF
       // (or the reverse) is the defect this ordering forbids. A row with neither — a hand upload — is simply
       // absent from the batch, which is distinct from "unreachable".
       owned.flatMap((row) => {
+        if (row.origin === "git" && row.sourceUrl !== null && row.sourceCommit !== null) {
+          return [checkGit(row.id, row.sourceUrl, row.sourceCommit)];
+        }
         if (row.sourceUrl !== null) {
           return [checkUrl(row.id, row.sourceUrl, row.version)];
         }

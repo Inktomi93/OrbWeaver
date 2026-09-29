@@ -132,8 +132,20 @@ function assertReplaces(manifest: PluginManifest, existing: { readonly slug: str
   }
 }
 
+async function loadUpgradedView(
+  ctx: PluginContext,
+  callerId: UpgradePluginParams["caller"]["userId"],
+  pluginId: PluginId,
+): Promise<ReturnType<typeof toPluginView>> {
+  const row = await getById(ctx.db, callerId, pluginId);
+  if (row === undefined) {
+    throw new PluginNotFoundError(pluginId);
+  }
+  return toPluginView(row, ctx.showcase.slugs);
+}
+
 export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginService["upgrade"] {
-  return async ({ caller, pluginId, bundle }: UpgradePluginParams) => {
+  return async ({ caller, pluginId, bundle, source }: UpgradePluginParams) => {
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
       throw new PluginNotFoundError(pluginId);
@@ -141,6 +153,7 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
 
     const { manifest, uiAssets } = parseBundle(bundle);
     assertReplaces(manifest, existing);
+    const nextSource = source ?? { origin: "upload" as const, sourceUrl: null, sourceCommit: null };
 
     const newCaps = newlyDeclaredCapabilities(manifest.capabilities, existing.grantedCapabilities);
     // The egress half of the same re-consent rule. Compared against the PRIOR MANIFEST's `netHosts` (the row's
@@ -206,6 +219,7 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
           bundleAssetId: stored.assetId,
           grantedCapabilities: granted,
           status: "disabled",
+          ...nextSource,
           // RECORD THE SYSTEM'S OWN REFUSAL, here and nowhere else: this is the one moment the PRIOR manifest —
           // the only source of the "what widened" fact — still exists before being overwritten. Without the flag
           // a forced disable renders identically to the owner's own toggle-off, so the surface would present our
@@ -253,10 +267,6 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
     // pending state here; an upgrade that only cleared it corrects the standing row's number in place.
     await refreshConsentPrompt(ctx, caller.userId, refusal.pending && !existing.pendingReconsent);
 
-    const row = await getById(ctx.db, caller.userId, pluginId);
-    if (row === undefined) {
-      throw new PluginNotFoundError(pluginId);
-    }
-    return toPluginView(row, ctx.showcase.slugs);
+    return loadUpgradedView(ctx, caller.userId, pluginId);
   };
 }

@@ -108,10 +108,10 @@ export class WarmRuntimePool<T extends object> {
   }
 
   private startDrain(): void {
+    // @orb-waive caught-failure-ownership(this.drainChain): a drain failure rejects every queued caller, then leaves the chain usable for later lifecycle work. Ends if a queued request can remain unresolved.
     this.drainChain = this.drainChain
       .then(() => this.drain())
       .catch((error: unknown) => {
-        // @orb-waive caught-failure-ownership(error): the drain failure is delivered to every queued caller, then the handled chain remains usable for later lifecycle work. Ends if any queued request can remain unresolved after this block.
         const failure = error instanceof Error ? error : new Error("plugin host: runtime queue drain failed");
         for (const request of this.requests.splice(0)) {
           request.reject(failure);
@@ -203,10 +203,10 @@ export class WarmRuntimePool<T extends object> {
   }
 
   private retireCancelled(target: T): void {
+    // @orb-waive caught-failure-ownership(this.retire): failed terminal retirement cancels the target with the same error and releases the capacity reservation. Ends if acquire can proceed for the target.
     this.retire(target).then(
       () => this.finishRetirement(),
       (error: unknown) => {
-        // @orb-waive caught-failure-ownership(error): a failed terminal retirement permanently cancels this logical target with the same error and releases the capacity reservation. Ends if acquire can proceed for this target or the reservation is not released.
         this.cancelled.set(target, error instanceof Error ? error : new Error("plugin host: failed to retire a removed runtime"));
         this.finishRetirement();
       },
@@ -263,7 +263,6 @@ export class WarmRuntimePool<T extends object> {
     this.retiring += 1;
     try {
       await this.retire(candidate);
-      // @orb-waive caught-failure-ownership(error): a failed retirement marks the candidate unusable, rejects the queued wake that required its slot, and rethrows into the drain owner so every remaining waiter is rejected. Ends if any of those three ownership steps is removed.
     } catch (error) {
       const failure = error instanceof Error ? error : new Error("plugin host: failed to retire an idle runtime");
       this.cancelled.set(candidate, failure);

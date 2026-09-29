@@ -54,6 +54,7 @@ function pluginRow(status: "enabled" | "disabled"): PluginListRow {
     status,
     origin: "upload",
     sourceUrl: null,
+    sourceCommit: null,
     updateSource: null,
     declaredCapabilities: ["ui.surface"],
     grantedCapabilities: ["ui.surface"],

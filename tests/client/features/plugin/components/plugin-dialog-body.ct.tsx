@@ -166,7 +166,22 @@ test("a failed selected scripted dialog keeps attribution and retries into ready
 
 test("a scripted tool card replaces the generic record only after its guest publishes, then delivers local events", async ({ mount, page }) => {
   const surface = scriptedSurface(TOOL_PLUGIN_ID, "tool_panel", "tool-card", "Scripted draw");
-  await setupGuest(page, routes(TOOL_PLUGIN_ID, "Tool Plugin", surface), guestSource(surface.id, "Tool guest"));
+  const source = `
+    const ui = orb.ui(1);
+    let count = 0;
+    function draw() {
+      ui.render(${JSON.stringify(surface.id)}, { kind: "stack", children: [
+        { kind: "text", voice: "label", value: "Tool guest state " + count },
+        { kind: "text", voice: "body", value: { $state: "result.drawn" } },
+        { kind: "button", actionId: "advance", label: "Advance Tool guest" },
+      ]});
+    }
+    ui.onEvent((event) => {
+      if (event.event.type === "action" && event.event.actionId === "advance") { count += 1; draw(); }
+    });
+    draw();
+  `;
+  await setupGuest(page, routes(TOOL_PLUGIN_ID, "Tool Plugin", surface), source);
   const record: ToolCallRecord = {
     toolCallId: "call_scripted",
     name: TOOL_WIRE_NAME,
@@ -180,5 +195,6 @@ test("a scripted tool card replaces the generic record only after its guest publ
 
   await expect(component.getByRole("group", { name: "Tool Plugin — Scripted draw" })).toBeVisible();
   await expectGuestInteraction(page, "Tool guest");
+  await expect(component.getByText("The Road", { exact: true })).toBeVisible();
   await expect(component.locator('[data-slot="tool-call-block"]')).toHaveCount(0);
 });

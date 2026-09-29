@@ -1,4 +1,4 @@
-// The plugin feature's THREE chat-anchor contributions (U2, seam 7) — the door-side halves
+// The plugin feature's room and message chat-anchor contributions — the door-side halves
 // of the `chat-flank` and `chat-settings-section` plugin anchors (§4.5). plugin never imports chat and chat
 // never imports plugin: `compose/authed-app.tsx` owns both arrays and injects these members, exactly as it does
 // for automation's needle meter and this feature's own snippet console.
@@ -22,6 +22,7 @@
 import type { ReactElement } from "react";
 import type { ChatSettingsSectionContribution, ChatSurfaceContribution } from "#lib";
 import { PluginAnchoredSurfaces } from "../components/plugin-anchored-surfaces.tsx";
+import { PluginComposerActions, PluginComposerMediaItems } from "../components/plugin-composer-placements.tsx";
 import { PluginMessageFooterSurfaces } from "../components/plugin-message-footer-surfaces.tsx";
 
 /** The `chat-flank` anchor: plugin surfaces mounted beside the transcript, in the room's flank column. */
@@ -53,6 +54,18 @@ export const pluginMessageFooterSurface: ChatSurfaceContribution = {
   id: "pluginMessageFooter",
   anchor: "message-footer",
   body: (): ReactElement | null => <PluginMessageFooterSurfaces />,
+};
+
+export const pluginComposerActionSurface: ChatSurfaceContribution = {
+  id: "pluginComposerActions",
+  anchor: "composer-action",
+  body: ({ chatId }): ReactElement | null => (chatId === null ? null : <PluginComposerActions chatId={chatId} />),
+};
+
+export const pluginComposerMediaSurface: ChatSurfaceContribution = {
+  id: "pluginComposerMedia",
+  anchor: "composer-media",
+  body: ({ chatId }): ReactElement | null => (chatId === null ? null : <PluginComposerMediaItems chatId={chatId} />),
 };
 
 export const pluginChatSettingsSection: ChatSettingsSectionContribution = {

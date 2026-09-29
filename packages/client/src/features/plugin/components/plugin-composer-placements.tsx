@@ -8,8 +8,8 @@ import { Blocks, Icon } from "@orb/ui/icons";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { usePluginCommands, useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
+import { pluginCommandActionLabel, pluginCommandAttributedActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
 import { PLUGIN_ICON_GLYPHS } from "../lib/plugin-icon-glyphs.ts";
-import { pluginCommandActionLabel, pluginCommandAttribution, pluginCommandAttributedActionLabel } from "../lib/plugin-command-copy.ts";
 
 interface PlacedCommand {
   readonly command: ReturnType<typeof usePluginCommands>[number];
@@ -92,17 +92,29 @@ export function PluginComposerMediaItems({ chatId }: { readonly chatId: ChatId }
   if (placed.length === 0) {
     return null;
   }
+  const groups = groupPlacedCommands(placed);
   return (
     <>
       <MenuSeparator />
-      <MenuGroup>
-        <MenuGroupLabel>Plugin media</MenuGroupLabel>
-        {placed.map((item) => (
-          <MenuItem disabled={isPending} key={`${item.command.pluginId}:${item.command.name}`} onClick={(): void => run(item.command)}>
-            {pluginCommandAttributedActionLabel(item.command.pluginName, item.command.slug, item.command.group ?? "Commands", item.label)}
-          </MenuItem>
-        ))}
-      </MenuGroup>
+      {groups.map((group) => (
+        <MenuGroup key={group.id}>
+          <MenuGroupLabel>{group.label}</MenuGroupLabel>
+          {group.commands.map((item) => {
+            const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
+            return (
+              <MenuItem
+                aria-label={pluginCommandAttributedActionLabel(item.command.pluginName, item.command.slug, item.command.group ?? "Commands", item.label)}
+                disabled={isPending}
+                key={`${item.command.pluginId}:${item.command.name}`}
+                onClick={(): void => run(item.command)}
+              >
+                <Icon icon={glyph} size="sm" />
+                {pluginCommandActionLabel(item.label)}
+              </MenuItem>
+            );
+          })}
+        </MenuGroup>
+      ))}
     </>
   );
 }

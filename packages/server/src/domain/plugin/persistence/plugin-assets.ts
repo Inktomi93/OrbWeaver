@@ -78,3 +78,14 @@ export async function listPluginBundleAssets(db: Db, pluginId: PluginId): Promis
     .orderBy(pluginAssets.bundlePath);
   return rows.map((row) => ({ path: row.path, assetId: row.assetId }));
 }
+
+/** Resolve one exact admitted bundle path. The caller has already proved plugin ownership; returning only the
+ * linked id keeps caller-controlled paths from ever becoming CAS coordinates. */
+export async function getPluginBundleAssetId(db: Db, pluginId: PluginId, bundlePath: string): Promise<AssetId | undefined> {
+  const rows = await db
+    .select({ assetId: pluginAssets.assetId })
+    .from(pluginAssets)
+    .where(and(eq(pluginAssets.pluginId, pluginId), eq(pluginAssets.bundlePath, bundlePath)))
+    .limit(1);
+  return rows[0]?.assetId;
+}

@@ -33,61 +33,17 @@ import { getLog, superviseDetached } from "#foundation/observability";
 import { createAdmission } from "./admission.ts";
 import {
   EVENT_QUEUE_DEPTH,
+  PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX,
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
   PLUGIN_MEMORY_LIMIT_BYTES,
-  PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX,
   PLUGIN_SNIPPET_RUNTIME_MAX,
   SNIPPET_WALL_MS,
 } from "./budgets.ts";
+import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, PluginHostSeamDeps, PluginLogLineOut, SnippetRunOut } from "./contract/port.ts";
 import { getPluginQuickJS } from "./module.ts";
 import type { HostSeams, LogMirror } from "./realm.ts";
 import { Sandbox } from "./sandbox.ts";
-
-/** The determinism seams every instance's realm binds (the guest's ONLY clock/entropy/id — `test-determinism`).
- *  Injected at compose (production wall-clock/PRNG; a frozen clock in tests). */
-export interface PluginHostSeamDeps {
-  readonly nowEpochMs: () => number;
-  readonly nextRandom: () => number;
-  readonly mintId: () => string;
-  /** Receives accepted guest log lines when the runtime lives outside the app process. */
-  readonly mirrorLog?: (label: string, level: PluginLogLevel, message: string) => void;
-}
-
-/** The Worker-wire create input. The process adapter strips the domain's durable source-loader operation before
- *  serialization and sends only the freshly loaded `mainJs` plus membrane wiring. The
- *  built (grants + the pre-gated bridge). `chat` is the activation-run scope (`null` for an installed plugin —
- *  its `main.js` registers handlers, it does not operate on a chat; set for a snippet's single run). */
-export interface CreateInstanceInputIn {
-  readonly mainJs: string;
-  readonly grants: readonly PluginCapability[];
-  readonly bridge: PluginBridge;
-  readonly chat: InvocationChat | null;
-  /** The manifest's declared `net.fetch` allowlist (plain-string DATA the domain forwards from the validated
-   *  manifest) — the SSRF wall for `net.fetch`. Omitted ⇒ `[]` (fail-closed: no host reachable). NEVER
-   *  guest-supplied, NEVER `ANY_HOST`. */
-  readonly netHosts?: readonly string[];
-  /** Per-instance DoS budgets (the domain leaves them absent → the shared defaults). `settleGraceMs` is the
-   *  grace above `cpuDeadlineMs` before an invocation is force-ENDED in real time; absent ⇒
-   *  `HOST_FN_DEADLINE_MS`. */
-  readonly budgets?: { readonly cpuDeadlineMs: number; readonly memoryLimitBytes: number; readonly settleGraceMs?: number };
-  /** The tag every guest log line carries into the CENTRAL pino stream (`{ plugin: label }`) — plain-string
-   *  DATA the domain forwards from the re-validated manifest (its slug; the `netHosts` posture — never
-   *  guest-supplied). Absent ⇒ no mirror at all (a snippet has no manifest and its lines go back to the caller);
-   *  a label is never invented here. */
-  readonly label?: string;
-}
-
-/** One log line as the domain reads it (structurally the domain's `PluginLogView`). */
-export interface PluginLogLineOut {
-  readonly level: PluginLogLevel;
-  readonly message: string;
-  readonly at: number;
-}
-
-export type CreateInstanceOutcomeOut =
-  | { readonly ok: true; readonly instance: PluginInstance }
-  | { readonly ok: false; readonly error: string; readonly log: readonly PluginLogLineOut[] };
 
 /** Parse a `[level] message` ring line back into a structured log view; the stamp is the activation clock. */
 const LOG_LINE_RE = /^\[(info|warn|error)\]\s(.*)$/su;
@@ -197,17 +153,6 @@ function retainLog(resident: Resident, lines: readonly string[], at: number): vo
     const evicted = resident.log.shift();
     resident.chars -= evicted === undefined ? 0 : evicted.message.length;
   }
-}
-
-/** The inline-snippet run's outcome — a transient one-shot, no residency: the drained `[level] msg` log
- *  lines + an `error` iff the snippet threw / hit its 5 s wall. `errorKind`/`errorLine` mirror
- *  `GuestError.line` + the `SyntaxError`-caught-before-any-execution distinction (see `SnippetResult`
- *  for the full "didn't run vs ran empty" rationale). Structurally the domain's `SnippetResult`. */
-export interface SnippetRunOut {
-  readonly logLines: readonly string[];
-  readonly error?: string;
-  readonly errorKind?: "parse" | "runtime";
-  readonly errorLine?: number;
 }
 
 /** The push-time tap into the ONE pino stream (file log + the `/api/_debug/logs` ring) for a labelled instance:

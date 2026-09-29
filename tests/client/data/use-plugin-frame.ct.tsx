@@ -1,5 +1,5 @@
-// CT: the plugin-frame MINT MEMO (#1486). The unit file beside this one pins `mintPluginFrame`'s
-// degrade-to-`undefined` contract; what only a mount can reach is what the HOOK does with that `undefined`.
+// CT: the plugin-frame HANDLE LIFECYCLE. The unit file beside this one pins the request shapes; what only a
+// mount can reach is teardown of an already-minted handle and a later remount.
 //
 // Worse here than for a card, because a plugin frame has NO floor: `undefined` means the surface renders
 // NOTHING (§4.9). So a memo that keeps a failed mint doesn't degrade a surface for one bad second — it
@@ -38,11 +38,16 @@ test("a FAILED mint is not remembered as an answer — the surface can come back
   expect(posts, "the second attempt must reach the wire — a cached failure would have answered it").toBe(2);
 });
 
-test("a GRANTED mint IS remembered — the memo still exists, and a re-read costs no request", async ({ mount, page }) => {
+test("a GRANTED handle is revoked on teardown and a remount gets a fresh handle", async ({ mount, page }) => {
   let posts = 0;
+  let deletes = 0;
   await page.route(`**${PLUGIN_FRAME_ROUTE}`, async (route) => {
     posts += 1;
     await route.fulfill({ status: 200, contentType: "application/json", body: GRANTED });
+  });
+  await page.route(`**${MINTED_URL}`, async (route) => {
+    deletes += 1;
+    await route.fulfill({ status: 204 });
   });
 
   await mount(<PluginFrameMemoStory />);
@@ -50,7 +55,6 @@ test("a GRANTED mint IS remembered — the memo still exists, and a re-read cost
 
   await page.getByTestId("ct-remount-frame").click();
   await expect(page.getByTestId("frame-src")).toHaveText(MINTED_URL);
-  // The positive control for the test above: eviction is the FAILURE path only, never a memo that forgot
-  // how to memoize (which would mint a fresh document per paint).
-  expect(posts).toBe(1);
+  expect(posts).toBe(2);
+  expect(deletes).toBe(1);
 });

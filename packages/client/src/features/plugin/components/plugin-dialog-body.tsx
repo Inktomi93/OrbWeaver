@@ -51,7 +51,7 @@ export function PluginDialogBody(): ReactElement {
       <QueryErrorState
         label="this plugin dialog"
         onRetry={(): void => {
-          void Promise.all([surfacesQuery.refetch(), pluginsQuery.refetch()]);
+          void Promise.all([surfacesQuery.refetch(), pluginsQuery.refetch()]).catch((error: unknown) => globalThis.reportError(error));
         }}
       />
     );

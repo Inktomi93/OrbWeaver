@@ -176,9 +176,9 @@ function PluginSurfaceForm({ pluginId, surfaceId, spec, anchor, chatId, sink, st
   // No manual memoization — the React Compiler memoizes compiled files. The walk/the Map are pure functions
   // of their inputs, so the Compiler caches them across renders on its own.
   // The published-plane state read. It fires ONLY for a surface that has NEITHER its own binding root (a
-  // tool-card, U3 — `boundState`) NOR a client-side guest (Tier C, U4 — `sink`): a scripted surface's state lives
-  // in its guest and a card's lives in its call record, so for both the server read must not fire at all — not
-  // merely be ignored. `enabled` disables it (keeping the Tier-C ZERO-NETWORK claim honest and a card query-free),
+  // tool-card, U3 — `boundState`) NOR a client-side guest (Tier C, U4 — `sink`): a scripted surface's state is
+  // supplied by its guest mount (including a tool card's per-call record), so for both the server read must not
+  // fire at all — not merely be ignored. `enabled` disables it (keeping the Tier-C ZERO-NETWORK claim honest),
   // and `chatId` (row 777) scopes a room-anchored read. (The hook is unconditional; only `enabled` moves.)
   // It reads ABOVE the image sweep because the sweep now takes the state (#774 ARM C): a bound grid's covers
   // and a bound image's asset live in state, and ids the sweep never saw would never paint.

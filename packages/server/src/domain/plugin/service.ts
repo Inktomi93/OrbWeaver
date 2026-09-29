@@ -4,8 +4,10 @@
 // (typed return → a missing/renamed verb fails `tsc`). The context (db + injected clock/id seams + the CAS
 // ops + the `PluginHostPort` runtime + the `PluginHostOps` op bundle + the belts) is built at the entry
 // composition root and passed in — plugin sideways-imports nothing. Every PER-ROW management verb's authority
-// is the owner-scoped row load, not a role gate (D147 clause (a)). The exception is the DISTRIBUTION trio
-// (`installForAllUsers`/`uninstallForAllUsers`/`listDistributedPlugins`, D147 clause (d)), whose question is
+// is the owner-scoped row load, not a role gate (D147 clause (a)). The local-filesystem source door is admitted
+// only for a development request whose Principal came through the peer-gated fallback path, before I/O. The
+// other exception is the DISTRIBUTION trio (`installForAllUsers`/`uninstallForAllUsers`/
+// `listDistributedPlugins`, D147 clause (d)), whose question is
 // global — "may this caller publish to the deployment" — and whose gate therefore arrives in a SEPARATE
 // `PluginDistributionDeps` parameter rather than in the context every verb shares.
 
@@ -16,13 +18,16 @@ import type { PluginContext, PluginDistributionDeps, PluginProviderLifecycle, Pl
 import { createPluginLifecycleLanes } from "./substrate/lifecycle-lanes.ts";
 import { createApplyDistributedPlugins } from "./verbs/apply-distributed-plugins.ts";
 import { createCheckForUpdates } from "./verbs/check-for-updates.ts";
+import { createGetFrameAsset } from "./verbs/get-frame-asset.ts";
 import { createGetFrameBody } from "./verbs/get-frame-body.ts";
 import { createGetPluginLog } from "./verbs/get-plugin-log.ts";
 import { createGetSurfaceState } from "./verbs/get-surface-state.ts";
 import { createGetUiBundle } from "./verbs/get-ui-bundle.ts";
+import { createGitSource } from "./verbs/git-source.ts";
 import { createInstall } from "./verbs/install.ts";
 import { createInstallForAllUsers } from "./verbs/install-for-all-users.ts";
 import { createInstallFromUrl } from "./verbs/install-from-url.ts";
+import { createInstallUnpacked } from "./verbs/install-unpacked.ts";
 import { createInvokeUiAction } from "./verbs/invoke-ui-action.ts";
 import { createInvokeUiCommand } from "./verbs/invoke-ui-command.ts";
 import { createListBundleAssets } from "./verbs/list-bundle-assets.ts";
@@ -76,17 +81,21 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
   const rawUninstall = createUninstall(ctx, { deactivate });
   const uninstall: PluginService["uninstall"] = (params) => lanes.run(params.pluginId, () => rawUninstall(params));
   const fanout = { ...distribution, install, setGrant };
+  const gitSource = createGitSource(ctx, { install, upgrade });
   return {
     install,
     upgrade,
-    // U8 seam 15 — the URL-install/update funnel. `previewFromUrl` fetches+parses (the consent-screen + update-
-    // version primitive); `installFromUrl`/`upgradeFromUrl` fetch through the egress guard then delegate to the
-    // funnel above (upgrade keeps #615's reach-widening→disabled wall). All three ride `ctx.fetchBundle`.
+    installUnpacked: createInstallUnpacked(ctx, { install, upgrade }),
+    ...gitSource,
+    // U8 seam 15 — the URL-install/update funnel. `previewFromUrl` returns the consent manifest plus exact-byte
+    // identity; `installFromUrl`/`upgradeFromUrl` require that identity, re-fetch through the egress guard, and
+    // delegate only after it matches. Upgrade keeps #615's reach-widening→disabled wall.
     previewFromUrl: createPreviewFromUrl(ctx),
     installFromUrl: createInstallFromUrl(ctx, { install }),
     upgradeFromUrl: createUpgradeFromUrl(ctx, { upgrade }),
-    // U8 2b — the auto update-check + the true one-click upgrade (re-paste-free, from the STORED sourceUrl). Both
-    // ride `ctx.fetchBundle`; `upgradeFromStoredUrl` delegates to the SAME `upgrade` (keeping #615's wall).
+    // U8 2b — the auto update-check returns exact-byte identity for the true one-click upgrade (re-paste-free,
+    // from the STORED sourceUrl). Both ride `ctx.fetchBundle`; the upgrade delegates only after an identity
+    // match, keeping #615's wall.
     checkForUpdates: createCheckForUpdates(ctx),
     upgradeFromStoredUrl: createUpgradeFromStoredUrl(ctx, { upgrade }),
     // …and its SEEDED-EXAMPLE twin (#1740): the same one-click, sourced from the bundle this build ships
@@ -113,6 +122,7 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
     // U7 — the frame doorway's ONE read. Same registry, same owner-scoped gate, plus a per-call re-check of the
     // row's live `ui.frame` grant (a resident instance outlives a re-grant).
     getFrameBody: createGetFrameBody(ctx, registry),
+    getFrameAsset: createGetFrameAsset(ctx, registry),
     invokeUiAction: createInvokeUiAction(ctx, registry),
     // TIER C (U4). `uiHostCall` needs NO registry — it re-gates and calls the bridge directly, so a proxied read
     // works whether or not the plugin's server guest happens to be mid-invocation. `reportUiCrash` closes over

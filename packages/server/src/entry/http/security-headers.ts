@@ -85,6 +85,10 @@ import { requestTransport } from "#infra/auth";
 // not fail loudly, it would silently serve that document under the app policy.
 const CARD_FRAME_DOC_PREFIX = `${CARD_FRAME_ROUTE}/`;
 const OWN_POLICY_DOC_PREFIXES = [CARD_FRAME_DOC_PREFIX, PLUGIN_FRAME_DOC_PREFIX] as const;
+const PLUGIN_FRAME_ASSET_SUFFIX = "/asset";
+const CROSS_ORIGIN_RESOURCE_POLICY = "Cross-Origin-Resource-Policy";
+const CROSS_ORIGIN = "cross-origin";
+const OK_STATUS = 200;
 
 /**
  * THE EXEMPTION IS A ROUTE-PATTERN MATCH, NEVER A PREFIX TEST (#1409). Both frame documents are registered
@@ -120,6 +124,16 @@ function servesOwnPolicy(path: string): boolean {
     const id = path.slice(prefix.length);
     return id.length > 0 && !id.includes("/");
   });
+}
+
+// The sandboxed plugin document has an opaque origin, so its passive asset fetch needs CORP cross-origin.
+// Match the registered `/:id/asset` shape exactly; descendants and misses keep the app's default policy.
+function servesPluginFrameAsset(path: string): boolean {
+  if (!(path.startsWith(PLUGIN_FRAME_DOC_PREFIX) && path.endsWith(PLUGIN_FRAME_ASSET_SUFFIX))) {
+    return false;
+  }
+  const id = path.slice(PLUGIN_FRAME_DOC_PREFIX.length, -PLUGIN_FRAME_ASSET_SUFFIX.length);
+  return id.length > 0 && !id.includes("/");
 }
 
 /** The header {@link securityHeaders} reads to decide whether an exempt path's response actually came from
@@ -253,11 +267,26 @@ export function securityHeaders(opts: SecurityHeadersOptions): MiddlewareHandler
     return opts.allowExternalMedia() ? arm.allowed : arm.blocked;
   };
   return async (c, next) => {
-    if (!servesOwnPolicy(c.req.path)) {
+    const ownPolicy = servesOwnPolicy(c.req.path);
+    const pluginFrameAsset = servesPluginFrameAsset(c.req.path);
+    if (!(ownPolicy || pluginFrameAsset)) {
       await appPolicy(c)(c, next);
       return;
     }
     await next();
+    if (ownPolicy && c.res.headers.has(OWN_POLICY_HEADER)) {
+      return;
+    }
+    if (pluginFrameAsset) {
+      // Read the handler's authorization result before secureHeaders overwrites CORP. Only the successful
+      // passive-asset response carries this value; every refusal is stamped with the normal app policy below.
+      const allowOpaqueFrame = c.res.status === OK_STATUS && c.res.headers.get(CROSS_ORIGIN_RESOURCE_POLICY) === CROSS_ORIGIN;
+      await appPolicy(c)(c, RESPONSE_ALREADY_PRODUCED);
+      if (allowOpaqueFrame) {
+        c.res.headers.set(CROSS_ORIGIN_RESOURCE_POLICY, CROSS_ORIGIN);
+      }
+      return;
+    }
     if (!c.res.headers.has(OWN_POLICY_HEADER)) {
       // `hono/secure-headers` awaits its `next` and then `.set()`s onto `c.res`, so handing it a spent
       // chain writes the app headers onto the already-produced response without re-running anything.

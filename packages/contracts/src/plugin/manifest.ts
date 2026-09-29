@@ -151,7 +151,7 @@ export const PLUGIN_SLUG_MAX = 20;
  *  that separator's own `+1` immediately cancels, which is why the formula below has no `-1`/`+1` of its
  *  own. Raising `PLUGIN_SLUG_MAX` automatically SHRINKS this instead of silently reopening the overrun
  *  #1803 fixes. Every showcase tool name (`advance_clock`, 13 bytes,
- *  `packages/showcase-plugins/bundles/story-clocks/main.js`) clears it with margin. Consumed by
+ *  `packages/showcase-plugins/bundles/story-clocks/main.ts`) clears it with margin. Consumed by
  *  `PLUGIN_TOOL_NAME_RE` (`ui.ts`) — the SAME grammar the membrane's `tools.register` trust boundary and
  *  the `tool-card` surface's `toolName` linkage both enforce (one grammar, both boundaries). */
 export const PLUGIN_TOOL_NAME_LOCAL_MAX = PLUGIN_TOOL_WIRE_NAME_MAX - PLUGIN_TOOL_WIRE_NAME_PREFIX_LEN - 2 * PLUGIN_SLUG_MAX;
@@ -242,6 +242,21 @@ export const PLUGIN_MAIN_ENTRY = "main.js";
  *  three "ui.js" literals that can drift apart (the allow-list IS the path-traversal wall: only exact names are
  *  ever admitted, so a name that drifts silently un-admits a real entry or admits an unintended one). */
 export const PLUGIN_UI_ENTRY = "ui.js";
+
+/** The compressed install unit's byte ceiling. Shared by every producer and consumer of bundle bytes so a
+ * folder packer, a git transport, a browser preview and the authoritative server funnel cannot disagree. */
+export const PLUGIN_BUNDLE_MAX_BYTES = 1_048_576;
+/** The exact SHA-256 identity of one fetched plugin bundle. URL consent echoes this value so the server can
+ *  refuse when the bytes at the source move between preview/check and install/upgrade. */
+export type PluginBundleHash = Branded<"PluginBundleHash">;
+export const pluginBundleHashSchema = z
+  .string()
+  .regex(/^[0-9a-f]{64}$/u)
+  .pipe(brandedId<PluginBundleHash>()) satisfies z.ZodType<PluginBundleHash, string>;
+/** The decompressed ceiling for either guest script entry. */
+export const PLUGIN_SCRIPT_ENTRY_MAX_BYTES = 1_048_576;
+/** The decompressed ceiling for `manifest.json`. */
+export const PLUGIN_MANIFEST_ENTRY_MAX_BYTES = 65_536;
 
 /** The zip's optional BUNDLE-ASSET directory (#820, seam 11) — the ONE prefix under which a bundle may ship
  *  static IMAGE bytes (a sprite pack, decorative art) that `install`/`upgrade` extract into the INSTALLER's own

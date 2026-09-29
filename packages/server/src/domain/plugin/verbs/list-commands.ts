@@ -21,7 +21,16 @@ function toView(pluginId: PluginId, slug: string, pluginName: string, command: P
   // `args` is projected verbatim (the #791 typed-arg grammar) — empty when the command declared none, so a
   // client can build its input strip / completion off exactly what the guest registered. The `onRun` handle
   // stays server-side (never projected), exactly as before.
-  return { pluginId, slug, pluginName, name: command.name, describe: command.describe, args: command.args ?? [] };
+  return {
+    pluginId,
+    slug,
+    pluginName,
+    name: command.name,
+    describe: command.describe,
+    args: command.args ?? [],
+    group: command.group ?? null,
+    placements: command.placements ?? [],
+  };
 }
 
 export function createListCommands(ctx: PluginContext, registry: PluginRegistry): PluginService["listCommands"] {

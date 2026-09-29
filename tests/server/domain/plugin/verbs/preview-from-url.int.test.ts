@@ -1,5 +1,5 @@
-// verb test: previewFromUrl (U8, seam 15 — the consent-screen + update-version primitive).
-// READ-ONLY: fetch a bundle through the EGRESS GUARD and return its MANIFEST; nothing persists. The walls this
+// verb test: previewFromUrl (U8, seam 15 — the consent-screen identity primitive).
+// READ-ONLY: fetch a bundle through the EGRESS GUARD and return its manifest plus exact hash; nothing persists. The walls this
 // file pins, red-first where the wall is the point:
 //   - THE EGRESS GUARD IS THE WALL: any fetch failure — the SSRF-block shape included — collapses to a LEAK-FREE
 //     `PluginBundleFetchError` (the underlying reason never crosses into the message).
@@ -16,7 +16,7 @@ import { castId } from "@orb/kit/ids";
 import { ManifestInvalidError, PluginBundleFetchError } from "@orb/server/domain/plugin";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
+import { hashBundle, makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const URL = "https://plugins.example.com/my-plugin.zip";
 
@@ -27,18 +27,19 @@ const returns = (bytes: Uint8Array) => (): Promise<Uint8Array> => Promise.resolv
  *  prove that detail never reaches the caller-facing `PluginBundleFetchError`. */
 const blockedFetch = (): Promise<Uint8Array> => Promise.reject(new Error("SSRF_BLOCKED: collector.internal → 10.1.2.3 (private-address)"));
 
-test("previewFromUrl returns the fetched manifest (the consent screen reads its declared capabilities)", async () => {
+test("previewFromUrl returns the fetched manifest and exact bundle identity", async () => {
   const db = await freshDb();
   const bundle = makeBundle({ id: "hub-scraper", version: "2.1.0", capabilities: ["chat.read", "net.fetch"], netHosts: ["api.hub.example"] });
   const h = makePluginHarness(db, { fetchBundle: returns(bundle) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  const manifest = await h.service.previewFromUrl({ caller: ownerPrincipalFor(owner), url: URL });
+  const preview = await h.service.previewFromUrl({ caller: ownerPrincipalFor(owner), url: URL });
 
-  expect(manifest.id).toBe("hub-scraper");
-  expect(manifest.version).toBe("2.1.0");
-  expect(manifest.capabilities).toEqual(["chat.read", "net.fetch"]);
-  expect(manifest.netHosts).toEqual(["api.hub.example"]);
+  expect(preview.manifest.id).toBe("hub-scraper");
+  expect(preview.manifest.version).toBe("2.1.0");
+  expect(preview.manifest.capabilities).toEqual(["chat.read", "net.fetch"]);
+  expect(preview.manifest.netHosts).toEqual(["api.hub.example"]);
+  expect(preview.bundleHash).toBe(hashBundle(bundle));
 });
 
 test("previewFromUrl on a malicious / non-zip payload is refused by the SAME funnel (ManifestInvalidError)", async () => {

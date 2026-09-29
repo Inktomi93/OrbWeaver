@@ -209,7 +209,7 @@ function PluginDistributeBody(): ReactElement {
                   <ConfirmDialog
                     confirmLabel="Stop giving it out"
                     description={`This removes ${row.name} ${row.version} from every account that still has the distributed version and stops adding it to new accounts. Copies people updated themselves stay installed.`}
-                    onConfirm={() =>
+                    onConfirm={(): Promise<void> =>
                       withdraw.mutateAsync({ slug: row.slug }).then((result): void => {
                         notify.success(withdrawSentence(result, row.name));
                       })

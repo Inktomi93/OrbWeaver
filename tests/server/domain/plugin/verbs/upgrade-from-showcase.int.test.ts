@@ -17,7 +17,7 @@ import { PluginNotFoundError, PluginNotShowcaseError } from "@orb/server/domain/
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeBundle, makePluginHarness, makeShowcaseShipping, ownerPrincipalFor, seedUser } from "../_support.ts";
+import { hashBundle, makeBundle, makePluginHarness, makeShowcaseShipping, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const SLUG = "oracle-deck";
 
@@ -80,13 +80,19 @@ test("upgradeFromShowcase on a plugin this build ships no bundle for is a typed 
 
 test("upgradeFromShowcase refuses a URL install whose slug collides with a shipped one — that source is the owner's own", async () => {
   const db = await freshDb();
+  const bundle = makeBundle({ id: SLUG, version: "1.1.0" });
   const h = makePluginHarness(db, {
-    fetchBundle: () => Promise.resolve(makeBundle({ id: SLUG, version: "1.1.0" })),
+    fetchBundle: () => Promise.resolve(bundle),
     showcase: makeShowcaseShipping([{ id: SLUG, version: "1.2.0" }]),
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const caller = ownerPrincipalFor(owner);
-  const fromUrl = await h.service.installFromUrl({ caller, url: "https://plugins.example.com/oracle-deck.zip", grant: [] });
+  const fromUrl = await h.service.installFromUrl({
+    caller,
+    url: "https://plugins.example.com/oracle-deck.zip",
+    expectedBundleHash: hashBundle(bundle),
+    grant: [],
+  });
 
   // Their remembered source stays the update path (`updateSource: "url"`), and our copy may not be swapped under
   // it — the same "they have taken it over" posture the seeder's divergence oracle holds.

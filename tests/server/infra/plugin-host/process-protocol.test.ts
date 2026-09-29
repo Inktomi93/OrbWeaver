@@ -1,8 +1,8 @@
 import {
+  PLUGIN_BROKER_MESSAGE_MAX_BYTES,
   parseBrokerParentMessage,
   parseMessageLine,
   parseParentBrokerMessage,
-  PLUGIN_BROKER_MESSAGE_MAX_BYTES,
   serializeMessage,
   tokenMatches,
 } from "../../../../packages/server/src/infra/plugin-host/process-protocol.ts";
