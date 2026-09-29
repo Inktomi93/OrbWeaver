@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 648,
+    "sites": 650,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 648,
+      "deliberate-absorb": 650,
       "unproven": 0
     },
     "byGrammar": {
       "default": 154,
-      "empty": 334,
+      "empty": 336,
       "promise": 160
     }
   },
@@ -3099,6 +3099,16 @@
       "siteId": "tooling/src/verify/lib/schema-fact.ts::createSchemaQuery::error::1",
       "verdict": "deliberate-absorb",
       "reason": "drizzle column parse error: surfaced as a structured tool-error in the schema-fact report; the broken column is excluded from the fact census"
+    },
+    {
+      "siteId": "tooling/src/verify/lib/show-run-summary.ts::resolveLatestVerifyRun::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unparseable verify.json is surfaced as an operator-visible advisory naming the run and the path, never swallowed — the one caller prints it and keeps rendering the structure view beneath it. Ends if the advisory stops reaching the console."
+    },
+    {
+      "siteId": "tooling/src/verify/lib/show-run-summary.ts::stageBlock::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable stage log is surfaced as an operator-visible dim line naming the path and the `--stage` door, never swallowed — the whole point of this reader is to say something rather than nothing for a red stage. Ends if the returned lines stop carrying that text."
     },
     {
       "siteId": "tooling/src/verify/lib/show-stage.ts::readVerifyReport::catch::1",
