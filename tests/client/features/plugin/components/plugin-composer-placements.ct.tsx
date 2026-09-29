@@ -304,6 +304,50 @@ test("the host orders placements by plugin, group and the target's own label, wh
   }
 });
 
+// Input order, plugin id order and composer placement labels all disagree with what the Plugins menu shows.
+const SORT_LOW_ID = castId<PluginId>("plugin_ct_sort_b000000001");
+const SORT_HIGH_ID = castId<PluginId>("plugin_ct_sort_z000000001");
+const UNSORTED_COMMANDS: TrpcWireOutput<"plugin.listCommands"> = [
+  { pluginId: SORT_LOW_ID, slug: "zeta-deck", pluginName: "Sort Deck", name: "cut", describe: "Cut the deck", args: [], group: "Cards", placements: [] },
+  {
+    pluginId: SORT_HIGH_ID,
+    slug: "alpha-deck",
+    pluginName: "Sort Deck",
+    name: "shuffle",
+    describe: "Shuffle the deck",
+    args: [],
+    group: "Cards",
+    placements: [{ target: "composer-action", label: "Alpha" }],
+  },
+  {
+    pluginId: SORT_HIGH_ID,
+    slug: "alpha-deck",
+    pluginName: "Sort Deck",
+    name: "draw",
+    describe: "Draw a card",
+    args: [],
+    group: "Cards",
+    placements: [{ target: "composer-action", label: "Zeta" }],
+  },
+];
+
+test("the Plugins menu follows the shown plugin attribution and command name, not the wire order", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": () => ({ items: [], nextCursor: null }), "plugin.listCommands": () => UNSORTED_COMMANDS });
+  const component = await mount(<PluginComposerPlacementsStory />);
+
+  await component.getByRole("button", { name: "Plugin commands" }).click();
+  const items = page.getByRole("menu").getByRole("menuitem");
+  const shown = [
+    "Sort Deck (alpha-deck) · Cards · Run draw · Draw a card",
+    "Sort Deck (alpha-deck) · Cards · Run shuffle · Shuffle the deck",
+    "Sort Deck (zeta-deck) · Cards · Run cut · Cut the deck",
+  ];
+  await expect(items).toHaveCount(shown.length);
+  for (const [index, name] of shown.entries()) {
+    await expect(items.nth(index)).toHaveAccessibleName(name);
+  }
+});
+
 test("the room composer mounts the production placement contributions and runs placed commands in this room", async ({ mount, page }) => {
   const invoked: unknown[] = [];
   await routeTrpc(page, {
