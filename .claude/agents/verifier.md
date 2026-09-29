@@ -15,7 +15,7 @@ Exercise the change yourself:
 - Run the tests and drive the affected flow.
 - Probe the cases the implementer plausibly missed: empty input, error paths, repeated or concurrent use, the boundary between changed and unchanged code, and a minimal fixture that omits a newly required field.
 - Read the diff for what it does not handle.
-- Use `pnpm ast` or ast-grep to find every call site the change claims to cover.
+- Find every call site the change claims to cover with `codegraph callers`, then confirm each with a literal `rg`.
 
 Anything a user sees goes to side-eye, instead of or in addition to you.
 
