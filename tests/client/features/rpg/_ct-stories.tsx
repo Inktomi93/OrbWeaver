@@ -31,6 +31,7 @@ import { RpgFreshnessIndicator } from "../../../../packages/client/src/features/
 import { RpgGameDoor } from "../../../../packages/client/src/features/rpg/components/rpg-game-door.tsx";
 import { PackBody } from "../../../../packages/client/src/features/rpg/components/rpg-pack-rows.tsx";
 import { RpgCardLightbox, RpgSceneCards } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards.tsx";
+import { RpgTakeoverHeader } from "../../../../packages/client/src/features/rpg/components/rpg-takeover-header.tsx";
 import { useUpdateConfig } from "../../../../packages/client/src/features/rpg/hooks/use-rpg-mutations.ts";
 import type { ArchivedCard } from "../../../../packages/client/src/features/rpg/lib/archived-cards.ts";
 import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
@@ -262,6 +263,34 @@ export function RpgTakeoverDockedStory(): ReactElement {
     <CtDataProviders>
       <RpgTakeoverHarness width={384} height={900} />
     </CtDataProviders>
+  );
+}
+
+/** `<RpgTakeoverHeader>` in isolation (a pure component — no providers/network) at the header's OWN measured
+ *  width on a 1440px desktop docked panel (396.8px, rounded). A long narrated date beside a long clock+weather
+ *  reading — the exact `d20` seed shape (`14th of Emberfall, 3rd Age` · `night · 21:40 · steady rain on the
+ *  shutters`) — is the measured case where the when-line's context half collapses to a few characters. */
+export function RpgTakeoverHeaderWhenLongStory({ width = 400 }: { readonly width?: number } = {}): ReactElement {
+  return (
+    <div style={{ width }}>
+      <RpgTakeoverHeader
+        roomTitle="The Gilded Ember"
+        satellitesInBody={true}
+        ambient={{
+          location: "The Gilded Ember tavern, lower Ashfall",
+          calendarDate: "14th of Emberfall, 3rd Age",
+          clock: { day: 14, hour: 21, minute: 40 },
+          weather: { type: "rain", label: "steady rain on the shutters" },
+        }}
+        actors={[]}
+        trackerOrbs={[]}
+        viewerUserId="user_ct"
+        trackersReadOnly={false}
+        delivery={{ path: "tool-round", fallbackReason: null }}
+        dateMode="narrated"
+        freshnessPending={false}
+      />
+    </div>
   );
 }
 

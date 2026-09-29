@@ -195,7 +195,12 @@ function BandWhen({ when }: { readonly when: ReturnType<typeof whenParts> }): Re
   return (
     <Row gap="field" align="start" className="min-w-0 flex-wrap tabular-nums" data-slot="rpg-band-when">
       {when.context === "" ? null : (
-        <Text as="span" voice="gloss" className="min-w-0 flex-1 truncate" data-slot="rpg-band-when-context">
+        // `shrink-0`, not `flex-1`: a flex-1 truncating sibling happily shrinks to nothing instead of ever
+        // triggering the row's own `flex-wrap`, which crushed a long narrated date to a few characters while
+        // the (also long) state half sat untouched on the same line (0084). Sized to its own content, the
+        // context half forces the wrap onto its own line when the pair does not fit; `truncate` stays only
+        // as the last-resort floor for a single narrated date wider than the row by itself.
+        <Text as="span" voice="gloss" className="max-w-full shrink-0 truncate" data-slot="rpg-band-when-context">
           {when.context}
         </Text>
       )}

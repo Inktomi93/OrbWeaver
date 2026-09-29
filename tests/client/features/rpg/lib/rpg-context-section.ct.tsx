@@ -651,7 +651,9 @@ test("the mobile Waystone keeps midnight, exact time, and weather visible beside
   if (whenBox === null || stateBox === null) {
     throw new Error("expected the mobile Waystone state row and exact state to be laid out");
   }
-  expect(contextOverflow).toBeGreaterThan(0);
+  // Neither half is crushed to keep the other on the same line (0084): the row's own `flex-wrap` is the
+  // escape hatch when a pair does not fit, so BOTH halves stay full-text here.
+  expect(contextOverflow).toBeLessThanOrEqual(0);
   expect(stateOverflow.horizontal).toBeLessThanOrEqual(1);
   expect(stateOverflow.vertical).toBeLessThanOrEqual(1);
   expect(stateBox.x).toBeGreaterThanOrEqual(whenBox.x - 1);
