@@ -9,9 +9,11 @@ import { unzipSync } from "fflate";
 import { afterEach, beforeAll } from "vitest";
 import { env } from "../../../../packages/server/src/foundation/env/index.ts";
 import {
+  __hasManagedPluginBrokerForTest,
   __killManagedPluginBrokerOnBridgeForTest,
   __killManagedPluginBrokerOnCommandForTest,
   __pauseManagedPluginBridgeDeliveryForTest,
+  __pauseManagedPluginConnectChaseForTest,
   __terminateManagedPluginBrokerForTest,
 } from "../../../../packages/server/src/infra/plugin-host/process-runtime.ts";
 import { packShowcaseBundle } from "../../../../packages/showcase-plugins/src/index.ts";
@@ -128,6 +130,68 @@ test("broker exit during activation rejects the call and permits an explicit lat
   }
 });
 
+test("a create still resolving its connection when the broker dies is served exactly once by the reconnect, never replayed", { timeout: LONG }, async () => {
+  const host = createPluginHost(seams());
+  const victim = await host.createInstance({ ...durableSource("'victim';"), grants: [], bridge: bridge(), chat: noChat });
+  if (!victim.ok) {
+    throw new Error(victim.error);
+  }
+  __killManagedPluginBrokerOnCommandForTest("create");
+  let sets = 0;
+  const base = bridge();
+  const countingBridge: PluginBridge = {
+    ...base,
+    storage: {
+      ...base.storage,
+      set: (): Promise<void> => {
+        sets += 1;
+        return Promise.resolve();
+      },
+    },
+  };
+  // `killer`'s own "create" write triggers the kill against the connection `victim` already opened.
+  const killer = host.createInstance({ ...durableSource("'killer';"), grants: [], bridge: base, chat: noChat });
+  await expect(killer).rejects.toMatchObject({ name: "PluginHostUnavailable" });
+  // The kill only SIGKILLs the watchdog; its own already-spawned broker can stay alive and accepting until it
+  // notices its parent's IPC channel close and self-terminates — an OS-scheduled gap, not an instant one. Wait
+  // it out so `bystander` below cannot win a race by reusing that dying-but-not-yet-gone process.
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  const pause = __pauseManagedPluginConnectChaseForTest();
+  const bystander = host.createInstance({
+    ...durableSource(`
+      const h = orb.host(1);
+      void h.storage.set('activated', '1');`),
+    grants: ["storage.kv"],
+    bridge: countingBridge,
+    chat: noChat,
+  });
+  await pause.reached;
+  // The chase has not run yet — nothing has served `bystander`'s command a second time before its first go.
+  expect(sets).toBe(0);
+  pause.release();
+  const outcome = await bystander;
+  expect(outcome.ok).toBe(true);
+  expect(sets).toBe(1);
+  if (outcome.ok) {
+    host.dispose(outcome.instance);
+  }
+  host.dispose(victim.instance);
+});
+
+test("connectOnce never respawns a broker once the app tears it down with nothing pending", { timeout: LONG }, async () => {
+  const host = createPluginHost(seams());
+  const outcome = await host.createInstance({ ...durableSource("'settled';"), grants: [], bridge: bridge(), chat: noChat });
+  expect(outcome.ok).toBe(true);
+  if (outcome.ok) {
+    host.dispose(outcome.instance);
+  }
+  await __terminateManagedPluginBrokerForTest();
+  // A clean teardown with no in-flight command must leave the broker gone — no straggling reconnect chase
+  // should spawn a replacement process nobody asked for.
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  expect(__hasManagedPluginBrokerForTest()).toBe(false);
+});
+
 test("the app creates and owns the watchdog without a preconfigured broker endpoint", { timeout: LONG }, async () => {
   const host = createPluginHost(seams());
   const outcome = await host.createInstance({ ...durableSource("'app-owned watchdog';"), grants: [], bridge: bridge(), chat: noChat });
@@ -172,6 +236,10 @@ test("broker exit during an async invoke fails the call and marks the resident c
   const host = createPluginHost(seams());
   const resident = await activateTool(host, waitingBridge);
   const invocation = host.invoke(resident.instance, resident.handler, "{}", { chatId: CHAT, canWrite: true, automationDepth: 0 });
+  // Attach a reaction to `invocation` NOW, not at the `expect(...).rejects` below: the forced teardown two
+  // lines down rejects it mid-`await`, before that assertion would otherwise get a chance to attach its own
+  // handler, and Node flags that gap as an unhandled rejection even though it settles correctly moments later.
+  invocation.catch(() => undefined);
   await called;
   await __terminateManagedPluginBrokerForTest();
   await expect(invocation).rejects.toMatchObject({ name: "PluginHostUnavailable" });

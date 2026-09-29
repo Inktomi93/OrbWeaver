@@ -237,7 +237,12 @@ class BrokerClient {
   private killOnCommand: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"] | undefined;
   private killOnBridge: Extract<BrokerParentMessage, { readonly kind: "bridge" }>["operation"] | undefined;
   private bridgeDeliveryPause: BridgeDeliveryPause | undefined;
+  private connectChasePause: { readonly reached: () => void; readonly wait: Promise<void> } | undefined;
   private nextCommand = 0;
+
+  hasManagedChildForTest(): boolean {
+    return this.managedChild !== undefined;
+  }
 
   async terminateManagedForTest(): Promise<void> {
     this.bridgeDeliveryPause?.resume();
@@ -278,6 +283,16 @@ class BrokerClient {
     const resume = (): void => wait.resolve();
     this.bridgeDeliveryPause = { operation, reached: (): void => reached.resolve(), wait: wait.promise, resume };
     return { reached: reached.promise, release: resume };
+  }
+
+  pauseConnectChaseForTest(): { readonly reached: Promise<void>; readonly release: () => void } {
+    if (this.connectChasePause !== undefined) {
+      throw new Error("plugin host test: a connect chase is already paused");
+    }
+    const reached = Promise.withResolvers<void>();
+    const wait = Promise.withResolvers<void>();
+    this.connectChasePause = { reached: (): void => reached.resolve(), wait: wait.promise };
+    return { reached: reached.promise, release: (): void => wait.resolve() };
   }
 
   async command(input: {
@@ -342,6 +357,12 @@ class BrokerClient {
   private async connectOnce(): Promise<void> {
     let endpoint = this.managedEndpoint;
     if (endpoint === undefined) {
+      const pause = this.connectChasePause;
+      if (pause !== undefined) {
+        this.connectChasePause = undefined;
+        pause.reached();
+        await pause.wait;
+      }
       const directory = mkdtempSync(join(tmpdir(), "orb-plugin-broker-"));
       const socketPath = process.platform === "win32" ? `\\\\.\\pipe\\orb-plugin-broker-${process.pid}-${randomUUID()}` : join(directory, "broker.sock");
       const tokenPath = join(directory, "token");
@@ -400,7 +421,8 @@ class BrokerClient {
       if (this.managedEndpoint === undefined) {
         // A forced teardown (a normal watchdog restart keeps the same endpoint) cleared it mid-retry with
         // nothing yet spawned to replace it — chase a freshly spawned broker instead of failing on a socket
-        // path nothing will ever rebind.
+        // path nothing will ever rebind. connectOnce() owns the test pause point for this spawn, since a
+        // caller whose OWN first attempt lands here already has `managedEndpoint === undefined` too.
         await this.connectOnce();
         return;
       }
@@ -701,6 +723,11 @@ export function __terminateManagedPluginBrokerForTest(): Promise<void> {
 }
 
 /** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+export function __hasManagedPluginBrokerForTest(): boolean {
+  return broker.hasManagedChildForTest();
+}
+
+/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
 export function __killManagedPluginBrokerOnCommandForTest(operation: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"]): void {
   broker.killManagedOnCommandForTest(operation);
 }
@@ -716,6 +743,11 @@ export function __pauseManagedPluginBridgeDeliveryForTest(operation: Extract<Bro
   readonly release: () => void;
 } {
   return broker.pauseBridgeDeliveryForTest(operation);
+}
+
+/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+export function __pauseManagedPluginConnectChaseForTest(): { readonly reached: Promise<void>; readonly release: () => void } {
+  return broker.pauseConnectChaseForTest();
 }
 
 function requireRegistrationGrant(grants: ReadonlySet<PluginCapability>, capability: PluginCapability, registrations: readonly unknown[], label: string): void {

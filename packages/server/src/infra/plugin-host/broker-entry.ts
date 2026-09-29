@@ -34,17 +34,21 @@ const PRIVATE_DIRECTORY_MODE = 0o700;
 const PRIVATE_FILE_MODE = 0o600;
 const { socketPath, tokenPath, workerMaximum, nodeEnvironment } = parsePluginBrokerArguments(process.argv.slice(2));
 if (process.send !== undefined) {
-  const heartbeat = setInterval(
-    () =>
-      process.send?.({
-        kind: "plugin-broker-memory",
-        rssBytes: process.memoryUsage.rss(),
-        peakPhysicalWorkers,
-        execArgv: process.execArgv,
-        nodeOptions: null,
-      }),
-    PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS,
-  );
+  const heartbeat = setInterval(() => {
+    // The watchdog's own IPC channel can close between ticks (its own forced teardown) — `process.send`
+    // outside of that guard throws an uncaught 'error' event on the process object with nothing armed to
+    // catch it, crashing this broker over a heartbeat nobody would have read anyway.
+    if (!process.connected) {
+      return;
+    }
+    process.send?.({
+      kind: "plugin-broker-memory",
+      rssBytes: process.memoryUsage.rss(),
+      peakPhysicalWorkers,
+      execArgv: process.execArgv,
+      nodeOptions: null,
+    });
+  }, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS);
   heartbeat.unref();
 }
 
@@ -378,6 +382,11 @@ const server = createServer((socket) => {
   let buffer = "";
   socket.setTimeout(AUTH_TIMEOUT_MS, () => socket.destroy());
   socket.setEncoding("utf8");
+  // The parent's own forced teardown (a SIGKILL to the watchdog, an abrupt destroy) can reset this
+  // connection at the OS level. With no listener, Node's default for an unhandled 'error' event is to
+  // throw, crashing this broker process — the "close" handler below already does the one full reset either
+  // arm needs, so an error here needs no separate handling.
+  socket.on("error", () => undefined);
   socket.on("data", (chunk) => {
     buffer += chunk;
     if (Buffer.byteLength(buffer, "utf8") > PLUGIN_BROKER_MESSAGE_MAX_BYTES && !buffer.includes("\n")) {
