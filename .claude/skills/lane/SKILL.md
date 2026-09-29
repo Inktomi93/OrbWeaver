@@ -110,6 +110,16 @@ List each command and its result in the report. The whole-tree check is the orch
 - Never wait on `pgrep` of a harness name. It matches every checkout on the box, so a sibling's run blocks you.
 - Stop your own verify with the orchestrator skill's checkout-scoped stop. Killing `git commit` leaves its hook running.
 
+## Shell shapes in a worktree
+
+Worktree isolation refuses any command it cannot prove stays inside the worktree. A refused call is lost; use the shapes it accepts.
+
+- Write or change a file with the Write or Edit tool, never `cat <<` or `>>` into it.
+- Put a script in a scratch file and run `python3 <file>` or `node <file>`, never a `- <<` heredoc.
+- Commit with `git commit -F <message-file>`, never a multi-line `-m`. Run git from the worktree root; do not use `git -C`, `env -C` or `bash -c`.
+- Give `rg`, `sed` and `pnpm` literal paths. A path built from a variable or `$(…)` is refused.
+- Run one git command per file instead of looping git over a list.
+
 ## Rendered proof
 
 - Verify anything a user sees at the rendered level with `pnpm snap` or a CT, or flag it for side-eye.
