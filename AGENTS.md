@@ -126,7 +126,7 @@ as the new one. If you cannot go green without a hatch, stop and report.
 
 ## Code questions
 
-- Use CodeGraph to explore structure and find what a change affects: the `codegraph_explore` MCP tool, or `codegraph callers|impact|affected`. It indexes main's checkout, so a worktree's own changes are not in it.
+- Use CodeGraph to explore structure and find what a change affects: the `codegraph_explore` MCP tool, or `codegraph callers|impact|affected`. In a worktree, pass your worktree root as `projectPath` to the MCP tool; the MCP server otherwise answers from main's index.
 - Use `pnpm ast` for a reference, caller, importer or export claim you rely on. Run it bare for the verb list.
 - Use `ast-grep` for structural patterns. Type `ast-grep`, never `sg`; `/usr/bin/sg` is `newgrp`.
 - Use `rg` for literal text; the Bash `grep` is a ugrep wrapper that honors ignore files. Search code only; read law docs in full, because a ruling lives in the context around a line.

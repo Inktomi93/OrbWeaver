@@ -57,4 +57,11 @@ if [ -f "$dir/package.json" ]; then
   fi
 fi
 
+# A worktree nested under main otherwise borrows main's CodeGraph index, which never shows the
+# lane's own edits. Index the worktree itself, detached so the spawn does not wait on it.
+if [ -f "$root/.codegraph/codegraph.db" ] && [ ! -e "$dir/.codegraph" ] && command -v codegraph >/dev/null; then
+  setsid codegraph init --yes "$dir" </dev/null >"/tmp/claude-worktree-codegraph-$$.log" 2>&1 &
+  log "codegraph index started ($name)"
+fi
+
 printf '%s\n' "$dir"

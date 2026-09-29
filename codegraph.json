@@ -1,0 +1,3 @@
+{
+  "include": ["packages/client/src/data/", "tooling/src/bug-reports/", "tests/client/data/", "tests/tooling/bug-reports/"]
+}
