@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-23
+updated: 2026-09-29
 ---
 
 # UI-Architecture-and-Layout
@@ -231,14 +231,25 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             section defaults collapsed (each `SectionDefinition.panelDefaults`); the persisted
             per-panel override wins thereafter.
 
-MOBILE:  RAIL → BOTTOM tab bar: Chats · Characters ·
-         Corpus · You. You is the mobile PROJECTION of shell chrome (§B) over the SAME resolved chrome
+MOBILE:  RAIL → BOTTOM tab bar: Home · Chats · Characters · You (D271).
+         Corpus enters through You. You is the mobile PROJECTION of shell chrome (§B) over the SAME resolved chrome
          list: `mobile:"sheet"` rail entries + the `rail.end` chrome (incl. the persona Identity
          widget's `body("sheet")` view, so mobile persona switching lives here). Containment chain: You ⊃ Identity ⊃ Account
          (the account leaf modal). Everything is also reachable via ⌘K.
-         LIST/CONTEXT → full-screen / sheets; single column; land on CONTENT, never on an open list sheet.
+         LIST/CONTEXT → full-screen / sheets; single column. Corpus uses the mode landings below.
+         Other sections land on CONTENT, never on an open list sheet.
          (Mobile is a responsive LAYOUT, never a theme.)
 ```
+
+D271 replaces only D62-P3 and preserves D211. Corpus Variant A is not yet built. Its phone landing policy follows the active mode:
+
+| Corpus mode | Phone landing |
+| - | - |
+| Explore | LIST |
+| Insights | CONTENT |
+| Labels | LIST |
+
+A Corpus LIST landing fills the screen without an overlay sheet or scrim. Declare the per-mode policy in `packages/client/src/state/panel-resolve.ts`; do not fabricate a selection. Selecting a result pushes CONTENT; Back restores the mode's finder state.
 
 - **Refinery is a first-class rail section + feature surface** (Score→Rewrite→Analyze — D28). Its sub-parts (stage-stepper, assay, issue-list, compare-diff → `@orb/ui/diff`, guidance-bar) are app components over the primitives.
 - **Each side panel has a 3-state model** in the shell store: **`docked`** · **`overlay`** (slides over via the §11.1 clamp — zero width closed) · **`collapsed`**. Per-panel, persisted, auto-`overlay` below a width breakpoint (the one app-shell `@media`).

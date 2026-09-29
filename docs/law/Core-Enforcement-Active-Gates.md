@@ -53,7 +53,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(352 registered gates)
+(351 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -294,7 +294,6 @@ in its own module header, never restated here.
 | `query-boundary-reservation` | — | ordinary/error | @client | a QueryBoundary whose fallback is a… |
 | `query-boundary-reservation-health` | query-boundary-reservation | hard/error | @client | the QueryBoundary reservation seam is… |
 | `query-freshness-coverage` | — | reviewed-grant/error | @client | a client-consumed tRPC query key… |
-| `query-freshness-coverage-debt` | query-freshness-coverage | hard/warning | @client | automation.listChatActivity lacks a… |
 | `query-freshness-coverage-health` | query-freshness-coverage | hard/error | @client | the Invalidation anchor is present… |
 | `query-machine-seals` | — | reviewed-grant/error | @authored\* | useMutation or useInfiniteQuery is… |
 | `query-machine-seals-health` | query-machine-seals | hard/error | @client,@tests\* | the data public anchor exists but the… |

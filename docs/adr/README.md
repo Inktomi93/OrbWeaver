@@ -213,3 +213,9 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D263 | [Every account is seeded with content, and names its own persona](0263-seed-content-and-a-first-run-persona.md) | active |
 | D264 | [A roster preset carries a game template and starts through startChat's game birth](0264-roster-preset-carries-a-game-template.md) | active |
 | D265 | [A plugin provider id is claimed per owner](0265-a-plugin-provider-id-is-claimed-per-owner.md) | active |
+| D266 | [Plugin authors publish checked JavaScript artifacts](0266-plugin-build-artifact-boundary.md) | active |
+| D267 | [Plugins request host owned action placement](0267-plugin-ui-placement-boundary.md) | active |
+| D268 | [Selected plugin surfaces show host owned load states](0268-plugin-selected-surfaces-show-host-owned-load-states.md) | active |
+| D269 | [RPG dice actions live in the composer utility menu](0269-rpg-dice-actions-in-composer-utility-menu.md) | active |
+| D270 | [Chat options uses a hamburger glyph in the composer](0270-chat-options-hamburger-glyph.md) | active |
+| D271 | [Phone tabs and Corpus mode landings](0271-phone-tabs-and-corpus-mode-landings.md) | active |
