@@ -126,10 +126,14 @@ as the new one. If you cannot go green without a hatch, stop and report.
 
 ## Code questions
 
-- Use CodeGraph to explore structure and find what a change affects: the `codegraph_explore` MCP tool, or `codegraph callers|impact|affected`. In a worktree, pass your worktree root as `projectPath` to the MCP tool; the MCP server otherwise answers from main's index.
-- Use `pnpm ast` for a reference, caller, importer or export claim you rely on. Run it bare for the verb list.
-- Use `ast-grep` for structural patterns. Type `ast-grep`, never `sg`; `/usr/bin/sg` is `newgrp`.
-- Use `rg` for literal text; the Bash `grep` is a ugrep wrapper that honors ignore files. Search code only; read law docs in full, because a ruling lives in the context around a line.
+| Question | Use |
+| - | - |
+| How X works, or the path from X to Y | the `codegraph_explore` MCP tool, naming the symbols |
+| Who calls X, what breaks if X changes, which tests cover a file | `codegraph callers X`, `codegraph impact X`, `codegraph affected <files>` |
+| A structural pattern | `ast-grep`, never `sg`; `/usr/bin/sg` is `newgrp` |
+| Literal text, config | `rg`; the Bash `grep` is a ugrep wrapper that honors ignore files. Read law docs in full: a ruling lives in the context around a line |
+
+- A CodeGraph result is a lead. Open each site you cite and confirm a claim you rely on with `pnpm ast` (run it bare for the verb list) or `rg`.
 - A zero result counts only with a non-zero `scanned=` count and a second method. The evidence rules are in the `code-recon` skill.
 
 ## Reading router
