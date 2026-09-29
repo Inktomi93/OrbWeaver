@@ -6,11 +6,12 @@
 import { HOST_FUNCTION_CAPABILITY, HostVersionError, PLUGIN_CAPABILITIES, PLUGIN_ORIGINS, PluginCapabilityError } from "@orb/contracts/plugin";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("PLUGIN_ORIGINS is [upload, url] — the file arm + the URL-install arm (U8 2b; catalog rides a further additive member, D86)", () => {
+test("PLUGIN_ORIGINS is [upload, url, git] — the file arm, the URL-install arm, and the git-install arm (U8 2b; docs/plans/plugin-distribution/design.md)", () => {
   // ORDER IS LOAD-BEARING: `upload` first (the historical single-arm), `url` appended (U8 2b makes a URL install's
-  // origin honest — 2a recorded it as `upload` behind the source-agnostic funnel). A new origin APPENDS; the db
-  // CHECK (`plugins_origin_check`) derives from this exact tuple, so a reorder or a drop is a silent schema drift.
-  expect(PLUGIN_ORIGINS).toEqual(["upload", "url"]);
+  // origin honest — 2a recorded it as `upload` behind the source-agnostic funnel), `git` appended last (the git
+  // install door — see design.md's "PLUGIN_ORIGINS gains `git`"). A new origin APPENDS; the db CHECK
+  // (`plugins_origin_check`) derives from this exact tuple, so a reorder or a drop is a silent schema drift.
+  expect(PLUGIN_ORIGINS).toEqual(["upload", "url", "git"]);
 });
 
 test("HOST_FUNCTION_CAPABILITY maps 43 gated functions, every value a real capability, every capability covered", () => {
