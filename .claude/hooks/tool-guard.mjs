@@ -1063,7 +1063,7 @@ function pipeRewrite(command, blank, clauses, isHead, ctx) {
     }
   }
   const readerChain = command.slice(readers[0].start, clause.end).trim();
-  if (clauseHasHeredoc(command, clause) || readerChain.endsWith("\\")) {
+  if (clauseHasHeredoc(command, clause) || clauseContinues(command, clause)) {
     return null;
   }
   const log = `${ctx.projectDir}/reports/tool-guard/run-${ctx.now}.log`;
@@ -1105,6 +1105,12 @@ function chainTestsReader(command, clause) {
  *  would land inside the body. */
 function clauseHasHeredoc(command, clause) {
   return heredocUnits(command, blankComments(command, blankQuoted(command))).some((u) => u.opStart >= clause.start && u.opStart < clause.end);
+}
+
+/** Does the clause's last line end in `\`? The escaped newline joins it to the next operator, and a rewrite
+ *  that cuts or moves the clause text breaks that join. */
+function clauseContinues(command, clause) {
+  return command.slice(clause.start, clause.end).trimEnd().endsWith("\\");
 }
 
 /** Did the original stage send stderr down the pipe too: a trailing `2>&1`, or a `|&` right after it? */
@@ -1200,7 +1206,7 @@ function artifactPipeRewrite(command, blank, clauses) {
       return null;
     }
   }
-  if (clauseHasHeredoc(command, clause)) {
+  if (clauseHasHeredoc(command, clause) || clauseContinues(command, clause)) {
     return null;
   }
   const harness = command.slice(stage0.start, stage0.end).replace(STDERR_MERGE_TAIL, "").trim();
@@ -1213,9 +1219,6 @@ function artifactPipeRewrite(command, blank, clauses) {
     return { command: groupRewrite(command, clause, `${harness}; __tg_ec=$?; ${target}${EXIT_RESTORE}`), target, clause, readerStatus };
   }
   const readerChain = command.slice(readers[0].start, clause.end).trim();
-  if (readerChain.endsWith("\\")) {
-    return null;
-  }
   const target = family.artifact;
   const body = readerStatus ? `${harness}; < ${target} ${readerChain}\n` : `${harness}; __tg_ec=$?; < ${target} ${readerChain}${EXIT_RESTORE}`;
   return { command: groupRewrite(command, clause, body), target, clause, readerStatus };
@@ -1244,6 +1247,9 @@ function bareHarnessRewrite(command, blank, clauses, headRe) {
   const [clause] = candidates;
   if (blank[clause.end] === "&" && blank[clause.end + 1] !== "&") {
     return null; // backgrounded: dropping the redirect would send a background job's output to the tool
+  }
+  if (clauseContinues(command, clause)) {
+    return null;
   }
   const [stage0, ...readers] = clause.stages;
   const isSafeTeeSink = (r) => {
@@ -1297,7 +1303,8 @@ function gitSubcommand(stageBlank, stageRaw) {
  *  not one. Reads through a case-arm pattern, compound-command lead words, redirects and pnpm's own
  *  options ahead of `doc`. */
 function docCall(stageBlank, stageRaw) {
-  const text = stripCompoundLead(stageBlank.replace(CASE_ARM_LEAD, (lead) => " ".repeat(lead.length))).replace(REDIRECT_TOKEN, " ");
+  // Every blanking keeps the length, so a token's offset here is its offset in `stageRaw`.
+  const text = stripCompoundLead(stageBlank.replace(CASE_ARM_LEAD, (lead) => " ".repeat(lead.length))).replace(REDIRECT_TOKEN, (r) => " ".repeat(r.length));
   const { tokens, index, exec } = execHead(text);
   if (exec === undefined || !/^(?:\S*\/)?pnpm$/.test(exec[0])) {
     return null;
@@ -1313,22 +1320,19 @@ function docCall(stageBlank, stageRaw) {
   if (rest[at] !== "doc") {
     return null;
   }
-  // The blanked stage proves this is a `pnpm doc` call; its arguments are read off the raw one.
-  const args = docArgs(stageRaw);
+  // The blanked stage proves which token is the `doc` script; its arguments are read off the raw text after it.
+  const doc = tokens[index + 1 + at];
+  const args = docArgs(stageRaw.slice(doc.index + doc[0].length));
   return { verb: args.find((w) => !w.startsWith("-")) ?? "", help: args.length === 2 && (args[1] === "--help" || args[1] === "-h") };
 }
 
-/** The raw `pnpm … doc` stage's arguments after `doc`, as shell words: a quoted argument is still one word
+/** The raw text after a `pnpm … doc` script word, as shell words: a quoted argument is still one word
  *  (`'set'` is `set`), so a quoted verb still writes and a quoted title still counts. Redirects and their
  *  targets are not arguments. */
-function docArgs(stageRaw) {
-  const words = shellWords(stageRaw);
-  const docAt = words.findIndex((w) => stripOperandTail(w).value === "doc");
+function docArgs(argsRaw) {
+  const words = shellWords(argsRaw);
   const args = [];
-  if (docAt === -1) {
-    return args;
-  }
-  for (let i = docAt + 1; i < words.length; i += 1) {
+  for (let i = 0; i < words.length; i += 1) {
     if (REDIRECT_OPERATOR_ONLY.test(words[i].raw)) {
       i += 1;
     } else if (!REDIRECT_WORD.test(words[i].raw)) {

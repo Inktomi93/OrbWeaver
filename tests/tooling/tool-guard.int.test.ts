@@ -977,6 +977,11 @@ const ROWS: Row[] = [
   ["deny", "doc-write-lane", "pnpm doc 'set' 5 done", LANE], // a quoted verb is the same verb
   ["deny", "doc-write-lane", 'pnpm doc "land" 5', LANE],
   ["deny", "doc-write-lane", "(pnpm doc index)", LANE],
+  // an option value or case pattern spelled `doc` is not the doc script
+  ["deny", "doc-write-lane", "pnpm --filter doc doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "pnpm -C doc doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "pnpm --dir doc doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "case $x in doc) pnpm doc set 5 x;; esac", LANE],
   ["deny", "doc-write-lane", "pnpm --filter root doc set 5 x", LANE],
   ["deny", "doc-write-lane", "pnpm --silent doc set 5 x", LANE],
   ["deny", "doc-write-lane", "pnpm -C=/wt doc set 5 x", LANE],
@@ -1643,6 +1648,9 @@ test("rewrite: a continued reader line, a mid-stage fd merge and a status-checki
     "pnpm test:scoped a 2>&1 | tail -20 \\\n  && echo ok",
     "pnpm test:scoped a | tail -5 \\",
     "git commit -m x 2>&1 | tail -3 \\\n && git log -1",
+    "pnpm check | tail -5 \\\n && echo ok",
+    "pnpm check | tee x.log \\\n && echo ok",
+    "pnpm check > x.log 2>&1 \\\n && echo ok",
   ]) {
     const r = classify(command);
     expect([command, r.rewrite === undefined || r.rewrite.command === command]).toEqual([command, true]);
