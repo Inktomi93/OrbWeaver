@@ -184,7 +184,16 @@ Run autonomously only when the user says overnight, finish, or keep going.
 
 ## Tracking work
 
-Track work however the owner says, with `pnpm doc item`, `pnpm doc set`, `pnpm doc land`, `pnpm doc overview` and `pnpm doc drift`.
+The board is `docs/work/`, and you own every state change on it. Read `.claude/rules/docs.md` "Work items" before your first board write in a session; it holds the states, the `blocked` grammar and the landing rules.
+
+1. At session start, act on each `drift` line the onboarding prints. Each line names its fix.
+2. At dispatch, run `pnpm doc set <id> doing --lane <branch>`. The lane value is the lane's exact branch, `wt/agent-<id>` for a worktree lane.
+3. Tell the lane to end its closing commit with a `Closes: <id>` trailer. The merge hook lands the item on `main`.
+4. For work committed on `main` itself, land it with `pnpm doc land <id> --evidence <sha>` once a verifier confirms it.
+5. File a lane's out-of-scope finding with `pnpm doc item "<title>" --kind … --what … --why … --done …`. The title is positional.
+6. When a lane stops with its item unfinished, set the item back to `open` with the reason in its Evidence section.
+
+Run `pnpm doc <verb> --help` for one verb's flags. Read `pnpm doc overview` and `pnpm doc drift` bare; their output is short.
 
 - For any `gh` write, use `--body-file`. `gh` runs backticks inside `--body`.
 
