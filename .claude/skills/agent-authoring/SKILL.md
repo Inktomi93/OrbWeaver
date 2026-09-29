@@ -86,7 +86,7 @@ hand-edit a generated TOML; edit the Claude source and re-run the sync. A standa
 `name`, `description`, `developer_instructions`. `model`, `model_reasoning_effort`, `sandbox_mode`,
 `mcp_servers`, and `skills.config` carry over; Claude-only fields (`permissionMode`, `tools`,
 `disallowedTools`, `color`, `memory`, the YAML `skills` list) do not exist in Codex TOML. Preserve each
-role's `effort` as `model_reasoning_effort`.
+role's `effort` as `model_reasoning_effort` unless `tooling/src/agent-sync/lib/paths.ts` declares a Codex-only effort override.
 
 Codex project hooks live in `.codex/hooks.json`; `.codex/hooks` points at the Claude-owned
 implementations. A hook change can require the user to re-trust the project in a fresh Codex session —

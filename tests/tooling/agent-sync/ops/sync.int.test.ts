@@ -63,6 +63,21 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
     expect(manifest).toContain(parseClaudeAgent(sourceFilename, source).body);
   }
 
+  const codexRouting = {
+    forge: ["gpt-6-astra", "medium"],
+    stickler: ["gpt-6-astra", "medium"],
+    executor: ["gpt-6-sol", "medium"],
+    verifier: ["gpt-6-sol", "medium"],
+    "mech-executor": ["gpt-6-luna", "high"],
+    "security-executor": ["gpt-6-sol", "high"],
+    "side-eye": ["gpt-6-sol", "high"],
+  } as const;
+  for (const [role, [model, effort]] of Object.entries(codexRouting)) {
+    const manifest = readFileSync(join(ROOT, ".codex", "agents", `${role}.toml`), "utf8");
+    expect(manifest).toContain(`model = "${model}"`);
+    expect(manifest).toContain(`model_reasoning_effort = "${effort}"`);
+  }
+
   const sideEyeManifest = readFileSync(join(ROOT, ".codex", "agents", "side-eye.toml"), "utf8");
   expect(sideEyeManifest).toContain(
     "Read `.agents/skills/lane/SKILL.md`, `.agents/skills/review/SKILL.md`, `.agents/skills/side-eye-design-review/SKILL.md`, `.agents/skills/snap-driving/SKILL.md` in full",

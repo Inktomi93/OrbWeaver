@@ -8,17 +8,22 @@ export const CLAUDE_SKILLS_DIR = join(REPO_ROOT, ".claude", "skills");
 export const CODEX_AGENTS_DIR = join(REPO_ROOT, ".codex", "agents");
 export const CODEX_SKILLS_DIR = join(REPO_ROOT, ".agents", "skills");
 
-/** Owner ruling 2026-08-20: every Codex project role runs `gpt-5.6-sol`; reasoning effort stays the
- *  per-role axis (read from the Claude manifest's `effort`). An unmapped role name is a hard error —
- *  `model` defaults to `inherit` in Codex, which makes routing unverifiable. */
+/** Codex routing is explicit so an unmapped role cannot inherit the parent model. */
 export const ROLE_MODELS: Readonly<Record<string, string>> = {
-  executor: "gpt-5.6-sol",
-  forge: "gpt-5.6-sol",
-  "mech-executor": "gpt-5.6-sol",
-  "security-executor": "gpt-5.6-sol",
-  "side-eye": "gpt-5.6-sol",
-  stickler: "gpt-5.6-sol",
-  verifier: "gpt-5.6-sol",
+  executor: "gpt-6-sol",
+  forge: "gpt-6-astra",
+  "mech-executor": "gpt-6-luna",
+  "security-executor": "gpt-6-sol",
+  "side-eye": "gpt-6-sol",
+  stickler: "gpt-6-astra",
+  verifier: "gpt-6-sol",
+};
+
+/** Codex-only effort choices differ from Claude for these roles. Other roles inherit Claude effort. */
+export const ROLE_EFFORT_OVERRIDES: Readonly<Record<string, "medium" | "high">> = {
+  forge: "medium",
+  "mech-executor": "high",
+  stickler: "medium",
 };
 
 const MD_SUFFIX = ".md";

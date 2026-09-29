@@ -48,7 +48,8 @@ The allowed imports:
 - `kit`: no workspace package.
 - `contracts`: `kit`.
 - `db`, `inference`: `contracts`, `kit`.
-- `default-content`, `ui`: `kit`. `showcase-plugins`: `contracts`.
+- `default-content`, `ui`: `kit`. `showcase-plugins`: `contracts`. `plugin-sdk`: no workspace package.
+- `plugin-toolchain`: author-time only; TypeScript is its runtime dependency. Standalone templates declare `plugin-sdk` separately for editor types.
 - `server`: `contracts`, `db`, `default-content`, `inference`, `kit`, `showcase-plugins`.
 - `client`: `contracts`, `kit`, `ui`. Type-only: `server` (the tRPC `AppRouter` bridge, a `devDependency`).
 
@@ -183,7 +184,7 @@ without a path are in that folder.
 - `.claude/rules/inference.md`: `packages/inference/**`
 - `.claude/rules/instruments.md`: `tooling/src/snap/**`, `tooling/src/ui-audit/**`
 - `.claude/rules/node-tests.md`: `tests/**/*.test.ts`, `tests/support/**`, `tests/contracts/**`
-- `.claude/rules/plugins.md`: `packages/server/src/domain/plugin/**`, `packages/server/src/infra/plugin-host/**`, `packages/contracts/src/plugin/**`, `packages/showcase-plugins/**`
+- `.claude/rules/plugins.md`: `packages/server/src/domain/plugin/**`, `packages/server/src/infra/plugin-host/**`, `packages/contracts/src/plugin/**`, `packages/showcase-plugins/**`, `packages/plugin-sdk/**`, `packages/plugin-toolchain/**`
 - `.claude/rules/rpg.md`: `packages/server/src/domain/rpg/**`, `packages/client/src/features/rpg/**`
 - `.claude/rules/server-edge.md`: `packages/server/src/entry/**`, `packages/server/src/transport/**`, `packages/server/src/foundation/**`, `packages/server/src/infra/auth/**`, `packages/server/src/infra/network/**`, `tests/server/transport/**`
 - `.claude/rules/server.md`: `packages/server/src/**`, `tests/server/**`

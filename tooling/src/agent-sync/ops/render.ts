@@ -6,7 +6,7 @@ import { REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ClaudeAgent } from "../contract/types.ts";
 import { parseClaudeAgent } from "../lib/frontmatter.ts";
-import { ROLE_MODELS } from "../lib/paths.ts";
+import { ROLE_EFFORT_OVERRIDES, ROLE_MODELS } from "../lib/paths.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm agents:sync");
 
@@ -48,7 +48,7 @@ export function renderCodexAgent(filename: string, source: string): string {
     `name = ${JSON.stringify(agent.name)}`,
     `description = ${JSON.stringify(agent.description)}`,
     `model = ${JSON.stringify(model)}`,
-    `model_reasoning_effort = ${JSON.stringify(agent.effort)}`,
+    `model_reasoning_effort = ${JSON.stringify(ROLE_EFFORT_OVERRIDES[agent.name] ?? agent.effort)}`,
     `developer_instructions = ${TOML_LITERAL_DELIMITER}`,
     `${preamble}${agent.body}`,
     TOML_LITERAL_DELIMITER,
