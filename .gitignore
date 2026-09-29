@@ -57,6 +57,9 @@ coverage/
 .cache/
 .eslintcache
 
+# --- codegraph index (local, rebuildable; `codegraph index` regenerates it) ---
+.codegraph/
+
 # --- local model weights (HF cache; pinned in-repo by the vLLM dev scripts) ---
 .models/
 

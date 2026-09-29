@@ -5,7 +5,7 @@ model: opus
 effort: medium
 permissionMode: acceptEdits
 color: blue
-tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage
+tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage, mcp__codegraph__*
 skills: [lane]
 ---
 

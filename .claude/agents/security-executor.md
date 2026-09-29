@@ -5,7 +5,7 @@ model: opus
 effort: high
 mcpServers: ["authentik"]
 color: cyan
-tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage
+tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage, mcp__codegraph__*
 skills: [lane]
 ---
 

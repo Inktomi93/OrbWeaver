@@ -5,7 +5,7 @@ model: sonnet
 effort: low
 permissionMode: acceptEdits
 color: green
-tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage
+tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage, mcp__codegraph__*
 skills: [lane]
 ---
 

@@ -5,7 +5,7 @@ model: fable
 effort: high
 permissionMode: acceptEdits
 color: orange
-tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage
+tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage, mcp__codegraph__*
 skills: [lane]
 ---
 

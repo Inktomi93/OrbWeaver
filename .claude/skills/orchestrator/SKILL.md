@@ -10,6 +10,8 @@ Quality comes from verification, not from model size.
 
 Do not delegate a single read you need now, a decision, or anything the user asked you to judge.
 
+CodeGraph's server instructions say to answer directly instead of delegating a lookup; that line is about a raw grep-and-read loop, not about role routing. Keep dispatching lanes for their own work; use `codegraph_explore` yourself only for the briefing facts you would otherwise read for.
+
 ## Role routing
 
 | Work | Role |
