@@ -2,7 +2,7 @@
 // empty column is a fact and not an omission) and `drift` (the orchestrator nag over resolved git facts,
 // the plans' lifecycle included).
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { DriftFacts, PlanState, WorkItem } from "../contract/types.ts";
+import type { DriftFacts, OverviewFilter, PlanState, WorkItem } from "../contract/types.ts";
 import { PLAN_KIND } from "../contract/vocab.ts";
 import { closesTrailer, driftLines, planWakeConditions, wakeConditions } from "../lib/drift.ts";
 import { splitDocument } from "../lib/frontmatter-write.ts";
@@ -35,10 +35,14 @@ function ordered(items: readonly WorkItem[]): readonly WorkItem[] {
   });
 }
 
-function overviewLines(items: readonly WorkItem[]): readonly string[] {
+const UNFILTERED: OverviewFilter = { states: [], area: null };
+
+function overviewLines(items: readonly WorkItem[], filter: OverviewFilter): readonly string[] {
   const lines: string[] = [];
-  for (const state of STATES) {
-    const bucket = ordered(items.filter((item) => item.state === state));
+  const states = filter.states.length === 0 ? STATES : STATES.filter((state) => filter.states.some((named) => named === state));
+  const inArea = filter.area === null ? items : items.filter((item) => item.area === filter.area);
+  for (const state of states) {
+    const bucket = ordered(inArea.filter((item) => item.state === state));
     lines.push(`${state} (${String(bucket.length)})`);
     if (state === "done") {
       continue;
@@ -53,8 +57,8 @@ function overviewLines(items: readonly WorkItem[]): readonly string[] {
   return lines;
 }
 
-export function overview(repoRoot = root): readonly string[] {
-  return overviewLines(loadItems(repoRoot));
+export function overview(repoRoot = root, filter = UNFILTERED): readonly string[] {
+  return overviewLines(loadItems(repoRoot), filter);
 }
 
 /** Every plan design on the tree with the fields its lifecycle reads. */

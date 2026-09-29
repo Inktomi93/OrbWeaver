@@ -1,7 +1,7 @@
 // The argv parser: every verb's shape, the list-taking forms, and misuse refused as UsageError so the cli
 // exits 3, never 1 or 2.
 import { UsageError } from "../../../../tooling/src/_shared/run-tool.ts";
-import { parseDocCommand } from "../../../../tooling/src/doc/index.ts";
+import { parseDocCommand, USAGE } from "../../../../tooling/src/doc/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("the minting verbs", () => {
@@ -78,7 +78,56 @@ test("set takes a leading run of ids, the state last, and only the flags it was 
   expect(parseDocCommand(["remove", "3", "docs/adr/0001-a.md"])).toEqual({ kind: "remove", targets: ["3", "docs/adr/0001-a.md"] });
   expect(parseDocCommand(["review", "docs/law/*.md"])).toEqual({ kind: "review", patterns: ["docs/law/*.md"] });
   expect(parseDocCommand(["due"])).toEqual({ kind: "due", patterns: [] });
-  expect(parseDocCommand([])).toEqual({ kind: "help" });
+});
+
+const VERBS = ["new", "item", "status", "set", "remove", "land", "index", "review", "due", "overview", "drift", "format"];
+
+test("<verb> --help and -h are help for that verb alone; a bare doc, help, --help and -h are the full usage", () => {
+  for (const verb of VERBS) {
+    for (const flag of ["--help", "-h"]) {
+      const command = parseDocCommand([verb, "stray", flag]);
+      if (command.kind !== "help") {
+        throw new Error(`${verb} ${flag} parsed as ${command.kind}`);
+      }
+      const heads = command.text.split("\n").filter((line) => !/^ {3}/u.test(line));
+      expect(heads.length).toBeGreaterThan(0);
+      expect(heads.every((line) => line.startsWith(`  ${verb} `) || line === `  ${verb}`)).toBe(true);
+    }
+  }
+  for (const argv of [[], ["help"], ["--help"], ["-h"]]) {
+    expect(parseDocCommand(argv)).toEqual({ kind: "help", text: USAGE });
+  }
+});
+
+test("overview reads repeated or comma-separated --status and one --area; no filter is the whole board", () => {
+  expect(parseDocCommand(["overview"])).toEqual({ kind: "overview", filter: { states: [], area: null } });
+  expect(parseDocCommand(["overview", "--status", "open,doing", "--status", "blocked", "--area", "ui"])).toEqual({
+    kind: "overview",
+    filter: { states: ["open", "doing", "blocked"], area: "ui" },
+  });
+  for (const argv of [
+    ["overview", "--status", "done"],
+    ["overview", "--status", "open,bogus"],
+    ["overview", "open"],
+    ["overview", "--lane", "x"],
+  ]) {
+    expect(() => parseDocCommand(argv)).toThrow(UsageError);
+  }
+});
+
+test("a likely misspelling is refused with the corrected command in the message", () => {
+  const cases: readonly (readonly [readonly string[], RegExp])[] = [
+    [["item", "--title", "Fix it", "--kind", "bug"], /pnpm doc item "Fix it" --kind/u],
+    [["set", "12", "14", "--state", "done"], /pnpm doc set 12 14 done/u],
+    [["set", "12", "--status", "doing"], /pnpm doc set 12 doing/u],
+    [["set", "12", "landed"], /landed is not a state/u],
+    [["land", "12", "abc1234"], /pnpm doc land 12 --evidence abc1234/u],
+    [["status", "done", "12"], /pnpm doc set 12 done/u],
+    [["new", "item", "Fix it"], /pnpm doc item "<title>"/u],
+  ];
+  for (const [argv, fix] of cases) {
+    expect(() => parseDocCommand(argv)).toThrow(fix);
+  }
 });
 
 test("misuse is a UsageError: an unknown verb, a bad slug, a missing required flag, an unknown flag, a non-numeric id", () => {
