@@ -155,7 +155,7 @@ test("every SHARE_STATES member has exactly one relay status shape", () => {
 });
 
 test("shareStatusSchema is strict, so a status carrying anything else fails the router's output parser", () => {
-  const status = { relay: { state: "off" }, liveSocketCount: 2, publicAddresses: ["https://orb.example.com"] };
+  const status = { relay: { state: "off" }, liveSocketCount: 2, publicAddresses: ["https://orb.example.com"], certificate: { state: "off" } };
   expect(shareStatusSchema.parse(status)).toEqual(status);
   expect(shareStatusSchema.safeParse({ ...status, owner: "owner" }).success).toBe(false);
   expect(shareStatusSchema.safeParse({ ...status, liveSocketCount: -1 }).success).toBe(false);
