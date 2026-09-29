@@ -46,18 +46,19 @@ interface PluginCommandAction {
   readonly run: (command: PluginCommandView) => void;
 }
 
-/** Every command across the caller's granted-and-enabled plugins, in a stable (plugin, command) order. Not a
- *  suspense read: the composer and the chrome menu are both always-mounted chrome, and neither may block the
- *  shell on a plugin catalog. */
+/** Every command across the caller's granted-and-enabled plugins, ordered by what the Plugins menu and palette
+ *  show: the plugin attribution, then group and command name. The plugin id keeps same-attribution installs
+ *  contiguous. Not a suspense read: the composer and the chrome menu are both always-mounted chrome, and neither
+ *  may block the shell on a plugin catalog. */
 export function usePluginCommands(): readonly PluginCommandView[] {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.plugin.listCommands.queryOptions());
   return (data ?? []).toSorted(
     (a, b) =>
       a.pluginName.localeCompare(b.pluginName) ||
+      a.slug.localeCompare(b.slug) ||
       a.pluginId.localeCompare(b.pluginId) ||
       (a.group ?? "").localeCompare(b.group ?? "") ||
-      (a.placements[0]?.label ?? "").localeCompare(b.placements[0]?.label ?? "") ||
       a.name.localeCompare(b.name),
   );
 }
