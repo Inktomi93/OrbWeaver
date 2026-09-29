@@ -19,7 +19,9 @@ const MODE_SENTENCE: Record<Exclude<AuthMode, "local">, string> = {
 };
 
 /** The address in the one spelling a certificate and an ACME identifier use: a dotted quad, or RFC 5952 IPv6 text.
- *  Null for anything that is not an IP literal, and for an IPv4-mapped IPv6 address, which names no public host. */
+ *  Null for anything that is not an IP literal, and for an IPv4-mapped IPv6 address, which names no public host.
+ *  @public Test-anchored module surface; tests/server/domain/share/substrate/certificate-refusal.test.ts
+ *  calls it directly, in addition to the in-file use below. */
 export function canonicalAddress(raw: string): string | null {
   const trimmed = raw.trim();
   const parsed = parseIp(trimmed);

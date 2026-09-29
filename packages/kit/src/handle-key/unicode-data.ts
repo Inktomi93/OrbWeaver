@@ -5,6 +5,8 @@
 //   https://www.unicode.org/Public/17.0.0/ucd/PropertyValueAliases.txt sha256 64e9a5f76f7a1e8b5a47d6a1f9a26522a251208f5276bdfa1559dac7cf2e827a
 // Entries are hex code points: `source>target` (a target may be a space-separated sequence), or `first-last`.
 
+/** @public Test-anchored module surface; tests/kit/handle-key/index.test.ts asserts it against the
+ *  engine's live Unicode version. */
 export const UNICODE_DATA_VERSION = "17.0.0";
 
 /** CaseFolding.txt, statuses C and F: the full case folding. */

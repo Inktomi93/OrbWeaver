@@ -199,6 +199,9 @@ export const ROOM_ENTITY_FILTERS: { readonly [K in RoomEntityKind]: (chatId: Cha
  * their staleness bound is ONE TURN — the next canon terminal refetches them through the durable replay —
  * and healing them here would re-pay a BOOT-4X-class fetch on every room open. `chat.getChat` is absent for
  * the same reason it is not duplicated: the heal's caller carries it as its own row.
+ *
+ * @public Test-anchored module surface; tests/client/data/invalidation-reads.test.ts asserts its keys
+ *  match {@link ROOM_ENTITY_KINDS} directly, in addition to the in-file use by `roomEntityHealReads`.
  */
 export const ROOM_ENTITY_HEAL_FILTERS: { readonly [K in RoomEntityKind]: (chatId: ChatId, trpc: Trpc) => readonly InvalidateFilter[] } = {
   // The D22 member-card dialog — the read this heal was born for, and the one it covered alone until today.

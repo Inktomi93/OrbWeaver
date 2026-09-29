@@ -152,7 +152,7 @@ export function effectiveProviderRouting<T extends OpenRouterRouting>(
 // the connection's `promptCache.historyDepth` can only raise the depth, so the placer is never asked for depth 0.
 
 /** One delivered wire row as the breakpoint placer sees it. */
-export interface CacheBreakpointRow {
+interface CacheBreakpointRow {
   /** The wire role — the depth axis (`system` consumes none). */
   readonly role: string;
   /** Part of a WITHIN-TURN tool exchange (a `tool` result row, or the assistant row carrying its calls):
@@ -164,7 +164,7 @@ export interface CacheBreakpointRow {
 
 /** A placed breakpoint: the conversational DEPTH it satisfies, and the wire-array INDEX that depth resolved
  *  to. The two are equal only on a tool-free, system-free, fully role-alternating history. */
-export interface CacheBreakpointPlacement {
+interface CacheBreakpointPlacement {
   readonly depth: number;
   readonly index: number;
 }
@@ -211,11 +211,15 @@ export function cacheDepthCovering(rows: readonly { readonly role: string; reado
   return covering;
 }
 
-// Returns the pair of placements at depths `depth` and `depth+2` whose cumulative prefix clears the
-// per-model cacheMinTokens floor. The deeper one keeps a cache hit inside Anthropic's 20-block lookback
-// window that a single breakpoint drops on a long conversation. Drops the deeper placement when it runs off
-// the front or is below the floor; drops both when even `depth` is below the floor. A REQUESTED depth the
-// conversation cannot reach places nothing at all — that one is loud (`provider.cache_depth_unreachable`).
+/** Returns the pair of placements at depths `depth` and `depth+2` whose cumulative prefix clears the
+ *  per-model cacheMinTokens floor. The deeper one keeps a cache hit inside Anthropic's 20-block lookback
+ *  window that a single breakpoint drops on a long conversation. Drops the deeper placement when it runs
+ *  off the front or is below the floor; drops both when even `depth` is below the floor. A REQUESTED
+ *  depth the conversation cannot reach places nothing at all — that one is loud
+ *  (`provider.cache_depth_unreachable`).
+ *
+ *  @public Test-anchored module surface; tests/inference/backends/kit/cache-control.test.ts calls it
+ *  directly, in addition to the in-file use by the openrouter runner mapping. */
 export function computeCacheBreakpointPlacements(args: {
   readonly rows: readonly CacheBreakpointRow[];
   readonly systemStaticTokens: number;

@@ -19,6 +19,13 @@ export const CLIENT_SRC_PREFIX = "/packages/client/src/";
 const SERVER_SRC_PREFIX = "/packages/server/src/";
 const PACKAGE_SRC_RE = /\/packages\/[^/]+\/src\//u;
 
+/** Dev-only one-off scripts (ops probes, investigation rigs) — never shipped, mirroring knip.ts's own
+ *  production-entry scope (root workspace `entry: ["scripts/**\/*.ts", ...]` carries no `!`, so a
+ *  production knip run never credits a script as a consumer). An export reached ONLY from here is not a
+ *  real prod consumer for the ratchet's stale-`@public` arm; it still counts toward `usedTooling` for
+ *  every other liveness reader (orphans/testonly/chains already treat non-package-src as a root). */
+const SCRIPTS_SRC_PREFIX = "/scripts/";
+
 /** Decl-key every export of `target` (its own decls AND re-exported ones — getExportedDeclarations
  *  resolves through `export *` and through renaming `export { X as Y } from` hops), added to `bucket`.
  *  Used for namespace imports and dynamic imports, both of which keep a module's WHOLE export surface
@@ -334,6 +341,7 @@ function prodBucketFor(
     usedServerProd: Set<string>;
     usedOtherProd: Set<string>;
     usedTooling: Set<string>;
+    usedScripts: Set<string>;
   },
 ): Set<string> {
   if (isTestPath(fp)) {
@@ -345,7 +353,10 @@ function prodBucketFor(
   if (fp.includes(SERVER_SRC_PREFIX)) {
     return buckets.usedServerProd;
   }
-  return PACKAGE_SRC_RE.test(fp) ? buckets.usedOtherProd : buckets.usedTooling;
+  if (PACKAGE_SRC_RE.test(fp)) {
+    return buckets.usedOtherProd;
+  }
+  return fp.includes(SCRIPTS_SRC_PREFIX) ? buckets.usedScripts : buckets.usedTooling;
 }
 
 /** The default: liveness sets ONLY, byte- and cost-identical to the pass that predates the edge map. */
@@ -361,6 +372,7 @@ export function buildLiveness(project: SourceCorpus, options: LivenessOptions = 
   const usedServerProd = new Set<string>();
   const usedOtherProd = new Set<string>();
   const usedTooling = new Set<string>();
+  const usedScripts = new Set<string>();
   const usedTest = new Set<string>();
   const starTargets = new Set<string>();
   const arms = new Map<string, Set<ConsumptionArm>>();
@@ -375,7 +387,7 @@ export function buildLiveness(project: SourceCorpus, options: LivenessOptions = 
     const fp = sf.getFilePath();
     // A test path always wins into usedTest. clientgap reads the exact client/server slices;
     // orphans/testonly read the non-test union, including legitimate tool consumers.
-    const bucket = prodBucketFor(fp, { usedTest, usedClientProd, usedServerProd, usedOtherProd, usedTooling });
+    const bucket = prodBucketFor(fp, { usedTest, usedClientProd, usedServerProd, usedOtherProd, usedTooling, usedScripts });
     for (const imp of sf.getImportDeclarations()) {
       markImportConsumption(imp, { bucket, record, namespaceSites });
     }
@@ -395,6 +407,7 @@ export function buildLiveness(project: SourceCorpus, options: LivenessOptions = 
       consumers.set(fact.targetKey, roots);
     }
   }
-  const usedProd = new Set<string>([...usedClientProd, ...usedServerProd, ...usedOtherProd, ...usedTooling]);
-  return { usedProd, usedClientProd, usedServerProd, usedTest, starTargets, arms, namespaceSites, consumers, externalConsumptions };
+  const usedProdNonScripts = new Set<string>([...usedClientProd, ...usedServerProd, ...usedOtherProd, ...usedTooling]);
+  const usedProd = new Set<string>([...usedProdNonScripts, ...usedScripts]);
+  return { usedProd, usedProdNonScripts, usedClientProd, usedServerProd, usedTest, starTargets, arms, namespaceSites, consumers, externalConsumptions };
 }

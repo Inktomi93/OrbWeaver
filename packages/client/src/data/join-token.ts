@@ -20,13 +20,15 @@ function addressBar(): AddressBar {
   return globalThis as typeof globalThis & AddressBar;
 }
 
-/** The inbound `?join=<token>` handoff, or null. */
+/** The inbound `?join=<token>` handoff, or null.
+ *  @public Test-anchored module surface; tests/client/data/join-token.dom.test.ts calls it directly. */
 export function readJoinToken(): string | null {
   const token = new URLSearchParams(addressBar().location.search).get("join");
   return token !== null && token.length > 0 ? token : null;
 }
 
-/** Scrub the token from the address bar (history included) — call as soon as the token is captured. */
+/** Scrub the token from the address bar (history included) — call as soon as the token is captured.
+ *  @public Test-anchored module surface; tests/client/data/join-token.dom.test.ts calls it directly. */
 export function clearJoinParam(): void {
   const { location, history } = addressBar();
   const rawSearch = location.search;

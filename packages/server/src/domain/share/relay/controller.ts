@@ -9,14 +9,24 @@ import { getLog } from "#foundation/observability";
 import type { RelayProcess } from "#infra/relay";
 import type { RelayController, RelayControllerDeps } from "../contract/service.ts";
 
-/** The wait before the first restart after a death; each further restart waits {@link RELAY_RESTART_BACKOFF} times longer. */
+/** The wait before the first restart after a death; each further restart waits {@link RELAY_RESTART_BACKOFF} times longer.
+ *  @public Test-anchored module surface; tests/server/domain/share/relay/controller.test.ts asserts the
+ *  restart schedule these timing constants build, in addition to the in-file use below. */
 export const RELAY_RESTART_FIRST_DELAY_MS = 2000;
+/** @public Test-anchored module surface; tests/server/domain/share/relay/controller.test.ts asserts the
+ *  restart schedule this factor builds, in addition to the in-file use below. */
 export const RELAY_RESTART_BACKOFF = 4;
-/** Restarts in a row before the relay stays down for the owner: waits of 2 s, 8 s, 32 s, then about 2 and 8.5 minutes. */
+/** Restarts in a row before the relay stays down for the owner: waits of 2 s, 8 s, 32 s, then about 2 and 8.5 minutes.
+ *  @public Test-anchored module surface; tests/server/domain/share/relay/controller.test.ts asserts the
+ *  restart schedule this limit builds, in addition to the in-file use below. */
 export const RELAY_RESTART_LIMIT = 5;
-/** A relay that reports no URL in this long is killed and counted as a death. */
+/** A relay that reports no URL in this long is killed and counted as a death.
+ *  @public Test-anchored module surface; tests/server/domain/share/relay/controller.test.ts asserts the
+ *  no-url timeout, in addition to the in-file use below. */
 export const RELAY_URL_WAIT_MS = 60_000;
-/** A relay up this long has earned a fresh restart budget: its next death starts the schedule over. */
+/** A relay up this long has earned a fresh restart budget: its next death starts the schedule over.
+ *  @public Test-anchored module surface; tests/server/domain/share/relay/controller.test.ts advances the
+ *  clock by this constant, in addition to the in-file use below. */
 export const RELAY_STABLE_UP_MS = 600_000;
 
 const SHARE_WARNING =
