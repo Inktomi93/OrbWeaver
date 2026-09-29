@@ -38,7 +38,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 ### Commit
 
-- Commit through the hooks, in the foreground. Pre-commit runs `pnpm verify --static --changed`, which takes no host-wide slot and finishes well inside the tool timeout; commit-msg runs `scripts/commit-msg-check.sh`.
+- Commit through the hooks, with the Bash tool's `run_in_background`: pre-commit runs `pnpm verify --static --changed`, which can outlast the tool timeout, and a killed commit leaves its hook running. It takes no host-wide slot. Commit-msg runs `scripts/commit-msg-check.sh`.
 - Write the header as `type(scope): subject`, name the floor you ran, and end with a `Co-Authored-By` trailer.
 - Keep your own checks scoped. Do not run the full battery only to commit.
 - Bypass a hook only when the user or orchestrator names the exception. Use `LEFTHOOK_EXCLUDE=check git commit ...`, which keeps the commit-msg check, and record the reason and the owed checks.
