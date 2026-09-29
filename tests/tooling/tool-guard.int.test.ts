@@ -114,7 +114,9 @@ const CHAIN_HARNESSES: readonly string[] = [
   "pnpm check | tail -30", // rule 4b: harness-piped, verify-family artifact
   "pnpm test:node 2>&1 | tail -20", // rule 4b: harness-piped, known test artifact
 ];
-const CHAIN_SEPARATORS: readonly string[] = [";", "&&", "\n"];
+// A lone `&` BACKGROUNDS (leg 3, 2026-09-29: parseStructure did not split on it, so `pnpm check > log &
+// rm -rf /` was one clause and fell through every rule as "no objection" — see isBackgroundAmpersand).
+const CHAIN_SEPARATORS: readonly string[] = [";", "&&", "\n", "&"];
 interface ChainVerb {
   readonly command: string;
   readonly decision: Row[0];
@@ -179,10 +181,30 @@ const PLAYWRIGHT_GATE_ROWS: Row[] = OLD_PATH_VERBS.map(
   (verb): Row => [verb.decision, verb.rule as string, `${verb.command};npx playwright test tests/client/x.ct.tsx`],
 );
 
+// Leg 3 (2026-09-29): a lone `&` must still catch every verb with NO harness clause anywhere in the
+// command — the danger detection cannot depend on a harness being present to trigger a clause split.
+const AMPERSAND_NO_HARNESS_ROWS: Row[] = CHAIN_VERBS.flatMap((verb): Row[] => {
+  const rule = typeof verb.rule === "function" ? verb.rule("") : verb.rule;
+  return [chainRow(verb.decision, rule, `${verb.command} &`, verb.ctx), chainRow(verb.decision, rule, `echo hi & ${verb.command}`, verb.ctx)];
+});
+
+// Leg 3 negatives: an `&` that is part of redirect syntax, or sits at the very end of the line, or inside
+// quotes, is NOT a clause boundary — isBackgroundAmpersand must decline all five.
+const AMPERSAND_NEGATIVE_ROWS: Row[] = [
+  ["allow", "harness-redirect", "pnpm check 2>&1 > /tmp/cb-amp.log"], // `>&1`-shaped fd merge, not a split
+  ["allow", "harness-redirect", "pnpm check &> /tmp/cb-amp.log"], // `&>` redirect, not a split
+  ["pass", null, "echo hi >&2"], // `>&2`, not a split
+  ["pass", null, "echo hi &"], // trailing `&` alone: nothing dangerous on either side of the split
+  ["pass", null, "echo 'a & b'"], // `&` inside single quotes is already blanked before parseStructure runs
+  ["pass", null, 'git commit -m "uses & inside a string"'], // `&` inside double quotes, same reason
+];
+
 const ROWS: Row[] = [
   ...CHAIN_ROWS,
   ...OLD_PATH_ROWS,
   ...PLAYWRIGHT_GATE_ROWS,
+  ...AMPERSAND_NO_HARNESS_ROWS,
+  ...AMPERSAND_NEGATIVE_ROWS,
   // ---- harness piped: REWRITE the unambiguous shape (the measured 45-hour class) ----
   ["allow", "harness-piped", "pnpm check | tail -30"],
   ["allow", "harness-piped", "pnpm verify --push 2>&1 | tail -40"],
@@ -240,7 +262,11 @@ const ROWS: Row[] = [
   ["deny", "harness-piped", "npx tsc | head -5; pnpm typecheck 2>&1 | tail -15"],
   ["deny", "harness-piped", 'pnpm lint 2>&1 | tail -4; echo "exit: ${PIPESTATUS[0]}"'],
   ["deny", "harness-piped", "(cd packages/ui && pnpm exec tsc --noEmit 2>&1 | head -10); pnpm test:ct 2>&1 | tail -25"],
-  ["deny", "harness-piped", "pnpm test tests/server/x.int.test.ts 2>&1 | tail -25 & sleep 5"],
+  // CHANGED (parseStructure now splits a lone backgrounding `&` into its own clause, 2026-09-29): `sleep 5`
+  // is its OWN clause now, not stray text glued to the reader chain, and `gateRewrite`'s remainder check
+  // confirms it names nothing dangerous — so the piped harness rewrites normally instead of denying on a
+  // `&` it used to merely see and refuse to parse past.
+  ["allow", "harness-piped", "pnpm test tests/server/x.int.test.ts 2>&1 | tail -25 & sleep 5"],
   // ---- harness failure swallowed ----
   ["deny", "harness-swallowed", "pnpm check || true"],
   ["deny", "harness-swallowed", "pnpm typecheck >/dev/null 2>&1 && echo PASS || echo FAIL"],

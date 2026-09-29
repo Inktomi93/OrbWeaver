@@ -346,8 +346,24 @@ export function heredocSpans(raw, blank) {
   ]);
 }
 
-// ── structure scan: clauses (split on && / || / ; / newline) and pipe stages within each clause.
-//    Runs on the BLANKED text; returns index ranges so callers can slice the original. ──
+// ── structure scan: clauses (split on && / || / ; / newline / a lone backgrounding `&`) and pipe stages
+//    within each clause. Runs on the BLANKED text; returns index ranges so callers can slice the
+//    original. ──
+
+// A lone `&` BACKGROUNDS the command before it and starts a new one — the same clause-ending shape as
+// `;`, and every rule that scans `clauses` needs to see the two halves separately. Before this existed,
+// `pnpm check > log & rm -rf /` was ONE clause: `bareHarnessRewrite` saw the trailing `&` after its own
+// redirect strip and correctly REFUSED to rewrite (UNSAFE_AFTER_REDIRECT_STRIP), but refusing a rewrite
+// is not a deny — the whole line then fell through every later rule as "no objection" and reached `allow`
+// on the real hook contract, because RM_HEAD-style per-stage rules are head-anchored per STAGE and this
+// stage's head was `pnpm`, not `rm`. `isBackgroundAmpersand` excludes the THREE shapes `&` legitimately
+// appears in that are not a clause boundary: `&&` (checked first, unchanged), and an `&` glued to a `>` on
+// either side (`2>&1`, `1>&2`, `&>`, `&>>` — every redirect-merge spelling puts `>` immediately before or
+// after the `&`, never both absent). A quoted `&` never reaches here at all: `blank` has already turned
+// every quoted span to spaces before `parseStructure` runs.
+function isBackgroundAmpersand(blank, i) {
+  return blank[i + 1] !== "&" && blank[i - 1] !== ">" && blank[i + 1] !== ">";
+}
 
 export function parseStructure(blank) {
   const clauses = [];
@@ -368,7 +384,7 @@ export function parseStructure(blank) {
       i += 2;
       clauseStart = i;
       stageStart = i;
-    } else if (c === ";" || c === "\n") {
+    } else if (c === ";" || c === "\n" || (c === "&" && isBackgroundAmpersand(blank, i))) {
       endClause(i);
       i += 1;
       clauseStart = i;
