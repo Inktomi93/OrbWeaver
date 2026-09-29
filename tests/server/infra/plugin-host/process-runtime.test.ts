@@ -1,9 +1,12 @@
-import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
+import { PLUGIN_MAIN_ENTRY } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
-import { afterEach } from "vitest";
+import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
+import { unzipSync } from "fflate";
+import { afterEach, beforeAll } from "vitest";
 import { env } from "../../../../packages/server/src/foundation/env/index.ts";
 import {
   __killManagedPluginBrokerOnBridgeForTest,
@@ -11,11 +14,21 @@ import {
   __pauseManagedPluginBridgeDeliveryForTest,
   __terminateManagedPluginBrokerForTest,
 } from "../../../../packages/server/src/infra/plugin-host/process-runtime.ts";
+import { packShowcaseBundle } from "../../../../packages/showcase-plugins/src/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const LONG = 30_000;
 const CHAT = "chat_process0000000000000000" as ChatId;
 const noChat: null = null;
+const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
+
+// The showcase authoring tree ships TypeScript source; the cold-wake case needs the real release-built
+// guest JS, the same bytes `packShowcaseBundle` serves to the per-user seeder.
+beforeAll(async () => {
+  const built = await writeShowcaseArtifacts(REPO_ROOT);
+  expect(built.diagnostics).toEqual([]);
+});
+
 afterEach(async () => {
   await __terminateManagedPluginBrokerForTest();
 });
@@ -376,7 +389,9 @@ test("a near-limit durable source is reloaded on cold wake before catalog compar
       throw new Error("test: async registration did not settle before activation returned");
     }
     expect(writes).toBe(1);
-    for (let index = 0; index < 2; index += 1) {
+    // Fill every remaining warm slot up to the configured physical cap so the pool must evict the async
+    // plugin's runtime (LRU, unpinned) — matching the sibling lifecycle tests below.
+    for (let index = 0; index < env.PLUGIN_BROKER_WORKER_MAX; index += 1) {
       const filler = await host.createInstance({ ...durableSource(`'filler-${index}'`), grants: [], bridge: base, chat: noChat });
       if (!filler.ok) {
         throw new Error(filler.error);
@@ -403,7 +418,15 @@ interface ShowcaseColdWakeCase {
 async function assertShowcaseColdWake(row: ShowcaseColdWakeCase): Promise<void> {
   const host = createPluginHost(seams());
   const runtimeBridge = bridge();
-  const mainJs = readFileSync(`packages/showcase-plugins/bundles/${row.slug}/main.js`, "utf8");
+  const bundle = await packShowcaseBundle(row.slug);
+  if (bundle === null) {
+    throw new Error(`${row.slug}: release-built showcase bundle is missing`);
+  }
+  const entry = unzipSync(bundle)[PLUGIN_MAIN_ENTRY];
+  if (entry === undefined) {
+    throw new Error(`${row.slug}: release-built showcase bundle has no ${PLUGIN_MAIN_ENTRY}`);
+  }
+  const mainJs = new TextDecoder().decode(entry);
   const outcome = await host.createInstance({ ...durableSource(mainJs), grants: row.grants, bridge: runtimeBridge, chat: noChat, label: row.slug });
   if (!outcome.ok) {
     throw new Error(`${row.slug}: ${outcome.error}`);

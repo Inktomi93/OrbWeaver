@@ -89,6 +89,10 @@ interface Binding {
   suppressLogs: boolean;
   crashed: Error | null;
   disposed: boolean;
+  /** Set once this binding's first command has actually reached a live broker connection. A binding still
+   *  waiting on `ensureConnected()` was never served by the connection that just died and a belated exit
+   *  event for it must not crash a binding it never touched. */
+  dispatched: boolean;
   onCrash: (error: Error) => void;
   readonly releaseAdmission?: () => void;
   readonly runtimeConfig?: Omit<CreateInstanceInputIn, "bridge" | "mainJs">;
@@ -276,13 +280,16 @@ class BrokerClient {
     return { reached: reached.promise, release: resume };
   }
 
-  async command(
-    operation: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"],
-    runtimeId: string,
-    authorityId: string,
-    value?: unknown,
-  ): Promise<unknown> {
+  async command(input: {
+    readonly operation: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"];
+    readonly runtimeId: string;
+    readonly authorityId: string;
+    readonly value?: unknown;
+    readonly onConnected?: () => void;
+  }): Promise<unknown> {
+    const { operation, runtimeId, authorityId, value, onConnected } = input;
     await this.ensureConnected();
+    onConnected?.();
     const socket = this.socket;
     if (socket === undefined || socket.destroyed) {
       throw unavailableError();
@@ -386,13 +393,18 @@ class BrokerClient {
         throw new Error("plugin broker: token file length is outside the accepted range");
       }
       await this.openSocket(socketPath, token);
-      // @orb-waive caught-failure-ownership(error): a live broker's transient connection failure is retried until success; the deadline, replaced endpoint, or exited child rethrows the failure to the caller. Ends if retry can stop without success or propagation.
     } catch (error) {
-      if (
-        performance.now() >= deadline ||
-        this.managedEndpoint?.socketPath !== socketPath ||
-        (this.managedChild !== undefined && this.managedChild.exitCode !== null)
-      ) {
+      if (performance.now() >= deadline) {
+        throw error;
+      }
+      if (this.managedEndpoint === undefined) {
+        // A forced teardown (a normal watchdog restart keeps the same endpoint) cleared it mid-retry with
+        // nothing yet spawned to replace it — chase a freshly spawned broker instead of failing on a socket
+        // path nothing will ever rebind.
+        await this.connectOnce();
+        return;
+      }
+      if (this.managedEndpoint.socketPath !== socketPath || (this.managedChild !== undefined && this.managedChild.exitCode !== null)) {
         throw error;
       }
       await sleep(CONNECT_RETRY_MS);
@@ -640,8 +652,11 @@ class BrokerClient {
       liveness.abort();
     }
     this.liveness.clear();
+    // A binding that never dispatched a command onto a live connection was never served by the one that
+    // just died — a belated exit/close for a forcibly-killed broker must not crash a binding whose own
+    // reconnect is still in flight, and its `bindings` registration must survive for that reconnect to use.
     for (const binding of logicalBindings) {
-      if (binding.crashed !== null) {
+      if (binding.crashed !== null || !binding.dispatched) {
         continue;
       }
       binding.crashed = error;
@@ -652,10 +667,7 @@ class BrokerClient {
       binding.runtimeId = undefined;
     }
     for (const binding of bindings.values()) {
-      if (logicalBindings.has(binding)) {
-        continue;
-      }
-      if (binding.crashed !== null) {
+      if (logicalBindings.has(binding) || binding.crashed !== null || !binding.dispatched) {
         continue;
       }
       binding.crashed = error;
@@ -665,7 +677,11 @@ class BrokerClient {
       binding.onCrash(error);
       binding.runtimeId = undefined;
     }
-    bindings.clear();
+    for (const [runtimeId, binding] of bindings) {
+      if (binding.dispatched) {
+        bindings.delete(runtimeId);
+      }
+    }
   }
 }
 
@@ -887,7 +903,15 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     const authorityId = randomUUID();
     binding.authorities.set(authorityId, { grants: binding.grants, chat, phase });
     try {
-      return await broker.command(operation, runtimeId, authorityId, value);
+      return await broker.command({
+        operation,
+        runtimeId,
+        authorityId,
+        value,
+        onConnected: (): void => {
+          binding.dispatched = true;
+        },
+      });
     } finally {
       binding.authorities.delete(authorityId);
     }
@@ -1107,6 +1131,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       suppressLogs: false,
       crashed: null,
       disposed: false,
+      dispatched: false,
       retirement: undefined,
       onCrash: (error) => pool.fail(binding, error),
       ...(runtimeConfig === undefined ? {} : { runtimeConfig }),

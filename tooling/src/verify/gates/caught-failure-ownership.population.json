@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 642,
+    "sites": 641,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 642,
+      "deliberate-absorb": 641,
       "unproven": 0
     },
     "byGrammar": {
       "default": 153,
-      "empty": 330,
+      "empty": 329,
       "promise": 159
     }
   },
@@ -1629,11 +1629,6 @@
       "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.command::this.terminateManagedForTest::1",
       "verdict": "deliberate-absorb",
       "reason": "forced broker death reaches the disconnect owner, which invalidates bindings and rejects pending work. Ends if that error path stops reaching onDisconnect."
-    },
-    {
-      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.connectWithRetry::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a live broker's transient connection failure is retried until success; the deadline, replaced endpoint, or exited child rethrows the failure to the caller. Ends if retry can stop without success or propagation."
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.handle::this.handleBridge::1",
