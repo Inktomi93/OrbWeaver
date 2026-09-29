@@ -17,6 +17,7 @@ import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
 import { isSupervised, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { z } from "zod";
 import { DEFAULT_DATA_DIR, resolveDataLayout } from "#foundation/data-layout";
+import { NODE_ENVIRONMENTS } from "../../kit/node-environment.ts";
 import type { AllowedHostsInput } from "./allowed-hosts.ts";
 import { allowedHostsEntryRefusal, machineHostnameFor } from "./allowed-hosts.ts";
 import type { BindPostureInput } from "./bind.ts";
@@ -112,6 +113,8 @@ const RATE_LIMIT_AI_TURN_DEFAULT = 30;
 const RATE_LIMIT_PUBLIC_IP_DEFAULT = 60;
 const RATE_LIMIT_AUTHED_DEFAULT = 600;
 const RATE_LIMIT_LOGIN_DEFAULT = 10;
+const PLUGIN_BROKER_WORKER_MAX_DEFAULT = 4;
+const PLUGIN_BROKER_MEMORY_LIMIT_BYTES_DEFAULT = 1_073_741_824;
 
 // The `.env` file the loader below reads, cwd-relative — exactly the path dotenv resolved
 // (`path.resolve(process.cwd(), ".env")`), so a prod launch (`pnpm stack up prod` / `up-fg prod`, both
@@ -231,6 +234,16 @@ function envBool(fallback: boolean): z.ZodDefault<z.ZodCodec<z.ZodString, z.ZodB
   return z.stringbool({ truthy: ["true"], falsy: ["false"], case: "sensitive" }).default(fallback);
 }
 
+/** A positive safe integer read from env without widening the accepted spelling to exponents or decimals. */
+function positiveSafeIntegerEnv(fallback: number): z.ZodDefault<z.ZodCodec<z.ZodString, z.ZodNumber>> {
+  return z
+    .codec(z.string().regex(/^[1-9]\d*$/u), z.number().int().positive().max(Number.MAX_SAFE_INTEGER), {
+      decode: Number,
+      encode: String,
+    })
+    .default(fallback);
+}
+
 /** The env keys each AUTH_MODE cannot boot without (the superRefine's boot-fatality table). A mapped-type
  *  Record over `AUTH_MODES` — a fifth mode fails `tsc` here rather than silently requiring nothing. The
  *  two credential-less modes are `[]` on purpose: `single-user` needs none, and `forward-header`'s
@@ -294,7 +307,11 @@ function resolveAuthFallback(mode: (typeof AUTH_MODES)[number], declared: "owner
 const envSchema = z
   .object({
     PORT: z.coerce.number().int().positive().default(DEFAULT_PORT),
-    NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+    NODE_ENV: z.enum(NODE_ENVIRONMENTS).default("development"),
+    // Parsed once in the app process, then passed as authenticated-process launch configuration through the
+    // app -> watchdog -> broker argv chain. The isolated children do not reread deployment environment.
+    PLUGIN_BROKER_WORKER_MAX: positiveSafeIntegerEnv(PLUGIN_BROKER_WORKER_MAX_DEFAULT),
+    PLUGIN_BROKER_MEMORY_LIMIT_BYTES: positiveSafeIntegerEnv(PLUGIN_BROKER_MEMORY_LIMIT_BYTES_DEFAULT),
     // The listen interface (`serve({ hostname })`). UNSET is the meaningful default and differs by mode and
     // build: `single-user` ⇒ loopback in every build (no login, so it serves this machine only); every other
     // mode ⇒ node's own default in production (every interface — what the reverse proxy target needs) and

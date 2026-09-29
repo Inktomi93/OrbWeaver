@@ -5,6 +5,7 @@
 // the injected `now`; nothing below entry reads ambient time.
 
 import { randomUUID } from "node:crypto";
+import type { ServerOptions } from "node:http";
 import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
 import { join } from "node:path";
@@ -103,6 +104,37 @@ import { createRateLimitGate } from "./rate-limit-gate.ts";
 
 const MS_PER_HOUR = 3_600_000;
 const CATALOG_CHECK_INTERVAL_MS = MS_PER_HOUR;
+
+/** The chosen HTTP/1 connection-reuse and inbound-request limits. These do not bound response duration:
+ *  `requestTimeout` ends once Node has received the request, so a long-lived SSE response is unaffected. */
+export const HTTP_SERVER_TIMEOUTS = {
+  keepAliveTimeout: 5000,
+  requestTimeout: 300_000,
+  headersTimeout: 60_000,
+} as const satisfies ServerOptions;
+
+/** Start the Node HTTP/1 adapter with the production timeout policy. The final parameters are focused test
+ *  seams for proving adapter forwarding and timeout semantics quickly; boot omits both and receives the
+ *  real Hono adapter with {@link HTTP_SERVER_TIMEOUTS}.
+ * @public Test-anchored module surface; focused tests pin the production adapter options and SSE behavior.
+ */
+export function serveHttpServer(
+  options: Pick<Parameters<typeof serve>[0], "fetch" | "port" | "hostname">,
+  listeningListener: (info: AddressInfo) => void,
+  serverOptions: ServerOptions = HTTP_SERVER_TIMEOUTS,
+  serveAdapter: typeof serve = serve,
+): ServerType {
+  return serveAdapter(
+    {
+      fetch: options.fetch,
+      ...(options.port === undefined ? {} : { port: options.port }),
+      overrideGlobalObjects: false,
+      serverOptions,
+      ...(options.hostname === undefined ? {} : { hostname: options.hostname }),
+    },
+    listeningListener,
+  );
+}
 
 /** How long a shutdown waits for open connections before force-closing them. Bounded on purpose: the app's
  *  own SSE stream never ends, so an unbounded drain lets one open browser tab stall a deploy indefinitely
@@ -898,11 +930,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       };
       // overrideGlobalObjects would swap global Response for hono's class, so a native fetch() result fails
       // `instanceof Response`; transformers.js then never caches a downloaded model file and every local-light load fails.
-      const handle = serve(
+      const handle = serveHttpServer(
         {
           fetch: app.fetch,
           port: options.listenPort ?? env.PORT,
-          overrideGlobalObjects: false,
           ...(bind.host === undefined ? {} : { hostname: bind.host }),
         },
         (info: AddressInfo) => {

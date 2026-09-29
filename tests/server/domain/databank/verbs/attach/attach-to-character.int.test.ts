@@ -18,14 +18,18 @@ test("owner attaches an owned document to an owned character; re-attach idempote
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const characterId = await seedCharacter(db, owner, { id: "character_owned" });
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  h.userEvents.length = 0; // Drop the create event so this asserts only the character-binding write.
 
   await h.service.attachToCharacter({ principal: principalFor(owner), documentId: document.id, characterId });
   await h.service.attachToCharacter({ principal: principalFor(owner), documentId: document.id, characterId }); // idempotent
   expect(await db.select().from(characterDocuments).where(eq(characterDocuments.documentId, document.id))).toEqual([{ characterId, documentId: document.id }]);
+  expect(h.userEvents).toEqual([{ userId: owner, event: { type: "databankChanged", documentId: document.id } }]);
 
+  h.userEvents.length = 0;
   await h.service.detachFromCharacter({ principal: principalFor(owner), documentId: document.id, characterId });
   await h.service.detachFromCharacter({ principal: principalFor(owner), documentId: document.id, characterId }); // idempotent no-op
   expect(await db.select().from(characterDocuments).where(eq(characterDocuments.documentId, document.id))).toHaveLength(0);
+  expect(h.userEvents).toEqual([{ userId: owner, event: { type: "databankChanged", documentId: document.id } }]);
 });
 
 test("a foreign DOCUMENT never attaches to an owned character (cross-tenant)", async () => {

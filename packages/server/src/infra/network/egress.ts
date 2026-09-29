@@ -571,6 +571,7 @@ export const ANY_HOST: unique symbol = Symbol("safeFetch.ANY_HOST");
 
 const EGRESS_BLOCK_REASONS = [
   "scheme",
+  "credentials",
   "host-not-allowed",
   "ip-literal",
   "private-address",
@@ -626,6 +627,8 @@ export interface SafeFetchOptions {
 }
 
 export interface SafeFetchResult {
+  /** Final response URL after safeFetch's validated redirect chain. Optional only for injected test doubles. */
+  readonly url?: string;
   readonly status: number;
   readonly headers: Headers;
   readonly contentType: string | null;
@@ -709,6 +712,7 @@ export async function safeFetch(url: string | URL, options: SafeFetchOptions): P
   // claims it (a second bytes() is the reuse error; a dispose() after a read is a no-op).
   let settled = false;
   return {
+    url: opened.response.url,
     status: opened.response.status,
     headers: opened.response.headers,
     contentType: opened.contentType,
@@ -784,7 +788,6 @@ async function openSafeFetch(url: string | URL, options: SafeFetchOptions): Prom
     maxBytes,
     release,
     discard,
-    // biome-ignore lint/style/useErrorCause: cause forwarded via EgressBlockedError super().
     bodyError: (err: unknown): unknown =>
       deadlineHit() ? new EgressBlockedError("deadline", `egress deadline of ${deadlineMs}ms exceeded`, { cause: err }) : err,
   };
@@ -971,6 +974,12 @@ function validateUrl(url: URL, options: SafeFetchOptions): void {
     }
   } else if (url.protocol !== "https:") {
     blockEgress("scheme", host, `scheme ${url.protocol} is not allowed (https only)`);
+  }
+  // URL userinfo is implicit Authorization state owned by the URL parser/fetch implementation rather than
+  // by our redirect header policy. Refuse it outright so credentials can neither reach hop zero nor survive
+  // into a cross-origin redirect through implementation-specific fetch behavior.
+  if (url.username !== "" || url.password !== "") {
+    blockEgress("credentials", host, "URL-embedded credentials are not allowed");
   }
   // The user's own configured backend may legitimately be an IP literal (BYO vLLM at 192.168.x.y).
   if (!ownerConfigured && isIpLiteralHost(url.hostname)) {

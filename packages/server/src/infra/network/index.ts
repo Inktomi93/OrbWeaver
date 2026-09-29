@@ -28,7 +28,6 @@ export {
   safeFetch,
   shouldBlockEgress,
 } from "./egress.ts";
-
 export { type ImageGuardCaps, ImageRejectedError, isAllowedImageBuffer } from "./image-guard.ts";
 export {
   addressThrottleKey,
@@ -47,3 +46,5 @@ export {
   isPrivateOrLoopback,
   matchesCidr,
 } from "./ip-ranges.ts";
+export type { PluginGitSource, PluginGitSourceDeps } from "./plugin-git.ts";
+export { createPluginGitSource, guardedGitHttp, materializePluginGitEntries, pluginGitSource } from "./plugin-git.ts";

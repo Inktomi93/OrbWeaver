@@ -46,6 +46,7 @@
 // upward import is physics-illegal (§2).
 
 import type { AuthMode } from "@orb/contracts/identity";
+import type { NodeEnvironment } from "../../kit/node-environment.ts";
 import { settingInstruction } from "./container.ts";
 
 const AUTH_MODE_KEY = "AUTH_MODE";
@@ -63,7 +64,7 @@ const LOOPBACK_V4_RE = /^127(\.\d{1,3}){3}$/;
 
 /** The raw env values the resolver reads — passed in so this file never touches `process.env`. */
 export interface BindPostureInput {
-  readonly nodeEnv: "development" | "production" | "test";
+  readonly nodeEnv: NodeEnvironment;
   readonly authMode: AuthMode;
   /** `BIND_HOST` — unset means node's own default: EVERY interface. */
   readonly bindHost: string | undefined;

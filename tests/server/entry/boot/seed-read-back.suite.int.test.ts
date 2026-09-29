@@ -450,6 +450,7 @@ const pluginPlan = view<PluginOut>({
   status: z.enum(PLUGIN_STATUSES),
   origin: z.enum(PLUGIN_ORIGINS),
   sourceUrl: TYPED_ONLY,
+  sourceCommit: TYPED_ONLY,
   updateSource: TYPED_ONLY,
   grantedCapabilities: pluginCapabilitiesSchema,
   declaredCapabilities: pluginCapabilitiesSchema,

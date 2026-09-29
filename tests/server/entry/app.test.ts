@@ -320,7 +320,7 @@ describe("createApp", () => {
     expect(calls).toBe(1);
   });
 
-  test("a resolved principal fires the per-new-user default-card seed hook", async () => {
+  test("a resolved principal fires the per-user seed hook on the first authenticated request", async () => {
     const seeded: Principal[] = [];
     const app = createApp(deps({ seam: fakeSeam(OWNER), seedUserCharacters: (p): void => void seeded.push(p) }));
     await hit(app, new Request("http://localhost/healthz"));

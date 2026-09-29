@@ -98,6 +98,19 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
     vi.resetModules();
   });
 
+  test("plugin broker process limits are parsed once with finite defaults and strict positive overrides", async () => {
+    const defaults = await reimportEnvWith({});
+    expect(defaults.env.PLUGIN_BROKER_WORKER_MAX).toBe(4);
+    expect(defaults.env.PLUGIN_BROKER_MEMORY_LIMIT_BYTES).toBe(1_073_741_824);
+
+    const configured = await reimportEnvWith({ PLUGIN_BROKER_WORKER_MAX: "12", PLUGIN_BROKER_MEMORY_LIMIT_BYTES: "2147483648" });
+    expect(configured.env.PLUGIN_BROKER_WORKER_MAX).toBe(12);
+    expect(configured.env.PLUGIN_BROKER_MEMORY_LIMIT_BYTES).toBe(2_147_483_648);
+
+    await expect(reimportEnvWith({ PLUGIN_BROKER_WORKER_MAX: "0" })).rejects.toThrow("PLUGIN_BROKER_WORKER_MAX");
+    await expect(reimportEnvWith({ PLUGIN_BROKER_MEMORY_LIMIT_BYTES: "1e9" })).rejects.toThrow("PLUGIN_BROKER_MEMORY_LIMIT_BYTES");
+  });
+
   test("AUTH_MODE=oidc WITHOUT OIDC_ISSUER → boot FAILS at parse", async () => {
     await expect(
       reimportEnvWith({

@@ -1390,7 +1390,14 @@ const PROBES: readonly Probe[] = [
   //    the tell would be a distinguishable non-NOT_FOUND (a fetch failure, or worse a mutated view) instead of
   //    the leak-free NOT_FOUND this probe pins. (A's seeded plugin is `upload`-origin, so even past the gate
   //    there is no URL to fetch — the ownership refusal is what this asserts, before origin is ever consulted.) ──
-  { path: "plugin.upgradeFromStoredUrl", call: (c, i) => c.plugin.upgradeFromStoredUrl({ pluginId: i.pluginId }) },
+  {
+    path: "plugin.upgradeFromStoredUrl",
+    call: (c, i) => c.plugin.upgradeFromStoredUrl({ pluginId: i.pluginId, expectedBundleHash: "0".repeat(64) }),
+  },
+  {
+    path: "plugin.upgradeFromStoredGit",
+    call: (c, i) => c.plugin.upgradeFromStoredGit({ pluginId: i.pluginId, expectedCommit: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }),
+  },
   // ── plugin.upgradeFromShowcase (#1740) — the SEEDED-EXAMPLE twin, owner-scoped the SAME way and PROBED for the
   //    SAME reason: a stranger holding A's REAL pluginId must NOT_FOUND BEFORE the verb reads A's row at all. It
   //    triggers no egress (the bytes are the bundle this build ships), so what a dropped pre-check would leak is
@@ -2019,6 +2026,10 @@ const EXEMPT: Readonly<Record<string, string>> = {
     "self-scoped (U8 seam 15): fetches a CALLER-named URL through the egress guard and returns its manifest — READ-ONLY, no owned id, touches no row; the wall is safeFetch's SSRF/private-range denial, not a tenant axis (a stranger can only ever preview a URL they themselves named)",
   "plugin.installFromUrl":
     "self-scoped (U8 seam 15): fetches a CALLER-named URL through the egress guard then DELEGATES to install, which mints the CALLER's own row (ownerId = caller.userId) — no foreign id, exactly the self-authority of plugin.install one byte-source over",
+  "plugin.installUnpacked":
+    "peer-local and development-gated: the identity seam's fallback Principal proves loopback admission before packing a caller-named server directory, then install mints or upgrade owner-scopes the CALLER's own row; a remote owner role alone is refused before filesystem access",
+  "plugin.previewFromGit": "self-scoped: guarded shallow-clones a CALLER-named HTTPS repository and returns its manifest; read-only, no foreign row id",
+  "plugin.installFromGit": "self-scoped: guarded shallow-clones a CALLER-named HTTPS repository then delegates to install, which mints the CALLER's own row",
   "plugin.checkForUpdates":
     "self-scoped (U8 2b, #1740): takes NO input; the auto update-check walks listOwned WHERE owner_id = caller.userId and reads a version for only the CALLER's OWN rows — a re-fetch of their remembered source URL, or the shipped showcase manifest for a seeded row (no egress at all on that arm) — so there is no foreign id a stranger could aim and the egress it triggers only ever hits the caller's own rows' URLs (the plugin.list posture, one egress step over)",
   "plugin.list": "self-scoped: takes NO input at all; listOwned filters WHERE owner_id = caller.userId, so there is no id a stranger could aim",

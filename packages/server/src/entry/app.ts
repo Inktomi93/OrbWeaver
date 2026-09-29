@@ -400,7 +400,10 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   // is in `plugin-frame.ts`). `securityHeaders` skips the served-document path here for the same mechanical
   // reason it skips the card frame's: `secure-headers` would otherwise overwrite the frame's own policy.
   registerPluginFrame(app, {
-    surfaces: { getFrameBody: (params) => deps.services.plugin.getFrameBody(params) },
+    surfaces: {
+      getFrameBody: (params) => deps.services.plugin.getFrameBody(params),
+      getFrameAsset: (params) => deps.services.plugin.getFrameAsset(params),
+    },
     now: deps.now,
   });
 
