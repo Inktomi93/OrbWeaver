@@ -421,10 +421,12 @@ test("policy-proof-expectations reads the actual package vocabulary and refuses 
   assertComplete(clean);
   expect(clean.authority.effectiveFindings).toEqual([]);
 
-  const changedVocabulary = files[vocabularyPath].replace(
-    "export const PACKAGE_WORLDS:",
-    "declare function opaque(value: unknown): void;\nopaque(PACKAGE_WORLD_DEFINITIONS);\nexport const PACKAGE_WORLDS:",
-  );
+  const changedVocabulary = files[vocabularyPath]
+    .replace("export const PACKAGE_NAMES = Object.freeze([", "declare function opaque(value: unknown): void;\nconst PACKAGE_NAMES_LIST = [")
+    .replace(
+      "] as const);\nexport type PackageName = (typeof PACKAGE_NAMES)[number];",
+      "] as const;\nopaque(PACKAGE_NAMES_LIST);\nexport const PACKAGE_NAMES = Object.freeze(PACKAGE_NAMES_LIST);\nexport type PackageName = (typeof PACKAGE_NAMES)[number];",
+    );
   expect(changedVocabulary).not.toBe(files[vocabularyPath]);
   const affected = passOf(policyProofExpectations, { ...files, [vocabularyPath]: changedVocabulary });
   assertComplete(affected);
