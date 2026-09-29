@@ -980,6 +980,13 @@ const ROWS: Row[] = [
   ["pass", null, `echo \\) while; cat ${TASKS}/x.output`],
   ["pass", null, `(cd /tmp && ls) until; cat ${TASKS}/x.output`],
   ["pass", null, `for f in ${TASKS}/*.output; do grep -c sleep $f; done`, BG],
+  // a prefixed sleep in a `for` body is still the loop's sleep
+  ...["command sleep 5", "timeout 10 sleep 5", "nice sleep 5", "env sleep 5", "nohup sleep 5", "time -p sleep 5"].map(
+    (sleep): Row => ["deny", "task-file-wait", `for i in 1 2 3; do [ -f ${TASKS}/x.done ] && break; ${sleep}; done`, BG],
+  ),
+  // bash accepts a reserved closer right after a subshell or arithmetic `)`
+  ["pass", null, `while read d; do (cd $d && ls) done < /tmp/dirs; cat ${TASKS}/x.output`],
+  ["pass", null, `i=0; while ((i<3)); do ((i++)) done; cat ${TASKS}/x.output`],
   ["pass", null, `cat ${TASKS}/bb98qi3t2.output`], // a one-shot read of a finished task's output
   // the loop keywords as plain words, outside command position, are not a loop
   ["pass", null, `echo waiting until ready; tail -5 ${TASKS}/x.output`],

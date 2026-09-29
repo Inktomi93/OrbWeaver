@@ -791,6 +791,9 @@ const SHELL_TOKEN = /\d*[<>]+&?\d*|&&|\|\||\|&|[;&|\n()`]|[^\s;&|()<>`]+/g;
 // Parentheses and case patterns are tracked by `shellLoops` itself.
 const SHELL_OPERATOR = /^(?:&&|\|\||\|&|[;&|\n{])$/;
 const LOOP_KEYWORDS = new Set(["for", "select", "while", "until"]);
+const RESERVED_CLOSERS = new Set(["done", "fi", "esac", "}"]);
+// The rest of one simple command, from its first word up to the next operator or group boundary.
+const SIMPLE_COMMAND_TEXT = /^[^;&|\n()`]*/;
 // Reserved words after which the next word is again in command position.
 const COMMAND_FOLLOWS = new Set(["do", "then", "else", "elif", "if", "while", "until", "!", "time"]);
 // Corpus threshold (scripts/probes/guard-replay.ts sleep-duration scan, 2026-09-29): bare foreground
@@ -2771,7 +2774,12 @@ function sleepClauseOperands(blank, clause) {
   if (!consumers.every((s) => NOOP_CONSUMER.test(ungroup(blank.slice(s.start, s.end)).trim()))) {
     return null;
   }
-  const { tokens, index } = execHead(blank.slice(first.start, first.end).replace(REDIRECT_TOKEN, " "));
+  return sleepHeadOperands(blank.slice(first.start, first.end));
+}
+
+/** The operands of a single command whose head is `sleep`, through the same prefixes as above, or null. */
+function sleepHeadOperands(text) {
+  const { tokens, index } = execHead(text.replace(REDIRECT_TOKEN, " "));
   const words = tokens.map((t) => t[0]);
   let i = index;
   while (SLEEP_PREFIX_WORDS.has(words[i])) {
@@ -2810,9 +2818,13 @@ function shellLoops(blank) {
   const cases = [];
   let backtick = null;
   let commandPosition = true;
+  // After a subshell or arithmetic `)` only operators follow, except a reserved closer: `(cd d && ls) done`.
+  let closerOnly = false;
   for (const m of blank.matchAll(SHELL_TOKEN)) {
     const token = m[0];
     const kase = cases.at(-1);
+    const closerAllowed = closerOnly && RESERVED_CLOSERS.has(token);
+    closerOnly = false;
     if (kase?.phase === "pattern") {
       if (token === ")") {
         kase.phase = "body";
@@ -2838,6 +2850,7 @@ function shellLoops(blank) {
     if (token === ")") {
       const paren = parens.pop();
       commandPosition = paren?.substitution === true ? paren.saved : false;
+      closerOnly = paren?.substitution !== true;
       continue;
     }
     if (kase?.phase === "body" && token === ";" && (blank[m.index + 1] === ";" || blank[m.index + 1] === "&")) {
@@ -2854,7 +2867,7 @@ function shellLoops(blank) {
       }
       continue;
     }
-    if (!commandPosition) {
+    if (!commandPosition && !closerAllowed) {
       continue;
     }
     if (token === "case") {
@@ -2868,7 +2881,7 @@ function shellLoops(blank) {
       if (loop !== undefined) {
         loops.push({ ...loop, end: m.index + token.length });
       }
-    } else if (SLEEP_BIN.test(token)) {
+    } else if (sleepHeadOperands(blank.slice(m.index).match(SIMPLE_COMMAND_TEXT)[0]) !== null) {
       for (const loop of open) {
         loop.sleeps = true;
       }
