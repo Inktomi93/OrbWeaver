@@ -352,6 +352,45 @@ test("disposing a runtime clears the command-authority tail timers it holds", { 
   await vi.waitFor(() => expect(__countLiveAuthorityTailsForTest()).toBe(0));
 });
 
+// cb-265 — a FAILED activation with a parked host call used to stall `retireFailedActivation` for the full
+// 30 s `create` command timeout; the parent then destroyed the broker socket and `onDisconnect` marked EVERY
+// dispatched resident on this connection crashed, including ones with no relation to the failing plugin. The
+// abort now reaches the bridge call directly (bridge-rpc.ts's `createRemoteBridge` forwards it to `callAsync`),
+// so the Worker settles the call locally well inside the command timeout and the connection is never torn down.
+test("a failed activation with a parked host call retires within the settle wall and a sibling resident keeps running", { timeout: LONG }, async () => {
+  const host = createPluginHost(seams());
+  const sibling = await activateTool(host, bridge());
+  await expect(host.invoke(sibling.instance, sibling.handler, "{}", noChat)).resolves.toBe("done");
+
+  const base = bridge();
+  const parkedBridge: PluginBridge = {
+    ...base,
+    storage: { ...base.storage, get: () => new Promise<string | null>(() => undefined) },
+  };
+  // @orb-waive test-determinism(performance.now): the SUBJECT is elapsed real time — proving the failed activation retires promptly instead of stalling the 30 s command timeout, no frozen clock to inject.
+  const started = performance.now();
+  const outcome = await host.createInstance({
+    ...durableSource("orb.host(1).storage.get('parked').then(function () {}); throw new Error('activation boom');"),
+    grants: ["storage.kv"],
+    bridge: parkedBridge,
+    chat: noChat,
+  });
+  // @orb-waive test-determinism(performance.now): the SUBJECT is elapsed real time — see the waiver above.
+  const elapsedMs = performance.now() - started;
+  expect(outcome.ok).toBe(false);
+  // Well inside the 30 s command timeout that used to destroy the socket and crash every dispatched resident.
+  expect(elapsedMs).toBeLessThan(5000);
+
+  // The failed activation's own authority (and the pending bridge call it carried) cleared promptly — well
+  // under the fixed PLUGIN_AUTHORITY_TAIL_MS fallback the parent would otherwise have relied on.
+  await vi.waitFor(() => expect(__countLiveAuthorityTailsForTest()).toBe(0), { timeout: 5000 });
+
+  // The broker connection was never destroyed, so the sibling's binding was never crashed.
+  expect(__hasManagedPluginBrokerForTest()).toBe(true);
+  await expect(host.invoke(sibling.instance, sibling.handler, "{}", noChat)).resolves.toBe("done");
+  host.dispose(sibling.instance);
+});
+
 test("broker exit during deactivation releases the runtime and a later lifecycle may reactivate", { timeout: LONG }, async () => {
   const host = createPluginHost(seams());
   const active = await host.createInstance({ ...durableSource("'active';"), grants: [], bridge: bridge(), chat: noChat });

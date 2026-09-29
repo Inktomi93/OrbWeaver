@@ -81,63 +81,77 @@ const DIRECT_CHAT_WRITES = new Set<PluginBridgeOperation>([
   "surfaceQuickReply",
 ]);
 
+// Every op forwards its `liveness` as the RPC's cancellation seam (`AsyncCall`'s optional 3rd arg): a guest
+// invocation that aborts (retiring a failed activation, an ended invocation) settles the Worker-local pending
+// call and tells the parent to drop it, instead of `callAsync`'s promise waiting on a broker round trip that
+// may never answer. `admitEgress`/`admitAssetEgress` stay sync (no RPC to cancel).
 export function createRemoteBridge(call: AsyncCall, callSync: SyncCall): PluginBridge {
   return {
     chat: {
-      listMessages: (chatId, limit) => call("chat.listMessages", [chatId, limit]) as ReturnType<PluginBridge["chat"]["listMessages"]>,
-      getVariables: (chatId) => call("chat.getVariables", [chatId]) as ReturnType<PluginBridge["chat"]["getVariables"]>,
-      listCharacters: (chatId) => call("chat.listCharacters", [chatId]) as ReturnType<PluginBridge["chat"]["listCharacters"]>,
-      applyVariableOps: (chatId, ops, expect) => call("chat.applyVariableOps", [chatId, ops, expect]) as ReturnType<PluginBridge["chat"]["applyVariableOps"]>,
-      requestTurn: (chatId, depth, params) => call("chat.requestTurn", [chatId, depth, params]) as ReturnType<PluginBridge["chat"]["requestTurn"]>,
+      listMessages: (chatId, limit, liveness) => call("chat.listMessages", [chatId, limit], liveness) as ReturnType<PluginBridge["chat"]["listMessages"]>,
+      getVariables: (chatId, liveness) => call("chat.getVariables", [chatId], liveness) as ReturnType<PluginBridge["chat"]["getVariables"]>,
+      listCharacters: (chatId, liveness) => call("chat.listCharacters", [chatId], liveness) as ReturnType<PluginBridge["chat"]["listCharacters"]>,
+      applyVariableOps: (chatId, ops, expect, liveness) =>
+        call("chat.applyVariableOps", [chatId, ops, expect], liveness) as ReturnType<PluginBridge["chat"]["applyVariableOps"]>,
+      requestTurn: (chatId, depth, params, liveness) =>
+        call("chat.requestTurn", [chatId, depth, params], liveness) as ReturnType<PluginBridge["chat"]["requestTurn"]>,
     },
     worldInfo: {
-      listBooks: (chatId) => call("worldInfo.listBooks", [chatId]) as ReturnType<PluginBridge["worldInfo"]["listBooks"]>,
-      listEntries: (chatId, bookId) => call("worldInfo.listEntries", [chatId, bookId]) as ReturnType<PluginBridge["worldInfo"]["listEntries"]>,
-      upsertEntry: (chatId, entry) => call("worldInfo.upsertEntry", [chatId, entry]) as ReturnType<PluginBridge["worldInfo"]["upsertEntry"]>,
+      listBooks: (chatId, liveness) => call("worldInfo.listBooks", [chatId], liveness) as ReturnType<PluginBridge["worldInfo"]["listBooks"]>,
+      listEntries: (chatId, bookId, liveness) =>
+        call("worldInfo.listEntries", [chatId, bookId], liveness) as ReturnType<PluginBridge["worldInfo"]["listEntries"]>,
+      upsertEntry: (chatId, entry, liveness) =>
+        call("worldInfo.upsertEntry", [chatId, entry], liveness) as ReturnType<PluginBridge["worldInfo"]["upsertEntry"]>,
     },
     imagery: {
-      generatePicture: (chatId, args) => call("imagery.generatePicture", [chatId, args]) as ReturnType<PluginBridge["imagery"]["generatePicture"]>,
+      generatePicture: (chatId, args, liveness) =>
+        call("imagery.generatePicture", [chatId, args], liveness) as ReturnType<PluginBridge["imagery"]["generatePicture"]>,
     },
     variables: {
-      get: (key) => call("variables.get", [key]) as ReturnType<PluginBridge["variables"]["get"]>,
-      set: (key, value) => call("variables.set", [key, value]) as ReturnType<PluginBridge["variables"]["set"]>,
-      delete: (key) => call("variables.delete", [key]) as ReturnType<PluginBridge["variables"]["delete"]>,
+      get: (key, liveness) => call("variables.get", [key], liveness) as ReturnType<PluginBridge["variables"]["get"]>,
+      set: (key, value, liveness) => call("variables.set", [key, value], liveness) as ReturnType<PluginBridge["variables"]["set"]>,
+      delete: (key, liveness) => call("variables.delete", [key], liveness) as ReturnType<PluginBridge["variables"]["delete"]>,
     },
     assets: {
-      read: (assetId) => call("assets.read", [assetId]) as ReturnType<PluginBridge["assets"]["read"]>,
-      storeFetched: (bytes, mime) => call("assets.storeFetched", [bytes, mime]) as ReturnType<PluginBridge["assets"]["storeFetched"]>,
+      read: (assetId, liveness) => call("assets.read", [assetId], liveness) as ReturnType<PluginBridge["assets"]["read"]>,
+      storeFetched: (bytes, mime, liveness) => call("assets.storeFetched", [bytes, mime], liveness) as ReturnType<PluginBridge["assets"]["storeFetched"]>,
     },
-    search: { documents: (query, limit) => call("search.documents", [query, limit]) as ReturnType<PluginBridge["search"]["documents"]> },
+    search: {
+      documents: (query, limit, liveness) => call("search.documents", [query, limit], liveness) as ReturnType<PluginBridge["search"]["documents"]>,
+    },
     storage: {
-      get: (key) => call("storage.get", [key]) as ReturnType<PluginBridge["storage"]["get"]>,
-      set: (key, value) => call("storage.set", [key, value]) as ReturnType<PluginBridge["storage"]["set"]>,
-      delete: (key) => call("storage.delete", [key]) as ReturnType<PluginBridge["storage"]["delete"]>,
-      list: (prefix) => call("storage.list", [prefix]) as ReturnType<PluginBridge["storage"]["list"]>,
-      compareAndSet: (key, expected, next) => call("storage.compareAndSet", [key, expected, next]) as ReturnType<PluginBridge["storage"]["compareAndSet"]>,
+      get: (key, liveness) => call("storage.get", [key], liveness) as ReturnType<PluginBridge["storage"]["get"]>,
+      set: (key, value, liveness) => call("storage.set", [key, value], liveness) as ReturnType<PluginBridge["storage"]["set"]>,
+      delete: (key, liveness) => call("storage.delete", [key], liveness) as ReturnType<PluginBridge["storage"]["delete"]>,
+      list: (prefix, liveness) => call("storage.list", [prefix], liveness) as ReturnType<PluginBridge["storage"]["list"]>,
+      compareAndSet: (key, expected, next, liveness) =>
+        call("storage.compareAndSet", [key, expected, next], liveness) as ReturnType<PluginBridge["storage"]["compareAndSet"]>,
     },
-    notifications: { post: (chatId, recipient, message) => call("notifications.post", [chatId, recipient, message]) as Promise<void> },
+    notifications: {
+      post: (chatId, recipient, message, liveness) => call("notifications.post", [chatId, recipient, message], liveness) as Promise<void>,
+    },
     llm: { quiet: (prompt, opts, liveness) => call("llm.quiet", [prompt, opts], liveness) as ReturnType<PluginBridge["llm"]["quiet"]> },
-    suggest: (chatId, act) => call("suggest", [chatId, act]) as Promise<void>,
+    suggest: (chatId, act, liveness) => call("suggest", [chatId, act], liveness) as Promise<void>,
     admitEgress: (): void => {
       callSync("admitEgress", []);
     },
     admitAssetEgress: (): void => {
       callSync("admitAssetEgress", []);
     },
-    surfaceQuickReply: (chatId, choices) => call("surfaceQuickReply", [chatId, choices]) as Promise<void>,
+    surfaceQuickReply: (chatId, choices, liveness) => call("surfaceQuickReply", [chatId, choices], liveness) as Promise<void>,
     ui: {
-      setState: (surfaceId, state, chatId) => call("ui.setState", [surfaceId, state, chatId]) as Promise<void>,
-      toast: (level, message) => call("ui.toast", [level, message]) as Promise<void>,
-      openDialog: (surfaceId) => call("ui.openDialog", [surfaceId]) as Promise<void>,
+      setState: (surfaceId, state, chatId, liveness) => call("ui.setState", [surfaceId, state, chatId], liveness) as Promise<void>,
+      toast: (level, message, liveness) => call("ui.toast", [level, message], liveness) as Promise<void>,
+      openDialog: (surfaceId, liveness) => call("ui.openDialog", [surfaceId], liveness) as Promise<void>,
     },
-    databank: { ingest: (doc) => call("databank.ingest", [doc]) as ReturnType<PluginBridge["databank"]["ingest"]> },
+    databank: { ingest: (doc, liveness) => call("databank.ingest", [doc], liveness) as ReturnType<PluginBridge["databank"]["ingest"]> },
     character: {
-      ingest: (card) => call("character.ingest", [card]) as ReturnType<PluginBridge["character"]["ingest"]>,
-      ingestAsset: (assetId) => call("character.ingestAsset", [assetId]) as ReturnType<PluginBridge["character"]["ingestAsset"]>,
-      setCardData: (characterId, data) => call("character.setCardData", [characterId, data]) as Promise<void>,
-      getCardData: (characterId) => call("character.getCardData", [characterId]) as ReturnType<PluginBridge["character"]["getCardData"]>,
+      ingest: (card, liveness) => call("character.ingest", [card], liveness) as ReturnType<PluginBridge["character"]["ingest"]>,
+      ingestAsset: (assetId, liveness) => call("character.ingestAsset", [assetId], liveness) as ReturnType<PluginBridge["character"]["ingestAsset"]>,
+      setCardData: (characterId, data, liveness) => call("character.setCardData", [characterId, data], liveness) as Promise<void>,
+      getCardData: (characterId, liveness) => call("character.getCardData", [characterId], liveness) as ReturnType<PluginBridge["character"]["getCardData"]>,
     },
-    pubsub: { emit: (name, data) => call("pubsub.emit", [name, data]) as Promise<void> },
+    pubsub: { emit: (name, data, liveness) => call("pubsub.emit", [name, data], liveness) as Promise<void> },
   };
 }
 

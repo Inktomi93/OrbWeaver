@@ -537,7 +537,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     name: "setState",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "ui.setState");
       const surfaceId = args[0];
       if (typeof surfaceId !== "string") {
@@ -563,7 +563,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       // failure mode a guest cannot see.
       const chatArg = args[2];
       const chatId = chatArg === undefined || chatArg === null ? null : resolveChat(runtime, chatArg).chatId;
-      await runtime.bridge.ui.setState(surfaceId, state, chatId);
+      await runtime.bridge.ui.setState(surfaceId, state, chatId, invocationLiveness(signal));
       return null;
     },
   });
@@ -635,7 +635,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     name: "toast",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "ui.toast");
       const named = args[0];
       const level: PluginToastLevel = PLUGIN_TOAST_LEVELS.find((member) => member === named) ?? "info";
@@ -643,7 +643,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       if (typeof message !== "string") {
         throw new Error("plugin host: ui.toast requires a message string");
       }
-      await runtime.bridge.ui.toast(level, message);
+      await runtime.bridge.ui.toast(level, message, invocationLiveness(signal));
       return null;
     },
   });
@@ -656,13 +656,13 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     name: "openDialog",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "ui.openDialog");
       const surfaceId = args[0];
       if (typeof surfaceId !== "string" || !PLUGIN_SURFACE_ID_RE.test(surfaceId)) {
         throw new Error("plugin host: ui.openDialog requires a valid surfaceId (/^[a-z][a-z0-9_]{0,40}$/)");
       }
-      await runtime.bridge.ui.openDialog(surfaceId);
+      await runtime.bridge.ui.openDialog(surfaceId, invocationLiveness(signal));
       return null;
     },
   });
@@ -713,12 +713,12 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     name: "listMessages",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "chat.listMessages");
       const { chatId } = resolveChat(runtime, args[0]);
       const opts = args[1] as { limit?: unknown } | undefined;
       const limit = typeof opts?.limit === "number" ? opts.limit : undefined;
-      return await runtime.bridge.chat.listMessages(chatId, limit);
+      return await runtime.bridge.chat.listMessages(chatId, limit, invocationLiveness(signal));
     },
   });
 
@@ -726,10 +726,10 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     name: "getVariables",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "chat.getVariables");
       const { chatId } = resolveChat(runtime, args[0]);
-      return await runtime.bridge.chat.getVariables(chatId);
+      return await runtime.bridge.chat.getVariables(chatId, invocationLiveness(signal));
     },
   });
 
@@ -739,10 +739,10 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     name: "listCharacters",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "chat.listCharacters");
       const { chatId } = resolveChat(runtime, args[0]);
-      return await runtime.bridge.chat.listCharacters(chatId);
+      return await runtime.bridge.chat.listCharacters(chatId, invocationLiveness(signal));
     },
   });
 
@@ -750,7 +750,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     name: "applyVariableOps",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "chat.applyVariableOps");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
@@ -770,7 +770,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
       const expect = parsePreconditions(args[2]);
       // The result is DATA the guest branches on — a lost race must not spend a crash strike (see the
       // `PluginVariableWriteResult` contract). Only the two shapes the contract declares cross back.
-      return await runtime.bridge.chat.applyVariableOps(scope.chatId, ops, expect);
+      return await runtime.bridge.chat.applyVariableOps(scope.chatId, ops, expect, invocationLiveness(signal));
     },
   });
 
@@ -778,20 +778,20 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     name: "requestTurn",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "chat.requestTurn");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
         // POSTURE 2 — the installer holds the grant but not standing authority here, so the act becomes an
         // ASK the room's host confirms (`suggestAct`). It is not a write and it is not a refusal.
-        await suggestAct(runtime, scope, { kind: "requestTurn", automationDepth: scope.automationDepth + 1, ...buildTurnHints(args[1]) });
+        await suggestAct(runtime, scope, { kind: "requestTurn", automationDepth: scope.automationDepth + 1, ...buildTurnHints(args[1]) }, signal);
       }
       // The FUNDER (installer) is closed over DOMAIN-SIDE — the membrane supplies NONE (authority-blind): a plugin
       // can never fund a foreign budget because it cannot name the funder. The child cascade depth = the
       // invocation's context depth + 1; the domain `requestTurn` refuses a value past AUTOMATION_DEPTH_HARD_CAP,
       // so a plugin cannot launder an event→turn→event loop past the ceiling. Spend rides D17 + the per-member
       // turn budget (NOT the automation spend ceiling — the LOW-2 deferral, same class as plugin imagery).
-      await runtime.bridge.chat.requestTurn(scope.chatId, scope.automationDepth + 1, buildTurnHints(args[1]));
+      await runtime.bridge.chat.requestTurn(scope.chatId, scope.automationDepth + 1, buildTurnHints(args[1]), invocationLiveness(signal));
       return null;
     },
   });
@@ -800,7 +800,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     name: "surfaceQuickReply",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "chat.surfaceQuickReply");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
@@ -811,7 +811,7 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
         // delivered late. Full reasoning: `@orb/contracts/plugin/suggestion`.
         throw new Error("plugin host: chat.surfaceQuickReply requires host authority on this chat");
       }
-      await runtime.bridge.surfaceQuickReply(scope.chatId, buildQuickReplyChoices(args[1]));
+      await runtime.bridge.surfaceQuickReply(scope.chatId, buildQuickReplyChoices(args[1]), invocationLiveness(signal));
       return null;
     },
   });
@@ -833,8 +833,8 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
  *  act; it mints no id, renders no question, and never touches the S4 store. If `suggest` itself rejects
  *  (the ask could not be raised), that rejection reaches the guest instead — which is the correct fail
  *  direction: no act, no ask, and the guest is told. */
-async function suggestAct(runtime: MembraneRuntime, scope: InvocationChat, act: PluginSuggestedAct): Promise<never> {
-  await runtime.bridge.suggest(scope.chatId, act);
+async function suggestAct(runtime: MembraneRuntime, scope: InvocationChat, act: PluginSuggestedAct, signal: AbortSignal): Promise<never> {
+  await runtime.bridge.suggest(scope.chatId, act, invocationLiveness(signal));
   throw new PluginSuggestedError(act.kind);
 }
 
@@ -899,10 +899,10 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "listBooks",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "worldInfo.listBooks");
       const { chatId } = resolveChat(runtime, args[0]);
-      return await runtime.bridge.worldInfo.listBooks(chatId);
+      return await runtime.bridge.worldInfo.listBooks(chatId, invocationLiveness(signal));
     },
   });
   // listEntries(chat, bookId) — the entries of ONE attached book (#788 F12, worldinfo.read). The guest supplies
@@ -912,34 +912,34 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "listEntries",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "worldInfo.listEntries");
       const { chatId } = resolveChat(runtime, args[0]);
       const bookId = args[1];
       if (typeof bookId !== "string") {
         throw new Error("plugin host: worldInfo.listEntries requires a bookId string");
       }
-      return await runtime.bridge.worldInfo.listEntries(chatId, bookId);
+      return await runtime.bridge.worldInfo.listEntries(chatId, bookId, invocationLiveness(signal));
     },
   });
   attachAsync(ctx, worldInfo, {
     name: "upsertEntry",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "worldInfo.upsertEntry");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
         // POSTURE 2 — the ask carries the guest's entry VERBATIM; every domain gate it would have met
         // directly (attachment, the per-plugin entry ceiling, `neutralizeMacros`) is met again when the host
         // confirms, because the confirmed act re-enters through the plugin's OWN bridge.
-        await suggestAct(runtime, scope, { kind: "worldInfoUpsert", entry: args[1] as PluginWorldEntryUpsert });
+        await suggestAct(runtime, scope, { kind: "worldInfoUpsert", entry: args[1] as PluginWorldEntryUpsert }, signal);
       }
       // The ADMITTED chatId travels with the entry: the guest names the book, the DOMAIN decides whether that
       // book is attached to THIS room (the room's consent) and applies the per-plugin entry cap. Infra can
       // enforce neither — it holds no db — so its job is to hand the domain the scope it admitted, never to let
       // a guest-supplied bookId travel alone.
-      await runtime.bridge.worldInfo.upsertEntry(scope.chatId, args[1] as PluginWorldEntryUpsert);
+      await runtime.bridge.worldInfo.upsertEntry(scope.chatId, args[1] as PluginWorldEntryUpsert, invocationLiveness(signal));
       return null;
     },
   });
@@ -957,13 +957,13 @@ function setAssets(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     name: "read",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "assets.read");
       const assetId = args[0];
       if (typeof assetId !== "string") {
         throw new Error("plugin host: assets.read requires an assetId string");
       }
-      return await runtime.bridge.assets.read(assetId);
+      return await runtime.bridge.assets.read(assetId, invocationLiveness(signal));
     },
   });
   ctx.setProp(surface, "assets", assets);
@@ -980,7 +980,7 @@ function setSearch(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     name: "documents",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "search.documents");
       const queryText = args[0];
       if (typeof queryText !== "string") {
@@ -988,7 +988,7 @@ function setSearch(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
       }
       const opts = args[1] as { limit?: unknown } | undefined;
       const limit = typeof opts?.limit === "number" ? Math.min(Math.max(1, Math.trunc(opts.limit)), PLUGIN_SEARCH_RESULTS_MAX) : undefined;
-      return await runtime.bridge.search.documents(queryText, limit);
+      return await runtime.bridge.search.documents(queryText, limit, invocationLiveness(signal));
     },
   });
   ctx.setProp(surface, "search", search);
@@ -1008,15 +1008,15 @@ function setImagery(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     name: "generatePicture",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "imagery.generatePicture");
       const scope = resolveChat(runtime, args[0]);
       if (!scope.canWrite) {
         // POSTURE 2 — and the class §3-S4 RULED F4 most wants asked: this is SPEND on the installer, so
         // "should this happen" is a question with a price on it.
-        await suggestAct(runtime, scope, { kind: "generatePicture", args: (args[1] ?? {}) as GenerateImageActionArgs });
+        await suggestAct(runtime, scope, { kind: "generatePicture", args: (args[1] ?? {}) as GenerateImageActionArgs }, signal);
       }
-      return await runtime.bridge.imagery.generatePicture(scope.chatId, (args[1] ?? {}) as GenerateImageActionArgs);
+      return await runtime.bridge.imagery.generatePicture(scope.chatId, (args[1] ?? {}) as GenerateImageActionArgs, invocationLiveness(signal));
     },
   });
   ctx.setProp(surface, "imagery", imagery);
@@ -1028,18 +1028,18 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "get",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "variables.get");
-      return await runtime.bridge.variables.get(String(args[0]));
+      return await runtime.bridge.variables.get(String(args[0]), invocationLiveness(signal));
     },
   });
   attachAsync(ctx, vars, {
     name: "set",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "variables.set");
-      await runtime.bridge.variables.set(String(args[0]), String(args[1]));
+      await runtime.bridge.variables.set(String(args[0]), String(args[1]), invocationLiveness(signal));
       return null;
     },
   });
@@ -1047,9 +1047,9 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "delete",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "variables.delete");
-      await runtime.bridge.variables.delete(String(args[0]));
+      await runtime.bridge.variables.delete(String(args[0]), invocationLiveness(signal));
       return null;
     },
   });
@@ -1066,18 +1066,18 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     name: "get",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "storage.get");
-      return await runtime.bridge.storage.get(String(args[0]));
+      return await runtime.bridge.storage.get(String(args[0]), invocationLiveness(signal));
     },
   });
   attachAsync(ctx, storage, {
     name: "set",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "storage.set");
-      await runtime.bridge.storage.set(String(args[0]), String(args[1]));
+      await runtime.bridge.storage.set(String(args[0]), String(args[1]), invocationLiveness(signal));
       return null;
     },
   });
@@ -1090,19 +1090,19 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     name: "compareAndSet",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "storage.compareAndSet");
       const expected = typeof args[1] === "string" ? args[1] : null;
-      return await runtime.bridge.storage.compareAndSet(String(args[0]), expected, String(args[2]));
+      return await runtime.bridge.storage.compareAndSet(String(args[0]), expected, String(args[2]), invocationLiveness(signal));
     },
   });
   attachAsync(ctx, storage, {
     name: "delete",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "storage.delete");
-      await runtime.bridge.storage.delete(String(args[0]));
+      await runtime.bridge.storage.delete(String(args[0]), invocationLiveness(signal));
       return null;
     },
   });
@@ -1110,10 +1110,10 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     name: "list",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "storage.list");
       const prefix = typeof args[0] === "string" ? args[0] : undefined;
-      return await runtime.bridge.storage.list(prefix);
+      return await runtime.bridge.storage.list(prefix, invocationLiveness(signal));
     },
   });
   ctx.setProp(surface, "storage", storage);
@@ -1141,13 +1141,13 @@ function setNotifications(ctx: QuickJSContext, surface: QuickJSHandle, runtime: 
     name: "post",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "notifications.post");
       const scope = resolveChat(runtime, args[0]);
       const named = args[1];
       const recipient: PluginNotificationRecipient = PLUGIN_NOTIFICATION_RECIPIENTS.find((member) => member === named) ?? "host";
       const message = typeof args[2] === "string" ? args[2] : "";
-      await runtime.bridge.notifications.post(scope.chatId, recipient, message);
+      await runtime.bridge.notifications.post(scope.chatId, recipient, message, invocationLiveness(signal));
       return null;
     },
   });
@@ -1201,13 +1201,13 @@ function setDatabank(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membr
     name: "ingest",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "databank.ingest");
       const doc = (typeof args[0] === "object" && args[0] !== null ? args[0] : {}) as { name?: unknown; text?: unknown };
       if (typeof doc.name !== "string" || typeof doc.text !== "string") {
         throw new Error("plugin host: databank.ingest requires { name: string, text: string }");
       }
-      return await runtime.bridge.databank.ingest({ name: doc.name, text: doc.text });
+      return await runtime.bridge.databank.ingest({ name: doc.name, text: doc.text }, invocationLiveness(signal));
     },
   });
   ctx.setProp(surface, "databank", databank);
@@ -1225,7 +1225,7 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "ingest",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "character.ingest");
       const card = args[0];
       // A card is a JSON OBJECT — an array/scalar/null is not a card and is refused here rather than serialized
@@ -1233,7 +1233,7 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
       if (typeof card !== "object" || card === null || Array.isArray(card)) {
         throw new Error("plugin host: character.ingest requires a character-card object");
       }
-      return await runtime.bridge.character.ingest(card as Record<string, unknown>);
+      return await runtime.bridge.character.ingest(card as Record<string, unknown>, invocationLiveness(signal));
     },
   });
 
@@ -1246,13 +1246,13 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "ingestAsset",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "character.ingestAsset");
       const assetId = args[0];
       if (typeof assetId !== "string") {
         throw new Error("plugin host: character.ingestAsset requires an assetId string");
       }
-      return await runtime.bridge.character.ingestAsset(assetId);
+      return await runtime.bridge.character.ingestAsset(assetId, invocationLiveness(signal));
     },
   });
 
@@ -1265,7 +1265,7 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "setCardData",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "character.setCardData");
       const characterId = args[0];
       if (typeof characterId !== "string") {
@@ -1275,7 +1275,7 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
       if (typeof data !== "object" || data === null || Array.isArray(data)) {
         throw new Error("plugin host: character.setCardData requires a data object");
       }
-      await runtime.bridge.character.setCardData(characterId, data as Record<string, unknown>);
+      await runtime.bridge.character.setCardData(characterId, data as Record<string, unknown>, invocationLiveness(signal));
       return null;
     },
   });
@@ -1286,13 +1286,13 @@ function setCharacter(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     name: "getCardData",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "character.getCardData");
       const characterId = args[0];
       if (typeof characterId !== "string") {
         throw new Error("plugin host: character.getCardData requires a characterId string");
       }
-      return await runtime.bridge.character.getCardData(characterId);
+      return await runtime.bridge.character.getCardData(characterId, invocationLiveness(signal));
     },
   });
   ctx.setProp(surface, "character", character);
@@ -1575,7 +1575,7 @@ function setPubsub(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     name: "emit",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
-    impl: async (args) => {
+    impl: async (args, signal) => {
       requireCapability(runtime, "pubsub.emit");
       const name = args[0];
       if (typeof name !== "string" || !PLUGIN_PUBSUB_NAME_RE.test(name)) {
@@ -1587,7 +1587,7 @@ function setPubsub(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
       const data: Record<string, unknown> = typeof raw === "object" && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
       // The emitter's own slug is stamped DOMAIN-side (the bridge closes it over from the activation manifest),
       // so a guest supplies ONLY name + data and can never publish on another plugin's `plugin:<slug>:<name>`.
-      await runtime.bridge.pubsub.emit(name, data);
+      await runtime.bridge.pubsub.emit(name, data, invocationLiveness(signal));
       return null;
     },
   });
@@ -1660,7 +1660,7 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
       // The ASSET byte cap, not net.fetch's (#801): these bytes never cross into the guest, so the marshalling
       // result cap that sizes PLUGIN_NET_MAX_BYTES does not apply here.
       const sniffed = isAllowedImageBuffer(bytes, { maxBytes: PLUGIN_ASSET_MAX_BYTES });
-      return await runtime.bridge.assets.storeFetched(bytes, sniffed.mime);
+      return await runtime.bridge.assets.storeFetched(bytes, sniffed.mime, invocationLiveness(signal));
     },
   });
   ctx.setProp(surface, "net", net);

@@ -503,6 +503,92 @@ describe("createPluginHost — activation + determinism floor", () => {
   });
 });
 
+// cb-265 — a FAILED activation that parked a host call used to stall `retireFailedActivation` forever:
+// `cancelHostOperations()` only aborted `llm.quiet`'s controller-carrying door, so `settleHostOperations()`
+// awaited a bridge call that never settles, and a resident sharing the SAME `createLocalPluginHost` had no way
+// to observe it — this floor proves the fix at the mechanism (the abort reaches the bridge call, exactly once,
+// and the retire finishes fast) rather than at the process-level blast radius (process-runtime.test.ts).
+describe("port.createInstance — a failed activation with a parked host call retires within the settle wall (cb-265)", () => {
+  test("retireFailedActivation settles promptly once cancelled, and a sibling resident keeps invoking", { timeout: LONG }, async () => {
+    // The cancelled bridge call rejects OUTSIDE the invocation the membrane raced it against (the activation
+    // already failed synchronously before this settles); an unguarded reject there is exactly the unhandled-
+    // rejection shape a leaked or double-settled registration would produce.
+    const rejections: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      rejections.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+
+    const host = makeHost();
+
+    // A healthy, unrelated resident sharing this SAME Worker-local host — the isolation claim under test.
+    const { bridge: siblingBridge } = fakeBridge();
+    const siblingOutcome = await host.createInstance({
+      mainJs: `orb.host(1).tools.register({
+        name: "ping",
+        description: "d",
+        parameters: { type: "object", properties: {} },
+        handler: () => "pong",
+      });`,
+      grants: ["tools.register"],
+      bridge: siblingBridge,
+      chat: noChat,
+    });
+    if (!siblingOutcome.ok) {
+      throw new Error(`sibling activation failed: ${siblingOutcome.error}`);
+    }
+    const ref = siblingOutcome.instance.tools[0]?.handler;
+    if (ref === undefined) {
+      throw new Error("test: sibling ping handler did not register");
+    }
+    await expect(host.invoke(siblingOutcome.instance, ref, "{}", noChat)).resolves.toBe("pong");
+
+    // The failing plugin: its `main.js` fires a host call it never awaits, then throws — so activation fails
+    // with the call still parked. The fake `storage.get` only ever settles by REJECTING through the cancelled
+    // liveness (never on its own), so a red run against the pre-fix source hangs on this very call.
+    const { bridge: base } = fakeBridge();
+    let abortedCount = 0;
+    const parkedBridge: PluginBridge = {
+      ...base,
+      storage: {
+        ...base.storage,
+        get: (_key, liveness) =>
+          new Promise<string | null>((_resolve, reject) => {
+            liveness?.onAbort(() => {
+              abortedCount += 1;
+              const error = new Error("plugin bridge call cancelled with its invocation");
+              error.name = "AbortError";
+              reject(error);
+            });
+          }),
+      },
+    };
+    // @orb-waive test-determinism(performance.now): the SUBJECT is elapsed real time — proving retireFailedActivation settles promptly instead of hanging, no frozen clock to inject.
+    const started = performance.now();
+    const outcome = await host.createInstance({
+      mainJs: "orb.host(1).storage.get('parked').then(function () {}); throw new Error('activation boom');",
+      grants: ["storage.kv"],
+      bridge: parkedBridge,
+      chat: noChat,
+    });
+    // @orb-waive test-determinism(performance.now): the SUBJECT is elapsed real time — see the waiver above.
+    const elapsedMs = performance.now() - started;
+    expect(outcome.ok).toBe(false);
+    // Pre-fix this never resolved inside the test's own timeout; post-fix it settles within one abort round trip.
+    expect(elapsedMs).toBeLessThan(1000);
+    // The cancellation reached the bridge call exactly once — no double-decrement, no leaked registration.
+    expect(abortedCount).toBe(1);
+
+    // The sibling resident's own sandbox was never touched by the other plugin's failure.
+    await expect(host.invoke(siblingOutcome.instance, ref, "{}", noChat)).resolves.toBe("pong");
+    host.dispose(siblingOutcome.instance);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    process.off("unhandledRejection", onUnhandled);
+    expect(rejections).toEqual([]);
+  });
+});
+
 describe("membrane — capability gate + global_vars", () => {
   test("a granted global_vars read reaches the bridge", { timeout: LONG }, async () => {
     const host = makeHost();
