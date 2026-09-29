@@ -774,7 +774,9 @@ const SLEEP_LITERAL_SECONDS = /^([0-9]+(?:\.[0-9]+)?)s?$/;
 // A redirect makes `echo` a write, which is work; a substitution is checked on the raw text by the caller.
 const NOOP_CLAUSE = /^(?:true|:|cd(?:\s+\S+)?|echo(?:\s+[^<>]*)?|printf(?:\s+[^<>]*)?)$/;
 // A pipe stage after a sleep that does nothing with its empty input, so `sleep 300 | cat` is still a sleep.
-const NOOP_CONSUMER = /^(?:cat|true|:)$/;
+const NOOP_CONSUMER = /^(?:cat|tee(?:\s+\S+)*|true|:)$/;
+// Prefix words before a sleep that `wrapperPrefixEnd` does not skip: `command sleep`, `time sleep`.
+const SLEEP_PREFIX_WORDS = new Set(["command", "time"]);
 const SUBSTITUTION_OPEN = /\$\(|`/;
 // A Claude Code background task's own files (`<task>.output`, `.done`, `.exit`) under the per-session
 // `/tmp/claude-<uid>/…/tasks/` dir. The harness already notifies the agent when that task exits, so a wait on
@@ -785,10 +787,12 @@ const TAIL_FOLLOW_FLAG = /^-[A-Za-z0-9]*[fF]|^--follow\b/;
 // Shell tokens for `shellLoops`, on the BLANKED text: a redirect (`2>&1`, `>`, `<`) first so its `&` is not
 // read as an operator, then the control operators, then words.
 const SHELL_TOKEN = /\d*[<>]+&?\d*|&&|\|\||\|&|[;&|\n()]|[^\s;&|()<>]+/g;
-const SHELL_OPERATOR = /^(?:&&|\|\||\|&|[;&|\n(])$/;
+// `)` ends a case pattern (`a)`, `(a)`) and `{` opens a function body (`f() {`, `function f {`); a command
+// can start right after either.
+const SHELL_OPERATOR = /^(?:&&|\|\||\|&|[;&|\n(){])$/;
 const LOOP_KEYWORDS = new Set(["for", "select", "while", "until"]);
 // Reserved words after which the next word is again in command position.
-const COMMAND_FOLLOWS = new Set(["do", "then", "else", "elif", "if", "while", "until", "!", "{", "time"]);
+const COMMAND_FOLLOWS = new Set(["do", "then", "else", "elif", "if", "while", "until", "!", "time"]);
 // Corpus threshold (scripts/probes/guard-replay.ts sleep-duration scan, 2026-09-29): bare foreground
 // sleeps AT OR UNDER 2s are dominated by a settle-delay idiom (`kill …; sleep 2; ps …` / `pkill …; sleep 2;
 // ps aux | grep …` — 402 sightings outside any loop), not a wait. Everything over 2s outside a loop is
@@ -2770,7 +2774,7 @@ function sleepClauseOperands(blank, clause) {
   const { tokens, index } = execHead(blank.slice(first.start, first.end).replace(REDIRECT_TOKEN, " "));
   const words = tokens.map((t) => t[0]);
   let i = index;
-  while (words[i] === "command") {
+  while (SLEEP_PREFIX_WORDS.has(words[i])) {
     i = wrapperPrefixEnd(words, i + 1);
   }
   return words[i] !== undefined && SLEEP_BIN.test(words[i]) ? words.slice(i + 1) : null;
@@ -2823,13 +2827,14 @@ function shellLoops(blank) {
   return [...loops, ...open.map((loop) => ({ ...loop, end: blank.length }))];
 }
 
-/** Does the command wait on a harness task file: an `until`/`while` loop that reads one, or a `tail -f` of
- *  one? Read on the RAW text, since a quoted path is blanked in `blank`, with the command's own earlier
+/** Does the command wait on a harness task file: an `until`/`while` loop that reads one, a `for`/`select`
+ *  loop that reads one and sleeps, or a `tail -f` of one? Read on the RAW text, since a quoted path is blanked in `blank`, with the command's own earlier
  *  assignments expanded, so `D=<task dir>; until [ -f "$D/x.done" ]` is seen too. */
 function harnessTaskFileWait(command, blank, clauses) {
   const readsTaskFile = (start, end) => HARNESS_TASK_FILE.test(expandAssigned(command.slice(start, end), assignedVars(command, blank, clauses, start)));
   for (const loop of shellLoops(blank)) {
-    if ((loop.kind === "while" || loop.kind === "until") && readsTaskFile(loop.start, loop.end)) {
+    const waits = loop.kind === "while" || loop.kind === "until" || SLEEP_WORD.test(blank.slice(loop.start, loop.end));
+    if (waits && readsTaskFile(loop.start, loop.end)) {
       return true;
     }
   }
