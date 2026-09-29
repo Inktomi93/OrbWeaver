@@ -40,7 +40,20 @@ contracts before packaging the standalone toolchain. Template guides link to the
 copying those lists.
 
 The runtime entries are self-contained scripts. Imports, exports, Node globals, browser globals in QuickJS,
-and network APIs inside isolated frames are rejected before emit. The application installs only the emitted
+and network APIs inside isolated frames are rejected before emit.
+
+`build` and `check` also link the `host.ui` references in `main.ts` across calls:
+
+- A literal `setState` or `openDialog` target must name a surface that `main.ts` registers with `ui.register`.
+- An `openDialog` target must be a `dialog` surface.
+- A literal `{ $state }` path in a static spec must be one that a `setState` call for that surface can publish.
+  A `tool-card` spec binds the tool call record instead, so it is not linked.
+- A reference whose type is wider than a string literal is not checked.
+- A published state type the checker cannot enumerate, such as an index signature, is not checked.
+- Only a `.setState(…)` or `.openDialog(…)` property call is linked. `host.ui["setState"](…)` and a
+  destructured `setState(…)` are not checked.
+
+The application installs only the emitted
 JavaScript and never executes this toolchain or repository build scripts.
 
 Orbweaver distributes this package and `@orb/plugin-sdk` as deterministic `.tgz` assets on the public

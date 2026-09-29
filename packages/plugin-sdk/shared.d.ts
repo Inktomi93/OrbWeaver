@@ -10,7 +10,9 @@
 // (`tests/contracts/plugin/host-v1.test-d.ts`) — a drifted mirror fails the application's own build. Two
 // deliberate simplifications, both author-invisible: the app's BRANDED ids (`ChatHandle`, asset/character
 // ids) appear here as `string` with their semantics documented — a guest never constructs one, only passes
-// them back — and internal enforcement-map types are omitted (they gate the HOST side, not yours).
+// them back — and internal enforcement-map types are omitted (they gate the HOST side, not yours). One
+// deliberate narrowing: `ui.register` and `ui.registerCommand` infer action ids and command values from your
+// literal declaration, so they admit only definitions the host's registration schemas also admit.
 //
 // The realm rules these types cannot express, restated because they bite:
 //   - Registrations run at ACTIVATION; an UNGRANTED host call THROWS. Feature-detect with
@@ -570,14 +572,60 @@ interface PluginCommandPlacement {
 /** One declared command argument (#791 typed args). `enumValues` iff `type === "enum"`. The platform
  *  collects, autocompletes and validates on both client surfaces AND re-validates at the membrane; your
  *  `onRun` sees only well-typed, in-enum, required-present values. */
-interface PluginCommandArgSpec {
+type PluginCommandArgSpec =
+  | (PluginCommandArgSpecBase & { readonly type: "string" | "number" | "boolean"; readonly enumValues?: undefined })
+  | (PluginCommandArgSpecBase & { readonly type: "enum"; readonly enumValues: readonly string[] });
+interface PluginCommandArgSpecBase {
   readonly name: string;
-  readonly type: "string" | "number" | "enum" | "boolean";
   readonly required?: boolean | undefined;
   readonly describe?: string | undefined;
+}
+/** The shape `registerCommand` infers `args` from, before the enum rule in {@link PluginCommandArgSpec} applies. */
+interface PluginCommandArgDeclaration extends PluginCommandArgSpecBase {
+  readonly type: PluginCommandArgSpec["type"];
   readonly enumValues?: readonly string[] | undefined;
 }
 type PluginCommandArgValue = string | number | boolean;
+
+/** The value one declared argument delivers: its scalar type, narrowed to the declared members for an enum. */
+type PluginCommandArgValueOf<TArg> = TArg extends { readonly type: "number" }
+  ? number
+  : TArg extends { readonly type: "boolean" }
+    ? boolean
+    : TArg extends { readonly type: "enum"; readonly enumValues: readonly (infer TMember extends string)[] }
+      ? TMember
+      : string;
+
+/** The `values` bag `onRun` receives for one literal `args` declaration: required args are present, optional
+ *  args may be absent, and undeclared names do not exist. A dynamically built declaration keeps the open bag. */
+type PluginCommandValuesFor<TArgs extends readonly PluginCommandArgSpecBase[]> = string extends TArgs[number]["name"]
+  ? Readonly<Record<string, PluginCommandArgValue>>
+  : {
+      readonly [TArg in TArgs[number] as TArg extends { readonly required: true } ? TArg["name"] : never]: PluginCommandArgValueOf<TArg>;
+    } & {
+      readonly [TArg in TArgs[number] as TArg extends { readonly required: true } ? never : TArg["name"]]?: PluginCommandArgValueOf<TArg>;
+    };
+
+/** The action ids a static spec can fire: every literal `actionId` and `tileAction` in the tree. A spec typed
+ *  as the open node union, or any id widened to `string`, answers `string`. */
+type PluginActionIdsOf<TSpec> = [PluginSurfaceNode] extends [TSpec]
+  ? string
+  : TSpec extends readonly (infer TChild)[]
+    ? PluginActionIdsOf<TChild>
+    : TSpec extends object
+      ? {
+          [TKey in keyof TSpec]-?: TKey extends "actionId" | "tileAction" ? Exclude<TSpec[TKey], undefined> : PluginActionIdsOf<TSpec[TKey]>;
+        }[keyof TSpec]
+      : never;
+
+/** The `actionId` an `onAction` handler receives for one spec. */
+type PluginSurfaceActionId<TSpec> = [PluginActionIdsOf<TSpec>] extends [never] ? PluginSpecDeclaresNoAction : PluginActionIdsOf<TSpec>;
+
+/** Stands in for the action id of a spec with no `actionId` or `tileAction`. Such a handler never runs, and
+ *  `never` would let any comparison against it pass, so this type makes each comparison a type error. */
+interface PluginSpecDeclaresNoAction {
+  readonly noActionDeclared: never;
+}
 
 // ── the server-guest surface (`orb.host(1)` in main.js) ─────────────────────────────────────────────────────
 
@@ -814,14 +862,14 @@ interface PluginHostV1 {
   readonly ui: {
     /** Register a surface at activation (resident — rebuilt on re-activation, dropped on disable). An
      *  invalid spec is a registration refusal (logged, surface absent), never activation-fatal. */
-    register: (def: {
+    register: <const TSpec extends PluginSurfaceSpec = PluginSurfaceSpec>(def: {
       id: string;
       anchor: PluginSurfaceAnchor;
       title: string;
       tier: PluginSurfaceTier;
       toolName?: string;
-      spec?: PluginSurfaceSpec;
-      onAction?: (a: { actionId: string; values: Record<string, string>; chat: ChatHandle | null }) => void | Promise<void>;
+      spec?: TSpec;
+      onAction?: (a: { actionId: PluginSurfaceActionId<TSpec>; values: Record<string, string>; chat: ChatHandle | null }) => void | Promise<void>;
     }) => void;
     /** Publish the state your spec's `{ $state }` bindings resolve against (≤ 16 KiB, replaces whole).
      *  With `chat`: a PER-ROOM row (only that room sees it); without: one plugin-wide row. */
@@ -830,13 +878,14 @@ interface PluginHostV1 {
      *  host-owned composer placements. Declare typed `args` (≤ 16) and `values` arrives validated; the raw
      *  remainder always arrives as `args`. Inside a room the command's invocation carries that room — reach
      *  it via `chat.current()`. */
-    registerCommand: (def: {
+    registerCommand: <const TArgs extends readonly PluginCommandArgDeclaration[] = readonly []>(def: {
       name: string;
       describe: string;
-      args?: readonly PluginCommandArgSpec[];
+      // Inference reads the loose declaration so one invalid arg cannot collapse `values` to the open bag.
+      args?: TArgs & readonly PluginCommandArgSpec[];
       group?: string;
       placements?: readonly PluginCommandPlacement[];
-      onRun: (a: { args: string; values: Record<string, PluginCommandArgValue> }) => void | Promise<void>;
+      onRun: (a: { args: string; values: PluginCommandValuesFor<TArgs> }) => void | Promise<void>;
     }) => void;
     /** A transient house toast, prefixed with your plugin's name (host-stamped), ≤ 200 chars, rate-floored
      *  (10 s per plugin). Delivered on the round-trip the person just made — the durable channel is
