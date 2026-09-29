@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: blocked
 updated: 2026-09-29
 priority: P1
 area: plugin
+blocked: owner
 plan: plugin-authoring
 ---
 
