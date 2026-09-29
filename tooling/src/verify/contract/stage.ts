@@ -184,3 +184,15 @@ export interface VerifyReport {
   readonly noVerdict: readonly string[];
   readonly stages: readonly StageResult[];
 }
+
+/** `pnpm check:show`'s answer to "which verify run is the latest, and can this reader say anything about
+ *  it" (`lib/show-run-summary.ts`, docs/work item 0267). `"report"` is the ordinary case: a run this reader
+ *  can speak about, clean or not. `"advisory"` is a run this reader CANNOT silently skip past — it died
+ *  (abandoned) or its artifact will not parse — so a one-line notice prints before the structure view falls
+ *  through beneath it, rather than the reader acting as though no verify run had ever happened. `"silent"`
+ *  is every other case a reader cannot say anything useful about (nothing published yet, a newer run writing
+ *  right now, a dangling or unslotted alias) — genuinely ambiguous, not evidence of a hidden failure. */
+export type VerifyRunResolution =
+  | { readonly kind: "report"; readonly report: VerifyReport }
+  | { readonly kind: "advisory"; readonly lines: readonly string[]; readonly toolError: boolean }
+  | { readonly kind: "silent" };

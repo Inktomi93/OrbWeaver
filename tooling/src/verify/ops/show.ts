@@ -28,36 +28,35 @@
  * THE FAILED-VERIFY-RUN SUMMARY (#0267). The bare default and `--errors-only` also read `reports/verify.json`
  * — when the latest verify run did not pass, every failing stage is named with its own extracted failure
  * lines BEFORE the structure verdict, so a stage `check:structure` cannot see (`tests:node`, `browser:ct`,
- * a boot or budget stage) is never silent under a clean structure verdict. `lib/show-run-summary.ts` owns
- * this reader; `--gate`/`--file` stay a narrow, unaugmented structure-only ask.
+ * a boot or budget stage) is never silent under a clean structure verdict. An ABANDONED verify run (it died
+ * mid-flight) or an UNPARSEABLE `verify.json` gets a one-line advisory instead of a silent fall-through — the
+ * structure view still renders beneath it. `lib/show-run-summary.ts` owns this reader; `--gate`/`--file` stay
+ * a narrow, unaugmented structure-only ask.
  *
  * Exit code: mirrors the report's overall `ok` (0 clean / 1 dirty), and is never clean when the latest
- * verify run failed — unless a filter is active, in which case ordinary violations are an inspection view
- * (0). Broken evidence is always toolError (2), and invalid argv is always misuse (3), filters or not.
+ * verify run failed OR its pointer is abandoned/unparseable (toolError, 2) — unless a filter is active, in
+ * which case ordinary violations are an inspection view (0). Broken structure evidence is always toolError
+ * (2), and invalid argv is always misuse (3), filters or not.
  */
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { formatSplit } from "@orb/tooling/_shared/ratchet-rows";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
-import type { GateReport, GateScanView, StructureReport, Violation } from "../contract/show-artifact.ts";
-import type { StructurePolicyReport } from "../contract/structure-report.ts";
-import { nearCapAdvisories } from "../lib/near-cap.ts";
+import type { StructureReport } from "../contract/show-artifact.ts";
 import {
   brokenEvidenceCount,
   describeRun,
-  isFinalRow,
   missingReportRefusal,
-  populationAlarmText,
   readReport,
   refuseAbandoned,
   refuseIncomplete,
   resolveStructurePointer,
 } from "../lib/show-artifact.ts";
 import { pointerView } from "../lib/show-pointers.ts";
-import { failedHeaderLine, finalBlockLines, finalBrokenEvidenceCount, finalRowHeader, passLine, violationLine } from "../lib/show-policy.ts";
-import { readLatestVerifyRun, structureProvenanceNote, verifyFailureSummary } from "../lib/show-run-summary.ts";
+import { passLine } from "../lib/show-policy.ts";
+import { resolveLatestVerifyRun, structureProvenanceNote, verifyFailureSummary } from "../lib/show-run-summary.ts";
 import { stageView } from "../lib/show-stage.ts";
+import { gateListLines, nearCapAdvisoryLines } from "../lib/show-structure-view.ts";
 import { structureCountLine } from "../lib/structure-report.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:show");
@@ -80,6 +79,12 @@ const ANSI = {
 
 function print(s: string): void {
   process.stdout.write(`${s}\n`);
+}
+
+function printAll(lines: readonly string[]): void {
+  for (const line of lines) {
+    print(line);
+  }
 }
 
 interface Filter {
@@ -208,148 +213,42 @@ function refuseMixedViews(f: Filter): Filter {
   return f;
 }
 
-function matchesGate(g: GateReport, f: Filter): boolean {
-  return f.gate === null || g.name.toLowerCase().includes(f.gate.toLowerCase());
+/** The verify-run summary's verdict on the exit code: `failed` when the run ran and did not pass (never a
+ *  clean exit even when structure alone is green); `toolError` when the pointer itself is broken evidence
+ *  (an abandoned run, an unparseable report) — `show-stage.ts`'s own precedent for the same two states. */
+interface VerifySignal {
+  readonly failed: boolean;
+  readonly toolError: boolean;
 }
 
-function filteredViolations(g: GateReport, f: Filter): readonly Violation[] {
-  if (f.file === null) {
-    return g.violations;
-  }
-  const needle = f.file.toLowerCase();
-  return g.violations.filter((v) => v.file.toLowerCase().includes(needle));
-}
-
-/** The scan denominator behind a gate's verdict, for the artifact view. Absent on a pre-2026-08-13
- *  artifact — printed as nothing rather than a fabricated zero. */
-function scanNote(scan: GateScanView | undefined): string {
-  if (scan === undefined) {
-    return "";
-  }
-  const parts = [`scanned ${scan.scanned}/${scan.candidates} files`];
-  if (scan.declared !== undefined) {
-    parts.push(`${scan.declared.scanned}/${scan.declared.candidates} ${scan.declared.unit}s`);
-  }
-  if (scan.admitted > 0) {
-    const ratified = scan.admittedRatified ?? 0;
-    parts.push(`admitted-by-ratchet: ${scan.admitted} ${formatSplit(scan.admitted - ratified, ratified)}`);
-  }
-  return ANSI.dim(`  ·  ${parts.join(" · ")}`);
-}
-
-function printGate(g: GateReport, violations: readonly Violation[], f: Filter): void {
-  const header = isFinalRow(g)
-    ? finalRowHeader(g, violations.length, ANSI)
-    : `${g.ok ? ANSI.green("✓") : ANSI.red("✗")} ${ANSI.bold(g.name)} (${violations.length} violation${violations.length === 1 ? "" : "s"})${scanNote(g.scan)}`;
-  print(header);
-  if (f.errorsOnly || violations.length === 0) {
-    print("");
-    return;
-  }
-  const sample = violations.slice(0, f.limit);
-  for (const v of sample) {
-    print(violationLine(v, ANSI));
-  }
-  if (violations.length > sample.length) {
-    print(ANSI.dim(`  …and ${violations.length - sample.length} more (--limit N to widen)`));
-  }
-  print("");
-}
-
-/** The failure header + the thrown-gate rows. A thrown gate is a broken CHECKER, not a violation —
- *  rendered before the gate list so an otherwise-empty failing report explains itself. */
-function printVerdictAndToolErrors(report: StructureReport): void {
-  const toolErrors = report.toolErrors ?? [];
-  const blind = report.scanAlarms ?? [];
-  const populations = report.populationAlarms ?? [];
-  const evidenceBroken = brokenEvidenceCount(report) > 0;
-  // ANNOTATED LOCAL — see the same note in ops/structure.ts: biome resolves the imported view's optional
-  // `policy` as always-present and reds the `?.` below; tsc reads the union correctly.
-  const policy: StructurePolicyReport | null | undefined = report.policy;
-  const counts = {
-    total: report.total,
-    toolErrors: toolErrors.length,
-    blind: blind.length,
-    populations: populations.length,
-    finalToolErrors: finalBrokenEvidenceCount(report.policy),
-    alarms: policy?.authority.alarms.length ?? 0,
-  };
-  print(report.ok && !evidenceBroken ? ANSI.green("✓ check:structure passed (filter view)\n") : failedHeaderLine(counts, ANSI));
-  for (const e of toolErrors) {
-    print(`${ANSI.red("✗ TOOL ERROR")} ${ANSI.bold(e.gate)} [${e.phase}]  ${e.message}`);
-  }
-  for (const name of blind) {
-    print(
-      `${ANSI.red("✗ SCANNED ZERO FILES")} ${ANSI.bold(name)}  the gate ran and read nothing — its verdict is a placebo (tooling/src/verify/gates/GATE-AUTHORING.md §3).`,
-    );
-  }
-  for (const a of populations) {
-    print(`${ANSI.red("✗ REFUSED POPULATION")} ${ANSI.bold(a.gate)}  ${populationAlarmText(a)}`);
-  }
-  if (report.policy !== null && report.policy !== undefined) {
-    for (const line of finalBlockLines(report.policy, ANSI)) {
-      print(line);
-    }
-  }
-  if (evidenceBroken) {
-    print("");
-  }
-}
-
-/** #644 — the near-cap ADVISORY, never a violation: a file a few lines under its component-size /
- *  component-size-ui / tooling-size cap is a fact a lane needs BEFORE it edits (a one-member tuple
- *  addition + biome's re-wrap turns "a few lines under" into a surprise RED naming a file the edit never
- *  meant to restructure). Computed fresh off disk every call — cheap, no ts-morph — so it can never go
- *  stale relative to the last `check:structure` run the way a report-embedded count would. */
-function printNearCapAdvisories(root: string): void {
-  const rows = nearCapAdvisories(root);
-  if (rows.length === 0) {
-    return;
-  }
-  print(ANSI.dim(`ℹ ${rows.length} file(s) inside their line-cap band — plan a split before your next edit there (tooling/src/verify/lib/near-cap.ts, #644):`));
-  for (const r of rows) {
-    print(ANSI.dim(`  ${r.file} — ${r.lines}/${r.cap} (headroom ${r.headroom}, ${r.gate})`));
-  }
-  print("");
-}
-
-/** The failing-report gate list — one row per gate that matches the filter and (unless the caller asked
- *  for this exact gate by name) carries a violation. Split out of `runShow` to keep it under the
- *  cognitive-complexity cap. */
-function printGateList(report: StructureReport, filter: Filter): void {
-  printVerdictAndToolErrors(report);
-  for (const g of report.gates) {
-    if (!matchesGate(g, filter)) {
-      continue;
-    }
-    const violations = filteredViolations(g, filter);
-    // A clean gate is noise unless the caller explicitly asked to inspect this exact gate.
-    if (violations.length === 0 && filter.gate === null) {
-      continue;
-    }
-    printGate(g, violations, filter);
-  }
-}
+const NO_VERIFY_SIGNAL: VerifySignal = { failed: false, toolError: false };
 
 /** THE FAILED-VERIFY-RUN SUMMARY (#0267) — printed before the structure verdict when the latest verify run
  *  did not pass, so a stage this artifact alone cannot see (`tests:node`, `browser:ct`, a budget or boot
- *  stage) is never silent under a clean structure verdict. Returns whether the run failed, so the caller can
- *  keep the exit code honest even when structure alone is green. Split out of `runShow` to keep it under the
- *  cognitive-complexity cap. */
-function printVerifyFailureSummary(root: string, structureRun: StructureReport["run"], filter: Filter): boolean {
-  const verifyReport = readLatestVerifyRun(root);
-  if (verifyReport === null || verifyReport.ok) {
-    return false;
+ *  stage) is never silent under a clean structure verdict. An ambiguous-but-actionable pointer state
+ *  (abandoned, unparseable) gets a one-line advisory instead of a silent fall-through to the structure view
+ *  alone — a reader who never sees that the last verify run died has no way to know it. Split out of
+ *  `runShow` to keep it under the cognitive-complexity cap. */
+function printVerifyFailureSummary(root: string, structureRun: StructureReport["run"], filter: Filter): VerifySignal {
+  const resolution = resolveLatestVerifyRun(root);
+  if (resolution.kind === "silent") {
+    return NO_VERIFY_SIGNAL;
   }
-  const summary = verifyFailureSummary(root, verifyReport, filter.limit, ANSI);
+  if (resolution.kind === "advisory") {
+    printAll(resolution.lines.map((line) => ANSI.red(line)));
+    print("");
+    return { failed: false, toolError: resolution.toolError };
+  }
+  if (resolution.report.ok) {
+    return NO_VERIFY_SIGNAL;
+  }
+  const summary = verifyFailureSummary(root, resolution.report, filter.limit, ANSI);
   if (summary !== null) {
-    for (const line of summary) {
-      print(line);
-    }
+    printAll(summary);
   }
-  print(structureProvenanceNote(verifyReport.run, structureRun, ANSI));
+  print(structureProvenanceNote(resolution.report.run, structureRun, ANSI));
   print("");
-  return true;
+  return { failed: true, toolError: false };
 }
 
 /** THE OTHER TWO ARTIFACTS THIS ONE DOOR READS (#2502), answered before the structure read: the verify run's
@@ -369,10 +268,44 @@ function runAlternateView(root: string, filter: Filter): number | null {
   const view = filter.pointers
     ? pointerView(root, ANSI)
     : stageView(root, { stage: filter.stage, stages: filter.stages, run: filter.run, limit: filter.limitGiven ? filter.limit : null }, ANSI);
-  for (const line of view.lines) {
-    print(line);
-  }
+  printAll(view.lines);
   return view.exit;
+}
+
+/** The structure verdict + the verify-run summary above it, and the exit code the two of them earn together.
+ *  Split out of `runShow` to keep it under the cognitive-complexity cap — this is the half that combines the
+ *  two artifacts' verdicts; `runShow` above it is purely "resolve the structure report or refuse". */
+function renderStructureVerdict(root: string, report: StructureReport, filter: Filter): number {
+  const filtersActive = filter.gate !== null || filter.file !== null;
+  const evidenceBroken = brokenEvidenceCount(report) > 0;
+
+  // A `--gate`/`--file` request is an explicit, narrow ask about the structure artifact and is left
+  // untouched; the bare default and `--errors-only` are where a red `tests:node`/`browser:ct`/other
+  // non-structure stage used to go unreported while a clean structure verdict printed underneath it.
+  const verifySignal = filtersActive ? NO_VERIFY_SIGNAL : printVerifyFailureSummary(root, report.run, filter);
+  const verifyBlocksClean = verifySignal.failed || verifySignal.toolError;
+
+  if (report.ok && !filtersActive && !evidenceBroken && !verifyBlocksClean) {
+    // The admitted total rides the PASS line: a ratchet baseline is declared debt a green run is still
+    // carrying, and "green" was the only thing this line said until 2026-08-13 (Codex GA-H-02).
+    print(passLine(report.gates, report.policy, ANSI));
+    printAll(nearCapAdvisoryLines(root, ANSI));
+    return EXIT.clean;
+  }
+
+  printAll(gateListLines(report, filter, filtersActive, ANSI));
+  if (!filtersActive) {
+    printAll(nearCapAdvisoryLines(root, ANSI));
+  }
+
+  if (evidenceBroken || verifySignal.toolError) {
+    return EXIT.toolError;
+  }
+  if (verifySignal.failed) {
+    // The run failed even though structure alone did not — never a clean exit for a red `pnpm verify`.
+    return EXIT.violations;
+  }
+  return filtersActive || report.ok ? EXIT.clean : EXIT.violations;
 }
 
 /** The `show` verb — the read-don't-rerun view of reports/check-structure.json. Returns the report's own
@@ -407,33 +340,5 @@ export function runShow(root: string, argv: readonly string[]): number {
   if (report.reconciliation !== undefined) {
     print(ANSI.dim(`finding count: ${structureCountLine(report.reconciliation)}`));
   }
-  const filtersActive = filter.gate !== null || filter.file !== null;
-  const evidenceBroken = brokenEvidenceCount(report) > 0;
-
-  // A `--gate`/`--file` request is an explicit, narrow ask about the structure artifact and is left
-  // untouched; the bare default and `--errors-only` are where a red `tests:node`/`browser:ct`/other
-  // non-structure stage used to go unreported while a clean structure verdict printed underneath it.
-  const verifyFailed = !filtersActive && printVerifyFailureSummary(root, report.run, filter);
-
-  if (report.ok && !filtersActive && !evidenceBroken && !verifyFailed) {
-    // The admitted total rides the PASS line: a ratchet baseline is declared debt a green run is still
-    // carrying, and "green" was the only thing this line said until 2026-08-13 (Codex GA-H-02).
-    print(passLine(report.gates, report.policy, ANSI));
-    printNearCapAdvisories(root);
-    return EXIT.clean;
-  }
-
-  printGateList(report, filter);
-  if (!filtersActive) {
-    printNearCapAdvisories(root);
-  }
-
-  if (evidenceBroken) {
-    return EXIT.toolError;
-  }
-  if (verifyFailed) {
-    // The run failed even though structure alone did not — never a clean exit for a red `pnpm verify`.
-    return EXIT.violations;
-  }
-  return filtersActive || report.ok ? EXIT.clean : EXIT.violations;
+  return renderStructureVerdict(root, report, filter);
 }

@@ -509,23 +509,54 @@ test("a failing stage's lines are capped with a count and the widening flag", as
   expect(result.stdout).toContain("…and 1 more (pnpm check:show --stage deps:orphan-ratchet to widen)");
 });
 
+function checkStructureAt(runId: string, startedAt: string): string {
+  return JSON.stringify({
+    run: { runId, complete: true, ran: 1, active: 1, startedAt },
+    gates: [],
+    toolErrors: [],
+    scanAlarms: [],
+    total: 0,
+    ok: true,
+  });
+}
+
 test("check:show says whether the structure verdict is from this verify run or an older one", async ({ runCli, plantedTree }) => {
   const root = await plantedTree({
     ...failingSlot(FAIL_RUN),
-    "reports/check-structure.json": JSON.stringify({
-      run: { runId: "main-1-2026-09-01T00-00-00-000Z", complete: true, ran: 1, active: 1, startedAt: "2026-09-01T00:00:00.000Z" },
-      gates: [],
-      toolErrors: [],
-      scanAlarms: [],
-      total: 0,
-      ok: true,
-    }),
+    "reports/check-structure.json": checkStructureAt("main-1-2026-09-01T00-00-00-000Z", "2026-09-01T00:00:00.000Z"),
   });
   publishVerify(root, FAIL_RUN);
 
   const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
   expect(result.stdout).toContain("structure verdict is from an OLDER run (main-1-2026-09-01T00-00-00-000Z");
-  expect(result.stdout).toContain(`NOT this verify run (${FAIL_RUN})`);
+  expect(result.stdout).toContain(`before this verify run (${FAIL_RUN}) started`);
+});
+
+test("check:show says a structure run AFTER the verify run finished is NEWER, not older", async ({ runCli, plantedTree }) => {
+  // The verify run's window is [12:00:00, 12:30:00] (failingVerifyReport) — a structure run that started
+  // an hour after it finished is not "older": the original two-way compare mislabeled every post-window
+  // run as OLDER.
+  const root = await plantedTree({
+    ...failingSlot(FAIL_RUN),
+    "reports/check-structure.json": checkStructureAt("main-9-2026-09-29T13-30-00-000Z", "2026-09-29T13:30:00.000Z"),
+  });
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
+  expect(result.stdout).toContain("structure verdict is from a NEWER run (main-9-2026-09-29T13-30-00-000Z");
+  expect(result.stdout).toContain(`after this verify run (${FAIL_RUN}) finished`);
+});
+
+test("check:show says a structure run inside the verify window started DURING it, without claiming it IS that stage", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree({
+    ...failingSlot(FAIL_RUN),
+    "reports/check-structure.json": checkStructureAt("main-5-2026-09-29T12-15-00-000Z", "2026-09-29T12:15:00.000Z"),
+  });
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
+  expect(result.stdout).toContain("structure verdict is from a run (main-5-2026-09-29T12-15-00-000Z) started DURING this verify run");
+  expect(result.stdout).toContain("not necessarily its own structure:full stage");
 });
 
 test("--gate keeps the narrow structure-only view even when the verify run failed", async ({ runCli, plantedTree }) => {
@@ -557,4 +588,77 @@ test("a clean verify run adds nothing to the structure view", async ({ runCli, p
   await expect(result).toExitWith(EXIT.clean);
   expect(result.stdout).not.toContain("stage(s) failed");
   expect(result.stdout).toContain("check:structure passed");
+  // No `--gate`/`--file` was given — "(filter view)" would falsely claim this is a narrowed inspection.
+  expect(result.stdout).not.toContain("(filter view)");
+});
+
+test('the bare default drops "(filter view)" from a clean structure header when a red verify run forced the gate list open', async ({
+  runCli,
+  plantedTree,
+}) => {
+  const root = await plantedTree(failingSlot(FAIL_RUN));
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show"], { cwd: root });
+  expect(result.stdout).toContain("✓ check:structure passed");
+  expect(result.stdout).not.toContain("(filter view)");
+});
+
+test("an ABANDONED latest verify run gets a one-line advisory instead of a silent fall-through, and exits toolError", async ({ runCli, plantedTree }) => {
+  // Same shape as the existing "a run that DIED after the published one REFUSES the read" --stage case
+  // (show-stage.ts's own precedent): a `.inflight` marker whose pid is certainly dead.
+  const root = await plantedTree({
+    ...publishedSlot(OLD_RUN),
+    "reports/check-structure.json": JSON.stringify({ gates: [], toolErrors: [], scanAlarms: [], total: 0, ok: true }),
+    [`reports/runs/verify/${LIVE_RUN}/.inflight`]: JSON.stringify({ runId: LIVE_RUN, pid: DEAD_PID, checkout: "main", startedAt: "2026-09-20T12:00:00.000Z" }),
+  });
+  publish(root, OLD_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
+  await expect(result).toExitWith(EXIT.toolError);
+  expect(result.stdout).toContain("NEVER FINISHED");
+  expect(result.stdout).toContain(LIVE_RUN);
+  // The structure verdict still renders beneath the advisory — this is a notice, not a silent fall-through.
+  expect(result.stdout).toContain("check:structure passed");
+});
+
+test("an UNPARSEABLE verify.json gets a one-line advisory instead of a silent fall-through, and exits toolError", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree({
+    [`reports/runs/verify/${OLD_RUN}/verify.json`]: "{not json",
+    [`reports/runs/verify/${OLD_RUN}/.published`]: '["verify.json","verify"]\n',
+    "reports/check-structure.json": JSON.stringify({ gates: [], toolErrors: [], scanAlarms: [], total: 0, ok: true }),
+  });
+  publish(root, OLD_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
+  await expect(result).toExitWith(EXIT.toolError);
+  expect(result.stdout).toContain(`reports/verify.json resolves to ${OLD_RUN} but will not parse`);
+  expect(result.stdout).toContain("check:structure passed");
+});
+
+test("a red stage with an empty log says so, rather than printing only the header", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree({
+    ...failingSlot(FAIL_RUN),
+    [`reports/runs/verify/${FAIL_RUN}/stages/deps-orphan-ratchet.log`]: "",
+  });
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only"], { cwd: root });
+  expect(result.stdout).toContain(
+    "deps:orphan-ratchet (exit 1)\n  (this stage's log is empty — no output was captured — pnpm check:show --stage deps:orphan-ratchet)",
+  );
+});
+
+test("the fallback tail (no extractor matched) reports how many lines it dropped", async ({ runCli, plantedTree }) => {
+  const many = Array.from({ length: 30 }, (_, i) => `plain line ${i}`).join("\n");
+  const root = await plantedTree({
+    ...failingSlot(FAIL_RUN),
+    [`reports/runs/verify/${FAIL_RUN}/stages/quality-boot-chunk.log`]: many,
+  });
+  publishVerify(root, FAIL_RUN);
+
+  const result = await runCli("verify", ["show", "--errors-only", "--limit", "3"], { cwd: root });
+  // The last 3 lines (a tail), and an honest count of how many were dropped ahead of them.
+  expect(result.stdout).toContain("plain line 29");
+  expect(result.stdout).toContain("…and 27 more (pnpm check:show --stage quality:boot-chunk to widen)");
 });
