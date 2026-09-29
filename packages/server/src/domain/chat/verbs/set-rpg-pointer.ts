@@ -20,7 +20,7 @@ import { chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
-import type { SetRpgPointer } from "../contract/context.ts";
+import type { SetRpgPointer, SetRpgPointerDeps } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import { carriedBackgroundAvailable } from "../persistence/background-write.ts";
 import { chatMetadataDropStatement, chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
@@ -36,11 +36,16 @@ function dropRpgPointer(metadata: ChatMetadata): ChatMetadata {
   return rest;
 }
 
-export function createSetRpgPointer(ctx: ChatContext): SetRpgPointer {
+export function createSetRpgPointer(ctx: ChatContext, deps: SetRpgPointerDeps): SetRpgPointer {
   return async (chatId: ChatId, pointer: ChatRpgPointer | null): Promise<void> => {
     const chat = await loadChatRow(ctx.db, chatId);
     if (chat === undefined) {
       return; // racing delete — nothing to point at
+    }
+    // A husk that points at a game is hidden from the Chats list and reaped with its game, so the set claims.
+    // The detach is a server heal, not the host acting, so it never claims.
+    if (pointer !== null) {
+      await deps.claimChat(chatId);
     }
     // ONE JSON PATH, NEVER THE WHOLE BLOB (#1450). The old shape read the row, merged `rpg` in memory and
     // wrote the ENTIRE metadata column back, so a host knob written between that read and this write was

@@ -184,6 +184,21 @@ test("CHEAP turn — createGame + a real tool turn flush lands state + the point
   expect(events.some((e) => e.type === "snapshotPatched")).toBe(true);
 });
 
+test("createGame on an unsent room claims it into the host's Chats list (composed-real)", async ({ services, db }) => {
+  const hostId = await seedUser(db, castId<Handle>("rpghost_husk"));
+  const chatId = await seedChat(db, "husk", { startedAt: null });
+  await seedParticipant(db, { chatId, key: "husk_host", userId: hostId, role: "host", joinSeq: 0 });
+  const listed = async (): Promise<{ readonly ids: readonly ChatId[]; readonly totalCount: number }> => {
+    const page = await services.chat.listChats({ principal: hostPrincipal(hostId) });
+    return { ids: page.items.map((c) => c.id), totalCount: page.totalCount };
+  };
+  expect(await listed()).toStrictEqual({ ids: [], totalCount: 0 });
+
+  await services.rpg.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+
+  expect(await listed()).toStrictEqual({ ids: [chatId], totalCount: 1 });
+});
+
 async function provePlantedPromotionRecovery(args: {
   readonly db: Db;
   readonly services: ServicesResult["services"];

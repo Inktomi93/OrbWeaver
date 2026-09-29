@@ -497,6 +497,13 @@ export type GetMembership = (chatId: ChatId, userId: UserId) => Promise<{ readon
  *  nulls a pointer at a game that no longer exists). */
 export type SetRpgPointer = (chatId: ChatId, pointer: ChatRpgPointer | null) => Promise<void>;
 
+/** The pointer op's collaborators (the `PostNarratorMessageDeps` shape; not on `ChatContext`). */
+export interface SetRpgPointerDeps {
+  /** The husk→real transition (R0). A non-null pointer is the host turning game mode on, so it claims; the
+   *  null detach is a server heal and never claims. */
+  readonly claimChat: ClaimChatOp;
+}
+
 /** One present roster participant projected for rpg's tracker view (roster ∪ sheets, docs/plans/rpg/design.md): a
  *  `character`/`user` actor ref + the RESOLVED display name + avatar hash. rpg stays table-blind — the
  *  name/avatar joins live HERE (chat/character). Structurally the rpg-facing `RpgParticipantActor` (rpg declares its

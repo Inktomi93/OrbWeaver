@@ -12,7 +12,7 @@
 //   • a canon EDIT (edit/hide/delete/move/duplicate/reattribute/variant-select — `verbs/edit.ts`)
 //   • any explicit chat-row or config write (title/star/archive/anchor/variables/user-macros/injections;
 //     group config, room overrides, databank visibility, background, display scripts, tool-recurse limit;
-//     a roster change; minting an invite)
+//     a roster change; minting an invite; turning game mode on, which is a non-null rpg pointer write)
 // What deliberately does NOT claim: pure navigation, unsent composer text, and every READ. Deleting or
 // reaping the room does not claim it either (the row is going away).
 //

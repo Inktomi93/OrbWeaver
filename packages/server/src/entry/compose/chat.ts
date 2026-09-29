@@ -1535,16 +1535,18 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   if (input.toolUse !== undefined) {
     input.toolUse.register(createReactToolDefinition({ reactAsCharacter: createReactAsCharacter(chatCtx, { emit: emitChatEvent }) }));
   }
+  // The narrator and pointer ops are built OUTSIDE createChatService (injected rpg ops, not routed verbs), so
+  // they get their own claim chokepoint from the same factory — one behavior, two construction sites. The two
+  // share it so a same-room race between them serializes on one in-flight map.
+  const rpgClaimChat = createClaimChat(chatCtx);
   return {
     service: chatBundle.service,
     emitBusEvent: emitChatEvent,
     rpgChatOps: {
       getMembership: createGetMembership(chatCtx),
-      // The narrator op is built OUTSIDE createChatService (an injected rpg op, not a routed verb), so it gets
-      // its own claim chokepoint from the same factory — one behavior, two construction sites.
-      postNarratorMessage: createPostNarratorMessage(chatCtx, { emit: emitChatEvent, claimChat: createClaimChat(chatCtx) }),
+      postNarratorMessage: createPostNarratorMessage(chatCtx, { emit: emitChatEvent, claimChat: rpgClaimChat }),
       getPendingUserText: createGetPendingUserText(chatCtx),
-      setRpgPointer: createSetRpgPointer(chatCtx),
+      setRpgPointer: createSetRpgPointer(chatCtx, { claimChat: rpgClaimChat }),
       resolveRpgParticipants: createResolveRpgParticipants(chatCtx),
       resolveHostUserId: resolveChatHostUserId,
       resolveCanonWindow: createResolveCanonWindow(chatCtx),
