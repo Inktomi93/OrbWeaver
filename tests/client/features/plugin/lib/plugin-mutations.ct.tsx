@@ -45,6 +45,9 @@ for (const transition of ["uninstall", "withdraw", "auto-disable"] as const) {
     };
     const recorder = await routeTrpc(page, {
       ...catalogs,
+      // The renderer's own state read (`PluginSurfaceRenderer` reads `getSurfaceState` for every surface it
+      // draws); `null` is the Tier-S default — the spec alone renders, with no published state.
+      "plugin.getSurfaceState": () => null,
       "plugin.uninstall": removeContributions,
       "plugin.uninstallForAllUsers": () => {
         resident = false;
