@@ -857,10 +857,12 @@ module.exports = {
           "\\.d\\.ts$",
           "(^|/)index\\.ts$",
           "^tooling/src/_shared/instruments\\.ts$",
-          // `main.js` (the SERVER guest) and `ui.js` (the Tier-C CLIENT guest U4) — the
+          // `main.ts` (the SERVER guest) and `ui.ts` (the Tier-C CLIENT guest U4) — the
           // SAME carve for the same reason, widened to the second entry name rather than loosened to a
-          // directory glob, so a stray `helper.js` beside them is still a real orphan.
-          "^packages/showcase-plugins/bundles/[^/]+/(main|ui)\\.js$",
+          // directory glob, so a stray `helper.ts` beside them is still a real orphan. Authored as
+          // TypeScript source (#1692's plugin SDK/toolchain landing) and compiled by the toolchain,
+          // not the raw JS the sandbox originally read as bytes.
+          "^packages/showcase-plugins/bundles/[^/]+/(main|ui)\\.ts$",
         ],
       },
       to: {},
