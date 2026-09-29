@@ -32,6 +32,7 @@ interface BatchCase {
   command: string;
   cwd?: string;
   agentId?: string;
+  // @orb-waive brand-in-name-position(sessionId): Claude Code's own hook `session_id`, passed through to the guard's batch input as an opaque string; never an orbweaver SessionId. Ends if the batch input stops carrying it.
   sessionId?: string;
   timeout?: number;
   projectDir?: string;
