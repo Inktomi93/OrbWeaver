@@ -6,6 +6,7 @@
 // (scripts/probes/guard-replay.mjs); the rows below pin the shapes that corpus surfaced, including the
 // owner's own false-positive case (a commit MESSAGE mentioning `pnpm check | tail` must never fire) and
 // the heredoc-body leak that once turned a commit message into a `lane-git-push` ask.
+import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { accessSync, constants, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -24,13 +25,14 @@ const PINNED_NOW = "1700000000000";
 // suite executes can never leak a push-in-flight context into an unrelated row
 const EMPTY_PROC = mkdtempSync(join(tmpdir(), "tg-proc-none-"));
 // the exit-code restore survives a trailing comment in the clause AFTER the piped one (it is on its own line)
-const SUFFIX_COMMENT_THEN_EXIT = /echo done # all set\n\( exit \$__tg_ec \)$/;
+const SUFFIX_COMMENT_THEN_EXIT = /\n\( exit \$__tg_ec \); \}; echo done # all set$/;
 const NESTED_DEPTH_CAP_RULE = /nested-depth-cap$/; // the rule id carries one `subst:`/`inline:` per level
 
 interface BatchCase {
   command: string;
   cwd?: string;
   agentId?: string;
+  // @orb-waive brand-in-name-position(sessionId): Claude Code's own hook `session_id`, passed through to the guard's batch input as an opaque string; never an orbweaver SessionId. Ends if the batch input stops carrying it.
   sessionId?: string;
   timeout?: number;
   projectDir?: string;
@@ -90,7 +92,8 @@ function runHook(input: unknown, envPairs: [string, string][] = [], rawStdin?: s
     encoding: "utf8",
     env: env(envPairs),
   });
-  return { status: r.status, out: JSON.parse(r.stdout) as HookRun["out"] };
+  // An empty stdout is the hook having no decision, so the normal permission flow runs.
+  return { status: r.status, out: (r.stdout.trim() === "" ? {} : JSON.parse(r.stdout)) as HookRun["out"] };
 }
 
 function bashInput(command: string, extraPairs: [string, unknown][] = [], toolInputExtra: Record<string, unknown> = {}): Record<string, unknown> {
@@ -110,6 +113,10 @@ const LANE = { agentId: "agent-1", cwd: "/x/.claude/worktrees/agent-abc" };
 // the self-exemption is a REALPATH identity, so a row about it must run from the real checkout
 const AT_REPO = { projectDir: REPO, cwd: REPO };
 const BG = { runInBackground: true };
+// A tool timeout the agent set itself. The corpus rows are about other rules, so they carry one and a plain
+// `git commit` in them is not also a commit-timeout row; that rule has its own test.
+// @orb-waive tooling-clock-budget(120_000): an agent-chosen tool timeout handed to the guard as input, not a clock this run pays.
+const AGENT_TIMEOUT = { timeout: 120_000 };
 const TASKS = "/tmp/claude/-home-p/sess/tasks";
 type Row = [BatchResult["decision"] | "advisory", string | null, string, Omit<BatchCase, "command">?];
 
@@ -902,6 +909,86 @@ const ROWS: Row[] = [
   // …as is one inside a comment or a heredoc body, which are text guard-wide
   ["pass", null, 'ls packages # never echo "$(git stash)"'],
   ["pass", null, "python3 - <<'PY'\nprint(\"$(git stash)\")\nPY"],
+  // git's bare global flags take no value, so a log/grep argument that reads `commit`/`merge` is not one
+  ["pass", null, "git --no-pager log -S commit | head"],
+  ["pass", null, 'git -C "$WT" log --grep merge | head'],
+  ["allow", "longlived-piped", 'git -C "$WT" commit -m x 2>&1 | tail -3'], // a quoted value is still one word
+  ["deny", "git-destructive", "git --no-pager stash"],
+  ["deny", "git-destructive", 'git -C "$WT" stash'],
+  // a piped `pnpm doc` that cannot be rewritten does not hide a later piped git clause
+  ["advisory", "advisory", "pnpm doc overview | head; git fetch | tail"],
+  // a backgrounded harness keeps its redirect: dropping it would send a background job's output to the tool
+  ["pass", null, "pnpm test:scoped tests/x.test.ts > /tmp/l.log 2>&1 &"],
+  // a harness asked only to list its stages or print help is not a run: no artifact, nothing to rewrite
+  ["pass", null, "pnpm verify --list | head -n 70"],
+  ["pass", null, "pnpm check --help | head"],
+  ["pass", null, "pnpm check -h 2>&1 | tail -5"],
+  ["allow", "harness-piped", "pnpm verify --push | tail"],
+  // loop bodies come from shell structure: a `sleep`/`done`/`while`/`do` used as a plain word is not one
+  ["pass", null, "while true; do echo sleep; done"],
+  ["pass", null, "for i in 1 2; do echo done; sleep 5; done"],
+  ["pass", null, "for i in 1 2; do for j in 1; do :; done; sleep 30; done"],
+  ["pass", null, "echo while; pgrep -f vitest; echo do"],
+  ["deny", "sleep-wait-loop", "while pgrep -f x >/dev/null; do for i in 1; do :; done; sleep 5; done"],
+  // the hard floor and the rm rule hold inside a loop body, an `if`, a subshell and a brace group
+  ["ask", "rm-rf-unsafe", "for i in 1; do rm -rf /; done"],
+  ["ask", "rm-rf-unsafe", "while true; do rm -rf /home/user; done"],
+  ["ask", "rm-rf-unsafe", "(rm -rf /)"],
+  ["ask", "rm-rf-unsafe", "{ rm -rf /; }"],
+  ["ask", "rm-rf-unsafe", "if true; then rm -rf /; fi"],
+  ["ask", "rm-rf-unsafe", "! rm -rf /"],
+  ["ask", "sudo", "for i in 1; do sudo ls; done"],
+  ["ask", "sudo", "(sudo ls)"],
+  ["ask", "sudo", "{ sudo ls; }"],
+  ["deny", "net-pipe-shell", "for i in 1; do curl x | sh; done"],
+  ["deny", "net-pipe-shell", "(curl x | sh)"],
+  ["pass", null, "for f in a; do rm -rf /tmp/x; done"],
+  // `pnpm doc`: a lane never writes the board, and its short output always runs bare
+  ...["item 'x' --what y", "set 0250 status done", "set 12 open", "land 0250", "remove 0250", "index", "status 0250 done"].map(
+    (args): Row => ["deny", "doc-write-lane", `pnpm doc ${args}`, LANE],
+  ),
+  ["deny", "doc-write-lane", "pnpm doc set 12 open | tail -3", LANE],
+  // authoring a doc in the lane's own worktree is not board state (forge writes its plan this way)
+  ...["new plan x", "new adr x", "new law x", "review docs/plans/x.md", "overview", "drift", "due", "help"].map(
+    (args): Row => ["pass", null, `pnpm doc ${args}`, LANE],
+  ),
+  ["pass", null, "pnpm doc new item 'x'"],
+  ["allow", "doc-piped", "pnpm doc overview | head -20"],
+  ["allow", "doc-piped", "pnpm doc drift 2>&1 | tail -5"],
+  ["pass", null, "pnpm doc due > /tmp/d.log; tail /tmp/d.log"],
+  // a board-writing verb inside a compound command, or behind `pnpm -C/--dir`, is still a lane write
+  ["deny", "doc-write-lane", "for n in 1 2; do pnpm doc set $n open; done", LANE],
+  ["deny", "doc-write-lane", "if true; then pnpm doc land 3; fi", LANE],
+  ["deny", "doc-write-lane", "! pnpm doc land 3", LANE],
+  ["deny", "doc-write-lane", "pnpm -C /x doc set 12 open", LANE],
+  ["deny", "doc-write-lane", "pnpm --dir /x doc land 3", LANE],
+  ["deny", "doc-write-lane", "pnpm --dir=/x doc land 3", LANE],
+  ["pass", null, "pnpm doc set --help", LANE],
+  ["pass", null, "pnpm doc land -h", LANE],
+  ["pass", null, "pnpm doc --help", LANE],
+  ["pass", null, "pnpm doc item --help > /tmp/help.txt 2>&1", LANE], // a redirect is not an argument
+  ["deny", "doc-write-lane", 'pnpm doc item "Fix foo" "--kind" "bug" -h', LANE], // quoted words still count
+  // the help exemption is only `<verb> --help|-h` alone; a real write carrying `-h` still writes
+  ["deny", "doc-write-lane", 'pnpm doc item "Fix foo" --kind bug -h', LANE],
+  ["deny", "doc-write-lane", "pnpm doc set 5 done --help", LANE],
+  ["deny", "doc-write-lane", "pnpm doc item --title --help", LANE],
+  // pnpm's own options before `doc`, and a case arm, do not hide the verb
+  ["deny", "doc-write-lane", "pnpm -w doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "pnpm doc 'set' 5 done", LANE], // a quoted verb is the same verb
+  ["deny", "doc-write-lane", 'pnpm doc "land" 5', LANE],
+  ["deny", "doc-write-lane", "(pnpm doc index)", LANE],
+  // an option value or case pattern spelled `doc` is not the doc script
+  ["deny", "doc-write-lane", "pnpm --filter doc doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "pnpm -C doc doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "pnpm --dir doc doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "case $x in doc) pnpm doc set 5 x;; esac", LANE],
+  ["deny", "doc-write-lane", "pnpm --filter root doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "pnpm --silent doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "pnpm -C=/wt doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "pnpm -C /wt run doc set 5 x", LANE],
+  ["deny", "doc-write-lane", "case x in x) pnpm doc set 5 x;; esac", LANE],
+  ["deny", "doc-write-lane", "case x in a) echo;; (b) pnpm doc land 5;; esac", LANE],
+  ["allow", "doc-piped", "pnpm doc overview | grep 0250", LANE],
   // ---- hand-polling family (owner directive, 2026-09-29 addendum) ----
   // true/`:`-only filler: EVERY clause must reduce to the bare word.
   ["deny", "true-filler", "true"],
@@ -1066,7 +1153,7 @@ const DRIZZLE_KIT_CHAIN_ROWS: Row[] = [
 ROWS.push(...DRIZZLE_KIT_ROWS, ...DRIZZLE_KIT_CHECK_ROWS, ...DRIZZLE_KIT_CHAIN_ROWS);
 
 test("corpus: every rule bites its measured shapes and passes the false-positive traps", () => {
-  const results = runBatch(ROWS.map(([, , command, ctx]) => ({ command, ...ctx })));
+  const results = runBatch(ROWS.map(([, , command, ctx]) => ({ ...AGENT_TIMEOUT, command, ...ctx })));
   const failures: string[] = [];
   ROWS.forEach(([expected, rule, command], i) => {
     const got = at(results, i);
@@ -1176,6 +1263,87 @@ test("contract: the repeated-status-read streak survives across separate hook in
   expect(read("agent-y").out.hookSpecificOutput?.permissionDecision).toBe("allow");
 });
 
+// A whole-tree run from a subagent still runs, with a note that it is normally the orchestrator's, shown
+// once per agent per command family. The main session never sees the note.
+test("whole-tree runs: a subagent gets a once-per-family note, main gets none, scoped runs get none", () => {
+  const lane = { agentId: "cb-g3-whole-tree" };
+  const rows = runBatch([
+    { command: "pnpm check", ...lane },
+    { command: "pnpm check", ...lane }, // same family: the note is not repeated
+    { command: "pnpm verify --push", ...lane },
+    { command: "pnpm verify --static", ...lane }, // the verify family already had its note
+    { command: "pnpm check:instrument-affected", ...lane },
+    { command: "pnpm test", ...lane },
+    { command: "pnpm e2e:smoke", ...lane },
+    { command: "pnpm check" }, // main session
+    { command: "pnpm verify --static --changed", agentId: "cb-g3-scoped" },
+    { command: "pnpm test:scoped tests/a.test.ts", agentId: "cb-g3-scoped" },
+    { command: "pnpm test:ct tests/ct/a.ct.tsx", agentId: "cb-g3-scoped" },
+    { command: "pnpm check:structure", agentId: "cb-g3-scoped" },
+  ]);
+  const noted = rows.map((r) => r.contexts.some((c) => c.startsWith("This is a whole-tree run")));
+  expect(noted).toEqual([true, false, true, false, true, true, true, false, false, false, false, false]);
+  expect(rows.every((r) => r.decision === "pass")).toBe(true);
+});
+
+// The Read tool on a harness task's output file is the same poll as a Bash read of it: the first Read is a
+// check-in, a second Read of the same file by the same agent is waiting on a notification that is coming.
+test("contract: a second Read of the same task output file denies, per agent, and counts into the read streak", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "tg-task-read-"));
+  const envPairs: [string, string][] = [["CLAUDE_PROJECT_DIR", tmp]];
+  const taskFile = `${TASKS}/bb98qi3t2.output`;
+  const readInput = (filePath: string, agentPairs: [string, unknown][], rangePairs: [string, number][] = []): Record<string, unknown> =>
+    Object.fromEntries([
+      ["tool_name", "Read"],
+      ["tool_input", Object.fromEntries([["file_path", filePath], ...rangePairs])],
+      ["cwd", "/repo"],
+      ["session_id", "test-session-read"],
+      ...agentPairs,
+    ]);
+  const read = (filePath: string, agentPairs: [string, unknown][], rangePairs: [string, number][] = []): string | undefined =>
+    runHook(readInput(filePath, agentPairs, rangePairs), envPairs).out.hookSpecificOutput?.permissionDecision;
+  const agentA: [string, unknown][] = [["agent_id", "agent-read-a"]];
+  // no decision is an empty stdout: `defer` is a real outcome that stops a `claude -p` run
+  const first = spawnSync(process.execPath, [HOOK], { input: JSON.stringify(readInput("/tmp/x.log", agentA)), encoding: "utf8", env: env(envPairs) });
+  expect([first.status, first.stdout]).toEqual([0, ""]);
+  expect(read(taskFile, agentA)).toBe(undefined);
+  expect(read(taskFile, agentA)).toBe("deny");
+  expect(read(taskFile, agentA)).toBe("deny");
+  expect(read(`${TASKS}/other.output`, agentA)).toBe(undefined); // a different task file is its own first read
+  expect(read(taskFile, [["agent_id", "agent-read-b"]])).toBe(undefined); // another agent keeps its own record
+  expect(read("/tmp/x.log", agentA)).toBe(undefined); // not a task output file
+  expect(read("/tmp/x.log", agentA)).toBe(undefined);
+  expect(read(taskFile, [])).toBe(undefined); // the main session is treated the same way
+  const mainSecond = runHook(readInput(taskFile, []), envPairs);
+  expect(mainSecond.out.hookSpecificOutput?.permissionDecision).toBe("deny");
+  expect(mainSecond.out.hookSpecificOutput?.permissionDecisionReason).toBe(
+    `You read this range of \`${taskFile}\` less than 120 s ago; rereading it this soon is a poll. If the job has finished, its output is what you already read. If your work is done, write your final report now; otherwise do other work or end your turn.`,
+  );
+  // one Read of a task file, then two Bash reads of it, is the third consecutive read of that target
+  const agentC: [string, unknown][] = [["agent_id", "agent-read-c"]];
+  expect(read(`${TASKS}/c.output`, agentC)).toBe(undefined);
+  const bash = (): string | undefined => runHook(bashInput(`tail -5 ${TASKS}/c.output`, agentC), envPairs).out.hookSpecificOutput?.permissionDecision;
+  expect(bash()).toBe("allow");
+  expect(bash()).toBe("deny");
+  // a finished output read in chunks is not a poll: each new range is its own first read, and only an
+  // identical range repeats. A chunked read does not start a streak for a later `tail` of the whole file.
+  const agentD: [string, unknown][] = [["agent_id", "agent-read-d"]];
+  const chunk = (offset: number): string | undefined =>
+    read(`${TASKS}/d.output`, agentD, [
+      ["offset", offset],
+      ["limit", 2000],
+    ]);
+  expect([chunk(1), chunk(2001), chunk(4001)]).toEqual([undefined, undefined, undefined]);
+  expect(chunk(2001)).toBe("deny");
+  expect(runHook(bashInput(`tail -5 ${TASKS}/d.output`, agentD), envPairs).out.hookSpecificOutput?.permissionDecision).toBe("allow");
+  // a reread after the window passes: the task may have finished, and reading its output then is the point
+  const agentE: [string, unknown][] = [["agent_id", "agent-read-e"]];
+  const readAt = (offsetMs: number): string | undefined =>
+    runHook(readInput(`${TASKS}/e.output`, agentE), [...envPairs, ["ORB_TOOL_GUARD_NOW_FOR_TEST", String(Number(PINNED_NOW) + offsetMs)]]).out
+      .hookSpecificOutput?.permissionDecision;
+  expect([readAt(0), readAt(60_000), readAt(181_000)]).toEqual([undefined, "deny", undefined]);
+});
+
 // `pnpm typecheck` has no single known artifact file (unlike check/verify/test), so it keeps the generic
 // private-log rewrite — this test is about THAT mechanism (the exit-code-preservation template), not about
 // the check:show/artifact substitution, which gets its own test below.
@@ -1184,7 +1352,7 @@ test("rewrite: the piped-harness rewrite preserves the reader chain, the log tar
   expect(r.decision).toBe("allow");
   const log = `/repo/reports/tool-guard/run-${PINNED_NOW}.log`;
   // the exit-code restore is on its OWN LINE — see the comment-tail test below for why a `;` was wrong
-  const expected = `pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec )`;
+  const expected = `{ pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec ); }`;
   expect(r.rewrite?.command).toBe(expected);
   expect(r.rewrite?.timeout).toBe(600_000); // verify/check legitimately outrun the 120s default
   // @orb-waive tooling-clock-budget(120_000): the guard's INPUT UNDER TEST — an agent-chosen value handed to runBatch so the suite can assert the guard does not override it; fixture data, not a clock this run pays, and scaling it would make the fixture describe a box instead of an agent. Ends if the suite stops feeding a literal timeout to the guard.
@@ -1202,28 +1370,321 @@ test("rewrite: a verify-family harness piped into a reader targets `pnpm check:s
   const tail = at(runBatch([{ command: "pnpm check | tail -30" }]), 0);
   expect(tail.decision).toBe("allow");
   expect(tail.rule).toBe("harness-piped");
-  const expectedTail = "pnpm check; __tg_ec=$?; pnpm check:show --errors-only\n( exit $__tg_ec )";
+  const expectedTail = "{ pnpm check; __tg_ec=$?; pnpm check:show --errors-only\n( exit $__tg_ec ); }";
   expect(tail.rewrite?.command).toBe(expectedTail);
   expect(tail.rewrite?.command).not.toContain("tool-guard/run-");
   // a grep pattern shaped like a verify stage id (`word:word`) selects that ONE stage's transcript
   const stage = at(runBatch([{ command: "pnpm check 2>&1 | grep -c lint:biome" }]), 0);
-  expect(stage.rewrite?.command).toBe("pnpm check; __tg_ec=$?; pnpm check:show --stage lint:biome\n( exit $__tg_ec )");
+  expect(stage.rewrite?.command).toBe("{ pnpm check; __tg_ec=$?; pnpm check:show --stage lint:biome\n( exit $__tg_ec ); }");
   // a non-stage-shaped grep pattern falls back to the terse view, same as tail/head/wc
   const errorGrep = at(runBatch([{ command: 'pnpm verify --push 2>&1 | grep -E "error|FAIL"' }]), 0);
-  expect(errorGrep.rewrite?.command).toBe("pnpm verify --push; __tg_ec=$?; pnpm check:show --errors-only\n( exit $__tg_ec )");
+  expect(errorGrep.rewrite?.command).toBe("{ pnpm verify --push; __tg_ec=$?; pnpm check:show --errors-only\n( exit $__tg_ec ); }");
   // the exit code preserved is the HARNESS's, not check:show's — proven the same way as the log template
   const tmp = mkdtempSync(join(tmpdir(), "tg-template-"));
   const cmd = `fake_harness() { return 3; }; fake_harness; __tg_ec=$?; pnpm --version > ${join(tmp, "x")}\n( exit $__tg_ec )`;
   expect(spawnSync("bash", ["-c", cmd], { encoding: "utf8" }).status).toBe(3);
 });
 
+// Every command a verifier found corrupted by an earlier hand-rolled rewrite. Each must come out either
+// untouched or as a pipeRewrite that bash accepts and that restores the real exit code on its own line.
+const PIPED_DOC_AND_GIT_CASES = [
+  // pnpm doc
+  "pnpm doc overview | head -20",
+  "pnpm doc drift 2>&1 | tail -5",
+  "pnpm doc overview | grep 00 | head -3",
+  "(pnpm doc overview | head)",
+  "( pnpm doc overview | head )",
+  "{ pnpm doc overview | head; }",
+  "for i in 1; do pnpm doc overview | head; done",
+  "if true; then pnpm doc overview | head; fi",
+  "! pnpm doc overview | head",
+  "time pnpm doc overview | head",
+  "pnpm doc overview 2>&1 --json | head",
+  "pnpm doc overview | head 2>&1",
+  "pnpm doc overview |& head",
+  "pnpm doc overview 2>/dev/null | head",
+  "pnpm doc overview | head > /tmp/x",
+  "pnpm doc overview | head | tee /tmp/x",
+  "pnpm doc overview | head\r\n",
+  "pnpm doc overview\r | head",
+  "pnpm doc overview | head;",
+  "pnpm doc overview | head &",
+  "FOO=1 pnpm doc overview | head",
+  "pnpm doc overview | head # note",
+  "pnpm doc overview # | head",
+  'pnpm doc item "$(whoami)" | head',
+  "pnpm doc overview <<EOF | head\nx\nEOF",
+  "pnpm doc overview <<< x | head",
+  "pnpm doc overview <(ls) | head",
+  "pnpm doc overview \\| head",
+  "pnpm doc overview\\ | head",
+  'pnpm doc new adr foo --title "x | y" | head',
+  'pnpm doc new adr foo --title "a \\" | b" | head',
+  "pnpm doc land 10 --evidence abc > /tmp/l.log 2>&1; echo EXIT=$?; tail -5 /tmp/l.log",
+  "pnpm doc --help 2>&1 | head -40; ls docs/work | rg '^0027'",
+  "W=/tmp/wt\ncd \"$W\" && pnpm doc --help 2>&1 | sed -n '1,200p'",
+  "cd /repo; pnpm doc set 248 doing >/dev/null 2>&1; python3 - <<'EOF'\nimport glob\nEOF",
+  "pnpm doc overview | head\ngit status",
+  "cd /tmp\npnpm doc overview | head",
+  // git commit / merge
+  "git commit -m x | tail -3",
+  "git commit -F /tmp/m 2>&1 | tail -n 1 && git log --oneline -1",
+  "cd /x && git merge main | tail -5; git status --short",
+  "git -C /wt commit -m x | grep -c ok",
+  "git -c user.name=x commit -m y | tail",
+  "git --git-dir=/x/.git commit -m y | tail",
+  "(git commit -m x | tail)",
+  "(git commit -m x | tail) && git push",
+  "{ git commit -m x | tail; }",
+  "for i in 1; do git commit -m x | tail; done",
+  "if git commit -m x | tail; then echo ok; fi",
+  "git commit -m x |& tail",
+  "git commit -m x 2>/dev/null | tail",
+  "git commit -F - <<EOF | tail\nmsg\nEOF",
+  "git commit -m x | tail; cat <<EOF\nhi\nEOF",
+  "git commit -m x | tail\necho hi",
+  "git commit -m x | tail\r\n",
+  "git commit -m x\r | tail",
+  "git commit -m x | tail\r && echo ok",
+  'git commit -m "$(date)" | tail',
+  "git commit -m `date` | tail",
+  "git commit -m x | tail > /tmp/l",
+  "git commit -m x | tail & echo hi",
+  "git commit -m a | tail; git commit -m b | tail",
+  "git commit -m x | tail # c",
+  "git commit -m x | tail || echo fail",
+  "git commit -m x \\| tail",
+  'git commit -m "a \\" | b" | tail',
+  "env -C /wt git commit -m x | tail",
+  "timeout 60 git commit -m x | tail",
+  "   git commit -m x | tail   ",
+  "git commit -m x|tail;echo ok",
+  "git\tcommit -m x\t|\ttail",
+  "LEFTHOOK_EXCLUDE=check git commit --no-edit 2>&1 | tail -3",
+];
+
+test("rewrite: a piped `pnpm doc` or `git commit/merge` is a valid pipeRewrite or untouched, never a broken command", () => {
+  const out = runBatch(PIPED_DOC_AND_GIT_CASES.map((command) => ({ command })));
+  const broken: string[] = [];
+  out.forEach((r, i) => {
+    const input = at(PIPED_DOC_AND_GIT_CASES, i);
+    const rewritten = r.rewrite?.command;
+    if (rewritten === undefined) {
+      return;
+    }
+    if (r.rule === "commit-timeout" && rewritten === input) {
+      return; // only the tool timeout changed; the command is byte-identical
+    }
+    if (r.rule !== "doc-piped" && r.rule !== "longlived-piped") {
+      broken.push(`[${i}] unexpected rewrite rule ${r.rule} :: ${JSON.stringify(input)}`);
+      return;
+    }
+    // a rewrite must parse wherever the input parses, and must restore the real exit code on its own line
+    const inputParses = spawnSync("bash", ["-n", "-c", input], { encoding: "utf8" }).status === 0;
+    const outputParses = spawnSync("bash", ["-n", "-c", rewritten], { encoding: "utf8" }).status === 0;
+    if ((inputParses && !outputParses) || !rewritten.includes("\n( exit $__tg_ec )")) {
+      broken.push(`[${i}] ${JSON.stringify(input)} => ${JSON.stringify(rewritten)}`);
+    }
+  });
+  expect(broken).toEqual([]);
+  // a stage the pipe split in the middle of a word, or one inside a group, is never rewritten
+  const mustStay = [
+    "(pnpm doc overview | head)",
+    "{ pnpm doc overview | head; }",
+    "pnpm doc overview \\| head",
+    "pnpm doc overview\\ | head",
+    "(git commit -m x | tail)",
+    "git commit -m x \\| tail",
+  ];
+  const stay = runBatch(mustStay.map((command) => ({ command, ...AGENT_TIMEOUT })));
+  expect(stay.map((r) => r.rewrite?.command)).toEqual(mustStay.map(() => undefined));
+  // the simple shapes do rewrite, and git's subcommand look-alikes do not
+  const simple = runBatch(
+    [
+      "pnpm doc overview | head -20",
+      "git commit -m x | tail -3",
+      "git -C /wt merge main | tail",
+      "git commit-tree abc | tail",
+      "git merge-base a b | tail",
+      "git -C '/w t' commit -m x | tail -3",
+      "git --no-pager log -S commit | head",
+    ].map((command) => ({ command })),
+  );
+  expect(simple.map((r) => r.rule)).toEqual(["doc-piped", "longlived-piped", "longlived-piped", null, null, "longlived-piped", null]);
+  // a piped foreground commit/merge also gets the long timeout, unless the caller set one or backgrounded it
+  expect([at(simple, 1).rewrite?.timeout, at(simple, 2).rewrite?.timeout, at(simple, 5).rewrite?.timeout]).toEqual([600_000, 600_000, 600_000]);
+  const piped = runBatch([
+    { command: "git commit -m x | tail -3", runInBackground: true },
+    { command: "git commit -m x | tail -3", ...AGENT_TIMEOUT },
+  ]);
+  expect(piped.map((r) => [r.rule, r.rewrite?.timeout])).toEqual([
+    ["longlived-piped", undefined],
+    ["longlived-piped", undefined],
+  ]);
+  // a backgrounded pipeline still rewrites; the lone `&` left in the remainder is not `true` filler
+  const backgrounded = runBatch(["pnpm doc overview | head &", "git commit -m x | tail &"].map((command) => ({ command })));
+  expect(backgrounded.map((r) => [r.decision, r.rule])).toEqual([
+    ["allow", "doc-piped"],
+    ["allow", "longlived-piped"],
+  ]);
+  expect(at(simple, 1).rewrite?.command).toMatch(
+    /^\{ git commit -m x > \/repo\/reports\/tool-guard\/run-\d+\.log; __tg_ec=\$\?; < \S+ tail -3\n\( exit \$__tg_ec \); \}$/,
+  );
+});
+
+// Commit and merge hooks run past the Bash tool's 120 s default, and a killed commit leaves its hook running.
+test("commit timeout: a foreground commit/merge with no timeout gets the long timeout, command byte-identical", () => {
+  const rows = runBatch([
+    { command: "git commit -m x" },
+    { command: "git -C /wt merge main", ...LANE },
+    { command: "cd /x && LEFTHOOK_EXCLUDE=check git commit -F /tmp/m" },
+    // @orb-waive tooling-clock-budget(120_000): an agent-chosen tool timeout handed to the guard as input; the guard must not override it.
+    { command: "git commit -m x", timeout: 120_000 },
+    { command: "git commit -m x", runInBackground: true },
+    { command: "git commit-tree abc" },
+    { command: "git merge-base a b" },
+    { command: "git commit -m x; rm -rf /" },
+    { command: "git commit -F - <<'EOF'\nfix: the body mentions git stash\nEOF" },
+    { command: 'git -C "$WT" log --grep merge' },
+    { command: "git --no-pager log -S commit" },
+    // a quoted option value with a space is still one word
+    { command: 'git -C "/w t" commit -m x' },
+    { command: 'git -c "user.name=Alex X" commit -m x', ...LANE },
+    { command: "git -c user.name='Alex X' commit -m x" },
+    { command: 'git -C "$HOME/My Repo" merge feature' },
+    { command: "(cd /x && git commit)" },
+  ]);
+  expect(rows.map((r) => [r.decision, r.rule, r.rewrite?.command, r.rewrite?.timeout])).toEqual([
+    ["allow", "commit-timeout", "git commit -m x", 600_000],
+    ["allow", "commit-timeout", "git -C /wt merge main", 600_000],
+    ["allow", "commit-timeout", "cd /x && LEFTHOOK_EXCLUDE=check git commit -F /tmp/m", 600_000],
+    ["pass", null, undefined, undefined],
+    ["pass", null, undefined, undefined],
+    ["pass", null, undefined, undefined],
+    ["pass", null, undefined, undefined],
+    ["ask", "rm-rf-unsafe", undefined, undefined],
+    // a heredoc body is text, not a command, even though this rule touches the call
+    ["allow", "commit-timeout", "git commit -F - <<'EOF'\nfix: the body mentions git stash\nEOF", 600_000],
+    ["pass", null, undefined, undefined],
+    ["pass", null, undefined, undefined],
+    ["allow", "commit-timeout", 'git -C "/w t" commit -m x', 600_000],
+    ["allow", "commit-timeout", 'git -c "user.name=Alex X" commit -m x', 600_000],
+    ["allow", "commit-timeout", "git -c user.name='Alex X' commit -m x", 600_000],
+    ["allow", "commit-timeout", 'git -C "$HOME/My Repo" merge feature', 600_000],
+    ["allow", "commit-timeout", "(cd /x && git commit)", 600_000],
+  ]);
+  const wire = runHook(bashInput("git commit -m 'x y'"), [["CLAUDE_PROJECT_DIR", mkdtempSync(join(tmpdir(), "tg-commit-timeout-"))]]);
+  // @orb-waive tooling-clock-budget(600_000): the guard's OUTPUT under test (its REWRITE_TIMEOUT_MS on the wire), not a clock this run pays.
+  expect(wire.out.hookSpecificOutput?.updatedInput).toEqual({ command: "git commit -m 'x y'", timeout: 600_000 });
+});
+
+// `updatedInput` REPLACES the tool's arguments, so a rewrite that returned only `command` dropped
+// `run_in_background`, `description` and the rest: every rewrite spreads the original tool_input.
+test("contract: a rewrite keeps every other tool_input field, including run_in_background", () => {
+  const project = mkdtempSync(join(tmpdir(), "tg-tool-input-"));
+  const extra = (pairs: [string, unknown][]): Record<string, unknown> => Object.fromEntries(pairs);
+  const piped = runHook(
+    bashInput(
+      "git commit -m x | tail -3",
+      [],
+      extra([
+        ["run_in_background", true],
+        ["description", "commit"],
+      ]),
+    ),
+    [["CLAUDE_PROJECT_DIR", project]],
+  ).out.hookSpecificOutput?.updatedInput as Record<string, unknown> | undefined;
+  expect(piped?.["run_in_background"]).toBe(true);
+  expect(piped?.["description"]).toBe("commit");
+  expect(piped?.["timeout"]).toBeUndefined();
+  expect(String(piped?.["command"])).toContain("__tg_ec");
+  const timed = runHook(bashInput("git commit -m x", [], extra([["description", "commit"]])), [["CLAUDE_PROJECT_DIR", project]]).out.hookSpecificOutput
+    ?.updatedInput as Record<string, unknown> | undefined;
+  expect(timed).toEqual(
+    extra([
+      ["command", "git commit -m x"],
+      ["description", "commit"],
+      ["timeout", 600_000],
+    ]),
+  );
+});
+
+// The rewritten pipeline is a brace group ending in the exit restore, so what follows the pipeline (`&&`,
+// `||`, `;`, a backgrounding `&`) applies to the group, which carries the command's real status.
+test("rewrite: the chain after a rewritten pipe sees the command's real exit code, and stdout alone reaches the reader", () => {
+  const project = mkdtempSync(join(tmpdir(), "tg-group-"));
+  mkdirSync(join(project, "reports", "tool-guard"), { recursive: true });
+  const rewrite = (command: string): string => String(at(runBatch([{ command, projectDir: project, ...AGENT_TIMEOUT }]), 0).rewrite?.command);
+  const run = (stub: string, command: string): SpawnSyncReturns<string> => spawnSync("bash", ["-c", `${stub}\n${command}`], { encoding: "utf8" });
+  const failing = "git() { echo out; return 3; }";
+  // the positive control: the original pipe runs NEXT after a failed commit
+  expect(run(failing, "git commit -m x | tail -5 && echo NEXT").stdout).toContain("NEXT");
+  const chained = run(failing, rewrite("git commit -m x | tail -5 && echo NEXT"));
+  expect([chained.stdout.trim(), chained.status]).toEqual(["out", 3]);
+  // a backgrounded pipeline stays in the background: `bg` prints before the slow command finishes
+  const slow = "git() { sleep 1; echo late; }";
+  const bg = run(slow, rewrite("git commit -m x | tail -3 & echo bg"));
+  expect(bg.stdout.split("\n").filter((l) => l !== "")).toEqual(["bg", "late"]);
+  // without `2>&1` in the original, stderr stays on the terminal and the reader sees stdout alone
+  const split = run("git() { echo stdout-line; echo err-line >&2; }", rewrite("git commit -m 'a|b' | tail -1"));
+  expect([split.stdout.trim(), split.stderr.trim()]).toEqual(["stdout-line", "err-line"]);
+  // …and with it, both reach the reader, as before
+  const merged = run("git() { echo stdout-line; echo err-line >&2; }", rewrite("git commit -m x 2>&1 | tail -2"));
+  expect(merged.stdout.trim().split("\n")).toEqual(["stdout-line", "err-line"]);
+});
+
+// Each shape runs as written and as rewritten against a stub harness; the rewrite must parse, and must give
+// the chain what the original gave it, or not happen at all.
+test("rewrite: a continued reader line, a mid-stage fd merge and a status-checking last reader keep the original's meaning", () => {
+  const project = mkdtempSync(join(tmpdir(), "tg-reader-status-"));
+  mkdirSync(join(project, "reports", "tool-guard"), { recursive: true });
+  const classify = (command: string): BatchResult => at(runBatch([{ command, projectDir: project, ...AGENT_TIMEOUT }]), 0);
+  const stub = (ec: number): string => `pnpm() { echo out-line; echo err-line >&2; return ${ec}; }`;
+  // a missing rewrite runs as `exit 99`, which no assertion below accepts
+  const run = (ec: number, command: string | undefined): SpawnSyncReturns<string> =>
+    spawnSync("bash", ["-c", `${stub(ec)}\n${command ?? "exit 99"}`], { encoding: "utf8" });
+  // a reader line ending in `\` continues into the next operator; the restore line would land inside it
+  for (const command of [
+    "pnpm test:scoped a 2>&1 | tail -20 \\\n  && echo ok",
+    "pnpm test:scoped a | tail -5 \\",
+    "git commit -m x 2>&1 | tail -3 \\\n && git log -1",
+    "pnpm check | tail -5 \\\n && echo ok",
+    "pnpm check | tee x.log \\\n && echo ok",
+    "pnpm check > x.log 2>&1 \\\n && echo ok",
+  ]) {
+    const r = classify(command);
+    expect([command, r.rewrite === undefined || r.rewrite.command === command]).toEqual([command, true]);
+  }
+  // a `2>&1` before other arguments still merges stderr into the pipe; the log rewrite cannot keep that
+  expect(classify("pnpm test:scoped a 2>&1 --reporter=dot | tail -2").rewrite).toBeUndefined();
+  // `grep -q X && next`: the chain tests the reader, as the original did, whatever the harness exit code
+  for (const command of [
+    "pnpm test:scoped a | grep -q out-line && echo FOUND",
+    "pnpm test:scoped a | grep -q nope && echo FOUND",
+    "pnpm test:scoped a | grep -qc out && echo N",
+  ]) {
+    const r = classify(command);
+    expect(r.rewrite?.command).toContain("/reports/tool-guard/run-");
+    expect(r.contexts.join("\n")).toContain("exit code is not carried");
+    for (const ec of [0, 3]) {
+      const [original, rewritten] = [run(ec, command), run(ec, r.rewrite?.command)];
+      expect([command, ec, rewritten.status, rewritten.stdout]).toEqual([command, ec, original.status, original.stdout]);
+    }
+  }
+  // with no chain after it, or a non-status reader, the harness's own exit code still wins
+  const plain = classify("pnpm test:scoped a | grep -q out-line");
+  expect(run(3, plain.rewrite?.command).status).toBe(3);
+  const tail = run(3, classify("pnpm test:scoped a | tail -1 && echo NEXT").rewrite?.command);
+  expect([tail.status, tail.stdout]).toEqual([3, "out-line\n"]);
+});
+
 test("rewrite: a known test harness piped into a reader targets its own report artifact", () => {
   const node = at(runBatch([{ command: "pnpm test:node 2>&1 | tail -20" }]), 0);
-  expect(node.rewrite?.command).toBe("pnpm test:node; __tg_ec=$?; < reports/test-report.json tail -20\n( exit $__tg_ec )");
+  expect(node.rewrite?.command).toBe("{ pnpm test:node; __tg_ec=$?; < reports/test-report.json tail -20\n( exit $__tg_ec ); }");
   const ct = at(runBatch([{ command: "pnpm test:ct 2>&1 | grep -i flak" }]), 0);
-  expect(ct.rewrite?.command).toBe("pnpm test:ct; __tg_ec=$?; < reports/ct-flaky.json grep -i flak\n( exit $__tg_ec )");
+  expect(ct.rewrite?.command).toBe("{ pnpm test:ct; __tg_ec=$?; < reports/ct-flaky.json grep -i flak\n( exit $__tg_ec ); }");
   const tooling = at(runBatch([{ command: "pnpm test:tooling 2>&1 | tail -20" }]), 0);
-  expect(tooling.rewrite?.command).toBe("pnpm test:tooling; __tg_ec=$?; < reports/test-report-tooling.json tail -20\n( exit $__tg_ec )");
+  expect(tooling.rewrite?.command).toBe("{ pnpm test:tooling; __tg_ec=$?; < reports/test-report-tooling.json tail -20\n( exit $__tg_ec ); }");
   // `test:scoped` has no fixed report file — it keeps the generic private-log rewrite
   const scoped = at(runBatch([{ command: "pnpm test:scoped tests/x.test.ts 2>&1 | tail -20" }]), 0);
   expect(scoped.rewrite?.command).toContain("tool-guard/run-");
@@ -1234,7 +1695,7 @@ test("rewrite: the emitted template really preserves the harness exit code throu
   // would be a load bomb): red run → reader still sees output, final exit code is the harness's 3.
   const tmp = mkdtempSync(join(tmpdir(), "tg-template-"));
   const log = join(tmp, "run.log");
-  const cmd = `fake_harness() { echo ok; echo bad >&2; return 3; }; fake_harness > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec )`;
+  const cmd = `fake_harness() { echo ok; echo bad >&2; return 3; }; { fake_harness > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec ); }`;
   const r = spawnSync("bash", ["-c", cmd], { encoding: "utf8" });
   expect(r.stdout).toContain("ok");
   expect(r.stdout).toContain("bad"); // stderr was merged into the log, so the reader surfaces it
@@ -1251,7 +1712,7 @@ test("rewrite: a trailing comment cannot swallow the exit-code restore", () => {
   // verify-family/test-family harness discards the reader chain (and any comment riding on it) entirely.
   const r = at(runBatch([{ command: "pnpm typecheck 2>&1 | tail -30 # note about the run" }]), 0);
   const log = `/repo/reports/tool-guard/run-${PINNED_NOW}.log`;
-  expect(r.rewrite?.command).toBe(`pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -30 # note about the run\n( exit $__tg_ec )`);
+  expect(r.rewrite?.command).toBe(`{ pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -30 # note about the run\n( exit $__tg_ec ); }`);
   // …and the same for a comment in the clause AFTER the piped one
   const suffixed = at(runBatch([{ command: "pnpm typecheck | tail -5; echo done # all set" }]), 0);
   expect(suffixed.rewrite?.command).toMatch(SUFFIX_COMMENT_THEN_EXIT);
@@ -1262,7 +1723,7 @@ test("rewrite: a trailing comment cannot swallow the exit-code restore", () => {
   // the OLD template, planted as a positive control: the comment eats the restore and the red run reads 0
   expect(runTemplate(`${body(join(tmp, "a.log"))}; ( exit $__tg_ec )`)).toBe(0);
   // the emitted one: the newline ends the comment, so the harness's 3 survives
-  expect(runTemplate(`${body(join(tmp, "b.log"))}\n( exit $__tg_ec )`)).toBe(3);
+  expect(runTemplate(`{ ${body(join(tmp, "b.log"))}\n( exit $__tg_ec ); }`)).toBe(3);
 });
 
 test("rewrite: a raw CT invocation becomes `pnpm test:ct`, carrying the runner flags and dropping -c", () => {
@@ -1356,8 +1817,8 @@ test("push-in-flight: a live `git push` process turns a commit into a warn (neve
   mkdirSync(join(procRoot, "999999"));
   writeFileSync(join(procRoot, "999999", "cmdline"), "git\u0000push\u0000origin\u0000main");
   const results = runBatch([
-    { command: 'git commit -m "x" -- docs', procRoot },
-    { command: 'git commit -m "x" -- docs', procRoot: mkdtempSync(join(tmpdir(), "tg-proc-empty-")) },
+    { command: 'git commit -m "x" -- docs', procRoot, ...AGENT_TIMEOUT },
+    { command: 'git commit -m "x" -- docs', procRoot: mkdtempSync(join(tmpdir(), "tg-proc-empty-")), ...AGENT_TIMEOUT },
   ]);
   const withPush = at(results, 0);
   const withoutPush = at(results, 1);
@@ -1630,7 +2091,7 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
     ["ls . 2>/dev/null", "pass", null],
     [`setsid nohup bash ${clean} </dev/null > /dev/null 2>&1 & disown`, "pass", null], // `< /dev/null` is a detach, not a program
   ];
-  const results = runBatch(rows.map(([command, , , ctx]) => ({ command, ...ctx })));
+  const results = runBatch(rows.map(([command, , , ctx]) => ({ ...AGENT_TIMEOUT, command, ...ctx })));
   const failures: string[] = [];
   rows.forEach(([command, decision, rule], i) => {
     const got = at(results, i);
@@ -1793,7 +2254,7 @@ test("contract: a rewrite emits updatedInput, creates the log dir, and logs the 
   const h = out.hookSpecificOutput;
   expect(h?.permissionDecision).toBe("allow");
   const log = `${tmp}/reports/tool-guard/run-${PINNED_NOW}.log`;
-  expect(h?.updatedInput?.command).toBe(`pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec )`);
+  expect(h?.updatedInput?.command).toBe(`{ pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec ); }`);
   expect(h?.updatedInput?.timeout).toBe(600_000);
   expect(h?.additionalContext).toContain("tool-guard rewrote this command");
   expect(existsSync(`${tmp}/reports/tool-guard`)).toBe(true); // the redirect target's dir exists before the shell needs it
@@ -1976,11 +2437,11 @@ test("contract: a push asks the owner from main, and DENIES a lane with the esca
   }
 });
 
-test("fail-open: garbage stdin, a non-Bash tool, and an internal crash all defer with exit 0", () => {
+test("fail-open: garbage stdin, a non-Bash tool, and an internal crash all emit no decision with exit 0", () => {
   const tmp = mkdtempSync(join(tmpdir(), "tg-hook-"));
   const garbage = runHook(null, [["CLAUDE_PROJECT_DIR", tmp]], "this is not json{{{");
   expect(garbage.status).toBe(0);
-  expect(garbage.out.hookSpecificOutput?.permissionDecision).toBe("defer");
+  expect(garbage.out).toEqual({});
   const nonBash = runHook(
     Object.fromEntries([
       ["tool_name", "Edit"],
@@ -1988,14 +2449,14 @@ test("fail-open: garbage stdin, a non-Bash tool, and an internal crash all defer
     ]),
     [["CLAUDE_PROJECT_DIR", tmp]],
   );
-  expect(nonBash.out.hookSpecificOutput?.permissionDecision).toBe("defer");
+  expect(nonBash.out).toEqual({});
   // a deny-worthy command + a forced internal throw MUST fail open — a broken guard never blocks work
   const crashed = runHook(bashInput("git stash"), [
     ["CLAUDE_PROJECT_DIR", tmp],
     ["ORB_TOOL_GUARD_CRASH_FOR_TEST", "1"],
   ]);
   expect(crashed.status).toBe(0);
-  expect(crashed.out.hookSpecificOutput?.permissionDecision).toBe("defer");
+  expect(crashed.out).toEqual({});
 });
 
 test("kill switch: ORB_TOOL_GUARD=off bypasses every rule and logs the bypass", () => {
@@ -2004,7 +2465,7 @@ test("kill switch: ORB_TOOL_GUARD=off bypasses every rule and logs the bypass", 
     ["CLAUDE_PROJECT_DIR", tmp],
     ["ORB_TOOL_GUARD", "off"],
   ]);
-  expect(out.hookSpecificOutput?.permissionDecision).toBe("defer");
+  expect(out).toEqual({});
   const logged = JSON.parse(readFileSync(`${tmp}/reports/tool-guard/decisions.jsonl`, "utf8").trim().split("\n").slice(-1).join("")) as { rule: string };
   expect(logged.rule).toBe("kill-switch");
 });
@@ -2103,6 +2564,9 @@ test("registration: settings.json wires this guard on PreToolUse, at a path that
   // the registration is a PATH CLAIM: it must resolve to this file, and the file must be runnable AS one
   // (shebang + exec bit) — this form invokes it directly, not through `bash`, which cannot run an .mjs.
   expect(at(guard, 0)).toContain("$CLAUDE_PROJECT_DIR/.claude/hooks/tool-guard.mjs");
+  // the same guard judges the Read tool, for the task-output-file poll
+  const read = (settings.hooks["PreToolUse"] ?? []).filter((entry) => entry.matcher === "Read");
+  expect(read.flatMap((entry) => entry.hooks.map((h) => h.command))).toEqual(["$CLAUDE_PROJECT_DIR/.claude/hooks/tool-guard.mjs"]);
   expect(existsSync(HOOK)).toBe(true);
   expect(() => accessSync(HOOK, constants.X_OK)).not.toThrow();
   expect(readFileSync(HOOK, "utf8").split("\n")[0]).toBe("#!/usr/bin/env node");

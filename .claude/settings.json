@@ -13,6 +13,16 @@
         ]
       },
       {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/tool-guard.mjs",
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "matcher": "mcp__codegraph__.*",
         "hooks": [
           {

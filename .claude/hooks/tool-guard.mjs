@@ -1,196 +1,52 @@
 #!/usr/bin/env node
-// RE-REGISTERED 2026-09-11 (owner ruling, superseding the ARCHIVED-2026-09-10 banner #1898 that stood
-// here): the archival removed the ONLY enforcement of the destroy-uncommitted ban, and a lane then ran
-// `git stash -u` on a shared tree and swept five lanes' files. `.claude/settings.json` registers this file
-// on PreToolUse again. The #1898 observation stays true of the PATH — replay and the regression corpus
-// execute this exact file, and SELF_CHECKOUT derives repository identity from this depth — so it never
-// moves. HOOKS BIND AT SESSION LAUNCH: a session already running does not pick this up.
-// CLAUDE ONLY, BY OWNER RULING (2026-09-11): "it's fine, Codex is a lot more cautious than our side so I
-// haven't had to use the tool guard." `.codex/hooks.json` therefore stays `{"hooks":{}}` deliberately —
-// it is not an oversight to be repaired, and `.codex/hooks` symlinks here, so the file is already present
-// on that side should the ruling ever change. The assertion that pins it empty is in
-// tests/tooling/agent-sync/ops/sync.int.test.ts, which carries the same ruling (JSON holds no comments).
-// SIX CONFIRMED GAPS CLOSED 2026-09-11 (#1943, from the stickler review of the re-registration —
-// 2026-09-11; each fix carries its WHY at the code it
-// changed, and every one was pre-existing, not a regression of the re-enable):
-//   F1 rule 6's head vocabulary now names `<path>/node_modules/.bin/playwright`, `pnpm playwright` and
-//      `node …/@playwright/test/cli.js` (268 of 782 raw CT corpus rows ran un-floored through those).
-//   F2 a group CLOSER glued to the operand is no longer a shield (`(bash /tmp/x.sh)` passed while
-//      `(bash /tmp/x.sh )` denied), and ENOENT from a GROUPED clause is an `ask`, not silence.
-//   F3 is OUTSIDE this file: `pnpm verify`'s STATIC tier now runs `node --check .claude/hooks/*.mjs` and
-//      its PUSH tier runs this guard's pin (a syntax error here exits non-zero with no JSON, which the
-//      hook contract treats as a non-blocking error — i.e. every Bash call would run unguarded while the
-//      push bar stayed green, and `tests:tooling` is `--full`-only). tooling/src/verify/lib/registry.ts.
-//   F4 a `-c`/`eval` operand that is nothing but a variable is resolved from the command's own
-//      assignments, and asks when it cannot be (`CMD='git stash'; bash -c "$CMD"` denied).
-//   F5 a heavy tool reached through a spelling with NO HEAP FLOOR is denied WITH the floored door.
-//   F6 the CT rewrite refuses (naming the `=`-joined spelling) when a space-form flag value is
-//      path-shaped, because `scoped-test`'s preflight would read it as a path claim and kill the run.
-// FIVE RESIDUALS CLOSED 2026-09-11 (#1946, from the Opus verifier's replay of 167,097 distinct real
-// commands against #1943 — it found zero loosenings there and these five pre-existing holes beside them;
-// each fix carries its WHY at the code it changed, and all five are proven in BOTH directions by
-// tests/tooling/tool-guard.int.test.ts):
-//   R1 THE FOUR HEAD DETECTORS NOW SHARE ONE WRAPPER VOCABULARY (COMMAND_WRAPPERS + wrapperPrefixEnd +
-//      the derived WRAP_PREFIX). Each used to carry its own partial list, so each had a different hole:
-//      `env -C <dir> ./node_modules/.bin/playwright test …` ran un-floored, `nice -n 19 bash -c "git
-//      stash"` and `env -C /tmp bash -c …` passed a LITERAL `git stash`, and `env -C <wt> npx eslint …`
-//      escaped the heap floor — while the `timeout`/`FOO=1` spellings of all three bit. `env -C <dir>` is
-//      the spelling .claude/skills/lane/SKILL.md ORDERS every lane to use, so the guard was blind to the house
-//      idiom. 110 rows of a 171,473-command replay moved, every one toward a stricter or equal verdict.
-//   R2 A BACKGROUNDING `&` GLUED TO A SCRIPT OPERAND is stripped like a group closer (OPERAND_TAIL_NOISE,
-//      which no longer requires a closer FIRST): `bash /tmp/x.sh&` — no subshell at all — resolved
-//      `/tmp/x.sh&`, ENOENT'd and PASSED with the destructive body never read.
-//   R3 A SINGLE-QUOTED VAR-ONLY `-c` OPERAND is resolved from the CHILD's environment, not the parent's
-//      shell-local assignments (childEnvVars). `CMD='git stash'; bash -c '$CMD'` runs the EMPTY STRING and
-//      was being denied; `CMD='git stash' bash -c '$CMD'` really does stash and was only an ask. `eval` is
-//      excluded — it re-parses in the same shell, so its single-quoted `$CMD` genuinely expands.
-//   R4 THE CT REWRITE HEAD reads the same vocabulary, so a wrapper-prefixed raw CT run is rewritten into
-//      `<prefix> pnpm test:ct <paths>` (cwd and port preserved) instead of losing the lane its turn.
-//   R5 `lint:hook-syntax` (tooling/src/verify/lib/registry.ts) now has a committed red-first pin: its
-//      shipped argv is run against a planted broken hook, a good one, and this tree.
-// PreToolUse guard for Bash — catches command shapes that destroy signal, and REWRITES the ones with
-// exactly one correct fix so the agent never even loses the turn.
+// PreToolUse guard for Bash and Read. It shapes HOW a command runs, never WHAT an agent may run: it denies
+// the shapes that destroy work or signal, rewrites the ones with exactly one correct fix, and allows the
+// rest. `.claude/settings.json` registers this file, and a hook binds at session launch. The path is fixed:
+// replay, the regression corpus and SELF_CHECKOUT resolve through it. Claude only: `.codex/hooks.json`
+// stays empty by owner ruling, pinned in tests/tooling/agent-sync/ops/sync.int.test.ts.
 //
-// ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-// │ THIS GUARD SHAPES *HOW* A COMMAND RUNS. IT IS NOT THE GATEKEEPER OF *WHAT* AN AGENT MAY RUN.  │
-// │ Owner ruling 2026-08-03: "our issue was never permissions of what an agent can do, we just     │
-// │ want them running the right way." Read every decision below through that sentence.            │
-// │                                                                                               │
-// │ THEREFORE: a command this guard does not object to gets `allow` — not `defer`.                │
-// │ `defer` means "no hook decision, fall through to the normal permission flow", and that flow   │
-// │ PROMPTS A HUMAN. A subagent has nobody to prompt, so it stops mid-turn, silently, with no      │
-// │ report. That is not a hypothetical: it killed NINE lanes on 2026-08-03 before it was believed. │
-// │                                                                                               │
-// │ THE OLD SYMPTOM, for the record: a lane "completes" after a one-line preamble and 1-4 tool     │
-// │ calls at a suspiciously CONSISTENT token count. It reads exactly like a transient API failure. │
-// │ The raw tool output said `settings deferred Bash`. Consistency across lanes was the tell —     │
-// │ a real transient is ragged. "0 denies, so it isn't the hook" was asserted TWICE and was wrong  │
-// │ both times: the guard denied nothing and was still the cause, because defer ≠ allow.          │
-// │                                                                                               │
-// │ `defer` now survives ONLY where this guard has genuinely not judged the command — the kill     │
-// │ switch, an internal error, unparseable stdin, a non-Bash tool. If you are adding a rule and    │
-// │ reach for `defer`, you almost certainly want `allow` (with a WARN context) or `deny`.          │
-// │ TRIAGE: node -e "const r=require('fs').readFileSync('reports/tool-guard/decisions.jsonl','utf8')\
-// │   .trim().split('\n').map(JSON.parse); console.log(r.filter(x=>x.agent&&x.agent!=='main').slice(-10))"│
-// └──────────────────────────────────────────────────────────────────────────────────────────────┘
+// INVARIANTS
+//   · PASS MEANS ALLOW. A command the guard does not object to gets `allow`. The normal permission flow
+//     prompts a human, and a subagent has nobody to prompt: it stops mid-turn with no report. The symptom is
+//     a lane that "completes" after 1-4 tool calls, with `settings deferred Bash` in the raw tool output.
+//   · NO DECISION PRINTS NOTHING. Only where the guard has not judged the call (the kill switch, an internal
+//     error, unparseable stdin, a tool it does not judge) does it print nothing and exit 0. It never prints
+//     `defer`: that is a real outcome, and it stops a `claude -p` run with `tool_deferred`.
+//   · THE HARD FLOOR RUNS FIRST (sudo, a network fetch piped to a shell), ahead of every rewrite and the
+//     self-exemption. An `allow` bypasses the permission flow, so the floor is the only gate left there.
+//   · TEXT IS NOT A COMMAND. Quoted spans, comments and heredoc bodies are blanked (same length) before any
+//     rule matches, so `git commit -m "fix the pnpm check pipe"` never fires. Structure is found on the
+//     blanked text; a rewrite slices the ORIGINAL text by index, so quoted content survives verbatim.
+//   · A REWRITE GOES THROUGH gateRewrite. It vets only its own clause, so the rest of the command is
+//     classified again and the strictest verdict wins: a rewrite never launders a dangerous clause.
+//   · WHAT RUNS IS JUDGED. An untracked script's body, a `bash -c` operand, a `$( … )` in live quoting, a
+//     heredoc or stdin fed to a shell, and a file this command writes and then runs are all classified by
+//     this same `classify`, strictest-wins. What the guard cannot see is an `ask`, never silence.
+//     A `$( … )` inside single quotes is literal text and stays unread.
+//   · NEVER BLOCK THE SANCTIONED FORM OF A JOB (`pnpm test:ct <paths>`, a path-scoped `biome check
+//     --write`). A rule that catches the right way teaches agents to route around the hook.
+//   · FAIL-OPEN. Any internal error or stdin stall prints no decision and exits 0.
+//   · SELF-EXEMPTION IS A REALPATH IDENTITY: only a sole invocation of this file, its replay or the census
+//     miner skips the rules, because such a command cannot execute its own arguments.
 //
-// WHY THIS EXISTS (measured, not guessed — 2026-08-03,
-// mined from 3,138 transcripts / 133,631 Bash calls; 85.7% of them from subagents):
-//   · 87.3% of harness invocations (5,319/6,096) were piped into a swallower. `pnpm check` piped runs a
-//     median 64.1s vs 2.3s unpiped (28×); `pnpm verify`/`pnpm test` piped cluster at the ~120s Bash-tool
-//     timeout ceiling. Excess wall-clock across the corpus: ~2,743 minutes (~45 hours).
-//   · Two failure modes from the one habit:
-//       1. EXIT CODE — a pipeline reports the LAST stage's status, so `pnpm check | tail` returns tail's
-//          0 even when check failed. A red run was reported to the owner as green this way.
-//       2. HANG — tail/head/grep read until EOF; the harness spawns descendants (playwright, vite, the
-//          stack daemons, vitest workers) that INHERIT the pipe's write end, so EOF never arrives.
-//          Commands that don't fork (check:docs, check:structure, typecheck) show NO piped-vs-unpiped
-//          inflation — that contrast is the proof of mechanism.
+// DECISIONS: REWRITE (allow + updatedInput), DENY, WARN (allow + additionalContext), ASK (owner-only; a
+// SUBAGENT gets a DENY with the escalation line instead), PASS (allow). A piped harness is rewritten
+// because the pipeline reports the reader's exit code, and the harness's descendants hold the pipe open.
 //
-// DECISION TIERS (per rule; validated against the full 133,631-command corpus by guard-replay.ts):
-//   REWRITE (allow + updatedInput)  — the fix is unambiguous: run the harness redirected to a log, then
-//                                     run the agent's own reader chain against the file with the real
-//                                     exit code preserved. Strictly better than deny: no lost turn.
-//   DENY                            — needs intent to fix (compound shapes), or doctrine-banned outright.
-//   WARN (allow + additionalContext)— merely suboptimal, or too many legitimate uses to block. It RUNS;
-//                                     the agent is told why it was suboptimal and learns for next time.
-//   ASK                             — only the owner can judge (force-push; a lane touching the remote).
-//                                     From a SUBAGENT this is emitted as DENY + the escalation line,
-//                                     because an unanswered ask kills the lane exactly like a defer did.
-//   PASS                            — allow, with a reason. The overwhelming majority. See the box above.
-//
-// DESIGN: precision over coverage. A hook that cries wolf gets disabled, and then we have nothing.
-//   · QUOTE-AWARE — quoted spans are blanked (same-length) before matching, so
-//     `git commit -m "fix the pnpm check pipe"` can never fire. Structure is found on the blanked text;
-//     rewrites slice the ORIGINAL text by index, so quoted content survives verbatim. COMMENTS and
-//     HEREDOC BODIES are blanked the same way: neither is a command (`ls packages # never git stash`
-//     denied as git-destructive until comment blanking landed, 2026-08-14).
-//   · PIPELINE-AWARE — only a HARNESS stage feeding a later stage bites. `git log | head` is fine.
-//   · THE GUARD NEVER BLOCKS THE SANCTIONED FORM OF A JOB — `pnpm test:ct <paths>` is the CORRECT lane CT
-//     recipe (vocabulary refresh 2026-09-11: it was `rm -rf playwright/.cache && npx playwright test -c
-//     playwright-ct.config.ts <paths>` until the per-invocation cache landed) and passes untouched, and a
-//     path-scoped / `--only=`-scoped `biome check --write` is the CORRECT mechanical-migration form
-//     (tsx-shedding spec Stage 1) and is warn-tier, never deny. A rule that catches the right way of
-//     doing something teaches agents to route around the hook, and then it protects nothing.
-//   · FAIL-OPEN — any internal error, unparseable stdin, or stdin stall emits "defer" and exits 0. The
-//     guard breaking must never block work (proven by test).
-//   · SELF-EXEMPT — IDENTITY-based and deliberately narrow: a SOLE invocation of this guard, its replay,
-//     or the census miner (one clause, one stage, no subshell / substitution / backgrounding) passes
-//     without further judgement, because such a command cannot execute its own arguments — so a corpus
-//     string sitting in an argv can never be mistaken for a command. Until 2026-08-14 this was an
-//     unanchored MENTION of those filenames, tested BEFORE blanking and BEFORE the hard floor, so
-//     `git stash # tool-guard.mjs` emitted an explicit `allow` and every rule below was skipped
-// (2026-08-13 §AGENT-TOOLING-01, R5).
-//   · SCRIPT BODIES ARE CLASSIFIED — the same defect class as AGENT-TOOLING-01: visibility, not rule
-//     weakness. Lanes legitimately wrap work in a scratchpad `.sh` (logging + the 120s Bash ceiling), and
-//     `bash /tmp/…/lane-run.sh` used to pass as ONE opaque line — every rule below judged the wrapper, not
-//     what ran (986 such invocations in one day's decision log; today's were all sanctioned recipes, and
-//     nothing enforced that). Now a `bash <path>` / `sh <path>` / bare `<path>.sh` stage resolves its
-//     path: a REPO-TRACKED script passes through to the normal rules (it is reviewed code — re-linting
-//     the repo on every call is not this hook's job), an UNTRACKED one (scratchpad, worktree-local, /tmp)
-//     has its CONTENTS classified through this same `classify` and the strictest verdict merges with the
-//     rest of the command. TRACKED MEANS TRACKED IN *THIS* PROJECT'S REPOSITORY (#633, 2026-08-24): the
-//     predicate used to run `git ls-files` in the FILE'S OWN directory, so any repository answered and
-//     "reviewed" was forgeable in two commands (`git init /tmp/w; git -C /tmp/w add evil.sh` flipped the
-//     identical body from deny to pass). Identity is the project's `--git-common-dir`, which every
-//     registered lane WORKTREE shares — see isTrackedScript. THE OPERAND IS RESOLVED OFF THE RAW WORDS (#631, 2026-08-24): quotes stripped,
-//     `$VAR` expanded from the command's own assignments, `bash`'s flags skipped and the script's trailing
-//     ARGS not mistaken for it — reading it off the BLANKED text made `bash "$SP/run.sh"` resolve to
-//     nothing and `bash "/abs/run.sh" arg` resolve to the ARGUMENT, so the guard returned a content
-//     verdict on a body it never opened (owner-confirmed: those two spellings EXECUTED with no prompt,
-//     while the identical script denied bare). And when the command does not pin the path down at all —
-//     an unassigned variable, a substitution, a glob — the stage is an `ask`, never silence: with `allow`
-//     bypassing the permission flow, "I did not look" must never read as "I have no objection".
-//     The body is classified WHOLE, not line-by-line: real wrappers use `\`
-//     continuations and put `rm -rf playwright/.cache` on its own line, so per-line judgement would deny
-//     the sanctioned CT recipe. Bounded by construction — one level deep (a script invoked from a script
-//     body is `ask`, never a recursive walk) and a 64KB read cap.
-//   · THE CHANNEL IS NOT THE OPERAND (#634, 2026-08-24) — an interpreter takes its program from an
-//     operand, from STDIN (`bash < f`, `cat f | bash`), from a HEREDOC, or from the current shell
-//     (`. f` / `source f`), and only the first was ever resolved. Each is now judged where the program
-//     actually comes from: a stdin/dot-source FILE resolves and is read like any operand; a heredoc fed to
-//     a shell is classified as the text it is; a pipe sink whose producer is not a readable `cat` is an
-//     `ask` (it is a program the guard genuinely cannot see). Corpus frequency, 135,505 calls: stdin-file
-//     0, heredoc-to-shell 0, pipe-to-shell 0, dot-source 325 (a raw-regex count said 2,367 — the rest were
-//     a bare `.` PATH ARGUMENT: `find . -path`, `biome check . --write`).
-//   · WRITE-THEN-RUN IS JUDGED ON WHAT WILL LAND (#634) — `printf '…' > x.sh; bash x.sh` passed because
-//     the file did not exist yet when the guard looked, and the re-run case is worse (it reads the
-//     PREVIOUS body while the command overwrites it). For a path this same command writes, the guard
-//     classifies the CONTENT the command shows — a heredoc body, a `printf`/`echo` literal — and asks only
-//     when the writer's output is invisible (a generator, a fetch). Not a refusal of the SHAPE: 258 corpus
-//     commands write-and-run in one call and 246 are the house's own `cat > x.sh <<'EOF' … EOF; bash x.sh`
-//     wrapper idiom, so refusing it would be a wall on the sanctioned way of doing the job.
-//   · QUOTED COMMANDS ARE CLASSIFIED — the same defect one layer further down (2026-08-14). A `bash -c
-//     '<string>'` operand and a `$( … )` substitution are COMMANDS, and quote-blanking erased both before
-//     any rule could see them: `bash -c "git stash"` and `echo "$(git stash)"` were clean passes. Both are
-//     now extracted and classified through this same `classify`, strictest-of merges, bounded at
-//     NESTED_DEPTH_CAP levels of quoting (6 — the fence moved from 2 when the corpus showed benign
-//     three-deep idioms hitting it; the "two levels" this line claimed until leg 5 was stale). The `$( … )`
-//     walk honours BACKSLASH ESCAPES rather than reusing `blankQuoted`: an escaped inner quote used to
-//     swallow the closing paren and drop the whole substitution from extraction (see substitutionEnd).
-//     ASYMMETRY, on purpose: inside SINGLE quotes a `$( … )` is literal text and is NOT
-//     extracted — biting it would be a false tighten on a string nobody executes. Heredoc bodies and
-//     comments stay text guard-wide, so a substitution inside one is not extracted either.
-//   · SELF-EXEMPTION IS A REALPATH IDENTITY, not a path suffix — a look-alike (`/tmp/.claude/hooks/
-//     tool-guard.mjs`) used to satisfy the suffix test and skip every rule below.
-//
-// OBSERVABILITY: every decision appends one JSONL line to reports/tool-guard/decisions.jsonl (gitignored
-// via /reports/) with rule, decision, latency and a command prefix — tune from evidence, not vibes.
-//
-// KILL SWITCH (emergencies only, greppable): ORB_TOOL_GUARD=off (also "0"/"false") disables all rules —
-// the hook logs the bypass and defers. `export ORB_TOOL_GUARD=off` in the session env, or prefix the
-// `claude` launch. Re-enable by unsetting.
+// OBSERVABILITY: every decision appends a JSONL line to reports/tool-guard/decisions.jsonl.
+// TRIAGE: node -e "const r=require('fs').readFileSync('reports/tool-guard/decisions.jsonl','utf8')
+//   .trim().split('\n').map(JSON.parse); console.log(r.filter(x=>x.agent&&x.agent!=='main').slice(-10))"
+// KILL SWITCH: ORB_TOOL_GUARD=off (also "0"/"false") disables every rule; the hook logs the bypass and
+// prints no decision. Set it in the session environment or on the `claude` launch.
 //
 // ENTRY POINTS:
 //   echo '<PreToolUse json>' | tool-guard.mjs     real mode (hook contract on stdin, JSON on stdout)
 //   tool-guard.mjs --classify-batch               stdin: JSON array of {command, cwd?, agentId?, sessionId?,
-//                                                 timeout?, runInBackground?}
-//                                                 stdout: JSON array of decisions (no side effects) —
-//                                                 used by tests/tooling/tool-guard.int.test.ts and
-//                                                 scripts/probes/guard-replay.ts (corpus validation).
-//
-// TEST SEAMS (env, test-only, self-identifying): ORB_TOOL_GUARD_NOW_FOR_TEST (pins the rewrite-log
-// timestamp), ORB_TOOL_GUARD_CRASH_FOR_TEST (forces an internal throw — proves fail-open).
+//                                                 timeout?, runInBackground?}; stdout: JSON array of
+//                                                 decisions. Used by tests/tooling/tool-guard.int.test.ts
+//                                                 and scripts/probes/guard-replay.ts.
+// TEST SEAMS (env, test-only): ORB_TOOL_GUARD_NOW_FOR_TEST pins the clock; ORB_TOOL_GUARD_CRASH_FOR_TEST
+// forces an internal throw, which proves fail-open.
 
 import { spawnSync } from "node:child_process";
 import { appendFileSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
@@ -219,11 +75,10 @@ export function blankQuoted(cmd) {
 }
 
 // ── comment blanking: bash ends a line at an unquoted WORD-INITIAL `#`, so everything after it is text,
-//    not commands, and must never be matched (`ls packages # remember: never git stash` was denied as
-//    git-destructive before this existed). Runs on the quote-blanked text, BEFORE heredocs — a `<<EOF`
-//    inside a comment must not start a heredoc scan. The character before the `#` is checked in the RAW
-//    text on purpose: after `echo "x"# ; git stash` the blanked predecessor is a space, but the `#` is
-//    part of a word there, and blanking to end-of-line would hide a real destructive clause. ──
+//    not commands (`ls packages # never git stash` is not a stash). Runs on the quote-blanked text, BEFORE
+//    heredocs: a `<<EOF` inside a comment must not start a heredoc scan. The character before the `#` is
+//    checked in the RAW text: after `echo "x"# ; git stash` the blanked predecessor is a space, but the `#`
+//    is part of a word there, and blanking to end-of-line would hide a real destructive clause. ──
 
 export function blankComments(raw, blank) {
   let out = blank;
@@ -233,11 +88,10 @@ export function blankComments(raw, blank) {
   return out;
 }
 
-/** The `[start, stop)` spans blankComments blanks. Split out because a caller that REWRITES text needs the
- *  spans themselves: a comment is INVISIBLE in the blanked text (its spaces read as spaces), so a rewrite
- *  that slices the ORIGINAL by clause indexes carries the comment along, and everything appended after it
- *  is swallowed to end-of-line — which is exactly how the pipe rewrite lost the harness exit code it exists
- *  to preserve (pipeRewrite, 2026-08-14). */
+/** The `[start, stop)` spans blankComments blanks. A caller that REWRITES text needs the spans themselves:
+ *  a comment is invisible in the blanked text, so a rewrite that slices the ORIGINAL by clause indexes
+ *  carries the comment along, and anything appended after it is swallowed to end-of-line (see pipeRewrite,
+ *  whose exit-code restore goes on its own line for this reason). */
 export function commentSpans(raw, blank) {
   const spans = [];
   for (let i = 0; i < blank.length; i += 1) {
@@ -276,15 +130,13 @@ export function quoteSpans(cmd) {
   return spans;
 }
 
-// ── heredoc blanking: a `<<DELIM` body is TEXT, not commands — without this, a python heredoc whose
-//    body mentions `pnpm check | grep` fires the pipe rule (observed in the real corpus). Blanks the
-//    operator + delimiter + body (newlines kept, so clause indexes stay honest); the terminator line
-//    itself is blanked too. Runs on the already-quote-blanked text, reading delimiters from the raw. ──
+// ── heredoc blanking: a `<<DELIM` body is TEXT, not commands (a python heredoc that mentions `pnpm check |
+//    grep` is not a piped harness). Blanks the operator, delimiter, body and terminator line, keeping
+//    newlines so clause indexes stay honest. Runs on the quote-blanked text, reading delimiters from raw. ──
 
-// Scanned on the RAW text (a quoted delimiter like <<'EOF' is already spaces in the blanked text, which
-// once made the scanner mistake the first body word for the delimiter — a real corpus commit message
-// then leaked its body into rule matching). An operator that is itself inside a quoted span (blanked
-// at that index) is skipped — that `<<` is string content, not a heredoc.
+// Scanned on the RAW text: a quoted delimiter like <<'EOF' is already spaces in the blanked text, so the
+// scanner would take the first body word for the delimiter. An operator inside a quoted span (blanked at
+// that index) is skipped: that `<<` is string content, not a heredoc.
 const HEREDOC_OPERATOR = /<<-?\s*(['"]?)(\w+)\1/g;
 
 export function blankHeredocs(raw, blank) {
@@ -301,7 +153,7 @@ export function blankHeredocs(raw, blank) {
  *  terminator line ends. ONE scanner, because two consumers need different slices of the same shape and
  *  a second scanner would eventually disagree with this one: `heredocSpans` blanks operator + body +
  *  terminator (a heredoc body is TEXT to every rule), while the script pass needs the body TEXT — a
- *  `<<EOF` fed to a SHELL, or written into a file the same command then runs, is a PROGRAM (#634). */
+ *  `<<EOF` fed to a SHELL, or written into a file the same command then runs, is a PROGRAM. */
 export function heredocUnits(raw, blank) {
   const units = [];
   HEREDOC_OPERATOR.lastIndex = 0;
@@ -314,7 +166,7 @@ export function heredocUnits(raw, blank) {
     if (bodyStart === -1) {
       break;
     }
-    // find the terminator line (allowing leading tabs for <<-)
+    // the terminator line may carry leading tabs under `<<-`
     let end = raw.length;
     let bodyEnd = raw.length;
     for (let lineStart = bodyStart + 1; lineStart < raw.length; ) {
@@ -351,17 +203,11 @@ export function heredocSpans(raw, blank) {
 //    within each clause. Runs on the BLANKED text; returns index ranges so callers can slice the
 //    original. ──
 
-// A lone `&` BACKGROUNDS the command before it and starts a new one — the same clause-ending shape as
-// `;`, and every rule that scans `clauses` needs to see the two halves separately. Before this existed,
-// `pnpm check > log & rm -rf /` was ONE clause: `bareHarnessRewrite` saw the trailing `&` after its own
-// redirect strip and correctly REFUSED to rewrite (UNSAFE_AFTER_REDIRECT_STRIP), but refusing a rewrite
-// is not a deny — the whole line then fell through every later rule as "no objection" and reached `allow`
-// on the real hook contract, because RM_HEAD-style per-stage rules are head-anchored per STAGE and this
-// stage's head was `pnpm`, not `rm`. `isBackgroundAmpersand` excludes the THREE shapes `&` legitimately
-// appears in that are not a clause boundary: `&&` (checked first, unchanged), and an `&` glued to a `>` on
-// either side (`2>&1`, `1>&2`, `&>`, `&>>` — every redirect-merge spelling puts `>` immediately before or
-// after the `&`, never both absent). A quoted `&` never reaches here at all: `blank` has already turned
-// every quoted span to spaces before `parseStructure` runs.
+// A lone `&` BACKGROUNDS the command before it and starts a new one, the same clause boundary as `;`.
+// Every rule that scans `clauses` must see the two halves apart: kept as one clause, `pnpm check > log &
+// rm -rf /` has a `pnpm` head, and the per-stage `rm` rule never sees its own head. Three shapes are not a
+// boundary: `&&` (checked first) and an `&` glued to a `>` on either side (`2>&1`, `1>&2`, `&>`, `&>>`).
+// A quoted `&` never reaches here: `blank` has already turned every quoted span to spaces.
 function isBackgroundAmpersand(blank, i) {
   return blank[i + 1] !== "&" && blank[i - 1] !== ">" && blank[i + 1] !== ">";
 }
@@ -407,26 +253,12 @@ export function parseStructure(blank) {
 
 // ── vocab ──
 
-// Harness family with forking descendants (playwright/vite/stack/vitest workers) — the measured hang
-// class. `pnpm ast` is deliberately EXCLUDED: it is a pure static tool with no descendants, and the
-// census shows non-forkers have no piped inflation (only the exit-code nit — not worth firing on).
-// HEAD-anchored: the harness must BE the command at the head of a pipeline stage (env-assignment /
-// timeout / nice wrappers allowed). Anchoring is the structural fix for exposed-quote false positives —
-// text merely mentioning `pnpm check | tail` mid-command can never fire this.
-// ── THE ONE WRAPPER VOCABULARY (2026-09-11, #1946) ──
-// A WRAPPER is a command word that PREFIXES another command. FOUR head detectors have to step over the
-// same set — the CT anchor (PW_ANCHOR), the harness head (HARNESS_HEAD), and the inline-shell and
-// heavy-tool heads (both through `execHead`) — and until this object existed each carried its OWN partial
-// list, so each had a DIFFERENT hole. Measured on the shipped guard (#1946, from the verifier replay of
-// 167,097 real commands against #1943):
-//   · `env -C <dir> ./node_modules/.bin/playwright test …` PASSED un-floored, while the `npx` and `pnpm`
-//     spellings of the same run were caught — and `env -C <dir>` is the spelling
-//     `.claude/skills/lane/SKILL.md` ORDERS every lane to use, so the guard was blind to the
-//     house idiom and caught only the shapes nobody was told to type.
-//   · `nice -n 19 bash -c "git stash"` and `env -C /tmp bash -c "$CMD"` PASSED a literal `git stash`,
-//     while `timeout 60 bash -c …`, `FOO=1 bash -c …` and `env bash -c …` denied. One wrapper flag apart.
-// Patching the four call sites separately would have recreated the class, which is why the vocabulary is
-// DATA with two derived readers: `WRAP_PREFIX` (regex half, below) and `wrapperPrefixEnd` (token half).
+// ── THE ONE WRAPPER VOCABULARY ──
+// A WRAPPER is a command word that PREFIXES another command. Every head detector steps over the same set
+// (the CT anchor PW_ANCHOR, the harness head HARNESS_HEAD, and the inline-shell and heavy-tool heads
+// through `execHead`), so the vocabulary is DATA with two derived readers: `WRAP_PREFIX` (regex half) and
+// `wrapperPrefixEnd` (token half). A detector with its own partial list has its own hole: `env -C <dir>`,
+// the spelling .claude/skills/lane/SKILL.md orders every lane to use, has to resolve like `timeout 60`.
 // `arg` names the flags that consume a SEPARATE value word. A bare flag (`env -i`, `setsid -f`), a
 // `--flag=value`, and a bare duration (`timeout 60`, `timeout 1m`) need no entry — see the two readers.
 const COMMAND_WRAPPERS = {
@@ -443,8 +275,7 @@ const WRAPPER_ARG_ALT = Object.values(COMMAND_WRAPPERS)
   .sort((a, b) => b.length - a.length)
   .join("|");
 const WRAPPER_NAME_ALT = Object.keys(COMMAND_WRAPPERS).join("|");
-// A bare number is prefix noise for both readers (`timeout 60`, `timeout 1m`) — the pre-#1946 vocabulary
-// tolerated it after ANY wrapper, and keeping that tolerance is what makes this change widening-only.
+// A bare number is prefix noise for both readers (`timeout 60`, `timeout 1m`), tolerated after any wrapper.
 const WRAP_NUMBER = /^\d+[a-z]?$/;
 const ASSIGN_PREFIX = /^[A-Za-z_][A-Za-z0-9_]*=/;
 // ONE prefix WORD: an arg-flag WITH its value, any other flag, an env assignment, a bare duration, or a
@@ -465,11 +296,9 @@ export function wrapperPrefixEnd(words, start = 0) {
   let i = start;
   for (;;) {
     // A bare number is skipped HERE as well as inside a wrapper's own flag run, which looks redundant and
-    // is not: the pre-#1946 vocabulary tolerated one ANYWHERE in the prefix, and dropping that tolerance
-    // LOOSENED one real corpus row (`out=$(timeout 150 node_modules/.bin/tsc --noEmit …` — `$(` is not
-    // word-initial so `ungroup` leaves it, the whole `out=$(timeout` reads as ONE assignment token, and
-    // the `150` is then all that stands between the walk and the un-floored `.bin/tsc`). Parity with the
-    // old reader is what makes this change provably widening-only.
+    // is not: in `out=$(timeout 150 node_modules/.bin/tsc --noEmit …` the `$(` is not word-initial, so
+    // `ungroup` leaves it and `out=$(timeout` reads as ONE assignment token, and the `150` is then all that
+    // stands between the walk and the un-floored `.bin/tsc`.
     while (words[i] !== undefined && (ASSIGN_PREFIX.test(words[i]) || WRAP_NUMBER.test(words[i]))) {
       i += 1;
     }
@@ -508,6 +337,9 @@ const NOT_CHECK_SHOW = String.raw`check(?!:show\b)`;
 const HARNESS_HEAD = new RegExp(
   `^\\s*${WRAP_PREFIX}(?:(?:pnpm|npm|turbo)\\s+(?:run\\s+)?(?:${NOT_CHECK_SHOW}|verify|test|lint|typecheck|e2e|gate)\\b(?::[\\w-]+)?\\b|pnpm\\s+(?:exec\\s+)?vitest\\b|pnpm\\s+snap\\b)`,
 );
+// A harness head that actually runs: one asked only to list its stages or print help (`--list`, `--help`,
+// `-h`) writes no artifact and forks nothing, so its pipe is left as written.
+const HARNESS_RUN_HEAD = new RegExp(String.raw`^(?![^\n]*\s(?:--list|--help|-h)(?:\s|$))` + HARNESS_HEAD.source.slice(1));
 // Readers we know how to re-target at a file (a rewrite's reader chain must be built from these; the
 // optional path prefix admits the doctrine's own `/usr/bin/grep` spelling).
 const READER = /^\s*(?:\S*\/)?(?:tail|head|grep|egrep|fgrep|rg|wc|cat|tee|sort|uniq|cut|awk|sed|tr|column|less|more|jq)\b/;
@@ -516,18 +348,12 @@ const READER = /^\s*(?:\S*\/)?(?:tail|head|grep|egrep|fgrep|rg|wc|cat|tee|sort|u
 // where stdout goes, so a `tee` stage adds nothing worth preserving. `bareHarnessRewrite` treats an
 // all-`tee` reader chain the same as a bare `>` redirect: drop it.
 const TEE_READER = /^\s*(?:\S*\/)?tee\b/;
-// Long-lived-child commands beyond the harness (census: `git push origin main 2>&1 | tail -8` timed out
-// at exactly 120s — git's credential/network child holds the pipe open after the visible push finishes).
-const LONG_LIVED = /^\s*git\s+(?:push|pull|fetch|clone)\b/;
 const STDERR_MERGE_TAIL = /\s*2>&1\s*$/;
-// ── owner directive (2026-09-29): agents must not redirect harness output to a private log or `tee`
-// sink and read that instead of the artifacts the harness itself writes, and must not poll a harness's
-// completion with `pgrep` — the harness's own exit code and `pnpm check:show` exist for exactly this. ──
-// A redirect/tee-only stage carries NO reader to preserve, so — unlike `pipeRewrite`'s reader-preserving
-// rewrite below — this cuts the redirect off entirely rather than retargeting anything at it. Matches a
-// bare `>`/`>>`/`&>`/`&>>` to a file AND an fd-merge (`2>&1`): both are noise once the harness's own
-// on-disk artifacts are the read path, and normalizing both through the one stripper keeps the cut point
-// one regex instead of two disagreeing ones.
+// ── An agent does not redirect harness output to a private log or `tee` sink and read that instead of the
+// artifacts the harness writes; the harness's own exit code and `pnpm check:show` are the read path. ──
+// A redirect/tee-only stage carries NO reader to preserve, so, unlike `pipeRewrite`, this cuts the redirect
+// off entirely. Matches a bare `>`/`>>`/`&>`/`&>>` to a file AND an fd-merge (`2>&1`): one stripper keeps
+// the cut point one regex instead of two that could disagree.
 const REDIRECT_TOKEN = /\s(?:\d*>{1,2}|&>{1,2}|<)\s*\S+/g;
 // What is left of a stage after every redirect token is cut — a subshell, backtick or a REAL background
 // `&` (not the `&` inside `2>&1`/`&>`, which REDIRECT_TOKEN above already consumed) still makes the shape
@@ -554,14 +380,11 @@ const TEST_FAMILY_ARTIFACTS = [
 // as stage names come and go.
 const STAGE_LIKE_PATTERN = /^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$/;
 const REDIRECT_FD_MERGE = /\d?>>?&\d/g;
-// The guard's own validation tooling, identified by CANONICAL REALPATH — never by mention, and (since
-// 2026-08-14) never by path SUFFIX either. Suffix matching made the exemption forgeable: `node
-// /tmp/.claude/hooks/tool-guard.mjs $(git stash)` ends with the sanctioned suffix while running an
-// attacker-placed file, i.e. a laundering hole through the very control the AGENT-TOOLING-01 leg built.
-// The identity is now "the same FILE this process is executing" (plus the two probes that live beside it
-// in the same checkout), resolved through realpath on both sides — so a symlink to the real hook exempts
-// (it runs the same bytes, deliberately) and a look-alike never does. The probes are `.ts` since the tsx
-// shed (node runs TypeScript directly).
+// The guard's own validation tooling, identified by CANONICAL REALPATH — never by mention or path SUFFIX.
+// A suffix is forgeable: `node /tmp/.claude/hooks/tool-guard.mjs $(git stash)` ends with it while running
+// a planted file. The identity is "the same FILE this process is executing" (plus the two probes beside it
+// in the same checkout), resolved through realpath on both sides, so a symlink to the real hook exempts
+// (it runs the same bytes) and a look-alike never does.
 const SELF_TOOL_RELPATHS = ["scripts/probes/guard-replay.ts", "scripts/probes/transcript-census.ts"];
 
 /** Resolve a path to its canonical form; falls back to the normalized absolute path when the file does not
@@ -605,18 +428,29 @@ const SELF_OPERAND = /^[\w./@:+$-]+$/;
 const SELF_UNSAFE = /[()&]/;
 const WORKTREE_PATH = /\.claude\/worktrees\/([^\s/;&|)]+)/;
 const CD_WORKTREE = /\b(?:cd|pushd)\s+[^\s;&|]*\.claude\/worktrees\/([^\s/;&|]+)/;
-// GLOBAL OPTIONS sit between `git` and its subcommand — and §L MANDATES the most common one (`git -C
-// <worktree>` on EVERY lane git call), so a bare `\bgit\s+stash\b` rule was blind to exactly the spelling
-// this repo orders every agent to use (#497). Evidence, reports/tool-guard/decisions.jsonl (40 git-ish
-// rows of 69,937): `git -C .claude/worktrees/<lane> checkout --ours packages/client/…/use-count-up.ts`
-// and `git -C "$MAIN" checkout --theirs docs/…/Core-Enforcement-Active-Gates.md` both PASSED, while every
-// bare-`git` row denied correctly — the ban read as enforced and was decorative for lanes.
+// GLOBAL OPTIONS sit between `git` and its subcommand, and the lane skill orders the most common one
+// (`git -C <worktree>` on every lane git call), so a bare `\bgit\s+stash\b` rule would be blind to the
+// spelling every agent is told to use.
 // The loop consumes only FLAG-SHAPED tokens plus at most one value each, so a non-flag first token stops
 // it dead: `git log --oneline -5 -- .claude` and `git diff -- restore.ts` can never reach a subcommand
 // match. A QUOTED value (`-C "$WT"`) is already blanked to whitespace by blankQuoted, contributing no
 // token at all — hence the value group is optional, and JS backtracking covers the boolean-flag case
 // (`git --no-pager stash`: the value group first eats `stash`, fails, then gives it back).
 const GIT_GLOBAL_OPTS = String.raw`(?:-{1,2}[A-Za-z][^\s;|&]*\s+(?:[^\s;|&-][^\s;|&]*\s+)?)*`;
+// git commands whose children hold a pipe open after the visible command ends: the credential/network helper
+// of push/pull/fetch/clone, and the commit/merge hooks with their verify runs. Piped, a commit also reports
+// the reader's exit code, so a failed hook reads as success. The subcommand must end the word, so
+// `commit-tree` and `merge-base` never match.
+const GIT_LONG_LIVED_VERBS = new Set(["push", "pull", "fetch", "clone", "commit", "merge"]);
+// A commit or merge runs its hooks: a stage that starts one, for the commit-timeout rule.
+const GIT_HOOKED_VERBS = new Set(["commit", "merge"]);
+// Unlike GIT_GLOBAL_OPTS (which the destructive-git bans share), only git's real value options take the
+// next word: every other flag is bare, so `git --no-pager log -S commit` does not read `log` as a value.
+const GIT_VALUE_OPTIONS = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace"]);
+const GIT_EXEC_HEAD = new RegExp(String.raw`^\s*${WRAP_PREFIX}git\s`);
+// A piped `pnpm doc` goes through the same log rewrite: its output is short and the paths it prints are the
+// result, so the reader runs against the full log and the exit code survives.
+const DOC_PIPE_HEAD = new RegExp(String.raw`^\s*${WRAP_PREFIX}pnpm\s+(?:run\s+)?doc(?=\s|$)`);
 // stash: read-only subcommands (list/show) destroy nothing and pass; everything else is the ban.
 const GIT_STASH = new RegExp(String.raw`\bgit\s+${GIT_GLOBAL_OPTS}stash\b(?:\s+(list|show))?`);
 // restore: `--staged` WITHOUT `--worktree`/-W only unstages (index-only) — safe; all else destroys.
@@ -624,16 +458,15 @@ const GIT_RESTORE = new RegExp(String.raw`\bgit\s+${GIT_GLOBAL_OPTS}restore\b([^
 const RESTORE_WORKTREE_ARM = /--worktree|(^|\s)-W\b|(^|\s)-[a-zA-Z]*W/;
 const RESTORE_STAGED = /--staged|(^|\s)-S\b/;
 const GIT_CHECKOUT = new RegExp(String.raw`\bgit\s+${GIT_GLOBAL_OPTS}checkout\s+(.*)`);
-// checkout-index: with `-f`/`--force` (or `-a`/`--all`) it overwrites worktree files from the INDEX — `git checkout
-// <path>` under a fourth spelling (a lane destroyed its own uncommitted regex-section.tsx with `checkout-index -f --
-// <path>` on 2026-09-06 while restoring a planted control). Without a force/all flag it refuses to overwrite an
-// existing file, so that arm passes.
+// checkout-index: with `-f`/`--force` (or `-a`/`--all`) it overwrites worktree files from the INDEX, which is
+// `git checkout <path>` under another spelling. Without a force/all flag it refuses to overwrite an existing
+// file, so that arm passes.
 const GIT_CHECKOUT_INDEX = new RegExp(String.raw`\bgit\s+${GIT_GLOBAL_OPTS}checkout-index\b([^\n;|&]*)`);
 const CHECKOUT_INDEX_OVERWRITE = /(^|\s)--(?:force|all)\b|(^|\s)-[a-zA-Z]*[fa]/;
 // `--ours`/`--theirs` is a CONFLICT-RESOLUTION checkout: it overwrites the worktree file with one merge
 // side, discarding any hand-edit already made there. Named explicitly (not left to the extension list)
-// because the pathspec is often extension-less or an unlisted suffix — and refused UNIFORMLY per #497:
-// the house spelling `git show MERGE_HEAD:<path> > <path>` covers the legitimate merge case.
+// because the pathspec is often extension-less or an unlisted suffix, and refused uniformly: the house
+// spelling `git show MERGE_HEAD:<path> > <path>` covers the legitimate merge case.
 const CHECKOUT_PATHISH = /(^|\s)(--(\s|$)|--(ours|theirs)\b|\.(\s|$)|\S+\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|json|md|css|html|sql|sh|yml|yaml|txt|svg|png|lock)\b)/;
 const BIOME_WRITE_MODE = /\bbiome\s+(?:check|lint|format)\b[^\n;|&]*--(?:write|fix|apply|unsafe)\b/;
 const BIOME_SUBCOMMAND = /\bbiome\s+(?:check|lint|format)\b/;
@@ -642,14 +475,10 @@ const PNPM_LINT_FIX = /\bpnpm\s+(?:run\s+)?lint:fix\b/;
 const HARNESS_OR_TRUE =
   /(?:\b(?:pnpm|npm|turbo)\s+(?:run\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\w-]+)?\b|\bpnpm\s+(?:exec\s+)?vitest\b)[^\n;]*\|\|\s*(?:true|echo|:)(?:\s|$)/;
 const HARNESS_SEMI_TRUE = /(?:\b(?:pnpm|npm|turbo)\s+(?:run\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\w-]+)?\b)[^\n;]*;\s*true\s*$/;
-// THE RAW-CT HEAD VOCABULARY (2026-09-11, #1943 F1): this named only `npx`, `pnpm exec`, line-start and
-// `&&`, and 268 of the 782 raw CT rows in main's 179,120-row decision log are `./node_modules/.bin/
-// playwright test` or `pnpm playwright test` — a third of them, every one running with the stock shared
-// `playwright/.cache` (the #1581 corruption the rewrite exists to refuse), no worktree lock, no host slot,
-// no run marker, and for the `.bin`/`node` spellings no heap floor either. A head regex for any tool
-// carries `(?:\S*\/)?<bin>` and `pnpm <bin>` beside `npx`/`pnpm exec`; `@playwright/test/cli.js` is the
-// same binary spelled as a node script, so it is named too. WIDENING ONLY — every spelling that matched
-// before still matches, so this rule cannot have loosened.
+// THE RAW-CT HEAD VOCABULARY: `./node_modules/.bin/playwright test` and `pnpm playwright test` run with the
+// stock shared `playwright/.cache`, no worktree lock, no host slot and no run marker, and the `.bin`/`node`
+// spellings with no heap floor either. A head regex for any tool carries `(?:\S*\/)?<bin>` and `pnpm <bin>`
+// beside `npx`/`pnpm exec`; `@playwright/test/cli.js` is the same binary spelled as a node script.
 const PLAYWRIGHT_CLI_JS = String.raw`node\s+\S*@playwright\/test\/cli\.js\s+test\b`;
 // A COMMAND POSITION is line start, a separator, or one of them followed by the usual env/timeout/nice
 // wrappers (WRAP_PREFIX) — `cd <wt> && timeout 400 ./node_modules/.bin/playwright test …` is the shape
@@ -659,21 +488,18 @@ const PLAYWRIGHT_TEST = new RegExp(String.raw`${PW_ANCHOR}(?:\S*\/)?playwright\s
 const CT_CONFIG = /playwright-ct\.config\.ts/;
 const CT_FILE_HINT = /\.ct\.tsx?\b/;
 const SG_AS_AST_GREP = /(?:^|[;&|(]\s*|\s)sg\s+(?:run|scan|outline|test|new|--version|-p\b|--pattern)/;
-// Every vitest spelling that is NOT the sanctioned door (2026-09-11, #1943 F5 widened it from
-// npx/bare/.bin). The `pnpm …` forms carry the heap floor but still miss the supervisor watchdog, the
-// preflight that proves the paths collect a test, and the nice floor — silence there was the gap; a WARN
-// is the honest tier for it, because the difference from the door is a watchdog, not a missing heap
-// ceiling (that is what the deny family below is for, and a deny on a floored spelling would cry wolf).
+// Every vitest spelling that is NOT the sanctioned door. The `pnpm …` forms carry the heap floor but still
+// miss the supervisor watchdog, the preflight that proves the paths collect a test, and the nice floor. A
+// WARN is the honest tier: the difference from the door is a watchdog, not a missing heap ceiling (the deny
+// family below is for that, and a deny on a floored spelling would cry wolf).
 const VITEST_HEAD = /^\s*(?:npx\s+vitest|vitest|\S*node_modules\/\.bin\/vitest|pnpm\s+(?:exec\s+|run\s+)?vitest|node\s+\S*node_modules\/vitest\/vitest\.mjs)\b/;
 
-// ── un-floored heavy tools (2026-09-11, #1943 F5) ──
-// MEASURED on this box (stickler 2026-09-11, item 9): a bare `node` gets heap_size_limit 4192 MiB and no
-// NODE_OPTIONS; a `pnpm exec node` / `pnpm run` child gets 16480 (pnpm-workspace.yaml `nodeOptions`). The
-// ENTRY SPELLING decides the heap ceiling, and these are the tools that need it — typed eslint (380 corpus
-// sightings), tsc (269), the in-process ts-morph verbs (the recorded exit-134 OOM),
-// stryker, jscpd, knip, depcruise. The priority floor does NOT depend on the spelling (every
-// _shared/proc.ts niced door lowers its child regardless of caller), so this
-// rule is about the heap FLOOR, never politeness.
+// ── un-floored heavy tools ──
+// A bare `node` gets heap_size_limit 4192 MiB and no NODE_OPTIONS; a `pnpm exec node` / `pnpm run` child
+// gets 16480 (pnpm-workspace.yaml `nodeOptions`). The ENTRY SPELLING decides the heap ceiling, and these
+// are the tools that need it: typed eslint, tsc, the in-process ts-morph verbs, stryker, jscpd, knip,
+// depcruise. The priority floor does NOT depend on the spelling (every _shared/proc.ts niced door lowers its
+// child regardless of caller), so this rule is about the heap FLOOR, never politeness.
 // PRECISION, the guard's first law: only the spellings with NO floor at all are refused — `npx <tool>`,
 // `<path>/node_modules/.bin/<tool>`, and a bare `node <heavy script>`. EVERY `pnpm …` spelling passes
 // untouched (`pnpm exec tsc`, `pnpm lint:eslint`, `pnpm ast`), because a guard that refuses the floored
@@ -698,15 +524,14 @@ const HEAVY_VERIFY_VERBS = {
   structure: "`pnpm check:structure`",
   "gate-contract": "`pnpm gate:contract`",
   "tests-membership": "`pnpm check:type-ownership`",
-  // AUDIT GAP (2026-09-29): `run` was absent, so a bare `node tooling/src/verify/cli.ts run …` — the
-  // whole-battery verb behind `pnpm check`/`pnpm verify` — passed through un-floored and un-rewritten:
-  // neither this deny nor HARNESS_HEAD (which only names the pnpm/npm/turbo spellings) knew the raw form.
+  // `run` is the whole-battery verb behind `pnpm check`/`pnpm verify`; HARNESS_HEAD names only the
+  // pnpm/npm/turbo spellings, so the raw form is caught here.
   run: "`pnpm check` (add `--full`/`--push` for other tiers) or `pnpm verify`",
 };
 const NPX_HEAD = /^(?:\S*\/)?npx$/;
 const BIN_DIR_TOOL = /(?:^|\/)node_modules\/\.bin\/([\w.-]+)$/;
 // An explicit worker count above the fleet cap. The caps are DATA — tooling/concurrency-profile.json is
-// their ONE home (#1835), derived for this machine by its door — so this asks that door rather than
+// their ONE home, derived for this machine by its door — so this asks that door rather than
 // hard-coding a number, and the shipped defaults ARE the caps: a flag is only ever needed to go LOWER.
 const WORKER_FLAG = /(?:^|\s)--(?:workers|maxWorkers|max-workers)(?:=|\s+)(\d+)/;
 const CT_RUNNER_STAGE = /\bpnpm\s+(?:run\s+)?test:ct\b/;
@@ -739,31 +564,21 @@ const GREP_EXCLUDE_DIR = /--exclude-dir/;
 const GREP_BROAD_ROOT = /^(\.|\.\/|packages\/?|tests\/?|src\/?|scripts\/?|\*)$/;
 // ripgrep's `-r`/`--replace` REWRITES matched text (it does not list matches); glued directly to another
 // flag letter (`-rln`, `-rl`, `-rc`…) rg parses the glued letters as the REPLACEMENT VALUE, so the intended
-// listing/count flag silently vanishes and output is REPLACED text instead of a match list — no error, no
-// warning (four paid offenses this era, three by the orchestrator; owner ruling 2026-08-19, the lane skill's
-// "CLI hazards"). Scoped to an `rg` head only (a bare `-r` glued to a value on another tool, e.g.
+// listing/count flag silently vanishes and output is REPLACED text instead of a match list, with no error
+// (the lane skill's "CLI hazards"). Scoped to an `rg` head only (a bare `-r` glued to a value on another tool, e.g.
 // `tar -rf`, is that tool's own business). A bare `-r`/`--replace` with a SEPARATE token (or `--replace=`)
 // is unambiguous and passes — only the glued-cluster shape silently mangles.
 const RG_HEAD = /^\s*(?:\S*\/)?rg\b/;
 const RG_REPLACE_MANGLE = /(?:^|\s)-r[A-Za-z]/;
-// ── pgrep/pidof/`ps | grep` wait loops (owner directive, 2026-09-29) ──
-const LOOP_HEAD = /\b(?:until|while)\b/g;
-const DO_KEYWORD = /\bdo\b/;
+// ── pgrep/pidof/`ps | grep` wait loops ──
 const PGREP_OR_PIDOF = /(?:^|[\s;&|(])(?:\S*\/)?(?:pgrep|pidof)\b/;
 const PS_PIPE_GREP = /(?:^|[\s;&|(])(?:\S*\/)?ps\b[^\n;]*\|\s*(?:\S*\/)?e?grep\b/;
 // A wait loop's condition names a HARNESS only when it names the actual process the harness spawns
 // (verify/cli.ts, vitest, playwright) or the pnpm door that launches one — a loop polling for an
 // unrelated process name is this rule's business only when it says so explicitly.
 const HARNESS_NAME_HINT = /verify\/cli\.ts|\bvitest\b|\bplaywright\b|pnpm\s+(?:run\s+)?(?:check|test|verify)(?::[\w-]+)?/;
-// `do`/`done` are shared by the harness-name loop check above and the three polling rules below (owner
-// directive, 2026-09-29 addendum): a wait loop's DANGEROUS content is in its BODY (after `do`, before the
-// matching `done`), not its condition — `sleep` lives there, not in `until grep -q X log`.
-const DONE_KEYWORD = /\bdone\b/;
-const FOR_HEAD = /\bfor\b/g;
-const SLEEP_WORD = /(?:^|[\s;&|(])sleep\b/;
-// A command that is NOTHING BUT `true`/`:`, chained with `;` — the reported "still waiting" filler (one
-// lane: 63 in a row). `true foo` (an argument) or `cmd || true` (real work in another clause) are not this
-// shape — every clause must reduce to the bare word.
+// A command that is NOTHING BUT `true`/`:`, chained with `;`: "still waiting" filler. `true foo` (an argument)
+// or `cmd || true` (real work in another clause) are not this shape; every clause must reduce to the bare word.
 const TRUE_OR_COLON_CLAUSE = /^(?:true|:)$/;
 // The sleep binary as an exec head: bare, path-prefixed (`/bin/sleep`) or backslash-escaped (`\sleep`).
 const SLEEP_BIN = /^\\?(?:\S*\/)?sleep$/;
@@ -783,6 +598,17 @@ const SUBSTITUTION_OPEN = /\$\(|`/;
 // one only polls for a notification that is coming anyway. The second form catches a variable-prefixed dir.
 const HARNESS_TASK_FILE = /\/tmp\/claude-\d+\/\S*\/tasks\/|\/tasks\/[\w.-]+\.(?:done|exit|output)\b/;
 const TAIL_BIN = /^(?:\S*\/)?tail$/;
+// A background task's output file as the Read tool names it: always an absolute path.
+const HARNESS_TASK_OUTPUT = /^\/tmp\/claude-\d+\/.+\/tasks\/[^/]+\.output$/;
+// `pnpm doc` verbs that change shared board state (item numbering, transitions, landing), which the
+// orchestrator owns. `new adr|plan|law` and `review` author a doc in the lane's own worktree and stay open.
+const DOC_WRITE_VERBS = new Set(["item", "set", "land", "remove", "index", "status"]);
+// A repeat of the same task-output range inside this window is a poll; after it, a reread is allowed.
+const TASK_REREAD_WINDOW_MS = 120_000;
+// pnpm's own options that take their value as a separate word, ahead of the script name.
+const PNPM_VALUE_OPTIONS = new Set(["-C", "--dir", "--filter", "-F", "--filter-prod", "--reporter", "--loglevel", "--workspace-dir"]);
+// A case arm's pattern ahead of the command it runs: `case x in a)`, `a|b)` after a pipe split, `(b)`.
+const CASE_ARM_LEAD = /^\s*(?:case\s+\S+\s+in\s+)?\(?[^\s()|;]+\)/;
 const TAIL_FOLLOW_FLAG = /^-[A-Za-z0-9]*[fF]|^--follow\b/;
 // Shell tokens for `shellLoops`, on the BLANKED text: a redirect (`2>&1`, `>`, `<`) first so its `&` is not
 // read as an operator, then the control operators, then words.
@@ -796,10 +622,8 @@ const RESERVED_CLOSERS = new Set(["done", "fi", "esac", "}"]);
 const SIMPLE_COMMAND_TEXT = /^[^;&|\n()`]*/;
 // Reserved words after which the next word is again in command position.
 const COMMAND_FOLLOWS = new Set(["do", "then", "else", "elif", "if", "while", "until", "!", "time"]);
-// Corpus threshold (scripts/probes/guard-replay.ts sleep-duration scan, 2026-09-29): bare foreground
-// sleeps AT OR UNDER 2s are dominated by a settle-delay idiom (`kill …; sleep 2; ps …` / `pkill …; sleep 2;
-// ps aux | grep …` — 402 sightings outside any loop), not a wait. Everything over 2s outside a loop is
-// dominated by the hand-polling shape ("sleep N; tail log") this rule exists to remove.
+// Bare foreground sleeps AT OR UNDER 2s are the settle-delay idiom (`kill …; sleep 2; ps …`), not a wait.
+// Over 2s outside a loop is the hand-polling shape ("sleep N; tail log") this rule exists to remove.
 const SLEEP_EXEMPT_MAX_SECONDS = 2;
 // Reads that are ONLY a status check when they are the WHOLE command (single clause, single stage) — a
 // `tail`/`head`/`wc`/`cat`/`grep` chained into something ELSE is doing real work, not just polling.
@@ -811,9 +635,9 @@ const PNPM_CHECK_SHOW_HEAD = /^\s*pnpm\s+check:show\b/;
 // log`, `wc -l log`, `ps -p $PID`, `kill -0 $PID`) puts the thing being polled last. A trailing `2>&1`
 // would otherwise BECOME the "target" (its own last token is `1`), so it is stripped first.
 const TRAILING_REDIRECT_MERGE = /\s+\d*>&\d+\s*$/;
-// Third consecutive read of the same target, nothing else run in between, is the deny (owner directive,
-// 2026-09-29): the first two are a normal check-in, the third is hand-polling instead of using the ONE
-// notification a background job's own exit gives.
+// The third consecutive read of the same target, nothing else run in between, is the deny: the first two are
+// a normal check-in, the third is hand-polling instead of using the one notification a background job's
+// own exit gives.
 const STATUS_READ_STREAK_DENY_AT = 3;
 const SQLITE_HEAD = /^\s*sqlite3\b/;
 const SQLITE_SAFE_HINT = /\/tmp\/|scratchpad|:memory:|test|\.bak\b/i;
@@ -838,24 +662,16 @@ const PROC_GIT_PUSH = /(^|\0)git\0([^\0]*\0)*push(\0|$)/;
 const GIT_ADD_ALL = /\bgit\s+add\s+(?:-A\b|--all\b|\.(?:\s|$))/;
 const GIT_PUSH = /\bgit\s+(?:[^\s;|&]+\s+)*?push\b/;
 const GIT_PUSH_FORCE = /\bgit\s+push\b[^\n;|]*(?:\s--force(?:-with-lease)?\b|\s-f\b)/;
-// The `rm` COMMAND WORD, and nothing else. Everything after it — flags AND targets — is read off the RAW
-// stage (`collectStageWarns`), because in the BLANKED text a quoted token is spaces and the head cannot
-// tell a flag from a path. Two holes closed here, both the same defect class as the quoted-TARGET one this
-// rule already carries (visibility, not rule weakness), leg 5 / 2026-08-14:
-//   · QUOTED FLAGS — the previous head required an UNQUOTED `-r`/`-f` right after `rm`
-//     (`/^\s*rm(?:\s+-[a-z]*[rf][a-z]*)+/`), so `rm "-rf" packages/server/src` matched NOTHING and the rule
-//     never engaged. Quoting is the SHELL's business: `rm` itself receives `-rf` either way.
-//   · A PATH PREFIX — `/bin/rm -rf packages/server/src` was not `rm`. Every other head regex in this file
-//     already carries `(?:\S*\/)?` (READER, NET_FETCH_HEAD, SHELL_SINK_HEAD, SCRIPT_SHELL_EXEC); this one
-//     did not. It can only match a token whose LAST path segment is exactly `rm`, so `npm`, `pnpm rm`,
-//     `/usr/bin/rmdir` and `/usr/bin/grm` have no `/rm`+boundary to match and cannot be confused for it.
-// The 2026-08-14 quoted-TARGET reasoning still holds and is why the tail is sliced from the RAW command: a
-// target is judged with its quote characters ATTACHED, and RM_SAFE_TARGET matches by SUBSTRING, so
-// `"/tmp/scratch"` stays sanctioned in quotes while `"packages/server/src"` does not. The head shrinking to
-// the command word only ever GROWS the tail, and the verdict is `targets.some(unsafe)`.
+// The `rm` COMMAND WORD, and nothing else. Everything after it (flags AND targets) is read off the RAW stage
+// (`collectStageWarns`), because in the BLANKED text a quoted token is spaces and the head cannot tell a
+// flag from a path: `rm "-rf" packages/server/src` receives `-rf` all the same. The optional path prefix
+// makes `/bin/rm` an `rm`; only a token whose LAST path segment is exactly `rm` matches, so `npm`,
+// `pnpm rm`, `/usr/bin/rmdir` and `/usr/bin/grm` cannot be confused for it.
+// A target is judged with its quote characters ATTACHED, and RM_SAFE_TARGET matches by SUBSTRING, so
+// `"/tmp/scratch"` stays sanctioned in quotes while `"packages/server/src"` does not.
 const RM_HEAD = /^\s*(?:\S*\/)?rm(?=\s|$)/;
 // An rm flag as `rm`'s own getopt sees it — quoted or not, short or long, EITHER CASE. Two tokens with
-// two jobs, split by owner ruling (#51): the RECURSIVE token GATES the rule — only a flag that actually
+// two jobs, by owner ruling: the RECURSIVE token GATES the rule — only a flag that actually
 // recurses (`-r`/`-R`, alone or folded into a cluster like `-rf`, or `--recursive`) makes an `rm` this
 // rule's business; plain `rm -f <path>` force-unlinks ONE path and is not a recursive delete. The broader
 // FLAG token still classifies tokens for the TARGET split below, so a quoted "-f"/"--force"/"--dir" can
@@ -864,21 +680,17 @@ const RM_HEAD = /^\s*(?:\S*\/)?rm(?=\s|$)/;
 // routed around). Both are recognised on the RAW token so quoted spellings engage/classify identically.
 const RM_RECURSIVE_TOKEN = /^(['"]?)(?:-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)\1$/;
 const RM_FLAG_TOKEN = /^(['"]?)(?:-[a-zA-Z]*[rRfF][a-zA-Z]*|--(?:recursive|force|dir))\1$/;
-// `.claude/worktrees/` added 2026-08-13: lane worktrees are disposable by construction and the standing
-// law now requires sweeping them by hand (teardown does not fire on agent completion — probed live). Asking
-// about every sweep spent lane turns for nothing. Scoped to `worktrees/` ONLY — the rest of `.claude/`
-// (settings, hooks, agents) is load-bearing and stays ask-tier.
+// `.claude/worktrees/` is safe: lane worktrees are disposable and are swept by hand (teardown does not fire
+// on agent completion). Scoped to `worktrees/` ONLY: the rest of `.claude/` (settings, hooks, agents) stays
+// ask-tier.
 const RM_SAFE_TARGET = /\/tmp\/|scratchpad|playwright\/\.cache|node_modules|reports\/|\.claude\/worktrees\/|\bdist\b|\bcoverage\b|\.cache\b|\.bak\b/;
 // An rm target is tested AFTER resolving variables the command ITSELF assigned earlier (assignedVars +
-// expandAssigned). Owner ruling 2026-08-14, taken WITH the quoted-target tighten above, because the two
-// are the same question asked twice: `SP=/tmp/…/scratchpad; rm -f "$SP/x.log"` is a scratch delete and the
-// guard could not see it — 52 of the 53 quoted-rm rows in a live decision log are exactly that shape, and
-// the identical UNQUOTED spelling was already asking. This is EVIDENCE, never a hint: the value comes from
-// the command's own text, so `R=/home/…/orbweaver; rm -rf "$R"` still asks, and a variable the command does
-// not assign stays unresolved and therefore unsafe. A blanket "$ means scratch" rule was rejected outright
-// — it would wave `rm -rf "$REPO"` through.
+// expandAssigned), so `SP=/tmp/…/scratchpad; rm -f "$SP/x.log"` is a scratch delete. This is EVIDENCE,
+// never a hint: the value comes from the command's own text, so `R=/home/…/orbweaver; rm -rf "$R"` still
+// asks, and a variable the command does not assign stays unresolved and therefore unsafe. A blanket "$ means
+// scratch" rule would wave `rm -rf "$REPO"` through.
 const ASSIGN_HEAD = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=/;
-// …and the EXPORT half of the same question (#1946, childEnvVars): which names reach a CHILD's environment.
+// …and the EXPORT half of the same question (childEnvVars): which names reach a CHILD's environment.
 const EXPORT_CLAUSE = /^\s*export\s/;
 const EXPORT_NAME_WORD = /^([A-Za-z_][A-Za-z0-9_]*)(?:=|$)/;
 // A shell WORD that is an assignment, split — the value keeps its spaces (`CMD="git stash"` is one word).
@@ -894,19 +706,14 @@ const UNSAFE_READER = /[<()`&]/;
 const ENV_KILL = /^(?:off|0|false)$/i;
 
 // ── script-body inspection (the wrapper hole) ──
-// Cheap per-stage pre-filter: a shell name at a word boundary, a `.sh` operand, or a `.`/`source` head
-// (#634 — sourcing runs the file in the CURRENT shell, which is the same power as `bash <file>`).
-// Everything below only runs for a stage that passes this.
-// The shell arm ends at `(?:\s|$)`, not `\s`: a PIPE SINK is a stage whose whole text is the shell name
-// (`cat f | bash`), so a required trailing space skipped the exact shape #634 is about.
-// `eval` joined the hint 2026-09-11 (#1943 F4): `eval "git stash"` takes its PROGRAM from an operand just
-// like `bash -c` does, and the quoted operand was blanked before any rule could see it — the control
-// `eval git stash` denied only because an UNQUOTED one is still visible in the blanked text.
+// Cheap per-stage pre-filter: a shell name at a word boundary, a `.sh` operand, a `.`/`source` head
+// (sourcing runs the file in the CURRENT shell, the same power as `bash <file>`), or `eval` (it takes its
+// PROGRAM from an operand like `bash -c`, and a quoted operand is blanked). Everything below only runs for
+// a stage that passes this. The shell arm ends at `(?:\s|$)`, not `\s`: a PIPE SINK is a stage whose whole
+// text is the shell name (`cat f | bash`).
 const SCRIPT_STAGE_HINT = /(?:^|[\s/])(?:sh|bash|zsh|ksh|dash)(?:\s|$)|\.sh(?:\s|$)|^\s*(?:\.|source)\s|(?:^|\s)eval\s/;
 // `.`/`source` as a stage's COMMAND WORD. Never a path argument: the head is found at the exec-head
-// position, so `find . -name x`, `biome check . --write` and `grep . --exclude-dir=y` are not this
-// (measured: a raw-regex count of "dot-source" said 2,367 on the 135,505-command corpus and the
-// exec-head count says 325 — the rest were a bare `.` PATH followed by a flag).
+// position, so `find . -name x`, `biome check . --write` and `grep . --exclude-dir=y` are not this.
 const SOURCE_EXEC = /^(?:\.|source)$/;
 // A process substitution `<( … )` hands the interpreter a program built by ANOTHER command's stdout —
 // unknowable by construction, so it is an `ask` rather than a resolvable path.
@@ -929,17 +736,15 @@ const SCRIPT_SHELL_EXEC = /^(?:\S*\/)?(?:sh|bash|zsh|ksh|dash)$/;
 // (single dash only). The string itself is classified by the nested-command pass below, which is the same
 // defect class one layer down: visibility, not rule weakness.
 const SCRIPT_INLINE_C_FLAG_ARG = /^-[a-zA-Z]*c[a-zA-Z]*$/;
-// `-s` is NOT the same thing and was treated as if it were (#634): it means READ THE PROGRAM FROM STDIN,
-// so `sh -s < f` and `cat f | bash -s` are channels, not inline strings — and the nested pass never
-// extracted them either (it only reads `-c` operands), so the stage was silently dropped by both. It also
-// means any following non-flag word is the script's $0/argv, never the program, which is why hitting `-s`
-// stops the operand hunt rather than continuing it.
+// `-s` is NOT the same thing: it means READ THE PROGRAM FROM STDIN, so `sh -s < f` and `cat f | bash -s`
+// are channels, not inline strings (and the nested pass reads only `-c` operands). Any following non-flag
+// word is the script's $0/argv, never the program, which is why hitting `-s` stops the operand hunt.
 const SCRIPT_STDIN_FLAG = /^-[a-zA-Z]*s[a-zA-Z]*$/;
 // The operand must resolve LITERALLY. Quoting is stripped and `$VAR`/`${VAR}` are expanded from the
 // command's OWN assignments first (shellWords + assignedVars); what survives that may still be unknowable —
-// an unassigned variable, a substitution, a glob. Those NO LONGER skip silently: an unresolvable operand is
-// an `ask`, because the guard cannot see what will execute (#631). A resolvable path that does not EXIST
-// still fails open — that command dies in the shell with ENOENT, so there is nothing to judge.
+// an unassigned variable, a substitution, a glob. An unresolvable operand is an `ask`, because the guard
+// cannot see what will execute. A resolvable path that does not EXIST fails open: that command dies in the
+// shell with ENOENT, so there is nothing to judge.
 const SCRIPT_UNRESOLVED = /[$`*?[]/;
 // A redirect word is never the file operand: `bash < run.sh`, `bash x.sh > log`, `bash x.sh 2>&1`,
 // `bash x.sh <<EOF`. The operator-only form (`>` / `2>` / `<`) also consumes the word after it (its target).
@@ -950,29 +755,19 @@ const HOME_PREFIX = /^~(?=\/)/;
 // …and `$HOME`/`${HOME}` is the same variable spelled the long way (see resolveScriptOperand).
 const HOME_VAR = /^\$\{?HOME\}?(?=\/)/;
 const HOME_DIR = process.env.HOME ?? null;
-// (the wrapper vocabulary that used to be duplicated here as SCRIPT_WRAPPER_TOKEN/SCRIPT_WRAPPER_ARG is
-//  COMMAND_WRAPPERS + wrapperPrefixEnd, up in the vocab section — one home, four detectors; #1946)
 const SCRIPT_MAX_BYTES = 64 * 1024;
 // Depth of the OUTER command is 1; a body classified from it runs at 2, a body reached from THAT at 3 ==
-// the cap, where a further script invocation is `ask` instead of another read. So: two levels of body are
-// ever read, and the fence still exists — it is one level further out.
-//
-// MOVED FROM 2 TO 3 (2026-08-24, with the #634 channel work, and for the reason NESTED_DEPTH_CAP moved
-// from 2 to 6): the corpus decides where a runaway fence sits, and at 2 it had become a cry-wolf. Once
-// `. <file>` counts as an interpreter target — it must, or a hostile body just spells its second level
-// with a dot — the single most common wrapper idiom on this box (`source …/orbweaver/.env` inside a
-// scratchpad launcher) sat exactly AT the cap: 21 of 135,586 corpus commands flipped to
-// `ask/script-depth-cap` purely for sourcing the repo's own env file, which for a LANE is a deny. The
-// guard could READ that file; it was refusing by budget, not by inability, and a refusal on the
-// sanctioned way of doing a job is what teaches agents to route around the hook. Cost of the extra level
-// is one stat + one `git ls-files` + one bounded read per nested target.
+// the cap, where a further script invocation is `ask` instead of another read. So two levels of body are
+// read. Two, not one: `. <file>` counts as an interpreter target, and the common scratchpad launcher that
+// sources the repo's own `.env` would otherwise sit AT the cap and be refused by budget, not inability.
+// The extra level costs one stat, one `git ls-files` and one bounded read per nested target.
 const SCRIPT_DEPTH_CAP = 3;
 const SCRIPT_LINE_MAX = 160;
 
 // ── nested commands: a command inside a QUOTED string is still a command ──
 // The same visibility class as the wrapper-script hole, one layer down. Two shapes:
 //   · `sh -c '<string>'` — the operand IS a command, and quote-blanking erases it before any rule can see
-//     it (73 sightings in one day's decision log; `bash -c "git stash"` classified clean).
+//     it.
 //   · `$( … )` / backticks — a substitution EXECUTES, including inside double quotes, where blanking again
 //     erases it. Head-anchored rules (`rm -rf …`, the harness heads) are blind to an UNQUOTED one too,
 //     since the substitution is not at the head of the stage.
@@ -982,12 +777,11 @@ const SCRIPT_LINE_MAX = 160;
 // The extracted text runs through this same `classify` and merges strictest-wins, so a nested command can
 // only ever make the outer one STRICTER.
 const SHELL_INLINE_C_FLAG = /^-[a-zA-Z]*c[a-zA-Z]*$/; // `-s` alone reads the command from STDIN — nothing to extract
-// `eval` is a shell BUILTIN whose operand is the program — the `-c` shape with the flag left off, and it
-// was in no head list at all (#1943 F4). There is no file to read and no `-c` to find, so the operand is
-// the word right after the head.
+// `eval` is a shell BUILTIN whose operand is the program — the `-c` shape with the flag left off. There is
+// no file to read and no `-c` to find, so the operand is the word right after the head.
 const EVAL_EXEC = /^eval$/;
 // An operand that is NOTHING BUT variable references (`"$CMD"`, `"${PRE} ${POST}"`). This is the ONLY
-// shape whose expansion is read, deliberately (#1943 F4): a variable-carried command is one the guard
+// shape whose expansion is read, deliberately: a variable-carried command is one the guard
 // cannot see AT ALL, whereas expanding the `$VAR` inside `bash -c "echo $MSG"` would move TEXT into
 // command position and invent denials (`MSG='git stash'; bash -c "echo $MSG"` echoes three words; it
 // stashes nothing). Resolved from the command's OWN assignments, exactly like the script-path resolver;
@@ -999,17 +793,15 @@ const INLINE_DQ_ESCAPE = /\\(["\\$`])/g;
 // Depth of the OUTER command is 0; a string extracted from it classifies at 1. At the cap the guard stops
 // and SAYS so (`ask`) rather than waving an unread command through. Unlike the script-body cap this is a
 // RUNAWAY FENCE, not a budget — extraction is pure string work and each level is strictly shorter, so
-// reading one more level costs nothing. It is set well past real shapes: `$(dirname $(readlink -f $(which
-// claude)))` is depth 3 and idiomatic, and a cap of 2 asked about it — measured on 121,984 corpus commands,
-// where 4 benign commands hit the cap at 2 and ZERO reach 6. A hook that cries wolf gets disabled.
+// reading one more level costs nothing. It sits well past real shapes: `$(dirname $(readlink -f $(which
+// claude)))` is depth 3 and idiomatic. A hook that cries wolf gets disabled.
 const NESTED_DEPTH_CAP = 6;
 const SCRIPT_LINE_SCAN_MAX = 400;
 const GIT_LS_TIMEOUT_MS = 2_000;
 // the line locator re-classifies single lines; point the /proc scan at nothing so it stays O(1) there
 const NO_PROC_ROOT = "/nonexistent-proc-root";
 // deny > ask > allow(rewrite) > defer > pass. `defer` sits UNDER `allow` on purpose: it means "the guard
-// did not judge the script body", which must never cancel a judgement the guard DID make (and a defer
-// emitted at the hook boundary kills a subagent mid-turn — see the box at the top).
+// did not judge the script body", which must never cancel a judgement the guard DID make.
 const DECISION_RANK = { deny: 4, ask: 3, allow: 2, defer: 1, pass: 0 };
 
 const REWRITE_TIMEOUT_MS = 600_000;
@@ -1018,8 +810,8 @@ const STDIN_DEADLINE_MS = 2_500;
 
 // ── teaching text (the entire user-visible surface of this hook — mechanism + number + exact fix) ──
 
-// Every filler/poll deny ends here. Report first: a lane told only to "end your turn" ended it with no
-// report, and its committed work was never reported.
+// Every filler/poll deny ends here. Report first: a lane told only to "end your turn" can end it with no
+// report, and its committed work then goes unreported.
 const WAIT_DENY_NEXT_STEP =
   "If your work is done, write your final report now. Otherwise end your turn with no more tool calls; the harness wakes you when your background job exits.";
 
@@ -1060,6 +852,10 @@ const REASONS = {
   foregroundSleep: `A foreground \`sleep\` blocks this turn and re-bills your whole context while it waits. A literal sleep of 2s or less between real steps, or inside a bounded \`for\` loop, still runs. ${WAIT_DENY_NEXT_STEP}`,
   sleepOnly: `A command whose only work is \`sleep\` is a wait, backgrounded or not: it spends a tool call and re-bills your whole context to do nothing. ${WAIT_DENY_NEXT_STEP}`,
   taskFileWait: `This loop waits on a Claude Code background task file. The harness already notifies you when that task exits, so the loop only spends tool calls. ${WAIT_DENY_NEXT_STEP}`,
+  taskOutputReread: (file) =>
+    `You read this range of \`${file}\` less than ${TASK_REREAD_WINDOW_MS / 1000} s ago; rereading it this soon is a poll. If the job has finished, its output is what you already read. If your work is done, write your final report now; otherwise do other work or end your turn.`,
+  docWriteLane: (verb) =>
+    `\`pnpm doc ${verb}\` changes the board, and the orchestrator owns the board (items, status, landing); put the item's title, what, why and done in your report. Authoring a plan, ADR or law in your worktree with \`pnpm doc new\` is fine.`,
   trueOrColonFiller: `A command that is only \`true\`/\`:\` is filler: it re-bills your whole context and does nothing. ${WAIT_DENY_NEXT_STEP}`,
   drizzleKitSubagent: (verb) =>
     `A SUBAGENT ran \`drizzle-kit ${verb}\` — migration generation and application run on main by the orchestrator: parallel lanes generating migrations collide on migration numbers. Report the schema change and stop.`,
@@ -1104,8 +900,16 @@ const CONTEXTS = {
     `tool-guard rewrote this command: piping the harness hangs and swallows its exit code (see \`rewritePiped\`), and a private log is unnecessary here — the harness already writes its own artifact regardless of where stdout goes. It ran bare, and your reader now targets ${target} instead; the harness's REAL exit code is preserved.`,
   rewriteRedirectDropped:
     "tool-guard dropped this redirect/tee: the harness writes its own artifacts under reports/ regardless of where its stdout goes, so capturing stdout to a private file or `tee` sink is never necessary and only tempts a later poll of that file instead of reading the harness's own exit code. Run it bare and read the artifact — `pnpm check:show` for check/verify, reports/test-report.json (or reports/ct-flaky.json for test:ct) for a test run.",
+  wholeTreeRun:
+    "This is a whole-tree run: it can hold the host verify slot for up to an hour, and the orchestrator runs the whole-tree barrier after merging. Run it only if your brief asked for it or your scoped floor cannot answer the question. Run it with run_in_background, make no call while it runs, and put its verdict in your report.",
   rewriteLongLived: (log) =>
-    `tool-guard rewrote this command: git spawns credential/network children that hold a pipe open after the visible command finishes (census: \`git push … | tail\` hit the 120s tool timeout). Output went to ${log}, your reader ran against the file, and the real exit code is preserved.`,
+    `tool-guard rewrote this command: git's children (a push/pull/fetch credential helper, or commit/merge hooks and their verify runs) hold a pipe open after the visible command ends, and a pipe reports the reader's exit code, so a failed hook would read as success. Output went to ${log}, your reader ran against the file, and git's real exit code is preserved.`,
+  commitTimeout: (ms) =>
+    `tool-guard raised this call's timeout to ${ms / 60_000} min: commit and merge hooks often run past the 120 s Bash default, and a timed-out commit leaves its hook running. The command is unchanged.`,
+  rewriteReaderStatus:
+    "Your chain continues with `&&` after a status-checking reader (`grep -q`/`-c`, `rg -q`/`-c`), so that `&&` still tests the reader, as it did in the original pipe. The exit code is not carried past the reader here: run the command and the check as separate steps to see it.",
+  rewriteDocPiped: (log) =>
+    `tool-guard rewrote this command: the \`pnpm doc\` output went to ${log}, your reader ran against the file, and the real exit code is preserved.`,
   rewritePlaywright:
     "tool-guard routed this CT run through the sanctioned script (`pnpm test:ct <paths>`): driving playwright directly skips the per-invocation build cache, the exclusion lock that catches a racing sibling runner, the host-wide slot pool and the nice floor. Your runner flags were carried over verbatim.",
   sgDeprecated:
@@ -1124,9 +928,7 @@ const CONTEXTS = {
   pushInFlight:
     "A `git push` is RUNNING on this box right now. The push window is not atomic: with a long pre-push hook, git re-reads the ref at transfer time, so a commit landed mid-window ships silently while the push's own summary line reports the stale range (measured incident, 2026-08-03). Hold this commit until the push returns, or verify afterwards exactly what landed on origin.",
   longLivedPipe:
-    "A piped `git push/pull/fetch` can hang to the full 120s tool timeout — git's credential/network child holds the pipe open after the visible command finishes (measured in the census). Drop the pipe, or redirect to a file and read it.",
-  // (playwrightPiped retired 2026-09-11 with rule 6's piped branch: a raw CT run is now rewritten into
-  //  `pnpm test:ct`, which is a harness head, so a piped CT run is rule 4's redirect — not a bare notice.)
+    "A piped `git push/pull/fetch/commit/merge` can hang to the full 120s tool timeout — git's credential/network child or a commit hook holds the pipe open after the visible command finishes — and a pipe reports the reader's exit code, not git's. Drop the pipe, or redirect to a file and read it.",
   cdWorktreeLaneCtx:
     "cd pins your cwd to that worktree for every later call, and your cwd can silently reset between calls — prefer absolute paths and `git -C <worktree>` so each command names its own ground.",
   scriptAdvisory: (script, note) => `From inside the untracked script ${script} (tool-guard classifies wrapper bodies, not just the command line): ${note}`,
@@ -1158,10 +960,9 @@ function laneName(text) {
  *  reason — one clause, one pipeline stage, no subshell / backgrounding / command substitution, an
  *  UNQUOTED `node` (or the tool itself, via its shebang) at the head, and a script operand whose CANONICAL
  *  REALPATH is one of this checkout's own tools. A mention anywhere else — a trailing comment, a quoted
- *  argument, an earlier `&&` stage — is not an invocation and is judged by every rule (AGENT-TOOLING-01,
- *  2026-08-14). Neither is a LOOK-ALIKE: `node /tmp/.claude/hooks/tool-guard.mjs $(git stash)` satisfied
- *  the old path-SUFFIX test while running an attacker-placed file, which laundered a command straight
- *  through the control this exemption's own fix had just built (Codex reconciliation, 2026-08-14). */
+ *  argument, an earlier `&&` stage — is not an invocation and is judged by every rule. Neither is a
+ *  LOOK-ALIKE: `node /tmp/.claude/hooks/tool-guard.mjs $(git stash)` ends with the right path suffix while
+ *  running a planted file. */
 export function isSelfToolInvocation(command, blank, clauses, ctx) {
   if (clauses.length !== 1) {
     return false;
@@ -1226,13 +1027,15 @@ export function pushInFlight(procRoot = "/proc") {
   return false;
 }
 
-/** The star move: `…; <harness> [2>&1] | <readers> [; …]`  →  redirect the harness to a log, run the
- *  agent's own reader chain against the file, preserve the real exit code. Clauses BEFORE and AFTER the
- *  piped one (the ubiquitous `cd <repo> && …` prefix, a trailing `; echo done`) are kept verbatim with
- *  their original separators. Returns null when the shape is not unambiguous (callers deny/warn instead):
- *  `||` chains, more than one piped clause, subshells/backticks/backgrounding in the piped clause, or a
- *  reader outside the known re-targetable set. */
-function pipeRewrite(command, blank, clauses, headRe, ctx) {
+/** `…; <harness> [2>&1] | <readers> [; …]`  →  redirect the harness to a log, run the
+ *  agent's own reader chain against the file, preserve the real exit code (unless `&&` tests a status-checking
+ *  last reader: see `chainTestsReader`). Clauses BEFORE and AFTER the piped one (the ubiquitous `cd <repo> && …`
+ *  prefix, a trailing `; echo done`) are kept verbatim with their original separators. `isHead(stageBlank,
+ *  stageRaw)` says whether stage 0 is the command this caller rewrites. Returns null when the shape is not
+ *  unambiguous (callers deny/warn instead): `||` chains, more than one piped clause, subshells/backticks/
+ *  backgrounding or a mid-stage fd merge in stage 0, a reader line continued with `\`, or a reader outside the
+ *  known re-targetable set. */
+function pipeRewrite(command, blank, clauses, isHead, ctx) {
   // PIPESTATUS anywhere means the command inspects the pipe we are about to remove — bail to deny.
   if (blank.includes("||") || command.includes("PIPESTATUS")) {
     return null;
@@ -1244,7 +1047,13 @@ function pipeRewrite(command, blank, clauses, headRe, ctx) {
   const [clause] = piped;
   const [stage0, ...readers] = clause.stages;
   const stage0Blank = blank.slice(stage0.start, stage0.end);
-  if (!headRe.test(stage0Blank) || UNSAFE_STAGE0.test(stripFdMerges(stage0Blank))) {
+  const stage0Raw = command.slice(stage0.start, stage0.end);
+  if (!isHead(stage0Blank, stage0Raw) || UNSAFE_STAGE0.test(stripFdMerges(stage0Blank)) || hasInnerFdMerge(stage0Blank)) {
+    return null;
+  }
+  // A stage ending in a backslash met an escaped `\|` or `\ |`, which the clause scan splits as a pipe; the
+  // shell does not, so a rewrite would change what runs.
+  if (clause.stages.slice(0, -1).some((st) => command.slice(st.start, st.end).trimEnd().endsWith("\\"))) {
     return null;
   }
   for (const r of readers) {
@@ -1253,23 +1062,76 @@ function pipeRewrite(command, blank, clauses, headRe, ctx) {
       return null;
     }
   }
-  const log = `${ctx.projectDir}/reports/tool-guard/run-${ctx.now}.log`;
-  const harness = command.slice(stage0.start, stage0.end).replace(STDERR_MERGE_TAIL, "").trim();
   const readerChain = command.slice(readers[0].start, clause.end).trim();
+  if (clauseHasHeredoc(command, clause) || clauseContinues(command, clause)) {
+    return null;
+  }
+  const log = `${ctx.projectDir}/reports/tool-guard/run-${ctx.now}.log`;
+  const harness = stage0Raw.replace(STDERR_MERGE_TAIL, "").trim();
+  // stderr joins the log only when the original sent it down the pipe; otherwise it stays on the terminal.
+  const merge = mergesStderr(blank, stage0, stage0Raw) ? " 2>&1" : "";
+  const readerStatus = chainTestsReader(command, clause);
+  const body = readerStatus
+    ? `${harness} > ${log}${merge}; < ${log} ${readerChain}\n`
+    : `${harness} > ${log}${merge}; __tg_ec=$?; < ${log} ${readerChain}${EXIT_RESTORE}`;
+  return { log, clause, readerStatus, command: groupRewrite(command, clause, body) };
+}
+
+/** Does stage 0 merge or move a file descriptor anywhere but a trailing `2>&1`? A mid-stage `2>&1` still sends
+ *  stderr down the pipe, and the log rewrite can only reproduce the trailing form. */
+function hasInnerFdMerge(stage0Blank) {
+  return /\d?>>?&\d/.test(stage0Blank.replace(STDERR_MERGE_TAIL, ""));
+}
+
+/** Does the chain after this pipe test the LAST reader's status (`… | grep -q X && next`)? Then the group ends
+ *  with that reader, as the original pipe did, instead of the harness's exit restore. */
+function chainTestsReader(command, clause) {
+  if (!command.slice(clause.end).trimStart().startsWith("&&")) {
+    return false;
+  }
+  const words = shellWords(command.slice(clause.stages.at(-1).start, clause.end)).map((w) => w.value);
+  const tool = words[0]?.replace(/^.*\//, "");
+  const flags = words.slice(1, words.includes("--") ? words.indexOf("--") : undefined).filter((w) => w.startsWith("-"));
+  if (tool === "grep" || tool === "egrep" || tool === "fgrep") {
+    return flags.some((f) => f === "--quiet" || f === "--silent" || f === "--count" || /^-[A-Za-z]*[qc]/.test(f));
+  }
+  if (tool === "rg") {
+    return flags.some((f) => f === "--quiet" || f === "--count" || /^-[A-Za-z]*[qc]/.test(f));
+  }
+  return false;
+}
+
+/** Does a heredoc start in this clause? Its body follows the clause's line, so the group's closing line
+ *  would land inside the body. */
+function clauseHasHeredoc(command, clause) {
+  return heredocUnits(command, blankComments(command, blankQuoted(command))).some((u) => u.opStart >= clause.start && u.opStart < clause.end);
+}
+
+/** Does the clause's last line end in `\`? The escaped newline joins it to the next operator, and a rewrite
+ *  that cuts or moves the clause text breaks that join. */
+function clauseContinues(command, clause) {
+  return command.slice(clause.start, clause.end).trimEnd().endsWith("\\");
+}
+
+/** Did the original stage send stderr down the pipe too: a trailing `2>&1`, or a `|&` right after it? */
+function mergesStderr(blank, stage0, stage0Raw) {
+  return STDERR_MERGE_TAIL.test(stage0Raw) || blank[stage0.end + 1] === "&";
+}
+
+// Ends a rewrite's group body with the command's real exit code. It goes on its OWN LINE because the reader
+// chain is sliced from the ORIGINAL text and can end in a comment, which runs to end-of-line.
+const EXIT_RESTORE = "\n( exit $__tg_ec ); ";
+
+/** The command with `clause` replaced by a brace group around `body`, which ends in a newline or
+ *  `EXIT_RESTORE`. What followed the pipeline (`&&`, `||`, `;`, a backgrounding `&`) now applies to the
+ *  group, which carries the real exit code: appended after the reader, a `&& next` would test the reader's
+ *  status instead. */
+function groupRewrite(command, clause, body) {
   const prefix = command.slice(0, clause.start);
   const rawSuffix = command.slice(clause.end);
   const suffix = /^[\s;]*$/.test(rawSuffix) ? "" : rawSuffix; // a bare trailing `;` would yield `; ;` — a bash syntax error
-  // The exit-code restore goes on its OWN LINE, never after a `;`. The reader chain and the suffix are
-  // sliced from the ORIGINAL text, so either can end in a COMMENT (`pnpm check | tail -30 # note`) — and a
-  // comment runs to end-of-line, which swallowed `; ( exit $__tg_ec )` whole. Measured 2026-08-14: the
-  // rewritten command returned 0 for a harness that exited 3, i.e. the rewrite reintroduced the exact
-  // red-reported-as-green failure this rule exists to prevent. A newline ends the comment; nothing else
-  // about the template changes.
-  return {
-    log,
-    clause,
-    command: `${prefix}${harness} > ${log} 2>&1; __tg_ec=$?; < ${log} ${readerChain}${suffix}\n( exit $__tg_ec )`,
-  };
+  const joiner = prefix === "" || /\s$/.test(prefix) ? "" : " ";
+  return `${prefix}${joiner}{ ${body}}${suffix}`;
 }
 
 /** Which known artifact (if any) a harness clause's stage0 writes, as `{kind: "verify"}` or
@@ -1287,10 +1149,10 @@ function classifyHarnessFamily(stage0Blank) {
   return null;
 }
 
-/** `pnpm check:show`'s flags for a reader chain that used to grep/tail/head the harness's raw stdout —
- *  `--stage <name>` when a reader's grep pattern is shaped like one stage id (owner directive example:
- *  "grepping one stage"), else the terse `--errors-only` view (owner directive's other example) that
- *  covers tail/head/wc/a non-stage-shaped grep alike. Reads the PATTERN off `command` (the raw text), not
+/** `pnpm check:show`'s flags for a reader chain written to grep/tail/head the harness's raw stdout —
+ *  `--stage <name>` when a reader's grep pattern is shaped like one stage id, else the terse
+ *  `--errors-only` view that covers tail/head/wc/a non-stage-shaped grep alike. Reads the PATTERN off
+ *  `command` (the raw text), not
  *  `blank` — a quoted grep pattern is blanked to spaces there, so the stage-id text only survives in the
  *  original. */
 function checkShowFlags(command, blank, readers) {
@@ -1307,7 +1169,7 @@ function checkShowFlags(command, blank, readers) {
   return "--errors-only";
 }
 
-/** Owner directive (2026-09-29): a verify-family or known-artifact test harness piped into a reader is
+/** A verify-family or known-artifact test harness piped into a reader is
  *  rewritten against the REAL artifact the harness already writes on disk — never a private log — because
  *  that artifact exists regardless of where the harness's stdout goes. Verify-family (`pnpm check[:x]`,
  *  `pnpm verify`) gets `pnpm check:show` in place of the whole reader chain: it is a structured view over
@@ -1328,7 +1190,7 @@ function artifactPipeRewrite(command, blank, clauses) {
   const [clause] = piped;
   const [stage0, ...readers] = clause.stages;
   const stage0Blank = blank.slice(stage0.start, stage0.end);
-  if (UNSAFE_STAGE0.test(stripFdMerges(stage0Blank))) {
+  if (UNSAFE_STAGE0.test(stripFdMerges(stage0Blank)) || hasInnerFdMerge(stage0Blank)) {
     return null;
   }
   const family = classifyHarnessFamily(stage0Blank);
@@ -1344,22 +1206,25 @@ function artifactPipeRewrite(command, blank, clauses) {
       return null;
     }
   }
+  if (clauseHasHeredoc(command, clause) || clauseContinues(command, clause)) {
+    return null;
+  }
   const harness = command.slice(stage0.start, stage0.end).replace(STDERR_MERGE_TAIL, "").trim();
-  const prefix = command.slice(0, clause.start);
-  const rawSuffix = command.slice(clause.end);
-  const suffix = /^[\s;]*$/.test(rawSuffix) ? "" : rawSuffix;
-  const target = family.kind === "verify" ? `pnpm check:show ${checkShowFlags(command, blank, readers)}` : family.artifact;
-  const readerReplacement = family.kind === "verify" ? target : `< ${target} ${command.slice(readers[0].start, clause.end).trim()}`;
-  // Same exit-code-restore-on-its-own-line rule as pipeRewrite: the suffix/reader chain is sliced from the
-  // ORIGINAL text and can end in a comment, which runs to end-of-line and would swallow a `;`-joined restore.
-  return {
-    command: `${prefix}${harness}; __tg_ec=$?; ${readerReplacement}${suffix}\n( exit $__tg_ec )`,
-    target,
-    clause,
-  };
+  const readerStatus = chainTestsReader(command, clause);
+  if (family.kind === "verify") {
+    if (readerStatus) {
+      return null; // `pnpm check:show` replaces the reader whose status the chain tests; the private-log rewrite keeps it
+    }
+    const target = `pnpm check:show ${checkShowFlags(command, blank, readers)}`;
+    return { command: groupRewrite(command, clause, `${harness}; __tg_ec=$?; ${target}${EXIT_RESTORE}`), target, clause, readerStatus };
+  }
+  const readerChain = command.slice(readers[0].start, clause.end).trim();
+  const target = family.artifact;
+  const body = readerStatus ? `${harness}; < ${target} ${readerChain}\n` : `${harness}; __tg_ec=$?; < ${target} ${readerChain}${EXIT_RESTORE}`;
+  return { command: groupRewrite(command, clause, body), target, clause, readerStatus };
 }
 
-/** Owner directive (2026-09-29): a harness redirected to a file (`> x.log 2>&1`, `&> x.log`) or piped into
+/** A harness redirected to a file (`> x.log 2>&1`, `&> x.log`) or piped into
  *  a pure capture sink (`| tee x.log`, no further filter) writes its real artifacts to `reports/` on disk
  *  regardless — there is nothing in the private copy worth keeping, so this drops the redirect/tee outright
  *  and runs the harness bare. Unlike `pipeRewrite`/`artifactPipeRewrite` there is no reader chain to
@@ -1380,6 +1245,12 @@ function bareHarnessRewrite(command, blank, clauses, headRe) {
     return null;
   }
   const [clause] = candidates;
+  if (blank[clause.end] === "&" && blank[clause.end + 1] !== "&") {
+    return null; // backgrounded: dropping the redirect would send a background job's output to the tool
+  }
+  if (clauseContinues(command, clause)) {
+    return null;
+  }
   const [stage0, ...readers] = clause.stages;
   const isSafeTeeSink = (r) => {
     const rBlank = blank.slice(r.start, r.end);
@@ -1408,20 +1279,80 @@ function bareHarnessRewrite(command, blank, clauses, headRe) {
   return { command: `${prefix}${harness}${suffix}`, clause };
 }
 
+/** The git subcommand a stage runs, or null when the stage does not run git. The exec head is found in the
+ *  BLANKED stage, so a comment or quoted text never reads as git; the options are walked on the RAW stage's
+ *  shell words, where a quoted value with a space (`-C "/w t"`) is one word. */
+function gitSubcommand(stageBlank, stageRaw) {
+  if (!GIT_EXEC_HEAD.test(stageBlank)) {
+    return null;
+  }
+  // stripOperandTail: a group's `(`/`)` is glued to the raw word, so `(git commit)` ends in `commit)`
+  const words = shellWords(stageRaw).map((w) => stripOperandTail(w).value);
+  let at = wrapperPrefixEnd(words);
+  if (words[at] !== "git") {
+    return null;
+  }
+  at += 1;
+  while (words[at]?.startsWith("-") === true) {
+    at += GIT_VALUE_OPTIONS.has(words[at]) ? 2 : 1;
+  }
+  return words[at] ?? null;
+}
+
+/** A `pnpm doc` stage as `{verb, help}` (`verb` is `""` for a bare `pnpm doc`), or null when the stage is
+ *  not one. Reads through a case-arm pattern, compound-command lead words, redirects and pnpm's own
+ *  options ahead of `doc`. */
+function docCall(stageBlank, stageRaw) {
+  // Every blanking keeps the length, so a token's offset here is its offset in `stageRaw`.
+  const text = stripCompoundLead(stageBlank.replace(CASE_ARM_LEAD, (lead) => " ".repeat(lead.length))).replace(REDIRECT_TOKEN, (r) => " ".repeat(r.length));
+  const { tokens, index, exec } = execHead(text);
+  if (exec === undefined || !/^(?:\S*\/)?pnpm$/.test(exec[0])) {
+    return null;
+  }
+  const rest = tokens.slice(index + 1).map((t) => t[0]);
+  let at = 0;
+  while (rest[at]?.startsWith("-") === true) {
+    at += PNPM_VALUE_OPTIONS.has(rest[at]) ? 2 : 1;
+  }
+  if (rest[at] === "run") {
+    at += 1;
+  }
+  if (rest[at] !== "doc") {
+    return null;
+  }
+  // The blanked stage proves which token is the `doc` script; its arguments are read off the raw text after it.
+  const doc = tokens[index + 1 + at];
+  const args = docArgs(stageRaw.slice(doc.index + doc[0].length));
+  return { verb: args.find((w) => !w.startsWith("-")) ?? "", help: args.length === 2 && (args[1] === "--help" || args[1] === "-h") };
+}
+
+/** The raw text after a `pnpm … doc` script word, as shell words: a quoted argument is still one word
+ *  (`'set'` is `set`), so a quoted verb still writes and a quoted title still counts. Redirects and their
+ *  targets are not arguments. */
+function docArgs(argsRaw) {
+  const words = shellWords(argsRaw);
+  const args = [];
+  for (let i = 0; i < words.length; i += 1) {
+    if (REDIRECT_OPERATOR_ONLY.test(words[i].raw)) {
+      i += 1;
+    } else if (!REDIRECT_WORD.test(words[i].raw)) {
+      args.push(stripOperandTail(words[i]).value); // `(pnpm doc index)`: the group's `)` is glued to the verb
+    }
+  }
+  return args;
+}
+
 // The same four spellings, anchored at a clause head so the rewrite knows exactly what to replace. Its
-// match LENGTH is now what the argument slice is taken from (see playwrightRewrite): the `cli.js` form
-// carries no `playwright test` substring to search for, and a length-based slice is the one that reads the
-// same for all four.
-// THE WRAPPER GROUP IS THE SHARED VOCABULARY (2026-09-11, #1946) — it named `timeout N` alone, so an
-// `env -C <wt> …` or `nice -n 19 …` raw CT run reached rule 6 and DENIED for want of a rewrite it should
-// have got. Capturing the whole prefix carries it verbatim into the sanctioned call, which is how
-// `env -C <wt> ./node_modules/.bin/playwright test <paths>` becomes `env -C <wt> pnpm test:ct <paths>` —
-// the exact spelling .claude/skills/lane/SKILL.md prescribes. Always matches (possibly empty).
+// match LENGTH is what the argument slice is taken from (see playwrightRewrite): the `cli.js` form carries
+// no `playwright test` substring to search for, and a length-based slice reads the same for all four.
+// The wrapper group is the shared vocabulary, captured whole and carried verbatim into the sanctioned call:
+// `env -C <wt> ./node_modules/.bin/playwright test <paths>` becomes `env -C <wt> pnpm test:ct <paths>`, the
+// spelling .claude/skills/lane/SKILL.md prescribes. The group always matches (possibly empty).
 const PW_CLAUSE_HEAD = new RegExp(
   String.raw`^\s*(${WRAP_PREFIX})(?:(?:npx|pnpm(?:\s+exec)?)\s+)?(?:(?:\S*\/)?playwright|node\s+\S*@playwright\/test\/cli\.js)\s+test\b`,
 );
-// Playwright flags that take their value as a SEPARATE word. Load-bearing for the rewrite (#1943 F6): the
-// rewritten `pnpm test:ct` runs `scoped-test`, whose preflight reads every non-flag operand carrying a `/`
+// Playwright flags that take their value as a SEPARATE word. The rewritten `pnpm test:ct` runs
+// `scoped-test`, whose preflight reads every non-flag operand carrying a `/`
 // (or a test-file extension) as a PATH CLAIM (`_shared/scoped-run-paths.ts` isPathShaped) — so a forwarded
 // `--output reports/ct-out` or `-g chat/composer` turns a run that would have worked into exit 3
 // (UNRESOLVED) or exit 2 (BARREN). The `=`-joined spelling starts with `-` and is never read as a claim,
@@ -1451,13 +1382,10 @@ const PW_PATH_SHAPED = /^[^-].*(?:\/|\.[cm]?[jt]sx?$)/u;
 /** Rebuild a raw CT invocation into the sanctioned script call (`pnpm test:ct <args>`), or null if too
  *  complex. Prefix clauses (a `cd <repo>` etc.) are kept verbatim; the playwright clause must be LAST,
  *  unpiped, and shaped exactly `[timeout N] [npx|pnpm exec] playwright test …` (the timeout wrapper is
- *  preserved). The `-c/--config` flag is dropped because the script owns the config.
- *  2026-09-11: the target was `rm -rf <root>/playwright/.cache && npx playwright test -c
- *  <root>/playwright-ct.config.ts …`. Both halves went stale at once — the CT build cache is now minted
- *  per invocation under `.cache/ct/build-<id>` (ct-runner-lock.ts §1), so clearing `playwright/.cache`
- *  cleans a directory nothing reads, and the raw runner takes neither the exclusion lock nor a host-wide
- *  slot. The old recipe is therefore no longer a PASS either: it is rewritten like any other raw run,
- *  which is why the cache-clear early-bail that used to sit here is gone. */
+ *  preserved). The `-c/--config` flag is dropped because the script owns the config. A cache-clearing
+ *  `rm -rf <root>/playwright/.cache && npx playwright test …` is rewritten like any other raw run: the CT
+ *  build cache is minted per invocation under `.cache/ct/build-<id>` (ct-runner-lock.ts §1), so that
+ *  directory is read by nothing, and the raw runner takes neither the exclusion lock nor a host slot. */
 function playwrightRewrite(command, blank, clauses) {
   if (blank.includes("||")) {
     return null;
@@ -1515,23 +1443,28 @@ function collectGrepWarn(command, blank, clauses, contexts) {
 }
 
 // ── the hard floor ──
-// Load-bearing ONLY because the pass-through became `allow` (see the box at the top). A hook `allow`
-// bypasses the whole permission system — including the auto-mode CLASSIFIER that is the owner's real
-// gate — so shapes that used to reach that classifier now reach nothing. These four are the ones a
-// probe found falling through: measured 2026-08-03, `sudo rm -rf /etc` and `curl … | bash` both
-// classified as clean passes. This floor puts them back in front of a human.
+// Needed because the pass-through is `allow`: a hook `allow` bypasses the whole permission system,
+// including the auto-mode CLASSIFIER that is the owner's real gate, so `sudo rm -rf /etc` or `curl … | bash`
+// would reach nothing. This floor puts them back in front of a human.
 //
 // It is deliberately SMALL. It is not a security model and it cannot become one — a hand-written
 // pattern list will always lose to a determined bypass. Its job is to stop an ACCIDENT (a wrong path
 // in an rm, a copy-pasted install one-liner), which is the realistic failure here.
 const SUDO_HEAD = /^\s*(?:sudo|doas)\b/;
+// The words that can open a stage without being its command: a subshell or group opener, or a reserved word
+// of an enclosing `if`/loop (`do rm -rf /`, `(sudo ls)`, `{ rm -rf /; }`). Blanked to spaces, never removed,
+// so every index into the stage still points at the same character of the raw command.
+const COMPOUND_LEAD = /^(?:\s*(?:\(|\{(?=\s)|(?:do|then|else|elif|if|while|until|time|!)(?=\s)))+/;
+
+function stripCompoundLead(text) {
+  return text.replace(COMPOUND_LEAD, (lead) => " ".repeat(lead.length));
+}
 const NET_FETCH_HEAD = /^\s*(?:\S*\/)?(?:curl|wget)\b/;
 // shells + `node -e` only. `python3 -c` is a sanctioned everyday tool here and is NOT a sink.
 const SHELL_SINK_HEAD = /^\s*(?:\S*\/)?(?:sh|bash|zsh|dash|ksh)\b/;
 // node as a pipe SINK executes STDIN as a program — bare `node`, `node -`, or node with only flags —
-// byte-equivalent to `curl | sh` (owner ruling #47 replaced the old `node -e`-only spelling, which had
-// it INVERTED: `-e`/`-p` run LOCAL, command-visible code and read stdin as DATA, while the bare forms
-// run whatever the network sent). The threat this floor stops is NETWORK-authored code; an `-e` body
+// byte-equivalent to `curl | sh`. `-e`/`-p` run LOCAL, command-visible code and read stdin as DATA, while
+// the bare forms run whatever the network sent. The threat this floor stops is NETWORK-authored code; an `-e` body
 // that chooses to eval(stdin) is still LOCAL authorship — the same power any allowed script already
 // has, and not this floor's business. Tokens are read off the RAW stage so a QUOTED script operand
 // (`node "x.js"`) is seen as file execution rather than misread as a bare-node sink.
@@ -1570,12 +1503,12 @@ function detectHardFloor(blank, clauses, command) {
   for (const clause of clauses) {
     for (let i = 0; i < clause.stages.length; i += 1) {
       const stage = clause.stages[i];
-      const text = blank.slice(stage.start, stage.end);
+      const text = stripCompoundLead(blank.slice(stage.start, stage.end));
       if (SUDO_HEAD.test(text)) {
         return { decision: "ask", rule: "sudo", reason: REASONS.sudo };
       }
-      // a network fetch feeding a shell — no legitimate sighting in a 133k-command corpus. The node
-      // sink is judged on the RAW stage (quoted script operands must read as file execution, #47).
+      // a network fetch feeding a shell has no legitimate use. The node sink is judged on the RAW stage,
+      // so a quoted script operand reads as file execution.
       const next = clause.stages[i + 1];
       if (
         NET_FETCH_HEAD.test(text) &&
@@ -1657,7 +1590,7 @@ function collectStageWarns(command, blank, clauses, contexts) {
   let rmrf = false;
   for (const clause of clauses) {
     for (const stage of clause.stages) {
-      const text = blank.slice(stage.start, stage.end);
+      const text = stripCompoundLead(blank.slice(stage.start, stage.end));
       vitest ||= VITEST_HEAD.test(text);
       if (SQLITE_HEAD.test(text) && !SQLITE_SAFE_HINT.test(command.slice(stage.start, stage.end))) {
         sqlite = true;
@@ -1667,14 +1600,14 @@ function collectStageWarns(command, blank, clauses, contexts) {
         // The head is found in the BLANKED text (so a quoted `rm -rf` in an echo argument is never one) and
         // covers the COMMAND WORD only; flags and targets are then read off the RAW command, which is the
         // only place a quoted one still exists. Split on whitespace with the quote characters left ON,
-        // deliberately: joining a quoted span into one word would make `rm -rf /tmp/a "/tmp/b c"` — which
-        // asks today on its `c"` token — start passing, and this rule may only ever tighten.
+        // deliberately: joining a quoted span into one word would let `rm -rf /tmp/a "/tmp/b c"`, which
+        // asks on its `c"` token, pass.
         const tokens = command
           .slice(stage.start + rm[0].length, stage.end)
           .split(/\s+/)
           .filter((t) => t.length > 0);
         // An `rm` carrying no RECURSIVE flag is not this rule (`rm one-file.txt` and `rm -f one-file.txt`
-        // unlink a single named path — owner ruling #51): the flags are searched across ALL tokens rather
+        // unlink a single named path): the flags are searched across ALL tokens rather
         // than required adjacent to the head, since `rm packages/x -rf` is the same deletion.
         if (tokens.some((t) => RM_RECURSIVE_TOKEN.test(t))) {
           const targets = tokens.filter((t) => !t.startsWith("-") && !RM_FLAG_TOKEN.test(t));
@@ -1696,9 +1629,8 @@ function collectStageWarns(command, blank, clauses, contexts) {
   if (rmrf) {
     contexts.push(CONTEXTS.rmRf);
   }
-  // returned so the caller can ESCALATE: as warns these two were fine while the pass-through was a
-  // defer (the permission layer still saw them). Now that pass means allow, a warn would let an
-  // unsafe-target `rm -rf` and a bare sqlite3 on the LIVE db run with nothing in front of them.
+  // returned so the caller can ESCALATE: pass means allow, so a warn alone would let an unsafe-target
+  // `rm -rf` or a bare sqlite3 on the LIVE db run with nothing in front of them.
   return { sqlite, rmrf };
 }
 
@@ -1708,19 +1640,15 @@ function collectStageWarns(command, blank, clauses, contexts) {
 // regex hint → token scan → path resolve → stat (size cap) → `git ls-files` (tracked = reviewed code,
 // stop) → read → classify. Nothing spawns unless a stage really names a resolvable script file.
 
-/** A GROUP OPENER is not part of the command it opens (2026-09-11). `(setsid nohup bash -c 'git stash' &)`
- *  tokenised as `(setsid` — neither a wrapper nor a shell — so the exec head was never found and the
- *  QUOTED COMMAND INSIDE IT WAS NEVER EXTRACTED: that exact spelling classified `pass/null` on HEAD while
- *  the identical `setsid nohup bash -c 'git stash' &` denied. A subshell is how a lane backgrounds work,
- *  so this was a live hole in the destroy-uncommitted ban, not a curiosity. Blanked to a SPACE, never
+/** A GROUP OPENER is not part of the command it opens: `(setsid nohup bash -c 'git stash' &)` would
+ *  tokenise as `(setsid`, neither a wrapper nor a shell, so the exec head is never found and the quoted
+ *  command inside is never extracted. A subshell is how a lane backgrounds work. Blanked to a SPACE, never
  *  removed: every index in this file points back into the original text. Only a WORD-INITIAL `(`/`{`
  *  counts, which is what keeps `$( … )` (handled by its own extraction pass) and `${VAR}` untouched. */
 const GROUP_OPENER = /(^|\s)([({]+)/g;
-// …AND NEITHER IS A CLOSER (2026-09-11, #1943 F2). The opener fix left the other end glued to the LAST
-// word, so `(bash /tmp/x.sh)` passed while `(bash /tmp/x.sh )` denied — one character apart. In the
-// BLANKED views this is what hid the stage from the cheap pre-filter and the exec head: `.sh)` fails
-// SCRIPT_STAGE_HINT's `\.sh(?:\s|$)`, `bash)` fails its shell arm (the pipe-sink shape), and
-// `execHead`'s token for `(/tmp/x.sh)` did not end in `.sh`. A closer run is blanked when what follows is
+// …AND NEITHER IS A CLOSER. Glued to the LAST word, it would hide the stage from the cheap pre-filter and
+// the exec head: `.sh)` fails SCRIPT_STAGE_HINT's `\.sh(?:\s|$)`, `bash)` fails its shell arm (the
+// pipe-sink shape), and `execHead`'s token for `(/tmp/x.sh)` does not end in `.sh`. A closer run is blanked when what follows is
 // whitespace, end, another separator, or a glued redirect (`)2>&1`) — never mid-word, so a path that
 // genuinely contains `)` keeps it. Blanked, never removed: every index in this file points back into the
 // original text. (A `)` that closes a `$( … )` is blanked here too; both consumers of this view look only
@@ -1732,21 +1660,16 @@ function ungroup(text) {
 }
 
 /** The same fix on the RAW side. `shellWords` treats `)` as an ordinary character, so the operand word of
- *  `(bash /tmp/x.sh)` is `/tmp/x.sh)` — which resolves, statSync's ENOENT, and returns the fail-open
- *  "the command would fail anyway" silence, i.e. the body is never read. Every operand this guard resolves
+ *  `(bash /tmp/x.sh)` is `/tmp/x.sh)`, which would stat as ENOENT and fail open unread. Every operand this guard resolves
  *  goes through `resolveScriptOperand`, so the strip lives there and `commandWrites` keys its map by the
  *  same stripped path (the write-then-run pair `(printf … > w.sh); bash w.sh` needs both sides to agree).
  *  Stripped only when the VALUE ends in the same noise the RAW word does — a quoted `"/tmp/a)b"` ends its
  *  raw word with the QUOTE, so its `)` is part of the path and survives.
  *
- *  A CLOSER IS NOT REQUIRED, since #1946. The pattern used to be `[)}]+…`, i.e. a group closer had to come
- *  FIRST, so a BACKGROUNDING `&` glued to the operand was never stripped and `bash /tmp/x.sh&` — no
- *  subshell anywhere — resolved `/tmp/x.sh&`, ENOENT'd, and PASSED with the body unread. `(bash
- *  /tmp/x.sh&)` reached only the grouped `ask` for the same reason, one character from the `( … .sh &)`
- *  that denies. `&` is the single commonest thing a lane glues to a scratch script (it is how work is
- *  backgrounded), which made this the widest remaining hole in the destroy-uncommitted ban. Every
- *  alternative consumes at least one character, so the `+` cannot loop on an empty match, and none of the
- *  classes appears in an ordinary path — a word with no trailing noise does not match at all. */
+ *  A CLOSER IS NOT REQUIRED: a BACKGROUNDING `&` glued to the operand is noise too, so `bash /tmp/x.sh&`
+ *  resolves `/tmp/x.sh` and its body is read. `&` is the commonest thing a lane glues to a scratch script.
+ *  Every alternative consumes at least one character, so the `+` cannot loop on an empty match, and none of
+ *  the classes appears in an ordinary path — a word with no trailing noise does not match at all. */
 const OPERAND_TAIL_NOISE = /(?:[)}]|[&;]|\d*>>?&?\d*|>+\S*)+$/;
 // The opener half of the same word problem: `ungroup` blanks a word-initial `(` in the BLANKED view, which
 // is what lets `execHead` find the head of `(/tmp/x.sh)` — but the RAW word is still `(/tmp/x.sh)`, and for
@@ -1771,7 +1694,7 @@ function stripOperandTail(word) {
 /** The executable token of a stage, read off the BLANKED text (so a shell name in a comment, a heredoc
  *  body or a quoted argument is never mistaken for one) with subshell openers and the whole WRAPPER PREFIX
  *  skipped — env assignments plus any stack of COMMAND_WRAPPERS and their own flags, through the one
- *  shared reader (`wrapperPrefixEnd`, #1946). Returns the token list too, so a caller can look at the
+ *  shared reader (`wrapperPrefixEnd`). Returns the token list too, so a caller can look at the
  *  flags that follow. */
 function execHead(text) {
   const tokens = [...ungroup(text).matchAll(/\S+/g)];
@@ -1784,12 +1707,11 @@ function execHead(text) {
  *  would build BEFORE expansion, `raw` is the text as written (so a redirect is still recognisable), `start`
  *  is the word's offset in `text`, and `unterminated` flags a quote that never closed.
  *
- *  WHY IT EXISTS (#631): an interpreter's operand is a PATH, and a path is the same file quoted or not. The
- *  operand used to be read off the BLANKED text, where a quoted path is a run of spaces — so `bash
- *  "$SP/run.sh"` resolved to NOTHING and `bash "/abs/run.sh" arg` resolved to the TRAILING ARGUMENT, and in
- *  both cases the guard returned a content verdict on a body it never opened. Reading the operand off the
- *  RAW stage is safe for the reason it always was: the exec head is still found in the
- *  BLANKED text, so a comment, a heredoc body or a quoted argument never conjures an invocation. */
+ *  WHY IT EXISTS: an interpreter's operand is a PATH, and a path is the same file quoted or not. In the
+ *  BLANKED text a quoted path is a run of spaces, so `bash "$SP/run.sh"` would resolve to nothing and
+ *  `bash "/abs/run.sh" arg` to the trailing argument. Reading the operand off the RAW stage is safe because
+ *  the exec head is still found in the BLANKED text, so a comment, a heredoc body or a quoted argument never
+ *  conjures an invocation. */
 export function shellWords(text) {
   const words = [];
   let cur = null;
@@ -1872,14 +1794,11 @@ function resolveScriptOperand(rawWord, vars) {
   if (rawWord.unterminated) {
     return { path: null, spelling: rawWord.raw };
   }
-  // A GROUP CLOSER OR A BACKGROUNDING `&` GLUED TO THE OPERAND IS NOT PART OF THE PATH (#1943 F2,
-  // widened past the closer-first requirement by #1946) — see stripOperandTail.
+  // A GROUP CLOSER OR A BACKGROUNDING `&` GLUED TO THE OPERAND IS NOT PART OF THE PATH — see stripOperandTail.
   const word = stripOperandTail(rawWord);
   const expanded = expandAssigned(word.value, vars);
-  // `$HOME`/`${HOME}` resolve exactly like the `~/` this already expanded — same variable, same value, and
-  // the comment beside HOME_PREFIX has always SAID they are the same file. They were not: `. "$HOME/.cargo/
-  // env"` was an `ask` for spelling a routine path the long way (1 corpus sighting, and the ask is a DENY
-  // for a lane). `expandAssigned` runs first, so a command that assigns HOME itself still wins.
+  // `$HOME`/`${HOME}` resolve exactly like the `~/` this already expanded: the same variable and value.
+  // `expandAssigned` runs first, so a command that assigns HOME itself still wins.
   const home = HOME_DIR === null ? expanded : expanded.replace(HOME_PREFIX, HOME_DIR).replace(HOME_VAR, HOME_DIR);
   return { path: home.length === 0 || SCRIPT_UNRESOLVED.test(home) ? null : home, spelling: word.raw };
 }
@@ -1893,10 +1812,9 @@ function stageHeredoc(command, units, stage) {
 
 /** Every FILE this command writes, as `resolved path → what will land there`. The value is the text when
  *  the command itself shows it (a heredoc body, a `printf`/`echo` literal) and null when it does not (a
- *  generator, a fetch, a copy). Only consulted for a path the SAME command also executes (#634): there the
- *  bytes on disk are stale or absent by construction, so they are the wrong thing to judge — 258 corpus
- *  commands write-and-run in one call, 246 of them the house's own `cat > x.sh <<'EOF' … EOF; bash x.sh`
- *  wrapper idiom, so refusing the SHAPE would wall the idiom while reading the DISK judges bytes that are
+ *  generator, a fetch, a copy). Only consulted for a path the SAME command also executes: there the bytes
+ *  on disk are stale or absent by construction. The house's own `cat > x.sh <<'EOF' … EOF; bash x.sh`
+ *  wrapper idiom is this shape, so refusing it would wall the idiom, and reading the DISK would judge bytes
  *  about to be replaced. Order is deliberately not checked: a write anywhere in the command makes the
  *  file's disk content untrustworthy for this call. */
 function commandWrites(command, blank, clauses, ctx) {
@@ -1974,10 +1892,9 @@ function literalWriterText(words, vars) {
  *                      into an ask rather than silence.
  *  The executable is read off the BLANKED text; operands off the RAW words of the same stage.
  *
- *  THE CHANNEL IS NOT THE OPERAND (#634): an interpreter takes its program from an operand, from stdin
- *  (`bash < f`, `cat f | bash`), from a heredoc, or from the current shell (`. f`) — and the operand
- *  resolver saw only the first, so the rest reached execution unread. Corpus frequency of each closed
- *  here, over 135,505 calls: stdin-file 0, heredoc-to-shell 0, pipe-to-shell 0, dot-source 325. */
+ *  THE CHANNEL IS NOT THE OPERAND: an interpreter takes its program from an operand, from stdin
+ *  (`bash < f`, `cat f | bash`), from a heredoc, or from the current shell (`. f`), and each is judged
+ *  where the program actually comes from. */
 export function scriptTargets(command, blank, clauses) {
   const found = [];
   const units = heredocUnits(command, blankComments(command, blankQuoted(command)));
@@ -1990,7 +1907,7 @@ export function scriptTargets(command, blank, clauses) {
       if (!SCRIPT_STAGE_HINT.test(text)) {
         continue;
       }
-      // GROUPED (#1943 F2): this stage carried a `(`/`{`/`)`/`}` that had to be blanked before its head and
+      // GROUPED: this stage carried a `(`/`{`/`)`/`}` that had to be blanked before its head and
       // operand could be read. Recorded on every target the stage produces, because a MIS-PARSE in grouped
       // text presents as a path that does not exist — and ENOENT is the guard's fail-open silence.
       const grouped = text !== stageBlank;
@@ -2019,8 +1936,8 @@ export function scriptTargets(command, blank, clauses) {
       // stdout: unknowable, so it asks.
       if (isSource) {
         // The FIRST non-flag word, read directly rather than through shellFileOperand: that helper skips
-        // any word beginning with `<` as a redirect, which is exactly how `source <(grep … .env)` used to
-        // slide past — the psub was skipped and grep's PATTERN was returned as the "path".
+        // any word beginning with `<` as a redirect, so `source <(grep … .env)` would skip the psub and
+        // return grep's PATTERN as the "path".
         const first = words.slice(head + 1).find((w) => !(w.value.startsWith("-") && w.value !== "-" && w.value !== "--"));
         if (first === undefined) {
           continue; // `source` with no operand: the shell errors out, nothing to judge
@@ -2080,8 +1997,8 @@ export function scriptTargets(command, blank, clauses) {
  *  directory is in no repository (or git failed). The COMMON dir — not `--show-toplevel` — because a lane
  *  WORKTREE has a toplevel of its own while sharing main's common dir, and a worktree's tracked scripts
  *  must keep reading as reviewed or every lane's helper wrappers start getting refused. Git prints this
- *  relative to the cwd inside an ordinary tree (`.git`, `../.git`) and absolute from a linked worktree
- *  (probed both ways, 2026-08-24), so it is resolved against `dir` before canonicalizing. Memoized: one
+ *  relative to the cwd inside an ordinary tree (`.git`, `../.git`) and absolute from a linked worktree,
+ *  so it is resolved against `dir` before canonicalizing. Memoized: one
  *  hook process classifies at most a handful of paths, and `oneScriptVerdict` asks per target. */
 const gitCommonDirCache = new Map();
 function gitCommonDir(dir) {
@@ -2119,13 +2036,9 @@ function projectRepoIdentity() {
 /** Is this path a file THIS PROJECT's git tracks? Tracked scripts are reviewed code and pass through to the
  *  normal rules — classifying their bodies would re-lint the repository on every call.
  *
- *  THE REPOSITORY IS PINNED (#633, 2026-08-24). This used to ask `git ls-files` in the FILE'S OWN
- *  directory, so ANY repository answered — and "reviewed" was therefore forgeable in two commands:
- *  `git init /tmp/w; git -C /tmp/w add evil.sh` flipped the identical body from `deny/script:git-destructive`
- *  to `pass/null`, i.e. an attacker- or agent-created directory turned the guard off for the file inside it
- *  (the same class as AGENT-TOOLING-01, and it fails OPEN: a PreToolUse `allow` bypasses the permission
- *  flow, so nothing else looks either). Tracked-ness now means tracked in the repository THIS HOOK belongs
- *  to, compared by `--git-common-dir` so every registered worktree of it still counts (a lane's
+ *  THE REPOSITORY IS PINNED. If ANY repository could answer, "reviewed" would be forgeable in two commands:
+ *  `git init /tmp/w; git -C /tmp/w add evil.sh`. Tracked-ness means tracked in the repository THIS HOOK
+ *  belongs to, compared by `--git-common-dir` so every registered worktree of it still counts (a lane's
  *  `.claude/worktrees/<lane>/…` tracked wrapper is reviewed code exactly like main's).
  *
  *  Fails toward UNTRACKED (read the body) on any git error, a foreign repository, or an unknowable project
@@ -2221,10 +2134,10 @@ function textProgramVerdict(describe, text, ctx, depth) {
 function oneScriptVerdict(operand, ctx, depth, writes, grouped = false) {
   const base = path.isAbsolute(operand) ? "/" : (ctx.cwd ?? ctx.projectDir ?? process.cwd());
   const file = path.resolve(base, operand);
-  // WRITTEN BY THIS COMMAND (#634) — judge what will LAND there, never what is on disk. `printf '…' > x.sh;
-  // bash x.sh` passed clean because the file did not exist yet at classify time, and the re-run case is
-  // worse: the guard reads the PREVIOUS body and the command then overwrites it. When the writer's output
-  // is not visible in the command text there is nothing to read at all, so it asks.
+  // WRITTEN BY THIS COMMAND — judge what will LAND there, never what is on disk. For `printf '…' > x.sh;
+  // bash x.sh` the file may not exist yet at classify time, or holds a PREVIOUS body the command is about
+  // to overwrite. When the writer's output is not visible in the command text there is nothing to read,
+  // so it asks.
   const written = writes?.get(file);
   if (written !== undefined) {
     return written.content === null
@@ -2237,12 +2150,9 @@ function oneScriptVerdict(operand, ctx, depth, writes, grouped = false) {
     if (!stat.isFile()) {
       return null;
     }
-    // TRACKED FIRST, THEN THE SIZE CAP (#617). These two were the other way round, so a TRACKED file big
-    // enough to clear the cap was refused for its SIZE — a limit that reads as a policy refusal on
-    // reviewed code, while the same spelling on a SMALL tracked file passes silently. The cap
-    // exists so the guard never waves through an UNREVIEWED body it could not read; a tracked file is
-    // reviewed by definition and is skipped whatever its size, so asking about it teaches a lane that the
-    // sanctioned spelling is refused and pushes it onto an unniced ad-hoc one.
+    // TRACKED FIRST, THEN THE SIZE CAP. The cap exists so the guard never waves through an UNREVIEWED body
+    // it could not read; a tracked file is reviewed by definition and is skipped whatever its size, and
+    // refusing it for size would push a lane off the sanctioned spelling.
     if (isTrackedScript(file)) {
       return null; // reviewed code — the normal rules judge the command line, nothing more
     }
@@ -2251,8 +2161,7 @@ function oneScriptVerdict(operand, ctx, depth, writes, grouped = false) {
     }
     // Past the read depth: there IS an unreviewed body here and the guard is choosing not to open it, so
     // say so rather than wave it through. Reached only for a resolvable, untracked, readable file — a
-    // wrapper ending in `exec bash scripts/dev/stack.sh` (tracked) is not this, and must not be asked
-    // about (25 such corpus commands were false-positive asks before this guard clause).
+    // wrapper ending in `exec bash scripts/dev/stack.sh` (tracked) is not this, and must not be asked about.
     if (depth >= SCRIPT_DEPTH_CAP) {
       return { decision: "ask", rule: "script-depth-cap", reason: REASONS.scriptDepthCap(file), contexts: [] };
     }
@@ -2261,14 +2170,11 @@ function oneScriptVerdict(operand, ctx, depth, writes, grouped = false) {
     // missing / unreadable / a directory: the command would fail anyway, so the guard has nothing to
     // judge and says so by staying silent (fail-open — the guard breaking must never block work).
     //
-    // …EXCEPT FROM A GROUPED CLAUSE (2026-09-11, #1943 F2). The fail-open ruling SURVIVES — its INPUT
-    // changed: it assumes the path the guard resolved is the path the SHELL will run, and inside a
-    // `( … )`/`{ … }` that assumption is exactly what failed. `(bash /tmp/x.sh)` resolved to `/tmp/x.sh)`,
-    // which cannot exist, so ENOENT was not "the command dies anyway" — it was a mis-parse wearing that
-    // answer's clothes, and the body went unread for a whole era one character away from a deny. The
-    // stripping above is the real fix; this arm is the honesty backstop for the next glued character
-    // nobody has thought of, and it obeys #631: a guard that cannot identify what will execute must not
-    // return a content verdict (silence IS a content verdict now that pass means allow).
+    // …EXCEPT FROM A GROUPED CLAUSE. Fail-open assumes the path the guard resolved is the path the SHELL
+    // will run, and inside a `( … )`/`{ … }` a glued group character is exactly how a path comes out
+    // mis-parsed: ENOENT there is not "the command dies anyway". The operand stripping is the real fix; this
+    // arm is the backstop for the next glued character, because a guard that cannot identify what will
+    // execute must not return a content verdict (silence IS one, since pass means allow).
     return grouped ? { decision: "ask", rule: "script-grouped-unresolvable", reason: REASONS.scriptGroupedMissing(file), contexts: [] } : null;
   }
   return liftScriptVerdict(file, body, classify(body, { ...ctx, scriptDepth: depth + 1 }), ctx, depth);
@@ -2316,7 +2222,7 @@ function scriptBodyVerdict(command, blank, clauses, ctx) {
     }
     return worst;
   } catch (err) {
-    // FAIL CLOSED, LEGIBLY (owner ruling #50): a scan failure must never become allow, and a bare
+    // FAIL CLOSED, LEGIBLY (owner ruling): a scan failure must never become allow, and a bare
     // defer stalls the lane with NOTHING on screen to act on. Surface an ask that names the failure —
     // recoverable by the operator (fix the file / confirm the command), never a silent stall. The
     // error still lands in the decision log for the repair loop.
@@ -2335,7 +2241,7 @@ function scriptBodyVerdict(command, blank, clauses, ctx) {
 // classifier, merge strictest-wins. The difference is only where the command hides — in a `-c` operand or
 // a `$( … )`, both of which quote-blanking erased before any rule could see them.
 
-/** What a CHILD PROCESS this command starts can see of its variables, as `{env, shellLocal}` (#1946).
+/** What a CHILD PROCESS this command starts can see of its variables, as `{env, shellLocal}`.
  *  `env` = name → value for the names that actually REACH the child: an `export NAME[=…]` in an earlier
  *  clause (its value comes from `assignedVars`, whose ASSIGN_HEAD already reads the `export ` form), and
  *  the stage's OWN assignment prefix — `CMD=… bash -c …`, `env CMD=… bash …` — which bash places in that
@@ -2416,17 +2322,15 @@ export function inlineShellCommands(command, blank, clauses) {
         found.push({ inner });
         continue;
       }
-      // A VAR-ONLY operand: the question is WHO EXPANDS IT, and the answer is the quoting (#1946).
+      // A VAR-ONLY operand: the question is WHO EXPANDS IT, and the answer is the quoting.
       //   · `eval '$CMD'` re-parses in the SAME shell, so even a single-quoted `$CMD` expands from the
       //     shell's own variables. Unchanged: the command's assignments are the right source.
       //   · `bash -c "$CMD"` / `bash -c $CMD`: the PARENT expands before the child exists. Same source.
       //   · `bash -c '$CMD'`: the parent expands NOTHING. The child expands `$CMD` from its ENVIRONMENT,
       //     which carries only what this command EXPORTED — and a bare `CMD='git stash'` is shell-LOCAL,
       //     so the child's `$CMD` is unset and the command it runs is the EMPTY STRING. Resolving it from
-      //     the parent's assignments made `CMD="git stash"; bash -c '$CMD'` a DENY: an over-refusal of a
-      //     command that does nothing, and a guard that refuses inert commands is one lanes route around.
-      //     The same read fixes the opposite error, because an assignment PREFIX (`CMD=… bash -c '$CMD'`)
-      //     DOES reach the child and used to be a mere `inline-unresolved-operand` ask.
+      //     the parent's assignments would deny `CMD="git stash"; bash -c '$CMD'`, a command that does
+      //     nothing. An assignment PREFIX (`CMD=… bash -c '$CMD'`) DOES reach the child, so it is read.
       const parentExpands = isEval || !single;
       const child = parentExpands ? null : childEnvVars(command, blank, clauses, stage);
       const resolved = expandAssigned(inner, parentExpands ? assignedVars(command, blank, clauses, stage.start) : child.env);
@@ -2452,15 +2356,11 @@ export function inlineShellCommands(command, blank, clauses) {
 /** The end index of a `$( … )` body that starts at `from`, by paren depth with quote tracking (a `)` inside
  *  quotes must not close it), or -1 when unbalanced.
  *
- *  ESCAPES ARE HONOURED HERE, unlike `blankQuoted` — which this walk used until leg 5 (2026-08-14) and
- *  which treats a `\"` as OPENING a quote (it only checks the backslash when CLOSING one). A substitution
- *  nested in double quotes must escape its own inner quotes, so `echo "$(rm -rf \"packages/server/src\")"`
- *  opened a phantom quoted span at the `\"`, swallowed the closing paren, returned -1, and the substitution
- *  was dropped from the extraction ENTIRELY — the inner `rm -rf` was classified as nothing at all. A
- *  self-contained walk is also the honest one: `blankQuoted`'s job is to blank spans for the RULE regexes,
- *  not to parse shell escapes, and changing it would touch every rule in the file. Direction of the fix is
- *  one-way: a substitution that used to be invisible is now handed to `classify`, which can only make the
- *  outer verdict stricter. */
+ *  ESCAPES ARE HONOURED HERE, unlike `blankQuoted`, which treats a `\"` as OPENING a quote (it checks the
+ *  backslash only when CLOSING one). A substitution nested in double quotes must escape its own inner
+ *  quotes, so with `blankQuoted` `echo "$(rm -rf \"packages/server/src\")"` would open a phantom quoted span
+ *  at the `\"`, swallow the closing paren and drop the substitution entirely. `blankQuoted`'s job is to
+ *  blank spans for the RULE regexes, not to parse shell escapes, so this walk is self-contained. */
 function substitutionEnd(command, from) {
   let depth = 0;
   let quote = null;
@@ -2488,8 +2388,8 @@ function substitutionEnd(command, from) {
  *  quotes. Inside SINGLE quotes it is literal text and is skipped — extracting it would be a false tighten
  *  on a string nobody executes. Comments and heredoc bodies are skipped for the same reason, and they need
  *  their own SPANS to detect: `ls # echo "$(git stash)"` puts the substitution inside a double-quoted span
- *  that is itself inside a comment, which the quote map alone reads as live (caught by this pass's own
- *  must-pass rows, 2026-08-14). Nested substitutions are not returned separately — the recursion through
+ *  that is itself inside a comment, which the quote map alone reads as live. Nested substitutions are not
+ *  returned separately — the recursion through
  *  `classify` reaches them from the body it is handed. */
 export function commandSubstitutions(command) {
   const quoted = blankQuoted(command);
@@ -2576,11 +2476,8 @@ function nestedCommandVerdict(command, blank, clauses, ctx) {
     return worst;
   } catch (err) {
     // FAIL-OPEN, and deliberately NOT `defer`: the command LINE was judged in full, only this extra scan
-    // broke, and a defer at the hook boundary stalls a subagent mid-turn with no report (the nine-lane
-    // failure in the header box). A visible advisory keeps the breakage findable without a stall.
-    // NOTE, not changed here because it predates this pass and flipping it is an owner call: the script
-    // -body pre-pass answers the same situation with `defer` (`script-scan-error`, above), which CAN
-    // stall a lane on a command nothing objected to.
+    // broke, and falling through to the permission flow stalls a subagent mid-turn with no report. A
+    // visible advisory keeps the breakage findable without a stall.
     return { decision: "pass", rule: null, contexts: [CONTEXTS.nestedScanError(String(err))] };
   }
 }
@@ -2600,17 +2497,16 @@ function mergeVerdicts(outer, script) {
   return merged;
 }
 
-/** SECURITY (verifier-refuted 2026-09-29, leg 2 of cb-guard): what would `classify` have said about
- *  `command` with `clause` — the ONE clause a rewrite rule just vetted and is about to `allow` — deleted?
- *  A rewrite rule (`bareHarnessRewrite`, `pipeRewrite`, `artifactPipeRewrite`, `playwrightRewrite`) proves
- *  only the clause it rewrites is safe; before this existed, its early `return` meant rules 8/9/9b/9c/9d/11
- *  never got a turn at a DIFFERENT clause in the same command — `pnpm check > /tmp/x; rm -rf /` and
- *  `pnpm check > log; git push --force` both classified as a clean `allow`. The remainder is always
+/** SECURITY: what would `classify` have said about `command` with `clause` — the ONE clause a rewrite rule
+ *  just vetted and is about to `allow` — deleted? A rewrite rule (`bareHarnessRewrite`, `pipeRewrite`,
+ *  `artifactPipeRewrite`, `playwrightRewrite`) proves only the clause it rewrites is safe, and its early
+ *  `return` would otherwise skip every later rule for a DIFFERENT clause in the same command:
+ *  `pnpm check > /tmp/x; rm -rf /` must not come out a clean `allow`. The remainder is always
  *  STRICTLY SHORTER than `command` (the excluded clause's own span is gone), so recursing through the
  *  full `classify` cannot loop forever, and reusing it (rather than a second copy of rules 1-11) is what
  *  keeps this catching a heredoc/script-body/nested-command danger in the OTHER clause too, not just a
- *  flat regex scan. The two replaces trim the ONE separator now dangling where the deleted clause used to
- *  join to its neighbor — at most one of them ever matches (the clause was first, last, or the whole
+ *  flat regex scan. The two replaces trim the ONE separator now dangling where the deleted clause joined
+ *  its neighbor — at most one of them ever matches (the clause was first, last, or the whole
  *  command), and a doubled `&&` `;` from a MIDDLE deletion is left for `classify` to parse as it lands:
  *  still no less safe than doing nothing, since the danger-detecting rules test `blank` as a whole string,
  *  not per well-formed clause. */
@@ -2682,20 +2578,13 @@ function heavyToolDoor(blank, clauses) {
  *  reads the RAW command (quoting still applies inside `-f "…"`, which `blank` erases), so the pattern
  *  actually has to name a harness, not merely sit near the word `until`. */
 function pgrepHarnessWaitLoop(command, blank) {
-  LOOP_HEAD.lastIndex = 0;
-  let m = LOOP_HEAD.exec(blank);
-  while (m !== null) {
-    const doMatch = DO_KEYWORD.exec(blank.slice(m.index));
-    if (doMatch !== null) {
-      const condEnd = m.index + doMatch.index;
-      const condBlank = blank.slice(m.index, condEnd);
-      if ((PGREP_OR_PIDOF.test(condBlank) || PS_PIPE_GREP.test(condBlank)) && HARNESS_NAME_HINT.test(command.slice(m.index, condEnd))) {
-        return true;
-      }
+  return shellLoops(blank).some((loop) => {
+    if ((loop.kind !== "while" && loop.kind !== "until") || loop.doAt === undefined) {
+      return false;
     }
-    m = LOOP_HEAD.exec(blank);
-  }
-  return false;
+    const condBlank = blank.slice(loop.start, loop.doAt);
+    return (PGREP_OR_PIDOF.test(condBlank) || PS_PIPE_GREP.test(condBlank)) && HARNESS_NAME_HINT.test(command.slice(loop.start, loop.doAt));
+  });
 }
 
 /** Is this an `until`/`while … do … done` loop with a `sleep` in its BODY (the part that actually runs
@@ -2705,21 +2594,7 @@ function pgrepHarnessWaitLoop(command, blank) {
  *  the same loop redundantly in practice — `pgrepHarnessWaitLoop` returns first and this one is only
  *  reached for loops it did not already catch — but either alone is a complete deny for its own shape. */
 function foregroundWaitLoopWithSleep(blank) {
-  LOOP_HEAD.lastIndex = 0;
-  let m = LOOP_HEAD.exec(blank);
-  while (m !== null) {
-    const doMatch = DO_KEYWORD.exec(blank.slice(m.index));
-    if (doMatch !== null) {
-      const bodyStart = m.index + doMatch.index + doMatch[0].length;
-      const doneMatch = DONE_KEYWORD.exec(blank.slice(bodyStart));
-      const bodyEnd = doneMatch === null ? blank.length : bodyStart + doneMatch.index;
-      if (SLEEP_WORD.test(blank.slice(bodyStart, bodyEnd))) {
-        return true;
-      }
-    }
-    m = LOOP_HEAD.exec(blank);
-  }
-  return false;
+  return shellLoops(blank).some((loop) => (loop.kind === "while" || loop.kind === "until") && loop.bodySleeps);
 }
 
 /** Body spans (after `do`, before the matching `done`) of every `for … do … done` loop in the command —
@@ -2728,20 +2603,9 @@ function foregroundWaitLoopWithSleep(blank) {
  *  stack-boot scripts), so a `sleep` clause inside one of these spans is exempt from the bare-foreground-
  *  sleep rule below regardless of its duration. */
 function forLoopBodySpans(blank) {
-  const spans = [];
-  FOR_HEAD.lastIndex = 0;
-  let m = FOR_HEAD.exec(blank);
-  while (m !== null) {
-    const doMatch = DO_KEYWORD.exec(blank.slice(m.index));
-    if (doMatch !== null) {
-      const bodyStart = m.index + doMatch.index + doMatch[0].length;
-      const doneMatch = DONE_KEYWORD.exec(blank.slice(bodyStart));
-      const bodyEnd = doneMatch === null ? blank.length : bodyStart + doneMatch.index;
-      spans.push([bodyStart, bodyEnd]);
-    }
-    m = FOR_HEAD.exec(blank);
-  }
-  return spans;
+  return shellLoops(blank)
+    .filter((loop) => loop.kind === "for" && loop.bodyStart !== undefined)
+    .map((loop) => [loop.bodyStart, loop.bodyEnd]);
 }
 
 /** Is any CLAUSE in this command nothing but a foreground `sleep <n>`, above the settle-delay threshold,
@@ -2805,7 +2669,8 @@ function sleepOnlyCommand(command, blank, clauses) {
   return sawSleep;
 }
 
-/** Every `for`/`select`/`while`/`until` loop in the command as `{kind, start, end, sleeps}`, found from shell
+/** Every `for`/`select`/`while`/`until` loop in the command as `{kind, start, doAt, bodyStart, bodyEnd, end,
+ *  sleeps, bodySleeps}` (`doAt`/`bodyStart` are unset for a loop with no `do`), found from shell
  *  structure: the keyword counts only in command position, and each loop closes at its own `done` with
  *  nesting counted. A loop keyword used as a plain word (`echo waiting until ready`, `ls src/while`) and
  *  a `done` that is an argument (`echo not done`) are neither. An unclosed loop runs to the end. */
@@ -2875,25 +2740,33 @@ function shellLoops(blank) {
     } else if (token === "esac" && kase !== undefined) {
       cases.pop();
     } else if (LOOP_KEYWORDS.has(token)) {
-      open.push({ kind: token, start: m.index, sleeps: false });
+      open.push({ kind: token, start: m.index, sleeps: false, bodySleeps: false });
+    } else if (token === "do") {
+      const loop = open.at(-1);
+      if (loop !== undefined && loop.doAt === undefined) {
+        loop.doAt = m.index;
+        loop.bodyStart = m.index + token.length;
+      }
     } else if (token === "done") {
       const loop = open.pop();
       if (loop !== undefined) {
-        loops.push({ ...loop, end: m.index + token.length });
+        loops.push({ ...loop, bodyEnd: m.index, end: m.index + token.length });
       }
     } else if (sleepHeadOperands(blank.slice(m.index).match(SIMPLE_COMMAND_TEXT)[0]) !== null) {
       for (const loop of open) {
         loop.sleeps = true;
+        loop.bodySleeps ||= loop.bodyStart !== undefined;
       }
     }
     commandPosition = COMMAND_FOLLOWS.has(token) || ASSIGN_PREFIX.test(token);
   }
-  return [...loops, ...open.map((loop) => ({ ...loop, end: blank.length }))];
+  return [...loops, ...open.map((loop) => ({ ...loop, bodyEnd: blank.length, end: blank.length }))];
 }
 
 /** Does the command wait on a harness task file: an `until`/`while` loop that reads one, a `for`/`select`
- *  loop that reads one and sleeps, or a `tail -f` of one? Read on the RAW text, since a quoted path is blanked in `blank`, with the command's own earlier
- *  assignments expanded, so `D=<task dir>; until [ -f "$D/x.done" ]` is seen too. */
+ *  loop that reads one and sleeps, or a `tail -f` of one? Read on the RAW text, since a quoted path is
+ *  blanked in `blank`, with the command's own earlier assignments expanded, so `D=<task dir>; until [ -f
+ *  "$D/x.done" ]` is seen too. */
 function harnessTaskFileWait(command, blank, clauses) {
   const readsTaskFile = (start, end) => HARNESS_TASK_FILE.test(expandAssigned(command.slice(start, end), assignedVars(command, blank, clauses, start)));
   for (const loop of shellLoops(blank)) {
@@ -2944,11 +2817,9 @@ function statusReadTargetKind(command, blank, clauses) {
 // Read-streak state, one record per agent/session key: `{kind, target, count}`. A real hook invocation is
 // a FRESH PROCESS per Bash call, so the record has to survive on disk (reports/tool-guard/reads/<key>.json,
 // same shape as `firstContact`'s marker directory — bounded, one small file per key). `--classify-batch`
-// and the corpus replay call `classify` many times in ONE process, so the in-memory cache below is what
-// actually does the work there (the batch entry point's own "no side effects" promise is about the tree
-// this guard protects, not about an internal counter it needs to judge the third read of the same thing) —
-// `ctx.projectDir` is pinned to a nonexistent path in replay on purpose, so the fs half no-ops there and
-// the cache is load-bearing for those numbers.
+// and the corpus replay call `classify` many times in ONE process, so the in-memory cache below does the
+// work there; replay pins `ctx.projectDir` to a nonexistent path, so the fs half no-ops. The batch entry
+// point's "no side effects" promise is about the tree this guard protects, not this internal counter.
 const READ_STREAK_CACHE = new Map();
 
 function readStreakState(projectDir, key) {
@@ -2974,11 +2845,16 @@ function writeStreakState(projectDir, key, state) {
   }
 }
 
+// One state key per agent, or per session for the main agent; also a file name, so it is sanitised.
+function streakKey(ctx) {
+  return String(ctx.agentId ?? ctx.sessionId ?? "main").replace(/[^\w.-]/g, "_");
+}
+
 /** Update this agent/session's read streak for the current command and say whether it is the THIRD (or
  *  later) consecutive read of the same target. Any command that is NOT one of the tracked status-read
  *  shapes resets the streak — "no other command between" is the rule, so real work in between clears it. */
 function repeatedStatusReadDeny(ctx, command, blank, clauses) {
-  const key = String(ctx.agentId ?? ctx.sessionId ?? "main").replace(/[^\w.-]/g, "_");
+  const key = streakKey(ctx);
   const read = statusReadTargetKind(command, blank, clauses);
   if (read === null) {
     writeStreakState(ctx.projectDir, key, null);
@@ -2990,7 +2866,71 @@ function repeatedStatusReadDeny(ctx, command, blank, clauses) {
   return count >= STATUS_READ_STREAK_DENY_AT ? { target: read.target, count } : null;
 }
 
-// ── drizzle-kit, subagent-scoped (owner directive, 2026-09-29): parallel lanes generating migrations
+/** The whole-tree family a stage runs (`check`, `verify`, `test`, `check:instrument-affected`, `e2e`), or
+ *  null. `pnpm check`/`pnpm verify` with `--changed` are scoped, and so is every other `check:<gate>`. */
+function wholeTreeFamily(stageBlank) {
+  const { tokens, index, exec } = execHead(stageBlank);
+  if (exec === undefined || !/^(?:\S*\/)?pnpm$/.test(exec[0])) {
+    return null;
+  }
+  const rest = tokens.slice(index + 1).map((t) => t[0]);
+  const at = rest[0] === "run" ? 1 : 0;
+  const script = rest[at];
+  const args = rest.slice(at + 1);
+  if ((script === "check" || script === "verify") && !args.includes("--changed")) {
+    return script;
+  }
+  if (script === "test" || script === "check:instrument-affected") {
+    return script;
+  }
+  return script?.startsWith("e2e") === true ? "e2e" : null;
+}
+
+/** The whole-tree note for a subagent, once per agent per family. */
+function wholeTreeNote(ctx, blank, clauses) {
+  if (!ctx.agentId) {
+    return null;
+  }
+  const families = clauses.flatMap((cl) => cl.stages.map((st) => wholeTreeFamily(blank.slice(st.start, st.end)))).filter((f) => f !== null);
+  if (families.length === 0) {
+    return null;
+  }
+  const key = `${streakKey(ctx)}.whole-tree`;
+  const noted = readStreakState(ctx.projectDir, key) ?? [];
+  const fresh = families.filter((f) => !noted.includes(f));
+  if (fresh.length === 0) {
+    return null;
+  }
+  writeStreakState(ctx.projectDir, key, [...noted, ...fresh]);
+  return CONTEXTS.wholeTreeRun;
+}
+
+/** The Read tool on a background task's output file. A repeat of the same range within
+ *  TASK_REREAD_WINDOW_MS of the previous one is a poll, so it denies; a first read or a later reread
+ *  passes. Every such Read also counts as a status read of that path, so a Bash re-read after it continues
+ *  the same streak. Null when the Read is not this rule's business. */
+function taskOutputReadVerdict(filePath, range, ctx) {
+  if (!HARNESS_TASK_OUTPUT.test(filePath)) {
+    return null;
+  }
+  // A chunked read of a large finished output is not a poll, so each offset/limit range is its own target.
+  // A whole-file Read keys on the bare path, the same target a Bash `tail` of that file records.
+  const target = range.offset === undefined && range.limit === undefined ? filePath : `${filePath}#${range.offset ?? ""}:${range.limit ?? ""}`;
+  const key = streakKey(ctx);
+  const prev = readStreakState(ctx.projectDir, key);
+  const count = prev !== null && prev.kind === "log" && prev.target === target ? prev.count + 1 : 1;
+  writeStreakState(ctx.projectDir, key, { kind: "log", target, count });
+  const seenKey = `${key}.task-output`;
+  const seen = readStreakState(ctx.projectDir, seenKey) ?? {};
+  const last = seen[target];
+  writeStreakState(ctx.projectDir, seenKey, { ...seen, [target]: ctx.now });
+  if (last === undefined || ctx.now - last > TASK_REREAD_WINDOW_MS) {
+    return null;
+  }
+  return { decision: "deny", rule: "task-output-reread", reason: REASONS.taskOutputReread(filePath) };
+}
+
+// ── drizzle-kit, subagent-scoped (owner directive): parallel lanes generating migrations
 // collide on migration numbers, so a SUBAGENT never runs a verb that writes one or touches the live db.
 // `check` (this repo's own `pnpm check:drizzle-kit`) reads the schema against the migrations on disk and
 // writes nothing — never this rule's business, for anyone. ──
@@ -3098,8 +3038,7 @@ export function classify(command, ctx) {
   // 0b. SELF-EXEMPTION — the guard's own validation tooling, by IDENTITY (isSelfToolInvocation): a sole
   //     `node <tool> …` cannot execute its argv, so a corpus string inside it is data and the rules below
   //     have nothing real to judge. It runs AFTER blanking and AFTER the floor, and it is not a mention
-  //     test: the unanchored raw-string version of this check turned any command containing one of the
-  //     filenames into an explicit `allow` (AGENT-TOOLING-01).
+  //     test: a command that merely names one of the files is judged by every rule.
   if (isSelfToolInvocation(command, blank, clauses, ctx)) {
     return { decision: "pass", rule: "self-exempt", contexts: [] };
   }
@@ -3119,11 +3058,11 @@ export function classify(command, ctx) {
 function classifyCommandLine(command, blank, clauses, ctx) {
   const contexts = [];
 
-  // 0e. a third (or later) consecutive read of the same status target — DENY (owner directive,
-  //     2026-09-29): `tail`/`head`/`wc`/`cat`/`grep` on the same log, `ps -p`/`kill -0` on the same pid, or
+  // 0e. a third (or later) consecutive read of the same status target — DENY:
+  //     `tail`/`head`/`wc`/`cat`/`grep` on the same log, `ps -p`/`kill -0` on the same pid, or
   //     `pnpm check:show`, re-run with nothing else in between. The first two are a normal check-in. FIRST
   //     in this function on purpose (not grouped with 9e-9g below): its state update has to run for EVERY
-  //     command that reaches here, including one an later rule allows or denies for an unrelated reason —
+  //     command that reaches here, including one a later rule allows or denies for an unrelated reason —
   //     a real command running between two reads has to break the streak, and it can only do that if this
   //     check sees it before an early return elsewhere skips the rest of the function.
   const repeatedRead = repeatedStatusReadDeny(ctx, command, blank, clauses);
@@ -3131,7 +3070,14 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "deny", rule: "repeated-status-read", reason: REASONS.repeatedStatusRead(repeatedRead.target, repeatedRead.count), contexts };
   }
 
-  // 1. destructive git (doctrine ban; near-zero legitimate sightings) — DENY. Read-only forms pass:
+  // 0f. a whole-tree run from a subagent still runs, with a once-per-family note that it is normally the
+  //     orchestrator's. Pushed first so a rewrite of the same command carries it too.
+  const wholeTree = wholeTreeNote(ctx, blank, clauses);
+  if (wholeTree !== null) {
+    contexts.push(wholeTree);
+  }
+
+  // 1. destructive git (doctrine ban) — DENY. Read-only forms pass:
   //    `stash list`/`stash show` destroy nothing, and `restore --staged` (no --worktree) only unstages.
   const stash = blank.match(GIT_STASH);
   if (stash && stash[1] === undefined) {
@@ -3168,7 +3114,7 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     }
   }
 
-  // 2. biome write-mode — blast radius decides (owner ruling 2026-08-03): a WHOLE-TREE fix-all is the
+  // 2. biome write-mode — blast radius decides (owner ruling): a WHOLE-TREE fix-all is the
   //    doctrine-banned wave (DENY); a path-scoped and/or --only= single-rule rewrite is the sanctioned
   //    mechanical-migration form (WARN). `pnpm lint:fix` is `biome check --write .` by definition — DENY.
   if (PNPM_LINT_FIX.test(blank)) {
@@ -3199,10 +3145,9 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     }
   }
 
-  // 3. cd into a lane worktree — MAIN SESSION: DENY (the commit-landed-on-a-lane-branch incident class;
-  //    orchestrator law is `git -C`, always). SUBAGENT: WARN — a lane cd-ing into its own worktree is
-  //    routine and legitimate (975 corpus sightings), and own-vs-foreign is undecidable when the lane's
-  //    cwd has been reset to the repo root (which happens constantly). A deny here would cry wolf.
+  // 3. cd into a lane worktree — MAIN SESSION: DENY (a persisted cwd lands a main-session commit on a lane
+  //    branch; orchestrator law is `git -C`, always). SUBAGENT: WARN — a lane cd-ing into its own worktree
+  //    is routine, and own-vs-foreign is undecidable once the lane's cwd has been reset to the repo root.
   const cdTarget = blank.match(CD_WORKTREE);
   if (cdTarget) {
     if (!ctx.agentId) {
@@ -3213,7 +3158,7 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     }
   }
 
-  // 3b. AN OVER-CAP WORKER COUNT — DENY (2026-09-11, #1943 F5). Ahead of the two REWRITE rules on
+  // 3b. AN OVER-CAP WORKER COUNT — DENY. Ahead of the two REWRITE rules on
   //     purpose: a rewrite would carry `--workers=8` verbatim into the sanctioned script, laundering the
   //     one number this rule exists to hold. (Its sibling, the un-floored heavy-tool family, sits at 5b
   //     instead — see there.)
@@ -3223,26 +3168,29 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   }
 
   // 4a. harness redirected to a file, or piped into a pure `tee` capture sink — REWRITE by dropping the
-  //     redirect/sink outright (owner directive, 2026-09-29): the harness writes its own reports/
+  //     redirect/sink outright: the harness writes its own reports/
   //     artifacts regardless of where stdout goes, so a private capture is never necessary and only
   //     tempts a later poll of that file instead of reading the harness's own exit code.
-  const bareRewrite = bareHarnessRewrite(command, blank, clauses, HARNESS_HEAD);
+  const bareRewrite = bareHarnessRewrite(command, blank, clauses, HARNESS_RUN_HEAD);
   if (bareRewrite) {
     contexts.push(CONTEXTS.rewriteRedirectDropped);
     return gateRewrite({ decision: "allow", rule: "harness-redirect", rewrite: { command: bareRewrite.command }, contexts }, command, bareRewrite.clause, ctx);
   }
 
-  // 4b. harness piped into a real reader — REWRITE the simple shape, DENY the rest (the headline 45-hour
-  //     class). The harness must be at a pipeline HEAD (env/timeout/nice wrappers allowed) — mid-text
+  // 4b. harness piped into a real reader — REWRITE the simple shape, DENY the rest. The harness must be at
+  //     a pipeline HEAD (env/timeout/nice wrappers allowed) — mid-text
   //     mentions can never fire. A verify-family harness (`pnpm check[:x]`, `pnpm verify`) or a known-
   //     artifact test harness (`pnpm test`/`test:node`/`test:tooling`/`test:ct`) is rewritten against its
   //     REAL on-disk artifact (`artifactPipeRewrite`) rather than a private log; anything else (lint,
   //     typecheck, e2e, gate, snap, bare vitest, `test:scoped`) keeps the general private-log rewrite.
-  const harnessPiped = clauses.some((cl) => cl.stages.length > 1 && HARNESS_HEAD.test(blank.slice(cl.stages[0].start, cl.stages[0].end)));
+  const harnessPiped = clauses.some((cl) => cl.stages.length > 1 && HARNESS_RUN_HEAD.test(blank.slice(cl.stages[0].start, cl.stages[0].end)));
   if (harnessPiped) {
     const artifact = artifactPipeRewrite(command, blank, clauses);
     if (artifact) {
       contexts.push(CONTEXTS.rewritePipedArtifact(artifact.target));
+      if (artifact.readerStatus) {
+        contexts.push(CONTEXTS.rewriteReaderStatus);
+      }
       const timeout = ctx.timeout === undefined ? REWRITE_TIMEOUT_MS : undefined;
       return gateRewrite(
         { decision: "allow", rule: "harness-piped", rewrite: { command: artifact.command, timeout }, contexts },
@@ -3251,9 +3199,12 @@ function classifyCommandLine(command, blank, clauses, ctx) {
         ctx,
       );
     }
-    const rewrite = pipeRewrite(command, blank, clauses, HARNESS_HEAD, ctx);
+    const rewrite = pipeRewrite(command, blank, clauses, (b) => HARNESS_RUN_HEAD.test(b), ctx);
     if (rewrite) {
       contexts.push(CONTEXTS.rewritePiped(rewrite.log));
+      if (rewrite.readerStatus) {
+        contexts.push(CONTEXTS.rewriteReaderStatus);
+      }
       const timeout = ctx.timeout === undefined ? REWRITE_TIMEOUT_MS : undefined;
       return gateRewrite(
         { decision: "allow", rule: "harness-piped", rewrite: { command: rewrite.command, timeout, log: rewrite.log }, contexts },
@@ -3265,12 +3216,24 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "deny", rule: "harness-piped", reason: REASONS.harnessPipedDeny, contexts };
   }
 
+  // 4c. `pnpm doc`: a lane never runs a board-writing verb.
+  if (ctx.agentId) {
+    for (const clause of clauses) {
+      for (const stage of clause.stages) {
+        const call = docCall(blank.slice(stage.start, stage.end), command.slice(stage.start, stage.end));
+        if (call !== null && !call.help && DOC_WRITE_VERBS.has(call.verb)) {
+          return { decision: "deny", rule: "doc-write-lane", reason: REASONS.docWriteLane(call.verb), contexts };
+        }
+      }
+    }
+  }
+
   // 5. harness failure swallowed (`|| true`) — DENY
   if (HARNESS_OR_TRUE.test(blank) || HARNESS_SEMI_TRUE.test(blank)) {
     return { decision: "deny", rule: "harness-swallowed", reason: REASONS.harnessSwallowed, contexts };
   }
 
-  // 5b. A HEAVY TOOL THROUGH AN UN-FLOORED SPELLING — DENY WITH THE DOOR (2026-09-11, #1943 F5).
+  // 5b. A HEAVY TOOL THROUGH AN UN-FLOORED SPELLING — DENY WITH THE DOOR.
   //     AFTER the two harness rules and BEFORE the CT rewrite, deliberately: a command that is BOTH a
   //     piped harness and an un-floored tool (`npx tsc | head -5; pnpm typecheck 2>&1 | tail -15`) denies
   //     either way, and the pipe is the older, better-taught diagnosis — so the harness rule keeps the
@@ -3281,8 +3244,8 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "deny", rule: "heavy-tool-unfloored", reason: REASONS.heavyToolUnfloored(heavy.tool, heavy.door), contexts };
   }
 
-  // 5c. drizzle-kit, subagent-scoped — DENY a verb that writes a migration or touches the live db
-  //     (owner directive, 2026-09-29): a parallel lane generating a migration collides with a sibling's
+  // 5c. drizzle-kit, subagent-scoped — DENY a verb that writes a migration or touches the live db:
+  //     a parallel lane generating a migration collides with a sibling's
   //     migration NUMBER, and only the orchestrator on main serializes that. `check` (read-only) and a
   //     main-session caller (no agentId) both pass untouched.
   if (ctx.agentId) {
@@ -3294,15 +3257,9 @@ function classifyCommandLine(command, blank, clauses, ctx) {
 
   // 6. playwright CT — the sanctioned spelling is the SCRIPT (`pnpm test:ct <paths>`), so every raw
   //    playwright run with CT intent is rewritten into it, or denied when the shape is too complex to
-  //    rewrite. e2e invocations (no CT hint) are not this rule's business.
-  //    2026-09-11, the vocabulary refresh: this rule used to accept a raw run that carried the "sanctioned
-  //    prefix" (`rm -rf playwright/.cache` + an explicit `-c playwright-ct.config.ts`) and to rewrite a
-  //    piped one into a redirect. BOTH premises died with the per-invocation cache (#1581) and the
-  //    host-wide slot pool (#1835): `playwright/.cache` is not the CT cache any more, and a raw runner
-  //    takes no exclusion lock and no host slot — so passing that shape let through the exact corrupting
-  //    sibling runner the lock exists to refuse. The piped branch went with it and lost nothing: the
-  //    rewritten spelling is a `pnpm test:*` harness head, so `pnpm test:ct … | tail` is caught and
-  //    redirected by rule 4 above, one rule instead of two.
+  //    rewrite. e2e invocations (no CT hint) are not this rule's business. A raw runner takes no exclusion
+  //    lock and no host slot, whatever cache it clears first, so no raw spelling passes. A piped run needs
+  //    no branch here: the rewritten spelling is a `pnpm test:*` harness head, which rule 4 handles.
   if (PLAYWRIGHT_TEST.test(blank)) {
     // Intent is read off the RAW command: a path is the same path quoted or not, and `-c
     // "$WT/playwright-ct.config.ts"` is a CT run. The rule still only ENGAGES on a real playwright stage
@@ -3319,14 +3276,14 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     }
   }
 
-  // 7. sg-as-ast-grep — static WARN (owner ruling 2026-08-03): `sg` is deprecated upstream (the tool
+  // 7. sg-as-ast-grep — static WARN (owner ruling): `sg` is deprecated upstream (the tool
   //    itself warns), and the newgrp collision is PRESENT on this box, merely shadowed by PATH order.
   //    No runtime check — the rule holds regardless of which binary wins.
   if (SG_AS_AST_GREP.test(blank)) {
     contexts.push(CONTEXTS.sgDeprecated);
   }
 
-  // 8. force push — ASK (owner judgment; n=6 in the whole corpus)
+  // 8. force push — ASK (owner judgment)
   if (GIT_PUSH_FORCE.test(blank)) {
     return { decision: "ask", rule: "git-push-force", reason: REASONS.pushForce, contexts };
   }
@@ -3336,16 +3293,15 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "ask", rule: "lane-git-push", reason: REASONS.lanePush, contexts };
   }
 
-  // 9b. ANY push, from anywhere — ASK. Load-bearing since pass became `allow`: this used to reach the
-  //     permission flow and prompt, because `git push` is DELIBERATELY absent from settings.json's
-  //     allowlist. With the guard allowing what it does not object to, a silent fall-through here would
-  //     push to origin with no word at all — the one thing the standing law forbids outright.
+  // 9b. ANY push, from anywhere — ASK. `git push` is deliberately absent from settings.json's allowlist,
+  //     and pass means allow, so a silent fall-through here would push to origin with no word at all: the
+  //     one thing the standing law forbids outright.
   if (GIT_PUSH.test(blank)) {
     return { decision: "ask", rule: "git-push", reason: REASONS.ownerWordPush, contexts };
   }
 
   // 9c. rg -r/--replace GLUED to a shorthand flag cluster (`-rln`) — DENY. ripgrep silently REPLACES
-  //     matched text instead of listing it, with no error (four paid offenses, owner ruling 2026-08-19).
+  //     matched text instead of listing it, with no error (owner ruling).
   //     Scoped to an `rg` HEAD stage only — the same glued cluster on an unrelated tool is not this rule.
   for (const clause of clauses) {
     for (const stage of clause.stages) {
@@ -3356,15 +3312,11 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     }
   }
 
-  // 9d. a pgrep/pidof/`ps … | grep` WAIT LOOP polling for a harness — DENY (owner directive, 2026-09-29):
-  //     the pattern matches EVERY checkout on the box, so a sibling's orphaned `verify/cli.ts` process
-  //     blocks a lane that has nothing to do with it (measured: one orphaned pre-commit verify in a
-  //     FINISHED worktree blocked unrelated lanes for 38+ minutes, and the waiters outlived their own
-  //     lanes by 80+ minutes). Scoped to `until`/`while … do` — a ONE-SHOT `pgrep` inspection outside a
-  //     loop stays allowed; it cannot poll anything. Gated on `!ctx.runInBackground`: the SANCTIONED fix
-  //     this reason teaches — the identical loop run with the Bash tool's `run_in_background` — used to
-  //     fail this exact check, because nothing here ever looked at the field. It does now (rule 9f shares
-  //     the same gate for the general-condition case).
+  // 9d. a pgrep/pidof/`ps … | grep` WAIT LOOP polling for a harness — DENY: the pattern matches EVERY
+  //     checkout on the box, so a sibling's orphaned `verify/cli.ts` process blocks a lane that has nothing
+  //     to do with it. Scoped to `until`/`while … do` — a ONE-SHOT `pgrep` inspection outside a loop stays
+  //     allowed. Gated on `!ctx.runInBackground`: the identical loop run in the background is the sanctioned
+  //     fix this reason teaches (rule 9f shares the same gate for the general-condition case).
   //     A loop on a harness task file comes first and is NOT gated on `run_in_background`: the harness
   //     already notifies on that task's exit, so backgrounding the loop is still pure polling.
   if (harnessTaskFileWait(command, blank, clauses)) {
@@ -3374,10 +3326,14 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "deny", rule: "pgrep-wait-loop", reason: REASONS.pgrepWaitLoop, contexts };
   }
 
-  // 9e. a command that is NOTHING BUT `true`/`:` — DENY (owner directive, 2026-09-29): turn-filler for
-  //     "still waiting", never a real step. Every clause must reduce to the bare word; `true foo` or
-  //     `cmd || true` are the tool doing something else and are not this shape.
-  if (clauses.every((clause) => clause.stages.length === 1 && TRUE_OR_COLON_CLAUSE.test(blank.slice(clause.stages[0].start, clause.stages[0].end).trim()))) {
+  // 9e. a command that is NOTHING BUT `true`/`:` — DENY: turn-filler for "still waiting", never a real
+  //     step. Every clause must reduce to the bare word; `true foo` or `cmd || true` are the tool doing
+  //     something else. A command with no clause at all (the lone `&` a rewrite's remainder leaves) is not
+  //     filler.
+  if (
+    clauses.length > 0 &&
+    clauses.every((clause) => clause.stages.length === 1 && TRUE_OR_COLON_CLAUSE.test(blank.slice(clause.stages[0].start, clause.stages[0].end).trim()))
+  ) {
     return { decision: "deny", rule: "true-filler", reason: REASONS.trueOrColonFiller, contexts };
   }
 
@@ -3387,39 +3343,62 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     return { decision: "deny", rule: "sleep-only", reason: REASONS.sleepOnly, contexts };
   }
 
-  // 9f. a foreground until/while loop with `sleep` in its body, ANY condition — DENY (owner directive,
-  //     2026-09-29): the general case of 9d — a `curl`/`grep`/`test -f` condition polls exactly as
+  // 9f. a foreground until/while loop with `sleep` in its body, ANY condition — DENY:
+  //     the general case of 9d — a `curl`/`grep`/`test -f` condition polls exactly as
   //     wastefully as a `pgrep`. Gated on `!ctx.runInBackground` the same way.
   if (!ctx.runInBackground && foregroundWaitLoopWithSleep(blank)) {
     return { decision: "deny", rule: "sleep-wait-loop", reason: REASONS.foregroundWaitLoopSleep, contexts };
   }
 
-  // 9g. a bare foreground `sleep`, alone or chained — DENY (owner directive, 2026-09-29), except a
+  // 9g. a bare foreground `sleep`, alone or chained — DENY, except a
   //     settle-delay of 2s or less, or a `sleep` inside a bounded `for` loop's body (see the two helpers).
   if (!ctx.runInBackground && bareForegroundSleepClause(blank, clauses)) {
     return { decision: "deny", rule: "foreground-sleep", reason: REASONS.foregroundSleep, contexts };
   }
 
   // NOTE — deliberately NO `git reset` rule. The owner's GLOBAL settings wildcard-allow `git reset *`
-  // and `git checkout *`; adding an ask here would override a call he already made. (An earlier version
-  // of this file, the board, and the doctrine all claimed reset/checkout were "deliberately excluded
-  // from the allowlist" — that was FALSE, corrected 2026-08-03 by reading ~/.claude-b/settings.json.
-  // The ones genuinely absent are `git push`, `git stash`, `git restore` — and stash/restore are DENIED
-  // above on their destructive arms, which is this guard's own doctrine call, not a permissions gap.)
+  // and `git checkout *`; adding an ask here would override a call he already made. The ones absent from
+  // that allowlist are `git push`, `git stash` and `git restore`, and stash/restore are DENIED above on
+  // their destructive arms, which is this guard's own doctrine call, not a permissions gap.
 
-  // 10. long-lived non-harness command piped — REWRITE simple, WARN otherwise
+  // 10. long-lived non-harness command piped — REWRITE simple, WARN otherwise. A piped `pnpm doc` takes the
+  //     same rewrite; when its shape is too complex it is left as written, with no note.
   for (const clause of clauses) {
     if (clause.stages.length < 2) {
       continue;
     }
-    if (!LONG_LIVED.test(blank.slice(clause.stages[0].start, clause.stages[0].end))) {
+    const stage0 = blank.slice(clause.stages[0].start, clause.stages[0].end);
+    const stage0Raw = command.slice(clause.stages[0].start, clause.stages[0].end);
+    if (DOC_PIPE_HEAD.test(stage0)) {
+      const rewrite = pipeRewrite(command, blank, clauses, (b) => DOC_PIPE_HEAD.test(b), ctx);
+      if (rewrite) {
+        contexts.push(CONTEXTS.rewriteDocPiped(rewrite.log));
+        if (rewrite.readerStatus) {
+          contexts.push(CONTEXTS.rewriteReaderStatus);
+        }
+        return gateRewrite(
+          { decision: "allow", rule: "doc-piped", rewrite: { command: rewrite.command, log: rewrite.log }, contexts },
+          command,
+          rewrite.clause,
+          ctx,
+        );
+      }
+      continue; // a later piped git clause still gets its advisory
+    }
+    const verb = gitSubcommand(stage0, stage0Raw);
+    if (!GIT_LONG_LIVED_VERBS.has(verb)) {
       continue;
     }
-    const rewrite = pipeRewrite(command, blank, clauses, LONG_LIVED, ctx);
+    const rewrite = pipeRewrite(command, blank, clauses, (b, r) => GIT_LONG_LIVED_VERBS.has(gitSubcommand(b, r)), ctx);
     if (rewrite) {
       contexts.push(CONTEXTS.rewriteLongLived(rewrite.log));
+      if (rewrite.readerStatus) {
+        contexts.push(CONTEXTS.rewriteReaderStatus);
+      }
+      // a piped foreground commit/merge runs its hooks too, so it gets the same long timeout as a bare one
+      const timeout = ctx.timeout === undefined && !ctx.runInBackground && GIT_HOOKED_VERBS.has(verb) ? REWRITE_TIMEOUT_MS : undefined;
       return gateRewrite(
-        { decision: "allow", rule: "longlived-piped", rewrite: { command: rewrite.command, log: rewrite.log }, contexts },
+        { decision: "allow", rule: "longlived-piped", rewrite: { command: rewrite.command, timeout, log: rewrite.log }, contexts },
         command,
         rewrite.clause,
         ctx,
@@ -3430,8 +3409,8 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   }
 
   // 11. advisory tier — never blocks, EXCEPT the two shapes that escalate (see collectStageWarns):
-  //     an `rm -rf` whose target is not on the safe list, and a bare `sqlite3` on a non-scratch db.
-  //     Both were warn-only while pass meant defer; with pass meaning allow they need a human.
+  //     an `rm -rf` whose target is not on the safe list, and a bare `sqlite3` on a non-scratch db. Pass
+  //     means allow, so those two need a human.
   const stageWarns = collectStageWarns(command, blank, clauses, contexts);
   if (stageWarns.rmrf) {
     return { decision: "ask", rule: "rm-rf-unsafe", reason: REASONS.rmRfUnsafe, contexts };
@@ -3447,9 +3426,23 @@ function classifyCommandLine(command, blank, clauses, ctx) {
     contexts.push(CONTEXTS.pushInFlight);
   }
 
-  // "pass" = the guard LOOKED and has no objection. It becomes `allow` at the hook boundary. It is
-  // deliberately NOT called "defer": deferring hands the decision to a permission flow that prompts a
-  // human, and a subagent has no human — see the box at the top of this file.
+  // 12. a foreground commit/merge with no timeout of its own — ALLOW with only the tool timeout raised. Last on
+  //     purpose: every rule above has already judged the WHOLE command and none objected, and `classify` still
+  //     merges the script-body and nested verdicts over this one. No `gateRewrite`: the command text is
+  //     unchanged, and judging it with the git clause cut out would turn a heredoc body into commands.
+  if (ctx.timeout === undefined && !ctx.runInBackground) {
+    const hooked = clauses.some((cl) =>
+      cl.stages.some((st) =>
+        GIT_HOOKED_VERBS.has(gitSubcommand(stripCompoundLead(blank.slice(st.start, st.end)), stripCompoundLead(command.slice(st.start, st.end)))),
+      ),
+    );
+    if (hooked) {
+      contexts.push(CONTEXTS.commitTimeout(REWRITE_TIMEOUT_MS));
+      return { decision: "allow", rule: "commit-timeout", rewrite: { command, timeout: REWRITE_TIMEOUT_MS }, contexts };
+    }
+  }
+  // "pass" = the guard LOOKED and has no objection. It becomes `allow` at the hook boundary, never a
+  // fall-through to the permission flow, which a subagent cannot answer (see the header).
   return { decision: "pass", rule: contexts.length > 0 ? "advisory" : null, contexts };
 }
 
@@ -3457,15 +3450,18 @@ function classifyCommandLine(command, blank, clauses, ctx) {
 
 // ── first-contact briefing: tell each SUBAGENT the guard's rules ONCE, on its first Bash call ──
 // A lane cannot see this file and does not read the doctrine section about it, so it learns the rules
-// only by tripping them. One `additionalContext` injection per agent_id fixes that — and it doubles as
-// the visible marker that the guard is live, which is exactly what was missing when seven lanes died on
-// a permission defer and the guard was repeatedly (wrongly) exonerated.
+// only by tripping them. One `additionalContext` injection per agent_id fixes that, and it doubles as the
+// visible marker that the guard is live, so a lane stalled on a permission prompt is not blamed on
+// something else.
 const BRIEFING = [
-  "TOOL-GUARD IS ACTIVE on Bash in this repo (.claude/hooks/tool-guard.mjs). What it does to you:",
+  "TOOL-GUARD IS ACTIVE on Bash and Read in this repo (.claude/hooks/tool-guard.mjs). What it does to you:",
   "· REWRITES a harness command piped into tail/head/grep into a redirect + reader, so the exit code",
   "  survives. A pipeline returns the READER's status and can hang, because playwright/vite/stack children",
   "  inherit the pipe. Run the harness bare instead: its exit code is the verdict. Start a long run with",
-  "  run_in_background and read results with `pnpm check:show`, not a log you wrote.",
+  "  run_in_background and read results with `pnpm check:show`, not a log you wrote. A piped",
+  "  `git commit/merge/pull/fetch/clone` or `pnpm doc` gets the same log + reader rewrite; a piped",
+  "  `git push` is asked about (or, from a lane, denied) first, never rewritten.",
+  "· GIVES a foreground `git commit`/`git merge` a 10 min tool timeout when you set none: hooks outrun 120 s.",
   "· REWRITES a raw `playwright test` CT run into `pnpm test:ct <paths>` — the script owns the config, the",
   "  per-invocation build cache, the exclusion lock that catches a racing sibling runner, and the nice floor.",
   "· DENIES: `git stash`/`restore`/`checkout <path>`/`checkout-index -f` (they destroy uncommitted work — use",
@@ -3492,6 +3488,11 @@ const BRIEFING = [
   "  a foreground `until`/`while` loop with `sleep` in its body, any loop on a harness task file, and a",
   "  third consecutive read of the same log/pid/artifact. If your work is done, write your final report",
   "  now. Otherwise end your turn; the harness wakes you when your background job exits.",
+  "· DENIES rereading the same range of a background task's output file within 2 min: read it once.",
+  "· DENIES a SUBAGENT running a board-state `pnpm doc` verb (item/set/land/remove/index/status); report",
+  "  the item instead. `pnpm doc new adr|plan|law` and `review` in your own worktree stay allowed.",
+  "· NOTES a SUBAGENT's whole-tree run (`pnpm check`, `pnpm verify` without --changed, `pnpm test`,",
+  "  `pnpm e2e:*`): it runs, but only if your brief asks; background it and report its verdict.",
   "· DENIES a SUBAGENT running `drizzle-kit generate/migrate/push/drop/up/studio` (any runner spelling —",
   "  bare, `npx`, `pnpm exec`/`pnpm dlx`, `pnpm --filter <pkg> exec`): migrations run on main. `drizzle-kit",
   "  check` stays allowed for everyone.",
@@ -3527,7 +3528,9 @@ function firstContact(projectDir, agentId) {
 }
 
 function emit(output) {
-  process.stdout.write(`${JSON.stringify(output)}\n`);
+  if (output !== NO_DECISION) {
+    process.stdout.write(`${JSON.stringify(output)}\n`);
+  }
 }
 
 function hookOutput(fields) {
@@ -3535,9 +3538,11 @@ function hookOutput(fields) {
 }
 
 // Reserved for the paths where the guard has NOT judged the command: the kill switch, an internal
-// error, unparseable stdin, a non-Bash tool. There, "no opinion" is the honest answer and the normal
-// permission flow should decide. Everywhere the guard HAS looked and is content, it says `allow`.
-const DEFER = hookOutput({ permissionDecision: "defer" });
+// error, unparseable stdin, a tool it does not judge. There, "no opinion" is the honest answer, so the hook
+// prints nothing and the normal permission flow decides. `permissionDecision: "defer"` is NOT that: it is a
+// real outcome that logs a warning in an interactive session and stops a `claude -p` run with
+// `tool_deferred`. Everywhere the guard HAS looked and is content, it says `allow`.
+const NO_DECISION = null;
 const PASS_REASON = "tool-guard: no objection";
 const SUBAGENT_ASK_SUFFIX =
   "You are a subagent and cannot answer a permission prompt, so this is a DENY rather than a stall. " +
@@ -3577,9 +3582,9 @@ function toHookOutput(result, ctx) {
     return hookOutput({ permissionDecision: "deny", permissionDecisionReason: result.reason });
   }
   if (result.decision === "ask") {
-    // A subagent has nobody to ask. An unanswered `ask` kills the lane mid-turn with no report —
-    // the same failure `defer` used to cause. DENY instead: the lane gets the reason, ends cleanly,
-    // and can SendMessage the orchestrator, who CAN decide. The main session still gets the prompt.
+    // A subagent has nobody to ask. An unanswered `ask` kills the lane mid-turn with no report. DENY
+    // instead: the lane gets the reason, ends cleanly, and can SendMessage the orchestrator, who CAN
+    // decide. The main session still gets the prompt.
     if (ctx?.agentId) {
       return hookOutput({
         permissionDecision: "deny",
@@ -3589,7 +3594,9 @@ function toHookOutput(result, ctx) {
     return hookOutput({ permissionDecision: "ask", permissionDecisionReason: result.reason });
   }
   if (result.decision === "allow" && result.rewrite) {
-    const updatedInput = { command: result.rewrite.command };
+    // `updatedInput` REPLACES the tool's arguments, so every other field (run_in_background, description, …)
+    // is carried over and only `command`/`timeout` are overridden.
+    const updatedInput = { ...ctx?.toolInput, command: result.rewrite.command };
     if (result.rewrite.timeout !== undefined) {
       updatedInput.timeout = result.rewrite.timeout;
     }
@@ -3600,17 +3607,16 @@ function toHookOutput(result, ctx) {
       additionalContext: result.contexts.join("\n"),
     });
   }
-  // An explicit `defer` from the classifier means it did NOT judge this command (classifier-error).
-  // That must stay a defer — auto-allowing something nobody looked at is not the fix we are making.
+  // An explicit `defer` from the classifier means it did NOT judge this command (classifier-error), so
+  // the hook prints no decision: auto-allowing something nobody looked at is not the fix.
   if (result.decision === "defer") {
-    return DEFER;
+    return NO_DECISION;
   }
-  // PASS-THROUGH IS `allow`, NEVER `defer`. This guard shapes HOW a command runs; it is not the
-  // gatekeeper of WHAT an agent may run (owner ruling 2026-08-03: "our issue was never permissions of
-  // what an agent can do, we just want them running the right way"). `defer` means "fall through to the
-  // normal permission flow" — and that flow prompts a human, so for a subagent it is a silent death at
-  // the first uncovered command. It killed nine lanes. An `allow` here is the guard saying what it
-  // actually means: I looked at this and I have no objection.
+  // PASS-THROUGH IS `allow`. This guard shapes HOW a command runs; it is not the gatekeeper of WHAT an
+  // agent may run (owner ruling: "our issue was never permissions of what an agent can do, we just want
+  // them running the right way"). Falling through to the normal permission flow prompts a human, so for a
+  // subagent it is a silent stop at the first uncovered command. An `allow` here says what the guard
+  // means: I looked at this and I have no objection.
   const brief = ctx !== undefined && firstContact(ctx.projectDir, ctx.agentId) ? [BRIEFING] : [];
   const contexts = [...brief, ...result.contexts];
   return hookOutput({
@@ -3643,25 +3649,56 @@ async function runBatchMode() {
   process.stdout.write(JSON.stringify(out, null, 2));
 }
 
+/** The Read branch of the hook: deny a quick re-read of a task output file, otherwise print nothing. It never
+ *  allows, so every other Read keeps the normal permission flow. */
+function runReadHook(input, filePath) {
+  const projectDir = process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd();
+  if (ENV_KILL.test(process.env.ORB_TOOL_GUARD ?? "")) {
+    emit(NO_DECISION);
+    return;
+  }
+  const range = { offset: input.tool_input.offset, limit: input.tool_input.limit };
+  const now = Number(process.env.ORB_TOOL_GUARD_NOW_FOR_TEST ?? Date.now());
+  const result = taskOutputReadVerdict(filePath, range, { agentId: input.agent_id ?? null, sessionId: input.session_id ?? null, projectDir, now });
+  if (result === null) {
+    emit(NO_DECISION);
+    return;
+  }
+  logDecision(projectDir, {
+    t: new Date().toISOString(),
+    sid: input.session_id ?? null,
+    agent: input.agent_type ?? "main",
+    decision: result.decision,
+    rule: result.rule,
+    read: filePath,
+  });
+  emit(hookOutput({ permissionDecision: "deny", permissionDecisionReason: result.reason }));
+}
+
 async function runHookMode() {
   const started = Date.now();
   let projectDir = process.cwd();
   try {
     const raw = await readStdin(STDIN_DEADLINE_MS);
     if (raw === null) {
-      emit(DEFER);
+      emit(NO_DECISION);
       return;
     }
     const input = JSON.parse(raw);
+    const filePath = input?.tool_input?.file_path;
+    if (input?.tool_name === "Read" && typeof filePath === "string") {
+      runReadHook(input, filePath);
+      return;
+    }
     const command = input?.tool_input?.command;
     if (input?.tool_name !== "Bash" || typeof command !== "string") {
-      emit(DEFER);
+      emit(NO_DECISION);
       return;
     }
     projectDir = process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd();
     if (ENV_KILL.test(process.env.ORB_TOOL_GUARD ?? "")) {
       logDecision(projectDir, { t: new Date().toISOString(), decision: "defer", rule: "kill-switch", cmd: command.slice(0, CMD_LOG_MAX) });
-      emit(DEFER);
+      emit(NO_DECISION);
       return;
     }
     if (process.env.ORB_TOOL_GUARD_CRASH_FOR_TEST) {
@@ -3677,16 +3714,15 @@ async function runHookMode() {
       // The Bash tool's own field for the sanctioned wait: `run_in_background: true` means the harness
       // notifies the agent on exit instead of the agent blocking this turn on it — see BRIEFING.
       runInBackground: input.tool_input.run_in_background === true,
+      toolInput: input.tool_input,
     };
     const result = classify(command, ctx);
     if (result.rewrite?.log) {
       mkdirSync(path.dirname(result.rewrite.log), { recursive: true });
     }
-    // Compute the output BEFORE logging so the record can carry what was actually EMITTED, not just what
-    // the classifier decided. These diverge on exactly one path and it is the one that matters: a subagent
-    // `ask` is emitted as `deny` (see toHookOutput). Logging only `decision` made 64 subagent rows read as
-    // hung `ask`s in triage when every one of them had been a clean deny — the header's own triage
-    // one-liner walked straight into that false alarm on 2026-08-13.
+    // Compute the output BEFORE logging so the record carries what was actually EMITTED, not just what the
+    // classifier decided. They diverge where it matters for triage: a subagent `ask` is emitted as `deny`
+    // (see toHookOutput), and logging only `decision` would make those read as hung `ask`s.
     const output = toHookOutput(result, ctx);
     const emitted = output?.hookSpecificOutput?.permissionDecision ?? null;
     logDecision(projectDir, {
@@ -3705,7 +3741,7 @@ async function runHookMode() {
   } catch (err) {
     // FAIL OPEN — a broken guard must never block work.
     logDecision(projectDir, { t: new Date().toISOString(), decision: "defer", rule: "guard-error", error: String(err) });
-    emit(DEFER);
+    emit(NO_DECISION);
   }
 }
 
@@ -3716,6 +3752,6 @@ if (invokedDirectly) {
       process.stdout.write("[]");
     });
   } else {
-    runHookMode().catch(() => emit(DEFER));
+    runHookMode().catch(() => emit(NO_DECISION));
   }
 }
