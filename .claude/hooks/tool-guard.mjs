@@ -765,22 +765,30 @@ const SLEEP_WORD = /(?:^|[\s;&|(])sleep\b/;
 // lane: 63 in a row). `true foo` (an argument) or `cmd || true` (real work in another clause) are not this
 // shape — every clause must reduce to the bare word.
 const TRUE_OR_COLON_CLAUSE = /^(?:true|:)$/;
-// A clause that is nothing but `sleep`, matched per clause so `sleep 300; tail -25 log` is caught by its own
-// clause. Matched on the BLANKED text, where `sleep "${X}"` reads as a bare `sleep`, so any operand counts.
-const SLEEP_CLAUSE = /^sleep(?:\s+\S+)*$/;
+// The sleep binary as an exec head: bare, path-prefixed (`/bin/sleep`) or backslash-escaped (`\sleep`).
+const SLEEP_BIN = /^\\?(?:\S*\/)?sleep$/;
 // The only duration the settle-delay exemption trusts: a literal in seconds. `sleep $N`, a quoted operand
-// and any other unit count as long, or a variable would walk any sleep past the threshold.
-const SLEEP_LITERAL_SECONDS = /^sleep\s+([0-9]+(?:\.[0-9]+)?)s?$/;
+// (blanked to nothing) and any other unit count as long, or a variable would walk any sleep past it.
+const SLEEP_LITERAL_SECONDS = /^([0-9]+(?:\.[0-9]+)?)s?$/;
 // Clauses that do no work a sleep could be waiting for, so a chain of them plus sleeps is still sleep-only.
 // A redirect makes `echo` a write, which is work; a substitution is checked on the raw text by the caller.
 const NOOP_CLAUSE = /^(?:true|:|cd(?:\s+\S+)?|echo(?:\s+[^<>]*)?|printf(?:\s+[^<>]*)?)$/;
+// A pipe stage after a sleep that does nothing with its empty input, so `sleep 300 | cat` is still a sleep.
+const NOOP_CONSUMER = /^(?:cat|true|:)$/;
 const SUBSTITUTION_OPEN = /\$\(|`/;
 // A Claude Code background task's own files (`<task>.output`, `.done`, `.exit`) under the per-session
-// `/tmp/claude-<uid>/…/tasks/` dir. The harness already notifies the agent when that task exits, so a loop on
+// `/tmp/claude-<uid>/…/tasks/` dir. The harness already notifies the agent when that task exits, so a wait on
 // one only polls for a notification that is coming anyway. The second form catches a variable-prefixed dir.
 const HARNESS_TASK_FILE = /\/tmp\/claude-\d+\/\S*\/tasks\/|\/tasks\/[\w.-]+\.(?:done|exit|output)\b/;
-// A loop's own `done`, as a word: `\bdone\b` alone also matches the `.done` suffix of a task file name.
-const DONE_WORD = /(?:^|[\s;&|)])done\b/;
+const TAIL_BIN = /^(?:\S*\/)?tail$/;
+const TAIL_FOLLOW_FLAG = /^-[A-Za-z0-9]*[fF]|^--follow\b/;
+// Shell tokens for `shellLoops`, on the BLANKED text: a redirect (`2>&1`, `>`, `<`) first so its `&` is not
+// read as an operator, then the control operators, then words.
+const SHELL_TOKEN = /\d*[<>]+&?\d*|&&|\|\||\|&|[;&|\n()]|[^\s;&|()<>]+/g;
+const SHELL_OPERATOR = /^(?:&&|\|\||\|&|[;&|\n(])$/;
+const LOOP_KEYWORDS = new Set(["for", "select", "while", "until"]);
+// Reserved words after which the next word is again in command position.
+const COMMAND_FOLLOWS = new Set(["do", "then", "else", "elif", "if", "while", "until", "!", "{", "time"]);
 // Corpus threshold (scripts/probes/guard-replay.ts sleep-duration scan, 2026-09-29): bare foreground
 // sleeps AT OR UNDER 2s are dominated by a settle-delay idiom (`kill …; sleep 2; ps …` / `pkill …; sleep 2;
 // ps aux | grep …` — 402 sightings outside any loop), not a wait. Everything over 2s outside a loop is
@@ -2735,18 +2743,15 @@ function forLoopBodySpans(blank) {
 function bareForegroundSleepClause(blank, clauses) {
   const forSpans = forLoopBodySpans(blank);
   for (const clause of clauses) {
-    if (clause.stages.length !== 1) {
-      continue;
-    }
     const stage = clause.stages[0];
     if (forSpans.some(([start, end]) => stage.start >= start && stage.end <= end)) {
       continue;
     }
-    const text = blank.slice(stage.start, stage.end).trim();
-    if (!SLEEP_CLAUSE.test(text)) {
+    const operands = sleepClauseOperands(blank, clause);
+    if (operands === null) {
       continue;
     }
-    const literal = text.match(SLEEP_LITERAL_SECONDS);
+    const literal = operands.length === 1 ? operands[0].match(SLEEP_LITERAL_SECONDS) : null;
     if (literal !== null && Number(literal[1]) <= SLEEP_EXEMPT_MAX_SECONDS) {
       continue;
     }
@@ -2755,36 +2760,91 @@ function bareForegroundSleepClause(blank, clauses) {
   return false;
 }
 
-/** Is the command's only work `sleep`: every clause a single-stage sleep or a no-op, and at least one
- *  sleep? Nothing real runs, so even a 1s sleep or a backgrounded one only spends a tool call. */
+/** The operands of a clause whose work is one `sleep`, or null. The sleep may be grouped, path-prefixed,
+ *  backslash-escaped, behind `command` or a wrapper prefix, redirected, or piped into a no-op consumer. */
+function sleepClauseOperands(blank, clause) {
+  const [first, ...consumers] = clause.stages;
+  if (!consumers.every((s) => NOOP_CONSUMER.test(ungroup(blank.slice(s.start, s.end)).trim()))) {
+    return null;
+  }
+  const { tokens, index } = execHead(blank.slice(first.start, first.end).replace(REDIRECT_TOKEN, " "));
+  const words = tokens.map((t) => t[0]);
+  let i = index;
+  while (words[i] === "command") {
+    i = wrapperPrefixEnd(words, i + 1);
+  }
+  return words[i] !== undefined && SLEEP_BIN.test(words[i]) ? words.slice(i + 1) : null;
+}
+
+/** Is the command's only work `sleep`: every clause a sleep or a no-op, and at least one sleep? Nothing
+ *  real runs, so even a 1s sleep or a backgrounded one only spends a tool call. */
 function sleepOnlyCommand(command, blank, clauses) {
   let sawSleep = false;
   for (const clause of clauses) {
-    if (clause.stages.length !== 1) {
-      return false;
-    }
-    const text = blank.slice(clause.start, clause.end).trim();
-    if (SLEEP_CLAUSE.test(text)) {
+    if (sleepClauseOperands(blank, clause) !== null) {
       sawSleep = true;
-    } else if (!NOOP_CLAUSE.test(text) || SUBSTITUTION_OPEN.test(command.slice(clause.start, clause.end))) {
+      continue;
+    }
+    const text = ungroup(blank.slice(clause.start, clause.end)).trim();
+    if (clause.stages.length !== 1 || (text !== "" && !NOOP_CLAUSE.test(text)) || SUBSTITUTION_OPEN.test(command.slice(clause.start, clause.end))) {
       return false;
     }
   }
   return sawSleep;
 }
 
-/** Does any `until`/`while` loop read a harness task file, in its condition or its body? Read on the RAW
- *  text: a quoted path is blanked to spaces in `blank`. */
-function harnessTaskFileWaitLoop(command, blank) {
-  LOOP_HEAD.lastIndex = 0;
-  let m = LOOP_HEAD.exec(blank);
-  while (m !== null) {
-    const doneMatch = DONE_WORD.exec(blank.slice(m.index));
-    const loopEnd = doneMatch === null ? blank.length : m.index + doneMatch.index + doneMatch[0].length;
-    if (HARNESS_TASK_FILE.test(command.slice(m.index, loopEnd))) {
+/** Every `for`/`select`/`while`/`until` loop in the command as `{kind, start, end}`, found from shell
+ *  structure: the keyword counts only in command position, and each loop closes at its own `done` with
+ *  nesting counted. A loop keyword used as a plain word (`echo waiting until ready`, `ls src/while`) and
+ *  a `done` that is an argument (`echo not done`) are neither. An unclosed loop runs to the end. */
+function shellLoops(blank) {
+  const loops = [];
+  const open = [];
+  let commandPosition = true;
+  for (const m of blank.matchAll(SHELL_TOKEN)) {
+    const token = m[0];
+    if (SHELL_OPERATOR.test(token)) {
+      commandPosition = true;
+      continue;
+    }
+    if (!commandPosition) {
+      continue;
+    }
+    if (LOOP_KEYWORDS.has(token)) {
+      open.push({ kind: token, start: m.index });
+    } else if (token === "done") {
+      const loop = open.pop();
+      if (loop !== undefined) {
+        loops.push({ ...loop, end: m.index + token.length });
+      }
+    }
+    commandPosition = COMMAND_FOLLOWS.has(token) || ASSIGN_PREFIX.test(token);
+  }
+  return [...loops, ...open.map((loop) => ({ ...loop, end: blank.length }))];
+}
+
+/** Does the command wait on a harness task file: an `until`/`while` loop that reads one, or a `tail -f` of
+ *  one? Read on the RAW text, since a quoted path is blanked in `blank`, with the command's own earlier
+ *  assignments expanded, so `D=<task dir>; until [ -f "$D/x.done" ]` is seen too. */
+function harnessTaskFileWait(command, blank, clauses) {
+  const readsTaskFile = (start, end) => HARNESS_TASK_FILE.test(expandAssigned(command.slice(start, end), assignedVars(command, blank, clauses, start)));
+  for (const loop of shellLoops(blank)) {
+    if ((loop.kind === "while" || loop.kind === "until") && readsTaskFile(loop.start, loop.end)) {
       return true;
     }
-    m = LOOP_HEAD.exec(blank);
+  }
+  for (const clause of clauses) {
+    for (const stage of clause.stages) {
+      const { tokens, index, exec } = execHead(blank.slice(stage.start, stage.end));
+      if (
+        exec !== undefined &&
+        TAIL_BIN.test(exec[0]) &&
+        tokens.slice(index + 1).some((t) => TAIL_FOLLOW_FLAG.test(t[0])) &&
+        readsTaskFile(stage.start, stage.end)
+      ) {
+        return true;
+      }
+    }
   }
   return false;
 }
@@ -3238,7 +3298,7 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   //     the same gate for the general-condition case).
   //     A loop on a harness task file comes first and is NOT gated on `run_in_background`: the harness
   //     already notifies on that task's exit, so backgrounding the loop is still pure polling.
-  if (harnessTaskFileWaitLoop(command, blank)) {
+  if (harnessTaskFileWait(command, blank, clauses)) {
     return { decision: "deny", rule: "task-file-wait", reason: REASONS.taskFileWait, contexts };
   }
   if (!ctx.runInBackground && pgrepHarnessWaitLoop(command, blank)) {
