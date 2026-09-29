@@ -2,14 +2,20 @@ import { readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { HOST_FUNCTION_CAPABILITY, UI_PROXYABLE_HOST_FUNCTIONS } from "@orb/contracts/plugin";
 import { getPluginQuickJS } from "@orb/server/infra/plugin-host";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { compileShowcasePlugins, writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { isFail } from "quickjs-emscripten-core";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..");
 const BUNDLES_ROOT = join(REPO_ROOT, "packages", "showcase-plugins", "bundles");
+// Compiles every showcase plugin TWICE (the determinism check), so the default 5s ceiling is too tight
+// under contention even though a quiet box clears it comfortably.
+const COMPILE_TWICE_TIMEOUT = budget(5000);
 
-test("a clean source tree materializes the complete deterministic runtime zip tree", { tags: "source-freshness" }, async ({ scratch }) => {
+test("a clean source tree materializes the complete deterministic runtime zip tree", { tags: "source-freshness", timeout: COMPILE_TWICE_TIMEOUT }, async ({
+  scratch,
+}) => {
   const result = await compileShowcasePlugins(REPO_ROOT);
   const repeated = await compileShowcasePlugins(REPO_ROOT);
   expect(result.diagnostics).toEqual([]);
