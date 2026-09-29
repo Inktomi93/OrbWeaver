@@ -6,9 +6,19 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PluginHandlerRef, PluginInstance } from "@orb/server/domain/plugin";
+import { createPluginHost } from "@orb/server/infra/plugin-host";
+import { afterEach } from "vitest";
+import { __terminateManagedPluginBrokerForTest } from "../../../../../packages/server/src/infra/plugin-host/process-runtime.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
+
+// The real-runtime case below activates guests in the managed broker; reset it so a resident from one test
+// cannot pin capacity for the next (the seed-example-plugins suite's reset).
+afterEach(async () => {
+  await __terminateManagedPluginBrokerForTest();
+});
 
 /** A scripted resident instance carrying one settings surface (the `onAction` handle is opaque — listSurfaces
  *  must DROP it from the projection). */
@@ -128,4 +138,46 @@ test("owner-scoped: a caller NEVER sees another owner's surfaces (the read is th
   expect(alphaSurfaces.every((s) => s.pluginId === alphaPlugin.id)).toBe(true);
   const betaSurfaces = await h.service.listSurfaces({ caller: beta });
   expect(betaSurfaces.map((s) => s.id)).toEqual(["beta_panel"]);
+});
+
+/** A guest that registers a scripted surface at each of the three host anchors that mount a UI guest. Each
+ *  refusal is caught so the plugin stays resident: an absent surface then proves the grant gate, not a dead
+ *  activation. */
+const SCRIPTED_ANCHORS_MAIN = `
+  const host = orb.host(1);
+  const defs = [
+    { id: "page_panel", anchor: "page", title: "Page", tier: "scripted" },
+    { id: "board", anchor: "dialog", title: "Board", tier: "scripted" },
+    { id: "draw_card", anchor: "tool-card", title: "Draw", tier: "scripted", toolName: "draw" },
+  ];
+  for (const def of defs) {
+    try { host.ui.register(def); } catch (e) { host.log.warn(def.id + " refused: " + e.name); }
+  }
+`;
+
+test("#0234: scripted page, dialog and tool-card surfaces list only while ui.surface is granted", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db, { port: createPluginHost({ nowEpochMs: () => FROZEN_AT_MS, nextRandom: () => 0.5, mintId: () => "surface-id" }) });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const bundle = (id: string): Uint8Array => makeBundle({ id, capabilities: ["ui.surface"], uiEntry: true }, SCRIPTED_ANCHORS_MAIN, "orb.ui(1);");
+
+  const granted = await h.service.install({ caller, bundle: bundle("granted"), grant: ["ui.surface"] });
+  await h.service.setEnabled({ caller, pluginId: granted.id, enabled: true });
+  const listed = await h.service.listSurfaces({ caller });
+  expect(listed.map((surface) => [surface.id, surface.anchor, surface.tier])).toEqual([
+    ["page_panel", "page", "scripted"],
+    ["board", "dialog", "scripted"],
+    ["draw_card", "tool-card", "scripted"],
+  ]);
+
+  // Revoked: the re-grant restarts the resident under the narrowed set, and every registration is refused.
+  const revoked = await h.service.setGrant({ caller, pluginId: granted.id, grant: [], acknowledgedNetHosts: [] });
+  expect(revoked.status).toBe("enabled");
+  expect(await h.service.listSurfaces({ caller })).toEqual([]);
+
+  // Never granted: the same bundle enabled without consent to ui.surface registers nothing either.
+  const ungranted = await h.service.install({ caller, bundle: bundle("ungranted"), grant: [] });
+  await h.service.setEnabled({ caller, pluginId: ungranted.id, enabled: true });
+  expect((await h.service.list({ caller })).map((plugin) => plugin.status)).toEqual(["enabled", "enabled"]);
+  expect(await h.service.listSurfaces({ caller })).toEqual([]);
 });

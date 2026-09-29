@@ -5,8 +5,9 @@ import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { ReactElement } from "react";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ExtensionsPageStory, PluginDialogBodyStory, PluginToolCardStory } from "../_ct-stories.tsx";
 
 type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
@@ -74,9 +75,15 @@ function guestSource(surfaceId: string, label: string): string {
   `;
 }
 
-async function setupGuest(page: Parameters<typeof routeTrpc>[0], rows: TrpcRoutes<"plugin.list" | "plugin.listSurfaces">, source: string): Promise<void> {
+async function setupGuest(
+  page: Parameters<typeof routeTrpc>[0],
+  rows: TrpcRoutes<"plugin.list" | "plugin.listSurfaces">,
+  source: string,
+  hostCall: TrpcRoutes<"plugin.uiHostCall"> | Record<string, never> = {},
+): Promise<void> {
   await routeTrpc(page, {
     ...rows,
+    ...hostCall,
     "plugin.getLog": () => [],
     "assets.resolveBlobRefs": () => [],
     "sessions.me": () => USER_VIEWER,
@@ -198,3 +205,74 @@ test("a scripted tool card replaces the generic record only after its guest publ
   await expect(component.getByText("The Road", { exact: true })).toBeVisible();
   await expect(component.locator('[data-slot="tool-call-block"]')).toHaveCount(0);
 });
+
+const SCRIPTED_ANCHORS = [
+  { anchor: "page", pluginId: PAGE_PLUGIN_ID, surfaceId: "page_panel", title: "Scripted page", pluginName: "Page Plugin", label: "Page guest" },
+  { anchor: "dialog", pluginId: DIALOG_PLUGIN_ID, surfaceId: "board", title: "Scripted board", pluginName: "Dialog Plugin", label: "Dialog guest" },
+  { anchor: "tool-card", pluginId: TOOL_PLUGIN_ID, surfaceId: "tool_panel", title: "Scripted draw", pluginName: "Tool Plugin", label: "Tool guest" },
+] as const;
+
+const SCRIPTED_TOOL_RECORD: ToolCallRecord = {
+  toolCallId: "call_scripted",
+  name: TOOL_WIRE_NAME,
+  arguments: "{}",
+  result: '{"drawn":"The Road"}',
+  isError: false,
+  durationMs: 12,
+};
+
+/** The production mount for one scripted anchor: the Extensions page, the house dialog body, or a transcript tool card. */
+function anchorStory({ anchor, pluginId, surfaceId }: (typeof SCRIPTED_ANCHORS)[number]): ReactElement {
+  if (anchor === "page") {
+    return <ExtensionsPageStory selectKey={{ pluginId, surfaceId }} />;
+  }
+  if (anchor === "dialog") {
+    return <PluginDialogBodyStory />;
+  }
+  return <PluginToolCardStory records={[SCRIPTED_TOOL_RECORD]} />;
+}
+
+/** A guest whose one proxied host call reports back, in its own tree, whether the host granted or refused it. */
+function hostCallGuestSource(surfaceId: string, label: string): string {
+  return `
+    const ui = orb.ui(1);
+    let outcome = "pending";
+    function draw() {
+      ui.render(${JSON.stringify(surfaceId)}, { kind: "text", voice: "label", value: ${JSON.stringify(label)} + " host call " + outcome });
+    }
+    ui.host.storage.get("k").then(() => { outcome = "granted"; draw(); }, () => { outcome = "refused"; draw(); });
+    draw();
+  `;
+}
+
+for (const target of SCRIPTED_ANCHORS) {
+  const { anchor, pluginId, surfaceId, title, pluginName, label } = target;
+  const surface = scriptedSurface(pluginId, surfaceId, anchor, title);
+
+  test(`unmounting the ${anchor} anchor terminates its scripted guest worker`, async ({ mount, page }) => {
+    await setupGuest(page, routes(pluginId, pluginName, surface), guestSource(surfaceId, label));
+    const guestStarted = page.waitForEvent("worker", { predicate: (candidate) => candidate.url().includes("ui-guest"), timeout: GUEST_BOOT_TIMEOUT_MS });
+
+    const component = await mount(anchorStory(target));
+    await expectGuestInteraction(page, label);
+    const guest = await guestStarted;
+    const terminated = guest.waitForEvent("close", { timeout: GUEST_BOOT_TIMEOUT_MS });
+
+    await component.unmount();
+
+    // The worker owns the QuickJS context and is the guest's only channel to host calls and state; its close
+    // event is the browser's own report that `terminate()` ran.
+    await terminated;
+    await expect(page.getByText(`${label} state 1`)).toHaveCount(0);
+  });
+
+  test(`a host call refused for a guest at the ${anchor} anchor reaches the guest as a refusal`, async ({ mount, page }) => {
+    await setupGuest(page, routes(pluginId, pluginName, surface), hostCallGuestSource(surfaceId, label), {
+      "plugin.uiHostCall": () => trpcError({ code: "FORBIDDEN", message: "plugin capability not granted: storage.kv" }),
+    });
+
+    await mount(anchorStory(target));
+
+    await expect(page.getByText(`${label} host call refused`, { exact: true })).toBeVisible({ timeout: GUEST_BOOT_TIMEOUT_MS });
+  });
+}

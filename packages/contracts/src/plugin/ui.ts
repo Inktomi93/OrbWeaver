@@ -1448,6 +1448,8 @@ export const PLUGIN_COMMAND_DESCRIBE_MAX = 200;
  *  is a control affordance, not a paste target — a plugin that needs a document takes it through its own surface. */
 export const PLUGIN_COMMAND_ARGS_MAX = 2000;
 export const PLUGIN_COMMAND_PLACEMENT_TARGETS = ["composer-action", "composer-media"] as const;
+/** A placement label shares the vocabulary's label bound: it renders as one menu item beside host labels. */
+export const PLUGIN_COMMAND_PLACEMENT_LABEL_MAX = LABEL_MAX;
 export type PluginCommandPlacementTarget = (typeof PLUGIN_COMMAND_PLACEMENT_TARGETS)[number];
 export interface PluginCommandPlacement {
   readonly target: PluginCommandPlacementTarget;
@@ -1456,7 +1458,7 @@ export interface PluginCommandPlacement {
 }
 export const pluginCommandPlacementSchema = z.object({
   target: z.enum(PLUGIN_COMMAND_PLACEMENT_TARGETS),
-  label: z.string().min(1).max(LABEL_MAX),
+  label: z.string().min(1).max(PLUGIN_COMMAND_PLACEMENT_LABEL_MAX),
   icon: z.enum(PLUGIN_ICON_NAMES).optional(),
 }) satisfies z.ZodType<PluginCommandPlacement>;
 
