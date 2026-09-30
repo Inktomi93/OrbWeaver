@@ -14,6 +14,9 @@ const FIRST_ID = castId<PluginId>("plugin_ct_same_name000001");
 const SECOND_ID = castId<PluginId>("plugin_ct_same_name000002");
 const ALPHA_ID = castId<PluginId>("plugin_ct_order_alpha00001");
 const ZETA_ID = castId<PluginId>("plugin_ct_order_zeta000001");
+// Two installs share a display name; the one whose slug sorts first has the higher id.
+const MID_A_SLUG_ID = castId<PluginId>("plugin_ct_order_mid_z00001");
+const MID_B_SLUG_ID = castId<PluginId>("plugin_ct_order_mid_a00001");
 
 const COMMANDS: TrpcWireOutput<"plugin.listCommands"> = [
   {
@@ -234,9 +237,35 @@ for (const transition of ["disable", "uninstall"] as const) {
   });
 }
 
-// Input order is deliberately not the host order: plugins arrive Zeta first, and each command's first
-// placement label disagrees with its media label.
+// Input order is deliberately not the host order: plugins arrive Zeta first, the same-name pair arrives in
+// reverse slug order, and each Alpha command's first placement label disagrees with its media label.
 const ORDER_COMMANDS: TrpcWireOutput<"plugin.listCommands"> = [
+  {
+    pluginId: MID_B_SLUG_ID,
+    slug: "b-mid",
+    pluginName: "Mid Deck",
+    name: "peek",
+    describe: "Peek at the top card",
+    args: [],
+    group: "Cards",
+    placements: [
+      { target: "composer-action", label: "Peek" },
+      { target: "composer-media", label: "Peek" },
+    ],
+  },
+  {
+    pluginId: MID_A_SLUG_ID,
+    slug: "a-mid",
+    pluginName: "Mid Deck",
+    name: "peek",
+    describe: "Peek at the top card",
+    args: [],
+    group: "Cards",
+    placements: [
+      { target: "composer-action", label: "Peek" },
+      { target: "composer-media", label: "Peek" },
+    ],
+  },
   {
     pluginId: ZETA_ID,
     slug: "zeta",
@@ -281,11 +310,23 @@ const ORDER_COMMANDS: TrpcWireOutput<"plugin.listCommands"> = [
 const ORDERED_MENUS = [
   {
     trigger: "Plugin actions",
-    names: ["Alpha Deck (alpha) · Cards · Run Draw", "Alpha Deck (alpha) · Cards · Run Shuffle", "Zeta Deck (zeta) · Scenes · Run Open"],
+    names: [
+      "Alpha Deck (alpha) · Cards · Run Draw",
+      "Alpha Deck (alpha) · Cards · Run Shuffle",
+      "Mid Deck (a-mid) · Cards · Run Peek",
+      "Mid Deck (b-mid) · Cards · Run Peek",
+      "Zeta Deck (zeta) · Scenes · Run Open",
+    ],
   },
   {
     trigger: "Message tools",
-    names: ["Alpha Deck (alpha) · Cards · Run Burn", "Alpha Deck (alpha) · Cards · Run Cut", "Zeta Deck (zeta) · Scenes · Run Frame"],
+    names: [
+      "Alpha Deck (alpha) · Cards · Run Burn",
+      "Alpha Deck (alpha) · Cards · Run Cut",
+      "Mid Deck (a-mid) · Cards · Run Peek",
+      "Mid Deck (b-mid) · Cards · Run Peek",
+      "Zeta Deck (zeta) · Scenes · Run Frame",
+    ],
   },
 ] as const;
 
@@ -301,6 +342,50 @@ test("the host orders placements by plugin, group and the target's own label, wh
       await expect(items.nth(index)).toHaveAccessibleName(name);
     }
     await page.keyboard.press("Escape");
+  }
+});
+
+// Input order, plugin id order and composer placement labels all disagree with what the Plugins menu shows.
+const SORT_LOW_ID = castId<PluginId>("plugin_ct_sort_b000000001");
+const SORT_HIGH_ID = castId<PluginId>("plugin_ct_sort_z000000001");
+const UNSORTED_COMMANDS: TrpcWireOutput<"plugin.listCommands"> = [
+  { pluginId: SORT_LOW_ID, slug: "zeta-deck", pluginName: "Sort Deck", name: "cut", describe: "Cut the deck", args: [], group: "Cards", placements: [] },
+  {
+    pluginId: SORT_HIGH_ID,
+    slug: "alpha-deck",
+    pluginName: "Sort Deck",
+    name: "shuffle",
+    describe: "Shuffle the deck",
+    args: [],
+    group: "Cards",
+    placements: [{ target: "composer-action", label: "Alpha" }],
+  },
+  {
+    pluginId: SORT_HIGH_ID,
+    slug: "alpha-deck",
+    pluginName: "Sort Deck",
+    name: "draw",
+    describe: "Draw a card",
+    args: [],
+    group: "Cards",
+    placements: [{ target: "composer-action", label: "Zeta" }],
+  },
+];
+
+test("the Plugins menu follows the shown plugin attribution and command name, not the wire order", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": () => ({ items: [], nextCursor: null }), "plugin.listCommands": () => UNSORTED_COMMANDS });
+  const component = await mount(<PluginComposerPlacementsStory />);
+
+  await component.getByRole("button", { name: "Plugin commands" }).click();
+  const items = page.getByRole("menu").getByRole("menuitem");
+  const shown = [
+    "Sort Deck (alpha-deck) · Cards · Run draw · Draw a card",
+    "Sort Deck (alpha-deck) · Cards · Run shuffle · Shuffle the deck",
+    "Sort Deck (zeta-deck) · Cards · Run cut · Cut the deck",
+  ];
+  await expect(items).toHaveCount(shown.length);
+  for (const [index, name] of shown.entries()) {
+    await expect(items.nth(index)).toHaveAccessibleName(name);
   }
 });
 

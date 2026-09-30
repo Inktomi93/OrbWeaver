@@ -49,15 +49,15 @@ export function clearJoinParam(): void {
   history.replaceState(null, "", `${location.pathname}${search}${location.hash}`);
 }
 
-/** The signed-out guard's step before its `/login` redirect: move an inbound `?join=` token into the tab
- *  stash and scrub it from the address bar and history. */
+/** The signed-out guard's step before its `/login` redirect: copy an inbound `?join=` token into the tab stash.
+ *  @remarks It never touches the address bar. The router patches `history.replaceState`, so a scrub inside a
+ *  `beforeLoad` starts a second load of `/` that races the redirect and can crash the landing. The redirect
+ *  replaces the `/?join=` history entry itself, which removes the token from the address bar and from Back. */
 export function stashInboundJoinToken(): void {
   const token = readJoinToken();
-  if (token === null) {
-    return;
+  if (token !== null) {
+    stashJoinToken(token);
   }
-  stashJoinToken(token);
-  clearJoinParam();
 }
 
 /** The token the signed-in app root opens the join dialog with: the address bar's own `?join=` first, else

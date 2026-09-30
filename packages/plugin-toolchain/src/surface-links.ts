@@ -3,10 +3,11 @@
 // A reference the checker cannot resolve to literals is open and is never reported.
 import ts from "typescript";
 
-/** The `host.ui` member that owns a checked call. */
-type LinkedUiMethod = "register" | "setState" | "openDialog";
+/** The `host.ui` members whose calls are checked. */
+const LINKED_UI_METHOD_NAMES = ["register", "setState", "openDialog"] as const;
+type LinkedUiMethod = (typeof LINKED_UI_METHOD_NAMES)[number];
 
-const LINKED_UI_METHODS: ReadonlySet<string> = new Set<LinkedUiMethod>(["register", "setState", "openDialog"]);
+const LINKED_UI_METHODS: ReadonlySet<string> = new Set<LinkedUiMethod>(LINKED_UI_METHOD_NAMES);
 const HOST_INTERFACE = "PluginHostV1";
 const UI_NAMESPACE = "ui";
 const DIALOG_ANCHOR = "dialog";

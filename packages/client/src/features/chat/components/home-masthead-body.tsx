@@ -35,6 +35,7 @@
 // when there is no room to have left off in — an absent fact prints nothing, never "You left off never".
 
 import { Stack } from "@orb/ui/layout";
+import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -71,6 +72,23 @@ function mastheadLine(viewerLastTurnAt: number | null, firstRun: boolean): strin
     return "Start a room and this is where you will find your way back into it.";
   }
   return `You left off ${timeLib.formatRelativeAgo(viewerLastTurnAt)}.`;
+}
+
+/** The masthead's loading box: the empty account's copy, set invisibly in the real voices under one skeleton
+ *  block, so it wraps exactly as the settled copy does at this width. A device with no box memory is most
+ *  often a new account, and this is that account's copy; every later boot reserves the measured box. */
+export function HomeMastheadSkeleton(): ReactElement {
+  return (
+    <Stack aria-busy={true} className="relative" gap="tight">
+      <Heading aria-hidden={true} className="invisible" level={1} voice="masthead">
+        {mastheadTitle(0, false)}
+      </Heading>
+      <Text aria-hidden={true} className="invisible" voice="reading">
+        {mastheadLine(null, false)}
+      </Text>
+      <Skeleton className="absolute inset-0" />
+    </Stack>
+  );
 }
 
 export function HomeMastheadBody(): ReactElement {

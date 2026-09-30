@@ -1,8 +1,8 @@
 // CT: the generation credit in a message's reveal cluster (generation-credit.tsx). Each assistant swipe names
 // the model, provider and connection from its persisted record; the connection is resolved against the
-// VIEWER's own list, so a row outside it (the host's, in a shared room) is named as such, and a swipe whose
-// connection id is null (a deleted connection or an import) says it was deleted or never recorded. The #167
-// posture holds: the glyph is the only rendering and the sentence lives on `title` and in sr-only text.
+// VIEWER's own list, so a row outside it (the host's, in a shared room) is named as such. A null connection id
+// reads through its provenance: `recorded` means the connection was deleted, `unrecorded` means none was ever
+// recorded (an import or an edited reply). The #167 posture holds: the glyph is the only rendering and the sentence lives on `title` and in sr-only text.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { UserConnectionId } from "@orb/kit/ids";
@@ -32,7 +32,14 @@ const WORK_KEY = {
 } satisfies TrpcFixtureOutput<"connection.list">[number];
 
 function generated(overrides: Partial<MessageView> = {}): MessageView {
-  return makeMessageView({ role: "assistant", model: testModelId(MODEL), provider: testProviderId("anthropic"), connectionId: WORK_KEY_ID, ...overrides });
+  return makeMessageView({
+    role: "assistant",
+    model: testModelId(MODEL),
+    provider: testProviderId("anthropic"),
+    connectionId: WORK_KEY_ID,
+    connectionAttributionProvenance: "recorded",
+    ...overrides,
+  });
 }
 
 function credit(component: Locator): Locator {
@@ -67,11 +74,22 @@ test("a swipe on a connection outside the viewer's list (the host's, in a shared
   await expect(credit(component)).toHaveAttribute("title", `${LEAD} Connection: not in your list.`);
 });
 
-test("a swipe whose connection was deleted (or never recorded) says exactly that, and keeps its model and provider", async ({ mount, page }) => {
+test("a swipe whose recorded connection was deleted says the connection was deleted, and keeps its model and provider", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "connection.list": [WORK_KEY] });
-  const component = await mount(<MessageActionsRowStory message={generated({ connectionId: null })} generationCredit={true} />);
+  const component = await mount(
+    <MessageActionsRowStory message={generated({ connectionId: null, connectionAttributionProvenance: "recorded" })} generationCredit={true} />,
+  );
 
-  await expect(credit(component)).toHaveAttribute("title", `${LEAD} Connection: deleted or never recorded.`);
+  await expect(credit(component)).toHaveAttribute("title", `${LEAD} Connection: deleted.`);
+});
+
+test("a swipe that never recorded a connection (an import or an edited reply) says it was not recorded, never deleted", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "connection.list": [WORK_KEY] });
+  const component = await mount(
+    <MessageActionsRowStory message={generated({ connectionId: null, connectionAttributionProvenance: "unrecorded" })} generationCredit={true} />,
+  );
+
+  await expect(credit(component)).toHaveAttribute("title", `${LEAD} Connection: not recorded.`);
 });
 
 test("a failed connection lookup is named as a failed lookup, never as a missing connection", async ({ mount, page }) => {

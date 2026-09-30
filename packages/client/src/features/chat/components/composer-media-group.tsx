@@ -91,7 +91,9 @@ function MediaGroupLabel({ sharedRoom }: { readonly sharedRoom: boolean }): Reac
     <MenuGroupLabel>
       <Stack gap="field">
         <Text as="span">Media</Text>
-        <Text as="span" voice="gloss" data-slot="composer-room-pictures-note">
+        {/* Inline-size containment keeps the sentence from setting the popup's width: it wraps to the
+            width the menu rows set, so the popup stays inside a phone viewport. */}
+        <Text as="span" voice="gloss" className="contain-inline-size" data-slot="composer-room-pictures-note">
           {ROOM_PICTURES_NOTE}
         </Text>
       </Stack>

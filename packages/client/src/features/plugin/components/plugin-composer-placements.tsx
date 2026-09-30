@@ -23,11 +23,12 @@ interface PlacedCommandGroup {
   readonly commands: readonly PlacedCommand[];
 }
 
-// Host order: attribution, then group, then the label shown at THIS target. The catalog's own order keys on a
-// command's first placement, which is a different label when a command is placed at both targets.
+// Host order: the shown attribution (name, then slug), then group, then the label shown at THIS target. The
+// plugin id keeps each install's entries contiguous; the catalog order keys on command names, not these labels.
 function comparePlaced(a: PlacedCommand, b: PlacedCommand): number {
   return (
     a.command.pluginName.localeCompare(b.command.pluginName) ||
+    a.command.slug.localeCompare(b.command.slug) ||
     a.command.pluginId.localeCompare(b.command.pluginId) ||
     (a.command.group ?? "").localeCompare(b.command.group ?? "") ||
     a.label.localeCompare(b.label) ||

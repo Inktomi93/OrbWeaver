@@ -15,22 +15,27 @@
 import { Button } from "@orb/ui/button";
 import { MessagesSquare } from "@orb/ui/icons";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { TrailingArrow } from "#components";
 import { useTRPC } from "#data";
 import type { HomeTileContribution } from "#state";
-import { setActiveSection } from "#state";
+import { forgetSurfaceBox, setActiveSection, useSurfaceBox } from "#state";
 import { HomeAlsoOpenTileBody } from "../components/home-also-open-tile-body.tsx";
 import { RECENTS_LIMIT } from "../components/home-recents-tile-body.tsx";
 
 /** Between the hero (10) and the jump rail (40) — the mock's order down the hearth column. */
 const ALSO_OPEN_TILE_ORDER = 15;
 
-/** The FIRST-BOOT box (#92): the hero takes `items[0]`, so this list is at most one row short of the page
- *  the shared query asks for. Derived from that limit, never a second number that can drift from it. */
+/** The skeleton's authored row count, the fill fallback inside a remembered box (a device with no memory
+ *  renders no box at all, see `useVisible`). The hero takes `items[0]`, so this list is at most one row
+ *  short of the page the shared query asks for. Derived from that limit, never a second number that can drift from it. */
 const ALSO_OPEN_SKELETON_ROWS = RECENTS_LIMIT - 1;
 
+/** The registry id, which is also this tile's key in the device's box memory. */
+const ALSO_OPEN_TILE_ID = "chat.alsoOpen";
+
 export const chatAlsoOpenTile: HomeTileContribution = {
-  id: "chat.alsoOpen",
+  id: ALSO_OPEN_TILE_ID,
   title: "Other rooms",
   icon: MessagesSquare,
   order: ALSO_OPEN_TILE_ORDER,
@@ -40,13 +45,26 @@ export const chatAlsoOpenTile: HomeTileContribution = {
   // be also-open, and the block disappears whole rather than rendering a named region with no rows in it.
   // The gate reads the SAME query key the two bodies suspend on (`useQuery`, non-suspense — no second
   // fetch, no boundary of its own, and `useVisible` is called unconditionally over the door-frozen list,
-  // so the hook call is legal here). While that read is in flight it answers TRUE: the steady state of an
-  // account with recents is a populated list, and reserving the block and then removing it on the rare
-  // one-room account is a smaller shift than withholding it and growing the column on every boot.
+  // so the hook call is legal here).
+  //
+  // WHILE THAT READ IS IN FLIGHT the gate answers from this device's box memory, not from a guess: a
+  // remembered box means this device last saw the list, so it reserves that box; no box means it never
+  // did, so nothing is reserved. This tile is the stated exception to home's full-page first boot. Its
+  // shrink lands after the boot veil lifts and never heals (a hidden tile is never measured), and the
+  // account a device with no memory most often boots is a new one with no rooms. A resolved-hidden list
+  // forgets its box, so the next boot does not reserve a list that is gone.
   useVisible: (): boolean => {
     const trpc = useTRPC();
     const { data: page } = useQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT }));
-    return page === undefined || page.items.length > 1;
+    const remembered = useSurfaceBox(ALSO_OPEN_TILE_ID) !== null;
+    const visible = page === undefined ? remembered : page.items.length > 1;
+    const settledHidden = page !== undefined && !visible;
+    useEffect(() => {
+      if (settledHidden) {
+        forgetSurfaceBox(ALSO_OPEN_TILE_ID);
+      }
+    }, [settledHidden]);
+    return visible;
   },
   action: (
     // The arrow is DECORATIVE (rail sweep P3-14): the button's accessible name is "All chats", not

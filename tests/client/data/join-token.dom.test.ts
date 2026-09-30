@@ -28,15 +28,16 @@ test("clearJoinParam removes every join field without reserializing unrelated qu
   expect(replaceState).toHaveBeenCalledWith(null, "", "/chat/room?space=%20&plus=+&slash=%2f&tag=first&tag=second&empty=&flag#turn-4");
 });
 
-// D259 — the signed-out round trip: the guard stashes the token and scrubs the URL; after sign-in the app root
-// opens the join dialog with the stashed token and spends it, exactly once.
+// D259 — the signed-out round trip: the guard stashes the token (its redirect replaces the `/?join=` entry); after
+// sign-in the app root opens the join dialog with the stashed token and spends it, exactly once.
 test("a stashed token opens the join dialog after sign-in, and only once", () => {
   const tab = stubTabStorage();
   const replaceState = vi.fn();
   vi.stubGlobal("location", { pathname: "/", search: "?join=tok_invite", hash: "" });
   vi.stubGlobal("history", { replaceState });
   stashInboundJoinToken();
-  expect(replaceState).toHaveBeenCalledWith(null, "", "/");
+  // The router hears a `replaceState` inside a guard as a navigation and re-runs `/` against its own redirect.
+  expect(replaceState).not.toHaveBeenCalled();
 
   // The post-sign-in `/` load carries no `?join=`: the dialog's token comes from the tab stash.
   vi.stubGlobal("location", { pathname: "/", search: "", hash: "" });

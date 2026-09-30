@@ -128,3 +128,42 @@ test("with the source unregistered the palette is byte-identical — no plugin g
   await expect(page.getByText("Plugin commands")).toBeHidden();
   await expect(page.getByRole("option", { name: "draw" })).toBeHidden();
 });
+
+// Input order, plugin id order and composer placement labels all disagree with what the row shows.
+const SORT_LOW_ID = castId<PluginId>("plugin_ct_sort_b000000001");
+const SORT_HIGH_ID = castId<PluginId>("plugin_ct_sort_z000000001");
+const UNSORTED_COMMANDS: TrpcWireOutput<"plugin.listCommands"> = [
+  { pluginId: SORT_LOW_ID, slug: "zeta-deck", pluginName: "Sort Deck", name: "cut", describe: "Cut the deck", args: [], group: null, placements: [] },
+  {
+    pluginId: SORT_HIGH_ID,
+    slug: "alpha-deck",
+    pluginName: "Sort Deck",
+    name: "shuffle",
+    describe: "Shuffle the deck",
+    args: [],
+    group: null,
+    placements: [{ target: "composer-action", label: "Alpha" }],
+  },
+  {
+    pluginId: SORT_HIGH_ID,
+    slug: "alpha-deck",
+    pluginName: "Sort Deck",
+    name: "draw",
+    describe: "Draw a card",
+    args: [],
+    group: null,
+    placements: [{ target: "composer-action", label: "Zeta" }],
+  },
+];
+
+test("plugin command rows follow the shown plugin attribution and command name, not the wire order", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": () => ({ items: [], nextCursor: null }), "plugin.listCommands": () => UNSORTED_COMMANDS });
+
+  await mount(<PluginCommandPaletteStory />);
+
+  const rows = page.getByRole("option").filter({ hasText: "Sort Deck (" });
+  await expect(rows).toHaveCount(3);
+  for (const [index, shown] of ["Run draw", "Run shuffle", "Run cut"].entries()) {
+    await expect(rows.nth(index)).toContainText(shown);
+  }
+});
