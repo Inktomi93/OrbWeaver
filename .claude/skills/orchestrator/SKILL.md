@@ -41,7 +41,7 @@ CodeGraph's server instructions say to answer directly instead of delegating a l
 
 ## Lane shape
 
-- A lane is one thick segment: one area with several related items, one brief, and one commit at the end.
+- A lane is one thick segment: one area with several related items, one brief, and one commit per leg at the end of its work.
 - File a review pass's P3 findings as one bundle item per surface, not one item per finding.
 - Dispatch independent lanes in parallel. Keep working while they run.
 - Send a second task in a live lane's area as a SendMessage leg, never as a fresh spawn.
