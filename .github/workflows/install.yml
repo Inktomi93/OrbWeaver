@@ -8,6 +8,16 @@ name: install
 # Manual only, like ci.yml.
 on:
   workflow_dispatch:
+    inputs:
+      windows_proof_only:
+        description: Run only Windows broker proofs, without startup or Docker jobs
+        type: boolean
+        default: false
+      windows_proof_repetitions:
+        description: Sequential Windows proof repetitions (1 to 3)
+        type: choice
+        options: ['1', '2', '3']
+        default: '1'
 
 env:
   HEALTHZ: http://127.0.0.1:8788/healthz
@@ -20,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: ${{ fromJSON(inputs.windows_proof_only && '["windows-latest"]' || '["ubuntu-latest", "macos-latest", "windows-latest"]') }}
     steps:
       # The README's `git clone`, at the ref this run was dispatched on.
       - uses: actions/checkout@v4
@@ -56,7 +66,7 @@ jobs:
           pnpm exec node -e "console.log('pnpm scripts run node', process.version, 'from', process.execPath)"
 
       - name: Start, wait for /healthz, stop (Linux and macOS)
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && !inputs.windows_proof_only
         run: |
           pnpm start < /dev/null > "$RUNNER_TEMP/start.log" 2>&1 &
           start_pid=$!
@@ -82,7 +92,7 @@ jobs:
           if curl -fsS "$HEALTHZ" > /dev/null 2>&1; then echo "the server still answers after the stop"; exit 1; fi
 
       - name: Start with start.cmd, wait for /healthz, stop (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && !inputs.windows_proof_only
         shell: pwsh
         run: |
           $noInput = Join-Path $env:RUNNER_TEMP "no-input.txt"
@@ -128,21 +138,29 @@ jobs:
         run: cat "$RUNNER_TEMP"/start*.log || true
 
       - name: Prove plugin broker containment and residency
+        shell: bash
         env:
-          PLUGIN_BROKER_PROOF_RECEIPT: ${{ runner.temp }}/plugin-broker-proof.json
-        run: pnpm test:scoped tests/server/infra/plugin-host/platform-proof.suite.test.ts
+          PROOF_REPETITIONS: ${{ runner.os == 'Windows' && inputs.windows_proof_repetitions || '1' }}
+        run: |
+          for ((i = 1; i <= PROOF_REPETITIONS; i++)); do
+            export PLUGIN_BROKER_PROOF_RECEIPT="$RUNNER_TEMP/plugin-broker-proof-$i.json"
+            pnpm test:scoped tests/server/infra/plugin-host/platform-proof.suite.test.ts
+          done
+
+      - name: Prove plugin broker supervision
+        if: ${{ !cancelled() }}
+        run: pnpm test:scoped tests/server/infra/plugin-host/broker-supervision.suite.test.ts
 
       - name: Add plugin broker receipt to the run summary
         if: always()
         shell: bash
         run: |
           pnpm exec node --input-type=module - <<'NODE'
-          import { appendFile, readFile } from "node:fs/promises";
+          import { appendFile, readFile, readdir } from "node:fs/promises";
           import { resolve } from "node:path";
-          const receipt = resolve(process.env.RUNNER_TEMP, "plugin-broker-proof.json");
-          const result = await Promise.allSettled([readFile(receipt, "utf8")]);
-          if (result[0]?.status === "fulfilled") {
-            await appendFile(process.env.GITHUB_STEP_SUMMARY, `### Plugin broker proof (${process.env.RUNNER_OS})\n\`\`\`json\n${result[0].value}\`\`\`\n`);
+          for (const name of (await readdir(process.env.RUNNER_TEMP)).filter((name) => /^plugin-broker-proof-\d+\.json$/u.test(name)).sort()) {
+            const text = await readFile(resolve(process.env.RUNNER_TEMP, name), "utf8");
+            await appendFile(process.env.GITHUB_STEP_SUMMARY, `### Plugin broker proof (${process.env.RUNNER_OS}, ${name})\n\`\`\`json\n${text}\`\`\`\n`);
           }
           NODE
 
@@ -151,11 +169,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: plugin-broker-proof-${{ matrix.os }}
-          path: ${{ runner.temp }}/plugin-broker-proof.json
+          path: |
+            ${{ runner.temp }}/plugin-broker-proof-*.json
+            ${{ runner.temp }}/start*.log
+            reports/
           if-no-files-found: warn
           retention-days: 14
 
   docker:
+    if: ${{ !inputs.windows_proof_only }}
     name: docker (ubuntu-latest)
     runs-on: ubuntu-latest
     timeout-minutes: 40
