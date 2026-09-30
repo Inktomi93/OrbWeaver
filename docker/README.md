@@ -118,6 +118,9 @@ The port is published on `127.0.0.1` only. To reach the app from your phone or a
    this machine, or join it to this compose network and target `orbweaver:8788` (the stanza at the bottom of
    `docker-compose.yaml`). The proxy must pass `X-Forwarded-Proto/Host/For` and must not buffer SSE. It must
    also pass the browser's `Host` through: Caddy does by default; in nginx set `proxy_set_header Host $host`.
+   The app sends no `Strict-Transport-Security` header, because it cannot know whether the same name is also
+   reached over plain http. Once every visit to that name goes through HTTPS, set it at the proxy. In Caddy:
+   `header Strict-Transport-Security "max-age=31536000"`.
 3. Optionally bound who may knock at all: `IP_ALLOWLIST=192.168.1.0/24`. Behind a proxy the peer is the
    proxy, so allowlist the proxy's address, not your laptop's.
 
@@ -227,7 +230,8 @@ project's network (`docker network inspect orbweaver_default`), or `127.0.0.1/32
 - To keep it in a directory instead: replace the volume line with `./data:/app/data`. The container starts
   as root only to make that directory owned by `PUID`/`PGID` (default 1000), then drops to that user before
   the app runs — the SillyTavern / linuxserver pattern, so no manual `chown`. Match your own user with
-  `PUID=$(id -u) PGID=$(id -g) docker compose up -d`. Started non-root (`user:`, rootless podman) it skips the
+  `PUID=$(id -u) PGID=$(id -g) docker compose up -d`. Everything the app writes there is readable by that user
+  only (mode `600`, directories `700`). Started non-root (`user:`, rootless podman) it skips the
   chown and refuses to boot on an unwritable data dir, saying so.
 - The image itself holds no state; `docker compose down` keeps the volume, `down -v` deletes it.
 - **Updates and the database.** Migrations run at boot, from the SQL that ships inside the image. Before a

@@ -19,15 +19,11 @@
 #                                           must name it, not limp into the schema error one layer deeper)
 #    The allowlist is explicit — it documents exactly which secrets are file-mountable.
 #
-#    COUPLED SITE — HOST_SECRET_ENV_KEYS in
-#    packages/server/src/infra/providers/backends/agent-sdk/env.ts. Every name in the `for name in` line
-#    below gets EXPORTED into the server's process.env, which is the baseline each agent-sdk child env
-#    spreads — and that child runs tools AS HOST. The firewall's list is what deletes them again, so a name
-#    added here and not there hands a live app secret to a tool-executing subprocess. The two lists must stay
-#    SET-IDENTICAL; that is asserted by tests/server/infra/providers/backends/agent-sdk/env.test.ts ("the
-#    *_FILE secret shim and the credential firewall move together"), which parses that very line. The
-#    generated values in job 2 are exported under names ALREADY in that line (SESSION_SECRET,
-#    LOCAL_INITIAL_PASSWORD), so they are firewalled by the same assertion.
+#    Every name in the `for name in` line below is EXPORTED into the server's process.env. No child process
+#    inherits that env: the agent-sdk child copies only an allowlist of host keys
+#    (packages/inference/src/backends/agent-sdk/env.ts), and the plugin broker and its watchdog get NODE_ENV
+#    alone (packages/server/src/infra/plugin-host/process-runtime.ts). A new child spawn must keep that shape,
+#    or it hands a live app secret to a subprocess.
 #
 # 0. PUID/PGID: start as root, own the data dir, drop to that uid/gid, re-exec this script (job 0 below).
 #
@@ -56,6 +52,10 @@
 #    server's own layout (packages/server/src/foundation/data-layout); DATA_DIR is exported below so the
 #    shell and the server read ONE name for its root.
 set -eu
+# Everything the app writes is private to its user. A bind-mounted ./data is a host directory, and the
+# database, uploads and backups in it must not be readable by other users of that host. The mask survives
+# the setpriv exec below and is inherited by node and every child it starts.
+umask 077
 
 load_secret() {
   var="$1"

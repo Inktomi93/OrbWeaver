@@ -67,9 +67,11 @@ test("compose publishes on loopback by default, ships a credentialed login mode,
   expect(read(repoRoot, ".gitignore")).toMatch(/^docker\/orbweaver\.local\.env$/mu);
 });
 
-test("the entrypoint keeps its single *_FILE allowlist line (the agent-sdk firewall test parses it) and fills the two zero-config values", ({ repoRoot }) => {
+test("the entrypoint keeps its single *_FILE allowlist line, keeps the data volume private, and fills the two zero-config values", ({ repoRoot }) => {
   const shim = read(repoRoot, "docker/entrypoint.sh");
   expect(shim.match(/^for name in [^;]+; do$/gmu)).toHaveLength(1);
+  // A bind-mounted ./data is a host directory: files the app creates must not be readable by other host users.
+  expect(shim).toMatch(/^umask 077$/mu);
   // single-user's only credential is the owner fallback; the schema refuses the deny pairing
   expect(shim).toContain("export AUTH_FALLBACK=owner");
   // the no-login default must not survive a non-loopback publication
