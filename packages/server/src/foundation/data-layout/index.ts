@@ -3,7 +3,7 @@
 // backup rule this shape exists for: copy the root except `cache/`.
 
 import { dirname, join } from "node:path";
-import { isBackupFileName } from "@orb/db";
+import { isBackupFileName } from "@orb/db/backup-names";
 import type { DataLayout, DataLayoutInput, DataLayoutKeeperKey, LegacyEntry } from "./contract.ts";
 import { DATA_LAYOUT_SLOT_KEYS, SECRET_ENV_KEYS } from "./contract.ts";
 

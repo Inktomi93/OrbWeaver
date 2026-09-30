@@ -520,6 +520,14 @@ module.exports = {
       to: { path: DB },
     },
     {
+      name: "plugin-worker-no-db",
+      comment:
+        "The plugin guest Worker boots once per cold wake, so its whole module graph is parsed on every eviction under the bounded runtime pool. `infra-no-db` checks direct edges only; this closes the transitive one, most often a `#foundation/*` barrel whose closure reaches the DB client, drizzle and the schema. Import the narrow module instead of the barrel. The backup-name matcher is a DB-free leaf that `#foundation/env` needs.",
+      severity: "error",
+      from: { path: `${SRV}infra/plugin-host/worker-runtime\\.ts$` },
+      to: { path: DB, pathNot: `${DB}client/backup-names\\.ts$`, reachable: true },
+    },
+    {
       name: "domain-below-drivers",
       comment:
         "domain (business logic) is below the drivers + entry. A domain must not import transport/ or entry/ — drivers call DOWN into domain front doors, never the reverse. (Core-0-Architecture-and-Structure.md §3.)",
