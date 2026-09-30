@@ -71,7 +71,7 @@ Everything the app keeps is in `data/`, or wherever `DATA_DIR` points. Stop the 
 
 ### Work on the code
 
-`pnpm dev` runs the watched server and the vite client from source in this terminal; open <http://localhost:5173>. The server restarts on a source change, and Ctrl-C stops both. The checks (`pnpm check`, the test harness) need Linux or WSL2. `pnpm stack up` runs the same dev stack detached, and `pnpm stack down` stops it.
+`pnpm dev` runs the watched server and the Vite client from source on Linux, macOS and Windows; open <http://localhost:5173>. The server restarts on a source change, and Ctrl-C stops both. `pnpm stack up` runs the same dev stack detached, and `pnpm stack down` stops it. See [CONTRIBUTING.md](CONTRIBUTING.md) for checks and native platform evidence.
 
 ## Read first
 
@@ -91,15 +91,18 @@ may import what, from the tree alone.**
 
 ## Develop
 
-Install pnpm and Node 26 as "From source" under "Run it" says. Any pnpm works: inside this repo it runs the version `package.json` pins. Every dependency version lives in the `catalog:` of `pnpm-workspace.yaml`; a `package.json` names only `catalog:` or `workspace:*`.
+Install Git and pnpm as "From source" under "Run it" says. On Windows, install Git for Windows with Git Bash available to the hooks. Inside this repo, pnpm runs the package manager and Node versions pinned in `package.json`. Every dependency version lives in the `catalog:` of `pnpm-workspace.yaml`; a `package.json` names only `catalog:` or `workspace:*`.
 
 ```bash
 pnpm install                               # deps (hard-linked from pnpm's global store) + git hooks (lefthook, via `prepare`)
+pnpm runtime set node 26 -g                 # Node on PATH for Git hooks that invoke it directly
 pnpm exec playwright install chromium      # once: the browser build the component and e2e tests run in
 pnpm check                                 # biome lint + tsc typecheck across all packages
 ```
 
 On Linux, `pnpm exec playwright install --with-deps chromium` also installs the browser's system libraries.
+
+The contributor commands use native Node on macOS and Windows; WSL2 is optional. The manual [contributor workflow](.github/workflows/contributor.yml) proves a fresh install, `pnpm dev`, Snap, `pnpm check` and a fixed component test on native runners. Read its completed artifacts before claiming native contributor parity; those results are still required.
 
 **Worktrees just work** — without a symlink hack. Each `git worktree` gets its
 OWN `node_modules` (correct when branches carry different deps; fast via the shared global store). In a

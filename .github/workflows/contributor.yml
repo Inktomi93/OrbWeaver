@@ -1,0 +1,126 @@
+name: contributor
+
+# Manual native contributor proof; install.yml separately proves the production launch paths.
+on:
+  workflow_dispatch:
+
+jobs:
+  contributor:
+    name: contributor (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    env:
+      CI: "true"
+      HEALTHZ: http://127.0.0.1:8788/healthz
+      DEV_ORIGIN: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      # packageManager pins pnpm; install downloads the devEngines.runtime-pinned Node.
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      # Git hooks invoke node directly, outside pnpm's script environment.
+      - run: pnpm runtime set node 26 -g
+      - run: pnpm exec node -e "console.log(process.version, process.execPath)"
+      - run: pnpm exec playwright install chromium
+
+      - name: Start pnpm dev and prove server and Vite readiness
+        shell: bash
+        run: |
+          pnpm exec node --input-type=module - <<'NODE'
+          import { writeFileSync } from "node:fs";
+          import { join } from "node:path";
+          import { setTimeout as sleep } from "node:timers/promises";
+          import { chromium } from "@playwright/test";
+          import { spawnFullPriorityChild } from "./tooling/src/_shared/proc.ts";
+          // The existing spawn door resolves pnpm's .cmd shim on Windows through cross-spawn.
+          const child = spawnFullPriorityChild("pnpm", ["dev"], {
+            detached: process.platform !== "win32",
+            logPath: join(process.env.RUNNER_TEMP, "contributor-dev.log"),
+          });
+          let exited = false;
+          child.wait().then((exit) => { exited = true; console.error("pnpm dev exited", exit); });
+          if (child.pid === undefined) throw new Error("pnpm dev could not spawn");
+          writeFileSync(join(process.env.RUNNER_TEMP, "contributor-dev.pid"), String(child.pid));
+          child.unref();
+          const ready = async (url) => {
+            try { return (await fetch(url, { signal: AbortSignal.timeout(5000) })).ok; }
+            catch { return false; }
+          };
+          const deadline = Date.now() + 600_000;
+          while (!(await ready(process.env.HEALTHZ) && await ready(process.env.DEV_ORIGIN))) {
+            if (exited) throw new Error("pnpm dev exited before both endpoints answered");
+            if (Date.now() >= deadline) throw new Error("server and Vite readiness timed out");
+            await sleep(1000);
+          }
+          console.log("READY server", process.env.HEALTHZ, "Vite", process.env.DEV_ORIGIN);
+          // A fresh Vite checkout must finish its cold module transforms before Snap's bounded navigation.
+          const browser = await chromium.launch({ headless: true });
+          try {
+            const page = await browser.newPage();
+            await page.goto(process.env.DEV_ORIGIN);
+            await page.locator('html[data-app-ready=""]').waitFor({ state: "attached", timeout: 120_000 });
+            console.log("READY client mounted without degraded readiness");
+          } finally {
+            await browser.close();
+          }
+          NODE
+
+      - name: Capture the ready contributor Home surface
+        shell: bash
+        run: pnpm snap / --base "$DEV_ORIGIN" --map --aria --json --out contributor-home > "$RUNNER_TEMP/contributor-snap.log" 2>&1
+
+      - name: Stop the dev process tree and prove ports are free
+        if: always()
+        shell: bash
+        run: |
+          pnpm exec node --input-type=module - <<'NODE'
+          import { existsSync, readFileSync } from "node:fs";
+          import { join } from "node:path";
+          import { setTimeout as sleep } from "node:timers/promises";
+          import { listeningPids } from "./tooling/src/_shared/platform.ts";
+          import { killPidGroup } from "./tooling/src/_shared/proc.ts";
+          const record = join(process.env.RUNNER_TEMP, "contributor-dev.pid");
+          if (!existsSync(record)) { console.log("No dev process was started"); process.exit(0); }
+          const pid = Number(readFileSync(record, "utf8"));
+          killPidGroup(pid, "SIGTERM");
+          await sleep(5000);
+          killPidGroup(pid, "SIGKILL");
+          await sleep(1000);
+          const ports = listeningPids();
+          if (ports.kind === "refused") throw new Error(ports.reason);
+          for (const port of [process.env.HEALTHZ, process.env.DEV_ORIGIN].map((url) => Number(new URL(url).port))) {
+            if (ports.value.has(port)) throw new Error(`dev port ${port} remains bound after teardown`);
+          }
+          console.log("STOPPED dev tree; server and Vite ports are free");
+          NODE
+
+      - name: Static contributor checks
+        if: ${{ !cancelled() }}
+        run: pnpm check
+
+      - name: Fixed component test
+        if: ${{ !cancelled() }}
+        run: pnpm test:ct tests/client/features/chat/components/home-quick-picks-tile-body.ct.tsx
+
+      - name: Show contributor logs
+        if: always()
+        shell: bash
+        run: |
+          for log in "$RUNNER_TEMP"/contributor-*.log; do
+            if [ -f "$log" ]; then cat "$log"; fi
+          done
+
+      - name: Upload harness, Snap and dev evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contributor-${{ matrix.os }}
+          path: |
+            reports/
+            ${{ runner.temp }}/contributor-*.log
+          if-no-files-found: warn
+          retention-days: 14

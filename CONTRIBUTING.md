@@ -12,17 +12,18 @@ Two ways, and the first one is better because it carries the state:
 
 ## Developing
 
-The launchers run on Linux, macOS and Windows. The checks (`pnpm check`, the test harness) need Linux or
-WSL2: they read the kernel's cgroup CPU limit and run bash hooks.
+Use native Linux, macOS or Windows. Install Git and pnpm through the README's "From source" steps. On Windows, install Git for Windows with Git Bash available to the Git hooks; run contributor commands in PowerShell or Windows Terminal. WSL2 is optional.
 
 ```bash
 pnpm install     # deps + git hooks
+pnpm runtime set node 26 -g  # Node on PATH for hooks
+pnpm exec playwright install chromium  # browser for Snap and component tests
 pnpm start       # production server on http://localhost:8788
 pnpm dev         # the watched dev stack in this terminal, http://localhost:5173
 pnpm stack up    # the same dev stack detached; `pnpm stack status` and `pnpm stack down`
 ```
 
-You need pnpm and Node 26; "From source" in the README installs both through pnpm, and its Develop section adds the one-time Playwright browser install. A dependency version goes in
+`package.json` pins pnpm and the Node runtime used by repository commands. On Linux, use `pnpm exec playwright install --with-deps chromium` to install browser system libraries too. A dependency version goes in
 the `catalog:` of `pnpm-workspace.yaml`, and the `package.json` that uses it says `catalog:`.
 
 ## Before you open a PR
@@ -31,8 +32,13 @@ the `catalog:` of `pnpm-workspace.yaml`, and the `package.json` that uses it say
 pnpm check       # the static tier: lint, typecheck, structural gates
 ```
 
-`pnpm verify --push` additionally runs the behavioural suites (node tests, component tests, e2e
-smoke) and takes a while; run it if your change touches behaviour rather than only shape.
+Run affected behavior tests with `pnpm test:scoped <paths>` or `pnpm test:ct <paths>`. The pre-push hook runs `pnpm verify --push`, which adds node tests, component tests and e2e smoke.
+
+## Native contributor evidence
+
+The manual [contributor workflow](.github/workflows/contributor.yml) runs a fresh checkout and install on macOS and Windows. It proves server and Vite readiness from `pnpm dev`, captures Home with Snap, stops the process tree, runs `pnpm check`, and runs `tests/client/features/chat/components/home-quick-picks-tile-body.ct.tsx`. Each job uploads existing harness artifacts, Snap run slots and dev logs even after a failure. Completed native runs are still required before declaring contributor parity.
+
+The manual [install workflow](.github/workflows/install.yml) separately proves source and Docker production launches and plugin broker behavior. Use its `windows_proof_only` input to repeat Windows broker proofs without rerunning startup or unrelated platform jobs. `windows_proof_repetitions` selects sequential repetitions; each writes its own artifact.
 
 The architecture is enforced, not suggested: imports flow one direction through the package cake,
 every shape has exactly one home, and tests live in the central `tests/` tree mirroring `src`. Read
