@@ -101,27 +101,39 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
   // the TARGET (its nonce changes per request), never on `active`, so a later user switch can't re-fire a
   // stale jump. `viewer` is a dependency on purpose: a cold link to a `when`-gated group resolves while the
   // non-suspense `sessions.me` probe is in flight, and the landing must re-apply once visibility GROWS.
-  useEffect((): void => {
+  useEffect((): (() => void) => {
+    // The cleanup marks this landing superseded, so its late focus below stands down.
+    let superseded = false;
+    const supersede = (): void => {
+      superseded = true;
+    };
     if (target === null) {
-      return;
+      return supersede;
     }
     const group = groups.get(target.group);
     if (!(group.when?.(viewer) ?? true)) {
-      return;
+      return supersede;
     }
     if (target.sub === null) {
       const first = configSectionNavs(sectionRegistry, group.id, viewer)[0]?.id ?? null;
       setActiveConfigSub(first);
       scrollContentToTop(contentRef, suppressSpyRef);
-      return;
+      return supersede;
     }
     const { setting } = target;
     // A setting-level landing also moves keyboard focus onto the leaf's own control when its section stamps
-    // one, so the reader lands on the thing the link named rather than on the LIST row that holds it.
+    // one, so the reader lands on the thing the link named rather than on the LIST row that holds it. The
+    // section may suspend first, so a focus the reader moved meanwhile wins over this late one.
+    const doc = contentRef.current?.ownerDocument;
+    const focusedAtRequest = doc?.activeElement ?? null;
     const focusControl =
       setting === null
         ? undefined
         : (anchor: HTMLElement): void => {
+            const focusedNow = doc?.activeElement ?? null;
+            if (superseded || (focusedNow !== focusedAtRequest && focusedNow !== doc?.body)) {
+              return;
+            }
             anchor.querySelector<HTMLElement>(`#${CSS.escape(configSettingControlId(target.group, setting))}`)?.focus({ preventScroll: true });
           };
     scrollToAnchor({ group: target.group, sub: target.sub }, contentRef, suppressSpyRef, focusControl);
@@ -130,6 +142,7 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
     if (setting !== null) {
       setConfigFocus({ group: target.group, sub: target.sub, setting });
     }
+    return supersede;
     // The two refs are DECLARED now that they arrive from the spy hook rather than being minted here: they
     // are stable identities, so naming them re-fires nothing, and the alternative is a suppression.
   }, [target, groups, sectionRegistry, viewer, contentRef, suppressSpyRef]);

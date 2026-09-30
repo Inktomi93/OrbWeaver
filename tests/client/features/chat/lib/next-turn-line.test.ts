@@ -28,11 +28,31 @@ test("a host names their resolved connection and model", () => {
   expect(nextTurnLine(BASE)).toEqual({ state: "named", text: `Next reply: Work key · ${modelDisplayName(MODEL)}`, door: undefined });
 });
 
-test("a connection label that already carries the model names it once", () => {
-  const minted = { id: MINE, label: `OpenRouter · ${MODEL}`, providerLabel: "OpenRouter" };
-  const text = nextTurnLine({ ...BASE, connections: { rows: [minted], failed: false } }).text;
-  expect(text.split(modelDisplayName(MODEL))).toHaveLength(2);
-  expect(text).toContain(minted.label);
+/** The line for a host whose chat connection row carries `label` and resolves `model`. */
+function lineFor(label: string, model: string): string {
+  const row = { id: MINE, label, providerLabel: "OpenRouter" };
+  return nextTurnLine({
+    ...BASE,
+    resolved: { connectionId: MINE, providerId: testProviderId("openrouter"), model: testModelId(model) },
+    connections: { rows: [row], failed: false },
+  }).text;
+}
+
+test("a label minted from this exact model names it once", () => {
+  for (const label of [`OpenRouter · ${MODEL}`, `OpenRouter · ${MODEL} (2)`, `OpenRouter · ${modelDisplayName(MODEL)}`]) {
+    expect(lineFor(label, MODEL)).toBe(`Next reply: ${label}`);
+  }
+});
+
+// A label is minted once and kept when the model is edited, so a label naming a DIFFERENT model that merely
+// starts with or contains this one is stale: the line still names the model the turn actually runs on.
+test("a stale label naming a longer sibling model keeps the real model beside it", () => {
+  for (const [label, model] of [
+    ["OpenRouter · openai/gpt-4o", "openai/gpt-4"],
+    ["OpenRouter · anthropic/claude-sonnet-5.5", "anthropic/claude-sonnet-5"],
+  ] as const) {
+    expect(lineFor(label, model)).toBe(`Next reply: ${label} · ${modelDisplayName(testModelId(model))}`);
+  }
 });
 
 test("a host whose connection list has not loaded names the provider instead of nothing", () => {

@@ -585,6 +585,34 @@ test("a setting-level deep link from a door focuses the named setting's control,
   await expect(component.getByRole("combobox", { name: "Chat connection", exact: true })).toBeFocused();
 });
 
+// The landing's focus waits for the section to mount. A reader who moves on while it suspends keeps their
+// focus: the late landing must not pull it off the search box they are typing in.
+test("a setting-level landing that resolves after the reader moved focus leaves their focus alone", async ({ mount, page }) => {
+  const bindings = trpcHold();
+  await stub(page, { "connection.listBindings": bindings });
+  await mount(<ConfigDeepLinkFromDoorStory target="connections" sub="model-roles" setting="chat-model" />);
+
+  await page.getByRole("button", { name: "open the setting", exact: true }).click();
+  await bindings.requested;
+  const search = page.getByRole("combobox", { name: "Search settings" });
+  await search.click();
+  await search.pressSequentially("chat");
+
+  bindings.release([]);
+  const picker = page.getByRole("combobox", { name: "Chat connection", exact: true });
+  await expect(picker).toBeVisible();
+  await expect(page.locator("#config-anchor-connections-model-roles")).toBeInViewport();
+  // The landing's focus runs one frame after the anchor mounts; two frames later it has had its chance.
+  await page.evaluate(
+    async (): Promise<void> =>
+      await new Promise((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+  await expect(search).toBeFocused();
+  await expect(picker).not.toBeFocused();
+});
+
 test("a group-only deep link still lands at the TOP of the group (no phantom jump)", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ConfigHostStory target="chat-behavior" />);
