@@ -1,4 +1,4 @@
-// Reachability + the inline "Admit `<host>`" affordance — the Diagnostics tier's last block (inference
+// Reachability + the inline "Admit `<host:port>`" affordance — the Diagnostics tier's last block (inference
 // program §5.3a · the step-3b mock `editor.html` Board C).
 //
 // THE REFUSAL COPY IS §5.3a's, VERBATIM: "Can't reach `<host>` — the server may be down."
@@ -11,10 +11,10 @@
 // the user must wake the box by hand would teach a false model of a mechanism that is already automatic, so
 // the block states the FACT instead and the sentence is what a reader needs.
 //
-// THE ADMIT AFFORDANCE IS DELIBERATELY NARROW, and `connection-editor-model.ts::hostNamedInAllowlist` carries
+// THE ADMIT AFFORDANCE IS DELIBERATELY NARROW, and `connection-editor-model.ts::endpointNamedInAllowlist` carries
 // the reason: the admission RULE lives in `infra/network/egress.ts` (CIDR ranges, resolved addresses, a
 // port-precedence rule), and a client-side copy of it would be a second truth that drifts. This asks only
-// "is this exact name written down?", offers to write it down when it is not, and never claims the reverse.
+// "is this exact authority written down?", offers to write it down when it is not, and never claims the reverse.
 // The add dialog mounts the same block under a refused Server URL (`AdmitPrivateHost`), so one control, one
 // gate. It mounts only for the box owner, because `AppSettings.privateEndpointAllowlist` is owner-gated at the
 // verb (`domain/settings/verbs/app-settings.ts::OWNER_GATED_FIELDS`) and its read is `adminProcedure` — a
@@ -31,7 +31,7 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useAdmitPrivateEndpoint, useProbeConnection } from "../hooks/use-connections-mutations.ts";
-import { endpointHostOf, hostNamedInAllowlist } from "../lib/connection-editor-model.ts";
+import { endpointAuthorityOf, endpointHostOf, endpointNamedInAllowlist } from "../lib/connection-editor-model.ts";
 
 export interface ConnectionReachabilityProps {
   readonly connectionId: UserConnectionId;
@@ -46,6 +46,7 @@ export interface ConnectionReachabilityProps {
 export function ConnectionReachability({ connectionId, baseUrl, wakeable, trpc, invalidation }: ConnectionReachabilityProps): ReactElement {
   const probe = useProbeConnection({ trpc, invalidation });
   const host = endpointHostOf(baseUrl);
+  const authority = endpointAuthorityOf(baseUrl);
   const [verdict, setVerdict] = useState<CredentialHealth | null>(null);
 
   return (
@@ -67,20 +68,20 @@ export function ConnectionReachability({ connectionId, baseUrl, wakeable, trpc, 
           Check again
         </Button>
       </Row>
-      {host === null ? null : <AdmitPrivateHost host={host} invalidation={invalidation} trpc={trpc} />}
+      {authority === null ? null : <AdmitPrivateHost authority={authority} invalidation={invalidation} trpc={trpc} />}
     </Stack>
   );
 }
 
 export interface AdmitPrivateHostProps {
-  readonly host: string;
+  readonly authority: string;
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
   /** Runs once the owner's admission is saved; the server enforces it on the next request. */
   readonly onAdmitted?: () => void;
 }
 
-/** The owner's "Admit `<host>`" block, shared by the editor's Diagnostics tier and the add dialog's refused
+/** The owner's "Admit `<host:port>`" block, shared by the editor's Diagnostics tier and the add dialog's refused
  *  Server URL. It renders nothing for anyone but the box owner. */
 export function AdmitPrivateHost(props: AdmitPrivateHostProps): ReactElement {
   // Its own boundary, and no hand-rolled `renderError`: the read-error surface is the battery's
@@ -130,26 +131,26 @@ function EndpointAdmission(props: AdmitPrivateHostProps): ReactElement | null {
   return <OwnerEndpointAdmission {...props} />;
 }
 
-function OwnerEndpointAdmission({ host, trpc, invalidation, onAdmitted }: AdmitPrivateHostProps): ReactElement | null {
+function OwnerEndpointAdmission({ authority, trpc, invalidation, onAdmitted }: AdmitPrivateHostProps): ReactElement | null {
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
   const admit = useAdmitPrivateEndpoint({ trpc, invalidation });
   const entries = data.resolved.privateEndpointAllowlist;
-  if (hostNamedInAllowlist(host, entries)) {
+  if (endpointNamedInAllowlist(authority, entries)) {
     return null;
   }
   return (
     <Stack data-slot="connection-admit-host" gap="tight">
-      <Text voice="gloss">{host} isn't in this deployment's allowed private endpoints, so requests to it are refused before they leave the server.</Text>
+      <Text voice="gloss">Allow requests to {authority} from this deployment. Other ports require their own admission.</Text>
       <Row gap="field">
         <Button
           disabled={admit.isPending}
           intent="secondary"
           onClick={(): void =>
-            admit.mutate({ partial: { privateEndpointAllowlist: [...entries, host] } }, onAdmitted === undefined ? {} : { onSuccess: onAdmitted })
+            admit.mutate({ partial: { privateEndpointAllowlist: [...entries, authority] } }, onAdmitted === undefined ? {} : { onSuccess: onAdmitted })
           }
           size="sm"
         >
-          Admit {host}
+          Admit {authority}
         </Button>
       </Row>
     </Stack>

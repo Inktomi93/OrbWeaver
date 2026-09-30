@@ -4,8 +4,7 @@ The plugin host runs each warm guest in a recyclable Node Worker inside a separa
 process. Enabled installations retain their host-owned registration catalog while the guest sleeps, so enabled
 count does not allocate a Worker. The app process keeps every authority-bearing `PluginBridge` closure and a
 durable-source reader, while the bundle bytes stay in CAS until a cold wake. A guest
-call crosses a closed, authenticated local protocol (a Unix-domain socket on Linux/macOS or a named pipe on
-Windows) and is re-authorized in the app before the bridge runs.
+call crosses inherited IPC through the watchdog and is re-authorized in the app before the bridge runs.
 
 This split is the host-memory boundary. QuickJS's `setMemoryLimit` is live guest-allocation accounting; it is
 not a WebAssembly or process RSS ceiling. A measured 4 MiB guest allocation bomb made the published Emscripten
@@ -63,10 +62,7 @@ logical registration catalog and accumulated bounded owner log stay app-side so 
 reads do not depend on a warm Worker. Plugins must derive handler state from durable host reads when cold/warm
 equivalence matters; closure-only counters reset on wake by design.
 
-On POSIX, the socket and random-token file are mode `0600` and owned by the broker uid. Windows uses the
-current account's inherited ACL for the token file and a named pipe. The token is never part of guest source,
-command values, or logs, and it remains mandatory on both transports. The broker accepts one authenticated
-parent connection. Workers do not receive the token or endpoint.
+The app and watchdog create the inherited IPC channels. The broker owns no network listener and receives no network grant. The watchdog assigns each broker a fresh generation. Frames from a stopped generation cannot reach a replacement broker or dispatch in the app. Serialized frames and pending IPC writes have finite byte limits. The private working directory contains no app data; the broker receives no filesystem write grant.
 
 Production has no in-process fallback. On Linux, macOS, Windows, and in the default Docker container, the app
 starts the same process tree: app → watchdog → broker → bounded Workers. The broker reports whole-process RSS,
@@ -86,7 +82,7 @@ The shipped pair is a 1 GiB monitored RSS threshold and four physical Workers. M
 `NODE_OPTIONS` changes either plugin budget.
 
 Every command has a parent-side deadline, and synchronous Worker calls have a bounded `Atomics.wait`. A command
-timeout tears down the authenticated socket, which makes the broker terminate every Worker. Broker death marks
+timeout terminates the inherited channel and its supervised processes, including every Worker. Broker death marks
 all logical residents crashed, including sleeping ones, rejects pending commands, and cancels pending bridge
 liveness. Intentional LRU eviction is the only wakeable teardown. No guest is silently replayed after an
 unplanned broker death; the lifecycle may explicitly activate a fresh instance later.

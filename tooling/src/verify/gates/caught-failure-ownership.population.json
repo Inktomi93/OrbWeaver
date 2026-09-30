@@ -726,14 +726,14 @@
       "reason": "the rejection arm records the failure for the availability verdict and deletes the failed single-flight entry, while every awaiting caller still receives the original rejection. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either behavior changes."
     },
     {
-      "siteId": "packages/inference/src/backends/local-light/model-worker.ts::main.detach::fn::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a detached model disposal inside the worker has no caller; the failure is logged as a structured warning that crosses to the host logger. Precedent: packages/inference/src/backends/local-light/prefetch.ts owns a speculative model failure through a warning. Ends if a disposal gains a caller."
-    },
-    {
       "siteId": "packages/inference/src/backends/local-light/model-worker.ts::main::run::1",
       "verdict": "deliberate-absorb",
       "reason": "the rejection arm posts the failure to the host thread, which rejects the waiting caller with the same error (ProviderError fields kept), so the failure propagates across the thread boundary. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if the failure message stops rejecting the host call."
+    },
+    {
+      "siteId": "packages/inference/src/backends/local-light/model-worker.ts::main.detach::fn::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a detached model disposal inside the worker has no caller; the failure is logged as a structured warning that crosses to the host logger. Precedent: packages/inference/src/backends/local-light/prefetch.ts owns a speculative model failure through a warning. Ends if a disposal gains a caller."
     },
     {
       "siteId": "packages/inference/src/backends/local-light/prefetch.ts::createLocalLightPrefetch.warm::preload::1",
@@ -1628,12 +1628,12 @@
     {
       "siteId": "packages/server/src/infra/plugin-host/broker-entry.ts::<module>::catch::1",
       "verdict": "deliberate-absorb",
-      "reason": "malformed authenticated wire input destroys the sole parent socket; close then resets every runtime and pending bridge. Ends if socket close stops owning full broker reset."
+      "reason": "invalid inherited-channel input terminates the broker and its Workers; the app rejects pending work on disconnect. Ends if channel loss stops rejecting app commands."
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/broker-entry.ts::handleCommand::error::1",
       "verdict": "deliberate-absorb",
-      "reason": "malformed, stale, or capacity-refused commands become the matching RPC error response to the authenticated parent. Ends if send stops carrying the caught error."
+      "reason": "malformed, stale, or capacity-refused commands become the matching RPC error response to the inherited parent. Ends if send stops carrying the caught error."
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/broker-entry.ts::handleWorkerCommandResponse::terminateRuntime::1",
@@ -1641,14 +1641,24 @@
       "reason": "termination failure becomes the command's explicit error response; success is not acknowledged before the physical Worker exits. Ends if the rejection arm stops carrying the error."
     },
     {
-      "siteId": "packages/server/src/infra/plugin-host/broker-entry.ts::readOrCreateToken::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT alone is the create-new-token state; every other read or validation failure is rethrown. Ends if a second error code is accepted here."
-    },
-    {
       "siteId": "packages/server/src/infra/plugin-host/broker-entry.ts::terminateDetached::worker.terminate::1",
       "verdict": "deliberate-absorb",
       "reason": "detached termination fails the broker closed on the microtask queue. Ends if the queued throw is removed."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/broker-watchdog.ts::<module>::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "relay failure kills the broker, whose exit rejects the app's pending work. Ends if broker exit stops rejecting app commands."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/broker-watchdog.ts::forwardBrokerFrame::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unusable app channel stops supervision and terminates the broker. Ends if stopBroker no longer terminates the broker."
+    },
+    {
+      "siteId": "packages/server/src/infra/plugin-host/broker-watchdog.ts::superviseOneBroker::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "failed lifecycle delivery stops the watchdog instead of leaving its broker orphaned. Ends if stopBroker no longer terminates the broker."
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::attachAsync::Promise.race::1",
@@ -1673,7 +1683,7 @@
     {
       "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.command::error::1",
       "verdict": "deliberate-absorb",
-      "reason": "the command promise is rejected with the write failure and the unusable socket is destroyed. Ends if either caller delivery or connection teardown is removed."
+      "reason": "the command promise is rejected with the write failure and the unusable channel is terminated. Ends if either caller delivery or connection teardown is removed."
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.command::this.terminateManagedForTest::1",
@@ -1681,9 +1691,14 @@
       "reason": "forced broker death reaches the disconnect owner, which invalidates bindings and rejects pending work. Ends if that error path stops reaching onDisconnect."
     },
     {
+      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.consumeFrame::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed broker bytes terminate the managed channel, rejecting commands and invalidating their authorities."
+    },
+    {
       "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.handle::this.handleBridge::1",
       "verdict": "deliberate-absorb",
-      "reason": "socket teardown routes a detached bridge failure to the disconnect owner. Ends if teardown no longer rejects pending work and crashes residents."
+      "reason": "channel teardown routes a detached bridge failure to the disconnect owner. Ends if teardown no longer rejects pending work and crashes residents."
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.handleBridge::dispatchBridgeCall::1",
@@ -1706,19 +1721,14 @@
       "reason": "forced broker death reaches the disconnect owner, which invalidates bindings and rejects pending work. Ends if that error path stops reaching onDisconnect."
     },
     {
-      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.parseBrokerLine::error::1",
+      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.sendBridgeResult::channelError::1",
       "verdict": "deliberate-absorb",
-      "reason": "malformed or oversized broker bytes are transferred to socket.destroy, which rejects pending work through the disconnect owner. Ends if socket destruction stops carrying the failure."
+      "reason": "a failed error response terminates the channel and rejects pending work. Ends if stopConnection stops rejecting pending work."
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.sendBridgeResult::serializationError::1",
       "verdict": "deliberate-absorb",
-      "reason": "serialization failure is replaced by a minimal protocol error response carrying that failure. Ends if the fallback response stops preserving the error."
-    },
-    {
-      "siteId": "packages/server/src/infra/plugin-host/process-runtime.ts::BrokerClient.sendBridgeResult::socketError::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a failure to send even the minimal response destroys the socket with that failure, rejecting all pending work through the disconnect owner. Ends if socket.destroy stops carrying it."
+      "reason": "oversized host results become a minimal RPC error; failed fallback delivery terminates the channel."
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/sandbox.ts::Sandbox.settleActivationJobs::deferred.settled::1",

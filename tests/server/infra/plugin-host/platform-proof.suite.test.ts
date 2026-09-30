@@ -5,10 +5,10 @@ import { pluginBrokerExecArgv } from "../../../../packages/server/src/infra/plug
 import { expect, test } from "../../../support/fixtures.ts";
 import { runPluginBrokerPlatformProof } from "./_platform-proof.ts";
 
-// The broker's one write grant names its private directory, which the proof cannot know in advance.
-const BROKER_WRITE_GRANT = "--allow-fs-write=";
+const PROOF_TIMEOUT_MS = 600_000;
+const MAX_WINDOWS_DEADLINE_FRACTION = 0.7;
 
-test("the app-owned broker process tree contains pressure and recovers across this platform", { timeout: 300_000 }, async () => {
+test("the app-owned broker process tree contains pressure and recovers across this platform", { timeout: PROOF_TIMEOUT_MS }, async () => {
   const result = await Promise.allSettled([runPluginBrokerPlatformProof()]);
   // biome-ignore lint/style/noProcessEnv: the workflow supplies this proof's receipt destination through the runner environment.
   const output = process.env["PLUGIN_BROKER_PROOF_RECEIPT"];
@@ -27,9 +27,13 @@ test("the app-owned broker process tree contains pressure and recovers across th
     throw settled.reason;
   }
   const receipt = settled.value;
+  if (output !== undefined) {
+    await writeFile(resolve(output), `${JSON.stringify(receipt, null, 2)}\n`, "utf8");
+  }
   expect(receipt).toMatchObject({
     schemaVersion: 1,
     platform: process.platform,
+    endpointKind: "inherited-ipc",
     logicalPlugins: 100,
     configuredWorkerMaximum: 2,
     peakPhysicalWorkersAfterChurn: 2,
@@ -37,15 +41,13 @@ test("the app-owned broker process tree contains pressure and recovers across th
     recoveryValue: "recovered",
     brokerNodeOptions: null,
   });
-  const brokerDirectory = receipt.brokerExecArgv.find((flag) => flag.startsWith(BROKER_WRITE_GRANT))?.slice(BROKER_WRITE_GRANT.length) ?? "";
-  expect(receipt.brokerExecArgv).toEqual(pluginBrokerExecArgv(brokerDirectory));
+  expect(receipt.brokerExecArgv).toEqual(pluginBrokerExecArgv());
+  const deadlineFraction = process.platform === "win32" ? MAX_WINDOWS_DEADLINE_FRACTION : 1;
+  expect(receipt.longestChildWaitMs).toBeLessThanOrEqual(receipt.childTimeoutMs * deadlineFraction);
+  expect(receipt.elapsedMs).toBeLessThanOrEqual(PROOF_TIMEOUT_MS * deadlineFraction);
   expect(receipt.watchdogObservedRssBytes).toBeGreaterThan(receipt.watchdogLimitBytes);
   expect(receipt.appBaselineRssBytes).toBeGreaterThan(0);
   expect(receipt.appRssBytesAfterChurn).toBeGreaterThan(0);
   expect(receipt.coldReloads).toBeGreaterThanOrEqual(98);
   expect(receipt.appDeathCleanupMs).toBeLessThan(10_000);
-
-  if (output !== undefined) {
-    await writeFile(resolve(output), `${JSON.stringify(receipt, null, 2)}\n`, "utf8");
-  }
 });

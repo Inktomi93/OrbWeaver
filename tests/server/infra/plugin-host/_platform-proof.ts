@@ -13,7 +13,7 @@ import type { PluginBridge, PluginHandlerRef, PluginInstance } from "@orb/contra
 
 const execFileAsync = promisify(execFile);
 const THIS_FILE = fileURLToPath(import.meta.url);
-const CHILD_TIMEOUT_MS = 180_000;
+const CHILD_TIMEOUT_MS = 300_000;
 const PROCESS_CLEANUP_TIMEOUT_MS = 10_000;
 const PRESSURE_RECOVERY_TIMEOUT_MS = 30_000;
 const PROCESS_POLL_MS = 50;
@@ -72,6 +72,7 @@ interface ProbeChild {
   readonly messages: ChildMessage[];
   readonly stdout: () => string;
   readonly stderr: () => string;
+  readonly longestWaitMs: () => number;
   readonly waitFor: <T extends ChildMessage["kind"]>(kind: T) => Promise<Extract<ChildMessage, { readonly kind: T }>>;
   marker?: string;
 }
@@ -81,7 +82,10 @@ export interface PluginBrokerPlatformProofReceipt {
   readonly platform: NodeJS.Platform;
   readonly architecture: string;
   readonly nodeVersion: string;
-  readonly endpointKind: "named-pipe" | "unix-domain-socket";
+  readonly endpointKind: "inherited-ipc";
+  readonly elapsedMs: number;
+  readonly longestChildWaitMs: number;
+  readonly childTimeoutMs: number;
   readonly logicalPlugins: number;
   readonly configuredWorkerMaximum: number;
   readonly activationMs: number;
@@ -307,6 +311,7 @@ function spawnProbe(root: string, mode: ChildMode, memoryLimitBytes: number, wor
   const messages: ChildMessage[] = [];
   let stdout = "";
   let stderr = "";
+  let longestWaitMs = 0;
   child.stdout?.setEncoding("utf8").on("data", (chunk: string) => {
     stdout += chunk;
   });
@@ -323,13 +328,18 @@ function spawnProbe(root: string, mode: ChildMode, memoryLimitBytes: number, wor
     messages,
     stdout: () => stdout,
     stderr: () => stderr,
+    longestWaitMs: () => longestWaitMs,
     waitFor: async <T extends ChildMessage["kind"]>(kind: T): Promise<Extract<ChildMessage, { readonly kind: T }>> => {
       // @orb-waive test-determinism(performance.now): the SUBJECT is real child message latency this proof waits on against the real spawned child process, no frozen clock to inject (#828)
-      const deadline = performance.now() + CHILD_TIMEOUT_MS;
+      const startedAt = performance.now();
+      const deadline = startedAt + CHILD_TIMEOUT_MS;
       // @orb-waive test-determinism(performance.now): the SUBJECT is real child message latency this proof waits on against the real spawned child process, no frozen clock to inject (#828)
-      while (performance.now() < deadline) {
+      const withinDeadline = (): boolean => performance.now() < deadline;
+      while (withinDeadline()) {
         const message = messages.find((candidate): candidate is Extract<ChildMessage, { readonly kind: T }> => candidate.kind === kind);
         if (message !== undefined) {
+          // @orb-waive test-determinism(performance.now): this records the real child wait that Windows headroom acceptance measures.
+          longestWaitMs = Math.max(longestWaitMs, performance.now() - startedAt);
           return message;
         }
         if (child.exitCode !== null) {
@@ -444,6 +454,8 @@ function probeRoot(options: { readonly root?: string } = {}): string {
 }
 
 export async function runPluginBrokerPlatformProof(options: { readonly root?: string } = {}): Promise<PluginBrokerPlatformProofReceipt> {
+  // @orb-waive test-determinism(performance.now): the measured proof duration establishes runner deadline headroom.
+  const startedAt = performance.now();
   const root = probeRoot(options);
   const defaultLimitBytes = 1_073_741_824;
 
@@ -517,7 +529,11 @@ export async function runPluginBrokerPlatformProof(options: { readonly root?: st
     platform: process.platform,
     architecture: process.arch,
     nodeVersion: process.version,
-    endpointKind: process.platform === "win32" ? "named-pipe" : "unix-domain-socket",
+    endpointKind: "inherited-ipc",
+    // @orb-waive test-determinism(performance.now): the measured proof duration establishes runner deadline headroom.
+    elapsedMs: performance.now() - startedAt,
+    longestChildWaitMs: Math.max(baseline.longestWaitMs(), churn.longestWaitMs(), pressure.longestWaitMs()),
+    childTimeoutMs: CHILD_TIMEOUT_MS,
     logicalPlugins: churnMessage.logicalPlugins,
     configuredWorkerMaximum: churnMessage.configuredWorkerMaximum,
     activationMs: churnMessage.activationMs,

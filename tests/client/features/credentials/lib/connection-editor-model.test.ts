@@ -12,8 +12,9 @@ import {
   beltKeyGloss,
   capabilityBadges,
   declaredOverrideCount,
+  endpointAuthorityOf,
+  endpointNamedInAllowlist,
   extrasFromRows,
-  hostNamedInAllowlist,
   inferredKindOf,
   rowsFromExtras,
 } from "../../../../../packages/client/src/features/credentials/lib/connection-editor-model.ts";
@@ -210,11 +211,11 @@ describe("the admission affordance's deliberately narrow predicate", () => {
   // rule would be a second truth that drifts). It answers only "is this exact name written down?", so a
   // CIDR-covered host reads as unlisted — additive and harmless — and a listed host is never offered.
   test("matches an exact host and a host:port entry, and does not try to read a CIDR", () => {
-    expect(hostNamedInAllowlist("127.0.0.1", ["127.0.0.1"])).toBe(true);
-    expect(hostNamedInAllowlist("127.0.0.1", ["127.0.0.1:8000"])).toBe(true);
-    expect(hostNamedInAllowlist("ollama.lan", ["OLLAMA.LAN"])).toBe(true);
-    expect(hostNamedInAllowlist("192.168.1.7", ["192.168.1.0/24"])).toBe(false);
-    expect(hostNamedInAllowlist("127.0.0.1", [])).toBe(false);
+    expect(endpointNamedInAllowlist("127.0.0.1", ["127.0.0.1"])).toBe(true);
+    expect(endpointNamedInAllowlist("127.0.0.1", ["127.0.0.1:8000"])).toBe(false);
+    expect(endpointNamedInAllowlist("ollama.lan", ["OLLAMA.LAN"])).toBe(true);
+    expect(endpointNamedInAllowlist("192.168.1.7", ["192.168.1.0/24"])).toBe(false);
+    expect(endpointNamedInAllowlist("127.0.0.1", [])).toBe(false);
   });
 });
 
@@ -224,4 +225,22 @@ describe("the inferred kind reads the SERVER's verdict rather than re-spelling t
     expect(inferredKindOf(["embed", "imageEmbed"])).toBe("embedding");
     expect(inferredKindOf(["rerank"])).toBe("rerank");
   });
+});
+
+test.each([
+  ["http://HOST.lan/v1", "host.lan:80"],
+  ["https://host.lan:443/v1", "host.lan:443"],
+  ["http://127.0.0.1:8000/v1", "127.0.0.1:8000"],
+  ["http://[::1]:8000/v1", "[::1]:8000"],
+  ["https://[fd00::1]/v1", "[fd00::1]:443"],
+  ["file:///tmp/service", null],
+  ["ftp://host.lan:8000", null],
+  ["not a URL", null],
+  [null, null],
+])("admission derives the exact authority of %s", (url, expected) => {
+  expect(endpointAuthorityOf(url)).toBe(expected);
+});
+test("another port on the same host does not hide admission of this endpoint", () => {
+  expect(endpointNamedInAllowlist("127.0.0.1:8000", ["127.0.0.1:8001"])).toBe(false);
+  expect(endpointNamedInAllowlist("127.0.0.1:8000", ["127.0.0.1:8000"])).toBe(true);
 });

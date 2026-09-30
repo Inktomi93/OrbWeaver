@@ -1,38 +1,26 @@
-// infra/plugin-host/broker-entry — authenticated parent socket and physical Worker owner.
+// infra/plugin-host/broker-entry — inherited parent channel and physical Worker owner.
 // ASSUMES(single-replica): these maps own live Workers inside one broker; a multi-replica replacement is a
 // DB-backed runtime lease and command queue, while each Worker remains owned by exactly one broker process.
 
-import { randomBytes, randomUUID } from "node:crypto";
-import { chmodSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import type { Socket } from "node:net";
-import { createServer } from "node:net";
-import { dirname } from "node:path";
+import { randomUUID } from "node:crypto";
 import process from "node:process";
 import { Worker } from "node:worker_threads";
 import type { BrokerBridgeResult, BrokerParentMessage, BrokerWorkerMessage, ParentBrokerMessage, WorkerBrokerMessage } from "./contract/process-protocol.ts";
 import { parsePluginBrokerArguments } from "./process-argv.ts";
+import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
 import {
   encodeProcessValue,
-  PLUGIN_BROKER_MESSAGE_MAX_BYTES,
-  PLUGIN_BROKER_PROTOCOL_VERSION,
   PLUGIN_BROKER_SYNC_TIMEOUT_MS,
   parseMessageLine,
   parseParentBrokerMessage,
   parseWorkerBrokerMessage,
   rpcError,
   serializeMessage,
-  tokenMatches,
 } from "./process-protocol.ts";
 import { PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS } from "./watchdog-policy.ts";
 
-const TOKEN_MIN_CHARS = 32;
-const TOKEN_MAX_CHARS = 128;
-const PRIVATE_MODE_BASE = 0o100;
 const SYNC_TIMEOUT_MARGIN_MS = 500;
-const AUTH_TIMEOUT_MS = 5000;
-const PRIVATE_DIRECTORY_MODE = 0o700;
-const PRIVATE_FILE_MODE = 0o600;
-const { socketPath, tokenPath, workerMaximum, nodeEnvironment } = parsePluginBrokerArguments(process.argv.slice(2));
+const { workerMaximum, generation, nodeEnvironment } = parsePluginBrokerArguments(process.argv.slice(2));
 if (process.send === undefined) {
   throw new Error("plugin broker: refusing to run without its watchdog's IPC channel");
 }
@@ -44,48 +32,26 @@ function supervised(): boolean {
   return process.connected && process.ppid === supervisorPid;
 }
 const heartbeat = setInterval(() => {
-  // The watchdog's own IPC channel can close between ticks (its own forced teardown) — `process.send`
-  // outside of that guard throws an uncaught 'error' event on the process object with nothing armed to
-  // catch it, crashing this broker over a heartbeat nobody would have read anyway.
+  // IPC can close after the connected check; the completion callback owns that teardown race.
   if (!process.connected) {
     return;
   }
-  process.send?.({
-    kind: "plugin-broker-memory",
-    rssBytes: process.memoryUsage.rss(),
-    peakPhysicalWorkers,
-    execArgv: process.execArgv,
-    nodeOptions: null,
-  });
+  process.send?.(
+    {
+      kind: "plugin-broker-memory",
+      rssBytes: process.memoryUsage.rss(),
+      peakPhysicalWorkers,
+      execArgv: process.execArgv,
+      nodeOptions: null,
+    },
+    (error) => {
+      if (error !== null) {
+        abandon();
+      }
+    },
+  );
 }, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS);
 heartbeat.unref();
-
-function readOrCreateToken(path: string): string {
-  try {
-    const stat = lstatSync(path);
-    const privateOnPosix =
-      process.platform === "win32" || (stat.mode % PRIVATE_MODE_BASE === 0 && (process.getuid === undefined || stat.uid === process.getuid()));
-    if (!(stat.isFile() && privateOnPosix)) {
-      throw new Error("plugin broker: token file must be a private regular file for the broker account");
-    }
-    const existing = readFileSync(path, "utf8").trim();
-    if (existing.length < TOKEN_MIN_CHARS || existing.length > TOKEN_MAX_CHARS) {
-      throw new Error("plugin broker: token file length is outside the accepted range");
-    }
-    return existing;
-    // @orb-waive caught-failure-ownership(error): ENOENT alone is the create-new-token state; every other read or validation failure is rethrown. Ends if a second error code is accepted here.
-  } catch (error) {
-    if (!(error instanceof Error && "code" in error) || error.code !== "ENOENT") {
-      throw error;
-    }
-  }
-  mkdirSync(dirname(path), { recursive: true, mode: PRIVATE_DIRECTORY_MODE });
-  const token = randomBytes(TOKEN_MIN_CHARS).toString("base64url");
-  const temporary = `${path}.${process.pid}.tmp`;
-  writeFileSync(temporary, token, { mode: PRIVATE_FILE_MODE, flag: "wx" });
-  renameSync(temporary, path);
-  return token;
-}
 
 interface Runtime {
   readonly worker: Worker;
@@ -98,18 +64,19 @@ type PendingBridge =
   | { readonly kind: "async"; readonly runtimeId: string; readonly worker: Worker }
   | { readonly kind: "sync"; readonly runtimeId: string; readonly control: Int32Array; readonly result: Uint8Array; readonly timer: NodeJS.Timeout };
 
-const token = readOrCreateToken(tokenPath);
 const runtimes = new Map<string, Runtime>();
 const pendingBridge = new Map<string, PendingBridge>();
 let physicalWorkerCount = 0;
 let peakPhysicalWorkers = 0;
-let activeSocket: Socket | undefined;
-let authenticated = false;
-const socketIsNamedPipe = process.platform === "win32" && socketPath.startsWith("\\\\.\\pipe\\");
-
+const sender = new PluginIpcSender(
+  (message, callback) => {
+    process.send?.(message, callback);
+  },
+  () => abandon(),
+);
 function send(message: BrokerParentMessage): void {
-  if (activeSocket !== undefined && !activeSocket.destroyed) {
-    activeSocket.write(serializeMessage(message));
+  if (supervised()) {
+    sender.send({ kind: "frame", generation, frame: serializeMessage(message) });
   }
 }
 
@@ -208,7 +175,7 @@ function createRuntime(runtimeId: string): Runtime {
   }
   const worker = new Worker(new URL("./worker-runtime.ts", import.meta.url), {
     workerData: { runtimeId },
-    // The broker owns the socket and token-file path. A guest Worker needs neither, so do not inherit
+    // Guest Workers receive no app environment or inherited IPC authority, so do not inherit
     // process.env across this trust boundary even though QuickJS itself has no ambient Node surface.
     env: { ["NODE_ENV"]: nodeEnvironment },
   });
@@ -337,23 +304,13 @@ function handleCommand(message: Extract<ParentBrokerMessage, { readonly kind: "c
       value: message.value,
     };
     runtime.worker.postMessage(workerMessage);
-    // @orb-waive caught-failure-ownership(error): malformed, stale, or capacity-refused commands become the matching RPC error response to the authenticated parent. Ends if send stops carrying the caught error.
+    // @orb-waive caught-failure-ownership(error): malformed, stale, or capacity-refused commands become the matching RPC error response to the inherited parent. Ends if send stops carrying the caught error.
   } catch (error) {
     send({ kind: "response", id: message.id, ok: false, error: rpcError(error) });
   }
 }
 
 function handleParentMessage(message: ParentBrokerMessage): void {
-  if (!authenticated) {
-    if (message.kind !== "authenticate" || message.version !== PLUGIN_BROKER_PROTOCOL_VERSION || !tokenMatches(token, message.token)) {
-      activeSocket?.destroy();
-      return;
-    }
-    authenticated = true;
-    activeSocket?.setTimeout(0);
-    send({ kind: "authenticated", version: PLUGIN_BROKER_PROTOCOL_VERSION });
-    return;
-  }
   if (message.kind === "command") {
     handleCommand(message);
     return;
@@ -365,94 +322,46 @@ function handleParentMessage(message: ParentBrokerMessage): void {
     }
     return;
   }
-  if (message.kind === "bridge-result") {
-    const target = pendingBridge.get(message.id);
-    if (target === undefined) {
-      return;
-    }
-    pendingBridge.delete(message.id);
-    if (target.kind === "sync") {
-      settleSync(target, message);
-    } else {
-      target.worker.postMessage(message satisfies BrokerWorkerMessage);
-    }
+  const target = pendingBridge.get(message.id);
+  if (target === undefined) {
+    return;
+  }
+  pendingBridge.delete(message.id);
+  if (target.kind === "sync") {
+    settleSync(target, message);
+  } else {
+    target.worker.postMessage(message satisfies BrokerWorkerMessage);
   }
 }
 
-if (!socketIsNamedPipe) {
-  mkdirSync(dirname(socketPath), { recursive: true, mode: PRIVATE_DIRECTORY_MODE });
-  chmodSync(dirname(socketPath), PRIVATE_DIRECTORY_MODE);
-  rmSync(socketPath, { force: true });
-}
-// `server.close` alone stops new accepts but keeps serving the open app connection, so drop that too; its close
-// handler resets every runtime and exits.
 function abandon(): void {
+  sender.close();
   resetAll();
-  server.close(() => process.exit(0));
-  activeSocket?.destroy();
+  process.exit(0);
 }
 
-const server = createServer((socket) => {
+process.on("message", (value: unknown) => {
   if (!supervised()) {
-    socket.destroy();
     abandon();
     return;
   }
-  if (activeSocket !== undefined && !activeSocket.destroyed) {
-    socket.destroy();
+  const envelope = parsePluginIpcMessage(value);
+  if (envelope === null || envelope.kind !== "frame" || envelope.generation !== generation) {
+    abandon();
     return;
   }
-  activeSocket = socket;
-  authenticated = false;
-  let buffer = "";
-  socket.setTimeout(AUTH_TIMEOUT_MS, () => socket.destroy());
-  socket.setEncoding("utf8");
-  // The parent's own forced teardown (a SIGKILL to the watchdog, an abrupt destroy) can reset this
-  // connection at the OS level. With no listener, Node's default for an unhandled 'error' event is to
-  // throw, crashing this broker process — the "close" handler below already does the one full reset either
-  // arm needs, so an error here needs no separate handling.
-  socket.on("error", () => undefined);
-  socket.on("data", (chunk) => {
-    buffer += chunk;
-    if (Buffer.byteLength(buffer, "utf8") > PLUGIN_BROKER_MESSAGE_MAX_BYTES && !buffer.includes("\n")) {
-      socket.destroy();
+  // @orb-waive caught-failure-ownership(catch): invalid inherited-channel input terminates the broker and its Workers; the app rejects pending work on disconnect. Ends if channel loss stops rejecting app commands.
+  try {
+    const message = parseParentBrokerMessage(parseMessageLine(envelope.frame));
+    if (message === null) {
+      abandon();
       return;
     }
-    for (let newline = buffer.indexOf("\n"); newline >= 0; newline = buffer.indexOf("\n")) {
-      if (!supervised()) {
-        abandon();
-        return;
-      }
-      const line = buffer.slice(0, newline);
-      buffer = buffer.slice(newline + 1);
-      try {
-        const message = parseParentBrokerMessage(parseMessageLine(line));
-        if (message === null) {
-          socket.destroy();
-          return;
-        }
-        handleParentMessage(message);
-        // @orb-waive caught-failure-ownership(catch): malformed authenticated wire input destroys the sole parent socket; close then resets every runtime and pending bridge. Ends if socket close stops owning full broker reset.
-      } catch {
-        socket.destroy();
-        return;
-      }
-    }
-  });
-  socket.on("close", () => {
-    if (activeSocket === socket) {
-      activeSocket = undefined;
-      authenticated = false;
-      resetAll();
-      server.close(() => process.exit(0));
-    }
-  });
-});
-
-server.listen(socketPath, () => {
-  if (!socketIsNamedPipe) {
-    chmodSync(socketPath, PRIVATE_FILE_MODE);
+    handleParentMessage(message);
+  } catch {
+    abandon();
   }
 });
+sender.send({ kind: "ready", generation });
 process.on("SIGTERM", abandon);
 process.on("disconnect", abandon);

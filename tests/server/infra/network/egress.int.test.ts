@@ -193,6 +193,7 @@ describe("publishPrivateEndpointAllowlist — the deployment's private-endpoint 
     // The ports the host-scoped spelling silently handed out — `:22` is the one the retired
     // internal-backend rule named explicitly as staying blocked.
     expect(endpointAdmission("http://127.0.0.1:22")).toBe("refused");
+    expect(await dialVerdict("http://127.0.0.1:8704/v1/models")).toBe("BLOCKED");
     expect(endpointAdmission("http://127.0.0.1:9998")).toBe("refused");
     expect(await dialVerdict("http://127.0.0.1:9998/x")).toBe("BLOCKED");
   });

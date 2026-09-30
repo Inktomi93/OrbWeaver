@@ -4,22 +4,21 @@
 
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, parse, relative, sep } from "node:path";
 import process from "node:process";
 import { DatabaseSync } from "node:sqlite";
 
 const DENIED = "ERR_ACCESS_DENIED";
-const PRIVATE_FILE_MODE = 0o600;
 const PROBE = join(import.meta.dirname, "_broker-permission-probe.ts");
 const DROP_PRELOAD = join(import.meta.dirname, "_worker-drop-preload.ts");
 const root = process.argv.find((value) => value.startsWith("--root="))?.slice("--root=".length) ?? process.cwd();
 const credentialsKey = join(root, "data", "secrets", "credentials_key");
 const { pluginBrokerExecArgv } = (await import(join(root, "packages/server/src/infra/plugin-host/process-permission.ts"))) as {
-  readonly pluginBrokerExecArgv: (brokerDirectory: string) => string[];
+  readonly pluginBrokerExecArgv: () => string[];
 };
 
 // Each link, then enough `..` to climb from its target back to the workspace root, then the key. The kernel applies
@@ -47,8 +46,6 @@ interface ProbeReport {
 const directory = mkdtempSync(join(tmpdir(), "orb-broker-containment-"));
 const brokerDirectory = join(directory, "broker");
 mkdirSync(brokerDirectory, { mode: 0o700 });
-const tokenPath = join(brokerDirectory, "token");
-writeFileSync(tokenPath, randomBytes(32).toString("base64url"), { mode: PRIVATE_FILE_MODE, flag: "wx" });
 const walks = walksThroughLinks();
 // `node:sqlite` bypasses the fs gate. The proof opens a real db under the temp root (granted to neither process) and,
 // when the app has booted, the shipped db under the data dir. Removing the builtin must deny both.
@@ -59,18 +56,18 @@ seed.close();
 const shippedDb = join(root, "data", "db", "orbweaver.db");
 const sqliteTargets = [plantedDb, ...(existsSync(shippedDb) ? [shippedDb] : [])];
 const denied = [credentialsKey, ...walks];
-const allowed = [tokenPath, join(root, "packages", "server", "package.json")];
+const allowed = [join(root, "packages", "server", "package.json")];
 const probePaths = [...new Set([...denied, ...allowed, ...sqliteTargets])];
 const broker: ChildProcess = spawn(
   process.execPath,
   [
-    ...pluginBrokerExecArgv(brokerDirectory),
+    ...pluginBrokerExecArgv(),
     `--allow-fs-read=${PROBE}`,
     `--import=${PROBE}`,
     join(root, "packages/server/src/infra/plugin-host/broker-entry.ts"),
-    join(brokerDirectory, "broker.sock"),
-    tokenPath,
+    brokerDirectory,
     "1",
+    randomUUID(),
     "production",
   ],
   {

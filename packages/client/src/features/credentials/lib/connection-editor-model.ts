@@ -10,6 +10,7 @@
 
 import type { Capability, DeclaredCapability, ModelKind, RoutableTask, Task } from "@orb/contracts/inference";
 import { BELT_OWNED_BODY_KEYS, requirementMet, taskDef } from "@orb/contracts/inference";
+import { effectiveHttpPort } from "@orb/kit/http-endpoint";
 // Direct, not through `#lib`: node-side CT specs import this module.
 import { ROLE_ROWS_ORDERED } from "../../../lib/connection-roles.ts";
 
@@ -222,19 +223,18 @@ export function endpointHostOf(baseUrl: string | null): string | null {
   return parsed === null || parsed.hostname === "" ? null : parsed.hostname.toLowerCase();
 }
 
-/** Does the deployment allowlist name this host OUTRIGHT — an exact host entry, or a `host:port` entry?
- *
- *  DELIBERATELY NARROWER THAN THE GUARD. The enforcement rule lives in `infra/network/egress.ts` and covers
- *  CIDR ranges, resolved addresses and a port-precedence rule this client has no business re-spelling — a
- *  second copy of it would be a truth that drifts. So this answers only the question the affordance needs:
- *  "is this exact name written down?" A host admitted by a CIDR it sits inside reads as unlisted here, and
- *  the affordance offers to write it down explicitly, which is additive and harmless. It never claims the
- *  opposite (a listed host is never offered), so the affordance cannot contradict the guard.
- */
-export function hostNamedInAllowlist(host: string, entries: readonly string[]): boolean {
-  const target = host.toLowerCase();
-  return entries.some((entry) => {
-    const spelling = entry.trim().toLowerCase();
-    return spelling === target || spelling.startsWith(`${target}:`);
-  });
+/** The exact private-endpoint entry this URL can admit; IPv6 retains its authority brackets. */
+export function endpointAuthorityOf(baseUrl: string | null): string | null {
+  const parsed = baseUrl === null ? null : URL.parse(baseUrl);
+  if (parsed === null || parsed.hostname === "") {
+    return null;
+  }
+  const port = effectiveHttpPort(parsed.protocol, parsed.port);
+  return port === null ? null : `${parsed.hostname.toLowerCase()}:${port}`;
+}
+
+/** Check only the exact written authority; resolved-address and CIDR decisions belong to the server. */
+export function endpointNamedInAllowlist(authority: string, entries: readonly string[]): boolean {
+  const target = authority.toLowerCase();
+  return entries.some((entry) => entry.trim().toLowerCase() === target);
 }

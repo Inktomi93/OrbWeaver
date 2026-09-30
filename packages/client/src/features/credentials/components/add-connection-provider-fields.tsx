@@ -42,8 +42,8 @@ export interface ProviderFieldsProps {
   /** The server refused the Server URL (the caught error, whose reason says why). */
   readonly onUrlRefusal: (err: unknown) => void;
   readonly onUrlEdited: () => void;
-  /** The host the server refused as a private address this deployment does not admit, or `null`. */
-  readonly refusedHost: string | null;
+  /** The endpoint authority the server refused as a private address this deployment does not admit, or `null`. */
+  readonly refusedAuthority: string | null;
   readonly onAdmitted: () => void;
 }
 
@@ -59,7 +59,7 @@ export function ProviderFields({
   onListing,
   onUrlRefusal,
   onUrlEdited,
-  refusedHost,
+  refusedAuthority,
   onAdmitted,
 }: ProviderFieldsProps): ReactElement {
   const providerLabel = providerDisplayLabel(provider);
@@ -77,8 +77,8 @@ export function ProviderFields({
           )}
         </form.AppField>
       ) : null}
-      {needsBaseUrl(provider) && refusedHost !== null ? (
-        <AdmitPrivateHost host={refusedHost} invalidation={invalidation} onAdmitted={onAdmitted} trpc={trpc} />
+      {needsBaseUrl(provider) && refusedAuthority !== null ? (
+        <AdmitPrivateHost authority={refusedAuthority} invalidation={invalidation} onAdmitted={onAdmitted} trpc={trpc} />
       ) : null}
       {provider.auth === "oauthToken" && held === null ? <SetupTokenCommand /> : null}
       <KeyField form={form} provider={provider} held={held} />

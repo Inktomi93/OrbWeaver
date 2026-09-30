@@ -4,14 +4,11 @@
 
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
-import { randomBytes, randomUUID } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import type { Socket } from "node:net";
-import { connect } from "node:net";
+import { randomUUID } from "node:crypto";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES } from "@orb/contracts/automation";
@@ -56,17 +53,9 @@ import {
 } from "./budgets.ts";
 import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, PluginHostSeamDeps, PluginLogLineOut, SnippetRunOut } from "./contract/port.ts";
 import type { BrokerParentMessage, ParentBrokerMessage } from "./contract/process-protocol.ts";
+import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
 import { pluginWatchdogExecArgv } from "./process-permission.ts";
-import {
-  fromRpcError,
-  isBridgeOperation,
-  PLUGIN_BROKER_MESSAGE_MAX_BYTES,
-  PLUGIN_BROKER_PROTOCOL_VERSION,
-  parseBrokerParentMessage,
-  parseMessageLine,
-  rpcError,
-  serializeMessage,
-} from "./process-protocol.ts";
+import { fromRpcError, isBridgeOperation, parseBrokerParentMessage, parseMessageLine, rpcError, serializeMessage } from "./process-protocol.ts";
 import type { WarmRuntimeLease } from "./warm-runtime-pool.ts";
 import { WarmRuntimePool } from "./warm-runtime-pool.ts";
 
@@ -77,10 +66,6 @@ const COMMAND_TIMEOUT_MS = {
   dispose: 30_000,
 } as const;
 const CONNECT_TIMEOUT_MS = 10_000;
-const CONNECT_RETRY_MS = 25;
-const TOKEN_BYTES = 32;
-const TOKEN_MIN_CHARS = 32;
-const TOKEN_MAX_CHARS = 128;
 
 interface Binding {
   runtimeId: string | undefined;
@@ -127,11 +112,6 @@ interface BridgeDeliveryPause {
   readonly reached: () => void;
   readonly wait: Promise<void>;
   readonly resume: () => void;
-}
-
-interface SocketConnectionState {
-  buffer: string;
-  authenticated: boolean;
 }
 
 interface MutableLiveness extends PluginInvocationLiveness {
@@ -273,10 +253,12 @@ function createLiveness(): MutableLiveness {
 }
 
 class BrokerClient {
-  private socket: Socket | undefined;
+  private sender: PluginIpcSender | undefined;
+  private generation: string | undefined;
+  private readonly readyListeners = new Set<() => void>();
   private connecting: Promise<void> | undefined;
   private managedChild: ChildProcess | undefined;
-  private managedEndpoint: { readonly socketPath: string; readonly tokenPath: string } | undefined;
+  private managedDirectory: string | undefined;
   private readonly pending = new Map<string, PendingCommand>();
   private readonly liveness = new Map<string, MutableLiveness>();
   private killOnCommand: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"] | undefined;
@@ -285,15 +267,15 @@ class BrokerClient {
   private connectChasePause: { readonly reached: () => void; readonly wait: Promise<void> } | undefined;
   private nextCommand = 0;
 
-  hasManagedChildForTest(): boolean {
+  hasManagedChild(): boolean {
     return this.managedChild !== undefined;
   }
 
-  managedSocketPathForTest(): string | undefined {
-    return this.managedEndpoint?.socketPath;
+  managedDirectoryForTest(): string | undefined {
+    return this.managedDirectory;
   }
 
-  // Kills only the watchdog, leaving the app's broker socket and the broker itself to notice on their own.
+  // Killing only the watchdog proves the broker observes inherited-channel loss itself.
   async killWatchdogForTest(): Promise<void> {
     const child = this.managedChild;
     if (child === undefined || child.exitCode !== null) {
@@ -317,11 +299,11 @@ class BrokerClient {
     await new Promise<void>((resolve) => {
       child.once("exit", () => resolve());
       child.kill("SIGKILL");
-      this.socket?.destroy(unavailableError());
+      this.stopConnection(unavailableError());
     });
     if (this.managedChild === child) {
       this.managedChild = undefined;
-      this.managedEndpoint = undefined;
+      this.managedDirectory = undefined;
     }
   }
 
@@ -367,8 +349,9 @@ class BrokerClient {
     const { operation, runtimeId, authorityId, value, onConnected } = input;
     await this.ensureConnected();
     onConnected?.();
-    const socket = this.socket;
-    if (socket === undefined || socket.destroyed) {
+    const generation = this.generation;
+    const sender = this.sender;
+    if (generation === undefined || sender === undefined) {
       throw unavailableError();
     }
     const id = `parent:${process.pid}:${this.nextCommand++}`;
@@ -385,17 +368,17 @@ class BrokerClient {
         this.pending.delete(id);
         const error = new Error(`plugin broker: ${operation} timed out`);
         reject(error);
-        socket.destroy(error);
+        this.stopConnection(error);
       }, COMMAND_TIMEOUT_MS[operation]);
       this.pending.set(id, { resolve, reject, timer });
       try {
-        socket.write(serialized);
-        // @orb-waive caught-failure-ownership(error): the command promise is rejected with the write failure and the unusable socket is destroyed. Ends if either caller delivery or connection teardown is removed.
+        sender.send({ kind: "frame", generation, frame: serialized });
+        // @orb-waive caught-failure-ownership(error): the command promise is rejected with the write failure and the unusable channel is terminated. Ends if either caller delivery or connection teardown is removed.
       } catch (error) {
         this.pending.delete(id);
         clearTimeout(timer);
         reject(error instanceof Error ? error : unavailableError());
-        socket.destroy();
+        this.stopConnection(error instanceof Error ? error : unavailableError());
         return;
       }
       if (this.killOnCommand === operation) {
@@ -407,7 +390,7 @@ class BrokerClient {
   }
 
   private async ensureConnected(): Promise<void> {
-    if (this.socket !== undefined && !this.socket.destroyed) {
+    if (this.generation !== undefined) {
       return;
     }
     this.connecting ??= this.connectOnce().finally(() => {
@@ -416,9 +399,8 @@ class BrokerClient {
     return await this.connecting;
   }
 
-  private async connectOnce(): Promise<void> {
-    let endpoint = this.managedEndpoint;
-    if (endpoint === undefined) {
+  private async connectOnce(deadline = performance.now() + CONNECT_TIMEOUT_MS): Promise<void> {
+    if (this.managedChild === undefined) {
       const pause = this.connectChasePause;
       if (pause !== undefined) {
         this.connectChasePause = undefined;
@@ -426,25 +408,19 @@ class BrokerClient {
         await pause.wait;
       }
       const directory = mkdtempSync(join(tmpdir(), "orb-plugin-broker-"));
-      const socketPath = process.platform === "win32" ? `\\\\.\\pipe\\orb-plugin-broker-${process.pid}-${randomUUID()}` : join(directory, "broker.sock");
-      const tokenPath = join(directory, "token");
-      mkdirSync(directory, { recursive: true, mode: 0o700 });
-      writeFileSync(tokenPath, randomBytes(TOKEN_BYTES).toString("base64url"), { mode: 0o600, flag: "wx" });
       const child = spawn(
         process.execPath,
         [
           ...pluginWatchdogExecArgv(),
           fileURLToPath(new URL("./broker-watchdog.ts", import.meta.url)),
-          socketPath,
-          tokenPath,
+          directory,
           String(env.PLUGIN_BROKER_WORKER_MAX),
           String(env.PLUGIN_BROKER_MEMORY_LIMIT_BYTES),
           env.NODE_ENV,
         ],
         {
           env: { ["NODE_ENV"]: env.NODE_ENV },
-          // Security: a Worker under the permission model can read its process's working directory whatever the
-          // grants say, and the app's is the workspace root beside the data dir. The broker inherits this one.
+          // Workers can read their process cwd under Node permissions; keep the app's data directory outside it.
           cwd: directory,
           stdio: ["ignore", "inherit", "inherit", "ipc"],
         },
@@ -452,117 +428,118 @@ class BrokerClient {
       child.unref();
       child.channel?.unref();
       this.managedChild = child;
-      endpoint = { socketPath, tokenPath };
-      this.managedEndpoint = endpoint;
+      this.managedDirectory = directory;
+      this.sender = new PluginIpcSender(
+        (message, callback) => {
+          child.send(message, callback);
+        },
+        (error) => this.stopConnection(error),
+      );
       const onWatchdogGone = (error: Error): void => {
         if (this.managedChild !== child) {
           return;
         }
         this.managedChild = undefined;
-        this.managedEndpoint = undefined;
-        // The broker can outlive its watchdog for a moment; never send it another command over this socket.
-        this.socket?.destroy();
+        this.managedDirectory = undefined;
+        this.sender?.close();
+        this.sender = undefined;
+        this.generation = undefined;
         this.onDisconnect(error);
+        for (const listener of this.readyListeners) {
+          listener();
+        }
       };
       child.once("error", onWatchdogGone);
       child.once("exit", () => onWatchdogGone(unavailableError()));
+      child.on("message", (value: unknown) => this.consumeWatchdogMessage(child, value));
     }
-    await this.connectWithRetry(endpoint.socketPath, endpoint.tokenPath, performance.now() + CONNECT_TIMEOUT_MS);
-  }
-
-  private async connectWithRetry(socketPath: string, tokenPath: string, deadline: number): Promise<void> {
-    try {
-      const token = readFileSync(tokenPath, "utf8").trim();
-      if (token.length < TOKEN_MIN_CHARS || token.length > TOKEN_MAX_CHARS) {
-        throw new Error("plugin broker: token file length is outside the accepted range");
-      }
-      await this.openSocket(socketPath, token);
-    } catch (error) {
-      if (performance.now() >= deadline) {
-        throw error;
-      }
-      if (this.managedEndpoint === undefined) {
-        // A forced teardown (a normal watchdog restart keeps the same endpoint) cleared it mid-retry with
-        // nothing yet spawned to replace it — chase a freshly spawned broker instead of failing on a socket
-        // path nothing will ever rebind. connectOnce() owns the test pause point for this spawn, since a
-        // caller whose OWN first attempt lands here already has `managedEndpoint === undefined` too.
-        await this.connectOnce();
-        return;
-      }
-      if (this.managedEndpoint.socketPath !== socketPath || (this.managedChild !== undefined && this.managedChild.exitCode !== null)) {
-        throw error;
-      }
-      await sleep(CONNECT_RETRY_MS);
-      await this.connectWithRetry(socketPath, tokenPath, deadline);
-    }
-  }
-
-  private async openSocket(socketPath: string, token: string): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
-      const socket = connect(socketPath);
-      const state: SocketConnectionState = { buffer: "", authenticated: false };
-      const onError = (error: Error): void => {
-        if (!state.authenticated) {
-          reject(error);
-        } else {
-          this.onDisconnect(error);
-        }
-      };
-      socket.setEncoding("utf8");
-      socket.once("error", onError);
-      socket.on("data", (chunk) => this.consumeSocketData(socket, state, chunk, resolve));
-      socket.once("close", () => {
-        if (!state.authenticated) {
-          reject(unavailableError());
-        }
-        if (this.socket === socket) {
-          this.socket = undefined;
-          this.onDisconnect(unavailableError());
-        }
-      });
-      socket.write(serializeMessage({ kind: "authenticate", version: PLUGIN_BROKER_PROTOCOL_VERSION, token }));
-    });
-  }
-
-  private consumeSocketData(socket: Socket, state: SocketConnectionState, chunk: Buffer | string, resolve: () => void): void {
-    state.buffer += chunk.toString();
-    if (Buffer.byteLength(state.buffer, "utf8") > PLUGIN_BROKER_MESSAGE_MAX_BYTES && !state.buffer.includes("\n")) {
-      socket.destroy(new Error("plugin broker: response frame exceeds the message cap"));
+    if (this.generation !== undefined) {
       return;
     }
-    for (let newline = state.buffer.indexOf("\n"); newline >= 0; newline = state.buffer.indexOf("\n")) {
-      const line = state.buffer.slice(0, newline);
-      state.buffer = state.buffer.slice(newline + 1);
-      const message = this.parseBrokerLine(line, socket);
-      if (message === null) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(
+          () => {
+            this.readyListeners.delete(ready);
+            reject(unavailableError());
+          },
+          Math.max(0, deadline - performance.now()),
+        );
+        const ready = (): void => {
+          if (this.generation === undefined && this.managedChild !== undefined) {
+            return;
+          }
+          clearTimeout(timer);
+          this.readyListeners.delete(ready);
+          if (this.generation === undefined) {
+            reject(unavailableError());
+          } else {
+            resolve();
+          }
+        };
+        this.readyListeners.add(ready);
+        ready();
+      });
+    } catch (error) {
+      if (!this.hasManagedChild() && performance.now() < deadline) {
+        await this.connectOnce(deadline);
         return;
       }
-      if (!state.authenticated) {
-        if (message.kind !== "authenticated" || message.version !== PLUGIN_BROKER_PROTOCOL_VERSION) {
-          socket.destroy(new Error("plugin broker: authentication refused"));
-          return;
-        }
-        state.authenticated = true;
-        this.socket = socket;
-        socket.unref();
-        resolve();
-      } else {
-        this.handle(message);
-      }
+      throw error;
     }
   }
 
-  private parseBrokerLine(line: string, socket: Socket): BrokerParentMessage | null {
+  private consumeWatchdogMessage(child: ChildProcess, value: unknown): void {
+    if (this.managedChild !== child) {
+      return;
+    }
+    const message = parsePluginIpcMessage(value);
+    if (message === null) {
+      this.stopConnection(new Error("plugin broker: malformed inherited-channel envelope"));
+      return;
+    }
+    if (message.kind === "ready") {
+      this.acceptReady(message.generation);
+      return;
+    }
+    if (message.generation !== this.generation) {
+      return;
+    }
+    if (message.kind === "stopped") {
+      this.generation = undefined;
+      this.onDisconnect(unavailableError());
+      return;
+    }
+    this.consumeFrame(message.frame);
+  }
+
+  private acceptReady(generation: string): void {
+    if (this.generation !== undefined && this.generation !== generation) {
+      this.onDisconnect(unavailableError());
+    }
+    this.generation = generation;
+    for (const listener of this.readyListeners) {
+      listener();
+    }
+  }
+
+  private stopConnection(error: Error): void {
+    this.generation = undefined;
+    this.sender?.close();
+    this.managedChild?.kill("SIGKILL");
+    this.onDisconnect(error);
+  }
+
+  private consumeFrame(frame: string): void {
     try {
-      const message = parseBrokerParentMessage(parseMessageLine(line));
+      const message = parseBrokerParentMessage(parseMessageLine(frame));
       if (message === null) {
-        socket.destroy(new Error("plugin broker: malformed broker response"));
+        throw new Error("plugin broker: malformed broker response");
       }
-      return message;
-      // @orb-waive caught-failure-ownership(error): malformed or oversized broker bytes are transferred to socket.destroy, which rejects pending work through the disconnect owner. Ends if socket destruction stops carrying the failure.
+      this.handle(message);
+      // @orb-waive caught-failure-ownership(error): malformed broker bytes terminate the managed channel, rejecting commands and invalidating their authorities.
     } catch (error) {
-      socket.destroy(error instanceof Error ? error : new Error("plugin broker: malformed broker response"));
-      return null;
+      this.stopConnection(error instanceof Error ? error : unavailableError());
     }
   }
 
@@ -590,14 +567,12 @@ class BrokerClient {
       }
       return;
     }
-    if (message.kind === "bridge") {
-      // A bridge delivery that fails outside its RPC result path invalidates the broker connection and all
-      // live command authorities. The socket's disconnect owner rejects pending work and crashes residents.
-      // @orb-waive caught-failure-ownership(this.handleBridge): socket teardown routes a detached bridge failure to the disconnect owner. Ends if teardown no longer rejects pending work and crashes residents.
-      void this.handleBridge(message).catch((error: unknown) => {
-        this.socket?.destroy(error instanceof Error ? error : unavailableError());
-      });
-    }
+    // A bridge delivery that fails outside its RPC result path invalidates the broker connection and all
+    // live command authorities. The channel's disconnect owner rejects pending work and crashes residents.
+    // @orb-waive caught-failure-ownership(this.handleBridge): channel teardown routes a detached bridge failure to the disconnect owner. Ends if teardown no longer rejects pending work and crashes residents.
+    void this.handleBridge(message).catch((error: unknown) => {
+      this.stopConnection(error instanceof Error ? error : unavailableError());
+    });
   }
 
   private handleResponse(message: Extract<BrokerParentMessage, { readonly kind: "response" }>): void {
@@ -717,19 +692,21 @@ class BrokerClient {
   }
 
   private sendBridgeResult(id: string, ok: boolean, value?: unknown, error?: unknown): void {
-    const socket = this.socket;
-    if (socket === undefined || socket.destroyed) {
+    const sender = this.sender;
+    const generation = this.generation;
+    if (sender === undefined || generation === undefined) {
       return;
     }
     try {
-      socket.write(serializeMessage({ kind: "bridge-result", id, ok, value, ...(error === undefined ? {} : { error: rpcError(error) }) }));
-      // @orb-waive caught-failure-ownership(serializationError): serialization failure is replaced by a minimal protocol error response carrying that failure. Ends if the fallback response stops preserving the error.
+      const frame = serializeMessage({ kind: "bridge-result", id, ok, value, ...(error === undefined ? {} : { error: rpcError(error) }) });
+      sender.send({ kind: "frame", generation, frame });
+      // @orb-waive caught-failure-ownership(serializationError): oversized host results become a minimal RPC error; failed fallback delivery terminates the channel.
     } catch (serializationError) {
+      // @orb-waive caught-failure-ownership(channelError): a failed error response terminates the channel and rejects pending work. Ends if stopConnection stops rejecting pending work.
       try {
-        socket.write(serializeMessage({ kind: "bridge-result", id, ok: false, error: rpcError(serializationError) }));
-        // @orb-waive caught-failure-ownership(socketError): a failure to send even the minimal response destroys the socket with that failure, rejecting all pending work through the disconnect owner. Ends if socket.destroy stops carrying it.
-      } catch (socketError) {
-        socket.destroy(socketError instanceof Error ? socketError : unavailableError());
+        sender.send({ kind: "frame", generation, frame: serializeMessage({ kind: "bridge-result", id, ok: false, error: rpcError(serializationError) }) });
+      } catch (channelError) {
+        this.stopConnection(channelError instanceof Error ? channelError : unavailableError());
       }
     }
   }
@@ -794,12 +771,12 @@ export function __terminateManagedPluginBrokerForTest(): Promise<void> {
 
 /** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
 export function __hasManagedPluginBrokerForTest(): boolean {
-  return broker.hasManagedChildForTest();
+  return broker.hasManagedChild();
 }
 
 /** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
-export function __readManagedPluginSocketPathForTest(): string | undefined {
-  return broker.managedSocketPathForTest();
+export function __readManagedPluginDirectoryForTest(): string | undefined {
+  return broker.managedDirectoryForTest();
 }
 
 /** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */

@@ -2,14 +2,22 @@ import type { PluginLogLevel } from "@orb/contracts/plugin";
 import type { NodeEnvironment } from "../../../kit/node-environment.ts";
 
 export interface PluginBrokerWatchdogArguments {
-  readonly socketPath: string;
-  readonly tokenPath: string;
+  readonly directory: string;
   readonly workerMaximum: number;
   readonly memoryLimitBytes: number;
   readonly nodeEnvironment: NodeEnvironment;
 }
 
-export type PluginBrokerArguments = Omit<PluginBrokerWatchdogArguments, "memoryLimitBytes">;
+export interface PluginBrokerArguments extends Omit<PluginBrokerWatchdogArguments, "memoryLimitBytes"> {
+  readonly generation: string;
+}
+
+export type PluginIpcMessage =
+  | { readonly kind: "frame"; readonly generation: string; readonly frame: string }
+  | { readonly kind: "ready"; readonly generation: string }
+  | { readonly kind: "stopped"; readonly generation: string; readonly error: RpcError };
+
+export type PluginIpcSend = (message: PluginIpcMessage, callback: (error: Error | null) => void) => void;
 
 export const PLUGIN_COMMAND_OPERATIONS = ["create", "invoke", "snippet", "dispose"] as const;
 export type PluginCommandOperation = (typeof PLUGIN_COMMAND_OPERATIONS)[number];
@@ -76,14 +84,9 @@ export interface BrokerBridgeResult {
   readonly error?: RpcError;
 }
 
-export type ParentBrokerMessage =
-  | { readonly kind: "authenticate"; readonly version: number; readonly token: string }
-  | BrokerCommand
-  | BrokerBridgeResult
-  | { readonly kind: "bridge-cancel"; readonly id: string };
+export type ParentBrokerMessage = BrokerCommand | BrokerBridgeResult | { readonly kind: "bridge-cancel"; readonly id: string };
 
 export type BrokerParentMessage =
-  | { readonly kind: "authenticated"; readonly version: number }
   | { readonly kind: "response"; readonly id: string; readonly ok: boolean; readonly value?: unknown; readonly error?: RpcError }
   | {
       readonly kind: "bridge";

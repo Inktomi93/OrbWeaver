@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync, readlinkSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import type { PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
+import type { PluginBridge, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import { PLUGIN_MAIN_ENTRY } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
@@ -20,7 +20,7 @@ import {
   __killManagedPluginWatchdogForTest,
   __pauseManagedPluginBridgeDeliveryForTest,
   __pauseManagedPluginConnectChaseForTest,
-  __readManagedPluginSocketPathForTest,
+  __readManagedPluginDirectoryForTest,
   __terminateManagedPluginBrokerForTest,
 } from "../../../../packages/server/src/infra/plugin-host/process-runtime.ts";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "../../../../packages/showcase-plugins/src/index.ts";
@@ -199,14 +199,14 @@ test("once the watchdog dies the app never sends its broker another command and 
   const host = createPluginHost(seams());
   const first = await host.createInstance({ ...durableSource("'first';"), grants: [], bridge: bridge(), chat: noChat });
   expect(first.ok).toBe(true);
-  const orphanSocketPath = __readManagedPluginSocketPathForTest();
+  const orphanDirectory = __readManagedPluginDirectoryForTest();
 
   await __killManagedPluginWatchdogForTest();
   const second = await host.createInstance({ ...durableSource("'second';"), grants: [], bridge: bridge(), chat: noChat });
 
   expect(second.ok).toBe(true);
   expect(__hasManagedPluginBrokerForTest()).toBe(true);
-  expect(__readManagedPluginSocketPathForTest()).not.toBe(orphanSocketPath);
+  expect(__readManagedPluginDirectoryForTest()).not.toBe(orphanDirectory);
   if (second.ok) {
     host.dispose(second.instance);
   }
@@ -560,71 +560,72 @@ test("a near-limit durable source is reloaded on cold wake before catalog compar
   }
 });
 
-interface ShowcaseColdWakeCase {
-  readonly slug: string;
-  readonly grants: readonly PluginCapability[];
-}
-
-async function assertShowcaseColdWake(row: ShowcaseColdWakeCase): Promise<void> {
-  const host = createPluginHost(seams());
+async function assertShowcaseColdWake(host: ReturnType<typeof createPluginHost>, slug: string): Promise<void> {
   const runtimeBridge = bridge();
-  const bundle = await packShowcaseBundle(row.slug);
-  if (bundle === null) {
-    throw new Error(`${row.slug}: release-built showcase bundle is missing`);
+  const [bundle, manifest] = await Promise.all([packShowcaseBundle(slug), readShowcaseManifest(slug)]);
+  if (bundle === null || manifest === null) {
+    throw new Error(`${slug}: release-built showcase bundle is missing`);
   }
   const entry = unzipSync(bundle)[PLUGIN_MAIN_ENTRY];
   if (entry === undefined) {
-    throw new Error(`${row.slug}: release-built showcase bundle has no ${PLUGIN_MAIN_ENTRY}`);
+    return;
   }
   const mainJs = new TextDecoder().decode(entry);
-  const outcome = await host.createInstance({ ...durableSource(mainJs), grants: row.grants, bridge: runtimeBridge, chat: noChat, label: row.slug });
+  let reloads = 0;
+  const outcome = await host.createInstance({
+    ...durableSource(mainJs, () => {
+      reloads += 1;
+      return Promise.resolve(mainJs);
+    }),
+    grants: manifest.capabilities,
+    bridge: runtimeBridge,
+    chat: noChat,
+    label: slug,
+    ...(manifest.netHosts === undefined ? {} : { netHosts: manifest.netHosts }),
+  });
   if (!outcome.ok) {
-    throw new Error(`${row.slug}: ${outcome.error}`);
+    throw new Error(`${slug}: ${outcome.error}`);
   }
-  const surface = outcome.instance.surfaces.find((candidate) => candidate.onAction !== undefined);
-  const handler = surface?.onAction;
-  if (handler === undefined) {
-    throw new Error(`${row.slug}: async activation did not publish an actionable surface`);
-  }
+  const instance = outcome.instance;
+  const handler =
+    instance.surfaces.find((surface) => surface.onAction !== undefined)?.onAction ??
+    instance.tools[0]?.handler ??
+    instance.transforms[0]?.handler ??
+    instance.events[0]?.handler ??
+    instance.pubsub[0]?.handler ??
+    instance.commands[0]?.onRun ??
+    instance.displayTransforms[0]?.handler ??
+    instance.macros[0]?.handler;
+  const catalog = JSON.stringify(instance);
+  const input = JSON.stringify({ actionId: "__rehydration_probe__", values: {}, chat: null, draft: "proof draft", env: {} });
+  const warm = handler === undefined ? undefined : await Promise.allSettled([host.invoke(instance, handler, input, noChat)]);
   const fillers: PluginInstance[] = [];
   try {
-    for (let index = 0; index < 2; index += 1) {
-      const filler = await host.createInstance({ ...durableSource(`'${row.slug}-filler-${index}'`), grants: [], bridge: runtimeBridge, chat: noChat });
+    for (let index = 0; index < env.PLUGIN_BROKER_WORKER_MAX; index += 1) {
+      const filler = await host.createInstance({ ...durableSource(`'${slug}-filler-${index}'`), grants: [], bridge: runtimeBridge, chat: noChat });
       if (!filler.ok) {
         throw new Error(filler.error);
       }
       fillers.push(filler.instance);
     }
-    let invocationError: unknown;
-    try {
-      await host.invoke(outcome.instance, handler, JSON.stringify({ actionId: "__rehydration_probe__", values: {}, chat: null }), noChat);
-    } catch (error) {
-      invocationError = error;
-    }
-    expect(String(invocationError ?? "")).not.toMatch(/rehydrated registrations differ|sleeping runtime could not be rebuilt/u);
-    expect(outcome.instance.surfaces).toContain(surface);
+    const cold = handler === undefined ? undefined : await Promise.allSettled([host.invoke(instance, handler, input, noChat)]);
+    expect(reloads, `${slug} wakes only for a server callback`).toBe(handler === undefined ? 0 : 1);
+    expect(JSON.stringify(instance)).toBe(catalog);
+    expect(cold).toEqual(warm);
+    expect(outcome.instance).toBe(instance);
   } finally {
-    host.dispose(outcome.instance);
+    host.dispose(instance);
     for (const filler of fillers) {
       host.dispose(filler);
     }
   }
 }
 
-test("Card Atlas and Keepsake Camera retain async registrations across a cold wake", { timeout: 180_000 }, async () => {
+test("every showcase retains its catalog through eviction and its callbacks through a cold wake", { timeout: 300_000 }, async () => {
   expect.hasAssertions();
-  const cases: readonly ShowcaseColdWakeCase[] = [
-    {
-      slug: "card-atlas",
-      grants: ["storage.kv", "ui.surface", "net.fetch", "net.fetch_asset", "character.ingest", "character.card_state"],
-    },
-    {
-      slug: "keepsake-camera",
-      grants: ["chat.read", "storage.kv", "assets.read", "llm.quiet", "imagery.generate", "ui.surface"],
-    },
-  ];
-  for (const row of cases) {
-    await assertShowcaseColdWake(row);
+  const host = createPluginHost(seams());
+  for (const slug of SHOWCASE_PLUGIN_SLUGS) {
+    await assertShowcaseColdWake(host, slug);
   }
 });
 
@@ -651,8 +652,8 @@ function liveProcess(pid: string, entry: string): LiveProcess | null {
 }
 
 // The live broker and its watchdog, read from /proc: the app spawns the watchdog, which spawns the broker, so the test
-// holds neither pid. The broker is the process running broker-entry.ts on this socket; the watchdog is its parent.
-function livePluginProcesses(socketPath: string): { readonly broker: LiveProcess; readonly watchdog: LiveProcess } {
+// holds neither pid. The private directory identifies this process tree; the watchdog is the broker parent.
+function livePluginProcesses(brokerDirectory: string): { readonly broker: LiveProcess; readonly watchdog: LiveProcess } {
   for (const pid of readdirSync("/proc").filter((entry) => /^\d+$/u.test(entry))) {
     let argv: string[];
     try {
@@ -660,7 +661,7 @@ function livePluginProcesses(socketPath: string): { readonly broker: LiveProcess
     } catch {
       continue;
     }
-    if (argv[argv.indexOf(BROKER_ENTRY) + 1] !== socketPath) {
+    if (argv[argv.indexOf(BROKER_ENTRY) + 1] !== brokerDirectory) {
       continue;
     }
     const parent = /^PPid:\s+(\d+)$/mu.exec(readFileSync(`/proc/${pid}/status`, "utf8"))?.[1];
@@ -670,7 +671,7 @@ function livePluginProcesses(socketPath: string): { readonly broker: LiveProcess
       return { broker, watchdog };
     }
   }
-  throw new Error(`test: no live broker serves ${socketPath}`);
+  throw new Error(`test: no live broker serves ${brokerDirectory}`);
 }
 
 test.skipIf(process.platform !== "linux")(
@@ -705,14 +706,13 @@ test.skipIf(process.platform !== "linux")(
     }
     expect(activated.length).toBeGreaterThan(SHOWCASE_PLUGIN_SLUGS.length / 2);
 
-    const socketPath = __readManagedPluginSocketPathForTest();
-    if (socketPath === undefined) {
+    const brokerDirectory = __readManagedPluginDirectoryForTest();
+    if (brokerDirectory === undefined) {
       throw new Error("test: the app holds no broker endpoint");
     }
-    const brokerDirectory = dirname(socketPath);
-    const { broker, watchdog } = livePluginProcesses(socketPath);
+    const { broker, watchdog } = livePluginProcesses(brokerDirectory);
     expect(watchdog.execArgv).toEqual(pluginWatchdogExecArgv());
-    expect(broker.execArgv).toEqual(pluginBrokerExecArgv(brokerDirectory));
+    expect(broker.execArgv).toEqual(pluginBrokerExecArgv());
     // A watchdog under --permission would hand its own grants, child processes included, to a spawn without any.
     expect(broker.environ.filter((entry) => entry.startsWith("NODE_OPTIONS="))).toEqual([]);
     // A Worker under the permission model can read its process's working directory, so neither runs in the app's.

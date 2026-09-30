@@ -4,11 +4,10 @@ import {
   parseMessageLine,
   parseParentBrokerMessage,
   serializeMessage,
-  tokenMatches,
 } from "../../../../packages/server/src/infra/plugin-host/process-protocol.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
-test("the authenticated protocol rejects open operation names and bridge messages without command authority", () => {
+test("the inherited-channel protocol rejects open operation names and bridge messages without command authority", () => {
   expect(parseParentBrokerMessage({ kind: "command", id: "one", operation: "eval", runtimeId: "runtime-000000000" })).toBeNull();
   expect(
     parseBrokerParentMessage({
@@ -66,10 +65,4 @@ test("wire values preserve bytes and undefined without accepting an oversized fr
     deep = [deep];
   }
   expect(() => serializeMessage({ kind: "bridge-result", id: "deep", ok: true, value: deep })).toThrow(/process value exceeds depth/u);
-});
-
-test("token comparison is exact", () => {
-  expect(tokenMatches("a".repeat(43), "a".repeat(43))).toBe(true);
-  expect(tokenMatches("a".repeat(43), "b".repeat(43))).toBe(false);
-  expect(tokenMatches("a".repeat(43), "a".repeat(42))).toBe(false);
 });
