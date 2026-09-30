@@ -2,6 +2,7 @@ import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parse } from "yaml";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 // ── the container surface's load-bearing shape (docker/README.md is the prose; these are the pins) ────
@@ -65,6 +66,42 @@ test("compose publishes on loopback by default, ships a credentialed login mode,
   // the deployer's file is read after the defaults and is gitignored
   expect(compose).toContain("./docker/orbweaver.local.env");
   expect(read(repoRoot, ".gitignore")).toMatch(/^docker\/orbweaver\.local\.env$/mu);
+});
+
+// The runtime hardening lives in compose, not the image, so every key of it is pinned here. Each entry names the
+// key and says whether the parsed `orbweaver` service still carries the shipped value.
+const COMPOSE_HARDENING: readonly (readonly [string, (service: Record<string, unknown>) => boolean])[] = [
+  ["read_only", (s): boolean => s["read_only"] === true],
+  ["tmpfs", (s): boolean => Array.isArray(s["tmpfs"]) && ["/tmp", "/app/.cache"].every((path) => (s["tmpfs"] as unknown[]).includes(path))],
+  ["cap_drop", (s): boolean => JSON.stringify(s["cap_drop"]) === JSON.stringify(["ALL"])],
+  // Exactly what the entrypoint's one-time chown and privilege drop use as root; nothing else comes back.
+  ["cap_add", (s): boolean => Array.isArray(s["cap_add"]) && [...(s["cap_add"] as string[])].sort().join() === "CHOWN,DAC_OVERRIDE,FOWNER,SETGID,SETUID"],
+  ["security_opt", (s): boolean => Array.isArray(s["security_opt"]) && (s["security_opt"] as unknown[]).includes("no-new-privileges:true")],
+  ["init", (s): boolean => s["init"] === true],
+  ["restart", (s): boolean => s["restart"] === "unless-stopped"],
+  [
+    "logging",
+    (s): boolean => {
+      const logging = s["logging"] as { driver?: unknown; options?: Record<string, unknown> } | undefined;
+      return logging?.driver === "json-file" && logging.options?.["max-size"] !== undefined && logging.options["max-file"] !== undefined;
+    },
+  ],
+];
+
+function hardeningMisses(composeText: string): string[] {
+  const service = (parse(composeText) as { services: { orbweaver: Record<string, unknown> } }).services.orbweaver;
+  return COMPOSE_HARDENING.filter(([, holds]) => !holds(service)).map(([key]) => key);
+}
+
+test("the shipped compose carries every runtime hardening key, and dropping any one of them is caught", ({ repoRoot }) => {
+  const compose = read(repoRoot, "docker-compose.yaml");
+  expect(hardeningMisses(compose)).toEqual([]);
+  // Control: a copy with each key removed in turn must be flagged for exactly that key.
+  for (const [key] of COMPOSE_HARDENING) {
+    const doc = parse(compose) as { services: { orbweaver: Record<string, unknown> } };
+    delete doc.services.orbweaver[key];
+    expect(hardeningMisses(JSON.stringify(doc)), key).toEqual([key]);
+  }
 });
 
 test("the entrypoint keeps its single *_FILE allowlist line, keeps the data volume private, and fills the two zero-config values", ({ repoRoot }) => {

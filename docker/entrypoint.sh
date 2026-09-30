@@ -96,11 +96,27 @@ secrets_dir="${data_dir}/secrets"
 puid="${PUID:-1000}"
 pgid="${PGID:-1000}"
 
+# Numeric and non-zero only. setpriv resolves a name, so PUID=root (or 0) would re-exec this script as root
+# forever, and PGID=0 would run the app in group root.
+for id_pair in "PUID=${puid}" "PGID=${pgid}"; do
+  id_value="${id_pair#*=}"
+  case "${id_value}" in
+    '' | *[!0-9]*) id_ok=no ;;
+    *) if [ "${id_value}" -eq 0 ]; then id_ok=no; else id_ok=yes; fi ;;
+  esac
+  if [ "${id_ok}" = no ]; then
+    echo "entrypoint: REFUSING to boot — ${id_pair} must be a non-zero numeric id (the app never runs as root or in group root). Set PUID/PGID to your user's numbers, e.g. PUID=\$(id -u) PGID=\$(id -g)." >&2
+    exit 1
+  fi
+done
+
 if [ "$(id -u)" = 0 ]; then
-  mkdir -p "${data_dir}" /app/.cache
+  # A nested DATA_DIR that does not exist yet needs traversable parents; the chmod below still closes the root.
+  (umask 022 && mkdir -p "${data_dir}" /app/.cache)
   # Only the roots and whatever is not already ours — a large asset store is not re-chowned every boot.
   chown "${puid}:${pgid}" "${data_dir}" /app/.cache
-  find "${data_dir}" -not -user "${puid}" -exec chown "${puid}:${pgid}" {} + 2>/dev/null || true
+  # The trailing slash makes find walk a data root that is itself a symlink.
+  find "${data_dir}/" -not -user "${puid}" -exec chown "${puid}:${pgid}" {} + 2>/dev/null || true
   # The umask above covers new files only. Closing the root closes every older 644/755 entry beneath it
   # to other host users, without walking the tree.
   chmod go-rwx "${data_dir}"
