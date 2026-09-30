@@ -19,7 +19,7 @@
 
 import type { PluginLogLevel, PluginSurfaceSpec } from "@orb/contracts/plugin";
 import { pluginSurfaceSpecSchema } from "@orb/contracts/plugin";
-import type { UiGuestInbound, UiGuestOutbound, UiGuestSettledMessage } from "#lib";
+import type { UiGuestInbound, UiGuestOutbound, UiGuestReadyMessage, UiGuestSettledMessage, UiGuestUnavailableMessage } from "#lib";
 import { timeLib, UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "#lib";
 
 /** What the host reports OUT to its React owner. Every arm is a rendered outcome, not an internal event: the
@@ -33,6 +33,9 @@ interface PluginUiGuestEvents {
   /** The guest died: hung past its wall, threw at boot, or published something the schema refused. The surface
    *  collapses to null and the caller reports the crash. `reason` is operator-facing. */
   readonly onCrash: (reason: string) => void;
+  /** The browser could not start any guest (it refused the guest's memory). The surface collapses as for a crash,
+   *  but this is the host's condition, not the plugin's, so the caller must not count it against the plugin. */
+  readonly onUnavailable: (reason: string) => void;
   /** A guest log line — surfaced through the plugin log affordance, never the console. */
   readonly onLog: (level: PluginLogLevel, message: string) => void;
   /** Relay a proxied host call. Resolves with the server's inert JSON result; rejects with a message the guest
@@ -89,7 +92,7 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
     }
   }
 
-  function kill(reason: string): void {
+  function kill(reason: string, report: (reason: string) => void = options.events.onCrash): void {
     if (disposed) {
       return;
     }
@@ -98,7 +101,7 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
     // THE KILL. `terminate()` stops the thread mid-instruction — the one thing a hung interpreter cannot argue
     // with, and the reason the interpreter is in a worker rather than on the main thread at all.
     worker.terminate();
-    options.events.onCrash(reason);
+    report(reason);
   }
 
   /** Arm the wall for an operation. Re-arming while one is live is legitimate (a burst of keystrokes): the
@@ -154,6 +157,17 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
     }
   }
 
+  function handleBootOutcome(message: UiGuestReadyMessage | UiGuestUnavailableMessage): void {
+    clearWall();
+    if (message.kind === "unavailable") {
+      kill(`the plugin's interface could not start in this browser: ${message.message}`, options.events.onUnavailable);
+    } else if (!message.ok) {
+      kill(`the plugin's interface failed to start: ${message.message}`);
+    } else {
+      options.events.onReady();
+    }
+  }
+
   function send(message: UiGuestInbound): void {
     if (!disposed) {
       worker.postMessage(message);
@@ -184,13 +198,8 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
       void handleHostCall(message.callId, message.fn, message.argsJson).catch(() => undefined);
       return;
     }
-    if (message.kind === "ready") {
-      clearWall();
-      if (!message.ok) {
-        kill(`the plugin's interface failed to start: ${message.message}`);
-      } else {
-        options.events.onReady();
-      }
+    if (message.kind === "ready" || message.kind === "unavailable") {
+      handleBootOutcome(message);
       return;
     }
     const settled: UiGuestSettledMessage = message;

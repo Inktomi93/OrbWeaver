@@ -3,6 +3,7 @@
 // at the broker's DB-backed runtime lease and command queue, never inside a Worker-local promise table.
 
 import { AsyncLocalStorage } from "node:async_hooks";
+import process from "node:process";
 import type { MessagePort } from "node:worker_threads";
 import { parentPort, workerData } from "node:worker_threads";
 import type { PluginHandlerRef, PluginInstance, PluginInvocationLiveness, PluginInvokeArgs } from "@orb/contracts/plugin";
@@ -37,6 +38,22 @@ function requireParentPort(): MessagePort {
 }
 
 const port = requireParentPort();
+
+// The permission model does not inherit to a Worker started with `execArgv: []`, so code in this Worker could start
+// one with no grants and read the filesystem through it. Drop this Worker's permission to start Workers before any
+// guest code loads. Defense in depth only; the complete fix is a separate OS user for the broker (finding 4 in
+// `docs/law/container-deployment-security.md`). `@types/node` declares `process.permission` always present and has no
+// `drop`; at runtime it is absent without `--permission`, and `drop` exists from Node 26.3.0.
+function runtimePermission(): (typeof process.permission & { readonly drop?: (scope: string) => void }) | undefined {
+  return process.permission;
+}
+const permission = runtimePermission();
+permission?.drop?.("worker");
+// Fail closed: a Node without `drop` would leave the permission in place. Throwing here ends the Worker before any
+// guest code runs, and the broker's exit handler fails the runtime.
+if (permission?.has("worker") === true) {
+  throw new Error("plugin broker worker: could not drop the permission to start Workers");
+}
 
 const identity = workerData as WorkerIdentity;
 const commandAuthority = new AsyncLocalStorage<string>();

@@ -2,10 +2,12 @@
 
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
+import { dirname } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { parsePluginBrokerWatchdogArguments } from "./process-argv.ts";
+import { pluginBrokerExecArgv } from "./process-permission.ts";
 import { brokerWatchdogFailure, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS } from "./watchdog-policy.ts";
 
 const BROKER_ENTRY = fileURLToPath(new URL("./broker-entry.ts", import.meta.url));
@@ -52,10 +54,16 @@ async function superviseOneBroker(): Promise<string> {
   let failure: string | undefined;
   let runtimeReported = false;
   let reportedPeakPhysicalWorkers = -1;
-  const broker = spawn(process.execPath, [BROKER_ENTRY, socketPath, tokenPath, String(workerMaximum), nodeEnvironment], {
-    env: { ["NODE_ENV"]: nodeEnvironment },
-    stdio: ["ignore", "inherit", "inherit", "ipc"],
-  });
+  const broker = spawn(
+    process.execPath,
+    [...pluginBrokerExecArgv(dirname(tokenPath)), BROKER_ENTRY, socketPath, tokenPath, String(workerMaximum), nodeEnvironment],
+    {
+      env: { ["NODE_ENV"]: nodeEnvironment },
+      // A guest Worker can read the broker's working directory whatever the grants say; keep it the private one.
+      cwd: dirname(tokenPath),
+      stdio: ["ignore", "inherit", "inherit", "ipc"],
+    },
+  );
   activeBroker = broker;
 
   const result = await new Promise<string>((resolve) => {

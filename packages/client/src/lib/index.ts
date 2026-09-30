@@ -163,6 +163,7 @@ export type {
   UiGuestReadyMessage,
   UiGuestRenderMessage,
   UiGuestSettledMessage,
+  UiGuestUnavailableMessage,
 } from "./plugin-ui-guest-protocol.ts";
 export { UI_GUEST_BOOT_WALL_MS, UI_GUEST_BUDGETS, UI_GUEST_WALL_MS } from "./plugin-ui-guest-protocol.ts";
 export { isProbeMode } from "./probe-mode.ts";

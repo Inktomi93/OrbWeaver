@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseEnv } from "node:util";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
-import { SERVER_ENTRY_REL } from "@orb/tooling/_shared/server-entry";
+import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/_shared/server-entry";
 import {
   decideStartBuild,
   effectiveAuthMode,
@@ -115,7 +115,7 @@ test("the spawn is the SHARED prod plan — same argv and cwd, NODE_ENV=producti
   });
   // Asserted against the SHARED constant, never a second literal: a fork of the prod spawn is the defect
   // this test exists to catch (`buildProdSpawnPlan` is the one home — there is no server build step).
-  expect(plan.args).toEqual([`/repo/${SERVER_ENTRY_REL}`]);
+  expect(plan.args).toEqual([...SERVER_NODE_FLAGS, `/repo/${SERVER_ENTRY_REL}`]);
   expect(plan.command).toBe("/usr/bin/node");
   expect(plan.cwd).toBe("/repo");
   expect(plan.env["NODE_ENV"]).toBe("production");

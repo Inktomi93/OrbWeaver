@@ -268,6 +268,30 @@ const REPUBLISH_GUEST = `
   ui.render("browser", tree);
 `;
 
+/** A guest that grows its heap past the WASM module's initial 16 MiB inside a promise continuation, then marshals a
+ *  host call. The engine reads out-pointers through typed-array views it takes before a call that may allocate
+ *  (`newPromise`, the job pump), so a memory growth that swaps the buffer detaches them mid-call. Which call a growth
+ *  lands in depends on heap layout, so the CT counts the detaching growths themselves rather than their symptoms. */
+const GROWTH_CARD = { nested: { list: [1, 2, 3], text: "after growth" } };
+const HEAP_GROWTH_GUEST = `
+  const ui = orb.ui(1);
+  const held = [];
+  function draw(text) {
+    ui.render("browser", { kind: "stack", children: [
+      { kind: "button", actionId: "grow", label: "Grow" },
+      { kind: "text", voice: "label", value: text },
+    ]});
+  }
+  ui.onEvent(async (e) => {
+    if (e.event.type !== "action" || e.event.actionId !== "grow") { return; }
+    await ui.host.storage.get("warmup");
+    for (let i = 0; i < 24; i += 1) { const block = new Uint8Array(1048576); block.fill(i); held.push(block); }
+    const card = JSON.parse(await ui.host.storage.get("card"));
+    draw("GROWN[" + held.length + ":" + card.nested.text + ":" + card.nested.list.join("-") + "]");
+  });
+  draw("idle");
+`;
+
 test("THE U4 DONE-CRITERION — a scripted surface filters a list with ZERO network on keystroke", async ({ mount, page }) => {
   const recorder: TrpcRecorder = await routeTrpc(page, {
     "plugin.list": () => [enabledRow(SCRIPTED_ID, "Scripted Demo")],
@@ -420,6 +444,78 @@ test("THE F2 GAP — a BOOT-TIME fire-and-forget whose continuation loops is bou
   // stays alive and nothing was reported. (The BENIGN boot continuation still settling is the DONE-CRITERION
   // test above, whose `ui.host.storage.list(...).then(draw)` is exactly this shape without the loop.)
   expect(crashes, "a bounded pump continuation is preempted, not crashed").toBe(0);
+});
+
+test("a guest whose heap grows past its initial WASM memory never detaches the buffer the engine reads through", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(SCRIPTED_ID, "Heap Growth Demo")],
+    "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+    "plugin.uiHostCall": () => ({ resultJson: JSON.stringify(JSON.stringify(GROWTH_CARD)) }),
+  });
+  await routeUiBundle(page, HEAP_GROWTH_GUEST);
+  await mount(<PluginScriptedSurfaceStory />);
+  await expect(page.getByText("idle")).toBeVisible({ timeout: GUEST_BOOT_TIMEOUT_MS });
+
+  // Count, inside the guest's own Worker, every memory growth that detaches the buffer it replaces.
+  const guestWorker = page.workers().find((worker) => worker.url().includes("ui-guest.worker"));
+  if (guestWorker === undefined) {
+    throw new Error("test: the guest Worker is not running");
+  }
+  await guestWorker.evaluate(() => {
+    const probe = { detaching: 0 };
+    Reflect.set(globalThis, "__orbGrowthProbe", probe);
+    const prototype = WebAssembly.Memory.prototype;
+    const grow = prototype.grow;
+    prototype.grow = function countDetachingGrowth(this: WebAssembly.Memory, delta: number): number {
+      const before = this.buffer;
+      const pages = grow.call(this, delta);
+      if (before.detached) {
+        probe.detaching += 1;
+      }
+      return pages;
+    };
+  });
+
+  await page.getByRole("button", { name: "Grow", exact: true }).click();
+  await expect(page.getByText("GROWN[24:after growth:1-2-3]")).toBeVisible({ timeout: GUEST_BOOT_TIMEOUT_MS });
+  const detaching = await guestWorker.evaluate(() => (Reflect.get(globalThis, "__orbGrowthProbe") as { readonly detaching: number }).detaching);
+  expect(detaching, "a growth that swaps the buffer detaches the engine's live views").toBe(0);
+});
+
+/** Prepended to the guest Worker's own script: the browser refuses every `WebAssembly.Memory` reservation, as a
+ *  device short of address space does for the guest's 48 MiB. */
+const REFUSE_GUEST_MEMORY = `WebAssembly.Memory = function refuseMemory() { throw new RangeError("WebAssembly.Memory(): could not allocate memory"); };`;
+
+test("a browser that cannot reserve the guest's memory reports a host condition and never strikes the plugin", async ({ mount, page }) => {
+  let crashes = 0;
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(SCRIPTED_ID, "Memory Refusal Demo")],
+    "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+    "plugin.reportUiCrash": () => {
+      crashes += 1;
+      return null;
+    },
+  });
+  await routeUiBundle(page, FILTER_GUEST);
+  await page.route("**/*ui-guest.worker*", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, body: `${REFUSE_GUEST_MEMORY}\n${await response.text()}` });
+  });
+  const hostReports: string[] = [];
+  page.on("pageerror", (error) => hostReports.push(error.message));
+  await mount(<PluginScriptedSurfaceStory />);
+
+  await expect
+    .poll(() => hostReports.find((report) => report.includes("could not start in this browser")), { timeout: GUEST_BOOT_TIMEOUT_MS })
+    .toContain("could not reserve 50331648 bytes");
+  await expect(page.getByRole("textbox", { name: "Filter rooms" })).toHaveCount(0);
+  expect(crashes, "a browser that refuses the memory is not the plugin's fault").toBe(0);
 });
 
 test("the publish guard refuses a re-render loop — an identical republish is a no-op, and the surface stays alive", async ({ mount, page }) => {

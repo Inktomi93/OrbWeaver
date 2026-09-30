@@ -33,7 +33,7 @@ tooling/
 
 ### 2.2 package.json
 
-- `name: "@orb/tooling"`, `private: true`, `type: "module"`, `engines: { node: ">=26" }`.
+- `name: "@orb/tooling"`, `private: true`, `type: "module"`, `engines: { node: ">=26.3.0" }`.
 - **Deps grow with consumption.** knip's `dependencies: "error"` REDs a declared dep nothing imports, so the manifest never pre-declares a surface. The end state is {kit, contracts, db, server, ui} and NOT client.
 - **exports**: per-directory front-door map (`"./*": "./src/*/index.ts"`) plus `"./_shared/*": "./src/_shared/*.ts"`. Deliberately NO `"."` root export and NO `_shared` barrel — an aggregate index chain-loads playwright/ts-morph for any single import. `_shared` is consumed per-MODULE (`@orb/tooling/_shared/browser`), which is how a research script reaches the plumbing floor.
 - **imports**: `{ "#*": "./src/*/index.ts" }` — the house intra-package subpath map; a tool reaches a sibling as `#<tool>` (front door only, §4.2).

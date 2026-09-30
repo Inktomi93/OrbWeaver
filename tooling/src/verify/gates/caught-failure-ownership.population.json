@@ -1566,6 +1566,11 @@
       "reason": "a stamp that is not JSON is INDISTINGUISHABLE from an absent stamp for this reader's purpose — both mean \"no stamped answer\", and the `.git` fallback below handles both identically. Ends if a corrupt stamp ever needs to be reported differently from a missing one."
     },
     {
+      "siteId": "packages/server/src/foundation/version/index.ts::statOrNull::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a path this process may not stat, including every path outside the plugin broker's permission-model grants, answers exactly like an absent one: the `unknown` arm the surfaces render. Ends if a caller needs to tell a denied path from a missing one."
+    },
+    {
       "siteId": "packages/server/src/infra/acme/issuer.ts::createAcmeIssuer.issue::err::1",
       "verdict": "deliberate-absorb",
       "reason": "propagated as the returned failed outcome, whose code and detail the certificate controller turns into the status and log line. Ends if `issue` starts throwing to its caller."

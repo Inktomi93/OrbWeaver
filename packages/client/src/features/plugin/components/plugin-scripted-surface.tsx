@@ -135,6 +135,12 @@ export function PluginScriptedSurface({
             setState((current) => (current.bootKey === bootKey ? { bootKey, kind: "failed" } : current));
             latest.current.reportCrash.mutate({ pluginId, surfaceId, reason });
           },
+          onUnavailable: (reason): void => {
+            // This browser, not the plugin, failed: collapse the surface, tell the operator, and leave the plugin's
+            // crash counter alone.
+            setState((current) => (current.bootKey === bootKey ? { bootKey, kind: "failed" } : current));
+            globalThis.reportError(new Error(reason));
+          },
           onLog: (): void => {
             // Guest log lines ride the plugin's own runtime log surface (#627). Deliberately NOT the browser
             // console: an untrusted guest must not be able to write into the host's diagnostic channel.
