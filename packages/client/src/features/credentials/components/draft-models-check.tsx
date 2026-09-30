@@ -13,7 +13,6 @@
 // button drops focus to the document, and the picker then takes the caret when the list lands.
 
 import type { ProviderDef } from "@orb/contracts/inference";
-import { errorMessage } from "@orb/kit/error-message";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
@@ -41,8 +40,8 @@ export interface DraftModelsCheckProps {
   /** The key this dialog already saved, once a connection write failed after the mint. */
   readonly heldCredentialId: UserCredentialId | null;
   readonly onListing: (listing: DraftListing) => void;
-  /** A refusal of the URL itself — the dialog puts it on the Server URL field. */
-  readonly onUrlRefusal: (message: string) => void;
+  /** A refusal of the URL itself (the caught error) — the dialog puts it on the Server URL field. */
+  readonly onUrlRefusal: (err: unknown) => void;
 }
 
 /** What authenticates the dial: the pasted draft key, else the key this dialog already saved, else nothing. */
@@ -81,7 +80,7 @@ export function DraftModelsCheck({
       .catch((err: unknown): void => {
         onListing({ forDraft, source: failedCatalogSource(err, runCheck) });
         if (URL_REFUSAL_CODES.has(trpcErrorReason(err))) {
-          onUrlRefusal(errorMessage(err));
+          onUrlRefusal(err);
         }
       })
       // The answer now lives in the listing; drop the mutation's retained variables, which carry the draft key.

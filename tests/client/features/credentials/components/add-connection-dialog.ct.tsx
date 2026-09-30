@@ -292,6 +292,88 @@ test("a refused Server URL is an error on that field, and editing the URL clears
   await expect(dialog.locator('[data-slot="add-connection-failure"]')).toHaveCount(0);
 });
 
+// ── admitting a refused private host (docs/work/0325) ───────────────────────────────────────────────────
+
+const LAN_URL = "http://10.0.0.5:8000/v1";
+const LAN_HOST = "10.0.0.5";
+const LAN_REFUSAL = '"10.0.0.5:8000" is a private address this deployment does not admit.';
+
+/** A server that refuses the draft's private host on its first answer and admits it after, as the server does
+ *  once the owner's allowlist save is published to the egress guard. */
+function refuseFirst<T>(admitted: T): () => T | ReturnType<typeof trpcError> {
+  let calls = 0;
+  return () => {
+    calls += 1;
+    return calls === 1 ? trpcError({ code: "BAD_REQUEST", reason: "connection_base_url_refused", message: LAN_REFUSAL }) : admitted;
+  };
+}
+
+// The first-run path: an owner whose local server is refused finishes the add in the dialog, with no restart.
+test("the owner admits a refused private host under the Server URL, and the list then reads", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page, { draftCatalogModels: refuseFirst(catalogOf([catalogEntry("Qwen/Qwen3-8B")])) });
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "vLLM");
+  const url = dialog.getByLabel("Server URL", { exact: true });
+  await url.fill(LAN_URL);
+  await dialog.getByRole("button", { name: "List models" }).click();
+
+  await expect(url).toHaveAttribute("aria-invalid", "true");
+  await dialog.getByRole("button", { name: `Admit ${LAN_HOST}` }).click();
+  await expect
+    .poll(() => trpc.lastInput("settings.updateAppSettings"), { intervals: [20, 50, 100] })
+    .toEqual({ partial: { privateEndpointAllowlist: [LAN_HOST] } });
+  // The refusal described the server's answer before the save, so it is withdrawn with the control.
+  await expect(url).not.toHaveAttribute("aria-invalid", "true");
+  await expect(dialog.locator('[data-slot="connection-admit-host"]')).toHaveCount(0);
+
+  await dialog.getByRole("button", { name: "List models" }).click();
+  await expect(dialog.getByRole("option", { name: "Qwen/Qwen3-8B" })).toHaveCount(1);
+  await expect.poll(() => trpc.unstubbed()).toEqual([]);
+});
+
+test("an admission after a refused submit withdraws the failure statement, and the retry saves", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page, {
+    createConnection: refuseFirst(connectionRow({ id: "user_connection_ctcreated01", providerId: "vllm", baseUrl: LAN_URL, model: "Qwen/Qwen3-8B" })),
+  });
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "vLLM");
+  await dialog.getByLabel("Server URL", { exact: true }).fill(LAN_URL);
+  await dialog.getByRole("textbox", { name: "Model" }).fill("Qwen/Qwen3-8B");
+  await submit(dialog);
+
+  const failure = dialog.locator('[data-slot="add-connection-failure"]');
+  await expect(failure).toHaveText(`Nothing was saved — ${LAN_REFUSAL}`);
+  await dialog.getByRole("button", { name: `Admit ${LAN_HOST}` }).click();
+  await expect(failure).toHaveCount(0);
+  await submit(dialog);
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => trpc.count("connection.create")).toBe(2);
+});
+
+// A delegated admin and a member see the same refusal on the field, and no control that would widen the
+// deployment's egress: the save is owner-only at the verb (`OWNER_GATED_FIELDS`), and the dialog never offers it.
+for (const role of ["admin", "user"] as const) {
+  test(`a ${role} is shown the refusal but offered no admission`, async ({ mount, page }) => {
+    const trpc = await stubConnectionsPane(page, { role, draftCatalogModels: refuseFirst(catalogOf([])) });
+    await mount(<ConnectionsAuthoringStory width={870} />);
+    const dialog = await openAddDialog(page);
+    await pickProvider(page, dialog, "vLLM");
+    const url = dialog.getByLabel("Server URL", { exact: true });
+    await url.fill(LAN_URL);
+    await dialog.getByRole("button", { name: "List models" }).click();
+
+    // The control for the absence below: the refusal did reach the dialog.
+    await expect(url).toHaveAttribute("aria-invalid", "true");
+    await expect(dialog.getByText(LAN_REFUSAL, { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: `Admit ${LAN_HOST}` })).toHaveCount(0);
+    await expect(dialog.locator('[data-slot="connection-admit-host"]')).toHaveCount(0);
+    await expect.poll(() => trpc.count("settings.getAppSettingsWithOverrides")).toBe(0);
+    await expect.poll(() => trpc.count("settings.updateAppSettings")).toBe(0);
+  });
+}
+
 // ── every built-in provider ─────────────────────────────────────────────────────────────────────────────
 
 /** The key field each auth kind shows, by its label (`null` = no key field at all). */

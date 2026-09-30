@@ -13,11 +13,13 @@
 // provider is locked to that row's provider, and the next submit writes only the connection.
 //
 // EVERY SUBMIT FAILURE IS STATED ONCE, INLINE (`AddConnectionFailure`). The dialog's mutations carry no toast;
-// a refusal of the Server URL itself lands on that field instead. The statement takes focus when it appears
+// a refusal of the Server URL itself lands on that field instead, and a private host the deployment does not admit
+// offers the box owner the editor's owner-only Admit control under it. The statement takes focus when it appears
 // (the submit may go disabled under the caret, and on a phone the statement is below the fold), and it is
 // withdrawn at the first edit, because it describes the draft that was submitted, not the one being typed.
 
 import type { ModelCheck, ProviderDef } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";
@@ -50,6 +52,7 @@ import {
   submitFailureSentence,
   URL_REFUSAL_CODES,
 } from "../lib/add-connection-form-model.ts";
+import { endpointHostOf } from "../lib/connection-editor-model.ts";
 import { providerPickerItems } from "../lib/connections-model.ts";
 import { failedCatalogSource, modelCheckOf, modelListSource } from "../lib/model-picker-model.ts";
 import { AddConnectionFailure } from "./add-connection-failure.tsx";
@@ -177,6 +180,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
   // The failed submit's error itself (a caught value) and the draft it failed for, stated once inline by
   // `AddConnectionFailure` while the draft is unchanged.
   const [submitFailure, setSubmitFailure] = useState<{ readonly error: unknown; readonly values: AddConnectionFormValues } | null>(null);
+  const [refusedHost, setRefusedHost] = useState<string | null>(null);
   const failureId = useId();
 
   useEffect(() => {
@@ -208,9 +212,20 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
       .catch((err: unknown): void => answer(failedCatalogSource(err, retry)));
   };
 
-  /** A refusal of the Server URL itself goes on that field, where it is fixed; editing the URL clears it. */
-  const markUrlRefused = (message: string | undefined): void => {
-    form.setFieldMeta("baseUrl", (prev) => ({ ...prev, isTouched: true, errorMap: { ...prev.errorMap, onServer: message } }));
+  /** A refusal of the Server URL itself goes on that field, where it is fixed; editing the URL clears it. A
+   *  private host this deployment does not admit is also offered to the owner to admit, under the field. */
+  const markUrlRefused = (err: unknown): void => {
+    form.setFieldMeta("baseUrl", (prev) => ({ ...prev, isTouched: true, errorMap: { ...prev.errorMap, onServer: errorMessage(err) } }));
+    setRefusedHost(trpcErrorReason(err) === CONNECTION_OP_CODES.baseUrlRefused ? endpointHostOf(form.state.values.baseUrl.trim()) : null);
+  };
+  const clearUrlRefusal = (): void => {
+    form.setFieldMeta("baseUrl", (prev) => ({ ...prev, errorMap: { ...prev.errorMap, onServer: undefined } }));
+    setRefusedHost(null);
+  };
+  /** The owner admitted the host: the refusal and the failure statement describe a server answer that no longer holds. */
+  const onAdmitted = (): void => {
+    clearUrlRefusal();
+    setSubmitFailure(null);
   };
 
   /** The credential for this submit: the row an earlier attempt already minted, else a fresh mint of the
@@ -250,7 +265,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
       checkSignIn(provider, created.id);
     } catch (err) {
       if (URL_REFUSAL_CODES.has(trpcErrorReason(err))) {
-        markUrlRefused(errorMessage(err));
+        markUrlRefused(err);
       }
       throw err;
     }
@@ -307,6 +322,9 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
                   modelSource={modelSourceFor(provider, values)}
                   onListing={setListing}
                   onUrlRefusal={markUrlRefused}
+                  onUrlEdited={clearUrlRefusal}
+                  refusedHost={refusedHost}
+                  onAdmitted={onAdmitted}
                 />
               );
             }}

@@ -1452,8 +1452,9 @@ export interface ChatContext {
   /** The admin-resolved memory-summarizer sampling (`AppSettings.memorySummarizer`) — the memory build passes
    *  `{maxTokens, temperature}` onto every `summarize` call AND mirrors `maxTokens` into the token-guard's
    *  output reserve (one home, so the fit and the request can't diverge). Both fields absent ⇒ the summarizer
-   *  runs on its own defaults + the token-guard's baseline reserve (byte-identical to pre-wire). */
-  readonly memorySummarizer: MemorySummarizerConfig;
+   *  runs on its own defaults + the token-guard's baseline reserve (byte-identical to pre-wire). Read per build,
+   *  so an admin's save reaches the next summarize call without a restart. */
+  readonly memorySummarizer: () => MemorySummarizerConfig;
   readonly emitNotification: NotificationsEmitOp;
   readonly resolveHandle: ResolveHandleOp;
   readonly resolveUserEnabled: ResolveUserEnabledOp;

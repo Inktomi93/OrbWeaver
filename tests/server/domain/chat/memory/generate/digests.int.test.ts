@@ -1,5 +1,6 @@
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeInput } from "@orb/contracts/role-clients";
+import type { MemorySummarizerConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, messages, messageVariants } from "@orb/db";
 import type { CharacterId, ChatDigestId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
@@ -171,7 +172,7 @@ describe("memory/generate/digests", () => {
     await seedTurns(db, chatId, aria, 4);
     const sum = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.op, embeddingsStore: store.store, memorySummarizer: { maxTokens: 512, temperature: 0.3 } });
+    const ctx = makeChatContext(db, { summarize: sum.op, embeddingsStore: store.store, memorySummarizer: () => ({ maxTokens: 512, temperature: 0.3 }) });
 
     await generateDigests(ctx, {
       scope: sharedScope(chatId),
@@ -185,6 +186,32 @@ describe("memory/generate/digests", () => {
     for (const opts of sum.optsSeen) {
       expect(opts).toEqual({ maxOutputTokens: 512, temperature: 0.3, presencePenalty: 1.5 });
     }
+  });
+
+  // Owner ruling on docs/work/0325: a saved setting on the model path takes effect on save. The sampling is read
+  // per build, so an admin's change reaches the next summarize call with no restart.
+  test("a memorySummarizer change after the context is built reaches the next summarize call", async () => {
+    const before = await seedChat(db, "sampling-live-before");
+    const after = await seedChat(db, "sampling-live-after");
+    await seedTurns(db, before, aria, 2);
+    await seedTurns(db, after, aria, 2);
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    let saved: MemorySummarizerConfig = { maxTokens: 512 };
+    const ctx = makeChatContext(db, {
+      summarize: sum.op,
+      embeddingsStore: store.store,
+      embeddingsStoreSegments: store.storeSegments,
+      memorySummarizer: () => saved,
+    });
+    const config = { blockSize: 2, verbatimWindow: 0 };
+
+    await generateDigests(ctx, { scope: sharedScope(before), config, funderUserId: owner });
+    expect(sum.optsSeen.at(-1)).toEqual({ maxOutputTokens: 512, presencePenalty: 1.5 });
+
+    saved = { maxTokens: 256, temperature: 0.2 };
+    await generateDigests(ctx, { scope: sharedScope(after), config, funderUserId: owner });
+    expect(sum.optsSeen.at(-1)).toEqual({ maxOutputTokens: 256, temperature: 0.2, presencePenalty: 1.5 });
   });
 
   // RED-FIRST (the loop fix): with memorySummarizer UNSET, the summarize opts MUST still carry a loop-stopping
