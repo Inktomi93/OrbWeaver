@@ -12,9 +12,7 @@ const QUICK_PICKS_TILE_ORDER = 20;
 /** The fill count inside the reserved block: one row of faces through the skeleton pitch. */
 const QUICK_PICKS_SKELETON_ROWS = 4;
 
-/** The settled body block at every desktop width (#177). Home is one column below the shelf's reflow step and two
- *  even columns past it, and "Start with" lays six faces in one row in both, so the box is a constant. Re-measure
- *  with the `#177` first-boot CT's printed table if the cell anatomy or `QUICK_PICKS_LIMIT` changes. */
+/** The one-row face shelf and its door at desktop widths. Re-measure with the first-boot CT when the cell anatomy changes. */
 const QUICK_PICKS_SKELETON_BLOCK_PX = 184;
 
 export const chatQuickPicksTile: HomeTileContribution = {

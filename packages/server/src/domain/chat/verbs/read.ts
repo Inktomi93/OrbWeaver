@@ -52,13 +52,13 @@ import {
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { composeProse, isPresetProseSlotId, resolveProseText } from "@orb/contracts/prose";
 import { isRpgEngaged } from "@orb/contracts/rpg";
-import type { Db } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import { cachesByAnthropicMarkers, generationOf, resolveCarryReasoning } from "@orb/inference";
 import { projectBodyForPreview } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
-import type { MacroRegistry } from "@orb/kit/macro";
+import type { MacroRegistry, RowMacroNameContext } from "@orb/kit/macro";
+import { resolveRowMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
@@ -365,8 +365,9 @@ const CHAT_LIST_DEFAULT_LIMIT = 50;
  * every viewer including the host — a `<lie>`'s truth is never list chrome.
  */
 function buildSummaryPreview(
-  last: { seq: number; content: string } | undefined,
+  last: Pick<MessageView, "seq" | "content" | "characterId" | "personaId"> | undefined,
   membership: { readonly role: ParticipantRole; readonly joinSeq: number; readonly joinHistoryVisibility: JoinHistoryVisibility } | undefined,
+  macroNames: RowMacroNameContext,
 ): string | null {
   if (last === undefined || membership === undefined) {
     return null;
@@ -374,31 +375,60 @@ function buildSummaryPreview(
   if (last.seq < resolveHistoryFloorSeq(membership)) {
     return null;
   }
-  const preview = projectBodyForPreview(last.content);
+  const preview = projectBodyForPreview(resolveRowMacros(last.content, last, macroNames));
   return preview.length > 0 ? preview : null;
 }
 
 /** Resolve a set of chat rows → `ChatSummary[]` (the canon stats, the last-message bodies, the caller's own
  *  visibility rows and the character seats each batched in ONE read — no N+1; the names per chat).
  *  Shared by listChats / listForks / getChatLineage. */
-async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView[], viewerUserId: UserId): Promise<ChatSummary[]> {
+async function buildSummaries(ctx: ChatContext, deps: ReadDeps, rows: readonly ChatRowView[], viewerUserId: UserId): Promise<ChatSummary[]> {
   if (rows.length === 0) {
     return [];
   }
+  const db = ctx.db;
   const chatIds = rows.map((r) => r.id);
   const stats = await loadChatMessageStats(db, chatIds);
   const lastMessages = await loadChatLastMessages(db, chatIds);
   const visibility = await loadPresentVisibilityRows(db, chatIds, viewerUserId);
   const viewerTurns = await loadViewerLastTurns(db, chatIds, viewerUserId);
   const enriched = await Promise.all(rows.map(async (row) => ({ row, names: await deps.loadParticipantViews(row.id) })));
-  return enriched.map(({ row, names }) =>
-    toChatSummary({
-      row,
-      stat: stats.get(row.id) ?? EMPTY_STATS,
-      viewerLastTurnAt: viewerTurns.get(row.id) ?? null,
-      participants: names,
-      viewerUserId,
-      lastMessagePreview: buildSummaryPreview(lastMessages.get(row.id), visibility.get(row.id)),
+  const identityNames = buildIdentityNameContext(await loadChatIdentityProducer(db, { messages: [...lastMessages.values()] }));
+  return await Promise.all(
+    enriched.map(async ({ row, names }) => {
+      const last = lastMessages.get(row.id);
+      const membership = visibility.get(row.id);
+      const hostUserId = hostUserIdOf(names);
+      let anchor: AssemblePersona | null = null;
+      if (
+        last !== undefined &&
+        membership !== undefined &&
+        last.seq >= resolveHistoryFloorSeq(membership) &&
+        last.content.includes("{{") &&
+        hostUserId !== null
+      ) {
+        const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, names);
+        anchor = await resolveAnchorPersona(deps, {
+          chatId: row.id,
+          hostUserId,
+          anchorPersonaId: row.anchorPersonaId,
+          presentHumanUserIds,
+          humanSeats: humanSeatPersonasOf(names, presentHumanUserIds),
+        });
+      }
+      return toChatSummary({
+        row,
+        stat: stats.get(row.id) ?? EMPTY_STATS,
+        viewerLastTurnAt: viewerTurns.get(row.id) ?? null,
+        participants: names,
+        viewerUserId,
+        lastMessagePreview: buildSummaryPreview(last, membership, {
+          ...identityNames,
+          characterNames: names.filter((p) => p.kind === "character").map((p) => p.displayName),
+          fallbackPersonaName: anchor?.name,
+          fallbackPersonaDescription: anchor?.description,
+        }),
+      });
     }),
   );
 }
@@ -706,7 +736,7 @@ function createListChats(ctx: ChatContext, deps: ReadDeps): ChatService["listCha
     });
     const totalCount = await countMemberChats(ctx.db, principal.userId, filter);
     const viewerLastTurnAt = await loadViewerLastTurnAt(ctx.db, principal.userId, filter);
-    const items = await buildSummaries(ctx.db, deps, rows, principal.userId);
+    const items = await buildSummaries(ctx, deps, rows, principal.userId);
     const last = rows.at(-1);
     // The cursor is the SORT key, never the row stamp: `recencyAt` is what `listMemberChats` ordered on.
     const nextCursor = rows.length === pageSize && last !== undefined ? { recencyAt: last.recencyAt, id: last.id } : null;
@@ -728,7 +758,7 @@ function createListForks(ctx: ChatContext, deps: ReadDeps): ChatService["listFor
       ),
     );
     return await buildSummaries(
-      ctx.db,
+      ctx,
       deps,
       children.filter((c) => visible.has(c.id)),
       principal.userId,
@@ -750,7 +780,7 @@ function createGetChatLineage(ctx: ChatContext, deps: ReadDeps): ChatService["ge
       ),
     );
     const summaries = await buildSummaries(
-      ctx.db,
+      ctx,
       deps,
       chain.filter((r) => visible.has(r.id)),
       principal.userId,

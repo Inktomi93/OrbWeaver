@@ -27,6 +27,7 @@ import { useTRPC } from "#data";
 import type { HomeTileContribution } from "#state";
 import { HomeRecentsTileBody, RECENTS_LIMIT } from "../components/home-recents-tile-body.tsx";
 import { isFirstRun } from "./home-hearth.ts";
+import { RECENTS_EMPTY_BLOCK_PX } from "./home-recents-reservation.ts";
 
 const RECENTS_TILE_ORDER = 10;
 
@@ -39,20 +40,18 @@ const RECENTS_TILE_ORDER = 10;
  *  line; do not re-derive it by counting DOM nodes (a skeleton ROW is a bar plus its gap, not a text line). */
 const RECENTS_SKELETON_ROWS = 3;
 
-/** The first-room empty state's settled body block, reserved on a device with no memory: that device's first boot for
- *  an account is most often a new account's, which has no room yet (the masthead's reasoning). A house with rooms
- *  shrinks to its hero once, then its measured box wins. Re-measure with the first-boot CT if the empty state changes. */
-const RECENTS_EMPTY_BLOCK_PX = 193;
-
 const RESUME_TITLE = "Pick up where you left off";
-const FIRST_RUN_TITLE = "Your first room";
+const EMPTY_TITLE = "Your first room";
+const FIRST_RUN_TITLE = "Your rooms";
 
-// An account with no room, or a friend who has only just joined one, has nothing to pick up; the band names the room
-// as their first one instead. The same query key as the body, so this reads the body's one cache entry.
+// The band names the rooms available to an account that has not spoken yet.
 function useRecentsTitle(): string {
   const trpc = useTRPC();
   const page = useQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT })).data;
-  return page !== undefined && (page.totalCount === 0 || isFirstRun(page)) ? FIRST_RUN_TITLE : RESUME_TITLE;
+  if (page?.totalCount === 0) {
+    return EMPTY_TITLE;
+  }
+  return page !== undefined && isFirstRun(page) ? FIRST_RUN_TITLE : RESUME_TITLE;
 }
 
 export const chatRecentsTile: HomeTileContribution = {

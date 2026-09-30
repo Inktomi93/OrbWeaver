@@ -108,12 +108,17 @@ resolveRowMacros(
 | Context | Home | `{{user}}` subject | `{{char}}` subject |
 | - | - | - | - |
 | **DISPLAY** (viewer) | client `message-render` → the atom | row `personaId`; null-stamp → the ANCHOR | row `characterId`; null (human/narrator) → the CHARACTERS |
+| Summary previews: Home, Chats, forks and lineage | server `verbs/read.ts` → the atom | row `personaId`; null-stamp → the room ANCHOR (D250) | row `characterId`; null → the room CHARACTERS |
 | **ASSEMBLE** (model) | server `toShapeCanon` → the atom | row `personaId`; null-stamp → the ANCHOR | row `characterId`; null (human/narrator) → the CHARACTERS |
 | **SEND** | stores RAW; stamps `personaId` (PD-100) | — | — |
 | CARD sections | server `assemble.ts` | `ctx.pinnedPersona` (anchor, FROZEN at open) | the section's character |
 | prompt-config sections | server `assemble.ts` | `ctx.activePersona` = the anchor human's current seat persona (the presser's on an impersonate draft, D122) | the section's character |
 | people block (the `persona` marker's headed entries, one per other present human) | server `assemble.ts` | that entry's own persona (`ctx.people`) | the turn's speaker |
 | world-info entries | server `assembly/context.ts` `macroPersonaOf` | character book: `ctx.pinnedPersona`; chat and global book: `ctx.activePersona`; persona book: that book's own persona | the turn's speaker |
+
+Summary previews apply the viewer's history floor, then resolve identity macros, then strip hidden content and project plain text. Stored content stays raw. A host re-pinning the anchor changes the next preview read.
+
+Authoring fields intentionally stay raw: the character card editor, greeting editor, message editor, composer, persona editor and preset template editor. Their rendered previews resolve macros when a room supplies the binding. Unbound template previews retain tokens whose values are unavailable.
 
 DISPLAY and ASSEMBLE resolve history identically (same atom + same producer semantics) ⇒ **viewer ==
 model by construction** — including the null-stamp fallback, which is the chat ANCHOR (a chat invariant,

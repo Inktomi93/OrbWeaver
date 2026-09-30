@@ -29,7 +29,7 @@ const TRACK_SEPARATOR = /\s+/u;
 /** A face that only peeks into the swipe row already counts as visible, so the browser's own focus scroll leaves it
  *  cut off; reveal it whole. */
 function revealFocused(event: FocusEvent<HTMLDivElement>): void {
-  if (event.target instanceof HTMLElement) {
+  if (event.target instanceof HTMLElement && event.target.matches(":focus-visible")) {
     event.target.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
 }
