@@ -7,6 +7,8 @@ import { ENV_NO_FILE, PORT_ENV, RUN_DIR_ENV, VITE_API_TARGET_ENV, VITE_PORT_ENV 
 /** Where the fixture keeps its DB, assets, secrets and run dir, under the repo root. */
 export const FIXTURE_DIR_REL = join(".cache", "multi-user-fixture");
 const FIXTURE_RUN_DIR_REL = join(FIXTURE_DIR_REL, "stack");
+/** The seed cli under a tree's root; its `multi-user` verb mints the second human. */
+export const FIXTURE_SEED_CLI_REL = join("tooling", "src", "seed", "cli.ts");
 /** The env keys that move the fixture off its default pair when something else owns it. */
 const FIXTURE_PORT_ENV = "FIXTURE_PORT";
 const FIXTURE_VITE_PORT_ENV = "FIXTURE_VITE_PORT";
@@ -34,21 +36,32 @@ export function fixtureEnv(repoRoot: string, ambient: Readonly<Record<string, st
   const server = portOr(ambient[FIXTURE_PORT_ENV], FIXTURE_PORTS.server);
   const vite = portOr(ambient[FIXTURE_VITE_PORT_ENV], FIXTURE_PORTS.vite);
   const dataRel = `./${FIXTURE_DIR_REL.replaceAll("\\", "/")}`;
+  return {
+    ...Object.fromEntries([
+      [PORT_ENV, String(server)],
+      [VITE_PORT_ENV, String(vite)],
+      [VITE_API_TARGET_ENV, `http://127.0.0.1:${String(server)}`],
+      [RUN_DIR_ENV, join(repoRoot, FIXTURE_RUN_DIR_REL)],
+      ["DATA_DIR", dataRel],
+      ["DATABASE_URL", `file:${dataRel}/orb.db`],
+      ["ASSETS_DIR", `${dataRel}/assets`],
+    ]),
+    ...fixtureIdentityEnv(server),
+  };
+}
+
+/** The two-human identity half of the recipe, aimed at `serverPort`: local sign-in, the insecure dev
+ *  secrets, the owner and the seed contract. `snap --stage-auth local` boots a stage with this over the
+ *  stage's own ports and data root, so a stage and the fixture seed the same humans. */
+export function fixtureIdentityEnv(serverPort: number): Readonly<Record<string, string>> {
   return Object.fromEntries([
-    [PORT_ENV, String(server)],
-    [VITE_PORT_ENV, String(vite)],
-    [VITE_API_TARGET_ENV, `http://127.0.0.1:${String(server)}`],
-    [RUN_DIR_ENV, join(repoRoot, FIXTURE_RUN_DIR_REL)],
     ["AUTH_MODE", "local"],
-    ["DATA_DIR", dataRel],
-    ["DATABASE_URL", `file:${dataRel}/orb.db`],
-    ["ASSETS_DIR", `${dataRel}/assets`],
     ["SESSION_SECRET", "orbweaver-multi-user-fixture-session-secret-insecure"],
     ["CREDENTIALS_KEY", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"],
     ["LOCAL_INITIAL_PASSWORD", OWNER.password],
     [ENV_NO_FILE, "1"],
     ["OWNER_HANDLES", OWNER.handle],
-    ["SEED_BASE_URL", `http://127.0.0.1:${String(server)}`],
+    ["SEED_BASE_URL", `http://127.0.0.1:${String(serverPort)}`],
     ["FIXTURE_OWNER_HANDLE", OWNER.handle],
     ["FIXTURE_OWNER_PASSWORD", OWNER.password],
     ["FIXTURE_MEMBER_HANDLE", MEMBER.handle],

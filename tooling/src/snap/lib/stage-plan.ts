@@ -9,7 +9,8 @@ import { parseEnv } from "node:util";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { stageBandForPort } from "../../_shared/ports.ts";
 import { ENV_NO_FILE, PORT_ENV, STACK_CLI_REL, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "../../stack/index.ts";
-import type { BandAccess, StageBandClaim, StageDecision, StageLauncher, StageLauncherSpawn, StagePaths, StagePorts, StageRow } from "../contract/stage.ts";
+import type { BandAccess, StageAuthMode, StageBandClaim, StageLauncher, StageLauncherSpawn, StagePaths, StagePorts, StageRow } from "../contract/stage.ts";
+import { LOCAL_STAGE_DIR_SUFFIX, stageRowAuth } from "../contract/stage.ts";
 
 // 12 hex — collision-safe for a dir name while staying human-scannable in logs.
 export const SHORT_SHA_LEN = 12;
@@ -57,8 +58,9 @@ export function stageRowBaseUrl(row: StageRow): string {
   return stageBaseUrl(row.vitePort);
 }
 
-export function stagePaths(root: string, sha: string): StagePaths {
-  const dir = join(root, STAGE_ROOT_REL, shortSha(sha));
+export function stagePaths(root: string, sha: string, auth: StageAuthMode = "single-user"): StagePaths {
+  // A local-auth stage gets its own dir: its data root is empty and seeded, never the single-user copy.
+  const dir = join(root, STAGE_ROOT_REL, auth === "local" ? `${shortSha(sha)}${LOCAL_STAGE_DIR_SUFFIX}` : shortSha(sha));
   // The stage's data root is ABSOLUTE and inside the stage dir, so its db, assets and secrets live under the
   // stage regardless of the server's cwd — and go with the whole dir on teardown. The sub-paths come from the
   // server's own resolver, so the stage and its server never disagree on where the db is.
@@ -100,6 +102,7 @@ export function bandAccess(opts: {
   readonly fresh: boolean;
   readonly bandBound: boolean;
   readonly healthy: boolean;
+  readonly auth?: StageAuthMode;
 }): BandAccess {
   if (opts.row === null || opts.row.checkout === opts.checkout) {
     return "ours";
@@ -110,7 +113,8 @@ export function bandAccess(opts: {
   // `--dirty` would rsync OUR working tree into THEIR stage dir; `--fresh` and a sha change would tear
   // their stack down. Only an untouched same-commit reuse is safe across checkouts.
   const wouldMutateTheirStage = opts.dirty || opts.fresh;
-  if (!wouldMutateTheirStage && opts.row.sha === opts.targetSha && opts.healthy) {
+  const sameStage = opts.row.sha === opts.targetSha && stageRowAuth(opts.row) === (opts.auth ?? "single-user");
+  if (!wouldMutateTheirStage && sameStage && opts.healthy) {
     return "shared-reuse";
   }
   return "refuse";
@@ -274,21 +278,6 @@ export function foreignTeardownRefusal(row: StageRow, nowMs: number): string {
     "would kill a run in progress (measured 2026-08-22: it did). Wait for it to go idle, or say so " +
     "deliberately with `pnpm snap --stage-down --force`."
   );
-}
-
-/** The staleness rule: reuse a warm stage ONLY when it is the requested sha, healthy, and not forced fresh;
- *  otherwise rebuild. Pure — the imperative caller supplies `healthy` (lib/stage-bands.ts's three-probe
- *  verdict, `warm`). */
-export function stageDecision(opts: {
-  readonly targetSha: string;
-  readonly row: StageRow | null;
-  readonly fresh: boolean;
-  readonly healthy: boolean;
-}): StageDecision {
-  if (opts.fresh || opts.row === null || opts.row.sha !== opts.targetSha || !opts.healthy) {
-    return "rebuild";
-  }
-  return "reuse";
 }
 
 /** The table root derived from `git rev-parse --path-format=absolute --git-common-dir` (issue #108).

@@ -13,6 +13,9 @@ export interface CapturedRequest {
   failed: string | null;
   /** Playwright resourceType (document/xhr/fetch/image/…) — annotates failures. */
   type: string;
+  /** Set when the request failed after a later main-frame navigation or the page's close discarded the
+   *  document that issued it. The browser cancels such requests itself, so they say nothing about the app. */
+  discarded?: true;
 }
 
 export interface CapturedConsole {

@@ -122,6 +122,7 @@ export const SESSION_ONLY_FLAGS: ReadonlySet<string> = new Set([
   "--isolated",
   "--ref",
   "--dirty",
+  "--stage-auth",
   "--fresh",
   "--viewport",
   "--wide",
@@ -149,6 +150,7 @@ export const SESSION_ONLY_FLAGS: ReadonlySet<string> = new Set([
   "--fixture-base",
   "--cpu-throttle",
   "--network",
+  "--vision",
   ...sessionLevelArmFlags(),
 ]);
 
@@ -260,9 +262,11 @@ export function inheritSessionArgs(bootArgs: Args, call: Args, name: string, inh
     isolated: bootArgs.isolated,
     ref: bootArgs.ref,
     dirty: bootArgs.dirty,
+    stageAuth: bootArgs.stageAuth,
     fresh: bootArgs.fresh,
     cpuThrottle: bootArgs.cpuThrottle,
     network: bootArgs.network,
+    vision: bootArgs.vision,
     pages: bootArgs.pages,
     contexts: bootArgs.contexts,
     as: bootArgs.as,
@@ -349,9 +353,17 @@ export function sessionIdleMs(row: SessionRow, nowMs: number): number {
   return Number.isNaN(lastUsed) ? Number.POSITIVE_INFINITY : Math.max(0, nowMs - lastUsed);
 }
 
-export function sessionSweepVerdict(input: { readonly live: boolean; readonly idleMs: number; readonly ttlMs: number }): SessionSweepVerdict {
+export function sessionSweepVerdict(input: {
+  readonly live: boolean;
+  readonly idleMs: number;
+  readonly ttlMs: number;
+  readonly ownerPresent?: boolean;
+}): SessionSweepVerdict {
   if (!input.live) {
     return "dead";
+  }
+  if (input.ownerPresent === false) {
+    return "orphaned";
   }
   return input.idleMs > input.ttlMs ? "idle" : "live";
 }

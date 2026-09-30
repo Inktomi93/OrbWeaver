@@ -2,7 +2,7 @@
 // under the repo, the local sign-in mode, no `.env`, and the seed contract the seed tool reads.
 import { join } from "node:path";
 import { FIXTURE_PORTS } from "../../../../tooling/src/_shared/ports.ts";
-import { FIXTURE_CREDENTIALS, FIXTURE_DIR_REL, fixtureEnv } from "../../../../tooling/src/stack/index.ts";
+import { FIXTURE_CREDENTIALS, FIXTURE_DIR_REL, fixtureEnv, fixtureIdentityEnv } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("the recipe isolates ports, data and the run dir, and skips the operator's .env", () => {
@@ -41,4 +41,13 @@ test("FIXTURE_PORT and FIXTURE_VITE_PORT move the pair, and the seed and proxy t
   expect(env["VITE_PORT"]).toBe("9301");
   expect(env["VITE_API_TARGET"]).toBe("http://127.0.0.1:9300");
   expect(env["SEED_BASE_URL"]).toBe("http://127.0.0.1:9300");
+});
+
+test("the identity half carries sign-in and seed keys only, so a snap stage keeps its own band and data root", () => {
+  const identity = fixtureIdentityEnv(8908);
+  expect(identity["AUTH_MODE"]).toBe("local");
+  expect(identity["SEED_BASE_URL"]).toBe("http://127.0.0.1:8908");
+  for (const key of ["PORT", "VITE_PORT", "VITE_API_TARGET", "STACK_RUN_DIR", "DATA_DIR", "DATABASE_URL", "ASSETS_DIR"]) {
+    expect(identity).not.toHaveProperty(key);
+  }
 });

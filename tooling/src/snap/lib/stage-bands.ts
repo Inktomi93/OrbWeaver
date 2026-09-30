@@ -27,7 +27,9 @@
 //      is an operator's next action; a bare "no bands free" is a mystery.
 import type {
   StageAllocation,
+  StageAuthMode,
   StageBandView,
+  StageDecision,
   StageHealth,
   StageHealthEvidence,
   StageLimits,
@@ -35,6 +37,7 @@ import type {
   StageSweepEvidence,
   StageSweepVerdict,
 } from "../contract/stage.ts";
+import { stageRowAuth } from "../contract/stage.ts";
 import { bandAccess, describeStageAgePhrase, shortSha, stageIdleMs } from "./stage-plan.ts";
 
 const MS_PER_SECOND = 1000;
@@ -169,11 +172,13 @@ export function allocateStageBand(input: {
   readonly fresh: boolean;
   readonly limits: StageLimits;
   readonly nowMs: number;
+  readonly auth?: StageAuthMode;
 }): StageAllocation {
   const ordered = [...input.views].sort((a, b) => a.band - b.band);
   const occupied = ordered.filter((view): view is StageBandView & { readonly row: StageRow } => view.row !== null);
+  const auth = input.auth ?? "single-user";
 
-  const own = occupied.find((view) => view.row.checkout === input.checkout && view.row.sha === input.targetSha);
+  const own = occupied.find((view) => view.row.checkout === input.checkout && view.row.sha === input.targetSha && stageRowAuth(view.row) === auth);
   if (own !== undefined) {
     return { kind: "ours", band: own.band, row: own.row };
   }
@@ -188,6 +193,7 @@ export function allocateStageBand(input: {
         fresh: input.fresh,
         bandBound: view.bandBound,
         healthy: view.healthy,
+        auth,
       }) === "shared-reuse",
   );
   if (shared !== undefined) {
@@ -198,6 +204,12 @@ export function allocateStageBand(input: {
   // add nothing to the box's load, so a cap of 1 must never block the lane that already holds the stage.
   const liveStages = occupied.filter((view) => !viewIsStranded(view, input.nowMs, input.limits.ttlMs)).length;
   if (liveStages >= input.limits.cap) {
+    // At the cap, a lane's own stage at another sha is replaced rather than the lane being refused: one lane
+    // holding a ref stage and a dirty stage is what fills the cap. A live session still pins its stage.
+    const ownOther = occupied.find((view) => view.row.checkout === input.checkout && view.liveSessions.length === 0);
+    if (ownOther !== undefined) {
+      return { kind: "ours", band: ownOther.band, row: ownOther.row };
+    }
     return { kind: "exhausted", refusal: stageCapRefusal(occupied.length, ordered, input.limits, input.nowMs) };
   }
 
@@ -222,8 +234,9 @@ export function describeStageBandRow(view: StageBandView, nowMs: number): string
   }
   const sessions = view.liveSessions.length === 0 ? "no live sessions" : `sessions ${view.liveSessions.join(",")}`;
   const dead = view.row.dead === undefined ? "" : ` · DEAD since ${view.row.dead.detectedAt} during \`${view.row.dead.op}\``;
+  const auth = stageRowAuth(view.row) === "local" ? "  auth local" : "";
   return (
-    `  band ${view.band}  ${shortSha(view.row.sha)}  owner ${view.row.checkout} · pid ${view.row.ownerPid ?? "unknown"} · ` +
+    `  band ${view.band}  ${shortSha(view.row.sha)}${auth}  owner ${view.row.checkout} · pid ${view.row.ownerPid ?? "unknown"} · ` +
     `idle ${describeStageAgePhrase(view.row.lastUsedAt, nowMs)} · ${sessions}${dead}`
   );
 }
@@ -284,4 +297,20 @@ export function stageHealthVerdict(evidence: StageHealthEvidence): StageHealth {
     return "rebuild";
   }
   return "warm";
+}
+
+/** The staleness rule: reuse a warm stage ONLY when it is the requested sha, healthy, and not forced fresh;
+ *  otherwise rebuild. Pure — the imperative caller supplies `healthy` (lib/stage-bands.ts's three-probe
+ *  verdict, `warm`). */
+export function stageDecision(opts: {
+  readonly targetSha: string;
+  readonly row: StageRow | null;
+  readonly fresh: boolean;
+  readonly healthy: boolean;
+  readonly auth?: StageAuthMode;
+}): StageDecision {
+  if (opts.fresh || opts.row === null || opts.row.sha !== opts.targetSha || stageRowAuth(opts.row) !== (opts.auth ?? "single-user") || !opts.healthy) {
+    return "rebuild";
+  }
+  return "reuse";
 }

@@ -14,6 +14,7 @@ import { SHOT_PIXEL_BUDGET } from "../lib/shot-scale.ts";
 import { NETWORK_PROFILE_SPELLINGS } from "../lib/throttle.ts";
 import { armHelp, remainingArmHelp } from "../ops/arms/help.ts";
 import { snapFlagGrammarHelp } from "../ops/flag-grammar.ts";
+import { VISION_DEFICIENCIES } from "./load-emulation.ts";
 import { SNAP_SCENARIO_PRESET_NAMES } from "./scenario-presets.ts";
 
 export const SNAP_HELP = `snap — one browser run, many pieces of UI evidence
@@ -64,6 +65,8 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
                             verb that answers "what does a finger get here". --click is a MOUSE dispatch
                             even under --mobile, so it fires pointerenter/mouseover and opens a hover-only
                             tooltip no thumb can open; --tap fires none of those.
+  --swipe <selector=dy>   a dispatched touch drag that scrolls a touch scroller dy px (positive = down);
+                            needs a touch device like --tap. --wheel is the mouse scroll
   --fill <selector=value>  --key <selector=Key> | --key <Key>
                             bare --key Tab walks focus (no re-focus); the selector= form re-anchors
   --hover <selector>      --wait-for <selector|text=phrase>    --goto <target>
@@ -96,6 +99,9 @@ Load emulation (CDP; applied to EVERY page BEFORE it navigates, so boot is measu
   --cpu-throttle <n>      Emulation.setCPUThrottlingRate — 1 = off, 4 = the standard load-test throttle
   --network <profile>     Network.emulateNetworkConditions with DevTools' own presets:
                           ${NETWORK_PROFILE_SPELLINGS.join(" | ")}
+  --vision <type>         Emulation.setEmulatedVisionDeficiency, one of:
+                          ${VISION_DEFICIENCIES.join(" | ")}
+                          Pixels change (shots, pixel contrast); DOM and computed styles do not
   WHY: a layout shift within 500ms of a real click carries hadRecentInput and is EXCLUDED from CLS, so
   an unthrottled measurement of a "settles after you click it" surface reports 0.000 paid and says
   nothing about the margin. 4x CPU is what reveals it.
@@ -136,6 +142,8 @@ Sessions:
   --contexts <N>          isolated fixture users (owner/member BrowserContexts, -uN artifacts; no
                           watch/baseline/diff). @N targets one context/user for one-direction comparison.
   --as <handle>           one named fixture user
+  --stage-auth local      boot the stage with local sign-in, an empty data dir and the fixture's seeded
+                          owner + member, so --contexts/--as drive multi-human flows on the staged tree
   --isolated | --dirty    warm isolated stage from HEAD or working tree
   --ref <sha|branch|tag>  pin the isolated stage to a commit instead of HEAD (survives a merge train)
   --fresh                 force a full re-stage even when the stage is warm (implies --isolated)

@@ -260,6 +260,27 @@ test("the CAP refuses before the range does, and names it — but never blocks t
   expect(allocateStageBand({ ...ALLOC, views: views(withOurs) }).kind).toBe("ours");
 });
 
+test("a local-auth ask never lands on the lane's own single-user stage at the same sha", () => {
+  const ours = row(0);
+  expect(allocateStageBand({ ...ALLOC, views: views([{ row: ours }]) })).toEqual({ kind: "ours", band: 0, row: ours });
+  expect(allocateStageBand({ ...ALLOC, auth: "local", views: views([{ row: ours }]) })).toEqual({ kind: "free", band: 1 });
+  const local = row(1, { dir: `${MAIN_CHECKOUT}/.cache/snap-stage/0123456789ab-local` });
+  expect(allocateStageBand({ ...ALLOC, auth: "local", views: views([{ row: ours }, { row: local }]) })).toEqual({ kind: "ours", band: 1, row: local });
+});
+
+test("AT THE CAP, a lane's own stage at another sha is rebuilt in place instead of refusing — unless a live session holds it", () => {
+  const siblings = [1, 2].map((band) => ({ row: row(band, { checkout: MAIN_CHECKOUT, sha: OTHER_SHA }) }));
+  const ourOldStage = row(0, { checkout: LANE_CHECKOUT, sha: OTHER_SHA, sessions: ["lane-session"] });
+  const atCap = { ...ALLOC, checkout: LANE_CHECKOUT };
+  const replaced = allocateStageBand({ ...atCap, views: views([...siblings, { row: ourOldStage }]) });
+  expect(replaced).toEqual({ kind: "ours", band: 0, row: ourOldStage });
+  // A live session is driving the old stage: rebuilding under it would kill that browser mid-drive.
+  const pinned = allocateStageBand({ ...atCap, views: views([...siblings, { row: ourOldStage, over: { liveSessions: ["lane-session"] } }]) });
+  expect(pinned.kind).toBe("exhausted");
+  // Below the cap nothing changes: the lane gets a new band and keeps its old stage.
+  expect(allocateStageBand({ ...atCap, views: views([siblings[0] ?? { row: row(1) }, { row: ourOldStage }]) }).kind).toBe("free");
+});
+
 // ── the three probes + the ERA rule ───────────────────────────────────────────────────────────────────
 
 const HEALTHY = { healthzOk: true, viteOk: true, served: "fresh" as const, dirty: false, rsyncs: 0, ageMs: 0 };

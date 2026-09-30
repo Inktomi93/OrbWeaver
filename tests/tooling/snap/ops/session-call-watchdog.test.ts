@@ -77,6 +77,41 @@ test("a recovery that settles inside its declared inner clocks keeps the session
   expect(isTerminalSessionCallError(error)).toBe(false);
 });
 
+// A vite re-optimise reloads the page under a live call. The reload is not a hang, so the call keeps running
+// past its quiet budget; a call with no reload still dies at that budget (the never-resolving arm above).
+const QUIET_BUDGET_MS = 50;
+const RELOADED_WORK_MS = 400;
+
+test("a page reload during the call extends its budget, so a call slowed by the reload completes", async () => {
+  const reloadListeners: (() => void)[] = [];
+  const state: WatchdogState = {
+    ...watchdogState(),
+    reloads: (listener) => {
+      reloadListeners.push(listener);
+      return () => undefined;
+    },
+  };
+  const work = async (): Promise<number> => {
+    await sleep(QUIET_BUDGET_MS / 5);
+    for (const listener of reloadListeners) {
+      listener();
+    }
+    await sleep(RELOADED_WORK_MS);
+    return EXIT.clean;
+  };
+  await expect(runSessionCallWithinBudget(state, "eval during vite reload", work, QUIET_BUDGET_MS)).resolves.toBe(EXIT.clean);
+});
+
+test("a call with no reload still times out at its quiet budget", async () => {
+  const state: WatchdogState = { ...watchdogState(), reloads: () => () => undefined };
+  const slow = async (): Promise<number> => {
+    await sleep(RELOADED_WORK_MS);
+    return EXIT.clean;
+  };
+  const error = await caughtError(runSessionCallWithinBudget(state, "hung eval", slow, QUIET_BUDGET_MS));
+  expect(error.message).toContain("ORB-LOAD-KILL");
+});
+
 test.each(["status", "call"] as const)("a terminal session refuses a subsequent %s request instead of reusing possibly-live work", (kind) => {
   const events: string[] = [];
   let ended = false;

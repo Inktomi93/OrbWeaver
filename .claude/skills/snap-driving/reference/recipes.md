@@ -163,6 +163,7 @@ are isolated (own cookies), logged in as different dev users (roster order: owne
 ```bash
 pnpm snap / --contexts 2 --eval@0 '__orb.snap()' --eval@1 '__orb.snap()'
 pnpm snap / --as member --eval '__orb.snap()'      # single context, named user
+pnpm snap / --stage-auth local --as owner --text   # the same roster on your own staged tree
 ```
 
 No `--watch`/`--baseline`/`--diff` in context mode; `--contexts` + `--pages` together is refused.

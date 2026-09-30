@@ -163,8 +163,9 @@ const SESSION_ACCESS = ["absent", "ours", "refuse", "reclaim"] as const;
 export type SessionAccess = (typeof SESSION_ACCESS)[number];
 
 /** What `--session-sweep` may do to a row: `live` — under the TTL, reported and never touched; `idle` —
- *  alive past its TTL (a wedged timer), reaped; `dead` — the daemon is gone, reaped and the marker settled. */
-const SESSION_SWEEP_VERDICTS = ["live", "idle", "dead"] as const;
+ *  alive past its TTL (a wedged timer), reaped; `dead` — the daemon is gone, reaped and the marker settled;
+ *  `orphaned` — alive, but its owner checkout no longer exists, so no caller can ever reach it (F4). */
+const SESSION_SWEEP_VERDICTS = ["live", "idle", "dead", "orphaned"] as const;
 export type SessionSweepVerdict = (typeof SESSION_SWEEP_VERDICTS)[number];
 
 export interface SessionLimits {

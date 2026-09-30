@@ -75,6 +75,9 @@ interface SnapManifest {
   /** Vite dep-optimizer aborts, kept for the record and excluded from the verdict (isViteDepChurn).
    *  Absent when there were none — a warm stage never produces any. */
   readonly viteDepChurn?: readonly CapturedRequest[];
+  /** Aborts of requests whose document a navigation or page close discarded (isNavigationAbort); excluded
+   *  from the verdict and absent when there were none. */
+  readonly navigationAborts?: readonly CapturedRequest[];
   /** Matrix-only literal historical-row verdicts, including strict subject and CSS reconciliation. */
   readonly appearance?: readonly AppearanceInvariantResult[];
   readonly captures: readonly CaptureOutcome[];

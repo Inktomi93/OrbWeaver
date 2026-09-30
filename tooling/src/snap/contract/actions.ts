@@ -12,6 +12,9 @@ type StepAction =
   // touch-interaction question was answerable only from vendored source until this kind existed.
   // Refused without a touch-capable context — ops/parse.ts names why rather than silently degrading.
   | { kind: "tap"; selector: string }
+  // A touch DRAG (`Input.dispatchTouchEvent` start/move/end) that scrolls a touch scroller by `dy` CSS px.
+  // Chromium's `Input.synthesizeScrollGesture` does not scroll in the headless build; this does.
+  | { kind: "swipe"; selector: string; dy: number }
   | { kind: "motion-click"; selector: string | null }
   | { kind: "jsclick"; selector: string }
   | { kind: "press"; selector: string }

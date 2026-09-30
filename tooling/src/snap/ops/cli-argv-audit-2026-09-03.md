@@ -234,6 +234,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--motion-no-throttle` | `B` | analyzer modifier | checkpoint/arm | child of motion | owned | KEEP; refused without `--motion` |
 | `--motion-window` | `V,L` milliseconds | analyzer modifier | checkpoint/arm | child of motion | owned | KEEP; refused without `--motion` |
 | `--network` | `V,L` profile | boot environment; network emulation | outer | `fast-3g` is an intentional value alias for DevTools' retired name, not flag alias | owned | KEEP |
+| `--vision` | `V,L` deficiency | boot environment; CDP colour-vision emulation | outer | one of the CDP vision deficiency types | owned | KEEP |
 | `--no-deadcss` | `B` | analyzer modifier; disable the default dead-CSS scan | checkpoint/arm | directly owns the always-on scan; not orphaned | owned | KEEP |
 | `--no-failure-evidence` | `B` | boot evidence policy | outer; later session calls refuse it by name | no alias | owned | KEEP |
 | `--no-shot` | `B` | capture policy; suppress default shot | checkpoint | inverse policy, not alias | owned | KEEP |
@@ -251,6 +252,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--react-profile` | `B` | capture/analyzer; React development-renderer hook | outer/session boot | renderer hook installs before first mount | owned | KEEP |
 | `--reduced-motion` | `B` | boot environment; OS preference | outer | differs from app-level full-motion | owned | KEEP |
 | `--ref` | `V,L` git ref | boot WHERE; isolated ref stage | outer | implies isolated; not fresh/dirty alias | owned | KEEP |
+| `--stage-auth` | `V,L` mode | boot WHERE; stage sign-in mode (single-user or local with seeded humans) | outer | implies isolated; `local` points --contexts/--as at the stage | owned | KEEP |
 | `--request-body` | `V,L` URL filter | analyzer modifier; print newest retained JSON body | checkpoint/arm | implies requests capture | owned | KEEP |
 | `--requests` | `O,L` URL filter | analyzer; network request log | checkpoint/arm | request-body is modifier | owned | KEEP |
 | `--scale` | `V,L` screenshot/device scale | boot environment | outer; one shared scenario/session browser lifetime; raw checkpoint drift refused | not crop | owned | KEEP |
@@ -271,6 +273,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--strict-console` | `B` | boot/call evidence policy; console failures fatal | outer/session boot | no alias | owned | KEEP |
 | `--scenario-summary` | `B` | scenario output modifier | scenario only | parent-owned and refused without scenario | owned | KEEP; old `--summary` refuses by name |
 | `--tap` | `V,R,@N` selector | action; a REAL touch tap (no mouseover, so a hover-only tooltip stays shut) | checkpoint | distinct mechanism from `--click`/`--dom-click`/`--force-click`; requires `--mobile` or another touch device | owned | KEEP |
+| `--swipe` | `V,R,@N` selector=dy | action; a dispatched touch drag that scrolls a touch scroller | checkpoint | distinct mechanism from `--wheel` (mouse); requires `--mobile` or another touch device | owned | KEEP |
 | `--text` | `O,L,@N` selector | analyzer; text projection | checkpoint/arm | differs from ARIA/map | owned | KEEP |
 | `--theme` | `V,L` theme | boot appearance | outer | composes with appearance; not dark/light alias | owned | KEEP |
 | `--upload` | `V,R,@N` selector=path list | action; direct/descendant input or Playwright filechooser trigger | checkpoint | chooser semantics; real DataTransfer drop is distinct | owned | KEEP |

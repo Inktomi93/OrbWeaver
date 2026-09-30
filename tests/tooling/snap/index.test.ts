@@ -330,10 +330,19 @@ test("snap refuses conflicting and unsupported session modes before boot", () =>
   expect(args.errors).toEqual(
     expect.arrayContaining([
       "--baseline and --diff are mutually exclusive",
-      "--contexts/--as use the fixture stack and cannot be combined with --isolated/--dirty/--ref",
+      "--contexts/--as need signed-in humans: add --stage-auth local to stage them, or drop --isolated/--dirty/--ref to use the fixture stack",
       "--contexts/--as do not support --watch, --baseline, or --diff",
     ]),
   );
+});
+
+test("--stage-auth local stages signed-in humans, so --contexts and --as combine with it; an unknown mode refuses", () => {
+  const staged = parseSnapArgs(["--stage-auth", "local", "--contexts", "2"]);
+  expect(staged.errors).toEqual([]);
+  expect(staged.isolated).toBe(true);
+  expect(staged.stageAuth).toBe("local");
+  expect(parseSnapArgs(["--dirty", "--stage-auth", "local", "--as", "member"]).errors).toEqual([]);
+  expect(parseSnapArgs(["--stage-auth", "oidc"]).errors).toEqual(['--stage-auth expects single-user | local, got "oidc"']);
 });
 
 test("snap refuses evidence flags whose requested artifacts cannot be produced", () => {
@@ -592,6 +601,14 @@ test("a vite dep-optimizer abort is reported but never counted against the run",
   const partitioned = partitionFailedRequests([churn, realAbort, depNotFound, clean]);
   expect(partitioned.viteChurn).toEqual([churn]);
   expect(partitioned.failed).toEqual([realAbort, depNotFound]);
+});
+
+test("vite's 504 Outdated Optimize Dep on its own deps path is churn; a 504 anywhere else still fails", () => {
+  // The optimizer answers a request for a dep it just re-bundled with 504 and reloads the page; measured on a
+  // cold --stage-auth local stage as two failed requests that were re-requested and served.
+  const outdated = request({ url: "http://localhost:5293/node_modules/.vite/deps/luxon.js?v=5e594344", status: 504, failed: "net::ERR_ABORTED" });
+  const gateway = request({ url: "http://localhost:5293/api/trpc/chat.list", status: 504, type: "fetch" });
+  expect(partitionFailedRequests([outdated, gateway])).toMatchObject({ viteChurn: [outdated], failed: [gateway] });
 });
 
 test("snap help exits cleanly without starting Chromium", () => {

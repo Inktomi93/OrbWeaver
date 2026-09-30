@@ -18,8 +18,9 @@ import type { DeadCssEvidence } from "./dead-css.ts";
 import type { DiagnosticQuery } from "./diagnostics.ts";
 import type { HeapCaptureRequest, HeapComparisonRequest, HeapPageEvidence, HeapRetainerRequest } from "./heap.ts";
 import type { LighthouseDevice, LighthouseMode } from "./lighthouse.ts";
-import type { NetworkProfileName } from "./load-emulation.ts";
+import type { NetworkProfileName, VisionDeficiency } from "./load-emulation.ts";
 import type { MapAtlasEvidence, MapEntry, MapShellEvidence } from "./map.ts";
+import type { StageArgs } from "./stage.ts";
 
 export type { Assertion, DriveFailure, NavAction, PagedExpr, SnapAction, Step } from "./actions.ts";
 
@@ -37,7 +38,7 @@ interface PagedSelector {
   selector: string;
   page: number;
 }
-export interface Args {
+export interface Args extends StageArgs {
   /** Print the operator cookbook and exit without touching a browser or stage. */
   help: boolean;
   /** Maintainer-only exact-revision DevTools asset refresh; exits without driving a product surface. */
@@ -262,39 +263,13 @@ export interface Args {
    *  real link. NOTE (measured, #826): 4× CPU PLUS a 3G/4G profile never reaches `data-app-ready` on the
    *  DEV build (~250 unbundled ESM resources) — throttle CPU alone unless you are on a prod build. */
   network: NetworkProfileName | null;
+  /** `--vision <type>`: CDP `Emulation.setEmulatedVisionDeficiency` on every page. null = normal vision. */
+  vision: VisionDeficiency | null;
   // ── DEVICE PRESETS ──────────────────────────────────────────────────────────
   /** A Playwright device descriptor name (e.g. "iPhone 14 Pro Max") — full touch + mobile-UA + DPR
    *  emulation, not just a narrow viewport. null = the raw `viewport` field drives (desktop). Last of
    *  --mobile/--desktop/--wide/--viewport wins the slot. */
   device: string | null;
-  // ── ISOLATED STAGE (serve from a frozen HEAD worktree, not the live dev stack) ─────────────
-  /** Serve snaps from an ISOLATED snap-stage (detached HEAD worktree, offset ports + own db/data) — never
-   *  the live dev stack. Immune to the dev stack's HMR/crash-loops. See ../ops/stage.ts. */
-  isolated: boolean;
-  /** Stage git ref override (default HEAD). Implies --isolated. */
-  ref: string | null;
-  /** Force-rebuild the stage even when a warm one at this sha exists. Implies --isolated. */
-  fresh: boolean;
-  /** Stage the WORKING TREE (uncommitted changes), not a commit — rsyncs tracked+modified+untracked
-   *  source (gitignore-filtered) into a fixed stage dir and re-syncs on every call (refreshable, no
-   *  full re-stage when warm). Implies --isolated; takes priority over --ref. */
-  dirty: boolean;
-  /** Tear down the active stage (stop its stack + remove the worktree) and exit — ignores the route. */
-  stageDown: boolean;
-  /** Print the stage's visibility (marker + stage-band port owners + worktree dirs) and exit — the
-   *  engines status-style read, stage edition. Surfaces a lost-marker ownerless stage. Ignores the route. */
-  stageStatus: boolean;
-  /** Reap a STRANDED stage (a stage-rooted band process nothing has used inside the idle TTL) and prune
-   *  orphaned stage dirs, then exit — the safe reaper (#324). A live stage, ours or a sibling's, is left
-   *  standing; use --stage-down to tear down one you know you are finished with. Ignores the route. */
-  stageSweep: boolean;
-  /** `--stage-keeper <band>`: the band idle TIMER'S OWN entry (#1163 arm b) — spawned by `ensureStage`
-   *  through ops/stage-keeper.ts, never typed by an operator. It polls that band's row and tears the stage
-   *  down through the `--stage-down` path once nothing has used it for the TTL. null = not a keeper. */
-  stageKeeper: number | null;
-  /** Explicit checkout selector for stage teardown. Cross-checkout teardown is deliberate per band and
-   *  therefore requires --force; a bare --force never broadens the default owned-row selection. */
-  stageOwner: string | null;
   /** Consent for --stage-down to tear down a stage owned by ANOTHER checkout while its band is still
    *  bound (#447 follow-on) — the #108 cross-checkout teardown is unchanged, it just says so out loud
    *  now. No effect on your own stage, an idle one, or a dead one. Also the consent `--session-close`

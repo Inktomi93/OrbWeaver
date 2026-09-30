@@ -277,6 +277,7 @@ export async function launchSnapSession(opts: Args, extras: LaunchExtras = {}): 
   }
   try {
     await applyLoadEmulation(session, opts);
+    await applyVisionEmulation(session, opts);
   } catch (error) {
     return await closeProbeSessionAfterError(session, error);
   }
@@ -349,6 +350,20 @@ export async function debuggingPortFor(session: ProbeSession): Promise<number | 
 // cliff only when the CPU was busy). Chromium-only by construction: `newCDPSession` throws on any other
 // engine, and the throw propagates as a tool error rather than a run that silently measured at 1× — a
 // throttle flag that no-ops is a false rest-state receipt.
+/** `--vision`: the same every-page, before-navigation CDP application as the load arms below. The CDP
+ *  session is never detached, because Chromium drops an emulation when its session detaches. */
+async function applyVisionEmulation(session: ProbeSession, opts: Args): Promise<void> {
+  if (opts.vision === null) {
+    return;
+  }
+  for (const { context } of session.contexts) {
+    for (const page of context.pages()) {
+      const cdp = await context.newCDPSession(page);
+      await cdp.send("Emulation.setEmulatedVisionDeficiency", { type: opts.vision });
+    }
+  }
+}
+
 async function applyLoadEmulation(session: ProbeSession, opts: Args): Promise<void> {
   if (opts.cpuThrottle === NO_CPU_THROTTLE && opts.network === null) {
     return;

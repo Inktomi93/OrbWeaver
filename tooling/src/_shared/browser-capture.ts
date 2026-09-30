@@ -1,7 +1,7 @@
 // Per-page console, error, and request capture. Kept separate from browser.ts so the shared launcher owns
 // resources and contexts while this module owns only the event wiring duplicated across every page.
 
-import type { BrowserContext, CDPSession, ConsoleMessage, Page } from "@playwright/test";
+import type { BrowserContext, CDPSession, ConsoleMessage, Page, Request as PageRequest } from "@playwright/test";
 import { exactScope } from "./artifact-scope.ts";
 import type {
   CapturedConsole as BrowserCapturedConsole,
@@ -139,30 +139,44 @@ export async function wireProbePage(page: Page, capture: PageCapture, pageIndex:
     evidence.pageErrors.push(runtimePageError(error), scope);
     recordPageError(evidence.diagnostics, identity, error);
   });
+  // Records are bound to the Request object, not looked up by URL: the summary keeps the latest request per
+  // URL, so a URL lookup lets a discarded document's late failure land on its successor's record.
+  const records = new WeakMap<PageRequest, { readonly captured: CapturedRequest; readonly document: number }>();
+  // Counts main-frame documents: a request whose document number is behind this one was issued by a
+  // document that a navigation or the page's close has since discarded.
+  let document = 0;
+  page.on("close", () => {
+    document += 1;
+  });
   page.on("request", (request) => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+      document += 1;
+    }
     const url = redactedRequestUrl(request.url());
-    evidence.requestSummary.set(
+    const captured: CapturedRequest = {
+      method: request.method(),
       url,
-      {
-        method: request.method(),
-        url,
-        status: null,
-        failed: null,
-        type: request.resourceType(),
-      },
-      exactScope(contextIndex, pageIndex, diagnosticWindow.value),
-    );
+      status: null,
+      failed: null,
+      type: request.resourceType(),
+    };
+    records.set(request, { captured, document });
+    evidence.requestSummary.set(url, captured, exactScope(contextIndex, pageIndex, diagnosticWindow.value));
   });
   page.on("response", (response) => {
-    const captured = evidence.requestSummary.get(redactedRequestUrl(response.url()));
-    if (captured !== undefined) {
-      captured.status = response.status();
+    const record = records.get(response.request());
+    if (record !== undefined) {
+      record.captured.status = response.status();
     }
   });
   page.on("requestfailed", (request) => {
-    const captured = evidence.requestSummary.get(redactedRequestUrl(request.url()));
-    if (captured !== undefined) {
-      captured.failed = request.failure()?.errorText ?? "failed";
+    const record = records.get(request);
+    if (record === undefined) {
+      return;
+    }
+    record.captured.failed = request.failure()?.errorText ?? "failed";
+    if (record.document < document) {
+      record.captured.discarded = true;
     }
   });
   const cdp = await page.context().newCDPSession(page);
