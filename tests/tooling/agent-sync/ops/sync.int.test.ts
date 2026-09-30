@@ -1,9 +1,16 @@
 // The Codex mirror's real-tree conformance: the .codex tree is Claude-owned symlinks + generated
 // manifests, and `codexAgentSyncProblems()` is the same oracle `pnpm check:agents` runs. Relocated from
 // tests/tooling/codex-agent-config.int.test.ts at the #393 P5 move (Core-Tooling-Law.md §4.7 mirror).
-import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { codexAgentSyncProblems, parseClaudeAgent, parseRulePaths, ROLE_MODELS, ruleListLine } from "../../../../tooling/src/agent-sync/index.ts";
+import {
+  codexAgentSyncProblems,
+  parseClaudeAgent,
+  parseRulePaths,
+  ROLE_FAMILIES,
+  ruleListLine,
+  syncCodexAgents,
+} from "../../../../tooling/src/agent-sync/index.ts";
 import { formatMarkdown } from "../../../../tooling/src/doc/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -41,20 +48,16 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
     expect(projectInstructions.split("\n")).toContain(ruleListLine(rel, paths));
   }
 
-  // The Codex mirror registers NO hooks, and that is a RULING, not an oversight — owner, 2026-09-11:
-  // "it's fine, Codex is a lot more cautious than our side so I haven't had to use the tool guard."
-  // JSON holds no comments, so this assertion is the reason's home: do not "repair" the empty object by
-  // mirroring the Claude PreToolUse entry. `.codex/hooks` symlinks to `.claude/hooks`, so the guard is
-  // already on that side if the ruling ever changes.
-  const hookConfig = JSON.parse(readFileSync(join(ROOT, ".codex", "hooks.json"), "utf8")) as { readonly hooks: Readonly<Record<string, unknown>> };
-  expect(hookConfig.hooks).toEqual({});
+  // Codex has advisory hooks, but the Claude tool guard is not granted to its tool calls.
+  const hookConfig = readFileSync(join(ROOT, ".codex", "hooks.json"), "utf8");
+  expect(hookConfig).not.toContain("tool-guard.mjs");
 
   // The roster is pinned by literal, not derived from the map under test — a role silently dropped from
-  // ROLE_MODELS would otherwise shrink the loop to nothing and still pass.
-  expect(Object.keys(ROLE_MODELS).toSorted()).toEqual(["executor", "forge", "mech-executor", "security-executor", "side-eye", "stickler", "verifier"]);
-  for (const [role, model] of Object.entries(ROLE_MODELS)) {
+  // ROLE_FAMILIES would otherwise shrink the loop to nothing and still pass.
+  expect(Object.keys(ROLE_FAMILIES).toSorted()).toEqual(["executor", "forge", "mech-executor", "security-executor", "side-eye", "stickler", "verifier"]);
+  for (const [role, family] of Object.entries(ROLE_FAMILIES)) {
     const manifest = readFileSync(join(ROOT, ".codex", "agents", `${role}.toml`), "utf8");
-    expect(manifest).toContain(`model = "${model}"`);
+    expect(manifest).toMatch(new RegExp(`^model = "gpt-[0-9]+(?:\\.[0-9]+)*-${family}"$`, "mu"));
     expect(manifest).toContain("`AGENTS.md` names the files to read first");
     expect(manifest).toContain("Read `.agents/skills/lane/SKILL.md`");
     expect(manifest).not.toContain("agent-doctrine");
@@ -64,17 +67,17 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
   }
 
   const codexRouting = {
-    forge: ["gpt-6-astra", "medium"],
-    stickler: ["gpt-6-astra", "medium"],
-    executor: ["gpt-6-sol", "medium"],
-    verifier: ["gpt-6-sol", "medium"],
-    "mech-executor": ["gpt-6-luna", "high"],
-    "security-executor": ["gpt-6-sol", "high"],
-    "side-eye": ["gpt-6-sol", "high"],
+    forge: ["astra", "medium"],
+    stickler: ["astra", "medium"],
+    executor: ["sol", "medium"],
+    verifier: ["sol", "medium"],
+    "mech-executor": ["luna", "high"],
+    "security-executor": ["sol", "high"],
+    "side-eye": ["sol", "high"],
   } as const;
-  for (const [role, [model, effort]] of Object.entries(codexRouting)) {
+  for (const [role, [family, effort]] of Object.entries(codexRouting)) {
     const manifest = readFileSync(join(ROOT, ".codex", "agents", `${role}.toml`), "utf8");
-    expect(manifest).toContain(`model = "${model}"`);
+    expect(manifest).toMatch(new RegExp(`^model = "gpt-[0-9]+(?:\\.[0-9]+)*-${family}"$`, "mu"));
     expect(manifest).toContain(`model_reasoning_effort = "${effort}"`);
   }
 
@@ -84,15 +87,55 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
   );
 
   const claudeHookConfig = readFileSync(join(ROOT, ".claude", "settings.json"), "utf8");
-  // Re-registered 2026-09-11 by owner ruling, superseding the #1898 archival that made this a `not`:
-  // the Bash guard is the only enforcement of the destroy-uncommitted ban, and its day unregistered cost
-  // five lanes their uncommitted files to one `git stash -u`. The Codex half stays empty by the separate
-  // owner ruling recorded above — this is a Claude-side registration, deliberately.
+  // The destructive-command guard remains a Claude-side registration.
   expect(claudeHookConfig).toContain("/.claude/hooks/tool-guard.mjs");
   expect(claudeHookConfig).toContain("/.claude/hooks/biome-check.mjs");
   expect(claudeHookConfig).toContain("/.claude/hooks/session-onboard.sh");
   expect(claudeHookConfig).toContain("/.claude/hooks/worktree-setup.sh");
   expect(claudeHookConfig).toContain("/.claude/hooks/worktree-remove.sh");
+});
+
+const FIXTURE_CATALOG =
+  '{"fetched_at":"2026-09-30T12:00:00Z","models":[{"slug":"gpt-6.10-sol","visibility":"list","supported_reasoning_levels":[{"effort":"medium"}]}]}';
+
+test("sync validates before overwriting or pruning, then check detects persisted selection and body drift", async ({ plantedTree }) => {
+  const role = (name: string): string => `---\nname: ${name}\ndescription: Review work\neffort: medium\n---\n\nReview the assigned work.\n`;
+  const root = await plantedTree({
+    ".claude/agents/executor.md": role("executor"),
+    ".claude/agents/verifier.md": role("verifier"),
+    ".claude/skills/lane/SKILL.md": "# Lane\n",
+    ".agents/README.md": "Skills link lives here.\n",
+    ".codex/agents/executor.toml": "existing executor\n",
+    ".codex/agents/orphan.toml": "existing orphan\n",
+    "catalog.json": FIXTURE_CATALOG,
+  });
+  symlinkSync(join(root, ".claude/skills"), join(root, ".agents/skills"), "junction");
+  const catalogPath = join(root, "catalog.json");
+  const executorPath = join(root, ".codex/agents/executor.toml");
+  const orphanPath = join(root, ".codex/agents/orphan.toml");
+  for (const invalid of ["{", FIXTURE_CATALOG.replace("6.10-sol", "6-astra"), FIXTURE_CATALOG.replace("medium", "low")]) {
+    writeFileSync(catalogPath, invalid);
+    expect(() => syncCodexAgents(catalogPath, root)).toThrow();
+    expect(readFileSync(executorPath, "utf8")).toBe("existing executor\n");
+    expect(readFileSync(orphanPath, "utf8")).toBe("existing orphan\n");
+    expect(existsSync(join(root, ".codex/agents/verifier.toml"))).toBe(false);
+  }
+  writeFileSync(catalogPath, FIXTURE_CATALOG);
+  expect(syncCodexAgents(catalogPath, root)).toEqual({ roles: 2, fetchedAt: "2026-09-30T12:00:00Z" });
+  expect(existsSync(orphanPath)).toBe(false);
+  const valid = readFileSync(executorPath, "utf8");
+  expect(valid).toContain('model = "gpt-6.10-sol"');
+  expect(codexAgentSyncProblems(root)).toEqual([]);
+  for (const changed of [
+    valid.replace("gpt-6.10-sol", "gpt-6-astra"),
+    valid.replace("gpt-6.10-sol", "gpt-6.9-sol"),
+    valid.replace('model_reasoning_effort = "medium"', 'model_reasoning_effort = "high"'),
+    valid.replace("Review the assigned work.", "Different work."),
+    valid.replace('model = "gpt-6.10-sol"\n', ""),
+  ]) {
+    writeFileSync(executorPath, changed);
+    expect(codexAgentSyncProblems(root).length).toBeGreaterThan(0);
+  }
 });
 
 test("root AGENTS.md is canonical markdown, so check:agents and check:docs can both be green", () => {

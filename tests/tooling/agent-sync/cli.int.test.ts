@@ -1,6 +1,8 @@
 // The agent-sync cli's exit contract through the REAL binary. `--check` is a `pnpm check` stage, so its
 // codes are load-bearing: a stale mirror must read as VIOLATIONS (1), never as a crashed tool (2) — the
 // pre-move script threw on staleness, which node reports as 1 and the runner would now escalate to 2.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 test("agent-sync --check reports the mirror as current on a synced tree", async ({ runCli }) => {
@@ -13,4 +15,18 @@ test("agent-sync refuses an unknown flag as misuse, writing nothing", async ({ r
   const res = await runCli("agent-sync", ["--rewrite-everything"]);
   await expect(res).toExitWith(3);
   expect(res.stderr).toContain("usage: pnpm agents:sync");
+});
+
+test("check uses persisted selections without a local Codex catalog", async ({ runCli, scratch }) => {
+  const res = await runCli("agent-sync", ["--check"], { env: Object.fromEntries([["CODEX_HOME", scratch]]) });
+  await expect(res).toExitWith(0);
+  expect(res.stdout).toContain("Codex agent manifests: current");
+});
+
+test("invalid catalog refuses sync before modifying a manifest", async ({ runCli, repoRoot, scratch }) => {
+  const manifestPath = join(repoRoot, ".codex", "agents", "executor.toml");
+  const before = readFileSync(manifestPath, "utf8");
+  const result = await runCli("agent-sync", ["--models", join(scratch, "missing.json")]);
+  await expect(result).toExitWith(2);
+  expect(readFileSync(manifestPath, "utf8")).toBe(before);
 });

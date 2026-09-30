@@ -2,21 +2,27 @@
 // constants + one pure filename derivation; every path anchors on the ONE repo root (_shared/artifacts).
 import { join } from "node:path";
 import { REPO_ROOT } from "../../_shared/artifacts.ts";
+import type { AgentPaths, ModelFamily } from "../contract/types.ts";
 
-export const CLAUDE_AGENTS_DIR = join(REPO_ROOT, ".claude", "agents");
-export const CLAUDE_SKILLS_DIR = join(REPO_ROOT, ".claude", "skills");
-export const CODEX_AGENTS_DIR = join(REPO_ROOT, ".codex", "agents");
-export const CODEX_SKILLS_DIR = join(REPO_ROOT, ".agents", "skills");
+/** Resolve the mirror inside the supplied checkout, including isolated test fixtures. */
+export function agentPaths(root = REPO_ROOT): AgentPaths {
+  return {
+    claudeAgents: join(root, ".claude", "agents"),
+    claudeSkills: join(root, ".claude", "skills"),
+    codexAgents: join(root, ".codex", "agents"),
+    codexSkills: join(root, ".agents", "skills"),
+  };
+}
 
 /** Codex routing is explicit so an unmapped role cannot inherit the parent model. */
-export const ROLE_MODELS: Readonly<Record<string, string>> = {
-  executor: "gpt-6-sol",
-  forge: "gpt-6-astra",
-  "mech-executor": "gpt-6-luna",
-  "security-executor": "gpt-6-sol",
-  "side-eye": "gpt-6-sol",
-  stickler: "gpt-6-astra",
-  verifier: "gpt-6-sol",
+export const ROLE_FAMILIES: Readonly<Record<string, ModelFamily>> = {
+  executor: "sol",
+  forge: "astra",
+  "mech-executor": "luna",
+  "security-executor": "sol",
+  "side-eye": "sol",
+  stickler: "astra",
+  verifier: "sol",
 };
 
 /** Codex-only effort choices differ from Claude for these roles. Other roles inherit Claude effort. */

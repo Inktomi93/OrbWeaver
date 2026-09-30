@@ -3,22 +3,26 @@
 // a stale role manifest is a role Codex can still dispatch after the role was deleted.
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { parseFrontmatter } from "../lib/frontmatter.ts";
-import { CLAUDE_AGENTS_DIR, CLAUDE_SKILLS_DIR, CODEX_AGENTS_DIR, CODEX_SKILLS_DIR, codexFilename, isMarkdown, isToml } from "../lib/paths.ts";
+import type { AgentSyncResult } from "../contract/types.ts";
+import { parseClaudeAgent, parseFrontmatter } from "../lib/frontmatter.ts";
+import { isFamilyModel, resolveRoleModels } from "../lib/model-resolution.ts";
+import { agentPaths, codexFilename, isMarkdown, isToml, ROLE_EFFORT_OVERRIDES, ROLE_FAMILIES } from "../lib/paths.ts";
+import { readModelCatalog } from "./catalog.ts";
 import { renderCodexAgent } from "./render.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm agents:sync");
 
-function sourceFilenames(): readonly string[] {
-  return readdirSync(CLAUDE_AGENTS_DIR).filter(isMarkdown).toSorted();
+function sourceFilenames(root: string): readonly string[] {
+  return readdirSync(agentPaths(root).claudeAgents).filter(isMarkdown).toSorted();
 }
 
-function skillsLinkProblem(): string | null {
-  if (!(existsSync(CODEX_SKILLS_DIR) && lstatSync(CODEX_SKILLS_DIR).isSymbolicLink())) {
+function skillsLinkProblem(root: string): string | null {
+  if (!(existsSync(agentPaths(root).codexSkills) && lstatSync(agentPaths(root).codexSkills).isSymbolicLink())) {
     return ".agents/skills must be a symlink to .claude/skills";
   }
-  if (realpathSync(CODEX_SKILLS_DIR) !== realpathSync(CLAUDE_SKILLS_DIR)) {
+  if (realpathSync(agentPaths(root).codexSkills) !== realpathSync(agentPaths(root).claudeSkills)) {
     return ".agents/skills does not resolve to .claude/skills";
   }
   return null;
@@ -40,11 +44,11 @@ const bannedMcpServers = new Set([
 ]);
 
 /** #1279: scan every agent def for browser MCP server grants that should not be re-added. */
-function browserMcpProblems(): readonly string[] {
+function browserMcpProblems(root: string): readonly string[] {
   const problems: string[] = [];
   const frontmatterPattern = /^---\n([\s\S]*?)\n---/u;
-  for (const filename of readdirSync(CLAUDE_AGENTS_DIR).filter(isMarkdown)) {
-    const source = readFileSync(join(CLAUDE_AGENTS_DIR, filename), "utf8");
+  for (const filename of readdirSync(agentPaths(root).claudeAgents).filter(isMarkdown)) {
+    const source = readFileSync(join(agentPaths(root).claudeAgents, filename), "utf8");
     const match = frontmatterPattern.exec(source);
     if (match?.[1] === undefined) {
       continue;
@@ -67,12 +71,13 @@ function browserMcpProblems(): readonly string[] {
 }
 
 /** Every way the Codex mirror can be stale, as operator-readable lines. Empty = current. */
-export function codexAgentSyncProblems(): readonly string[] {
-  const expectedFiles = sourceFilenames().map(codexFilename);
-  const actualFiles = readdirSync(CODEX_AGENTS_DIR).filter(isToml).toSorted();
-  const problems: string[] = [...browserMcpProblems()];
+export function codexAgentSyncProblems(root = REPO_ROOT): readonly string[] {
+  const sources = sourceFilenames(root);
+  const expectedFiles = sources.map(codexFilename);
+  const actualFiles = readdirSync(agentPaths(root).codexAgents).filter(isToml).toSorted();
+  const problems: string[] = [...browserMcpProblems(root)];
 
-  const skillsProblem = skillsLinkProblem();
+  const skillsProblem = skillsLinkProblem(root);
   if (skillsProblem !== null) {
     problems.push(skillsProblem);
   }
@@ -81,11 +86,30 @@ export function codexAgentSyncProblems(): readonly string[] {
     problems.push(`agent file set differs: expected ${expectedFiles.join(", ")}; found ${actualFiles.join(", ")}`);
   }
 
-  for (const sourceFilename of sourceFilenames()) {
+  const familySelections = new Map<string, string>();
+  for (const sourceFilename of sources) {
     const targetFilename = codexFilename(sourceFilename);
-    const targetPath = join(CODEX_AGENTS_DIR, targetFilename);
-    const expected = renderCodexAgent(sourceFilename, readFileSync(join(CLAUDE_AGENTS_DIR, sourceFilename), "utf8"));
-    if (!existsSync(targetPath) || readFileSync(targetPath, "utf8") !== expected) {
+    const targetPath = join(agentPaths(root).codexAgents, targetFilename);
+    const source = readFileSync(join(agentPaths(root).claudeAgents, sourceFilename), "utf8");
+    const agent = parseClaudeAgent(sourceFilename, source);
+    const family = ROLE_FAMILIES[agent.name];
+    if (family === undefined) {
+      problems.push(`${sourceFilename}: missing Codex model family mapping`);
+      continue;
+    }
+    const current = existsSync(targetPath) ? readFileSync(targetPath, "utf8") : "";
+    const model = /^model = "([^"]+)"$/mu.exec(current)?.[1];
+    if (model === undefined || !isFamilyModel(model, family)) {
+      problems.push(`${targetFilename}: missing or wrong-family stable model; run pnpm agents:sync`);
+      continue;
+    }
+    const previous = familySelections.get(family);
+    if (previous !== undefined && previous !== model) {
+      problems.push(`${targetFilename}: ${family} family selection differs from ${previous}`);
+    }
+    familySelections.set(family, model);
+    const expected = renderCodexAgent(sourceFilename, source, model, root);
+    if (current !== expected) {
       problems.push(`${targetFilename} is stale; run pnpm agents:sync`);
     }
   }
@@ -93,29 +117,44 @@ export function codexAgentSyncProblems(): readonly string[] {
 }
 
 /** Regenerate the whole Codex mirror. Returns how many role manifests it wrote (the cli prints it). */
-export function syncCodexAgents(): number {
-  mkdirSync(CODEX_AGENTS_DIR, { recursive: true });
-  const sourceFiles = sourceFilenames();
-  const expectedTargets = new Set(sourceFiles.map(codexFilename));
-
-  for (const targetFilename of readdirSync(CODEX_AGENTS_DIR).filter(isToml)) {
-    if (!expectedTargets.has(targetFilename)) {
-      unlinkSync(join(CODEX_AGENTS_DIR, targetFilename));
+export function syncCodexAgents(catalogPath: string, root = REPO_ROOT): AgentSyncResult {
+  const sourceFiles = sourceFilenames(root);
+  const catalog = readModelCatalog(catalogPath);
+  const sources = sourceFiles.map((filename) => ({ filename, source: readFileSync(join(agentPaths(root).claudeAgents, filename), "utf8") }));
+  const roleEfforts = Object.fromEntries(
+    sources.map(({ filename, source }) => {
+      const agent = parseClaudeAgent(filename, source);
+      return [agent.name, ROLE_EFFORT_OVERRIDES[agent.name] ?? agent.effort];
+    }),
+  );
+  const selections = resolveRoleModels(catalog, roleEfforts);
+  const rendered = sources.map(({ filename, source }) => {
+    const agent = parseClaudeAgent(filename, source);
+    const model = selections[agent.name];
+    if (model === undefined) {
+      throw new Error(`${filename}: unresolved Codex model`);
     }
-  }
-  for (const sourceFilename of sourceFiles) {
-    const targetFilename = codexFilename(sourceFilename);
-    const rendered = renderCodexAgent(sourceFilename, readFileSync(join(CLAUDE_AGENTS_DIR, sourceFilename), "utf8"));
-    writeFileSync(join(CODEX_AGENTS_DIR, targetFilename), rendered);
-  }
-  const skillsProblem = skillsLinkProblem();
+    return { filename: codexFilename(filename), content: renderCodexAgent(filename, source, model, root) };
+  });
+  const skillsProblem = skillsLinkProblem(root);
   if (skillsProblem !== null) {
     throw new Error(skillsProblem);
   }
-  return sourceFiles.length;
+  mkdirSync(agentPaths(root).codexAgents, { recursive: true });
+  const expectedTargets = new Set(sourceFiles.map(codexFilename));
+
+  for (const targetFilename of readdirSync(agentPaths(root).codexAgents).filter(isToml)) {
+    if (!expectedTargets.has(targetFilename)) {
+      unlinkSync(join(agentPaths(root).codexAgents, targetFilename));
+    }
+  }
+  for (const target of rendered) {
+    writeFileSync(join(agentPaths(root).codexAgents, target.filename), target.content);
+  }
+  return { roles: sourceFiles.length, fetchedAt: catalog.fetchedAt };
 }
 
 /** How many role manifests `--check` compared (the check's own receipt line). */
-export function codexRoleCount(): number {
-  return sourceFilenames().length;
+export function codexRoleCount(root = REPO_ROOT): number {
+  return sourceFilenames(root).length;
 }

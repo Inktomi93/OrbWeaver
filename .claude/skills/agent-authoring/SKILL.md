@@ -82,11 +82,18 @@ refuses an impossible task is a success, and an agent that does not know that wi
 ## Codex target
 
 Codex project agents live at `.codex/agents/*.toml`, generated from `.claude/agents/*.md`. Never
-hand-edit a generated TOML; edit the Claude source and re-run the sync. A standalone manifest needs
-`name`, `description`, `developer_instructions`. `model`, `model_reasoning_effort`, `sandbox_mode`,
-`mcp_servers`, and `skills.config` carry over; Claude-only fields (`permissionMode`, `tools`,
+hand-edit a generated TOML; edit the Claude source and re-run the sync. Model families live in
+`tooling/src/agent-sync/lib/paths.ts`. Sync resolves each family from the model catalog maintained by the local Codex installation.
+A standalone manifest needs
+`name`, `description`, `developer_instructions`. The converter also emits `model` and `model_reasoning_effort`.
+Other session settings inherit from the parent. Claude-only fields (`permissionMode`, `tools`,
 `disallowedTools`, `color`, `memory`, the YAML `skills` list) do not exist in Codex TOML. Preserve each
 role's `effort` as `model_reasoning_effort` unless `tooling/src/agent-sync/lib/paths.ts` declares a Codex-only effort override.
+
+`pnpm agents:sync` selects the newest visible stable numeric version in each configured family and preserves each role's reasoning effort.
+Run Codex to refresh its model catalog before syncing. Sync reports the catalog it used and refuses missing models or unsupported efforts.
+Generated agents keep that selection until the next sync; running agents keep their startup configuration.
+`pnpm check:agents` checks the generated selections against their families and source instructions without reading a local model catalog.
 
 Codex project hooks live in `.codex/hooks.json`; `.codex/hooks` points at the Claude-owned
 implementations. A hook change can require the user to re-trust the project in a fresh Codex session —

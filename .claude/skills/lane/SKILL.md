@@ -29,7 +29,8 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 ## Git
 
-- Pass `git -C <worktree>` on every git call. The shell cwd resets, and a `cd` into a worktree is refused.
+- Run Git in the intended checkout. In Codex, use the shell tool's `workdir` or `git -C <worktree>`.
+- In Claude's guarded worktree shell, use the checkout's working directory; follow "Shell shapes in a worktree" below.
 - In your own worktree, `git add -A` is fine.
 - On main or any shared tree, stage and commit by exact pathspec. `git stash -u` or a bare `git commit -m` can sweep a sibling's files.
 - On a shared file, check your edit per row id, not by line count. A count can match by accident.
@@ -38,7 +39,9 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 ### Commit
 
-- Commit through the hooks, with the Bash tool's `run_in_background`: pre-commit runs `pnpm verify --static --changed`, which can outlast the tool timeout, and a killed commit leaves its hook running. It takes no host-wide slot. Commit-msg runs `scripts/commit-msg-check.sh`.
+- Commit implementation work through the hooks. Review-only assignments never commit.
+- Allow the commit command to finish: killing it can leave its hook running. Follow "Long runs" for your host.
+- Pre-commit runs `pnpm verify --static --changed`. Commit-msg runs `scripts/commit-msg-check.sh`.
 - Write the header as `type(scope): subject`, name the floor you ran, and end with a `Co-Authored-By` trailer.
 - Keep your own checks scoped. Do not run the full battery only to commit.
 - Bypass a hook only when the user or orchestrator names the exception. Use `LEFTHOOK_EXCLUDE=check git commit ...`, which keeps the commit-msg check, and record the reason and the owed checks.
@@ -49,8 +52,9 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 - An Edit inserted directly above a declaration can land between it and its JSDoc.
 - A `Bin` count on a `.ts` or `.tsx` file in `git show --stat` means a NUL byte in a template literal.
 - Classify diff ownership only when main is your parent. Run `git rev-list --left-right --count main...HEAD` first.
-- Before you report, `git status --short` must be empty. `git commit -- <pathspec>` skips untracked files, which die at teardown.
-- Include `git show --stat <sha>` in the report.
+- Before reporting, inspect `git status --short` and account for your changes separately from existing or sibling work.
+- Finish implementation work with your assigned changes committed when the brief requires a commit. Include `git show --stat <sha>` then.
+- Review-only assignments preserve the checkout's existing changes. A dirty shared checkout is not a request to clean or commit it.
 
 ## Probes
 
@@ -92,9 +96,18 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 ## Floor
 
-Your floor is the tests you touched, a scoped typecheck, Biome and ESLint on your files, the scoped gates, and every CT file for your change by path. Static checks never run a CT.
+The implementation floor is the tests you touched, a scoped typecheck, Biome and ESLint on your files, the scoped gates, and every CT file for your change by path. Static checks never run a CT.
+
+Review-only assignments follow the `review` skill's checks. Questions and investigations run the checks needed to support their answer.
 
 List each command and its result in the report. The whole-tree check is the orchestrator's.
+
+## Completion
+
+- Stop when the assigned outcome exists and its required checks pass.
+- Repeat a completed check only after a relevant change, a failure, or conflicting evidence that could change the result.
+- Report unrelated findings separately; they do not expand the assignment.
+- Add hashes or verification machinery only when the task or an existing contract requires artifact identity or integrity.
 
 ## Checker failures
 
@@ -105,14 +118,16 @@ List each command and its result in the report. The whole-tree check is the orch
 ## Long runs
 
 - Run a harness bare: `pnpm check`, `pnpm verify …`, `pnpm test:scoped …`. Its exit code is the verdict.
-- Start a run that outlasts one call with the Bash tool's `run_in_background`. The harness notifies you when it exits; until then, make no call about it. If your work is done, write your report; otherwise end your turn.
+- In Claude, use the Bash tool's `run_in_background` for long commands and read its completion notification.
+- In Codex, retain the running command's session identifier and collect its completion through the available shell tool.
+- A running command has no verdict. Read its completed artifact before reporting success or failure.
 - Read results with `pnpm check:show` and the artifacts `AGENTS.md` names, not a log you wrote.
 - Never wait on `pgrep` of a harness name. It matches every checkout on the box, so a sibling's run blocks you.
 - Stop your own verify with the orchestrator skill's checkout-scoped stop. Killing `git commit` leaves its hook running.
 
 ## Shell shapes in a worktree
 
-Worktree isolation refuses any command it cannot prove stays inside the worktree. A refused call is lost; use the shapes it accepts.
+These restrictions apply to Claude's guarded worktree shell. Codex uses its own shell and filesystem permissions.
 
 - Write or change a file with the Write or Edit tool, never `cat <<` or `>>` into it.
 - Put a script in a scratch file and run `python3 <file>` or `node <file>`, never a `- <<` heredoc.

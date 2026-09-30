@@ -18,17 +18,26 @@ import {
   codexAgentSyncProblems,
   codexRoleCount,
   instructionFileCount,
+  modelCatalogPath,
   syncCodexAgents,
 } from "./index.ts";
 
-const USAGE = "usage: pnpm agents:sync [--check]";
+const USAGE = "usage: pnpm agents:sync [--models <catalog-path>] | pnpm check:agents";
+
+function syncCatalogPath(args: readonly string[]): string {
+  if (args.length === 0) {
+    return modelCatalogPath();
+  }
+  if (args.length === 2 && args[0] === "--models" && args[1]) {
+    return args[1];
+  }
+  throw new UsageError(USAGE);
+}
 
 function main(): number {
   const args = process.argv.slice(2);
-  if (args.length > 1 || (args[0] !== undefined && args[0] !== "--check")) {
-    throw new UsageError(USAGE);
-  }
-  if (args[0] === "--check") {
+  const check = args.length === 1 && args[0] === "--check";
+  if (check) {
     const fileCount = instructionFileCount(REPO_ROOT);
     if (fileCount === 0) {
       throw new Error("the instruction-layer walk found no files; the check cannot measure");
@@ -49,8 +58,10 @@ function main(): number {
     print(`checked ${docCount} governed docs under docs/`);
     return EXIT.clean;
   }
-  const roles = syncCodexAgents();
-  print(`synced ${roles} Claude roles and the shared skill tree`);
+  const catalogPath = syncCatalogPath(args);
+  const result = syncCodexAgents(catalogPath);
+  print(`synced ${result.roles} Claude roles and the shared skill tree`);
+  print(`Codex model catalog: ${catalogPath} (fetched ${result.fetchedAt})`);
   return EXIT.clean;
 }
 
