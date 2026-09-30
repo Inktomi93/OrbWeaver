@@ -56,11 +56,10 @@
 // last shelf tile beside the doorway group), because positional is the only thing a host that imports zero
 // features can honestly say, and it is the same presentation license the doorway grouping already takes.
 //
-// TWO COLUMNS ONLY WHERE THE SHELF CAN REFLOW (owner-ruled). The split is `pairWide`, the same 100rem container
-// step the shelf's own foot and face grid reflow at, so Home is two even columns exactly where the shelf can answer
-// the hearth's height and one column below it, hearth first. Below the step the shelf could not reflow and ended
-// hundreds of pixels below the hearth. At the step the shelf balances by reflow alone: the roster rows tile across
-// it, and its foot pairs blocks side by side; no tile changes columns for a populated house.
+// TWO COLUMNS WHERE THE SHELF REFLOWS WITH THEM (owner-ruled: about 1400px). The split is `pairWide`, an 80rem
+// container step shared by the shelf's roster rows and foot, so Home is two even columns exactly where the shelf
+// reflows to answer the hearth's height, and one column below it, hearth first. No tile changes columns for a
+// populated house: the roster rows go two-up and the foot pairs blocks side by side.
 // `tests/client/features/home/surfaces/home-column-balance.suite.ct.tsx` holds both houses to a 120px budget and
 // pins the step.
 //

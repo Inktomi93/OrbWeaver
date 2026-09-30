@@ -653,10 +653,13 @@ test("the grid aligns tiles to START — a short tile never stretches to its row
 // is data-dependent, so it reserves the fullest page and a sparse library shrinks on its first boot only.
 // `rosterPreset.rosters` reserves by default, since every new account is seeded with rosters, so this page routes
 // the seeded library. The room tiles cannot be reserved on a device with no memory (`ROOM_TILES`).
+/** A 1440 laptop, past Home's two-column step. */
+const LAPTOP_VIEWPORT_PX = 1440;
 /** The hearth's room tiles, whose settled boxes depend on the account's rooms. */
 const ROOM_TILES: ReadonlySet<string> = new Set(["chat.recents", "chat.alsoOpen"]);
 
-test("#129 the shipped first boot reserves each tile the box a FULL page settles it into", async ({ mount, page }) => {
+test("#129 the shipped first boot reserves each tile the box a FULL page settles it into, at a two-column laptop", async ({ mount, page }) => {
+  await page.setViewportSize({ width: LAPTOP_VIEWPORT_PX, height: 900 });
   const chats = trpcHold();
   const characters = trpcHold();
   const settings = trpcHold();
@@ -674,7 +677,7 @@ test("#129 the shipped first boot reserves each tile the box a FULL page settles
     "settings.getUserSettings": settings,
   });
 
-  const home = await mount(<HomeShippedFirstBootStory />);
+  const home = await mount(<HomeShippedFirstBootStory inlineSize={LAPTOP_VIEWPORT_PX - FOLD_RAIL_PX} />);
   await Promise.all([chats.requested, characters.requested, settings.requested, documents.requested, health.requested]);
   const grid = home.locator("[data-home-grid]");
   // Every tile is on its DECLARED reservation: no box MEMORY exists for any id on a first-ever boot.
@@ -689,6 +692,7 @@ test("#129 the shipped first boot reserves each tile the box a FULL page settles
         .join(" "),
     );
   const reservedTiles = await tileBoxes();
+  const reserved = (await grid.boundingBox())?.height ?? 0;
   // The tolerance below, read off the RENDERED bars while they are still up — never a literal: a skeleton
   // row is `--spacing-control-lg` plus its gap, and that token is pointer-conditional (40px fine / 56px
   // coarse), so a hardcoded pitch would pass on this runner and lie about a tablet.
@@ -711,6 +715,7 @@ test("#129 the shipped first boot reserves each tile the box a FULL page settles
   await expect(grid.getByText("Doc 0", { exact: true })).toBeVisible();
   await expect(grid.locator("[aria-busy]")).toHaveCount(0);
   const settledTiles = await tileBoxes();
+  const settled = (await grid.boundingBox())?.height ?? 0;
   console.info(`
 #129 first-boot tiles
 reserved ${reservedTiles}
@@ -729,6 +734,9 @@ settled  ${settledTiles}
     .map(([id, height]) => ({ id, delta: (after.get(id) ?? 0) - height }))
     .filter(({ delta }) => Math.abs(delta) > rowPitch);
   expect(drift, JSON.stringify(drift)).toEqual([]);
+  // No whole-page total: with the columns now level, the room tiles' first-boot growth (exempt above) lands in the
+  // taller column, so the grid total measures the account's rooms, not the declarations. Printed, not asserted.
+  console.info(`#129 grid ${reserved.toFixed(0)} → ${settled.toFixed(0)}`);
 });
 
 // ── A READ-LESS TILE MUST NOT RESIZE WHILE ITS NEIGHBOURS SETTLE (#835) ─────────────────────────────
@@ -1075,9 +1083,9 @@ test("P2-1 a home that FITS its pane paints no fade at all — the cue is scroll
 // regresses #226's column-balance fence in three wide-pane cells (see `home-documents-tile.tsx`), and
 // trimming the empty state's own copy is what the load-bearing-empty-state law forbids.
 //
-// ONLY THE TWO-COLUMN WIDTHS. Below the shelf's reflow step Home is one column with the hearth first (owner ruling on
-// 0254), so a populated house puts the whole shelf under the hearth and these CTAs under the fold by design.
-const FOLD_WIDTHS = [1920, 2560] as const;
+// NOT 1280: below Home's two-column step (an 80rem container, about 1400px) Home is one column with the hearth
+// first (owner ruling on 0254), so a populated house puts the whole shelf, and these CTAs, under the fold by design.
+const FOLD_WIDTHS = [1440, 1920, 2560] as const;
 /** The desktop shell's rail, ahead of home's pane (`--dimension-rail`) — home declares both panels away. */
 const FOLD_RAIL_PX = 56;
 const ADD_DOCUMENT_CTA = "Add your first document";
@@ -1127,7 +1135,10 @@ function measureFoldReach(page: Page, width: number): Promise<FoldCell> {
   );
 }
 
-test("#499 the databank empty state's CTAs clear an 800px fold at two-column widths — and the shelf's other CTA still does", async ({ mount, page }) => {
+test("#499 the databank empty state's CTAs clear an 800px fold wherever Home is two columns — and the shelf's other CTA still does", async ({
+  mount,
+  page,
+}) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   // An EMPTY bank: no rows, a zero census. This is the arm the CTAs live on.
   await stubDatabank(
@@ -1246,11 +1257,11 @@ test("a duplicate tile id THROWS at door construction — the seam never silentl
 // it is not decoration — the alpha a fade may bottom out at is polarity-dependent arithmetic, and the
 // LIGHT arm is the demanding one (a 16.9:1 near-black-on-near-white pair needs alpha >= 0.60 to hold
 // 4.5:1, against 0.48 for the dark arm's near-white-on-near-black).
-// Two-column widths only: below the shelf's reflow step Home is one column (owner ruling on 0254) and these CTAs sit
-// far under the hearth, outside any fade band.
+// Not 1280x800: below Home's two-column step Home is one column (owner ruling on 0254), so these CTAs sit far under
+// the hearth, outside any fade band.
 const FADE_CELLS = [
+  { width: 1440, height: 900 },
   { width: 1920, height: 1080 },
-  { width: 2560, height: 1080 },
 ] as const;
 /** The desktop shell's own chrome, subtracted from the viewport to get home's real content box. */
 const FADE_PANE_INSET = { inline: FOLD_RAIL_PX, block: 48 };

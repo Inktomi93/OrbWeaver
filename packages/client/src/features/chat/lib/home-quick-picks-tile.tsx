@@ -2,11 +2,8 @@
 // because the tile's data and intent are "start a chat" and homing the faces in `features/character`
 // would fork a body that already exists).
 
-import { Button } from "@orb/ui/button";
 import { Users } from "@orb/ui/icons";
-import { TrailingArrow } from "#components";
 import type { HomeTileContribution } from "#state";
-import { setActiveSection } from "#state";
 import { HomeQuickPicksTileBody } from "../components/home-quick-picks-tile-body.tsx";
 import { QUICK_PICKS_TILE_ID, useStarterRegion } from "./home-starter-region.ts";
 
@@ -31,12 +28,5 @@ export const chatQuickPicksTile: HomeTileContribution = {
   useRegion: useStarterRegion,
   skeletonBlock: QUICK_PICKS_SKELETON_BLOCK_PX,
   skeletonRows: QUICK_PICKS_SKELETON_ROWS,
-  action: (
-    // The arrow is DECORATIVE (rail sweep P3-14) — the name is "All characters".
-    <Button intent="ghost" onClick={(): void => setActiveSection("characters")} size="sm">
-      All characters
-      <TrailingArrow />
-    </Button>
-  ),
   body: () => <HomeQuickPicksTileBody />,
 };

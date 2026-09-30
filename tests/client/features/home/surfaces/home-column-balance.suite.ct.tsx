@@ -63,7 +63,7 @@ const SEEDED_ROSTERS: readonly RosterPresetSummary[] = SEED_MANIFEST.flatMap((it
 
 /** The desktop shell's rail (`--dimension-rail`); home declares both panels unavailable, so pane = viewport − rail. */
 const RAIL_PX = 56;
-const WIDTHS = [1280, 1440, 1920, 2560] as const;
+const WIDTHS = [1280, 1440, 1536, 1920, 2560] as const;
 
 /** The appearance points, named as `tooling/src/_shared/appearance-presets.json` names them. Only the two axes
  *  that move Home's geometry are set: `fontScale` rescales every rem from the root, `density` swaps the spacing tokens. */
@@ -73,6 +73,8 @@ const ARMS = [
   { name: "compact", fontScale: 1, density: "compact" },
 ] as const;
 
+/** Home's two-column step: `pairWide`'s `@7xl` container, in rem (owner ruling: about 1400px at the default rem). */
+const SWITCH_REM = 80;
 /** A block's worth of breathing room: below it the shorter column's tail stops reading as unfinished. */
 const VOID_BUDGET_PX = 120;
 /** The balance must come from reflow, not from pouring the slack into the gaps between blocks. */
@@ -95,6 +97,8 @@ interface BalanceMetrics {
   readonly gridTracks: number;
   /** Tracks the shelf's foot resolved to: two means the shelf has the width to reflow. */
   readonly footTracks: number;
+  /** Start with's face shelf: its fixed tracks, the faces shown, how many rows they and the door take, and the door. */
+  readonly starter: { readonly tracks: number; readonly faces: number; readonly rows: number; readonly door: boolean };
 }
 type Cell = (typeof CELLS)[number] & { readonly metrics: BalanceMetrics };
 
@@ -128,6 +132,18 @@ function measure(page: Page): Promise<BalanceMetrics> {
       airGap: Math.max(hearth.maxGap, shelf.maxGap),
       gridTracks: tracks(grid),
       footTracks: tracks(grid.querySelector("[data-home-shelf-foot]")),
+      starter: ((): BalanceMetrics["starter"] => {
+        const list = grid.querySelector('[aria-label="Character quick-picks"]');
+        const row = list?.parentElement ?? null;
+        const cells = [...(row?.querySelectorAll('[role="listitem"], :scope > button') ?? [])];
+        const door = [...(row?.querySelectorAll(":scope > button") ?? [])].some((button) => button.textContent?.trim() === "All characters");
+        return {
+          tracks: tracks(row),
+          faces: list?.querySelectorAll('[role="listitem"]').length ?? 0,
+          rows: new Set(cells.map((cell) => Math.round(cell.getBoundingClientRect().top))).size,
+          door,
+        };
+      })(),
     };
   });
 }
@@ -146,6 +162,8 @@ async function setPane(page: Page, pane: number): Promise<void> {
   await page.evaluate((inline) => {
     (document.querySelector("[data-home-pane]") as HTMLElement | null)?.style.setProperty("inline-size", `${String(inline)}px`);
   }, pane);
+  // Start with re-reads its track count in a ResizeObserver and re-renders; two frames let that commit land.
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
 }
 
 interface House {
@@ -175,9 +193,16 @@ async function measureMatrix(page: Page): Promise<Cell[]> {
   for (const { width, arm } of CELLS) {
     await setArm(page, arm);
     await setPane(page, width - RAIL_PX);
+    // Settled, not "a frame later": Start with re-reads its track count in a ResizeObserver and re-renders, so the
+    // barrier is its face count matching the tracks it now has. A count that never follows times out here.
+    await expect.poll(async () => starterSettled((await measure(page)).starter)).toBe(true);
     cells.push({ width, arm, metrics: await measure(page) });
   }
   return cells;
+}
+
+function starterSettled(starter: BalanceMetrics["starter"]): boolean {
+  return starter.faces === Math.min(FACES.length, Math.max(starter.tracks - 1, 1));
 }
 
 /** Every cell's failures: the split must follow the shelf's reflow step, and a two-column cell ends level. */
@@ -191,6 +216,9 @@ function balanceFailures(cells: readonly Cell[]): string[] {
       ...(metrics.gridTracks === 2 && metrics.void > VOID_BUDGET_PX
         ? [`${state}: the columns end ${metrics.void.toFixed(0)}px apart (budget ${String(VOID_BUDGET_PX)})`]
         : []),
+      ...(metrics.starter.rows === 1 && metrics.starter.door && starterSettled(metrics.starter)
+        ? []
+        : [`${state}: Start with is not one row of the faces that fit plus its door (${JSON.stringify(metrics.starter)})`]),
       ...(metrics.airGap > AIR_GAP_BUDGET_PX
         ? [`${state}: a ${metrics.airGap.toFixed(0)}px gap opened between two blocks (budget ${String(AIR_GAP_BUDGET_PX)})`]
         : []),
@@ -240,7 +268,7 @@ test("a house with no rooms is two level columns wherever the shelf can reflow, 
   expect(failures, failures.join("\n")).toEqual([]);
 });
 
-// The switch point is the shelf's own reflow step: a container inline size of 100rem, in each appearance's own
+// The switch point, shared with the shelf's reflow: a container inline size of `SWITCH_REM`, in each appearance's own
 // rem. One pixel below it Home is one column with the hearth first; at it, two.
 test("Home turns two columns exactly at the shelf's reflow step, in each appearance's own rem", async ({ mount, page }) => {
   await routeHouse(page, { rooms: ROOMS, bank: BANK, health: HEALTH });
@@ -250,8 +278,8 @@ test("Home turns two columns exactly at the shelf's reflow step, in each appeara
 
   for (const arm of ARMS) {
     await setArm(page, arm);
-    // The pane's width at which the query container is exactly 100rem wide, read from the rendered page.
-    const stepPane = await grid.evaluate((el) => {
+    // The pane's width at which the query container is exactly `SWITCH_REM` wide, read from the rendered page.
+    const stepPane = await grid.evaluate((el, switchRem) => {
       let container: Element | null = el.parentElement;
       while (container !== null && globalThis.getComputedStyle(container).containerType === "normal") {
         container = container.parentElement;
@@ -261,8 +289,8 @@ test("Home turns two columns exactly at the shelf's reflow step, in each appeara
         throw new Error("no query container around the Home grid");
       }
       const rem = Number.parseFloat(globalThis.getComputedStyle(document.documentElement).fontSize);
-      return 100 * rem + (pane.getBoundingClientRect().width - container.getBoundingClientRect().width);
-    });
+      return switchRem * rem + (pane.getBoundingClientRect().width - container.getBoundingClientRect().width);
+    }, SWITCH_REM);
     await setPane(page, Math.floor(stepPane) - 1);
     const below = await grid.evaluate((el) => ({
       tracks: globalThis.getComputedStyle(el).gridTemplateColumns.trim().split(" ").length,

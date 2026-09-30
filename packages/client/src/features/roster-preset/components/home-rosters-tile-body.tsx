@@ -70,8 +70,8 @@ export function HomeRostersTileBody(): ReactElement {
   const leadingSlots = Math.min(Math.max(1, ...rosters.map((roster) => roster.members.length)), STACK_SLOTS);
   return (
     // The tile frame's heading names the region, so the list stays unnamed.
-    // Rows tile across the shelf once it is wide enough for two, so a wide pane pays fewer rows of height.
-    <Grid cols="wide" gap="tight" role="list">
+    // Rows go two-up at Home's two-column step, so the shelf pays half the rows of height beside the hearth.
+    <Grid cols="pairWide" gap="tight" role="list">
       {rosters.map((roster) => (
         <Stack key={roster.id} role="listitem">
           <RosterStartRow busy={start.isPending} leadingSlots={leadingSlots} onStart={start.startRoster} roster={roster} />

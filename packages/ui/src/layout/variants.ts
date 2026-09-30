@@ -268,13 +268,10 @@ export const gridVariants = tv({
       // ancestor `<Container>` (an element cannot query itself).
       // @orb-waive no-arbitrary-tw-values(@md:grid-cols-[repeat): this layout recipe owns the documented grid-track composition; ends when a token expresses these tracks.
       cellShelf: "grid-cols-3 @md:grid-cols-[repeat(auto-fill,8.5rem)]",
-      // `pair`'s LATE-BREATH twin (added 2026-08-16, side-eye #102 F3), for a pair that only makes sense
-      // once the pane is genuinely wide: the two FOOTNOTE blocks at the foot of a `lead` rail, which the
-      // approved shape puts side by side at the same >=100rem step where the rail itself widens. `pair`'s
-      // @md step is far too early here — these blocks live INSIDE the rail track, so a pane-level @md is
-      // reached while the rail is still ~380px and would halve it. Same raw container width as `lead`'s
-      // second step, for the same reason the scale cannot express it (it stops at @7xl / 80rem).
-      pairWide: "grid-cols-1 @min-[100rem]:grid-cols-2",
+      // `pair`'s late twin: one step for Home's split and the shelf blocks that reflow with it, so they turn
+      // two-up at the same container width: `@7xl`, an 80rem container, which a 1440 laptop clears at the default
+      // rem (owner ruling: about 1400px).
+      pairWide: "grid-cols-1 @7xl:grid-cols-2",
       // A LABEL COLUMN beside its values (added 2026-08-19, side-eye N-2 on the databank detail): a readout
       // whose left track is exactly as wide as its widest LABEL and whose right track takes the rest. Every
       // arm above sizes its tracks by the PANE; this one sizes the first by its own CONTENT, which is the

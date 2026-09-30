@@ -138,7 +138,7 @@ export function HomeRegionStory(): ReactElement {
 // child is `min-width:auto`, so a hearth is floored at its widest unbreakable line. This story reproduces the pressure with a tile whose content simply cannot wrap, which is the general case
 // (a long unbroken title, a wide credit line, a nowrap datum row) rather than one room's cast.
 
-/** A pane past the two-column step (a 100rem container at the default rem, plus the page inset). */
+/** A pane past the two-column step (an 80rem container at the default rem, plus the page inset). */
 const SPLIT_PRESSURE_PANE_PX = 1700;
 /** Wider than the hearth track's fair share at the story's mount width, and unbreakable. */
 const WIDE_CONTENT_PX = 900;

@@ -17,14 +17,13 @@ import { Grid, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useId } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useStartChat, useTRPC } from "#data";
 import { setActiveSection } from "#state";
 
-/** How many faces this shelf shows. NOT exported any more (#102): the tile's first-boot reservation is no
- *  longer this number — the body is a fixed-cell GRID that tiles two per shelf-width row, so the row count
- *  the skeleton reserves is derived from the shape, not from the limit, and lives beside the tile. */
+/** The most faces this shelf reads; it shows as many of them as fit one row beside the door. */
 const QUICK_PICKS_LIMIT = 6;
+const TRACK_SEPARATOR = /\s+/u;
 
 export function HomeQuickPicksTileBody(): ReactElement {
   const trpc = useTRPC();
@@ -49,8 +48,30 @@ export function HomeQuickPicksTileBody(): ReactElement {
   };
   const { data: page } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: QUICK_PICKS_LIMIT }));
   const quickPicks = page.items.slice(0, QUICK_PICKS_LIMIT);
+  const hasFaces = quickPicks.length > 0;
+  // ONE ROW OF FACES THAT FIT, THEN THE DOOR (owner ruling on 0254). The shelf's own auto-fill track count is
+  // how many fixed cells fit its width; the door takes one, the faces take the rest, so the tile is one row
+  // tall at every width and a wider track buys more faces. Read in a layout effect, so the first paint is right.
+  const shelfRef = useRef<HTMLDivElement>(null);
+  const [tracks, setTracks] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const shelf = shelfRef.current;
+    if (!hasFaces || shelf === null) {
+      return;
+    }
+    const read = (): void => setTracks(getComputedStyle(shelf).gridTemplateColumns.trim().split(TRACK_SEPARATOR).length);
+    read();
+    const observer = new ResizeObserver(read);
+    observer.observe(shelf);
+    // The door sits in a fixed track, so its width follows the cell size a density change moves without resizing the shelf.
+    if (shelf.lastElementChild !== null) {
+      observer.observe(shelf.lastElementChild);
+    }
+    return (): void => observer.disconnect();
+  }, [hasFaces]);
+  const shown = tracks === null ? quickPicks : quickPicks.slice(0, Math.max(tracks - 1, 1));
 
-  if (quickPicks.length === 0) {
+  if (!hasFaces) {
     return (
       <EmptyState
         action={
@@ -74,57 +95,59 @@ export function HomeQuickPicksTileBody(): ReactElement {
     // whole point of a shelf.
     //
     // `role="list"` needs `listitem` CHILDREN or the cells are generic to AT and the list announces empty.
-    <Grid aria-label="Character quick-picks" cols="cellFixed" gap="row" role="list">
-      {quickPicks.map((character) => {
-        // The ladder is pitch → visible tag line → NOTHING (#119): the handle/slug is row IDENTITY, not
-        // caption copy, so a card with neither reads with one line instead of a lowercase slug. The name
-        // above already identifies the cell; an absent second line beats an invented one.
-        //
-        // TRUTH-REPAIR (2026-08-30, #864/#865): the reason this note used to give — "`CharacterSummary`
-        // carries no third honest fallback (no creator/kind field to fall back to)" — is FALSE since #865
-        // put a closed `provenance` verdict (`shipped | imported | authored`) on the list row. The RULING
-        // still stands and the ladder is unchanged: provenance answers "where did this come from", which
-        // is a fact about the FILE, not a description of the character — printing "imported" where a pitch
-        // belongs would be the invented second line the ladder refuses. It is not a missing fallback any
-        // more; it is a fallback that says the wrong kind of thing.
-        const tagLine = character.tags
-          .filter((tag) => !tag.isHiddenOnCard)
-          .map((tag) => tag.name)
-          .join(" · ");
-        const caption = character.elevatorPitch ?? (tagLine === "" ? null : tagLine);
-        // ONE `useId` at the top of the component, suffixed by the row's own id — never a hook in a map
-        // body. The character id is unique within the page by construction, so the pair is unique.
-        const captionId = `${captionScope}${character.id}`;
-        return (
-          // `role="listitem"` rides a layout-primitive WRAPPER, never the Button: an interactive element
-          // assigned a non-interactive role is a lie to AT (and eslint's own
-          // `no-interactive-element-to-noninteractive-role`). Same shape the recents list uses.
-          <Stack key={character.id} role="listitem">
-            <Button
-              // THE NAME IS THE CHARACTER, THE PITCH IS THE DESCRIPTION (side-eye rail sweep P2-8/P3-19).
-              // The cell's name came from its own text content, so AT read the name and the caption as ONE
-              // run-on string — "Calamity, Doomblade of the Ninth EpochA legendary, apocalypse-forged…" —
-              // because adjacent inline nodes concatenate with no separator. It is also what left these six
-              // cells resolvable only by DOM PATH in a `snap --map`: a name that long is unique by accident
-              // and unusable by anyone. The name is the FULL name (the visible line clamps; the NAME never
-              // does), and the pitch rides `aria-describedby`, which is what a description is for.
-              aria-label={character.name}
-              className="flex-col items-stretch gap-tight text-left"
-              intent="ghost"
-              onClick={(): void => startChatWith(castId<CharacterId>(character.id))}
-              size="media"
-              {...(caption === null ? {} : { "aria-describedby": captionId })}
-            >
-              <Avatar
-                fallbackDelay={0}
-                hueSeed={character.id}
-                shape="rounded"
-                size="fill"
-                {...(character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) })}
+    <Grid cols="cellFixed" gap="row" ref={shelfRef}>
+      {/* `contents`: the faces are the list and the door is not one of them, yet all share the one row. */}
+      <Stack aria-label="Character quick-picks" className="contents" role="list">
+        {shown.map((character) => {
+          // The ladder is pitch → visible tag line → NOTHING (#119): the handle/slug is row IDENTITY, not
+          // caption copy, so a card with neither reads with one line instead of a lowercase slug. The name
+          // above already identifies the cell; an absent second line beats an invented one.
+          //
+          // TRUTH-REPAIR (2026-08-30, #864/#865): the reason this note used to give — "`CharacterSummary`
+          // carries no third honest fallback (no creator/kind field to fall back to)" — is FALSE since #865
+          // put a closed `provenance` verdict (`shipped | imported | authored`) on the list row. The RULING
+          // still stands and the ladder is unchanged: provenance answers "where did this come from", which
+          // is a fact about the FILE, not a description of the character — printing "imported" where a pitch
+          // belongs would be the invented second line the ladder refuses. It is not a missing fallback any
+          // more; it is a fallback that says the wrong kind of thing.
+          const tagLine = character.tags
+            .filter((tag) => !tag.isHiddenOnCard)
+            .map((tag) => tag.name)
+            .join(" · ");
+          const caption = character.elevatorPitch ?? (tagLine === "" ? null : tagLine);
+          // ONE `useId` at the top of the component, suffixed by the row's own id — never a hook in a map
+          // body. The character id is unique within the page by construction, so the pair is unique.
+          const captionId = `${captionScope}${character.id}`;
+          return (
+            // `role="listitem"` rides a layout-primitive WRAPPER, never the Button: an interactive element
+            // assigned a non-interactive role is a lie to AT (and eslint's own
+            // `no-interactive-element-to-noninteractive-role`). Same shape the recents list uses.
+            <Stack key={character.id} role="listitem">
+              <Button
+                // THE NAME IS THE CHARACTER, THE PITCH IS THE DESCRIPTION (side-eye rail sweep P2-8/P3-19).
+                // The cell's name came from its own text content, so AT read the name and the caption as ONE
+                // run-on string — "Calamity, Doomblade of the Ninth EpochA legendary, apocalypse-forged…" —
+                // because adjacent inline nodes concatenate with no separator. It is also what left these six
+                // cells resolvable only by DOM PATH in a `snap --map`: a name that long is unique by accident
+                // and unusable by anyone. The name is the FULL name (the visible line clamps; the NAME never
+                // does), and the pitch rides `aria-describedby`, which is what a description is for.
+                aria-label={character.name}
+                className="flex-col items-stretch gap-tight text-left"
+                intent="ghost"
+                onClick={(): void => startChatWith(castId<CharacterId>(character.id))}
+                size="media"
+                {...(caption === null ? {} : { "aria-describedby": captionId })}
               >
-                {initialsFor(character.name)}
-              </Avatar>
-              {/* THE NAME IS A STEP ABOVE ITS GLOSS (side-eye rail sweep P2-9/P3-18). It was `label` over a
+                <Avatar
+                  fallbackDelay={0}
+                  hueSeed={character.id}
+                  shape="rounded"
+                  size="fill"
+                  {...(character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) })}
+                >
+                  {initialsFor(character.name)}
+                </Avatar>
+                {/* THE NAME IS A STEP ABOVE ITS GLOSS (side-eye rail sweep P2-9/P3-18). It was `label` over a
                   `gloss prose` caption — 13px over 13px, two identical lines where one is the entity and
                   the other is a sentence about it — so the shelf read as a wall of paragraphs. `promoted`
                   is the ui voice for exactly this relation (the `title` step, the same one `ListRow`
@@ -140,10 +163,10 @@ export function HomeQuickPicksTileBody(): ReactElement {
                   IN THE SAME ROW (measured `descTop` 359 vs 380 at 1920) and the shelf read as six loose
                   objects instead of one rank. Reserving is the fix the shape allows — the cells are a
                   fixed-track grid, so there is no subgrid row to share. */}
-              <Text as="span" className="text-foreground" lines={2} voice="promoted">
-                {character.name}
-              </Text>
-              {/* `prose`, NOT the bare gloss (side-eye 2026-08-16 F15). Six of the seven interactive text
+                <Text as="span" className="text-foreground" lines={2} voice="promoted">
+                  {character.name}
+                </Text>
+                {/* `prose`, NOT the bare gloss (side-eye 2026-08-16 F15). Six of the seven interactive text
                   nodes below the readable floor on this page were these captions: 10.5px, inside a button,
                   carrying a whole pitch sentence. `prose` is the sanctioned LENGTH modifier — it lifts the
                   step to `label` and relaxes the leading and changes nothing else, so the caption is still
@@ -151,26 +174,33 @@ export function HomeQuickPicksTileBody(): ReactElement {
                   caption exists (#119) — no line beats a slug.
                   TWO LINES, not one truncated one (P3-18): the shelf has the vertical room, and a pitch cut
                   at ~20 characters mid-word ("A legendary, apocal…") taught nothing about the character. */}
-              {caption === null ? null : (
-                // AND IT RESERVES ITS TWO LINES, like the name above it (side-eye rail-home P3-5,
-                // 2026-08-22). The filed finding was "the name band has a ragged bottom edge"; measured on
-                // the live shelf that half is RETRACTED — every name element is 43px and every cell bottom
-                // in a row is identical, because #216-d already moved the name to `lines={2}`. What is
-                // still a clamp-without-a-reservation is THIS line: a one-line pitch and a two-line pitch
-                // end their cells at different baselines in the same row, which is the same defect one row
-                // down. `lines={2}` is the same sanctioned variant and carries the same `whitespace-normal`
-                // the clamp needs inside the `whitespace-nowrap` Button base, so this is a swap, not an
-                // addition. A cell with NO pitch at all (#119 — no line beats a slug) still ends short, and
-                // that is left alone deliberately: reserving a box for copy that does not exist is the
-                // invented-second-line the ladder ruling refuses.
-                <Text as="span" id={captionId} lines={2} prose={true} voice="gloss">
-                  {caption}
-                </Text>
-              )}
-            </Button>
-          </Stack>
-        );
-      })}
+                {caption === null ? null : (
+                  // AND IT RESERVES ITS TWO LINES, like the name above it (side-eye rail-home P3-5,
+                  // 2026-08-22). The filed finding was "the name band has a ragged bottom edge"; measured on
+                  // the live shelf that half is RETRACTED — every name element is 43px and every cell bottom
+                  // in a row is identical, because #216-d already moved the name to `lines={2}`. What is
+                  // still a clamp-without-a-reservation is THIS line: a one-line pitch and a two-line pitch
+                  // end their cells at different baselines in the same row, which is the same defect one row
+                  // down. `lines={2}` is the same sanctioned variant and carries the same `whitespace-normal`
+                  // the clamp needs inside the `whitespace-nowrap` Button base, so this is a swap, not an
+                  // addition. A cell with NO pitch at all (#119 — no line beats a slug) still ends short, and
+                  // that is left alone deliberately: reserving a box for copy that does not exist is the
+                  // invented-second-line the ladder ruling refuses.
+                  <Text as="span" id={captionId} lines={2} prose={true} voice="gloss">
+                    {caption}
+                  </Text>
+                )}
+              </Button>
+            </Stack>
+          );
+        })}
+      </Stack>
+      <Button className="flex-col items-center justify-center gap-tight" intent="ghost" onClick={(): void => setActiveSection("characters")} size="media">
+        <Icon icon={Users} size="lg" />
+        <Text as="span" className="text-foreground" voice="promoted">
+          All characters
+        </Text>
+      </Button>
     </Grid>
   );
 }
