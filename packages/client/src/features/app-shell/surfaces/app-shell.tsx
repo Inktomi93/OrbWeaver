@@ -14,6 +14,7 @@ import { resolveThemeScopeTokens } from "#lib";
 import type { SectionId } from "#state";
 import { closeModal, openModal, setActiveSection, useChromeRegistry, useSectionRegistry } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor.tsx";
+import { CONTEXT_TOGGLE_MARKER } from "../components/context-toggle.tsx";
 import { CustomThemeStyle } from "../components/custom-theme-style.tsx";
 import { ModalHost } from "../components/modal-host.tsx";
 import { NoticeBand } from "../components/notice-band.tsx";
@@ -195,6 +196,60 @@ export function AppShell(): ReactElement {
   const gridRef = useRef<HTMLDivElement>(null);
   useShellTrackFlip(gridRef, layout.listMode, layout.contextMode);
 
+  // A slide-over that OPENS takes focus: the column behind it goes inert the same commit, so focus left there
+  // would drop to <body> with a sheet on screen. The pane itself, not a control in it: a bracketed pane's own
+  // dismiss mounts with its body, a transition later, and the shell's band close is hidden for it.
+  // An open modal or popover keeps the focus it holds: both portal outside the grid. When the sheet closes,
+  // focus that was inside it (or fell to <body> as it went inert) returns to the toggle that opens it.
+  const contextPaneRef = useRef<HTMLElement>(null);
+  // A pointer click focuses the scrim, which is transparent and hidden once the sheet closes.
+  const scrimRef = useRef<HTMLButtonElement>(null);
+  const contextOverlay = layout.contextMode === "overlay";
+  const contextWasOverlayRef = useRef(contextOverlay);
+  useEffect(() => {
+    const wasOverlay = contextWasOverlayRef.current;
+    contextWasOverlayRef.current = contextOverlay;
+    if (contextOverlay) {
+      const active = document.activeElement;
+      if (active === null || active === document.body || gridRef.current?.contains(active) === true) {
+        contextPaneRef.current?.focus();
+      }
+      return;
+    }
+    if (!wasOverlay) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      const active = document.activeElement;
+      const lost = active === null || active === document.body || active === scrimRef.current || contextPaneRef.current?.contains(active) === true;
+      if (lost) {
+        gridRef.current?.querySelector<HTMLElement>(`.${CONTEXT_TOGGLE_MARKER}`)?.focus();
+      }
+    });
+    return (): void => clearTimeout(timer);
+  }, [contextOverlay]);
+
+  // A section jump made from a transient control (a You-sheet row) unmounts the control that held focus, and
+  // the store-driven sheet unmount restores nothing, so focus would drop to <body>. Land it on the new
+  // screen's primary region, the same target the skip link uses. Only a <body> focus is rescued, and never on
+  // the first mount: a cold load leaves focus at the document start so the first Tab reaches the skip link.
+  // The target is read when the timer fires: the list pane can become the screen a render after the jump.
+  const { activeSection } = layout;
+  const arrivedSectionRef = useRef(activeSection);
+  useEffect(() => {
+    if (arrivedSectionRef.current === activeSection) {
+      return;
+    }
+    arrivedSectionRef.current = activeSection;
+    const timer = setTimeout(() => {
+      if (document.activeElement === null || document.activeElement === document.body) {
+        const listPane = listPaneRef.current;
+        (listPane?.getAttribute("role") === "main" ? listPane : mainRef.current)?.focus();
+      }
+    });
+    return (): void => clearTimeout(timer);
+  }, [activeSection]);
+
   // Escape dismisses an open narrow/mobile auto-overlay slide-over (the scrim's keyboard equivalent) —
   // but ONLY when no modal is open. An open Dialog/Drawer owns Escape itself (Base UI); stealing it here
   // would race the modal's own close and could double-fire onOpenChange.
@@ -358,6 +413,7 @@ export function AppShell(): ReactElement {
               header={contextPane.header}
               mode={layout.contextMode}
               onDismiss={(): void => layout.collapsePanel("context")}
+              ref={contextPaneRef}
             >
               {contextPane.body}
             </PanelChrome>
@@ -370,7 +426,9 @@ export function AppShell(): ReactElement {
               className="shell-scrim"
               data-visible={layout.scrimVisible}
               aria-hidden={!layout.scrimVisible}
-              tabIndex={layout.scrimVisible ? 0 : -1}
+              // A pointer control only: the keyboard closes a sheet with Escape or the sheet's own close.
+              tabIndex={-1}
+              ref={scrimRef}
               aria-label="Dismiss panel"
               onClick={(): void => dismissOverlays(layout)}
             />

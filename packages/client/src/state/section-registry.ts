@@ -8,14 +8,14 @@
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { ContextDefinition } from "#lib";
-import type { PanelMode, PanelName } from "./panel-resolve.ts";
+import type { PanelMode, PanelName, PhoneLanding } from "./panel-resolve.ts";
 import type { SectionId } from "./section-ids.ts";
 
 // The rail's section groups, in divider order — the `--spacing-section` grouping: primary (everyday
-// collections) · authoring (create/refine) · insight (analyze). The ONE home for the group axis (state
+// collections, and Corpus with its Insights mode) · authoring (create/refine). The ONE home for the group axis (state
 // owns shell vocabulary, §5 rule 5): the rail consumes these values for its divider order (importing DOWN
 // from #state), and `ChromeEntry.group` derives its type from `SectionGroup` — no second spelling anywhere.
-export const SECTION_GROUPS = ["primary", "authoring", "insight"] as const;
+export const SECTION_GROUPS = ["primary", "authoring"] as const;
 /** The rail's section-group axis, derived from the SECTION_GROUPS tuple (no inline re-spell). */
 export type SectionGroup = (typeof SECTION_GROUPS)[number];
 
@@ -97,6 +97,9 @@ export interface SectionSelection {
   readonly hasSelection: () => boolean;
   /** Clear it — what the shell's mobile BACK affordance fires: CONTENT pops, the LIST is the screen again. */
   readonly clear: () => void;
+  /** Where a phone lands with nothing selected, read on the same subscription as {@link hasSelection}.
+   *  Absent ⇒ `"list"`. A `"content"` landing is a declared policy (D271), never a fabricated selection. */
+  readonly phoneLanding?: () => PhoneLanding;
 }
 
 /** The LIST-slot pair. `list` and `selection` are ONE decision — the shell cannot apply the mobile

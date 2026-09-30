@@ -4,8 +4,7 @@
 // the band's title. Both readers share the `discovery.catalog` cache (the browse view below suspends on it
 // already), so the second one costs no request.
 
-import { useQuery } from "@tanstack/react-query";
-import { useTRPC } from "#data";
+import { useGatedQuery, useTRPC } from "#data";
 import { distilledCensus } from "../lib/corpus-vocabulary.ts";
 
 /**
@@ -15,10 +14,11 @@ import { distilledCensus } from "../lib/corpus-vocabulary.ts";
  * `N of TOTAL` phrasing, shared with the CONTEXT band, so the readers cannot drift.
  *
  * `undefined` until the catalog lands — the honest "not read yet", and the same rendered result the band's old
- * `?? 0` produced (`ListPaneHeader` prints nothing at 0), stated as the absence it is.
+ * `?? 0` produced (`ListPaneHeader` prints nothing at 0), stated as the absence it is. `enabled: false` fetches
+ * nothing: the phone-title reader runs while another Corpus mode is active.
  */
-export function useCorpusCensus(): number | string | undefined {
+export function useCorpusCensus(enabled = true): number | string | undefined {
   const trpc = useTRPC();
-  const { data: catalog } = useQuery(trpc.discovery.catalog.queryOptions());
+  const { data: catalog } = useGatedQuery(enabled ? "catalog" : null, () => trpc.discovery.catalog.queryOptions());
   return catalog === undefined ? undefined : distilledCensus(catalog.totalDistilled, catalog.totalCharacters);
 }

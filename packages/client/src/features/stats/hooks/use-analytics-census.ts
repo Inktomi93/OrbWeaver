@@ -4,8 +4,7 @@
 // sheds the band's title. Both share the `leaderboard` cache with the list surface below (the DEFAULT_SORT
 // key), so neither costs a request the pane did not already make.
 
-import { useQuery } from "@tanstack/react-query";
-import { useTRPC } from "#data";
+import { useGatedQuery, useTRPC } from "#data";
 import { useAnalyticsSearchQuery } from "#state";
 import { ANALYTICS_DEFAULT_SORT } from "../lib/analytics-view-model.ts";
 
@@ -27,10 +26,13 @@ function censusOf(shown: number, total: number): number | string {
  * state everything here shares one cached page.
  *
  * `undefined` until the page lands — the honest "not read yet"; the band's `?? 0` renders nothing either way.
+ * `enabled: false` fetches nothing: the phone-title reader runs while another Corpus mode is active.
  */
-export function useAnalyticsCensus(): number | string | undefined {
+export function useAnalyticsCensus(enabled = true): number | string | undefined {
   const trpc = useTRPC();
   const trimmed = useAnalyticsSearchQuery().trim();
-  const { data: page } = useQuery(trpc.stats.leaderboard.queryOptions({ sort: ANALYTICS_DEFAULT_SORT, ...(trimmed === "" ? {} : { search: trimmed }) }));
+  const { data: page } = useGatedQuery(enabled ? ANALYTICS_DEFAULT_SORT : null, (sort) =>
+    trpc.stats.leaderboard.queryOptions({ sort, ...(trimmed === "" ? {} : { search: trimmed }) }),
+  );
   return page === undefined ? undefined : censusOf(page.rows.length, page.total);
 }

@@ -24,7 +24,6 @@ const RAIL_LABELS: Record<Exclude<SectionId, "home">, string> = {
   databank: "Databank",
   presets: "Presets",
   refinery: "Refinery",
-  analytics: "Analytics",
 };
 const EXPECTED = SECTION_IDS.filter((id): id is Exclude<SectionId, "home"> => id !== "home").map((id) => RAIL_LABELS[id]);
 

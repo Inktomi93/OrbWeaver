@@ -132,7 +132,7 @@ packages/client/
                         #     the clamp-width overlay (§11.1); the chrome registry over CHROME_ZONES (gate chrome-registry-completeness)
                         # THE ROSTER IS THE TREE — `ls packages/client/src/features`. A list here rots.
                         #   A section id is not its owner's dir name — `corpus` →
-                        #   `discovery/lib/corpus-section.tsx`, `analytics` → `stats`, `chats` → `chat`
+                        #   `discovery/lib/corpus-section.tsx`, `chats` → `chat`
         <feature>/      #   { surfaces/ (REGION bodies, containment CONSUMERS, @container) · anchors/
                         #     (containment PROVIDERS) · components/ (everything mounted INSIDE a region) ·
                         #     hooks/ · lib/ (helpers, view-models, the registered DEFINITIONS) · index.ts }
@@ -193,7 +193,8 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             Home (the Weave glyph IS its affordance — the brand cell is a real named button; below
             48rem the cell hides and home rides the mobile bar as its FIRST tab) | grouped by
             --spacing-section dividers: Chats · Characters ·
-            Corpus (primary; `corpus` is the SECTION/feature name — the owning DOMAIN is `discovery`)
+            Corpus (primary; `corpus` is the SECTION/feature name — the owning DOMAIN is `discovery`;
+            its Explore · Insights · Labels modes compose the `stats` and `tag` surfaces through the door)
             | Configuration · Extensions · Databank · Presets · Refinery (authoring group — Configuration
             is the roster of the LIBRARIES the others are built from; Extensions is ONE entry for the
             whole plugin platform, never one per plugin — it ships rail-VISIBLE with a teaching empty
@@ -201,7 +202,7 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             per-plugin promotion is a recorded owner knob, not built (the impersonation surface); Databank
             is the other library you author INTO — files/pages/pasted text, indexed for retrieval; the
             section↔collection question that R2's demotion reopens is recorded, unclosed, in
-            `features/databank/lib/databank-section.tsx`) | Analytics (insight) → spacer →
+            `features/databank/lib/databank-section.tsx`) → spacer →
             Theme · Settings · persona Identity. The CEILING is a rule about KIND, not a count (D121): a
             rail section owns a top-level workspace with its own LIST/CONTENT/CONTEXT grid; dialogs,
             preferences and one-shots go to modals/settings.
@@ -218,7 +219,7 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             docked for Chats/Characters/Configuration/Databank/Presets AND Corpus (the built Corpus LIST
             IS the search omnibox — the section's primary entry point — so a collapsed default would
             hide the only way in);
-            collapsed for the content-first hubs (Refinery/Analytics) — each section's `panelDefaults`
+            collapsed for the content-first hub (Refinery) — each section's `panelDefaults`
             on its `SectionDefinition`.
   CONTENT — the fluid hero: HEADER bar (active entity · scene chip · thread actions) + the THREAD
             (chat/editor surface, prose capped 65–75ch) + the COMPOSER (pill input · attach · Send,
@@ -241,7 +242,7 @@ MOBILE:  RAIL → BOTTOM tab bar: Home · Chats · Characters · You (D271).
          (Mobile is a responsive LAYOUT, never a theme.)
 ```
 
-D271 replaces only D62-P3 and preserves D211. Corpus Variant A is not yet built. Its phone landing policy follows the active mode:
+D271 replaces only D62-P3 and preserves D211. Corpus is the Variant A workbench: an `Explore | Insights | Labels` switch over one LIST / CONTENT / CONTEXT anatomy. The switch heads the LIST, and heads CONTENT while the LIST is off screen. Its phone landing policy follows the active mode:
 
 | Corpus mode | Phone landing |
 | - | - |
@@ -277,7 +278,7 @@ The shell is Discord's anatomy with different nouns; the mapping is LAW so no la
 | Chat pane | CONTENT | the artifact you're in: identity header + working surface. Doing. |
 | Members panel | CONTEXT | detail + config of CONTENT's active artifact. Closable; never navigation. |
 | Quick switcher | `command` modal (⌘K) | jump to any thread/section/create action |
-| User settings overlay | the `config` SECTION (rail foot, label "Settings"): a LIST of four shelves + CONTENT (+ CONTEXT collapsed); the `settings` modal is gone | USER shelf (Personas · Appearance · Chat behavior · Jobs · Backup & Restore) + APP shelf (Connections · Automation · Admin) + COLLECTIONS shelf (Tags · Regex scripts · World Info · **Rosters** — the ruled word for the saved seats+knobs+rules template; `ROSTER_COLLECTION_ID = "rosterPreset"`) + EXTENSIONS shelf (Plugins). Generation config is the Presets section, not settings. (No Account PANE — Account is the leaf modal below.) |
+| User settings overlay | the `config` SECTION (rail foot, label "Settings"): a LIST of four shelves + CONTENT (+ CONTEXT collapsed); the `settings` modal is gone | USER shelf (Personas · Appearance · Chat behavior · Jobs · Backup & Restore) + APP shelf (Connections · Automation · Admin) + COLLECTIONS shelf (Regex scripts · World Info · **Rosters** — the ruled word for the saved seats+knobs+rules template; `ROSTER_COLLECTION_ID = "rosterPreset"`) + EXTENSIONS shelf (Plugins). Generation config is the Presets section, not settings. (No Account PANE — Account is the leaf modal below.) |
 | Identity widget | persona `rail.end` chrome (`personaChrome`) → `account` leaf modal | the persona switcher + Account strip; the account card (handle · role · sign-out) is a leaf MODAL reached from inside Identity, NOT a settings pane (§B, You ⊃ Identity ⊃ Account) |
 
 Every non-collection group in the `config` SECTION is a `sections` SKIMMER over the D120 contribution seam.
@@ -299,9 +300,10 @@ Per-section grid (end-state; the D62 program builds toward it):
 | Extensions | the PAGE SWITCHER: one plugin-labelled row per registered `ui.page` surface across the caller's granted-and-enabled plugins — never in the rail (title + the plugin's name as subtitle AND accessible-name disambiguator) | the teaching empty, naming WHICH emptiness (nothing installed · awaiting consent · switched off · no page) or "pick a page" — each case names a different fact, with its own next step and its own config anchor, deliberately different copy, so the LIST and CONTENT panes cannot disagree, resolved once in `useExtensionsEmpty` | the selected page inside the PAGE-SCALE plugin shell: a pinned band (plugin name · glyph · "Extension" kicker, no opt-out) above the scrollable DSL body | `{kind:"none"}` — a plugin page owns its whole CONTENT region |
 | Databank | document rows (name · phase chip when NOT ready · origin/size/chunks) + search; band = DATABANK · count · Add · a maintenance kebab | teaching state | the document detail (Details · Maintenance · the source-text reveal) | the activation panel: Everywhere · Active in · the retrieval-knobs pointer |
 | Presets | preset rows + CRUD toolbar | teaching state | tabbed editor (Sampling · Output · Quality · Reasoning · Templates · Post-process · Compaction · Prompt) | usage/bindings (default-collapsed) |
-| Corpus | the search omnibox + target picker + results (default-docked) | overview home (coverage · insights · keywords) | selected character's dossier | corpus-global analysis tabs (Archetypes/Visuals/Map/Similarity/Compare) |
+| Corpus · Explore | the mode switch + the search omnibox + target picker + results (default-docked) | overview home (coverage · insights · keywords) | selected character's dossier | `Whole corpus` analysis tabs (Archetypes/Visuals/Map/Similarity/Compare) |
+| Corpus · Insights | the mode switch + the searched, sorted character leaderboard | dashboard | character drill | dimension tabs (Models/Time/Personas) |
+| Corpus · Labels | the mode switch + the tag finder (filter · sort · prune) and the New tag primary | tag library facts | the autosaving tag editor | Reach: labels against generated facets, or the open tag's reach by kind and origin |
 | Refinery | past sessions (default-collapsed) | pick-a-character | pipeline (stepper · assay · issues · compare) | collapsed |
-| Analytics | default-collapsed | dashboard | drill-in in CONTENT | dimension detail |
 
 **Interaction physics (all six apply):**
 

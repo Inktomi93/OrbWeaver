@@ -28,25 +28,9 @@ import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/r
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ConfigWorkspaceStory } from "../_ct-stories.tsx";
 
-const TAGS_BAND = /Tags/;
 const REGEX_BAND = /Regex scripts/;
+const ROSTERS_BAND = /Rosters/;
 const CONTEXT_PANE = '[data-slot="ct-config-context-pane"]';
-
-const TAG = {
-  id: "tag_000",
-  name: "tag-000",
-  color: null,
-  color2: null,
-  source: null,
-  folderType: "NONE",
-  sortOrder: 0,
-  isHiddenOnCard: false,
-  usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 },
-} satisfies TrpcFixtureOutput<"tag.listTagsWithUsage">[number];
-
-/** A SECOND member, purely so the tab-continuity pin has a subject change to make inside the one arm that
- *  still resolves two cells (a settings state is now a single About cell — #926's applicability gate). */
-const TAG_2 = { ...TAG, id: "tag_001", name: "tag-001", sortOrder: 1 };
 
 const SCRIPT = {
   id: "regex_script_stripooc",
@@ -63,6 +47,24 @@ const SCRIPT = {
   substituteRegex: 0,
 } satisfies TrpcFixtureOutput<"regex.listScripts">[number];
 
+/** A SECOND member, purely so the tab-continuity pin has a subject change to make inside the one arm that
+ *  still resolves two cells (a settings state is now a single About cell — #926's applicability gate). */
+const SCRIPT_2 = { ...SCRIPT, id: "regex_script_quotes0001", name: "format quotes" };
+
+/** One saved roster — the collection whose CONTEXT arm is `none`, with its own copy. */
+const ROSTER = {
+  id: "roster_preset_partyone000001",
+  name: "The usual party",
+  description: "",
+  characterCount: 0,
+  members: [],
+  anchorPersonaId: null,
+  hasGroupConfig: false,
+  game: null,
+  rules: [],
+  updatedAt: 1_760_000_000_000,
+};
+
 const SETTINGS_VIEW = { userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
 
 function stub(page: Page): Promise<TrpcRecorder> {
@@ -76,10 +78,23 @@ function stub(page: Page): Promise<TrpcRecorder> {
       { id: "theme_00000000000000000000000002", name: "Mocha", override: {}, css: null, isSeed: true, isDefault: false, createdAt: 0, updatedAt: 0 },
       { id: "theme_00000000000000000000000003", name: "Light", override: {}, css: null, isSeed: true, isDefault: false, createdAt: 0, updatedAt: 0 },
     ],
-    "rosterPreset.list": [],
+    "rosterPreset.list": [ROSTER],
+    // The roster member editor's own read — the NONE-collection pin opens it.
+    "rosterPreset.get": {
+      id: ROSTER.id,
+      name: ROSTER.name,
+      description: "",
+      anchorPersonaId: null,
+      groupConfig: null,
+      game: null,
+      members: [],
+      rules: [],
+      createdAt: 1,
+      updatedAt: 1,
+    },
+    "automation.listRulePresets": [],
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
-    "tag.listTagsWithUsage": () => [TAG, TAG_2],
-    "regex.listScripts": () => [SCRIPT],
+    "regex.listScripts": () => [SCRIPT, SCRIPT_2],
     "regex.listGlobal": () => [],
     "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),
     "worldInfo.listBooksWithUsage": () => [],
@@ -260,10 +275,9 @@ test("the foot tab KEEPS across a subject change — a reader on Applies stays o
 
   const list = workspace.locator('[data-slot="config-list"]');
   const content = workspace.locator('[data-slot="config-content"]');
-  await list.getByRole("button", { name: TAGS_BAND }).click();
-  // THE MEMBER ROWS ARE IN CONTENT SINCE #1725 — the band is the LIST's whole contribution now.
-  // THE ROWS ARE VIRTUALIZED at this fixture's 400 tags and ordered by USAGE, so the subject is addressed
-  // as "the first rendered row" and "the second" rather than by a name the window may never mount.
+  await list.getByRole("button", { name: REGEX_BAND }).click();
+  // THE MEMBER ROWS ARE IN CONTENT SINCE #1725 — the band is the LIST's whole contribution now. The subject
+  // is addressed as "the first rendered row" and "the second", so the pin does not restate the row order.
   const rows = content.locator('[data-slot="list-row-root"]');
   // BOTH NAMES ARE READ BEFORE THE FIRST CLICK: drilling swaps CONTENT to the member's editor, so the
   // second row stops existing the moment the first is opened — reading it afterwards times out on a
@@ -272,7 +286,7 @@ test("the foot tab KEEPS across a subject change — a reader on Applies stays o
   const firstName = (await rows.nth(0).locator('[data-slot="list-row-title"]').textContent()) ?? "";
   const second = (await rows.nth(1).locator('[data-slot="list-row-title"]').textContent()) ?? "";
   await rows.nth(0).click();
-  await expect(workspace.getByRole("heading", { name: firstName })).toBeVisible();
+  await expect(workspace.getByRole("heading", { name: firstName, exact: true })).toBeVisible();
 
   const pane = workspace.locator(CONTEXT_PANE);
   // A MEMBER LANDS ON ABOUT (#926): the old `defaultTab` opened every member on Applies, which for a `none`
@@ -284,7 +298,7 @@ test("the foot tab KEEPS across a subject change — a reader on Applies stays o
   // Back to the library, then the SECOND row — a member→member change through the same seam.
   await content.getByRole("button", { name: /^Back to / }).click();
   await content.getByRole("button", { name: second, exact: true }).click();
-  await expect(workspace.getByRole("heading", { name: second })).toBeVisible();
+  await expect(workspace.getByRole("heading", { name: second, exact: true })).toBeVisible();
   await expect(pane.getByRole("button", { name: "Applies" })).toHaveAttribute("aria-current", "true");
 });
 
@@ -308,11 +322,8 @@ test("a member of a NONE collection renders that collection's copy, once", async
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
-  await workspace.locator('[data-slot="config-list"]').getByRole("button", { name: TAGS_BAND }).click();
-  const firstRow = workspace.locator('[data-slot="config-content"]').locator('[data-slot="list-row-root"]').first();
-  const firstName = (await firstRow.locator('[data-slot="list-row-title"]').textContent()) ?? "";
-  await firstRow.click();
-  await expect(workspace.getByRole("heading", { name: firstName })).toBeVisible();
+  await workspace.locator('[data-slot="config-list"]').getByRole("button", { name: ROSTERS_BAND }).click();
+  await workspace.locator('[data-slot="config-content"]').getByRole("button", { name: ROSTER.name, exact: true }).click();
 
   const pane = workspace.locator(CONTEXT_PANE);
   await pane.getByRole("button", { name: "Applies" }).click();
@@ -345,10 +356,9 @@ function stubModified(page: Page): Promise<TrpcRecorder> {
       },
     }),
     "settings.listThemes": () => [],
-    "rosterPreset.list": [],
+    "rosterPreset.list": [ROSTER],
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
-    "tag.listTagsWithUsage": () => [TAG, TAG_2],
-    "regex.listScripts": () => [SCRIPT],
+    "regex.listScripts": () => [SCRIPT, SCRIPT_2],
     "regex.listGlobal": () => [],
     "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),
     "worldInfo.listBooksWithUsage": () => [],

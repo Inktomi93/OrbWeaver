@@ -96,6 +96,8 @@ export {
   TOOL_RENDERER_MATCHES,
 } from "./contribution-contracts.ts";
 export { copyWithNotice } from "./copy-with-notice.ts";
+export type { CorpusMode, CorpusModeContribution } from "./corpus-modes.ts";
+export { CORPUS_MODE_LABELS, CORPUS_MODES, CORPUS_WHOLE_LABEL, isCorpusMode } from "./corpus-modes.ts";
 export type { RegistryContext } from "./create-registry-context.tsx";
 export { createRegistryContext } from "./create-registry-context.tsx";
 export { IS_DEV } from "./dev-flag.ts";
@@ -104,7 +106,9 @@ export type { EditSession } from "./edit-session.ts";
 export { resolveCommit } from "./edit-session.ts";
 export type { AppErrorBoundaryProps } from "./error-boundary.tsx";
 export { AppErrorBoundary } from "./error-boundary.tsx";
+export type { SendRefusalKey } from "./injection-copy.ts";
 export {
+  ADD_CONNECTION_PATH,
   ASSISTANT_PREFILL_WARNING,
   CHOICE_NEEDS_LIVE_CHAT,
   CHOICE_WAIT_FOR_TURN,
@@ -177,7 +181,6 @@ export {
 export type { ContributorRegistry, Registry } from "./registry.ts";
 export { createContributorRegistry, createRegistry } from "./registry.ts";
 export type {
-  AnalyticsContextState,
   CharacterChatsProjectionView,
   CharacterContextState,
   ChatContextState,
@@ -196,6 +199,7 @@ export type {
   ContextTabDef,
   ContextTabStrip,
   ContextTabsSpec,
+  CorpusContextState,
   RefineryContextState,
   ResolvedContextTab,
   ResolvedContextTabs,

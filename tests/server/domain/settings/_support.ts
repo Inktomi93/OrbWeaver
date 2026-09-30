@@ -36,6 +36,8 @@ export interface SettingsHarness {
   /** Embed-space trigger recorder: asserts an embed/imageEmbed model change enqueued the reindex (once), and a routing
    *  patch that doesn't touch those ids does NOT. */
   readonly onEmbedModelChanged: Mock<() => void>;
+  /** Every allowlist the settings domain handed the egress guard, in order. */
+  readonly published: (readonly string[])[];
 }
 
 interface SeedUserOverrides {
@@ -80,6 +82,7 @@ export function makeHarness(
   const onEmbedModelChanged: Mock<() => void> = vi.fn<() => void>();
   let themeCounter = 0;
   let entryCounter = 0;
+  const published: (readonly string[])[] = [];
   const deps: SettingsServiceDeps = {
     db,
     now: (): number => clock.now(),
@@ -107,8 +110,11 @@ export function makeHarness(
     // Default REFUSES: no settings test may reach the network, and the refusal is itself a real verdict arm
     // (`unknown` + reason). The update-check spec injects its own probe per case.
     probeUpstreamHead: overrides.probeUpstreamHead ?? ((): ReturnType<UpstreamHeadProbe> => Promise.resolve({ ok: false, reason: "no network in tests" })),
+    publishPrivateEndpointAllowlist: (entries): void => {
+      published.push(entries);
+    },
   };
-  return { svc: createSettingsService(deps), deps, audits, clock, onEmbedModelChanged };
+  return { svc: createSettingsService(deps), deps, audits, clock, onEmbedModelChanged, published };
 }
 
 /** Find a seed theme by name in `ownerId`'s readable set (own ∪ seeds) — the

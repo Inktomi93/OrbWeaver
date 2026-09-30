@@ -1333,6 +1333,30 @@ test("#113 a turn taller than the scrollport pins its speaker row to the top of 
   await expect.poll(async () => Math.round(await readFirstRowGapAtAssertion())).toBe(12);
 });
 
+// The top edge fade dissolves the scroller's pixels into whatever is BEHIND the transcript. A pinned band sits
+// exactly in that fade, so a dark bubble in a light page faded the band to the page colour under its own light
+// ink. The page here is light and the row is the dark default theme: the same pairing, with honest inks.
+const LIGHT_PAGE = "html, body { background: oklch(0.98 0.004 75) !important; }";
+
+test("a pinned speaker band keeps AA contrast over a light page: the top fade stands down while it is pinned", async ({ mount, page }) => {
+  const tall = makeMessageView({ id: castId<MessageId>("msg_tall_light"), role: "assistant", kind: "narrator", content: TALL_BODY, seq: 1 });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage([tall]) });
+  await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
+  await page.addStyleTag({ content: LIGHT_PAGE });
+  const component = await mount(<MessageListSurfaceStory />);
+
+  const scroller = component.locator(LIST_SCROLLER);
+  const name = component.locator(STUCK_NAME_ROW).getByText("Narrator");
+  await expect(name).toBeVisible();
+  await scroller.evaluate((el: HTMLElement) => {
+    el.scrollTop = 900;
+  });
+  // Scrolled deep into the turn: content lies above the edge, and the band is what covers it.
+  await expect.poll(() => scroller.evaluate((el: HTMLElement) => el.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(async () => (await pixelContrast(page, name)).ratio).toBeGreaterThanOrEqual(4.5);
+  await expect(scroller).not.toHaveAttribute("data-fade-top");
+});
+
 test("#113 CONTROL: a short turn is left alone — no sticky, no chip, no measured height change", async ({ mount, page }) => {
   const shortRow = makeMessageView({ id: castId<MessageId>("msg_short"), role: "assistant", content: "Two words.", seq: 1 });
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage([shortRow]) });

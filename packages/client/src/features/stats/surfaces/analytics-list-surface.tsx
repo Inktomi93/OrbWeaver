@@ -1,7 +1,7 @@
 // The Analytics LIST navigator — the character leaderboard. Reads `leaderboard` (owner-scoped ranked
 // rows) under a NAME SEARCH + a sort toggle whose keys mirror the server's `LEADERBOARD_SORTS` wire enum
 // (the shared `ANALYTICS_SORT_OPTIONS` vocabulary in analytics-view-model). Selecting a row drills that
-// character's stats into CONTENT (`selectAnalyticsCharacter`); the drilled row reads selected. Per A2 there
+// character's stats into CONTENT (`selectAnalyticsCharacterFromList`); the drilled row reads selected. Per A2 there
 // is no create action in this section — the "Analytics" title + count live in the `.shell-panel-header`
 // band (`analytics-list-header.tsx`, N1/N2), and search + sort are the finder affordances.
 //
@@ -33,7 +33,7 @@ import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
-import { selectAnalyticsCharacter, setAnalyticsSearchQuery, useAnalyticsSearchQuery, useSelectedAnalyticsCharacterId } from "#state";
+import { selectAnalyticsCharacterFromList, setAnalyticsSearchQuery, useAnalyticsSearchQuery, useSelectedAnalyticsCharacterId } from "#state";
 import {
   ANALYTICS_DEFAULT_SORT,
   ANALYTICS_SORT_OPTIONS,
@@ -42,6 +42,7 @@ import {
   formatDurationMs,
   formatTokens,
 } from "../lib/analytics-view-model.ts";
+import { LEADERBOARD_ROW_ATTR } from "../lib/leaderboard-row-attr.ts";
 import { useLeaderboardRoving } from "../lib/use-leaderboard-roving.ts";
 
 // The sort-id union derived from the shared vocabulary (a local, non-exported alias — no-inline-types
@@ -167,24 +168,27 @@ function LeaderboardBody({
       getItemKey={(row): string => row.characterId}
       items={page.rows}
       renderItem={(row, index): ReactElement => (
-        <ListRow
-          data-testid={testId("analyticsLeaderboardRow")}
-          clickable={true}
-          selected={selectedId === row.characterId}
-          onClick={(): void => selectAnalyticsCharacter(row.characterId)}
-          leading={
-            <Text voice="gloss" className="font-mono tabular-nums">
-              {index + 1}
-            </Text>
-          }
-          title={names[row.characterId] ?? row.name}
-          subtitle={`${formatCompact(row.assistantTurns)} replies · ${formatDurationMs(row.totalGenTimeMs)}`}
-          actions={
-            <Text voice="gloss" className="whitespace-nowrap font-mono">
-              {formatTokens(row.tokensOut, row.tokensOutProvenance)}
-            </Text>
-          }
-        />
+        // The wrapper names the row's character, so Back from its drill can hand focus back to it.
+        <Stack {...{ [LEADERBOARD_ROW_ATTR]: row.characterId }}>
+          <ListRow
+            data-testid={testId("analyticsLeaderboardRow")}
+            clickable={true}
+            selected={selectedId === row.characterId}
+            onClick={(): void => selectAnalyticsCharacterFromList(row.characterId)}
+            leading={
+              <Text voice="gloss" className="font-mono tabular-nums">
+                {index + 1}
+              </Text>
+            }
+            title={names[row.characterId] ?? row.name}
+            subtitle={`${formatCompact(row.assistantTurns)} replies · ${formatDurationMs(row.totalGenTimeMs)}`}
+            actions={
+              <Text voice="gloss" className="whitespace-nowrap font-mono">
+                {formatTokens(row.tokensOut, row.tokensOutProvenance)}
+              </Text>
+            }
+          />
+        </Stack>
       )}
     />
   );

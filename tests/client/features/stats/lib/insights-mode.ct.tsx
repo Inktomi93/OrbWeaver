@@ -1,16 +1,15 @@
-// CT: the Analytics section's cohesion-pass bands (north-star §6.3). Drives the PRODUCTION path through
-// the REAL section registry:
-//  · the N4/P4 CONTEXT band — the `defineContextTabs` `header` slot names the leaderboard-drilled character
-//    (avatar + name from `character.get`); nothing drilled shows the neutral "Analytics" identity.
-import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-
-//  · the N1/N2 LIST band — the `listHeader` slot shows the "Analytics" title + the leaderboard census
+// CT: the Corpus Insights mode's cohesion-pass bands (north-star §6.3, D271). Drives the PRODUCTION path
+// through the REAL section registry with Corpus in Insights:
+//  · the N4/P4 CONTEXT band — the mode's `contextHeader` names the leaderboard-drilled character (avatar +
+//    name from `character.get`); nothing drilled shows the neutral "Insights" identity.
+//  · the N1/N2 LIST band — the mode's `listHeader` shows the "Insights" title + the leaderboard census
 //    count, and (A2, read-only) exposes NO New action.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { LatencyStats, ModelStatRow } from "@orb/server/domain/stats";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsContextHeaderStory, AnalyticsListHeaderStory } from "../_ct-stories.tsx";
 
@@ -58,24 +57,30 @@ const EMPTY_CONTEXT_ROUTES: TrpcRoutes<"stats.byModel" | "stats.latency"> = {
 test("the CONTEXT band names the drilled leaderboard character (P4)", async ({ mount, page }) => {
   await routeTrpc(page, { ...EMPTY_CONTEXT_ROUTES, "character.get": () => DRILLED_CHARACTER });
   const component = await mount(<AnalyticsContextHeaderStory drilled={true} />);
+  await component.getByRole("button", { name: "show insights" }).click();
 
   await expect(component.getByText("Aria Nightshade")).toBeVisible();
 });
 
-test("the CONTEXT band shows the neutral Analytics identity when nothing is drilled", async ({ mount, page }) => {
+test("the CONTEXT band says Whole corpus when nothing is drilled, in the Explore band's title voice", async ({ mount, page }) => {
   await routeTrpc(page, EMPTY_CONTEXT_ROUTES);
   const component = await mount(<AnalyticsContextHeaderStory drilled={false} />);
+  await component.getByRole("button", { name: "show insights" }).click();
 
   const band = component.locator('[data-slot="context-bracket-band"]');
-  await expect(band.getByText("Analytics", { exact: true })).toBeVisible();
+  // Owner-wide context is labelled `Whole corpus` in every mode (D271), in the same title voice as Explore.
+  const label = band.getByText("Whole corpus", { exact: true });
+  await expect(label).toBeVisible();
+  await expect(label).toHaveAttribute("data-voice", "promoted");
   await expect(component.getByText("Aria Nightshade")).toHaveCount(0);
 });
 
-test("the LIST band shows the Analytics title + the leaderboard count, with NO create action (A2)", async ({ mount, page }) => {
+test("the LIST band shows the Insights title + the leaderboard count, with NO create action (A2)", async ({ mount, page }) => {
   await routeTrpc(page, { "stats.leaderboard": () => ({ rows: LEADERBOARD_ROWS, total: 2 }) });
   const component = await mount(<AnalyticsListHeaderStory />);
+  await component.getByRole("button", { name: "show insights" }).click();
 
-  await expect(component.getByText("Analytics")).toBeVisible();
+  await expect(component.getByText("Insights", { exact: true })).toBeVisible();
   await expect(component.getByText("2", { exact: true })).toBeVisible();
   // Read-only section: the band is a census, never an addition.
   await expect(component.getByRole("button", { name: "New" })).toHaveCount(0);
@@ -86,6 +91,7 @@ test("the LIST band shows the Analytics title + the leaderboard count, with NO c
 test("the LIST band states the RELATIONSHIP when the page is capped, not the page length", async ({ mount, page }) => {
   await routeTrpc(page, { "stats.leaderboard": () => ({ rows: LEADERBOARD_ROWS, total: 328 }) });
   const component = await mount(<AnalyticsListHeaderStory />);
+  await component.getByRole("button", { name: "show insights" }).click();
 
   await expect(component.getByText("2 of 328")).toBeVisible();
   // The bare page length must NOT be what the band says.

@@ -5,7 +5,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import {
-  RailAnalyticsSectionStory,
+  RailAuthoringSectionStory,
   RailBrandActiveStory,
   RailBrandNavStory,
   RailOverflowSectionStory,
@@ -16,7 +16,9 @@ import {
 test("renders every section + footer action as a named button; active = aria-current", async ({ mount }) => {
   const rail = await mount(<RailStory />);
 
-  await Promise.all(["Chats", "Characters", "Corpus", "Refinery", "Analytics"].map((name) => expect(rail.getByRole("button", { name })).toBeVisible()));
+  await Promise.all(["Chats", "Characters", "Corpus", "Refinery"].map((name) => expect(rail.getByRole("button", { name })).toBeVisible()));
+  // Analytics is Corpus Insights now (D271): no rail home of its own, and no alias.
+  await expect(rail.getByRole("button", { name: "Analytics" })).toHaveCount(0);
   // The theme modal retired into Appearance (#866 S4) — the foot is Settings (a SECTION) + the widget.
   await expect(rail.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
   await expect(rail.getByRole("button", { name: "Settings" })).toBeVisible();
@@ -267,13 +269,13 @@ test.describe("the current section on the mobile bar", () => {
     await expect.poll(() => visibleTabNames(rail)).toEqual(["Home", "Chats", "Corpus", "You"]);
   });
 
-  test("…and from another group (analytics), by the same derivation", async ({ mount }) => {
-    const rail = await mount(<RailAnalyticsSectionStory />);
+  test("…and from another group (presets), by the same derivation", async ({ mount }) => {
+    const rail = await mount(<RailAuthoringSectionStory />);
     await expect(rail.getByRole("button", { name: "You", exact: true })).toBeVisible();
 
-    await expect(rail.getByRole("button", { name: "Analytics", exact: true })).toHaveAttribute("aria-current", "page");
-    await expect.poll(() => visibleCurrentNames(rail)).toEqual(["Analytics"]);
-    await expect.poll(() => visibleTabNames(rail)).toEqual(["Home", "Chats", "Analytics", "You"]);
+    await expect(rail.getByRole("button", { name: "Presets", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect.poll(() => visibleCurrentNames(rail)).toEqual(["Presets"]);
+    await expect.poll(() => visibleTabNames(rail)).toEqual(["Home", "Chats", "Presets", "You"]);
   });
 
   // A FENCE, not a defect proof (it passed before the swap existed): standing in a section that already

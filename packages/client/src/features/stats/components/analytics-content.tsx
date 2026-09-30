@@ -6,15 +6,22 @@
 // and inset — see `analytics-overview-surface.tsx`'s header for why that differs from the Corpus content
 // precedent this fix otherwise follows.
 
+import type { CharacterId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { clearAnalyticsSelection, useSelectedAnalyticsCharacterId } from "#state";
 import { AnalyticsCharacterSurface } from "../surfaces/analytics-character-surface.tsx";
 import { AnalyticsOverviewSurface } from "../surfaces/analytics-overview-surface.tsx";
 
 export function AnalyticsContent(): ReactElement {
   const selectedAnalyticsCharacterId = useSelectedAnalyticsCharacterId();
+  // The drill the dashboard was reached FROM, so Back can hand focus to the row that opened it.
+  const [lastDrilled, setLastDrilled] = useState<CharacterId | null>(selectedAnalyticsCharacterId);
+  if (selectedAnalyticsCharacterId !== null && selectedAnalyticsCharacterId !== lastDrilled) {
+    setLastDrilled(selectedAnalyticsCharacterId);
+  }
   if (selectedAnalyticsCharacterId === null) {
-    return <AnalyticsOverviewSurface />;
+    return <AnalyticsOverviewSurface returnFocusTo={lastDrilled} />;
   }
   return <AnalyticsCharacterSurface characterId={selectedAnalyticsCharacterId} onBack={clearAnalyticsSelection} />;
 }

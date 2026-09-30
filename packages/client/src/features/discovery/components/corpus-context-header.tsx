@@ -23,6 +23,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
+import { CORPUS_WHOLE_LABEL } from "#lib";
 import { distilledCensus } from "../lib/corpus-vocabulary.ts";
 
 export function CorpusContextHeader(): ReactElement {
@@ -54,7 +55,10 @@ export function CorpusContextHeader(): ReactElement {
   return (
     <Row align="center" gap="field" className="min-w-0">
       <Icon icon={Library} size="sm" />
-      <Text className="truncate text-title leading-title font-semibold">Corpus</Text>
+      {/* D271: owner-wide context must never read as a description of the selected artifact. */}
+      <Text className="truncate" voice="promoted">
+        {CORPUS_WHOLE_LABEL}
+      </Text>
       {census}
     </Row>
   );

@@ -154,6 +154,27 @@ describe("updateAppSettings — the owner-box governance split (F12: the private
     expect(h.audits.map((x) => x.entry.action)).toContain("settings.updateAppSettings");
   });
 
+  // Owner ruling on docs/work/0325: the save is enforced on the next request. The egress guard holds its own
+  // copy of the list, so a reload that only rebuilt the cache left the host refused until a restart.
+  test("every reload hands the resolved allowlist to the egress guard; a refused write hands it nothing", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const o = await seedUser(db, { id: "user_owner", role: "owner" });
+    const a = await seedUser(db, { id: "user_a", role: "admin" });
+
+    await expect(h.svc.updateAppSettings({ principal: principal(a, "admin"), partial: { privateEndpointAllowlist: ["10.0.0.5:11434"] } })).rejects.toThrow(
+      DomainForbiddenError,
+    );
+    expect(h.published).toEqual([]);
+
+    await h.svc.updateAppSettings({ principal: principal(o, "owner"), partial: { privateEndpointAllowlist: ["10.0.0.5:11434"] } });
+    expect(h.published).toEqual([["10.0.0.5:11434"]]);
+    // A delegated admin's save of a field it may write republishes the owner's stored list, unchanged.
+    await h.svc.updateAppSettings({ principal: principal(a, "admin"), partial: { promptCacheMinDepth: 1 } });
+    await h.svc.updateAppSettings({ principal: principal(o, "owner"), partial: { privateEndpointAllowlist: [] } });
+    expect(h.published).toEqual([["10.0.0.5:11434"], ["10.0.0.5:11434"], []]);
+  });
+
   test("the owner may also update a non-governance field (owner ⊇ admin)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);

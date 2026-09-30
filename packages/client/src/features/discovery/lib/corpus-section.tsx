@@ -1,63 +1,76 @@
-// The Corpus rail section as ONE co-located definition (client-architecture-lockdown.md §6a) — the
-// section's rail identity, panel defaults, placeholder copy, list, content, and CONTEXT model in one
-// place. CONTEXT is minted via `defineContextTabs<void>` (§6b) — Corpus has no shared context state, so
-// `useContextState` returns the `VOID_STATE` sentinel (always-present, unconditionally called). The
-// composition root assembles this into the section registry (main.tsx); AppShell consumes it via
-// `useSectionRegistry`.
+// The Corpus rail section as ONE co-located definition (client-architecture-lockdown.md §6a): the Variant A
+// workbench (D271) with Explore, Insights and Labels modes over one LIST / CONTENT / CONTEXT anatomy.
+// `makeCorpusSection` is a factory because Insights and Labels are other features' surfaces: the door
+// imports stats and tag and hands them in, so discovery imports neither (§6c).
 
 import { Library } from "@orb/ui/icons";
-import { defineContextTabs, VOID_STATE } from "#lib";
+import type { ContextTabDef, ContributorRegistry, CorpusContextState } from "#lib";
+import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
-import { corpusSectionSelection } from "#state";
-import { CorpusListAnchor } from "../anchors/corpus-list-anchor.tsx";
+import { corpusSectionSelection, useCorpusMode } from "#state";
 import { CorpusArchetypesTab } from "../components/corpus-archetypes-tab.tsx";
 import { CorpusCompareTab } from "../components/corpus-compare-tab.tsx";
-import { CorpusContent } from "../components/corpus-content.tsx";
 import { CorpusContextHeader } from "../components/corpus-context-header.tsx";
-import { CorpusListHeader } from "../components/corpus-list-header.tsx";
 import { CorpusMapTab } from "../components/corpus-map-tab.tsx";
 import { CorpusSimilarityTab } from "../components/corpus-similarity-tab.tsx";
 import { CorpusVisualsTab } from "../components/corpus-visuals-tab.tsx";
-import { CorpusListSurface } from "../surfaces/corpus-list-surface.tsx";
+import type { CorpusModes } from "../components/corpus-workspace.tsx";
+import { CorpusWorkspaceContent, CorpusWorkspaceList, CorpusWorkspaceListHeader } from "../components/corpus-workspace.tsx";
 import { CORPUS_SECTION_LABEL } from "./corpus-section-label.ts";
 import { useCorpusSelectionTitle } from "./corpus-selection-title.ts";
 
-export const corpusSection: SectionDefinition = {
-  id: "corpus",
-  // Corpus folds into the You sheet on mobile (owner decision H2): the bottom bar is a thumb-reach budget
-  // of four, and home took a tab. Corpus is a deliberate search entry — reachable from the You sheet and
-  // ⌘K — not something you tap by accident on the way somewhere else.
-  rail: { label: CORPUS_SECTION_LABEL, icon: Library, group: "primary", mobile: "sheet" },
-  panelDefaults: { list: "docked", context: "collapsed" },
-  placeholder: {
-    title: "Corpus",
-    description: "Search across every thread, character, and scene — the web, searchable.",
-  },
-  list: () => (
-    <CorpusListAnchor>
-      <CorpusListSurface />
-    </CorpusListAnchor>
-  ),
-  // The LIST chrome-band content (§4 N1/N2): "CORPUS" title + distilled count. No create action —
-  // corpus is browse-shaped (§2), so the band carries title + count only (trivially met).
-  listHeader: () => <CorpusListHeader />,
-  // How the SHELL reads "is a dossier open?" — the mobile ONE-SHELL rule's input + its back affordance.
-  selection: corpusSectionSelection,
-  // …and what it calls the open dossier in the pushed frame's topbar.
-  useSelectionTitle: useCorpusSelectionTitle,
-  content: () => <CorpusContent />,
-  // Five owner-scoped analytics tabs, always available: Archetypes / Visuals / Map / Similarity / Compare.
-  context: defineContextTabs<void>({
-    useContextState: () => VOID_STATE,
-    // The CONTEXT-panel BAND identity (N4/P4) — the corpus subject + count. Owner-wide analytics, so the
-    // band names the SECTION (not the dossier character the tabs never rescope to — see the component).
-    header: () => <CorpusContextHeader />,
-    tabs: [
-      { id: "archetypes", label: "Archetypes", body: () => <CorpusArchetypesTab /> },
-      { id: "visuals", label: "Visuals", body: () => <CorpusVisualsTab /> },
-      { id: "map", label: "Map", body: () => <CorpusMapTab /> },
-      { id: "similarity", label: "Similarity", body: () => <CorpusSimilarityTab /> },
-      { id: "compare", label: "Compare", body: () => <CorpusCompareTab /> },
-    ],
-  }),
-};
+/** What the door hands the factory: the two contributed modes, and their CONTEXT tabs as one registry. */
+export interface CorpusSectionContributions extends CorpusModes {
+  readonly contextTabs: ContributorRegistry<ContextTabDef<CorpusContextState>>;
+}
+
+/** Every tab, own or contributed, is gated on the active mode (a module-level named hook, §6b). */
+function useCorpusContextState(): CorpusContextState {
+  return { mode: useCorpusMode() };
+}
+
+/** Every mode's title hook runs on every render, so the hook order never depends on the mode. */
+function useCorpusWorkspaceTitle(modes: CorpusModes): string | null {
+  const mode = useCorpusMode();
+  const titles = {
+    explore: useCorpusSelectionTitle(mode === "explore"),
+    insights: modes.insights.useSelectionTitle(mode === "insights"),
+    labels: modes.labels.useSelectionTitle(mode === "labels"),
+  };
+  return titles[mode];
+}
+
+const isExplore = (state: CorpusContextState): boolean => state.mode === "explore";
+
+export function makeCorpusSection(contributions: CorpusSectionContributions): SectionDefinition {
+  const modes: CorpusModes = { insights: contributions.insights, labels: contributions.labels };
+  return {
+    id: "corpus",
+    // D271: the phone bar is Home · Chats · Characters · You, and Corpus enters through the You sheet.
+    rail: { label: CORPUS_SECTION_LABEL, icon: Library, group: "primary", mobile: "sheet" },
+    panelDefaults: { list: "docked", context: "collapsed" },
+    placeholder: {
+      title: "Corpus",
+      description: "Search, read, understand and label your whole library in one place.",
+    },
+    list: () => <CorpusWorkspaceList modes={modes} />,
+    listHeader: () => <CorpusWorkspaceListHeader modes={modes} />,
+    // The shell's "is a subject open?" and Back, answered for the ACTIVE mode, plus the per-mode phone landing.
+    selection: corpusSectionSelection,
+    useSelectionTitle: (): string | null => useCorpusWorkspaceTitle(modes),
+    content: () => <CorpusWorkspaceContent modes={modes} />,
+    context: defineContextTabs<CorpusContextState>({
+      useContextState: useCorpusContextState,
+      header: (state) => (state.mode === "explore" ? <CorpusContextHeader /> : modes[state.mode].contextHeader()),
+      // Explore's five owner-wide analysis tabs, labelled `Whole corpus` in the band.
+      tabs: [
+        { id: "archetypes", label: "Archetypes", when: isExplore, body: () => <CorpusArchetypesTab /> },
+        { id: "visuals", label: "Visuals", when: isExplore, body: () => <CorpusVisualsTab /> },
+        { id: "map", label: "Map", when: isExplore, body: () => <CorpusMapTab /> },
+        { id: "similarity", label: "Similarity", when: isExplore, body: () => <CorpusSimilarityTab /> },
+        { id: "compare", label: "Compare", when: isExplore, body: () => <CorpusCompareTab /> },
+      ],
+      contributors: contributions.contextTabs,
+    }),
+  };
+}

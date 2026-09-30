@@ -18,6 +18,7 @@ import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/m
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
+import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 import { ROW_REVEAL } from "./row-reveal.ts";
 
@@ -39,6 +40,8 @@ export interface RowDestructiveAction {
    *  handler (a `Promise` return is assignable to `void`), so the hold-and-retry was reached by accident
    *  rather than by contract, and this type told a reader the opposite of what happens. */
   readonly onConfirm: () => void | Promise<void>;
+  /** Where focus goes when the confirm closes (see ConfirmDialog). Give one when the act removes the row. */
+  readonly finalFocus?: ConfirmDialogProps["finalFocus"];
   /** Render a MenuSeparator before the destructive item. @defaultValue true */
   readonly separator?: boolean;
 }
@@ -188,6 +191,7 @@ export function RowActionsMenu({
         <ConfirmDialog
           confirmLabel={destructive.confirmLabel ?? destructiveLabel}
           description={destructive.description}
+          {...(destructive.finalFocus === undefined ? {} : { finalFocus: destructive.finalFocus })}
           onConfirm={destructive.onConfirm}
           onOpenChange={setConfirmOpen}
           open={confirmOpen}

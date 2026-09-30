@@ -1,7 +1,8 @@
 // domain/settings — DI bundle builder. Beyond passing through the injected deps, it owns the per-user
 // write serializer (shared by both user-settings write verbs) and binds the effective-config/ subsystem
-// read side.
+// read side, whose every reload also publishes the private-endpoint allowlist to the egress guard.
 
+import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import type { SettingsContext, SettingsServiceDeps } from "./contract/service.ts";
 import { getEffectiveConfig, reloadEffectiveConfig } from "./effective-config/cache.ts";
@@ -46,6 +47,10 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
     versionIdentity: deps.versionIdentity,
     probeUpstreamHead: deps.probeUpstreamHead,
     getEffectiveConfig,
-    reloadEffectiveConfig: () => reloadEffectiveConfig(deps.db),
+    reloadEffectiveConfig: async (): Promise<EffectiveAppConfig> => {
+      const resolved = await reloadEffectiveConfig(deps.db);
+      deps.publishPrivateEndpointAllowlist(resolved.privateEndpointAllowlist);
+      return resolved;
+    },
   };
 }

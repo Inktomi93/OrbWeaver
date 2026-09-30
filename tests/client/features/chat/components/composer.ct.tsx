@@ -244,6 +244,40 @@ test("#54: an unserveable connection idles the guided fire actions with the caus
   await expect(component.getByRole("button", { name: "Draft your line" })).toHaveAttribute("aria-disabled", "true");
 });
 
+// The no-connection refusal splits on the same predicate as the next-turn line's door: a host with no
+// connection that can serve chat is told to add one; a host with one is told to pick it in Model roles. Each
+// case resolves its reason through its key, so the pin is on which reason shows, not on its wording.
+const EMBED_ONLY_CONNECTION = {
+  id: "user_connection_ctcomposerembed",
+  label: "Built-in embeddings",
+  providerId: "local-light",
+  providerLabel: "Built-in (this device)",
+  model: "jinaai/jina-clip-v2",
+  tasks: ["embed", "imageEmbed"],
+} satisfies TrpcFixtureOutput<"connection.list">[number];
+
+for (const refusal of [
+  { name: "no connection that can chat", key: "no-chat-connection", routes: { "connection.list": [EMBED_ONLY_CONNECTION] } },
+  { name: "a chat-capable connection but no chat role", key: "no-connection", routes: {} },
+] as const) {
+  test(`no-connection with ${refusal.name}: Send and the idled guided icons show the ${refusal.key} reason`, async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...CHAT_ROOM_ROUTES,
+      ...refusal.routes,
+      "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }),
+    });
+    const component = await mount(<ComposerStory />);
+    const reason = sendUnavailableReason(refusal.key);
+    const popup = page.locator('[data-slot="tooltip-popup"][data-open]');
+
+    await component.getByRole("button", { name: "Generate reply", exact: true }).focus();
+    await expect(popup).toHaveText(`Generate reply — ${reason}`);
+    await component.getByRole("button", { name: "Send message", exact: true }).focus();
+    await expect(popup).toHaveText(reason);
+  });
+}
+
 test("#54: an AVAILABLE verdict leaves Send serveable (a typed committed composer sends)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,

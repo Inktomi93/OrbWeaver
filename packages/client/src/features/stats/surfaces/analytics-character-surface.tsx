@@ -19,7 +19,8 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
-import { testId, timeLib, useFocusOnMount } from "#lib";
+import { CORPUS_MODE_LABELS, testId, timeLib, useFocusOnMount } from "#lib";
+import { useMobileViewport } from "#state";
 import { formatCompact, formatCount, formatDurationMs, formatMs, formatPercent, formatThroughput, UNRECORDED_NOTE } from "../lib/analytics-view-model.ts";
 
 export interface AnalyticsCharacterSurfaceProps {
@@ -58,6 +59,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
   // the name via `stats.name`, so this degrades quietly to a generic sentence until the cache populates.
   const { data: character } = useQuery(trpc.character.get.queryOptions({ characterId }));
   const drilledName = character?.name.trim() ?? "";
+  const phone = useMobileViewport();
 
   if (stats === null) {
     return (
@@ -69,22 +71,30 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
             ? `${drilledName} has no rolled-up activity yet. Play a chat with them, then come back.`
             : "This character has no rolled-up activity. Play a chat with them, then come back."
         }
-        action={
-          <Button intent="secondary" size="sm" onClick={onBack}>
-            <Icon icon={ArrowLeft} size="sm" />
-            Back
-          </Button>
-        }
+        // The phone's topbar already carries the one Back.
+        {...(phone
+          ? {}
+          : {
+              action: (
+                <Button intent="secondary" size="sm" onClick={onBack}>
+                  <Icon icon={ArrowLeft} size="sm" />
+                  {`Back to ${CORPUS_MODE_LABELS.insights}`}
+                </Button>
+              ),
+            })}
       />
     );
   }
 
   return (
     <Stack gap="section">
-      <Button intent="ghost" size="sm" onClick={onBack} className="self-start">
-        <Icon icon={ArrowLeft} size="sm" />
-        Back
-      </Button>
+      {/* The phone's topbar already carries the one Back (the Labels and Explore drill posture). */}
+      {phone ? null : (
+        <Button intent="ghost" size="sm" onClick={onBack} className="self-start">
+          <Icon icon={ArrowLeft} size="sm" />
+          {`Back to ${CORPUS_MODE_LABELS.insights}`}
+        </Button>
+      )}
 
       <Stack gap="field">
         <Text className="text-title leading-title font-semibold">{stats.name}</Text>

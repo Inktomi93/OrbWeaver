@@ -3,6 +3,7 @@
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network).
 
 import { useTRPC } from "@orb/client/data";
+import { CommandPaletteSurface } from "@orb/client/features/chat";
 import {
   CorpusArchetypesTab,
   CorpusCompareTab,
@@ -15,8 +16,11 @@ import {
   CorpusMapTab,
   CorpusSimilarityTab,
   CorpusUnderstandingInvitation,
+  corpusModePaletteSource,
 } from "@orb/client/features/discovery";
-import { useActiveChatId, useActiveSection } from "@orb/client/state";
+import type { CommandPaletteSource } from "@orb/client/lib";
+import { createContributorRegistry } from "@orb/client/lib";
+import { CommandPaletteSourceRegistryProvider, useActiveChatId, useActiveSection } from "@orb/client/state";
 import type { CharacterId, ThemeClusterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
@@ -437,6 +441,20 @@ export function CorpusThemeSectionStory(): ReactElement {
         <CorpusThemeSection arcThemes={ARC_THEMES} sceneThemes={SCENE_THEMES} />
         <div data-testid="corpus-themes-tail" style={{ height: 8 }} />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The ⌘K palette with the Corpus mode source, as the door assembles it (D271). */
+export function CorpusModePaletteStory(): ReactElement {
+  const registry = createContributorRegistry<CommandPaletteSource>("command-palette-sources", [corpusModePaletteSource]);
+  return (
+    <CtDataProviders>
+      <CommandPaletteSourceRegistryProvider value={registry}>
+        <div style={{ height: 480, width: 560 }}>
+          <CommandPaletteSurface goToSections={[]} />
+        </div>
+      </CommandPaletteSourceRegistryProvider>
     </CtDataProviders>
   );
 }

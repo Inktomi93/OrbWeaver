@@ -26,10 +26,11 @@
 
 import type { ReactElement } from "react";
 import { ListPaneHeader } from "#components";
+import { CORPUS_MODE_LABELS } from "#lib";
 import { useCorpusCensus } from "../hooks/use-corpus-census.ts";
-import { CORPUS_SECTION_LABEL } from "../lib/corpus-section-label.ts";
 
+/** The band names the active MODE (D271): the LIST landmark follows it, so the pane announces its finder. */
 export function CorpusListHeader(): ReactElement {
   const count = useCorpusCensus();
-  return <ListPaneHeader count={count ?? 0} title={CORPUS_SECTION_LABEL} />;
+  return <ListPaneHeader count={count ?? 0} title={CORPUS_MODE_LABELS.explore} />;
 }

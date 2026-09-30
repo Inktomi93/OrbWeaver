@@ -70,6 +70,9 @@ export interface SettingsServiceDeps {
   readonly newBackgroundEntryId: () => string;
   readonly versionIdentity: () => VersionIdentity;
   readonly probeUpstreamHead: UpstreamHeadProbe;
+  /** Hands the resolved private-endpoint allowlist to the egress guard after every reload, boot included. The
+   *  guard keeps its own copy, so a save that only rebuilt the cache would leave a host refused until a restart. */
+  readonly publishPrivateEndpointAllowlist: (entries: readonly string[]) => void;
 }
 
 /** The settings API surface. UserSettings verbs scope by `principal.userId`; AppSettings verbs gate on the

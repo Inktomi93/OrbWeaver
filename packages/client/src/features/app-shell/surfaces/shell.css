@@ -947,6 +947,12 @@
    * pane and paint behind the shell; the #237 framebuffer pin in app-shell.ct.tsx is what says so. */
   container-type: inline-size;
 }
+/* The panes and `<main>` take focus only programmatically (tabindex -1: the skip link, a floating pane
+ * opening, a section jump). The ring belongs on the controls inside them, never on a whole region. */
+.shell-panel:focus-visible,
+.shell-content:focus-visible {
+  outline: none;
+}
 .shell-panel[data-panel-side="list"] {
   grid-column: 2;
   border-inline-end: var(--border-width-control) solid var(--color-sidebar-border);

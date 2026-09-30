@@ -41,12 +41,12 @@ import { QueryBoundary, RowActionsMenu, useUpdateConnection } from "#components"
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { connectionSummary } from "#lib";
-import { configAnchorId } from "#state";
+import { configAnchorId, configSettingControlId } from "#state";
 import { useRemoveConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
 import { CONNECTION_FORM_COPY } from "../lib/add-connection-form-model.ts";
 import { addModelActionGloss, addModelActionLabel, addModelScope } from "../lib/add-model-on-key-form-model.ts";
 import { boundRoleLabels, connectionRoleLabels, joinRoleLabels, sweepRoleLabels } from "../lib/connections-model.ts";
-import { CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
+import { ADD_CONNECTION_SETTING, CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
 import { AddConnectionDialog } from "./add-connection-dialog.tsx";
 import { AddModelOnKeyDialog } from "./add-model-on-key-dialog.tsx";
 import { ConnectionEditor } from "./connection-editor.tsx";
@@ -58,6 +58,9 @@ type ProviderDef = inferOutput<Trpc["connection"]["providersAvailable"]>[number]
 type ListFocusIntent =
   | { readonly kind: "row"; readonly connectionId: ConnectionListItem["id"] }
   | { readonly kind: "removed"; readonly connectionId: ConnectionListItem["id"]; readonly index: number };
+
+// Whichever add verb is showing carries the leaf's control id, so an add-connection landing focuses it.
+const ADD_CONNECTION_CONTROL_ID = configSettingControlId("connections", ADD_CONNECTION_SETTING);
 
 export function ConnectionsListSection(): ReactElement {
   return (
@@ -137,7 +140,7 @@ function ConnectionsBody(): ReactElement {
         <Text voice="gloss">One provider and one model per connection. Every turn you trigger — in any room — runs on your own connections.</Text>
         {/* ONE "Add connection" PER VIEWPORT: the empty state owns the verb while the list is empty. */}
         {connections.length === 0 ? null : (
-          <Button ref={addConnectionFocus} intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>
+          <Button ref={addConnectionFocus} id={ADD_CONNECTION_CONTROL_ID} intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>
             <Icon icon={Plus} size="sm" />
             Add connection
           </Button>
@@ -150,7 +153,7 @@ function ConnectionsBody(): ReactElement {
           title="No connections yet"
           description="Add a provider key or your own server so your roles can reach a model."
           action={
-            <Button ref={addConnectionFocus} intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>
+            <Button ref={addConnectionFocus} id={ADD_CONNECTION_CONTROL_ID} intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>
               <Icon icon={Plus} size="sm" />
               Add connection
             </Button>

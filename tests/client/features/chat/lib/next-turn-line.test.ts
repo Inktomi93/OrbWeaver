@@ -7,7 +7,12 @@ import type { UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import type { NextTurnInputs } from "../../../../../packages/client/src/features/chat/lib/next-turn-line.ts";
-import { nextTurnLine, nextTurnReadsChatRole, nextTurnStatesRefusal } from "../../../../../packages/client/src/features/chat/lib/next-turn-line.ts";
+import {
+  nextTurnLine,
+  nextTurnReadsChatRole,
+  nextTurnStatesRefusal,
+  sendRefusalKey,
+} from "../../../../../packages/client/src/features/chat/lib/next-turn-line.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 
@@ -20,7 +25,7 @@ const BASE: NextTurnInputs = {
   availabilityFailed: false,
   resolved: { connectionId: MINE, providerId: testProviderId("anthropic"), model: MODEL },
   resolveFailed: false,
-  connections: { rows: [{ id: MINE, label: "Work key", providerLabel: "Anthropic" }], failed: false },
+  connections: { rows: [{ id: MINE, label: "Work key", providerLabel: "Anthropic", tasks: ["chat"] }], failed: false },
 };
 const FAILED = { state: "failed", text: "Next reply: the connection couldn't be checked.", door: undefined };
 
@@ -30,7 +35,7 @@ test("a host names their resolved connection and model", () => {
 
 /** The line for a host whose chat connection row carries `label` and resolves `model`. */
 function lineFor(label: string, model: string): string {
-  const row = { id: MINE, label, providerLabel: "OpenRouter" };
+  const row = { id: MINE, label, providerLabel: "OpenRouter", tasks: ["chat" as const] };
   return nextTurnLine({
     ...BASE,
     resolved: { connectionId: MINE, providerId: testProviderId("openrouter"), model: testModelId(model) },
@@ -63,13 +68,40 @@ test("the room's no-connection verdict is the unset state; the host gets the Mod
   expect(nextTurnLine({ ...BASE, availabilityCause: "no-connection", resolved: undefined })).toEqual({
     state: "unset",
     text: "Next reply: no chat connection is set.",
-    door: { lead: `Choose one under ${MODEL_ROLES_PATH.trail} →`, label: MODEL_ROLES_PATH.leaf },
+    door: { lead: `Choose one under ${MODEL_ROLES_PATH.trail} →`, label: MODEL_ROLES_PATH.leaf, sub: "model-roles", setting: "chat-model" },
   });
   expect(nextTurnLine({ ...BASE, viewerIsHost: false, availabilityCause: "no-connection" })).toEqual({
     state: "unset",
     text: "Next reply: the host has no chat connection set.",
     door: undefined,
   });
+});
+
+// The Model roles picker can only offer a connection the host already has. With none, the door goes to the
+// add flow instead; while the list is still loading it offers neither, so it never points at the wrong one.
+test("the host's unset door follows their connection list: add flow with none, Model roles with some", () => {
+  const unset = (connections: NextTurnInputs["connections"]): { readonly sub: string; readonly setting: string } | undefined => {
+    const door = nextTurnLine({ ...BASE, availabilityCause: "no-connection", resolved: undefined, connections }).door;
+    return door === undefined ? undefined : { sub: door.sub, setting: door.setting };
+  };
+  expect(unset({ rows: [], failed: false })).toEqual({ sub: "connections", setting: "add-connection" });
+  // A fresh account's built-in embedding rows are connections the Chat picker cannot offer.
+  const embedOnly = { id: MINE, label: "Built-in embeddings", providerLabel: "Built-in", tasks: ["embed", "imageEmbed"] as const };
+  expect(unset({ rows: [embedOnly], failed: false })).toEqual({ sub: "connections", setting: "add-connection" });
+  expect(unset(BASE.connections)).toEqual({ sub: "model-roles", setting: "chat-model" });
+  expect(unset({ rows: undefined, failed: false })).toBeUndefined();
+  expect(unset({ rows: undefined, failed: true })).toEqual({ sub: "model-roles", setting: "chat-model" });
+});
+
+test("the composer's refusal key splits no-connection on the door's predicate, for the host only", () => {
+  const embedOnly = { id: MINE, label: "Built-in embeddings", providerLabel: "Built-in", tasks: ["embed"] as const };
+  const none = { rows: [embedOnly], failed: false };
+  expect(sendRefusalKey("no-connection", true, none)).toBe("no-chat-connection");
+  expect(sendRefusalKey("no-connection", true, BASE.connections)).toBe("no-connection");
+  expect(sendRefusalKey("no-connection", true, { rows: undefined, failed: false })).toBe("no-connection");
+  // A member's turn runs on the host's connection, so the member's own list says nothing about the fix.
+  expect(sendRefusalKey("no-connection", false, none)).toBe("no-connection");
+  expect(sendRefusalKey("endpoint-unreachable", true, none)).toBe("endpoint-unreachable");
 });
 
 test("an unknown viewer in a no-connection room reads a neutral unset line with no door: it may be a member", () => {

@@ -3,7 +3,7 @@
 // itself in the back row), never the section.
 //
 // A member's name comes from the owning collection's `useMemberTitle` seam (cache-first, the census's
-// discipline); a collection that declares none falls back to its group's `label`, which is honest ("Tags")
+// discipline); a collection that declares none falls back to its group's `label`, which is honest ("World info")
 // rather than blank.
 //
 // ONE hook call, at the top level, for the OPEN member's kind — and the contract that makes a kind switch

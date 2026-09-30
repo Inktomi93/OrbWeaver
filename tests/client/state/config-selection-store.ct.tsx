@@ -16,8 +16,8 @@ test("selection carries its KIND, and switching kinds replaces it", async ({ mou
   const state = probe.locator("output");
   await expect(state).toContainText("selection=none");
 
-  await probe.getByRole("button", { name: "select tag member" }).click();
-  await expect(state).toContainText("selection=tags:tag_probe");
+  await probe.getByRole("button", { name: "select book member" }).click();
+  await expect(state).toContainText("selection=worldInfo:book_probe");
 
   await probe.getByRole("button", { name: "select regex member" }).click();
   await expect(state).toContainText("selection=regex:regex_probe");
@@ -45,12 +45,12 @@ test("goToCollection lands on the config section with THAT group expanded and no
   await probe.getByRole("button", { name: "go to chats" }).click();
   await probe.getByRole("button", { name: "select regex member" }).click();
   await expect(state).toContainText("section=chats");
-  await expect(state).toContainText("tagsOpen=false");
+  await expect(state).toContainText("booksOpen=false");
 
-  await probe.getByRole("button", { name: "go to the tags collection" }).click();
+  await probe.getByRole("button", { name: "go to the world-info collection" }).click();
   await expect(state).toContainText("section=config");
   // The group the caller asked for is OPEN — the whole reason the intent carries a kind.
-  await expect(state).toContainText("tagsOpen=true");
+  await expect(state).toContainText("booksOpen=true");
   // …and it opens on the workspace welcome, not on whatever was last edited.
   await expect(state).toContainText("selection=none");
 });

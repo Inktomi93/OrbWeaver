@@ -100,7 +100,7 @@ export function TopbarIconButton({ label, icon, pressed, expanded, onClick, mark
  *  inverse label one tap away, so it does not. And removing it would reverse the 2026-08-03 owner-ruled
  *  mobile one-shell rule stated verbatim in `state/panel-resolve.ts` and `hooks/use-shell-layout.ts`: with
  *  the list pinned `docked` for all seven list-bearing sections, this toggle is the ONLY phone door to a
- *  section's no-selection CONTENT (the corpus/analytics dashboards). Orchestrator-ruled 2026-08-07: keep the
+ *  section's no-selection CONTENT (the Corpus Explore overview). Orchestrator-ruled 2026-08-07: keep the
  *  mechanism, fix the words. */
 function leadControl({ listMode, listAvailable, mobile, title, onToggleList, onBack, backLabel }: ShellTopbarProps): ReactNode {
   if (onBack !== undefined && onBack !== null) {

@@ -408,6 +408,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // The manual update check's one GET. Wired here (never imported by the domain) so the egress belt stays
     // on this side of the tier line, exactly like `materializeBackground` above it.
     probeUpstreamHead: createProbeUpstreamHead({ localVersion: () => versionIdentity().version }),
+    publishPrivateEndpointAllowlist,
   };
   // The workload contribution registry is assembled LAST (it spans every owning domain, chat included) but
   // the workloads SERVICE is built mid-graph and needs it as its params validator — so the service holds this
@@ -423,13 +424,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const settingsCtx: SettingsContext = createSettingsContext(settingsDeps);
 
   // Warm the resolved-config cache from the stored override so the sync getEffectiveConfig() returns the
-  // floor⊕override config before the runtime reads it, then PUBLISH the F12 private-endpoint allowlist onto
-  // the egress guard — the second input every `auth: endpoint` dial is judged against (deployment-wide, no
-  // principal). Re-published on every reload so an admin's Governance edit reaches the next dial.
+  // floor⊕override config before the runtime reads it. The settings domain's reload also publishes the F12
+  // private-endpoint allowlist onto the egress guard (`settingsDeps.publishPrivateEndpointAllowlist`), here
+  // and after every AppSettings write, so an owner's save reaches the next dial.
   const effectiveConfig = createEffectiveConfigWiring(settings);
   await effectiveConfig.reload();
   const resolved = effectiveConfig.getEffectiveConfig();
-  publishPrivateEndpointAllowlist(resolved.privateEndpointAllowlist);
 
   // Built before the runtime so the hosted image arms get the real GIF→first-frame-PNG wire-normalize
   // transform (MA-6) — the sharp adapter, wrapped inside the package so it never leaks in.

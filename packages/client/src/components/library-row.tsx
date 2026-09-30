@@ -17,6 +17,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { duplicateActionName, rowActionSubject, rowActionsName } from "#lib";
+import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { RowActionsMenu } from "./row-actions-menu.tsx";
 import { ROW_REVEAL } from "./row-reveal.ts";
 
@@ -55,6 +56,8 @@ export interface LibraryRowActions {
   readonly onDelete?: () => void | Promise<void>;
   /** The delete-confirm body — plain text/fragment only (see ConfirmDialog). Meaningless without `onDelete`. */
   readonly deleteDescription?: ReactNode;
+  /** Where focus goes when the delete confirm closes: the kebab that opened it leaves with the row. */
+  readonly deleteFinalFocus?: ConfirmDialogProps["finalFocus"];
   /** The row's ONE frequent non-navigational verb, surfaced INLINE beside the kebab (§12.2) — a
    *  `ROW_REVEAL` ghost icon (rest hidden, revealed on the row's hover/focus-within, always-on for coarse).
    *  The kebab KEEPS the same item (N3 mirror parity — inline is a shortcut, never the only path).
@@ -228,6 +231,7 @@ function LibraryRowActionsMenu({
   onDuplicate,
   onDelete,
   deleteDescription,
+  deleteFinalFocus,
   inlineVerb,
   menuItemsBefore,
   menuItemsAfter,
@@ -244,6 +248,7 @@ function LibraryRowActionsMenu({
       <LibraryRowMenu
         name={name}
         {...(deleteDescription === undefined ? {} : { deleteDescription })}
+        {...(deleteFinalFocus === undefined ? {} : { deleteFinalFocus })}
         {...(onDelete === undefined ? {} : { onDelete })}
         {...(onRename === undefined ? {} : { onRename })}
         {...(duplicate === undefined ? {} : { onDuplicate: duplicate })}
@@ -266,6 +271,7 @@ function LibraryRowMenu({
   onDuplicate,
   onDelete,
   deleteDescription,
+  deleteFinalFocus,
   menuItemsBefore,
   menuItemsAfter,
 }: Omit<LibraryRowActions, "inlineVerb">): ReactElement {
@@ -288,6 +294,7 @@ function LibraryRowMenu({
               title: `Delete "${name}"?`,
               description: deleteDescription,
               onConfirm: remove,
+              ...(deleteFinalFocus === undefined ? {} : { finalFocus: deleteFinalFocus }),
             },
           })}
     >

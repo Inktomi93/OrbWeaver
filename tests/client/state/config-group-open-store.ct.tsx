@@ -12,11 +12,11 @@ test("openConfigGroup is idempotent — the deep-link arm never closes an open g
   const state = probe.locator("output");
   await probe.getByRole("button", { name: "reset collection groups" }).click();
 
-  await probe.getByRole("button", { name: "open tags group" }).click();
-  await expect(state).toHaveText("tags=true regex=false");
+  await probe.getByRole("button", { name: "open books group" }).click();
+  await expect(state).toHaveText("books=true regex=false");
 
-  await probe.getByRole("button", { name: "open tags group" }).click();
-  await expect(state).toHaveText("tags=true regex=false");
+  await probe.getByRole("button", { name: "open books group" }).click();
+  await expect(state).toHaveText("books=true regex=false");
 });
 
 // `closeConfigGroup` is the AUTO-OPEN's undo (#1217) — the arrival default expands a group nobody asked for,
@@ -27,13 +27,13 @@ test("closeConfigGroup collapses ONE group, and does nothing to a group already 
   const state = probe.locator("output");
   await probe.getByRole("button", { name: "reset collection groups" }).click();
 
-  await probe.getByRole("button", { name: "open tags group" }).click();
-  await expect(state).toHaveText("tags=true regex=false");
+  await probe.getByRole("button", { name: "open books group" }).click();
+  await expect(state).toHaveText("books=true regex=false");
 
-  await probe.getByRole("button", { name: "close tags group" }).click();
-  await expect(state).toHaveText("tags=false regex=false");
+  await probe.getByRole("button", { name: "close books group" }).click();
+  await expect(state).toHaveText("books=false regex=false");
 
   // Idempotent, exactly like its opening twin: closing a closed group is not a toggle.
-  await probe.getByRole("button", { name: "close tags group" }).click();
-  await expect(state).toHaveText("tags=false regex=false");
+  await probe.getByRole("button", { name: "close books group" }).click();
+  await expect(state).toHaveText("books=false regex=false");
 });

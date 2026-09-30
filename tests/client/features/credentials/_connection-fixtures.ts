@@ -6,6 +6,7 @@
 //
 // Pure `.ts` with no `.tsx` import: a CT spec's node side cannot import from a component module.
 
+import type { USER_ROLES } from "@orb/contracts/identity";
 import type { ProviderAvailability } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, ROUTABLE_TASKS } from "@orb/contracts/inference";
 import { expect } from "@playwright/experimental-ct-react";
@@ -123,6 +124,10 @@ export interface PaneStubOptions {
   readonly draftCatalogModels?: TrpcResponder<"connection.draftCatalogModels">;
   /** Replaces `connection.verifyAuth` — the sign-in check a saved subscription row runs. */
   readonly verifyAuth?: TrpcResponder<"connection.verifyAuth">;
+  /** The caller's `sessions.me` role; the box owner by default. */
+  readonly role?: (typeof USER_ROLES)[number];
+  /** The deployment's private-endpoint allowlist. A `settings.updateAppSettings` that writes it replaces it. */
+  readonly allowlist?: readonly string[];
 }
 
 /** A passing sign-in check, as the agent-sdk backend answers it. */
@@ -140,6 +145,7 @@ export const SIGNED_IN: TrpcWireOutput<"connection.verifyAuth"> = {
 export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}): Promise<TrpcRecorder> {
   const connections: ConnectionRow[] = [...(opts.connections ?? [])];
   const credentials: CredentialRow[] = [...(opts.credentials ?? [])];
+  let allowlist: readonly string[] = opts.allowlist ?? [];
   const mintCredential = (input: TrpcInput<"credentials.add">): CredentialRow => {
     const row = credentialRow({ id: `user_credential_ctminted00${credentials.length + 1}`, provider: input.provider, label: input.label ?? "default" });
     credentials.push(row);
@@ -161,7 +167,7 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     return row;
   };
   return await routeTrpc(page, {
-    "sessions.me": () => ({ userId: OWNER_ID, handle: "owner", globalRole: "owner" }),
+    "sessions.me": () => ({ userId: OWNER_ID, handle: "owner", globalRole: opts.role ?? "owner" }),
     "connection.list": () => connections,
     "connection.listBindings": () => UNBOUND,
     "connection.providersAvailable": () => opts.providers ?? ALL_AVAILABLE,
@@ -173,6 +179,14 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     "connection.draftCatalogModels": opts.draftCatalogModels ?? catalogOf([]),
     "connection.useForEverything": [],
     "connection.verifyAuth": opts.verifyAuth ?? SIGNED_IN,
+    "settings.getAppSettingsWithOverrides": () => ({
+      resolved: { privateEndpointAllowlist: [...allowlist] },
+      overrides: { privateEndpointAllowlist: null },
+    }),
+    "settings.updateAppSettings": ({ partial }) => {
+      allowlist = partial.privateEndpointAllowlist ?? allowlist;
+      return { privateEndpointAllowlist: [...allowlist] };
+    },
   });
 }
 

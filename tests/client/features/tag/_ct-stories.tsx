@@ -1,10 +1,13 @@
 // tag feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The stories
 // reach feature internals the front door doesn't re-export (the settings/workloads _ct-stories.tsx
-// precedent): the tag collection's rows and member editor are mounted by the CONFIG host through
-// `tagCollection`, never exported standalone.
+// precedent): the rows, the finder and the member editor are mounted by the Corpus Labels mode, never
+// exported standalone.
 
 import { QueryBoundary } from "@orb/client/components";
-import { setTagPruneConfirmOpen, setTagSortMode } from "@orb/client/state";
+import { labelsContextTabs, labelsCorpusMode } from "@orb/client/features/tag";
+import { clearLabelSelection, setLabelFilter, setTagPruneConfirmOpen, setTagSortMode } from "@orb/client/state";
+import type { TagId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { TagCollectionRows } from "../../../../packages/client/src/features/tag/components/tag-collection-rows.tsx";
@@ -14,8 +17,8 @@ import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../s
 
 /** The tag MEMBER EDITOR (the F-11 split's CONTENT half) in isolation — `tag.listTagsWithUsage` (the read)
  *  plus the tag mutations (`updateTag`/`removeTag`/`mergeTags`) are stubbed per-test via routeTrpc. The
- *  QueryBoundary is production's (the config host wraps `detail(view)` in one), not scaffolding: the
- *  surface reads through `useSuspenseQuery`. */
+ *  QueryBoundary is production's (`LabelsContent` wraps the editor in one), not scaffolding: the surface
+ *  reads through `useSuspenseQuery`. */
 export function TagMemberStory({ memberId = "tag_adventure", width = 720 }: { readonly memberId?: string; readonly width?: number }): ReactElement {
   return (
     <CtDataProviders>
@@ -23,9 +26,8 @@ export function TagMemberStory({ memberId = "tag_adventure", width = 720 }: { re
           they land in, and a mount that grows to fit its content agrees with every overflow. */}
       <div style={{ height: 720, overflow: "auto", width }}>
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
-          {/* `library` is the host's own group label ("Tags", `tags-group.tsx`) — the drill row's exit says
-              `Back to Tags`, exactly as the config host spells it (#1747). */}
-          <TagMemberSurface view={{ library: "Tags", memberId }} />
+          {/* The drill row's exit names the mode it returns to: `Back to Labels` (#1747, D271). */}
+          <TagMemberSurface tagId={castId<TagId>(memberId)} />
         </QueryBoundary>
       </div>
     </CtDataProviders>
@@ -58,11 +60,10 @@ export function TagMemberContentColumnStory(): ReactElement {
  *  plain block would give the `VirtualList` a flex-basis of 0 inside an auto-height column and render a
  *  ZERO-height scroller — a fixture disagreeing with the pane about the one property under test.
  *
- *  THE THREE SORT BUTTONS AND THE PRUNE BUTTON ARE THE HOST'S SEAM, drawn here as the CT's spelling of it
- *  (the `ConfigMobileListStory` `go mobile` precedent). Since #1725 the sort Select and the prune menu item
- *  are drawn by the CONFIG host from `tagCollection.sort` / `.actions`; both write exactly these store
- *  functions, and the config landing's own CT pins that they do. What is left for THIS file is what the
- *  rows do with the result, which is why the driver is the store rather than a re-mounted host. */
+ *  THE THREE SORT BUTTONS AND THE PRUNE BUTTON STAND IN FOR THE FINDER'S CONTROLS. The Labels finder draws
+ *  the sort Select and the prune menu item; both write exactly these store functions, and the finder's own
+ *  CT (`labels-list-surface.ct.tsx`) pins that they do. What is left for THIS file is what the rows do with
+ *  the result, which is why the driver is the store rather than a mounted finder. */
 export function TagCollectionRowsStory({ filter = "", width = 330 }: { readonly filter?: string; readonly width?: number }): ReactElement {
   return (
     <CtDataProviders>
@@ -86,6 +87,37 @@ export function TagCollectionRowsStory({ filter = "", width = 330 }: { readonly 
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
           <TagCollectionRows view={{ selectedId: null, onSelect: (): void => undefined, filter }} />
         </QueryBoundary>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Corpus Labels mode's own panes side by side, as the shell lays them out on a desktop: the finder in a
+ *  LIST-width column, CONTENT beside it, and the one CONTEXT tab body. Mounted through the mode contribution
+ *  the door hands the Corpus section, so the story renders exactly what production renders. */
+export function LabelsWorkspaceStory(): ReactElement {
+  // The finder's stores are module singletons, so the story starts every mount from the rest state.
+  useState(() => {
+    setLabelFilter("");
+    setTagSortMode("used");
+    clearLabelSelection();
+    return null;
+  });
+  const reach = labelsContextTabs[0];
+  return (
+    <CtDataProviders>
+      <div style={{ display: "flex", gap: 16, height: 720 }}>
+        <div data-slot="ct-labels-list" style={{ display: "flex", flexDirection: "column", width: 320 }}>
+          <div data-slot="ct-labels-band">{labelsCorpusMode.listHeader()}</div>
+          <div style={{ flex: 1, minHeight: 0 }}>{labelsCorpusMode.list()}</div>
+        </div>
+        <div data-slot="ct-labels-content" style={{ flex: 1, minWidth: 0 }}>
+          {labelsCorpusMode.content()}
+        </div>
+        <div data-slot="ct-labels-context" style={{ width: 300 }}>
+          {labelsCorpusMode.contextHeader()}
+          {reach?.body({ mode: "labels" })}
+        </div>
       </div>
     </CtDataProviders>
   );

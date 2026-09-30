@@ -52,7 +52,7 @@ interface GenerateDigestsArgs {
  *  120s request timeout. `presencePenalty` discourages the loop; `maxTokens` hard-caps it (and is the SAME
  *  value `outputReserve` fits the input against — one home, see there). A deliberate admin override (incl 0) wins. */
 function summarizerOpts(ctx: ChatContext): SummarizeOptions {
-  const s = ctx.memorySummarizer;
+  const s = ctx.memorySummarizer();
   return {
     maxOutputTokens: s.maxTokens ?? DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS,
     ...(s.temperature !== undefined ? { temperature: s.temperature } : {}),
@@ -118,7 +118,7 @@ async function summarizeBatchIsolated(
 /** The token-guard output reserve — the SAME `max_tokens` the summarize request sends (the one-home rule so
  *  the fit and the request can't diverge); unset ⇒ the baseline reserve. */
 function outputReserve(ctx: ChatContext): number {
-  return ctx.memorySummarizer.maxTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS;
+  return ctx.memorySummarizer().maxTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS;
 }
 
 /** The mutable tier-0 pass accumulator (the observability counts the build trace reports). */
