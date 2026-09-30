@@ -59,14 +59,14 @@ function mastheadTitle(totalCount: number, firstRun: boolean): string {
   if (totalCount === 0) {
     return "An empty house.";
   }
-  return firstRun ? "Welcome in." : `${roomCountPhrase(totalCount)}, still warm.`;
+  return firstRun ? "Welcome in" : `${roomCountPhrase(totalCount)}, still warm.`;
 }
 
 // IT DATES THE VIEWER'S OWN LAST TURN, never a room's activity: a friend who has just joined has left off nowhere,
 // and an account that spoke last week has not "left off" a minute ago because someone else posted.
 function mastheadLine(viewerLastTurnAt: number | null, firstRun: boolean): string {
   if (firstRun) {
-    return "Your room is below. Open it and say hello when you are ready.";
+    return "Choose a room to begin";
   }
   if (viewerLastTurnAt === null) {
     return "Start a room and this is where you will find your way back into it.";

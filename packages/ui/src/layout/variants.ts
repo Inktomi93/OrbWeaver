@@ -204,24 +204,6 @@ export const gridVariants = tv({
       // @orb-waive no-arbitrary-tw-values(@min-[100rem]:grid-cols-[1.5fr_1.05fr]): this layout recipe owns the documented grid-track composition; ends when a token expresses these tracks.
       // @orb-waive no-arbitrary-tw-values(@4xl:grid-cols-[1.55fr_1fr]): this layout recipe owns the documented grid-track composition; ends when a token expresses these tracks.
       lead: "grid-cols-1 @4xl:grid-cols-[1.55fr_1fr] @min-[100rem]:grid-cols-[1.5fr_1.05fr]",
-      // `lead`'s SECOND BREATH, taken all the way to EVEN (added 2026-08-18, #226). Same landing/reading
-      // shape and the same two required tracks — it differs only in what the >=100rem step resolves to,
-      // and it exists because `lead`'s 1.5fr/1.05fr leaves a rail whose own content is WIDTH-DRIVEN
-      // stranded a whole block short of the lead column. Measured on home's shipped registry (the
-      // width x appearance matrix in tests/client/features/home/surfaces/home-column-balance.ct.tsx):
-      // the rail's fixed-cell shelf drops from 3-per-row to 6-per-row and its footnote pair goes 2-up, so
-      // the two columns' feet come from 180px/192px/228px apart to 11px/3px/11px at a 1920/2560 pane —
-      // i.e. the rail stops being the thing that decides the page's height. `grid-cols-2` (a real
-      // `minmax(0,1fr)` pair) rather than `1fr 1fr`, so neither track is floored at its content's
-      // min-content width — the same trap `lead` needs `min-w-0` children to survive.
-      //
-      // It is a SEPARATE ARM, not a retune of `lead`, because `lead` has two other consumers
-      // (discovery's corpus home, and — until #1210 retired it — config's welcome hearth) whose content is not
-      // width-driven the way a face shelf is; changing the value under them would be a shared-value change with
-      // no measurement behind it. Reach for `leadEven` when the RAIL carries reflowing cell grids, `lead`
-      // when it carries prose.
-      // @orb-waive no-arbitrary-tw-values(@4xl:grid-cols-[1.55fr_1fr]): this layout recipe owns the documented grid-track composition; ends when a token expresses these tracks.
-      leadEven: "grid-cols-1 @4xl:grid-cols-[1.55fr_1fr] @min-[100rem]:grid-cols-2",
       // `lead`'s EARLIER FIRST BREATH (added 2026-08-18, #244 P1-2). Identical tracks at both steps; it
       // differs only in WHEN the split engages — `@3xl` (48rem/768px) instead of `@4xl` (56rem/896px).
       //
@@ -234,7 +216,7 @@ export const gridVariants = tv({
       // never a per-arm accident. `@3xl` clears the narrowest of those by 42px and still leaves the
       // three-pane state (484px) and the phone column stacked, which is where one column is right.
       //
-      // A SEPARATE ARM, not a retune of `lead`, for `leadEven`'s reason: `lead`'s other consumer WAS the
+      // A SEPARATE ARM, not a retune of `lead`: `lead`'s other consumer WAS the
       // config welcome hearth (retired by #1210), whose own CT declared the `@4xl` width as the one its split had
       // to engage at (`6b00c37fd^:tests/client/features/config/_ct-stories.tsx:215` — #1210 deleted that story with
       // the surface, so the claim is anchored to the SHA that carried it, never to today's file). Moving the
@@ -262,7 +244,7 @@ export const gridVariants = tv({
       // than a rank you scan. Three equal `1fr` columns spend that air on a third face at ~123px, which is
       // still a legible portrait and is the composition the mock draws.
       //
-      // A SEPARATE ARM, not a retune of `cellFixed` (the `leadEven`/`leadEarly` precedent): `cellFixed`'s
+      // A SEPARATE ARM, not a retune of `cellFixed` (the `leadEarly` precedent): `cellFixed`'s
       // other consumer is the chats HOME quick-picks shelf, which lives inside a home TILE — a box that is
       // already narrower than its pane, so a container-level `@max-md` would fire there at widths where the
       // fixed track is still correct. Reach for `cellShelf` when the shelf IS the pane's full width.

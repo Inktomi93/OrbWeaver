@@ -26,7 +26,7 @@ export {
 } from "./active-chat-store.ts";
 export { setAnalyticsSearchQuery, useAnalyticsSearchQuery } from "./analytics-search-store.ts";
 export { clearAnalyticsSelection, selectAnalyticsCharacterFromList, useSelectedAnalyticsCharacterId } from "./analytics-selection-store.ts";
-export type { AppearanceBootAxes, AppearanceBootHintState, SeedThemeName } from "./appearance-boot-hint.ts";
+export type { SeedThemeName } from "./appearance-boot-hint.ts";
 export {
   __resetAppearanceBootHint,
   DATA_THEME_ATTR,
@@ -36,13 +36,10 @@ export {
   rememberDataThemeHint,
   useAppearanceBootHint,
 } from "./appearance-boot-hint.ts";
-export type { AssembleChromeInput } from "./assemble-chrome.ts";
 export { assembleChrome } from "./assemble-chrome.ts";
 export { closeCharacterGallery, openCharacterGallery, useCharacterGalleryTarget } from "./character-gallery-store.ts";
-export type { CharacterViewMode } from "./character-library-store.ts";
 export {
   __resetTagFilter,
-  CHARACTER_VIEW_MODES,
   clearCharacterFilters,
   cycleTagFilter,
   setBulkMode,
@@ -104,7 +101,6 @@ export { CHROME_ZONES, mobileBarCuration, sheetOverflowChrome } from "./chrome-r
 export type { ChromeRegistry } from "./chrome-registry-context.ts";
 export { useChromeRegistry } from "./chrome-registry-context.ts";
 export { ChromeRegistryProvider } from "./chrome-registry-provider.tsx";
-export type { CommandPaletteSourceRegistry } from "./command-palette-source-registry-context.ts";
 export { CommandPaletteSourceRegistryContext } from "./command-palette-source-registry-context.ts";
 export { CommandPaletteSourceRegistryProvider } from "./command-palette-source-registry-provider.tsx";
 export {
@@ -136,9 +132,8 @@ export type {
   SettingTeachDecl,
 } from "./config-group-registry.ts";
 export { configAnchorId, configSettingControlId, isCollectionGroup, isPlaceholderGroup, isTeachNone, rendersOwnBody } from "./config-group-registry.ts";
-export type { ConfigLinkTarget } from "./config-link.ts";
 export { formatConfigLink, parseConfigLink } from "./config-link.ts";
-export type { ConfigTarget, ConfigVisibleSetting } from "./config-nav-store.ts";
+export type { ConfigVisibleSetting } from "./config-nav-store.ts";
 export {
   __resetConfigNav,
   clearActiveConfigGroup,
@@ -155,7 +150,7 @@ export {
 } from "./config-nav-store.ts";
 export type { ConfigRowAnnotation } from "./config-row-annotation.ts";
 export { ConfigRowAnnotationProvider, useConfigRowAnnotation } from "./config-row-annotation.ts";
-export type { ConfigModifiedMap, ConfigSearchMatch, ModifiedSettingIds, ModifiedSubIds } from "./config-search-store.ts";
+export type { ConfigModifiedMap } from "./config-search-store.ts";
 export {
   __resetConfigSearch,
   setConfigSearchMatch,
@@ -163,10 +158,9 @@ export {
   useConfigSearchMatch,
   useConfigSearchQuery,
 } from "./config-search-store.ts";
-export type { UnclaimedSettingsKey } from "./config-section-partition.ts";
 export { assertSettingsKeyPartition, UNCLAIMED_SETTINGS_KEYS } from "./config-section-partition.ts";
 // `ResolvedConfigSection` is deliberately absent: no importer outside `state/` reads it by name (#978).
-export type { AppSettingsClaimPath, ConfigSectionContribution, ConfigSectionPartition, SettingsKeyClaim } from "./config-section-registry.ts";
+export type { ConfigSectionContribution, ConfigSectionPartition, SettingsKeyClaim } from "./config-section-registry.ts";
 export { configSectionNavParts, configSectionNavs, resolveConfigSections } from "./config-section-registry.ts";
 export type { ConfigSectionRegistry } from "./config-section-registry-context.ts";
 // The bare context rides out beside the throwing hook for the SANCTIONED nullable read (`use(Context)`,
@@ -201,11 +195,11 @@ export {
 } from "./corpus-selection-store.ts";
 export type { DrillSelectionStore, PrimaryDrillStore } from "./create-drill-selection-store.ts";
 export { createDrillSelectionStore } from "./create-drill-selection-store.ts";
-export type { EntityDraftStore, EntityDraftStoreConfig } from "./create-entity-draft-store.ts";
+export type { EntityDraftStore } from "./create-entity-draft-store.ts";
 export { createEntityDraftStore } from "./create-entity-draft-store.ts";
 export type { GatedSet, GatedStoreHook } from "./create-gated-store.ts";
 export { createGatedStore, STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
-export type { KindedDrillStore, KindedSelection } from "./create-kinded-selection-store.ts";
+export type { KindedSelection } from "./create-kinded-selection-store.ts";
 export { createKindedSelectionStore } from "./create-kinded-selection-store.ts";
 export type { PersistedStoreOptions } from "./create-persisted-store.ts";
 export { createPersistedStore } from "./create-persisted-store.ts";
@@ -213,7 +207,6 @@ export { createPersistedStore } from "./create-persisted-store.ts";
 // (owner ruling 2026-08-13), so its home is `@orb/contracts/databank` and every consumer reads it from there.
 export { clearDatabankPhaseFilter, setDatabankPhaseFilter, useDatabankPhaseFilter } from "./databank-filter-store.ts";
 export { clearDocumentSelection, databankSectionSelection, selectDocumentFromList, useSelectedDocumentId } from "./databank-selection-store.ts";
-export type { DeploymentBootHintState } from "./deployment-boot-hint.ts";
 export { __resetDeploymentBootHint, rememberMultiHumanCapable, useMultiHumanCapableHint } from "./deployment-boot-hint.ts";
 // `draft-config-store.ts` was DELETED 2026-08-14 (D166): it held a
 // whole second config model — greetings, roster overrides, group config, room overrides, injections,
@@ -231,10 +224,8 @@ export {
 } from "./durable-local.ts";
 export {
   GAME_MODE_KEPT_LINE,
-  GAME_MODE_OFF_ANNOUNCEMENT,
   GAME_MODE_OFF_KICKER,
   GAME_MODE_OFF_LABEL,
-  GAME_MODE_ON_ANNOUNCEMENT,
   GAME_MODE_ON_LABEL,
   GAME_MODE_RESUME_LABEL,
   onGameModeStarted,
@@ -264,7 +255,6 @@ export {
   useImagineSeed,
 } from "./imagery-store.ts";
 export { clearLabelSelection, selectLabel, selectLabelFromList, setLabelNameFocus, useLabelNameFocus, useSelectedLabelId } from "./label-selection-store.ts";
-export type { ListFlipCarry } from "./list-flip-carry.ts";
 export { collapseListPanel, dockListPanel, registerListFlipCarry } from "./list-flip-carry.ts";
 export {
   __readMessageEditDraftForTest,
@@ -285,15 +275,9 @@ export {
   useSelectedCount,
   useSelectionActive,
 } from "./message-selection-store.ts";
-export type { MessageToolsRendererRegistry } from "./message-tools-renderer-registry-context.ts";
 export { MessageToolsRendererRegistryContext } from "./message-tools-renderer-registry-context.ts";
 export { MessageToolsRendererRegistryProvider } from "./message-tools-renderer-registry-provider.tsx";
-export type {
-  ModalDefinition,
-  ModalTrigger,
-  ModalTriggerPlacement,
-} from "./modal-registry.ts";
-export { MODAL_TRIGGER_PLACEMENTS } from "./modal-registry.ts";
+export type { ModalDefinition } from "./modal-registry.ts";
 export type { ModalRegistry } from "./modal-registry-context.ts";
 export { useModalRegistry } from "./modal-registry-context.ts";
 export { ModalRegistryProvider } from "./modal-registry-provider.tsx";
@@ -301,8 +285,7 @@ export type { ModalSlotId } from "./modal-slot-ids.ts";
 export { MODAL_SLOT_IDS } from "./modal-slot-ids.ts";
 export { publishNoticeBand, useNoticeBand } from "./notice-band-store.ts";
 export type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.ts";
-export { PANEL_MODES, resolvePanelMode } from "./panel-resolve.ts";
-export type { PluginCommandArgsSubject } from "./plugin-command-args-store.ts";
+export { resolvePanelMode } from "./panel-resolve.ts";
 export {
   __readPluginCommandArgsSubjectForTest,
   __resetPluginCommandArgs,
@@ -310,7 +293,6 @@ export {
   openPluginCommandArgs,
   usePluginCommandArgsSubject,
 } from "./plugin-command-args-store.ts";
-export type { PluginDialogSubject } from "./plugin-dialog-store.ts";
 export { __readPluginDialogSubjectForTest, __resetPluginDialog, clearPluginDialog, openPluginDialog, usePluginDialogSubject } from "./plugin-dialog-store.ts";
 export type { PluginPageKey } from "./plugin-page-selection-store.ts";
 export {
@@ -388,12 +370,8 @@ export type { SectionId } from "./section-ids.ts";
 export { isSectionId, RETIRED_SECTION_HEAL, resolveSectionPath, SECTION_IDS } from "./section-ids.ts";
 export { LIST_OFF_SCREEN_HINT, useSectionHasSelection, useSectionListIsScreen, useSectionListMode } from "./section-list-projection.ts";
 export type {
-  RailEntry,
   RailZone,
   SectionDefinition,
-  SectionGroup,
-  SectionPanelAvailability,
-  SectionPlaceholderCopy,
   SectionSelection,
 } from "./section-registry.ts";
 export { NO_SELECTION_TITLE, RAIL_ZONES, SECTION_GROUPS } from "./section-registry.ts";

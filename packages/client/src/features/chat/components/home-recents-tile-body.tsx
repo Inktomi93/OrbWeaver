@@ -33,12 +33,14 @@ import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, MessagesSquare, Plus } from "@orb/ui/icons";
+import { Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { openNewChatPicker, selectChatFromList, setActiveSection } from "#state";
 import { usePrefetchRoom } from "../hooks/use-prefetch-room.ts";
 import { splitHearth } from "../lib/home-hearth.ts";
+import { RECENTS_EMPTY_BLOCK_PX } from "../lib/home-recents-reservation.ts";
 import { HomeHearthRoom } from "./home-hearth-room.tsx";
 
 /** How many recents this tile shows — AND, through the contribution's `skeletonRows`, how many rows its
@@ -67,17 +69,19 @@ export function HomeRecentsTileBody(): ReactElement {
   // this used to index into is gone, and a room whose seats have no portrait simply has no bleed.
   if (hearth === undefined) {
     return (
-      <EmptyState
-        action={
-          <Button intent="secondary" onClick={(): void => openNewChatPicker()} size="sm">
-            <Icon icon={Plus} size="sm" />
-            New chat
-          </Button>
-        }
-        description="Your threads land here the moment you start one."
-        icon={<Icon icon={MessagesSquare} size="lg" />}
-        title="No chats yet"
-      />
+      <Stack justify="center" style={{ minBlockSize: RECENTS_EMPTY_BLOCK_PX }}>
+        <EmptyState
+          action={
+            <Button intent="secondary" onClick={(): void => openNewChatPicker()} size="sm">
+              <Icon icon={Plus} size="sm" />
+              New chat
+            </Button>
+          }
+          description="Your threads land here the moment you start one."
+          icon={<Icon icon={MessagesSquare} size="lg" />}
+          title="No chats yet"
+        />
+      </Stack>
     );
   }
 

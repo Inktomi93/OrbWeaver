@@ -532,9 +532,12 @@ export async function loadViewerLastTurns(db: Db, chatIds: readonly ChatId[], us
  *  library list stays one page = a fixed number of reads. Same VISIBILITY predicate as
  *  {@link loadChatMessageStats} (the selected-variant join), so the row that sets `lastMessageAt`
  *  is the row that supplies the preview. A chat with no visible message is absent from the map. */
-export async function loadChatLastMessages(db: Db, chatIds: readonly ChatId[]): Promise<Map<ChatId, { seq: number; content: string }>> {
+export async function loadChatLastMessages(
+  db: Db,
+  chatIds: readonly ChatId[],
+): Promise<Map<ChatId, Pick<MessageView, "seq" | "content" | "characterId" | "personaId">>> {
   // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for the per-chat last message. Ends if it outlives the call.
-  const out = new Map<ChatId, { seq: number; content: string }>();
+  const out = new Map<ChatId, Pick<MessageView, "seq" | "content" | "characterId" | "personaId">>();
   if (chatIds.length === 0) {
     return out;
   }
@@ -543,15 +546,20 @@ export async function loadChatLastMessages(db: Db, chatIds: readonly ChatId[]): 
       chatId: messages.chatId,
       seq: messages.seq,
       content: messageVariants.content,
+      characterId: messages.characterId,
+      personaId: messages.personaId,
       rn: sql<number>`row_number() over (partition by ${messages.chatId} order by ${messages.seq} desc)`.as("rn"),
     })
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(inArray(messages.chatId, [...chatIds]))
     .as("ranked");
-  const rows = await db.select({ chatId: ranked.chatId, seq: ranked.seq, content: ranked.content }).from(ranked).where(eq(ranked.rn, 1));
+  const rows = await db
+    .select({ chatId: ranked.chatId, seq: ranked.seq, content: ranked.content, characterId: ranked.characterId, personaId: ranked.personaId })
+    .from(ranked)
+    .where(eq(ranked.rn, 1));
   for (const r of rows) {
-    out.set(r.chatId, { seq: r.seq, content: r.content });
+    out.set(r.chatId, { seq: r.seq, content: r.content, characterId: r.characterId, personaId: r.personaId });
   }
   return out;
 }

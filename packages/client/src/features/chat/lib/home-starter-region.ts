@@ -28,7 +28,9 @@ export function useStarterRegion(): HomeTileRegion | null {
   // While the tile is held its body is unmounted, so its faces read would wait behind the room list. Start it here.
   usePrefetchQuery(trpc.character.list.queryOptions({ limit: QUICK_PICKS_LIMIT }));
   const remembered = useRememberedHomeRegion(QUICK_PICKS_TILE_ID);
-  const settled = page === undefined ? undefined : regionFor(page.totalCount);
+  const unreachable = chats.isError || chats.isPaused;
+  const fallback = unreachable ? (remembered ?? "hearth") : undefined;
+  const settled = page === undefined ? fallback : regionFor(page.totalCount);
   useEffect(() => {
     if (settled !== undefined) {
       rememberHomeRegion(QUICK_PICKS_TILE_ID, settled);
@@ -36,6 +38,5 @@ export function useStarterRegion(): HomeTileRegion | null {
   }, [settled]);
   // A room list that failed or is waiting for the network may not arrive for a long time, and holding the tile keeps
   // the whole shelf invisible, so it falls back to the hearth, the new account's column.
-  const unreachable = chats.isError || chats.isPaused;
-  return settled ?? remembered ?? (unreachable ? "hearth" : null);
+  return settled ?? remembered ?? null;
 }

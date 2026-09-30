@@ -120,7 +120,8 @@ test("an account that has never spoken gets the first-run title and line, never 
   await routeTrpc(page, { "chat.listChats": chatListResponder([joined]) });
 
   const home = await mount(<ChatMastheadTileStory />);
-  await expect(home.getByRole("heading", { level: 1 })).toHaveText("Welcome in.");
+  await expect(home.getByRole("heading", { level: 1 })).toHaveText("Welcome in");
+  await expect(home.getByText("Choose a room to begin", { exact: true })).toBeVisible();
   await expect(home.getByText(LEFT_OFF)).toHaveCount(0);
 });
 

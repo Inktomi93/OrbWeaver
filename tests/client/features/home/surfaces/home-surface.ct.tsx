@@ -811,9 +811,7 @@ test("#835 the read-less jump tile keeps its own box across every neighbour's re
 // The masthead now reserves through its own `skeleton` (wrapping copy has no px constant), and is kept in
 // the list because its box must still match here.
 //
-// The tiles NOT listed here keep `skeletonRows` on purpose: `chat.recents` / `chat.alsoOpen` /
-// `databank.documents` settle into N rows of whatever came back, so no static number is right for both a
-// full and a sparse library (the ruling above — reserve the fullest page, accept the shrink).
+// Populated room and document tiles have data-dependent boxes. The empty recents reservation has its own case below.
 const EXACTLY_RESERVED_TILES = ["chat.masthead", "chat.quickPicks", "chat.tempChat"] as const;
 /** Sub-pixel layout rounding only — the declarations are integers against fractional settled boxes. */
 const EXACT_RESERVATION_EPSILON_PX = 1;
@@ -873,6 +871,21 @@ test("#177 a tile whose settled box is a CONSTANT reserves it exactly — no res
   for (const [id, delta] of Object.entries(drift)) {
     expect(Math.abs(delta), `${id} moved ${String(delta)}px between its reserved box and its settled one`).toBeLessThanOrEqual(EXACT_RESERVATION_EPSILON_PX);
   }
+});
+
+test("the empty recents block has zero drift from its declared first-boot reservation", async ({ mount, page }) => {
+  const chats = trpcHold();
+  await stubStarterBoot(page, chats);
+  const home = await mount(<HomeRememberedStarterStory inlineSize={TWO_COLUMN_PANE_PX} region="hearth" />);
+  await chats.requested;
+  const recents = home.locator('[data-home-tile="chat.recents"]');
+  await expect(recents.locator("[aria-busy]")).toBeVisible();
+  const reserved = (await recents.boundingBox())?.height ?? 0;
+  expect(reserved).toBeGreaterThan(0);
+  chats.release(chatListResponder([])({ limit: RECENTS_LIMIT }));
+  await expect(recents.getByText("No chats yet", { exact: true })).toBeVisible();
+  await expect(recents.locator("[aria-busy]")).toHaveCount(0);
+  await expect.poll(async () => (await recents.boundingBox())?.height ?? 0).toBe(reserved);
 });
 
 // ── The masthead's first-boot box at a phone width ─────────────────────────────────────────────────
@@ -1880,6 +1893,34 @@ test("#1130 the jump rail's population is width-invariant — the wrap re-flows,
 /** A pane wide enough for two columns at the default rem: the widest matrix width, less the rail. */
 const TWO_COLUMN_PANE_PX = 2504;
 
+const EMPTY_HOUSE_REGIONS = {
+  "chat.masthead": "masthead",
+  "chat.recents": "hearth",
+  "chat.quickPicks": "hearth",
+  "chat.tempChat": "shelf",
+  "databank.documents": "shelf",
+  "home.jump": "hearth",
+} as const;
+
+async function homeRegions(page: Page): Promise<Record<string, string>> {
+  return await page.evaluate(
+    (ids) =>
+      Object.fromEntries(
+        ids.map((id) => {
+          const tile = document.querySelector(`[data-home-tile="${id}"]`);
+          if (tile === null) {
+            return [id, "absent"];
+          }
+          if (tile.closest("[data-home-grid]") === null) {
+            return [id, "masthead"];
+          }
+          return [id, tile.closest("[data-home-shelf]") === null ? "hearth" : "shelf"];
+        }),
+      ),
+    Object.keys(EMPTY_HOUSE_REGIONS),
+  );
+}
+
 interface StarterPlacement {
   readonly column: "hearth" | "shelf" | "absent";
   readonly sameNode: boolean;
@@ -1960,6 +2001,7 @@ test("a device with no memory holds Start with out of both columns until the roo
   await chats.requested;
   await expect(home.locator('[data-home-tile="chat.recents"] [aria-busy]')).toBeVisible();
   const held = await starterPlacement(page, false);
+  expect((await homeRegions(page))["chat.quickPicks"]).toBe("absent");
   // The shelf paints nothing while held: on a house with rooms the tile lands at its top and would push it down.
   await expect(home.locator("[data-home-shelf]")).toBeHidden();
 
@@ -1971,6 +2013,10 @@ test("a device with no memory holds Start with out of both columns until the roo
   const settled = await starterPlacement(page, false);
 
   expect({ held: held.column, placed: placed.column, settled }).toEqual({ held: "absent", placed: "hearth", settled: { column: "hearth", sameNode: true } });
+  await expect.poll(() => homeRegions(page)).toEqual(EMPTY_HOUSE_REGIONS);
+  // The closed expected id set catches a late tile that never mounts, rather than sampling only present nodes.
+  await home.locator('[data-home-tile="chat.quickPicks"]').evaluate((tile) => tile.remove());
+  expect(await homeRegions(page)).toEqual({ ...EMPTY_HOUSE_REGIONS, "chat.quickPicks": "absent" });
 });
 
 test("a device with no memory whose room list fails shows the shelf, with Start with in the hearth", async ({ mount, page }) => {
@@ -1985,6 +2031,30 @@ test("a device with no memory whose room list fails shows the shelf, with Start 
   await expect(home.locator('[data-home-tile="chat.recents"] [data-slot="query-error"]')).toBeVisible();
   await expect(home.locator("[data-home-shelf]")).toBeVisible();
   await expect.poll(async () => (await starterPlacement(page, false)).column).toBe("hearth");
+});
+
+test("a failed room list keeps the fallback shelf visible while Recents Retry waits", async ({ mount, page }) => {
+  const retry = trpcHold();
+  let reads = 0;
+  await page.setViewportSize({ width: 2560, height: 1000 });
+  await stubDatabank(page, {
+    ...HOME_ROUTES,
+    "chat.listChats": () => (++reads === 1 ? trpcError() : retry),
+    "chat.reapTemporaryChats": { reaped: 0 },
+    "character.list": characterListResponder(FIRST_BOOT_FACES),
+    "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
+  });
+  const home = await mount(<HomeRememberedStarterStory inlineSize={TWO_COLUMN_PANE_PX} region={null} />);
+  const recents = home.locator('[data-home-tile="chat.recents"]');
+  await expect(recents.locator('[data-slot="query-error"]')).toBeVisible();
+  await expect(home.locator("[data-home-shelf]")).toBeVisible();
+  await starterPlacement(page, true);
+  await recents.getByRole("button", { name: "Retry", exact: true }).click();
+  await retry.requested;
+  await expect(home.locator("[data-home-shelf]")).toBeVisible();
+  await expect.poll(async () => await starterPlacement(page, false)).toEqual({ column: "hearth", sameNode: true });
+  retry.release(chatListResponder([])({ limit: RECENTS_LIMIT }));
+  await expect(recents.getByText("No chats yet")).toBeVisible();
 });
 
 test("a device that last saw Start with on the shelf paints it there, and a house with rooms keeps it there", async ({ mount, page }) => {
@@ -2157,6 +2227,82 @@ const FOCUS_RING_REACH_PX = 4;
 
 test.describe("Start with on a phone", () => {
   test.use({ hasTouch: true, viewport: { width: 360, height: 800 } });
+
+  test("the narrow empty recents block has zero drift with its coarse pointer unchanged", async ({ mount, page }) => {
+    const chats = trpcHold();
+    await stubDatabank(
+      page,
+      {
+        ...HOME_ROUTES,
+        "chat.listChats": chats,
+        "chat.reapTemporaryChats": { reaped: 0 },
+        "character.list": characterListResponder(FIRST_BOOT_FACES),
+        "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
+      },
+      [],
+    );
+    const home = await mount(<HomeShippedFirstBootStory inlineSize={PHONE_CONTENT_PX} />);
+    await chats.requested;
+    const recents = home.locator('[data-home-tile="chat.recents"]');
+    const pointer = (): Promise<{ readonly coarse: boolean; readonly touchPoints: number }> =>
+      page.evaluate(() => ({ coarse: matchMedia("(pointer: coarse)").matches, touchPoints: navigator.maxTouchPoints }));
+    await expect.poll(pointer).toEqual({ coarse: true, touchPoints: 1 });
+    await expect(recents.locator("[aria-busy]")).toBeVisible();
+    await expect.poll(async () => (await recents.boundingBox())?.width).toBe(296);
+    const reserved = await recents.boundingBox();
+    expect(reserved?.height ?? 0).toBeGreaterThan(0);
+    chats.release(chatListResponder([])({ limit: RECENTS_LIMIT }));
+    await expect(recents.getByText("No chats yet", { exact: true })).toBeVisible();
+    await expect(recents.locator("[aria-busy]")).toHaveCount(0);
+    await expect.poll(async () => (await recents.boundingBox())?.height ?? 0).toBe(reserved?.height);
+    await expect.poll(pointer).toEqual({ coarse: true, touchPoints: 1 });
+  });
+
+  test("tapping a partly visible face delivers its click without the keyboard reveal scrolling it first", async ({ mount, page }) => {
+    await stubDatabank(
+      page,
+      {
+        ...HOME_ROUTES,
+        "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
+        "chat.reapTemporaryChats": { reaped: 0 },
+        "character.list": characterListResponder(FIRST_BOOT_FACES),
+        "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
+      },
+      [],
+    );
+    const home = await mount(<HomeShippedFirstBootStory inlineSize={PHONE_CONTENT_PX} />);
+    const list = home.getByRole("list", { name: "Character quick-picks" });
+    const face = list.getByRole("button").nth(2);
+    await expect(list.getByRole("listitem")).toHaveCount(QUICK_PICKS_FACES);
+    await expect.poll(() => list.evaluate((el) => (el.parentElement?.scrollWidth ?? 0) > (el.parentElement?.clientWidth ?? 0))).toBe(true);
+    await home.locator('[data-home-tile="chat.quickPicks"]').scrollIntoViewIfNeeded();
+    const point = await face.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      const row = el.closest('[role="list"]')?.parentElement;
+      const clip = row?.getBoundingClientRect();
+      if (row === undefined || row === null || clip === undefined || rect.right <= clip.right || rect.left >= clip.right) {
+        throw new Error("the target face must be partly visible");
+      }
+      const before = row.scrollLeft;
+      el.addEventListener(
+        "click",
+        (event) => {
+          // Isolate focus from the async room creation; the other Home CTs exercise that navigation.
+          event.stopPropagation();
+          el.setAttribute("data-ct-tap-scroll", String(row.scrollLeft - before));
+        },
+        { once: true },
+      );
+      const x = (rect.left + clip.right) / 2;
+      const y = rect.top + rect.height / 2;
+      if (document.elementFromPoint(x, y)?.closest("button") !== el) {
+        throw new Error("the tap point must hit the partly visible face");
+      }
+      return { x, y };
+    });
+    await page.touchscreen.tap(point.x, point.y);
+    await expect(face).toHaveAttribute("data-ct-tap-scroll", "0");
+  });
 
   test("is one swipe row of every face, snapping, with the door last", async ({ mount, page }) => {
     await stubDatabank(

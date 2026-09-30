@@ -76,13 +76,13 @@ test("the hero is the room the viewer spoke in last, even below a busier room th
   await expect(home.locator('[data-home-tile="chat.alsoOpen"]').getByText("Where I was")).toHaveCount(0);
 });
 
-test("an account that has never spoken names the hero band as its first room, not a room to pick up", async ({ mount, page }) => {
+test("an account that has never spoken names the hero band Your rooms", async ({ mount, page }) => {
   const joined = makeChatSummary({ id: "chat_joined", title: "Tavern Night", viewerLastTurnAt: null });
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([joined]) });
 
   const home = await mount(<ChatRecentsPairStory />);
   const band = home.locator('[data-home-tile="chat.recents"]');
-  await expect(band.getByRole("heading", { level: 2 })).toHaveText("Your first room");
+  await expect(band.getByRole("heading", { level: 2 })).toHaveText("Your rooms");
   await expect(band.locator('[data-home-hearth="chat_joined"]')).toBeVisible();
 });
 
