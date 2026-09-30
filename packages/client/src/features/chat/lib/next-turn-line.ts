@@ -28,13 +28,16 @@ export interface NextTurnInputs {
 const NEXT_TURN_STATES = ["named", "checking", "unset", "failed"] as const;
 type NextTurnState = (typeof NEXT_TURN_STATES)[number];
 
-// A door after the line's sentence: `lead` is prose, `label` is the control that opens Model roles.
+// A door after the line's sentence: `lead` is prose, `label` is the control, and `sub` + `setting` name the
+// Settings → Connections leaf it lands on.
 interface NextTurnDoor {
   readonly lead: string;
   readonly label: string;
+  readonly sub: string;
+  readonly setting: string;
 }
 
-/** The line's sentence, its state, and the Model roles door when the viewer can fix the state there. */
+/** The line's sentence, its state, and the Settings door when the viewer can fix the state there. */
 export interface NextTurnLine {
   readonly state: NextTurnState;
   readonly text: string;
@@ -43,7 +46,26 @@ export interface NextTurnLine {
 
 const CHECKING: NextTurnLine = { state: "checking", text: "Next reply: checking the connection…", door: undefined };
 const FAILED: NextTurnLine = { state: "failed", text: "Next reply: the connection couldn't be checked.", door: undefined };
-const MODEL_ROLES_DOOR: NextTurnDoor = { lead: `Choose one under ${MODEL_ROLES_PATH.trail} →`, label: MODEL_ROLES_PATH.leaf };
+// The sub and setting literals are the house spelling of a settings deep link: a feature never imports
+// another's nav.
+const MODEL_ROLES_DOOR: NextTurnDoor = {
+  lead: `Choose one under ${MODEL_ROLES_PATH.trail} →`,
+  label: MODEL_ROLES_PATH.leaf,
+  sub: "model-roles",
+  setting: "chat-model",
+};
+const ADD_CONNECTION_DOOR: NextTurnDoor = { lead: `${MODEL_ROLES_PATH.trail} →`, label: "Add a connection", sub: "connections", setting: "add-connection" };
+
+// The Chat picker in Model roles offers only the host's connections that can serve chat, so a host with none
+// goes to the add flow; built-in embedding rows do not count. While the list loads there is no door: a door
+// that swaps under the pointer is worse than a late one.
+function hostUnsetLine({ rows, failed }: CreditConnections): NextTurnLine {
+  if (rows !== undefined && !rows.some((row) => row.tasks.includes("chat"))) {
+    return { state: "unset", text: "Next reply: none of your connections can chat yet.", door: ADD_CONNECTION_DOOR };
+  }
+  const door = rows === undefined && !failed ? undefined : MODEL_ROLES_DOOR;
+  return { state: "unset", text: "Next reply: no chat connection is set.", door };
+}
 
 /**
  * Whether the line states this send refusal. For such a cause the line is the room's one statement of it,
@@ -77,7 +99,7 @@ export function nextTurnLine(inputs: NextTurnInputs): NextTurnLine {
   if (nextTurnStatesRefusal(inputs.availabilityCause)) {
     // Only a known host can fix this in their own settings; an unknown viewer may be a member.
     if (inputs.viewerIsHost === true) {
-      return { state: "unset", text: "Next reply: no chat connection is set.", door: MODEL_ROLES_DOOR };
+      return hostUnsetLine(inputs.connections);
     }
     return inputs.viewerIsHost === false
       ? { state: "unset", text: "Next reply: the host has no chat connection set.", door: undefined }

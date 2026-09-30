@@ -219,7 +219,8 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   // per ROOM, not per row — and they are gated to the window, so a settled chat makes none at all.
   const greetingWindowOpen = isGreetingWindowOpen(messages);
   const seatedCharacterIds = [...participants.keys()];
-  const greetingAlternates = useGreetingAlternates(seatedCharacterIds, greetingWindowOpen);
+  // Stepping a greeting is a host verb, and a member cannot read the host's cards: only the host reads them.
+  const greetingAlternates = useGreetingAlternates(seatedCharacterIds, greetingWindowOpen && chatDetail.viewerIsHost === true);
   const items = useMessageItems(messages, chatId);
   // Only rows that genuinely arrived this render get an enter transition — a windowed row remounts on
   // every scrollback, so "mounted" != "new".

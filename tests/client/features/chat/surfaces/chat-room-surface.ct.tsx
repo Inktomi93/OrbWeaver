@@ -19,9 +19,10 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
+import { waitFrames } from "../../../../support/browser/weave-drive.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ChatRoomEntryStory, ChatRoomGreetingWindowStory, ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
@@ -810,6 +811,17 @@ const ALT_2 = "Rain, again.";
 const ALTERNATES = [ALT_0, ALT_1, ALT_2];
 const GREETING_ID = castId<MessageId>("msg_room_seeded_greeting");
 
+const GREETING_ROOM = {
+  participants: [
+    { id: "cp_greeter", kind: "character", characterId: GREETING_CHARACTER, displayName: "Aria", avatarHash: null, leftSeq: null, role: "member" },
+  ],
+  anchorPersonaId: null,
+  identities: [],
+  group: DEFAULT_GROUP_CONFIG,
+  // Stepping a greeting is a host verb, so the host is the viewer who reads the alternates.
+  viewerIsHost: true,
+} as const;
+
 /** A room whose canon is ONE seeded greeting and NO user row — the malleable window, and the state a
  *  just-created room is in. `alternateIdx` moves the served canon, standing in for the write the verb makes. */
 function greetingWindowRoutes(alternateIdx: number): TrpcRoutes<"chat.listMessages" | "chat.getChat" | "character.get" | "chat.setSeededGreeting"> {
@@ -826,14 +838,7 @@ function greetingWindowRoutes(alternateIdx: number): TrpcRoutes<"chat.listMessag
           seq: 1,
         }),
       ]),
-    "chat.getChat": () => ({
-      participants: [
-        { id: "cp_greeter", kind: "character", characterId: GREETING_CHARACTER, displayName: "Aria", avatarHash: null, leftSeq: null, role: "member" },
-      ],
-      anchorPersonaId: null,
-      identities: [],
-      group: DEFAULT_GROUP_CONFIG,
-    }),
+    "chat.getChat": () => GREETING_ROOM,
     // The card is where the ALTERNATES live — the strip reads them to know how many there are and which one
     // is showing; the server re-reads the same card to resolve the index it is handed.
     "character.get": () => ({
@@ -944,6 +949,24 @@ test("a room PAST its first user turn offers no greeting step — the window is 
 
   await expect(component.locator(BUBBLE).first()).toContainText(ALT_0);
   await expect(component.getByRole("button", { name: "Next greeting" })).toHaveCount(0);
+});
+
+test("a member in the greeting window never reads the host's cards: only the host may step a greeting", async ({ mount, page }) => {
+  // The host's card is owner-scoped, so a member's read can only fail, and each failure retries.
+  const trpc = await routeTrpc(page, {
+    ...greetingWindowRoutes(0),
+    "chat.getChat": () => ({ ...GREETING_ROOM, viewerIsHost: false }),
+    "character.get": trpcError({ code: "NOT_FOUND", message: "character not found" }),
+  });
+
+  const component = await mount(<ChatRoomGreetingWindowStory />);
+
+  await expect(component.locator(BUBBLE).first()).toContainText(ALT_0);
+  await expect.poll(() => trpc.count("chat.getChat")).toBeGreaterThan(0);
+  // The reads would fire in the commit after the room read lands; give that commit a few frames to happen.
+  await waitFrames(page, 6);
+  await expect(component.getByRole("button", { name: "Next greeting" })).toHaveCount(0);
+  await expect.poll(() => trpc.count("character.get")).toBe(0);
 });
 
 // ── THE APPEARANCE KNOBS, RE-HOMED ON A COMMITTED ROW ──────────────────────────────────────────────
