@@ -3,6 +3,7 @@
 // at the broker's DB-backed runtime lease and command queue, never inside a Worker-local promise table.
 
 import { AsyncLocalStorage } from "node:async_hooks";
+import process from "node:process";
 import type { MessagePort } from "node:worker_threads";
 import { parentPort, workerData } from "node:worker_threads";
 import type { PluginHandlerRef, PluginInstance, PluginInvocationLiveness, PluginInvokeArgs } from "@orb/contracts/plugin";
@@ -37,6 +38,12 @@ function requireParentPort(): MessagePort {
 }
 
 const port = requireParentPort();
+
+// The permission model does not inherit to a Worker, so guest code could start a fresh Worker with no grants and
+// reach the filesystem through it. Drop this Worker's own permission to start Workers before any guest code loads.
+// Defense in depth only; the complete fix is a separate OS user for the broker (container-deployment-security §4).
+// `drop` is newer than this package's `@types/node`, so it is reached through an optional-shape cast.
+(process.permission as unknown as { drop?: (scope: string) => boolean } | undefined)?.drop?.("worker");
 
 const identity = workerData as WorkerIdentity;
 const commandAuthority = new AsyncLocalStorage<string>();

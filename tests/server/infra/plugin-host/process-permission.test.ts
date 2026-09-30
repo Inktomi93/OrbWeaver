@@ -31,6 +31,9 @@ interface ProbeReport {
   readonly workerReads: Readonly<Record<string, string>>;
   readonly workerSqlite: Readonly<Record<string, string>>;
   readonly spawn: string;
+  readonly mainNested: string;
+  readonly workerNestedBeforeDrop: string;
+  readonly workerNestedAfterDrop: string;
 }
 
 let broker: ChildProcess | undefined;
@@ -120,11 +123,17 @@ test("a broker under its permission flags is denied the data dir, .env and proce
     expect(Object.fromEntries(denied.map((path) => [path, reads[path]]))).toEqual(Object.fromEntries(denied.map((path) => [path, DENIED])));
     expect(Object.fromEntries(allowed.map((path) => [path, reads[path]]))).toEqual(Object.fromEntries(allowed.map((path) => [path, "allowed"])));
   }
-  // `--no-experimental-sqlite` removes the builtin, so the open throws `ERR_UNKNOWN_BUILTIN_MODULE`, not `allowed`.
+  // `--no-experimental-sqlite` removes the builtin: `getBuiltinModule` returns undefined, so the probe's open throws a
+  // TypeError before it reaches a path.
   for (const sqlite of [report.sqlite, report.workerSqlite]) {
     expect(sqlite[dbPath]).not.toBe("allowed");
     expect(sqlite[dataKey]).not.toBe("allowed");
   }
   expect(report.spawn).toBe(DENIED);
+  // A guest Worker can start a Worker with `execArgv: []` that runs with no permission model, until it drops the
+  // `worker` permission (`worker-runtime.ts`); the broker's main thread keeps that permission to launch guests.
+  expect(report.workerNestedBeforeDrop).toMatch(/^read:/u);
+  expect(report.workerNestedAfterDrop).toBe(`denied:${DENIED}`);
+  expect(report.mainNested).toMatch(/^read:/u);
   expect(await authenticates(socketPath, token)).toBe(true);
 });

@@ -39,6 +39,8 @@ interface ProbeReport {
   readonly sqlite: Readonly<Record<string, string>>;
   readonly workerReads: Readonly<Record<string, string>>;
   readonly workerSqlite: Readonly<Record<string, string>>;
+  readonly workerNestedBeforeDrop: string;
+  readonly workerNestedAfterDrop: string;
 }
 
 const directory = mkdtempSync(join(tmpdir(), "orb-broker-containment-"));
@@ -91,8 +93,16 @@ const failures = [
     ...allowed.filter((path) => reads[path] !== "allowed").map((path) => `${thread} could not read ${path}: ${String(reads[path])}`),
     ...sqliteTargets.filter((path) => sqlite[path] === "allowed").map((path) => `${thread} opened ${path} through node:sqlite`),
   ]),
+  // A guest Worker drops the `worker` permission before QuickJS loads, so it can no longer start a Worker that would
+  // run with no permission model. It could before the drop; that this Node build supports the drop is the guard.
+  ...(report.workerNestedBeforeDrop.startsWith("read:")
+    ? []
+    : [`the guest Worker could not start a nested Worker even before the drop: ${report.workerNestedBeforeDrop}`]),
+  ...(report.workerNestedAfterDrop === `denied:${DENIED}`
+    ? []
+    : [`the guest Worker still started a nested Worker after dropping the worker permission: ${report.workerNestedAfterDrop}`]),
 ];
 process.stdout.write(
-  `${JSON.stringify({ walks, sqliteTargets, reads: report.reads, sqlite: report.sqlite, workerReads: report.workerReads, workerSqlite: report.workerSqlite, failures }, null, 2)}\n`,
+  `${JSON.stringify({ walks, sqliteTargets, reads: report.reads, sqlite: report.sqlite, workerReads: report.workerReads, workerSqlite: report.workerSqlite, workerNestedBeforeDrop: report.workerNestedBeforeDrop, workerNestedAfterDrop: report.workerNestedAfterDrop, failures }, null, 2)}\n`,
 );
 process.exitCode = failures.length === 0 ? 0 : 1;
