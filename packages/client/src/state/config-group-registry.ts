@@ -219,6 +219,12 @@ export function configAnchorId(groupId: ConfigGroupId, subId: string): string {
   return `config-anchor-${groupId}-${subId}`;
 }
 
+/** The DOM id of a setting leaf's own control — the element a setting-level landing focuses. A section
+ *  stamps it on the control a deep link to that leaf means; a leaf without one keeps focus where it was. */
+export function configSettingControlId(groupId: ConfigGroupId, settingId: string): string {
+  return `config-setting-${groupId}-${settingId}`;
+}
+
 /** A group whose body is the `collection` arm — the narrowing the host's welcome, mobile teaching, context
  *  routing and selection title all read, spelled ONCE. */
 export type CollectionGroupDefinition = ConfigGroupBase & { readonly body: Extract<ConfigGroupBody, { readonly kind: "collection" }> };

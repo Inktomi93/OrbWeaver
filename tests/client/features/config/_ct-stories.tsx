@@ -121,6 +121,51 @@ export function ConfigHostStory({ target, sub, width = 900, height = 560, placeh
   );
 }
 
+/** A setting-level deep link fired from a CLICK, the way a door elsewhere in the app fires it: the host
+ *  mounts only after the click, so the LIST's arrival focus runs with the door still focused, exactly as
+ *  when the rail switches to Settings. */
+export function ConfigDeepLinkFromDoorStory({
+  target,
+  sub,
+  setting,
+}: {
+  readonly target: ConfigGroupId;
+  readonly sub: string;
+  readonly setting: string;
+}): ReactElement {
+  const [open, setOpen] = useState(() => {
+    __resetConfigNav();
+    return false;
+  });
+  return (
+    <CtDataProviders>
+      <CtRealConfigSectionRegistry>
+        <TooltipProvider>
+          <button
+            type="button"
+            onClick={(): void => {
+              openConfigTo(target, sub, setting);
+              setOpen(true);
+            }}
+          >
+            open the setting
+          </button>
+          {open ? (
+            <div style={{ display: "flex", height: 560, width: 900 }}>
+              <div style={{ minHeight: 0, overflow: "auto", width: DEFAULT_LIST_PX }}>
+                <ConfigListSurface groups={realConfigGroups} />
+              </div>
+              <div style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
+                <ConfigContentSurface groups={realConfigGroups} />
+              </div>
+            </div>
+          ) : null}
+        </TooltipProvider>
+      </CtRealConfigSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 /** The host inside the RUNNING APP'S containing-block topology: a POSITIONED, height-capped,
  *  `overflow-y:auto` host around the CONTENT pane. That is what the shell's CONTENT region resolves to live
  *  (the settings-modal era measured `[data-slot=dialog-popup]` clientHeight 1014 / scrollHeight 2900 with

@@ -64,7 +64,10 @@ function hostLine(inputs: NextTurnInputs): NextTurnLine {
   if (resolved !== undefined) {
     const row = connections.rows?.find((candidate) => candidate.id === resolved.connectionId);
     const connection = row?.label ?? providerName(resolved.providerId, row);
-    return { state: "named", text: `Next reply: ${connection} · ${modelDisplayName(resolved.model)}`, door: undefined };
+    const model = modelDisplayName(resolved.model);
+    // A label minted from the model already names it; repeating it only lengthens the line.
+    const named = connection.toLowerCase().includes(model.toLowerCase()) ? connection : `${connection} · ${model}`;
+    return { state: "named", text: `Next reply: ${named}`, door: undefined };
   }
   return inputs.resolveFailed ? FAILED : CHECKING;
 }

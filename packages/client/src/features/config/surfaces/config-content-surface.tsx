@@ -38,6 +38,7 @@ import type { CollectionGroupDefinition, ConfigGroupDefinition, ConfigGroupId, C
 import {
   clearCollectionSelection,
   configSectionNavs,
+  configSettingControlId,
   isCollectionGroup,
   isPlaceholderGroup,
   rendersOwnBody,
@@ -114,11 +115,20 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
       scrollContentToTop(contentRef, suppressSpyRef);
       return;
     }
-    scrollToAnchor(target.group, target.sub, contentRef, suppressSpyRef);
+    const { setting } = target;
+    // A setting-level landing also moves keyboard focus onto the leaf's own control when its section stamps
+    // one, so the reader lands on the thing the link named rather than on the LIST row that holds it.
+    const focusControl =
+      setting === null
+        ? undefined
+        : (anchor: HTMLElement): void => {
+            anchor.querySelector<HTMLElement>(`#${CSS.escape(configSettingControlId(target.group, setting))}`)?.focus({ preventScroll: true });
+          };
+    scrollToAnchor({ group: target.group, sub: target.sub }, contentRef, suppressSpyRef, focusControl);
     // A SETTING-level landing also teaches: the focused-row seam gets the leaf so the context pane opens
     // on its lesson (VS Code's per-setting URL, #866 S3 — the search hit and `openConfigTo(g, s, leaf)`).
-    if (target.setting !== null) {
-      setConfigFocus({ group: target.group, sub: target.sub, setting: target.setting });
+    if (setting !== null) {
+      setConfigFocus({ group: target.group, sub: target.sub, setting });
     }
     // The two refs are DECLARED now that they arrive from the spy hook rather than being minted here: they
     // are stable identities, so naming them re-fires nothing, and the alternative is a suppression.

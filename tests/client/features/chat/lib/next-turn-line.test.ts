@@ -28,6 +28,13 @@ test("a host names their resolved connection and model", () => {
   expect(nextTurnLine(BASE)).toEqual({ state: "named", text: `Next reply: Work key · ${modelDisplayName(MODEL)}`, door: undefined });
 });
 
+test("a connection label that already carries the model names it once", () => {
+  const minted = { id: MINE, label: `OpenRouter · ${MODEL}`, providerLabel: "OpenRouter" };
+  const text = nextTurnLine({ ...BASE, connections: { rows: [minted], failed: false } }).text;
+  expect(text.split(modelDisplayName(MODEL))).toHaveLength(2);
+  expect(text).toContain(minted.label);
+});
+
 test("a host whose connection list has not loaded names the provider instead of nothing", () => {
   expect(nextTurnLine({ ...BASE, connections: { rows: undefined, failed: false } }).text).toBe(`Next reply: Anthropic · ${modelDisplayName(MODEL)}`);
 });

@@ -233,3 +233,22 @@ test.describe("desktop", () => {
     await expect(last).toBeInViewport({ ratio: 1 });
   });
 });
+
+// Every row in the menu leads with a glyph, so no row's label starts in the icon gutter beside iconed
+// neighbours. The game room carries the room groups too, which is where the bare rows were.
+test("every Message tools row in a game room leads with a glyph", async ({ mount, page }) => {
+  await routeRoom(page, true);
+  const component = await mount(<RpgDiceComposerStory />);
+  await expect(component.getByText("The corridor forks.")).toBeVisible();
+  await component.getByRole("button", { name: "Message tools" }).click();
+  await expect(page.getByRole("menuitem", { name: "Roll d20", exact: true })).toBeVisible();
+  const bare = (): Promise<readonly string[]> =>
+    page
+      .locator(MENU_POPUP)
+      .evaluate((popup: HTMLElement): readonly string[] =>
+        [...popup.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+          .filter((row) => row.querySelector(":scope > svg:first-child") === null)
+          .map((row) => row.textContent ?? ""),
+      );
+  await expect.poll(bare).toEqual([]);
+});

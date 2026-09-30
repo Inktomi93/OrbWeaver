@@ -66,19 +66,31 @@ export function scrollContentToTop(contentRef: RefObject<HTMLDivElement | null>,
  * Jump to a section anchor inside the CONTENT scroller. Switching group remounts the body, which may SUSPEND
  * on its settings read — under CPU contention the resolve can outlast any frame budget, and the old 20-frame
  * rAF poll silently gave up without ever scrolling (the fuzzy-search jump flake, root-caused 2026-07-24).
- * Observe the pane's DOM until the anchor exists (wall-clock-bounded) instead of guessing frames.
+ * Observe the pane's DOM until the anchor exists (wall-clock-bounded) instead of guessing frames. `onLanded`
+ * runs once the anchor has painted, with the anchor element.
  */
-export function scrollToAnchor(groupId: ConfigGroupId, subId: string, contentRef: RefObject<HTMLDivElement | null>, suppressSpyRef: RefObject<boolean>): void {
+export function scrollToAnchor(
+  anchor: { readonly group: ConfigGroupId; readonly sub: string },
+  contentRef: RefObject<HTMLDivElement | null>,
+  suppressSpyRef: RefObject<boolean>,
+  onLanded?: (anchor: HTMLElement) => void,
+): void {
   beginProgrammaticScroll(contentRef, suppressSpyRef);
-  const anchorId = configAnchorId(groupId, subId);
+  const anchorId = configAnchorId(anchor.group, anchor.sub);
   const container = contentRef.current;
   if (container === null) {
     return;
   }
   const find = (): HTMLElement | null => container.querySelector<HTMLElement>(`#${CSS.escape(anchorId)}`);
+  const land = (target: HTMLElement): void => {
+    afterPaint((): void => {
+      flashAnchor(target);
+      onLanded?.(target);
+    });
+  };
   const existing = find();
   if (existing !== null) {
-    afterPaint((): void => flashAnchor(existing));
+    land(existing);
     return;
   }
   let done = false;
@@ -90,7 +102,7 @@ export function scrollToAnchor(groupId: ConfigGroupId, subId: string, contentRef
     observer.disconnect();
     globalThis.clearTimeout(timer);
     if (target !== null) {
-      afterPaint((): void => flashAnchor(target));
+      land(target);
     }
   };
   const observer = new MutationObserver((): void => {

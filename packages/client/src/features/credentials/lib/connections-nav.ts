@@ -4,7 +4,19 @@
 // — these three ARE its rows: the user's connection rows first (the unit every
 // role references), Model roles, then the saved-key reuse view (inference program §5.3a).
 
+import type { RoutableTask } from "@orb/contracts/inference";
 import type { ConfigSubcategory } from "#state";
+
+const CHAT_MODEL_SETTING = "chat-model";
+const UTILITY_MODEL_SETTING = "utility-model";
+const EMBED_MODEL_SETTING = "embed-model";
+
+/** The Model roles leaves a deep link can name, by the role row that renders each one's picker. */
+export const ROLE_SETTING_IDS: Readonly<Partial<Record<RoutableTask, string>>> = {
+  chat: CHAT_MODEL_SETTING,
+  summarize: UTILITY_MODEL_SETTING,
+  embed: EMBED_MODEL_SETTING,
+};
 
 export const CONNECTIONS_LIST_SUBCATEGORY: ConfigSubcategory = {
   id: "connections",
@@ -38,7 +50,7 @@ export const CONNECTIONS_ROLES_SUBCATEGORY: ConfigSubcategory = {
   },
   settings: [
     {
-      id: "chat-model",
+      id: CHAT_MODEL_SETTING,
       label: "Chat model",
       keywords: ["chat", "conversation", "provider"],
       teach: {
@@ -48,7 +60,7 @@ export const CONNECTIONS_ROLES_SUBCATEGORY: ConfigSubcategory = {
       },
     },
     {
-      id: "utility-model",
+      id: UTILITY_MODEL_SETTING,
       label: "Utility model",
       keywords: ["summarize", "structured", "caption", "memory", "digest", "background"],
       teach: {
@@ -57,7 +69,7 @@ export const CONNECTIONS_ROLES_SUBCATEGORY: ConfigSubcategory = {
       },
     },
     {
-      id: "embed-model",
+      id: EMBED_MODEL_SETTING,
       label: "Text embedding model",
       keywords: ["embed", "vector", "search", "memory", "dimension"],
       teach: {

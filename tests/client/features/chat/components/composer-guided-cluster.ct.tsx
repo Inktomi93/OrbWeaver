@@ -347,7 +347,7 @@ test("an unavailable connection disables menu generation but keeps Simple send a
   await component.getByRole("button", { name: "Message tools" }).click();
 
   const choices = page.getByRole("menuitem", { name: "Offer choices" });
-  const plot = page.getByRole("menuitem", { name: "Plot", exact: true });
+  const plot = page.getByRole("menuitem", { name: "Steer the plot", exact: true });
   await expect(choices).toBeDisabled();
   await expect(plot).toBeDisabled();
   await expect(choices).toHaveAttribute("title", /connection/iu);
@@ -419,7 +419,7 @@ test("game steers live in the ✨ menu (the Plot submenu) and fire a gameSteer K
   // not click: Base UI's SubmenuTrigger wires `ignoreMouse` to `openOnHover`, so a mouse click on it is a
   // deliberate no-op — the pointer landing on the row (100ms hover intent) is the only mouse-driven open.
   // ("Offer choices" left this group at R3/B1 — it renders in Reply now, in every room; its own arms below.)
-  await hoverOpenSubmenu(page.getByRole("menuitem", { name: "Plot" }), page.getByRole("menu", { name: "Plot" }));
+  await hoverOpenSubmenu(page.getByRole("menuitem", { name: "Steer the plot" }), page.getByRole("menu", { name: "Steer the plot" }));
   await page.getByRole("menuitem", { name: "Advance the act" }).click();
 
   await expect.poll(() => trpc.count("chat.generate"), { intervals: [20, 50, 100] }).toBe(1);
@@ -437,16 +437,16 @@ test("Plot submenu is APPLICABILITY-gated off when plotProgression is false — 
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();
   // The whole Plot submenu is absent (never a disabled twin). Since R3 took its one non-plot tenant away,
-  // the GROUP LABEL must go too — a "Plot" heading over nothing is the empty-promise the omit doctrine bans.
-  await expect(page.getByRole("menuitem", { name: "Plot", exact: true })).toHaveCount(0);
-  await expect(page.getByText("Plot", { exact: true })).toHaveCount(0);
+  // the GROUP LABEL must go too — a "Story" heading over nothing is the empty-promise the omit doctrine bans.
+  await expect(page.getByRole("menuitem", { name: "Steer the plot", exact: true })).toHaveCount(0);
+  await expect(page.getByText("Story", { exact: true })).toHaveCount(0);
 });
 
 test("PLOT steers are ABSENT in the ✨ menu on a non-game chat", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES }); // no rpg pointer → not a game
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();
-  await expect(page.getByRole("menuitem", { name: "Plot", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Steer the plot", exact: true })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Advance the act" })).toHaveCount(0);
 });
 
