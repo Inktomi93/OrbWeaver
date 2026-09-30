@@ -311,7 +311,7 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
     const target = join(root, path);
     if (!overlay.has(path) && lstatSync(target).isSymbolicLink()) {
       const canonical = realpathSync(target);
-      const rel = relative(root, canonical);
+      const rel = relative(realpathSync(root), canonical);
       if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
         throw new Error(`authored resource symlink resolves outside the invocation root: ${path}`);
       }

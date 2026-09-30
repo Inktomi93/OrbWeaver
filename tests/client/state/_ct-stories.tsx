@@ -1,4 +1,5 @@
 import { stampAppearanceBootHint } from "../../../packages/client/src/compose/stamp-appearance-boot-hint.ts";
+import { getCorpusMode, healCorpusModeFrom, subscribeCorpusMode, writeCorpusMode } from "../../../packages/client/src/state/corpus-mode-store.ts";
 // Story module for the state-tier CTs (Spine-Testing §7 — CT mounts ONLY from a non-test module).
 // ShellStoreProbe renders the shell store's read-hook values as text + buttons that fire its module
 // actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser) and
@@ -41,6 +42,7 @@ import {
   clearConfigFocus,
   clearCorpusSelection,
   clearDatabankPhaseFilter,
+  clearLabelSelection,
   clearNewChatIntent,
   clearRoomInvite,
   clearSectionSaveStatus,
@@ -96,6 +98,7 @@ import {
   selectConfigSub,
   selectCorpusCharacter,
   selectLabel,
+  selectLabelFromList,
   selectPersonaEditor,
   selectPreset,
   selectPresetFromList,
@@ -124,6 +127,8 @@ import {
   setCorpusSearchTarget,
   setDatabankPhaseFilter,
   setFocusMode,
+  setLabelFilter,
+  setLabelNameFocus,
   setMobileViewport,
   setNarrowViewport,
   setOpenOverlayPanel,
@@ -180,6 +185,8 @@ import {
   useFavoritesOnly,
   useFiltersOpen,
   useFocusMode,
+  useLabelFilter,
+  useLabelNameFocus,
   useModalRegistry,
   useMultiHumanCapableHint,
   useNarrowViewport,
@@ -1354,10 +1361,18 @@ export function RefineryLandingFocusProbe(): ReactElement {
 export function TagLibraryProbe(): ReactElement {
   const mode = useTagSortMode();
   const pruneOpen = useTagPruneConfirmOpen();
+  const filter = useLabelFilter();
   return (
     <div>
       <output>{`sort=${mode}`}</output>
       <output>{`prune=${String(pruneOpen)}`}</output>
+      <output>{`filter=${filter}`}</output>
+      <button type="button" onClick={(): void => setLabelFilter("forest")}>
+        filter labels
+      </button>
+      <button type="button" onClick={(): void => setLabelFilter("")}>
+        clear label filter
+      </button>
       <button type="button" onClick={(): void => setTagPruneConfirmOpen(true)}>
         open prune
       </button>
@@ -1753,9 +1768,14 @@ export function ConfigSearchProbe(): ReactElement {
 export function PersonaEditorSelectionProbe(): ReactElement {
   const id = usePersonaEditorId();
   const group = useActiveConfigGroup();
+  const sub = useActiveConfigSub();
   return (
     <>
       <output>{`${group ?? "none"}:${id ?? "none"}`}</output>
+      <output aria-label="Persona management target">{`${group ?? "none"}/${sub ?? "none"}`}</output>
+      <button type="button" onClick={(): void => selectPersonaEditor(mintTypeId(ID_PREFIX.persona))}>
+        select persona row
+      </button>
       <button type="button" onClick={(): void => openPersonaEditor(mintTypeId(ID_PREFIX.persona))}>
         open persona editor
       </button>
@@ -1763,5 +1783,54 @@ export function PersonaEditorSelectionProbe(): ReactElement {
         close persona editor
       </button>
     </>
+  );
+}
+
+export function LabelSelectionProbe(): ReactElement {
+  const selected = useSelectedLabelId();
+  const focus = useLabelNameFocus();
+  const overlay = useOpenOverlayPanel();
+  const id = castId<TagId>("tag_label_probe");
+  return (
+    <div>
+      <output>{`selected=${selected ?? "none"} focus=${focus ?? "none"} overlay=${overlay ?? "null"}`}</output>
+      <button type="button" onClick={(): void => selectLabel(id)}>
+        select label
+      </button>
+      <button type="button" onClick={(): void => selectLabelFromList(id)}>
+        select label from list
+      </button>
+      <button type="button" onClick={clearLabelSelection}>
+        clear label
+      </button>
+      <button type="button" onClick={(): void => setOpenOverlayPanel("list")}>
+        open list overlay
+      </button>
+      <button type="button" onClick={(): void => setLabelNameFocus(id)}>
+        request label focus
+      </button>
+      <button type="button" onClick={(): void => setLabelNameFocus(null)}>
+        consume label focus
+      </button>
+    </div>
+  );
+}
+
+export function CorpusModeProbe(): ReactElement {
+  const mode = useCorpusMode();
+  const snapshot = useSyncExternalStore(subscribeCorpusMode, getCorpusMode);
+  return (
+    <div>
+      <output>{`mode=${mode} snapshot=${snapshot}`}</output>
+      <button type="button" onClick={(): void => writeCorpusMode("labels")}>
+        write Labels mode
+      </button>
+      <button type="button" onClick={(): void => healCorpusModeFrom("analytics")}>
+        heal Analytics
+      </button>
+      <button type="button" onClick={(): void => healCorpusModeFrom("corpus")}>
+        heal live Corpus
+      </button>
+    </div>
   );
 }

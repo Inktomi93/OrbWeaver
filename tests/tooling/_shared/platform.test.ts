@@ -14,11 +14,24 @@ import {
   processAgeSeconds,
   processGroupId,
   processInfo,
+  processStartTicks,
   processTreeCpuMs,
   socketTableOrThrow,
 } from "../../../tooling/src/_shared/platform.ts";
 import type { RunNicedSyncResult } from "../../../tooling/src/_shared/proc.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
+
+test("process start ticks preserve Linux pid identity and read nothing on unsupported platforms", () => {
+  const readFile = vi.fn(() => `42 (name with ) parentheses) ${Array.from({ length: 19 }, () => "0").join(" ")} 98765 0`);
+  expect(processStartTicks(42, { platform: "linux", readFile })).toBe("98765");
+  expect(readFile).toHaveBeenCalledWith("/proc/42/stat");
+  readFile.mockClear();
+  for (const platform of ["darwin", "win32", "freebsd"] as const) {
+    expect(processStartTicks(42, { platform, readFile })).toBeNull();
+  }
+  expect(readFile).not.toHaveBeenCalled();
+  expect(processStartTicks(42, { platform: "linux", readFile: () => null })).toBeNull();
+});
 
 /** A fake tool runner: answers each `<cmd> <args>` spelling with its planted output, records every call, and
  *  fails any spelling that was not planted, so a wrong flag is a red rather than an empty answer. */

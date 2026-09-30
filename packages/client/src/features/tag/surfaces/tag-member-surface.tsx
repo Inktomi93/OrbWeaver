@@ -2,7 +2,7 @@
 import type { TagId } from "@orb/kit/ids";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Hash, Icon } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
+import { Container, Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { MemberDrillHeader, TagEditorBody } from "#components";
@@ -19,11 +19,17 @@ export function TagMemberSurface({ tagId }: { readonly tagId: TagId }): ReactEle
   if (tag === undefined) {
     // @orb-waive empty-state-has-action(EmptyState): Back in the preceding drill header exits this deleted member; ends if the surface loses that exit.
     return (
-      <Stack gap="block">
-        <MemberDrillHeader back={back} />
-        <EmptyState description="This tag was deleted. Pick another from the list." icon={<Icon icon={Hash} size="lg" />} title="Tag not found" />
-      </Stack>
+      <Container>
+        <Stack gap="block">
+          <MemberDrillHeader back={back} />
+          <EmptyState description="This tag was deleted. Pick another from the list." icon={<Icon icon={Hash} size="lg" />} title="Tag not found" />
+        </Stack>
+      </Container>
     );
   }
-  return <TagEditorBody onMerged={clearLabelSelection} back={back} others={tags.filter((other) => other.id !== tag.id)} tag={tag} />;
+  return (
+    <Container>
+      <TagEditorBody onMerged={clearLabelSelection} back={back} others={tags.filter((other) => other.id !== tag.id)} tag={tag} />
+    </Container>
+  );
 }

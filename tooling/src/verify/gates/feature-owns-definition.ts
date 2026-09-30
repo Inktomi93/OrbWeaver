@@ -30,9 +30,20 @@ import type { ResourceTreeEntry } from "../contract/resource.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const FEATURES = "packages/client/src/features";
-const DEFINITION_SUFFIXES = ["-section.ts", "-section.tsx", "-modal.ts", "-modal.tsx", "-group.ts", "-group.tsx", "-chrome.ts", "-chrome.tsx"] as const;
+const DEFINITION_SUFFIXES = [
+  "-section.ts",
+  "-section.tsx",
+  "-modal.ts",
+  "-modal.tsx",
+  "-group.ts",
+  "-group.tsx",
+  "-chrome.ts",
+  "-chrome.tsx",
+  "-mode.ts",
+  "-mode.tsx",
+] as const;
 const MESSAGE =
-  "a features/* dir owns no registered definition — a feature dir must co-locate a lib/*-section.tsx, lib/*-modal.tsx, lib/*-group.tsx, or lib/*-chrome.tsx (client-architecture-lockdown.md §3/§18 O2), or be deleted. No exemptions.";
+  "a features/* dir owns no registered definition — co-locate a section, modal, group, chrome or Corpus mode definition under lib/ (client-architecture-lockdown.md §3), or delete the directory. No exemptions.";
 
 function featureName(entry: ResourceTreeEntry): string | undefined {
   if (entry.kind !== "directory" || !entry.path.startsWith(`${FEATURES}/`)) {
@@ -63,7 +74,7 @@ export const gate = defineGate({
   facts: [],
   resources: [{ kind: "authored-tree", id: "client-feature" }],
   message: MESSAGE,
-  fix: "add the feature's registered SectionDefinition/ModalDefinition/ConfigGroupDefinition/ChromeEntry under lib/, or delete the dir if it has no product surface.",
+  fix: "add the feature's registered SectionDefinition/ModalDefinition/ConfigGroupDefinition/ChromeEntry/CorpusModeContribution under lib/, or delete the dir if it has no product surface.",
   create: (ctx) => ({
     evaluate: () => {
       const entries = readyResourceValue(ctx.resources.authoredTree("client-feature"));
@@ -81,12 +92,23 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "resource",
+      files: { "packages/client/src/features/__g_modehelper/components/helper-mode.tsx": "export const g = 1;\n" },
+      expect: { count: 1, token: "__g_modehelper" },
+      why: "A mode-named component outside lib is not a co-located definition.",
+    },
+    {
+      mode: "resource",
       files: { "packages/client/src/features/__g_orphan/lib/helper.ts": "export const g = 1;\n" },
       expect: { count: 1, token: "__g_orphan" },
       why: "a feature dir with only a non-definition file owns no registered definition",
     },
   ],
   mustPass: [
+    {
+      mode: "resource",
+      files: { "packages/client/src/features/__g_ownsmode/lib/labels-mode.tsx": "export const g = 1;\n" },
+      why: "A Corpus mode definition earns feature ownership under the same co-location rule as section definitions.",
+    },
     {
       mode: "resource",
       files: { "packages/client/src/features/__g_ownssection/lib/__g-ownssection-section.tsx": "export const g = 1;\n" },

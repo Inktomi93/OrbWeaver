@@ -7,7 +7,7 @@ import { useLayoutEffect } from "react";
 import { readRememberedFootPaired, rememberHomeFootPaired } from "#state";
 
 /** The shelf attribute the foot's layout classes read; absent means stacked. */
-export const FOOT_ATTRIBUTE = "data-foot";
+const FOOT_ATTRIBUTE = "data-foot";
 const PAIRED = "paired";
 /** A switch must level the columns by more than this, so width-dependent heights cannot make it flicker. */
 const HYSTERESIS_PX = 24;

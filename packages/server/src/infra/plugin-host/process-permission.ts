@@ -21,7 +21,7 @@ const WORKSPACE_ROOT = fileURLToPath(new URL("../../../../../", import.meta.url)
  *  targets, and its build refuses any other link that points up (`docker/assemble-runtime.sh`). A pnpm install on
  *  bare metal keeps them in `node_modules` and in every package; `docs/law/container-deployment-security.md` names
  *  that residual. */
-export const PLUGIN_PROCESS_CODE_ROOTS: readonly string[] = [
+const PLUGIN_PROCESS_CODE_ROOTS: readonly string[] = [
   join(WORKSPACE_ROOT, "packages"),
   join(WORKSPACE_ROOT, "node_modules"),
   join(parse(WORKSPACE_ROOT).root, "node_modules", "@orb"),

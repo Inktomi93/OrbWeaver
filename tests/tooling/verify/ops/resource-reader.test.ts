@@ -3,6 +3,23 @@ import { join } from "node:path";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
+test("transaction symlinks compare physical identities through an aliased invocation root", ({ scratch }) => {
+  const physical = join(scratch, "physical");
+  const alias = join(scratch, "alias");
+  mkdirSync(physical);
+  symlinkSync(physical, alias, "junction");
+  writeFileSync(join(physical, "live.ts"), "export const live = true;\n");
+  writeFileSync(join(scratch, "outside.ts"), "export const outside = true;\n");
+  symlinkSync("live.ts", join(physical, "inside.ts"));
+  symlinkSync("../outside.ts", join(physical, "escape.ts"));
+  const reader = createResourceReader({ root: alias });
+  expect(reader.snapshot(["inside.ts"])).toMatchObject({ status: "ready", value: [{ kind: "symlink", targetPath: "live.ts" }] });
+  expect(reader.snapshot(["escape.ts"])).toMatchObject({
+    status: "unresolved",
+    reason: "authored resource symlink resolves outside the invocation root: escape.ts",
+  });
+});
+
 test("disk and virtual additions, replacements, and deletions share one immutable tree view", ({ scratch }) => {
   const base = join(scratch, "sources");
   mkdirSync(base);

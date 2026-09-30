@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-23
+updated: 2026-09-30
 ---
 
 # Client Architecture Lockdown
@@ -92,7 +92,7 @@ duplicated per-feature — `UI-Primitives-and-Reuse.md` §13.0's bar (3+ and cha
 when to hoist. `jscpd` (tsx
 scanned, 5% threshold) is the standing tripwire; the hoist itself is review R2.
 
-**What is a feature:** a feature dir earns its existence by owning at least one registered definition — a rail section, a modal, a settings pane, a chrome widget, or a config collection. `feature-owns-definition` (G23) is RED when a feature dir co-locates no `lib/*-{section,modal,group,chrome}.tsx`. No exemptions. A feature whose whole product surface is a member library contributed to the Configuration workspace — the collection case — satisfies this with its `*-group.tsx` (the `ConfigGroupDefinition`) and additionally owns a `*-collection.tsx`, never a settings pane.
+**What is a feature:** a feature dir earns its existence by owning at least one registered definition — a rail section, a Corpus mode, a modal, a settings pane, a chrome widget, or a config collection. `feature-owns-definition` (G23) is RED when a feature dir co-locates no `lib/*-{section,mode,modal,group,chrome}.{ts,tsx}`. No exemptions. A feature whose whole product surface is a member library contributed to the Configuration workspace — the collection case — satisfies this with its `*-group.tsx` (the `ConfigGroupDefinition`) and additionally owns a `*-collection.tsx`, never a settings pane.
 
 ## 4. The paint law — who may write CSS, and WHY
 
@@ -463,8 +463,8 @@ time.
   `connections`; `features/workloads` owns `workloads` and `backup` (backup/restore is the workloads +
   portability-serde export/import system, not a standalone feature); `features/persona` owns its pane.
   `features/config` owns `appearance` and `chat-behavior`, including the theme editor and picker.
-  `features/tag` and `features/regex` are each a collection: they own a `*-collection.tsx`, not a pane
-  (§3's collection case).
+  `features/regex` owns a `*-collection.tsx`, not a pane (§3's collection case).
+  `features/tag` owns the Corpus Labels mode; `features/stats` owns Corpus Insights (D271).
 - The host imports no pane bodies — they arrive via the door assembly, so `client-features-no-cross`
   enforces the de-god split for free.
 - `openConfigTo`'s `group` argument is typed against `CONFIG_GROUP_IDS`; tsc validates every deep-link call

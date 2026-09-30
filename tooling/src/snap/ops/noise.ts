@@ -67,7 +67,7 @@ export function isViteDepChurn(request: CapturedRequest): boolean {
  *  (`CapturedRequest.discarded`). The stage warm-up re-navigates, a session route call navigates, and every
  *  run closes its pages, so the app's long-lived `stream.connect` aborts on nearly every run. Only an abort
  *  qualifies: an HTTP error status or any other failure text on a discarded document still counts. */
-export function isNavigationAbort(request: CapturedRequest): boolean {
+function isNavigationAbort(request: CapturedRequest): boolean {
   return request.discarded === true && request.failed === REQUEST_ABORTED && (request.status ?? 0) < HTTP_ERROR_STATUS_MIN;
 }
 

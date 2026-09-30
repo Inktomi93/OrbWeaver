@@ -215,6 +215,23 @@ test("clicking a faint pin writes seeds.defaultPersonaId for THAT row's persona"
 
 // ── The ⋯ inventory (#866 S4): Edit · Duplicate · Export · Delete ───────────────────────────────────
 
+test("expanding and collapsing another persona leaves the playing-as persona unchanged", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<PersonaListStory />);
+  const playing = page.getByRole("button", { name: "Nova — current persona", exact: true });
+  await expect(playing).toHaveAttribute("aria-current", "true");
+  await page
+    .getByRole("button", { name: /^Show details for /u })
+    .nth(1)
+    .click();
+  const close = page.getByRole("button", { name: /^Hide details for /u });
+  await expect(close).toHaveCount(1);
+  await expect(playing).toHaveAttribute("aria-current", "true");
+  await close.click();
+  await expect(page.getByRole("button", { name: /^Hide details for /u })).toHaveCount(0);
+  await expect(playing).toHaveAttribute("aria-current", "true");
+});
+
 test("the row ⋯ carries Edit · Duplicate · Export · Delete; Edit expands the editor; Duplicate fires the verb", async ({ mount, page }) => {
   const trpc = await stub(page, { "persona.duplicate": () => PERSONAS[0] });
   await mount(<PersonaListStory />);

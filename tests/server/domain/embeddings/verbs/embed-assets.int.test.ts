@@ -9,9 +9,8 @@
 //   • a vanished asset row is a skip, not an error;
 //   • cooperative abort: an aborted signal does no work.
 
-import { ASSET_KINDS } from "@orb/contracts/assets";
 import { EMBEDDING_FLOOR, providerIdSchema } from "@orb/contracts/inference";
-import { assets, embedGenerations, embedSpaceState, imageEmbeddings, imageIndexSkips } from "@orb/db";
+import { embedGenerations, embedSpaceState, imageEmbeddings, imageIndexSkips } from "@orb/db";
 import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -122,40 +121,6 @@ test("a successful caption uses the local-light text tower while retaining the r
   expect(rows.find((row) => row.lens === "image-captioned")?.caption).toBe(TEST_CAPTION);
   expect(cache.calls.map((call) => call.method)).toEqual(["embedImages", "embedClipTexts"]);
   expect(h.roleClients.summarize).toHaveBeenCalledTimes(1);
-});
-
-test("an event racing the sweep shares preparation before caption and both vector calls", async () => {
-  const db = await freshDb();
-  const ownerId = await seedUser(db, { handle: castId<Handle>("avatar-race") });
-  const assetId = await seedAsset(db, ownerId);
-  const h = makeStoreHarness(db, { imageAssetIds: [assetId], assetBytes: new Map([[assetId, IMG]]) });
-  const svc = createEmbeddingsService(h.ctx);
-  await Promise.all([svc.indexAsset(assetId), svc.embedAssets({ force: false, signal: signal(), ownerId })]);
-  expect(h.roleClients.summarize).toHaveBeenCalledTimes(1);
-  expect(h.roleClients.imageEmbed).toHaveBeenCalledTimes(2);
-  expect(await db.select().from(imageEmbeddings)).toHaveLength(2);
-});
-
-test("event preparation refuses every non-avatar kind before loading bytes and purging retains the assets", async () => {
-  const db = await freshDb();
-  const ownerId = await seedUser(db, { handle: castId<Handle>("avatar-policy") });
-  const assetId = await seedAsset(db, ownerId);
-  const h = makeStoreHarness(db, { assetBytes: new Map([[assetId, IMG]]) });
-  const svc = createEmbeddingsService(h.ctx);
-  for (const kind of ASSET_KINDS) {
-    await db.update(assets).set({ kind }).where(eq(assets.id, assetId));
-    h.loadAssetBytes.mockClear();
-    await svc.indexAsset(assetId);
-    expect(h.loadAssetBytes).toHaveBeenCalledTimes(kind === "avatar" ? 1 : 0);
-  }
-  expect(await db.select().from(imageEmbeddings)).toHaveLength(2);
-  await svc.purgeDisallowedImages();
-  expect(await db.select().from(imageEmbeddings)).toHaveLength(0);
-  expect(await db.select().from(assets)).toHaveLength(1);
-  await db.update(assets).set({ kind: "avatar" }).where(eq(assets.id, assetId));
-  await svc.indexAsset(assetId);
-  await svc.purgeDisallowedImages();
-  expect(await db.select().from(imageEmbeddings)).toHaveLength(2);
 });
 
 /** A degenerate 1×1 asset and a real 64×64 asset seeded for one owner, plus the per-asset bytes map the

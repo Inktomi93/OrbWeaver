@@ -14,7 +14,7 @@ import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/c
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
-import type { AppSettings } from "@orb/contracts/settings";
+import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { characters as charactersTable, personas as personasTable } from "@orb/db";
 import { findSeedEmbedding } from "@orb/default-content";
@@ -90,7 +90,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly assets: Pick<AssetsService, "listImageAssetIds" | "loadAssetBytes" | "assetCasRefById">;
   readonly settings: Pick<SettingsService, "loadUserSettings" | "updateUserSettingsSection">;
   /** LIVE effective-config getter (the memory tier-grid seam reads memoryDefaults per call). */
-  readonly getEffectiveConfig: () => AppSettings;
+  readonly getEffectiveConfig: () => EffectiveAppConfig;
   /** chat's bus durable-first emit — persona's active-persona write publishes onto it. */
   readonly emitChatEvent: (event: DurableChatBusEvent) => Promise<void>;
   /** chat's DURABLE-APPEND-FREE fan (design §3.4) — the entity→room bridge's only emit surface. Separate dep

@@ -8,6 +8,7 @@ import { useInvalidation } from "@orb/client/data";
 import { labelsContextTabs, labelsCorpusMode } from "@orb/client/features/tag";
 import {
   clearLabelSelection,
+  selectLabel,
   setLabelFilter,
   setTagPruneConfirmOpen,
   setTagSortMode,
@@ -178,4 +179,12 @@ function AttachmentDestinationProbe(): ReactElement {
     target = collection?.memberId ?? persona;
   }
   return <output aria-label="Attachment destination">{`${section}:${target ?? "none"}`}</output>;
+}
+
+export function LabelsEditorErrorStory(): ReactElement {
+  useState(() => {
+    selectLabel(castId<TagId>("tag_adventure"));
+    return null;
+  });
+  return <CtDataProviders>{labelsCorpusMode.content()}</CtDataProviders>;
 }
