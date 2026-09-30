@@ -236,6 +236,21 @@ export type { UnreadableConfigCause, UnreadableConfigCopy } from "./stored-confi
 export { PRESET_UNREADABLE_COPY, SETTINGS_UNREADABLE_COPY, unreadableConfigCause } from "./stored-config-unreadable-copy.ts";
 export type { ActiveTagFilterState, TagFilterEntry, TagFilterState } from "./tag-filter-state.ts";
 export { cycleTagFilterEntries, NEXT_TAG_FILTER_STATE, TAG_FILTER_STATES, tagFilterStateOf } from "./tag-filter-state.ts";
+export {
+  FOLDER_TYPE_ITEMS,
+  LABELS_BLURB,
+  LABELS_EMPTY,
+  pruneConfirmLabel,
+  tagColorLabel,
+  tagColorValueLabel,
+  tagSortItems,
+  tagTargetTitle,
+  tagUsageLabel,
+  USAGE_KIND_TITLES,
+  unusedTagsLabel,
+  usageBreakdown,
+  usageTotalLabel,
+} from "./tag-model.ts";
 export type { SortableTag, TagSortMode } from "./tag-sort.ts";
 export { DEFAULT_TAG_SORT_MODE, sortTagsBy, TAG_SORT_MODES } from "./tag-sort.ts";
 export { talkativenessAccessibleName, talkativenessLevel } from "./talkativeness.ts";

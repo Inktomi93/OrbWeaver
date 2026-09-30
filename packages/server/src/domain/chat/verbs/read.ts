@@ -924,7 +924,7 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
     ]);
     // PURE projection — fields above the effective level become null HERE, server-side (never sent over the
     // wire). `clampMemberCard` fabricates nothing: it gates the caller-resolved `tags`/`lore`/`avatarHash`.
-    const clamped = clampMemberCard({ characterId, card, tags, lore, avatarHash, visibility });
+    const clamped = clampMemberCard({ characterId, card, tags: tags.map((tag) => tag.name), lore, avatarHash, visibility });
     // Render display macros on the SURVIVING text fields against the anchor persona (a null field was clamped
     // away and passes through). Greetings render per-entry. `lore`/`tags` are stored resolved (no macro pass).
     // The render context is built from the CLAMPED view, NOT the full card (the clamp-bypass defense):
@@ -933,6 +933,7 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
     const renderCtx = cardRenderContext(clamped, anchorPersona);
     return {
       ...clamped,
+      editableTags: principal.userId === hostUserId && clamped.tags !== null ? tags : null,
       description: renderCardField(clamped.description, renderCtx),
       personality: renderCardField(clamped.personality, renderCtx),
       scenario: renderCardField(clamped.scenario, renderCtx),

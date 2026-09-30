@@ -1,3 +1,4 @@
+import type { TagTargetType } from "@orb/contracts/tag";
 // CT: the Corpus Labels mode (D271) — the tag library's ONE home. Mounted through the mode contribution the
 // door hands the Corpus section, so every pin runs on production wiring: the finder (filter · sort · overflow
 // over the rows), the band's one primary verb, the library landing, the autosaving editor, and the CONTEXT tab.
@@ -8,11 +9,11 @@
 import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { LabelsWorkspaceStory } from "../_ct-stories.tsx";
 
-type TagWithUsage = TrpcFixtureOutput<"tag.listTagsWithUsage">[number];
+type TagWithUsage = TrpcWireOutput<"tag.listTagsWithUsage">[number];
 
 function tagRow(id: string, name: string, characters: number, chats = 0): TagWithUsage {
   return {
@@ -24,6 +25,7 @@ function tagRow(id: string, name: string, characters: number, chats = 0): TagWit
     folderType: "NONE",
     sortOrder: null,
     isHiddenOnCard: false,
+    pendingSuggestions: 0,
     usage: { characters, chats, worldBooks: 0, personas: 0, presets: 0, total: characters + chats },
   };
 }
@@ -43,12 +45,14 @@ const CREATED = tagRow("tag_created", "New tag 2", 0);
 function stub(page: Page, tags: readonly TagWithUsage[] = FEW_TAGS): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "tag.listTagsWithUsage": () => tags,
+    "tag.listPendingSuggestions": [],
+    "tag.listAttachedEntities": { entities: [], hasMore: false },
     "tag.pruneUnusedTags": () => ({ removed: 1 }),
     "tag.setTagOrder": () => undefined,
     "tag.mergeTags": () => null,
     "tag.removeTag": () => null,
     "tag.createTag": () => {
-      const { usage: _usage, ...view } = CREATED;
+      const { usage: _usage, pendingSuggestions: _pending, ...view } = CREATED;
       return view;
     },
   });
@@ -84,7 +88,7 @@ test("the finder reads filter · sort · overflow, the band carries New tag, and
   // CONTENT states what no row can: orphans, with the verb that clears them, and the taxonomy's reach by kind.
   await expect(content(workspace).getByRole("heading", { name: "Labels", level: 2 })).toBeVisible();
   const facts = content(workspace).locator('[data-slot="labels-library-facts"]');
-  await expect(facts).toContainText("Labelling nothing1 of 3");
+  await expect(facts).toContainText("Unattached1 of 3");
   await expect(facts).toContainText("Tags on characters2");
   await expect(facts).toContainText("Tags on chats2");
   // The orphan fact's door acts on EVERY orphan, not the first one: it opens the prune confirm.
@@ -170,8 +174,13 @@ test("New tag skips a name the library holds in another casing", async ({ mount,
 // same name again: the door holds shut until the create settles.
 test("a double click on New tag creates once", async ({ mount, page }) => {
   const hold = trpcHold();
-  const { usage: _usage, ...created } = CREATED;
-  const trpc = await routeTrpc(page, { "tag.listTagsWithUsage": () => [...FEW_TAGS, CREATED], "tag.createTag": hold });
+  const { usage: _usage, pendingSuggestions: _pending, ...created } = CREATED;
+  const trpc = await routeTrpc(page, {
+    "tag.listTagsWithUsage": () => [...FEW_TAGS, CREATED],
+    "tag.createTag": hold,
+    "tag.listPendingSuggestions": [],
+    "tag.listAttachedEntities": { entities: [], hasMore: false },
+  });
   const workspace = await mount(<LabelsWorkspaceStory />);
   await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New tag" }).dblclick();
   await hold.requested;
@@ -182,10 +191,12 @@ test("a double click on New tag creates once", async ({ mount, page }) => {
 
 // A conflict the cached rows could not predict (another tab, a stale read) retries once with the next name.
 test("a create the name index refuses retries once with the next free name", async ({ mount, page }) => {
-  const { usage: _usage, ...created } = CREATED;
+  const { usage: _usage, pendingSuggestions: _pending, ...created } = CREATED;
   let calls = 0;
   const trpc = await routeTrpc(page, {
     "tag.listTagsWithUsage": () => [...FEW_TAGS, CREATED],
+    "tag.listPendingSuggestions": [],
+    "tag.listAttachedEntities": { entities: [], hasMore: false },
     "tag.createTag": () => {
       calls += 1;
       return calls === 1 ? trpcError({ code: "CONFLICT" }) : created;
@@ -285,3 +296,96 @@ test("a prune lands focus on the library", async ({ mount, page }) => {
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
   await expect(content(workspace).locator('[data-slot="labels-library"]')).toBeFocused();
 });
+
+test("pending-only labels stay outside In use and prune until Apply; Reject removes the staged junction", async ({ mount, page }) => {
+  const staged = { ...tagRow("tag_staged", "staged", 0), pendingSuggestions: 1 };
+  const rejected = { ...tagRow("tag_rejected", "rejected", 0), pendingSuggestions: 1 };
+  let rows = [staged, rejected];
+  const failures = [trpcError({ code: "INTERNAL_SERVER_ERROR", message: "Scripted failure" })];
+  const suggestionFor = (row: TagWithUsage, characterId: string, characterName: string): TrpcWireOutput<"tag.listPendingSuggestions">[number] => {
+    const { usage: _usage, pendingSuggestions: _pending, ...view } = row;
+    return { ...view, characterId, characterName };
+  };
+  let suggestions = [suggestionFor(staged, "character_staged", "Aria"), suggestionFor(rejected, "character_rejected", "Bolt")];
+  const recorder = await routeTrpc(page, {
+    "tag.listTagsWithUsage": () => rows,
+    "tag.listAttachedEntities": { entities: [], hasMore: false },
+    "tag.listPendingSuggestions": () => suggestions,
+    "tag.attachTag": (input) => {
+      const failure = failures.shift();
+      if (failure !== undefined) {
+        return failure;
+      }
+      rows = rows.map((row) => (row.id === input.tagId ? { ...row, pendingSuggestions: 0, usage: { ...row.usage, characters: 1, total: 1 } } : row));
+      suggestions = suggestions.filter((row) => row.id !== input.tagId);
+      return null;
+    },
+    "tag.detachTag": (input) => {
+      rows = rows.map((row) => (row.id === input.tagId ? { ...row, pendingSuggestions: 0 } : row));
+      suggestions = suggestions.filter((row) => row.id !== input.tagId);
+      return null;
+    },
+  });
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  const facts = content(workspace).locator('[data-slot="labels-library-facts"]');
+  await expect(facts).toContainText("In use0");
+  await expect(finder(workspace).getByText("Suggested for 1 character", { exact: true })).toHaveCount(2);
+  await expect(facts.getByRole("button", { name: /Prune/u })).toHaveCount(0);
+  await expect(content(workspace).getByRole("group", { name: "Suggested staged for Aria" })).toBeVisible();
+  const apply = content(workspace).getByRole("group", { name: "Suggested staged for Aria" }).getByRole("button", { name: "Apply", exact: true });
+  await apply.focus();
+  await apply.press("Enter");
+  await expect.poll(() => recorder.count("tag.attachTag")).toBe(1);
+  await expect(apply).toBeEnabled();
+  await expect(apply).toBeFocused();
+  await workspace.getByRole("button", { name: "deliver tag change" }).evaluate((button) => (button as HTMLButtonElement).click());
+  await expect(apply).toBeFocused();
+  await apply.press("Enter");
+  await expect.poll(() => recorder.count("tag.attachTag")).toBe(2);
+  await expect
+    .poll(() => recorder.lastInput("tag.attachTag"))
+    .toEqual({ tagId: "tag_staged", targetType: "character", targetId: "character_staged", status: "accepted" });
+  await workspace.getByRole("button", { name: "deliver tag change" }).evaluate((button) => (button as HTMLButtonElement).click());
+  await expect(facts).toContainText("In use1");
+  await expect(content(workspace).getByRole("group", { name: "Suggested staged for Aria" })).toHaveCount(0);
+  const remaining = content(workspace).getByRole("group", { name: "Suggested rejected for Bolt" });
+  await expect(remaining.getByRole("button", { name: "Apply", exact: true })).toBeFocused();
+  const reject = remaining.getByRole("button", { name: "Reject", exact: true });
+  await reject.focus();
+  await reject.press("Enter");
+  await expect.poll(() => recorder.count("tag.detachTag")).toBe(1);
+  await workspace.getByRole("button", { name: "deliver tag change" }).evaluate((button) => (button as HTMLButtonElement).click());
+  await expect(content(workspace).getByRole("status")).toHaveText("No suggested labels awaiting review.");
+  await expect(content(workspace).getByRole("status")).toBeFocused();
+  await expect(facts.getByRole("button", { name: "Prune 1 unused" })).toBeVisible();
+  expect(recorder.unstubbed()).toEqual([]);
+});
+
+const ATTACHED_DESTINATIONS = {
+  character: { targetType: "character", targetId: "character_owned", name: "Owned character" },
+  chat: { targetType: "chat", targetId: "chat_owned", name: "Owned chat" },
+  worldBook: { targetType: "worldBook", targetId: "world_book_owned", name: "Owned book" },
+  persona: { targetType: "persona", targetId: "persona_owned", name: "Owned persona" },
+  preset: { targetType: "preset", targetId: "preset_owned", name: "Owned preset" },
+} as const satisfies Record<TagTargetType, TrpcWireOutput<"tag.listAttachedEntities">["entities"][number]>;
+const DESTINATION_SECTIONS: Record<TagTargetType, string> = {
+  character: "characters",
+  chat: "chats",
+  worldBook: "config",
+  persona: "config",
+  preset: "presets",
+};
+for (const kind of Object.keys(ATTACHED_DESTINATIONS) as TagTargetType[]) {
+  test(`Reach opens the attached ${kind} through its canonical selection`, async ({ mount, page }) => {
+    await routeTrpc(page, {
+      "tag.listTagsWithUsage": FEW_TAGS,
+      "tag.listPendingSuggestions": [],
+      "tag.listAttachedEntities": (input) => ({ entities: [ATTACHED_DESTINATIONS[input.targetType]], hasMore: false }),
+    });
+    const workspace = await mount(<LabelsWorkspaceStory />);
+    await finder(workspace).getByRole("button", { name: "adventure", exact: true }).click();
+    const destination = ATTACHED_DESTINATIONS[kind];
+    await workspace.locator('[data-slot="label-reach"]').getByRole("button", { name: destination.name, exact: true }).click();
+    await expect(workspace.getByRole("status", { name: "Attachment destination" })).toHaveText(`${DESTINATION_SECTIONS[kind]}:${destination.targetId}`);
+  });
+}

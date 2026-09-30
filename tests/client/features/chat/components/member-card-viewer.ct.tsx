@@ -1,3 +1,4 @@
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 // CT: the D22 read-only, level-clamped member card-viewer (member-card-viewer.tsx). Drives the
 // production path over the stubbed network (routeTrpc `chat.getMemberCard`). Proves three shapes:
 //  - a `sheet`-clamped card: the description renders, the `full`-tier system-prompt section is ABSENT,
@@ -18,6 +19,7 @@ const NAME_RE = /Aria Vex/u;
 // The always-present name-avatar floor every clamp level carries.
 const FLOOR = {
   characterId: CHARACTER_ID,
+  editableTags: null,
   name: "Aria Vex",
   avatarAssetId: null,
   avatarHash: null,
@@ -151,4 +153,37 @@ test("a NOT_FOUND read is a typed gone-arm — never a crash or the transient Re
   await expect(viewer.getByText("This card isn't available", { exact: false })).toBeVisible();
   // The gone-arm is NOT the transient Retry surface.
   await expect(viewer.getByRole("button", { name: "Retry" })).toHaveCount(0);
+});
+
+test("owner manual label chips open the shared editor and Manage closes both content-scoped floats", async ({ mount, page }) => {
+  const tagId = mintTypeId(ID_PREFIX.tag);
+  const ownerCard = { ...fullCard(), editableTags: [{ id: tagId, name: "explorer" }] };
+  const label = {
+    id: tagId,
+    name: "explorer",
+    color: null,
+    color2: null,
+    source: "manual" as const,
+    folderType: "NONE" as const,
+    sortOrder: null,
+    isHiddenOnCard: false,
+    pendingSuggestions: 0,
+    usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 },
+  };
+  const recorder = await routeTrpc(page, { "chat.getMemberCard": ownerCard, "tag.listTagsWithUsage": [label] });
+  await mount(<MemberCardViewerStory />);
+  await page.getByRole("button", { name: "Edit label explorer", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Edit label explorer", exact: true }).getByRole("textbox", { name: "Name" })).toHaveValue("explorer");
+  await page.getByRole("button", { name: "Manage in Labels", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Edit label explorer", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: NAME_RE })).toHaveCount(0);
+  expect(recorder.unstubbed()).toEqual([]);
+});
+
+test("a guest's clamped host-card labels remain read-only names", async ({ mount, page }) => {
+  const recorder = await routeTrpc(page, { "chat.getMemberCard": fullCard() });
+  await mount(<MemberCardViewerStory />);
+  await expect(page.getByRole("dialog", { name: NAME_RE }).getByText("explorer", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Edit label explorer", exact: true })).toHaveCount(0);
+  expect(recorder.unstubbed()).toEqual([]);
 });

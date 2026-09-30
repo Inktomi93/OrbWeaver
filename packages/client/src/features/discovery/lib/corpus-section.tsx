@@ -57,6 +57,7 @@ export function makeCorpusSection(contributions: CorpusSectionContributions): Se
     listHeader: () => <CorpusWorkspaceListHeader modes={modes} />,
     // The shell's "is a subject open?" and Back, answered for the ACTIVE mode, plus the per-mode phone landing.
     selection: corpusSectionSelection,
+    listDoorLabel: { useLabel: (): string | null => (useCorpusMode() === "insights" ? "Characters" : null) },
     useSelectionTitle: (): string | null => useCorpusWorkspaceTitle(modes),
     content: () => <CorpusWorkspaceContent modes={modes} />,
     context: defineContextTabs<CorpusContextState>({

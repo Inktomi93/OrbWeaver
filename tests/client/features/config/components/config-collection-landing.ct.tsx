@@ -182,25 +182,7 @@ test("the control row reads filter · bulk · create · overflow, left to right"
   expect(create?.x ?? 0).toBeLessThan(overflow?.x ?? 0);
 });
 
-// ONE TAG HOME (D271): the only library that declared a sort was tags, and tags are Corpus Labels now. No
-// Configuration library may draw a sort or a tag door, so every remaining band is walked.
-test("no Configuration library draws a sort, and the shelf carries no Tags band", async ({ mount, page }) => {
-  await stub(page);
-  const workspace = await mount(<ConfigHostStory height={900} target="regex" width={INTERACTIVE_WIDTH} />);
-  await expect(workspace.locator('[data-slot="config-list"]').getByRole("button", { name: /^Tags/ })).toHaveCount(0);
-  await expect(workspace.locator('[data-collection="tags"]')).toHaveCount(0);
-
-  for (const band of ["Regex scripts", "World Info", "Rosters"]) {
-    await workspace
-      .locator('[data-slot="config-list"]')
-      .getByRole("button", { name: new RegExp(band) })
-      .click();
-    await expect(workspace.locator(CONTENT_PANE)).toBeVisible();
-    await expect(workspace.locator(CONTROL_ROW).getByRole("combobox")).toHaveCount(0);
-  }
-});
-
-// THE KEBAB IS DRAWN ONLY WHEN IT HAS AN ITEM. Rosters declare neither `importFile` nor `actions`, so a
+// THE KEBAB IS DRAWN ONLY WHEN IT HAS AN ITEM. Rosters declare no `importFile`, so a
 // kebab there would be a control whose one act is to open onto nothing — the capability lie #925's
 // must-WORK bar names, and the exact defect an "always draw the overflow" host would ship.
 test("the overflow appears for a library with an import door, and NOT for one with neither", async ({ mount, page }) => {

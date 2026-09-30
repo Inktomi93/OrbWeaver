@@ -6,12 +6,11 @@ import type { TagWithUsage } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 import type { SelectOption } from "@orb/ui/select";
 import { useRef } from "react";
+import { CREATE_TAG_CONFLICT_TOAST, isTagNameConflict, useCreateTag } from "#components";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { TagSortMode } from "#lib";
-import { COLLECTION_LARGE_GROUP, notify } from "#lib";
+import { COLLECTION_LARGE_GROUP, notify, tagSortItems, USAGE_KIND_TITLES } from "#lib";
 import { selectLabel, setLabelNameFocus, setTagPruneConfirmOpen, setTagSortMode, useTagSortMode } from "#state";
-import { tagSortItems, USAGE_KIND_TITLES } from "../lib/tags-model.ts";
-import { CREATE_TAG_CONFLICT_TOAST, isTagNameConflict, useCreateTag } from "./use-tag-settings-mutations.ts";
 
 /** The name a created tag lands with — the editor's Name field is the rename affordance, so create needs no
  *  name dialog (C-7: the editor is MOUNTED, so create-then-edit is one motion). */
@@ -65,7 +64,7 @@ export function useTagLibrarySummary(): { readonly count: number; readonly facts
   if (rows === undefined) {
     return rows;
   }
-  const unused = rows.filter((row) => row.usage.total === 0);
+  const unused = rows.filter((row) => row.usage.total === 0 && row.pendingSuggestions === 0);
   const byType = (Object.keys(USAGE_KIND_TITLES) as (keyof typeof USAGE_KIND_TITLES)[]).map((key) => ({
     id: `on-${key}`,
     label: `Tags on ${USAGE_KIND_TITLES[key].toLowerCase()}`,
@@ -74,13 +73,13 @@ export function useTagLibrarySummary(): { readonly count: number; readonly facts
   const facts: readonly TagLibraryFact[] = [
     {
       id: "unused",
-      label: "Labelling nothing",
+      label: "Unattached",
       value: `${String(unused.length)} of ${String(rows.length)}`,
       // The door acts on EVERY unused tag: it opens the prune confirm, which states the count and asks first.
       // Omitted when there are none: a door to nothing is a dead end.
       ...(unused.length === 0 ? {} : { open: { label: `Prune ${String(unused.length)} unused`, run: (): void => setTagPruneConfirmOpen(true) } }),
     },
-    { id: "in-use", label: "In use", value: String(rows.length - unused.length) },
+    { id: "in-use", label: "In use", value: String(rows.filter((row) => row.usage.total > 0).length) },
     ...byType,
   ];
   return { count: rows.length, facts };

@@ -127,6 +127,7 @@ test("MemberCardView is a level-clamped projection — full-only fields null at 
     greetings: ["Hello!"],
     exampleMessages: null,
     tags: ["bard"],
+    editableTags: null,
     creatorNotes: null,
     // above the 'sheet' clamp ⇒ null
     lore: null,

@@ -141,6 +141,7 @@ test("TagWithUsage extends TagView with the five-junction rollup", () => {
     sortOrder: null,
     isHiddenOnCard: false,
     usage,
+    pendingSuggestions: 0,
   };
   expect(Object.keys(row.usage).sort()).toEqual(["characters", "chats", "personas", "presets", "total", "worldBooks"].sort());
   expect(row.usage.total).toBe(6);

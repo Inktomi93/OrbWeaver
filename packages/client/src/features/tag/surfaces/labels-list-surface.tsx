@@ -14,12 +14,11 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState } from "#data";
-import { useFocusOnMount } from "#lib";
+import { LABELS_EMPTY, useFocusOnMount } from "#lib";
 import { selectLabelFromList, setLabelFilter, setTagPruneConfirmOpen, useLabelFilter, useSelectedLabelId } from "#state";
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
 import { useTagCensus, useTagSortControl } from "../hooks/use-tag-library.ts";
 import { LABELS_FINDER_SLOT } from "../lib/labels-focus-targets.ts";
-import { LABELS_EMPTY } from "../lib/tags-model.ts";
 
 export function LabelsListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);

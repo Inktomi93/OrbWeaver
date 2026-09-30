@@ -22,9 +22,10 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { EditableTagChip, useAcceptSuggestion, useRejectSuggestion } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
-import { useAcceptSuggestion, useRejectSuggestion, useSuggestCharacterTags } from "../hooks/use-tag-suggestion-mutations.ts";
+import { useSuggestCharacterTags } from "../hooks/use-tag-suggestion-mutations.ts";
 
 export interface CharacterTagSuggestionsProps {
   readonly characterId: CharacterId;
@@ -68,7 +69,7 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
           {pending.map((suggestion) => (
             <SuggestionChip
               key={suggestion.id}
-              name={suggestion.name}
+              tag={suggestion}
               onAccept={(): void =>
                 accept.mutate({
                   tagId: suggestion.id,
@@ -119,7 +120,16 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
  *  trailing dismiss. Both verbs survive, both keep the full touch floor, and every chip sheds an entire
  *  control box. This is NOT a re-litigation of D113(4b) — the cap ruling stands, every suggestion still
  *  renders; the block is simply allowed to pack. */
-function SuggestionChip({ name, onAccept, onReject }: { readonly name: string; readonly onAccept: () => void; readonly onReject: () => void }): ReactElement {
+function SuggestionChip({
+  tag,
+  onAccept,
+  onReject,
+}: {
+  readonly tag: TagSuggestionView;
+  readonly onAccept: () => void;
+  readonly onReject: () => void;
+}): ReactElement {
+  const name = tag.name;
   return (
     // `px-0 py-0`: the chip is now nothing BUT its two controls, each of which already carries the coarse
     // touch box, so the badge's own `px-row py-field` was padding around padding — 14px of chip height and
@@ -138,6 +148,7 @@ function SuggestionChip({ name, onAccept, onReject }: { readonly name: string; r
           {name}
         </Text>
       </Button>
+      <EditableTagChip tag={tag} iconOnly={true} />
       <Button type="button" size="icon" intent="ghost" aria-label={`Dismiss ${name}`} onClick={onReject}>
         <Icon icon={X} size="xs" />
       </Button>

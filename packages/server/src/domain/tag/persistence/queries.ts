@@ -2,9 +2,21 @@
 // on `ownerId` throughout: a foreign-owned tag is never returned/mutated. Junction dispatch lives in the
 // sibling `junctions.ts`.
 
-import type { TagFilterVocabularyEntry, TagSource, TagSuggestionView, TagView, TagWithUsage } from "@orb/contracts/tag";
+import type { TagFilterVocabularyEntry, TagSource, TagSuggestionView, TagTargetRef, TagTargetType, TagView, TagWithUsage } from "@orb/contracts/tag";
+import { TAG_REACH_PREVIEW_LIMIT } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
-import { characters as charactersTable, characterTags, chatTags, personaTags, presetTags, tags, worldBookTags } from "@orb/db";
+import {
+  characters as charactersTable,
+  characterTags,
+  chatTags,
+  personas as personasTable,
+  personaTags,
+  presets as presetsTable,
+  presetTags,
+  tags,
+  worldBooks as worldBooksTable,
+  worldBookTags,
+} from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, fetchOwned } from "@orb/db/kit";
 import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
@@ -247,7 +259,7 @@ export async function mergeTagBatch(db: Db, ownerId: UserId, sourceTagId: TagId,
  *  its tag row so the review UI renders the chip with name + colors. `character_tags` carries no ownerId, so
  *  the owner gate reaches `characters.ownerId` via the innerJoin. */
 export async function listPendingCharacterSuggestions(db: Db, ownerId: UserId, characterId?: CharacterId): Promise<TagSuggestionView[]> {
-  const conds = [eq(charactersTable.ownerId, ownerId), eq(characterTags.status, "pending")];
+  const conds = [eq(tags.ownerId, ownerId), eq(charactersTable.ownerId, ownerId), eq(characterTags.status, "pending")];
   if (characterId !== undefined) {
     conds.push(eq(characterTags.characterId, characterId));
   }
@@ -262,6 +274,7 @@ export async function listPendingCharacterSuggestions(db: Db, ownerId: UserId, c
       sortOrder: tags.sortOrder,
       isHiddenOnCard: tags.isHiddenOnCard,
       characterId: characterTags.characterId,
+      characterName: charactersTable.name,
     })
     .from(characterTags)
     .innerJoin(tags, eq(characterTags.tagId, tags.id))
@@ -271,8 +284,7 @@ export async function listPendingCharacterSuggestions(db: Db, ownerId: UserId, c
   return rows;
 }
 
-// Usage rollup: five independent GROUP BY queries merged in-process, never a 5-way LEFT JOIN (that explodes
-// to N×5 NULL rows at typical tag counts).
+// Independent junction rollups avoid a multiplicative join; suggestions remain separate from adopted usage.
 
 /** Count junction rows per tag for the given tag ids, on one junction's tagId column. */
 async function countByTag(db: Db, table: SQLiteTable, tagCol: SQLiteColumn, ids: readonly TagId[]): Promise<Record<string, number>> {
@@ -284,23 +296,7 @@ async function countByTag(db: Db, table: SQLiteTable, tagCol: SQLiteColumn, ids:
   return Object.fromEntries(rows.map((r) => [r.tagId, r.n]));
 }
 
-/**
- * Count the ACCEPTED character attachments per tag — {@link countByTag}'s status-aware twin, and the ONE
- * count a FILTER may be derived from.
- *
- * WHY IT IS SEPARATE FROM THE ROLLUP'S COUNT (side-eye 2026-08-30 rail-characters P2, #839). The character
- * library's tag filter is `characterTags.status = 'accepted'` on both arms — the tag predicate AND the
- * group-by-tag read, in `domain/character/persistence/queries.ts` — because a PENDING suggestion is a
- * proposal about a card, not a fact about it. The filter VOCABULARY counted every junction row regardless
- * of status, so a tag that exists only as unaccepted suggestions reported a non-zero `characters`, cleared
- * the chip rail's own `characters > 0` gate (`tagVocabulary`), and rendered a chip that could only ever
- * answer "no matches". Measured on the seed library: 28 offered facets, every one of them dead, against a
- * group-by-tag returning one bucket of ten untagged characters.
- *
- * The MANAGEMENT rollup ({@link listOwnedTagsWithUsage}) keeps the status-blind count on purpose: that
- * screen answers "is this tag attached to anything" — a prune candidate is a tag with no attachment of any
- * status, and a pending suggestion is an attachment. Two questions, two counts.
- */
+/** Count adopted character attachments; suggestions have their own review lifecycle. */
 async function countAcceptedCharacterTags(db: Db, ids: readonly TagId[]): Promise<Record<string, number>> {
   const rows = await db
     .select({ tagId: characterTags.tagId, n: sql<number>`count(*)` })
@@ -317,7 +313,8 @@ export async function listOwnedTagsWithUsage(db: Db, ownerId: UserId): Promise<T
     return [];
   }
   const ids = owned.map((t) => t.id);
-  const [characters, chats, worldBooks, personas, presets] = await Promise.all([
+  const [characters, allCharacters, chats, worldBooks, personas, presets] = await Promise.all([
+    countAcceptedCharacterTags(db, ids),
     countByTag(db, characterTags, characterTags.tagId, ids),
     countByTag(db, chatTags, chatTags.tagId, ids),
     countByTag(db, worldBookTags, worldBookTags.tagId, ids),
@@ -334,7 +331,7 @@ export async function listOwnedTagsWithUsage(db: Db, ownerId: UserId): Promise<T
       total: 0,
     };
     usage.total = usage.characters + usage.chats + usage.worldBooks + usage.personas + usage.presets;
-    return { ...toTagView(row), usage };
+    return { ...toTagView(row), usage, pendingSuggestions: (allCharacters[row.id] ?? 0) - usage.characters };
   });
 }
 
@@ -376,7 +373,7 @@ export async function listOwnedTagFilterVocabulary(db: Db, ownerId: UserId): Pro
  *  candidates; the DELETE rechecks all five junctions so an attachment created after that snapshot wins. */
 export async function pruneZeroUsageTags(db: Db, ownerId: UserId): Promise<number> {
   const withUsage = await listOwnedTagsWithUsage(db, ownerId);
-  const zero = withUsage.filter((t) => t.usage.total === 0).map((t) => t.id);
+  const zero = withUsage.filter((t) => t.usage.total === 0 && t.pendingSuggestions === 0).map((t) => t.id);
   if (zero.length === 0) {
     return 0;
   }
@@ -395,4 +392,60 @@ export async function pruneZeroUsageTags(db: Db, ownerId: UserId): Promise<numbe
     )
     .returning({ id: tags.id });
   return deleted.length;
+}
+
+/** Read a bounded set of adopted junction references. The destination owner rechecks authority. */
+export function listAdoptedTargetRefs(db: Db, ownerId: UserId, tagId: TagId, targetType: TagTargetType): Promise<TagTargetRef[]> {
+  const readers: Record<TagTargetType, () => Promise<TagTargetRef[]>> = {
+    character: async () =>
+      (
+        await db
+          .select({ targetId: characterTags.characterId })
+          .from(characterTags)
+          .innerJoin(charactersTable, eq(charactersTable.id, characterTags.characterId))
+          .where(and(eq(characterTags.tagId, tagId), eq(characterTags.status, "accepted"), eq(charactersTable.ownerId, ownerId)))
+          .orderBy(characterTags.characterId)
+          .limit(TAG_REACH_PREVIEW_LIMIT + 1)
+      ).map((row) => ({ ...row, targetType: "character" })),
+    chat: async () =>
+      (
+        await db
+          .select({ targetId: chatTags.chatId })
+          .from(chatTags)
+          .where(and(eq(chatTags.tagId, tagId), eq(chatTags.ownerId, ownerId)))
+          .orderBy(chatTags.chatId)
+          .limit(TAG_REACH_PREVIEW_LIMIT + 1)
+      ).map((row) => ({ ...row, targetType: "chat" })),
+    worldBook: async () =>
+      (
+        await db
+          .select({ targetId: worldBookTags.worldBookId })
+          .from(worldBookTags)
+          .innerJoin(worldBooksTable, eq(worldBooksTable.id, worldBookTags.worldBookId))
+          .where(and(eq(worldBookTags.tagId, tagId), eq(worldBooksTable.ownerId, ownerId)))
+          .orderBy(worldBookTags.worldBookId)
+          .limit(TAG_REACH_PREVIEW_LIMIT + 1)
+      ).map((row) => ({ ...row, targetType: "worldBook" })),
+    persona: async () =>
+      (
+        await db
+          .select({ targetId: personaTags.personaId })
+          .from(personaTags)
+          .innerJoin(personasTable, eq(personasTable.id, personaTags.personaId))
+          .where(and(eq(personaTags.tagId, tagId), eq(personasTable.ownerId, ownerId)))
+          .orderBy(personaTags.personaId)
+          .limit(TAG_REACH_PREVIEW_LIMIT + 1)
+      ).map((row) => ({ ...row, targetType: "persona" })),
+    preset: async () =>
+      (
+        await db
+          .select({ targetId: presetTags.presetId })
+          .from(presetTags)
+          .innerJoin(presetsTable, eq(presetsTable.id, presetTags.presetId))
+          .where(and(eq(presetTags.tagId, tagId), eq(presetsTable.ownerId, ownerId)))
+          .orderBy(presetTags.presetId)
+          .limit(TAG_REACH_PREVIEW_LIMIT + 1)
+      ).map((row) => ({ ...row, targetType: "preset" })),
+  };
+  return readers[targetType]();
 }

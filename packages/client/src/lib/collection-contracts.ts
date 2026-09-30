@@ -294,55 +294,6 @@ export interface CollectionContribution {
    *  FOR THE NEXT ADOPTER (tag, world-info): nothing here is regex-specific. Declare the field, own a mode
    *  flag, and render your own bar + checkbox rows inside `list` — the band half is already built. */
   readonly bulkSelect?: { readonly label: string; readonly useMode: () => { readonly active: boolean; readonly toggle: () => void } };
-  /** The library's READING ORDER, declared as DATA exactly like {@link bulkSelect} — the host draws ONE
-   *  `Select` in the control row (the mock design §3.2, board 02's `Most used ▾`) and the CONTRIBUTION owns the
-   *  mode, the option set and the comparator behind it.
-   *
-   *  WHAT MOVED AND WHAT DID NOT. Only the CHROME is the host's: a sort control is a band-class control, and
-   *  a contribution drawing its own inside the ROW area is the second chrome grammar C-4 exists to forbid —
-   *  the same argument that put `bulkSelect`'s toggle here. The COMPARATOR stays with the rows, because it
-   *  runs over members and the host never sees one; `useMode` and the rows read the SAME device-local store,
-   *  so "the rows read the mode they are given" is true without widening {@link CollectionListView} with a
-   *  value that already has a home (tags: `state/tag-library-store.ts`).
-   *
-   *  IT IS AN OPTIONAL HOOK, so it is part of the contribution's hook IDENTITY and the #1203 keying law on
-   *  {@link useCount} governs it: tags declare a sort and regex / world-info / rosters do not, so the host's
-   *  per-collection mount stays keyed by GROUP ID or the hook count changes mid-fiber. The host calls
-   *  `useMode` unconditionally, once, inside a component of its own — never behind the `sort !== undefined`
-   *  test that decides whether to draw it.
-   *
-   *  `mode` / `options` are host-OPAQUE strings for the same reason member ids are: the host renders
-   *  `label → value` and hands the value back. A disabled option carries its own `description` — the option
-   *  row's gloss slot (`SelectOption.description`) — which is where a library explains a mode it cannot
-   *  offer, in the control the reader opened to change it. `label` is the trigger's accessible name. */
-  readonly sort?: {
-    readonly label: string;
-    readonly useMode: () => {
-      readonly mode: string;
-      readonly setMode: (next: string) => void;
-      readonly options: readonly { readonly value: string; readonly label: string; readonly disabled?: boolean; readonly description?: string }[];
-    };
-  };
-  /** LIBRARY-LEVEL verbs — the ones that act on the library rather than on a member — drawn by the host in
-   *  the control row's overflow kebab beside {@link importFile} (the mock design §3.2; tags: "Prune unused tags").
-   *
-   *  A MEMBER verb is NOT one of these. Delete, Duplicate and Export are per-member and live in the row's
-   *  own kebab, owner-rendered (D121-D). What qualifies here is a verb whose subject is the whole library,
-   *  which is exactly why the host can draw it blind: there is no member to learn about.
-   *
-   *  THE KEBAB IS DRAWN ONLY WHEN IT HAS AN ITEM. A contribution declaring neither `importFile` nor this
-   *  field gets NO overflow at all — a control whose one act is to open onto nothing is the capability lie
-   *  #925's must-WORK bar names.
-   *
-   *  A DESTRUCTIVE VERB STILL CONFIRMS, AND THE CONFIRM IS THE CONTRIBUTION'S. `useRun` returns a plain
-   *  runner, so a verb that needs a question opens its OWN controlled dialog from inside `list` (tags do:
-   *  the runner writes the store flag the rows' `ConfirmDialog` is bound to). The host never learns what the
-   *  verb does, and `tone` is the only thing it renders differently.
-   *
-   *  `useRun` is a HOOK returning the runner, for the same reason {@link create}'s is — a definition is a
-   *  module-level value, so the mutation is only reachable through a hook the host calls unconditionally,
-   *  once, per declared action. The array is fixed per contribution, so the call order is fixed too. */
-  readonly actions?: readonly { readonly label: string; readonly useRun: () => () => void; readonly tone?: "default" | "danger" }[];
   /** CONTENT for a selected member of this kind — the full editor, owner-rendered, mounted, no popups, and
    *  since #1747 the DRILL ROW above it: the surface draws `MemberDrillHeader` with the {@link
    *  CollectionMemberView#library} it is handed, the member's name, and the member's own verbs (§3.4). */

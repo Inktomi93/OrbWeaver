@@ -64,3 +64,16 @@ export const usePruneUnusedTags = createEntityMutation<void, unknown>({
   busDriven: true,
   errorToast: "Couldn't prune the unused tags.",
 });
+/** Apply a suggestion; the tag user-bus event refreshes both Labels and character projections. */
+export const useAcceptSuggestion = createEntityMutation<inferInput<Trpc["tag"]["attachTag"]>, unknown>({
+  options: (trpc) => trpc.tag.attachTag.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't accept the suggestion.",
+});
+
+/** Reject a suggestion: detach the pending tag. `busDriven` refetches the pending read. */
+export const useRejectSuggestion = createEntityMutation<inferInput<Trpc["tag"]["detachTag"]>, unknown>({
+  options: (trpc) => trpc.tag.detachTag.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't dismiss the suggestion.",
+});

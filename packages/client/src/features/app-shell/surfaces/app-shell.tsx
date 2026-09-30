@@ -359,9 +359,10 @@ export function AppShell(): ReactElement {
               {/* KEYED on the active section: `useSelectionTitle` is a per-section hook, so the component
                   that calls it must remount when the section does (the SectionContextHost idiom). */}
               <SectionTopbarTitle key={layout.activeSection} definition={activeDef} fallback={layout.activeSectionLabel}>
-                {(compactTitle): ReactElement => (
+                {(compactTitle, listDoorLabel): ReactElement => (
                   <ShellTopbar
                     screenTitle={compactTitle}
+                    listDoorLabel={listDoorLabel}
                     title={layout.activeSectionLabel}
                     header={activeDef.header?.()}
                     trail={<TopbarTrailChrome mobile={layout.mobileViewport} />}

@@ -15,13 +15,33 @@ export interface SectionTopbarTitleProps {
   readonly definition: SectionDefinition;
   /** The section label — what shows while nothing is open, or while the name has not landed. */
   readonly fallback: string;
-  readonly children: (title: string) => ReactNode;
+  readonly children: (title: string, listDoorLabel: string | null) => ReactNode;
 }
 
-export function SectionTopbarTitle({ definition, fallback, children }: SectionTopbarTitleProps): ReactElement {
+export function SectionTopbarTitle({ definition, fallback, children }: SectionTopbarTitleProps): ReactNode {
   // Called UNCONDITIONALLY — every section declares one (a section with no member to name declares
   // `NO_SELECTION_TITLE`), and this component is keyed on the section id, so a section switch remounts
   // rather than swapping one hook for another under a live mount.
   const resolved = definition.useSelectionTitle();
-  return <>{children(resolved ?? fallback)}</>;
+  const title = resolved ?? fallback;
+  return definition.listDoorLabel === undefined ? (
+    children(title, null)
+  ) : (
+    <SectionListDoorLabel label={definition.listDoorLabel} title={title}>
+      {children}
+    </SectionListDoorLabel>
+  );
+}
+
+function SectionListDoorLabel({
+  label,
+  title,
+  children,
+}: {
+  readonly label: NonNullable<SectionDefinition["listDoorLabel"]>;
+  readonly title: string;
+  readonly children: SectionTopbarTitleProps["children"];
+}): ReactElement {
+  const resolved = label.useLabel();
+  return <>{children(title, resolved)}</>;
 }

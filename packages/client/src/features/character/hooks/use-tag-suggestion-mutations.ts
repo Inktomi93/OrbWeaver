@@ -1,29 +1,10 @@
-// The character-editor tag-suggestion mutations — the Accept/Reject review flow + the on-demand "Suggest
-// tags" producer trigger. Accept/Reject emit `tagsChanged` on the user-bus (path-invalidates the pending
-// read); Accept also explicitly invalidates `character.get` since the accepted-chip strip lives on the
-// character router, which `tagsChanged` doesn't cover. Suggest stages fresh pending rows through a
-// chokepoint that emits no bus event, so it invalidates the pending read explicitly.
+// The on-demand character tag suggestion producer; Apply/Reject are shared tag operations.
 
 import { CARD_NOT_DISTILLABLE_REASON } from "@orb/contracts/discovery";
-import type { CharacterId } from "@orb/kit/ids";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 import { trpcErrorReason } from "#lib";
-
-/** Accept a suggestion. `busDriven` covers the pending read; the explicit `character.get` invalidate surfaces the new accepted chip. */
-export const useAcceptSuggestion = createEntityMutation<inferInput<Trpc["tag"]["attachTag"]>, unknown>({
-  options: (trpc) => trpc.tag.attachTag.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.character.get.queryFilter({ characterId: vars.targetId as CharacterId })],
-  errorToast: "Couldn't accept the suggestion.",
-});
-
-/** Reject a suggestion: detach the pending tag. `busDriven` refetches the pending read. */
-export const useRejectSuggestion = createEntityMutation<inferInput<Trpc["tag"]["detachTag"]>, unknown>({
-  options: (trpc) => trpc.tag.detachTag.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't dismiss the suggestion.",
-});
 
 /** The two honest failures of a "Suggest tags" run, told apart by the wire reason code — because their FIXES
  *  are opposite. A transient summarizer/provider fault is worth retrying; a name-only card is not (retrying
@@ -31,7 +12,7 @@ export const useRejectSuggestion = createEntityMutation<inferInput<Trpc["tag"]["
 const SUGGEST_RETRY_COPY = "Couldn't generate tag suggestions — try again.";
 const SUGGEST_NOT_DISTILLABLE_COPY = "Nothing to summarize yet — add a description to this card, then suggest tags.";
 
-/** Run the on-demand distill producer for one card. Explicitly invalidates the pending read — the staging
+/** Run the on-demand distill producer for one card. Explicitly invalidates every pending read and the Labels census — the staging
  *  chokepoint emits no user-bus event.
  *
  *  This toast is the ONLY thing that tells a user the run failed, and until 2026-08-03 it never fired: the
@@ -42,6 +23,6 @@ const SUGGEST_NOT_DISTILLABLE_COPY = "Nothing to summarize yet — add a descrip
  *  would be a lie for a name-only card, whose only fix is writing the card. */
 export const useSuggestCharacterTags = createEntityMutation<inferInput<Trpc["discovery"]["suggestCharacterTags"]>, unknown>({
   options: (trpc) => trpc.discovery.suggestCharacterTags.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.tag.listPendingSuggestions.queryFilter({ characterId: vars.characterId })],
+  invalidates: (trpc) => [trpc.tag.listPendingSuggestions.pathFilter(), trpc.tag.listTagsWithUsage.queryFilter()],
   errorToast: (error) => (trpcErrorReason(error) === CARD_NOT_DISTILLABLE_REASON ? SUGGEST_NOT_DISTILLABLE_COPY : SUGGEST_RETRY_COPY),
 });

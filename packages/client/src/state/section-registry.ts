@@ -114,8 +114,11 @@ interface SectionWithList {
    *  never names a feature; absent ⇒ the band renders empty-but-present (the P1 baseline horizon). */
   readonly listHeader?: () => ReactNode;
   readonly selection: SectionSelection;
+  /** The phone's existing list door names its destination when the section has a more precise noun. */
+  readonly listDoorLabel?: { readonly useLabel: () => string | null };
 }
 interface SectionWithoutList {
+  readonly listDoorLabel?: never;
   readonly list?: never;
   readonly listHeader?: never;
   readonly selection?: never;

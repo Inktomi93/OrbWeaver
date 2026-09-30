@@ -3,9 +3,22 @@
 // precedent): the rows, the finder and the member editor are mounted by the Corpus Labels mode, never
 // exported standalone.
 
-import { QueryBoundary } from "@orb/client/components";
+import { EditableTagChip, QueryBoundary } from "@orb/client/components";
+import { useInvalidation } from "@orb/client/data";
 import { labelsContextTabs, labelsCorpusMode } from "@orb/client/features/tag";
-import { clearLabelSelection, setLabelFilter, setTagPruneConfirmOpen, setTagSortMode } from "@orb/client/state";
+import {
+  clearLabelSelection,
+  setLabelFilter,
+  setTagPruneConfirmOpen,
+  setTagSortMode,
+  useActiveChatId,
+  useActiveSection,
+  useCollectionSelection,
+  usePersonaEditorId,
+  useSelectedCharacterId,
+  useSelectedPresetId,
+} from "@orb/client/state";
+import type { TagView } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -106,6 +119,8 @@ export function LabelsWorkspaceStory(): ReactElement {
   const reach = labelsContextTabs[0];
   return (
     <CtDataProviders>
+      <TagChangeDriver />
+      <AttachmentDestinationProbe />
       <div style={{ display: "flex", gap: 16, height: 720 }}>
         <div data-slot="ct-labels-list" style={{ display: "flex", flexDirection: "column", width: 320 }}>
           <div data-slot="ct-labels-band">{labelsCorpusMode.listHeader()}</div>
@@ -121,4 +136,46 @@ export function LabelsWorkspaceStory(): ReactElement {
       </div>
     </CtDataProviders>
   );
+}
+
+function TagChangeDriver(): ReactElement {
+  const invalidation = useInvalidation();
+  return (
+    <button type="button" onClick={(): void => invalidation.invalidateUser({ type: "tagsChanged" })}>
+      deliver tag change
+    </button>
+  );
+}
+
+export function EditableTagChipStory({ tag }: { readonly tag: Pick<TagView, "id" | "name"> }): ReactElement {
+  return (
+    <CtDataProviders>
+      <TagChangeDriver />
+      <AttachmentDestinationProbe />
+      <EditableTagChip tag={tag} />
+    </CtDataProviders>
+  );
+}
+
+function AttachmentDestinationProbe(): ReactElement {
+  const section = useActiveSection();
+  const character = useSelectedCharacterId();
+  const chat = useActiveChatId();
+  const preset = useSelectedPresetId();
+  const collection = useCollectionSelection();
+  const persona = usePersonaEditorId();
+  let target: string | null = null;
+  if (section === "characters") {
+    target = character;
+  }
+  if (section === "chats") {
+    target = chat;
+  }
+  if (section === "presets") {
+    target = preset;
+  }
+  if (section === "config") {
+    target = collection?.memberId ?? persona;
+  }
+  return <output aria-label="Attachment destination">{`${section}:${target ?? "none"}`}</output>;
 }

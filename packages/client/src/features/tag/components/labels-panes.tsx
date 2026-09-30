@@ -14,12 +14,12 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ListPaneHeader, MemberDrillHeader, QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
-import { CORPUS_MODE_LABELS } from "#lib";
+import { CORPUS_MODE_LABELS, tagUsageLabel, USAGE_KIND_TITLES } from "#lib";
 import { clearLabelSelection, useSelectedLabelId } from "#state";
 import { useCreateLabel, useTagCensus, useTagName } from "../hooks/use-tag-library.ts";
-import { USAGE_KIND_TITLES, usageTotalLabel } from "../lib/tags-model.ts";
 import { LabelsLibrarySurface } from "../surfaces/labels-library-surface.tsx";
 import { TagMemberSurface } from "../surfaces/tag-member-surface.tsx";
+import { LabelAttachedEntities } from "./label-attached-entities.tsx";
 
 /** The LIST band: the mode's name, the library census, and the finder's ONE primary verb. */
 export function LabelsListHeader(): ReactElement {
@@ -120,7 +120,7 @@ function TagReach({ tagId }: { readonly tagId: TagId }): ReactElement {
   const kinds = Object.keys(USAGE_KIND_TITLES) as (keyof typeof USAGE_KIND_TITLES)[];
   return (
     <Stack data-slot="label-reach" gap="block">
-      <Text voice="kicker">{usageTotalLabel(tag.usage.total)}</Text>
+      <Text voice="kicker">{tagUsageLabel(tag)}</Text>
       <Stack gap="field">
         {kinds.map((kind) => (
           <Row align="center" gap="field" justify="between" key={kind}>
@@ -131,6 +131,7 @@ function TagReach({ tagId }: { readonly tagId: TagId }): ReactElement {
           </Row>
         ))}
       </Stack>
+      <LabelAttachedEntities tagId={tagId} />
       <Text voice="gloss">{tag.source === null ? "Origin not recorded" : SOURCE_LABELS[tag.source]}</Text>
     </Stack>
   );

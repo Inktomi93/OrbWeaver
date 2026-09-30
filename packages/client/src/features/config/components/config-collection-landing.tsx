@@ -54,11 +54,10 @@
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { FileTrigger } from "@orb/ui/file-trigger";
-import { Icon, ListChecks, MoreVertical, Plus, Trash2, Upload } from "@orb/ui/icons";
+import { Icon, ListChecks, MoreVertical, Plus, Upload } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
-import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
-import { Select } from "@orb/ui/select";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
@@ -151,26 +150,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
   );
 }
 
-/**
- * The library's CONTROL ROW (the mock design §3.2, board 02/04) — filter · sort · bulk · create · overflow, in
- * that visual order, six controls maximum.
- *
- * Every control here is DECLARED DATA the host draws blind (`create`, `sort`, `bulkSelect`, `importFile`,
- * `actions`) plus the host's own filter box. The host never learns what a member is, what a sort MODE means,
- * what a bulk selection MEANS, or what an imported file contains — the `collection-contracts.ts` split is
- * unchanged by the move: host draws the door, owner decides what walks through it.
- *
- * IMPORT SITS IN AN OVERFLOW, NEVER AS A BARE BUTTON (§3.2), and the overflow is drawn ONLY when it has
- * something in it. An empty kebab is the capability lie #925's must-WORK bar names — a control whose one act
- * is to open onto nothing. Rosters declare neither an import nor an action, so they draw no overflow.
- *
- * THE OPTIONAL HOOKS EACH GET THEIR OWN COMPONENT, and that is not style: `sort.useMode`, `bulkSelect.useMode`,
- * `importFile.useRun` and every `actions[].useRun` are hooks whose EXISTENCE varies by contribution. Calling
- * them behind an `=== undefined` test in this component would make the hook COUNT conditional inside one
- * fiber; a child component that renders only when the field is declared makes each call unconditional for
- * its own fiber, and the #1203 `key={collection.id}` at the mount site keeps that true across a library
- * switch.
- */
+/** The host draws filter, bulk selection, create and import from contribution data. */
 function CollectionControlRow({
   collection,
   label,
@@ -198,7 +178,6 @@ function CollectionControlRow({
       <Row align="center" className="min-w-0 flex-1">
         <Input aria-label={`Filter ${label.toLowerCase()}`} onValueChange={onFilterChange} placeholder={`Filter ${label.toLowerCase()}…`} value={filter} />
       </Row>
-      <CollectionSort collection={collection} />
       <CollectionBulkToggle collection={collection} />
       {/* CREATE IS THE ROW'S ONE PRIMARY (C-2's no-aggregate-primary ruling is about the WELCOME, not here):
           it is the library's own verb, on the library's own pane. */}
@@ -208,36 +187,6 @@ function CollectionControlRow({
       </Button>
       <CollectionOverflow collection={collection} />
     </Row>
-  );
-}
-
-/** The library's READING ORDER (`sort`) — host chrome, contribution data. Its own component so the optional
- *  hook runs unconditionally for the one contribution that declares it. */
-function CollectionSort({ collection }: { readonly collection: CollectionContribution }): ReactNode {
-  const sort = collection.sort;
-  if (sort === undefined) {
-    return null;
-  }
-  return <SortSelect sort={sort} />;
-}
-
-function SortSelect({ sort }: { readonly sort: NonNullable<CollectionContribution["sort"]> }): ReactElement {
-  const mode = sort.useMode();
-  return (
-    // `w-auto`: the field control's own `w-full` would claim the row for a three-word label, and the filter
-    // is what should be taking the slack (side-eye 2026-08-03 P2, re-homed with the control).
-    <Select
-      aria-label={sort.label}
-      // @orb-waive ui-size-via-variant(w-auto): content-width Select leaves the row slack to its filter; auto overrides the standard w-full deterministically.
-      className="w-auto"
-      items={mode.options}
-      onValueChange={(value): void => {
-        if (value !== null) {
-          mode.setMode(value);
-        }
-      }}
-      value={mode.mode}
-    />
   );
 }
 
@@ -265,71 +214,13 @@ function BulkToggleButton({ bulk }: { readonly bulk: NonNullable<CollectionContr
   );
 }
 
-/** The overflow — the library-level menu, drawn ONLY when it has an item. Its contents are `importFile`
- *  (D121-D's band Import, re-homed here by the mock design §3.2) and every declared `actions` entry. A
- *  contribution declaring NEITHER gets no kebab at all: a control whose one act is to open onto nothing is
- *  the capability lie this seam's must-WORK bar names. */
+/** Import owns the only library overflow action. */
 function CollectionOverflow({ collection }: { readonly collection: CollectionContribution }): ReactNode {
   const door = collection.importFile;
-  const actions = collection.actions ?? [];
-  if (door === undefined && actions.length === 0) {
-    return null;
-  }
-  // The two arms are separate COMPONENTS rather than one with a conditional `useRun`, for the optional-hook
-  // reason the control row's header states: `importFile.useRun` exists only where the field does.
-  return door === undefined ? <ActionsOverflow actions={actions} /> : <ImportOverflow actions={actions} door={door} />;
+  return door === undefined ? null : <ImportOverflow door={door} />;
 }
 
-/** One declared library verb as a menu item. Its own component so `useRun` is unconditional for its own
- *  fiber, and so the `actions` array's fixed order is the fixed hook order. */
-function ActionItem({ action }: { readonly action: NonNullable<CollectionContribution["actions"]>[number] }): ReactElement {
-  const run = action.useRun();
-  return (
-    // THE HOUSE'S DESTRUCTIVE MENU GRAMMAR, not a new one: `RowActionsMenu` marks its destructive arm with
-    // the `Trash2` glyph behind a separator, and `MenuItem` has no intent prop to reach for. One vocabulary
-    // for "this one deletes", whether the subject is a row or the whole library.
-    <MenuItem onClick={run}>
-      {action.tone === "danger" ? <Icon icon={Trash2} size="sm" /> : null}
-      {action.label}
-    </MenuItem>
-  );
-}
-
-function ActionItems({ actions }: { readonly actions: NonNullable<CollectionContribution["actions"]> }): ReactElement {
-  return (
-    <>
-      {actions.map((action) => (
-        <ActionItem action={action} key={action.label} />
-      ))}
-    </>
-  );
-}
-
-/** The overflow for a library with actions and NO import door — no `FileTrigger` to wrap. */
-function ActionsOverflow({ actions }: { readonly actions: NonNullable<CollectionContribution["actions"]> }): ReactElement {
-  return (
-    <Menu>
-      <MenuTrigger
-        render={
-          <Button aria-label="More library actions" intent="ghost" size="icon-sm">
-            <Icon icon={MoreVertical} size="sm" />
-          </Button>
-        }
-      />
-      <MenuPopup align="end">
-        <ActionItems actions={actions} />
-      </MenuPopup>
-    </Menu>
-  );
-}
-
-function ImportOverflow({
-  door,
-  actions,
-}: {
-  readonly door: NonNullable<CollectionContribution["importFile"]>;
-  readonly actions: NonNullable<CollectionContribution["actions"]>;
-}): ReactElement {
+function ImportOverflow({ door }: { readonly door: NonNullable<CollectionContribution["importFile"]> }): ReactElement {
   const run = door.useRun();
   return (
     // The FileTrigger wraps the MENU, never sits inside its popup: its `<input type="file">` is a real
@@ -357,8 +248,6 @@ function ImportOverflow({
               <Icon icon={Upload} size="sm" />
               {door.label}
             </MenuItem>
-            {actions.length === 0 ? null : <MenuSeparator />}
-            <ActionItems actions={actions} />
           </MenuPopup>
         </Menu>
       )}

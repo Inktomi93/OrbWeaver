@@ -1060,14 +1060,14 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     countHandoffBooks: createCountHandoffBooks(input.db),
     countHandoffRegexScripts: createCountHandoffRegexScripts(input.db),
     restampHandoffDigests: createHandoffRestampStatements({ db: input.db }),
-    // D22 member card — the character's ACCEPTED tag NAMES under the host's ownership (chip display). Resolved
+    // D22 member card — accepted tag identities under the host's ownership. Resolved
     // through the character domain (chat stays character-table-blind, the getCard precedent); a gone card
     // fail-closes to [] rather than throwing into the member-card read.
     resolveCharacterTags: async ({ ownerId, characterId }) => {
       // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.
       try {
         const detail = await input.character.get({ principal: hostPrincipal(ownerId), characterId });
-        return detail.tags.map((t) => t.name);
+        return detail.tags.map(({ id, name }) => ({ id, name }));
       } catch {
         return [];
       }

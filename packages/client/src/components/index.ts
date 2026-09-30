@@ -12,6 +12,7 @@ export { ConfirmDialog } from "./confirm-dialog.tsx";
 export { useSetBinding, useUpdateConnection } from "./connection-role-mutations.ts";
 export type { ConnectionRoleSlotProps } from "./connection-role-slot.tsx";
 export { ConnectionRoleSlot } from "./connection-role-slot.tsx";
+export { EditableTagChip } from "./editable-tag-chip.tsx";
 export type { EntryListEditorProps } from "./entry-list-editor.tsx";
 export { EntryListEditor } from "./entry-list-editor.tsx";
 export type { FaceStripItem, FaceStripProps } from "./face-strip.tsx";
@@ -66,6 +67,20 @@ export { ConfigTeachScope, SettingRow } from "./setting-teach-row.tsx";
 export { SettingTrackRow } from "./setting-track-row.tsx";
 export type { StoredConfigUnreadableNoticeProps } from "./stored-config-unreadable-notice.tsx";
 export { StoredConfigUnreadableNotice } from "./stored-config-unreadable-notice.tsx";
+export { TagEditorBody } from "./tag-editor-body.tsx";
+export {
+  CREATE_TAG_CONFLICT_TOAST,
+  isTagNameConflict,
+  useAcceptSuggestion,
+  useCreateTag,
+  useMergeTags,
+  usePruneUnusedTags,
+  useRejectSuggestion,
+  useRemoveTag,
+  useRenameTag,
+  useSetTagOrder,
+  useUpdateTagStyle,
+} from "./tag-mutations.ts";
 export type { TagPickerDialogProps } from "./tag-picker-dialog.tsx";
 export { TagPickerDialog } from "./tag-picker-dialog.tsx";
 export type {

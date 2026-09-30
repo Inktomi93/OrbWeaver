@@ -7,6 +7,7 @@
 // component that executes post-mount in the real browser context, never at the `.ct.tsx` call site —
 // the same "build the branded shape inside the story" precedent `MessageRowStory` sets for `Map`s).
 
+import { QueryBoundary } from "@orb/client/components";
 import { useTRPC } from "@orb/client/data";
 import {
   CharacterActionsMenu,
@@ -45,6 +46,7 @@ import { CharacterOverviewCard } from "../../../../packages/client/src/features/
 import { CharacterRelationsTab } from "../../../../packages/client/src/features/character/components/character-relations-tab.tsx";
 import { CharacterRestoreBookAction } from "../../../../packages/client/src/features/character/components/character-restore-book-action.tsx";
 import { CharacterTagsRow } from "../../../../packages/client/src/features/character/components/character-tags-row.tsx";
+import { LabelsLibrarySurface } from "../../../../packages/client/src/features/tag/surfaces/labels-library-surface.tsx";
 import {
   CtAppDataProviders,
   CtCharacterContributorSectionRegistry,
@@ -715,5 +717,32 @@ export function CharacterRestoreBookActionStory(): ReactElement {
         <CharacterRestoreBookAction canRestore={true} />
       </CtToastSurface>
     </CtDataProviders>
+  );
+}
+
+/** Unmounting Labels preserves the real app cache while the character stages suggestions. */
+export function CharacterSuggestWarmLabelsStory(): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <SuggestWarmLabelsPanels />
+    </CtAppDataProviders>
+  );
+}
+
+function SuggestWarmLabelsPanels(): ReactElement {
+  const [labels, setLabels] = useState(true);
+  return (
+    <>
+      <button type="button" onClick={(): void => setLabels(!labels)}>
+        {labels ? "Visit character" : "Return to Labels"}
+      </button>
+      <QueryBoundary fallback={<p>Loading</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
+        {labels ? (
+          <LabelsLibrarySurface />
+        ) : (
+          <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={NO_DETAIL_CONTRIBUTORS} />
+        )}
+      </QueryBoundary>
+    </>
   );
 }

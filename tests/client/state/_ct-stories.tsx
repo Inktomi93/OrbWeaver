@@ -69,6 +69,7 @@ import {
   openImageDetail,
   openModal,
   openNewChatPicker,
+  openPersonaEditor,
   openRoomInvite,
   publishContextTabs,
   publishNoticeBand,
@@ -95,6 +96,7 @@ import {
   selectConfigSub,
   selectCorpusCharacter,
   selectLabel,
+  selectPersonaEditor,
   selectPreset,
   selectPresetFromList,
   selectPresetSection,
@@ -185,6 +187,7 @@ import {
   useOpenModal,
   useOpenOverlayPanel,
   usePanelOverride,
+  usePersonaEditorId,
   usePresetEditorView,
   usePresetSearchQuery,
   useRefineryLandingFocusRequest,
@@ -1744,5 +1747,21 @@ export function ConfigSearchProbe(): ReactElement {
         reset search
       </button>
     </div>
+  );
+}
+
+export function PersonaEditorSelectionProbe(): ReactElement {
+  const id = usePersonaEditorId();
+  const group = useActiveConfigGroup();
+  return (
+    <>
+      <output>{`${group ?? "none"}:${id ?? "none"}`}</output>
+      <button type="button" onClick={(): void => openPersonaEditor(mintTypeId(ID_PREFIX.persona))}>
+        open persona editor
+      </button>
+      <button type="button" onClick={(): void => selectPersonaEditor(null)}>
+        close persona editor
+      </button>
+    </>
   );
 }

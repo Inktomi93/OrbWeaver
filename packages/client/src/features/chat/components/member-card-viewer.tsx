@@ -33,6 +33,7 @@ import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
+import { EditableTagChip } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 
@@ -67,7 +68,13 @@ export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: Me
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPopup size="lg" data-testid={testId("memberCardViewer")}>
         <Stack gap="block" className="min-h-0">
-          <MemberCardBody isError={card.isError} error={card.error} data={card.data} onRetry={(): void => void card.refetch()} />
+          <MemberCardBody
+            onManage={(): void => onOpenChange(false)}
+            isError={card.isError}
+            error={card.error}
+            data={card.data}
+            onRetry={(): void => void card.refetch()}
+          />
           <Row justify="end" className="shrink-0">
             <DialogClose render={<Button intent="ghost">Close</Button>} />
           </Row>
@@ -83,11 +90,13 @@ function MemberCardBody({
   error,
   data,
   onRetry,
+  onManage,
 }: {
   readonly isError: boolean;
   readonly error: unknown;
   readonly data: MemberCardView | undefined;
   readonly onRetry: () => void;
+  readonly onManage: () => void;
 }): ReactElement {
   if (isError) {
     // @orb-waive empty-state-has-action(EmptyState): the D22 NOT_FOUND gone-arm ("This card isn't available" — the character left the chat, or access was revoked): there is no next step the viewer could offer, and the dialog's own Close is the only affordance. Ends if this dialog gains a browse-other-cards affordance the gone arm could point at.
@@ -118,7 +127,7 @@ function MemberCardBody({
       </>
     );
   }
-  return <MemberCard card={data} />;
+  return <MemberCard card={data} onManage={onManage} />;
 }
 
 const VISIBILITY_LABEL: Record<MemberCardVisibility, string> = {
@@ -138,7 +147,7 @@ function atLeast(visibility: MemberCardVisibility, level: MemberCardVisibility):
 /** The rendered card — the always-present name/avatar hero, then the sheet / lore / full tiers, each
  *  section shown only when its field is present (non-null AND non-blank). At each TIER boundary above the
  *  viewer's level a single "hidden at this level" note appears in place of the withheld tier. */
-function MemberCard({ card }: { readonly card: MemberCardView }): ReactElement {
+function MemberCard({ card, onManage }: { readonly card: MemberCardView; readonly onManage: () => void }): ReactElement {
   return (
     <Stack gap="block" className="relative min-h-0 overflow-y-auto overscroll-contain">
       {/* The name renders exactly ONCE (side-eye P2): the visible name text IS the `DialogTitle` — a real
@@ -159,7 +168,7 @@ function MemberCard({ card }: { readonly card: MemberCardView }): ReactElement {
         </Stack>
       </Row>
 
-      <SheetTier card={card} />
+      <SheetTier card={card} onManage={onManage} />
       <LoreTier card={card} />
       <FullTier card={card} />
     </Stack>
@@ -169,7 +178,7 @@ function MemberCard({ card }: { readonly card: MemberCardView }): ReactElement {
 /** The `>= sheet` tier — gated on the viewer's clamp LEVEL (not a field null: a sheet-visible card may
  *  legitimately carry an empty description). Below `sheet` ⇒ one hidden-tier note; at/above, each field
  *  renders only when present-and-non-blank (a blank sheet field is omitted, not flagged as withheld). */
-function SheetTier({ card }: { readonly card: MemberCardView }): ReactElement {
+function SheetTier({ card, onManage }: { readonly card: MemberCardView; readonly onManage: () => void }): ReactElement {
   if (!atLeast(card.visibility, "sheet")) {
     return <HiddenTierNote label="Card details" description="The host limited this card to its name and avatar." />;
   }
@@ -180,7 +189,7 @@ function SheetTier({ card }: { readonly card: MemberCardView }): ReactElement {
       <ProseSection icon={ScrollText} title="Scenario" text={card.scenario} />
       <GreetingsSection greetings={card.greetings} />
       <ProseSection icon={Sparkles} title="Example messages" text={card.exampleMessages} />
-      <TagsSection tags={card.tags} />
+      <TagsSection tags={card.tags} editableTags={card.editableTags} onManage={onManage} />
       <ProseSection icon={BookOpen} title="Creator's notes" text={card.creatorNotes} />
     </Stack>
   );
@@ -280,18 +289,32 @@ function GreetingsSection({ greetings }: { readonly greetings: readonly string[]
   );
 }
 
-function TagsSection({ tags }: { readonly tags: readonly string[] | null }): ReactElement | null {
+function TagsSection({
+  tags,
+  editableTags,
+  onManage,
+}: {
+  readonly tags: readonly string[] | null;
+  readonly editableTags: MemberCardView["editableTags"];
+  readonly onManage: () => void;
+}): ReactElement | null {
   if (tags === null || tags.length === 0) {
     return null;
   }
   return (
     <SectionShell icon={Tag} title="Tags">
       <Row gap="field" align="center" className="flex-wrap">
-        {tags.map((tag) => (
-          <Badge key={tag} size="sm" intent="neutral" tone="soft">
-            {tag}
-          </Badge>
-        ))}
+        {editableTags === null
+          ? tags.map((tag) => (
+              <Badge key={tag} size="sm" intent="neutral" tone="soft">
+                {tag}
+              </Badge>
+            ))
+          : editableTags.map((tag) => (
+              <Badge key={tag.id} size="sm" intent="neutral" tone="soft">
+                <EditableTagChip tag={tag} onManage={onManage} />
+              </Badge>
+            ))}
       </Row>
     </SectionShell>
   );
