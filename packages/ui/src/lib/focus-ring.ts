@@ -35,18 +35,6 @@ export const FOCUS_RING_BARE = "focus-visible:ring-2 focus-visible:ring-ring";
 
 export const FOCUS_RING_DESTRUCTIVE = "data-invalid:focus-visible:ring-destructive";
 
-// _ON_SELECTED re-hues the focus ring for a control whose SELECTED skin already paints the `ring` token —
-// a filter chip / rail toggle wearing `inset-ring-ring`. Composes ALONGSIDE FOCUS_RING (like _DESTRUCTIVE),
-// never instead of it: only the colour differs.
-//
-// Why it exists (side-eye 2026-08-17, reports/snaps/se-chars-focusring-crop.png): FOCUS_RING paints
-// `ring-ring` and the selection layer paints `inset-ring-ring`, so a FOCUSED selected chip and a merely
-// selected chip were the same picture — two ember rings stacked — and keyboard position became unreadable
-// exactly where a tri-state control makes it matter most. `foreground` is the one ink already guaranteed to
-// contrast against the `accent` fill those selected arms paint. Re-hueing the SELECTION ring instead would
-// break its byte-identity with Toggle's `data-pressed` skin, which is a deliberate reading, not an accident.
-export const FOCUS_RING_ON_SELECTED = "focus-visible:ring-foreground";
-
 // _OUTLINE is the ring for a focusable surface WHOSE BOX-SHADOW SLOT IS ALREADY OWNED — an elevated
 // float (`shadow-overlay`), a `shadow-cta` button, anything painting a real box-shadow. Every helper
 // above draws through Tailwind's ring, which IS a box-shadow: on such an element the elevation layers

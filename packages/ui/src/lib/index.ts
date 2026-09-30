@@ -28,7 +28,6 @@ export {
   FOCUS_RING_HAS,
   FOCUS_RING_INSET,
   FOCUS_RING_ON_POPOVER,
-  FOCUS_RING_ON_SELECTED,
   FOCUS_RING_ON_SIDEBAR,
   FOCUS_RING_OUTLINE,
   FOCUS_RING_WITHIN,
@@ -49,6 +48,7 @@ export { prefersReducedMotionNow, scrollBehavior } from "./reduced-motion-now.ts
 export { formatResultCount, formatSuggestionCount } from "./result-count.ts";
 export { SCRIM, SCRIM_BASE } from "./scrim.ts";
 export { SCROLL_FADE_X_CLASS, SCROLL_FADE_Y_CLASS } from "./scroll-fade.ts";
+export { SELECTED_FILL, SELECTED_FILL_PRESSED } from "./selected-fill.ts";
 export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO } from "./selection-control.ts";
 export { SELECTION_RAIL } from "./selection-rail.ts";
 export { SELECTION_RING_CHECKED, SELECTION_RING_SELECTED } from "./selection-ring.ts";

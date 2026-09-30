@@ -106,10 +106,10 @@ const OPENING_PILL_SELECTOR = '[data-slot="greeting-opening"]';
  *     stop, arrows inside it (`useRovingChipFocus`, the same model the tag cloud takes).
  *   · the ACTIVE pill carries `aria-current="true"`, so a strip's state is a claim, not a colour; the other
  *     three claim nothing.
- *   · the SELECTED PAINT is Button's ratified `selection="on"` — `bg-accent` + a 2px `inset-ring-ring`,
- *     byte-identical to Toggle's `data-pressed` skin, so a selected opening and a selected tag chip are ONE
- *     reading. A FILL, not a hairline, which is what clears the non-text floor; no new token is minted here
- *     (a colour for this state would be a vault change, not a feature's call).
+ *   · the SELECTED PAINT is Button's ratified `selection="on"` — the shared selected fill, identical to
+ *     Toggle's `data-pressed` skin, so a selected opening and a selected tag chip are ONE reading. A FILL,
+ *     not a hairline, which is what clears the non-text floor; no new token is minted here (a colour for
+ *     this state would be a vault change, not a feature's call).
  * ACTIVATION IS ON CLICK/ENTER, never on focus: arrows move the stop, the press selects. The panel under the
  * strip re-renders a whole themed markdown bubble, and a keyboard user crossing four pills must not mount
  * four of them on the way to the one they want (the context rail's own measured ruling).
