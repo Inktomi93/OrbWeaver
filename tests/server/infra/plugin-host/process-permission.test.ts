@@ -11,6 +11,7 @@ import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { afterEach } from "vitest";
 import { pluginBrokerExecArgv } from "../../../../packages/server/src/infra/plugin-host/process-permission.ts";
@@ -26,7 +27,9 @@ const PRIVATE_FILE_MODE = 0o600;
 interface ProbeReport {
   readonly kind: "permission-probe";
   readonly reads: Readonly<Record<string, string>>;
+  readonly sqlite: Readonly<Record<string, string>>;
   readonly workerReads: Readonly<Record<string, string>>;
+  readonly workerSqlite: Readonly<Record<string, string>>;
   readonly spawn: string;
 }
 
@@ -80,6 +83,11 @@ test("a broker under its permission flags is denied the data dir, .env and proce
   const dataKey = join(directory, "data", "secrets", "credentials_key");
   mkdirSync(join(directory, "data", "secrets"), { recursive: true });
   writeFileSync(dataKey, randomBytes(32).toString("hex"), { mode: PRIVATE_FILE_MODE });
+  // A real sqlite file under the data dir: `node:sqlite` bypasses the fs gate, so this is the door the flag closes.
+  const dbPath = join(directory, "data", "app.db");
+  const seed = new DatabaseSync(dbPath);
+  seed.exec("create table t(v text); insert into t values ('secret')");
+  seed.close();
 
   const denied = [
     dataKey,
@@ -111,6 +119,11 @@ test("a broker under its permission flags is denied the data dir, .env and proce
   for (const reads of [report.reads, report.workerReads]) {
     expect(Object.fromEntries(denied.map((path) => [path, reads[path]]))).toEqual(Object.fromEntries(denied.map((path) => [path, DENIED])));
     expect(Object.fromEntries(allowed.map((path) => [path, reads[path]]))).toEqual(Object.fromEntries(allowed.map((path) => [path, "allowed"])));
+  }
+  // `--no-experimental-sqlite` removes the builtin, so the open throws `ERR_UNKNOWN_BUILTIN_MODULE`, not `allowed`.
+  for (const sqlite of [report.sqlite, report.workerSqlite]) {
+    expect(sqlite[dbPath]).not.toBe("allowed");
+    expect(sqlite[dataKey]).not.toBe("allowed");
   }
   expect(report.spawn).toBe(DENIED);
   expect(await authenticates(socketPath, token)).toBe(true);

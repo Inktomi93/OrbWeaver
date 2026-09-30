@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join, parse, relative, sep } from "node:path";
 import process from "node:process";
+import { DatabaseSync } from "node:sqlite";
 
 const DENIED = "ERR_ACCESS_DENIED";
 const PRIVATE_FILE_MODE = 0o600;
@@ -35,7 +36,9 @@ function walksThroughLinks(): string[] {
 
 interface ProbeReport {
   readonly reads: Readonly<Record<string, string>>;
+  readonly sqlite: Readonly<Record<string, string>>;
   readonly workerReads: Readonly<Record<string, string>>;
+  readonly workerSqlite: Readonly<Record<string, string>>;
 }
 
 const directory = mkdtempSync(join(tmpdir(), "orb-broker-containment-"));
@@ -44,8 +47,17 @@ mkdirSync(brokerDirectory, { mode: 0o700 });
 const tokenPath = join(brokerDirectory, "token");
 writeFileSync(tokenPath, randomBytes(32).toString("base64url"), { mode: PRIVATE_FILE_MODE, flag: "wx" });
 const walks = walksThroughLinks();
+// `node:sqlite` bypasses the fs gate. The proof opens a real db under the temp root (granted to neither process) and,
+// when the app has booted, the shipped db under the data dir. Removing the builtin must deny both.
+const plantedDb = join(directory, "app.db");
+const seed = new DatabaseSync(plantedDb);
+seed.exec("create table t(v text); insert into t values ('secret')");
+seed.close();
+const shippedDb = join(root, "data", "db", "orbweaver.db");
+const sqliteTargets = [plantedDb, ...(existsSync(shippedDb) ? [shippedDb] : [])];
 const denied = [credentialsKey, ...walks];
 const allowed = [tokenPath, join(root, "packages", "server", "package.json")];
+const probePaths = [...new Set([...denied, ...allowed, ...sqliteTargets])];
 const broker: ChildProcess = spawn(
   process.execPath,
   [
@@ -60,7 +72,7 @@ const broker: ChildProcess = spawn(
   ],
   {
     cwd: brokerDirectory,
-    env: { ["NODE_ENV"]: "production", ["ORB_BROKER_PROBE_READS"]: JSON.stringify([...denied, ...allowed]) },
+    env: { ["NODE_ENV"]: "production", ["ORB_BROKER_PROBE_READS"]: JSON.stringify(probePaths) },
     stdio: ["ignore", "inherit", "inherit", "ipc"],
   },
 );
@@ -71,13 +83,16 @@ rmSync(directory, { recursive: true, force: true });
 const failures = [
   ...(existsSync(credentialsKey) ? [] : [`the credentials key ${credentialsKey} does not exist, so no denial proves anything`]),
   ...(walks.length > 0 ? [] : ["no workspace-package link was found to walk through"]),
-  ...[report.reads, report.workerReads].flatMap((reads, index) => {
-    const thread = index === 0 ? "main thread" : "Worker";
-    return [
-      ...denied.filter((path) => reads[path] !== DENIED).map((path) => `${thread} read ${path}: ${String(reads[path])}`),
-      ...allowed.filter((path) => reads[path] !== "allowed").map((path) => `${thread} could not read ${path}: ${String(reads[path])}`),
-    ];
-  }),
+  ...[
+    { thread: "main thread", reads: report.reads, sqlite: report.sqlite },
+    { thread: "Worker", reads: report.workerReads, sqlite: report.workerSqlite },
+  ].flatMap(({ thread, reads, sqlite }) => [
+    ...denied.filter((path) => reads[path] !== DENIED).map((path) => `${thread} read ${path}: ${String(reads[path])}`),
+    ...allowed.filter((path) => reads[path] !== "allowed").map((path) => `${thread} could not read ${path}: ${String(reads[path])}`),
+    ...sqliteTargets.filter((path) => sqlite[path] === "allowed").map((path) => `${thread} opened ${path} through node:sqlite`),
+  ]),
 ];
-process.stdout.write(`${JSON.stringify({ walks, reads: report.reads, workerReads: report.workerReads, failures }, null, 2)}\n`);
+process.stdout.write(
+  `${JSON.stringify({ walks, sqliteTargets, reads: report.reads, sqlite: report.sqlite, workerReads: report.workerReads, workerSqlite: report.workerSqlite, failures }, null, 2)}\n`,
+);
 process.exitCode = failures.length === 0 ? 0 : 1;

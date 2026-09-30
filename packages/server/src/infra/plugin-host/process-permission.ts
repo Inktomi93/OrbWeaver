@@ -28,6 +28,10 @@ export const PLUGIN_PROCESS_CODE_ROOTS: readonly string[] = [
 ];
 
 const PERMISSION = "--permission";
+// The permission model does not gate `node:sqlite`: a guest that reached it could open the app's database
+// read-only, outside every `--allow-fs-read` grant. Neither process needs sqlite, so the builtin is removed. This
+// disables the builtin for the isolate, and a guest Worker inherits it.
+const DENY_SQLITE = "--no-experimental-sqlite";
 // Each grant below prints a warning on every start. They are deliberate and the text names nothing to act on.
 const QUIET_GRANT_WARNINGS = ["--disable-warning=SecurityWarning", "--disable-warning=ExperimentalWarning"];
 
@@ -37,7 +41,7 @@ function readGrants(paths: readonly string[]): string[] {
 
 /** The watchdog reads its own code and spawns the broker, which starts under {@link pluginBrokerExecArgv}. */
 export function pluginWatchdogExecArgv(): string[] {
-  return [PERMISSION, ...readGrants(PLUGIN_PROCESS_CODE_ROOTS), "--allow-child-process", ...QUIET_GRANT_WARNINGS];
+  return [PERMISSION, DENY_SQLITE, ...readGrants(PLUGIN_PROCESS_CODE_ROOTS), "--allow-child-process", ...QUIET_GRANT_WARNINGS];
 }
 
 /** The broker reads its code and the token in `brokerDirectory`, binds its socket there, and starts guest Workers,
@@ -48,6 +52,7 @@ export function pluginWatchdogExecArgv(): string[] {
 export function pluginBrokerExecArgv(brokerDirectory: string): string[] {
   return [
     PERMISSION,
+    DENY_SQLITE,
     ...readGrants([...PLUGIN_PROCESS_CODE_ROOTS, ...CONTAINER_MARKER_FILES, brokerDirectory]),
     `--allow-fs-write=${brokerDirectory}`,
     "--allow-worker",
