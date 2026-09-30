@@ -58,6 +58,7 @@ const NON_STAGE_ALLOWLIST = new Set([
   "depcruise:affected", // the git-affected SCOPING variant (depcruise --affected) — a standalone dev tool, not a tier
   "cpd:report", // html ARTIFACT twin of the cpd gate
   "check:show", // the report INSPECTOR (a read-only viewer, not a gate)
+  "lint:eslint-scoped", // ad-hoc entry to the scoped lint:eslint stage's own verb; the stage calls the verb directly
 ]);
 
 const ROOT_DEP = (name: string): string =>
