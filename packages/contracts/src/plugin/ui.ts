@@ -1731,6 +1731,12 @@ export interface PluginUiOutcome {
   readonly openDialog?: string;
 }
 
+/** Strict: installed as the tRPC output parser of `invokeUiAction` / `invokeUiCommand`. */
+export const pluginUiOutcomeSchema = z.strictObject({
+  toasts: z.array(z.strictObject({ level: z.enum(PLUGIN_TOAST_LEVELS), message: z.string() })).readonly(),
+  openDialog: z.string().exactOptional(),
+}) satisfies z.ZodType<PluginUiOutcome>;
+
 /** Every DISTINCT node kind in `spec` that {@link PLUGIN_FOOTER_NODE_KIND_ALLOWED} refuses, in first-seen
  *  order — one issue per offending KIND (not per occurrence), so a spec of forty buttons reports once. */
 function unallowedFooterKinds(spec: PluginSurfaceSpec): readonly PluginNodeKind[] {

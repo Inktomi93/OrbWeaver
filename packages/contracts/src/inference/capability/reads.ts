@@ -3,6 +3,7 @@
 // the 13 direct re-spellings the M4 census found (`pipeline.ts:608,616,634,635`, `read.ts:1093-1101`, …)
 // migrate here so the SHAPE splice, the rpg fold-mount gate and the imagery edit belt read IDENTICAL facts.
 
+import { z } from "zod";
 import type { Modality } from "../modalities.ts";
 import type { CapabilityRequirement } from "../tasks.ts";
 import type { Capability } from "./capability.ts";
@@ -145,6 +146,10 @@ export function fitsSpace(capability: EmbeddingCapability, dims: number): boolea
 /** The requirement verdict — `{ ok: false, missing }` names each unmet clause in `axis:member` spelling so
  *  the picker can say "captioning needs image input" instead of failing at the wire. Never throws. */
 export type RequirementVerdict = { readonly ok: true } | { readonly ok: false; readonly missing: readonly string[] };
+export const requirementVerdictSchema = z.discriminatedUnion("ok", [
+  z.strictObject({ ok: z.literal(true) }),
+  z.strictObject({ ok: z.literal(false), missing: z.array(z.string()).readonly() }),
+]) satisfies z.ZodType<RequirementVerdict>;
 
 export function requirementMet(capability: Capability, requires: CapabilityRequirement | undefined): RequirementVerdict {
   if (requires === undefined) {

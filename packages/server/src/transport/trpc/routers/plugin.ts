@@ -46,9 +46,27 @@ import {
   pluginBundleHashSchema,
   pluginNetHostSchema,
   pluginSlugSchema,
+  pluginUiOutcomeSchema,
 } from "@orb/contracts/plugin";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import {
+  distributedPluginViewSchema,
+  pluginBundleAssetViewSchema,
+  pluginCommandViewSchema,
+  pluginDisplayTransformResultSchema,
+  pluginDisplayTransformViewSchema,
+  pluginFanoutResultSchema,
+  pluginGitPreviewSchema,
+  pluginLogViewSchema,
+  pluginSurfaceStateSchema,
+  pluginSurfaceViewSchema,
+  pluginUiHostCallResultSchema,
+  pluginUpdateCheckSchema,
+  pluginUrlPreviewSchema,
+  pluginViewSchema,
+  snippetResultSchema,
+} from "#domain/plugin";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 
 const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
@@ -96,10 +114,12 @@ const gitCommitSchema = z.string().regex(/^[0-9a-f]{40}$/u);
 export const pluginRouter = t.router({
   install: authedProcedure
     .input(z.object({ bundleBase64: z.string(), grant: grantSchema }))
+    .output(pluginViewSchema)
     .mutation(({ ctx, input }) => ctx.services.plugin.install({ caller: ctx.auth, bundle: decodeBundle(input.bundleBase64), grant: input.grant })),
 
   upgrade: authedProcedure
     .input(z.object({ pluginId: pluginIdSchema, bundleBase64: z.string() }))
+    .output(pluginViewSchema)
     .mutation(({ ctx, input }) => ctx.services.plugin.upgrade({ caller: ctx.auth, pluginId: input.pluginId, bundle: decodeBundle(input.bundleBase64) })),
 
   // ── URL INSTALL / PREVIEW (U8, seam 15 — the security-review subject). Both are
@@ -114,10 +134,12 @@ export const pluginRouter = t.router({
   //    the CALLER's own row. Neither takes a foreign id, so both remain sweep-EXEMPT.
   previewFromUrl: authedProcedure
     .input(z.object({ url: bundleUrlSchema }))
+    .output(pluginUrlPreviewSchema)
     .mutation(({ ctx, input }) => ctx.services.plugin.previewFromUrl({ caller: ctx.auth, url: input.url })),
 
   installFromUrl: authedProcedure
     .input(z.object({ url: bundleUrlSchema, expectedBundleHash: pluginBundleHashSchema, grant: grantSchema }))
+    .output(pluginViewSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.installFromUrl({ caller: ctx.auth, url: input.url, expectedBundleHash: input.expectedBundleHash, grant: input.grant }),
     ),
@@ -129,14 +151,17 @@ export const pluginRouter = t.router({
   // parse/install funnel above. All three are self-scoped: no foreign row id; an install mints the caller's row.
   installUnpacked: authedProcedure
     .input(z.object({ directory: localPluginDirectorySchema, grant: grantSchema }))
+    .output(pluginViewSchema)
     .mutation(({ ctx, input }) => ctx.services.plugin.installUnpacked({ caller: ctx.auth, directory: input.directory, grant: input.grant })),
 
   previewFromGit: authedProcedure
     .input(z.object({ url: bundleUrlSchema }))
+    .output(pluginGitPreviewSchema)
     .mutation(({ ctx, input }) => ctx.services.plugin.previewFromGit({ caller: ctx.auth, url: input.url })),
 
   installFromGit: authedProcedure
     .input(z.object({ url: bundleUrlSchema, expectedCommit: gitCommitSchema, grant: grantSchema }))
+    .output(pluginViewSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.installFromGit({ caller: ctx.auth, url: input.url, expectedCommit: input.expectedCommit, grant: input.grant }),
     ),
@@ -153,16 +178,20 @@ export const pluginRouter = t.router({
   //    the unchanged reach-widening→disabled re-consent wall (never a silent update). Git additionally requires
   //    the exact 40-hex commit the check returned, binding the displayed verdict to the later clone. URL
   //    upgrades likewise require the exact bundle hash returned by the check.
-  checkForUpdates: authedProcedure.mutation(({ ctx }) => ctx.services.plugin.checkForUpdates({ caller: ctx.auth })),
+  checkForUpdates: authedProcedure
+    .output(z.array(pluginUpdateCheckSchema).readonly())
+    .mutation(({ ctx }) => ctx.services.plugin.checkForUpdates({ caller: ctx.auth })),
 
   upgradeFromStoredUrl: authedProcedure
     .input(z.object({ pluginId: pluginIdSchema, expectedBundleHash: pluginBundleHashSchema }))
+    .output(pluginViewSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.upgradeFromStoredUrl({ caller: ctx.auth, pluginId: input.pluginId, expectedBundleHash: input.expectedBundleHash }),
     ),
 
   upgradeFromStoredGit: authedProcedure
     .input(z.object({ pluginId: pluginIdSchema, expectedCommit: gitCommitSchema }))
+    .output(pluginViewSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.upgradeFromStoredGit({ caller: ctx.auth, pluginId: input.pluginId, expectedCommit: input.expectedCommit }),
     ),
@@ -175,6 +204,7 @@ export const pluginRouter = t.router({
   //    of the examples — so a stranger cannot even learn that much about someone else's install.
   upgradeFromShowcase: authedProcedure
     .input(z.object({ pluginId: pluginIdSchema }))
+    .output(pluginViewSchema)
     .mutation(({ ctx, input }) => ctx.services.plugin.upgradeFromShowcase({ caller: ctx.auth, pluginId: input.pluginId })),
 
   // RE-CONSENT. `grant` is the WHOLE new confirmed subset (not a delta) and `acknowledgedNetHosts` is the
@@ -184,6 +214,7 @@ export const pluginRouter = t.router({
   // "the client forgot to send the echo" indistinguishable from "the owner saw an empty list".
   setGrant: authedProcedure
     .input(z.object({ pluginId: pluginIdSchema, grant: grantSchema, acknowledgedNetHosts: z.array(pluginNetHostSchema).max(NET_HOSTS_MAX) }))
+    .output(pluginViewSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.setGrant({
         caller: ctx.auth,
@@ -201,7 +232,7 @@ export const pluginRouter = t.router({
     .input(z.object({ pluginId: pluginIdSchema }))
     .mutation(({ ctx, input }) => ctx.services.plugin.uninstall({ caller: ctx.auth, pluginId: input.pluginId })),
 
-  list: authedProcedure.query(({ ctx }) => ctx.services.plugin.list({ caller: ctx.auth })),
+  list: authedProcedure.output(z.array(pluginViewSchema).readonly()).query(({ ctx }) => ctx.services.plugin.list({ caller: ctx.auth })),
 
   // ── SERVER-WIDE DISTRIBUTION (D147 clause (d)) — the only `adminProcedure`s on this router, and the
   //    exception that proves the rule above: the per-row verbs stay `authedProcedure` because their question
@@ -212,18 +243,23 @@ export const pluginRouter = t.router({
   //    runs nothing — there is deliberately no force-enable verb, and adding one would reopen D147 clause (b).
   installForAllUsers: adminProcedure
     .input(z.object({ bundleBase64: z.string() }))
+    .output(pluginFanoutResultSchema)
     .mutation(({ ctx, input }) => ctx.services.plugin.installForAllUsers({ caller: ctx.auth, bundle: decodeBundle(input.bundleBase64) })),
 
   // `slug` is the manifest id — a plain string by contract, never a branded id (a slug is the plugin author's
   // own namespace, validated by `pluginManifestSchema` at the trust edge, not minted by us).
   uninstallForAllUsers: adminProcedure
     .input(z.object({ slug: pluginSlugSchema }))
+    .output(pluginFanoutResultSchema)
     .mutation(({ ctx, input }) => ctx.services.plugin.uninstallForAllUsers({ caller: ctx.auth, slug: input.slug })),
 
-  listDistributed: adminProcedure.query(({ ctx }) => ctx.services.plugin.listDistributedPlugins({ caller: ctx.auth })),
+  listDistributed: adminProcedure
+    .output(z.array(distributedPluginViewSchema).readonly())
+    .query(({ ctx }) => ctx.services.plugin.listDistributedPlugins({ caller: ctx.auth })),
 
   getLog: authedProcedure
     .input(z.object({ pluginId: pluginIdSchema, limit: z.number().int().positive().max(PLUGIN_LOG_LIST_MAX_LIMIT).optional() }))
+    .output(z.array(pluginLogViewSchema).readonly())
     .query(({ ctx, input }) =>
       ctx.services.plugin.getLog({ caller: ctx.auth, pluginId: input.pluginId, ...(input.limit !== undefined ? { limit: input.limit } : {}) }),
     ),
@@ -232,6 +268,7 @@ export const pluginRouter = t.router({
   // leak-free (a chat the caller can't read ⇒ NOT_FOUND) and returns the drained log + a contained `error`.
   runSnippet: authedProcedure
     .input(z.object({ chatId: chatIdSchema, code: z.string().max(SNIPPET_CODE_MAX) }))
+    .output(snippetResultSchema)
     .mutation(({ ctx, input }) => ctx.services.plugin.runSnippet({ caller: ctx.auth, chatId: input.chatId, code: input.code })),
 
   // ── The Tier-S UI-surface READ side. `listSurfaces` takes no input (the caller's
@@ -240,7 +277,7 @@ export const pluginRouter = t.router({
   //    service gates each on the owner-scoped `getById` load (leak-free NOT_FOUND). `invokeUiAction` is the
   //    guest-action round-trip: the mutation surfaces a throwing handler as a typed refusal (house toast) and a
   //    repeat crash rides the 3-strike auto-disable.
-  listSurfaces: authedProcedure.query(({ ctx }) => ctx.services.plugin.listSurfaces({ caller: ctx.auth })),
+  listSurfaces: authedProcedure.output(z.array(pluginSurfaceViewSchema).readonly()).query(({ ctx }) => ctx.services.plugin.listSurfaces({ caller: ctx.auth })),
 
   // #820 seam 11 — the bundle-shipped image map for ONE owned plugin (`ui/assets/<name>` → CAS id), read by
   // the renderer when a spec names a bundle path. It takes a FOREIGN pluginId, so it joins the PROBED sweep
@@ -248,10 +285,12 @@ export const pluginRouter = t.router({
   // holding owner A's real id gets the same leak-free NOT_FOUND every other per-row plugin read gives.
   listBundleAssets: authedProcedure
     .input(z.object({ pluginId: pluginIdSchema }))
+    .output(z.array(pluginBundleAssetViewSchema).readonly())
     .query(({ ctx, input }) => ctx.services.plugin.listBundleAssets({ caller: ctx.auth, pluginId: input.pluginId })),
 
   getSurfaceState: authedProcedure
     .input(z.object({ pluginId: pluginIdSchema, surfaceId: surfaceIdSchema, chatId: chatIdSchema.optional() }))
+    .output(pluginSurfaceStateSchema.nullable())
     .query(({ ctx, input }) =>
       ctx.services.plugin.getSurfaceState({
         caller: ctx.auth,
@@ -271,6 +310,7 @@ export const pluginRouter = t.router({
         chatId: chatIdSchema.optional(),
       }),
     )
+    .output(pluginUiOutcomeSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.invokeUiAction({
         caller: ctx.auth,
@@ -313,6 +353,7 @@ export const pluginRouter = t.router({
         chatId: chatIdSchema.optional(),
       }),
     )
+    .output(pluginUiHostCallResultSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.uiHostCall({
         caller: ctx.auth,
@@ -334,7 +375,7 @@ export const pluginRouter = t.router({
   //    AND a foreign chatId, so it is PROBED by the cross-tenant sweep on BOTH: the service gates the plugin on
   //    the owner-scoped `getById` and the chat through the same leak-free `resolveChatAuthority` the snippet
   //    gate uses (a chat the caller cannot read ⇒ NOT_FOUND, never an existence oracle).
-  listCommands: authedProcedure.query(({ ctx }) => ctx.services.plugin.listCommands({ caller: ctx.auth })),
+  listCommands: authedProcedure.output(z.array(pluginCommandViewSchema).readonly()).query(({ ctx }) => ctx.services.plugin.listCommands({ caller: ctx.auth })),
 
   invokeUiCommand: authedProcedure
     .input(
@@ -352,6 +393,7 @@ export const pluginRouter = t.router({
         chatId: chatIdSchema.nullable(),
       }),
     )
+    .output(pluginUiOutcomeSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.invokeUiCommand({
         caller: ctx.auth,
@@ -368,10 +410,13 @@ export const pluginRouter = t.router({
   //    but it READS nothing with them — they are handed to the guest as its `env`, and the only text in play is
   //    text the caller's own client supplied and only the caller receives back. Nothing is persisted, and no
   //    authority is derived from any input; the gate is the owner-scoped read of the caller's own plugin rows.
-  listDisplayTransforms: authedProcedure.query(({ ctx }) => ctx.services.plugin.listDisplayTransforms({ caller: ctx.auth })),
+  listDisplayTransforms: authedProcedure
+    .output(z.array(pluginDisplayTransformViewSchema).readonly())
+    .query(({ ctx }) => ctx.services.plugin.listDisplayTransforms({ caller: ctx.auth })),
 
   transformForDisplay: authedProcedure
     .input(z.object({ chatId: chatIdSchema, messageId: messageIdSchema, text: z.string().max(PLUGIN_DISPLAY_TEXT_MAX_CHARS) }))
+    .output(pluginDisplayTransformResultSchema)
     .query(({ ctx, input }) =>
       ctx.services.plugin.transformForDisplay({ caller: ctx.auth, chatId: input.chatId, messageId: input.messageId, text: input.text }),
     ),

@@ -8,9 +8,11 @@
 // `baseUrl` is an SSRF surface; the F12 admission + the egress guard judge it) or spends a tiny generation, so
 // they keep the CSRF gate tRPC applies to mutations. Do NOT demote to `.query()`.
 
+import { credentialHealthSchema } from "@orb/contracts/credentials";
 import {
   capabilityTargetSchema,
   connectionApiSchema,
+  connectionBindingSchema,
   connectionExtrasSchema,
   connectionRefSchema,
   connectionTransportSchema,
@@ -19,12 +21,15 @@ import {
   modelIdSchema,
   modelListingSchema,
   promptCacheSettingsSchema,
+  providerAvailabilitySchema,
   providerIdSchema,
+  resolvedConnectionViewSchema,
   routableTaskSchema,
 } from "@orb/contracts/inference";
-import { verifyAuthResultSchema } from "@orb/contracts/providers";
+import { accountCreditsSchema, endpointInspectionSchema, generationCostSchema, verifyAuthResultSchema } from "@orb/contracts/providers";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { bindingViewSchema, catalogRefreshOutcomeSchema, connectionCapabilityViewSchema, connectionViewSchema } from "#domain/connection";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 
 const connectionId = connectionRefSchema.shape.connectionId;
@@ -56,16 +61,21 @@ const bindingActor = z.discriminatedUnion("kind", [
 
 export const connectionRouter = t.router({
   // ── the user's rows
-  list: authedProcedure.query(({ ctx }) => ctx.services.connection.list({ principal: ctx.auth })),
+  list: authedProcedure.output(z.array(connectionViewSchema).readonly()).query(({ ctx }) => ctx.services.connection.list({ principal: ctx.auth })),
 
   get: authedProcedure
     .input(z.object({ connectionId }))
+    .output(connectionViewSchema)
     .query(({ ctx, input }) => ctx.services.connection.get({ principal: ctx.auth, connectionId: input.connectionId })),
 
-  create: authedProcedure.input(connectionFields).mutation(({ ctx, input }) => ctx.services.connection.create({ principal: ctx.auth, ...input })),
+  create: authedProcedure
+    .input(connectionFields)
+    .output(connectionViewSchema)
+    .mutation(({ ctx, input }) => ctx.services.connection.create({ principal: ctx.auth, ...input })),
 
   update: authedProcedure
     .input(z.object({ connectionId, patch: connectionFields.partial() }))
+    .output(connectionViewSchema)
     .mutation(({ ctx, input }) => ctx.services.connection.update({ principal: ctx.auth, connectionId: input.connectionId, patch: input.patch })),
 
   remove: authedProcedure
@@ -75,21 +85,25 @@ export const connectionRouter = t.router({
   // The caller's OWN chat connection end-to-end, credential-free — the params panel + rpg lite gate read it.
   resolveChatCapability: authedProcedure
     .input(z.object({ target: capabilityTargetSchema.optional() }).optional())
+    .output(resolvedConnectionViewSchema)
     .query(({ ctx, input }) =>
       ctx.services.connection.resolveChatCapability({ principal: ctx.auth, ...(input?.target !== undefined ? { target: input.target } : {}) }),
     ),
 
   capabilities: authedProcedure
     .input(z.object({ connectionId }))
+    .output(connectionCapabilityViewSchema)
     .query(({ ctx, input }) => ctx.services.connection.capabilities({ principal: ctx.auth, connectionId: input.connectionId })),
 
   // ── Model roles (`connection_bindings`; "binding" is a schema word — the pane says "Model roles", §5.3a)
   listBindings: authedProcedure
     .input(z.object({ actor: bindingActor.optional() }).optional())
+    .output(z.array(bindingViewSchema).readonly())
     .query(({ ctx, input }) => ctx.services.connection.listBindings({ principal: ctx.auth, ...(input?.actor !== undefined ? { actor: input.actor } : {}) })),
 
   setBinding: authedProcedure
     .input(z.object({ task: routableTaskSchema, connectionId: connectionId.nullable(), actor: bindingActor.optional() }))
+    .output(connectionBindingSchema.strict())
     .mutation(({ ctx, input }) =>
       ctx.services.connection.setBinding({
         principal: ctx.auth,
@@ -101,6 +115,7 @@ export const connectionRouter = t.router({
 
   useForEverything: authedProcedure
     .input(z.object({ connectionId }))
+    .output(z.array(connectionBindingSchema.strict()).readonly())
     .mutation(({ ctx, input }) => ctx.services.connection.useForEverything({ principal: ctx.auth, connectionId: input.connectionId })),
 
   // ── catalogs
@@ -127,15 +142,18 @@ export const connectionRouter = t.router({
 
   refreshCatalog: adminProcedure
     .input(z.object({ providerId: providerIdSchema }))
+    .output(catalogRefreshOutcomeSchema)
     .mutation(({ ctx, input, signal }) => ctx.services.connection.refreshCatalog({ providerId: input.providerId, signal })),
 
   // ── diagnostics (each against ONE of the caller's rows)
   probe: authedProcedure
     .input(z.object({ connectionId }))
+    .output(credentialHealthSchema)
     .mutation(({ ctx, input, signal }) => ctx.services.connection.probe({ principal: ctx.auth, connectionId: input.connectionId, signal })),
 
   accountCredits: authedProcedure
     .input(z.object({ connectionId }))
+    .output(accountCreditsSchema.strict())
     .query(({ ctx, input, signal }) => ctx.services.connection.accountCredits({ principal: ctx.auth, connectionId: input.connectionId, signal })),
 
   generationCost: authedProcedure
@@ -146,6 +164,7 @@ export const connectionRouter = t.router({
         generationId: z.string().min(1),
       }),
     )
+    .output(generationCostSchema.strict())
     .query(({ ctx, input, signal }) =>
       ctx.services.connection.generationCost({ principal: ctx.auth, connectionId: input.connectionId, generationId: input.generationId, signal }),
     ),
@@ -158,8 +177,11 @@ export const connectionRouter = t.router({
 
   inspectEndpoint: authedProcedure
     .input(z.object({ connectionId }))
+    .output(endpointInspectionSchema.strict())
     .mutation(({ ctx, input, signal }) => ctx.services.connection.inspectEndpoint({ principal: ctx.auth, connectionId: input.connectionId, signal })),
 
   // ── providers: what the picker may offer the caller (every row it may use, with its wire's build state, §5.3a)
-  providersAvailable: authedProcedure.query(({ ctx }) => ctx.services.connection.providersAvailable({ principal: ctx.auth })),
+  providersAvailable: authedProcedure
+    .output(z.array(providerAvailabilitySchema).readonly())
+    .query(({ ctx }) => ctx.services.connection.providersAvailable({ principal: ctx.auth })),
 });

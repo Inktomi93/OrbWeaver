@@ -18,6 +18,7 @@
 import { credentialViewSchema, providerMetadataSchema } from "@orb/contracts/credentials";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { credentialStorageStatusSchema } from "#domain/credentials";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const credentialsRouter = t.router({
@@ -26,7 +27,7 @@ export const credentialsRouter = t.router({
   /** CREDENTIAL-STORAGE-SILENT-FAIL — "can this deployment keep a key at all?", asked BEFORE one is typed.
    *  Param-free and row-free (a deployment capability, identical for every caller), so it is `authed` with no
    *  owner scope to apply. */
-  storageStatus: authedProcedure.query(({ ctx }) => ctx.services.credentials.storageStatus()),
+  storageStatus: authedProcedure.output(credentialStorageStatusSchema).query(({ ctx }) => ctx.services.credentials.storageStatus()),
 
   add: authedProcedure
     .input(

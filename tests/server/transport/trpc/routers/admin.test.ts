@@ -1,7 +1,12 @@
-// admin.restart at the router: the explicit confirm is the input, so a call without it never reaches the verb, and
-// layer 1 refuses a plain user before it. The verb's own gates (owner, supervisor, single flight) are its unit test.
+// admin at the router: the restart confirm and the handle cap are input refusals that never reach the verb, and
+// layer 1 refuses a plain user before either. The user and session reads parse through strict output schemas, so a
+// producer that starts returning an extra column fails the call instead of shipping it. The verbs' own gates are
+// their unit tests.
 
 import type { UserRole } from "@orb/contracts/identity";
+import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { AdminService, AdminUserView } from "@orb/server/domain/admin";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
@@ -19,8 +24,20 @@ function harness(role: UserRole): {
 // enforced before any key is computed.
 const COMBINING_MARKS = "\u0345\u0301\u0316\u0334";
 
+const USER_VIEW: AdminUserView = {
+  id: castId<UserId>("user_alice"),
+  handle: castId<Handle>("alice"),
+  externalId: null,
+  role: "user",
+  enabled: true,
+  kind: "human",
+  ownerHandle: null,
+  createdAt: 1_750_000_000_000,
+  updatedAt: 1_750_000_000_000,
+};
+
 describe("admin.createUser handle length", () => {
-  const createUser = vi.fn(() => Promise.resolve(undefined as never));
+  const createUser = vi.fn<AdminService["createUser"]>(() => Promise.resolve(USER_VIEW));
   const admin = (): ReturnType<typeof caller>["admin"] => caller(makeContext({ auth: principal("admin"), services: { admin: { createUser } } })).admin;
 
   test("a handle over 64 code points answers BAD_REQUEST and the verb never runs", async () => {
@@ -59,5 +76,58 @@ describe("admin.restart", () => {
     const h = harness("owner");
     await expect(h.admin.restart({ confirm: true })).resolves.toEqual({ restarting: true });
     expect(h.restart).toHaveBeenCalledExactlyOnceWith({ principal: principal("owner"), confirm: true });
+  });
+});
+
+describe("admin user and session reads — the strict output boundary", () => {
+  const PasswordHash = "$argon2id$v=19$m=65536,t=3,p=4$planted";
+  const adminWith = (services: Partial<AdminService>): ReturnType<typeof caller>["admin"] =>
+    caller(makeContext({ auth: principal("admin"), services: { admin: services } })).admin;
+
+  test("control: a well-formed view passes through unchanged", async () => {
+    const listUsers = vi.fn<AdminService["listUsers"]>(async () => [USER_VIEW]);
+    const linked = { ...USER_VIEW, externalId: castId<ExternalId>("sso-subject-1") };
+    const linkSsoIdentity = vi.fn<AdminService["linkSsoIdentity"]>(async () => linked);
+    const api = adminWith({ listUsers, linkSsoIdentity });
+
+    await expect(api.listUsers()).resolves.toEqual([USER_VIEW]);
+    await expect(api.linkSsoIdentity({ userId: USER_VIEW.id, externalId: castId<ExternalId>("sso-subject-1") })).resolves.toEqual(linked);
+  });
+
+  test("listUsers refuses a row carrying the password hash instead of stripping or shipping it", async () => {
+    const listUsers = vi.fn<AdminService["listUsers"]>(async () => [{ ...USER_VIEW, passwordHash: PasswordHash }]);
+
+    const failure = await adminWith({ listUsers })
+      .listUsers()
+      .then(
+        () => null,
+        (err: unknown) => err,
+      );
+
+    expect(failure).toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+    expect(String(failure)).not.toContain(PasswordHash);
+  });
+
+  test("setRole refuses an extra key on the single-row write result", async () => {
+    const setRole = vi.fn<AdminService["setRole"]>(async () => ({ ...USER_VIEW, role: "admin", passwordHash: PasswordHash }));
+
+    await expect(adminWith({ setRole }).setRole({ userId: USER_VIEW.id, role: "admin" })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+  });
+
+  test("listSessions refuses a session row carrying its token hash", async () => {
+    const session = {
+      id: mintTypeId(ID_PREFIX.session),
+      userId: USER_VIEW.id,
+      expiresAt: 1_750_000_100_000,
+      lastSeenAt: 1_750_000_000_000,
+      revokedAt: null,
+      userAgent: null,
+      createdAt: 1_750_000_000_000,
+    };
+    const listSessions = vi.fn<AdminService["listSessions"]>(async () => [{ ...session, tokenHash: "planted-token-hash" }]);
+    const clean = vi.fn<AdminService["listSessions"]>(async () => [session]);
+
+    await expect(adminWith({ listSessions }).listSessions({ userId: USER_VIEW.id })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+    await expect(adminWith({ listSessions: clean }).listSessions({ userId: USER_VIEW.id })).resolves.toEqual([session]);
   });
 });

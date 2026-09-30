@@ -3,6 +3,8 @@
 // type-only so the domain's verbs and service contract keep one import site. `toCredentialView` in
 // persistence/queries.ts is its only producer.
 
+import { z } from "zod";
+
 export type { CredentialView } from "@orb/contracts/credentials";
 
 /** The DEPLOYMENT's credential-storage capability (`storageStatus`) — `false` when no `CREDENTIALS_KEY` is
@@ -12,3 +14,5 @@ export type { CredentialView } from "@orb/contracts/credentials";
 export interface CredentialStorageStatus {
   readonly enabled: boolean;
 }
+
+export const credentialStorageStatusSchema = z.strictObject({ enabled: z.boolean() }) satisfies z.ZodType<CredentialStorageStatus>;

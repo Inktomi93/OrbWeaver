@@ -240,6 +240,7 @@ export {
   pluginSurfaceNodeSchema,
   pluginSurfaceRegistrationMetaSchema,
   pluginSurfaceSpecSchema,
+  pluginUiOutcomeSchema,
   resolvePluginBoundAssetId,
   resolvePluginBoundBoolean,
   resolvePluginBoundKeyValueRows,

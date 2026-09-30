@@ -4,11 +4,20 @@
 // must stay importable by a bus contract (D16 fences the secret-bearing shapes to `#credentials`).
 
 import type { ModelId, UserConnectionId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
 import type { ChatApi } from "./apis.ts";
+import { chatApiSchema } from "./apis.ts";
+import { capabilitySchema } from "./capability/capability.ts";
 import type { Capability, RequirementVerdict } from "./capability/index.ts";
+import { requirementVerdictSchema } from "./capability/reads.ts";
+import { modelIdSchema } from "./model-schema.ts";
 import type { ProviderDef, ProviderId } from "./provider-schema.ts";
+import { providerDefSchema, providerIdSchema } from "./provider-schema.ts";
 import type { Task } from "./tasks.ts";
+import { taskSchema } from "./tasks.ts";
 import type { Wire } from "./wires.ts";
+import { wireSchema } from "./wires.ts";
 
 export interface ResolvedConnectionView {
   readonly task: Task;
@@ -22,6 +31,18 @@ export interface ResolvedConnectionView {
   /** Whether the task's `requires` clause holds on this row — a verdict, never a throw. */
   readonly requirement: RequirementVerdict;
 }
+
+/** Strict: installed as the tRPC output parser of the procedures that return a resolved view. */
+export const resolvedConnectionViewSchema = z.strictObject({
+  task: taskSchema,
+  connectionId: typeIdSchema(ID_PREFIX.userConnection),
+  providerId: providerIdSchema,
+  wire: wireSchema,
+  api: chatApiSchema.nullable(),
+  model: modelIdSchema,
+  capability: capabilitySchema,
+  requirement: requirementVerdictSchema,
+}) satisfies z.ZodType<ResolvedConnectionView>;
 
 /** Why a task cannot be served deterministically right now — the composer's pre-send verdict (#54), the
  *  picker's row state. `no-connection` = no binding in the fold or the bound row was deleted/unset;
@@ -42,6 +63,7 @@ export const UNAVAILABLE_CAUSES = [
   "model-load-failed",
 ] as const;
 export type UnavailableCause = (typeof UNAVAILABLE_CAUSES)[number];
+export const unavailableCauseSchema = z.enum(UNAVAILABLE_CAUSES) satisfies z.ZodType<UnavailableCause>;
 
 export type SendAvailability = { readonly available: true } | { readonly available: false; readonly cause: UnavailableCause };
 
@@ -53,3 +75,9 @@ export interface ProviderAvailability {
   readonly available: boolean;
   readonly cause?: Extract<UnavailableCause, "unavailable" | "runtime-missing"> | undefined;
 }
+
+export const providerAvailabilitySchema = z.strictObject({
+  provider: providerDefSchema,
+  available: z.boolean(),
+  cause: unavailableCauseSchema.extract(["unavailable", "runtime-missing"]).optional(),
+}) satisfies z.ZodType<ProviderAvailability>;

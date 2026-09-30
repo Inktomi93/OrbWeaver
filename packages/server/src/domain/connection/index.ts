@@ -20,6 +20,7 @@ export type {
   UpdateConnectionParams,
 } from "./contract/params.ts";
 export type { BindingView, CatalogRefreshOutcome, ConnectionCapabilityView, ConnectionView, LocalLightSeedResult } from "./contract/results.ts";
+export { bindingViewSchema, catalogRefreshOutcomeSchema, connectionCapabilityViewSchema, connectionViewSchema } from "./contract/results.ts";
 export type { ConnectionPorts, ConnectionService, ConnectionWorkloadDeps, EndpointAdmission } from "./contract/service.ts";
 export { seedLocalLightConnections } from "./persistence/local-light-seed.ts";
 export { createConnectionPorts } from "./persistence/ports.ts";
