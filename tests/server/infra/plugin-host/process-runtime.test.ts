@@ -1,4 +1,7 @@
-import { join } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 import type { PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import { PLUGIN_MAIN_ENTRY } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
@@ -8,6 +11,7 @@ import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { unzipSync } from "fflate";
 import { afterEach, beforeAll, vi } from "vitest";
 import { env } from "../../../../packages/server/src/foundation/env/index.ts";
+import { pluginBrokerExecArgv } from "../../../../packages/server/src/infra/plugin-host/process-permission.ts";
 import {
   __countLiveAuthorityTailsForTest,
   __hasManagedPluginBrokerForTest,
@@ -19,7 +23,7 @@ import {
   __readManagedPluginSocketPathForTest,
   __terminateManagedPluginBrokerForTest,
 } from "../../../../packages/server/src/infra/plugin-host/process-runtime.ts";
-import { packShowcaseBundle } from "../../../../packages/showcase-plugins/src/index.ts";
+import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "../../../../packages/showcase-plugins/src/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const LONG = 30_000;
@@ -623,6 +627,69 @@ test("Card Atlas and Keepsake Camera retain async registrations across a cold wa
     await assertShowcaseColdWake(row);
   }
 });
+
+const BROKER_ENTRY = fileURLToPath(new URL("../../../../packages/server/src/infra/plugin-host/broker-entry.ts", import.meta.url));
+
+// The live broker's argv and env, read from /proc: the app spawns the watchdog, which spawns the broker, so the test
+// holds neither pid. The broker is the process running broker-entry.ts on this socket.
+function liveBroker(socketPath: string): { readonly execArgv: readonly string[]; readonly environ: readonly string[] } {
+  for (const pid of readdirSync("/proc").filter((entry) => /^\d+$/u.test(entry))) {
+    let argv: string[];
+    try {
+      argv = readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0");
+    } catch {
+      continue;
+    }
+    const entry = argv.indexOf(BROKER_ENTRY);
+    if (entry > 0 && argv[entry + 1] === socketPath) {
+      return { execArgv: argv.slice(1, entry), environ: readFileSync(`/proc/${pid}/environ`, "utf8").split("\0").filter(Boolean) };
+    }
+  }
+  throw new Error(`test: no live broker serves ${socketPath}`);
+}
+
+test.skipIf(process.platform !== "linux")(
+  "every showcase plugin activates in a broker the watchdog started under the permission model",
+  { timeout: 180_000 },
+  async () => {
+    const host = createPluginHost(seams());
+    const activated: string[] = [];
+    for (const slug of SHOWCASE_PLUGIN_SLUGS) {
+      const [bundle, manifest] = await Promise.all([packShowcaseBundle(slug), readShowcaseManifest(slug)]);
+      if (bundle === null || manifest === null) {
+        throw new Error(`${slug}: release-built showcase bundle is missing`);
+      }
+      const entry = unzipSync(bundle)[PLUGIN_MAIN_ENTRY];
+      // A frame-only plugin ships no server main.
+      if (entry === undefined) {
+        continue;
+      }
+      const outcome = await host.createInstance({
+        ...durableSource(new TextDecoder().decode(entry)),
+        grants: manifest.capabilities,
+        bridge: bridge(),
+        chat: noChat,
+        label: slug,
+        ...(manifest.netHosts === undefined ? {} : { netHosts: manifest.netHosts }),
+      });
+      if (!outcome.ok) {
+        throw new Error(`${slug}: ${outcome.error}`);
+      }
+      activated.push(slug);
+      host.dispose(outcome.instance);
+    }
+    expect(activated.length).toBeGreaterThan(SHOWCASE_PLUGIN_SLUGS.length / 2);
+
+    const socketPath = __readManagedPluginSocketPathForTest();
+    if (socketPath === undefined) {
+      throw new Error("test: the app holds no broker endpoint");
+    }
+    const broker = liveBroker(socketPath);
+    expect(broker.execArgv).toEqual(pluginBrokerExecArgv(dirname(socketPath)));
+    // A watchdog under --permission would hand its own grants, child processes included, to a spawn without any.
+    expect(broker.environ.filter((entry) => entry.startsWith("NODE_OPTIONS="))).toEqual([]);
+  },
+);
 
 test.each(["disable", "upgrade", "uninstall"] as const)("%s during a deferred cold loader cannot publish a Worker or reach the retired bridge", {
   timeout: 180_000,

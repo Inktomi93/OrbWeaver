@@ -45,17 +45,27 @@ import { UI_GUEST_BUDGETS } from "#lib";
 import type { GuestState } from "./ui-guest-realm.ts";
 import { callJsonParse, installRealm, LogRing, makeSeams, post } from "./ui-guest-realm.ts";
 
-const variant = newVariant(baseVariant, { wasmLocation: wasmUrl });
-
 /** Every network affordance this THREAD has. Removed once the WASM is loaded — see the file header. */
 const NETWORK_GLOBALS = ["fetch", "XMLHttpRequest", "WebSocket", "EventSource"] as const;
+const WASM_PAGE_BYTES = 65_536;
 
 let guest: GuestState | null = null;
 let modulePromise: Promise<QuickJSWASMModule> | undefined;
 
+// The guest's linear memory is its full size from the start and can never grow. quickjs-emscripten-core reads
+// out-pointers through typed-array views it takes before an engine call that may allocate (`newPromise`,
+// `executePendingJobs`); a growing memory swaps its buffer mid-call, the view detaches, and the host call fails or
+// reads garbage. The server keeps its views live with `toResizableBuffer` instead, which browsers ship only from
+// Chrome 144, Firefox 145 and Safari 26.2 — later than this client's es2025 floor. A memory that never grows needs
+// no browser support, and it also caps the guest allocator, which would otherwise grow toward the loader's 2 GiB.
+function fixedGuestMemory(): WebAssembly.Memory {
+  const pages = UI_GUEST_BUDGETS.wasmMemoryBytes / WASM_PAGE_BYTES;
+  return new WebAssembly.Memory({ initial: pages, maximum: pages });
+}
+
 /** Memoized WASM module load — ONE instantiation per worker, exactly as `module.ts` does per process. */
 function loadModule(): Promise<QuickJSWASMModule> {
-  modulePromise ??= newQuickJSWASMModuleFromVariant(variant);
+  modulePromise ??= newQuickJSWASMModuleFromVariant(newVariant(baseVariant, { wasmLocation: wasmUrl, wasmMemory: fixedGuestMemory() }));
   return modulePromise;
 }
 

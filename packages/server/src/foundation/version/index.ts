@@ -24,6 +24,7 @@
 // each degrades to a named `unknown` that the surfaces render as such. A boot that dies because it could not
 // find its own version number would be the worst possible trade.
 
+import type { Stats } from "node:fs";
 import { readFileSync, statSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
@@ -40,12 +41,23 @@ const UNKNOWN_VERSION = "unknown";
  *  `..` in it would walk the reader out of the git directory, so the shape is pinned instead of trusted. */
 const SAFE_REF_RE = /^refs\/[A-Za-z0-9._\-/]+$/u;
 
-/** One file's text, or `null` when it is not a readable regular file. `statSync({throwIfNoEntry:false})`
- *  answers the absent case without an exception, so the catch below is only ever the genuinely exceptional
- *  read (a permission wall, a race that unlinked the file between the stat and the read). */
+/** A path's stat, or `null` when it is absent or the process may not look at it. A permission wall throws from the
+ *  stat itself: an unsearchable directory, and every path outside the plugin broker's permission-model grants. */
+function statOrNull(path: string): Stats | null {
+  // @orb-waive caught-failure-ownership(catch): a path this process may not stat answers exactly like an absent one,
+  // the `unknown` arm the surfaces render. Ends if a caller needs to tell a denied path from a missing one.
+  try {
+    return statSync(path, { throwIfNoEntry: false }) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** One file's text, or `null` when it is not a readable regular file. The catch below is only ever the genuinely
+ *  exceptional read: a race that unlinked the file between the stat and the read. */
 function readText(path: string): string | null {
-  const stat = statSync(path, { throwIfNoEntry: false });
-  if (stat === undefined || !stat.isFile()) {
+  const stat = statOrNull(path);
+  if (stat === null || !stat.isFile()) {
     return null;
   }
   // @orb-waive caught-failure-ownership(catch): "this file did not answer" IS the result here — it becomes
@@ -71,8 +83,8 @@ interface GitLocation {
  *  it redirects to, paired with the `commondir` that directory points at (itself relative to it). */
 function gitLocationOf(root: string): GitLocation | null {
   const dotGit = join(root, ".git");
-  const stat = statSync(dotGit, { throwIfNoEntry: false });
-  if (stat === undefined) {
+  const stat = statOrNull(dotGit);
+  if (stat === null) {
     return null;
   }
   const gitDir = stat.isDirectory() ? dotGit : redirectedGitDir(root, dotGit);

@@ -1,8 +1,12 @@
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import process from "node:process";
+import { pluginBrokerExecArgv } from "../../../../packages/server/src/infra/plugin-host/process-permission.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { runPluginBrokerPlatformProof } from "./_platform-proof.ts";
+
+// The broker's one write grant names its private directory, which the proof cannot know in advance.
+const BROKER_WRITE_GRANT = "--allow-fs-write=";
 
 test("the app-owned broker process tree contains pressure and recovers across this platform", { timeout: 300_000 }, async () => {
   const result = await Promise.allSettled([runPluginBrokerPlatformProof()]);
@@ -31,9 +35,10 @@ test("the app-owned broker process tree contains pressure and recovers across th
     peakPhysicalWorkersAfterChurn: 2,
     pressureFailureName: "PluginHostUnavailable",
     recoveryValue: "recovered",
-    brokerExecArgv: [],
     brokerNodeOptions: null,
   });
+  const brokerDirectory = receipt.brokerExecArgv.find((flag) => flag.startsWith(BROKER_WRITE_GRANT))?.slice(BROKER_WRITE_GRANT.length) ?? "";
+  expect(receipt.brokerExecArgv).toEqual(pluginBrokerExecArgv(brokerDirectory));
   expect(receipt.watchdogObservedRssBytes).toBeGreaterThan(receipt.watchdogLimitBytes);
   expect(receipt.appBaselineRssBytes).toBeGreaterThan(0);
   expect(receipt.appRssBytesAfterChurn).toBeGreaterThan(0);

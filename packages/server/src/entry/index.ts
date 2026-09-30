@@ -17,6 +17,10 @@ const { createLifecycle } = await import("./lifecycle.ts").catch((err: unknown) 
   throw err;
 });
 const { getLog } = await import("#foundation/observability");
+const { scrubAppSecretsFromProcessEnv } = await import("#foundation/env");
+// The parse above holds every secret in the frozen `env`. Removing them from `process.env` keeps them out of every
+// child the server starts without an explicit env: cloudflared, tar, git, and any spawn added later.
+scrubAppSecretsFromProcessEnv();
 
 const lifecycle = createLifecycle();
 
