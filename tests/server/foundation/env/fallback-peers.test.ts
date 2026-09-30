@@ -1,5 +1,5 @@
-// The OWNER-FALLBACK PEER-SET posture (`AUTH_FALLBACK_TRUSTED_PEERS`, PROPOSED — docs/plans/containerize/design.md
-// §3.1 arm (b)). Pure, so this is the whole model's test surface: the CSV parse that every reader shares, the
+// The OWNER-FALLBACK PEER-SET posture (`AUTH_FALLBACK_TRUSTED_PEERS`, docs/law/container-deployment-security.md).
+// Pure, so this is the whole model's test surface: the CSV parse that every reader shares, the
 // resolved posture, and the standing boot WARNING.
 //
 // The load-bearing assertion is the WARNING arm. This knob makes "who can reach the socket" equal "who is the

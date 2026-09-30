@@ -8,7 +8,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { HomeRostersTileStory } from "../_ct-stories.tsx";
+import { HomeRememberedRostersTileStory, HomeRostersTileStory } from "../_ct-stories.tsx";
 
 const SPIRE: RosterPresetSummary = {
   id: castId<RosterPresetId>("roster_preset_ct_spire"),
@@ -112,16 +112,35 @@ test("a campaign roster says it starts a game, and its press hands the game to t
     });
 });
 
-test("an empty library renders no tile, not a heading over nothing", async ({ mount, page }) => {
+// The Home tile gate, as "Other rooms" has it: a hidden tile is never measured, so the loading tile reserves only a
+// box this device measured, and a settled empty library forgets it.
+const ROSTERS_TILE = '[data-home-tile="rosterPreset.rosters"]';
+/** A remembered box far from the skeleton's natural height, so a dropped reservation shows. */
+const REMEMBERED_ROSTERS_PX = 333;
+
+test("a device that never saw the tile draws no box while the library loads", async ({ mount, page }) => {
   const list = trpcHold();
   await routeTrpc(page, { "rosterPreset.list": list, "automation.listRulePresets": [] });
 
   await mount(<HomeRostersTileStory />);
-  // While the read is in flight the tile holds its place; the settled empty answer then removes it whole.
   await list.requested;
+  await expect(page.locator(ROSTERS_TILE)).toHaveCount(0);
+  list.release([SPIRE]);
+
   await expect(page.getByRole("heading", { name: "Rosters" })).toBeVisible();
+});
+
+test("an empty library renders no tile, and forgets the box a device remembered", async ({ mount, page }) => {
+  const list = trpcHold();
+  await routeTrpc(page, { "rosterPreset.list": list, "automation.listRulePresets": [] });
+
+  await mount(<HomeRememberedRostersTileStory box={REMEMBERED_ROSTERS_PX} />);
+  await list.requested;
+  await expect(page.locator(`${ROSTERS_TILE} [data-tile-reserve-source="measured"]`)).toHaveAttribute("data-tile-reserved", String(REMEMBERED_ROSTERS_PX));
   list.release([]);
 
   await expect(page.getByRole("heading", { name: "Rosters" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Start a chat with/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "probe" }).click();
+  await expect(page.getByTestId("rosters-box")).toHaveText("null");
 });

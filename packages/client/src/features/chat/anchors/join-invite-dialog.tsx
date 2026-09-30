@@ -100,7 +100,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
           {state.kind === "ready" ? (
             <>
               <DialogDescription>
-                {state.preview.hostHandle} invited you to join{" "}
+                You're invited to join{" "}
                 <Text as="span" weight="semibold">
                   {state.preview.roomName}
                 </Text>

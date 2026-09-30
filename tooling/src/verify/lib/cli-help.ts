@@ -7,6 +7,7 @@
 import type { VerifyVerb } from "../contract/verbs.ts";
 import { BASELINE_HELP } from "../ops/baseline.ts";
 import { CONFIG_SNAPSHOT_HELP } from "../ops/config-snapshot.ts";
+import { ESLINT_SCOPED_USAGE } from "../ops/eslint.ts";
 import { NEW_GATE_USAGE } from "../ops/new-gate.ts";
 import { SCOPED_USAGE } from "../ops/scoped.ts";
 import { SCOPED_TEST_USAGE } from "../ops/scoped-test.ts";
@@ -51,7 +52,8 @@ export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "instrument-affected":
     "usage: node tooling/src/verify/cli.ts instrument-affected\n  Runs the family tests of the instruments THIS BRANCH changed (#1967) — reached through the shared test mirror AND through the gate-ID string, because a family test routinely lives under its WAVE's name rather than its gate's. It takes NO paths: the branch diff IS the selection. A changed instrument reaching no spec is VIOLATIONS (1), never a clean zero; an uncomputable branch answer runs the whole instrument battery rather than selecting nothing.",
   eslint:
-    "usage: node tooling/src/verify/cli.ts eslint\n  Runs whole-repository ESLint in sequential native compiler-owner processes. It takes NO paths: a SCOPED run is `pnpm exec eslint <files>`, which carries the same workspace heap floor.",
+    "usage: node tooling/src/verify/cli.ts eslint\n  Runs whole-repository ESLint in sequential native compiler-owner processes. It takes NO paths: a SCOPED run is `pnpm lint:eslint-scoped <files>`, one native compiler-owner process per owner.",
+  "eslint-scoped": ESLINT_SCOPED_USAGE,
   "showcase-release":
     "usage: node tooling/src/verify/cli.ts showcase-release\n  Requires a manifest version increase when admitted showcase bundle entries change.",
 };

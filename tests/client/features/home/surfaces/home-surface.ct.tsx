@@ -6,6 +6,8 @@
 import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { UserId } from "@orb/kit/ids";
+import { newId } from "@orb/kit/ids";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -76,6 +78,9 @@ const FIRST_BOOT_BANK = {
   totalCount: RECENT_DOCUMENTS,
 };
 const FIRST_BOOT_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 4, stalled: 0 }, chunks: 48, passages: 48, total: 4 };
+/** Ambient to every shipped-registry mount here: the Rosters tile's gate reads the roster library, and `routeTrpc`'s
+ *  null is not a list. Empty, so the tile stays off every measurement below; its gate has its own CT. */
+const HOME_ROUTES = { ...CHAT_ROOM_ROUTES, "rosterPreset.list": [] };
 
 test("tiles render in (order, id), not door-array order", async ({ mount }) => {
   const home = await mount(<HomeTileOrderStory />);
@@ -637,8 +642,10 @@ test("the grid aligns tiles to START — a short tile never stretches to its row
 // leaves is a SHRINK (content pulls up, nothing is pushed under the reader's cursor) rather than the push
 // the whole #92 mechanism exists to kill. Tightening the declarations toward a sparse library would trade
 // this for that. Hence: the full-page arm is the CONTRACT and is pinned; the sparse-library shrink is
-// accepted (first boot only, behind the boot veil, healed by the box memory from boot two).
-// EXCEPTION: `chat.alsoOpen` reserves only a measured box, because its shrink lands after the veil and a hidden tile never heals.
+// accepted (first boot only, behind the boot veil, healed by the box memory from boot two). The veil holds until
+// these reads land: `data-app-ready` waits for the workspace bind and then for Home's reads (`app-root.ct.tsx`).
+// EXCEPTION: `chat.alsoOpen` and `rosterPreset.rosters` reserve only a measured box, because a hidden tile is never
+// measured, so a declared box would collapse on every boot of an account that has none.
 test("#129 the shipped first boot reserves the grid a FULL page settles into", async ({ mount, page }) => {
   const chats = trpcHold();
   const characters = trpcHold();
@@ -646,7 +653,7 @@ test("#129 the shipped first boot reserves the grid a FULL page settles into", a
   const documents = trpcHold();
   const health = trpcHold();
   await stubDatabank(page, {
-    ...CHAT_ROOM_ROUTES,
+    ...HOME_ROUTES,
     "chat.listChats": chats,
     "chat.reapTemporaryChats": { reaped: 0 },
     "character.list": characters,
@@ -719,7 +726,7 @@ test("#835 the read-less jump tile keeps its own box across every neighbour's re
   const documents = trpcHold();
   const health = trpcHold();
   await stubDatabank(page, {
-    ...CHAT_ROOM_ROUTES,
+    ...HOME_ROUTES,
     "chat.listChats": chats,
     "chat.reapTemporaryChats": { reaped: 0 },
     "character.list": characters,
@@ -777,7 +784,7 @@ test("#177 a tile whose settled box is a CONSTANT reserves it exactly — no res
   const documents = trpcHold();
   const health = trpcHold();
   await stubDatabank(page, {
-    ...CHAT_ROOM_ROUTES,
+    ...HOME_ROUTES,
     "chat.listChats": chats,
     "chat.reapTemporaryChats": { reaped: 0 },
     "character.list": characters,
@@ -835,7 +842,7 @@ const PHONE_CONTENT_PX = 360;
 test("the masthead reserves its settled box on a fresh account at a phone width", async ({ mount, page }) => {
   const chats = trpcHold();
   await stubDatabank(page, {
-    ...CHAT_ROOM_ROUTES,
+    ...HOME_ROUTES,
     "chat.listChats": chats,
     "chat.reapTemporaryChats": { reaped: 0 },
     "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -861,15 +868,15 @@ test("the masthead reserves its settled box on a fresh account at a phone width"
 
 // ── "Other rooms" while the chat list is in flight ─────────────────────────────────────────────────
 // The stated exception to the full-page first boot: this list reserves only a box this device measured.
-// A device with no memory draws nothing, because a new account has no other rooms and the list's
-// disappearance would pull the page up after the boot veil lifts.
+// A device with no memory draws nothing, because a new account has no other rooms and a reserved list that
+// settles hidden is never measured, so it would collapse on every boot.
 const ALSO_OPEN = '[data-home-tile="chat.alsoOpen"]';
 /** A remembered box far from the 7-row skeleton's natural height, so a dropped reservation shows. */
 const REMEMBERED_ALSO_OPEN_PX = 333;
 
-async function stubFirstBoot(page: Page, chats: ReturnType<typeof trpcHold>, userId: string): Promise<void> {
+async function stubFirstBoot(page: Page, chats: ReturnType<typeof trpcHold>, userId: UserId): Promise<void> {
   await stubDatabank(page, {
-    ...CHAT_ROOM_ROUTES,
+    ...HOME_ROUTES,
     "chat.listChats": chats,
     "chat.reapTemporaryChats": { reaped: 0 },
     "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -881,7 +888,7 @@ async function stubFirstBoot(page: Page, chats: ReturnType<typeof trpcHold>, use
 
 test("Other rooms draws no box while the list loads on a device that never saw it", async ({ mount, page }) => {
   const chats = trpcHold();
-  await stubFirstBoot(page, chats, "user_ct_also_open_fresh");
+  await stubFirstBoot(page, chats, newId<UserId>());
 
   const home = await mount(<HomeShippedFirstBootStory />);
   await chats.requested;
@@ -894,7 +901,7 @@ test("Other rooms draws no box while the list loads on a device that never saw i
 
 test("Other rooms reserves the remembered box, and forgets it when the list settles hidden", async ({ mount, page }) => {
   const chats = trpcHold();
-  await stubFirstBoot(page, chats, "user_ct_also_open_remembered");
+  await stubFirstBoot(page, chats, newId<UserId>());
 
   const home = await mount(<HomeRememberedAlsoOpenStory alsoOpenBox={REMEMBERED_ALSO_OPEN_PX} />);
   await chats.requested;
@@ -924,7 +931,7 @@ const SECOND_READ_WATCH_MS = 1500;
 
 test("#188 a sweep that DID reap reconciles the chats list (the arm the fix must not break)", async ({ mount, page }) => {
   const recorder = await stubDatabank(page, {
-    ...CHAT_ROOM_ROUTES,
+    ...HOME_ROUTES,
     "chat.listChats": chatListResponder(REAP_SETTLED_ROOMS),
     "chat.reapTemporaryChats": { reaped: 3 },
     "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -940,7 +947,7 @@ test("#188 a sweep that DID reap reconciles the chats list (the arm the fix must
 
 test("#188 a sweep that reaped NOTHING costs the landing no second chats read", async ({ mount, page }) => {
   const recorder = await stubDatabank(page, {
-    ...CHAT_ROOM_ROUTES,
+    ...HOME_ROUTES,
     "chat.listChats": chatListResponder(REAP_SETTLED_ROOMS),
     "chat.reapTemporaryChats": { reaped: 0 },
     "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -1092,7 +1099,7 @@ test("#499 the databank empty state's CTAs clear the 1280x800 fold — and the s
   await stubDatabank(
     page,
     {
-      ...CHAT_ROOM_ROUTES,
+      ...HOME_ROUTES,
       "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -1263,7 +1270,7 @@ for (const polarity of ["dark", "light"] as const) {
     await stubDatabank(
       page,
       {
-        ...CHAT_ROOM_ROUTES,
+        ...HOME_ROUTES,
         "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
         "chat.reapTemporaryChats": { reaped: 0 },
         "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -1485,7 +1492,7 @@ test("#1145 the teaching paragraphs take the PROSE measure, and it reads inside 
   await stubDatabank(
     page,
     {
-      ...CHAT_ROOM_ROUTES,
+      ...HOME_ROUTES,
       "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -1560,7 +1567,7 @@ test("#1145 the prose measure is a LINE, not a width — font scale moves its px
   await stubDatabank(
     page,
     {
-      ...CHAT_ROOM_ROUTES,
+      ...HOME_ROUTES,
       "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -1674,7 +1681,7 @@ test("#1121 the hero's art band exists wherever the host can afford one — and 
   await stubDatabank(
     page,
     {
-      ...CHAT_ROOM_ROUTES,
+      ...HOME_ROUTES,
       "chat.listChats": chatListResponder(ART_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -1766,7 +1773,7 @@ test("#1130 the jump rail's population is width-invariant — the wrap re-flows,
   await stubDatabank(
     page,
     {
-      ...CHAT_ROOM_ROUTES,
+      ...HOME_ROUTES,
       "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),

@@ -283,6 +283,16 @@ function galleryFor(input: TrpcInput<"assets.listGallery">): TrpcWireOutput<"ass
   return input?.chatId === STORY_CHAT_ID ? [ROOM_ITEM] : [ITEM, ROOM_ITEM];
 }
 
+// A screen reader walks the grid by name, so two images must never share one.
+test("every gallery image has its own accessible name", async ({ mount, page }) => {
+  await routeTrpc(page, { "assets.listGallery": () => [ITEM, ROOM_ITEM] });
+  await mount(<CharacterGalleryDialogStory />);
+  const cells = page.getByRole("gridcell", { name: GALLERY_CELL });
+  await expect(cells).toHaveCount(2);
+  await expect(cells.nth(0)).toHaveAccessibleName(/^Image 1, /u);
+  await expect(cells.nth(1)).toHaveAccessibleName(/^Image 2, /u);
+});
+
 test("the scope strip starts on Everywhere and 'This chat' re-reads the gallery for this chat only", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { "assets.listGallery": galleryFor });
   await mount(<CharacterGalleryDialogStory />);

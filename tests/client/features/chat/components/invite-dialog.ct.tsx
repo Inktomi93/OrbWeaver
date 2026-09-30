@@ -526,22 +526,40 @@ test.describe("the sign-up switch", () => {
     await expect(dialog.locator('[data-slot="field-error"]')).toHaveCount(0);
   });
 
-  test("the caps still refuse in the form: a sign-up link set back to never expire makes no wire call", async ({ mount, page }) => {
+  test("with sign-up on, the expiry picker offers no option the caps refuse", async ({ mount, page }) => {
     await stubAuthConfig(page, { mode: "oidc" });
-    const trpc = await routeTrpc(page, {
-      "sessions.me": meAs("owner"),
-      "invites.listInvites": () => [],
-      "invites.createInvite": () => MINT,
-    });
+    await routeTrpc(page, { "sessions.me": meAs("owner"), "invites.listInvites": () => [] });
     await mount(<InviteDialogStory />);
     const dialog = page.getByTestId("invite-dialog");
-    await dialog.getByTestId("invite-allow-signup").getByRole("switch").click();
-    await dialog.getByRole("combobox", { name: "Expires" }).click();
-    await page.getByRole("option", { name: "Never expires" }).click();
-    await dialog.getByRole("button", { name: "Create link" }).click();
+    const expires = dialog.getByRole("combobox", { name: "Expires" });
 
-    await expect(dialog.locator('[data-slot="field-error"]')).toHaveCount(1);
-    await expect.poll(() => trpc.count("invites.createInvite")).toBe(0);
+    await expires.click();
+    await expect(page.getByRole("option", { name: "Never expires" })).toBeEnabled();
+    await page.keyboard.press("Escape");
+
+    await dialog.getByTestId("invite-allow-signup").getByRole("switch").click();
+    await expires.click();
+    await expect(page.getByRole("option", { name: "Never expires" })).toBeDisabled();
+    await expect(page.getByRole("option", { name: "7 days" })).toBeEnabled();
+  });
+
+  // Turning sign-up on rewrites the owner's own expiry and use limit, so the dialog says so in one line.
+  test("turning sign-up on names the fields it moved, and says nothing when they already fit", async ({ mount, page }) => {
+    await stubAuthConfig(page, { mode: "oidc" });
+    await routeTrpc(page, { "sessions.me": meAs("owner"), "invites.listInvites": () => [] });
+    await mount(<InviteDialogStory />);
+    const dialog = page.getByTestId("invite-dialog");
+    const signup = dialog.getByTestId("invite-allow-signup");
+
+    await signup.getByRole("switch").click();
+    await expect(signup.getByRole("status")).toBeVisible();
+
+    await signup.getByRole("switch").click();
+    await expect(signup.getByRole("status")).toHaveCount(0);
+    // Both fields now fit the caps, so turning it back on moves nothing and says nothing.
+    await signup.getByRole("switch").click();
+    await expect(dialog.getByRole("button", { name: "Create link" })).toBeVisible();
+    await expect(signup.getByRole("status")).toHaveCount(0);
   });
 
   test("hidden for a non-admin host", async ({ mount, page }) => {

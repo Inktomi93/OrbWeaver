@@ -307,7 +307,7 @@ function logShareBootOutcome(log: ReturnType<typeof getLog>, outcome: ShareBootO
  *  oversight. This route consults no `AUTH_FALLBACK`: widening it would make the knob admit an
  *  un-credentialed owner-PASSWORD claim on a box whose operator set `AUTH_FALLBACK=deny`, which is the one
  *  property the knob promises it cannot do. A containerized local deploy sets `LOCAL_INITIAL_PASSWORD`
- *  instead (docs/plans/containerize/design.md — already its documented state). */
+ *  instead (docs/law/container-deployment-security.md). */
 function buildLocalAuthDeps(
   built: Pick<ServicesResult, "sessions" | "signupInvites" | "seedUserConnections">,
   sessionSecret: string | null,

@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-09-30
 priority: P1
 area: verification
-lane: wt/agent-a44d7840f532aff12
 ---
 
 # Reduce static verification wall time without losing instrument proof
@@ -61,4 +60,4 @@ Main owns red-first controls, suites, the barrier, and one benchmark after sourc
 
 ## Evidence
 
-Narrowing is in `e9fe219ff`; wall time is not fixed. Pre-commit scopes to the whole working tree, not the staged diff.
+Narrowing is in `e9fe219ff`; wall time is not fixed. Pre-commit scopes to the whole working tree, not the staged diff. Liveness: 1317 s, ~240 builds of ~1.6 s.

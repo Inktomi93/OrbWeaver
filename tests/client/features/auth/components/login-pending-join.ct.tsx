@@ -29,6 +29,8 @@ const OIDC: AuthConfig = {
   share: { state: "off", url: null },
 };
 
+const CAPITAL_START_RE = /^\p{Lu}/u;
+
 const PREVIEW = {
   chatId: "chat_01j0000000000000000000000a",
   roomName: "The room",
@@ -64,6 +66,15 @@ test("under discreet login the preview names the room without a host", async ({ 
   await stubPending(page, { status: 200, json: { signedIn: true, chatId: PREVIEW.chatId } }, anonymous);
   await mount(<LoginPendingJoinStory config={{ ...OIDC, discreetLogin: true }} />);
   await expect(page.getByTestId("pending-join")).toContainText(`You're invited to ${PREVIEW.roomName} (2 members).`);
+});
+
+// A handle is lowercase by convention, so a sentence that opened on one read as broken copy.
+test("the room sentence opens on a capital when the host's handle is lowercase", async ({ mount, page }) => {
+  await stubPending(page, { status: 200, json: { signedIn: true, chatId: PREVIEW.chatId } });
+  await mount(<LoginPendingJoinStory config={OIDC} />);
+  const sentence = page.getByTestId("pending-join").getByText(PREVIEW.roomName, { exact: false });
+  await expect(sentence).toContainText(PREVIEW.hostHandle);
+  await expect(sentence).toHaveText(CAPITAL_START_RE);
 });
 
 // The account is seated in the room it joined, so a signed-in confirm lands there, as the local sign-up does.

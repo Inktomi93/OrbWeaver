@@ -933,21 +933,8 @@ test("lint:eslint scopedArgv: tooling AND every test dir are in the eslint surfa
   // is how 36 un-awaited async matchers (assertions that could not fail their own test) survived. #473
   // closed the same hole over the REST of the test tree; this pin is what stops either half regressing.
   const sel = resolveSelection({ kind: "file", paths: ["tooling/src/verify/lib/registry.ts"] });
-  // Scoped files use the native adapter directly. Whole lint enters the verify ESLint operation, which
-  // partitions by compiler owner and invokes the same adapter once per sequential child.
-  expect(stage("lint:eslint").scopedArgv?.(sel)).toEqual([
-    "node",
-    "scripts/eslint.ts",
-    "--max-warnings",
-    "0",
-    "--no-warn-ignored",
-    "--cache",
-    "--cache-strategy",
-    "content",
-    "--cache-location",
-    ".cache/eslint/scoped.eslintcache",
-    "tooling/src/verify/lib/registry.ts",
-  ]);
+  // Scoped and whole lint both enter the verify ESLint operation, which partitions by compiler owner.
+  expect(stage("lint:eslint").scopedArgv?.(sel)).toEqual(["node", "tooling/src/verify/cli.ts", "eslint-scoped", "tooling/src/verify/lib/registry.ts"]);
   // Every test dir, named individually — a `tests/` regex arm that silently lost one is the exact
   // failure this pin exists for, and only a per-dir assertion catches it.
   const testFiles = [

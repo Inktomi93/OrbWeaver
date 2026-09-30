@@ -15,6 +15,7 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [Client Architecture Lockdown](client-architecture-lockdown.md) | active |
 | [Client architecture: state, data, error handling, sync spine and the gate spec](client-architecture-state-and-gates.md) | active |
 | [Orbweaver constitution](Constitution.md) | active |
+| [Container deployment security: the deployed surface and its review](container-deployment-security.md) | active |
 | [Orbweaver — structure & enforcement (the constitution)](Core-0-Architecture-and-Structure.md) | active |
 | [Orbweaver — Enforcement Registry: Active Gates](Core-Enforcement-Active-Gates.md) | active |
 | [`@orb/tooling` — tooling-tree law](Core-Tooling-Law.md) | active |

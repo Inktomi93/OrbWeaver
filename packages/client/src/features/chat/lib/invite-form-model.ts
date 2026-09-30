@@ -33,12 +33,14 @@ const EXPIRY_MS: Record<InviteExpiryKey, number | null> = {
   "7d": DAYS_PER_WEEK * HOURS_PER_DAY * MS_PER_HOUR,
 };
 
-export const INVITE_EXPIRY_ITEMS: SelectItems<string> = [
-  { label: "Never expires", value: "never" },
-  { label: "1 hour", value: "1h" },
-  { label: "24 hours", value: "24h" },
-  { label: "7 days", value: "7d" },
-];
+const EXPIRY_LABELS: Record<InviteExpiryKey, string> = {
+  never: "Never expires",
+  "1h": "1 hour",
+  "24h": "24 hours",
+  "7d": "7 days",
+};
+
+const SIGNUP_EXPIRY_REASON = `A sign-up link must expire within ${SIGNUP_MAX_TTL_DAYS} days.`;
 
 /** The mint form's flat values. `mode`/`expiry` are kept as strings for the bound controls
  *  (SelectField/ToggleGroup are string-valued by design); `maxUses` is the NumberField's
@@ -63,8 +65,8 @@ export const INVITE_FORM_DEFAULTS: InviteFormValues = {
   allowSignup: false,
 };
 
-// The value a signup link actually asks for: a share link with the box ticked. Handle mode drops it.
-function asksSignup(values: InviteFormValues): boolean {
+/** The value a signup link actually asks for: a share link with the box ticked. Handle mode drops it. */
+export function asksSignup(values: InviteFormValues): boolean {
   return values.mode === "link" && values.allowSignup;
 }
 
@@ -89,9 +91,8 @@ export function validateInviteForm(values: InviteFormValues): { fields: Record<s
     if (values.maxUses === null || values.maxUses > SIGNUP_MAX_USES) {
       fields["maxUses"] = `A sign-up link needs a limit of 1 to ${SIGNUP_MAX_USES} uses.`;
     }
-    const expiryMs = expiryMsOf(values.expiry);
-    if (expiryMs === null || expiryMs > SIGNUP_MAX_TTL_MS) {
-      fields["expiry"] = `A sign-up link must expire within ${SIGNUP_MAX_TTL_DAYS} days.`;
+    if (!fitsSignupTtl(values.expiry)) {
+      fields["expiry"] = SIGNUP_EXPIRY_REASON;
     }
   }
   return Object.keys(fields).length > 0 ? { fields } : undefined;
@@ -116,6 +117,29 @@ export function signupBounds(values: InviteFormValues): Pick<InviteFormValues, "
     expiry: fitsSignupTtl(values.expiry) ? values.expiry : LONGEST_SIGNUP_EXPIRY,
     maxUses: usesFit ? values.maxUses : SIGNUP_DEFAULT_USES,
   };
+}
+
+/** The one line that says which fields {@link signupBounds} moved, or `null` when both already fit. */
+export function signupBoundsNotice(before: Pick<InviteFormValues, "expiry" | "maxUses">, after: Pick<InviteFormValues, "expiry" | "maxUses">): string | null {
+  const moved = [
+    ...(before.expiry === after.expiry ? [] : [`Expires is now ${expiryLabel(after.expiry)}`]),
+    ...(before.maxUses === after.maxUses ? [] : [`Max uses is now ${String(after.maxUses)}`]),
+  ];
+  return moved.length === 0 ? null : `A sign-up link needs an expiry and a use limit, so ${moved.join(" and ")}.`;
+}
+
+function expiryLabel(expiry: string): string {
+  return expiry in EXPIRY_LABELS ? EXPIRY_LABELS[expiry as InviteExpiryKey] : expiry;
+}
+
+/** The expiry presets. A sign-up link offers only the presets inside its cap; the rest stay listed, disabled, with the
+ *  reason under each. */
+export function inviteExpiryItems(signup: boolean): SelectItems<string> {
+  return INVITE_EXPIRY_KEYS.map((key) =>
+    signup && !fitsSignupTtl(key)
+      ? { label: EXPIRY_LABELS[key], value: key, disabled: true, description: SIGNUP_EXPIRY_REASON }
+      : { label: EXPIRY_LABELS[key], value: key },
+  );
 }
 
 /** Project the form values into the wire `CreateInviteInput`. `now` is the SUBMIT-time clock (an event

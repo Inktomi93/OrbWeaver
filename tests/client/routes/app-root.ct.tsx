@@ -33,7 +33,7 @@ import { routeTrpc, trpcHold } from "../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../data/bus/fixtures.ts";
 import { makeCharacterSummary } from "../features/character/fixtures.ts";
 import { CHAT_AMBIENT_ROUTES, chatListResponder, makeChatSummary } from "../features/chat/fixtures.ts";
-import { HomePageStory } from "./_ct-stories.tsx";
+import { HomePageReadinessStory, HomePageStory } from "./_ct-stories.tsx";
 
 const ARIA = makeCharacterSummary({ id: "char_home_aria", name: "Aria Nightshade" });
 // Spans BOTH vocabularies — desktop names the frame region, the phone names the screen a tap lands on
@@ -205,6 +205,45 @@ test("fresh state lands on HOME — the launcher, never an empty room (D62 P4 vi
   await expect(component.getByRole("button", { name: LIST_TOGGLE_RE })).toHaveCount(0);
   // No chat room / composer is mounted at rest.
   await expect(page.getByTestId(testId("composer"))).toHaveCount(0);
+});
+
+// A phone reaches every section from its tab bar or the You sheet; the chip rail would repeat them above the
+// page's starting points.
+test("on a phone, Home drops the section chips the tab bar and the You sheet already carry", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await routeTrpc(page, {
+    ...HOME_AMBIENT_ROUTES,
+    "chat.listChats": chatListResponder([]),
+    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+    "databank.bankHealth": EMPTY_BANK_HEALTH,
+    "character.list": NO_CHARACTERS,
+    "persona.list": PERSONAS,
+  });
+  const component = await mount(<HomePageStory />);
+
+  await expect(component.locator('[data-home-tile="chat.quickPicks"]')).toBeVisible();
+  await expect(component.locator('[data-home-tile="home.jump"]')).toHaveCount(0);
+});
+
+// The route mounts, its identity read is already cached, and the workspace bind runs off the query cache: the cache
+// sits idle until Home mounts and issues its own reads. The boot veil must not lift in that gap.
+test("the app is not ready until Home's first reads land", async ({ mount, page }) => {
+  const chats = trpcHold();
+  await routeTrpc(page, {
+    ...HOME_AMBIENT_ROUTES,
+    "chat.listChats": chats,
+    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+    "databank.bankHealth": EMPTY_BANK_HEALTH,
+    "character.list": NO_CHARACTERS,
+    "persona.list": PERSONAS,
+  });
+  await mount(<HomePageReadinessStory />);
+  await chats.requested;
+  await expect(page.locator("html")).not.toHaveAttribute("data-app-ready");
+
+  chats.release(chatListResponder([])({}));
+  await expect(page.locator("html")).toHaveAttribute("data-app-ready", "");
+  await expect(page.locator('[data-home-tile="chat.masthead"] [aria-busy]')).toHaveCount(0);
 });
 
 test("the chats section's own no-selection state is the SLIM one — the launcher lives in exactly one place", async ({ mount, page }) => {

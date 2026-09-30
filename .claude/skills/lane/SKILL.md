@@ -78,7 +78,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 - Run tests with `pnpm test:scoped <paths>` and `pnpm test:ct <paths>` through `env -C <worktree>`.
 - Use a named pnpm script, else `pnpm exec <tool>`. `npx` and a bare `node tooling/src/...` lose the heap floor.
-- Run scoped ESLint as `pnpm exec eslint <files>`. `pnpm lint:eslint` is whole-repo and takes no paths.
+- Run scoped ESLint as `pnpm lint:eslint-scoped <files>`, which lints each compiler owner in its own process. `pnpm lint:eslint` is whole-repo and takes no paths.
 - Run scoped Biome as `pnpm exec biome check <paths> --diagnostic-level=error`. A scoped `--write` is fine.
 - Pass a worker flag only to go below the values in `tooling/concurrency-profile.json`.
 - Get a long mutation or calibration run approved by the orchestrator before you start it.

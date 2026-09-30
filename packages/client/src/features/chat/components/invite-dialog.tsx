@@ -29,7 +29,7 @@ import { MULTI_USER_CONFIG_SUB, openConfigTo } from "#state";
 import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
 import type { InviteFormValues } from "../lib/invite-form-model.ts";
-import { INVITE_EXPIRY_ITEMS, inviteJoinLink, signupBounds, toCreateInviteInput } from "../lib/invite-form-model.ts";
+import { asksSignup, inviteExpiryItems, inviteJoinLink, signupBounds, signupBoundsNotice, toCreateInviteInput } from "../lib/invite-form-model.ts";
 
 type InviteView = inferOutput<Trpc["invites"]["listInvites"]>[number];
 
@@ -92,6 +92,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
   const [mintedLink, setMintedLink] = useState<string | null>(null);
   const [handleError, setHandleError] = useState<string | null>(null);
   const [signupError, setSignupError] = useState<string | null>(null);
+  const [boundsNotice, setBoundsNotice] = useState<string | null>(null);
 
   const save = async (values: InviteFormValues): Promise<InviteFormValues> => {
     setHandleError(null);
@@ -181,12 +182,24 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
             {(mode): ReactElement | null => (mode === "link" ? <LoopbackLinkWarning onOpenSharing={onOpenSharing} /> : null)}
           </form.Subscribe>
 
-          <Row gap="field" align="start">
-            <form.AppField name="expiry">{(field): ReactElement => <field.SelectField label="Expires" items={INVITE_EXPIRY_ITEMS} />}</form.AppField>
-            <form.AppField name="maxUses">
-              {(field): ReactElement => <field.NumberField label="Max uses" hint="Empty = unlimited." min={1} step={1} />}
-            </form.AppField>
-          </Row>
+          <form.Subscribe selector={(state): boolean => asksSignup(state.values)}>
+            {(signup): ReactElement => (
+              <Row gap="field" align="start">
+                <form.AppField name="expiry">{(field): ReactElement => <field.SelectField label="Expires" items={inviteExpiryItems(signup)} />}</form.AppField>
+                <form.AppField name="maxUses">
+                  {(field): ReactElement => (
+                    <field.NumberField
+                      label="Max uses"
+                      hint={signup ? `A sign-up link allows 1 to ${SIGNUP_MAX_USES} uses.` : "Empty = unlimited."}
+                      min={1}
+                      {...(signup ? { max: SIGNUP_MAX_USES } : {})}
+                      step={1}
+                    />
+                  )}
+                </form.AppField>
+              </Row>
+            )}
+          </form.Subscribe>
 
           {signupOffered ? (
             <form.Subscribe selector={(state): string => state.values.mode}>
@@ -200,9 +213,11 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
                         // there, so the owner's first sight of the switch is not an inline error.
                         onChange: ({ value }): void => {
                           if (!value) {
+                            setBoundsNotice(null);
                             return;
                           }
                           const bounds = signupBounds(form.state.values);
+                          setBoundsNotice(signupBoundsNotice(form.state.values, bounds));
                           form.setFieldValue("expiry", bounds.expiry);
                           form.setFieldValue("maxUses", bounds.maxUses);
                         },
@@ -215,6 +230,11 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
                         />
                       )}
                     </form.AppField>
+                    {boundsNotice === null ? null : (
+                      <Text voice="gloss" role="status">
+                        {boundsNotice}
+                      </Text>
+                    )}
                     {signupError === null ? null : (
                       <Text voice="label" role="alert" className="text-destructive">
                         {signupError}

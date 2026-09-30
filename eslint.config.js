@@ -161,6 +161,9 @@ const CLIENT_FIXTURES = "tests/client/**/*.fixtures.tsx";
 const TOOLING_CT = componentTestGlobs("tests/tooling");
 const TOOLING_STORIES = "tests/tooling/**/_ct-stories.tsx";
 const SUPPORT_CT = "tests/support/browser/**/*.tsx";
+// The showcase plugins mount their frame surfaces under playwright-ct like the ui and client trees.
+const SHOWCASE_CT = componentTestGlobs("tests/showcase-plugins");
+const SHOWCASE_STORIES = "tests/showcase-plugins/**/_*.tsx";
 const CT_SURFACE = [
   ...UI_CT,
   UI_FIXTURES,
@@ -172,6 +175,8 @@ const CT_SURFACE = [
   ...TOOLING_CT,
   TOOLING_STORIES,
   SUPPORT_CT,
+  ...SHOWCASE_CT,
+  SHOWCASE_STORIES,
 ];
 
 const REACT_SURFACE = [UI_SRC, CLIENT_SRC, ...CT_SURFACE];
@@ -183,7 +188,7 @@ const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 // `packages/{ui,client,server,kit,db,contracts}` + `tests/{ui,client}`, AND no config object's `files`
 // pattern matched `tooling/**` — so even an explicit `eslint tooling/src/foo.ts` answered "File ignored
 // because no matching configuration was supplied". Both are repaired: this block, and the script's argv.
-// (The scoped verify lane passes `--no-warn-ignored`, so the ignore was silent there too.)
+// (The scoped verify lane drops an ignored explicit path at discovery, so the ignore was silent there too.)
 //
 // THE MEASUREMENT that justifies the block, taken over 591 files before anything was enabled:
 // no-floating-promises 36 · switch-exhaustiveness-check 7 · no-deprecated 1 · restrict-template-expressions 1
@@ -284,7 +289,7 @@ const NODE_TEST_DIRS = NON_BROWSER_PACKAGES.map((name) => `tests/${name}/**/*.ts
 //
 // #1574: `tests/client/**/*.ts` and `tests/ui/**/*.ts` were added 2026-09-04. They matched NO config
 // object at all, so `pnpm exec eslint <one of them> --max-warnings 0` answered "File ignored because no
-// matching configuration was supplied" — which the scoped verify lane passes `--no-warn-ignored` for, so
+// matching configuration was supplied" — which the scoped verify lane drops silently at discovery, so
 // the hole was silent there and RED elsewhere. Census at the time: 2642 tracked `tests/**` ts+tsx files,
 // 274 uncovered — 202 `tests/client/**/*.ts`, 41 `tests/ui/**/*.ts` (both closed here), plus 32 `.tsx`
 // story/fixture modules the CT surface's narrower globs missed — a REACT-surface question, deliberately

@@ -26,6 +26,7 @@ const variant: QuickJSSyncVariant =
   (variantModule as unknown as { readonly default?: QuickJSSyncVariant }).default ?? (variantModule as unknown as QuickJSSyncVariant);
 
 let modulePromise: Promise<QuickJSWASMModule> | undefined;
+let guestMemoryBuffer: ArrayBuffer | undefined;
 
 const KIBIBYTE = 1024;
 const WASM_PAGE_KIBIBYTES = 64;
@@ -35,7 +36,7 @@ function pages(bytes: number): number {
   return bytes / WASM_PAGE_BYTES;
 }
 
-function createWebAssemblyMemory(): WasmMemoryOption {
+function createWebAssemblyMemory(): { readonly memory: WasmMemoryOption; readonly buffer: ArrayBuffer } {
   const namespace: unknown = Reflect.get(globalThis, "WebAssembly");
   if (typeof namespace !== "object" || namespace === null) {
     throw new Error("plugin host: WebAssembly is unavailable");
@@ -44,25 +45,46 @@ function createWebAssemblyMemory(): WasmMemoryOption {
   if (typeof memoryConstructor !== "function") {
     throw new Error("plugin host: WebAssembly.Memory is unavailable");
   }
-  return Reflect.construct(memoryConstructor, [
+  const memory = Reflect.construct(memoryConstructor, [
     {
       initial: pages(PLUGIN_WASM_MEMORY_INITIAL_BYTES),
       maximum: pages(PLUGIN_WASM_MEMORY_MAX_BYTES),
     },
   ]) as WasmMemoryOption;
+  // quickjs-emscripten-core holds typed-array views of this memory across FFI calls that can malloc: the
+  // context-lifetime `uint32Out` behind getLength/getOwnPropertyNames, and the out-pointer arrays of newPromise
+  // and executePendingJobs. A plain `memory.grow` detaches the old buffer under those views, so the next read
+  // returns undefined and the membrane walks arbitrary heap words as value handles. A resizable buffer grows in
+  // place and every existing view stays live. Refuse to run guests without it rather than run them unsafely.
+  const toResizableBuffer: unknown = Reflect.get(memory, "toResizableBuffer");
+  if (typeof toResizableBuffer !== "function") {
+    throw new Error("plugin host: WebAssembly.Memory.prototype.toResizableBuffer is unavailable");
+  }
+  // The returned buffer resizes in place on every grow, so its byteLength tracks the live memory size.
+  const buffer = Reflect.apply(toResizableBuffer, memory, []) as ArrayBuffer;
+  return { memory, buffer };
 }
 
 /** Memoized loader for this Worker's QuickJS-ng WASM module. Idempotent within the isolate; terminating the
  *  Worker reclaims this module's linear-memory high-water allocation. */
 export function getPluginQuickJS(): Promise<QuickJSWASMModule> {
-  modulePromise ??= newQuickJSWASMModuleFromVariant(
-    newVariant(variant, {
-      // The published Emscripten loader otherwise defaults to maximum:32768 pages (2 GiB). QuickJS's
-      // setMemoryLimit accounts live guest allocations and does not constrain that allocator high-water mark.
-      // One module lives in one recyclable Worker, so this WebAssembly-native maximum is both per guest and
-      // reclaimed when the broker terminates the Worker.
-      wasmMemory: createWebAssemblyMemory(),
-    }),
-  );
+  if (modulePromise === undefined) {
+    const { memory, buffer } = createWebAssemblyMemory();
+    guestMemoryBuffer = buffer;
+    modulePromise = newQuickJSWASMModuleFromVariant(
+      newVariant(variant, {
+        // The published Emscripten loader otherwise defaults to maximum:32768 pages (2 GiB). QuickJS's
+        // setMemoryLimit accounts live guest allocations and does not constrain that allocator high-water mark.
+        // One module lives in one recyclable Worker, so this WebAssembly-native maximum is both per guest and
+        // reclaimed when the broker terminates the Worker.
+        wasmMemory: memory,
+      }),
+    );
+  }
   return modulePromise;
+}
+
+/** @public twin: tests/server/infra/plugin-host/heap-growth.suite.test.ts */
+export function __readGuestMemoryBytesForTest(): number {
+  return guestMemoryBuffer?.byteLength ?? 0;
 }

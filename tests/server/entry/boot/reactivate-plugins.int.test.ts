@@ -15,13 +15,16 @@ import type { Db } from "@orb/db";
 import { plugins } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { PluginHandlerRef, PluginInstance } from "@orb/server/domain/plugin";
+import type { PluginHandlerRef, PluginHostOps, PluginInstance } from "@orb/server/domain/plugin";
+import { PluginCrashedError } from "@orb/server/domain/plugin";
+import { createPluginHost } from "@orb/server/infra/plugin-host";
 import { eq } from "drizzle-orm";
 import { reactivatePluginsOnBoot } from "../../../../packages/server/src/entry/boot/reactivate-plugins.ts";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import type { PluginHarness } from "../../domain/plugin/_support.ts";
-import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../../domain/plugin/_support.ts";
+import { makeBundle, makeInertOps, makePluginHarness, ownerPrincipalFor, seedUser } from "../../domain/plugin/_support.ts";
 
 /** A scripted resident carrying one PAGE surface — the anchor the Extensions section reads, which is the
  *  surface class the bug made disappear. */
@@ -139,6 +142,48 @@ test("one plugin's failed activation is counted and left `errored` — it never 
   const [row] = await db.select({ status: plugins.status, lastError: plugins.lastError }).from(plugins).where(eq(plugins.id, broken.id));
   expect(row?.status).toBe("errored");
   expect(row?.lastError).toContain("the stored bundle is corrupt");
+});
+
+// The bound on activation-phase host writes: only an owner verb runs `activate`. Rehydration refuses writes,
+// mutations never auto-retry, and this sweep restores `enabled` rows only, so a failed activation is never
+// retried by the host. Real guest, real process host, recording `storage.set`.
+test("a failed activation's host writes land once per owner action — no restart or sweep retries it", { timeout: 60_000 }, async () => {
+  const db = await freshDb();
+  const writes: string[] = [];
+  const base = makeInertOps();
+  const ops: PluginHostOps = {
+    ...base,
+    storage: {
+      ...base.storage,
+      set: (_pluginId, _ownerId, key): Promise<void> => {
+        writes.push(key);
+        return Promise.resolve();
+      },
+    },
+  };
+  const port = createPluginHost({ nowEpochMs: () => FROZEN_AT_MS, nextRandom: () => 0.5, mintId: () => "retry-id" });
+  const first = makePluginHarness(db, { ops, port });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const caller = ownerPrincipalFor(owner);
+  const bundle = makeBundle(
+    { id: "writes-then-throws", capabilities: ["storage.kv"] },
+    `(async () => { await orb.host(1).storage.set("activation-write", "1"); throw new Error("activation refused"); })()`,
+  );
+  const installed = await first.service.install({ caller, bundle, grant: ["storage.kv"] });
+
+  await expect(first.service.setEnabled({ caller, pluginId: installed.id, enabled: true })).rejects.toBeInstanceOf(PluginCrashedError);
+  expect(writes).toEqual(["activation-write"]);
+
+  const second = makePluginHarness(db, { ops, port });
+  for (const [assetId, bytes] of first.storedBytes) {
+    second.storedBytes.set(assetId, bytes);
+  }
+  const report = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor(owner) });
+  expect(report).toEqual({ restored: 0, failed: 0 });
+  expect(writes).toEqual(["activation-write"]);
+
+  await expect(second.service.setEnabled({ caller, pluginId: installed.id, enabled: true })).rejects.toBeInstanceOf(PluginCrashedError);
+  expect(writes).toEqual(["activation-write", "activation-write"]);
 });
 
 test("an unresolvable owner fails only its own rows — the step never throws out of boot", async () => {

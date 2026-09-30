@@ -9,8 +9,7 @@
 # client bundle, and a PRUNED production node_modules. No vLLM, no CUDA, no models: local engines are an
 # external server you add as a connection (identical on bare metal and in a container; the 2026-09-18 owner
 # ruling retired the GPU all-in-one image so there is ONE engine story to maintain). The previous two-target
-# design lives in git history and
-#  (status banner there).
+# design lives in git history.
 #
 # LAYOUT (docker/assemble-runtime.sh — the ONE home for the runtime file set): every `@orb/*` workspace
 # package the server's production graph pulls in ships as workspace-shaped SOURCE under /app/packages/<name>

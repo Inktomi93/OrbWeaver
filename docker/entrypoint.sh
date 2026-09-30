@@ -19,15 +19,12 @@
 #                                           must name it, not limp into the schema error one layer deeper)
 #    The allowlist is explicit — it documents exactly which secrets are file-mountable.
 #
-#    COUPLED SITE — HOST_SECRET_ENV_KEYS in
-#    packages/server/src/infra/providers/backends/agent-sdk/env.ts. Every name in the `for name in` line
-#    below gets EXPORTED into the server's process.env, which is the baseline each agent-sdk child env
-#    spreads — and that child runs tools AS HOST. The firewall's list is what deletes them again, so a name
-#    added here and not there hands a live app secret to a tool-executing subprocess. The two lists must stay
-#    SET-IDENTICAL; that is asserted by tests/server/infra/providers/backends/agent-sdk/env.test.ts ("the
-#    *_FILE secret shim and the credential firewall move together"), which parses that very line. The
-#    generated values in job 2 are exported under names ALREADY in that line (SESSION_SECRET,
-#    LOCAL_INITIAL_PASSWORD), so they are firewalled by the same assertion.
+#    Every name in the `for name in` line below is EXPORTED into the server's process.env. The agent-sdk
+#    child copies only an allowlist of host keys (packages/inference/src/backends/agent-sdk/env.ts), and the
+#    plugin broker and its watchdog get NODE_ENV alone (packages/server/src/infra/plugin-host/process-runtime.ts).
+#    Three spawns still pass no env and inherit every secret: the Share relay's cloudflared, its tar extract
+#    (packages/server/src/infra/relay/) and the bug report's git call. Closing them is
+#    docs/work/0302-keep-app-secrets-out-of-every-child-process.md.
 #
 # 0. PUID/PGID: start as root, own the data dir, drop to that uid/gid, re-exec this script (job 0 below).
 #
@@ -56,6 +53,10 @@
 #    server's own layout (packages/server/src/foundation/data-layout); DATA_DIR is exported below so the
 #    shell and the server read ONE name for its root.
 set -eu
+# Everything the app writes is private to its user. A bind-mounted ./data is a host directory, and the
+# database, uploads and backups in it must not be readable by other users of that host. The mask survives
+# the setpriv exec below and is inherited by node and every child it starts.
+umask 077
 
 load_secret() {
   var="$1"
@@ -84,7 +85,10 @@ done
 # The image starts as root ONLY to (a) make the data dir owned by the app user — a bind-mounted host
 # directory is otherwise root's or someone else's and the app cannot write it — and (b) drop to that user
 # with `setpriv` (util-linux, in the base image) before anything else runs. PUID/PGID default to 1000 (the
-# image's `node` user). Started already non-root (`user:` in compose, `docker run --user`, rootless
+# image's `node` user). The ids are passed to setpriv as NUMBERS and /etc/passwd is never edited: the rootfs
+# is read-only under the shipped compose, so groupmod/usermod cannot lock /etc/group and any other PUID
+# would refuse to boot. `--no-new-privs` makes the image itself carry what compose's security_opt sets, so a
+# bare `docker run` gets it too. Started already non-root (`user:` in compose, `docker run --user`, rootless
 # podman)? Then nothing is chowned and the app runs as that user — the data dir must be writable by it.
 data_dir="${DATA_DIR:-/app/data}"
 export DATA_DIR="${data_dir}"
@@ -92,17 +96,32 @@ secrets_dir="${data_dir}/secrets"
 puid="${PUID:-1000}"
 pgid="${PGID:-1000}"
 
-if [ "$(id -u)" = 0 ]; then
-  if [ "${puid}" != "$(id -u node)" ] || [ "${pgid}" != "$(id -g node)" ]; then
-    groupmod -o -g "${pgid}" node
-    usermod -o -u "${puid}" -g "${pgid}" node
+# Numeric and non-zero only. setpriv resolves a name, so PUID=root (or 0) would re-exec this script as root
+# forever, and PGID=0 would run the app in group root.
+for id_pair in "PUID=${puid}" "PGID=${pgid}"; do
+  id_value="${id_pair#*=}"
+  case "${id_value}" in
+    '' | *[!0-9]*) id_ok=no ;;
+    *) if [ "${id_value}" -eq 0 ]; then id_ok=no; else id_ok=yes; fi ;;
+  esac
+  if [ "${id_ok}" = no ]; then
+    echo "entrypoint: REFUSING to boot — ${id_pair} must be a non-zero numeric id (the app never runs as root or in group root). Set PUID/PGID to your user's numbers, e.g. PUID=\$(id -u) PGID=\$(id -g)." >&2
+    exit 1
   fi
-  mkdir -p "${data_dir}" /app/.cache
+done
+
+if [ "$(id -u)" = 0 ]; then
+  # A nested DATA_DIR that does not exist yet needs traversable parents; the chmod below still closes the root.
+  (umask 022 && mkdir -p "${data_dir}" /app/.cache)
   # Only the roots and whatever is not already ours — a large asset store is not re-chowned every boot.
   chown "${puid}:${pgid}" "${data_dir}" /app/.cache
-  find "${data_dir}" -not -user "${puid}" -exec chown "${puid}:${pgid}" {} + 2>/dev/null || true
+  # The trailing slash makes find walk a data root that is itself a symlink.
+  find "${data_dir}/" -not -user "${puid}" -exec chown "${puid}:${pgid}" {} + 2>/dev/null || true
+  # The umask above covers new files only. Closing the root closes every older 644/755 entry beneath it
+  # to other host users, without walking the tree.
+  chmod go-rwx "${data_dir}"
   echo "entrypoint: running as uid ${puid} gid ${pgid} (PUID/PGID)" >&2
-  exec setpriv --reuid="${puid}" --regid="${pgid}" --init-groups --inh-caps=-all "$0" "$@"
+  exec setpriv --reuid="${puid}" --regid="${pgid}" --clear-groups --no-new-privs --inh-caps=-all "$0" "$@"
 fi
 
 if [ ! -d "${data_dir}" ] || [ ! -w "${data_dir}" ]; then

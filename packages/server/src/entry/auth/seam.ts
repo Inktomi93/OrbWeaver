@@ -205,7 +205,7 @@ async function resolveHeaderOrFallbackPrincipal(
     // CRITICAL: STOP/BYPASS the front proxy during break-glass — a same-host proxy forwarding over 127.0.0.1
     // makes EVERY proxied (LAN/internet) request a loopback peer. `ownerFallbackAllowed` refuses a request
     // that carries a relay tell, but a proxy that sends none is invisible, so a flag left set on such a box
-    // mints owner for the whole network, not just the on-box operator (docs/plans/containerize/design.md).
+    // mints owner for the whole network, not just the on-box operator (docs/law/container-deployment-security.md).
     const userId = await sessions.ensureUser(ownerHandleForFallback(res.identity.handle));
     return await resolveFallbackPrincipal(userId);
   }

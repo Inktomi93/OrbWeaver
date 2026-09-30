@@ -26,7 +26,7 @@ import { HomeSurface } from "@orb/client/features/home";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, createContributorRegistry, toNotice } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
-import { selectChat } from "@orb/client/state";
+import { __readSurfaceBoxForTest, rememberSurfaceBox, selectChat } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
@@ -177,6 +177,22 @@ export function RosterMemberContentColumnStory(): ReactElement {
         widen the pane
       </button>
       <RosterMemberEditorStory width={width} />
+    </>
+  );
+}
+
+/** {@link HomeRostersTileStory} on a device that last saw the tile settle at `box` px. The seed runs before the first
+ *  child renders, as the persisted store rehydrates before React mounts. `probe` stamps the box the store holds now. */
+export function HomeRememberedRostersTileStory({ box }: { readonly box: number }): ReactElement {
+  useState(() => rememberSurfaceBox(rosterPresetHomeTile.id, box));
+  const [probe, setProbe] = useState("unread");
+  return (
+    <>
+      <button type="button" onClick={(): void => setProbe(String(__readSurfaceBoxForTest(rosterPresetHomeTile.id)))}>
+        probe
+      </button>
+      <output data-testid="rosters-box">{probe}</output>
+      <HomeRostersTileStory />
     </>
   );
 }
