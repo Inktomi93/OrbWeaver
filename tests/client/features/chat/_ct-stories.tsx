@@ -3998,14 +3998,15 @@ export function AutomationActivityFreshnessStory(): ReactElement {
 }
 
 // ── D269: the REAL rpg dice contribution, wired through the composer utility menu ──────────────
-// Full room so the CT exercises both the contextual menu and this room's real composer draft.
-export function RpgDiceComposerStory(): ReactElement {
+// Full room so the CT exercises both the contextual menu and this room's real composer draft. `height` lets a
+// viewport-sized room measure where the menu lands against the room's full column.
+export function RpgDiceComposerStory({ height = 480 }: { readonly height?: number }): ReactElement {
   const surfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [rpgDiceComposerMediaSurface]);
   return (
     <CtDataProviders>
       <SocketHost>
-        <div style={{ height: 480 }}>
-          <ChatControlsRoom surfaceContributors={surfaceContributors} />
+        <div style={{ height }}>
+          <ChatControlsRoom surfaceContributors={surfaceContributors} columnHeight={height} />
         </div>
       </SocketHost>
     </CtDataProviders>

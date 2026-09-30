@@ -39,9 +39,9 @@ export function RpgDiceComposerItems({ chatId }: { readonly chatId: ChatId }): R
     return null;
   }
 
+  // The group leads the menu, so it closes with the separator rather than opening with one.
   return (
     <>
-      <MenuSeparator />
       <MenuGroup>
         <MenuGroupLabel>Dice rolls</MenuGroupLabel>
         {notations.map((notation) => (
@@ -57,6 +57,7 @@ export function RpgDiceComposerItems({ chatId }: { readonly chatId: ChatId }): R
           </MenuItem>
         ))}
       </MenuGroup>
+      <MenuSeparator />
     </>
   );
 }

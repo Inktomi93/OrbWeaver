@@ -20,7 +20,7 @@ import type { ReactElement, ReactNode } from "react";
 import { Fragment, useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { useCarriedAppearance, useTRPC } from "#data";
-import type { ChatRoomSurfaceState, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
+import type { ChatRoomSurfaceState, ChatSurfaceAnchor, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { cn, deriveChatTitle, useFocusOnMount } from "#lib";
 import type { ActiveChatHandle } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
@@ -44,7 +44,7 @@ export interface ChatRoomSurfaceProps {
  *  ⇒ an empty array, so callers can gate layout on `.length` (the thread-flank conditional, §17 M8). */
 function resolveRoomAnchor(
   registry: ContributorRegistry<ChatSurfaceContribution>,
-  anchor: "thread-flank" | "above-composer" | "composer-action" | "composer-media",
+  anchor: Exclude<ChatSurfaceAnchor, "message-footer">,
   state: ChatRoomSurfaceState,
 ): readonly { readonly id: string; readonly node: ReactNode }[] {
   return registry
@@ -84,6 +84,7 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
   const flankContributions = resolveRoomAnchor(surfaceContributors, "thread-flank", roomState);
   const aboveComposerContributions = resolveRoomAnchor(surfaceContributors, "above-composer", roomState);
   const composerActionContributions = resolveRoomAnchor(surfaceContributors, "composer-action", roomState);
+  const composerRoomContributions = resolveRoomAnchor(surfaceContributors, "composer-room", roomState);
   const composerMediaContributions = resolveRoomAnchor(surfaceContributors, "composer-media", roomState);
 
   // `min-w-0` beside `min-h-0`: inside the flank ROW the thread is a horizontal flex child, and without it
@@ -209,6 +210,7 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
           <ComposerSlot
             chatId={chatId}
             actionContributions={composerActionContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+            roomContributions={composerRoomContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
             mediaContributions={composerMediaContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
           />
         </Stack>
@@ -229,10 +231,12 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
 function ComposerSlot({
   chatId,
   actionContributions,
+  roomContributions,
   mediaContributions,
 }: {
   readonly chatId: ChatId;
   readonly actionContributions: readonly ReactNode[];
+  readonly roomContributions: readonly ReactNode[];
   readonly mediaContributions: readonly ReactNode[];
 }): ReactElement {
   const trpc = useTRPC();
@@ -248,6 +252,7 @@ function ComposerSlot({
       tailRole={tailRole}
       tailAssistantMessageId={tailAssistantMessageId}
       actionContributions={actionContributions}
+      roomContributions={roomContributions}
       mediaContributions={mediaContributions}
     />
   );

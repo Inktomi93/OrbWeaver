@@ -6,8 +6,10 @@
 
 import { MODEL_ROLES_PATH_TEXT } from "@orb/client/lib";
 import { modelDisplayName } from "@orb/kit/model-name";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
@@ -19,6 +21,8 @@ const WORK_KEY_ID = "user_connection_ctnextturn01";
 const MODEL = "anthropic/claude-sonnet-5";
 const MODEL_ROLES_GUIDANCE = `Choose one under ${MODEL_ROLES_PATH_TEXT}`;
 const FAILED_SENTENCE = "Next reply: the connection couldn't be checked.";
+// Type steps are authored in rem; computed font-size resolves to px at the 16px root.
+const ROOT_PX = 16;
 
 const WORK_KEY = {
   id: WORK_KEY_ID,
@@ -260,3 +264,34 @@ for (const viewport of [
       .toEqual({ noOverflow: true, insideComposer: true, insideViewport: true });
   });
 }
+
+// The recovery door is the line's one control, so it holds the interactive floors the quiet line itself does
+// not: the label type step (the gloss step sits under the design audit's interactive-text floor) and a
+// touch-target hit area on a coarse pointer, measured by walking `elementFromPoint` out from its centre.
+test.describe("coarse pointer", () => {
+  test.use({ hasTouch: true, viewport: { width: 360, height: 780 } });
+
+  test("the Model roles door meets the touch-target and interactive-text floors", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...CHAT_ROOM_ROUTES,
+      "chat.getChat": HOST_ROOM,
+      "chat.checkSendAvailability": NO_CONNECTION,
+      "connection.list": [],
+    });
+    const component = await mount(<ComposerStory />);
+    const door = line(component).getByRole("button", { name: "Model roles", exact: true });
+    await expect(door).toBeInViewport();
+
+    // The size the label's glyphs actually paint at: the element that owns the text node, not the button box.
+    const paintedSize = (): Promise<string> =>
+      door.evaluate((el: HTMLElement): string => {
+        const owner = document.createTreeWalker(el, NodeFilter.SHOW_TEXT).nextNode()?.parentElement;
+        return owner === null || owner === undefined ? "" : getComputedStyle(owner).fontSize;
+      });
+    await expect.poll(paintedSize).toBe(`${Number.parseFloat(TOKENS["text.label"].value) * ROOT_PX}px`);
+    const floor = await touchFloorPx(page);
+    await expect.poll(() => hitExtent(door, "x")).toBeGreaterThanOrEqual(floor);
+    await expect.poll(() => hitExtent(door, "y")).toBeGreaterThanOrEqual(floor);
+  });
+});

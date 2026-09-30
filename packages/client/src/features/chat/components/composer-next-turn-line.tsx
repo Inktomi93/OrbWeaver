@@ -72,7 +72,9 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
         {line.door === undefined ? null : (
           <>
             {` ${line.door.lead} `}
-            {/* The literals are the house spelling of a settings deep link: a feature never imports another's nav. */}
+            {/* The literals are the house spelling of a settings deep link: a feature never imports another's nav.
+                The door keeps the inline arm's own label step and touch-target hit area rather than the line's
+                gloss step, which sits under the interactive-text floor. */}
             <Button
               className="underline"
               intent="ghost"
@@ -80,9 +82,7 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
               size="inline"
               type="button"
             >
-              <Text as="span" ink="inherit" voice="gloss">
-                {line.door.label}
-              </Text>
+              {line.door.label}
             </Button>
           </>
         )}
