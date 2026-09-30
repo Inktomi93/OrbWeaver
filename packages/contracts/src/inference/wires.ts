@@ -3,12 +3,14 @@
 // `serves` is the policy CEILING for every provider on the wire (a provider row may narrow it, never
 // widen it — pinned by the table test); `deltas` is what a backend on the wire may emit.
 
+import { z } from "zod";
 import type { ChatApi } from "./apis.ts";
 import type { DeltaKind } from "./deltas.ts";
 import type { Task } from "./tasks.ts";
 
 export const WIRES = ["openai-compat", "anthropic-messages", "agent-sdk", "local-light"] as const;
 export type Wire = (typeof WIRES)[number];
+export const wireSchema = z.enum(WIRES) satisfies z.ZodType<Wire>;
 
 export interface WireDef {
   /** The chat protocols this wire can speak. A provider row lists a SUBSET. */

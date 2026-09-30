@@ -64,6 +64,7 @@ import type {
   DistributedPluginView,
   PluginBundleAssetView,
   PluginCommandView,
+  PluginDisplayTransformResult,
   PluginDisplayTransformView,
   PluginFanoutResult,
   PluginFrameAsset,
@@ -71,6 +72,7 @@ import type {
   PluginLogView,
   PluginSurfaceState,
   PluginSurfaceView,
+  PluginUiHostCallResult,
   PluginUpdateCheck,
   PluginUrlPreview,
   PluginView,
@@ -506,7 +508,7 @@ export interface PluginService {
    *  `fn ∈ UI_PROXYABLE_HOST_FUNCTIONS` → the STORED grant → membership on any claimed room → per-fn zod → the
    *  per-plugin in-flight belt), then run through the SAME `PluginBridge` a server guest's call rides. Returns
    *  the result as an INERT JSON string (the marshal law at a second boundary). */
-  readonly uiHostCall: (params: UiHostCallParams) => Promise<{ readonly resultJson: string }>;
+  readonly uiHostCall: (params: UiHostCallParams) => Promise<PluginUiHostCallResult>;
   /** TIER C (U4). One owned plugin's `ui.js` source, re-parsed out of the stored bundle through the ONE unzip
    *  funnel; `null` when the plugin ships no client guest. Owner-scoped twice (the row AND the CAS read). */
   readonly getUiBundle: (params: GetUiBundleParams) => Promise<string | null>;
@@ -528,5 +530,5 @@ export interface PluginService {
    *  `PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS`. A transform that throws or overruns is SKIPPED (D53) — the row
    *  keeps the text it had, so this verb can never blank or block a message. The submitted text is reflected
    *  ONLY to this caller; nothing is persisted and no authority derives from it. */
-  readonly transformForDisplay: (params: TransformForDisplayParams) => Promise<{ readonly text: string }>;
+  readonly transformForDisplay: (params: TransformForDisplayParams) => Promise<PluginDisplayTransformResult>;
 }

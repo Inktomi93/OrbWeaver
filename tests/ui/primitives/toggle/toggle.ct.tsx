@@ -1,8 +1,10 @@
 // CT: the toggle seal — a two-state pressable button; pointer + keyboard flip data-pressed and
-// aria-pressed, pressed wears the accent token.
+// aria-pressed, pressed wears the selection fill and keyboard focus owns the only ring.
 import { Toggle } from "@orb/ui/toggle";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator, Page } from "@playwright/test";
+import type { ReactElement } from "react";
 
 const TOUCH_FLOOR_PX = 44;
 
@@ -17,31 +19,110 @@ test("click flips data-pressed / aria-pressed", async ({ mount, page }) => {
   await expect(control).toHaveAttribute("aria-pressed", "false");
 });
 
-test("pressed wears the accent token", async ({ mount, page }) => {
-  await mount(
-    <Toggle aria-label="Bold" defaultPressed={true}>
-      B
-    </Toggle>,
-  );
-  const control = page.getByRole("button");
-  await expect(control).toHaveAttribute("aria-pressed", "true");
-  await expect(control).toHaveCSS("background-color", TOKENS["color.accent"].value);
-});
+// ── Selected is a fill; keyboard focus owns the only ring ─────────────────────────────────────────
+// A selected toggle that paints a ring in the focus hue reads as a second focused control beside the real one.
+// Hearth is the base `@theme` at `:root` and theme.css emits `[data-theme]` for light, so the hearth pane
+// carries no attribute. One mount serves both themes.
+const TOGGLE_THEMES = ["hearth", "light"] as const;
 
-// The neutral pressed fill sits only ΔL≈0.03 above the group surface — the Ember inset-ring is the
-// lightness-INDEPENDENT selection cue (side-eye a11y receipt). Clicking (not tabbing) sets pressed
-// without a focus-visible ring, so the ONLY box-shadow present is the pressed inset-ring: it carries
-// the `inset` keyword and the Ember `--ring` token (= color.primary), neither of which the offset
-// focus ring would produce.
-test("pressed paints an Ember inset-ring as a non-color selection cue", async ({ mount, page }) => {
-  const toggle = await mount(<Toggle aria-label="Bold">B</Toggle>);
-  const control = page.getByRole("button");
-  await expect(toggle).toHaveCSS("box-shadow", "none");
-  await control.click();
-  await expect(control).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(async () => await control.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
-  await expect.poll(async () => await control.evaluate((el) => getComputedStyle(el).boxShadow)).toContain("inset");
-  await expect.poll(async () => await control.evaluate((el) => getComputedStyle(el).boxShadow)).toContain(TOKENS["color.primary"].value);
+const togglePanes = (): ReactElement => (
+  <>
+    {TOGGLE_THEMES.map((theme) => (
+      <div className="bg-card p-gutter" data-testid={`pane-${theme}`} key={theme} {...(theme === "hearth" ? {} : { "data-theme": theme })}>
+        <Toggle aria-label={`${theme} selected`} defaultPressed={true}>
+          B
+        </Toggle>
+        <Toggle aria-label={`${theme} rest`}>I</Toggle>
+      </div>
+    ))}
+  </>
+);
+
+interface Paint {
+  readonly bg: string;
+  readonly shadow: string;
+  readonly ink: string;
+}
+
+async function paintOf(control: Locator): Promise<Paint> {
+  return await control.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { bg: style.backgroundColor, shadow: style.boxShadow, ink: style.color };
+  });
+}
+
+/** A theme token resolved inside `scope`, so the light pane reads its own arm. A computed box-shadow prints
+ *  resolved colours, so the comparison has to be against a resolved colour too. */
+async function tokenColorIn(scope: Locator, cssVar: string): Promise<string> {
+  return await scope.evaluate((el, name) => {
+    const probe = el.ownerDocument.createElement("div");
+    probe.style.color = `var(${name})`;
+    el.append(probe);
+    const value = getComputedStyle(probe).color;
+    probe.remove();
+    return value;
+  }, cssVar);
+}
+
+/** Keyboard modality first: `:focus-visible` needs it, and a bare programmatic focus with no prior key
+ *  press would read the resting skin. */
+async function keyboardFocus(page: Page, control: Locator): Promise<void> {
+  await page.keyboard.press("Tab");
+  await control.focus();
+  await expect(control).toBeFocused();
+}
+
+for (const theme of TOGGLE_THEMES) {
+  test(`${theme}: a selected toggle and a focused toggle render differently`, async ({ mount, page }) => {
+    await mount(togglePanes());
+    const pane = page.getByTestId(`pane-${theme}`);
+    const selected = page.getByRole("button", { name: `${theme} selected` });
+    const rest = page.getByRole("button", { name: `${theme} rest` });
+    await expect(selected).toHaveAttribute("aria-pressed", "true");
+    const ring = await tokenColorIn(pane, "--color-ring");
+
+    await keyboardFocus(page, rest);
+    // Positive control: the focus ring really paints the ring token, or the absence below proves nothing.
+    await expect.poll(async () => (await paintOf(rest)).shadow).toContain(ring);
+    const focused = await paintOf(rest);
+    const selectedPaint = await paintOf(selected);
+
+    expect(selectedPaint.shadow, `[${theme}] the selected toggle paints no ring in the focus hue`).not.toContain(ring);
+    expect(selectedPaint.bg, `[${theme}] the selected toggle is a fill the focused one is not`).not.toBe(focused.bg);
+    expect(selectedPaint.ink, `[${theme}] the selected toggle's ink changes with its fill`).not.toBe(focused.ink);
+  });
+
+  test(`${theme}: a focused selected toggle still shows the focus ring over its fill`, async ({ mount, page }) => {
+    await mount(togglePanes());
+    const pane = page.getByTestId(`pane-${theme}`);
+    const selected = page.getByRole("button", { name: `${theme} selected` });
+    const ring = await tokenColorIn(pane, "--color-ring");
+    const resting = await paintOf(selected);
+
+    await keyboardFocus(page, selected);
+    await expect.poll(async () => (await paintOf(selected)).shadow).toContain(ring);
+    const focused = await paintOf(selected);
+    expect(focused.bg).toBe(resting.bg);
+  });
+}
+
+test("pressed paints the selection-quiet fill, and hovering a pressed toggle keeps it", async ({ mount, page }) => {
+  await mount(
+    <div>
+      <Toggle aria-label="Bold" defaultPressed={true}>
+        B
+      </Toggle>
+      <div className="bg-selection-quiet text-selection-quiet-foreground" data-testid="fill-probe" />
+    </div>,
+  );
+  const control = page.getByRole("button", { name: "Bold" });
+  const probe = await paintOf(page.getByTestId("fill-probe"));
+  await expect.poll(async () => (await paintOf(control)).bg).toBe(probe.bg);
+  await expect.poll(async () => (await paintOf(control)).ink).toBe(probe.ink);
+  await expect.poll(async () => (await paintOf(control)).shadow).toBe("none");
+
+  await control.hover();
+  await expect.poll(async () => (await paintOf(control)).bg).toBe(probe.bg);
 });
 
 test("onPressedChange reports the next state", async ({ mount, page }) => {

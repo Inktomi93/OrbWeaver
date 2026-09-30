@@ -59,14 +59,14 @@ describe("adminProcedure (LAYER-1, owner ∪ admin, no db round-trip)", () => {
   });
 
   test("passes an owner through to the verb", async () => {
-    const listUsers = vi.fn<AdminService["listUsers"]>();
+    const listUsers = vi.fn<AdminService["listUsers"]>(async () => []);
     const ctx = makeContext({ auth: principal("owner"), services: { admin: { listUsers } } });
     await caller(ctx).admin.listUsers();
     expect(listUsers).toHaveBeenCalledTimes(1);
   });
 
   test("passes a delegated admin through to the verb", async () => {
-    const listUsers = vi.fn<AdminService["listUsers"]>();
+    const listUsers = vi.fn<AdminService["listUsers"]>(async () => []);
     const ctx = makeContext({ auth: principal("admin"), services: { admin: { listUsers } } });
     await caller(ctx).admin.listUsers();
     expect(listUsers).toHaveBeenCalledTimes(1);
@@ -75,7 +75,7 @@ describe("adminProcedure (LAYER-1, owner ∪ admin, no db round-trip)", () => {
 
 describe("a representative router delegates to the injected service verb", () => {
   test("admin.listUsers calls ctx.services.admin.listUsers with the Principal", async () => {
-    const listUsers = vi.fn<AdminService["listUsers"]>();
+    const listUsers = vi.fn<AdminService["listUsers"]>(async () => []);
     const ctx = makeContext({ auth: principal("admin"), services: { admin: { listUsers } } });
     await caller(ctx).admin.listUsers();
     expect(listUsers).toHaveBeenCalledWith({ principal: ctx.auth });

@@ -1085,10 +1085,10 @@ test("#1132 the showing opening is a FILL, not a hairline — its own paint diff
   });
   const component = await mount(<CharacterEditorSurfaceStory />);
 
-  const paintOf = (node: Locator): Promise<{ readonly bg: string; readonly ring: string }> =>
+  const paintOf = (node: Locator): Promise<{ readonly bg: string; readonly ink: string }> =>
     node.evaluate((el) => {
       const style = globalThis.getComputedStyle(el);
-      return { bg: style.backgroundColor, ring: style.boxShadow };
+      return { bg: style.backgroundColor, ink: style.color };
     });
   const on = await paintOf(component.getByRole("button", { name: "Opening 1" }));
   const off = await paintOf(component.getByRole("button", { name: "Opening 2" }));
@@ -1097,8 +1097,8 @@ test("#1132 the showing opening is a FILL, not a hairline — its own paint diff
   // FILL — the ratified `selection="on"` skin — so the two differ in the channel a reader can see.
   expect(on.bg).not.toBe(off.bg);
   expect(on.bg).not.toBe("rgba(0, 0, 0, 0)");
-  // …and its inset ring is a second, redundant channel (state never rests on one axis).
-  expect(on.ring).not.toBe(off.ring);
+  // …and its paired ink is a second, redundant channel (state never rests on one axis).
+  expect(on.ink).not.toBe(off.ink);
 });
 
 // ── #1138 · F13 — the suggestion strip was ten ungrouped consecutive tab stops ─────────────────────

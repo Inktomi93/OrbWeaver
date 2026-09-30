@@ -1,4 +1,4 @@
-import { ACCENT_HOVER, CHIP_BOX, CONTROL_SIZE, DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING, FOCUS_RING_ON_SELECTED, TOUCH_TARGET_PSEUDO, tv } from "#lib";
+import { ACCENT_HOVER, CHIP_BOX, CONTROL_SIZE, DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING, SELECTED_FILL, TOUCH_TARGET_PSEUDO, tv } from "#lib";
 
 // Sizes ride the control-height tokens (CONTROL_SIZE, shared with Toggle) so the ≥44px touch floor
 // holds by construction; button adds `icon`, `media`, `wrap`, `inline` and the four-step `glyph-*` ramp on
@@ -172,27 +172,17 @@ export const buttonVariants = tv({
     // order, so these must come last for tailwind-merge to resolve `bg-*`/`border-*`/`text-*` in the
     // state's favour over the resting intent's.
     //
-    // The fill is `accent` + a 2px `inset-ring-*` — byte-identical to Toggle's `data-pressed` skin, which
-    // is what makes a selected scope toggle and a selected tag chip in the same rail ONE reading. The
-    // ring layer is `--tw-inset-ring-shadow`, distinct from FOCUS_RING's `--tw-ring-shadow`, so a focused
-    // selected chip still stacks its focus ring on top.
-    //
-    // …AND THAT STACK NEEDED A SECOND HUE (side-eye 2026-08-17 taste (c), se-chars-focusring-crop.png).
-    // Both layers painted the `ring` token, so a FOCUSED selected chip and a merely selected chip were the
-    // same picture — two ember rings — and keyboard position became unreadable exactly where a tri-state
-    // control makes it matter most. Both selected arms therefore compose FOCUS_RING_ON_SELECTED, which
-    // re-hues the FOCUS ring only; the selection ring keeps its Toggle parity. The fragment is HOMED in
-    // lib/focus-ring.ts (never hand-spelled here — `ui-skin-fragment-purity`), and the override lands in
-    // the variant rather than at a call site because a skin decided in a feature is how two rails drift.
+    // The `on` arm is SELECTED_FILL, Toggle's `data-pressed` skin as a static arm, so a selected scope toggle
+    // and a selected tag chip in one rail read the same. It is a fill, not a ring: keyboard focus owns the ring.
     selection: {
       /** Not selected — the resting `intent` skin stands alone, focus ring included. */
       none: "",
       /** IN the set. */
-      on: `border-transparent bg-accent text-accent-foreground inset-ring-2 inset-ring-ring ${FOCUS_RING_ON_SELECTED}`,
+      on: `border-transparent ${SELECTED_FILL}`,
       /** SUBTRACTED from the set — the exclusion arm of a tri-state facet. It carries BOTH a hue and a
        *  strike because the state must never rest on colour alone (a red ring and an ember ring are one
        *  ring to a red-blind reader); the strike says "not this one" on its own. */
-      negated: `border-transparent bg-accent text-accent-foreground inset-ring-2 inset-ring-destructive line-through ${FOCUS_RING_ON_SELECTED}`,
+      negated: "border-transparent bg-accent text-accent-foreground inset-ring-2 inset-ring-destructive line-through",
     },
   },
   defaultVariants: { intent: "primary", size: "md", shape: "control", selection: "none" },

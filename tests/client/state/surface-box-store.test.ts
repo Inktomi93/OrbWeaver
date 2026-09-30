@@ -5,7 +5,7 @@
 // because the value is written straight into a `min-block-size` — a garbage measurement (0, NaN, a
 // detached-node height) would reserve a garbage box on every subsequent boot.
 
-import { __readSurfaceBoxForTest, __resetSurfaceBoxes, rememberSurfaceBox } from "@orb/client/state";
+import { __readSurfaceBoxForTest, __resetSurfaceBoxes, forgetSurfaceBox, rememberSurfaceBox } from "@orb/client/state";
 import { beforeEach, describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -41,5 +41,15 @@ describe("home-tile box memory", () => {
     rememberSurfaceBox(TILE, Number.NaN);
     rememberSurfaceBox(TILE, 40_000);
     expect(__readSurfaceBoxForTest(TILE)).toBe(422);
+  });
+
+  test("forgetting a surface that settled to nothing drops only its box, so it reserves nothing on the next boot", () => {
+    rememberSurfaceBox(TILE, 422);
+    rememberSurfaceBox("chat.tempChat", 168);
+    forgetSurfaceBox(TILE);
+    forgetSurfaceBox("never.remembered");
+    expect(__readSurfaceBoxForTest(TILE)).toBeNull();
+    expect(__readSurfaceBoxForTest("chat.tempChat")).toBe(168);
+    expect(__readSurfaceBoxForTest("never.remembered")).toBeNull();
   });
 });

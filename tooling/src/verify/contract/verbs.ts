@@ -31,6 +31,7 @@ export const VERIFY_VERBS = [
   "typecheck-plan",
   "typecheck",
   "eslint",
+  "eslint-scoped",
   "instrument-affected",
   "showcase-release",
 ] as const;

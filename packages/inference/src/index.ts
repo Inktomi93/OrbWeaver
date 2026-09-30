@@ -72,6 +72,7 @@ export { localLightEmbedSpaceTag } from "./backends/local-light/model-cache.ts";
 export { curatedKind } from "./capability/sources/curated/loader.ts";
 export * from "./contract/index.ts";
 export type { ResolvedWarning } from "./contract/resolve.ts";
+export { resolvedWarningSchema } from "./contract/resolve.ts";
 export type { ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
 export type {
   BindingActor,

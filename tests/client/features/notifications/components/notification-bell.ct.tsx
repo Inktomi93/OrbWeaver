@@ -136,10 +136,49 @@ test("unread invites badge the bell; opening lists the invite and marks it read"
   await expect(bell).toBeVisible();
 
   await bell.click();
-  await expect(page.getByText("alex invited you to a chat")).toBeVisible();
+  await expect(page.getByText("Invited to a chat by alex")).toBeVisible();
   // Opening = seen: ONE bulk markAllRead call, not a per-row markRead loop.
   await expect.poll(() => trpc.count("notifications.markAllRead"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   await expect.poll(() => trpc.count("notifications.markAllRead")).toBe(1);
+});
+
+function handoffAcceptedRow(): InboxRowOf<"handoff-accepted"> {
+  return {
+    id: "ntf_ct_handoff_accepted",
+    type: "handoff-accepted",
+    payload: { type: "handoff-accepted", recipientUserId: "user_ct_invitee", chatId: "chat_ct_target", newHostHandle: "mira" },
+    seq: 3,
+    readAt: null,
+    dismissedAt: null,
+    actionable: false,
+    createdAt: 1_750_000_000_000,
+  };
+}
+
+// A handle is lowercase by rule, so a row sentence that opens on one starts in lowercase. Every row that names a
+// person must open on a capital, whatever the handle.
+test("every inbox row sentence opens on a capital, including the ones that name a lowercase handle", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    "notifications.list": () => ({ items: [inviteRow(), handoffAcceptedRow(), kickedRow()], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 3 }),
+  });
+  await routeInboxStream(page, []);
+  await mount(<NotificationBellStory />);
+  await page.getByRole("button", { name: "Notifications (3 unread)" }).click();
+
+  const rows = page.locator('[data-slot="inbox-row"]');
+  await expect(rows).toHaveCount(3);
+  await expect
+    .poll(() =>
+      rows.evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const first = (node.textContent ?? "").trim().charAt(0);
+          return first !== first.toLowerCase() && first === first.toUpperCase();
+        }),
+      ),
+    )
+    .toEqual([true, true, true]);
 });
 
 test("no unread → plain label, empty inbox copy", async ({ mount, page }) => {
@@ -224,8 +263,8 @@ test("each inbox row owns its pending action: double-click is singular while a s
 
   await mount(<NotificationBellStory />);
   await page.getByRole("button", { name: "Notifications (2 unread)" }).click();
-  const nateRow = page.locator('[data-slot="inbox-row"]').filter({ hasText: "alex invited" });
-  const miraRow = page.locator('[data-slot="inbox-row"]').filter({ hasText: "mira invited" });
+  const nateRow = page.locator('[data-slot="inbox-row"]').filter({ hasText: "Invited to a chat by alex" });
+  const miraRow = page.locator('[data-slot="inbox-row"]').filter({ hasText: "Invited to a chat by mira" });
   const nateAccept = nateRow.getByRole("button", { name: "Accept invitation from alex" });
   const miraAccept = miraRow.getByRole("button", { name: "Accept invitation from mira" });
 
@@ -265,7 +304,7 @@ test("Decline fires declineInvite + dismisses; the row leaves the inbox on refet
 
   // The invalidate refetched the (now empty) inbox — the row is gone without a reload; this DOM
   // consequence is downstream of both the decline call and the dismiss, so await it directly.
-  await expect(page.getByText("alex invited you to a chat")).toHaveCount(0);
+  await expect(page.getByText("Invited to a chat by alex")).toHaveCount(0);
   await expect.poll(async () => (trpc.lastInput("invites.declineInvite") as { inviteId?: unknown }).inviteId).toBe("chatinvite_ct_1");
   await expect.poll(() => trpc.count("notifications.dismiss")).toBeGreaterThanOrEqual(1);
 });
@@ -350,7 +389,7 @@ test("the sheet lens marks the inbox read ON MOUNT — the phone has no 'open' e
   const component = await mount(<NotificationBellSheetStory />);
 
   // The rows are just THERE (nothing to open) — the settled barrier for the mount-time write below.
-  await expect(component.getByText("alex invited you to a chat")).toBeVisible();
+  await expect(component.getByText("Invited to a chat by alex")).toBeVisible();
   await expect.poll(() => trpc.count("notifications.markAllRead"), { intervals: [20, 50, 100] }).toBe(1);
   // …and it stays ONE: the effect is keyed on the unread BOOLEAN, so it cannot re-arm per render.
   await expect.poll(() => trpc.count("notifications.markAllRead"), { intervals: [50, 100, 200] }).toBe(1);
@@ -366,7 +405,7 @@ test("an ALREADY-READ inbox writes nothing on mount", async ({ mount, page }) =>
 
   const component = await mount(<NotificationBellSheetStory />);
 
-  await expect(component.getByText("alex invited you to a chat")).toBeVisible();
+  await expect(component.getByText("Invited to a chat by alex")).toBeVisible();
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the row rendering IS the landed read; the effect runs in that same commit, so a write it was going to make has already been made. A settled read of a negative.
   expect(trpc.count("notifications.markAllRead")).toBe(0);
 });
@@ -412,7 +451,7 @@ test.describe("the phone's inbox block", () => {
     // The heading that NAMES the group is inside it, and so is the row — the block is a container, not a
     // label floating above unowned content.
     await expect(inbox.getByRole("heading", { name: "Notifications (1 unread)" })).toBeVisible();
-    await expect(inbox.getByText("alex invited you to a chat")).toBeVisible();
+    await expect(inbox.getByText("Invited to a chat by alex")).toBeVisible();
     await expect(inbox.getByRole("button", { name: "Accept invitation from alex" })).toBeVisible();
   });
 
@@ -854,9 +893,9 @@ test.describe("the indicator's two halves (#1799)", () => {
 
     // …and it survives the round trip that used to be what silenced it: open, look, close.
     await bell.click();
-    await expect(page.getByText("alex invited you to a chat")).toBeVisible();
+    await expect(page.getByText("Invited to a chat by alex")).toBeVisible();
     await page.keyboard.press("Escape");
-    await expect(page.getByText("alex invited you to a chat")).toBeHidden();
+    await expect(page.getByText("Invited to a chat by alex")).toBeHidden();
     await expect(bell.locator('[data-slot="badge"]')).toHaveCount(1);
   });
 
@@ -931,7 +970,7 @@ test.describe("the indicator's two halves (#1799)", () => {
     await expect(bell.locator('[data-slot="badge"]')).toHaveCount(0);
     // The row is still THERE — this is not "the inbox emptied", it is "the ask settled".
     await bell.click();
-    await expect(page.getByText("alex invited you to a chat")).toBeVisible();
+    await expect(page.getByText("Invited to a chat by alex")).toBeVisible();
   });
 });
 
@@ -968,7 +1007,7 @@ test.describe("pending rows are marked, not merely painted (#1799)", () => {
     await expect(rows).toHaveCount(2);
     await expect(page.locator('[data-slot="inbox-row"][data-pending]')).toHaveCount(1);
     // …and it is the INVITE that carries it, not whichever row happened to render first.
-    await expect(page.locator('[data-slot="inbox-row"][data-pending]')).toContainText("alex invited you to a chat");
+    await expect(page.locator('[data-slot="inbox-row"][data-pending]')).toContainText("Invited to a chat by alex");
   });
 
   test("the SHEET lens carries the same marking", async ({ mount, page }) => {
@@ -1021,7 +1060,7 @@ test.describe("navigating out of the inbox closes it (#1795 class)", () => {
 
     await mount(<NotificationBellDestinationStory />);
     await page.getByRole("button", { name: "Notifications (1 unread)" }).click();
-    await expect(page.getByText("alex invited you to a chat")).toBeVisible();
+    await expect(page.getByText("Invited to a chat by alex")).toBeVisible();
 
     await page.getByRole("button", { name: "Accept invitation from alex" }).click();
 
@@ -1029,7 +1068,7 @@ test.describe("navigating out of the inbox closes it (#1795 class)", () => {
     await expect(page.getByTestId("ct-shell-destination")).toHaveText("chats/none");
     // …and the inbox went with it. Asserted on the ROW rather than a popup slot: the popup portals out of
     // the mount, and a bare slot selector would pass on an empty container that is still open.
-    await expect(page.getByText("alex invited you to a chat")).toBeHidden();
+    await expect(page.getByText("Invited to a chat by alex")).toBeHidden();
   });
 
   test("confirming a host handoff closes the popover as it moves the shell", async ({ mount, page }) => {

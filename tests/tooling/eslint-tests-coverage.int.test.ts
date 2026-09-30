@@ -6,7 +6,7 @@
 // tests/ui equivalent of the client/tooling `_ct-stories.tsx` exemption). `pnpm exec eslint <file>
 // --max-warnings 0` answered "File ignored because no matching configuration was supplied" for every one of
 // them — a real defect (the CT surface's react-hooks/Compiler/jsx-a11y rules never reached them) that the
-// scoped verify lane could not see (`resolveSelection`'s scoped argv passes `--no-warn-ignored`, per
+// scoped verify lane could not see (its discovery drops an ignored explicit path silently, per
 // `run.int.test.ts`'s #459/#473 pins).
 //
 // NO ARM HERE DECLARES ITS OWN `timeout`, AND THAT IS NOT A MISSING LOAD BUDGET (#2218, filed, RETRACTED by

@@ -100,6 +100,8 @@ export type ConnectionBinding = z.infer<typeof connectionBindingSchema>;
  *  and not-found on purpose so a 404 never leaks that a row exists for someone else. */
 export const CONNECTION_OP_CODES = {
   notFound: "connection_not_found",
+  /** A label patch is empty after trimming; a row keeps a non-empty label (create mints one for a blank label). */
+  labelEmpty: "connection_label_empty",
   /** The `providerId` is not in the registry (built-ins ∪ runtime rows). */
   providerUnknown: "connection_provider_unknown",
   /** The `api` is not one the provider row lists (coherence is DATA, §7.3). */

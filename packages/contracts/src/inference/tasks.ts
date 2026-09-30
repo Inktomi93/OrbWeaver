@@ -14,6 +14,7 @@ import type { Modality } from "./modalities.ts";
 
 export const TASKS = ["chat", "agent", "summarize", "structured", "generateImage", "embed", "imageEmbed", "rerank"] as const;
 export type Task = (typeof TASKS)[number];
+export const taskSchema = z.enum(TASKS) satisfies z.ZodType<Task>;
 
 /** What a task DEMANDS of the connection it resolves to, spelled in capability vocabulary. Checked by
  *  `requirementMet` at resolve (a `{ ok: false, missing }` result, never a throw) and by the picker. */

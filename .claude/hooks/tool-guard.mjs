@@ -643,7 +643,7 @@ const VITEST_HEAD = /^\s*(?:npx\s+vitest|vitest|\S*node_modules\/\.bin\/vitest|p
 // untouched (`pnpm exec tsc`, `pnpm lint:eslint`, `pnpm ast`), because a guard that refuses the floored
 // door is what teaches agents to route around it.
 const HEAVY_TOOLS = {
-  eslint: "`pnpm lint:eslint` (or `pnpm exec eslint <paths>` when you want eslint's own flags)",
+  eslint: "`pnpm lint:eslint` (whole repo), `pnpm lint:eslint-scoped <paths>` (scoped), or `pnpm exec eslint <paths>` when you want eslint's own flags",
   tsc: "`pnpm typecheck` (add `--config <tsconfig>` to scope it to one program)",
   stryker: "`pnpm test:mutation` — and a mutation run is orchestrator-scheduled, never ad hoc",
   jscpd: "`pnpm cpd` (which caps the workers; jscpd's own default is every core)",

@@ -48,6 +48,13 @@ export type CredentialHealth =
   | { status: "unreachable"; checkedAt: number; reason: string }
   | { status: "throttled"; checkedAt: number }
   | { status: "unchecked"; checkedAt: number; reason: string };
+export const credentialHealthSchema = z.discriminatedUnion("status", [
+  z.strictObject({ status: z.literal("ok"), checkedAt: z.number() }),
+  z.strictObject({ status: z.literal("revoked"), checkedAt: z.number(), reason: z.string() }),
+  z.strictObject({ status: z.literal("unreachable"), checkedAt: z.number(), reason: z.string() }),
+  z.strictObject({ status: z.literal("throttled"), checkedAt: z.number() }),
+  z.strictObject({ status: z.literal("unchecked"), checkedAt: z.number(), reason: z.string() }),
+]) satisfies z.ZodType<CredentialHealth>;
 
 /** WHY a credential is revoked — the ONE home of the vocabulary (`user_credentials.revoked_reason` derives
  *  its enum from this tuple, and `CredentialView` carries the member to the Connections pane). Read together

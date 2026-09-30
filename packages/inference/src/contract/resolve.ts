@@ -2,8 +2,11 @@
 // funnel (`funnel/resolve-chat.ts`). Only the funnel builds these; every backend consumes the identical shape.
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
+import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
 import type { EffortLevel, ReasoningDisplayMode, ReasoningMode, Verbosity } from "@orb/contracts/inference";
+import { effortLevelSchema } from "@orb/contracts/inference";
 import type { CarryReasoning } from "@orb/contracts/preset";
+import { z } from "zod";
 
 /** One code per distinct drop site a resolver/transport actually emits; clamps are silent. Every member has a
  *  NAMED client home (§5.3a): the ambient capability panel, the aggregated per-turn notice, the Extras row,
@@ -87,6 +90,17 @@ export interface ResolvedWarning {
   /** What the provider USED after a clamp: the reasoning effort (`reasoning_mandatory_clamp`). */
   readonly appliedEffort?: EffortLevel | undefined;
 }
+
+/** Strict: the connection capability read ships warnings to the client through this output parser. */
+export const resolvedWarningSchema = z.strictObject({
+  code: z.enum(WARNING_CODES),
+  message: z.string(),
+  knob: z.enum(ADJUSTED_KNOBS).optional(),
+  key: z.string().optional(),
+  field: z.string().optional(),
+  appliedBudget: z.number().optional(),
+  appliedEffort: effortLevelSchema.optional(),
+}) satisfies z.ZodType<ResolvedWarning>;
 
 /** The capability-resolved reasoning decision after the adaptive/budget guard, effort clamp, and display gate. */
 export interface ResolvedReasoning {

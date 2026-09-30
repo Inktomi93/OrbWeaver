@@ -63,6 +63,7 @@
     "check:chains": "node tooling/src/ast/cli.ts chains",
     "lint": "node tooling/src/_shared/niced-exec.ts biome check . --diagnostic-level=error --reporter=concise",
     "lint:eslint": "node tooling/src/verify/cli.ts eslint",
+    "lint:eslint-scoped": "node tooling/src/verify/cli.ts eslint-scoped",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "format:docs": "node tooling/src/doc/cli.ts format --write",

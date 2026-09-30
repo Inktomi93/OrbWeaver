@@ -2,6 +2,7 @@
 // session verbs return the port-shaped views or coded primitives.
 
 import type { UserId } from "@orb/kit/ids";
+import { z } from "zod";
 import type { AdminUserView, SessionAdminView } from "./views.ts";
 
 export type ListUsersResult = readonly AdminUserView[];
@@ -26,3 +27,5 @@ export type UnclaimedLinkOutcome =
 export interface RevokeUserSessionsResult {
   readonly revoked: number;
 }
+
+export const revokeUserSessionsResultSchema = z.strictObject({ revoked: z.number().int().nonnegative() }) satisfies z.ZodType<RevokeUserSessionsResult>;

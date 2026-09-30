@@ -5248,17 +5248,18 @@ async function emulateContrast(page: Page, contrast: "more" | "no-preference"): 
  *  expectation is the theme's real value rather than a hardcoded colour. The probe is APPENDED before it
  *  is read: `getComputedStyle` on a detached element returns an empty string, which would make every
  *  comparison below silently compare "" to "". */
-function resolveMixedFill(page: Page, token: string, pct: string): Promise<string> {
+/** `partner` is what the tint mixes over: `transparent` for a plateless glass, the reading plate for a plated one. */
+function resolveMixedFill(page: Page, token: string, pct: string, partner = "transparent"): Promise<string> {
   return page.evaluate(
-    ([t, p]: readonly [string, string]) => {
+    ([t, p, over]: readonly [string, string, string]) => {
       const probe = document.createElement("div");
-      probe.style.backgroundColor = `color-mix(in oklab, var(${t}) ${p}, transparent)`;
+      probe.style.backgroundColor = `color-mix(in oklab, var(${t}) ${p}, ${over})`;
       document.body.append(probe);
       const resolved = getComputedStyle(probe).backgroundColor;
       probe.remove();
       return resolved;
     },
-    [token, pct] as const,
+    [token, pct, partner] as const,
   );
 }
 
@@ -5636,8 +5637,9 @@ test("the contrast fill is per-surface in the LIGHT theme too — the modal trac
   const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} dataTheme="light" />);
   // Same assertion as the dark arm, resolved against the light palette: proof the fix is the fill KNOB
   // (a percentage) and not a colour this block re-spells — the failure mode the deleted --color-sidebar
-  // mix was an instance of.
-  const popoverMix = await resolveMixedFill(page, "--color-popover", CONTRAST_FILL);
+  // mix was an instance of. A portaled modal's light arm mixes over the reading plate with or without a
+  // wallpaper (D144(b) as scoped in §12.1), so that is the partner here.
+  const popoverMix = await resolveMixedFill(page, "--color-popover", CONTRAST_FILL, "var(--color-reading-plate)");
   await expect.poll(() => bgColorOf(shell.getByTestId("dialog-probe")), { intervals: [20, 50, 100] }).toBe(popoverMix);
   await expect.poll(() => bgAlpha(glassCarrier(shell.getByTestId("panel-probe"))), { intervals: [20, 50, 100] }).toBeCloseTo(CONTRAST_FILL_ALPHA, 2);
 });
@@ -7077,22 +7079,19 @@ test("#623: the DARK arm's dialog popup does not move a pixel (D144(d) — the s
   expect(overArt).toBe(await bgColorOf(plain.getByTestId("dialog-probe")));
 });
 
-// THE BLAST RADIUS IS EVERY DIALOG, so it is measured rather than argued. `[data-slot="dialog-popup"]` is
-// what the settings modal, the command palette, New chat, Add document, Account and the imagery modals all
-// paint through (one `DialogPopup`), and the raise must be invisible to every one of them when there is no
-// wallpaper to composite. The OTHER overlay families are untouched by construction — Popover, Select, Menu
-// and Drawer carry their own slots and appear nowhere in the new selector.
-test("#623: with NO wallpaper the LIGHT arm's dialog popup is byte-identical (the raise is art-gated)", async ({ mount, page }) => {
+// A PORTALED MODAL TAKES THE PLATE WITH OR WITHOUT A WALLPAPER (D144(b) as scoped in UI-Theming-and-Content.md
+// §12.1). The wallpaper gate rests on "without art the surface composites over the shell's opaque base", which
+// is false for a modal: it composites over the scrim and whatever the transcript shows, so a light dialog over a
+// dark room let 30% of it in. The light arm is therefore the same plated fill in both renders; the rendered AA
+// floor over a dark room with no wallpaper is pinned on a real dialog in invite-dialog.ct.tsx.
+test("#623: with NO wallpaper the LIGHT arm's dialog popup takes the same plated fill as over art", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   const withArt = await mount(<ShellCascadeFixture blurSurfaces={["modals"]} dataTheme="light" hasBgImage={true} />);
   const artFill = await bgColorOf(withArt.getByTestId("dialog-probe"));
   await withArt.unmount();
   const plain = await mount(<ShellCascadeFixture blurSurfaces={["modals"]} dataTheme="light" />);
   const plainFill = await bgColorOf(plain.getByTestId("dialog-probe"));
-  // `ShellCascadeFixture` gives the popup its production home (a portalled SIBLING of the grid), so the
-  // wallpaper-gated rule genuinely applies in the first arm and genuinely does not in the second.
-  expect(artFill).not.toBe(plainFill);
-  expect(alphaOf(artFill)).toBeGreaterThan(alphaOf(plainFill));
+  expect(plainFill).toBe(artFill);
 });
 
 // THE CENSUS IS NOW A FENCE, NOT A REPORT — and the sentence it used to carry is why.
