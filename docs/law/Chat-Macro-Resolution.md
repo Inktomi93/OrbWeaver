@@ -155,6 +155,46 @@ multi-character room (== `{{group}}`), the one character in solo. Gated on the S
 - Reason: the turn's `{{user}}` belongs to one human, so borrowing it for another member's row tells the model that human wrote the line.
 - The client applies the same rule on screen. `resolveUserAttribution` (`packages/client/src/features/chat/lib/attribution.ts`) borrows the viewer's persona only for the viewer's own row. Name nobody rather than name the wrong person.
 - Home: `userRowAuthorName` (`packages/server/src/domain/chat/assembly/shape.ts`).
+- The wire `speakers.user` uses the same floor: `userSpeakerName` (`packages/server/src/domain/chat/engine/pipeline.ts`) gives a persona-less voice human `DEFAULT_PERSONA_NAME`.
+
+## 4c. The people block
+
+The `persona` marker renders the people block: every present human's persona in one stable block. [ADR 0278](../adr/0278-people-block-in-the-persona-marker.md) records the decision and the rejected options.
+
+- The voice part comes first and unheaded: the marker template against `ctx.activePersona`, as in a solo room. Position alone marks the human `{{user}}` names.
+- Each other present human whose seat holds a persona follows in seat join order. The entry is the `chat.group.personaHeading` prose slot (`{{name}}` pre-substituted), then the description.
+- Entries join with a blank line. With no other person (`ctx.people` absent) the marker renders the solo bytes. Nothing keys on a room mode (D16).
+- Which humans: the present, enabled membership (`humanSeatPersonasOf` over the consent set), never the online set. A reconnect must not rewrite the static half.
+- A seat with no persona gets no entry. Its rows carry the `DEFAULT_PERSONA_NAME` label (§4b).
+- A preset with no active `persona` marker renders no block. That is the host's prompt authoring, not a member toggle.
+- Each entry resolves `{{user}}`, `{{persona}}` and the name aliases against its own persona (§3).
+- The trace and the budget label the section per person, so the host preview names whose bytes it carries.
+
+Each persona's placement governs only the delivery of its own description:
+
+| Placement | Voice persona | Other person |
+| - | - | - |
+| `in_prompt` | description in the marker | heading, then description |
+| `at_depth` | own `in_chat` injection; marker part silent | heading-only entry; own `in_chat` injection labelled with its name |
+| `none` | nothing | heading-only entry |
+
+A blank description also gives a heading-only entry. The heading stays so the model can map a row label to a person.
+
+Homes: `createTurnPersonaResolver` (`packages/server/src/entry/compose/chat.ts`) projects `people`; `renderPersonaMarker` (`packages/server/src/domain/chat/assembly/assemble.ts`) renders it; `resolvePersonaDescriptionCandidates` (`packages/server/src/domain/chat/assembly/context.ts`) adds the per-person depth injections.
+
+### When the block changes
+
+The block changes only on a join, a leave (`leftSeq`), a persona swap, a description edit or an anchor re-pick. Each is one prompt-cache miss, then a stable prefix. A send by another human and a presence change leave it unchanged.
+
+- A re-pick moves the new anchor human's persona to the unheaded first part. The old voice persona takes a heading.
+- An impersonate draft makes the presser's persona the first part for that call only. The anchor human takes a heading.
+- The card-context anchor identity block is skipped when the anchor persona already rides the block as a person.
+- Merged, scoped and narrator rounds render the block once from the turn context, never per speaker.
+
+### Persona books
+
+- Axis: the world-info pool joins the books of the consented seats' personas (`memberPersonaIdsOf`, `packages/server/src/domain/chat/substrate/participants-humans.ts`). This is the people block's membership. An offline member keeps their lore; a leave drops it.
+- Scope: a persona-book entry renders against its own persona (`macroPersonaOf`, `packages/server/src/domain/chat/assembly/context.ts`). Bob's `{{user}} hates spiders` reads `Bob hates spiders`.
 
 ## 5. Reattribution (the only writer of a stamp)
 

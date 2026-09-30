@@ -16,7 +16,7 @@ Amends D122's anchor binding. A canon turn binds prompt-config {{user}} to the a
 
 ## Consequences
 
-Solo chats are byte-identical. A mid-chat persona swap still reaches preset {{user}} while the card keeps the anchor. Every present human's persona entering the prompt is D122's standing rule, built by docs/plans/multi-human-personas.
+Solo chats are byte-identical. A mid-chat persona swap still reaches preset {{user}} while the card keeps the anchor. Every present human's persona entering the prompt is D122's standing rule, rendered by the people block (ADR 0278).
 
 ## Alternatives rejected
 
