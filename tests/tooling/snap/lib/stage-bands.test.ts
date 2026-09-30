@@ -22,6 +22,7 @@ import {
   resolveStageLimits,
   rowIsDangling,
   STAGE_ERA_MAX_RSYNCS,
+  stageDecision,
   stageHealthVerdict,
   stageSweepVerdict,
 } from "../../../../tooling/src/snap/lib/stage-bands.ts";
@@ -296,6 +297,21 @@ test("AT THE CAP, a lane's own idle stage that only it last used is rebuilt in p
   expect(allocateStageBand({ ...atCap, views: views([...siblings, { row: unattributed }]) }).kind).toBe("exhausted");
   // Below the cap nothing changes: the lane gets a new band and keeps its old stage.
   expect(allocateStageBand({ ...atCap, views: views([siblings[0] ?? { row: row(1) }, { row: ourOldStage }]) }).kind).toBe("free");
+});
+
+test("a same-sha --fresh or unhealthy rebuild refuses while a sibling's recent use may still be reading the stage", () => {
+  const siblingUsed = row(0, { checkout: LANE_CHECKOUT, lastUsedAt: new Date(NOW - 2000).toISOString(), lastUsedBy: MAIN_CHECKOUT });
+  const ask = { targetSha: SHA, checkout: LANE_CHECKOUT, nowMs: NOW };
+  expect(stageDecision({ ...ask, row: siblingUsed, fresh: true, healthy: true })).toBe("refuse");
+  expect(stageDecision({ ...ask, row: siblingUsed, fresh: false, healthy: false })).toBe("refuse");
+  // A warm reuse touches nothing, so a sibling's use never blocks it.
+  expect(stageDecision({ ...ask, row: siblingUsed, fresh: false, healthy: true })).toBe("reuse");
+  // Our own last use, a sibling's use idle past the threshold, and an unknown user idle past it all rebuild.
+  expect(stageDecision({ ...ask, row: { ...siblingUsed, lastUsedBy: LANE_CHECKOUT }, fresh: true, healthy: true })).toBe("rebuild");
+  expect(stageDecision({ ...ask, row: { ...siblingUsed, lastUsedAt: USED_PAST_REPLACE_IDLE }, fresh: true, healthy: true })).toBe("rebuild");
+  const { lastUsedBy: _unknown, ...unattributed } = siblingUsed;
+  expect(stageDecision({ ...ask, row: unattributed, fresh: true, healthy: true })).toBe("refuse");
+  expect(stageDecision({ ...ask, row: { ...unattributed, lastUsedAt: USED_PAST_REPLACE_IDLE }, fresh: true, healthy: true })).toBe("rebuild");
 });
 
 // ── the three probes + the ERA rule ───────────────────────────────────────────────────────────────────

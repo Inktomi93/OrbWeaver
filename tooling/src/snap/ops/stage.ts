@@ -76,7 +76,7 @@ import { runNicedSync, spawnFullPrioritySync } from "../../_shared/proc.ts";
 import { FIXTURE_SEED_CLI_REL, fixtureIdentityEnv } from "../../stack/index.ts";
 import type { EnsureStageOpts, StageAuthMode, StagePaths, StagePorts, StageRow, StageStopVerdict } from "../contract/stage.ts";
 import { stageRowAuth } from "../contract/stage.ts";
-import { stageDecision } from "../lib/stage-bands.ts";
+import { stageDecision, stageRebuildRefusal } from "../lib/stage-bands.ts";
 import {
   DIRTY_STAGE_KEY,
   missingLauncherRefusal,
@@ -374,8 +374,12 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
   }
   if (allocation.kind === "ours") {
     const healthy = stageRowHealth(allocation.row, nowMs) === "warm";
-    if (stageDecision({ targetSha, row: allocation.row, fresh: opts.fresh, healthy, auth }) === "reuse") {
+    const decision = stageDecision({ targetSha, row: allocation.row, fresh: opts.fresh, healthy, auth, checkout: root, nowMs });
+    if (decision === "reuse") {
       return { row: reuseWarmStage({ root, home }, allocation.row, dirty, nowIso), booted: false };
+    }
+    if (decision === "refuse") {
+      throw new Error(stageRebuildRefusal(allocation.row, nowMs));
     }
     print(
       `[snap-stage] rebuilding our stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (${rebuildReason(allocation.row, { targetSha, auth, fresh: opts.fresh })})`,

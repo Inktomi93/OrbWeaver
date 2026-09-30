@@ -12,8 +12,11 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { StageRow } from "../contract/stage.ts";
 import type { Args } from "../contract/types.ts";
 import { registerSnapStageProvenance } from "../lib/run-provenance.ts";
+import { STAGE_USE_HEARTBEAT_MS } from "../lib/stage-bands.ts";
 import { stageRowBaseUrl } from "../lib/stage-plan.ts";
 import { ensureStage } from "./stage.ts";
+import { repoRoot } from "./stage-git.ts";
+import { holdStageUse, markerRoot } from "./stage-marker.ts";
 import { stageStatus, sweepStages, teardownStage } from "./stage-status.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -110,6 +113,8 @@ function bindIsolatedStage(opts: Args): StageRow {
     ? ensureStage({ fresh: opts.fresh, dirty: true, auth })
     : ensureStage(opts.ref === null ? { fresh: opts.fresh, auth } : { ref: opts.ref, fresh: opts.fresh, auth });
   opts.base = stageRowBaseUrl(stage);
+  // Held for the process's life: a one-shot run and a session daemon both read the stage until they exit.
+  holdStageUse(markerRoot(repoRoot()), stage.band, repoRoot(), STAGE_USE_HEARTBEAT_MS);
   if (auth === "local") {
     opts.fixtureServer ??= `http://127.0.0.1:${String(stage.serverPort)}`;
     opts.fixtureBase ??= opts.base;

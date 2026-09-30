@@ -56,6 +56,14 @@ export function trackDocumentDiscards(page: Page): DocumentDiscards {
       navigationAnswered = null;
     }
   });
+  // A main-frame navigation that failed (a download, a 204) replaced nothing; a later commit without a
+  // request of its own (about:blank, setContent) must not inherit its start.
+  page.on("requestfailed", (request) => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+      navigationStarted = null;
+      navigationAnswered = null;
+    }
+  });
   page.on("response", (response) => {
     const request = response.request();
     if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {

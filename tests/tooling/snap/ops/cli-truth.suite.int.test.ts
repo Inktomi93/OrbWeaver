@@ -1,11 +1,8 @@
 // Consolidated #1298 acceptance: CLI lifecycle ownership, strict modal dispatch, explicit refusal
 // redirects, report parsing, scenario/session lifetime truth, and descriptor-owned help completeness.
 
-import type { SpawnSyncReturns } from "node:child_process";
-import { spawnSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { vi } from "vitest";
 import { parseSnapArgs, parseSnapReportArgs, prepareScenario, snapFlagDescriptors } from "../../../../tooling/src/snap/index.ts";
@@ -20,12 +17,7 @@ const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
  *  evidence (`ops/flag-grammar.ts` INTERNAL_FLAGS). A SET rather than one hardcoded name, so the next such
  *  entry is one row here rather than a silently-wrong equality. */
 const INTERNAL_SPELLINGS: ReadonlySet<string> = new Set(["--session-daemon", "--stage-keeper"]);
-const SNAP_CLI = fileURLToPath(new URL("../../../../tooling/src/snap/cli.ts", import.meta.url));
 vi.setConfig({ testTimeout: scaledBudget(15_000) });
-
-function runSnap(args: readonly string[]): SpawnSyncReturns<string> {
-  return spawnSync(process.execPath, [SNAP_CLI, ...args], { cwd: ROOT, encoding: "utf8", timeout: scaledBudget(10_000) });
-}
 
 function grammarCode(grammar: ReturnType<typeof snapFlagDescriptors>[number]["grammar"]): "B" | "V" | "O" {
   if (grammar === "boolean") {
@@ -34,22 +26,24 @@ function grammarCode(grammar: ReturnType<typeof snapFlagDescriptors>[number]["gr
   return grammar === "required-value" ? "V" : "O";
 }
 
-test("admin and maintainer modes refuse unrelated drive/output args before any run slot or browser/stage allocation", () => {
-  for (const argv of [
+// The six CLI children are independent, so they run at once: the test's wall clock is one child's, and the
+// file's 15 s ceiling covers one child's own 10 s budget plus the fixture's spawn cost.
+test("admin and maintainer modes refuse unrelated drive/output args before any run slot or browser/stage allocation", async ({ runCli }) => {
+  const refusals = [
     ["--stage-status", "--click", "body"],
     ["--session-status", "--json"],
     ["--session-export", "p-x", "--eval", "1"],
     ["--materialize-devtools-assets", "--json"],
-  ]) {
-    const result = runSnap(argv);
-    expect(result.status, `${argv.join(" ")}\n${result.stdout}\n${result.stderr}`).toBe(3);
+  ];
+  const plain = [["--stage-status"], ["--session-status"]];
+  const results = await Promise.all([...refusals, ...plain].map((argv) => runCli("snap", argv, { timeoutMs: scaledBudget(10_000) })));
+  results.forEach((result, index) => {
+    const argv = [...refusals, ...plain][index] ?? [];
+    expect(result.code, `${argv.join(" ")}\n${result.stdout}\n${result.stderr}`).toBe(index < refusals.length ? 3 : 0);
+    expect(result.stdout).not.toContain("run slot");
+  });
+  for (const result of results.slice(0, refusals.length)) {
     expect(result.stdout).toContain("strict modal mode");
-    expect(result.stdout).not.toContain("run slot");
-  }
-  for (const argv of [["--stage-status"], ["--session-status"]]) {
-    const result = runSnap(argv);
-    expect(result.status, `${argv.join(" ")}\n${result.stdout}\n${result.stderr}`).toBe(0);
-    expect(result.stdout).not.toContain("run slot");
   }
 });
 

@@ -245,6 +245,19 @@ export function touchRow(home: string, band: number, nowIso: string, by?: string
   });
 }
 
+/** Re-stamp this checkout's use of a band every `intervalMs` while a run holds the stage, so its use never
+ *  reads older than one interval to a sibling deciding whether it may tear the stage down. The timer is
+ *  unref'd: it never keeps a finished run alive. Returns the release. */
+export function holdStageUse(home: string, band: number, by: string, intervalMs: number): () => void {
+  const timer = setInterval(() => {
+    touchRow(home, band, new Date().toISOString(), by);
+  }, intervalMs);
+  timer.unref();
+  return () => {
+    clearInterval(timer);
+  };
+}
+
 function withLastUse(row: StageRow, nowIso: string, by: string | undefined): StageRow {
   const { lastUsedBy: _previous, ...rest } = row;
   return { ...rest, lastUsedAt: nowIso, ...(by === undefined ? {} : { lastUsedBy: by }) };

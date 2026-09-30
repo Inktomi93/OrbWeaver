@@ -60,9 +60,12 @@ export const DEFAULT_STAGE_TTL_MIN = 60;
  *  which keeps the pure function usable from a test without a profile file. */
 export const DEFAULT_STAGE_CAP = 3;
 
-/** How long a lane's own stage must sit unused before the lane may rebuild it in place at the cap. Longer
- *  than any one-shot capture's budgets, so a run still reading the stage is never torn down under. */
-export const OWN_STAGE_REPLACE_IDLE_MS = 10 * MS_PER_MINUTE;
+/** How often a run holding a stage re-stamps its use (ops/stage-marker.ts `holdStageUse`). */
+export const STAGE_USE_HEARTBEAT_MS = MS_PER_MINUTE;
+/** How long a stage must sit unused before a checkout may tear it down to rebuild or replace it. It is ten
+ *  heartbeats: a run still holding the stage re-stamps every {@link STAGE_USE_HEARTBEAT_MS}, so a use this
+ *  old means no run holds it. */
+export const OWN_STAGE_REPLACE_IDLE_MS = 10 * STAGE_USE_HEARTBEAT_MS;
 
 /** Env \> profile \> default, mirroring `resolveSessionLimits`. A non-positive or unparseable value is a
  *  REFUSAL, never a silent default — a stage TTL that silently became 60 min is the strand class this table
@@ -313,16 +316,36 @@ export function stageHealthVerdict(evidence: StageHealthEvidence): StageHealth {
 
 /** The staleness rule: reuse a warm stage ONLY when it is the requested sha, healthy, and not forced fresh;
  *  otherwise rebuild. Pure — the imperative caller supplies `healthy` (lib/stage-bands.ts's three-probe
- *  verdict, `warm`). */
+ *  verdict, `warm`). A rebuild tears the stage down, so when `checkout` is given it is refused while
+ *  another checkout's use (or an unattributed one) is younger than {@link OWN_STAGE_REPLACE_IDLE_MS}. */
 export function stageDecision(opts: {
   readonly targetSha: string;
   readonly row: StageRow | null;
   readonly fresh: boolean;
   readonly healthy: boolean;
   readonly auth?: StageAuthMode;
+  readonly checkout?: string;
+  readonly nowMs?: number;
 }): StageDecision {
-  if (opts.fresh || opts.row === null || opts.row.sha !== opts.targetSha || stageRowAuth(opts.row) !== (opts.auth ?? "single-user") || !opts.healthy) {
-    return "rebuild";
+  const { row } = opts;
+  if (row !== null && !opts.fresh && row.sha === opts.targetSha && stageRowAuth(row) === (opts.auth ?? "single-user") && opts.healthy) {
+    return "reuse";
   }
-  return "reuse";
+  if (row !== null && opts.checkout !== undefined && opts.nowMs !== undefined && !mayTearDown(row, opts.checkout, opts.nowMs)) {
+    return "refuse";
+  }
+  return "rebuild";
+}
+
+function mayTearDown(row: StageRow, checkout: string, nowMs: number): boolean {
+  return row.lastUsedBy === checkout || stageIdleMs(row, nowMs) >= OWN_STAGE_REPLACE_IDLE_MS;
+}
+
+/** The STAGE ERROR a refused rebuild prints: who used the stage, when, and when the rebuild may run. */
+export function stageRebuildRefusal(row: StageRow, nowMs: number): string {
+  return (
+    `stage ${shortSha(row.sha)} on band ${String(row.band)} needs a rebuild, but ${row.lastUsedBy ?? "an unknown checkout"} used it ` +
+    `${describeStageAgePhrase(row.lastUsedAt, nowMs)} and may still be reading it. Nothing was torn down. Retry once it has been idle ` +
+    `${String(Math.round(OWN_STAGE_REPLACE_IDLE_MS / MS_PER_MINUTE))} min, or stage a different --ref/--dirty.`
+  );
 }

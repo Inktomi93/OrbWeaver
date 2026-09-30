@@ -126,6 +126,15 @@ test.each(["download", "no-content"] as const)("a %s navigation keeps the page, 
         .poll(() => partitionFailedRequests(session.requests.values()).failed.map((request) => new URL(request.url).pathname))
         .toContain("/app-abort");
       expect(partitionFailedRequests(session.requests.values()).navigationAborts).toEqual([]);
+      // A later commit with no navigation request must not reach back through the navigation that never
+      // committed and relabel the abort the app made while its page was still showing.
+      if (kind === "download") {
+        await session.page.setContent("<p>next</p>");
+      } else {
+        await session.page.goto("about:blank");
+      }
+      expect(partitionFailedRequests(session.requests.values()).failed.map((request) => new URL(request.url).pathname)).toContain("/app-abort");
+      expect(partitionFailedRequests(session.requests.values()).navigationAborts).toEqual([]);
     });
   } finally {
     for (const response of held) {

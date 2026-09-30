@@ -31,6 +31,7 @@ import { stageBindingAlive } from "../../../../tooling/src/snap/ops/stage-census
 import {
   bindSessionToBand,
   clearRow,
+  holdStageUse,
   markStageDead,
   readBands,
   releaseLockDir,
@@ -168,6 +169,21 @@ test("a touch records WHO used the band, and an unattributed touch clears the pr
   expect(readBands(home)[0]?.lastUsedBy).toBe(LANE_CHECKOUT);
   touchRow(home, 3, AGED_ISO);
   expect(readBands(home)[0]?.lastUsedBy).toBeUndefined();
+});
+
+test("a run holding a stage keeps re-stamping its use until it lets go", async () => {
+  const home = scratchHome("hold");
+  writeRow(home, row(3, { lastUsedAt: AGED_ISO }));
+  const release = holdStageUse(home, 3, LANE_CHECKOUT, 20);
+  try {
+    await expect.poll(() => readBands(home)[0]?.lastUsedBy).toBe(LANE_CHECKOUT);
+    expect(readBands(home)[0]?.lastUsedAt).not.toBe(AGED_ISO);
+  } finally {
+    release();
+  }
+  const stamped = readBands(home)[0]?.lastUsedAt;
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  expect(readBands(home)[0]?.lastUsedAt).toBe(stamped);
 });
 
 test("a row with no owner, or naming a band outside the registry, is DROPPED rather than reasoned about", () => {

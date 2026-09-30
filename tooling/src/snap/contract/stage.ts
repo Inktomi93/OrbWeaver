@@ -326,7 +326,9 @@ export interface StageHealthEvidence {
 const STAGE_BAND_CLAIMS = ["not-the-band", "ours", "shared", "foreign", "unowned"] as const;
 export type StageBandClaim = (typeof STAGE_BAND_CLAIMS)[number];
 
-export type StageDecision = "reuse" | "rebuild";
+/** `refuse`: a rebuild is due, but another checkout (or an unknown one) used the stage too recently for
+ *  this checkout to tear it down under that use. */
+export type StageDecision = "reuse" | "rebuild" | "refuse";
 
 /** The owner-ruled calibration knobs (design §12.2 F5): stage idle TTL 60 min, cap 3 live stages, both
  *  env-overridable (`ORB_STAGE_TTL_MIN` / `ORB_STAGE_CAP`). The band RANGE (0..9) is the hard ceiling. */
