@@ -108,6 +108,8 @@ export const CONNECTION_OP_CODES = {
   baseUrlRefused: "connection_base_url_refused",
   /** A `builtin` catalog is the closed set the in-process runtime can load; the model id is not in it. */
   modelNotInCatalog: "connection_model_not_in_catalog",
+  /** A `local-light` model id is not a Hugging Face `owner/repo` id (`isHubModelId`); a path or URL never loads. */
+  modelIdShape: "connection_model_id_shape",
   /** The named credential is not the caller's (or does not exist — collapsed, no existence oracle). */
   credentialForeign: "connection_credential_foreign",
   /** The task's `spend` is `background` and the row's `allowBackground` is off (`canFund`, F5). */

@@ -11,7 +11,7 @@
 // `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
 
 import type { ConnectionApi, ModelCheck, ProviderDef, UserConnection } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES, connectionTasks, modelIdSchema, providerDisplayLabel } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, connectionTasks, isHubModelId, modelIdSchema, providerDisplayLabel } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { nextFreeLabel } from "@orb/kit/strings";
@@ -43,8 +43,15 @@ function requireModelId(raw: string): ModelId {
 }
 
 /** A `builtin` catalog is the closed set the in-process runtime can load, so an id outside it can only be a
- *  typo; a `url` catalog can lag its provider and admits any id (§7.4). */
+ *  typo; a `url` catalog can lag its provider and admits any id (§7.4). A `local-light` id is still refused
+ *  unless it is a Hub `owner/repo`, whatever the catalog: the in-process loader reads any other id as a path. */
 function requireCatalogModel(ctx: ConnectionContext, ownerId: UserId, provider: ProviderDef, model: ModelId): void {
+  if (provider.wire === "local-light" && !isHubModelId(model)) {
+    throw new DomainOperationError(
+      CONNECTION_OP_CODES.modelIdShape,
+      `${provider.label} loads Hugging Face models only: use the model's "owner/repo" id, not a path or URL.`,
+    );
+  }
   const closed = ctx.runtime.catalogs.builtin(provider.id, ownerId);
   if (closed !== null && !closed.some((entry) => entry.id === model)) {
     throw new DomainOperationError(CONNECTION_OP_CODES.modelNotInCatalog, `${provider.label} does not run "${model}" — pick one of its listed models.`);
