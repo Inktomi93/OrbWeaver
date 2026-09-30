@@ -538,6 +538,8 @@ export default defineConfig({
     orbWorkspaceExportsRestart(),
   ],
   optimizeDeps: {
+    // Excluded UI source hides its satellites from the HTML scan; scan its source doors before browser discovery triggers reloads.
+    entries: ["./index.html", "../ui/src/**/index.ts"],
     // Keep @orb/ui as SOURCE (never pre-bundled) so the React Compiler babel pass above actually
     // processes its components. A pre-bundled @orb/ui would be esbuild-optimized and BYPASS the
     // compiler — silently shipping un-memoized ui (the flagged correctness risk). @orb/ui's own

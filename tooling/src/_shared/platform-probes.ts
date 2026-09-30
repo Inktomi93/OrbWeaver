@@ -79,6 +79,14 @@ export function linuxProcessGroup(pid: number, reads: ProcReads): number | null 
   return stat === null ? null : parseProcStatGroup(stat);
 }
 
+const STAT_STARTTIME_AFTER_COMM = 19;
+
+/** Kernel start ticks distinguish a live process from a later process reusing its pid. */
+export function linuxProcessStartTicks(pid: number, reads: ProcReads): string | null {
+  const stat = fileOf(reads)(`${PROC}/${String(pid)}/stat`);
+  return stat === null ? null : (stat.slice(stat.lastIndexOf(")") + 2).split(" ")[STAT_STARTTIME_AFTER_COMM] ?? null);
+}
+
 /** Every process in `/proc`: pid, parent, command line, environment and CPU time. */
 export function linuxProcesses(reads: ProcReads): readonly ProcessEntry[] {
   const readFile = fileOf(reads);

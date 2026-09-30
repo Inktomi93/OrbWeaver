@@ -57,7 +57,13 @@ const config = {
       // negation is knip's fence. A planted bare .ts proved too weak to test this fence: knip's
       // dependency lens only fires on a file that IMPORTS something (the runtime's own index.d.ts
       // imports csrf-sync), so the fence's probe must plant an import, not an empty file.
-      entry: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "playwright/**/*.{ts,tsx}", "tests/support/**/*.{ts,tsx}"],
+      entry: [
+        "scripts/**/*.ts",
+        "!scripts/probes/st-goldens/sillytavern-runtime/**",
+        "playwright/**/*.{ts,tsx}",
+        "tests/support/**/*.{ts,tsx}",
+        "tests/server/infra/plugin-host/_broker-containment-proof.ts",
+      ],
       project: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
       // The full binary analysis sees these deliberately fake executables in missing-binary and PATH-shim controls.
       // mkfifo is the POSIX coreutils binary the orchestrator-inject hook test uses to plant a FIFO transcript path;
@@ -84,7 +90,14 @@ const config = {
       // — it `globSync`s `gates/*.ts` and imports each by URL at runtime (Core-Tooling-Law.md §4.3), so every
       // descriptor is a plugin nothing statically imports. Without this row knip reads all 219 `export const
       // gate` as dead, and drops every helper they alone consume with them.
-      entry: ["src/*/cli.ts", "src/*/index.ts", "src/_shared/*.ts", "src/verify/gates/*.ts", "src/verify/ops/required-live-evidence-reporter.ts"],
+      entry: [
+        "src/*/cli.ts",
+        "src/*/index.ts",
+        "src/_shared/*.ts",
+        "src/verify/gates/*.ts",
+        "src/verify/ops/required-live-evidence-reporter.ts",
+        "src/snap/lib/budgets.ts",
+      ],
       project: ["src/**/*.ts"],
       // The heap arm loads chrome-devtools-mcp's browser-free parser through a version-pinned dynamic
       // subpath held in a constant. Knip cannot resolve that indirection, while the heap suite exercises

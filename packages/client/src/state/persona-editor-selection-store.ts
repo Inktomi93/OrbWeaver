@@ -1,15 +1,16 @@
 // The expanded persona editor is independent of the playing-as persona.
 import type { PersonaId } from "@orb/kit/ids";
 import { openConfigTo } from "./config-nav-store.ts";
-import { createGatedStore } from "./create-gated-store.ts";
+import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 
-interface PersonaEditorSelection {
-  readonly personaId: PersonaId | null;
-}
-const useSelection = createGatedStore<PersonaEditorSelection>("persona-editor-selection", () => ({ personaId: null }));
+const selection = createDrillSelectionStore<PersonaId>("persona-editor-selection");
 
 export function selectPersonaEditor(personaId: PersonaId | null): void {
-  useSelection.setState({ personaId }, false, "personaEditor/select");
+  if (personaId === null) {
+    selection.clear();
+  } else {
+    selection.select(personaId);
+  }
 }
 
 export function openPersonaEditor(personaId: PersonaId): void {
@@ -18,5 +19,5 @@ export function openPersonaEditor(personaId: PersonaId): void {
 }
 
 export function usePersonaEditorId(): PersonaId | null {
-  return useSelection((state) => state.personaId);
+  return selection.usePrimaryId();
 }

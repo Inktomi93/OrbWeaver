@@ -303,7 +303,7 @@ export type RpgSetPointer = (chatId: ChatId, pointer: ChatRpgPointer | null) => 
 
 /** Chat's husk→real transition (R0 F4(a)). Every host write verb calls it right after its authority gate, so a
  *  room whose game the host authored is listed and never reaped. Idempotent; a claimed room is a no-op. */
-export type RpgClaimChat = (chatId: ChatId) => Promise<void>;
+type RpgClaimChat = (chatId: ChatId) => Promise<void>;
 
 /** One participant actor projected for the tracker view (participants ∪ sheets, §4.3). The injected `resolveParticipants` op
  *  resolves the chat's present participants into `character`/`user` actor refs + display name + avatar — the

@@ -66,7 +66,7 @@ export const STAGE_USE_HEARTBEAT_MS = MS_PER_MINUTE;
 /** How long a stage must sit unused before a checkout may tear it down to rebuild or replace it. It is ten
  *  heartbeats: a run still holding the stage re-stamps every {@link STAGE_USE_HEARTBEAT_MS}, so a use this
  *  old means no run holds it. */
-export const OWN_STAGE_REPLACE_IDLE_MS = 10 * STAGE_USE_HEARTBEAT_MS;
+const OWN_STAGE_REPLACE_IDLE_MS = 10 * STAGE_USE_HEARTBEAT_MS;
 
 /** Env \> profile \> default, mirroring `resolveSessionLimits`. A non-positive or unparseable value is a
  *  REFUSAL, never a silent default — a stage TTL that silently became 60 min is the strand class this table

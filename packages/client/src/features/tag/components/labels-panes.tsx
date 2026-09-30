@@ -60,10 +60,18 @@ export function LabelsContent(): ReactElement {
           <QueryBoundary
             fallback={exit}
             renderError={(_error, retry): ReactElement => (
-              <Stack gap="block">
-                {exit}
-                <QueryErrorState label="this tag" onRetry={retry} />
-              </Stack>
+              <QueryErrorState
+                label="this tag"
+                onRetry={retry}
+                renderRetry={(refetch): ReactElement => (
+                  <Stack gap="block">
+                    {exit}
+                    <Button intent="ghost" onClick={refetch}>
+                      Retry
+                    </Button>
+                  </Stack>
+                )}
+              />
             )}
           >
             <TagMemberSurface key={tagId} tagId={tagId} />

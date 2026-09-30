@@ -15,6 +15,7 @@ import {
   linuxProcesses,
   linuxProcessGroup,
   linuxProcessInfo,
+  linuxProcessStartTicks,
   linuxProcSockets,
   PROC_NET_TCP_TABLES,
 } from "./platform-probes.ts";
@@ -303,6 +304,11 @@ export function processGroupId(pid: number, deps: PlatformDeps = {}): number | n
   }
   const pgid = Number(stdoutOf(runOf(deps)("ps", ["-o", "pgid=", "-p", String(pid)])).trim());
   return Number.isInteger(pgid) && pgid > 0 ? pgid : null;
+}
+
+/** Linux kernel start ticks, or null when unavailable; other platforms retain the holder's age fallback. */
+export function processStartTicks(pid: number, deps: PlatformDeps = {}): string | null {
+  return supportedPlatform(deps) === "linux" ? linuxProcessStartTicks(pid, deps) : null;
 }
 
 /** Seconds since a pid started, or null when the OS cannot say. */

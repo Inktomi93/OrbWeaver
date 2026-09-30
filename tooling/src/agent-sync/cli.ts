@@ -28,7 +28,7 @@ function syncCatalogPath(args: readonly string[]): string {
   if (args.length === 0) {
     return modelCatalogPath();
   }
-  if (args.length === 2 && args[0] === "--models" && args[1]) {
+  if (args.length === 2 && args[0] === "--models" && args[1] !== undefined && args[1] !== "") {
     return args[1];
   }
   throw new UsageError(USAGE);

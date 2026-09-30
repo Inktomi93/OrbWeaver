@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { mkdir, readFile, readlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 const INVENTORY_ROWS = 200_000;
@@ -70,8 +71,9 @@ test("bootstrap links local settings and syncs a SQLite backup in an external ch
   await writeFile(join(mainRoot, ".claude/settings.local.json"), "{}\n");
   await writeFile(join(laneRoot, ".env"), "LOCAL=preserved\n");
   const database = join(mainRoot, ".codegraph/codegraph.db");
-  const seed = spawnSync("sqlite3", [database, "CREATE TABLE witness (value TEXT); INSERT INTO witness VALUES ('main-index');"], { encoding: "utf8" });
-  expect(seed.status).toBe(0);
+  const seed = new DatabaseSync(database);
+  seed.exec("CREATE TABLE witness (value TEXT); INSERT INTO witness VALUES ('main-index');");
+  seed.close();
   await fakeBin(
     "git",
     `process.stdout.write(process.argv.includes("--show-toplevel") ? ${JSON.stringify(`${laneRoot}\n`)} : ${JSON.stringify(`worktree ${mainRoot}\n\nworktree ${laneRoot}\n`)});`,
@@ -79,12 +81,13 @@ test("bootstrap links local settings and syncs a SQLite backup in an external ch
   await fakeBin("pnpm", "process.exitCode = 0;");
   await fakeBin(
     "codegraph",
-    `import { spawnSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+    `import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-const result = spawnSync("sqlite3", [join(process.argv[3], ".codegraph/codegraph.db"), "SELECT value FROM witness;"], { encoding: "utf8" });
-writeFileSync(join(process.argv[3], "synced.txt"), result.stdout);
-process.exitCode = result.status;
+import { DatabaseSync } from "node:sqlite";
+const db = new DatabaseSync(join(process.argv[3], ".codegraph/codegraph.db"), { readOnly: true });
+const row = db.prepare("SELECT value FROM witness").get();
+writeFileSync(join(process.argv[3], "synced.txt"), row.value + "\\n");
+db.close();
 `,
   );
   const result = spawnSync("bash", [join(repoRoot, "scripts/worktree-bootstrap.sh")], { cwd: laneRoot, encoding: "utf8" });

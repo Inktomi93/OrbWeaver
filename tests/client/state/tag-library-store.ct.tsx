@@ -39,3 +39,13 @@ test("the prune confirm starts closed and both directions of its flag land", asy
   await probe.getByRole("button", { name: "close prune" }).click();
   await expect(prune).toHaveText("prune=false");
 });
+
+test("setLabelFilter remembers transient finder text and clears without changing sort", async ({ mount }) => {
+  const probe = await mount(<TagLibraryProbe />);
+  const filter = probe.locator("output").nth(2);
+  await probe.getByRole("button", { name: "filter labels", exact: true }).click();
+  await expect(filter).toHaveText("filter=forest");
+  await expect(probe.locator("output").first()).toHaveText("sort=used");
+  await probe.getByRole("button", { name: "clear label filter", exact: true }).click();
+  await expect(filter).toHaveText("filter=");
+});

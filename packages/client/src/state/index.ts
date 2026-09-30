@@ -263,7 +263,8 @@ export {
   useEditSubject,
   useImagineSeed,
 } from "./imagery-store.ts";
-export { clearLabelSelection, selectLabel, selectLabelFromList, setLabelNameFocus, useLabelNameFocus, useSelectedLabelId } from "./label-selection-store.ts";
+export { setLabelNameFocus, useLabelNameFocus } from "./label-name-focus-store.ts";
+export { clearLabelSelection, selectLabel, selectLabelFromList, useSelectedLabelId } from "./label-selection-store.ts";
 export type { ListFlipCarry } from "./list-flip-carry.ts";
 export { collapseListPanel, dockListPanel, registerListFlipCarry } from "./list-flip-carry.ts";
 export {

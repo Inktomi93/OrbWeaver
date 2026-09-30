@@ -13,7 +13,7 @@ interface CorpusModeState {
 const useCorpusModeStore = createGatedStore<CorpusModeState>("corpus-mode", (): CorpusModeState => ({ mode: "explore" }));
 
 /** Retired rail sections whose workspace is now a Corpus mode — the mode half of `RETIRED_SECTION_HEAL`. */
-export const RETIRED_SECTION_CORPUS_MODE: Readonly<Record<string, CorpusMode>> = {
+const RETIRED_SECTION_CORPUS_MODE: Readonly<Record<string, CorpusMode>> = {
   analytics: "insights",
 };
 

@@ -3,9 +3,9 @@
 import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { warn } from "../../_shared/log.ts";
+import { processStartTicks } from "../../_shared/platform.ts";
 import type { StageHolder, StageRow } from "../contract/stage.ts";
 import { readBands, withBandsLock, writeRow } from "./stage-marker.ts";
-import { processStartTicks } from "./stage-probe.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
