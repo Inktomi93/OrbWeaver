@@ -1,7 +1,7 @@
 // Per-page console, error, and request capture. Kept separate from browser.ts so the shared launcher owns
 // resources and contexts while this module owns only the event wiring duplicated across every page.
 
-import type { BrowserContext, CDPSession, ConsoleMessage, Page, Request as PageRequest } from "@playwright/test";
+import type { BrowserContext, CDPSession, ConsoleMessage, Page } from "@playwright/test";
 import { exactScope } from "./artifact-scope.ts";
 import type {
   CapturedConsole as BrowserCapturedConsole,
@@ -24,6 +24,7 @@ import type { BrowserNetworkLimits } from "./browser-network.ts";
 import { networkRetentionForPages } from "./browser-network.ts";
 import type { RedactedRequestUrl } from "./browser-request-url.ts";
 import { redactedRequestUrl } from "./browser-request-url.ts";
+import { trackDocumentDiscards } from "./document-discards.ts";
 
 export type CapturedConsole = BrowserCapturedConsole;
 export type CapturedRequest = BrowserCapturedRequest;
@@ -141,17 +142,8 @@ export async function wireProbePage(page: Page, capture: PageCapture, pageIndex:
   });
   // Records are bound to the Request object, not looked up by URL: the summary keeps the latest request per
   // URL, so a URL lookup lets a discarded document's late failure land on its successor's record.
-  const records = new WeakMap<PageRequest, { readonly captured: CapturedRequest; readonly document: number }>();
-  // Counts main-frame documents: a request whose document number is behind this one was issued by a
-  // document that a navigation or the page's close has since discarded.
-  let document = 0;
-  page.on("close", () => {
-    document += 1;
-  });
+  const discards = trackDocumentDiscards(page);
   page.on("request", (request) => {
-    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
-      document += 1;
-    }
     const url = redactedRequestUrl(request.url());
     const captured: CapturedRequest = {
       method: request.method(),
@@ -160,23 +152,19 @@ export async function wireProbePage(page: Page, capture: PageCapture, pageIndex:
       failed: null,
       type: request.resourceType(),
     };
-    records.set(request, { captured, document });
+    discards.issued(request, captured);
     evidence.requestSummary.set(url, captured, exactScope(contextIndex, pageIndex, diagnosticWindow.value));
   });
   page.on("response", (response) => {
-    const record = records.get(response.request());
-    if (record !== undefined) {
-      record.captured.status = response.status();
+    const captured = discards.record(response.request());
+    if (captured !== null) {
+      captured.status = response.status();
     }
   });
   page.on("requestfailed", (request) => {
-    const record = records.get(request);
-    if (record === undefined) {
-      return;
-    }
-    record.captured.failed = request.failure()?.errorText ?? "failed";
-    if (record.document < document) {
-      record.captured.discarded = true;
+    const captured = discards.failed(request);
+    if (captured !== null) {
+      captured.failed = request.failure()?.errorText ?? "failed";
     }
   });
   const cdp = await page.context().newCDPSession(page);

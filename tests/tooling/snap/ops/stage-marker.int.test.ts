@@ -160,6 +160,16 @@ test("touchRow stamps the heartbeat and disturbs NOTHING else the row says", () 
   expect(readBands(home)).toHaveLength(1);
 });
 
+test("a touch records WHO used the band, and an unattributed touch clears the previous user", () => {
+  const home = scratchHome("touch-by");
+  writeRow(home, row(3, { lastUsedBy: MAIN_CHECKOUT }));
+  // A sibling's shared-reuse is the band's latest use: the owner can no longer claim it sat idle for them.
+  touchRow(home, 3, AGED_ISO, LANE_CHECKOUT);
+  expect(readBands(home)[0]?.lastUsedBy).toBe(LANE_CHECKOUT);
+  touchRow(home, 3, AGED_ISO);
+  expect(readBands(home)[0]?.lastUsedBy).toBeUndefined();
+});
+
 test("a row with no owner, or naming a band outside the registry, is DROPPED rather than reasoned about", () => {
   const home = scratchHome("garbage");
   writeBands(home, [row(0)]);

@@ -66,3 +66,71 @@ test("aborts from a document the harness navigated away from leave the verdict; 
     server.close();
   }
 });
+
+// A navigation that never replaces the page (an attachment download, a 204) discards no document, so an
+// abort the app then makes on the page it is still showing remains an app failure.
+const STAYING_PAGE = `<!doctype html><html data-app-ready><body>staying<a id="export" href="/export">export</a><script>
+  window.startFetch = () => { window.controller = new AbortController(); fetch("/app-abort", { signal: window.controller.signal }).catch(() => undefined); };
+</script></body></html>`;
+
+test.each(["download", "no-content"] as const)("a %s navigation keeps the page, so a later app abort on it still counts", async (kind) => {
+  const held: ServerResponse[] = [];
+  const server = createServer((request, response) => {
+    const url = request.url ?? "/";
+    if (url === "/app-abort") {
+      response.writeHead(200, { "content-type": "text/event-stream" });
+      response.write(": open\n\n");
+      held.push(response);
+      return;
+    }
+    if (url === "/export") {
+      response.writeHead(200, { "content-type": "application/octet-stream", "content-disposition": "attachment; filename=x.json" });
+      response.end("{}");
+      return;
+    }
+    if (url === "/nocontent") {
+      response.writeHead(204);
+      response.end();
+      return;
+    }
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(STAYING_PAGE);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const origin = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  const session = await launchProbeSession({
+    headless: true,
+    viewport: { width: 640, height: 480 },
+    colorScheme: null,
+    reducedMotion: false,
+    localStorage: [],
+  });
+  try {
+    await withProbeSession(session, async () => {
+      await session.page.goto(origin);
+      await session.page.evaluate("window.startFetch()");
+      await expect.poll(() => held.length).toBe(1);
+      if (kind === "download") {
+        const download = session.page.waitForEvent("download");
+        await session.page.click("#export");
+        await download;
+      } else {
+        const answered = session.page.waitForResponse((response) => response.url().endsWith("/nocontent"));
+        await session.page.evaluate("location.href = '/nocontent'");
+        await answered;
+      }
+      // Positive control: the page really stayed.
+      expect(await session.page.textContent("body")).toContain("staying");
+      await session.page.evaluate("window.controller.abort()");
+      await expect
+        .poll(() => partitionFailedRequests(session.requests.values()).failed.map((request) => new URL(request.url).pathname))
+        .toContain("/app-abort");
+      expect(partitionFailedRequests(session.requests.values()).navigationAborts).toEqual([]);
+    });
+  } finally {
+    for (const response of held) {
+      response.destroy();
+    }
+    server.close();
+  }
+});

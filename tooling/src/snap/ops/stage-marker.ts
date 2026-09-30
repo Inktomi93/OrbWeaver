@@ -133,6 +133,7 @@ function readRow(value: unknown): StageRow | null {
     // rather than leaving it undefined: every reader then works on a total shape, and the boot stamp is
     // the honest floor — it can only make such a stage look OLDER.
     lastUsedAt: typeof value["lastUsedAt"] === "string" ? value["lastUsedAt"] : startedAt,
+    ...(typeof value["lastUsedBy"] === "string" ? { lastUsedBy: value["lastUsedBy"] } : {}),
     sessions: Array.isArray(value["sessions"]) ? value["sessions"].filter((name): name is string => typeof name === "string") : [],
     dbProvenance: readDbProvenance(value["dbProvenance"]),
     rsyncs: typeof value["rsyncs"] === "number" ? value["rsyncs"] : 0,
@@ -233,14 +234,20 @@ export function clearRow(home: string, band: number): void {
 /** Stamp the heartbeat (#324) without disturbing anything else the row says — called by every
  *  `ensureStage`, every session call bound to the band and every attached sibling run, including a
  *  `shared-reuse` of a SIBLING checkout's stage: a band's liveness is USE, and our use is as good as
- *  theirs. A missing row is a no-op (there is nothing to keep alive). */
-export function touchRow(home: string, band: number, nowIso: string): void {
+ *  theirs. A missing row is a no-op (there is nothing to keep alive). `by` is the checkout whose use this
+ *  is; a touch without one leaves the row unattributed, which the cap's own-stage replacement refuses. */
+export function touchRow(home: string, band: number, nowIso: string, by?: string): void {
   withBandsLock(home, () => {
     const row = readRowFor(home, band);
     if (row !== null) {
-      writeRow(home, { ...row, lastUsedAt: nowIso });
+      writeRow(home, withLastUse(row, nowIso, by));
     }
   });
+}
+
+function withLastUse(row: StageRow, nowIso: string, by: string | undefined): StageRow {
+  const { lastUsedBy: _previous, ...rest } = row;
+  return { ...rest, lastUsedAt: nowIso, ...(by === undefined ? {} : { lastUsedBy: by }) };
 }
 
 /** Record the band's armed idle timer (#1163 arm b). Written by `armStageKeeper` alone, and read by the
@@ -272,7 +279,8 @@ export function bindSessionToBand(home: string, band: number, name: string, nowI
   withBandsLock(home, () => {
     const row = readRowFor(home, band);
     if (row !== null) {
-      writeRow(home, { ...row, sessions: [...new Set([...row.sessions, name])], lastUsedAt: nowIso });
+      // Unattributed until the session's first heartbeat names its owner; the live session fences the row meanwhile.
+      writeRow(home, { ...withLastUse(row, nowIso, undefined), sessions: [...new Set([...row.sessions, name])] });
     }
   });
 }

@@ -18,6 +18,6 @@ export function touchSessionHeartbeat(state: SessionHeartbeatState, patch: Parti
   state.row = { ...state.row, ...patch, lastUsedAt: nowIso };
   writeRow(state.home, state.row);
   if (state.stageBand !== null) {
-    touchStageBand(state.stageHome, state.stageBand, nowIso);
+    touchStageBand(state.stageHome, state.stageBand, nowIso, state.row.ownerCheckout);
   }
 }

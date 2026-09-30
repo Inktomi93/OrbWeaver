@@ -112,6 +112,8 @@ export interface StageRow {
    *  the run that booted it, so its liveness cannot be a parent-process check — it is USE. A row nobody has
    *  touched for the stage TTL is a strand that reap-on-acquire or `--stage-sweep` may take. */
   readonly lastUsedAt: string;
+  /** The checkout whose use stamped `lastUsedAt`. Absent means unknown: an older snap rewrote the row. */
+  readonly lastUsedBy?: string;
   /** Session names bound to this band. A row with a LIVE session ref is NEVER a strand, whatever its idle
    *  age — a reaper that eats a live stage is worse than no reaper (§3.6). Liveness of each name is the
    *  session registry's answer, not this list's: the list is the claim, the daemon pid is the evidence. */

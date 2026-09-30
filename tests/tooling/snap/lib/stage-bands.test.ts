@@ -38,6 +38,8 @@ const TTL_MS = 60 * MS_PER_MINUTE;
 const LIMITS = { ttlMs: TTL_MS, cap: 3 };
 const USED_RECENTLY = new Date(NOW - 5 * MS_PER_MINUTE).toISOString();
 const USED_LONG_AGO = new Date(NOW - 6 * 60 * MS_PER_MINUTE).toISOString();
+// Idle past the own-stage replacement threshold, still inside the TTL.
+const USED_PAST_REPLACE_IDLE = new Date(NOW - 20 * MS_PER_MINUTE).toISOString();
 
 function row(band: number, over: Partial<StageRow> = {}): StageRow {
   const ports = stageBandPorts(band);
@@ -268,15 +270,30 @@ test("a local-auth ask never lands on the lane's own single-user stage at the sa
   expect(allocateStageBand({ ...ALLOC, auth: "local", views: views([{ row: ours }, { row: local }]) })).toEqual({ kind: "ours", band: 1, row: local });
 });
 
-test("AT THE CAP, a lane's own stage at another sha is rebuilt in place instead of refusing — unless a live session holds it", () => {
+test("AT THE CAP, a lane's own idle stage that only it last used is rebuilt in place; anything else refuses", () => {
   const siblings = [1, 2].map((band) => ({ row: row(band, { checkout: MAIN_CHECKOUT, sha: OTHER_SHA }) }));
-  const ourOldStage = row(0, { checkout: LANE_CHECKOUT, sha: OTHER_SHA, sessions: ["lane-session"] });
+  const ourOldStage = row(0, {
+    checkout: LANE_CHECKOUT,
+    sha: OTHER_SHA,
+    sessions: ["lane-session"],
+    lastUsedAt: USED_PAST_REPLACE_IDLE,
+    lastUsedBy: LANE_CHECKOUT,
+  });
   const atCap = { ...ALLOC, checkout: LANE_CHECKOUT };
   const replaced = allocateStageBand({ ...atCap, views: views([...siblings, { row: ourOldStage }]) });
   expect(replaced).toEqual({ kind: "ours", band: 0, row: ourOldStage });
   // A live session is driving the old stage: rebuilding under it would kill that browser mid-drive.
   const pinned = allocateStageBand({ ...atCap, views: views([...siblings, { row: ourOldStage, over: { liveSessions: ["lane-session"] } }]) });
   expect(pinned.kind).toBe("exhausted");
+  // A sibling's one-shot run shared-reused it seconds ago and may still be capturing: never tear it down.
+  const siblingUsed = { ...ourOldStage, lastUsedAt: new Date(NOW - 2000).toISOString(), lastUsedBy: MAIN_CHECKOUT };
+  expect(allocateStageBand({ ...atCap, views: views([...siblings, { row: siblingUsed }]) }).kind).toBe("exhausted");
+  // A sibling's use stays the last word on the row, however long ago, until the row strands past the TTL.
+  expect(allocateStageBand({ ...atCap, views: views([...siblings, { row: { ...siblingUsed, lastUsedAt: USED_RECENTLY } }]) }).kind).toBe("exhausted");
+  // Our own use inside the idle threshold refuses, and so does a row that cannot say who used it.
+  expect(allocateStageBand({ ...atCap, views: views([...siblings, { row: { ...ourOldStage, lastUsedAt: USED_RECENTLY } }]) }).kind).toBe("exhausted");
+  const { lastUsedBy: _unattributed, ...unattributed } = ourOldStage;
+  expect(allocateStageBand({ ...atCap, views: views([...siblings, { row: unattributed }]) }).kind).toBe("exhausted");
   // Below the cap nothing changes: the lane gets a new band and keeps its old stage.
   expect(allocateStageBand({ ...atCap, views: views([siblings[0] ?? { row: row(1) }, { row: ourOldStage }]) }).kind).toBe("free");
 });

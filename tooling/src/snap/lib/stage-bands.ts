@@ -60,6 +60,10 @@ export const DEFAULT_STAGE_TTL_MIN = 60;
  *  which keeps the pure function usable from a test without a profile file. */
 export const DEFAULT_STAGE_CAP = 3;
 
+/** How long a lane's own stage must sit unused before the lane may rebuild it in place at the cap. Longer
+ *  than any one-shot capture's budgets, so a run still reading the stage is never torn down under. */
+export const OWN_STAGE_REPLACE_IDLE_MS = 10 * MS_PER_MINUTE;
+
 /** Env \> profile \> default, mirroring `resolveSessionLimits`. A non-positive or unparseable value is a
  *  REFUSAL, never a silent default — a stage TTL that silently became 60 min is the strand class this table
  *  exists to end. `capBase` is the PROFILE's cap (the imperative caller reads it); `ORB_STAGE_CAP` still
@@ -205,8 +209,16 @@ export function allocateStageBand(input: {
   const liveStages = occupied.filter((view) => !viewIsStranded(view, input.nowMs, input.limits.ttlMs)).length;
   if (liveStages >= input.limits.cap) {
     // At the cap, a lane's own stage at another sha is replaced rather than the lane being refused: one lane
-    // holding a ref stage and a dirty stage is what fills the cap. A live session still pins its stage.
-    const ownOther = occupied.find((view) => view.row.checkout === input.checkout && view.liveSessions.length === 0);
+    // holding a ref stage and a dirty stage is what fills the cap. Only a stage nobody else may be driving
+    // qualifies — no live session, its last use was this checkout's (a sibling's one-shot shared-reuse is
+    // not a session), and it has sat idle past the threshold. Everything else keeps the refusal.
+    const ownOther = occupied.find(
+      (view) =>
+        view.row.checkout === input.checkout &&
+        view.row.lastUsedBy === input.checkout &&
+        view.liveSessions.length === 0 &&
+        stageIdleMs(view.row, input.nowMs) >= OWN_STAGE_REPLACE_IDLE_MS,
+    );
     if (ownOther !== undefined) {
       return { kind: "ours", band: ownOther.band, row: ownOther.row };
     }

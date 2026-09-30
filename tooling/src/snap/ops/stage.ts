@@ -198,6 +198,7 @@ function claimRow(claim: {
     ownerPid: null,
     startedAt: nowIso,
     lastUsedAt: nowIso,
+    lastUsedBy: claim.checkout,
     sessions: [],
     dbProvenance: null,
     rsyncs: 0,
@@ -228,13 +229,13 @@ function reuseWarmStage(homes: { readonly root: string; readonly home: string },
   if (dirty) {
     print(`[snap-stage] re-syncing working tree → warm dirty stage ${row.dir} (band ${row.band})`);
     syncDirtyTree(root, row.dir);
-    const resynced: StageRow = { ...row, rsyncs: row.rsyncs + 1, lastUsedAt: nowIso };
+    const resynced: StageRow = { ...row, rsyncs: row.rsyncs + 1, lastUsedAt: nowIso, lastUsedBy: root };
     writeRow(home, resynced);
     return resynced;
   }
   print(`[snap-stage] reusing warm stage ${shortSha(row.sha)} on band ${row.band} → ${stageRowBaseUrl(row)}`);
-  touchRow(home, row.band, nowIso);
-  return { ...row, lastUsedAt: nowIso };
+  touchRow(home, row.band, nowIso, root);
+  return { ...row, lastUsedAt: nowIso, lastUsedBy: root };
 }
 
 /** Build the stage on the band the allocator gave us, and write the row that says so. Everything here runs
@@ -292,6 +293,7 @@ function bootOntoBand(input: {
     startedAt: nowIso,
     // Born used: a stage booted this instant is the freshest possible, and the reaper reads THIS field.
     lastUsedAt: nowIso,
+    lastUsedBy: root,
     sessions: [],
     dbProvenance,
     rsyncs: dirty ? 1 : 0,
@@ -367,8 +369,8 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
       `[snap-stage] reusing ${allocation.row.checkout}'s warm stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (same commit) → ${stageRowBaseUrl(allocation.row)}`,
     );
     // OUR use keeps THEIR stage alive: the heartbeat measures the band's use, not one checkout's (#324).
-    touchRow(home, allocation.band, nowIso);
-    return { row: { ...allocation.row, lastUsedAt: nowIso }, booted: false };
+    touchRow(home, allocation.band, nowIso, root);
+    return { row: { ...allocation.row, lastUsedAt: nowIso, lastUsedBy: root }, booted: false };
   }
   if (allocation.kind === "ours") {
     const healthy = stageRowHealth(allocation.row, nowMs) === "warm";
