@@ -8,6 +8,7 @@
 //   • both image lenses (`image-raw` pure-visual + `image-captioned` joint-VL) coexist per asset, caption
 //     persisted only on the captioned lens.
 
+import { createHash } from "node:crypto";
 import { characterEmbeddings, chatDigestSpeakers, chatDigests, documentChunks, imageEmbeddings } from "@orb/db";
 import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { CharacterId, ChatDigestId, Handle } from "@orb/kit/ids";
@@ -36,6 +37,48 @@ const CARD_TEXT = "Alice — a curious traveler who maps forgotten roads.";
 const IMG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
 
 describe("store — card-text (character_embeddings)", () => {
+  test("a seed vector uses the normal generation and dimension checks without calling the encoder", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const ownerId = await seedUser(db, { handle: castId<Handle>("seed-fast-path") });
+    const characterId = await seedCharacter(db, ownerId);
+    const hash = createHash("sha256").update(CARD_TEXT).digest("hex");
+    const svc = createEmbeddingsService({
+      ...h.ctx,
+      precomputedEmbedding: (candidate, model, kind) =>
+        candidate === hash && model === EMBED_MODEL && kind === "card-text" ? { model, vector: new Float32Array(fakeVector(EMBED_DIM)) } : null,
+    });
+    await svc.store({ kind: "card", lens: "card-text", ownerId, characterId, content: CARD_TEXT, model: "stale-caller-space", dim: EMBED_DIM });
+    expect(h.roleClients.embed).not.toHaveBeenCalled();
+    expect((await db.select().from(characterEmbeddings))[0]).toMatchObject({ model: EMBED_MODEL, contentHash: hash, dim: EMBED_DIM });
+    await svc.store({ kind: "card", lens: "card-text", ownerId, characterId, content: `${CARD_TEXT} edited`, model: EMBED_MODEL, dim: EMBED_DIM });
+    expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
+  });
+
+  test("a malformed seed vector cannot bypass the store dimension tripwire", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const ownerId = await seedUser(db, { handle: castId<Handle>("seed-dimension") });
+    const characterId = await seedCharacter(db, ownerId);
+    const svc = createEmbeddingsService({ ...h.ctx, precomputedEmbedding: (_hash, model) => ({ model, vector: new Float32Array(2) }) });
+    await expect(
+      svc.store({ kind: "card", lens: "card-text", ownerId, characterId, content: CARD_TEXT, model: EMBED_MODEL, dim: EMBED_DIM }),
+    ).rejects.toBeInstanceOf(SpaceMismatchError);
+    expect(await db.select().from(characterEmbeddings)).toHaveLength(0);
+    expect(h.roleClients.embed).not.toHaveBeenCalled();
+  });
+  test("concurrent deliveries of one card share inference before the hash gate commits", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    const ownerId = await seedUser(db, { handle: castId<Handle>("owner-race") });
+    const characterId = await seedCharacter(db, ownerId);
+    const params = { kind: "card", lens: "card-text", characterId, ownerId, content: CARD_TEXT, model: EMBED_MODEL, dim: EMBED_DIM } as const;
+    await Promise.all([svc.store(params), svc.store(params), svc.store(params)]);
+    expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
+    expect(await db.select().from(characterEmbeddings)).toHaveLength(1);
+  });
+
   test("stamps the model that actually produced the vector when the live role changed after params were built", async () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
@@ -297,6 +340,7 @@ describe("store — image lenses (image_embeddings)", () => {
     expect(h.roleClients.imageEmbed).toHaveBeenCalledWith(
       {
         kind: "multimodal",
+        allowTextFallback: true,
         input: { image: IMG, text: TEST_CAPTION },
       },
       { signal: undefined },

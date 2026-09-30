@@ -73,3 +73,4 @@ export { createDeleteSnapshot, createListRefineryScoreTargets, createLoadOwnedCa
 export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeededCardContent } from "./seeder/index.ts";
 export { createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, matchesAuthoredContent, WELCOME_ASSISTANT_HANDLE } from "./seeder/index.ts";
 export { createCharacterService } from "./service.ts";
+export { buildCardEmbedText } from "./substrate/embed-text.ts";

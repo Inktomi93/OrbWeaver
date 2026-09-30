@@ -9,6 +9,7 @@ import type { LocalLightModelCache } from "./model-cache.ts";
 import { localLightEmbedSpaceTag, resolveEmbedDtype } from "./model-cache.ts";
 import type { LocalLightPrefetchHandle } from "./prefetch.ts";
 import { createLocalLightPrefetch } from "./prefetch.ts";
+import { createScheduledCache } from "./scheduled-cache.ts";
 import { createLocalLightEmbed, createLocalLightImageEmbed, createLocalLightMatte, createLocalLightRerank } from "./tasks.ts";
 import { createWorkerModelCache } from "./worker-cache.ts";
 
@@ -52,6 +53,7 @@ export function createLocalLightBackend(deps: LocalLightBackendDeps): LocalLight
     cache = workerCache;
     close = workerCache.close;
   }
+  cache = createScheduledCache(cache);
   const prefetch = createLocalLightPrefetch({ cache: () => cache, now: deps.now, log: deps.log, detach });
   const embedSpace = (modelId: ModelId): string => localLightEmbedSpaceTag(modelId, resolveEmbedDtype(config.embedDtype));
   return {

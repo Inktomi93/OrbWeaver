@@ -38,17 +38,42 @@ function seedDeps(db: Awaited<ReturnType<typeof freshDb>>, serial = 0): Paramete
   };
 }
 
-test("seeds the two vector rows plus their two `user` bindings", async () => {
+test("seeds two vector rows and shares the encoder between text and images", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, "user_a");
   const seeded = await seedLocalLightConnections(seedDeps(db), owner);
   expect(seeded.inserted).toBe(2);
-  expect([...seeded.boundTasks].sort(), "the seed reports the tasks it bound, so boot can schedule the sweeps").toEqual(["embed", "rerank"]);
+  expect([...seeded.boundTasks].sort(), "the seed reports the tasks it bound, so boot can schedule the sweeps").toEqual(["embed", "imageEmbed", "rerank"]);
   const rows = await db.select().from(userConnections).where(eq(userConnections.ownerId, owner));
   expect(rows.map((row) => row.label).toSorted()).toEqual(SEED_LABELS);
   expect(rows.every((row) => row.providerId === "local-light" && row.allowBackground)).toBe(true);
   const bindings = await db.select().from(connectionBindings).where(eq(connectionBindings.userId, owner));
-  expect(bindings.map((row) => row.task).toSorted()).toEqual(["embed", "rerank"]);
+  expect(bindings.map((row) => row.task).toSorted()).toEqual(["embed", "imageEmbed", "rerank"]);
+});
+
+test("image embedding shares the seeded encoder and preserves an explicit opt-out", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, "image_seed_owner");
+  await seedLocalLightConnections(seedDeps(db), owner);
+  const bindings = await db.select().from(connectionBindings).where(eq(connectionBindings.userId, owner));
+  const image = bindings.find((row) => row.task === "imageEmbed");
+  const text = bindings.find((row) => row.task === "embed");
+  expect(image).toBeDefined();
+  expect(image?.connectionId).toBe(text?.connectionId);
+  expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, owner))).toHaveLength(2);
+  await db
+    .update(connectionBindings)
+    .set({ connectionId: null })
+    .where(and(eq(connectionBindings.userId, owner), eq(connectionBindings.task, "imageEmbed")));
+  await seedLocalLightConnections(seedDeps(db), owner);
+  expect(
+    (
+      await db
+        .select()
+        .from(connectionBindings)
+        .where(and(eq(connectionBindings.userId, owner), eq(connectionBindings.task, "imageEmbed")))
+    )[0]?.connectionId,
+  ).toBeNull();
 });
 
 test("is IDEMPOTENT — a second seed inserts nothing and writes no second binding", async () => {
@@ -57,7 +82,7 @@ test("is IDEMPOTENT — a second seed inserts nothing and writes no second bindi
   await seedLocalLightConnections(seedDeps(db), owner);
   expect(await seedLocalLightConnections(seedDeps(db), owner), "a boot after the first is a no-op").toEqual({ inserted: 0, boundTasks: [] });
   expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, owner))).toHaveLength(2);
-  expect(await db.select().from(connectionBindings).where(eq(connectionBindings.userId, owner))).toHaveLength(2);
+  expect(await db.select().from(connectionBindings).where(eq(connectionBindings.userId, owner))).toHaveLength(3);
 });
 
 test("never overwrites a task the user RE-POINTED at their own row", async () => {
@@ -169,7 +194,9 @@ test("rows seeded under earlier labels converge in place: two rows, still bound,
   expect(new Set(rows.map((row) => row.id))).toEqual(new Set(earlier.map(({ id }) => id)));
   expect(rows.map((row) => row.label).toSorted()).toEqual(SEED_LABELS);
   const bindings = await db.select().from(connectionBindings).where(eq(connectionBindings.userId, owner));
-  expect(new Set(bindings.map((row) => `${row.task}:${String(row.connectionId)}`))).toEqual(new Set(earlier.map(({ seed, id }) => `${seed.task}:${id}`)));
+  expect(new Set(bindings.map((row) => `${row.task}:${String(row.connectionId)}`))).toEqual(
+    new Set([...earlier.map(({ seed, id }) => `${seed.task}:${id}`), `imageEmbed:${earlier[0]?.id}`]),
+  );
 });
 
 // Adoption follows the binding, never the model alone: a user's own extra row on the seed's model keeps its name.

@@ -141,3 +141,23 @@ test("matte: the default model unless one is named; PNG bytes back", async () =>
   await matte(new Uint8Array([9]), { model: "acme/matte" });
   expect(cache.calls[1]?.repo).toBe("acme/matte");
 });
+
+test("imageEmbed: explicit pair fallback uses the same text tower and preserves batch empty slots", async () => {
+  const cache = fakeModelCache();
+  const imageEmbed = createLocalLightImageEmbed(cache, tag);
+  const connection = fakeResolved({ task: "imageEmbed", providerId: "local-light", model: MODEL, capability: embedConn().capability });
+  const pairs = [
+    { text: "caption", image: new Uint8Array([1]) },
+    { text: " ", image: new Uint8Array([2]) },
+  ];
+  const fallback = await imageEmbed({ connection, input: { kind: "multimodal", input: pairs, allowTextFallback: true } });
+  const direct = await imageEmbed({ connection, input: { kind: "text", input: pairs.map((pair) => pair.text) } });
+  expect(fallback).toEqual(direct);
+  expect(fallback.model).toBe(tag(MODEL));
+  expect(fallback.vectors[1]).toBeNull();
+  expect(cache.calls).toEqual([
+    { method: "embedClipTexts", repo: MODEL, count: 1 },
+    { method: "embedClipTexts", repo: MODEL, count: 1 },
+  ]);
+  await expect(imageEmbed({ connection, input: { kind: "multimodal", input: pairs, allowTextFallback: false } })).rejects.toMatchObject({ kind: "invalid" });
+});

@@ -36,6 +36,8 @@ import type { Mock } from "vitest";
 import { vi } from "vitest";
 import type { EmbeddingsContext } from "../../../../packages/server/src/domain/embeddings/context.ts";
 import type { EmbeddingsIndexerContext, EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
+import { analyzeAvatarImage } from "../../../../packages/server/src/domain/embeddings/indexer/caption.ts";
+import { createImageIndexer } from "../../../../packages/server/src/domain/embeddings/indexer/image.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
@@ -251,6 +253,8 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
   // answer (the fake declares none, so the space tag is the bare model).
   const embedDtype: { current: string | undefined } = { current: undefined };
   const ctx: EmbeddingsContext = {
+    loadAssetKind: async (assetId) => (await db.select({ kind: assets.kind }).from(assets).where(eq(assets.id, assetId)))[0]?.kind ?? null,
+    loadAssetMime: async (assetId) => (await db.select({ mime: assets.mime }).from(assets).where(eq(assets.id, assetId)))[0]?.mime ?? null,
     db,
     roleClientsFor: () => Promise.resolve(roleClients),
     resolveEmbeddingConnection: async (_ownerId, task) => {
@@ -310,8 +314,8 @@ export interface IndexerHarness {
   readonly ctx: EmbeddingsIndexerContext;
   readonly roleClients: FakeRoleClients;
   readonly loadCardText: Mock<EmbeddingsIndexerContext["loadCardText"]>;
-  readonly loadAssetMime: Mock<EmbeddingsIndexerContext["loadAssetMime"]>;
-  readonly loadAssetBytes: Mock<EmbeddingsIndexerContext["loadAssetBytes"]>;
+  readonly loadAssetMime: Mock<EmbeddingsContext["loadAssetMime"]>;
+  readonly loadAssetBytes: Mock<EmbeddingsContext["loadAssetBytes"]>;
   readonly store: EmbeddingsService["store"];
 }
 
@@ -328,25 +332,20 @@ export function makeIndexerHarness(
   const loadCardText: Mock<EmbeddingsIndexerContext["loadCardText"]> = vi.fn<EmbeddingsIndexerContext["loadCardText"]>(() => Promise.resolve(sources.cardText));
   // Default to an image mime so a bare asset event embeds; a test overrides (e.g. `video/mp4`) or uses
   // `loadAssetMime.mockResolvedValueOnce(null)` for the row-gone case (the established override pattern).
-  const loadAssetMime: Mock<EmbeddingsIndexerContext["loadAssetMime"]> = vi.fn<EmbeddingsIndexerContext["loadAssetMime"]>(() =>
+  const loadAssetMime: Mock<EmbeddingsContext["loadAssetMime"]> = vi.fn<EmbeddingsContext["loadAssetMime"]>(() =>
     Promise.resolve(sources.assetMime ?? "image/png"),
   );
-  const loadAssetBytes: Mock<EmbeddingsIndexerContext["loadAssetBytes"]> = vi.fn<EmbeddingsIndexerContext["loadAssetBytes"]>(() =>
-    Promise.resolve(sources.assetBytes),
-  );
-  const clock = createFrozenClock(FROZEN_AT);
+  const loadAssetBytes: Mock<EmbeddingsContext["loadAssetBytes"]> = vi.fn<EmbeddingsContext["loadAssetBytes"]>(() => Promise.resolve(sources.assetBytes));
   const ctx: EmbeddingsIndexerContext = {
+    indexAsset: createImageIndexer(
+      { ...makeStoreHarness(db).ctx, loadAssetBytes, loadAssetMime, roleClientsFor: () => Promise.resolve(roleClients) },
+      { store, analyze: (_ownerId, bytes) => analyzeAvatarImage(roleClients, bytes) },
+    ),
     store,
-    db,
-    now: (): number => clock.now(),
     loadCardText,
-    loadAssetMime,
-    loadAssetBytes,
     loadCharacterOwner: (characterId) => loadOwnerOf(db, "character", characterId),
-    loadAssetOwner: (assetId) => loadOwnerOf(db, "asset", assetId),
     roleClientsFor: () => Promise.resolve(roleClients),
     embedDim: EMBED_DIM,
-    imageEmbedDim: EMBED_DIM,
   };
   return { ctx, roleClients, loadCardText, loadAssetMime, loadAssetBytes, store };
 }

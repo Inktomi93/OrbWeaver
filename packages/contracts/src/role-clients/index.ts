@@ -109,6 +109,8 @@ export type ImageEmbedInput =
       kind: "multimodal";
       input: ImageEmbedPair | ImageEmbedPair[];
       instruction?: string | undefined;
+      /** Permit the same encoder's text tower when it cannot fuse pairs. Absent/false remains strict. */
+      allowTextFallback?: boolean | undefined;
     };
 
 /** One summarization task — an independent (system, user) pair so a batch can vary prompts. The

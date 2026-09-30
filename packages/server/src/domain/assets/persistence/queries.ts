@@ -4,6 +4,7 @@
 // trusted only because the verb already resolved the owner via `loadCoParticipantOwner`.
 
 import type { AssetBlobRef, AssetKind, AssetListItem, GalleryCursor, GalleryItemView, GallerySort, OwnedAssetCursor, StoredAsset } from "@orb/contracts/assets";
+import { EMBEDDABLE_ASSET_KINDS } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
 import { assets, galleryItems, imageryGenerations } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
@@ -33,6 +34,7 @@ interface AssetMetadataRow {
 }
 
 interface AssetCasRef {
+  readonly kind: AssetKind;
   readonly ownerId: UserId;
   readonly hash: string;
   readonly mime: string;
@@ -41,7 +43,11 @@ interface AssetCasRef {
 /** An asset's `(ownerId, hash, mime)` by id alone — no owner scope, un-principal. Not a user-facing surface. */
 // @orb-waive owner-scoped-reads(assets): the D20 un-principal CAS resolver — it exists to RESOLVE the owner (it projects `ownerId` for `purgeAsset`'s per-owner blob path), so scoping it on an owner it does not yet know is circular. Consumers are the reap/GC/indexer ports; the owner-gated byte-read has its own resolver (`ownedAssetCasRef`, directly below). Ends if a user-facing door ever calls this.
 export async function loadAssetCasRefById(db: Db, assetId: AssetId): Promise<AssetCasRef | undefined> {
-  const rows = await db.select({ ownerId: assets.ownerId, hash: assets.hash, mime: assets.mime }).from(assets).where(eq(assets.id, assetId)).limit(LIMIT_ONE);
+  const rows = await db
+    .select({ ownerId: assets.ownerId, hash: assets.hash, mime: assets.mime, kind: assets.kind })
+    .from(assets)
+    .where(eq(assets.id, assetId))
+    .limit(LIMIT_ONE);
   return rows[0];
 }
 
@@ -72,7 +78,11 @@ export async function selectOwnedAssetRefs(db: Db, ownerId: UserId, assetIds: re
 
 /** Every image asset id, all owners when `ownerId` omitted — a trusted system sweep, not user-facing. */
 export async function listImageAssetIdRows(db: Db, ownerId?: UserId | null): Promise<AssetId[]> {
-  const scope = ownerId === undefined || ownerId === null ? like(assets.mime, "image/%") : and(like(assets.mime, "image/%"), eq(assets.ownerId, ownerId));
+  const scope = and(
+    like(assets.mime, IMAGE_MIME_PATTERN),
+    inArray(assets.kind, [...EMBEDDABLE_ASSET_KINDS]),
+    ownerId === undefined || ownerId === null ? undefined : eq(assets.ownerId, ownerId),
+  );
   const rows = await db.select({ id: assets.id }).from(assets).where(scope);
   return rows.map((r) => r.id);
 }

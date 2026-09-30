@@ -59,6 +59,7 @@ export interface SettingsContext {
 
 /** What the entry composition root supplies to stand up the domain. */
 export interface SettingsServiceDeps {
+  readonly onEffectiveConfigChanged?: ((config: EffectiveAppConfig) => void) | undefined;
   readonly db: Db;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;

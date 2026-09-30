@@ -3,6 +3,7 @@
 // {@link writeHubScoreRows}. `existing*Hash` reads the stored `content_hash` so the verb can short-circuit a
 // no-op before the expensive embed.
 
+import { EMBEDDABLE_ASSET_KINDS } from "@orb/contracts/assets";
 import type { ImageLens, ImageSkipReason } from "@orb/contracts/embeddings";
 import { imageCaptionMetaSchema } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
@@ -11,6 +12,7 @@ import type { Db } from "@orb/db";
 // from `persistence/`, which is the sanctioned home for exactly that (own-tables-only scopes `persistence/`
 // out; `search/persistence/nearest.ts` joins the same table for the same reason).
 import {
+  assets,
   characterEmbeddings,
   chatDigestSpeakers,
   chatDigests,
@@ -37,9 +39,23 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
+
 import type { HubScoreUpdate, VectorTable } from "../contract/params.ts";
 import type { ExistingCaptionedRow } from "../contract/results.ts";
+
+/** Reclaim derived vectors only; original assets remain available in their owning features. */
+export async function purgeDisallowedImageRows(db: Db): Promise<void> {
+  await db.delete(imageEmbeddings).where(
+    inArray(
+      imageEmbeddings.assetId,
+      db
+        .select({ id: assets.id })
+        .from(assets)
+        .where(notInArray(assets.kind, [...EMBEDDABLE_ASSET_KINDS])),
+    ),
+  );
+}
 
 const LIMIT_ONE = 1;
 

@@ -249,14 +249,14 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   };
   // The daemon runs under the USER's token (`identity.credential`, re-read by id through the credentials door,
   // never hand-minted), and the warm's failure reason is scrubbed of that same token.
-  const agentSdkBackend = built.agentSdk;
-  const warmAgentSdkCatalog =
-    agentSdkBackend === undefined
-      ? undefined
-      : (identity: SpawnIdentity): Promise<MirrorWarm<AgentSdkModel[]>> =>
-          agentSdkCatalog.warm(() => agentSdkBackend.catalog(identity), resolvedScrubSet({ credential: identity.credential, transport: null }));
+  const warmAgentSdkCatalog = (identity: SpawnIdentity): Promise<MirrorWarm<AgentSdkModel[]>> => {
+    const agentSdkBackend = built.agentSdk;
+    return agentSdkBackend === undefined
+      ? Promise.resolve({ ok: false, reason: "The Claude runtime is not installed." })
+      : agentSdkCatalog.warm(() => agentSdkBackend.catalog(identity), resolvedScrubSet({ credential: identity.credential, transport: null }));
+  };
   const warmAgentSdk = async (identity: SpawnIdentity): Promise<void> => {
-    await warmAgentSdkCatalog?.(identity);
+    await warmAgentSdkCatalog(identity);
   };
 
   const ctx: ResolverContext = { deps, registry, openRouterCatalog, endpointModels, agentSdkCatalog, warmOpenRouter, warmEndpoint, warmAgentSdk };
@@ -279,7 +279,9 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     resolveCredential: deps.resolveCredential,
     fetch: fetchImpl,
     warmOpenRouter: warmOpenRouterCatalog,
-    warmAgentSdk: warmAgentSdkCatalog,
+    get warmAgentSdk(): typeof warmAgentSdkCatalog | undefined {
+      return built.agentSdk === undefined ? undefined : warmAgentSdkCatalog;
+    },
     listModels: diagnostics.listModels,
   });
 

@@ -64,3 +64,24 @@ test("diagnostics live only on the wires that can answer them", () => {
   expect(agent?.verifyAuth).toBeDefined();
   expect(agent?.accountCredits).toBeUndefined();
 });
+
+test("an installed runtime becomes usable through the existing registry without rebuilding other wires", () => {
+  let executable: string | undefined;
+  const deps = fakeDeps({});
+  const built = buildBackends({
+    ...deps,
+    env: {
+      ...deps.env,
+      get claudeExecutable(): string | undefined {
+        return executable;
+      },
+    },
+  });
+  const local = built.registry.get("local-light");
+  expect(built.registry.has("agent-sdk")).toBe(false);
+  executable = "/usr/bin/claude";
+  expect(built.registry.get("agent-sdk")?.runAgentTurn).toBeTypeOf("function");
+  expect(built.skipped.has("agent-sdk")).toBe(false);
+  expect(built.agentSdk).toBeDefined();
+  expect(built.registry.get("local-light")).toBe(local);
+});

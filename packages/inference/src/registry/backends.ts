@@ -1,13 +1,4 @@
-// `BACKEND_DEFS: Record<Wire, BackendDef>` — one backend per wire (§5.6), and `buildBackends(deps)` constructs
-// ONLY the wires whose needs are present: the agent-sdk wire needs the bundled `claude` executable (registration
-// IS "the runtime resolves", §8.4-1); the other three need nothing beyond the deps every install has. A wire
-// that is not built is absent from the registry, so availability reads `unavailable` and the picker never
-// offers it (§3.3 `providers.available`). `serves` is pinned against each backend's implemented methods by the
-// table test. Dispatch is `registry.get(connection.wire)` — no `(api, source)` matrix.
-//
-// STATED DEVIATION from §5.6's `needs: readonly (keyof InferenceDeps)[]`: the one real need is NESTED
-// (`env.claudeExecutable`), which a top-level key list cannot spell, so `needs` is a predicate that names the
-// missing need or `null` — same fact, honest shape.
+// Backends register once; an absent agent runtime can register later without replacing any other backend.
 
 import type { Task, Wire } from "@orb/contracts/inference";
 import { WIRE_DEFS, WIRES } from "@orb/contracts/inference";
@@ -29,6 +20,22 @@ export interface BackendDef {
 }
 
 const ALWAYS = (): null => null;
+
+class RefreshingBackendRegistry extends Map<Wire, ProviderBackend> {
+  private readonly refresh: () => void;
+  constructor(refresh: () => void) {
+    super();
+    this.refresh = refresh;
+  }
+  override get(wire: Wire): ProviderBackend | undefined {
+    this.refresh();
+    return super.get(wire);
+  }
+  override has(wire: Wire): boolean {
+    this.refresh();
+    return super.has(wire);
+  }
+}
 
 /** @public Test-anchored module surface; the table test pins every wire's `serves` against `WIRE_DEFS`.
  *  Unreachable from `server` BY DESIGN — the package's exports map carries only the star subpath onto each
@@ -78,28 +85,47 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
   const openAiCompat = createOpenAiCompatBackend({ ...shared, app: deps.app, embedSpaceDims: deps.embedSpace.dims });
   const anthropic = createAnthropicBackend(shared);
   const localLight = createLocalLightBackend({ now: deps.now, log: deps.log, superviseDetached: deps.superviseDetached, config: deps.localLight });
-  const agentSdk = skipped.has("agent-sdk")
-    ? undefined
-    : createAgentSdkBackend({
-        now: deps.now,
-        log: deps.log,
-        env: deps.env,
-        userRuntimeDir: deps.userRuntimeDir,
-        agentSdk: deps.agentSdk,
-        captureWire: deps.captureWire,
-        imageToPng: deps.imageToPng,
-      });
+  const createAgent = (): AgentSdkBackend =>
+    createAgentSdkBackend({
+      now: deps.now,
+      log: deps.log,
+      env: deps.env,
+      userRuntimeDir: deps.userRuntimeDir,
+      agentSdk: deps.agentSdk,
+      captureWire: deps.captureWire,
+      imageToPng: deps.imageToPng,
+    });
+  let agentSdk = skipped.has("agent-sdk") ? undefined : createAgent();
+  const refreshAgent = (): void => {
+    if (agentSdk === undefined && BACKEND_DEFS["agent-sdk"].needs(deps) === null) {
+      agentSdk = createAgent();
+      registry.set("agent-sdk", agentSdk.backend);
+      skipped.delete("agent-sdk");
+    }
+  };
   const built: [Wire, ProviderBackend | undefined][] = [
     ["openai-compat", openAiCompat.backend],
     ["anthropic-messages", anthropic],
     ["agent-sdk", agentSdk?.backend],
     ["local-light", localLight.backend],
   ];
-  const registry = new Map<Wire, ProviderBackend>();
+  const registry = new RefreshingBackendRegistry(refreshAgent);
   for (const [wire, backend] of built) {
     if (backend !== undefined) {
       registry.set(wire, backend);
     }
   }
-  return { registry, openAiCompat, agentSdk, localLight, skipped };
+  return {
+    registry,
+    openAiCompat,
+    get agentSdk(): AgentSdkBackend | undefined {
+      refreshAgent();
+      return agentSdk;
+    },
+    localLight,
+    get skipped(): ReadonlyMap<Wire, string> {
+      refreshAgent();
+      return skipped;
+    },
+  };
 }

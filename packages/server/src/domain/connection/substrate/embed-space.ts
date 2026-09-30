@@ -1,13 +1,7 @@
-// THE EMBED-SPACE TRIGGER'S CONDITION (§10-4): what `(model[@dtype])` space each of a principal's vector tasks
-// resolves to RIGHT NOW. The purge+reindex must fire on an actual SPACE change and nothing else, so the
-// write verbs snapshot this before their write and compare it after.
-//
-// Why a resolve and not a column diff: the space is a DERIVED fact. `embedSpaceOf` folds the row's model with
-// the served precision from the resolved capability, and the capability itself comes from the provider row +
-// the row's `declared` overrides. So a patch that never touches `model` — re-pointing the row at another
-// provider, or editing `declared` — can still move the space, while an unrelated `declared` edit moves
-// nothing. Comparing the model column plus "did `declared` change at all" gets both of those wrong in
-// opposite directions: it misses the first and forces a full box reindex on the second.
+// The rebuild trigger must agree with search's immutable-generation provenance check. A model/precision
+// tag alone misses native dimension and other resolved encoder changes: search refuses the old generation
+// even when served width stays 1024. Compare the SAME concrete connection fingerprint generationIdOf uses,
+// without changing its serialization or invalidating any unchanged stored generation.
 //
 // A task the principal has no binding for resolves to `null` — "no space", which compares correctly against
 // both a later binding (a change) and a later absence (no change).
@@ -15,14 +9,13 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { RoutableTask } from "@orb/contracts/inference";
 import { embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
-import type { EmbedSpaces } from "../contract/results.ts";
+import { connectionFingerprint } from "#kit/embedding-generation";
+import type { EmbedSpace, EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext } from "../contract/service.ts";
 
-/** The ONE door this module needs — a runtime that can `resolve`. Narrower than the whole context slice on
- *  purpose: the snapshot reads nothing else off it, so the module is exercisable against a resolve alone
- *  (its mirror test drives exactly that). */
+/** Use the same width fold as the role caller: native MRL width is not the served output width. */
 interface SpaceResolveCtx {
-  readonly runtime: Pick<ConnectionContext["runtime"], "resolve">;
+  readonly runtime: Pick<ConnectionContext["runtime"], "resolve"> & { readonly funnel: Pick<ConnectionContext["runtime"]["funnel"], "embed"> };
 }
 
 /** The routable tasks whose binding defines a vector space. Both are `scope: "owner"` in `TASK_DEFS`. */
@@ -32,19 +25,27 @@ export const VECTOR_TASKS: readonly RoutableTask[] = ["embed", "imageEmbed"];
  *  before and after their write. The shape is {@link EmbedSpaces} (contract/results.ts). */
 export async function vectorSpacesOf(ctx: SpaceResolveCtx, principal: Principal): Promise<EmbedSpaces> {
   const entries = await Promise.all(
-    VECTOR_TASKS.map(async (task): Promise<readonly [RoutableTask, string | null]> => [task, await spaceFor(ctx, principal, task)]),
+    VECTOR_TASKS.map(async (task): Promise<readonly [RoutableTask, EmbedSpace | null]> => [task, await spaceFor(ctx, principal, task)]),
   );
   return Object.fromEntries(entries);
 }
 
 /** A resolve REFUSAL is a legitimate reading of "no space" — an unbound, unservable or unfundable task has
  *  no vectors to strand — so it folds to `null` rather than failing the write that asked. */
-async function spaceFor(ctx: SpaceResolveCtx, principal: Principal, task: RoutableTask): Promise<string | null> {
+async function spaceFor(ctx: SpaceResolveCtx, principal: Principal, task: RoutableTask): Promise<EmbedSpace | null> {
   // @orb-waive caught-failure-ownership(catch): a refused resolve IS the "no space" answer this comparison
   // needs; nothing is swallowed, and a throw here would fail a connection write over an unrelated task.
   try {
     const { resolved } = await ctx.runtime.resolve({ task, principal });
-    return embedSpaceOf(resolved.model, embedDtypeOf(resolved.capability));
+    if (resolved.capability.kind !== "embedding") {
+      return null;
+    }
+    const knobs = ctx.runtime.funnel.embed({}, resolved.capability.embedding);
+    return {
+      fingerprint: connectionFingerprint(resolved),
+      model: embedSpaceOf(resolved.model, embedDtypeOf(resolved.capability)),
+      dim: knobs.dimensions ?? knobs.truncateTo ?? resolved.capability.embedding.dims,
+    };
   } catch {
     return null;
   }
@@ -52,5 +53,5 @@ async function spaceFor(ctx: SpaceResolveCtx, principal: Principal, task: Routab
 
 /** Did any vector task's space move? The trigger's whole condition, in one place. */
 export function spacesDiffer(before: EmbedSpaces, after: EmbedSpaces): boolean {
-  return VECTOR_TASKS.some((task) => before[task] !== after[task]);
+  return VECTOR_TASKS.some((task) => before[task]?.fingerprint !== after[task]?.fingerprint || before[task]?.dim !== after[task]?.dim);
 }

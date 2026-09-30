@@ -36,7 +36,7 @@ import type {
   StoreParams,
 } from "../contract/params.ts";
 import type { StoreResult } from "../contract/results.ts";
-import type { EmbeddingsService } from "../contract/service.ts";
+import type { EmbeddingsService, PinnedGeneration } from "../contract/service.ts";
 import {
   existingCaptionedRow,
   existingCharacterHash,
@@ -74,11 +74,7 @@ function assertSpace(model: string, dim: number, vector: Float32Array): void {
 
 /** card-text → `character_embeddings` (hash-gated; the staleness gate short-circuits before the embed —
  *  unless `force`, the bulk re-index escape hatch that bypasses ONLY the short-circuit). */
-async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams): Promise<StoreResult> {
-  const generation = await resolveTargetGeneration(ctx, p.ownerId, "embed");
-  if (generation === null) {
-    throw new EmbedFailedError(p.lens, p.model);
-  }
+async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams, generation: PinnedGeneration): Promise<StoreResult> {
   const hash = contentHash(p.content);
   if (p.force !== true && (await existingCharacterHash(ctx.db, p.characterId, generation.id)) === hash) {
     return {
@@ -90,7 +86,11 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams): Pr
       generationVia: generation.via,
     };
   }
-  const embedded = await generation.connection.embed(p.content, { signal: p.signal });
+  const seeded = ctx.precomputedEmbedding?.(hash, generation.space, "card-text", generation.connection);
+  const embedded =
+    seeded === undefined || seeded === null
+      ? await generation.connection.embed(p.content, { signal: p.signal })
+      : { model: seeded.model, vectors: [seeded.vector] };
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
   await upsertCharacterEmbedding(ctx.db, {
@@ -137,11 +137,7 @@ async function isImageLensCurrent(
  *  stamped with the PROVIDER's `model` either way (the issue-724 ruling), so the arm never invents a tag. */
 /** image-raw / image-captioned → `image_embeddings` (both lenses coexist per `(asset, model, lens)`;
  *  `force` bypasses the staleness short-circuit — bulk re-index). */
-async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | ImageCaptionedStoreParams): Promise<StoreResult> {
-  const generation = await resolveTargetGeneration(ctx, p.ownerId, "imageEmbed", p.lens === "image-raw" ? "imageEmbed" : p.via);
-  if (generation === null) {
-    throw new EmbedFailedError(p.lens, p.model);
-  }
+async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | ImageCaptionedStoreParams, generation: PinnedGeneration): Promise<StoreResult> {
   const hash = contentHash(p.content);
   // THE CAPTIONED LENS IS CURRENT ONLY WHEN IT ALSO CARRIES ITS FACET BREAKDOWN (issue #164). `content_hash`
   // covers the BYTES, and the bytes did not change when the VL breakdown landed on 2026-08-18 — so a
@@ -173,18 +169,22 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
       generationVia: generation.via,
     };
   }
-  // THE JOINT-SPACE DISPATCH (§10-3). The captioned lens has two arms: the joint image+caption vector when
-  // the owner HAS an image-capable embedder, and — when they do not — the caption as plain TEXT through the
-  // `embed` role, landing the picture in the owner's text space instead of dropping it on the floor. The
-  // raw lens has no fallback by construction: nothing but an image embedder can embed pixels, so the
-  // indexer never asks for it in the degraded arm.
+  // Captioned images permit same-encoder text fallback when the backend cannot fuse the pair.
+  // Raw pixels keep their own lens, and generic multimodal callers retain strict pair semantics.
   let embedded: EmbedResult | ImageEmbedResult;
   if (p.lens === "image-raw") {
-    embedded = await generation.connection.imageEmbed({ kind: "image", input: p.content }, { signal: p.signal });
+    const seeded = ctx.precomputedEmbedding?.(hash, generation.space, "image-raw", generation.connection);
+    embedded =
+      seeded === undefined || seeded === null
+        ? await generation.connection.imageEmbed({ kind: "image", input: p.content }, { signal: p.signal })
+        : { model: seeded.model, vectors: [seeded.vector] };
   } else if (p.via === "embed") {
     embedded = await generation.connection.embed(p.caption, { signal: p.signal });
   } else {
-    embedded = await generation.connection.imageEmbed({ kind: "multimodal", input: { image: p.content, text: p.caption } }, { signal: p.signal });
+    embedded = await generation.connection.imageEmbed(
+      { kind: "multimodal", input: { image: p.content, text: p.caption }, allowTextFallback: true },
+      { signal: p.signal },
+    );
   }
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
@@ -315,13 +315,35 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
 }
 
 export function createStore(ctx: EmbeddingsContext): EmbeddingsService["store"] {
+  const inFlight = new Map<string, Promise<StoreResult>>();
+  const storeEntity = async (params: CardTextStoreParams | ImageRawStoreParams | ImageCaptionedStoreParams): Promise<StoreResult> => {
+    params.signal?.throwIfAborted();
+    const task = params.lens === "card-text" ? "embed" : "imageEmbed";
+    const via = params.lens === "image-captioned" ? params.via : task;
+    const generation = await resolveTargetGeneration(ctx, params.ownerId, task, via);
+    if (generation === null) {
+      throw new EmbedFailedError(params.lens, params.model);
+    }
+    const entity = params.lens === "card-text" ? params.characterId : params.assetId;
+    const key = JSON.stringify([entity, generation.id, params.lens, contentHash(params.content), params.force === true]);
+    const existing = inFlight.get(key);
+    if (existing !== undefined) {
+      return await existing;
+    }
+    const pending = params.lens === "card-text" ? storeCardText(ctx, params, generation) : storeImage(ctx, params, generation);
+    inFlight.set(key, pending);
+    try {
+      return await pending;
+    } finally {
+      inFlight.delete(key);
+    }
+  };
   return (params: StoreParams): Promise<StoreResult> => {
     switch (params.lens) {
       case "card-text":
-        return storeCardText(ctx, params);
       case "image-raw":
       case "image-captioned":
-        return storeImage(ctx, params);
+        return storeEntity(params);
       case "digest":
         return storeDigest(ctx, params);
       case "chunk":

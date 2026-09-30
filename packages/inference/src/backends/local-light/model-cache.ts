@@ -18,6 +18,7 @@ import { ProviderError } from "../../contract/errors.ts";
 import type { LocalLightLoadProgress } from "../../contract/local-light-worker.ts";
 import type { LocalLightModelSlot } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
+import { localLightCpuThreads } from "./cpu-budget.ts";
 
 // Small on purpose — each ONNX session holds native (off-heap) memory.
 const MODEL_CACHE_CAP = 4;
@@ -377,6 +378,7 @@ async function ensureCacheDir(dir: string, log: InferenceLog): Promise<void> {
 }
 
 export function createModelCache(config: ModelCacheConfig): LocalLightModelCache {
+  const sessionOptions = { intraOpNumThreads: localLightCpuThreads(), interOpNumThreads: 1 };
   const device = resolveDevice(config.device);
   const dtype = DEFAULT_DTYPE;
   const embedDtype = resolveEmbedDtype(config.embedDtype);
@@ -422,7 +424,9 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
   const jinaEmbedder = createMemo(
     async (id) => {
       const { AutoModel } = await transformers();
-      return await loadWithCpuFallback(device, log, (dev) => AutoModel.from_pretrained(id, { device: dev, dtype: embedDtype, ...loadOpts }));
+      return await loadWithCpuFallback(device, log, (dev) =>
+        AutoModel.from_pretrained(id, { device: dev, dtype: embedDtype, session_options: sessionOptions, ...loadOpts }),
+      );
     },
     async (m) => {
       await m.dispose();
@@ -433,7 +437,9 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
   const reranker = createMemo(
     async (id) => {
       const { AutoModelForSequenceClassification } = await transformers();
-      return await loadWithCpuFallback(device, log, (dev) => AutoModelForSequenceClassification.from_pretrained(id, { device: dev, dtype, ...loadOpts }));
+      return await loadWithCpuFallback(device, log, (dev) =>
+        AutoModelForSequenceClassification.from_pretrained(id, { device: dev, dtype, session_options: sessionOptions, ...loadOpts }),
+      );
     },
     async (m) => {
       await m.dispose();
@@ -468,7 +474,9 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
         mod.AutoModelForSemanticSegmentation,
         mod.AutoModelForUniversalSegmentation,
       ]);
-      return await loadWithCpuFallback(device, log, (dev) => mod.pipeline("background-removal", id, { device: dev, dtype, config: modelConfig, ...loadOpts }));
+      return await loadWithCpuFallback(device, log, (dev) =>
+        mod.pipeline("background-removal", id, { device: dev, dtype, session_options: sessionOptions, config: modelConfig, ...loadOpts }),
+      );
     },
     async (p) => p.dispose(),
     config.detach,

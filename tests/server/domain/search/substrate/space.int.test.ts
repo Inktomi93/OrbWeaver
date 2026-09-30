@@ -20,9 +20,13 @@
 // masquerade as the expected transition state.
 
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
+import type { EmbeddingCapability } from "@orb/contracts/inference";
+import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
+import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
 import type { GenerationReceipt } from "../../../../../packages/server/src/domain/embeddings/contract/generation.ts";
 import type { EmbeddingConnectionSnapshot } from "../../../../../packages/server/src/domain/embeddings/contract/service.ts";
 import { markGenerationComplete } from "../../../../../packages/server/src/domain/embeddings/persistence/space-state.ts";
@@ -182,4 +186,76 @@ test("§10-5 a box that has never completed a sweep serves the live space — bo
   // No `embed_space_state` rows at all: everything that exists was written in the live space, so there is
   // nothing to be mid-move between. Refusing here would break every fresh install.
   expect(await spaceModel(ctx, ownerId, "embed")).toBe("test-embed-model");
+});
+
+// These are the pre-change resolved facts, not copies read from today's curated rows. Metadata-only
+// additions must not strand an already-complete generation behind the fingerprint refusal.
+const LEGACY_TEXT_CAPABILITY: EmbeddingCapability = {
+  dims: 1536,
+  mrl: true,
+  maxInputTokens: 8191,
+  input: ["text"],
+  output: ["vector"],
+  instructionAware: false,
+};
+const LEGACY_VL_CAPABILITY: EmbeddingCapability = {
+  dims: 1024,
+  mrl: true,
+  maxInputTokens: 8192,
+  input: ["text", "image"],
+  output: ["vector"],
+  instructionAware: true,
+  promptScaffold: "chatml",
+};
+
+test.each([
+  { providerId: "vllm", model: "Qwen/Qwen3-VL-Embedding-2B", legacy: LEGACY_VL_CAPABILITY },
+  { providerId: "openrouter", model: "openai/text-embedding-3-small", legacy: LEGACY_TEXT_CAPABILITY },
+  { providerId: "openai", model: "text-embedding-3-small", legacy: LEGACY_TEXT_CAPABILITY },
+])("$providerId pre-change generation remains queryable without rebuilding", async ({ providerId, model, legacy }) => {
+  const { db, ownerId, clients } = await drive();
+  const base = await connectionOf(clients, "embed");
+  if (base === null) {
+    throw new Error("the fixture embedding connection must resolve");
+  }
+  const before: EmbeddingConnectionSnapshot = {
+    ...base,
+    providerId: providerIdSchema.parse(providerId),
+    model: modelIdSchema.parse(model),
+    capability: { kind: "embedding", embedding: legacy },
+  };
+  const oldGeneration = await resolveTargetGeneration({ db, now: () => NOW, resolveEmbeddingConnection: async () => before }, ownerId, "embed");
+  if (oldGeneration === null) {
+    throw new Error("the pre-change generation must resolve");
+  }
+  await complete(db, ownerId, oldGeneration);
+  const current = {
+    ...before,
+    capability: synthesizeCapability("embedding", "other", { curated: curatedRows({ providerId: before.providerId, model }) }).capability,
+  };
+  const ctx = { db, resolveEmbeddingConnection: async () => current };
+  const served = await withActiveQuerySpace(ctx, ownerId, "embed", async (space) => ({
+    id: space.generationId,
+    model: space.model,
+    fingerprint: space.fingerprint,
+  }));
+  expect(served).toMatchObject({ id: oldGeneration.id, model });
+  const again = await resolveTargetGeneration({ ...ctx, now: () => NOW }, ownerId, "embed");
+  expect(again?.id).toBe(oldGeneration.id);
+  expect(again?.epoch).toBe(oldGeneration.epoch);
+  // Positive control: actual encoder evidence drift still closes the read rather than serving it blindly.
+  await expect(
+    withActiveQuerySpace(
+      {
+        db,
+        resolveEmbeddingConnection: async () => ({
+          ...before,
+          capability: { kind: "embedding", embedding: { ...legacy, instructionAware: !legacy.instructionAware } },
+        }),
+      },
+      ownerId,
+      "embed",
+      async (space) => space.model,
+    ),
+  ).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
 });

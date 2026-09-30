@@ -3,6 +3,7 @@
 // mimes at the source (`mime LIKE 'image/%'`) so a non-image asset — an export zip — never reaches the
 // imageEmbed role.
 
+import { ASSET_KINDS } from "@orb/contracts/assets";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
@@ -15,6 +16,21 @@ const PNG = "image/png";
 const ZIP = "application/zip";
 
 describe("listImageAssetIds", () => {
+  test("only avatar-kind images enter the sweep, across every stored asset kind", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("kinds") });
+    const created = await Promise.all(
+      ASSET_KINDS.map(async (kind, index) => ({
+        kind,
+        asset: await svc.store({ principal: principal(owner), kind, mime: PNG, bytes: pngBytes(index, 20, 30, 40) }),
+      })),
+    );
+    const avatar = created.find((row) => row.kind === "avatar");
+    expect(await svc.listImageAssetIds()).toEqual([avatar?.asset.assetId]);
+  });
   test("spans ALL owners (no owner scope) and filters to image mimes", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);

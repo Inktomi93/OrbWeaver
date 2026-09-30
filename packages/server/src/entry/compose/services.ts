@@ -394,7 +394,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     throw new Error("compose: materializeBackground invoked before assets wiring");
   };
   const materializeBackground: MaterializeBackgroundOp = (principal, url) => materializeBackgroundOp(principal, url);
+  let refreshAutoindex = (): void => undefined;
   const settingsDeps: SettingsServiceDeps = {
+    onEffectiveConfigChanged: () => refreshAutoindex(),
     db,
     now,
     audit,
@@ -429,7 +431,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // and after every AppSettings write, so an owner's save reaches the next dial.
   const effectiveConfig = createEffectiveConfigWiring(settings);
   await effectiveConfig.reload();
-  const resolved = effectiveConfig.getEffectiveConfig();
 
   // Built before the runtime so the hosted image arms get the real GIF→first-frame-PNG wire-normalize
   // transform (MA-6) — the sharp adapter, wrapped inside the package so it never leaks in.
@@ -472,7 +473,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     emitUserEvent: publishUserEvent,
   });
 
-  const claudeExecutable = resolveClaudeExecutable();
   const runtime = await createInferenceRuntime({
     ...(deps.providerSeams ?? {}),
     now,
@@ -482,9 +482,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     addSpanEvent,
     securityEvent: (kind, fields) => securityEvent(kind, { ...fields }),
     env: {
-      // "The bundled `claude` runtime resolves" IS the agent-sdk wire's registration (§8.4-1); a box without
-      // it reads `runtime-missing` on every `claude-sub` row and builds no backend.
-      ...(claudeExecutable !== null ? { claudeExecutable } : {}),
+      get claudeExecutable(): string | undefined {
+        return resolveClaudeExecutable() ?? undefined;
+      },
       hostEnvAllowlist: (): Readonly<Record<string, string>> =>
         Object.fromEntries(Object.entries(processEnvSnapshot()).flatMap(([k, v]) => (v === undefined ? [] : [[k, v] as const]))),
     },
@@ -754,7 +754,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     getEffectiveConfig: () => effectiveConfig.getEffectiveConfig(),
     emitChatEvent,
     emitChatEventLive,
-    corpusAutoindex: resolved.corpusAutoindex,
     // preset's ONE cross-feature op (`resolveEffective` projects the funnel against the caller's own chat
     // model) — the SAME verb the client's params panel already reads, so the two can't disagree.
     resolveChatCapability: (args) => connection.resolveChatCapability(args),
@@ -777,6 +776,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   } = searchDiscovery;
   // Bind the embed-space sweep enqueue now that `workloads` exists.
   embedReindex = searchDiscovery;
+  await searchDiscovery.embeddings.purgeDisallowedImages();
+  refreshAutoindex = searchDiscovery.refreshAutoindex;
 
   // ── the refinery seam (R1) — the card-refinery pipeline over the summarize rung. Needs `character`
   // (the four injected ops) + the caller-scoped preset/prose resolvers; nothing composes on top of it.

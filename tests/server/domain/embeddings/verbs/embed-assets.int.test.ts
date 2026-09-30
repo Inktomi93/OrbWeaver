@@ -9,18 +9,154 @@
 //   • a vanished asset row is a skip, not an error;
 //   • cooperative abort: an aborted signal does no work.
 
-import { embedGenerations, embedSpaceState, imageEmbeddings, imageIndexSkips } from "@orb/db";
+import { ASSET_KINDS } from "@orb/contracts/assets";
+import { EMBEDDING_FLOOR, providerIdSchema } from "@orb/contracts/inference";
+import { assets, embedGenerations, embedSpaceState, imageEmbeddings, imageIndexSkips } from "@orb/db";
+import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { passthroughImageNormalizer } from "../../../../../packages/inference/src/backends/kit/image-normalize.ts";
+import { createLocalLightImageEmbed } from "../../../../../packages/inference/src/backends/local-light/tasks.ts";
+import { runOpenAiCompatImageEmbed } from "../../../../../packages/inference/src/backends/openai-compat/image-embed.ts";
+import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
+import { localLightRows } from "../../../../../packages/inference/src/capability/sources/curated/local-light.ts";
+import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
+import { fakeModelCache, fakeResolved } from "../../../../inference/_support.ts";
+import type { RecordedRequest } from "../../../../inference/backends/_hosted-support.ts";
+import { scriptedJsonFetch } from "../../../../inference/backends/_hosted-support.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, IMAGE_EMBED_MODEL, makeStoreHarness, pngBytes, seedAsset, seedUser, TEST_CAPTION } from "../_support.ts";
 
 const IMG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
 const signal = (): AbortSignal => new AbortController().signal;
+
+test.each([
+  { providerId: "vllm", model: "Qwen/Qwen3-VL-Embedding-2B" },
+  { providerId: "custom-openai", model: "custom-joint-encoder" },
+])("$providerId preserves fused captions without a new declaration", async ({ providerId, model }) => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db);
+  const assetId = await seedAsset(db, ownerId);
+  const h = makeStoreHarness(db, { imageAssetIds: [assetId], assetBytes: new Map([[assetId, IMG]]) });
+  const capability = synthesizeCapability("embedding", "other", {
+    curated: curatedRows({ providerId: providerIdSchema.parse(providerId), model }),
+    advertised: { input: ["text", "image"], dims: EMBED_DIM },
+  }).capability;
+  const connection = fakeResolved({ task: "imageEmbed", providerId, model, capability, baseUrl: "https://embed.test/v1" });
+  const recorded: RecordedRequest[] = [];
+  const fetch = scriptedJsonFetch([JSON.stringify({ data: [{ index: 0, embedding: Array.from({ length: EMBED_DIM }, () => 1) }] })], recorded);
+  h.roleClients.imageEmbed.mockImplementation((input) =>
+    runOpenAiCompatImageEmbed({ connection, input }, { fetch, normalize: passthroughImageNormalizer, spaceDims: EMBED_DIM }),
+  );
+  const svc = createEmbeddingsService({
+    ...h.ctx,
+    resolveEmbeddingConnection: async (owner, task, id) => {
+      const snapshot = await h.ctx.resolveEmbeddingConnection(owner, task, id);
+      return snapshot === null || task !== "imageEmbed" ? snapshot : { ...snapshot, model, capability };
+    },
+  });
+  await svc.embedAssets({ ownerId, force: false, signal: signal() });
+  expect(recorded).toHaveLength(2);
+  expect(recorded[1]?.body).toMatchObject({
+    model,
+    messages: [
+      expect.anything(),
+      {
+        role: "user",
+        content: [
+          // biome-ignore lint/style/useNamingConvention: the OpenAI wire names this content key image_url.
+          { type: "image_url", image_url: { url: expect.stringContaining("data:image/png;base64,") } },
+          { type: "text", text: TEST_CAPTION },
+        ],
+      },
+    ],
+  });
+  expect((await db.select().from(imageEmbeddings)).map((row) => row.model)).toEqual([model, model]);
+  expect(h.roleClients.embed).not.toHaveBeenCalled();
+});
+
+test("an event-complete image still promotes its generation in a global catch-up", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db);
+  const assetId = await seedAsset(db, ownerId);
+  const h = makeStoreHarness(db, { imageAssetIds: [assetId], assetBytes: new Map([[assetId, IMG]]) });
+  const svc = createEmbeddingsService(h.ctx);
+  const indexed = await svc.indexAsset(assetId);
+  expect(await db.select().from(embedSpaceState)).toHaveLength(0);
+  expect(await svc.embedAssets({ ownerId: null, force: false, signal: signal() })).toEqual({ embedded: 0, skipped: 1 });
+  expect(await db.select().from(embedSpaceState)).toEqual([expect.objectContaining({ ownerId, scope: "images", activeGenerationId: indexed?.generationId })]);
+  expect(h.roleClients.imageEmbed).toHaveBeenCalledTimes(2);
+  expect(h.roleClients.summarize).toHaveBeenCalledTimes(1);
+});
+
+test("a successful caption uses the local-light text tower while retaining the raw image vector", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db);
+  const assetId = await seedAsset(db, ownerId);
+  const h = makeStoreHarness(db, { imageAssetIds: [assetId], assetBytes: new Map([[assetId, IMG]]) });
+  const cache = fakeModelCache(EMBED_DIM);
+  const space = localLightEmbedSpaceTag(DEFAULT_EMBED_MODEL, "q8");
+  const connection = fakeResolved({
+    task: "imageEmbed",
+    providerId: "local-light",
+    model: DEFAULT_EMBED_MODEL,
+    capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, ...localLightRows[0].embedding, input: ["text", "image"], dims: EMBED_DIM } },
+  });
+  const imageEmbed = createLocalLightImageEmbed(cache, () => space);
+  h.roleClients.imageEmbed.mockImplementation((input) => imageEmbed({ connection, input }));
+  const svc = createEmbeddingsService({
+    ...h.ctx,
+    resolveEmbeddingConnection: async (owner, task, id) => {
+      const snapshot = await h.ctx.resolveEmbeddingConnection(owner, task, id);
+      return snapshot === null || task !== "imageEmbed" ? snapshot : { ...snapshot, model: connection.model, capability: connection.capability };
+    },
+  });
+  await svc.embedAssets({ ownerId, force: false, signal: signal() });
+  const rows = await db.select().from(imageEmbeddings);
+  expect(rows.map((row) => row.lens).toSorted()).toEqual(["image-captioned", "image-raw"]);
+  expect(rows.every((row) => row.model === space)).toBe(true);
+  expect(rows.find((row) => row.lens === "image-captioned")?.caption).toBe(TEST_CAPTION);
+  expect(cache.calls.map((call) => call.method)).toEqual(["embedImages", "embedClipTexts"]);
+  expect(h.roleClients.summarize).toHaveBeenCalledTimes(1);
+});
+
+test("an event racing the sweep shares preparation before caption and both vector calls", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { handle: castId<Handle>("avatar-race") });
+  const assetId = await seedAsset(db, ownerId);
+  const h = makeStoreHarness(db, { imageAssetIds: [assetId], assetBytes: new Map([[assetId, IMG]]) });
+  const svc = createEmbeddingsService(h.ctx);
+  await Promise.all([svc.indexAsset(assetId), svc.embedAssets({ force: false, signal: signal(), ownerId })]);
+  expect(h.roleClients.summarize).toHaveBeenCalledTimes(1);
+  expect(h.roleClients.imageEmbed).toHaveBeenCalledTimes(2);
+  expect(await db.select().from(imageEmbeddings)).toHaveLength(2);
+});
+
+test("event preparation refuses every non-avatar kind before loading bytes and purging retains the assets", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { handle: castId<Handle>("avatar-policy") });
+  const assetId = await seedAsset(db, ownerId);
+  const h = makeStoreHarness(db, { assetBytes: new Map([[assetId, IMG]]) });
+  const svc = createEmbeddingsService(h.ctx);
+  for (const kind of ASSET_KINDS) {
+    await db.update(assets).set({ kind }).where(eq(assets.id, assetId));
+    h.loadAssetBytes.mockClear();
+    await svc.indexAsset(assetId);
+    expect(h.loadAssetBytes).toHaveBeenCalledTimes(kind === "avatar" ? 1 : 0);
+  }
+  expect(await db.select().from(imageEmbeddings)).toHaveLength(2);
+  await svc.purgeDisallowedImages();
+  expect(await db.select().from(imageEmbeddings)).toHaveLength(0);
+  expect(await db.select().from(assets)).toHaveLength(1);
+  await db.update(assets).set({ kind: "avatar" }).where(eq(assets.id, assetId));
+  await svc.indexAsset(assetId);
+  await svc.purgeDisallowedImages();
+  expect(await db.select().from(imageEmbeddings)).toHaveLength(2);
+});
 
 /** A degenerate 1×1 asset and a real 64×64 asset seeded for one owner, plus the per-asset bytes map the
  *  sweep's `loadAssetBytes` fake serves. Distinct hashes — `assets` is unique(owner, hash). */

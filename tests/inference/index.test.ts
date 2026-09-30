@@ -194,6 +194,25 @@ test("rerank on an endpoint row with no declared rerankPath reads requirement-un
   expect(declared.resolved.features.rerankPath).toBe("/v1/rerank");
 });
 
+test("provider availability picks up a Claude installation through the existing runtime", async () => {
+  const s = scene();
+  let executable: string | undefined;
+  const runtime = await createInferenceRuntime({
+    ...s.deps,
+    env: {
+      ...s.deps.env,
+      get claudeExecutable(): string | undefined {
+        return executable;
+      },
+    },
+  });
+  const registry = runtime.providers.registry;
+  expect(runtime.providers.available(s.alice).find((row) => row.provider.id === "claude-sub")).toMatchObject({ available: false, cause: "runtime-missing" });
+  executable = "/usr/bin/claude";
+  expect(runtime.providers.available(s.alice).find((row) => row.provider.id === "claude-sub")).toMatchObject({ available: true });
+  expect(runtime.providers.registry).toBe(registry);
+});
+
 test("providers.available lists every row the caller may use; claude-sub reads runtime-missing without the claude executable", async () => {
   const withoutClaude = await createInferenceRuntime(scene().deps);
   const caller = principal(newUserId());
