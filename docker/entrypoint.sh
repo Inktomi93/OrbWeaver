@@ -22,9 +22,9 @@
 #    Every name in the `for name in` line below is EXPORTED into the server's process.env. The agent-sdk
 #    child copies only an allowlist of host keys (packages/inference/src/backends/agent-sdk/env.ts), and the
 #    plugin broker and its watchdog get NODE_ENV alone (packages/server/src/infra/plugin-host/process-runtime.ts).
-#    Three spawns still pass no env and inherit every secret: the Share relay's cloudflared, its tar extract
-#    (packages/server/src/infra/relay/) and the bug report's git call. Closing them is
-#    docs/work/0302-keep-app-secrets-out-of-every-child-process.md.
+#    Right after the env parse the server entry deletes every app secret from process.env, so no later child
+#    (cloudflared, tar, git) inherits one. /proc/<pid>/environ still holds them: finding 7 in
+#    docs/law/container-deployment-security.md.
 #
 # 0. PUID/PGID: start as root, own the data dir, drop to that uid/gid, re-exec this script (job 0 below).
 #
