@@ -5,6 +5,7 @@
 import type { Capability, CapabilityRequirement, RoutableTask, Task, UnavailableCause } from "@orb/contracts/inference";
 import { bindingTaskOf, CONNECTION_LABEL_SEPARATOR, canFund, EMBED_SPACE_DIMS, requirementMet, taskDef } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
+import { stripLabelSuffix } from "@orb/kit/strings";
 
 export const CONNECTION_ROLE_LABELS: Record<RoutableTask, string> = {
   chat: "Chat",
@@ -133,9 +134,6 @@ export function connectionSummary(row: { readonly label: string; readonly model:
   return labelNamesModel(row.label, row.model) ? row.label : `${row.label}${CONNECTION_LABEL_SEPARATOR}${name}`;
 }
 
-// The ` (2)` a minted label takes when its base collides with another of the owner's labels.
-const COLLISION_SUFFIX = /\s\(\d+\)$/u;
-
 /**
  * Whether a connection label already names exactly this model: one of its separator segments is the model id or
  * its display name.
@@ -145,8 +143,7 @@ const COLLISION_SUFFIX = /\s\(\d+\)$/u;
  */
 export function labelNamesModel(label: string, model: string): boolean {
   const names = new Set([model, modelDisplayName(model)].map((name) => name.toLowerCase()));
-  return label
-    .replace(COLLISION_SUFFIX, "")
+  return stripLabelSuffix(label)
     .split(CONNECTION_LABEL_SEPARATOR)
     .some((segment) => names.has(segment.trim().toLowerCase()));
 }

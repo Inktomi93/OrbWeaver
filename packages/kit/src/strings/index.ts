@@ -144,3 +144,11 @@ export function nextFreeLabel(base: string, taken: readonly string[]): string {
   }
   return `${base} (${String(n)})`;
 }
+
+// The ` (N)` nextFreeLabel appends; its count starts at 2, and only a trailing count matches.
+const FREE_LABEL_SUFFIX = /\s\(\d+\)$/u;
+
+/** The base a {@link nextFreeLabel} result was minted from: the label with its trailing ` (N)` count removed. */
+export function stripLabelSuffix(label: string): string {
+  return label.replace(FREE_LABEL_SUFFIX, "");
+}
