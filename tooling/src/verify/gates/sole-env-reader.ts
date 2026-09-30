@@ -72,8 +72,14 @@
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference, referenceResolutionServices, resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
+import {
+  inspectBindingReassignment,
+  readMemberReference,
+  referenceResolutionServices,
+  resolveGlobalMemberOrigin,
+  resolveModuleMemberOrigin,
+} from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { originModuleSpecifier } from "../lib/sealed-origin.ts";
@@ -113,7 +119,48 @@ function readsProcessEnv(node: MorphNode): boolean {
   }
   const read = readMemberReference(node);
   const receiver = read.kind === "resolved" ? referenceResolutionServices.unwrapExpression(read.value.receiver) : node;
+  const initializer = module.reason === "write" ? memberWrittenConstInitializer(receiver) : undefined;
+  if (initializer !== undefined) {
+    return isProcess(initializer);
+  }
   return classifyOriginRefusal(module.reason, receiver) === "unreadable";
+}
+
+/** The initializer of a receiver that is a plain `const` never reassigned. The origin reader refuses such a
+ *  receiver as `write` when one of its MEMBERS is assigned (`mod.env.x = y`), but a member write changes the
+ *  value, not which value the name denotes, so the identity question moves to the initializer. */
+function memberWrittenConstInitializer(receiver: MorphNode): MorphNode | undefined {
+  if (!Node.isIdentifier(receiver) || inspectBindingReassignment(receiver).kind !== "resolved") {
+    return;
+  }
+  const declaration = referenceResolutionServices.declarationOf(receiver);
+  if (declaration.kind !== "resolved" || !Node.isVariableDeclaration(declaration.value)) {
+    return;
+  }
+  const variable = declaration.value;
+  if (variable.getVariableStatement()?.getDeclarationKind() !== VariableDeclarationKind.Const || !Node.isIdentifier(variable.getNameNode())) {
+    return;
+  }
+  const initializer = variable.getInitializer();
+  return initializer === undefined ? undefined : referenceResolutionServices.unwrapExpression(initializer);
+}
+
+/** Is this expression the real `process` itself? A reference or member read is judged by the same two doors
+ *  and fails closed when unreadable; any other expression (a call, an `await`, a literal) computes a value
+ *  and is not the `process` binding, matching the verdict for a `const` bound to a call with no member write. */
+function isProcess(node: MorphNode): boolean {
+  if (!(Node.isIdentifier(node) || Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
+    return false;
+  }
+  const global = resolveGlobalMemberOrigin(node);
+  if (global.kind === "resolved") {
+    return global.value.globalName === PROCESS_GLOBAL && global.value.memberPath.length === 0;
+  }
+  const module = resolveModuleMemberOrigin(node);
+  if (module.kind === "resolved") {
+    return PROCESS_DOORS.includes(originModuleSpecifier(module.value)) && module.value.memberPath.length === 0;
+  }
+  return classifyOriginRefusal(module.reason, node) === "unreadable";
 }
 
 /** Is this identifier the NAME of a destructuring binding element whose property is `env` — the one spelling
@@ -294,6 +341,30 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "process-env-read:env" },
       why: "THE MEMBER-PATH FENCE ON THE MODULE BRANCH, and the only row that dies without it: a key that happens to be spelled `env` gives BOTH `process.env` and `process.env.env` a resolved member named `env` off the SAME `node:process` door, so the candidate prefilter admits both and only `path.length === 1` rejects the outer one. Dropping that half makes the outer read a SECOND finding under the bare operation (count 1 → 2) — the module's other rows all resolve a one-hop path and cannot discriminate it (wave-8 D2, gate-runtime audit wave 8",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/hub/alias-written.ts":
+          'import process from "node:process";\nconst proc = process;\nproc.env.SEEDED = "1";\nexport const x = proc.env.SOME_VAR;\n',
+      },
+      expect: { count: 1, messageIncludes: "process-env-read:SOME_VAR" },
+      why: "THE MEMBER-WRITE ACQUITTAL FOLLOWS THE ALIAS: a `const` alias of the real `process` whose bag is written is judged by its initializer, which IS `process`, so the read still reports. Acquitting every written `const` receiver would pass this",
+    },
+    {
+      mode: "types",
+      files: { "packages/server/src/domain/hub/alias-undeclared.ts": 'const proc = process;\nproc.env.SEEDED = "1";\nexport const x = proc.env.SOME_VAR;\n' },
+      expect: { count: 1, messageIncludes: "process-env-read:SOME_VAR" },
+      why: "the same written alias over an UNDECLARED `process`: the initializer resolves through neither door, so it takes the fail-closed refusal and reports",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/hub/destructure-written.ts":
+          'import process from "node:process";\nconst { env } = process;\nenv.SEEDED = "1";\nexport const x = env["SOME_VAR"];\n',
+      },
+      expect: { count: 1, messageIncludes: "Read: process-env-read in" },
+      why: "a DESTRUCTURED bag whose members are written still reports at the destructure site: the acquittal is only for a `const` declared by a plain variable declaration",
+    },
   ],
   mustPass: [
     {
@@ -344,6 +415,24 @@ export const gate = defineGate({
         "packages/server/src/domain/hub/lookalike.ts": "export const x = procezz.env.SOME_VAR;\n",
       },
       why: `THE NAME COMPARISON, PINNED: a SECOND trusted ambient global (${NODE_LOOKALIKE_HOME}) declaring the same \`env\` bag under a different name resolves to the PRECISE global arm and is still not a subject, because the arm compares the resolved \`globalName\` to \`process\`. Without this row the resolved branch would pass any ambient \`x.env.KEY\` the same way the legacy text comparison did`,
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/inference/src/backends/lib.ts": "export const env = { allowRemoteModels: true, allowLocalModels: false };\n",
+        "packages/inference/src/backends/cache.ts":
+          'type Lib = typeof import("./lib.ts");\n' +
+          "declare function load(): Promise<Lib>;\n" +
+          "export async function configure(remote: boolean | undefined): Promise<Lib> {\n" +
+          "  const mod = await load();\n" +
+          "  if (remote !== undefined) {\n" +
+          "    mod.env.allowRemoteModels = remote;\n" +
+          "  }\n" +
+          "  mod.env.allowLocalModels = !mod.env.allowRemoteModels;\n" +
+          "  return mod;\n" +
+          "}\n",
+      },
+      why: "A MEMBER WRITE DOES NOT CHANGE A RECEIVER'S IDENTITY: a library's own `env` settings object, configured through a `const` bound to a call result, is not the runtime environment. The writes make the origin reader refuse the value as `write`; the identity question is binding-scope, so a never-reassigned `const` is judged by its initializer, which is a call and so not `process`",
     },
   ],
 });
