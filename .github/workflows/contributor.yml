@@ -23,7 +23,8 @@ jobs:
       - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
       # Git hooks invoke node directly, outside pnpm's script environment.
-      - run: pnpm runtime set node 26 -g
+      - name: Expose the installed pinned Node on PATH
+        run: pnpm exec node -e "require('node:fs').appendFileSync(process.env.GITHUB_PATH, require('node:path').dirname(process.execPath) + '\n')"
       - run: pnpm exec node -e "console.log(process.version, process.execPath)"
       - run: pnpm exec playwright install chromium
 

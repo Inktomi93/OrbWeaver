@@ -185,7 +185,7 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
   // TOOL ERROR (2) — the run is not a verdict — never to a violation (1) wearing the same costume. The PATH
   // handed to the resolver is the COMPOSED one the child will actually get (`stage.env` may override it),
   // never the parent's — otherwise it would answer about a search path the child never sees.
-  const resolved = resolveStageCommand(root, cmd, env["PATH"] ?? "");
+  const resolved = resolveStageCommand(root, cmd, env["PATH"] ?? "", { pathExt: env["PATHEXT"] });
   const result =
     resolved.kind === "unresolvable"
       ? { code: null, transcript: unresolvableCommandTranscript(stage.name, resolved) }

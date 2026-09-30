@@ -22,6 +22,11 @@ export type StageCommand =
   | { readonly kind: "path-literal" | "workspace-bin" | "system-program"; readonly command: string }
   | { readonly kind: "unresolvable"; readonly requested: string; readonly workspaceBin: string; readonly pathDirs: number };
 
+export interface StageCommandOptions {
+  readonly platform?: NodeJS.Platform;
+  readonly pathExt?: string | undefined;
+}
+
 /** The scoped invocation for a stage, or the sentinels: "whole-only" ⇒ DEFER at a scoped tier (print the
  *  named notice, record it in the artifact — the check:scope pattern promoted to run level, §3.4);
  *  "skip-empty" ⇒ the scope resolves to no relevant paths, so the stage is a no-op this run (e.g. eslint
