@@ -47,11 +47,14 @@ function run(cache: LocalLightModelCache, call: LocalLightWorkerCall): Promise<L
 }
 
 // A model load leaves the weight file behind as garbage ArrayBuffers, hundreds of MB for the encoder. An idle
-// worker never allocates enough to trigger a GC, so it would hold them indefinitely. `expose_gc` reaches only
-// contexts created after it is set, so the server thread's global scope never gains `gc`.
+// worker never allocates enough to trigger a GC, so it would hold them indefinitely.
+// SECURITY: `--expose-gc` is a process-wide V8 flag. While it is set, every new context on any thread and every
+// new Worker gains a `gc` global, so it is cleared again the moment this one context has captured `gc`.
 function idleCollector(): () => void {
   setFlagsFromString("--expose-gc");
-  return runInNewContext("gc") as () => void;
+  const collect = runInNewContext("gc") as () => void;
+  setFlagsFromString("--no-expose-gc");
+  return collect;
 }
 
 // Only whole-buffer rows are transferred: a view into a shared or pooled buffer would detach bytes it does not own.

@@ -1103,7 +1103,8 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     if (closeLocalLight !== null) {
       const close: () => Promise<void> = closeLocalLight;
       closeLocalLight = null;
-      // Bounded: a native ONNX run cannot be interrupted, so a close that outlasts its wait is logged and left to the exit.
+      // Bounded: a native ONNX run cannot be interrupted. A close that outlasts its wait is logged, and the
+      // process exit then tears the worker down mid-run, which aborts the process (exit 134) after db housekeeping.
       log.info("shutdown: closing the local-light worker");
       await close();
     }

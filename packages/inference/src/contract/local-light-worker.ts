@@ -1,7 +1,6 @@
 // The message protocol between the local-light host (`backends/local-light/worker-cache.ts`) and its worker
 // thread (`backends/local-light/model-worker.ts`). Every value here crosses `postMessage`, so it stays structured-cloneable.
 
-import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import type { ProviderErrorInit } from "./errors.ts";
 import type { InferenceLog, LocalLightModelSlot } from "./runtime.ts";
@@ -15,12 +14,13 @@ export interface LocalLightLoadProgress {
 
 export type LocalLightLogLevel = keyof InferenceLog;
 
-/** One model-cache call, named by the cache member it runs. */
+/** One model-cache call, named by the cache member it runs. Images cross as bytes only: a string image is a URL
+ *  or path the worker would fetch or read outside the server thread's egress firewall. */
 export type LocalLightWorkerCall =
   | { readonly op: "embedTexts" | "embedClipTexts"; readonly modelId: ModelId; readonly texts: readonly string[] }
   | { readonly op: "scorePairs"; readonly modelId: ModelId; readonly query: string; readonly documents: readonly string[] }
-  | { readonly op: "embedImages"; readonly modelId: ModelId; readonly images: readonly ImageInput[] }
-  | { readonly op: "removeBackground"; readonly modelId: ModelId; readonly image: ImageInput }
+  | { readonly op: "embedImages"; readonly modelId: ModelId; readonly images: readonly Uint8Array[] }
+  | { readonly op: "removeBackground"; readonly modelId: ModelId; readonly image: Uint8Array }
   | { readonly op: "preload"; readonly modelId: ModelId; readonly slot: LocalLightModelSlot };
 
 /** A thrown value as it crosses the thread boundary: a `ProviderError` keeps every field. */

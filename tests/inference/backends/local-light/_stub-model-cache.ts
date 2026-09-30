@@ -5,13 +5,31 @@
 import process from "node:process";
 import type { ModelId } from "@orb/kit/ids";
 import type { LocalLightModelCache } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
+import type { ProviderErrorInit } from "../../../../packages/inference/src/contract/errors.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
+import { agentSdkSessionIdSchema } from "../../../../packages/inference/src/contract/identity.ts";
 
 export const BLOCK_PREFIX = "block:";
 export const CRASH = "crash";
 export const REFUSE = "refuse";
+export const REFUSE_EVERY_FIELD = "refuse-every-field";
 export const ABSENT_MODEL = "orb-test/absent-model";
 export const CRASH_EXIT_CODE = 7;
+
+/** Every `ProviderErrorInit` field but `cause` set, so a field added to the init fails to compile here until
+ *  the thread-boundary copy is proven to carry it. */
+export const EVERY_PROVIDER_ERROR_FIELD: Required<Omit<ProviderErrorInit, "cause">> = {
+  kind: "rate_limit",
+  retryable: true,
+  message: "stub refusal with every field",
+  resetsAt: 1_700_000_000_000,
+  apiErrorStatus: 429,
+  model: "orb-test/stub",
+  terminalReason: "stub-terminal",
+  detail: "stub-detail",
+  sessionId: agentSdkSessionIdSchema.parse("00000000-0000-4000-8000-000000000001"),
+  requestId: "stub-request",
+};
 
 /** Hold the calling thread for `ms` without yielding, the way `onnxruntime-node` holds it for a run. */
 export function holdThread(ms: number): void {
@@ -28,6 +46,9 @@ function embed(texts: readonly string[]): Promise<Float32Array[]> {
   }
   if (first === REFUSE) {
     return Promise.reject(new ProviderError({ kind: "invalid", retryable: false, message: "stub refusal", model: "orb-test/stub", detail: "stub-detail" }));
+  }
+  if (first === REFUSE_EVERY_FIELD) {
+    return Promise.reject(new ProviderError(EVERY_PROVIDER_ERROR_FIELD));
   }
   return Promise.resolve(texts.map((text) => Float32Array.from([text.length, 1, 2])));
 }

@@ -3,6 +3,7 @@
 // per embed. The main thread never imports transformers.js; the weights load once, inside the worker.
 
 import { Worker } from "node:worker_threads";
+import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import type { ProviderErrorInit } from "../../contract/errors.ts";
 import { ProviderError } from "../../contract/errors.ts";
@@ -18,18 +19,24 @@ import type {
 import type { InferenceLog } from "../../deps.ts";
 import type { LocalLightModelCache } from "./model-cache.ts";
 
-// How long `close` waits for the worker to exit: at most one native model call must return first.
+// How long `close` waits for the worker to exit: one embed or rerank run returns well inside it. A model load
+// in progress can outlast it; the process exit then tears the worker down mid-run and aborts (exit 134).
 const LOCAL_LIGHT_WORKER_CLOSE_MS = 10_000;
+// Calls one worker may hold, queued or running, before new ones are refused. A measured seed peaks at 12 queued
+// calls (11 card embeds, plus the boot prefetch), so this admits five overlapping seeds and stops a flood.
+const LOCAL_LIGHT_WORKER_MAX_PENDING = 64;
 
 interface WorkerModelCacheConfig extends Omit<LocalLightWorkerOptions, "cacheModule"> {
   readonly cacheModule?: string | undefined;
   readonly closeWaitMs?: number | undefined;
+  readonly maxPending?: number | undefined;
   readonly onProgress?: ((progress: LocalLightLoadProgress) => void) | undefined;
   readonly log: InferenceLog;
 }
 
 export interface WorkerModelCache extends LocalLightModelCache {
-  /** Stop the worker and reject its pending calls, waiting a bounded time for it to exit. Later calls start a new one. */
+  /** Stop the worker and reject its pending calls, waiting a bounded time for it to exit. Every later call is
+   *  refused as `aborted`: close runs at shutdown, and a worker started after it would be torn down mid-run. */
   readonly close: () => Promise<void>;
 }
 
@@ -61,8 +68,17 @@ function workerLostError(detail: string): ProviderError {
   return new ProviderError({
     kind: "server",
     retryable: true,
-    message: `local-light: the inference worker stopped (${detail}); the next call starts a new one`,
+    message: `local-light: the inference worker stopped (${detail})`,
   });
+}
+
+// SECURITY: a string image makes transformers.js fetch that URL or read that path inside the worker, where the
+// egress firewall (installed per thread, on the server thread only) never sees it. Only bytes cross.
+function requireImageBytes(image: ImageInput): Uint8Array {
+  if (typeof image === "string") {
+    throw new ProviderError({ kind: "invalid", retryable: false, message: "local-light: an image must be bytes, never a URL or a path" });
+  }
+  return image;
 }
 
 interface Pending {
@@ -91,8 +107,10 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
     allowRemoteModels: config.allowRemoteModels,
     cacheModule: config.cacheModule ?? DEFAULT_CACHE_MODULE,
   };
+  const maxPending = config.maxPending ?? LOCAL_LIGHT_WORKER_MAX_PENDING;
   const failedModels = new Set<ModelId>();
   let live: Live | null = null;
+  let closed = false;
   let nextId = 0;
 
   const settleAll = (state: Live, err: Error): void => {
@@ -160,6 +178,14 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
   };
 
   function call(request: LocalLightWorkerCall): Promise<LocalLightWorkerValue> {
+    if (closed) {
+      return Promise.reject(new ProviderError({ kind: "aborted", retryable: false, message: "local-light: the inference worker is closed for shutdown" }));
+    }
+    if (live !== null && live.pending.size >= maxPending) {
+      return Promise.reject(
+        new ProviderError({ kind: "server", retryable: true, message: `local-light: ${String(maxPending)} calls already wait on the inference worker` }),
+      );
+    }
     live ??= start();
     const state = live;
     const id = nextId;
@@ -182,10 +208,12 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
   return {
     embedTexts: (modelId, texts): Promise<Float32Array[]> => (texts.length === 0 ? Promise.resolve([]) : vectors({ op: "embedTexts", modelId, texts })),
     embedClipTexts: (modelId, texts): Promise<Float32Array[]> => (texts.length === 0 ? Promise.resolve([]) : vectors({ op: "embedClipTexts", modelId, texts })),
-    embedImages: (modelId, images): Promise<Float32Array[]> => (images.length === 0 ? Promise.resolve([]) : vectors({ op: "embedImages", modelId, images })),
+    embedImages: async (modelId, images): Promise<Float32Array[]> =>
+      images.length === 0 ? [] : await vectors({ op: "embedImages", modelId, images: images.map(requireImageBytes) }),
     scorePairs: async (modelId, query, documents): Promise<number[]> =>
       documents.length === 0 ? [] : ((await call({ op: "scorePairs", modelId, query, documents })) as number[]),
-    removeBackground: async (modelId, image): Promise<Uint8Array> => (await call({ op: "removeBackground", modelId, image })) as Uint8Array,
+    removeBackground: async (modelId, image): Promise<Uint8Array> =>
+      (await call({ op: "removeBackground", modelId, image: requireImageBytes(image) })) as Uint8Array,
     preload: async (slot, modelId): Promise<void> => {
       await call({ op: "preload", modelId, slot });
     },
@@ -193,6 +221,7 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
     // Never `terminate()`: stopping the thread while onnxruntime-node is inside a run makes its binding throw a
     // C++ exception nothing can catch, and that aborts the whole process. The worker exits itself instead.
     close: async (): Promise<void> => {
+      closed = true;
       const state = live;
       if (state === null) {
         return;

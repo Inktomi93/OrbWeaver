@@ -2,12 +2,14 @@
 // module (`_stub-model-cache.ts`): the request loop keeps turning while the worker is held, results and typed
 // failures cross the boundary intact, and a dead worker rejects its callers instead of hanging them.
 
+import { runInNewContext } from "node:vm";
+import { Worker } from "node:worker_threads";
 import { modelIdSchema } from "@orb/contracts/inference";
 import type { WorkerModelCache } from "../../../../packages/inference/src/backends/local-light/worker-cache.ts";
 import { createWorkerModelCache } from "../../../../packages/inference/src/backends/local-light/worker-cache.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { ABSENT_MODEL, BLOCK_PREFIX, CRASH, CRASH_EXIT_CODE, holdThread, REFUSE } from "./_stub-model-cache.ts";
+import { ABSENT_MODEL, BLOCK_PREFIX, CRASH, CRASH_EXIT_CODE, EVERY_PROVIDER_ERROR_FIELD, holdThread, REFUSE, REFUSE_EVERY_FIELD } from "./_stub-model-cache.ts";
 
 const MODEL = modelIdSchema.parse("orb-test/stub");
 const ABSENT = modelIdSchema.parse(ABSENT_MODEL);
@@ -154,7 +156,7 @@ test("a native call that outlasts the close wait: close returns at the bound wit
   expect(await inFlight).toMatchObject({ kind: "server", retryable: true });
 });
 
-test("close while idle returns at once and a later call starts a new worker", async () => {
+test("close while idle returns at once, and a call after it is refused without starting a worker", async () => {
   const cache = stubCache();
   await cache.embedTexts(MODEL, ["warm"]);
   // @orb-waive test-determinism(performance.now): the SUBJECT is real elapsed time on this thread while another thread holds a model call; a frozen clock cannot see a blocked event loop.
@@ -162,7 +164,61 @@ test("close while idle returns at once and a later call starts a new worker", as
   await cache.close();
   // @orb-waive test-determinism(performance.now): the SUBJECT is real elapsed time on this thread while another thread holds a model call; a frozen clock cannot see a blocked event loop.
   expect(performance.now() - started).toBeLessThan(MAX_TICK_GAP_MS);
-  const vectors = await cache.embedTexts(MODEL, ["abcd"]);
-  expect([...(vectors[0] ?? [])]).toEqual([4, 1, 2]);
-  await cache.close();
+  const failure = await cache.embedTexts(MODEL, ["abcd"]).catch((err: unknown) => err);
+  expect(failure).toBeInstanceOf(ProviderError);
+  expect(failure).toMatchObject({ kind: "aborted", retryable: false });
+  await expect(cache.preload("embed", MODEL)).rejects.toMatchObject({ kind: "aborted", retryable: false });
+});
+
+test("a ProviderError carries every provenance field across the thread boundary", async () => {
+  const cache = stubCache();
+  try {
+    const failure = await cache.embedTexts(MODEL, [REFUSE_EVERY_FIELD]).catch((err: unknown) => err);
+    expect(failure).toBeInstanceOf(ProviderError);
+    expect(failure).toMatchObject(EVERY_PROVIDER_ERROR_FIELD);
+  } finally {
+    await cache.close();
+  }
+});
+
+test("an image given as a URL or path is refused as invalid and never reaches the worker", async () => {
+  const cache = stubCache();
+  try {
+    await expect(cache.embedImages(MODEL, [Uint8Array.from([1]), "http://127.0.0.1/avatar.png"])).rejects.toMatchObject({ kind: "invalid", retryable: false });
+    await expect(cache.removeBackground(MODEL, "/etc/hostname")).rejects.toMatchObject({ kind: "invalid", retryable: false });
+    await expect(cache.embedImages(MODEL, [Uint8Array.from([1])])).resolves.toHaveLength(1);
+  } finally {
+    await cache.close();
+  }
+});
+
+test("calls over the pending cap are refused as a retryable server error while the worker is held", async () => {
+  const cache = createWorkerModelCache({ cacheModule: STUB_MODULE, maxPending: 2, log: { debug: noop, info: noop, warn: noop, error: noop } });
+  try {
+    await cache.embedTexts(MODEL, ["warm"]);
+    const held = cache.embedTexts(MODEL, [`${BLOCK_PREFIX}${String(HOLD_MS / 3)}`]);
+    const queued = cache.embedTexts(MODEL, ["queued"]);
+    const over = await cache.embedTexts(MODEL, ["over"]).catch((err: unknown) => err);
+    expect(over).toBeInstanceOf(ProviderError);
+    expect(over).toMatchObject({ kind: "server", retryable: true });
+    expect((await held).length).toBe(1);
+    expect((await queued).length).toBe(1);
+    await expect(cache.embedTexts(MODEL, ["after"])).resolves.toHaveLength(1);
+  } finally {
+    await cache.close();
+  }
+});
+
+test("the worker's garbage collector reaches no other context or thread", async () => {
+  const cache = stubCache();
+  try {
+    await cache.embedTexts(MODEL, ["warm"]);
+    expect(runInNewContext("typeof gc")).toBe("undefined");
+    const probe = new Worker('require("node:worker_threads").parentPort.postMessage(typeof globalThis.gc)', { eval: true });
+    const seen = await new Promise((resolve) => probe.once("message", resolve));
+    await probe.terminate();
+    expect(seen).toBe("undefined");
+  } finally {
+    await cache.close();
+  }
 });
