@@ -11,7 +11,7 @@ blocked: owner
 
 ## What
 
-Reduce static verification wall time while retaining the complete selected proof corpus.
+Reduce static verification time; retain the complete selected proof corpus.
 
 ## Why
 
@@ -49,7 +49,7 @@ Selection lives in `tooling/src/verify/lib/instrument-affected-reach.ts`, `tooli
 
 ### Performance and verification
 
-Timings cover preparation, overlays, execution, restoration, and policy/fact phases. Verification remains pending; no speedup is claimed.
+Timings cover preparation, overlays, execution, restoration, and policy/fact phases. Verification is pending; speedup is unproven.
 
 ts-morph already passes its previous program to TypeScript `createProgram` and retains unchanged source objects. Another corpus cache duplicates that reuse. Resource hosts, facts, and reference caches remain invocation-local.
 
@@ -57,7 +57,7 @@ ts-morph already passes its previous program to TypeScript `createProgram` and r
 
 A future cache must match fresh solo findings, refusals, grants, and populations. Plant changed exports through unchanged importers, removed imports with disk twins, globals, fact/resource changes, and failure followed by recovery.
 
-Main owns red-first controls, suites, the barrier, and one benchmark after source freeze. Compare stage/suite duration, selected scope, pass timings, test count, and completed `test-report.json`. Retain serial execution. No owner fork changes proof requirements.
+Main owns red-first controls, suites, the barrier and one benchmark after source freeze. Compare durations, scope, pass timings, test count and `test-report.json`. Retain serial execution and proof requirements.
 
 ## Evidence
 
