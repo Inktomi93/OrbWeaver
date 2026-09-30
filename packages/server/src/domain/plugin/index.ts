@@ -120,7 +120,24 @@ export type {
   PluginView,
   SnippetResult,
 } from "./contract/results.ts";
-export { PLUGIN_FANOUT_SKIP_REASONS } from "./contract/results.ts";
+export {
+  distributedPluginViewSchema,
+  PLUGIN_FANOUT_SKIP_REASONS,
+  pluginBundleAssetViewSchema,
+  pluginCommandViewSchema,
+  pluginDisplayTransformResultSchema,
+  pluginDisplayTransformViewSchema,
+  pluginFanoutResultSchema,
+  pluginGitPreviewSchema,
+  pluginLogViewSchema,
+  pluginSurfaceStateSchema,
+  pluginSurfaceViewSchema,
+  pluginUiHostCallResultSchema,
+  pluginUpdateCheckSchema,
+  pluginUrlPreviewSchema,
+  pluginViewSchema,
+  snippetResultSchema,
+} from "./contract/results.ts";
 export type {
   CreateInstanceInput,
   CreateInstanceOutcome,

@@ -1,9 +1,21 @@
 // domain/connection/contract/results — verb result shapes. The row shapes themselves are the cross-boundary
 // `UserConnection` / `ConnectionBinding` (`@orb/contracts/inference` — secret-free by construction: a row names
-// its credential by id). What this file adds is the pane's DERIVED reads.
+// its credential by id). What this file adds is the pane's DERIVED reads. Each strict schema is its procedure's tRPC
+// output parser: an extra key fails the call instead of reaching the browser.
 
 import type { Capability, ConnectionBinding, ResolvedConnectionView, RoutableTask, Task, UnavailableCause, UserConnection } from "@orb/contracts/inference";
+import {
+  capabilitySchema,
+  connectionBindingSchema,
+  resolvedConnectionViewSchema,
+  routableTaskSchema,
+  taskSchema,
+  unavailableCauseSchema,
+  userConnectionSchema,
+} from "@orb/contracts/inference";
 import type { ResolvedWarning } from "@orb/inference";
+import { resolvedWarningSchema } from "@orb/inference";
+import { z } from "zod";
 
 /** A connection row with what the pane renders beside it: the tasks it may serve and the provider's label. */
 export interface ConnectionView extends UserConnection {
@@ -11,6 +23,10 @@ export interface ConnectionView extends UserConnection {
   /** `connectionTasks(provider, kind)` — the Model-roles slots this row may be bound to. */
   readonly tasks: readonly Task[];
 }
+
+export const connectionViewSchema = userConnectionSchema
+  .extend({ providerLabel: z.string(), tasks: z.array(taskSchema).readonly() })
+  .strict() satisfies z.ZodType<ConnectionView>;
 
 /** The capability read for one row (`runtime.capabilities.for`): the descriptor + the warnings it was
  *  synthesized with + the tasks. */
@@ -21,6 +37,13 @@ export interface ConnectionCapabilityView {
   readonly warnings: readonly ResolvedWarning[];
   readonly tasks: readonly Task[];
 }
+
+export const connectionCapabilityViewSchema = z.strictObject({
+  capability: capabilitySchema,
+  baseline: capabilitySchema,
+  warnings: z.array(resolvedWarningSchema).readonly(),
+  tasks: z.array(taskSchema).readonly(),
+}) satisfies z.ZodType<ConnectionCapabilityView>;
 
 /** One Model-roles row: the actor's binding for a task AND what a turn resolves to RIGHT NOW against the
  *  PERSISTED read (§5.3a: "Not applied yet — still running on …" is the readout this pair enables). */
@@ -35,9 +58,18 @@ export interface BindingView {
   readonly unavailableCause: UnavailableCause | null;
 }
 
+export const bindingViewSchema = z.strictObject({
+  task: routableTaskSchema,
+  binding: connectionBindingSchema.strict().nullable(),
+  resolved: resolvedConnectionViewSchema.nullable(),
+  unavailableCause: unavailableCauseSchema.nullable(),
+}) satisfies z.ZodType<BindingView>;
+
 export interface CatalogRefreshOutcome {
   readonly models: number | null;
 }
+
+export const catalogRefreshOutcomeSchema = z.strictObject({ models: z.number().int().nonnegative().nullable() }) satisfies z.ZodType<CatalogRefreshOutcome>;
 
 /** The embed-space trigger's CONDITION, snapshotted: `routable task -> resolved (model[@dtype]) space tag`, with
  *  `null` where nothing resolves (unbound / unservable / unfundable — a task with no vectors to strand).

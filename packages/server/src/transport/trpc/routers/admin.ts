@@ -8,22 +8,27 @@ import { withinHandleLength } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { adminUserViewSchema, revokeUserSessionsResultSchema, sessionAdminViewSchema } from "#domain/admin";
 import { adminProcedure, t } from "../trpc.ts";
 
 export const adminRouter = t.router({
-  listUsers: adminProcedure.query(({ ctx }) => ctx.services.admin.listUsers({ principal: ctx.auth })),
+  listUsers: adminProcedure.output(z.array(adminUserViewSchema).readonly()).query(({ ctx }) => ctx.services.admin.listUsers({ principal: ctx.auth })),
 
   setRole: adminProcedure
     .input(z.object({ userId: brandedId<UserId>(), role: userRoleSchema }))
+    .output(adminUserViewSchema)
     .mutation(({ ctx, input }) => ctx.services.admin.setRole({ principal: ctx.auth, userId: input.userId, role: input.role })),
 
-  setEnabled: adminProcedure.input(z.object({ userId: brandedId<UserId>(), enabled: z.boolean() })).mutation(({ ctx, input }) =>
-    ctx.services.admin.setEnabled({
-      principal: ctx.auth,
-      userId: input.userId,
-      enabled: input.enabled,
-    }),
-  ),
+  setEnabled: adminProcedure
+    .input(z.object({ userId: brandedId<UserId>(), enabled: z.boolean() }))
+    .output(adminUserViewSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.admin.setEnabled({
+        principal: ctx.auth,
+        userId: input.userId,
+        enabled: input.enabled,
+      }),
+    ),
 
   createUser: adminProcedure
     .input(
@@ -33,6 +38,7 @@ export const adminRouter = t.router({
         role: userRoleSchema.optional(),
       }),
     )
+    .output(adminUserViewSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.admin.createUser({
         principal: ctx.auth,
@@ -56,10 +62,12 @@ export const adminRouter = t.router({
   // a subject already bound elsewhere (bind-once, spine U1).
   linkSsoIdentity: adminProcedure
     .input(z.object({ userId: brandedId<UserId>(), externalId: brandedId<ExternalId>() }))
+    .output(adminUserViewSchema)
     .mutation(({ ctx, input }) => ctx.services.admin.linkSsoIdentity({ principal: ctx.auth, userId: input.userId, externalId: input.externalId })),
 
   listSessions: adminProcedure
     .input(z.object({ userId: brandedId<UserId>() }))
+    .output(z.array(sessionAdminViewSchema).readonly())
     .query(({ ctx, input }) => ctx.services.admin.listSessions({ principal: ctx.auth, userId: input.userId })),
 
   revokeSession: adminProcedure.input(z.object({ sessionId: typeIdSchema(ID_PREFIX.session) })).mutation(async ({ ctx, input }) => {
@@ -76,6 +84,7 @@ export const adminRouter = t.router({
 
   revokeUserSessions: adminProcedure
     .input(z.object({ userId: brandedId<UserId>() }))
+    .output(revokeUserSessionsResultSchema)
     .mutation(({ ctx, input }) => ctx.services.admin.revokeUserSessions({ principal: ctx.auth, userId: input.userId })),
 
   // The inline single-card embed (adminProcedure, Tier-4 esoteric #10: only admins drive the GPU

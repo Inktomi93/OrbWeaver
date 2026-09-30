@@ -4,7 +4,9 @@
 
 export type { Can, GlobalAction, ResourceRef, UserRole } from "@orb/contracts/identity";
 export type { IsAdmin, IsOwner, RequireAdmin, RequireOwner } from "./contract/guard.ts";
+export { revokeUserSessionsResultSchema } from "./contract/results.ts";
 export type { AdminService, ServerRestartPort } from "./contract/service.ts";
 export type { AdminUserView } from "./contract/views.ts";
+export { adminUserViewSchema, sessionAdminViewSchema } from "./contract/views.ts";
 export { can, isAdmin, isOwner, requireAdmin, requireOwner } from "./guard.ts";
 export { createAdminService } from "./service.ts";

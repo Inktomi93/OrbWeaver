@@ -2,12 +2,12 @@
 // the canonical `ConnectionRef` property schema: malformed and wrong-prefix strings stop at tRPC before a
 // domain verb can read, dial or write. `setBinding(null)` remains the deliberate clear-binding arm.
 
-import type { ConnectionBinding, ModelListing } from "@orb/contracts/inference";
+import type { ConnectionBinding, ModelListing, ProviderId } from "@orb/contracts/inference";
 import { modelCatalogEntrySchema } from "@orb/contracts/inference";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
-import type { UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
+import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { ConnectionService } from "@orb/server/domain/connection";
+import type { ConnectionService, ConnectionView } from "@orb/server/domain/connection";
 import type { Context } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -236,5 +236,51 @@ describe("connection.catalogModels — output boundary", () => {
     Object.defineProperty(ctx.services.connection, "catalogModels", { value: () => Promise.resolve({ listed: false, models: [] }) });
 
     await expect(caller(ctx).connection.catalogModels({ connectionId: VALID_CONNECTION_ID })).rejects.toThrow("Output validation failed");
+  });
+});
+
+// The connection reads parse through strict output schemas: a producer that starts returning an extra column
+// (a spread row, a resolved secret) fails the call instead of shipping it or silently dropping it.
+describe("connection rows — the strict output boundary", () => {
+  const View: ConnectionView = {
+    id: VALID_CONNECTION_ID,
+    ownerId: OWNER,
+    label: "OpenRouter · model",
+    providerId: castId<ProviderId>("openrouter"),
+    credentialId: null,
+    baseUrl: null,
+    model: castId<ModelId>("vendor/model"),
+    api: "auto",
+    declared: null,
+    extras: null,
+    transport: null,
+    modelCheck: "unchecked",
+    allowBackground: false,
+    promptCache: null,
+    createdAt: 1_750_000_000_000,
+    updatedAt: 1_750_000_000_000,
+    providerLabel: "OpenRouter",
+    tasks: ["chat"],
+  };
+
+  test("control: a well-formed row passes through unchanged on list and get", async () => {
+    const list = vi.fn<ConnectionService["list"]>(async () => [View]);
+    const get = vi.fn<ConnectionService["get"]>(async () => View);
+    const api = caller(ctxWith({ list, get })).connection;
+
+    await expect(api.list()).resolves.toEqual([View]);
+    await expect(api.get({ connectionId: VALID_CONNECTION_ID })).resolves.toEqual(View);
+  });
+
+  test("list refuses a row carrying a resolved secret", async () => {
+    const list = vi.fn<ConnectionService["list"]>(async () => [{ ...View, apiKey: "sk-planted-secret" }]);
+
+    await expect(caller(ctxWith({ list })).connection.list()).rejects.toThrow("Output validation failed");
+  });
+
+  test("probe refuses a health verdict carrying an extra field", async () => {
+    const probe = vi.fn<ConnectionService["probe"]>(async () => ({ status: "ok", checkedAt: 1, key: "sk-planted-secret" }));
+
+    await expect(caller(ctxWith({ probe })).connection.probe({ connectionId: VALID_CONNECTION_ID })).rejects.toThrow("Output validation failed");
   });
 });

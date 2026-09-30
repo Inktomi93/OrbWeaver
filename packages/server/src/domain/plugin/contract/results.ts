@@ -2,7 +2,8 @@
 // for the owner's management surface; `builtAgainst` is read from the persisted manifest (provenance rides
 // INSIDE the manifest json — there is no denormalized column). `PluginLogView` is one line of the
 // host.log ring. `SnippetResult` is the inline-mode return — TYPE HOME ONLY here; the
-// `runSnippet` verb that produces it lives with the other verbs.
+// `runSnippet` verb that produces it lives with the other verbs. Each strict schema is its procedure's tRPC output
+// parser: an extra key fails the call instead of reaching the browser.
 
 import type {
   PluginBuiltAgainst,
@@ -16,7 +17,25 @@ import type {
   PluginStatus,
   PluginSurfaceRegistrationMeta,
 } from "@orb/contracts/plugin";
+import {
+  PLUGIN_CAPABILITIES,
+  PLUGIN_LOG_LEVELS,
+  PLUGIN_ORIGINS,
+  PLUGIN_STATUSES,
+  pluginBuiltAgainstSchema,
+  pluginBundleHashSchema,
+  pluginCommandArgSpecSchema,
+  pluginCommandPlacementSchema,
+  pluginManifestSchema,
+  pluginNetHostSchema,
+  pluginSurfaceRegistrationMetaSchema,
+} from "@orb/contracts/plugin";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
+
+const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
+const capabilityListSchema = z.array(z.enum(PLUGIN_CAPABILITIES)).readonly();
 
 /** A Git consent preview binds the displayed manifest to the exact cloned revision. */
 export interface PluginGitPreview {
@@ -24,11 +43,18 @@ export interface PluginGitPreview {
   readonly sourceCommit: string;
 }
 
+export const pluginGitPreviewSchema = z.strictObject({ manifest: pluginManifestSchema, sourceCommit: z.string() }) satisfies z.ZodType<PluginGitPreview>;
+
 /** A URL consent preview binds the displayed manifest to the complete fetched zip. */
 export interface PluginUrlPreview {
   readonly manifest: PluginManifest;
   readonly bundleHash: PluginBundleHash;
 }
+
+export const pluginUrlPreviewSchema = z.strictObject({
+  manifest: pluginManifestSchema,
+  bundleHash: pluginBundleHashSchema,
+}) satisfies z.ZodType<PluginUrlPreview>;
 
 /** One installed plugin as its owner sees it — the `plugins` row projected, minus the bundle bytes
  *  and the full manifest json. `builtAgainst` is lifted from the persisted manifest (display/warn provenance);
@@ -115,9 +141,17 @@ export interface PluginSurfaceView extends PluginSurfaceRegistrationMeta {
   readonly toolWireName?: string;
 }
 
+// `safeExtend` keeps the registration meta's per-anchor refinements; `.extend` refuses a refined schema.
+export const pluginSurfaceViewSchema = pluginSurfaceRegistrationMetaSchema
+  .safeExtend({ pluginId: pluginIdSchema, toolWireName: z.string().exactOptional() })
+  .strict() satisfies z.ZodType<PluginSurfaceView>;
+
 /** A surface's published state (`getSurfaceState` U1): the whole JSON map the renderer
  *  resolves `{ $state: "path" }` bindings against. `null` from the verb when nothing has been published yet. */
 export type PluginSurfaceState = Record<string, unknown>;
+
+/** The map is the guest's own published JSON, open by design; only its top-level shape is checked. */
+export const pluginSurfaceStateSchema = z.record(z.string(), z.unknown()) satisfies z.ZodType<PluginSurfaceState>;
 
 /** ONE bundle-shipped image's path → CAS id (`listBundleAssets` — #820 seam 11). The renderer turns a node's
  *  `bundleAsset: "ui/assets/happy.png"` into this `assetId` and then resolves it through the SAME owner-scoped
@@ -131,6 +165,11 @@ export interface PluginBundleAssetView {
   readonly path: string;
   readonly assetId: AssetId;
 }
+
+export const pluginBundleAssetViewSchema = z.strictObject({
+  path: z.string(),
+  assetId: typeIdSchema(ID_PREFIX.asset),
+}) satisfies z.ZodType<PluginBundleAssetView>;
 
 /** Bytes served to an isolated frame after current ownership, consent, residency, path and MIME checks. */
 export interface PluginFrameAsset {
@@ -162,6 +201,17 @@ export interface PluginCommandView {
   readonly placements: readonly PluginCommandPlacement[];
 }
 
+export const pluginCommandViewSchema = z.strictObject({
+  pluginId: pluginIdSchema,
+  slug: z.string(),
+  pluginName: z.string(),
+  name: z.string(),
+  describe: z.string(),
+  args: z.array(pluginCommandArgSpecSchema).readonly(),
+  group: z.string().nullable(),
+  placements: z.array(pluginCommandPlacementSchema).readonly(),
+}) satisfies z.ZodType<PluginCommandView>;
+
 /** One registered DISPLAY transform as the caller's client sees it (`listDisplayTransforms`
  *  seam 14, U6). Deliberately NOT the handler and NOT the apply: this projection exists so a viewer's client can
  *  answer ONE question — "does anything transform my rows?" — and skip every per-row round-trip when the answer
@@ -171,6 +221,8 @@ export interface PluginDisplayTransformView {
   readonly pluginId: PluginId;
   readonly name: string;
 }
+
+export const pluginDisplayTransformViewSchema = z.strictObject({ pluginId: pluginIdSchema, name: z.string() }) satisfies z.ZodType<PluginDisplayTransformView>;
 
 /** One published plugin as the DISTRIBUTE surface sees it (D147 clause (d)) — the `admin_distributed_plugins`
  *  row projected. It describes the deployment's POLICY, never anyone's install: no status, no grant, no
@@ -183,6 +235,14 @@ export interface DistributedPluginView {
   readonly distributedAt: number;
   readonly updatedAt: number;
 }
+
+export const distributedPluginViewSchema = z.strictObject({
+  slug: z.string(),
+  name: z.string(),
+  version: z.string(),
+  distributedAt: z.number(),
+  updatedAt: z.number(),
+}) satisfies z.ZodType<DistributedPluginView>;
 
 /** Why one recipient was passed over by a fan-out. The ONE home for this axis (§5.5) — the client's admin
  *  surface renders each arm's sentence off it, so a new arm fails `tsc` at the renderer rather than
@@ -213,6 +273,14 @@ export interface PluginFanoutResult {
   readonly skipped: readonly PluginFanoutSkip[];
 }
 
+export const pluginFanoutResultSchema = z.strictObject({
+  slug: z.string(),
+  name: z.string(),
+  version: z.string(),
+  applied: z.number().int().nonnegative(),
+  skipped: z.array(z.strictObject({ userId: brandedId<UserId>(), userHandle: z.string(), reason: z.enum(PLUGIN_FANOUT_SKIP_REASONS) })).readonly(),
+}) satisfies z.ZodType<PluginFanoutResult>;
+
 /** What ONE user's application of the published set did (`applyDistributedPlugins`). Slugs, not views: the
  *  caller is the entry hook, whose only interest is the log line and whether anything happened — the rows
  *  themselves arrive through the ordinary `list`. `skippedSlugs` is the "already held at any version" arm,
@@ -230,6 +298,8 @@ export interface PluginLogView {
   readonly at: number;
 }
 
+export const pluginLogViewSchema = z.strictObject({ level: z.enum(PLUGIN_LOG_LEVELS), message: z.string(), at: z.number() }) satisfies z.ZodType<PluginLogView>;
+
 /** The inline-snippet run's result — echoed into the CALLER's own chat client (a personal REPL, not a
  *  room broadcast). `error` is present iff the snippet threw / hit its wall (a snippet crash is data, never a
  *  resident-crash counter — nothing is resident to protect). `errorKind` distinguishes the two outcomes an
@@ -245,6 +315,27 @@ export interface SnippetResult {
   readonly errorKind?: "parse" | "runtime";
   readonly errorLine?: number;
 }
+
+export const snippetResultSchema = z.strictObject({
+  logLines: z.array(z.string()).readonly(),
+  error: z.string().exactOptional(),
+  errorKind: z.enum(["parse", "runtime"]).exactOptional(),
+  errorLine: z.number().int().exactOptional(),
+}) satisfies z.ZodType<SnippetResult>;
+
+/** `uiHostCall`'s reply: the host function's result as an inert JSON string, never a materialized object. */
+export interface PluginUiHostCallResult {
+  readonly resultJson: string;
+}
+
+export const pluginUiHostCallResultSchema = z.strictObject({ resultJson: z.string() }) satisfies z.ZodType<PluginUiHostCallResult>;
+
+/** `transformForDisplay`'s reply: the row text after every display transform ran (or was skipped). */
+export interface PluginDisplayTransformResult {
+  readonly text: string;
+}
+
+export const pluginDisplayTransformResultSchema = z.strictObject({ text: z.string() }) satisfies z.ZodType<PluginDisplayTransformResult>;
 
 /** The things that can serve a NEWER bundle for an installed row (#1740/#0081) — the axis
  *  {@link PluginView.updateSource} and the client's one-click affordance both dispatch on. ONE importable home
@@ -279,3 +370,38 @@ export type PluginUpdateCheck =
   | { readonly pluginId: PluginId; readonly status: "update-available"; readonly source: "showcase"; readonly newVersion: string }
   | { readonly pluginId: PluginId; readonly status: "source-changed"; readonly sourceCommit: string }
   | { readonly pluginId: PluginId; readonly status: "unreachable" };
+
+export const pluginViewSchema = z.strictObject({
+  id: pluginIdSchema,
+  slug: z.string(),
+  name: z.string(),
+  version: z.string(),
+  status: z.enum(PLUGIN_STATUSES),
+  origin: z.enum(PLUGIN_ORIGINS),
+  sourceUrl: z.string().nullable(),
+  sourceCommit: z.string().nullable(),
+  updateSource: z.enum(PLUGIN_UPDATE_SOURCES).nullable(),
+  grantedCapabilities: capabilityListSchema,
+  declaredCapabilities: capabilityListSchema,
+  netHosts: z.array(pluginNetHostSchema).readonly().nullable(),
+  reconsentPending: z.boolean(),
+  widenedNetHosts: z.array(pluginNetHostSchema).readonly(),
+  builtAgainst: pluginBuiltAgainstSchema.nullable(),
+  lastError: z.string().nullable(),
+  installedAt: z.number(),
+  updatedAt: z.number(),
+}) satisfies z.ZodType<PluginView>;
+
+export const pluginUpdateCheckSchema = z.union([
+  z.strictObject({ pluginId: pluginIdSchema, status: z.literal("up-to-date") }),
+  z.strictObject({
+    pluginId: pluginIdSchema,
+    status: z.literal("update-available"),
+    source: z.literal("url"),
+    newVersion: z.string(),
+    bundleHash: pluginBundleHashSchema,
+  }),
+  z.strictObject({ pluginId: pluginIdSchema, status: z.literal("update-available"), source: z.literal("showcase"), newVersion: z.string() }),
+  z.strictObject({ pluginId: pluginIdSchema, status: z.literal("source-changed"), sourceCommit: z.string() }),
+  z.strictObject({ pluginId: pluginIdSchema, status: z.literal("unreachable") }),
+]) satisfies z.ZodType<PluginUpdateCheck>;

@@ -32,6 +32,14 @@ import { requireBaseUrl, requireCredential, requireProvider } from "../substrate
 import { spacesDiffer, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
 import { curatedKindOf } from "../substrate/kind.ts";
 
+function requireLabel(raw: string): string {
+  const label = raw.trim();
+  if (label === "") {
+    throw new DomainOperationError(CONNECTION_OP_CODES.labelEmpty, "a connection needs a name — type one, or keep the current name.");
+  }
+  return label;
+}
+
 function requireModelId(raw: string): ModelId {
   const parsed = modelIdSchema.safeParse(raw);
   if (!parsed.success) {
@@ -171,7 +179,7 @@ async function validatedPatch(
     requireCatalogModel(ctx, ownerId, provider, model);
   }
   return {
-    ...(patch.label !== undefined ? { label: patch.label.trim() } : {}),
+    ...(patch.label !== undefined ? { label: requireLabel(patch.label) } : {}),
     providerId: provider.id,
     credentialId,
     baseUrl,
