@@ -175,7 +175,7 @@ jobs:
 
       - name: Prove the plugin broker cannot read the data dir in the production image
         run: |
-          for file in _broker-containment-proof.ts _broker-permission-probe.ts; do
+          for file in _broker-containment-proof.ts _broker-permission-probe.ts _worker-drop-preload.ts; do
             docker compose exec --user node -T orbweaver sh -c "cat > /app/.cache/$file" < "tests/server/infra/plugin-host/$file"
           done
           docker compose exec --user node -T orbweaver node /app/.cache/_broker-containment-proof.ts --root=/app

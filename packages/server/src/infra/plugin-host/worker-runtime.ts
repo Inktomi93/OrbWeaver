@@ -39,11 +39,21 @@ function requireParentPort(): MessagePort {
 
 const port = requireParentPort();
 
-// The permission model does not inherit to a Worker, so guest code could start a fresh Worker with no grants and
-// reach the filesystem through it. Drop this Worker's own permission to start Workers before any guest code loads.
-// Defense in depth only; the complete fix is a separate OS user for the broker (container-deployment-security §4).
-// `drop` is newer than this package's `@types/node`, so it is reached through an optional-shape cast.
-(process.permission as unknown as { drop?: (scope: string) => boolean } | undefined)?.drop?.("worker");
+// The permission model does not inherit to a Worker started with `execArgv: []`, so code in this Worker could start
+// one with no grants and read the filesystem through it. Drop this Worker's permission to start Workers before any
+// guest code loads. Defense in depth only; the complete fix is a separate OS user for the broker (finding 4 in
+// `docs/law/container-deployment-security.md`). `@types/node` declares `process.permission` always present and has no
+// `drop`; at runtime it is absent without `--permission`, and `drop` exists from Node 26.3.0.
+function runtimePermission(): (typeof process.permission & { readonly drop?: (scope: string) => void }) | undefined {
+  return process.permission;
+}
+const permission = runtimePermission();
+permission?.drop?.("worker");
+// Fail closed: a Node without `drop` would leave the permission in place. Throwing here ends the Worker before any
+// guest code runs, and the broker's exit handler fails the runtime.
+if (permission?.has("worker") === true) {
+  throw new Error("plugin broker worker: could not drop the permission to start Workers");
+}
 
 const identity = workerData as WorkerIdentity;
 const commandAuthority = new AsyncLocalStorage<string>();

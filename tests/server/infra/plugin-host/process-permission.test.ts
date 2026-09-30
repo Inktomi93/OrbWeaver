@@ -20,6 +20,8 @@ import { expect, test } from "../../../support/fixtures.ts";
 
 const BROKER_ENTRY = fileURLToPath(new URL("../../../../packages/server/src/infra/plugin-host/broker-entry.ts", import.meta.url));
 const PROBE = fileURLToPath(new URL("./_broker-permission-probe.ts", import.meta.url));
+const WORKER_RUNTIME = fileURLToPath(new URL("../../../../packages/server/src/infra/plugin-host/worker-runtime.ts", import.meta.url));
+const DROP_PRELOAD = fileURLToPath(new URL("./_worker-drop-preload.ts", import.meta.url));
 const WORKSPACE_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 const DENIED = "ERR_ACCESS_DENIED";
 const PRIVATE_FILE_MODE = 0o600;
@@ -31,9 +33,8 @@ interface ProbeReport {
   readonly workerReads: Readonly<Record<string, string>>;
   readonly workerSqlite: Readonly<Record<string, string>>;
   readonly spawn: string;
-  readonly mainNested: string;
-  readonly workerNestedBeforeDrop: string;
-  readonly workerNestedAfterDrop: string;
+  readonly dropHasWorker: boolean;
+  readonly dropNested: string;
 }
 
 let broker: ChildProcess | undefined;
@@ -106,8 +107,12 @@ test("a broker under its permission flags is denied the data dir, .env and proce
   broker = spawn(process.execPath, [...pluginBrokerExecArgv(brokerDirectory), ...probeArgv, BROKER_ENTRY, socketPath, tokenPath, "1", "test"], {
     // The watchdog starts the broker in its private directory; process-runtime.test.ts pins that on the live broker.
     cwd: brokerDirectory,
-    // biome-ignore lint/style/useNamingConvention: environment variable names are fixed upper-case keys.
-    env: { NODE_ENV: "test", ORB_BROKER_PROBE_READS: JSON.stringify([...denied, ...allowed]) },
+    env: {
+      ["NODE_ENV"]: "test",
+      ["ORB_BROKER_PROBE_READS"]: JSON.stringify([...denied, ...allowed]),
+      ["ORB_WORKER_RUNTIME_PATH"]: WORKER_RUNTIME,
+      ["ORB_WORKER_DROP_PRELOAD"]: DROP_PRELOAD,
+    },
     stdio: ["ignore", "inherit", "inherit", "ipc"],
   });
   const report = await new Promise<ProbeReport>((resolve, reject) => {
@@ -130,10 +135,9 @@ test("a broker under its permission flags is denied the data dir, .env and proce
     expect(sqlite[dataKey]).not.toBe("allowed");
   }
   expect(report.spawn).toBe(DENIED);
-  // A guest Worker can start a Worker with `execArgv: []` that runs with no permission model, until it drops the
-  // `worker` permission (`worker-runtime.ts`); the broker's main thread keeps that permission to launch guests.
-  expect(report.workerNestedBeforeDrop).toMatch(/^read:/u);
-  expect(report.workerNestedAfterDrop).toBe(`denied:${DENIED}`);
-  expect(report.mainNested).toMatch(/^read:/u);
+  // The real `worker-runtime.ts`, started as a Worker, drops the `worker` permission before any guest code runs, so a
+  // guest Worker can no longer start a Worker with `execArgv: []` that would read a secret with no permission model.
+  expect(report.dropHasWorker).toBe(false);
+  expect(report.dropNested).toBe(`denied:${DENIED}`);
   expect(await authenticates(socketPath, token)).toBe(true);
 });
