@@ -33,24 +33,32 @@ const AUTH_TIMEOUT_MS = 5000;
 const PRIVATE_DIRECTORY_MODE = 0o700;
 const PRIVATE_FILE_MODE = 0o600;
 const { socketPath, tokenPath, workerMaximum, nodeEnvironment } = parsePluginBrokerArguments(process.argv.slice(2));
-if (process.send !== undefined) {
-  const heartbeat = setInterval(() => {
-    // The watchdog's own IPC channel can close between ticks (its own forced teardown) — `process.send`
-    // outside of that guard throws an uncaught 'error' event on the process object with nothing armed to
-    // catch it, crashing this broker over a heartbeat nobody would have read anyway.
-    if (!process.connected) {
-      return;
-    }
-    process.send?.({
-      kind: "plugin-broker-memory",
-      rssBytes: process.memoryUsage.rss(),
-      peakPhysicalWorkers,
-      execArgv: process.execArgv,
-      nodeOptions: null,
-    });
-  }, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS);
-  heartbeat.unref();
+if (process.send === undefined) {
+  throw new Error("plugin broker: refusing to run without its watchdog's IPC channel");
 }
+// The watchdog enforces this broker's memory and heartbeat limits, so an unsupervised broker must serve nothing.
+// POSIX reparents the broker the instant its watchdog dies; the IPC channel reports the loss on every platform,
+// including Windows, where the parent pid never changes. Either signal alone counts.
+const supervisorPid = process.ppid;
+function supervised(): boolean {
+  return process.connected && process.ppid === supervisorPid;
+}
+const heartbeat = setInterval(() => {
+  // The watchdog's own IPC channel can close between ticks (its own forced teardown) — `process.send`
+  // outside of that guard throws an uncaught 'error' event on the process object with nothing armed to
+  // catch it, crashing this broker over a heartbeat nobody would have read anyway.
+  if (!process.connected) {
+    return;
+  }
+  process.send?.({
+    kind: "plugin-broker-memory",
+    rssBytes: process.memoryUsage.rss(),
+    peakPhysicalWorkers,
+    execArgv: process.execArgv,
+    nodeOptions: null,
+  });
+}, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS);
+heartbeat.unref();
 
 function readOrCreateToken(path: string): string {
   try {
@@ -376,7 +384,20 @@ if (!socketIsNamedPipe) {
   chmodSync(dirname(socketPath), PRIVATE_DIRECTORY_MODE);
   rmSync(socketPath, { force: true });
 }
+// `server.close` alone stops new accepts but keeps serving the open app connection, so drop that too; its close
+// handler resets every runtime and exits.
+function abandon(): void {
+  resetAll();
+  server.close(() => process.exit(0));
+  activeSocket?.destroy();
+}
+
 const server = createServer((socket) => {
+  if (!supervised()) {
+    socket.destroy();
+    abandon();
+    return;
+  }
   if (activeSocket !== undefined && !activeSocket.destroyed) {
     socket.destroy();
     return;
@@ -398,6 +419,10 @@ const server = createServer((socket) => {
       return;
     }
     for (let newline = buffer.indexOf("\n"); newline >= 0; newline = buffer.indexOf("\n")) {
+      if (!supervised()) {
+        abandon();
+        return;
+      }
       const line = buffer.slice(0, newline);
       buffer = buffer.slice(newline + 1);
       try {
@@ -429,11 +454,5 @@ server.listen(socketPath, () => {
     chmodSync(socketPath, PRIVATE_FILE_MODE);
   }
 });
-process.on("SIGTERM", () => {
-  resetAll();
-  server.close(() => process.exit(0));
-});
-process.on("disconnect", () => {
-  resetAll();
-  server.close(() => process.exit(0));
-});
+process.on("SIGTERM", abandon);
+process.on("disconnect", abandon);

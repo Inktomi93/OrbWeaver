@@ -8,6 +8,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./backup-names": "./src/client/backup-names.ts",
     "./kit": "./src/kit/index.ts",
     "./schema": "./src/schema/index.ts"
   },

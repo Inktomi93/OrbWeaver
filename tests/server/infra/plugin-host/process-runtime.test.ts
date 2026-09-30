@@ -13,8 +13,10 @@ import {
   __hasManagedPluginBrokerForTest,
   __killManagedPluginBrokerOnBridgeForTest,
   __killManagedPluginBrokerOnCommandForTest,
+  __killManagedPluginWatchdogForTest,
   __pauseManagedPluginBridgeDeliveryForTest,
   __pauseManagedPluginConnectChaseForTest,
+  __readManagedPluginSocketPathForTest,
   __terminateManagedPluginBrokerForTest,
 } from "../../../../packages/server/src/infra/plugin-host/process-runtime.ts";
 import { packShowcaseBundle } from "../../../../packages/showcase-plugins/src/index.ts";
@@ -153,10 +155,6 @@ test("a create still resolving its connection when the broker dies is served exa
   // `killer`'s own "create" write triggers the kill against the connection `victim` already opened.
   const killer = host.createInstance({ ...durableSource("'killer';"), grants: [], bridge: base, chat: noChat });
   await expect(killer).rejects.toMatchObject({ name: "PluginHostUnavailable" });
-  // The kill only SIGKILLs the watchdog; its own already-spawned broker can stay alive and accepting until it
-  // notices its parent's IPC channel close and self-terminates — an OS-scheduled gap, not an instant one. Wait
-  // it out so `bystander` below cannot win a race by reusing that dying-but-not-yet-gone process.
-  await new Promise((resolve) => setTimeout(resolve, 500));
   const pause = __pauseManagedPluginConnectChaseForTest();
   const bystander = host.createInstance({
     ...durableSource(`
@@ -191,6 +189,23 @@ test("connectOnce never respawns a broker once the app tears it down with nothin
   // should spawn a replacement process nobody asked for.
   await new Promise((resolve) => setTimeout(resolve, 100));
   expect(__hasManagedPluginBrokerForTest()).toBe(false);
+});
+
+test("once the watchdog dies the app never sends its broker another command and serves the next one from a fresh broker", { timeout: LONG }, async () => {
+  const host = createPluginHost(seams());
+  const first = await host.createInstance({ ...durableSource("'first';"), grants: [], bridge: bridge(), chat: noChat });
+  expect(first.ok).toBe(true);
+  const orphanSocketPath = __readManagedPluginSocketPathForTest();
+
+  await __killManagedPluginWatchdogForTest();
+  const second = await host.createInstance({ ...durableSource("'second';"), grants: [], bridge: bridge(), chat: noChat });
+
+  expect(second.ok).toBe(true);
+  expect(__hasManagedPluginBrokerForTest()).toBe(true);
+  expect(__readManagedPluginSocketPathForTest()).not.toBe(orphanSocketPath);
+  if (second.ok) {
+    host.dispose(second.instance);
+  }
 });
 
 test("the app creates and owns the watchdog without a preconfigured broker endpoint", { timeout: LONG }, async () => {

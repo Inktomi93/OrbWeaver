@@ -193,6 +193,11 @@ function writeAllFixtures(): void {
   fx(`${S}/foundation/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
   fx(`${S}/infra/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
   fx(`${S}/infra/__dc/db.ts`, `import "../../../../db/src/__dc/target.ts";\n`);
+  // plugin-worker-no-db: the Worker entry reaches the DB only through a foundation hop, the barrel shape the
+  // direct-edge infra-no-db rule cannot see. The backup-name leaf is the `pathNot` negative control.
+  fx(`${S}/foundation/__dc/worker-hop.ts`, `import "../../../../db/src/__dc/target.ts";\n`);
+  fx("packages/db/src/client/backup-names.ts", VAL);
+  fx(`${S}/infra/plugin-host/worker-runtime.ts`, `import "../../foundation/__dc/worker-hop.ts";\nimport "../../../../db/src/client/backup-names.ts";\n`);
   fx(`${S}/domain/__dc_feat/up.ts`, `import "../../transport/__dc/target.ts";\n`);
   fx(`${S}/transport/__dc/up.ts`, `import "../../entry/__dc/target.ts";\n`);
   fx(`${S}/transport/trpc/routers/__dc.ts`, `import { t } from "../../../../../db/src/__dc/target.ts";\nexport const u = t;\n`);
@@ -463,6 +468,12 @@ test("the credential firewall fires on a TRANSITIVE sibling-backend chain and ex
   expect(sources).toContain("packages/inference/src/catalog/openrouter.ts");
   // The `pathNot` arm, proven against a LIVE agent-sdk→agent-sdk edge rather than against its absence.
   expect(sources.filter((from) => from.startsWith("packages/inference/src/backends/agent-sdk/"))).toEqual([]);
+});
+
+test("the plugin Worker entry may not reach the DB through any chain, except the backup-name leaf", () => {
+  const reached = allViolations.filter((violation) => violation.rule.name === "plugin-worker-no-db").map((violation) => violation.to);
+  expect(reached).toContain("packages/db/src/__dc/target.ts");
+  expect(reached).not.toContain("packages/db/src/client/backup-names.ts");
 });
 
 test("allows only data/trpc.ts → server root as the client backend type seam", () => {

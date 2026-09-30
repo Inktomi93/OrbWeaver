@@ -19,6 +19,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 // biome-ignore lint/performance/noNamespaceImport: drizzle needs the whole schema module as `{ schema }` and as `typeof schema` for the Db type — the canonical pattern.
 import * as schema from "#schema";
+import { backupNamePatterns, isBackupFileName } from "./backup-names.ts";
 
 /** The handle every domain's `context.ts` closes over. The `db` row types come off `typeof schema`. */
 export type Db = LibSQLDatabase<typeof schema>;
@@ -247,33 +248,6 @@ const KEEP_RECENT_BACKUPS = 5;
 const KEEP_DAILY_BACKUPS = 7;
 const MS_PER_DAY = 86_400_000;
 
-/**
- * The PIN marker: an empty sibling file `<db>.backup-<stamp>.keep` in the backup dir makes that backup
- * exempt from the retention sweep, forever, in ADDITION to the recent/daily budget. Creating one is a bare
- * `touch data/backups/orbweaver.db.backup-<stamp>.keep` — deliberately no CLI: the marker IS the
- * mechanism, and a tool that hides `touch` behind a verb is a tool that can rot.
- *
- * WHY IT EXISTS (2026-08-23, issue #534 — the #533 incident): a baseline-hash change auto-resets the dev
- * db at the next respawn, and the ONLY copy of what was dropped is the boot's own pre-migrate backup —
- * which the very next migrating boots age out. Eight hours of corpus analysis survived only because a
- * human copied that file out of `data/` by hand. A pin is the in-tree version of that rescue: mark the
- * backup, and the sweep can never take it.
- *
- * A marker for a stamp with no base copy pins nothing (the orphan sidecars are still swept); the marker
- * file itself is never matched by the sweep's own pattern, so it is never deleted either — an intentional
- * one-way act, removable only by hand.
- *
- * THE ORPHANED MARKER ACCUMULATES, AND THAT IS THE DECISION (#1377 item 7, re-derived and CONFIRMED — the
- * pin regex and the backup-group regex are structurally disjoint, so a `.keep` file never enters `groups`
- * and {@link pruneDbBackups} never considers it). Sweeping a marker whose base copy is gone was weighed
- * and REFUSED: the file is a zero-byte human intent, the ONE artefact in this directory the automation is
- * forbidden to touch, and a sweep of it would have to decide "gone" from a directory listing taken while
- * another boot may be mid-copy. An empty `.keep` beside no backup costs nothing and says something true —
- * that someone once pinned that instant. Deleting a human's marker to tidy a byte is the wrong trade in a
- * mechanism whose entire existence is the #533 data loss.
- */
-const PIN_SUFFIX = ".keep";
-
 // One backup instant: the base copy and/or its sqlite sidecars. `hasBase` false ⇒ orphaned sidecars.
 interface BackupGroup {
   readonly files: string[];
@@ -284,16 +258,6 @@ interface BackupGroup {
 interface BackupInventory {
   readonly groups: Map<number, BackupGroup>;
   readonly pinned: Set<number>;
-}
-
-// The ONE pair of anchored, regex-escaped name patterns for a db's backups: the copies with their sidecars,
-// and the pin markers. Both the retention sweep and the layout migration's enumeration read through these.
-function backupNamePatterns(base: string): { readonly backupRe: RegExp; readonly pinRe: RegExp } {
-  const escaped = RegExp.escape(base);
-  return {
-    backupRe: new RegExp(`^${escaped}\\.backup-(\\d+)(-wal|-shm)?$`, "g"),
-    pinRe: new RegExp(`^${escaped}\\.backup-(\\d+)${RegExp.escape(PIN_SUFFIX)}$`, "g"),
-  };
 }
 
 // Regular files only: a directory named like a backup is never a backup.
@@ -337,14 +301,8 @@ export function listBackupFiles(dir: string, base: string): readonly string[] {
   return backupDirFiles(dir).filter((name) => isBackupFileName(name, base));
 }
 
-/** Whether `name` is one of `base`'s backup copies, sidecars or pin markers, by the sweep's own patterns. */
-export function isBackupFileName(name: string, base: string): boolean {
-  const { backupRe, pinRe } = backupNamePatterns(base);
-  return [...name.matchAll(backupRe)].length > 0 || [...name.matchAll(pinRe)].length > 0;
-}
-
 /**
- * The stamps to KEEP: every PINNED stamp ({@link PIN_SUFFIX}), plus the {@link KEEP_RECENT_BACKUPS}
+ * The stamps to KEEP: every PINNED stamp (`PIN_SUFFIX`), plus the {@link KEEP_RECENT_BACKUPS}
  * newest, plus the newest of each of the last {@link KEEP_DAILY_BACKUPS} distinct days. Only stamps with
  * a real base file are candidates — an orphan sidecar group restores nothing, so it is never kept, pinned
  * or not.
@@ -379,7 +337,7 @@ function retainedStamps({ groups, pinned }: BackupInventory): ReadonlySet<number
 
 /**
  * Delete stale `<db>.backup-<epoch>` copies (with their `-wal`/`-shm` sidecars), keeping every PINNED
- * stamp ({@link PIN_SUFFIX}) plus the {@link KEEP_RECENT_BACKUPS} newest plus the newest of each of the
+ * stamp (`PIN_SUFFIX`) plus the {@link KEEP_RECENT_BACKUPS} newest plus the newest of each of the
  * last {@link KEEP_DAILY_BACKUPS} days. Returns the deleted paths. No-op for `:memory:` / non-file URLs.
  * Called by the boot migrate step AFTER a successful migration — never on a no-op boot.
  *

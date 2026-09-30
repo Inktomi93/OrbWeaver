@@ -288,6 +288,23 @@ class BrokerClient {
     return this.managedChild !== undefined;
   }
 
+  managedSocketPathForTest(): string | undefined {
+    return this.managedEndpoint?.socketPath;
+  }
+
+  // Kills only the watchdog, leaving the app's broker socket and the broker itself to notice on their own.
+  async killWatchdogForTest(): Promise<void> {
+    const child = this.managedChild;
+    if (child === undefined || child.exitCode !== null) {
+      throw new Error("plugin host test: no live watchdog to kill");
+    }
+    child.ref();
+    await new Promise<void>((resolve) => {
+      child.once("exit", () => resolve());
+      child.kill("SIGKILL");
+    });
+  }
+
   async terminateManagedForTest(): Promise<void> {
     this.bridgeDeliveryPause?.resume();
     this.bridgeDeliveryPause = undefined;
@@ -432,21 +449,18 @@ class BrokerClient {
       this.managedChild = child;
       endpoint = { socketPath, tokenPath };
       this.managedEndpoint = endpoint;
-      child.once("error", (error) => {
+      const onWatchdogGone = (error: Error): void => {
         if (this.managedChild !== child) {
           return;
         }
         this.managedChild = undefined;
         this.managedEndpoint = undefined;
+        // The broker can outlive its watchdog for a moment; never send it another command over this socket.
+        this.socket?.destroy();
         this.onDisconnect(error);
-      });
-      child.once("exit", () => {
-        if (this.managedChild === child) {
-          this.managedChild = undefined;
-          this.managedEndpoint = undefined;
-          this.onDisconnect(unavailableError());
-        }
-      });
+      };
+      child.once("error", onWatchdogGone);
+      child.once("exit", () => onWatchdogGone(unavailableError()));
     }
     await this.connectWithRetry(endpoint.socketPath, endpoint.tokenPath, performance.now() + CONNECT_TIMEOUT_MS);
   }
@@ -776,6 +790,16 @@ export function __terminateManagedPluginBrokerForTest(): Promise<void> {
 /** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
 export function __hasManagedPluginBrokerForTest(): boolean {
   return broker.hasManagedChildForTest();
+}
+
+/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+export function __readManagedPluginSocketPathForTest(): string | undefined {
+  return broker.managedSocketPathForTest();
+}
+
+/** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
+export function __killManagedPluginWatchdogForTest(): Promise<void> {
+  return broker.killWatchdogForTest();
 }
 
 /** @public twin: tests/server/infra/plugin-host/process-runtime.test.ts */
