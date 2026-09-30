@@ -2,7 +2,7 @@
 // `pnpm` on PATH. Every run gets its own runtime dir, so the hook's host-wide pools are the test's alone.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
@@ -14,6 +14,7 @@ import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
 const HOOK_REL = ".claude/hooks/biome-check.mjs";
+const CODEX_HOOK_REL = ".claude/hooks/codex-edit-advisory.mjs";
 
 function git(cwd: string, ...args: string[]): void {
   execFixtureGit(cwd, ["-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main", ...args]);
@@ -90,6 +91,21 @@ if [[ "$*" == *"exec depcruise"* ]] && [ "\${HOOK_TEST_MODE:-}" = "dep-actionabl
 fi
 if [[ "$*" == *"typecheck-plan"* ]]; then
   subject="\${@: -1}"
+  if [ "\${HOOK_TEST_MODE:-}" = "batch-diagnostic" ]; then
+    printf '{"mode":"primary","coverage":"advisory-primary-programs","programs":["tsconfig.tests-dom.json"],"subjects":['
+    separator=""
+    seen_separator=0
+    for argument in "$@"; do
+      if [ "$seen_separator" = 1 ]; then
+        printf '%s{"path":"%s","disposition":"selected","selectedPrograms":["tsconfig.tests-dom.json"]}' "$separator" "$argument"
+        separator=,
+      elif [ "$argument" = -- ]; then
+        seen_separator=1
+      fi
+    done
+    printf ']}\n'
+    exit 0
+  fi
   if [ "\${HOOK_TEST_MODE:-}" = "plan-preamble" ] || [ "\${HOOK_TEST_MODE:-}" = "plan-preamble-diagnostic" ]; then
     wrapper_preamble
     printf '{"mode":"primary","coverage":"advisory-primary-programs","programs":["tsconfig.tests-dom.json"],"subjects":[{"path":"%s","disposition":"selected","selectedPrograms":["tsconfig.tests-dom.json"]}]}\n' "$subject"
@@ -132,6 +148,10 @@ if [[ "$*" == *"typecheck-plan"* ]]; then
 fi
 if [[ "$*" == *"scripts/ts7.ts"* ]] && [ "\${HOOK_TEST_MODE:-}" = "plan-preamble-diagnostic" ]; then
   printf 'tests/client/subject.dom.test.ts(3,9): error TS2322: Type string is not assignable to number.\n'
+  exit 1
+fi
+if [[ "$*" == *"scripts/ts7.ts"* ]] && [ "\${HOOK_TEST_MODE:-}" = "batch-diagnostic" ]; then
+  printf 'tests/client/unchanged-consumer.ts(7,3): error TS2322: Type string is not assignable to number.\n'
   exit 1
 fi
 if [[ "$*" == *"scripts/ts7.ts"* ]] && [ "\${HOOK_TEST_MODE:-}" = "consumer-diagnostic" ]; then
@@ -642,4 +662,177 @@ test("a program already being checked for this checkout is skipped, not run twic
   expect(result.status).toBe(2);
   expect(result.stderr).toContain("typecheck: tsconfig.tests-dom.json is already running for this checkout; it was SKIPPED");
   expect(readFileSync(log, "utf8")).not.toContain("scripts/ts7.ts");
+});
+
+function installCodexAdapter(worktree: string, repoRoot: string): string {
+  const hooks = join(worktree, ".claude", "hooks");
+  mkdirSync(hooks, { recursive: true });
+  const adapter = join(hooks, "codex-edit-advisory.mjs");
+  writeFileSync(adapter, readFileSync(join(repoRoot, CODEX_HOOK_REL)));
+  symlinkSync(join(repoRoot, HOOK_REL), join(hooks, "biome-check.mjs"));
+  return adapter;
+}
+
+function codexPayload(cwd: string, command: string, toolResponse: unknown = "Success. Updated the following files:"): string {
+  return hookPayload([
+    ["hook_event_name", "PostToolUse"],
+    ["tool_name", "apply_patch"],
+    ["cwd", cwd],
+    ["tool_input", { command }],
+    ["tool_response", toolResponse],
+  ]);
+}
+
+function codexContext(result: ReturnType<typeof spawnSync>): string {
+  const output = JSON.parse(String(result.stdout)) as { hookSpecificOutput: { additionalContext: string } };
+  return output.hookSpecificOutput.additionalContext;
+}
+
+test("Codex patch findings reach model context with one planner and one compiler run for a multi-file world", ({ scratch, repoRoot }) => {
+  const checkout = plantCheckout(scratch);
+  const adapter = installCodexAdapter(checkout.worktree, repoRoot);
+  const bin = join(scratch, "stub bin");
+  const log = join(scratch, "pnpm.log");
+  stubPnpm(bin);
+  writeFileSync(join(checkout.worktree, "tests/client/second.dom.test.ts"), "export const second = true;\n");
+  const patch = ["*** Begin Patch", "*** Update File: tests/client/subject.dom.test.ts", "*** Add File: tests/client/second.dom.test.ts", "*** End Patch"].join(
+    "\r\n",
+  );
+  const result = runHook({
+    hook: adapter,
+    project: checkout.main,
+    cwd: checkout.worktree,
+    file: "",
+    bin,
+    log,
+    runtime: join(scratch, "runtime"),
+    mode: "batch-diagnostic",
+    rawInput: codexPayload(checkout.worktree, patch),
+  });
+  expect(result.status).toBe(0);
+  expect(result.stderr).toBe("");
+  const output = JSON.parse(String(result.stdout)) as { hookSpecificOutput?: { hookEventName?: string; additionalContext?: string } };
+  expect(output.hookSpecificOutput?.hookEventName).toBe("PostToolUse");
+  expect(output.hookSpecificOutput?.additionalContext).toContain("TS2322");
+  expect(output.hookSpecificOutput?.additionalContext).toContain("unchanged-consumer.ts:7,3");
+  const commands = readFileSync(log, "utf8").split("\n");
+  expect(commands.filter((line) => line.includes("typecheck-plan"))).toHaveLength(1);
+  expect(commands.filter((line) => line.includes("scripts/ts7.ts"))).toHaveLength(1);
+  expect(commands.filter((line) => line.includes("exec biome"))).toHaveLength(2);
+  expect(commands.filter((line) => line !== "").every((line) => line.startsWith(`${checkout.worktree}|`))).toBe(true);
+});
+
+test("Codex adapter reports tool nonverdicts, deletion gaps, and failed patch results without false clean", ({ scratch, repoRoot }) => {
+  const checkout = plantCheckout(scratch);
+  const adapter = installCodexAdapter(checkout.worktree, repoRoot);
+  const bin = join(scratch, "stub bin");
+  const log = join(scratch, "pnpm.log");
+  stubPnpm(bin);
+  const patch = "*** Begin Patch\n*** Update File: tests/client/subject.dom.test.ts\n*** End Patch";
+  const base = { hook: adapter, project: checkout.main, cwd: checkout.worktree, file: "", bin, log, runtime: join(scratch, "runtime") };
+  const error = runHook({ ...base, mode: "biome-tool-error", rawInput: codexPayload(checkout.worktree, patch) });
+  expect(error.status).toBe(0);
+  expect(codexContext(error)).toContain("checks without a verdict");
+  expect(codexContext(error)).toContain("biome failed without a diagnostic");
+
+  unlinkSync(join(checkout.worktree, "tests/client/subject.dom.test.ts"));
+  const deletion = runHook({
+    ...base,
+    rawInput: codexPayload(checkout.worktree, "*** Begin Patch\n*** Delete File: tests/client/subject.dom.test.ts\n*** End Patch"),
+  });
+  expect(deletion.status).toBe(0);
+  expect(codexContext(deletion)).toContain("deleted");
+  const beforeFailed = readFileSync(log, "utf8");
+  const failed = runHook({
+    ...base,
+    rawInput: codexPayload(checkout.worktree, patch, { isError: true, content: [{ type: "text", text: "Failed to find expected lines" }] }),
+  });
+  expect(failed.status).toBe(0);
+  expect(failed.stdout).toBe("");
+  const failedText = runHook({
+    ...base,
+    rawInput: codexPayload(checkout.worktree, patch, "apply_patch verification failed: expected lines were absent"),
+  });
+  expect(failedText.status).toBe(0);
+  expect(failedText.stdout).toBe("");
+  expect(readFileSync(log, "utf8")).toBe(beforeFailed);
+});
+
+test("Codex adapter rejects foreign checkout before running pnpm", ({ scratch, repoRoot }) => {
+  const trusted = plantCheckout(join(scratch, "trusted"));
+  const foreign = plantCheckout(join(scratch, "foreign"));
+  const adapter = installCodexAdapter(trusted.worktree, repoRoot);
+  const bin = join(scratch, "stub bin");
+  const log = join(scratch, "pnpm.log");
+  stubPnpm(bin);
+  const result = runHook({
+    hook: adapter,
+    project: trusted.main,
+    cwd: foreign.worktree,
+    file: "",
+    bin,
+    log,
+    runtime: join(scratch, "runtime"),
+    rawInput: codexPayload(foreign.worktree, "*** Begin Patch\n*** Update File: tests/client/subject.dom.test.ts\n*** End Patch"),
+  });
+  expect(result.status).toBe(0);
+  expect(codexContext(result)).toContain("different repository");
+  expect(existsSync(log)).toBe(false);
+});
+
+test("Codex adapter checks a moved destination and names the removed source", ({ scratch, repoRoot }) => {
+  const checkout = plantCheckout(scratch);
+  const adapter = installCodexAdapter(checkout.worktree, repoRoot);
+  const bin = join(scratch, "stub bin");
+  const log = join(scratch, "pnpm.log");
+  stubPnpm(bin);
+  renameSync(join(checkout.worktree, "tests/client/subject.dom.test.ts"), join(checkout.worktree, "tests/client/moved.dom.test.ts"));
+  const patch = "*** Begin Patch\n*** Update File: tests/client/subject.dom.test.ts\n*** Move to: tests/client/moved.dom.test.ts\n*** End Patch";
+  const result = runHook({
+    hook: adapter,
+    project: checkout.main,
+    cwd: checkout.worktree,
+    file: "",
+    bin,
+    log,
+    runtime: join(scratch, "runtime"),
+    mode: "batch-diagnostic",
+    rawInput: codexPayload(checkout.worktree, patch),
+  });
+  expect(result.status).toBe(0);
+  const context = codexContext(result);
+  expect(context).toContain("TS2322");
+  expect(context).toContain("subject.dom.test.ts: deleted or moved away");
+  expect(readFileSync(log, "utf8")).toContain("tests/client/moved.dom.test.ts");
+  expect(readFileSync(log, "utf8")).not.toContain("-- tests/client/subject.dom.test.ts");
+});
+
+test("Codex adapter silently ignores deleted prose and paths outside its checkout", ({ scratch, repoRoot }) => {
+  const checkout = plantCheckout(scratch);
+  const adapter = installCodexAdapter(checkout.worktree, repoRoot);
+  const bin = join(scratch, "stub bin");
+  const log = join(scratch, "pnpm.log");
+  stubPnpm(bin);
+  const outside = join(scratch, "elsewhere.ts");
+  const patch = `*** Begin Patch\n*** Delete File: README.md\n*** Delete File: ${outside}\n*** End Patch`;
+  const result = runHook({
+    hook: adapter,
+    project: checkout.main,
+    cwd: checkout.worktree,
+    file: "",
+    bin,
+    log,
+    runtime: join(scratch, "runtime"),
+    rawInput: codexPayload(checkout.worktree, patch),
+  });
+  expect(result.status).toBe(0);
+  expect(result.stdout).toBe("");
+  expect(existsSync(log)).toBe(false);
+});
+
+test("Codex registration matches the canonical patch tool and points at the installed adapter", ({ repoRoot }) => {
+  const config = JSON.parse(readFileSync(join(repoRoot, ".codex/hooks.json"), "utf8")) as { hooks?: Record<string, unknown> };
+  expect(config.hooks?.["PostToolUse"]).toEqual([
+    { matcher: "^apply_patch$", hooks: [{ type: "command", command: 'node "$(git rev-parse --show-toplevel)/.codex/hooks/codex-edit-advisory.mjs"' }] },
+  ]);
 });

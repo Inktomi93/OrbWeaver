@@ -18,7 +18,7 @@ const SHARED = path.join(import.meta.dirname, "..", "..", "tooling", "src", "_sh
 const CHECKED_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".json", ".jsonc", ".css"]);
 const TYPED_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts"]);
 const DEPCRUISE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mts", ".cts"]);
-const SUPPORTED_TOOLS = new Set(["Edit", "Write", "MultiEdit"]);
+const SUPPORTED_TOOLS = new Set(["Edit", "Write", "MultiEdit", "CodexPatch"]);
 const HOOK_POOL = "hook";
 // Every leg is an advisory beside real work; it yields the CPU to anything the operator is running.
 const LEG_NICENESS = 10;
@@ -119,10 +119,22 @@ function readInput() {
   if (input.hook_event_name !== "PostToolUse" || !SUPPORTED_TOOLS.has(input.tool_name)) {
     process.exit(0);
   }
-  if (!nonEmptyString(input.cwd) || !isObject(input.tool_input) || !nonEmptyString(input.tool_input.file_path)) {
+  if (!nonEmptyString(input.cwd) || !isObject(input.tool_input)) {
     noticeAndExit("hook input is malformed: a supported PostToolUse file event requires nonempty cwd and tool_input.file_path strings");
   }
-  return { cwd: input.cwd, file: input.tool_input.file_path };
+  if (input.tool_name === "CodexPatch") {
+    if (
+      !Array.isArray(input.tool_input.subjects) ||
+      !input.tool_input.subjects.every((subject) => isObject(subject) && nonEmptyString(subject.file) && ["present", "deleted"].includes(subject.status))
+    ) {
+      noticeAndExit("hook input is malformed: CodexPatch requires file subjects with present or deleted status");
+    }
+    return { cwd: input.cwd, subjects: input.tool_input.subjects };
+  }
+  if (!nonEmptyString(input.tool_input.file_path)) {
+    noticeAndExit("hook input is malformed: a supported PostToolUse file event requires nonempty cwd and tool_input.file_path strings");
+  }
+  return { cwd: input.cwd, subjects: [{ file: input.tool_input.file_path, status: "claude" }] };
 }
 
 /** The checkout that owns the edit, proven to share a repository with the trusted project. */
@@ -168,7 +180,7 @@ function inside(root, candidate) {
 function resolveSubject(root, payloadCwd, file) {
   const lexical = path.resolve(payloadCwd, file);
   if (!inside(root, lexical)) {
-    process.exit(0);
+    return null;
   }
   if (existsSync(lexical)) {
     const target = realpathOrNull(lexical) ?? noticeAndExit(`edited path cannot be resolved: ${lexical}`);
@@ -180,7 +192,7 @@ function resolveSubject(root, payloadCwd, file) {
   // Only code and config have a verdict here: Biome skips markdown, and a typecheck plan for a prose file
   // costs a pool slot and a pnpm spawn for nothing.
   if (!CHECKED_EXTENSIONS.has(path.extname(rel))) {
-    process.exit(0);
+    return null;
   }
   return rel;
 }
@@ -314,24 +326,38 @@ async function depcruiseLeg(root, rel, diag) {
   return "";
 }
 
-function wellFormedPlan(plan, rel, typeRequired) {
+function wellFormedPlan(plan, rels) {
   const programs = plan?.programs;
-  const subject = Array.isArray(plan?.subjects) && plan.subjects.length === 1 ? plan.subjects[0] : null;
-  if (!isObject(plan) || plan.coverage !== "advisory-primary-programs" || !Array.isArray(programs) || !programs.every(nonEmptyString)) {
+  if (
+    !isObject(plan) ||
+    plan.coverage !== "advisory-primary-programs" ||
+    !Array.isArray(programs) ||
+    !programs.every(nonEmptyString) ||
+    new Set(programs).size !== programs.length
+  ) {
     return false;
   }
-  if (!isObject(subject) || subject.path !== rel || !Array.isArray(subject.selectedPrograms) || !subject.selectedPrograms.every(nonEmptyString)) {
+  if (!Array.isArray(plan.subjects) || plan.subjects.length !== rels.length) {
     return false;
   }
-  if (typeRequired || subject.disposition === "selected") {
-    return (
-      subject.disposition === "selected" &&
-      programs.length > 0 &&
-      programs.length === subject.selectedPrograms.length &&
-      programs.every((program, index) => program === subject.selectedPrograms[index])
-    );
+  const expected = new Set(rels);
+  const selected = new Set();
+  for (const subject of plan.subjects) {
+    if (!isObject(subject) || !expected.delete(subject.path) || !Array.isArray(subject.selectedPrograms) || !subject.selectedPrograms.every(nonEmptyString)) {
+      return false;
+    }
+    if (TYPED_EXTENSIONS.has(path.extname(subject.path)) || subject.disposition === "selected") {
+      if (subject.disposition !== "selected" || subject.selectedPrograms.length === 0) {
+        return false;
+      }
+      for (const program of subject.selectedPrograms) {
+        selected.add(program);
+      }
+    } else if (subject.disposition !== "not-applicable" || subject.selectedPrograms.length > 0) {
+      return false;
+    }
   }
-  return subject.disposition === "not-applicable" && programs.length === 0 && subject.selectedPrograms.length === 0;
+  return expected.size === 0 && selected.size === programs.length && programs.every((program) => selected.has(program));
 }
 
 function unsafeProgram(program) {
@@ -370,19 +396,20 @@ async function checkProgram(shared, root, program, diag, typeOut) {
   }
 }
 
-async function typecheckLeg(shared, root, rel, diag, typeOut) {
-  const planned = await runPnpm(root, ["exec", "node", "tooling/src/verify/cli.ts", "typecheck-plan", "--primary", "--file", "--json", "--", rel]);
+async function typecheckLeg(shared, root, rels, diag, typeOut) {
+  const planned = await runPnpm(root, ["exec", "node", "tooling/src/verify/cli.ts", "typecheck-plan", "--primary", "--file", "--json", "--", ...rels]);
+  const names = rels.join(", ");
   if (planned.code !== 0) {
-    diag.push(`typecheck planner failed for ${rel}:\n${excerpt(planned.stdout)}${excerpt(planned.stderr)}`);
+    diag.push(`typecheck planner failed for ${names}:\n${excerpt(planned.stdout)}${excerpt(planned.stderr)}`);
     return "";
   }
   const plan = jsonPayload(planned.stdout);
   if (plan === null) {
-    diag.push(`typecheck planner printed no JSON payload on stdout for ${rel}:\n${excerpt(planned.stdout)}${excerpt(planned.stderr)}`);
+    diag.push(`typecheck planner printed no JSON payload on stdout for ${names}:\n${excerpt(planned.stdout)}${excerpt(planned.stderr)}`);
     return "";
   }
-  if (!wellFormedPlan(plan, rel, TYPED_EXTENSIONS.has(path.extname(rel)))) {
-    diag.push(`typecheck planner returned malformed output for ${rel}\n${excerpt(planned.stdout)}`);
+  if (!wellFormedPlan(plan, rels)) {
+    diag.push(`typecheck planner returned malformed output for ${names}\n${excerpt(planned.stdout)}`);
     return "";
   }
   for (const program of plan.programs) {
@@ -417,33 +444,51 @@ function typeSummary(typeOut) {
 }
 
 async function main() {
-  const { cwd, file } = readInput();
+  const { cwd, subjects } = readInput();
   const root = resolveCheckout(cwd);
-  const rel = resolveSubject(root, cwd, file);
+  const rels = [];
+  const diag = [];
+  for (const subject of subjects) {
+    const rel = resolveSubject(root, cwd, subject.file);
+    if (rel === null) {
+      continue;
+    }
+    if (subject.status === "deleted") {
+      diag.push(`${rel}: deleted or moved away; file-scoped checks cannot assess removed paths. Run pnpm verify --changed.\n`);
+    } else if (subject.status === "present" && !existsSync(path.resolve(cwd, subject.file))) {
+      diag.push(`${rel}: edited path is absent; checks were SKIPPED.\n`);
+    } else if (!rels.includes(rel)) {
+      rels.push(rel);
+    }
+  }
+  if (rels.length === 0) {
+    if (diag.length > 0) {
+      process.stderr.write(`── checks without a verdict ──\n${diag.join("")}`);
+      process.exit(2);
+    }
+    process.exit(0);
+  }
   const shared = await loadShared();
   const pool = { name: HOOK_POOL, label: `edit hook in ${path.basename(root)}`, slots: shared.caps.hookPoolSlots };
-  const diag = [];
   const typeOut = [];
-  const runsDepcruise = rel.startsWith("packages/") && DEPCRUISE_EXTENSIONS.has(path.extname(rel)) && existsSync(path.join(root, ".dependency-cruiser.cjs"));
-  const legs = [
-    { name: "biome", run: () => biomeLeg(root, rel, diag) },
-    ...(runsDepcruise ? [{ name: "depcruise", run: () => depcruiseLeg(root, rel, diag) }] : []),
-    { name: "typecheck", run: () => typecheckLeg(shared, root, rel, diag, typeOut) },
-  ];
+  const legs = rels.flatMap((rel) => [
+    { name: `biome ${rel}`, heading: "biome (lint)", run: () => biomeLeg(root, rel, diag) },
+    ...(rel.startsWith("packages/") && DEPCRUISE_EXTENSIONS.has(path.extname(rel)) && existsSync(path.join(root, ".dependency-cruiser.cjs"))
+      ? [{ name: `depcruise ${rel}`, heading: "dep-cruiser (imports)", run: () => depcruiseLeg(root, rel, diag) }]
+      : []),
+  ]);
+  legs.push({ name: "typecheck", heading: "", run: () => typecheckLeg(shared, root, rels, diag, typeOut) });
   let results;
   try {
     results = await runLegs(shared, pool, legs, diag);
   } catch (error) {
     noticeAndExit(`hook admission failed: ${error instanceof Error ? error.message : String(error)}`);
   }
-  const biome = results[0] ?? "";
-  const dep = runsDepcruise ? (results[1] ?? "") : "";
   const blocks = [];
-  if (biome !== "") {
-    blocks.push(`── biome (lint) ──\n${biome}`);
-  }
-  if (dep !== "") {
-    blocks.push(`── dep-cruiser (imports) ──\n${dep}`);
+  for (const [index, result] of results.entries()) {
+    if (result !== "") {
+      blocks.push(`── ${legs[index].heading} ──\n${result}`);
+    }
   }
   if (typeOut.length > 0) {
     blocks.push(typeSummary(typeOut));

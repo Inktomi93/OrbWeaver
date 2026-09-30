@@ -1,0 +1,14 @@
+[workspace]
+roots = []
+
+[[lsp_servers]]
+language_id = "typescript"
+command = "bash"
+args = ["-c", 'exec ./node_modules/.bin/node "$(command -v typescript-language-server)" --stdio']
+file_patterns = ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"]
+timeout_seconds = 60
+request_timeout_seconds = 60
+
+# The bridge sends workspaceFolders; this server resolves TypeScript through rootUri or an explicit path.
+[lsp_servers.initialization_options.tsserver]
+path = "node_modules/typescript/lib/tsserver.js"

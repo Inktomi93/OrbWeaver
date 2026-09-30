@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdir, readlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "../support/tool-fixtures.ts";
 
@@ -51,4 +51,49 @@ if (args[0] === "rev-parse" && args[1] === "--show-toplevel") {
   expect(await readlink(join(laneRoot, ".env"))).toBe(join(mainRoot, ".env"));
   expect(repairedBootstrap.stdout).toContain(`linked .env → ${mainRoot}/.env`);
   expect(repairedBootstrap.stdout).toContain("worktree-bootstrap: done — deps + hooks ready");
+});
+
+test("an install failure stops bootstrap before provisioning local configuration", async ({ fakeBin, repoRoot, scratch }) => {
+  await fakeBin("git", `process.stdout.write(${JSON.stringify(`${scratch}\n`)});`);
+  await fakeBin("pnpm", "process.exitCode = 7;");
+  const result = spawnSync("bash", [join(repoRoot, "scripts/worktree-bootstrap.sh")], { cwd: scratch, encoding: "utf8" });
+  expect(result.status).toBe(7);
+  expect(result.stdout).not.toContain("done");
+});
+
+test("bootstrap links local settings and syncs a SQLite backup in an external checkout", async ({ fakeBin, repoRoot, scratch }) => {
+  const mainRoot = join(scratch, "main checkout");
+  const laneRoot = join(scratch, "codex O'Brien checkout");
+  await mkdir(join(mainRoot, ".claude"), { recursive: true });
+  await mkdir(join(mainRoot, ".codegraph"), { recursive: true });
+  await mkdir(laneRoot, { recursive: true });
+  await writeFile(join(mainRoot, ".claude/settings.local.json"), "{}\n");
+  await writeFile(join(laneRoot, ".env"), "LOCAL=preserved\n");
+  const database = join(mainRoot, ".codegraph/codegraph.db");
+  const seed = spawnSync("sqlite3", [database, "CREATE TABLE witness (value TEXT); INSERT INTO witness VALUES ('main-index');"], { encoding: "utf8" });
+  expect(seed.status).toBe(0);
+  await fakeBin(
+    "git",
+    `process.stdout.write(process.argv.includes("--show-toplevel") ? ${JSON.stringify(`${laneRoot}\n`)} : ${JSON.stringify(`worktree ${mainRoot}\n\nworktree ${laneRoot}\n`)});`,
+  );
+  await fakeBin("pnpm", "process.exitCode = 0;");
+  await fakeBin(
+    "codegraph",
+    `import { spawnSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+const result = spawnSync("sqlite3", [join(process.argv[3], ".codegraph/codegraph.db"), "SELECT value FROM witness;"], { encoding: "utf8" });
+writeFileSync(join(process.argv[3], "synced.txt"), result.stdout);
+process.exitCode = result.status;
+`,
+  );
+  const result = spawnSync("bash", [join(repoRoot, "scripts/worktree-bootstrap.sh")], { cwd: laneRoot, encoding: "utf8" });
+  expect(result.status, result.stderr).toBe(0);
+  expect(await readlink(join(laneRoot, ".claude/settings.local.json"))).toBe(join(mainRoot, ".claude/settings.local.json"));
+  expect(await readFile(join(laneRoot, ".env"), "utf8")).toBe("LOCAL=preserved\n");
+  expect(await readFile(join(laneRoot, "synced.txt"), "utf8")).toBe("main-index\n");
+  await fakeBin("codegraph", "process.exitCode = 9;");
+  const failedSync = spawnSync("bash", [join(repoRoot, "scripts/worktree-bootstrap.sh")], { cwd: laneRoot, encoding: "utf8" });
+  expect(failedSync.status).toBe(9);
+  expect(failedSync.stdout).not.toContain("done");
 });

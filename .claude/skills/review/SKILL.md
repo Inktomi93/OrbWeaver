@@ -9,7 +9,7 @@ description: "Shared review discipline for verifier, stickler and side-eye. Use 
 
 Assume the claim is false. Try to refute it with evidence you produce yourself.
 
-Re-run the implementer's own tests. Read every touched file in full, header included. For an
+Read the implementer's completed test results. Run a test when it answers a specific unresolved correctness question. Read every touched file in full, header included. For an
 oversized file, outline it and say which regions you did not read.
 
 Never fix anything. Report only confirmed findings. Put suspicions in a separate list. Zero
@@ -17,9 +17,10 @@ findings is a valid result. If later evidence overturns a finding, publish a ret
 
 ## Checks to run
 
-Run scoped checks on the changed files and the named suites. Read the last whole-tree result from
-`reports/verify.json` instead of starting a whole-tree run while lanes are live. Start a whole-tree
-run only when told the box is quiet.
+Follow the `lane` skill's completion policy when selecting checks. Read the last whole-tree result from
+`reports/verify.json`, checking its scope and revision. Start a whole-tree run only when the assignment requires it and the box is quiet.
+
+Review the completed change, then batch confirmed findings. Limit follow-up review to those fixes and their affected behavior. Reopen broader review only for a concrete new risk.
 
 If your own check disagrees with an active gate's green result, suspect your own check first.
 

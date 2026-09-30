@@ -1,18 +1,6 @@
 #!/usr/bin/env bash
-# orbweaver worktree bootstrap — make a fresh git worktree fully usable.
-#
-# Worktree-safe: resolves the root via git (no hardcoded paths, no dependence on $CLAUDE_* env).
-# Idempotent. Does a PROPER per-worktree `pnpm install` — NOT a symlink to the main checkout's
-# node_modules (branches can carry different deps, and a shared node_modules then lies). pnpm's global
-# content-addressable store makes the per-worktree install fast via hard-links — no re-download,
-# minimal disk.
-#
-# The git hooks live in the shared `.git/hooks`, installed only from the main checkout
-# (`scripts/prepare.ts` skips a linked worktree), and they run this worktree's own lefthook.yml.
-# The only thing install can't provide is the gitignored .env (secrets), which we link from the main
-# checkout if present.
-#
-# Usage:  pnpm run worktree:bootstrap   (or:  bash scripts/worktree-bootstrap.sh)
+# Bootstrap a checkout with separate dependencies and a consistent local CodeGraph index.
+# Shared Git hooks remain owned by the main checkout.
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
@@ -20,18 +8,34 @@ cd "$ROOT"
 echo "worktree-bootstrap: $ROOT"
 
 # 1. Per-worktree deps (hard-linked from the global store).
-pnpm install
+CI=true pnpm install
 
 # 2. Provision .env from the main checkout if this worktree lacks one.
+MAIN="$(git worktree list --porcelain | awk '/^worktree / && !seen++ {print substr($0, 10)}')"
 if [ ! -e .env ]; then
   # Consume the full inventory: an early awk exit closes the pipe while git may still be writing, and
   # pipefail turns git's SIGPIPE into a bootstrap failure before .env is provisioned.
-  MAIN="$(git worktree list --porcelain | awk '/^worktree / && !seen++ {print $2}')"
   if [ -n "${MAIN:-}" ] && [ "$MAIN" != "$ROOT" ] && [ -e "$MAIN/.env" ]; then
     ln -sfn "$MAIN/.env" .env
     echo "  ↳ linked .env → $MAIN/.env"
   else
     echo "  ↳ no .env in the main checkout (create one when you need secrets)"
+  fi
+fi
+
+if [ -n "$MAIN" ] && [ "$MAIN" != "$ROOT" ]; then
+  if [ -f "$MAIN/.claude/settings.local.json" ] && [ ! -e .claude/settings.local.json ]; then
+    mkdir -p .claude
+    ln -sfn "$MAIN/.claude/settings.local.json" .claude/settings.local.json
+  fi
+
+  # A SQLite backup is consistent while main's index is in use; copying the file is not.
+  if [ -f "$MAIN/.codegraph/codegraph.db" ] && command -v codegraph >/dev/null; then
+    if [ ! -e .codegraph ]; then
+      mkdir -p .codegraph
+      (cd .codegraph && sqlite3 "$MAIN/.codegraph/codegraph.db" ".backup codegraph.db")
+    fi
+    codegraph sync "$ROOT" </dev/null
   fi
 fi
 

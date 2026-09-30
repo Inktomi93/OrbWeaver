@@ -113,7 +113,7 @@ as the new one. If you cannot go green without a hatch, stop and report.
 | `pnpm verify --full` | adds the tooling test battery and the slow quality stages |
 
 - Read stage membership from `pnpm verify --list`. Exit codes: 0 clean, 1 violations, 2 tool error (not a verdict), 3 misuse.
-- A scoped green is not done. Work is done only after a whole-tree `pnpm check` (the barrier). It runs no product tests, so also run the suites that assert any value you changed.
+- Use the `lane` skill's "Completion" policy to select checks. Run `pnpm check` after merge trains, for cross-package contracts or shared build/verification changes, or when requested. Routine local changes finish with relevant scoped checks.
 - Do not run `pnpm verify --push` by hand. The pre-push hook runs it on a push the owner authorized.
 - The `commit-msg` hook enforces the message format (`scripts/commit-msg-check.sh`).
 
@@ -164,7 +164,7 @@ without a path are in that folder.
 
 | Word | Meaning |
 | - | - |
-| lane | a subagent that works one area in its own worktree |
+| lane | a subagent that owns a related batch of work in its own worktree |
 | leg | one dispatch to a lane |
 | merge train | a batch of lane merges into `main` |
 | barrier | the whole-tree check after a merge train |
@@ -174,7 +174,7 @@ without a path are in that folder.
 
 - Claude Code loads a rule when it reads a file that matches the rule's `paths:`. Codex does not: before you change a file, read each rule below whose globs match it.
 - In Codex outside a generated `.codex/agents/*.toml` role, read `.claude/skills/lane/SKILL.md` in full before you edit, stage, commit or run the stack.
-- Codex runs no Claude hooks. Use the command spellings in the lane skill. To coordinate lanes, read `.claude/skills/orchestrator/SKILL.md`.
+- Codex's native edit hook calls the shared checker. Use its feedback and the lane skill's command spellings. To coordinate lanes, read `.claude/skills/orchestrator/SKILL.md`.
 - In Codex, spawn `verifier`, `side-eye` or `stickler` with `fork_turns="none"` and a self-contained brief. A forked history ends an independent review.
 
 `pnpm check:agents` checks that this list matches the rule files.

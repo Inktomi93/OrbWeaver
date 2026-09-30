@@ -1,19 +1,5 @@
-// THE WorktreeRemove HOOK'S PROOF (.claude/hooks/worktree-remove.sh) — a removed worktree may not leave a
-// STAGE running behind it (#1848).
-//
-// THE DEFECT. A `snap --isolated` stage is a ~7-process stack (the stack leader, the node server, vite, the idle
-// keeper) that lives INSIDE the worktree, and the shared band table records the owning checkout. The hook
-// removed the tree without ever reading that table, so a lane torn down with a live stage kept running
-// against a DELETED cwd — holding a band, a port pair and real CPU — until the 60-minute idle keeper got
-// to it. Seen on 2026-09-06: two bands owned by worktrees that no longer existed.
-//
-// THE PROOF RUNS THE REAL HOOK against a THROWAWAY repo (never main, never a real stage) with a `pnpm`
-// SHIM first on PATH, so the assertion is the exact door the hook must use — `snap --stage-down
-// --stage-owner <checkout> --force`, snap's own teardown, never a raw kill. Three arms, because all three
-// are ways this can be wrong: it must fire for a row THIS worktree owns; it must NOT fire for a row a
-// SIBLING owns (tearing down a live sibling's stage is worse than the leak); and a teardown that FAILS
-// must still leave the worktree removed, or a broken stage door would strand every lane.
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+// Worktree cleanup releases only its own Snap stage before the caller removes its checkout.
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
@@ -24,15 +10,16 @@ const HOOK = fileURLToPath(new URL("../../.claude/hooks/worktree-remove.sh", imp
 
 /** A throwaway git repo with the layout the hook expects, plus a `pnpm` shim that records its argv instead
  *  of running anything. Returns the repo root and where the shim writes. */
-function plantRepo(scratch: string): { readonly repo: string; readonly shimLog: string; readonly bin: string } {
+function plantRepo(scratch: string, teardownExit = 0): { readonly repo: string; readonly shimLog: string; readonly bin: string } {
   const repo = join(scratch, "repo");
   const bin = join(scratch, "bin");
   const shimLog = join(scratch, "pnpm-argv.txt");
   mkdirSync(join(repo, ".claude", "worktrees"), { recursive: true });
   mkdirSync(join(repo, ".cache", "snap-stage"), { recursive: true });
   mkdirSync(bin, { recursive: true });
-  // The shim FAILS (exit 1) on purpose: a stage door that errors must not stop the removal.
-  writeFileSync(join(bin, "pnpm"), `#!/usr/bin/env bash\nprintf '%s\\n' "$*" >> ${shimLog}\nexit 1\n`, { mode: 0o755 });
+  mkdirSync(join(repo, "scripts"), { recursive: true });
+  copyFileSync(fileURLToPath(new URL("../../scripts/worktree-cleanup.sh", import.meta.url)), join(repo, "scripts/worktree-cleanup.sh"));
+  writeFileSync(join(bin, "pnpm"), `#!/usr/bin/env bash\nprintf '%s\\n' "$*" >> '${shimLog}'\nexit ${String(teardownExit)}\n`, { mode: 0o755 });
   for (const args of [
     ["init", "-q"],
     ["config", "user.email", "probe@example.com"],
@@ -70,8 +57,24 @@ test("removing a worktree that OWNS a stage band tears the stage down through sn
   const invocations = existsSync(planted.shimLog) ? readFileSync(planted.shimLog, "utf8").trim().split("\n") : [];
   expect(invocations, "the hook must invoke exactly one stage teardown for the worktree it is removing").toHaveLength(1);
   expect(invocations[0], "snap's OWN teardown door, scoped to this checkout, never a raw kill").toBe(`snap --stage-down --stage-owner ${worktree} --force`);
-  // The teardown shim exited 1 — the removal must have happened anyway.
-  expect(existsSync(worktree), "a failing stage teardown must never strand the worktree").toBe(false);
+  expect(existsSync(worktree)).toBe(false);
+});
+
+test("failed stage teardown preserves the checkout and its branch", ({ scratch }) => {
+  const planted = plantRepo(scratch, 1);
+  const worktree = removeWorktree(planted, "failed", (wt) => wt);
+  expect(existsSync(worktree)).toBe(true);
+  expect(execFixtureGit(planted.repo, ["rev-parse", "--verify", "refs/heads/wt/failed"]).trim()).not.toBe("");
+});
+
+test("Codex cleanup releases an external detached worktree without removing it", ({ scratch }) => {
+  const planted = plantRepo(scratch);
+  const worktree = join(scratch, "codex worktree");
+  execFixtureGit(planted.repo, ["worktree", "add", "-q", "--detach", worktree]);
+  writeFileSync(join(planted.repo, ".cache", "snap-stage", "bands.json"), JSON.stringify({ rows: [{ checkout: worktree }] }));
+  runNicedSync("bash", ["-c", `PATH='${planted.bin}':"$PATH" bash '${planted.repo}/scripts/worktree-cleanup.sh'`], { cwd: worktree });
+  expect(readFileSync(planted.shimLog, "utf8").trim()).toBe(`snap --stage-down --stage-owner ${worktree} --force`);
+  expect(existsSync(join(worktree, ".git"))).toBe(true);
 });
 
 test("a band owned by a SIBLING checkout is left completely alone", ({ scratch }) => {
@@ -92,4 +95,17 @@ test("no band table at all is an ordinary state, not a failure", ({ scratch }) =
 
   expect(existsSync(planted.shimLog), "a box that has never staged anything spawns nothing").toBe(false);
   expect(existsSync(worktree)).toBe(false);
+});
+
+test("teardown preserves commits that have not reached the main checkout", ({ scratch }) => {
+  const planted = plantRepo(scratch);
+  const worktree = join(planted.repo, ".claude/worktrees/unmerged");
+  execFixtureGit(planted.repo, ["worktree", "add", "-q", "-b", "wt/unmerged", worktree]);
+  writeFileSync(join(worktree, "README.md"), "unmerged work\n");
+  execFixtureGit(worktree, ["add", "README.md"]);
+  execFixtureGit(worktree, ["commit", "-qm", "unmerged work"]);
+  const tip = execFixtureGit(worktree, ["rev-parse", "HEAD"]).trim();
+  runNicedSync("bash", ["-c", `printf '%s' '${hookPayload(worktree)}' | bash '${HOOK}'`]);
+  expect(existsSync(worktree)).toBe(false);
+  expect(execFixtureGit(planted.repo, ["rev-parse", "--verify", "refs/heads/wt/unmerged"]).trim()).toBe(tip);
 });

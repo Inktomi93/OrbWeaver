@@ -9,3 +9,32 @@ extends = ":workspace"
 
 [permissions.orbweaver.network]
 enabled = true
+
+
+[mcp_servers.codegraph]
+command = "bash"
+args = ["-c", 'exec codegraph serve --mcp -p "$(git rev-parse --show-toplevel)"']
+startup_timeout_sec = 60
+tool_timeout_sec = 120
+
+[mcp_servers.typescript]
+command = "bash"
+args = ["-c", 'cd "$(git rev-parse --show-toplevel)" && exec mcpls --config .codex/mcpls.toml']
+startup_timeout_sec = 60
+tool_timeout_sec = 120
+enabled_tools = [
+  "get_hover",
+  "get_definition",
+  "get_references",
+  "get_document_symbols",
+  "workspace_symbol_search",
+  "get_signature_help",
+  "go_to_implementation",
+  "go_to_type_definition",
+  "get_inlay_hints",
+  "get_diagnostics",
+  "get_cached_diagnostics",
+  "prepare_call_hierarchy",
+  "get_incoming_calls",
+  "get_outgoing_calls",
+]

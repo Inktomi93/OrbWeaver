@@ -36,30 +36,20 @@ esac
 
 branch=$(git -C "$dir" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
 
-# TEAR DOWN THE STAGE THIS WORKTREE OWNS, BEFORE THE DIRECTORY GOES (#1848).
-#
-# A `snap --isolated` stage is a ~7-process stack (the stack cli, the node server, vite, the idle keeper) living
-# inside <worktree>/.cache/snap-stage/, and the band table (<main>/.cache/snap-stage/bands.json) records the
-# owning CHECKOUT. This hook used to remove the tree without consulting it, so a lane torn down with a live
-# stage kept running with a DELETED cwd — holding a band, a port pair and real CPU — until the 60-minute
-# idle keeper reaped it. Observed 2026-09-06: two bands owned by worktrees that no longer existed.
-#
-# The teardown goes through snap's OWN door (`--stage-down --stage-owner <checkout> --force`), never a raw
-# kill: that door stops the staged stack with its own launcher, kills only stage-rooted process groups, and
-# clears the row + the reap ledger. The jq pre-check keeps the common case (no stage) free of a node spawn.
-if [ -r "$root/.cache/snap-stage/bands.json" ] &&
-  jq -e --arg dir "$dir" '(.rows // []) | map(select(.checkout == $dir)) | length > 0' "$root/.cache/snap-stage/bands.json" >/dev/null 2>&1; then
-  log "worktree owns a live stage band — tearing it down before removal"
-  (cd "$root" && pnpm snap --stage-down --stage-owner "$dir" --force >&2 2>&1) || log "stage teardown reported a problem; continuing with the worktree removal"
-fi
+(cd "$dir" && bash "$root/scripts/worktree-cleanup.sh") >&2 || { log "stage cleanup failed; preserving worktree"; exit 1; }
 
-git -C "$root" worktree remove --force "$dir" >&2 2>/dev/null || rm -rf "$dir"
+git -C "$root" worktree remove --force "$dir" >&2 || { log "git removal failed; preserving registration"; exit 1; }
 git -C "$root" worktree prune >&2 2>/dev/null || true
 
-# Only delete branches this hook's naming scheme owns, and only if merged-or-empty is not required:
-# -D is intentional (a discarded experiment branch should not linger), but scoped to the wt/ prefix.
+# Preserve unmerged commits even when the harness discards their checkout.
 case "${branch:-}" in
-  wt/*) git -C "$root" branch -D "$branch" >&2 2>/dev/null || true ;;
+  wt/*)
+    if git -C "$root" merge-base --is-ancestor "$branch" HEAD; then
+      git -C "$root" branch -D "$branch" >&2
+    else
+      log "preserving unmerged branch: $branch"
+    fi
+    ;;
 esac
 
 log "removed ${dir##*/}"

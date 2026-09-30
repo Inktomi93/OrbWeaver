@@ -33,7 +33,7 @@ dir="$root/.claude/worktrees/$name"
 branch="wt/$name"
 
 if [ ! -d "$dir" ]; then
-  # baseRef=head (.claude/settings.local.json) — branch from local HEAD so unpushed work is present.
+  # Branch from the main checkout so lanes include its unpushed commits.
   base=$(git -C "$root" rev-parse HEAD 2>/dev/null || echo HEAD)
   if git -C "$root" show-ref --verify --quiet "refs/heads/$branch"; then
     git -C "$root" worktree add "$dir" "$branch" >&2 || { log "worktree add failed"; exit 1; }
@@ -42,32 +42,7 @@ if [ ! -d "$dir" ]; then
   fi
 fi
 
-# settings.local.json is gitignored, so it does not ride the checkout like the tracked .claude files.
-if [ -f "$root/.claude/settings.local.json" ] && [ ! -e "$dir/.claude/settings.local.json" ]; then
-  mkdir -p "$dir/.claude"
-  ln -sfn "$root/.claude/settings.local.json" "$dir/.claude/settings.local.json" 2>/dev/null || true
-fi
-
-# CI=true: pnpm refuses to purge an existing modules dir without a TTY.
-if [ -f "$dir/package.json" ]; then
-  if (cd "$dir" && CI=true pnpm install --silent) >/tmp/claude-worktree-install.log 2>&1; then
-    log "pnpm install OK ($name)"
-  else
-    log "pnpm install FAILED — see /tmp/claude-worktree-install.log; do not trust a gate result here"
-  fi
-fi
-
-# A worktree nested under main otherwise borrows main's CodeGraph index, which never shows the
-# lane's own edits. Seed it from main's index (a consistent sqlite snapshot) and sync the delta: ~11 s,
-# inline so the index is complete before the lane's first query (a mid-build db answers "locked").
-if [ -f "$root/.codegraph/codegraph.db" ] && [ ! -e "$dir/.codegraph" ] && command -v codegraph >/dev/null; then
-  mkdir -p "$dir/.codegraph"
-  if sqlite3 "$root/.codegraph/codegraph.db" ".backup '$dir/.codegraph/codegraph.db'" && codegraph sync "$dir" </dev/null >/tmp/claude-worktree-codegraph.log 2>&1; then
-    log "codegraph index ready ($name)"
-  else
-    rm -rf "$dir/.codegraph"
-    log "codegraph index FAILED — see /tmp/claude-worktree-codegraph.log; this lane queries main's index"
-  fi
-fi
+# Keep the hook protocol on stdout; bootstrap diagnostics belong on stderr.
+(cd "$dir" && bash scripts/worktree-bootstrap.sh) >&2 || { log "bootstrap failed ($name)"; exit 1; }
 
 printf '%s\n' "$dir"

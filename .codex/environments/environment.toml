@@ -1,0 +1,8 @@
+version = 1
+name = "Orbweaver"
+
+[setup]
+script = "bash scripts/worktree-bootstrap.sh"
+
+[cleanup]
+script = "bash scripts/worktree-cleanup.sh"

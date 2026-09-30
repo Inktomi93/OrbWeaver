@@ -41,7 +41,10 @@ CodeGraph's server instructions say to answer directly instead of delegating a l
 
 ## Lane shape
 
-- A lane is one thick segment: one area with several related items, one brief, and one commit per leg at the end of its work.
+- Give each lane a substantial batch across related areas that share context, dependencies or acceptance checks.
+- Include implementation, coupled tests and required documentation in the same assignment. Name ownership for each area.
+- Split lanes for independent work or different required expertise, not for each file or small item.
+- Follow the `lane` skill's commit policy. Batch related corrections before the final commit so the commit check runs once.
 - File a review pass's P3 findings as one bundle item per surface, not one item per finding.
 - Dispatch independent lanes in parallel. Keep working while they run.
 - Send a second task in a live lane's area as a SendMessage leg, never as a fresh spawn.
@@ -101,8 +104,9 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 
 ## Before calling work done
 
-- A lane reports its floor. Only you call work done, after the barrier.
-- Land a change only after a `verifier` returns CONFIRMED for it. Your own evidence checks do not replace a fresh-context review.
+- Assign verification ownership in the brief. Reuse completed lane checks under the `lane` skill's completion policy.
+- Call work done after its applicable checks. Use `AGENTS.md` to decide whether the barrier is required.
+- Use fresh-context review for substantive code changes. Review routine prose and configuration edits directly; add independent review for a concrete correctness or security risk.
 - For a multi-wave program, run one `verifier` pass per wave over every change landed in it. That pass covers each item; spawn no second `verifier` per item inside a covered wave.
 - Call `side-eye` for a new UI surface or redesign, imagery or effects near text, settings panes, forms, wizards, empty, error, or loading states, and any accessibility doubt. Skip it for backend-only changes.
 - Treat scout findings as input. Check the important ones before you act on them.
@@ -121,11 +125,14 @@ after the train.
 5. Read the verdict from `reports/verify.json` and the slot the run printed.
 
 - Fold a drained branch when it arrives. Do not hold it behind a running check; a check that finishes on an older tip is not the new tip's verdict.
-- A merge that unions two lanes' edits to a shared interface can break types with no conflict. Run `pnpm typecheck` after it.
+- A merge that combines shared-interface edits needs typechecking. The barrier covers it; run a separate typecheck only for earlier feedback.
 - A merge touching `packages/server/src/transport/trpc/routers/**` runs `tests/server/transport/cross-tenant-sweep.suite.int.test.ts` first.
 - The sweep does not cover a room's resume read. A merge touching a room's `authorizeAttach` or replay verb also runs that room's recipient-scope test, for example `tests/server/domain/notifications/verbs/replay-since.int.test.ts`.
 - A merge restarts the dev server and clears the in-memory recorders. Never merge while a live drive depends on them.
 - `pnpm check:ledgers-fresh` fails when a merge shifts the lines a ledger row cites. Run the regeneration yourself on the merged tree. Lanes only hand-edit their own row.
+
+## Stopping checks and commits
+
 - Stop a running check only in its own checkout; other checkouts and the other account share the box and the host verify slot. Send SIGTERM to each verify process whose working directory is under the checkout; the runner stops its own stage tree. The first `case` pattern keeps the main checkout's recipe off its nested worktrees: `C=/abs/path/to/checkout; for p in $(pgrep -f 'verify/cli\.[t]s'); do case "$(readlink /proc/$p/cwd)" in "$C"/.claude/worktrees/*) ;; "$C" | "$C"/*) kill -TERM "$p" ;; esac; done`
 - A task notification that says "stopped by main session" comes from the Claude Code stop path: `TaskStop`, the task dialog, or a remote stop request. No repository hook or verify path produces it. Check your own session before you look for a killer in the tree.
 - An amend with nothing staged makes pre-commit a no-op. It is not evidence that any check ran.
@@ -160,6 +167,8 @@ Lanes can share main's checkout with you.
 
 - A dispatch with `isolation: "worktree"` gets a working tree from `.claude/hooks/worktree-setup.sh`. Never brief `pnpm install`.
 - A manual `git worktree add` runs only git's post-checkout hook. Run `pnpm worktree:bootstrap` after it.
+- Codex app worktrees use `.codex/environments/environment.toml` for setup and cleanup.
+- Before manual removal, run `env -C <worktree> bash scripts/worktree-cleanup.sh` to release its Snap stage.
 - Worktrees stay after an agent finishes. Sweep them by hand at session end.
 - Scope a sweep to `.claude/worktrees/agent-*`. Other directories there, and trees listed elsewhere by `git worktree list`, belong to other sessions.
 - Never remove a lane you might resume. A leg sent to a deleted worktree fails.
@@ -180,7 +189,7 @@ Run autonomously only when the user says overnight, finish, or keep going.
 - Stop only for a destructive or irreversible action, an owner-reserved product choice, a scope change, or a push.
 - The engines and the dev stack are yours to start and stop without asking.
 - Before a decision becomes a question for the owner, try in order: a `stickler` pass, `pnpm ast` on the code, the docs and the ledger, then your own judgment.
-- When no queued work is left, run `side-eye` on each rail surface and the home screen, one surface per lane slot. Fix or file every finding. Do not re-review to raise a score.
+- When the authorized queue is complete, report the result and stop. Run a broader UI audit only when requested.
 - When the owner is present, batch questions and put the recommended option first.
 
 ## Tracking work
@@ -200,11 +209,10 @@ Run `pnpm doc <verb> --help` for one verb's flags. Read `pnpm doc overview` and 
 
 ## Lying instruments
 
-Fix an instrument that reports a false clean, a false failure, or runs near its budget in the same
-session. The tooling path rule owns how to fix it.
+Diagnose an instrument failure far enough to identify its effect on the requested verdict. Repair it within the task's scope, or report the blocker separately. The tooling path rule owns instrument repairs.
 
-- Fix a slow gate before you dispatch work that must pass it. Lanes queued behind a slow gate make no progress.
-- Commit a change when its verifier returns CONFIRMED. Confirmed work held behind a later barrier piles up and goes stale.
+- Assign a blocking gate repair explicitly before dispatching work that depends on it.
+- Commit requested implementation after its applicable checks and review. Do not add review rounds after completion.
 - File a review finding outside the item's done criteria as a new item, then land the item. Otherwise review rounds never end.
 
 ## Session start

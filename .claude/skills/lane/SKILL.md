@@ -5,7 +5,7 @@ description: Preloaded by every build and review role. The one home for lane com
 
 # Lane
 
-A lane is a subagent that works one area in its own worktree. These rules bind every lane.
+A lane owns a related batch of work in its own worktree. These rules bind every lane.
 `.claude/hooks/tool-guard.mjs` refuses unsafe command spellings and names the correct form; use that form.
 
 ## Start
@@ -34,7 +34,9 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 - In your own worktree, `git add -A` is fine.
 - On main or any shared tree, stage and commit by exact pathspec. `git stash -u` or a bare `git commit -m` can sweep a sibling's files.
 - On a shared file, check your edit per row id, not by line count. A count can match by accident.
-- Commit once, at the end of the leg's whole work, not per step. A follow-up leg adds one new commit. Never amend a merged commit.
+- Default to one commit for the complete related assignment, including tests, documentation and review corrections.
+- Split commits only for a necessary dependency, separate rollback requirement or explicit owner request. State the reason before splitting.
+- Include follow-ups received before the final commit in that batch. Never amend a merged commit.
 - Merge main into your branch through the hooks. Only the orchestrator merges to main. Only the owner pushes.
 
 ### Commit
@@ -96,7 +98,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 ## Floor
 
-The implementation floor is the tests you touched, a scoped typecheck, Biome and ESLint on your files, the scoped gates, and every CT file for your change by path. Static checks never run a CT.
+Choose the floor from the changed behavior and the completion policy below. For code, cover affected behavior, compiler programs, lint and gates. For prose-only changes, use the instruction or documentation checker. Run affected CTs when rendered behavior changes; static checks never run a CT.
 
 Review-only assignments follow the `review` skill's checks. Questions and investigations run the checks needed to support their answer.
 
@@ -104,10 +106,14 @@ List each command and its result in the report. The whole-tree check is the orch
 
 ## Completion
 
-- Stop when the assigned outcome exists and its required checks pass.
-- Repeat a completed check only after a relevant change, a failure, or conflicting evidence that could change the result.
-- Report unrelated findings separately; they do not expand the assignment.
-- Add hashes or verification machinery only when the task or an existing contract requires artifact identity or integrity.
+- Define the requested outcome and the checks that establish it before implementation. Keep simple tasks in the brief; no separate plan artifact.
+- Use automatic edit feedback for routine lint, imports and types. Run explicit checks for uncovered files or skipped checks.
+- Complete implementation before final verification. Count completed hook and lane checks toward the floor when their scope and files still match.
+- Before another check, name the unresolved question and how its answer could change the result. Extra confidence alone is insufficient.
+- Repeat only checks affected by a relevant edit, failure or conflicting result. Read existing artifacts instead of rerunning for their output.
+- Report unrelated findings separately. If they block a required check, state the blocked verdict without expanding the assignment.
+- Add hashes, manifests or verification machinery only when the task or an existing contract requires artifact identity or integrity.
+- Stop when the requested outcome and applicable checks are complete. Hand back the result or the precise remaining blocker.
 
 ## Checker failures
 
