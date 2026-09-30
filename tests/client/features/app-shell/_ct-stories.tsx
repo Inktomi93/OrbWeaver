@@ -42,7 +42,7 @@ import { Heading } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Toaster } from "@orb/ui/toast";
 import type { ReactElement, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ListPaneHeader } from "../../../../packages/client/src/components/list-pane-header.tsx";
 import { AppearanceBackgroundSection } from "../../../../packages/client/src/features/app-shell/components/appearance-background-section.tsx";
 import { AppearanceEffectsSection } from "../../../../packages/client/src/features/app-shell/components/appearance-effects-section.tsx";
@@ -51,6 +51,7 @@ import { AppearanceSizingSection } from "../../../../packages/client/src/feature
 import { ContextTabsPanel } from "../../../../packages/client/src/features/app-shell/components/context-tabs-panel.tsx";
 import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style.tsx";
 import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail.tsx";
+import { SectionContent } from "../../../../packages/client/src/features/app-shell/components/section-content.tsx";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 // The chats topbar identity passenger, reached the same way the Rail leaf is (a story may reach a feature
 // internal the front door does not re-export). Same absolute file the app resolves, so the React/provider
@@ -932,6 +933,40 @@ export function SectionContextHeaderDefaultStory(): ReactElement {
     <CtDataProviders>
       <SectionContextHeader definition={fakeHeaderSection({ kind: "none" })} />
     </CtDataProviders>
+  );
+}
+
+// ── SectionContent keep-mounted: a kept section must survive leaving and returning ──
+// Each body records its own mount number in local state, so a remount shows a higher number.
+let sectionBodyMounts = 0;
+function MountProbe({ name }: { readonly name: string }): ReactElement {
+  const [mount] = useState(() => {
+    sectionBodyMounts += 1;
+    return sectionBodyMounts;
+  });
+  return <p data-testid={`probe-${name}`}>{`${name} mount ${String(mount)}`}</p>;
+}
+
+export function SectionContentKeepMountedStory(): ReactElement {
+  const [active, setActive] = useState<SectionId>("home");
+  const focusAnchorRef = useRef<HTMLDivElement>(null);
+  return (
+    <div>
+      <button type="button" onClick={(): void => setActive("home")}>
+        go home
+      </button>
+      <button type="button" onClick={(): void => setActive("chats")}>
+        go chats
+      </button>
+      <div ref={focusAnchorRef} tabIndex={-1}>
+        <SectionContent
+          activeSection={active}
+          contentBySection={{ home: <MountProbe name="home" />, chats: <MountProbe name="chats" /> }}
+          fallback={null}
+          focusAnchorRef={focusAnchorRef}
+        />
+      </div>
+    </div>
   );
 }
 

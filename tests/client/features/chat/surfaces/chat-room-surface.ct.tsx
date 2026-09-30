@@ -22,7 +22,7 @@ import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { ChatRoomGreetingWindowStory, ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories.tsx";
+import { ChatRoomEntryStory, ChatRoomGreetingWindowStory, ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 // The divider's present-tense preview. Every map stubs it with a VALID resolved shape — the
@@ -258,6 +258,72 @@ test("#13: typing while listMessages is in flight survives the room settle — n
   await expect(textarea).toHaveValue("Reply immediately");
   // Focus survived too (the same element was never torn down).
   await expect(textarea).toBeFocused();
+});
+
+// ── The view-transition callback commits the room FRAME, never the room body ──────────────────────
+// Entering a room swaps CONTENT through `withViewTransition`, and the browser holds the main thread for the
+// update callback and the microtask React flushes the store write in. The stub runs the callback after the
+// raising task, as Chromium does, and reads the DOM one microtask later: after React's sync flush and before
+// any task, so a deferred render cannot have landed yet.
+interface VtCommitRecord {
+  readonly room: boolean;
+  readonly composer: boolean;
+  readonly rows: number;
+}
+
+test("the view-transition callback commits the room frame, and the transcript and composer mount after it", async ({ mount, page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: (update: () => void | Promise<void>) => {
+        const updateCallbackDone = Promise.resolve()
+          .then(update)
+          .then(
+            () =>
+              new Promise<void>((resolve) => {
+                queueMicrotask(() => {
+                  const record: VtCommitRecord = {
+                    room: document.querySelector('[role="group"][aria-label]') !== null,
+                    composer: document.querySelector('[data-testid="composer"]') !== null,
+                    rows: document.querySelectorAll('[data-slot="message-list-row"]').length,
+                  };
+                  (globalThis as typeof globalThis & { __vtCommit?: VtCommitRecord }).__vtCommit = record;
+                  resolve();
+                });
+              }),
+          );
+        return { ready: updateCallbackDone, finished: updateCallbackDone, updateCallbackDone };
+      },
+    });
+  });
+  // CT's document is already loaded before the test body. The init script only installs on navigation.
+  await page.reload();
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...PREVIEW_FIT_STUB, "chat.listMessages": () => makeMessagesPage(CANON), ...ROSTER_STUB });
+
+  const component = await mount(<ChatRoomEntryStory />);
+  await component.getByRole("button", { name: "enter the room" }).click();
+
+  await expect
+    .poll(() => page.evaluate(() => (globalThis as typeof globalThis & { __vtCommit?: VtCommitRecord }).__vtCommit ?? null))
+    .toEqual({ room: true, composer: false, rows: 0 });
+  // The body still lands on its own, without another input: the room is complete a render later.
+  await expect(component.getByTestId(testId("composer"))).toBeVisible();
+  await expect(component.getByText("Well met, traveller.")).toBeVisible();
+  await expect(component.getByRole("group", { name: "Untitled chat" })).toBeFocused();
+});
+
+// A room re-entered with a pending composer-focus request (a compose-mode choice pick bumps the nonce) still
+// lands focus on the labelled room group: the room's own focus effect must run after the composer's.
+test("entering a room with a composer focus request already made lands focus on the room group", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...PREVIEW_FIT_STUB, "chat.listMessages": () => makeMessagesPage(CANON), ...ROSTER_STUB });
+
+  const component = await mount(<ChatRoomEntryStory />);
+  await component.getByRole("button", { name: "request composer focus" }).click();
+  await component.getByRole("button", { name: "enter the room" }).click();
+
+  await expect(component.getByTestId(testId("composer"))).toBeVisible();
+  await expect(component.getByText("Well met, traveller.")).toBeVisible();
+  await expect(component.getByRole("group", { name: "Untitled chat" })).toBeFocused();
 });
 
 // ── The chat-surface-anchor CONTRIBUTOR seam (client-architecture-lockdown.md §6c/M8 — new) ────────

@@ -68,6 +68,7 @@ import {
   openCharacterGallery,
   openNewChatPicker,
   openRoomInvite,
+  requestComposerFocus,
   SlashCommandRegistryProvider,
   selectChat,
   setFocusMode,
@@ -1946,6 +1947,25 @@ export function ChatDeletedWhileOpenStory(): ReactElement {
     <CtDataProviders>
       <CtRealSectionRegistry>
         <ChatDeletedDriver />
+        <ChatContentHarness />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The chats CONTENT at landing, plus the button that enters a room through the shipped content-swap door
+ *  (`selectChat` → `withContentSwap` → `withViewTransition`). The `.ct.tsx` stubs the View Transition API to
+ *  record what the update callback commits. */
+export function ChatRoomEntryStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <button type="button" onClick={(): void => selectChat(CHAT_ID)}>
+          enter the room
+        </button>
+        <button type="button" onClick={(): void => requestComposerFocus(CHAT_ID)}>
+          request composer focus
+        </button>
         <ChatContentHarness />
       </CtRealSectionRegistry>
     </CtDataProviders>

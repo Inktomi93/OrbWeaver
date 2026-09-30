@@ -17,9 +17,9 @@ import { Container, Row, Stack, Surface } from "@orb/ui/layout";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { Fragment, useRef } from "react";
+import { Fragment, useDeferredValue, useRef } from "react";
 import type { ChatBusDeps } from "#data";
-import { useCarriedAppearance, useTRPC } from "#data";
+import { SkeletonRows, useCarriedAppearance, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceAnchor, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { cn, deriveChatTitle, useFocusOnMount } from "#lib";
 import type { ActiveChatHandle } from "#state";
@@ -30,6 +30,7 @@ import { Composer } from "../components/composer.tsx";
 import { MessageSelectionBar } from "../components/message-selection-bar.tsx";
 import { resolveRoomTheme } from "../lib/attribution.ts";
 import { CHAT_TRACK } from "../lib/chat-track.ts";
+import { BG_PHOTO_LOADING_PLATE } from "../lib/message-row-backing.ts";
 import { MessageListSurface } from "./message-list-surface.tsx";
 
 export interface ChatRoomSurfaceProps {
@@ -77,8 +78,13 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
           roomChat.participants.map((participant) => participant.displayName),
         );
 
+  // Entering a room commits inside a view-transition update callback, which holds the main thread for the whole
+  // sync commit. That commit carries the room frame only; the transcript and composer mount in the deferred
+  // render after it, which yields.
+  const bodyMounted: boolean = useDeferredValue(true, false);
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  // Gated on the body so this parent effect runs after the transcript's and the composer's own focus effects.
+  useFocusOnMount(surfaceRef, bodyMounted);
 
   const roomState: ChatRoomSurfaceState = { chatId };
   const flankContributions = resolveRoomAnchor(surfaceContributors, "thread-flank", roomState);
@@ -130,37 +136,39 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
         >
           {/* The character strip is presence-at-a-glance for the room's roster — size-gated inside. */}
           <ChatCharacterBar chatId={chatId} />
-          {/* THE FLANK ROW IS UNCONDITIONAL, AND THAT IS THE #680 FIX — the fork it replaces was the P0.
-           *  A `flankContributions.length === 0 ? thread : <wrapper>` fork made the room's HEIGHT CHAIN a
-           *  function of whether any contributor happened to be REGISTERED, and the wrapper arm severed it:
-           *  ONE ROOT CAUSE, TWO DEFECTS — `Row` BAKES `items-center` (@orb/ui layout variants) and
-           *  `@max-lg:flex-col` flips DIRECTION but not ALIGNMENT, so the baked cross-axis rule meant a
-           *  different thing on each arm (the axis-disagreement family):
-           *    · BESIDE (row): the transcript is a content-height child ⇒ `MessageList`'s bounded-height
-           *      tripwire throws (`@orb/ui/lib/virtual-gap.ts` — thrown, not warned) ⇒ the room renders
-           *      "Couldn't load this conversation." with zero messages. LOUD.
-           *    · STACKED (column): `items-center` becomes a horizontal shrink-to-content ⇒ the transcript
-           *      computes to WIDTH 0, its rows parked off-screen ⇒ an empty room, no error, no retry.
-           *      SILENT, and therefore the worse of the two.
-           *
-           *  So the wrapper is now LAYOUT-NEUTRAL BY CONSTRUCTION rather than conditionally present, and it
-           *  REPLACES the baked alignment instead of overriding it at one breakpoint — one declaration
-           *  answering both arms: `align="stretch"` gives the thread the row's full height AND the column's
-           *  full width, and `min-h-0` on both the Row and the thread keeps the flex chain able to SHRINK,
-           *  which is what gives the virtualizer a real scroll window. With no flank content the row has
-           *  exactly one laid-out child at full size, so it renders byte-identically to the bare thread it
-           *  replaced (pinned on BOTH axes at BOTH arms by the #680 CT loop — a desktop-width-only pin is
-           *  exactly how both defects went green).
-           *
-           *  The `Container` + `@max-lg` is a CONTAINER query on this pane's own inline size, never the
-           *  viewport (the shell's docked panels can narrow it on a wide screen): below 32rem/512px the
-           *  flank stacks BELOW the thread instead of crushing its reading column (the
-           *  settings-shell-surface.tsx / role-slot-row.tsx `@max-md`/`@2xl` precedent, at the `lg` step
-           *  since a thread+flank split needs more room than a nav+content split before beside is comfy). */}
-          <Container className="min-h-0 flex-1">
-            <Row gap="block" align="stretch" className="h-full min-h-0 @max-lg:flex-col" data-slot="chat-room-flank-row">
-              {thread}
-              {/* `empty:hidden` is the SILENT-CONTRIBUTOR collapse, the same property (and the same
+          {bodyMounted ? (
+            <>
+              {/* THE FLANK ROW IS UNCONDITIONAL, AND THAT IS THE #680 FIX — the fork it replaces was the P0.
+               *  A `flankContributions.length === 0 ? thread : <wrapper>` fork made the room's HEIGHT CHAIN a
+               *  function of whether any contributor happened to be REGISTERED, and the wrapper arm severed it:
+               *  ONE ROOT CAUSE, TWO DEFECTS — `Row` BAKES `items-center` (@orb/ui layout variants) and
+               *  `@max-lg:flex-col` flips DIRECTION but not ALIGNMENT, so the baked cross-axis rule meant a
+               *  different thing on each arm (the axis-disagreement family):
+               *    · BESIDE (row): the transcript is a content-height child ⇒ `MessageList`'s bounded-height
+               *      tripwire throws (`@orb/ui/lib/virtual-gap.ts` — thrown, not warned) ⇒ the room renders
+               *      "Couldn't load this conversation." with zero messages. LOUD.
+               *    · STACKED (column): `items-center` becomes a horizontal shrink-to-content ⇒ the transcript
+               *      computes to WIDTH 0, its rows parked off-screen ⇒ an empty room, no error, no retry.
+               *      SILENT, and therefore the worse of the two.
+               *
+               *  So the wrapper is now LAYOUT-NEUTRAL BY CONSTRUCTION rather than conditionally present, and it
+               *  REPLACES the baked alignment instead of overriding it at one breakpoint — one declaration
+               *  answering both arms: `align="stretch"` gives the thread the row's full height AND the column's
+               *  full width, and `min-h-0` on both the Row and the thread keeps the flex chain able to SHRINK,
+               *  which is what gives the virtualizer a real scroll window. With no flank content the row has
+               *  exactly one laid-out child at full size, so it renders byte-identically to the bare thread it
+               *  replaced (pinned on BOTH axes at BOTH arms by the #680 CT loop — a desktop-width-only pin is
+               *  exactly how both defects went green).
+               *
+               *  The `Container` + `@max-lg` is a CONTAINER query on this pane's own inline size, never the
+               *  viewport (the shell's docked panels can narrow it on a wide screen): below 32rem/512px the
+               *  flank stacks BELOW the thread instead of crushing its reading column (the
+               *  settings-shell-surface.tsx / role-slot-row.tsx `@max-md`/`@2xl` precedent, at the `lg` step
+               *  since a thread+flank split needs more room than a nav+content split before beside is comfy). */}
+              <Container className="min-h-0 flex-1">
+                <Row gap="block" align="stretch" className="h-full min-h-0 @max-lg:flex-col" data-slot="chat-room-flank-row">
+                  {thread}
+                  {/* `empty:hidden` is the SILENT-CONTRIBUTOR collapse, the same property (and the same
                   reason) the above-composer band carries below: a contributor whose applicability is DATA
                   (automation's needle meter: is there a tension score in this room?) cannot answer in the
                   seam's SYNC `when`, so it mounts everywhere and paints nothing where it does not apply.
@@ -168,7 +176,7 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
                   beside the transcript. `:empty` takes the stack out of layout entirely, so "mounted but
                   silent" and "not mounted" render identically; it cannot hide a live contribution, since
                   any rendered node makes the stack non-empty. */}
-              {/* …and `max-w-(--width-sidebar-sm)` is the COLUMN'S OWN BOUND (#776), the other half of the
+                  {/* …and `max-w-(--width-sidebar-sm)` is the COLUMN'S OWN BOUND (#776), the other half of the
                   same seam-owns-flank-layout law. Every tenant the anchor had until #679 U2 was
                   content-small by construction (a meter card), so the column never needed a ceiling — and
                   then the anchor opened to PLUGIN surfaces, whose text a third party writes. Measured
@@ -182,40 +190,54 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
                   island would be the clamp leaking into the arm it was never for. A contributor bounding
                   only ITSELF was the rejected arm: it leaves the house's own future widgets unprotected
                   and puts layout in a contribution, which is exactly what §6c forbids. */}
-              <Stack gap="block" className="empty:hidden max-w-(--width-sidebar-sm) @max-lg:max-w-none" data-slot="chat-thread-flank">
-                {flankContributions.map((c) => (
-                  <Fragment key={c.id}>{c.node}</Fragment>
-                ))}
-              </Stack>
-            </Row>
-          </Container>
-          <MessageSelectionBar chatId={chatId} />
-          {/* THE ROOM'S ONE TRACK (#213): a band between the transcript and the composer is part of the same
+                  <Stack gap="block" className="empty:hidden max-w-(--width-sidebar-sm) @max-lg:max-w-none" data-slot="chat-thread-flank">
+                    {flankContributions.map((c) => (
+                      <Fragment key={c.id}>{c.node}</Fragment>
+                    ))}
+                  </Stack>
+                </Row>
+              </Container>
+              <MessageSelectionBar chatId={chatId} />
+              {/* THE ROOM'S ONE TRACK (#213): a band between the transcript and the composer is part of the same
               vertical stack, so it takes the same centred box — otherwise a contribution renders at its own
               content width against the left edge of the pane while the two things it sits between centre. */}
-          {aboveComposerContributions.length === 0 ? null : (
-            // `empty:hidden` is the SILENT-CONTRIBUTOR collapse: a
-            // contribution that is mounted but currently paints nothing (the control band with no live
-            // control — its source fibers render null) leaves this wrapper with zero child NODES, and an
-            // empty flex child still costs the column one `gap="block"` step between the transcript and the
-            // composer. `:empty` takes it out of layout entirely, so "mounted but silent" and "not mounted"
-            // read identically. It cannot hide a live contribution: any rendered node makes the wrapper
-            // non-empty.
-            <Stack gap="row" className={cn(CHAT_TRACK, "empty:hidden")} data-slot="chat-above-composer">
-              {aboveComposerContributions.map((c) => (
-                <Fragment key={c.id}>{c.node}</Fragment>
-              ))}
-            </Stack>
+              {aboveComposerContributions.length === 0 ? null : (
+                // `empty:hidden` is the SILENT-CONTRIBUTOR collapse: a
+                // contribution that is mounted but currently paints nothing (the control band with no live
+                // control — its source fibers render null) leaves this wrapper with zero child NODES, and an
+                // empty flex child still costs the column one `gap="block"` step between the transcript and the
+                // composer. `:empty` takes it out of layout entirely, so "mounted but silent" and "not mounted"
+                // read identically. It cannot hide a live contribution: any rendered node makes the wrapper
+                // non-empty.
+                <Stack gap="row" className={cn(CHAT_TRACK, "empty:hidden")} data-slot="chat-above-composer">
+                  {aboveComposerContributions.map((c) => (
+                    <Fragment key={c.id}>{c.node}</Fragment>
+                  ))}
+                </Stack>
+              )}
+              <ComposerSlot
+                chatId={chatId}
+                actionContributions={composerActionContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+                roomContributions={composerRoomContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+                mediaContributions={composerMediaContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+              />
+            </>
+          ) : (
+            <RoomTranscriptSkeleton />
           )}
-          <ComposerSlot
-            chatId={chatId}
-            actionContributions={composerActionContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
-            roomContributions={composerRoomContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
-            mediaContributions={composerMediaContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
-          />
         </Stack>
       </Surface>
     </ThemeScope>
+  );
+}
+
+function RoomTranscriptSkeleton(): ReactElement {
+  return (
+    <Stack className="min-h-0 flex-1" data-slot="chat-room-mounting">
+      <Stack className={`${CHAT_TRACK} ${BG_PHOTO_LOADING_PLATE}`}>
+        <SkeletonRows count={3} />
+      </Stack>
+    </Stack>
   );
 }
 
