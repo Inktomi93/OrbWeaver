@@ -61,10 +61,19 @@ const SHORT_REF_LEN = 4;
 const YEAR_PREFIX_LEN = 5;
 const EM_DASH = "—";
 
-/** THE GLOSSARY SLOT (side-eye rail-analytics 2026-08-19: zero definitions across 27 metrics). One
- *  sentence, one home, rendered under every band that can show an em dash — a reader who meets `—` where
- *  they expected a number needs to be told it means "never measured", not "measured zero". */
-export const UNRECORDED_NOTE = "A dash means the figure was never recorded — imported histories and agent-sdk turns carry no token or cost accounting.";
+/** Shared legend for absent accounting and estimates; missing totals are not measured zeros. */
+export const UNRECORDED_NOTE = "A dash means the figure was never recorded. ~ marks estimates. Token and cost totals omit turns with missing accounting.";
+
+export const REASONING_LABEL = "Reasoning (of replies + swipes)";
+export const THROUGHPUT_LABEL = "Throughput (output / gen time)";
+
+const ACCOUNTING_ORIGINS = { measured: "Recorded", estimated: "Estimated", unrecorded: "Not recorded" } satisfies Record<TokenProvenance, string>;
+
+/** Cost provenance follows dollar presence, independently of token estimates. */
+export function formatAccountingLabel(label: string, value: number | null, provenance?: TokenProvenance): string {
+  const origin = value === null ? "unrecorded" : (provenance ?? "measured");
+  return `${label} · ${ACCOUNTING_ORIGINS[origin]}`;
+}
 
 /** A human duration: `340ms` · `1.2s` · `3m 20s` · `2h 5m`. Rounding at a unit boundary CARRIES into the
  *  next unit — a value that rounds to 60s reads `1m 0s`, not `60.0s`; 60s-of-remainder reads `Nm+1 0s`, not

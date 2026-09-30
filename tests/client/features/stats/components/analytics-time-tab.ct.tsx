@@ -51,6 +51,20 @@ test("one estimated day keeps the shared token chart visibly approximate", async
   const component = await mount(<AnalyticsTimeTabStory />);
   const tokens = component.getByRole("table", { name: "Output tokens per day" });
   await expect(tokens.getByRole("cell")).toHaveText(["~1.2M", "~3.4k"]);
+  await expect(component.getByText("~ marks estimates", { exact: false })).toBeVisible();
+  await expect(component.getByText("Aggregate only", { exact: false })).toBeVisible();
+});
+
+test("an unrecorded period teaches missing output accounting instead of showing zero-token buckets", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.timeseries": () => POINTS.map((point) => ({ ...point, tokensOut: null, tokensOutProvenance: "unrecorded" as const })),
+    "stats.temporal": () => TEMPORAL,
+    "stats.activityHeatmap": () => HEATMAP,
+  });
+  const component = await mount(<AnalyticsTimeTabStory width={320} />);
+  await expect(component.getByRole("table", { name: "Assistant turns per day" }).getByRole("cell")).toHaveText(["12", "40"]);
+  await expect(component.getByText("No output token accounting recorded in this period.", { exact: true })).toBeVisible();
+  await expect(component.getByRole("table", { name: "Output tokens per day" })).toHaveCount(0);
 });
 
 test("the 7x24 activity matrix is readable as a real table, not just a coloured canvas (P1e)", async ({ mount, page }) => {

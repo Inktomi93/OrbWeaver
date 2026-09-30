@@ -46,11 +46,11 @@ export function AnalyticsListSurfaceStory(): ReactElement {
 /** The Analytics OVERVIEW dashboard over the real data layer (four suspense reads + the recompute
  *  mutation). Wrapped in `CtRealSectionRegistry` (#451): the top-character subtitle reads
  *  `useSectionListMode("corpus")`, which needs the real registry to resolve. */
-export function AnalyticsOverviewSurfaceStory(): ReactElement {
+export function AnalyticsOverviewSurfaceStory({ width = 720 }: { readonly width?: number }): ReactElement {
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <div style={{ height: 640, width: 720 }}>
+        <div style={{ height: 640, width }}>
           <AnalyticsOverviewSurface />
         </div>
       </CtRealSectionRegistry>
@@ -101,10 +101,10 @@ export function AnalyticsOverviewSurfaceListModeStory(): ReactElement {
 
 /** The Analytics CHARACTER drill (a single character's turn economics) over the real data layer.
  *  `onBack` is a no-op here — the CT asserts what renders, not the navigation the shell owns. */
-export function AnalyticsCharacterSurfaceStory(): ReactElement {
+export function AnalyticsCharacterSurfaceStory({ width = 720 }: { readonly width?: number }): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 640, width: 720 }}>
+      <div style={{ height: 640, width }}>
         <AnalyticsCharacterSurface characterId={castId<CharacterId>("character_ct_drill")} onBack={(): void => undefined} />
       </div>
     </CtDataProviders>
@@ -113,10 +113,10 @@ export function AnalyticsCharacterSurfaceStory(): ReactElement {
 
 /** The Analytics CONTEXT tab bodies over the real data layer. The width is the CONTEXT panel's, which is
  *  where their rows and charts are actually narrow. */
-export function AnalyticsTimeTabStory(): ReactElement {
+export function AnalyticsTimeTabStory({ width = 420 }: { readonly width?: number }): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 640, width: 420 }}>
+      <div style={{ height: 640, width }}>
         <AnalyticsTimeTab />
       </div>
     </CtDataProviders>
@@ -214,15 +214,16 @@ function WithDrill({ drilled, children }: { readonly drilled: boolean; readonly 
 export interface AnalyticsTabStoryProps {
   /** `true` seeds a leaderboard drill — the state each CONTEXT tab must answer for honestly. */
   readonly drilled?: boolean;
+  readonly width?: number;
 }
 
 /** The CONTEXT "Models" tab in either drill state (P1b): the model rollup has no character axis, so the
  *  drilled arm must say so and must NOT render a second, owner-scoped copy of CONTENT's latency quartet. */
-export function AnalyticsModelsTabStory({ drilled = false }: AnalyticsTabStoryProps): ReactElement {
+export function AnalyticsModelsTabStory({ drilled = false, width = 420 }: AnalyticsTabStoryProps): ReactElement {
   return (
     <CtDataProviders>
       <WithDrill drilled={drilled}>
-        <div style={{ height: 640, width: 420 }}>
+        <div style={{ height: 640, width }}>
           <AnalyticsModelsTab />
         </div>
       </WithDrill>
@@ -232,11 +233,11 @@ export function AnalyticsModelsTabStory({ drilled = false }: AnalyticsTabStoryPr
 
 /** The CONTEXT "Personas" tab in either drill state (P1b): `personaUsage` is a live canon GROUP BY, so
  *  the drilled arm SCOPES (it does not merely caption). */
-export function AnalyticsPersonasTabStory({ drilled = false }: AnalyticsTabStoryProps): ReactElement {
+export function AnalyticsPersonasTabStory({ drilled = false, width = 420 }: AnalyticsTabStoryProps): ReactElement {
   return (
     <CtDataProviders>
       <WithDrill drilled={drilled}>
-        <div style={{ height: 640, width: 420 }}>
+        <div style={{ height: 640, width }}>
           <AnalyticsPersonasTab />
         </div>
       </WithDrill>

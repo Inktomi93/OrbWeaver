@@ -40,6 +40,34 @@ const UNRECORDED_MODEL = {
   charactersUsedWith: 1,
 };
 
+for (const width of [320, 420] as const) {
+  test.describe(`model accounting at ${width}`, () => {
+    test.use({ hasTouch: width === 320, viewport: { width: width === 320 ? 320 : 1280, height: 844 } });
+    test("accounting provenance labels aggregate rows without deriving cost from estimated tokens", async ({ mount, page }) => {
+      await routeTrpc(page, {
+        "stats.byModel": () => [
+          ...MODELS.map((model) => (model.costUsd > 0 ? { ...model, tokensOutProvenance: "estimated" as const, costUsd: null } : model)),
+          UNRECORDED_MODEL,
+        ],
+        "stats.latency": () => LATENCY,
+      });
+      const component = await mount(<AnalyticsModelsTabStory width={width} />);
+      const rows = component.getByRole("list", { name: "Models" }).getByRole("listitem");
+      await expect(rows).toHaveCount(3);
+      await expect(rows.first()).toContainText("~340k tok");
+      await expect(rows.first()).toContainText("Output tokens · Estimated");
+      await expect(rows.first()).toContainText("Cost · Not recorded");
+      await expect(rows.nth(1)).toContainText("$0.00");
+      await expect(rows.nth(1)).toContainText("Cost · Recorded");
+      await expect(rows.last()).toContainText("Output tokens · Not recorded");
+      for (const row of await rows.all()) {
+        await expect(row).toContainText("Aggregate only");
+      }
+      await expect.poll(() => component.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    });
+  });
+}
+
 async function mountModels(page: Parameters<typeof routeTrpc>[0]): Promise<void> {
   await routeTrpc(page, {
     "stats.byModel": () => MODELS,

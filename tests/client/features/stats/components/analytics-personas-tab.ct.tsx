@@ -9,6 +9,25 @@ const PERSONAS = [
   { personaId: "persona_ct_two", name: "Archivist", chatCount: 3, messageCount: 210, tokensOut: 8000, lastUsedAt: null },
 ];
 
+test("persona aggregates label missing token accounting beside a recorded control", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.personaUsage": () =>
+      PERSONAS.map((persona) =>
+        persona.name === "Wanderer"
+          ? { ...persona, tokensOut: null, tokensOutProvenance: "unrecorded" as const }
+          : { ...persona, tokensOutProvenance: "measured" as const },
+      ),
+  });
+  const component = await mount(<AnalyticsPersonasTabStory width={320} />);
+  const rows = component.getByRole("list", { name: "Personas" }).getByRole("listitem");
+  await expect(rows.first()).toContainText("Output tokens · Not recorded");
+  await expect(rows.last()).toContainText("8k tok");
+  await expect(rows.last()).toContainText("Output tokens · Recorded");
+  for (const row of await rows.all()) {
+    await expect(row).toContainText("Aggregate only");
+  }
+});
+
 test("the persona breakdown announces as a list of real list items (P2c)", async ({ mount, page }) => {
   await routeTrpc(page, { "stats.personaUsage": () => PERSONAS });
   const component = await mount(<AnalyticsPersonasTabStory />);

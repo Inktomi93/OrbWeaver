@@ -10,6 +10,7 @@ import { readCanvasBandInk, solidColumns } from "../../../../support/browser/can
 import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { AnalyticsOverviewSurfaceListModeStory, AnalyticsOverviewSurfaceShortStory, AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
+import { ACCOUNTING_CASES } from "../fixtures.ts";
 
 const COMPUTED_AT = 1_750_000_000_000;
 /** A four-digit year — the tell that the `title=` carries the ABSOLUTE stamp, whatever the runner's locale. */
@@ -53,6 +54,42 @@ const WRAPPED = {
 };
 
 const MOMENTUM = { latestMonth: null, prevMonth: null, rising: [], falling: [] };
+
+for (const width of [320, 720] as const) {
+  test.describe(`dashboard accounting at ${width}`, () => {
+    test.use({ hasTouch: width === 320, viewport: { width: width === 320 ? 320 : 1280, height: 844 } });
+    for (const accounting of ACCOUNTING_CASES) {
+      test(`accounting provenance: ${accounting.name}`, async ({ mount, page }) => {
+        await routeTrpc(page, {
+          "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+          "stats.overview": () => ({
+            ...OVERVIEW,
+            tokensIn: accounting.tokens,
+            tokensOut: accounting.tokens,
+            tokensInProvenance: accounting.provenance,
+            tokensOutProvenance: accounting.provenance,
+          }),
+          "stats.wrapped": () => ({ ...WRAPPED, costUsd: accounting.cost }),
+          "stats.momentum": () => MOMENTUM,
+        });
+        const component = await mount(<AnalyticsOverviewSurfaceStory width={width} />);
+        for (const label of ["Tokens in", "Tokens out"]) {
+          const figure = component.locator('[data-slot="stat-figure"]', { hasText: label });
+          await expect(figure.locator('[data-slot="stat-figure-value"]')).toHaveText(accounting.tokenValue);
+          await expect(figure.locator('[data-slot="stat-figure-label"]')).toHaveText(`${label} · ${accounting.label}`);
+        }
+        const spend = component.locator('[data-slot="stat-figure"]', { hasText: "Spend" });
+        await expect(spend.locator('[data-slot="stat-figure-value"]')).toHaveText(accounting.costValue);
+        await expect(spend.locator('[data-slot="stat-figure-label"]')).toHaveText(`Spend · ${accounting.cost === null ? "Not recorded" : "Recorded"}`);
+        await expect(component.getByText("Whole library · Aggregate only", { exact: true })).toBeVisible();
+        await expect(component.getByText("~ marks estimates", { exact: false }).first()).toBeVisible();
+        await expect(component.getByText("Reasoning (of replies + swipes)", { exact: true })).toBeVisible();
+        await expect(component.getByText("Throughput (output / gen time)", { exact: true })).toBeVisible();
+        await expect.poll(() => component.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      });
+    }
+  });
+}
 
 const SHOW_LIST_PANEL_RE = /Show list panel/u;
 

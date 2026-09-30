@@ -18,7 +18,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
-import { formatCompact, formatTokens, personaBarItems } from "../lib/analytics-view-model.ts";
+import { formatAccountingLabel, formatCompact, formatTokens, personaBarItems } from "../lib/analytics-view-model.ts";
 
 export function AnalyticsPersonasTab(): ReactElement {
   return (
@@ -62,7 +62,7 @@ function PersonasBody(): ReactElement {
              empty (side-eye ANALYTICS 2026-08-19, P2c). The wrapper carries the role, never the ListRow. */
           <Stack aria-label="Personas" gap="row" role="list">
             {personas.map((persona, index) => (
-              <Stack aria-posinset={index + 1} aria-setsize={personas.length} key={persona.personaId} role="listitem">
+              <Stack aria-posinset={index + 1} aria-setsize={personas.length} gap="field" key={persona.personaId} role="listitem">
                 <ListRow
                   title={persona.name}
                   subtitle={`${formatCompact(persona.chatCount)} chats · ${formatCompact(persona.messageCount)} messages${persona.lastUsedAt === null ? "" : ` · last used ${timeLib.formatRelative(persona.lastUsedAt)}`}`}
@@ -72,6 +72,7 @@ function PersonasBody(): ReactElement {
                     </Text>
                   }
                 />
+                <Text voice="gloss">Aggregate only · {formatAccountingLabel("Output tokens", persona.tokensOut, persona.tokensOutProvenance)}</Text>
               </Stack>
             ))}
           </Stack>
