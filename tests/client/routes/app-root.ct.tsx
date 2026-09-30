@@ -668,6 +668,22 @@ const CENSUS_SESSIONS = [
   },
 ] satisfies TrpcWireOutput<"refinery.listSessions">;
 const CENSUS_CHATS = [1, 2, 3].map((n) => makeChatSummary({ id: `chat_census_${String(n)}`, title: `Chat ${String(n)}` }));
+/** Three tags, one labelling nothing — the Corpus Labels census and its orphan fact. */
+const CENSUS_TAGS = [
+  { name: "fantasy", characters: 4 },
+  { name: "slow burn", characters: 2 },
+  { name: "orphan", characters: 0 },
+].map(({ name, characters }, index) => ({
+  id: `tag_census_${String(index)}`,
+  name,
+  color: null,
+  color2: null,
+  source: "manual" as const,
+  folderType: "NONE" as const,
+  sortOrder: null,
+  isHiddenOnCard: false,
+  usage: { characters, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: characters },
+})) satisfies TrpcWireOutput<"tag.listTagsWithUsage">;
 
 /**
  * EVERY read the seven screens need, fed at once — this route's subject is the TOPBAR, so no section's data
@@ -702,6 +718,7 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
   | "discovery.modelRouting"
   | "discovery.topKeywords"
   | "workloads.list"
+  | "tag.listTagsWithUsage"
 > = {
   ...HOME_AMBIENT_ROUTES,
   "chat.listChats": chatListResponder(CENSUS_CHATS),
@@ -765,11 +782,17 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
   "discovery.modelRouting": [],
   "discovery.topKeywords": [],
   "workloads.list": [],
+  // Corpus Labels (D271): the tag library the Labels finder, band and landing all read.
+  "tag.listTagsWithUsage": CENSUS_TAGS,
 };
 
 interface CensusCase {
   /** The rail/sheet affordance's accessible name, which is also the section label the topbar prints. */
   readonly label: string;
+  /** A Corpus mode other than Explore, picked from the mode switch once the section is showing (D271). */
+  readonly mode?: "Insights" | "Labels";
+  /** What the LIST band names — the section label, or the Corpus mode (D271). Absent ⇒ `label`. */
+  readonly bandTitle?: string;
   /** `tab` sections sit on the phone's bottom bar; the rest are reached through the You sheet (§E-5). */
   readonly onPhoneBar: boolean;
   /** The whole screen name, census included — the ONE thing a phone reader is told about this library. */
@@ -782,8 +805,9 @@ interface CensusCase {
 
 const CENSUS_CASES: readonly CensusCase[] = [
   { label: "Chats", onPhoneBar: true, phoneTitle: "Chats · 3", bandCount: "3" },
-  { label: "Corpus", onPhoneBar: false, phoneTitle: "Corpus · 12 of 19", bandCount: "12 of 19" },
-  { label: "Analytics", onPhoneBar: false, phoneTitle: "Analytics · 2 of 328", bandCount: "2 of 328", listStartsCollapsed: true },
+  { label: "Corpus", onPhoneBar: false, phoneTitle: "Explore · 12 of 19", bandCount: "12 of 19", bandTitle: "Explore" },
+  { label: "Corpus", mode: "Insights", onPhoneBar: false, phoneTitle: "Insights · 2 of 328", bandCount: "2 of 328", bandTitle: "Insights" },
+  { label: "Corpus", mode: "Labels", onPhoneBar: false, phoneTitle: "Labels · 3", bandCount: "3", bandTitle: "Labels" },
   { label: "Presets", onPhoneBar: false, phoneTitle: "Presets · 4", bandCount: "4" },
   { label: "Databank", onPhoneBar: false, phoneTitle: "Databank · 2", bandCount: "2" },
   { label: "Extensions", onPhoneBar: false, phoneTitle: "Extensions · 2", bandCount: "2" },
@@ -800,6 +824,9 @@ async function reachOnPhone(component: Locator, page: Page, kase: CensusCase): P
   await page.getByRole("dialog").getByRole("button", { name: kase.label, exact: true }).click();
   // The sheet is a real dialog that aria-hides the frame behind it — read the topbar only once it is GONE.
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  if (kase.mode !== undefined) {
+    await component.getByRole("radio", { name: kase.mode, exact: true }).click();
+  }
 }
 
 for (const width of [320, 390] as const) {
@@ -809,7 +836,7 @@ for (const width of [320, 390] as const) {
     test.use({ hasTouch: true, viewport: { width, height: 844 } });
 
     for (const kase of CENSUS_CASES) {
-      test(`${kase.label}: the topbar's screen name carries the census the shed band title took with it`, async ({ mount, page }) => {
+      test(`${kase.mode ?? kase.label}: the topbar's screen name carries the census the shed band title took with it`, async ({ mount, page }) => {
         await routeTrpc(page, SECTION_CENSUS_ROUTES);
         const component = await mount(<HomePageStory />);
         await reachOnPhone(component, page, kase);
@@ -820,8 +847,9 @@ for (const width of [320, 390] as const) {
         const screenName = component.locator(".shell-topbar-title");
         await expect(screenName).toHaveText(kase.phoneTitle);
         // …and it is the ONLY census on screen: the band's title, where the other copy lives, is shed by the
-        // ONE-NAME rule in exactly this arm. The single-visible-census ruling survives, per regime.
-        await expect(component.locator('[data-slot="list-pane-title"]')).toBeHidden();
+        // ONE-NAME rule in exactly this arm. The single-visible-census ruling survives, per regime. Insights
+        // lands on its dashboard (D271), so there the band rides the LIST pane off screen instead of being shed.
+        await expect(component.locator('[data-slot="list-pane-title"]')).not.toBeInViewport();
       });
     }
   });
@@ -833,18 +861,163 @@ test("the DESKTOP census is untouched — it stays in every LIST band and the na
 
   for (const kase of CENSUS_CASES) {
     await component.locator(".shell-rail").getByRole("button", { name: kase.label, exact: true }).click();
+    if (kase.mode !== undefined) {
+      await component.getByRole("radio", { name: kase.mode, exact: true }).click();
+    }
     if (kase.listStartsCollapsed === true) {
       // A content-first hub boots with its LIST collapsed (D62), so the band it prints into is not on screen
       // until the pane is — the toggle is the desktop's own door to it.
       await component.getByRole("button", { name: "Show list panel" }).click();
     }
     const bandTitle = component.locator('[data-slot="list-pane-title"]');
-    await expect(bandTitle).toContainText(kase.label === "Refinery" ? "Sessions" : kase.label);
+    await expect(bandTitle).toContainText(kase.label === "Refinery" ? "Sessions" : (kase.bandTitle ?? kase.label));
     await expect(bandTitle).toContainText(kase.bandCount);
   }
   // The narrow identity arm is in the DOM in both regimes (`shell-topbar.tsx`) — the container query is what
   // picks one — so this asserts PAINT, not presence, or it would pass for the wrong reason.
   await expect(component.locator(".shell-topbar-title")).toBeHidden();
+});
+
+// ── THE CORPUS WORKBENCH (D271) ─────────────────────────────────────────────────────────────────────────
+// Variant A: one rail section with an `Explore | Insights | Labels` switch over ONE LIST / CONTENT / CONTEXT
+// anatomy. Analytics has no rail door and Tags no Configuration door; each mode's own finder, CONTENT and
+// CONTEXT tabs render through the real composition, and a phone lands each mode on its declared pane.
+
+const CORPUS_LIST = '.shell-panel[data-panel-side="list"]';
+const CORPUS_CONTEXT = '.shell-panel[data-panel-side="context"]';
+
+test("desktop: Corpus holds Explore, Insights and Labels in one workspace, with no Analytics door", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...SECTION_CENSUS_ROUTES,
+    // The CONTEXT tabs each mode lands on: Explore's Archetypes and Insights' Models, empty but real.
+    "discovery.archetypes": [],
+    "stats.byModel": [],
+    "stats.latency": { avgTtftMs: null, p50TtftMs: null, p90TtftMs: null, avgGenMs: null, p50GenMs: null, p90GenMs: null },
+  });
+  const component = await mount(<HomePageStory />);
+  const rail = component.locator(".shell-rail");
+  await expect(rail.getByRole("button", { name: "Analytics" })).toHaveCount(0);
+  await rail.getByRole("button", { name: "Corpus", exact: true }).click();
+
+  const list = component.locator(CORPUS_LIST);
+  const modes = list.getByRole("radiogroup", { name: "Corpus mode" });
+  await expect(modes.getByRole("radio", { name: "Explore" })).toHaveAttribute("aria-checked", "true");
+  // Explore's CONTEXT is owner-wide, and says so.
+  await component.getByRole("button", { name: "Show details" }).click();
+  const context = component.locator(CORPUS_CONTEXT);
+  await expect(context.getByText("Whole corpus", { exact: true })).toBeVisible();
+  await expect(context.getByRole("button", { name: "Archetypes", exact: true })).toBeVisible();
+
+  // Insights: the leaderboard is the finder, the dashboard is CONTENT, and its dimension tabs replace Explore's.
+  await modes.getByRole("radio", { name: "Insights" }).click();
+  await expect(list.getByRole("textbox", { name: "Search characters" })).toBeVisible();
+  const main = component.locator("main.shell-content");
+  await expect(main.getByText("No insights yet")).toBeVisible();
+  await expect(context.getByRole("button", { name: "Models", exact: true })).toBeVisible();
+  await expect(context.getByRole("button", { name: "Archetypes", exact: true })).toHaveCount(0);
+
+  // Labels: the tag library is the finder, its facts are CONTENT, and its one inspector explains labels.
+  await modes.getByRole("radio", { name: "Labels" }).click();
+  await expect(list.getByRole("textbox", { name: "Filter labels" })).toBeVisible();
+  await expect(main.getByRole("heading", { name: "Labels", level: 2 })).toBeVisible();
+  await expect(context.getByRole("button", { name: "Reach", exact: true })).toBeVisible();
+  await expect(context.getByRole("button", { name: "Models", exact: true })).toHaveCount(0);
+});
+
+// FOCUS: a keyboard mode switch hands focus to the new mode's CONTENT, never to nowhere.
+test("desktop: a keyboard mode switch moves focus into the new mode's CONTENT", async ({ mount, page }) => {
+  await routeTrpc(page, SECTION_CENSUS_ROUTES);
+  const component = await mount(<HomePageStory />);
+  await component.locator(".shell-rail").getByRole("button", { name: "Corpus", exact: true }).click();
+  const insights = component.locator(CORPUS_LIST).getByRole("radio", { name: "Insights" });
+  await insights.focus();
+  await page.keyboard.press("Enter");
+  await expect(component.getByTestId(testId("analyticsOverviewSurface"))).toBeFocused();
+});
+
+// INSIGHTS RESTORATION: Back from a drill keeps the leaderboard's query and sort.
+test("desktop: Back from an Insights drill keeps the leaderboard's search and sort", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...SECTION_CENSUS_ROUTES,
+    // The drill's own reads: a character with no rolled-up stats yet, which still offers its Back.
+    "stats.character": null,
+    "stats.latency": { avgTtftMs: null, p50TtftMs: null, p90TtftMs: null, avgGenMs: null, p50GenMs: null, p90GenMs: null },
+    "character.get": ARIA_CARD,
+  });
+  const component = await mount(<HomePageStory />);
+  await component.locator(".shell-rail").getByRole("button", { name: "Corpus", exact: true }).click();
+  const list = component.locator(CORPUS_LIST);
+  await list.getByRole("radio", { name: "Insights" }).click();
+  await list.getByRole("textbox", { name: "Search characters" }).fill("a");
+  await list.getByRole("button", { name: "Sort by Swipes", exact: true }).click();
+  await expect(list.getByRole("button", { name: "Sort by Swipes", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+  await list.getByRole("button", { name: "Bolt", exact: true }).click();
+  const main = component.locator("main.shell-content");
+  await expect(main.getByTestId(testId("analyticsCharacterSurface"))).toBeVisible();
+  await main.getByRole("button", { name: "Back", exact: true }).click();
+
+  await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
+  await expect(list.getByRole("textbox", { name: "Search characters" })).toHaveValue("a");
+  await expect(list.getByRole("button", { name: "Sort by Swipes", exact: true })).toHaveAttribute("aria-pressed", "true");
+});
+
+test.describe("the Corpus workbench on a phone", () => {
+  // `hasTouch` because the phone landing belongs to the COARSE-POINTER regime, not merely a narrow window.
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+  test("Corpus enters through You; Explore and Labels land on their finder, Insights on its dashboard", async ({ mount, page }) => {
+    await routeTrpc(page, SECTION_CENSUS_ROUTES);
+    const component = await mount(<HomePageStory />);
+    const rail = component.locator(".shell-rail");
+    // D271: the permanent bar is Home · Chats · Characters · You, and Corpus is not one of them.
+    await expect(rail.getByRole("button", { name: "Corpus", exact: true })).toHaveCount(0);
+    await rail.getByRole("button", { name: "You", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Corpus", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    const list = component.locator(CORPUS_LIST);
+    // Explore lands on its finder, full screen, with no scrim.
+    await expect(list).toHaveAttribute("data-panel-mode", "docked");
+    await expect(list.getByRole("radio", { name: "Explore" })).toHaveAttribute("aria-checked", "true");
+
+    // Insights lands on CONTENT: the finder steps aside and the switch heads the dashboard instead.
+    await list.getByRole("radio", { name: "Insights" }).tap();
+    await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
+    const main = component.locator("main.shell-content");
+    await expect(main.getByText("No insights yet")).toBeVisible();
+    await expect(main.getByRole("radio", { name: "Insights" })).toHaveAttribute("aria-checked", "true");
+    await expect(component.locator(".shell-topbar-title")).toHaveText("Insights · 2 of 328");
+
+    // Labels lands on its finder again.
+    await main.getByRole("radio", { name: "Labels" }).tap();
+    await expect(list).toHaveAttribute("data-panel-mode", "docked");
+    await expect(list.getByRole("textbox", { name: "Filter labels" })).toBeVisible();
+  });
+
+  // LABELS RESTORATION on the phone: a tag pushes its editor over the finder, and Back restores the finder
+  // with its filter and without the tag.
+  test("Labels: a tag pushes its editor, and Back restores the finder with its filter", async ({ mount, page }) => {
+    await routeTrpc(page, SECTION_CENSUS_ROUTES);
+    const component = await mount(<HomePageStory />);
+    await component.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Corpus", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    const list = component.locator(CORPUS_LIST);
+    await list.getByRole("radio", { name: "Labels" }).tap();
+    await list.getByRole("textbox", { name: "Filter labels" }).fill("o");
+    await list.getByRole("button", { name: "slow burn", exact: true }).tap();
+
+    const main = component.locator("main.shell-content");
+    await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
+    await expect(main.locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "slow burn" })).toBeVisible();
+    await expect(component.locator(".shell-topbar-title")).toHaveText("slow burn");
+
+    await component.getByRole("button", { name: "Back to Corpus" }).tap();
+    await expect(list).toHaveAttribute("data-panel-mode", "docked");
+    await expect(list.getByRole("textbox", { name: "Filter labels" })).toHaveValue("o");
+    await expect(main.locator('[data-slot="tag-member-editor"]')).toHaveCount(0);
+  });
 });
 
 // AN OPEN MEMBER IS NEVER OVERWRITTEN BY THE ROSTER'S CENSUS (#1670 follow-up). The census arm used to be

@@ -54,7 +54,8 @@ export function CorpusContextHeader(): ReactElement {
   return (
     <Row align="center" gap="field" className="min-w-0">
       <Icon icon={Library} size="sm" />
-      <Text className="truncate text-title leading-title font-semibold">Corpus</Text>
+      {/* `Whole corpus` (D271): owner-wide context must never read as a description of the selected artifact. */}
+      <Text className="truncate text-title leading-title font-semibold">Whole corpus</Text>
       {census}
     </Row>
   );

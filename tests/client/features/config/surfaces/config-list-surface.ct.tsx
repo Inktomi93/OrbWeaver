@@ -1,9 +1,9 @@
-// CT: the Configuration workspace — the host frame over the REAL tag + regex + world-info collections.
+// CT: the Configuration workspace — the host frame over the REAL regex + world-info + roster collections.
 //
 // This is the seam's acceptance test: the host draws bands, disclosure, counts, create and the filter; the
 // contributions draw rows, editors and context bodies; and the ONE kinded selection routes between them.
 //
-// AT SCALE, ON PURPOSE (owner ruling 2026-08-02): the tags fixture is FOUR HUNDRED rows, because that is
+// AT SCALE, ON PURPOSE (owner ruling 2026-08-02): the large-library fixture is FOUR HUNDRED rows, because that is
 // the owner's real library and every decision here — collapsed by default, the count-driven filter, the
 // windowed rows — exists for that size. A five-row toy would pass while the shipped surface stalled.
 
@@ -23,7 +23,6 @@ import {
 
 /** The group bands, by their accessible name — a band is `<disclosure> <icon> LABEL <count>`, so the
  *  name carries the count and only a pattern can address it. */
-const TAGS_BAND = /Tags/;
 const REGEX_BAND = /Regex scripts/;
 const WORLD_INFO_BAND = /World Info/;
 /** Any group-band IMPORT trigger — the D121-D band half, drawn only where a collection declares one. */
@@ -31,7 +30,8 @@ const ANY_IMPORT_TRIGGER = /^Import/;
 /** Any group-band BULK-SELECT toggle (REGX2) — the same DATA-declared band grammar. */
 const ANY_BULK_TOGGLE = /^Select /;
 
-const TAG_COUNT = 400;
+/** The large library: world info at the size that windows, with a name per member this file can spell. */
+const BOOK_COUNT = 400;
 
 /** The global-scope switch, by what it does — the accessible name is `<script name> runs in every chat`. */
 const GLOBAL_SWITCH = /runs in every chat/i;
@@ -64,37 +64,22 @@ const FIRST_GROUP_ID = "appearance";
  *  here because a test may not import a source constant and then assert it against itself. */
 const CONFIG_MODIFIED_MARK = "Modified";
 
-type TagWithUsage = TrpcWireOutput<"tag.listTagsWithUsage">[number];
-function tagRow(index: number): TagWithUsage {
+type BookWithUsage = TrpcFixtureOutput<"worldInfo.listBooksWithUsage">[number];
+function bookRow(index: number): BookWithUsage {
   return {
-    id: `tag_${String(index).padStart(3, "0")}`,
-    name: `tag-${String(index).padStart(3, "0")}`,
-    color: null,
-    color2: null,
-    source: null,
-    folderType: "NONE",
-    sortOrder: index,
-    isHiddenOnCard: false,
-    usage: { characters: index % 3, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: index % 3 },
+    id: `world_book_ct${String(index).padStart(9, "0")}`,
+    name: `book-${String(index).padStart(3, "0")}`,
+    description: null,
+    createdAt: index,
+    entryCount: 1,
+    usage: { characters: 0, personas: 0, chats: 0, global: false, total: 0 },
   };
 }
 
-const MANY_TAGS = Array.from({ length: TAG_COUNT }, (_unused, index) => tagRow(index));
+const MANY_BOOKS = Array.from({ length: BOOK_COUNT }, (_unused, index) => bookRow(index));
 
-/** The FIRST row the tag list renders. Its default order is MOST-USED (tag-experience audit 2026-08-03,
- *  `sortTagsBy`), and this fixture's usage is `index % 3` — so the window opens on the `%3 === 2` bucket,
- *  not on `tag-000`. Naming it here keeps these host assertions about the HOST (rows mounted, filter
- *  applied) instead of quietly re-asserting the owner's comparator. */
-const FIRST_ROW = "tag-002";
-
-/** The first MEMBER row, scoped to the pane that holds member rows — CONTENT since #1725. The scoping is
- *  still load-bearing and for the same reason it always was (program #102): the library's own insights print
- *  member text too, so an unscoped `getByText("tag-002")` can match a fact as well as a row. What changed is
- *  WHICH pane: the owner moved every collection's rows out of the LIST, so a helper still scoped there would
- *  resolve to nothing and every caller would fail for the wrong reason. */
-function firstRow(workspace: Locator): Locator {
-  return listRow(workspace, FIRST_ROW);
-}
+/** The FIRST row the large library renders. */
+const FIRST_ROW = "book-000";
 
 /** A member ROW by any text it carries, scoped to CONTENT — `firstRow`'s rule generalized, re-homed by
  *  #1725 with it.
@@ -168,7 +153,7 @@ const BOOKS = [BOOK];
 
 function stub(
   page: Page,
-  tags: TrpcWireOutput<"tag.listTagsWithUsage"> = MANY_TAGS,
+  books: TrpcFixtureOutput<"worldInfo.listBooksWithUsage"> = BOOKS,
   scripts: TrpcFixtureOutput<"regex.listScripts"> = SCRIPTS,
   overrides: Partial<TrpcRoutes<"settings.getUserSettings">> = {},
 ): Promise<TrpcRecorder> {
@@ -185,18 +170,13 @@ function stub(
       { id: "theme_00000000000000000000000003", name: "Light", override: {}, css: null, isSeed: true, isDefault: false, createdAt: 0, updatedAt: 0 },
     ],
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
-    "tag.listTagsWithUsage": () => tags,
-    "tag.createTag": () => {
-      const { usage: _usage, ...created } = tagRow(TAG_COUNT);
-      return created;
-    },
     "regex.listScripts": () => scripts,
     "regex.listGlobal": () => [],
     // The regex CONTEXT arm's reverse rosters (REGROSTER) — this host only proves that the arm MOUNTS;
     // what the rosters say is pinned by the regex feature's own CT.
     "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),
     "regex.createScript": () => SCRIPTS[0],
-    "worldInfo.listBooksWithUsage": () => BOOKS,
+    "worldInfo.listBooksWithUsage": () => books,
     "worldInfo.getBook": () => ({ id: BOOK.id, name: "The Ninefold Reach", description: null, createdAt: 1 }),
     "worldInfo.listEntries": () => [],
     "worldInfo.listGlobal": () => [],
@@ -273,45 +253,44 @@ test("ARRIVAL on a phone leaves the LIST as the screen — no group is auto-sele
 // control you can only be looking at while looking at the library it belongs to. What the LIST owes is now
 // exactly the door: a named, counted, ordered band per library.
 test("every collection shows a band and a count in the LIST — never its rows, never its verbs", async ({ mount, page }) => {
-  await stub(page);
+  await stub(page, MANY_BOOKS);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   const listPane = workspace.locator(LIST_PANE);
-  await expect(listPane.getByRole("button", { name: TAGS_BAND })).toBeVisible();
-  await expect(listPane.getByText(String(TAG_COUNT))).toBeVisible();
-  // REGISTRY ORDER IS SHELF ORDER (C-1 as amended by #866 S1: `(shelf, order, id)`): tags · regex scripts ·
-  // world info · casts, top-down on the Collections shelf.
+  await expect(listPane.getByRole("button", { name: WORLD_INFO_BAND })).toBeVisible();
+  await expect(listPane.getByText(String(BOOK_COUNT))).toBeVisible();
+  // REGISTRY ORDER IS SHELF ORDER (C-1 as amended by #866 S1: `(shelf, order, id)`): regex scripts · world
+  // info · rosters, top-down on the Collections shelf. Tags are Corpus Labels (D271), with no door here.
   await expect
     .poll(() => listPane.locator('[data-slot="config-group"][data-collection]').evaluateAll((groups) => groups.map((g) => g.getAttribute("data-collection"))))
-    .toEqual(["tags", "regex", "worldInfo", "rosterPreset"]);
+    .toEqual(["regex", "worldInfo", "rosterPreset"]);
   // Not one of the 400 ROWS is mounted, and no library's create verb is offered from this pane. Scoped to
   // the list (program #102): the claim is about THIS pane, and CONTENT legitimately draws both.
-  await expect(listPane.getByText("tag-000")).toHaveCount(0);
-  await expect(listPane.getByRole("button", { name: "New tag" })).toHaveCount(0);
+  await expect(listPane.getByText(FIRST_ROW)).toHaveCount(0);
   await expect(listPane.getByRole("button", { name: "New script" })).toHaveCount(0);
   await expect(listPane.getByRole("button", { name: "New book" })).toHaveCount(0);
 });
 
 test("#1725: opening a 400-member library renders its rows in CONTENT, with the filter beside them", async ({ mount, page }) => {
-  await stub(page);
+  await stub(page, MANY_BOOKS);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
-  await workspace.locator(LIST_PANE).getByRole("button", { name: TAGS_BAND }).click();
+  await workspace.locator(LIST_PANE).getByRole("button", { name: WORLD_INFO_BAND }).click();
   const content = workspace.locator(CONTENT_PANE);
   await expect(content.locator('[data-slot="list-row-root"]').first()).toBeVisible();
 
   // The filter is still HOST chrome applied by the contribution's own rows — the seam did not move, the
   // pane did. It sits in the library's control row now, one grammar for every library.
-  const filter = content.getByRole("textbox", { name: "Filter tags" });
+  const filter = content.getByRole("textbox", { name: "Filter world info" });
   await expect(filter).toBeVisible();
-  await filter.fill("tag-137");
-  await expect(content.getByText("tag-137")).toBeVisible();
+  await filter.fill("book-137");
+  await expect(content.getByText("book-137")).toBeVisible();
   await expect(content.getByText(FIRST_ROW, { exact: true })).toHaveCount(0);
 
   // Create is reachable with a 400-row list open — it is the control row's primary, above the scroller.
-  await expect(content.getByRole("button", { name: "New tag" })).toBeVisible();
+  await expect(content.getByRole("button", { name: "New book" })).toBeVisible();
 });
 
 // THE COUNT GATE DIED WITH ITS PREMISE (#1725; the mock design §3.2). This test asserted the OPPOSITE: a library
@@ -347,10 +326,10 @@ test("the retired launcher landing is gone, and the nothing-active arm is the se
   await workspace.getByRole("button", { name: "reset groups" }).click();
   const frame = workspace.locator('[data-slot="config-teaching-frame"]');
   await expect(frame.getByRole("heading", { name: "The parts every chat is built from" })).toBeVisible();
-  await expect(frame.getByText("Tags label your library.", { exact: false })).toBeVisible();
+  await expect(frame.getByText("Regex scripts rewrite text", { exact: false })).toBeVisible();
   await expect(workspace.locator(WELCOME)).toHaveCount(0);
   // The collections are reachable from the LIST, which is the single home the retirement restores.
-  await expect(workspace.locator(LIST_PANE).getByRole("button", { name: TAGS_BAND })).toBeVisible();
+  await expect(workspace.locator(LIST_PANE).getByRole("button", { name: WORLD_INFO_BAND })).toBeVisible();
 });
 
 // D121-D's lifecycle anatomy, landed on the group band: IMPORT is host chrome driven by the contribution's
@@ -359,8 +338,8 @@ test("the retired launcher landing is gone, and the nothing-active arm is the se
 //
 // REGEX GAINED ITS DOOR (REGX2, owner ruling 2026-08-03): this test used to assert exactly ONE trigger and
 // said in words that regex scripts had none, "their portable unit being the card that carries them". That
-// was the `{ ruled }` cell's reasoning, and the owner's ruling ended it. TAGS still have none, which is what
-// keeps this test load-bearing: the band must not grow a dead trigger for a collection with no door.
+// was the `{ ruled }` cell's reasoning, and the owner's ruling ended it. ROSTERS still have none, which is
+// what keeps this test load-bearing: the library must not grow a dead trigger for a collection with no door.
 // D212 SURVIVES WITH A CHANGED INPUT (#1725). Its ruling is `band=Import · kebab=Export`, and the band
 // was named because in this workspace the group band WAS the collection's only chrome. The library has a
 // pane now, so Import is its control row's overflow item — one home, in the pane the reader is looking at,
@@ -382,15 +361,13 @@ test("#1725: IMPORT moved to the library's overflow — and only for a collectio
   await expect(workspace.page().getByRole("menuitem", { name: "Import a world-info book" })).toBeVisible();
   await workspace.page().keyboard.press("Escape");
 
-  // Tags declare NO import door — so the overflow they do draw (they declare a library-level ACTION,
-  // `Prune unused tags`) must not offer one. "No kebab" stopped being the right assertion the moment
-  // `actions` landed beside `importFile` in it; what the ruling protects is that the DOOR is drawn only
-  // where the contribution declares it, and the library with no door and no action at all — Rosters — is
-  // where "no kebab" is still the claim (`config-collection-landing.ct.tsx` pins that arm).
-  await listPane.getByRole("button", { name: TAGS_BAND }).click();
+  // Regex declares its OWN door, and the overflow offers exactly that one — the door is the contribution's
+  // declared data, never a host string. The library with no door at all — Rosters — draws no kebab
+  // (`config-collection-landing.ct.tsx` pins that arm).
+  await listPane.getByRole("button", { name: REGEX_BAND }).click();
   await content.getByRole("button", { name: "More library actions" }).click();
-  await expect(workspace.page().getByRole("menuitem", { name: ANY_IMPORT_TRIGGER })).toHaveCount(0);
-  await expect(workspace.page().getByRole("menuitem", { name: "Prune unused tags" })).toBeVisible();
+  await expect(workspace.page().getByRole("menuitem", { name: ANY_IMPORT_TRIGGER })).toHaveCount(1);
+  await expect(workspace.page().getByRole("menuitem", { name: "Import a regex script" })).toBeVisible();
 });
 
 // The BULK-SELECT toggle is the same DATA-declared band grammar (REGX2). Only regex declares one today, and
@@ -412,9 +389,9 @@ test("#1725: the BULK toggle moved to the library's control row — and only whe
   await expect(toggle).toBeVisible();
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
 
-  // Tags declares none — a toggle over a library with no bulk verbs behind it would be a control that does
-  // nothing, which is the capability lie the must-WORK bar names.
-  await listPane.getByRole("button", { name: TAGS_BAND }).click();
+  // World info declares none — a toggle over a library with no bulk verbs behind it would be a control that
+  // does nothing, which is the capability lie the must-WORK bar names.
+  await listPane.getByRole("button", { name: WORLD_INFO_BAND }).click();
   await expect(content.getByRole("button", { name: ANY_BULK_TOGGLE })).toHaveCount(0);
 });
 
@@ -423,21 +400,12 @@ test("selecting a member routes CONTENT to its owner's editor and CONTEXT to its
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
-  // A TAG: its editor mounts in CONTENT, and its collection declares NO context arm — so the pane shows
-  // that collection's OWN copy, not a generic "nothing selected" over a selected thing.
-  await workspace.locator(LIST_PANE).getByRole("button", { name: TAGS_BAND }).click();
-  await firstRow(workspace).click();
-  await expect(workspace.getByRole("heading", { name: FIRST_ROW })).toBeVisible();
-  // A MEMBER LANDS ON ABOUT SINCE #926 — the collection's own arm is the APPLIES cell, which the reader now
-  // opens rather than arriving on (the old `defaultTab` landed every member on Applies, and for a `none`
-  // collection that meant landing on a null state). The arm's content is unchanged; only the landing is.
-  await workspace.locator('[data-slot="ct-config-context-pane"]').getByRole("button", { name: "Applies" }).click();
-  await expect(workspace.getByText("Nothing to attach")).toBeVisible();
-
-  // A SCRIPT: the same host, a different owner's editor and a real context body.
+  // A SCRIPT: its editor mounts in CONTENT and its owner's arm fills CONTEXT. A member LANDS ON ABOUT since
+  // #926, so the reader opens the collection's own APPLIES cell, and that tab then keeps across subjects.
   await workspace.locator(LIST_PANE).getByRole("button", { name: REGEX_BAND }).click();
   await listRow(workspace, "strip ooc").click();
   await expect(workspace.getByRole("textbox", { name: "Name" })).toBeVisible();
+  await workspace.locator('[data-slot="ct-config-context-pane"]').getByRole("button", { name: "Applies" }).click();
   await expect(workspace.getByText("Runs in every chat")).toBeVisible();
 
   // A BOOK (R2): the book editor mounts in CONTENT and the activation panel fills CONTEXT — the surfaces the
@@ -580,9 +548,9 @@ test("the library's create verb fires the OWNER's create mutation", async ({ mou
 
   // The verb moved panes at #1725, not seams: it is still `create.useRun`, still host-drawn from the
   // contribution's DATA, and still the owner's own mutation behind it. Only its address changed.
-  await workspace.locator(LIST_PANE).getByRole("button", { name: TAGS_BAND }).click();
-  await workspace.locator(CONTENT_PANE).getByRole("button", { name: "New tag" }).click();
-  await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New tag" } });
+  await workspace.locator(LIST_PANE).getByRole("button", { name: REGEX_BAND }).click();
+  await workspace.locator(CONTENT_PANE).getByRole("button", { name: "New script" }).click();
+  await expect.poll(() => trpc.count("regex.createScript"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
 // ── #1725 · THE ZERO-MEMBER LIBRARY MOVED PANES, AND SO DID ITS THREE PINS ───────────────────────────
@@ -611,16 +579,16 @@ test("#1725: a zero-member library says so in CONTENT — with exactly ONE creat
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   // The LIST says nothing about emptiness beyond the band's honest `0` — the sentence is the library's.
-  await expect(workspace.locator(LIST_PANE).getByText("No tags yet.")).toHaveCount(0);
+  await expect(workspace.locator(LIST_PANE).getByText("No books yet.")).toHaveCount(0);
 
-  await workspace.locator(LIST_PANE).getByRole("button", { name: TAGS_BAND }).click();
+  await workspace.locator(LIST_PANE).getByRole("button", { name: WORLD_INFO_BAND }).click();
   const content = workspace.locator(CONTENT_PANE);
-  await expect(content.getByText("No tags yet.")).toBeVisible();
+  await expect(content.getByText("No books yet.")).toBeVisible();
   // ONE, not two (side-eye 2026-08-08 P2). The empty slot used to repeat the band's verb — and with the
-  // Configuration launcher card carrying a third copy, "New tag" rendered three times on one screen. The
+  // Configuration launcher card carrying a third copy, the verb rendered three times on one screen. The
   // COUNT is the assertion and it is taken over the WHOLE workspace now, which is what the defect was about:
   // a reader seeing the same verb more than once on one screen.
-  await expect(workspace.getByRole("button", { name: "New tag" })).toHaveCount(1);
+  await expect(workspace.getByRole("button", { name: "New book" })).toHaveCount(1);
 });
 
 // NO FRAME — the surviving half of the #1211 geometry guard, at its new home. Its no-deletion clause is
@@ -631,10 +599,10 @@ test("#1211 (retargeted): the empty library draws no dashed frame", async ({ mou
   await stub(page, []);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
-  await workspace.locator(LIST_PANE).getByRole("button", { name: TAGS_BAND }).click();
+  await workspace.locator(LIST_PANE).getByRole("button", { name: WORLD_INFO_BAND }).click();
 
   const content = workspace.locator(CONTENT_PANE);
-  await expect(content.getByText("No tags yet.")).toBeVisible();
+  await expect(content.getByText("No books yet.")).toBeVisible();
   await expect
     .poll(
       async (): Promise<number> =>
@@ -913,16 +881,16 @@ test("a filter that matches nothing announces itself", async ({ mount, page }) =
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
-  await workspace.locator(LIST_PANE).getByRole("button", { name: TAGS_BAND }).click();
-  await expect(firstRow(workspace)).toBeVisible();
-  await workspace.getByRole("textbox", { name: "Filter tags" }).fill("no-such-tag");
+  await workspace.locator(LIST_PANE).getByRole("button", { name: WORLD_INFO_BAND }).click();
+  await expect(listRow(workspace, BOOK.name)).toBeVisible();
+  await workspace.getByRole("textbox", { name: "Filter world info" }).fill("no-such-book");
 
   // The status region moved panes with the rows it describes (#1725) — it is the CONTRIBUTION's sentence
   // rendered inside `collection.list`, so it went where `list` went.
   const miss = workspace.locator(CONTENT_PANE).getByRole("status");
-  await expect(miss).toHaveText("No tags match that filter.");
+  await expect(miss).toHaveText("No books match that filter.");
   // The input keeps focus — which is exactly why the message has to speak for itself.
-  await expect(workspace.getByRole("textbox", { name: "Filter tags" })).toBeFocused();
+  await expect(workspace.getByRole("textbox", { name: "Filter world info" })).toBeFocused();
 });
 
 // ── THE PHONE'S TEACHING FRAME (side-eye 2026-08-19 P2) ─────────────────────────────────────────────
@@ -951,16 +919,16 @@ test("the LIST teaches on a phone and stays silent on the desktop", async ({ mou
   await expect(frame).toBeVisible();
   // The masthead sentence — the statement the phone could never reach.
   await expect(frame.getByRole("heading", { name: "The parts every chat is built from" })).toBeVisible();
-  await expect(frame.getByText("Tags label your library.", { exact: false })).toBeVisible();
-  // …and one line per collection, from the contributions' own blurbs — no host string table, so a fourth
-  // collection appears here from the same ONE door row.
-  await expect(frame.getByText("Color-coded labels", { exact: false })).toBeVisible();
+  await expect(frame.getByText("Regex scripts rewrite text", { exact: false })).toBeVisible();
+  // …and one line per collection, from the contributions' own blurbs — no host string table, so a new
+  // collection appears here from the same ONE door row. Tags are Corpus Labels now, so no tag line (D271).
+  await expect(frame.getByText("Color-coded labels", { exact: false })).toHaveCount(0);
   await expect(frame.getByText("Find/replace that runs on input", { exact: false })).toBeVisible();
   await expect(frame.getByText("Keyword-triggered lore", { exact: false })).toBeVisible();
 
   // IT IS ACTUALLY ON THE PHONE'S SCREEN, not merely in the DOM: rendered inside the 430px pane, above the
   // first group band, with no horizontal overflow.
-  const [frameBox, bandBox] = await Promise.all([frame.boundingBox(), listPane.getByRole("button", { name: TAGS_BAND }).boundingBox()]);
+  const [frameBox, bandBox] = await Promise.all([frame.boundingBox(), listPane.getByRole("button", { name: REGEX_BAND }).boundingBox()]);
   if (frameBox === null || bandBox === null) {
     throw new Error("the mobile teaching frame or the first band did not render a box");
   }
@@ -1115,7 +1083,7 @@ test("the CONTENT pane paints the canonical sequence the LIST now advertises (pa
  *  `@modified` marks from (a section's `owns` claim vs `DEFAULT_USER_SETTINGS`). `avatarShape` is an
  *  Appearance-owned key, so the mark lands on the Appearance band and on the User shelf above it. */
 function stubModified(page: Page): Promise<TrpcRecorder> {
-  return stub(page, MANY_TAGS, SCRIPTS, {
+  return stub(page, BOOKS, SCRIPTS, {
     "settings.getUserSettings": () => ({
       userId: "user_ct_config",
       schemaVersion: 1,
@@ -1134,8 +1102,8 @@ test("the BULK toggle is drawn only where there are members to select", async ({
   const listPane = workspace.locator(LIST_PANE);
   const content = workspace.locator(CONTENT_PANE);
 
-  // Tags are EMPTY in this stub and declare no bulk mode either — their library offers none.
-  await listPane.getByRole("button", { name: TAGS_BAND }).click();
+  // World info is EMPTY in this stub and declares no bulk mode either — its library offers none.
+  await listPane.getByRole("button", { name: WORLD_INFO_BAND }).click();
   await expect(content.getByRole("button", { name: ANY_BULK_TOGGLE })).toHaveCount(0);
   // Regex is populated and declares one, so its library draws it.
   await listPane.getByRole("button", { name: REGEX_BAND }).click();
@@ -1166,12 +1134,12 @@ test("the group the arrival default opened folds itself once the reader is somew
   const arrival = listPane.getByRole("button", { name: FIRST_GROUP_LABEL, exact: true });
   await expect(arrival).toHaveAttribute("aria-expanded", "true");
 
-  await listPane.getByRole("button", { name: TAGS_BAND }).click();
+  await listPane.getByRole("button", { name: WORLD_INFO_BAND }).click();
   await expect(arrival, "the arrival group folds when the location moves").toHaveAttribute("aria-expanded", "false");
   // …and the group the reader actually chose is where they are. It used to be asserted as `aria-expanded`
-  // on the tags band; #1725 took that attribute off collection bands with the rows it disclosed, so the
+  // on the library band; #1725 took that attribute off collection bands with the rows it disclosed, so the
   // claim is now what it always meant — the LOCATION moved — and it is read off the marker that survives.
-  await expect(listPane.getByRole("button", { name: TAGS_BAND })).toHaveAttribute("aria-current", "true");
+  await expect(listPane.getByRole("button", { name: WORLD_INFO_BAND })).toHaveAttribute("aria-current", "true");
 });
 
 test("…but a group the READER opened stays open — the fold is the auto-open's undo, not a new accordion", async ({ mount, page }) => {
@@ -1181,7 +1149,7 @@ test("…but a group the READER opened stays open — the fold is the auto-open'
 
   // Open a second group deliberately, then move on: C-12's per-device memory is the reader's and survives.
   await listPane.getByRole("button", { name: "Chat behavior", exact: true }).click();
-  await listPane.getByRole("button", { name: TAGS_BAND }).click();
+  await listPane.getByRole("button", { name: WORLD_INFO_BAND }).click();
   await expect(listPane.getByRole("button", { name: "Chat behavior", exact: true })).toHaveAttribute("aria-expanded", "true");
 });
 
@@ -1234,7 +1202,7 @@ test("a modified band announces its label and its mark as separate words", async
 // A fresh account's first run seeds its background library with the shipped plates. A library is content, not a
 // setting moved off its default, so it marks nothing; the avatar-shape stub above is the control that does.
 test("a seeded background library marks no shelf as modified", async ({ mount, page }) => {
-  await stub(page, MANY_TAGS, SCRIPTS, {
+  await stub(page, BOOKS, SCRIPTS, {
     "settings.getUserSettings": () => ({
       userId: "user_ct_config",
       schemaVersion: 1,
@@ -1295,8 +1263,8 @@ test("an expanded band's rows are an OWNED, NAMED group, not flat siblings", asy
   // name them and no `role="group"` for a band to label. The settings half above is untouched and is the
   // whole live subject; nothing about a collection band goes unasserted (its name, count and one-act door
   // are `components/config-list-collection-group.ct.tsx`'s, swept across all four libraries).
-  await listPane.getByRole("button", { name: TAGS_BAND }).click();
-  await expect(listPane.locator('[data-collection="tags"] [role="group"]')).toHaveCount(0);
+  await listPane.getByRole("button", { name: WORLD_INFO_BAND }).click();
+  await expect(listPane.locator('[data-collection="worldInfo"] [role="group"]')).toHaveCount(0);
 });
 
 // ── #1169 · THE MAP'S LAST MILE, AND THE PANE'S VOICE BUDGET ────────────────────────────────────────

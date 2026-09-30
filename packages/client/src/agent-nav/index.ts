@@ -20,7 +20,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import type { Trpc } from "#data";
 import type { ContributorRegistry } from "#lib";
-import { deriveChatTitle } from "#lib";
+import { CORPUS_MODES, deriveChatTitle, isCorpusMode } from "#lib";
 import type { ConfigGroupId, ConfigSectionContribution, ModalSlotId, SectionId } from "#state";
 import {
   activeChatId,
@@ -35,6 +35,7 @@ import {
   selectCharacter,
   selectChat,
   setActiveSection,
+  setCorpusMode,
   setFocusMode,
 } from "#state";
 import type { NavResult, OrbNavCapabilities, OrbNavHandle } from "../lib/agent-bridge.ts";
@@ -219,6 +220,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient, resolveConfi
       const contextTabs = [...getAvailableContextTabIds()];
       return {
         sections: [...SECTION_IDS],
+        corpusModes: [...CORPUS_MODES],
         modalSlots: [...MODAL_SLOT_IDS],
         configGroups: [...CONFIG_GROUP_IDS],
         contextTabs,
@@ -233,6 +235,15 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient, resolveConfi
       }
       markAgentNavigation();
       setActiveSection(id);
+      return OK;
+    },
+    corpusMode(mode: string): NavResult {
+      if (!isCorpusMode(mode)) {
+        return reject("corpus mode", mode, CORPUS_MODES);
+      }
+      markAgentNavigation();
+      setActiveSection("corpus");
+      setCorpusMode(mode);
       return OK;
     },
     openModal(slot: string): NavResult {

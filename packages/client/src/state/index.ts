@@ -26,12 +26,7 @@ export {
   useRoomInviteRequest,
 } from "./active-chat-store.ts";
 export { setAnalyticsSearchQuery, useAnalyticsSearchQuery } from "./analytics-search-store.ts";
-export {
-  analyticsSectionSelection,
-  clearAnalyticsSelection,
-  selectAnalyticsCharacter,
-  useSelectedAnalyticsCharacterId,
-} from "./analytics-selection-store.ts";
+export { clearAnalyticsSelection, selectAnalyticsCharacter, useSelectedAnalyticsCharacterId } from "./analytics-selection-store.ts";
 export type { AppearanceBootAxes, AppearanceBootHintState, SeedThemeName } from "./appearance-boot-hint.ts";
 export {
   __resetAppearanceBootHint,
@@ -196,11 +191,13 @@ export {
   useCorpusCompareB,
   useCorpusCompareBName,
 } from "./corpus-compare-store.ts";
+export { healCorpusModeFrom, useCorpusMode } from "./corpus-mode-store.ts";
 export { setCorpusSearchQuery, setCorpusSearchTarget, useCorpusSearchQuery, useCorpusSearchTargetId } from "./corpus-search-store.ts";
 export {
   clearCorpusSelection,
   corpusSectionSelection,
   selectCorpusCharacter,
+  setCorpusMode,
   useSelectedCorpusCharacterId,
 } from "./corpus-selection-store.ts";
 export type { DrillSelectionStore, PrimaryDrillStore } from "./create-drill-selection-store.ts";
@@ -260,6 +257,7 @@ export {
   useEditSubject,
   useImagineSeed,
 } from "./imagery-store.ts";
+export { clearLabelSelection, selectLabel, selectLabelFromList, useSelectedLabelId } from "./label-selection-store.ts";
 export type { ListFlipCarry } from "./list-flip-carry.ts";
 export { collapseListPanel, dockListPanel, registerListFlipCarry } from "./list-flip-carry.ts";
 export {
@@ -440,5 +438,5 @@ export { SlashCommandRegistryProvider } from "./slash-command-registry-provider.
 export { announceStatus, useStatusAnnouncement } from "./status-announcement-store.ts";
 export { __readRecentSteersForTest, __resetRecentSteers, pushFiredSteer, STEER_RECOVERY_CAP, useRecentSteers } from "./steer-recovery-store.ts";
 export { __readSurfaceBoxForTest, __resetSurfaceBoxes, forgetSurfaceBox, rememberSurfaceBox, useSurfaceBox } from "./surface-box-store.ts";
-export { setTagPruneConfirmOpen, setTagSortMode, useTagPruneConfirmOpen, useTagSortMode } from "./tag-library-store.ts";
+export { setLabelFilter, setTagPruneConfirmOpen, setTagSortMode, useLabelFilter, useTagPruneConfirmOpen, useTagSortMode } from "./tag-library-store.ts";
 export { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId, worldEntrySelectionSeam } from "./world-entry-selection-store.ts";

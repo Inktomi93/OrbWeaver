@@ -1,8 +1,8 @@
-// Analytics (stats domain) CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test
+// Corpus Insights (stats domain) CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test
 // module). Surfaces come through the feature front door, wrapped in the real client data layer
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network). The N4/P4 CONTEXT-band and
-// the N1/N2 LIST band mount through the REAL section registry (CtRealSectionRegistry) — the shell's own
-// consumers — driving the `header`/`listHeader` slots the analytics section supplies.
+// the N1/N2 LIST band mount through the REAL section registry (CtRealSectionRegistry) with Corpus in its
+// Insights mode — the shell's own consumers of the `header`/`listHeader` slots.
 
 import {
   AnalyticsCharacterSurface,
@@ -13,7 +13,16 @@ import {
   AnalyticsPersonasTab,
   AnalyticsTimeTab,
 } from "@orb/client/features/stats";
-import { clearAnalyticsSelection, selectAnalyticsCharacter, setActiveSection, setPanelMode, useSectionRegistry } from "@orb/client/state";
+import {
+  clearAnalyticsSelection,
+  selectAnalyticsCharacter,
+  setActiveSection,
+  setCorpusMode,
+  setPanelMode,
+  useActiveSection,
+  useCorpusMode,
+  useSectionRegistry,
+} from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -36,7 +45,7 @@ export function AnalyticsListSurfaceStory(): ReactElement {
 
 /** The Analytics OVERVIEW dashboard over the real data layer (four suspense reads + the recompute
  *  mutation). Wrapped in `CtRealSectionRegistry` (#451): the top-character subtitle reads
- *  `useSectionListMode("analytics")`, which needs the real registry to resolve. */
+ *  `useSectionListMode("corpus")`, which needs the real registry to resolve. */
 export function AnalyticsOverviewSurfaceStory(): ReactElement {
   return (
     <CtDataProviders>
@@ -65,28 +74,21 @@ export function AnalyticsOverviewSurfaceShortStory(): ReactElement {
 }
 
 /** The same OVERVIEW dashboard with the LIST panel driver exposed (#451) — the top-character subtitle's two
- *  arms: named-affordance while collapsed, plain while the list is docked. `setActiveSection` first, because
- *  `setPanelMode` writes the CURRENT active section's override. */
+ *  arms: named-affordance while collapsed, plain while the list is docked. Going to Corpus is its own step,
+ *  because `setPanelMode` writes the CURRENT active section's override and a section swap may land a frame
+ *  later (the content-swap door); the printed section is the barrier. */
 export function AnalyticsOverviewSurfaceListModeStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <button
-          onClick={(): void => {
-            setActiveSection("analytics");
-            setPanelMode("list", "collapsed");
-          }}
-          type="button"
-        >
+        <ActiveSectionReadout />
+        <button onClick={(): void => setActiveSection("corpus")} type="button">
+          go to corpus
+        </button>
+        <button onClick={(): void => setPanelMode("list", "collapsed")} type="button">
           collapse the list
         </button>
-        <button
-          onClick={(): void => {
-            setActiveSection("analytics");
-            setPanelMode("list", "docked");
-          }}
-          type="button"
-        >
+        <button onClick={(): void => setPanelMode("list", "docked")} type="button">
           dock the list
         </button>
         <div style={{ height: 640, width: 720 }}>
@@ -125,23 +127,47 @@ export function AnalyticsTimeTabStory(): ReactElement {
  *  drilled name regardless of input, so the CT needs no id handle). */
 const ANALYTICS_DRILLED_ID: CharacterId = castId<CharacterId>("character_ct_analytics");
 
-// Mounts the analytics section's CONTEXT bracket through the real `SectionContextHost`; tabbed contexts
-// own their header inside that bracket, while the outer shell band deliberately stays empty.
-function AnalyticsContextHeaderHarness(): ReactElement {
-  const registry = useSectionRegistry();
+function ActiveSectionReadout(): ReactElement {
+  return <output data-slot="ct-active-section">{`section=${useActiveSection()}`}</output>;
+}
+
+/** Offers the switch's own action as a button, so a test puts Corpus in Insights the way a reader does. The
+ *  harness mounts only once Insights is active: Explore's own reads are not this story's subject. */
+function InInsights({ children }: { readonly children: ReactElement }): ReactElement {
+  const insights = useCorpusMode() === "insights";
   return (
-    <div style={{ height: 640, width: 420 }}>
-      <SectionContextHost key="analytics" definition={registry.get("analytics")} />
+    <div>
+      <button onClick={(): void => setCorpusMode("insights")} type="button">
+        show insights
+      </button>
+      {insights ? children : null}
     </div>
   );
 }
 
-// Mounts the analytics section's LIST band (N1/N2) through the real registry's `listHeader()` slot — the
-// same call the shell's `PanelChrome` makes for the list panel.
+// Mounts the Corpus section's CONTEXT bracket (Insights mode) through the real `SectionContextHost`; tabbed
+// contexts own their header inside that bracket, while the outer shell band deliberately stays empty.
+function AnalyticsContextHeaderHarness(): ReactElement {
+  const registry = useSectionRegistry();
+  return (
+    <InInsights>
+      <div style={{ height: 640, width: 420 }}>
+        <SectionContextHost key="corpus" definition={registry.get("corpus")} />
+      </div>
+    </InInsights>
+  );
+}
+
+// Mounts the Corpus section's LIST band (N1/N2, Insights mode) through the real registry's `listHeader()`
+// slot — the same call the shell's `PanelChrome` makes for the list panel.
 function AnalyticsListHeaderHarness(): ReactElement {
   const registry = useSectionRegistry();
-  const listHeader = registry.get("analytics").listHeader;
-  return <div style={{ width: 320 }}>{listHeader?.()}</div>;
+  const listHeader = registry.get("corpus").listHeader;
+  return (
+    <InInsights>
+      <div style={{ width: 320 }}>{listHeader?.()}</div>
+    </InInsights>
+  );
 }
 
 export interface AnalyticsContextHeaderStoryProps {
@@ -149,8 +175,8 @@ export interface AnalyticsContextHeaderStoryProps {
   readonly drilled?: boolean;
 }
 
-/** The analytics CONTEXT-band identity (P4): a drilled leaderboard character names the band (avatar +
- *  name via `character.get`); nothing drilled shows the neutral "Analytics" identity — end-to-end through
+/** The Insights CONTEXT-band identity (P4): a drilled leaderboard character names the band (avatar +
+ *  name via `character.get`); nothing drilled shows the neutral "Insights" identity — end-to-end through
  *  the real section → mint → `SectionContextHeader` path. */
 export function AnalyticsContextHeaderStory({ drilled }: AnalyticsContextHeaderStoryProps): ReactElement {
   useEffect(() => {
@@ -218,7 +244,7 @@ export function AnalyticsPersonasTabStory({ drilled = false }: AnalyticsTabStory
   );
 }
 
-/** The analytics LIST band (N1/N2): the "Analytics" title + the leaderboard count, over the stubbed
+/** The Insights LIST band (N1/N2): the "Insights" title + the leaderboard count, over the stubbed
  *  network (`stats.leaderboard` supplies the census the count reads). Read-only ⇒ NO New action. */
 export function AnalyticsListHeaderStory(): ReactElement {
   return (

@@ -1,0 +1,103 @@
+// The tag library's hooks for Corpus Labels: the census, the library facts, the open tag's name, the create
+// verb and the sort control. Every read shares the one `tag.listTagsWithUsage` cache the rows render from, so
+// none of them is a second request.
+
+import type { TagWithUsage } from "@orb/contracts/tag";
+import type { TagId } from "@orb/kit/ids";
+import type { SelectOption } from "@orb/ui/select";
+import { useGatedQuery, useInvalidation, useTRPC } from "#data";
+import type { TagSortMode } from "#lib";
+import { COLLECTION_LARGE_GROUP } from "#lib";
+import { selectLabel, setTagSortMode, useTagSortMode } from "#state";
+import { tagSortItems, USAGE_KIND_TITLES } from "../lib/tags-model.ts";
+import { useCreateTag } from "./use-tag-settings-mutations.ts";
+
+/** The name a created tag lands with — the editor's Name field is the rename affordance, so create needs no
+ *  name dialog (C-7: the editor is MOUNTED, so create-then-edit is one motion). */
+const NEW_TAG_NAME = "New tag";
+
+/** The tag library read, non-suspending. `enabled: false` fetches nothing — the phone-title hook runs in every
+ *  Corpus mode, and this read is large on a big library. */
+function useTagRows(enabled = true): readonly TagWithUsage[] | undefined {
+  const trpc = useTRPC();
+  return useGatedQuery(enabled ? "tag-library" : null, () => trpc.tag.listTagsWithUsage.queryOptions()).data;
+}
+
+/** The library's size for the finder band — non-suspending, so the band renders at once and the number
+ *  settles under it. */
+export function useTagCensus(enabled = true): number | undefined {
+  return useTagRows(enabled)?.length;
+}
+
+/** One fact about the whole library. `open` is present only when the fact is about one tag, and then it
+ *  opens that tag's editor. */
+export interface TagLibraryFact {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+  readonly open?: { readonly label: string; readonly run: () => void };
+}
+
+/**
+ * THE TAG LIBRARY'S OWN LANDING FACTS (#1209): what no finder row can state. An unused tag is the library's
+ * own failure mode, and in a list sorted by use it sits at the far end of the scroll. The per-type rows are
+ * the taxonomy's reach: how many tags label each kind of thing. `undefined` while the read settles.
+ */
+export function useTagLibrarySummary(): { readonly count: number; readonly facts: readonly TagLibraryFact[] } | undefined {
+  const rows = useTagRows();
+  if (rows === undefined) {
+    return rows;
+  }
+  const unused = rows.filter((row) => row.usage.total === 0);
+  const first = unused[0];
+  const byType = (Object.keys(USAGE_KIND_TITLES) as (keyof typeof USAGE_KIND_TITLES)[]).map((key) => ({
+    id: `on-${key}`,
+    label: `Tags on ${USAGE_KIND_TITLES[key].toLowerCase()}`,
+    value: String(rows.filter((row) => row.usage[key] > 0).length),
+  }));
+  const facts: readonly TagLibraryFact[] = [
+    {
+      id: "unused",
+      label: "Labelling nothing",
+      value: `${String(unused.length)} of ${String(rows.length)}`,
+      // The door opens the FIRST unused tag, where the reader can rename or delete it. Omitted when there are
+      // none: a door to nothing is a dead end.
+      ...(first === undefined ? {} : { open: { label: `Open ${first.name}`, run: (): void => selectLabel(first.id) } }),
+    },
+    { id: "in-use", label: "In use", value: String(rows.length - unused.length) },
+    ...byType,
+  ];
+  return { count: rows.length, facts };
+}
+
+/** The open tag's name, for the phone title — the same cached list, never a second request. */
+export function useTagName(tagId: TagId | null): string | undefined {
+  return useTagRows(tagId !== null)?.find((row) => row.id === tagId)?.name;
+}
+
+/** The create runner: mint a tag, then OPEN it in the editor — a create that leaves the user looking at the
+ *  thing they just made. */
+export function useCreateLabel(): () => void {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const create = useCreateTag({ trpc, invalidation });
+  return (): void => {
+    create.mutate({ input: { name: NEW_TAG_NAME } }, { onSuccess: (created): void => selectLabel(created.id) });
+  };
+}
+
+/** The library's READING ORDER for the finder's sort control: the mode, its writer, and the option set.
+ *
+ *  THE COMPARATOR IS NOT HERE: sorting runs over members, so `sortTagsBy` stays inside `TagCollectionRows`.
+ *  Both sides read `state/tag-library-store.ts`, the mode's one home. The option set depends on the library's
+ *  SIZE (drag handles cannot exist in a windowed list). A read that has not landed is treated as "handles
+ *  available": a settling read must not disable a control it cannot judge. */
+export function useTagSortControl(): {
+  readonly mode: TagSortMode;
+  readonly setMode: (next: TagSortMode) => void;
+  readonly options: readonly SelectOption<TagSortMode>[];
+} {
+  const rows = useTagRows();
+  const handlesAvailable = (rows?.length ?? 0) <= COLLECTION_LARGE_GROUP;
+  return { mode: useTagSortMode(), setMode: setTagSortMode, options: tagSortItems(handlesAvailable, COLLECTION_LARGE_GROUP) };
+}

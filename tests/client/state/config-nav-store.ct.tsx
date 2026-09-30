@@ -80,7 +80,7 @@ test("a repeated request is a NEW landing — the nonce advances", async ({ moun
   await expect(state).toContainText(`#${firstNonce + 1}`);
 });
 
-test('a COLLECTION is a config group too: openConfigTo("tags") expands the group and clears the open member', async ({ mount }) => {
+test('a COLLECTION is a config group too: openConfigTo("worldInfo") expands the group and clears the open member', async ({ mount }) => {
   const probe = await mount(<ConfigNavProbe />);
   const state = probe.locator("output");
 
@@ -89,10 +89,10 @@ test('a COLLECTION is a config group too: openConfigTo("tags") expands the group
   // The open member's KIND is the effective active group — a derivation, not a second write.
   await expect(state).toContainText("group=regex seam=none");
 
-  await probe.getByRole("button", { name: "open tags" }).click();
+  await probe.getByRole("button", { name: "open world info" }).click();
   await expect(state).toContainText("selection=none");
-  await expect(state).toContainText("group=tags seam=tags");
-  await expect(state).toContainText("tagsOpen=true");
+  await expect(state).toContainText("group=worldInfo seam=worldInfo");
+  await expect(state).toContainText("booksOpen=true");
   await expect(state).toContainText("section=config");
 });
 

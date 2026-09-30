@@ -1,5 +1,6 @@
-// TAG LIBRARY UI STATE — the roster's sort MODE (Most used / A–Z / Manual order), remembered per
-// device, plus the ONE transient flag that mode's neighbour needs (see `pruneConfirmOpen`). Its own store rather than a field on `character-library`: that store is the CHARACTER list's
+// TAG LIBRARY UI STATE — the Corpus Labels finder's sort MODE (Most used / A–Z / Manual order), remembered
+// per device, plus two transient fields: the finder's filter text and the prune confirm (see
+// `pruneConfirmOpen`). Its own store rather than a field on `character-library`: that store is the CHARACTER list's
 // prefs (its own §12.1 registry rationale), and the tag roster is a different pane in a different
 // workspace — folding one surface's mode into another's store would make either store's name a lie.
 //
@@ -18,17 +19,16 @@ interface TagLibraryState {
   /** The prune confirm's open state — TRANSIENT (excluded from `partialize`, so a reload never restores an
    *  open destructive dialog).
    *
-   *  IT IS A STORE FIELD BECAUSE THE VERB AND ITS QUESTION LIVE IN TWO FIBERS (#1725). "Prune unused tags"
-   *  is a `CollectionContribution.actions` entry now, so the HOST draws the menu item in the library's
-   *  overflow kebab while the CONFIRM — which needs the live unused COUNT and the cascade copy — stays with
-   *  the rows, inside `list`. The action's `useRun` returns a runner that opens the dialog the rows render;
-   *  nothing else can carry a signal between two components the host mounts as siblings. The alternative
-   *  would have been a fifth contract field letting a contribution render into the host's menu, which is the
-   *  seam's whole point inverted (host draws the door, owner decides what walks through it). */
+   *  IT IS A STORE FIELD BECAUSE THE VERB AND ITS QUESTION LIVE IN TWO FIBERS (#1725). The finder's overflow
+   *  kebab draws "Prune unused tags", while the CONFIRM — which needs the live unused COUNT and the cascade
+   *  copy — stays with the rows. The menu item writes this flag and the rows' dialog reads it. */
   readonly pruneConfirmOpen: boolean;
+  /** The finder's filter text (`""` = none) — TRANSIENT, so Back from the editor, a mode switch or a rail
+   *  bounce restores it, and a reload does not. */
+  readonly filter: string;
 }
 
-const DEFAULT_STATE: TagLibraryState = { sortMode: DEFAULT_TAG_SORT_MODE, pruneConfirmOpen: false };
+const DEFAULT_STATE: TagLibraryState = { sortMode: DEFAULT_TAG_SORT_MODE, pruneConfirmOpen: false, filter: "" };
 
 const PERSIST_VERSION = 1;
 
@@ -39,12 +39,12 @@ function isSortMode(v: unknown): v is TagSortMode {
 // TOTAL migrate: an unknown/corrupt persisted shape degrades to the default rather than throwing.
 function migrate(persisted: unknown): TagLibraryState {
   const stored = (persisted as { sortMode?: unknown } | null)?.sortMode;
-  return { sortMode: isSortMode(stored) ? stored : DEFAULT_TAG_SORT_MODE, pruneConfirmOpen: false };
+  return { sortMode: isSortMode(stored) ? stored : DEFAULT_TAG_SORT_MODE, pruneConfirmOpen: false, filter: "" };
 }
 
 // The SECOND type argument is the PERSISTED shape, and it is narrower than the state on purpose: the
-// `partialize` doc calls that the transient-field exclusion, and `pruneConfirmOpen` is the transient field —
-// a reload must never restore an open destructive dialog.
+// `partialize` doc calls that the transient-field exclusion — a reload must never restore an open destructive
+// dialog or yesterday's filter.
 const useTagLibraryStore = createPersistedStore<TagLibraryState, Pick<TagLibraryState, "sortMode">>("tag-library", (): TagLibraryState => DEFAULT_STATE, {
   version: PERSIST_VERSION,
   migrate,
@@ -56,8 +56,8 @@ export function useTagSortMode(): TagSortMode {
   return useTagLibraryStore((s) => s.sortMode);
 }
 
-/** Pick the roster's sort mode — written by the host's control-row Select through the tag collection's
- *  `sort.useMode` (the mock design §3.2), read by the rows for the comparator. One home, two readers. */
+/** Pick the roster's sort mode — written by the finder's sort Select (the mock design §3.2), read by the rows
+ *  for the comparator. One home, two readers. */
 export function setTagSortMode(sortMode: TagSortMode): void {
   useTagLibraryStore.setState({ sortMode }, false, "tag-library/setSortMode");
 }
@@ -70,4 +70,14 @@ export function useTagPruneConfirmOpen(): boolean {
 /** Open or dismiss the prune confirm — the overflow action's runner opens it, the dialog itself closes it. */
 export function setTagPruneConfirmOpen(pruneConfirmOpen: boolean): void {
   useTagLibraryStore.setState({ pruneConfirmOpen }, false, "tag-library/setPruneConfirmOpen");
+}
+
+/** Reactive: the Labels finder's filter text (`""` = none). */
+export function useLabelFilter(): string {
+  return useTagLibraryStore((s) => s.filter);
+}
+
+/** Write the Labels finder's filter text (every keystroke). */
+export function setLabelFilter(filter: string): void {
+  useTagLibraryStore.setState({ filter }, false, "tag-library/setFilter");
 }

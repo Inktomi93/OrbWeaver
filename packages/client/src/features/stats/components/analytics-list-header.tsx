@@ -1,9 +1,9 @@
-// The Analytics LIST chrome-band header (north-star §4 N1/N2, §6.3, D66 A1) — the content the
-// `.shell-panel-header` band wraps for the LIST panel: the "ANALYTICS" micro-caps section title + a live
-// leaderboard count on the left. Analytics is READ-ONLY (A2: no create), so the band is title + count
+// The Corpus Insights LIST chrome-band header (north-star §4 N1/N2, §6.3, D66 A1) — the content the
+// `.shell-panel-header` band wraps for the LIST panel: the "INSIGHTS" micro-caps mode title + a live
+// leaderboard count on the left. Insights is READ-ONLY (A2: no create), so the band is title + count
 // only — the census, never an addition (contrast the chats band's ONE primary New). Flows into the band
-// through the section definition's `listHeader` slot (`analytics-section.tsx`), the same definition-owned
-// seam the topbar `header` rides — the domain-agnostic shell never names a feature.
+// through the Insights mode's `listHeader` (`insights-mode.tsx`), so the domain-agnostic shell never names
+// a feature.
 //
 // The cluster itself is the shared `ListPaneHeader` composite (§11.2); the count READ moved out to
 // `hooks/use-analytics-census.ts` with #1676, because the phone topbar reads it too — the two rulings below
@@ -31,10 +31,10 @@
 
 import type { ReactElement } from "react";
 import { ListPaneHeader } from "#components";
+import { CORPUS_MODE_LABELS } from "#lib";
 import { useAnalyticsCensus } from "../hooks/use-analytics-census.ts";
-import { ANALYTICS_SECTION_LABEL } from "../lib/analytics-section-label.ts";
 
 export function AnalyticsListHeader(): ReactElement {
   const count = useAnalyticsCensus();
-  return <ListPaneHeader count={count ?? 0} title={ANALYTICS_SECTION_LABEL} />;
+  return <ListPaneHeader count={count ?? 0} title={CORPUS_MODE_LABELS.insights} />;
 }

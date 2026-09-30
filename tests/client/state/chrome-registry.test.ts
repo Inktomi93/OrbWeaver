@@ -92,13 +92,13 @@ test("an overflow section takes the LAST standing tab's slot, and that tab folds
 
 test("LAST is by the rail's GROUP order, not list order — the bar reflows groups, so the yielding slot follows", () => {
   const entries: readonly ChromeEntry[] = [
-    // Declared (and thus rendered) in list order, but `insight` paints after `primary` on the bar.
-    section("analytics", "insight", "tab"),
+    // Declared (and thus rendered) in list order, but `authoring` paints after `primary` on the bar.
+    section("presets", "authoring", "tab"),
     section("chats", "primary", "tab"),
     section("corpus", "primary", "sheet"),
   ];
 
-  expect(mobileBarCuration(entries, "corpus").get("analytics")).toBe("sheet");
+  expect(mobileBarCuration(entries, "corpus").get("presets")).toBe("sheet");
   expect(mobileBarCuration(entries, "corpus").get("chats")).toBe("tab");
 });
 

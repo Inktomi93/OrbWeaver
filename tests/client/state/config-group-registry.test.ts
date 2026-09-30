@@ -23,9 +23,9 @@ describe("configAnchorId", () => {
 /** A skimmer and a collection group, structurally — the two body arms the narrowings tell apart. */
 const skimmer: ConfigGroupDefinition = { id: "appearance", shelf: "user", label: "Appearance", icon: Settings, description: "d", body: { kind: "sections" } };
 const library: ConfigGroupDefinition = {
-  id: "tags",
+  id: "regex",
   shelf: "collections",
-  label: "Tags",
+  label: "Regex scripts",
   icon: Settings,
   description: "d",
   body: {

@@ -841,8 +841,8 @@ test("filtering the command palette keeps the dialog and search geometry stable"
     input: await input.boundingBox(),
   };
 
-  await input.fill("analytics");
-  await expect(dialog.getByRole("option", { name: "Analytics", exact: true })).toBeVisible();
+  await input.fill("refinery");
+  await expect(dialog.getByRole("option", { name: "Refinery", exact: true })).toBeVisible();
   const after = {
     dialog: await dialog.boundingBox(),
     input: await input.boundingBox(),
@@ -865,8 +865,8 @@ test("the real command palette keeps roving selection exposed from its focused c
   const dialog = page.getByRole("dialog", { name: "Jump to…" });
   const input = dialog.getByRole("combobox");
   await input.click();
-  await input.fill("analytics");
-  await expect(dialog.getByRole("option", { name: "Analytics", exact: true })).toBeVisible();
+  await input.fill("refinery");
+  await expect(dialog.getByRole("option", { name: "Refinery", exact: true })).toBeVisible();
   await input.press("ArrowDown");
 
   const selected = dialog.getByRole("option", { selected: true });
@@ -886,8 +886,8 @@ test("the command palette reserves a compact, stable result viewport while filte
   await expect.poll(async () => list.boundingBox()).not.toBeNull();
   const before = await list.boundingBox();
 
-  await input.fill("analytics");
-  await expect(dialog.getByRole("option", { name: "Analytics" })).toBeVisible();
+  await input.fill("refinery");
+  await expect(dialog.getByRole("option", { name: "Refinery" })).toBeVisible();
   await expect.poll(async () => list.boundingBox()).not.toBeNull();
   const readAfterAtAssertion = async (): Promise<typeof after> => await list.boundingBox();
   const after = await list.boundingBox();
@@ -1587,7 +1587,6 @@ test("mobile: the bottom bar is the curated four; overflow + footer affordances 
   // display:none on the desktop block removes them from the a11y tree entirely.
   await expect(page.getByRole("button", { name: "Corpus" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Analytics" })).toHaveCount(0);
   // The ballooning guard: rendered mobile-bar buttons (`mobile: "tab"` sections + "You") must never
   // exceed the thumb-reach budget — a def flipping to `mobile: "tab"` must not silently balloon it. The
   // rail is now ONE DOM list (no `.shell-rail-mobile` twin); `getByRole` counts only the VISIBLE buttons,
@@ -1673,11 +1672,11 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
 
   // Tapping an overflow section switches the active section AND closes the sheet (setActiveSection +
   // closeModal), landing on that section's distinct placeholder copy.
-  await page.getByRole("button", { name: "Analytics" }).click();
+  await page.getByRole("button", { name: "Presets" }).click();
   // GONE, not merely restyled: the sheet container leaves the tree and its rows go with it.
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Settings", exact: true })).toHaveCount(0);
-  await expect(page.getByText("Charts over your corpus land here", { exact: false })).toBeVisible();
+  await expect(page.getByText("Your generation presets live here", { exact: false })).toBeVisible();
 });
 
 test("mobile: the You sheet's Settings row switches to the config SECTION and closes the sheet", async ({ mount, page }) => {

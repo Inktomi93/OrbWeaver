@@ -25,6 +25,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
+import type { CorpusMode } from "./corpus-modes.ts";
 import type { ContributorRegistry } from "./registry.ts";
 
 /** RAIL MEMBERSHIP — which of the bracket's two rails a CONTEXT tab belongs to (HUD-1 §4, owner decision 5;
@@ -209,7 +210,7 @@ export interface ContextTabsSpec<S> {
   readonly header?: (state: S) => ReactNode;
   /** The FOOT rail's name — the artifact NOUN the pane is about ("Chat", "Character"), printed as the
    *  rail's kicker and carried as its a11y group name. Absent ⇒ the section's rail label (the honest name
-   *  for a pane that is about the section itself: Corpus, Analytics, Refinery). */
+   *  for a pane that is about the section itself: Corpus, Refinery). */
   readonly railLabel?: string;
   /** §6c — injected at the door (M8); merged after own tabs, same `when` gating. */
   readonly contributors?: ContributorRegistry<ContextTabDef<S>>;
@@ -351,14 +352,10 @@ export type ChatContextState = CommittedChatContext;
 export const CHAT_CONTEXT_TAB_IDS = ["members", "settings", "preview"] as const;
 export type ChatContextTabId = (typeof CHAT_CONTEXT_TAB_IDS)[number];
 
-/** The Analytics CONTEXT-panel state projection (O5 strict — a real named type, never void/any). The
- *  three dimension tabs (Models/Time/Personas) are owner-scoped and IGNORE this state; it exists only so
- *  the definition-owned `header` slot can name the leaderboard-drilled character. `null` = the
- *  overview dashboard (nothing drilled) ⇒ the band shows the neutral "Analytics" identity. The projection
- *  is ALWAYS present (never `null` from `useContextState`) so the owner-scoped tabs stay unconditionally
- *  available whether or not a character is drilled. */
-export interface AnalyticsContextState {
-  readonly characterId: CharacterId | null;
+/** The Corpus CONTEXT-panel state projection. Every tab, own or contributed, gates on `mode`, so one pane
+ *  shows only the active mode's inspector. Always present, because every mode has a landing inspector. */
+export interface CorpusContextState {
+  readonly mode: CorpusMode;
 }
 
 /** One walkable door in the Config TEACHER — an "Applies"/"Related"

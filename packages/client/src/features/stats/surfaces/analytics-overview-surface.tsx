@@ -56,8 +56,8 @@ export function AnalyticsOverviewSurface(): ReactElement {
           slot ride the scroller, which is where #1200 put them. */}
       <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" data-slot="analytics-content" padding="section">
         <QueryBoundary
-          fallback={<Text voice="gloss">Loading your analytics…</Text>}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="your analytics" onRetry={retry} />}
+          fallback={<Text voice="gloss">Loading your insights…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="your insights" onRetry={retry} />}
           reserveKey="analytics.overview"
         >
           <OverviewBody />
@@ -76,7 +76,7 @@ function OverviewBody(): ReactElement {
   // #451: the list defaults COLLAPSED here, so "open the list" is right by default — but wrong once a
   // reader docks it, and even collapsed the affordance's verbatim name is "Show list panel" (the topbar
   // toggle, `shell-topbar.tsx`), not "open the list" (WCAG 2.5.3, label-in-name).
-  const listMode = useSectionListMode("analytics");
+  const listMode = useSectionListMode("corpus");
 
   // `hasData` is the runtime gate; overview/wrapped are still typed `| null` (an absent rollup), so
   // guard all three together — no data ⇒ the teaching state instead of a wall of zeros.
@@ -260,7 +260,7 @@ function EmptyStateNoData(): ReactElement {
   return (
     <EmptyState
       icon={<Icon icon={ChartColumn} size="lg" />}
-      title="No analytics yet"
+      title="No insights yet"
       description="Play a chat and your turn economics — tokens, cost, latency — will show up here."
       action={
         <Button intent="primary" size="sm" onClick={(): void => setActiveSection("chats")}>

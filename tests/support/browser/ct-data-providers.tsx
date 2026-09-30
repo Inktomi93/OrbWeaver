@@ -49,7 +49,7 @@ import {
 import { appearanceLooksSection, makeConfigSection } from "@orb/client/features/config";
 import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "@orb/client/features/credentials";
 import { addDocumentModal, databankDocumentsTile, databankSection } from "@orb/client/features/databank";
-import { corpusSection } from "@orb/client/features/discovery";
+import { makeCorpusSection } from "@orb/client/features/discovery";
 import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "@orb/client/features/home";
 import { imageDetailModal, imageEditModal, imagineModal } from "@orb/client/features/imagery";
 import { notificationsChrome } from "@orb/client/features/notifications";
@@ -66,7 +66,8 @@ import {
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import { savedRostersModal } from "@orb/client/features/roster-preset";
-import { analyticsSection } from "@orb/client/features/stats";
+import { insightsContextTabs, insightsCorpusMode } from "@orb/client/features/stats";
+import { labelsContextTabs, labelsCorpusMode } from "@orb/client/features/tag";
 import {
   aboutSection,
   adminApprovalsSection,
@@ -98,6 +99,7 @@ import type {
   ContextRegionDef,
   ContextTabDef,
   ContributorRegistry,
+  CorpusContextState,
   ToolRenderer,
 } from "@orb/client/lib";
 import { bindSessionDocumentHost, createContributorRegistry, createRegistry } from "@orb/client/lib";
@@ -208,6 +210,8 @@ const chatToolRenderers = createContributorRegistry<ToolRenderer>("tool-renderer
 // The "This chat" SECTION seam (#616), empty here: a shell CT proves the tab's OWN sections, and the
 // automation graft is proved by its own CT, which wires this registry itself.
 const chatSettingsSections = createContributorRegistry<ChatSettingsSectionContribution>("chat-settings-sections", []);
+// The Corpus workbench's contributed modes, mirroring the door (D271): Insights from stats, Labels from tag.
+const corpusContextTabs = createContributorRegistry<ContextTabDef<CorpusContextState>>("corpus-context", [...insightsContextTabs, ...labelsContextTabs]);
 
 // The home-tile seam, assembled as at the real door (home's own jump grid + whatever features raise) —
 // so a shell CT that lands on `home` renders the REAL tile grid, not a stand-in.
@@ -242,7 +246,7 @@ const REAL: Record<SectionId, SectionDefinition> = {
     settingsSections: chatSettingsSections,
   }),
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
-  corpus: corpusSection,
+  corpus: makeCorpusSection({ insights: insightsCorpusMode, labels: labelsCorpusMode, contextTabs: corpusContextTabs }),
   config: makeConfigSection(realConfigGroups),
   // U5 (#679): the REAL Extensions section, so a shell CT landing anywhere sees the true rail roster and a CT
   // ON this section exercises the production switcher/page panes rather than a stand-in.
@@ -250,7 +254,6 @@ const REAL: Record<SectionId, SectionDefinition> = {
   databank: databankSection,
   presets: presetsSection,
   refinery: refinerySection,
-  analytics: analyticsSection,
 };
 
 const realRegistry: SectionRegistry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, REAL);

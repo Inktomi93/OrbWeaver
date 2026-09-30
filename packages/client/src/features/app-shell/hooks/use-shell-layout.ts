@@ -190,7 +190,7 @@ export function useShellLayout(): ShellLayout {
   // Closing a panel in an overlay regime RELEASES the request (`null`) unless it is the LIST, which is the
   // one panel with a regime DEFAULT to suppress: on mobile with nothing selected the roster is the screen,
   // and "hide the list" has to mean it (that toggle is how a phone reaches a section's own no-selection
-  // CONTENT — the corpus/analytics dashboards). Dismissing the CONTEXT sheet must NOT take the roster
+  // CONTENT — the Corpus Explore overview). Dismissing the CONTEXT sheet must NOT take the roster
   // behind it down with it, hence the asymmetry (see `OverlayPanelRequest`).
   const closeRequestFor = (panel: PanelName): "none" | null => (panel === "list" ? "none" : null);
 

@@ -1,8 +1,6 @@
-// The analytics-SELECTION store: which character the Analytics section has drilled into — the route reads
-// it to render the per-character stats DRILL in CONTENT (else the analytics overview dashboard). Separate
-// from the Corpus / Characters selections by design (a leaderboard/momentum row opens a stats drill here),
-// remembered independently. A primary-only `createDrillSelectionStore` (UI-Arch §4.2; not persisted — a
-// hard reload landing back on the dashboard is fine).
+// The Corpus Insights drill: which character the leaderboard has open in the stats drill (else the Insights
+// dashboard). Separate from the Explore dossier selection, so each mode restores its own subject. Not
+// persisted — a hard reload landing back on the dashboard is fine.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
@@ -15,5 +13,5 @@ export const selectAnalyticsCharacter = analyticsSelection.select;
 export const clearAnalyticsSelection = analyticsSelection.clear;
 /** Reactive: the currently-drilled analytics character id (`null` = the dashboard). A primitive selector. */
 export const useSelectedAnalyticsCharacterId = analyticsSelection.usePrimaryId;
-/** The section-registry SEAM (`SectionSelection`) — what the SHELL reads for the mobile ONE-SHELL rule. */
-export const analyticsSectionSelection = analyticsSelection.selection;
+/** The Insights mode's drill seam, composed into the Corpus section selection. */
+export const analyticsDrillSelection = analyticsSelection.selection;

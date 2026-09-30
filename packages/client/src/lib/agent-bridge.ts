@@ -143,7 +143,7 @@ const ORB_DEBUG_CAPABILITIES = {
   appearanceMatrixContract: "read the live Appearance carrier matrix contract and reached subject counts",
   setMotionAuditDropTrackingPaused: "coordinate in-page drop tracking with motion-audit",
   snap: "read a cheap combined bridge overview",
-  nav: "call __orb.nav.capabilities() for exact vocabularies; section(id), openModal(slot), openConfig(group,sub?,setting?), closeModal(), focus(on) and awaited contextTab(id), openChat(id|title|first|latest|current), openCharacter(id|name), panel(name,mode) return {ok:true}|{ok:false,reason}",
+  nav: "call __orb.nav.capabilities() for exact vocabularies; section(id), corpusMode(mode), openModal(slot), openConfig(group,sub?,setting?), closeModal(), focus(on) and awaited contextTab(id), openChat(id|title|first|latest|current), openCharacter(id|name), panel(name,mode) return {ok:true}|{ok:false,reason}",
   seed: "call await __orb.seed.game({profile:'d20'|'freeform',title?}) -> {chatId}; creates a fresh complete development game through production APIs",
   rpg: "call await __orb.rpg() -> {chatId,game,tracker,journal,turnToolCalls}; reads the active game through production APIs",
   pluginLog: "read installed plugins or one server-runtime host log",
@@ -345,7 +345,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     resetRing,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.capabilities() · .rings()/.resetRing(name) · .snap() · .css.read() · .rpg() · .pluginLog(slug?) · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.consoleErrors()/.resetEvidence()/.motionFlaggersSettled()/.motionFlaggersDrain()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openConfig/contextTab/openChat/openCharacter/closeModal/panel(name,mode)/focus(on) · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.capabilities() · .rings()/.resetRing(name) · .snap() · .css.read() · .rpg() · .pluginLog(slug?) · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.consoleErrors()/.resetEvidence()/.motionFlaggersSettled()/.motionFlaggersDrain()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/corpusMode/openModal/openConfig/contextTab/openChat/openCharacter/closeModal/panel(name,mode)/focus(on) · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

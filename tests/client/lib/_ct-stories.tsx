@@ -1140,6 +1140,7 @@ export function AgentBridgeStory(): ReactElement {
       nav: {
         capabilities: () => ({
           sections: [],
+          corpusModes: [],
           modalSlots: [],
           configGroups: [],
           contextTabs: [],
@@ -1148,6 +1149,7 @@ export function AgentBridgeStory(): ReactElement {
           chatPositions: [],
         }),
         section: () => ({ ok: true as const }),
+        corpusMode: () => ({ ok: true as const }),
         openModal: () => ({ ok: true as const }),
         openConfig: () => ({ ok: true as const }),
         contextTab: async () => ({ ok: true as const }),

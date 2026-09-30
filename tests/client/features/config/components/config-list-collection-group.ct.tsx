@@ -41,32 +41,26 @@ const AMBIENT = defineTrpcRoutes({
   "sessions.me": { userId: USER_SETTINGS_VIEW.userId, handle: "ct_collection_band", globalRole: "user" },
   "settings.getUserSettings": () => USER_SETTINGS_VIEW,
   "settings.listThemes": () => [],
-  "tag.listTagsWithUsage": [
+  "worldInfo.listBooksWithUsage": [
     {
-      id: "tag_a",
-      name: "fantasy",
-      color: null,
-      color2: null,
-      source: null,
-      folderType: "NONE",
-      sortOrder: 0,
-      isHiddenOnCard: false,
-      usage: { characters: 2, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 2 },
+      id: "world_book_ctband00001",
+      name: "The Ninefold Reach",
+      description: null,
+      createdAt: 1,
+      entryCount: 4,
+      usage: { characters: 2, personas: 0, chats: 0, global: false, total: 2 },
     },
     {
-      id: "tag_b",
-      name: "slow burn",
-      color: null,
-      color2: null,
-      source: null,
-      folderType: "NONE",
-      sortOrder: 1,
-      isHiddenOnCard: false,
-      usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 },
+      id: "world_book_ctband00002",
+      name: "Saltmarch",
+      description: null,
+      createdAt: 2,
+      entryCount: 1,
+      usage: { characters: 1, personas: 0, chats: 0, global: false, total: 1 },
     },
   ],
+  "worldInfo.listGlobal": [],
   "regex.listScripts": [],
-  "worldInfo.listBooksWithUsage": [],
   "rosterPreset.list": [],
   "persona.list": [],
 });
@@ -74,11 +68,11 @@ const AMBIENT = defineTrpcRoutes({
 const BAND = '[data-slot="config-band"]';
 const LIST_REGION = '[data-slot="config-list"]';
 /** The POPULATED library's band — the one whose click used to unfold rows into this pane. */
-const TAGS_BAND = `[data-config-group="tags"] ${BAND}`;
+const BOOKS_BAND = `[data-config-group="worldInfo"] ${BAND}`;
 /** A SETTINGS band in the same list — the left edge a collection band's must agree with. */
 const SETTINGS_BAND = `[data-config-group="appearance"] ${BAND}`;
 /** Every collection group id the registry ships, so the sweeps are the species and not one probe. */
-const COLLECTIONS = ["tags", "regex", "worldInfo", "rosterPreset"] as const;
+const COLLECTIONS = ["regex", "worldInfo", "rosterPreset"] as const;
 
 async function stub(page: Page): Promise<void> {
   await routeTrpc(page, AMBIENT);
@@ -98,14 +92,14 @@ test("#1725: clicking a collection band mounts NO member rows in the LIST", asyn
   const component = await mount(<ConfigHostStory />);
   const list = component.locator(LIST_REGION);
 
-  await component.locator(TAGS_BAND).click();
+  await component.locator(BOOKS_BAND).click();
   // The band itself is a `Button`, never a `ListRow`, so the whole pane's row census is the claim — and the
   // settings sections' own rows are excluded by scoping to the collection's group frame.
   for (const id of COLLECTIONS) {
     await expect(list.locator(`[data-collection="${id}"] [data-slot="list-row-root"]`), `no ${id} member rows in the LIST`).toHaveCount(0);
   }
   // …and the band is still the door it was: the click made it the location.
-  await expect(component.locator(TAGS_BAND)).toHaveAttribute("aria-current", "true");
+  await expect(component.locator(BOOKS_BAND)).toHaveAttribute("aria-current", "true");
 });
 
 test("#1725: a collection band never claims to unfold anything", async ({ mount, page }) => {
@@ -124,7 +118,7 @@ test("the disclosure gutter is RESERVED: a collection band's group glyph starts 
   await stub(page);
   const component = await mount(<ConfigHostStory />);
 
-  const collectionGlyph = glyphs(component.locator(TAGS_BAND)).nth(1);
+  const collectionGlyph = glyphs(component.locator(BOOKS_BAND)).nth(1);
   const settingsGlyph = glyphs(component.locator(SETTINGS_BAND)).nth(1);
   await expect(collectionGlyph).toBeVisible();
   await expect(settingsGlyph).toBeVisible();
@@ -143,7 +137,7 @@ test("…and NOT RECLAIMED: the chevron's box is still drawn, it is only unpaint
   await stub(page);
   const component = await mount(<ConfigHostStory />);
 
-  const spacer = glyphs(component.locator(TAGS_BAND)).nth(0);
+  const spacer = glyphs(component.locator(BOOKS_BAND)).nth(0);
   // `visibility: hidden`, not `display: none` and not a removed node — the box is what holds the column.
   await expect.poll(async () => await spacer.evaluate((el: Element) => getComputedStyle(el).visibility)).toBe("hidden");
   await expect
@@ -168,7 +162,7 @@ test("there is ONE band kind: population changes the number, never the control",
   await stub(page);
   const component = await mount(<ConfigHostStory />);
 
-  // Tags has members and the other three have none, in the same stub — so this sweep is the mixed case the
+  // World Info has members and the other two have none, in the same stub — so this sweep is the mixed case the
   // old two-component split existed for, and every band answers identically.
   for (const id of COLLECTIONS) {
     const band = component.locator(`[data-config-group="${id}"] ${BAND}`);
@@ -179,7 +173,7 @@ test("there is ONE band kind: population changes the number, never the control",
     await expect(band).toHaveAccessibleName(/\d$/);
   }
   // The populated one says its real census; the empty ones say the honest zero.
-  await expect(component.locator(TAGS_BAND)).toHaveAccessibleName(/ 2$/);
+  await expect(component.locator(BOOKS_BAND)).toHaveAccessibleName(/ 2$/);
   await expect(component.locator(`[data-config-group="regex"] ${BAND}`)).toHaveAccessibleName(/ 0$/);
 });
 
@@ -206,23 +200,23 @@ const TRANSPARENT = "rgba(0, 0, 0, 0)";
 /** A collection band that is NOT the location — the control every claim below is a delta against. */
 const SIBLING_BAND = `[data-config-group="regex"] ${BAND}`;
 
-/** Enter the Tags library without moving the pointer onto anything. */
-async function enterTags(component: Locator): Promise<void> {
-  await component.locator(TAGS_BAND).dispatchEvent("click");
-  await expect(component.locator(TAGS_BAND)).toHaveAttribute("aria-current", "true");
+/** Enter the World Info library without moving the pointer onto anything. */
+async function enterBooks(component: Locator): Promise<void> {
+  await component.locator(BOOKS_BAND).dispatchEvent("click");
+  await expect(component.locator(BOOKS_BAND)).toHaveAttribute("aria-current", "true");
 }
 
 test("#1823: the band that IS the location paints the ruled rail + tint; a sibling door paints nothing", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ConfigHostStory />);
-  await enterTags(component);
+  await enterBooks(component);
 
   // The paint is DERIVED from the aria — one statement, so the two halves cannot get out of step.
-  await expect(component.locator(TAGS_BAND)).toHaveAttribute("data-selected", "");
+  await expect(component.locator(BOOKS_BAND)).toHaveAttribute("data-selected", "");
   await expect(component.locator(SIBLING_BAND)).not.toHaveAttribute("data-selected", /.*/);
 
   await expect
-    .poll(async () => await paintOf(component.locator(TAGS_BAND)))
+    .poll(async () => await paintOf(component.locator(BOOKS_BAND)))
     .toEqual({ rail: expect.not.stringMatching(/^rgba\(0, 0, 0, 0\)$/), fill: expect.not.stringMatching(/^rgba\(0, 0, 0, 0\)$/) });
   // …and the delta is what the reader actually uses: a door that is not the location is still bare.
   expect(await paintOf(component.locator(SIBLING_BAND)), "a band that is not the location paints nothing").toEqual({
@@ -234,9 +228,9 @@ test("#1823: the band that IS the location paints the ruled rail + tint; a sibli
 test("#1823: the rail box is RESERVED on every band, so entering a library shifts no label", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ConfigHostStory />);
-  const label = component.locator(`${TAGS_BAND} [data-slot="band-label"]`);
+  const label = component.locator(`${BOOKS_BAND} [data-slot="band-label"]`);
   const before = await label.boundingBox();
-  await enterTags(component);
+  await enterBooks(component);
 
   // The transparent RESTING rail is why this holds: a 2px border that appeared on selection would move the
   // band's own label 2px right on entry and leave its siblings' glyph column one step to the left.
@@ -271,11 +265,11 @@ test.describe("#1823 at a COARSE pointer", () => {
   test("the current band's rail survives the pointer class", async ({ mount, page }) => {
     await stub(page);
     const component = await mount(<ConfigHostStory />);
-    await enterTags(component);
+    await enterBooks(component);
 
     // A coarse band is a 44px box rather than 32px; nothing in the rail is pointer-conditional, and this is
     // the arm that SAYS so rather than assuming it.
-    const current = await paintOf(component.locator(TAGS_BAND));
+    const current = await paintOf(component.locator(BOOKS_BAND));
     expect(current.rail, "the rail paints at a coarse pointer too").not.toBe(TRANSPARENT);
     expect(current.fill).not.toBe(TRANSPARENT);
     expect(await paintOf(component.locator(SIBLING_BAND))).toEqual({ rail: TRANSPARENT, fill: TRANSPARENT });
@@ -291,7 +285,7 @@ test.describe("#1823 at a COARSE pointer", () => {
 test("#1823: the exemption matches the CURRENT band only — an unselected band and a non-carrier box stay judged", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ConfigHostStory />);
-  await enterTags(component);
+  await enterBooks(component);
 
   const verdict = await page.evaluate((selector: string) => {
     const planted = document.createElement("div");
@@ -304,7 +298,7 @@ test("#1823: the exemption matches the CURRENT band only — an unselected band 
     const matched = [...document.querySelectorAll<HTMLElement>(selector)];
     const answer = {
       // The band that IS the location: exempt.
-      current: matched.filter((el) => el.dataset["configGroup"] === "tags").length,
+      current: matched.filter((el) => el.dataset["configGroup"] === "worldInfo").length,
       // Planted negative 1 — the rule's real target.
       plantedCard: matched.includes(planted),
       // Planted negative 2 — a real band that is NOT selected (the state half of the predicate).
@@ -354,9 +348,9 @@ for (const theme of ["hearth", "light"] as const) {
       },
       theme === "hearth" ? null : theme,
     );
-    await enterTags(component);
+    await enterBooks(component);
 
-    const rail = await railPixel(page, component.locator(TAGS_BAND));
+    const rail = await railPixel(page, component.locator(BOOKS_BAND));
     const bare = await railPixel(page, component.locator(SIBLING_BAND));
     const measured = `${String(bare.r)},${String(bare.g)},${String(bare.b)}`;
     // The polarity band this arm claims to be in, asserted rather than assumed (both bounds, so neither

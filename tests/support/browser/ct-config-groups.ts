@@ -12,7 +12,6 @@ import { personasGroup } from "@orb/client/features/persona";
 import { pluginsGroup } from "@orb/client/features/plugin";
 import { regexGroup } from "@orb/client/features/regex";
 import { rosterGroup } from "@orb/client/features/roster-preset";
-import { tagsGroup } from "@orb/client/features/tag";
 import { adminGroup } from "@orb/client/features/user-admin";
 import { backupGroup, workloadsGroup } from "@orb/client/features/workloads";
 import { worldInfoGroup } from "@orb/client/features/world-info";
@@ -29,14 +28,13 @@ const REAL_CONFIG_GROUPS: Record<ConfigGroupId, ConfigGroupDefinition> = {
   connections: connectionsGroup,
   automation: automationGroup,
   admin: adminGroup,
-  tags: tagsGroup,
   regex: regexGroup,
   worldInfo: worldInfoGroup,
   rosterPreset: rosterGroup,
   plugins: pluginsGroup,
 };
 
-/** The REAL 13-group registry — the door's. */
+/** The REAL group registry — the door's. */
 export const realConfigGroups: ConfigGroupRegistry = createRegistry<ConfigGroupId, ConfigGroupDefinition>(
   "config-groups",
   CONFIG_GROUP_IDS,

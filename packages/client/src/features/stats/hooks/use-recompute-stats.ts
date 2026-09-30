@@ -16,7 +16,7 @@ import { createEntityMutation } from "#data";
 export const useRecomputeStats = createEntityMutation<inferInput<Trpc["stats"]["reconcile"]>, unknown>({
   options: (trpc) => trpc.stats.reconcile.mutationOptions(),
   invalidates: (trpc) => [trpc.stats.pathFilter()],
-  errorToast: (error) => (isRecomputeAlreadyRunning(error) ? null : "Couldn't recompute your analytics."),
+  errorToast: (error) => (isRecomputeAlreadyRunning(error) ? null : "Couldn't recompute your insights."),
 });
 
 /** The single-flight refusal: this user already has a recompute in flight (the `invite-dialog` `data.code`

@@ -79,7 +79,8 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
   expect(nav.capabilities()).toEqual({
-    sections: ["home", "chats", "characters", "corpus", "config", "extensions", "databank", "presets", "refinery", "analytics"],
+    sections: ["home", "chats", "characters", "corpus", "config", "extensions", "databank", "presets", "refinery"],
+    corpusModes: ["explore", "insights", "labels"],
     modalSlots: [
       "command",
       "newChat",
@@ -93,7 +94,7 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
       "pluginCommandArgs",
       "savedRosters",
     ],
-    // The closed config-group vocabulary (#866 S1, owner fork F-1): the nine settings groups + the four collections.
+    // The closed config-group vocabulary (#866 S1, owner fork F-1): the settings groups + the collections.
     configGroups: [
       "personas",
       "appearance",
@@ -103,7 +104,6 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
       "connections",
       "automation",
       "admin",
-      "tags",
       "regex",
       "worldInfo",
       "rosterPreset",
@@ -139,6 +139,24 @@ test("section() REFUSES an unknown section id — no store call, a loud ok:false
   expect(spy).not.toHaveBeenCalled();
 });
 
+// D271: Analytics is Corpus Insights. The bridge refuses the retired id rather than aliasing it, and reaches
+// the mode through the same action the switch writes.
+test("section() refuses the retired `analytics` id; corpusMode() lands on Corpus in that mode", () => {
+  const sectionSpy = vi.spyOn(state, "setActiveSection");
+  const modeSpy = vi.spyOn(state, "setCorpusMode");
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
+
+  expect(nav.section("analytics").ok).toBe(false);
+  expect(sectionSpy).not.toHaveBeenCalled();
+
+  expect(nav.corpusMode("insights")).toEqual({ ok: true });
+  expect(sectionSpy).toHaveBeenCalledExactlyOnceWith("corpus");
+  expect(modeSpy).toHaveBeenCalledExactlyOnceWith("insights");
+
+  expect(nav.corpusMode("analytics").ok).toBe(false);
+  expect(modeSpy).toHaveBeenCalledOnce();
+});
+
 test("openModal() dispatches the real openModal action; an unknown slot refuses without dispatching", () => {
   const spy = vi.spyOn(state, "openModal");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
@@ -160,8 +178,8 @@ test("openConfig() dispatches openConfigTo (group + optional sub); an unknown gr
 
   spy.mockClear();
   // A collection is a config group too (F-1): the SAME verb reaches it, and a sub rides through.
-  expect(nav.openConfig("tags")).toEqual({ ok: true });
-  expect(spy).toHaveBeenCalledExactlyOnceWith("tags", undefined, undefined);
+  expect(nav.openConfig("regex")).toEqual({ ok: true });
+  expect(spy).toHaveBeenCalledExactlyOnceWith("regex", undefined, undefined);
   spy.mockClear();
   expect(nav.openConfig("chat-behavior", "world-info")).toEqual({ ok: true });
   expect(spy).toHaveBeenCalledExactlyOnceWith("chat-behavior", "world-info", undefined);

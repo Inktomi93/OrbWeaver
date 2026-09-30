@@ -319,7 +319,7 @@ function openMemberIn(section: SectionId): void {
     selectDocumentFromList(mintTypeId(ID_PREFIX.document));
     return;
   }
-  selectCollectionMember("tags", "tag-ct-member");
+  selectCollectionMember("regex", "regex-ct-member");
 }
 
 /** The story's stand-in for a section's `useSelectionTitle`: the OPEN member's name, resolved REACTIVELY
@@ -596,13 +596,13 @@ export function RailOverflowSectionStory(): ReactElement {
   );
 }
 
-/** The same swap from a DIFFERENT group (analytics is `insight`, corpus is `primary`) — the review found
- *  the defect on five sections across three groups, so the pin covers more than the one it was found on. */
-export function RailAnalyticsSectionStory(): ReactElement {
+/** The same swap from a DIFFERENT group (presets is `authoring`, corpus is `primary`) — the review found
+ *  the defect on five sections across several groups, so the pin covers more than the one it was found on. */
+export function RailAuthoringSectionStory(): ReactElement {
   return (
     <CtFakeSectionRegistry>
       <CtStandInChromeRegistry>
-        <Rail activeSection="analytics" onSelectSection={(): void => undefined} onOpenModal={(): void => undefined} />
+        <Rail activeSection="presets" onSelectSection={(): void => undefined} onOpenModal={(): void => undefined} />
       </CtStandInChromeRegistry>
     </CtFakeSectionRegistry>
   );
@@ -812,7 +812,7 @@ export function YouSheetProjectionStory(): ReactElement {
       zone: "rail.nav",
       mobile: "sheet",
       order: 0,
-      behavior: { kind: "section", sectionId: "analytics" },
+      behavior: { kind: "section", sectionId: "refinery" },
     },
   ]);
   return (

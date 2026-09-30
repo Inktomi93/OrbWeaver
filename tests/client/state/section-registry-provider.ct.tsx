@@ -10,5 +10,5 @@ test("SectionRegistryProvider renders children and delivers the registry to a ne
   const out = probe.locator("output");
   await expect(out).toBeVisible();
   // Every section reached the consumer — the provider delivered the total registry, not a partial one.
-  await Promise.all(["chats", "characters", "corpus", "config", "databank", "presets", "refinery", "analytics"].map((id) => expect(out).toContainText(id)));
+  await Promise.all(["chats", "characters", "corpus", "config", "databank", "presets", "refinery"].map((id) => expect(out).toContainText(id)));
 });

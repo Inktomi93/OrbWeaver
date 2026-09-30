@@ -15,7 +15,7 @@
  *  make (recommends "beside `config`"): an extension page is a thing you configured the
  *  app to have, so it reads as the neighbour of the Configuration workspace rather than as a library you author
  *  into. It leads the `authoring` run so the libraries stay adjacent to each other. */
-export const SECTION_IDS = ["home", "chats", "characters", "corpus", "config", "extensions", "databank", "presets", "refinery", "analytics"] as const;
+export const SECTION_IDS = ["home", "chats", "characters", "corpus", "config", "extensions", "databank", "presets", "refinery"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
 /** RETIRED section ids → where a user whose storage still names one should LAND. A retired id is not a
@@ -23,10 +23,12 @@ export type SectionId = (typeof SECTION_IDS)[number];
  *  `activeSection` is the last place a user WAS — dropping them at the born default would silently teleport
  *  them home from a section they were using yesterday. `worldInfo` heals to `config` and not to `home`
  *  because the world-info library did not disappear: it is a collection in the Configuration workspace now
- *  (R2), so `config` is the same shelf under a new roof. A row retires when nobody could still be carrying
+ *  (R2), so `config` is the same shelf under a new roof. `analytics` heals to `corpus`, and its Insights mode
+ *  lands through `RETIRED_SECTION_CORPUS_MODE` (D271). A row retires when nobody could still be carrying
  *  the id — persisted shell state has no expiry, so in practice these rows are permanent. */
 export const RETIRED_SECTION_HEAL: Readonly<Record<string, SectionId>> = {
   worldInfo: "config",
+  analytics: "corpus",
 };
 
 export function isSectionId(v: unknown): v is SectionId {

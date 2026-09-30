@@ -9,7 +9,7 @@ import { stampAppearanceBootHint } from "../../../packages/client/src/compose/st
 // context (useSectionRegistry) so the context+provider primitives carry a behavioral test.
 
 import type { ContributorRegistry } from "@orb/client/lib";
-import { createContributorRegistry } from "@orb/client/lib";
+import { CORPUS_MODES, createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution, SectionDefinition } from "@orb/client/state";
 import {
   __dismissPresetSectionForTest,
@@ -50,6 +50,7 @@ import {
   closeModal,
   collapseListPanel,
   compareCorpusPair,
+  corpusSectionSelection,
   cycleTagFilter,
   dockListPanel,
   enterCreatedChat,
@@ -93,6 +94,7 @@ import {
   selectConfigGroup,
   selectConfigSub,
   selectCorpusCharacter,
+  selectLabel,
   selectPreset,
   selectPresetFromList,
   selectPresetSection,
@@ -115,6 +117,7 @@ import {
   setContextTab,
   setCorpusCompareA,
   setCorpusCompareB,
+  setCorpusMode,
   setCorpusSearchQuery,
   setCorpusSearchTarget,
   setDatabankPhaseFilter,
@@ -167,6 +170,7 @@ import {
   useCorpusCompareAName,
   useCorpusCompareB,
   useCorpusCompareBName,
+  useCorpusMode,
   useCorpusSearchQuery,
   useCorpusSearchTargetId,
   useDatabankPhaseFilter,
@@ -192,6 +196,7 @@ import {
   useSelectedCharacterFacetId,
   useSelectedCharacterId,
   useSelectedCorpusCharacterId,
+  useSelectedLabelId,
   useSelectedPresetId,
   useSelectedPresetSectionId,
   useSelectedWorldEntryId,
@@ -205,7 +210,7 @@ import {
   withContentSwap,
 } from "@orb/client/state";
 import type { AssetId, CharacterId, ChatId, PresetId, TagId, WorldEntryId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { Fragment, useEffect, useRef, useState, useSyncExternalStore } from "react";
 // Deep, not the app-shell barrel: `NoticeBand` is the store's only in-app writer and the probe drives the
@@ -242,7 +247,7 @@ function SectionListProjectionBody(): ReactElement {
       <button type="button" onClick={(): void => setOpenOverlayPanel("list")}>
         open list overlay
       </button>
-      <button type="button" onClick={(): void => selectCollectionMember("tags", "tag-projection-probe")}>
+      <button type="button" onClick={(): void => selectCollectionMember("worldInfo", "book-projection-probe")}>
         open member
       </button>
       <button type="button" onClick={(): void => clearCollectionSelection()}>
@@ -780,14 +785,14 @@ export function ConfigSelectionProbe(): ReactElement {
   const selection = useCollectionSelection();
   const openOverlayPanel = useOpenOverlayPanel();
   const section = useActiveSection();
-  const tagsOpen = useConfigGroupOpen("tags");
+  const booksOpen = useConfigGroupOpen("worldInfo");
   return (
     <div>
       <output>
-        {`selection=${selection === null ? "none" : `${selection.kind}:${selection.memberId}`} openOverlayPanel=${openOverlayPanel ?? "none"} section=${section} tagsOpen=${String(tagsOpen)}`}
+        {`selection=${selection === null ? "none" : `${selection.kind}:${selection.memberId}`} openOverlayPanel=${openOverlayPanel ?? "none"} section=${section} booksOpen=${String(booksOpen)}`}
       </output>
-      <button type="button" onClick={(): void => selectCollectionMember("tags", "tag_probe")}>
-        select tag member
+      <button type="button" onClick={(): void => selectCollectionMember("worldInfo", "book_probe")}>
+        select book member
       </button>
       <button type="button" onClick={(): void => selectCollectionMember("regex", "regex_probe")}>
         select regex member
@@ -804,8 +809,8 @@ export function ConfigSelectionProbe(): ReactElement {
       <button type="button" onClick={(): void => setActiveSection("chats")}>
         go to chats
       </button>
-      <button type="button" onClick={(): void => openConfigTo("tags")}>
-        go to the tags collection
+      <button type="button" onClick={(): void => openConfigTo("worldInfo")}>
+        go to the world-info collection
       </button>
     </div>
   );
@@ -837,16 +842,16 @@ export function ChatContextSectionOpenProbe(): ReactElement {
 /** ConfigGroupOpenProbe — the per-device group DISCLOSURE store. Groups start COLLAPSED (owner ruling),
  *  `openConfigGroup` is idempotent, and `closeConfigGroup` only undoes the named auto-open. */
 export function ConfigGroupOpenProbe(): ReactElement {
-  const tagsOpen = useConfigGroupOpen("tags");
+  const booksOpen = useConfigGroupOpen("worldInfo");
   const regexOpen = useConfigGroupOpen("regex");
   return (
     <div>
-      <output>{`tags=${String(tagsOpen)} regex=${String(regexOpen)}`}</output>
-      <button type="button" onClick={(): void => openConfigGroup("tags")}>
-        open tags group
+      <output>{`books=${String(booksOpen)} regex=${String(regexOpen)}`}</output>
+      <button type="button" onClick={(): void => openConfigGroup("worldInfo")}>
+        open books group
       </button>
-      <button type="button" onClick={(): void => closeConfigGroup("tags")}>
-        close tags group
+      <button type="button" onClick={(): void => closeConfigGroup("worldInfo")}>
+        close books group
       </button>
       <button type="button" onClick={(): void => __resetConfigGroupOpen()}>
         reset collection groups
@@ -855,20 +860,44 @@ export function ConfigGroupOpenProbe(): ReactElement {
   );
 }
 
-/** CorpusSelectionProbe — renders the corpus-selection store's read hook as text + buttons that fire its
- *  module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser) and
- *  assert select → clear (LIST/dossier selection drives the Corpus CONTENT; separate from the Characters
- *  editor selection). */
+/** CorpusSelectionProbe — renders the Corpus workspace state as text + buttons that fire its module actions,
+ *  so a CT can drive the real stores (useSyncExternalStore needs a browser). It prints what the SHELL reads
+ *  off `corpusSectionSelection` — "is a subject open?" and the phone landing — for the active mode, beside
+ *  each mode's own drill, so a test sees both the seam and the stores it composes (D271). */
 export function CorpusSelectionProbe(): ReactElement {
   const selected = useSelectedCorpusCharacterId();
+  const insights = useSelectedAnalyticsCharacterId();
+  const label = useSelectedLabelId();
+  const mode = useCorpusMode();
+  const section = useActiveSection();
+  const overlay = useOpenOverlayPanel();
+  const open = useSyncExternalStore(corpusSectionSelection.subscribe, corpusSectionSelection.hasSelection);
+  const landing = useSyncExternalStore(corpusSectionSelection.subscribe, (): string => corpusSectionSelection.phoneLanding?.() ?? "list");
   return (
     <div>
-      <output>{`corpus=${selected ?? "none"}`}</output>
+      <output>{`section=${section} mode=${mode} corpus=${selected ?? "none"} insights=${insights ?? "none"} label=${label ?? "none"} open=${String(open)} landing=${landing} overlay=${overlay ?? "null"}`}</output>
       <button type="button" onClick={(): void => selectCorpusCharacter(castId<CharacterId>("char_corpus_probe"))}>
         select corpus character
       </button>
       <button type="button" onClick={(): void => clearCorpusSelection()}>
         clear corpus selection
+      </button>
+      <button type="button" onClick={(): void => selectAnalyticsCharacter(mintTypeId(ID_PREFIX.character))}>
+        drill insights character
+      </button>
+      <button type="button" onClick={(): void => selectLabel(mintTypeId(ID_PREFIX.tag))}>
+        open label
+      </button>
+      {CORPUS_MODES.map((next) => (
+        <button key={next} onClick={(): void => setCorpusMode(next)} type="button">
+          {`mode ${next}`}
+        </button>
+      ))}
+      <button type="button" onClick={(): void => corpusSectionSelection.clear()}>
+        back
+      </button>
+      <button type="button" onClick={(): void => setOpenOverlayPanel("none")}>
+        close the list
       </button>
     </div>
   );
@@ -1500,7 +1529,7 @@ export function ConfigNavProbe(): ReactElement {
   const sub = useActiveConfigSub();
   const target = useConfigTarget();
   const section = useActiveSection();
-  const tagsOpen = useConfigGroupOpen("tags");
+  const booksOpen = useConfigGroupOpen("worldInfo");
   const selection = useCollectionSelection();
   // The spy's OTHER write (#926): the setting rows currently in the CONTENT viewport — the teacher roster's
   // population. Printed as its membership so the pin can prove BOTH that it lands and that an identical
@@ -1509,7 +1538,7 @@ export function ConfigNavProbe(): ReactElement {
   return (
     <div>
       <output>
-        {`group=${group ?? "none"} seam=${seam ?? "none"} sub=${sub ?? "none"} target=${target === null ? "none" : `${target.group}/${target.sub ?? "-"}/${target.setting ?? "-"}#${target.nonce}`} section=${section} tagsOpen=${String(tagsOpen)} selection=${selection === null ? "none" : `${selection.kind}:${selection.memberId}`} visible=${visible.length === 0 ? "none" : visible.map((row) => `${row.sub}/${row.setting}`).join("+")}`}
+        {`group=${group ?? "none"} seam=${seam ?? "none"} sub=${sub ?? "none"} target=${target === null ? "none" : `${target.group}/${target.sub ?? "-"}/${target.setting ?? "-"}#${target.nonce}`} section=${section} booksOpen=${String(booksOpen)} selection=${selection === null ? "none" : `${selection.kind}:${selection.memberId}`} visible=${visible.length === 0 ? "none" : visible.map((row) => `${row.sub}/${row.setting}`).join("+")}`}
       </output>
       <button type="button" onClick={(): void => openConfigTo("appearance")}>
         open appearance
@@ -1520,8 +1549,8 @@ export function ConfigNavProbe(): ReactElement {
       <button type="button" onClick={(): void => openConfigTo("chat-behavior", "prose", "prose-arbiter")}>
         open prose leaf
       </button>
-      <button type="button" onClick={(): void => openConfigTo("tags")}>
-        open tags
+      <button type="button" onClick={(): void => openConfigTo("worldInfo")}>
+        open world info
       </button>
       <button type="button" onClick={(): void => selectConfigGroup("workloads", "jobs")}>
         band click workloads

@@ -15,11 +15,11 @@
  * one frame is how the phone ends up taught something the desktop is not.
  *
  * ONE VOICE, NOT TWO, on the mobile side as well: the sentence is true for a reader with an empty library
- * and for one with 1736 tags, so neither surface switches copy on a corpus census. */
+ * and for one with a thousand scripts, so neither surface switches copy on a library census. */
 export const CONFIG_WELCOME = {
   title: "The parts every chat is built from",
   teaching:
-    "Tags label your library. Regex scripts rewrite text on its way in or out. World books hold the lore your characters draw on. Nothing here is required, and nothing here is spent once: build a part, then attach it wherever you need it.",
+    "Regex scripts rewrite text on its way in or out. World books hold the lore your characters draw on. Rosters save a cast you want to seat again. Nothing here is required, and nothing here is spent once: build a part, then attach it wherever you need it.",
 } as const;
 
 /** The section's rail label AND its LIST band title (owner fork F-9, 2026-08-30): the id stays `config`, the

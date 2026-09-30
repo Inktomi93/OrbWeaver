@@ -10,6 +10,7 @@ import { useSyncExternalStore } from "react";
 import type { PanelMode } from "./panel-resolve.ts";
 import { resolvePanelMode } from "./panel-resolve.ts";
 import type { SectionId } from "./section-ids.ts";
+import type { SectionSelection } from "./section-registry.ts";
 import { useSectionRegistry } from "./section-registry-context.ts";
 import { useFocusMode, useMobileViewport, useNarrowViewport, useOpenOverlayPanel, usePanelOverride } from "./shell-store.ts";
 
@@ -18,6 +19,10 @@ import { useFocusMode, useMobileViewport, useNarrowViewport, useOpenOverlayPanel
 // and back up on every commit.
 const NO_SELECTION_SUBSCRIBE = (): (() => void) => (): void => undefined;
 const NO_SELECTION_SNAPSHOT = (): boolean => false;
+
+function listIsScreenSnapshot(selection: SectionSelection): boolean {
+  return !selection.hasSelection() && (selection.phoneLanding?.() ?? "list") === "list";
+}
 
 /** THE ONE SENTENCE a CONTENT surface appends while its LIST is off screen (#434 · #445 · #446) — the
  *  footnote four section welcomes now carry (presets · databank · characters · chats).
@@ -33,16 +38,19 @@ const NO_SELECTION_SNAPSHOT = (): boolean => false;
  *  It opens with a space: it is APPENDED to a pane's own instruction, never printed alone. */
 export const LIST_OFF_SCREEN_HINT = " The list isn't on screen right now — Show list panel in the top bar brings it back.";
 
-/** Is `section` in the mobile LIST-AS-SCREEN arm — does it declare a list with nothing selected? The ONE
- *  home for that question (`useShellLayout`'s resolve and `useSectionListMode` below both read it here), and the
- *  reason `SectionSelection` is a subscribe/snapshot pair rather than a hook: this is ONE
- *  `useSyncExternalStore` call whose hook identity never varies with the section, so it is legal above a
- *  keyed boundary and answers synchronously on the first render (no effect-published mirror, no flash). */
+/** Is `section` in the mobile LIST-AS-SCREEN arm — does it declare a list with nothing selected, and a LIST
+ *  phone landing? The ONE home for that question (`useShellLayout`'s resolve and `useSectionListMode` below
+ *  both read it here), and the reason `SectionSelection` is a subscribe/snapshot pair rather than a hook:
+ *  this is ONE `useSyncExternalStore` call whose hook identity never varies with the section, so it is legal
+ *  above a keyed boundary and answers synchronously on the first render (no effect-published mirror, no
+ *  flash). The snapshot is a boolean, so a fresh closure per render is safe; only `subscribe` must be stable. */
 export function useSectionListIsScreen(section: SectionId): boolean {
   const definition = useSectionRegistry().get(section);
   const selection = definition.selection;
-  const hasSelection = useSyncExternalStore(selection?.subscribe ?? NO_SELECTION_SUBSCRIBE, selection?.hasSelection ?? NO_SELECTION_SNAPSHOT);
-  return selection !== undefined && !hasSelection;
+  return useSyncExternalStore(
+    selection?.subscribe ?? NO_SELECTION_SUBSCRIBE,
+    selection === undefined ? NO_SELECTION_SNAPSHOT : (): boolean => listIsScreenSnapshot(selection),
+  );
 }
 
 /** A section's resolved LIST panel MODE — the narrow #state projection a section body reads instead of

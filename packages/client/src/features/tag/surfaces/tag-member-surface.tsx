@@ -1,4 +1,4 @@
-// The tag MEMBER EDITOR — CONTENT for one selected tag (C-7 / fork F-11 arm (a)).
+// The tag MEMBER EDITOR — Corpus Labels CONTENT for one selected tag (C-7 / fork F-11 arm (a), D271).
 //
 // This is the other half of the row split: every EDITING control that used to be crammed into the 330px
 // settings row lives here, at full width, with room for its label — rename · both colour pickers · folder
@@ -7,7 +7,7 @@
 // change lands moved when the controls did.
 //
 // DELETE IS NOT HERE — it converged onto the ROW's kebab (config-delete #271), the same place world-info and
-// regex rows home it, so a user finds Delete in one place across all three config collections. Merge STAYS
+// regex rows home it, so a user finds Delete in the same place in every library. Merge STAYS
 // (it is a distinct fold-into-another verb that needs the target picker), and it is the editor's only
 // destructive control now. See `tag-collection-rows.tsx` for the ruling-survives-input-changed note.
 //
@@ -32,20 +32,19 @@ import type { MemberDrillBack } from "#components";
 import { FormDialog, MemberDrillHeader, SettingSwitchRow } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import type { CollectionMemberView } from "#lib";
-import { useFocusOnMount } from "#lib";
-import { clearCollectionSelection } from "#state";
+import { CORPUS_MODE_LABELS, useFocusOnMount } from "#lib";
+import { clearLabelSelection } from "#state";
 import { useMergeTags, useRenameTag, useUpdateTagStyle } from "../hooks/use-tag-settings-mutations.ts";
 import { FOLDER_TYPE_ITEMS, tagColorValueLabel, usageTotalLabel } from "../lib/tags-model.ts";
 
 /** Apply a partial patch to this tag (the immediate-commit style writer the sub-controls share). */
 type PatchStyle = (patch: UpdateTagInput) => void;
 
-export function TagMemberSurface({ view }: { readonly view: CollectionMemberView }): ReactElement {
+export function TagMemberSurface({ tagId }: { readonly tagId: TagId }): ReactElement {
   const trpc = useTRPC();
   const { data: tags } = useSuspenseQuery(trpc.tag.listTagsWithUsage.queryOptions());
-  const tag = tags.find((row) => row.id === view.memberId);
-  const back = { label: `Back to ${view.library}`, onClick: (): void => clearCollectionSelection() };
+  const tag = tags.find((row) => row.id === tagId);
+  const back = { label: `Back to ${CORPUS_MODE_LABELS.labels}`, onClick: (): void => clearLabelSelection() };
   if (tag === undefined) {
     // Reachable for real: another device deleted this tag while it was open here (the tag verbs are
     // bus-driven, so the list refetches under the editor). Say so instead of rendering a dead form — and
@@ -280,7 +279,7 @@ function TagMergeControl({
     merge.mutate({ sourceTagId: tag.id, targetTagId: target });
     setOpen(false);
     setTarget(null);
-    clearCollectionSelection();
+    clearLabelSelection();
   };
 
   return (

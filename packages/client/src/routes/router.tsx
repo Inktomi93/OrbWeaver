@@ -1,6 +1,6 @@
 import { createRoute, createRouter, lazyRouteComponent, notFound, redirect } from "@tanstack/react-router";
 import { redirectIfAuthed, requireAuthed } from "#features/auth";
-import { openConfigTo, parseConfigLink, resolveSectionPath, setActiveSection } from "#state";
+import { healCorpusModeFrom, openConfigTo, parseConfigLink, resolveSectionPath, setActiveSection } from "#state";
 // Deep, not `#lib`: app-ready-signal is OUT of the barrel so its production import graph stays explicit.
 // Type-only, so this port itself lands nothing in the boot chunk.
 import type { RouteResolution } from "../lib/app-ready-signal.ts";
@@ -70,6 +70,7 @@ const sectionAliasRoute = createRoute({
       throw notFound();
     }
     const target = section === "config" && search.to !== undefined ? parseConfigLink(search.to) : null;
+    healCorpusModeFrom(params.section);
     if (target === null) {
       setActiveSection(section);
     } else {

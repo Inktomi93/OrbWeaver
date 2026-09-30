@@ -4,6 +4,8 @@
 // (the feature-tier `useShellLayout`, the `#state` projection `useSectionListMode`) resolves through THIS one
 // function so the tiers can never drift (the M10 correction).
 
+import type { CorpusMode } from "#lib";
+
 /** A panel's 3-state model: docked (in-flow) · overlay (floats over) · collapsed (zero width). */
 export const PANEL_MODES = ["docked", "overlay", "collapsed"] as const;
 export type PanelMode = (typeof PANEL_MODES)[number];
@@ -25,6 +27,18 @@ export type PanelName = "list" | "context";
  *  instead (`useShellLayout`): a user dismissing a detail sheet on a phone did not ask for the roster
  *  behind it to disappear too. Only the LIST — the one panel with a regime default to suppress — writes it. */
 export type OverlayPanelRequest = PanelName | "none" | null;
+
+/** Which screen a phone lands on in a list-bearing section with nothing selected (§4.1). A section that
+ *  declares none lands on its LIST. */
+export type PhoneLanding = "list" | "content";
+
+/** The Corpus per-mode phone landing (D271): the two finder modes land on LIST, Insights on its dashboard.
+ *  A landing is a policy, never a fabricated selection. */
+export const CORPUS_PHONE_LANDING: Readonly<Record<CorpusMode, PhoneLanding>> = {
+  explore: "list",
+  insights: "content",
+  labels: "list",
+};
 
 /** The ONE mode-resolution algebra — both `useShellLayout`'s `resolvePanel` (feature-tier hook, reads the
  *  section registry for `panelDefaults`) and `useSectionListMode` (the `#state` tier) call this SAME function so
@@ -54,7 +68,9 @@ export type OverlayPanelRequest = PanelName | "none" | null;
  *  characters · corpus · config · databank · presets · analytics) landed on the welcome with the list
  *  translated off-screen, so this removes seven deviations rather than two. The user's own `"none"` still
  *  wins over the default: that is the topbar toggle dropping the roster to reach a section's no-selection
- *  CONTENT (the corpus/analytics dashboards), so the control is never dead in this arm either. */
+ *  CONTENT (the Corpus overview), so the control is never dead in this arm either. A section whose seam
+ *  declares a `"content"` {@link PhoneLanding} (Corpus Insights) is never in this arm: `listIsScreen` is
+ *  false and its dashboard is the screen. */
 export function resolvePanelMode(
   panel: PanelName,
   resolved: PanelMode,

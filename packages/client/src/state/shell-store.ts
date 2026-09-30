@@ -29,6 +29,7 @@
 
 import { isPlainObject } from "@orb/kit/guards";
 import { withViewTransition } from "../lib/view-transition.ts";
+import { healCorpusModeFrom } from "./corpus-mode-store.ts";
 import { createPersistedStore } from "./create-persisted-store.ts";
 import type { ModalSlotId } from "./modal-slot-ids.ts";
 import { MODAL_CONTENT_LIFETIME } from "./modal-slot-ids.ts";
@@ -109,13 +110,18 @@ const DEFAULT_STATE: ShellState = {
 // v2: the persisted shape changed from a single global panel pair to per-section `panelOverrides`.
 const PERSIST_VERSION = 2;
 
-/** The stored `activeSection`, healed: a live id passes through, a RETIRED id lands on its successor, and
- *  anything else (corrupt / never-existed) degrades to the born default. */
+/** The stored `activeSection`, healed: a live id passes through, a RETIRED id lands on its successor (and on
+ *  its Corpus mode, when the retired section became one), and anything else degrades to the born default. */
 function resolveStoredSection(v: unknown): SectionId {
   if (isSectionId(v)) {
     return v;
   }
-  return (typeof v === "string" ? RETIRED_SECTION_HEAL[v] : undefined) ?? DEFAULT_STATE.activeSection;
+  const healed = typeof v === "string" ? RETIRED_SECTION_HEAL[v] : undefined;
+  if (typeof v !== "string" || healed === undefined) {
+    return DEFAULT_STATE.activeSection;
+  }
+  healCorpusModeFrom(v);
+  return healed;
 }
 
 function isPanelMode(v: unknown): v is PanelMode {

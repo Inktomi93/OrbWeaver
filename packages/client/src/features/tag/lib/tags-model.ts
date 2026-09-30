@@ -1,5 +1,5 @@
-// The tag collection's pure view-model — the collection KIND, folder-type Select items, and the
-// usage-string derivations. Every label maps from the canonical @orb/contracts/tag tuples via a Record, so
+// The tag library's pure view-model — folder-type Select items, sort items, and the usage-string
+// derivations. Every label maps from the canonical @orb/contracts/tag tuples via a Record, so
 // a new member is a tsc error.
 
 import type { TagFolderType, TagUsage } from "@orb/contracts/tag";
@@ -7,10 +7,6 @@ import { TAG_FOLDER_TYPES } from "@orb/contracts/tag";
 import type { SelectOption } from "@orb/ui/select";
 import type { TagSortMode } from "#lib";
 import { TAG_SORT_MODES } from "#lib";
-
-/** The collection KIND — the registry key, the React key, and the selection store's kind axis. ONE home,
- *  read by the definition and by the create verb that selects what it just made. */
-export const TAG_COLLECTION_ID = "tags";
 
 // A Map, not an object literal, so the contract's uppercase keys don't trip the camelCase naming lint.
 const FOLDER_TYPE_LABELS = new Map<TagFolderType, string>([
@@ -34,8 +30,8 @@ const SORT_MODE_LABELS: Record<TagSortMode, string> = {
   manual: "Manual order",
 };
 
-/** The sort-mode Select options, derived from the canonical tuple — the DATA behind the host's control-row
- *  sort (`CollectionContribution.sort`, the mock design §3.2).
+/** The sort-mode Select options, derived from the canonical tuple — the DATA behind the Labels finder's
+ *  sort control (the mock design §3.2).
  *
  *  `handlesAvailable` is the library-SIZE verdict, not a preference: above `COLLECTION_LARGE_GROUP`
  *  the list virtualizes and drag handles cannot exist (a windowed list has no stable drop target for an
@@ -71,6 +67,13 @@ export function pruneConfirmLabel(count: number): string {
   return count === 1 ? "Delete it" : "Delete them";
 }
 
+/** What the Labels library is for — the landing's lead line. */
+export const LABELS_BLURB =
+  "Your own labels for characters, chats, books, personas and presets. Generated genres, themes and archetypes are analysis facets, not labels.";
+
+/** What an empty library says, on the landing and in the finder: the sentence names the one create verb. */
+export const LABELS_EMPTY = "No tags yet. New tag starts one, and tags you adopt from character cards land here too.";
+
 /** The five per-target usage counts (singular labels, pluralized in {@link usageBreakdown}). */
 const USAGE_LABELS: Record<Exclude<keyof TagUsage, "total">, string> = {
   characters: "character",
@@ -87,6 +90,15 @@ export function usageBreakdown(usage: TagUsage): string {
     .map((key) => `${usage[key]} ${USAGE_LABELS[key]}${usage[key] === 1 ? "" : "s"}`);
   return parts.length === 0 ? "nothing" : parts.join(", ");
 }
+
+/** The five target kinds as plural titles — the Labels landing and the open tag's reach both read these. */
+export const USAGE_KIND_TITLES: Record<Exclude<keyof TagUsage, "total">, string> = {
+  characters: "Characters",
+  chats: "Chats",
+  worldBooks: "World books",
+  personas: "Personas",
+  presets: "Presets",
+};
 
 /** How many tags a prune would delete, as words — the noun BOTH halves of the prune confirm name (its title
  *  and its body), so the count a user reads and the count they agree to cannot drift. */
