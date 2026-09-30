@@ -312,6 +312,20 @@ test("the view-transition callback commits the room frame, and the transcript an
   await expect(component.getByRole("group", { name: "Untitled chat" })).toBeFocused();
 });
 
+// A room re-entered with a pending composer-focus request (a compose-mode choice pick bumps the nonce) still
+// lands focus on the labelled room group: the room's own focus effect must run after the composer's.
+test("entering a room with a composer focus request already made lands focus on the room group", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...PREVIEW_FIT_STUB, "chat.listMessages": () => makeMessagesPage(CANON), ...ROSTER_STUB });
+
+  const component = await mount(<ChatRoomEntryStory />);
+  await component.getByRole("button", { name: "request composer focus" }).click();
+  await component.getByRole("button", { name: "enter the room" }).click();
+
+  await expect(component.getByTestId(testId("composer"))).toBeVisible();
+  await expect(component.getByText("Well met, traveller.")).toBeVisible();
+  await expect(component.getByRole("group", { name: "Untitled chat" })).toBeFocused();
+});
+
 // ── The chat-surface-anchor CONTRIBUTOR seam (client-architecture-lockdown.md §6c/M8 — new) ────────
 // A fake `ChatSurfaceContribution` at each of the 3 anchors, registered at a door-mirroring
 // `CtChatContributorSectionRegistry` in place of the empty registry, mounted through the REAL `chats`

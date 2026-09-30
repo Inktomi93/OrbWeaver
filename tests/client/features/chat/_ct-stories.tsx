@@ -68,6 +68,7 @@ import {
   openCharacterGallery,
   openNewChatPicker,
   openRoomInvite,
+  requestComposerFocus,
   SlashCommandRegistryProvider,
   selectChat,
   setFocusMode,
@@ -1961,6 +1962,9 @@ export function ChatRoomEntryStory(): ReactElement {
       <CtRealSectionRegistry>
         <button type="button" onClick={(): void => selectChat(CHAT_ID)}>
           enter the room
+        </button>
+        <button type="button" onClick={(): void => requestComposerFocus(CHAT_ID)}>
+          request composer focus
         </button>
         <ChatContentHarness />
       </CtRealSectionRegistry>
