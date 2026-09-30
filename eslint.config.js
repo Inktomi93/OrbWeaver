@@ -161,6 +161,9 @@ const CLIENT_FIXTURES = "tests/client/**/*.fixtures.tsx";
 const TOOLING_CT = componentTestGlobs("tests/tooling");
 const TOOLING_STORIES = "tests/tooling/**/_ct-stories.tsx";
 const SUPPORT_CT = "tests/support/browser/**/*.tsx";
+// The showcase plugins mount their frame surfaces under playwright-ct like the ui and client trees.
+const SHOWCASE_CT = componentTestGlobs("tests/showcase-plugins");
+const SHOWCASE_STORIES = "tests/showcase-plugins/**/_*.tsx";
 const CT_SURFACE = [
   ...UI_CT,
   UI_FIXTURES,
@@ -172,6 +175,8 @@ const CT_SURFACE = [
   ...TOOLING_CT,
   TOOLING_STORIES,
   SUPPORT_CT,
+  ...SHOWCASE_CT,
+  SHOWCASE_STORIES,
 ];
 
 const REACT_SURFACE = [UI_SRC, CLIENT_SRC, ...CT_SURFACE];
