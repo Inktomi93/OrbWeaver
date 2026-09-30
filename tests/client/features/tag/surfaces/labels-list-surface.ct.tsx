@@ -35,17 +35,18 @@ const MANY_TAGS = Array.from({ length: 60 }, (_unused, index) =>
   tagRow(`tag_${String(index).padStart(3, "0")}`, `tag-${String(index).padStart(3, "0")}`, 60 - index),
 );
 
+/** The tag the create verb answers with. The library read already lists it, because a CT runs no user bus to
+ *  refresh the read after a create. */
+const CREATED = tagRow("tag_created", "New tag 2", 0);
+
 function stub(page: Page, tags: readonly TagWithUsage[] = FEW_TAGS): Promise<TrpcRecorder> {
-  // The library read answers what the create verb has written, so a created tag is really in the library.
-  const library: TagWithUsage[] = [...tags];
   return routeTrpc(page, {
-    "tag.listTagsWithUsage": () => library,
+    "tag.listTagsWithUsage": () => tags,
     "tag.pruneUnusedTags": () => ({ removed: 1 }),
     "tag.setTagOrder": () => undefined,
+    "tag.mergeTags": () => null,
     "tag.createTag": () => {
-      const created = tagRow("tag_created", "New tag", 0);
-      library.push(created);
-      const { usage: _usage, ...view } = created;
+      const { usage: _usage, ...view } = CREATED;
       return view;
     },
   });
@@ -78,14 +79,15 @@ test("the finder reads filter · sort · overflow, the band carries New tag, and
   await expect(band).toContainText("Labels");
   await expect(band).toContainText("3");
 
-  // CONTENT states what no row can: orphans, with a real door to one, and the taxonomy's reach by kind.
+  // CONTENT states what no row can: orphans, with the verb that clears them, and the taxonomy's reach by kind.
   await expect(content(workspace).getByRole("heading", { name: "Labels", level: 2 })).toBeVisible();
   const facts = content(workspace).locator('[data-slot="labels-library-facts"]');
   await expect(facts).toContainText("Labelling nothing1 of 3");
   await expect(facts).toContainText("Tags on characters2");
   await expect(facts).toContainText("Tags on chats2");
-  await facts.getByRole("button", { name: "Open orphan" }).click();
-  await expect(content(workspace).locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "orphan" })).toBeVisible();
+  // The orphan fact's door acts on EVERY orphan, not the first one: it opens the prune confirm.
+  await facts.getByRole("button", { name: "Prune 1 unused" }).click();
+  await expect(page.getByRole("heading", { name: "Delete 1 unused tag?" })).toBeVisible();
 });
 
 test("the finder's sort Select writes the mode the rows read", async ({ mount, page }) => {
@@ -136,16 +138,31 @@ test("the overflow carries Prune unused tags, and the item alone deletes nothing
   await expect.poll(() => trpc.count("tag.pruneUnusedTags"), { intervals: [20, 50, 100] }).toBe(0);
 });
 
-test("New tag creates through the tag verb and opens the new tag in the editor", async ({ mount, page }) => {
-  const trpc = await stub(page);
+// A second create must not collide with the first: the default name is unique in the library, and the Name
+// field takes focus so the reader can type the real one at once.
+test("New tag creates a uniquely named tag and focuses its Name field", async ({ mount, page }) => {
+  const trpc = await stub(page, [...FEW_TAGS, tagRow("tag_first_new", "New tag", 0), CREATED]);
   const workspace = await mount(<LabelsWorkspaceStory />);
   await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New tag" }).click();
 
-  await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New tag" } });
-  // The created tag is OPEN: CONTENT swaps from the library to its drill. (The library read refreshes on the
-  // user bus in production, which a CT does not run, so this pins the selection rather than the refetch.)
-  await expect(content(workspace).getByRole("button", { name: "Back to Labels" })).toBeVisible();
-  await expect(content(workspace).getByRole("heading", { name: "Labels", level: 2 })).toHaveCount(0);
+  await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New tag 3" } });
+  const editor = content(workspace).locator('[data-slot="tag-member-editor"]');
+  await expect(editor.getByRole("heading", { name: "New tag 2" })).toBeVisible();
+  await expect(editor.getByRole("textbox", { name: "Name" })).toBeFocused();
+});
+
+// A merge closes the editor; focus lands on the library, never on <body>.
+test("merging a tag returns focus to the library landing", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  await finder(workspace).getByRole("button", { name: "orphan", exact: true }).click();
+  const editor = content(workspace).locator('[data-slot="tag-member-editor"]');
+  await editor.getByRole("button", { name: "Merge into…" }).click();
+  await page.getByRole("combobox", { name: "Merge target tag" }).click();
+  await page.getByRole("option", { name: "zeal" }).click();
+  await page.getByRole("button", { name: "Merge", exact: true }).click();
+
+  await expect(content(workspace).locator('[data-slot="labels-library"]')).toBeFocused();
 });
 
 // LABELS RESTORATION (D271): Back from the editor returns to the library with the finder exactly as the reader

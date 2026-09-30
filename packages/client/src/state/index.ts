@@ -26,7 +26,7 @@ export {
   useRoomInviteRequest,
 } from "./active-chat-store.ts";
 export { setAnalyticsSearchQuery, useAnalyticsSearchQuery } from "./analytics-search-store.ts";
-export { clearAnalyticsSelection, selectAnalyticsCharacter, useSelectedAnalyticsCharacterId } from "./analytics-selection-store.ts";
+export { clearAnalyticsSelection, selectAnalyticsCharacterFromList, useSelectedAnalyticsCharacterId } from "./analytics-selection-store.ts";
 export type { AppearanceBootAxes, AppearanceBootHintState, SeedThemeName } from "./appearance-boot-hint.ts";
 export {
   __resetAppearanceBootHint,
@@ -257,7 +257,7 @@ export {
   useEditSubject,
   useImagineSeed,
 } from "./imagery-store.ts";
-export { clearLabelSelection, selectLabel, selectLabelFromList, useSelectedLabelId } from "./label-selection-store.ts";
+export { clearLabelSelection, selectLabel, selectLabelFromList, setLabelNameFocus, useLabelNameFocus, useSelectedLabelId } from "./label-selection-store.ts";
 export type { ListFlipCarry } from "./list-flip-carry.ts";
 export { collapseListPanel, dockListPanel, registerListFlipCarry } from "./list-flip-carry.ts";
 export {
@@ -380,7 +380,7 @@ export {
 export { applyRpgRoundEvent, clearRpgRounds, readRpgRoundPendingForTest, useRpgRoundPending } from "./rpg-round-store.ts";
 export type { SectionId } from "./section-ids.ts";
 export { isSectionId, RETIRED_SECTION_HEAL, resolveSectionPath, SECTION_IDS } from "./section-ids.ts";
-export { LIST_OFF_SCREEN_HINT, useSectionListIsScreen, useSectionListMode } from "./section-list-projection.ts";
+export { LIST_OFF_SCREEN_HINT, useSectionHasSelection, useSectionListIsScreen, useSectionListMode } from "./section-list-projection.ts";
 export type {
   RailEntry,
   RailZone,

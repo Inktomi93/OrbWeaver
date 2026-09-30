@@ -28,6 +28,7 @@ import {
   useOpenModal,
   useOpenOverlayPanel,
   usePanelOverride,
+  useSectionHasSelection,
   useSectionListIsScreen,
   useSectionRegistry,
 } from "#state";
@@ -163,6 +164,7 @@ export function useShellLayout(): ShellLayout {
   // Called UNCONDITIONALLY (a `listAvailable &&` short-circuit here would be a conditional hook).
   const nothingSelected = useSectionListIsScreen(activeSection);
   const listIsScreen = listAvailable && nothingSelected;
+  const memberOpen = useSectionHasSelection(activeSection);
 
   const listMode: PanelMode = listAvailable
     ? resolvePanelMode("list", listDefault, { isFocus: focusMode, isMobile, isNarrow, openOverlayPanel, listIsScreen })
@@ -276,9 +278,10 @@ export function useShellLayout(): ShellLayout {
   // clear, WHICH IS THE SAME FUNCTION every other back in the app calls (it drops the selection and
   // releases the slide-over request — see `createDrillSelectionStore`). The shell adds nothing on top: a
   // second write here is how the topbar door and an in-content Back came to land in two different states
-  // (side-eye P2).
+  // (side-eye P2). It keys on an OPEN MEMBER, not on "the list is not the screen": a CONTENT-landing section
+  // (Corpus Insights, D271) has no list screen with nothing open, and the lead slot must stay its list door.
   const selection = activeDef.selection;
-  const backToList = isMobile && listAvailable && selection !== undefined && !nothingSelected ? selection.clear : null;
+  const backToList = isMobile && listAvailable && selection !== undefined && memberOpen ? selection.clear : null;
 
   return {
     backToList,

@@ -15,7 +15,7 @@ import {
 } from "@orb/client/features/stats";
 import {
   clearAnalyticsSelection,
-  selectAnalyticsCharacter,
+  selectAnalyticsCharacterFromList,
   setActiveSection,
   setCorpusMode,
   setPanelMode,
@@ -181,7 +181,7 @@ export interface AnalyticsContextHeaderStoryProps {
 export function AnalyticsContextHeaderStory({ drilled }: AnalyticsContextHeaderStoryProps): ReactElement {
   useEffect(() => {
     if (drilled) {
-      selectAnalyticsCharacter(ANALYTICS_DRILLED_ID);
+      selectAnalyticsCharacterFromList(ANALYTICS_DRILLED_ID);
     } else {
       clearAnalyticsSelection();
     }
@@ -202,7 +202,7 @@ export function AnalyticsContextHeaderStory({ drilled }: AnalyticsContextHeaderS
 function WithDrill({ drilled, children }: { readonly drilled: boolean; readonly children: ReactElement }): ReactElement {
   useEffect(() => {
     if (drilled) {
-      selectAnalyticsCharacter(ANALYTICS_DRILLED_ID);
+      selectAnalyticsCharacterFromList(ANALYTICS_DRILLED_ID);
     } else {
       clearAnalyticsSelection();
     }

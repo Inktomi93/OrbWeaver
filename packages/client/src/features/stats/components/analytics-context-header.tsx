@@ -1,7 +1,7 @@
 // The Corpus Insights CONTEXT-panel BAND identity (north-star §4 N4 / §6.3 / P4) — the Content ↔ Context
 // bind: the band names the leaderboard-drilled character (avatar + name), so the Models/Time/Personas tabs
-// read as "the detail of the character in Content". Nothing drilled (the dashboard) ⇒ the neutral mode
-// identity. Supplied as the Insights mode's `contextHeader` (`insights-mode.tsx`).
+// read as "the detail of the character in Content". Nothing drilled (the dashboard) ⇒ `Whole corpus`, the
+// owner-wide label Explore wears. Supplied as the Insights mode's `contextHeader` (`insights-mode.tsx`).
 //
 // The name/avatar come from a plain non-suspending `useQuery` on `character.get` (the sanctioned
 // cross-feature tRPC read): the header degrades to a neutral name until the cache populates, and never
@@ -11,21 +11,26 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
+import { Icon, Library } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { CORPUS_MODE_LABELS } from "#lib";
+import { CORPUS_WHOLE_LABEL } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
 
 export function AnalyticsContextHeader(): ReactElement {
   const characterId = useSelectedAnalyticsCharacterId();
   if (characterId === null) {
+    // The dimension tabs are owner-wide, so the band says so in Explore's own band voice (D271).
     return (
-      <Text voice="label" className="text-muted-foreground">
-        {CORPUS_MODE_LABELS.insights}
-      </Text>
+      <Row align="center" className="min-w-0" gap="field">
+        <Icon icon={Library} size="sm" />
+        <Text className="truncate" voice="promoted">
+          {CORPUS_WHOLE_LABEL}
+        </Text>
+      </Row>
     );
   }
   return <DrilledCharacterIdentity characterId={characterId} />;

@@ -7,8 +7,8 @@ import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 
 const analyticsSelection = createDrillSelectionStore<CharacterId>("analytics-selection");
 
-/** Drill into a character's stats (a leaderboard row / momentum row) — CONTENT swaps to the drill. */
-export const selectAnalyticsCharacter = analyticsSelection.select;
+/** A leaderboard row pick: drills and collapses the phone LIST overlay so the drill is visible. */
+export const selectAnalyticsCharacterFromList = analyticsSelection.selectFromList;
 /** Clear the drill selection (back to the overview dashboard). */
 export const clearAnalyticsSelection = analyticsSelection.clear;
 /** Reactive: the currently-drilled analytics character id (`null` = the dashboard). A primitive selector. */

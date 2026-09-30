@@ -32,9 +32,9 @@ export function useAnalyticsSelectionTitle(active: boolean): string | null {
     return name.length === 0 ? null : name;
   }
   // A ZERO CENSUS IS STILL SUPPRESSED, in the band's own spelling (`ListPaneHeader`: "a zero census is noise,
-  // not information") — an unpopulated leaderboard says `Insights` and lets its empty state teach.
+  // not information") — an unpopulated or settling leaderboard says `Insights`, never the bare section name.
   if (census === undefined || census === 0 || census === "0") {
-    return null;
+    return CORPUS_MODE_LABELS.insights;
   }
   return `${CORPUS_MODE_LABELS.insights} · ${String(census)}`;
 }

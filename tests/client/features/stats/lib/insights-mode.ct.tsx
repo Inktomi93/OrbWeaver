@@ -62,13 +62,16 @@ test("the CONTEXT band names the drilled leaderboard character (P4)", async ({ m
   await expect(component.getByText("Aria Nightshade")).toBeVisible();
 });
 
-test("the CONTEXT band shows the neutral Insights identity when nothing is drilled", async ({ mount, page }) => {
+test("the CONTEXT band says Whole corpus when nothing is drilled, in the Explore band's title voice", async ({ mount, page }) => {
   await routeTrpc(page, EMPTY_CONTEXT_ROUTES);
   const component = await mount(<AnalyticsContextHeaderStory drilled={false} />);
   await component.getByRole("button", { name: "show insights" }).click();
 
   const band = component.locator('[data-slot="context-bracket-band"]');
-  await expect(band.getByText("Insights", { exact: true })).toBeVisible();
+  // Owner-wide context is labelled `Whole corpus` in every mode (D271), in the same title voice as Explore.
+  const label = band.getByText("Whole corpus", { exact: true });
+  await expect(label).toBeVisible();
+  await expect(label).toHaveAttribute("data-voice", "promoted");
   await expect(component.getByText("Aria Nightshade")).toHaveCount(0);
 });
 
@@ -77,7 +80,7 @@ test("the LIST band shows the Insights title + the leaderboard count, with NO cr
   const component = await mount(<AnalyticsListHeaderStory />);
   await component.getByRole("button", { name: "show insights" }).click();
 
-  await expect(component.getByText("Insights")).toBeVisible();
+  await expect(component.getByText("Insights", { exact: true })).toBeVisible();
   await expect(component.getByText("2", { exact: true })).toBeVisible();
   // Read-only section: the band is a census, never an addition.
   await expect(component.getByRole("button", { name: "New" })).toHaveCount(0);

@@ -8,13 +8,25 @@ import type { SelectOption } from "@orb/ui/select";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { TagSortMode } from "#lib";
 import { COLLECTION_LARGE_GROUP } from "#lib";
-import { selectLabel, setTagSortMode, useTagSortMode } from "#state";
+import { selectLabel, setLabelNameFocus, setTagPruneConfirmOpen, setTagSortMode, useTagSortMode } from "#state";
 import { tagSortItems, USAGE_KIND_TITLES } from "../lib/tags-model.ts";
 import { useCreateTag } from "./use-tag-settings-mutations.ts";
 
 /** The name a created tag lands with — the editor's Name field is the rename affordance, so create needs no
  *  name dialog (C-7: the editor is MOUNTED, so create-then-edit is one motion). */
 const NEW_TAG_NAME = "New tag";
+
+/** The first `New tag`, `New tag 2`, … no tag in the library already wears — a second create must not collide. */
+function uniqueNewTagName(rows: readonly TagWithUsage[]): string {
+  const taken = new Set(rows.map((row) => row.name));
+  let suffix = 1;
+  let name = NEW_TAG_NAME;
+  while (taken.has(name)) {
+    suffix += 1;
+    name = `${NEW_TAG_NAME} ${String(suffix)}`;
+  }
+  return name;
+}
 
 /** The tag library read, non-suspending. `enabled: false` fetches nothing — the phone-title hook runs in every
  *  Corpus mode, and this read is large on a big library. */
@@ -29,8 +41,7 @@ export function useTagCensus(enabled = true): number | undefined {
   return useTagRows(enabled)?.length;
 }
 
-/** One fact about the whole library. `open` is present only when the fact is about one tag, and then it
- *  opens that tag's editor. */
+/** One fact about the whole library. `open` is present only when the fact has a verb behind it. */
 export interface TagLibraryFact {
   readonly id: string;
   readonly label: string;
@@ -49,7 +60,6 @@ export function useTagLibrarySummary(): { readonly count: number; readonly facts
     return rows;
   }
   const unused = rows.filter((row) => row.usage.total === 0);
-  const first = unused[0];
   const byType = (Object.keys(USAGE_KIND_TITLES) as (keyof typeof USAGE_KIND_TITLES)[]).map((key) => ({
     id: `on-${key}`,
     label: `Tags on ${USAGE_KIND_TITLES[key].toLowerCase()}`,
@@ -60,9 +70,9 @@ export function useTagLibrarySummary(): { readonly count: number; readonly facts
       id: "unused",
       label: "Labelling nothing",
       value: `${String(unused.length)} of ${String(rows.length)}`,
-      // The door opens the FIRST unused tag, where the reader can rename or delete it. Omitted when there are
-      // none: a door to nothing is a dead end.
-      ...(first === undefined ? {} : { open: { label: `Open ${first.name}`, run: (): void => selectLabel(first.id) } }),
+      // The door acts on EVERY unused tag: it opens the prune confirm, which states the count and asks first.
+      // Omitted when there are none: a door to nothing is a dead end.
+      ...(unused.length === 0 ? {} : { open: { label: `Prune ${String(unused.length)} unused`, run: (): void => setTagPruneConfirmOpen(true) } }),
     },
     { id: "in-use", label: "In use", value: String(rows.length - unused.length) },
     ...byType,
@@ -75,14 +85,23 @@ export function useTagName(tagId: TagId | null): string | undefined {
   return useTagRows(tagId !== null)?.find((row) => row.id === tagId)?.name;
 }
 
-/** The create runner: mint a tag, then OPEN it in the editor — a create that leaves the user looking at the
- *  thing they just made. */
+/** The create runner: mint a uniquely named tag, then OPEN it with its Name field focused — a create that
+ *  leaves the reader typing the real name of the thing they just made. */
 export function useCreateLabel(): () => void {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const create = useCreateTag({ trpc, invalidation });
+  const rows = useTagRows();
   return (): void => {
-    create.mutate({ input: { name: NEW_TAG_NAME } }, { onSuccess: (created): void => selectLabel(created.id) });
+    create.mutate(
+      { input: { name: uniqueNewTagName(rows ?? []) } },
+      {
+        onSuccess: (created): void => {
+          setLabelNameFocus(created.id);
+          selectLabel(created.id);
+        },
+      },
+    );
   };
 }
 

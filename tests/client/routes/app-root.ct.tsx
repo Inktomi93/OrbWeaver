@@ -994,9 +994,12 @@ test("desktop: Back from an Insights drill keeps the leaderboard's search and so
   await list.getByRole("button", { name: "Bolt", exact: true }).click();
   const main = component.locator("main.shell-content");
   await expect(main.getByTestId(testId("analyticsCharacterSurface"))).toBeVisible();
-  await main.getByRole("button", { name: "Back", exact: true }).click();
+  // One Back grammar across the modes: `Back to <mode>`.
+  await main.getByRole("button", { name: "Back to Insights", exact: true }).click();
 
   await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
+  // Focus returns to the row that opened the drill, never to <body>.
+  await expect(list.getByRole("button", { name: "Bolt", exact: true })).toBeFocused();
   await expect(list.getByRole("textbox", { name: "Search characters" })).toHaveValue("a");
   await expect(list.getByRole("button", { name: "Sort by Swipes", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
@@ -1032,6 +1035,64 @@ test.describe("the Corpus workbench on a phone", () => {
     await main.getByRole("radio", { name: "Labels" }).tap();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
     await expect(list.getByRole("textbox", { name: "Filter labels" })).toBeVisible();
+  });
+
+  // A CONTENT-LANDING MODE STILL REACHES ITS FINDER (D271). Insights lands on the dashboard, so with nothing
+  // drilled the lead control is the list door, never a Back with nothing to go back from.
+  test("Insights: the list door opens the leaderboard, a row drills, and Back returns to the dashboard", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...SECTION_CENSUS_ROUTES,
+      "stats.character": null,
+      "stats.latency": { avgTtftMs: null, p50TtftMs: null, p90TtftMs: null, avgGenMs: null, p50GenMs: null, p90GenMs: null },
+      "character.get": ARIA_CARD,
+    });
+    const component = await mount(<HomePageStory />);
+    await component.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Corpus", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    const list = component.locator(CORPUS_LIST);
+    await list.getByRole("radio", { name: "Insights" }).tap();
+    const main = component.locator("main.shell-content");
+    await expect(main.getByText("No insights yet")).toBeVisible();
+
+    await expect(component.getByRole("button", { name: "Back to Corpus" })).toHaveCount(0);
+    await component.getByRole("button", { name: "Show Corpus list" }).tap();
+    await expect(list).toHaveAttribute("data-panel-mode", "overlay");
+    await list.getByRole("button", { name: "Bolt", exact: true }).tap();
+
+    await expect(main.getByTestId(testId("analyticsCharacterSurface"))).toBeVisible();
+    await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
+    await component.getByRole("button", { name: "Back to Corpus" }).tap();
+    await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
+    await expect(component.getByRole("button", { name: "Show Corpus list" })).toBeVisible();
+  });
+
+  // A mode whose census is empty still names itself on the phone, never the bare section.
+  test("Insights with an empty leaderboard titles the screen Insights", async ({ mount, page }) => {
+    await routeTrpc(page, { ...SECTION_CENSUS_ROUTES, "stats.leaderboard": { rows: [], total: 0 } });
+    const component = await mount(<HomePageStory />);
+    await component.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Corpus", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await component.locator(CORPUS_LIST).getByRole("radio", { name: "Insights" }).tap();
+    await expect(component.locator(".shell-topbar-title")).toHaveText("Insights");
+  });
+
+  // FOCUS never drops to <body>: entering Corpus from the You sheet lands it in the finder, and opening the
+  // CONTEXT sheet moves it into the sheet.
+  test("entering Corpus from You lands focus in the finder, and the CONTEXT sheet takes focus when it opens", async ({ mount, page }) => {
+    await routeTrpc(page, { ...SECTION_CENSUS_ROUTES, "discovery.archetypes": [] });
+    const component = await mount(<HomePageStory />);
+    await component.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Corpus", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    const list = component.locator(CORPUS_LIST);
+    await expect.poll(() => list.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+
+    await component.getByRole("button", { name: "Show details" }).tap();
+    const context = component.locator(CORPUS_CONTEXT);
+    await expect(context).toHaveAttribute("data-panel-mode", "overlay");
+    await expect.poll(() => context.evaluate((el) => el.contains(document.activeElement))).toBe(true);
   });
 
   // LABELS RESTORATION on the phone: a tag pushes its editor over the finder, and Back restores the finder

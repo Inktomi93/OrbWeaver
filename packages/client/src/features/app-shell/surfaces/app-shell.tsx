@@ -195,6 +195,31 @@ export function AppShell(): ReactElement {
   const gridRef = useRef<HTMLDivElement>(null);
   useShellTrackFlip(gridRef, layout.listMode, layout.contextMode);
 
+  // A slide-over that OPENS takes focus: the column behind it goes inert the same commit, so focus left there
+  // would drop to <body> with a sheet on screen. The pane itself, not a control in it: a bracketed pane's own
+  // dismiss mounts with its body, a transition later, and the shell's band close is hidden for it.
+  const contextPaneRef = useRef<HTMLElement>(null);
+  const contextOverlay = layout.contextMode === "overlay";
+  useEffect(() => {
+    if (contextOverlay) {
+      contextPaneRef.current?.focus();
+    }
+  }, [contextOverlay]);
+
+  // A section jump made from a transient control (a You-sheet row) unmounts the control that held focus, and
+  // the store-driven sheet unmount restores nothing, so focus would drop to <body>. Land it on the new
+  // screen's primary region, the same target the skip link uses. Only a <body> focus is rescued.
+  const { activeSection, listIsPrimaryContent } = layout;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: activeSection is the re-run trigger (a section arrival); the body reads focus from the DOM.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (document.activeElement === null || document.activeElement === document.body) {
+        (listIsPrimaryContent ? listPaneRef : mainRef).current?.focus();
+      }
+    });
+    return (): void => clearTimeout(timer);
+  }, [activeSection, listIsPrimaryContent]);
+
   // Escape dismisses an open narrow/mobile auto-overlay slide-over (the scrim's keyboard equivalent) —
   // but ONLY when no modal is open. An open Dialog/Drawer owns Escape itself (Base UI); stealing it here
   // would race the modal's own close and could double-fire onOpenChange.
@@ -358,6 +383,7 @@ export function AppShell(): ReactElement {
               header={contextPane.header}
               mode={layout.contextMode}
               onDismiss={(): void => layout.collapsePanel("context")}
+              ref={contextPaneRef}
             >
               {contextPane.body}
             </PanelChrome>

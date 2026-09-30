@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
-import { testId, timeLib, useFocusOnMount } from "#lib";
+import { CORPUS_MODE_LABELS, testId, timeLib, useFocusOnMount } from "#lib";
 import { formatCompact, formatCount, formatDurationMs, formatMs, formatPercent, formatThroughput, UNRECORDED_NOTE } from "../lib/analytics-view-model.ts";
 
 export interface AnalyticsCharacterSurfaceProps {
@@ -72,7 +72,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
         action={
           <Button intent="secondary" size="sm" onClick={onBack}>
             <Icon icon={ArrowLeft} size="sm" />
-            Back
+            {`Back to ${CORPUS_MODE_LABELS.insights}`}
           </Button>
         }
       />
@@ -83,7 +83,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
     <Stack gap="section">
       <Button intent="ghost" size="sm" onClick={onBack} className="self-start">
         <Icon icon={ArrowLeft} size="sm" />
-        Back
+        {`Back to ${CORPUS_MODE_LABELS.insights}`}
       </Button>
 
       <Stack gap="field">

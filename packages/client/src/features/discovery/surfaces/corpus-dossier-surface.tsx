@@ -27,7 +27,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { testId, useFocusOnMount } from "#lib";
+import { CORPUS_MODE_LABELS, testId, useFocusOnMount } from "#lib";
 import { selectCorpusCharacter, setActiveSection } from "#state";
 import { CharacterAvatar } from "../components/character-avatar.tsx";
 import { CorpusDistillEmptyState } from "../components/corpus-distill-empty-state.tsx";
@@ -91,7 +91,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
         secondaryAction={
           <Button intent="secondary" size="sm" onClick={onBack}>
             <Icon icon={ArrowLeft} size="sm" />
-            Back
+            {`Back to ${CORPUS_MODE_LABELS.explore}`}
           </Button>
         }
       />
@@ -105,7 +105,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
     <Stack gap="section">
       <Button intent="ghost" size="sm" onClick={onBack} className="self-start" ref={backRef}>
         <Icon icon={ArrowLeft} size="sm" />
-        Back
+        {`Back to ${CORPUS_MODE_LABELS.explore}`}
       </Button>
 
       <Row align="center" gap="block">

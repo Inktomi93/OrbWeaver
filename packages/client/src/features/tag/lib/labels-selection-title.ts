@@ -15,5 +15,5 @@ export function useLabelsSelectionTitle(active: boolean): string | null {
   if (tagId !== null) {
     return name ?? null;
   }
-  return census === undefined || census === 0 ? null : `${CORPUS_MODE_LABELS.labels} · ${String(census)}`;
+  return census === undefined || census === 0 ? CORPUS_MODE_LABELS.labels : `${CORPUS_MODE_LABELS.labels} · ${String(census)}`;
 }

@@ -32,10 +32,10 @@ export function useCorpusSelectionTitle(active: boolean): string | null {
     return name.length === 0 ? null : name;
   }
   // A ZERO CENSUS IS STILL SUPPRESSED, in the band's own spelling (`ListPaneHeader`: "a zero census is noise,
-  // not information", and `"0"` is the same fact a caller happened to format) — an empty corpus says `Corpus`
-  // and lets its empty state do the teaching.
+  // not information", and `"0"` is the same fact a caller happened to format) — an empty or settling catalog
+  // says `Explore`, never the bare section name, and lets its empty state do the teaching.
   if (census === undefined || census === 0 || census === "0") {
-    return null;
+    return CORPUS_MODE_LABELS.explore;
   }
   return `${CORPUS_MODE_LABELS.explore} · ${String(census)}`;
 }

@@ -53,6 +53,14 @@ export function useSectionListIsScreen(section: SectionId): boolean {
   );
 }
 
+/** Is a member of `section` open right now? The shell's mobile Back exists only for this: a section that lands
+ *  on CONTENT (Corpus Insights, D271) is not in the list-as-screen arm with nothing open, and a Back there
+ *  would clear nothing and hide the list door. Same subscribe/snapshot seam as the projection above. */
+export function useSectionHasSelection(section: SectionId): boolean {
+  const selection = useSectionRegistry().get(section).selection;
+  return useSyncExternalStore(selection?.subscribe ?? NO_SELECTION_SUBSCRIBE, selection?.hasSelection ?? NO_SELECTION_SNAPSHOT);
+}
+
 /** A section's resolved LIST panel MODE — the narrow #state projection a section body reads instead of
  *  `useShellLayout` (client-features-no-cross bars a feature from importing the app-shell hook, so this tier
  *  is the ONLY legal way for a feature to ask). It is the shell SIGNAL half of the layout: the same

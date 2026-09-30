@@ -27,13 +27,13 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MemberDrillBack } from "#components";
 import { FormDialog, MemberDrillHeader, SettingSwitchRow } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS, useFocusOnMount } from "#lib";
-import { clearLabelSelection } from "#state";
+import { clearLabelSelection, setLabelNameFocus, useLabelNameFocus } from "#state";
 import { useMergeTags, useRenameTag, useUpdateTagStyle } from "../hooks/use-tag-settings-mutations.ts";
 import { FOLDER_TYPE_ITEMS, tagColorValueLabel, usageTotalLabel } from "../lib/tags-model.ts";
 
@@ -77,6 +77,16 @@ function TagMemberEditor({
   const style = useUpdateTagStyle(deps);
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
+  // A just-created tag opens on its Name field instead of the editor root, once.
+  const nameRef = useRef<HTMLInputElement>(null);
+  const nameFocus = useLabelNameFocus();
+  useEffect(() => {
+    if (nameFocus !== tag.id) {
+      return;
+    }
+    nameRef.current?.focus();
+    setLabelNameFocus(null);
+  }, [nameFocus, tag.id]);
   const [name, setName] = useState(tag.name);
 
   const patchStyle: PatchStyle = (patch) => style.mutate({ tagId: tag.id, patch });
@@ -138,6 +148,7 @@ function TagMemberEditor({
               }
             }}
             onValueChange={setName}
+            ref={nameRef}
             value={name}
           />
         </Field>

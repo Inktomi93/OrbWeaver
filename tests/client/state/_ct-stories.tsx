@@ -84,7 +84,7 @@ import {
   revealContextPanel,
   revealContextPanelBesideContent,
   SECTION_IDS,
-  selectAnalyticsCharacter,
+  selectAnalyticsCharacterFromList,
   selectCharacter,
   selectCharacterFacet,
   selectChat,
@@ -882,7 +882,7 @@ export function CorpusSelectionProbe(): ReactElement {
       <button type="button" onClick={(): void => clearCorpusSelection()}>
         clear corpus selection
       </button>
-      <button type="button" onClick={(): void => selectAnalyticsCharacter(mintTypeId(ID_PREFIX.character))}>
+      <button type="button" onClick={(): void => selectAnalyticsCharacterFromList(mintTypeId(ID_PREFIX.character))}>
         drill insights character
       </button>
       <button type="button" onClick={(): void => selectLabel(mintTypeId(ID_PREFIX.tag))}>
@@ -1010,7 +1010,7 @@ export function AnalyticsSelectionProbe(): ReactElement {
   return (
     <div>
       <output>{`analytics=${selected ?? "none"}`}</output>
-      <button type="button" onClick={(): void => selectAnalyticsCharacter(castId<CharacterId>("char_analytics_probe"))}>
+      <button type="button" onClick={(): void => selectAnalyticsCharacterFromList(castId<CharacterId>("char_analytics_probe"))}>
         select analytics character
       </button>
       <button type="button" onClick={(): void => clearAnalyticsSelection()}>

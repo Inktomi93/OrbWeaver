@@ -11,6 +11,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { ListPaneHeader, MemberDrillHeader, QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS } from "#lib";
@@ -44,12 +45,17 @@ export function LabelsListHeader(): ReactElement {
  *  name draft never carries over to the next tag. */
 export function LabelsContent(): ReactElement {
   const tagId = useSelectedLabelId();
+  // Once an editor has been open, the library only ever returns by closing it (Back, merge, delete).
+  const [editorWasOpen, setEditorWasOpen] = useState(tagId !== null);
+  if (tagId !== null && !editorWasOpen) {
+    setEditorWasOpen(true);
+  }
   const exit = <MemberDrillHeader back={{ label: `Back to ${CORPUS_MODE_LABELS.labels}`, onClick: clearLabelSelection }} />;
   return (
     <Container className="h-full min-h-0">
       <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" data-slot="labels-content" padding="section">
         {tagId === null ? (
-          <LabelsLibrarySurface />
+          <LabelsLibrarySurface returning={editorWasOpen} />
         ) : (
           <QueryBoundary
             fallback={exit}
