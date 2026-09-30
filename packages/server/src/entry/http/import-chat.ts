@@ -4,11 +4,9 @@
 // the bundle core calls, so the single-file door and the bundle door can never drift in parse, dedup, or
 // collision semantics (the preset `importFile` precedent).
 //
-// The descriptor routes a chat by its bundle path `<character-handle>/<leaf>.jsonl`; a bare upload has no
-// directory, so this route derives the handle from the transcript's OWN header (`character_name` →
-// `slugifyHandle`, the same derivation card import uses to mint a handle) and synthesizes that path. A
-// transcript naming a character this account doesn't have is a per-file failure with the reason, never a
-// silent orphan — the descriptor's own `findByHandle` is what refuses it.
+// A bare upload reaches the descriptor under its own filename, with no handle directory: the descriptor
+// re-links an ST transcript by the display name its header carries, the name the user sees. A transcript
+// naming a character this account doesn't have is a per-file failure with the reason, never a silent orphan.
 //
 // Belts mirror the sibling ingest routes: auth (401 before the body is read) → CSRF (403 on a cookie
 // mutation missing the custom header) → a hono/body-limit total cap (413). Per-file failures are ISOLATED
@@ -17,10 +15,8 @@
 import type { PortabilityRegistry, PortableEntity } from "@orb/contracts/portability";
 import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { UserId } from "@orb/kit/ids";
-import { slugifyHandle } from "@orb/kit/slug";
 import { bodyLimit } from "hono/body-limit";
 import { hasCsrfHeader } from "#infra/auth";
-import { parseChatJsonl } from "#kit/serde/chat";
 import type { registerImportBundle } from "./import.ts";
 
 const UNAUTHORIZED = 401;
@@ -30,8 +26,6 @@ const PAYLOAD_TOO_LARGE = 413;
 const CHAT_ROUTE = "/api/import/chat";
 const UPLOAD_FIELD = "file";
 const CHAT_KIND = "chat";
-const UNNAMED_ERROR = "the transcript's header names no character — import it inside a bundle instead";
-const UNPARSEABLE_ERROR = "not a valid chat .jsonl file";
 const IMPORT_FAILED = "import failed";
 
 /** The principal-carrying Hono app the sibling `/api/import/*` registrars take — DERIVED from one of them
@@ -62,38 +56,6 @@ export interface ChatImportResult {
   readonly failed: readonly FailedChat[];
 }
 
-const DEC = new TextDecoder();
-/** The ST interchange extension — the ONE upload shape whose routing handle is derived from its CONTENT. */
-const ST_TRANSCRIPT_EXT = ".jsonl";
-
-/** The descriptor path an upload maps to.
- *
- *  An ORB-NATIVE bundle (R6) passes through UNCHANGED: it carries its own seat list, so it needs no
- *  synthesized `<handle>/` prefix — and force-parsing it as ST jsonl (which is what this function used to do
- *  to every byte that arrived) refused every bundle at the door with "not a valid chat file" before the
- *  format router downstream ever saw it.
- *
- *  An ST transcript still maps to `<handle>/<leaf>`, where the handle comes from the transcript's own
- *  `character_name` — or the operator-facing reason it maps nowhere. */
-function descriptorPath(bytes: Uint8Array, filename: string): { readonly path: string } | { readonly error: string } {
-  if (!filename.endsWith(ST_TRANSCRIPT_EXT)) {
-    return { path: filename };
-  }
-  // Parsed TWICE (here for the routing name, again inside the descriptor for the content). The alternative —
-  // a second import entry point taking a resolved characterId — is the parallel path this route exists to
-  // avoid; a transcript is small and the parse is pure.
-  const parsed = parseChatJsonl(DEC.decode(bytes), { fileName: filename, charDirName: "" });
-  if (parsed === null) {
-    return { error: UNPARSEABLE_ERROR };
-  }
-  // Guard the NAME, not the slug: `slugifyHandle("")` answers its "unnamed" fallback, which would route an
-  // anonymous transcript at whatever character happens to hold that handle.
-  if (parsed.characterName.trim().length === 0) {
-    return { error: UNNAMED_ERROR };
-  }
-  return { path: `${slugifyHandle(parsed.characterName)}/${filename}` };
-}
-
 /**
  * Route every uploaded transcript through the chat descriptor, one at a time, collecting each file's
  * isolated outcome. SEQUENTIAL by construction — a promise CHAIN rather than an await-in-loop — because two
@@ -105,12 +67,7 @@ async function importAll(chat: PortableEntity, ownerId: UserId, files: readonly 
   await files.reduce<Promise<void>>(async (chain, file) => {
     await chain;
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const routed = descriptorPath(bytes, file.name);
-    if ("error" in routed) {
-      failed.push({ filename: file.name, error: routed.error });
-      return;
-    }
-    const outcome = await chat.importFile(ownerId, { filename: routed.path, bytes });
+    const outcome = await chat.importFile(ownerId, { filename: file.name, bytes });
     if (outcome.ok) {
       imported.push({ filename: file.name, created: outcome.created === true });
     } else {

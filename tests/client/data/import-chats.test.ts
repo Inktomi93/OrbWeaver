@@ -39,13 +39,13 @@ test("POSTs every transcript under the repeated `file` field with the CSRF heade
 test("hands back the REAL per-file outcome — an all-failed 200 is not swallowed as success", async () => {
   const body = {
     imported: [],
-    failed: [{ filename: "ghost.jsonl", error: 'no character with handle "ghost" on this account' }],
+    failed: [{ filename: "ghost.jsonl", error: 'no character named "Ghost" on this account' }],
   };
   vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify(body), { status: 200 })));
 
   const result = await importChats([new File(["{}"], "ghost.jsonl")]);
   expect(result.imported).toHaveLength(0);
-  expect(result.failed[0]?.error).toContain("no character with handle");
+  expect(result.failed[0]?.error).toContain("no character named");
 });
 
 test("throws on a non-OK response (a whole-batch rejection)", async () => {

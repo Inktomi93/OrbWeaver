@@ -140,6 +140,7 @@ const creatingCharacter: ImportCharacterPort = {
   create: (): Promise<{ id: CharacterId }> => Promise.resolve({ id: castId<CharacterId>("chr_1") }),
   findByImportHash: (): Promise<null> => Promise.resolve(null),
   findByHandle: (): Promise<null> => Promise.resolve(null),
+  findByName: (): Promise<readonly never[]> => Promise.resolve([]),
 };
 // A no-op tag port (the card/pending carry behavior is proven in the run-profile-import suite).
 const noopTag: ImportTagPort = {

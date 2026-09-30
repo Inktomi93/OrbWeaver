@@ -41,6 +41,10 @@ export type FindCharacterByImportHash = (args: { readonly ownerId: UserId; reado
  *  Fires only after `FindCharacterByImportHash` misses (a byte-identical re-import is the cheaper path). */
 type FindCharacterByHandle = (args: { readonly ownerId: UserId; readonly handle: CharacterHandle }) => Promise<CharacterId | null>;
 
+/** Every owner character whose display name is exactly `name`, oldest first. The ST transcript re-link: a
+ *  transcript names its character the way the user sees it, and two matches are an ambiguity, never a pick. */
+type FindCharacterByName = (args: { readonly ownerId: UserId; readonly name: string }) => Promise<readonly CharacterId[]>;
+
 /** CAS-stores the card/avatar PNG bytes and returns the asset id (one blob serves both roles). */
 export type StoreImportAsset = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array; readonly mime: string }) => Promise<AssetId>;
 
@@ -149,6 +153,7 @@ export interface ImportContext {
   readonly createCharacter: CreateImportedCharacter;
   readonly findByImportHash: FindCharacterByImportHash;
   readonly findByHandle: FindCharacterByHandle;
+  readonly findByName: FindCharacterByName;
   readonly storeAsset: StoreImportAsset;
   readonly attachCardTag: AttachImportedCardTag;
   readonly importLorebook?: BulkImportLorebookOp;

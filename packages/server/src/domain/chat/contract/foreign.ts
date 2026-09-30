@@ -177,7 +177,7 @@ export const DEFAULT_CHAT_BEHAVIOR: ChatBehaviorInputs = {
  * returns RESOLVED DATA, so it touches NO chat tables (Tier-5-Entry.md invariant 1). `anchorPersonaId` is the chat-open
  * anchor (`chats.anchorPersonaId`).
  *
- * There is no `personaIds` (the room's ONLINE persona ids, the chat-side GATHER's input) here: the resolver
+ * There is no `personaIds` (the room's member persona ids, the chat-side GATHER's input) here: the resolver
  * resolves the anchor, the `humanSeats` persona of the anchor human, and — on a `trigger`-voice turn — the
  * trigger's persona.
  *

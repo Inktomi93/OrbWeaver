@@ -1,7 +1,7 @@
 // assembly/world-info/pool — the 4-scope WI union (the chat design doc Part I 8-slot; Part II §2 GATHER). Pins: the
 // chat/character/global/persona union, dedup by entry id (a book attached at two scopes renders once), the
 // host-owner scoping of global books (a foreign tenant's global book never leaks), the source tagging
-// (character → "character"; chat/persona/global → "chat"), the scope resolution (keys → keyword, keyless →
+// (character → "character"; chat/global → "chat"; persona → "persona" carrying that persona), the scope resolution (keys → keyword, keyless →
 // always), and the emergent no-lore path (nothing attached ⇒ empty pool — no master toggle, ST parity).
 import type { Db } from "@orb/db";
 import { characterBooks, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
@@ -87,12 +87,14 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
     // The foreign tenant's global book is owner-scoped out.
     expect(contents).not.toContain("foreign lore");
 
-    // Source tagging (dual-persona routing): character → "character"; the rest → "chat".
+    // Source tagging (macro routing): character → "character"; persona → its own persona; the rest → "chat".
     const bySource = Object.fromEntries(pool.map((e) => [e.content, e.source]));
     expect(bySource["char lore"]).toBe("character");
     expect(bySource["chat lore"]).toBe("chat");
-    expect(bySource["persona lore"]).toBe("chat");
+    expect(bySource["persona lore"]).toBe("persona");
     expect(bySource["global lore"]).toBe("chat");
+    const personaEntry = pool.find((e) => e.content === "persona lore");
+    expect(personaEntry?.source === "persona" ? personaEntry.persona : null).toEqual({ name: "nyx", description: "nyx desc" });
 
     // Scope resolution: keys present → keyword; keyless → always.
     const byScope = Object.fromEntries(pool.map((e) => [e.content, e.scope]));

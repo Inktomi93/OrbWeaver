@@ -58,10 +58,28 @@ export interface AssemblePersona {
   placement?: PersonaDescriptionPlacement;
 }
 
+/** A book attached to a card (`character`, rendered against the pinned anchor persona) or to the room or
+ *  the host's library (`chat`, rendered against the voice persona). */
+interface SharedBookAttachment {
+  source: "character" | "chat";
+}
+
+/** A persona's own book, rendered against that persona so a member's lore addresses its own owner in a
+ *  multi-human room. */
+interface PersonaBookAttachment {
+  source: "persona";
+  persona: AssemblePersona;
+}
+
+/** Where a world-info entry was attached, which picks the persona its `{{user}}`/`{{persona}}` render against. */
+export type AssembleWorldEntryAttachment = SharedBookAttachment | PersonaBookAttachment;
+
 /** A world-info entry projected onto the assembler contract. `inject` (opt-in WI-at-depth) reuses the
  *  SHARED `InjectionPlacement` `{depth, role}` primitive — set ⇒ splices into history instead of the
  *  system half. */
-export interface AssembleWorldEntry {
+export type AssembleWorldEntry = (AssembleWorldEntryFields & SharedBookAttachment) | (AssembleWorldEntryFields & PersonaBookAttachment);
+
+interface AssembleWorldEntryFields {
   /** Stable entry id — dedup key + priority tiebreaker (priority DESC, id ASC). */
   id: WorldEntryId;
   content: string;
@@ -71,9 +89,6 @@ export interface AssembleWorldEntry {
   enabled: boolean;
   /** When true, the entry bypasses the per-turn WI token budget (must-have lore). Absent ⇒ false. */
   ignoreBudget?: boolean;
-  /** Where this entry was attached — `character` = card-derived (anchor persona); `chat` = user-attached
-   *  (active persona). Drives the dual-persona macro routing. */
-  source: "character" | "chat";
   /** Which ALWAYS-scope system-half anchor bucket this joins (ST worldInfoBefore/After). Defaults `before`. */
   position: EntryPosition;
   /** How `keys` compile for the keyword scan — `regex` = the keys ARE patterns (a Character-Card-V3

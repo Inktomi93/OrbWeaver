@@ -13,11 +13,13 @@
 // rather than being fed to a parser that would half-read it). Extension alone would be a lie; envelope alone
 // cannot see an ST jsonl, which carries none by design.
 //
-// The directory IS the re-link key for the jsonl arm: chat ids are not preserved across a box, so a
-// transcript rejoins its character by the handle it was exported under. (The orb-native arm prefers the seat
-// list the file itself carries, and falls back to this same directory handle.)
+// The jsonl arm re-links by name because chat ids are not preserved across a box: first the directory handle
+// the file was exported under, then the display name the transcript's own header carries. SillyTavern names
+// a chat's character by display name, never by handle, so the name is what the user can act on in a refusal.
+// Names are not unique; two matches refuse rather than guess. (The orb-native arm prefers the seat list the
+// file itself carries, and falls back to the directory handle.)
 
-import type { CharacterHandle } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sha256Hex } from "#kit/content-hash";
 import { parseChatJsonl } from "#kit/serde/chat";
@@ -32,6 +34,30 @@ const DEC = new TextDecoder();
  *  readable `chat.JSONL` to the orb-native parser, which refused it by envelope ("the file is not JSON") —
  *  a valid transcript reported as a foreign file (#1469 item 3). */
 const ST_TRANSCRIPT_EXT = /\.jsonl$/i;
+
+type CharacterResolution = { readonly ok: true; readonly characterId: CharacterId } | { readonly ok: false; readonly error: string };
+
+/** The transcript's character: the directory handle when it resolves, else the header's display name. */
+async function resolveCharacter(ctx: ImportContext, dirName: string, characterName: string): Promise<CharacterResolution> {
+  if (dirName.length > 0) {
+    const byHandle = await ctx.findByHandle({ ownerId: ctx.ownerId, handle: castId<CharacterHandle>(dirName) });
+    if (byHandle !== null) {
+      return { ok: true, characterId: byHandle };
+    }
+  }
+  const name = characterName.trim();
+  if (name.length === 0) {
+    return { ok: false, error: "the transcript names no character — import it inside a bundle instead" };
+  }
+  const [only, ...rest] = await ctx.findByName({ ownerId: ctx.ownerId, name });
+  if (only === undefined) {
+    return { ok: false, error: `no character named "${name}" on this account` };
+  }
+  if (rest.length > 0) {
+    return { ok: false, error: `more than one character is named "${name}" on this account — rename one so the chat can find its character` };
+  }
+  return { ok: true, characterId: only };
+}
 
 /** Both sibling verbs are INJECTED, not imported: `domain-no-cross-verb` bans a verb→verb edge, so the
  *  domain's own composition root (`service.ts`) is where they are wired together. */
@@ -48,27 +74,25 @@ export function createImportChatFile(
       // instead of the wrong parser's.
       return await importChatBundle({ filename, bytes });
     }
+    // A bare upload has no directory: the whole filename is the leaf and only the header name can re-link it.
     const slash = filename.indexOf("/");
-    if (slash === -1) {
-      return { ok: false, error: "chat file is not under a character-handle directory" };
-    }
-    const handle = castId<CharacterHandle>(filename.slice(0, slash));
+    const dirName = slash === -1 ? "" : filename.slice(0, slash);
     const leaf = filename.slice(slash + 1);
-    const characterId = await ctx.findByHandle({ ownerId: ctx.ownerId, handle });
-    if (characterId === null) {
-      return { ok: false, error: `no character with handle "${handle}" on this account` };
-    }
     // These are SillyTavern's bytes, so its zone-less wall-clock dates resolve in the injected ST zone.
     const parsed = parseChatJsonl(DEC.decode(bytes), {
       fileName: leaf,
-      charDirName: handle,
+      charDirName: dirName,
       ...(ctx.profile?.stWallClockZone !== undefined ? { wallClockZone: ctx.profile.stWallClockZone } : {}),
     });
     if (parsed === null) {
       return { ok: false, error: "not a valid chat .jsonl file" };
     }
+    const character = await resolveCharacter(ctx, dirName, parsed.characterName);
+    if (!character.ok) {
+      return character;
+    }
     const result = await importChats({
-      characterId,
+      characterId: character.characterId,
       chats: [{ parsed, importedFrom: filename, importHash: sha256Hex(bytes) }],
     });
     // The ST interchange carries no overlay planes at all (no tags, no campaign — that is the whole reason

@@ -113,6 +113,7 @@ resolveRowMacros(
 | CARD sections | server `assemble.ts` | `ctx.pinnedPersona` (anchor, FROZEN at open) | the section's character |
 | prompt-config sections | server `assemble.ts` | `ctx.activePersona` = the anchor human's current seat persona (the presser's on an impersonate draft, D122) | the section's character |
 | people block (the `persona` marker's headed entries, one per other present human) | server `assemble.ts` | that entry's own persona (`ctx.people`) | the turn's speaker |
+| world-info entries | server `assembly/context.ts` `macroPersonaOf` | character book: `ctx.pinnedPersona`; chat and global book: `ctx.activePersona`; persona book: that book's own persona | the turn's speaker |
 
 DISPLAY and ASSEMBLE resolve history identically (same atom + same producer semantics) ⇒ **viewer ==
 model by construction** — including the null-stamp fallback, which is the chat ANCHOR (a chat invariant,

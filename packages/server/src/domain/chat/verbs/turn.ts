@@ -91,7 +91,7 @@ import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { humanSeatPersonasOf, onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
+import { humanSeatPersonasOf, memberPersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access.ts";
@@ -202,11 +202,11 @@ interface Room {
   /** The `speakerKey`s of the present MUTED seats (character + agent) — the `unmutedCharacters` producer, keyed on
    *  the same seat `disabled` axis arbitration reads. Empty ⇒ nothing muted. */
   readonly mutedSpeakerKeys: ReadonlySet<string>;
+  /** The consented seats' personas — whose persona books join the world-info pool (`memberPersonaIdsOf`). */
   readonly personaIds: readonly PersonaId[];
   /** Every PRESENT human's `userId` — the FOREIGN persona read's CONSENT SET (`ResolveForeignInputsOp`):
-   *  a persona resolves for this room iff its owner is one of these. Deliberately NOT presence-filtered like
-   *  `personaIds` (an OFFLINE member is still a member, and the anchor's owner is routinely offline —
-   *  presence gates which persona BOOKS join the pool, never who the room may resolve an identity for). */
+   *  a persona resolves for this room iff its owner is one of these. Deliberately NOT presence-filtered (an
+   *  OFFLINE member is still a member, and the anchor's owner is routinely offline). */
   readonly presentHumanUserIds: readonly UserId[];
   /** Each consented human seat and its persona — the FOREIGN resolver's source for the anchor human's persona. */
   readonly humanSeats: readonly HumanSeatPersona[];
@@ -252,14 +252,11 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, frozenHostUserId?: Use
   });
   const cards = await Promise.all(charRows.map((r) => ctx.getCard({ ownerId: hostUserId, characterId: r.characterId })));
 
-  // An offline human's persona drops from the present-seated-characters set for this round, since presence gates
-  // which persona-book world-info joins the pool (a server-derived signal, never client-asserted). Derived
-  // through the ONE substrate lens (#1401) — the preview's own copy of this rule had drifted unfiltered.
-  const personaIds = await onlinePersonaIdsOf(ctx, participants);
   // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`), further narrowed by the
   // disabled-account containment gate (owner-ruled 2026-08-15) — see `presentAndEnabledHumanUserIdsOf`'s own
   // header for why every consumer routes through the ONE async narrowing rather than re-deriving it.
   const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
+  const humanSeats = humanSeatPersonasOf(participants, presentHumanUserIds);
 
   const charCandidates: ArbiterCandidate[] = charRows.map((r) => ({
     ref: { kind: "character", characterId: r.characterId },
@@ -279,9 +276,9 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, frozenHostUserId?: Use
     speakerCandidates: [...charSpeakerCandidates],
     characterIds: charRows.map((r) => r.characterId),
     mutedSpeakerKeys: new Set(candidates.filter((c) => c.disabled).map((c) => speakerKey(c.ref))),
-    personaIds,
+    personaIds: memberPersonaIdsOf(humanSeats),
     presentHumanUserIds,
-    humanSeats: humanSeatPersonasOf(participants, presentHumanUserIds),
+    humanSeats,
   };
 }
 

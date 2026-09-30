@@ -129,6 +129,7 @@ export function makeHarness(): ImportHarness {
       findsByHandle.push({ ownerId, handle });
       return Promise.resolve(existingByHandle.get(handle) ?? null);
     },
+    findByName: (): Promise<readonly CharacterId[]> => Promise.resolve([]),
     storeAsset: (args): Promise<AssetId> => {
       stores.push(args);
       return Promise.resolve(STORED_ASSET_ID);
@@ -295,6 +296,7 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
     createCharacter: inert,
     findByImportHash: inert,
     findByHandle: inert,
+    findByName: inert,
     storeAsset: inert,
     attachCardTag: inert,
     profile,

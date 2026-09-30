@@ -15,7 +15,7 @@
 //     host-owned card can only legitimately carry host-owned books. `loadCharacterCardLore` below has
 //     applied exactly this join since it was written; this is that belt on the per-turn path.
 //   • persona  → the PERSONA'S OWN owner, via the `personas` join — deliberately NOT `target.ownerId`.
-//     `personaIds` is the PRESENT HUMANS' active personas (multi-human native), so in a shared room they
+//     `personaIds` is the present members' seat personas (multi-human native), so in a shared room they
 //     legitimately belong to members other than the host; belting this arm to the host would silently
 //     delete a member's own lore from the prompt. `attachToPersona` gates the persona and the book under
 //     one caller, so "the book belongs to the persona's owner" is the writers' invariant made physics.
@@ -38,7 +38,7 @@
 //     attempt to add one owes this handoff case first.
 //   • global   → `target.ownerId`, unchanged (FLAG[global-scope] above).
 
-import type { AssembleWorldEntry } from "@orb/contracts/chat";
+import type { AssembleWorldEntry, AssembleWorldEntryAttachment } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { characterBooks, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
@@ -50,7 +50,7 @@ interface WorldInfoPoolTarget {
   readonly ownerId: UserId;
   /** Every present AI seated character's identity; primary first. Empty ⇒ no character-scope books. */
   readonly characterIds: readonly CharacterId[];
-  /** The present humans' active personas. Empty ⇒ no persona-scope books. */
+  /** The present members' seat personas (`memberPersonaIdsOf`). Empty ⇒ no persona-scope books. */
   readonly personaIds: readonly PersonaId[];
 }
 
@@ -80,7 +80,7 @@ function extractKeys(raw: unknown): string[] {
 }
 
 /** Project a book-expansion row → the assembler `AssembleWorldEntry`. */
-function fromBookExpansion(row: BookExpansionRow, source: AssembleWorldEntry["source"]): AssembleWorldEntry {
+function fromBookExpansion(row: BookExpansionRow, attachment: AssembleWorldEntryAttachment): AssembleWorldEntry {
   const keys = extractKeys(row.keys);
   const inject = resolveEntryInjection(row.metadata);
   return {
@@ -91,7 +91,7 @@ function fromBookExpansion(row: BookExpansionRow, source: AssembleWorldEntry["so
     priority: row.priority ?? 0,
     enabled: row.enabled ?? true,
     ignoreBudget: row.ignoreBudget ?? false,
-    source,
+    ...attachment,
     position: resolveEntryPosition(row.metadata),
     keyMode: resolveEntryKeyMode(row.metadata),
     ...(inject !== null ? { inject } : {}),
@@ -144,7 +144,7 @@ export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Pr
     personaIds.length === 0
       ? Promise.resolve([])
       : db
-          .select(entryColumns)
+          .select({ ...entryColumns, personaName: personas.name, personaDescription: personas.description })
           .from(personaBooks)
           .innerJoin(worldEntries, eq(personaBooks.worldBookId, worldEntries.worldBookId))
           .innerJoin(worldBooks, eq(worldBooks.id, personaBooks.worldBookId))
@@ -152,12 +152,15 @@ export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Pr
           .where(and(inArray(personaBooks.personaId, personaIds), eq(worldBooks.ownerId, personas.ownerId), eq(worldEntries.enabled, true))),
   ]);
 
+  const chat = { source: "chat" } as const;
   return dedupeByEntryId([
-    chatRows.map((r) => fromBookExpansion(r, "chat")),
-    // Persona + global books tag `source:"chat"` (user-authored intent → {{user}} = active persona).
-    personaRows.map((r) => fromBookExpansion(r, "chat")),
-    globalRows.map((r) => fromBookExpansion(r, "chat")),
-    characterRows.map((r) => fromBookExpansion(r, "character")),
+    chatRows.map((r) => fromBookExpansion(r, chat)),
+    // A persona's own book renders its macros against that persona, never the voice persona: in a shared
+    // room a member's `{{user}}` lore must name that member.
+    personaRows.map((r) => fromBookExpansion(r, { source: "persona", persona: { name: r.personaName, description: r.personaDescription } })),
+    // Global books are the host's user-authored intent → {{user}} = the voice persona.
+    globalRows.map((r) => fromBookExpansion(r, chat)),
+    characterRows.map((r) => fromBookExpansion(r, { source: "character" })),
   ]);
 }
 

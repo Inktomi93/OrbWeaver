@@ -38,6 +38,7 @@ export type {
   AssemblePersona,
   AssembleTrace,
   AssembleWorldEntry,
+  AssembleWorldEntryAttachment,
   AssemblyBudgetPart,
   AssemblyBudgetPreview,
   AssemblyBudgetSlice,

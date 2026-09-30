@@ -48,6 +48,7 @@ function ctxWith(importTheme: ImportProfileDeps["importTheme"]): ImportContext {
     createCharacter: unused,
     findByImportHash: unused,
     findByHandle: unused,
+    findByName: unused,
     storeAsset: unused,
     attachCardTag: unused,
     profile: {

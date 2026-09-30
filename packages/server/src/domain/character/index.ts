@@ -23,6 +23,7 @@ export type {
   DuplicateCharacterParams,
   FindByHandleParams,
   FindByImportHashParams,
+  FindByNameParams,
   FindGroupCharParams,
   GenerateGreetingParams,
   GetCardParams,
