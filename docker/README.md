@@ -78,6 +78,11 @@ security warning every boot while the knob is live, any request that announces a
 grant, and the diagnostics door's credential-free arm is closed while widened. Want other devices? Use a
 login (next section).
 
+The trusted ranges also cover every container on the app's own docker networks. Never join a `single-user`
+app to a shared network, such as a reverse proxy's, and never publish its port beyond `127.0.0.1`: every
+container or routed host that reaches it is then the owner with no login. Behind a shared proxy, use a login
+mode.
+
 The other no-login shape is host networking (`docker/compose.host-network.yaml`, Linux Engine / Podman):
 the app binds `127.0.0.1` on your machine directly and needs no widened peer set at all. The overlay drops
 the shipped ranges, so the app refuses `ORB_BIND=0.0.0.0` in this shape too.

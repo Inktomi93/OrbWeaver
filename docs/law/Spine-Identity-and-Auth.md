@@ -352,3 +352,7 @@ client does when a resolved session goes stale.
   never folded (D257, `@orb/kit/handle-key`).
 - Credential AAD binds `${userId}|${provider}` — single production site
   `domain/credentials/persistence/aad.ts`; `SecretBox` carries the AAD, never derives it.
+- A connection's `transport.headers`, `transport.includeBody` and `extras` are the owner's own typed values,
+  stored as plain text in `user_connections` and returned only to that owner. They are not credentials:
+  `SecretBox` holds the provider key, and log scrubbing still treats these values as secrets. A new header
+  that must stay secret from the browser belongs in `SecretBox`, not in these fields.
