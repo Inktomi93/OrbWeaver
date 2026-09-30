@@ -3,8 +3,9 @@
 // read describes it; a member is told it is the host's connection and never shown the host's row.
 
 import type { ResolvedConnectionView, UnavailableCause } from "@orb/contracts/inference";
+import { CONNECTION_LABEL_SEPARATOR } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
-import { CONNECTION_LABEL_SEPARATOR, labelNamesModel, MODEL_ROLES_PATH } from "#lib";
+import { labelNamesModel, MODEL_ROLES_PATH } from "#lib";
 import type { CreditConnections } from "./swipe-attribution.ts";
 import { providerName } from "./swipe-attribution.ts";
 

@@ -3,7 +3,7 @@
 // barrel-free, because node-side CT specs import it; the rendered row is `components/connection-role-slot.tsx`.
 
 import type { Capability, CapabilityRequirement, RoutableTask, Task, UnavailableCause } from "@orb/contracts/inference";
-import { bindingTaskOf, canFund, EMBED_SPACE_DIMS, requirementMet, taskDef } from "@orb/contracts/inference";
+import { bindingTaskOf, CONNECTION_LABEL_SEPARATOR, canFund, EMBED_SPACE_DIMS, requirementMet, taskDef } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
 
 export const CONNECTION_ROLE_LABELS: Record<RoutableTask, string> = {
@@ -133,8 +133,6 @@ export function connectionSummary(row: { readonly label: string; readonly model:
   return labelNamesModel(row.label, row.model) ? row.label : `${row.label}${CONNECTION_LABEL_SEPARATOR}${name}`;
 }
 
-/** The separator a minted connection label (`<provider> · <model>`) and every readout that extends one use. */
-export const CONNECTION_LABEL_SEPARATOR = " · ";
 // The ` (2)` a minted label takes when its base collides with another of the owner's labels.
 const COLLISION_SUFFIX = /\s\(\d+\)$/u;
 

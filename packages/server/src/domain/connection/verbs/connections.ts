@@ -11,7 +11,7 @@
 // `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
 
 import type { ConnectionApi, ModelCheck, ProviderDef, UserConnection } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES, connectionTasks, modelIdSchema, providerDisplayLabel } from "@orb/contracts/inference";
+import { CONNECTION_LABEL_SEPARATOR, CONNECTION_OP_CODES, connectionTasks, modelIdSchema, providerDisplayLabel } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { nextFreeLabel } from "@orb/kit/strings";
@@ -31,8 +31,6 @@ import {
 import { requireBaseUrl, requireCredential, requireProvider } from "../substrate/admission.ts";
 import { spacesDiffer, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
 import { curatedKindOf } from "../substrate/kind.ts";
-
-const LABEL_SEPARATOR = " · ";
 
 function requireModelId(raw: string): ModelId {
   const parsed = modelIdSchema.safeParse(raw);
@@ -59,7 +57,8 @@ function requireApi(provider: ProviderDef, api: ConnectionApi): void {
 
 /** `<provider label> · <model>`, suffixed ` (2)`, ` (3)`… until it does not collide with the owner's labels. */
 function mintLabel(provider: ProviderDef, model: string, taken: readonly string[], explicit: string | undefined): string {
-  const base = explicit?.trim() !== undefined && explicit.trim() !== "" ? explicit.trim() : `${providerDisplayLabel(provider)}${LABEL_SEPARATOR}${model}`;
+  const base =
+    explicit?.trim() !== undefined && explicit.trim() !== "" ? explicit.trim() : `${providerDisplayLabel(provider)}${CONNECTION_LABEL_SEPARATOR}${model}`;
   return nextFreeLabel(base, taken);
 }
 
