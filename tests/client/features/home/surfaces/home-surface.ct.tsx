@@ -25,6 +25,7 @@ import {
   HomeEmptyStory,
   HomeFoldStory,
   HomeRegionStory,
+  HomeRememberedAlsoOpenStory,
   HomeRoadmapStory,
   HomeScrollCueFittingStory,
   HomeScrollCueStory,
@@ -637,6 +638,7 @@ test("the grid aligns tiles to START — a short tile never stretches to its row
 // the whole #92 mechanism exists to kill. Tightening the declarations toward a sparse library would trade
 // this for that. Hence: the full-page arm is the CONTRACT and is pinned; the sparse-library shrink is
 // accepted (first boot only, behind the boot veil, healed by the box memory from boot two).
+// EXCEPTION: `chat.alsoOpen` reserves only a measured box, because its shrink lands after the veil and a hidden tile never heals.
 test("#129 the shipped first boot reserves the grid a FULL page settles into", async ({ mount, page }) => {
   const chats = trpcHold();
   const characters = trpcHold();
@@ -855,6 +857,54 @@ test("the masthead reserves its settled box on a fresh account at a phone width"
 
   expect(reserved).toBeGreaterThan(0);
   expect(Math.abs(settled - reserved), `reserved ${String(reserved)}px, settled ${String(settled)}px`).toBeLessThanOrEqual(EXACT_RESERVATION_EPSILON_PX);
+});
+
+// ── "Other rooms" while the chat list is in flight ─────────────────────────────────────────────────
+// The stated exception to the full-page first boot: this list reserves only a box this device measured.
+// A device with no memory draws nothing, because a new account has no other rooms and the list's
+// disappearance would pull the page up after the boot veil lifts.
+const ALSO_OPEN = '[data-home-tile="chat.alsoOpen"]';
+/** A remembered box far from the 7-row skeleton's natural height, so a dropped reservation shows. */
+const REMEMBERED_ALSO_OPEN_PX = 333;
+
+async function stubFirstBoot(page: Page, chats: ReturnType<typeof trpcHold>, userId: string): Promise<void> {
+  await stubDatabank(page, {
+    ...CHAT_ROOM_ROUTES,
+    "chat.listChats": chats,
+    "chat.reapTemporaryChats": { reaped: 0 },
+    "character.list": characterListResponder(FIRST_BOOT_FACES),
+    "databank.bankHealth": FIRST_BOOT_HEALTH,
+    "databank.list": FIRST_BOOT_BANK,
+    "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId },
+  });
+}
+
+test("Other rooms draws no box while the list loads on a device that never saw it", async ({ mount, page }) => {
+  const chats = trpcHold();
+  await stubFirstBoot(page, chats, "user_ct_also_open_fresh");
+
+  const home = await mount(<HomeShippedFirstBootStory />);
+  await chats.requested;
+  await expect(home.locator('[data-home-tile="chat.recents"] [aria-busy]')).toBeVisible();
+  await expect(home.locator(ALSO_OPEN)).toHaveCount(0);
+
+  chats.release(chatListResponder(FIRST_BOOT_ROOMS)({ limit: RECENTS_LIMIT }));
+  await expect(home.getByRole("region", { name: "Other rooms" })).toBeVisible();
+});
+
+test("Other rooms reserves the remembered box, and forgets it when the list settles hidden", async ({ mount, page }) => {
+  const chats = trpcHold();
+  await stubFirstBoot(page, chats, "user_ct_also_open_remembered");
+
+  const home = await mount(<HomeRememberedAlsoOpenStory alsoOpenBox={REMEMBERED_ALSO_OPEN_PX} />);
+  await chats.requested;
+  await expect(home.locator(`${ALSO_OPEN} [data-tile-reserve-source="measured"]`)).toHaveAttribute("data-tile-reserved", String(REMEMBERED_ALSO_OPEN_PX));
+
+  chats.release(chatListResponder(FIRST_BOOT_ROOMS.slice(0, 1))({ limit: RECENTS_LIMIT }));
+  await expect(home.locator('[data-home-hearth="chat_boot_0"]')).toBeVisible();
+  await expect(home.locator(ALSO_OPEN)).toHaveCount(0);
+  await home.getByRole("button", { name: "probe" }).click();
+  await expect(home.getByTestId("also-open-box")).toHaveText("null");
 });
 
 // ── #188 P2-12 — the landing janitor must not buy the chats list a second round-trip ────────────────

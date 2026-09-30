@@ -9,12 +9,12 @@ import { databankDocumentsTile } from "@orb/client/features/databank";
 import { buddyDormantTile, HomeSurface, homeRoadmapTiles, makeSectionJumpTile } from "@orb/client/features/home";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
-import { rememberSurfaceBox, useActiveSection } from "@orb/client/state";
+import { __readSurfaceBoxForTest, rememberSurfaceBox, useActiveSection } from "@orb/client/state";
 import { Button } from "@orb/ui/button";
 import { BrainCircuit, Clock, MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { use } from "react";
+import { use, useState } from "react";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 import { FIRST_BOOT_SKELETON_ROWS, RESERVED_TILE_PX } from "./_reserve-box.ts";
 
@@ -397,6 +397,23 @@ export function HomeFoldStory(): ReactElement {
         </div>
       </CtRealSectionRegistry>
     </CtDataProviders>
+  );
+}
+
+/** The shipped home on a device that last saw "Other rooms" settle at `alsoOpenBox` px. The seed runs
+ *  before the first child renders, as the persisted store rehydrates before React mounts. `probe` stamps
+ *  the box the store holds now. */
+export function HomeRememberedAlsoOpenStory({ alsoOpenBox }: { readonly alsoOpenBox: number }): ReactElement {
+  useState(() => rememberSurfaceBox(chatAlsoOpenTile.id, alsoOpenBox));
+  const [probe, setProbe] = useState("unread");
+  return (
+    <>
+      <button type="button" onClick={(): void => setProbe(String(__readSurfaceBoxForTest(chatAlsoOpenTile.id)))}>
+        probe
+      </button>
+      <output data-testid="also-open-box">{probe}</output>
+      <HomeShippedFirstBootStory />
+    </>
   );
 }
 
