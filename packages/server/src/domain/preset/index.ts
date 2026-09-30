@@ -6,7 +6,6 @@ export type { PresetContext } from "./context.ts";
 export type { PresetOpCode } from "./contract/errors.ts";
 export { PRESET_OP_CODES, PresetNotFoundError, PresetOperationError } from "./contract/errors.ts";
 export type { CopyPresetToUser, PresetHandoffCopyContext } from "./contract/handoff-copy.ts";
-export type { PackagedPresetKey } from "./contract/packaged.ts";
 export type {
   CreatePresetParams,
   GetPresetParams,
@@ -38,7 +37,7 @@ export type {
 export { EFFECTIVE_KNOBS, EFFECTIVE_PROVENANCES } from "./contract/views.ts";
 export { createCopyPresetToUser } from "./persistence/handoff-copy-write.ts";
 export { migrateProseSlotVocab } from "./persistence/migrate-prose-slot-vocab.ts";
-export { ensurePackagedPresets, ensureSystemDefaultPreset } from "./seed.ts";
+export { ensureSystemDefaultPreset } from "./seed.ts";
 export { createPresetService } from "./service.ts";
 export { createExport as createExportPresets } from "./verbs/export.ts";
 export { createImport as createImportPresets } from "./verbs/import.ts";

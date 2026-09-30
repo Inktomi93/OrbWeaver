@@ -67,7 +67,6 @@ import { seedDefaultBackgrounds, seedDefaultPreset, seedExamplePlugins, seedThem
 import { sql } from "drizzle-orm";
 import { afterAll, vi } from "vitest";
 import { z } from "zod";
-import { PACKAGED_PRESETS } from "../../../../packages/server/src/domain/preset/contract/packaged.ts";
 import type { AppCaller } from "../../../support/fixtures.ts";
 import { expect, OWNER_USER_ID, test } from "../../../support/fixtures.ts";
 
@@ -842,12 +841,7 @@ test("every seeded row reads back through its read procedure, faithful to its cu
     await idsOf(db, "select character_id || ':' || world_book_id || ':' || role as id from character_books"),
     "character_books ↔ worldInfo.listForCharacter",
   ).toEqual(sorted(characterBookLists.flatMap(({ characterId, books: attached }) => attached.map((book) => `${characterId}:${book.id}:${book.role ?? ""}`))));
-  // A PACKAGED template is a clone source kept out of the readable list by design (its contract file's
-  // header); its one reader is the `clonePackaged` verb, which no procedure exposes. It is the one seeded
-  // row with no read path, named here so a second one fails.
-  expect(await idsOf(db, "select id from presets"), "presets ↔ preset.list + the packaged clone templates").toEqual(
-    sorted([...presets.map((preset) => preset.id), ...Object.values(PACKAGED_PRESETS).map((template) => template.id)]),
-  );
+  expect(await idsOf(db, "select id from presets"), "presets ↔ preset.list").toEqual(sorted(presets.map((preset) => preset.id)));
   expect(await idsOf(db, "select id from themes"), "themes ↔ settings.listThemes").toEqual(sorted(themes.map((theme) => theme.id)));
   expect(await idsOf(db, "select id from plugins"), "plugins ↔ plugin.list").toEqual(sorted(plugins.map((plugin) => plugin.id)));
   // Each example plugin install supersedes the previous consent notice (a singleton type), which dismisses it;

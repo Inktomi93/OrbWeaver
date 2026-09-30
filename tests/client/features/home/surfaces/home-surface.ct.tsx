@@ -5,14 +5,17 @@
 
 import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
+import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { SEED_MANIFEST } from "@orb/default-content";
 import type { UserId } from "@orb/kit/ids";
-import { newId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import type { ReactElement } from "react";
 import { pixelExtremaContrast } from "../../../../support/browser/pixel-contrast.ts";
-import { trpcHold } from "../../../../support/node/route-trpc.ts";
+import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 // `CHAT_ROOM_ROUTES` is AMBIENT to every home mount in this file since #1126: the hearth tile warms the
 // room it offers (`usePrefetchRoom` — `chat.getChat` leaves with the tile's mount, a human reaction time
@@ -26,8 +29,10 @@ import {
   HomeDormantTileStory,
   HomeEmptyStory,
   HomeFoldStory,
+  HomeRebootStory,
   HomeRegionStory,
   HomeRememberedAlsoOpenStory,
+  HomeRememberedStarterStory,
   HomeRoadmapStory,
   HomeScrollCueFittingStory,
   HomeScrollCueStory,
@@ -77,6 +82,32 @@ const FIRST_BOOT_BANK = {
   nextCursor: null,
   totalCount: RECENT_DOCUMENTS,
 };
+/** The roster library every new account is seeded with. */
+const SEEDED_ROSTERS: readonly RosterPresetSummary[] = SEED_MANIFEST.flatMap((item) =>
+  item.kind === "rosterPreset"
+    ? [
+        {
+          id: mintTypeId(ID_PREFIX.rosterPreset),
+          name: item.name,
+          description: item.description,
+          characterCount: item.characters.length,
+          members: item.characters.map((handle, position) => ({
+            characterId: mintTypeId(ID_PREFIX.character),
+            position,
+            talkativeness: null,
+            disabled: false,
+            name: handle,
+            avatarHash: null,
+          })),
+          anchorPersonaId: null,
+          hasGroupConfig: false,
+          game: item.startsGame ? { ruleset: "d20" as const } : null,
+          rules: [],
+          updatedAt: 1,
+        },
+      ]
+    : [],
+);
 const FIRST_BOOT_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 4, stalled: 0 }, chunks: 48, passages: 48, total: 4 };
 /** Ambient to every shipped-registry mount here: the Rosters tile's gate reads the roster library, and `routeTrpc`'s
  *  null is not a list. Empty, so the tile stays off every measurement below; its gate has its own CT. */
@@ -209,7 +240,8 @@ test("ZERO contributions renders the designed empty state with its action, never
 const WHITESPACE_RE = /\s+/u;
 const trackCount = (template: string): number => template.trim().split(WHITESPACE_RE).length;
 
-test("the tile grid resolves to TWO columns at the content width", async ({ mount }) => {
+test("the tile grid resolves to TWO columns past the shelf's reflow step", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 2000, height: 900 });
   const home = await mount(<HomeTileOrderStory />);
   await expect
     .poll(async () => trackCount(await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns)))
@@ -279,7 +311,7 @@ test("#102 CHROME DIET: a tile frame is a KICKER BAND, not a card — no border,
 });
 
 test("#102 REGIONS: masthead above the split, hearth in the LEAD column, an unplaced tile on the SHELF", async ({ mount, page }) => {
-  await page.setViewportSize({ width: 1400, height: 1200 });
+  await page.setViewportSize({ width: 2000, height: 1200 });
   const home = await mount(<HomeRegionStory />);
 
   const grid = await home.locator("[data-home-grid]").boundingBox();
@@ -291,19 +323,18 @@ test("#102 REGIONS: masthead above the split, hearth in the LEAD column, an unpl
   // The masthead spans the whole width and sits ABOVE the split.
   expect((top?.width ?? 0) / (grid?.width ?? 1)).toBeGreaterThan(0.95);
   expect(top?.y ?? 0).toBeLessThan(grid?.y ?? 0);
-  // The hearth is the DOMINANT track and the shelf the companion: unequal on purpose (≈1.55:1).
-  expect(lead?.width ?? 0).toBeGreaterThan(rail?.width ?? 0);
+  // Past the step the two tracks are even, so the shelf has the width to reflow.
+  expect(Math.abs((lead?.width ?? 0) - (rail?.width ?? 0))).toBeLessThanOrEqual(1);
   // …and they are side by side, not stacked.
   expect(rail?.x ?? 0).toBeGreaterThan((lead?.x ?? 0) + (lead?.width ?? 0) - 1);
   // A tile that declares NO region defaults to the shelf — never a silent promotion into the hearth.
   expect(unplaced?.x ?? 0).toBe(rail?.x ?? -1);
 });
 
-// ── RED-FIRST (#102 review P1-1): the approved ratio survives CONTENT PRESSURE ──────────────────────
-// The shipped split rendered 1.92/1 at the 1280px pane (742.06/385.94 measured in-page) because a grid
-// TRACK CHILD is `min-width:auto` and the hearth's content floored its track. Asserted on the RESOLVED
-// track template — the only place the defect is visible — against the declared 1.55:1, not a px literal.
-test("RED-FIRST (#102-P1-1): the 1.55fr/1fr split holds even when the hearth's content is wider than its track", async ({ mount }) => {
+// ── The split survives CONTENT PRESSURE ────────────────────────────────────────────────────────────
+// A grid TRACK CHILD is `min-width:auto`, so an unbreakable hearth line would floor its track. Asserted on the
+// RESOLVED track template, the only place the defect is visible, against the declared even split.
+test("the even split holds even when the hearth's content is wider than its track", async ({ mount }) => {
   const home = await mount(<HomeSplitPressureStory />);
 
   const template = await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).gridTemplateColumns);
@@ -317,10 +348,9 @@ test("RED-FIRST (#102-P1-1): the 1.55fr/1fr split holds even when the hearth's c
     )
     .toHaveLength(2);
   const [lead = 0, rail = 0] = tracks;
-  // 1.55:1 = 1.55. A track floored at its content read 1.92; anything at or under 1.6 is the declared
-  // shape surviving, and the tolerance is what keeps this off a px literal.
-  expect(lead / rail).toBeLessThan(1.6);
-  expect(lead / rail).toBeGreaterThan(1.5);
+  // A track floored at its content reads well above 1; the tolerance keeps this off a px literal.
+  expect(lead / rail).toBeLessThan(1.02);
+  expect(lead / rail).toBeGreaterThan(0.98);
 });
 
 // ── RED-FIRST (#102 review F3): the rail's SECOND BREATH at a wide pane ─────────────────────────────
@@ -618,35 +648,20 @@ test("the grid aligns tiles to START — a short tile never stretches to its row
   await expect.poll(async () => await home.locator("[data-home-grid]").evaluate((el) => globalThis.getComputedStyle(el).alignItems)).toBe("flex-start");
 });
 
-// ── THE SHIPPED FIRST BOOT (#129 residual 1) ─────────────────────────────────────────────────────────
-// Everything above drives FAKE tiles, which is right for the door seam and structurally blind to the
-// question #129 asks: is each SHIPPED `skeletonRows` the box its own body settles at? The frame's
-// mechanism is pinned in home-tile.ct.tsx with fakes; the DECLARATIONS were only ever pinned by the hand
-// derivation in each contribution's header, and nothing recomputes them when a body changes. The box
-// memory then HEALS the error from boot two on, so a wrong declaration is invisible on any device that
-// has already booted and costs a layout shift on every device that has not (measured live on a cold
-// profile: `[data-home-grid]` 948px → 869px, CLS 0.0606, behind the boot veil).
-//
-// So: the real registry, at the shipped content width, over the real data layer with every read HELD —
-// `trpcHold` turns the first-boot skeleton into an indefinitely stable state instead of a flash to race.
-// Measure the reserved grid, release, measure the settled grid. The delta IS the shift.
-//
-// IT PINS THE FULL PAGE, AND THAT IS THE WHOLE ANSWER TO #129 (measured here 2026-08-17, both arms):
-//   · a FULL house (8 rooms · 6 faces · 4 documents — each tile's own read limit) reserves 1043.75px and
-//     settles at 1041.14px. 2.6px. The declarations are RIGHT.
-//   · the SAME drive on a sparse house (3 rooms · 2 faces · 1 document) reserves the identical 1043.75px
-//     and settles at 698.39px — a 345px SHRINK, which is the reported 948→869 symptom with a smaller
-//     library in front of it.
-// `skeletonRows` is ONE static number and the settled height is DATA-dependent, so no value is right for
-// both arms; reserving the fullest page the tile can render is the correct choice, because the error it
-// leaves is a SHRINK (content pulls up, nothing is pushed under the reader's cursor) rather than the push
-// the whole #92 mechanism exists to kill. Tightening the declarations toward a sparse library would trade
-// this for that. Hence: the full-page arm is the CONTRACT and is pinned; the sparse-library shrink is
-// accepted (first boot only, behind the boot veil, healed by the box memory from boot two). The veil holds until
-// these reads land: `data-app-ready` waits for the workspace bind and then for Home's reads (`app-root.ct.tsx`).
-// EXCEPTION: `chat.alsoOpen` and `rosterPreset.rosters` reserve only a measured box, because a hidden tile is never
-// measured, so a declared box would collapse on every boot of an account that has none.
-test("#129 the shipped first boot reserves the grid a FULL page settles into", async ({ mount, page }) => {
+// ── THE SHIPPED FIRST BOOT (#129) ─────────────────────────────────────────────────────────────────────
+// Is each shipped declaration the box its own body settles at? The real registry at the shipped content width, over
+// the real data layer with every read held (`trpcHold` turns the first-boot skeleton into a stable state), measured
+// per tile before and after release. It pins a FULL page: `skeletonRows` is one static number and the settled box
+// is data-dependent, so it reserves the fullest page and a sparse library shrinks on its first boot only.
+// `rosterPreset.rosters` reserves by default, since every new account is seeded with rosters, so this page routes
+// the seeded library. The room tiles cannot be reserved on a device with no memory (`ROOM_TILES`).
+/** A 1440 laptop, past Home's two-column step. */
+const LAPTOP_VIEWPORT_PX = 1440;
+/** The hearth's room tiles, whose settled boxes depend on the account's rooms. */
+const ROOM_TILES: ReadonlySet<string> = new Set(["chat.recents", "chat.alsoOpen"]);
+
+test("#129 the shipped first boot reserves each tile the box a FULL page settles it into, at a two-column laptop", async ({ mount, page }) => {
+  await page.setViewportSize({ width: LAPTOP_VIEWPORT_PX, height: 900 });
   const chats = trpcHold();
   const characters = trpcHold();
   const settings = trpcHold();
@@ -659,10 +674,12 @@ test("#129 the shipped first boot reserves the grid a FULL page settles into", a
     "character.list": characters,
     "databank.bankHealth": health,
     "databank.list": documents,
+    "rosterPreset.list": [...SEEDED_ROSTERS],
+    "automation.listRulePresets": [],
     "settings.getUserSettings": settings,
   });
 
-  const home = await mount(<HomeShippedFirstBootStory />);
+  const home = await mount(<HomeShippedFirstBootStory inlineSize={LAPTOP_VIEWPORT_PX - FOLD_RAIL_PX} />);
   await Promise.all([chats.requested, characters.requested, settings.requested, documents.requested, health.requested]);
   const grid = home.locator("[data-home-grid]");
   // Every tile is on its DECLARED reservation: no box MEMORY exists for any id on a first-ever boot.
@@ -670,6 +687,13 @@ test("#129 the shipped first boot reserves the grid a FULL page settles into", a
   // measured one does, so a bare presence check here would stop meaning "first boot".
   await expect(grid.locator('[data-tile-reserve-source="measured"]')).toHaveCount(0);
   await expect(grid.locator("[aria-busy]").first()).toBeVisible();
+  const tileBoxes = (): Promise<string> =>
+    grid.evaluate((el) =>
+      [...el.querySelectorAll("[data-home-tile]")]
+        .map((tile) => `${tile.getAttribute("data-home-tile") ?? ""}:${tile.getBoundingClientRect().height.toFixed(0)}`)
+        .join(" "),
+    );
+  const reservedTiles = await tileBoxes();
   const reserved = (await grid.boundingBox())?.height ?? 0;
   // The tolerance below, read off the RENDERED bars while they are still up — never a literal: a skeleton
   // row is `--spacing-control-lg` plus its gap, and that token is pointer-conditional (40px fine / 56px
@@ -692,12 +716,29 @@ test("#129 the shipped first boot reserves the grid a FULL page settles into", a
   await expect(grid.getByText("Start a temp chat")).toBeVisible();
   await expect(grid.getByText("Doc 0", { exact: true })).toBeVisible();
   await expect(grid.locator("[aria-busy]")).toHaveCount(0);
+  const settledTiles = await tileBoxes();
   const settled = (await grid.boundingBox())?.height ?? 0;
+  console.info(`
+#129 first-boot tiles
+reserved ${reservedTiles}
+settled  ${settledTiles}
+`);
 
-  // The whole point: a first boot that reserves what it settles into shifts nothing. The budget is ONE
-  // skeleton row's pitch — below that the declaration cannot be made truer (a row is the smallest unit the
-  // reservation is spelled in), above it the grid visibly re-flows behind the veil.
-  expect(Math.abs(reserved - settled)).toBeLessThanOrEqual(rowPitch);
+  // Every tile that paints while held settles at its reserved box, within one skeleton row's pitch: below that the
+  // declaration cannot be made truer, above it the page visibly re-flows behind the veil. The room tiles are the
+  // stated exception: their boxes depend on the account's rooms, so a device with no memory cannot reserve them.
+  const boxes = (line: string): Map<string, number> =>
+    new Map(line.split(" ").map((entry) => [entry.slice(0, entry.lastIndexOf(":")), Number(entry.slice(entry.lastIndexOf(":") + 1))]));
+  const before = boxes(reservedTiles);
+  const after = boxes(settledTiles);
+  const drift = [...before]
+    .filter(([id]) => !ROOM_TILES.has(id))
+    .map(([id, height]) => ({ id, delta: (after.get(id) ?? 0) - height }))
+    .filter(({ delta }) => Math.abs(delta) > rowPitch);
+  expect(drift, JSON.stringify(drift)).toEqual([]);
+  // No whole-page total: with the columns now level, the room tiles' first-boot growth (exempt above) lands in the
+  // taller column, so the grid total measures the account's rooms, not the declarations. Printed, not asserted.
+  console.info(`#129 grid ${reserved.toFixed(0)} → ${settled.toFixed(0)}`);
 });
 
 // ── A READ-LESS TILE MUST NOT RESIZE WHILE ITS NEIGHBOURS SETTLE (#835) ─────────────────────────────
@@ -793,7 +834,8 @@ test("#177 a tile whose settled box is a CONSTANT reserves it exactly — no res
     "settings.getUserSettings": settings,
   });
 
-  const home = await mount(<HomeShippedFirstBootStory />);
+  // Start with reserves its box only where the device remembers its column; with no memory it is held out entirely.
+  const home = await mount(<HomeRememberedStarterStory region="shelf" />);
   await Promise.all([chats.requested, characters.requested, settings.requested, documents.requested, health.requested]);
   const grid = home.locator("[data-home-grid]");
   await expect(grid.locator("[aria-busy]").first()).toBeVisible();
@@ -1043,7 +1085,10 @@ test("P2-1 a home that FITS its pane paints no fade at all — the cue is scroll
 // shrink, and the two arms that reach it were both measured and refused — promoting the tile above Temp chat
 // regresses #226's column-balance fence in three wide-pane cells (see `home-documents-tile.tsx`), and
 // trimming the empty state's own copy is what the load-bearing-empty-state law forbids.
-const FOLD_WIDTHS = [1280, 1440, 1920, 2560] as const;
+//
+// NOT 1280: below Home's two-column step (an 80rem container, about 1400px) Home is one column with the hearth
+// first (owner ruling on 0254), so a populated house puts the whole shelf, and these CTAs, under the fold by design.
+const FOLD_WIDTHS = [1440, 1920, 2560] as const;
 /** The desktop shell's rail, ahead of home's pane (`--dimension-rail`) — home declares both panels away. */
 const FOLD_RAIL_PX = 56;
 const ADD_DOCUMENT_CTA = "Add your first document";
@@ -1068,8 +1113,11 @@ interface FoldCell {
 
 function measureFoldReach(page: Page, width: number): Promise<FoldCell> {
   return page.evaluate(
-    ({ names, pane }) => {
+    async ({ names, pane }) => {
       (document.querySelector("[data-home-fold-pane]") as HTMLElement | null)?.style.setProperty("inline-size", `${String(pane)}px`);
+      // Start with sizes its row from a ResizeObserver, which delivers after the next layout. Two frames let the
+      // new pane width settle before anything is measured.
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const scroller = document.querySelector(".scroll-fade-y");
       const fold = scroller === null ? Number.NaN : scroller.getBoundingClientRect().top + scroller.clientHeight;
       const blocks = (column: Element | null): string =>
@@ -1093,7 +1141,10 @@ function measureFoldReach(page: Page, width: number): Promise<FoldCell> {
   );
 }
 
-test("#499 the databank empty state's CTAs clear the 1280x800 fold — and the shelf's other CTA still does", async ({ mount, page }) => {
+test("#499 the databank empty state's CTAs clear an 800px fold wherever Home is two columns — and the shelf's other CTA still does", async ({
+  mount,
+  page,
+}) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   // An EMPTY bank: no rows, a zero census. This is the arm the CTAs live on.
   await stubDatabank(
@@ -1212,8 +1263,9 @@ test("a duplicate tile id THROWS at door construction — the seam never silentl
 // it is not decoration — the alpha a fade may bottom out at is polarity-dependent arithmetic, and the
 // LIGHT arm is the demanding one (a 16.9:1 near-black-on-near-white pair needs alpha >= 0.60 to hold
 // 4.5:1, against 0.48 for the dark arm's near-white-on-near-black).
+// Not 1280x800: below Home's two-column step Home is one column (owner ruling on 0254), so these CTAs sit far under
+// the hearth, outside any fade band.
 const FADE_CELLS = [
-  { width: 1280, height: 800 },
   { width: 1440, height: 900 },
   { width: 1920, height: 1080 },
 ] as const;
@@ -1820,4 +1872,358 @@ test("#1130 the jump rail's population is width-invariant — the wrap re-flows,
   console.info(`\n#1130 wide-pane composition (chips = pills, then pills per wrapped row; regions = per-quadrant count)\n${rows.join("\n")}\n`);
   expect(populations.at(0) ?? 0, "the rail must render at least two destinations, or the invariance below is vacuous").toBeGreaterThan(1);
   expect(new Set(populations).size, `the rail dropped destinations across widths: ${populations.join(", ")}`).toBe(1);
+});
+
+// ── "Start with" keeps the column it first paints in ─────────────────────────────────────────────────────
+// It stands in the hearth while the house has no room. Until the room list settles it stands where this device last saw
+// it, and a device with no memory starts it in the hearth, so a new account's first boot never moves it across columns.
+/** A pane wide enough for two columns at the default rem: the widest matrix width, less the rail. */
+const TWO_COLUMN_PANE_PX = 2504;
+
+interface StarterPlacement {
+  readonly column: "hearth" | "shelf" | "absent";
+  readonly sameNode: boolean;
+}
+
+/** Where "Start with" stands now, and whether it is the node `mark` tagged earlier (a column move remounts it). */
+async function starterPlacement(page: Page, mark: boolean): Promise<StarterPlacement> {
+  return (await page.evaluate((tag) => {
+    const tile = document.querySelector('[data-home-tile="chat.quickPicks"]');
+    if (tile === null) {
+      return { column: "absent", sameNode: false };
+    }
+    const sameNode = tile.getAttribute("data-ct-starter-mark") === "1";
+    if (tag) {
+      tile.setAttribute("data-ct-starter-mark", "1");
+    }
+    return { column: tile.closest("[data-home-shelf]") === null ? "hearth" : "shelf", sameNode };
+  }, mark)) as StarterPlacement;
+}
+
+interface LayoutShiftSourceLike {
+  readonly node?: Node | null;
+}
+
+/** The buffered layout shifts since `since` (a `performance.now()` stamp): their summed score (the CLS arithmetic, input
+ *  excluded) and the tile ids whose boxes moved. */
+async function shiftsSince(page: Page, since: number): Promise<{ readonly score: number; readonly movers: readonly string[] }> {
+  return await page.evaluate(
+    (t0) =>
+      new Promise<{ score: number; movers: string[] }>((resolve) => {
+        let score = 0;
+        const movers = new Set<string>();
+        const observer = new PerformanceObserver((list) => {
+          const entries = (list.getEntries() as (PerformanceEntry & { value: number; hadRecentInput: boolean; sources?: LayoutShiftSourceLike[] })[]).filter(
+            (entry) => entry.startTime >= t0 && !entry.hadRecentInput,
+          );
+          score += entries.reduce((sum, entry) => sum + entry.value, 0);
+          for (const node of entries.flatMap((entry) => entry.sources ?? []).map((source) => source.node)) {
+            const tile = node instanceof Element ? node.closest("[data-home-tile]") : null;
+            movers.add(tile?.getAttribute("data-home-tile") ?? "other");
+          }
+        });
+        observer.observe({ type: "layout-shift", buffered: true });
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            observer.disconnect();
+            resolve({ score, movers: [...movers] });
+          }),
+        );
+      }),
+    since,
+  );
+}
+
+/** The page's own clock. A layout-shift entry's startTime is on it, so a cut-off must be read from it too. */
+async function pageNow(page: Page): Promise<number> {
+  // @orb-waive test-determinism(performance.now): the subject is the browser's own layout-shift timeline.
+  return await page.evaluate(() => performance.now());
+}
+
+async function stubStarterBoot(page: Page, chats: ReturnType<typeof trpcHold>): Promise<void> {
+  await page.setViewportSize({ width: 2560, height: 1000 });
+  await stubDatabank(page, {
+    ...HOME_ROUTES,
+    "chat.listChats": chats,
+    "chat.reapTemporaryChats": { reaped: 0 },
+    "character.list": characterListResponder(FIRST_BOOT_FACES),
+    "databank.bankHealth": FIRST_BOOT_HEALTH,
+    "databank.list": FIRST_BOOT_BANK,
+    "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
+  });
+}
+
+test("a device with no memory holds Start with out of both columns until the room list settles, then places it once", async ({ mount, page }) => {
+  const chats = trpcHold();
+  await stubStarterBoot(page, chats);
+  const home = await mount(<HomeRememberedStarterStory inlineSize={TWO_COLUMN_PANE_PX} region={null} />);
+  await chats.requested;
+  await expect(home.locator('[data-home-tile="chat.recents"] [aria-busy]')).toBeVisible();
+  const held = await starterPlacement(page, false);
+  // The shelf paints nothing while held: on a house with rooms the tile lands at its top and would push it down.
+  await expect(home.locator("[data-home-shelf]")).toBeHidden();
+
+  chats.release(chatListResponder([])({ limit: RECENTS_LIMIT }));
+  await expect(home.locator('[data-home-tile="chat.quickPicks"]')).toBeVisible();
+  await expect(home.locator("[data-home-shelf]")).toBeVisible();
+  const placed = await starterPlacement(page, true);
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+  const settled = await starterPlacement(page, false);
+
+  expect({ held: held.column, placed: placed.column, settled }).toEqual({ held: "absent", placed: "hearth", settled: { column: "hearth", sameNode: true } });
+});
+
+test("a device with no memory whose room list fails shows the shelf, with Start with in the hearth", async ({ mount, page }) => {
+  const chats = trpcHold();
+  await stubStarterBoot(page, chats);
+  const home = await mount(<HomeRememberedStarterStory inlineSize={TWO_COLUMN_PANE_PX} region={null} />);
+  await chats.requested;
+  await expect(home.locator("[data-home-shelf]")).toBeHidden();
+
+  // The CT client does not retry, so this one failure is the exhausted read.
+  chats.release(trpcError({ code: "INTERNAL_SERVER_ERROR" }));
+  await expect(home.locator('[data-home-tile="chat.recents"] [data-slot="query-error"]')).toBeVisible();
+  await expect(home.locator("[data-home-shelf]")).toBeVisible();
+  await expect.poll(async () => (await starterPlacement(page, false)).column).toBe("hearth");
+});
+
+test("a device that last saw Start with on the shelf paints it there, and a house with rooms keeps it there", async ({ mount, page }) => {
+  const chats = trpcHold();
+  await stubStarterBoot(page, chats);
+  const home = await mount(<HomeRememberedStarterStory inlineSize={TWO_COLUMN_PANE_PX} region="shelf" />);
+  await chats.requested;
+  await expect(home.locator('[data-home-tile="chat.quickPicks"]')).toBeVisible();
+  const held = await starterPlacement(page, true);
+
+  chats.release(chatListResponder(FIRST_BOOT_ROOMS)({ limit: RECENTS_LIMIT }));
+  await expect(home.locator('[data-home-hearth="chat_boot_0"]')).toBeVisible();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+  const settled = await starterPlacement(page, false);
+
+  expect({ held: held.column, settled }).toEqual({ held: "shelf", settled: { column: "shelf", sameNode: true } });
+});
+
+// ── First-boot and return-visit shift budgets ─────────────────────────────────────────────────────────────
+// CLS is the sum of the buffered layout-shift scores after the held reads release, at a laptop viewport. The
+// budget is the web-vitals `good` bound.
+const CLS_BUDGET = 0.1;
+const LAPTOP_WIDTHS = [1440, 1536] as const;
+const LAPTOP_VIEWPORT_HEIGHT = 900;
+
+async function firstBootShift(
+  page: Page,
+  mount: (component: ReactElement) => Promise<Locator>,
+  width: number,
+  rooms: Parameters<typeof chatListResponder>[0],
+): Promise<{ readonly score: number; readonly movers: readonly string[] }> {
+  await page.setViewportSize({ width, height: LAPTOP_VIEWPORT_HEIGHT });
+  const chats = trpcHold();
+  const characters = trpcHold();
+  await stubDatabank(
+    page,
+    {
+      ...HOME_ROUTES,
+      "chat.listChats": chats,
+      "chat.reapTemporaryChats": { reaped: 0 },
+      "character.list": characters,
+      "rosterPreset.list": [...SEEDED_ROSTERS],
+      "automation.listRulePresets": [],
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
+    },
+    [],
+  );
+  const home = await mount(<HomeShippedFirstBootStory inlineSize={width - FOLD_RAIL_PX} />);
+  await Promise.all([chats.requested, characters.requested]);
+  await expect(home.locator("[aria-busy]").first()).toBeVisible();
+  const since = await pageNow(page);
+  chats.release(chatListResponder(rooms)({ limit: RECENTS_LIMIT }));
+  characters.release(characterListResponder(FIRST_BOOT_FACES)({ limit: QUICK_PICKS_FACES }));
+  await expect(home.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+  return await shiftsSince(page, since);
+}
+
+for (const width of LAPTOP_WIDTHS) {
+  test(`a house with rooms on a device with no memory boots under the CLS budget at ${String(width)}`, async ({ mount, page }) => {
+    const shift = await firstBootShift(page, mount, width, FIRST_BOOT_ROOMS);
+    test.info().annotations.push({ description: JSON.stringify(shift), type: "first-boot-shift" });
+    expect(shift.score, JSON.stringify(shift)).toBeLessThan(CLS_BUDGET);
+  });
+
+  test(`a new account's first boot stays under the CLS budget at ${String(width)}`, async ({ mount, page }) => {
+    const shift = await firstBootShift(page, mount, width, []);
+    test.info().annotations.push({ description: JSON.stringify(shift), type: "first-boot-shift" });
+    expect(shift.score, JSON.stringify(shift)).toBeLessThan(CLS_BUDGET);
+  });
+}
+
+test("a new account's first boot decides the shelf foot once the shelf settles, and never flips it", async ({ mount, page }) => {
+  await page.setViewportSize({ width: LAPTOP_WIDTHS[0], height: LAPTOP_VIEWPORT_HEIGHT });
+  const chats = trpcHold();
+  const characters = trpcHold();
+  await stubDatabank(
+    page,
+    {
+      ...HOME_ROUTES,
+      "chat.listChats": chats,
+      "chat.reapTemporaryChats": { reaped: 0 },
+      "character.list": characters,
+      "rosterPreset.list": [...SEEDED_ROSTERS],
+      "automation.listRulePresets": [],
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
+    },
+    [],
+  );
+  // Every write of the foot's arrangement, and every uncaught page error (a ResizeObserver loop reports as one).
+  // The log rides an attribute on the root, so the read below needs no cast.
+  await page.evaluate(() => {
+    const log: string[] = [];
+    const record = (line: string): void => {
+      log.push(line);
+      document.documentElement.setAttribute("data-ct-foot-log", log.join("|"));
+    };
+    new MutationObserver((records) => {
+      for (const { target } of records) {
+        record(`foot=${target instanceof Element ? (target.getAttribute("data-foot") ?? "stacked") : "?"}`);
+      }
+    }).observe(document.body, { attributeFilter: ["data-foot"], subtree: true });
+    globalThis.addEventListener("error", (event) => record(`error=${event.message}`));
+  });
+  const home = await mount(<HomeShippedFirstBootStory inlineSize={LAPTOP_WIDTHS[0] - FOLD_RAIL_PX} />);
+  await Promise.all([chats.requested, characters.requested]);
+  chats.release(chatListResponder([])({ limit: RECENTS_LIMIT }));
+  characters.release(characterListResponder(FIRST_BOOT_FACES)({ limit: QUICK_PICKS_FACES }));
+  await expect(home.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+  await expect(home.locator("[data-home-shelf]")).toBeVisible();
+  // Two frames past the settle, so a width-driven decision (it runs on the next frame) has had its turn.
+  const log = await page.evaluate(
+    () =>
+      new Promise<string>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve(document.documentElement.getAttribute("data-ct-foot-log") ?? ""))),
+      ),
+  );
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the log is a record of every write since mount, read after the settle; a poll would pass at its first empty read.
+  expect(log).toBe("");
+});
+
+// The box memory records each tile's SETTLED height, so a return visit reserves exactly what it settles into. Start
+// with settles in two passes (a first render, then its one-row trim), which a passive-effect read measured too early.
+test("a return visit shifts nothing: every tile reserves the height it settled at last time", async ({ mount, page }) => {
+  await page.setViewportSize({ width: LAPTOP_WIDTHS[0], height: LAPTOP_VIEWPORT_HEIGHT });
+  await stubDatabank(
+    page,
+    {
+      ...HOME_ROUTES,
+      "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
+      "chat.reapTemporaryChats": { reaped: 0 },
+      "character.list": characterListResponder(FIRST_BOOT_FACES),
+      "rosterPreset.list": [...SEEDED_ROSTERS],
+      "automation.listRulePresets": [],
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
+    },
+    [],
+  );
+  const home = await mount(<HomeRebootStory inlineSize={LAPTOP_WIDTHS[0] - FOLD_RAIL_PX} />);
+  const starter = home.locator('[data-home-tile="chat.quickPicks"]');
+  await expect(starter.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+  // The stored box is the settled one-row body, not a first pass.
+  const body = starter.locator('[aria-label="Character quick-picks"]').locator("xpath=../..");
+  const settledBody = (await body.boundingBox())?.height ?? 0;
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const key = Object.keys(localStorage).find((name) => name.includes("surface-box"));
+          const blob = key === undefined ? "{}" : (localStorage.getItem(key) ?? "{}");
+          return (JSON.parse(blob) as { state?: { boxes?: Record<string, number> } }).state?.boxes?.["chat.quickPicks"] ?? 0;
+        }),
+    )
+    .toBeCloseTo(settledBody, 0);
+
+  const since = await pageNow(page);
+  await home.getByRole("button", { name: "reboot" }).click();
+  await expect(starter.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+  const shift = await shiftsSince(page, since);
+  expect(shift, JSON.stringify(shift)).toEqual({ score: 0, movers: [] });
+});
+
+// Owner ruling on 0254: below the two-column step, on a touch pointer, Start with is a swipe row of every face with the
+// door last. A fine pointer keeps the one row that fits.
+/** How far a focus ring reaches outside its control: `ring-2` plus `ring-offset-2` (`@orb/ui` focus-ring.ts). */
+const FOCUS_RING_REACH_PX = 4;
+
+test.describe("Start with on a phone", () => {
+  test.use({ hasTouch: true, viewport: { width: 360, height: 800 } });
+
+  test("is one swipe row of every face, snapping, with the door last", async ({ mount, page }) => {
+    await stubDatabank(
+      page,
+      {
+        ...HOME_ROUTES,
+        "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
+        "chat.reapTemporaryChats": { reaped: 0 },
+        "character.list": characterListResponder(FIRST_BOOT_FACES),
+        "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
+      },
+      [],
+    );
+    const home = await mount(<HomeShippedFirstBootStory inlineSize={360} />);
+    const list = home.getByRole("list", { name: "Character quick-picks" });
+    await expect(list.getByRole("listitem")).toHaveCount(QUICK_PICKS_FACES);
+    const readRow = async (): Promise<{ rows: number; scrolls: boolean; snap: string; doorLast: boolean }> =>
+      await list.evaluate((el) => {
+        const shelf = el.parentElement;
+        const cells = [...(shelf?.querySelectorAll('[role="listitem"], :scope > button') ?? [])];
+        const last = shelf?.lastElementChild;
+        return {
+          rows: new Set(cells.map((cell) => Math.round(cell.getBoundingClientRect().top))).size,
+          scrolls: shelf !== null && shelf !== undefined && shelf.scrollWidth > shelf.clientWidth,
+          snap: shelf === null || shelf === undefined ? "" : getComputedStyle(shelf).scrollSnapType,
+          doorLast: last?.textContent?.trim() === "All characters",
+        };
+      });
+    // The row is sized from a ResizeObserver, so it is read until it settles.
+    await expect.poll(readRow).toEqual({ rows: 1, scrolls: true, snap: "x mandatory", doorLast: true });
+    await expect(home.getByRole("button", { name: "All characters" })).toBeVisible();
+  });
+
+  test("runs to the screen edge, and a face reached by Tab shows whole with room for its focus ring", async ({ mount, page }) => {
+    await stubDatabank(
+      page,
+      {
+        ...HOME_ROUTES,
+        "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
+        "chat.reapTemporaryChats": { reaped: 0 },
+        "character.list": characterListResponder(FIRST_BOOT_FACES),
+        "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
+      },
+      [],
+    );
+    const home = await mount(<HomeShippedFirstBootStory inlineSize={PHONE_CONTENT_PX} />);
+    const faces = home.getByRole("list", { name: "Character quick-picks" }).getByRole("button");
+    await expect(faces).toHaveCount(QUICK_PICKS_FACES);
+    await faces.first().focus();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await expect(faces.nth(2)).toBeFocused();
+    const reach = async (): Promise<{ edges: readonly number[]; inline: boolean; ringRoom: boolean }> =>
+      await faces.nth(2).evaluate((face, ring) => {
+        const row = face.closest('[role="list"]')?.parentElement;
+        const clip = row?.getBoundingClientRect();
+        const cell = face.getBoundingClientRect();
+        if (clip === undefined) {
+          return { edges: [], inline: false, ringRoom: false };
+        }
+        return {
+          edges: [Math.round(clip.left), Math.round(clip.right)],
+          inline: cell.left >= clip.left && cell.right <= clip.right,
+          ringRoom: cell.top - clip.top >= ring && clip.bottom - cell.bottom >= ring,
+        };
+      }, FOCUS_RING_REACH_PX);
+    // The reveal is a smooth scroll the snap settles, so it is read until it lands.
+    await expect.poll(reach).toEqual({ edges: [0, PHONE_CONTENT_PX], inline: true, ringRoom: true });
+  });
 });

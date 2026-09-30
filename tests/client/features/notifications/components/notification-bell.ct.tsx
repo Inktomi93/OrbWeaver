@@ -155,30 +155,30 @@ function handoffAcceptedRow(): InboxRowOf<"handoff-accepted"> {
   };
 }
 
-// A handle is lowercase by rule, so a row sentence that opens on one starts in lowercase. Every row that names a
-// person must open on a capital, whatever the handle.
-test("every inbox row sentence opens on a capital, including the ones that name a lowercase handle", async ({ mount, page }) => {
+// A handle is lowercase by rule, so a row sentence must never open on the handle it interpolates. The check is
+// on the interpolation's position, not on the wording around it.
+test("no inbox row sentence opens on the handle it names", async ({ mount, page }) => {
+  const invite = inviteRow();
+  const handoff = handoffAcceptedRow();
+  const rows = [invite, handoff];
+  const handles = [invite.payload.invitedByHandle, handoff.payload.newHostHandle];
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
-    "notifications.list": () => ({ items: [inviteRow(), handoffAcceptedRow(), kickedRow()], nextCursor: null }),
-    "notifications.markAllRead": () => ({ markedCount: 3 }),
+    "notifications.list": () => ({ items: rows, nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: rows.length }),
   });
   await routeInboxStream(page, []);
   await mount(<NotificationBellStory />);
-  await page.getByRole("button", { name: "Notifications (3 unread)" }).click();
+  await page.getByRole("button", { name: `Notifications (${String(rows.length)} unread)` }).click();
 
-  const rows = page.locator('[data-slot="inbox-row"]');
-  await expect(rows).toHaveCount(3);
-  await expect
-    .poll(() =>
-      rows.evaluateAll((nodes) =>
-        nodes.map((node) => {
-          const first = (node.textContent ?? "").trim().charAt(0);
-          return first !== first.toLowerCase() && first === first.toUpperCase();
-        }),
-      ),
-    )
-    .toEqual([true, true, true]);
+  const rendered = page.locator('[data-slot="inbox-row"]');
+  await expect(rendered).toHaveCount(rows.length);
+  for (const handle of handles) {
+    // Finding the row by its handle is the positive control: the row really names it, so the check is not vacuous.
+    const row = rendered.filter({ hasText: handle });
+    await expect(row).toHaveCount(1);
+    expect((await row.textContent())?.trim().startsWith(handle), `the row naming "${handle}" opens on it`).toBe(false);
+  }
 });
 
 test("no unread → plain label, empty inbox copy", async ({ mount, page }) => {

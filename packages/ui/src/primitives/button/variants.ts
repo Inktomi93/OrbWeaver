@@ -1,4 +1,15 @@
-import { ACCENT_HOVER, CHIP_BOX, CONTROL_SIZE, DISABLED_STATE, DISABLED_STATE_NATIVE, FOCUS_RING, SELECTED_FILL, TOUCH_TARGET_PSEUDO, tv } from "#lib";
+import {
+  ACCENT_HOVER,
+  CHIP_BOX,
+  CONTROL_SIZE,
+  DISABLED_STATE,
+  DISABLED_STATE_NATIVE,
+  FOCUS_RING,
+  FOCUS_RING_ON_STATE_RING,
+  SELECTED_FILL,
+  TOUCH_TARGET_PSEUDO,
+  tv,
+} from "#lib";
 
 // Sizes ride the control-height tokens (CONTROL_SIZE, shared with Toggle) so the ≥44px touch floor
 // holds by construction; button adds `icon`, `media`, `wrap`, `inline` and the four-step `glyph-*` ramp on
@@ -174,6 +185,7 @@ export const buttonVariants = tv({
     //
     // The `on` arm is SELECTED_FILL, Toggle's `data-pressed` skin as a static arm, so a selected scope toggle
     // and a selected tag chip in one rail read the same. It is a fill, not a ring: keyboard focus owns the ring.
+    // `negated` wears the same fill, so both set states read as one family against `off`, plus its own state ring.
     selection: {
       /** Not selected — the resting `intent` skin stands alone, focus ring included. */
       none: "",
@@ -182,7 +194,7 @@ export const buttonVariants = tv({
       /** SUBTRACTED from the set — the exclusion arm of a tri-state facet. It carries BOTH a hue and a
        *  strike because the state must never rest on colour alone (a red ring and an ember ring are one
        *  ring to a red-blind reader); the strike says "not this one" on its own. */
-      negated: "border-transparent bg-accent text-accent-foreground inset-ring-2 inset-ring-destructive line-through",
+      negated: `border-transparent ${SELECTED_FILL} inset-ring-2 inset-ring-destructive line-through ${FOCUS_RING_ON_STATE_RING}`,
     },
   },
   defaultVariants: { intent: "primary", size: "md", shape: "control", selection: "none" },

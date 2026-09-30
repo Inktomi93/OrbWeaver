@@ -8,7 +8,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { HomeRememberedRostersTileStory, HomeRostersTileStory } from "../_ct-stories.tsx";
+import { HomeRememberedRostersTileStory, HomeRostersTileStory, HomeSettledHiddenRostersTileStory } from "../_ct-stories.tsx";
 
 const SPIRE: RosterPresetSummary = {
   id: castId<RosterPresetId>("roster_preset_ct_spire"),
@@ -112,17 +112,29 @@ test("a campaign roster says it starts a game, and its press hands the game to t
     });
 });
 
-// The Home tile gate, as "Other rooms" has it: a hidden tile is never measured, so the loading tile reserves only a
-// box this device measured, and a settled empty library forgets it.
+// The Home tile gate: a loading tile reserves its box by default, because a new account is seeded with rosters. A
+// device that saw the library settle empty reserves nothing, so an empty library does not collapse on every boot.
 const ROSTERS_TILE = '[data-home-tile="rosterPreset.rosters"]';
 /** A remembered box far from the skeleton's natural height, so a dropped reservation shows. */
 const REMEMBERED_ROSTERS_PX = 333;
 
-test("a device that never saw the tile draws no box while the library loads", async ({ mount, page }) => {
+test("a device with no memory reserves the tile while the library loads", async ({ mount, page }) => {
   const list = trpcHold();
   await routeTrpc(page, { "rosterPreset.list": list, "automation.listRulePresets": [] });
 
   await mount(<HomeRostersTileStory />);
+  await list.requested;
+  await expect(page.locator(`${ROSTERS_TILE} [aria-busy]`)).toBeVisible();
+  list.release([SPIRE]);
+
+  await expect(page.getByRole("heading", { name: "Rosters" })).toBeVisible();
+});
+
+test("a device that saw the library settle empty reserves nothing while it loads", async ({ mount, page }) => {
+  const list = trpcHold();
+  await routeTrpc(page, { "rosterPreset.list": list, "automation.listRulePresets": [] });
+
+  await mount(<HomeSettledHiddenRostersTileStory />);
   await list.requested;
   await expect(page.locator(ROSTERS_TILE)).toHaveCount(0);
   list.release([SPIRE]);
@@ -143,4 +155,5 @@ test("an empty library renders no tile, and forgets the box a device remembered"
   await expect(page.getByRole("button", { name: /^Start a chat with/ })).toHaveCount(0);
   await page.getByRole("button", { name: "probe" }).click();
   await expect(page.getByTestId("rosters-box")).toHaveText("null");
+  await expect(page.getByTestId("rosters-hidden")).toHaveText("true");
 });

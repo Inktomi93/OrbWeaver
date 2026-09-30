@@ -23,7 +23,7 @@ export const APPEARANCE_EFFECTS_SUBCATEGORY: ConfigSubcategory = {
       keywords: ["blur", "glass", "backdrop"],
       teach: {
         summary:
-          "Backdrop blur plus a translucent fill on the surfaces you pick. Messages carry glass poorly (scrolling prose over blur), so they stay off unless you opt in.",
+          "Backdrop blur plus a translucent fill on the surfaces you pick. Light themes keep dialogs solid so their text stays readable. Messages carry glass poorly (scrolling prose over blur), so they stay off unless you opt in.",
         affects: ["the panels, topbar, dialogs and composer you switch on", "readability over a background image"],
         related: [{ group: "appearance", sub: "background", setting: "background-image" }],
       },

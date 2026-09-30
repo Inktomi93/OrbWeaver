@@ -56,28 +56,12 @@
 // last shelf tile beside the doorway group), because positional is the only thing a host that imports zero
 // features can honestly say, and it is the same presentation license the doorway grouping already takes.
 //
-// …AND THE RAIL IS WHAT DECIDED THE PAGE'S HEIGHT (#226, owner-ruled "no shell game — self-balance by
-// construction"). The two columns' feet did not line up, and WHICH ONE ended short CHANGED SIDES with the
-// pane, so every "move tile X across" fix helps one end of the range and worsens the other. The cause is
-// not the tile assignment: the HEARTH is ~780px tall at every width, and the whole swing is the SHELF's
-// own width-driven reflow — its `cellFixed` face shelf goes 3-per-row at a narrow rail and 6-per-row at a
-// wide one, and its footnote pair stacks below the >=100rem pane the subgrid needs. So the shelf was
-// paying for a track sized as a companion while carrying content that answers to width.
-// `cols="leadEven"` is `lead` with its wide-pane breath taken to EVEN tracks — the rail gets the width its
-// grids need, and the columns end level without either column being padded or a tile being moved.
-// MEASURED (tests/client/features/home/surfaces/home-column-balance.suite.ct.tsx, the 4 widths x 3 appearance
-// arms this shipped against): 1920 defaults 180px -> 11px, 1920 compact 192px -> 3px, 2560 reading
-// 228px -> 11px, and the 2560 flip is gone.
-//
-// WHAT IS NOT FIXED, and why it is not budgeted away: below a 100rem pane (1280/1440, and 1920 on the
-// reading arm, where `--font-scale` makes 100rem a 2000px pane) the shelf's foot CANNOT go 2-up and its
-// face shelf CANNOT gain a column, so the shelf is structurally ~370px taller than the hearth and no
-// track ratio closes it (measured: 368px -> 313px at best across a seven-ratio sweep). The two costed
-// padding arms were both measured and both refused: distributing that slack into the short column's two
-// gaps means 208px gaps on the defaults arm and 385px on reading, against a 24px section rhythm — three
-// kicker bands that far apart stop reading as one column; and growing the short column's LAST block means
-// the 91px section-jump grid becoming a 460px one. The narrow-pane residual is an open owner fork
-// recorded on #226, not a silent budget.
+// TWO COLUMNS WHERE THE SHELF REFLOWS WITH THEM (owner-ruled: about 1400px). The split is `pairWide`, an 80rem
+// container step shared by the shelf's roster rows and foot, so Home is two even columns exactly where the shelf
+// reflows to answer the hearth's height, and one column below it, hearth first. No tile changes columns for a
+// populated house: the roster rows go two-up and the foot pairs blocks side by side.
+// `tests/client/features/home/surfaces/home-column-balance.suite.ct.tsx` holds both houses to a 120px budget and
+// pins the step.
 //
 // ZERO tiles ⇒ ONE designed empty state (never a blank surface). The Weave decoration rides HERE and only
 // here — at most one per screen (section-placeholder.tsx); every other surface keeps the muted sparkle.
@@ -100,6 +84,7 @@ import { useFocusOnMount } from "#lib";
 import type { DormantDoorway, HomeTileContribution } from "#state";
 import { HomeDoorway, HomeTile } from "../components/home-tile.tsx";
 import { orderHomeTiles } from "../lib/order-home-tiles.ts";
+import { useBalancedFoot } from "../lib/use-balanced-foot.ts";
 
 export interface HomeSurfaceProps {
   readonly tiles: ContributorRegistry<HomeTileContribution>;
@@ -141,18 +126,26 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
   // block-axis twin is `.scroll-fade-y` (@orb/ui styles/globals.css) and this is its driver. It is
   // SCROLL-AWARE by construction, so a home that fits its pane paints no fade at all.
   useScrollFadeY(surfaceRef);
+  const hearthRef = useRef<HTMLDivElement>(null);
+  const shelfRef = useRef<HTMLDivElement>(null);
+  const footRef = useRef<HTMLDivElement>(null);
+  useBalancedFoot(hearthRef, shelfRef, footRef);
   const list = orderHomeTiles(tiles.list());
   const doorways = list.flatMap(asDoorway);
   const live = list.filter(isLive);
   const masthead = live.filter((tile) => tile.region === "masthead");
-  const hearth = live.filter((tile) => tile.region === "hearth");
+  // A tile with a live `useRegion` is mounted in both columns and renders in the one its hook names.
+  const hearth = live.filter((tile) => tile.region === "hearth" || tile.useRegion !== undefined);
   // The DEFAULT region (`HomeTileContribution.region` documents why): a tile that declares nothing is a
   // data surface and belongs on the shelf, never promoted into the hearth by omission.
-  const shelf = live.filter((tile) => tile.region !== "masthead" && tile.region !== "hearth");
+  const shelf = live.filter((tile) => (tile.region !== "masthead" && tile.region !== "hearth") || tile.useRegion !== undefined);
   // The rail's FOOT — the last shelf tile, which pairs with the doorway group at a wide pane (see the
   // subgrid below). `slice(-1)` rather than `at(-1)` so the empty-shelf arm needs no null branch in JSX.
+  // The tile before it joins the foot too. `useBalancedFoot` stacks the side tile above the pair of the last tile and
+  // the doorway group, or pairs the last tile beside the other two, whichever ends the columns closer.
   const shelfFoot = doorways.length === 0 ? [] : shelf.slice(-1);
-  const shelfLead = doorways.length === 0 ? shelf : shelf.slice(0, -1);
+  const shelfFootSide = doorways.length === 0 ? [] : shelf.slice(-2, -1);
+  const shelfLead = doorways.length === 0 ? shelf : shelf.slice(0, -2);
 
   return (
     // FORM tier (UI-Density-Law.md §3.1): home is a surface you land on and act from, so its islands
@@ -187,11 +180,11 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
           ) : (
             <Stack gap="section">
               {masthead.map((tile) => (
-                <HomeTile key={tile.id} tile={tile} />
+                <HomeTile column="masthead" key={tile.id} tile={tile} />
               ))}
               {/* `items-start` (mock `.room{align-items:start}`): grid's default `stretch` would make the
                   shelf column as tall as the hearth and hang its last block in dead space. */}
-              <Grid className="items-start" cols="leadEven" data-home-grid={true} gap="gutter">
+              <Grid className="items-start" cols="pairWide" data-home-grid={true} gap="gutter">
                 {/* `min-w-0` IS THE SPLIT (side-eye 2026-08-16 P1-1). A grid TRACK CHILD is `min-width:auto`,
                     so each track is floored at its content's min-content width — and the hero's own
                     min-content (a 64px face strip + a headline + a character/age line) is ~743px, which silently
@@ -199,14 +192,14 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                     measured). The shelf paid for it: its face grid dropped from three fixed cells to two and
                     the page grew 1374px against 1177px. The declared ratio only means anything on tracks that
                     are allowed to shrink below their content. */}
-                <Stack className="min-w-0" gap="section">
+                <Stack className="min-w-0" gap="section" ref={hearthRef}>
                   {hearth.map((tile) => (
-                    <HomeTile key={tile.id} tile={tile} />
+                    <HomeTile column="hearth" key={tile.id} tile={tile} />
                   ))}
                 </Stack>
-                <Stack className="min-w-0" data-home-shelf={true} gap="section">
+                <Stack className="group/shelf min-w-0 has-[[data-home-held]]:invisible" data-home-shelf={true} gap="section" ref={shelfRef}>
                   {shelfLead.map((tile) => (
-                    <HomeTile key={tile.id} tile={tile} />
+                    <HomeTile column="shelf" key={tile.id} tile={tile} />
                   ))}
                   {/* THE RAIL'S SECOND BREATH (side-eye 2026-08-16 F3). The `lead` split widens the rail at
                       >=100rem, and that was only half the promise: at a 2000px pane the hearth column
@@ -219,9 +212,16 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                       of the shelf" is the only thing it can say, and it is the same presentation license it
                       already exercises by grouping every doorway under one band. With no doorways to pair
                       against there is nothing to pair and the tail renders in flow. */}
-                  <Grid className="items-start" cols="pairWide" data-home-shelf-foot={true} gap="gutter">
+                  <Grid className="grid-flow-row-dense items-start" cols="pairWide" data-home-shelf-foot={true} gap="gutter" ref={footRef}>
+                    {shelfFootSide.map((tile) => (
+                      <Stack className="col-span-full min-w-0 group-data-[foot=paired]/shelf:col-auto" key={tile.id}>
+                        <HomeTile column="shelf" tile={tile} />
+                      </Stack>
+                    ))}
                     {shelfFoot.map((tile) => (
-                      <HomeTile key={tile.id} tile={tile} />
+                      <Stack className="min-w-0 group-data-[foot=paired]/shelf:row-span-2" key={tile.id}>
+                        <HomeTile column="shelf" tile={tile} />
+                      </Stack>
                     ))}
                     {doorways.length === 0 ? null : (
                       // ONE FOLD over every declared doorway (#455). The `<h2>` WRAPS the trigger rather

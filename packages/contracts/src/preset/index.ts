@@ -2511,8 +2511,8 @@ export const CONFIG_LIFTS: Record<number, (config: Record<string, unknown>) => R
   // v6 → v7: the `databank` marker + its DEFAULT_PROMPT_CONFIG section (issue #80). STAMP-ONLY, the v2→v3
   // precedent: the addition is purely additive to the marker vocabulary, so a stored blob at v6 is already a
   // valid v7 blob and NOTHING of an author's config is rewritten — a user-owned preset survives this lift
-  // byte-identical but for the version stamp. The bump exists for the SEEDER: `ensureSystemDefaultPreset` /
-  // `ensurePackagedPresets` reseed an ownerless row only when its stored version is below the default's, so
+  // byte-identical but for the version stamp. The bump exists for the SEEDER: `ensureSystemDefaultPreset`
+  // reseeds the ownerless row only when its stored version is below the default's, so
   // without it an existing install's built-in preset would keep the slotless arrangement forever. A stored
   // OWNED preset that names no slot is DELIBERATELY left alone — the per-chat Documents warning chip covers
   // those (an imported ST preset is never silently rewritten), the owner's ruled shape for #80.

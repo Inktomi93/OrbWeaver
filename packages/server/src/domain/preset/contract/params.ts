@@ -6,7 +6,6 @@ import type { Principal } from "@orb/contracts/identity";
 import type { CapabilityTarget } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { PresetId, UserId } from "@orb/kit/ids";
-import type { PackagedPresetKey } from "./packaged.ts";
 
 export interface CreatePresetParams {
   readonly userId: UserId;
@@ -59,13 +58,6 @@ export interface UpdatePresetParams {
 export interface RemovePresetParams {
   readonly userId: UserId;
   readonly id: PresetId;
-}
-
-/** Clone a packaged template preset into the caller's library. `key` selects the shipped template; the new
- *  owned copy carries a fresh id (returned in the detail). */
-export interface ClonePackagedParams {
-  readonly userId: UserId;
-  readonly key: PackagedPresetKey;
 }
 
 export interface ResetToDefaultParams {

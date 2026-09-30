@@ -9,8 +9,8 @@ import { databankDocumentsTile } from "@orb/client/features/databank";
 import { buddyDormantTile, HomeSurface, homeRoadmapTiles, makeSectionJumpTile } from "@orb/client/features/home";
 import { rosterPresetHomeTile } from "@orb/client/features/roster-preset";
 import { createContributorRegistry } from "@orb/client/lib";
-import type { HomeTileContribution } from "@orb/client/state";
-import { __readSurfaceBoxForTest, rememberSurfaceBox, useActiveSection } from "@orb/client/state";
+import type { HomeTileContribution, HomeTileRegion } from "@orb/client/state";
+import { __readSurfaceBoxForTest, rememberHomeRegion, rememberSurfaceBox, useActiveSection } from "@orb/client/state";
 import { Button } from "@orb/ui/button";
 import { BrainCircuit, Clock, MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
@@ -134,12 +134,12 @@ export function HomeRegionStory(): ReactElement {
 }
 
 // ── The SPLIT UNDER PRESSURE (#102 review P1-1) ─────────────────────────────────────────────────────
-// The declared 1.55fr/1fr only means anything if the tracks may shrink BELOW their content. A grid track
-// child is `min-width:auto`, so the shipped hearth was floored at the hero's ~743px min-content and
-// rendered 1.92/1 at the 1280px pane — the shelf lost a whole face column and the page grew ~200px. This
-// story reproduces the pressure with a tile whose content simply cannot wrap, which is the general case
+// The declared even split only means anything if the tracks may shrink BELOW their content. A grid track
+// child is `min-width:auto`, so a hearth is floored at its widest unbreakable line. This story reproduces the pressure with a tile whose content simply cannot wrap, which is the general case
 // (a long unbroken title, a wide credit line, a nowrap datum row) rather than one room's cast.
 
+/** A pane past the two-column step (an 80rem container at the default rem, plus the page inset). */
+const SPLIT_PRESSURE_PANE_PX = 1700;
 /** Wider than the hearth track's fair share at the story's mount width, and unbreakable. */
 const WIDE_CONTENT_PX = 900;
 
@@ -164,7 +164,7 @@ const PRESSURE_TILES: readonly HomeTileContribution[] = [
 export function HomeSplitPressureStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ inlineSize: 1160 }}>
+      <div style={{ inlineSize: SPLIT_PRESSURE_PANE_PX }}>
         <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", PRESSURE_TILES)} />
       </div>
     </CtDataProviders>
@@ -400,6 +400,33 @@ export function HomeFoldStory(): ReactElement {
       </CtRealSectionRegistry>
     </CtDataProviders>
   );
+}
+
+/** The shipped home at `inlineSize`, rebooted in place by the `reboot` button: a fresh data layer over the same
+ *  device memory, which is what a return visit is. The device already knows Start with's column, as a return visit's does. */
+export function HomeRebootStory({ inlineSize }: { readonly inlineSize: number }): ReactElement {
+  const [boot, setBoot] = useState(0);
+  return (
+    <>
+      <button type="button" onClick={(): void => setBoot((count) => count + 1)}>
+        reboot
+      </button>
+      <HomeRememberedStarterStory inlineSize={inlineSize} key={boot} region="shelf" />
+    </>
+  );
+}
+
+/** The shipped home at `inlineSize` on a device that last saw "Start with" settle in `region`, or on a device with no
+ *  memory of it when `region` is null. The seed runs before the first child renders, as the store rehydrates first. */
+export function HomeRememberedStarterStory({
+  region,
+  inlineSize = HOME_CONTENT_PX,
+}: {
+  readonly region: HomeTileRegion | null;
+  readonly inlineSize?: number;
+}): ReactElement {
+  useState(() => (region === null ? undefined : rememberHomeRegion(chatQuickPicksTile.id, region)));
+  return <HomeShippedFirstBootStory inlineSize={inlineSize} />;
 }
 
 /** The shipped home on a device that last saw "Other rooms" settle at `alsoOpenBox` px. The seed runs

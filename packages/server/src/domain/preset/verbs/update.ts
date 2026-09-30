@@ -138,7 +138,7 @@ async function mintFork(
  *
  *  The converge arm's guarded INSERT admits only the first owner/source row visible at write time. A racing
  *  loser then loads and patches the winner. This is deliberately verb-scoped admission rather than a UNIQUE
- *  `(owner_id, forked_from)` constraint: `clonePackaged` and the explicit "new" arm both allow siblings. */
+ *  `(owner_id, forked_from)` constraint: the explicit "new" arm allows siblings. */
 async function cowFork(ctx: PresetContext, params: UpdatePresetParams, now: number): Promise<PresetDetail> {
   const base = await readablePreset(ctx.db, params.userId, SYSTEM_DEFAULT_PRESET_ID);
   if (base === undefined) {

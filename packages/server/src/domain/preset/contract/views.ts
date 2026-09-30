@@ -14,12 +14,12 @@ export interface PresetSummary {
   readonly name: string;
   readonly kind: string;
   /** Derived (`id === SYSTEM_DEFAULT_PRESET_ID`): the one shared system-default row. Editing it COWs into a
-   *  fork. Ownerless PACKAGED template rows are NOT flagged here — they never surface in the readable list. */
+   *  fork. Any other ownerless row is NOT flagged here — it never surfaces in the readable list. */
   readonly isSystemDefault: boolean;
   /** Fork lineage (`presets.forked_from`, null = born here): the preset this row was copied from — the
-   *  system default for a copy-on-write fork, a PACKAGED template for a `clonePackaged` copy. The ID only
+   *  system default for a copy-on-write fork, the gifting host's preset for a handoff copy. The ID only
    *  (`ChatSummary.parentChatId`-style); the client resolves the NAME from the rows it already has and
-   *  simply omits the lineage scent when the source is not among them (a packaged template never is). */
+   *  simply omits the lineage scent when the source is not among them. */
   readonly forkedFrom: PresetId | null;
   readonly createdAt: number;
   readonly updatedAt: number;

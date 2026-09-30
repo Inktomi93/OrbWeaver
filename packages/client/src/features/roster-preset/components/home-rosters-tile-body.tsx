@@ -6,7 +6,7 @@ import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { AvatarStack, avatarStackInlineSize } from "@orb/ui/avatar-stack";
 import { Button } from "@orb/ui/button";
 import { Icon, MessagesSquare, Swords } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Grid, Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -53,6 +53,8 @@ function RosterStartRow(props: {
           />
         </Row>
       }
+      // Two-up rows wrap their pitch to two lines; the faces and Start stay on the name's line instead of centring on it.
+      className="items-start"
       // A roster saved from a room has no description; its census and names stand in.
       subtitle={roster.description === "" ? rosterScent(roster) : roster.description}
       subtitleStep="label"
@@ -70,12 +72,13 @@ export function HomeRostersTileBody(): ReactElement {
   const leadingSlots = Math.min(Math.max(1, ...rosters.map((roster) => roster.members.length)), STACK_SLOTS);
   return (
     // The tile frame's heading names the region, so the list stays unnamed.
-    <Stack gap="tight" role="list">
+    // Rows go two-up at Home's two-column step, so the shelf pays half the rows of height beside the hearth.
+    <Grid cols="pairWide" gap="tight" role="list">
       {rosters.map((roster) => (
         <Stack key={roster.id} role="listitem">
           <RosterStartRow busy={start.isPending} leadingSlots={leadingSlots} onStart={start.startRoster} roster={roster} />
         </Stack>
       ))}
-    </Stack>
+    </Grid>
   );
 }

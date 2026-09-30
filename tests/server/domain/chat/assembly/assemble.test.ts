@@ -14,7 +14,6 @@ import { assemblePrompt, assemblePromptWithSlices, previewSection } from "../../
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
 import { shapeContextForSpeaker, speakerCue, voiceContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
 import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
-import { PACKAGED_PRESETS } from "../../../../../packages/server/src/domain/preset/contract/packaged.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 let sectionSeq = 0;
@@ -1669,9 +1668,8 @@ const FULL_CARD: AssembleCharacter = { name: "Aria", description: "DESC", person
 const presetCtx = (over: Partial<AssembleContext> = {}): AssembleContext =>
   ctxOf({ character: FULL_CARD, activePersona: { name: "Alex", description: "PERSONA" }, worldInfoBefore: "LORE-B", worldInfoAfter: "LORE-A", ...over });
 const DEFAULT_SYSTEM_IDS = ["main", "wi-before", "char-desc", "char-pers", "scenario", "persona", "wi-after", "examples"];
-const GM_CONFIG = PACKAGED_PRESETS["rpg-gm"].config;
 
-describe("assemblePrompt — what the static/dynamic split moves on the shipped presets (D251)", () => {
+describe("assemblePrompt — what the static/dynamic split moves on the shipped default preset (D251)", () => {
   test("the default preset with no per-turn content arrives whole in drag order", () => {
     const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, presetCtx());
 
@@ -1679,11 +1677,8 @@ describe("assemblePrompt — what the static/dynamic split moves on the shipped 
     expect(deliveredOrder(out)).toEqual(DEFAULT_SYSTEM_IDS);
   });
 
-  test.each([
-    ["default", DEFAULT_PROMPT_CONFIG],
-    ["rpg-gm", GM_CONFIG],
-  ])("%s: keyword-fired lore leaves its World info anchor for the end of the system block", (_name, config) => {
-    const out = assemblePrompt(config, presetCtx({ worldInfoBeforeDynamic: "FIRED-B", worldInfoAfterDynamic: "FIRED-A" }));
+  test("keyword-fired lore leaves its World info anchor for the end of the system block", () => {
+    const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, presetCtx({ worldInfoBeforeDynamic: "FIRED-B", worldInfoAfterDynamic: "FIRED-A" }));
     const system = [out.static, out.dynamic].join("\n\n");
 
     expect(out.dynamic).toBe("FIRED-B\n\nFIRED-A");
@@ -1706,15 +1701,5 @@ describe("assemblePrompt — what the static/dynamic split moves on the shipped 
     const out = assemblePrompt(gated, presetCtx());
 
     expect(deliveredOrder(out)).toEqual([...DEFAULT_SYSTEM_IDS.filter((id) => id !== "scenario"), "scenario"]);
-  });
-
-  test("the GM preset's per-turn game-state sections classify as the cached static half", () => {
-    const ctx = presetCtx();
-    const halves = ["game-frame", "server-context", "gm-secrets", "continuity", "cast"].map((id) => {
-      const section = GM_CONFIG.sections.find((s) => s.id === id);
-      return section === undefined ? "absent" : previewSection(section, ctx, GM_CONFIG).half;
-    });
-
-    expect(halves).toEqual(["static", "static", "static", "static", "static"]);
   });
 });

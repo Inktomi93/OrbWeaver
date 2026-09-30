@@ -161,18 +161,21 @@ function ReservedFallback({
   );
 }
 
-/** Wraps the SETTLED child and remembers the box it occupies for the next boot. Measured on every
- *  commit, not just mount (the rpg-band precedent): a child that grows in place refreshes its memory,
- *  and `surface-box-store`'s write epsilon swallows sub-pixel churn. It mounts only once the read has
- *  resolved (it is the Suspense child), so the first measurement is already settled geometry. */
+/** Wraps the SETTLED child and remembers the box it occupies for the next boot. A `ResizeObserver` records the
+ *  body's laid-out height, not a passive-effect read: a child that renders twice to settle (a first pass, then a
+ *  layout-effect trim) would otherwise be measured on its first pass. It also refreshes the memory when a child
+ *  grows in place, and `surface-box-store`'s write epsilon swallows sub-pixel churn. */
 function MeasuredSettle({ reserveKey, fill, children }: { readonly reserveKey: string; readonly fill: boolean; readonly children: ReactNode }): ReactElement {
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = bodyRef.current;
-    if (el !== null) {
-      rememberSurfaceBox(reserveKey, el.getBoundingClientRect().height);
+    if (el === null) {
+      return;
     }
-  });
+    const observer = new ResizeObserver(() => rememberSurfaceBox(reserveKey, el.getBoundingClientRect().height));
+    observer.observe(el);
+    return (): void => observer.disconnect();
+  }, [reserveKey]);
   return (
     <Stack className={fill ? "h-full min-h-0 flex-1" : undefined} ref={bodyRef}>
       {children}
