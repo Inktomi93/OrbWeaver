@@ -32,6 +32,7 @@ import type {
   StageDecision,
   StageHealth,
   StageHealthEvidence,
+  StageHolder,
   StageLimits,
   StageRow,
   StageSweepEvidence,
@@ -119,7 +120,7 @@ export function stageSweepVerdict(evidence: StageSweepEvidence, ttlMs: number): 
   if (evidence.row?.dead !== undefined) {
     return "stranded";
   }
-  if (evidence.liveSessions.length > 0) {
+  if (evidence.liveSessions.length > 0 || (evidence.liveHolders ?? []).length > 0) {
     return "live";
   }
   if (evidence.row === null) {
@@ -159,13 +160,14 @@ function viewIsStranded(view: StageBandView, nowMs: number, ttlMs: number): bool
         bandIsStageRooted: view.bandIsStageRooted,
         bandProcessAgeSeconds: null,
         liveSessions: view.liveSessions,
+        liveHolders: view.liveHolders ?? [],
         nowMs,
       },
       ttlMs,
     ) === "stranded" ||
     // The dangling half: the row's band is not bound at all, so there is no process to kill and the row is
     // pure residue. Free by construction — but still a REAP, because the dir and the row must be cleared.
-    (!view.bandBound && view.liveSessions.length === 0)
+    (!view.bandBound && view.liveSessions.length === 0 && (view.liveHolders ?? []).length === 0)
   );
 }
 
@@ -213,12 +215,13 @@ export function allocateStageBand(input: {
   if (liveStages >= input.limits.cap) {
     // At the cap, a lane's own stage at another sha is replaced rather than the lane being refused: one lane
     // holding a ref stage and a dirty stage is what fills the cap. Only a stage nobody else may be driving
-    // qualifies — no live session, its last use was this checkout's (a sibling's one-shot shared-reuse is
-    // not a session), and it has sat idle past the threshold. Everything else keeps the refusal.
+    // qualifies — no live session, no other checkout's live holder, a row whose holders are known, and idle
+    // past the threshold. Everything else keeps the refusal.
     const ownOther = occupied.find(
       (view) =>
         view.row.checkout === input.checkout &&
-        view.row.lastUsedBy === input.checkout &&
+        view.row.holders !== undefined &&
+        foreignHolders(view.liveHolders ?? [], input.checkout).length === 0 &&
         view.liveSessions.length === 0 &&
         stageIdleMs(view.row, input.nowMs) >= OWN_STAGE_REPLACE_IDLE_MS,
     );
@@ -316,8 +319,9 @@ export function stageHealthVerdict(evidence: StageHealthEvidence): StageHealth {
 
 /** The staleness rule: reuse a warm stage ONLY when it is the requested sha, healthy, and not forced fresh;
  *  otherwise rebuild. Pure — the imperative caller supplies `healthy` (lib/stage-bands.ts's three-probe
- *  verdict, `warm`). A rebuild tears the stage down, so when `checkout` is given it is refused while
- *  another checkout's use (or an unattributed one) is younger than {@link OWN_STAGE_REPLACE_IDLE_MS}. */
+ *  verdict, `warm`). A rebuild tears the stage down, so when `checkout` is given it is refused while another
+ *  checkout holds the stage, or while a row with unknown holders was used inside
+ *  {@link OWN_STAGE_REPLACE_IDLE_MS}. */
 export function stageDecision(opts: {
   readonly targetSha: string;
   readonly row: StageRow | null;
@@ -326,26 +330,43 @@ export function stageDecision(opts: {
   readonly auth?: StageAuthMode;
   readonly checkout?: string;
   readonly nowMs?: number;
+  readonly liveHolders?: readonly StageHolder[];
 }): StageDecision {
   const { row } = opts;
   if (row !== null && !opts.fresh && row.sha === opts.targetSha && stageRowAuth(row) === (opts.auth ?? "single-user") && opts.healthy) {
     return "reuse";
   }
-  if (row !== null && opts.checkout !== undefined && opts.nowMs !== undefined && !mayTearDown(row, opts.checkout, opts.nowMs)) {
+  if (row === null || opts.checkout === undefined || opts.nowMs === undefined) {
+    return "rebuild";
+  }
+  if (foreignHolders(opts.liveHolders ?? [], opts.checkout).length > 0) {
     return "refuse";
   }
-  return "rebuild";
+  return row.holders === undefined && stageIdleMs(row, opts.nowMs) < OWN_STAGE_REPLACE_IDLE_MS ? "refuse" : "rebuild";
 }
 
-function mayTearDown(row: StageRow, checkout: string, nowMs: number): boolean {
-  return row.lastUsedBy === checkout || stageIdleMs(row, nowMs) >= OWN_STAGE_REPLACE_IDLE_MS;
+/** The holders still reading the stage: a live pid, or a gone pid whose last stamp is younger than the
+ *  idle threshold. `pidAlive` is the caller's observation, so this stays pure. */
+export function liveHoldersOf(row: StageRow, nowMs: number, pidAlive: (pid: number) => boolean): readonly StageHolder[] {
+  return (row.holders ?? []).filter((holder) => {
+    if (pidAlive(holder.pid)) {
+      return true;
+    }
+    const stamped = Date.parse(holder.stampedAt);
+    return !Number.isNaN(stamped) && nowMs - stamped < OWN_STAGE_REPLACE_IDLE_MS;
+  });
+}
+
+export function foreignHolders(holders: readonly StageHolder[], checkout: string): readonly StageHolder[] {
+  return holders.filter((holder) => holder.checkout !== checkout);
 }
 
 /** The STAGE ERROR a refused rebuild prints: who used the stage, when, and when the rebuild may run. */
-export function stageRebuildRefusal(row: StageRow, nowMs: number): string {
+export function stageRebuildRefusal(row: StageRow, holders: readonly StageHolder[], nowMs: number): string {
+  const who = holders.length === 0 ? "an unknown checkout" : holders.map((holder) => `${holder.checkout} (pid ${String(holder.pid)})`).join(", ");
   return (
-    `stage ${shortSha(row.sha)} on band ${String(row.band)} needs a rebuild, but ${row.lastUsedBy ?? "an unknown checkout"} used it ` +
-    `${describeStageAgePhrase(row.lastUsedAt, nowMs)} and may still be reading it. Nothing was torn down. Retry once it has been idle ` +
+    `stage ${shortSha(row.sha)} on band ${String(row.band)} needs a rebuild, but ${who} may still be reading it (last used ` +
+    `${describeStageAgePhrase(row.lastUsedAt, nowMs)}). Nothing was torn down. Retry once that run ends and the stage has been idle ` +
     `${String(Math.round(OWN_STAGE_REPLACE_IDLE_MS / MS_PER_MINUTE))} min, or stage a different --ref/--dirty.`
   );
 }

@@ -28,10 +28,10 @@ import { stageBandPorts } from "../../../../tooling/src/_shared/ports.ts";
 import type { StageBandsFile, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { BANDS_REL, LEGACY_ACTIVE_REL, STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { stageBindingAlive } from "../../../../tooling/src/snap/ops/stage-census.ts";
+import { holdStageUse } from "../../../../tooling/src/snap/ops/stage-holders.ts";
 import {
   bindSessionToBand,
   clearRow,
-  holdStageUse,
   markStageDead,
   readBands,
   releaseLockDir,
@@ -161,29 +161,77 @@ test("touchRow stamps the heartbeat and disturbs NOTHING else the row says", () 
   expect(readBands(home)).toHaveLength(1);
 });
 
-test("a touch records WHO used the band, and an unattributed touch clears the previous user", () => {
-  const home = scratchHome("touch-by");
-  writeRow(home, row(3, { lastUsedBy: MAIN_CHECKOUT }));
-  // A sibling's shared-reuse is the band's latest use: the owner can no longer claim it sat idle for them.
-  touchRow(home, 3, AGED_ISO, LANE_CHECKOUT);
-  expect(readBands(home)[0]?.lastUsedBy).toBe(LANE_CHECKOUT);
-  touchRow(home, 3, AGED_ISO);
-  expect(readBands(home)[0]?.lastUsedBy).toBeUndefined();
-});
-
-test("a run holding a stage keeps re-stamping its use until it lets go", async () => {
+test("a run holding a stage is listed as a holder while it runs and removed when it lets go", async () => {
   const home = scratchHome("hold");
-  writeRow(home, row(3, { lastUsedAt: AGED_ISO }));
-  const release = holdStageUse(home, 3, LANE_CHECKOUT, 20);
+  const stage = row(3, { lastUsedAt: AGED_ISO, holders: [] });
+  writeRow(home, stage);
+  const release = holdStageUse(home, stage, LANE_CHECKOUT, 20);
   try {
-    await expect.poll(() => readBands(home)[0]?.lastUsedBy).toBe(LANE_CHECKOUT);
-    expect(readBands(home)[0]?.lastUsedAt).not.toBe(AGED_ISO);
+    // Stamped at once, not one interval later: a sibling deciding right now must already see the hold.
+    expect(readBands(home)[0]?.holders).toEqual([expect.objectContaining({ pid: process.pid, checkout: LANE_CHECKOUT })]);
+    const first = readBands(home)[0]?.lastUsedAt;
+    await expect.poll(() => readBands(home)[0]?.lastUsedAt).not.toBe(first);
   } finally {
     release();
   }
-  const stamped = readBands(home)[0]?.lastUsedAt;
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  expect(readBands(home)[0]?.lastUsedAt).toBe(stamped);
+  expect(readBands(home)[0]?.holders).toEqual([]);
+});
+
+test("a holder whose stage was replaced on its band stops, and never stamps the new stage", async () => {
+  const home = scratchHome("hold-replaced");
+  const stage = row(3, { lastUsedAt: AGED_ISO, holders: [] });
+  writeRow(home, stage);
+  const release = holdStageUse(home, stage, MAIN_CHECKOUT, 20);
+  try {
+    // The old stage is torn down and another checkout boots a new one on the same band.
+    clearRow(home, 3);
+    const replacement = row(3, {
+      sha: "a".repeat(40),
+      dir: "/lane/.cache/snap-stage/aaaaaaaaaaaa",
+      checkout: LANE_CHECKOUT,
+      startedAt: AGED_ISO,
+      lastUsedAt: AGED_ISO,
+      holders: [],
+    });
+    writeRow(home, replacement);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(readBands(home)[0]?.holders).toEqual([]);
+    expect(readBands(home)[0]?.lastUsedAt).toBe(AGED_ISO);
+  } finally {
+    release();
+  }
+  expect(readBands(home)[0]?.holders).toEqual([]);
+});
+
+test("the owner's warm touch keeps a sibling's hold on the row", () => {
+  const home = scratchHome("hold-race");
+  const stage = row(3, { checkout: LANE_CHECKOUT, lastUsedAt: AGED_ISO, holders: [] });
+  writeRow(home, stage);
+  const release = holdStageUse(home, stage, MAIN_CHECKOUT, 60_000);
+  try {
+    touchRow(home, 3, new Date(FROZEN_AT_MS + MS_PER_MINUTE).toISOString());
+    expect(readBands(home)[0]?.holders).toEqual([expect.objectContaining({ checkout: MAIN_CHECKOUT, pid: process.pid })]);
+  } finally {
+    release();
+  }
+});
+
+test("a heartbeat that cannot take the table lock is skipped, never thrown into the run", () => {
+  const home = scratchHome("hold-contended");
+  const stage = row(3, { lastUsedAt: AGED_ISO, holders: [] });
+  writeRow(home, stage);
+  const lockDir = join(home, STAGE_ROOT_REL, "bands.lock");
+  mkdirSync(lockDir);
+  writeFileSync(join(lockDir, "pid"), `${process.pid}\n`);
+  let release: (() => void) | null = null;
+  try {
+    expect(() => {
+      release = holdStageUse(home, stage, LANE_CHECKOUT, 60_000);
+    }).not.toThrow();
+  } finally {
+    releaseLockDir(lockDir);
+  }
+  expect(release).not.toBeNull();
 });
 
 test("a row with no owner, or naming a band outside the registry, is DROPPED rather than reasoned about", () => {

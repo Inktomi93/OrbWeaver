@@ -27,7 +27,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runGit } from "../../_shared/git.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../_shared/ports.ts";
 import { pidAlive } from "../../_shared/run-retention.ts";
-import type { StageBandClaim, StageBandsFile, StageDbProvenance, StageKeeper, StageRow } from "../contract/stage.ts";
+import type { StageBandClaim, StageBandsFile, StageDbProvenance, StageHolder, StageKeeper, StageRow } from "../contract/stage.ts";
 import {
   BANDS_REL,
   LEGACY_ACTIVE_REL,
@@ -133,7 +133,7 @@ function readRow(value: unknown): StageRow | null {
     // rather than leaving it undefined: every reader then works on a total shape, and the boot stamp is
     // the honest floor — it can only make such a stage look OLDER.
     lastUsedAt: typeof value["lastUsedAt"] === "string" ? value["lastUsedAt"] : startedAt,
-    ...(typeof value["lastUsedBy"] === "string" ? { lastUsedBy: value["lastUsedBy"] } : {}),
+    ...readHolders(value["holders"]),
     sessions: Array.isArray(value["sessions"]) ? value["sessions"].filter((name): name is string => typeof name === "string") : [],
     dbProvenance: readDbProvenance(value["dbProvenance"]),
     rsyncs: typeof value["rsyncs"] === "number" ? value["rsyncs"] : 0,
@@ -234,33 +234,25 @@ export function clearRow(home: string, band: number): void {
 /** Stamp the heartbeat (#324) without disturbing anything else the row says — called by every
  *  `ensureStage`, every session call bound to the band and every attached sibling run, including a
  *  `shared-reuse` of a SIBLING checkout's stage: a band's liveness is USE, and our use is as good as
- *  theirs. A missing row is a no-op (there is nothing to keep alive). `by` is the checkout whose use this
- *  is; a touch without one leaves the row unattributed, which the cap's own-stage replacement refuses. */
-export function touchRow(home: string, band: number, nowIso: string, by?: string): void {
+ *  theirs. A missing row is a no-op (there is nothing to keep alive). */
+export function touchRow(home: string, band: number, nowIso: string): void {
   withBandsLock(home, () => {
     const row = readRowFor(home, band);
     if (row !== null) {
-      writeRow(home, withLastUse(row, nowIso, by));
+      writeRow(home, { ...row, lastUsedAt: nowIso });
     }
   });
 }
 
-/** Re-stamp this checkout's use of a band every `intervalMs` while a run holds the stage, so its use never
- *  reads older than one interval to a sibling deciding whether it may tear the stage down. The timer is
- *  unref'd: it never keeps a finished run alive. Returns the release. */
-export function holdStageUse(home: string, band: number, by: string, intervalMs: number): () => void {
-  const timer = setInterval(() => {
-    touchRow(home, band, new Date().toISOString(), by);
-  }, intervalMs);
-  timer.unref();
-  return () => {
-    clearInterval(timer);
-  };
-}
-
-function withLastUse(row: StageRow, nowIso: string, by: string | undefined): StageRow {
-  const { lastUsedBy: _previous, ...rest } = row;
-  return { ...rest, lastUsedAt: nowIso, ...(by === undefined ? {} : { lastUsedBy: by }) };
+function readHolders(value: unknown): { readonly holders?: readonly StageHolder[] } {
+  if (!Array.isArray(value)) {
+    return {};
+  }
+  const holders = value.filter(
+    (entry): entry is StageHolder =>
+      isRecord(entry) && Number.isInteger(entry["pid"]) && typeof entry["checkout"] === "string" && typeof entry["stampedAt"] === "string",
+  );
+  return { holders };
 }
 
 /** Record the band's armed idle timer (#1163 arm b). Written by `armStageKeeper` alone, and read by the
@@ -292,8 +284,7 @@ export function bindSessionToBand(home: string, band: number, name: string, nowI
   withBandsLock(home, () => {
     const row = readRowFor(home, band);
     if (row !== null) {
-      // Unattributed until the session's first heartbeat names its owner; the live session fences the row meanwhile.
-      writeRow(home, { ...withLastUse(row, nowIso, undefined), sessions: [...new Set([...row.sessions, name])] });
+      writeRow(home, { ...row, lastUsedAt: nowIso, sessions: [...new Set([...row.sessions, name])] });
     }
   });
 }

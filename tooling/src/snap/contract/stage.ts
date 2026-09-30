@@ -84,6 +84,14 @@ export function stageRowAuth(row: Pick<StageRow, "dir">): StageAuthMode {
   return row.dir.endsWith(LOCAL_STAGE_DIR_SUFFIX) ? "local" : "single-user";
 }
 
+/** One process holding a stage: it re-stamps `stampedAt` on a heartbeat while it runs. A holder is live
+ *  while its pid is alive, or, for a pid that is gone, until its stamp ages past the idle threshold. */
+export interface StageHolder {
+  readonly pid: number;
+  readonly checkout: string;
+  readonly stampedAt: string;
+}
+
 /** A session observed that one half of this stage's port pair disappeared. Kept on the band row so
  *  `--stage-status` and `--stage-sweep` see the same death the session recorded. */
 interface StageDeath {
@@ -112,8 +120,10 @@ export interface StageRow {
    *  the run that booted it, so its liveness cannot be a parent-process check — it is USE. A row nobody has
    *  touched for the stage TTL is a strand that reap-on-acquire or `--stage-sweep` may take. */
   readonly lastUsedAt: string;
-  /** The checkout whose use stamped `lastUsedAt`. Absent means unknown: an older snap rewrote the row. */
-  readonly lastUsedBy?: string;
+  /** The runs holding this stage right now, one per process (`holdStageUse`). A row written by this snap
+   *  always carries the list, even empty; absent means an older snap rewrote the row and its users are
+   *  unknown. Each holder belongs to this row only: a rebuild writes a new row with no holders. */
+  readonly holders?: readonly StageHolder[];
   /** Session names bound to this band. A row with a LIVE session ref is NEVER a strand, whatever its idle
    *  age — a reaper that eats a live stage is worse than no reaper (§3.6). Liveness of each name is the
    *  session registry's answer, not this list's: the list is the claim, the daemon pid is the evidence. */
@@ -236,6 +246,8 @@ export interface StageSweepEvidence {
   /** Names from `row.sessions` whose daemon is ALIVE right now. A non-empty list pins the row `live`
    *  regardless of idle age — the negative control the TTL exists to not violate. */
   readonly liveSessions: readonly string[];
+  /** The row's live holders (`liveHoldersOf`). Any one pins the row `live`: a run is reading the stage. */
+  readonly liveHolders?: readonly StageHolder[];
   readonly nowMs: number;
 }
 
@@ -249,6 +261,8 @@ export interface StageBandView {
   readonly bandIsStageRooted: boolean;
   readonly healthy: boolean;
   readonly liveSessions: readonly string[];
+  /** The row's live holders (`liveHoldersOf`); absent means none were observed. */
+  readonly liveHolders?: readonly StageHolder[];
 }
 
 /** How a checkout may use ONE band, given its row (issue #108, generalized per row by #1276):

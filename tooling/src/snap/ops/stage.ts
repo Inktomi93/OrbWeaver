@@ -73,10 +73,11 @@ import { runGit } from "../../_shared/git.ts";
 import { listeningPids } from "../../_shared/platform.ts";
 import { stageBandPorts } from "../../_shared/ports.ts";
 import { runNicedSync, spawnFullPrioritySync } from "../../_shared/proc.ts";
+import { pidAlive } from "../../_shared/run-retention.ts";
 import { FIXTURE_SEED_CLI_REL, fixtureIdentityEnv } from "../../stack/index.ts";
 import type { EnsureStageOpts, StageAuthMode, StagePaths, StagePorts, StageRow, StageStopVerdict } from "../contract/stage.ts";
 import { stageRowAuth } from "../contract/stage.ts";
-import { stageDecision, stageRebuildRefusal } from "../lib/stage-bands.ts";
+import { foreignHolders, liveHoldersOf, stageDecision, stageRebuildRefusal } from "../lib/stage-bands.ts";
 import {
   DIRTY_STAGE_KEY,
   missingLauncherRefusal,
@@ -198,7 +199,7 @@ function claimRow(claim: {
     ownerPid: null,
     startedAt: nowIso,
     lastUsedAt: nowIso,
-    lastUsedBy: claim.checkout,
+    holders: [],
     sessions: [],
     dbProvenance: null,
     rsyncs: 0,
@@ -229,13 +230,13 @@ function reuseWarmStage(homes: { readonly root: string; readonly home: string },
   if (dirty) {
     print(`[snap-stage] re-syncing working tree → warm dirty stage ${row.dir} (band ${row.band})`);
     syncDirtyTree(root, row.dir);
-    const resynced: StageRow = { ...row, rsyncs: row.rsyncs + 1, lastUsedAt: nowIso, lastUsedBy: root };
+    const resynced: StageRow = { ...row, rsyncs: row.rsyncs + 1, lastUsedAt: nowIso };
     writeRow(home, resynced);
     return resynced;
   }
   print(`[snap-stage] reusing warm stage ${shortSha(row.sha)} on band ${row.band} → ${stageRowBaseUrl(row)}`);
-  touchRow(home, row.band, nowIso, root);
-  return { ...row, lastUsedAt: nowIso, lastUsedBy: root };
+  touchRow(home, row.band, nowIso);
+  return { ...row, lastUsedAt: nowIso };
 }
 
 /** Build the stage on the band the allocator gave us, and write the row that says so. Everything here runs
@@ -293,7 +294,7 @@ function bootOntoBand(input: {
     startedAt: nowIso,
     // Born used: a stage booted this instant is the freshest possible, and the reaper reads THIS field.
     lastUsedAt: nowIso,
-    lastUsedBy: root,
+    holders: [],
     sessions: [],
     dbProvenance,
     rsyncs: dirty ? 1 : 0,
@@ -369,17 +370,18 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
       `[snap-stage] reusing ${allocation.row.checkout}'s warm stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (same commit) → ${stageRowBaseUrl(allocation.row)}`,
     );
     // OUR use keeps THEIR stage alive: the heartbeat measures the band's use, not one checkout's (#324).
-    touchRow(home, allocation.band, nowIso, root);
-    return { row: { ...allocation.row, lastUsedAt: nowIso, lastUsedBy: root }, booted: false };
+    touchRow(home, allocation.band, nowIso);
+    return { row: { ...allocation.row, lastUsedAt: nowIso }, booted: false };
   }
   if (allocation.kind === "ours") {
     const healthy = stageRowHealth(allocation.row, nowMs) === "warm";
-    const decision = stageDecision({ targetSha, row: allocation.row, fresh: opts.fresh, healthy, auth, checkout: root, nowMs });
+    const liveHolders = liveHoldersOf(allocation.row, nowMs, pidAlive);
+    const decision = stageDecision({ targetSha, row: allocation.row, fresh: opts.fresh, healthy, auth, checkout: root, nowMs, liveHolders });
     if (decision === "reuse") {
       return { row: reuseWarmStage({ root, home }, allocation.row, dirty, nowIso), booted: false };
     }
     if (decision === "refuse") {
-      throw new Error(stageRebuildRefusal(allocation.row, nowMs));
+      throw new Error(stageRebuildRefusal(allocation.row, foreignHolders(liveHolders, root), nowMs));
     }
     print(
       `[snap-stage] rebuilding our stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (${rebuildReason(allocation.row, { targetSha, auth, fresh: opts.fresh })})`,
