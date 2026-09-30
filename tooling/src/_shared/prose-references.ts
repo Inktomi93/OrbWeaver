@@ -4,8 +4,23 @@
 // Filesystem-touching, so it sits beside the pure rules in `prose-rules.ts` rather than inside them; the
 // instruction-layer walk and the docs walk are its two importers.
 import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, posix } from "node:path";
+import { GIT_READ_PREFIX, runGit } from "./git.ts";
 import { backtickedRelativePaths, backtickedRepoPaths, markdownLinkTargets } from "./prose-rules.ts";
+
+/** A missing repository path is ignored build output when its first missing segment sits under an existing
+ *  directory and git ignores that segment. A fresh checkout has no build output, so the check cannot see
+ *  it; a typo in any tracked segment above still fails, because that segment is not ignored. */
+function isIgnoredBuildOutput(root: string, path: string): boolean {
+  let existing = posix.dirname(path);
+  let missing = path;
+  while (existing !== "." && !existsSync(join(root, existing))) {
+    missing = existing;
+    existing = posix.dirname(existing);
+  }
+  // Both spellings, because git matches a `dir/` pattern against a path it cannot stat only with the slash.
+  return runGit(root, [...GIT_READ_PREFIX, "check-ignore", "--", missing, `${missing}/`]).status === 0;
+}
 
 /** Every dead link target and dead backticked path (repository or relative) in one file, as `path:line: what` strings. */
 export function referenceProblems(root: string, rel: string, source: string): readonly string[] {
@@ -16,7 +31,7 @@ export function referenceProblems(root: string, rel: string, source: string): re
     }
   }
   for (const { line, path } of backtickedRepoPaths(source)) {
-    if (!existsSync(join(root, path))) {
+    if (!(existsSync(join(root, path)) || isIgnoredBuildOutput(root, path))) {
       problems.push(`${rel}:${line}: path does not exist: ${path}`);
     }
   }

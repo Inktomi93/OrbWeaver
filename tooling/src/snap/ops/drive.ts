@@ -7,7 +7,7 @@ import { print } from "../../_shared/artifacts.ts";
 import { settle } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, DriveFailure } from "../contract/types.ts";
-import { MOUNT_SETTLE_MS, NETWORKIDLE_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
+import { MOUNT_SETTLE_MS, NETWORKIDLE_TIMEOUT_MS, STAGE_WARMUP_MAX_RENAVIGATIONS, STAGE_WARMUP_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
 import { READ_FAILURE_SURFACE_JS } from "../lib/failure-surface.ts";
 import { markStageBootDead } from "../lib/stage-run-binding.ts";
 import { driveBudgets } from "../lib/throttle.ts";
@@ -67,14 +67,14 @@ async function appReadiness(page: Page, timeoutMs: number): Promise<AppReadiness
 /** Why a non-settled readiness voids the capture — one line per arm, mapped exhaustively so a new arm
  *  cannot be added without its reason. NONE of them tells a STAGE reader to re-run: on `--isolated` the
  *  warm-up navigation has already been paid inside this run (`readinessWithColdStageWarmup`), so reaching
- *  any of these lines there means the SECOND, warm navigation failed too. */
+ *  any of these lines there means the warm re-navigations failed too. */
 const UNSETTLED_REASON: Record<Exclude<AppReadiness, "settled">, string> = {
   absent:
     "app never signalled data-app-ready — the capture is MID-HYDRATION, not the settled app. On `--isolated` the cold-stage warm-up navigation has ALREADY been retried inside this run (#1142), so reaching this line there means the stage's app does not mount at all: read the stage's stack log (preserved into this run's slot) rather than re-running. Elsewhere (the dev stack, `--base`) this is the app itself failing to mount.",
   degraded:
-    "data-app-ready came up DEGRADED — reads were still in flight at the client's own readiness ceiling, so the capture is mid-hydration, not the settled app. On `--isolated` the warm-up navigation has ALREADY been retried inside this run (#1837), so reaching this line there is a stage whose SECOND, warm navigation still could not settle: read the stage's stack log (preserved into this run's slot) rather than re-running.",
+    "data-app-ready came up DEGRADED — reads were still in flight at the client's own readiness ceiling, so the capture is mid-hydration, not the settled app. On `--isolated` the warm-up navigation has ALREADY been retried inside this run, so reaching this line there is a stage whose warm re-navigations still could not settle: read the stage's stack log (preserved into this run's slot) rather than re-running.",
   dataless:
-    "data-app-ready came up settled but the query cache is EMPTY — the app never reached its data layer, so this capture is a boot placeholder (the router's pending glyph), not the app. On `--isolated` the warm-up navigation has ALREADY been retried inside this run (#1837), so reaching this line there is a stage whose SECOND, warm navigation still served the placeholder: read the stage's stack log (preserved into this run's slot) rather than re-running.",
+    "data-app-ready came up settled but the query cache is EMPTY — the app never reached its data layer, so this capture is a boot placeholder (the router's pending glyph), not the app. On `--isolated` the warm-up navigation has ALREADY been retried inside this run, so reaching this line there is a stage whose warm re-navigations still served the placeholder: read the stage's stack log (preserved into this run's slot) rather than re-running.",
   notFound:
     'NOT-FOUND — the app rendered its own not-found boundary (data-app-failure="not-found") for this route. This is the app resolving cleanly and saying the route does not exist; it is NOT a boot failure, an empty query cache is expected here, and re-navigating (isolated or not) will not change the verdict. Check the route against the section vocabulary (packages/client/src/state/section-ids.ts SECTION_IDS), or drive client-state navigation instead of a URL with --goto <section>/--goto config:<group>.',
 };
@@ -102,29 +102,41 @@ const UNSETTLED_REASON: Record<Exclude<AppReadiness, "settled">, string> = {
  *  stamps `data-app-ready="degraded"` ONE-SHOT (packages/client/src/lib/app-ready-signal.ts), which is well
  *  inside snap's 60 s STAGE_READY budget — so on a cold stage the wait ALWAYS returns early carrying
  *  `degraded` and the 60 s budget is structurally unreachable. A fresh document gets a fresh one-shot signal,
- *  which is why the re-navigation settles: the same stage, re-run warm, came back `nav=OK` in 8 s. */
+ *  which is why the re-navigation settles: the same stage, re-run warm, came back `nav=OK` in 8 s.
+ *
+ *  One re-navigation is still a fixed ceiling: on a loaded box the stage's vite re-optimizes and reloads
+ *  under the page, so two documents in a row can each hit the client's ceiling while the server is healthy.
+ *  The stage therefore re-navigates until the app signals a real settle, inside a load-scaled window and a
+ *  bounded count; only a stage still unsettled when both run out is marked BOOT-DEAD. */
 async function readinessWithColdStageWarmup(
   page: Page,
   opts: Args,
   url: string,
   budgets: { readonly nav: number; readonly ready: number },
 ): Promise<{ readonly readiness: AppReadiness; readonly httpError: string | null }> {
-  const first = await appReadiness(page, budgets.ready);
-  // NOT-FOUND IS NOT COLD VITE (#1837 misdiagnosis). It is a deterministic render off a real route
-  // resolution, not a placeholder the warm-up pass could ever fix — retrying re-renders the same
-  // not-found boundary and would then mark a perfectly healthy stage BOOT-DEAD for it.
-  if (first === "settled" || first === "notFound" || !opts.isolated) {
-    return { readiness: first, httpError: null };
+  const deadline = Date.now() + STAGE_WARMUP_TIMEOUT_MS;
+  let readiness = await appReadiness(page, budgets.ready);
+  // NOT-FOUND IS NOT COLD VITE. It is a deterministic render off a real route resolution, not a placeholder
+  // the warm-up pass could ever fix — retrying re-renders the same not-found boundary and would then mark a
+  // perfectly healthy stage BOOT-DEAD for it.
+  if (readiness === "settled" || readiness === "notFound" || !opts.isolated) {
+    return { readiness, httpError: null };
   }
-  print(`[snap-stage] the stage's first navigation came back ${first} (cold vite); re-navigating once before judging`);
-  const retry = await page.goto(url, { waitUntil: "domcontentloaded", timeout: budgets.nav });
-  const httpError = retry !== null && !retry.ok() ? `HTTP ${String(retry.status())}` : null;
-  const readiness = await appReadiness(page, budgets.ready);
-  if (readiness !== "settled" && readiness !== "notFound") {
-    // A stage whose WARM navigation still cannot settle never served an app, so it is not the warm asset
-    // #324 protects — it is a corpse holding a band and a process group (`lib/stage-run-binding.ts`).
-    markStageBootDead(`the stage's warm-up re-navigation came back ${readiness}`);
+  let httpError: string | null = null;
+  for (let attempt = 1; attempt <= STAGE_WARMUP_MAX_RENAVIGATIONS && Date.now() < deadline; attempt += 1) {
+    print(
+      `[snap-stage] the stage's navigation came back ${readiness} (cold vite); re-navigating (${String(attempt)}/${String(STAGE_WARMUP_MAX_RENAVIGATIONS)})`,
+    );
+    const retry = await page.goto(url, { waitUntil: "domcontentloaded", timeout: budgets.nav });
+    httpError = retry !== null && !retry.ok() ? `HTTP ${String(retry.status())}` : null;
+    readiness = await appReadiness(page, budgets.ready);
+    if (readiness === "settled" || readiness === "notFound") {
+      return { readiness, httpError };
+    }
   }
+  // A stage whose warm-up still cannot settle never served an app, so it is not a warm asset worth keeping;
+  // it is a corpse holding a band and a process group (`lib/stage-run-binding.ts`).
+  markStageBootDead(`the stage's warm-up re-navigations still came back ${readiness}`);
   return { readiness, httpError };
 }
 

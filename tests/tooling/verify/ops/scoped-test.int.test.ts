@@ -128,6 +128,27 @@ test("a CT run refuses (exit 2) while another test:ct holds this worktree", { ti
   }
 });
 
+// A run that never launched a browser measured nothing: an absent pinned browser is a tool error naming the
+// missing executable, not N failed tests. The empty browsers root stands in for an unprovisioned box.
+const BROWSERS_PATH_ENV = "PLAYWRIGHT_BROWSERS_PATH";
+
+test("a CT run with the pinned browser absent exits 2 and names the missing executable", { timeout: COLLECT_TIMEOUT_MS }, async ({
+  runCli,
+  plantedTree,
+  scratch,
+}) => {
+  const root = await plantedTree({ [REAL_CT_A]: "export {};\n" });
+  const res = await runCli("verify", ["scoped-test", "ct", REAL_CT_A, "--workers=2"], {
+    cwd: root,
+    env: { [BROWSERS_PATH_ENV]: scratch },
+    timeoutMs: COLLECT_TIMEOUT_MS,
+  });
+  await expect(res).toExitWith(2);
+  expect(res.stderr).toContain("TOOL ERROR   the CT browser is not installed");
+  expect(res.stderr, "the line names the executable Playwright looked for").toContain(scratch);
+  expect(res.stdout, "nothing was built and nothing ran").not.toContain("CT SUMMARY");
+});
+
 test("an unknown runner name is misuse, and the refusal names the real ones", { timeout: REFUSAL_TIMEOUT_MS }, async ({ runCli }) => {
   const res = await runCli("verify", ["scoped-test", "vitest", REAL_A], { timeoutMs: REFUSAL_TIMEOUT_MS });
   await expect(res).toExitWith(3);

@@ -12,9 +12,12 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { chromium, devices } from "@playwright/test";
 import { MOBILE_DEVICE } from "../../../../tooling/src/_shared/browser-environment.ts";
+import { STAGE_WARMUP_MAX_RENAVIGATIONS } from "../../../../tooling/src/snap/lib/budgets.ts";
+import { __resetStageRunBinding, registerStageRunBinding, takeBootDeadStage } from "../../../../tooling/src/snap/lib/stage-run-binding.ts";
 import { navigate } from "../../../../tooling/src/snap/ops/drive.ts";
 import { driveActions } from "../../../../tooling/src/snap/ops/drive-actions.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -129,17 +132,61 @@ test("an --isolated run pays the warm-up navigation for a DEGRADED first readine
   }
 });
 
-// @instrument-absence-proof: the retry is ONE, and a stage that still cannot settle refuses LOUDLY. A third
-// navigation would be the same under-instruction #1142 was minted to kill, one hop further out.
-test("a stage whose warm navigation is still degraded refuses after exactly one retry", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+/** Bind this process to a stage it booted, so the drive's BOOT-DEAD latch is live, exactly as `ensureStage` does. */
+function bindBootedStage(): void {
+  __resetStageRunBinding();
+  const at = new Date(FROZEN_AT_MS).toISOString();
+  registerStageRunBinding({
+    home: "/planted/home",
+    booted: true,
+    row: {
+      band: 9,
+      sha: "dirty",
+      dir: "/planted/stage",
+      serverPort: 1,
+      vitePort: 2,
+      checkout: "/planted",
+      ownerPid: null,
+      startedAt: at,
+      lastUsedAt: at,
+      sessions: [],
+      dbProvenance: null,
+      rsyncs: 0,
+    },
+  });
+}
+
+// @instrument-proof: under load a healthy stage's vite re-optimizes and reloads under the page, so two
+// documents in a row hit the client's fixed readiness ceiling. One retry reaped that stage as BOOT-DEAD.
+test("a stage still degraded on its first retry keeps warming until the app settles, and is not reaped", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const server = await degradedThenWarmServer(2);
+  bindBootedStage();
+  try {
+    const navError = await driveOnce(["/", "--isolated"], server.base);
+
+    expect(navError, "the third document settled, so this run has a verdict").toBeNull();
+    expect(server.documents()).toBe(3);
+    expect(takeBootDeadStage(), "a stage that settled inside its warm-up is healthy").toBeNull();
+  } finally {
+    __resetStageRunBinding();
+    await server.close();
+  }
+});
+
+// @instrument-absence-proof: the warm-up is bounded, and a stage that never settles still refuses LOUDLY
+// and is latched BOOT-DEAD so the run tears it down.
+test("a stage that never settles refuses after its bounded warm-up and is marked BOOT-DEAD", { timeout: BROWSER_TIMEOUT_MS }, async () => {
   const server = await degradedThenWarmServer(Number.MAX_SAFE_INTEGER);
+  bindBootedStage();
   try {
     const navError = await driveOnce(["/", "--isolated"], server.base);
 
     expect(navError, "a stage that never settles is a finding, stated as one").toContain("data-app-ready came up DEGRADED");
     expect(navError, "and the refusal must not send the reader back for a re-run the code already paid").not.toContain("re-run against the now-warm stage");
-    expect(server.documents(), "one warm-up, never two").toBe(2);
+    expect(server.documents(), "the first navigation plus the bounded re-navigations, never more").toBe(1 + STAGE_WARMUP_MAX_RENAVIGATIONS);
+    expect(takeBootDeadStage()?.reason).toContain("degraded");
   } finally {
+    __resetStageRunBinding();
     await server.close();
   }
 });

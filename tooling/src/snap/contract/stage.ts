@@ -32,6 +32,8 @@ export interface StageStopDeps {
   readonly groupOf: (pid: number) => number | null;
   readonly signalGroup: (target: number, signal: NodeJS.Signals) => void;
   readonly wait: (ms: number) => void;
+  /** Run a staged tree's launcher verb in `cwd`, with `env` layered over the ambient environment. */
+  readonly runLauncher: (spawn: StageLauncherSpawn, opts: { readonly cwd: string; readonly env: Readonly<Record<string, string>> }) => void;
 }
 
 /** How a staged tree is booted and stopped: its own stack cli under node, or an older ref's shell launcher. */

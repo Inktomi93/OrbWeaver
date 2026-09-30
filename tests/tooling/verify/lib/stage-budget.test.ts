@@ -57,6 +57,13 @@ test("the vitest half is its own stage, and the composite that hid both cannot r
   expect(composite.tiers, "manual ONLY — the runner runs the halves").toEqual(["manual"]);
 });
 
+test("a CT run's tool error stays a tool error through both stages that run it; failed tests stay violations", () => {
+  for (const name of ["browser:ct", "tests:product-composite"]) {
+    expect(stage(name).classify(2), `${name}: a run with no browser measured nothing`).toBe(2);
+    expect(stage(name).classify(1), `${name}: a real CT failure`).toBe(1);
+  }
+});
+
 test("no two GATING stages invoke the same script — a split that double-runs is the failure mode", () => {
   const invocations = REGISTRY.filter((row) => !row.tiers.includes("manual"))
     .map((row) => row.argv.join(" "))
