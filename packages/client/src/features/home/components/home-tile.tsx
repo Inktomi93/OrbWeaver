@@ -66,7 +66,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows } from "#data";
-import type { DormantDoorway, HomeTileContribution } from "#state";
+import type { DormantDoorway, HomeTileContribution, HomeTileRegion } from "#state";
 
 /** The frame's fallback row count for a tile that declares no `skeletonRows` — what shipped before. */
 const TILE_SKELETON_ROWS = 3;
@@ -188,11 +188,14 @@ function TileContent({ tile, title }: { readonly tile: HomeTileContribution; rea
   );
 }
 
-export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): ReactNode {
+/** `column` is the region this mount stands in. A tile with a live `useRegion` is mounted in every column it
+ *  can reach and renders only in the one its hook names, so the hook stays a top-level call. */
+export function HomeTile({ tile, column }: { readonly tile: HomeTileContribution; readonly column: HomeTileRegion }): ReactNode {
   const visible = tile.useVisible?.() ?? true;
   const title = tile.useTitle?.() ?? tile.title;
+  const region = tile.useRegion?.() ?? tile.region ?? "shelf";
   const headingId = useId();
-  if (!visible) {
+  if (!visible || region !== column) {
     return null;
   }
   // NO DOORWAY ARM HERE (review 2026-08-17 F7). The frame used to re-check `tile.body` for the `{dormant}`
@@ -203,7 +206,7 @@ export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): Rea
   // (home-surface.tsx), which is what makes that provable rather than hopeful.
   // The MASTHEAD is bandless and landmark-less by design (see the header): its body renders the page's
   // own h1, which no wrapper can name better than itself.
-  if (tile.region === "masthead") {
+  if (region === "masthead") {
     return (
       <Stack data-home-tile={tile.id} gap="row">
         <TileContent tile={tile} title={title} />

@@ -132,14 +132,6 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     endsWhen: "the migration/heal is retired, the writer provenance changes, or all writers adopt one write shape.",
   },
   {
-    id: "json-column-write-parity:preset-packaged-reseed",
-    policyId: "json-column-write-parity",
-    subject: "packages/server/src/domain/preset/persistence/queries.ts#reseedPackagedPreset",
-    operation: "versioned-config-replace",
-    why: "This explicit repair or packaged reseed writes caller-owned current-schema content rather than a degraded read of the row it replaces; refusing it would remove the recovery door.",
-    endsWhen: "the function begins writing content derived from a read of the stored row, gains a dominating refusal guard, moves, or is removed.",
-  },
-  {
     id: "json-column-write-parity:preset-replace",
     policyId: "json-column-write-parity",
     subject: "packages/server/src/domain/preset/persistence/queries.ts#replacePresetConfig",

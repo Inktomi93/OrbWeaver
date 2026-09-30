@@ -1,6 +1,6 @@
 // The row → view mappers (pure). Pins the two load-bearing read-seam behaviors:
 //   1. `isSystemDefault` is derived from the sentinel id (`id === SYSTEM_DEFAULT_PRESET_ID`), NOT
-//      `ownerId IS NULL` — ownerless PACKAGED template rows are also un-owned but are NOT the default.
+//      `ownerId IS NULL` — any other ownerless row is NOT the default.
 //   2. the LENIENT config parse: a garbage `params` blob is bounded to `{}` WITHOUT
 //      degrading the whole config — the user's `sections` survive. (If `.catch({})` were dropped, the whole
 //      preset would collapse to DEFAULT_PROMPT_CONFIG and the sections would be lost.)
@@ -42,7 +42,7 @@ describe("toPresetSummary", () => {
     expect(toPresetSummary(row({ id: SYSTEM_DEFAULT_PRESET_ID, ownerId: null })).isSystemDefault).toBe(true);
   });
 
-  test("an ownerless NON-sentinel row (a packaged template) is NOT the system default", () => {
+  test("an ownerless NON-sentinel row is NOT the system default", () => {
     expect(toPresetSummary(row({ id: castId<PresetId>("preset_000000000000000000000rpggm"), ownerId: null })).isSystemDefault).toBe(false);
   });
 

@@ -208,9 +208,9 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
 
           <form.Subscribe selector={(state): boolean => asksSignup(state.values)}>
             {(signup): ReactElement => (
-              // Stacks below two usable columns, so at a phone width the Expires trigger cannot squeeze Max uses
-              // out of room for its value.
-              <Grid cols="auto" gap="field">
+              // Two short controls: they share a row down to a cell's width each and stack below it, so at a
+              // phone width the Expires trigger cannot squeeze Max uses out of room for its value.
+              <Grid cols="cell" gap="field">
                 <form.AppField name="expiry" listeners={{ onChange: clearBoundsNotice }}>
                   {(field): ReactElement => <field.SelectField label="Expires" items={inviteExpiryItems(signup)} />}
                 </form.AppField>

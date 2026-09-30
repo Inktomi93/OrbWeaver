@@ -145,10 +145,11 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
   const doorways = list.flatMap(asDoorway);
   const live = list.filter(isLive);
   const masthead = live.filter((tile) => tile.region === "masthead");
-  const hearth = live.filter((tile) => tile.region === "hearth");
+  // A tile with a live `useRegion` is mounted in both columns and renders in the one its hook names.
+  const hearth = live.filter((tile) => tile.region === "hearth" || tile.useRegion !== undefined);
   // The DEFAULT region (`HomeTileContribution.region` documents why): a tile that declares nothing is a
   // data surface and belongs on the shelf, never promoted into the hearth by omission.
-  const shelf = live.filter((tile) => tile.region !== "masthead" && tile.region !== "hearth");
+  const shelf = live.filter((tile) => (tile.region !== "masthead" && tile.region !== "hearth") || tile.useRegion !== undefined);
   // The rail's FOOT — the last shelf tile, which pairs with the doorway group at a wide pane (see the
   // subgrid below). `slice(-1)` rather than `at(-1)` so the empty-shelf arm needs no null branch in JSX.
   const shelfFoot = doorways.length === 0 ? [] : shelf.slice(-1);
@@ -187,7 +188,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
           ) : (
             <Stack gap="section">
               {masthead.map((tile) => (
-                <HomeTile key={tile.id} tile={tile} />
+                <HomeTile column="masthead" key={tile.id} tile={tile} />
               ))}
               {/* `items-start` (mock `.room{align-items:start}`): grid's default `stretch` would make the
                   shelf column as tall as the hearth and hang its last block in dead space. */}
@@ -201,12 +202,12 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                     are allowed to shrink below their content. */}
                 <Stack className="min-w-0" gap="section">
                   {hearth.map((tile) => (
-                    <HomeTile key={tile.id} tile={tile} />
+                    <HomeTile column="hearth" key={tile.id} tile={tile} />
                   ))}
                 </Stack>
                 <Stack className="min-w-0" data-home-shelf={true} gap="section">
                   {shelfLead.map((tile) => (
-                    <HomeTile key={tile.id} tile={tile} />
+                    <HomeTile column="shelf" key={tile.id} tile={tile} />
                   ))}
                   {/* THE RAIL'S SECOND BREATH (side-eye 2026-08-16 F3). The `lead` split widens the rail at
                       >=100rem, and that was only half the promise: at a 2000px pane the hearth column
@@ -221,7 +222,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                       against there is nothing to pair and the tail renders in flow. */}
                   <Grid className="items-start" cols="pairWide" data-home-shelf-foot={true} gap="gutter">
                     {shelfFoot.map((tile) => (
-                      <HomeTile key={tile.id} tile={tile} />
+                      <HomeTile column="shelf" key={tile.id} tile={tile} />
                     ))}
                     {doorways.length === 0 ? null : (
                       // ONE FOLD over every declared doorway (#455). The `<h2>` WRAPS the trigger rather

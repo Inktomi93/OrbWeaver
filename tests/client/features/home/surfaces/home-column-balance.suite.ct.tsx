@@ -41,7 +41,10 @@
 // fork on #226, with the three rejected structural arms (invert the split · drop `pairWide`'s step ·
 // collapse to one column below ~1400px) costed there.
 
+import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { SEED_MANIFEST } from "@orb/default-content";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
@@ -67,6 +70,36 @@ const BANK = {
   totalCount: 4,
 };
 const HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 4, stalled: 0 }, chunks: 48, passages: 48, total: 4 };
+const EMPTY_BANK = { items: [], nextCursor: null, totalCount: 0 };
+const EMPTY_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, total: 0 };
+
+/** The roster library every new account is seeded with, so the Rosters tile renders the rows a real house shows.
+ *  An empty library drops the tile and hides the height it adds to its column. */
+const SEEDED_ROSTERS: readonly RosterPresetSummary[] = SEED_MANIFEST.flatMap((item) =>
+  item.kind === "rosterPreset"
+    ? [
+        {
+          id: mintTypeId(ID_PREFIX.rosterPreset),
+          name: item.name,
+          description: item.description,
+          characterCount: item.characters.length,
+          members: item.characters.map((handle, position) => ({
+            characterId: mintTypeId(ID_PREFIX.character),
+            position,
+            talkativeness: null,
+            disabled: false,
+            name: handle,
+            avatarHash: null,
+          })),
+          anchorPersonaId: null,
+          hasGroupConfig: false,
+          game: item.startsGame ? { ruleset: "d20" as const } : null,
+          rules: [],
+          updatedAt: 1,
+        },
+      ]
+    : [],
+);
 
 /** The desktop shell's rail eats this much of the viewport before home's pane starts (`--dimension-rail`);
  *  home declares BOTH panels unavailable, so the rail is the whole chrome and pane = viewport − rail. */
@@ -229,19 +262,74 @@ async function setState(page: Page, width: number, arm: (typeof ARMS)[number]): 
   );
 }
 
-test("#226 the shelf stops deciding the page's height — level columns wherever it can reflow, never worse anywhere", async ({ mount, page }) => {
+interface House {
+  readonly rooms: typeof ROOMS;
+  readonly bank: typeof BANK;
+  readonly health: typeof HEALTH;
+  readonly rosters: readonly RosterPresetSummary[];
+}
+
+async function routeHouse(page: Page, house: House): Promise<void> {
   await page.setViewportSize({ width: 2560, height: 1000 });
   await stubDatabank(page, {
-    "chat.listChats": chatListResponder(ROOMS),
+    "chat.listChats": chatListResponder(house.rooms),
     "chat.getChat": CHAT_ROOM_ROUTES["chat.getChat"],
     "chat.reapTemporaryChats": { reaped: 0 },
     "character.list": characterListResponder(FACES),
-    "databank.bankHealth": HEALTH,
-    "databank.list": BANK,
-    // The baselines below were measured without the Rosters tile; an empty library keeps it off this matrix.
-    "rosterPreset.list": [],
+    "databank.bankHealth": house.health,
+    "databank.list": house.bank,
+    "rosterPreset.list": [...house.rosters],
+    "automation.listRulePresets": [],
     "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_balance" },
   });
+}
+
+/** Drives the mounted page through every matrix cell. Each cell mutates the same live page, so each state
+ *  settles before the next is probed. */
+async function measureMatrix(page: Page): Promise<Cell[]> {
+  const cells: Cell[] = [];
+  for (const { width, arm } of CELLS) {
+    await setState(page, width, arm);
+    cells.push({ width, arm, metrics: await measure(page) });
+  }
+  return cells;
+}
+
+/** The whole matrix, one row per cell — printed on pass as well as fail, as the before/after table. */
+function printMatrix(title: string, cells: readonly Cell[], baseline: Readonly<Record<string, number>>): void {
+  const rows = cells.map(({ width, arm, metrics }) => {
+    const short = metrics.hearth.contentBottom < metrics.shelf.contentBottom ? "hearth" : "shelf";
+    return `${String(width)}\t${arm.name}\thearth=${metrics.hearth.contentBottom.toFixed(0)}\tshelf=${metrics.shelf.contentBottom.toFixed(0)}\tvoid=${metrics.void.toFixed(0)}\tshort=${short}\tairGap=${metrics.airGap.toFixed(0)}\tfootTracks=${String(metrics.footTracks)}\twas=${String(baseline[`${String(width)}/${arm.name}`] ?? 0)}\thearthBlocks=[${metrics.hearth.blocks}]\tshelfBlocks=[${metrics.shelf.blocks}]`;
+  });
+  console.info(`\n${title}\n${rows.join("\n")}\n`);
+}
+
+/** The fence per cell. `closedRegime` asks for level columns wherever the shelf can reflow; the never-regress
+ *  row and the air-gap bound hold everywhere. */
+function balanceFailures(cells: readonly Cell[], baseline: Readonly<Record<string, number>>, closedRegime: boolean): string[] {
+  return cells.flatMap(({ width, arm, metrics }) => {
+    const state = `${String(width)}/${arm.name}`;
+    const was = baseline[state] ?? 0;
+    return [
+      // THE CLOSED REGIME — the pane cleared the footnote pair's step in this arm's own rem, so the shelf
+      // has the width to answer the hearth. Here the columns must actually end level.
+      ...(closedRegime && metrics.footTracks === 2 && metrics.void > VOID_BUDGET_PX
+        ? [`${state}: the shelf can reflow here and still ends ${metrics.void.toFixed(0)}px off (budget ${String(VOID_BUDGET_PX)})`]
+        : []),
+      // NEVER REGRESS — stated over every state, including the narrow panes the fix cannot close. This is
+      // what stops a future "improvement" from paying for a wide pane with a worse narrow one.
+      ...(metrics.void > was + BASELINE_TOLERANCE_PX ? [`${state}: void ${metrics.void.toFixed(0)}px is WORSE than the recorded ${String(was)}px`] : []),
+      ...(metrics.airGap > AIR_GAP_BUDGET_PX
+        ? [`${state}: a ${metrics.airGap.toFixed(0)}px gap opened between two blocks (budget ${String(AIR_GAP_BUDGET_PX)})`]
+        : []),
+    ];
+  });
+}
+
+// The shelf's reflow mechanism, measured on an empty roster library: the Rosters tile is the one block whose
+// height does not reflow with the pane, so this is the house the closed-regime fence can hold.
+test("#226 the shelf stops deciding the page's height — level columns wherever it can reflow, never worse anywhere", async ({ mount, page }) => {
+  await routeHouse(page, { rooms: ROOMS, bank: BANK, health: HEALTH, rosters: [] });
 
   const home = await mount(<HomeBalanceStory />);
   // SETTLED, never "not busy": barrier on rendered content from every tile that reads, so the matrix
@@ -253,37 +341,78 @@ test("#226 the shelf stops deciding the page's height — level columns wherever
   await expect(grid.getByText("Doc 0", { exact: true })).toBeVisible();
   await expect(grid.locator("[aria-busy]")).toHaveCount(0);
 
-  // Every cell mutates the same live page, so each state must settle before the next is probed.
-  const cells: Cell[] = [];
-  for (const { width, arm } of CELLS) {
-    await setState(page, width, arm);
-    cells.push({ width, arm, metrics: await measure(page) });
-  }
+  const cells = await measureMatrix(page);
+  const failures = balanceFailures(cells, BASELINE_VOID_PX, true);
+  printMatrix("#226 home column balance — full house, empty roster library", cells, BASELINE_VOID_PX);
+  expect(failures, failures.join("\n")).toEqual([]);
+});
 
-  const matrix = cells.map(({ width, arm, metrics }) => {
-    const short = metrics.hearth.contentBottom < metrics.shelf.contentBottom ? "hearth" : "shelf";
-    return `${String(width)}\t${arm.name}\thearth=${metrics.hearth.contentBottom.toFixed(0)}\tshelf=${metrics.shelf.contentBottom.toFixed(0)}\tvoid=${metrics.void.toFixed(0)}\tshort=${short}\tairGap=${metrics.airGap.toFixed(0)}\tfootTracks=${String(metrics.footTracks)}\twas=${String(BASELINE_VOID_PX[`${String(width)}/${arm.name}`] ?? 0)}\thearthBlocks=[${metrics.hearth.blocks}]\tshelfBlocks=[${metrics.shelf.blocks}]`;
-  });
-  const failures = cells.flatMap(({ width, arm, metrics }) => {
-    const state = `${String(width)}/${arm.name}`;
-    const baseline = BASELINE_VOID_PX[state] ?? 0;
-    return [
-      // THE CLOSED REGIME — the pane cleared the footnote pair's step in this arm's own rem, so the shelf
-      // has the width to answer the hearth. Here the columns must actually end level.
-      ...(metrics.footTracks === 2 && metrics.void > VOID_BUDGET_PX
-        ? [`${state}: the shelf can reflow here and still ends ${metrics.void.toFixed(0)}px off (budget ${String(VOID_BUDGET_PX)})`]
-        : []),
-      // NEVER REGRESS — stated over every state, including the narrow panes the fix cannot close. This is
-      // what stops a future "improvement" from paying for a wide pane with a worse narrow one.
-      ...(metrics.void > baseline + BASELINE_TOLERANCE_PX
-        ? [`${state}: void ${metrics.void.toFixed(0)}px is WORSE than the pre-fix tree's ${String(baseline)}px`]
-        : []),
-      ...(metrics.airGap > AIR_GAP_BUDGET_PX
-        ? [`${state}: a ${metrics.airGap.toFixed(0)}px gap opened between two blocks (budget ${String(AIR_GAP_BUDGET_PX)})`]
-        : []),
-    ];
-  });
-  // The whole matrix is printed on PASS as well as fail — it is the issue's before/after table.
-  console.info(`\n#226 home column balance\n${matrix.join("\n")}\n`);
+/** The full house with the seeded roster library, measured at the tree that first measured it. The Rosters tile
+ *  sits on the shelf, which is already the taller column, and a populated house moves no tile, so the shelf ends
+ *  this far below the hearth at every cell. Recorded so it cannot grow; closing it is an open owner fork. */
+const FULL_HOUSE_ROSTERS_VOID_PX: Readonly<Record<string, number>> = {
+  "1280/defaults": 550,
+  "1280/reading": 970,
+  "1280/compact": 506,
+  "1440/defaults": 550,
+  "1440/reading": 950,
+  "1440/compact": 506,
+  "1920/defaults": 262,
+  "1920/reading": 669,
+  "1920/compact": 272,
+  "2560/defaults": 284,
+  "2560/reading": 356,
+  "2560/compact": 256,
+};
+
+test("a full house with the seeded roster library ends no further apart than recorded", async ({ mount, page }) => {
+  await routeHouse(page, { rooms: ROOMS, bank: BANK, health: HEALTH, rosters: SEEDED_ROSTERS });
+
+  const home = await mount(<HomeBalanceStory />);
+  const grid = home.locator("[data-home-grid]");
+  await expect(grid.locator('[data-home-hearth="chat_balance_0"]')).toBeVisible();
+  await expect(grid.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(grid.locator('[data-home-tile="rosterPreset.rosters"]')).toBeVisible();
+  await expect(grid.getByText("Doc 0", { exact: true })).toBeVisible();
+  await expect(grid.locator("[aria-busy]")).toHaveCount(0);
+
+  const cells = await measureMatrix(page);
+  const failures = balanceFailures(cells, FULL_HOUSE_ROSTERS_VOID_PX, false);
+  printMatrix("home column balance — full house, seeded roster library", cells, FULL_HOUSE_ROSTERS_VOID_PX);
+  expect(failures, failures.join("\n")).toEqual([]);
+});
+
+/** The fresh house with "Start with" in the hearth, which ends within `VOID_BUDGET_PX` everywhere except 1920/reading:
+ *  that cell sits below the `pairWide` step in its own rem, where the shelf cannot reflow. Recorded so no cell grows. */
+const FRESH_HOUSE_VOID_PX: Readonly<Record<string, number>> = {
+  "1280/defaults": 119,
+  "1280/reading": 75,
+  "1280/compact": 75,
+  "1440/defaults": 119,
+  "1440/reading": 95,
+  "1440/compact": 99,
+  "1920/defaults": 23,
+  "1920/reading": 160,
+  "1920/compact": 39,
+  "2560/defaults": 1,
+  "2560/reading": 9,
+  "2560/compact": 23,
+};
+
+// A FRESH house: no room to resume, the seeded faces and rosters, an empty bank. Its hearth holds only the
+// first-room greeting and the section rail unless "Start with" joins it (`useStarterRegion`).
+test("a house with no rooms ends its two columns level wherever the shelf can reflow, and never worse anywhere", async ({ mount, page }) => {
+  await routeHouse(page, { rooms: [], bank: EMPTY_BANK, health: EMPTY_HEALTH, rosters: SEEDED_ROSTERS });
+
+  const home = await mount(<HomeBalanceStory />);
+  const grid = home.locator("[data-home-grid]");
+  await expect(grid.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(grid.locator('[data-home-tile="rosterPreset.rosters"]')).toBeVisible();
+  await expect(grid.locator('[data-home-tile="databank.documents"]')).toBeVisible();
+  await expect(grid.locator("[aria-busy]")).toHaveCount(0);
+
+  const cells = await measureMatrix(page);
+  const failures = balanceFailures(cells, FRESH_HOUSE_VOID_PX, true);
+  printMatrix("home column balance — fresh house, seeded roster library", cells, FRESH_HOUSE_VOID_PX);
   expect(failures, failures.join("\n")).toEqual([]);
 });

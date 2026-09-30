@@ -43,7 +43,7 @@ export const presets = sqliteTable(
     // a fresh write is self-consistent; the domain stamps `config.schemaVersion` explicitly on write.
     schemaVersion: integer("schema_version").notNull().default(PROMPT_CONFIG_SCHEMA_VERSION),
     // Fork lineage — the preset this row was COPIED from (the copy-on-write fork of the system default,
-    // and the `clonePackaged` copy of a PACKAGED template). A self-FK, NOT a soft ref (D24 sanctions
+    // or the host-handoff copy of an owned preset). A self-FK, NOT a soft ref (D24 sanctions
     // exactly one soft ref, `audit_logs.entity_id`), spelled like `chats.parent_chat_id`: nullable
     // (null = born here, not a fork) with SET NULL so a fork outlives its source as a root. A fork is a
     // deep COPY — this link carries nothing but provenance, and no read path depends on the source row
@@ -56,10 +56,8 @@ export const presets = sqliteTable(
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   // The owner index serves the library list; the (owner, source) index serves the COW convergence lookup.
-  // NOT unique, for two independent reasons: `clonePackaged` mints an INDEPENDENT copy per call by contract
-  // (its rpg GM-preset consumer clones the same template once per game), and the owner may deliberately keep
-  // SEVERAL forks of the built-in (the update verb's `{mode:"new"}` fork intent) — uniqueness on this pair
-  // would refuse both.
+  // NOT unique: the owner may deliberately keep SEVERAL forks of the built-in (the update verb's
+  // `{mode:"new"}` fork intent), and uniqueness on this pair would refuse it.
   // `presets_forked_from_idx` is the fork self-FK's own SET-NULL parent scan: SQLite only uses an index
   // whose LEFTMOST column is the constrained one, so the (owner, forkedFrom) pair above cannot serve a
   // delete that knows only the parent preset id (`fk-columns-indexed` gate).

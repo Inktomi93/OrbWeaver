@@ -5,6 +5,7 @@ import { Button } from "@orb/ui/button";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import type { ReactElement } from "react";
 import { resolvedTokenColor } from "../../../support/node/resolved-token-color.ts";
 
 const TOUCH_FLOOR_PX = 44;
@@ -785,3 +786,68 @@ test("Enter and Space activate the button", async ({ mount, page }) => {
   await page.keyboard.press(" ");
   await expect.poll(() => clicks.length, { intervals: [20, 50, 100] }).toBe(2);
 });
+
+// ── The tri-state chip: excluded shares the included fill; its focus ring stands off its red state ring ──
+// Hearth is the base `@theme` at `:root`; light is `[data-theme]`. One mount serves both themes.
+const CHIP_THEMES = ["hearth", "light"] as const;
+
+const chipPanes = (): ReactElement => (
+  <>
+    {CHIP_THEMES.map((theme) => (
+      <div className="bg-card p-gutter" data-testid={`chip-pane-${theme}`} key={theme} {...(theme === "hearth" ? {} : { "data-theme": theme })}>
+        <Button intent="outline" selection="on" shape="pill" size="chip">
+          {`${theme} included`}
+        </Button>
+        <Button intent="outline" selection="negated" shape="pill" size="chip">
+          {`${theme} excluded`}
+        </Button>
+      </div>
+    ))}
+  </>
+);
+
+async function chipPaint(control: Locator): Promise<{ readonly bg: string; readonly ink: string; readonly shadow: string }> {
+  return await control.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { bg: style.backgroundColor, ink: style.color, shadow: style.boxShadow };
+  });
+}
+
+/** A token resolved inside `scope`, so the light pane reads its own value; a computed box-shadow prints resolved colours. */
+async function chipTokenIn(scope: Locator, cssVar: string): Promise<string> {
+  return await scope.evaluate((el, name) => {
+    const probe = el.ownerDocument.createElement("div");
+    probe.style.color = `var(${name})`;
+    el.append(probe);
+    const value = getComputedStyle(probe).color;
+    probe.remove();
+    return value;
+  }, cssVar);
+}
+
+for (const theme of CHIP_THEMES) {
+  test(`${theme}: an excluded chip wears the included chip's fill`, async ({ mount, page }) => {
+    await mount(chipPanes());
+    const included = await chipPaint(page.getByRole("button", { name: `${theme} included` }));
+    const excluded = await chipPaint(page.getByRole("button", { name: `${theme} excluded` }));
+    expect(excluded.bg, `[${theme}] fill`).toBe(included.bg);
+    expect(excluded.ink, `[${theme}] ink`).toBe(included.ink);
+  });
+
+  test(`${theme}: a focused excluded chip rings in foreground ink, and an included chip keeps the ring hue`, async ({ mount, page }) => {
+    await mount(chipPanes());
+    const pane = page.getByTestId(`chip-pane-${theme}`);
+    const ring = await chipTokenIn(pane, "--color-ring");
+    const foreground = await chipTokenIn(pane, "--color-foreground");
+    const included = page.getByRole("button", { name: `${theme} included` });
+    const excluded = page.getByRole("button", { name: `${theme} excluded` });
+
+    await page.keyboard.press("Tab");
+    await included.focus();
+    await expect.poll(async () => (await chipPaint(included)).shadow).toContain(ring);
+
+    await excluded.focus();
+    await expect.poll(async () => (await chipPaint(excluded)).shadow).toContain(foreground);
+    expect((await chipPaint(excluded)).shadow, `[${theme}] the ember focus ring sits beside the red state ring`).not.toContain(ring);
+  });
+}

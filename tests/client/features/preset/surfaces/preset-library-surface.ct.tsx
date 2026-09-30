@@ -159,8 +159,8 @@ function summary(fields: {
   };
 }
 
-// A PACKAGED template's id — a real `forkedFrom` value whose row is never in the list (packaged rows are
-// clone sources, kept out of the readable list), so its lineage is UNRESOLVABLE and must print nothing.
+// An ownerless non-sentinel id — a real `forkedFrom` value whose row is never in the readable list, so its
+// lineage is UNRESOLVABLE and must print nothing.
 const PACKAGED_SOURCE = "preset_000000000000000000000rpggm";
 
 const PRESETS: TrpcFixtureOutput<"preset.list"> = [
@@ -394,7 +394,7 @@ test("every non-built-in row carries its own edit stamp — the F5 scent that te
   // (`forkedFrom` = the built-in, whose name the surface resolves from the list it already has).
   // The stamp is the COMPACT relative form (#99, 2026-08-16 — presets joined the chat list's "9d" idiom).
   await expect(component.getByText("generation · forked from Default · edited 5m", { exact: true })).toBeVisible();
-  // The second's source is a PACKAGED template, absent from the list: the lineage is OMITTED, never guessed.
+  // The second's source is absent from the list: the lineage is OMITTED, never guessed.
   await expect(component.getByText("generation · edited 40m", { exact: true })).toBeVisible();
   // The KIND leads every subtitle (crunch-list item 6) — the ordinary `generation` included.
   await expect(component.getByText("roleplay · edited 5m", { exact: true })).toBeVisible();

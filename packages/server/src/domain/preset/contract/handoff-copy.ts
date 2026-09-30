@@ -5,8 +5,8 @@
 // ownership (`resolvePresetOverride` → `preset.get`). The moment authority moves, a preset the new host does
 // not own resolves to a throw the lenient-id rule swallows: the game's voice changes silently while
 // `getConfigView` keeps serving an id they can never inspect. The built handoff HEALS that by nulling the
-// knob; an accepted offer instead GIVES them the voice, and this is the only op that can — `clonePackaged`
-// clones a shipped TEMPLATE by well-known key and cannot copy an arbitrary owned row across owners.
+// knob; an accepted offer instead GIVES them the voice, and this is the only op that copies an owned row
+// across owners.
 //
 // BOTH ENDS ARE EXPLICIT AND BOTH ARE PROVEN (the injected-op caller-gate class): `fromOwnerId` is the
 // ownership axis in the source read's WHERE, so a preset that is not the departing host's cannot be gifted by

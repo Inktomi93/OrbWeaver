@@ -35,6 +35,11 @@ export const FOCUS_RING_BARE = "focus-visible:ring-2 focus-visible:ring-ring";
 
 export const FOCUS_RING_DESTRUCTIVE = "data-invalid:focus-visible:ring-destructive";
 
+// _ON_STATE_RING re-hues the focus ring for a control whose state paints its own inset ring (the excluded
+// filter chip's destructive ring). Composes ALONGSIDE FOCUS_RING. An ember ring outside a red one reads as one
+// ring to a deutan reader; `foreground` stands off both the state ring and the fill it sits beside.
+export const FOCUS_RING_ON_STATE_RING = "focus-visible:ring-foreground";
+
 // _OUTLINE is the ring for a focusable surface WHOSE BOX-SHADOW SLOT IS ALREADY OWNED — an elevated
 // float (`shadow-overlay`), a `shadow-cta` button, anything painting a real box-shadow. Every helper
 // above draws through Tailwind's ring, which IS a box-shadow: on such an element the elevation layers

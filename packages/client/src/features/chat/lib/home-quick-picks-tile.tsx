@@ -8,6 +8,7 @@ import { TrailingArrow } from "#components";
 import type { HomeTileContribution } from "#state";
 import { setActiveSection } from "#state";
 import { HomeQuickPicksTileBody } from "../components/home-quick-picks-tile-body.tsx";
+import { useStarterRegion } from "./home-starter-region.ts";
 
 const QUICK_PICKS_TILE_ORDER = 20;
 
@@ -53,6 +54,7 @@ export const chatQuickPicksTile: HomeTileContribution = {
   icon: Users,
   order: QUICK_PICKS_TILE_ORDER,
   region: "shelf",
+  useRegion: useStarterRegion,
   // The FIRST-BOOT reservation (#92; re-derived stickler 2026-08-16 F2). The body is a fixed-cell GRID,
   // not `QUICK_PICKS_LIMIT` rows. Its SETTLED anatomy: `cols="cellFixed"` tiles the shelf's primary width
   // at THREE 136px tracks (861de3e58's `min-w-0` fix took it from 2 → 3), so six faces are two rows of

@@ -710,6 +710,28 @@ test.describe("the limit fields at a 360px viewport", () => {
   });
 });
 
+// The limit fields are two short controls; at a desktop width the dialog has room for both on one row.
+test.describe("the limit fields at a desktop viewport", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("Expires and Max uses share one row", async ({ mount, page }) => {
+    await stubAuthConfig(page);
+    await routeTrpc(page, { "sessions.me": ME_USER, "invites.listInvites": () => [] });
+    await mount(<InviteDialogStory />);
+    const dialog = page.getByTestId("invite-dialog");
+    const expires = dialog.getByRole("combobox", { name: "Expires" });
+    const maxUses = dialog.getByRole("textbox", { name: "Max uses" });
+    await expect(maxUses).toBeVisible();
+
+    await expect
+      .poll(async () => {
+        const [a, b] = await Promise.all([expires.boundingBox(), maxUses.boundingBox()]);
+        return a !== null && b !== null && b.x > a.x + a.width && b.y < a.y + a.height && a.y < b.y + b.height;
+      })
+      .toBe(true);
+  });
+});
+
 // Light palette, glass modals on, and a dark room behind the popup. With no wallpaper gate the translucent popup
 // lets the dark content through, so the text is measured on the pixels that land, not on the token pair.
 test.describe("the dialog's text over a dark room in the light palette", () => {

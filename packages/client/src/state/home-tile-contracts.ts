@@ -65,6 +65,9 @@ export interface HomeTileContribution {
   readonly order?: number;
   /** @defaultValue "shelf" */
   readonly region?: HomeTileRegion;
+  /** The region when it depends on live data, called unconditionally by the tile's own component like
+   *  {@link HomeTileContribution.useVisible}. Absent, or while its data loads, the static `region` stands. */
+  readonly useRegion?: () => HomeTileRegion;
   /** The section whose JUMP ROW this tile subsumes — declared only by a tile that does that row's entire
    *  job (the section's name, its glyph, its live contents and a door into it), never by a tile that merely
    *  reads a section's data. Home's jump grid drops the row while such a tile is registered, so one

@@ -3,7 +3,7 @@
 // blob is lifted forward / bounded to DEFAULT rather than throwing mid-load; the db schema's "parsed at the
 // read seam" note — and since #1716 the outcome's PROVENANCE crosses as `configUnreadable`, see
 // `toPresetDetail`), and (2) `isSystemDefault` is derived from the sentinel id (`id === SYSTEM_DEFAULT_PRESET_ID`),
-// NOT `ownerId IS NULL` — ownerless PACKAGED template rows are also un-owned but are NOT the default. Verbs
+// NOT `ownerId IS NULL` — any other ownerless row (a retired packaged template) is NOT the default. Verbs
 // map through here instead of re-spelling the projection at five call sites.
 
 import { promptConfigConfig } from "@orb/contracts/preset";

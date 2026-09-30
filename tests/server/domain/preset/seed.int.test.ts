@@ -1,20 +1,17 @@
-// seed: ensureSystemDefaultPreset + ensurePackagedPresets — the boot seeders. Pins: first boot inserts the
-// single null-owner default row; the reseed is schemaVersion-GATED (a bump overwrites; an equal/newer stored
-// version is left alone); the seeders are idempotent across boots; the packaged template is seeded ownerless
-// at its reserved id.
+// seed: ensureSystemDefaultPreset — the boot seeder. Pins: first boot inserts the single null-owner default
+// row; the reseed is schemaVersion-GATED (a bump overwrites; an equal/newer stored version is left alone); the
+// seeder is idempotent across boots.
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { ensurePackagedPresets, ensureSystemDefaultPreset, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
+import { ensureSystemDefaultPreset, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { describe } from "vitest";
-import { PACKAGED_PRESETS } from "../../../../packages/server/src/domain/preset/contract/packaged.ts";
-import { readablePreset, selectPackagedPreset, selectSystemDefault } from "../../../../packages/server/src/domain/preset/persistence/queries.ts";
+import { readablePreset, selectSystemDefault } from "../../../../packages/server/src/domain/preset/persistence/queries.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { FROZEN_AT, seedPreset, seedUser } from "./_support.ts";
 
 const OLDER_VERSION = DEFAULT_PROMPT_CONFIG.schemaVersion - 1;
-const RPG_GM = PACKAGED_PRESETS["rpg-gm"];
 
 describe("ensureSystemDefaultPreset", () => {
   test("first boot inserts the single null-owner system default row", async () => {
@@ -50,55 +47,18 @@ describe("ensureSystemDefaultPreset", () => {
   });
 });
 
-describe("ensurePackagedPresets", () => {
-  test("first boot inserts the packaged RPG GM template ownerless at its reserved id", async () => {
-    const db = await freshDb();
-    await ensurePackagedPresets(db, () => FROZEN_AT);
-    const row = await selectPackagedPreset(db, RPG_GM.id);
-    expect(row?.id).toBe(RPG_GM.id);
-    expect(row?.ownerId).toBeNull();
-    expect(row?.name).toBe("RPG Game Master");
-    expect(row?.schemaVersion).toBe(RPG_GM.config.schemaVersion);
-  });
-
-  test("is idempotent — a second boot does not duplicate or overwrite the equal-version row", async () => {
-    const db = await freshDb();
-    await ensurePackagedPresets(db, () => FROZEN_AT);
-    await ensurePackagedPresets(db, () => FROZEN_AT + 999);
-    const row = await selectPackagedPreset(db, RPG_GM.id);
-    // updatedAt unchanged → the second call took the no-op branch (version equal, not below).
-    expect(row?.updatedAt).toBe(FROZEN_AT);
-  });
-
-  test("a stored version BELOW the registry config forces a reseed", async () => {
-    const db = await freshDb();
-    await seedPreset(db, {
-      id: RPG_GM.id,
-      ownerId: null,
-      name: "Stale GM",
-      schemaVersion: OLDER_VERSION,
-    });
-    await ensurePackagedPresets(db, () => FROZEN_AT + 7);
-    const row = await selectPackagedPreset(db, RPG_GM.id);
-    expect(row?.name).toBe("RPG Game Master");
-    expect(row?.schemaVersion).toBe(RPG_GM.config.schemaVersion);
-    expect(row?.updatedAt).toBe(FROZEN_AT + 7);
-  });
-});
-
 // THE BLAST-RADIUS PIN of every future schemaVersion bump (minted with v6→v7, issue #80). A bump is how the
-// shipped arrangement reaches an existing install — and the reason that is safe is that BOTH seeders key on
-// `ownerId IS NULL` rows at reserved ids. If a reseed ever widened to owned rows, it would silently overwrite
+// shipped arrangement reaches an existing install — and the reason that is safe is that the seeder keys on
+// the `ownerId IS NULL` row at its reserved id. If a reseed ever widened to owned rows, it would silently overwrite
 // every user's hand-tuned preset on the next boot, with the version bump as the only trace.
-describe("the seeders never touch a USER-OWNED preset", () => {
-  test("an owned row stored at an OLDER version survives both boot seeders byte-identical", async () => {
+describe("the seeder never touches a USER-OWNED preset", () => {
+  test("an owned row stored at an OLDER version survives the boot seeder byte-identical", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "keeper");
     const mine = { ...DEFAULT_PROMPT_CONFIG, schemaVersion: OLDER_VERSION, sections: [] };
     const id = await seedPreset(db, { name: "Mine", ownerId: owner, config: mine, schemaVersion: OLDER_VERSION });
 
     await ensureSystemDefaultPreset(db, () => FROZEN_AT + 7);
-    await ensurePackagedPresets(db, () => FROZEN_AT + 7);
 
     const row = await readablePreset(db, owner, id);
     expect(row?.schemaVersion).toBe(OLDER_VERSION);

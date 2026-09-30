@@ -1,7 +1,6 @@
 // `createCopyPresetToUser` — the preset-owned GM-voice copy the host-handoff property offer executes.
-// The op is the only way an arbitrary OWNED preset crosses owners (`clonePackaged` clones shipped templates
-// by well-known key), so its gates are the whole test: the source read is owner-scoped, the copy lands under
-// the recipient, and a retried accept converges via the `forkedFrom` lineage instead of minting a library.
+// The op is the only way an OWNED preset crosses owners, so its gates are the whole test: the source read is
+// owner-scoped, the copy lands under the recipient, and a retried accept converges via the `forkedFrom` lineage instead of minting a library.
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -98,7 +97,7 @@ test("a RETRIED accept converges on the existing copy (the crash arm mints no se
 // concurrent accepts of one offer both pass, minting the recipient two copies of one gift. The uniqueness
 // claim now rides the write itself (`insertConvergedPresetForkIfAbsent`), so the loser writes nothing and
 // converges on the winner. The `(owner_id, forked_from)` pair stays NON-unique in the schema on purpose —
-// `clonePackaged` and the update verb's `{mode:"new"}` both mint legal siblings of one source — which is
+// the update verb's `{mode:"new"}` mints legal siblings of one source — which is
 // why the admission is verb-scoped rather than a constraint.
 
 test("two CONCURRENT accepts of one gift converge on ONE copy (the claim rides the write, not a prior read)", async () => {

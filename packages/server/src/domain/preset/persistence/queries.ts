@@ -55,7 +55,7 @@ export async function insertPreset(db: Db, row: PresetInsert): Promise<void> {
 /** Admit the first converged fork for an owner/source pair, or refuse (undefined) because one already exists.
  *  The uniqueness claim is the INSERT's own guard subquery — never a preceding read — so concurrent callers
  *  cannot both pass it. The pair stays non-unique in the SCHEMA because explicit new forks are legal
- *  (`clonePackaged` per call, the update verb's `{mode:"new"}`); this statement narrows uniqueness to the two
+ *  (the update verb's `{mode:"new"}`); this statement narrows uniqueness to the two
  *  CONVERGING admission paths: the COW converge arm (`verbs/update.ts`) and the host-handoff copy
  *  (`handoff-copy-write.ts`, #1572). A refused caller reads the winner back with `findOwnedForkOf`. */
 export async function insertConvergedPresetForkIfAbsent(db: Db, row: ConvergedPresetInsert): Promise<PresetRow | undefined> {
@@ -89,8 +89,8 @@ export async function insertConvergedPresetForkIfAbsent(db: Db, row: ConvergedPr
 }
 
 /** Read one preset readable by this owner: their own row OR the shared system default. The shared arm keys on
- *  the sentinel id (NOT `ownerId IS NULL`) so ownerless PACKAGED template rows stay unreadable here — they are
- *  clone sources, reached only via `selectPackagedPreset`. */
+ *  the sentinel id (NOT `ownerId IS NULL`) so any other ownerless row, such as a retired packaged template an
+ *  older install seeded, stays unreadable here. */
 export async function readablePreset(db: Db, userId: UserId, id: PresetId): Promise<PresetRow | undefined> {
   const rows = await db
     .select()
@@ -101,7 +101,7 @@ export async function readablePreset(db: Db, userId: UserId, id: PresetId): Prom
 }
 
 /** The owner's library rows PLUS the shared system default, oldest-first (the seeded default sorts first). The
- *  shared arm keys on the sentinel id (NOT `ownerId IS NULL`) so PACKAGED template rows never leak into a
+ *  shared arm keys on the sentinel id (NOT `ownerId IS NULL`) so no other ownerless row leaks into a
  *  user's picker. */
 export async function listReadable(db: Db, userId: UserId): Promise<PresetRow[]> {
   return await db
@@ -237,28 +237,4 @@ export async function reseedSystemDefault(db: Db, config: PromptConfig, schemaVe
     .update(presets)
     .set({ config, schemaVersion, updatedAt })
     .where(and(eq(presets.id, SYSTEM_DEFAULT_PRESET_ID), isNull(presets.ownerId)));
-}
-
-/** Read a PACKAGED template row (`id = <well-known> AND ownerId IS NULL`) — the boot seed read AND the
- *  `clonePackaged` source read. Keyed on the reserved id + null owner so it can never hit an owned row. */
-export async function selectPackagedPreset(db: Db, id: PresetId): Promise<PresetRow | undefined> {
-  const rows = await db
-    .select()
-    .from(presets)
-    .where(and(eq(presets.id, id), isNull(presets.ownerId)))
-    .limit(1);
-  return rows.at(0);
-}
-
-/** Overwrite a PACKAGED template row's name/kind/config/version (the boot reseed; keyed on its reserved id +
- *  null owner). Name/kind ride the registry, so a reseed re-stamps them alongside the config. */
-export async function reseedPackagedPreset(
-  db: Db,
-  id: PresetId,
-  patch: { name: string; kind: string; config: PromptConfig; schemaVersion: number; updatedAt: number },
-): Promise<void> {
-  await db
-    .update(presets)
-    .set(patch)
-    .where(and(eq(presets.id, id), isNull(presets.ownerId)));
 }

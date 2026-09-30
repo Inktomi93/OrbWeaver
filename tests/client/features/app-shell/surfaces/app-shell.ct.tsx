@@ -7094,6 +7094,24 @@ test("#623: with NO wallpaper the LIGHT arm's dialog popup takes the same plated
   expect(plainFill).toBe(artFill);
 });
 
+// The Frosted glass help says light themes keep dialogs solid (`appearance-effects-model.ts`). That holds while the
+// light popup lets through no more than the reading plate does. A real light glass effect reds here, and the help
+// text has to change with it.
+test("with Dialogs glass on, a LIGHT dialog stays at least as opaque as the reading plate, and a DARK one is glass", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const light = await mount(<ShellCascadeFixture blurSurfaces={["modals"]} dataTheme="light" />);
+  const probe = light.getByTestId("dialog-probe");
+  const lightFill = await bgColorOf(probe);
+  const plate = await probe.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-reading-plate").trim());
+  await light.unmount();
+  const dark = await mount(<ShellCascadeFixture blurSurfaces={["modals"]} />);
+  const darkFill = await bgColorOf(dark.getByTestId("dialog-probe"));
+  test.info().annotations.push({ description: `light ${lightFill} · plate ${plate} · dark ${darkFill}`, type: "dialog-fill" });
+
+  expect(alphaOf(lightFill)).toBeGreaterThanOrEqual(alphaOf(plate));
+  expect(alphaOf(darkFill)).toBeLessThan(1);
+});
+
 // THE CENSUS IS NOW A FENCE, NOT A REPORT — and the sentence it used to carry is why.
 //
 // It was written as "the census the fix did NOT change": `.shell-panel` took D144's floor at #237 and was the

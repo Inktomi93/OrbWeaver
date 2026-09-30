@@ -12,8 +12,8 @@
 // both passed, handing the recipient two copies of one gift. The lineage claim now rides the INSERT's own
 // guard subquery (`insertConvergedPresetForkIfAbsent`), so a losing accept writes nothing and reads the
 // winner back instead. The `(owner_id, forked_from)` pair stays deliberately NON-unique in the schema
-// (`db/schema/preset.ts`) because `clonePackaged` and the update verb's `{mode:"new"}` both mint legal
-// siblings of one source; admission is therefore verb-scoped, exactly as the COW converge arm does it.
+// (`db/schema/preset.ts`) because the update verb's `{mode:"new"}` mints legal siblings of one source;
+// admission is therefore verb-scoped, exactly as the COW converge arm does it.
 
 import type { Db } from "@orb/db";
 import { presets } from "@orb/db";

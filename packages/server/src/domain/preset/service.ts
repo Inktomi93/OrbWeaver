@@ -6,7 +6,6 @@
 
 import type { PresetContext } from "./context.ts";
 import type { PresetService } from "./contract/service.ts";
-import { createClonePackaged } from "./verbs/clone-packaged.ts";
 import { createCreate } from "./verbs/create.ts";
 import { createGet } from "./verbs/get.ts";
 import { createImport } from "./verbs/import.ts";
@@ -26,7 +25,6 @@ export function createPresetService(ctx: PresetContext): PresetService {
     ...createUpdate(ctx),
     ...createRemove(ctx),
     ...createResetToDefault(ctx),
-    ...createClonePackaged(ctx),
     ...createResolveEffective(ctx),
     ...createListUsage(ctx),
     // The single-preset import DOOR over the bundle's own import verb (factory injection — the verb-isolation
