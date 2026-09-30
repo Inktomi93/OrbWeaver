@@ -1,7 +1,6 @@
 // entry/http/import-chat — the single-transcript import route. Pins the THIN-ARM contract: every accepted
-// file reaches the portability registry's `chat` descriptor (never a parallel import path), and the bundle
-// path `<handle>/<leaf>` is derived from the transcript's OWN `character_name` header via the same
-// `slugifyHandle` derivation card import mints handles with. Also pins the belt chain
+// file reaches the portability registry's `chat` descriptor (never a parallel import path) under its own
+// filename, so the descriptor re-links it by the display name its header carries. Also pins the belt chain
 // ([authCsrfGuard, bodyCap, handler]) and the per-file failure ISOLATION (one bad transcript never fails
 // the batch). Hono isn't test-resolvable, so the registrar runs over a captured mock app + context (the
 // upload.test.ts pattern).
@@ -99,9 +98,10 @@ interface DescriptorSpy {
   readonly calls: { ownerId: UserId; file: PortableFile }[];
 }
 
-/** A registry whose `chat` descriptor records every `importFile` call and answers with `outcome`. */
-function spyRegistry(outcome: PortableImportOutcome = { ok: true, created: true }): DescriptorSpy {
+/** A registry whose `chat` descriptor records every `importFile` call and answers with `outcomeOf(file)`. */
+function spyRegistry(outcome: PortableImportOutcome | ((file: PortableFile) => PortableImportOutcome) = { ok: true, created: true }): DescriptorSpy {
   const calls: { ownerId: UserId; file: PortableFile }[] = [];
+  const outcomeOf = typeof outcome === "function" ? outcome : (): PortableImportOutcome => outcome;
   const chat: PortableEntity = {
     kind: "chat",
     dir: "chats/",
@@ -111,7 +111,7 @@ function spyRegistry(outcome: PortableImportOutcome = { ok: true, created: true 
     },
     importFile: (ownerId, file) => {
       calls.push({ ownerId, file });
-      return Promise.resolve(outcome);
+      return Promise.resolve(outcomeOf(file));
     },
   };
   return { deps: { registry: [chat] }, calls };
@@ -223,15 +223,15 @@ describe("registerImportChat — the thin arm over the chat descriptor", () => {
     expect(spy.calls.map((call) => call.ownerId)).toEqual([OWNER.userId]);
   });
 
-  test("a transcript routes to the descriptor as <slugified character_name>/<filename>, owner-scoped", async () => {
+  test("a transcript reaches the descriptor under its own filename, owner-scoped — no handle is guessed from its name", async () => {
     const spy = spyRegistry();
     const form = new FormData();
     form.append("file", fileOf("Elara Vance - 2026-01-01.jsonl", transcript("Elara Vance")));
     const res = await handlerFor(spy.deps)(makeCtx(OWNER, form));
 
     expect(res.status).toBe(200);
-    // The leaf is preserved verbatim — the descriptor's parse reads the branch/date hints off it.
-    expect(spy.calls.map((call) => call.file.filename)).toEqual(["elara-vance/Elara Vance - 2026-01-01.jsonl"]);
+    // The filename is preserved verbatim — the descriptor's parse reads the branch/date hints off it.
+    expect(spy.calls.map((call) => call.file.filename)).toEqual(["Elara Vance - 2026-01-01.jsonl"]);
     expect(spy.calls.map((call) => call.ownerId)).toEqual([OWNER.userId]);
     const body = (await res.json()) as RouteBody;
     expect(body.imported).toEqual([{ filename: "Elara Vance - 2026-01-01.jsonl", created: true }]);
@@ -247,36 +247,16 @@ describe("registerImportChat — the thin arm over the chat descriptor", () => {
   });
 
   test("the descriptor's refusal (no such character on this account) rides back as a per-file reason", async () => {
-    const spy = spyRegistry({ ok: false, error: 'no character with handle "ghost" on this account' });
+    const spy = spyRegistry({ ok: false, error: 'no character named "Ghost" on this account' });
     const form = new FormData();
     form.append("file", fileOf("ghost.jsonl", transcript("Ghost")));
     const body = (await (await handlerFor(spy.deps)(makeCtx(OWNER, form))).json()) as RouteBody;
     expect(body.imported).toHaveLength(0);
-    expect(body.failed[0]?.error).toContain("no character with handle");
-  });
-
-  test("an unparseable file is refused BEFORE the descriptor sees it", async () => {
-    const spy = spyRegistry();
-    const form = new FormData();
-    form.append("file", fileOf("notes.jsonl", "this is not json\n"));
-    const body = (await (await handlerFor(spy.deps)(makeCtx(OWNER, form))).json()) as RouteBody;
-    expect(spy.calls).toHaveLength(0);
-    expect(body.failed).toEqual([{ filename: "notes.jsonl", error: "not a valid chat .jsonl file" }]);
-  });
-
-  test("a transcript naming nobody is refused with a reason, never routed to an empty handle", async () => {
-    const spy = spyRegistry();
-    const form = new FormData();
-    // ST writes the literal "unused" when a chat has no character — the serde collapses it to the (empty)
-    // directory fallback, so there is no name to route by.
-    form.append("file", fileOf("orphan.jsonl", transcript("unused")));
-    const body = (await (await handlerFor(spy.deps)(makeCtx(OWNER, form))).json()) as RouteBody;
-    expect(spy.calls).toHaveLength(0);
-    expect(body.failed[0]?.error).toContain("names no character");
+    expect(body.failed).toEqual([{ filename: "ghost.jsonl", error: 'no character named "Ghost" on this account' }]);
   });
 
   test("per-file isolation: one bad transcript in a batch never fails the good ones", async () => {
-    const spy = spyRegistry();
+    const spy = spyRegistry((file) => (file.filename === "bad.jsonl" ? { ok: false, error: "not a valid chat .jsonl file" } : { ok: true, created: true }));
     const form = new FormData();
     form.append("file", fileOf("good.jsonl", transcript("Aria")));
     form.append("file", fileOf("bad.jsonl", "garbage\n"));
@@ -284,6 +264,6 @@ describe("registerImportChat — the thin arm over the chat descriptor", () => {
     const body = (await (await handlerFor(spy.deps)(makeCtx(OWNER, form))).json()) as RouteBody;
     expect(body.imported.map((row) => row.filename)).toEqual(["good.jsonl", "also-good.jsonl"]);
     expect(body.failed.map((row) => row.filename)).toEqual(["bad.jsonl"]);
-    expect(spy.calls.map((call) => call.file.filename)).toEqual(["aria/good.jsonl", "bee/also-good.jsonl"]);
+    expect(spy.calls.map((call) => call.file.filename)).toEqual(["good.jsonl", "bad.jsonl", "also-good.jsonl"]);
   });
 });

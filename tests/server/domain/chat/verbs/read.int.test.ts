@@ -2401,11 +2401,9 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(presentHumanUserIds).not.toContain(member);
   });
 
-  // #1401 — the PREVIEW's `personaIds` had NO presence filter while the live turn's (`verbs/turn.ts`'s
-  // `loadRoom`) does, and `personaIds` is exactly what gates which persona-scope world-info books join the
-  // pool. So a host's preview assembled an OFFLINE member's persona lore that the next real turn would not
-  // send — the divergence axis is PRESENCE, not the enabled/consent gate the sibling list applies.
-  test("an OFFLINE member's persona-scope world-info stays OUT of the host preview (the turn's own presence rule)", async () => {
+  // The preview derives the persona-book set through the same membership rule as the live turn: an offline
+  // member's lore is in the next real turn, so it is in the preview; a departed member's is in neither.
+  test("an OFFLINE member's persona-scope world-info stays IN the host preview; a departed member's leaves it", async () => {
     const host = await seedUser(db, castId<Handle>("wi_pres_host"));
     const chatId = await seedRoom("wi_presence", host);
     const member = await seedUser(db, castId<Handle>("wi_pres_member"));
@@ -2434,10 +2432,13 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       return `${preview.prompt.static}\n${preview.prompt.dynamic}`;
     };
 
-    // ONLINE: the book is in the pool — this is the positive control that proves the probe can even fire.
     expect(await previewWith(true)).toContain("THE OFFLINE MEMBERS PRIVATE LORE");
-    // OFFLINE: it is out, exactly as the live turn would have it.
-    expect(await previewWith(false)).not.toContain("THE OFFLINE MEMBERS PRIVATE LORE");
+    expect(await previewWith(false)).toContain("THE OFFLINE MEMBERS PRIVATE LORE");
+    await db
+      .update(chatParticipants)
+      .set({ leftSeq: 1 })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, member)));
+    expect(await previewWith(true)).not.toContain("THE OFFLINE MEMBERS PRIVATE LORE");
   });
 
   test("getActivePresetConfig returns the resolved PromptConfig", async () => {

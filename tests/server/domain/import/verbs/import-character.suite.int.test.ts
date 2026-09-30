@@ -70,6 +70,7 @@ async function importCtx(db: Db): Promise<{ readonly ctx: ImportContext; readonl
     },
     findByImportHash: ({ importHash }): Promise<CharacterId | null> => Promise.resolve(byHash.get(importHash) ?? null),
     findByHandle: (): Promise<null> => Promise.resolve(null),
+    findByName: (): Promise<readonly CharacterId[]> => Promise.resolve([]),
     storeAsset: (): Promise<never> => Promise.reject(new Error("no avatar store in this suite (bare-JSON cards)")),
     attachCardTag: (): Promise<boolean> => Promise.resolve(true),
     ...worldInfoOps(db),

@@ -39,9 +39,8 @@ interface HumanSeat {
  *
  *  Pass a PRESENT roster (`loadParticipants`'s default, `leftSeq IS NULL`) — presence IS the consent, so a departed
  *  member's persona stops resolving and a stale pin heals downward to the active persona (the HEAL
- *  precedent) instead of being copied or resurrected. Deliberately NOT online-filtered like the turn's
- *  `personaIds`: an OFFLINE member is still a member, and the anchor's owner is routinely offline (presence
- *  gates which persona BOOKS join the world-info pool, never whose identity the room may render). PURE. */
+ *  precedent) instead of being copied or resurrected. Deliberately NOT online-filtered: an OFFLINE member is
+ *  still a member, and the anchor's owner is routinely offline. PURE. */
 function presentHumanUserIdsOf(participants: readonly HumanSeat[]): readonly UserId[] {
   return [
     ...new Set(
@@ -88,24 +87,10 @@ export function humanSeatPersonasOf(participants: readonly PersonaSeat[], consen
   });
 }
 
-/** The room's ACTIVE-PERSONA set for one round: each ONLINE human seat's `activePersonaId`.
- *
- *  A DIFFERENT question from the consent set above, on a DIFFERENT axis, and the two must not be confused:
- *  the consent set asks WHOSE personas this room may resolve (membership + a live account) and is
- *  deliberately presence-blind, because the anchor's owner is routinely offline. This set asks whose
- *  persona is IN THE ROOM RIGHT NOW, and it gates which persona-scope world-info books join the pool — a
- *  server-derived signal, never client-asserted.
- *
- *  ONE HOME because two sites must agree (#1401). `verbs/turn.ts::loadRoom` derived it for the live turn
- *  while the PREVIEW derived its own, unfiltered — so a host's preview assembled the persona books of
- *  members who were not online, and the honesty instrument reported a prompt the next real turn would not
- *  send. Same class as the consent set's own history recorded in this file's header: a second copy of a
- *  membership rule drifts from the first. */
-export async function onlinePersonaIdsOf(ctx: ChatContext, participants: readonly PersonaSeat[]): Promise<readonly PersonaId[]> {
-  const seats = participants.flatMap((seat) => {
-    const actor = classifyParticipant(seat);
-    return actor?.kind === "human" && seat.activePersonaId !== null ? [{ userId: actor.userId, personaId: seat.activePersonaId }] : [];
-  });
-  const online = await Promise.all(seats.map((seat) => ctx.readPresence(seat.userId).then((p) => p.online)));
-  return seats.filter((_seat, i) => online[i] === true).map((seat) => seat.personaId);
+/** The personas whose books join a round's world-info pool: each consented seat's persona, in seat order. The
+ *  same present membership the people block renders (pass {@link humanSeatPersonasOf}'s output), never the
+ *  online set, so a reconnect cannot rewrite the lore in the static half. The turn and every preview must
+ *  derive it here, or a preview reports lore the next turn would not send. PURE. */
+export function memberPersonaIdsOf(humanSeats: readonly HumanSeatPersona[]): readonly PersonaId[] {
+  return humanSeats.flatMap((seat) => (seat.personaId === null ? [] : [seat.personaId]));
 }

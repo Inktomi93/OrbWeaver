@@ -22,6 +22,7 @@ import type {
   FindByHandleParams,
   FindByImportedFromParams,
   FindByImportHashParams,
+  FindByNameParams,
   FindGroupCharParams,
   GenerateGreetingParams,
   GetCardParams,
@@ -167,6 +168,8 @@ export interface CharacterService {
    *  `importedFrom` — backs the hub search page's already-imported markers (doc 03 §2.1). */
   readonly findByImportedFrom: (params: FindByImportedFromParams) => Promise<ImportedFromMatch[]>;
   readonly findByHandle: (params: FindByHandleParams) => Promise<CharacterRef | null>;
+  /** Every owner character carrying the display name, oldest first: empty, one, or an ambiguity for the caller. */
+  readonly findByName: (params: FindByNameParams) => Promise<readonly CharacterRef[]>;
 
   readonly mintSyntheticGroupCharacter: (params: MintGroupCharParams) => Promise<CharacterRef>;
   readonly findSyntheticGroupCharacter: (params: FindGroupCharParams) => Promise<CharacterRef | null>;

@@ -164,7 +164,7 @@ import { toChatDetail } from "../substrate/chat-detail.ts";
 import { cueReplayFor } from "../substrate/cue-replay.ts";
 import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-import { humanSeatPersonasOf, onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
+import { humanSeatPersonasOf, memberPersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
@@ -455,12 +455,6 @@ async function resolvePreviewInputs(
     speakerCharacterId !== null && speakerCharacterId !== undefined && participantCharacterIds.includes(speakerCharacterId)
       ? [speakerCharacterId, ...participantCharacterIds.filter((id) => id !== speakerCharacterId)]
       : participantCharacterIds;
-  // #1401 — the SAME derivation the live turn runs (`verbs/turn.ts::loadRoom`), through the one substrate
-  // lens. This used to take every present human's active persona with no filter at all, so a preview
-  // assembled the persona-scope world-info of members who were not in the room — an honesty instrument
-  // reporting a prompt the next real turn would not send. Presence is the axis here (not the enabled
-  // consent gate `previewPresentHumanUserIds` applies below); the two answer different questions.
-  const personaIds = await onlinePersonaIdsOf(ctx, participants);
   const hostPersonaId =
     participants.find((r) => {
       const actor = classifyParticipant(r);
@@ -484,13 +478,14 @@ async function resolvePreviewInputs(
   // A preview is an HONESTY INSTRUMENT (see the file doc above) — it must not overstate what a live turn would
   // actually resolve, so the enabled axis narrows this exactly like `verbs/turn.ts`'s `loadRoom` (2026-08-15).
   const previewPresentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
+  const humanSeats = humanSeatPersonasOf(participants, previewPresentHumanUserIds);
   const foreign = await deps.resolveForeignInputs({
     chatId,
     runAsUserId: hostUserId,
     model: connection.model,
     anchorPersonaId,
     presentHumanUserIds: previewPresentHumanUserIds,
-    humanSeats: humanSeatPersonasOf(participants, previewPresentHumanUserIds),
+    humanSeats,
     // A preview shows the next canon turn, which binds `{{user}}` to the anchor human whoever sends it, so the
     // trigger does not change what it renders.
     trigger: hostPersonaId !== null ? { kind: "human", userId: hostUserId, personaId: hostPersonaId } : { kind: "none" },
@@ -507,7 +502,8 @@ async function resolvePreviewInputs(
     explicitCacheMarkers: cachesByAnthropicMarkers(connection, generationOf(connection)),
     api: connection.api,
     characterIds,
-    personaIds,
+    // The same membership rule as the live turn (`memberPersonaIdsOf`), so the preview shows the lore it sends.
+    personaIds: memberPersonaIdsOf(humanSeats),
     multiHuman: seatsMultipleHumans(previewPresentHumanUserIds),
     group,
     // The SAME row `group` came off — an absent row is a metadata-less room (⇒ every knob inherits).

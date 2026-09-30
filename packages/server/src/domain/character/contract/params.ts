@@ -198,6 +198,12 @@ export interface FindByHandleParams {
   readonly handle: CharacterHandle;
 }
 
+/** By-display-name lookup (import-injected, internal): a transcript names its character the way the user sees it. */
+export interface FindByNameParams {
+  readonly ownerId: UserId;
+  readonly name: string;
+}
+
 /** Batched provenance lookup (hub-injected, internal): the owner's characters carrying any of `values` in
  *  `importedFrom` (an indexed `IN` read). Backs the hub search page's already-imported markers (doc 03 §2.1). */
 export interface FindByImportedFromParams {

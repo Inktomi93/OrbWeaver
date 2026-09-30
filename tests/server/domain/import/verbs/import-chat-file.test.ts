@@ -1,11 +1,6 @@
-// Unit test for domain/import/verbs/importChatFile — the ONE single-transcript path (F8: this body used to
-// live inline at `entry/compose/portability.ts`, outside every domain test mirror, so its refusal copy and
-// its handle derivation had no coverage at all).
-//
-// The bundle path is `chats/<character-handle>/<leaf>.jsonl`: the DIRECTORY is the re-link key, because chat
-// ids are not preserved across a box. Load-bearing: the handle resolves through the injected
-// `findByHandle`; a bare filename, an unknown handle, and a non-jsonl body each refuse with the operator
-// words the import report renders; and NOTHING throws.
+// Unit test for domain/import/verbs/importChatFile, the one single-transcript path. A bundle path is
+// `chats/<character-handle>/<leaf>.jsonl`; the directory handle re-links first, then the transcript's own
+// display name, because an ST transcript names its character the way the user sees it.
 
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -20,13 +15,15 @@ import { makeProfileHarness } from "../_support.ts";
 
 const OWNER = castId<UserId>("user_owner");
 const ARIA = castId<CharacterId>("character_aria");
+const ELIAS = castId<CharacterId>("character_elias");
+const ELIAS_TWIN = castId<CharacterId>("character_elias_twin");
 const ENC = new TextEncoder();
 
-/** A real_conversation transcript (a greeting + a user turn) as raw bundle bytes. */
-function transcript(): Uint8Array {
+/** A real_conversation transcript (a greeting + a user turn) as raw bundle bytes, naming `characterName`. */
+function transcript(characterName = "Aria"): Uint8Array {
   const lines = [
     // biome-ignore-start lint/style/useNamingConvention: ST chat-JSONL wire field names (snake_case) are the format.
-    JSON.stringify({ user_name: "Alex", character_name: "Aria", create_date: "2025-07-18@12h00m00s", chat_metadata: {} }),
+    JSON.stringify({ user_name: "Alex", character_name: characterName, create_date: "2025-07-18@12h00m00s", chat_metadata: {} }),
     JSON.stringify({ is_user: false, mes: "Hello traveller.", send_date: "2025-07-18@12h00m01s" }),
     JSON.stringify({ is_user: true, mes: "Hi Aria!", send_date: "2025-07-18@12h00m02s" }),
     // biome-ignore-end lint/style/useNamingConvention: end of the block above
@@ -34,12 +31,16 @@ function transcript(): Uint8Array {
   return ENC.encode(lines);
 }
 
-/** The profile harness + a `findByHandle` that knows exactly one handle. */
-function harness(known: Record<string, CharacterId> = { aria: ARIA }): ProfileHarness & { readonly verb: ImportService["importChatFile"] } {
+/** The profile harness + a `findByHandle` over `known` handles and a `findByName` over `named` display names. */
+function harness(
+  known: Record<string, CharacterId> = { aria: ARIA },
+  named: Record<string, readonly CharacterId[]> = {},
+): ProfileHarness & { readonly verb: ImportService["importChatFile"] } {
   const h = makeProfileHarness(OWNER);
   const ctx = {
     ...h.ctx,
     findByHandle: ({ handle }: { readonly handle: CharacterHandle }): Promise<CharacterId | null> => Promise.resolve(known[handle] ?? null),
+    findByName: ({ name }: { readonly name: string }): Promise<readonly CharacterId[]> => Promise.resolve(named[name] ?? []),
   };
   return { ...h, verb: createImportChatFile(ctx, createImportChats(ctx), createImportChatBundle(ctx)) };
 }
@@ -59,22 +60,53 @@ describe("importChatFile", () => {
     expect(h.backfills).toEqual([{ ownerId: OWNER }]);
   });
 
-  test("a file NOT under a handle directory refuses with words, and writes nothing", async () => {
+  // The seeded character is named "Elias Thorn" with handle `elias`; the bare upload door routes the
+  // transcript under `slugifyHandle("Elias Thorn")`, a handle the user never sees.
+  test("a directory handle that misses resolves the character by the display name the transcript carries", async () => {
+    const h = harness({ elias: ELIAS }, { "Elias Thorn": [ELIAS] });
+
+    const outcome = await h.verb({ filename: "elias-thorn/chat.jsonl", bytes: transcript("Elias Thorn") });
+
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
+    expect(h.chatCalls.map((call) => call.characterId)).toEqual([ELIAS]);
+  });
+
+  test("a file with no handle directory resolves by the display name", async () => {
+    const h = harness({}, { "Elias Thorn": [ELIAS] });
+
+    const outcome = await h.verb({ filename: "loose.jsonl", bytes: transcript("Elias Thorn") });
+
+    expect(outcome.ok).toBe(true);
+    expect(h.chatCalls.map((call) => call.characterId)).toEqual([ELIAS]);
+  });
+
+  test("a true miss names the display name the user sees, never the handle", async () => {
     const h = harness();
 
-    const outcome = await h.verb({ filename: "loose.jsonl", bytes: transcript() });
+    const outcome = await h.verb({ filename: "elias-thorn/chat.jsonl", bytes: transcript("Elias Thorn") });
 
-    expect(outcome).toEqual({ ok: false, error: "chat file is not under a character-handle directory" });
+    const error = outcome.ok ? "" : outcome.error;
+    expect(error).toContain('"Elias Thorn"');
+    expect(error).not.toContain("elias-thorn");
     expect(h.chatCalls).toEqual([]);
   });
 
-  test("an unknown handle names the handle in the refusal — the user's actionable difference", async () => {
-    const h = harness();
+  test("two characters sharing the display name refuse instead of picking one", async () => {
+    const h = harness({}, { "Elias Thorn": [ELIAS, ELIAS_TWIN] });
 
-    const outcome = await h.verb({ filename: "stranger/chat.jsonl", bytes: transcript() });
+    const outcome = await h.verb({ filename: "elias-thorn/chat.jsonl", bytes: transcript("Elias Thorn") });
 
     expect(outcome.ok).toBe(false);
-    expect(outcome.ok ? "" : outcome.error).toContain('no character with handle "stranger"');
+    expect(outcome.ok ? "" : outcome.error).toContain('"Elias Thorn"');
+    expect(h.chatCalls).toEqual([]);
+  });
+
+  test("a transcript that names no character and has no handle directory refuses with words", async () => {
+    const h = harness();
+
+    const outcome = await h.verb({ filename: "loose.jsonl", bytes: transcript("unused") });
+
+    expect(outcome.ok).toBe(false);
     expect(h.chatCalls).toEqual([]);
   });
 

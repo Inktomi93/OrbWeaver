@@ -228,6 +228,24 @@ function recordKeyHits(entry: AssembleWorldEntry, hits: readonly string[], env: 
   }
 }
 
+/** The persona an entry's identity macros render against, by where the entry was attached. */
+function macroPersonaOf(entry: AssembleWorldEntry, ctx: AssembleContext): AssemblePersona | null | undefined {
+  switch (entry.source) {
+    case "character":
+      return ctx.pinnedPersona;
+    case "chat":
+      return ctx.activePersona;
+    case "persona":
+      return entry.persona;
+    default:
+      return assertNeverAttachment(entry);
+  }
+}
+
+function assertNeverAttachment(entry: never): never {
+  throw new Error(`macroPersonaOf: unhandled world entry attachment ${JSON.stringify(entry)}`);
+}
+
 /** Classifies one enabled WI entry into a budget candidate (null if a keyword entry didn't fire); renders
  *  once via macro → regex(WORLD_INFO) → wiFormat-wrap. */
 function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCandidate | null {
@@ -238,8 +256,7 @@ function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCa
     }
     recordKeyHits(entry, hits, env);
   }
-  const persona = entry.source === "character" ? env.ctx.pinnedPersona : env.ctx.activePersona;
-  const resolved = renderMacros(entry.content, env.ctx, persona, { registry: env.registry });
+  const resolved = renderMacros(entry.content, env.ctx, macroPersonaOf(entry, env.ctx), { registry: env.registry });
   const afterRegex = executeRegexScripts({
     text: resolved,
     scripts: env.args.regexScripts,

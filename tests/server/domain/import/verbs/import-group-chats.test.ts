@@ -72,6 +72,7 @@ function ctxWith(written: Written, opts: { readonly throws?: boolean } = {}): Im
     createCharacter: unused,
     findByImportHash: unused,
     findByHandle: unused,
+    findByName: unused,
     storeAsset: unused,
     attachCardTag: unused,
     profile: {

@@ -21,6 +21,7 @@ import { createDuplicate } from "./verbs/duplicate.ts";
 import { createFindByHandle } from "./verbs/find-by-handle.ts";
 import { createFindByImportHash } from "./verbs/find-by-import-hash.ts";
 import { createFindByImportedFrom } from "./verbs/find-by-imported-from.ts";
+import { createFindByName } from "./verbs/find-by-name.ts";
 import { createFindSyntheticGroupCharacter } from "./verbs/find-synthetic-group-character.ts";
 import { createGenerateGreeting } from "./verbs/generate-greeting.ts";
 import { createGet } from "./verbs/get.ts";
@@ -49,6 +50,7 @@ export function createCharacterService(ctx: CharacterContext): CharacterService 
     remove: createRemove(ctx),
     duplicate: createDuplicate(ctx),
     findByHandle: createFindByHandle(ctx),
+    findByName: createFindByName(ctx),
     bulkRemove: createBulkRemove(ctx),
     bulkArchive: createBulkArchive(ctx),
     bulkAddCardTag: createBulkAddCardTag(ctx),

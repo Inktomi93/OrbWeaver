@@ -9,7 +9,7 @@ import type { NamesBehavior, PromptConfig, PromptSection } from "@orb/contracts/
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
-import { chatBooks, chatParticipants, chats, worldBooks, worldEntries } from "@orb/db";
+import { chatBooks, chatParticipants, chats, personaBooks, worldBooks, worldEntries } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import { rowIndexAtCacheDepth } from "@orb/inference";
 import type { Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
@@ -422,6 +422,84 @@ describe("the people block follows membership, never presence", () => {
 
     expect(requestAt(scn, 0).prompt.static).toContain(personEntry("Bob", "BOB-DESC"));
     expect(requestAt(scn, 1).prompt.static).toBe(requestAt(scn, 0).prompt.static);
+  });
+});
+
+/** Attach an always-on persona book to `personaId`, owned by the persona's owner, carrying one entry. */
+async function seedPersonaLore(db: Db, ownerId: UserId, personaId: PersonaId, content: string): Promise<void> {
+  const bookId = mintTypeId(ID_PREFIX.worldBook);
+  await db.insert(worldBooks).values({ id: bookId, ownerId, name: `lore of ${personaId}`, createdAt: FROZEN_AT });
+  await db.insert(worldEntries).values({
+    id: mintTypeId(ID_PREFIX.worldEntry),
+    worldBookId: bookId,
+    title: "lore",
+    content,
+    keys: null,
+    enabled: true,
+    priority: 0,
+    ignoreBudget: false,
+    metadata: null,
+    createdAt: FROZEN_AT,
+  });
+  await db.insert(personaBooks).values({ personaId, worldBookId: bookId, createdAt: FROZEN_AT });
+}
+
+// Persona-book lore joins by the same present membership as the people block, and each member's book
+// addresses its own owner: Bob's `{{user}} hates spiders` must never read `Alice hates spiders`.
+describe("persona-book lore follows membership and speaks for its own persona", () => {
+  async function aliceAndBobWithLore(offline: Set<UserId>): Promise<{ scn: ChatScenario; alice: UserId; bob: UserId }> {
+    const scn = await composedRoom("aria the innkeeper", offline);
+    const alice = scn.host;
+    const bob = await seedUser(scn.db, castId<Handle>("bob"));
+    const alicePersona = await seedPersona(scn.db, alice, "Alice", { description: "ALICE-DESC" });
+    const bobPersona = await seedPersona(scn.db, bob, "Bob", { description: "BOB-DESC" });
+    await setSeatPersona(scn, alice, alicePersona);
+    await seedParticipant(scn.db, { chatId: scn.chatId, key: "bob", userId: bob, role: "member", joinSeq: 9, activePersonaId: bobPersona });
+    await setAnchor(scn, alicePersona);
+    await seedPersonaLore(scn.db, alice, alicePersona, "{{user}} likes tea ({{persona}})");
+    await seedPersonaLore(scn.db, bob, bobPersona, "{{user}} hates spiders ({{persona}})");
+    return { scn, alice, bob };
+  }
+
+  test("each member's book resolves {{user}} and {{persona}} against its own persona", async () => {
+    const { scn, alice, bob } = await aliceAndBobWithLore(new Set());
+
+    await scn.send("hello", { principal: scn.principal(alice) });
+    await scn.send("hey", { principal: scn.principal(bob) });
+
+    const first = requestAt(scn, 0).prompt.static;
+    expect(first).toContain("Alice likes tea (ALICE-DESC)");
+    expect(first).toContain("Bob hates spiders (BOB-DESC)");
+    expect(first).not.toContain("Alice hates spiders");
+    // Who pressed send moves no lore byte.
+    expect(requestAt(scn, 1).prompt.static).toBe(first);
+  });
+
+  test("Bob goes offline: his lore stays and the static half is byte-identical", async () => {
+    const offline = new Set<UserId>();
+    const { scn, alice, bob } = await aliceAndBobWithLore(offline);
+
+    await scn.send("hello", { principal: scn.principal(alice) });
+    offline.add(bob);
+    await scn.send("still here?", { principal: scn.principal(alice) });
+
+    expect(requestAt(scn, 0).prompt.static).toContain("Bob hates spiders");
+    expect(requestAt(scn, 1).prompt.static).toBe(requestAt(scn, 0).prompt.static);
+  });
+
+  test("Bob leaves: his lore leaves with him, Alice's stays", async () => {
+    const { scn, alice, bob } = await aliceAndBobWithLore(new Set());
+
+    await scn.send("hello", { principal: scn.principal(alice) });
+    await scn.db
+      .update(chatParticipants)
+      .set({ leftSeq: 1 })
+      .where(and(eq(chatParticipants.chatId, scn.chatId), eq(chatParticipants.userId, bob)));
+    await scn.send("alone now", { principal: scn.principal(alice) });
+
+    expect(requestAt(scn, 0).prompt.static).toContain("Bob hates spiders");
+    expect(requestAt(scn, 1).prompt.static).not.toContain("hates spiders");
+    expect(requestAt(scn, 1).prompt.static).toContain("Alice likes tea");
   });
 });
 

@@ -238,6 +238,7 @@ function fakes(): Fakes {
       const id = byHandle.get(handle);
       return Promise.resolve(id === undefined ? null : { characterId: id });
     },
+    findByName: () => Promise.resolve([]),
   };
 
   const storeAvatar: ImportAssetPort["store"] = ({ bytes, maxBytes }) => {

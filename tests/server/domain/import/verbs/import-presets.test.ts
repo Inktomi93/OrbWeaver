@@ -52,6 +52,7 @@ function ctxWith(importPreset: ImportProfileDeps["importPreset"], importPresetSc
     createCharacter: unused,
     findByImportHash: unused,
     findByHandle: unused,
+    findByName: unused,
     storeAsset: unused,
     attachCardTag: unused,
     profile: {

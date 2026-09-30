@@ -668,15 +668,12 @@ describe("send — presence character-gating", () => {
     await db.insert(personaBooks).values({ personaId, worldBookId: bookId, createdAt: FROZEN_AT });
   }
 
-  // These two used to observe the `personaIds` list on the FOREIGN op's ARGS. That list stopped reaching the
-  // op when the `personaIds[0]` absent-trigger fallback was retired (2026-08-07) — it was the fallback's only
-  // reader — so the pin now asserts the CONSEQUENCE the presence filter exists for: which persona BOOKS join
-  // the round's world-info pool. Stronger than the old shape (it proves the gate's effect on the wire, not
-  // that a list was handed to a function that ignored it).
-  test("an OFFLINE human's persona-book lore drops from the round; the host's survives", async () => {
+  // Persona-book lore joins by present membership, the people block's axis: an offline member is still a
+  // member, so their lore stays; leaving the room is what drops it.
+  test("an OFFLINE member's persona-book lore stays in the round, rendered against the member's own persona", async () => {
     const room = await seedTwoHumanRoom();
-    await seedPersonaLore(room.host, room.hostPersona, "hostlore", "HOST-POV-LORE");
-    await seedPersonaLore(room.member, room.memberPersona, "memberlore", "MEMBER-POV-LORE");
+    await seedPersonaLore(room.host, room.hostPersona, "hostlore", "HOST-POV-LORE for {{user}}");
+    await seedPersonaLore(room.member, room.memberPersona, "memberlore", "MEMBER-POV-LORE for {{user}}");
     let wire = "";
     const h = harness(db, room.names, {
       onChatRequest: (req) => {
@@ -688,14 +685,18 @@ describe("send — presence character-gating", () => {
 
     await h.turn.send({ principal: principal(room.host), chatId: room.chatId, content: "hi" });
 
-    expect(wire).toContain("HOST-POV-LORE");
-    expect(wire).not.toContain("MEMBER-POV-LORE");
+    expect(wire).toContain("HOST-POV-LORE for host_pov");
+    expect(wire).toContain("MEMBER-POV-LORE for member_pov");
   });
 
-  test("when BOTH humans are online, both persona books join the pool (no drop)", async () => {
+  test("a member who LEFT the room takes their persona-book lore with them; the host's survives", async () => {
     const room = await seedTwoHumanRoom();
     await seedPersonaLore(room.host, room.hostPersona, "hostlore", "HOST-POV-LORE");
     await seedPersonaLore(room.member, room.memberPersona, "memberlore", "MEMBER-POV-LORE");
+    await db
+      .update(chatParticipants)
+      .set({ leftSeq: 1 })
+      .where(and(eq(chatParticipants.chatId, room.chatId), eq(chatParticipants.userId, room.member)));
     let wire = "";
     const h = harness(db, room.names, {
       onChatRequest: (req) => {
@@ -707,7 +708,7 @@ describe("send — presence character-gating", () => {
     await h.turn.send({ principal: principal(room.host), chatId: room.chatId, content: "hi" });
 
     expect(wire).toContain("HOST-POV-LORE");
-    expect(wire).toContain("MEMBER-POV-LORE");
+    expect(wire).not.toContain("MEMBER-POV-LORE");
   });
 
   test("a DISABLED human's persona drops from the round's foreign-input consent set (owner-ruled 2026-08-15 containment gate)", async () => {

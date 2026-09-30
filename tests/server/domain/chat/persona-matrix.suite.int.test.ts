@@ -1,8 +1,9 @@
 // persona-matrix — a REPORT harness, not an invariant suite. For each persona combination it drives the real turn
 // verbs, engine, pipeline and SHAPE, reads what `{{user}}` became in every section kind and which other people the
-// persona marker's people block lists, and writes the tables to `reports/persona-matrix/<label>.md`. No live
+// persona marker's people block lists, whose persona each member's persona-book lore addresses, and writes the tables to `reports/persona-matrix/<label>.md`. No live
 // calls: the tape answers every turn. The invariants live in `prompt-cache-prefix.suite.int.test.ts`; this file
-// asserts that every combination ran and that no call carries one persona's description twice.
+// asserts that every combination ran, that no call carries one persona's description twice, and that no
+// persona book's `{{user}}` names a persona other than its own.
 //
 // `fix` is the composition root's own persona resolver. `PERSONA_MATRIX_LABEL=base` runs the pre-fix trigger
 // binding instead, for a run on the base tree.
@@ -17,7 +18,7 @@ import type { NamesBehavior, PromptConfig, PromptSection } from "@orb/contracts/
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
-import { chatParticipants, chats, personas } from "@orb/db";
+import { chatParticipants, chats, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
 import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
@@ -137,6 +138,8 @@ interface Row {
   readonly preset: string;
   readonly card: string;
   readonly people: string;
+  /** Each persona book's `LORE=<owner:{{user}}>` probe, as `owner:rendered`. */
+  readonly lore: string;
   readonly description: string;
   readonly anchorBlock: string;
   readonly labels: string;
@@ -171,6 +174,7 @@ function readRow(step: string, req: TurnRequest): Row {
     preset: probe(system, "PRESET_USER"),
     card: probe(system, "CARD_USER"),
     people: peopleOf(system),
+    lore: probe(system, "LORE"),
     description: descriptions.length === 0 ? "—" : descriptions.join(", "),
     anchorBlock: anchorMatch === undefined ? "—" : (anchorMatch[1] ?? ""),
     labels: labels.join(" · "),
@@ -200,6 +204,25 @@ async function insertPersona(db: Db, ownerId: UserId, name: string, metadata: Pe
 }
 
 /** Seats a third human, Cara, after Bob in join order. */
+/** Attach an always-on persona book whose entry probes what `{{user}}` renders as inside `name`'s own lore. */
+async function attachLore(room: Room, ownerId: UserId, personaId: PersonaId, name: string): Promise<void> {
+  const worldBookId = mintTypeId(ID_PREFIX.worldBook);
+  await room.scn.db.insert(worldBooks).values({ id: worldBookId, ownerId, name: `${name} lore`, createdAt: FROZEN_AT });
+  await room.scn.db.insert(worldEntries).values({
+    id: mintTypeId(ID_PREFIX.worldEntry),
+    worldBookId,
+    title: `${name} lore`,
+    content: `LORE=<${name}:{{user}}>`,
+    keys: null,
+    enabled: true,
+    priority: 0,
+    ignoreBudget: false,
+    metadata: null,
+    createdAt: FROZEN_AT,
+  });
+  await room.scn.db.insert(personaBooks).values({ personaId, worldBookId, createdAt: FROZEN_AT });
+}
+
 async function seatCara(room: Room): Promise<UserId> {
   const cara = await seedUser(room.scn.db, castId<Handle>("cara"));
   await seedParticipant(room.scn.db, { chatId: room.scn.chatId, key: "cara", userId: cara, role: "member", joinSeq: 10 });
@@ -231,12 +254,15 @@ interface RoomOptions {
   readonly characters?: readonly string[];
   readonly cardScope?: "merged" | "scoped";
   readonly bob?: boolean;
+  /** Bob reads as offline (no live connection); he stays a member. */
+  readonly bobOffline?: boolean;
 }
 
 /** Alice (the host) and, unless `bob: false`, Bob as a member. Personas are made per combo. */
 async function roomFor(opts: RoomOptions): Promise<Room> {
   const db = await freshDb();
   const preset = presetOf(opts.namesBehavior ?? "default");
+  const bobId = await seedUser(db, castId<Handle>("bob"));
   const replies = Array.from({ length: 16 }, (_, i) => `reply ${String(i)}`).reduce((t, r) => t.reply(r), tape());
   const scn = await scenario.chat(replies, {
     db,
@@ -244,16 +270,18 @@ async function roomFor(opts: RoomOptions): Promise<Room> {
     output: opts.output ?? "per-speaker",
     ...(opts.cardScope !== undefined ? { cardScope: opts.cardScope } : {}),
     resolveForeignInputs: foreignFor(opts.binding, db, preset),
-    ctx: { getCard: ({ characterId }) => Promise.resolve(cardOf(String(characterId).replace("character_", ""))) },
+    ctx: {
+      getCard: ({ characterId }) => Promise.resolve(cardOf(String(characterId).replace("character_", ""))),
+      readPresence: (userId) => Promise.resolve({ userId, online: opts.bobOffline !== true || userId !== bobId, lastSeenAt: null }),
+    },
   });
   if (opts.output === "narrator") {
     await seedCharacter(db, scn.host, "group");
   }
-  const bob = await seedUser(db, castId<Handle>("bob"));
   if (opts.bob !== false) {
-    await seedParticipant(db, { chatId: scn.chatId, key: "bob", userId: bob, role: "member", joinSeq: 9 });
+    await seedParticipant(db, { chatId: scn.chatId, key: "bob", userId: bobId, role: "member", joinSeq: 9 });
   }
-  return { scn, alice: scn.host, bob };
+  return { scn, alice: scn.host, bob: bobId };
 }
 
 type Step =
@@ -515,6 +543,24 @@ const COMBOS: readonly Combo[] = [
       ];
     },
   },
+  ...[false, true].map(
+    (bobOffline): Combo => ({
+      id: bobOffline ? "14b" : "14a",
+      title: `each human's persona carries its own book${bobOffline ? ", Bob offline" : ""}`,
+      room: { bobOffline },
+      setup: async (room) => {
+        const { alice, bob } = await twoHumans(room);
+        await attachLore(room, room.alice, alice, "Alice");
+        await attachLore(room, room.bob, bob, "Bob");
+        await setAnchor(room, alice);
+        return [
+          { kind: "send", who: "alice" },
+          { kind: "send", who: "bob" },
+          { kind: "impersonate", who: "bob" },
+        ];
+      },
+    }),
+  ),
   {
     id: "10",
     title: "impersonate by Bob in an Alice-anchored room",
@@ -561,7 +607,19 @@ async function runCombo(combo: Combo, binding: Binding): Promise<ComboResult> {
       }
       const req = room.scn.requests.slice(before).at(-1);
       if (req === undefined) {
-        rows.push({ step: label, preset: "no call", card: "", people: "", description: "", anchorBlock: "", labels: "", tail: "", system: "", repeated: [] });
+        rows.push({
+          step: label,
+          preset: "no call",
+          card: "",
+          people: "",
+          lore: "",
+          description: "",
+          anchorBlock: "",
+          labels: "",
+          tail: "",
+          system: "",
+          repeated: [],
+        });
         continue;
       }
       const row = readRow(label, req);
@@ -582,9 +640,9 @@ function tableOf(result: ComboResult): string {
     return `**CRASH:** ${result.error}\n`;
   }
   const head =
-    "| step | preset {{user}} | card {{user}} | people | persona description | anchor block | user-row labels | tail |\n| - | - | - | - | - | - | - | - |";
+    "| step | preset {{user}} | card {{user}} | people | persona lore | persona description | anchor block | user-row labels | tail |\n| - | - | - | - | - | - | - | - | - |";
   const body = result.rows
-    .map((r) => `| ${r.step} | ${r.preset} | ${r.card} | ${r.people} | ${r.description} | ${r.anchorBlock} | ${r.labels} | ${r.tail} |`)
+    .map((r) => `| ${r.step} | ${r.preset} | ${r.card} | ${r.people} | ${r.lore} | ${r.description} | ${r.anchorBlock} | ${r.labels} | ${r.tail} |`)
     .join("\n");
   return `${head}\n${body}\n\nSystem block byte-identical across senders (before any re-anchor): **${result.systemIdentical}**\n`;
 }
@@ -603,4 +661,21 @@ test("the persona matrix runs every combination and writes its report", async ()
   // A `base` run reports the pre-fix tree as it was; only the current binding owes the once-only rule.
   const repeats = LABEL === "base" ? [] : results.flatMap((r) => r.rows.flatMap((row) => row.repeated.map((rep) => `${r.combo.id} ${row.step}: ${rep}`)));
   expect(repeats).toEqual([]);
+  // A persona book's `{{user}}` names its own persona: `Bob:Bob`, never `Bob:Alice`.
+  const crossed =
+    LABEL === "base"
+      ? []
+      : results.flatMap((r) =>
+          r.rows.flatMap((row) =>
+            row.lore
+              .split(" / ")
+              .filter((cell) => cell.includes(":") && cell.split(":")[0] !== cell.split(":")[1])
+              .map((cell) => `${r.combo.id} ${row.step}: ${cell}`),
+          ),
+        );
+  expect(crossed).toEqual([]);
+  // Both lore combos ran with both books present, so the column is not vacuous.
+  expect(results.filter((r) => r.combo.id.startsWith("14")).flatMap((r) => r.rows.map((row) => row.lore.split(" / ").sort().join(" / ")))).toEqual(
+    Array.from({ length: 6 }, () => "Alice:Alice / Bob:Bob"),
+  );
 }, 120_000);

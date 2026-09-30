@@ -43,6 +43,7 @@ interface Ports {
   readonly create: Mock<ImportCharacterPort["create"]>;
   readonly findByImportHash: Mock<ImportCharacterPort["findByImportHash"]>;
   readonly findByHandle: Mock<ImportCharacterPort["findByHandle"]>;
+  readonly findByName: Mock<ImportCharacterPort["findByName"]>;
   readonly storeAvatar: Mock<ImportAssetPort["store"]>;
   readonly attachCardTag: Mock<ImportTagPort["attachCardTagByName"]>;
 }
@@ -52,6 +53,7 @@ function ports(): Ports {
     create: vi.fn<ImportCharacterPort["create"]>(() => Promise.resolve({ id: CHARACTER })),
     findByImportHash: vi.fn<ImportCharacterPort["findByImportHash"]>(() => Promise.resolve({ characterId: CHARACTER })),
     findByHandle: vi.fn<ImportCharacterPort["findByHandle"]>(() => Promise.resolve(null)),
+    findByName: vi.fn<ImportCharacterPort["findByName"]>(() => Promise.resolve([{ characterId: CHARACTER }])),
     storeAvatar: vi.fn<ImportAssetPort["store"]>(() => Promise.resolve({ assetId: ASSET })),
     attachCardTag: vi.fn<ImportTagPort["attachCardTagByName"]>(() => Promise.resolve(true)),
   };
@@ -60,7 +62,7 @@ function ports(): Ports {
 function wiring(p: Ports): ImportContextWiring {
   return {
     principal: PRINCIPAL,
-    character: { create: p.create, findByImportHash: p.findByImportHash, findByHandle: p.findByHandle },
+    character: { create: p.create, findByImportHash: p.findByImportHash, findByHandle: p.findByHandle, findByName: p.findByName },
     storeAvatar: p.storeAvatar,
     attachCardTag: p.attachCardTag,
   };
@@ -89,9 +91,11 @@ describe("buildImportContext — owner scope is the PRINCIPAL's, never the argum
 
     await ctx.findByImportHash({ ownerId: FOREIGN, importHash: "h1" });
     await ctx.findByHandle({ ownerId: FOREIGN, handle: castId<CharacterHandle>("aria") });
+    expect(await ctx.findByName({ ownerId: FOREIGN, name: "Aria" })).toStrictEqual([CHARACTER]);
 
     expect(p.findByImportHash).toHaveBeenCalledWith({ ownerId: OWNER, importHash: "h1" });
     expect(p.findByHandle).toHaveBeenCalledWith({ ownerId: OWNER, handle: "aria" });
+    expect(p.findByName).toHaveBeenCalledWith({ ownerId: OWNER, name: "Aria" });
   });
 
   test("the dedup oracles collapse a miss to null (never leak the port's row shape)", async () => {

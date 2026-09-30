@@ -55,13 +55,13 @@ test("an all-failed batch is NOT success: it names the server's reason and the d
   await routeTrpc(page, {});
   await routeImport(page, {
     imported: [],
-    failed: [{ filename: "ghost.jsonl", error: 'no character with handle "ghost" on this account' }],
+    failed: [{ filename: "ghost.jsonl", error: 'no character named "Ghost" on this account' }],
   });
 
   const component = await mount(<ChatImportDialogStory />);
   await page.locator(DROPZONE_INPUT).setInputFiles({ name: "ghost.jsonl", mimeType: "application/x-ndjson", buffer: Buffer.from(TRANSCRIPT) });
 
-  await expect(component.getByTestId("import-notice")).toHaveText('error: ghost.jsonl: no character with handle "ghost" on this account');
+  await expect(component.getByTestId("import-notice")).toHaveText('error: ghost.jsonl: no character named "Ghost" on this account');
   await expect(component.getByTestId("import-closes")).toHaveText("0");
 });
 
