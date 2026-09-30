@@ -1,8 +1,8 @@
 // `useSessionRecovery` — the ONE mount that makes the session machinery live. Called once from the authed
 // composition route (`routes/app-root.tsx`), beside the socket and the bus hooks it sits with.
 //
-// It wires four things that all key off the SAME identity read (`sessions.me`, already cached — this adds an
-// observer, not a fetch):
+// It wires these things, which all key off the SAME identity read (`sessions.me`, already cached — this adds an
+// observer, not a fetch), and holds `data-app-ready` until the bind lands and the workspace mounts:
 //   1. the durable-local REBIND (§4.2.1) — every `orb:*` blob is re-keyed to this user, adopting the
 //      pre-namespacing blobs once. Keyed on the USER ID, so an era-changed identity (the dev latch re-mints
 //      the db) can never inherit the previous one's tag filters, drafts or view state;
@@ -26,8 +26,8 @@
 import type { ChatId, Handle, UserId, VerifiedUserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
-import { sessionDocument, timeLib } from "#lib";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { sessionDocument, setBootReadPending, timeLib } from "#lib";
 import { bindDurableLocalToUser, durableLocalReadyFor, openModal, selectChat, useActiveChatId } from "#state";
 import { roomRegistry } from "./bus/room-registry.ts";
 import { createInvalidation } from "./invalidation.ts";
@@ -36,6 +36,9 @@ import { takeSessionResume } from "./session-resume.ts";
 import { beginSessionRecovery, bindSessionRecovery, probeSessionContinuity } from "./stale-session.ts";
 import { useTRPC } from "./trpc.ts";
 
+/** The boot-read key this hook owns (`lib/boot-reads.ts`): readiness waits for the workspace to mount. */
+const SESSION_BOOT_READ = "session";
+
 export type SessionRecoveryState = { readonly status: "error"; readonly retry: () => void } | { readonly status: "loading" } | { readonly status: "ready" };
 
 export function useSessionRecovery(): SessionRecoveryState {
@@ -43,7 +46,7 @@ export function useSessionRecovery(): SessionRecoveryState {
   const queryClient = useQueryClient();
   // The identity read every surface already dedupes on (the shared `sessions.me` query). It is non-suspense
   // so this hook can run the bind explicitly; `AppRoot` keeps durable consumers unmounted until it completes.
-  const { data: me } = useQuery(trpc.sessions.me.queryOptions());
+  const { data: me, status: meStatus } = useQuery(trpc.sessions.me.queryOptions());
   // #854 — THE ONE MINT of `VerifiedUserId`, and the only place in the client that may perform it. `me`
   // is the `sessions.me` payload: the server projected it from the request `Principal` the auth seam
   // resolved, so this id is session-verified by construction and nothing the browser writes can reach it.
@@ -140,8 +143,26 @@ export function useSessionRecovery(): SessionRecoveryState {
     [],
   );
 
+  const bindFailed = failedBind?.userId === userId && failedBind.attempt === bindAttempt;
+  // A failed identity read hands over to the recovery ladder, whose prompt must not wait behind the boot veil.
+  const loading = !(durableReady || bindFailed || meStatus === "error");
+  // The bind runs off the query cache, so the cache sits idle until the workspace mounts and issues its own reads.
+  // Register in a layout effect, which runs before the router's `onRendered` re-check; clear in a passive effect,
+  // which runs after the workspace's children have started their reads.
+  useLayoutEffect(() => {
+    if (loading) {
+      setBootReadPending(SESSION_BOOT_READ, true);
+    }
+  }, [loading]);
+  useEffect(() => {
+    if (!loading) {
+      setBootReadPending(SESSION_BOOT_READ, false);
+    }
+  }, [loading]);
+  useEffect((): (() => void) => (): void => setBootReadPending(SESSION_BOOT_READ, false), []);
+
   if (durableReady) {
     return { status: "ready" };
   }
-  return failedBind?.userId === userId && failedBind.attempt === bindAttempt ? { status: "error", retry: retryBind } : { status: "loading" };
+  return bindFailed ? { status: "error", retry: retryBind } : { status: "loading" };
 }

@@ -49,6 +49,14 @@ test("mount previews the token; confirm redeems and closes into the chat", async
   await expect.poll(() => trpc.lastInput("invites.redeemInvite")).toEqual({ token: "tok_ct_secret" });
 });
 
+// The host's handle is lowercase, and the sentence names the room; the handle has its own Host line.
+test("the invite sentence opens on a capital, not on the host's handle", async ({ mount, page }) => {
+  await routeTrpc(page, { "invites.previewInvite": () => PREVIEW });
+  await mount(<JoinInviteDialogStory token="tok_ct_secret" />);
+  const sentence = page.getByText(PREVIEW.roomName, { exact: true }).locator("..");
+  await expect(sentence).toHaveText(/^\p{Lu}/u);
+});
+
 test("a bad token renders the flat 'invalid or expired' state (leak-free NOT_FOUND)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "invites.previewInvite": () => trpcError({ code: "NOT_FOUND" }),

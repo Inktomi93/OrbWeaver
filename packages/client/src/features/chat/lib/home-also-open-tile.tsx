@@ -50,7 +50,7 @@ export const chatAlsoOpenTile: HomeTileContribution = {
   // WHILE THAT READ IS IN FLIGHT the gate answers from this device's box memory, not from a guess: a
   // remembered box means this device last saw the list, so it reserves that box; no box means it never
   // did, so nothing is reserved. This tile is the stated exception to home's full-page first boot. Its
-  // shrink lands after the boot veil lifts and never heals (a hidden tile is never measured), and the
+  // shrink would recur on every boot (a hidden tile is never measured), and the
   // account a device with no memory most often boots is a new one with no rooms. A resolved-hidden list
   // forgets its box, so the next boot does not reserve a list that is gone.
   useVisible: (): boolean => {
