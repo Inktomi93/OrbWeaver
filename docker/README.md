@@ -240,7 +240,8 @@ project's network (`docker network inspect orbweaver_default`), or `127.0.0.1/32
   referential integrity; a boot that changes nothing makes no copy. There are no "down" migrations: to roll
   back, stop the container, put the backup file back in place of `db/orbweaver.db` (remove any
   `-wal`/`-shm` beside it), and start the OLDER checkout again. Back up the whole volume before a big update:
-  `docker run --rm -v orbweaver_orbweaver-data:/data -v "$PWD":/out alpine tar czf /out/orbweaver-data.tgz -C /data .`
+  `docker run --rm -v orbweaver_orbweaver-data:/data -v "$PWD":/out alpine sh -c 'umask 077 && tar czf /out/orbweaver-data.tgz -C /data .'`
+  (the mask keeps the archive, which holds the secrets, readable by its owner only).
 
 ## Secrets as files
 
@@ -273,7 +274,7 @@ into the checkout as your uid (`PUID`/`PGID`). On a machine with node 26 + pnpm 
 
 `WIRE_CAPTURE` / `RPG_TRACE` (off) turn on recorders that keep the final provider request bodies — system
 prompts, transcripts, persona and world text — behind `/api/_debug/*`, which opens only to `DEBUG_TOKEN`
-or an admin session. Turning one on is a two-knob edit: set `IP_ALLOWLIST` in the same change. The app logs
+or the owner's session (an admin is refused). Turning one on is a two-knob edit: set `IP_ALLOWLIST` in the same change. The app logs
 the composed posture at boot and warns per open exposure.
 
 ## Troubleshooting

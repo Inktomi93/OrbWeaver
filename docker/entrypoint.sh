@@ -19,11 +19,12 @@
 #                                           must name it, not limp into the schema error one layer deeper)
 #    The allowlist is explicit — it documents exactly which secrets are file-mountable.
 #
-#    Every name in the `for name in` line below is EXPORTED into the server's process.env. No child process
-#    inherits that env: the agent-sdk child copies only an allowlist of host keys
-#    (packages/inference/src/backends/agent-sdk/env.ts), and the plugin broker and its watchdog get NODE_ENV
-#    alone (packages/server/src/infra/plugin-host/process-runtime.ts). A new child spawn must keep that shape,
-#    or it hands a live app secret to a subprocess.
+#    Every name in the `for name in` line below is EXPORTED into the server's process.env. The agent-sdk
+#    child copies only an allowlist of host keys (packages/inference/src/backends/agent-sdk/env.ts), and the
+#    plugin broker and its watchdog get NODE_ENV alone (packages/server/src/infra/plugin-host/process-runtime.ts).
+#    Three spawns still pass no env and inherit every secret: the Share relay's cloudflared, its tar extract
+#    (packages/server/src/infra/relay/) and the bug report's git call. Closing them is
+#    docs/work/0302-keep-app-secrets-out-of-every-child-process.md.
 #
 # 0. PUID/PGID: start as root, own the data dir, drop to that uid/gid, re-exec this script (job 0 below).
 #
@@ -84,7 +85,10 @@ done
 # The image starts as root ONLY to (a) make the data dir owned by the app user — a bind-mounted host
 # directory is otherwise root's or someone else's and the app cannot write it — and (b) drop to that user
 # with `setpriv` (util-linux, in the base image) before anything else runs. PUID/PGID default to 1000 (the
-# image's `node` user). Started already non-root (`user:` in compose, `docker run --user`, rootless
+# image's `node` user). The ids are passed to setpriv as NUMBERS and /etc/passwd is never edited: the rootfs
+# is read-only under the shipped compose, so groupmod/usermod cannot lock /etc/group and any other PUID
+# would refuse to boot. `--no-new-privs` makes the image itself carry what compose's security_opt sets, so a
+# bare `docker run` gets it too. Started already non-root (`user:` in compose, `docker run --user`, rootless
 # podman)? Then nothing is chowned and the app runs as that user — the data dir must be writable by it.
 data_dir="${DATA_DIR:-/app/data}"
 export DATA_DIR="${data_dir}"
@@ -93,16 +97,15 @@ puid="${PUID:-1000}"
 pgid="${PGID:-1000}"
 
 if [ "$(id -u)" = 0 ]; then
-  if [ "${puid}" != "$(id -u node)" ] || [ "${pgid}" != "$(id -g node)" ]; then
-    groupmod -o -g "${pgid}" node
-    usermod -o -u "${puid}" -g "${pgid}" node
-  fi
   mkdir -p "${data_dir}" /app/.cache
   # Only the roots and whatever is not already ours — a large asset store is not re-chowned every boot.
   chown "${puid}:${pgid}" "${data_dir}" /app/.cache
   find "${data_dir}" -not -user "${puid}" -exec chown "${puid}:${pgid}" {} + 2>/dev/null || true
+  # The umask above covers new files only. Closing the root closes every older 644/755 entry beneath it
+  # to other host users, without walking the tree.
+  chmod go-rwx "${data_dir}"
   echo "entrypoint: running as uid ${puid} gid ${pgid} (PUID/PGID)" >&2
-  exec setpriv --reuid="${puid}" --regid="${pgid}" --init-groups --inh-caps=-all "$0" "$@"
+  exec setpriv --reuid="${puid}" --regid="${pgid}" --clear-groups --no-new-privs --inh-caps=-all "$0" "$@"
 fi
 
 if [ ! -d "${data_dir}" ] || [ ! -w "${data_dir}" ]; then

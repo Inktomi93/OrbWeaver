@@ -72,6 +72,12 @@ test("the entrypoint keeps its single *_FILE allowlist line, keeps the data volu
   expect(shim.match(/^for name in [^;]+; do$/gmu)).toHaveLength(1);
   // A bind-mounted ./data is a host directory: files the app creates must not be readable by other host users.
   expect(shim).toMatch(/^umask 077$/mu);
+  // …and the data root is closed on every boot, which covers files written before the mask.
+  expect(shim).toContain('chmod go-rwx "${data_dir}"');
+  // The privilege drop takes numeric ids (the rootfs is read-only, so /etc/passwd cannot be edited for another
+  // PUID) and sets no_new_privs itself, so a bare `docker run` without compose's security_opt still gets it.
+  expect(shim).toMatch(/^\s*exec setpriv --reuid="\$\{puid\}" --regid="\$\{pgid\}" --clear-groups --no-new-privs --inh-caps=-all /mu);
+  expect(shim).not.toMatch(/^\s*(groupmod|usermod)\b/mu);
   // single-user's only credential is the owner fallback; the schema refuses the deny pairing
   expect(shim).toContain("export AUTH_FALLBACK=owner");
   // the no-login default must not survive a non-loopback publication
