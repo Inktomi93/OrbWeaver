@@ -75,6 +75,7 @@ import { CLEAR_INSET_RESERVE, ClearFilterGlyph } from "../components/chat-list-f
 import { ChatListMonthFilter } from "../components/chat-list-month-filter.tsx";
 import { ChatListPhoneFilters } from "../components/chat-list-phone-filters.tsx";
 import { ChatListRow } from "../components/chat-list-row.tsx";
+import { DeferredMount } from "../components/deferred-mount.tsx";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
 import type { FilterExit } from "../lib/chat-list-scope.ts";
@@ -88,6 +89,7 @@ import {
   searchEmptyDescription,
 } from "../lib/chat-list-scope.ts";
 import { chatRowQualifiers } from "../lib/chat-summary-row.ts";
+import { ROOM_ENTRY_STAGE } from "../lib/room-entry-stage.ts";
 
 /** The list row, derived off the wire (the `chat-list-row.tsx` / `chat-summary-row.ts` spelling) — the
  *  collection hook deliberately exports no second name for it. */
@@ -204,18 +206,20 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
             the control, two positions, never two copies on screen at once. */}
         {isMobile ? null : <ChatListMonthFilter />}
         <Stack className="min-h-0 flex-1">
-          <ChatListBody
-            activeChatId={activeChatId}
-            beforeRecencyAt={beforeRecencyAt}
-            characterFilter={characterFilter}
-            monthLabel={monthLabel}
-            onClearMonth={clearMonth}
-            onClearSearch={clearSearch}
-            onDeletedChat={onDeletedChat}
-            onNewChat={onNewChat}
-            onSelect={onSelect}
-            query={settledQuery}
-          />
+          <DeferredMount fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />} stage={ROOM_ENTRY_STAGE.chatList}>
+            <ChatListBody
+              activeChatId={activeChatId}
+              beforeRecencyAt={beforeRecencyAt}
+              characterFilter={characterFilter}
+              monthLabel={monthLabel}
+              onClearMonth={clearMonth}
+              onClearSearch={clearSearch}
+              onDeletedChat={onDeletedChat}
+              onNewChat={onNewChat}
+              onSelect={onSelect}
+              query={settledQuery}
+            />
+          </DeferredMount>
         </Stack>
       </Stack>
     </Surface>

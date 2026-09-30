@@ -1952,6 +1952,22 @@ export function ChatDeletedWhileOpenStory(): ReactElement {
   );
 }
 
+/** The chats CONTENT at landing, plus the button that enters a room through the shipped content-swap door
+ *  (`selectChat` → `withContentSwap` → `withViewTransition`). The `.ct.tsx` stubs the View Transition API to
+ *  record what the update callback commits. */
+export function ChatRoomEntryStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <button type="button" onClick={(): void => selectChat(CHAT_ID)}>
+          enter the room
+        </button>
+        <ChatContentHarness />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 function ChatDeletedDriver(): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
