@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: blocked
 updated: 2026-09-30
 priority: P1
 area: verification
+blocked: owner
 ---
 
 # Reduce static verification wall time without losing instrument proof
@@ -59,5 +60,7 @@ A future cache must match fresh solo findings, refusals, grants, and populations
 Main owns red-first controls, suites, the barrier, and one benchmark after source freeze. Compare stage/suite duration, selected scope, pass timings, test count, and completed `test-report.json`. Retain serial execution. No owner fork changes proof requirements.
 
 ## Evidence
+
+Owner deferred this work. Resume only on an explicit owner request.
 
 Narrowing is in `e9fe219ff`; wall time is not fixed. Pre-commit scopes to the whole working tree, not the staged diff. Liveness: 1317 s, ~240 builds of ~1.6 s.
