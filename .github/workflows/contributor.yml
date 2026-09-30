@@ -3,6 +3,11 @@ name: contributor
 # Manual native contributor proof; install.yml separately proves the production launch paths.
 on:
   workflow_dispatch:
+    inputs:
+      windows_only:
+        description: Run only the Windows contributor proof
+        type: boolean
+        default: false
 
 jobs:
   contributor:
@@ -12,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: ${{ fromJSON(inputs.windows_only && '["windows-latest"]' || '["macos-latest", "windows-latest"]') }}
     env:
       CI: "true"
       HEALTHZ: http://127.0.0.1:8788/healthz
@@ -37,7 +42,7 @@ jobs:
           import { setTimeout as sleep } from "node:timers/promises";
           import { chromium } from "@playwright/test";
           import { spawnFullPriorityChild } from "./tooling/src/_shared/proc.ts";
-          import { STAGE_WARMUP_BASE_MS, STAGE_WARMUP_MAX_RENAVIGATIONS } from "./tooling/src/snap/lib/budgets.ts";
+          import { STAGE_READY_BASE_MS, STAGE_WARMUP_BASE_MS, STAGE_WARMUP_MAX_RENAVIGATIONS } from "./tooling/src/snap/lib/budgets.ts";
           // The existing spawn door resolves pnpm's .cmd shim on Windows through cross-spawn.
           const child = spawnFullPriorityChild("pnpm", ["dev"], {
             detached: process.platform !== "win32",
@@ -66,13 +71,19 @@ jobs:
             page.on("pageerror", (error) => console.error("CLIENT_ERROR", error.message));
             const readyAttribute = "data-app-ready";
             const marker = page.locator(`html[${readyAttribute}]`);
-            const clientDeadline = Date.now() + STAGE_WARMUP_BASE_MS;
+            // Native Windows cold transforms share the existing startup deadline; macOS uses the proved shorter warm-up.
+            const clientDeadline = process.platform === "win32" ? deadline : Date.now() + STAGE_WARMUP_BASE_MS;
             let readiness = null;
             // A degraded marker is permanent for that document; cold Vite needs the same bounded warm-up as Snap.
             for (let attempt = 0; attempt <= STAGE_WARMUP_MAX_RENAVIGATIONS && Date.now() < clientDeadline; attempt++) {
               await page.goto(process.env.DEV_ORIGIN, { waitUntil: "commit", timeout: Math.max(1, clientDeadline - Date.now()) });
-              await marker.waitFor({ state: "attached", timeout: Math.max(1, clientDeadline - Date.now()) });
-              readiness = await marker.getAttribute(readyAttribute);
+              try {
+                await marker.waitFor({ state: "attached", timeout: Math.min(STAGE_READY_BASE_MS, Math.max(1, clientDeadline - Date.now())) });
+                readiness = await marker.getAttribute(readyAttribute);
+              } catch (error) {
+                if (!(error instanceof Error) || error.name !== "TimeoutError") throw error;
+                readiness = "absent";
+              }
               console.log("Client readiness", { attempt, readiness });
               if (readiness === "") break;
             }
