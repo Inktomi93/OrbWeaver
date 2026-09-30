@@ -9,6 +9,7 @@ import {
   bindRefusal,
   connectionHost,
   connectionSummary,
+  labelNamesModel,
   ROLE_ROWS_ORDERED,
   ROLE_STATUS_LABELS,
   roleReadout,
@@ -214,6 +215,22 @@ test("connectionHost reads the authority out of a base URL without throwing on a
 test("connectionSummary avoids repeating the model when the auto-minted label already carries it", () => {
   expect(connectionSummary({ label: "OpenRouter · gpt-5", model: "gpt-5" })).toBe("OpenRouter · gpt-5");
   expect(connectionSummary({ label: "work key", model: "gpt-5" })).toBe("work key · gpt-5");
+});
+
+// A label is minted once and kept when the model is edited, so a stale label naming a longer sibling model must
+// not hide the model the connection actually runs.
+test("connectionSummary keeps the real model beside a stale label that names a sibling model", () => {
+  expect(connectionSummary({ label: "OpenRouter · openai/gpt-4o", model: "openai/gpt-4" })).toBe("OpenRouter · openai/gpt-4o · gpt-4");
+  expect(connectionSummary({ label: "OpenRouter · openai/gpt-4", model: "openai/gpt-4" })).toBe("OpenRouter · openai/gpt-4");
+});
+
+// A minted label's first segment is the PROVIDER, so a model id that happens to equal the provider's name is
+// not named by it; a custom label with no separator still matches as a whole.
+test("labelNamesModel never counts the provider segment as naming the model", () => {
+  expect(connectionSummary({ label: "vLLM · qwen3", model: "vllm" })).toBe("vLLM · qwen3 · vllm");
+  expect(connectionSummary({ label: "Ollama · llama3", model: "ollama" })).toBe("Ollama · llama3 · ollama");
+  expect(labelNamesModel("vLLM · qwen3", "vllm")).toBe(false);
+  expect(labelNamesModel("qwen3", "qwen3")).toBe(true);
 });
 
 // Model roles' picker and readout both name a connection through this one label. The seeded local rows and an

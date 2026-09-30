@@ -3,8 +3,9 @@
 // read describes it; a member is told it is the host's connection and never shown the host's row.
 
 import type { ResolvedConnectionView, UnavailableCause } from "@orb/contracts/inference";
+import { CONNECTION_LABEL_SEPARATOR } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
-import { MODEL_ROLES_PATH } from "#lib";
+import { labelNamesModel, MODEL_ROLES_PATH } from "#lib";
 import type { CreditConnections } from "./swipe-attribution.ts";
 import { providerName } from "./swipe-attribution.ts";
 
@@ -64,7 +65,9 @@ function hostLine(inputs: NextTurnInputs): NextTurnLine {
   if (resolved !== undefined) {
     const row = connections.rows?.find((candidate) => candidate.id === resolved.connectionId);
     const connection = row?.label ?? providerName(resolved.providerId, row);
-    return { state: "named", text: `Next reply: ${connection} · ${modelDisplayName(resolved.model)}`, door: undefined };
+    const model = modelDisplayName(resolved.model);
+    const named = labelNamesModel(connection, resolved.model) ? connection : `${connection}${CONNECTION_LABEL_SEPARATOR}${model}`;
+    return { state: "named", text: `Next reply: ${named}`, door: undefined };
   }
   return inputs.resolveFailed ? FAILED : CHECKING;
 }

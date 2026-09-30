@@ -99,9 +99,21 @@ export interface ConnectionRoleSlotProps {
   readonly unsetLabel?: string | undefined;
   /** Replaces the row's own description where the role means something narrower (a rule's turns). */
   readonly description?: string | undefined;
+  /** The picker's DOM id — a settings deep link to this role focuses the element carrying it. */
+  readonly controlId?: string | undefined;
 }
 
-export function ConnectionRoleSlot({ row, connections, view, trpc, invalidation, actor, unsetLabel, description }: ConnectionRoleSlotProps): ReactElement {
+export function ConnectionRoleSlot({
+  row,
+  connections,
+  view,
+  trpc,
+  invalidation,
+  actor,
+  unsetLabel,
+  description,
+  controlId,
+}: ConnectionRoleSlotProps): ReactElement {
   const deps = { trpc, invalidation };
   const setBinding = useSetBinding(deps);
   const update = useUpdateConnection(deps);
@@ -161,6 +173,7 @@ export function ConnectionRoleSlot({ row, connections, view, trpc, invalidation,
       </Row>
       <Select
         aria-label={`${row.label} connection`}
+        id={controlId}
         items={items}
         value={current}
         disabled={setBinding.isPending}

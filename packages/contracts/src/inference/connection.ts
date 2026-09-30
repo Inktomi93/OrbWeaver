@@ -52,6 +52,10 @@ export const MODEL_CHECKS = ["listed", "unlisted", "unchecked"] as const;
 export type ModelCheck = (typeof MODEL_CHECKS)[number];
 export const modelCheckSchema = z.enum(MODEL_CHECKS) satisfies z.ZodType<ModelCheck>;
 
+/** The separator of a minted connection label, `<provider label> · <model>`. The server mints labels with it and
+ *  the client splits them on it to tell whether a label already names the connection's model. */
+export const CONNECTION_LABEL_SEPARATOR = " · ";
+
 export const userConnectionSchema = z.object({
   id: typeIdSchema(ID_PREFIX.userConnection),
   ownerId: brandedId<UserId>(),

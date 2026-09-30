@@ -9,11 +9,16 @@ import type { ReactElement } from "react";
 import { ConnectionRoleSlot, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { ROLE_ROWS_ORDERED } from "#lib";
-import { configAnchorId } from "#state";
-import { CONNECTIONS_ROLES_SUBCATEGORY } from "../lib/connections-nav.ts";
+import { configAnchorId, configSettingControlId } from "#state";
+import { CONNECTIONS_ROLES_SUBCATEGORY, ROLE_SETTING_IDS } from "../lib/connections-nav.ts";
 
 // The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
 const PROSE_MEASURE = "max-w-(--reading-measure-prose)";
+
+// A role with a declared Model roles leaf stamps its picker as that leaf's deep-link focus target.
+function settingControlId(settingId: string | undefined): string | undefined {
+  return settingId === undefined ? undefined : configSettingControlId("connections", settingId);
+}
 
 export function ConnectionsRolesSection(): ReactElement {
   return (
@@ -49,6 +54,7 @@ function ModelRolesBody(): ReactElement {
             row={row}
             connections={connections}
             view={bindings.find((view) => view.task === row.task) ?? null}
+            controlId={settingControlId(ROLE_SETTING_IDS[row.task])}
             trpc={trpc}
             invalidation={invalidation}
           />

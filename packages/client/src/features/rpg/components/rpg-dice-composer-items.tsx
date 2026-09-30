@@ -3,6 +3,7 @@
 
 import { isRpgEngaged, RPG_RULESET_DICE } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
+import { Dices, Icon } from "@orb/ui/icons";
 import { MenuGroup, MenuGroupLabel, MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
@@ -53,6 +54,7 @@ export function RpgDiceComposerItems({ chatId }: { readonly chatId: ChatId }): R
               rollIntoDraft(chatId, notation, rollDice).catch(globalThis.reportError);
             }}
           >
+            <Icon icon={Dices} size="sm" />
             Roll {notation}
           </MenuItem>
         ))}

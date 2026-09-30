@@ -48,6 +48,7 @@ export {
   CONNECTION_ROLE_LABELS,
   connectionHost,
   connectionSummary,
+  labelNamesModel,
   ROLE_ROWS_ORDERED,
   ROLE_STATUS_LABELS,
   roleReadout,

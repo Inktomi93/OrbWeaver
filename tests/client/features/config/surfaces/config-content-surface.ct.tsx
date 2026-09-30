@@ -18,7 +18,7 @@ import { readEscapedAbsolutes } from "../../../../support/browser/settings-geome
 import { makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
 import type { TrpcFixtureOutput, TrpcProcedurePath, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { defineTrpcRoutes, routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { ConfigHostInScrollingHostStory, ConfigHostStory } from "../_ct-stories.tsx";
+import { ConfigDeepLinkFromDoorStory, ConfigHostInScrollingHostStory, ConfigHostStory } from "../_ct-stories.tsx";
 
 /** The getUserSettings read-model the Appearance group suspends on — defaults are enough to render it. */
 // The Looks section (#866 S4) reads the theme library — three seeds, no owned rows.
@@ -572,6 +572,45 @@ test("a SUB-level deep link lands on the section's anchor (contributed sections 
   // `exact` because the World Info COLLECTION band ("World Info 0") is a button too since #1099 F5, and the
   // default role-name match is a case-insensitive substring. This assertion is about the section ROW.
   await expect(component.getByRole("button", { name: "World info", exact: true })).toHaveAttribute("aria-current", "true");
+});
+
+// A SETTING-level link names one knob, so keyboard focus lands on that knob's own control. The composer's
+// next-turn recovery door is this link's live caller: it names the Chat model leaf of Model roles.
+test("a setting-level deep link from a door focuses the named setting's control, not the LIST band", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigDeepLinkFromDoorStory target="connections" sub="model-roles" setting="chat-model" />);
+
+  await page.getByRole("button", { name: "open the setting", exact: true }).click();
+  await expect(component.locator("#config-anchor-connections-model-roles")).toBeInViewport();
+  await expect(component.getByRole("combobox", { name: "Chat connection", exact: true })).toBeFocused();
+});
+
+// The landing's focus waits for the section to mount. A reader who moves on while it suspends keeps their
+// focus: the late landing must not pull it off the search box they are typing in.
+test("a setting-level landing that resolves after the reader moved focus leaves their focus alone", async ({ mount, page }) => {
+  const bindings = trpcHold();
+  await stub(page, { "connection.listBindings": bindings });
+  await mount(<ConfigDeepLinkFromDoorStory target="connections" sub="model-roles" setting="chat-model" />);
+
+  await page.getByRole("button", { name: "open the setting", exact: true }).click();
+  await bindings.requested;
+  const search = page.getByRole("combobox", { name: "Search settings" });
+  await search.click();
+  await search.pressSequentially("chat");
+
+  bindings.release([]);
+  const picker = page.getByRole("combobox", { name: "Chat connection", exact: true });
+  await expect(picker).toBeVisible();
+  await expect(page.locator("#config-anchor-connections-model-roles")).toBeInViewport();
+  // The landing's focus runs one frame after the anchor mounts; two frames later it has had its chance.
+  await page.evaluate(
+    async (): Promise<void> =>
+      await new Promise((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+  await expect(search).toBeFocused();
+  await expect(picker).not.toBeFocused();
 });
 
 test("a group-only deep link still lands at the TOP of the group (no phantom jump)", async ({ mount, page }) => {

@@ -1,6 +1,6 @@
 // The composer's ✨ UTILITY menu (wand v2) — everything BUSY lives here so the composer's top row is just the
 // four guided icons + this ✨ trigger. Regrouped by concept (side-eye P2-A), each group a labeled MenuGroup +
-// GroupLabel. The room's own groups lead — the `composer-room` contributions (a game's Dice rolls), then Plot —
+// GroupLabel. The room's own groups lead — the `composer-room` contributions (a game's Dice rolls), then Story —
 // so a phone reaches a game's main action without scrolling past the generic groups, which follow by frequency:
 //   • Input  — Recover input (recall the last FIRED steer — the D57 ring, owner-clarified) · Corrections (the
 //              rewrite/OOC dialog) · Clear input
@@ -15,7 +15,7 @@
 //              IS the prompt) and Imagine (opens the /imagine modal: mode strip + preview-before-spend). Both
 //              are here because both cost money and only one used to be findable (#623 P1-IA) · the room
 //              character's gallery. The group renders from `composer-media-group.tsx`.
-//   • Plot   — game-only, first after the room contributions: the six plot steers under one submenu (P1-B)
+//   • Story  — game-only, first after the room contributions: the six plot steers under one submenu (P1-B)
 // Each item is the omit-doctrine's disabled-affordance law: rendered enabled, or disabled-with-a-legible-reason,
 // never hidden — except a permission-gated one (the gallery door, for a viewer who owns no character here).
 
@@ -23,7 +23,7 @@ import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import { RPG_PLOT_STEER_KINDS, RPG_PLOT_STEERS } from "@orb/kit/guided";
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Compass, Eraser, Icon, ListOrdered, Pencil, Redo2, RefreshCw, Undo2, WandSparkles } from "@orb/ui/icons";
+import { Compass, Eraser, History, Icon, ListOrdered, MessageSquarePlus, Pencil, Redo2, RefreshCw, Undo2, WandSparkles } from "@orb/ui/icons";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
@@ -187,13 +187,13 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
       <MenuPopup side="top" style={MENU_BOUND}>
         {/* THE ROOM'S OWN GROUPS LEAD. Each contribution closes its group with a separator. */}
         {roomContributions}
-        {/* PLOT — game-only (owner: "game steers go in the magic wand"). The six plot steers nest under one
+        {/* STORY — game-only (owner: "game steers go in the magic wand"). The six plot steers nest under one
             submenu (side-eye P1-B — no more flat icon-less dump). Plot steers are APPLICABILITY-gated on
-            plotProgression, so a game whose plot progression is off contributes no Plot group at all. */}
+            plotProgression, so a game whose plot progression is off contributes no Story group at all. */}
         {game !== undefined && game.plotAvailable ? (
           <>
             <MenuGroup>
-              <MenuGroupLabel>Plot</MenuGroupLabel>
+              <MenuGroupLabel>Story</MenuGroupLabel>
               <PlotSteersSubmenu enabled={generationEnabled} reason={generationUnavailableReason} onSteer={game.onSteer} />
             </MenuGroup>
             <MenuSeparator />
@@ -208,6 +208,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             <RecoverInputSubmenu steers={recentSteers} onRecall={onRecall} />
           ) : (
             <MenuItem disabled={true} title="Fire a guided action first — then you can recall it">
+              <Icon icon={History} size="sm" />
               Recover input
             </MenuItem>
           )}
@@ -241,12 +242,13 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             disabledReason={SWIPE_NEEDS_REPLY}
           />
           <UtilityActionItem
+            icon={MessageSquarePlus}
             label="Simple send"
             onAction={onSimpleSend}
             enabled={onSimpleSend !== undefined}
             disabledReason={hasText ? "Send your first message normally, then Simple send is available" : "Type a message to post"}
           />
-          {/* R3 (B1) — UN-GAME-GATED, and it lives HERE rather than in the game-only Plot group.
+          {/* R3 (B1) — UN-GAME-GATED, and it lives HERE rather than in the game-only Story group.
               It never was a plot steer (the Plot comment already said so); it was game-gated only because the
               standing `:::choices` posture used to exist only as an rpg feature. Both halves of the pair are
               general now — the room-level toggle is in "This chat", the tokenizer renders the fence in any
@@ -331,7 +333,7 @@ function PlotSteersSubmenu({
     <MenuSubmenuRoot>
       <MenuSubmenuTrigger data-testid={testId("composerPlotSteers")} disabled={!enabled} title={enabled ? undefined : reason}>
         <Icon icon={Compass} size="sm" />
-        Plot
+        Steer the plot
       </MenuSubmenuTrigger>
       <MenuPopup>
         {RPG_PLOT_STEER_KINDS.map((kind) => (
@@ -350,7 +352,10 @@ function PlotSteersSubmenu({
 function RecoverInputSubmenu({ steers, onRecall }: { readonly steers: readonly string[]; readonly onRecall: (steer: string) => void }): ReactElement {
   return (
     <MenuSubmenuRoot>
-      <MenuSubmenuTrigger>Recover input</MenuSubmenuTrigger>
+      <MenuSubmenuTrigger>
+        <Icon icon={History} size="sm" />
+        Recover input
+      </MenuSubmenuTrigger>
       <MenuPopup>
         {steers.map((steer) => (
           <MenuItem key={steer} title={steer} onClick={(): void => onRecall(steer)} className="max-w-xs truncate">

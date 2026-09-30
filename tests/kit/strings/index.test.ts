@@ -1,4 +1,4 @@
-import { formatBytes, formatUsd, groupThousands, nextFreeLabel } from "@orb/kit/strings";
+import { formatBytes, formatUsd, groupThousands, nextFreeLabel, stripLabelSuffix } from "@orb/kit/strings";
 import { expect, test } from "../../support/fixtures.ts";
 
 // The three `escapeRegExp` tests died with the function (Node-26 program §4.7 — `RegExp.escape` owns
@@ -84,4 +84,14 @@ test("nextFreeLabel keeps a free base and skips every taken suffix", () => {
   expect(nextFreeLabel("default", ["default"])).toBe("default (2)");
   expect(nextFreeLabel("default", ["default", "default (2)", "default (3)"])).toBe("default (4)");
   expect(nextFreeLabel("default", ["default (2)"])).toBe("default");
+});
+
+// A reader that recognises a minted label strips exactly the suffix nextFreeLabel adds, so the two cannot drift.
+test("stripLabelSuffix undoes exactly the suffix nextFreeLabel adds", () => {
+  const base = "OpenRouter · openai/gpt-4";
+  for (const taken of [[], [base], [base, `${base} (2)`, `${base} (3)`]]) {
+    expect(stripLabelSuffix(nextFreeLabel(base, taken))).toBe(base);
+  }
+  // A parenthesis that is part of the name, not a collision count, stays.
+  expect(stripLabelSuffix("Local (vLLM)")).toBe("Local (vLLM)");
 });
