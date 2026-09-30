@@ -18,6 +18,7 @@ import { useFocusOnMount } from "#lib";
 import { selectLabelFromList, setLabelFilter, setTagPruneConfirmOpen, useLabelFilter, useSelectedLabelId } from "#state";
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
 import { useTagCensus, useTagSortControl } from "../hooks/use-tag-library.ts";
+import { LABELS_FINDER_SLOT } from "../lib/labels-focus-targets.ts";
 import { LABELS_EMPTY } from "../lib/tags-model.ts";
 
 export function LabelsListSurface(): ReactElement {
@@ -29,7 +30,7 @@ export function LabelsListSurface(): ReactElement {
   const empty = useTagCensus() === 0;
   return (
     <Container className="h-full" name="labels-finder">
-      <Stack className="h-full min-h-0 outline-none" data-slot="labels-finder" gap="block" ref={surfaceRef} tabIndex={-1}>
+      <Stack className="h-full min-h-0 outline-none" data-slot={LABELS_FINDER_SLOT} gap="block" ref={surfaceRef} tabIndex={-1}>
         <Row align="center" data-slot="labels-control-row" gap="field">
           <Row align="center" className="min-w-0 flex-1">
             <Input aria-label="Filter labels" onValueChange={setLabelFilter} placeholder="Filter labels…" value={filter} />

@@ -207,6 +207,32 @@ test("fresh state lands on HOME — the launcher, never an empty room (D62 P4 vi
   await expect(page.getByTestId(testId("composer"))).toHaveCount(0);
 });
 
+// WCAG 2.4.3: a cold load leaves focus where the document starts, so the first Tab reaches the skip link and
+// the rail before any content. The shell's lost-focus rescue is for a section JUMP, never the first mount.
+test("a cold load moves focus nowhere", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...HOME_AMBIENT_ROUTES,
+    "chat.listChats": chatListResponder([]),
+    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+    "databank.bankHealth": EMPTY_BANK_HEALTH,
+    "character.list": NO_CHARACTERS,
+    "persona.list": PERSONAS,
+  });
+  // Every focus the boot makes, recorded from before the first commit.
+  await page.evaluate(() => {
+    const trail: string[] = [];
+    Reflect.set(globalThis, "__focusTrail", trail);
+    document.addEventListener("focusin", (event) => {
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      trail.push(`${target?.tagName ?? "?"}.${target?.className ?? ""}`);
+    });
+  });
+  const component = await mount(<HomePageStory />);
+  // The tiles land after the reads resolve, long after any first-commit effect has run.
+  await expect(component.locator('[data-home-tile="home.jump"]')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => Reflect.get(globalThis, "__focusTrail") as string[])).toEqual([]);
+});
+
 // A phone reaches every section from its tab bar or the You sheet; the chip rail would repeat them above the
 // page's starting points.
 test("on a phone, Home drops the section chips the tab bar and the You sheet already carry", async ({ mount, page }) => {
@@ -1062,6 +1088,9 @@ test.describe("the Corpus workbench on a phone", () => {
 
     await expect(main.getByTestId(testId("analyticsCharacterSurface"))).toBeVisible();
     await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
+    // One Back on a phone: the topbar's. The drill draws no second one with a second name.
+    await expect(main.getByText("No stats yet")).toBeVisible();
+    await expect(main.locator("button").filter({ hasText: /^Back to/u })).toHaveCount(0);
     await component.getByRole("button", { name: "Back to Corpus" }).tap();
     await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
     await expect(component.getByRole("button", { name: "Show Corpus list" })).toBeVisible();

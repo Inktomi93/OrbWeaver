@@ -5,10 +5,11 @@
 // The finder's controls moved here from the Configuration host with the tag library; the rows' half of each
 // ruling stays pinned in `tests/client/features/tag/components/tag-collection-rows.ct.tsx`.
 
+import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { LabelsWorkspaceStory } from "../_ct-stories.tsx";
 
 type TagWithUsage = TrpcFixtureOutput<"tag.listTagsWithUsage">[number];
@@ -45,6 +46,7 @@ function stub(page: Page, tags: readonly TagWithUsage[] = FEW_TAGS): Promise<Trp
     "tag.pruneUnusedTags": () => ({ removed: 1 }),
     "tag.setTagOrder": () => undefined,
     "tag.mergeTags": () => null,
+    "tag.removeTag": () => null,
     "tag.createTag": () => {
       const { usage: _usage, ...view } = CREATED;
       return view;
@@ -148,7 +150,51 @@ test("New tag creates a uniquely named tag and focuses its Name field", async ({
   await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New tag 3" } });
   const editor = content(workspace).locator('[data-slot="tag-member-editor"]');
   await expect(editor.getByRole("heading", { name: "New tag 2" })).toBeVisible();
-  await expect(editor.getByRole("textbox", { name: "Name" })).toBeFocused();
+  const name = editor.getByRole("textbox", { name: "Name" });
+  await expect(name).toBeFocused();
+  // The placeholder name is selected, so the first keystroke replaces it.
+  await expect
+    .poll(() => name.evaluate((el) => el instanceof HTMLInputElement && el.selectionStart === 0 && el.selectionEnd === el.value.length && el.value.length > 0))
+    .toBe(true);
+});
+
+// The server's name index is case-folded (`lower(name)`), so `new tag` already takes `New tag`.
+test("New tag skips a name the library holds in another casing", async ({ mount, page }) => {
+  const trpc = await stub(page, [...FEW_TAGS, tagRow("tag_lower_new", "new tag", 0)]);
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New tag" }).click();
+  await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New tag 2" } });
+});
+
+// The rows learn a new name only on the bus refetch, so a second click during the create would offer the
+// same name again: the door holds shut until the create settles.
+test("a double click on New tag creates once", async ({ mount, page }) => {
+  const hold = trpcHold();
+  const { usage: _usage, ...created } = CREATED;
+  const trpc = await routeTrpc(page, { "tag.listTagsWithUsage": () => [...FEW_TAGS, CREATED], "tag.createTag": hold });
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New tag" }).dblclick();
+  await hold.requested;
+  hold.release(created);
+  await expect(content(workspace).locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "New tag 2" })).toBeVisible();
+  await expect.poll(() => trpc.count("tag.createTag")).toBe(1);
+});
+
+// A conflict the cached rows could not predict (another tab, a stale read) retries once with the next name.
+test("a create the name index refuses retries once with the next free name", async ({ mount, page }) => {
+  const { usage: _usage, ...created } = CREATED;
+  let calls = 0;
+  const trpc = await routeTrpc(page, {
+    "tag.listTagsWithUsage": () => [...FEW_TAGS, CREATED],
+    "tag.createTag": () => {
+      calls += 1;
+      return calls === 1 ? trpcError({ code: "CONFLICT" }) : created;
+    },
+  });
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New tag" }).click();
+  await expect(content(workspace).locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "New tag 2" })).toBeVisible();
+  await expect.poll(() => trpc.inputs("tag.createTag")).toEqual([{ input: { name: "New tag" } }, { input: { name: "New tag 3" } }]);
 });
 
 // A merge closes the editor; focus lands on the library, never on <body>.
@@ -201,4 +247,41 @@ test("an empty library says so in the finder and on the landing, with exactly ON
   await expect(finder(workspace).locator('[data-slot="labels-finder-empty"]')).toContainText("No tags yet");
   await expect(content(workspace).getByText("No tags yet", { exact: false })).toBeVisible();
   await expect(workspace.getByRole("button", { name: "New tag" })).toHaveCount(1);
+});
+
+async function deleteRow(page: Page, workspace: Locator, name: string): Promise<void> {
+  await finder(workspace).locator('[data-slot="list-row-root"]', { hasText: name }).hover();
+  await finder(workspace)
+    .getByRole("button", { name: rowActionsName(name), exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+}
+
+// A delete removes the kebab that opened its confirm, so the confirm names where focus lands instead.
+test("deleting the open tag lands focus on the library", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  await finder(workspace).getByRole("button", { name: "orphan", exact: true }).click();
+  await expect(content(workspace).locator('[data-slot="tag-member-editor"]')).toBeVisible();
+  await deleteRow(page, workspace, "orphan");
+  await expect(content(workspace).locator('[data-slot="labels-library"]')).toBeFocused();
+});
+
+test("deleting a row that is not open lands focus on its finder", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  await deleteRow(page, workspace, "orphan");
+  await expect(finder(workspace).locator('[data-slot="labels-finder"]')).toBeFocused();
+});
+
+// At zero unused the fact's Prune button leaves the tree, so the confirm lands focus on the library.
+test("a prune lands focus on the library", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  await content(workspace).getByRole("button", { name: "Prune 1 unused" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete it", exact: true }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(content(workspace).locator('[data-slot="labels-library"]')).toBeFocused();
 });

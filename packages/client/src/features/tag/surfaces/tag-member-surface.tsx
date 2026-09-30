@@ -84,7 +84,9 @@ function TagMemberEditor({
     if (nameFocus !== tag.id) {
       return;
     }
+    // Selected, so the first keystroke replaces the placeholder name instead of appending to it.
     nameRef.current?.focus();
+    nameRef.current?.select();
     setLabelNameFocus(null);
   }, [nameFocus, tag.id]);
   const [name, setName] = useState(tag.name);

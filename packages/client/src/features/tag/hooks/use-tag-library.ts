@@ -5,23 +5,29 @@
 import type { TagWithUsage } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 import type { SelectOption } from "@orb/ui/select";
+import { useRef } from "react";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { TagSortMode } from "#lib";
-import { COLLECTION_LARGE_GROUP } from "#lib";
+import { COLLECTION_LARGE_GROUP, notify } from "#lib";
 import { selectLabel, setLabelNameFocus, setTagPruneConfirmOpen, setTagSortMode, useTagSortMode } from "#state";
 import { tagSortItems, USAGE_KIND_TITLES } from "../lib/tags-model.ts";
-import { useCreateTag } from "./use-tag-settings-mutations.ts";
+import { CREATE_TAG_CONFLICT_TOAST, isTagNameConflict, useCreateTag } from "./use-tag-settings-mutations.ts";
 
 /** The name a created tag lands with — the editor's Name field is the rename affordance, so create needs no
  *  name dialog (C-7: the editor is MOUNTED, so create-then-edit is one motion). */
 const NEW_TAG_NAME = "New tag";
 
-/** The first `New tag`, `New tag 2`, … no tag in the library already wears — a second create must not collide. */
-function uniqueNewTagName(rows: readonly TagWithUsage[]): string {
-  const taken = new Set(rows.map((row) => row.name));
+/** The first `New tag`, `New tag 2`, … no tag already wears. Compared case-folded, because the server's
+ *  name index is on `lower(name)`: a library holding `new tag` must not be offered `New tag`. `alsoTaken`
+ *  carries a name the server just refused that the cached rows do not show yet. */
+function uniqueNewTagName(rows: readonly TagWithUsage[], alsoTaken?: string): string {
+  const taken = new Set(rows.map((row) => row.name.toLowerCase()));
+  if (alsoTaken !== undefined) {
+    taken.add(alsoTaken.toLowerCase());
+  }
   let suffix = 1;
   let name = NEW_TAG_NAME;
-  while (taken.has(name)) {
+  while (taken.has(name.toLowerCase())) {
     suffix += 1;
     name = `${NEW_TAG_NAME} ${String(suffix)}`;
   }
@@ -86,22 +92,53 @@ export function useTagName(tagId: TagId | null): string | undefined {
 }
 
 /** The create runner: mint a uniquely named tag, then OPEN it with its Name field focused — a create that
- *  leaves the reader typing the real name of the thing they just made. */
-export function useCreateLabel(): () => void {
+ *  leaves the reader typing the real name of the thing they just made. `pending` holds the door shut while a
+ *  create is in flight: the rows only learn the new name on the bus refetch, so a second click would offer
+ *  the same one. A conflict the rows could not predict retries once with the next free name. */
+export function useCreateLabel(): { readonly run: () => void; readonly pending: boolean } {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const create = useCreateTag({ trpc, invalidation });
-  const rows = useTagRows();
-  return (): void => {
-    create.mutate(
-      { input: { name: uniqueNewTagName(rows ?? []) } },
-      {
-        onSuccess: (created): void => {
-          setLabelNameFocus(created.id);
-          selectLabel(created.id);
-        },
-      },
-    );
+  const rows = useTagRows() ?? [];
+  // A double click lands both clicks before React re-renders with `isPending`, so the handler holds its own latch.
+  const inFlight = useRef(false);
+  const open = (created: { readonly id: TagId }): void => {
+    setLabelNameFocus(created.id);
+    selectLabel(created.id);
+  };
+  const createOnce = async (): Promise<void> => {
+    const first = uniqueNewTagName(rows);
+    // @orb-waive caught-failure-ownership(error): a non-conflict failure is toasted by `useCreateTag`'s errorToast through the MutationCache; a conflict is retried below. Ends if the create stops toasting its own failures.
+    try {
+      open(await create.mutateAsync({ input: { name: first } }));
+    } catch (error) {
+      if (!isTagNameConflict(error)) {
+        return;
+      }
+      // @orb-waive caught-failure-ownership(retryError): a second conflict is toasted here, any other failure by `useCreateTag`'s errorToast. Ends if the create stops toasting its own failures.
+      try {
+        open(await create.mutateAsync({ input: { name: uniqueNewTagName(rows, first) } }));
+      } catch (retryError) {
+        if (isTagNameConflict(retryError)) {
+          notify.error(CREATE_TAG_CONFLICT_TOAST);
+        }
+      }
+    }
+  };
+  return {
+    run: (): void => {
+      if (inFlight.current) {
+        return;
+      }
+      inFlight.current = true;
+      // @orb-waive caught-failure-ownership(createOnce): createOnce owns every failure above and never rejects; the catch only satisfies the floating-promise rule. Ends if createOnce starts rethrowing.
+      createOnce()
+        .finally(() => {
+          inFlight.current = false;
+        })
+        .catch(() => undefined);
+    },
+    pending: create.isPending,
   };
 }
 

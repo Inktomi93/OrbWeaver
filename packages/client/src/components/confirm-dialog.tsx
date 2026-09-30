@@ -20,6 +20,11 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useState } from "react";
 
+/** A confirm's close target. A ref lands on that element's first tabbable control. A function runs at close
+ *  and returns `false` once it has placed focus itself, which is how a programmatic stop (tabindex -1) with
+ *  controls inside it takes focus as a whole. */
+type ConfirmFinalFocus = RefObject<HTMLElement | null> | (() => boolean);
+
 export interface ConfirmDialogProps {
   /** The alert-dialog heading. */
   readonly title: ReactNode;
@@ -66,7 +71,7 @@ export interface ConfirmDialogProps {
   /** Force-renders the backdrop when this confirm nests inside another open Dialog/AlertDialog. */
   readonly forceRender?: boolean;
   /** Where focus goes on close. Give one when the act unmounts the trigger, or focus falls to the page body. */
-  readonly finalFocus?: RefObject<HTMLElement | null>;
+  readonly finalFocus?: ConfirmFinalFocus;
 }
 
 /**

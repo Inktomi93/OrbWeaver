@@ -52,11 +52,13 @@ import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import { ConfirmDialog, LibraryRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { COLLECTION_LARGE_GROUP, sortTagsBy } from "#lib";
 import { clearLabelSelection, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
 import { usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "../hooks/use-tag-settings-mutations.ts";
+import { finderRoot, libraryOrFinder } from "../lib/labels-focus-targets.ts";
 import { pruneConfirmLabel, tagColorLabel, unusedTagsLabel, usageBreakdown, usageTotalLabel } from "../lib/tags-model.ts";
 
 /** One row's height guess for the windowed arm: swatch + name, with the usage census on the SUBTITLE line
@@ -91,15 +93,41 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
 
   // Delete is the row's KEBAB (config-delete #271). Clear the selection FIRST when the open tag is the one
   // being deleted, so CONTENT falls back to the tag library instead of holding a dead editor over a deleted id.
-  const onDelete = (id: TagId): void => {
-    if (view.selectedId === id) {
+  // The confirm closes onto `closeFocusRef`, set once the delete lands: the kebab that opened it leaves with
+  // the row, and a prune can remove the fact button that opened its confirm. The stop takes focus as a
+  // whole; a cancelled confirm set nothing and keeps the default return.
+  const closeFocusRef = useRef<HTMLElement | null>(null);
+  const landCloseFocus = (): boolean => {
+    const target = closeFocusRef.current;
+    closeFocusRef.current = null;
+    if (target === null) {
+      return true;
+    }
+    target.focus();
+    return false;
+  };
+  const onDelete = async (id: TagId): Promise<void> => {
+    const wasOpen = view.selectedId === id;
+    if (wasOpen) {
       clearLabelSelection();
     }
-    remove.mutate({ tagId: id });
+    await remove.mutateAsync({ tagId: id });
+    closeFocusRef.current = wasOpen ? libraryOrFinder() : finderRoot();
+  };
+  const onPrune = async (): Promise<void> => {
+    await prune.mutateAsync();
+    closeFocusRef.current = libraryOrFinder();
   };
 
   const renderRow = (tag: TagWithUsage): ReactElement => (
-    <TagCollectionRow key={tag.id} onDelete={onDelete} onSelect={(): void => view.onSelect(tag.id)} selected={view.selectedId === tag.id} tag={tag} />
+    <TagCollectionRow
+      closeFocus={landCloseFocus}
+      key={tag.id}
+      onDelete={onDelete}
+      onSelect={(): void => view.onSelect(tag.id)}
+      selected={view.selectedId === tag.id}
+      tag={tag}
+    />
   );
 
   const windowed = tags.length > COLLECTION_LARGE_GROUP;
@@ -187,7 +215,8 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
             ? `This deletes ${unusedTagsLabel(unusedCount)} — every tag attached to nothing. This can't be undone.`
             : "Every tag in this library is attached to something, so there is nothing to delete."
         }
-        onConfirm={(): void => prune.mutate()}
+        finalFocus={landCloseFocus}
+        onConfirm={onPrune}
         onOpenChange={setTagPruneConfirmOpen}
         open={pruneOpen}
         title={hasUnused ? `Delete ${unusedTagsLabel(unusedCount)}?` : "Nothing to prune"}
@@ -204,17 +233,20 @@ function TagCollectionRow({
   selected,
   onSelect,
   onDelete,
+  closeFocus,
 }: {
   readonly tag: TagWithUsage;
   readonly selected: boolean;
   readonly onSelect: () => void;
-  readonly onDelete: (id: TagId) => void;
+  readonly onDelete: (id: TagId) => Promise<void>;
+  readonly closeFocus: () => boolean;
 }): ReactElement {
   return (
     <LibraryRow
       actions={{
         name: tag.name,
-        onDelete: (): void => onDelete(tag.id),
+        onDelete: (): Promise<void> => onDelete(tag.id),
+        deleteFinalFocus: closeFocus,
         deleteDescription: `This removes the tag from ${usageBreakdown(tag.usage)} and can't be undone.`,
       }}
       leading={

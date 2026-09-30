@@ -5,12 +5,22 @@ import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
-/** Create a tag from a name. Its own instance for a name-conflict-aware toast. The created ROW is typed
- *  (not `unknown`) because the collection's create verb selects it in CONTENT on the next frame. */
+/** The toast for a create the name index refused. */
+export const CREATE_TAG_CONFLICT_TOAST = "Couldn't create the tag — that name may already be in use.";
+
+/** The server's case-folded name index refused the create (`DomainConflictError` → CONFLICT). Keyed on the
+ *  structured code, never message text. */
+export function isTagNameConflict(error: unknown): boolean {
+  return (error as { data?: { code?: string } } | null | undefined)?.data?.code === "CONFLICT";
+}
+
+/** Create a tag from a name. The created ROW is typed (not `unknown`) because the collection's create verb
+ *  selects it in CONTENT on the next frame. A name conflict is NOT toasted here: the create verb retries it
+ *  once with the next free name and toasts only when that fails too. */
 export const useCreateTag = createEntityMutation<inferInput<Trpc["tag"]["createTag"]>, inferOutput<Trpc["tag"]["createTag"]>>({
   options: (trpc) => trpc.tag.createTag.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't create the tag — that name may already be in use.",
+  errorToast: (error) => (isTagNameConflict(error) ? null : "Couldn't create the tag."),
 });
 
 /** Rename a tag (name-only patch). Its own instance for a name-conflict-aware toast. */

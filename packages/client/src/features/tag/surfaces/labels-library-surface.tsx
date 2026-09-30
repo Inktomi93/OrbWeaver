@@ -10,6 +10,7 @@ import { useRef } from "react";
 import { CORPUS_MODE_LABELS, useFocusOnMount, useFocusOnSwap } from "#lib";
 import type { TagLibraryFact } from "../hooks/use-tag-library.ts";
 import { useTagLibrarySummary } from "../hooks/use-tag-library.ts";
+import { LABELS_LIBRARY_SLOT } from "../lib/labels-focus-targets.ts";
 import { LABELS_BLURB, LABELS_EMPTY } from "../lib/tags-model.ts";
 
 /** `returning` marks an in-place swap back from the editor: the control that closed it (Back, merge, delete)
@@ -20,7 +21,7 @@ export function LabelsLibrarySurface({ returning = false }: { readonly returning
   useFocusOnSwap(surfaceRef, returning);
   const summary = useTagLibrarySummary();
   return (
-    <Stack className="outline-none" data-slot="labels-library" gap="section" ref={surfaceRef} tabIndex={-1}>
+    <Stack className="outline-none" data-slot={LABELS_LIBRARY_SLOT} gap="section" ref={surfaceRef} tabIndex={-1}>
       <Stack gap="field">
         <Heading level={2}>{CORPUS_MODE_LABELS.labels}</Heading>
         <Text prose={true} voice="gloss">
@@ -47,7 +48,7 @@ function LibraryBody({ summary }: { readonly summary: ReturnType<typeof useTagLi
   }
   return (
     <Section heading="Library">
-      <Stack data-slot="labels-library-facts" gap="field">
+      <Stack className="max-w-(--width-content-col)" data-slot="labels-library-facts" gap="field">
         {summary.facts.map((fact: TagLibraryFact) => (
           <Row align="center" gap="field" key={fact.id}>
             <Text as="span" voice="kicker">

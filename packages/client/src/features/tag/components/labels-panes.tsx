@@ -28,7 +28,7 @@ export function LabelsListHeader(): ReactElement {
   return (
     <ListPaneHeader
       action={
-        <Button intent="primary" onClick={create} size="sm" type="button">
+        <Button intent="primary" loading={create.pending} onClick={create.run} size="sm" type="button">
           <Icon icon={Plus} size="sm" />
           New tag
         </Button>

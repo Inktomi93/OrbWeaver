@@ -42,6 +42,7 @@ import {
   AppShellChatsProjectionIntentStory,
   AppShellChatTopbarIdentityStory,
   AppShellChatTrackStory,
+  AppShellContextFromPopoverStory,
   AppShellDropGuardStory,
   AppShellListPrimaryStory,
   AppShellMobileRuleStory,
@@ -7354,4 +7355,43 @@ test("#1789 @fence the production trail still LEADS with the ⌘K chip, ahead of
   const names = await trail.locator("button").evaluateAll((elements) => elements.map((el) => el.getAttribute("aria-label") ?? ""));
   expect(names[0]).toBe("⌘K jump — the command menu");
   expect(names.length).toBeGreaterThan(1);
+});
+
+test.describe("a floating CONTEXT pane and focus, on a phone", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 932 } });
+
+  // The slide-over takes focus so it never drops to <body>, but an open popup keeps the focus it holds.
+  test("a pane floated from inside a popover leaves focus in the popover", async ({ mount, page }) => {
+    const shell = await mount(<AppShellContextFromPopoverStory />);
+    await shell.getByRole("button", { name: "chat tools" }).click();
+    const reveal = page.getByRole("dialog", { name: "Chat tools" }).getByRole("button", { name: "reveal details" });
+    await reveal.focus();
+    await reveal.press("Enter");
+    await expect(shell.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "overlay");
+    await expect(reveal).toBeFocused();
+  });
+
+  // The pane is a programmatic focus stop, like <main>: a keyboard open lands focus on it with no ring.
+  test("a keyboard-opened CONTEXT pane takes focus without a focus ring", async ({ mount }) => {
+    const shell = await mount(<AppShellStory />);
+    const toggle = shell.getByRole("button", { name: "Show details" });
+    await toggle.focus();
+    await toggle.press("Enter");
+    const pane = shell.locator('.shell-panel[data-panel-side="context"]');
+    await expect(pane).toHaveAttribute("data-panel-mode", "overlay");
+    await expect(pane).toBeFocused();
+    await expect.poll(() => pane.evaluate((el) => el.matches(":focus-visible"))).toBe(true);
+    await expect(pane).toHaveCSS("outline-style", "none");
+  });
+
+  // Closing the sheet from inside it returns focus to the toggle that opened it, never to <body>.
+  test("closing the CONTEXT sheet returns focus to its toggle", async ({ mount }) => {
+    const shell = await mount(<AppShellStory />);
+    await shell.getByRole("button", { name: "Show details" }).press("Enter");
+    const pane = shell.locator('.shell-panel[data-panel-side="context"]');
+    await expect(pane).toHaveAttribute("data-panel-mode", "overlay");
+    await pane.getByRole("button", { name: "Close Chats details" }).press("Enter");
+    await expect(pane).toHaveAttribute("data-panel-mode", "collapsed");
+    await expect(shell.getByRole("button", { name: "Show details" })).toBeFocused();
+  });
 });
