@@ -216,6 +216,13 @@ test("connectionSummary avoids repeating the model when the auto-minted label al
   expect(connectionSummary({ label: "work key", model: "gpt-5" })).toBe("work key · gpt-5");
 });
 
+// A label is minted once and kept when the model is edited, so a stale label naming a longer sibling model must
+// not hide the model the connection actually runs.
+test("connectionSummary keeps the real model beside a stale label that names a sibling model", () => {
+  expect(connectionSummary({ label: "OpenRouter · openai/gpt-4o", model: "openai/gpt-4" })).toBe("OpenRouter · openai/gpt-4o · gpt-4");
+  expect(connectionSummary({ label: "OpenRouter · openai/gpt-4", model: "openai/gpt-4" })).toBe("OpenRouter · openai/gpt-4");
+});
+
 // Model roles' picker and readout both name a connection through this one label. The seeded local rows and an
 // org-scoped model id read as a person would say them, never as provider ids and repository paths.
 test("connectionSummary names a model by its own name, and the seeded local rows by what they do", () => {

@@ -45,9 +45,11 @@ export type { RoleBindingView, RoleConnectionFacts, RoleRequirementVerdict, Role
 export {
   backgroundRepairs,
   bindRefusal,
+  CONNECTION_LABEL_SEPARATOR,
   CONNECTION_ROLE_LABELS,
   connectionHost,
   connectionSummary,
+  labelNamesModel,
   ROLE_ROWS_ORDERED,
   ROLE_STATUS_LABELS,
   roleReadout,

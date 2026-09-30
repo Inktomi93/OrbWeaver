@@ -4,6 +4,7 @@
 
 import type { Capability, CapabilityRequirement, RoutableTask, Task, UnavailableCause } from "@orb/contracts/inference";
 import { bindingTaskOf, canFund, EMBED_SPACE_DIMS, requirementMet, taskDef } from "@orb/contracts/inference";
+import { modelDisplayName } from "@orb/kit/model-name";
 
 export const CONNECTION_ROLE_LABELS: Record<RoutableTask, string> = {
   chat: "Chat",
@@ -129,7 +130,27 @@ export const ROLE_ROWS_ORDERED: readonly RoleRow[] = ROLE_RENDER_ORDER.map((task
  *  the id's last path segment, never its repository path (`jinaai/jina-clip-v2` reads `jina-clip-v2`). */
 export function connectionSummary(row: { readonly label: string; readonly model: string }): string {
   const name = row.model.slice(row.model.lastIndexOf("/") + 1);
-  return row.label.includes(name) ? row.label : `${row.label} · ${name}`;
+  return labelNamesModel(row.label, row.model) ? row.label : `${row.label}${CONNECTION_LABEL_SEPARATOR}${name}`;
+}
+
+/** The separator a minted connection label (`<provider> · <model>`) and every readout that extends one use. */
+export const CONNECTION_LABEL_SEPARATOR = " · ";
+// The ` (2)` a minted label takes when its base collides with another of the owner's labels.
+const COLLISION_SUFFIX = /\s\(\d+\)$/u;
+
+/**
+ * Whether a connection label already names exactly this model: one of its separator segments is the model id or
+ * its display name.
+ *
+ * @remarks A label is minted once and kept when the model is edited, so a segment that only starts with or
+ * contains the model (`gpt-4o` for `gpt-4`) names a different model and must not hide the real one.
+ */
+export function labelNamesModel(label: string, model: string): boolean {
+  const names = new Set([model, modelDisplayName(model)].map((name) => name.toLowerCase()));
+  return label
+    .replace(COLLISION_SUFFIX, "")
+    .split(CONNECTION_LABEL_SEPARATOR)
+    .some((segment) => names.has(segment.trim().toLowerCase()));
 }
 
 /** The inline refusal a Model-roles row shows BEFORE writing a binding (§5.3a — the slot is the first

@@ -4,7 +4,7 @@
 
 import type { ResolvedConnectionView, UnavailableCause } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
-import { MODEL_ROLES_PATH } from "#lib";
+import { CONNECTION_LABEL_SEPARATOR, labelNamesModel, MODEL_ROLES_PATH } from "#lib";
 import type { CreditConnections } from "./swipe-attribution.ts";
 import { providerName } from "./swipe-attribution.ts";
 
@@ -59,28 +59,13 @@ export function nextTurnReadsChatRole(viewerIsHost: boolean | undefined, cause: 
   return viewerIsHost === true && verdictSettled && !nextTurnStatesRefusal(cause);
 }
 
-const LABEL_SEPARATOR = " · ";
-// The ` (2)` a minted label takes when its base collides with another of the owner's labels.
-const COLLISION_SUFFIX = /\s\(\d+\)$/u;
-
-// Whether the connection label already names exactly this model: one of its ` · ` segments is the model id or
-// its display name. A label is minted once and kept when the model is edited, so a segment that only starts
-// with or contains the model (`gpt-4o` for `gpt-4`) names a different model and must not hide the real one.
-function labelNamesModel(label: string, model: string): boolean {
-  const names = new Set([model, modelDisplayName(model)].map((name) => name.toLowerCase()));
-  return label
-    .replace(COLLISION_SUFFIX, "")
-    .split(LABEL_SEPARATOR)
-    .some((segment) => names.has(segment.trim().toLowerCase()));
-}
-
 function hostLine(inputs: NextTurnInputs): NextTurnLine {
   const { resolved, connections } = inputs;
   if (resolved !== undefined) {
     const row = connections.rows?.find((candidate) => candidate.id === resolved.connectionId);
     const connection = row?.label ?? providerName(resolved.providerId, row);
     const model = modelDisplayName(resolved.model);
-    const named = labelNamesModel(connection, resolved.model) ? connection : `${connection}${LABEL_SEPARATOR}${model}`;
+    const named = labelNamesModel(connection, resolved.model) ? connection : `${connection}${CONNECTION_LABEL_SEPARATOR}${model}`;
     return { state: "named", text: `Next reply: ${named}`, door: undefined };
   }
   return inputs.resolveFailed ? FAILED : CHECKING;
