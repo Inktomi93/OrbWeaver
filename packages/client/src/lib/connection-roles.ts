@@ -135,17 +135,18 @@ export function connectionSummary(row: { readonly label: string; readonly model:
 }
 
 /**
- * Whether a connection label already names exactly this model: one of its separator segments is the model id or
- * its display name.
+ * Whether a connection label already names exactly this model: a segment after the provider segment is the model
+ * id or its display name, or, for a label with no separator, the whole label is.
  *
  * @remarks A label is minted once and kept when the model is edited, so a segment that only starts with or
- * contains the model (`gpt-4o` for `gpt-4`) names a different model and must not hide the real one.
+ * contains the model (`gpt-4o` for `gpt-4`) names a different model and must not hide the real one. A minted
+ * label's first segment is the provider, so a model named like its provider (`vllm`) is not named by it.
  */
 export function labelNamesModel(label: string, model: string): boolean {
   const names = new Set([model, modelDisplayName(model)].map((name) => name.toLowerCase()));
-  return stripLabelSuffix(label)
-    .split(CONNECTION_LABEL_SEPARATOR)
-    .some((segment) => names.has(segment.trim().toLowerCase()));
+  const segments = stripLabelSuffix(label).split(CONNECTION_LABEL_SEPARATOR);
+  const modelSegments = segments.length > 1 ? segments.slice(1) : segments;
+  return modelSegments.some((segment) => names.has(segment.trim().toLowerCase()));
 }
 
 /** The inline refusal a Model-roles row shows BEFORE writing a binding (§5.3a — the slot is the first
