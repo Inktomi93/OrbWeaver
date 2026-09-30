@@ -13,14 +13,14 @@
 // rather than being fed to a parser that would half-read it). Extension alone would be a lie; envelope alone
 // cannot see an ST jsonl, which carries none by design.
 //
-// The jsonl arm re-links by name because chat ids are not preserved across a box: first the directory handle
-// the file was exported under, then the display name the transcript's own header carries. SillyTavern names
-// a chat's character by display name, never by handle, so the name is what the user can act on in a refusal.
+// The jsonl arm tries the directory handle, exact header name, header-derived handle, then folded name.
+// SillyTavern carries display names, so a refusal names the header rather than its derived handle.
 // Names are not unique; two matches refuse rather than guess. (The orb-native arm prefers the seat list the
 // file itself carries, and falls back to the directory handle.)
 
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { slugifyHandle } from "@orb/kit/slug";
 import { sha256Hex } from "#kit/content-hash";
 import { parseChatJsonl } from "#kit/serde/chat";
 import type { ImportContext } from "../context.ts";
@@ -37,7 +37,7 @@ const ST_TRANSCRIPT_EXT = /\.jsonl$/i;
 
 type CharacterResolution = { readonly ok: true; readonly characterId: CharacterId } | { readonly ok: false; readonly error: string };
 
-/** The transcript's character: the directory handle when it resolves, else the header's display name. */
+// Exact names win over fallbacks; ambiguous names never pick a character arbitrarily.
 async function resolveCharacter(ctx: ImportContext, dirName: string, characterName: string): Promise<CharacterResolution> {
   if (dirName.length > 0) {
     const byHandle = await ctx.findByHandle({ ownerId: ctx.ownerId, handle: castId<CharacterHandle>(dirName) });
@@ -49,7 +49,15 @@ async function resolveCharacter(ctx: ImportContext, dirName: string, characterNa
   if (name.length === 0) {
     return { ok: false, error: "the transcript names no character — import it inside a bundle instead" };
   }
-  const [only, ...rest] = await ctx.findByName({ ownerId: ctx.ownerId, name });
+  let matches = await ctx.findByName({ ownerId: ctx.ownerId, name });
+  if (matches.length === 0) {
+    const byHandle = await ctx.findByHandle({ ownerId: ctx.ownerId, handle: castId<CharacterHandle>(slugifyHandle(name)) });
+    if (byHandle !== null) {
+      return { ok: true, characterId: byHandle };
+    }
+    matches = await ctx.findByName({ ownerId: ctx.ownerId, name, caseInsensitive: true });
+  }
+  const [only, ...rest] = matches;
   if (only === undefined) {
     return { ok: false, error: `no character named "${name}" on this account` };
   }

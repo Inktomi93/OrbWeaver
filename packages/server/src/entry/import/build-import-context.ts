@@ -20,7 +20,11 @@ export interface ImportCharacterPort {
   }) => Promise<{ readonly id: CharacterId }>;
   readonly findByImportHash: (params: { readonly ownerId: UserId; readonly importHash: string }) => Promise<{ readonly characterId: CharacterId } | null>;
   readonly findByHandle: (params: { readonly ownerId: UserId; readonly handle: CharacterHandle }) => Promise<{ readonly characterId: CharacterId } | null>;
-  readonly findByName: (params: { readonly ownerId: UserId; readonly name: string }) => Promise<readonly { readonly characterId: CharacterId }[]>;
+  readonly findByName: (params: {
+    readonly ownerId: UserId;
+    readonly name: string;
+    readonly caseInsensitive?: boolean;
+  }) => Promise<readonly { readonly characterId: CharacterId }[]>;
 }
 
 /** The `assets` front-door slice the driver wires the import avatar-store op to. `maxBytes` is the
@@ -109,7 +113,8 @@ export function buildImportContext(wiring: ImportContextWiring): ImportContext {
       const ref = await character.findByHandle({ ownerId, handle });
       return ref?.characterId ?? null;
     },
-    findByName: async ({ name }) => (await character.findByName({ ownerId, name })).map((ref) => ref.characterId),
+    findByName: async ({ name, caseInsensitive }) =>
+      (await character.findByName({ ownerId, name, ...(caseInsensitive === undefined ? {} : { caseInsensitive }) })).map((ref) => ref.characterId),
     storeAsset: async ({ bytes, mime }) => {
       const stored = await storeAvatar({
         principal,

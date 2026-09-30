@@ -202,6 +202,7 @@ export interface FindByHandleParams {
 export interface FindByNameParams {
   readonly ownerId: UserId;
   readonly name: string;
+  readonly caseInsensitive?: boolean;
 }
 
 /** Batched provenance lookup (hub-injected, internal): the owner's characters carrying any of `values` in

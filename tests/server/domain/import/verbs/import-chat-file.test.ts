@@ -40,7 +40,10 @@ function harness(
   const ctx = {
     ...h.ctx,
     findByHandle: ({ handle }: { readonly handle: CharacterHandle }): Promise<CharacterId | null> => Promise.resolve(known[handle] ?? null),
-    findByName: ({ name }: { readonly name: string }): Promise<readonly CharacterId[]> => Promise.resolve(named[name] ?? []),
+    findByName: ({ name, caseInsensitive }: { readonly name: string; readonly caseInsensitive?: boolean }): Promise<readonly CharacterId[]> =>
+      Promise.resolve(
+        caseInsensitive === true ? Object.entries(named).flatMap(([key, ids]) => (key.toLowerCase() === name.toLowerCase() ? ids : [])) : (named[name] ?? []),
+      ),
   };
   return { ...h, verb: createImportChatFile(ctx, createImportChats(ctx), createImportChatBundle(ctx)) };
 }
@@ -88,6 +91,31 @@ describe("importChatFile", () => {
     const error = outcome.ok ? "" : outcome.error;
     expect(error).toContain('"Elias Thorn"');
     expect(error).not.toContain("elias-thorn");
+    expect(h.chatCalls).toEqual([]);
+  });
+
+  test("a loose transcript re-links a renamed character through its original handle", async () => {
+    const h = harness({ aria: ARIA }, { "Aria the Innkeeper": [ARIA] });
+    expect(await h.verb({ filename: "loose.jsonl", bytes: transcript("Aria") })).toMatchObject({ ok: true });
+    expect(h.chatCalls.map((call) => call.characterId)).toEqual([ARIA]);
+  });
+
+  test("an exact display name wins before the header-derived handle fallback", async () => {
+    const h = harness({ aria: ELIAS }, { ["Aria"]: [ARIA] });
+    expect(await h.verb({ filename: "loose.jsonl", bytes: transcript("Aria") })).toMatchObject({ ok: true });
+    expect(h.chatCalls.map((call) => call.characterId)).toEqual([ARIA]);
+  });
+
+  test("a case-differing display name re-links when both handle lookups miss", async () => {
+    const h = harness({}, { "Elias Thorn": [ELIAS] });
+    expect(await h.verb({ filename: "loose.jsonl", bytes: transcript("ELIAS THORN") })).toMatchObject({ ok: true });
+    expect(h.chatCalls.map((call) => call.characterId)).toEqual([ELIAS]);
+  });
+
+  test("case-insensitive ambiguity refuses without importing a chat", async () => {
+    const h = harness({}, { "Elias Thorn": [ELIAS], "elias thorn": [ELIAS_TWIN] });
+    const result = await h.verb({ filename: "loose.jsonl", bytes: transcript("ELIAS THORN") });
+    expect(result).toMatchObject({ ok: false, error: expect.stringContaining("more than one character") });
     expect(h.chatCalls).toEqual([]);
   });
 

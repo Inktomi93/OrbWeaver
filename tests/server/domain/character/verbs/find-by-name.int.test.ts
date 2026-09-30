@@ -33,5 +33,7 @@ describe("findByName", () => {
     await seedRawCharacter(db, { id: "character_group", ownerId: owner, name: "Elias Thorn", synthetic: true });
 
     expect(await svc.findByName({ ownerId: owner, name: "Elias Thorn" })).toEqual([{ characterId: older }, { characterId: newer }]);
+    expect(await svc.findByName({ ownerId: owner, name: "ELIAS THORN" })).toEqual([]);
+    expect(await svc.findByName({ ownerId: owner, name: "ELIAS THORN", caseInsensitive: true })).toEqual([{ characterId: older }, { characterId: newer }]);
   });
 });

@@ -610,13 +610,19 @@ export async function findByOwnerHandle(db: Db, ownerId: UserId, handle: Charact
   return rows[0];
 }
 
-/** Every owner character whose display name is exactly `name`, oldest first. Names are not unique, so the
+/** Every owner character whose display name matches `name`, oldest first. Names are not unique, so the
  *  caller decides what two matches mean. Synthetic group identities are excluded (never user-facing). */
-export async function findByOwnerName(db: Db, ownerId: UserId, name: string): Promise<CharacterId[]> {
+export async function findByOwnerName(db: Db, ownerId: UserId, name: string, caseInsensitive = false): Promise<CharacterId[]> {
   const rows = await db
     .select({ id: characters.id })
     .from(characters)
-    .where(and(eq(characters.ownerId, ownerId), eq(characters.name, name), eq(characters.synthetic, false)))
+    .where(
+      and(
+        eq(characters.ownerId, ownerId),
+        caseInsensitive ? sql`${characters.name} COLLATE NOCASE = ${name}` : eq(characters.name, name),
+        eq(characters.synthetic, false),
+      ),
+    )
     .orderBy(asc(characters.createdAt), asc(characters.id));
   return rows.map((row) => row.id);
 }

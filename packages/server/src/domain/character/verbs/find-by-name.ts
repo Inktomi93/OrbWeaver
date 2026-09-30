@@ -8,5 +8,6 @@ import type { CharacterService } from "../contract/service.ts";
 import { findByOwnerName } from "../persistence/queries.ts";
 
 export function createFindByName(ctx: CharacterContext): CharacterService["findByName"] {
-  return async ({ ownerId, name }: FindByNameParams) => (await findByOwnerName(ctx.db, ownerId, name)).map((characterId) => ({ characterId }));
+  return async ({ ownerId, name, caseInsensitive }: FindByNameParams) =>
+    (await findByOwnerName(ctx.db, ownerId, name, caseInsensitive)).map((characterId) => ({ characterId }));
 }

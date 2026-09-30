@@ -96,6 +96,8 @@ describe("buildImportContext — owner scope is the PRINCIPAL's, never the argum
     expect(p.findByImportHash).toHaveBeenCalledWith({ ownerId: OWNER, importHash: "h1" });
     expect(p.findByHandle).toHaveBeenCalledWith({ ownerId: OWNER, handle: "aria" });
     expect(p.findByName).toHaveBeenCalledWith({ ownerId: OWNER, name: "Aria" });
+    expect(await ctx.findByName({ ownerId: FOREIGN, name: "ARIA", caseInsensitive: true })).toStrictEqual([CHARACTER]);
+    expect(p.findByName).toHaveBeenLastCalledWith({ ownerId: OWNER, name: "ARIA", caseInsensitive: true });
   });
 
   test("the dedup oracles collapse a miss to null (never leak the port's row shape)", async () => {
