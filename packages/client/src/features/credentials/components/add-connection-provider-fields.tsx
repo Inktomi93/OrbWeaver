@@ -14,6 +14,7 @@ import type { useAddConnectionForm } from "../hooks/use-add-connection-form.ts";
 import { acceptsKey, CONNECTION_FORM_COPY, listsOnDemand, modelIdExample, needsBaseUrl, needsKey, savedKeyName } from "../lib/add-connection-form-model.ts";
 import { CHAT_API_LABELS, showsApiControl } from "../lib/connections-model.ts";
 import { typedModelAllowed } from "../lib/model-picker-model.ts";
+import { AdmitPrivateHost } from "./connection-reachability.tsx";
 import type { DraftListing } from "./draft-models-check.tsx";
 import { DraftModelsCheck } from "./draft-models-check.tsx";
 import type { ModelPickerProps } from "./model-picker.tsx";
@@ -38,17 +39,34 @@ export interface ProviderFieldsProps {
   readonly held: HeldKey | null;
   readonly modelSource: ModelCatalogSource;
   readonly onListing: (listing: DraftListing) => void;
-  readonly onUrlRefusal: (message: string | undefined) => void;
+  /** The server refused the Server URL (the caught error, whose reason says why). */
+  readonly onUrlRefusal: (err: unknown) => void;
+  readonly onUrlEdited: () => void;
+  /** The host the server refused as a private address this deployment does not admit, or `null`. */
+  readonly refusedHost: string | null;
+  readonly onAdmitted: () => void;
 }
 
 /** The fields that depend on the PICKED provider's auth kind: URL and/or key, the model, the api control only
  *  when the row lists more than one, label and the background switch. */
-export function ProviderFields({ form, provider, trpc, invalidation, held, modelSource, onListing, onUrlRefusal }: ProviderFieldsProps): ReactElement {
+export function ProviderFields({
+  form,
+  provider,
+  trpc,
+  invalidation,
+  held,
+  modelSource,
+  onListing,
+  onUrlRefusal,
+  onUrlEdited,
+  refusedHost,
+  onAdmitted,
+}: ProviderFieldsProps): ReactElement {
   const providerLabel = providerDisplayLabel(provider);
   return (
     <>
       {needsBaseUrl(provider) ? (
-        <form.AppField name="baseUrl" listeners={{ onChange: (): void => onUrlRefusal(undefined) }}>
+        <form.AppField name="baseUrl" listeners={{ onChange: onUrlEdited }}>
           {(field): ReactElement => (
             <field.TextField
               label="Server URL"
@@ -58,6 +76,9 @@ export function ProviderFields({ form, provider, trpc, invalidation, held, model
             />
           )}
         </form.AppField>
+      ) : null}
+      {needsBaseUrl(provider) && refusedHost !== null ? (
+        <AdmitPrivateHost host={refusedHost} invalidation={invalidation} onAdmitted={onAdmitted} trpc={trpc} />
       ) : null}
       {provider.auth === "oauthToken" && held === null ? <SetupTokenCommand /> : null}
       <KeyField form={form} provider={provider} held={held} />

@@ -1193,7 +1193,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // SAME fact the transport's belt clamp reads, so the segment build's skip boundary and the wire's
     // last-resort cut can't disagree.
     embedContextTokens: taskWindows.embed,
-    memorySummarizer: input.settings.getEffectiveConfig().memorySummarizer,
+    memorySummarizer: () => input.settings.getEffectiveConfig().memorySummarizer,
     // record INSERTs the row (assigning seq) THEN the persisted view is published onto the live bus —
     // a dead bus path never loses an event (subscriptions replay from the table by seq).
     resolveHandle: (handle) => input.resolveHandle(handle),

@@ -541,7 +541,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // The embed window the segment build measures each verbatim block against (#165). The production floor
     // (env.VLLM_EMBED_MAX_MODEL_LEN) so a test block only trips the skip when it is genuinely huge.
     embedContextTokens: () => Promise.resolve(8192),
-    memorySummarizer: {},
+    memorySummarizer: () => ({}),
     // The emit-op CONTRACT: the op OWNS the commit of the producer's co-statements (the verb hands
     // them UNEXECUTED). The default fake honors that half (executes them; drops the event) so a membership
     // transition still lands; a test that asserts events overrides with a recorder that does the same.

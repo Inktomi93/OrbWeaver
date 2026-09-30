@@ -15,7 +15,8 @@
 // the reason: the admission RULE lives in `infra/network/egress.ts` (CIDR ranges, resolved addresses, a
 // port-precedence rule), and a client-side copy of it would be a second truth that drifts. This asks only
 // "is this exact name written down?", offers to write it down when it is not, and never claims the reverse.
-// It mounts only for the box owner, because `AppSettings.privateEndpointAllowlist` is owner-gated at the
+// The add dialog mounts the same block under a refused Server URL (`AdmitPrivateHost`), so one control, one
+// gate. It mounts only for the box owner, because `AppSettings.privateEndpointAllowlist` is owner-gated at the
 // verb (`domain/settings/verbs/app-settings.ts::OWNER_GATED_FIELDS`) and its read is `adminProcedure` — a
 // member who needs their LAN box admitted needs the admin, which is the honest multi-tenant posture.
 
@@ -66,15 +67,29 @@ export function ConnectionReachability({ connectionId, baseUrl, wakeable, trpc, 
           Check again
         </Button>
       </Row>
-      {/* Its own boundary, and no hand-rolled `renderError`: the read-error surface is the battery's
-          `QueryErrorState`. The settings read inside only ever runs for the box OWNER — the member arm
-          returns before mounting it — so this boundary is about a transient failure, not a 403. */}
-      {host === null ? null : (
-        <QueryBoundary fallback={<Text voice="gloss">Checking this deployment's allowed endpoints…</Text>}>
-          <EndpointAdmission host={host} invalidation={invalidation} trpc={trpc} />
-        </QueryBoundary>
-      )}
+      {host === null ? null : <AdmitPrivateHost host={host} invalidation={invalidation} trpc={trpc} />}
     </Stack>
+  );
+}
+
+export interface AdmitPrivateHostProps {
+  readonly host: string;
+  readonly trpc: Trpc;
+  readonly invalidation: Invalidation;
+  /** Runs once the owner's admission is saved; the server enforces it on the next request. */
+  readonly onAdmitted?: () => void;
+}
+
+/** The owner's "Admit `<host>`" block, shared by the editor's Diagnostics tier and the add dialog's refused
+ *  Server URL. It renders nothing for anyone but the box owner. */
+export function AdmitPrivateHost(props: AdmitPrivateHostProps): ReactElement {
+  // Its own boundary, and no hand-rolled `renderError`: the read-error surface is the battery's
+  // `QueryErrorState`. The settings read inside only ever runs for the box OWNER — the member arm returns
+  // before mounting it — so this boundary is about a transient failure, not a 403.
+  return (
+    <QueryBoundary fallback={<Text voice="gloss">Checking this deployment's allowed endpoints…</Text>}>
+      <EndpointAdmission {...props} />
+    </QueryBoundary>
   );
 }
 
@@ -107,31 +122,15 @@ function ReachabilityVerdict({ verdict, host }: { readonly verdict: CredentialHe
 }
 
 /** The admission read + write, mounted only where it can actually be answered. */
-function EndpointAdmission({
-  host,
-  trpc,
-  invalidation,
-}: {
-  readonly host: string;
-  readonly trpc: Trpc;
-  readonly invalidation: Invalidation;
-}): ReactElement | null {
-  const { data: me } = useSuspenseQuery(trpc.sessions.me.queryOptions());
+function EndpointAdmission(props: AdmitPrivateHostProps): ReactElement | null {
+  const { data: me } = useSuspenseQuery(props.trpc.sessions.me.queryOptions());
   if (me.globalRole !== "owner") {
     return null;
   }
-  return <OwnerEndpointAdmission host={host} invalidation={invalidation} trpc={trpc} />;
+  return <OwnerEndpointAdmission {...props} />;
 }
 
-function OwnerEndpointAdmission({
-  host,
-  trpc,
-  invalidation,
-}: {
-  readonly host: string;
-  readonly trpc: Trpc;
-  readonly invalidation: Invalidation;
-}): ReactElement | null {
+function OwnerEndpointAdmission({ host, trpc, invalidation, onAdmitted }: AdmitPrivateHostProps): ReactElement | null {
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
   const admit = useAdmitPrivateEndpoint({ trpc, invalidation });
   const entries = data.resolved.privateEndpointAllowlist;
@@ -145,7 +144,9 @@ function OwnerEndpointAdmission({
         <Button
           disabled={admit.isPending}
           intent="secondary"
-          onClick={(): void => admit.mutate({ partial: { privateEndpointAllowlist: [...entries, host] } })}
+          onClick={(): void =>
+            admit.mutate({ partial: { privateEndpointAllowlist: [...entries, host] } }, onAdmitted === undefined ? {} : { onSuccess: onAdmitted })
+          }
           size="sm"
         >
           Admit {host}
