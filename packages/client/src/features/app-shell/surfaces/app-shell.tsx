@@ -202,6 +202,8 @@ export function AppShell(): ReactElement {
   // An open modal or popover keeps the focus it holds: both portal outside the grid. When the sheet closes,
   // focus that was inside it (or fell to <body> as it went inert) returns to the toggle that opens it.
   const contextPaneRef = useRef<HTMLElement>(null);
+  // A pointer click focuses the scrim, which is transparent and hidden once the sheet closes.
+  const scrimRef = useRef<HTMLButtonElement>(null);
   const contextOverlay = layout.contextMode === "overlay";
   const contextWasOverlayRef = useRef(contextOverlay);
   useEffect(() => {
@@ -219,7 +221,8 @@ export function AppShell(): ReactElement {
     }
     const timer = setTimeout(() => {
       const active = document.activeElement;
-      if (active === null || active === document.body || contextPaneRef.current?.contains(active) === true) {
+      const lost = active === null || active === document.body || active === scrimRef.current || contextPaneRef.current?.contains(active) === true;
+      if (lost) {
         gridRef.current?.querySelector<HTMLElement>(`.${CONTEXT_TOGGLE_MARKER}`)?.focus();
       }
     });
@@ -423,7 +426,9 @@ export function AppShell(): ReactElement {
               className="shell-scrim"
               data-visible={layout.scrimVisible}
               aria-hidden={!layout.scrimVisible}
-              tabIndex={layout.scrimVisible ? 0 : -1}
+              // A pointer control only: the keyboard closes a sheet with Escape or the sheet's own close.
+              tabIndex={-1}
+              ref={scrimRef}
               aria-label="Dismiss panel"
               onClick={(): void => dismissOverlays(layout)}
             />

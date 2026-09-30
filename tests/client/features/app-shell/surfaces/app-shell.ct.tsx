@@ -2733,6 +2733,32 @@ test("the scrim dismiss closes a narrow-auto-overlayed panel the same way the to
   await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
 });
 
+// The scrim is transparent and hidden once the sheet closes, so a click on it must not leave focus there.
+test("a scrim click that closes the detail sheet returns focus to its toggle", async ({ mount, page }) => {
+  await page.setViewportSize(NARROW_DESKTOP);
+  const shell = await mount(<AppShellStory />);
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  await shell.getByRole("button", { name: "Show details" }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+  await page.locator(".shell-scrim").click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(shell.getByRole("button", { name: "Show details" })).toBeFocused();
+});
+
+// The keyboard closes a sheet with Escape or its own close; the invisible scrim is never a Tab stop.
+test("the scrim is not a Tab stop while a sheet is up", async ({ mount, page }) => {
+  await page.setViewportSize(NARROW_DESKTOP);
+  const shell = await mount(<AppShellStory />);
+  await shell.getByRole("button", { name: "Show details" }).click();
+  const scrim = page.locator(".shell-scrim");
+  await expect(scrim).toHaveAttribute("data-visible", "true");
+  // Walk the whole tab order from the page start; the scrim is never one of its stops.
+  for (let step = 0; step < 40; step += 1) {
+    await page.keyboard.press("Tab");
+    await expect(scrim).not.toBeFocused();
+  }
+});
+
 // ── toggleFocus regime-awareness (M10 completeness fold) — the same ephemeral-vs-persisted bug class
 // togglePanel/collapsePanel were already corrected for. At narrow width, focus-toggle must not write the
 // persisted panelOverrides (there's nothing "docked" to persist-collapse — it's already an on-demand

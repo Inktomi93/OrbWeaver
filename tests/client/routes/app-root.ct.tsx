@@ -1124,6 +1124,22 @@ test.describe("the Corpus workbench on a phone", () => {
     await expect.poll(() => context.evaluate((el) => el.contains(document.activeElement))).toBe(true);
   });
 
+  // On a phone the library sits in the hidden, inert CONTENT column, so a prune's confirm lands on the finder.
+  test("Labels: a prune on a phone lands focus on the finder, never <body>", async ({ mount, page }) => {
+    await routeTrpc(page, { ...SECTION_CENSUS_ROUTES, "tag.pruneUnusedTags": { removed: 1 } });
+    const component = await mount(<HomePageStory />);
+    await component.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Corpus", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    const list = component.locator(CORPUS_LIST);
+    await list.getByRole("radio", { name: "Labels" }).tap();
+    await list.getByRole("button", { name: "More label actions" }).tap();
+    await page.getByRole("menuitem", { name: "Prune unused tags" }).tap();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete it", exact: true }).tap();
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    await expect(list.locator('[data-slot="labels-finder"]')).toBeFocused();
+  });
+
   // LABELS RESTORATION on the phone: a tag pushes its editor over the finder, and Back restores the finder
   // with its filter and without the tag.
   test("Labels: a tag pushes its editor, and Back restores the finder with its filter", async ({ mount, page }) => {

@@ -104,7 +104,8 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
       return true;
     }
     target.focus();
-    return false;
+    // A placement that did not take (an inert or hidden target) falls back to the confirm's default return.
+    return document.activeElement !== target;
   };
   const onDelete = async (id: TagId): Promise<void> => {
     const wasOpen = view.selectedId === id;
