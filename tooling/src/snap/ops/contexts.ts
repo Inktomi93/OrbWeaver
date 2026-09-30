@@ -95,20 +95,24 @@ function outcomeAt(outcomes: readonly CaptureOutcome[], index: number): CaptureO
 // One context's report section + its running request/error totals — factored out of snapContexts to
 // keep that function's cognitive complexity under the gate. A single params object dodges the
 // too-many-positional-params rule while keeping every field self-documenting at the call site.
-function reportOneContext(args: ContextReportArgs, i: number): { readonly failedReq: number; readonly pageErrors: number; readonly viteChurn: number } {
+function reportOneContext(
+  args: ContextReportArgs,
+  i: number,
+): { readonly failedReq: number; readonly pageErrors: number; readonly viteChurn: number; readonly navigationAborts: number } {
   const { opts, session, outcomes, users, plan, out, totalContexts } = args;
   const ctxSession = contextAt(session, i);
   const outcome = outcomeAt(outcomes, i);
   const evidenceSession = sessionForEvidence(ctxSession, [outcome]);
-  const { failed, viteChurn, fileOrigin } = partitionFailedRequests(ctxSession.requests.values());
+  const partition = partitionFailedRequests(ctxSession.requests.values());
+  const { failed, viteChurn, navigationAborts } = partition;
   const ctx: ReportCtx = { ...plan, out: contextOut(out, i, totalContexts), failed, totalPages: totalContexts, label: "CONTEXT" };
   print(`\nuser         ${users[i]?.handle} (context ${i})`);
   printPageReport(evidenceSession, outcome, opts, ctx);
   printCheckpointScope(ctxSession, evidenceSession);
-  printCaptureLog(evidenceSession, failed, viteChurn, fileOrigin);
+  printCaptureLog(evidenceSession, partition);
   printCropNote(opts, ctx);
   printProbeMotionWarning(opts);
-  return { failedReq: failed.length, pageErrors: evidenceSession.pageErrors.length, viteChurn: viteChurn.length };
+  return { failedReq: failed.length, pageErrors: evidenceSession.pageErrors.length, viteChurn: viteChurn.length, navigationAborts: navigationAborts.length };
 }
 
 async function captureContexts(
@@ -144,17 +148,24 @@ async function captureContexts(
   return outcomes;
 }
 
-function reportContexts(args: ContextReportArgs): { readonly failedRequests: number; readonly pageErrors: number; readonly viteChurn: number } {
+function reportContexts(args: ContextReportArgs): {
+  readonly failedRequests: number;
+  readonly pageErrors: number;
+  readonly viteChurn: number;
+  readonly navigationAborts: number;
+} {
   let pageErrors = 0;
   let failedRequests = 0;
   let viteChurn = 0;
+  let navigationAborts = 0;
   for (let index = 0; index < args.totalContexts; index += 1) {
     const totals = reportOneContext(args, index);
     failedRequests += totals.failedReq;
     pageErrors += totals.pageErrors;
     viteChurn += totals.viteChurn;
+    navigationAborts += totals.navigationAborts;
   }
-  return { failedRequests, pageErrors, viteChurn };
+  return { failedRequests, pageErrors, viteChurn, navigationAborts };
 }
 
 interface OwnedContextsArgs {
@@ -285,6 +296,9 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
     ...(reportTotals.viteChurn === 0
       ? {}
       : { viteDepChurn: session.contexts.flatMap((context) => partitionFailedRequests(context.requests.values()).viteChurn) }),
+    ...(reportTotals.navigationAborts === 0
+      ? {}
+      : { navigationAborts: session.contexts.flatMap((context) => partitionFailedRequests(context.requests.values()).navigationAborts) }),
     captures: outcomes,
   });
   const terminal = printVerdictReceipt("snap", {
@@ -321,6 +335,7 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
       ["page-errors", reportTotals.pageErrors],
       ["failed-req", reportTotals.failedRequests],
       ["vite-dep-churn", reportTotals.viteChurn],
+      ["navigation-aborts", reportTotals.navigationAborts],
       ...ledger.some("dead-css", "deadcss", "emptycss"),
       // A new arm's members land here with no edit to this file (design §6).
       ...ledger.rest(),

@@ -266,15 +266,26 @@ function printRequestLines(requests: readonly CapturedRequest[]): void {
   }
 }
 
-export function printCaptureLog(
-  session: SessionCounts,
-  failed: CapturedRequest[],
-  viteChurn: readonly CapturedRequest[] = [],
-  fileOrigin: readonly CapturedRequest[] = [],
-): void {
+/** The failed-request partition `partitionFailedRequests` returns; the harness-induced classes are optional
+ *  because a scenario reports only the churn class. */
+interface CaptureLogRequests {
+  readonly failed: readonly CapturedRequest[];
+  readonly viteChurn?: readonly CapturedRequest[];
+  readonly fileOrigin?: readonly CapturedRequest[];
+  readonly navigationAborts?: readonly CapturedRequest[];
+}
+
+export function printCaptureLog(session: SessionCounts, requests: CaptureLogRequests): void {
+  const { failed, viteChurn = [], fileOrigin = [], navigationAborts = [] } = requests;
   if (failed.length > 0) {
     print("\n--- failed requests ---");
     printRequestLines(failed);
+  }
+  if (navigationAborts.length > 0) {
+    print(
+      `\n--- navigation aborts (${navigationAborts.length}, NOT a failure — in flight when a navigation or page close discarded their document, ops/noise.ts) ---`,
+    );
+    printRequestLines(navigationAborts);
   }
   // Printed, never counted against the run — see isViteDepChurn.
   if (fileOrigin.length > 0) {

@@ -24,6 +24,7 @@ import type { BrowserNetworkLimits } from "./browser-network.ts";
 import { networkRetentionForPages } from "./browser-network.ts";
 import type { RedactedRequestUrl } from "./browser-request-url.ts";
 import { redactedRequestUrl } from "./browser-request-url.ts";
+import { trackDocumentDiscards } from "./document-discards.ts";
 
 export type CapturedConsole = BrowserCapturedConsole;
 export type CapturedRequest = BrowserCapturedRequest;
@@ -139,29 +140,30 @@ export async function wireProbePage(page: Page, capture: PageCapture, pageIndex:
     evidence.pageErrors.push(runtimePageError(error), scope);
     recordPageError(evidence.diagnostics, identity, error);
   });
+  // Records are bound to the Request object, not looked up by URL: the summary keeps the latest request per
+  // URL, so a URL lookup lets a discarded document's late failure land on its successor's record.
+  const discards = trackDocumentDiscards(page);
   page.on("request", (request) => {
     const url = redactedRequestUrl(request.url());
-    evidence.requestSummary.set(
+    const captured: CapturedRequest = {
+      method: request.method(),
       url,
-      {
-        method: request.method(),
-        url,
-        status: null,
-        failed: null,
-        type: request.resourceType(),
-      },
-      exactScope(contextIndex, pageIndex, diagnosticWindow.value),
-    );
+      status: null,
+      failed: null,
+      type: request.resourceType(),
+    };
+    discards.issued(request, captured);
+    evidence.requestSummary.set(url, captured, exactScope(contextIndex, pageIndex, diagnosticWindow.value));
   });
   page.on("response", (response) => {
-    const captured = evidence.requestSummary.get(redactedRequestUrl(response.url()));
-    if (captured !== undefined) {
+    const captured = discards.record(response.request());
+    if (captured !== null) {
       captured.status = response.status();
     }
   });
   page.on("requestfailed", (request) => {
-    const captured = evidence.requestSummary.get(redactedRequestUrl(request.url()));
-    if (captured !== undefined) {
+    const captured = discards.failed(request);
+    if (captured !== null) {
       captured.failed = request.failure()?.errorText ?? "failed";
     }
   });

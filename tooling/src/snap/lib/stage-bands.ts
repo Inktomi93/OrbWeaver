@@ -27,14 +27,18 @@
 //      is an operator's next action; a bare "no bands free" is a mystery.
 import type {
   StageAllocation,
+  StageAuthMode,
   StageBandView,
+  StageDecision,
   StageHealth,
   StageHealthEvidence,
+  StageHolder,
   StageLimits,
   StageRow,
   StageSweepEvidence,
   StageSweepVerdict,
 } from "../contract/stage.ts";
+import { stageRowAuth } from "../contract/stage.ts";
 import { bandAccess, describeStageAgePhrase, shortSha, stageIdleMs } from "./stage-plan.ts";
 
 const MS_PER_SECOND = 1000;
@@ -56,6 +60,13 @@ export const DEFAULT_STAGE_TTL_MIN = 60;
  *  a box with no co-tenant still refused a fourth stage. A caller that supplies no base gets this number,
  *  which keeps the pure function usable from a test without a profile file. */
 export const DEFAULT_STAGE_CAP = 3;
+
+/** How often a run holding a stage re-stamps its use (ops/stage-marker.ts `holdStageUse`). */
+export const STAGE_USE_HEARTBEAT_MS = MS_PER_MINUTE;
+/** How long a stage must sit unused before a checkout may tear it down to rebuild or replace it. It is ten
+ *  heartbeats: a run still holding the stage re-stamps every {@link STAGE_USE_HEARTBEAT_MS}, so a use this
+ *  old means no run holds it. */
+export const OWN_STAGE_REPLACE_IDLE_MS = 10 * STAGE_USE_HEARTBEAT_MS;
 
 /** Env \> profile \> default, mirroring `resolveSessionLimits`. A non-positive or unparseable value is a
  *  REFUSAL, never a silent default — a stage TTL that silently became 60 min is the strand class this table
@@ -109,7 +120,7 @@ export function stageSweepVerdict(evidence: StageSweepEvidence, ttlMs: number): 
   if (evidence.row?.dead !== undefined) {
     return "stranded";
   }
-  if (evidence.liveSessions.length > 0) {
+  if (evidence.liveSessions.length > 0 || (evidence.liveHolders ?? []).length > 0) {
     return "live";
   }
   if (evidence.row === null) {
@@ -149,13 +160,14 @@ function viewIsStranded(view: StageBandView, nowMs: number, ttlMs: number): bool
         bandIsStageRooted: view.bandIsStageRooted,
         bandProcessAgeSeconds: null,
         liveSessions: view.liveSessions,
+        liveHolders: view.liveHolders ?? [],
         nowMs,
       },
       ttlMs,
     ) === "stranded" ||
     // The dangling half: the row's band is not bound at all, so there is no process to kill and the row is
     // pure residue. Free by construction — but still a REAP, because the dir and the row must be cleared.
-    (!view.bandBound && view.liveSessions.length === 0)
+    (!view.bandBound && view.liveSessions.length === 0 && (view.liveHolders ?? []).length === 0)
   );
 }
 
@@ -169,11 +181,13 @@ export function allocateStageBand(input: {
   readonly fresh: boolean;
   readonly limits: StageLimits;
   readonly nowMs: number;
+  readonly auth?: StageAuthMode;
 }): StageAllocation {
   const ordered = [...input.views].sort((a, b) => a.band - b.band);
   const occupied = ordered.filter((view): view is StageBandView & { readonly row: StageRow } => view.row !== null);
+  const auth = input.auth ?? "single-user";
 
-  const own = occupied.find((view) => view.row.checkout === input.checkout && view.row.sha === input.targetSha);
+  const own = occupied.find((view) => view.row.checkout === input.checkout && view.row.sha === input.targetSha && stageRowAuth(view.row) === auth);
   if (own !== undefined) {
     return { kind: "ours", band: own.band, row: own.row };
   }
@@ -188,6 +202,7 @@ export function allocateStageBand(input: {
         fresh: input.fresh,
         bandBound: view.bandBound,
         healthy: view.healthy,
+        auth,
       }) === "shared-reuse",
   );
   if (shared !== undefined) {
@@ -198,6 +213,21 @@ export function allocateStageBand(input: {
   // add nothing to the box's load, so a cap of 1 must never block the lane that already holds the stage.
   const liveStages = occupied.filter((view) => !viewIsStranded(view, input.nowMs, input.limits.ttlMs)).length;
   if (liveStages >= input.limits.cap) {
+    // At the cap, a lane's own stage at another sha is replaced rather than the lane being refused: one lane
+    // holding a ref stage and a dirty stage is what fills the cap. Only a stage nobody else may be driving
+    // qualifies — no live session, no other checkout's live holder, a row whose holders are known, and idle
+    // past the threshold. Everything else keeps the refusal.
+    const ownOther = occupied.find(
+      (view) =>
+        view.row.checkout === input.checkout &&
+        view.row.holders !== undefined &&
+        foreignHolders(view.liveHolders ?? [], input.checkout).length === 0 &&
+        view.liveSessions.length === 0 &&
+        stageIdleMs(view.row, input.nowMs) >= OWN_STAGE_REPLACE_IDLE_MS,
+    );
+    if (ownOther !== undefined) {
+      return { kind: "ours", band: ownOther.band, row: ownOther.row };
+    }
     return { kind: "exhausted", refusal: stageCapRefusal(occupied.length, ordered, input.limits, input.nowMs) };
   }
 
@@ -222,8 +252,9 @@ export function describeStageBandRow(view: StageBandView, nowMs: number): string
   }
   const sessions = view.liveSessions.length === 0 ? "no live sessions" : `sessions ${view.liveSessions.join(",")}`;
   const dead = view.row.dead === undefined ? "" : ` · DEAD since ${view.row.dead.detectedAt} during \`${view.row.dead.op}\``;
+  const auth = stageRowAuth(view.row) === "local" ? "  auth local" : "";
   return (
-    `  band ${view.band}  ${shortSha(view.row.sha)}  owner ${view.row.checkout} · pid ${view.row.ownerPid ?? "unknown"} · ` +
+    `  band ${view.band}  ${shortSha(view.row.sha)}${auth}  owner ${view.row.checkout} · pid ${view.row.ownerPid ?? "unknown"} · ` +
     `idle ${describeStageAgePhrase(view.row.lastUsedAt, nowMs)} · ${sessions}${dead}`
   );
 }
@@ -284,4 +315,58 @@ export function stageHealthVerdict(evidence: StageHealthEvidence): StageHealth {
     return "rebuild";
   }
   return "warm";
+}
+
+/** The staleness rule: reuse a warm stage ONLY when it is the requested sha, healthy, and not forced fresh;
+ *  otherwise rebuild. Pure — the imperative caller supplies `healthy` (lib/stage-bands.ts's three-probe
+ *  verdict, `warm`). A rebuild tears the stage down, so when `checkout` is given it is refused while another
+ *  checkout holds the stage, or while a row with unknown holders was used inside
+ *  {@link OWN_STAGE_REPLACE_IDLE_MS}. */
+export function stageDecision(opts: {
+  readonly targetSha: string;
+  readonly row: StageRow | null;
+  readonly fresh: boolean;
+  readonly healthy: boolean;
+  readonly auth?: StageAuthMode;
+  readonly checkout?: string;
+  readonly nowMs?: number;
+  readonly liveHolders?: readonly StageHolder[];
+}): StageDecision {
+  const { row } = opts;
+  if (row !== null && !opts.fresh && row.sha === opts.targetSha && stageRowAuth(row) === (opts.auth ?? "single-user") && opts.healthy) {
+    return "reuse";
+  }
+  if (row === null || opts.checkout === undefined || opts.nowMs === undefined) {
+    return "rebuild";
+  }
+  if (foreignHolders(opts.liveHolders ?? [], opts.checkout).length > 0) {
+    return "refuse";
+  }
+  return row.holders === undefined && stageIdleMs(row, opts.nowMs) < OWN_STAGE_REPLACE_IDLE_MS ? "refuse" : "rebuild";
+}
+
+/** The holders still reading the stage: a process still running, or otherwise a stamp younger than the
+ *  idle threshold. `running` is the caller's observation (ops/stage-probe.ts), so this stays pure. */
+export function liveHoldersOf(row: StageRow, nowMs: number, running: (holder: StageHolder) => boolean): readonly StageHolder[] {
+  return (row.holders ?? []).filter((holder) => {
+    if (running(holder)) {
+      return true;
+    }
+    const stamped = Date.parse(holder.stampedAt);
+    return !Number.isNaN(stamped) && nowMs - stamped < OWN_STAGE_REPLACE_IDLE_MS;
+  });
+}
+
+export function foreignHolders(holders: readonly StageHolder[], checkout: string): readonly StageHolder[] {
+  return holders.filter((holder) => holder.checkout !== checkout);
+}
+
+/** The STAGE ERROR a refused rebuild prints: who used the stage, when, and when the rebuild may run. */
+export function stageRebuildRefusal(row: StageRow, holders: readonly StageHolder[], nowMs: number): string {
+  const who = holders.length === 0 ? "an unknown checkout" : holders.map((holder) => `${holder.checkout} (pid ${String(holder.pid)})`).join(", ");
+  return (
+    `stage ${shortSha(row.sha)} on band ${String(row.band)} needs a rebuild, but ${who} may still be reading it (last used ` +
+    `${describeStageAgePhrase(row.lastUsedAt, nowMs)}). Nothing was torn down. Retry once that run ends and the stage has been idle ` +
+    `${String(Math.round(OWN_STAGE_REPLACE_IDLE_MS / MS_PER_MINUTE))} min, or stage a different --ref/--dirty.`
+  );
 }

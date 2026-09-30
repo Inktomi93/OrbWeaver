@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEV_PORTS, STAGE_BAND_COUNT, stageBandPorts } from "../../../../tooling/src/_shared/ports.ts";
 import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
+import { stageDecision } from "../../../../tooling/src/snap/lib/stage-bands.ts";
 import {
   bandAccess,
   DIRTY_STAGE_KEY,
@@ -34,7 +35,6 @@ import {
   stageBandRefusal,
   stageBandSharedNote,
   stageBaseUrl,
-  stageDecision,
   stageIdleMs,
   stageInheritedEnv,
   stageLauncher,
@@ -532,4 +532,33 @@ test("the table door refuses a FOREIGN owner and passes our own — a PLANTED ta
   expect(
     stageBandVerdictFor("http://localhost:5173/chat", { checkout: LANE_CHECKOUT, readTable: () => [active()], readBinding: () => null }).refusal,
   ).toBeNull();
+});
+
+// ── --stage-auth: a local-auth stage is a different stage from the single-user one at the same sha ───────
+
+test("a local-auth stage gets its own dir, so it never boots onto a single-user stage's copied dev db", () => {
+  expect(stagePaths("/repo", SHA, "local").dir).toBe(`/repo/.cache/snap-stage/${SHORT}-local`);
+  expect(stagePaths("/repo", SHA, "single-user").dir).toBe(stagePaths("/repo", SHA).dir);
+});
+
+test("stageDecision rebuilds a same-sha stage whose auth mode differs from the one asked for", () => {
+  expect(stageDecision({ targetSha: SHA, row: active(), fresh: false, healthy: true, auth: "local" })).toBe("rebuild");
+  expect(stageDecision({ targetSha: SHA, row: active({ dir: `/repo/.cache/snap-stage/${SHORT}-local` }), fresh: false, healthy: true, auth: "local" })).toBe(
+    "reuse",
+  );
+  expect(stageDecision({ targetSha: SHA, row: active({ dir: `/repo/.cache/snap-stage/${SHORT}-local` }), fresh: false, healthy: true })).toBe("rebuild");
+});
+
+test("bandAccess never shares a sibling's same-sha stage across auth modes", () => {
+  const base = {
+    row: active({ checkout: LANE_CHECKOUT }),
+    checkout: MAIN_CHECKOUT,
+    targetSha: SHA,
+    dirty: false,
+    fresh: false,
+    bandBound: true,
+    healthy: true,
+  };
+  expect(bandAccess({ ...base, auth: "local" })).toBe("refuse");
+  expect(bandAccess({ ...base, row: active({ checkout: LANE_CHECKOUT, dir: `/repo/.cache/snap-stage/${SHORT}-local` }), auth: "local" })).toBe("shared-reuse");
 });

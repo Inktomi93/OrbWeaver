@@ -401,3 +401,33 @@ test("--tap without a touch device is refused by name rather than degraded to a 
   // The refusal is the DEVICE's absence, not the flag's presence: the same argv with --mobile parses.
   expect(parseSnapArgs(["/", "--tap", "#hint", "--mobile"]).errors).toEqual([]);
 });
+
+// --swipe: a dispatched touch drag (Input.dispatchTouchEvent start/move/end). Chromium's
+// Input.synthesizeScrollGesture does not scroll in the headless build, so a touch-scroll probe needs this path.
+const SWIPE_DOCUMENT = `<!doctype html><html lang="en" data-app-ready="settled"><body style="margin:0">
+<div id="list" style="height:300px;overflow-y:auto"><div style="height:3000px;background:linear-gradient(#fff,#00f)"></div></div>
+</body></html>`;
+
+test("--swipe scrolls a touch scroller by dispatched touch events, and refuses without a touch device", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(SWIPE_DOCUMENT);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await (await browser.newContext(devices[MOBILE_DEVICE])).newPage();
+    await page.goto(base);
+    const args = parseSnapArgs(["/", "--swipe", "#list=400", "--mobile", "--base", base, "--no-shot", "--no-deadcss", "--no-failure-evidence"]);
+    expect(args.errors).toEqual([]);
+    const failures = await driveActions({ page, actions: args.actions });
+    expect(failures.stepFailures).toBe(0);
+    expect(Number(await page.evaluate("document.getElementById('list').scrollTop"))).toBeGreaterThan(100);
+  } finally {
+    await browser.close();
+    server.closeAllConnections();
+    server.close();
+  }
+  expect(parseSnapArgs(["/", "--swipe", "#list=400"]).errors.join("\n")).toContain("--swipe needs a touch-capable context");
+});

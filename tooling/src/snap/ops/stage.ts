@@ -72,8 +72,11 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runGit } from "../../_shared/git.ts";
 import { listeningPids } from "../../_shared/platform.ts";
 import { stageBandPorts } from "../../_shared/ports.ts";
-import { spawnFullPrioritySync } from "../../_shared/proc.ts";
-import type { EnsureStageOpts, StagePaths, StagePorts, StageRow, StageStopVerdict } from "../contract/stage.ts";
+import { runNicedSync, spawnFullPrioritySync } from "../../_shared/proc.ts";
+import { FIXTURE_SEED_CLI_REL, fixtureIdentityEnv } from "../../stack/index.ts";
+import type { EnsureStageOpts, StageAuthMode, StagePaths, StagePorts, StageRow, StageStopVerdict } from "../contract/stage.ts";
+import { stageRowAuth } from "../contract/stage.ts";
+import { foreignHolders, liveHoldersOf, STAGE_USE_HEARTBEAT_MS, stageDecision, stageRebuildRefusal } from "../lib/stage-bands.ts";
 import {
   DIRTY_STAGE_KEY,
   missingLauncherRefusal,
@@ -81,7 +84,6 @@ import {
   STAGE_ROOT_REL,
   shortSha,
   stageBandEnv,
-  stageDecision,
   stageInheritedEnv,
   stageLauncher,
   stageLauncherSpawn,
@@ -91,9 +93,10 @@ import {
 import { registerStageRunBinding } from "../lib/stage-run-binding.ts";
 import { acquireStageBand, stageRowHealth } from "./stage-census.ts";
 import { repoRoot, resolveRef } from "./stage-git.ts";
+import { holdStageUse } from "./stage-holders.ts";
 import { armStageKeeper } from "./stage-keeper.ts";
 import { clearRow, markerRoot, readBands, touchRow, writeRow } from "./stage-marker.ts";
-import { stageBandPortPid, stageDirs } from "./stage-probe.ts";
+import { holderProcessRunning, stageBandPortPid, stageDirs } from "./stage-probe.ts";
 import { recordStageReap } from "./stage-reap-log.ts";
 import { assertStageSourceSupportsIsolation, pnpmInstall, prepareStageSource, removeStageDir, seedStageData, syncDirtyTree } from "./stage-source.ts";
 import { stopStage } from "./stage-teardown.ts";
@@ -113,8 +116,10 @@ function devInheritedEnv(root: string): Record<string, string> {
   return stageInheritedEnv(readFileSync(p, "utf8"));
 }
 
-function bootStage(root: string, paths: StagePaths, ports: StagePorts): void {
-  const inherited = devInheritedEnv(root);
+function bootStage(root: string, paths: StagePaths, ports: StagePorts, auth: StageAuthMode): void {
+  // A local-auth stage owns an empty data root, so no dev db key applies; the fixture recipe's identity
+  // half (local sign-in, its insecure secrets, the owner handle) takes their place.
+  const inherited = auth === "local" ? fixtureIdentityEnv(ports.server) : devInheritedEnv(root);
   const env: NodeJS.ProcessEnv = {
     // biome-ignore lint/style/noProcessEnv: the stage stack inherits the operator's ambient env (PATH etc) — harness plumbing, not app config.
     ...process.env,
@@ -155,6 +160,21 @@ function bootStage(root: string, paths: StagePaths, ports: StagePorts): void {
   }
 }
 
+/** Mint the fixture's humans on a booted local-auth stage with the staged tree's own seed cli, the same
+ *  verb `pnpm fixture up` runs. The seed verifies both humans can sign in before it exits 0. */
+function seedStageHumans(paths: StagePaths, ports: StagePorts): void {
+  const seedCli = join(paths.dir, FIXTURE_SEED_CLI_REL);
+  if (!existsSync(seedCli)) {
+    throw new Error(`stage ${paths.dir} ships no ${FIXTURE_SEED_CLI_REL}, so --stage-auth local cannot seed its humans; use a newer --ref`);
+  }
+  // biome-ignore lint/style/noProcessEnv: the seed child inherits the operator's ambient env (PATH etc) — harness plumbing, not app config.
+  const env = { ...process.env, ...fixtureIdentityEnv(ports.server) };
+  const res = runNicedSync(process.execPath, [seedCli, "multi-user"], { cwd: paths.dir, env, stdio: "inherit" });
+  if (res.status !== 0) {
+    throw new Error(`stage ${paths.dir}: seeding the fixture humans failed (seed multi-user exit ${String(res.status)})`);
+  }
+}
+
 // ── Orchestration ──────────────────────────────────────────────────────────────────────────────────────
 
 /** The PROVISIONAL row written inside the allocation lock, before the 55 s boot: it claims the band by
@@ -179,6 +199,7 @@ function claimRow(claim: {
     ownerPid: null,
     startedAt: nowIso,
     lastUsedAt: nowIso,
+    holders: [],
     sessions: [],
     dbProvenance: null,
     rsyncs: 0,
@@ -227,9 +248,10 @@ function bootOntoBand(input: {
   readonly targetSha: string;
   readonly dirty: boolean;
   readonly fresh: boolean;
+  readonly auth: StageAuthMode;
 }): StageRow {
-  const { root, home, band, targetSha, dirty } = input;
-  const paths = stagePaths(root, targetSha);
+  const { root, home, band, targetSha, dirty, auth } = input;
+  const paths = stagePaths(root, targetSha, auth);
   const ports = stageBandPorts(band);
   assertStageSourceSupportsIsolation(root, dirty, targetSha);
   // After the staleness teardown and BEFORE this call's dir is created: whatever is still on disk that
@@ -241,11 +263,14 @@ function bootOntoBand(input: {
     print(`[snap-stage] pnpm install (shared store) in ${paths.dir}`);
     pnpmInstall(paths.dir);
   }
-  const dbProvenance = seedStageData(root, paths);
+  const dbProvenance = auth === "local" ? null : seedStageData(root, paths);
 
-  print(`[snap-stage] booting isolated stack on band ${band} — server:${ports.server} vite:${ports.vite}`);
+  print(`[snap-stage] booting isolated stack on band ${band} — server:${ports.server} vite:${ports.vite} · auth ${auth}`);
   try {
-    bootStage(root, paths, ports);
+    bootStage(root, paths, ports, auth);
+    if (auth === "local") {
+      seedStageHumans(paths, ports);
+    }
   } catch (e) {
     // The claim outlives nothing: a band whose boot failed must be free for the next caller, or one bad
     // ref would burn a band until somebody swept it.
@@ -269,6 +294,7 @@ function bootOntoBand(input: {
     startedAt: nowIso,
     // Born used: a stage booted this instant is the freshest possible, and the reaper reads THIS field.
     lastUsedAt: nowIso,
+    holders: [],
     sessions: [],
     dbProvenance,
     rsyncs: dirty ? 1 : 0,
@@ -292,6 +318,9 @@ export function ensureStage(opts: EnsureStageOpts): StageRow {
   // …and that SAME one exit publishes what this run bound, carrying whether we BOOTED it — the one fact the
   // boot-dead teardown may act on without breaking #324's warm-across-runs rule (lib/stage-run-binding.ts).
   registerStageRunBinding({ row, home, booted: resolved.booted });
+  // Every caller that binds a stage holds it for its process's life (snap runs, session daemons,
+  // cache:check), so no other checkout tears it down under that use.
+  holdStageUse(home, row, root, STAGE_USE_HEARTBEAT_MS);
   return row;
 }
 
@@ -303,13 +332,24 @@ interface ResolvedStage {
   readonly booted: boolean;
 }
 
+function rebuildReason(row: StageRow, ask: { readonly targetSha: string; readonly auth: StageAuthMode; readonly fresh: boolean }): string {
+  if (ask.fresh) {
+    return "--fresh";
+  }
+  if (row.sha !== ask.targetSha || stageRowAuth(row) !== ask.auth) {
+    return `replaced by ${shortSha(ask.targetSha)} · auth ${ask.auth}`;
+  }
+  return "unhealthy";
+}
+
 function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
   const dirty = opts.dirty ?? false;
   const targetSha = dirty ? DIRTY_STAGE_KEY : resolveRef(root, opts.ref ?? "HEAD");
   const home = markerRoot(root);
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
-  const dir = stagePaths(root, targetSha).dir;
+  const auth = opts.auth ?? "single-user";
+  const dir = stagePaths(root, targetSha, auth).dir;
 
   const { allocation } = acquireStageBand({
     home,
@@ -319,6 +359,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
     dirty,
     fresh: opts.fresh,
     nowMs,
+    auth,
     claim: (band) => claimRow({ band, checkout: root, targetSha, dir, nowIso }),
   });
 
@@ -337,13 +378,20 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
   }
   if (allocation.kind === "ours") {
     const healthy = stageRowHealth(allocation.row, nowMs) === "warm";
-    if (stageDecision({ targetSha, row: allocation.row, fresh: opts.fresh, healthy }) === "reuse") {
+    const liveHolders = liveHoldersOf(allocation.row, nowMs, holderProcessRunning);
+    const decision = stageDecision({ targetSha, row: allocation.row, fresh: opts.fresh, healthy, auth, checkout: root, nowMs, liveHolders });
+    if (decision === "reuse") {
       return { row: reuseWarmStage({ root, home }, allocation.row, dirty, nowIso), booted: false };
     }
-    print(`[snap-stage] rebuilding our stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (${opts.fresh ? "--fresh" : "unhealthy or stale"})`);
+    if (decision === "refuse") {
+      throw new Error(stageRebuildRefusal(allocation.row, foreignHolders(liveHolders, root), nowMs));
+    }
+    print(
+      `[snap-stage] rebuilding our stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (${rebuildReason(allocation.row, { targetSha, auth, fresh: opts.fresh })})`,
+    );
     dropStage(root, home, allocation.row);
     writeRow(home, claimRow({ band: allocation.band, checkout: root, targetSha, dir, nowIso }));
-    return { row: bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh }), booted: true };
+    return { row: bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh, auth }), booted: true };
   }
   if (allocation.kind === "reap") {
     // LAZY REAP-ON-ACQUIRE (#1163 arm a): the band was already claimed for us inside the lock, so this
@@ -365,7 +413,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
     // one is still running, sees a row naming a different keeper at its next poll and RELEASES.
     recordStageReap(home, allocation.row, "acquire", nowMs);
   }
-  return { row: bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh }), booted: true };
+  return { row: bootOntoBand({ root, home, band: allocation.band, targetSha, dirty, fresh: opts.fresh, auth }), booted: true };
 }
 
 /** Sweep stage dirs on THIS checkout that no row accounts for (#324): a crashed run leaves a bare

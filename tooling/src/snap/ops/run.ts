@@ -147,7 +147,8 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
     }
     const watchTicks = opts.watchMs > 0 ? await runWatchSeries(firstPage, opts, pageOut(out, 0, totalPages)) : [];
     extendEvidenceThroughWatch(outcomes, session);
-    const { failed, viteChurn, fileOrigin } = partitionFailedRequests(session.requests.values());
+    const partition = partitionFailedRequests(session.requests.values());
+    const { failed, viteChurn, fileOrigin, navigationAborts } = partition;
     // What every arm computes its totals over: the per-page outcomes plus the run's artifact naming (the
     // pixel arm's `out=`/`crop=` read it).
     const pairInput: ArmPairInput = { opts, outcomes, ctx: { ...plan, out: pageOut(out, 0, totalPages), failed, totalPages } };
@@ -157,7 +158,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
     }
     printWatchBlock(watchTicks);
     printCheckpointScope(session, evidenceSession);
-    printCaptureLog(evidenceSession, failed, viteChurn, fileOrigin);
+    printCaptureLog(evidenceSession, partition);
     await arms.report(armCtx);
     printCropNote(opts, { ...plan, failed, totalPages });
     printProbeMotionWarning(opts);
@@ -230,6 +231,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       pageErrors: session.pageErrors,
       failedRequests: failed,
       ...(viteChurn.length === 0 ? {} : { viteDepChurn: viteChurn }),
+      ...(navigationAborts.length === 0 ? {} : { navigationAborts }),
       appearance,
       captures: outcomes,
       // The RESOLVED interval, never the raw sentinel: the artifact states what the series actually ran at.
@@ -292,6 +294,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       ["page-errors", evidenceSession.pageErrors.length] as const,
       ["failed-req", failed.length] as const,
       ["vite-dep-churn", viteChurn.length] as const,
+      ["navigation-aborts", navigationAborts.length] as const,
       ...ledger.some("dead-css", "deadcss", "emptycss"),
       ...ledger.arm("lighthouse"),
       ...ledger.arm("requests"),

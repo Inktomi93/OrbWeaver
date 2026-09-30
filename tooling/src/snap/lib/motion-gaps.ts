@@ -79,6 +79,7 @@ const DISPATCHES_INPUT: Record<Step["kind"], boolean> = {
   pause: false,
   press: true,
   tap: true,
+  swipe: true,
   upload: true,
   waitfor: false,
   wheel: true,

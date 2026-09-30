@@ -47,25 +47,42 @@ export function isSandboxTraceNoise(entry: CapturedConsole): boolean {
  *  these lines under their own heading, the JSON manifest keeps them in `viteDepChurn`, and the RESULT line
  *  counts them under `vite-dep-churn`.
  *
- *  NARROW BY CONSTRUCTION: an ABORT only, and only on the optimizer's own path. A 404/500 on a dep, or an
- *  abort anywhere else, stays a failure — those are real. */
+ *  NARROW BY CONSTRUCTION: an abort or the optimizer's own 504, and only on the optimizer's own path. A
+ *  404/500 on a dep, or an abort anywhere else, stays a failure — those are real. */
 const VITE_DEPS_PATH_RE = /\/(?:node_modules\/)?\.vite\/deps\//u;
 const REQUEST_ABORTED = "net::ERR_ABORTED";
+/** Vite's optimizer answers a request for a dep it has just re-bundled with 504 "Outdated Optimize Dep"
+ *  and reloads the page; on its own deps path that status is the same churn, never a gateway failure. */
+const VITE_OUTDATED_DEP_STATUS = 504;
 
 export function isViteDepChurn(request: CapturedRequest): boolean {
-  return request.failed === REQUEST_ABORTED && (request.status ?? 0) < HTTP_ERROR_STATUS_MIN && VITE_DEPS_PATH_RE.test(request.url);
+  if (!VITE_DEPS_PATH_RE.test(request.url)) {
+    return false;
+  }
+  const status = request.status ?? 0;
+  return status === VITE_OUTDATED_DEP_STATUS || (request.failed === REQUEST_ABORTED && status < HTTP_ERROR_STATUS_MIN);
 }
 
-/** Split a context's requests into the ones that DECIDE the run and the vite-optimizer churn that only
- *  gets reported. One home, so every snap path (single, scenario, --contexts) judges identically. */
+/** HARNESS-INDUCED: an abort of a request whose document a later navigation or the page's close discarded
+ *  (`CapturedRequest.discarded`). The stage warm-up re-navigates, a session route call navigates, and every
+ *  run closes its pages, so the app's long-lived `stream.connect` aborts on nearly every run. Only an abort
+ *  qualifies: an HTTP error status or any other failure text on a discarded document still counts. */
+export function isNavigationAbort(request: CapturedRequest): boolean {
+  return request.discarded === true && request.failed === REQUEST_ABORTED && (request.status ?? 0) < HTTP_ERROR_STATUS_MIN;
+}
+
+/** Split a context's requests into the ones that DECIDE the run and the harness-induced classes that only
+ *  get reported. One home, so every snap path (single, scenario, --contexts) judges identically. */
 export function partitionFailedRequests(requests: Iterable<CapturedRequest>): {
   readonly failed: CapturedRequest[];
   readonly viteChurn: CapturedRequest[];
   readonly fileOrigin: CapturedRequest[];
+  readonly navigationAborts: CapturedRequest[];
 } {
   const failed: CapturedRequest[] = [];
   const viteChurn: CapturedRequest[] = [];
   const fileOrigin: CapturedRequest[] = [];
+  const navigationAborts: CapturedRequest[] = [];
   for (const request of requests) {
     if (request.failed === null && (request.status ?? 0) < HTTP_ERROR_STATUS_MIN) {
       continue;
@@ -74,11 +91,13 @@ export function partitionFailedRequests(requests: Iterable<CapturedRequest>): {
       viteChurn.push(request);
     } else if (isFileOriginRequest(request)) {
       fileOrigin.push(request);
+    } else if (isNavigationAbort(request)) {
+      navigationAborts.push(request);
     } else {
       failed.push(request);
     }
   }
-  return { failed, viteChurn, fileOrigin };
+  return { failed, viteChurn, fileOrigin, navigationAborts };
 }
 
 /** HARNESS-INDUCED again, and the one the design-audit fold surfaced (#1315). Chromium treats every

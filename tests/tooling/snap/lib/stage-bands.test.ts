@@ -19,9 +19,11 @@ import {
   allocateStageBand,
   DEFAULT_STAGE_CAP,
   DEFAULT_STAGE_TTL_MIN,
+  liveHoldersOf,
   resolveStageLimits,
   rowIsDangling,
   STAGE_ERA_MAX_RSYNCS,
+  stageDecision,
   stageHealthVerdict,
   stageSweepVerdict,
 } from "../../../../tooling/src/snap/lib/stage-bands.ts";
@@ -38,6 +40,8 @@ const TTL_MS = 60 * MS_PER_MINUTE;
 const LIMITS = { ttlMs: TTL_MS, cap: 3 };
 const USED_RECENTLY = new Date(NOW - 5 * MS_PER_MINUTE).toISOString();
 const USED_LONG_AGO = new Date(NOW - 6 * 60 * MS_PER_MINUTE).toISOString();
+// Idle past the own-stage replacement threshold, still inside the TTL.
+const USED_PAST_REPLACE_IDLE = new Date(NOW - 20 * MS_PER_MINUTE).toISOString();
 
 function row(band: number, over: Partial<StageRow> = {}): StageRow {
   const ports = stageBandPorts(band);
@@ -258,6 +262,73 @@ test("the CAP refuses before the range does, and names it — but never blocks t
   // Our own row is decided BEFORE the cap: reusing a stage we already have adds nothing to the box.
   const withOurs = [...three.slice(1), { row: row(0) }];
   expect(allocateStageBand({ ...ALLOC, views: views(withOurs) }).kind).toBe("ours");
+});
+
+test("a local-auth ask never lands on the lane's own single-user stage at the same sha", () => {
+  const ours = row(0);
+  expect(allocateStageBand({ ...ALLOC, views: views([{ row: ours }]) })).toEqual({ kind: "ours", band: 0, row: ours });
+  expect(allocateStageBand({ ...ALLOC, auth: "local", views: views([{ row: ours }]) })).toEqual({ kind: "free", band: 1 });
+  const local = row(1, { dir: `${MAIN_CHECKOUT}/.cache/snap-stage/0123456789ab-local` });
+  expect(allocateStageBand({ ...ALLOC, auth: "local", views: views([{ row: ours }, { row: local }]) })).toEqual({ kind: "ours", band: 1, row: local });
+});
+
+const SIBLING_HOLDER = { pid: 5151, checkout: MAIN_CHECKOUT, stampedAt: new Date(NOW - 2000).toISOString() };
+
+test("AT THE CAP, a lane's own idle stage nobody else holds is rebuilt in place; anything else refuses", () => {
+  const siblings = [1, 2].map((band) => ({ row: row(band, { checkout: MAIN_CHECKOUT, sha: OTHER_SHA }) }));
+  const ourOldStage = row(0, { checkout: LANE_CHECKOUT, sha: OTHER_SHA, sessions: ["lane-session"], lastUsedAt: USED_PAST_REPLACE_IDLE, holders: [] });
+  const atCap = { ...ALLOC, checkout: LANE_CHECKOUT };
+  const replaced = allocateStageBand({ ...atCap, views: views([...siblings, { row: ourOldStage }]) });
+  expect(replaced).toEqual({ kind: "ours", band: 0, row: ourOldStage });
+  // A live session is driving the old stage: rebuilding under it would kill that browser mid-drive.
+  const pinned = allocateStageBand({ ...atCap, views: views([...siblings, { row: ourOldStage, over: { liveSessions: ["lane-session"] } }]) });
+  expect(pinned.kind).toBe("exhausted");
+  // A sibling's one-shot run holds it: never tear it down under that run.
+  const held = { row: { ...ourOldStage, holders: [SIBLING_HOLDER] }, over: { liveHolders: [SIBLING_HOLDER] } };
+  expect(allocateStageBand({ ...atCap, views: views([...siblings, held]) }).kind).toBe("exhausted");
+  // Used inside the idle threshold, or a row whose holders are unknown (an older snap rewrote it), refuses.
+  expect(allocateStageBand({ ...atCap, views: views([...siblings, { row: { ...ourOldStage, lastUsedAt: USED_RECENTLY } }]) }).kind).toBe("exhausted");
+  const { holders: _unknown, ...unknownHolders } = ourOldStage;
+  expect(allocateStageBand({ ...atCap, views: views([...siblings, { row: unknownHolders }]) }).kind).toBe("exhausted");
+  // Below the cap nothing changes: the lane gets a new band and keeps its old stage.
+  expect(allocateStageBand({ ...atCap, views: views([siblings[0] ?? { row: row(1) }, { row: ourOldStage }]) }).kind).toBe("free");
+});
+
+test("a same-sha --fresh or unhealthy rebuild refuses while another checkout holds the stage", () => {
+  const stage = row(0, { checkout: LANE_CHECKOUT, lastUsedAt: new Date(NOW - 2000).toISOString(), holders: [SIBLING_HOLDER] });
+  const ask = { targetSha: SHA, checkout: LANE_CHECKOUT, nowMs: NOW };
+  // The race: the owner's own warm touch just refreshed the row, but the sibling still holds it.
+  expect(stageDecision({ ...ask, row: stage, fresh: true, healthy: true, liveHolders: [SIBLING_HOLDER] })).toBe("refuse");
+  expect(stageDecision({ ...ask, row: stage, fresh: false, healthy: false, liveHolders: [SIBLING_HOLDER] })).toBe("refuse");
+  // A warm reuse touches nothing, so a hold never blocks it.
+  expect(stageDecision({ ...ask, row: stage, fresh: false, healthy: true, liveHolders: [SIBLING_HOLDER] })).toBe("reuse");
+  // Only this checkout's own holders, or none: the owner rebuilds its own stage at once.
+  const ownHolder = { ...SIBLING_HOLDER, checkout: LANE_CHECKOUT };
+  expect(stageDecision({ ...ask, row: { ...stage, holders: [ownHolder] }, fresh: true, healthy: true, liveHolders: [ownHolder] })).toBe("rebuild");
+  expect(stageDecision({ ...ask, row: { ...stage, holders: [] }, fresh: true, healthy: true, liveHolders: [] })).toBe("rebuild");
+  // Unknown holders refuse while the use is recent, and rebuild once it is old.
+  const { holders: _unknown, ...unknownHolders } = stage;
+  expect(stageDecision({ ...ask, row: unknownHolders, fresh: true, healthy: true })).toBe("refuse");
+  expect(stageDecision({ ...ask, row: { ...unknownHolders, lastUsedAt: USED_PAST_REPLACE_IDLE }, fresh: true, healthy: true })).toBe("rebuild");
+});
+
+test("a holder is live while its process runs, or otherwise until its stamp ages past the threshold", () => {
+  const recent = { pid: 11, checkout: MAIN_CHECKOUT, stampedAt: new Date(NOW - 2000).toISOString() };
+  const stale = { pid: 12, checkout: MAIN_CHECKOUT, stampedAt: USED_PAST_REPLACE_IDLE };
+  const stage = row(0, { holders: [recent, stale] });
+  expect(liveHoldersOf(stage, NOW, () => false)).toEqual([recent]);
+  expect(liveHoldersOf(stage, NOW, (holder) => holder.pid === 12)).toEqual([recent, stale]);
+  // A live holder pins the band for the sweep the way a live session does.
+  const evidence = {
+    row: { ...stage, lastUsedAt: USED_LONG_AGO },
+    bandBound: true,
+    bandIsStageRooted: true,
+    bandProcessAgeSeconds: null,
+    liveSessions: [],
+    nowMs: NOW,
+  };
+  expect(stageSweepVerdict(evidence, TTL_MS)).toBe("stranded");
+  expect(stageSweepVerdict({ ...evidence, liveHolders: [recent] }, TTL_MS)).toBe("live");
 });
 
 // ── the three probes + the ERA rule ───────────────────────────────────────────────────────────────────

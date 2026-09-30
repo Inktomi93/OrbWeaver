@@ -1,13 +1,14 @@
 // `--session-status` / `--session-close` / `--session-sweep` — the registry's admin verbs, the session twins of ops/stage-status.ts. All three work from
 // ANY checkout (the registry is repo-keyed); a LIVE session owned by another checkout is reported by status,
 // refused by close without `--force` (the #447 teardown-consent rule applied to sessions), and never touched
-// by the sweep while it is under its TTL (the #310 liveness-gate lesson: identify by a positive signal).
+// by the sweep while it is under its TTL and its owner checkout exists (identify by a positive signal).
+import { existsSync } from "node:fs";
 import process from "node:process";
 import { adoptRunSlot } from "../../_shared/artifact-out.ts";
 import { abandonedRuns, print, publishRunSlot } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
-import type { SessionEvent, SessionRequest, SessionRow } from "../contract/session.ts";
+import type { SessionEvent, SessionRequest, SessionRow, SessionSweepVerdict } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
 import {
@@ -36,6 +37,12 @@ import { repoRoot } from "./stage-git.ts";
 refuseDirectInvocation(import.meta.url, "pnpm snap --session-status");
 
 const MS_PER_MINUTE = 60_000;
+
+const SWEEP_REASON: Record<Exclude<SessionSweepVerdict, "live">, string> = {
+  dead: "DEAD",
+  idle: "idle past its TTL",
+  orphaned: "ORPHANED (its owner checkout is gone, so no caller can reach it)",
+};
 
 function adminRequest(kind: SessionRequest["kind"], root: string, force: boolean): SessionRequest {
   return { v: SESSION_PROTOCOL_VERSION, kind, runId: "", slotDir: "", argv: [], cwd: process.cwd(), checkout: root, boot: false, force, exportOut: null };
@@ -163,12 +170,17 @@ async function sweepSessions(): Promise<string> {
   const done: string[] = [];
   const rows = listRows(home);
   for (const row of rows) {
-    const verdict = sessionSweepVerdict({ live: rowIsLive(row), idleMs: sessionIdleMs(row, nowMs), ttlMs: row.ttlMs });
+    const verdict = sessionSweepVerdict({
+      live: rowIsLive(row),
+      idleMs: sessionIdleMs(row, nowMs),
+      ttlMs: row.ttlMs,
+      ownerPresent: existsSync(row.ownerCheckout),
+    });
     if (verdict === "live") {
       done.push(`${row.name}: live (owner ${row.ownerCheckout}, last used ${describeStageAgePhrase(row.lastUsedAt, nowMs)}) — left alone`);
       continue;
     }
-    done.push(`${row.name}: ${verdict === "dead" ? "DEAD" : "idle past its TTL"} — reaped (${await reapSession(home, root, row)})`);
+    done.push(`${row.name}: ${SWEEP_REASON[verdict]} — reaped (${await reapSession(home, root, row)})`);
   }
   for (const name of orphanSockets(home)) {
     removeSocket(home, name);

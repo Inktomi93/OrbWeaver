@@ -1,10 +1,11 @@
 // The isolated-stage flag family, spread into ops/flags.ts's one dispatch table. Split out when that
 // table crossed the tooling line cap (docs/law/Core-Tooling-Law.md §4.3) — one ops/ file per command
-// family, and these seven flags are all about ONE subsystem: which source the stage serves
-// (--isolated/--ref/--fresh/--dirty) and the three admin modes that print and exit
+// family, and these flags are all about ONE subsystem: which source and sign-in mode the stage serves
+// (--isolated/--ref/--fresh/--dirty/--stage-auth) and the three admin modes that print and exit
 // (--stage-status/--stage-down/--stage-sweep, mutually exclusive — enforced in ops/parse.ts).
 
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { STAGE_AUTH_MODES } from "../contract/stage.ts";
 import type { Args } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -30,6 +31,16 @@ export const STAGE_FLAG_HANDLERS: Record<string, StageFlagHandler> = {
   "--dirty": (a) => {
     a.dirty = true;
     a.isolated = true;
+  },
+  "--stage-auth": (a, rest) => {
+    const mode = rest.shift();
+    a.isolated = true;
+    const known = STAGE_AUTH_MODES.find((candidate) => candidate === mode);
+    if (known === undefined) {
+      a.errors.push(`--stage-auth expects ${STAGE_AUTH_MODES.join(" | ")}, got ${JSON.stringify(mode ?? "")}`);
+      return;
+    }
+    a.stageAuth = known;
   },
   "--stage-down": (a) => {
     a.stageDown = true;

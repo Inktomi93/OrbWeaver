@@ -34,6 +34,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--isolated` | boot/reuse snap's isolated stage: a detached worktree served on an offset port pair |
 | `--local-storage <value>` | key=json — seed localStorage before navigation (the FIRST = splits; the value is JSON) |
 | `--ref <value>` | pin the isolated stage to a commit (implies --isolated; survives a merge train) |
+| `--stage-auth <value>` | the stage's sign-in mode: single-user (default, a dev-db copy) or local (empty data, seeded owner+member for --contexts/--as; implies --isolated) |
 | `--stage-down` | tear down this checkout's stages |
 | `--stage-owner <value>` | names the owner for a cross-checkout --stage-down |
 | `--stage-status` | the shared stage-band table: owner, checkout, ref, age, sessions, db provenance |
@@ -69,6 +70,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--scenario <value>` | sequential checkpoints in ONE browser lifetime (json file or a named preset) |
 | `--scenario-summary` | one CHECKPOINT name PASS/FAIL line per checkpoint (pair with --json) |
 | `--stream-settle <value>` | fixed post-drive settle for a streaming surface |
+| `--swipe [@N] <value>` | selector=dy — a dispatched touch drag that scrolls a touch scroller dy px; needs --mobile like --tap |
 | `--tap [@N] <value>` | a REAL touch tap without mouseover; use --mobile at session boot or another touch device |
 | `--upload [@N] <value>` | `selector=path[,path]` — choose file(s) through an input or a trigger's filechooser |
 | `--wait-for [@N] <value>` | selector or text=phrase — wait for a selector to become visible, or for rendered text |
@@ -124,6 +126,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--reduced-motion` | emulate the OS prefers-reduced-motion media query (not the app's own setting) |
 | `--theme <value>` | render as if that theme were selected; none = no selection |
 | `--viewport <value>` | explicit WxH viewport (default 1280x800); under --mobile it WINDOWS the device, keeping touch/DPR/UA |
+| `--vision <value>` | CDP colour-vision emulation on every page (protanopia, deuteranopia, tritanopia, achromatopsia, blurredVision, reducedContrast) |
 | `--wide` | 1920x1080 viewport |
 
 ## Measure

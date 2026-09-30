@@ -19,12 +19,12 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { PortOwner } from "../../_shared/platform.ts";
 import { listeningPids, socketTableOrThrow } from "../../_shared/platform.ts";
 import { STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
-import type { StageAllocation, StageBandView, StageHealth, StageLimits, StageRow } from "../contract/stage.ts";
-import { allocateStageBand, resolveStageLimits, stageHealthVerdict } from "../lib/stage-bands.ts";
+import type { StageAllocation, StageAuthMode, StageBandView, StageHealth, StageLimits, StageRow } from "../contract/stage.ts";
+import { allocateStageBand, liveHoldersOf, resolveStageLimits, stageHealthVerdict } from "../lib/stage-bands.ts";
 import { DIRTY_STAGE_KEY } from "../lib/stage-plan.ts";
 import { liveSessionNames } from "./session-registry.ts";
 import { readBands, withBandsLock, writeRow } from "./stage-marker.ts";
-import { bandIsBound, pidIsStageRooted, stageHealthzOk, stageServedState, stageViteOk } from "./stage-probe.ts";
+import { bandIsBound, holderProcessRunning, pidIsStageRooted, stageHealthzOk, stageServedState, stageViteOk } from "./stage-probe.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -109,6 +109,7 @@ export function stageBandViews(input: {
       bandIsStageRooted: owners.length > 0 && owners.every((owner) => owner.kind === "pid" && pidIsStageRooted(owner.pid)),
       healthy: sharedCandidate && stageRowHealth(row, input.nowMs) === "warm",
       liveSessions: row === null ? [] : row.sessions.filter((name) => live.has(name)),
+      liveHolders: row === null ? [] : liveHoldersOf(row, input.nowMs, holderProcessRunning),
     };
   });
 }
@@ -129,6 +130,7 @@ export function acquireStageBand(input: {
   readonly dirty: boolean;
   readonly fresh: boolean;
   readonly nowMs: number;
+  readonly auth: StageAuthMode;
   readonly claim: (band: number) => StageRow;
 }): { readonly allocation: StageAllocation; readonly views: readonly StageBandView[] } {
   return withBandsLock(input.home, () => {
@@ -142,6 +144,7 @@ export function acquireStageBand(input: {
       fresh: input.fresh,
       limits: stageLimits(),
       nowMs: input.nowMs,
+      auth: input.auth,
     });
     if (allocation.kind === "free" || allocation.kind === "reap") {
       // Written INSIDE the lock, replacing the stranded row for a `reap` — the band is ours from here, and

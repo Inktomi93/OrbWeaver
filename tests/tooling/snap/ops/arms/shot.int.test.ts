@@ -225,3 +225,51 @@ test("the shot waits for an image that starts loading after the app settled, not
   // THE DEFECT (positive direction): the post-settle image must have reached the artifact.
   expect(late.equals(eager), "the shutter fired before the post-settle image decoded").toBe(true);
 });
+
+// --full on an app shell: the document never scrolls, one inner container does (Home's layout). The whole
+// container belongs in the PNG, and the page's own viewport comes back afterwards.
+const SCROLL_CONTAINER_CONTENT_PX = 2000;
+const SCROLL_CONTAINER_HTML = `<!doctype html><html data-app-ready="settled"><body style="margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden">
+<header style="height:60px;flex:none;background:#222222"></header>
+<main id="scroller" style="flex:1;min-height:0;overflow-y:auto"><div style="height:${String(SCROLL_CONTAINER_CONTENT_PX)}px;background:linear-gradient(#ffffff,#0000ff)"></div></main>
+</body></html>`;
+
+test("--full captures the whole height of an inner scroll container", async ({ plantedTree, scratch, runCli }) => {
+  const root = await plantedTree({ "shell.html": SCROLL_CONTAINER_HTML });
+  const out = join(scratch, "shell-full.png");
+  const run = await runCli("snap", ["--file", `${root}/shell.html`, "--viewport", "800x600", "--full", "--out", out, "--no-failure-evidence"], {
+    timeoutMs: BROWSER_TIMEOUT_MS,
+  });
+  await expect(run).toExitWith(EXIT.clean);
+  expect(pngSize(out)).toEqual({ width: 800, height: 60 + SCROLL_CONTAINER_CONTENT_PX });
+
+  // A viewport shot of the same shell stays the viewport: the growth is --full's alone.
+  const viewportOut = join(scratch, "shell-viewport.png");
+  const viewport = await runCli("snap", ["--file", `${root}/shell.html`, "--viewport", "800x600", "--out", viewportOut, "--no-failure-evidence"], {
+    timeoutMs: BROWSER_TIMEOUT_MS,
+  });
+  await expect(viewport).toExitWith(EXIT.clean);
+  expect(pngSize(viewportOut)).toEqual({ width: 800, height: 600 });
+});
+
+// --vision renders the page through Chromium's colour-vision filter, so the PNG shows what that viewer sees.
+const RED_HTML = `<!doctype html><html data-app-ready="settled"><body style="margin:0;background:#ff0000"></body></html>`;
+
+test("--vision achromatopsia renders a pure red page grey; the unfiltered control stays red", async ({ plantedTree, scratch, runCli }) => {
+  const root = await plantedTree({ "red.html": RED_HTML });
+  const argv = ["--file", `${root}/red.html`, "--viewport", "200x100", "--no-failure-evidence"];
+  const centre = async (out: string): Promise<readonly number[]> => {
+    const { data, info } = await Promise.resolve(sharp(out).raw().toBuffer({ resolveWithObject: true }));
+    const offset = (info.width * Math.floor(info.height / 2) + Math.floor(info.width / 2)) * info.channels;
+    return [data[offset] ?? -1, data[offset + 1] ?? -1, data[offset + 2] ?? -1];
+  };
+  const plainOut = join(scratch, "red-plain.png");
+  await expect(await runCli("snap", [...argv, "--out", plainOut], { timeoutMs: BROWSER_TIMEOUT_MS })).toExitWith(EXIT.clean);
+  expect(await centre(plainOut)).toEqual([255, 0, 0]);
+
+  const greyOut = join(scratch, "red-achromatopsia.png");
+  await expect(await runCli("snap", [...argv, "--vision", "achromatopsia", "--out", greyOut], { timeoutMs: BROWSER_TIMEOUT_MS })).toExitWith(EXIT.clean);
+  const [red, green, blue] = await centre(greyOut);
+  expect(red).toBe(green);
+  expect(green).toBe(blue);
+});

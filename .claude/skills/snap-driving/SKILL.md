@@ -244,6 +244,8 @@ http://localhost:<port>`.
 
 The multi-user fixture (`--contexts N` / `--as <handle>`) is a sidecar on its own pair (server `:8790`
 / vite `:5175`, roster `owner`, `member`). snap never boots it; `pnpm fixture up` is an operator call.
+To drive the same roster against your own tree, add `--stage-auth local`: the stage boots with an empty data
+dir, local sign-in and the seeded `owner` and `member`, and `--contexts`/`--as` log in against the stage.
 
 ## §9 Refusals are answers; shared-stack manners
 

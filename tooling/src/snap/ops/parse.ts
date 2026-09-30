@@ -28,7 +28,10 @@ function sessionValidationPairs(args: Args, contextsMode: boolean, inheritedSess
     [args.baseline && args.diff, "--baseline and --diff are mutually exclusive"],
     [args.contexts > 1 && args.pages > 1, "--contexts and --pages cannot both be greater than 1"],
     [args.contexts > 1 && args.as !== null, "--as cannot be combined with --contexts greater than 1"],
-    [contextsMode && args.isolated, "--contexts/--as use the fixture stack and cannot be combined with --isolated/--dirty/--ref"],
+    [
+      contextsMode && args.isolated && args.stageAuth !== "local",
+      "--contexts/--as need signed-in humans: add --stage-auth local to stage them, or drop --isolated/--dirty/--ref to use the fixture stack",
+    ],
     [contextsMode && (args.watchMs > 0 || args.baseline || args.diff), "--contexts/--as do not support --watch, --baseline, or --diff"],
     [contextsMode && args.cascade.length > 0, "--cascade does not combine with --contexts/--as (one ephemeral debugging profile owns one context)"],
     // The three stage-admin modes each print and exit; two of them in one argv is an ambiguous ask, not a
@@ -207,7 +210,12 @@ function armValidationPairs(args: Args): ValidationPair[] {
  *  opens hover-only affordances (Base UI's tooltip trigger is `mouseOnly: true`) that a finger cannot. */
 function tapValidationPairs(args: Args, device: Args["device"]): ValidationPair[] {
   const taps = args.actions.filter((entry) => entry.type === "step" && entry.action.kind === "tap").length;
+  const swipes = args.actions.filter((entry) => entry.type === "step" && entry.action.kind === "swipe").length;
   return [
+    [
+      swipes > 0 && device === null,
+      "--swipe needs a touch-capable context: pass --mobile on a one-shot run or at session/scenario boot. It dispatches touch events, which a desktop context without a touchscreen does not scroll with — use --wheel for a mouse scroll",
+    ],
     [
       taps > 0 && device === null,
       "--tap needs a touch-capable context: pass --mobile on a one-shot run or at session/scenario boot (the iPhone 14 Pro Max descriptor carries hasTouch + pointer:coarse). A desktop context has no touchscreen, so every tap would throw. --click is NOT the fallback — it is a mouse dispatch even under --mobile, which is the difference this verb exists to measure",
@@ -317,6 +325,7 @@ export function parseSnapArgs(
     viewport: DEFAULT_VIEWPORT,
     viewportExplicit: false,
     cpuThrottle: NO_CPU_THROTTLE,
+    vision: null,
     network: null,
     localStorage: [],
     probe: false,
@@ -333,6 +342,7 @@ export function parseSnapArgs(
     ref: null,
     fresh: false,
     dirty: false,
+    stageAuth: "single-user",
     stageDown: false,
     stageStatus: false,
     stageSweep: false,

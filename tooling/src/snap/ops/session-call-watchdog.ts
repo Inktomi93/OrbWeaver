@@ -1,4 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
+import type { Request } from "@playwright/test";
+import { print } from "../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { budget, loadKillError } from "../../_shared/load-budget.ts";
@@ -35,6 +37,11 @@ const RELOAD_COMMIT_BASE_MS = SESSION_CALL_BASE_MS;
  *  call itself. A healthy recovery still returns the moment it settles; only a genuinely stuck one waits this
  *  long. */
 const PAGE_RECOVERY_BASE_MS = TERMINATION_ACK_WAIT_BASE_MS + RELOAD_COMMIT_BASE_MS + TERMINATION_ACK_WAIT_BASE_MS;
+/** How long a call may keep running after its page reloaded under it. A vite re-optimise reloads the page
+ *  mid-call, and the reloaded app must boot before the call's next step can answer; killing the call there
+ *  and reloading again is what showed reviewers a false screen. The whole call stays capped at the
+ *  navigation budget, so a page that reloads forever is still a timeout. */
+const RELOAD_GRACE_BASE_MS = 30_000;
 
 class TerminalSessionCallError extends Error {}
 
@@ -43,7 +50,33 @@ class TerminalSessionCallError extends Error {}
  *  wait can never be shorter than the work it bounds. */
 type SessionCallOwner =
   | { readonly name: string; readonly session: ProbeSession }
-  | { readonly name: string; readonly recover: () => Promise<void>; readonly recoveryBaseMs: number };
+  | { readonly name: string; readonly recover: () => Promise<void>; readonly recoveryBaseMs: number; readonly reloads?: ReloadSubscription };
+
+/** Subscribe to reloads of the call's page; returns the unsubscribe. */
+type ReloadSubscription = (listener: () => void) => () => void;
+
+// A main-frame document request, not `framenavigated`: the SPA router's pushState fires that event too, and
+// a same-document route change is neither a reload nor a reason to relax the hang budget.
+function pageReloads(session: ProbeSession): ReloadSubscription {
+  return (listener) => {
+    const onRequest = (request: Request): void => {
+      if (request.isNavigationRequest() && request.frame() === session.page.mainFrame()) {
+        listener();
+      }
+    };
+    session.page.on("request", onRequest);
+    return () => {
+      session.page.off("request", onRequest);
+    };
+  };
+}
+
+function ownerReloads(state: SessionCallOwner): ReloadSubscription | null {
+  if ("session" in state) {
+    return pageReloads(state.session);
+  }
+  return state.reloads ?? null;
+}
 
 export function isTerminalSessionCallError(error: unknown): boolean {
   return error instanceof TerminalSessionCallError;
@@ -75,9 +108,28 @@ export async function runSessionCallWithinBudget(
   run: () => Promise<number>,
   baseMs: number = SESSION_CALL_BASE_MS,
 ): Promise<number> {
+  const startedAt = Date.now();
   const budgetMs = budget(baseMs);
+  const ceilingAt = startedAt + Math.max(budgetMs, budget(SESSION_NAVIGATION_CALL_BASE_MS));
+  let deadlineAt = startedAt + budgetMs;
   const deadline = Promise.withResolvers<Error>();
-  const timer = setTimeout(() => deadline.resolve(loadKillError({ what: `session ${state.name} call \`${op}\``, budgetMs, baseMs })), budgetMs);
+  const expire = (): void => {
+    deadline.resolve(loadKillError({ what: `session ${state.name} call \`${op}\``, budgetMs: deadlineAt - startedAt, baseMs }));
+  };
+  let timer = setTimeout(expire, budgetMs);
+  const unsubscribe =
+    ownerReloads(state)?.(() => {
+      const extended = Math.min(ceilingAt, Date.now() + budget(RELOAD_GRACE_BASE_MS));
+      if (extended <= deadlineAt) {
+        return;
+      }
+      deadlineAt = extended;
+      clearTimeout(timer);
+      timer = setTimeout(expire, deadlineAt - Date.now());
+      print(
+        `SESSION RELOAD  ${state.name}: the page reloaded during \`${op}\` (a vite re-optimise or the app's own navigation) — the call budget now ends ${String(deadlineAt - startedAt)}ms after it started. In-page state reset; re-drive before trusting this call's surface.`,
+      );
+    }) ?? null;
   // @orb-waive caught-failure-ownership(Promise.resolve): the rejection is retained in the discriminated work outcome and the rejected arm below rethrows the original binding; timeout recovery also awaits this owned outcome. Ends if the rejected arm stops propagating the original failure.
   const work = Promise.resolve()
     .then(run)
@@ -87,6 +139,7 @@ export async function runSessionCallWithinBudget(
     );
   const result = await Promise.race([work, deadline.promise.then((error) => ({ status: "timeout" as const, error }))]);
   clearTimeout(timer);
+  unsubscribe?.();
   if (result.status === "done") {
     return result.code;
   }

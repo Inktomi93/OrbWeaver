@@ -75,6 +75,7 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--debug-token": { group: "Where", summary: "seed orb:debug-token before navigation for token-gated development routes" },
   "--visitor": { group: "Where", summary: "send relay headers so a loopback stack serves a signed-out visitor, not its owner" },
   "--click": { group: "Reach", summary: "real Playwright click (actionability-checked); flakes on virtualized list rows" },
+  "--swipe": { group: "Reach", summary: "selector=dy — a dispatched touch drag that scrolls a touch scroller dy px; needs --mobile like --tap" },
   "--tap": { group: "Reach", summary: "a REAL touch tap without mouseover; use --mobile at session boot or another touch device" },
   "--dom-click": { group: "Reach", summary: "in-page el.click(), bypasses actionability — the click for virtualized/composite rows" },
   "--force-click": { group: "Reach", summary: "hover-then-forced pointer click for hover-revealed/overlaid controls" },
@@ -126,6 +127,10 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--desktop": { group: "Environment", summary: "explicit default desktop viewport (1280x800)" },
   "--cpu-throttle": { group: "Environment", summary: "CDP CPU throttle applied before navigation (4 = the standard load-test throttle)" },
   "--network": { group: "Environment", summary: "DevTools network preset applied before navigation" },
+  "--vision": {
+    group: "Environment",
+    summary: "CDP colour-vision emulation on every page (protanopia, deuteranopia, tritanopia, achromatopsia, blurredVision, reducedContrast)",
+  },
   // Stage family (ops/flags-stage.ts)
   "--isolated": { group: "Where", summary: "boot/reuse snap's isolated stage: a detached worktree served on an offset port pair" },
   "--ref": { group: "Where", summary: "pin the isolated stage to a commit (implies --isolated; survives a merge train)" },
@@ -134,6 +139,11 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--stage-down": { group: "Where", summary: "tear down this checkout's stages" },
   "--stage-status": { group: "Where", summary: "the shared stage-band table: owner, checkout, ref, age, sessions, db provenance" },
   "--stage-sweep": { group: "Where", summary: "reap stages idle past the TTL and prune orphan dirs" },
+  "--stage-auth": {
+    group: "Where",
+    summary:
+      "the stage's sign-in mode: single-user (default, a dev-db copy) or local (empty data, seeded owner+member for --contexts/--as; implies --isolated)",
+  },
   "--stage-owner": { group: "Where", summary: "names the owner for a cross-checkout --stage-down" },
   "--stage-keeper": { group: "Where", summary: "the band idle timer's own entry — spawned by snap, never typed by an operator" },
   "--force": { group: "Where", summary: "confirmation half of --stage-down --stage-owner and --session-close on a foreign live session" },

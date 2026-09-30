@@ -51,7 +51,7 @@ export { DEBUG_ENV_KEYS, DEV_PIN_KEYS, FIXTURE_VERBS, LEADER_STATES, SETUP_AUDIE
 export { parseStackArgv, parseStackCommand, STACK_USAGE } from "./lib/argv.ts";
 export { debugConflictMessage, resolveDebugArming, stripDebugEnv } from "./lib/debug-env.ts";
 export { envFilePath, parseEnvText, readEnvText } from "./lib/env-file.ts";
-export { FIXTURE_CREDENTIALS, FIXTURE_DIR_REL, fixtureEnv } from "./lib/fixture-plan.ts";
+export { FIXTURE_CREDENTIALS, FIXTURE_DIR_REL, FIXTURE_SEED_CLI_REL, fixtureEnv, fixtureIdentityEnv } from "./lib/fixture-plan.ts";
 export { classifyInstance, decideDown, decideUp } from "./lib/identity.ts";
 export {
   HEARTBEAT_MS,

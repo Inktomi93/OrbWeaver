@@ -11,7 +11,7 @@
 // answer returns null or false, and an unreadable socket table arrives as the platform module's refusal.
 // The callers treat both as unknown rather than as permission to act. That is what keeps the #324 sweep
 // from ever reaping something it merely failed to identify (the #310 liveness-gate lesson).
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -21,7 +21,7 @@ import type { EstablishedConnection, PortOwner, SocketTableRead } from "../../_s
 import { establishedConnections, processAgeSeconds, processGroupId, processInfo } from "../../_shared/platform.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { ServedState } from "../../stack/index.ts";
-import type { StagePorts } from "../contract/stage.ts";
+import type { StageHolder, StagePorts } from "../contract/stage.ts";
 import { STAGE_ROOT_REL, stageBaseUrl, stageServedProbeSpawn } from "../lib/stage-plan.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -178,4 +178,29 @@ export function stageDirs(root: string): string[] {
   return readdirSync(dir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
+}
+
+// `/proc/<pid>/stat` field 22 (starttime) sits 19 fields after the command's closing parenthesis.
+const STAT_STARTTIME_AFTER_COMM = 19;
+
+/** The process's start time as Linux reports it, or null when the process is gone or the platform has no
+ *  `/proc`. Paired with the pid, it names one process: a reused pid carries a different start time. */
+export function processStartTicks(pid: number): string | null {
+  const stat = `/proc/${String(pid)}/stat`;
+  if (!existsSync(stat)) {
+    return null;
+  }
+  // @orb-waive caught-failure-ownership(catch): the process can exit between the existence check and the read; that is "not running", which null already says. Ends if a vanished process must be reported differently.
+  try {
+    const text = readFileSync(stat, "utf8");
+    return text.slice(text.lastIndexOf(")") + 2).split(" ")[STAT_STARTTIME_AFTER_COMM] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Is the process that registered this holder still running? A holder without a start time is never
+ *  proven running, so its liveness falls back to its stamp's age. */
+export function holderProcessRunning(holder: StageHolder): boolean {
+  return holder.pidStart !== undefined && processStartTicks(holder.pid) === holder.pidStart;
 }

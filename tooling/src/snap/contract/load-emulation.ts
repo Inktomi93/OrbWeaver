@@ -31,3 +31,9 @@ export interface DriveBudgets {
   /** `data-app-ready` ceiling — the one that decides whether a capture is of the SETTLED app. */
   readonly ready: number;
 }
+
+/** The `--vision` vocabulary: CDP `Emulation.setEmulatedVisionDeficiency`'s own `type` values, minus
+ *  `none` (the absent flag). Chromium renders the page through the filter, so screenshots and pixel
+ *  contrast reads see what that viewer sees; DOM and computed-style reads do not change. */
+export const VISION_DEFICIENCIES = ["blurredVision", "reducedContrast", "achromatopsia", "deuteranopia", "protanopia", "tritanopia"] as const;
+export type VisionDeficiency = (typeof VISION_DEFICIENCIES)[number];

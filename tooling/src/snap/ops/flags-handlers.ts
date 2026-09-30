@@ -16,6 +16,7 @@ import { DEFAULT_VIEWPORT, MOBILE_DEVICE, WIDE_VIEWPORT } from "../../_shared/br
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { applyPanelPresetFlag, loadPanelPreset } from "../../_shared/panel-flags.ts";
 import { applyThemeFlag, parseThemeFlag } from "../../_shared/theme.ts";
+import { VISION_DEFICIENCIES } from "../contract/load-emulation.ts";
 import type { Args } from "../contract/types.ts";
 import { parseShotScale } from "../lib/shot-scale.ts";
 import { NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
@@ -92,6 +93,15 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   // the only verb that answers "what does this control do to a thumb".
   "--tap": (a, rest, page) => {
     pushStep(a, { kind: "tap", selector: rest.shift() ?? "", page });
+  },
+  "--swipe": (a, rest, page) => {
+    const { head, tail } = splitLastEq(rest.shift() ?? "");
+    const dy = Number(tail);
+    if (head === "" || tail === "" || !Number.isFinite(dy)) {
+      a.errors.push(`--swipe expects selector=dy (CSS px; positive scrolls down), got ${JSON.stringify(`${head}=${tail}`)}`);
+      return;
+    }
+    pushStep(a, { kind: "swipe", selector: head, dy, page });
   },
   // In-page el.click() — bypasses Playwright's actionability checks for
   // stubborn targets (icon divs under overlay stacks).
@@ -307,6 +317,15 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--network": (a, rest) => {
     a.network = parseNetworkProfile(rest.shift() ?? "");
+  },
+  "--vision": (a, rest) => {
+    const type = rest.shift();
+    const known = VISION_DEFICIENCIES.find((candidate) => candidate === type);
+    if (known === undefined) {
+      a.errors.push(`--vision expects ${VISION_DEFICIENCIES.join(" | ")}, got ${JSON.stringify(type ?? "")}`);
+      return;
+    }
+    a.vision = known;
   },
   // The isolated-stage family lives in its own module (ops/flags-stage.ts) — seven flags about the same
   // subsystem, split out when this table crossed the tooling line cap.

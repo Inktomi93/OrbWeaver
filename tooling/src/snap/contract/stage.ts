@@ -69,6 +69,32 @@ export interface StageDbProvenance {
   readonly devDbMtimeAtCopy: string;
 }
 
+/** How a stage signs its users in (`--stage-auth`). `single-user` serves a copy of the dev db as its one
+ *  owner; `local` boots an empty data root with local sign-in and the fixture's two seeded humans, so
+ *  `--contexts`/`--as` can drive multi-human flows against the staged tree. */
+export const STAGE_AUTH_MODES = ["single-user", "local"] as const;
+export type StageAuthMode = (typeof STAGE_AUTH_MODES)[number];
+
+/** A local-auth stage's dir is its short sha plus this suffix. */
+export const LOCAL_STAGE_DIR_SUFFIX = "-local";
+
+/** The auth mode a row serves, derived from its dir rather than stored: every checkout's version of snap
+ *  rewrites the shared table, and an older one drops a field it does not know but keeps `dir`. */
+export function stageRowAuth(row: Pick<StageRow, "dir">): StageAuthMode {
+  return row.dir.endsWith(LOCAL_STAGE_DIR_SUFFIX) ? "local" : "single-user";
+}
+
+/** One process holding a stage: it re-stamps `stampedAt` on a heartbeat while it runs. A holder is live
+ *  while its process runs (same pid and start time), or otherwise until its stamp ages past the idle threshold. */
+export interface StageHolder {
+  readonly pid: number;
+  /** The process's start time as the OS reports it (Linux `/proc/<pid>/stat` starttime). A pid alive with a
+   *  different start time is another process that reused the number. Absent where it cannot be read. */
+  readonly pidStart?: string;
+  readonly checkout: string;
+  readonly stampedAt: string;
+}
+
 /** A session observed that one half of this stage's port pair disappeared. Kept on the band row so
  *  `--stage-status` and `--stage-sweep` see the same death the session recorded. */
 interface StageDeath {
@@ -97,6 +123,10 @@ export interface StageRow {
    *  the run that booted it, so its liveness cannot be a parent-process check — it is USE. A row nobody has
    *  touched for the stage TTL is a strand that reap-on-acquire or `--stage-sweep` may take. */
   readonly lastUsedAt: string;
+  /** The runs holding this stage right now, one per process (`holdStageUse`). A row written by this snap
+   *  always carries the list, even empty; absent means an older snap rewrote the row and its users are
+   *  unknown. Each holder belongs to this row only: a rebuild writes a new row with no holders. */
+  readonly holders?: readonly StageHolder[];
   /** Session names bound to this band. A row with a LIVE session ref is NEVER a strand, whatever its idle
    *  age — a reaper that eats a live stage is worse than no reaper (§3.6). Liveness of each name is the
    *  session registry's answer, not this list's: the list is the claim, the daemon pid is the evidence. */
@@ -219,6 +249,8 @@ export interface StageSweepEvidence {
   /** Names from `row.sessions` whose daemon is ALIVE right now. A non-empty list pins the row `live`
    *  regardless of idle age — the negative control the TTL exists to not violate. */
   readonly liveSessions: readonly string[];
+  /** The row's live holders (`liveHoldersOf`). Any one pins the row `live`: a run is reading the stage. */
+  readonly liveHolders?: readonly StageHolder[];
   readonly nowMs: number;
 }
 
@@ -232,6 +264,8 @@ export interface StageBandView {
   readonly bandIsStageRooted: boolean;
   readonly healthy: boolean;
   readonly liveSessions: readonly string[];
+  /** The row's live holders (`liveHoldersOf`); absent means none were observed. */
+  readonly liveHolders?: readonly StageHolder[];
 }
 
 /** How a checkout may use ONE band, given its row (issue #108, generalized per row by #1276):
@@ -309,7 +343,9 @@ export interface StageHealthEvidence {
 const STAGE_BAND_CLAIMS = ["not-the-band", "ours", "shared", "foreign", "unowned"] as const;
 export type StageBandClaim = (typeof STAGE_BAND_CLAIMS)[number];
 
-export type StageDecision = "reuse" | "rebuild";
+/** `refuse`: a rebuild is due, but another checkout (or an unknown one) used the stage too recently for
+ *  this checkout to tear it down under that use. */
+export type StageDecision = "reuse" | "rebuild" | "refuse";
 
 /** The owner-ruled calibration knobs (design §12.2 F5): stage idle TTL 60 min, cap 3 live stages, both
  *  env-overridable (`ORB_STAGE_TTL_MIN` / `ORB_STAGE_CAP`). The band RANGE (0..9) is the hard ceiling. */
@@ -322,4 +358,40 @@ export interface EnsureStageOpts {
   readonly ref?: string;
   readonly fresh: boolean;
   readonly dirty?: boolean;
+  readonly auth?: StageAuthMode;
+}
+
+/** The isolated-stage half of snap's parsed argv (serve from a frozen HEAD worktree, not the live dev
+ *  stack); `Args` extends it. */
+export interface StageArgs {
+  /** Serve snaps from an ISOLATED snap-stage (detached HEAD worktree, offset ports + own db/data) — never
+   *  the live dev stack. Immune to the dev stack's HMR/crash-loops. See ../ops/stage.ts. */
+  isolated: boolean;
+  /** Stage git ref override (default HEAD). Implies --isolated. */
+  ref: string | null;
+  /** Force-rebuild the stage even when a warm one at this sha exists. Implies --isolated. */
+  fresh: boolean;
+  /** Stage the WORKING TREE (uncommitted changes), not a commit — rsyncs tracked+modified+untracked
+   *  source (gitignore-filtered) into a fixed stage dir and re-syncs on every call (refreshable, no
+   *  full re-stage when warm). Implies --isolated; takes priority over --ref. */
+  dirty: boolean;
+  /** `--stage-auth`: how the stage signs users in. `local` boots an empty data root with the fixture's
+   *  seeded humans, and `--contexts`/`--as` then log in against the stage. Implies --isolated. */
+  stageAuth: StageAuthMode;
+  /** Tear down the active stage (stop its stack + remove the worktree) and exit — ignores the route. */
+  stageDown: boolean;
+  /** Print the stage's visibility (marker + stage-band port owners + worktree dirs) and exit — the
+   *  engines status-style read, stage edition. Surfaces a lost-marker ownerless stage. Ignores the route. */
+  stageStatus: boolean;
+  /** Reap a STRANDED stage (a stage-rooted band process nothing has used inside the idle TTL) and prune
+   *  orphaned stage dirs, then exit — the safe reaper (#324). A live stage, ours or a sibling's, is left
+   *  standing; use --stage-down to tear down one you know you are finished with. Ignores the route. */
+  stageSweep: boolean;
+  /** `--stage-keeper <band>`: the band idle TIMER'S OWN entry (#1163 arm b) — spawned by `ensureStage`
+   *  through ops/stage-keeper.ts, never typed by an operator. It polls that band's row and tears the stage
+   *  down through the `--stage-down` path once nothing has used it for the TTL. null = not a keeper. */
+  stageKeeper: number | null;
+  /** Explicit checkout selector for stage teardown. Cross-checkout teardown is deliberate per band and
+   *  therefore requires --force; a bare --force never broadens the default owned-row selection. */
+  stageOwner: string | null;
 }

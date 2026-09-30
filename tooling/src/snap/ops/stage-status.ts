@@ -30,8 +30,8 @@ import { listeningPids, socketTableOrThrow } from "../../_shared/platform.ts";
 import { RESERVED_PORTS, STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
 import { processEnvValue } from "../../_shared/process-env.ts";
 import { pidAlive } from "../../_shared/run-retention.ts";
-import type { StageBandView, StageRow, StageSweepEvidence, StageSweepVerdict } from "../contract/stage.ts";
-import { describeStageBandRow, rowIsDangling, stageSweepVerdict } from "../lib/stage-bands.ts";
+import type { StageBandView, StageHolder, StageRow, StageSweepEvidence, StageSweepVerdict } from "../contract/stage.ts";
+import { describeStageBandRow, foreignHolders, rowIsDangling, stageSweepVerdict } from "../lib/stage-bands.ts";
 import { describeStageKeeper } from "../lib/stage-keeper-plan.ts";
 import {
   BANDS_REL,
@@ -104,6 +104,7 @@ function evidenceFor(view: StageBandView, pids: readonly number[], nowMs: number
     bandIsStageRooted: view.bandIsStageRooted,
     bandProcessAgeSeconds: oldestProcessAgeSeconds(pids),
     liveSessions: view.liveSessions,
+    liveHolders: view.liveHolders ?? [],
     nowMs,
   };
 }
@@ -271,7 +272,17 @@ function teardownView(input: {
   if (view.row.checkout !== root && !selection.force) {
     return [foreignSkipLine(view.row, verdict === "live", root, nowMs)];
   }
+  const readers = foreignHolders(view.liveHolders ?? [], root);
+  if (readers.length > 0 && !selection.force) {
+    return [heldTeardownRefusal(view.row, readers)];
+  }
   return [teardownRow(root, home, view.row)];
+}
+
+/** A stage another checkout's run still holds: tearing it down would kill that run's capture. */
+function heldTeardownRefusal(row: StageRow, readers: readonly StageHolder[]): string {
+  const who = readers.map((holder) => `${holder.checkout} (pid ${String(holder.pid)})`).join(", ");
+  return `band ${row.band}: left ${shortSha(row.sha)} standing — ${who} is still reading it. \`--force\` tears it down anyway.`;
 }
 
 /** What a plain `--stage-down` says about a SIBLING's row instead of touching it: the #447 refusal when it

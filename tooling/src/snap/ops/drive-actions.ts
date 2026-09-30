@@ -35,9 +35,37 @@ async function runWheelStep(page: Page, step: Extract<Step, { readonly kind: "wh
   }
 }
 
+/** Moves in one swipe, and the frame-sized gap between them that lets the gesture detector see a drag. */
+const SWIPE_MOVES = 10;
+const SWIPE_MOVE_GAP_MS = 16;
+
+// A finger dragged up by `dy` scrolls the content under it down by `dy`. The session is created per swipe
+// and detached after it: a touch sequence leaves no emulation behind to keep alive.
+async function runSwipeStep(page: Page, step: Extract<Step, { readonly kind: "swipe" }>): Promise<void> {
+  const loc = page.locator(step.selector).first();
+  await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
+  const box = await loc.boundingBox();
+  if (box === null) {
+    throw new Error(`--swipe target ${step.selector} has no box to touch`);
+  }
+  const x = box.x + box.width / 2;
+  const startY = box.y + box.height / 2;
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y: startY }] });
+    for (let move = 1; move <= SWIPE_MOVES; move += 1) {
+      await settle(page, SWIPE_MOVE_GAP_MS);
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: startY - (step.dy * move) / SWIPE_MOVES }] });
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  } finally {
+    await cdp.detach();
+  }
+}
+
 async function runLocatedStep(
   page: Page,
-  step: Exclude<Step, { readonly kind: "motion-click" | "pause" | "wheel" | "wheelburst" | "keyboard" }>,
+  step: Exclude<Step, { readonly kind: "motion-click" | "pause" | "wheel" | "wheelburst" | "keyboard" | "swipe" }>,
 ): Promise<FileActionReceipt | null> {
   const loc = page.locator(step.selector).first();
   if (step.kind === "waitfor") {
@@ -101,6 +129,10 @@ async function runStep(page: Page, step: Step): Promise<FileActionReceipt | null
   }
   if (step.kind === "wheel" || step.kind === "wheelburst") {
     await runWheelStep(page, step);
+    return null;
+  }
+  if (step.kind === "swipe") {
+    await runSwipeStep(page, step);
     return null;
   }
   if (step.kind === "keyboard") {

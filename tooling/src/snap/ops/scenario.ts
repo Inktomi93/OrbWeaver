@@ -194,6 +194,7 @@ interface ScenarioReportArgs {
   readonly evidenceRanges: readonly ScenarioEvidenceRange[];
   readonly failedRequests: CapturedRequest[];
   readonly viteChurn: readonly CapturedRequest[];
+  readonly navigationAborts: readonly CapturedRequest[];
 }
 
 function scenarioCheckpointSession(session: ProbeSession, outcome: CaptureOutcome, range: ScenarioEvidenceRange): SessionCounts {
@@ -247,7 +248,7 @@ function printScenarioReports(args: ScenarioReportArgs): void {
   }
   const evidenceSession = sessionForEvidence(session, outcomes);
   printCheckpointScope(session, evidenceSession);
-  printCaptureLog(evidenceSession, failedRequests, args.viteChurn);
+  printCaptureLog(evidenceSession, { failed: failedRequests, viteChurn: args.viteChurn, navigationAborts: args.navigationAborts });
 }
 
 function registerScenarioCompleteness(host: ScenarioHost | null, session: ProbeSession): void {
@@ -287,7 +288,7 @@ export async function runScenarioDetailed(opts: Args, host: ScenarioHost | null 
     const reportPlan = plans[0] ?? { url: spec.name, out: spec.name, produceShot: false };
     const evidenceConsole = consoleForEvidence(session, outcomes);
     const evidencePageErrors = pageErrorsForEvidence(session, outcomes);
-    const { failed: failedRequests, viteChurn, fileOrigin } = partitionFailedRequests(session.requests.values());
+    const { failed: failedRequests, viteChurn, fileOrigin, navigationAborts } = partitionFailedRequests(session.requests.values());
     const browserEnvironment = await readSnapEnvironmentEvidence(session);
     const environmentFailures = snapEnvironmentMismatchCount(browserEnvironment);
     const failureSummary = {
@@ -297,7 +298,7 @@ export async function runScenarioDetailed(opts: Args, host: ScenarioHost | null 
     const red = hasSnapFailure(failureSummary);
     const retention = browserEvidenceRetention(session);
     const artifacts = await finishScenarioSession(session, host, { red, name: spec.name, enabled: opts.failureEvidence });
-    printScenarioReports({ spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests, viteChurn });
+    printScenarioReports({ spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests, viteChurn, navigationAborts });
     const manifestPath = await writeManifestIfRequested(opts, spec.name, {
       status: red ? "fail" : "pass",
       target: { url: scenarioPath, name: spec.name },
@@ -339,6 +340,7 @@ export async function runScenarioDetailed(opts: Args, host: ScenarioHost | null 
         : {}),
       failedRequests,
       ...(viteChurn.length === 0 ? {} : { viteDepChurn: viteChurn }),
+      ...(navigationAborts.length === 0 ? {} : { navigationAborts }),
       captures: outcomes,
       scenario: {
         checkpoints: evidenceRanges.map((range, index) => ({
@@ -381,6 +383,7 @@ export async function runScenarioDetailed(opts: Args, host: ScenarioHost | null 
         ["har", artifacts.hars[0] ?? "none"],
         ["json", manifestPath ?? "none"],
         ["vite-dep-churn", viteChurn.length],
+        ["navigation-aborts", navigationAborts.length],
         ["file-origin-noise", fileOriginNoiseCount(session.consoleMessages, fileOrigin)],
         ...scenarioFilmstripPairs(runArms, checkpoints),
         ...ratePostureResultPairs(ratePosture),

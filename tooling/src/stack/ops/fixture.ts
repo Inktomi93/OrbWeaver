@@ -10,7 +10,7 @@ import { EXIT } from "../../_shared/exit-contract.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import { inheritedProcessEnv } from "../../_shared/process-env.ts";
 import type { FixtureVerb, StackContext } from "../contract/types.ts";
-import { FIXTURE_DIR_REL, fixtureEnv } from "../lib/fixture-plan.ts";
+import { FIXTURE_DIR_REL, FIXTURE_SEED_CLI_REL, fixtureEnv } from "../lib/fixture-plan.ts";
 import { stackContext } from "../lib/stack-plan.ts";
 import { doDevDown } from "./dev-down.ts";
 import { doDevStatus } from "./dev-status.ts";
@@ -18,7 +18,6 @@ import { doDevUp } from "./dev-up.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm fixture <verb>");
 
-const SEED_CLI_REL = join("tooling", "src", "seed", "cli.ts");
 const IDLE_INVOCATION = { verb: "up", mode: "dev", debug: false, build: false, force: false, rest: [] } as const;
 
 function log(message: string): void {
@@ -37,7 +36,7 @@ function seed(ctx: StackContext): ExitCode {
       env[key] = value;
     }
   }
-  const res = runNicedSync(process.execPath, [join(ctx.repoRoot, SEED_CLI_REL), "multi-user"], { cwd: ctx.repoRoot, env, stdio: "inherit" });
+  const res = runNicedSync(process.execPath, [join(ctx.repoRoot, FIXTURE_SEED_CLI_REL), "multi-user"], { cwd: ctx.repoRoot, env, stdio: "inherit" });
   return res.status === 0 ? EXIT.clean : EXIT.violations;
 }
 

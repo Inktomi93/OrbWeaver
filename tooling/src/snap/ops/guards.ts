@@ -9,6 +9,7 @@ import { routeSlug } from "../../_shared/artifact-naming.ts";
 import { print } from "../../_shared/artifacts.ts";
 import { buildUrl } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { StageRow } from "../contract/stage.ts";
 import type { Args } from "../contract/types.ts";
 import { registerSnapStageProvenance } from "../lib/run-provenance.ts";
 import { stageRowBaseUrl } from "../lib/stage-plan.ts";
@@ -101,6 +102,21 @@ function registerLiveProvenance(opts: Args): void {
   });
 }
 
+/** Boot or reuse this run's stage and point the run at it. A `local` stage is also the multi-human fixture
+ *  for the run, so `--contexts`/`--as` log in against it unless the caller named another fixture. */
+function bindIsolatedStage(opts: Args): StageRow {
+  const auth = opts.stageAuth;
+  const stage = opts.dirty
+    ? ensureStage({ fresh: opts.fresh, dirty: true, auth })
+    : ensureStage(opts.ref === null ? { fresh: opts.fresh, auth } : { ref: opts.ref, fresh: opts.fresh, auth });
+  opts.base = stageRowBaseUrl(stage);
+  if (auth === "local") {
+    opts.fixtureServer ??= `http://127.0.0.1:${String(stage.serverPort)}`;
+    opts.fixtureBase ??= opts.base;
+  }
+  return stage;
+}
+
 export function configureStage(opts: Args): number | null {
   const control = stageControlResult(opts);
   if (control !== null) {
@@ -109,10 +125,7 @@ export function configureStage(opts: Args): number | null {
   if (opts.isolated) {
     // @orb-waive caught-failure-ownership(e): printed as STAGE ERROR and returned as exit code 1, which the CLI process exits with. Ends if that exit code stops being surfaced.
     try {
-      const stage = opts.dirty
-        ? ensureStage({ fresh: opts.fresh, dirty: true })
-        : ensureStage(opts.ref === null ? { fresh: opts.fresh } : { ref: opts.ref, fresh: opts.fresh });
-      opts.base = stageRowBaseUrl(stage);
+      const stage = bindIsolatedStage(opts);
       registerSnapStageProvenance({
         mode: "isolated",
         state: "bound",

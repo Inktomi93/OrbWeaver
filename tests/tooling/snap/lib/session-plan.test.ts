@@ -349,6 +349,13 @@ test("the sweep verdict: dead beats everything, idle past the TTL is reaped, und
   expect(sessionSweepVerdict({ live: true, idleMs: Number.POSITIVE_INFINITY, ttlMs: MINUTE })).toBe("idle");
 });
 
+test("a live session whose owner checkout is gone is an orphan the sweep reaps; a live owned one is never touched", () => {
+  // No caller can reach it: a call from any other checkout is refused, and its own checkout was removed.
+  expect(sessionSweepVerdict({ live: true, idleMs: 0, ttlMs: MINUTE, ownerPresent: false })).toBe("orphaned");
+  expect(sessionSweepVerdict({ live: true, idleMs: 0, ttlMs: MINUTE, ownerPresent: true })).toBe("live");
+  expect(sessionSweepVerdict({ live: false, idleMs: 0, ttlMs: MINUTE, ownerPresent: false })).toBe("dead");
+});
+
 // ── the texts (each names its remedy) ────────────────────────────────────────────────────────────────
 
 test("every refusal names the fact and the remedy", () => {

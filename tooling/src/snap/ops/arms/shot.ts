@@ -1,6 +1,6 @@
 // Screenshot capture: paint-settle (#123 — two identical frames before the PNG), native stabilization
 // (SHOT_BASE), element shots, volatile-region masks, and the native crop.
-import type { Locator, Page } from "@playwright/test";
+import type { Locator, Page, ViewportSize } from "@playwright/test";
 import { registerInstrumentArtifact } from "../../../_shared/artifact-out.ts";
 import type { InstrumentCurrentScope } from "../../../_shared/artifact-scope.ts";
 import type { ResultPair } from "../../../_shared/artifacts.ts";
@@ -10,6 +10,7 @@ import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds } fro
 import type { Args, ReportCtx } from "../../contract/types.ts";
 import { captureScope } from "../../lib/capture-scope.ts";
 import { CROP_RE, PNG_EXT_RE } from "../../lib/out-names.ts";
+import { SHOT_PIXEL_BUDGET } from "../../lib/shot-scale.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -151,8 +152,67 @@ async function waitForPaintSettle(page: Page, everyImage: boolean): Promise<void
   }
 }
 
+/** Tallest viewport `--full` may grow to: Chromium's screenshot surface stops near 16384 px. */
+const FULL_PAGE_MAX_HEIGHT_PX = 16_000;
+/** Growth rounds: a virtualized list mounts more rows as the viewport grows and can overflow again. */
+const FULL_PAGE_GROW_ROUNDS = 4;
+
+// The largest overflow of any element that scrolls vertically on its own. The document's own scroll is
+// excluded: Playwright's fullPage already captures it.
+const INNER_SCROLL_OVERFLOW_SCRIPT = `(() => {
+  let overflow = 0;
+  for (const element of document.querySelectorAll("*")) {
+    if (element === document.scrollingElement || element === document.body) {
+      continue;
+    }
+    const overflowY = getComputedStyle(element).overflowY;
+    if ((overflowY === "auto" || overflowY === "scroll") && element.clientHeight > 0) {
+      overflow = Math.max(overflow, element.scrollHeight - element.clientHeight);
+    }
+  }
+  return overflow;
+})()`;
+
+/** `--full` on an app shell. Home scrolls inside its own container while the document never does, so
+ *  Playwright's fullPage returns the viewport. Growing the viewport by the container's overflow lets the
+ *  layout itself lay the whole container out. Returns the viewport to restore after the shot; null means
+ *  nothing grew. */
+async function growViewportToScrollContainers(page: Page): Promise<ViewportSize | null> {
+  const original = page.viewportSize();
+  if (original === null) {
+    return null;
+  }
+  // The PNG stays inside the run's image budget as well as Chromium's surface.
+  const maxHeight = Math.min(FULL_PAGE_MAX_HEIGHT_PX, Math.floor(SHOT_PIXEL_BUDGET / original.width));
+  let height = original.height;
+  for (let round = 0; round < FULL_PAGE_GROW_ROUNDS && height < maxHeight; round += 1) {
+    const overflow = Number(await page.evaluate(INNER_SCROLL_OVERFLOW_SCRIPT));
+    if (!(overflow > 0)) {
+      break;
+    }
+    height = Math.min(maxHeight, height + Math.ceil(overflow));
+    await page.setViewportSize({ width: original.width, height });
+    await waitForPaintSettle(page, true);
+  }
+  if (height === original.height) {
+    return null;
+  }
+  return original;
+}
+
 async function captureShot(page: Page, opts: Args, out: string, mask: Locator[]): Promise<void> {
   await waitForPaintSettle(page, opts.fullPage);
+  const grownFrom = opts.fullPage && opts.shotOf === null ? await growViewportToScrollContainers(page) : null;
+  try {
+    await shootPage(page, opts, out, mask);
+  } finally {
+    if (grownFrom !== null) {
+      await page.setViewportSize(grownFrom);
+    }
+  }
+}
+
+async function shootPage(page: Page, opts: Args, out: string, mask: Locator[]): Promise<void> {
   // `--scale` reaches the pixels HERE, at SHOT_BASE's CONSUMER — the shared const is never mutated
   // (#915), so an invocation that does not ask for a scale is byte-identical to every pre-#915 run.
   const base = { ...SHOT_BASE, scale: opts.scale.mode };

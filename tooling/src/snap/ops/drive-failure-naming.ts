@@ -19,6 +19,7 @@ export function waitDriveFailure(selector: string, message: string): DriveFailur
 const STEP_FLAG: Record<Step["kind"], string> = {
   click: "--click",
   tap: "--tap",
+  swipe: "--swipe",
   "motion-click": "--motion",
   jsclick: "--dom-click",
   press: "--force-click",
