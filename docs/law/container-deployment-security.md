@@ -45,6 +45,12 @@ Each row names the code that holds the control and the test that pins it.
 | Diagnostics | `/api/_debug/*` opens only with `DEBUG_TOKEN` or an owner principal on a credentialed path: a session cookie, a signed forward-header JWT, or the owner fallback where it counts as an operator credential. An admin is refused. The credential-free owner fallback stays closed while trusted peers are declared. | `packages/server/src/entry/auth/seam.ts`; `packages/server/src/foundation/env/diagnostics.ts` | `tests/server/entry/debug-gate.suite.test.ts` |
 | Compose posture | One service: `init: true`, `restart: unless-stopped`, rotated `json-file` logs, `no-new-privileges`, `cap_drop: [ALL]` plus the capabilities the entrypoint uses once as root. | `docker-compose.yaml` | `tests/tooling/container-security-config.int.test.ts` |
 
+## Rejected image shapes
+
+- Per-mode images: the code already dispatches on `AUTH_MODE` and fails closed, so per-mode images duplicate everything for no security gain.
+- An all-in-one GPU image with the engine fleet inside: the owner keeps one engine setup, outside the app image.
+- Alpine or distroless bases: native libSQL risk, and the healthcheck and debugging need a shell.
+
 ## Findings
 
 Each finding names its severity, the case that breaks, and its status.

@@ -21,8 +21,8 @@
 // any request carrying a relay tell (`forwarded.ts`), on every peer, loopback included. `Headers` is a
 // required parameter so no caller can ask the peer question without the relay question.
 //
-// THE OPT-IN WIDENING (`AUTH_FALLBACK_TRUSTED_PEERS`, PROPOSED — docs/plans/containerize/design.md arm
-// (b)). The loopback rule above is correct on bare metal and unusable in a container: docker's port
+// THE OPT-IN WIDENING (`AUTH_FALLBACK_TRUSTED_PEERS`, docs/law/container-deployment-security.md).
+// The loopback rule above is correct on bare metal and unusable in a container: docker's port
 // publication SNATs every inbound connection to the bridge gateway, so a published port never delivers a
 // loopback peer and `single-user` 401s every browser request. A deployer may name extra CIDR ranges, which
 // this predicate admits IN ADDITION to loopback. UNSET IS THE DEFAULT and changes nothing. What setting it

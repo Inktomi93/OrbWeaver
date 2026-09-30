@@ -90,7 +90,7 @@ describe("resolveOwnerFallbackCredential", () => {
     // This holds for EVERY mode, `single-user` included: prod single-user is forced to AUTH_FALLBACK=owner
     // (deny is boot-fatal there), so it is exactly the box where a proxied caller would otherwise inherit
     // the diagnostics surface — which holds more than the app does (raw provider request bodies). The prod
-    // image spec leans on that belt (docs/plans/containerize/design.md), and a break-glass session is
+    // image spec leans on that belt (docs/law/container-deployment-security.md), and a break-glass session is
     // refused for the same reason: whoever opened that door holds DEBUG_TOKEN.
     expect(credential({ nodeEnv: "production" })).toBe(false);
   });
@@ -101,7 +101,7 @@ describe("resolveOwnerFallbackCredential", () => {
   });
 });
 
-// The WIDENED-PEER arm of the same credential rule (PROPOSED — spec §3.1 arm (b)). The #1193 justification
+// The WIDENED-PEER arm of the same credential rule (docs/law/container-deployment-security.md). The #1193 justification
 // for crediting `via:"fallback"` at the /api/_debug door is precisely that on a dev box "a loopback peer" MEANS
 // "the human at this machine". `AUTH_FALLBACK_TRUSTED_PEERS` breaks that identity, so the door closes again —
 // the diagnostics surface holds more than the app does (raw provider request bodies with WIRE_CAPTURE=on) and
