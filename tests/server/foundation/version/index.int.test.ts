@@ -12,7 +12,7 @@
 // No git binary is involved on either side: the fixtures are written as text, which is exactly how the
 // reader will meet them inside an image.
 
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -147,6 +147,19 @@ describe("readVersionIdentity", () => {
     await rm(join(root, "package.json"));
     expect(readPackageVersion(root)).toBeNull();
     expect(readVersionIdentity(root)).toEqual({ version: "unknown", commit: "unknown", short: "unknown", source: "checkout" });
+  });
+
+  test("a root the process may not read answers `unknown` instead of throwing — the plugin broker's case", async () => {
+    await writeFile(join(root, VERSION_STAMP_FILE), JSON.stringify({ version: "1.4.2", commit: COMMIT, builtAt: "2026-09-30T00:00:00.000Z" }), "utf8");
+    await gitDir({ head: `ref: ${BRANCH}\n`, looseRef: `${COMMIT}\n` });
+    // A search-denied directory makes every stat beneath it fail with EACCES, the same wall a path outside the broker's
+    // permission-model grants hits.
+    await chmod(root, 0o000);
+    try {
+      expect(readVersionIdentity(root)).toEqual({ version: "unknown", commit: "unknown", short: "unknown", source: "checkout" });
+    } finally {
+      await chmod(root, 0o700);
+    }
   });
 });
 

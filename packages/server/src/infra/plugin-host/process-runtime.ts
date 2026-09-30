@@ -56,6 +56,7 @@ import {
 } from "./budgets.ts";
 import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, PluginHostSeamDeps, PluginLogLineOut, SnippetRunOut } from "./contract/port.ts";
 import type { BrokerParentMessage, ParentBrokerMessage } from "./contract/process-protocol.ts";
+import { pluginWatchdogExecArgv } from "./process-permission.ts";
 import {
   fromRpcError,
   isBridgeOperation,
@@ -432,6 +433,7 @@ class BrokerClient {
       const child = spawn(
         process.execPath,
         [
+          ...pluginWatchdogExecArgv(),
           fileURLToPath(new URL("./broker-watchdog.ts", import.meta.url)),
           socketPath,
           tokenPath,

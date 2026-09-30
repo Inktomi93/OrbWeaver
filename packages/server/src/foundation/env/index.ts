@@ -783,6 +783,28 @@ function parseProcessEnv(): z.infer<typeof envSchema> {
  *  module load) on a misconfigured deploy. */
 export const env: Readonly<z.infer<typeof envSchema>> = Object.freeze(parseProcessEnv());
 
+/** The app secrets the parse reads. Every child process inherits `process.env` unless its spawn passes an `env`, so
+ *  {@link scrubAppSecretsFromProcessEnv} deletes these once `env` holds them. Nothing reads them from `process.env`
+ *  after the parse.
+ *  @public Test-anchored module surface; the child-env spec seeds and checks these keys by name. */
+export const APP_SECRET_ENV_KEYS = [
+  "SESSION_SECRET",
+  "CREDENTIALS_KEY",
+  "OIDC_CLIENT_SECRET",
+  "OPENROUTER_API_KEY",
+  "DEBUG_TOKEN",
+  "LOCAL_INITIAL_PASSWORD",
+] as const satisfies readonly (keyof z.input<typeof envSchema>)[];
+
+/** Deletes every {@link APP_SECRET_ENV_KEYS} entry from `process.env`, so no child process started afterwards inherits
+ *  an app secret. The server entry calls it once, right after the parse. It cannot run at module load: the dev
+ *  launcher imports this module to preflight the env and then hands its own `process.env` to the server it spawns. */
+export function scrubAppSecretsFromProcessEnv(): void {
+  for (const key of APP_SECRET_ENV_KEYS) {
+    Reflect.deleteProperty(process.env, key);
+  }
+}
+
 /** The raw `process.env` snapshot — the baseline the agent-sdk child env builders spread. */
 export function processEnvSnapshot(): Record<string, string | undefined> {
   return { ...process.env };

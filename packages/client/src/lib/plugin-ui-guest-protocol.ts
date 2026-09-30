@@ -29,6 +29,9 @@ export const UI_GUEST_BUDGETS = {
   /** WASM memory cap per guest context, bytes (32 MiB) — `PLUGIN_MEMORY_LIMIT_BYTES`. Over-limit allocation
    *  fails guest-side and is CONTAINED to the instance, which is the property QuickJS-ng-WASM was chosen for. */
   memoryLimitBytes: 33_554_432,
+  /** The guest's whole WASM linear memory, bytes (48 MiB) — `PLUGIN_WASM_MEMORY_MAX_BYTES`. Allocated up front and
+   *  never grown (`ui-guest.worker.ts` says why); a demand past it is a contained out-of-memory error in the guest. */
+  wasmMemoryBytes: 50_331_648,
   /** Explicit guest stack ceiling (256 KiB) — `GUEST_MAX_STACK_BYTES`. MANDATORY, not cosmetic: without it a
    *  recursive guest blows the real WASM stack, which surfaces as a HOST-side RangeError and leaves the runtime
    *  un-disposable. Measured on the server; the same engine build runs here. */
