@@ -11,5 +11,8 @@
  */
 export const SELECTED_FILL_PRESSED = "data-pressed:bg-selection-quiet data-pressed:text-selection-quiet-foreground";
 
-/** {@link SELECTED_FILL_PRESSED} as a static variant arm (Button's `selection="on"`). Keep the two in step. */
-export const SELECTED_FILL = "bg-selection-quiet text-selection-quiet-foreground";
+/** {@link SELECTED_FILL_PRESSED} as a static variant arm (Button's `selection` arms). Keep the two in step.
+ *
+ * @remarks It restates the pair under `hover:` because the resting intent's hover fill is a pseudo-class rule and would
+ * otherwise outrank a static class, so a hovered chip would read as not selected. */
+export const SELECTED_FILL = "bg-selection-quiet text-selection-quiet-foreground hover:bg-selection-quiet hover:text-selection-quiet-foreground";

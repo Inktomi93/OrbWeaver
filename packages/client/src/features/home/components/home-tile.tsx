@@ -214,7 +214,8 @@ export function HomeTile({ tile, column }: { readonly tile: HomeTileContribution
     );
   }
   return (
-    <Stack aria-labelledby={headingId} data-home-tile={tile.id} gap="row" role="region">
+    // `data-home-moves` marks a tile that changes columns; the shelf's foot reads it to choose its layout.
+    <Stack aria-labelledby={headingId} data-home-moves={tile.useRegion === undefined ? undefined : true} data-home-tile={tile.id} gap="row" role="region">
       <TileBand headingId={headingId} title={title} trailing={tile.action} />
       <TileContent tile={tile} title={title} />
     </Stack>

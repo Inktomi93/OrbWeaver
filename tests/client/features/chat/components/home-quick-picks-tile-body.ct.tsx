@@ -11,6 +11,10 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { makeCharacterSummary, makeTagFixture } from "../../character/fixtures.ts";
 import { ChatQuickPicksTileStory } from "../_ct-stories.tsx";
+import { chatListResponder } from "../fixtures.ts";
+
+// "Start with" reads the room list to pick its column, so every drive routes a house with no rooms.
+const NO_ROOMS = { "chat.listChats": chatListResponder([]) };
 
 const ARIA = makeCharacterSummary({ id: "char_aria", name: "Aria" });
 const BOLT = makeCharacterSummary({ id: "char_bolt", name: "Bolt" });
@@ -40,7 +44,7 @@ function startChatResult(id: string): { chat: Record<string, unknown>; opening: 
 }
 
 test("renders the character faces inside the tile frame", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": CHAR_PAGE });
+  await routeTrpc(page, { ...NO_ROOMS, "character.list": CHAR_PAGE });
 
   const home = await mount(<ChatQuickPicksTileStory />);
   const tile = home.locator('[data-home-tile="chat.quickPicks"]');
@@ -59,7 +63,7 @@ test("renders the character faces inside the tile frame", async ({ mount, page }
 // while the mutation is in flight (it was gone), and the rail arrives when the room does.
 test("P2-7 picking a face keeps focus on the cell until the room exists, then moves the rail — assert the STORE", async ({ mount, page }) => {
   const started = trpcHold();
-  await routeTrpc(page, { "character.list": CHAR_PAGE, "chat.startChat": started });
+  await routeTrpc(page, { ...NO_ROOMS, "character.list": CHAR_PAGE, "chat.startChat": started });
 
   const home = await mount(<ChatQuickPicksTileStory />);
   const probe = home.locator("output");
@@ -77,7 +81,7 @@ test("P2-7 picking a face keeps focus on the cell until the room exists, then mo
 });
 
 test("the trailing action jumps to the characters section", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": CHAR_PAGE });
+  await routeTrpc(page, { ...NO_ROOMS, "character.list": CHAR_PAGE });
 
   const home = await mount(<ChatQuickPicksTileStory />);
   await home.getByRole("button", { name: "All characters" }).click();
@@ -87,6 +91,7 @@ test("the trailing action jumps to the characters section", async ({ mount, page
 
 test("each row carries an HONEST tagline off the summary it already reads — pitch → tag line → NOTHING (#119)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...NO_ROOMS,
     "character.list": {
       items: [
         makeCharacterSummary({ id: "char_pitch", name: "Pitched", elevatorPitch: "The winter-court envoy" }),
@@ -115,6 +120,7 @@ test("each row carries an HONEST tagline off the summary it already reads — pi
 // `snap --map`. Asserted through the accessible name/description pair, which is exactly the affordance.
 test("P2-8 a quick-pick is named by the character alone, with its pitch as the DESCRIPTION", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...NO_ROOMS,
     "character.list": {
       items: [
         makeCharacterSummary({ id: "char_pitch", name: "Calamity, Doomblade of the Ninth Epoch", elevatorPitch: "A legendary, apocalypse-forged blade" }),
@@ -137,6 +143,7 @@ test("P2-8 a quick-pick is named by the character alone, with its pitch as the D
 // lines. Asserted on resolved geometry/type, never a px literal.
 test("P2-9 the cell's name is a step above its gloss, and both wrap instead of cutting mid-word", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...NO_ROOMS,
     "character.list": {
       items: [
         makeCharacterSummary({
@@ -193,6 +200,7 @@ test("P2-9 the cell's name is a step above its gloss, and both wrap instead of c
 // unsee. The receipt the review asked for is exactly this: every cell in a row reports the same descTop.
 test("#216 every cell in a row starts its pitch at the same baseline, whatever its name's length", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...NO_ROOMS,
     "character.list": {
       items: [
         makeCharacterSummary({ id: "char_short", name: "Mira", elevatorPitch: "A burnt-out night-shift medic." }),
@@ -241,6 +249,7 @@ test("#216 every cell in a row starts its pitch at the same baseline, whatever i
 // the name reservation cannot make this pass for the other reason.
 test("P3-5 every cell in a row ENDS at the same edge, whatever its pitch's length", async ({ mount, page }) => {
   await routeTrpc(page, {
+    ...NO_ROOMS,
     "character.list": {
       items: [
         makeCharacterSummary({ id: "char_terse", name: "Mira", elevatorPitch: "A medic." }),
@@ -273,7 +282,7 @@ test("P3-5 every cell in a row ENDS at the same edge, whatever its pitch's lengt
 });
 
 test("the cells are real LIST ITEMS inside the list — a role=list of generic divs announces empty", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": CHAR_PAGE });
+  await routeTrpc(page, { ...NO_ROOMS, "character.list": CHAR_PAGE });
 
   const home = await mount(<ChatQuickPicksTileStory />);
 
@@ -284,7 +293,7 @@ test("#102 SHELF: extra width buys MORE faces, never BIGGER ones", async ({ moun
   // Measured on the mockup pass: an auto-FIT `1fr` shelf grew 250px portraits at 2000px and read as a
   // gallery. `cols="cellFixed"` is `auto-fill` at a FIXED track, so the cell is the same size at both
   // widths and only the COUNT per row moves. Asserted by measuring one cell at two pane widths.
-  await routeTrpc(page, { "character.list": CHAR_PAGE });
+  await routeTrpc(page, { ...NO_ROOMS, "character.list": CHAR_PAGE });
 
   await page.setViewportSize({ width: 700, height: 900 });
   const home = await mount(<ChatQuickPicksTileStory />);
@@ -299,7 +308,7 @@ test("#102 SHELF: extra width buys MORE faces, never BIGGER ones", async ({ moun
 });
 
 test("the tile's trailing action lives INSIDE the tile's own named region — '→' is never an orphan", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": CHAR_PAGE });
+  await routeTrpc(page, { ...NO_ROOMS, "character.list": CHAR_PAGE });
 
   const home = await mount(<ChatQuickPicksTileStory />);
 
@@ -307,7 +316,7 @@ test("the tile's trailing action lives INSIDE the tile's own named region — '�
 });
 
 test("an empty library renders a TEACHING empty state with an action, not a blank tile", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": { items: [], nextCursor: null } });
+  await routeTrpc(page, { ...NO_ROOMS, "character.list": { items: [], nextCursor: null } });
 
   const home = await mount(<ChatQuickPicksTileStory />);
   const tile = home.locator('[data-home-tile="chat.quickPicks"]');

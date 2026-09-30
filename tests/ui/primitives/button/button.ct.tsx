@@ -834,6 +834,21 @@ for (const theme of CHIP_THEMES) {
     expect(excluded.ink, `[${theme}] ink`).toBe(included.ink);
   });
 
+  test(`${theme}: a hovered included or excluded chip keeps the selected fill`, async ({ mount, page }) => {
+    await mount(chipPanes());
+    for (const state of ["included", "excluded"]) {
+      const chip = page.getByRole("button", { name: `${theme} ${state}` });
+      const resting = await chipPaint(chip);
+      await chip.hover();
+      // Settle the colour transition before reading, so a hover fill cannot pass by being sampled mid-fade.
+      await chip.evaluate(async (el) => {
+        await Promise.all(el.getAnimations().map((animation) => animation.finished));
+      });
+      const hovered = await chipPaint(chip);
+      expect({ bg: hovered.bg, ink: hovered.ink }, `[${theme}] hovered ${state}`).toEqual({ bg: resting.bg, ink: resting.ink });
+    }
+  });
+
   test(`${theme}: a focused excluded chip rings in foreground ink, and an included chip keeps the ring hue`, async ({ mount, page }) => {
     await mount(chipPanes());
     const pane = page.getByTestId(`chip-pane-${theme}`);

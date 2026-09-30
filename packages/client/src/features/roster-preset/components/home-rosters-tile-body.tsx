@@ -6,7 +6,7 @@ import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { AvatarStack, avatarStackInlineSize } from "@orb/ui/avatar-stack";
 import { Button } from "@orb/ui/button";
 import { Icon, MessagesSquare, Swords } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Grid, Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -70,12 +70,13 @@ export function HomeRostersTileBody(): ReactElement {
   const leadingSlots = Math.min(Math.max(1, ...rosters.map((roster) => roster.members.length)), STACK_SLOTS);
   return (
     // The tile frame's heading names the region, so the list stays unnamed.
-    <Stack gap="tight" role="list">
+    // Rows tile across the shelf once it is wide enough for two, so a wide pane pays fewer rows of height.
+    <Grid cols="wide" gap="tight" role="list">
       {rosters.map((roster) => (
         <Stack key={roster.id} role="listitem">
           <RosterStartRow busy={start.isPending} leadingSlots={leadingSlots} onStart={start.startRoster} roster={roster} />
         </Stack>
       ))}
-    </Stack>
+    </Grid>
   );
 }

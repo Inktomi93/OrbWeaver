@@ -116,6 +116,12 @@ export const DEVICE_LOCAL_REGISTRY: Readonly<Record<string, DeviceLocalClassific
       "never a user preference — syncing one device's pixel heights to another would reserve the wrong " +
       "box (§12.1)",
   },
+  "home-tile-memory": {
+    why:
+      "how THIS device last saw Home's gated and moving tiles settle (a gate that settled hidden, the column a " +
+      "moving tile settled in), so the first paint reserves and places them where they will land. A measurement " +
+      "of this device's boot, beside `surface-box`, never a user preference (§12.1)",
+  },
   "appearance-boot": {
     why:
       "the BOOT HINT for the four synced appearance axes a first paint needs — `appearance.reducedMotion` " +

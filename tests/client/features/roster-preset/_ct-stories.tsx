@@ -26,7 +26,7 @@ import { HomeSurface } from "@orb/client/features/home";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, createContributorRegistry, toNotice } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
-import { __readSurfaceBoxForTest, rememberSurfaceBox, selectChat } from "@orb/client/state";
+import { __readSurfaceBoxForTest, rememberHomeTileSettledHidden, rememberSurfaceBox, selectChat, useHomeTileSettledHidden } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
@@ -182,19 +182,28 @@ export function RosterMemberContentColumnStory(): ReactElement {
 }
 
 /** {@link HomeRostersTileStory} on a device that last saw the tile settle at `box` px. The seed runs before the first
- *  child renders, as the persisted store rehydrates before React mounts. `probe` stamps the box the store holds now. */
+ *  child renders, as the persisted store rehydrates before React mounts. `probe` stamps the box the store holds now,
+ *  and `rosters-hidden` shows live whether the device marks the tile settled hidden. */
 export function HomeRememberedRostersTileStory({ box }: { readonly box: number }): ReactElement {
   useState(() => rememberSurfaceBox(rosterPresetHomeTile.id, box));
   const [probe, setProbe] = useState("unread");
+  const hidden = useHomeTileSettledHidden(rosterPresetHomeTile.id);
   return (
     <>
       <button type="button" onClick={(): void => setProbe(String(__readSurfaceBoxForTest(rosterPresetHomeTile.id)))}>
         probe
       </button>
       <output data-testid="rosters-box">{probe}</output>
+      <output data-testid="rosters-hidden">{String(hidden)}</output>
       <HomeRostersTileStory />
     </>
   );
+}
+
+/** {@link HomeRostersTileStory} on a device that last saw the library settle empty. */
+export function HomeSettledHiddenRostersTileStory(): ReactElement {
+  useState(() => rememberHomeTileSettledHidden(rosterPresetHomeTile.id, true));
+  return <HomeRostersTileStory />;
 }
 
 /** The Home "Rosters" tile alone in the real home frame. `width` is the pane: 360 is the phone column. */

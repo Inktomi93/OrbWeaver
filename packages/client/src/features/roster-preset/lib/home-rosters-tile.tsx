@@ -7,7 +7,7 @@ import { useEffect } from "react";
 import { TrailingArrow } from "#components";
 import { useTRPC } from "#data";
 import type { HomeTileContribution } from "#state";
-import { forgetSurfaceBox, openModal, useSurfaceBox } from "#state";
+import { openModal, rememberHomeTileSettledHidden, useHomeTileSettledHidden } from "#state";
 import { HomeRostersTileBody } from "../components/home-rosters-tile-body.tsx";
 
 // Between the character faces and temp chat: all three start a chat, and a roster is the group one.
@@ -26,21 +26,20 @@ export const rosterPresetHomeTile: HomeTileContribution = {
   order: ROSTERS_TILE_ORDER,
   region: "shelf",
   skeletonRows: ROSTERS_SKELETON_ROWS,
-  // An empty library has nothing to start, so the tile is absent. While the read is in flight the gate answers from
-  // this device's box memory, as "Other rooms" does: a hidden tile is never measured, so a guess that reserves a box
-  // collapses on every boot of an empty library. A settled empty list forgets its box.
+  // An empty library has nothing to start, so the tile is absent. While the read is in flight the gate reserves the
+  // tile, because every new account is seeded with rosters, unless this device saw it settle hidden: an empty library
+  // then reserves nothing instead of collapsing on every boot.
   useVisible: (): boolean => {
     const trpc = useTRPC();
     const { data: rosters } = useQuery(trpc.rosterPreset.list.queryOptions());
-    const remembered = useSurfaceBox(ROSTERS_TILE_ID) !== null;
-    const visible = rosters === undefined ? remembered : rosters.length > 0;
-    const settledHidden = rosters !== undefined && !visible;
+    const settledHiddenBefore = useHomeTileSettledHidden(ROSTERS_TILE_ID);
+    const settled = rosters === undefined ? undefined : rosters.length > 0;
     useEffect(() => {
-      if (settledHidden) {
-        forgetSurfaceBox(ROSTERS_TILE_ID);
+      if (settled !== undefined) {
+        rememberHomeTileSettledHidden(ROSTERS_TILE_ID, !settled);
       }
-    }, [settledHidden]);
-    return visible;
+    }, [settled]);
+    return settled ?? !settledHiddenBefore;
   },
   action: (
     // The arrow is decorative; the name is "All rosters".

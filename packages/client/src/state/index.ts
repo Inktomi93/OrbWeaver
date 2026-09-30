@@ -246,6 +246,12 @@ export {
 } from "./game-mode-transition.ts";
 export type { DormantDoorway, HomeTileContribution, HomeTileRegion } from "./home-tile-contracts.ts";
 export { HOME_TILE_REGIONS } from "./home-tile-contracts.ts";
+export {
+  rememberHomeRegion,
+  rememberHomeTileSettledHidden,
+  useHomeTileSettledHidden,
+  useRememberedHomeRegion,
+} from "./home-tile-memory-store.ts";
 export type { ImageSubject, ImagineSeed } from "./imagery-store.ts";
 export {
   __readImageryIntentForTest,
