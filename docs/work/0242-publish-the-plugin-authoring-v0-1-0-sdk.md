@@ -12,7 +12,7 @@ plan: plugin-authoring
 
 ## What
 
-Cut the `plugin-authoring-v0.1.0` GitHub Release carrying `orb-plugin-sdk-0.1.0.tgz` and `orb-plugin-toolchain-0.1.0.tgz`, then run `pnpm install` in both starter repositories (Inktomi93/orb-plugin-template-server, Inktomi93/orb-plugin-template-visual) and commit their lockfiles.
+Cut the `plugin-authoring-v0.1.0` GitHub Release carrying `orb-plugin-sdk-0.1.0.tgz` and `orb-plugin-toolchain-0.1.0.tgz`, then run `pnpm install` in both starter repositories (Inktomi93/orb-plugin-template, Inktomi93/orb-plugin-template-scripted-ui) and commit their lockfiles.
 
 ## Why
 
