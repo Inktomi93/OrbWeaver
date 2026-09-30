@@ -24,6 +24,8 @@ The toolchain ships a typed support map and renders it as JSON or Markdown throu
 
 The SDK does not gain runtime data because it remains declaration-only. The toolchain does not parse contract source at install time because a standalone repository has no Orbweaver checkout. A hand-maintained prose catalog is rejected because it can disagree with the executable contracts without failing a build.
 
+`composer-action` uses the composer action row. The host shows a fitting prefix of attributed command buttons and moves remaining commands into Plugin actions. `composer-media` uses the existing Message tools menu, including Imagine commands. Both targets use the permission-checked command runner. The host owns ordering, attribution, keyboard access, and touch targets.
+
 Coupled sites are `packages/contracts/src/automation/index.ts`, `packages/contracts/src/chat/bus.ts`, `packages/contracts/src/plugin/host-v1.ts`, `packages/contracts/src/plugin/manifest.ts`, `packages/contracts/src/plugin/ui.ts`, `packages/plugin-toolchain/`, the support-map generator, and focused toolchain tests. The template owner chooses the generated guide path in each standalone repository and adds its freshness command after the public toolchain asset lands.
 
 The showcase package uses that public SDK and toolchain. Each example tracks its manifest, admitted assets, TypeScript, and prose at the bundle root. Pocket Arcade's executable frame script is separately typed before it is embedded in its document. The release build creates one deterministic zip per slug under the ignored `packages/showcase-plugins/dist/bundles/` tree, writes each zip atomically, and leaves no generated JavaScript beside source.

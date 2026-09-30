@@ -17,6 +17,7 @@ const ZETA_ID = castId<PluginId>("plugin_ct_order_zeta000001");
 // Two installs share a display name; the one whose slug sorts first has the higher id.
 const MID_A_SLUG_ID = castId<PluginId>("plugin_ct_order_mid_z00001");
 const MID_B_SLUG_ID = castId<PluginId>("plugin_ct_order_mid_a00001");
+const LONG_PLACEMENT_LABEL = "Create a detailed illustrated character scene";
 
 const COMMANDS: TrpcWireOutput<"plugin.listCommands"> = [
   {
@@ -65,6 +66,65 @@ const ROUTES: TrpcRoutes<"chat.listChats" | "plugin.listCommands"> = {
   "chat.listChats": () => ({ items: [], nextCursor: null }),
   "plugin.listCommands": () => COMMANDS,
 };
+
+test("fitting attributed actions render directly, cap at three, and move into ordered overflow on resize", async ({ mount, page }) => {
+  const invoked: unknown[] = [];
+  await routeTrpc(page, {
+    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "plugin.listCommands": () => ORDER_COMMANDS,
+    "plugin.invokeUiCommand": (input: unknown) => {
+      invoked.push(input);
+      return { toasts: [] };
+    },
+  });
+  await page.setViewportSize({ width: 1600, height: 900 });
+  const component = await mount(<PluginComposerPlacementsStory width={1400} />);
+  const direct = component.getByRole("group", { name: "Plugin composer actions", exact: true }).getByRole("button", { name: / · Run / });
+  await expect(direct).toHaveCount(3);
+  const names = ORDERED_MENUS[0].names;
+  for (const [index, name] of names.slice(0, 3).entries()) {
+    await expect(direct.nth(index)).toHaveAccessibleName(name);
+    await expect(direct.nth(index)).toContainText(name.split(" · ")[0] ?? "");
+  }
+  await direct.nth(2).focus();
+  await page.keyboard.press("Enter");
+  await expect.poll(() => invoked).toEqual([expect.objectContaining({ pluginId: MID_A_SLUG_ID, name: "peek", chatId: CHAT_ID })]);
+  await component.getByRole("button", { name: "Plugin actions", exact: true }).click();
+  const overflow = page.getByRole("menu").getByRole("menuitem");
+  await expect(overflow).toHaveCount(2);
+  for (const [index, name] of names.slice(3).entries()) {
+    await expect(overflow.nth(index)).toHaveAccessibleName(name);
+  }
+  await page.keyboard.press("Escape");
+  await component.evaluate((element) => {
+    const group = element.querySelector('[role="group"][aria-label="Plugin composer actions"]');
+    if (!(group instanceof HTMLElement)) {
+      throw new Error("Missing plugin action group");
+    }
+    const buttons = Array.from(group.querySelectorAll(":scope > button"));
+    const gap = Number.parseFloat(getComputedStyle(group).columnGap);
+    const required =
+      (buttons[0]?.getBoundingClientRect().width ?? 0) +
+      (buttons[1]?.getBoundingClientRect().width ?? 0) +
+      (buttons.at(-1)?.getBoundingClientRect().width ?? 0) +
+      gap * 2;
+    element.style.width = `${element.clientWidth - group.clientWidth + Math.ceil(required)}px`;
+  });
+  await expect(direct).toHaveCount(2);
+  await component.getByRole("button", { name: "Plugin actions", exact: true }).click();
+  await expect(overflow).toHaveCount(3);
+  await expect(overflow.first()).toHaveAccessibleName(names[2]);
+  await page.keyboard.press("Escape");
+  await component.evaluate((element) => {
+    element.style.width = "320px";
+  });
+  await expect(direct).toHaveCount(0);
+  await component.getByRole("button", { name: "Plugin actions", exact: true }).click();
+  await expect(overflow).toHaveCount(names.length);
+  for (const [index, name] of names.entries()) {
+    await expect(overflow.nth(index)).toHaveAccessibleName(name);
+  }
+});
 
 test("composer placements stay in one attributed action menu at narrow width and remain keyboard reachable", async ({ mount, page }) => {
   const invoked: string[] = [];
@@ -145,6 +205,32 @@ test("a running placed command locks the shared action affordance until the invo
   await expect(actions).toBeEnabled();
 });
 
+test("a direct invocation marks all fitted actions busy and locks overflow and media until it settles", async ({ mount, page }) => {
+  const invocation = trpcHold();
+  await routeTrpc(page, {
+    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "plugin.listCommands": () => ORDER_COMMANDS,
+    "plugin.invokeUiCommand": () => invocation,
+  });
+  await page.setViewportSize({ width: 1600, height: 900 });
+  const component = await mount(<PluginComposerPlacementsStory width={1400} />);
+  const direct = component.getByRole("group", { name: "Plugin composer actions", exact: true }).getByRole("button", { name: / · Run / });
+  await expect(direct).toHaveCount(3);
+  await direct.first().click();
+  await invocation.requested;
+  for (const button of await direct.all()) {
+    await expect(button).toBeDisabled();
+    await expect(button).toHaveAttribute("aria-busy", "true");
+  }
+  const overflow = component.getByRole("button", { name: "Plugin actions", exact: true });
+  await expect(overflow).toBeDisabled();
+  await component.getByRole("button", { name: "Message tools", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "Zeta Deck (zeta) · Scenes · Run Frame", exact: true })).toBeDisabled();
+  invocation.release({ toasts: [] });
+  await expect(direct.first()).toBeEnabled();
+  await expect(overflow).toBeEnabled();
+});
+
 test("disabled or removed commands leave no plugin placement affordance", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": () => ({ items: [], nextCursor: null }),
@@ -155,6 +241,27 @@ test("disabled or removed commands leave no plugin placement affordance", async 
   await expect(component.getByRole("button", { name: /Same Name/ })).toHaveCount(0);
   await component.getByRole("button", { name: "Message tools" }).click();
   await expect(page.getByText(/Same Name/)).toHaveCount(0);
+});
+
+test.describe("coarse direct composer actions", () => {
+  test.use({ hasTouch: true, viewport: { width: 1600, height: 900 } });
+  test("fitted buttons keep their full attribution and the touch floor inside the allocated row", async ({ mount, page }) => {
+    await routeTrpc(page, ROUTES);
+    const component = await mount(<PluginComposerPlacementsStory width={1400} />);
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    const group = component.getByRole("group", { name: "Plugin composer actions", exact: true });
+    const direct = group.getByRole("button", { name: / · Run / });
+    await expect(direct).toHaveCount(3);
+    await expect
+      .poll(async () => {
+        const groupBox = await group.boundingBox();
+        const boxes = await Promise.all((await direct.all()).map((button) => button.boundingBox()));
+        return boxes.map(
+          (box) => box !== null && groupBox !== null && box.height >= 44 && box.x >= groupBox.x && box.x + box.width <= groupBox.x + groupBox.width,
+        );
+      })
+      .toEqual([true, true, true]);
+  });
 });
 
 for (const width of [320, 390] as const) {
@@ -177,6 +284,48 @@ for (const width of [320, 390] as const) {
         })
         .toEqual([true, true]);
     });
+
+    test("the compact composer keeps attributed actions in reachable coarse overflow and media menus", async ({ mount, page }) => {
+      await routeTrpc(page, {
+        ...ROUTES,
+        "plugin.listCommands": () =>
+          COMMANDS.map((command): TrpcWireOutput<"plugin.listCommands">[number] =>
+            command.name === "charlie" ? { ...command, placements: [{ target: "composer-action", label: LONG_PLACEMENT_LABEL }] } : command,
+          ),
+      });
+      const component = await mount(<PluginComposerPlacementsStory width={width} />);
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const actions = component.getByRole("button", { name: "Plugin actions", exact: true });
+      await expect(actions).toBeVisible();
+      await expect(component.getByRole("button", { name: / · Run / })).toHaveCount(0);
+      await expect.poll(async () => (await actions.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+      await actions.click();
+      const item = page.getByRole("menuitem", { name: `Same Name (second) · Scenes · Run ${LONG_PLACEMENT_LABEL}`, exact: true });
+      await expect(item).toBeVisible();
+      await expect(item).toContainText(LONG_PLACEMENT_LABEL);
+      await expect.poll(async () => (await item.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+      const popup = page.getByRole("menu");
+      await expect
+        .poll(() =>
+          popup.evaluate((element) => {
+            const style = getComputedStyle(element);
+            return style.opacity === "1" && style.transform === "none";
+          }),
+        )
+        .toBe(true);
+      await expect.poll(async () => (await popup.boundingBox())?.x ?? -1).toBeGreaterThanOrEqual(0);
+      await expect
+        .poll(async () => {
+          const bounds = await popup.boundingBox();
+          return bounds === null ? Number.POSITIVE_INFINITY : bounds.x + bounds.width;
+        })
+        .toBeLessThanOrEqual(width);
+      await page.keyboard.press("Escape");
+      await component.getByRole("button", { name: "Message tools", exact: true }).click();
+      const media = page.getByRole("menuitem", { name: "Same Name (second) · Scenes · Run Illustrate", exact: true });
+      await expect(media).toBeVisible();
+      await expect.poll(async () => (await media.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+    });
   });
 }
 
@@ -194,7 +343,38 @@ test("a placed command with no args shows the refusal and releases the shared af
   await expect(actions).toBeEnabled();
 });
 
-for (const transition of ["disable", "uninstall"] as const) {
+for (const transition of ["disable", "uninstall", "auto-disable"] as const) {
+  test(`${transition} removes fitted direct actions and their media entries`, async ({ mount, page }) => {
+    let resident = true;
+    const remove = (): null => {
+      resident = false;
+      return null;
+    };
+    await routeTrpc(page, {
+      "chat.listChats": () => ({ items: [], nextCursor: null }),
+      "plugin.list": () => [],
+      "plugin.getLog": () => [],
+      "plugin.listSurfaces": () => [],
+      "plugin.listCommands": () => (resident ? COMMANDS : COMMANDS.filter((command) => command.pluginId !== SECOND_ID)),
+      "plugin.setEnabled": remove,
+      "plugin.uninstall": remove,
+      "plugin.reportUiCrash": remove,
+    });
+    await page.setViewportSize({ width: 1600, height: 900 });
+    const component = await mount(<PluginComposerRemovalStory pluginId={SECOND_ID} transition={transition} width={1400} />);
+    const secondAction = component.getByRole("button", { name: "Same Name (second) · Scenes · Run Open", exact: true });
+    await expect(secondAction).toBeVisible();
+    await expect(component.getByRole("button", { name: "Plugin actions", exact: true })).toHaveCount(0);
+    await component.getByRole("button", { name: "Message tools", exact: true }).click();
+    const media = page.getByRole("menuitem", { name: "Same Name (second) · Scenes · Run Illustrate", exact: true });
+    await expect(media).toBeVisible();
+    await page.keyboard.press("Escape");
+    await component.getByRole("button", { name: `Run ${transition}`, exact: true }).click();
+    await expect(secondAction).toHaveCount(0);
+    await expect(component.getByRole("button", { name: "Same Name (first) · Cards · Run Open", exact: true })).toBeVisible();
+    await component.getByRole("button", { name: "Message tools", exact: true }).click();
+    await expect(media).toHaveCount(0);
+  });
   test(`${transition} removes the plugin's entries from both mounted placement menus`, async ({ mount, page }) => {
     let resident = true;
     await routeTrpc(page, {
@@ -208,6 +388,10 @@ for (const transition of ["disable", "uninstall"] as const) {
         return null;
       },
       "plugin.uninstall": () => {
+        resident = false;
+        return null;
+      },
+      "plugin.reportUiCrash": () => {
         resident = false;
         return null;
       },
@@ -412,8 +596,25 @@ test("the room composer mounts the production placement contributions and runs p
   });
   const component = await mount(<PluginComposerRoomStory />);
 
-  await component.getByRole("button", { name: "Plugin actions" }).click();
-  await page.getByRole("menuitem", { name: "Same Name (second) · Scenes · Run Open", exact: true }).click();
+  const action = component.getByRole("button", { name: "Same Name (second) · Scenes · Run Open", exact: true });
+  await expect(action).toBeVisible();
+  const send = component.getByRole("button", { name: "Send message", exact: true });
+  await expect
+    .poll(async () => {
+      const boxes = await Promise.all([action.boundingBox(), send.boundingBox()]);
+      const placed = boxes[0];
+      const terminal = boxes[1];
+      return (
+        placed !== null &&
+        placed !== undefined &&
+        terminal !== null &&
+        terminal !== undefined &&
+        Math.abs(placed.y - terminal.y) <= 1 &&
+        placed.x + placed.width <= terminal.x
+      );
+    })
+    .toBe(true);
+  await action.click();
   await expect.poll(() => invoked).toEqual([expect.objectContaining({ pluginId: SECOND_ID, name: "charlie", chatId: CHAT_ID })]);
 
   await component.getByRole("button", { name: "Message tools" }).click();

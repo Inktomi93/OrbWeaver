@@ -5,8 +5,10 @@ import type { PluginCommandPlacementTarget } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Blocks, Icon } from "@orb/ui/icons";
+import { Row } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { usePluginCommands, useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
 import { pluginCommandActionLabel, pluginCommandAttributedActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
 import { PLUGIN_ICON_GLYPHS } from "../lib/plugin-icon-glyphs.ts";
@@ -21,6 +23,35 @@ interface PlacedCommandGroup {
   readonly id: string;
   readonly label: string;
   readonly commands: readonly PlacedCommand[];
+}
+
+const DIRECT_ACTION_LIMIT = 3;
+
+function PlacedActionButton({
+  item,
+  isPending,
+  onRun,
+}: {
+  readonly item: PlacedCommand;
+  readonly isPending: boolean;
+  readonly onRun?: () => void;
+}): ReactElement {
+  const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
+  return (
+    <Button
+      aria-label={pluginCommandAttributedActionLabel(item.command.pluginName, item.command.slug, item.command.group ?? "Commands", item.label)}
+      className="shrink-0"
+      intent="ghost"
+      loading={isPending}
+      onClick={onRun}
+      shape="pill"
+      size="sm"
+      type="button"
+    >
+      <Icon icon={glyph} size="sm" />
+      {pluginCommandAttribution(item.command.pluginName, item.command.slug)} · {pluginCommandActionLabel(item.label)}
+    </Button>
+  );
 }
 
 // Host order: the shown attribution (name, then slug), then group, then the label shown at THIS target. The
@@ -63,41 +94,91 @@ function groupPlacedCommands(placed: readonly PlacedCommand[]): readonly PlacedC
 export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
   const placed = usePlacedCommands("composer-action");
   const { isPending, run } = useRunPluginCommand(chatId);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [directCount, setDirectCount] = useState(0);
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    const measure = measureRef.current;
+    if (row === null || measure === null) {
+      return;
+    }
+    const measureActions = (): void => {
+      const widths = Array.from(measure.children, (child) => child.getBoundingClientRect().width);
+      const doorWidth = widths.pop() ?? 0;
+      const gap = Number.parseFloat(getComputedStyle(measure).columnGap);
+      let count = widths.length;
+      // Reserve the overflow door before admitting a prefix, so adding it cannot displace Send or wrap the rail.
+      while (count > 0) {
+        const hasOverflow = count < placed.length;
+        const required = widths.slice(0, count).reduce((total, width) => total + width, 0) + gap * (count - 1) + (hasOverflow ? doorWidth + gap : 0);
+        if (required <= row.getBoundingClientRect().width) {
+          break;
+        }
+        count -= 1;
+      }
+      setDirectCount(count);
+    };
+    measureActions();
+    const observer = new ResizeObserver(measureActions);
+    observer.observe(row);
+    observer.observe(measure);
+    return (): void => observer.disconnect();
+  }, [placed]);
   if (placed.length === 0) {
     return null;
   }
-  const groups = groupPlacedCommands(placed);
+  const direct = placed.slice(0, directCount);
+  const groups = groupPlacedCommands(placed.slice(directCount));
   return (
-    <Menu>
-      <MenuTrigger
-        render={
-          <Button aria-label="Plugin actions" disabled={isPending} intent="ghost" shape="pill" size="icon" type="button">
+    <Row aria-label="Plugin composer actions" className="relative min-w-control-md flex-1" gap="field" ref={rowRef} role="group">
+      {/* The inert measurement copy keeps full attribution in the fit calculation without adding tab stops or scroll overflow. */}
+      <Row aria-hidden={true} className="pointer-events-none invisible absolute inset-0 overflow-hidden" inert={true}>
+        <Row className="w-max shrink-0" gap="field" ref={measureRef}>
+          {placed.slice(0, DIRECT_ACTION_LIMIT).map((item) => (
+            <PlacedActionButton isPending={false} item={item} key={`${item.command.pluginId}:${item.command.name}`} />
+          ))}
+          <Button aria-label="Plugin actions" intent="ghost" shape="pill" size="icon" type="button">
             <Icon icon={Blocks} size="sm" />
           </Button>
-        }
-      />
-      <MenuPopup>
-        {groups.map((group) => (
-          <MenuGroup key={group.id}>
-            <MenuGroupLabel>{group.label}</MenuGroupLabel>
-            {group.commands.map((item) => {
-              const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
-              return (
-                <MenuItem
-                  aria-label={pluginCommandAttributedActionLabel(item.command.pluginName, item.command.slug, item.command.group ?? "Commands", item.label)}
-                  disabled={isPending}
-                  key={`${item.command.pluginId}:${item.command.name}`}
-                  onClick={(): void => run(item.command)}
-                >
-                  <Icon icon={glyph} size="sm" />
-                  {pluginCommandActionLabel(item.label)}
-                </MenuItem>
-              );
-            })}
-          </MenuGroup>
-        ))}
-      </MenuPopup>
-    </Menu>
+        </Row>
+      </Row>
+      {direct.map((item) => (
+        <PlacedActionButton isPending={isPending} item={item} key={`${item.command.pluginId}:${item.command.name}`} onRun={(): void => run(item.command)} />
+      ))}
+      {groups.length === 0 ? null : (
+        <Menu>
+          <MenuTrigger
+            render={
+              <Button aria-label="Plugin actions" loading={isPending} intent="ghost" shape="pill" size="icon" type="button">
+                <Icon icon={Blocks} size="sm" />
+              </Button>
+            }
+          />
+          <MenuPopup className="max-w-(--available-width)">
+            {groups.map((group) => (
+              <MenuGroup key={group.id}>
+                <MenuGroupLabel>{group.label}</MenuGroupLabel>
+                {group.commands.map((item) => {
+                  const glyph = item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
+                  return (
+                    <MenuItem
+                      aria-label={pluginCommandAttributedActionLabel(item.command.pluginName, item.command.slug, item.command.group ?? "Commands", item.label)}
+                      disabled={isPending}
+                      key={`${item.command.pluginId}:${item.command.name}`}
+                      onClick={(): void => run(item.command)}
+                    >
+                      <Icon icon={glyph} size="sm" />
+                      {pluginCommandActionLabel(item.label)}
+                    </MenuItem>
+                  );
+                })}
+              </MenuGroup>
+            ))}
+          </MenuPopup>
+        </Menu>
+      )}
+    </Row>
   );
 }
 

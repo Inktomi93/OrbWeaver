@@ -474,20 +474,31 @@ export function PluginComposerPlacementsStory({ chatId = CHAT_ID, width = 420 }:
   );
 }
 
-function PluginComposerRemovalBody({ pluginId, transition }: { readonly pluginId: PluginId; readonly transition: "disable" | "uninstall" }): ReactElement {
+function PluginComposerRemovalBody({
+  pluginId,
+  transition,
+  width,
+}: {
+  readonly pluginId: PluginId;
+  readonly transition: "disable" | "uninstall" | "auto-disable";
+  readonly width: number;
+}): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setEnabled = useSetPluginEnabled({ trpc, invalidation });
   const uninstall = useUninstallPlugin({ trpc, invalidation });
+  const reportCrash = useReportUiCrash({ trpc, invalidation });
   const run = (): void => {
     if (transition === "disable") {
       setEnabled.mutate({ pluginId, enabled: false });
-    } else {
+    } else if (transition === "uninstall") {
       uninstall.mutate({ pluginId });
+    } else {
+      reportCrash.mutate({ pluginId, surfaceId: "resident-settings", reason: "third client guest crash" });
     }
   };
   return (
-    <div style={{ display: "flex", gap: 8, width: 420 }}>
+    <div style={{ display: "flex", gap: 8, width }}>
       <PluginComposerActions chatId={CHAT_ID} />
       <Menu>
         <MenuTrigger
@@ -510,13 +521,15 @@ function PluginComposerRemovalBody({ pluginId, transition }: { readonly pluginId
 export function PluginComposerRemovalStory({
   pluginId,
   transition,
+  width = 420,
 }: {
   readonly pluginId: PluginId;
-  readonly transition: "disable" | "uninstall";
+  readonly transition: "disable" | "uninstall" | "auto-disable";
+  readonly width?: number;
 }): ReactElement {
   return (
     <CtDataProviders>
-      <PluginComposerRemovalBody pluginId={pluginId} transition={transition} />
+      <PluginComposerRemovalBody pluginId={pluginId} transition={transition} width={width} />
     </CtDataProviders>
   );
 }
