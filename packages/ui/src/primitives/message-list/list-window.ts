@@ -21,11 +21,29 @@ export interface MessageListRowMeta {
 // not flicker the fade on an unscrolled list.
 const EDGE_FADE_EPSILON_PX = 1;
 
+// A row's pinned header: a `position: sticky` descendant the row marks with this attribute.
+const PINNED_HEADER_SELECTOR = "[data-sticky]";
+
+// The mask fades the pixels into whatever sits behind the list, not into the row's own surface, so a
+// header pinned across the top edge would lose its ink against a page of the other polarity. The opaque
+// header already covers the content above it, so the top edge needs no fade while one is pinned there.
+function headerPinnedAtTop(el: HTMLElement): boolean {
+  const top = el.getBoundingClientRect().top;
+  for (const header of el.querySelectorAll(PINNED_HEADER_SELECTOR)) {
+    const box = header.getBoundingClientRect();
+    if (box.top <= top + EDGE_FADE_EPSILON_PX && box.bottom > top) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** Edge-fade state for the styles-tier mask (`client/styles/globals.css` keys on these attributes):
  *  an edge dissolves ONLY while content is actually scrolled past it, so a short thread never renders
- *  its first/last rows half-faded against nothing. */
+ *  its first/last rows half-faded against nothing. A `[data-sticky]` header pinned across the top edge
+ *  holds the top fade off. */
 export function updateEdgeFades(el: HTMLElement): void {
-  el.toggleAttribute("data-fade-top", el.scrollTop > EDGE_FADE_EPSILON_PX);
+  el.toggleAttribute("data-fade-top", el.scrollTop > EDGE_FADE_EPSILON_PX && !headerPinnedAtTop(el));
   el.toggleAttribute("data-fade-bottom", el.scrollHeight - el.scrollTop - el.clientHeight > EDGE_FADE_EPSILON_PX);
 }
 

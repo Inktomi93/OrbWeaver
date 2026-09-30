@@ -104,7 +104,9 @@ export type { EditSession } from "./edit-session.ts";
 export { resolveCommit } from "./edit-session.ts";
 export type { AppErrorBoundaryProps } from "./error-boundary.tsx";
 export { AppErrorBoundary } from "./error-boundary.tsx";
+export type { SendRefusalKey } from "./injection-copy.ts";
 export {
+  ADD_CONNECTION_PATH,
   ASSISTANT_PREFILL_WARNING,
   CHOICE_NEEDS_LIVE_CHAT,
   CHOICE_WAIT_FOR_TURN,

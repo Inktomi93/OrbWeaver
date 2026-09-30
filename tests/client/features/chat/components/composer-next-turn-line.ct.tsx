@@ -33,6 +33,15 @@ const WORK_KEY = {
   tasks: ["chat"],
 } satisfies TrpcFixtureOutput<"connection.list">[number];
 
+const EMBED_ONLY = {
+  id: "user_connection_ctnextturnembed",
+  label: "Built-in embeddings",
+  providerId: "local-light",
+  providerLabel: "Built-in (this device)",
+  model: "jinaai/jina-clip-v2",
+  tasks: ["embed", "imageEmbed"],
+} satisfies TrpcFixtureOutput<"connection.list">[number];
+
 const RESOLVED = {
   task: "chat",
   connectionId: WORK_KEY_ID,
@@ -69,7 +78,7 @@ test("a host with no chat connection set reads the unset state and where to fix 
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": HOST_ROOM,
     "chat.checkSendAvailability": NO_CONNECTION,
-    "connection.list": [],
+    "connection.list": [WORK_KEY],
     "connection.resolveChatCapability": UNBOUND,
   });
   const component = await mount(<ComposerStory />);
@@ -97,18 +106,46 @@ test("a host in a no-connection room never asks for the chat role, which could o
   await expect.poll(() => trpc.count("connection.resolveChatCapability")).toBe(0);
 });
 
-test("the unset line's Model roles door lands on the chat model role in Settings", async ({ mount, page }) => {
+// The two recovery paths. The Model roles picker can only offer a connection the host already has, so a host
+// with none is sent to the add flow; a host with connections but no chat role is sent to the role.
+for (const recovery of [
+  { name: "with connections but no chat role, the door lands on the chat model role", rows: [WORK_KEY], target: "config|connections|model-roles|chat-model" },
+  { name: "with no connection at all, the door lands on the add-connection flow", rows: [], target: "config|connections|connections|add-connection" },
+  // A fresh account carries built-in embedding rows, none of which the Chat picker can offer.
+  {
+    name: "with only embedding connections, the door lands on the add-connection flow",
+    rows: [EMBED_ONLY],
+    target: "config|connections|connections|add-connection",
+  },
+] as const) {
+  test(`the unset line: ${recovery.name}`, async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...CHAT_ROOM_ROUTES,
+      "chat.getChat": HOST_ROOM,
+      "chat.checkSendAvailability": NO_CONNECTION,
+      "connection.list": [...recovery.rows],
+    });
+    const component = await mount(<ComposerStory />);
+
+    const door = line(component).getByRole("button");
+    await expect(door).toHaveCount(1);
+    await door.click();
+    await expect(component.getByTestId("composer-config-target")).toHaveText(recovery.target);
+  });
+}
+
+test("the line reads at the body type step", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
     "chat.getChat": HOST_ROOM,
-    "chat.checkSendAvailability": NO_CONNECTION,
-    "connection.list": [],
+    "connection.list": [WORK_KEY],
+    "connection.resolveChatCapability": RESOLVED,
   });
   const component = await mount(<ComposerStory />);
 
-  await line(component).getByRole("button", { name: "Model roles", exact: true }).click();
-  await expect(component.getByTestId("composer-config-target")).toHaveText("config|connections|model-roles|chat-model");
+  await expect(line(component)).toHaveCSS("font-size", `${Number.parseFloat(TOKENS["text.body"].value) * ROOT_PX}px`);
 });
 
 test("a member is told the reply runs on the host's connection, and the member's own chat role is never read", async ({ mount, page }) => {
@@ -242,7 +279,7 @@ for (const viewport of [
       ...CHAT_ROOM_ROUTES,
       "chat.getChat": HOST_ROOM,
       "chat.checkSendAvailability": NO_CONNECTION,
-      "connection.list": [],
+      "connection.list": [WORK_KEY],
     });
     const component = await mount(<ComposerStory />);
     const target = line(component);
@@ -265,8 +302,7 @@ for (const viewport of [
   });
 }
 
-// The recovery door is the line's one control, so it holds the interactive floors the quiet line itself does
-// not: the label type step (the gloss step sits under the design audit's interactive-text floor) and a
+// The recovery door is the line's one control, so it holds the interactive floors: the label type step and a
 // touch-target hit area on a coarse pointer, measured by walking `elementFromPoint` out from its centre.
 test.describe("coarse pointer", () => {
   test.use({ hasTouch: true, viewport: { width: 360, height: 780 } });
@@ -277,7 +313,7 @@ test.describe("coarse pointer", () => {
       ...CHAT_ROOM_ROUTES,
       "chat.getChat": HOST_ROOM,
       "chat.checkSendAvailability": NO_CONNECTION,
-      "connection.list": [],
+      "connection.list": [WORK_KEY],
     });
     const component = await mount(<ComposerStory />);
     const door = line(component).getByRole("button", { name: "Model roles", exact: true });

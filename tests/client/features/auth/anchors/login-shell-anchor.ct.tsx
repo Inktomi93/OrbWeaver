@@ -16,7 +16,7 @@ import type { Locator, Page } from "@playwright/test";
 import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
 import { LOGIN_WEAVE_GEOMETRY } from "../../../../../packages/client/src/features/auth/lib/login-weave.ts";
 import { ambientCeiling, fingerprintDelta, frameFingerprint, touchDrag, waitFrames } from "../../../../support/browser/weave-drive.ts";
-import { LoginConfigTransitionStory, LoginSceneStory } from "../_ct-stories.tsx";
+import { LoginConfigTransitionStory, LoginInviteSceneStory, LoginSceneStory } from "../_ct-stories.tsx";
 
 const PHONE_W = 390;
 const DESKTOP_W = 1280;
@@ -230,8 +230,105 @@ test.describe("under a coarse pointer", () => {
     await expect.poll(async () => Number(await canvas.getAttribute("data-orb-weave-frames"))).toBeGreaterThan(2);
     const path = await silkPath(page.locator('[data-slot="web-weave"]'), page.getByRole("main"));
     await touchDrag(page, path.from, path.to, 12);
-    // The scene box is `overflow-hidden min-h-dvh` — nothing to scroll, and the explainer stays put.
-    await expect.poll(async () => scene.evaluate((el) => el.scrollTop)).toBe(0);
+    // The anchor owns the scroll, but a card that fits the window leaves it nothing to move.
+    await expect.poll(async () => page.getByTestId("login-page").evaluate((el) => el.scrollTop)).toBe(0);
     await expect(page.getByRole("heading", { name: PROXY_HEADING })).toBeVisible();
   });
 });
+
+// ── The tallest card scrolls to every control ─────────────────────────────────────────────────────
+// The invite sign-up card is taller than a phone window and than a short laptop window. Every control on it
+// must come into view under a real wheel and a real thumb, and the web behind it must hold still while the
+// card moves. The gesture lands on the web at the window's left edge, so it also proves a gesture over the
+// backdrop reaches the card's scroller rather than dying on decoration.
+const INVITE_ROOM = {
+  chatId: "chat_01j0000000000000000000000b",
+  roomName: "Midnight Run",
+  hostHandle: "owner",
+  memberCount: 1,
+  modeLabel: "The characters take turns.",
+};
+const SCROLL_WINDOWS = [
+  { width: 360, height: 640 },
+  { width: 1280, height: 560 },
+] as const;
+/** A generous ceiling on gestures per control: the card is a few windows tall, never dozens. */
+const MAX_GESTURES = 24;
+const WHEEL_STEP = 160;
+const THUMB_STEP = 200;
+
+type ScrollGesture = (page: Page, at: WeavePoint) => Promise<void>;
+
+const wheelGesture: ScrollGesture = async (page, at) => {
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.wheel(0, WHEEL_STEP);
+};
+const thumbGesture: ScrollGesture = (page, at) => touchDrag(page, { x: at.x, y: at.y + THUMB_STEP / 2 }, { x: at.x, y: at.y - THUMB_STEP / 2 }, 8);
+
+/** Whether a control sits wholly inside the window and a pointer at its centre lands on it. */
+function reachable(control: Locator, windowHeight: number): Promise<boolean> {
+  return control.evaluate((el, height) => {
+    const box = el.getBoundingClientRect();
+    if (box.top < 0 || box.bottom > height) {
+      return false;
+    }
+    const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    return hit !== null && (hit === el || el.contains(hit));
+  }, windowHeight);
+}
+
+interface ScrollDrive {
+  readonly page: Page;
+  readonly gesture: ScrollGesture;
+  readonly at: WeavePoint;
+  readonly windowHeight: number;
+}
+
+/** Gesture at `drive.at` until the control is reachable; resolves false when the ceiling runs out first. */
+async function scrollTo(drive: ScrollDrive, control: Locator, left = MAX_GESTURES): Promise<boolean> {
+  if (await reachable(control, drive.windowHeight)) {
+    return true;
+  }
+  if (left === 0) {
+    return false;
+  }
+  await drive.gesture(drive.page, drive.at);
+  await waitFrames(drive.page, 4);
+  return scrollTo(drive, control, left - 1);
+}
+
+for (const size of SCROLL_WINDOWS) {
+  test.describe(`the invite sign-up card at ${size.width}x${size.height}`, () => {
+    test.use({ viewport: size, hasTouch: true });
+
+    for (const [name, gesture] of [
+      ["wheel", wheelGesture],
+      ["thumb", thumbGesture],
+    ] as const) {
+      test(`every control is reachable by ${name} while the web holds still`, async ({ mount, page }) => {
+        const cfg = config({ multiHumanCapable: true });
+        await stubAuthConfig(page, cfg);
+        await page.route("**/api/auth/signup/preview", (route) => route.fulfill({ status: 200, json: INVITE_ROOM }));
+        await mount(<LoginInviteSceneStory config={cfg} joinToken="tok_invite" />);
+        const form = page.getByTestId("signup-invite-form");
+        await expect(form).toBeVisible();
+        const weave = page.locator('[data-slot="web-weave"]');
+        const at = { x: 4, y: size.height / 2 };
+        // The gesture point is the backdrop, not the card.
+        await expect.poll(() => page.evaluate((p) => document.elementFromPoint(p.x, p.y)?.getAttribute("data-slot") ?? "none", at)).toBe("web-weave-canvas");
+        const controls = await form.locator("input, textarea, button").all();
+        expect(controls.length).toBeGreaterThan(0);
+        const drive = { page, gesture, at, windowHeight: size.height };
+        const verdicts = await controls.reduce<Promise<boolean[]>>(
+          async (chain, control) => [...(await chain), await scrollTo(drive, control)],
+          Promise.resolve([]),
+        );
+        expect(verdicts, "every sign-up control comes into reach").toEqual(controls.map(() => true));
+        // The card really moved, and the web stayed pinned to the window.
+        await expect.poll(() => page.getByTestId("login-page").evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+        await expect.poll(async () => (await weave.boundingBox())?.y).toBe(0);
+        await expect.poll(async () => (await weave.boundingBox())?.height).toBe(size.height);
+      });
+    }
+  });
+}

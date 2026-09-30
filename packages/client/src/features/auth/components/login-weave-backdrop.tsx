@@ -24,8 +24,8 @@ function isFreshDocumentLoad(): boolean {
  *  empty page — so it answers a hand: the silk rings where a cursor or a THUMB crosses it and the
  *  weaver comes to investigate (hosts opt in, and this is the host that should).
  *  It stays `aria-hidden` (the primitive's a11y ruling: ornament that answers a pointer is ornament)
- *  and stays inert under reduced motion (the primitive's `listening` gate), and the anchor's box is
- *  `overflow-hidden min-h-dvh` — there is no scroll here for a pointer-events layer to swallow. */
+ *  and stays inert under reduced motion (the primitive's `listening` gate). It takes no `touch-action`, and it
+ *  sits sticky inside the anchor's scroller, so a thumb or wheel over it still scrolls a tall card. */
 export function LoginWeaveBackdrop(): ReactElement {
   const config = useAuthConfig();
   const spec = resolveLoginWeave(config.data, globalThis.location.search, isFreshDocumentLoad());
@@ -36,7 +36,7 @@ export function LoginWeaveBackdrop(): ReactElement {
       hub={LOGIN_WEAVE_GEOMETRY.hub}
       seed={LOGIN_WEAVE_GEOMETRY.seed}
       interactive={true}
-      className="absolute inset-0"
+      className="sticky top-0 h-dvh"
     />
   );
 }

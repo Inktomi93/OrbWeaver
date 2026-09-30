@@ -25,7 +25,7 @@ export interface ComposerNextTurnLineProps {
   readonly id: string;
 }
 
-// Each state's ink: an unset connection warns, a failed read is an error, the rest keep the gloss voice.
+// Each state's ink: an unset connection warns, a failed read is an error, the rest keep the quiet voice.
 const STATE_INK: Record<NextTurnLine["state"], string | undefined> = {
   named: undefined,
   checking: undefined,
@@ -50,6 +50,7 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
     resolveFailed: resolve.isError,
     connections,
   });
+  const { door } = line;
   return (
     // The card's own track, so the fill spans the card's width AND the text starts at the card's edge — the
     // horizontal inset rides the paragraph's own padding (which insets its content, not its box), never the
@@ -61,7 +62,7 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
     <Container className={cn(CHAT_TRACK, "bg-card py-tight")}>
       <Text
         as="p"
-        voice="gloss"
+        voice="quiet"
         className={cn("min-w-0 max-w-(--reading-measure-prose) break-words px-field", STATE_INK[line.state])}
         data-slot="composer-next-turn"
         data-unset={line.state === "unset" ? "" : undefined}
@@ -69,20 +70,12 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
         id={id}
       >
         {line.text}
-        {line.door === undefined ? null : (
+        {door === undefined ? null : (
           <>
-            {` ${line.door.lead} `}
-            {/* The literals are the house spelling of a settings deep link: a feature never imports another's nav.
-                The door keeps the inline arm's own label step and touch-target hit area rather than the line's
-                gloss step, which sits under the interactive-text floor. */}
-            <Button
-              className="underline"
-              intent="ghost"
-              onClick={(): void => openConfigTo("connections", "model-roles", "chat-model")}
-              size="inline"
-              type="button"
-            >
-              {line.door.label}
+            {` ${door.lead} `}
+            {/* The door keeps the inline arm's own label step and touch-target hit area. */}
+            <Button className="underline" intent="ghost" onClick={(): void => openConfigTo("connections", door.sub, door.setting)} size="inline" type="button">
+              {door.label}
             </Button>
           </>
         )}
