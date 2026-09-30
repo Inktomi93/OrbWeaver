@@ -33,7 +33,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 - In your own worktree, `git add -A` is fine.
 - On main or any shared tree, stage and commit by exact pathspec. `git stash -u` or a bare `git commit -m` can sweep a sibling's files.
 - On a shared file, check your edit per row id, not by line count. A count can match by accident.
-- Make one commit per leg. Stack follow-up legs as new commits; never amend a merged commit.
+- Make one commit, at the end of the lane's whole work. A follow-up leg on an unmerged branch amends that commit; after a merge, add one new commit. Never amend a merged commit.
 - Merge main into your branch through the hooks. Only the orchestrator merges to main. Only the owner pushes.
 
 ### Commit
