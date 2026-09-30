@@ -209,7 +209,7 @@ test("fresh state lands on HOME — the launcher, never an empty room (D62 P4 vi
 
 // WCAG 2.4.3: a cold load leaves focus where the document starts, so the first Tab reaches the skip link and
 // the rail before any content. The shell's lost-focus rescue is for a section JUMP, never the first mount.
-test("a cold load moves focus nowhere", async ({ mount, page }) => {
+test("a cold load moves focus nowhere and the first Tab reaches the skip link", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...HOME_AMBIENT_ROUTES,
     "chat.listChats": chatListResponder([]),
@@ -231,6 +231,8 @@ test("a cold load moves focus nowhere", async ({ mount, page }) => {
   // The tiles land after the reads resolve, long after any first-commit effect has run.
   await expect(component.locator('[data-home-tile="home.jump"]')).toBeVisible();
   await expect.poll(() => page.evaluate(() => Reflect.get(globalThis, "__focusTrail") as string[])).toEqual([]);
+  await page.keyboard.press("Tab");
+  await expect(component.getByRole("button", { name: "Skip to content", exact: true })).toBeFocused();
 });
 
 // A phone reaches every section from its tab bar or the You sheet; the chip rail would repeat them above the

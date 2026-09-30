@@ -259,6 +259,11 @@ const EMBED_ONLY_CONNECTION = {
 for (const refusal of [
   { name: "no connection that can chat", key: "no-chat-connection", routes: { "connection.list": [EMBED_ONLY_CONNECTION] } },
   { name: "a chat-capable connection but no chat role", key: "no-connection", routes: {} },
+  {
+    name: "a member whose host has no chat role",
+    key: "host-no-chat-connection",
+    routes: { "chat.getChat": { title: "Council", participants: [], viewerIsHost: false } },
+  },
 ] as const) {
   test(`no-connection with ${refusal.name}: Send and the idled guided icons show the ${refusal.key} reason`, async ({ mount, page }) => {
     await routeTrpc(page, {

@@ -7,7 +7,7 @@ import { Button } from "@orb/ui/button";
 import { LIVE_TOKEN_ROOT_ATTRIBUTE, PortalContainerContext } from "@orb/ui/lib";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { TooltipProvider } from "@orb/ui/tooltip";
-import type { CSSProperties, ReactElement, ReactNode } from "react";
+import type { CSSProperties, ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef } from "react";
 import { preload } from "react-dom";
 import { resolveThemeScopeTokens } from "#lib";
@@ -25,7 +25,7 @@ import type { SectionContextHostProps } from "../components/section-context-host
 import { SectionContextHeader, SectionContextHost } from "../components/section-context-host.tsx";
 import { SectionPlaceholder } from "../components/section-placeholder.tsx";
 import { SectionTopbarTitle } from "../components/section-topbar-title.tsx";
-import { ShellTopbar } from "../components/shell-topbar.tsx";
+import { LIST_TOGGLE_MARKER, ShellTopbar } from "../components/shell-topbar.tsx";
 import { ThemeBackgroundLayer } from "../components/theme-background-layer.tsx";
 import { ThemeBackgroundVideoLayer } from "../components/theme-background-video-layer.tsx";
 import { TopbarTrailChrome } from "../components/topbar-trail.tsx";
@@ -51,6 +51,38 @@ function dismissOverlays(layout: ShellLayout): void {
   if (layout.contextMode === "overlay") {
     layout.collapsePanel("context");
   }
+}
+
+function useOverlayFocus(
+  overlay: boolean,
+  pane: RefObject<HTMLElement | null>,
+  frame: { readonly grid: RefObject<HTMLElement | null>; readonly scrim: RefObject<HTMLElement | null> },
+  toggleMarker: string,
+): void {
+  const { grid, scrim } = frame;
+  const wasOverlayRef = useRef(overlay);
+  useEffect(() => {
+    const wasOverlay = wasOverlayRef.current;
+    wasOverlayRef.current = overlay;
+    if (overlay) {
+      const active = document.activeElement;
+      if (active === null || active === document.body || grid.current?.contains(active) === true) {
+        pane.current?.focus();
+      }
+      return;
+    }
+    if (!wasOverlay) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      const active = document.activeElement;
+      const lost = active === null || active === document.body || active === scrim.current || pane.current?.contains(active) === true;
+      if (lost) {
+        grid.current?.querySelector<HTMLElement>(`.${toggleMarker}`)?.focus();
+      }
+    });
+    return (): void => clearTimeout(timer);
+  }, [overlay, pane, grid, scrim, toggleMarker]);
 }
 
 /** A FLOATING context pane's own way out, handed to the bracket to seat inside its head band (side-eye
@@ -196,38 +228,12 @@ export function AppShell(): ReactElement {
   const gridRef = useRef<HTMLDivElement>(null);
   useShellTrackFlip(gridRef, layout.listMode, layout.contextMode);
 
-  // A slide-over that OPENS takes focus: the column behind it goes inert the same commit, so focus left there
-  // would drop to <body> with a sheet on screen. The pane itself, not a control in it: a bracketed pane's own
-  // dismiss mounts with its body, a transition later, and the shell's band close is hidden for it.
-  // An open modal or popover keeps the focus it holds: both portal outside the grid. When the sheet closes,
-  // focus that was inside it (or fell to <body> as it went inert) returns to the toggle that opens it.
+  // Overlays own focus while the underlying content is inert; closing restores their own toggle without stealing portal focus.
   const contextPaneRef = useRef<HTMLElement>(null);
-  // A pointer click focuses the scrim, which is transparent and hidden once the sheet closes.
   const scrimRef = useRef<HTMLButtonElement>(null);
-  const contextOverlay = layout.contextMode === "overlay";
-  const contextWasOverlayRef = useRef(contextOverlay);
-  useEffect(() => {
-    const wasOverlay = contextWasOverlayRef.current;
-    contextWasOverlayRef.current = contextOverlay;
-    if (contextOverlay) {
-      const active = document.activeElement;
-      if (active === null || active === document.body || gridRef.current?.contains(active) === true) {
-        contextPaneRef.current?.focus();
-      }
-      return;
-    }
-    if (!wasOverlay) {
-      return;
-    }
-    const timer = setTimeout(() => {
-      const active = document.activeElement;
-      const lost = active === null || active === document.body || active === scrimRef.current || contextPaneRef.current?.contains(active) === true;
-      if (lost) {
-        gridRef.current?.querySelector<HTMLElement>(`.${CONTEXT_TOGGLE_MARKER}`)?.focus();
-      }
-    });
-    return (): void => clearTimeout(timer);
-  }, [contextOverlay]);
+  const overlayFrame = { grid: gridRef, scrim: scrimRef };
+  useOverlayFocus(layout.contextMode === "overlay", contextPaneRef, overlayFrame, CONTEXT_TOGGLE_MARKER);
+  useOverlayFocus(layout.listMode === "overlay", listPaneRef, overlayFrame, LIST_TOGGLE_MARKER);
 
   // A section jump made from a transient control (a You-sheet row) unmounts the control that held focus, and
   // the store-driven sheet unmount restores nothing, so focus would drop to <body>. Land it on the new
@@ -300,37 +306,8 @@ export function AppShell(): ReactElement {
                 rendered signal observed by useShellLayout; hidden and out of flow, so it cannot affect the
                 geometry it reports. */}
             <div ref={primacySentinelRef} className="shell-content-primacy-sentinel" aria-hidden="true" />
-            {/* THE SKIP (side-eye 2026-08-16 F9 — filed against home, fixed here because a skip link after
-                the rail skips nothing). The rail plus the topbar is a FIXED ~15-stop preamble in front of
-                every section's first real control: on home the resume hero — the one thing the landing
-                surface exists to offer — was tab stop 16. None of those stops is droppable (they are the
-                app's whole navigation), so the honest fix is the standard skip posture, exactly as the
-                assembly rack does it one level down: rest-invisible, revealed on focus-visible, costing the
-                pointer user nothing and the keyboard user one press.
-                FIRST IN DOM ORDER inside the grid, which is the whole contract — a skip control that is not
-                the first focusable is a second tab stop, not a skip. It moves focus to the `<main>` scroll
-                container (already `tabIndex={-1}` and already named by the active section) rather than to a
-                control inside it, so the next Tab lands on the section's first real affordance whatever
-                that section is. `absolute` keeps it out of the shell grid's track flow when revealed.
-
-                …AND ON THE PHONE LANDING IT TARGETS THE ROSTER, BECAUSE THAT IS WHAT `main` IS THERE
-                (#1349). The ONE-SHELL rule makes the LIST pane the screen and shell.css `display:none`s
-                `.shell-content` behind it, so this control was pointing at an unrendered, inert, zero-wide
-                node: measured on live main 2026-09-04 at `--mobile`, Tab reached "Skip to content" and
-                Enter left focus exactly where it was. The skip does not learn about phones — it follows
-                the SAME flag that decides which region carries the landmark
-                (`ShellLayout.listIsPrimaryContent`), so the two can never disagree.
-
-                `not-focus-visible:sr-only`, NOT `sr-only focus-visible:not-sr-only` (side-eye rail-home
-                P3-7, 2026-08-22). The pair reads right and renders wrong: Tailwind's `not-sr-only` is a
-                RESET, and its reset includes `padding: 0` and `height: auto` — which land in the same layer
-                at the same specificity as the Button's own `h-control-sm px-block` and beat them, so the
-                REVEALED control measured 94x18 with a computed padding of "0px", i.e. bare text with a
-                border and no box, under the WCAG 2.5.8 24x24 floor on its block axis. The `not-*` variant
-                removes the fight instead of trying to win it: at rest the clip applies, and on focus NOTHING
-                from `sr-only` applies at all, so the control is simply the `sm` Button it already declares
-                itself to be. The rest posture is unchanged and the CT still reads it through the resolved
-                `clip-path: inset(50%)`. */}
+            {/* The skip precedes navigation and targets whichever pane owns the main landmark.
+                Inverse sr-only avoids the reset that removes the revealed button's padding and height. */}
             <Button
               className="not-focus-visible:sr-only focus-visible:absolute focus-visible:start-row focus-visible:top-row focus-visible:z-(--z-overlay)"
               intent="secondary"

@@ -12,6 +12,9 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import type { PanelMode } from "#state";
 
+/** The list overlay's durable focus-return target after its contents become hidden. */
+export const LIST_TOGGLE_MARKER = "shell-list-toggle";
+
 export interface ShellTopbarProps {
   readonly title: string;
   /** Per-section header node the route may supply (defaults to just the title). */
@@ -122,6 +125,7 @@ function leadControl({ listDoorLabel, listMode, listAvailable, mobile, title, on
       }
       icon={listCollapsed ? PanelLeftOpen : PanelLeftClose}
       expanded={!listCollapsed}
+      marker={LIST_TOGGLE_MARKER}
       onClick={onToggleList}
     />
   );

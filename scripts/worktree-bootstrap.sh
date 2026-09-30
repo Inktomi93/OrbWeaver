@@ -10,6 +10,9 @@ echo "worktree-bootstrap: $ROOT"
 # 1. Per-worktree deps (hard-linked from the global store).
 CI=true pnpm install
 
+# Seed suites consume generated plugin archives from this checkout.
+pnpm --filter @orb/showcase-plugins build
+
 # 2. Provision .env from the main checkout if this worktree lacks one.
 MAIN="$(git worktree list --porcelain | awk '/^worktree / && !seen++ {print substr($0, 10)}')"
 if [ ! -e .env ]; then
@@ -39,4 +42,4 @@ if [ -n "$MAIN" ] && [ "$MAIN" != "$ROOT" ]; then
   fi
 fi
 
-echo "worktree-bootstrap: done — deps + hooks ready"
+echo "worktree-bootstrap: done — deps + showcase bundles ready"

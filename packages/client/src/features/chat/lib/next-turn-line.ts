@@ -74,6 +74,9 @@ function lacksChatConnection({ rows }: CreditConnections): boolean {
  * on the same predicate the line's door uses, so the tooltips and the line point at the same fix.
  */
 export function sendRefusalKey(cause: UnavailableCause, viewerIsHost: boolean | undefined, connections: CreditConnections): SendRefusalKey {
+  if (nextTurnStatesRefusal(cause) && viewerIsHost === false) {
+    return "host-no-chat-connection";
+  }
   return nextTurnStatesRefusal(cause) && viewerIsHost === true && lacksChatConnection(connections) ? "no-chat-connection" : cause;
 }
 

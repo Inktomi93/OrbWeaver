@@ -2723,6 +2723,7 @@ test("the ≤64rem detail-panel toggle opens the pane on the FIRST click — a c
 
 test("the scrim dismiss closes a narrow-auto-overlayed panel the same way the topbar toggle does", async ({ mount, page }) => {
   await page.setViewportSize(NARROW_DESKTOP);
+  await routeTrpc(page, SHELL_AMBIENT_ROUTES);
   const shell = await mount(<AppShellStory />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
 
@@ -2731,6 +2732,7 @@ test("the scrim dismiss closes a narrow-auto-overlayed panel the same way the to
 
   await page.locator(".shell-scrim").click();
   await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(shell.getByRole("button", { name: "Show list panel", exact: true })).toBeFocused();
 });
 
 // The scrim is transparent and hidden once the sheet closes, so a click on it must not leave focus there.

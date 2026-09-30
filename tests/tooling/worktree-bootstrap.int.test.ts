@@ -51,16 +51,18 @@ if (args[0] === "rev-parse" && args[1] === "--show-toplevel") {
   expect(repairedBootstrap.stderr).toBe("");
   expect(await readlink(join(laneRoot, ".env"))).toBe(join(mainRoot, ".env"));
   expect(repairedBootstrap.stdout).toContain(`linked .env → ${mainRoot}/.env`);
-  expect(repairedBootstrap.stdout).toContain("worktree-bootstrap: done — deps + hooks ready");
+  expect(repairedBootstrap.stdout).toContain("worktree-bootstrap: done — deps + showcase bundles ready");
 });
 
-test("an install failure stops bootstrap before provisioning local configuration", async ({ fakeBin, repoRoot, scratch }) => {
-  await fakeBin("git", `process.stdout.write(${JSON.stringify(`${scratch}\n`)});`);
-  await fakeBin("pnpm", "process.exitCode = 7;");
-  const result = spawnSync("bash", [join(repoRoot, "scripts/worktree-bootstrap.sh")], { cwd: scratch, encoding: "utf8" });
-  expect(result.status).toBe(7);
-  expect(result.stdout).not.toContain("done");
-});
+for (const step of ["install", "build"]) {
+  test(`a ${step} failure stops bootstrap before provisioning local configuration`, async ({ fakeBin, repoRoot, scratch }) => {
+    await fakeBin("git", `process.stdout.write(${JSON.stringify(`${scratch}\n`)});`);
+    await fakeBin("pnpm", `process.exitCode = process.argv.includes(${JSON.stringify(step)}) ? 7 : 0;`);
+    const result = spawnSync("bash", [join(repoRoot, "scripts/worktree-bootstrap.sh")], { cwd: scratch, encoding: "utf8" });
+    expect(result.status).toBe(7);
+    expect(result.stdout).not.toContain("done");
+  });
+}
 
 test("bootstrap links local settings and syncs a SQLite backup in an external checkout", async ({ fakeBin, repoRoot, scratch }) => {
   const mainRoot = join(scratch, "main checkout");

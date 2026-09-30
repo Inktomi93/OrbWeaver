@@ -188,13 +188,14 @@ export const ADD_CONNECTION_PATH = { trail: CONNECTIONS_TRAIL, leaf: "Add a conn
 
 /** A composer refusal reason: a server cause, or `no-chat-connection`, the host-side split of `no-connection`
  *  for a host with no connection that can serve chat, where the Model roles picker has nothing to offer. */
-export type SendRefusalKey = UnavailableCause | "no-chat-connection";
+export type SendRefusalKey = UnavailableCause | "no-chat-connection" | "host-no-chat-connection";
 
 const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   // No connection is BOUND to your Chat role (§7.2). A saved connection binds nothing on its own, so the copy
   // names the role picker, not only "add one".
   "no-connection": `No chat connection is set — choose one under ${MODEL_ROLES_PATH_TEXT} to send.`,
   "no-chat-connection": `None of your connections can chat yet — add one under ${ADD_CONNECTION_PATH.trail} to send.`,
+  "host-no-chat-connection": "The host has no chat connection set — ask them to choose one before sending.",
   // The bound endpoint row's server did not answer its reachability probe (or a wake timed out).
   "endpoint-unreachable": "Can't reach your model's server — it may be down.",
   // A `claude-sub` row on a deployment where the Claude runtime does not resolve (§5.3a).

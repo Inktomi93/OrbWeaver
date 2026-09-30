@@ -100,7 +100,8 @@ test("the composer's refusal key splits no-connection on the door's predicate, f
   expect(sendRefusalKey("no-connection", true, BASE.connections)).toBe("no-connection");
   expect(sendRefusalKey("no-connection", true, { rows: undefined, failed: false })).toBe("no-connection");
   // A member's turn runs on the host's connection, so the member's own list says nothing about the fix.
-  expect(sendRefusalKey("no-connection", false, none)).toBe("no-connection");
+  expect(sendRefusalKey("no-connection", false, none)).toBe("host-no-chat-connection");
+  expect(sendRefusalKey("no-connection", false, BASE.connections)).toBe("host-no-chat-connection");
   expect(sendRefusalKey("endpoint-unreachable", true, none)).toBe("endpoint-unreachable");
 });
 
