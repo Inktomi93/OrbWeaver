@@ -150,7 +150,16 @@ function applyContentPart(acc: Accumulator, part: LanguageModelV4StreamPart, cal
   } else if (part.type === "reasoning-start" || part.type === "reasoning-delta" || part.type === "reasoning-end") {
     applyReasoningPart(acc, part, callbacks);
   } else if (part.type === "tool-call") {
-    acc.toolCalls.push({ toolCallId: part.toolCallId, name: part.toolName, arguments: part.input });
+    // The compatible SDK keys metadata by the endpoint's provider name; the signature field stays stable.
+    const thoughtSignature = Object.values(part.providerMetadata ?? {})
+      .map((metadata) => metadata["thoughtSignature"])
+      .find((value): value is string => typeof value === "string");
+    acc.toolCalls.push({
+      toolCallId: part.toolCallId,
+      name: part.toolName,
+      arguments: part.input,
+      ...(thoughtSignature === undefined ? {} : { thoughtSignature }),
+    });
   } else if (part.type === "file") {
     const image = generatedImageOf(part);
     if (image !== null) {

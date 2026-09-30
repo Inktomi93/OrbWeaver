@@ -64,12 +64,7 @@ export type ToolChoice =
   | { readonly mode: "tool"; readonly name: string };
 
 /** One assembled model-emitted call off the stream. `arguments` is the raw JSON string, parsed once inside execute. */
-export interface ToolCallInput {
-  // PROVIDER-emitted opaque handle (OpenAI `call_…`) — provenance-faithful, never an orbweaver brand.
-  readonly toolCallId: string;
-  readonly name: string;
-  readonly arguments: string;
-}
+export type ToolCallInput = Pick<Extract<ChatContentPart, { type: "tool-call" }>, "toolCallId" | "name" | "arguments" | "thoughtSignature">;
 
 /** One tool a caller EXECUTES, offered backend-neutrally: the {@link WireTool} declaration every array wire
  *  sends, plus the zod raw shape that declaration was projected from. The in-process MCP projection needs the

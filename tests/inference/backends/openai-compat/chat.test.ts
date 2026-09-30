@@ -107,6 +107,81 @@ test("OR tool loop: leg 1's reasoning_details ride back on leg 2's assistant row
   expect(JSON.stringify(assistant["reasoning_details"])).toContain(SIGNATURE);
 });
 
+test("direct Gemini tool signatures survive the SDK stream and follow-up prompt", async () => {
+  const signature = "google-tool-signature";
+  const recorded: RecordedRequest[] = [];
+  const fetchImpl = scriptedSseFetch(
+    [
+      [
+        {
+          event: "",
+          data: {
+            id: "gemini-leg1",
+            choices: [
+              {
+                index: 0,
+                delta: {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: "call_1",
+                      type: "function",
+                      function: { name: "get_weather", arguments: '{"city":"Paris"}' },
+                      extra_content: { google: { thought_signature: signature } },
+                    },
+                  ],
+                },
+                finish_reason: null,
+              },
+            ],
+          },
+        },
+        {
+          event: "",
+          data: {
+            id: "gemini-leg1",
+            choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
+            usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+          },
+        },
+      ],
+      openAiTextStream("18C and clear."),
+    ],
+    recorded,
+  );
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "custom-openai",
+    model: "gemini-3-flash-preview",
+    capability: generationCapability(),
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    secret: fakeApiKeySecret("probe-key"),
+  });
+  const request = orRequest({ connection });
+  const first = await runOpenAiCompatChatTurn(request, turnDeps(fetchImpl));
+  const call = first.toolCalls?.[0];
+  expect(call).toMatchObject({ name: "get_weather", thoughtSignature: signature });
+  if (call === undefined) {
+    throw new Error("missing Gemini tool call");
+  }
+  await runOpenAiCompatChatTurn(
+    orRequest({
+      connection,
+      history: [
+        ...request.history,
+        { role: "assistant", content: [{ type: "tool-call", ...call }] },
+        { role: "tool", content: [{ type: "tool-result", toolCallId: call.toolCallId, content: "18C and clear." }] },
+      ],
+    }),
+    turnDeps(fetchImpl),
+  );
+  const second = recorded[1];
+  if (second === undefined) {
+    throw new Error("missing Gemini follow-up");
+  }
+  expect(assistantRowOf(second)["tool_calls"]).toEqual([expect.objectContaining({ extra_content: { google: { thought_signature: signature } } })]);
+});
+
 test("H1(b): verbosity rides extraBody on the OR route when the capability advertises it", async () => {
   const recorded: RecordedRequest[] = [];
   const fetchImpl = scriptedSseFetch([openAiTextStream("ok")], recorded);

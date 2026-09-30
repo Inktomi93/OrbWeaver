@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-09-25
+status: superseded
+updated: 2026-09-30
+superseded-by: docs/adr/0279-native-google-inference.md
 ---
 
 # Gemini limits come from curated rows, not a native Google catalog

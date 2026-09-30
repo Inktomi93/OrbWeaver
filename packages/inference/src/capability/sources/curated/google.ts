@@ -145,7 +145,7 @@ export const googleRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-25",
-      cite: "ai.google.dev/gemini-api/docs/openai 'Thinking': reasoning_effort minimal, low, medium and high map to thinking_level on Gemini 3 and thinking_budget 1,024/1,024/8,192/24,576 on Gemini 2.5; thinking_budget only through extra_body.google.thinking_config. Replay none: the layer carries a signature at tool_calls[].extra_content.google.thought_signature (github.com/vercel/ai/issues/18962), while this transport replays reasoning parts only under the anthropic and openrouter keys (backends/v4/prompt.ts). A signed-replay probe over this wire has not run",
+      cite: "ai.google.dev/gemini-api/docs/openai 'Thinking': reasoning_effort minimal, low, medium and high map to thinking_level on Gemini 3 and thinking_budget 1,024/1,024/8,192/24,576 on Gemini 2.5; thinking_budget only through extra_body.google.thinking_config. Reasoning-part replay remains none; required tool-call thought signatures are preserved separately by backends/v4/stream.ts and prompt.ts, including when reasoning carry is off.",
     },
   },
   {

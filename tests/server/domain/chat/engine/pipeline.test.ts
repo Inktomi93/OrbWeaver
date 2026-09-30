@@ -2076,7 +2076,7 @@ describe("runTurnPipeline — §8.8 reasoning CARRY across a tool chain", () => 
             economics: {
               content: "Let me check. ",
               finishReason: "tool",
-              toolCalls: [{ toolCallId: "c1", name: "tick_clock", arguments: "{}" }],
+              toolCalls: [{ toolCallId: "c1", name: "tick_clock", arguments: "{}", thoughtSignature: "TOOL-SIG-1" }],
               reasoningParts: [signedPart],
             },
           },
@@ -2119,6 +2119,14 @@ describe("runTurnPipeline — §8.8 reasoning CARRY across a tool chain", () => 
 
     const row = appendedAssistantRow(requests);
     expect(row?.content.map((part) => part.type)).toEqual(["text", "tool-call"]);
+  });
+
+  test("required tool signature rides the follow-up with thinking off and stays out of public tool records", async () => {
+    const requests: TurnRequest[] = [];
+    const result = await runTurnPipeline(carryArgs(undefined, requests));
+    expect(appendedAssistantRow(requests)?.content.find((part) => part.type === "tool-call")).toMatchObject({ thoughtSignature: "TOOL-SIG-1" });
+    expect(result.toolRecords).toHaveLength(1);
+    expect(result.toolRecords[0]).not.toHaveProperty("thoughtSignature");
   });
 
   test("the COHERENCE rule: a carry knob on a turn with reasoning OFF drops back to `off`", async () => {

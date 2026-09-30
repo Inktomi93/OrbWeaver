@@ -1053,7 +1053,7 @@ async function runRecurseLoop(input: {
     // for); the wrap is a no-op on an already-Promise and keeps the await honest without a suppression.
     const batch = await Promise.resolve(execute(calls));
     records.push(...batch);
-    history = [...history, ...toolExchangeMessages(reduced.content, batch, carriedReasoning(reduced.economics, input.carryReasoning))];
+    history = [...history, ...toolExchangeMessages(reduced.content, batch, carriedReasoning(reduced.economics, input.carryReasoning), calls)];
     depth += 1;
   }
   return {
@@ -1123,26 +1123,27 @@ function carriedReasoning(economics: TurnEconomics | null, carry: CarryReasoning
   return carry === "off" ? [] : (economics?.reasoningParts ?? []);
 }
 
-/** Materializes one depth's exchange into wire rows from the records, so a swipe-replay reassembles the
- *  identical wire history: one assistant row with that depth's prose + tool-call parts, then one tool row
- *  per record.
- *
- *  REASONING GOES FIRST, ahead of the prose AND the tool calls. Anthropic requires the `thinking` block at
- *  the head of an assistant turn (the converter emits the parts in array order), and a signed block that
- *  arrives after a `tool_use` is not the turn the model signed. */
-function toolExchangeMessages(depthText: string, batch: readonly ToolCallRecord[], reasoning: readonly ChatReasoningPart[]): TurnMessage[] {
+// Thinking precedes tool calls for signed replay. Tool signatures come from request-local calls, not public records.
+function toolExchangeMessages(
+  depthText: string,
+  batch: readonly ToolCallRecord[],
+  reasoning: readonly ChatReasoningPart[],
+  calls: readonly ToolCallInput[],
+): TurnMessage[] {
+  const signatures = new Map(calls.map((call) => [call.toolCallId, call.thoughtSignature]));
   const assistantParts: ChatContentPart[] = [
     ...reasoning,
     ...(depthText.length > 0 ? [{ type: "text", text: depthText } as const] : []),
-    ...batch.map(
-      (record) =>
-        ({
-          type: "tool-call",
-          toolCallId: record.toolCallId,
-          name: record.name,
-          arguments: record.arguments,
-        }) as const,
-    ),
+    ...batch.map((record) => {
+      const thoughtSignature = signatures.get(record.toolCallId);
+      return {
+        type: "tool-call" as const,
+        toolCallId: record.toolCallId,
+        name: record.name,
+        arguments: record.arguments,
+        ...(thoughtSignature === undefined ? {} : { thoughtSignature }),
+      };
+    }),
   ];
   const results: TurnMessage[] = batch.map((record) => ({
     role: "tool",

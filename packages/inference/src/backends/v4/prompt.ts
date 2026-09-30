@@ -12,7 +12,14 @@
 // order put them — joined into one row, or two with `splitSystem`. A capability-kept mid-history `system` row
 // is delivered as a real system message (legal V4 vocabulary), never coerced to `user`.
 
-import type { JSONObject, LanguageModelV4FilePart, LanguageModelV4Message, LanguageModelV4Prompt, SharedV4ProviderOptions } from "@ai-sdk/provider";
+import type {
+  JSONObject,
+  LanguageModelV4FilePart,
+  LanguageModelV4Message,
+  LanguageModelV4Prompt,
+  LanguageModelV4ToolCallPart,
+  SharedV4ProviderOptions,
+} from "@ai-sdk/provider";
 import type { ChatContentPart, ReasoningPartMeta } from "@orb/contracts/chat";
 import type { ChatHistoryMessage, HistoryRole } from "../../contract/chat.ts";
 import { chatHistoryText } from "../kit/history.ts";
@@ -141,6 +148,16 @@ function reasoningOptions(meta: ReasoningPartMeta | undefined): SharedV4Provider
   return Object.keys(options).length > 0 ? options : undefined;
 }
 
+function toolCallPart(part: Extract<ChatContentPart, { type: "tool-call" }>): LanguageModelV4ToolCallPart {
+  return {
+    type: "tool-call",
+    toolCallId: part.toolCallId,
+    toolName: part.name,
+    input: toolInput(part.arguments),
+    ...(part.thoughtSignature === undefined ? {} : { providerOptions: { google: { thoughtSignature: part.thoughtSignature } } }),
+  };
+}
+
 function assistantMessage(row: ChatHistoryMessage, options: SharedV4ProviderOptions | undefined): LanguageModelV4Message | null {
   const parts: Extract<LanguageModelV4Message, { role: "assistant" }>["content"] = [];
   let hasSubstance = false;
@@ -154,7 +171,7 @@ function assistantMessage(row: ChatHistoryMessage, options: SharedV4ProviderOpti
       const reasoningMeta = reasoningOptions(part.meta);
       parts.push({ type: "reasoning", text: part.text, ...(reasoningMeta !== undefined ? { providerOptions: reasoningMeta } : {}) });
     } else if (part.type === "tool-call") {
-      parts.push({ type: "tool-call", toolCallId: part.toolCallId, toolName: part.name, input: toolInput(part.arguments) });
+      parts.push(toolCallPart(part));
       hasSubstance = true;
     } else if (part.type === "image" || part.type === "video") {
       // Recorded on the plan for the re-attach hook; the converter would drop the part (§8.0).

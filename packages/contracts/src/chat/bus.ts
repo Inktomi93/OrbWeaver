@@ -61,6 +61,8 @@ export type ChatContentPart =
       readonly name: string;
       /** RAW model-emitted JSON string (parsed once, at execute). */
       readonly arguments: string;
+      /** Opaque transport provenance required by the next tool round; never a public tool record. */
+      readonly thoughtSignature?: string;
     }
   | {
       readonly type: "tool-result"; // the wire `tool` role carries — one per executed call

@@ -203,7 +203,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D253 | [The runtime data dir is one root with a fixed tree](0253-data-dir-layout.md) | active |
 | D254 | [Signup invites mint accounts through one gated batch](0254-signup-invites-mint-through-one-gated-batch.md) | superseded by [0259-signup-invites-mint-account-and-persona-in-one-gated-batch.md](0259-signup-invites-mint-account-and-persona-in-one-gated-batch.md) |
 | D255 | [Network and auth modes: refuse only an off-box owner surface, warn on the rest](0255-network-and-auth-modes.md) | active |
-| D256 | [Gemini limits come from curated rows, not a native Google catalog](0256-google-limits-stay-curated.md) | active |
+| D256 | [Gemini limits come from curated rows, not a native Google catalog](0256-google-limits-stay-curated.md) | superseded by [0279-native-google-inference.md](0279-native-google-inference.md) |
 | D257 | [Handles compare on one Unicode key](0257-handles-compare-on-one-unicode-key.md) | active |
 | D258 | [The owner is claimed with proof, never by a handle match alone](0258-owner-claim-needs-proof.md) | active |
 | D259 | [Signup invites mint the account and the joiner's persona through one gated batch](0259-signup-invites-mint-account-and-persona-in-one-gated-batch.md) | active |
@@ -226,3 +226,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D276 | [Every plugin install door lands through the one bundle funnel](0276-plugin-install-doors-share-one-funnel.md) | active |
 | D277 | [Rooms attribute each reply and picture honestly without exposing another user's connection](0277-room-connection-attribution-and-pictures.md) | active |
 | D278 | [The people block renders every present human in the persona marker](0278-people-block-in-the-persona-marker.md) | active |
+| D279 | [Native Google inference uses the shared runtime](0279-native-google-inference.md) | active |
