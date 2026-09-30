@@ -1,9 +1,11 @@
-// Whole-repository ESLint execution is partitioned by native compiler owner so TypeScript programs die
-// between processes. Discovery asks ESLint itself which files `.` means; actual shards use the unchanged
-// production config, parser, rules, processors, formatter, cache, and diagnostics.
+// ESLint execution, whole-repository or scoped, is partitioned by native compiler owner so each process holds
+// one TypeScript program and programs die between processes. Discovery asks ESLint itself which files `.` or
+// the scoped paths mean; actual shards use the unchanged production config, parser, rules, processors,
+// formatter, cache, and diagnostics.
 //
 // CACHE PERSISTENCE (#1931). Each partition's ESLint child runs with `--cache --cache-location` pointing
-// to a PER-OWNER file under `.cache/eslint/`. Without a per-owner location, ESLint's cache `reconcile()`
+// to a PER-OWNER file under `.cache/eslint/`, with a separate scoped set so a scoped run never purges the
+// whole-tree entries. Without a per-owner location, ESLint's cache `reconcile()`
 // purges entries for files NOT in the current invocation's file list — so every sequential partition
 // REPLACES the shared `.eslintcache` with only its own files, and the next whole-tree run finds zero
 // cache hits for every group except the one that ran last. A per-owner path makes each partition's cache
@@ -16,6 +18,7 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { execNicedSync, runNicedSync } from "@orb/tooling/_shared/proc";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { isTypeWorldSource, predictedProgram } from "../../_shared/project-worlds.ts";
+import { UsageError } from "../../_shared/run-tool.ts";
 import type { CompilerProgram } from "../contract/policy-scope.ts";
 import { eslintScheme } from "../lib/exit-classifiers.ts";
 import { readCompilerProgramsFromInventory } from "../lib/policy-program-membership.ts";
@@ -26,7 +29,8 @@ refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
 
 const CONFIG_REL = "eslint.config.js";
 const DISCOVERY_ENTRY = fileURLToPath(new URL("./config-snapshot-entry.ts", import.meta.url));
-/** Flags shared by every partition child. `--cache-location` is added per-owner in {@link runEslint}. */
+/** Flags shared by every partition child. `--cache-location` is added per owner in {@link runPartitions}.
+ *  `--concurrency off`: every ESLint worker thread loads the partition's program again. */
 const CHILD_FLAGS = ["--max-warnings", "0", "--cache", "--cache-strategy", "content", "--concurrency", "off"] as const;
 /** The directory under which per-owner cache files live (inside `.cache/`, already gitignored). */
 const ESLINT_CACHE_DIR = ".cache/eslint";
@@ -117,9 +121,9 @@ export const DISCOVERY_MAX_BUFFER_BYTES = DISCOVERY_BUFFER_MIB * KIB_PER_MIB * B
  *  ceiling it was given, and the remedy, so the next occurrence is self-describing at the point of failure.
  *  `maxBuffer` is a parameter so a control can drive the refusal with a deliberately tiny ceiling; a fuse
  *  nobody has ever seen blow is a fuse nobody knows is wired. */
-export function readDiscoveredPopulation(root: string, maxBuffer: number = DISCOVERY_MAX_BUFFER_BYTES): readonly string[] {
+export function readDiscoveredPopulation(root: string, maxBuffer: number = DISCOVERY_MAX_BUFFER_BYTES, patterns: readonly string[] = []): readonly string[] {
   try {
-    return parsedDiscovery(execNicedSync("pnpm", ["exec", "node", DISCOVERY_ENTRY, "eslint-discovery"], { cwd: root, maxBuffer }));
+    return parsedDiscovery(execNicedSync("pnpm", ["exec", "node", DISCOVERY_ENTRY, "eslint-discovery", ...patterns], { cwd: root, maxBuffer }));
   } catch (error) {
     if (!isBufferOverflow(error)) {
       throw error;
@@ -143,18 +147,44 @@ function isBufferOverflow(error: unknown): boolean {
   return code === "ENOBUFS" || (typeof message === "string" && message.includes("ENOBUFS"));
 }
 
-export async function runEslint(root: string): Promise<number> {
-  const discovered = readDiscoveredPopulation(root);
+/** The population ESLint itself enumerates for `patterns` (`.` when none), cross-checked against native
+ *  ConfigArray admission. */
+async function admittedPopulation(root: string, patterns: readonly string[]): Promise<readonly string[]> {
+  const discovered = readDiscoveredPopulation(root, DISCOVERY_MAX_BUFFER_BYTES, patterns);
   const admitted = await eslintConfiguredPaths(root, CONFIG_REL, discovered);
   if (admitted.length !== discovered.length || admitted.some((path, index) => path !== discovered[index])) {
     throw new Error("ESLint discovery and native ConfigArray admission resolved different filename populations");
   }
+  return admitted;
+}
 
-  const inventory = readPolicyRepositoryInventory(root);
-  const programs = readCompilerProgramsFromInventory(inventory);
-  const groups = partitionEslintFiles(admitted, programs);
+export async function runEslint(root: string): Promise<number> {
+  return runPartitions(root, await admittedPopulation(root, []), "");
+}
 
-  // Ensure the per-owner cache directory exists before the first partition runs.
+export const ESLINT_SCOPED_USAGE =
+  "usage: node tooling/src/verify/cli.ts eslint-scoped <paths…>\n  Lints the named files or directories in sequential native compiler-owner processes, one TypeScript program per process. A path ESLint ignores is skipped.";
+
+/** The scoped stage: the whole-tree discovery, admission and owner partition, over `paths`. */
+export async function runScopedEslint(root: string, paths: readonly string[]): Promise<number> {
+  const flag = paths.find((path) => path.startsWith("-"));
+  if (flag !== undefined) {
+    throw new UsageError(`eslint-scoped takes paths only — got ${JSON.stringify(flag)}\n${ESLINT_SCOPED_USAGE}`);
+  }
+  if (paths.length === 0) {
+    throw new UsageError(`eslint-scoped needs at least one path\n${ESLINT_SCOPED_USAGE}`);
+  }
+  const admitted = await admittedPopulation(root, paths);
+  if (admitted.length === 0) {
+    process.stderr.write("[eslint] eslint.config.js ignores every scoped path; nothing to lint\n");
+    return EXIT.clean;
+  }
+  return runPartitions(root, admitted, "scoped-");
+}
+
+/** One sequential ESLint child per compiler owner. The worst verdict wins; a tool error stops the run. */
+function runPartitions(root: string, admitted: readonly string[], cachePrefix: string): number {
+  const groups = partitionEslintFiles(admitted, readCompilerProgramsFromInventory(readPolicyRepositoryInventory(root)));
   const cacheDir = join(root, ESLINT_CACHE_DIR);
   mkdirSync(cacheDir, { recursive: true });
 
@@ -162,7 +192,7 @@ export async function runEslint(root: string): Promise<number> {
   for (const [owner, paths] of [...groups].toSorted(([left], [right]) => left.localeCompare(right))) {
     process.stderr.write(`[eslint] ${owner}: ${String(paths.length)} file(s)\n`);
     // Each partition gets its own cache file so ESLint's reconcile() does not purge sibling entries (#1931).
-    const ownerCacheFile = join(cacheDir, `${owner.replaceAll("/", "__")}.eslintcache`);
+    const ownerCacheFile = join(cacheDir, `${cachePrefix}${owner.replaceAll("/", "__")}.eslintcache`);
     const result = runNicedSync("pnpm", ["exec", "node", "scripts/eslint.ts", ...CHILD_FLAGS, "--cache-location", ownerCacheFile, ...paths], {
       cwd: root,
       stdio: "inherit",
