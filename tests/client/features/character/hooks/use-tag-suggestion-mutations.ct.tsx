@@ -10,13 +10,13 @@
 // code is scripted at the NETWORK (routeTrpc's `reason`), exactly as the tRPC error formatter emits it.
 
 import { CARD_NOT_DISTILLABLE_REASON } from "@orb/contracts/discovery";
-import type { CharacterHandle } from "@orb/kit/ids";
+import type { CharacterHandle, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { chatListResponder } from "../../chat/fixtures.ts";
-import { CharacterEditorSuggestToastStory } from "../_ct-stories.tsx";
+import { CharacterEditorSuggestToastStory, CharacterSuggestWarmLabelsStory } from "../_ct-stories.tsx";
 import { CHARACTER_EDITOR_AMBIENT_ROUTES, makeCharacterDetail } from "../fixtures.ts";
 
 // A NAME-ONLY card — the state under test, modelled honestly (no description, no opening line).
@@ -70,4 +70,43 @@ test("a transient summarizer failure keeps the RETRY copy (the reason branch is 
   const toast = page.locator(TOAST);
   await expect(toast).toHaveCount(1);
   await expect(toast).toContainText("Couldn't generate tag suggestions — try again.");
+});
+
+test("staging suggestions refreshes the warm Labels queue and census on return", async ({ mount, page }) => {
+  let staged = false;
+  const tag = {
+    id: castId<TagId>("tag_warm"),
+    name: "Warm label",
+    color: null,
+    color2: null,
+    folderType: "NONE" as const,
+    source: "auto" as const,
+    sortOrder: 0,
+    isHiddenOnCard: false,
+  };
+  const recorder = await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+    "character.get": () => CARD,
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagsWithUsage": () => [
+      { ...tag, usage: { characters: 0, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 0 }, pendingSuggestions: staged ? 1 : 0 },
+    ],
+    "tag.listPendingSuggestions": () => (staged ? [{ ...tag, characterId: CARD.id, characterName: CARD.name }] : []),
+    "discovery.suggestCharacterTags": () => {
+      staged = true;
+      return { distilled: 1, failed: 0 };
+    },
+  });
+  const component = await mount(<CharacterSuggestWarmLabelsStory />);
+  await expect(component.getByText("No suggested labels awaiting review.")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Prune 1 unused" })).toBeVisible();
+  await component.getByRole("button", { name: "Visit character" }).click();
+  await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue("Bare");
+  await component.getByRole("button", { name: "Suggest tags" }).click();
+  await expect.poll(() => recorder.count("discovery.suggestCharacterTags")).toBe(1);
+  await expect(component.getByRole("button", { name: "Suggest tags" })).toBeEnabled();
+  await component.getByRole("button", { name: "Return to Labels" }).click();
+  await expect(component.getByRole("group", { name: "Suggested Warm label for Bare" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Prune 1 unused" })).toHaveCount(0);
+  await expect.poll(() => recorder.count("tag.listTagsWithUsage")).toBe(2);
 });

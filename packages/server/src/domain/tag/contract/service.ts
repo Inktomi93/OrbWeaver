@@ -3,7 +3,7 @@
 // chat-tag junction additionally routes through the injected `requireParticipant` since chats have no owner.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { TagFilterVocabularyEntry, TagSuggestionView, TagView, TagWithUsage } from "@orb/contracts/tag";
+import type { TagAttachedEntity, TagFilterVocabularyEntry, TagReachView, TagSuggestionView, TagTargetRef, TagView, TagWithUsage } from "@orb/contracts/tag";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ChatId, TagId } from "@orb/kit/ids";
@@ -16,6 +16,7 @@ import type {
   CreateTagParams,
   DetachCardTagByNameParams,
   DetachTagParams,
+  ListAttachedEntitiesParams,
   ListPendingSuggestionsParams,
   ListTagFilterVocabularyParams,
   ListTagsParams,
@@ -36,6 +37,7 @@ export type RequireParticipant = (principal: Principal, chatId: ChatId) => Promi
  *  and `audit` takes no `at` param, keeping the verbs clockless. */
 export interface TagContext {
   readonly db: Db;
+  readonly readAttachedEntity: (caller: Principal, target: TagTargetRef) => Promise<TagAttachedEntity>;
   readonly newTagId: () => TagId;
   readonly requireParticipant: RequireParticipant;
   readonly audit: (entry: AuditEntry) => Promise<void>;
@@ -46,6 +48,7 @@ export interface TagContext {
 /** The tag taxonomy surface. Every verb is owner-scoped on `params.principal.userId`; the junction trio
  *  additionally gates the target (target-derived ownership, or injected membership for chat). */
 export interface TagService {
+  readonly listAttachedEntities: (params: ListAttachedEntitiesParams) => Promise<TagReachView>;
   readonly createTag: (params: CreateTagParams) => Promise<TagView>;
   readonly listTags: (params: ListTagsParams) => Promise<TagView[]>;
   readonly updateTag: (params: UpdateTagParams) => Promise<TagView>;

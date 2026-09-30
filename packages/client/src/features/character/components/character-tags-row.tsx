@@ -14,7 +14,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
-import { TagPickerDialog } from "#components";
+import { EditableTagChip, TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import { removeActionName } from "#lib";
@@ -79,7 +79,7 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
       ) : (
         visible.map((tag) => (
           <Badge key={tag.id} size="sm">
-            {tag.name}
+            <EditableTagChip tag={tag} />
             <Button
               type="button"
               size="icon"

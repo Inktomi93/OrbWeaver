@@ -302,6 +302,7 @@ export { MODAL_SLOT_IDS } from "./modal-slot-ids.ts";
 export { publishNoticeBand, useNoticeBand } from "./notice-band-store.ts";
 export type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.ts";
 export { PANEL_MODES, resolvePanelMode } from "./panel-resolve.ts";
+export { openPersonaEditor, selectPersonaEditor, usePersonaEditorId } from "./persona-editor-selection-store.ts";
 export type { PluginCommandArgsSubject } from "./plugin-command-args-store.ts";
 export {
   __readPluginCommandArgsSubjectForTest,

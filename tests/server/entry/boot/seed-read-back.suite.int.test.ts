@@ -229,8 +229,8 @@ const tagFields = {
 } satisfies { readonly [K in keyof TagOut]-?: Plan };
 
 const tagPlan = view<TagOut>(tagFields);
-const tagWithUsagePlan = view<TagWithUsageOut>({ ...tagFields, usage: TYPED_ONLY });
-const tagSuggestionPlan = view<TagSuggestionOut>({ ...tagFields, characterId: TYPED_ONLY });
+const tagWithUsagePlan = view<TagWithUsageOut>({ ...tagFields, usage: TYPED_ONLY, pendingSuggestions: TYPED_ONLY });
+const tagSuggestionPlan = view<TagSuggestionOut>({ ...tagFields, characterId: TYPED_ONLY, characterName: TYPED_ONLY });
 
 const characterProvenanceSchema = z.enum(CHARACTER_PROVENANCES);
 

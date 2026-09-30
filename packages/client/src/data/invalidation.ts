@@ -205,6 +205,7 @@ type UserBusFilterMap = {
   readonly [K in UserBusEvent["type"]]: (event: Extract<UserBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateFilter[];
 };
 
+// Target changes refresh Labels attachment counts, destination names and staged character names.
 const USER_BUS_FILTERS: UserBusFilterMap = {
   // `chat.getMemberCard` is a CHAT-scoped projection of a character card (host-owned, clamped by the room's
   // memberCardVisibility) — a card edit is announced HERE, not on the chat bus, so without this row the member-
@@ -212,8 +213,13 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // dialog is closed (the read is `enabled: open`, so there is no cache entry to refetch).
   // + the regex attached-by rosters: a character RENAME must repaint its name in listScriptUsage
   // (REGROSTER's flagged gap — attach/detach ride regexChanged; renames ride only this event).
-  charactersChanged: (_e, trpc) => [trpc.character.pathFilter(), trpc.chat.getMemberCard.pathFilter(), trpc.regex.listScriptUsage.pathFilter()],
-  personasChanged: (_e, trpc) => [trpc.persona.pathFilter()],
+  charactersChanged: (_e, trpc) => [
+    trpc.character.pathFilter(),
+    trpc.chat.getMemberCard.pathFilter(),
+    trpc.regex.listScriptUsage.pathFilter(),
+    trpc.tag.pathFilter(),
+  ],
+  personasChanged: (_e, trpc) => [trpc.persona.pathFilter(), trpc.tag.pathFilter()],
   // A preset edit changes the effective params (maxOutput/maxContext) the fit reserves against, so the
   // transcript divider's budget must refetch too (the boundary tracks knob changes live) — and the
   // preset OWNS the prompt's section order/content, so the prompt preview is stale on the same edit.
@@ -225,6 +231,7 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // column TRUE rather than a snapshot (redesign §4.4).
   presetsChanged: (_e, trpc) => [
     trpc.preset.pathFilter(),
+    trpc.tag.pathFilter(),
     trpc.chat.previewContextFit.pathFilter(),
     trpc.chat.getUserMacroPicks.pathFilter(),
     trpc.chat.getVariablePicks.pathFilter(),
@@ -232,11 +239,11 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
     // The regex attached-by roster names a preset by display name — a rename repaints here.
     trpc.regex.listScriptUsage.pathFilter(),
   ],
-  worldInfoChanged: (_e, trpc) => [trpc.worldInfo.pathFilter()],
+  worldInfoChanged: (_e, trpc) => [trpc.worldInfo.pathFilter(), trpc.tag.pathFilter()],
   // The library plane. The Regex section's body is a CHAT read, so `trpc.regex.pathFilter()` alone left the
   // HOST's own section stale after every one of the host's own writes (#1733's room plane covers the others).
   regexChanged: (_e, trpc) => [trpc.regex.pathFilter(), trpc.chat.listEffectiveRegex.pathFilter()],
-  tagsChanged: (_e, trpc) => [trpc.tag.pathFilter()],
+  tagsChanged: (_e, trpc) => [trpc.tag.pathFilter(), trpc.character.pathFilter(), trpc.chat.getMemberCard.pathFilter()],
   // Themes live under the settings router but are a distinct read surface.
   themesChanged: (_e, trpc) => [trpc.settings.listThemes.pathFilter(), trpc.settings.getTheme.pathFilter()],
   // User settings only — not the app/global settings. Routing/roleDefaults changes re-resolve the chat
@@ -289,7 +296,13 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   chatsChanged: (e, trpc) =>
     e.chatId === undefined
       ? [trpc.chat.listChats.pathFilter(), trpc.character.list.pathFilter(), trpc.stats.pathFilter()]
-      : [trpc.chat.listChats.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId }), trpc.character.list.pathFilter(), trpc.stats.pathFilter()],
+      : [
+          trpc.chat.listChats.pathFilter(),
+          trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
+          trpc.character.list.pathFilter(),
+          trpc.stats.pathFilter(),
+          trpc.tag.pathFilter(),
+        ],
   // The saved-roster library (#26 — D61 B6): ONE coarse row for the whole router root (the picker's list +
   // any future detail read). An APPLY never rides here — it mutates the CHAT, whose freshness is the chat
   // bus's `chatUpdated`; this member fires only on library CRUD (create/update/remove).

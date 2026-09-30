@@ -632,6 +632,24 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const tagCtx: TagContext = {
     db,
     newTagId: minter(ID_PREFIX.tag),
+    readAttachedEntity: async (caller, target) => {
+      // biome-ignore-start lint/suspicious/noUnnecessaryConditions: Biome loses imported branded target unions; the compiler checks this exhaustive dispatch.
+      switch (target.targetType) {
+        case "character":
+          return { ...target, name: (await character.get({ principal: caller, characterId: target.targetId })).name };
+        case "chat":
+          return { ...target, name: (await chat.getChat({ principal: caller, chatId: target.targetId })).title ?? "Untitled chat" };
+        case "worldBook":
+          return { ...target, name: (await worldInfo.getBook({ principal: caller, bookId: target.targetId })).name };
+        case "persona":
+          return { ...target, name: (await persona.get({ principal: caller, personaId: target.targetId })).name };
+        case "preset":
+          return { ...target, name: (await preset.get({ userId: caller.userId, id: target.targetId })).name };
+        default:
+          return target satisfies never;
+      }
+      // biome-ignore-end lint/suspicious/noUnnecessaryConditions: Imported target-union dispatch ends here.
+    },
     requireParticipant: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
     // Tag is clockless (rows born-stamp via SQL default), so the audit timestamp is pre-bound here.
     audit: (entry): Promise<void> => audit(entry, now()),

@@ -748,6 +748,7 @@ const CENSUS_TAGS = [
   sortOrder: null,
   isHiddenOnCard: false,
   usage: { characters, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: characters },
+  pendingSuggestions: 0,
 })) satisfies TrpcWireOutput<"tag.listTagsWithUsage">;
 
 /**
@@ -784,6 +785,8 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
   | "discovery.topKeywords"
   | "workloads.list"
   | "tag.listTagsWithUsage"
+  | "tag.listPendingSuggestions"
+  | "tag.listAttachedEntities"
 > = {
   ...HOME_AMBIENT_ROUTES,
   "chat.listChats": chatListResponder(CENSUS_CHATS),
@@ -849,6 +852,8 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
   "workloads.list": [],
   // Corpus Labels (D271): the tag library the Labels finder, band and landing all read.
   "tag.listTagsWithUsage": CENSUS_TAGS,
+  "tag.listPendingSuggestions": [],
+  "tag.listAttachedEntities": { entities: [], hasMore: false },
 };
 
 interface CensusCase {
@@ -1082,7 +1087,7 @@ test.describe("the Corpus workbench on a phone", () => {
     await expect(main.getByText("No insights yet")).toBeVisible();
 
     await expect(component.getByRole("button", { name: "Back to Corpus" })).toHaveCount(0);
-    await component.getByRole("button", { name: "Show Corpus list" }).tap();
+    await component.locator(".shell-topbar").getByRole("button", { name: "Characters", exact: true }).tap();
     await expect(list).toHaveAttribute("data-panel-mode", "overlay");
     await list.getByRole("button", { name: "Bolt", exact: true }).tap();
 
@@ -1093,7 +1098,7 @@ test.describe("the Corpus workbench on a phone", () => {
     await expect(main.locator("button").filter({ hasText: /^Back to/u })).toHaveCount(0);
     await component.getByRole("button", { name: "Back to Corpus" }).tap();
     await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
-    await expect(component.getByRole("button", { name: "Show Corpus list" })).toBeVisible();
+    await expect(component.locator(".shell-topbar").getByRole("button", { name: "Characters", exact: true })).toBeVisible();
   });
 
   // A mode whose census is empty still names itself on the phone, never the bare section.

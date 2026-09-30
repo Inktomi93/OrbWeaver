@@ -7,11 +7,11 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { CORPUS_MODE_LABELS, useFocusOnMount, useFocusOnSwap } from "#lib";
+import { CORPUS_MODE_LABELS, LABELS_BLURB, LABELS_EMPTY, useFocusOnMount, useFocusOnSwap } from "#lib";
+import { LabelsSuggestions } from "../components/labels-suggestions.tsx";
 import type { TagLibraryFact } from "../hooks/use-tag-library.ts";
 import { useTagLibrarySummary } from "../hooks/use-tag-library.ts";
 import { LABELS_LIBRARY_SLOT } from "../lib/labels-focus-targets.ts";
-import { LABELS_BLURB, LABELS_EMPTY } from "../lib/tags-model.ts";
 
 /** `returning` marks an in-place swap back from the editor: the control that closed it (Back, merge, delete)
  *  just left the tree, so focus lands here unconditionally. A first arrival keeps the guarded mount focus. */
@@ -29,6 +29,7 @@ export function LabelsLibrarySurface({ returning = false }: { readonly returning
         </Text>
       </Stack>
       <LibraryBody summary={summary} />
+      <LabelsSuggestions />
     </Stack>
   );
 }

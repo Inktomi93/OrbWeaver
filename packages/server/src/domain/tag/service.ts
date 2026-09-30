@@ -10,6 +10,7 @@ import { createAttachChatTagByName } from "./verbs/attach-chat-tag-by-name.ts";
 import { createCreate } from "./verbs/create.ts";
 import { createDetachCardTagByName } from "./verbs/detach-card-tag-by-name.ts";
 import { createList } from "./verbs/list.ts";
+import { createListAttachedEntities } from "./verbs/list-attached-entities.ts";
 import { createListFilterVocabulary } from "./verbs/list-filter-vocabulary.ts";
 import { createListPendingSuggestions } from "./verbs/list-pending-suggestions.ts";
 import { createListWithUsage } from "./verbs/list-with-usage.ts";
@@ -22,6 +23,7 @@ import { createUpdate } from "./verbs/update.ts";
 export function createTagService(ctx: TagContext): TagService {
   const attach = createAttach(ctx);
   return {
+    listAttachedEntities: createListAttachedEntities(ctx),
     createTag: createCreate(ctx),
     listTags: createList(ctx),
     updateTag: createUpdate(ctx),

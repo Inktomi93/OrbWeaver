@@ -15,6 +15,7 @@ import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { EditableTagChip } from "#components";
 import type { TagFilterEntry, TagFilterState } from "#lib";
 import { cn, tagFilterStateOf } from "#lib";
 import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
@@ -25,6 +26,7 @@ import { vocabularyPanelTags } from "../lib/character-library-lens.ts";
 /** THE tag chip's own spelling — the state attribute each chip carries, which is also what the CTs address
  *  them by. One const, so the roving group and the markup can never name two different things. */
 const TAG_CHIP_SELECTOR = "[data-tag-filter-state]";
+const EDIT_LABEL_KEY = "F2";
 
 /** How many panel chips one animation frame mounts. The expansion's whole cost used to land in the click's
  *  own task (648ms blocking, `dispatchDiscreteEvent`); mounting in chunks keeps the FIRST paint to this many
@@ -173,6 +175,7 @@ export function TagVocabularyPanel({
         </Row>
       </ScrollArea>
       {/* A search that finds nothing must SAY so — an empty scroller is indistinguishable from a broken one. */}
+      <Text voice="gloss">{`Right-click, hold, or press ${EDIT_LABEL_KEY} to edit a label.`}</Text>
       {matches.length === 0 ? <Text voice="gloss">{`No tag matches "${query}".`}</Text> : null}
     </>
   );
@@ -217,30 +220,46 @@ export function TagFilterChip({
 }): ReactElement {
   const presentation = TAG_CHIP_PRESENTATION[state];
   return (
-    <Button
-      aria-label={`Filter by ${tag.name}: ${presentation.announced} — ${presentation.next}`}
-      // `?? ""` because `cn`'s type admits `undefined` (clsx's) while `ButtonProps.className` does not under
-      // `exactOptionalPropertyTypes` — the same idiom message-row-variants.ts homes as its `cx`.
-      className={cn("min-w-0 max-w-full", presentation.restingInk) ?? ""}
-      data-tag-filter-state={state}
-      intent="outline"
-      onClick={(): void => onCycle(tag.id)}
-      selection={presentation.selection}
-      shape="pill"
-      size="chip"
-      {...(tabIndex === undefined ? {} : { tabIndex })}
-      title={tag.name}
-      type="button"
-    >
-      {presentation.icon === null ? null : <Icon icon={presentation.icon} size="xs" />}
-      {/* `text-inherit` is load-bearing: `voice="label"` matches the `chip` box's own type step but would
+    <EditableTagChip
+      tag={tag}
+      trigger={(edit): ReactElement => (
+        <Button
+          aria-keyshortcuts={EDIT_LABEL_KEY}
+          onKeyDown={(event): void => {
+            if (event.key === EDIT_LABEL_KEY) {
+              event.preventDefault();
+              edit();
+            }
+          }}
+          onContextMenu={(event): void => {
+            event.preventDefault();
+            edit();
+          }}
+          aria-label={`Filter by ${tag.name}: ${presentation.announced} — ${presentation.next}`}
+          // `?? ""` because `cn`'s type admits `undefined` (clsx's) while `ButtonProps.className` does not under
+          // `exactOptionalPropertyTypes` — the same idiom message-row-variants.ts homes as its `cx`.
+          className={cn("min-w-0 max-w-full", presentation.restingInk) ?? ""}
+          data-tag-filter-state={state}
+          intent="outline"
+          onClick={(): void => onCycle(tag.id)}
+          selection={presentation.selection}
+          shape="pill"
+          size="chip"
+          {...(tabIndex === undefined ? {} : { tabIndex })}
+          title={tag.name}
+          type="button"
+        >
+          {presentation.icon === null ? null : <Icon icon={presentation.icon} size="xs" />}
+          {/* `text-inherit` is load-bearing: `voice="label"` matches the `chip` box's own type step but would
           also repaint the ink `text-foreground`, erasing the muted-vs-selected reading that tells an off
           chip from an on one at rest. The chip's intent + selection own the colour; this span owns only
           the clip. */}
-      <Text as="span" className="min-w-0 truncate text-inherit" voice="label">
-        {tag.name}
-      </Text>
-    </Button>
+          <Text as="span" className="min-w-0 truncate text-inherit" voice="label">
+            {tag.name}
+          </Text>
+        </Button>
+      )}
+    />
   );
 }
 

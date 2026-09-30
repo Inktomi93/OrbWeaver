@@ -174,6 +174,7 @@ export function clampMemberCard(input: {
     greetings: atSheet ? card.greetings.map((g) => g.text) : null,
     exampleMessages: atSheet ? card.exampleMessages : null,
     tags: atSheet ? tags : null,
+    editableTags: null,
     creatorNotes: atSheet ? card.creatorNotes : null,
     lore: atLore ? lore : null,
     systemPrompt: atFull ? card.systemPrompt : null,

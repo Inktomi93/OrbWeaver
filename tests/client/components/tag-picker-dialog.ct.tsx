@@ -34,6 +34,7 @@ const tag = (id: string, name: string, total: number): TagWithUsageFixture => ({
   folderType: "NONE",
   sortOrder: 0,
   isHiddenOnCard: false,
+  pendingSuggestions: 0,
   usage: { characters: total, chats: 0, worldBooks: 0, personas: 0, presets: 0, total },
 });
 

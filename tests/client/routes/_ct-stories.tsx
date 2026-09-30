@@ -5,6 +5,7 @@
 // mirroring main.tsx's door). AppRoot mounts the shell + active-chat + the four regions.
 
 import { AppErrorBoundary } from "@orb/client/lib";
+import { useActiveSection, useCorpusMode } from "@orb/client/state";
 import { useQueryClient } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import type { ReactElement } from "react";
@@ -63,5 +64,16 @@ export function HomePageStory(): ReactElement {
         <AppRoot />
       </CtRealSectionRegistry>
     </CtDataProviders>
+  );
+}
+
+export function ProductionRouterAliasStory(): ReactElement {
+  const section = useActiveSection();
+  const mode = useCorpusMode();
+  return (
+    <>
+      <output aria-label="Workspace destination">{`${section}:${mode}`}</output>
+      <ProductionRouterStory />
+    </>
   );
 }

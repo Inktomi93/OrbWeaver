@@ -31,6 +31,7 @@ import type { ChatRpgPointer, RpgActorRef, RpgGameTemplate } from "@orb/contract
 import type { BlockKey, MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
 import type { MemorySummarizerConfig } from "@orb/contracts/settings";
 import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stats";
+import type { TagView } from "@orb/contracts/tag";
 import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -243,11 +244,9 @@ type CountHandoffRegexScriptsOp = (args: { readonly fromOwnerId: UserId; readonl
  *  UNEXECUTED statements scoped to this chat; empty for an empty pair list. */
 type RestampHandoffDigestsOp = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffCardCopy[] }) => Promise<readonly BatchStmt[]>;
 
-/** A character's ACCEPTED canonical tag NAMES under the host's ownership — the `sheet`-tier slice of the D22
- *  member card (`clampMemberCard` clamps it). Names only (the member card shows chips, not the full `TagView`),
- *  resolved through the character domain so chat stays character-table-blind (the {@link GetCardOp} precedent).
- *  Empty ⇒ no accepted tags / a gone card. */
-type ResolveCharacterTagsOp = (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<string[]>;
+/** Accepted tag identities resolved under the card owner's authority. The member-card read exposes
+ * identities only to that owner and clamps guests to names. */
+type ResolveCharacterTagsOp = (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<readonly Pick<TagView, "id" | "name">[]>;
 
 /** The per-seat card-derived decoration a roster projection needs, resolved from ONE character read (the
  *  render policy, the raw theme + background overrides, and the card name/avatar) — collapses what used to

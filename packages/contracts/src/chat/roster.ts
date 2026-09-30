@@ -11,6 +11,7 @@ import { z } from "zod";
 import type { AuthMode, ParticipantRole } from "#identity";
 import { PARTICIPANT_ROLES } from "#identity";
 import { joinerPersonaSchema } from "#persona";
+import type { TagView } from "#tag";
 import type { CardEmbeddableTheme, ThemeBackground, ThemeOverride } from "#theme";
 import { cardEmbeddableSubset, themeBackgroundSchema, themeOverrideSchema } from "#theme";
 import type { MemberCardVisibility } from "./metadata.ts";
@@ -482,6 +483,8 @@ export interface MemberCardView {
   greetings: string[] | null;
   exampleMessages: string | null;
   tags: string[] | null;
+  /** Only the card owner receives identities for editable manual labels; guests retain clamped names. */
+  editableTags: readonly Pick<TagView, "id" | "name">[] | null;
   creatorNotes: string | null;
   // ── sheet+lore (>= `sheet+lore`) ─────────────────────────────────────────
   /** The character's world-info entry contents (rendered), or null below `sheet+lore`. */

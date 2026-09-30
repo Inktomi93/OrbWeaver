@@ -115,3 +115,8 @@ export interface DetachCardTagByNameParams {
   readonly characterId: CharacterId;
   readonly tagName: string;
 }
+
+export interface ListAttachedEntitiesParams extends TagActorParams {
+  readonly tagId: TagId;
+  readonly targetType: TagTargetType;
+}

@@ -488,12 +488,12 @@ type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // The character ROOT filter covers `character.get` too — which is why the sweep's terminal
   // `charactersChanged` fan repaints a stamped card's provenance as well as the library's score sort.
-  charactersChanged: ["character", "characterGet", "memberCard"],
-  personasChanged: ["persona"],
-  presetsChanged: ["preset", "presetEffective", "previewContextFit", "previewAssembly"],
-  worldInfoChanged: ["worldInfo"],
+  charactersChanged: ["character", "characterGet", "memberCard", "tag"],
+  personasChanged: ["persona", "tag"],
+  presetsChanged: ["preset", "presetEffective", "previewContextFit", "previewAssembly", "tag"],
+  worldInfoChanged: ["worldInfo", "tag"],
   regexChanged: ["regex"],
-  tagsChanged: ["tag"],
+  tagsChanged: ["tag", "character", "characterGet", "memberCard"],
   themesChanged: ["themes"], // NOT userSettings (that's its own member) — the boundary this test pins.
   // NOT themes (its own member). The chat CAPABILITY rides here: Connections persists roleDefaults through
   // `settings.updateUserSettingsSection` (busDriven), so this event is the ONLY freshness driver for the
@@ -504,7 +504,7 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // With a chatId present, both the list AND the changed chat's detail (the busDriven chat-row coverage), PLUS
   // `character.list` — the CROSS-DEVICE half of the FIX #2 denorm freshness (device B's only chat-derived
   // signal for a character's `lastChattedAt` / chat membership change).
-  chatsChanged: ["character", "chatGet", "chatList", "stats"],
+  chatsChanged: ["character", "chatGet", "chatList", "stats", "tag"],
   // The saved-party root and nothing else (#26): library CRUD only — an apply moves the CHAT (chat bus),
   // so no chat read rides this member.
   rosterPresetsChanged: ["rosterPreset"],

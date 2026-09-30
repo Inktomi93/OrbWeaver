@@ -27,6 +27,7 @@ const TAGS = [
     folderType: "NONE",
     sortOrder: 0,
     isHiddenOnCard: false,
+    pendingSuggestions: 0,
     usage: { characters: 5, chats: 1, worldBooks: 1, personas: 0, presets: 0, total: 7 },
   },
   {
@@ -38,6 +39,7 @@ const TAGS = [
     folderType: "NONE",
     sortOrder: 1,
     isHiddenOnCard: true,
+    pendingSuggestions: 0,
     usage: { characters: 0, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 0 },
   },
 ] as const satisfies TrpcWireOutput<"tag.listTagsWithUsage">;
@@ -66,6 +68,7 @@ const ZEAL = {
   folderType: "NONE",
   sortOrder: 2,
   isHiddenOnCard: false,
+  pendingSuggestions: 0,
   usage: { characters: 9, chats: 3, worldBooks: 0, personas: 0, presets: 0, total: 12 },
 } as const satisfies TrpcWireOutput<"tag.listTagsWithUsage">[number];
 

@@ -53,13 +53,11 @@ import { VirtualList } from "@orb/ui/virtual-list";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { ConfirmDialog, LibraryRow } from "#components";
+import { ConfirmDialog, LibraryRow, usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { COLLECTION_LARGE_GROUP, sortTagsBy } from "#lib";
+import { COLLECTION_LARGE_GROUP, pruneConfirmLabel, sortTagsBy, tagColorLabel, tagUsageLabel, unusedTagsLabel, usageBreakdown } from "#lib";
 import { clearLabelSelection, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
-import { usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "../hooks/use-tag-settings-mutations.ts";
 import { finderRoot, libraryOrFinder } from "../lib/labels-focus-targets.ts";
-import { pruneConfirmLabel, tagColorLabel, unusedTagsLabel, usageBreakdown, usageTotalLabel } from "../lib/tags-model.ts";
 
 /** One row's height guess for the windowed arm: swatch + name, with the usage census on the SUBTITLE line
  *  beneath it (#1824). It was 36 — a ONE-LINE guess — while the row was drawing the census on the title
@@ -88,7 +86,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
   const needle = view.filter.trim().toLowerCase();
   const matched = needle === "" ? tags : tags.filter((tag) => tag.name.toLowerCase().includes(needle));
   const filtered = sortTagsBy(matched, sortMode);
-  const unusedCount = tags.filter((tag) => tag.usage.total === 0).length;
+  const unusedCount = tags.filter((tag) => tag.usage.total === 0 && tag.pendingSuggestions === 0).length;
   const hasUnused = unusedCount > 0;
 
   // Delete is the row's KEBAB (config-delete #271). Clear the selection FIRST when the open tag is the one
@@ -287,7 +285,7 @@ function TagCollectionRow({
       // that earns the title line. A CENSUS is not a status: it is the thing the name is counted by, and a
       // figure parked several hundred px from the name it counts stops reading as that name's count. Both
       // slots ride the row's `aria-describedby`, so the spoken description is unchanged ("7 uses").
-      subtitle={usageTotalLabel(tag.usage.total)}
+      subtitle={tagUsageLabel(tag)}
       title={tag.name}
     />
   );

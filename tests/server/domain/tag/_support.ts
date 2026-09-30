@@ -38,6 +38,7 @@ export function makeTagHarness(db: Db): TagHarness {
   const audits: AuditEntry[] = [];
   const ctx: TagContext = {
     db,
+    readAttachedEntity: (_caller, target) => Promise.resolve({ ...target, name: target.targetId }),
     newTagId: (): TagId => castId<TagId>(ids.next("tag")),
     requireParticipant: (_principal: Principal, chatId: ChatId): Promise<void> => {
       participantChecks.push(chatId);

@@ -35,6 +35,10 @@ export const tagRouter = t.router({
       }),
     ),
 
+  listAttachedEntities: authedProcedure
+    .input(z.object({ tagId: typeIdSchema(ID_PREFIX.tag), targetType: tagTargetTypeSchema }))
+    .query(({ ctx, input }) => ctx.services.tag.listAttachedEntities({ principal: ctx.auth, ...input })),
+
   listTagsWithUsage: authedProcedure.query(({ ctx }) => ctx.services.tag.listTagsWithUsage({ principal: ctx.auth })),
 
   // The character library's filter-chip vocabulary — the same owned rows as listTagsWithUsage, projected to

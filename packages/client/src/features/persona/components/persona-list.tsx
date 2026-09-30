@@ -19,6 +19,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { notify, rowQualifiers, timeLib } from "#lib";
+import { selectPersonaEditor, usePersonaEditorId } from "#state";
 import { useSetPersonaSeed } from "../hooks/use-persona-identity.ts";
 import { useCreatePersona, useImportPersonaFile, useRemovePersona } from "../hooks/use-persona-mutations.ts";
 import { resolveCurrentPersona } from "../lib/persona-current.ts";
@@ -36,7 +37,8 @@ export function PersonaList(): ReactElement {
   const { data: personas } = useSuspenseQuery(trpc.persona.list.queryOptions());
   const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
 
-  const [expandedId, setExpandedId] = useState<PersonaId | null>(null);
+  const expandedId = usePersonaEditorId();
+  const setExpandedId = selectPersonaEditor;
   const [fromCharacterOpen, setFromCharacterOpen] = useState(false);
   const defaultId = settings.config.seeds.defaultPersonaId;
   const current = resolveCurrentPersona(personas, settings.config.seeds);
@@ -143,7 +145,7 @@ export function PersonaList(): ReactElement {
               expanded={persona.id === expandedId}
               onSetCurrent={(): void => setCurrent(persona.id)}
               onSetDefault={(): void => setSeed.mutate({ section: "seeds", patch: { defaultPersonaId: persona.id } })}
-              onToggleExpand={(): void => setExpandedId((prev) => (prev === persona.id ? null : persona.id))}
+              onToggleExpand={(): void => setExpandedId(expandedId === persona.id ? null : persona.id)}
               onDelete={(): void => onDelete(persona.id)}
             />
           ))

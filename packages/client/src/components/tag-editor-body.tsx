@@ -1,0 +1,304 @@
+// One immediate-commit tag editor, shared by Corpus Labels and chip popovers.
+import type { TagWithUsage, UpdateTagInput } from "@orb/contracts/tag";
+import type { TagId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
+import { ColorField } from "@orb/ui/color-field";
+import { Field } from "@orb/ui/field";
+import { Input } from "@orb/ui/input";
+import { Container, Row, Stack } from "@orb/ui/layout";
+import { Select } from "@orb/ui/select";
+import { Heading, Text } from "@orb/ui/text";
+import type { ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { Invalidation, Trpc } from "#data";
+import { useInvalidation, useTRPC } from "#data";
+import { useFocusOnMount } from "#lib";
+import { setLabelNameFocus, useLabelNameFocus } from "#state";
+import { FOLDER_TYPE_ITEMS, tagColorValueLabel, tagUsageLabel } from "../lib/tag-model.ts";
+import { FormDialog } from "./form-dialog.tsx";
+import type { MemberDrillBack } from "./member-drill-header.tsx";
+import { MemberDrillHeader } from "./member-drill-header.tsx";
+import { SettingSwitchRow } from "./setting-switch-row.tsx";
+import { useMergeTags, useRenameTag, useUpdateTagStyle } from "./tag-mutations.ts";
+
+/** Apply a partial patch to this tag (the immediate-commit style writer the sub-controls share). */
+type PatchStyle = (patch: UpdateTagInput) => void;
+
+export function TagEditorBody({
+  tag,
+  others,
+  back,
+  onMerged,
+}: {
+  readonly tag: TagWithUsage;
+  readonly others: readonly TagWithUsage[];
+  readonly back?: MemberDrillBack;
+  readonly onMerged: () => void;
+}): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const deps = { trpc, invalidation };
+  const rename = useRenameTag(deps);
+  const style = useUpdateTagStyle(deps);
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+  // A just-created tag opens on its Name field instead of the editor root, once.
+  const nameRef = useRef<HTMLInputElement>(null);
+  const nameFocus = useLabelNameFocus();
+  useEffect(() => {
+    if (nameFocus !== tag.id) {
+      return;
+    }
+    // Selected, so the first keystroke replaces the placeholder name instead of appending to it.
+    nameRef.current?.focus();
+    nameRef.current?.select();
+    setLabelNameFocus(null);
+  }, [nameFocus, tag.id]);
+  const [name, setName] = useState(tag.name);
+  const [savedName, setSavedName] = useState(tag.name);
+  if (savedName !== tag.name) {
+    setSavedName(tag.name);
+    setName(tag.name);
+  }
+
+  const patchStyle: PatchStyle = (patch) => style.mutate({ tagId: tag.id, patch });
+
+  const commitName = (): void => {
+    const trimmed = name.trim();
+    if (trimmed === "" || trimmed === tag.name) {
+      setName(tag.name);
+      return;
+    }
+    rename.mutate({ tagId: tag.id, patch: { name: trimmed } });
+  };
+
+  return (
+    <Container>
+      {/* `--width-content-col` — the ruled cap for an EDITOR's content column, not a reading measure
+          (#1175). This block holds controls, and the prose token's own contract forbids it here: a `ch`
+          resolves in the element's own font, so a measure inherited from a wrapper reads at the wrong scale
+          (the #213/#1130 failure) and "a block holding controls keeps the wider measure while the paragraph
+          inside it takes this one". It used to spell `max-w-prose`, a third un-derived width.
+
+          THE TOKEN'S STATED CONSUMPTION IS THREE CLASSES, NOT ONE (#1664). `--width-content-col`'s own
+          `$description` says the column is CENTERED and BREATHES to `--width-content-col-wide` once its
+          container clears `@5xl`; the first spelling took the bare cap, so this editor LEFT-PINNED 720px
+          inside the pane and left the rest dead — the exact defect the breathe step was minted for (owner,
+          2026-08-02: "looks okay when both panels are out, but when you close them it looks awful").
+          MEASURED on the real shell (snap --isolated, 2026-09-05): the config CONTENT pane this editor
+          lands in is 520px at 1280 both-docked, 869px list-only, 1176px in focus mode, and 920 / 1816px at
+          1920 — so the `@5xl` arm is REACHED (focus mode at every desktop width) and is not dead code. The
+          query container is the `<Container>` directly above, which is why the cap and the container are
+          two elements. `w-full` rides with `mx-auto` because the pane is a flex column. */}
+      <Stack
+        className="mx-auto min-w-0 w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) outline-none"
+        data-slot="tag-member-editor"
+        gap="block"
+        ref={surfaceRef}
+        tabIndex={-1}
+      >
+        {/* THE DRILL ROW (#1747, the mock design §3.4, board 03): `← Back to <library>` · the name · this tag's
+            own verbs — of which a tag has NONE (§3.4 names each collection's set and tags' is empty: Merge
+            is a field below because it needs the target picker, Delete is the row's kebab, D212). The
+            usage census rides `meta` beside the name it is about — a FACT, not a verb. */}
+        {back === undefined ? (
+          <Heading className="min-w-0 truncate" title={tag.name} level={2}>
+            {tag.name}
+          </Heading>
+        ) : (
+          <MemberDrillHeader
+            back={back}
+            meta={
+              <Text as="span" voice="datum">
+                {tagUsageLabel(tag)}
+              </Text>
+            }
+            title={tag.name}
+          />
+        )}
+
+        <Field label="Name" name="tag-name">
+          <Input
+            onBlur={commitName}
+            onKeyDown={(event): void => {
+              if (event.key === "Enter") {
+                event.currentTarget.blur();
+              }
+            }}
+            onValueChange={setName}
+            ref={nameRef}
+            value={name}
+          />
+        </Field>
+
+        <TagColorControls patchStyle={patchStyle} tag={tag} />
+        <TagBehaviorControls patchStyle={patchStyle} tag={tag} />
+
+        {/* Merge is the editor's one destructive verb (Delete converged onto the row's kebab — #271). It
+            stays here because it needs the target picker; the row cannot carry a fold-into-another affordance. */}
+        <Row gap="field">
+          <TagMergeControl invalidation={invalidation} others={others} tag={tag} trpc={trpc} onMerged={onMerged} />
+        </Row>
+      </Stack>
+    </Container>
+  );
+}
+
+/** The two colour pickers (chip background + text). An empty value maps to `null` (clear to the theme
+ *  default) — the tri-state the row-era control already spoke. */
+function TagColorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; readonly patchStyle: PatchStyle }): ReactElement {
+  // `*:w-auto` — a `<Field>` root is `w-full`, so two of them in a flex row each took HALF the pane and the
+  // two 32px swatches ended up 250px apart with nothing between them (side-eye 2026-08-03: the tell that the
+  // editor "never got its container"). Intrinsic width puts the pair beside each other, where a pair belongs.
+  //
+  // …AND EACH ONE SAYS WHAT IT HOLDS (side-eye 2026-08-06 P3). The editor never previews the chip these two
+  // values paint, so a cleared colour and a colour set to something the current theme happens to swallow
+  // looked identical: two 32px swatches and no words. The VALUE is the cheap honest readout — rather than a
+  // preview surface, which would be a second place for the chip to be drawn wrong.
+  //
+  // IT RIDES THE FIELD'S OWN DESCRIPTION CHANNEL (side-eye 2026-08-08 P2). The first pass hung it as a loose
+  // `<Text>` sibling inside the `<Field>`, which paints the words but wires NOTHING: a swatch trigger has no
+  // text of its own, so its `aria-describedby` stayed null and the one readout the surface exists to give was
+  // invisible to a screen reader — the sibling folder-type Select in this same pane was already doing it the
+  // wired way. `description` renders through `BaseField.Description`, which registers its id on the Field's
+  // labelable control, so the value IS the button's accessible description. The readout is UNKEYED here
+  // (`tagColorValueLabel`); the label 20px above carries the key, and only the list's label-less swatch
+  // tooltip still spends `tagColorLabel`'s keyed form.
+  return (
+    <Row align="start" className="*:w-auto" gap="block">
+      <Field description={<TagColorReadout value={tag.color} />} label="Background" name="tag-color">
+        <ColorField onValueChange={(value): void => patchStyle({ color: value === "" ? null : value })} value={tag.color ?? ""} />
+      </Field>
+      <Field description={<TagColorReadout value={tag.color2} />} label="Text" name="tag-color2">
+        <ColorField onValueChange={(value): void => patchStyle({ color2: value === "" ? null : value })} value={tag.color2 ?? ""} />
+      </Field>
+    </Row>
+  );
+}
+
+/** The colour slot's readout — and its VOICE follows what the words ARE (side-eye 2026-08-08 P3).
+ *
+ *  Both states rode `voice="datum"`, which is the MONO tabular value voice: right for `#3366aa` (that is a
+ *  value, and mono is what makes a column of hexes readable), wrong for "Not set — uses the theme default",
+ *  which is a SENTENCE. Prose set in tabular mono reads as machine output — the one voice that says "this
+ *  string is data" applied to the one string that is explanation. The unset arm takes `gloss`, the quiet
+ *  explanatory sans voice the rest of the editor's descriptions already speak. */
+function TagColorReadout({ value }: { readonly value: string | null }): ReactElement {
+  return (
+    <Text as="span" voice={value === null ? "gloss" : "datum"}>
+      {tagColorValueLabel(value)}
+    </Text>
+  );
+}
+
+/** The folder-type Select + the hide-on-card Switch — the tag's DISPLAY behavior, grouped as one concern. */
+function TagBehaviorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; readonly patchStyle: PatchStyle }): ReactElement {
+  return (
+    <Stack gap="block">
+      {/* C9-1d: the description says what the value DOES today, including the part that isn't built. An
+          Open folder starts expanded in the library's categorized view; a Plain tag still groups, it just
+          starts collapsed behind its name + count. Closed's hide-until-you-enter drilldown is deferred by
+          ruling (2026-08-09), so the option is named as what it currently is rather than promising
+          navigation that does not exist. */}
+      <Field
+        description="In the library's grouped view, an Open folder starts expanded and a Plain tag starts collapsed behind its name and count. Closed folders (hidden until you enter them) aren't built yet — they behave like Plain."
+        label="Folder type"
+        name="tag-folder-type"
+      >
+        {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- #579 source-verified: the label
+            lives on the wrapping `<Field label="Folder type">`, not on this `<Select>`, and Select associates
+            it at RENDER time through Base UI's FieldRootContext (`BaseField.Control` injects
+            `aria-labelledby` — packages/ui/src/primitives/select/select.tsx), never as a literal JSX prop
+            here. No `control-has-associated-label` option (labelAttributes/controlComponents/depth) sees a
+            context injection — same reason `select-field.tsx`/`switch-field.tsx` stay suppressed. */}
+        <Select
+          items={FOLDER_TYPE_ITEMS}
+          onValueChange={(value): void => {
+            if (value !== null) {
+              patchStyle({ folderType: value });
+            }
+          }}
+          value={tag.folderType}
+        />
+      </Field>
+      {/* THE ONE SWITCH ROW, FACING THE HOUSE DIRECTION (#980 F22). This was a hand-rolled
+          `<Row><Switch/><Text voice="gloss"/></Row>` — the CONTROL on the left and the sentence on the
+          right, measured 2026-09-06 at switch x=561 / label x=615: the only polarity INVERSION on the
+          surface, 40px under a `Field` whose label sits above its control, i.e. three control orientations
+          in one 720px form. `SettingSwitchRow` is the ruled row (label left, control right, `Field
+          orientation="horizontal"`) and it already had six consumers.
+          It also fixes a quieter half: the gloss was a `<Text>`, not a `<label>`, so clicking the sentence
+          did nothing while every other row in the pane is click-to-focus. Base UI's `Field` mints the
+          association from context, which is why no id is passed (see the component's own header). The
+          clause that was welded onto the label with an em dash becomes the `description` — the slot that is
+          `aria-describedby`-wired and reading-measure capped — so the label is the switch's NAME and the
+          gloss stays a gloss. The name loses the tag's own word ("Hide the {name} chip on cards" →
+          "Hide chip on cards"); the surface is that tag's editor and its drill header states the name, so
+          the row no longer repeats it. */}
+      <SettingSwitchRow
+        checked={tag.isHiddenOnCard}
+        description="It still filters."
+        label="Hide chip on cards"
+        onChange={(next): void => patchStyle({ isHiddenOnCard: next })}
+      />
+    </Stack>
+  );
+}
+
+/** "Merge into…" — folds this tag into another (mergeTags), then deletes it. */
+function TagMergeControl({
+  tag,
+  others,
+  trpc,
+  invalidation,
+  onMerged,
+}: {
+  readonly tag: TagWithUsage;
+  readonly others: readonly TagWithUsage[];
+  readonly trpc: Trpc;
+  readonly invalidation: Invalidation;
+  readonly onMerged: () => void;
+}): ReactElement {
+  const merge = useMergeTags({ trpc, invalidation });
+  const [open, setOpen] = useState(false);
+  const [target, setTarget] = useState<TagId | null>(null);
+
+  const confirmMerge = (): void => {
+    if (target === null) {
+      return;
+    }
+    merge.mutate(
+      { sourceTagId: tag.id, targetTagId: target },
+      {
+        onSuccess: (): void => {
+          setOpen(false);
+          setTarget(null);
+          onMerged();
+        },
+      },
+    );
+  };
+
+  return (
+    <>
+      <Button disabled={others.length === 0} intent="secondary" onClick={(): void => setOpen(true)} size="sm" type="button">
+        Merge into…
+      </Button>
+      <FormDialog
+        description="Every attachment moves to the tag you pick, then this tag is deleted. This can't be undone."
+        onOpenChange={setOpen}
+        open={open}
+        submit={{ label: "Merge", onSubmit: confirmMerge, disabled: target === null }}
+        title={`Merge "${tag.name}" into another tag`}
+      >
+        <Select
+          aria-label="Merge target tag"
+          items={others.map((other) => ({ label: other.name, value: other.id }))}
+          onValueChange={(value: TagId | null): void => setTarget(value)}
+          placeholder="Choose a tag…"
+          value={target}
+        />
+      </FormDialog>
+    </>
+  );
+}

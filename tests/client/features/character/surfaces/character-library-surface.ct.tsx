@@ -18,7 +18,7 @@
 import { chatWithActionName, rowActionSubject, rowActionsName, selectActionName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterHandle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { dropFiles } from "../../../../support/browser/drop-files.ts";
@@ -2132,3 +2132,38 @@ async function surfaceChromeAboveFirstRow(component: Locator): Promise<number> {
   const [paneBox, listBox] = await Promise.all([component.boundingBox(), list.boundingBox()]);
   return Math.round((listBox?.y ?? 0) - (paneBox?.y ?? 0));
 }
+
+test("a roving filter keeps one tab stop and F2 opens its shared label editor without cycling the filter", async ({ mount, page }) => {
+  const focused = makeTagFixture({ id: mintTypeId(ID_PREFIX.tag), name: "editable label" });
+  const tags = [
+    focused,
+    ...Array.from({ length: VISIBLE_CHIPS }, (_unused, index) => makeTagFixture({ id: mintTypeId(ID_PREFIX.tag), name: `other-${String(index)}` })),
+  ];
+  const recorder = await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
+    "character.list": characterListResponder([makeCharacterSummary({ name: "Tagged One", tags: [] })]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagFilterVocabulary": tags.map((tag) => ({ id: tag.id, name: tag.name, isHiddenOnCard: false, characters: 1 })),
+    "tag.listTagsWithUsage": [{ ...focused, pendingSuggestions: 0, usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 } }],
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+  await openFilters(component);
+  await component.getByRole("button", { name: moreTagsName(tags.length - VISIBLE_CHIPS) }).click();
+  const cloud = component.getByRole("toolbar", { name: "Tag filter vocabulary" });
+  await expect(cloud.locator('button:not([tabindex="-1"])')).toHaveCount(1);
+  const filter = cloud.getByRole("button", { name: /Filter by editable label: off/u });
+  await filter.focus();
+  await filter.press("F2");
+  const editor = page.getByRole("dialog", { name: "Edit label editable label", exact: true });
+  await expect(editor.getByRole("textbox", { name: "Name" })).toHaveValue("editable label");
+  await page.keyboard.press("Escape");
+  await expect(editor).toHaveCount(0);
+  await expect(filter).toBeFocused();
+  await filter.click({ button: "right" });
+  await expect(editor.getByRole("textbox", { name: "Name" })).toHaveValue("editable label");
+  await page.keyboard.press("Escape");
+  await expect(filter).toBeFocused();
+  await expect(filter).toHaveAttribute("data-tag-filter-state", "off");
+  expect(recorder.unstubbed()).toEqual([]);
+});

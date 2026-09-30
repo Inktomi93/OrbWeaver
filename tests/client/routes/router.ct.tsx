@@ -5,7 +5,7 @@
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { AuthConfig } from "../../../packages/client/src/data/auth-config.ts";
-import { ProductionRouterStory } from "./_ct-stories.tsx";
+import { ProductionRouterAliasStory, ProductionRouterStory } from "./_ct-stories.tsx";
 
 const JOIN_TOKEN = "ct-join-token";
 // Long enough that a second `/` load, if anything starts one, is still in its guard read when the redirect lands.
@@ -62,4 +62,14 @@ test("a slow auth read on a signed-out /join landing reaches the invite form, no
     .toEqual({ path: "/login", search: "", length: historyLength });
   // One guard read for `/` and one for `/login`: a scrub that the router hears as a navigation re-runs `/`.
   expect(meReads).toHaveLength(2);
+});
+
+test("the /analytics alias heals to Corpus Insights before the auth redirect", async ({ mount, page }) => {
+  await page.route("**/api/auth/me", (route) => route.fulfill({ status: 200, json: { authenticated: false, handle: null, role: null } }));
+  await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, json: INVITE_CONFIG }));
+  await page.evaluate(() => globalThis.history.replaceState(null, "", "/analytics"));
+  await mount(<ProductionRouterAliasStory />);
+  await expect(page.getByRole("status", { name: "Workspace destination" })).toHaveText("corpus:insights");
+  await expect.poll(() => page.evaluate(() => globalThis.location.pathname)).toBe("/login");
+  await expect(page.getByTestId("ct-app-crashed")).toHaveCount(0);
 });

@@ -3541,6 +3541,7 @@ describe("read — the §3.6 hidden-content member-strip", () => {
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 describe("read — getMemberCard (D22 member-card visibility)", () => {
   const cardChar = castId<CharacterId>("character_mc_card");
+  const cardTags = ["fantasy", "rogue"].map((name) => ({ id: mintTypeId(ID_PREFIX.tag), name }));
 
   /** A card whose text fields carry `{{user}}`/`{{char}}` macros — so a passing render proves the anchor +
    *  character bind (never literal braces on the wire), and the field values double as visibility sentinels. */
@@ -3578,7 +3579,8 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     const served = overrides.card ?? macroCard;
     return makeChatContext(db, {
       getCard: ({ characterId }) => Promise.resolve(characterId === cardChar ? served : null),
-      resolveCharacterTags: () => Promise.resolve(overrides.tags ?? ["fantasy", "rogue"]),
+      resolveCharacterTags: () =>
+        Promise.resolve(overrides.tags === undefined ? cardTags : overrides.tags.map((name) => ({ id: mintTypeId(ID_PREFIX.tag), name }))),
       resolveAssetHash: () => Promise.resolve(overrides.avatarHash ?? null),
     });
   }
@@ -3663,7 +3665,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     let presentHumanUserIds: readonly UserId[] = [];
     const ctx = makeChatContext(db, {
       getCard: ({ characterId }) => Promise.resolve(characterId === cardChar ? macroCard : null),
-      resolveCharacterTags: () => Promise.resolve(["fantasy", "rogue"]),
+      resolveCharacterTags: () => Promise.resolve(cardTags),
       resolveAssetHash: () => Promise.resolve(null),
       resolveUserEnabled: (userId) => Promise.resolve(userId !== member),
     });
@@ -3702,6 +3704,16 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     expect(view.lore).toEqual(["the ancient prophecy"]);
     expect(view.systemPrompt).toBeNull();
     expect(view.postHistoryInstructions).toBeNull();
+  });
+
+  test("only the card owner receives editable manual tag identities", async () => {
+    const { host, member, chatId } = await seedCardRoom("mc_editable_tags", "full");
+    const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
+    const ownerView = await getMemberCard({ principal: principal(host), chatId, characterId: cardChar });
+    const guestView = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+    expect(ownerView.editableTags).toEqual(cardTags);
+    expect(guestView).toHaveProperty("editableTags", null);
+    expect(guestView.tags).toEqual(ownerView.tags);
   });
 
   test("the HOST always sees `full` — systemPrompt/postHistory/lore all present even when the room is set to `sheet`", async () => {

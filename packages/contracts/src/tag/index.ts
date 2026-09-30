@@ -4,7 +4,7 @@
 // `ownerId` (the tagger) — `taggerId` is populated ONLY for `targetType: "chat"`. `status` (pending/
 // accepted) is a `character_tags`-only junction column, not a parallel store.
 
-import type { CharacterId, TagId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, PresetId, TagId, WorldBookId } from "@orb/kit/ids";
 import { z } from "zod";
 
 const NAME_MIN_LENGTH = 1;
@@ -12,8 +12,8 @@ const NAME_MAX_LENGTH = 200;
 
 /** The five taggable entity types — each backed by its own per-type FK junction table. */
 export const TAG_TARGET_TYPES = ["character", "chat", "worldBook", "persona", "preset"] as const;
-export const tagTargetTypeSchema = z.enum(TAG_TARGET_TYPES);
-export type TagTargetType = z.infer<typeof tagTargetTypeSchema>;
+export type TagTargetType = (typeof TAG_TARGET_TYPES)[number];
+export const tagTargetTypeSchema = z.enum(TAG_TARGET_TYPES) satisfies z.ZodType<TagTargetType>;
 
 /** Tag provenance (display-only axis). `manual` = user-typed · `auto` = corpus tag-suggest distillation ·
  *  `card` = adopted from a character card's tag field. Not semantic facets — that's `discovery`'s concern. */
@@ -85,9 +85,10 @@ export interface TagUsage {
   total: number;
 }
 
-/** A tag plus its five-junction usage rollup (the management screen's read; drives "prune unused"). */
+/** A tag with adopted usage and staged suggestions. Prune requires both counts to be zero. */
 export interface TagWithUsage extends TagView {
   usage: TagUsage;
+  pendingSuggestions: number;
 }
 
 // TagAttachmentView DELETED (#1033 viewgap decision 1): test-only wire shape — no production consumer
@@ -97,6 +98,7 @@ export interface TagWithUsage extends TagView {
  *  can render the chip with its name + colors. Accept = `attachTag(status:'accepted')`; Reject = `detachTag`. */
 export interface TagSuggestionView extends TagView {
   characterId: CharacterId;
+  characterName: string;
 }
 
 /**
@@ -128,3 +130,27 @@ export interface TagFilterVocabularyEntry {
 }
 
 // Not a schema: ids are branded at their own `typeIdSchema` seam, not re-validated here.
+
+/** The owner-authorized destinations of a label's adopted attachments. */
+export type TagTargetRef =
+  | { readonly targetType: "character"; readonly targetId: CharacterId }
+  | { readonly targetType: "chat"; readonly targetId: ChatId }
+  | { readonly targetType: "worldBook"; readonly targetId: WorldBookId }
+  | { readonly targetType: "persona"; readonly targetId: PersonaId }
+  | { readonly targetType: "preset"; readonly targetId: PresetId };
+
+interface TagTargetIds {
+  readonly character: CharacterId;
+  readonly chat: ChatId;
+  readonly worldBook: WorldBookId;
+  readonly persona: PersonaId;
+  readonly preset: PresetId;
+}
+export type TagAttachedEntity = { [K in TagTargetType]: { readonly targetType: K; readonly targetId: TagTargetIds[K]; readonly name: string } }[TagTargetType];
+
+/** Reach is a bounded preview; totals remain in the adopted usage rollup. */
+export const TAG_REACH_PREVIEW_LIMIT = 20;
+export interface TagReachView {
+  readonly entities: readonly TagAttachedEntity[];
+  readonly hasMore: boolean;
+}

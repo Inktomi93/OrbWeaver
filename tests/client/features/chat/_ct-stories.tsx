@@ -3093,10 +3093,11 @@ export function TurnWarningCadenceStory(): ReactElement {
  *  scripts three shapes: a `sheet`-clamped card (description shown, systemPrompt section absent + the
  *  hidden-tier note), a `full` card (every section), and the transport NOT_FOUND typed gone-arm. */
 export function MemberCardViewerStory(): ReactElement {
+  const [open, setOpen] = useState(true);
   return (
     <CtDataProviders>
       <div>
-        <MemberCardViewer chatId={CHAT_ID} characterId={castId<CharacterId>("character_ct_membercard")} open={true} onOpenChange={(): void => undefined} />
+        <MemberCardViewer chatId={CHAT_ID} characterId={castId<CharacterId>("character_ct_membercard")} open={open} onOpenChange={setOpen} />
       </div>
     </CtDataProviders>
   );

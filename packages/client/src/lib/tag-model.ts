@@ -2,11 +2,11 @@
 // derivations. Every label maps from the canonical @orb/contracts/tag tuples via a Record, so
 // a new member is a tsc error.
 
-import type { TagFolderType, TagUsage } from "@orb/contracts/tag";
+import type { TagFolderType, TagTargetType, TagUsage, TagWithUsage } from "@orb/contracts/tag";
 import { TAG_FOLDER_TYPES } from "@orb/contracts/tag";
 import type { SelectOption } from "@orb/ui/select";
-import type { TagSortMode } from "#lib";
-import { TAG_SORT_MODES } from "#lib";
+import type { TagSortMode } from "./tag-sort.ts";
+import { TAG_SORT_MODES } from "./tag-sort.ts";
 
 // A Map, not an object literal, so the contract's uppercase keys don't trip the camelCase naming lint.
 const FOLDER_TYPE_LABELS = new Map<TagFolderType, string>([
@@ -139,4 +139,25 @@ export function usageTotalLabel(total: number): string {
     return "unused";
   }
   return `${total} use${total === 1 ? "" : "s"}`;
+}
+
+const TARGET_USAGE_KEYS: Record<TagTargetType, Exclude<keyof TagUsage, "total">> = {
+  character: "characters",
+  chat: "chats",
+  worldBook: "worldBooks",
+  persona: "personas",
+  preset: "presets",
+};
+
+export function tagTargetTitle(targetType: TagTargetType): string {
+  return USAGE_KIND_TITLES[TARGET_USAGE_KEYS[targetType]];
+}
+
+/** Suggestions never read as adopted uses or unattached prune candidates. */
+export function tagUsageLabel(tag: Pick<TagWithUsage, "usage" | "pendingSuggestions">): string {
+  if (tag.pendingSuggestions === 0) {
+    return usageTotalLabel(tag.usage.total);
+  }
+  const suggested = `Suggested for ${String(tag.pendingSuggestions)} character${tag.pendingSuggestions === 1 ? "" : "s"}`;
+  return tag.usage.total === 0 ? suggested : `${usageTotalLabel(tag.usage.total)} · ${suggested}`;
 }

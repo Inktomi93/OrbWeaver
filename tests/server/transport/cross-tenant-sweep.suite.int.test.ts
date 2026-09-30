@@ -764,6 +764,7 @@ const PROBES: readonly Probe[] = [
     path: "tag.updateTag",
     call: (c, i) => c.tag.updateTag({ tagId: i.tagId, patch: { name: "hacked" } }),
   },
+  { path: "tag.listAttachedEntities", call: (c, i) => c.tag.listAttachedEntities({ tagId: i.tagId, targetType: "character" }) },
   { path: "tag.removeTag", call: (c, i) => c.tag.removeTag({ tagId: i.tagId }) },
   {
     path: "tag.attachTag",
