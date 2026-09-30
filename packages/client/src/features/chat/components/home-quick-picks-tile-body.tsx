@@ -17,7 +17,7 @@ import { Grid, Stack } from "@orb/ui/layout";
 import { coarsePointerNow } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import type { FocusEvent, ReactElement } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useStartChat, useTRPC } from "#data";
 import { setActiveSection } from "#state";
@@ -25,6 +25,14 @@ import { setActiveSection } from "#state";
 /** The most faces this shelf reads; it shows as many of them as fit one row beside the door. */
 export const QUICK_PICKS_LIMIT = 6;
 const TRACK_SEPARATOR = /\s+/u;
+
+/** A face that only peeks into the swipe row already counts as visible, so the browser's own focus scroll leaves it
+ *  cut off; reveal it whole. */
+function revealFocused(event: FocusEvent<HTMLDivElement>): void {
+  if (event.target instanceof HTMLElement) {
+    event.target.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+}
 
 export function HomeQuickPicksTileBody(): ReactElement {
   const trpc = useTRPC();
@@ -103,7 +111,16 @@ export function HomeQuickPicksTileBody(): ReactElement {
     // whole point of a shelf.
     //
     // `role="list"` needs `listitem` CHILDREN or the cells are generic to AT and the list announces empty.
-    <Grid cols={swipe ? "cellSwipe" : "cellFixed"} gap="row" ref={shelfRef}>
+    //
+    // The swipe row bleeds through Home's page inset (`px-gutter`) to the screen edge, so a face runs off the screen
+    // rather than being cut mid-page, and its scroll padding keeps a revealed face clear of that edge.
+    <Grid
+      className={swipe ? "-mx-gutter px-gutter scroll-px-gutter" : undefined}
+      cols={swipe ? "cellSwipe" : "cellFixed"}
+      gap="row"
+      onFocus={swipe ? revealFocused : undefined}
+      ref={shelfRef}
+    >
       {/* `contents`: the faces are the list and the door is not one of them, yet all share the one row. */}
       <Stack aria-label="Character quick-picks" className="contents" role="list">
         {shown.map((character) => {

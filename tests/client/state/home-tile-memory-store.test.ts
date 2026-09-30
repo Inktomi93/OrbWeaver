@@ -3,7 +3,13 @@
 
 import { __readSurfaceBoxForTest, __resetSurfaceBoxes, rememberSurfaceBox } from "@orb/client/state";
 import { beforeEach, describe } from "vitest";
-import { __readHomeTileMemoryForTest, rememberHomeRegion, rememberHomeTileSettledHidden } from "../../../packages/client/src/state/home-tile-memory-store.ts";
+import {
+  __readHomeTileMemoryForTest,
+  readRememberedFootPaired,
+  rememberHomeFootPaired,
+  rememberHomeRegion,
+  rememberHomeTileSettledHidden,
+} from "../../../packages/client/src/state/home-tile-memory-store.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const ROSTERS = "rosterPreset.rosters";
@@ -32,5 +38,11 @@ describe("home tile memory", () => {
     rememberHomeRegion(STARTER, "hearth");
     rememberHomeRegion(STARTER, "shelf");
     expect(__readHomeTileMemoryForTest().regions[STARTER]).toBe("shelf");
+  });
+
+  test("the shelf foot's latest settled arrangement replaces the earlier one", () => {
+    rememberHomeFootPaired(true);
+    rememberHomeFootPaired(false);
+    expect(readRememberedFootPaired()).toBe(false);
   });
 });

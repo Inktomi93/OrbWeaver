@@ -1,8 +1,7 @@
-// state/ front door — ALL gated Zustand stores + the client-state types (UI-Arch §2.1/§5). Server
-// state NEVER lives here (TanStack Query owns it); these are the transient/device-local concerns.
-// Store minting has THREE doors, all devtools-instrumented + action-labeled: `createGatedStore`
-// (hook-shaped singletons), `createEntityDraftStore` (persist-shaped, per-entity vanilla factories),
-// and `createPersistedStore` (hook-shaped singletons that persist to storage).
+// state/ front door — ALL gated Zustand stores + the client-state types (UI-Arch §2.1/§5). Server state NEVER lives here
+// (TanStack Query owns it); these are the transient/device-local concerns. Store minting has THREE doors, all
+// devtools-instrumented + action-labeled: `createGatedStore` (hook-shaped singletons), `createEntityDraftStore` (persist-shaped,
+// per-entity vanilla factories), and `createPersistedStore` (hook-shaped singletons that persist to storage).
 
 export type { NewChatIntent } from "./active-chat-store.ts";
 export {
@@ -245,8 +244,9 @@ export {
   onGameModeStopped,
 } from "./game-mode-transition.ts";
 export type { DormantDoorway, HomeTileContribution, HomeTileRegion } from "./home-tile-contracts.ts";
-export { HOME_TILE_REGIONS } from "./home-tile-contracts.ts";
 export {
+  readRememberedFootPaired,
+  rememberHomeFootPaired,
   rememberHomeRegion,
   rememberHomeTileSettledHidden,
   useHomeTileSettledHidden,

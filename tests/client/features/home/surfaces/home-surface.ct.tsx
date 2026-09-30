@@ -15,7 +15,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { ReactElement } from "react";
 import { pixelExtremaContrast } from "../../../../support/browser/pixel-contrast.ts";
-import { trpcHold } from "../../../../support/node/route-trpc.ts";
+import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 // `CHAT_ROOM_ROUTES` is AMBIENT to every home mount in this file since #1126: the hearth tile warms the
 // room it offers (`usePrefetchRoom` — `chat.getChat` leaves with the tile's mount, a human reaction time
@@ -1973,6 +1973,20 @@ test("a device with no memory holds Start with out of both columns until the roo
   expect({ held: held.column, placed: placed.column, settled }).toEqual({ held: "absent", placed: "hearth", settled: { column: "hearth", sameNode: true } });
 });
 
+test("a device with no memory whose room list fails shows the shelf, with Start with in the hearth", async ({ mount, page }) => {
+  const chats = trpcHold();
+  await stubStarterBoot(page, chats);
+  const home = await mount(<HomeRememberedStarterStory inlineSize={TWO_COLUMN_PANE_PX} region={null} />);
+  await chats.requested;
+  await expect(home.locator("[data-home-shelf]")).toBeHidden();
+
+  // The CT client does not retry, so this one failure is the exhausted read.
+  chats.release(trpcError({ code: "INTERNAL_SERVER_ERROR" }));
+  await expect(home.locator('[data-home-tile="chat.recents"] [data-slot="query-error"]')).toBeVisible();
+  await expect(home.locator("[data-home-shelf]")).toBeVisible();
+  await expect.poll(async () => (await starterPlacement(page, false)).column).toBe("hearth");
+});
+
 test("a device that last saw Start with on the shelf paints it there, and a house with rooms keeps it there", async ({ mount, page }) => {
   const chats = trpcHold();
   await stubStarterBoot(page, chats);
@@ -2043,6 +2057,56 @@ for (const width of LAPTOP_WIDTHS) {
   });
 }
 
+test("a new account's first boot decides the shelf foot once the shelf settles, and never flips it", async ({ mount, page }) => {
+  await page.setViewportSize({ width: LAPTOP_WIDTHS[0], height: LAPTOP_VIEWPORT_HEIGHT });
+  const chats = trpcHold();
+  const characters = trpcHold();
+  await stubDatabank(
+    page,
+    {
+      ...HOME_ROUTES,
+      "chat.listChats": chats,
+      "chat.reapTemporaryChats": { reaped: 0 },
+      "character.list": characters,
+      "rosterPreset.list": [...SEEDED_ROSTERS],
+      "automation.listRulePresets": [],
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
+    },
+    [],
+  );
+  // Every write of the foot's arrangement, and every uncaught page error (a ResizeObserver loop reports as one).
+  // The log rides an attribute on the root, so the read below needs no cast.
+  await page.evaluate(() => {
+    const log: string[] = [];
+    const record = (line: string): void => {
+      log.push(line);
+      document.documentElement.setAttribute("data-ct-foot-log", log.join("|"));
+    };
+    new MutationObserver((records) => {
+      for (const { target } of records) {
+        record(`foot=${target instanceof Element ? (target.getAttribute("data-foot") ?? "stacked") : "?"}`);
+      }
+    }).observe(document.body, { attributeFilter: ["data-foot"], subtree: true });
+    globalThis.addEventListener("error", (event) => record(`error=${event.message}`));
+  });
+  const home = await mount(<HomeShippedFirstBootStory inlineSize={LAPTOP_WIDTHS[0] - FOLD_RAIL_PX} />);
+  await Promise.all([chats.requested, characters.requested]);
+  chats.release(chatListResponder([])({ limit: RECENTS_LIMIT }));
+  characters.release(characterListResponder(FIRST_BOOT_FACES)({ limit: QUICK_PICKS_FACES }));
+  await expect(home.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+  await expect(home.locator("[data-home-shelf]")).toBeVisible();
+  // Two frames past the settle, so a width-driven decision (it runs on the next frame) has had its turn.
+  const log = await page.evaluate(
+    () =>
+      new Promise<string>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve(document.documentElement.getAttribute("data-ct-foot-log") ?? ""))),
+      ),
+  );
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the log is a record of every write since mount, read after the settle; a poll would pass at its first empty read.
+  expect(log).toBe("");
+});
+
 // The box memory records each tile's SETTLED height, so a return visit reserves exactly what it settles into. Start
 // with settles in two passes (a first render, then its one-row trim), which a passive-effect read measured too early.
 test("a return visit shifts nothing: every tile reserves the height it settled at last time", async ({ mount, page }) => {
@@ -2083,14 +2147,14 @@ test("a return visit shifts nothing: every tile reserves the height it settled a
   await expect(starter.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
   await expect(home.locator("[aria-busy]")).toHaveCount(0);
   const shift = await shiftsSince(page, since);
-  expect(
-    shift.movers.filter((mover) => mover !== "other"),
-    JSON.stringify(shift),
-  ).toEqual([]);
+  expect(shift, JSON.stringify(shift)).toEqual({ score: 0, movers: [] });
 });
 
 // Owner ruling on 0254: below the two-column step, on a touch pointer, Start with is a swipe row of every face with the
 // door last. A fine pointer keeps the one row that fits.
+/** How far a focus ring reaches outside its control: `ring-2` plus `ring-offset-2` (`@orb/ui` focus-ring.ts). */
+const FOCUS_RING_REACH_PX = 4;
+
 test.describe("Start with on a phone", () => {
   test.use({ hasTouch: true, viewport: { width: 360, height: 800 } });
 
@@ -2124,5 +2188,42 @@ test.describe("Start with on a phone", () => {
     // The row is sized from a ResizeObserver, so it is read until it settles.
     await expect.poll(readRow).toEqual({ rows: 1, scrolls: true, snap: "x mandatory", doorLast: true });
     await expect(home.getByRole("button", { name: "All characters" })).toBeVisible();
+  });
+
+  test("runs to the screen edge, and a face reached by Tab shows whole with room for its focus ring", async ({ mount, page }) => {
+    await stubDatabank(
+      page,
+      {
+        ...HOME_ROUTES,
+        "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
+        "chat.reapTemporaryChats": { reaped: 0 },
+        "character.list": characterListResponder(FIRST_BOOT_FACES),
+        "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
+      },
+      [],
+    );
+    const home = await mount(<HomeShippedFirstBootStory inlineSize={PHONE_CONTENT_PX} />);
+    const faces = home.getByRole("list", { name: "Character quick-picks" }).getByRole("button");
+    await expect(faces).toHaveCount(QUICK_PICKS_FACES);
+    await faces.first().focus();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await expect(faces.nth(2)).toBeFocused();
+    const reach = async (): Promise<{ edges: readonly number[]; inline: boolean; ringRoom: boolean }> =>
+      await faces.nth(2).evaluate((face, ring) => {
+        const row = face.closest('[role="list"]')?.parentElement;
+        const clip = row?.getBoundingClientRect();
+        const cell = face.getBoundingClientRect();
+        if (clip === undefined) {
+          return { edges: [], inline: false, ringRoom: false };
+        }
+        return {
+          edges: [Math.round(clip.left), Math.round(clip.right)],
+          inline: cell.left >= clip.left && cell.right <= clip.right,
+          ringRoom: cell.top - clip.top >= ring && clip.bottom - cell.bottom >= ring,
+        };
+      }, FOCUS_RING_REACH_PX);
+    // The reveal is a smooth scroll the snap settles, so it is read until it lands.
+    await expect.poll(reach).toEqual({ edges: [0, PHONE_CONTENT_PX], inline: true, ringRoom: true });
   });
 });
