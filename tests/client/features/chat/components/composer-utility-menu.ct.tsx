@@ -97,6 +97,41 @@ for (const viewport of [
   });
 }
 
+// ── The Media group is reachable on a phone. The menu scrolls inside a height bound, so a group that sits past
+// the bound is behind a scroll nothing on screen announces. Image actions are a main use of this menu, so the
+// Media group's first item must be inside the popup's visible box the moment it opens, with the room sentence on.
+for (const viewport of [
+  { name: "360x640", width: 360, height: 640 },
+  { name: "360x780", width: 360, height: 780 },
+] as const) {
+  test(`${viewport.name}: the Media group's first item is visible when the menu opens`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": roomWith([human("hostess", "host"), human("guest", "member")]) });
+    await mount(<ComposerStory />);
+    await page.getByRole("button", { name: "Message tools", exact: true }).click();
+    const menu = page.getByRole("menu");
+    await expect(menu).toBeVisible();
+    // The room sentence is the tallest part of the group and the reason it slid out of view; wait for it.
+    await expect(page.locator('[data-slot="composer-room-pictures-note"]')).toHaveCount(1);
+
+    const attach = page.getByTestId("composer-attach-images");
+    await expect
+      .poll(() =>
+        attach.evaluate((el: HTMLElement) => {
+          const popup = el.closest('[role="menu"]');
+          const item = el.getBoundingClientRect();
+          const box = popup === null ? item : popup.getBoundingClientRect();
+          return {
+            scrolled: popup === null ? -1 : popup.scrollTop,
+            insidePopup: item.top >= box.top - 1 && item.bottom <= box.bottom + 1,
+            insideViewport: item.top >= 0 && item.bottom <= window.innerHeight,
+          };
+        }),
+      )
+      .toEqual({ scrolled: 0, insidePopup: true, insideViewport: true });
+  });
+}
+
 // ── The gallery door (gallery parity, gap 3). The Media group opens the gallery of the room character the viewer
 // owns, through the `#state` store the app root's host reads; the story's probe prints what it asked for. A
 // viewer who owns no character here gets no row: that gallery would be someone else's.

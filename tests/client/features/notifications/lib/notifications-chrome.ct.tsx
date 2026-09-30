@@ -170,7 +170,7 @@ test.describe("the You tab's tell (#1815)", () => {
 
     await expect(page.getByTestId("ct-sheet-badge")).toHaveText("1");
     // …and the sheet really did render the row it is counting (the probe is not counting a phantom).
-    await expect(page.getByText("alex invited you to a chat")).toBeVisible();
+    await expect(page.getByText("Invited to a chat by alex")).toBeVisible();
   });
 
   test("a settled row leaves NO tell, even though its inbox row is still there", async ({ mount, page }) => {
@@ -178,7 +178,7 @@ test.describe("the You tab's tell (#1815)", () => {
     // an invite accepted from a share link or revoked by the host keeps its row and must go quiet.
     await mountSheet(mount, page, [readSettledInvite()]);
 
-    await expect(page.getByText("alex invited you to a chat")).toBeVisible();
+    await expect(page.getByText("Invited to a chat by alex")).toBeVisible();
     await expect(page.getByTestId("ct-sheet-badge")).toHaveText("0");
   });
 

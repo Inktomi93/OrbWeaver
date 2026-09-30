@@ -1468,11 +1468,9 @@ test("the result count is the Filters group's own live region — one status, sp
   expect((await status.boundingBox())?.width ?? 0).toBeLessThanOrEqual(1);
 });
 
-// TASTE (c) — se-chars-focusring-crop.png: two orange rings stacked. FOCUS_RING paints `ring-ring` and the
-// selection layer paints `inset-ring-ring`, so a FOCUSED selected chip and a merely selected one were the
-// same picture. The selected arms re-hue the FOCUS ring (never the selection ring — that one is the
-// Toggle-parity reading).
-test("a focused SELECTED chip rings in a different hue from its selection ring", async ({ mount, page }) => {
+// A selected chip paints the selected fill and no ring, so the focus ring is the one mark of keyboard position:
+// a merely selected chip carries no ring in the focus hue, and focusing it adds one.
+test("a selected chip paints no focus-hue ring until it is keyboard-focused", async ({ mount, page }) => {
   await routeManyTags(page, 12);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
@@ -1481,25 +1479,18 @@ test("a focused SELECTED chip rings in a different hue from its selection ring",
   const chip = component.getByRole("button", { name: RAIL_CHIP });
   await chip.click();
   const selected = component.getByRole("button", { name: "Filter by bulk-00: included — activate to exclude" });
-  // KEYBOARD MODALITY FIRST. `:focus-visible` is what carries the ring, and a programmatic `.focus()`
-  // after a MOUSE click does not satisfy it in Chromium — the assertion would read the resting skin and
-  // pass or fail for a reason that has nothing to do with the ring. One Tab flips the modality; focusing
-  // back then lands a real focus-visible.
+  const ringHue = await resolvedColor(component, "--color-ring");
+  const shadowOf = (node: Locator): Promise<string> => node.evaluate((el: Element) => getComputedStyle(el).boxShadow);
+
+  // A mouse click lands focus without `:focus-visible`, so this is the merely selected picture.
+  await expect.poll(async () => shadowOf(selected)).not.toContain(ringHue);
+  // KEYBOARD MODALITY FIRST: a programmatic `.focus()` after a mouse click does not satisfy `:focus-visible`
+  // in Chromium. One Tab flips the modality; focusing back then lands a real focus-visible.
   await page.keyboard.press("Tab");
   await selected.focus();
   await expect(selected).toBeFocused();
-
-  const [ringHue, selectionHue] = await Promise.all([resolvedColor(component, "--color-foreground"), resolvedColor(component, "--color-ring")]);
-
-  // TWO rings, TWO hues: the focus layer paints `foreground`, the selection layer keeps `ring` (the
-  // Toggle-parity reading). Before this both were `ring` and the two states were one picture.
-  await expect.poll(async () => selected.evaluate((el: Element) => getComputedStyle(el).boxShadow)).toContain(ringHue);
-  await expect.poll(async () => selected.evaluate((el: Element) => getComputedStyle(el).boxShadow)).toContain(selectionHue);
-  expect(ringHue).not.toBe(selectionHue);
-  // …and a chip that is merely at rest carries neither.
-  await expect
-    .poll(async () => component.getByRole("button", { name: SECOND_RAIL_CHIP }).evaluate((el: Element) => getComputedStyle(el).boxShadow))
-    .not.toContain(ringHue);
+  await expect.poll(async () => shadowOf(selected)).toContain(ringHue);
+  await expect.poll(async () => shadowOf(component.getByRole("button", { name: SECOND_RAIL_CHIP }))).not.toContain(ringHue);
 });
 
 /** A theme colour token, resolved from the SAME document the assertion runs against — a computed

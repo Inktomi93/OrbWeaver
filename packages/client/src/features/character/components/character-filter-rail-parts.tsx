@@ -40,8 +40,8 @@ interface TagChipPresentation {
   /** What ACTIVATING does from here — the second half of the accessible name, so the cycle is discoverable
    *  without operating it blind. */
   readonly next: string;
-  /** The primitive's own selection layer (the fill + the persistent `inset-ring-*` state ring, and the
-   *  strike on the exclusion arm). DERIVED from `Button`, never re-spelled: this used to be an `intent`
+  /** The primitive's own selection layer (the selected fill, and the ring plus strike on the exclusion
+   *  arm). DERIVED from `Button`, never re-spelled: this used to be an `intent`
    *  plus a hand-written `className` of ring utilities, i.e. a skin decided in a feature — which is how the
    *  chips ended up reading as a different class of thing from the scope toggles they sit beside. */
   readonly selection: NonNullable<ButtonProps["selection"]>;
@@ -60,7 +60,7 @@ interface TagChipPresentation {
    *  BOTH RULINGS SURVIVE: the primitive keeps inheriting (#969's mechanism is untouched, and its own
    *  button CT still passes), and the HOST — this rail, which is where #102's register law lives — states
    *  the receding ink for the vocabulary it holds. Only the `off` arm carries it: an ON/NEGATED chip is
-   *  wearing the selection layer's `bg-accent text-accent-foreground` pairing, and a call-site ink would
+   *  wearing the selection layer's own fill-and-ink pairing, and a call-site ink would
    *  win the merge and erase exactly the muted-vs-selected reading {@link TagFilterChip} depends on. */
   readonly restingInk: string | undefined;
 }

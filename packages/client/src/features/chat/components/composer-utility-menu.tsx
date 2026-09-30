@@ -1,7 +1,14 @@
 // The composer's ✨ UTILITY menu (wand v2) — everything BUSY lives here so the composer's top row is just the
 // four guided icons + this ✨ trigger. Regrouped by concept (side-eye P2-A), each group a labeled MenuGroup +
 // GroupLabel. The room's own groups lead — the `composer-room` contributions (a game's Dice rolls), then Story —
-// so a phone reaches a game's main action without scrolling past the generic groups, which follow by frequency:
+// so a phone reaches a game's main action without scrolling past the generic groups. Media leads those, because
+// image actions are a main use and a phone must reach them without a hidden scroll; the rest follow by frequency:
+//   • Media  — Attach images & video (the sanctioned FileDropzone, ref-triggered off the row so the input is
+//              NOT a focus target inside the menuitem's accessible name — P1-C; accepts image/* + mp4/webm,
+//              #317) · the TWO image doors: Generate image from text (fast, spends on click — its typed text
+//              IS the prompt) and Imagine (opens the /imagine modal: mode strip + preview-before-spend). Both
+//              are here because both cost money and only one used to be findable (#623 P1-IA) · the room
+//              character's gallery. The group renders from `composer-media-group.tsx`.
 //   • Input  — Recover input (recall the last FIRED steer — the D57 ring, owner-clarified) · Corrections (the
 //              rewrite/OOC dialog) · Clear input
 //   • Reply  — Regenerate (a PLAIN reroll of the tail assistant, distinct RefreshCw glyph + helper — the
@@ -9,12 +16,6 @@
 //              generating) · Offer choices (R3/B1 — the ONE-SHOT ask for the next reply; un-game-gated and
 //              moved out of Plot, because the standing sibling and the fence renderer are both general now)
 //   • Continuation — Undo / Revert continuation
-//   • Media  — Attach images & video (the sanctioned FileDropzone, ref-triggered off the row so the input is
-//              NOT a focus target inside the menuitem's accessible name — P1-C; accepts image/* + mp4/webm,
-//              #317) · the TWO image doors: Generate image from text (fast, spends on click — its typed text
-//              IS the prompt) and Imagine (opens the /imagine modal: mode strip + preview-before-spend). Both
-//              are here because both cost money and only one used to be findable (#623 P1-IA) · the room
-//              character's gallery. The group renders from `composer-media-group.tsx`.
 //   • Story  — game-only, first after the room contributions: the six plot steers under one submenu (P1-B)
 // Each item is the omit-doctrine's disabled-affordance law: rendered enabled, or disabled-with-a-legible-reason,
 // never hidden — except a permission-gated one (the gallery door, for a viewer who owns no character here).
@@ -199,7 +200,13 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             <MenuSeparator />
           </>
         ) : null}
-        {/* INPUT — the draft-editing actions (most frequent). */}
+        {/* MEDIA — the re-homed image/video controls (owner: image things into the menu, NOT back on the bar). It
+            leads the generic groups: the menu scrolls inside a height bound, and on a phone a trailing group opens
+            below that bound. `composer-media` contributions follow it, each opening on a separator. */}
+        <ComposerMediaGroup image={image} />
+        {mediaContributions}
+        <MenuSeparator />
+        {/* INPUT — the draft-editing actions. */}
         <MenuGroup>
           <MenuGroupLabel>Input</MenuGroupLabel>
           {/* Recover input = recall the LAST steer you fired (owner-clarified — the D57 fired-steer ring, NOT
@@ -284,10 +291,6 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             disabledReason="Continue a reply first — nothing to revert yet"
           />
         </MenuGroup>
-        <MenuSeparator />
-        {/* MEDIA — the re-homed image/video controls (owner: image things into the menu, NOT back on the bar). */}
-        <ComposerMediaGroup image={image} />
-        {mediaContributions}
       </MenuPopup>
     </Menu>
   );

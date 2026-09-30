@@ -11,7 +11,7 @@ import type { ChatId, ChatInviteId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { CopyButton } from "@orb/ui/copy-button";
-import { Row, Stack } from "@orb/ui/layout";
+import { Grid, Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
@@ -125,6 +125,17 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
 
   const { form } = useInviteForm({ entityId: `invite:${chatId}`, serverValues: undefined, save });
 
+  // Moves expiry and use limit inside the sign-up caps and names what moved. The writes skip the field listeners,
+  // which clear the line on a manual edit.
+  const applySignupBounds = (): void => {
+    const bounds = signupBounds(form.state.values);
+    const notice = signupBoundsNotice(form.state.values, bounds);
+    form.setFieldValue("expiry", bounds.expiry, { dontRunListeners: true });
+    form.setFieldValue("maxUses", bounds.maxUses, { dontRunListeners: true });
+    setBoundsNotice(notice);
+  };
+  const clearBoundsNotice = (): void => setBoundsNotice(null);
+
   return (
     <form.AppForm>
       <form
@@ -135,7 +146,20 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
         }}
       >
         <Stack gap="block">
-          <form.AppField name="mode">
+          <form.AppField
+            name="mode"
+            listeners={{
+              // Handle mode drops sign-up and offers every expiry, so a share link that comes back with sign-up on
+              // re-applies the caps rather than meeting a value they refuse.
+              onChange: ({ value }): void => {
+                if (value === "link" && form.state.values.allowSignup) {
+                  applySignupBounds();
+                  return;
+                }
+                clearBoundsNotice();
+              },
+            }}
+          >
             {(field): ReactElement => (
               <ToggleGroup
                 aria-label="Invite mode"
@@ -184,9 +208,13 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
 
           <form.Subscribe selector={(state): boolean => asksSignup(state.values)}>
             {(signup): ReactElement => (
-              <Row gap="field" align="start">
-                <form.AppField name="expiry">{(field): ReactElement => <field.SelectField label="Expires" items={inviteExpiryItems(signup)} />}</form.AppField>
-                <form.AppField name="maxUses">
+              // Stacks below two usable columns, so at a phone width the Expires trigger cannot squeeze Max uses
+              // out of room for its value.
+              <Grid cols="auto" gap="field">
+                <form.AppField name="expiry" listeners={{ onChange: clearBoundsNotice }}>
+                  {(field): ReactElement => <field.SelectField label="Expires" items={inviteExpiryItems(signup)} />}
+                </form.AppField>
+                <form.AppField name="maxUses" listeners={{ onChange: clearBoundsNotice }}>
                   {(field): ReactElement => (
                     <field.NumberField
                       label="Max uses"
@@ -197,7 +225,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
                     />
                   )}
                 </form.AppField>
-              </Row>
+              </Grid>
             )}
           </form.Subscribe>
 
@@ -212,14 +240,11 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
                         // A sign-up link needs a use limit and an expiry inside the caps: turning the switch on moves both
                         // there, so the owner's first sight of the switch is not an inline error.
                         onChange: ({ value }): void => {
-                          if (!value) {
-                            setBoundsNotice(null);
+                          if (value) {
+                            applySignupBounds();
                             return;
                           }
-                          const bounds = signupBounds(form.state.values);
-                          setBoundsNotice(signupBoundsNotice(form.state.values, bounds));
-                          form.setFieldValue("expiry", bounds.expiry);
-                          form.setFieldValue("maxUses", bounds.maxUses);
+                          clearBoundsNotice();
                         },
                       }}
                     >

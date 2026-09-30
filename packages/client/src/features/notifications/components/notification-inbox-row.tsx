@@ -21,14 +21,14 @@ import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions.t
 type InboxItem = inferOutput<Trpc["notifications"]["list"]>["items"][number];
 
 /** The per-reason row copy — a mapped Record so a new NotificationEvent member fails tsc until it says
- *  what the inbox row reads. */
+ *  what the inbox row reads. A handle is lowercase, so no sentence opens on one. */
 const ROW_COPY: {
   readonly [K in NotificationType]: (payload: Extract<NotificationEvent, { type: K }>) => string;
 } = {
-  invite: (p) => `${p.invitedByHandle} invited you to a chat`,
+  invite: (p) => `Invited to a chat by ${p.invitedByHandle}`,
   kicked: () => "You were removed from a chat",
   "handoff-nominated": () => "You've been nominated to host a chat",
-  "handoff-accepted": (p) => `${p.newHostHandle} is now hosting your chat`,
+  "handoff-accepted": (p) => `Your chat is now hosted by ${p.newHostHandle}`,
   "deferred-turn-dropped": (p) =>
     p.reason === "consent" ? "An AI reply couldn't run — the host hasn't allowed it" : "An AI reply couldn't run — that chat is no longer available",
   "automation-notice": (p) => `Automation notice: ${p.message}`,

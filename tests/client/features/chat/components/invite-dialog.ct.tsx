@@ -11,10 +11,12 @@ import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
-import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import { auditRenderedTextContrast } from "../../../../support/browser/pixel-contrast.ts";
+import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { InviteDialogStory } from "../_ct-stories.tsx";
 
+const AA_NORMAL = 4.5;
 const REVOKE_RE = /Revoke/u;
 /** A plain host: the sign-up switch stays hidden, so the mint-form tests below keep their pre-D259 shape. */
 const ME_USER = { userId: "user_ct_viewer", handle: "viewer", globalRole: "user" } satisfies TrpcFixtureOutput<"sessions.me">;
@@ -586,5 +588,148 @@ test.describe("the sign-up switch", () => {
     await expect(dialog.getByTestId("invite-allow-signup")).toBeVisible();
     await dialog.getByRole("button", { name: "Invite by handle" }).click();
     await expect(dialog.getByTestId("invite-allow-signup")).toHaveCount(0);
+  });
+});
+
+// The sign-up status line reports what turning sign-up on moved. It describes one moment, so a later manual edit
+// or a mode switch makes it false and it must go; coming back to a share link with sign-up on re-applies the caps.
+test.describe("the sign-up status line", () => {
+  async function routeSignup(page: Page): Promise<TrpcRecorder> {
+    await stubAuthConfig(page, { mode: "local" });
+    return await routeTrpc(page, { "sessions.me": meAs("admin"), "invites.listInvites": () => [], "invites.createInvite": () => MINT });
+  }
+
+  test("clears when the owner edits Max uses by hand", async ({ mount, page }) => {
+    await routeSignup(page);
+    await mount(<InviteDialogStory />);
+    const dialog = page.getByTestId("invite-dialog");
+    const signup = dialog.getByTestId("invite-allow-signup");
+    await signup.getByRole("switch").click();
+    await expect(signup.getByRole("status")).toBeVisible();
+
+    const maxUses = dialog.getByRole("textbox", { name: "Max uses" });
+    await maxUses.clear();
+    await maxUses.fill("3");
+    await expect(signup.getByRole("status")).toHaveCount(0);
+  });
+
+  test("clears when the owner picks an expiry by hand", async ({ mount, page }) => {
+    await routeSignup(page);
+    await mount(<InviteDialogStory />);
+    const dialog = page.getByTestId("invite-dialog");
+    const signup = dialog.getByTestId("invite-allow-signup");
+    await signup.getByRole("switch").click();
+    await expect(signup.getByRole("status")).toBeVisible();
+
+    await dialog.getByRole("combobox", { name: "Expires" }).click();
+    await page.getByRole("option", { name: "24 hours" }).click();
+    await expect(signup.getByRole("status")).toHaveCount(0);
+  });
+
+  test("does not survive a switch to handle mode and back", async ({ mount, page }) => {
+    await routeSignup(page);
+    await mount(<InviteDialogStory />);
+    const dialog = page.getByTestId("invite-dialog");
+    const signup = dialog.getByTestId("invite-allow-signup");
+    await signup.getByRole("switch").click();
+    await expect(signup.getByRole("status")).toBeVisible();
+
+    await dialog.getByRole("button", { name: "Invite by handle" }).click();
+    await expect(signup).toHaveCount(0);
+    await dialog.getByRole("button", { name: "Share link" }).click();
+    await expect(signup.getByRole("switch")).toBeChecked();
+    // The fields still fit the caps, so the return moves nothing and the old line is not shown again.
+    await expect(signup.getByRole("status")).toHaveCount(0);
+  });
+
+  test("returning to Share link with sign-up on re-applies the caps to an expiry picked in handle mode", async ({ mount, page }) => {
+    const trpc = await routeSignup(page);
+    await mount(<InviteDialogStory />);
+    const dialog = page.getByTestId("invite-dialog");
+    const signup = dialog.getByTestId("invite-allow-signup");
+    await signup.getByRole("switch").click();
+
+    await dialog.getByRole("button", { name: "Invite by handle" }).click();
+    const expires = dialog.getByRole("combobox", { name: "Expires" });
+    await expires.click();
+    // Handle mode mints no sign-up link, so every preset is on offer there.
+    const never = page.getByRole("option", { name: "Never expires" });
+    await expect(never).toBeEnabled();
+    await never.click();
+
+    await dialog.getByRole("button", { name: "Share link" }).click();
+    // The return names the field it moved, and Create mints at once: no field error for a value the caps refuse.
+    await expect(signup.getByRole("status")).toBeVisible();
+    await dialog.getByRole("button", { name: "Create link" }).click();
+    await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBe(1);
+    await expect(dialog.locator('[data-slot="field-error"]')).toHaveCount(0);
+    const sent = (trpc.lastInput("invites.createInvite") as { input?: { allowSignup?: unknown; expiresAt?: unknown } }).input;
+    expect({ allowSignup: sent?.allowSignup, expiry: typeof sent?.expiresAt }).toEqual({ allowSignup: true, expiry: "number" });
+  });
+});
+
+// At a phone width the Expires and Max uses fields share a row only while both keep a usable width. A row that
+// hands one field the whole width collapses the other until a typed value cannot be seen.
+test.describe("the limit fields at a 360px viewport", () => {
+  test.use({ viewport: { width: 360, height: 800 } });
+
+  test("Max uses keeps room to show a typed value and a one-line label", async ({ mount, page }) => {
+    await stubAuthConfig(page);
+    await routeTrpc(page, { "sessions.me": ME_USER, "invites.listInvites": () => [] });
+    await mount(<InviteDialogStory />);
+    const dialog = page.getByTestId("invite-dialog");
+    const maxUses = dialog.getByRole("textbox", { name: "Max uses" });
+    await maxUses.fill("25");
+
+    await expect
+      .poll(() =>
+        maxUses.evaluate((el: HTMLInputElement) => {
+          const label = el.ownerDocument.querySelector(`label[for="${el.id}"]`);
+          const lineHeight = label === null ? 0 : Number.parseFloat(getComputedStyle(label).lineHeight);
+          return {
+            valueFits: el.scrollWidth <= el.clientWidth,
+            labelOneLine: label !== null && label.getBoundingClientRect().height <= lineHeight * 1.5,
+          };
+        }),
+      )
+      .toEqual({ valueFits: true, labelOneLine: true });
+    // A value that merely fits a sliver is not a usable field: the input is at least the house number cell
+    // (`--width-number-inline`), resolved here rather than spelled in px.
+    const numberCellPx = await maxUses.evaluate((el: HTMLElement) => {
+      const probe = el.ownerDocument.createElement("div");
+      probe.style.width = "var(--width-number-inline)";
+      el.ownerDocument.body.append(probe);
+      const width = probe.getBoundingClientRect().width;
+      probe.remove();
+      return width;
+    });
+    // A zero-width probe would make the floor vacuous, so it is part of the settled claim.
+    await expect
+      .poll(async () => ({ cellResolved: numberCellPx > 0, fits: ((await maxUses.boundingBox())?.width ?? 0) >= numberCellPx }))
+      .toEqual({ cellResolved: true, fits: true });
+  });
+});
+
+// Light palette, glass modals on, and a dark room behind the popup. With no wallpaper gate the translucent popup
+// lets the dark content through, so the text is measured on the pixels that land, not on the token pair.
+test.describe("the dialog's text over a dark room in the light palette", () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+
+  test("every rendered text node clears AA", async ({ mount, page }) => {
+    await stubAuthConfig(page, { mode: "local" });
+    await routeTrpc(page, { "sessions.me": meAs("admin"), "invites.listInvites": () => [] });
+    await page.evaluate(() => {
+      document.documentElement.dataset["theme"] = "light";
+      document.documentElement.dataset["blurModals"] = "";
+      document.body.style.background = "#000";
+    });
+    await mount(<InviteDialogStory />);
+    const dialog = page.getByTestId("invite-dialog");
+    await expect(dialog.getByTestId("invite-allow-signup")).toBeVisible();
+
+    const audit = await auditRenderedTextContrast(page, dialog, { floor: AA_NORMAL, label: "invite dialog (light, dark room)" });
+    expect(audit.sampled).toBeGreaterThan(0);
+    const failing = audit.subjects.filter((subject) => subject.ratio < AA_NORMAL).map((subject) => `${subject.text}: ${subject.describe}`);
+    expect(audit.minimum, failing.join(" | ")).toBeGreaterThanOrEqual(AA_NORMAL);
   });
 });
