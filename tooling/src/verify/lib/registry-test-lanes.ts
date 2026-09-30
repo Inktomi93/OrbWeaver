@@ -152,7 +152,8 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // `pnpm test:ct` keeps the config's retries:0 for debugging. It moved here from the `pnpm test`
     // composite with the stage.
     argv: ["pnpm", "test:ct", "--retries=2"],
-    classify: asViolations,
+    // The launcher's own exit contract: a CT run that could not launch its browser is 2, never failed tests.
+    classify: ownScheme,
     // DERIVED, never typed: ctWorkers moves the CT wall clock, so it moves this ceiling too (lib/stage-budget.ts).
     hangCeilingBaseMs: ctSuiteHangCeilingMs(),
     // The scoped CT invocation enters the same launcher as every other CT run: that is where one run slot

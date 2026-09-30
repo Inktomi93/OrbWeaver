@@ -1,5 +1,6 @@
 // The instruction-layer check on planted trees, one failure class per case, each beside the clean tree
 // that proves the same walk passes. The last case runs it on the real repository, which must be clean.
+import { execFixtureGit } from "../../../../tooling/src/_shared/git-fixture.ts";
 import { alwaysOnLines, instructionFiles, instructionLayerProblems } from "../../../../tooling/src/agent-sync/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -76,6 +77,21 @@ test("a dead link or backticked path is a finding; a live one is not", async ({ 
   expect(instructionLayerProblems(root)).toEqual([
     ".claude/agents/r.md:1: link target does not exist: ../../docs/gone.md",
     ".claude/agents/r.md:1: path does not exist: tooling/src/gone.ts",
+  ]);
+});
+
+test("a path into ignored build output passes before the build runs; a typo above the ignored segment still fails", async ({ plantedTree }) => {
+  const root = await plantedTree(
+    tree({
+      ".gitignore": "dist/\n",
+      "packages/show/package.json": "{}\n",
+      ".claude/agents/r.md": "Built to `packages/show/dist/bundles`, not `packages/shwo/dist/bundles` or `packages/show/src/gone.ts`.\n",
+    }),
+  );
+  execFixtureGit(root, ["init", "-q", "-b", "main"]);
+  expect(instructionLayerProblems(root)).toEqual([
+    ".claude/agents/r.md:1: path does not exist: packages/shwo/dist/bundles",
+    ".claude/agents/r.md:1: path does not exist: packages/show/src/gone.ts",
   ]);
 });
 

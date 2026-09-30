@@ -3,7 +3,8 @@ import type { LookupFunction } from "node:net";
 import { parseIp } from "@orb/kit/ip";
 import { Agent, buildConnector, setGlobalDispatcher } from "undici";
 import { env, parseTrustedPrivateRanges } from "#foundation/env";
-import { getLog, securityEvent, superviseDetached } from "#foundation/observability";
+import { getLog, securityEvent } from "../../foundation/observability/logger.ts";
+import { superviseDetached } from "../../foundation/observability/tracing.ts";
 import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges.ts";
 
 // SSRF egress firewall via undici.setGlobalDispatcher (swapping http.globalAgent doesn't work — Node's

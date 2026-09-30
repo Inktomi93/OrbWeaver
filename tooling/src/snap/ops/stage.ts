@@ -80,6 +80,7 @@ import {
   orphanStageDirs,
   STAGE_ROOT_REL,
   shortSha,
+  stageBandEnv,
   stageDecision,
   stageInheritedEnv,
   stageLauncher,
@@ -117,18 +118,16 @@ function bootStage(root: string, paths: StagePaths, ports: StagePorts): void {
   const env: NodeJS.ProcessEnv = {
     // biome-ignore lint/style/noProcessEnv: the stage stack inherits the operator's ambient env (PATH etc) — harness plumbing, not app config.
     ...process.env,
-    PORT: String(ports.server),
-    VITE_PORT: String(ports.vite),
-    VITE_API_TARGET: `http://127.0.0.1:${ports.server}`,
+    // The band's address, the same env the teardown's `stack down` resolves its ports from. It also skips
+    // the repo-root .env entirely, so the operator's DEBUG_TOKEN/WIRE_CAPTURE/OIDC_* never arm a second
+    // /api/_debug/* surface behind a copy of the dev DB; the keys the copied DB needs are declared below.
+    ...stageBandEnv(ports),
     // ONE root for the stage's db, assets, secrets and caches; the server derives every path from it, and
     // `seedStageData` filled it from the same derivation.
     DATA_DIR: paths.dataDir,
-    // Skip the repo-root .env ENTIRELY (the strong hatch) — ORB_ENV_NO_OVERRIDE only flipped precedence,
-    // so OWNER_HANDLES/DEBUG_TOKEN/WIRE_CAPTURE/RPG_TRACE/OIDC_* all filled from the operator's real `.env`,
-    // arming the stage's /api/_debug/* surface under the operator's REAL DEBUG_TOKEN with WIRE_CAPTURE=on,
-    // behind a copy of the dev DB, on a second port. The keys the copied DB actually needs are declared
-    // explicitly below instead.
-    ORB_ENV_NO_FILE: "1",
+    // A stage is a render target that never embeds. The background model load stalls the server's event
+    // loop for about a minute on a loaded box, so every API read times out and the stage reads BOOT-DEAD.
+    LOCAL_LIGHT_PREFETCH: "off",
     // The DB-BOUND keys, and ONLY those — see STAGE_INHERITED_ENV_KEYS for the per-key reason. The stage's
     // DB is a COPY of the dev DB, so a value the copied rows are bound to (the owner row's handle, the
     // credential ciphertext's key) must come across or the stage boots against data it cannot read. An

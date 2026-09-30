@@ -27,6 +27,14 @@ export const STAGE_NAV_BASE_MS = 90_000;
 export const STAGE_NAV_TIMEOUT_MS = budget(STAGE_NAV_BASE_MS);
 export const STAGE_READY_BASE_MS = 60_000;
 export const STAGE_READY_TIMEOUT_MS = budget(STAGE_READY_BASE_MS);
+// A stage keeps re-navigating until the app signals a real settle or this window closes. The client's own
+// readiness ceiling is a fixed 20 s per document, so on a loaded box one retry is not enough; a dead app
+// still costs no more than two stage-ready waits on a quiet box before it is reaped.
+export const STAGE_WARMUP_BASE_MS = 2 * STAGE_READY_BASE_MS;
+export const STAGE_WARMUP_TIMEOUT_MS = budget(STAGE_WARMUP_BASE_MS);
+/** Re-navigations after the first. Bounds a document that reports non-settled instantly, which the
+ *  client's 20 s ceiling makes impossible for the real app. */
+export const STAGE_WARMUP_MAX_RENAVIGATIONS = 3;
 // A LOAD-EMULATION ARM (`--cpu-throttle` / `--network`) MOVES THE WALL CLOCK IT IS MEASURED AGAINST
 // (#836). The whole point of `--network slow-4g` is that bytes arrive at 180 KB/s behind 562ms of added
 // latency; holding that run to the un-throttled 10s readiness budget makes the flag structurally

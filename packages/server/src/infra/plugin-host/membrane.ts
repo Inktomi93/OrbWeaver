@@ -63,7 +63,7 @@ import {
 import type { VarOp } from "@orb/kit/macro";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle } from "quickjs-emscripten-core";
 import { z } from "zod";
-import { superviseDetached } from "#foundation/observability";
+import { superviseDetached } from "../../foundation/observability/tracing.ts";
 import type { SafeFetchOptions } from "../network/egress.ts";
 import { safeFetch } from "../network/egress.ts";
 import { isAllowedImageBuffer } from "../network/image-guard.ts";

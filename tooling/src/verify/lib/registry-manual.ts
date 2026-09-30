@@ -28,7 +28,8 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
     group: "tests",
     tiers: ["manual"],
     argv: ["pnpm", "test"],
-    classify: asViolations,
+    // Both halves speak the exit contract, so a CT run with no browser stays a tool error through the `&&`.
+    classify: ownScheme,
     manualReason:
       "the explicit product-test composite (`pnpm test` = the vitest projects && `pnpm test:ct --retries=2`), available when the combined behavioral check is needed during development. `pnpm verify` runs its halves as `tests:node` + `browser:ct` so each carries its own hang ceiling derived from tooling/concurrency-profile.json (#1848); a tier row here would run both suites a second time",
   },

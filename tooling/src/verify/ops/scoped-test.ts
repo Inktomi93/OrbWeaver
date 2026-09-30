@@ -61,6 +61,31 @@ function playwrightBin(root: string): string {
   return join(root, "node_modules", "@playwright", "test", "cli.js");
 }
 
+const MISSING_EXECUTABLE_RE = /Executable doesn't exist at (\S+)/u;
+
+/** The browser path Playwright's launch error names as absent, or null for any other launch failure. */
+export function missingBrowserExecutable(launchError: string): string | null {
+  return MISSING_EXECUTABLE_RE.exec(launchError)?.[1] ?? null;
+}
+
+/** Launch the CT browser once through Playwright's own resolution. Without it every CT test fails at launch,
+ *  and a run that never opened a browser would report N failed tests instead of a tool error. */
+async function missingCtBrowser(): Promise<string | null> {
+  const { chromium } = await import("@playwright/test");
+  try {
+    const browser = await chromium.launch();
+    await browser.close();
+    return null;
+  } catch (error) {
+    const missing = missingBrowserExecutable(error instanceof Error ? error.message : String(error));
+    if (missing === null) {
+      // Any other launch failure would fail every CT test too; surface Playwright's own error instead.
+      throw error;
+    }
+    return missing;
+  }
+}
+
 /** `vitest list --filesOnly --json=<file>` → the test files the caller's filters actually select.
  *  `--filesOnly` is load-bearing for speed (without it `list` enumerates every CASE in the tree), and the
  *  `=`-joined json path is load-bearing for SAFETY — see the header hazard. */
@@ -313,6 +338,13 @@ export async function runScopedTest(root: string, argv: readonly string[]): Prom
   if (bareGrep !== undefined) {
     // Before the lock: a refused argv must not take the worktree's CT lease even for an instant.
     throw new UsageError(bareGrep);
+  }
+  const missingBrowser = await missingCtBrowser();
+  if (missingBrowser !== null) {
+    warn(
+      `TOOL ERROR   the CT browser is not installed: ${missingBrowser} does not exist, so no test ran. Install it with: pnpm exec playwright install chromium`,
+    );
+    return EXIT.toolError;
   }
   const lock = await acquireCtRunnerSlots(root, {
     argv: rest,
