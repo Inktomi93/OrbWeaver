@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-09-30
 priority: P1
 area: verification
-lane: wt/agent-a44d7840f532aff12
 ---
 
 # Reduce static verification wall time without losing instrument proof
