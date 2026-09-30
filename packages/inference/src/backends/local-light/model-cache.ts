@@ -386,6 +386,10 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     if (config.allowRemoteModels !== undefined) {
       mod.env.allowRemoteModels = config.allowRemoteModels;
     }
+    // SECURITY: local models on makes the lib read `<localModelPath>/<id>/` from this host's disk before the Hub, for
+    // any id a plugin provider row names. Weights live in `cacheDir`, which the lib reads either way. An offline
+    // deployment keeps it on, because the lib refuses to load with both sources off.
+    mod.env.allowLocalModels = !mod.env.allowRemoteModels;
     if (cacheDir !== undefined) {
       await ensureCacheDir(cacheDir, config.log);
       mod.env.cacheDir = cacheDir;

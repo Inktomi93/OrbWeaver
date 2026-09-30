@@ -6,17 +6,31 @@
 // FIELD-WISE patch (an absent key is NOT overwritten), and the embed-space trigger's exact condition.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { ProviderDefInput, ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
-import type { UserCredentialId } from "@orb/kit/ids";
+import type { PluginId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { endpointAdmission, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { principal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner, seedUser } from "../_support.ts";
+import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner, seedPlugin, seedUser } from "../_support.ts";
 
 const CREDENTIAL_ID = castId<UserCredentialId>("user_credential_000001");
+const PLUGIN_ID = castId<PluginId>("plugin_provider_test");
+/** A plugin's in-process row on a `url` catalog: the builtin closed set never judges its ids. */
+const PLUGIN_LOCAL_LIGHT_ROW = {
+  id: castId<ProviderId>("plugin:provider-test/light"),
+  label: "Plugin light",
+  wire: "local-light",
+  auth: "none",
+  apis: [],
+  catalog: "url",
+  metered: false,
+} as const satisfies ProviderDefInput;
+/** Ids transformers.js would resolve on this host's disk or as a URL instead of as a Hub repo. */
+const PATH_SHAPED_MODEL_IDS = ["../../../etc", "/etc/orbweaver", "https://models.example/owner/repo", "C:\\models\\owner\\repo"];
 
 describe("create", () => {
   test("user_connections.model refuses a blank foreign id before persistence", async () => {
@@ -158,6 +172,25 @@ describe("create", () => {
       modelCheck: "unlisted",
     });
     expect(view).toMatchObject({ model: "not-in-any-list", modelCheck: "unlisted" });
+  });
+
+  test("a plugin local-light row admits any Hugging Face id and refuses a path or URL id on create and patch", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    await seedPlugin(db, owner.userId, PLUGIN_ID);
+    await h.svc.registerPluginProviders({ pluginId: PLUGIN_ID, pluginName: "provider-test", rows: [PLUGIN_LOCAL_LIGHT_ROW] });
+    const create = (model: string): ReturnType<typeof h.svc.create> =>
+      h.svc.create({ principal: owner.principal, providerId: PLUGIN_LOCAL_LIGHT_ROW.id, credentialId: null, baseUrl: null, model });
+    const stored = await create("some-owner/any-model.v2");
+    expect(stored.model).toBe("some-owner/any-model.v2");
+    for (const model of PATH_SHAPED_MODEL_IDS) {
+      await expect(create(model), model).rejects.toMatchObject({ code: CONNECTION_OP_CODES.modelIdShape });
+      await expect(h.svc.update({ principal: owner.principal, connectionId: stored.id, patch: { model } }), model).rejects.toMatchObject({
+        code: CONNECTION_OP_CODES.modelIdShape,
+      });
+    }
+    expect((await h.svc.list({ principal: owner.principal })).map((row) => row.model)).toEqual(["some-owner/any-model.v2"]);
   });
 
   test("writes one durable audit row naming the provider and model", async () => {

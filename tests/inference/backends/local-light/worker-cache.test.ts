@@ -2,9 +2,12 @@
 // module (`_stub-model-cache.ts`): the request loop keeps turning while the worker is held, results and typed
 // failures cross the boundary intact, and a dead worker rejects its callers instead of hanging them.
 
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { runInNewContext } from "node:vm";
 import { Worker } from "node:worker_threads";
-import { modelIdSchema } from "@orb/contracts/inference";
+import { LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
 import type { WorkerModelCache } from "../../../../packages/inference/src/backends/local-light/worker-cache.ts";
 import { createWorkerModelCache } from "../../../../packages/inference/src/backends/local-light/worker-cache.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
@@ -19,6 +22,10 @@ const HOLD_MS = 1500;
 const TICK_MS = 10;
 /** The longest gap between two ticks the request loop may show while the worker is held. */
 const MAX_TICK_GAP_MS = 250;
+/** Ids transformers.js would resolve on this host's disk or as a URL instead of as a Hub repo. */
+const PATH_SHAPED_MODEL_IDS = ["../../../etc", "/etc/orbweaver", "https://models.example/owner/repo", "C:\\models\\owner\\repo"];
+/** Loading transformers.js and its ONNX binding in a fresh worker takes seconds on a CPU box. */
+const REAL_LOADER_TIMEOUT_MS = 60_000;
 
 const noop = (): void => undefined;
 
@@ -189,6 +196,56 @@ test("an image given as a URL or path is refused as invalid and never reaches th
     await expect(cache.embedImages(MODEL, [Uint8Array.from([1])])).resolves.toHaveLength(1);
   } finally {
     await cache.close();
+  }
+});
+
+test("a model id that is not a Hub owner/repo is refused as invalid on every call and never reaches the loader", async () => {
+  const cache = stubCache();
+  try {
+    for (const raw of PATH_SHAPED_MODEL_IDS) {
+      const modelId = modelIdSchema.parse(raw);
+      const calls = [
+        cache.embedTexts(modelId, ["a"]),
+        cache.embedClipTexts(modelId, ["a"]),
+        cache.embedImages(modelId, [Uint8Array.from([1])]),
+        cache.scorePairs(modelId, "q", ["a"]),
+        cache.removeBackground(modelId, Uint8Array.from([1])),
+        cache.preload("embed", modelId),
+      ];
+      for (const outcome of await Promise.allSettled(calls)) {
+        expect(outcome, raw).toMatchObject({ status: "rejected", reason: { kind: "invalid", retryable: false } });
+      }
+    }
+    // The stub loader answers any id it is handed, so these resolving shows the refusals above stopped short of it.
+    await expect(cache.embedTexts(modelIdSchema.parse("some-owner/any-model.v2"), ["ab"])).resolves.toHaveLength(1);
+    for (const seed of LOCAL_LIGHT_SEED_ROWS) {
+      await expect(cache.preload(seed.task === "rerank" ? "rerank" : "embed", modelIdSchema.parse(seed.model))).resolves.toBeUndefined();
+    }
+  } finally {
+    await cache.close();
+  }
+});
+
+test("a parent-directory id never makes the real loader read a model config outside its cache directory", { timeout: REAL_LOADER_TIMEOUT_MS }, async () => {
+  const root = mkdtempSync(join(tmpdir(), "orb-worker-model-id-"));
+  const cacheDir = join(root, "cache");
+  // A config the loader parses, then fails at the absent weights file: reaching "model.onnx" means it read this file.
+  const planted = join(root, "outside", "model");
+  mkdirSync(planted, { recursive: true });
+  writeFileSync(join(planted, "config.json"), JSON.stringify({ model_type: "segformer" }));
+  const cache = createWorkerModelCache({ cacheDir, allowRemoteModels: false, device: "cpu", log: { debug: noop, info: noop, warn: noop, error: noop } });
+  try {
+    const failure = await cache.preload("matte", modelIdSchema.parse("../outside/model")).then(
+      () => null,
+      (err: unknown) => err,
+    );
+    expect(String(failure)).not.toContain("model.onnx");
+    expect(failure).toMatchObject({ kind: "invalid", retryable: false });
+    // The worker creates its cache directory before its first load, so its absence shows no load ever began.
+    expect(existsSync(cacheDir)).toBe(false);
+  } finally {
+    await cache.close();
+    rmSync(root, { force: true, recursive: true });
   }
 });
 

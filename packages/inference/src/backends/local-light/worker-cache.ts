@@ -3,6 +3,7 @@
 // per embed. The main thread never imports transformers.js; the weights load once, inside the worker.
 
 import { Worker } from "node:worker_threads";
+import { isHubModelId } from "@orb/contracts/inference";
 import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import type { ProviderErrorInit } from "../../contract/errors.ts";
@@ -79,6 +80,17 @@ function requireImageBytes(image: ImageInput): Uint8Array {
     throw new ProviderError({ kind: "invalid", retryable: false, message: "local-light: an image must be bytes, never a URL or a path" });
   }
   return image;
+}
+
+// SECURITY: transformers.js reads any id that is not a Hub `owner/repo` as a path on this host (`isHubModelId`).
+// The connection verbs refuse such an id at write time, but a stored row is never re-judged on read, so every call
+// is checked here too, before the worker starts or the id crosses to it.
+function notHubModelIdError(): ProviderError {
+  return new ProviderError({
+    kind: "invalid",
+    retryable: false,
+    message: 'local-light: a model id must be a Hugging Face "owner/repo" id, never a path or a URL',
+  });
 }
 
 interface Pending {
@@ -178,6 +190,9 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
   };
 
   function call(request: LocalLightWorkerCall): Promise<LocalLightWorkerValue> {
+    if (!isHubModelId(request.modelId)) {
+      return Promise.reject(notHubModelIdError());
+    }
     if (closed) {
       return Promise.reject(new ProviderError({ kind: "aborted", retryable: false, message: "local-light: the inference worker is closed for shutdown" }));
     }
