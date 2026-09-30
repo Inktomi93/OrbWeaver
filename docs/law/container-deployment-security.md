@@ -65,7 +65,7 @@ Each finding names its severity, the case that breaks, and its status.
 ## Accepted residuals
 
 - Three spawns pass no `env`, so they inherit every app secret: the Share relay's cloudflared (`packages/server/src/infra/relay/quick-tunnel.ts`), its tar extract (`packages/server/src/infra/relay/binary.ts`) and the bug report's git call (`packages/server/src/foundation/observability/debug/bug-report.ts`). [0302](../work/0302-keep-app-secrets-out-of-every-child-process.md) owns the fix.
-- The entrypoint's open-bind refusal sees only the host bind that compose passes in. A bare `docker run -p 8788:8788` publishes on every interface without that check. [0299](../work/0299-narrow-the-default-single-user-trusted-peers-so.md) owns the fix.
+- The entrypoint's open-bind refusal sees only the host bind that compose passes in. A bare `docker run -p 8788:8788` publishes on every interface without that check. Accepted with finding 1: `docker/README.md` tells operators to publish on `127.0.0.1` only.
 - The read-only rootfs, the tmpfs mounts, `cap_drop` and the loopback publish live in compose, not in the image. A bare `docker run` gets none of them. The image itself carries only the non-root drop and `no_new_privs`.
 - The Docker Engine 28 and later direct-routing opt-outs reopen case two of finding 1: `allow-direct-routing`, `gateway_mode_ipv4=routed` or `nat-unprotected`, and `trusted_host_interfaces`.
 - The cloudflared overlay serves metrics and pprof on `0.0.0.0:20241` to the compose network, and its `TUNNEL_TOKEN` shows in `docker inspect`.
