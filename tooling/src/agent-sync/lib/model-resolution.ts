@@ -26,6 +26,7 @@ export function resolveRoleModels(catalog: ModelCatalog, roleEfforts: Readonly<R
     }
     const candidates = catalog.models.flatMap((model) => {
       const match = MODEL_SLUG.exec(model.slug);
+      // biome-ignore lint/suspicious/noUnnecessaryConditions: RegExp.exec returns null for nonmatching catalog slugs, including preview models.
       return model.visibility === "list" && match?.[2] === family && match[1] !== undefined ? [{ model, version: match[1] }] : [];
     });
     candidates.sort((a, b) => compareVersions(b.version, a.version));
@@ -43,5 +44,6 @@ export function resolveRoleModels(catalog: ModelCatalog, roleEfforts: Readonly<R
 
 /** Check a persisted selection without consulting the live catalog. */
 export function isFamilyModel(model: string, family: string): boolean {
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: RegExp.exec returns null for a persisted slug outside the supported families.
   return MODEL_SLUG.exec(model)?.[2] === family;
 }
