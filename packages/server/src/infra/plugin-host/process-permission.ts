@@ -1,6 +1,6 @@
 // infra/plugin-host/process-permission — the Node permission-model flags the watchdog and the broker start under.
 // A process that runs guest code must not read the data dir, the `.env` file or another process's /proc entries, so
-// file reads stop at the code the two processes load plus the broker's private socket directory.
+// file reads stop at the code the two processes load and the container markers.
 
 import { join, parse } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,19 +44,7 @@ export function pluginWatchdogExecArgv(): string[] {
   return [PERMISSION, DENY_SQLITE, ...readGrants(PLUGIN_PROCESS_CODE_ROOTS), "--allow-child-process", ...QUIET_GRANT_WARNINGS];
 }
 
-/** The broker reads its code and the token in `brokerDirectory`, binds its socket there, and starts guest Workers,
- *  which inherit these limits. `--allow-net` is all or nothing on Node 26 and the socket needs it. It spawns nothing.
- *  The guest Worker's logger loads `foundation/env`, whose container check calls `existsSync` on the marker files;
- *  under the permission model that call throws on an ungranted path instead of answering false.
- *  @param brokerDirectory - the private directory holding the token file and, on POSIX, the socket. */
-export function pluginBrokerExecArgv(brokerDirectory: string): string[] {
-  return [
-    PERMISSION,
-    DENY_SQLITE,
-    ...readGrants([...PLUGIN_PROCESS_CODE_ROOTS, ...CONTAINER_MARKER_FILES, brokerDirectory]),
-    `--allow-fs-write=${brokerDirectory}`,
-    "--allow-worker",
-    "--allow-net",
-    ...QUIET_GRANT_WARNINGS,
-  ];
+/** The broker reads code and starts guest Workers. Its inherited channel requires no network or filesystem write grant. */
+export function pluginBrokerExecArgv(): string[] {
+  return [PERMISSION, DENY_SQLITE, ...readGrants([...PLUGIN_PROCESS_CODE_ROOTS, ...CONTAINER_MARKER_FILES]), "--allow-worker", ...QUIET_GRANT_WARNINGS];
 }

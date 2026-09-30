@@ -1,13 +1,13 @@
 // A real plugin broker, started with the flags the watchdog gives it, cannot read the data dir, the `.env` file or
-// another process's environment, from its main thread or a Worker, and cannot spawn, yet reads its code and token
-// and serves its socket. A preloaded probe makes the attempts from inside the broker process.
+// another process's environment, from its main thread or a Worker, and cannot spawn, yet reads its code
+// and serves its inherited channel. A preloaded probe makes the attempts from inside the broker process.
 
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { connect } from "node:net";
+import { connect, createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -15,7 +15,7 @@ import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { afterEach } from "vitest";
 import { pluginBrokerExecArgv } from "../../../../packages/server/src/infra/plugin-host/process-permission.ts";
-import { PLUGIN_BROKER_PROTOCOL_VERSION, parseMessageLine, serializeMessage } from "../../../../packages/server/src/infra/plugin-host/process-protocol.ts";
+import { parseMessageLine, serializeMessage } from "../../../../packages/server/src/infra/plugin-host/process-protocol.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const BROKER_ENTRY = fileURLToPath(new URL("../../../../packages/server/src/infra/plugin-host/broker-entry.ts", import.meta.url));
@@ -35,6 +35,8 @@ interface ProbeReport {
   readonly spawn: string;
   readonly dropHasWorker: boolean;
   readonly dropNested: string;
+  readonly network: string;
+  readonly workerNetwork: string;
 }
 
 let broker: ChildProcess | undefined;
@@ -56,34 +58,21 @@ function isProbeReport(message: unknown): message is ProbeReport {
   return typeof message === "object" && message !== null && Reflect.get(message, "kind") === "permission-probe";
 }
 
-async function authenticates(socketPath: string, token: string): Promise<boolean> {
-  for (;;) {
-    const socket = connect(socketPath);
-    // The broker binds its socket after the probe reports, so the first attempts may find nothing listening.
-    const opened = await new Promise<boolean>((resolve) => {
-      socket.once("connect", () => resolve(true));
-      socket.once("error", () => resolve(false));
-    });
-    if (!opened) {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      continue;
-    }
-    socket.setEncoding("utf8");
-    socket.write(serializeMessage({ kind: "authenticate", version: PLUGIN_BROKER_PROTOCOL_VERSION, token }));
-    const [line] = (await once(socket, "data")) as [string];
-    socket.destroy();
-    return Reflect.get(parseMessageLine(line.split("\n")[0] ?? "") as object, "kind") === "authenticated";
-  }
-}
-
 test("a broker under its permission flags is denied the data dir, .env and process environments, and still serves", { timeout: 30_000 }, async () => {
+  const target = createServer((socket) => socket.end());
+  target.listen(0, "127.0.0.1");
+  await once(target, "listening");
+  const address = target.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("test: no TCP target");
+  }
+  const control = connect({ host: "127.0.0.1", port: address.port });
+  await once(control, "connect");
+  control.destroy();
   directory = mkdtempSync(join(tmpdir(), "orb-broker-permission-"));
   const brokerDirectory = join(directory, "broker");
   mkdirSync(brokerDirectory, { mode: 0o700 });
-  const socketPath = join(brokerDirectory, "broker.sock");
-  const tokenPath = join(brokerDirectory, "token");
-  const token = randomBytes(32).toString("base64url");
-  writeFileSync(tokenPath, token, { mode: PRIVATE_FILE_MODE, flag: "wx" });
+  const generation = randomUUID();
   const dataKey = join(directory, "data", "secrets", "credentials_key");
   mkdirSync(join(directory, "data", "secrets"), { recursive: true });
   writeFileSync(dataKey, randomBytes(32).toString("hex"), { mode: PRIVATE_FILE_MODE });
@@ -101,10 +90,10 @@ test("a broker under its permission flags is denied the data dir, .env and proce
     join(WORKSPACE_ROOT, ".env"),
     ...(process.platform === "linux" ? [`/proc/${process.pid}/environ`] : []),
   ];
-  const allowed = [tokenPath, join(WORKSPACE_ROOT, "packages", "server", "package.json")];
+  const allowed = [join(WORKSPACE_ROOT, "packages", "server", "package.json")];
   // A preload is not granted the way the entry point is, so the probe file alone is added to the reads.
   const probeArgv = [`--allow-fs-read=${PROBE}`, `--import=${PROBE}`];
-  broker = spawn(process.execPath, [...pluginBrokerExecArgv(brokerDirectory), ...probeArgv, BROKER_ENTRY, socketPath, tokenPath, "1", "test"], {
+  broker = spawn(process.execPath, [...pluginBrokerExecArgv(), ...probeArgv, BROKER_ENTRY, brokerDirectory, "1", generation, "test"], {
     // The watchdog starts the broker in its private directory; process-runtime.test.ts pins that on the live broker.
     cwd: brokerDirectory,
     env: {
@@ -112,6 +101,7 @@ test("a broker under its permission flags is denied the data dir, .env and proce
       ["ORB_BROKER_PROBE_READS"]: JSON.stringify([...denied, ...allowed]),
       ["ORB_WORKER_RUNTIME_PATH"]: WORKER_RUNTIME,
       ["ORB_WORKER_DROP_PRELOAD"]: DROP_PRELOAD,
+      ["ORB_BROKER_PROBE_PORT"]: String(address.port),
     },
     stdio: ["ignore", "inherit", "inherit", "ipc"],
   });
@@ -135,9 +125,25 @@ test("a broker under its permission flags is denied the data dir, .env and proce
     expect(sqlite[dataKey]).not.toBe("allowed");
   }
   expect(report.spawn).toBe(DENIED);
+  target.close();
+  expect(report.network).toBe(DENIED);
+  expect(report.workerNetwork).toBe(DENIED);
   // The real `worker-runtime.ts`, started as a Worker, drops the `worker` permission before any guest code runs, so a
   // guest Worker can no longer start a Worker with `execArgv: []` that would read a secret with no permission model.
   expect(report.dropHasWorker).toBe(false);
   expect(report.dropNested).toBe(`denied:${DENIED}`);
-  expect(await authenticates(socketPath, token)).toBe(true);
+  const response = new Promise<unknown>((resolve) => {
+    broker?.on("message", (message: unknown) => {
+      if (typeof message === "object" && message !== null && Reflect.get(message, "kind") === "frame") {
+        resolve(parseMessageLine(String(Reflect.get(message, "frame"))));
+      }
+    });
+  });
+  const commandId = randomUUID();
+  broker.send({
+    kind: "frame",
+    generation,
+    frame: serializeMessage({ kind: "command", id: commandId, operation: "dispose", runtimeId: randomUUID(), authorityId: randomUUID() }),
+  });
+  expect(await response).toMatchObject({ kind: "response", id: commandId, ok: false });
 });

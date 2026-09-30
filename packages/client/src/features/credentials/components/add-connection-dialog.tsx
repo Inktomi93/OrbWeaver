@@ -52,7 +52,7 @@ import {
   submitFailureSentence,
   URL_REFUSAL_CODES,
 } from "../lib/add-connection-form-model.ts";
-import { endpointHostOf } from "../lib/connection-editor-model.ts";
+import { endpointAuthorityOf } from "../lib/connection-editor-model.ts";
 import { providerPickerItems } from "../lib/connections-model.ts";
 import { failedCatalogSource, modelCheckOf, modelListSource } from "../lib/model-picker-model.ts";
 import { AddConnectionFailure } from "./add-connection-failure.tsx";
@@ -180,7 +180,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
   // The failed submit's error itself (a caught value) and the draft it failed for, stated once inline by
   // `AddConnectionFailure` while the draft is unchanged.
   const [submitFailure, setSubmitFailure] = useState<{ readonly error: unknown; readonly values: AddConnectionFormValues } | null>(null);
-  const [refusedHost, setRefusedHost] = useState<string | null>(null);
+  const [refusedAuthority, setRefusedAuthority] = useState<string | null>(null);
   const failureId = useId();
 
   useEffect(() => {
@@ -216,11 +216,11 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
    *  private host this deployment does not admit is also offered to the owner to admit, under the field. */
   const markUrlRefused = (err: unknown): void => {
     form.setFieldMeta("baseUrl", (prev) => ({ ...prev, isTouched: true, errorMap: { ...prev.errorMap, onServer: errorMessage(err) } }));
-    setRefusedHost(trpcErrorReason(err) === CONNECTION_OP_CODES.baseUrlRefused ? endpointHostOf(form.state.values.baseUrl.trim()) : null);
+    setRefusedAuthority(trpcErrorReason(err) === CONNECTION_OP_CODES.baseUrlRefused ? endpointAuthorityOf(form.state.values.baseUrl.trim()) : null);
   };
   const clearUrlRefusal = (): void => {
     form.setFieldMeta("baseUrl", (prev) => ({ ...prev, errorMap: { ...prev.errorMap, onServer: undefined } }));
-    setRefusedHost(null);
+    setRefusedAuthority(null);
   };
   /** The owner admitted the host: the refusal and the failure statement describe a server answer that no longer holds. */
   const onAdmitted = (): void => {
@@ -323,7 +323,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
                   onListing={setListing}
                   onUrlRefusal={markUrlRefused}
                   onUrlEdited={clearUrlRefusal}
-                  refusedHost={refusedHost}
+                  refusedAuthority={refusedAuthority}
                   onAdmitted={onAdmitted}
                 />
               );

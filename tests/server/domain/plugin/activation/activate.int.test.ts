@@ -6,20 +6,26 @@
 
 import type { Db } from "@orb/db";
 import { DomainConflictError } from "@orb/kit/errors";
-import type { Handle } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PluginHandlerRef, PluginHostOps, PluginHostPort, PluginInvokeHandler, PluginRegistrationHandle } from "@orb/server/domain/plugin";
 import { PluginCrashedError } from "@orb/server/domain/plugin";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
+import { afterEach } from "vitest";
 import { createActivate } from "../../../../../packages/server/src/domain/plugin/activation/activate.ts";
 import { createCrashPolicy } from "../../../../../packages/server/src/domain/plugin/activation/crash-policy.ts";
 import type { PluginRegistry } from "../../../../../packages/server/src/domain/plugin/contract/service.ts";
 import { getById } from "../../../../../packages/server/src/domain/plugin/persistence/plugins.ts";
 import { createPluginLifecycleLanes } from "../../../../../packages/server/src/domain/plugin/substrate/lifecycle-lanes.ts";
+import { __terminateManagedPluginBrokerForTest } from "../../../../../packages/server/src/infra/plugin-host/process-runtime.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeBundle, makeInertOps, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
+import { makeBundle, makeInertOps, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
+
+afterEach(async () => {
+  await __terminateManagedPluginBrokerForTest();
+});
 
 const HANDLER = castId<PluginHandlerRef>("handler_1");
 const HANDLER2 = castId<PluginHandlerRef>("handler_2");
@@ -352,4 +358,81 @@ test("a HUNG guest handler is a COUNTED crash (the settlement deadline feeds the
   // Pre-fix this promise NEVER settled: the assertion could not even be written without hanging the suite.
   await expect(invoke(handlerRef, "{}", null)).rejects.toThrow(INVOCATION_ENDED_RE);
   expect((await getById(h.ctx.db, owner, installed.id))?.consecutiveCrashes).toBe(1);
+});
+
+interface RetainedTool {
+  readonly owner: UserId;
+  readonly handler: PluginHandlerRef;
+  readonly invoke: PluginInvokeHandler;
+}
+
+test("enabled installations across owners retain their catalogs and owner bridges while physical runtimes churn", { timeout: 300_000 }, async ({ db }) => {
+  const alice = await seedUser(db, { handle: castId<Handle>("resident-alice") });
+  const bob = await seedUser(db, { handle: castId<Handle>("resident-bob") });
+  const owners = [alice, bob];
+  const retained = new Map<string, RetainedTool>();
+  const base = makeInertOps();
+  const ops: PluginHostOps = {
+    ...base,
+    variables: { ...base.variables, get: (owner): Promise<string> => Promise.resolve(String(owner)) },
+    registrar: {
+      ...base.registrar,
+      registerTool: (reg, invoke, scope): PluginRegistrationHandle => {
+        const key = `${scope.installer.userId}/${scope.slug}`;
+        if (retained.has(key)) {
+          throw new Error("duplicate registration after cold wake");
+        }
+        retained.set(key, { owner: scope.installer.userId, handler: reg.handler, invoke });
+        return {
+          unregister: (): void => {
+            retained.delete(key);
+          },
+        };
+      },
+    },
+  };
+  const h = makePluginHarness(db, { ops, port: createPluginHost({ nowEpochMs: () => FROZEN_AT_MS, nextRandom: () => 0.5, mintId: () => "id-residency" }) });
+  const enabled: { readonly owner: UserId; readonly id: Awaited<ReturnType<typeof h.service.install>>["id"] }[] = [];
+  try {
+    for (let index = 0; index < 100; index += 1) {
+      const owner = owners[index % owners.length];
+      if (owner === undefined) {
+        throw new Error("test: missing owner");
+      }
+      const caller = principalFor(owner);
+      const slug = `resident-${index}`;
+      const source = `const h=orb.host(1); h.tools.register({name:"read_owner",description:"read this installer's marker",parameters:{type:"object",properties:{}},handler:async()=>await h.variables.get("owner-marker")});`;
+      const installed = await h.service.install({
+        caller,
+        bundle: makeBundle({ id: slug, capabilities: ["tools.register", "global_vars"] }, source),
+        grant: ["tools.register", "global_vars"],
+      });
+      await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+      enabled.push({ owner, id: installed.id });
+    }
+    expect(retained.size).toBe(100);
+    for (const owner of owners) {
+      const rows = await h.service.list({ caller: principalFor(owner) });
+      expect(rows.map((row) => row.id).toSorted((left, right) => left.localeCompare(right))).toEqual(
+        enabled
+          .filter((installed) => installed.owner === owner)
+          .map((installed) => installed.id)
+          .toSorted((left, right) => left.localeCompare(right)),
+      );
+      expect(rows).toHaveLength(50);
+      expect(rows.every((row) => row.status === "enabled")).toBe(true);
+    }
+    for (const tool of retained.values()) {
+      await expect(tool.invoke(tool.handler, "{}", null)).resolves.toBe(String(tool.owner));
+    }
+    expect(retained.size).toBe(100);
+    for (const owner of owners) {
+      expect((await h.service.list({ caller: principalFor(owner) })).every((row) => row.status === "enabled")).toBe(true);
+    }
+  } finally {
+    for (const installed of enabled) {
+      await h.service.setEnabled({ caller: principalFor(installed.owner), pluginId: installed.id, enabled: false });
+    }
+    await __terminateManagedPluginBrokerForTest();
+  }
 });

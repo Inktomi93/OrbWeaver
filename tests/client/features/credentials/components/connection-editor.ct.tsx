@@ -501,10 +501,10 @@ test("an unreachable endpoint says §5.3a's sentence, and the owner is offered t
   await expect(component.locator('[data-slot="connection-unreachable"]')).toHaveText("Can't reach 127.0.0.1 — the server may be down.");
 
   // The host is not written down, so the repair is offered where the failure is.
-  await component.getByRole("button", { name: "Admit 127.0.0.1" }).click();
+  await component.getByRole("button", { name: "Admit 127.0.0.1:8000" }).click();
   await expect
     .poll(() => recorder.lastInput("settings.updateAppSettings"), { intervals: [20, 50, 100] })
-    .toEqual({ partial: { privateEndpointAllowlist: ["127.0.0.1"] } });
+    .toEqual({ partial: { privateEndpointAllowlist: ["127.0.0.1:8000"] } });
 });
 
 test("a host already named in the allowlist is NOT offered an admission", async ({ mount, page }) => {
@@ -515,6 +515,29 @@ test("a host already named in the allowlist is NOT offered an admission", async 
   await expect(component.getByRole("button", { name: "Check again" })).toBeVisible();
   await expect(component.locator('[data-slot="connection-admit-host"]')).toHaveCount(0);
 });
+
+test("another allowed port keeps this endpoint's admission available", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, { allowlist: ["127.0.0.1:8001"] });
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Diagnostics").click();
+  await component.getByRole("button", { name: "Admit 127.0.0.1:8000", exact: true }).click();
+  await expect
+    .poll(() => recorder.lastInput("settings.updateAppSettings"))
+    .toEqual({ partial: { privateEndpointAllowlist: ["127.0.0.1:8001", "127.0.0.1:8000"] } });
+});
+
+for (const [baseUrl, authority] of [
+  ["https://host.lan/v1", "host.lan:443"],
+  ["http://[::1]:8000/v1", "[::1]:8000"],
+] as const) {
+  test(`the editor admits the actual endpoint ${authority}`, async ({ mount, page }) => {
+    const recorder = await stubEditor(page, { connection: connectionRow({ baseUrl }) });
+    const component = await mount(<ConnectionEditorStory />);
+    await tier(page, "Diagnostics").click();
+    await component.getByRole("button", { name: `Admit ${authority}`, exact: true }).click();
+    await expect.poll(() => recorder.lastInput("settings.updateAppSettings")).toEqual({ partial: { privateEndpointAllowlist: [authority] } });
+  });
+}
 
 // A member cannot change a deployment setting, so they are not shown a control that would 403.
 test("a non-owner is offered no admission at all", async ({ mount, page }) => {

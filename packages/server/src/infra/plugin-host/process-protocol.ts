@@ -1,4 +1,3 @@
-import { timingSafeEqual } from "node:crypto";
 import type { PluginLogLevel } from "@orb/contracts/plugin";
 import { PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
 import type {
@@ -12,10 +11,9 @@ import type {
 } from "./contract/process-protocol.ts";
 import { PLUGIN_BRIDGE_OPERATIONS, PLUGIN_COMMAND_OPERATIONS, PLUGIN_SYNC_OPERATIONS } from "./contract/process-protocol.ts";
 
-export const PLUGIN_BROKER_PROTOCOL_VERSION = 2;
 export const PLUGIN_BROKER_SYNC_TIMEOUT_MS = 10_000;
 export const PLUGIN_BROKER_SYNC_RESULT_BYTES = 2_097_152;
-/** Largest authenticated JSON-line frame. `net.fetchAsset` may carry a 5 MiB image as base64. */
+/** Largest inherited-channel JSON frame. `net.fetchAsset` may carry a 5 MiB image as base64. */
 export const PLUGIN_BROKER_MESSAGE_MAX_BYTES = 10_485_760;
 const PROCESS_ID_MIN_CHARS = 16;
 
@@ -127,12 +125,6 @@ function isPluginLogLevel(value: unknown): value is PluginLogLevel {
   return typeof value === "string" && PLUGIN_LOG_LEVELS.some((level) => level === value);
 }
 
-export function tokenMatches(expected: string, received: string): boolean {
-  const expectedBytes = Buffer.from(expected, "utf8");
-  const receivedBytes = Buffer.from(received, "utf8");
-  return expectedBytes.length === receivedBytes.length && timingSafeEqual(expectedBytes, receivedBytes);
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -173,11 +165,6 @@ function parseParentCommand(value: Readonly<Record<string, unknown>>): ParentBro
 export function parseParentBrokerMessage(message: unknown): ParentBrokerMessage | null {
   if (!isRecord(message) || typeof message["kind"] !== "string") {
     return null;
-  }
-  if (message["kind"] === "authenticate") {
-    return typeof message["version"] === "number" && typeof message["token"] === "string"
-      ? { kind: "authenticate", version: message["version"], token: message["token"] }
-      : null;
   }
   if (message["kind"] === "bridge-cancel") {
     return typeof message["id"] === "string" ? { kind: "bridge-cancel", id: message["id"] } : null;
@@ -259,9 +246,6 @@ function parseBrokerRuntimeMessage(kind: string, value: Readonly<Record<string, 
 export function parseBrokerParentMessage(message: unknown): BrokerParentMessage | null {
   if (!isRecord(message) || typeof message["kind"] !== "string") {
     return null;
-  }
-  if (message["kind"] === "authenticated") {
-    return typeof message["version"] === "number" ? { kind: "authenticated", version: message["version"] } : null;
   }
   if (message["kind"] === "response") {
     return parseBrokerResponse(message);

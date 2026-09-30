@@ -1,5 +1,6 @@
 import { lookup as dnsLookup } from "node:dns";
 import type { LookupFunction } from "node:net";
+import { effectiveHttpPort, parseTcpPort } from "@orb/kit/http-endpoint";
 import { parseIp } from "@orb/kit/ip";
 import { Agent, buildConnector, setGlobalDispatcher } from "undici";
 import { env, parseTrustedPrivateRanges } from "#foundation/env";
@@ -164,12 +165,8 @@ interface PrivateEndpointAllowlist {
  *  same AppSettings row at its own boot, and one that has not yet fails CLOSED. */
 let privateEndpointAllowlist: PrivateEndpointAllowlist = { hosts: new Set<string>(), hostPorts: new Map<string, ReadonlySet<number>>(), ranges: [] };
 
-const MIN_PORT = 1;
-const MAX_PORT = 65_535;
 const HOSTNAME_MAX_LENGTH = 253;
 const HOSTNAME_LABEL_MAX_LENGTH = 63;
-/** An allowlist/URL port: 1–5 digits, nothing else (no sign, no whitespace, no empty string). */
-const PORT_RE = /^\d{1,5}$/;
 /** A CIDR prefix: 1–3 digits, nothing else (an empty one is `Number("") === 0`, i.e. a silent /0). */
 const PREFIX_RE = /^\d{1,3}$/;
 /** `[<v6>]` with an OPTIONAL `:<port>` — the authority spelling of an IPv6 endpoint. */
@@ -178,25 +175,6 @@ const BRACKETED_V6_RE = /^\[([^\]]+)\](?::(\d+))?$/;
 const HOSTNAME_LABEL_RE = /^[a-z0-9_-]+$/;
 /** A label WHATWG URL reads as a number (decimal, or `0x` hex). A host ending in one parses as IPv4, never as a name. */
 const NUMERIC_LABEL_RE = /^(?:\d+|0x[0-9a-f]*)$/;
-/** The port a URL that states none actually dials, by scheme. */
-const DEFAULT_PORT_BY_PROTOCOL: Readonly<Record<string, number>> = { "http:": 80, "https:": 443 };
-
-/** `1`–`65535` as a number, or `null` for anything else — the fail-closed direction for both an operator's
- *  typo in an entry and a URL/connector port this belt cannot read. */
-function parsePort(text: string): number | null {
-  if (!PORT_RE.test(text)) {
-    return null;
-  }
-  const port = Number.parseInt(text, 10);
-  return port >= MIN_PORT && port <= MAX_PORT ? port : null;
-}
-
-/** The port a connect target will actually dial: the explicit one, else the scheme's default. `null` means
- *  "unreadable" — a port-scoped entry can never admit that, by construction. */
-function effectivePort(protocol: string, port: string): number | null {
-  return port === "" ? (DEFAULT_PORT_BY_PROTOCOL[protocol] ?? null) : parsePort(port);
-}
-
 /** A syntactically admissible hostname ENTRY. Without this a typo (`http://127.0.0.1:8703`, a trailing dot,
  *  a stray path) became an unmatchable host key that admitted nothing and said nothing — the no-tell rule. */
 function isHostnameEntry(host: string): boolean {
@@ -227,7 +205,7 @@ function splitEntryPort(raw: string): { readonly subject: string; readonly port:
     if (portText === undefined) {
       return { subject, port: null };
     }
-    const port = parsePort(portText);
+    const port = parseTcpPort(portText);
     return port === null ? null : { subject, port };
   }
   const slash = raw.indexOf("/");
@@ -236,7 +214,7 @@ function splitEntryPort(raw: string): { readonly subject: string; readonly port:
     if (colon === -1) {
       return { subject: raw, port: null };
     }
-    const port = parsePort(raw.slice(colon + 1));
+    const port = parseTcpPort(raw.slice(colon + 1));
     return port === null ? null : { subject: raw.slice(0, colon), port };
   }
   if (parseIp(raw) !== null) {
@@ -246,7 +224,7 @@ function splitEntryPort(raw: string): { readonly subject: string; readonly port:
   if (lastColon === -1) {
     return { subject: raw, port: null };
   }
-  const port = parsePort(raw.slice(lastColon + 1));
+  const port = parseTcpPort(raw.slice(lastColon + 1));
   return port === null ? null : { subject: raw.slice(0, lastColon), port };
 }
 
@@ -388,7 +366,7 @@ export function endpointAdmission(baseUrl: string): (typeof ENDPOINT_ADMISSIONS)
   }
   // The port the browser/server would actually dial — an explicit one, else the scheme's default, so an
   // entry written `ollama.lan:80` matches the `http://ollama.lan` a user types.
-  const port = effectivePort(url.protocol, url.port);
+  const port = effectiveHttpPort(url.protocol, url.port);
   const host = unbracket(url.hostname).toLowerCase();
   const literal = host === "localhost" ? "127.0.0.1" : host;
   if (parseIp(literal) === null) {
@@ -544,7 +522,7 @@ function createFirewallConnect(): { readonly connect: buildConnector.connector; 
     // and a port-scoped entry is therefore keyed on an exact host, never on a range.
     // The deployment's admitted private endpoints (F12) — read LIVE so a Governance edit is honoured on the
     // very next connect.
-    if (admittedByAllowlist(options.hostname, effectivePort(options.protocol, options.port))) {
+    if (admittedByAllowlist(options.hostname, effectiveHttpPort(options.protocol, options.port))) {
       allowlistedConnect(options, callback);
       return;
     }

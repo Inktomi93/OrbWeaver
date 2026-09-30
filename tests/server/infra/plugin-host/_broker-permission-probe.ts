@@ -6,6 +6,7 @@
 import { spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { readFileSync } from "node:fs";
+import { connect } from "node:net";
 import process from "node:process";
 import { Worker } from "node:worker_threads";
 
@@ -42,6 +43,7 @@ function attemptSqlite(path: string): string {
 interface ProbeResult {
   readonly reads: Readonly<Record<string, string>>;
   readonly sqlite: Readonly<Record<string, string>>;
+  readonly network?: string;
 }
 
 function probeMainThread(targets: readonly string[]): ProbeResult {
@@ -54,16 +56,26 @@ function probeMainThread(targets: readonly string[]): ProbeResult {
 // A guest Worker inherits the broker's permission model and its flags; this one repeats the fs and sqlite attempts.
 const WORKER_PROBE = `
 const { readFileSync } = require("node:fs");
+const { connect } = require("node:net");
 const { parentPort, workerData } = require("node:worker_threads");
 const attemptRead = (path) => { try { readFileSync(path); return "allowed"; } catch (e) { return String(e.code ?? "thrown"); } };
 const attemptSqlite = (path) => {
   try { const { DatabaseSync } = process.getBuiltinModule("node:sqlite"); new DatabaseSync(path, { readOnly: true }).close(); return "allowed"; }
   catch (e) { return String(e.code ?? e.message?.slice(0, 40) ?? "thrown"); }
 };
-parentPort.postMessage({
-  reads: Object.fromEntries(workerData.map((p) => [p, attemptRead(p)])),
-  sqlite: Object.fromEntries(workerData.map((p) => [p, attemptSqlite(p)])),
-});`;
+const network = new Promise((resolve) => {
+  if (!Number.isFinite(workerData.port)) { resolve("not-requested"); return; }
+  try {
+    const socket = connect({ host: "127.0.0.1", port: workerData.port });
+    socket.once("connect", () => { socket.destroy(); resolve("allowed"); });
+    socket.once("error", (error) => resolve(String(error.code ?? "thrown")));
+  } catch (error) { resolve(String(error.code ?? "thrown")); }
+});
+network.then((network) => parentPort.postMessage({
+  reads: Object.fromEntries(workerData.paths.map((p) => [p, attemptRead(p)])),
+  sqlite: Object.fromEntries(workerData.paths.map((p) => [p, attemptSqlite(p)])),
+  network,
+}));`;
 
 interface DropProbeMessage {
   readonly __cbsDropProbe: true;
@@ -121,11 +133,29 @@ function attemptSpawn(): string {
 
 // biome-ignore lint/style/noProcessEnv: the test hands this probe its paths through the broker's spawn env.
 const paths = JSON.parse(process.env["ORB_BROKER_PROBE_READS"] ?? "[]") as readonly string[];
-const worker = new Worker(WORKER_PROBE, { eval: true, workerData: paths });
+// biome-ignore lint/style/noProcessEnv: the test supplies a listening loopback target.
+const networkPort = Number(process.env["ORB_BROKER_PROBE_PORT"]);
+const worker = new Worker(WORKER_PROBE, { eval: true, workerData: { paths, port: networkPort } });
 const [workerResult] = (await once(worker, "message")) as [ProbeResult];
 await worker.terminate();
 const mainResult = probeMainThread(paths);
 const drop = await probeWorkerRuntimeDrop(paths[0] ?? "");
+const network = await new Promise<string>((resolve) => {
+  if (!Number.isFinite(networkPort)) {
+    resolve("not-requested");
+    return;
+  }
+  try {
+    const socket = connect({ host: "127.0.0.1", port: networkPort });
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve("allowed");
+    });
+    socket.once("error", (error) => resolve(errorCode(error)));
+  } catch (error) {
+    resolve(errorCode(error));
+  }
+});
 process.send?.({
   kind: "permission-probe",
   reads: mainResult.reads,
@@ -135,4 +165,6 @@ process.send?.({
   spawn: attemptSpawn(),
   dropHasWorker: drop?.hasWorker,
   dropNested: drop?.nested,
+  network,
+  workerNetwork: workerResult.network,
 });

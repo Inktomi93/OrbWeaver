@@ -295,7 +295,7 @@ test("a refused Server URL is an error on that field, and editing the URL clears
 // ── admitting a refused private host (docs/work/0325) ───────────────────────────────────────────────────
 
 const LAN_URL = "http://10.0.0.5:8000/v1";
-const LAN_HOST = "10.0.0.5";
+const LAN_AUTHORITY = "10.0.0.5:8000";
 const LAN_REFUSAL = '"10.0.0.5:8000" is a private address this deployment does not admit.';
 
 /** A server that refuses the draft's private host on its first answer and admits it after, as the server does
@@ -319,10 +319,10 @@ test("the owner admits a refused private host under the Server URL, and the list
   await dialog.getByRole("button", { name: "List models" }).click();
 
   await expect(url).toHaveAttribute("aria-invalid", "true");
-  await dialog.getByRole("button", { name: `Admit ${LAN_HOST}` }).click();
+  await dialog.getByRole("button", { name: `Admit ${LAN_AUTHORITY}` }).click();
   await expect
     .poll(() => trpc.lastInput("settings.updateAppSettings"), { intervals: [20, 50, 100] })
-    .toEqual({ partial: { privateEndpointAllowlist: [LAN_HOST] } });
+    .toEqual({ partial: { privateEndpointAllowlist: [LAN_AUTHORITY] } });
   // The refusal described the server's answer before the save, so it is withdrawn with the control.
   await expect(url).not.toHaveAttribute("aria-invalid", "true");
   await expect(dialog.locator('[data-slot="connection-admit-host"]')).toHaveCount(0);
@@ -345,7 +345,7 @@ test("an admission after a refused submit withdraws the failure statement, and t
 
   const failure = dialog.locator('[data-slot="add-connection-failure"]');
   await expect(failure).toHaveText(`Nothing was saved — ${LAN_REFUSAL}`);
-  await dialog.getByRole("button", { name: `Admit ${LAN_HOST}` }).click();
+  await dialog.getByRole("button", { name: `Admit ${LAN_AUTHORITY}` }).click();
   await expect(failure).toHaveCount(0);
   await submit(dialog);
   await expect(dialog).toBeHidden();
@@ -367,7 +367,7 @@ for (const role of ["admin", "user"] as const) {
     // The control for the absence below: the refusal did reach the dialog.
     await expect(url).toHaveAttribute("aria-invalid", "true");
     await expect(dialog.getByText(LAN_REFUSAL, { exact: true })).toBeVisible();
-    await expect(dialog.getByRole("button", { name: `Admit ${LAN_HOST}` })).toHaveCount(0);
+    await expect(dialog.getByRole("button", { name: `Admit ${LAN_AUTHORITY}` })).toHaveCount(0);
     await expect(dialog.locator('[data-slot="connection-admit-host"]')).toHaveCount(0);
     await expect.poll(() => trpc.count("settings.getAppSettingsWithOverrides")).toBe(0);
     await expect.poll(() => trpc.count("settings.updateAppSettings")).toBe(0);
@@ -801,5 +801,22 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       await expect(dialog).toBeHidden();
       await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ providerId: "anthropic", model: "claude-opus-5", modelCheck: "unchecked" });
     });
+  });
+}
+
+for (const [url, authority] of [
+  ["http://10.0.0.5/v1", "10.0.0.5:80"],
+  ["https://[fd00::1]/v1", "[fd00::1]:443"],
+] as const) {
+  test(`the add dialog admits the actual endpoint ${authority}`, async ({ mount, page }) => {
+    const trpc = await stubConnectionsPane(page, { draftCatalogModels: refuseFirst(catalogOf([])) });
+    await mount(<ConnectionsAuthoringStory width={870} />);
+    const dialog = await openAddDialog(page);
+    await pickProvider(page, dialog, "vLLM");
+    await dialog.getByLabel("Server URL", { exact: true }).fill(url);
+    await dialog.getByRole("button", { name: "List models" }).click();
+    await dialog.getByRole("button", { name: `Admit ${authority}`, exact: true }).click();
+    await expect.poll(() => trpc.lastInput("settings.updateAppSettings")).toEqual({ partial: { privateEndpointAllowlist: [authority] } });
+    await expect(dialog.getByLabel("Server URL", { exact: true })).not.toHaveAttribute("aria-invalid", "true");
   });
 }
