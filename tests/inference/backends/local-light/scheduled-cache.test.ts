@@ -1,9 +1,40 @@
-import { modelIdSchema } from "@orb/contracts/inference";
+import { EMBEDDING_FLOOR, modelIdSchema } from "@orb/contracts/inference";
 import { createScheduledCache } from "../../../../packages/inference/src/backends/local-light/scheduled-cache.ts";
+import { createLocalLightEmbed } from "../../../../packages/inference/src/backends/local-light/tasks.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { fakeModelCache } from "../../_support.ts";
+import { fakeModelCache, fakeResolved } from "../../_support.ts";
 
 const MODEL = modelIdSchema.parse("orb-test/model");
+
+test("a query waits for the active call, then runs before the remaining indexing batches", async () => {
+  const entered = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const calls: string[][] = [];
+  const cache = createScheduledCache({
+    ...fakeModelCache(),
+    embedTexts: async (_model, inputs) => {
+      calls.push([...inputs]);
+      if (calls.length === 1) {
+        entered.resolve();
+        await release.promise;
+      }
+      return inputs.map(() => Float32Array.of(1, 0));
+    },
+  });
+  const embed = createLocalLightEmbed(cache, (id) => id);
+  const connection = fakeResolved({ task: "embed", providerId: "local-light", model: MODEL, capability: { kind: "embedding", embedding: EMBEDDING_FLOOR } });
+  const documents = Array.from({ length: 9 }, (_, i) => `card ${i}`);
+  const indexing = embed({ connection, input: documents, inputType: "document" });
+  await entered.promise;
+  const query = embed({ connection, input: "find a character", inputType: "query" });
+  await Promise.resolve();
+  expect(calls).toEqual([documents.slice(0, 4)]);
+  release.resolve();
+  const [indexed, found] = await Promise.all([indexing, query]);
+  expect(calls).toEqual([documents.slice(0, 4), ["find a character"], documents.slice(4, 8), documents.slice(8)]);
+  expect(indexed.vectors).toHaveLength(documents.length);
+  expect(found.vectors).toEqual([Float32Array.of(1, 0)]);
+});
 
 test("length grouping preserves caller order and bounds padded batches", async () => {
   const calls: string[][] = [];

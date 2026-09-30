@@ -80,6 +80,7 @@ export function createLocalLightEmbed(cache: LocalLightModelCache, spaceTag: (mo
             cache.embedTexts(
               modelId,
               kept.map((k) => k.text),
+              req.inputType,
             ),
             req.signal,
           )

@@ -22,4 +22,8 @@ Interactive query embeds take priority over indexer embeds, and a query embed du
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Query embeddings now precede queued indexing batches while one native call remains active. A composed regression proves ordering and preserved results.
+
+The real q8 worker measurement uses CPU affinity of two and production seed-card text. A warm query takes about 55 ms. A query submitted during an active card batch takes about 10.47 seconds, then runs before the remaining cards. Evidence: `reports/alpha-product-completion/query-priority-proof.json`.
+
+The 500 ms requirement remains unmet during active indexing. The shipped seed vectors avoid live indexing at signup. Interrupting native inference or loading a separate query worker requires a resource decision. Shared static acceptance remains pending.

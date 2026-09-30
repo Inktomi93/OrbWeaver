@@ -1,4 +1,4 @@
-// One local inference call runs at a time; text callers sharing a turn use length-bounded batches.
+// One native call runs at a time. Queries precede queued indexing batches; an active call finishes first.
 import type { ModelId } from "@orb/kit/ids";
 import { ProviderError } from "../../contract/errors.ts";
 import type { LocalLightModelCache } from "./model-cache.ts";
@@ -66,19 +66,46 @@ async function settleTextBatch(cache: LocalLightModelCache, group: TextGroup, ba
 
 /** Preserve the cache API while bounding native work and combining concurrent text inputs. */
 export function createScheduledCache(cache: LocalLightModelCache): LocalLightModelCache {
-  let tail: Promise<void> = Promise.resolve();
+  const queries: (() => void)[] = [];
+  const background: (() => void)[] = [];
+  let running = false;
   let pending = 0;
   const groups = new Map<string, TextGroup>();
 
-  function enqueue<T>(run: () => Promise<T>): Promise<T> {
-    const result = tail.then(run);
-    // Both outcomes reach the caller; the queue must also advance after a failed call.
-    // @orb-waive caught-failure-ownership(result): the caller receives result unchanged; only the private scheduling tail absorbs its rejection. Ends if result is no longer returned.
-    tail = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
+  function drain(): void {
+    if (running) {
+      return;
+    }
+    const next = queries.shift() ?? background.shift();
+    if (next !== undefined) {
+      running = true;
+      next();
+    }
+  }
+
+  function advance(): void {
+    running = false;
+    drain();
+  }
+
+  function enqueue<T>(run: () => Promise<T>, isQuery = false): Promise<T> {
+    const result = Promise.withResolvers<T>();
+    (isQuery ? queries : background).push(() => {
+      void Promise.resolve()
+        .then(run)
+        .then(
+          (value) => {
+            result.resolve(value);
+            advance();
+          },
+          (error: Error) => {
+            result.reject(error);
+            advance();
+          },
+        );
+    });
+    drain();
+    return result.promise;
   }
 
   function admit<T>(run: () => Promise<T>): Promise<T> {
@@ -91,15 +118,9 @@ export function createScheduledCache(cache: LocalLightModelCache): LocalLightMod
     });
   }
 
-  async function flush(group: TextGroup): Promise<void> {
-    for (const batch of textBatches(group.items)) {
-      await settleTextBatch(cache, group, batch);
-    }
-  }
-
-  function text(method: TextGroup["method"], modelId: ModelId, texts: readonly string[]): Promise<Float32Array[]> {
+  function text(method: TextGroup["method"], modelId: ModelId, texts: readonly string[], isQuery = false): Promise<Float32Array[]> {
     return admit(() => {
-      const key = `${method}:${modelId}`;
+      const key = `${method}:${modelId}:${isQuery}`;
       let group = groups.get(key);
       if (group === undefined) {
         group = { method, modelId, items: [] };
@@ -107,12 +128,14 @@ export function createScheduledCache(cache: LocalLightModelCache): LocalLightMod
         const captured = group;
         queueMicrotask(() => {
           groups.delete(key);
-          // @orb-waive caught-failure-ownership(enqueue): a flush failure rejects every captured caller promise below. Ends if text stops returning those promises.
-          enqueue(() => flush(captured)).catch((error: Error) => {
-            for (const item of captured.items) {
-              item.reject(error);
-            }
-          });
+          for (const batch of textBatches(captured.items)) {
+            // @orb-waive caught-failure-ownership(enqueue): each rejected batch rejects its waiting text callers below. Ends if text stops returning those promises.
+            enqueue(() => settleTextBatch(cache, captured, batch), isQuery).catch((error: Error) => {
+              for (const item of batch) {
+                item.reject(error);
+              }
+            });
+          }
         });
       }
       return Promise.all(
@@ -126,7 +149,7 @@ export function createScheduledCache(cache: LocalLightModelCache): LocalLightMod
   }
 
   return {
-    embedTexts: (modelId, texts) => text("embedTexts", modelId, texts),
+    embedTexts: (modelId, texts, inputType) => text("embedTexts", modelId, texts, inputType === "query"),
     embedClipTexts: (modelId, texts) => text("embedClipTexts", modelId, texts),
     embedImages: (modelId, images) => admit(() => enqueue(() => cache.embedImages(modelId, images))),
     scorePairs: (modelId, query, documents) => admit(() => enqueue(() => cache.scorePairs(modelId, query, documents))),

@@ -146,6 +146,8 @@ ONE fold in `EVIDENCE_TIERS` order — `declared → measured → advertised →
 
 11. **The embedding-space invariant constrains the embed surfaces, and the local-light dtype is EXECUTION truth.** §9 states the invariant. Its sharp edge in this package: a `local-light` embedding connection inherits the deployment's served dtype, and an explicit `declared.embedding.dtype` that disagrees is REFUSED at resolve before any writer, reader or purge can act on a space tag the encoder does not produce (`withLocalLightEmbedDtype`, `packages/inference/src/resolve/resolve-task.ts`). The dtype is part of the space tag (`localLightEmbedSpaceTag`).
 
+Local-light executes model calls in its worker thread. Its host scheduler prioritizes `inputType: "query"` text embeddings between bounded indexing batches. An active native call finishes before the next call starts. Model loading and active inference still contribute to query latency. The scheduler preserves the shared request vocabulary and embedding space.
+
 ## 11. Invariants (each names its enforcer)
 
 1. **A domain calls the runtime front door, never a backend.** No per-wire dispatch case in any domain. *(resolve-time: `packages/inference/package.json` exports exactly `"."`, so a deep import fails `tsc` TS2307 — plus the `inference-cake` dep-cruiser rule.)*

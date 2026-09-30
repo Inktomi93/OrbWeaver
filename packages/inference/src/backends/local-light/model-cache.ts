@@ -16,6 +16,7 @@ import type { ModelId } from "@orb/kit/ids";
 import { l2Normalize } from "@orb/kit/vector-math";
 import { ProviderError } from "../../contract/errors.ts";
 import type { LocalLightLoadProgress } from "../../contract/local-light-worker.ts";
+import type { EmbedRequest } from "../../contract/roles.ts";
 import type { LocalLightModelSlot } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { localLightCpuThreads } from "./cpu-budget.ts";
@@ -77,7 +78,7 @@ function toLoadProgress(info: TransformersProgressInfo): LocalLightLoadProgress 
 
 /** The inference seam the task files depend on — raw un-normalized vectors; task files own L2 + MRL. */
 export interface LocalLightModelCache {
-  readonly embedTexts: (modelId: ModelId, texts: readonly string[]) => Promise<Float32Array[]>;
+  readonly embedTexts: (modelId: ModelId, texts: readonly string[], inputType?: EmbedRequest["inputType"]) => Promise<Float32Array[]>;
   readonly scorePairs: (modelId: ModelId, query: string, documents: readonly string[]) => Promise<number[]>;
   readonly embedImages: (modelId: ModelId, images: readonly ImageInput[]) => Promise<Float32Array[]>;
   readonly embedClipTexts: (modelId: ModelId, texts: readonly string[]) => Promise<Float32Array[]>;
