@@ -1,15 +1,6 @@
 approval_policy = "on-request"
-default_permissions = "orbweaver"
 
 web_search = "live"
-
-[permissions.orbweaver]
-description = "Workspace editing with command network access"
-extends = ":workspace"
-
-[permissions.orbweaver.network]
-enabled = true
-
 
 [mcp_servers.codegraph]
 command = "bash"
