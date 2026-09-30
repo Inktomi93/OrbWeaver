@@ -8,6 +8,7 @@
 
 import { LayoutGrid } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
+import { useMobileViewport } from "#state";
 import { SectionJumpRail } from "../components/section-jump-rail.tsx";
 
 const JUMP_TILE_ORDER = 40;
@@ -30,6 +31,9 @@ export function makeSectionJumpTile(siblings: readonly HomeTileContribution[]): 
     region: "hearth",
     // A wrapping rail of pills, not a paged read: one row's worth of skeleton is the honest first-boot box.
     skeletonRows: 1,
+    // A phone reaches every section from its tab bar or the You sheet, so the rail would only repeat that navigation
+    // and push the page's starting points below the fold.
+    useVisible: (): boolean => !useMobileViewport(),
     body: () => <SectionJumpRail siblings={siblings} />,
   };
 }

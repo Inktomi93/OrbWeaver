@@ -238,6 +238,8 @@ test("#226 the shelf stops deciding the page's height — level columns wherever
     "character.list": characterListResponder(FACES),
     "databank.bankHealth": HEALTH,
     "databank.list": BANK,
+    // The baselines below were measured without the Rosters tile; an empty library keeps it off this matrix.
+    "rosterPreset.list": [],
     "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_balance" },
   });
 

@@ -7,6 +7,7 @@ import { SkeletonRows } from "@orb/client/data";
 import { chatAlsoOpenTile, chatMastheadTile, chatQuickPicksTile, chatRecentsTile, chatTempChatTile } from "@orb/client/features/chat";
 import { databankDocumentsTile } from "@orb/client/features/databank";
 import { buddyDormantTile, HomeSurface, homeRoadmapTiles, makeSectionJumpTile } from "@orb/client/features/home";
+import { rosterPresetHomeTile } from "@orb/client/features/roster-preset";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import { __readSurfaceBoxForTest, rememberSurfaceBox, useActiveSection } from "@orb/client/state";
@@ -277,6 +278,7 @@ const SHIPPED_TILES: readonly HomeTileContribution[] = [
   chatRecentsTile,
   chatAlsoOpenTile,
   chatQuickPicksTile,
+  rosterPresetHomeTile,
   chatTempChatTile,
   databankDocumentsTile,
   buddyDormantTile,

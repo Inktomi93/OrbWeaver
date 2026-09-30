@@ -42,12 +42,12 @@ const RECENTS_SKELETON_ROWS = 3;
 const RESUME_TITLE = "Pick up where you left off";
 const FIRST_RUN_TITLE = "Your first room";
 
-// A friend who has only just joined has nothing to pick up; the band names the room as their first one instead.
-// The same query key as the body, so this reads the body's one cache entry.
+// An account with no room, or a friend who has only just joined one, has nothing to pick up; the band names the room
+// as their first one instead. The same query key as the body, so this reads the body's one cache entry.
 function useRecentsTitle(): string {
   const trpc = useTRPC();
   const page = useQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT })).data;
-  return page !== undefined && isFirstRun(page) ? FIRST_RUN_TITLE : RESUME_TITLE;
+  return page !== undefined && (page.totalCount === 0 || isFirstRun(page)) ? FIRST_RUN_TITLE : RESUME_TITLE;
 }
 
 export const chatRecentsTile: HomeTileContribution = {
