@@ -460,6 +460,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   let stopBuddyObserver: (() => void) | null = null;
   let stopAutomationWatcher: (() => void) | null = null;
   let stopLocalLightPrefetch: (() => void) | null = null;
+  let closeLocalLight: (() => Promise<void>) | null = null;
   let stopRelay: (() => void) | null = null;
   let certificateController: CertificateController | null = null;
   let booted = false;
@@ -730,6 +731,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         publicBind: bind.publicBind,
       },
     });
+    closeLocalLight = built.runtime.localLight.close;
 
     credentialsKeyOk = await built.services.credentials.probeKeyDecrypt();
     if (!credentialsKeyOk) {
@@ -1097,6 +1099,13 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     if (stopLocalLightPrefetch !== null) {
       stopLocalLightPrefetch();
       stopLocalLightPrefetch = null;
+    }
+    if (closeLocalLight !== null) {
+      const close: () => Promise<void> = closeLocalLight;
+      closeLocalLight = null;
+      // Bounded: a native ONNX run cannot be interrupted, so a close that outlasts its wait is logged and left to the exit.
+      log.info("shutdown: closing the local-light worker");
+      await close();
     }
     if (db !== null) {
       // STAGE BREADCRUMB (#1936) — the SECOND unbounded stage, and the last thing between here and exit:

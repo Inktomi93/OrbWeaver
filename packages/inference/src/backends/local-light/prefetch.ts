@@ -10,10 +10,11 @@
 
 import type { ModelId } from "@orb/kit/ids";
 import { formatBytes } from "@orb/kit/strings";
+import type { LocalLightLoadProgress } from "../../contract/local-light-worker.ts";
 import type { LocalLightModelSlot } from "../../contract/runtime.ts";
 import { LOCAL_LIGHT_MODEL_SLOTS } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
-import type { LocalLightLoadProgress, LocalLightModelCache } from "./model-cache.ts";
+import type { LocalLightModelCache } from "./model-cache.ts";
 
 const LOCAL_LIGHT_PREFETCH_STATUSES = ["queued", "downloading", "ready", "failed"] as const;
 type LocalLightPrefetchStatus = (typeof LOCAL_LIGHT_PREFETCH_STATUSES)[number];

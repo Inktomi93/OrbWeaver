@@ -1,15 +1,16 @@
-// The `local-light` wire's sealed backend (D39 — the keyless "any box" tier, in-process transformers.js/ONNX).
-// Serves ONLY embed / imageEmbed / rerank (the other methods are ABSENT — the dispatcher's typed refusal).
-// The matte op and the prefetch handle ride beside the backend for the composition root.
+// The `local-light` wire's sealed backend (D39 — the keyless "any box" tier, in-process transformers.js/ONNX on
+// its own worker thread). Serves ONLY embed / imageEmbed / rerank (the other methods are ABSENT — the
+// dispatcher's typed refusal). The matte op and the prefetch handle ride beside the backend for the composition root.
 
 import type { ModelId } from "@orb/kit/ids";
 import type { ProviderBackend } from "../../contract/backend.ts";
 import type { InferenceDeps } from "../../deps.ts";
 import type { LocalLightModelCache } from "./model-cache.ts";
-import { createModelCache, localLightEmbedSpaceTag, resolveEmbedDtype } from "./model-cache.ts";
+import { localLightEmbedSpaceTag, resolveEmbedDtype } from "./model-cache.ts";
 import type { LocalLightPrefetchHandle } from "./prefetch.ts";
 import { createLocalLightPrefetch } from "./prefetch.ts";
 import { createLocalLightEmbed, createLocalLightImageEmbed, createLocalLightMatte, createLocalLightRerank } from "./tasks.ts";
+import { createWorkerModelCache } from "./worker-cache.ts";
 
 export type { LocalLightModelSlot } from "../../contract/runtime.ts";
 export { LOCAL_LIGHT_MODEL_SLOTS } from "../../contract/runtime.ts";
@@ -31,6 +32,8 @@ export interface LocalLightBackend {
   /** THE ACTIVE local-light embedding space tag for a model id — the same string the embed results carry. */
   readonly embedSpace: (modelId: ModelId) => string;
   readonly loadFailed: LocalLightModelCache["loadFailed"];
+  /** Stop the inference worker (bounded); a no-op for an injected cache or a worker never started. */
+  readonly close: () => Promise<void>;
 }
 
 function isModelCache(value: unknown): value is LocalLightModelCache {
@@ -40,15 +43,16 @@ function isModelCache(value: unknown): value is LocalLightModelCache {
 export function createLocalLightBackend(deps: LocalLightBackendDeps): LocalLightBackend {
   const config = deps.config ?? {};
   const detach = (name: string, fn: () => Promise<void>): void => deps.superviseDetached(name, {}, fn);
-  let cacheRef: LocalLightModelCache | undefined;
-  const prefetch = createLocalLightPrefetch({
-    cache: () => cacheRef ?? createModelCache({ ...config, log: deps.log, detach }),
-    now: deps.now,
-    log: deps.log,
-    detach,
-  });
-  const cache = isModelCache(config.cache) ? config.cache : createModelCache({ ...config, log: deps.log, detach, onProgress: prefetch.onProgress });
-  cacheRef = cache;
+  let cache: LocalLightModelCache;
+  let close = (): Promise<void> => Promise.resolve();
+  if (isModelCache(config.cache)) {
+    cache = config.cache;
+  } else {
+    const workerCache = createWorkerModelCache({ ...config, log: deps.log, onProgress: (progress) => prefetch.onProgress(progress) });
+    cache = workerCache;
+    close = workerCache.close;
+  }
+  const prefetch = createLocalLightPrefetch({ cache: () => cache, now: deps.now, log: deps.log, detach });
   const embedSpace = (modelId: ModelId): string => localLightEmbedSpaceTag(modelId, resolveEmbedDtype(config.embedDtype));
   return {
     backend: {
@@ -61,5 +65,6 @@ export function createLocalLightBackend(deps: LocalLightBackendDeps): LocalLight
     matte: createLocalLightMatte(cache),
     embedSpace,
     loadFailed: (modelId): boolean => cache.loadFailed(modelId),
+    close,
   };
 }

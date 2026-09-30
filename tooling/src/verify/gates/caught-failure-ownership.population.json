@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 650,
+    "sites": 652,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 650,
+      "deliberate-absorb": 652,
       "unproven": 0
     },
     "byGrammar": {
       "default": 154,
       "empty": 336,
-      "promise": 160
+      "promise": 162
     }
   },
   "rows": [
@@ -724,6 +724,16 @@
       "siteId": "packages/inference/src/backends/local-light/model-cache.ts::createMemo.getEntry::created::1",
       "verdict": "deliberate-absorb",
       "reason": "the rejection arm records the failure for the availability verdict and deletes the failed single-flight entry, while every awaiting caller still receives the original rejection. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either behavior changes."
+    },
+    {
+      "siteId": "packages/inference/src/backends/local-light/model-worker.ts::main.detach::fn::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a detached model disposal inside the worker has no caller; the failure is logged as a structured warning that crosses to the host logger. Precedent: packages/inference/src/backends/local-light/prefetch.ts owns a speculative model failure through a warning. Ends if a disposal gains a caller."
+    },
+    {
+      "siteId": "packages/inference/src/backends/local-light/model-worker.ts::main::run::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the rejection arm posts the failure to the host thread, which rejects the waiting caller with the same error (ProviderError fields kept), so the failure propagates across the thread boundary. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if the failure message stops rejecting the host call."
     },
     {
       "siteId": "packages/inference/src/backends/local-light/prefetch.ts::createLocalLightPrefetch.warm::preload::1",
