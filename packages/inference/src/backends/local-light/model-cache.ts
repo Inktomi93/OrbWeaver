@@ -3,8 +3,8 @@
 // jinaai/jina-clip-v2, one model whose text + image encoders share a 1024-dim joint space.
 //
 // THE IMPORT IS DYNAMIC ON PURPOSE: `@huggingface/transformers` pulls `onnxruntime-node`, whose NAPI binding
-// loads at import time and cannot load off the main thread (a worker-thread test pool died 85 files deep on
-// `Module did not self-register`). Deferring to first model load keeps "lazy" honest at the module level.
+// loads at import time. This module runs inside the local-light worker (`model-worker.ts`); deferring the import
+// to the first model load keeps a thread that never runs a model from loading the binding at all.
 
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -15,6 +15,7 @@ import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import { l2Normalize } from "@orb/kit/vector-math";
 import { ProviderError } from "../../contract/errors.ts";
+import type { LocalLightLoadProgress } from "../../contract/local-light-worker.ts";
 import type { LocalLightModelSlot } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
 
@@ -55,13 +56,6 @@ export function resolveEmbedDtype(configured: string | undefined): DataType {
  *  survives only to narrow `DataType` onto the derivation's `string | undefined`. */
 export function localLightEmbedSpaceTag(modelId: ModelId, dtype: DataType): string {
   return embedSpaceOf(modelId, dtype);
-}
-
-/** The MODEL SLOTS this cache loads, in PREFETCH ORDER — smallest weights first. */
-export interface LocalLightLoadProgress {
-  readonly modelId: ModelId;
-  readonly loaded: number;
-  readonly total: number;
 }
 
 interface TransformersProgressInfo {

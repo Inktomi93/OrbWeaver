@@ -156,8 +156,9 @@ export interface InferenceRuntime {
     readonly dropPlugin: ProviderRegistry["dropPlugin"];
   };
   /** The in-process tier's handles for the composition root: the boot prefetch (`start` with the slots that
-   *  ACTUALLY resolved, §8.3), the alpha-matte op imagery binds narrowly, and the active embed-space tag. */
-  readonly localLight: Pick<LocalLightBackend, "prefetch" | "matte" | "embedSpace">;
+   *  ACTUALLY resolved, §8.3), the alpha-matte op imagery binds narrowly, the active embed-space tag, and the
+   *  bounded close of its inference worker that shutdown runs. */
+  readonly localLight: Pick<LocalLightBackend, "prefetch" | "matte" | "embedSpace" | "close">;
 }
 
 function requireProvider(provider: ProviderDef | undefined, providerId: string): ProviderDef {
@@ -353,6 +354,11 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       registerPlugin: registry.registerPlugin,
       dropPlugin: registry.dropPlugin,
     },
-    localLight: { prefetch: built.localLight.prefetch, matte: built.localLight.matte, embedSpace: built.localLight.embedSpace },
+    localLight: {
+      prefetch: built.localLight.prefetch,
+      matte: built.localLight.matte,
+      embedSpace: built.localLight.embedSpace,
+      close: built.localLight.close,
+    },
   };
 }
