@@ -71,11 +71,17 @@ export interface CatalogRefreshOutcome {
 
 export const catalogRefreshOutcomeSchema = z.strictObject({ models: z.number().int().nonnegative().nullable() }) satisfies z.ZodType<CatalogRefreshOutcome>;
 
-/** The embed-space trigger's CONDITION, snapshotted: `routable task -> resolved (model[@dtype]) space tag`, with
+export interface EmbedSpace {
+  readonly fingerprint: string;
+  readonly model: string;
+  readonly dim: number;
+}
+
+/** The embed-space trigger's CONDITION: concrete encoder identity and served output width, with
  *  `null` where nothing resolves (unbound / unservable / unfundable — a task with no vectors to strand).
  *  PARTIAL by construction: `substrate/embed-space.ts` fills exactly the VECTOR tasks, so a lookup for any
  *  other routable task is `undefined` rather than a lie about a space it never resolved. */
-export type EmbedSpaces = Readonly<Partial<Record<RoutableTask, string | null>>>;
+export type EmbedSpaces = Readonly<Partial<Record<RoutableTask, EmbedSpace | null>>>;
 
 export type { CredentialHealth } from "@orb/contracts/credentials";
 export type { ProviderAvailability } from "@orb/contracts/inference";

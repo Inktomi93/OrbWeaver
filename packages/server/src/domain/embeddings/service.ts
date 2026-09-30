@@ -9,6 +9,7 @@ import type { EmbeddingsContext } from "./context.ts";
 import type { AvatarAnalysis } from "./contract/results.ts";
 import type { EmbeddingsService } from "./contract/service.ts";
 import { analyzeAvatarImage } from "./indexer/caption.ts";
+import { createImageIndexer } from "./indexer/image.ts";
 import { resolveTargetGeneration } from "./substrate/generation.ts";
 import { createClearTable } from "./verbs/clear-table.ts";
 import { createCountDocumentChunks } from "./verbs/count-document-chunks.ts";
@@ -17,6 +18,7 @@ import { createEmbedAssets } from "./verbs/embed-assets.ts";
 import { createEmbedCorpus } from "./verbs/embed-corpus.ts";
 import { createPruneDocumentChunks } from "./verbs/prune-document-chunks.ts";
 import { createPruneMemoryBlocks } from "./verbs/prune-memory-blocks.ts";
+import { createPurgeDisallowedImages } from "./verbs/purge-disallowed-images.ts";
 import { createPurgeDocumentVectors } from "./verbs/purge-document-vectors.ts";
 import { createPurgeMemoryVectors } from "./verbs/purge-memory-vectors.ts";
 import { createStore } from "./verbs/store.ts";
@@ -25,17 +27,20 @@ import { createWriteHubScores } from "./verbs/write-hub-scores.ts";
 
 export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsService {
   const store = createStore(ctx);
+  const indexAsset = createImageIndexer(ctx, {
+    store,
+    analyze: async (ownerId, bytes): Promise<AvatarAnalysis> => analyzeAvatarImage(await ctx.roleClientsFor(ownerId), bytes),
+  });
   return {
+    purgeDisallowedImages: createPurgeDisallowedImages(ctx),
+    indexAsset,
     resolveGeneration: (ownerId, task, via) => resolveTargetGeneration(ctx, ownerId, task, via),
     store,
     storeSegments: createStoreSegments(ctx),
     writeHubScores: createWriteHubScores(ctx),
     clearTable: createClearTable(ctx),
     embedCorpus: createEmbedCorpus(ctx, { store }),
-    embedAssets: createEmbedAssets(ctx, {
-      store,
-      analyze: async (ownerId, bytes): Promise<AvatarAnalysis> => analyzeAvatarImage(await ctx.roleClientsFor(ownerId), bytes),
-    }),
+    embedAssets: createEmbedAssets(ctx, { indexAsset }),
     purgeMemoryVectors: createPurgeMemoryVectors(ctx),
     pruneDocumentChunks: createPruneDocumentChunks(ctx),
     pruneMemoryBlocks: createPruneMemoryBlocks(ctx),

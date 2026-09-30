@@ -19,13 +19,13 @@ import {
   chatSegments,
   chats,
   embedGenerations,
+  imageEmbeddings,
   rpgGames,
   tags,
   workloads,
 } from "@orb/db";
 import { SEED_MANIFEST } from "@orb/default-content";
 import type {
-  AssetId,
   CharacterHandle,
   CharacterId,
   ChatParticipantId,
@@ -53,6 +53,8 @@ import { fakeLocalLightCache } from "@orb/tooling/seed";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { describe, onTestFinished, vi } from "vitest";
+import { analyzeAvatarImage } from "../../../../packages/server/src/domain/embeddings/indexer/caption.ts";
+import { createImageIndexer } from "../../../../packages/server/src/domain/embeddings/indexer/image.ts";
 import { upsertChatSegment } from "../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
 import { readGeneration } from "../../../../packages/server/src/domain/search/persistence/active-space.ts";
 import { writeAppOverride } from "../../../../packages/server/src/domain/settings/persistence/queries.ts";
@@ -66,7 +68,7 @@ import { makeHarness as makeAssetsHarness, pngBytes, principal, seedUser } from 
 import { makeHarness as makeCharHarness } from "../../domain/character/_support.ts";
 import { seedChat, seedCharacter as seedChatCharacter, seedParticipant } from "../../domain/chat/_support.ts";
 import { seedTurns } from "../../domain/chat/memory/_support.ts";
-import { EMBED_DIM, makeRoleClients } from "../../domain/embeddings/_support.ts";
+import { EMBED_DIM, makeRoleClients, makeStoreHarness, seedUser as seedVectorOwner } from "../../domain/embeddings/_support.ts";
 
 const SERVICE_KEYS = [
   "admin",
@@ -364,20 +366,20 @@ async function wireIndexer(db: Db): Promise<IndexerWiring> {
     const rows = await db.select({ ownerId: charactersTable.ownerId }).from(charactersTable).where(eq(charactersTable.id, characterId)).limit(1);
     return rows[0]?.ownerId ?? null;
   };
-  const loadAssetOwner = async (assetId: AssetId): Promise<UserId | null> => (await assets.assetCasRefById(assetId))?.ownerId ?? null;
   const indexer = createEmbeddingsIndexer({
+    indexAsset: createImageIndexer(
+      {
+        ...makeStoreHarness(db).ctx,
+        loadAssetMime: async (id) => (await assets.assetCasRefById(id))?.mime ?? null,
+        loadAssetBytes: async (id) => (await assets.loadAssetBytes(id)) ?? undefined,
+      },
+      { store, analyze: (_ownerId, bytes) => analyzeAvatarImage(makeRoleClients(), bytes) },
+    ),
     store,
-    // The indexer reads/writes its OWN `image_index_skips` table (the admission floor) through db + clock.
-    db,
-    now: (): number => 0,
     loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
-    loadAssetMime: async (assetId): Promise<string | null> => (await assets.assetCasRefById(assetId))?.mime ?? null,
-    loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,
     loadCharacterOwner,
-    loadAssetOwner,
     roleClientsFor: (): Promise<ReturnType<typeof makeRoleClients>> => Promise.resolve(makeRoleClients()),
     embedDim: EMBED_DIM,
-    imageEmbedDim: EMBED_DIM,
   });
   function dispatch(event: DomainEvent): Promise<void> {
     switch (event.type) {
@@ -464,7 +466,7 @@ describe("embeddings indexer bus subscription", () => {
     const db = await freshDb();
     const w = await wireIndexer(db);
     onTestFinished(w.cleanup);
-    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const owner = await seedVectorOwner(db, { handle: castId<Handle>("owner") });
     const bytes = pngBytes(7, 7, 7, 7);
     const stored = await w.assets.store({
       principal: principal(owner),
@@ -490,7 +492,7 @@ describe("embeddings indexer bus subscription", () => {
 });
 
 // ── The corpusAutoindex indexer GATE (Piece D) ───────────────────────────────────────────────────────────
-// The composition root subscribes the indexer to the bus ONLY when the effective-config `corpusAutoindex` is
+// The composition root admits event indexing only while the live effective-config `corpusAutoindex` is
 // true. These build the FULL graph over a SCRIPTED local-light model cache (the embed path is offline + cheap —
 // the seed tooling's fake, injected through the `localLight.cache` seam), seed the owner's local-light rows +
 // `embed` binding exactly as boot does (the funder's own connection is the only embed route), create a
@@ -498,7 +500,7 @@ describe("embeddings indexer bus subscription", () => {
 // assert a card-text embedding row is persisted (ON) / never written (OFF). The tests/e2e default is OFF (vitest env CORPUS_AUTOINDEX=false); the
 // ON case flips it via a stored AppSettings override the boot reload resolves.
 
-function buildGatedGraph(db: Db): ReturnType<typeof createServices> {
+function buildGatedGraph(db: Db, cache = fakeLocalLightCache(EMBED_SPACE_DIMS)): ReturnType<typeof createServices> {
   return createServices({
     serverRestart: UNSUPERVISED_RESTART,
     share: NO_SHARE_RELAY,
@@ -509,7 +511,7 @@ function buildGatedGraph(db: Db): ReturnType<typeof createServices> {
     casDir: tmpdir(),
     variantDir: tmpdir(),
     sessionSecret: "test-session-secret-at-least-32-chars",
-    providerSeams: { localLight: { cache: fakeLocalLightCache(EMBED_SPACE_DIMS) } },
+    providerSeams: { localLight: { cache } },
   });
 }
 
@@ -816,7 +818,64 @@ describe("embed-model change reindex trigger (DBK-B(b))", () => {
   });
 });
 
+async function runEmbedSweeps(result: Awaited<ReturnType<typeof buildGatedGraph>>, owner: UserId, memoryScope: UserId | null): Promise<void> {
+  const ctx = { userId: owner, ownerId: owner, now: createFrozenClock().now };
+  await result.workloadContributions.index.run(ctx, { source: "all" }, vi.fn(), new AbortController().signal);
+  await result.workloadContributions["databank-reindex"].run(ctx, { scope: { kind: "owner" }, mode: "chunk-embed" }, vi.fn(), new AbortController().signal);
+  await result.workloadContributions["memory-backfill"].run({ ...ctx, ownerId: memoryScope }, {}, vi.fn(), new AbortController().signal);
+}
+
 describe("corpusAutoindex indexer gate (Piece D)", () => {
+  test("fresh seeded content indexes through events and catch-up without any seed inference", async () => {
+    const db = await freshDb();
+    await writeAppOverride(db, { corpusAutoindex: true, schemaVersion: 2 }, createFrozenClock().now());
+    const cache = fakeLocalLightCache(EMBED_SPACE_DIMS);
+    const textCalls = vi.spyOn(cache, "embedTexts").mockRejectedValue(new Error("seed text reached inference"));
+    const imageCalls = vi.spyOn(cache, "embedImages").mockRejectedValue(new Error("seed image reached inference"));
+    const result = await buildGatedGraph(db, cache);
+    const owner = await seedUser(db, { handle: castId<Handle>("seeded-owner") });
+    await seedLocalLightOnBoot({ db, now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
+    await result.contentSeeder.ensureSeeded(principal(owner));
+    await runEmbedSweeps(result, owner, null);
+    await drain(() => false);
+    const cards = await db.select().from(characterEmbeddings);
+    const images = await db.select().from(imageEmbeddings);
+    expect(cards).toHaveLength(MANIFEST_CHARACTERS.length);
+    expect(images).toHaveLength(MANIFEST_CHARACTERS.length);
+    expect(textCalls).not.toHaveBeenCalled();
+    expect(imageCalls).not.toHaveBeenCalled();
+    const first = cards[0];
+    if (first === undefined) {
+      throw new Error("seed cards are missing");
+    }
+    const neighbors = await result.services.search.similarCharacters({ ownerId: owner, characterId: first.characterId, topN: 3 });
+    expect(neighbors).toHaveLength(3);
+    expect(neighbors.every((row) => row.characterId !== first.characterId && Number.isFinite(row.relevance))).toBe(true);
+  });
+  test("saving autoindex enables catch-up once and changes subsequent writes without restarting", async () => {
+    const db = await freshDb();
+    const result = await buildGatedGraph(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedLocalLightOnBoot({ db, now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
+    const actor = { ...principal(owner), role: "admin" as const };
+    await result.services.settings.updateAppSettings({ principal: actor, partial: { corpusAutoindex: true } });
+    await drain(() => false);
+    expect((await db.select().from(workloads)).filter((row) => row.kind === "index")).toHaveLength(1);
+    await result.services.settings.updateAppSettings({ principal: actor, partial: { corpusAutoindex: true } });
+    await drain(() => false);
+    expect((await db.select().from(workloads)).filter((row) => row.kind === "index")).toHaveLength(1);
+    const created = await result.services.character.create({
+      principal: actor,
+      input: { handle: castId<CharacterHandle>("live-index"), name: "Live index", description: "initial" },
+    });
+    await drain(() => false);
+    const indexed = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, created.id));
+    expect(indexed).toHaveLength(1);
+    await result.services.settings.updateAppSettings({ principal: actor, partial: { corpusAutoindex: false } });
+    await result.services.character.update({ principal: actor, characterId: created.id, input: { description: "edited after indexing stopped" } });
+    await drain(() => false);
+    expect(await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, created.id))).toEqual(indexed);
+  });
   test("corpusAutoindex ON → indexer subscribed; a character write embeds (row persisted)", async () => {
     const db = await freshDb();
     // The boot reload resolves this stored override into the effective-config the gate reads.
@@ -836,7 +895,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
     expect(rows.length).toBeGreaterThanOrEqual(1);
   });
 
-  test("corpusAutoindex OFF (the test default) → indexer NOT subscribed; the write embeds nothing", async () => {
+  test("corpusAutoindex OFF (the test default) leaves writes unindexed", async () => {
     const db = await freshDb();
     const result = await buildGatedGraph(db); // no override → env floor (false) resolves
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -915,14 +974,6 @@ describe("automation generate_image forwards diffusion params through the compos
 // over the real graph (local-light encoder, no summarize connection) and prove memory completes, so search answers.
 describe("search when the memory scope can build no digests (0215)", () => {
   const RunAt = 1_750_000_000_000;
-  const liveSignal = (): AbortSignal => new AbortController().signal;
-
-  async function runEmbedSweeps(result: Awaited<ReturnType<typeof buildGatedGraph>>, owner: UserId, memoryScope: UserId | null): Promise<void> {
-    const ctx = { userId: owner, ownerId: owner, now: (): number => RunAt };
-    await result.workloadContributions.index.run(ctx, { source: "all" }, vi.fn(), liveSignal());
-    await result.workloadContributions["databank-reindex"].run(ctx, { scope: { kind: "owner" }, mode: "chunk-embed" }, vi.fn(), liveSignal());
-    await result.workloadContributions["memory-backfill"].run({ ...ctx, ownerId: memoryScope }, {}, vi.fn(), liveSignal());
-  }
 
   async function searchAnswers(result: Awaited<ReturnType<typeof buildGatedGraph>>, owner: UserId): Promise<number> {
     const answer = await result.services.search.search({

@@ -2,11 +2,11 @@
 // through the injected supervisor; server composition supplies the traced/logged owner while package tests
 // can supply a deterministic observer without reaching process-global tracing state.
 
-import { modelIdSchema } from "@orb/contracts/inference";
+import { EMBEDDING_FLOOR, modelIdSchema } from "@orb/contracts/inference";
 import { createLocalLightBackend } from "../../../../packages/inference/src/backends/local-light/index.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { fakeModelCache } from "../../_support.ts";
+import { fakeModelCache, fakeResolved } from "../../_support.ts";
 
 function recordingLog(warnings: { fields: Readonly<Record<string, unknown>>; message: string }[]): InferenceLog {
   const noop: InferenceLog["info"] = (): void => undefined;
@@ -41,4 +41,28 @@ test("detached prefetch enters through the injected supervisor", async () => {
 
   expect(supervised).toEqual(["local-light.prefetch.walk"]);
   expect(warnings).toEqual([]);
+});
+
+test("concurrent text requests batch together and keep their original result order", async () => {
+  const cache = fakeModelCache();
+  const local = createLocalLightBackend({
+    now: () => 0,
+    log: recordingLog([]),
+    superviseDetached: () => undefined,
+    config: { cache },
+  });
+  const connection = fakeResolved({
+    task: "embed",
+    providerId: "local-light",
+    model: "jinaai/jina-clip-v2",
+    capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: 1024 } },
+  });
+  const embed = local.backend.embed;
+  if (embed === undefined) {
+    throw new Error("missing embed backend");
+  }
+  const results = await Promise.all(["short", "tiny", "words"].map((input) => embed({ connection, input })));
+  expect(results).toHaveLength(3);
+  expect(results.every((result) => result.vectors.length === 1)).toBe(true);
+  expect(cache.calls).toEqual([{ method: "embedTexts", repo: connection.model, count: 3 }]);
 });

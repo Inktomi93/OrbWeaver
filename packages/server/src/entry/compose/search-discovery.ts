@@ -17,6 +17,7 @@ import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { AppSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { characters as charactersTable, personas as personasTable } from "@orb/db";
+import { findSeedEmbedding } from "@orb/default-content";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
@@ -96,8 +97,6 @@ export interface SearchDiscoveryComposeDeps {
    *  from `emitChatEvent` because they are different lanes, not two spellings of one: this one writes no
    *  `chat_events` row and carries no seq. */
   readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
-  /** ON ⇒ subscribe the indexer to the bus (embed-on-write); OFF ⇒ built-but-not-subscribed. */
-  readonly corpusAutoindex: boolean;
   /** preset's ONE cross-feature op: the caller's chat-role capability, for `preset.resolveEffective`'s
    *  projection of the generation funnel. `connection` composes BEFORE this seam at the keystone, so it is a
    *  plain dep, not a forward-ref. */
@@ -112,6 +111,7 @@ export interface SearchDiscoveryComposeDeps {
 /** The cluster compose product. `enqueueEmbedReindex` is returned so the keystone can bind it onto its
  *  late-bound embed-space-change holder (the trigger). */
 export interface SearchDiscoveryComposeResult {
+  readonly refreshAutoindex: () => void;
   readonly embeddings: EmbeddingsService;
   readonly indexer: EmbeddingsIndexer;
   readonly persona: PersonaService;
@@ -156,6 +156,9 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     (await assets.assetCasRefById(assetId))?.ownerId ?? null;
 
   const embeddings = createEmbeddingsService({
+    precomputedEmbedding: (hash, space, kind, connection) => (connection.wire === "local-light" ? findSeedEmbedding(hash, space, kind) : null),
+    loadAssetKind: async (assetId) => (await assets.assetCasRefById(assetId))?.kind ?? null,
+    loadAssetMime: async (assetId) => (await assets.assetCasRefById(assetId))?.mime ?? null,
     db,
     roleClientsFor,
     resolveEmbeddingConnection: deps.resolveEmbeddingConnection,
@@ -176,41 +179,33 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   });
 
   const indexer = createEmbeddingsIndexer({
+    indexAsset: embeddings.indexAsset,
     store: embeddings.store,
-    // The indexer touches its OWN `image_index_skips` table directly (the admission floor) — db + clock, as
-    // the bulk `embedAssets` sweep does. Cross-domain canon re-reads below stay injected ops.
-    db,
-    now,
     loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
-    // The embeddability gate reads the stored mime by id (reuses the un-principal `assetCasRefById` row lookup).
-    loadAssetMime: async (assetId): Promise<string | null> => (await assets.assetCasRefById(assetId))?.mime ?? null,
-    loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,
     loadCharacterOwner,
-    loadAssetOwner,
     roleClientsFor,
     embedDim: EMBED_SPACE_DIMS,
-    imageEmbedDim: EMBED_SPACE_DIMS,
   });
-  // OFF ⇒ the indexer is built but not subscribed (a clean boot with no embed-on-write). Distinct from
-  // memoryDefaults.mode (chat digests) — two separate knobs.
-  if (deps.corpusAutoindex) {
-    eventBus.subscribe((event: DomainEvent): Promise<void> => {
-      switch (event.type) {
-        case "character.updated":
-          return indexer.onCharacterUpdated(event);
-        case "asset.created":
-          return indexer.onAssetCreated(event);
-        // The entity→room bridge's two members (§3.6). NOT indexer inputs — personas and lorebooks are not
-        // embedded sources — and named explicitly rather than caught by a fallthrough, which is what makes the
-        // `assertNeverEvent` below a real belt on the NEXT member.
-        case "persona.updated":
-        case "world-info.updated":
-          return Promise.resolve();
-        default:
-          return assertNeverEvent(event);
-      }
-    });
-  }
+  // The subscription stays live so an admin save can enable indexing without rebuilding composition.
+  eventBus.subscribe((event: DomainEvent): Promise<void> => {
+    if (deps.getEffectiveConfig().corpusAutoindex !== true) {
+      return Promise.resolve();
+    }
+    switch (event.type) {
+      case "character.updated":
+        return indexer.onCharacterUpdated(event);
+      case "asset.created":
+        return indexer.onAssetCreated(event);
+      // The entity→room bridge's two members (§3.6). NOT indexer inputs — personas and lorebooks are not
+      // embedded sources — and named explicitly rather than caught by a fallthrough, which is what makes the
+      // `assertNeverEvent` below a real belt on the NEXT member.
+      case "persona.updated":
+      case "world-info.updated":
+        return Promise.resolve();
+      default:
+        return assertNeverEvent(event);
+    }
+  });
 
   // THE ENTITY→ROOM BRIDGE (design §3.5): every content-affecting entity event → a live-only
   // `roomEntityChanged` on each room whose member-visible projection reads that entity. Always-on (not gated
@@ -411,7 +406,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   // run (a kind already active → DomainConflictError) or any enqueue failure is logged there, never thrown at the
   // write that triggered it.
   const embedSweeps = (scope: UserId | null): readonly EmbedSweep[] => {
-    if (scope !== null && !deps.corpusAutoindex) {
+    if (scope !== null && deps.getEffectiveConfig().corpusAutoindex !== true) {
       return [];
     }
     const at = String(now());
@@ -448,7 +443,19 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     }
   };
 
+  let autoindexEnabled = deps.getEffectiveConfig().corpusAutoindex === true;
+  const refreshAutoindex = (): void => {
+    const enabled = deps.getEffectiveConfig().corpusAutoindex === true;
+    const starts = enabled && !autoindexEnabled;
+    autoindexEnabled = enabled;
+    if (starts) {
+      superviseDetached("embeddings.autoindex.catchup", EMBED_REINDEX_SPAN, { workloadKind: "index" }, () =>
+        workloads.start({ input: { kind: "index", params: { source: "all" } }, caller: null, mode: "bulk", ownerId: null }),
+      );
+    }
+  };
   return {
+    refreshAutoindex,
     embeddings,
     indexer,
     persona,

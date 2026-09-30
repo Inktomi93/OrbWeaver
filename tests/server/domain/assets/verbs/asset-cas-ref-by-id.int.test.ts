@@ -29,7 +29,7 @@ describe("assetCasRefById", () => {
 
     const coords = await svc.assetCasRefById(stored.assetId);
 
-    expect(coords).toEqual({ ownerId: owner, hash: stored.hash, mime: PNG });
+    expect(coords).toEqual({ ownerId: owner, hash: stored.hash, mime: PNG, kind: "avatar" });
   });
 
   test("a missing asset id is undefined (never throws)", async () => {

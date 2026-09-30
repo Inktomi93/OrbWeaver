@@ -8,13 +8,21 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDefInput, ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import { characterEmbeddings } from "@orb/db";
 import type { PluginId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { ResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
+import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { endpointAdmission, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
 import { describe } from "vitest";
+import { markGenerationComplete } from "../../../../../packages/server/src/domain/embeddings/persistence/space-state.ts";
+import { resolveTargetGeneration } from "../../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
+import { SEARCH_SPACE_REINDEXING } from "../../../../../packages/server/src/domain/search/contract/errors.ts";
+import { withActiveQuerySpace } from "../../../../../packages/server/src/domain/search/substrate/space.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { makeStoreHarness, seedCharacter } from "../../embeddings/_support.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner, seedPlugin, seedUser } from "../_support.ts";
 
 const CREDENTIAL_ID = castId<UserCredentialId>("user_credential_000001");
@@ -31,6 +39,60 @@ const PLUGIN_LOCAL_LIGHT_ROW = {
 } as const satisfies ProviderDefInput;
 /** Ids transformers.js would resolve on this host's disk or as a URL instead of as a Hub repo. */
 const PATH_SHAPED_MODEL_IDS = ["../../../etc", "/etc/orbweaver", "https://models.example/owner/repo", "C:\\models\\owner\\repo"];
+
+test("native dimension changes enqueue catch-up and the rebuilt corpus becomes readable", async () => {
+  const db = await freshDb();
+  const h = await makeHarness(db, { routes: [{ match: "/embeddings", json: { data: [{ embedding: Array.from({ length: 1024 }, () => 1), index: 0 }] } }] });
+  const owner = await seedOwner(db);
+  const row = await h.svc.create({
+    principal: owner.principal,
+    providerId: BYO_PROVIDER,
+    credentialId: null,
+    baseUrl: BYO_BASE_URL,
+    model: "text-embedding-3-small",
+    declared: { kind: "embedding", embedding: { dims: 1536, mrl: true } },
+    allowBackground: true,
+  });
+  await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id });
+  const characterId = await seedCharacter(db, owner.userId);
+  const clients = h.runtime.roleClientsFor(owner.principal);
+  const resolveEmbeddingConnection: ResolveEmbeddingConnection = async (_ownerId, task, connectionId) => {
+    const { resolved } = await h.runtime.resolve({ task, principal: owner.principal, ...(connectionId === undefined ? {} : { connectionId }) });
+    return { ...resolved, api: resolved.api ?? "none", embed: clients.embed, imageEmbed: clients.imageEmbed };
+  };
+  const store = makeStoreHarness(db, { characterIds: [characterId], cardTexts: new Map([[characterId, "A lighthouse keeper"]]) });
+  const ctx = { ...store.ctx, embedDim: 1024, resolveEmbeddingConnection, roleClientsFor: async () => clients };
+  const embeddings = createEmbeddingsService(ctx);
+  const catchUp = async (): Promise<string> => {
+    await embeddings.embedCorpus({ ownerId: owner.userId, force: false, signal: new AbortController().signal });
+    const generation = await resolveTargetGeneration(ctx, owner.userId, "embed");
+    if (generation === null) {
+      throw new Error("the bound corpus generation must resolve");
+    }
+    // This fixture has no memory or documents; their empty sweeps complete the same generation.
+    for (const scope of ["memory", "documents"] as const) {
+      await markGenerationComplete(db, { ownerId: owner.userId, scope, generation, now: ctx.now() });
+    }
+    return generation.id;
+  };
+  const before = await catchUp();
+  const queryGeneration = (): Promise<string | undefined> => withActiveQuerySpace(ctx, owner.userId, "embed", async (space) => space.generationId);
+  expect(await queryGeneration()).toBe(before);
+  h.embedSpaceChanges.length = 0;
+  await h.svc.update({ principal: owner.principal, connectionId: row.id, patch: { label: "Still the same encoder" } });
+  expect(h.embedSpaceChanges).toEqual([]);
+  expect(await queryGeneration()).toBe(before);
+  await h.svc.update({ principal: owner.principal, connectionId: row.id, patch: { declared: { kind: "embedding", embedding: { dims: 3072, mrl: true } } } });
+  expect(h.embedSpaceChanges).toEqual([owner.userId]);
+  await expect(queryGeneration()).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
+  const after = await catchUp();
+  expect(after).not.toBe(before);
+  expect(await queryGeneration()).toBe(after);
+  const vectors = await db.select().from(characterEmbeddings);
+  expect(vectors).toHaveLength(1);
+  expect(vectors[0]).toMatchObject({ generationId: after, dim: 1024 });
+  expect(h.requests.filter((request) => request.url.includes("/embeddings"))).toHaveLength(2);
+});
 
 describe("create", () => {
   test("user_connections.model refuses a blank foreign id before persistence", async () => {
@@ -382,12 +444,8 @@ describe("update", () => {
     expect(h.embedSpaceChanges).toEqual([owner.userId]);
   });
 
-  // THE TRIGGER'S CONDITION IS THE RESOLVED SPACE TAG, not a column diff (§10-4). The predicate this
-  // replaced was `model changed || declared !== undefined`, which is wrong in BOTH directions: any
-  // `declared` edit forced a full box-wide purge+reindex, and a `declared` edit that genuinely moved the
-  // space was indistinguishable from one that did not. Both arms are pinned here because the expensive
-  // mistake (over-firing) and the silent one (under-firing) have opposite fixes.
-  test("a `declared` edit fires the embed-space trigger only when it MOVES the resolved space", async () => {
+  // Resolved encoder metadata is generation provenance even when the model tag stays unchanged.
+  test("resolved capability changes reindex while an identical declaration does not", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     const owner = await seedOwner(db);
@@ -403,13 +461,20 @@ describe("update", () => {
     await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: vector.id });
     h.embedSpaceChanges.length = 0;
 
-    // An axis the space tag does not read. Same model, same dtype — nothing to re-embed.
+    // Search fingerprints this evidence, so a changed input window requires rebuilding too.
     await h.svc.update({
       principal: owner.principal,
       connectionId: vector.id,
       patch: { declared: { kind: "embedding", embedding: { dtype: "q8", maxInputTokens: 4096 } } },
     });
-    expect(h.embedSpaceChanges, "a declared edit that leaves the space tag alone is not a space change").toEqual([]);
+    expect(h.embedSpaceChanges).toEqual([owner.userId]);
+    h.embedSpaceChanges.length = 0;
+    await h.svc.update({
+      principal: owner.principal,
+      connectionId: vector.id,
+      patch: { declared: { kind: "embedding", embedding: { dtype: "q8", maxInputTokens: 4096 } } },
+    });
+    expect(h.embedSpaceChanges).toEqual([]);
 
     // The dtype IS the space (#2417): a re-quantised encoder produces different vectors, so the corpus is
     // stale even though `model` never moved — the case the column diff could not see.

@@ -2,12 +2,14 @@
 // @orb/contracts/assets, re-exported here); AssetMetadata is server-only. Ownership denial surfaces as
 // undefined (→ 404) from getMetadata, not a typed error.
 
+import type { AssetKind } from "@orb/contracts/assets";
 import type { UserId } from "@orb/kit/ids";
 
 export type { StoredAsset } from "@orb/contracts/assets";
 
 /** An asset's owner + CAS hash + mime resolved by row id alone; undefined when no such row. */
 export interface AssetCasRef {
+  readonly kind: AssetKind;
   readonly ownerId: UserId;
   readonly hash: string;
   readonly mime: string;

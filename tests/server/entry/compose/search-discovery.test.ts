@@ -7,7 +7,7 @@
 //      NEXT event member. A fallthrough would make a new event type silently un-indexed forever; a
 //      mis-routed case would embed the wrong source. Both arms are driven here through the captured
 //      subscriber.
-//   2. THE corpusAutoindex KNOB IS ONE-SIDED. OFF must leave the indexer BUILT-but-not-subscribed, while
+//   2. THE corpusAutoindex KNOB IS ONE-SIDED. OFF must leave its listener live but suppress new indexing, while
 //      the entity→room freshness fan stays subscribed regardless (open-room freshness is orthogonal to the
 //      search knob — the shipped character-fan ruling). "OFF" accidentally unsubscribing the room fan would
 //      stop every open room repainting on an entity edit, with no error anywhere.
@@ -24,7 +24,7 @@
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import type { DomainEventBus } from "../../../../packages/server/src/entry/compose/event-bus.ts";
 import type { SearchDiscoveryComposeDeps } from "../../../../packages/server/src/entry/compose/search-discovery.ts";
@@ -50,7 +50,12 @@ function capturingBus(): { readonly bus: DomainEventBus; readonly handlers: Hand
   return { bus, handlers };
 }
 
-function build(corpusAutoindex: boolean, bus: DomainEventBus, memoryEnabled = true): ReturnType<typeof buildSearchDiscovery> {
+function build(
+  corpusAutoindex: boolean,
+  bus: DomainEventBus,
+  memoryEnabled = true,
+  readAutoindex = (): boolean => corpusAutoindex,
+): ReturnType<typeof buildSearchDiscovery> {
   // @orb-waive no-test-fabrication(unknown): structural stand-ins for the cluster's sibling front doors — the seam stores them. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const deps = {
     db: NO_DB,
@@ -63,10 +68,9 @@ function build(corpusAutoindex: boolean, bus: DomainEventBus, memoryEnabled = tr
     character: { listEmbeddableCharacterIds: vi.fn(), loadCardText: vi.fn() },
     assets: { listImageAssetIds: vi.fn(), loadAssetBytes: vi.fn(), assetCasRefById: vi.fn() },
     settings: { loadUserSettings: vi.fn(), updateUserSettingsSection: vi.fn() },
-    getEffectiveConfig: () => ({}),
+    getEffectiveConfig: () => ({ corpusAutoindex: readAutoindex() }),
     emitChatEvent: vi.fn(() => Promise.resolve(undefined)),
     emitChatEventLive: vi.fn(),
-    corpusAutoindex,
     resolveChatCapability: vi.fn(),
     getContributions: vi.fn(() => ({})),
     isMemoryEnabled: vi.fn(() => Promise.resolve(memoryEnabled)),
@@ -75,6 +79,23 @@ function build(corpusAutoindex: boolean, bus: DomainEventBus, memoryEnabled = tr
 }
 
 describe("buildSearchDiscovery — the corpusAutoindex knob is ONE-SIDED", () => {
+  test("an indexing toggle applies to the next event without rebuilding composition", async () => {
+    let enabled = true;
+    const { bus, handlers } = capturingBus();
+    const built = build(true, bus, true, () => enabled);
+    const onCharacter = vi.spyOn(built.indexer, "onCharacterUpdated").mockResolvedValue(undefined);
+    const event = { type: "character.updated", characterId: mintTypeId(ID_PREFIX.character), contentChanged: true } as const;
+    const route = handlers[0];
+    if (route === undefined) {
+      throw new Error("missing event subscription");
+    }
+    await route(event);
+    enabled = false;
+    await route(event);
+    enabled = true;
+    await route(event);
+    expect(onCharacter).toHaveBeenCalledTimes(2);
+  });
   test("ON subscribes BOTH the indexer route and the entity→room freshness fan", () => {
     const { bus, handlers } = capturingBus();
     build(true, bus);
@@ -82,13 +103,12 @@ describe("buildSearchDiscovery — the corpusAutoindex knob is ONE-SIDED", () =>
     expect(handlers).toHaveLength(2);
   });
 
-  test("OFF leaves the indexer BUILT but unsubscribed — the room fan stays on regardless", () => {
+  test("OFF keeps the listener live but suppresses indexing — the room fan stays on", () => {
     const { bus, handlers } = capturingBus();
     const built = build(false, bus);
 
-    // Exactly one subscriber remains, and it is NOT the indexer route (proved by the routing pins below,
-    // which only pass when the FIRST handler is the indexer's — here there is only the fan).
-    expect(handlers).toHaveLength(1);
+    // Both listeners remain; the live config guard suppresses only the indexing branch.
+    expect(handlers).toHaveLength(2);
     // …and the indexer itself is still constructed, ready for the bulk sweep that calls it directly.
     expect(typeof built.indexer.onCharacterUpdated).toBe("function");
     expect(typeof built.indexer.onAssetCreated).toBe("function");
@@ -238,6 +258,7 @@ describe("buildSearchDiscovery — the cluster product is complete", () => {
 
     expect(Object.keys(built).sort()).toStrictEqual(
       [
+        "refreshAutoindex",
         "embeddings",
         "indexer",
         "persona",

@@ -1,7 +1,7 @@
 // The local-light task impls — PURE transforms over the model cache: `embed` (the jina-clip-v2 text encoder;
 // empties → `null`, MRL truncation + re-L2, the space tag as `model`), `rerank` (the ONNX cross-encoder; caller
 // ids preserved, raw logit as score, text-only), `imageEmbed` (the joint image/text space; the `multimodal`
-// PAIR kind is refused — jina-clip has two encoders and defines no fused vector), and the `matte` op
+// PAIR kind requires explicit text fallback — jina-clip has two encoders and defines no fused vector), and the `matte` op
 // (RMBG background removal — NOT a task; the composition root binds it as a narrow op).
 
 import { LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
@@ -158,6 +158,14 @@ function embedByKind(cache: LocalLightModelCache, modelId: ModelId, input: Image
   }
   if (input.kind === "text") {
     return embedTextSide(cache, modelId, input.input);
+  }
+  if (input.allowTextFallback === true) {
+    const pairs = Array.isArray(input.input) ? input.input : [input.input];
+    return embedTextSide(
+      cache,
+      modelId,
+      pairs.map((pair) => pair.text),
+    );
   }
   return Promise.reject(
     new ProviderError({

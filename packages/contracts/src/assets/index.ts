@@ -20,6 +20,9 @@ export const assetKindSchema = z.enum(ASSET_KINDS);
 
 export type AssetKind = z.infer<typeof assetKindSchema>;
 
+/** Only portrait assets contribute image vectors and generated captions to Corpus. */
+export const EMBEDDABLE_ASSET_KINDS = ["avatar"] as const satisfies readonly AssetKind[];
+
 /** The variant kinds `/api/blob/:hash` can produce. `icon` (an omitted `?v=` defaults to it) is the
  *  width-only ladder for round/square avatar chrome. `portrait` is the 2:3 smart-cropped, face-safe
  *  variant for VN/portrait immersive modes. `banner` is the 3:1 smart-cropped variant for header art —

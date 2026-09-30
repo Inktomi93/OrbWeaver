@@ -1,13 +1,5 @@
-// The local-light CONVENIENCE SEED (inference program §7.2): every user gets the two in-process vector rows —
-// the encoder (jina-clip-v2) and the reranker (MiniLM) of `LOCAL_LIGHT_SEED_ROWS` — as ORDINARY `user_connections`
-// plus their two `user` bindings (`embed`, `rerank`). Not a special row: a user who deletes them reads
-// `no-connection` on search like any other unset task and re-adds them from the picker.
-//
-// IDEMPOTENT by the `(owner_id, seed_slot)` unique, never by the label, so a relabel renames rows instead of adding
-// them. A row seeded before the slot existed is adopted in place: the unslotted local-light row on the seed's model
-// that the user's binding for that task points at gets the slot and today's label, and keeps its binding. Then one
-// `onConflictDoNothing` insert for the slots still empty and one insert of the bindings still missing. A re-pointed
-// binding is the user's and is never overwritten. This function throws only on a db error.
+// The convenience seed creates two ordinary connections; text and image tasks share the encoder.
+// Existing bindings, including explicit null choices, are never overwritten.
 
 import type { LocalLightSeedSlot, ProviderId, RoutableTask } from "@orb/contracts/inference";
 import { builtinProvider, LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
@@ -29,7 +21,11 @@ function localLightProviderId(): ProviderId {
 
 const LOCAL_LIGHT_PROVIDER_ID = localLightProviderId();
 const SEED_SLOTS: readonly LocalLightSeedSlot[] = LOCAL_LIGHT_SEED_ROWS.map((row) => row.task);
-const SEED_TASKS: readonly RoutableTask[] = SEED_SLOTS;
+const SEED_BINDINGS = [
+  ...LOCAL_LIGHT_SEED_ROWS.map((seed) => ({ task: seed.task, slot: seed.task })),
+  { task: "imageEmbed", slot: "embed" },
+] satisfies readonly { readonly task: RoutableTask; readonly slot: LocalLightSeedSlot }[];
+const SEED_TASKS: readonly RoutableTask[] = SEED_BINDINGS.map((binding) => binding.task);
 const taken = alias(userConnections, "seed_slot_taken");
 
 /** Give each empty slot the user's pre-slot seeded row for it: the unslotted local-light row on the seed's model
@@ -100,7 +96,7 @@ export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerI
     .returning({ id: userConnections.id });
   // The rows by slot — this call's, an adopted one, or an earlier seed's — and the tasks the user already bound.
   const rows = await db
-    .select({ id: userConnections.id, seedSlot: userConnections.seedSlot })
+    .select({ id: userConnections.id, seedSlot: userConnections.seedSlot, model: userConnections.model, providerId: userConnections.providerId })
     .from(userConnections)
     .where(and(eq(userConnections.ownerId, ownerId), inArray(userConnections.seedSlot, SEED_SLOTS)));
   const bound = await db
@@ -110,12 +106,13 @@ export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerI
   // @orb-waive persistence-no-in-memory-state(Set): query-local membership set over the binding rows this query just returned. Ends if it outlives the call.
   const boundTasks = new Set(bound.map((row) => row.task));
   // @orb-waive persistence-no-in-memory-state(Map): query-local slot→id index over the row set this query just returned. Ends if it outlives the call.
-  const idBySlot = new Map(rows.map((row) => [row.seedSlot, row.id]));
-  const missing = LOCAL_LIGHT_SEED_ROWS.flatMap((seed) => {
-    const connectionId = idBySlot.get(seed.task);
-    return boundTasks.has(seed.task) || connectionId === undefined
+  const rowBySlot = new Map(rows.map((row) => [row.seedSlot, row]));
+  const missing = SEED_BINDINGS.flatMap((seed) => {
+    const row = rowBySlot.get(seed.slot);
+    const editedEncoder = seed.task === "imageEmbed" && (row?.providerId !== LOCAL_LIGHT_PROVIDER_ID || row.model !== LOCAL_LIGHT_SEED_ROWS[0].model);
+    return boundTasks.has(seed.task) || row === undefined || editedEncoder
       ? []
-      : [{ id: deps.newBindingId(), actorKind: "user" as const, userId: ownerId, ruleId: null, pluginId: null, task: seed.task, connectionId }];
+      : [{ id: deps.newBindingId(), actorKind: "user" as const, userId: ownerId, ruleId: null, pluginId: null, task: seed.task, connectionId: row.id }];
   });
   const newlyBound =
     missing.length > 0 ? await db.insert(connectionBindings).values(missing).onConflictDoNothing().returning({ task: connectionBindings.task }) : [];

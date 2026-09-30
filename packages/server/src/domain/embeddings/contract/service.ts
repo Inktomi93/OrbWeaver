@@ -2,6 +2,7 @@
 // indexer interface. Every cross-feature capability arrives as an injected op (no sideways imports); there is
 // no principal/guard on any bundle — the vector substrate carries no ownerId.
 
+import type { AssetKind } from "@orb/contracts/assets";
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
 import type { Capability, ProviderId } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
@@ -94,6 +95,16 @@ export type ListImageAssetIds = (ownerId?: UserId | null) => Promise<readonly As
 
 /** The DI bundle the embeddings verbs close over (assembled at `entry/`, surfaced via `context.ts`). */
 export interface EmbeddingsContext {
+  readonly precomputedEmbedding?:
+    | ((
+        hash: string,
+        space: string,
+        kind: StoreParams["lens"],
+        connection: EmbeddingConnectionSnapshot,
+      ) => { readonly model: string; readonly vector: Float32Array<ArrayBuffer> } | null)
+    | undefined;
+  readonly loadAssetKind: (assetId: AssetId) => Promise<AssetKind | null>;
+  readonly loadAssetMime: LoadAssetMime;
   readonly db: Db;
   /** The per-FUNDER role-client bundle (inference program §7.5-2): a vector task is `scope: "owner"`, so the
    *  entity's OWNER funds the embed and DEFINES the space (their `embed`/`imageEmbed` binding). */
@@ -117,6 +128,8 @@ export interface EmbeddingsContext {
 }
 
 export interface EmbeddingsService {
+  readonly purgeDisallowedImages: () => Promise<void>;
+  readonly indexAsset: (assetId: AssetId, options?: { readonly force?: boolean; readonly signal?: AbortSignal | undefined }) => Promise<StoreResult | null>;
   readonly resolveGeneration: (ownerId: UserId, task: GenerationTask, via?: GenerationTask) => Promise<PinnedGeneration | null>;
   /** The only vector inserter for the single-item lenses. Hash-gates on `(key, model)` — a matched
    *  `content_hash` is a noop; else embeds, asserts the vector matches the declared space `dim`, and upserts.
@@ -171,23 +184,12 @@ export interface EmbeddingsService {
 
 /** The DI bundle the indexer handlers close over (assembled at `entry/`). */
 export interface EmbeddingsIndexerContext {
+  readonly indexAsset: EmbeddingsService["indexAsset"];
   readonly store: EmbeddingsService["store"];
-  /** The indexer's OWN skip-log table (`image_index_skips`) — read/written directly (not through an injected
-   *  op) because it is this domain's own table, exactly as the bulk `embedAssets` sweep touches it via
-   *  `ctx.db`. The cross-domain canon re-reads stay injected (loadCardText/loadAssetBytes/loadAssetMime). */
-  readonly db: Db;
-  /** The injected clock — the admission-floor skip-record's `created_at`. */
-  readonly now: () => number;
   readonly loadCardText: LoadCardText;
-  readonly loadAssetMime: LoadAssetMime;
-  readonly loadAssetBytes: LoadAssetBytes;
-  /** The entity OWNER by id — the funder of the row's embed (the events carry no owner). Trusted re-readers,
-   *  like `loadCardText`. */
   readonly loadCharacterOwner: (characterId: CharacterId) => Promise<UserId | null>;
-  readonly loadAssetOwner: (assetId: AssetId) => Promise<UserId | null>;
   readonly roleClientsFor: RoleClientsFor;
   readonly embedDim: number;
-  readonly imageEmbedDim: number;
 }
 
 /** The event subscription shape `entry/` binds onto the bus: `character.updated` re-embeds the card,

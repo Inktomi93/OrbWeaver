@@ -50,6 +50,7 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
     reloadEffectiveConfig: async (): Promise<EffectiveAppConfig> => {
       const resolved = await reloadEffectiveConfig(deps.db);
       deps.publishPrivateEndpointAllowlist(resolved.privateEndpointAllowlist);
+      deps.onEffectiveConfigChanged?.(resolved);
       return resolved;
     },
   };
