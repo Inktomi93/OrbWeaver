@@ -758,6 +758,9 @@ test("#835 the read-less jump tile keeps its own box across every neighbour's re
 // and the row-count pitch (~48px) is the only thing that was stopping it. They now declare
 // `HomeTileContribution.skeletonBlock` — a measured px box on the same seam the remembered box uses.
 //
+// The masthead now reserves through its own `skeleton` (wrapping copy has no px constant), and is kept in
+// the list because its box must still match here.
+//
 // The tiles NOT listed here keep `skeletonRows` on purpose: `chat.recents` / `chat.alsoOpen` /
 // `databank.documents` settle into N rows of whatever came back, so no static number is right for both a
 // full and a sparse library (the ruling above — reserve the fullest page, accept the shrink).
@@ -819,6 +822,39 @@ test("#177 a tile whose settled box is a CONSTANT reserves it exactly — no res
   for (const [id, delta] of Object.entries(drift)) {
     expect(Math.abs(delta), `${id} moved ${String(delta)}px between its reserved box and its settled one`).toBeLessThanOrEqual(EXACT_RESERVATION_EPSILON_PX);
   }
+});
+
+// ── The masthead's first-boot box at a phone width ─────────────────────────────────────────────────
+// The masthead is copy that wraps with the pane. A px constant measured at a desktop pane left a 360px
+// phone one line short, so the whole page moved down when the read landed. The pin is the fresh account,
+// the one a device with no box memory most often boots: its reserved box is its settled box.
+const PHONE_CONTENT_PX = 360;
+
+test("the masthead reserves its settled box on a fresh account at a phone width", async ({ mount, page }) => {
+  const chats = trpcHold();
+  await stubDatabank(page, {
+    ...CHAT_ROOM_ROUTES,
+    "chat.listChats": chats,
+    "chat.reapTemporaryChats": { reaped: 0 },
+    "character.list": characterListResponder(FIRST_BOOT_FACES),
+    "databank.bankHealth": FIRST_BOOT_HEALTH,
+    "databank.list": FIRST_BOOT_BANK,
+    "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: "user_ct_phone_masthead" },
+  });
+
+  const home = await mount(<HomeShippedFirstBootStory inlineSize={PHONE_CONTENT_PX} />);
+  await chats.requested;
+  const masthead = home.locator('[data-home-tile="chat.masthead"]');
+  await expect(masthead.locator("[aria-busy]")).toBeVisible();
+  const reserved = (await masthead.boundingBox())?.height ?? 0;
+
+  chats.release(chatListResponder([])({ limit: RECENTS_LIMIT }));
+  await expect(masthead.getByRole("heading", { level: 1, name: "An empty house." })).toBeVisible();
+  await expect(masthead.locator("[aria-busy]")).toHaveCount(0);
+  const settled = (await masthead.boundingBox())?.height ?? 0;
+
+  expect(reserved).toBeGreaterThan(0);
+  expect(Math.abs(settled - reserved), `reserved ${String(reserved)}px, settled ${String(settled)}px`).toBeLessThanOrEqual(EXACT_RESERVATION_EPSILON_PX);
 });
 
 // ── #188 P2-12 — the landing janitor must not buy the chats list a second round-trip ────────────────

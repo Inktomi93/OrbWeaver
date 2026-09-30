@@ -173,11 +173,12 @@ export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribu
  *  the skeleton to it (`skeletonRowCountFor` — side-eye R-1: a fixed 3 rows inside a 349px measured box
  *  left 189px of blank under three lonely lines), and measures the settled body back into
  *  `surface-box-store`. `skeletonRows` stays the tile's own first-boot claim (#92): it sizes the
- *  skeleton when nothing is reserved and is the fill fallback when the pitch cannot be inverted. */
+ *  skeleton when nothing is reserved and is the fill fallback when the pitch cannot be inverted. A tile
+ *  whose height is wrapping copy supplies its own `skeleton` instead, sized by the same wrap. */
 function TileContent({ tile, title }: { readonly tile: HomeTileContribution; readonly title: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<SkeletonRows count={tile.skeletonRows ?? TILE_SKELETON_ROWS} />}
+      fallback={tile.skeleton?.() ?? <SkeletonRows count={tile.skeletonRows ?? TILE_SKELETON_ROWS} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label={title.toLowerCase()} onRetry={retry} />}
       reserveBlock={tile.skeletonBlock}
       reserveKey={tile.id}

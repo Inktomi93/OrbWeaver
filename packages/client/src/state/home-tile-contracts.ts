@@ -103,20 +103,24 @@ export interface HomeTileContribution {
    *  WHY A SECOND FIELD RATHER THAN A BETTER ROW COUNT. `skeletonRows` reserves through the skeleton's own
    *  PITCH (a 40px bar + an 8px gap), so the boxes it can express are quantised to ~48px steps and the
    *  residual is up to half a row of first-boot shift on every device with no memory. Measured on the live
-   *  home at 1280×900 (a tRPC hold so the loading state is observable rather than a 200ms flash): the
-   *  masthead reserved 64px and settled at 57.25 (−6.75, which moved the WHOLE page up, every tile in both
-   *  columns), quick-picks reserved 304 and settled at 320.5 (+16.5, pushing temp-chat/databank/the doorway
-   *  group down), temp-chat reserved 112 and settled at 94.64 (−17.36). Those three are exactly the tiles
-   *  whose settled height is a CONSTANT — a heading pair, a fixed-cell grid at its primary mount, a button
-   *  over one gloss line — so the honest reservation is the number itself, not the nearest multiple of a
-   *  row. The same field would be a LIE on `chat.recents`/`chat.alsoOpen`/`databank.documents`, whose box
-   *  is N rows of whatever came back; those keep `skeletonRows` and keep their first-boot residual.
+   *  home at 1280×900 (a tRPC hold so the loading state is observable rather than a 200ms flash):
+   *  quick-picks reserved 304 and settled at 320.5 (+16.5, pushing temp-chat/databank/the doorway group
+   *  down), temp-chat reserved 112 and settled at 94.64 (−17.36). Those two are exactly the tiles whose
+   *  settled height is a CONSTANT — a fixed-cell grid at its primary mount, a button over one gloss line — so
+   *  the honest reservation is the number itself, not the nearest multiple of a row. The same field would be
+   *  a LIE on `chat.recents`/`chat.alsoOpen`/`databank.documents`, whose box is N rows of whatever came back
+   *  (those keep `skeletonRows` and their first-boot residual), and on the masthead, whose copy wraps with
+   *  the pane width (it supplies a {@link HomeTileContribution.skeleton} instead).
    *
    *  It rides the SAME exact-reservation seam the MEASURED box uses (`home-tile.tsx` `reserveStyle` —
    *  `blockSize` + `overflow: clip`, with `skeletonRowCountFor` filling it), so there is one reservation
    *  mechanism with three sources in priority order: measured (this device, last boot) → declared px →
    *  declared rows. Wins over `skeletonRows`, loses to the measured box. */
   readonly skeletonBlock?: number;
+  /** A body-shaped loading placeholder whose NATURAL box is the settled box at every width, for a body whose
+   *  height is copy that wraps (the masthead). A px constant is right at one width only. It replaces the
+   *  skeleton rows and reserves nothing itself, and still loses to the measured box. */
+  readonly skeleton?: () => ReactNode;
   /** A real body, or the DECLARED-DORMANT arm — the structural twin of `SectionDefinition.content`'s
    *  `{planned}` (lockdown O1): the marker and the body are the SAME field, so building the tile forces
    *  deleting the marker in the same edit. A stale doorway is unrepresentable, not merely detected. */

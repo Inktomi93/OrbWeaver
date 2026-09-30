@@ -400,13 +400,13 @@ export function HomeFoldStory(): ReactElement {
   );
 }
 
-/** The shipped home, tile for tile, at the shipped width. No box memory is seeded, so every tile is on
- *  its DECLARED reservation — a first-ever boot. */
-export function HomeShippedFirstBootStory(): ReactElement {
+/** The shipped home, tile for tile, at the shipped width (or a spec-driven one). No box memory is seeded,
+ *  so every tile is on its DECLARED reservation — a first-ever boot. */
+export function HomeShippedFirstBootStory({ inlineSize = HOME_CONTENT_PX }: { readonly inlineSize?: number }): ReactElement {
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <div style={{ inlineSize: HOME_CONTENT_PX }}>
+        <div style={{ inlineSize }}>
           <HomeSurface
             onNewChat={(): void => undefined}
             tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [...SHIPPED_TILES, makeSectionJumpTile(SHIPPED_TILES)])}
