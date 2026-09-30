@@ -2,7 +2,7 @@
 // `openConfigTo` navigation type (#866).
 //
 // It was `config-group-ids.ts` (`CONFIG_GROUP_IDS`) until the config revamp folded the settings
-// MODAL into the Configuration SECTION: the nine settings categories, the four member collections (the
+// MODAL into the Configuration SECTION: the settings categories, the member collections (the
 // old open `config-collections` contributor set — owner fork F-1 closed the tuple) and the persona
 // surface are ONE vocabulary now, sorted into four SHELVES the LIST paints as named groups. A collection
 // keeps the id its owner already exports (`worldInfo`, `rosterPreset`): each is the ONE home of that kind, rides
@@ -27,8 +27,7 @@ export const CONFIG_GROUP_IDS = [
   "connections",
   "automation",
   "admin",
-  // ── collections (F-1: the closed tuple; ids are the owners' own) ──
-  "tags",
+  // ── collections (F-1: the closed tuple; ids are the owners' own). Tags are Corpus Labels (D271). ──
   "regex",
   "worldInfo",
   "rosterPreset",

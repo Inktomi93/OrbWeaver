@@ -29,6 +29,7 @@ export type NavResult = { readonly ok: true } | { readonly ok: false; readonly r
 
 export interface OrbNavCapabilities {
   readonly sections: readonly string[];
+  readonly corpusModes: readonly string[];
   readonly modalSlots: readonly string[];
   readonly configGroups: readonly string[];
   readonly contextTabs: readonly string[];
@@ -72,6 +73,8 @@ export interface OrbAgentHandles {
 export interface OrbNavHandle {
   readonly capabilities: () => OrbNavCapabilities;
   readonly section: (id: string) => NavResult;
+  /** Land on Corpus in one mode (D271) — the section and the mode in one call, through the switch's own action. */
+  readonly corpusMode: (mode: string) => NavResult;
   readonly openModal: (slot: string) => NavResult;
   /** Land the Config workspace on a group, optionally its section, optionally one setting LEAF — the same
    *  three-part address `openConfigTo(group, sub?, setting?)` and the `/config?to=g.s.l` link grammar

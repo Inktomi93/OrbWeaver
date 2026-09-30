@@ -53,23 +53,10 @@ const BAND = '[data-slot="config-band"]';
 /** The phone's cold-start teaching frame — rendered ONLY on a mobile viewport with no member selected AND
  *  no active group, so its presence is also the pin that nothing selected on arrival. */
 const TEACHING = '[data-slot="config-mobile-teaching"]';
-/** Every group the door registers MINUS the admin one: `CONFIG_GROUP_IDS` is 13, and `admin-group.tsx`
- *  declares `when: (viewer) => viewer.isAdmin`, which this file's `sessions.me` (`globalRole: "user"`)
- *  is not. A plain user therefore sees TWELVE bands — the live stage's own 13 is the owner's read of the
- *  same projection, not a different map. */
-const GROUP_COUNT = 12;
-
-const TAG = {
-  id: "tag_zeal",
-  name: "zeal",
-  color: null,
-  color2: null,
-  source: null,
-  folderType: "NONE",
-  sortOrder: 0,
-  isHiddenOnCard: false,
-  usage: { characters: 9, chats: 3, worldBooks: 0, personas: 0, presets: 0, total: 12 },
-} satisfies TrpcFixtureOutput<"tag.listTagsWithUsage">[number];
+/** Every group the door registers MINUS the admin one: `admin-group.tsx` declares `when: (viewer) =>
+ *  viewer.isAdmin`, which this file's `sessions.me` (`globalRole: "user"`) is not. Stated as a number here
+ *  rather than derived from `CONFIG_GROUP_IDS`, because a test that reads the tuple it judges proves nothing. */
+const GROUP_COUNT = 11;
 
 const BOOK = {
   id: "world_book_reach000001",
@@ -99,7 +86,6 @@ function stub(page: Page): Promise<TrpcRecorder> {
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
     "settings.getUserSettings": () => ({ userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 }),
     "settings.listThemes": () => [],
-    "tag.listTagsWithUsage": () => [TAG],
     "regex.listScripts": () => [],
     "regex.listGlobal": () => [],
     "worldInfo.listBooksWithUsage": () => [BOOK],
@@ -210,19 +196,22 @@ test.describe("the phone", () => {
     await stub(page);
     await mount(<ConfigMobileShellStory />);
 
-    await page.getByRole("button", { name: /Tags/ }).first().click();
-    await page.getByRole("button", { name: "zeal", exact: true }).click();
+    await page
+      .getByRole("button", { name: /World Info/ })
+      .first()
+      .click();
+    await page.getByRole("button", { name: BOOK.name, exact: true }).click();
 
     // BOARDS p3/p4: no `← Back to <library>` row inside CONTENT. The topbar carries the exit and the name,
     // so an in-content row would print BOTH twice inside 430px — the doubled chrome the owner's review
     // rejected. The drill row's absence is the pin; the shell's own Back is what replaces it.
     await expect(page.locator(DRILL_ROW)).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Back to Tags" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Back to World Info" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: SHELL_BACK })).toBeVisible();
 
     // …AND THE HEADING SURVIVES THE ROW IT USED TO LIVE IN. The topbar's title is not a heading, so a
     // reader navigating by headings would lose the member entirely; it stays in the tree, visually hidden,
     // and is still stated exactly ONCE.
-    await expect(page.getByRole("heading", { name: "zeal" })).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: BOOK.name })).toHaveCount(1);
   });
 });

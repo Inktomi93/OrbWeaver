@@ -28,6 +28,7 @@ import {
   useOpenModal,
   useOpenOverlayPanel,
   usePanelOverride,
+  useSectionHasSelection,
   useSectionListIsScreen,
   useSectionRegistry,
 } from "#state";
@@ -163,6 +164,7 @@ export function useShellLayout(): ShellLayout {
   // Called UNCONDITIONALLY (a `listAvailable &&` short-circuit here would be a conditional hook).
   const nothingSelected = useSectionListIsScreen(activeSection);
   const listIsScreen = listAvailable && nothingSelected;
+  const memberOpen = useSectionHasSelection(activeSection);
 
   const listMode: PanelMode = listAvailable
     ? resolvePanelMode("list", listDefault, { isFocus: focusMode, isMobile, isNarrow, openOverlayPanel, listIsScreen })
@@ -190,7 +192,7 @@ export function useShellLayout(): ShellLayout {
   // Closing a panel in an overlay regime RELEASES the request (`null`) unless it is the LIST, which is the
   // one panel with a regime DEFAULT to suppress: on mobile with nothing selected the roster is the screen,
   // and "hide the list" has to mean it (that toggle is how a phone reaches a section's own no-selection
-  // CONTENT — the corpus/analytics dashboards). Dismissing the CONTEXT sheet must NOT take the roster
+  // CONTENT — the Corpus Explore overview). Dismissing the CONTEXT sheet must NOT take the roster
   // behind it down with it, hence the asymmetry (see `OverlayPanelRequest`).
   const closeRequestFor = (panel: PanelName): "none" | null => (panel === "list" ? "none" : null);
 
@@ -276,9 +278,10 @@ export function useShellLayout(): ShellLayout {
   // clear, WHICH IS THE SAME FUNCTION every other back in the app calls (it drops the selection and
   // releases the slide-over request — see `createDrillSelectionStore`). The shell adds nothing on top: a
   // second write here is how the topbar door and an in-content Back came to land in two different states
-  // (side-eye P2).
+  // (side-eye P2). It keys on an OPEN MEMBER, not on "the list is not the screen": a CONTENT-landing section
+  // (Corpus Insights, D271) has no list screen with nothing open, and the lead slot must stay its list door.
   const selection = activeDef.selection;
-  const backToList = isMobile && listAvailable && selection !== undefined && !nothingSelected ? selection.clear : null;
+  const backToList = isMobile && listAvailable && selection !== undefined && memberOpen ? selection.clear : null;
 
   return {
     backToList,

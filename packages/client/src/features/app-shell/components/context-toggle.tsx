@@ -18,6 +18,10 @@ import { TopbarIconButton } from "./shell-topbar.tsx";
  *  word at every width (the pane's own band is the artifact's, and "Details" is the neutral label under
  *  it), while the two names cost a screen-reader user the ability to carry what they learned across a
  *  resize. So the phone spelling becomes the only spelling — the ruling's own criterion, applied once. */
+/** The shell's handle on this one control: `shell.css` sheds it while the sheet is open, and the shell hands
+ *  focus back to it when the sheet closes. */
+export const CONTEXT_TOGGLE_MARKER = "shell-context-toggle";
+
 function contextToggleLabel(collapsed: boolean): string {
   return collapsed ? "Show details" : "Hide details";
 }
@@ -33,7 +37,7 @@ export function ContextToggle(): ReactElement {
       // close sits where the thing it closes is" (the 2026-08-06 P2, and the build's own fork 3). With the
       // sheet CLOSED this is still the only phone door onto it, which is why the shed is state-keyed and
       // not a width-keyed removal.
-      marker="shell-context-toggle"
+      marker={CONTEXT_TOGGLE_MARKER}
       label={contextToggleLabel(collapsed)}
       icon={collapsed ? PanelRightOpen : PanelRightClose}
       expanded={!collapsed}

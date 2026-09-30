@@ -42,6 +42,7 @@ import {
   AppShellChatsProjectionIntentStory,
   AppShellChatTopbarIdentityStory,
   AppShellChatTrackStory,
+  AppShellContextFromPopoverStory,
   AppShellDropGuardStory,
   AppShellListPrimaryStory,
   AppShellMobileRuleStory,
@@ -841,8 +842,8 @@ test("filtering the command palette keeps the dialog and search geometry stable"
     input: await input.boundingBox(),
   };
 
-  await input.fill("analytics");
-  await expect(dialog.getByRole("option", { name: "Analytics", exact: true })).toBeVisible();
+  await input.fill("refinery");
+  await expect(dialog.getByRole("option", { name: "Refinery", exact: true })).toBeVisible();
   const after = {
     dialog: await dialog.boundingBox(),
     input: await input.boundingBox(),
@@ -865,8 +866,8 @@ test("the real command palette keeps roving selection exposed from its focused c
   const dialog = page.getByRole("dialog", { name: "Jump to…" });
   const input = dialog.getByRole("combobox");
   await input.click();
-  await input.fill("analytics");
-  await expect(dialog.getByRole("option", { name: "Analytics", exact: true })).toBeVisible();
+  await input.fill("refinery");
+  await expect(dialog.getByRole("option", { name: "Refinery", exact: true })).toBeVisible();
   await input.press("ArrowDown");
 
   const selected = dialog.getByRole("option", { selected: true });
@@ -886,8 +887,8 @@ test("the command palette reserves a compact, stable result viewport while filte
   await expect.poll(async () => list.boundingBox()).not.toBeNull();
   const before = await list.boundingBox();
 
-  await input.fill("analytics");
-  await expect(dialog.getByRole("option", { name: "Analytics" })).toBeVisible();
+  await input.fill("refinery");
+  await expect(dialog.getByRole("option", { name: "Refinery" })).toBeVisible();
   await expect.poll(async () => list.boundingBox()).not.toBeNull();
   const readAfterAtAssertion = async (): Promise<typeof after> => await list.boundingBox();
   const after = await list.boundingBox();
@@ -1587,7 +1588,6 @@ test("mobile: the bottom bar is the curated four; overflow + footer affordances 
   // display:none on the desktop block removes them from the a11y tree entirely.
   await expect(page.getByRole("button", { name: "Corpus" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Analytics" })).toHaveCount(0);
   // The ballooning guard: rendered mobile-bar buttons (`mobile: "tab"` sections + "You") must never
   // exceed the thumb-reach budget — a def flipping to `mobile: "tab"` must not silently balloon it. The
   // rail is now ONE DOM list (no `.shell-rail-mobile` twin); `getByRole` counts only the VISIBLE buttons,
@@ -1673,11 +1673,11 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
 
   // Tapping an overflow section switches the active section AND closes the sheet (setActiveSection +
   // closeModal), landing on that section's distinct placeholder copy.
-  await page.getByRole("button", { name: "Analytics" }).click();
+  await page.getByRole("button", { name: "Presets" }).click();
   // GONE, not merely restyled: the sheet container leaves the tree and its rows go with it.
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Settings", exact: true })).toHaveCount(0);
-  await expect(page.getByText("Charts over your corpus land here", { exact: false })).toBeVisible();
+  await expect(page.getByText("Your generation presets live here", { exact: false })).toBeVisible();
 });
 
 test("mobile: the You sheet's Settings row switches to the config SECTION and closes the sheet", async ({ mount, page }) => {
@@ -2731,6 +2731,32 @@ test("the scrim dismiss closes a narrow-auto-overlayed panel the same way the to
 
   await page.locator(".shell-scrim").click();
   await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+});
+
+// The scrim is transparent and hidden once the sheet closes, so a click on it must not leave focus there.
+test("a scrim click that closes the detail sheet returns focus to its toggle", async ({ mount, page }) => {
+  await page.setViewportSize(NARROW_DESKTOP);
+  const shell = await mount(<AppShellStory />);
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  await shell.getByRole("button", { name: "Show details" }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+  await page.locator(".shell-scrim").click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(shell.getByRole("button", { name: "Show details" })).toBeFocused();
+});
+
+// The keyboard closes a sheet with Escape or its own close; the invisible scrim is never a Tab stop.
+test("the scrim is not a Tab stop while a sheet is up", async ({ mount, page }) => {
+  await page.setViewportSize(NARROW_DESKTOP);
+  const shell = await mount(<AppShellStory />);
+  await shell.getByRole("button", { name: "Show details" }).click();
+  const scrim = page.locator(".shell-scrim");
+  await expect(scrim).toHaveAttribute("data-visible", "true");
+  // Walk the whole tab order from the page start; the scrim is never one of its stops.
+  for (let step = 0; step < 40; step += 1) {
+    await page.keyboard.press("Tab");
+    await expect(scrim).not.toBeFocused();
+  }
 });
 
 // ── toggleFocus regime-awareness (M10 completeness fold) — the same ephemeral-vs-persisted bug class
@@ -7354,4 +7380,43 @@ test("#1789 @fence the production trail still LEADS with the ⌘K chip, ahead of
   const names = await trail.locator("button").evaluateAll((elements) => elements.map((el) => el.getAttribute("aria-label") ?? ""));
   expect(names[0]).toBe("⌘K jump — the command menu");
   expect(names.length).toBeGreaterThan(1);
+});
+
+test.describe("a floating CONTEXT pane and focus, on a phone", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 932 } });
+
+  // The slide-over takes focus so it never drops to <body>, but an open popup keeps the focus it holds.
+  test("a pane floated from inside a popover leaves focus in the popover", async ({ mount, page }) => {
+    const shell = await mount(<AppShellContextFromPopoverStory />);
+    await shell.getByRole("button", { name: "chat tools" }).click();
+    const reveal = page.getByRole("dialog", { name: "Chat tools" }).getByRole("button", { name: "reveal details" });
+    await reveal.focus();
+    await reveal.press("Enter");
+    await expect(shell.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "overlay");
+    await expect(reveal).toBeFocused();
+  });
+
+  // The pane is a programmatic focus stop, like <main>: a keyboard open lands focus on it with no ring.
+  test("a keyboard-opened CONTEXT pane takes focus without a focus ring", async ({ mount }) => {
+    const shell = await mount(<AppShellStory />);
+    const toggle = shell.getByRole("button", { name: "Show details" });
+    await toggle.focus();
+    await toggle.press("Enter");
+    const pane = shell.locator('.shell-panel[data-panel-side="context"]');
+    await expect(pane).toHaveAttribute("data-panel-mode", "overlay");
+    await expect(pane).toBeFocused();
+    await expect.poll(() => pane.evaluate((el) => el.matches(":focus-visible"))).toBe(true);
+    await expect(pane).toHaveCSS("outline-style", "none");
+  });
+
+  // Closing the sheet from inside it returns focus to the toggle that opened it, never to <body>.
+  test("closing the CONTEXT sheet returns focus to its toggle", async ({ mount }) => {
+    const shell = await mount(<AppShellStory />);
+    await shell.getByRole("button", { name: "Show details" }).press("Enter");
+    const pane = shell.locator('.shell-panel[data-panel-side="context"]');
+    await expect(pane).toHaveAttribute("data-panel-mode", "overlay");
+    await pane.getByRole("button", { name: "Close Chats details" }).press("Enter");
+    await expect(pane).toHaveAttribute("data-panel-mode", "collapsed");
+    await expect(shell.getByRole("button", { name: "Show details" })).toBeFocused();
+  });
 });

@@ -13,6 +13,7 @@
 // containing-block CT below and mounted standalone in CT stories with no `analytics-content.tsx` wrapper
 // at all — so the inset goes on the same element that already owns the scroll here, not one level up.
 
+import type { CharacterId } from "@orb/kit/ids";
 import { formatUsd } from "@orb/kit/strings";
 import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
@@ -24,7 +25,7 @@ import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
@@ -43,10 +44,24 @@ import {
   momentumBarItems,
   UNRECORDED_NOTE,
 } from "../lib/analytics-view-model.ts";
+import { LEADERBOARD_ROW_ATTR } from "../lib/leaderboard-row-attr.ts";
 
-export function AnalyticsOverviewSurface(): ReactElement {
+/** The leaderboard row the drill with this character was opened from, when it is on screen and operable. */
+function openerRow(characterId: CharacterId): HTMLElement | null {
+  const row = document.querySelector<HTMLElement>(`[${LEADERBOARD_ROW_ATTR}="${characterId}"] [data-slot="list-row-body"]`);
+  return row === null || row.closest("[inert]") !== null ? null : row;
+}
+
+/** `returnFocusTo` is the character whose drill this dashboard replaced: Back hands focus to that row, or to
+ *  the dashboard when the finder is off screen, because the Back control itself just left the tree. */
+export function AnalyticsOverviewSurface({ returnFocusTo = null }: { readonly returnFocusTo?: CharacterId | null }): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  useFocusOnMount(surfaceRef, returnFocusTo === null);
+  useEffect(() => {
+    if (returnFocusTo !== null) {
+      (openerRow(returnFocusTo) ?? surfaceRef.current)?.focus();
+    }
+  }, [returnFocusTo]);
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsOverviewSurface")}>
       {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (#1727, the #1133 hoist — `character-editor-surface`
@@ -56,8 +71,8 @@ export function AnalyticsOverviewSurface(): ReactElement {
           slot ride the scroller, which is where #1200 put them. */}
       <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" data-slot="analytics-content" padding="section">
         <QueryBoundary
-          fallback={<Text voice="gloss">Loading your analytics…</Text>}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="your analytics" onRetry={retry} />}
+          fallback={<Text voice="gloss">Loading your insights…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="your insights" onRetry={retry} />}
           reserveKey="analytics.overview"
         >
           <OverviewBody />
@@ -76,7 +91,7 @@ function OverviewBody(): ReactElement {
   // #451: the list defaults COLLAPSED here, so "open the list" is right by default — but wrong once a
   // reader docks it, and even collapsed the affordance's verbatim name is "Show list panel" (the topbar
   // toggle, `shell-topbar.tsx`), not "open the list" (WCAG 2.5.3, label-in-name).
-  const listMode = useSectionListMode("analytics");
+  const listMode = useSectionListMode("corpus");
 
   // `hasData` is the runtime gate; overview/wrapped are still typed `| null` (an absent rollup), so
   // guard all three together — no data ⇒ the teaching state instead of a wall of zeros.
@@ -260,7 +275,7 @@ function EmptyStateNoData(): ReactElement {
   return (
     <EmptyState
       icon={<Icon icon={ChartColumn} size="lg" />}
-      title="No analytics yet"
+      title="No insights yet"
       description="Play a chat and your turn economics — tokens, cost, latency — will show up here."
       action={
         <Button intent="primary" size="sm" onClick={(): void => setActiveSection("chats")}>

@@ -32,12 +32,14 @@ import {
   selectCollectionMember,
   selectCorpusCharacter,
   selectDocumentFromList,
+  setOpenOverlayPanel,
   useSectionListIsScreen,
 } from "@orb/client/state";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Command, Crown, Drama, Eye, Flag, FlaskConical, Gauge, Icon, MessagesSquare, Settings, Users } from "@orb/ui/icons";
+import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Heading } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Toaster } from "@orb/ui/toast";
@@ -119,6 +121,35 @@ export function AppShellStory(): ReactElement {
         <LandOn section="chats" />
         {/* The real "You" bottom-sheet body arrives via the modal registry (CtFakeSectionRegistry nests
             the real modal registry), so the mobile CT exercises the real sheet, not a placeholder. */}
+        <AppShell />
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** A popover in CONTENT whose own button floats the CONTEXT pane while the popover keeps focus — the case
+ *  where the shell's "a slide-over takes focus" effect must stand down. */
+export function AppShellContextFromPopoverStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry
+        sections={{
+          chats: {
+            content: (
+              <Popover>
+                <PopoverTrigger render={<Button type="button">chat tools</Button>} />
+                <PopoverPopup aria-label="Chat tools">
+                  <Button onClick={(): void => setOpenOverlayPanel("context")} type="button">
+                    reveal details
+                  </Button>
+                </PopoverPopup>
+              </Popover>
+            ),
+            context: <p>chats context pane</p>,
+          },
+        }}
+      >
+        <LandOn section="chats" />
         <AppShell />
       </CtFakeSectionRegistry>
     </CtDataProviders>
@@ -319,7 +350,7 @@ function openMemberIn(section: SectionId): void {
     selectDocumentFromList(mintTypeId(ID_PREFIX.document));
     return;
   }
-  selectCollectionMember("tags", "tag-ct-member");
+  selectCollectionMember("regex", "regex-ct-member");
 }
 
 /** The story's stand-in for a section's `useSelectionTitle`: the OPEN member's name, resolved REACTIVELY
@@ -596,13 +627,13 @@ export function RailOverflowSectionStory(): ReactElement {
   );
 }
 
-/** The same swap from a DIFFERENT group (analytics is `insight`, corpus is `primary`) — the review found
- *  the defect on five sections across three groups, so the pin covers more than the one it was found on. */
-export function RailAnalyticsSectionStory(): ReactElement {
+/** The same swap from a DIFFERENT group (presets is `authoring`, corpus is `primary`) — the review found
+ *  the defect on five sections across several groups, so the pin covers more than the one it was found on. */
+export function RailAuthoringSectionStory(): ReactElement {
   return (
     <CtFakeSectionRegistry>
       <CtStandInChromeRegistry>
-        <Rail activeSection="analytics" onSelectSection={(): void => undefined} onOpenModal={(): void => undefined} />
+        <Rail activeSection="presets" onSelectSection={(): void => undefined} onOpenModal={(): void => undefined} />
       </CtStandInChromeRegistry>
     </CtFakeSectionRegistry>
   );
@@ -812,7 +843,7 @@ export function YouSheetProjectionStory(): ReactElement {
       zone: "rail.nav",
       mobile: "sheet",
       order: 0,
-      behavior: { kind: "section", sectionId: "analytics" },
+      behavior: { kind: "section", sectionId: "refinery" },
     },
   ]);
   return (

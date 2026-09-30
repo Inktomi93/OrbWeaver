@@ -1,5 +1,5 @@
-// The tag collection's ROWS — the OWNER half of the config-rail seam (F-5: the host draws the group frame,
-// the contribution draws everything inside it).
+// The tag library's ROWS — the Corpus Labels finder's list (D271). The finder above them draws the filter,
+// sort and prune controls; these rows apply the filter and sort, and own the prune confirm.
 //
 // THE ROW IS A SCENT NOW, NOT A CONTROL PANEL (F-11, owner-ruled). Every tag control used to live INSIDE
 // the settings row — rename, two colour pickers, a folder Select, a hide Switch, Merge and Delete, all on
@@ -29,11 +29,9 @@
 // server cost.
 //
 // ═══ THE SELECT LEFT, THE COMPARATOR STAYED (#1725, the mock design §3.2) ═══════════════════════════════════
-// The order CONTROL used to be drawn right here, one line above the rows. Board 02 puts it in the library's
-// control row (`filter · sort · create · overflow`), so it is declared data now — `tagCollection.sort`, drawn
-// by the host, backed by `useTagSortControl`. What could not follow it is the COMPARATOR: sorting runs over
-// members and the host never sees one. Both halves read the SAME store (`useTagSortMode` here,
-// `setTagSortMode` there), so there is still exactly one mode and no prop restating it.
+// The order CONTROL lives in the finder's control row (`labels-list-surface.tsx`), backed by
+// `useTagSortControl`. The COMPARATOR stays here, because it runs over members. Both halves read the SAME
+// store (`useTagSortMode` here, `setTagSortMode` there), so there is exactly one mode and no prop restating it.
 // The order HINT went with the control, into the Manual option's own `description` (`tagSortItems`) — the
 // 2026-08-03 P1/P2 rulings survive with a changed address, and the reasoning is written where the copy now
 // lives rather than repeated here.
@@ -43,8 +41,8 @@
 // screen never reflects, which is a control that lies. So the ≤30 arm forks again: manual → `SortableList`,
 // the two derived modes → the same rows without handles.
 //
-// THE PRUNE VERB SPLIT THE SAME WAY: its TRIGGER is the host's overflow kebab (`tagCollection.actions`) and
-// its CONFIRM is still here, because the unused COUNT and the cascade copy are this component's knowledge.
+// THE PRUNE VERB SPLIT THE SAME WAY: its TRIGGER is the finder's overflow kebab and its CONFIRM is here,
+// because the unused COUNT and the cascade copy are this component's knowledge.
 
 import type { TagWithUsage } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
@@ -54,12 +52,13 @@ import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import { ConfirmDialog, LibraryRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import type { CollectionListView } from "#lib";
 import { COLLECTION_LARGE_GROUP, sortTagsBy } from "#lib";
-import { clearCollectionSelection, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
+import { clearLabelSelection, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
 import { usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "../hooks/use-tag-settings-mutations.ts";
+import { finderRoot, libraryOrFinder } from "../lib/labels-focus-targets.ts";
 import { pruneConfirmLabel, tagColorLabel, unusedTagsLabel, usageBreakdown, usageTotalLabel } from "../lib/tags-model.ts";
 
 /** One row's height guess for the windowed arm: swatch + name, with the usage census on the SUBTITLE line
@@ -69,7 +68,14 @@ import { pruneConfirmLabel, tagColorLabel, unusedTagsLabel, usageBreakdown, usag
  *  measured heights come back, and the tag CT's own scroll-cue pin went red on the stale 36. */
 const ESTIMATED_ROW_PX = 52;
 
-export function TagCollectionRows({ view }: { readonly view: CollectionListView }): ReactElement {
+/** What the finder hands the rows: the open tag, the row-click writer, and the filter text (`""` = none). */
+interface TagRowsView {
+  readonly selectedId: string | null;
+  readonly onSelect: (tagId: TagId) => void;
+  readonly filter: string;
+}
+
+export function TagCollectionRows({ view }: { readonly view: TagRowsView }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: tags } = useSuspenseQuery(trpc.tag.listTagsWithUsage.queryOptions());
@@ -85,18 +91,44 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
   const unusedCount = tags.filter((tag) => tag.usage.total === 0).length;
   const hasUnused = unusedCount > 0;
 
-  // Delete is the row's KEBAB now (config-delete #271). Clear the selection FIRST when the open tag is the
-  // one being deleted, so CONTENT falls back to the workspace welcome instead of holding a dead editor over a
-  // deleted id — the world-info/regex row rule, and what the member editor's own delete did before this.
-  const onDelete = (id: TagId): void => {
-    if (view.selectedId === id) {
-      clearCollectionSelection();
+  // Delete is the row's KEBAB (config-delete #271). Clear the selection FIRST when the open tag is the one
+  // being deleted, so CONTENT falls back to the tag library instead of holding a dead editor over a deleted id.
+  // The confirm closes onto `closeFocusRef`, set once the delete lands: the kebab that opened it leaves with
+  // the row, and a prune can remove the fact button that opened its confirm. The stop takes focus as a
+  // whole; a cancelled confirm set nothing and keeps the default return.
+  const closeFocusRef = useRef<HTMLElement | null>(null);
+  const landCloseFocus = (): boolean => {
+    const target = closeFocusRef.current;
+    closeFocusRef.current = null;
+    if (target === null) {
+      return true;
     }
-    remove.mutate({ tagId: id });
+    target.focus();
+    // A placement that did not take (an inert or hidden target) falls back to the confirm's default return.
+    return document.activeElement !== target;
+  };
+  const onDelete = async (id: TagId): Promise<void> => {
+    const wasOpen = view.selectedId === id;
+    if (wasOpen) {
+      clearLabelSelection();
+    }
+    await remove.mutateAsync({ tagId: id });
+    closeFocusRef.current = wasOpen ? libraryOrFinder() : finderRoot();
+  };
+  const onPrune = async (): Promise<void> => {
+    await prune.mutateAsync();
+    closeFocusRef.current = libraryOrFinder();
   };
 
   const renderRow = (tag: TagWithUsage): ReactElement => (
-    <TagCollectionRow key={tag.id} onDelete={onDelete} onSelect={(): void => view.onSelect(tag.id)} selected={view.selectedId === tag.id} tag={tag} />
+    <TagCollectionRow
+      closeFocus={landCloseFocus}
+      key={tag.id}
+      onDelete={onDelete}
+      onSelect={(): void => view.onSelect(tag.id)}
+      selected={view.selectedId === tag.id}
+      tag={tag}
+    />
   );
 
   const windowed = tags.length > COLLECTION_LARGE_GROUP;
@@ -125,11 +157,8 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
       {empty || !windowed ? null : (
         <VirtualList
           aria-label="Tags"
-          // THE PANE IS THE WINDOW (#1725, the mock design §5.4). This was the shared `max-h-96` cap — a flat 384px
-          // that existed to stop one library pushing its sibling BANDS below the fold in the LIST's shared
-          // scroll column. That column is gone, so the bound is the CONTENT pane's own `overflow-y-auto overscroll-contain` box,
-          // reached by flex (`character-library-body.tsx`'s chain): the landing is `min-h-0 flex-1` in the
-          // pane and this is `min-h-0 flex-1` in the landing. `min-h-0` is the load-bearing half — a flex
+          // THE PANE IS THE WINDOW (#1725, the mock design §5.4): the bound is the finder's own scroll box,
+          // reached by flex (`character-library-body.tsx`'s chain). `min-h-0` is the half that matters — a flex
           // child defaults to `min-height: auto`, which lets the scroller grow to its content and trips the
           // primitive's own unbounded-window throw.
           className="min-h-0 flex-1"
@@ -168,10 +197,9 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
           ))}
         </Stack>
       )}
-      {/* THE PRUNE CONFIRM, CONTROLLED — the TRIGGER moved to the host's overflow kebab (#1725: it is a
-          `CollectionContribution.actions` entry now, the mock design §3.2 board 02) and the QUESTION stayed here,
-          because the count and the cascade are the ROWS' knowledge and the host draws its menu blind. The
-          `pruneConfirmOpen` store flag is the wire between the two fibers.
+      {/* THE PRUNE CONFIRM, CONTROLLED — the TRIGGER is the finder's overflow kebab and the QUESTION stays
+          here, because the count and the cascade are the ROWS' knowledge. The `pruneConfirmOpen` store flag is
+          the wire between the two fibers.
           IT STILL CONFIRMS (side-eye 2026-08-03 P2): it was a bare `prune.mutate()` on a ghost button one
           row under a virtualized list — at the owner's 430-tag library, one mis-click from deleting 394 rows
           with no undo. The count goes IN the copy, because "delete unused tags" and "delete 394 tags" are
@@ -188,7 +216,8 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
             ? `This deletes ${unusedTagsLabel(unusedCount)} — every tag attached to nothing. This can't be undone.`
             : "Every tag in this library is attached to something, so there is nothing to delete."
         }
-        onConfirm={(): void => prune.mutate()}
+        finalFocus={landCloseFocus}
+        onConfirm={onPrune}
         onOpenChange={setTagPruneConfirmOpen}
         open={pruneOpen}
         title={hasUnused ? `Delete ${unusedTagsLabel(unusedCount)}?` : "Nothing to prune"}
@@ -205,17 +234,20 @@ function TagCollectionRow({
   selected,
   onSelect,
   onDelete,
+  closeFocus,
 }: {
   readonly tag: TagWithUsage;
   readonly selected: boolean;
   readonly onSelect: () => void;
-  readonly onDelete: (id: TagId) => void;
+  readonly onDelete: (id: TagId) => Promise<void>;
+  readonly closeFocus: () => boolean;
 }): ReactElement {
   return (
     <LibraryRow
       actions={{
         name: tag.name,
-        onDelete: (): void => onDelete(tag.id),
+        onDelete: (): Promise<void> => onDelete(tag.id),
+        deleteFinalFocus: closeFocus,
         deleteDescription: `This removes the tag from ${usageBreakdown(tag.usage)} and can't be undone.`,
       }}
       leading={

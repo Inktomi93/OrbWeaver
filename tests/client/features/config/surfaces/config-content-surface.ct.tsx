@@ -49,9 +49,9 @@ const BAND = '[data-slot="config-band"]';
 /** The CONTENT scroller. Addressed by SLOT because its region NAME is the active group's ("Appearance
  *  settings"), so a name-scoped locator changes with the arm under test. */
 const CONTENT_PANE = '[data-slot="config-content"]';
-/** The four collection groups: their bands disclose MEMBER rows, not section rows, so the sweep that expects
+/** The collection groups: their bands disclose MEMBER rows, not section rows, so the sweep that expects
  *  "exactly one current section row" skips them. */
-const COLLECTION_GROUPS = new Set(["tags", "regex", "worldInfo", "rosterPreset"]);
+const COLLECTION_GROUPS = new Set(["regex", "worldInfo", "rosterPreset"]);
 
 /** A REAL, installable bundle (the two entries the funnel admits) for the distribute flow — built with the
  *  same `fflate` the surface reads it back with, so the confirm step's capability list comes from a genuine
@@ -148,8 +148,7 @@ const HOST_AMBIENT_ROUTES = defineTrpcRoutes({
   "plugin.listDistributed": [],
   "automation.listOwnerRules": [],
   "automation.getOwnerBudgets": { maxFiresPerHour: OWNER_RATE_CEILING },
-  // The four collection rosters the LIST paints counts for (the same reads `config-list-surface.ct.tsx` feeds).
-  "tag.listTagsWithUsage": [],
+  // The collection rosters the LIST paints counts for (the same reads `config-list-surface.ct.tsx` feeds).
   "regex.listScripts": [],
   "regex.listGlobal": [],
   "worldInfo.listBooksWithUsage": [],
@@ -858,11 +857,11 @@ test("no section row clips at the LIST column, in ANY group", async ({ mount, pa
   await expect(component.getByRole("button", { name: "Admin" })).toBeVisible();
 
   const bands = list.locator(BAND);
-  // The band roster is door-frozen: 13 groups, 9 of them settings-shaped — and since #1099 F5 a ZERO-member
-  // collection draws a band too (a selecting button, never a disclosure), so all 13 are here even with every
+  // The band roster is door-frozen: 12 groups, 9 of them settings-shaped — and since #1099 F5 a ZERO-member
+  // collection draws a band too (a selecting button, never a disclosure), so all 12 are here even with every
   // library empty. The sweep still visits the nine settings-shaped ones; collections have no section rows.
   // Read the ids ONCE off it (the Admin band above is the settle barrier), then sweep.
-  await expect(bands).toHaveCount(13);
+  await expect(bands).toHaveCount(12);
   const groupIds = await bands.evaluateAll((els) => els.map((el) => el.getAttribute("data-config-group") ?? ""));
   let swept = 0;
   for (const groupId of groupIds) {
@@ -889,7 +888,7 @@ test("no section row clips at the LIST column, in ANY group", async ({ mount, pa
 });
 
 // ── AN EMPTY LIBRARY IS STILL A DOOR (#1099 F5) ───────────────────────────────────────────────────────
-// The finding: `snap --aria` read `button "Tags 28"` for a populated collection and `text: Regex scripts 0`
+// The finding: `snap --aria` read `button "<library> 28"` for a populated collection and `text: Regex scripts 0`
 // for an empty one — the row was not a control at all, so population decided INTERACTIVITY and a first-run
 // reader could neither click nor TAB to the library they came for. Every collection is EMPTY in this file's
 // ambient stub, which is exactly the first-run arm. The 2026-08-06 "nothing to disclose" ruling is preserved
@@ -1001,11 +1000,11 @@ test("#1725: a collection band ENTERS its library in one act — the location mo
 // ── SWITCHING LIBRARIES MUST NOT CRASH THE APP (#1203 P0, side-eye repro on folded main) ─────────────
 // THE DEFECT: the landing is ONE component instance for EVERY collection, and it calls `useCount?.()` and
 // its per-library optional hook (measured on `preview.useEntries`, which #1209 replaced with
-// `insights.useInsights` — the same shape and the same hazard). Tags, regex and world-info declared it;
-// ROSTERS did not. So switching between a declaring library and rosters changed the
+// `insights.useInsights` — the same shape and the same hazard). Regex and world-info declared it; ROSTERS
+// did not. So switching between a declaring library and rosters changed the
 // HOOK COUNT on a fiber React was reusing: "Rendered fewer hooks than expected" (or more, the other way),
 // thrown past every route boundary to `CatchBoundaryImpl` — rail, list and content all white-screened, with
-// reload as the only recovery. Tags→Regex survived on LUCK (equal hook counts), which is why this pin sweeps
+// reload as the only recovery. A pair with equal hook counts survives on LUCK, which is why this pin sweeps
 // the ROSTERS pair in BOTH directions rather than one happy path.
 //
 // THE CLAIM IS THE CLASS, not a pair: every collection whose declared hook set differs from its neighbour's
@@ -1013,20 +1012,21 @@ test("#1725: a collection band ENTERS its library in one act — the location mo
 // the crash itself — asserted directly, because a white-screened shell can still satisfy a naive
 // "the old text is gone" assertion.
 
-/** One tag row in the `tag.listTagsWithUsage` shape — the tag preview ranks by usage total. */
-function switchTagRow(index: number): TrpcWireOutput<"tag.listTagsWithUsage">[number] {
-  return {
-    id: `tag_switch_${String(index)}`,
-    name: `switch-tag-${String(index)}`,
-    color: null,
-    color2: null,
-    source: null,
-    folderType: "NONE",
-    sortOrder: index,
-    isHiddenOnCard: false,
-    usage: { characters: index + 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: index + 1 },
-  };
-}
+/** One regex row in the `regex.listScripts` shape — the second library that declares a facts hook. */
+const SWITCH_SCRIPT = {
+  id: "regex_script_switch0001",
+  name: "switch script",
+  findRegex: "/x/g",
+  replaceString: "",
+  enabled: true,
+  markdownOnly: false,
+  promptOnly: false,
+  runOnEdit: false,
+  trimStrings: [],
+  updatedAt: 1_760_000_000_000,
+  substituteRegex: 0,
+  placement: ["AI_OUTPUT"],
+} satisfies TrpcWireOutput<"regex.listScripts">[number];
 
 /** One book in the `worldInfo.listBooksWithUsage` shape — the world-info preview ranks by attachment. */
 const SWITCH_BOOK = {
@@ -1039,7 +1039,7 @@ const SWITCH_BOOK = {
 };
 
 /** The three bands this sweep walks: two libraries that DECLARE a preview hook, and the one that does not. */
-const TAGS_BAND = '[data-config-group="tags"] [data-slot="config-band"]';
+const REGEX_BAND = '[data-config-group="regex"] [data-slot="config-band"]';
 const WORLD_INFO_BAND = '[data-config-group="worldInfo"] [data-slot="config-band"]';
 const ROSTERS_BAND = '[data-config-group="rosterPreset"] [data-slot="config-band"]';
 
@@ -1049,7 +1049,7 @@ test("switching between libraries with DIFFERENT declared hook sets keeps the ap
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await stub(page, {
-    "tag.listTagsWithUsage": () => [switchTagRow(0), switchTagRow(1)],
+    "regex.listScripts": () => [SWITCH_SCRIPT],
     "worldInfo.listBooksWithUsage": () => [SWITCH_BOOK],
     "worldInfo.getBook": () => ({ id: SWITCH_BOOK.id, name: SWITCH_BOOK.name, description: null, createdAt: 1 }),
     "worldInfo.listEntries": () => [],
@@ -1059,14 +1059,14 @@ test("switching between libraries with DIFFERENT declared hook sets keeps the ap
   const content = component.getByRole("region", { name: "Settings", exact: true });
 
   // preview-declaring → NONE (the reported "Rendered fewer hooks than expected").
-  await component.locator(TAGS_BAND).click();
-  await expect(content.getByRole("heading", { level: 2, name: "Tags" })).toBeVisible();
+  await component.locator(REGEX_BAND).click();
+  await expect(content.getByRole("heading", { level: 2, name: "Regex scripts" })).toBeVisible();
   await component.locator(ROSTERS_BAND).click();
   await expect(content.getByText("No saved rosters yet.")).toBeVisible();
 
   // NONE → preview-declaring (the reported "Rendered more hooks than during the previous render").
-  await component.locator(TAGS_BAND).click();
-  await expect(content.getByRole("heading", { level: 2, name: "Tags" })).toBeVisible();
+  await component.locator(REGEX_BAND).click();
+  await expect(content.getByRole("heading", { level: 2, name: "Regex scripts" })).toBeVisible();
 
   // …and the same pair through the OTHER declaring library, both ways — the class, not one route.
   await component.locator(WORLD_INFO_BAND).click();
@@ -1093,63 +1093,38 @@ test("switching between libraries with DIFFERENT declared hook sets keeps the ap
 // `components/config-list-collection-group.ct.tsx`. Deleted with the behaviour it described.
 
 // ── THE LANDING STATES THE LIBRARY, IT DOES NOT RESTATE THE LIST (#1209, owner ruling 2026-09-02) ────
-// THE DEFECT, measured live: with Tags active, CONTENT's only interactive element was "New tag" — twelve
+// THE DEFECT, measured live: with a library active, CONTENT's only interactive element was its create verb — twelve
 // inert chips restated the twelve rows the LIST was already showing in the same order, and "+16 more" named
 // sixteen members reachable from nowhere on that pane. The ruling: the landing says what the LIST
 // structurally cannot (scopes, what is used nowhere, what changed), and every affordance on it is a REAL
 // door. The negative half is the acceptance bar and is asserted as such: zero affordance-shaped text.
 
-/** The tag fixture the fact arms need: two tags used on something, one used NOWHERE — the state the tag
- *  library's own fact is about, and the one a 400-row list sorted by use puts at the far end of the scroll. */
-const INSIGHT_TAGS = [
-  {
-    id: "tag_used_a",
-    name: "used-a",
-    color: null,
-    color2: null,
-    source: null,
-    folderType: "NONE",
-    sortOrder: 0,
-    isHiddenOnCard: false,
-    usage: { characters: 2, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 2 },
-  },
-  {
-    id: "tag_used_b",
-    name: "used-b",
-    color: null,
-    color2: null,
-    source: null,
-    folderType: "NONE",
-    sortOrder: 1,
-    isHiddenOnCard: false,
-    usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 },
-  },
-  {
-    id: "tag_orphan",
-    name: "orphan-tag",
-    color: null,
-    color2: null,
-    source: null,
-    folderType: "NONE",
-    sortOrder: 2,
-    isHiddenOnCard: false,
-    usage: { characters: 0, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 0 },
-  },
-] satisfies TrpcWireOutput<"tag.listTagsWithUsage">;
+/** The world-info fixture the fact arms need: two books attached to something, one attached to NOTHING — the
+ *  state the library's own fact is about, and none firing in every chat, so exactly one fact has a subject. */
+const INSIGHT_BOOKS = [
+  { ...SWITCH_BOOK, id: "world_book_useda00001", name: "used-a", usage: { characters: 2, personas: 0, chats: 0, global: false, total: 2 } },
+  { ...SWITCH_BOOK, id: "world_book_usedb00001", name: "used-b", usage: { characters: 1, personas: 0, chats: 0, global: false, total: 1 } },
+  { ...SWITCH_BOOK, id: "world_book_orphan0001", name: "orphan-book", usage: { characters: 0, personas: 0, chats: 0, global: false, total: 0 } },
+] satisfies TrpcWireOutput<"worldInfo.listBooksWithUsage">;
+const INSIGHT_ROUTES = {
+  "worldInfo.listBooksWithUsage": INSIGHT_BOOKS,
+  "worldInfo.getBook": { id: "world_book_orphan0001", name: "orphan-book", description: null, createdAt: 1 },
+  "worldInfo.listEntries": [],
+} satisfies Partial<TrpcRoutes<TrpcProcedurePath>>;
 
 test("a populated library's landing states its own FACTS — and every affordance on it is a real door", async ({ mount, page }) => {
-  await stub(page, { "tag.listTagsWithUsage": () => INSIGHT_TAGS });
+  await stub(page, INSIGHT_ROUTES);
   const component = await mount(<ConfigHostStory />);
 
-  await component.locator(TAGS_BAND).click();
+  await component.locator(WORLD_INFO_BAND).click();
   const content = component.getByRole("region", { name: "Settings", exact: true });
   const facts = content.locator('[data-slot="config-library-insights"]');
 
   // THE FACT the list cannot state: how much of the library is doing nothing. Contribution's words, its own
   // value — the host units nothing.
-  await expect(facts.getByText("Labelling nothing")).toBeVisible();
+  await expect(facts.getByText("Attached to nothing")).toBeVisible();
   await expect(facts.getByText("1 of 3")).toBeVisible();
-  await expect(facts.getByText("In use")).toBeVisible();
+  await expect(facts.getByText("Fires in every chat")).toBeVisible();
 
   // EVERY CONTROL IN THE FACTS BLOCK IS A REAL DOOR — the claim #1209 minted, at the scope it was always
   // about. It used to be spelled as the whole pane's button count (two: the fact's door and the create
@@ -1159,21 +1134,19 @@ test("a populated library's landing states its own FACTS — and every affordanc
   // count is EXACT: one fact has a subject and opens it, the other is data and is not dressed as an
   // affordance.
   await expect(facts.getByRole("button")).toHaveCount(1);
-  await facts.getByRole("button", { name: "Open orphan-tag" }).click();
-  await expect(component.getByRole("heading", { name: "orphan-tag" })).toBeVisible();
+  await facts.getByRole("button", { name: "Open orphan-book" }).click();
+  await expect(component.getByRole("heading", { name: "orphan-book" })).toBeVisible();
 });
 
 test("…and the wall it replaced is gone: no chip census, no dead +N more", async ({ mount, page }) => {
-  await stub(page, { "tag.listTagsWithUsage": () => INSIGHT_TAGS });
+  await stub(page, INSIGHT_ROUTES);
   const component = await mount(<ConfigHostStory />);
 
-  await component.locator(TAGS_BAND).click();
+  await component.locator(WORLD_INFO_BAND).click();
   const content = component.getByRole("region", { name: "Settings", exact: true });
-  await expect(content.getByRole("heading", { level: 2, name: "Tags" })).toBeVisible();
+  await expect(content.getByRole("heading", { level: 2, name: "World Info" })).toBeVisible();
   // The two tells of the retired anatomy, asserted as absences INSIDE THE FACTS BLOCK — the surface the
-  // wall occupied. The pane-wide scope stopped discriminating at #1725: the tag library's own SORT control
-  // is legitimately labelled "Most used", so a pane-wide absence would now be red for a reason that has
-  // nothing to do with the chip wall. The facts block is where a ranked kicker would return.
+  // wall occupied. The facts block is where a ranked kicker would return.
   const facts = content.locator('[data-slot="config-library-insights"]');
   await expect(facts.getByText("Most used")).toHaveCount(0);
   await expect(content.getByText(/^\+\d+ more$/)).toHaveCount(0);
@@ -1401,10 +1374,10 @@ for (const width of [1440, 990] as const) {
     // POPULATED, deliberately: at zero the landing is an `EmptyState`, whose own title is a different
     // element on a different rule — the pane-title register this pins is the one a library with members
     // opens on, which is the state the review measured.
-    await stub(page, { "tag.listTagsWithUsage": () => [switchTagRow(0), switchTagRow(1)] });
+    await stub(page, { "regex.listScripts": () => [SWITCH_SCRIPT] });
     const component = await mount(<ConfigHostStory width={width} />);
     // BY SLOT, NOT BY REGION NAME: the CONTENT region is named for whatever is OPEN in it ("Appearance
-    // settings" · "Tags settings"), so a name-scoped locator would have to change with the arm under test.
+    // settings" · "Regex scripts settings"), so a name-scoped locator would have to change with the arm under test.
     const content = component.locator(CONTENT_PANE);
 
     // The arrival default is Appearance, a SETTINGS group: its pane opens on its own name.
@@ -1413,8 +1386,8 @@ for (const width of [1440, 990] as const) {
     const settings = await headingRegister(settingsTitle);
 
     // …and a COLLECTION library, reached the way a reader reaches it, opens at the same step.
-    await component.locator(TAGS_BAND).click();
-    const libraryTitle = content.getByRole("heading", { level: 2, name: "Tags" });
+    await component.locator(REGEX_BAND).click();
+    const libraryTitle = content.getByRole("heading", { level: 2, name: "Regex scripts" });
     await expect(libraryTitle).toBeVisible();
     const library = await headingRegister(libraryTitle);
 
@@ -1455,7 +1428,7 @@ for (const width of [1440, 990] as const) {
 // carrying the focal step — a future revision that re-promotes this title reds here rather than quietly
 // re-opening the fork.
 test("#1845: the zero-member library opens at the SAME register as every other pane, and its EmptyState is not the heading", async ({ mount, page }) => {
-  await stub(page, { "tag.listTagsWithUsage": () => [] });
+  await stub(page);
   const component = await mount(<ConfigHostStory width={1440} />);
   const content = component.locator(CONTENT_PANE);
 
@@ -1463,8 +1436,8 @@ test("#1845: the zero-member library opens at the SAME register as every other p
   await expect(settingsTitle).toBeVisible();
   const settings = await headingRegister(settingsTitle);
 
-  await component.locator(TAGS_BAND).click();
-  const zeroTitle = content.getByRole("heading", { level: 2, name: "Tags" });
+  await component.locator(REGEX_BAND).click();
+  const zeroTitle = content.getByRole("heading", { level: 2, name: "Regex scripts" });
   await expect(zeroTitle).toBeVisible();
   const zero = await headingRegister(zeroTitle);
 
@@ -1500,7 +1473,7 @@ test("#1845: the zero-member library opens at the SAME register as every other p
   // would not catch the rule being re-spelled to match the slot instead.
   const emptyTitle = content.locator('[data-slot="empty-state-title"]');
   await expect(emptyTitle).toHaveCount(1);
-  await expect(emptyTitle).toHaveText("No tags yet");
+  await expect(emptyTitle).toHaveText("No regex scripts yet");
   await expect(emptyTitle, "the EmptyState is the teaching, never the pane's heading (titleAs='p')").not.toHaveAttribute("data-title-step", "focal");
   const teaching = await headingRegister(emptyTitle);
   expect(teaching.size, "a teaching line that had crept back onto the display step would be the fork re-opening").toBeLessThan(steps.display);

@@ -41,7 +41,7 @@ import {
 import { appearanceGroup, bindConfigPaletteGroups, chatBehaviorGroup, configPaletteSource, makeConfigSection } from "#features/config";
 import { connectionsGroup } from "#features/credentials";
 import { addDocumentModal, databankSection } from "#features/databank";
-import { corpusSection } from "#features/discovery";
+import { corpusModePaletteSource, makeCorpusSection } from "#features/discovery";
 import { makeHomeSection } from "#features/home";
 import { imageDetailModal, imageEditModal, imagerySlashCommands, imagineModal } from "#features/imagery";
 import { notificationsChrome } from "#features/notifications";
@@ -67,8 +67,8 @@ import { refinerySection } from "#features/refinery";
 import { regexGroup } from "#features/regex";
 import { rosterGroup, savedRostersModal } from "#features/roster-preset";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgDiceComposerMediaSurface, rpgDiceToolRenderer, rpgTurnToolCallsSurface } from "#features/rpg";
-import { analyticsSection } from "#features/stats";
-import { tagsGroup } from "#features/tag";
+import { insightsContextTabs, insightsCorpusMode } from "#features/stats";
+import { labelsContextTabs, labelsCorpusMode } from "#features/tag";
 import { adminGroup } from "#features/user-admin";
 import { backupGroup, workloadsGroup } from "#features/workloads";
 import { worldInfoGroup } from "#features/world-info";
@@ -81,6 +81,7 @@ import type {
   CommandPaletteSource,
   ContextRegionDef,
   ContextTabDef,
+  CorpusContextState,
   MessageToolsRenderer,
   SlashCommandContribution,
   ToolRenderer,
@@ -229,20 +230,28 @@ const slashCommands = createContributorRegistry<SlashCommandContribution>("slash
 ]);
 
 // U8 (#679, §4.5/§5 row 9): the DYNAMIC palette sources — first-party contributors that fan RUNTIME-derived
-// rows (a plugin's registered commands, read per-caller) into first-class command-palette rows. One member
-// today; like every contributor family, the door does not grow when a person installs a plugin (the per-plugin
-// fan lives inside the source's `useRows` off the caller's own `plugin.listCommands`).
-const commandPaletteSources = createContributorRegistry<CommandPaletteSource>("command-palette-sources", [pluginCommandPaletteSource, configPaletteSource]);
+// rows (a plugin's registered commands, read per-caller) into first-class command-palette rows. Like every
+// contributor family, the door does not grow when a person installs a plugin (the per-plugin fan lives inside
+// the source's `useRows` off the caller's own `plugin.listCommands`). The Corpus modes ride here too (D271).
+const commandPaletteSources = createContributorRegistry<CommandPaletteSource>("command-palette-sources", [
+  pluginCommandPaletteSource,
+  configPaletteSource,
+  corpusModePaletteSource,
+]);
 
 // The character-detail contributor seam (§6c): EMPTY but typed — the door → factory → editor-body anchor
 // path is compiled and exercised with zero contributions; the agents feature appends its card-evolution
 // review section later (crew 07-client-ui §4.2), grafting into the editor WITHOUT importing character.
 const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
 
+// The Corpus workbench's contributed modes (D271): stats is Insights and tag is Labels, assembled here so
+// discovery imports neither. Their CONTEXT tabs join Explore's own, each gated on the active mode.
+const corpusContextTabs = createContributorRegistry<ContextTabDef<CorpusContextState>>("corpus-context", [...insightsContextTabs, ...labelsContextTabs]);
+
 // The ONE config-group assembly: total over CONFIG_GROUP_IDS by
 // tsc — a missing group is a compile error, and `config-group-completeness` carries the walls tsc cannot
 // (co-location, duplicate ids, placeholder honesty, skimmer purity, the collection body's data verbs). The
-// nine settings categories, the FOUR member collections (owner fork F-1 closed the old `config-collections`
+// settings categories, the member collections (owner fork F-1 closed the old `config-collections`
 // contributor set into this tuple) and the persona surface register the SAME shape; a plugin never registers
 // a group — its settings ride the Extensions group's rows. Placement is the def's `(shelf, order)`; membership
 // is the tuple. Handed to `makeConfigSection` by factory: the host is the registry's only reader.
@@ -255,7 +264,6 @@ const configGroups = createRegistry("config-groups", CONFIG_GROUP_IDS, {
   connections: connectionsGroup,
   automation: automationGroup,
   admin: adminGroup,
-  tags: tagsGroup,
   regex: regexGroup,
   worldInfo: worldInfoGroup,
   // #26/B10 — the saved-roster library's management surface (order 40, after world-info's 30).
@@ -281,14 +289,13 @@ const sections = createRegistry("sections", SECTION_IDS, {
   // anatomy over the `chat.listChats` cache, threaded in HERE — the one legal channel for chat UI inside
   // the characters section (the `makeChatsSection` contributor precedent; a direct import is dep-cruiser RED).
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
-  corpus: corpusSection,
+  corpus: makeCorpusSection({ insights: insightsCorpusMode, labels: labelsCorpusMode, contextTabs: corpusContextTabs }),
   config: makeConfigSection(configGroups),
   // U5 (#679, seam 16): ONE rail entry for every plugin's `ui.page` surfaces; its switcher does the fan.
   extensions: extensionsSection,
   databank: databankSection,
   presets: presetsSection,
   refinery: refinerySection,
-  analytics: analyticsSection,
 });
 
 // The ONE modal assembly (§6d/G8): total over MODAL_SLOT_IDS by tsc; delivered as a context value so

@@ -339,8 +339,8 @@ test("no absolutely-positioned box escapes the analytics overview scroller (the 
   expect(await readPhantomScrollers(page)).toEqual([]);
 });
 
-// #451: the top-character subtitle's two arms — the list defaults COLLAPSED here, so "open the list" read
-// right by default and wrong once a reader docks it; and its collapsed wording must name the real
+// #451: the top-character subtitle's two arms — "open the list" reads right while the list is collapsed and
+// wrong once a reader docks it; and its collapsed wording must name the real
 // affordance verbatim ("Show list panel", the topbar toggle) rather than "open the list" (WCAG 2.5.3).
 test("the top-character subtitle names the real affordance while collapsed and drops it once the list is docked", async ({ mount, page }) => {
   await routeTrpc(page, {
@@ -351,6 +351,8 @@ test("the top-character subtitle names the real affordance while collapsed and d
   });
 
   const component = await mount(<AnalyticsOverviewSurfaceListModeStory />);
+  await component.getByRole("button", { name: "go to corpus" }).click();
+  await expect(component.locator('[data-slot="ct-active-section"]')).toHaveText("section=corpus");
   await component.getByRole("button", { name: "collapse the list" }).click();
   await expect(component.getByText("Your most-played character — Show list panel to drill into any character")).toBeVisible();
 

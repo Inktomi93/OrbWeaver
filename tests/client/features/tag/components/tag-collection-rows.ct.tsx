@@ -1,15 +1,13 @@
-// CT: the tag collection's ROWS — the OWNER half of the config seam, driven through the host's view.
+// CT: the tag library's ROWS — the Corpus Labels finder's list, driven through the finder's view.
 //
 // The row is a SCENT now (F-11): swatch · name · usage. What this pins is what that split must NOT lose —
 // the usage census still reads per row, and the comparator/handle fork still answers the sort mode.
 //
 // ═══ THE CHROME LEFT THIS COMPONENT (#1725) ══════════════════════════════════════════════════════════
-// The sort SELECT and the "Prune unused" BUTTON used to be drawn here, and they are the config host's
-// control row now (`tagCollection.sort` / `.actions`, the mock design §3.2). Both write store functions, so this
-// file drives those functions through the story's buttons and asserts what the ROWS do with them; the host
-// half — that a Select and a kebab item exist, are absent for the libraries that declare neither, and write
-// exactly these values — is pinned in `tests/client/features/config/components/config-collection-landing.ct.tsx`.
-// Nothing was dropped; the two halves are asserted where each is drawn.
+// The sort SELECT and the "Prune unused" item are the Labels finder's control row. Both write store
+// functions, so this file drives those functions through the story's buttons and asserts what the ROWS do
+// with them; the finder half — that the Select and the kebab item exist and write exactly these values — is
+// pinned in `tests/client/features/tag/surfaces/labels-list-surface.ct.tsx`.
 
 import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -234,11 +232,8 @@ test("no unused tags ⇒ the prune confirm says so and cannot fire", async ({ mo
   await expect.poll(() => trpc.count("tag.pruneUnusedTags"), { intervals: [20, 50, 100] }).toBe(0);
 });
 
-// THE SORT CONTROL'S GEOMETRY MOVED WITH THE CONTROL (#1725). This file used to pin that the `w-auto`
-// Select fitted the 330px roster band without claiming it; the Select is the config host's control row now,
-// at CONTENT-pane widths, so that pin lives in the landing's own width matrix
-// (`tests/client/features/config/components/config-collection-landing.ct.tsx`). Deleted here rather than
-// left asserting a control this component no longer draws.
+// THE SORT CONTROL'S GEOMETRY MOVED WITH THE CONTROL (#1725): the Select is the Labels finder's, and its
+// pins live in `tests/client/features/tag/surfaces/labels-list-surface.ct.tsx`.
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
 // MANUAL ORDER IS NOT A SILENT DEAD MODE (side-eye 2026-08-03 P1). Above COLLECTION_LARGE_GROUP the roster
@@ -256,8 +251,8 @@ const OVER_CAP_TAGS = Array.from({ length: OVER_CAP }, (_unused, at) => ({
 }));
 
 // ABOVE THE CAP the rows LOSE their handles, and that half is this component's. The option's own
-// `disabled` + the "Drag to reorder is off above 30 tags." description are the HOST's Select now and are
-// pinned in the landing CT — the two halves of one ruling, each asserted where it is drawn.
+// `disabled` + the "Drag to reorder is off above 30 tags." description are the finder's Select and are
+// pinned in the finder CT — the two halves of one ruling, each asserted where it is drawn.
 test("ABOVE the cap: manual mode yields no drag handles, whatever the persisted mode says", async ({ mount, page }) => {
   await stub(page, OVER_CAP_TAGS);
   const rows = await mount(<TagCollectionRowsStory />);

@@ -6,7 +6,7 @@
 import { CONFIG_GROUP_IDS, CONFIG_SHELVES, isConfigGroupId } from "@orb/client/state";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("the tuple is the nine settings groups + the four collections, each exactly once", () => {
+test("the tuple is the settings groups + the three collections, each exactly once", () => {
   expect([...CONFIG_GROUP_IDS]).toEqual([
     "personas",
     "appearance",
@@ -16,7 +16,6 @@ test("the tuple is the nine settings groups + the four collections, each exactly
     "connections",
     "automation",
     "admin",
-    "tags",
     "regex",
     "worldInfo",
     "rosterPreset",
@@ -38,5 +37,7 @@ test("the guards accept every member and refuse the retired settings-era spellin
   expect(isConfigGroupId("world-info")).toBe(false);
   // The retired settings category that never became a group.
   expect(isConfigGroupId("system")).toBe(false);
+  // ONE TAG HOME (D271): the tag library is Corpus Labels, so Configuration has no `tags` group to open.
+  expect(isConfigGroupId("tags")).toBe(false);
   expect(isConfigGroupId("")).toBe(false);
 });

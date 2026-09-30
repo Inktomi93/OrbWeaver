@@ -96,6 +96,8 @@ export {
   TOOL_RENDERER_MATCHES,
 } from "./contribution-contracts.ts";
 export { copyWithNotice } from "./copy-with-notice.ts";
+export type { CorpusMode, CorpusModeContribution } from "./corpus-modes.ts";
+export { CORPUS_MODE_LABELS, CORPUS_MODES, CORPUS_WHOLE_LABEL, isCorpusMode } from "./corpus-modes.ts";
 export type { RegistryContext } from "./create-registry-context.tsx";
 export { createRegistryContext } from "./create-registry-context.tsx";
 export { IS_DEV } from "./dev-flag.ts";
@@ -178,7 +180,6 @@ export {
 export type { ContributorRegistry, Registry } from "./registry.ts";
 export { createContributorRegistry, createRegistry } from "./registry.ts";
 export type {
-  AnalyticsContextState,
   CharacterChatsProjectionView,
   CharacterContextState,
   ChatContextState,
@@ -197,6 +198,7 @@ export type {
   ContextTabDef,
   ContextTabStrip,
   ContextTabsSpec,
+  CorpusContextState,
   RefineryContextState,
   ResolvedContextTab,
   ResolvedContextTabs,

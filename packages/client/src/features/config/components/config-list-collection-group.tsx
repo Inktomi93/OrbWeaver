@@ -83,7 +83,7 @@ export function CollectionListGroup({ group, active, bandRef }: CollectionListGr
 
   return (
     // The wrapper survives the row deletion because its data attributes are IDENTITY, not structure: sweeps
-    // and CTs address a library as `[data-collection="tags"]`, and the group pair is what every LIST sweep
+    // and CTs address a library as `[data-collection="regex"]`, and the group pair is what every LIST sweep
     // reads (side-eye 2026-08-19 — a band addressable only as a descendant of its group is a path, not an
     // identity). It keeps the settings arm's `data-slot="config-group"` so one selector still finds both.
     <Stack gap="tight" data-slot="config-group" data-collection={group.id} data-config-group={group.id}>

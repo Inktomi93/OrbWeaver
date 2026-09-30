@@ -35,36 +35,37 @@ const MODIFIED_SETTINGS_VIEW = {
   config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle: "flat" } },
 } satisfies TrpcWireOutput<"settings.getUserSettings">;
 
-/** One tag, so a MEMBER row exists for the dynamic-rows pin. */
-const TAG = {
-  id: "tag_ct_search00000001",
+/** One world-info book, so a MEMBER row exists for the dynamic-rows pin. */
+const BOOK = {
+  id: "world_book_ctsearch0001",
   name: "slice-of-life",
-  color: null,
-  color2: null,
-  source: null,
-  folderType: "NONE",
-  sortOrder: 0,
-  isHiddenOnCard: false,
-  usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 },
-} satisfies TrpcWireOutput<"tag.listTagsWithUsage">[number];
+  description: null,
+  createdAt: 1,
+  entryCount: 1,
+  usage: { characters: 1, personas: 0, chats: 0, global: false, total: 1 },
+} satisfies TrpcWireOutput<"worldInfo.listBooksWithUsage">[number];
 
 const AMBIENT = {
   "sessions.me": { userId: USER_SETTINGS_VIEW.userId, handle: "ct_search", globalRole: "user" },
   "settings.getUserSettings": (): typeof USER_SETTINGS_VIEW => USER_SETTINGS_VIEW,
   // The Looks section (#866 S4) reads the theme library the moment the appearance group mounts.
   "settings.listThemes": (): TrpcWireOutput<"settings.listThemes"> => [],
-  "tag.listTagsWithUsage": [TAG],
   "regex.listScripts": [],
-  "worldInfo.listBooksWithUsage": [],
+  "worldInfo.listBooksWithUsage": [BOOK],
+  "worldInfo.listGlobal": [],
+  "worldInfo.getBook": { id: BOOK.id, name: BOOK.name, description: null, createdAt: 1 },
+  "worldInfo.listEntries": [],
   "rosterPreset.list": [],
   "persona.list": [],
 } satisfies TrpcRoutes<
   | "sessions.me"
   | "settings.getUserSettings"
   | "settings.listThemes"
-  | "tag.listTagsWithUsage"
   | "regex.listScripts"
   | "worldInfo.listBooksWithUsage"
+  | "worldInfo.listGlobal"
+  | "worldInfo.getBook"
+  | "worldInfo.listEntries"
   | "rosterPreset.list"
   | "persona.list"
 >;

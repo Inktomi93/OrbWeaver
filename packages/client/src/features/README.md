@@ -16,7 +16,7 @@ not a feature — it is either tier-2 `components/`, tier-4 `lib/`, or nothing.
 **The roster is the TREE, not a list in this file.** A hand-maintained slice list rots (this one used to
 name a dead `corpus` and miss six live slices). `ls packages/client/src/features` is the roster. What the
 tree does NOT tell you: a section id is not a mechanical mirror of its owner's dir name — `corpus` →
-`features/discovery`, `analytics` → `features/stats`, `chats` → `features/chat`. Ownership is declared by
+`features/discovery`, `chats` → `features/chat`. Ownership is declared by
 WHERE the definition lives; G1 keys on location, never on name derivation.
 
 ## 1. The slice shape (every feature dir)

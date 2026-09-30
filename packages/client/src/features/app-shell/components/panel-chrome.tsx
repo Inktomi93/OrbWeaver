@@ -104,6 +104,8 @@ export function PanelChrome({ panel, label, header, mode, available, onDismiss, 
       // content column is `display:none` (shell.css's ONE-SHELL arm), so exactly one main is EXPOSED in
       // either state. `tabIndex={-1}` for the same reason `<main>` carries it — the skip link lands here.
       {...(primaryContent ? { role: "main", tabIndex: -1 } : {})}
+      // A floating pane is a programmatic focus stop too: the shell moves focus onto it when it opens.
+      {...(mode === "overlay" ? { tabIndex: -1 } : {})}
       aria-label={label}
       // THE LIST LANDMARK FOLLOWS ITS OWN BAND (#493, side-eye 2026-08-22 rail-characters P2-3). `label` is
       // derived from the ACTIVE SECTION, so it announced "Characters list" over a pane that had swapped to a
