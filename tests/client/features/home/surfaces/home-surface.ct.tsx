@@ -6,6 +6,8 @@
 import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { UserId } from "@orb/kit/ids";
+import { newId } from "@orb/kit/ids";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -872,7 +874,7 @@ const ALSO_OPEN = '[data-home-tile="chat.alsoOpen"]';
 /** A remembered box far from the 7-row skeleton's natural height, so a dropped reservation shows. */
 const REMEMBERED_ALSO_OPEN_PX = 333;
 
-async function stubFirstBoot(page: Page, chats: ReturnType<typeof trpcHold>, userId: string): Promise<void> {
+async function stubFirstBoot(page: Page, chats: ReturnType<typeof trpcHold>, userId: UserId): Promise<void> {
   await stubDatabank(page, {
     ...HOME_ROUTES,
     "chat.listChats": chats,
@@ -886,7 +888,7 @@ async function stubFirstBoot(page: Page, chats: ReturnType<typeof trpcHold>, use
 
 test("Other rooms draws no box while the list loads on a device that never saw it", async ({ mount, page }) => {
   const chats = trpcHold();
-  await stubFirstBoot(page, chats, "user_ct_also_open_fresh");
+  await stubFirstBoot(page, chats, newId<UserId>());
 
   const home = await mount(<HomeShippedFirstBootStory />);
   await chats.requested;
@@ -899,7 +901,7 @@ test("Other rooms draws no box while the list loads on a device that never saw i
 
 test("Other rooms reserves the remembered box, and forgets it when the list settles hidden", async ({ mount, page }) => {
   const chats = trpcHold();
-  await stubFirstBoot(page, chats, "user_ct_also_open_remembered");
+  await stubFirstBoot(page, chats, newId<UserId>());
 
   const home = await mount(<HomeRememberedAlsoOpenStory alsoOpenBox={REMEMBERED_ALSO_OPEN_PX} />);
   await chats.requested;
