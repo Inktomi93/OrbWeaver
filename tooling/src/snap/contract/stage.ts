@@ -85,9 +85,12 @@ export function stageRowAuth(row: Pick<StageRow, "dir">): StageAuthMode {
 }
 
 /** One process holding a stage: it re-stamps `stampedAt` on a heartbeat while it runs. A holder is live
- *  while its pid is alive, or, for a pid that is gone, until its stamp ages past the idle threshold. */
+ *  while its process runs (same pid and start time), or otherwise until its stamp ages past the idle threshold. */
 export interface StageHolder {
   readonly pid: number;
+  /** The process's start time as the OS reports it (Linux `/proc/<pid>/stat` starttime). A pid alive with a
+   *  different start time is another process that reused the number. Absent where it cannot be read. */
+  readonly pidStart?: string;
   readonly checkout: string;
   readonly stampedAt: string;
 }

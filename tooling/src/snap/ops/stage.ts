@@ -73,11 +73,10 @@ import { runGit } from "../../_shared/git.ts";
 import { listeningPids } from "../../_shared/platform.ts";
 import { stageBandPorts } from "../../_shared/ports.ts";
 import { runNicedSync, spawnFullPrioritySync } from "../../_shared/proc.ts";
-import { pidAlive } from "../../_shared/run-retention.ts";
 import { FIXTURE_SEED_CLI_REL, fixtureIdentityEnv } from "../../stack/index.ts";
 import type { EnsureStageOpts, StageAuthMode, StagePaths, StagePorts, StageRow, StageStopVerdict } from "../contract/stage.ts";
 import { stageRowAuth } from "../contract/stage.ts";
-import { foreignHolders, liveHoldersOf, stageDecision, stageRebuildRefusal } from "../lib/stage-bands.ts";
+import { foreignHolders, liveHoldersOf, STAGE_USE_HEARTBEAT_MS, stageDecision, stageRebuildRefusal } from "../lib/stage-bands.ts";
 import {
   DIRTY_STAGE_KEY,
   missingLauncherRefusal,
@@ -94,9 +93,10 @@ import {
 import { registerStageRunBinding } from "../lib/stage-run-binding.ts";
 import { acquireStageBand, stageRowHealth } from "./stage-census.ts";
 import { repoRoot, resolveRef } from "./stage-git.ts";
+import { holdStageUse } from "./stage-holders.ts";
 import { armStageKeeper } from "./stage-keeper.ts";
 import { clearRow, markerRoot, readBands, touchRow, writeRow } from "./stage-marker.ts";
-import { stageBandPortPid, stageDirs } from "./stage-probe.ts";
+import { holderProcessRunning, stageBandPortPid, stageDirs } from "./stage-probe.ts";
 import { recordStageReap } from "./stage-reap-log.ts";
 import { assertStageSourceSupportsIsolation, pnpmInstall, prepareStageSource, removeStageDir, seedStageData, syncDirtyTree } from "./stage-source.ts";
 import { stopStage } from "./stage-teardown.ts";
@@ -318,6 +318,9 @@ export function ensureStage(opts: EnsureStageOpts): StageRow {
   // …and that SAME one exit publishes what this run bound, carrying whether we BOOTED it — the one fact the
   // boot-dead teardown may act on without breaking #324's warm-across-runs rule (lib/stage-run-binding.ts).
   registerStageRunBinding({ row, home, booted: resolved.booted });
+  // Every caller that binds a stage holds it for its process's life (snap runs, session daemons,
+  // cache:check), so no other checkout tears it down under that use.
+  holdStageUse(home, row, root, STAGE_USE_HEARTBEAT_MS);
   return row;
 }
 
@@ -375,7 +378,7 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
   }
   if (allocation.kind === "ours") {
     const healthy = stageRowHealth(allocation.row, nowMs) === "warm";
-    const liveHolders = liveHoldersOf(allocation.row, nowMs, pidAlive);
+    const liveHolders = liveHoldersOf(allocation.row, nowMs, holderProcessRunning);
     const decision = stageDecision({ targetSha, row: allocation.row, fresh: opts.fresh, healthy, auth, checkout: root, nowMs, liveHolders });
     if (decision === "reuse") {
       return { row: reuseWarmStage({ root, home }, allocation.row, dirty, nowIso), booted: false };

@@ -28,6 +28,7 @@ import { runGit } from "../../_shared/git.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../_shared/ports.ts";
 import { pidAlive } from "../../_shared/run-retention.ts";
 import type { StageBandClaim, StageBandsFile, StageDbProvenance, StageHolder, StageKeeper, StageRow } from "../contract/stage.ts";
+import { liveHoldersOf } from "../lib/stage-bands.ts";
 import {
   BANDS_REL,
   LEGACY_ACTIVE_REL,
@@ -39,6 +40,7 @@ import {
 } from "../lib/stage-plan.ts";
 import { boundStageRow } from "../lib/stage-run-binding.ts";
 import { repoRoot } from "./stage-git.ts";
+import { holderProcessRunning } from "./stage-probe.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -201,7 +203,10 @@ export function readBands(home: string): readonly StageRow[] {
  *  table written under one checkout's `markerRoot` is read back under another's. */
 export function writeBands(home: string, rows: readonly StageRow[]): void {
   mkdirSync(join(home, STAGE_ROOT_REL), { recursive: true });
-  const file: StageBandsFile = { v: BANDS_FILE_VERSION, rows: [...rows].sort((a, b) => a.band - b.band) };
+  // Every write prunes holders that are no longer live, so the list stays bounded across runs.
+  const nowMs = Date.now();
+  const pruned = rows.map((row) => (row.holders === undefined ? row : { ...row, holders: liveHoldersOf(row, nowMs, holderProcessRunning) }));
+  const file: StageBandsFile = { v: BANDS_FILE_VERSION, rows: pruned.sort((a, b) => a.band - b.band) };
   const path = bandsPath(home);
   const temp = `${path}.${process.pid}.${Date.now()}.tmp`;
   try {
@@ -250,7 +255,11 @@ function readHolders(value: unknown): { readonly holders?: readonly StageHolder[
   }
   const holders = value.filter(
     (entry): entry is StageHolder =>
-      isRecord(entry) && Number.isInteger(entry["pid"]) && typeof entry["checkout"] === "string" && typeof entry["stampedAt"] === "string",
+      isRecord(entry) &&
+      Number.isInteger(entry["pid"]) &&
+      typeof entry["checkout"] === "string" &&
+      typeof entry["stampedAt"] === "string" &&
+      (entry["pidStart"] === undefined || typeof entry["pidStart"] === "string"),
   );
   return { holders };
 }
@@ -372,7 +381,7 @@ function breakStaleLock(path: string): void {
 
 /** Run `fn` holding the table's mutex. Reap a dead holder or an aged ownerless directory, but refuse
  *  after the wait budget rather than allowing two live processes into the critical section. */
-export function withBandsLock<T>(home: string, fn: () => T): T {
+export function withBandsLock<T>(home: string, fn: () => T, waitMs: number = LOCK_WAIT_MS): T {
   const depth = LOCK_DEPTH.get(home) ?? 0;
   if (depth > 0) {
     LOCK_DEPTH.set(home, depth + 1);
@@ -384,7 +393,7 @@ export function withBandsLock<T>(home: string, fn: () => T): T {
   }
   mkdirSync(join(home, STAGE_ROOT_REL), { recursive: true });
   const path = lockPath(home);
-  const deadline = Date.now() + LOCK_WAIT_MS;
+  const deadline = Date.now() + waitMs;
   for (;;) {
     // @orb-waive caught-failure-ownership(catch): EEXIST is the mutex's SUCCESS-of-the-other-caller signal, not a failure — the loop below judges the holder and either waits or breaks it. Ends if mkdir stops being the lock primitive.
     try {

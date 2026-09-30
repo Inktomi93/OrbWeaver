@@ -216,22 +216,26 @@ test("the owner's warm touch keeps a sibling's hold on the row", () => {
   }
 });
 
-test("a heartbeat that cannot take the table lock is skipped, never thrown into the run", () => {
+test("a later heartbeat that cannot take the table lock is skipped without waiting, never thrown into the run", async () => {
   const home = scratchHome("hold-contended");
   const stage = row(3, { lastUsedAt: AGED_ISO, holders: [] });
   writeRow(home, stage);
+  const release = holdStageUse(home, stage, LANE_CHECKOUT, 20);
   const lockDir = join(home, STAGE_ROOT_REL, "bands.lock");
   mkdirSync(lockDir);
   writeFileSync(join(lockDir, "pid"), `${process.pid}\n`);
-  let release: (() => void) | null = null;
   try {
-    expect(() => {
-      release = holdStageUse(home, stage, LANE_CHECKOUT, 60_000);
-    }).not.toThrow();
+    // Beats keep firing against the held lock; a waiting beat would block this timer for its whole budget.
+    // @orb-waive test-determinism(Date.now): the subject is elapsed real time — a beat that waits blocks the event loop.
+    const started = Date.now();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    // @orb-waive test-determinism(Date.now): the same elapsed-time measurement's end.
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect(readBands(home)[0]?.holders).toEqual([expect.objectContaining({ pid: process.pid })]);
   } finally {
     releaseLockDir(lockDir);
+    release();
   }
-  expect(release).not.toBeNull();
 });
 
 test("a row with no owner, or naming a band outside the registry, is DROPPED rather than reasoned about", () => {

@@ -312,12 +312,12 @@ test("a same-sha --fresh or unhealthy rebuild refuses while another checkout hol
   expect(stageDecision({ ...ask, row: { ...unknownHolders, lastUsedAt: USED_PAST_REPLACE_IDLE }, fresh: true, healthy: true })).toBe("rebuild");
 });
 
-test("a holder is live while its pid lives, or for a gone pid until its stamp ages past the threshold", () => {
+test("a holder is live while its process runs, or otherwise until its stamp ages past the threshold", () => {
   const recent = { pid: 11, checkout: MAIN_CHECKOUT, stampedAt: new Date(NOW - 2000).toISOString() };
   const stale = { pid: 12, checkout: MAIN_CHECKOUT, stampedAt: USED_PAST_REPLACE_IDLE };
   const stage = row(0, { holders: [recent, stale] });
   expect(liveHoldersOf(stage, NOW, () => false)).toEqual([recent]);
-  expect(liveHoldersOf(stage, NOW, (pid) => pid === 12)).toEqual([recent, stale]);
+  expect(liveHoldersOf(stage, NOW, (holder) => holder.pid === 12)).toEqual([recent, stale]);
   // A live holder pins the band for the sweep the way a live session does.
   const evidence = {
     row: { ...stage, lastUsedAt: USED_LONG_AGO },

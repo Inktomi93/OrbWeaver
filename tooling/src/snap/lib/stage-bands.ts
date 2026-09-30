@@ -345,11 +345,11 @@ export function stageDecision(opts: {
   return row.holders === undefined && stageIdleMs(row, opts.nowMs) < OWN_STAGE_REPLACE_IDLE_MS ? "refuse" : "rebuild";
 }
 
-/** The holders still reading the stage: a live pid, or a gone pid whose last stamp is younger than the
- *  idle threshold. `pidAlive` is the caller's observation, so this stays pure. */
-export function liveHoldersOf(row: StageRow, nowMs: number, pidAlive: (pid: number) => boolean): readonly StageHolder[] {
+/** The holders still reading the stage: a process still running, or otherwise a stamp younger than the
+ *  idle threshold. `running` is the caller's observation (ops/stage-probe.ts), so this stays pure. */
+export function liveHoldersOf(row: StageRow, nowMs: number, running: (holder: StageHolder) => boolean): readonly StageHolder[] {
   return (row.holders ?? []).filter((holder) => {
-    if (pidAlive(holder.pid)) {
+    if (running(holder)) {
       return true;
     }
     const stamped = Date.parse(holder.stampedAt);
