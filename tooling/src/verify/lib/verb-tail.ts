@@ -23,6 +23,7 @@
 //   config-snapshot ops/config-snapshot.ts (runner kind + config path)
 //   typecheck-plan ops/typecheck-plan.ts (mode + file paths + optional JSON)
 //   typecheck     ops/typecheck.ts (zero or more repeated --config selectors)
+//   eslint-scoped ops/eslint.ts    (one or more paths, never a flag)
 import { UsageError } from "../../_shared/run-tool.ts";
 import type { VerifyVerb } from "../contract/verbs.ts";
 
@@ -64,6 +65,7 @@ const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   "typecheck-plan": "own",
   typecheck: "own",
   eslint: { tail: "none", scopedDoor: "pnpm exec eslint <files>" },
+  "eslint-scoped": "own",
   // The branch diff IS the selection, so a path tail would be a second, contradicting selector. An
   // operator who wants named instrument specs is reaching for the scoped test door.
   "instrument-affected": { tail: "none", scopedDoor: "pnpm test:scoped <tests/tooling paths…>" },

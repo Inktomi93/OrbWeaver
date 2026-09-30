@@ -26,6 +26,7 @@
 //   typecheck-plan           → cli.ts typecheck-plan --primary|--affected --file <paths…>
 //   typecheck                → cli.ts typecheck [--config <paths>…]
 //   eslint                   → cli.ts eslint  (whole-tree native compiler-owner process isolation)
+//   lint:eslint (scoped)     → cli.ts eslint-scoped <paths…>  (the same isolation over a verify selection)
 import process from "node:process";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool, UsageError } from "../_shared/run-tool.ts";
@@ -50,6 +51,7 @@ import {
   runPolicyConformance,
   runRatchetGateCli,
   runScopedCli,
+  runScopedEslint,
   runScopedTest,
   runShow,
   runShowcaseRelease,
@@ -139,6 +141,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return await runTypecheck(root, rest);
     case "eslint":
       return await runEslint(root);
+    case "eslint-scoped":
+      return await runScopedEslint(root, rest);
     case "instrument-affected":
       return runInstrumentAffected(root);
     case "showcase-release":

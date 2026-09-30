@@ -11,8 +11,8 @@ const PRIVATE_REQUEST_ARGC = 4;
 
 await runTool(async () => {
   const args = process.argv.slice(2);
-  if (args[0] === "eslint-discovery" && args.length === 1) {
-    return await runEslintDiscovery(process.cwd());
+  if (args[0] === "eslint-discovery") {
+    return await runEslintDiscovery(process.cwd(), args.length === 1 ? undefined : args.slice(1));
   }
   const marker = args[2];
   if (marker === undefined) {

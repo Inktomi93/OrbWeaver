@@ -158,7 +158,7 @@ export { CONFIG_SNAPSHOT_HELP, runConfigSnapshot } from "./ops/config-snapshot.t
 export { compareSchemaBaseline, runDbBaselineParity } from "./ops/db-baseline-parity.ts";
 export type { Ledger } from "./ops/debt.ts";
 export { LEDGERS, liveAdmitted, readLedgerRows, reconcileLedgers, runDebtWalk } from "./ops/debt.ts";
-export { runEslint } from "./ops/eslint.ts";
+export { runEslint, runScopedEslint } from "./ops/eslint.ts";
 export { runGateContract } from "./ops/gate-contract.ts";
 export { deriveActiveGatesIndex, deriveActiveGatesIndexMarkdown, generateActiveGatesIndex } from "./ops/gen/active-gates-index.ts";
 export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";

@@ -45,33 +45,12 @@ export function tscScopedArgv(tsconfigs: readonly string[]): ScopedArgv {
   return ["pnpm", "typecheck", ...tsconfigs.flatMap((config) => ["--config", config])];
 }
 
-/** eslint scoped invocation.
- *
- *  `--no-warn-ignored`: an explicit path that eslint's config IGNORES (e.g. a generated tokens file) must
- *  not become a `--max-warnings 0` FAILURE — at whole scope eslint never sees it; scoped, we hand it the
- *  path directly, so we suppress the "file ignored" warning to match whole-scope verdicts.
- *
- *  `node scripts/eslint.ts`, never the bare `eslint` bin (#1835): the adapter validates the shared
- *  concurrency profile and propagates native/abnormal exits honestly. Whole lint uses it too, once per
- *  sequential compiler-owner process; invoking the bin directly here would bypass that shared boundary. */
+/** eslint scoped invocation: the verify `eslint-scoped` verb, which partitions the paths by native compiler
+ *  owner exactly as the whole-tree run does. One process spanning several typed programs loads all of them
+ *  at once. An explicit path the config ignores is dropped at discovery, so it cannot fail `--max-warnings 0`. */
 export function eslintScopedArgv(files: readonly string[]): ScopedArgv {
   if (files.length === 0) {
     return "skip-empty";
   }
-  // `--cache-location` points at the scoped-run cache under `.cache/eslint/` (#1931). Without it, ESLint
-  // writes `.eslintcache` at the cwd, which the whole-tree partitioned runner never reads (each partition
-  // writes its own per-owner cache under the same `.cache/eslint/` directory).
-  return [
-    "node",
-    "scripts/eslint.ts",
-    "--max-warnings",
-    "0",
-    "--no-warn-ignored",
-    "--cache",
-    "--cache-strategy",
-    "content",
-    "--cache-location",
-    ".cache/eslint/scoped.eslintcache",
-    ...files,
-  ];
+  return ["node", "tooling/src/verify/cli.ts", "eslint-scoped", ...files];
 }

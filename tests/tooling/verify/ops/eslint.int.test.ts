@@ -5,7 +5,13 @@ import process from "node:process";
 import type { CompilerProgram } from "@orb/tooling/verify";
 import { ESLint } from "eslint";
 import { eslintConfiguredPaths } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
-import { DISCOVERY_MAX_BUFFER_BYTES, parsedDiscovery, partitionEslintFiles, readDiscoveredPopulation } from "../../../../tooling/src/verify/ops/eslint.ts";
+import {
+  DISCOVERY_MAX_BUFFER_BYTES,
+  parsedDiscovery,
+  partitionEslintFiles,
+  readDiscoveredPopulation,
+  runScopedEslint,
+} from "../../../../tooling/src/verify/ops/eslint.ts";
 import { discoverEslintFiles } from "../../../../tooling/src/verify/ops/eslint-discovery.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -45,6 +51,33 @@ test("discovery filenames equal native dot semantics across ignored, untracked, 
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("scoped discovery enumerates only the named paths and drops an explicit path the config ignores", async () => {
+  const root = mkdtempSync(join(tmpdir(), "orb-eslint-scoped-discovery-"));
+  try {
+    writeFileSync(join(root, "package.json"), '{"type":"module"}\n');
+    writeFileSync(join(root, "eslint.config.js"), 'export default [{ ignores: ["ignored/**"] }, { files: ["**/*.{js,ts}"] }];\n');
+    writeFileSync(join(root, "outside.js"), "export const outside = true;\n");
+    writeFileSync(join(root, "named.js"), "export const named = true;\n");
+    mkdirSync(join(root, "dir"));
+    writeFileSync(join(root, "dir", "inner.ts"), "export const inner = true;\n");
+    mkdirSync(join(root, "ignored"));
+    writeFileSync(join(root, "ignored", "excluded.js"), "throw new Error();\n");
+
+    const discovered = await discoverEslintFiles(root, ["named.js", "dir", "ignored/excluded.js"]);
+    expect(discovered).toEqual(["dir/inner.ts", "named.js"]);
+    expect(await discoverEslintFiles(root, ["ignored/excluded.js"])).toEqual([]);
+    // The whole-tree default still means `.`.
+    expect(await discoverEslintFiles(root)).toEqual(["dir/inner.ts", "eslint.config.js", "named.js", "outside.js"]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the scoped run refuses a flag or an empty path list before any discovery", async () => {
+  await expect(runScopedEslint(REPO_ROOT, [])).rejects.toThrow("eslint-scoped needs at least one path");
+  await expect(runScopedEslint(REPO_ROOT, ["--fix", "tooling/src/verify/ops/eslint.ts"])).rejects.toThrow('eslint-scoped takes paths only — got "--fix"');
 });
 
 test("discovery refuses a malformed native config instead of emitting an empty population", async () => {

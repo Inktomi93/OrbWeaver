@@ -61,4 +61,4 @@ Main owns red-first controls, suites, the barrier, and one benchmark after sourc
 
 ## Evidence
 
-Narrowing is in `e9fe219ff`; wall time is not fixed. Pre-commit scopes to the whole working tree, not the staged diff.
+Narrowing is in `e9fe219ff`; wall time is not fixed. Pre-commit scopes to the whole working tree, not the staged diff. Liveness: 1317 s, ~240 builds of ~1.6 s.

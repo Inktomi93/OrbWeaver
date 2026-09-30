@@ -1,5 +1,6 @@
-// Discovery asks ESLint itself which filenames `.` means, while disabling only typed program creation
-// and rule execution. The child emits filenames, never a lint verdict; actual shards use the untouched config.
+// Discovery asks ESLint itself which filenames `.` (or a scoped run's paths) means, while disabling only typed
+// program creation and rule execution. The child emits filenames, never a lint verdict; actual shards use the
+// untouched config. An explicit path ESLint ignores yields no filename, as `--no-warn-ignored` would.
 import { relative, sep } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
@@ -35,7 +36,7 @@ function discoveryRow(value: unknown): unknown {
   };
 }
 
-export async function discoverEslintFiles(root: string): Promise<readonly string[]> {
+export async function discoverEslintFiles(root: string, patterns: readonly string[] = ["."]): Promise<readonly string[]> {
   const loaded = (await import(pathToFileURL(`${root}/${CONFIG_REL}`).href)) as { readonly default?: unknown };
   if (!Array.isArray(loaded.default)) {
     throw new Error(`${CONFIG_REL} did not resolve to a flat config array`);
@@ -45,8 +46,9 @@ export async function discoverEslintFiles(root: string): Promise<readonly string
     overrideConfigFile: true,
     overrideConfig: discoveryRow(loaded.default) as FlatRow[],
     ruleFilter: (): boolean => false,
+    warnIgnored: false,
   });
-  const results = await eslint.lintFiles(["."]);
+  const results = await eslint.lintFiles([...patterns]);
   return results.map(({ filePath }) => relative(root, filePath).split(sep).join("/")).toSorted();
 }
 
@@ -58,8 +60,8 @@ interface EslintDiscoveryWire {
   readonly files: readonly string[];
 }
 
-export async function runEslintDiscovery(root: string): Promise<number> {
-  const files = await discoverEslintFiles(root);
+export async function runEslintDiscovery(root: string, patterns?: readonly string[]): Promise<number> {
+  const files = await discoverEslintFiles(root, patterns);
   const wire: EslintDiscoveryWire = { count: files.length, files };
   process.stdout.write(`${JSON.stringify(wire)}\n`);
   return EXIT.clean;
