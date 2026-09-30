@@ -9,12 +9,12 @@ import { databankDocumentsTile } from "@orb/client/features/databank";
 import { buddyDormantTile, HomeSurface, homeRoadmapTiles, makeSectionJumpTile } from "@orb/client/features/home";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
-import { rememberSurfaceBox, useActiveSection } from "@orb/client/state";
+import { __readSurfaceBoxForTest, rememberSurfaceBox, useActiveSection } from "@orb/client/state";
 import { Button } from "@orb/ui/button";
 import { BrainCircuit, Clock, MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { use } from "react";
+import { use, useState } from "react";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 import { FIRST_BOOT_SKELETON_ROWS, RESERVED_TILE_PX } from "./_reserve-box.ts";
 
@@ -400,13 +400,30 @@ export function HomeFoldStory(): ReactElement {
   );
 }
 
-/** The shipped home, tile for tile, at the shipped width. No box memory is seeded, so every tile is on
- *  its DECLARED reservation — a first-ever boot. */
-export function HomeShippedFirstBootStory(): ReactElement {
+/** The shipped home on a device that last saw "Other rooms" settle at `alsoOpenBox` px. The seed runs
+ *  before the first child renders, as the persisted store rehydrates before React mounts. `probe` stamps
+ *  the box the store holds now. */
+export function HomeRememberedAlsoOpenStory({ alsoOpenBox }: { readonly alsoOpenBox: number }): ReactElement {
+  useState(() => rememberSurfaceBox(chatAlsoOpenTile.id, alsoOpenBox));
+  const [probe, setProbe] = useState("unread");
+  return (
+    <>
+      <button type="button" onClick={(): void => setProbe(String(__readSurfaceBoxForTest(chatAlsoOpenTile.id)))}>
+        probe
+      </button>
+      <output data-testid="also-open-box">{probe}</output>
+      <HomeShippedFirstBootStory />
+    </>
+  );
+}
+
+/** The shipped home, tile for tile, at the shipped width (or a spec-driven one). No box memory is seeded,
+ *  so every tile is on its DECLARED reservation — a first-ever boot. */
+export function HomeShippedFirstBootStory({ inlineSize = HOME_CONTENT_PX }: { readonly inlineSize?: number }): ReactElement {
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <div style={{ inlineSize: HOME_CONTENT_PX }}>
+        <div style={{ inlineSize }}>
           <HomeSurface
             onNewChat={(): void => undefined}
             tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [...SHIPPED_TILES, makeSectionJumpTile(SHIPPED_TILES)])}
