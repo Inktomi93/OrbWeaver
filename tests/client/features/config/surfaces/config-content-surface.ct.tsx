@@ -585,6 +585,21 @@ test("a setting-level deep link from a door focuses the named setting's control,
   await expect(component.getByRole("combobox", { name: "Chat connection", exact: true })).toBeFocused();
 });
 
+// The composer's other recovery door: a host with no connection at all lands on the add flow, with focus on
+// the verb that opens it, so one key press starts adding a connection.
+test("an add-connection landing from a door focuses the add verb of the empty connection list", async ({ mount, page }) => {
+  // The add dialog reads whether the server can store a key.
+  await stub(page, { "credentials.storageStatus": { enabled: true } });
+  const component = await mount(<ConfigDeepLinkFromDoorStory target="connections" sub="connections" setting="add-connection" />);
+
+  await page.getByRole("button", { name: "open the setting", exact: true }).click();
+  await expect(component.locator("#config-anchor-connections-connections")).toBeInViewport();
+  const addVerb = component.locator("#config-setting-connections-add-connection");
+  await expect(addVerb).toBeFocused();
+  await addVerb.press("Enter");
+  await expect(page.getByRole("dialog")).toBeVisible();
+});
+
 // The landing's focus waits for the section to mount. A reader who moves on while it suspends keeps their
 // focus: the late landing must not pull it off the search box they are typing in.
 test("a setting-level landing that resolves after the reader moved focus leaves their focus alone", async ({ mount, page }) => {

@@ -108,6 +108,25 @@ export function LoginSceneStory({ width, config }: { readonly width: number; rea
   );
 }
 
+/** #310 — the whole login scene at the VIEWPORT (no fixed-width wrapper) with a stashed invite, so the local arm
+ *  renders the tallest card the page carries: the invite sign-up form. The geometry CT sizes the viewport itself
+ *  and scrolls the anchor with a real wheel or thumb. */
+export function LoginInviteSceneStory({ config, joinToken }: { readonly config: AuthConfig; readonly joinToken: string }): ReactElement {
+  return (
+    <CtDataProviders>
+      <LoginShellAnchor>
+        <LoginBody
+          config={config}
+          joinToken={joinToken}
+          onDone={(): void => {
+            // no-op — the scene geometry is what the CT asserts.
+          }}
+        />
+      </LoginShellAnchor>
+    </CtDataProviders>
+  );
+}
+
 /** The production login route with its real query-driven surface. This story exists for the load-to-form
  *  geometry seam: the CT can hold `/api/auth/config` pending, measure the skeleton card, release the same
  *  request, and measure the resolved sign-in form without substituting either state. */

@@ -5,7 +5,8 @@
 import type { ResolvedConnectionView, UnavailableCause } from "@orb/contracts/inference";
 import { CONNECTION_LABEL_SEPARATOR } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
-import { labelNamesModel, MODEL_ROLES_PATH } from "#lib";
+import type { SendRefusalKey } from "#lib";
+import { ADD_CONNECTION_PATH, labelNamesModel, MODEL_ROLES_PATH } from "#lib";
 import type { CreditConnections } from "./swipe-attribution.ts";
 import { providerName } from "./swipe-attribution.ts";
 
@@ -28,13 +29,16 @@ export interface NextTurnInputs {
 const NEXT_TURN_STATES = ["named", "checking", "unset", "failed"] as const;
 type NextTurnState = (typeof NEXT_TURN_STATES)[number];
 
-// A door after the line's sentence: `lead` is prose, `label` is the control that opens Model roles.
+// A door after the line's sentence: `lead` is prose, `label` is the control, and `sub` + `setting` name the
+// Settings → Connections leaf it lands on.
 interface NextTurnDoor {
   readonly lead: string;
   readonly label: string;
+  readonly sub: string;
+  readonly setting: string;
 }
 
-/** The line's sentence, its state, and the Model roles door when the viewer can fix the state there. */
+/** The line's sentence, its state, and the Settings door when the viewer can fix the state there. */
 export interface NextTurnLine {
   readonly state: NextTurnState;
   readonly text: string;
@@ -43,7 +47,44 @@ export interface NextTurnLine {
 
 const CHECKING: NextTurnLine = { state: "checking", text: "Next reply: checking the connection…", door: undefined };
 const FAILED: NextTurnLine = { state: "failed", text: "Next reply: the connection couldn't be checked.", door: undefined };
-const MODEL_ROLES_DOOR: NextTurnDoor = { lead: `Choose one under ${MODEL_ROLES_PATH.trail} →`, label: MODEL_ROLES_PATH.leaf };
+// The sub and setting literals are the house spelling of a settings deep link: a feature never imports
+// another's nav.
+const MODEL_ROLES_DOOR: NextTurnDoor = {
+  lead: `Choose one under ${MODEL_ROLES_PATH.trail} →`,
+  label: MODEL_ROLES_PATH.leaf,
+  sub: "model-roles",
+  setting: "chat-model",
+};
+const ADD_CONNECTION_DOOR: NextTurnDoor = {
+  lead: `${ADD_CONNECTION_PATH.trail} →`,
+  label: ADD_CONNECTION_PATH.leaf,
+  sub: "connections",
+  setting: "add-connection",
+};
+
+/** Whether the viewer's loaded list holds no connection that can serve chat. The Chat picker in Model roles
+ *  offers only chat-capable rows, so this is where the only fix is adding one; built-in embedding rows do not
+ *  count. False while the list is unloaded, so a pending read never claims the add flow. */
+function lacksChatConnection({ rows }: CreditConnections): boolean {
+  return rows !== undefined && !rows.some((row) => row.tasks.includes("chat"));
+}
+
+/**
+ * The composer's refusal key for a refused send: the host-side `no-chat-connection` split of `no-connection`
+ * on the same predicate the line's door uses, so the tooltips and the line point at the same fix.
+ */
+export function sendRefusalKey(cause: UnavailableCause, viewerIsHost: boolean | undefined, connections: CreditConnections): SendRefusalKey {
+  return nextTurnStatesRefusal(cause) && viewerIsHost === true && lacksChatConnection(connections) ? "no-chat-connection" : cause;
+}
+
+// While the list loads there is no door: a door that swaps under the pointer is worse than a late one.
+function hostUnsetLine(connections: CreditConnections): NextTurnLine {
+  if (lacksChatConnection(connections)) {
+    return { state: "unset", text: "Next reply: none of your connections can chat yet.", door: ADD_CONNECTION_DOOR };
+  }
+  const door = connections.rows === undefined && !connections.failed ? undefined : MODEL_ROLES_DOOR;
+  return { state: "unset", text: "Next reply: no chat connection is set.", door };
+}
 
 /**
  * Whether the line states this send refusal. For such a cause the line is the room's one statement of it,
@@ -77,7 +118,7 @@ export function nextTurnLine(inputs: NextTurnInputs): NextTurnLine {
   if (nextTurnStatesRefusal(inputs.availabilityCause)) {
     // Only a known host can fix this in their own settings; an unknown viewer may be a member.
     if (inputs.viewerIsHost === true) {
-      return { state: "unset", text: "Next reply: no chat connection is set.", door: MODEL_ROLES_DOOR };
+      return hostUnsetLine(inputs.connections);
     }
     return inputs.viewerIsHost === false
       ? { state: "unset", text: "Next reply: the host has no chat connection set.", door: undefined }

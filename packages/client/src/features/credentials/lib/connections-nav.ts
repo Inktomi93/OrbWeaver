@@ -10,6 +10,8 @@ import type { ConfigSubcategory } from "#state";
 const CHAT_MODEL_SETTING = "chat-model";
 const UTILITY_MODEL_SETTING = "utility-model";
 const EMBED_MODEL_SETTING = "embed-model";
+/** The Connections list's add-flow leaf; its section stamps the add verb with this leaf's control id. */
+export const ADD_CONNECTION_SETTING = "add-connection";
 
 /** The Model roles leaves a deep link can name, by the role row that renders each one's picker. */
 export const ROLE_SETTING_IDS: Readonly<Partial<Record<RoutableTask, string>>> = {
@@ -28,7 +30,7 @@ export const CONNECTIONS_LIST_SUBCATEGORY: ConfigSubcategory = {
   },
   settings: [
     {
-      id: "add-connection",
+      id: ADD_CONNECTION_SETTING,
       label: "Add a connection",
       keywords: ["add", "connection", "provider", "key", "url", "model"],
       teach: {
@@ -56,7 +58,7 @@ export const CONNECTIONS_ROLES_SUBCATEGORY: ConfigSubcategory = {
       teach: {
         summary: "The connection every conversation turn you trigger runs on — in your rooms and in anyone else's.",
         affects: ["every turn you send"],
-        related: [{ group: "connections", sub: "connections", setting: "add-connection" }],
+        related: [{ group: "connections", sub: "connections", setting: ADD_CONNECTION_SETTING }],
       },
     },
     {
