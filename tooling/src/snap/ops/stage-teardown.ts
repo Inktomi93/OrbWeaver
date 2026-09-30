@@ -33,7 +33,7 @@ import { stageBandPorts } from "../../_shared/ports.ts";
 import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
 import { escalateStopSync } from "../../_shared/stop-escalation.ts";
 import type { StageBandView, StagePorts, StageReapArm, StageRow, StageStopDeps, StageStopVerdict } from "../contract/stage.ts";
-import { missingLauncherRefusal, shortSha, stageLauncher, stageLauncherSpawn } from "../lib/stage-plan.ts";
+import { missingLauncherRefusal, shortSha, stageBandEnv, stageLauncher, stageLauncherSpawn } from "../lib/stage-plan.ts";
 import { takeBootDeadStage } from "../lib/stage-run-binding.ts";
 import { sweepStrandedBrowsers } from "./browser-sweep.ts";
 import { clearRow, waitSync } from "./stage-marker.ts";
@@ -49,6 +49,10 @@ const REAL_STOP_DEPS: StageStopDeps = {
   groupOf: processGroupTarget,
   signalGroup: killPidGroup,
   wait: waitSync,
+  runLauncher: (spawn, opts) => {
+    // biome-ignore lint/style/noProcessEnv: the launcher child needs the ambient PATH; only the band's address is layered on top.
+    runNicedSync(spawn.command, spawn.args, { cwd: opts.cwd, env: { ...process.env, ...opts.env }, stdio: "inherit" });
+  },
 };
 
 /** Why `port` could not be shown released, or null once a read shows it free. A stage group still holding it is
@@ -95,8 +99,7 @@ function releasePort(port: number, deps: StageStopDeps): string | null {
 export function stopStage(dir: string, ports: StagePorts, deps: StageStopDeps = REAL_STOP_DEPS): StageStopVerdict {
   const launcher = existsSync(dir) ? stageLauncher(dir, existsSync) : null;
   if (launcher !== null) {
-    const spawn = stageLauncherSpawn(launcher, "down", process.execPath);
-    runNicedSync(spawn.command, spawn.args, { cwd: dir, stdio: "inherit" });
+    deps.runLauncher(stageLauncherSpawn(launcher, "down", process.execPath), { cwd: dir, env: stageBandEnv(ports) });
   } else if (existsSync(dir)) {
     print(`[snap-stage] no launcher to stop ${dir} with — falling back to the band's process group. ${missingLauncherRefusal(dir)}`);
   }

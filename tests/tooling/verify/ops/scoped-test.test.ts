@@ -1,7 +1,7 @@
 // Scoped node runs select the projects Vitest attributes to the caller's test files.
 // Typecheck projects use `ignoreSourceErrors` so they judge `.test-d.ts` assertions only.
 // The native typecheck stage owns source diagnostics across every discovered compiler program.
-import { bareCtGrepRefusal, hasCallerProjectFilter, nodeConfigModeArgs } from "../../../../tooling/src/verify/ops/scoped-test.ts";
+import { bareCtGrepRefusal, hasCallerProjectFilter, missingBrowserExecutable, nodeConfigModeArgs } from "../../../../tooling/src/verify/ops/scoped-test.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const RUNTIME_ONLY = "--runtime-only";
@@ -97,6 +97,12 @@ test("a bare -g/--grep on the CT tier is refused, and the refusal names the miss
     expect(refusal, "with the spelling that works").toContain("pnpm test:ct tests/ui/x.ct.tsx -g=");
     expect(refusal, "and the flag is named, not echoed with its value").not.toContain("chat composer");
   }
+});
+
+test("only a missing-executable launch error names a browser path", () => {
+  const path = "/opt/pw/chromium_headless_shell-1228/chrome-linux/headless_shell";
+  expect(missingBrowserExecutable(`browserType.launch: Executable doesn't exist at ${path}\n╔═══╗\n║ Looks like Playwright was just installed ║`)).toBe(path);
+  expect(missingBrowserExecutable("browserType.launch: Target page, context or browser has been closed")).toBeNull();
 });
 
 test("the negative controls: a title filter WITH a path, and a run with no title filter at all, are not refused", () => {

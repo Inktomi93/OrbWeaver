@@ -1,14 +1,15 @@
 // The stage stops over planted socket-table reads: `stopStage`, the sweep's reap and the row-less teardown each
-// claim a stop only when a read taken after it shows the band ports free. No stage dir exists, so no launcher
-// runs; the reads, the signals and the waits are injected, so no process is touched and no real time passes.
+// claim a stop only when a read taken after it shows the band ports free. The launcher, the reads, the
+// signals and the waits are injected, so no process is touched and no real time passes.
 
 import { join } from "node:path";
 import process from "node:process";
 import { vi } from "vitest";
 import type { ListeningPortsRead, PortOwner } from "../../../../tooling/src/_shared/platform.ts";
-import { stageBandPorts } from "../../../../tooling/src/_shared/ports.ts";
+import { DEV_PORTS, stageBandPorts } from "../../../../tooling/src/_shared/ports.ts";
 import type { StageBandView, StageStopDeps } from "../../../../tooling/src/snap/contract/stage.ts";
 import { reapStrandedBand, stopStage, tearDownRowlessBand } from "../../../../tooling/src/snap/ops/stage-teardown.ts";
+import { STACK_CLI_REL, stackPorts } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const PORTS = { server: 47_811, vite: 47_812 } as const;
@@ -42,6 +43,7 @@ function planted(reads: readonly ListeningPortsRead[]): { readonly deps: StageSt
     wait: (ms) => {
       waits.push(ms);
     },
+    runLauncher: () => undefined,
   };
   return { deps, signals, waits };
 }
@@ -99,6 +101,27 @@ test("a stage group that exits on TERM frees the port, and the stop is confirmed
   const run = planted([HELD_BY_STAGE, HELD_BY_STAGE, FREE]);
   expect(stopStage(noStage(scratch), PORTS, run.deps)).toEqual({ kind: "stopped" });
   expect(run.signals).toEqual([`${String(STAGE_GROUP)} SIGTERM`]);
+});
+
+// ── the launcher stop: the staged stack must sweep the band's ports, never the dev stack's ───────────────
+
+test("the launcher stop resolves the band's own ports and never names the dev stack's", async ({ plantedTree }) => {
+  const dir = await plantedTree({ [STACK_CLI_REL]: "" });
+  const run = planted([FREE]);
+  const launches: { readonly args: readonly string[]; readonly ports: { readonly server: number; readonly vite: number } }[] = [];
+  const deps: StageStopDeps = {
+    ...run.deps,
+    runLauncher: (spawn, opts) => {
+      // The staged stack resolves its ports exactly this way; no `.env` exists in a staged worktree.
+      launches.push({ args: spawn.args, ports: stackPorts({ ...opts.env }, null) });
+    },
+  };
+  expect(stopStage(dir, PORTS, deps)).toEqual({ kind: "stopped" });
+  expect(launches.map((launch) => launch.args.at(-1))).toEqual(["down"]);
+  expect(launches.map((launch) => launch.ports)).toEqual([PORTS]);
+  // The band must differ from the dev pair, or a stop aimed at the dev stack would pass too.
+  expect([PORTS.server, PORTS.vite]).not.toContain(DEV_PORTS.server);
+  expect([PORTS.server, PORTS.vite]).not.toContain(DEV_PORTS.vite);
 });
 
 // ── the sweep's reap and the row-less teardown: the band's own ports, stopped by group alone ──────────────

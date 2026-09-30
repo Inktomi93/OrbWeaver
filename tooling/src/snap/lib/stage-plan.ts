@@ -8,8 +8,8 @@ import { basename, dirname, join } from "node:path";
 import { parseEnv } from "node:util";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { stageBandForPort } from "../../_shared/ports.ts";
-import { STACK_CLI_REL } from "../../stack/index.ts";
-import type { BandAccess, StageBandClaim, StageDecision, StageLauncher, StageLauncherSpawn, StagePaths, StageRow } from "../contract/stage.ts";
+import { ENV_NO_FILE, PORT_ENV, STACK_CLI_REL, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "../../stack/index.ts";
+import type { BandAccess, StageBandClaim, StageDecision, StageLauncher, StageLauncherSpawn, StagePaths, StagePorts, StageRow } from "../contract/stage.ts";
 
 // 12 hex — collision-safe for a dir name while staying human-scannable in logs.
 export const SHORT_SHA_LEN = 12;
@@ -195,6 +195,18 @@ export function stageLauncherSpawn(launcher: StageLauncher, verb: "up" | "down",
     return { command: nodePath, args: [launcher.path, verb] };
   }
   return { command: "bash", args: [launcher.path, verb === "up" ? "start" : "stop"] };
+}
+
+/** The band's address, given to BOTH launcher verbs. `stack down` resolves which ports to sweep from its
+ *  environment, so a stop spawned without this aims at the dev stack's default pair. */
+export function stageBandEnv(ports: StagePorts): Readonly<Record<string, string>> {
+  return {
+    [PORT_ENV]: String(ports.server),
+    [VITE_PORT_ENV]: String(ports.vite),
+    [VITE_API_TARGET_ENV]: `http://127.0.0.1:${String(ports.server)}`,
+    // A staged worktree has no `.env`; skipping it also keeps a stray one from overriding the band.
+    [ENV_NO_FILE]: "1",
+  };
 }
 
 /** The served-module probe of a staged tree: the cli's own verb, or the node half an older ref's shell
