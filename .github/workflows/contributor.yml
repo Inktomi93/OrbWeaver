@@ -37,6 +37,7 @@ jobs:
           import { setTimeout as sleep } from "node:timers/promises";
           import { chromium } from "@playwright/test";
           import { spawnFullPriorityChild } from "./tooling/src/_shared/proc.ts";
+          import { STAGE_WARMUP_BASE_MS, STAGE_WARMUP_MAX_RENAVIGATIONS } from "./tooling/src/snap/lib/budgets.ts";
           // The existing spawn door resolves pnpm's .cmd shim on Windows through cross-spawn.
           const child = spawnFullPriorityChild("pnpm", ["dev"], {
             detached: process.platform !== "win32",
@@ -62,9 +63,20 @@ jobs:
           const browser = await chromium.launch({ headless: true });
           try {
             const page = await browser.newPage();
-            // The app-ready marker owns readiness; cold Vite imports can outlast the default load wait.
-            await page.goto(process.env.DEV_ORIGIN, { waitUntil: "commit" });
-            await page.locator('html[data-app-ready=""]').waitFor({ state: "attached", timeout: 120_000 });
+            page.on("pageerror", (error) => console.error("CLIENT_ERROR", error.message));
+            const readyAttribute = "data-app-ready";
+            const marker = page.locator(`html[${readyAttribute}]`);
+            const clientDeadline = Date.now() + STAGE_WARMUP_BASE_MS;
+            let readiness = null;
+            // A degraded marker is permanent for that document; cold Vite needs the same bounded warm-up as Snap.
+            for (let attempt = 0; attempt <= STAGE_WARMUP_MAX_RENAVIGATIONS && Date.now() < clientDeadline; attempt++) {
+              await page.goto(process.env.DEV_ORIGIN, { waitUntil: "commit", timeout: Math.max(1, clientDeadline - Date.now()) });
+              await marker.waitFor({ state: "attached", timeout: Math.max(1, clientDeadline - Date.now()) });
+              readiness = await marker.getAttribute(readyAttribute);
+              console.log("Client readiness", { attempt, readiness });
+              if (readiness === "") break;
+            }
+            if (readiness !== "") throw new Error("client did not settle within the cold Vite warm-up budget");
             console.log("READY client mounted without degraded readiness");
           } finally {
             await browser.close();
@@ -101,11 +113,9 @@ jobs:
           NODE
 
       - name: Static contributor checks
-        if: ${{ !cancelled() }}
         run: pnpm check
 
       - name: Fixed component test
-        if: ${{ !cancelled() }}
         run: pnpm test:ct tests/client/features/chat/components/home-quick-picks-tile-body.ct.tsx
 
       - name: Show contributor logs
