@@ -89,6 +89,7 @@ export interface ComposerProps {
   /** The tail assistant message's id (continue-on-empty's target) — null unless the tail is an assistant turn. */
   readonly tailAssistantMessageId?: MessageId | null | undefined;
   readonly actionContributions?: readonly ReactNode[] | undefined;
+  readonly roomContributions?: readonly ReactNode[] | undefined;
   readonly mediaContributions?: readonly ReactNode[] | undefined;
 }
 
@@ -97,6 +98,7 @@ export function Composer({
   tailRole = null,
   tailAssistantMessageId = null,
   actionContributions = [],
+  roomContributions = [],
   mediaContributions = [],
 }: ComposerProps): ReactElement {
   // The draft read/write is scoped to THIS composer — the subscription is intentionally NOT lifted into the
@@ -412,6 +414,7 @@ export function Composer({
             refusalStatedBy={refusalStatedBy}
             chatControl={<ActiveChatOptionsMenu chatId={chatId} />}
             actionContributions={actionContributions}
+            roomContributions={roomContributions}
             mediaContributions={mediaContributions}
             sendControl={
               <ComposerSendControl

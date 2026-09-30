@@ -78,6 +78,7 @@ export interface ComposerGuidedClusterProps {
   /** The room-level action that leads the action rail. */
   readonly chatControl: ReactNode;
   readonly actionContributions: readonly ReactNode[];
+  readonly roomContributions: readonly ReactNode[];
   readonly mediaContributions: readonly ReactNode[];
   /** The composer-owned terminal send/stop control; kept beside attachment tools as one physical cluster. */
   readonly sendControl: ReactNode;
@@ -98,6 +99,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
     refusalStatedBy,
     chatControl,
     actionContributions,
+    roomContributions,
     mediaContributions,
     sendControl,
   } = props;
@@ -213,6 +215,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
               onRewrite={rewrite.open}
               game={game}
               image={imageControls}
+              roomContributions={roomContributions}
               mediaContributions={mediaContributions}
             />
             {sendControl}

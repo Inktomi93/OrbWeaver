@@ -8,6 +8,7 @@ import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { resolveSpacingPx } from "../../../../support/browser/touch-floor.ts";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { RpgDiceComposerStory } from "../../chat/_ct-stories.tsx";
@@ -15,6 +16,8 @@ import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from 
 import { makeRpgGameView } from "../fixtures.ts";
 
 const CHIPS = '[data-slot="chat-control-chips"]';
+const MENU_POPUP = '[data-slot="menu-popup"]';
+const NO_CONNECTION = { available: false, cause: "no-connection" } satisfies TrpcFixtureOutput<"chat.checkSendAvailability">;
 
 /** The engaged room's game read (the composer's choice provider suspends on it once the game gate opens
  *  — the guided-cluster/choice CT precedent): the `publicConfig` slice those readers use. The dice group
@@ -37,15 +40,20 @@ function rollOutcome(notation: string, rolls: readonly number[], total: number):
 }
 
 /** The room floor, plus the game-ness pointer the dice contribution gates on and the
- *  `rpg.rollDice` stub. `engaged` chooses whether `chat.getChat.rpg` presents a LIVE game. */
+ *  `rpg.rollDice` stub. `engaged` chooses whether `chat.getChat.rpg` presents a LIVE game; `unconnected` makes
+ *  the room's pre-send verdict the no-connection refusal. */
 function routeRoom(
   page: Page,
   engaged: boolean,
-  ruleset: RpgRuleset = "d20",
-  heldRoll?: ReturnType<typeof trpcHold>,
+  {
+    ruleset = "d20",
+    heldRoll,
+    unconnected = false,
+  }: { readonly ruleset?: RpgRuleset; readonly heldRoll?: ReturnType<typeof trpcHold>; readonly unconnected?: boolean } = {},
 ): Promise<{ readonly count: (p: string) => number; readonly lastInput: (p: string) => unknown }> {
   return routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
+    ...(unconnected ? { "chat.checkSendAvailability": NO_CONNECTION } : {}),
     "chat.previewContextFit": () => ({
       boundaryMessageId: null,
       usedTokens: 120,
@@ -115,7 +123,7 @@ test("a menu roll appends the baked stamp to the draft without sending it", asyn
 
 test("a held roll still inserts exactly one stamp after Escape dismisses the menu", async ({ mount, page }) => {
   const heldRoll = trpcHold();
-  const trpc = await routeRoom(page, true, "d20", heldRoll);
+  const trpc = await routeRoom(page, true, { heldRoll });
   const component = await mount(<RpgDiceComposerStory />);
   const composer = component.getByRole("textbox", { name: "Message" });
   await composer.fill("I attack —");
@@ -160,7 +168,7 @@ test("a plain chat has no dice group in Message tools", async ({ mount, page }) 
 });
 
 test("an engaged freeform game has no dice group in Message tools", async ({ mount, page }) => {
-  await routeRoom(page, true, "freeform");
+  await routeRoom(page, true, { ruleset: "freeform" });
 
   const component = await mount(<RpgDiceComposerStory />);
   await expect(component.getByText("The corridor forks.")).toBeVisible();
@@ -168,4 +176,60 @@ test("an engaged freeform game has no dice group in Message tools", async ({ mou
   await expect(page.getByText("Dice rolls", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Roll d20" })).toHaveCount(0);
   await expect(component.locator(CHIPS)).toHaveCount(0);
+});
+
+// The room's own group leads the menu, so a phone reaches every roll without scrolling the popup past the
+// generic groups. `toBeInViewport` is clipped by the popup's own scroller, so an item below its fold fails.
+test.describe("phone", () => {
+  test.use({ hasTouch: true, viewport: { width: 360, height: 780 } });
+
+  test("every dice action is in view the moment Message tools opens", async ({ mount, page }) => {
+    await routeRoom(page, true);
+    const component = await mount(<RpgDiceComposerStory height={780} />);
+    await expect(component.getByText("The corridor forks.")).toBeVisible();
+    await component.getByRole("button", { name: "Message tools" }).tap();
+    await expect(page.locator(MENU_POPUP)).toHaveCSS("opacity", "1");
+    for (const notation of ["d20", "d6", "2d6", "d100"]) {
+      await expect(page.getByRole("menuitem", { name: `Roll ${notation}`, exact: true })).toBeInViewport({ ratio: 1 });
+    }
+  });
+
+  test("an unconnected game room still rolls into the draft: dice need no chat connection", async ({ mount, page }) => {
+    const trpc = await routeRoom(page, true, { unconnected: true });
+    const component = await mount(<RpgDiceComposerStory height={780} />);
+    await expect(component.locator('[data-slot="composer-next-turn"]')).toHaveAttribute("data-unset", "");
+    await component.getByRole("button", { name: "Message tools" }).tap();
+    await expect(page.locator(MENU_POPUP)).toHaveCSS("opacity", "1");
+    const roll = page.getByRole("menuitem", { name: "Roll d20", exact: true });
+    await expect(roll).toBeInViewport({ ratio: 1 });
+    await expect(roll).toBeEnabled();
+    // Generation is refused in the same room, so the menu is not simply enabled across the board.
+    await expect(page.getByRole("menuitem", { name: "Offer choices" })).toBeDisabled();
+    await roll.tap();
+    await expect.poll(() => trpc.count("rpg.rollDice")).toBe(1);
+    await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("[dice: d20 → 14]");
+    await expect.poll(() => trpc.count("chat.send")).toBe(0);
+  });
+});
+
+test.describe("desktop", () => {
+  test.use({ viewport: { width: 1440, height: 700 } });
+
+  // The app's topbar is the viewport's first chrome row; the story has none, so the row is measured as the
+  // band of viewport the menu must leave clear. The viewport is short enough that the game menu's content is
+  // taller than the space above the composer, so an unbounded menu would reach the viewport's top edge.
+  test("a tall Message tools menu stops below the topbar's chrome row", async ({ mount, page }) => {
+    await routeRoom(page, true);
+    const component = await mount(<RpgDiceComposerStory height={700} />);
+    await expect(component.getByText("The corridor forks.")).toBeVisible();
+    await component.getByRole("button", { name: "Message tools" }).click();
+    const popup = page.locator(MENU_POPUP);
+    await expect(popup).toHaveCSS("opacity", "1");
+    const chromeRow = await resolveSpacingPx(page, "--dimension-chrome-row");
+    await expect.poll(async () => (await popup.boundingBox())?.y ?? Number.NEGATIVE_INFINITY).toBeGreaterThanOrEqual(chromeRow);
+    // The bound scrolls the menu rather than cutting it: its last row is still reachable.
+    const last = popup.getByRole("menuitem").last();
+    await last.scrollIntoViewIfNeeded();
+    await expect(last).toBeInViewport({ ratio: 1 });
+  });
 });

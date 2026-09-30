@@ -1,6 +1,7 @@
 // The composer's ✨ UTILITY menu (wand v2) — everything BUSY lives here so the composer's top row is just the
 // four guided icons + this ✨ trigger. Regrouped by concept (side-eye P2-A), each group a labeled MenuGroup +
-// GroupLabel, ordered by frequency:
+// GroupLabel. The room's own groups lead — the `composer-room` contributions (a game's Dice rolls), then Plot —
+// so a phone reaches a game's main action without scrolling past the generic groups, which follow by frequency:
 //   • Input  — Recover input (recall the last FIRED steer — the D57 ring, owner-clarified) · Corrections (the
 //              rewrite/OOC dialog) · Clear input
 //   • Reply  — Regenerate (a PLAIN reroll of the tail assistant, distinct RefreshCw glyph + helper — the
@@ -14,7 +15,7 @@
 //              IS the prompt) and Imagine (opens the /imagine modal: mode strip + preview-before-spend). Both
 //              are here because both cost money and only one used to be findable (#623 P1-IA) · the room
 //              character's gallery. The group renders from `composer-media-group.tsx`.
-//   • Plot   — game-only: the six plot steers nested under a Plot submenu (P1-B)
+//   • Plot   — game-only, first after the room contributions: the six plot steers under one submenu (P1-B)
 // Each item is the omit-doctrine's disabled-affordance law: rendered enabled, or disabled-with-a-legible-reason,
 // never hidden — except a permission-gated one (the gallery door, for a viewer who owns no character here).
 
@@ -25,7 +26,7 @@ import type { LucideIcon } from "@orb/ui/icons";
 import { Compass, Eraser, Icon, ListOrdered, Pencil, Redo2, RefreshCw, Undo2, WandSparkles } from "@orb/ui/icons";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
-import type { ReactElement, ReactNode } from "react";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
 import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
@@ -56,6 +57,7 @@ interface UtilityMenuProps {
   readonly onOfferChoices: () => void;
   /** The re-homed image controls (attach + generate-from-text). */
   readonly image: ComposerImageControls;
+  readonly roomContributions: readonly ReactNode[];
   readonly mediaContributions: readonly ReactNode[];
 }
 
@@ -71,13 +73,33 @@ interface ComposerGuidedUtilityMenuProps {
   readonly onRewrite: () => void;
   readonly game: { readonly isGame: boolean; readonly plotAvailable: boolean };
   readonly image: ComposerImageControls;
+  readonly roomContributions: readonly ReactNode[];
   readonly mediaContributions: readonly ReactNode[];
 }
+
+// The menu opens upward from the composer, and Base UI's available height runs to the viewport's top edge,
+// so a tall menu covered the room's topbar. Reserving the chrome row keeps it under the topbar, the
+// toast viewport's precedent; the menu scrolls inside the smaller box.
+const MENU_BOUND: CSSProperties = { maxHeight: "calc(var(--available-height) - var(--dimension-chrome-row))" };
 
 /** Adapts the guided cluster's resolved action bundles to the utility menu without making the cluster own
  *  the menu's phase-specific wiring. */
 export function ComposerGuidedUtilityMenu(props: ComposerGuidedUtilityMenuProps): ReactElement {
-  const { hasText, trimmed, idle, generationUnavailableReason, canTargetTail, guided, utilities, onChange, onRewrite, game, image, mediaContributions } = props;
+  const {
+    hasText,
+    trimmed,
+    idle,
+    generationUnavailableReason,
+    canTargetTail,
+    guided,
+    utilities,
+    onChange,
+    onRewrite,
+    game,
+    image,
+    roomContributions,
+    mediaContributions,
+  } = props;
   const tailId = guided.tailAssistantMessageId;
   return (
     <UtilityMenu
@@ -101,6 +123,7 @@ export function ComposerGuidedUtilityMenu(props: ComposerGuidedUtilityMenuProps)
       onOfferChoices={(): void => guided.fireGameSteer("choices")}
       game={game.isGame ? { plotAvailable: game.plotAvailable, onSteer: guided.fireGameSteer } : undefined}
       image={image}
+      roomContributions={roomContributions}
       mediaContributions={mediaContributions}
     />
   );
@@ -123,6 +146,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
     onOfferChoices,
     game,
     image,
+    roomContributions,
     mediaContributions,
   } = props;
   const recentSteers = useRecentSteers();
@@ -160,7 +184,21 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             only half free to move. */}
         <TooltipPopup side="top">Message tools</TooltipPopup>
       </Tooltip>
-      <MenuPopup>
+      <MenuPopup side="top" style={MENU_BOUND}>
+        {/* THE ROOM'S OWN GROUPS LEAD. Each contribution closes its group with a separator. */}
+        {roomContributions}
+        {/* PLOT — game-only (owner: "game steers go in the magic wand"). The six plot steers nest under one
+            submenu (side-eye P1-B — no more flat icon-less dump). Plot steers are APPLICABILITY-gated on
+            plotProgression, so a game whose plot progression is off contributes no Plot group at all. */}
+        {game !== undefined && game.plotAvailable ? (
+          <>
+            <MenuGroup>
+              <MenuGroupLabel>Plot</MenuGroupLabel>
+              <PlotSteersSubmenu enabled={generationEnabled} reason={generationUnavailableReason} onSteer={game.onSteer} />
+            </MenuGroup>
+            <MenuSeparator />
+          </>
+        ) : null}
         {/* INPUT — the draft-editing actions (most frequent). */}
         <MenuGroup>
           <MenuGroupLabel>Input</MenuGroupLabel>
@@ -208,7 +246,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             enabled={onSimpleSend !== undefined}
             disabledReason={hasText ? "Send your first message normally, then Simple send is available" : "Type a message to post"}
           />
-          {/* R3 (B1) — UN-GAME-GATED, and it lives HERE now rather than in the game-only Plot group below.
+          {/* R3 (B1) — UN-GAME-GATED, and it lives HERE rather than in the game-only Plot group.
               It never was a plot steer (the Plot comment already said so); it was game-gated only because the
               standing `:::choices` posture used to exist only as an rpg feature. Both halves of the pair are
               general now — the room-level toggle is in "This chat", the tokenizer renders the fence in any
@@ -248,21 +286,6 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
         {/* MEDIA — the re-homed image/video controls (owner: image things into the menu, NOT back on the bar). */}
         <ComposerMediaGroup image={image} />
         {mediaContributions}
-        {/* PLOT — game-only (owner: "game steers go in the magic wand"). The six plot steers nest under one Plot
-            submenu (side-eye P1-B — no more flat icon-less dump). "Offer choices" USED to sit here as its own
-            item; R3 moved it up to Reply, where it is reachable in every room (see its comment there). Plot
-            steers are APPLICABILITY-gated on plotProgression (the submenu is absent when off), so a game whose
-            plot progression is off now contributes no Plot group at all — the group had exactly one non-plot
-            tenant and it left. */}
-        {game !== undefined && game.plotAvailable ? (
-          <>
-            <MenuSeparator />
-            <MenuGroup>
-              <MenuGroupLabel>Plot</MenuGroupLabel>
-              <PlotSteersSubmenu enabled={generationEnabled} reason={generationUnavailableReason} onSteer={game.onSteer} />
-            </MenuGroup>
-          </>
-        ) : null}
       </MenuPopup>
     </Menu>
   );
