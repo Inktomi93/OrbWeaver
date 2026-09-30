@@ -33,6 +33,7 @@ import { setActiveSection, useSectionListMode } from "#state";
 import { RhythmFigures } from "../components/rhythm-figures.tsx";
 import { isRecomputeAlreadyRunning, useRecomputeStats } from "../hooks/use-recompute-stats.ts";
 import {
+  formatAccountingLabel,
   formatCompact,
   formatCount,
   formatDurationMs,
@@ -42,6 +43,8 @@ import {
   formatSignedDelta,
   formatThroughput,
   momentumBarItems,
+  REASONING_LABEL,
+  THROUGHPUT_LABEL,
   UNRECORDED_NOTE,
 } from "../lib/analytics-view-model.ts";
 import { LEADERBOARD_ROW_ATTR } from "../lib/leaderboard-row-attr.ts";
@@ -118,6 +121,9 @@ function OverviewBody(): ReactElement {
 
   return (
     <Stack gap="section">
+      <Text voice="gloss" role="note">
+        Whole library · Aggregate only
+      </Text>
       <Row align="center" justify="between" gap="row">
         {/* ONE time vocabulary in this column: relative in the text, the exact stamp in `title=` (P2e). */}
         <Text voice="gloss" {...(freshness.computedAt === null ? {} : { title: timeLib.formatDateTime(freshness.computedAt) })}>
@@ -138,7 +144,7 @@ function OverviewBody(): ReactElement {
             <StatFigure label="Replies" value={formatCompact(wrapped.replies)} />
             <StatFigure label="Swipes" value={formatCompact(wrapped.swipes)} />
             <StatFigure label="Forked chats" value={formatCompact(wrapped.forkedChats)} />
-            <StatFigure label="Spend" value={formatUsd(wrapped.costUsd)} />
+            <StatFigure label={formatAccountingLabel("Spend", wrapped.costUsd)} value={formatUsd(wrapped.costUsd)} />
             <StatFigure label="Time generating" value={formatDurationMs(wrapped.genTimeMs)} />
           </Grid>
           {/* THE DEFINITIONS, STATED (P2d/P3d). "Words" is your turns PLUS the replies — one definition,
@@ -168,19 +174,25 @@ function OverviewBody(): ReactElement {
       <Section heading="Economics">
         <Stack gap="block">
           <Grid cols="cell" gap="block">
-            <StatFigure label="Tokens in" value={formatCount(overview.tokensIn, overview.tokensInProvenance)} />
-            <StatFigure label="Tokens out" value={formatCount(overview.tokensOut, overview.tokensOutProvenance)} />
+            <StatFigure
+              label={formatAccountingLabel("Tokens in", overview.tokensIn, overview.tokensInProvenance)}
+              value={formatCount(overview.tokensIn, overview.tokensInProvenance)}
+            />
+            <StatFigure
+              label={formatAccountingLabel("Tokens out", overview.tokensOut, overview.tokensOutProvenance)}
+              value={formatCount(overview.tokensOut, overview.tokensOutProvenance)}
+            />
             <StatFigure label="Avg gen" value={formatMs(overview.avgGenMs)} />
             <StatFigure label="p50 gen" value={formatMs(overview.p50GenMs)} />
             <StatFigure label="p90 gen" value={formatMs(overview.p90GenMs)} />
             <StatFigure label="Avg TTFT" value={formatMs(overview.avgTtftMs)} />
-            <StatFigure label="Throughput" value={formatThroughput(overview.throughputTps, overview.tokensOutProvenance)} />
+            <StatFigure label={THROUGHPUT_LABEL} value={formatThroughput(overview.throughputTps, overview.tokensOutProvenance)} />
             {/* THE DENOMINATOR IS IN THE LABEL (P1a/P3d). "Cache hits" alone read 100% on every backend
                 that reports cache READS but not cache WRITES — the old ratio's denominator was the two
                 cache columns, so it could only ever be 1 or 0. Against input tokens it answers the
                 question the tile asks, and it says which question that is. */}
             <StatFigure label="Cache hits (of input)" value={formatPercent(overview.cacheHitRate, overview.tokensInProvenance)} />
-            <StatFigure label="Reasoning (of replies)" value={formatPercent(overview.reasoningRate)} />
+            <StatFigure label={REASONING_LABEL} value={formatPercent(overview.reasoningRate)} />
             {/* The reasoning WINDOW beside the reasoning RATE (#184): the rollups have carried `reasoningMs`
                 on three tables and three views with no reader at all, so the number a user's thinking models
                 produce had nowhere to land. Same duration voice as "Time generating" above. */}
@@ -188,7 +200,7 @@ function OverviewBody(): ReactElement {
           </Grid>
           <Text voice="gloss">
             Cache hits is the share of the tokens you sent that the provider served from its prompt cache; Reasoning is the share of replies and swipes that
-            produced a thinking pass. {UNRECORDED_NOTE}
+            produced a thinking pass. Throughput divides output tokens by recorded generation time. {UNRECORDED_NOTE}
           </Text>
         </Stack>
       </Section>

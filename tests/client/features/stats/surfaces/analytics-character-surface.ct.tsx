@@ -8,6 +8,7 @@ import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { makeCharacterDetail } from "../../character/fixtures.ts";
 import { AnalyticsCharacterSurfaceStory } from "../_ct-stories.tsx";
+import { ACCOUNTING_CASES } from "../fixtures.ts";
 
 const CHARACTER_STATS: TrpcWireOutput<"stats.character"> = {
   characterId: "character_ct_drill",
@@ -52,6 +53,42 @@ const CHARACTER_STATS: TrpcWireOutput<"stats.character"> = {
 };
 
 const LATENCY: TrpcWireOutput<"stats.latency"> = { avgTtftMs: 300, p50TtftMs: 250, p90TtftMs: 500, avgGenMs: 900, p50GenMs: 800, p90GenMs: 1500 };
+
+for (const width of [320, 720] as const) {
+  test.describe(`character accounting at ${width}`, () => {
+    test.use({ hasTouch: width === 320, viewport: { width: width === 320 ? 320 : 1280, height: 844 } });
+    for (const accounting of ACCOUNTING_CASES) {
+      test(`accounting provenance: ${accounting.name}`, async ({ mount, page }) => {
+        await routeTrpc(page, {
+          "stats.character": () => ({
+            ...CHARACTER_STATS,
+            tokensIn: accounting.tokens,
+            tokensOut: accounting.tokens,
+            tokensInProvenance: accounting.provenance,
+            tokensOutProvenance: accounting.provenance,
+            costUsd: accounting.cost,
+          }),
+          "stats.latency": () => LATENCY,
+          "character.get": () => makeCharacterDetail({ id: "character_ct_drill", name: "Kethryl" }),
+        });
+        const component = await mount(<AnalyticsCharacterSurfaceStory width={width} />);
+        for (const label of ["Tokens in", "Tokens out"]) {
+          const figure = component.locator('[data-slot="stat-figure"]', { hasText: label });
+          await expect(figure.locator('[data-slot="stat-figure-value"]')).toHaveText(accounting.tokenValue);
+          await expect(figure.locator('[data-slot="stat-figure-label"]')).toHaveText(`${label} · ${accounting.label}`);
+        }
+        const spend = component.locator('[data-slot="stat-figure"]', { hasText: "Spend" });
+        await expect(spend.locator('[data-slot="stat-figure-value"]')).toHaveText(accounting.costValue);
+        await expect(spend.locator('[data-slot="stat-figure-label"]')).toHaveText(`Spend · ${accounting.cost === null ? "Not recorded" : "Recorded"}`);
+        await expect(component.getByText("This character · Aggregate only", { exact: true })).toBeVisible();
+        await expect(component.getByText("~ marks estimates", { exact: false })).toBeVisible();
+        await expect(component.getByText("Reasoning (of replies + swipes)", { exact: true })).toBeVisible();
+        await expect(component.getByText("Throughput (output / gen time)", { exact: true })).toBeVisible();
+        await expect.poll(() => component.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+      });
+    }
+  });
+}
 
 test("the character drill's content region carries a non-zero inset (#1221, the overview's #1200 pin mirrored)", async ({ mount, page }) => {
   await routeTrpc(page, {

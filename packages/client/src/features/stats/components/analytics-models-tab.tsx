@@ -24,7 +24,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
-import { byModelBarItems, formatCompact, formatMs, formatTokens, UNRECORDED_NOTE } from "../lib/analytics-view-model.ts";
+import { byModelBarItems, formatAccountingLabel, formatCompact, formatMs, formatTokens, UNRECORDED_NOTE } from "../lib/analytics-view-model.ts";
 import { LibraryScopeNotice } from "./library-scope-notice.tsx";
 
 export function AnalyticsModelsTab(): ReactElement {
@@ -74,7 +74,7 @@ function ModelsBody(): ReactElement {
             {models.map((model, index) => {
               const modelName = modelDisplayName(model.model);
               return (
-                <Stack aria-posinset={index + 1} aria-setsize={models.length} key={`${model.model}-${model.provider ?? "unknown"}`} role="listitem">
+                <Stack aria-posinset={index + 1} aria-setsize={models.length} gap="field" key={`${model.model}-${model.provider ?? "unknown"}`} role="listitem">
                   <ListRow
                     title={modelName}
                     {...(modelName === model.model ? {} : { fullTitle: model.model })}
@@ -85,6 +85,10 @@ function ModelsBody(): ReactElement {
                       </Text>
                     }
                   />
+                  <Text voice="gloss">
+                    Aggregate only · {formatAccountingLabel("Output tokens", model.tokensOut, model.tokensOutProvenance)} ·{" "}
+                    {formatAccountingLabel("Cost", model.costUsd)}
+                  </Text>
                 </Stack>
               );
             })}

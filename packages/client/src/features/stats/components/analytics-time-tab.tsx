@@ -27,6 +27,7 @@ import {
   formatCount,
   formatPeak,
   seriesTokenProvenance,
+  UNRECORDED_NOTE,
   weekdayBarItems,
 } from "../lib/analytics-view-model.ts";
 import { LibraryScopeNotice } from "./library-scope-notice.tsx";
@@ -56,6 +57,7 @@ function TimeBody(): ReactElement {
   const { data: heatmap } = useSuspenseQuery(trpc.stats.activityHeatmap.queryOptions());
   const peak = formatPeak(heatmap.peak);
   const tokensOutProvenance = seriesTokenProvenance(points);
+  const tokenBuckets = dailyTokenBuckets(points);
 
   return (
     <Stack gap="section">
@@ -68,11 +70,12 @@ function TimeBody(): ReactElement {
       </Section>
 
       <Section heading="Daily tokens">
-        <Histogram
-          buckets={dailyTokenBuckets(points)}
-          countFormatter={(count): string => formatCount(count, tokensOutProvenance)}
-          label="Output tokens per day"
-        />
+        {tokenBuckets.length === 0 ? (
+          <Text voice="gloss">No output token accounting recorded in this period.</Text>
+        ) : (
+          <Histogram buckets={tokenBuckets} countFormatter={(count): string => formatCount(count, tokensOutProvenance)} label="Output tokens per day" />
+        )}
+        <Text voice="gloss">Aggregate only. Days with unrecorded output tokens are omitted. {UNRECORDED_NOTE}</Text>
       </Section>
 
       <RhythmFigures temporal={temporal} />

@@ -21,7 +21,18 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS, testId, timeLib, useFocusOnMount } from "#lib";
 import { useMobileViewport } from "#state";
-import { formatCompact, formatCount, formatDurationMs, formatMs, formatPercent, formatThroughput, UNRECORDED_NOTE } from "../lib/analytics-view-model.ts";
+import {
+  formatAccountingLabel,
+  formatCompact,
+  formatCount,
+  formatDurationMs,
+  formatMs,
+  formatPercent,
+  formatThroughput,
+  REASONING_LABEL,
+  THROUGHPUT_LABEL,
+  UNRECORDED_NOTE,
+} from "../lib/analytics-view-model.ts";
 
 export interface AnalyticsCharacterSurfaceProps {
   readonly characterId: CharacterId;
@@ -98,6 +109,9 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
 
       <Stack gap="field">
         <Text className="text-title leading-title font-semibold">{stats.name}</Text>
+        <Text voice="gloss" role="note">
+          This character · Aggregate only
+        </Text>
         {stats.lastActivityAt === null ? null : (
           // Relative in the text, the exact stamp in `title=` — the one time vocabulary this column speaks.
           <Text voice="gloss" title={timeLib.formatDateTime(stats.lastActivityAt)}>
@@ -131,22 +145,28 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
       <Section heading="Economics">
         <Stack gap="block">
           <Grid cols="cell" gap="block">
-            <StatFigure label="Tokens in" value={formatCount(stats.tokensIn, stats.tokensInProvenance)} />
-            <StatFigure label="Tokens out" value={formatCount(stats.tokensOut, stats.tokensOutProvenance)} />
-            <StatFigure label="Spend" value={formatUsd(stats.costUsd)} />
+            <StatFigure
+              label={formatAccountingLabel("Tokens in", stats.tokensIn, stats.tokensInProvenance)}
+              value={formatCount(stats.tokensIn, stats.tokensInProvenance)}
+            />
+            <StatFigure
+              label={formatAccountingLabel("Tokens out", stats.tokensOut, stats.tokensOutProvenance)}
+              value={formatCount(stats.tokensOut, stats.tokensOutProvenance)}
+            />
+            <StatFigure label={formatAccountingLabel("Spend", stats.costUsd)} value={formatUsd(stats.costUsd)} />
             {/* Per-character cache accounting does not exist: `character_stats` carries no cache columns
                 at all (the rollup is owner+model grain), so this tile printed a hard-coded 0%. It now
                 reads the em dash the absence has always deserved. */}
             <StatFigure label="Cache hits (of input)" value={formatPercent(stats.cacheHitRate, stats.tokensInProvenance)} />
-            <StatFigure label="Reasoning (of replies)" value={formatPercent(stats.reasoningRate)} />
+            <StatFigure label={REASONING_LABEL} value={formatPercent(stats.reasoningRate)} />
             {/* The reasoning WINDOW beside the reasoning RATE (#184) — the per-character half of the same
                 unrendered rollup column. */}
             <StatFigure label="Time reasoning" value={formatDurationMs(stats.reasoningMs)} />
-            <StatFigure label="Throughput" value={formatThroughput(stats.throughputTps, stats.tokensOutProvenance)} />
+            <StatFigure label={THROUGHPUT_LABEL} value={formatThroughput(stats.throughputTps, stats.tokensOutProvenance)} />
           </Grid>
           <Text voice="gloss">
             Cache hits is the share of the tokens you sent that the provider served from its prompt cache — it is not rolled up per character, so it reads as a
-            dash here. {UNRECORDED_NOTE}
+            dash here. Reasoning counts thinking passes per reply or swipe. Throughput divides output tokens by recorded generation time. {UNRECORDED_NOTE}
           </Text>
         </Stack>
       </Section>

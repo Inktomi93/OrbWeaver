@@ -6,7 +6,7 @@
 // owner. The gate's own mechanics (deferred hold, release-on-throw) are pinned at `../reconcile-in-flight`.
 
 import type { Db } from "@orb/db";
-import { ownerStats } from "@orb/db";
+import { messageVariants, ownerStats } from "@orb/db";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -36,6 +36,84 @@ async function seedOwnerWithCanon(id: string, role: "owner" | "user", words: str
 }
 
 describe("stats.reconcile", () => {
+  test("accounting provenance survives canon rebuild, including recorded zero and removal of accounting", async () => {
+    const ownerId = await seedUser(db);
+    const measured = await seedCharacter(db, ownerId, { id: "character_measured_zero" });
+    const estimated = await seedCharacter(db, ownerId, { id: "character_estimated" });
+    const unrecorded = await seedCharacter(db, ownerId, { id: "character_unrecorded" });
+    const measuredChat = await seedChat(db, measured, { id: "chat_measured_zero" });
+    const estimatedChat = await seedChat(db, estimated, { id: "chat_estimated" });
+    const unrecordedChat = await seedChat(db, unrecorded, { id: "chat_unrecorded" });
+    const measuredMessage = await seedMessage(db, {
+      chatId: measuredChat,
+      characterId: measured,
+      seq: 1,
+      role: "assistant",
+      variants: [{ content: "Recorded reply", model: "model-zero", tokensIn: 0, tokensOut: 0, costUsd: 0, tokenProvenance: "measured" }],
+    });
+    await seedMessage(db, {
+      chatId: estimatedChat,
+      characterId: estimated,
+      seq: 1,
+      role: "assistant",
+      variants: [{ content: "Estimated reply", model: "model-estimated", tokensIn: 20, tokensOut: 30, tokenProvenance: "estimated" }],
+    });
+    await seedMessage(db, {
+      chatId: unrecordedChat,
+      characterId: unrecorded,
+      seq: 1,
+      role: "assistant",
+      variants: [{ content: "Imported reply", model: "model-imported" }],
+    });
+    const svc = createStatsService(db, () => STATS_NOW);
+    await svc.reconcile(ownerId);
+    expect(await svc.character(ownerId, measured)).toMatchObject({
+      assistantTurns: 1,
+      tokensIn: 0,
+      tokensOut: 0,
+      tokensInProvenance: "measured",
+      tokensOutProvenance: "measured",
+      costUsd: 0,
+    });
+    expect(await svc.character(ownerId, estimated)).toMatchObject({
+      assistantTurns: 1,
+      tokensIn: 20,
+      tokensOut: 30,
+      tokensInProvenance: "estimated",
+      tokensOutProvenance: "estimated",
+      costUsd: null,
+    });
+    expect(await svc.character(ownerId, unrecorded)).toMatchObject({
+      assistantTurns: 1,
+      tokensIn: null,
+      tokensOut: null,
+      tokensInProvenance: "unrecorded",
+      tokensOutProvenance: "unrecorded",
+      costUsd: null,
+    });
+    expect(await svc.overview(ownerId)).toMatchObject({
+      assistantTurns: 3,
+      tokensIn: 20,
+      tokensOut: 30,
+      tokensInProvenance: "estimated",
+      tokensOutProvenance: "estimated",
+      costUsd: 0,
+    });
+    await db
+      .update(messageVariants)
+      .set({ tokensIn: null, tokensOut: null, tokenProvenance: "unrecorded", costUsd: null })
+      .where(eq(messageVariants.messageId, measuredMessage));
+    await svc.reconcile(ownerId);
+    expect(await svc.character(ownerId, measured)).toMatchObject({
+      assistantTurns: 1,
+      tokensIn: null,
+      tokensOut: null,
+      tokensInProvenance: "unrecorded",
+      tokensOutProvenance: "unrecorded",
+      costUsd: null,
+    });
+    expect(await svc.overview(ownerId)).toMatchObject({ assistantTurns: 3, tokensIn: 20, tokensOut: 30, costUsd: null });
+  });
   test("rebuilds the CALLER's rollups from canon and stamps computedAt from the injected clock", async () => {
     const ownerId = await seedOwnerWithCanon("user_owner", "owner", "hello world");
     const svc = createStatsService(db, () => STATS_NOW);
