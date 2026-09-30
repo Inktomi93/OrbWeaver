@@ -118,6 +118,9 @@ The port is published on `127.0.0.1` only. To reach the app from your phone or a
    this machine, or join it to this compose network and target `orbweaver:8788` (the stanza at the bottom of
    `docker-compose.yaml`). The proxy must pass `X-Forwarded-Proto/Host/For` and must not buffer SSE. It must
    also pass the browser's `Host` through: Caddy does by default; in nginx set `proxy_set_header Host $host`.
+   The app sends no `Strict-Transport-Security` header, because it cannot know whether the same name is also
+   reached over plain http. Once every visit to that name goes through HTTPS, set it at the proxy. In Caddy:
+   `header Strict-Transport-Security "max-age=31536000"`.
 3. Optionally bound who may knock at all: `IP_ALLOWLIST=192.168.1.0/24`. Behind a proxy the peer is the
    proxy, so allowlist the proxy's address, not your laptop's.
 
@@ -227,7 +230,8 @@ project's network (`docker network inspect orbweaver_default`), or `127.0.0.1/32
 - To keep it in a directory instead: replace the volume line with `./data:/app/data`. The container starts
   as root only to make that directory owned by `PUID`/`PGID` (default 1000), then drops to that user before
   the app runs — the SillyTavern / linuxserver pattern, so no manual `chown`. Match your own user with
-  `PUID=$(id -u) PGID=$(id -g) docker compose up -d`. Started non-root (`user:`, rootless podman) it skips the
+  `PUID=$(id -u) PGID=$(id -g) docker compose up -d`. Everything the app writes there is readable by that user
+  only (mode `600`, directories `700`). Started non-root (`user:`, rootless podman) it skips the
   chown and refuses to boot on an unwritable data dir, saying so.
 - The image itself holds no state; `docker compose down` keeps the volume, `down -v` deletes it.
 - **Updates and the database.** Migrations run at boot, from the SQL that ships inside the image. Before a
@@ -236,7 +240,8 @@ project's network (`docker network inspect orbweaver_default`), or `127.0.0.1/32
   referential integrity; a boot that changes nothing makes no copy. There are no "down" migrations: to roll
   back, stop the container, put the backup file back in place of `db/orbweaver.db` (remove any
   `-wal`/`-shm` beside it), and start the OLDER checkout again. Back up the whole volume before a big update:
-  `docker run --rm -v orbweaver_orbweaver-data:/data -v "$PWD":/out alpine tar czf /out/orbweaver-data.tgz -C /data .`
+  `docker run --rm -v orbweaver_orbweaver-data:/data -v "$PWD":/out alpine sh -c 'umask 077 && tar czf /out/orbweaver-data.tgz -C /data .'`
+  (the mask keeps the archive, which holds the secrets, readable by its owner only).
 
 ## Secrets as files
 
@@ -269,7 +274,7 @@ into the checkout as your uid (`PUID`/`PGID`). On a machine with node 26 + pnpm 
 
 `WIRE_CAPTURE` / `RPG_TRACE` (off) turn on recorders that keep the final provider request bodies — system
 prompts, transcripts, persona and world text — behind `/api/_debug/*`, which opens only to `DEBUG_TOKEN`
-or an admin session. Turning one on is a two-knob edit: set `IP_ALLOWLIST` in the same change. The app logs
+or the owner's session (an admin is refused). Turning one on is a two-knob edit: set `IP_ALLOWLIST` in the same change. The app logs
 the composed posture at boot and warns per open exposure.
 
 ## Troubleshooting
