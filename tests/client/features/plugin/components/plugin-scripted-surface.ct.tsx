@@ -485,6 +485,39 @@ test("a guest whose heap grows past its initial WASM memory never detaches the b
   expect(detaching, "a growth that swaps the buffer detaches the engine's live views").toBe(0);
 });
 
+/** Prepended to the guest Worker's own script: the browser refuses every `WebAssembly.Memory` reservation, as a
+ *  device short of address space does for the guest's 48 MiB. */
+const REFUSE_GUEST_MEMORY = `WebAssembly.Memory = function refuseMemory() { throw new RangeError("WebAssembly.Memory(): could not allocate memory"); };`;
+
+test("a browser that cannot reserve the guest's memory reports a host condition and never strikes the plugin", async ({ mount, page }) => {
+  let crashes = 0;
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(SCRIPTED_ID, "Memory Refusal Demo")],
+    "plugin.listSurfaces": () => [scriptedSurface(SCRIPTED_ID, "browser")],
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+    "plugin.reportUiCrash": () => {
+      crashes += 1;
+      return null;
+    },
+  });
+  await routeUiBundle(page, FILTER_GUEST);
+  await page.route("**/*ui-guest.worker*", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, body: `${REFUSE_GUEST_MEMORY}\n${await response.text()}` });
+  });
+  const hostReports: string[] = [];
+  page.on("pageerror", (error) => hostReports.push(error.message));
+  await mount(<PluginScriptedSurfaceStory />);
+
+  await expect
+    .poll(() => hostReports.find((report) => report.includes("could not start in this browser")), { timeout: GUEST_BOOT_TIMEOUT_MS })
+    .toContain("could not reserve 50331648 bytes");
+  await expect(page.getByRole("textbox", { name: "Filter rooms" })).toHaveCount(0);
+  expect(crashes, "a browser that refuses the memory is not the plugin's fault").toBe(0);
+});
+
 test("the publish guard refuses a re-render loop — an identical republish is a no-op, and the surface stays alive", async ({ mount, page }) => {
   await routeTrpc(page, {
     "plugin.list": () => [enabledRow(SCRIPTED_ID, "Republishing Demo")],

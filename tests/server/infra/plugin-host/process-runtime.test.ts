@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, readlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -11,7 +11,7 @@ import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { unzipSync } from "fflate";
 import { afterEach, beforeAll, vi } from "vitest";
 import { env } from "../../../../packages/server/src/foundation/env/index.ts";
-import { pluginBrokerExecArgv } from "../../../../packages/server/src/infra/plugin-host/process-permission.ts";
+import { pluginBrokerExecArgv, pluginWatchdogExecArgv } from "../../../../packages/server/src/infra/plugin-host/process-permission.ts";
 import {
   __countLiveAuthorityTailsForTest,
   __hasManagedPluginBrokerForTest,
@@ -630,9 +630,29 @@ test("Card Atlas and Keepsake Camera retain async registrations across a cold wa
 
 const BROKER_ENTRY = fileURLToPath(new URL("../../../../packages/server/src/infra/plugin-host/broker-entry.ts", import.meta.url));
 
-// The live broker's argv and env, read from /proc: the app spawns the watchdog, which spawns the broker, so the test
-// holds neither pid. The broker is the process running broker-entry.ts on this socket.
-function liveBroker(socketPath: string): { readonly execArgv: readonly string[]; readonly environ: readonly string[] } {
+const WATCHDOG_ENTRY = fileURLToPath(new URL("../../../../packages/server/src/infra/plugin-host/broker-watchdog.ts", import.meta.url));
+
+interface LiveProcess {
+  readonly execArgv: readonly string[];
+  readonly environ: readonly string[];
+  readonly cwd: string;
+}
+
+function liveProcess(pid: string, entry: string): LiveProcess | null {
+  const argv = readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0");
+  const index = argv.indexOf(entry);
+  return index > 0
+    ? {
+        execArgv: argv.slice(1, index),
+        environ: readFileSync(`/proc/${pid}/environ`, "utf8").split("\0").filter(Boolean),
+        cwd: readlinkSync(`/proc/${pid}/cwd`),
+      }
+    : null;
+}
+
+// The live broker and its watchdog, read from /proc: the app spawns the watchdog, which spawns the broker, so the test
+// holds neither pid. The broker is the process running broker-entry.ts on this socket; the watchdog is its parent.
+function livePluginProcesses(socketPath: string): { readonly broker: LiveProcess; readonly watchdog: LiveProcess } {
   for (const pid of readdirSync("/proc").filter((entry) => /^\d+$/u.test(entry))) {
     let argv: string[];
     try {
@@ -640,9 +660,14 @@ function liveBroker(socketPath: string): { readonly execArgv: readonly string[];
     } catch {
       continue;
     }
-    const entry = argv.indexOf(BROKER_ENTRY);
-    if (entry > 0 && argv[entry + 1] === socketPath) {
-      return { execArgv: argv.slice(1, entry), environ: readFileSync(`/proc/${pid}/environ`, "utf8").split("\0").filter(Boolean) };
+    if (argv[argv.indexOf(BROKER_ENTRY) + 1] !== socketPath) {
+      continue;
+    }
+    const parent = /^PPid:\s+(\d+)$/mu.exec(readFileSync(`/proc/${pid}/status`, "utf8"))?.[1];
+    const broker = liveProcess(pid, BROKER_ENTRY);
+    const watchdog = parent === undefined ? null : liveProcess(parent, WATCHDOG_ENTRY);
+    if (broker !== null && watchdog !== null) {
+      return { broker, watchdog };
     }
   }
   throw new Error(`test: no live broker serves ${socketPath}`);
@@ -684,10 +709,14 @@ test.skipIf(process.platform !== "linux")(
     if (socketPath === undefined) {
       throw new Error("test: the app holds no broker endpoint");
     }
-    const broker = liveBroker(socketPath);
-    expect(broker.execArgv).toEqual(pluginBrokerExecArgv(dirname(socketPath)));
+    const brokerDirectory = dirname(socketPath);
+    const { broker, watchdog } = livePluginProcesses(socketPath);
+    expect(watchdog.execArgv).toEqual(pluginWatchdogExecArgv());
+    expect(broker.execArgv).toEqual(pluginBrokerExecArgv(brokerDirectory));
     // A watchdog under --permission would hand its own grants, child processes included, to a spawn without any.
     expect(broker.environ.filter((entry) => entry.startsWith("NODE_OPTIONS="))).toEqual([]);
+    // A Worker under the permission model can read its process's working directory, so neither runs in the app's.
+    expect([watchdog.cwd, broker.cwd]).toEqual([brokerDirectory, brokerDirectory]);
   },
 );
 

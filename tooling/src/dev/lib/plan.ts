@@ -2,7 +2,7 @@
 // Paths are composed with node:path and every spawn is node plus a JS file, so no plan needs a shell.
 import { join } from "node:path";
 import { DEV_PORTS, MAX_TCP_PORT } from "../../_shared/ports.ts";
-import { SERVER_ENTRY_IN_PACKAGE } from "../../_shared/server-entry.ts";
+import { SERVER_ENTRY_IN_PACKAGE, SERVER_NODE_FLAGS } from "../../_shared/server-entry.ts";
 import type { DevParse, DevSpawnPlan, PortParse, WorkspacePackage } from "../contract/types.ts";
 
 export const DEV_USAGE = "usage: pnpm dev";
@@ -90,7 +90,13 @@ export function serverSpawnPlan(opts: {
 }): DevSpawnPlan {
   return {
     command: opts.nodePath,
-    args: ["--watch", "--watch-preserve-output", ...opts.watchRoots.map((root) => `--watch-path=${root}`), join(opts.server.dir, SERVER_ENTRY_IN_PACKAGE)],
+    args: [
+      ...SERVER_NODE_FLAGS,
+      "--watch",
+      "--watch-preserve-output",
+      ...opts.watchRoots.map((root) => `--watch-path=${root}`),
+      join(opts.server.dir, SERVER_ENTRY_IN_PACKAGE),
+    ],
     cwd: opts.cwd,
     env: opts.env,
   };

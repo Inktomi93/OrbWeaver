@@ -2,7 +2,7 @@
 // A process that runs guest code must not read the data dir, the `.env` file or another process's /proc entries, so
 // file reads stop at the code the two processes load plus the broker's private socket directory.
 
-import { join } from "node:path";
+import { join, parse } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONTAINER_MARKER_FILES } from "../../foundation/env/container.ts";
 
@@ -10,9 +10,22 @@ import { CONTAINER_MARKER_FILES } from "../../foundation/env/container.ts";
 // in the repository and in the image (`/app`), beside the data dir, which is never granted.
 const WORKSPACE_ROOT = fileURLToPath(new URL("../../../../../", import.meta.url));
 
-/** Every directory the watchdog and broker load code from: the workspace packages, read as source, and the installed
- *  dependencies they resolve to. */
-export const PLUGIN_PROCESS_CODE_ROOTS: readonly string[] = [join(WORKSPACE_ROOT, "packages"), join(WORKSPACE_ROOT, "node_modules")];
+/** Every directory the watchdog and broker load code from: the workspace packages, read as source, the installed
+ *  dependencies, and the directory the image keeps its workspace-package links in.
+ *
+ *  @remarks
+ *  Security: Node checks a read against the lexically normalized path, but the kernel follows a link before it
+ *  applies `..`. A granted tree that holds a link pointing to a shallower directory therefore grants more than it
+ *  names: under a pnpm install, `node_modules/@orb/server/../../data` passes as `node_modules/data` and opens the
+ *  data dir. The image keeps those links at `/node_modules/@orb`, the same depth as their `/app/packages/<name>`
+ *  targets, and its build refuses any other link that points up (`docker/assemble-runtime.sh`). A pnpm install on
+ *  bare metal keeps them in `node_modules` and in every package; `docs/law/container-deployment-security.md` names
+ *  that residual. */
+export const PLUGIN_PROCESS_CODE_ROOTS: readonly string[] = [
+  join(WORKSPACE_ROOT, "packages"),
+  join(WORKSPACE_ROOT, "node_modules"),
+  join(parse(WORKSPACE_ROOT).root, "node_modules", "@orb"),
+];
 
 const PERMISSION = "--permission";
 // Each grant below prints a warning on every start. They are deliberate and the text names nothing to act on.

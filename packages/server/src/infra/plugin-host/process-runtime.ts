@@ -443,6 +443,9 @@ class BrokerClient {
         ],
         {
           env: { ["NODE_ENV"]: env.NODE_ENV },
+          // Security: a Worker under the permission model can read its process's working directory whatever the
+          // grants say, and the app's is the workspace root beside the data dir. The broker inherits this one.
+          cwd: directory,
           stdio: ["ignore", "inherit", "inherit", "ipc"],
         },
       );

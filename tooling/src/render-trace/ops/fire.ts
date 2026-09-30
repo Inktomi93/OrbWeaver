@@ -35,7 +35,7 @@ import { instrumentError, printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { spawnNicedChild } from "../../_shared/proc.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
-import { SERVER_ENTRY_REL } from "../../_shared/server-entry.ts";
+import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "../../_shared/server-entry.ts";
 import { fireEvidenceGap } from "../lib/evidence.ts";
 import { renderTrace } from "../lib/render.ts";
 
@@ -198,7 +198,7 @@ export async function fireOp(argv: readonly string[]): Promise<number> {
 
   // Forward server output to OUR stderr so a boot failure is visible while the rendered
   // waterfalls on stdout stay parseable for callers.
-  const child = spawnNicedChild("node", [SERVER_ENTRY_REL], {
+  const child = spawnNicedChild("node", [...SERVER_NODE_FLAGS, SERVER_ENTRY_REL], {
     cwd: REPO_ROOT,
     env: serverEnv(port, dbPath, debugToken),
     onOutput: (buf) => process.stderr.write(buf),

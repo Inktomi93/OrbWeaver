@@ -173,15 +173,28 @@ jobs:
           done
           curl -fsS "$HEALTHZ"
 
-      - name: Prove plugin broker containment and residency in the production image
+      - name: Prove the plugin broker cannot read the data dir in the production image
         run: |
-          docker compose exec --user node -T orbweaver sh -c 'cat > /app/.cache/plugin-platform-proof.ts' < tests/server/infra/plugin-host/_platform-proof.ts
-          docker compose exec --user node -T orbweaver node /app/.cache/plugin-platform-proof.ts \
-            --run-proof --root=/app --json=/app/.cache/plugin-broker-proof.json
+          for file in _broker-containment-proof.ts _broker-permission-probe.ts; do
+            docker compose exec --user node -T orbweaver sh -c "cat > /app/.cache/$file" < "tests/server/infra/plugin-host/$file"
+          done
+          docker compose exec --user node -T orbweaver node /app/.cache/_broker-containment-proof.ts --root=/app
+
+      - name: Prove plugin broker containment and residency in the production image
+        # A fresh app embeds its seeded content on the CPU for minutes, which starves this timing-bound proof on a
+        # small runner. The source jobs run the proof with the app stopped; this runs it in its own container of
+        # the same image and compose hardening, with the app stopped.
+        run: |
+          docker compose stop orbweaver
+          mkdir -p -m 0777 "$RUNNER_TEMP/docker-proof"
+          docker compose run --rm --no-deps -T --user node --entrypoint node \
+            -v "$PWD/tests/server/infra/plugin-host/_platform-proof.ts:/app/.cache/plugin-platform-proof.ts:ro" \
+            -v "$RUNNER_TEMP/docker-proof:/proof" \
+            orbweaver /app/.cache/plugin-platform-proof.ts --run-proof --root=/app --json=/proof/plugin-broker-proof.json
 
       - name: Copy Docker plugin broker receipt
         if: always()
-        run: docker compose cp orbweaver:/app/.cache/plugin-broker-proof.json "$RUNNER_TEMP/plugin-broker-proof-docker.json" || true
+        run: cp "$RUNNER_TEMP/docker-proof/plugin-broker-proof.json" "$RUNNER_TEMP/plugin-broker-proof-docker.json" || true
 
       - name: Add Docker plugin broker receipt to the run summary
         if: always()

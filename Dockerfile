@@ -13,8 +13,9 @@
 #
 # LAYOUT (docker/assemble-runtime.sh — the ONE home for the runtime file set): every `@orb/*` workspace
 # package the server's production graph pulls in ships as workspace-shaped SOURCE under /app/packages/<name>
-# behind a symlink from /app/node_modules/@orb/<name>. Two facts force that shape and both were paid for at
-# the first host-side boot (build plan §1.4/§2): node 26 refuses type-stripping for real files under
+# behind a symlink from /node_modules/@orb/<name>, outside the plugin broker's node_modules grant (the
+# assembler says why). Two facts force that shape and both were paid for at the first host-side boot (build
+# plan §1.4/§2): node 26 refuses type-stripping for real files under
 # node_modules (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING), and the packages' own deps must resolve by the
 # upward walk to /app/node_modules — which the fully hoisted `pnpm deploy` layout provides. The assembler discovers
 # the package set from the deploy output, so adding a workspace package (D160: default content ships as a
@@ -62,7 +63,7 @@ RUN pnpm build
 # empty node_modules under the hoisted linker. Every patched dependency is a dev tool, so a --prod deploy never
 # installs one and pnpm would refuse its patch as unused.
 RUN pnpm --filter @orb/server deploy --legacy --prod --config.shamefully-hoist=true --config.allow-unused-patches=true /app/deploy
-RUN sh docker/assemble-runtime.sh /app /app/deploy /app/runtime
+RUN sh docker/assemble-runtime.sh /app /app/deploy /app/runtime /app/runtime-links
 
 # ── Stage 3: runtime ─────────────────────────────────────────────────────────────────────────────────
 FROM node:26.10.0-bookworm-slim@sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2 AS runtime
@@ -74,10 +75,14 @@ LABEL org.opencontainers.image.source="https://github.com/Inktomi93/orbweaver" \
       org.opencontainers.image.revision="${GIT_SHA}" \
       org.opencontainers.image.version="${IMAGE_VERSION}"
 ENV NODE_ENV=production
+# The app ignores SIGUSR1, so no process running as its user (the plugin broker included) can open its inspector.
+# NODE_OPTIONS, not a CMD flag, so an operator's own `command:` keeps it. The watchdog and broker get an explicit env.
+ENV NODE_OPTIONS=--disable-sigusr1
 # The image declares itself: the app reads this beside the Docker and Podman marker files, so a runtime that writes
 # neither (Kubernetes with containerd or CRI-O) still gets container fix text and never admits the pod name as a host.
 ENV ORB_CONTAINER=true
 COPY --chown=node:node --from=build /app/runtime /app
+COPY --from=build /app/runtime-links /node_modules
 COPY --chown=node:node docker/entrypoint.sh /app/docker/entrypoint.sh
 # /app/data is the ONE writable state root (sqlite + -wal/-shm, CAS blobs, generated secrets) — a volume;
 # /app/.cache is cwd-relative scratch (a recorder spill when WIRE_CAPTURE=on; nothing on the quiet path).

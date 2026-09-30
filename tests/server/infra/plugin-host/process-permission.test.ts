@@ -1,6 +1,6 @@
 // A real plugin broker, started with the flags the watchdog gives it, cannot read the data dir, the `.env` file or
-// another process's environment, and cannot spawn, yet reads its code and token and serves its socket. A preloaded
-// probe makes the attempts from inside the broker process.
+// another process's environment, from its main thread or a Worker, and cannot spawn, yet reads its code and token
+// and serves its socket. A preloaded probe makes the attempts from inside the broker process.
 
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
@@ -26,6 +26,7 @@ const PRIVATE_FILE_MODE = 0o600;
 interface ProbeReport {
   readonly kind: "permission-probe";
   readonly reads: Readonly<Record<string, string>>;
+  readonly workerReads: Readonly<Record<string, string>>;
   readonly spawn: string;
 }
 
@@ -83,6 +84,8 @@ test("a broker under its permission flags is denied the data dir, .env and proce
   const denied = [
     dataKey,
     join(WORKSPACE_ROOT, "data", "secrets", "credentials_key"),
+    // The root manifest exists in every checkout, so a Worker that could read the workspace root gets bytes here.
+    join(WORKSPACE_ROOT, "package.json"),
     join(WORKSPACE_ROOT, ".env"),
     ...(process.platform === "linux" ? [`/proc/${process.pid}/environ`] : []),
   ];
@@ -90,6 +93,8 @@ test("a broker under its permission flags is denied the data dir, .env and proce
   // A preload is not granted the way the entry point is, so the probe file alone is added to the reads.
   const probeArgv = [`--allow-fs-read=${PROBE}`, `--import=${PROBE}`];
   broker = spawn(process.execPath, [...pluginBrokerExecArgv(brokerDirectory), ...probeArgv, BROKER_ENTRY, socketPath, tokenPath, "1", "test"], {
+    // The watchdog starts the broker in its private directory; process-runtime.test.ts pins that on the live broker.
+    cwd: brokerDirectory,
     // biome-ignore lint/style/useNamingConvention: environment variable names are fixed upper-case keys.
     env: { NODE_ENV: "test", ORB_BROKER_PROBE_READS: JSON.stringify([...denied, ...allowed]) },
     stdio: ["ignore", "inherit", "inherit", "ipc"],
@@ -103,8 +108,10 @@ test("a broker under its permission flags is denied the data dir, .env and proce
     broker?.once("exit", (code) => reject(new Error(`test: broker exited before its probe reported (${String(code)})`)));
   });
 
-  expect(Object.fromEntries(denied.map((path) => [path, report.reads[path]]))).toEqual(Object.fromEntries(denied.map((path) => [path, DENIED])));
-  expect(Object.fromEntries(allowed.map((path) => [path, report.reads[path]]))).toEqual(Object.fromEntries(allowed.map((path) => [path, "allowed"])));
+  for (const reads of [report.reads, report.workerReads]) {
+    expect(Object.fromEntries(denied.map((path) => [path, reads[path]]))).toEqual(Object.fromEntries(denied.map((path) => [path, DENIED])));
+    expect(Object.fromEntries(allowed.map((path) => [path, reads[path]]))).toEqual(Object.fromEntries(allowed.map((path) => [path, "allowed"])));
+  }
   expect(report.spawn).toBe(DENIED);
   expect(await authenticates(socketPath, token)).toBe(true);
 });

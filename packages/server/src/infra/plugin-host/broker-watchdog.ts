@@ -59,6 +59,8 @@ async function superviseOneBroker(): Promise<string> {
     [...pluginBrokerExecArgv(dirname(tokenPath)), BROKER_ENTRY, socketPath, tokenPath, String(workerMaximum), nodeEnvironment],
     {
       env: { ["NODE_ENV"]: nodeEnvironment },
+      // A guest Worker can read the broker's working directory whatever the grants say; keep it the private one.
+      cwd: dirname(tokenPath),
       stdio: ["ignore", "inherit", "inherit", "ipc"],
     },
   );

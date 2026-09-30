@@ -153,4 +153,17 @@ export type UiGuestSettledMessage =
   | { readonly kind: "settled"; readonly ok: true }
   | { readonly kind: "settled"; readonly ok: false; readonly message: string };
 
-export type UiGuestOutbound = UiGuestRenderMessage | UiGuestHostCallMessage | UiGuestLogMessage | UiGuestReadyMessage | UiGuestSettledMessage;
+/** The browser could not reserve the guest's fixed WASM memory, so no guest code ran. A host condition, not a plugin
+ *  fault: the surface collapses and the crash counter hears nothing. */
+export interface UiGuestUnavailableMessage {
+  readonly kind: "unavailable";
+  readonly message: string;
+}
+
+export type UiGuestOutbound =
+  | UiGuestRenderMessage
+  | UiGuestHostCallMessage
+  | UiGuestLogMessage
+  | UiGuestReadyMessage
+  | UiGuestSettledMessage
+  | UiGuestUnavailableMessage;

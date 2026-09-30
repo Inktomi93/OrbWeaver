@@ -1,17 +1,18 @@
 #!/bin/sh
 # ── assemble the runtime file set (the ONE home for what the image ships) ─────────────────────────────
 #
-#   sh docker/assemble-runtime.sh <workspace> <pnpm-deploy-output> <out>
+#   sh docker/assemble-runtime.sh <workspace> <pnpm-deploy-output> <out> <links>
 #
 # Runs in the Dockerfile's build stage after `pnpm build` + `pnpm --filter @orb/server deploy --legacy --prod
-# --config.shamefully-hoist=true <deploy>`. Produces <out> = exactly what /app is in the runtime image:
+# --config.shamefully-hoist=true <deploy>`. Produces <out> = exactly what /app is in the runtime image, and
+# <links> = exactly what /node_modules is:
 #
-#   <out>/node_modules            the deploy output's pruned, hoisted production node_modules
+#   <out>/node_modules            the deploy output's pruned, hoisted production node_modules, minus @orb
 #   <out>/packages/<name>/        the SOURCE of every @orb workspace package in the server's prod graph
 #                                 (package.json + everything the package ships, minus its node_modules)
-#   <out>/node_modules/@orb/<name> -> ../../packages/<name>   (symlink; see WHY)
 #   <out>/packages/client/dist    the built client bundle (the SPA registrar serves it; CLIENT_DIST_DIR default)
 #   <out>/package.json            the root manifest
+#   <links>/@orb/<name> -> /app/packages/<name>   (symlink; see WHY)
 #
 # WHY the symlink dance instead of the deploy output as-is: node 26 refuses to type-strip a real .ts file
 # that lives under node_modules (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING). The dev workspace passes only
@@ -19,11 +20,21 @@
 # shape. The package SET is discovered from the deploy output (whatever pnpm materialized under
 # node_modules/@orb IS the server's prod graph), so a new workspace package the server declares (D160
 # default-content packages) is picked up with no edit here or in the Dockerfile.
+#
+# WHY the links live at /node_modules/@orb and not /app/node_modules/@orb: the plugin broker may read
+# /app/node_modules, and Node checks a read against the lexical path while the kernel follows a link before it
+# applies `..`. A link at /app/node_modules/@orb/<name> sits one level deeper than /app/packages/<name>, so
+# `/app/node_modules/@orb/server/../../data` would pass the check as /app/node_modules/data and open the data dir.
+# At /node_modules/@orb/<name> the link and its target sit at the same depth. Node's resolver still finds them:
+# its upward walk ends at /node_modules.
 set -eu
 
 src="${1:?workspace root}"
 deploy="${2:?pnpm deploy output}"
 out="${3:?output dir}"
+links="${4:?workspace-package link dir}"
+# Where the Dockerfile copies <out>; every link below points into it.
+runtime_root=/app
 
 [ -d "$deploy/node_modules" ] || { echo "assemble-runtime: $deploy/node_modules is missing — did pnpm deploy run?" >&2; exit 1; }
 [ -d "$src/packages/client/dist" ] || { echo "assemble-runtime: packages/client/dist is missing — did pnpm build run?" >&2; exit 1; }
@@ -31,7 +42,7 @@ out="${3:?output dir}"
 mkdir -p "$out/packages"
 cp "$src/package.json" "$out/package.json"
 mv "$deploy/node_modules" "$out/node_modules"
-mkdir -p "$out/node_modules/@orb"
+mkdir -p "$links/@orb"
 
 # Ship one workspace package as source behind its symlink. Refuses a name that has no packages/<name>
 # (the @orb/<name> ↔ packages/<name> convention is what makes discovery possible).
@@ -41,21 +52,22 @@ ship_package() {
     echo "assemble-runtime: @orb/$name is in the server's prod graph but packages/$name/package.json does not exist" >&2
     exit 1
   fi
-  rm -rf "$out/node_modules/@orb/$name" "$out/packages/$name"
+  rm -rf "$out/packages/$name"
   cp -R "$src/packages/$name" "$out/packages/$name"
   rm -rf "$out/packages/$name/node_modules"
-  ln -s "../../packages/$name" "$out/node_modules/@orb/$name"
+  ln -s "$runtime_root/packages/$name" "$links/@orb/$name"
   echo "assemble-runtime: shipped @orb/$name as source"
 }
 
 # The server itself is the deploy ROOT (not under node_modules/@orb); it ships the same way, and its
-# self-symlink serves `@orb/server/...` package-name imports.
+# link serves `@orb/server/...` package-name imports.
 ship_package server
 for dir in "$out"/node_modules/@orb/*; do
   name="$(basename "$dir")"
   [ "$name" = server ] && continue
   ship_package "$name"
 done
+rm -rf "$out/node_modules/@orb"
 
 # The client ships its BUILD only.
 mkdir -p "$out/packages/client"
@@ -111,6 +123,30 @@ fi
 # The hoisted entry is a symlink into the virtual store, so the payload goes with it.
 rm -rf "$out/node_modules/onnxruntime-web" "$out"/node_modules/.pnpm/onnxruntime-web@*
 (cd "$out" && node -e 'import("@huggingface/transformers").then(() => console.log("assemble-runtime: @huggingface/transformers imports after the prune"), (e) => { console.error("assemble-runtime: the prune broke @huggingface/transformers:", e); process.exit(1); })')
+
+# ── the plugin broker's read grants hold no link that points up ─────────────────────────────────────────
+# The broker may read packages/ and node_modules/ (packages/server/src/infra/plugin-host/process-permission.ts). A
+# link whose target sits higher than the link turns `<link>/../..` into a read outside the grants (see WHY at the
+# top), so every node_modules link must stay inside node_modules at the same depth or deeper, and packages/ must
+# hold no link at all.
+depth() { printf '%s' "$1" | tr -cd / | wc -c; }
+if [ -n "$(find "$out/packages" -type l -print -quit)" ]; then
+  echo "assemble-runtime: packages/ holds a symlink; the plugin broker's read grant must not: $(find "$out/packages" -type l | head -5)" >&2
+  exit 1
+fi
+upward="$(find "$out/node_modules" -type l | while read -r link; do
+  target="$(readlink -m "$link")"
+  case "$target" in
+    "$out/node_modules/"*) [ "$(depth "$target")" -ge "$(depth "$link")" ] || echo "$link -> $target" ;;
+    *) echo "$link -> $target" ;;
+  esac
+done)"
+if [ -n "$upward" ]; then
+  echo "assemble-runtime: node_modules holds links that point up or out, past the plugin broker's read grants:" >&2
+  echo "$upward" | head -20 >&2
+  exit 1
+fi
+echo "assemble-runtime: no link in packages/ or node_modules/ points up past the plugin broker's read grants"
 
 # Receipts the build log can be read by.
 echo "assemble-runtime: packages = $(find "$out/packages" -mindepth 1 -maxdepth 1 -exec basename {} \; | sort | tr '\n' ' ')"

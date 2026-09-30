@@ -130,3 +130,11 @@ test("every child-creation API with no explicit env starts a child that holds no
   await worker.terminate();
   expect(keysOf(workerKeys)).toEqual([]);
 });
+
+// The image entrypoint exports each secret it loads from a `*_FILE` into the server env, and the scrub deletes only
+// the keys it names. A secret on one list and not the other either misses its file or reaches every child.
+test("the image entrypoint loads exactly the secrets the server scrubs", () => {
+  const entrypoint = readFileSync(join(REPO_ROOT, "docker", "entrypoint.sh"), "utf8");
+  const loaded = /^for name in ([^;]+); do\n\s+load_secret "\$\{name\}"$/mu.exec(entrypoint)?.[1]?.split(" ");
+  expect(loaded?.toSorted()).toEqual([...APP_SECRET_ENV_KEYS].toSorted());
+});

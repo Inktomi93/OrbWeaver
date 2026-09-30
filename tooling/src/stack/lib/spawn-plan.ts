@@ -1,9 +1,9 @@
 // NO SERVER BUILD STEP, EVER. node 26 runs `.ts` source directly (native type stripping; tsx was shed
-// 2026-08-03). This plan therefore emits `node <repo>/packages/server/src/entry/index.ts` and nothing
+// 2026-08-03). This plan therefore emits `node --disable-sigusr1 <repo>/packages/server/src/entry/index.ts` and nothing
 // else — no loader flag, no emit, no bundle, no dist path for the SERVER. The only build artifact in this
 // repo is @orb/client's `vite build` output. An argv snapshot test pins that.
 import { join } from "node:path";
-import { SERVER_ENTRY_REL } from "../../_shared/server-entry.ts";
+import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "../../_shared/server-entry.ts";
 import type { ProdSpawnPlan, ProdSpawnPlanOpts } from "../contract/types.ts";
 import { stripDebugEnv } from "./debug-env.ts";
 
@@ -28,7 +28,7 @@ export function buildProdSpawnPlan(opts: ProdSpawnPlanOpts): ProdSpawnPlan {
   const inherited = opts.debugOverlay === undefined ? stripDebugEnv(opts.baseEnv) : materialize(opts.baseEnv);
   return {
     command: opts.nodePath,
-    args: [join(opts.repoRoot, SERVER_ENTRY_REL)],
+    args: [...SERVER_NODE_FLAGS, join(opts.repoRoot, SERVER_ENTRY_REL)],
     // NODE_ENV is an ENV NAME (the platform's SCREAMING_SNAKE vocabulary), so it is set by key, not by an
     // object-literal property.
     env: { ...inherited, ...Object.fromEntries([["NODE_ENV", "production"]]), ...(opts.debugOverlay ?? {}) },

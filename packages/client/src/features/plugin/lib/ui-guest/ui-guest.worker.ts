@@ -52,6 +52,14 @@ const WASM_PAGE_BYTES = 65_536;
 let guest: GuestState | null = null;
 let modulePromise: Promise<QuickJSWASMModule> | undefined;
 
+/** The browser refused the guest's fixed memory: a host condition, reported as `unavailable` rather than a crash. */
+class GuestMemoryUnavailableError extends Error {
+  constructor(reason: string, options: ErrorOptions) {
+    super(`the browser could not reserve ${UI_GUEST_BUDGETS.wasmMemoryBytes} bytes for the plugin's interface: ${reason}`, options);
+    this.name = "GuestMemoryUnavailableError";
+  }
+}
+
 // The guest's linear memory is its full size from the start and can never grow. quickjs-emscripten-core reads
 // out-pointers through typed-array views it takes before an engine call that may allocate (`newPromise`,
 // `executePendingJobs`); a growing memory swaps its buffer mid-call, the view detaches, and the host call fails or
@@ -60,7 +68,12 @@ let modulePromise: Promise<QuickJSWASMModule> | undefined;
 // no browser support, and it also caps the guest allocator, which would otherwise grow toward the loader's 2 GiB.
 function fixedGuestMemory(): WebAssembly.Memory {
   const pages = UI_GUEST_BUDGETS.wasmMemoryBytes / WASM_PAGE_BYTES;
-  return new WebAssembly.Memory({ initial: pages, maximum: pages });
+  try {
+    return new WebAssembly.Memory({ initial: pages, maximum: pages });
+  } catch (cause) {
+    // The descriptor is a constant, so a throw here is the browser refusing the reservation, before any guest code.
+    throw new GuestMemoryUnavailableError(cause instanceof Error ? cause.message : String(cause), { cause });
+  }
 }
 
 /** Memoized WASM module load — ONE instantiation per worker, exactly as `module.ts` does per process. */
@@ -191,9 +204,10 @@ globalThis.onmessage = (event: MessageEvent<UiGuestInbound>): void => {
   const message = event.data;
   if (message.kind === "boot") {
     // @orb-waive caught-failure-ownership(boot): the failure message is posted back as a
-    // `ready:false` outbound message — fully propagated, never swallowed. Ends if that post call is removed.
+    // `ready:false` or `unavailable` outbound message — fully propagated, never swallowed. Ends if that post call is removed.
     void boot(message).catch((err: unknown) => {
-      post({ kind: "ready", ok: false, message: err instanceof Error ? err.message : String(err) });
+      const text = err instanceof Error ? err.message : String(err);
+      post(err instanceof GuestMemoryUnavailableError ? { kind: "unavailable", message: text } : { kind: "ready", ok: false, message: text });
     });
     return;
   }

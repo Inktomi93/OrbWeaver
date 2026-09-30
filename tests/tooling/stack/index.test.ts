@@ -8,7 +8,7 @@
 // The launcher is proven by argv/env snapshots + the pure decision logic; the dev supervisor's live cycle
 // runs on a private run dir in index.int.test.ts.
 import { readFileSync } from "node:fs";
-import { SERVER_ENTRY_REL } from "@orb/tooling/_shared/server-entry";
+import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/_shared/server-entry";
 import type { ObservedInstance, ProdRecord } from "../../../tooling/src/stack/index.ts";
 import {
   buildProdSpawnPlan,
@@ -251,13 +251,12 @@ test("the debug posture is read off the gate's STATUS CODE — a 200 is not proo
 
 const BASE_ENV = { PATH: "/usr/bin", HOME: "/home/op", WIRE_CAPTURE: "on", DEBUG_TOKEN: "stale-shell-export" } as const;
 
-test("the prod argv is `node <entry>.ts` and NOTHING else — the no-server-build-step pin", () => {
+test("the prod argv is the server flags plus `<entry>.ts` and NOTHING else — the no-server-build-step pin", () => {
   // node 26 runs the server's TypeScript source directly (tsx was shed). If a future change ever sneaks
   // a transpile/bundle/loader step in for SERVER code, this assertion is what goes red.
   const plan = buildProdSpawnPlan({ repoRoot: "/repo", nodePath: "/usr/bin/node", baseEnv: {}, logPath: "/repo/.cache/stack/prod.log" });
   expect(plan.command).toBe("/usr/bin/node");
-  expect(plan.args).toEqual(["/repo/packages/server/src/entry/index.ts"]);
-  expect(plan.args).toHaveLength(1);
+  expect(plan.args).toEqual([...SERVER_NODE_FLAGS, "/repo/packages/server/src/entry/index.ts"]);
   expect(SERVER_ENTRY_REL.endsWith(".ts")).toBe(true);
   expect(plan.args.join(" ")).not.toContain("dist");
   // cwd-independence: both `.env` loading and CLIENT_DIST_DIR are cwd-relative (the doc's two silent traps).
