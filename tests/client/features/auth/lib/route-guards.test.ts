@@ -114,8 +114,9 @@ test("requireAuthed: a signed-out /?join=<t> stashes t in the tab and carries it
   expect(options["to"]).toBe("/login");
   expect(options["search"]).toBeUndefined();
   expect([...tab.values()]).toEqual(["tok_invite"]);
-  // The `/?join=` history entry is scrubbed before the redirect, so Back never replays the raw token.
-  expect(replaceState).toHaveBeenCalledWith(null, "", "/");
+  // The guard leaves the address bar alone: the router's redirect replaces the `/?join=` entry (proved in
+  // tests/client/routes/router.ct.tsx), and a scrub here would start a second load of `/`.
+  expect(replaceState).not.toHaveBeenCalled();
 });
 
 test("requireAuthed: an authenticated /?join=<t> stashes nothing — the app root reads the URL itself", async () => {
