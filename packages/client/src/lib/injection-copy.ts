@@ -174,17 +174,27 @@ export const STEER_CUE_IMPERSONATE = "Uses your typed text as drafting direction
 // The copy adapts to the CAUSE (the gate is ONE engine-agnostic check); each names the ACTIONABLE unlock,
 // never a bare "unavailable". Full sentences (composed alone, not after an em-dash) with a trailing period.
 
+const CONNECTIONS_TRAIL = "Settings → Connections";
+
 /** Where the user binds a connection to a role: the one spelling of the path, as its settings trail plus the
  *  leaf a door can land on (`openConfigTo("connections", "model-roles")`). */
-export const MODEL_ROLES_PATH = { trail: "Settings → Connections", leaf: "Model roles" } as const;
+export const MODEL_ROLES_PATH = { trail: CONNECTIONS_TRAIL, leaf: "Model roles" } as const;
 
 /** {@link MODEL_ROLES_PATH} as one run of prose. */
 export const MODEL_ROLES_PATH_TEXT = `${MODEL_ROLES_PATH.trail} → ${MODEL_ROLES_PATH.leaf}`;
 
-const SEND_UNAVAILABLE_REASON: Record<UnavailableCause, string> = {
+/** Where the user adds a connection: the Connections list's add verb, spelled as a settings trail plus leaf. */
+export const ADD_CONNECTION_PATH = { trail: CONNECTIONS_TRAIL, leaf: "Add a connection" } as const;
+
+/** A composer refusal reason: a server cause, or `no-chat-connection`, the host-side split of `no-connection`
+ *  for a host with no connection that can serve chat, where the Model roles picker has nothing to offer. */
+export type SendRefusalKey = UnavailableCause | "no-chat-connection";
+
+const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   // No connection is BOUND to your Chat role (§7.2). A saved connection binds nothing on its own, so the copy
   // names the role picker, not only "add one".
   "no-connection": `No chat connection is set — choose one under ${MODEL_ROLES_PATH_TEXT} to send.`,
+  "no-chat-connection": `None of your connections can chat yet — add one under ${ADD_CONNECTION_PATH.trail} to send.`,
   // The bound endpoint row's server did not answer its reachability probe (or a wake timed out).
   "endpoint-unreachable": "Can't reach your model's server — it may be down.",
   // A `claude-sub` row on a deployment where the Claude runtime does not resolve (§5.3a).
@@ -199,8 +209,8 @@ const SEND_UNAVAILABLE_REASON: Record<UnavailableCause, string> = {
   "model-load-failed": "Your connection's built-in model failed to load on this server — send again to retry.",
 };
 
-/** The composer disabled-reason for an unavailable cause — the single home the Send button + the guided fire
- *  actions read, so the copy can't drift between the two surfaces. Exhaustive over `UnavailableCause`. */
-export function sendUnavailableReason(cause: UnavailableCause): string {
-  return SEND_UNAVAILABLE_REASON[cause];
+/** The composer disabled-reason for a refusal key — the single home the Send button + the guided fire
+ *  actions read, so the copy can't drift between the two surfaces. Exhaustive over {@link SendRefusalKey}. */
+export function sendUnavailableReason(key: SendRefusalKey): string {
+  return SEND_UNAVAILABLE_REASON[key];
 }

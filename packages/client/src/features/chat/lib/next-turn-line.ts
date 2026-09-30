@@ -5,7 +5,8 @@
 import type { ResolvedConnectionView, UnavailableCause } from "@orb/contracts/inference";
 import { CONNECTION_LABEL_SEPARATOR } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
-import { labelNamesModel, MODEL_ROLES_PATH } from "#lib";
+import type { SendRefusalKey } from "#lib";
+import { ADD_CONNECTION_PATH, labelNamesModel, MODEL_ROLES_PATH } from "#lib";
 import type { CreditConnections } from "./swipe-attribution.ts";
 import { providerName } from "./swipe-attribution.ts";
 
@@ -54,16 +55,34 @@ const MODEL_ROLES_DOOR: NextTurnDoor = {
   sub: "model-roles",
   setting: "chat-model",
 };
-const ADD_CONNECTION_DOOR: NextTurnDoor = { lead: `${MODEL_ROLES_PATH.trail} →`, label: "Add a connection", sub: "connections", setting: "add-connection" };
+const ADD_CONNECTION_DOOR: NextTurnDoor = {
+  lead: `${ADD_CONNECTION_PATH.trail} →`,
+  label: ADD_CONNECTION_PATH.leaf,
+  sub: "connections",
+  setting: "add-connection",
+};
 
-// The Chat picker in Model roles offers only the host's connections that can serve chat, so a host with none
-// goes to the add flow; built-in embedding rows do not count. While the list loads there is no door: a door
-// that swaps under the pointer is worse than a late one.
-function hostUnsetLine({ rows, failed }: CreditConnections): NextTurnLine {
-  if (rows !== undefined && !rows.some((row) => row.tasks.includes("chat"))) {
+/** Whether the viewer's loaded list holds no connection that can serve chat. The Chat picker in Model roles
+ *  offers only chat-capable rows, so this is where the only fix is adding one; built-in embedding rows do not
+ *  count. False while the list is unloaded, so a pending read never claims the add flow. */
+function lacksChatConnection({ rows }: CreditConnections): boolean {
+  return rows !== undefined && !rows.some((row) => row.tasks.includes("chat"));
+}
+
+/**
+ * The composer's refusal key for a refused send: the host-side `no-chat-connection` split of `no-connection`
+ * on the same predicate the line's door uses, so the tooltips and the line point at the same fix.
+ */
+export function sendRefusalKey(cause: UnavailableCause, viewerIsHost: boolean | undefined, connections: CreditConnections): SendRefusalKey {
+  return nextTurnStatesRefusal(cause) && viewerIsHost === true && lacksChatConnection(connections) ? "no-chat-connection" : cause;
+}
+
+// While the list loads there is no door: a door that swaps under the pointer is worse than a late one.
+function hostUnsetLine(connections: CreditConnections): NextTurnLine {
+  if (lacksChatConnection(connections)) {
     return { state: "unset", text: "Next reply: none of your connections can chat yet.", door: ADD_CONNECTION_DOOR };
   }
-  const door = rows === undefined && !failed ? undefined : MODEL_ROLES_DOOR;
+  const door = connections.rows === undefined && !connections.failed ? undefined : MODEL_ROLES_DOOR;
   return { state: "unset", text: "Next reply: no chat connection is set.", door };
 }
 

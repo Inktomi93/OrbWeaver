@@ -7,7 +7,12 @@ import type { UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import type { NextTurnInputs } from "../../../../../packages/client/src/features/chat/lib/next-turn-line.ts";
-import { nextTurnLine, nextTurnReadsChatRole, nextTurnStatesRefusal } from "../../../../../packages/client/src/features/chat/lib/next-turn-line.ts";
+import {
+  nextTurnLine,
+  nextTurnReadsChatRole,
+  nextTurnStatesRefusal,
+  sendRefusalKey,
+} from "../../../../../packages/client/src/features/chat/lib/next-turn-line.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 
@@ -86,6 +91,17 @@ test("the host's unset door follows their connection list: add flow with none, M
   expect(unset(BASE.connections)).toEqual({ sub: "model-roles", setting: "chat-model" });
   expect(unset({ rows: undefined, failed: false })).toBeUndefined();
   expect(unset({ rows: undefined, failed: true })).toEqual({ sub: "model-roles", setting: "chat-model" });
+});
+
+test("the composer's refusal key splits no-connection on the door's predicate, for the host only", () => {
+  const embedOnly = { id: MINE, label: "Built-in embeddings", providerLabel: "Built-in", tasks: ["embed"] as const };
+  const none = { rows: [embedOnly], failed: false };
+  expect(sendRefusalKey("no-connection", true, none)).toBe("no-chat-connection");
+  expect(sendRefusalKey("no-connection", true, BASE.connections)).toBe("no-connection");
+  expect(sendRefusalKey("no-connection", true, { rows: undefined, failed: false })).toBe("no-connection");
+  // A member's turn runs on the host's connection, so the member's own list says nothing about the fix.
+  expect(sendRefusalKey("no-connection", false, none)).toBe("no-connection");
+  expect(sendRefusalKey("endpoint-unreachable", true, none)).toBe("endpoint-unreachable");
 });
 
 test("an unknown viewer in a no-connection room reads a neutral unset line with no door: it may be a member", () => {
