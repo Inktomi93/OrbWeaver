@@ -1,10 +1,9 @@
 ---
 kind: work
-status: blocked
-updated: 2026-09-23
+status: open
+updated: 2026-09-30
 priority: P2
 area: tooling
-blocked: wake gone docs/plans/doc-migration/design.md
 ---
 
 # Enforce the production comment contract
