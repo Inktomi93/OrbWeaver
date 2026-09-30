@@ -251,6 +251,8 @@ export const gridVariants = tv({
       // and 7.5rem under compact density; `cellShelf` deliberately keeps its separate 8.5rem contract.
       // @orb-waive no-arbitrary-tw-values(grid-cols-[repeat): this layout recipe owns the documented grid-track composition; ends when a token expresses these tracks.
       cellFixed: "grid-cols-[repeat(auto-fill,var(--orb-grid-cell-fixed))]",
+      // `cellFixed`'s swipe twin: the same fixed cells in one row that scrolls and snaps sideways, for a touch shelf.
+      cellSwipe: "auto-cols-(--orb-grid-cell-fixed) grid-flow-col snap-x snap-mandatory overflow-x-auto overscroll-x-contain",
       // `cellFixed`'s PHONE ARM (added 2026-08-30, #864 — the Characters landing shelves). Identical at
       // every pane width the desktop shape reaches; it differs only BELOW `@md`, where the fixed 8.5rem
       // track stops being the right answer. Measured against the approved 430px artboard: a 430px CONTENT

@@ -14,6 +14,7 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Users } from "@orb/ui/icons";
 import { Grid, Stack } from "@orb/ui/layout";
+import { coarsePointerNow } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -22,7 +23,7 @@ import { useStartChat, useTRPC } from "#data";
 import { setActiveSection } from "#state";
 
 /** The most faces this shelf reads; it shows as many of them as fit one row beside the door. */
-const QUICK_PICKS_LIMIT = 6;
+export const QUICK_PICKS_LIMIT = 6;
 const TRACK_SEPARATOR = /\s+/u;
 
 export function HomeQuickPicksTileBody(): ReactElement {
@@ -53,13 +54,18 @@ export function HomeQuickPicksTileBody(): ReactElement {
   // how many fixed cells fit its width; the door takes one, the faces take the rest, so the tile is one row
   // tall at every width and a wider track buys more faces. Read in a layout effect, so the first paint is right.
   const shelfRef = useRef<HTMLDivElement>(null);
-  const [tracks, setTracks] = useState<number | null>(null);
+  const [layout, setLayout] = useState<{ readonly tracks: number; readonly swipe: boolean } | null>(null);
   useLayoutEffect(() => {
     const shelf = shelfRef.current;
     if (!hasFaces || shelf === null) {
       return;
     }
-    const read = (): void => setTracks(getComputedStyle(shelf).gridTemplateColumns.trim().split(TRACK_SEPARATOR).length);
+    const count = (el: Element): number => getComputedStyle(el).gridTemplateColumns.trim().split(TRACK_SEPARATOR).length;
+    // Owner ruling on 0254: a touch pointer below Home's two-column step gets a swipe row of every face instead.
+    const read = (): void => {
+      const home = shelf.closest("[data-home-grid]");
+      setLayout({ tracks: count(shelf), swipe: coarsePointerNow() && (home === null || count(home) === 1) });
+    };
     read();
     const observer = new ResizeObserver(read);
     observer.observe(shelf);
@@ -69,7 +75,9 @@ export function HomeQuickPicksTileBody(): ReactElement {
     }
     return (): void => observer.disconnect();
   }, [hasFaces]);
-  const shown = tracks === null ? quickPicks : quickPicks.slice(0, Math.max(tracks - 1, 1));
+  // Before the track count is read, one face and the door: one row at any width, so no pass is ever two rows tall.
+  const swipe = layout?.swipe === true;
+  const shown = swipe ? quickPicks : quickPicks.slice(0, layout === null ? 1 : Math.max(layout.tracks - 1, 1));
 
   if (!hasFaces) {
     return (
@@ -95,7 +103,7 @@ export function HomeQuickPicksTileBody(): ReactElement {
     // whole point of a shelf.
     //
     // `role="list"` needs `listitem` CHILDREN or the cells are generic to AT and the list announces empty.
-    <Grid cols="cellFixed" gap="row" ref={shelfRef}>
+    <Grid cols={swipe ? "cellSwipe" : "cellFixed"} gap="row" ref={shelfRef}>
       {/* `contents`: the faces are the list and the door is not one of them, yet all share the one row. */}
       <Stack aria-label="Character quick-picks" className="contents" role="list">
         {shown.map((character) => {
@@ -122,7 +130,7 @@ export function HomeQuickPicksTileBody(): ReactElement {
             // `role="listitem"` rides a layout-primitive WRAPPER, never the Button: an interactive element
             // assigned a non-interactive role is a lie to AT (and eslint's own
             // `no-interactive-element-to-noninteractive-role`). Same shape the recents list uses.
-            <Stack key={character.id} role="listitem">
+            <Stack className="snap-start" key={character.id} role="listitem">
               <Button
                 // THE NAME IS THE CHARACTER, THE PITCH IS THE DESCRIPTION (side-eye rail sweep P2-8/P3-19).
                 // The cell's name came from its own text content, so AT read the name and the caption as ONE
@@ -195,7 +203,12 @@ export function HomeQuickPicksTileBody(): ReactElement {
           );
         })}
       </Stack>
-      <Button className="flex-col items-center justify-center gap-tight" intent="ghost" onClick={(): void => setActiveSection("characters")} size="media">
+      <Button
+        className="snap-start flex-col items-center justify-center gap-tight"
+        intent="ghost"
+        onClick={(): void => setActiveSection("characters")}
+        size="media"
+      >
         <Icon icon={Users} size="lg" />
         <Text as="span" className="text-foreground" voice="promoted">
           All characters

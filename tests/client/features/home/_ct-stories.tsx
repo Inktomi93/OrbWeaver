@@ -402,9 +402,29 @@ export function HomeFoldStory(): ReactElement {
   );
 }
 
+/** The shipped home at `inlineSize`, rebooted in place by the `reboot` button: a fresh data layer over the same
+ *  device memory, which is what a return visit is. The device already knows Start with's column, as a return visit's does. */
+export function HomeRebootStory({ inlineSize }: { readonly inlineSize: number }): ReactElement {
+  const [boot, setBoot] = useState(0);
+  return (
+    <>
+      <button type="button" onClick={(): void => setBoot((count) => count + 1)}>
+        reboot
+      </button>
+      <HomeRememberedStarterStory inlineSize={inlineSize} key={boot} region="shelf" />
+    </>
+  );
+}
+
 /** The shipped home at `inlineSize` on a device that last saw "Start with" settle in `region`, or on a device with no
  *  memory of it when `region` is null. The seed runs before the first child renders, as the store rehydrates first. */
-export function HomeRememberedStarterStory({ region, inlineSize }: { readonly region: HomeTileRegion | null; readonly inlineSize: number }): ReactElement {
+export function HomeRememberedStarterStory({
+  region,
+  inlineSize = HOME_CONTENT_PX,
+}: {
+  readonly region: HomeTileRegion | null;
+  readonly inlineSize?: number;
+}): ReactElement {
   useState(() => (region === null ? undefined : rememberHomeRegion(chatQuickPicksTile.id, region)));
   return <HomeShippedFirstBootStory inlineSize={inlineSize} />;
 }

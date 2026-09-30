@@ -11,9 +11,11 @@
 // The gloss renders the user's OWN TTL, read cache-first from settings — never a hardcoded "24h", which
 // would lie the moment they change it.
 
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -94,21 +96,32 @@ export function HomeTempChatTileBody(): ReactElement {
     return (): void => clearTimeout(timerId);
   }, [reapExpiredTempChats]);
 
+  return <TempChatContent placeholder={false} ttlHours={ttlHours} />;
+}
+
+/** The body, real or as its loading box. The loading box sets the default copy invisibly in the real voices under one
+ *  skeleton block, so it wraps exactly as the settled body does at this width (the masthead's precedent). */
+function TempChatContent({ ttlHours, placeholder }: { readonly ttlHours: number; readonly placeholder: boolean }): ReactElement {
   return (
-    <Stack gap="row">
-      <Row>
-        {/* SECONDARY, not primary (CD3 re-ruled 2026-08-16, owner pick on #102). This button used to be
-            home's ONE accent element. The focal moved to the resume-room hero — the complaint under
-            review was that the live rooms were not the loudest thing on the page, and a page whose only
-            accent made a room that deletes itself in a day was exactly that complaint.
-            …AND `sm`, which is what the shelf's OTHER peer-rank CTA already was (side-eye rail sweep
-            P3-16): this rendered 169×34 beside databank's 171×32 text-link, two registers for two controls
-            of identical rank in one column. Both are `secondary`/`sm` now. */}
-        <Button intent="secondary" onClick={startTempChat} size="sm">
-          <Icon icon={Plus} size="sm" />
-          Start a temp chat
-        </Button>
-      </Row>
+    <Stack gap="row" {...(placeholder ? { "aria-busy": true, className: "relative" } : {})}>
+      {/* The loading box keeps the button's row height without a second copy of its name. */}
+      {placeholder ? (
+        <Row className="h-control-sm" />
+      ) : (
+        <Row>
+          {/* SECONDARY, not primary (CD3 re-ruled 2026-08-16, owner pick on #102). This button used to be
+              home's ONE accent element. The focal moved to the resume-room hero — the complaint under
+              review was that the live rooms were not the loudest thing on the page, and a page whose only
+              accent made a room that deletes itself in a day was exactly that complaint.
+              …AND `sm`, which is what the shelf's OTHER peer-rank CTA already was (side-eye rail sweep
+              P3-16): this rendered 169×34 beside databank's 171×32 text-link, two registers for two controls
+              of identical rank in one column. Both are `secondary`/`sm` now. */}
+          <Button intent="secondary" onClick={startTempChat} size="sm">
+            <Icon icon={Plus} size="sm" />
+            Start a temp chat
+          </Button>
+        </Row>
+      )}
       {/* ONE gloss, in the user's own terms. The teaching line about the creation-only flag used to ride a
           sample `Badge` beside it — a picture OF a badge, which is not a state and cannot be acted on; the
           real badge shows on the room itself the moment the picker starts it. */}
@@ -126,13 +139,24 @@ export function HomeTempChatTileBody(): ReactElement {
           so at 1920 the capped line still read 117 of the characters the law counts. The measure was SPLIT
           rather than narrowed: transcripts keep `--reading-measure`, teaching prose like this takes
           `--reading-measure-prose` (47ch = 73.3 law-characters here, the densest copy in the app). */}
-      <Text className="max-w-(--reading-measure-prose)" size="label" tone="muted">
+      <Text
+        className={placeholder ? "invisible max-w-(--reading-measure-prose)" : "max-w-(--reading-measure-prose)"}
+        size="label"
+        tone="muted"
+        {...(placeholder ? { "aria-hidden": true } : {})}
+      >
         A room that never joins your chats list, deleted after{" "}
         <Text as="span" size="code">
           {ttlHours}h
         </Text>
         . Marked Temporary from the moment it opens, and you can't switch a room over later. Turns, canon and the tracker all work normally while it lives.
       </Text>
+      {placeholder ? <Skeleton className="absolute inset-0" /> : null}
     </Stack>
   );
+}
+
+/** Temp chat's loading box: the settled body's own anatomy at the default time-to-live. */
+export function HomeTempChatSkeleton(): ReactElement {
+  return <TempChatContent placeholder={true} ttlHours={DEFAULT_USER_SETTINGS.chat.tempChatTtlHours} />;
 }

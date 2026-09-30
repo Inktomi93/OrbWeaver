@@ -39,6 +39,11 @@ const RECENTS_TILE_ORDER = 10;
  *  line; do not re-derive it by counting DOM nodes (a skeleton ROW is a bar plus its gap, not a text line). */
 const RECENTS_SKELETON_ROWS = 3;
 
+/** The first-room empty state's settled body block, reserved on a device with no memory: that device's first boot for
+ *  an account is most often a new account's, which has no room yet (the masthead's reasoning). A house with rooms
+ *  shrinks to its hero once, then its measured box wins. Re-measure with the first-boot CT if the empty state changes. */
+const RECENTS_EMPTY_BLOCK_PX = 193;
+
 const RESUME_TITLE = "Pick up where you left off";
 const FIRST_RUN_TITLE = "Your first room";
 
@@ -59,6 +64,7 @@ export const chatRecentsTile: HomeTileContribution = {
   icon: MessagesSquare,
   order: RECENTS_TILE_ORDER,
   region: "hearth",
+  skeletonBlock: RECENTS_EMPTY_BLOCK_PX,
   skeletonRows: RECENTS_SKELETON_ROWS,
   body: () => <HomeRecentsTileBody />,
 };

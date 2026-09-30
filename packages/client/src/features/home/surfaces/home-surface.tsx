@@ -84,6 +84,7 @@ import { useFocusOnMount } from "#lib";
 import type { DormantDoorway, HomeTileContribution } from "#state";
 import { HomeDoorway, HomeTile } from "../components/home-tile.tsx";
 import { orderHomeTiles } from "../lib/order-home-tiles.ts";
+import { useBalancedFoot } from "../lib/use-balanced-foot.ts";
 
 export interface HomeSurfaceProps {
   readonly tiles: ContributorRegistry<HomeTileContribution>;
@@ -125,6 +126,10 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
   // block-axis twin is `.scroll-fade-y` (@orb/ui styles/globals.css) and this is its driver. It is
   // SCROLL-AWARE by construction, so a home that fits its pane paints no fade at all.
   useScrollFadeY(surfaceRef);
+  const hearthRef = useRef<HTMLDivElement>(null);
+  const shelfRef = useRef<HTMLDivElement>(null);
+  const footRef = useRef<HTMLDivElement>(null);
+  useBalancedFoot(hearthRef, shelfRef, footRef);
   const list = orderHomeTiles(tiles.list());
   const doorways = list.flatMap(asDoorway);
   const live = list.filter(isLive);
@@ -136,9 +141,8 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
   const shelf = live.filter((tile) => (tile.region !== "masthead" && tile.region !== "hearth") || tile.useRegion !== undefined);
   // The rail's FOOT — the last shelf tile, which pairs with the doorway group at a wide pane (see the
   // subgrid below). `slice(-1)` rather than `at(-1)` so the empty-shelf arm needs no null branch in JSX.
-  // The tile before it joins the foot too. While the shelf carries a tile that moves between columns, the
-  // shelf is the long column, so the foot pairs that side tile and the doorway group beside the last tile.
-  // Otherwise the side tile spans the foot and the pair is the last tile and the doorway group.
+  // The tile before it joins the foot too. `useBalancedFoot` stacks the side tile above the pair of the last tile and
+  // the doorway group, or pairs the last tile beside the other two, whichever ends the columns closer.
   const shelfFoot = doorways.length === 0 ? [] : shelf.slice(-1);
   const shelfFootSide = doorways.length === 0 ? [] : shelf.slice(-2, -1);
   const shelfLead = doorways.length === 0 ? shelf : shelf.slice(0, -2);
@@ -188,12 +192,12 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                     measured). The shelf paid for it: its face grid dropped from three fixed cells to two and
                     the page grew 1374px against 1177px. The declared ratio only means anything on tracks that
                     are allowed to shrink below their content. */}
-                <Stack className="min-w-0" gap="section">
+                <Stack className="min-w-0" gap="section" ref={hearthRef}>
                   {hearth.map((tile) => (
                     <HomeTile column="hearth" key={tile.id} tile={tile} />
                   ))}
                 </Stack>
-                <Stack className="group/shelf min-w-0" data-home-shelf={true} gap="section">
+                <Stack className="group/shelf min-w-0 has-[[data-home-held]]:invisible" data-home-shelf={true} gap="section" ref={shelfRef}>
                   {shelfLead.map((tile) => (
                     <HomeTile column="shelf" key={tile.id} tile={tile} />
                   ))}
@@ -208,16 +212,14 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                       of the shelf" is the only thing it can say, and it is the same presentation license it
                       already exercises by grouping every doorway under one band. With no doorways to pair
                       against there is nothing to pair and the tail renders in flow. */}
-                  {/* Dense flow puts the side tile and the doorway group in one track beside a last tile that
-                      spans two rows, and keeps DOM order in one column. */}
-                  <Grid className="grid-flow-row-dense items-start" cols="pairWide" data-home-shelf-foot={true} gap="gutter">
+                  <Grid className="grid-flow-row-dense items-start" cols="pairWide" data-home-shelf-foot={true} gap="gutter" ref={footRef}>
                     {shelfFootSide.map((tile) => (
-                      <Stack className="col-span-full min-w-0 group-has-[[data-home-moves]]/shelf:col-auto" key={tile.id}>
+                      <Stack className="col-span-full min-w-0 group-data-[foot=paired]/shelf:col-auto" key={tile.id}>
                         <HomeTile column="shelf" tile={tile} />
                       </Stack>
                     ))}
                     {shelfFoot.map((tile) => (
-                      <Stack className="min-w-0 group-has-[[data-home-moves]]/shelf:row-span-2" key={tile.id}>
+                      <Stack className="min-w-0 group-data-[foot=paired]/shelf:row-span-2" key={tile.id}>
                         <HomeTile column="shelf" tile={tile} />
                       </Stack>
                     ))}

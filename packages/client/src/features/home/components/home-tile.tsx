@@ -193,8 +193,18 @@ function TileContent({ tile, title }: { readonly tile: HomeTileContribution; rea
 export function HomeTile({ tile, column }: { readonly tile: HomeTileContribution; readonly column: HomeTileRegion }): ReactNode {
   const visible = tile.useVisible?.() ?? true;
   const title = tile.useTitle?.() ?? tile.title;
-  const region = tile.useRegion?.() ?? tile.region ?? "shelf";
+  // A live region of `null` holds the tile out of every column; only an absent hook falls back to the static one.
+  const liveRegion = tile.useRegion?.();
+  let region: HomeTileRegion | null = tile.region ?? "shelf";
+  if (liveRegion !== undefined) {
+    region = liveRegion;
+  }
   const headingId = useId();
+  // The held tile marks the shelf, which stays invisible until the tile is placed: it lands at the top of the shelf
+  // on a house with rooms, so every shelf block painted before it would move down by its whole box.
+  if (visible && region === null && column === "shelf") {
+    return <div data-home-held={true} hidden={true} />;
+  }
   if (!visible || region !== column) {
     return null;
   }
@@ -214,8 +224,7 @@ export function HomeTile({ tile, column }: { readonly tile: HomeTileContribution
     );
   }
   return (
-    // `data-home-moves` marks a tile that changes columns; the shelf's foot reads it to choose its layout.
-    <Stack aria-labelledby={headingId} data-home-moves={tile.useRegion === undefined ? undefined : true} data-home-tile={tile.id} gap="row" role="region">
+    <Stack aria-labelledby={headingId} data-home-tile={tile.id} gap="row" role="region">
       <TileBand headingId={headingId} title={title} trailing={tile.action} />
       <TileContent tile={tile} title={title} />
     </Stack>

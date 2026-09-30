@@ -13,6 +13,7 @@ import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import type { ReactElement } from "react";
 import { pixelExtremaContrast } from "../../../../support/browser/pixel-contrast.ts";
 import { trpcHold } from "../../../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
@@ -28,6 +29,7 @@ import {
   HomeDormantTileStory,
   HomeEmptyStory,
   HomeFoldStory,
+  HomeRebootStory,
   HomeRegionStory,
   HomeRememberedAlsoOpenStory,
   HomeRememberedStarterStory,
@@ -832,7 +834,8 @@ test("#177 a tile whose settled box is a CONSTANT reserves it exactly — no res
     "settings.getUserSettings": settings,
   });
 
-  const home = await mount(<HomeShippedFirstBootStory />);
+  // Start with reserves its box only where the device remembers its column; with no memory it is held out entirely.
+  const home = await mount(<HomeRememberedStarterStory region="shelf" />);
   await Promise.all([chats.requested, characters.requested, settings.requested, documents.requested, health.requested]);
   const grid = home.locator("[data-home-grid]");
   await expect(grid.locator("[aria-busy]").first()).toBeVisible();
@@ -1110,8 +1113,11 @@ interface FoldCell {
 
 function measureFoldReach(page: Page, width: number): Promise<FoldCell> {
   return page.evaluate(
-    ({ names, pane }) => {
+    async ({ names, pane }) => {
       (document.querySelector("[data-home-fold-pane]") as HTMLElement | null)?.style.setProperty("inline-size", `${String(pane)}px`);
+      // Start with sizes its row from a ResizeObserver, which delivers after the next layout. Two frames let the
+      // new pane width settle before anything is measured.
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const scroller = document.querySelector(".scroll-fade-y");
       const fold = scroller === null ? Number.NaN : scroller.getBoundingClientRect().top + scroller.clientHeight;
       const blocks = (column: Element | null): string =>
@@ -1896,34 +1902,42 @@ async function starterPlacement(page: Page, mark: boolean): Promise<StarterPlace
 
 interface LayoutShiftSourceLike {
   readonly node?: Node | null;
-  readonly previousRect: DOMRectReadOnly;
-  readonly currentRect: DOMRectReadOnly;
 }
 
-/** The largest vertical slide of the hearth's section rail in any layout shift since `since` (a
- *  `performance.now()` stamp), read from the buffered entries. A column move of "Start with" slides it by that tile. */
-async function railSlideSince(page: Page, since: number): Promise<number> {
+/** The buffered layout shifts since `since` (a `performance.now()` stamp): their summed score (the CLS arithmetic, input
+ *  excluded) and the tile ids whose boxes moved. */
+async function shiftsSince(page: Page, since: number): Promise<{ readonly score: number; readonly movers: readonly string[] }> {
   return await page.evaluate(
     (t0) =>
-      new Promise<number>((resolve) => {
-        let slide = 0;
+      new Promise<{ score: number; movers: string[] }>((resolve) => {
+        let score = 0;
+        const movers = new Set<string>();
         const observer = new PerformanceObserver((list) => {
-          const sources = (list.getEntries() as (PerformanceEntry & { sources?: LayoutShiftSourceLike[] })[])
-            .filter((entry) => entry.startTime >= t0)
-            .flatMap((entry) => entry.sources ?? [])
-            .filter((source) => source.node instanceof Element && source.node.closest('[data-home-tile="home.jump"]') !== null);
-          slide = Math.max(slide, ...sources.map((source) => Math.abs(source.currentRect.y - source.previousRect.y)));
+          const entries = (list.getEntries() as (PerformanceEntry & { value: number; hadRecentInput: boolean; sources?: LayoutShiftSourceLike[] })[]).filter(
+            (entry) => entry.startTime >= t0 && !entry.hadRecentInput,
+          );
+          score += entries.reduce((sum, entry) => sum + entry.value, 0);
+          for (const node of entries.flatMap((entry) => entry.sources ?? []).map((source) => source.node)) {
+            const tile = node instanceof Element ? node.closest("[data-home-tile]") : null;
+            movers.add(tile?.getAttribute("data-home-tile") ?? "other");
+          }
         });
         observer.observe({ type: "layout-shift", buffered: true });
         requestAnimationFrame(() =>
           requestAnimationFrame(() => {
             observer.disconnect();
-            resolve(slide);
+            resolve({ score, movers: [...movers] });
           }),
         );
       }),
     since,
   );
+}
+
+/** The page's own clock. A layout-shift entry's startTime is on it, so a cut-off must be read from it too. */
+async function pageNow(page: Page): Promise<number> {
+  // @orb-waive test-determinism(performance.now): the subject is the browser's own layout-shift timeline.
+  return await page.evaluate(() => performance.now());
 }
 
 async function stubStarterBoot(page: Page, chats: ReturnType<typeof trpcHold>): Promise<void> {
@@ -1939,26 +1953,24 @@ async function stubStarterBoot(page: Page, chats: ReturnType<typeof trpcHold>): 
   });
 }
 
-test("a new account's first boot paints Start with in the hearth and never moves it", async ({ mount, page }) => {
+test("a device with no memory holds Start with out of both columns until the room list settles, then places it once", async ({ mount, page }) => {
   const chats = trpcHold();
   await stubStarterBoot(page, chats);
   const home = await mount(<HomeRememberedStarterStory inlineSize={TWO_COLUMN_PANE_PX} region={null} />);
   await chats.requested;
-  // The tile frame paints before its own read; its column is the claim, so the band is the barrier.
-  await expect(home.locator('[data-home-tile="chat.quickPicks"]')).toBeVisible();
-  const held = await starterPlacement(page, true);
-  // A layout-shift entry's startTime is on this clock, so the cut-off must be read from it, not from a frozen one.
-  // @orb-waive test-determinism(performance.now): the subject is the browser's own layout-shift timeline.
-  const since = await page.evaluate(() => performance.now());
+  await expect(home.locator('[data-home-tile="chat.recents"] [aria-busy]')).toBeVisible();
+  const held = await starterPlacement(page, false);
+  // The shelf paints nothing while held: on a house with rooms the tile lands at its top and would push it down.
+  await expect(home.locator("[data-home-shelf]")).toBeHidden();
 
   chats.release(chatListResponder([])({ limit: RECENTS_LIMIT }));
+  await expect(home.locator('[data-home-tile="chat.quickPicks"]')).toBeVisible();
+  await expect(home.locator("[data-home-shelf]")).toBeVisible();
+  const placed = await starterPlacement(page, true);
   await expect(home.locator("[aria-busy]")).toHaveCount(0);
   const settled = await starterPlacement(page, false);
 
-  expect({ held: held.column, settled }).toEqual({ held: "hearth", settled: { column: "hearth", sameNode: true } });
-  const starterBox = (await home.locator('[data-home-tile="chat.quickPicks"]').boundingBox())?.height ?? 0;
-  expect(starterBox, "Start with has a box, so the slide bound is not vacuous").toBeGreaterThan(0);
-  expect(await railSlideSince(page, since), "the section rail slid by a Start with box").toBeLessThan(starterBox);
+  expect({ held: held.column, placed: placed.column, settled }).toEqual({ held: "absent", placed: "hearth", settled: { column: "hearth", sameNode: true } });
 });
 
 test("a device that last saw Start with on the shelf paints it there, and a house with rooms keeps it there", async ({ mount, page }) => {
@@ -1975,4 +1987,142 @@ test("a device that last saw Start with on the shelf paints it there, and a hous
   const settled = await starterPlacement(page, false);
 
   expect({ held: held.column, settled }).toEqual({ held: "shelf", settled: { column: "shelf", sameNode: true } });
+});
+
+// ── First-boot and return-visit shift budgets ─────────────────────────────────────────────────────────────
+// CLS is the sum of the buffered layout-shift scores after the held reads release, at a laptop viewport. The
+// budget is the web-vitals `good` bound.
+const CLS_BUDGET = 0.1;
+const LAPTOP_WIDTHS = [1440, 1536] as const;
+const LAPTOP_VIEWPORT_HEIGHT = 900;
+
+async function firstBootShift(
+  page: Page,
+  mount: (component: ReactElement) => Promise<Locator>,
+  width: number,
+  rooms: Parameters<typeof chatListResponder>[0],
+): Promise<{ readonly score: number; readonly movers: readonly string[] }> {
+  await page.setViewportSize({ width, height: LAPTOP_VIEWPORT_HEIGHT });
+  const chats = trpcHold();
+  const characters = trpcHold();
+  await stubDatabank(
+    page,
+    {
+      ...HOME_ROUTES,
+      "chat.listChats": chats,
+      "chat.reapTemporaryChats": { reaped: 0 },
+      "character.list": characters,
+      "rosterPreset.list": [...SEEDED_ROSTERS],
+      "automation.listRulePresets": [],
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
+    },
+    [],
+  );
+  const home = await mount(<HomeShippedFirstBootStory inlineSize={width - FOLD_RAIL_PX} />);
+  await Promise.all([chats.requested, characters.requested]);
+  await expect(home.locator("[aria-busy]").first()).toBeVisible();
+  const since = await pageNow(page);
+  chats.release(chatListResponder(rooms)({ limit: RECENTS_LIMIT }));
+  characters.release(characterListResponder(FIRST_BOOT_FACES)({ limit: QUICK_PICKS_FACES }));
+  await expect(home.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+  return await shiftsSince(page, since);
+}
+
+for (const width of LAPTOP_WIDTHS) {
+  test(`a house with rooms on a device with no memory boots under the CLS budget at ${String(width)}`, async ({ mount, page }) => {
+    const shift = await firstBootShift(page, mount, width, FIRST_BOOT_ROOMS);
+    test.info().annotations.push({ description: JSON.stringify(shift), type: "first-boot-shift" });
+    expect(shift.score, JSON.stringify(shift)).toBeLessThan(CLS_BUDGET);
+  });
+
+  test(`a new account's first boot stays under the CLS budget at ${String(width)}`, async ({ mount, page }) => {
+    const shift = await firstBootShift(page, mount, width, []);
+    test.info().annotations.push({ description: JSON.stringify(shift), type: "first-boot-shift" });
+    expect(shift.score, JSON.stringify(shift)).toBeLessThan(CLS_BUDGET);
+  });
+}
+
+// The box memory records each tile's SETTLED height, so a return visit reserves exactly what it settles into. Start
+// with settles in two passes (a first render, then its one-row trim), which a passive-effect read measured too early.
+test("a return visit shifts nothing: every tile reserves the height it settled at last time", async ({ mount, page }) => {
+  await page.setViewportSize({ width: LAPTOP_WIDTHS[0], height: LAPTOP_VIEWPORT_HEIGHT });
+  await stubDatabank(
+    page,
+    {
+      ...HOME_ROUTES,
+      "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
+      "chat.reapTemporaryChats": { reaped: 0 },
+      "character.list": characterListResponder(FIRST_BOOT_FACES),
+      "rosterPreset.list": [...SEEDED_ROSTERS],
+      "automation.listRulePresets": [],
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
+    },
+    [],
+  );
+  const home = await mount(<HomeRebootStory inlineSize={LAPTOP_WIDTHS[0] - FOLD_RAIL_PX} />);
+  const starter = home.locator('[data-home-tile="chat.quickPicks"]');
+  await expect(starter.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+  // The stored box is the settled one-row body, not a first pass.
+  const body = starter.locator('[aria-label="Character quick-picks"]').locator("xpath=../..");
+  const settledBody = (await body.boundingBox())?.height ?? 0;
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const key = Object.keys(localStorage).find((name) => name.includes("surface-box"));
+          const blob = key === undefined ? "{}" : (localStorage.getItem(key) ?? "{}");
+          return (JSON.parse(blob) as { state?: { boxes?: Record<string, number> } }).state?.boxes?.["chat.quickPicks"] ?? 0;
+        }),
+    )
+    .toBeCloseTo(settledBody, 0);
+
+  const since = await pageNow(page);
+  await home.getByRole("button", { name: "reboot" }).click();
+  await expect(starter.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+  const shift = await shiftsSince(page, since);
+  expect(
+    shift.movers.filter((mover) => mover !== "other"),
+    JSON.stringify(shift),
+  ).toEqual([]);
+});
+
+// Owner ruling on 0254: below the two-column step, on a touch pointer, Start with is a swipe row of every face with the
+// door last. A fine pointer keeps the one row that fits.
+test.describe("Start with on a phone", () => {
+  test.use({ hasTouch: true, viewport: { width: 360, height: 800 } });
+
+  test("is one swipe row of every face, snapping, with the door last", async ({ mount, page }) => {
+    await stubDatabank(
+      page,
+      {
+        ...HOME_ROUTES,
+        "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
+        "chat.reapTemporaryChats": { reaped: 0 },
+        "character.list": characterListResponder(FIRST_BOOT_FACES),
+        "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, configUnreadable: null, schemaVersion: 1, updatedAt: 0, userId: newId<UserId>() },
+      },
+      [],
+    );
+    const home = await mount(<HomeShippedFirstBootStory inlineSize={360} />);
+    const list = home.getByRole("list", { name: "Character quick-picks" });
+    await expect(list.getByRole("listitem")).toHaveCount(QUICK_PICKS_FACES);
+    const readRow = async (): Promise<{ rows: number; scrolls: boolean; snap: string; doorLast: boolean }> =>
+      await list.evaluate((el) => {
+        const shelf = el.parentElement;
+        const cells = [...(shelf?.querySelectorAll('[role="listitem"], :scope > button') ?? [])];
+        const last = shelf?.lastElementChild;
+        return {
+          rows: new Set(cells.map((cell) => Math.round(cell.getBoundingClientRect().top))).size,
+          scrolls: shelf !== null && shelf !== undefined && shelf.scrollWidth > shelf.clientWidth,
+          snap: shelf === null || shelf === undefined ? "" : getComputedStyle(shelf).scrollSnapType,
+          doorLast: last?.textContent?.trim() === "All characters",
+        };
+      });
+    // The row is sized from a ResizeObserver, so it is read until it settles.
+    await expect.poll(readRow).toEqual({ rows: 1, scrolls: true, snap: "x mandatory", doorLast: true });
+    await expect(home.getByRole("button", { name: "All characters" })).toBeVisible();
+  });
 });

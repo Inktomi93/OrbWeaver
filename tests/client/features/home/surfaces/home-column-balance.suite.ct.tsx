@@ -13,11 +13,15 @@ import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary } from "../../chat
 import { READY_DOC, stubDatabank } from "../../databank/fixtures.ts";
 import { HomeBalanceStory } from "../_ct-stories.tsx";
 
+const ROOM_PREVIEW =
+  "She's standing in front of the chilled coffee case at 1 a.m., cat-ears headband slightly crooked, holding two cans like the decision matters more than it does.";
 /** A full house: each tile's own read limit, the tallest page the shipped registry can render. */
 const ROOMS = Array.from({ length: 8 }, (_unused, index) =>
   makeChatSummary({
     id: `chat_balance_${String(index)}`,
     lastMessageAt: 1_750_000_000_000 - index,
+    // A real opening line: the hero clamps it to two lines, which is the height a lived-in hearth has.
+    lastMessagePreview: ROOM_PREVIEW,
     participantNames: ["Wren"],
     title: `Room ${String(index)}`,
     updatedAt: 1_750_000_000_000 - index,
@@ -248,6 +252,22 @@ test("a full house is two level columns wherever the shelf can reflow, and one c
 
   const cells = await measureMatrix(page);
   printMatrix("home column balance — full house, seeded roster library", cells);
+  const failures = balanceFailures(cells);
+  expect(failures, failures.join("\n")).toEqual([]);
+});
+
+// A house with rooms and an empty bank: the shape a new account takes once it starts chatting.
+test("a house with rooms and no documents is two level columns wherever the shelf can reflow", async ({ mount, page }) => {
+  await routeHouse(page, { rooms: ROOMS, bank: EMPTY_BANK, health: EMPTY_HEALTH });
+  const home = await mount(<HomeBalanceStory />);
+  const grid = home.locator("[data-home-grid]");
+  await expect(grid.locator('[data-home-hearth="chat_balance_0"]')).toBeVisible();
+  await expect(grid.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(grid.locator('[data-home-tile="databank.documents"]')).toBeVisible();
+  await expect(grid.locator("[aria-busy]")).toHaveCount(0);
+
+  const cells = await measureMatrix(page);
+  printMatrix("home column balance — house with rooms and no documents, seeded roster library", cells);
   const failures = balanceFailures(cells);
   expect(failures, failures.join("\n")).toEqual([]);
 });

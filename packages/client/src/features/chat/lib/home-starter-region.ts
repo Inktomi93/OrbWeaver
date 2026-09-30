@@ -1,8 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { usePrefetchQuery, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useTRPC } from "#data";
 import type { HomeTileRegion } from "#state";
 import { rememberHomeRegion, useRememberedHomeRegion } from "#state";
+import { QUICK_PICKS_LIMIT } from "../components/home-quick-picks-tile-body.tsx";
 import { RECENTS_LIMIT } from "../components/home-recents-tile-body.tsx";
 
 /** The quick-picks tile id, which is also its key in the device's region memory. */
@@ -15,16 +16,15 @@ function regionFor(roomCount: number): HomeTileRegion {
 /**
  * Where "Start with" lands: the hearth while the house has no room, else the shelf.
  *
- * @remarks With no room to resume, the hearth holds only the first-room greeting and the section rail and ends hundreds
- * of pixels above the shelf. "Start with" is that house's first step and the one move that levels the columns: moving
- * the rosters and temp chat tiles as well tips the void to the shelf side (`home-column-balance.suite.ct.tsx`).
- * Until the room list settles, the tile stands where it last settled on this device, so it never moves after first
- * paint. A device with no memory for this account is most often that account's first boot, which has no room, so it
- * starts in the hearth.
+ * @remarks With no room to resume, the hearth holds only the first-room greeting and the section rail. Until the room
+ * list settles, the tile stands where it last settled on this device; a device with no memory holds it out of both
+ * columns (`null`) rather than guess, because a wrong guess moves it across columns once the list lands.
  */
-export function useStarterRegion(): HomeTileRegion {
+export function useStarterRegion(): HomeTileRegion | null {
   const trpc = useTRPC();
   const page = useQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT })).data;
+  // While the tile is held its body is unmounted, so its faces read would wait behind the room list. Start it here.
+  usePrefetchQuery(trpc.character.list.queryOptions({ limit: QUICK_PICKS_LIMIT }));
   const remembered = useRememberedHomeRegion(QUICK_PICKS_TILE_ID);
   const settled = page === undefined ? undefined : regionFor(page.totalCount);
   useEffect(() => {
@@ -32,5 +32,5 @@ export function useStarterRegion(): HomeTileRegion {
       rememberHomeRegion(QUICK_PICKS_TILE_ID, settled);
     }
   }, [settled]);
-  return settled ?? remembered ?? "hearth";
+  return settled ?? remembered;
 }

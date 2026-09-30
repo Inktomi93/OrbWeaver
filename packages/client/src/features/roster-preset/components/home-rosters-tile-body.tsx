@@ -53,6 +53,8 @@ function RosterStartRow(props: {
           />
         </Row>
       }
+      // Two-up rows wrap their pitch to two lines; the faces and Start stay on the name's line instead of centring on it.
+      className="items-start"
       // A roster saved from a room has no description; its census and names stand in.
       subtitle={roster.description === "" ? rosterScent(roster) : roster.description}
       subtitleStep="label"
