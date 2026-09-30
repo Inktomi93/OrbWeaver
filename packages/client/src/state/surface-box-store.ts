@@ -92,6 +92,17 @@ export function rememberSurfaceBox(surfaceId: string, height: number): void {
   useSurfaceBoxStore.setState({ boxes: { ...boxes, [surfaceId]: height } }, false, "surfaceBox/remember");
 }
 
+/** Drop a surface's remembered box — for a surface that settled to NOTHING (a tile whose `useVisible` resolved
+ *  false). It never mounts, so it is never re-measured, and a stale box would reserve it on every boot. */
+export function forgetSurfaceBox(surfaceId: string): void {
+  const { boxes } = useSurfaceBoxStore.getState();
+  if (!(surfaceId in boxes)) {
+    return;
+  }
+  const rest = Object.fromEntries(Object.entries(boxes).filter(([id]) => id !== surfaceId));
+  useSurfaceBoxStore.setState({ boxes: rest }, false, "surfaceBox/forget");
+}
+
 /** Test seam: the remembered box WITHOUT a React render (the `useSurfaceBox` hook needs one). */
 export function __readSurfaceBoxForTest(surfaceId: string): number | null {
   return useSurfaceBoxStore.getState().boxes[surfaceId] ?? null;
