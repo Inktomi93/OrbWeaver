@@ -12,9 +12,9 @@ import { resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "../lib/type-
 const MUTATORS: ReadonlySet<string> = new Set(["pushState", "replaceState"]);
 const GLOBALS: ReadonlySet<string> = new Set(["globalThis", "window", "self"]);
 const DOM_PACKAGES = ["typescript"] as const;
-const FIX = "use router.navigate, or the router commitLocation URL scrub seam in packages/client/src/lib/use-router-url-replace.ts";
-const UNREADABLE =
-  "this history mutation capture cannot be established as browser History or a local implementation; expose its concrete receiver instead of an opaque structural signature";
+const ROUTER_HOME = "packages/client/src/lib/use-router-url-replace.ts";
+const FIX = `use router.navigate, or the router commitLocation URL scrub seam in ${ROUTER_HOME}`;
+const UNREADABLE = `this history mutation capture cannot be established as browser History or a local implementation; expose its concrete receiver instead of an opaque structural signature. Router home: ${ROUTER_HOME}`;
 
 function capturedMutation(node: MorphNode): string | undefined {
   if (!Node.isBindingElement(node)) {
@@ -66,7 +66,7 @@ export const gate = defineGate({
   execution: "selected-files",
   facts: [],
   resources: [],
-  message: "client code captures a browser History mutation directly; route pushState and replaceState through router navigation",
+  message: `client code captures a browser History mutation directly; route pushState and replaceState through router navigation. Router home: ${ROUTER_HOME}`,
   fix: FIX,
   create: (ctx) => ({
     visitors: [

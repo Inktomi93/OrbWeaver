@@ -3,6 +3,7 @@
 // structure run's own corpus once and runs every arm against it (docs/work/0043).
 import { gate as doors } from "../../../../../tooling/src/verify/gates/duplicate-action-doors.ts";
 import { gate as doorsHealth } from "../../../../../tooling/src/verify/gates/duplicate-action-doors-health.ts";
+import { gate as historyWrites } from "../../../../../tooling/src/verify/gates/no-raw-history-writes.ts";
 import { gate as flip } from "../../../../../tooling/src/verify/gates/no-unruled-flip-inversion.ts";
 import { gate as windowedHealth } from "../../../../../tooling/src/verify/gates/windowed-infinite-query-health.ts";
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
@@ -21,6 +22,11 @@ const GLIDE_SOURCE =
   "}\n";
 
 export const CLIENT_ARMS: readonly RealCorpusLivenessArm[] = [
+  {
+    policy: historyWrites,
+    messageIncludes: "browser History mutation directly",
+    overlays: [{ kind: "add", path: "packages/client/src/lib/router-history-liveness.ts", source: 'globalThis.history.replaceState(null, "", "/");' }],
+  },
   {
     policy: windowedHealth,
     // Every client factory consumer is neutralised; one surviving call keeps the health census live.
