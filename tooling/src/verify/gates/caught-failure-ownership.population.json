@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 652,
+    "sites": 666,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 652,
+      "deliberate-absorb": 666,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 154,
-      "empty": 336,
-      "promise": 162
+      "default": 155,
+      "empty": 346,
+      "promise": 165
     }
   },
   "rows": [
@@ -398,7 +398,7 @@
     {
       "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts::<module>::boot::1",
       "verdict": "deliberate-absorb",
-      "reason": "the failure message is posted back as a `ready:false` outbound message — fully propagated, never swallowed. Ends if that post call is removed."
+      "reason": "the failure message is posted back as a `ready:false` or `unavailable` outbound message — fully propagated, never swallowed. Ends if that post call is removed."
     },
     {
       "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts::<module>::deliver::1",
@@ -479,6 +479,21 @@
       "siteId": "packages/client/src/features/rpg/components/rpg-populate-control.tsx::RpgPopulateControl.onFill::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "the failed mutation's own errorToast already spoke — the toast is the surface. Ends if usePopulateFromCharacter drops its errorToast."
+    },
+    {
+      "siteId": "packages/client/src/features/tag/hooks/use-tag-library.ts::useCreateLabel.createOnce::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a non-conflict failure is toasted by `useCreateTag`'s errorToast through the MutationCache; a conflict is retried below. Ends if the create stops toasting its own failures."
+    },
+    {
+      "siteId": "packages/client/src/features/tag/hooks/use-tag-library.ts::useCreateLabel.createOnce::retryError::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a second conflict is toasted here, any other failure by `useCreateTag`'s errorToast. Ends if the create stops toasting its own failures."
+    },
+    {
+      "siteId": "packages/client/src/features/tag/hooks/use-tag-library.ts::useCreateLabel.run::createOnce::1",
+      "verdict": "deliberate-absorb",
+      "reason": "createOnce owns every failure above and never rejects; the catch only satisfies the floating-promise rule. Ends if createOnce starts rethrowing."
     },
     {
       "siteId": "packages/client/src/features/user-admin/components/admin-link-sso-dialog.tsx::LinkSsoBody.submit::catch::1",
@@ -583,7 +598,7 @@
     {
       "siteId": "packages/client/src/lib/view-transition-settlement.ts::observeViewTransition.observe::settled::1",
       "verdict": "deliberate-absorb",
-      "reason": "only AbortError from platform settlement is absorbed; callback settlement never absorbs it. Every other unique rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement."
+      "reason": "platform AbortError/TimeoutError skips the visual transition; callback settlement never absorbs either. Every other unique rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement."
     },
     {
       "siteId": "packages/client/src/main.tsx::reportClientError::trpcClient.clientError.mutate::1",
@@ -711,6 +726,11 @@
       "reason": "credential probes own failures as typed revoked/unreachable health with a sanitized reason. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the returned health stops carrying that disposition."
     },
     {
+      "siteId": "packages/inference/src/backends/google/index.ts::probe::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the credential probe returns revoked or unreachable with a scrubbed reason. Ends if health stops carrying the failure disposition."
+    },
+    {
       "siteId": "packages/inference/src/backends/kit/error-classify.ts::safeJsonParse::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "malformed provider prose fails closed to `null`, which cannot be classified as a moderation block. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if null can begin authorizing a more specific classification."
@@ -719,6 +739,11 @@
       "siteId": "packages/inference/src/backends/kit/retry.ts::runWithPreCommitRetry::raw::1",
       "verdict": "deliberate-absorb",
       "reason": "the caught value is retained in lastError and either rethrown unchanged or followed by a span-recorded retry. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either terminal propagation path disappears."
+    },
+    {
+      "siteId": "packages/inference/src/backends/local-light/cpu-budget.ts::readOptional::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unavailable cgroup controller supplies no quota; affinity still bounds the session. Ends if this read becomes required for model admission."
     },
     {
       "siteId": "packages/inference/src/backends/local-light/model-cache.ts::createMemo.getEntry::created::1",
@@ -739,6 +764,21 @@
       "siteId": "packages/inference/src/backends/local-light/prefetch.ts::createLocalLightPrefetch.warm::preload::1",
       "verdict": "deliberate-absorb",
       "reason": "speculative prefetch owns failure through a warning and published `failed` state; first use retains the lazy load path. Precedent: packages/server/src/entry/boot/local-light-prefetch.ts accepts the same warning plus lazy-path fallback. Ends if prefetch becomes required."
+    },
+    {
+      "siteId": "packages/inference/src/backends/local-light/scheduled-cache.ts::createScheduledCache.enqueue::Promise.resolve::1",
+      "verdict": "deliberate-absorb",
+      "reason": "rejection is forwarded to the returned result.promise before the queue advances. Ends if enqueue stops returning that promise."
+    },
+    {
+      "siteId": "packages/inference/src/backends/local-light/scheduled-cache.ts::createScheduledCache.text::enqueue::1",
+      "verdict": "deliberate-absorb",
+      "reason": "each rejected batch rejects its waiting text callers below. Ends if text stops returning those promises."
+    },
+    {
+      "siteId": "packages/inference/src/backends/local-light/scheduled-cache.ts::settleTextBatch::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "every batch caller owns a promise rejected below; no failure is lost. Ends if batch promises stop being the caller's result."
     },
     {
       "siteId": "packages/inference/src/backends/openai-compat/diagnostics.ts::inspectOpenAiCompatEndpoint::readBodyPreview::1",
@@ -784,6 +824,11 @@
       "siteId": "packages/inference/src/backends/v4/prompt.ts::toolInput::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "malformed model-emitted arguments remain the raw string, preserving the model's bytes instead of dropping the tool call. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if raw stops being serialized."
+    },
+    {
+      "siteId": "packages/inference/src/catalog/google.ts::listGoogleModels::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "optional discovery returns a failed listing with the scrubbed reason; explicit model entry remains available. Ends if discovery becomes required."
     },
     {
       "siteId": "packages/inference/src/catalog/listing.ts::createCatalogListing.endpointListing::err::1",
@@ -1568,7 +1613,7 @@
     {
       "siteId": "packages/server/src/foundation/version/index.ts::statOrNull::catch::1",
       "verdict": "deliberate-absorb",
-      "reason": "a path this process may not stat, including every path outside the plugin broker's permission-model grants, answers exactly like an absent one: the `unknown` arm the surfaces render. Ends if a caller needs to tell a denied path from a missing one."
+      "reason": "a path this process may not stat answers exactly like an absent one, the `unknown` arm the surfaces render. Ends if a caller needs to tell a denied path from a missing one."
     },
     {
       "siteId": "packages/server/src/infra/acme/issuer.ts::createAcmeIssuer.issue::err::1",
@@ -2849,6 +2894,16 @@
       "siteId": "tooling/src/snap/ops/session-registry.ts::withBootLock::error::1",
       "verdict": "deliberate-absorb",
       "reason": "only EEXIST is the expected lock-contention signal and it retries after a bounded poll; every other mkdir failure rethrows. Ends if the lock stops being represented by exclusive directory creation."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-holders.ts::holdStageUse::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "retried, and after the last attempt rethrown as the bind's own failure below. Ends if the first beat stops being retried."
+    },
+    {
+      "siteId": "tooling/src/snap/ops/stage-holders.ts::holdStageUse.beat::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a later heartbeat is advisory; the failure is logged and the next interval retries, and the run it guards must never fail on it. Ends if a missed heartbeat must fail the run."
     },
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::breakStaleLock::catch::1",
