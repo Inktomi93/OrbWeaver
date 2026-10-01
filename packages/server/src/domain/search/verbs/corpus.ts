@@ -4,7 +4,7 @@ import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { CorpusParams } from "../contract/params.ts";
 import type { CorpusHit } from "../contract/results.ts";
-import type { SearchService } from "../contract/service.ts";
+import type { DigestCoverageOp, SearchService } from "../contract/service.ts";
 import { hostedChatIds, nearestDigests, nearestSegments, segmentBlockKeys } from "../persistence/digest-rows.ts";
 import { resolveChatDisplay } from "../persistence/display.ts";
 import { readSourceAnchors } from "../persistence/source.ts";
@@ -13,7 +13,6 @@ import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
 import { blockKeyStr, collapseByContentHash } from "../substrate/dedupe.ts";
 import { applyRerank } from "../substrate/rerank.ts";
 import { withActiveQuerySpace } from "../substrate/space.ts";
-import { createDigestSourceCoverage } from "./digest-sources.ts";
 
 interface CorpusCandidate {
   readonly id: string;
@@ -31,8 +30,7 @@ function blockSlot(chatId: BlockKey["chatId"], blockIdx: number): string {
   return `${chatId}|${blockIdx}`;
 }
 
-export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
-  const coverage = createDigestSourceCoverage(ctx);
+export function createCorpus(ctx: SearchContext, coverage: DigestCoverageOp): SearchService["corpus"] {
   return async (params: CorpusParams): Promise<CorpusHit[]> => {
     const text = params.queryText;
     const rc = await ctx.roleClientsFor(params.ownerId);
