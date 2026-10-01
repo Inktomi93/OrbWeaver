@@ -16,7 +16,7 @@ import { cycleTagFilterEntries } from "#lib";
 import { createPersistedStore } from "./create-persisted-store.ts";
 
 /** The §4.3 view axis — a single-home tuple, the union DERIVED (Spine §5.5). */
-export const CHARACTER_VIEW_MODES = ["flat", "categorized"] as const;
+const CHARACTER_VIEW_MODES = ["flat", "categorized"] as const;
 export type CharacterViewMode = (typeof CHARACTER_VIEW_MODES)[number];
 
 interface CharacterLibraryState {

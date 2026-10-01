@@ -3,45 +3,36 @@
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 const STRUCTURAL_LENGTH_OPERATION = "structural-css-length";
-const STRUCTURAL_LENGTH_GRANT_SUBJECTS = [
-  ".shell-grid { --list-track: 0px }",
-  ".shell-grid { --context-track: 0px }",
-  ".shell-grid { height: 100vh }",
-  ".shell-grid { height: calc(100dvh - var(--orb-keyboard-inset, 0px)) }",
-  ".shell-grid { --pane-deficit: max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w))) }",
-  ".shell-grid { --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%)) }",
-  ".shell-content-primacy-sentinel { block-size: 1px }",
-  '.shell-panel[data-panel-mode="docked"], .shell-panel[data-panel-mode="overlay"], .shell-panel[data-panel-mode="collapsed"] { width: 100dvw }',
-  '.shell-panel[data-panel-side="list"][data-panel-mode="overlay"], .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"], .shell-panel[data-panel-side="context"][data-panel-mode="overlay"], .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] { width: 100dvw }',
-  '.shell-panel[data-panel-side="list"][data-panel-mode="docked"] { width: 100dvw }',
-  "@supports (backdrop-filter: blur(1px)) {",
-  "@container shell-main (max-width: 30rem) {",
-  "@media (max-width: 48rem) {",
-  "packages/client/src/features/chat/lib/pager-chrome.ts :: @max-[12rem]/pager:sr-only",
-  "packages/client/src/features/chat/lib/pager-chrome.ts :: @max-[13rem]/pager:gap-tight",
-  "packages/client/src/features/chat/lib/pager-chrome.ts :: @max-[13rem]/pager:[word-spacing:-1ch]",
-  "packages/client/src/features/character/components/character-create-actions.tsx :: @max-[19rem]:hidden",
-  "packages/client/src/features/character/components/character-create-actions.tsx :: @[19rem]:hidden",
-  "packages/ui/src/markdown/markdown.tsx :: max-h-[60cqh]",
-  "packages/ui/src/layout/variants.ts :: @md:grid-cols-[repeat(auto-fill,8.5rem)]",
-  "packages/ui/src/layout/variants.ts :: @min-[100rem]:grid-cols-[1.5fr_1.05fr]",
-  "packages/ui/src/layout/variants.ts :: @min-[100rem]:grid-cols-2",
-  "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(5rem,100%),1fr))]",
-  "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(8.5rem,100%),1fr))]",
-  "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))]",
-  "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(22rem,100%),1fr))]",
-  // APPENDED, never inserted (#2442, #2456): these ids are positional, so a row placed beside its
-  // `.shell-grid` siblings would renumber every row after it. Same species as `--pane-deficit` and
-  // `--content-primacy-deficit` above — pure-arithmetic shell distances whose raw lengths ARE the
-  // mechanism, not values any portable token could carry.
-  //
-  // #2442's `--list-track-centre-delta` row was REPLACED rather than kept beside these (it was the last
-  // element, so dropping it renumbers nothing): the centred counter is no longer derived from the box's
-  // own percentage width but from the content track's arithmetic, and central liveness reports an
-  // unused reviewed grant as a stale-authority alarm.
-  ".shell-grid { --shell-content-track: calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right) - var(--rail-w) - var(--list-track) - var(--context-track)) }",
-  ".shell-grid { --shell-centre-flip-from: calc( ( max(0px, var(--shell-content-track) + var(--shell-track-shrink) - var(--width-shell-content)) - max(0px, var(--shell-content-track) - var(--width-shell-content)) ) / 2 ) }",
-] as const;
+// Explicit keys preserve surviving grant identities when an obsolete subject is removed.
+const STRUCTURAL_LENGTH_GRANT_SUBJECTS = {
+  "01": ".shell-grid { --list-track: 0px }",
+  "02": ".shell-grid { --context-track: 0px }",
+  "03": ".shell-grid { height: 100vh }",
+  "04": ".shell-grid { height: calc(100dvh - var(--orb-keyboard-inset, 0px)) }",
+  "05": ".shell-grid { --pane-deficit: max(0px, var(--dimension-content-reading-floor) - (100dvw - var(--rail-w) - var(--panel-w) - var(--panel-context-w))) }",
+  "06": ".shell-grid { --content-primacy-deficit: max(0px, calc(var(--rail-w) + (var(--both-docked-list-track) + var(--both-docked-context-track)) * 1.5 - 100%)) }",
+  "07": ".shell-content-primacy-sentinel { block-size: 1px }",
+  "08": '.shell-panel[data-panel-mode="docked"], .shell-panel[data-panel-mode="overlay"], .shell-panel[data-panel-mode="collapsed"] { width: 100dvw }',
+  "09": '.shell-panel[data-panel-side="list"][data-panel-mode="overlay"], .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"], .shell-panel[data-panel-side="context"][data-panel-mode="overlay"], .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] { width: 100dvw }',
+  "10": '.shell-panel[data-panel-side="list"][data-panel-mode="docked"] { width: 100dvw }',
+  "11": "@supports (backdrop-filter: blur(1px)) {",
+  "12": "@container shell-main (max-width: 30rem) {",
+  "13": "@media (max-width: 48rem) {",
+  "14": "packages/client/src/features/chat/lib/pager-chrome.ts :: @max-[12rem]/pager:sr-only",
+  "15": "packages/client/src/features/chat/lib/pager-chrome.ts :: @max-[13rem]/pager:gap-tight",
+  "16": "packages/client/src/features/chat/lib/pager-chrome.ts :: @max-[13rem]/pager:[word-spacing:-1ch]",
+  "17": "packages/client/src/features/character/components/character-create-actions.tsx :: @max-[19rem]:hidden",
+  "18": "packages/client/src/features/character/components/character-create-actions.tsx :: @[19rem]:hidden",
+  "19": "packages/ui/src/markdown/markdown.tsx :: max-h-[60cqh]",
+  "20": "packages/ui/src/layout/variants.ts :: @md:grid-cols-[repeat(auto-fill,8.5rem)]",
+  "21": "packages/ui/src/layout/variants.ts :: @min-[100rem]:grid-cols-[1.5fr_1.05fr]",
+  "23": "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(5rem,100%),1fr))]",
+  "24": "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(8.5rem,100%),1fr))]",
+  "25": "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))]",
+  "26": "packages/ui/src/layout/variants.ts :: grid-cols-[repeat(auto-fit,minmax(min(22rem,100%),1fr))]",
+  "27": ".shell-grid { --shell-content-track: calc(100dvw - env(safe-area-inset-left) - env(safe-area-inset-right) - var(--rail-w) - var(--list-track) - var(--context-track)) }",
+  "28": ".shell-grid { --shell-centre-flip-from: calc( ( max(0px, var(--shell-content-track) + var(--shell-track-shrink) - var(--width-shell-content)) - max(0px, var(--shell-content-track) - var(--width-shell-content)) ) / 2 ) }",
+} as const;
 
 export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
   {
@@ -280,15 +271,6 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
       "the wire seam stops taking content PARTS (D51 is retired) or this module stops naming the type; either way the row is consumed zero times and reds.",
   },
   {
-    id: "contract-derives-not-respells:discovery-theme-row",
-    policyId: "contract-derives-not-respells",
-    subject: "packages/server/src/domain/discovery/contract/results.ts::ThemeRow",
-    operation: "contract-hand-row:themes",
-    why: "HOMONYM: discovery's `ThemeRow` is an emergent THEME CLUSTER (k-means over digest embeddings — id/level/clusterIdx/size/model), while the `themes` table is the UI palette/token-override row (owner-scoped `override` blob). Same word, unrelated concepts; the cluster's own table is `themeClusters`.",
-    endsWhen:
-      "the shape is renamed or derived, or the `themes` table disappears — any of the three ends the collision the operation names, the row is consumed zero times and it reds as `stale-reviewed-grant`. That is the two-sided ratchet the retired `contract-derives-not-respells-health` policy owned by hand (#2176 Phase F).",
-  },
-  {
     id: "contract-derives-not-respells:stats-model-stat-row",
     policyId: "contract-derives-not-respells",
     subject: "packages/server/src/domain/stats/contract/views.ts::ModelStatRow",
@@ -329,9 +311,9 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
     endsWhen:
       "the chat surface stops driving the scroll container from client globals (it moves onto a capability carrier or into the primitive), and the row consumes zero candidates and reds STALE. It is ONE row for however many selectors express the recipe: the policy reports one finding per (carrier, hook) class precisely so a reviewer's decision stays 1:1.",
   },
-  ...STRUCTURAL_LENGTH_GRANT_SUBJECTS.map(
-    (subject, index): ReviewedGateGrant => ({
-      id: `css-length-tokens-grants:${String(index + 1).padStart(2, "0")}`,
+  ...Object.entries(STRUCTURAL_LENGTH_GRANT_SUBJECTS).map(
+    ([id, subject]): ReviewedGateGrant => ({
+      id: `css-length-tokens-grants:${id}`,
       policyId: "css-length-tokens-grants",
       subject,
       operation: STRUCTURAL_LENGTH_OPERATION,

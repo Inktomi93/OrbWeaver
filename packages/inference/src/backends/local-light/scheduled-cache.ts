@@ -91,6 +91,7 @@ export function createScheduledCache(cache: LocalLightModelCache): LocalLightMod
   function enqueue<T>(run: () => Promise<T>, isQuery = false): Promise<T> {
     const result = Promise.withResolvers<T>();
     (isQuery ? queries : background).push(() => {
+      // @orb-waive caught-failure-ownership(Promise.resolve): rejection is forwarded to the returned result.promise before the queue advances. Ends if enqueue stops returning that promise.
       void Promise.resolve()
         .then(run)
         .then(

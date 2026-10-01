@@ -35,10 +35,9 @@ test("the css-length-contract family keeps its final proofs", () => {
   expect(verifyPolicyProofs([ordinary, grants, health])).toEqual([]);
 });
 
-// 26 at the conversion; 28 since the two APPENDED `.shell-grid` arithmetic rows (#2442, #2456).
-test("every one of the 28 structural identities has one exact central grant", () => {
-  expect(LENGTH_GRANTS).toHaveLength(28);
-  expect(new Set(LENGTH_GRANTS.map(({ subject, operation }) => `${subject} ${operation}`)).size).toBe(28);
+test("every one of the 27 structural identities has one exact central grant", () => {
+  expect(LENGTH_GRANTS).toHaveLength(27);
+  expect(new Set(LENGTH_GRANTS.map(({ subject, operation }) => `${subject} ${operation}`)).size).toBe(27);
 });
 
 const DECLARATION_FILES = {
@@ -86,10 +85,10 @@ test("two uses of one structural class recipe remain one grant identity", async 
   expect(result.authority.authorityAlarms).toEqual([]);
 });
 
-test("the final family is clean over the real frontend and consumes all 28 structural permissions", () => {
+test("the final family is clean over the real frontend and consumes all 27 structural permissions", () => {
   const result = run(REPO_ROOT, LENGTH_GRANTS);
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings).toEqual([]);
   expect(result.authority.authorityAlarms.filter(({ policyId }) => policyId === ordinary.id || policyId === grants.id || policyId === health.id)).toEqual([]);
-  expect(result.authority.grantedFindings).toHaveLength(28);
+  expect(result.authority.grantedFindings).toHaveLength(27);
 }, 30_000);

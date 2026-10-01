@@ -54,6 +54,7 @@ export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO } from "./selection-control.ts";
 export { SELECTION_RAIL } from "./selection-rail.ts";
 export { SELECTION_RING_CHECKED, SELECTION_RING_SELECTED } from "./selection-ring.ts";
 export { sinHash } from "./sin-hash.ts";
+export { usePrefersLightColorScheme } from "./use-prefers-light-color-scheme.ts";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";
 export {
   STAMPED_VARIANT_AXES,

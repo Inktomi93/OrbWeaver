@@ -37,8 +37,8 @@ export const GAME_MODE_RESUME_LABEL = "Turn game mode back on";
 
 /** The two announcements. Each states WHAT changed and WHERE the result is — the two things a user who was
  *  looking at the composer (the far side of the app from the panel) cannot see. */
-export const GAME_MODE_ON_ANNOUNCEMENT = "Game mode on — the Game panel is open";
-export const GAME_MODE_OFF_ANNOUNCEMENT = "Game mode off — your sheets, scene and quests are kept";
+const GAME_MODE_ON_ANNOUNCEMENT = "Game mode on — the Game panel is open";
+const GAME_MODE_OFF_ANNOUNCEMENT = "Game mode off — your sheets, scene and quests are kept";
 
 /** A user-initiated START committed: announce it, and reveal its result (open the context panel on the
  *  game's Status tab). Called from a mutation's success arm — never from a chat switch, a resume, or a

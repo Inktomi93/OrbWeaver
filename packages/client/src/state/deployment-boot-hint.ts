@@ -31,7 +31,7 @@
 import { createPersistedStore } from "./create-persisted-store.ts";
 
 /** This device's remembered deployment capabilities. `null` = never told, i.e. fall back to the floor. */
-export interface DeploymentBootHintState {
+interface DeploymentBootHintState {
   /** The last `/api/auth/config.multiHumanCapable` this device was served, or null on a fresh device. */
   readonly multiHumanCapable: boolean | null;
 }
