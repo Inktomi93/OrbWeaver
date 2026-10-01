@@ -26,7 +26,8 @@ export function createSearchService(ctx: SearchContext): SearchService {
   const findCharacters = createFindCharacters(ctx, knn);
   const digests = createDigests(ctx);
   const segments = createSegments(ctx);
-  const corpus = createCorpus(ctx);
+  const coverage = createDigestSourceCoverage(ctx);
+  const corpus = createCorpus(ctx, coverage);
   const images = createImages(ctx);
   const discover = createDiscover(ctx);
   const documents = createDocuments(ctx);
@@ -44,6 +45,6 @@ export function createSearchService(ctx: SearchContext): SearchService {
     documents,
     similarCharacters: createSimilarCharacters(ctx),
     similarArt: createSimilarArt(ctx),
-    search: createSearch(ctx, { knn, findCharacters, discover, corpus, images, segments, documents }, createDigestSourceCoverage(ctx)),
+    search: createSearch(ctx, { knn, findCharacters, discover, corpus, images, segments, documents }, coverage),
   };
 }

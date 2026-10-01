@@ -19,8 +19,8 @@ interface DigestScopeParams {
   readonly candidates?: readonly BlockKey[] | undefined;
 }
 
-/** Current room authority derives from membership, independent of character ownership. */
-export function hostScopeCond(chatId: SQLWrapper, ownerId: UserId): SQL {
+// Current room authority derives from membership, independent of character ownership.
+function hostScopeCond(chatId: SQLWrapper, ownerId: UserId): SQL {
   return sql`EXISTS (SELECT 1 FROM ${chatParticipants} WHERE ${chatParticipants.chatId} = ${chatId} AND ${chatParticipants.userId} = ${ownerId} AND ${chatParticipants.kind} = ${"human"} AND ${chatParticipants.role} = ${"host"} AND ${chatParticipants.leftSeq} IS NULL)`;
 }
 
