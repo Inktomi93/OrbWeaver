@@ -2,11 +2,11 @@
 // calibration orchestration consume this surface rather than reaching into ops/lib files.
 
 export { mirrorCandidates, resolveMirrors } from "../_shared/test-mirror.ts";
-export type { MutantPopulation, MutantReceipt, PlantableStatus, ProbeSummary, SuiteVerdict } from "./contract/types.ts";
+export type { MutantPopulation, MutantReceipt, PlantableStatus, ProbeSummary, SuiteEvidence, SuiteReportRequest, SuiteVerdict } from "./contract/types.ts";
 export { MUTANT_POPULATIONS, PLANTABLE_STATUSES, SUITE_VERDICTS } from "./contract/types.ts";
 export type { SourceLocation, SourceRange } from "./lib/offsets.ts";
 export { lineStarts, offsetOf, offsetRangeOf } from "./lib/offsets.ts";
-export { classifySuiteExit } from "./lib/outcome.ts";
+export { classifySuiteExit, readSuiteEvidence } from "./lib/outcome.ts";
 export type { ReportFile, ReportMutant } from "./lib/report.ts";
 export { mutantsOf, survivorsOf, totalMutants } from "./lib/report.ts";
 export type { StrandGuard } from "./lib/stranded.ts";
