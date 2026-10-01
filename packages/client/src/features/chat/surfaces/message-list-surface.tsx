@@ -20,11 +20,12 @@ import { Stack } from "@orb/ui/layout";
 import type { MessageListHandle, MessageListRowMeta } from "@orb/ui/message-list";
 import { MessageList } from "@orb/ui/message-list";
 import { Text } from "@orb/ui/text";
-import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { QueryBoundary } from "#components";
-import type { ChatBusDeps } from "#data";
+import type { ChatBusDeps, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, usePrefetchDisplayScripts, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { RenderProfiler, resolveRowRenderPolicy, useFocusOnMount } from "#lib";
@@ -32,8 +33,10 @@ import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
 import { MessageRow } from "../components/message-row.tsx";
+import { TranscriptWindow } from "../components/transcript-window.tsx";
 import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
 import { useChatStyle } from "../hooks/use-chat-style.ts";
+import { useCorpusAnchor } from "../hooks/use-corpus-anchor.ts";
 import { useGreetingAlternates } from "../hooks/use-greeting-alternates.ts";
 import { useJumpToLatest } from "../hooks/use-jump-to-latest.ts";
 import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
@@ -128,12 +131,19 @@ export function MessageListSurface({ chatId, busDeps, onChatForked, surfaceContr
       >
         {/* The parent content region owns the console warning; this nested profiler only attributes its cost. */}
         <RenderProfiler id={CHAT_TRANSCRIPT_PROFILER_ID} warn={false}>
-          <ChatThread
+          <TranscriptWindow
             chatId={chatId}
-            chatStyle={chatStyle}
-            onChatForked={onChatForked}
-            surfaceContributors={surfaceContributors}
-            toolRenderers={toolRenderers}
+            render={(messagesPage, window): ReactElement => (
+              <ChatThread
+                chatId={chatId}
+                chatStyle={chatStyle}
+                onChatForked={onChatForked}
+                surfaceContributors={surfaceContributors}
+                toolRenderers={toolRenderers}
+                messagesPage={messagesPage}
+                window={window}
+              />
+            )}
           />
         </RenderProfiler>
       </QueryBoundary>
@@ -149,12 +159,21 @@ interface ChatThreadProps {
   readonly toolRenderers: ContributorRegistry<ToolRenderer>;
 }
 
+type CanonPage = inferOutput<Trpc["chat"]["listMessages"]>;
+type AnchoredPage = inferOutput<Trpc["chat"]["getMessageWindow"]>;
+
 /** The committed-chat transcript — suspends on the canon + roster reads, then merges the live ghost. */
-function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, toolRenderers }: ChatThreadProps): ReactElement {
+function ChatThread({
+  chatId,
+  chatStyle,
+  onChatForked,
+  surfaceContributors,
+  toolRenderers,
+  messagesPage,
+  window,
+}: ChatThreadProps & { readonly messagesPage: CanonPage; readonly window: AnchoredPage | null }): ReactElement {
   const trpc = useTRPC();
-  const [{ data: messagesPage }, { data: chatDetail }] = useSuspenseQueries({
-    queries: [trpc.chat.listMessages.queryOptions({ chatId }), trpc.chat.getChat.queryOptions({ chatId })],
-  });
+  const { data: chatDetail } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const messages = messagesPage.messages;
   const participants = buildParticipantsById(chatDetail.participants);
   // Merge the two CHAT IDENTITY wire halves (D137: the chat-level participant floor ∪ this page's own stamped
@@ -231,6 +250,13 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   // "am I at the tail" comes from real scroll geometry sampled at settle, not the seal's follow-intent
   // signal, which desyncs from position once virtual-core writes scrollTop during a re-measure.
   const listHandleRef = useRef<MessageListHandle>(null);
+  const anchorAnnouncement = useCorpusAnchor({
+    chatId,
+    messages,
+    anchorMessageId: window?.anchorMessageId ?? null,
+    outcome: window?.outcome ?? null,
+    listHandleRef,
+  });
 
   // pin-prompt scroll mode: on each NEW user message (a send), pin it to the viewport top and
   // let the reply stream below. The primitive owns the pin/spacer; the surface only names which row is the
@@ -349,23 +375,49 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
       />
     );
 
+  const sourceStatus =
+    window === null ? null : (
+      <Text className="sr-only" role="status">
+        {anchorAnnouncement}
+      </Text>
+    );
   if (items.length === 0) {
-    return <EmptyThread />;
+    return (
+      <Stack className="relative h-full min-h-0">
+        {sourceStatus}
+        <EmptyThread />
+      </Stack>
+    );
   }
   return (
     <Stack className="relative h-full min-h-0">
+      {sourceStatus}
       <MessageList
         ref={listHandleRef}
         ariaLabel="Conversation messages"
         items={items}
         getItemKey={messageItemKey}
         estimateSize={(index): number => estimateMessageRow(items[index] ?? { kind: "ghost" })}
-        renderItem={renderItem}
+        renderItem={(item, index, meta): ReactNode => {
+          const highlighted =
+            item.kind === "message" &&
+            window !== null &&
+            window.anchorSeq !== null &&
+            window.endSeq !== null &&
+            item.view.seq >= window.anchorSeq &&
+            item.view.seq <= window.endSeq;
+          return (
+            <Stack data-corpus-anchor={highlighted ? "" : undefined} className={highlighted ? "bg-muted ring-1 ring-ring" : undefined}>
+              {renderItem(item, index, meta)}
+            </Stack>
+          );
+        }}
         // #107: the transcript is UNBOUNDED, so its rows must not each contribute their action cluster to
         // the document tab order — measured, a keyboard reader paid ~7 Tabs per message and 32 of them
         // never reached the composer. One tab stop enters the log; arrows walk the rows.
         rowNavigation="roving"
         scrollContainerRef={jump.scrollContainerRef}
+        followTail={window === null}
         scrollMode={behaviorPrefs.streamScrollMode}
         gapToken="block"
         // Block breathing rides the virtualizer's OWN padding (never CSS `py-*` on the scroll

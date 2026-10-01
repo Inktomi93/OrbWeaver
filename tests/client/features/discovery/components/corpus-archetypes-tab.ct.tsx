@@ -1,3 +1,4 @@
+import { corpusGroupingProvenance } from "../../../../support/node/corpus-source.ts";
 // CT: the Corpus CONTEXT "Archetypes" tab draws its cluster MEMBERS AS FACES (issue #139). Both
 // clustering verbs carry `ArchetypeMember.avatarHash` on the wire (issue #134) and the CONTENT family
 // plates already draw it; this tab printed names only, because its local card type re-declared `members`
@@ -35,6 +36,7 @@ const RUN_DOOR = /Run the understanding pass/;
  *  SAME letter in the SAME colour, which is what the owner's screenshot showed as a wall of identical "U"s. */
 const ARCHETYPES = [
   {
+    ...corpusGroupingProvenance("Brooding rogues"),
     label: "Brooding rogues",
     genre: "fantasy",
     tone: "dark",
@@ -96,7 +98,7 @@ test("a cluster member carrying a hash draws its blob; a null one draws hue-seed
   // SETTLED: the cluster row has painted (both queries resolved past the skeleton arm).
   // Scoped to the VISIBLE row: this tab's BarList now also emits a visually-hidden text equivalent
   // (@orb/ui LabeledChartFrame, side-eye ANALYTICS P1e), whose row header carries the same cluster name.
-  await expect(component.getByRole("paragraph").filter({ hasText: "Brooding rogues" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Brooding rogues", exact: true })).toBeVisible();
   await expect(component.getByText("3 members")).toBeVisible();
 
   // The hash off `archetypes[].members[].avatarHash` reached an <img> on THIS surface.

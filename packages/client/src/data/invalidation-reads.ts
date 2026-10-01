@@ -36,6 +36,7 @@ export type InvalidateFilter = InvalidateQueryFilters;
 export function chatCanonReads(trpc: Trpc): readonly InvalidateFilter[] {
   return [
     trpc.chat.listMessages.pathFilter(),
+    trpc.chat.getMessageWindow.pathFilter(),
     trpc.chat.listMessageVariants.pathFilter(),
     trpc.chat.previewContextFit.pathFilter(),
     ...promptPreviewReads(trpc),

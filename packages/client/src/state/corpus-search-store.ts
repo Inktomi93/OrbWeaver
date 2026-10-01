@@ -19,6 +19,7 @@
 import { createGatedStore } from "./create-gated-store.ts";
 
 interface CorpusSearchState {
+  readonly scrollTop: number;
   /** The omnibox text (`""` = the rest state). */
   readonly query: string;
   /** The active target axis id. `""` = "whatever the axis calls its default" — the feature's own
@@ -27,16 +28,16 @@ interface CorpusSearchState {
   readonly targetId: string;
 }
 
-const useCorpusSearchStore = createGatedStore<CorpusSearchState>("corpus-search", (): CorpusSearchState => ({ query: "", targetId: "" }));
+const useCorpusSearchStore = createGatedStore<CorpusSearchState>("corpus-search", (): CorpusSearchState => ({ query: "", targetId: "", scrollTop: 0 }));
 
 /** Write the omnibox text (every keystroke / a picked suggestion). */
 export function setCorpusSearchQuery(query: string): void {
-  useCorpusSearchStore.setState({ query }, false, "corpus-search/query");
+  useCorpusSearchStore.setState({ query, scrollTop: 0 }, false, "corpus-search/query");
 }
 
 /** Write the active target axis id (a target-picker click). */
 export function setCorpusSearchTarget(targetId: string): void {
-  useCorpusSearchStore.setState({ targetId }, false, "corpus-search/target");
+  useCorpusSearchStore.setState({ targetId, scrollTop: 0 }, false, "corpus-search/target");
 }
 
 /** Reactive: the omnibox text (`""` = the rest state). A single-field primitive selector. */
@@ -48,4 +49,11 @@ export function useCorpusSearchQuery(): string {
  *  the axis and its default. A single-field primitive selector. */
 export function useCorpusSearchTargetId(): string {
   return useCorpusSearchStore((s) => s.targetId);
+}
+
+export function readCorpusResultScroll(): number {
+  return useCorpusSearchStore.getState().scrollTop;
+}
+export function setCorpusResultScroll(scrollTop: number): void {
+  useCorpusSearchStore.setState({ scrollTop }, false, "corpus-search/scroll");
 }

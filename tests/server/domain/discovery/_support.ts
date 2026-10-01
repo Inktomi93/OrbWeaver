@@ -1,3 +1,5 @@
+import { consolidationHash } from "@orb/server/domain/chat";
+import { createDigestSources } from "@orb/server/domain/search";
 // Shared test harness for the discovery domain (NOT a test file — no `.test` suffix, so test-layout ignores
 // it). Builds a real-db `DiscoveryContext` with the injected determinism seam (seeded ids + a frozen clock),
 // a SCRIPTED `summarize` thunk, and a RECORDING `writeHubScores` fake — the sanctioned "fake at the edges,
@@ -286,6 +288,11 @@ export function makeDiscoveryHarness(
     // The memory tier-grid seam — the REAL chat/memory resolver over the grounded floor config (fanOut 4),
     // exactly what the composition root binds (over live AppSettings there).
     tier0RangeOf: (tier, blockIdx) => resolveTier0Range(undefined, tier, blockIdx),
+    resolveDigestSources: createDigestSources({
+      db,
+      digestConsolidationHash: consolidationHash,
+      tier0RangeOf: (tier, blockIdx) => resolveTier0Range(undefined, tier, blockIdx),
+    }),
   };
   return { ctx, hubScores, summarize, tagAttach };
 }

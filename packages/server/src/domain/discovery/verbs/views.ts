@@ -15,6 +15,7 @@ import {
   readCorpusCoverage,
   readOwnedCharacterHashes,
   readOwnedPortraitPairs,
+  readThemeClusterDigestIds,
   readThemeClusterMembers,
   readThemeClusterTimeline,
 } from "../persistence/embed-store-reads.ts";
@@ -22,6 +23,7 @@ import { readOwnedCardFacet } from "../persistence/summary-reads.ts";
 import { collapsedPairCount } from "../substrate/collapse.ts";
 
 const THEME_DETAIL_MEMBERS = 15;
+const THEME_SOURCE_LIMIT = 20;
 const DOSSIER_SIMILAR_TOP_N = 8;
 
 export function createViews(ctx: DiscoveryContext, deps: ViewsDeps): Pick<DiscoveryService, "home" | "themeDetail" | "characterDossier"> {
@@ -68,11 +70,13 @@ async function themeDetail(db: Db, deps: ViewsDeps, args: { ownerId: UserId; clu
   if (theme === undefined) {
     return null;
   }
-  const [timeline, members] = await Promise.all([
+  const [timeline, members, digestIds] = await Promise.all([
     readThemeClusterTimeline(db, ownerId, theme.id),
     readThemeClusterMembers(db, ownerId, theme.id, THEME_DETAIL_MEMBERS),
+    readThemeClusterDigestIds(db, ownerId, theme.id, THEME_SOURCE_LIMIT),
   ]);
-  return { ...theme, timeline, members };
+  const sources = await deps.resolveDigestSources(ownerId, digestIds);
+  return { ...theme, timeline, members, sources, sourceLimit: THEME_SOURCE_LIMIT };
 }
 
 /** null when the character isn't owned/distilled. Composes the distilled headline facets, the in-RAM

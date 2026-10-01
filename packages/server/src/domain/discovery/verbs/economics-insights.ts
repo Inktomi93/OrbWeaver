@@ -163,6 +163,7 @@ async function modelRouting(ctx: DiscoveryContext, ownerId: UserId): Promise<Mod
         tokensOut: b.tokensOut,
         tokensOutProvenance: b.tokensOutProvenance,
         avgGenTimeMs: b.genSamples > 0 ? b.genTimeMs / b.genSamples : null,
+        genTimeSamples: b.genSamples,
         costUsd: b.costUsd,
       }),
     )

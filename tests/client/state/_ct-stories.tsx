@@ -38,6 +38,7 @@ import {
   clearCharacterFilters,
   clearCharacterSelection,
   clearChatListCharacterFilter,
+  clearChatMoment,
   clearCollectionSelection,
   clearConfigFocus,
   clearCorpusSelection,
@@ -52,6 +53,7 @@ import {
   closeModal,
   collapseListPanel,
   compareCorpusPair,
+  consumeChatMoment,
   corpusSectionSelection,
   cycleTagFilter,
   dockListPanel,
@@ -66,6 +68,7 @@ import {
   onGameModeStarted,
   onGameModeStopped,
   openCharacterGallery,
+  openChatMoment,
   openConfigGroup,
   openConfigTo,
   openImageDetail,
@@ -76,11 +79,13 @@ import {
   publishContextTabs,
   publishNoticeBand,
   readComposerDraft,
+  readCorpusResultScroll,
   registerListFlipCarry,
   rememberAppearanceBootHint,
   rememberDataThemeHint,
   rememberMultiHumanCapable,
   reportSectionSaveStatus,
+  requestChatMoment,
   requestComposerFocus,
   requestRefineryLandingFocus,
   resumeChat,
@@ -123,6 +128,7 @@ import {
   setCorpusCompareA,
   setCorpusCompareB,
   setCorpusMode,
+  setCorpusResultScroll,
   setCorpusSearchQuery,
   setCorpusSearchTarget,
   setDatabankPhaseFilter,
@@ -161,6 +167,7 @@ import {
   useChatListCharacterFilter,
   useChatListMonth,
   useChatListSearch,
+  useChatMoment,
   useChromeRegistry,
   useCollectionSelection,
   useComposerDraft,
@@ -1830,6 +1837,70 @@ export function CorpusModeProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => healCorpusModeFrom("corpus")}>
         heal live Corpus
+      </button>
+    </div>
+  );
+}
+
+const MOMENT_CHAT = mintTypeId(ID_PREFIX.chat);
+const MOMENT_MESSAGE = mintTypeId(ID_PREFIX.message);
+
+export function ChatMomentProbe(): ReactElement {
+  const moment = useChatMoment(MOMENT_CHAT);
+  const [oldRequest, setOldRequest] = useState(0);
+  return (
+    <div>
+      <output>{moment === null ? "none" : `request=${moment.request} consumed=${moment.consumed}`}</output>
+      <button type="button" onClick={(): void => requestChatMoment(MOMENT_CHAT, { kind: "message", messageId: MOMENT_MESSAGE })}>
+        request moment
+      </button>
+      <button type="button" onClick={(): void => setOldRequest(moment === null ? 0 : moment.request)}>
+        remember request
+      </button>
+      <button type="button" onClick={(): void => consumeChatMoment(oldRequest)}>
+        consume old request
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          if (moment !== null) {
+            consumeChatMoment(moment.request);
+          }
+        }}
+      >
+        consume current request
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          clearChatMoment();
+        }}
+      >
+        clear by action
+      </button>
+      <button type="button" onClick={(): void => openChatMoment(MOMENT_CHAT, { kind: "message", messageId: MOMENT_MESSAGE })}>
+        open targeted room
+      </button>
+    </div>
+  );
+}
+
+export function CorpusScrollProbe(): ReactElement {
+  const [position, setPosition] = useState(0);
+  return (
+    <div>
+      <output>{position}</output>
+      <button type="button" onClick={(): void => setCorpusResultScroll(240)}>
+        save scroll
+      </button>
+      <button type="button" onClick={(): void => setPosition(readCorpusResultScroll())}>
+        read scroll
+      </button>
+      <button type="button" onClick={(): void => setCorpusSearchQuery("changed")}>
+        change query
+      </button>
+      <button type="button" onClick={(): void => setCorpusSearchTarget("digests")}>
+        change target
       </button>
     </div>
   );

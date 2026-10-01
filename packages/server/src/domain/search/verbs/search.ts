@@ -17,11 +17,11 @@ import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SEARCH_LENS_REQUIRED, SEARCH_SCOPE_REQUIRED, SEARCH_SCOPE_UNSUPPORTED, SearchError } from "../contract/errors.ts";
 import type { SearchScope, UnifiedSearchParams } from "../contract/params.ts";
-import type { DigestSourceHit, SegmentSearchHit, UnifiedSearchResult } from "../contract/results.ts";
-import type { SearchService } from "../contract/service.ts";
+import type { DigestSourceHit, SegmentSearchHit, UnifiedSearchResult, UnifiedSearchRows } from "../contract/results.ts";
+import type { DigestCoverageOp, SearchService } from "../contract/service.ts";
 import { nearestDigests, ownedChatIds } from "../persistence/digest-rows.ts";
 import { resolveCharacterDisplay, resolveChatDisplay } from "../persistence/display.ts";
-import { OWNER_OVERFETCH, SCOPED_POOL_K } from "../substrate/constants.ts";
+import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, OWNER_OVERFETCH, SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { blockKeyStr } from "../substrate/dedupe.ts";
 import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
@@ -63,7 +63,7 @@ interface DigestScanArgs {
  *  characters-join belt — a foreign chat/character yields nothing). `chatId` narrows to one chat;
  *  `speakerCharacterId` is the by-character cross-chat OR-branch (scoped-producer OR present-as-speaker);
  *  `scopedCharacterId` narrows to one egocentric POV. Consumes SCOPE_INSTRUCTIONS for embed + rerank. */
-async function digestScan(ctx: SearchContext, args: DigestScanArgs): Promise<DigestSourceHit[]> {
+async function digestScan(ctx: SearchContext, args: DigestScanArgs, coverage: DigestCoverageOp): Promise<DigestSourceHit[]> {
   const rc = await ctx.roleClientsFor(args.ownerId);
   return await withActiveQuerySpace(ctx, args.ownerId, "embed", async (space) => {
     const embedded = await space.connection.embed(args.query, {
@@ -93,6 +93,7 @@ async function digestScan(ctx: SearchContext, args: DigestScanArgs): Promise<Dig
           scopedCharacterId: r.scopedCharacterId,
         };
         return {
+          row: r,
           id: blockKeyStr(blockKey),
           blockKey,
           sourceText: r.text,
@@ -118,33 +119,54 @@ async function digestScan(ctx: SearchContext, args: DigestScanArgs): Promise<Dig
     ]);
     const titleByChat = new Map(chatDisplays.map((d) => [d.chatId, d.title]));
     const nameByCharacter = new Map(characterDisplays.map((d) => [d.characterId, d.name]));
-    return top.map((c) => ({
-      blockKey: c.blockKey,
-      score: c.score,
-      relevance: relevanceOf(c.distance),
-      text: c.sourceText,
-      chatTitle: titleByChat.get(c.blockKey.chatId) ?? null,
-      scopedCharacterName: nameByCharacter.get(c.blockKey.scopedCharacterId) ?? null,
-    }));
+    const visibilityByChat = new Map<ChatId, Promise<Awaited<ReturnType<SearchContext["resolveViewerVisibility"]>>>>();
+    return await Promise.all(
+      top.map(async (c) => ({
+        source: {
+          kind: "digest" as const,
+          rowId: c.row.rowId,
+          generationId: c.row.generationId,
+          fingerprint: c.row.fingerprint,
+          contentHash: c.row.contentHash,
+          ...c.blockKey,
+          ...(await coverage(
+            { ...c.blockKey, generationId: c.row.generationId, contentHash: c.row.contentHash },
+            (
+              await visibilityByChat.getOrInsertComputed(c.blockKey.chatId, () => ctx.resolveViewerVisibility(c.blockKey.chatId, args.ownerId))
+            )?.historyFloorSeq ?? null,
+          )),
+        },
+        blockKey: c.blockKey,
+        score: c.score,
+        relevance: relevanceOf(c.distance),
+        text: c.sourceText,
+        chatTitle: titleByChat.get(c.blockKey.chatId) ?? null,
+        scopedCharacterName: nameByCharacter.get(c.blockKey.scopedCharacterId) ?? null,
+      })),
+    );
   });
 }
 
 /** digests honors all three scopes, ALL owner-belted: `chat` → one chat; `character` → the cross-chat
  *  OR-branch; `owner` → every owner digest. */
-async function dispatchDigests(ctx: SearchContext, params: UnifiedSearchParams): Promise<DigestSourceHit[]> {
+async function dispatchDigests(ctx: SearchContext, params: UnifiedSearchParams, coverage: DigestCoverageOp): Promise<DigestSourceHit[]> {
   const { scope, ownerId, query, topN, rerank } = params;
   const base = { ownerId, query, topN, rerank: rerank === true };
   switch (scope.kind) {
     case "chat":
-      return await digestScan(ctx, {
-        ...base,
-        chatId: scope.chatId,
-        scopedCharacterId: scope.scopedCharacterId,
-      });
+      return await digestScan(
+        ctx,
+        {
+          ...base,
+          chatId: scope.chatId,
+          scopedCharacterId: scope.scopedCharacterId,
+        },
+        coverage,
+      );
     case "character":
-      return await digestScan(ctx, { ...base, speakerCharacterId: scope.characterId });
+      return await digestScan(ctx, { ...base, speakerCharacterId: scope.characterId }, coverage);
     case "owner":
-      return await digestScan(ctx, base);
+      return await digestScan(ctx, base, coverage);
     default:
       return assertNever(scope);
   }
@@ -182,8 +204,8 @@ async function dispatchSegments(ctx: SearchContext, verbs: DelegateVerbs, params
   });
 }
 
-export function createSearch(ctx: SearchContext, verbs: DelegateVerbs): SearchService["search"] {
-  return async (params: UnifiedSearchParams): Promise<UnifiedSearchResult> => {
+export function createSearch(ctx: SearchContext, verbs: DelegateVerbs, coverage: DigestCoverageOp): SearchService["search"] {
+  const run = async (params: UnifiedSearchParams): Promise<UnifiedSearchRows> => {
     const { ownerId, query, topN, over, scope, rerank } = params;
     if (query.trim().length === 0) {
       throw new SearchError(SEARCH_EMPTY_QUERY, "search requires a query to embed + scan");
@@ -234,9 +256,41 @@ export function createSearch(ctx: SearchContext, verbs: DelegateVerbs): SearchSe
       case "segments":
         return { over, hits: await dispatchSegments(ctx, verbs, params) };
       case "digests":
-        return { over, hits: await dispatchDigests(ctx, params) };
+        return { over, hits: await dispatchDigests(ctx, params, coverage) };
       default:
         return assertNever(over);
     }
   };
+  return async (params): Promise<UnifiedSearchResult> => {
+    const result = await run(params);
+    const candidateLimit = searchCandidateLimit(params);
+    return {
+      ...result,
+      coverage: {
+        requestLimit: params.topN,
+        candidateLimit,
+        evidencePerCharacter: params.over === "discover" ? DISCOVER_SEGMENTS_PER_CHAR : null,
+        reranked: params.rerank === true,
+      },
+    };
+  };
+}
+
+function searchCandidateLimit(params: UnifiedSearchParams): number {
+  switch (params.over) {
+    case "discover":
+      return Math.min(params.topN * DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENT_POOL_CAP);
+    case "corpus":
+    case "segments":
+      return SCOPED_POOL_K;
+    case "digests":
+    case "documents":
+      return Math.min(params.topN * OWNER_OVERFETCH, SCOPED_POOL_K);
+    case "entities":
+    case "characters":
+    case "images":
+      return params.topN * OWNER_OVERFETCH;
+    default:
+      return assertNever(params.over);
+  }
 }

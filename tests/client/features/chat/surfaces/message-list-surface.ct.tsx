@@ -21,19 +21,22 @@
 import type { ChatBusEvent, ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
+import { messageWindowTargetSchema } from "@orb/contracts/search";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { contrastRatio } from "@orb/tooling/_shared/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { pixelContrast } from "../../../../support/browser/pixel-contrast.ts";
+import { corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcFixtureOutput, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import {
   MessageListFooterDisclosureStory,
+  MessageListMomentStory,
   MessageListNoticeBandStory,
   MessageListOverArtStory,
   MessageListStoppingStory,
@@ -96,6 +99,105 @@ const ROSTER_STUB: TrpcRoutes<"chat.getChat"> = {
     group: DEFAULT_GROUP_CONFIG,
   }),
 };
+
+test("an anchored window survives suspension, pages both ways and consumes focus once", async ({ mount, page }) => {
+  const source = corpusSceneSource(mintTypeId(ID_PREFIX.chat), 4);
+  const target = messageWindowTargetSchema.parse({ kind: "source", source });
+  const start = makeMessageView({
+    id: castId<MessageId>(source.messageStartId ?? "missing"),
+    chatId: target.kind === "source" ? target.source.chatId : CHAT_ID,
+    seq: 1201,
+    content: "Selected original source",
+  });
+  const end = makeMessageView({
+    id: castId<MessageId>(source.messageEndId ?? "missing"),
+    chatId: target.kind === "source" ? target.source.chatId : CHAT_ID,
+    seq: 1202,
+    content: "Selected source end",
+  });
+  const held = trpcHold();
+  const window = {
+    outcome: "resolved" as const,
+    anchorMessageId: start.id,
+    anchorSeq: start.seq,
+    endMessageId: end.id,
+    endSeq: end.seq,
+    identities: [],
+    hasBefore: true,
+    hasAfter: true,
+  };
+  const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...ROSTER_STUB,
+    "chat.listMessages": makeMessagesPage([{ ...AI_VIEW, chatId: target.kind === "source" ? target.source.chatId : CHAT_ID }]),
+    "chat.getMessageWindow": (input) =>
+      input.cursor === null || input.cursor === undefined
+        ? held
+        : {
+            ...window,
+            messages: [
+              makeMessageView({
+                id: mintTypeId(ID_PREFIX.message),
+                chatId: target.kind === "source" ? target.source.chatId : CHAT_ID,
+                seq: input.cursor.kind === "before" ? 1200 : 1203,
+                content: input.cursor.kind === "before" ? "Earlier source neighbor" : "Later source neighbor",
+              }),
+            ],
+            hasBefore: input.cursor.kind !== "before",
+            hasAfter: input.cursor.kind !== "after",
+          },
+  });
+  await routeOrbSocket(page, { frames: [], awaitAttaches: 1 });
+  const component = await mount(<MessageListMomentStory target={target} />);
+  await expect(component.getByText("Hello world")).toBeVisible();
+  await component.getByRole("button", { name: "Open source moment" }).click();
+  await held.requested;
+  held.release({ ...window, messages: [start, end] });
+  const selected = component.locator("li").filter({ has: page.locator(`[data-message-id="${start.id}"]`) });
+  await expect(selected).toBeFocused();
+  await expect(selected.locator("[data-corpus-anchor]")).toHaveCount(1);
+  await expect(component.getByRole("status").filter({ hasText: "Opened the exact source moment." })).toHaveCount(1);
+  await component.getByRole("button", { name: "Earlier messages" }).click();
+  await expect(component.getByText("Earlier source neighbor")).toBeVisible();
+  await component.getByRole("button", { name: "Later messages" }).click();
+  await expect(component.getByText("Later source neighbor")).toBeVisible();
+  await component.getByRole("button", { name: "Hide thread" }).click();
+  const show = component.getByRole("button", { name: "Show thread" });
+  await show.click();
+  await expect(component.locator("output")).toContainText("anchor=consumed");
+  await expect(show).toHaveCount(0);
+  await expect(selected).toBeVisible();
+  await expect(selected).not.toBeFocused();
+  await component.getByRole("button", { name: "Back to Corpus" }).click();
+  await expect(component.locator("output")).toContainText("section=corpus");
+  await expect.poll(() => trpc.count("chat.listMessages")).toBe(1);
+});
+
+test("a deleted source announces its outcome when the fallback room is empty", async ({ mount, page }) => {
+  const target = messageWindowTargetSchema.parse({ kind: "source", source: corpusSceneSource(mintTypeId(ID_PREFIX.chat), 4) });
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...ROSTER_STUB,
+    "chat.listMessages": makeMessagesPage([]),
+    "chat.getMessageWindow": {
+      outcome: "deleted",
+      anchorMessageId: null,
+      anchorSeq: null,
+      endMessageId: null,
+      endSeq: null,
+      messages: [],
+      identities: [],
+      hasBefore: false,
+      hasAfter: false,
+    },
+  });
+  await routeOrbSocket(page, { frames: [], awaitAttaches: 1 });
+  const component = await mount(<MessageListMomentStory target={target} />);
+  await component.getByRole("button", { name: "Open source moment" }).click();
+  await expect(component.locator("output")).toContainText("anchor=consumed");
+  await expect(component.getByRole("status").filter({ hasText: "The source moment was deleted. Opened the room without an exact jump." })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Back to Corpus" })).toBeVisible();
+});
 
 /** Script a `chat`-room frame sequence out of bus events: each event takes the next durable `seq` (1…N),
  *  exactly as the room source stamps a durable row. An attach SYNTHETIC (`chatOpened`/`historyTruncated`)

@@ -1,7 +1,8 @@
 // domain/discovery/contract/results — the verb output shapes for discovery's read/compute surface.
 
 import type { TokenProvenance } from "@orb/contracts/chat";
-import type { BrowseCursor, DuplicateRelation } from "@orb/contracts/discovery";
+import type { BrowseCursor, DuplicateRelation, ThemeRow } from "@orb/contracts/discovery";
+import type { CorpusDigestSource } from "@orb/contracts/search";
 import type { CharacterId, ChatId, DuplicateCharacterPairId, DuplicateChatPairId, MessageId, ThemeClusterId } from "@orb/kit/ids";
 import type { ThemeLevel } from "./params.ts";
 
@@ -54,17 +55,6 @@ export interface DuplicateChatComputeStats {
 }
 
 // ── themes ────────────────────────────────────────────────────────────────────
-/** One owner-scoped emergent theme cluster (k-means over digest embeddings, LLM-named). `name` is null
- *  until the naming pass runs or the cluster is below the name-worthiness floor. */
-export interface ThemeRow {
-  readonly id: ThemeClusterId;
-  readonly level: ThemeLevel;
-  readonly clusterIdx: number;
-  readonly name: string | null;
-  readonly size: number;
-  readonly model: string;
-  readonly computedAt: number;
-}
 
 /** The `computeThemes` recompute summary. */
 export interface ThemeComputeStats {
@@ -147,29 +137,6 @@ export interface CharacterFacets {
 }
 
 // ── archetypes (k-means over card embeddings, labelled from distilled facets — no LLM) ──────────────────
-/** One character in an archetype cluster (the display slice — capped in the verb). Carries the portrait so a
- *  member can be DRAWN from this payload alone: the client's family plates used to join every member against
- *  `portraitAlignment` for its faces, a second owner-scoped read for one string both producers already have
- *  in hand (the visual clusterer keys ON the avatar; the card clusterer's facet read already joins
- *  `characters`). `null` is the honest miss — no current avatar, or an undistilled card the facet join never
- *  reached — and a renderer degrades it to initials rather than inventing a face. */
-export interface ArchetypeMember {
-  readonly characterId: CharacterId;
-  readonly name: string;
-  readonly avatarHash: string | null;
-}
-
-/** One character archetype — a k-means cluster of an owner's card embeddings, labelled from the dominant
- *  distilled facets. `size` is the full member count; `members` is a bounded display slice. */
-export interface Archetype {
-  readonly label: string;
-  readonly genre: string | null;
-  readonly tone: string | null;
-  readonly topTags: string[];
-  readonly size: number;
-  readonly members: ArchetypeMember[];
-  readonly model: string;
-}
 
 /** One point in the corpus "galaxy" — a character's card embedding projected to 2D (PCA). */
 export interface CorpusPoint {
@@ -379,20 +346,6 @@ export interface ForgottenGem {
   readonly costUsd: number | null;
 }
 
-/** One (genre, model) routing row — which model was used for the owner's distilled genre and how it performed. */
-export interface ModelRoutingRow {
-  readonly genre: string;
-  readonly model: string;
-  readonly provider: string | null;
-  readonly generations: number;
-  readonly tokensOut: number | null;
-  /** Dominant provenance across the character/model rows aggregated into this route. */
-  readonly tokensOutProvenance: TokenProvenance;
-  readonly avgGenTimeMs: number | null;
-  /** `null` = no generation in this route reported a dollar cost. */
-  readonly costUsd: number | null;
-}
-
 // ── composed views (content-only server verbs — home + themeDetail) ─────────────────────────────────────
 /** Corpus coverage — how much of the owner's library is indexed (not usage). */
 interface CorpusCoverage {
@@ -467,6 +420,9 @@ export interface CharacterDossier {
 
 /** One theme's detail view — the cluster row + its story-time timeline + the characters most present in it. */
 export interface ThemeDetail {
+  readonly sources: readonly CorpusDigestSource[];
+  readonly sourceLimit: number;
+  readonly computedAt: number;
   readonly id: ThemeClusterId;
   readonly level: ThemeLevel;
   readonly clusterIdx: number;
@@ -486,19 +442,6 @@ export interface ImageDuplicatePair {
   readonly characterIdB: CharacterId;
   readonly nameB: string;
   readonly similarity: number;
-}
-
-/** One art-style cluster — k-means over avatar vectors, labelled by dominant caption artStyle/mood. */
-export interface VisualArchetype {
-  readonly label: string;
-  readonly genre: string | null;
-  readonly tone: string | null;
-  readonly artStyle: string | null;
-  readonly palette: string | null;
-  readonly mood: string | null;
-  readonly size: number;
-  readonly members: ArchetypeMember[];
-  readonly model: string;
 }
 
 /** One character's portrait↔card cross-modal alignment (paired in-RAM cosine). Low = art doesn't match writing. */
@@ -565,3 +508,5 @@ export interface HubStats {
   readonly rowsScored: number;
   readonly groupsProcessed: number;
 }
+
+export type { Archetype, ArchetypeMember, ModelRoutingRow, ThemeRow, VisualArchetype } from "@orb/contracts/discovery";

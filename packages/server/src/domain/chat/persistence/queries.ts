@@ -974,16 +974,27 @@ export async function loadContinueSnapshot(db: Db, chatId: ChatId, messageId: Me
 export async function loadMessagesPage(
   db: Db,
   chatId: ChatId,
-  window: { readonly beforeSeq: number | undefined; readonly limit: number; readonly floorSeq: number },
+  window: {
+    readonly beforeSeq: number | undefined;
+    readonly afterSeq?: number | undefined;
+    readonly ascending?: boolean;
+    readonly limit: number;
+    readonly floorSeq: number;
+  },
 ): Promise<MessageView[]> {
   const { beforeSeq, limit, floorSeq } = window;
-  const where = and(eq(messages.chatId, chatId), gte(messages.seq, floorSeq), beforeSeq === undefined ? undefined : lt(messages.seq, beforeSeq));
+  const where = and(
+    eq(messages.chatId, chatId),
+    gte(messages.seq, floorSeq),
+    beforeSeq === undefined ? undefined : lt(messages.seq, beforeSeq),
+    window.afterSeq === undefined ? undefined : gt(messages.seq, window.afterSeq),
+  );
   const rows = await db
     .select(messageViewSelection)
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(where)
-    .orderBy(desc(messages.seq))
+    .orderBy(window.ascending === true ? asc(messages.seq) : desc(messages.seq))
     .limit(limit);
   return rows.map(toMessageView);
 }

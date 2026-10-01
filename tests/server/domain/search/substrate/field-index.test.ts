@@ -95,8 +95,8 @@ describe("queryFields / suggestFields", () => {
 
     const hits = queryFields(index, "Kestrel", 1);
 
-    expect(hits).toHaveLength(1);
-    expect(hits[0]?.characterId).toBeDefined();
+    expect(hits.hits).toHaveLength(1);
+    expect(hits.hits[0]?.characterId).toBeDefined();
   });
 
   test("suggestFields respects limit", async () => {

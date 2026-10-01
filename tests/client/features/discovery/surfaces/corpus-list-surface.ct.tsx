@@ -5,8 +5,10 @@
 // evidence preview (the J10 chat-search preview); and the browse catalog filter (the `q` param) narrows
 // the rows client-visibly.
 
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusListSurfaceRailBounceStory, CorpusListSurfaceStory, CorpusListSurfaceWidthStory, CorpusSectionArrivalStory } from "../_ct-stories.tsx";
@@ -34,10 +36,11 @@ const DISCOVER_HIT = {
     {
       chatId: "chat_market01",
       blockIdx: 3,
+      source: corpusSceneSource("chat_market01", 3),
       snippet: "The night market hums with secrets.",
       score: 0.3,
     },
-    { chatId: "chat_market01", blockIdx: 7, snippet: "She slips between the stalls.", score: 0.28 },
+    { source: corpusSceneSource("chat_market01", 7), chatId: "chat_market01", blockIdx: 7, snippet: "She slips between the stalls.", score: 0.28 },
   ],
 };
 
@@ -45,12 +48,12 @@ const DISCOVER_HIT = {
 function searchResponder(input: TrpcInput<"search.search">): TrpcFixtureOutput<"search.search"> {
   const over = input?.over;
   if (over === "characters") {
-    return { over: "characters", hits: [CHARACTER_HIT] };
+    return { over: "characters", coverage: CORPUS_PREVIEW_COVERAGE, hits: [CHARACTER_HIT] };
   }
   if (over === "discover") {
-    return { over: "discover", hits: [DISCOVER_HIT] };
+    return { over: "discover", coverage: { ...CORPUS_PREVIEW_COVERAGE, candidateLimit: 400, evidencePerCharacter: 3 }, hits: [DISCOVER_HIT] };
   }
-  return { over: over ?? "characters", hits: [] };
+  return { over: over ?? "characters", coverage: CORPUS_PREVIEW_COVERAGE, hits: [] };
 }
 
 const ARIA_ROW = {
@@ -150,7 +153,7 @@ test("the Text target runs the lexical fields search and names the hits from the
     "discovery.browseCharacters": EMPTY_BROWSE,
     "search.suggest": [],
     // fields returns bare id+score; the picker names it against character.list.
-    "search.fields": [{ characterId: "char_zed", score: 3.2 }],
+    "search.fields": { hits: [{ characterId: "char_zed", score: 3.2 }], coverage: { requestLimit: 20, indexedCharacters: 1, matchingCharacters: 1 } },
     "character.list": {
       items: [{ id: "char_zed", name: "Zed the Lexeme", avatarHash: null }],
       nextCursor: null,
@@ -192,6 +195,54 @@ test("a rail bounce restores the omnibox: the query, the target, and the results
   await expect(component.getByRole("combobox", { name: "Search your corpus" })).toHaveValue("market");
   await expect(component.getByRole("button", { name: "Search Scenes" })).toHaveAttribute("aria-pressed", "true");
   await expect(component.getByText("2 matching moments in 1 room")).toBeVisible();
+});
+
+test("returning to Explore restores its scrolled finder and retained artifact snapshot", async ({ mount, page }) => {
+  const hits = Array.from({ length: 20 }, (_unused, index) => {
+    const blockKey = { chatId: mintTypeId(ID_PREFIX.chat), scopedCharacterId: mintTypeId(ID_PREFIX.character), tier: 0, blockIdx: index };
+    return {
+      blockKey,
+      source: corpusDigestSource(blockKey),
+      score: 0,
+      relevance: 0.9,
+      text: `Distinct retained evidence ${index + 1}.`,
+      chatTitle: `Scrolled room ${index + 1}`,
+      scopedCharacterName: "Witness",
+    };
+  });
+  await routeTrpc(page, {
+    "discovery.characterFacets": { genres: [], tones: [] },
+    "discovery.catalog": EMPTY_CATALOG,
+    "discovery.browseCharacters": EMPTY_BROWSE,
+    "search.suggest": [],
+    "search.search": { over: "digests", coverage: CORPUS_PREVIEW_COVERAGE, hits },
+  });
+  const component = await mount(<CorpusListSurfaceRailBounceStory />);
+  await component.getByRole("button", { name: "Search Memories" }).click();
+  const omnibox = component.getByRole("combobox", { name: "Search your corpus" });
+  await omnibox.fill("retained evidence");
+  const results = component.getByRole("list", { name: "Search results — Memories" });
+  await expect(results.getByRole("button", { name: "Scrolled room 20", exact: true })).toHaveCount(1);
+  await results.evaluate((node) => {
+    node.scrollTop = node.scrollHeight;
+  });
+  await results.getByRole("button", { name: "Scrolled room 20", exact: true }).click();
+  const savedScroll = await results.evaluate((node) => node.scrollTop);
+  expect(savedScroll).toBeGreaterThan(100);
+  await expect(component.getByTestId("ct-nav-readout")).toContainText("artifact:digest");
+  const identity = await component.getByTestId("ct-artifact-identity").textContent();
+  const lastHit = hits.at(-1);
+  if (identity === null || lastHit === undefined) {
+    throw new Error("missing selected source fixture");
+  }
+  expect(identity).toContain(lastHit.source.rowId);
+  await component.getByRole("button", { name: "Leave Corpus" }).click();
+  await component.getByRole("button", { name: "Back to Corpus" }).click();
+  await expect(omnibox).toHaveValue("retained evidence");
+  await expect(component.getByRole("button", { name: "Search Memories" })).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(async () => results.evaluate((node) => node.scrollTop)).toBe(savedScroll);
+  await expect(component.getByTestId("ct-nav-readout")).toContainText("artifact:digest");
+  await expect(component.getByTestId("ct-artifact-identity")).toHaveText(identity);
 });
 
 // ── §5 TASTE: THE TARGET PICKER IS A FIT PROBLEM ─────────────────────────────────────────────────────

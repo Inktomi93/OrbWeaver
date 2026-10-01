@@ -27,10 +27,10 @@ import {
   seatKnobsSchema,
 } from "@orb/contracts/chat";
 import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
-
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { choiceBlockValuesSchema, userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import { rpgGameTemplateSchema } from "@orb/contracts/rpg";
+import { messageWindowCursorSchema, messageWindowTargetSchema } from "@orb/contracts/search";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
@@ -529,6 +529,16 @@ export const chatRouter = t.router({
   // A paged canon read (D26), member-gated (`requireParticipant` inside the verb — leak-free NOT_FOUND
   // for a non-member, the same collapse `getChat` uses). `beforeSeq`/`limit` page backwards from the tail.
   listMessages: authedProcedure.input(listMessagesSchema).query(({ ctx, input }) => ctx.services.chat.listMessages({ principal: ctx.auth, ...input })),
+  getMessageWindow: authedProcedure
+    .input(
+      z.object({
+        chatId: typeIdSchema(ID_PREFIX.chat),
+        target: messageWindowTargetSchema,
+        cursor: messageWindowCursorSchema.nullish(),
+        limit: z.number().int().min(1).max(CHAT_MESSAGE_LIST_MAX_LIMIT).optional(),
+      }),
+    )
+    .query(({ ctx, input }) => ctx.services.chat.getMessageWindow({ principal: ctx.auth, ...input })),
   // The swipe strip's step-target resolver (see the schema's header note above).
   listMessageVariants: authedProcedure
     .input(listMessageVariantsSchema)

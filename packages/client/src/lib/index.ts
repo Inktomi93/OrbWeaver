@@ -96,6 +96,8 @@ export {
   TOOL_RENDERER_MATCHES,
 } from "./contribution-contracts.ts";
 export { copyWithNotice } from "./copy-with-notice.ts";
+export type { CorpusDestination } from "./corpus-destination.ts";
+export { CORPUS_DESTINATION_KINDS, corpusDestinationIdentity } from "./corpus-destination.ts";
 export type { CorpusMode, CorpusModeContribution } from "./corpus-modes.ts";
 export { CORPUS_MODE_LABELS, CORPUS_MODES, CORPUS_WHOLE_LABEL, isCorpusMode } from "./corpus-modes.ts";
 export type { RegistryContext } from "./create-registry-context.tsx";

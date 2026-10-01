@@ -20,6 +20,13 @@ import { CorpusThemeSectionStory } from "../_ct-stories.tsx";
 
 /** `discovery.themeDetail`'s shape for the first theme — three members, the card's fixed anatomy. */
 const DETAIL_A = {
+  id: "theme_scene_0",
+  clusterIdx: 0,
+  model: "ct-distiller",
+  computedAt: 0,
+  sources: [],
+  sourceLimit: 20,
+  timeline: [],
   name: "A bargain at the crossroads",
   level: "scene",
   size: 12,
@@ -30,7 +37,13 @@ const DETAIL_A = {
   ],
 } satisfies TrpcFixtureOutput<"discovery.themeDetail">;
 
-const DETAIL_B = { ...DETAIL_A, name: "The map changes hands", size: 7 } satisfies TrpcFixtureOutput<"discovery.themeDetail">;
+const DETAIL_B = {
+  ...DETAIL_A,
+  id: "theme_scene_1",
+  clusterIdx: 1,
+  name: "The map changes hands",
+  size: 7,
+} satisfies TrpcFixtureOutput<"discovery.themeDetail">;
 
 test("#1098: picking a SECOND story theme holds the detail card's measured box — the column below does not jump", async ({ mount, page }) => {
   const hold = trpcHold();

@@ -50,6 +50,7 @@ describe("the named read sets", () => {
     const got = paths(chatCanonReads(trpcProxy()));
     expect(got).toEqual([
       "chat.listMessages",
+      "chat.getMessageWindow",
       "chat.listMessageVariants",
       "chat.previewContextFit",
       "chat.previewAssembly",

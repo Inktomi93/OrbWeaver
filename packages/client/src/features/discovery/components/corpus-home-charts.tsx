@@ -20,9 +20,12 @@
 // app's colour themes and the owner has been caught by that once. The `level` axis vocabulary
 // (scene / arc) is unchanged — it is the domain's own.
 
+import type { ThemeLevel } from "@orb/contracts/discovery";
 import { Badge } from "@orb/ui/badge";
 import { BarList } from "@orb/ui/bar-list";
+import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import { ListRow } from "@orb/ui/list-row";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
@@ -32,10 +35,10 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
+import { selectCorpusArtifact } from "#state";
 import { chartLabelWithDenominator, chartSpread, toBarItems, topRanked } from "../lib/corpus-charts.ts";
 import { ParamSelect, ParamToggle } from "./corpus-controls.tsx";
 
-type ThemeLevel = "scene" | "arc";
 type TopKeyword = inferOutput<Trpc["discovery"]["topKeywords"]>[number];
 
 const NO_KEYWORD = "";
@@ -113,7 +116,25 @@ export function KeywordExplorer({ top, pending }: { readonly top: readonly TopKe
           )}`}
         />
         <ParamSelect items={items} label="Cooccurs with" onValueChange={setKeyword} value={keyword} />
-        {keyword === NO_KEYWORD ? null : <CooccurringKeywords keyword={keyword} />}
+        {keyword === NO_KEYWORD ? null : (
+          <>
+            <Button
+              intent="secondary"
+              size="sm"
+              onClick={(): void =>
+                selectCorpusArtifact({
+                  kind: "keyword",
+                  keyword,
+                  frequency: top.find((row) => row.keyword === keyword)?.count ?? null,
+                  frequencyScope: "solo tier-zero digest keyword profiles",
+                })
+              }
+            >
+              Read keyword sources
+            </Button>
+            <CooccurringKeywords keyword={keyword} />
+          </>
+        )}
       </Stack>
     </Section>
   );
@@ -137,17 +158,38 @@ function CooccurringKeywords({ keyword }: { readonly keyword: string }): ReactEl
     return <Text voice="gloss">Nothing co-occurs with “{keyword}” yet.</Text>;
   }
   return (
-    <BarList
-      // Same accent-budget arm as the chart above it — this is the answer to the reader's own question,
-      // not the surface's focal.
-      intent="quiet"
-      items={toBarItems(
-        cooccurring.data,
-        (row) => row.keyword,
-        (row) => row.count,
-      )}
-      label={`Co-occurs with ${keyword}`}
-    />
+    <Stack gap="field">
+      <BarList
+        // Same accent-budget arm as the chart above it — this is the answer to the reader's own question,
+        // not the surface's focal.
+        intent="quiet"
+        items={toBarItems(
+          cooccurring.data,
+          (row) => row.keyword,
+          (row) => row.count,
+        )}
+        label={`Co-occurs with ${keyword}`}
+      />
+      <Stack gap="row" role="list">
+        {cooccurring.data.map((row) => (
+          <Stack key={row.keyword} role="listitem">
+            <ListRow
+              clickable={true}
+              title={row.keyword}
+              subtitle={`${row.count} co-occurrences with ${keyword}`}
+              onClick={(): void =>
+                selectCorpusArtifact({
+                  kind: "keyword",
+                  keyword: row.keyword,
+                  frequency: row.count,
+                  frequencyScope: `solo scene digests also containing ${keyword}`,
+                })
+              }
+            />
+          </Stack>
+        ))}
+      </Stack>
+    </Stack>
   );
 }
 

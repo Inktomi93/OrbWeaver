@@ -190,6 +190,7 @@ describe("modelRouting", () => {
         tokensOut: 150,
         tokensOutProvenance: "measured",
         avgGenTimeMs: 400,
+        genTimeSamples: 2,
         costUsd: null,
       },
       {
@@ -200,6 +201,7 @@ describe("modelRouting", () => {
         tokensOut: 20,
         tokensOutProvenance: "measured",
         avgGenTimeMs: null,
+        genTimeSamples: 0,
         costUsd: null,
       },
     ]);

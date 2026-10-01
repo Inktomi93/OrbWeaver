@@ -27,6 +27,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
+import type { MessageWindowCursor, MessageWindowTarget } from "@orb/contracts/search";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { BindingActor } from "@orb/inference";
 import type {
@@ -172,6 +173,13 @@ export interface GetShapeTraceParams extends ChatScopedParams {
  *  the fit shapes for (as `getShapeTrace`), so the preview matches the boundary the next real turn stamps. */
 export interface PreviewContextFitParams extends ChatScopedParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;
+}
+
+/** Source and stable-message resolution with bounded canon paging. */
+export interface GetMessageWindowParams extends ChatScopedParams {
+  readonly target: MessageWindowTarget;
+  readonly cursor?: MessageWindowCursor | null | undefined;
+  readonly limit?: number | undefined;
 }
 
 /** `listMessages` — paged canon read. */

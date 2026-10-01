@@ -1,3 +1,4 @@
+import { corpusGroupingProvenance } from "../../../../support/node/corpus-source.ts";
 // CT: the Corpus CONTENT region — the ANALYSIS-STATE SWAP, the chrome diet, and the region's own inset
 // (program #102 corpus leg, issue #127; mockup A "The Cartographer" + the ruled invitation-focal state).
 //
@@ -51,6 +52,7 @@ const ELIAS_HASH = "bbbb2222";
 
 const FAMILIES = [
   {
+    ...corpusGroupingProvenance("mixed"),
     label: "mixed",
     genre: null,
     tone: null,
@@ -65,6 +67,7 @@ const FAMILIES = [
     model: "Qwen/Qwen3-VL-Embedding-2B",
   },
   {
+    ...corpusGroupingProvenance("mixed"),
     label: "mixed",
     genre: null,
     tone: null,
@@ -305,7 +308,7 @@ test("THE PORTRAIT ON THE PAYLOAD: a member carrying a hash draws its blob; a nu
   // portrait. The plate that names her still renders — in its GLOSS now, not as the plate's title
   // (side-eye populated arm 2026-08-23, [P2-1]: the member-run arm was displacing the family's real label,
   // which the Archetypes tab was printing 30px away, so one family had two names in one frame).
-  await expect(component.getByText("Morgatha", { exact: false })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Mixed · Morgatha", exact: true })).toBeVisible();
   const morgathaSeat = page.locator('[data-slot="avatar-stack-item"]', { has: page.locator('text="M"') });
   await expect(morgathaSeat.locator("img")).toHaveCount(0);
 
@@ -427,8 +430,9 @@ const FREE_ROUTES = [
     generations: 40,
     tokensOut: 9000,
     tokensOutProvenance: "measured" as const,
+    genTimeSamples: 40,
     avgGenTimeMs: 800,
-    costUsd: 0,
+    costUsd: null,
   },
   {
     genre: "romance",
@@ -437,8 +441,9 @@ const FREE_ROUTES = [
     generations: 12,
     tokensOut: 2000,
     tokensOutProvenance: "measured" as const,
+    genTimeSamples: 12,
     avgGenTimeMs: 700,
-    costUsd: 0,
+    costUsd: null,
   },
 ];
 
@@ -467,7 +472,7 @@ test("MODEL ECONOMICS REPORTS WHAT THE ROUTES DID, and invents no dollars to do 
   await expect(component.getByText(MONEY_CELL)).toHaveCount(0);
   // AND THE COST CLAUSE IS ABSENT, not zeroed (side-eye se-verify-4 N6). It used to read "cost recorded
   // for 0 of 2 routes" — a coverage statement about an empty column, which is a sentence about nothing.
-  await expect(component.getByText("routes", { exact: false }).filter({ hasText: "cost" })).toHaveCount(0);
+  await expect(component.getByText("routes", { exact: false }).filter({ hasText: "cost reported across" })).toHaveCount(0);
 });
 
 test("…and a PAID route is annotated, never promoted over the quantities (#553)", async ({ mount, page }) => {
@@ -494,8 +499,8 @@ test("…and a PAID route is annotated, never promoted over the quantities (#553
   // THE CLAUSE NAMES THE ROUTE IT IS ABOUT (side-eye se-verify-4 N6). "cost recorded for 1 of 142 routes"
   // pointed at a row no control on the page could reach — the chart draws the BUSIEST head, and the lone
   // priced route is nowhere near it. With exactly one, the clause carries the money and the route's name.
-  await expect(component.getByText("$0.04 recorded across 1 of 4 routes", { exact: false })).toBeVisible();
-  await expect(component.getByText("claude", { exact: false }).filter({ hasText: "recorded across" })).toBeVisible();
+  await expect(component.getByText("$0.04 reported across 1 of 4 routes", { exact: false })).toBeVisible();
+  await expect(component.getByText("claude", { exact: false }).filter({ hasText: "reported across" })).toBeVisible();
 });
 
 test("a large never-played library is windowed instead of mounting every avatar row", async ({ mount, page }) => {

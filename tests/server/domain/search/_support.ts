@@ -1,3 +1,5 @@
+
+import { consolidationHash, createResolveViewerVisibility } from "@orb/server/domain/chat";
 // Shared test harness for the search domain (NOT a test file — no `.test` suffix, so test-layout ignores
 // it). Builds a real-db `SearchContext` with a SCRIPTED `RoleClients` bundle — the sanctioned "fake at the
 // edges, inject at the root" doctrine (testing §3): a real injected dep, not an internal-module mock. The
@@ -254,6 +256,9 @@ export function makeSearch(db: Db, controls?: FakeRoleClientControls, now: () =>
   // `documents` lens's scope gating (the gate-8 leak test) is exercised end-to-end over real junctions.
   const roleClients = makeSearchRoleClients(controls);
   const ctx: SearchContext = {
+    resolveViewerVisibility: createResolveViewerVisibility({ db }),
+    digestConsolidationHash: consolidationHash,
+    tier0RangeOf: (tier, blockIdx) => ({ startIdx: blockIdx * 4 ** tier, endIdx: (blockIdx + 1) * 4 ** tier - 1 }),
     db,
     roleClientsFor: () => Promise.resolve(roleClients),
     resolveEmbeddingConnection: async (ownerId, task) => {

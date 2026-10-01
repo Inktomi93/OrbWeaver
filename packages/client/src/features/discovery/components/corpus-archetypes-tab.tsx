@@ -51,8 +51,10 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { selectCorpusCharacter } from "#state";
-import { disambiguateLabels, toBarItems } from "../lib/corpus-charts.ts";
+import type { CorpusDestination } from "#lib";
+import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
+import { resolveCorpusArchetypeNames } from "../lib/corpus-archetype-presentation.ts";
+import { toBarItems } from "../lib/corpus-charts.ts";
 import { toFaceItems } from "../lib/corpus-faces.ts";
 import { facetLabel, sentenceCase } from "../lib/corpus-vocabulary.ts";
 import { ParamSelect } from "./corpus-controls.tsx";
@@ -64,6 +66,7 @@ import { CorpusUnderstandingInvitation } from "./corpus-understanding-invitation
 type ClusterMember = inferOutput<Trpc["discovery"]["archetypes"]>[number]["members"][number];
 
 interface ArchetypeCard {
+  readonly destination: Extract<CorpusDestination, { kind: "cluster" }>;
   readonly label: string;
   readonly genre: string | null;
   readonly tone: string | null;
@@ -77,8 +80,9 @@ const AUTO = "";
 /** Faces per cluster row. The verb hands back up to 12 members; six `sm` seats is what the CONTEXT pane
  *  affords at its narrowest real width while the member NAMES keep the rest of the row. The true total is
  *  the "N members" count on the row above, so the strip never has to total — hence no "+N" chip, which
- *  computed off this display slice would undercount the cluster. */
+ *  the strip leaves its census to the row. */
 const CLUSTER_FACE_SLOTS = 6;
+const CLUSTER_PREVIEW_MEMBERS = 12;
 const SKELETON_ROW_COUNT = 3;
 const K_ITEMS: SelectItems<string> = [
   { value: AUTO, label: "Auto" },
@@ -131,6 +135,7 @@ export function CorpusArchetypesTab(): ReactElement {
           clusters={(visual.data ?? []).map((v) => ({
             // P3-4: an unnameable cluster is "Unclassified", never the literal token `none` the VL pass
             // writes. Projected once, here, so the bar and the card below it carry the same name.
+            destination: { kind: "cluster", cluster: v, visual: true, k: k === AUTO ? null : Number(k), title: facetLabel(v.label) },
             label: facetLabel(v.label),
             genre: v.genre,
             tone: v.tone,
@@ -149,7 +154,10 @@ export function CorpusArchetypesTab(): ReactElement {
           isPending={archetypes.isPending}
           error={archetypes.error}
           onRetry={archetypes.refetch}
-          clusters={archetypes.data ?? []}
+          clusters={(archetypes.data ?? []).map((cluster) => ({
+            ...cluster,
+            destination: { kind: "cluster" as const, cluster, visual: false, k: k === AUTO ? null : Number(k), title: cluster.label },
+          }))}
           emptyLabel="No writing archetypes computed yet."
           chartLabel="Writing cluster sizes"
         />
@@ -185,7 +193,7 @@ function ClusterView({
   // ONE NAME PER CLUSTER, resolved ONCE (side-eye corpus re-pass B6). The bar and the card below it are two
   // views of the same cluster, so they must not disambiguate independently — and the labeller repeats itself
   // often enough on a homogeneous library that this is the ordinary case, not the edge one.
-  const names = disambiguateLabels(clusters.map((cluster) => ({ label: cluster.label, facets: clusterFacets(cluster) })));
+  const names = resolveCorpusArchetypeNames(clusters.map((cluster) => cluster.destination.cluster));
   const bars = clusters.map((cluster, index) => ({ name: names[index] ?? cluster.label, size: cluster.size }));
   return (
     <Stack gap="block">
@@ -204,20 +212,15 @@ function ClusterView({
   );
 }
 
-/** A cluster's facets, most-distinguishing first: its own labelling inputs (art style · palette · mood, or
- *  genre/tone for the writing half), then its top tags. The disambiguator takes the first one its
- *  same-named peers do NOT share, so the order decides which difference gets printed. */
-function clusterFacets(cluster: ArchetypeCard): string[] {
-  return [...(cluster.extra ?? []), cluster.genre, cluster.tone, ...cluster.topTags].filter((facet): facet is string => facet !== null && facet !== "");
-}
-
 function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; readonly name: string }): ReactElement {
   const facets = [cluster.genre, cluster.tone, ...(cluster.extra ?? [])].filter((v) => v !== null && v !== "");
   return (
     <Stack gap="field">
       <Row align="center" gap="field" justify="between">
         {/* The DISAMBIGUATED name (B6) — the card and its bar are one cluster and must answer to one name. */}
-        <Text className="font-semibold">{name}</Text>
+        <Button intent="ghost" size="sm" onClick={(): void => selectCorpusArtifact({ ...cluster.destination, title: name })}>
+          {name}
+        </Button>
         <Text voice="gloss">{cluster.size} members</Text>
       </Row>
       {/* THE FACET CHAIN IS DATA (P3-2): 45-59 characters of distilled tokens, set in the 9.5px UPPERCASE
@@ -232,6 +235,11 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
             </Badge>
           ))}
         </Row>
+      ) : null}
+      {cluster.members.length > CLUSTER_PREVIEW_MEMBERS ? (
+        <Text voice="gloss">
+          Showing {CLUSTER_PREVIEW_MEMBERS} of {cluster.members.length} members. Open the grouping for all members.
+        </Text>
       ) : null}
       {cluster.members.length > 0 ? (
         <Row align="center" gap="field">
@@ -263,7 +271,7 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
               quick-picks use for "a grid cell whose subject is a character", so the hover/focus/press
               vocabulary is the one this section already teaches. */}
           <Row className="min-w-0 flex-1 flex-wrap" gap="tight">
-            {cluster.members.map((member) => (
+            {cluster.members.slice(0, CLUSTER_PREVIEW_MEMBERS).map((member) => (
               <Button intent="ghost" key={member.characterId} onClick={(): void => selectCorpusCharacter(member.characterId)} size="sm">
                 <Text as="span" className="truncate text-muted-foreground" voice="label">
                   {member.name}

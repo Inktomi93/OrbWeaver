@@ -102,6 +102,7 @@ export type { ChatWorkloadDeps } from "./contract/workloads.ts";
 export { requireAuthorOrHost, requireHost, requireParticipant } from "./guard.ts";
 export { generateDigests } from "./memory/generate/digests.ts";
 export { generateSegments } from "./memory/generate/segments.ts";
+export { consolidationHash } from "./memory/generate/substrate/transcript.ts";
 export { loadChatMeta } from "./memory/persistence/queries.ts";
 export { resolveTier0Range } from "./memory/recall/bridge.ts";
 // The recall flight recorder (#250) — the composition root builds ONE and wires its sink onto `ChatContext`.

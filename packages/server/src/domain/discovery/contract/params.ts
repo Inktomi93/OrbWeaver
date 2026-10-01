@@ -4,10 +4,7 @@ import type { BrowseCursor, BrowseSort, DuplicateRelation } from "@orb/contracts
 import type { ImageFacetMetaKey } from "@orb/contracts/embeddings";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 
-// ── ThemeLevel (the clustering-level dispatch axis) ───────────────────────────
-/** `scene` = tier-0 single-block digests; `arc` = tier-1+ cross-block syntheses. */
-export const THEME_LEVELS = ["scene", "arc"] as const;
-export type ThemeLevel = (typeof THEME_LEVELS)[number];
+export type { ThemeLevel } from "@orb/contracts/discovery";
 
 // ── compute-pass option bags (workload-driven; all fields optional with built-in defaults) ────────────
 /** Options for the `computeDuplicatePairs` recompute. `threshold` is the raw-cosine floor a pair must clear. */

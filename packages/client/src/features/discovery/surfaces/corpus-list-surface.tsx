@@ -111,7 +111,7 @@ export function CorpusListSurface(): ReactElement {
       </ToggleGroup>
       <SearchOmnibox inputRef={omniboxRef} query={query} deferredQuery={deferredQuery} onQuery={setCorpusSearchQuery} />
       <Stack className="min-h-0 flex-1">
-        {searching ? <CorpusSearchResults query={deferredQuery} targetId={targetId} /> : <CorpusRestState targetId={targetId} />}
+        {searching ? <CorpusSearchResults query={deferredQuery} targetId={targetId} retainFinderScroll={true} /> : <CorpusRestState targetId={targetId} />}
       </Stack>
     </Stack>
   );

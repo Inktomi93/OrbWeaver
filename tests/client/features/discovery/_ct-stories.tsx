@@ -18,16 +18,27 @@ import {
   CorpusUnderstandingInvitation,
   corpusModePaletteSource,
 } from "@orb/client/features/discovery";
-import type { CommandPaletteSource } from "@orb/client/lib";
-import { createContributorRegistry } from "@orb/client/lib";
-import { CommandPaletteSourceRegistryProvider, useActiveChatId, useActiveSection } from "@orb/client/state";
+import type { CommandPaletteSource, CorpusDestination } from "@orb/client/lib";
+import { corpusDestinationIdentity, createContributorRegistry } from "@orb/client/lib";
+import {
+  CommandPaletteSourceRegistryProvider,
+  readCorpusResultScroll,
+  selectCorpusArtifact,
+  setCorpusResultScroll,
+  useActiveChatId,
+  useActiveSection,
+  useChatMoment,
+  useSelectedCorpusDestination,
+} from "@orb/client/state";
 import type { CharacterId, ThemeClusterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
+import { CorpusArtifactContext } from "../../../../packages/client/src/features/discovery/components/corpus-artifact-context.tsx";
 import { CorpusSearchResults } from "../../../../packages/client/src/features/discovery/components/corpus-search-results.tsx";
 import { CorpusThemeSection } from "../../../../packages/client/src/features/discovery/components/corpus-theme-section.tsx";
+import { CorpusArtifactSurface } from "../../../../packages/client/src/features/discovery/surfaces/corpus-artifact-surface.tsx";
 import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 
 // The theme rows the overview hands the section, spelled at the REAL prop type so a field added to
@@ -58,10 +69,14 @@ export function CorpusListSurfaceStory(): ReactElement {
  *  hit's `selectChat` + `setActiveSection` land here as text a CT can assert. Non-exported: the stories
  *  module publishes components to the CT loader, and this one rides inside {@link CorpusListSurfaceNavStory}. */
 function NavReadout(): ReactElement {
+  const destination = useSelectedCorpusDestination();
   return (
-    <div data-testid="ct-nav-readout">
-      section:{useActiveSection()} chat:{useActiveChatId() ?? "none"}
-    </div>
+    <>
+      <div data-testid="ct-nav-readout">
+        section:{useActiveSection()} chat:{useActiveChatId() ?? "none"} artifact:{destination?.kind ?? "none"}
+      </div>
+      <output data-testid="ct-artifact-identity">{destination === null ? "none" : corpusDestinationIdentity(destination)}</output>
+    </>
   );
 }
 
@@ -109,6 +124,64 @@ export function CorpusSearchToDossierStory(): ReactElement {
   );
 }
 
+export function CorpusSearchToArtifactStory({ width = 1000 }: { readonly width?: number }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ display: "flex", flexWrap: "wrap", height: 640, width }}>
+        <div style={{ width: 360 }}>
+          <CorpusListSurface />
+        </div>
+        <div style={{ flex: 1, minWidth: 320 }}>
+          <CorpusContent />
+          <CorpusArtifactContext />
+        </div>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+export function CorpusArtifactReaderStory({ destination, width = 720 }: { readonly destination: CorpusDestination; readonly width?: number }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width }}>
+        <button type="button" onClick={(): void => selectCorpusArtifact(destination)}>
+          Select evidence
+        </button>
+        <SelectedArtifactStoryBody />
+        <CorpusArtifactContext />
+        <NavReadout />
+        <MomentReadout />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+export function CorpusEmbeddedResultsStory(): ReactElement {
+  const [position, setPosition] = useState(0);
+  return (
+    <CtDataProviders>
+      <button type="button" onClick={(): void => setCorpusResultScroll(240)}>
+        Remember finder position
+      </button>
+      <button type="button" onClick={(): void => setPosition(readCorpusResultScroll())}>
+        Read finder position
+      </button>
+      <output data-testid="ct-finder-position">{position}</output>
+      <div style={{ width: 360, height: 200, display: "flex", flexDirection: "column" }}>
+        <CorpusSearchResults query="embedded evidence" targetId="digests" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+function MomentReadout(): ReactElement {
+  const moment = useChatMoment(useActiveChatId());
+  if (moment === null) {
+    return <output data-testid="ct-moment-readout">none</output>;
+  }
+  return <output data-testid="ct-moment-readout">{moment.target.kind === "message" ? `message:${moment.target.messageId}` : moment.target.kind}</output>;
+}
+
 /** THE RAIL BOUNCE (U1): the shell UNMOUNTS a section's LIST surface when you switch rails and mounts a
  *  fresh one when you come back, which is why the omnibox's query and target have to live somewhere that
  *  outlives the component. The switch here is that unmount/remount — the smallest honest stand-in for a rail
@@ -121,6 +194,7 @@ export function CorpusListSurfaceRailBounceStory(): ReactElement {
         {inCorpus ? "Leave Corpus" : "Back to Corpus"}
       </button>
       <div style={{ height: 640, width: 360 }}>{inCorpus ? <CorpusListSurface /> : <p>Another section</p>}</div>
+      <NavReadout />
     </CtDataProviders>
   );
 }
@@ -215,6 +289,7 @@ export function CorpusCompareTabStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 640, width: 420 }}>
         <CorpusCompareTab />
+        <SelectedArtifactStoryBody />
       </div>
     </CtDataProviders>
   );
@@ -439,10 +514,16 @@ export function CorpusThemeSectionStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
         <CorpusThemeSection arcThemes={ARC_THEMES} sceneThemes={SCENE_THEMES} />
+        <SelectedArtifactStoryBody />
         <div data-testid="corpus-themes-tail" style={{ height: 8 }} />
       </div>
     </CtDataProviders>
   );
+}
+
+function SelectedArtifactStoryBody(): ReactElement | null {
+  const destination = useSelectedCorpusDestination();
+  return destination === null ? null : <CorpusArtifactSurface destination={destination} />;
 }
 
 /** The ⌘K palette with the Corpus mode source, as the door assembles it (D271). */

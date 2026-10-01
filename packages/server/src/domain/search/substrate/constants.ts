@@ -37,3 +37,6 @@ export const DEFAULT_DOCUMENT_MIN_SCORE = 0.25;
  *  ever written — so both image-reading verbs force this lens rather than scanning a table that cannot have
  *  a matching row. One home, because a second spelling is how the two verbs would drift apart. */
 export const CAPTION_LENS: ImageLens = "image-captioned";
+
+/** A source coverage proof fails closed beyond this retained lineage budget. */
+export const SOURCE_LINEAGE_LIMIT = 4096;

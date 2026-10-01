@@ -3,9 +3,11 @@
 // double-count). (corpusProjection has its own mirror test: projection.int.test.ts.)
 
 import type { Db } from "@orb/db";
-import { characterSummaries } from "@orb/db";
+import { characterEmbeddings, characterSummaries } from "@orb/db";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -62,6 +64,32 @@ function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {
 }
 
 describe("archetypes", () => {
+  test("a selected grouping carries every member and a pass identity that changes with its source", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, mintTypeId(ID_PREFIX.user));
+    const ids: Awaited<ReturnType<typeof seedCard>>[] = [];
+    for (let i = 0; i < 14; i += 1) {
+      ids.push(
+        await seedCard(db, { id: mintTypeId(ID_PREFIX.character), ownerId: owner, embedding: vec(1, i * 0.001), contentHash: `member-${i}`, genre: "fantasy" }),
+      );
+    }
+    const service = svcFor(db);
+    const first = (await service.archetypes(owner, { k: 1 }))[0];
+    expect(first?.members.map((member) => member.characterId).toSorted((a, b): number => a.localeCompare(b))).toEqual(
+      ids.toSorted((a, b): number => a.localeCompare(b)),
+    );
+    expect(first?.size).toBe(14);
+    expect(first?.generationId).toBeTruthy();
+    expect(first?.fingerprint).not.toBeNull();
+    const firstId = ids[0];
+    if (firstId === undefined) {
+      throw new Error("missing member fixture");
+    }
+    await db.update(characterEmbeddings).set({ contentHash: "changed-member" }).where(eq(characterEmbeddings.characterId, firstId));
+    const second = (await service.archetypes(owner, { k: 1 }))[0];
+    expect(second?.passId).not.toBe(first?.passId);
+  });
+
   test("labels are globally unique and stable across equal-size model spaces", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_unique_labels");
@@ -83,6 +111,7 @@ describe("archetypes", () => {
     const first = await svcFor(db).archetypes(owner, { k: 1 });
     const second = await svcFor(db).archetypes(owner, { k: 1 });
     expect(first.map((a) => a.label)).toEqual(["dark fantasy", "dark fantasy (2)"]);
+    expect(first.map((a) => a.baseLabel)).toEqual(["dark fantasy", "dark fantasy"]);
     expect(first.map((a) => a.model)).toEqual(["model-a", "model-b"]);
     expect(second).toEqual(first);
   });

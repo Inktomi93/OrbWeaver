@@ -10,6 +10,7 @@
 // keystone's `enqueueEmbedReindex` holder, databank, and portability — the keystone assigns the returned
 // `enqueueEmbedReindex` onto its late-bound holder so the settings write's embed-model trigger fires it.
 
+import { createResolveViewerVisibility } from "#domain/chat";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
@@ -39,7 +40,7 @@ import { createJoinerPersonaStatement, createPersonaService, createResolvePerson
 import type { PresetContext, PresetService } from "#domain/preset";
 import { createPresetService } from "#domain/preset";
 import type { SearchService } from "#domain/search";
-import { createSearchService } from "#domain/search";
+import { createDigestSources, createSearchService } from "#domain/search";
 import type { SettingsService } from "#domain/settings";
 import type { StatsService } from "#domain/stats";
 import { createStatsService } from "#domain/stats";
@@ -48,7 +49,7 @@ import type { WorkloadContributions, WorkloadService } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
 import type { AuditEntry, SpanAttrs } from "#foundation/observability";
 import { superviseDetached, superviseSettled } from "#foundation/observability";
-import { requireAuthorOrHost, resolveTier0Range, setParticipantActivePersona } from "../../domain/chat/index.ts";
+import { consolidationHash, requireAuthorOrHost, resolveTier0Range, setParticipantActivePersona } from "../../domain/chat/index.ts";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import type { DomainEventBus } from "./event-bus.ts";
 import { minter } from "./minter.ts";
@@ -308,6 +309,9 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   // `resolveActiveDocumentIds` is databank's ONE scope-union home, injected into search — the
   // documents lens never re-derives which documents a scope may see.
   const search = createSearchService({
+    resolveViewerVisibility: createResolveViewerVisibility({ db }),
+    digestConsolidationHash: consolidationHash,
+    tier0RangeOf: (tier, blockIdx) => resolveTier0Range(deps.getEffectiveConfig().memoryDefaults, tier, blockIdx),
     db,
     roleClientsFor,
     resolveEmbeddingConnection: deps.resolveEmbeddingConnection,
@@ -315,6 +319,11 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope),
   });
   const discovery = createDiscoveryService({
+    resolveDigestSources: createDigestSources({
+      db,
+      digestConsolidationHash: consolidationHash,
+      tier0RangeOf: (tier, blockIdx) => resolveTier0Range(deps.getEffectiveConfig().memoryDefaults, tier, blockIdx),
+    }),
     db,
     now,
     newDuplicateCharacterPairId: minter(ID_PREFIX.duplicateCharacterPair),

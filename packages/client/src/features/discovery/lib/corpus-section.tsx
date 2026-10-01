@@ -7,8 +7,9 @@ import { Library } from "@orb/ui/icons";
 import type { ContextTabDef, ContributorRegistry, CorpusContextState } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
-import { corpusSectionSelection, useCorpusMode } from "#state";
+import { corpusSectionSelection, useCorpusMode, useSelectedCorpusDestination } from "#state";
 import { CorpusArchetypesTab } from "../components/corpus-archetypes-tab.tsx";
+import { CorpusArtifactContext } from "../components/corpus-artifact-context.tsx";
 import { CorpusCompareTab } from "../components/corpus-compare-tab.tsx";
 import { CorpusContextHeader } from "../components/corpus-context-header.tsx";
 import { CorpusMapTab } from "../components/corpus-map-tab.tsx";
@@ -26,7 +27,7 @@ export interface CorpusSectionContributions extends CorpusModes {
 
 /** Every tab, own or contributed, is gated on the active mode (a module-level named hook, §6b). */
 function useCorpusContextState(): CorpusContextState {
-  return { mode: useCorpusMode() };
+  return { mode: useCorpusMode(), subject: useSelectedCorpusDestination() };
 }
 
 /** Every mode's title hook runs on every render, so the hook order never depends on the mode. */
@@ -40,7 +41,7 @@ function useCorpusWorkspaceTitle(modes: CorpusModes): string | null {
   return titles[mode];
 }
 
-const isExplore = (state: CorpusContextState): boolean => state.mode === "explore";
+const isExplore = (state: CorpusContextState): boolean => state.mode === "explore" && (state.subject === null || state.subject === undefined);
 
 export function makeCorpusSection(contributions: CorpusSectionContributions): SectionDefinition {
   const modes: CorpusModes = { insights: contributions.insights, labels: contributions.labels };
@@ -65,6 +66,12 @@ export function makeCorpusSection(contributions: CorpusSectionContributions): Se
       header: (state) => (state.mode === "explore" ? <CorpusContextHeader /> : modes[state.mode].contextHeader()),
       // Explore's five owner-wide analysis tabs, labelled `Whole corpus` in the band.
       tabs: [
+        {
+          id: "evidence",
+          label: "Evidence",
+          when: (state) => state.mode === "explore" && state.subject !== null && state.subject !== undefined,
+          body: () => <CorpusArtifactContext />,
+        },
         { id: "archetypes", label: "Archetypes", when: isExplore, body: () => <CorpusArchetypesTab /> },
         { id: "visuals", label: "Visuals", when: isExplore, body: () => <CorpusVisualsTab /> },
         { id: "map", label: "Map", when: isExplore, body: () => <CorpusMapTab /> },

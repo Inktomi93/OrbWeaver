@@ -68,6 +68,7 @@ import {
   openCharacterGallery,
   openNewChatPicker,
   openRoomInvite,
+  requestChatMoment,
   requestComposerFocus,
   SlashCommandRegistryProvider,
   selectChat,
@@ -79,6 +80,7 @@ import {
   useActiveConfigSub,
   useActiveSection,
   useCharacterGalleryTarget,
+  useChatMoment,
   useConfigTarget,
   useContextTab,
   useImagineSeed,
@@ -106,6 +108,7 @@ import type {
 import { buildIdentityAvatarMaps, buildIdentityNameContext, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
+import type { MessageWindowTarget } from "@orb/contracts/search";
 import { BACKGROUND_DIM_MIN } from "@orb/contracts/settings";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserConnectionId, UserId, WorldBookId } from "@orb/kit/ids";
@@ -1125,7 +1128,7 @@ function SocketHost({ children }: { readonly children: ReactNode }): ReactElemen
   return <>{children}</>;
 }
 
-function SurfaceHarness(): ReactElement {
+function SurfaceHarness({ chatId = CHAT_ID }: { readonly chatId?: ChatId } = {}): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const busDeps: ChatBusDeps = {
@@ -1135,7 +1138,7 @@ function SurfaceHarness(): ReactElement {
   return (
     <div style={{ height: 480 }}>
       <MessageThreadAnchor>
-        <MessageListSurface chatId={CHAT_ID} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
+        <MessageListSurface chatId={chatId} busDeps={busDeps} surfaceContributors={NO_SURFACE_CONTRIBUTORS} toolRenderers={NO_TOOL_RENDERERS} />
       </MessageThreadAnchor>
     </div>
   );
@@ -1149,6 +1152,34 @@ export function MessageListSurfaceStory(): ReactElement {
         <SurfaceHarness />
       </SocketHost>
     </CtDataProviders>
+  );
+}
+
+export function MessageListMomentStory({ target }: { readonly target: MessageWindowTarget }): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <MomentHarness target={target} />
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+function MomentHarness({ target }: { readonly target: MessageWindowTarget }): ReactElement {
+  const chatId = target.kind === "source" ? target.source.chatId : CHAT_ID;
+  const [visible, setVisible] = useState(true);
+  const moment = useChatMoment(chatId);
+  return (
+    <>
+      <button type="button" onClick={(): void => requestChatMoment(chatId, target)}>
+        Open source moment
+      </button>
+      <button type="button" onClick={(): void => setVisible(!visible)}>
+        {visible ? "Hide thread" : "Show thread"}
+      </button>
+      <output>{`section=${useActiveSection()} anchor=${moment?.consumed ? "consumed" : "pending"}`}</output>
+      {visible ? <SurfaceHarness chatId={chatId} /> : null}
+    </>
   );
 }
 

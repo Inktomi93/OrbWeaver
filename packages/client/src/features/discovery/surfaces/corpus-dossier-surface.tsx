@@ -28,7 +28,7 @@ import { useRef, useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS, testId, useFocusOnMount } from "#lib";
-import { selectCorpusCharacter, setActiveSection } from "#state";
+import { selectCorpusArtifact, selectCorpusCharacter, setActiveSection } from "#state";
 import { CharacterAvatar } from "../components/character-avatar.tsx";
 import { CorpusDistillEmptyState } from "../components/corpus-distill-empty-state.tsx";
 import { characterFacetLine } from "../lib/character-facet.ts";
@@ -86,8 +86,8 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
   if (dossier === null) {
     return (
       <CorpusDistillEmptyState
-        title="Not distilled yet"
-        description="This character has no distilled dossier. Distill it in the Refinery, then come back."
+        title="Dossier unavailable"
+        description="This character has no readable distilled dossier. Check the character in the Refinery, or return to Explore."
         secondaryAction={
           <Button intent="secondary" size="sm" onClick={onBack}>
             <Icon icon={ArrowLeft} size="sm" />
@@ -194,6 +194,25 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
               (keyword) => keyword.count,
             )}
           />
+          <Stack gap="row" role="list">
+            {keywords.map((keyword) => (
+              <Stack key={keyword.keyword} role="listitem">
+                <ListRow
+                  clickable={true}
+                  title={keyword.keyword}
+                  subtitle={`${keyword.count} uses in this character's solo scene digests`}
+                  onClick={(): void =>
+                    selectCorpusArtifact({
+                      kind: "keyword",
+                      keyword: keyword.keyword,
+                      frequency: keyword.count,
+                      frequencyScope: `solo scene digests for ${dossier.name}`,
+                    })
+                  }
+                />
+              </Stack>
+            ))}
+          </Stack>
         </Section>
       )}
 

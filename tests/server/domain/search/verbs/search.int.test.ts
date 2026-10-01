@@ -3,11 +3,14 @@
 // that only SPOKE in a co-star block (never the egocentric producer) must still return that block — the
 // OR-branch is what catches it. Also pins the dispatch tagging, the owner-scope refusals, and the owner belt.
 
+import { chatDigests, chatParticipants, chatSegments } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { seedMessage, seedParticipant } from "../../chat/_support.ts";
 import {
   EMBED_MODEL,
   makeSearch,
@@ -24,6 +27,48 @@ import {
 } from "../_support.ts";
 
 describe("search (unified dispatch)", () => {
+  test("source endpoint ids are member-floored and withheld after membership ends", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("source-viewer") });
+    const host = await seedUser(db, { handle: castId<Handle>("source-host") });
+    const character = await seedCharacter(db, { id: "character_source_viewer", ownerId: owner, name: "Witness" });
+    const chatId = await seedChat(db, "chat_source_visibility");
+    await seedParticipant(db, { chatId, key: "source-host", userId: host, role: "host" });
+    const memberId = await seedParticipant(db, {
+      chatId,
+      key: "source-member",
+      userId: owner,
+      role: "member",
+      joinSeq: 24,
+      joinHistoryVisibility: "from-join",
+    });
+    const messageIds = new Map<number, string>();
+    for (let seq = 20; seq <= 29; seq += 1) {
+      messageIds.set(seq, (await seedMessage(db, chatId, seq, { content: `source ${seq}` })).messageId);
+    }
+    const digestId = await seedChatDigest(db, { chatId, scopedCharacterId: character, blockIdx: 2, embedding: vec(1) });
+    const segmentId = await seedChatSegment(db, { chatId, blockIdx: 2, embedding: vec(1) });
+    const [digest] = await db.select({ generationId: chatDigests.generationId }).from(chatDigests).where(eq(chatDigests.id, digestId));
+    if (digest === undefined) {
+      throw new Error("missing digest generation fixture");
+    }
+    await db.update(chatSegments).set({ generationId: digest.generationId }).where(eq(chatSegments.id, segmentId));
+    const service = makeSearch(db, { embedVector: () => vec(1) });
+    const params = { ownerId: owner, query: "source", topN: 5, over: "digests" as const, scope: { kind: "owner" as const } };
+    const current = await service.search(params);
+    if (current.over !== "digests") {
+      throw new Error("expected digest result");
+    }
+    expect(current.hits[0]?.source).toMatchObject({ seqStart: 20, seqEnd: 29, messageStartId: messageIds.get(24), messageEndId: messageIds.get(29) });
+    expect(JSON.stringify(current.hits[0]?.source)).not.toContain(messageIds.get(20));
+    await db.update(chatParticipants).set({ leftSeq: 30 }).where(eq(chatParticipants.id, memberId));
+    const departed = await service.search(params);
+    if (departed.over !== "digests") {
+      throw new Error("expected digest result");
+    }
+    expect(departed.hits[0]?.source).toMatchObject({ messageStartId: null, messageEndId: null });
+  });
+
   test("digests · character scope: the OR-branch includes a co-star block the character only spoke in", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });

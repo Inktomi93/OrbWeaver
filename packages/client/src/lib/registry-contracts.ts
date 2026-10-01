@@ -25,6 +25,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
+import type { CorpusDestination } from "./corpus-destination.ts";
 import type { CorpusMode } from "./corpus-modes.ts";
 import type { ContributorRegistry } from "./registry.ts";
 
@@ -356,6 +357,7 @@ export type ChatContextTabId = (typeof CHAT_CONTEXT_TAB_IDS)[number];
  *  shows only the active mode's inspector. Always present, because every mode has a landing inspector. */
 export interface CorpusContextState {
   readonly mode: CorpusMode;
+  readonly subject?: CorpusDestination | null;
 }
 
 /** One walkable door in the Config TEACHER — an "Applies"/"Related"

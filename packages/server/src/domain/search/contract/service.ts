@@ -9,6 +9,8 @@
 // it adds one genuinely new capability — the by-character cross-chat digest scan via the
 // chat_digest_speakers OR-branch — and otherwise delegates.
 
+import type { CorpusSource } from "@orb/contracts/search";
+import type { ResolveViewerVisibility } from "#domain/chat";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { ReadOnlyDb } from "@orb/db";
 import type { ChatId, DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
@@ -34,7 +36,7 @@ import type {
   DigestSearchHit,
   DiscoverCharacter,
   DocumentChunkHit,
-  FieldSearchHit,
+  FieldSearchResult,
   ImageSearchHit,
   SearchHit,
   SearchSuggestion,
@@ -68,6 +70,7 @@ export interface ActiveQuerySpace {
 
 /** DI bundle the search verbs close over. Read-only (ReadOnlyDb — a write call is a tsc error). */
 export interface SearchContext {
+  readonly resolveViewerVisibility: ResolveViewerVisibility;
   readonly db: ReadOnlyDb;
   /** The per-OWNER role-client bundle (inference program §7.5-2): every retrieval embeds the query in the
    *  OWNER's space (their `embed`/`imageEmbed` binding) and reranks on their `rerank` row. */
@@ -75,6 +78,8 @@ export interface SearchContext {
   readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
   /** Consumed only by the lexical fields/suggest engine's per-owner BM25 index cache (TTL freshness). */
   readonly now: () => number;
+  readonly digestConsolidationHash: (prefix: string, childHashes: readonly string[]) => string;
+  readonly tier0RangeOf: (tier: number, blockIdx: number) => { readonly startIdx: number; readonly endIdx: number };
   /** The databank scope resolver (DB5) — injected by `domain/databank` at compose; consumed ONLY by the
    *  `documents` lens. The union SQL lives in databank, so search stays free of databank's authority model. */
   readonly resolveActiveDocumentIds: ResolveActiveDocumentIdsOp;
@@ -90,7 +95,7 @@ export interface SearchService {
   /** Ranks on raw cosine distance — hub_score is deliberately not applied on this cross-modal path. */
   readonly images: (params: ImagesParams) => Promise<ImageSearchHit[]>;
   /** score is a BM25 score (higher = better). */
-  readonly fields: (params: FieldSearchParams) => Promise<FieldSearchHit[]>;
+  readonly fields: (params: FieldSearchParams) => Promise<FieldSearchResult>;
   readonly suggest: (params: SuggestParams) => Promise<SearchSuggestion[]>;
   readonly discover: (params: DiscoverParams) => Promise<DiscoverCharacter[]>;
   /** The databank RAG lens (DB5): scope-gated cosine retrieval over `document_chunks`, reading-order
@@ -104,3 +109,10 @@ export interface SearchService {
    *  digest scan (the chat_digest_speakers OR-branch). */
   readonly search: (params: UnifiedSearchParams) => Promise<UnifiedSearchResult>;
 }
+
+export type DigestSourceLocator = Pick<
+  Extract<CorpusSource, { kind: "digest" }>,
+  "chatId" | "generationId" | "scopedCharacterId" | "tier" | "blockIdx" | "contentHash"
+>;
+export type DigestSourceSpan = Pick<CorpusSource, "seqStart" | "seqEnd" | "messageStartId" | "messageEndId">;
+export type DigestCoverageOp = (source: DigestSourceLocator, floorSeq: number | null) => Promise<DigestSourceSpan>;

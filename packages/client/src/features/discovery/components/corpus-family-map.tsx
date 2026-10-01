@@ -1,42 +1,5 @@
-// THE FAMILY MAP — the corpus's picture of its own shape, and mockup A "The Cartographer"'s title island
-// (program #102 corpus leg, issue #127). Ten characters resolved into eight families by the avatar-embedding
-// clustering is, on an un-analysed library, the ONLY thing the corpus has actually computed — so the map is
-// what the surface is FOR, and this component is the thing the state-swap promotes and demotes.
-//
-// IT RENDERS AT TWO WEIGHTS AND THE WEIGHT IS THE WHOLE POINT (CD3, UI-Density-Law.md §3.2 — exactly one
-// element per surface may carry accent fill, glow, or elevated shadow at rest):
-//   • `focal` — the one elevated island: the rationed `--shadow-glow` on the sanctioned ::before carrier, at
-//     the token's own strength. Taken once the semantic pass has run and the map has something to be the
-//     map OF. (It also wore an accent border-left until #244 P2-1 — see `GLOW` for why that went.)
-//   • not `focal` — boxless (CD1: a read-only grouping gets a kicker band and a hairline, never a box),
-//     sitting UNDER the invitation that holds the focal while the library is un-analysed.
-// A component that painted the glow unconditionally would put two focals on the surface, which by the
-// spec's own words means the surface has no focal.
-//
-// PORTRAITS ARRIVE ON THE WIRE (issue #134 — the durable fix, landed): `ArchetypeMember` carries
-// `avatarHash` (packages/server/src/domain/discovery/contract/results.ts), so a plate draws its faces from
-// the `visualArchetypes` payload it already has. This component used to join every member against
-// `discovery.portraitAlignment` for the same string — a second owner-scoped read the clustering verb was
-// always holding, since it clusters BY the avatar. A member whose hash is null falls back to the hue-seeded
-// initials `Avatar` already draws, which is honest — it says "we have no portrait for this one", not "this
-// one has no face". Do not re-introduce the join: the CT pins that verb at zero calls from this surface.
-//
-// A FAMILY IS NOT NUMBERED. The mockup labels the plates "Family 1 … Family 8"; k-means assigns cluster
-// indices per run against a `k` the CONTEXT panel exposes as a knob, so that number is not an identity and
-// printing it as one invites a user to refer to something that will not survive the next pass.
-//
-// A FAMILY IS NAMED BY ITS LABEL, ALWAYS — and its members are always the second line (side-eye populated
-// arm 2026-08-23, [P2-1]; the previous spelling, "named by WHO IS IN IT, and by its label only when the
-// labelling actually produced one", is kept here because it is the ruling this reverses). The label slot
-// goes through `facetLabel`, which is what makes "always" safe: an un-nameable group becomes
-// "Unclassified" rather than the VL pass's literal `none`. See the plate's own comment for the full fork —
-// the short version is that the un-nameable case stopped being real once the server started labelling that
-// family `Unanalysed portraits`, and the member-run arm was then displacing a name its sibling surface was
-// printing 30px away.
-//
-// PLATES ARE READ-ONLY. Selecting a whole family means nothing (there is no family dossier), and making
-// only the single-member plates operable would be a control that exists on some rows and not others. The
-// drill into a character lives where it always has: the gem tiles, the browse list, the dossier.
+// Visual families are current-avatar groupings. Each door retains the complete producer snapshot.
+// The map shares its naming decision with the analysis tab and selected detail.
 
 import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Button } from "@orb/ui/button";
@@ -47,7 +10,8 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import type { Trpc } from "#data";
-import { revealContextPanel } from "#state";
+import { revealContextPanel, selectCorpusArtifact } from "#state";
+import { resolveCorpusArchetypeNames } from "../lib/corpus-archetype-presentation.ts";
 import { toFaceItems } from "../lib/corpus-faces.ts";
 import { facetLabel } from "../lib/corpus-vocabulary.ts";
 
@@ -93,7 +57,7 @@ const GLOW =
  * fragment. An ellipsis is only honest when what it cut is unknowable; here the count is right there, so
  * the line can end at a name boundary and say exactly how many it did not name. Two is what fits the
  * 16rem plate floor's ~150px text column beside the census clause; the plate is not the place a full roster
- * is read (the Archetypes tab is), and the CT pins the boundary rather than the number.
+ * is read (the selected grouping is), and the CT pins the boundary rather than the number.
  */
 const PLATE_NAME_CAP = 2;
 
@@ -114,7 +78,7 @@ function plateGloss(family: VisualFamily): string {
   return `${members} · ${memberNames(family)}`;
 }
 
-function FamilyPlate({ family }: { readonly family: VisualFamily }): ReactElement {
+function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly name: string }): ReactElement {
   // The strip is ART here: every seat's name is already in the plate's own text (as the title when the
   // family is unlabelled, as the gloss when it is not), and a named stack would announce each of them a
   // second time inside a plate that is three lines long. The hearth-hero ruling, same reasoning.
@@ -138,7 +102,7 @@ function FamilyPlate({ family }: { readonly family: VisualFamily }): ReactElemen
           aria-hidden={true}
           className="shrink-0"
           items={faces}
-          // Never a "+N" chip: `members` is a bounded DISPLAY SLICE of a family whose real total is `size`,
+          // Never a "+N" chip: the face strip is a bounded display of the complete grouping,
           // so a chip computed off the slice would undercount. One count, in the gloss, correct.
           max={FAMILY_FACE_SLOTS + 1}
           shape="rounded"
@@ -172,9 +136,9 @@ function FamilyPlate({ family }: { readonly family: VisualFamily }): ReactElemen
                   because `facetLabel` already answers that case and answers it in the same words on both
                   surfaces. The names it displaced now ride the gloss on every plate (see `plateGloss`),
                   and the `isUnlabelled` predicate is deleted rather than left beside its replacement. */}
-          <Text as="span" className="truncate" voice="label">
-            {facetLabel(family.label)}
-          </Text>
+          <Button intent="ghost" size="sm" onClick={(): void => selectCorpusArtifact({ kind: "cluster", cluster: family, visual: true, k: null, title: name })}>
+            {name}
+          </Button>
           <Text as="span" className="truncate" voice="gloss">
             {plateGloss(family)}
           </Text>
@@ -205,6 +169,7 @@ export function CorpusFamilyMap({ families, focal, canOpenFamilies }: CorpusFami
   // The model that produced the clustering is provenance, and it belongs beside the claim it backs: every
   // family in a response comes from one embedding pass, so the first row's model names all of them.
   const model = families[0]?.model ?? "";
+  const names = resolveCorpusArchetypeNames(families);
   const body = (
     <Stack gap="row">
       <Row align="start" gap="row" justify="between">
@@ -243,8 +208,12 @@ export function CorpusFamilyMap({ families, focal, canOpenFamilies }: CorpusFami
           on the CT's two-short-name fixture — the best case this component ever sees. The mock's plate does
           not carry that line. 1-up at the lead column is the honest rendering of the plate we shipped. */}
       <Grid aria-label="Visual families" cols="auto" gap="row" role="list">
-        {families.map((family) => (
-          <FamilyPlate family={family} key={`${family.label}-${family.members[0]?.characterId ?? family.size.toString()}`} />
+        {families.map((family, index) => (
+          <FamilyPlate
+            family={family}
+            name={names[index] ?? facetLabel(family.label)}
+            key={`${family.label}-${family.members[0]?.characterId ?? family.size.toString()}`}
+          />
         ))}
       </Grid>
     </Stack>

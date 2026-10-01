@@ -33,10 +33,8 @@ export const CORPUS_TARGET_REST_HINTS: Record<CorpusSearchTargetId, string> = {
   characters: "Browse your distilled character catalog, or type a name or theme to search.",
   discover: "Search chat scenes across your library — type a line, moment, or vibe to find it.",
   digests: "Search your saved memory digests — type what you're trying to recall.",
-  // The second clause is the U4 rest-state half: a matched image opens the card that WEARS it, and an image
-  // no card wears has nowhere to go — said here, once, rather than discovered by clicking a row that doesn't.
-  images: "Search your images by likeness and caption — type what an image shows. A hit opens the card wearing it.",
-  fields: "Lexical card search — type an exact name or keyword to match card text.",
+  images: "Search your images by likeness and caption — type what an image shows. A hit opens its asset detail.",
+  fields: "Lexical card search — type a name or keyword; prefix and fuzzy matches are included.",
 };
 
 /** How many hits the omnibox pulls per query — a bounded preview, not the whole ranked pool. */

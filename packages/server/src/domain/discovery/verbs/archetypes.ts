@@ -11,6 +11,8 @@
 
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import { stableStringify } from "@orb/kit/stable-stringify";
+import { sha256Hex } from "#kit/content-hash";
 import type { DiscoveryContext } from "../context.ts";
 import type { ArchetypesOptions } from "../contract/params.ts";
 import type { Archetype, ArchetypeMember } from "../contract/results.ts";
@@ -29,7 +31,6 @@ export function createArchetypes(ctx: DiscoveryContext): Pick<DiscoveryService, 
 const DEFAULT_ARCHETYPE_K = 10;
 const ARCHETYPE_SEED = 1;
 const TOP_TAGS = 5;
-const MAX_MEMBERS = 12;
 
 type CardVector = Awaited<ReturnType<typeof readOwnedCharacterVectors>>[number];
 type CardFacet = Awaited<ReturnType<typeof readOwnedCardFacets>>[number];
@@ -45,9 +46,9 @@ interface ClusterAcc {
 function groupByModel(rows: readonly CardVector[]): Map<string, CardVector[]> {
   const groups = new Map<string, CardVector[]>();
   for (const row of rows) {
-    const bucket = groups.get(row.model);
+    const bucket = groups.get(`${row.model}|${row.generationId}`);
     if (bucket === undefined) {
-      groups.set(row.model, [row]);
+      groups.set(`${row.model}|${row.generationId}`, [row]);
     } else {
       bucket.push(row);
     }
@@ -146,17 +147,28 @@ function archetypesForGroup(
     }
     tallyCard(acc, card, displayById.get(card.characterId), facetById.get(card.characterId));
   }
-  const model = orderedGroup[0]?.model ?? "";
+  const first = orderedGroup[0];
+  if (first === undefined) {
+    return [];
+  }
+  const model = first.model;
+  const passId = sha256Hex(
+    stableStringify({ k, rows: orderedGroup.map((row) => [row.characterId, row.generationId, row.contentHash, facetById.get(row.characterId)]) }),
+  );
   return [...clusters.values()].map((acc) => {
     const genre = mode(acc.genre);
     const tone = mode(acc.tone);
     return {
+      passId,
+      generationId: first.generationId,
+      fingerprint: first.fingerprint,
+      baseLabel: [tone, genre].filter((x) => x !== null).join(" ") || "mixed",
       label: [tone, genre].filter((x) => x !== null).join(" ") || "mixed",
       genre,
       tone,
       topTags: topN(acc.tags, TOP_TAGS),
       size: acc.members.length,
-      members: acc.members.slice(0, MAX_MEMBERS),
+      members: acc.members,
       model,
     };
   });

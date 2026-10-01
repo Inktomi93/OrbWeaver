@@ -933,6 +933,7 @@ const PROBES: readonly Probe[] = [
   // `characterId` is roster-scoped inside the verb, but the chatId chokepoint is what the sweep probes).
   { path: "chat.getMemberCard", call: (c, i) => c.chat.getMemberCard({ chatId: i.chatId, characterId: i.characterId }) },
   { path: "chat.listMessages", call: (c, i) => c.chat.listMessages({ chatId: i.chatId }) },
+  { path: "chat.getMessageWindow", call: (c, i) => c.chat.getMessageWindow({ chatId: i.chatId, target: { kind: "message", messageId: i.messageId } }) },
   {
     path: "chat.listMessageVariants",
     call: (c, i) => c.chat.listMessageVariants({ chatId: i.chatId, messageId: i.messageId }),

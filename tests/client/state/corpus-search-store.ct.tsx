@@ -9,7 +9,7 @@
 // pinned at the surface, in `tests/client/features/discovery/surfaces/corpus-list-surface.ct.tsx`.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CorpusSearchProbe } from "./_ct-stories.tsx";
+import { CorpusScrollProbe, CorpusSearchProbe } from "./_ct-stories.tsx";
 
 test("the query and the target are remembered independently of any component", async ({ mount }) => {
   const probe = await mount(<CorpusSearchProbe />);
@@ -27,4 +27,16 @@ test("the query and the target are remembered independently of any component", a
   // Clearing the words keeps the target — a user who empties the box has not changed what they search.
   await probe.getByRole("button", { name: "clear corpus query" }).click();
   await expect(state).toHaveText("q=none target=digests");
+});
+
+test("changing query or target discards the previous finder position", async ({ mount }) => {
+  const probe = await mount(<CorpusScrollProbe />);
+  for (const action of ["change query", "change target"]) {
+    await probe.getByRole("button", { name: "save scroll" }).click();
+    await probe.getByRole("button", { name: "read scroll" }).click();
+    await expect(probe.locator("output")).toHaveText("240");
+    await probe.getByRole("button", { name: action }).click();
+    await probe.getByRole("button", { name: "read scroll" }).click();
+    await expect(probe.locator("output")).toHaveText("0");
+  }
 });

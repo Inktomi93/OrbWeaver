@@ -7,7 +7,7 @@
 // shared handle would bleed one test's index into another (a fresh db won't reset the cache).
 
 import type { Handle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { FIELD_INDEX_TTL_MS } from "../../../../../packages/server/src/domain/search/substrate/field-index.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
@@ -16,6 +16,16 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { makeSearch, seedCharacter, seedUser } from "../_support.ts";
 
 describe("fields", () => {
+  test("a capped lexical result discloses the matching and indexed denominators", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("fields_coverage") });
+    await seedCharacter(db, { id: mintTypeId(ID_PREFIX.character), ownerId: owner, name: "Dragon First" });
+    await seedCharacter(db, { id: mintTypeId(ID_PREFIX.character), ownerId: owner, name: "Dragon Second" });
+    await seedCharacter(db, { id: mintTypeId(ID_PREFIX.character), ownerId: owner, name: "Wizard" });
+    const result = await makeSearch(db).fields({ ownerId: owner, query: "dragon", topN: 1 });
+    expect(result.coverage).toEqual({ requestLimit: 1, indexedCharacters: 3, matchingCharacters: 2 });
+    expect(result.hits).toHaveLength(1);
+  });
   test("returns the lexically matching card", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("fields_match") });
@@ -29,7 +39,7 @@ describe("fields", () => {
     const svc = makeSearch(db);
     const hits = await svc.fields({ ownerId: owner, query: "dragon", topN: 5 });
 
-    expect(hits.map((h) => h.characterId)).toEqual([dragon]);
+    expect(hits.hits.map((h) => h.characterId)).toEqual([dragon]);
   });
 
   test("a name match outranks a description-only match (field boost)", async () => {
@@ -51,7 +61,7 @@ describe("fields", () => {
     const svc = makeSearch(db);
     const hits = await svc.fields({ ownerId: owner, query: "dragon", topN: 5 });
 
-    expect(hits.map((h) => h.characterId)).toEqual([named, described]);
+    expect(hits.hits.map((h) => h.characterId)).toEqual([named, described]);
   });
 
   test("prefix matching finds a card by a partial term", async () => {
@@ -66,7 +76,7 @@ describe("fields", () => {
     const svc = makeSearch(db);
     const hits = await svc.fields({ ownerId: owner, query: "drag", topN: 5 });
 
-    expect(hits.map((h) => h.characterId)).toEqual([c]);
+    expect(hits.hits.map((h) => h.characterId)).toEqual([c]);
   });
 
   test("never returns another owner's card (the corpus is one owner's cards)", async () => {
@@ -83,7 +93,7 @@ describe("fields", () => {
     const svc = makeSearch(db);
     const hits = await svc.fields({ ownerId: owner, query: "dragon", topN: 5 });
 
-    expect(hits.map((h) => h.characterId)).toEqual([mine]);
+    expect(hits.hits.map((h) => h.characterId)).toEqual([mine]);
   });
 
   test("the per-owner index is TTL-cached (a new card appears only after the TTL rebuild)", async () => {
@@ -96,19 +106,19 @@ describe("fields", () => {
 
     // Build the index at T0.
     const first = await svc.fields({ ownerId: owner, query: "dragon", topN: 5 });
-    expect(first).toHaveLength(1);
+    expect(first.hits).toHaveLength(1);
 
     // Add a second matching card AFTER the index was built.
     await seedCharacter(db, { id: "character_second", ownerId: owner, name: "Dragon Second" });
 
     // Within the TTL window → cache hit → the new card is NOT indexed yet.
     const cached = await svc.fields({ ownerId: owner, query: "dragon", topN: 5 });
-    expect(cached).toHaveLength(1);
+    expect(cached.hits).toHaveLength(1);
 
     // Past the TTL → rebuild → both cards are indexed.
     clock = FROZEN_AT_MS + FIELD_INDEX_TTL_MS + 1;
     const rebuilt = await svc.fields({ ownerId: owner, query: "dragon", topN: 5 });
-    expect(rebuilt).toHaveLength(2);
+    expect(rebuilt.hits).toHaveLength(2);
   });
 });
 

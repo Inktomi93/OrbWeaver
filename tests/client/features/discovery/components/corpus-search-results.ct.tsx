@@ -30,6 +30,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { CorpusFieldsSearchStory, CorpusListSurfaceNavStory, CorpusSearchToDossierStory } from "../_ct-stories.tsx";
@@ -113,9 +114,11 @@ const FARM_TEXT = "[Alex, Kira — farmhouse porch] The harvest is in and the ev
 const MEMORY_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "digests",
+    coverage: { ...CORPUS_PREVIEW_COVERAGE },
     hits: [
       {
         blockKey: { chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_sample" },
+        source: corpusDigestSource({ chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_sample" }),
         score: 0,
         relevance: 0.88,
         text: BATH_TEXT,
@@ -124,6 +127,7 @@ const MEMORY_HITS: TrpcRoutes<"search.search"> = {
       },
       {
         blockKey: { chatId: UNNAMED_CHAT, tier: 1, blockIdx: 9, scopedCharacterId: "character_kira" },
+        source: corpusDigestSource({ chatId: UNNAMED_CHAT, tier: 1, blockIdx: 9, scopedCharacterId: "character_kira" }),
         score: 0,
         relevance: 0.61,
         text: FARM_TEXT,
@@ -179,19 +183,19 @@ test("#537 a hit's relevance is INSIDE the row's own button, on its accessible d
     .toContain("88%");
 });
 
-test("a memory hit is a door: clicking it opens its chat", async ({ mount, page }) => {
+test("a memory hit retains its complete generated-summary destination", async ({ mount, page }) => {
   await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...MEMORY_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
-  // The row is named by the ROOM it opens (U2) — which is also the thing the click does.
+  // The room names the retained memory occurrence.
   // NO DISMISSAL STEP. This test carried `page.keyboard.press("Escape")` here until 2026-08-18, because the
   // typeahead rendered as an anchored POPUP over the rows and an unforced click on result #1 waited for
   // actionability forever. The omnibox now renders its suggestions IN FLOW (`Autocomplete inline`), so the
   // first result is reachable the way a user reaches it — one click, no dismissal.
   await component.getByRole("button", { name: NAMED_ROOM }).click();
 
-  await expect(component.getByTestId("ct-nav-readout")).toHaveText(`section:chats chat:${NAMED_CHAT}`);
+  await expect(component.getByTestId("ct-nav-readout")).toHaveText("section:home chat:none artifact:digest");
 });
 
 // ── THE TYPEAHEAD MUST NOT EAT THE ANSWER (corpus quick-wins lane, 2026-08-18) ────────────────────────
@@ -222,7 +226,7 @@ test("an open typeahead never covers a result: row 1 is clickable with the sugge
 
   // …and the door still opens on ONE unforced click, with the list still showing.
   await component.getByRole("button", { name: NAMED_ROOM }).click();
-  await expect(component.getByTestId("ct-nav-readout")).toHaveText(`section:chats chat:${NAMED_CHAT}`);
+  await expect(component.getByTestId("ct-nav-readout")).toHaveText("section:home chat:none artifact:digest");
 });
 
 // ── P2-B: A NEAREST-NEIGHBOUR ENGINE HAS NO EMPTY ARM, SO THE SURFACE HAS TO SAY SO ───────────────────
@@ -235,9 +239,11 @@ test("an open typeahead never covers a result: row 1 is clickable with the sugge
 const NOISE_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "digests",
+    coverage: { ...CORPUS_PREVIEW_COVERAGE },
     hits: [
       {
         blockKey: { chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_sample" },
+        source: corpusDigestSource({ chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_sample" }),
         score: 0,
         relevance: 0.41,
         text: BATH_TEXT,
@@ -246,6 +252,7 @@ const NOISE_HITS: TrpcRoutes<"search.search"> = {
       },
       {
         blockKey: { chatId: UNNAMED_CHAT, tier: 1, blockIdx: 9, scopedCharacterId: "character_kira" },
+        source: corpusDigestSource({ chatId: UNNAMED_CHAT, tier: 1, blockIdx: 9, scopedCharacterId: "character_kira" }),
         score: 0,
         relevance: 0.39,
         text: FARM_TEXT,
@@ -285,6 +292,19 @@ test("a real answer carries NO caveat — the banner is a state, not a disclaime
   await expect(component.getByText(NEAREST_ONLY)).toHaveCount(0);
 });
 
+test("coverage follows the returned pool and zero results remain a preview claim", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CORPUS_AMBIENT_ROUTES,
+    "search.search": { over: "digests", hits: [], coverage: { requestLimit: 7, candidateLimit: 37, evidencePerCharacter: null, reranked: true } },
+  });
+  const component = await mount(<CorpusListSurfaceNavStory />);
+  await component.getByRole("button", { name: "Search Memories" }).click();
+  await component.getByRole("combobox", { name: "Search your corpus" }).fill("absent evidence");
+  await expect(component.getByText("No result in this preview.")).toBeVisible();
+  await component.getByRole("button", { name: "How search works" }).click();
+  await expect(component.getByText("Request limit: 7. Candidate limit: 37. Rerank: requested.")).toBeVisible();
+});
+
 // ── THE IMAGES TARGET IS A REAL RESULT LIST (side-eye corpus re-pass U4) ──────────────────────────────
 // It shipped as twenty rows with a generic glyph, no image, no button and `cursor: auto`, in the SAME
 // ListRow geometry as the Memories rows that ARE doors: an image search that showed no images, and a dead
@@ -300,6 +320,7 @@ const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQ
 const IMAGE_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "images",
+    coverage: { ...CORPUS_PREVIEW_COVERAGE },
     hits: [
       {
         assetId: "asset_worn",
@@ -371,6 +392,8 @@ test("an image WORN BY A CARD is a door that LANDS: clicking it opens that chara
 
   // The row is named for the character it lands on; the caption is its subtitle.
   await component.getByRole("button", { name: WORN_ROW_NAME }).click();
+  await expect(component.getByText("Worn by Aria.")).toBeVisible();
+  await component.getByRole("button", { name: "Open wearing character" }).click();
 
   // THE RECEIPT IS THE RENDERED DESTINATION, not a store write: the dossier is what the CONTENT region
   // draws for a selected corpus character, so its presence is the door having landed.
@@ -378,15 +401,17 @@ test("an image WORN BY A CARD is a door that LANDS: clicking it opens that chara
   await expect(component.getByRole("heading", { name: "Card quality" })).toBeVisible();
 });
 
-test("an image NO CARD wears is visibly NOT a door — and says why", async ({ mount, page }) => {
-  const component = await mount(<CorpusListSurfaceNavStory />);
+test("an unattached image opens asset detail and states its missing wearing character", async ({ mount, page }) => {
+  const component = await mount(<CorpusSearchToDossierStory />);
   await searchImages(component, page);
 
   // The whole U4 defect in one assertion: this row must not be a button while its sibling is.
-  await expect(component.getByRole("button", { name: ORPHAN_ROW_NAME })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: ORPHAN_ROW_NAME })).toHaveCount(1);
   await expect(component.getByRole("button", { name: WORN_ROW_NAME })).toHaveCount(1);
   // …and the reason is on the row, not left for the reader to discover by clicking nothing.
-  await expect(component.getByText("No card uses this image — nothing to open")).toBeVisible();
+  await component.getByRole("button", { name: ORPHAN_ROW_NAME }).click();
+  await expect(component.getByText("This asset is not worn by a character.")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Open wearing character" })).toHaveCount(0);
 });
 
 test("a memory hit names its room, never a raw chat id", async ({ mount, page }) => {
@@ -433,9 +458,11 @@ const MARKDOWN_DIGEST = "**Iris** said:\n\n> ### the copper tub\n\nThey settle i
 const DUPLICATE_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "digests",
+    coverage: { ...CORPUS_PREVIEW_COVERAGE },
     hits: [
       {
         blockKey: { chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_sample" },
+        source: corpusDigestSource({ chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_sample" }),
         score: 0,
         relevance: 0.91,
         text: MARKDOWN_DIGEST,
@@ -446,11 +473,21 @@ const DUPLICATE_HITS: TrpcRoutes<"search.search"> = {
         // The SAME evidence out of a duplicated room, one day later and one block over — two rows a reader
         // cannot tell apart, spending two of twenty slots on one memory.
         blockKey: { chatId: UNNAMED_CHAT, tier: 1, blockIdx: 5, scopedCharacterId: "character_sample" },
+        source: corpusDigestSource({ chatId: UNNAMED_CHAT, tier: 1, blockIdx: 5, scopedCharacterId: "character_sample" }),
         score: 0,
         relevance: 0.9,
         text: MARKDOWN_DIGEST,
         chatTitle: "Amethyst Hollow (copy)",
         scopedCharacterName: "Iris",
+      },
+      {
+        blockKey: { chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_kira" },
+        source: corpusDigestSource({ chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_kira" }),
+        score: 0,
+        relevance: 0.89,
+        text: MARKDOWN_DIGEST,
+        chatTitle: NAMED_ROOM,
+        scopedCharacterName: "Kira",
       },
     ],
   },
@@ -468,6 +505,7 @@ const OTHER_PASSAGE = "She counted the coins twice, then pushed the whole stack 
 const SCENE_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "discover",
+    coverage: { ...CORPUS_PREVIEW_COVERAGE, candidateLimit: 400, evidencePerCharacter: 3 },
     hits: [
       {
         characterId: "character_sample2",
@@ -480,9 +518,16 @@ const SCENE_HITS: TrpcRoutes<"search.search"> = {
         elevatorPitch: null,
         matchCount: 79,
         segments: [
-          { chatId: "chat_harbour", blockIdx: 2, snippet: PASSAGE, score: 0.1, chatTitle: "Lena Jan 28" },
-          { chatId: "chat_harbour_copy", blockIdx: 5, snippet: PASSAGE, score: 0.12, chatTitle: "Lena Jan 28 (2)" },
-          { chatId: "chat_market", blockIdx: 9, snippet: OTHER_PASSAGE, score: 0.2, chatTitle: "Lena Jan 26" },
+          { source: corpusSceneSource("chat_harbour", 2), chatId: "chat_harbour", blockIdx: 2, snippet: PASSAGE, score: 0.1, chatTitle: "Lena Jan 28" },
+          {
+            source: corpusSceneSource("chat_harbour_copy", 5),
+            chatId: "chat_harbour_copy",
+            blockIdx: 5,
+            snippet: PASSAGE,
+            score: 0.12,
+            chatTitle: "Lena Jan 28 (2)",
+          },
+          { source: corpusSceneSource("chat_market", 9), chatId: "chat_market", blockIdx: 9, snippet: OTHER_PASSAGE, score: 0.2, chatTitle: "Lena Jan 26" },
         ],
       },
     ],
@@ -534,7 +579,7 @@ test("SCENES: a room is a door that LANDS, and it looks like one — left-aligne
   expect(shape.colour, "…and is not painted in the body ink that made it read as a heading").not.toBe(shape.bodyColour);
 
   await door.click();
-  await expect(component.getByTestId("ct-nav-readout")).toHaveText("section:chats chat:chat_harbour_copy");
+  await expect(component.getByTestId("ct-nav-readout")).toHaveText("section:home chat:none artifact:scene");
 });
 
 test("SCENES: the honesty line is readable, not clipped to '…— showin' (P2-3)", async ({ mount, page }) => {
@@ -557,6 +602,7 @@ test("SCENES: the honesty line is readable, not clipped to '…— showin' (P2-3
 const ONE_ROOM_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "discover",
+    coverage: { ...CORPUS_PREVIEW_COVERAGE, candidateLimit: 400, evidencePerCharacter: 3 },
     hits: [
       {
         characterId: "character_sample2",
@@ -569,15 +615,15 @@ const ONE_ROOM_HITS: TrpcRoutes<"search.search"> = {
         elevatorPitch: null,
         matchCount: 12,
         segments: [
-          { chatId: "chat_harbour", blockIdx: 2, snippet: PASSAGE, score: 0.1, chatTitle: "Lena Jan 28" },
-          { chatId: "chat_harbour", blockIdx: 9, snippet: OTHER_PASSAGE, score: 0.2, chatTitle: "Lena Jan 28" },
+          { source: corpusSceneSource("chat_harbour", 2), chatId: "chat_harbour", blockIdx: 2, snippet: PASSAGE, score: 0.1, chatTitle: "Lena Jan 28" },
+          { source: corpusSceneSource("chat_harbour", 9), chatId: "chat_harbour", blockIdx: 9, snippet: OTHER_PASSAGE, score: 0.2, chatTitle: "Lena Jan 28" },
         ],
       },
     ],
   },
 };
 
-test("SCENES: two passages from ONE room render that room's door once (P3-D)", async ({ mount, page }) => {
+test("SCENES: two passages from one room retain separate source destinations", async ({ mount, page }) => {
   await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...ONE_ROOM_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
@@ -585,7 +631,7 @@ test("SCENES: two passages from ONE room render that room's door once (P3-D)", a
   // Both passages still render — nothing was collapsed but the echo.
   await expect(component.getByText(PASSAGE)).toHaveCount(1);
   await expect(component.getByText(OTHER_PASSAGE)).toHaveCount(1);
-  await expect(component.getByRole("button", { name: "Lena Jan 28", exact: true })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Lena Jan 28", exact: true })).toHaveCount(2);
 });
 
 test("SCENES: a numbered room title explains its own number (P3-6)", async ({ mount, page }) => {
@@ -606,13 +652,14 @@ test("a memory body reads as prose — flattened markdown, no raw syntax — and
   await component.getByRole("button", { name: "Search Memories" }).click();
   await component.getByRole("combobox", { name: "Search your corpus" }).fill("copper tub");
 
-  const bodies = component.locator('[data-slot="list-row-subtitle"]');
-  // C2: byte-identical evidence collapses to the higher-scored copy — the room that scored 0.91.
-  await expect(bodies).toHaveCount(1);
-  await expect(component.getByRole("button", { name: NAMED_ROOM })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Amethyst Hollow (copy)" })).toHaveCount(0);
+  // Group the prose while preserving every source occurrence as a destination.
+  const roomOccurrences = component.getByRole("button", { name: NAMED_ROOM, exact: true });
+  await expect(roomOccurrences).toHaveCount(2);
+  await expect(roomOccurrences.first().getByText("Iris", { exact: true })).toBeVisible();
+  await expect(roomOccurrences.nth(1).getByText("Kira", { exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Amethyst Hollow (copy)" })).toBeVisible();
   // C1: one line of prose — the emphasis markers, the quote/heading prefixes and the blank lines are gone.
-  await expect(bodies).toHaveText("Iris said: the copper tub They settle in, and the steam takes the room.");
+  await expect(component.getByText("Iris said: the copper tub They settle in, and the steam takes the room.", { exact: true })).toHaveCount(1);
 });
 
 // ── #1500 · THE NAME MAP CAN FAIL ON ITS OWN ─────────────────────────────────────────────────────
@@ -626,7 +673,10 @@ const FIELDS_HIT_ID = "character_0000000000000000001";
 test("a FAILED name map says the rows are showing ids, and its Retry re-reads the names (#1500)", async ({ mount, page }) => {
   let attempts = 0;
   const trpc = await routeTrpc(page, {
-    "search.fields": () => [{ characterId: FIELDS_HIT_ID, score: 4.2 }],
+    "search.fields": () => ({
+      hits: [{ characterId: FIELDS_HIT_ID, score: 4.2 }],
+      coverage: { requestLimit: 20, indexedCharacters: 1, matchingCharacters: 1 },
+    }),
     "character.list": () =>
       attempts++ === 0
         ? trpcError({ message: "name map read failed" })

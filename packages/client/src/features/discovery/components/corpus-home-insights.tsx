@@ -34,7 +34,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
-import { selectCorpusCharacter } from "#state";
+import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
 import { formatCount } from "../lib/corpus-analysis-state.ts";
 import { chartLabelWithDenominator, toBarItems, topRanked } from "../lib/corpus-charts.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
@@ -134,9 +134,12 @@ function economicsSummary(routes: readonly ModelRoute[]): string {
   const tokens = routes.reduce((total, route) => total + (route.tokensOut ?? 0), 0);
   const models = new Set(routes.map((route) => route.model)).size;
   const estimated = routes.some((route) => route.tokensOutProvenance === "estimated");
+  const counted = routes.filter((route) => route.tokensOut !== null).length;
   return [
     `${formatCount(generations)} generations across ${formatCount(models)} models`,
-    `${estimated ? "~" : ""}${formatCount(tokens)} tokens returned`,
+    counted === 0
+      ? "returned tokens not recorded"
+      : `${estimated ? "~" : ""}${formatCount(tokens)} tokens returned; accounting available for ${formatCount(counted)} of ${formatCount(routes.length)} routes`,
     ...costClause(routes),
   ].join(" · ");
 }
@@ -144,12 +147,12 @@ function economicsSummary(routes: readonly ModelRoute[]): string {
 /** The cost coverage clause, or nothing at all — see {@link economicsSummary} for why "1 of 142" alone was
  *  a dead end. Returned as a 0-or-1 array so the caller's `join` has no empty segment to leave behind. */
 function costClause(routes: readonly ModelRoute[]): string[] {
-  const priced = routes.filter((route) => route.costUsd !== null && route.costUsd > 0);
+  const priced = routes.filter((route) => route.costUsd !== null);
   if (priced.length === 0) {
     return [];
   }
   const total = priced.reduce((sum, route) => sum + (route.costUsd ?? 0), 0);
-  const reach = `${money(total)} recorded across ${formatCount(priced.length)} of ${formatCount(routes.length)} routes`;
+  const reach = `${money(total)} reported across ${formatCount(priced.length)} of ${formatCount(routes.length)} routes`;
   const only = priced[0];
   return priced.length === 1 && only !== undefined ? [`${reach} (${only.genre} → ${modelDisplayName(only.model)})`] : [reach];
 }
@@ -198,6 +201,10 @@ export function CorpusModelEconomicsSection({
         <Text className="max-w-(--reading-measure-prose)" voice="gloss">
           {economicsSummary(routes)}
         </Text>
+        <Text voice="gloss">
+          Aggregate routing for characters with a distilled genre. Token estimates remain approximate; accounting coverage counts routes, not individual
+          generations. Cost classifications are not retained in this aggregate.
+        </Text>
         <BarList
           // `quiet`, not the default accent: this is reference data at the foot of a surface whose accent
           // budget belongs to its focal island and its one door (§14 physics 4; the 28.69%-in-one-viewport
@@ -206,6 +213,21 @@ export function CorpusModelEconomicsSection({
           items={toBarItems(busiest.rows, routeLabel, (route) => route.generations)}
           label={chartLabelWithDenominator("Busiest routes", busiest.rows.length, busiest.total, "routes")}
           valueFormatter={formatCount}
+        />
+        <VirtualList
+          aria-label="Model routes"
+          className="max-h-96"
+          estimateSize={(): number => ROW_ESTIMATE_PX}
+          getItemKey={(route): string => `${route.genre}|${route.model}|${route.provider ?? ""}`}
+          items={routes}
+          renderItem={(route): ReactElement => (
+            <ListRow
+              clickable={true}
+              title={routeLabel(route)}
+              subtitle={`${route.generations} generations`}
+              onClick={(): void => selectCorpusArtifact({ kind: "modelroute", route })}
+            />
+          )}
         />
       </Stack>
     </Section>
