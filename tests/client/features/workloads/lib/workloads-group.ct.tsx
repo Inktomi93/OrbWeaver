@@ -111,12 +111,7 @@ test("the derived nav lists every contributed section, in door order", async ({ 
     .toStrictEqual(NAV_LABELS);
 });
 
-// …AND THE FLASH RING DOES NOT STRIKE THE TEXT IT HIGHLIGHTS (side-eye 2026-08-08 P2). The jump lights an
-// INSET box-shadow on a section that has no padding of its own, so the ring drew straight through the
-// heading's cap-height and the note's descenders. The fix buys block padding and hands the same amount back
-// as negative block margin, so the ring clears the glyphs and the flex item's MARGIN-BOX is unchanged (a
-// flash that reflowed the pane would be a worse defect than the one it fixed). Both halves are measured on
-// resolved values — the padding against the token, the box against the pre-jump box.
+// The inset ring clears text on both axes while equal negative margins preserve the content layout.
 test("the jump's flash ring clears the section's own text, and lights without reflowing the pane", async ({ mount, page }) => {
   await stub(page);
   await mount(<WorkloadsGroupStory />);
@@ -134,192 +129,36 @@ test("the jump's flash ring clears the section's own text, and lights without re
   await page.getByRole("button", { name: "Schedules" }).click();
   await expect(section).toHaveClass(FLASH_ANCHOR_CLASS);
 
+  // Read the transient ring and its glyph geometry in one browser turn, before its timer retires it.
   const measured = await section.evaluate((el) => {
-    const style = globalThis.getComputedStyle(el);
+    const style = getComputedStyle(el);
     const probe = document.createElement("div");
     probe.style.width = "var(--spacing-row)";
     el.append(probe);
-    const step = globalThis.getComputedStyle(probe).width;
+    const step = probe.getBoundingClientRect().width;
     probe.remove();
+    const heading = el.querySelector("h2,h3,h4");
+    if (heading === null) {
+      throw new Error("the flashed section did not render its heading");
+    }
+    const box = el.getBoundingClientRect();
+    const glyph = heading.getBoundingClientRect();
     return {
-      paddingTop: style.paddingTop,
-      paddingBottom: style.paddingBottom,
-      marginTop: style.marginTop,
-      marginBottom: style.marginBottom,
+      lit: el.classList.contains("settings-flash-anchor--lit"),
       step,
-      // The inline axis is deliberately UNTOUCHED: an inline pair would push the section past its scroll
-      // container and flash a horizontal scrollbar for the ring's whole life.
-      paddingLeft: style.paddingLeft,
-      paddingRight: style.paddingRight,
+      padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].map(Number.parseFloat),
+      margin: [style.marginTop, style.marginRight, style.marginBottom, style.marginLeft].map(Number.parseFloat),
+      headingClearance: glyph.y - box.y,
+      outerHeight: box.height + Number.parseFloat(style.marginTop) + Number.parseFloat(style.marginBottom),
     };
   });
-  const negated = `-${measured.step}`;
-  await expect
-    .poll(
-      async () =>
-        (
-          await section.evaluate((el) => {
-            const style = globalThis.getComputedStyle(el);
-            const probe = document.createElement("div");
-            probe.style.width = "var(--spacing-row)";
-            el.append(probe);
-            const step = globalThis.getComputedStyle(probe).width;
-            probe.remove();
-            return {
-              paddingTop: style.paddingTop,
-              paddingBottom: style.paddingBottom,
-              marginTop: style.marginTop,
-              marginBottom: style.marginBottom,
-              step,
-              // The inline axis is deliberately UNTOUCHED: an inline pair would push the section past its scroll
-              // container and flash a horizontal scrollbar for the ring's whole life.
-              paddingLeft: style.paddingLeft,
-              paddingRight: style.paddingRight,
-            };
-          })
-        ).paddingTop,
-    )
-    .toBe(measured.step);
-  await expect
-    .poll(
-      async () =>
-        (
-          await section.evaluate((el) => {
-            const style = globalThis.getComputedStyle(el);
-            const probe = document.createElement("div");
-            probe.style.width = "var(--spacing-row)";
-            el.append(probe);
-            const step = globalThis.getComputedStyle(probe).width;
-            probe.remove();
-            return {
-              paddingTop: style.paddingTop,
-              paddingBottom: style.paddingBottom,
-              marginTop: style.marginTop,
-              marginBottom: style.marginBottom,
-              step,
-              // The inline axis is deliberately UNTOUCHED: an inline pair would push the section past its scroll
-              // container and flash a horizontal scrollbar for the ring's whole life.
-              paddingLeft: style.paddingLeft,
-              paddingRight: style.paddingRight,
-            };
-          })
-        ).paddingBottom,
-    )
-    .toBe(measured.step);
-  await expect
-    .poll(
-      async () =>
-        (
-          await section.evaluate((el) => {
-            const style = globalThis.getComputedStyle(el);
-            const probe = document.createElement("div");
-            probe.style.width = "var(--spacing-row)";
-            el.append(probe);
-            const step = globalThis.getComputedStyle(probe).width;
-            probe.remove();
-            return {
-              paddingTop: style.paddingTop,
-              paddingBottom: style.paddingBottom,
-              marginTop: style.marginTop,
-              marginBottom: style.marginBottom,
-              step,
-              // The inline axis is deliberately UNTOUCHED: an inline pair would push the section past its scroll
-              // container and flash a horizontal scrollbar for the ring's whole life.
-              paddingLeft: style.paddingLeft,
-              paddingRight: style.paddingRight,
-            };
-          })
-        ).marginTop,
-    )
-    .toBe(negated);
-  await expect
-    .poll(
-      async () =>
-        (
-          await section.evaluate((el) => {
-            const style = globalThis.getComputedStyle(el);
-            const probe = document.createElement("div");
-            probe.style.width = "var(--spacing-row)";
-            el.append(probe);
-            const step = globalThis.getComputedStyle(probe).width;
-            probe.remove();
-            return {
-              paddingTop: style.paddingTop,
-              paddingBottom: style.paddingBottom,
-              marginTop: style.marginTop,
-              marginBottom: style.marginBottom,
-              step,
-              // The inline axis is deliberately UNTOUCHED: an inline pair would push the section past its scroll
-              // container and flash a horizontal scrollbar for the ring's whole life.
-              paddingLeft: style.paddingLeft,
-              paddingRight: style.paddingRight,
-            };
-          })
-        ).marginBottom,
-    )
-    .toBe(negated);
-  await expect
-    .poll(
-      async () =>
-        (
-          await section.evaluate((el) => {
-            const style = globalThis.getComputedStyle(el);
-            const probe = document.createElement("div");
-            probe.style.width = "var(--spacing-row)";
-            el.append(probe);
-            const step = globalThis.getComputedStyle(probe).width;
-            probe.remove();
-            return {
-              paddingTop: style.paddingTop,
-              paddingBottom: style.paddingBottom,
-              marginTop: style.marginTop,
-              marginBottom: style.marginBottom,
-              step,
-              // The inline axis is deliberately UNTOUCHED: an inline pair would push the section past its scroll
-              // container and flash a horizontal scrollbar for the ring's whole life.
-              paddingLeft: style.paddingLeft,
-              paddingRight: style.paddingRight,
-            };
-          })
-        ).paddingLeft,
-    )
-    .toBe("0px");
-  await expect
-    .poll(
-      async () =>
-        (
-          await section.evaluate((el) => {
-            const style = globalThis.getComputedStyle(el);
-            const probe = document.createElement("div");
-            probe.style.width = "var(--spacing-row)";
-            el.append(probe);
-            const step = globalThis.getComputedStyle(probe).width;
-            probe.remove();
-            return {
-              paddingTop: style.paddingTop,
-              paddingBottom: style.paddingBottom,
-              marginTop: style.marginTop,
-              marginBottom: style.marginBottom,
-              step,
-              // The inline axis is deliberately UNTOUCHED: an inline pair would push the section past its scroll
-              // container and flash a horizontal scrollbar for the ring's whole life.
-              paddingLeft: style.paddingLeft,
-              paddingRight: style.paddingRight,
-            };
-          })
-        ).paddingRight,
-    )
-    .toBe("0px");
-
-  // The clearance is REAL: the ring's inner edge sits a full step above the section's first glyph.
-  const [sectionBox, headingBox] = await Promise.all([section.boundingBox(), section.getByRole("heading", { name: "Schedules" }).boundingBox()]);
-  if (sectionBox === null || headingBox === null) {
-    throw new Error("the flashed section or its heading did not render a box");
-  }
-  expect(headingBox.y - sectionBox.y, "the heading's cap starts below the ring").toBeGreaterThanOrEqual(Number.parseFloat(measured.step));
-
-  // …and lighting it moved nothing: same margin-box height as before the jump.
-  expect(await outerHeight()).toBeCloseTo(before, 1);
+  expect(measured.lit).toBe(true);
+  expect(measured.padding).toEqual(Array.from({ length: 4 }, () => measured.step));
+  expect(measured.margin).toEqual(Array.from({ length: 4 }, () => -measured.step));
+  expect(measured.headingClearance, "the heading's cap starts below the ring").toBeGreaterThanOrEqual(measured.step);
+  expect(measured.outerHeight, "lighting the ring does not reflow the pane").toBeCloseTo(before, 1);
+  const content = page.locator('[data-slot="config-content"]');
+  expect(await content.evaluate((el) => el.scrollWidth - el.clientWidth), "the ring fits the scroll viewport").toBe(0);
 });
 
 // §7.4 / §10 Q4 — a SUB-level deep link resolves the pane in render and lands on the section's anchor once

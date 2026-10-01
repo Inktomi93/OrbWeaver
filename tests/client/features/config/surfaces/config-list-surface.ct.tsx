@@ -647,20 +647,8 @@ test("the longest group kicker survives the docked pane's real width — no elli
 // one LIST scroll column, and that column is gone"), which is the same decision that deleted the filter
 // gate. A selector swap would have left the numbers describing a box that no longer holds the rows.
 //
-// So the range is re-derived at CONTENT widths, both ends AND the crossover, from MEASURED numbers.
-// `ConfigHostStory` mounts LIST at a fixed 307px and gives CONTENT the rest, so the arm's host width fixes
-// the pane exactly and the matrix is stated as a table rather than as two magic constants:
-//
-//   host 752px  → CONTENT 397px  · the NARROW end: a small desktop window with the LIST docked
-//   host 1440px → CONTENT 1085px · the CROSSOVER: the frame the approved boards are drawn at
-//   host 1920px → CONTENT 1565px · the WIDE end
-//
-// The panes are 48px narrower than `host - 307` because the CONTENT region carries its own inset (the
-// side-eye 2026-08-03 P1 fix). These are the MEASURED numbers off the run, not the arithmetic — which is
-// exactly the difference a matrix exists to catch.
-//
-// The measured widths are asserted in the matrix itself (`paneWidth`), so a story or shell change that moves
-// them reds here instead of silently re-scoping every claim below it.
+// The host fixes LIST at 307px. Measure usable CONTENT after its token insets, at both ends and the
+// crossover. The scroll viewport extends into those insets to give the jump ring clearance.
 const CONTENT_MATRIX = [
   { host: 752, pane: 397, arm: "narrow" },
   { host: 1440, pane: 1085, arm: "crossover" },
@@ -691,12 +679,14 @@ for (const { host, pane, arm } of CONTENT_MATRIX) {
     const component = await mount(<ConfigHostStory width={host} />);
     const content = await openRegexRows(component);
 
-    // The arm IS the width — a story change that moves the pane reds here rather than quietly re-scoping.
+    // Flash clearance expands the scroll viewport into the gutter; its padding preserves row width.
     await expect
-      .poll(async () => {
-        const box = await content.boundingBox();
-        return box === null ? -1 : Math.round(box.width);
-      })
+      .poll(() =>
+        content.evaluate((element) => {
+          const style = getComputedStyle(element);
+          return Math.round(element.getBoundingClientRect().width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight));
+        }),
+      )
       .toBe(pane);
 
     const titles = content.locator('[data-slot="list-row-title"]');

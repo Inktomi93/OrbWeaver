@@ -92,7 +92,17 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
         }
       }}
     >
-      <DialogPopup data-testid={testId("joinInviteDialog")} ref={popupRef} initialFocus={primaryRef}>
+      <DialogPopup
+        data-testid={testId("joinInviteDialog")}
+        ref={popupRef}
+        initialFocus={primaryRef}
+        onFocus={(event): void => {
+          // Base UI can deliver its queued popup focus after the preview has already mounted the action.
+          if (event.target === event.currentTarget) {
+            primaryRef.current?.focus();
+          }
+        }}
+      >
         <Stack gap="block">
           <DialogTitle>Join a chat</DialogTitle>
           {state.kind === "loading" ? <Text voice="quiet">Checking the invite…</Text> : null}

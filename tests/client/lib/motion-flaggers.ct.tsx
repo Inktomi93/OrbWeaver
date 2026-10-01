@@ -594,13 +594,7 @@ test("WAAPI finish/cancel retire targets while a blocked live effect still raise
 
   await component.getByRole("button", { name: "retire WAAPI effects" }).click();
   await expect(component.getByTestId("waapi-effects-retired")).toBeVisible();
-  // THE SETTLE BARRIER (#422). `[drop]` is raised from the LoAF observer, whose delivery is async — so
-  // reading `lines` off the click alone passed vacuously (proved: a planted overlap went green here
-  // while the console carried the accusing line). This waits for the blocked frame to be OBSERVED and
-  // classified, and its value is the premise the next assertion needs: `motion-animation-state.ts`
-  // attributes an ended lifetime by exact interval overlap, so only a frame STARTING after a boundary
-  // sampled after retirement is a retired-target test at all. "overlap" ⇒ the staging drifted, not the
-  // flagger.
+  // The negative assertion waits for the app observer to classify the planted frame after retirement.
   await expect(
     component.getByTestId("waapi-blocked-frame-order"),
     "the blocked frame must start after the post-retirement boundary, or a [drop] on it would be an honest overlap",
@@ -613,6 +607,19 @@ test("WAAPI finish/cancel retire targets while a blocked live effect still raise
     () => (document.documentElement as HTMLElement & { __orbDocumentAnimationReads?: number }).__orbDocumentAnimationReads ?? 0,
   );
   expect(reads, "WAAPI accounting never reintroduces a document animation-tree read").toBe(0);
+});
+
+test("WAAPI retirement still flags a blocked frame that overlaps the ended lifetime", async ({ mount, page }) => {
+  const lines: string[] = [];
+  page.on("console", (message) => {
+    if (message.text().includes("[drop]")) {
+      lines.push(message.text());
+    }
+  });
+  const component = await mount(<MotionFlaggersWaapiDropStory overlap={true} />);
+  await component.getByRole("button", { name: "retire WAAPI effects" }).click();
+  await expect(component.getByTestId("waapi-blocked-frame-order")).toHaveText("overlap");
+  await expect.poll(() => lines.some((line) => line.includes("waapi-animation"))).toBe(true);
 });
 
 test("a checkpoint retires the lifetime of a pre-checkpoint animation", async ({ mount, page }) => {

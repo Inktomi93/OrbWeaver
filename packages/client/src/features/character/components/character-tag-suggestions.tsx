@@ -131,10 +131,8 @@ function SuggestionChip({
 }): ReactElement {
   const name = tag.name;
   return (
-    // `px-0 py-0`: the chip is now nothing BUT its two controls, each of which already carries the coarse
-    // touch box, so the badge's own `px-row py-field` was padding around padding — 14px of chip height and
-    // 16px of width per chip, ×11, for a border the outline already draws.
-    <Badge intent="neutral" tone="ghost" size="sm" className="px-0 py-0">
+    // Each control already owns its padding and touch box; outer gaps prevent neighboring chips from packing.
+    <Badge intent="neutral" tone="ghost" size="sm" className="gap-0 px-0 py-0">
       {/* THE LABEL RIDES THE `label` VOICE, NOT `gloss` (side-eye 2026-08-30 rail-characters P3, #843).
           `gloss` is the MICRO step (10.5px) — correct for the `Suggested` kicker, which is a footnote, and
           below the 11px functional floor for a CONTROL'S OWN LABEL. `design-audit` fired
