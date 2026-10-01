@@ -17,4 +17,5 @@ export {
   VITE_PORT_ENV,
   viteSpawnPlan,
 } from "./lib/plan.ts";
+export { awaitDevClientReady } from "./ops/client-ready.ts";
 export { runDev } from "./ops/dev.ts";

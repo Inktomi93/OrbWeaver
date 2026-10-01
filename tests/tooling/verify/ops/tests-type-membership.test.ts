@@ -366,3 +366,11 @@ test("native/shared root parity remains an independent two-sided comparison", ()
   expect(compareRoutingParity([program], new Map([[program.config, new Set(program.files)]]))).toEqual([]);
   expect(() => compareRoutingParity([program], new Map())).toThrow("native roots missing program observation");
 });
+
+test("Windows root and compiler separators reconcile without hiding a missing member", () => {
+  const file = "tests/kit/example.test.ts";
+  const missing = "tests/kit/missing.test.ts";
+  const roots = new Map([["tsconfig.json", new Set([file, missing])]]);
+  const closures = new Map([["tsconfig.json", new Set(["D:/a/orbweaver/" + file])]]);
+  expect(classifyMembership("D:\\a\\orbweaver", [file, missing], roots, closures).map(({ outcome }) => outcome)).toEqual(["predicted", "unowned"]);
+});

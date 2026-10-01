@@ -25,6 +25,10 @@ type ValidationPair = readonly [boolean, string];
 
 function sessionValidationPairs(args: Args, contextsMode: boolean, inheritedSessionBinding: boolean): ValidationPair[] {
   return [
+    [
+      args.coldStart && (args.file !== null || args.isolated || args.session !== null || args.sessionDaemon !== null),
+      "--cold-start requires an ordinary live-origin capture, not --file, --isolated or --session",
+    ],
     [args.baseline && args.diff, "--baseline and --diff are mutually exclusive"],
     [args.contexts > 1 && args.pages > 1, "--contexts and --pages cannot both be greater than 1"],
     [args.contexts > 1 && args.as !== null, "--as cannot be combined with --contexts greater than 1"],
@@ -337,6 +341,7 @@ export function parseSnapArgs(
     appearance: null,
     theme: null,
     idle: false,
+    coldStart: false,
     device: null,
     isolated: false,
     ref: null,

@@ -249,3 +249,10 @@ test("--design-audit and --fail-on parse into the arm's own Args slice, and a ba
   expect(parseSnapArgs(["/chats", "--fail-on", "P9"]).errors).toContain('--fail-on takes a severity (P0|P1|P2|P3), got "P9"');
   expect(parseSnapArgs(["/chats", "--fail-on"]).errors).toContain('--fail-on takes a severity (P0|P1|P2|P3), got ""');
 });
+
+test("cold bootstrap is explicit and refuses incompatible capture modes", () => {
+  expect(parseSnapArgs([]).coldStart).toBe(false);
+  expect(parseSnapArgs(["--cold-start", "--base", "http://localhost:5173"]).coldStart).toBe(true);
+  expect(parseSnapArgs(["--cold-start", "--isolated"]).errors.join(" ")).toContain("--cold-start requires");
+  expect(parseSnapArgs(["--cold-start", "--session", "example"]).errors.join(" ")).toContain("--cold-start requires");
+});

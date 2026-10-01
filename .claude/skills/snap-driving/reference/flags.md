@@ -24,6 +24,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | Flag | What it does |
 | - | - |
 | `--base <value>` | an already-running origin (a private stack, a stage you booted) |
+| `--cold-start` | bounded cold bootstrap on the captured document; waits for the normal readiness marker |
 | `--debug-token <value>` | seed orb:debug-token before navigation for token-gated development routes |
 | `--dirty` | stage the working tree instead of a commit (implies --isolated) |
 | `--file <value>` | render a local HTML file (a committed mock) instead of a dev-stack route |

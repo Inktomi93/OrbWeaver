@@ -106,6 +106,7 @@ function classify(module: Readonly<Record<string, unknown>>, rel: string): Class
 
 function corpusFiles(root: string): readonly string[] {
   return globSync("tooling/src/verify/gates/*.ts", { cwd: root })
+    .map((file) => file.replaceAll("\\", "/"))
     .filter((f) => !(D_TS_RE.test(f) || PROBE_GATE_FILE_RE.test(f)))
     .sort();
 }

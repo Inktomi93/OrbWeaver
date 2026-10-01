@@ -183,6 +183,8 @@ export interface Args extends StageArgs {
   theme: ThemeRequest | null;
   /** Settle on networkidle (bounded) instead of a fixed timeout before capture. */
   idle: boolean;
+  /** Explicit bounded cold-document bootstrap on the capture page; ordinary readiness is unchanged. */
+  coldStart: boolean;
   // ── INTROSPECTION (the "skip the MCP hop" escape hatches) ───────────────────
   /** Raw JS run in-page post-settle (repeatable, argv order). JSON-printed, capped. `@<idx>` targets a
    *  --pages tab (default page 0). Also re-run every --watch tick. */

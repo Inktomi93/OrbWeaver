@@ -10,7 +10,7 @@
 // REPLACES the shared `.eslintcache` with only its own files, and the next whole-tree run finds zero
 // cache hits for every group except the one that ran last. A per-owner path makes each partition's cache
 // independent and persistent across runs.
-import { mkdirSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -192,12 +192,17 @@ function runPartitions(root: string, admitted: readonly string[], cachePrefix: s
   for (const [owner, paths] of [...groups].toSorted(([left], [right]) => left.localeCompare(right))) {
     process.stderr.write(`[eslint] ${owner}: ${String(paths.length)} file(s)\n`);
     // Each partition gets its own cache file so ESLint's reconcile() does not purge sibling entries (#1931).
-    const ownerCacheFile = join(cacheDir, `${cachePrefix}${owner.replaceAll("/", "__")}.eslintcache`);
-    const result = runNicedSync("pnpm", ["exec", "node", "scripts/eslint.ts", ...CHILD_FLAGS, "--cache-location", ownerCacheFile, ...paths], {
-      cwd: root,
-      stdio: "inherit",
-    });
-    const childVerdict = eslintScheme(result.status);
+    const ownerCacheFile = join(cacheDir, `${cachePrefix}${encodeURIComponent(owner)}.eslintcache`);
+    const argumentsDir = mkdtempSync(join(cacheDir, "argv-"));
+    let childVerdict: number;
+    try {
+      const argumentsFile = join(argumentsDir, "arguments.json");
+      writeFileSync(argumentsFile, JSON.stringify([...CHILD_FLAGS, "--cache-location", ownerCacheFile, ...paths]));
+      const result = runNicedSync(process.execPath, ["scripts/eslint.ts", "--args-file", argumentsFile], { cwd: root, stdio: "inherit" });
+      childVerdict = eslintScheme(result.status);
+    } finally {
+      rmSync(argumentsDir, { recursive: true, force: true });
+    }
     if (childVerdict === EXIT.toolError) {
       return EXIT.toolError;
     }

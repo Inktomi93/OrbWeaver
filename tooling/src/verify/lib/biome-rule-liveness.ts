@@ -248,7 +248,7 @@ function firedPairs(report: BiomeReport): ReadonlySet<string> {
     }
     const file = diagnostic.location?.path;
     if (typeof file === "string") {
-      fired.add(`${file} ${category.slice(category.lastIndexOf("/") + 1)}`);
+      fired.add(`${file.replaceAll("\\", "/")} ${category.slice(category.lastIndexOf("/") + 1)}`);
     }
   }
   return fired;

@@ -42,7 +42,7 @@ function programClosure(root: string, program: PolicyProgramMembership): readonl
   }
   const files = res.stdout
     .split(/\r?\n/u)
-    .map((line) => line.trim())
+    .map((line) => line.trim().replaceAll("\\", "/"))
     .filter((line) => line !== "");
   if ((files.length === 0 && program.files.length > 0) || files.some((file) => !isAbsolute(file))) {
     process.stderr.write(
@@ -187,7 +187,7 @@ export function classifyMembership(
   rootsByProgram: ReadonlyMap<string, ReadonlySet<string>>,
   closuresByProgram: ReadonlyMap<string, ReadonlySet<string>>,
 ): readonly MembershipRow[] {
-  const prefix = `${root}/`;
+  const prefix = `${root.replaceAll("\\", "/")}/`;
   const concretePrograms = [...rootsByProgram].filter(([, roots]) => roots.size > 0).map(([config]) => config);
   return files.map((file) => {
     const predicted = predictedProgram(file) ?? null;
@@ -231,7 +231,7 @@ const FIX_HINT =
 
 /** The reconciliation core (exported for a proof test): the test files that appear in NO program closure. */
 export function findEscapees(testFiles: readonly string[], closureAbs: ReadonlySet<string>, root: string): readonly string[] {
-  const prefix = `${root}/`;
+  const prefix = `${root.replaceAll("\\", "/")}/`;
   return testFiles.filter((rel) => !closureAbs.has(`${prefix}${rel}`));
 }
 

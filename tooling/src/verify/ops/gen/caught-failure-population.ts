@@ -20,7 +20,7 @@
 // this file does not parse a marker, does not own a grammar, and cannot honour one the production engine
 // would refuse. It only lifts the REASON text out of a marker the engine already accepted as well-formed.
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
@@ -46,7 +46,7 @@ refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline
 export const POPULATION_REL = JSON_RESOURCE_PATHS["caught-failure-population"];
 
 function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
+  return relative(root, abs).replaceAll("\\", "/");
 }
 
 interface DerivedSite {

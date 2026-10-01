@@ -17,9 +17,11 @@
 //
 // The real-module arms (the REAL policies loaded and executed through the CLI door in one invocation) live
 // in tests/tooling/verify/ops/structure-corpus.suite.int.test.ts; this file proves the loader.
-import { mkdirSync, writeFileSync } from "node:fs";
+import fs, { mkdirSync, writeFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { vi } from "vitest";
 import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { loadPolicyCorpus } from "../../../../tooling/src/verify/lib/policy-loader.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -210,4 +212,18 @@ test("probe fixtures in the corpus dir are project inputs, never roster rows", a
   const corpus = await loadGateCorpus(scratch);
   expect(corpus.files).toEqual([`${GATES}/only.ts`]);
   expect(corpus.roster).toHaveLength(1);
+});
+
+test("native Windows glob paths preserve the complete POSIX roster and probe exclusion", async ({ repoRoot, scratch }) => {
+  writeModules(scratch, { "only.ts": finalSource(repoRoot, "only"), "__g_probe.ts": 'throw new Error("not a policy");' });
+  const discovery = vi.spyOn(fs, "globSync").mockReturnValue(["tooling\\src\\verify\\gates\\only.ts", "tooling\\src\\verify\\gates\\__g_probe.ts"]);
+  syncBuiltinESMExports();
+  try {
+    const corpus = await loadGateCorpus(scratch);
+    expect(corpus.files).toEqual([`${GATES}/only.ts`]);
+    expect(corpus.gates.map(({ id }) => id)).toEqual(["only"]);
+  } finally {
+    discovery.mockRestore();
+    syncBuiltinESMExports();
+  }
 });

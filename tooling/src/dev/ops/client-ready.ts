@@ -1,4 +1,4 @@
-import type { Page, Request } from "@playwright/test";
+import type { Page, Request, Response } from "@playwright/test";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 
@@ -7,7 +7,7 @@ refuseDirectInvocation(import.meta.url, "gh workflow run contributor.yml");
 const MODULE_QUIET_MS = 500;
 
 /** @public The contributor workflow's browser settle; mirrored delayed-module tests exercise the real browser. */
-export async function awaitDevClientReady(page: Page, url: string, deadline: number): Promise<void> {
+export async function awaitDevClientReady(page: Page, url: string, deadline: number): Promise<Response | null> {
   const marker = page.locator("html[data-app-ready]");
   const remaining = (): number => Math.max(1, deadline - Date.now());
   const pending = new Set<Request>();
@@ -53,12 +53,15 @@ export async function awaitDevClientReady(page: Page, url: string, deadline: num
   try {
     for (let attempt = 0; Date.now() < deadline; attempt++) {
       // HTML commit precedes cold module evaluation; replacing that document aborts its unfinished bootstrap.
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: remaining() });
+      const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: remaining() });
+      if (response !== null && !response.ok()) {
+        throw new Error(`client navigation returned HTTP ${String(response.status())}`);
+      }
       await marker.waitFor({ state: "attached", timeout: remaining() });
       const readiness = await marker.getAttribute("data-app-ready");
       print(`Client readiness ${JSON.stringify({ attempt, readiness })}`);
       if (readiness === "") {
-        return;
+        return response;
       }
       // Finish cold route imports before replacing a one-shot degraded marker. Subscriptions are not modules.
       await drainModules();
