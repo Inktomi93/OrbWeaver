@@ -67,7 +67,7 @@ interface SuiteOutcome {
  *  lying in the direction that hides a real survivor. A null status is its own outcome, never a kill. */
 function runMirrorSuite(root: string, specs: readonly string[], jsonOut: string): SuiteOutcome {
   rmSync(jsonOut, { force: true });
-  const res = runNicedSync("pnpm", ["test:scoped", ...specs, `--maxWorkers=${MAX_WORKERS}`, "--reporter=json", `--outputFile=${jsonOut}`], {
+  const res = runNicedSync("pnpm", ["test:scoped", ...specs, `--maxWorkers=${MAX_WORKERS}`, "--reporter=json", `--outputFile.json=${jsonOut}`], {
     cwd: root,
     stdio: "ignore",
     timeout: SUITE_TIMEOUT_MS,

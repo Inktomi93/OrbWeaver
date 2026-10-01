@@ -7,13 +7,15 @@
 // has no search schema — this is a one-shot inbound handoff, not navigable state. A signed-out visit moves
 // the token into the tab stash (`session-resume.ts`, D259) before the guard redirects to `/login`.
 
+import { withoutUrlSearchParam } from "../lib/url-search.ts";
 import { clearJoinStash, peekJoinStash, stashJoinToken } from "./session-resume.ts";
+
+const JOIN_PARAM = "join";
 
 /** The address-bar slice this handoff reads and scrubs. Structural, so `#data` still type-checks in the
  *  DOM-less node program its node suites compile under (the `session-resume.ts` `tabStorage` shape). */
 interface AddressBar {
   readonly location: { readonly pathname: string; readonly search: string; readonly hash: string };
-  readonly history: { readonly replaceState: (data: null, unused: string, url: string) => void };
 }
 
 function addressBar(): AddressBar {
@@ -23,30 +25,14 @@ function addressBar(): AddressBar {
 /** The inbound `?join=<token>` handoff, or null.
  *  @public Test-anchored module surface; tests/client/data/join-token.dom.test.ts calls it directly. */
 export function readJoinToken(): string | null {
-  const token = new URLSearchParams(addressBar().location.search).get("join");
+  const token = new URLSearchParams(addressBar().location.search).get(JOIN_PARAM);
   return token !== null && token.length > 0 ? token : null;
 }
 
 /** Scrub the token from the address bar (history included) — call as soon as the token is captured.
  *  @public Test-anchored module surface; tests/client/data/join-token.dom.test.ts calls it directly. */
-export function clearJoinParam(): void {
-  const { location, history } = addressBar();
-  const rawSearch = location.search;
-  const fields = rawSearch.slice(1).split("&");
-  const remainingFields = fields.filter((field: string) => {
-    const equalsIndex = field.indexOf("=");
-    const rawKey = equalsIndex === -1 ? field : field.slice(0, equalsIndex);
-    // @orb-waive caught-failure-ownership(catch): a malformed percent-encoding falls back to
-    // comparing the raw key, a deliberate fail-safe so a garbled field never blocks the scrub. Ends if the
-    // fallback comparison stops being equivalent for well-formed keys.
-    try {
-      return decodeURIComponent(rawKey.replaceAll("+", " ")) !== "join";
-    } catch {
-      return rawKey !== "join";
-    }
-  });
-  const search = rawSearch === "" || remainingFields.length === 0 ? "" : `?${remainingFields.join("&")}`;
-  history.replaceState(null, "", `${location.pathname}${search}${location.hash}`);
+export function clearJoinParam(replaceUrl: (href: string) => void): void {
+  replaceUrl(withoutUrlSearchParam(addressBar().location, JOIN_PARAM));
 }
 
 /** The signed-out guard's step before its `/login` redirect: copy an inbound `?join=` token into the tab stash.
@@ -68,9 +54,9 @@ export function peekInboundJoinToken(): string | null {
 
 /** Spend the inbound token once the dialog holds it: scrub `?join=` from the address bar and history, and
  *  drop the stash, so neither a reload nor Back replays it. Run it from an effect, never during render. */
-export function consumeInboundJoinToken(): void {
+export function consumeInboundJoinToken(replaceUrl: (href: string) => void): void {
   if (readJoinToken() !== null) {
-    clearJoinParam();
+    clearJoinParam(replaceUrl);
   }
   clearJoinStash();
 }

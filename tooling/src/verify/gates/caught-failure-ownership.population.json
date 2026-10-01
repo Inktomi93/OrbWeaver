@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 663,
+    "sites": 664,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 663,
+      "deliberate-absorb": 664,
       "unproven": 0
     },
     "byGrammar": {
       "default": 155,
       "empty": 346,
-      "promise": 162
+      "promise": 163
     }
   },
   "rows": [
@@ -99,11 +99,6 @@
       "siteId": "packages/client/src/data/invalidation.ts::createInvalidation.invalidateFilters::deps.queryClient.invalidateQueries::1",
       "verdict": "deliberate-absorb",
       "reason": "refetch failures surface on the queries' own error state; consume the aggregate Promise here."
-    },
-    {
-      "siteId": "packages/client/src/data/join-token.ts::clearJoinParam::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a malformed percent-encoding falls back to comparing the raw key, a deliberate fail-safe so a garbled field never blocks the scrub. Ends if the fallback comparison stops being equivalent for well-formed keys."
     },
     {
       "siteId": "packages/client/src/data/session-freshness.ts::startSessionFreshness::deps.probe::1",
@@ -579,6 +574,16 @@
       "siteId": "packages/client/src/lib/trpc-devlog.ts::compactJson::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a value that can't stringify (a cycle, a BigInt) degrades to a placeholder log label — dev logging only, never a data path. Ends if this output feeds anything besides a dev log line."
+    },
+    {
+      "siteId": "packages/client/src/lib/url-search.ts::withoutUrlSearchParam::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "malformed percent-encoding compares the raw key so a garbled unrelated field cannot prevent the scrub. Ends if raw comparison changes valid-key behavior."
+    },
+    {
+      "siteId": "packages/client/src/lib/use-router-url-replace.ts::useRouterUrlReplace::router.commitLocation::1",
+      "verdict": "deliberate-absorb",
+      "reason": "false positive: the original rejection is rethrown on the queued microtask error surface, proved by tests/client/lib/use-router-url-replace.dom.test.ts. The classifier excludes nested callbacks. Ends when it recognizes native queued throws."
     },
     {
       "siteId": "packages/client/src/lib/view-transition-settlement.ts::observeViewTransition.observe::settled::1",

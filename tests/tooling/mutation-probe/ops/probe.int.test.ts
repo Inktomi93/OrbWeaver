@@ -5,7 +5,7 @@
 //   would read as killed), and a suite killed by the wall-clock ceiling must never be scored as a kill.
 // @instrument-absence-proof: a source with no runnable mirror suite, and a report whose survivor
 //   population is empty, must both fail loudly rather than return a clean zero-survivor summary.
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
@@ -82,4 +82,25 @@ test("REFUSES to plant into a source that already has uncommitted changes", () =
   execFixtureGit(root, ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "base"]);
   writeFileSync(join(root, SRC_REL), "export const can = 2; // operator WIP\n");
   expect(() => probeMutants({ reportPath, sourceRel: SRC_REL, root })).toThrow(/uncommitted changes/u);
+});
+
+test("the mirror runner uses the supervisor JSON-output contract and retains named failure attribution", async ({ fakeBin }) => {
+  const { root, reportPath } = fixture({ withSpec: true });
+  await fakeBin(
+    "pnpm",
+    `
+    import { readFileSync, writeFileSync } from "node:fs";
+    const flag = process.argv.slice(2).find((arg) => arg.startsWith("--outputFile.json="));
+    if (flag === undefined) process.exit(2);
+    const failed = readFileSync(${JSON.stringify(join(root, SRC_REL))}, "utf8") !== ${JSON.stringify(SOURCE)};
+    writeFileSync(flag.slice("--outputFile.json=".length), JSON.stringify({
+      testResults: [{ assertionResults: [{ status: failed ? "failed" : "passed", title: "mutation witness" }] }],
+    }));
+    process.exit(failed ? 1 : 0);
+  `,
+  );
+  const summary = probeMutants({ reportPath, sourceRel: SRC_REL, root });
+  expect(summary.measured).toBe(1);
+  expect(summary.receipts).toEqual([expect.objectContaining({ killed: true, timedOut: false, attributionMissing: false, failedTests: ["mutation witness"] })]);
+  expect(readFileSync(join(root, SRC_REL), "utf8")).toBe(SOURCE);
 });

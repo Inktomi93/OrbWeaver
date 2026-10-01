@@ -15,7 +15,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { AuthConfig } from "#data";
 import { clearJoinStash, peekJoinStash, useAuthConfig, useSignupInvitePreview } from "#data";
-import { inviteRoomSentence, testId, useFocusOnMount } from "#lib";
+import { inviteRoomSentence, testId, useFocusOnMount, useRouterUrlReplace, withoutUrlSearchParam } from "#lib";
 import { selectChat, setActiveSection } from "#state";
 import { InviteUnavailable } from "../components/invite-unavailable.tsx";
 import { LoginFirstRunForm } from "../components/login-first-run-form.tsx";
@@ -32,6 +32,7 @@ export function LoginSurface(): ReactElement {
   useFocusOnMount(surfaceRef);
   const config = useAuthConfig();
   const navigate = useNavigate();
+  const replaceUrl = useRouterUrlReplace();
   const goHome = (): void => void navigate({ to: "/", replace: true });
   // D259 — a signed-out invite visit stashed its token before the guard sent it here; the URL never carries it.
   const [joinToken, setJoinToken] = useState(peekJoinStash);
@@ -42,7 +43,7 @@ export function LoginSurface(): ReactElement {
   // D259 — the OIDC callback held a pending join and landed here with `?pendingJoin=1` (no secret in the URL).
   const [pendingJoin, setPendingJoin] = useState(() => isPendingJoinLanding(globalThis.location.search));
   const leavePendingJoin = (): void => {
-    globalThis.history.replaceState(null, "", globalThis.location.pathname);
+    replaceUrl(withoutUrlSearchParam(globalThis.location, "pendingJoin"));
     setPendingJoin(false);
   };
 

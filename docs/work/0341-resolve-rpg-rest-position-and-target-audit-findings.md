@@ -10,7 +10,7 @@ area: rpg
 
 ## What
 
-The Waystone sun and moon remain translated between device pixels when motion stops, contrary to the rest-placement rule. The audit also reported gold and Grit touch targets and layer offsets that still need direct measurement. Review and captured results: reports/alpha-product-completion/rpg-readability/review\.md.
+The audit flags fractional Waystone SVG bounds at rest, but a controlled SVG comparison does not establish visible blur. Adjudicate the rule against painted geometry. Measure the reported gold and Grit touch targets, layer offsets and page typography hierarchy. Captured results: `reports/alpha-product-completion/rpg-readability/measurement-refusals.md`.
 
 ## Why
 
@@ -18,7 +18,7 @@ The completed readability fixes do not resolve these other findings. Keep confir
 
 ## Done when
 
-Preserve continuous clock movement while satisfying integer-line-boxes section 9. Measure the gold and Grit effective hit extents and the reported layer offsets. Fix confirmed defects at their shared owner and document measured retractions for false findings. Keep image, off-screen and animation measurement limits explicit.
+Preserve continuous clock movement and adjudicate the SVG result against integer-line-boxes section 9. Measure effective hit extents, layer offsets and the visible typography hierarchy. Fix confirmed defects at their shared owner and document measured retractions for false findings. Keep animation measurement limits explicit.
 
 ## Evidence
 

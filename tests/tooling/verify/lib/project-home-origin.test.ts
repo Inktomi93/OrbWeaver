@@ -12,6 +12,7 @@ import {
   locateProjectHome,
   readPackageExportOrigin,
   readsAmbientGlobalPath,
+  uncastPropertyDeclaredByPackage,
 } from "../../../../tooling/src/verify/lib/project-home-origin.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -173,6 +174,16 @@ test("THE CAST AXIS' LIMIT: a value with no real type behind the cast carries no
   });
 
   expect(classifyPackageMemberOrigin(memberIn(project, "packages/client/src/features/typeless.ts"), ["vendor-pkg"])).toBe("other");
+});
+
+test("a property capture strips a cast before judging the package home and preserves a local implementation", () => {
+  const project = projectOf({
+    "packages/client/src/features/capture.ts":
+      "export class Store { replaceState(): void {} } declare const native: History; const cast = native as unknown as Store; const local = new Store();",
+  });
+  const source = project.getSourceFileOrThrow(`${ROOT}/packages/client/src/features/capture.ts`);
+  expect(uncastPropertyDeclaredByPackage(source.getVariableDeclarationOrThrow("cast").getInitializerOrThrow(), "replaceState", ["typescript"])).toBe(true);
+  expect(uncastPropertyDeclaredByPackage(source.getVariableDeclarationOrThrow("local").getInitializerOrThrow(), "replaceState", ["typescript"])).toBe(false);
 });
 
 test("THE AMBIENT CHAIN: a member path rooted in a cast `globalThis` is still the ambient api", () => {

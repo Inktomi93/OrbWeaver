@@ -149,11 +149,15 @@ function uncastMemberDeclaredByPackage(node: MorphNode, packageNames: readonly s
   if (read.kind === "unresolved") {
     return false;
   }
-  const receiver = uncastReceiver(read.value.receiver);
+  return uncastPropertyDeclaredByPackage(read.value.receiver, read.value.name, packageNames);
+}
+
+/** The uncast package-member check for a property captured without a member node, such as destructuring. */
+export function uncastPropertyDeclaredByPackage(receiver: MorphNode, name: string, packageNames: readonly string[]): boolean {
   // Through the shared reader (#2097): "no property symbol" and "a symbol with no declaration" are the same
   // NO-EVIDENCE answer for this predicate, which is what the doc above states, so an unresolved fact
   // collapses to the empty set exactly as the open-coded `?? []` did.
-  const origin = resolveTypePropertyOrigin(receiver, read.value.name);
+  const origin = resolveTypePropertyOrigin(uncastReceiver(receiver), name);
   return declaredByAnyPackage(origin.kind === "resolved" ? origin.value : [], packageNames);
 }
 

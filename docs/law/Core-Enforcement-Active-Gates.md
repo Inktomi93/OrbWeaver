@@ -53,7 +53,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(351 registered gates)
+(352 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -239,6 +239,7 @@ in its own module header, never restated here.
 | `no-raw-color-in-css` | — | ordinary/error | none | raw color literal in CSS… |
 | `no-raw-container-widths` | — | ordinary/error | @client,@ui\* | raw content width class (w-N /… |
 | `no-raw-egress` | — | reviewed-grant/error | @server,@inference | a raw fetch in server source — route… |
+| `no-raw-history-writes` | — | hard/error | @client | client code captures a browser… |
 | `no-raw-id` | id-brand-flow | ordinary/error | @authored | an id-named Zod field is a raw string… |
 | `no-raw-interactive-intrinsics` | — | reviewed-grant/error | @client\* | a raw interactive intrinsic in a… |
 | `no-raw-intl-time` | — | reviewed-grant/error | @authored | raw Intl API or .toLocale\*() date… |
@@ -327,7 +328,7 @@ in its own module header, never restated here.
 | `single-stream-transport` | — | reviewed-grant/error | @server\* | a tRPC .subscription( outside… |
 | `skin-fragment-tier-health` | ui-skin-fragment-tier | hard/error | @ui | the reviewed skin-fragment definition… |
 | `skin-fragment-tier-permission` | ui-skin-fragment-tier | reviewed-grant/error | @ui | reviewed skin-fragment… |
-| `sole-env-reader` | — | reviewed-grant/error | @server,@inference | reads process.env outside… |
+| `sole-env-reader` | — | reviewed-grant/error | @server,@inference | touches process.env outside… |
 | `spacing-tier-home-health` | raw-spacing-tier | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
 | `stale-draft-commit` | draft-commit | ordinary/error | @client | a once-seeded draft is being… |
 | `stale-draft-decision-health` | draft-commit | hard/error | @client,@db\* | the draft decision home no longer… |
