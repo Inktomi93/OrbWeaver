@@ -89,7 +89,8 @@ export function rememberHomeFootPaired(paired: boolean): void {
   useHomeTileMemoryStore.setState({ footPaired: paired }, false, "homeTileMemory/foot");
 }
 
-/** Test seam: the whole memory WITHOUT a React render. */
+/** Read settled tile state for persistence assertions without mounting React.
+ * @public Test-anchored seam used by tests/client/state/home-tile-memory-store.test.ts. */
 export function __readHomeTileMemoryForTest(): HomeTileMemoryState {
   return useHomeTileMemoryStore.getState();
 }

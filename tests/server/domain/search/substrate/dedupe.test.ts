@@ -1,13 +1,9 @@
-// substrate: dedupe — the pure post-rank collapse helpers. Asserts the block-key string identity, that
-// dedupeRankedBlocks keeps the better-RANKED representative (input is best-first) and — crucially (inv 5/8)
-// — does NOT collapse two blocks that share `(chatId, tier, blockIdx)` but differ in `scopedCharacterId`
-// (two egocentric POVs of the same scene), and that collapseByContentHash collapses fork/import copies.
-
+// Live collapse helpers preserve ranked representatives; block keys retain egocentric identity.
 import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { blockKeyStr, collapseByContentHash, dedupeRankedBlocks } from "../../../../../packages/server/src/domain/search/substrate/dedupe.ts";
+import { blockKeyStr, collapseByContentHash, collapseSegmentChunks } from "../../../../../packages/server/src/domain/search/substrate/dedupe.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_a");
@@ -21,22 +17,19 @@ function key(over: Partial<BlockKey> = {}): BlockKey {
 describe("blockKeyStr", () => {
   test("is stable + includes every key field", () => {
     expect(blockKeyStr(key({ tier: 1, blockIdx: 3, scopedCharacterId: CHAR_Y }))).toBe("chat_a|1|3|character_y");
+    expect(blockKeyStr(key({ scopedCharacterId: CHAR_X }))).not.toBe(blockKeyStr(key({ scopedCharacterId: CHAR_Y })));
   });
 });
 
-describe("dedupeRankedBlocks", () => {
-  test("keeps the first (best-ranked) row per block key", () => {
-    const out = dedupeRankedBlocks([
-      { blockKey: key(), lens: "digest" },
-      { blockKey: key(), lens: "segment" },
-    ]);
-    expect(out).toHaveLength(1);
-    expect(out[0]?.lens).toBe("digest");
-  });
-
-  test("does NOT collapse two POVs of the same scene (differ only in scopedCharacterId)", () => {
-    const out = dedupeRankedBlocks([{ blockKey: key({ scopedCharacterId: CHAR_X }) }, { blockKey: key({ scopedCharacterId: CHAR_Y }) }]);
-    expect(out).toHaveLength(2);
+describe("collapseSegmentChunks", () => {
+  test("keeps each block's best-ranked chunk and its complete source identity", () => {
+    const ranked = [
+      { chatId: CHAT, blockIdx: 1, chunkIdx: 1, rowId: mintTypeId(ID_PREFIX.chatSegment), score: 0.1 },
+      { chatId: CHAT, blockIdx: 1, chunkIdx: 0, rowId: mintTypeId(ID_PREFIX.chatSegment), score: 0.2 },
+      { chatId: mintTypeId(ID_PREFIX.chat), blockIdx: 1, chunkIdx: 0, rowId: mintTypeId(ID_PREFIX.chatSegment), score: 0.3 },
+      { chatId: CHAT, blockIdx: 2, chunkIdx: 0, rowId: mintTypeId(ID_PREFIX.chatSegment), score: 0.4 },
+    ];
+    expect(collapseSegmentChunks(ranked)).toEqual([ranked[0], ranked[2], ranked[3]]);
   });
 });
 

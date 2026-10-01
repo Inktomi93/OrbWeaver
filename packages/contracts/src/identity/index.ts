@@ -24,7 +24,6 @@ export const userRoleSchema = z.enum(USER_ROLES) satisfies z.ZodType<UserRole>;
 // the rebuild grafts an `agent` member here if the agent-principal design set returns (docs/work/0048).
 export const USER_KINDS = ["human"] as const;
 export type UserKind = (typeof USER_KINDS)[number];
-/** @public twin: USER_KINDS — drives the users.kind enum (cross-package PUBLIC). */
 export const userKindSchema = z.enum(USER_KINDS) satisfies z.ZodType<UserKind>;
 
 /** The custom CSRF request header. Cross-boundary wire fact: the client sends it every request and the

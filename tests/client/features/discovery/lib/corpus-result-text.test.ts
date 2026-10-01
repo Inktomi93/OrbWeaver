@@ -2,19 +2,19 @@
 // corpus-search-results.ct.tsx). Each case here is a defect the 2026-08-19 corpus re-pass MEASURED on the
 // live surface, reduced to the string decision behind it.
 
+import type { DiscoverSegment } from "@orb/contracts/search";
 import type { ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
   chatSubtitle,
   evidenceScent,
   groupByEvidence,
-  groupEvidenceByPassage,
   roomNumberingHint,
-  sharedRooms,
   snippetForDisplay,
 } from "../../../../../packages/client/src/features/discovery/lib/corpus-result-text.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 
 describe("chatSubtitle", () => {
   test("an authored room title wins; an unnamed room falls through to its cast, never an id", () => {
@@ -71,80 +71,55 @@ describe("groupByEvidence (C2)", () => {
   });
 });
 
-const CHAT_A = castId<ChatId>("chat_a");
-const CHAT_B = castId<ChatId>("chat_b");
-const CHAT_C = castId<ChatId>("chat_c");
+type EvidenceOccurrence = Pick<DiscoverSegment, "chatId" | "chatTitle" | "snippet"> & {
+  readonly source: ReturnType<typeof corpusSceneSource>;
+  readonly rank: number;
+};
 
-describe("groupEvidenceByPassage (P1-1)", () => {
-  /** One Scenes segment — the three fields the grouping reads. Branded at the fixture consts, so the
-   *  helper's own parameter is the id type the production caller passes, never a bare string. */
-  const segment = (chatId: ChatId, chatTitle: string | null, snippet: string): { chatId: ChatId; chatTitle: string | null; snippet: string } => ({
+describe("groupByEvidence source occurrences", () => {
+  const chatA = mintTypeId(ID_PREFIX.chat);
+  const chatB = mintTypeId(ID_PREFIX.chat);
+  const chatC = mintTypeId(ID_PREFIX.chat);
+  const occurrence = (chatId: ChatId, chatTitle: string | null, snippet: string, rank: number): EvidenceOccurrence => ({
     chatId,
     chatTitle,
     snippet,
+    source: corpusSceneSource(chatId, rank),
+    rank,
   });
 
-  test("one passage found in three rooms is ONE body with three doors — nothing is dropped", () => {
-    const passages = groupEvidenceByPassage(
-      [
-        segment(CHAT_A, "Lena Jan 28", "the rain came sideways"),
-        segment(CHAT_B, "Lena Jan 28 (2)", "the rain came sideways"),
-        segment(CHAT_C, "Lena Jan 26", "she counted the coins twice"),
-      ],
-      "Lena",
-    );
-
-    expect(passages).toHaveLength(2);
-    expect(passages[0]?.snippet).toBe("the rain came sideways");
-    expect(passages[0]?.rooms.map((room) => room.title)).toEqual(["Lena Jan 28", "Lena Jan 28 (2)"]);
-    expect(passages[1]?.rooms.map((room) => room.title)).toEqual(["Lena Jan 26"]);
+  test("repeated prose keeps each room's complete source and server rank", () => {
+    const first = occurrence(chatA, "Harbour", "the rain came sideways", 1);
+    const second = occurrence(chatB, "Harbour (2)", "the rain came sideways", 2);
+    const third = occurrence(chatC, "Market", "she counted the coins twice", 3);
+    const passages = groupByEvidence([first, second, third], (hit) => snippetForDisplay(hit.snippet));
+    expect([...passages.keys()]).toEqual(["the rain came sideways", "she counted the coins twice"]);
+    expect(passages.get("the rain came sideways")).toEqual([first, second]);
+    expect(passages.get("she counted the coins twice")).toEqual([third]);
   });
 
-  test("one room quoting the same passage twice is ONE door, not two", () => {
-    const passages = groupEvidenceByPassage([segment(CHAT_A, "Harbour", "the same block"), segment(CHAT_A, "Harbour", "the same block")], "Lena");
-    expect(passages).toHaveLength(1);
-    expect(passages[0]?.rooms).toHaveLength(1);
+  test("two matching occurrences in one room remain separate transcript destinations", () => {
+    const first = occurrence(chatA, "Harbour", "the same passage", 1);
+    const second = occurrence(chatA, "Harbour", "the same passage", 2);
+    expect([...groupByEvidence([first, second], (hit) => hit.snippet).values()]).toEqual([[first, second]]);
+    expect(first.source.rowId).not.toBe(second.source.rowId);
   });
 
-  test("the grouping key is the DISPLAYED text — two wire slices that read identically group together", () => {
-    // The wire cuts at 280 chars mid-word; the projection cuts earlier, on a word boundary. Two copies of
-    // one block that differ only past the display cut are one passage to the reader, so they are one here.
+  test("display-equivalent slices group together without truncating retained evidence", () => {
     const long = `${"the harvest is in and the evening is quiet ".repeat(20)}finally`;
-    const passages = groupEvidenceByPassage([segment(CHAT_A, "One", long), segment(CHAT_B, "Two", `${long} and then some more`)], "Lena");
-    expect(passages).toHaveLength(1);
-    expect(passages[0]?.rooms).toHaveLength(2);
+    const first = occurrence(chatA, "One", long, 1);
+    const second = occurrence(chatB, "Two", `${long} and then some more`, 2);
+    const passages = groupByEvidence([first, second], (hit) => snippetForDisplay(hit.snippet));
+    expect([...passages.keys()]).toEqual([snippetForDisplay(long)]);
+    expect([...passages.values()]).toEqual([[first, second]]);
   });
 
-  test("an unnamed room still names itself through the title chain, never an id", () => {
-    const passages = groupEvidenceByPassage([segment(CHAT_A, null, "a line")], "Lena");
-    expect(passages[0]?.rooms[0]?.title).toBe("Lena");
-  });
-});
-
-describe("sharedRooms (P3-D)", () => {
-  const passage = (snippet: string, ...rooms: readonly ChatId[]): { snippet: string; rooms: { chatId: ChatId; title: string }[] } => ({
-    snippet,
-    rooms: rooms.map((chatId) => ({ chatId, title: `room ${chatId}` })),
-  });
-
-  test("three passages out of ONE room hand the door back, so it can be said once", () => {
-    const rooms = sharedRooms([passage("a", CHAT_A), passage("b", CHAT_A), passage("c", CHAT_A)]);
-    expect(rooms?.map((room) => room.chatId)).toEqual([CHAT_A]);
-  });
-
-  test("passages from DIFFERENT rooms keep their own doors — a hoisted door would lie", () => {
-    expect(sharedRooms([passage("a", CHAT_A), passage("b", CHAT_B)])).toBeNull();
-    // A superset is not a share: the second passage was never found in CHAT_B.
-    expect(sharedRooms([passage("a", CHAT_A, CHAT_B), passage("b", CHAT_A)])).toBeNull();
-  });
-
-  test("the shared set is order-insensitive — the same two rooms in either order is one answer", () => {
-    expect(sharedRooms([passage("a", CHAT_A, CHAT_B), passage("b", CHAT_B, CHAT_A)])).toHaveLength(2);
-  });
-
-  test("a lone passage has nothing to share it with, so the door stays where the evidence is", () => {
-    expect(sharedRooms([passage("a", CHAT_A)])).toBeNull();
-    expect(sharedRooms([])).toBeNull();
+  test("different passages retain their own room associations instead of sharing a destination", () => {
+    const first = occurrence(chatB, "Two", "first passage", 1);
+    const second = occurrence(chatA, "One", "second passage", 2);
+    const third = occurrence(chatA, "One", "first passage", 3);
+    const passages = groupByEvidence([first, second, third], (hit) => hit.snippet);
+    expect([...passages.values()]).toEqual([[first, third], [second]]);
   });
 });
 

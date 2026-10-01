@@ -1,8 +1,9 @@
 // Joint host-scoped retrieval preserves digest/segment block dedupe and content-hash collapse.
 import type { Handle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { seedUser as seedUserRow } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedChatSegment, seedUser, vec } from "../_support.ts";
 
@@ -123,6 +124,38 @@ describe("corpus", () => {
 
     expect(hits).toHaveLength(1);
     expect(hits[0]?.blockKeys[0]?.scopedCharacterId).toBe(mine);
+  });
+
+  test("distinct perspectives of one scene retain their stored block identities", async () => {
+    const db = await freshDb();
+    const ownerId = (await seedUserRow(db)).id;
+    const first = await seedCharacter(db, { id: mintTypeId(ID_PREFIX.character), ownerId });
+    const second = await seedCharacter(db, { id: mintTypeId(ID_PREFIX.character), ownerId });
+    const chatId = await seedChat(db, mintTypeId(ID_PREFIX.chat));
+    await seedChatDigest(db, {
+      id: mintTypeId(ID_PREFIX.chatDigest),
+      chatId,
+      scopedCharacterId: first,
+      blockIdx: 0,
+      embedding: vec(1),
+      text: "FIRST POV",
+      contentHash: "first",
+    });
+    await seedChatDigest(db, {
+      id: mintTypeId(ID_PREFIX.chatDigest),
+      chatId,
+      scopedCharacterId: second,
+      blockIdx: 0,
+      embedding: vec(1, 0.1),
+      text: "SECOND POV",
+      contentHash: "second",
+    });
+    const hits = await makeSearch(db).corpus({ ownerId, queryText: "q", mode: "mixB", minScore: 0 });
+    expect(hits.map((hit) => hit.text)).toEqual(["FIRST POV", "SECOND POV"]);
+    expect(hits.flatMap((hit) => hit.blockKeys)).toEqual([
+      { chatId, tier: 0, blockIdx: 0, scopedCharacterId: first },
+      { chatId, tier: 0, blockIdx: 0, scopedCharacterId: second },
+    ]);
   });
 
   test("an empty index returns no hits", async () => {
