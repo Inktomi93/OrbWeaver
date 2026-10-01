@@ -20,6 +20,7 @@ test("cold module loading completes before a degraded document is replaced", { t
       completedModules++;
       await route.fulfill({ contentType: "text/javascript", body: `document.documentElement.setAttribute("data-app-ready", "");` });
     });
+    // @orb-waive test-determinism(Date.now): the subject is real browser module loading under a wall-clock deadline. Ends if browser loading and the waiter share an injected clock.
     await awaitDevClientReady(page, "http://contributor.test/", Date.now() + scaledBudget(5000));
     expect(documents).toBe(1);
     expect(completedModules).toBe(1);
@@ -34,6 +35,7 @@ test("a permanently degraded app still refuses at the supplied startup deadline"
   try {
     const page = await browser.newPage();
     await page.route("http://contributor.test/", (route) => route.fulfill({ contentType: "text/html", body: '<html data-app-ready="degraded"></html>' }));
+    // @orb-waive test-determinism(Date.now): this proof requires the real deadline to expire against a live browser. Ends if the browser and deadline use an injected clock.
     await expect(awaitDevClientReady(page, "http://contributor.test/", Date.now() + 500)).rejects.toThrow();
   } finally {
     await browser.close();
@@ -72,6 +74,7 @@ test("a degraded document waits for dynamic modules but not a live subscription 
       moduleFinished = true;
       await route.fulfill({ contentType: "text/javascript", body: "export const loaded = true;" });
     });
+    // @orb-waive test-determinism(Date.now): the subject is real browser module loading under a wall-clock deadline. Ends if browser loading and the waiter share an injected clock.
     await awaitDevClientReady(page, "http://contributor.test/", Date.now() + scaledBudget(5000));
     expect(documents).toBe(2);
     expect(moduleFinished).toBe(true);
