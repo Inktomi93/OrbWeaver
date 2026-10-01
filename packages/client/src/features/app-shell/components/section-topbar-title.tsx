@@ -15,7 +15,7 @@ export interface SectionTopbarTitleProps {
   readonly definition: SectionDefinition;
   /** The section label — what shows while nothing is open, or while the name has not landed. */
   readonly fallback: string;
-  readonly children: (title: string, listDoorLabel: string | null) => ReactNode;
+  readonly children: (title: string, listDoorLabel: string | null, contentLabel: string | null) => ReactNode;
 }
 
 export function SectionTopbarTitle({ definition, fallback, children }: SectionTopbarTitleProps): ReactNode {
@@ -25,7 +25,7 @@ export function SectionTopbarTitle({ definition, fallback, children }: SectionTo
   const resolved = definition.useSelectionTitle();
   const title = resolved ?? fallback;
   return definition.listDoorLabel === undefined ? (
-    children(title, null)
+    children(title, null, null)
   ) : (
     <SectionListDoorLabel label={definition.listDoorLabel} title={title}>
       {children}
@@ -43,5 +43,6 @@ function SectionListDoorLabel({
   readonly children: SectionTopbarTitleProps["children"];
 }): ReactElement {
   const resolved = label.useLabel();
-  return <>{children(title, resolved)}</>;
+  const contentLabel = label.useContentLabel?.() ?? null;
+  return <>{children(title, resolved, contentLabel)}</>;
 }

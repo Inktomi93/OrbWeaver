@@ -122,6 +122,11 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
             <ThreadsGroup onJump={jumpToChat} />
           </QueryBoundary>
 
+          {/* A contributed destination precedes broad section and action matches; cmdk owns filtering within each group. */}
+          {paletteSources.map((source) => (
+            <PaletteSourceGroup context={context} key={source.id} onRun={runRow} source={source} />
+          ))}
+
           <CommandGroup heading="Go to">
             {goToSections.map((section) => (
               <CommandItem key={section.id} keywords={[section.label]} onSelect={(): void => jumpToSection(section.id)} value={`goto:${section.id}`}>
@@ -138,12 +143,6 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
               onRun={runCommand}
               unavailableFor={slash.unavailableFor}
             />
-          ))}
-
-          {/* The DYNAMIC palette sources (plugin commands, U8): each renders as its OWN component so its
-              `useRows` hook lives in its own fiber — never a hooks-in-a-loop here. */}
-          {paletteSources.map((source) => (
-            <PaletteSourceGroup context={context} key={source.id} onRun={runRow} source={source} />
           ))}
         </CommandList>
       </Command>

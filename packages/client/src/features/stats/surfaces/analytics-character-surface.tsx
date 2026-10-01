@@ -158,7 +158,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
                 at all (the rollup is owner+model grain), so this tile printed a hard-coded 0%. It now
                 reads the em dash the absence has always deserved. */}
             <StatFigure label="Cache hits (of input)" value={formatPercent(stats.cacheHitRate, stats.tokensInProvenance)} />
-            <StatFigure label={REASONING_LABEL} value={formatPercent(stats.reasoningRate)} />
+            <StatFigure label={REASONING_LABEL} value={formatPercent(stats.assistantTurns + stats.swipes === 0 ? null : stats.reasoningRate)} />
             {/* The reasoning WINDOW beside the reasoning RATE (#184) — the per-character half of the same
                 unrendered rollup column. */}
             <StatFigure label="Time reasoning" value={formatDurationMs(stats.reasoningMs)} />

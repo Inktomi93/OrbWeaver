@@ -42,7 +42,7 @@ const MANY_TAGS = Array.from({ length: 60 }, (_unused, index) =>
 
 /** The tag the create verb answers with. The library read already lists it, because a CT runs no user bus to
  *  refresh the read after a create. */
-const CREATED = tagRow("tag_created", "New tag 2", 0);
+const CREATED = tagRow("tag_created", "New label 2", 0);
 
 function stub(page: Page, tags: readonly TagWithUsage[] = FEW_TAGS): Promise<TrpcRecorder> {
   return routeTrpc(page, {
@@ -70,7 +70,7 @@ function rowTitles(workspace: Locator): Locator {
   return finder(workspace).locator('[data-slot="list-row-title"]');
 }
 
-test("the finder reads filter · sort · overflow, the band carries New tag, and CONTENT states the library", async ({ mount, page }) => {
+test("the finder reads filter · sort · overflow, the band carries New label, and CONTENT states the library", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<LabelsWorkspaceStory />);
   const row = finder(workspace).locator('[data-slot="labels-control-row"]');
@@ -83,7 +83,7 @@ test("the finder reads filter · sort · overflow, the band carries New tag, and
   expect(sort?.x ?? 0).toBeLessThan(overflow?.x ?? 0);
   // The finder's ONE primary verb rides the band, with the library census beside the mode's name.
   const band = workspace.locator('[data-slot="ct-labels-band"]');
-  await expect(band.getByRole("button", { name: "New tag" })).toBeVisible();
+  await expect(band.getByRole("button", { name: "New label" })).toBeVisible();
   await expect(band).toContainText("Labels");
   await expect(band).toContainText("3");
 
@@ -91,11 +91,18 @@ test("the finder reads filter · sort · overflow, the band carries New tag, and
   await expect(content(workspace).getByRole("heading", { name: "Labels", level: 2 })).toBeVisible();
   const facts = content(workspace).locator('[data-slot="labels-library-facts"]');
   await expect(facts).toContainText("Unattached1 of 3");
-  await expect(facts).toContainText("Tags on characters2");
-  await expect(facts).toContainText("Tags on chats2");
+  await expect(facts).toContainText("Labels on characters2");
+  await expect(facts).toContainText("Labels on chats2");
   // The orphan fact's door acts on EVERY orphan, not the first one: it opens the prune confirm.
+  await test.info().attach("0314-labels", { body: await workspace.screenshot(), contentType: "image/png" });
+  await workspace.evaluate((element) => {
+    element.setAttribute("data-theme", "light");
+    (element as HTMLElement).style.backgroundColor = "var(--color-background)";
+    (element as HTMLElement).style.color = "var(--color-foreground)";
+  });
+  await test.info().attach("0314-labels-light", { body: await workspace.screenshot(), contentType: "image/png" });
   await facts.getByRole("button", { name: "Prune 1 unused" }).click();
-  await expect(page.getByRole("heading", { name: "Delete 1 unused tag?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Delete 1 unused label?" })).toBeVisible();
 });
 
 test("the finder's sort Select writes the mode the rows read", async ({ mount, page }) => {
@@ -129,18 +136,18 @@ test("ABOVE the cap: Manual order is disabled and its option carries the reason"
   await finder(workspace).getByRole("combobox", { name: "Sort labels" }).click();
   const manual = page.getByRole("option", { name: "Manual order" });
   await expect(manual).toHaveAttribute("data-disabled", "");
-  await expect(manual).toHaveAccessibleDescription("Drag to reorder is off above 30 tags.");
+  await expect(manual).toHaveAccessibleDescription("Drag to reorder is off above 30 labels.");
   await expect(page.getByRole("option", { name: "A–Z" })).not.toHaveAttribute("data-disabled", "");
 });
 
-test("the overflow carries Prune unused tags, and the item alone deletes nothing", async ({ mount, page }) => {
+test("the overflow carries Prune unused labels, and the item alone deletes nothing", async ({ mount, page }) => {
   const trpc = await stub(page);
   const workspace = await mount(<LabelsWorkspaceStory />);
   await finder(workspace).getByRole("button", { name: "More label actions" }).click();
-  await page.getByRole("menuitem", { name: "Prune unused tags" }).click();
+  await page.getByRole("menuitem", { name: "Prune unused labels" }).click();
 
   // The item only OPENS the rows' confirm; the count and the cascade are the rows' knowledge.
-  await expect(page.getByRole("heading", { name: "Delete 1 unused tag?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Delete 1 unused label?" })).toBeVisible();
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
   await expect.poll(() => trpc.count("tag.pruneUnusedTags"), { intervals: [20, 50, 100] }).toBe(0);
@@ -148,14 +155,14 @@ test("the overflow carries Prune unused tags, and the item alone deletes nothing
 
 // A second create must not collide with the first: the default name is unique in the library, and the Name
 // field takes focus so the reader can type the real one at once.
-test("New tag creates a uniquely named tag and focuses its Name field", async ({ mount, page }) => {
-  const trpc = await stub(page, [...FEW_TAGS, tagRow("tag_first_new", "New tag", 0), CREATED]);
+test("New label creates a uniquely named tag and focuses its Name field", async ({ mount, page }) => {
+  const trpc = await stub(page, [...FEW_TAGS, tagRow("tag_first_new", "New label", 0), CREATED]);
   const workspace = await mount(<LabelsWorkspaceStory />);
-  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New tag" }).click();
+  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New label" }).click();
 
-  await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New tag 3" } });
+  await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New label 3" } });
   const editor = content(workspace).locator('[data-slot="tag-member-editor"]');
-  await expect(editor.getByRole("heading", { name: "New tag 2" })).toBeVisible();
+  await expect(editor.getByRole("heading", { name: "New label 2" })).toBeVisible();
   const name = editor.getByRole("textbox", { name: "Name" });
   await expect(name).toBeFocused();
   // The placeholder name is selected, so the first keystroke replaces it.
@@ -164,17 +171,17 @@ test("New tag creates a uniquely named tag and focuses its Name field", async ({
     .toBe(true);
 });
 
-// The server's name index is case-folded (`lower(name)`), so `new tag` already takes `New tag`.
-test("New tag skips a name the library holds in another casing", async ({ mount, page }) => {
-  const trpc = await stub(page, [...FEW_TAGS, tagRow("tag_lower_new", "new tag", 0)]);
+// The server's name index is case-folded (`lower(name)`), so `new label` already takes `New label`.
+test("New label skips a name the library holds in another casing", async ({ mount, page }) => {
+  const trpc = await stub(page, [...FEW_TAGS, tagRow("tag_lower_new", "new label", 0)]);
   const workspace = await mount(<LabelsWorkspaceStory />);
-  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New tag" }).click();
-  await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New tag 2" } });
+  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New label" }).click();
+  await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New label 2" } });
 });
 
 // The rows learn a new name only on the bus refetch, so a second click during the create would offer the
 // same name again: the door holds shut until the create settles.
-test("a double click on New tag creates once", async ({ mount, page }) => {
+test("a double click on New label creates once", async ({ mount, page }) => {
   const hold = trpcHold();
   const { usage: _usage, pendingSuggestions: _pending, ...created } = CREATED;
   const trpc = await routeTrpc(page, {
@@ -184,10 +191,10 @@ test("a double click on New tag creates once", async ({ mount, page }) => {
     "tag.listAttachedEntities": { entities: [], hasMore: false },
   });
   const workspace = await mount(<LabelsWorkspaceStory />);
-  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New tag" }).dblclick();
+  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New label" }).dblclick();
   await hold.requested;
   hold.release(created);
-  await expect(content(workspace).locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "New tag 2" })).toBeVisible();
+  await expect(content(workspace).locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "New label 2" })).toBeVisible();
   await expect.poll(() => trpc.count("tag.createTag")).toBe(1);
 });
 
@@ -205,9 +212,9 @@ test("a create the name index refuses retries once with the next free name", asy
     },
   });
   const workspace = await mount(<LabelsWorkspaceStory />);
-  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New tag" }).click();
-  await expect(content(workspace).locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "New tag 2" })).toBeVisible();
-  await expect.poll(() => trpc.inputs("tag.createTag")).toEqual([{ input: { name: "New tag" } }, { input: { name: "New tag 3" } }]);
+  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New label" }).click();
+  await expect(content(workspace).locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "New label 2" })).toBeVisible();
+  await expect.poll(() => trpc.inputs("tag.createTag")).toEqual([{ input: { name: "New label" } }, { input: { name: "New label 3" } }]);
 });
 
 // A merge closes the editor; focus lands on the library, never on <body>.
@@ -217,7 +224,7 @@ test("merging a tag returns focus to the library landing", async ({ mount, page 
   await finder(workspace).getByRole("button", { name: "orphan", exact: true }).click();
   const editor = content(workspace).locator('[data-slot="tag-member-editor"]');
   await editor.getByRole("button", { name: "Merge into…" }).click();
-  await page.getByRole("combobox", { name: "Merge target tag" }).click();
+  await page.getByRole("combobox", { name: "Merge target label" }).click();
   await page.getByRole("option", { name: "zeal" }).click();
   await page.getByRole("button", { name: "Merge", exact: true }).click();
 
@@ -252,14 +259,14 @@ test("Back from the editor keeps the finder's filter and sort, and releases the 
   await expect(context.locator('[data-slot="labels-meaning"]')).toContainText("generated facets");
 });
 
-// AN EMPTY LIBRARY TEACHES IN BOTH PANES WITH ONE VERB: the band's `New tag` is the only create control on
+// AN EMPTY LIBRARY TEACHES IN BOTH PANES WITH ONE VERB: the band's `New label` is the only create control on
 // the workspace, the ruled count the Configuration host held (side-eye 2026-08-08 P2).
-test("an empty library says so in the finder and on the landing, with exactly ONE New tag", async ({ mount, page }) => {
+test("an empty library says so in the finder and on the landing, with exactly ONE New label", async ({ mount, page }) => {
   await stub(page, []);
   const workspace = await mount(<LabelsWorkspaceStory />);
-  await expect(finder(workspace).locator('[data-slot="labels-finder-empty"]')).toContainText("No tags yet");
-  await expect(content(workspace).getByText("No tags yet", { exact: false })).toBeVisible();
-  await expect(workspace.getByRole("button", { name: "New tag" })).toHaveCount(1);
+  await expect(finder(workspace).locator('[data-slot="labels-finder-empty"]')).toContainText("No labels yet");
+  await expect(content(workspace).getByText("Create a label with New label", { exact: false })).toBeVisible();
+  await expect(workspace.getByRole("button", { name: "New label" })).toHaveCount(1);
 });
 
 async function deleteRow(page: Page, workspace: Locator, name: string): Promise<void> {
@@ -391,4 +398,146 @@ for (const kind of Object.keys(ATTACHED_DESTINATIONS) as TagTargetType[]) {
     await workspace.locator('[data-slot="label-reach"]').getByRole("button", { name: destination.name, exact: true }).click();
     await expect(workspace.getByRole("status", { name: "Attachment destination" })).toHaveText(`${DESTINATION_SECTIONS[kind]}:${destination.targetId}`);
   });
+}
+
+test("rapid creates reserve settled names before the library refresh", async ({ mount, page }) => {
+  const names: string[] = [];
+  await routeTrpc(page, {
+    "tag.listTagsWithUsage": FEW_TAGS,
+    "tag.listPendingSuggestions": [],
+    "tag.createTag": (input) => {
+      names.push(input.input.name);
+      const { usage: _usage, pendingSuggestions: _pending, ...created } = tagRow(mintTypeId(ID_PREFIX.tag), input.input.name, 0);
+      return created;
+    },
+  });
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  const create = workspace.getByRole("button", { name: "New label", exact: true });
+  for (let index = 0; index < 3; index += 1) {
+    await create.click();
+    await expect.poll(() => names.length).toBe(index + 1);
+    await expect(create).toBeEnabled();
+  }
+  expect(names).toEqual(["New label", "New label 2", "New label 3"]);
+});
+
+test("a stale label filter has a clear door", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  await finder(workspace).getByRole("textbox", { name: "Filter labels" }).fill("merged-away");
+  await expect(finder(workspace).getByRole("status")).toContainText("No labels match");
+  await finder(workspace).getByRole("button", { name: "Clear filter", exact: true }).click();
+  await expect(rowTitles(workspace)).toHaveText(["zeal", "adventure", "orphan"]);
+  await expect(finder(workspace).getByRole("textbox", { name: "Filter labels" })).toBeFocused();
+});
+
+test("prune names the exact unused labels and excludes pending suggestions", async ({ mount, page }) => {
+  await stub(page, [...FEW_TAGS, { ...tagRow(mintTypeId(ID_PREFIX.tag), "pending", 0), pendingSuggestions: 1 }]);
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  await content(workspace).getByRole("button", { name: "Prune 1 unused" }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog.getByRole("listitem")).toHaveText(["orphan"]);
+  await expect(dialog).not.toContainText("pending");
+  await test.info().attach("0314-named-prune", { body: await page.screenshot(), contentType: "image/png" });
+  await test.info().attach("0314-named-prune-aria", { body: Buffer.from(await dialog.ariaSnapshot()), contentType: "text/plain" });
+});
+
+test("a delete decision survives a bus refresh before its response and does not poison the next Cancel", async ({ mount, page }) => {
+  const hold = trpcHold();
+  let rows = FEW_TAGS;
+  await routeTrpc(page, {
+    "tag.listTagsWithUsage": () => rows,
+    "tag.listPendingSuggestions": [],
+    "tag.removeTag": hold,
+  });
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  const orphan = finder(workspace).locator('[data-slot="list-row-root"]', { hasText: "orphan" });
+  await orphan.hover();
+  await orphan.getByRole("button", { name: rowActionsName("orphan"), exact: true }).click();
+  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete", exact: true }).click();
+  await hold.requested;
+  rows = FEW_TAGS.filter((row) => row.name !== "orphan");
+  await workspace.getByRole("button", { name: "deliver tag change", includeHidden: true }).evaluate((button) => (button as HTMLButtonElement).click());
+  await expect(orphan).toHaveCount(0);
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  hold.release(null);
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(finder(workspace).locator('[data-slot="labels-finder"]')).toBeFocused();
+  const adventure = finder(workspace).locator('[data-slot="list-row-root"]', { hasText: "adventure" });
+  await adventure.hover();
+  const opener = adventure.getByRole("button", { name: rowActionsName("adventure"), exact: true });
+  await opener.click();
+  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(opener).toBeFocused();
+});
+
+test("a failed delete stays as one retryable decision and keeps the selected editor", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "tag.listTagsWithUsage": FEW_TAGS,
+    "tag.listPendingSuggestions": [],
+    "tag.listAttachedEntities": { entities: [], hasMore: false },
+    "tag.removeTag": () => trpcError({ message: "delete failed" }),
+  });
+  const workspace = await mount(<LabelsWorkspaceStory />);
+  await finder(workspace).getByRole("button", { name: "orphan", exact: true }).click();
+  await finder(workspace).locator('[data-slot="list-row-root"]', { hasText: "orphan" }).hover();
+  await finder(workspace)
+    .getByRole("button", { name: rowActionsName("orphan"), exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page.getByRole("alertdialog").getByRole("alert")).toContainText("delete failed");
+  await expect(page.getByRole("alertdialog").getByRole("button", { name: "Delete", exact: true })).toBeEnabled();
+  await expect(content(workspace).locator('[data-slot="tag-member-editor"]')).toBeAttached();
+  await expect(page.getByText("Couldn't delete the label.", { exact: true })).toHaveCount(0);
+});
+
+for (const kind of ["delete", "prune"] as const) {
+  for (const outcome of ["success", "failure"] as const) {
+    test(`${kind}: an abandoned pending ${outcome} cannot settle a later decision`, async ({ mount, page }) => {
+      const hold = trpcHold();
+      await routeTrpc(page, {
+        "tag.listTagsWithUsage": FEW_TAGS,
+        "tag.listPendingSuggestions": [],
+        "tag.removeTag": hold,
+        "tag.pruneUnusedTags": hold,
+      });
+      const workspace = await mount(<LabelsWorkspaceStory />);
+      const open = async (name: string): Promise<void> => {
+        if (kind === "prune") {
+          await content(workspace).getByRole("button", { name: "Prune 1 unused", exact: true }).click();
+          return;
+        }
+        const row = finder(workspace).locator('[data-slot="list-row-root"]', { hasText: name });
+        await row.hover();
+        await row.getByRole("button", { name: rowActionsName(name), exact: true }).click();
+        await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+      };
+      await open("orphan");
+      await page
+        .getByRole("alertdialog")
+        .getByRole("button", { name: kind === "prune" ? "Delete it" : "Delete", exact: true })
+        .click();
+      await hold.requested;
+      const pending = workspace.getByRole("status", { name: "Label mutations in flight", exact: true, includeHidden: true });
+      await expect(pending).toHaveText("1");
+      await page.getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect(page.getByRole("alertdialog")).toHaveCount(0);
+      await open("adventure");
+      const heading = page
+        .getByRole("alertdialog")
+        .getByRole("heading", { name: kind === "prune" ? "Delete 1 unused label?" : 'Delete "adventure"?', exact: true });
+      await expect(heading).toBeVisible();
+      const success = kind === "prune" ? { removed: 1 } : null;
+      hold.release(outcome === "failure" ? trpcError({ message: "earlier decision failed" }) : success);
+      await expect(pending).toHaveText("0");
+      await expect(heading).toBeVisible();
+      await expect(page.getByRole("alertdialog").getByRole("alert")).toHaveCount(0);
+      await page.getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    });
+  }
 }

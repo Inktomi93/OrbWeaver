@@ -250,7 +250,11 @@ D271 replaces only D62-P3 and preserves D211. Corpus is the Variant A workbench:
 | Insights | CONTENT |
 | Labels | LIST |
 
-A Corpus LIST landing fills the screen without an overlay sheet or scrim. Declare the per-mode policy in `packages/client/src/state/panel-resolve.ts`; do not fabricate a selection. Selecting a result pushes CONTENT; Back restores the mode's finder state.
+A Corpus LIST landing fills the screen without an overlay sheet or scrim. Declare the per-mode policy in `packages/client/src/state/panel-resolve.ts`; do not fabricate a selection. Selecting a result pushes CONTENT; Back restores the mode's finder state. The phone list and Back controls name the active mode. Insights names its finder door Characters.
+
+Explore CONTENT owns the understanding pass. Empty finder and analysis tabs link to this overview without duplicating the run control. Artifact CONTENT displays the result; CONTEXT displays provenance, coverage and exact source actions. Transcript jumps preserve the Explore query, target, filters and finder position.
+
+Labels uses one visible word for manual labels. Its Usage rail retains the shared Context bracket even when it contains one view. A destructive decision belongs to the finder, which survives row removal. The confirm names the unused labels and owns mutation failure feedback. New-label creation reserves names across delayed library refreshes.
 
 - **Refinery is a first-class rail section + feature surface** (Score→Rewrite→Analyze — D28). Its sub-parts (stage-stepper, assay, issue-list, compare-diff → `@orb/ui/diff`, guidance-bar) are app components over the primitives.
 - **Each side panel has a 3-state model** in the shell store: **`docked`** · **`overlay`** (slides over via the §11.1 clamp — zero width closed) · **`collapsed`**. Per-panel, persisted, auto-`overlay` below a width breakpoint (the one app-shell `@media`).
@@ -300,9 +304,9 @@ Per-section grid (end-state; the D62 program builds toward it):
 | Extensions | the PAGE SWITCHER: one plugin-labelled row per registered `ui.page` surface across the caller's granted-and-enabled plugins — never in the rail (title + the plugin's name as subtitle AND accessible-name disambiguator) | the teaching empty, naming WHICH emptiness (nothing installed · awaiting consent · switched off · no page) or "pick a page" — each case names a different fact, with its own next step and its own config anchor, deliberately different copy, so the LIST and CONTENT panes cannot disagree, resolved once in `useExtensionsEmpty` | the selected page inside the PAGE-SCALE plugin shell: a pinned band (plugin name · glyph · "Extension" kicker, no opt-out) above the scrollable DSL body | `{kind:"none"}` — a plugin page owns its whole CONTENT region |
 | Databank | document rows (name · phase chip when NOT ready · origin/size/chunks) + search; band = DATABANK · count · Add · a maintenance kebab | teaching state | the document detail (Details · Maintenance · the source-text reveal) | the activation panel: Everywhere · Active in · the retrieval-knobs pointer |
 | Presets | preset rows + CRUD toolbar | teaching state | tabbed editor (Sampling · Output · Quality · Reasoning · Templates · Post-process · Compaction · Prompt) | usage/bindings (default-collapsed) |
-| Corpus · Explore | the mode switch + the search omnibox + target picker + results (default-docked) | overview home (coverage · insights · keywords) | selected character's dossier | `Whole corpus` analysis tabs (Archetypes/Visuals/Map/Similarity/Compare) |
+| Corpus · Explore | the mode switch + the search omnibox + target picker + results (default-docked) | overview home (coverage · insights · keywords) | readable artifact or character dossier | selected artifact evidence and source actions; otherwise `Whole corpus` analysis tabs |
 | Corpus · Insights | the mode switch + the searched, sorted character leaderboard | dashboard | character drill | dimension tabs (Models/Time/Personas) |
-| Corpus · Labels | the mode switch + the tag finder (filter · sort · prune) and the New tag primary | tag library facts | the autosaving tag editor | Reach: labels against generated facets, or the open tag's reach by kind and origin |
+| Corpus · Labels | the mode switch + the label finder (filter · sort · prune) and the New label primary | label library facts | the autosaving label editor | Usage: labels against generated facets, or the open label's attachments by kind and origin |
 | Refinery | past sessions (default-collapsed) | pick-a-character | pipeline (stepper · assay · issues · compare) | collapsed |
 
 **Interaction physics (all six apply):**

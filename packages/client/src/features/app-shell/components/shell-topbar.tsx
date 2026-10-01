@@ -26,6 +26,7 @@ export interface ShellTopbarProps {
    *  reachable toggle onto a surface that does not exist is the "looks unbuilt" defect. */
   readonly listAvailable: boolean;
   readonly listDoorLabel?: string | null;
+  readonly contentLabel?: string | null;
   /** The shell's MOBILE regime (`ShellLayout.mobileViewport`) — the lead control's VOCABULARY axis and
    *  nothing else. On a phone there is no "panel": the toggle swaps which of the section's two SCREENS is
    *  showing, so it is named for where a tap LANDS (§14). The control, its wiring and its ruled reachability
@@ -106,7 +107,7 @@ export function TopbarIconButton({ label, icon, pressed, expanded, onClick, mark
  *  the list pinned `docked` for all seven list-bearing sections, this toggle is the ONLY phone door to a
  *  section's no-selection CONTENT (the Corpus Explore overview). Orchestrator-ruled 2026-08-07: keep the
  *  mechanism, fix the words. */
-function leadControl({ listDoorLabel, listMode, listAvailable, mobile, title, onToggleList, onBack, backLabel }: ShellTopbarProps): ReactNode {
+function leadControl({ contentLabel, listDoorLabel, listMode, listAvailable, mobile, title, onToggleList, onBack, backLabel }: ShellTopbarProps): ReactNode {
   if (onBack !== undefined && onBack !== null) {
     // Same vocabulary as the LIST band's own back (components/list-pane-header.tsx): a ghost icon button
     // wearing ChevronLeft, named by where it goes.
@@ -121,7 +122,7 @@ function leadControl({ listDoorLabel, listMode, listAvailable, mobile, title, on
       label={
         mobile === true && listCollapsed && listDoorLabel !== null && listDoorLabel !== undefined
           ? listDoorLabel
-          : listToggleLabel(mobile === true, listCollapsed, title)
+          : listToggleLabel(mobile === true, listCollapsed, contentLabel ?? title)
       }
       icon={listCollapsed ? PanelLeftOpen : PanelLeftClose}
       expanded={!listCollapsed}

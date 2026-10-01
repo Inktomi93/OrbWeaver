@@ -1,7 +1,4 @@
-// The Corpus Labels finder (D271): the filter, the sort, and the library's overflow over the tag rows. The
-// band above carries the one primary verb (`labels-panes.tsx`); the rows own the prune confirm. Arrival focus
-// lands here; on a desktop the library landing beside it mounts later and takes it (the Insights pair).
-
+// The Labels finder owns phone arrival; the visible library owns desktop arrival.
 import { Button } from "@orb/ui/button";
 import { Icon, MoreVertical, Trash2 } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
@@ -14,15 +11,17 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState } from "#data";
-import { LABELS_EMPTY, useFocusOnMount } from "#lib";
-import { selectLabelFromList, setLabelFilter, setTagPruneConfirmOpen, useLabelFilter, useSelectedLabelId } from "#state";
+import { useFocusOnMount } from "#lib";
+import { selectLabelFromList, setLabelFilter, setTagPruneConfirmOpen, useLabelFilter, useMobileViewport, useSectionListMode, useSelectedLabelId } from "#state";
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
 import { useTagCensus, useTagSortControl } from "../hooks/use-tag-library.ts";
 import { LABELS_FINDER_SLOT } from "../lib/labels-focus-targets.ts";
 
 export function LabelsListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  const phone = useMobileViewport();
+  const listMode = useSectionListMode("corpus");
+  useFocusOnMount(surfaceRef, phone && listMode !== "collapsed");
   const filter = useLabelFilter();
   const selectedId = useSelectedLabelId();
   // The rows say nothing over an empty library (a filter miss is theirs to say), so the finder does.
@@ -39,7 +38,7 @@ export function LabelsListSurface(): ReactElement {
         </Row>
         {empty ? (
           <Text voice="gloss" data-slot="labels-finder-empty">
-            {LABELS_EMPTY}
+            No labels yet.
           </Text>
         ) : null}
         {/* The rows' windowed arm takes its height from this box, so it is a bounded flex column. */}
@@ -89,7 +88,7 @@ function LabelsOverflow(): ReactElement {
       <MenuPopup align="end">
         <MenuItem onClick={(): void => setTagPruneConfirmOpen(true)}>
           <Icon icon={Trash2} size="sm" />
-          Prune unused tags
+          Prune unused labels
         </MenuItem>
       </MenuPopup>
     </Menu>

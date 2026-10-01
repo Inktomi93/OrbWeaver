@@ -336,10 +336,11 @@ export function AppShell(): ReactElement {
               {/* KEYED on the active section: `useSelectionTitle` is a per-section hook, so the component
                   that calls it must remount when the section does (the SectionContextHost idiom). */}
               <SectionTopbarTitle key={layout.activeSection} definition={activeDef} fallback={layout.activeSectionLabel}>
-                {(compactTitle, listDoorLabel): ReactElement => (
+                {(compactTitle, listDoorLabel, contentLabel): ReactElement => (
                   <ShellTopbar
                     screenTitle={compactTitle}
                     listDoorLabel={listDoorLabel}
+                    contentLabel={contentLabel}
                     title={layout.activeSectionLabel}
                     header={activeDef.header?.()}
                     trail={<TopbarTrailChrome mobile={layout.mobileViewport} />}
@@ -348,11 +349,9 @@ export function AppShell(): ReactElement {
                     // The phone arm's VOCABULARY switch, not a behaviour switch — see `leadControl`.
                     mobile={layout.mobileViewport}
                     onToggleList={(): void => layout.togglePanel("list")}
-                    // The mobile ONE-SHELL rule's back row. The label is DERIVED from the section's own rail
-                    // label ("Back to Configuration", the mock's own words), so it cannot drift per section and
-                    // no section authors a second vocabulary for it.
+                    // The section resolves mode vocabulary without teaching the shell its feature state.
                     onBack={layout.backToList}
-                    backLabel={`Back to ${layout.activeSectionLabel}`}
+                    backLabel={`Back to ${contentLabel ?? layout.activeSectionLabel}`}
                   />
                 )}
               </SectionTopbarTitle>

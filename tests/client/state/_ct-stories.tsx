@@ -65,6 +65,7 @@ import {
   goToLanding,
   hideContextPanel,
   isCommitted,
+  labelDeleted,
   onGameModeStarted,
   onGameModeStopped,
   openCharacterGallery,
@@ -1798,11 +1799,21 @@ export function LabelSelectionProbe(): ReactElement {
   const focus = useLabelNameFocus();
   const overlay = useOpenOverlayPanel();
   const id = castId<TagId>("tag_label_probe");
+  const [laterId] = useState(() => mintTypeId(ID_PREFIX.tag));
   return (
     <div>
       <output>{`selected=${selected ?? "none"} focus=${focus ?? "none"} overlay=${overlay ?? "null"}`}</output>
       <button type="button" onClick={(): void => selectLabel(id)}>
         select label
+      </button>
+      <button type="button" onClick={(): void => selectLabel(laterId)}>
+        select later label
+      </button>
+      <button type="button" onClick={(): void => labelDeleted(id)}>
+        delete first label
+      </button>
+      <button type="button" onClick={(): void => labelDeleted(laterId)}>
+        delete later label
       </button>
       <button type="button" onClick={(): void => selectLabelFromList(id)}>
         select label from list

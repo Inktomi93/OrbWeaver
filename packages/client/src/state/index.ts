@@ -198,6 +198,7 @@ export {
 export {
   clearCorpusSelection,
   corpusSectionSelection,
+  revealCorpusOverview,
   selectCorpusArtifact,
   selectCorpusCharacter,
   setCorpusMode,
@@ -266,7 +267,7 @@ export {
   useImagineSeed,
 } from "./imagery-store.ts";
 export { setLabelNameFocus, useLabelNameFocus } from "./label-name-focus-store.ts";
-export { clearLabelSelection, selectLabel, selectLabelFromList, useSelectedLabelId } from "./label-selection-store.ts";
+export { clearLabelSelection, labelDeleted, selectLabel, selectLabelFromList, useSelectedLabelId } from "./label-selection-store.ts";
 export { collapseListPanel, dockListPanel, registerListFlipCarry } from "./list-flip-carry.ts";
 export {
   __readMessageEditDraftForTest,

@@ -14,7 +14,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ListPaneHeader, MemberDrillHeader, QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
-import { CORPUS_MODE_LABELS, tagUsageLabel, USAGE_KIND_TITLES } from "#lib";
+import { CORPUS_MODE_LABELS, NEW_LABEL_NAME, tagUsageLabel, USAGE_KIND_TITLES } from "#lib";
 import { clearLabelSelection, useSelectedLabelId } from "#state";
 import { useCreateLabel, useTagCensus, useTagName } from "../hooks/use-tag-library.ts";
 import { LabelsLibrarySurface } from "../surfaces/labels-library-surface.tsx";
@@ -30,7 +30,7 @@ export function LabelsListHeader(): ReactElement {
       action={
         <Button intent="primary" loading={create.pending} onClick={create.run} size="sm" type="button">
           <Icon icon={Plus} size="sm" />
-          New tag
+          {NEW_LABEL_NAME}
         </Button>
       }
       count={count ?? 0}
@@ -61,7 +61,7 @@ export function LabelsContent(): ReactElement {
             fallback={exit}
             renderError={(_error, retry): ReactElement => (
               <QueryErrorState
-                label="this tag"
+                label="this label"
                 onRetry={retry}
                 renderRetry={(refetch): ReactElement => (
                   <Stack gap="block">
@@ -88,7 +88,7 @@ export function LabelsContextHeader(): ReactElement {
   const name = useTagName(tagId);
   return (
     <Text className="truncate" voice="label">
-      {tagId === null ? CORPUS_MODE_LABELS.labels : (name ?? "Tag")}
+      {tagId === null ? CORPUS_MODE_LABELS.labels : (name ?? "Label")}
     </Text>
   );
 }

@@ -776,6 +776,7 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
   | "chat.getChat"
   | "databank.listGlobal"
   | "discovery.home"
+  | "discovery.themeDrift"
   | "discovery.visualArchetypes"
   | "discovery.forgottenGems"
   | "stats.freshness"
@@ -817,6 +818,7 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
     arcThemes: [],
     duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 0 },
   },
+  "discovery.themeDrift": [],
   "discovery.visualArchetypes": [],
   "discovery.forgottenGems": [],
   "stats.freshness": { computedAt: 0, stale: false, hasData: false },
@@ -877,7 +879,7 @@ interface CensusCase {
 
 const CENSUS_CASES: readonly CensusCase[] = [
   { label: "Chats", onPhoneBar: true, phoneTitle: "Chats · 3", bandCount: "3" },
-  { label: "Corpus", onPhoneBar: false, phoneTitle: "Explore · 12 of 19", bandCount: "12 of 19", bandTitle: "Explore" },
+  { label: "Corpus", onPhoneBar: false, phoneTitle: "Explore · 12 of 19 distilled", bandCount: "12 of 19 distilled", bandTitle: "Explore" },
   { label: "Corpus", mode: "Insights", onPhoneBar: false, phoneTitle: "Insights · 2 of 328", bandCount: "2 of 328", bandTitle: "Insights" },
   { label: "Corpus", mode: "Labels", onPhoneBar: false, phoneTitle: "Labels · 3", bandCount: "3", bandTitle: "Labels" },
   { label: "Presets", onPhoneBar: false, phoneTitle: "Presets · 4", bandCount: "4" },
@@ -992,7 +994,7 @@ test("desktop: Corpus holds Explore, Insights and Labels in one workspace, with 
   await modes.getByRole("radio", { name: "Labels" }).click();
   await expect(list.getByRole("textbox", { name: "Filter labels" })).toBeVisible();
   await expect(main.getByRole("heading", { name: "Labels", level: 2 })).toBeVisible();
-  await expect(context.getByRole("button", { name: "Reach", exact: true })).toBeVisible();
+  await expect(context.getByRole("button", { name: "Usage", exact: true })).toBeVisible();
   await expect(context.getByRole("button", { name: "Models", exact: true })).toHaveCount(0);
 });
 
@@ -1068,6 +1070,50 @@ test.describe("the Corpus workbench on a phone", () => {
     await main.getByRole("radio", { name: "Labels" }).tap();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
     await expect(list.getByRole("textbox", { name: "Filter labels" })).toBeVisible();
+    await expect(component.getByRole("button", { name: "Show Labels overview", exact: true })).toBeVisible();
+  });
+
+  test("the empty Explore finder opens its understanding pass with focus in Content", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...SECTION_CENSUS_ROUTES,
+      "discovery.home": { ...SECTION_CENSUS_ROUTES["discovery.home"], coverage: { characters: 19, digests: 0, segments: 0 } },
+      "discovery.catalog": { genres: [], tones: [], topTags: [], tagPairs: [], totalCharacters: 19, totalDistilled: 0 },
+      "discovery.browseCharacters": { items: [], nextCursor: null, totalCount: 0 },
+    });
+    const component = await mount(<HomePageStory />);
+    await component.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Corpus", exact: true }).click();
+    const list = component.locator(CORPUS_LIST);
+    await list.getByRole("button", { name: "Open understanding pass", exact: true }).tap();
+    await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
+    const main = component.locator("main.shell-content");
+    await expect(main.getByRole("button", { name: "Run the understanding pass", exact: true })).toBeVisible();
+    await expect(main).toBeFocused();
+    await expect(component.getByRole("button", { name: "Show Explore list", exact: true })).toBeVisible();
+  });
+
+  test("the empty Explore Context door reveals its overview and closes the sheet", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...SECTION_CENSUS_ROUTES,
+      "discovery.home": { ...SECTION_CENSUS_ROUTES["discovery.home"], coverage: { characters: 19, digests: 0, segments: 0 } },
+      "discovery.catalog": { genres: [], tones: [], topTags: [], tagPairs: [], totalCharacters: 19, totalDistilled: 0 },
+      "discovery.archetypes": [],
+    });
+    const component = await mount(<HomePageStory />);
+    await component.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Corpus", exact: true }).click();
+    await component.getByRole("button", { name: "Show details", exact: true }).tap();
+    const context = component.locator(CORPUS_CONTEXT);
+    await expect(context).toHaveAttribute("data-panel-mode", "overlay");
+    await test.info().attach("0314-phone-context", { body: await component.screenshot(), contentType: "image/png" });
+    await context.getByRole("button", { name: "Show Explore overview", exact: true }).tap();
+    await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
+    await expect(component.locator(CORPUS_LIST)).toHaveAttribute("data-panel-mode", "collapsed");
+    const main = component.locator("main.shell-content");
+    await expect(main.getByRole("button", { name: "Run the understanding pass", exact: true })).toBeVisible();
+    await expect(main).toBeFocused();
+    await test.info().attach("0314-phone-overview", { body: await component.screenshot(), contentType: "image/png" });
+    await test.info().attach("0314-phone-overview-aria", { body: Buffer.from(await component.ariaSnapshot()), contentType: "text/plain" });
   });
 
   // A CONTENT-LANDING MODE STILL REACHES ITS FINDER (D271). Insights lands on the dashboard, so with nothing
@@ -1098,7 +1144,7 @@ test.describe("the Corpus workbench on a phone", () => {
     // One Back on a phone: the topbar's. The drill draws no second one with a second name.
     await expect(main.getByText("No stats yet")).toBeVisible();
     await expect(main.locator("button").filter({ hasText: /^Back to/u })).toHaveCount(0);
-    await component.getByRole("button", { name: "Back to Corpus" }).tap();
+    await component.getByRole("button", { name: "Back to Insights" }).tap();
     await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
     await expect(component.locator(".shell-topbar").getByRole("button", { name: "Characters", exact: true })).toBeVisible();
   });
@@ -1141,7 +1187,7 @@ test.describe("the Corpus workbench on a phone", () => {
     const list = component.locator(CORPUS_LIST);
     await list.getByRole("radio", { name: "Labels" }).tap();
     await list.getByRole("button", { name: "More label actions" }).tap();
-    await page.getByRole("menuitem", { name: "Prune unused tags" }).tap();
+    await page.getByRole("menuitem", { name: "Prune unused labels" }).tap();
     await page.getByRole("alertdialog").getByRole("button", { name: "Delete it", exact: true }).tap();
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
     await expect(list.locator('[data-slot="labels-finder"]')).toBeFocused();
@@ -1165,7 +1211,7 @@ test.describe("the Corpus workbench on a phone", () => {
     await expect(main.locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "slow burn" })).toBeVisible();
     await expect(component.locator(".shell-topbar-title")).toHaveText("slow burn");
 
-    await component.getByRole("button", { name: "Back to Corpus" }).tap();
+    await component.getByRole("button", { name: "Back to Labels" }).tap();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
     await expect(list.getByRole("textbox", { name: "Filter labels" })).toHaveValue("o");
     await expect(main.locator('[data-slot="tag-member-editor"]')).toHaveCount(0);

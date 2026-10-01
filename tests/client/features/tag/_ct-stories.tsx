@@ -22,12 +22,14 @@ import {
 import type { TagView } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { useIsMutating } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { TagCollectionRows } from "../../../../packages/client/src/features/tag/components/tag-collection-rows.tsx";
 import { TagMemberSurface } from "../../../../packages/client/src/features/tag/surfaces/tag-member-surface.tsx";
-import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
+import { CtAppDataProviders, CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
+import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The tag MEMBER EDITOR (the F-11 split's CONTENT half) in isolation — `tag.listTagsWithUsage` (the read)
  *  plus the tag mutations (`updateTag`/`removeTag`/`mergeTags`) are stubbed per-test via routeTrpc. The
@@ -119,23 +121,28 @@ export function LabelsWorkspaceStory(): ReactElement {
   });
   const reach = labelsContextTabs[0];
   return (
-    <CtDataProviders>
-      <TagChangeDriver />
-      <AttachmentDestinationProbe />
-      <div style={{ display: "flex", gap: 16, height: 720 }}>
-        <div data-slot="ct-labels-list" style={{ display: "flex", flexDirection: "column", width: 320 }}>
-          <div data-slot="ct-labels-band">{labelsCorpusMode.listHeader()}</div>
-          <div style={{ flex: 1, minHeight: 0 }}>{labelsCorpusMode.list()}</div>
-        </div>
-        <div data-slot="ct-labels-content" style={{ flex: 1, minWidth: 0 }}>
-          {labelsCorpusMode.content()}
-        </div>
-        <div data-slot="ct-labels-context" style={{ width: 300 }}>
-          {labelsCorpusMode.contextHeader()}
-          {reach?.body({ mode: "labels" })}
-        </div>
-      </div>
-    </CtDataProviders>
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <CtRealSectionRegistry>
+          <TagChangeDriver />
+          <AttachmentDestinationProbe />
+          <LabelMutationStatus />
+          <div style={{ display: "flex", gap: 16, height: 720 }}>
+            <div data-slot="ct-labels-list" style={{ display: "flex", flexDirection: "column", width: 320 }}>
+              <div data-slot="ct-labels-band">{labelsCorpusMode.listHeader()}</div>
+              <div style={{ flex: 1, minHeight: 0 }}>{labelsCorpusMode.list()}</div>
+            </div>
+            <div data-slot="ct-labels-content" style={{ flex: 1, minWidth: 0 }}>
+              {labelsCorpusMode.content()}
+            </div>
+            <div data-slot="ct-labels-context" style={{ width: 300 }}>
+              {labelsCorpusMode.contextHeader()}
+              {reach?.body({ mode: "labels" })}
+            </div>
+          </div>
+        </CtRealSectionRegistry>
+      </CtToastSurface>
+    </CtAppDataProviders>
   );
 }
 
@@ -186,5 +193,14 @@ export function LabelsEditorErrorStory(): ReactElement {
     selectLabel(castId<TagId>("tag_adventure"));
     return null;
   });
-  return <CtDataProviders>{labelsCorpusMode.content()}</CtDataProviders>;
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>{labelsCorpusMode.content()}</CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+function LabelMutationStatus(): ReactElement {
+  const pending = useIsMutating();
+  return <output aria-label="Label mutations in flight">{pending}</output>;
 }

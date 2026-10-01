@@ -125,3 +125,14 @@ test("with ZERO registrations the palette shows exactly its native groups (no co
   await expect(page.getByText("Create")).toBeHidden();
   await expect(page.getByText("Commands")).toBeHidden();
 });
+
+for (const label of ["Insights", "Labels", "Analytics"]) {
+  test(`Corpus navigation ranks ${label} ahead of fuzzy settings`, async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+    const component = await mount(<CommandPaletteSurfaceStory corpus={true} />);
+    await component.getByRole("combobox").fill(label);
+    await expect(component.getByRole("option").first()).toHaveText(`${label === "Analytics" ? "Insights" : label}Corpus`);
+    await expect(component.getByRole("option").first()).toHaveAttribute("aria-selected", "true");
+    await test.info().attach(`0314-palette-${label}`, { body: await component.screenshot(), contentType: "image/png" });
+  });
+}

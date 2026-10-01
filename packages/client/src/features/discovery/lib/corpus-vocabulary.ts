@@ -54,21 +54,10 @@ export function facetLabel(value: string): string {
   return UNCLASSIFIED_TOKENS.has(value.trim().toLowerCase()) ? UNCLASSIFIED_LABEL : sentenceCase(value.trim());
 }
 
-/**
- * THE CORPUS CENSUS — a distilled count that NAMES ITS BASE (issue #535, the one-pass denominator rule).
- *
- * THE DEFECT, in one frame on the populated library: the LIST band read `CORPUS 313`, the CONTEXT band read
- * `Corpus 313`, and the overview's h1 between them read "327 characters". Three numbers, two of them bare,
- * none of them saying what it was OUT OF — so the only available reading is that two of them disagree about
- * the size of the library. They do not: 313 is how many cards the distiller has read, 327 is how many the
- * user owns, and the 14 in between are the fact the surface was hiding. The rail's family row was fixed the
- * same way in the same pass (`corpus-analysis-state.ts`: `8 families · 242 of 327 characters`); this is that
- * rule applied to the two bands, from the `discovery.catalog` payload all four surfaces already share.
- *
- * A COMPLETE library prints the bare number. `313 of 313` is a denominator that says nothing and costs the
- * band eight characters of a 48px chrome row — the base only earns its place while it differs, which is the
- * same rule `chartLabelWithDenominator` and the nearest-pairs cap already follow.
- */
+/** The catalog census labels distilled cards and preserves the library denominator. */
 export function distilledCensus(distilled: number, characters: number): number | string {
-  return distilled < characters ? `${formatCount(distilled)} of ${formatCount(characters)}` : distilled;
+  if (characters === 0) {
+    return 0;
+  }
+  return distilled < characters ? `${formatCount(distilled)} of ${formatCount(characters)} distilled` : `${formatCount(distilled)} distilled`;
 }

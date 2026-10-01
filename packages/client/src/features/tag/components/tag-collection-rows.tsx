@@ -1,74 +1,27 @@
-// The tag library's ROWS — the Corpus Labels finder's list (D271). The finder above them draws the filter,
-// sort and prune controls; these rows apply the filter and sort, and own the prune confirm.
-//
-// THE ROW IS A SCENT NOW, NOT A CONTROL PANEL (F-11, owner-ruled). Every tag control used to live INSIDE
-// the settings row — rename, two colour pickers, a folder Select, a hide Switch, Merge and Delete, all on
-// one 330px-wide line. That anatomy cannot survive in a list pane, and it was never good: the row is the
-// thing you SCAN (swatch · name · usage), and the controls are the thing you EDIT, which is now a mounted
-// member editor in CONTENT. No capability was dropped — every control moved, one pane over.
-//
-// …EXCEPT DELETE, WHICH IS THE ROW'S KEBAB NOW (config-delete convergence #271). THE F-11 RULING SURVIVES —
-// its INPUT changed. F-11 killed the INLINE 330px control panel; a kebab Delete is not that. It is the
-// house's per-row destructive affordance (`LibraryRow.actions.onDelete` → the shared RowActionsMenu confirm),
-// the SAME place world-info and regex rows home Delete, and it is width-free — it floats at the row's end,
-// hover/focus-revealed, and never steals the scan column's width. So "the row is a scan line" holds: the
-// swatch/name/usage anatomy is untouched, and the one verb that was living TWO homes across these three
-// surfaces (WI row-kebab-only, regex both, tags editor-only) now has ONE. The EDITING controls (rename,
-// colours, folder, hide, Merge) stay in the member editor where F-11 put them — only Delete converged.
-//
-// TWO RENDER ARMS BY SIZE (owner ruling 2026-08-02: ~400 tags is the real library):
-//   ≤ COLLECTION_LARGE_GROUP → a `SortableList`, because manual tag ORDER is a real affordance at that size;
-//   >  COLLECTION_LARGE_GROUP → the sealed `VirtualList` in a bounded box, plus the host's filter.
-// Drag-reorder is absent in the virtualized arm — dragging one row through four hundred is not an
-// affordance, and the two cannot compose (a windowed list has no stable drop target for an unrendered
-// row). FLAGGED for the owner as the one capability whose shape changes with library size.
-//
-// SORT MODE (tag-experience audit 2026-08-03): the list reads in one of three orders — Most used
-// (DEFAULT), A–Z, Manual order — persisted per device in the `tag-library` store. The counts are already in
-// every payload (`listOwnedTagsWithUsage` returns `usage.total`), so this is a client comparator with zero
-// server cost.
-//
-// ═══ THE SELECT LEFT, THE COMPARATOR STAYED (#1725, the mock design §3.2) ═══════════════════════════════════
-// The order CONTROL lives in the finder's control row (`labels-list-surface.tsx`), backed by
-// `useTagSortControl`. The COMPARATOR stays here, because it runs over members. Both halves read the SAME
-// store (`useTagSortMode` here, `setTagSortMode` there), so there is exactly one mode and no prop restating it.
-// The order HINT went with the control, into the Manual option's own `description` (`tagSortItems`) — the
-// 2026-08-03 P1/P2 rulings survive with a changed address, and the reasoning is written where the copy now
-// lives rather than repeated here.
-//
-// DRAG BELONGS TO MANUAL ONLY. `sortOrder` KEEPS its three server-side readers (owner ruling: manual is not
-// retired, the new modes JOIN it) — but a drag handle inside a DERIVED order would write a `sortOrder` the
-// screen never reflects, which is a control that lies. So the ≤30 arm forks again: manual → `SortableList`,
-// the two derived modes → the same rows without handles.
-//
-// THE PRUNE VERB SPLIT THE SAME WAY: its TRIGGER is the finder's overflow kebab and its CONFIRM is here,
-// because the unused COUNT and the cascade copy are this component's knowledge.
-
+// The Labels finder owns destructive decisions so a bus refresh cannot remove an active confirm.
 import type { TagWithUsage } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
+import { Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { MenuItem } from "@orb/ui/menu";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog, LibraryRow, usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "#components";
+import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { COLLECTION_LARGE_GROUP, pruneConfirmLabel, sortTagsBy, tagColorLabel, tagUsageLabel, unusedTagsLabel, usageBreakdown } from "#lib";
-import { clearLabelSelection, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
+import { labelDeleted, setLabelFilter, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
 import { finderRoot, libraryOrFinder } from "../lib/labels-focus-targets.ts";
 
-/** One row's height guess for the windowed arm: swatch + name, with the usage census on the SUBTITLE line
- *  beneath it (#1824). It was 36 — a ONE-LINE guess — while the row was drawing the census on the title
- *  line; the two-line row is the regex library's shape and takes its measured number. A guess that is 16px
- *  short is not cosmetic in a virtualizer: the estimate decides where a scroll-to-end LANDS before the
- *  measured heights come back, and the tag CT's own scroll-cue pin went red on the stale 36. */
 const ESTIMATED_ROW_PX = 52;
 
-/** What the finder hands the rows: the open tag, the row-click writer, and the filter text (`""` = none). */
 interface TagRowsView {
-  readonly selectedId: string | null;
+  readonly selectedId: TagId | null;
   readonly onSelect: (tagId: TagId) => void;
   readonly filter: string;
 }
@@ -78,92 +31,50 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
   const invalidation = useInvalidation();
   const { data: tags } = useSuspenseQuery(trpc.tag.listTagsWithUsage.queryOptions());
   const setOrder = useSetTagOrder({ trpc, invalidation });
-  const prune = usePruneUnusedTags({ trpc, invalidation });
-  const remove = useRemoveTag({ trpc, invalidation });
+  const deletion = useLabelDelete({ trpc, invalidation }, view.selectedId);
   const sortMode = useTagSortMode();
-  const pruneOpen = useTagPruneConfirmOpen();
-
   const needle = view.filter.trim().toLowerCase();
   const matched = needle === "" ? tags : tags.filter((tag) => tag.name.toLowerCase().includes(needle));
   const filtered = sortTagsBy(matched, sortMode);
-  const unusedCount = tags.filter((tag) => tag.usage.total === 0 && tag.pendingSuggestions === 0).length;
-  const hasUnused = unusedCount > 0;
-
-  // Delete is the row's KEBAB (config-delete #271). Clear the selection FIRST when the open tag is the one
-  // being deleted, so CONTENT falls back to the tag library instead of holding a dead editor over a deleted id.
-  // The confirm closes onto `closeFocusRef`, set once the delete lands: the kebab that opened it leaves with
-  // the row, and a prune can remove the fact button that opened its confirm. The stop takes focus as a
-  // whole; a cancelled confirm set nothing and keeps the default return.
-  const closeFocusRef = useRef<HTMLElement | null>(null);
-  const landCloseFocus = (): boolean => {
-    const target = closeFocusRef.current;
-    closeFocusRef.current = null;
-    if (target === null) {
-      return true;
-    }
-    target.focus();
-    // A placement that did not take (an inert or hidden target) falls back to the confirm's default return.
-    return document.activeElement !== target;
-  };
-  const onDelete = async (id: TagId): Promise<void> => {
-    const wasOpen = view.selectedId === id;
-    if (wasOpen) {
-      clearLabelSelection();
-    }
-    await remove.mutateAsync({ tagId: id });
-    closeFocusRef.current = wasOpen ? libraryOrFinder() : finderRoot();
-  };
-  const onPrune = async (): Promise<void> => {
-    await prune.mutateAsync();
-    closeFocusRef.current = libraryOrFinder();
-  };
-
   const renderRow = (tag: TagWithUsage): ReactElement => (
-    <TagCollectionRow
-      closeFocus={landCloseFocus}
-      key={tag.id}
-      onDelete={onDelete}
-      onSelect={(): void => view.onSelect(tag.id)}
-      selected={view.selectedId === tag.id}
-      tag={tag}
-    />
+    <Stack data-label-row={tag.id} key={tag.id}>
+      <TagCollectionRow
+        onDelete={(): void => deletion.requestDelete(tag)}
+        onSelect={(): void => view.onSelect(tag.id)}
+        selected={view.selectedId === tag.id}
+        tag={tag}
+      />
+    </Stack>
   );
 
   const windowed = tags.length > COLLECTION_LARGE_GROUP;
   const draggable = !windowed && sortMode === "manual";
   const empty = filtered.length === 0;
-  // A FILTER MISS AND AN EMPTY LIBRARY ARE DIFFERENT STATES (side-eye 2026-08-03 P1). `filtered.length === 0`
-  // printed "No tags match that filter." with no filter set — and stacked it above the host's own zero-member
-  // slot, so an empty collection said two things, one of them false (the filter box isn't even rendered
-  // below COLLECTION_LARGE_GROUP). The needle is the discriminant; with no needle the host's empty slot is
-  // the only voice.
   const filterMiss = empty && needle !== "";
   return (
-    // THE PANE IS THE WINDOW (#1725) — `min-h-0 flex-1` carries the CONTENT pane's bound down to the
-    // windowed arm below, which is what replaced the 384px `max-h-96` cap. `min-h-0` is the load-bearing
-    // half: a flex child defaults to `min-height: auto` and would grow to its content instead of scrolling.
     <Stack className="min-h-0 flex-1" gap="tight">
-      {/* THE MISS SPEAKS (side-eye 2026-08-19 P3). Focus stays in the host's filter box while the rows below
-          it change, so the one state with no rows at all had no feedback a keyboard reader ever received.
-          `role="status"` is the polite live region for exactly this. It rides the MESSAGE, not the row
-          container: a live region wrapped around the list would announce all 400 rows on every keystroke. */}
       {filterMiss ? (
-        <Text role="status" voice="gloss">
-          No tags match that filter.
-        </Text>
+        <Stack align="start" gap="field">
+          <Text role="status" voice="gloss">
+            No labels match that filter.
+          </Text>
+          <Button
+            intent="secondary"
+            size="sm"
+            onClick={(): void => {
+              setLabelFilter("");
+              finderRoot()?.querySelector<HTMLInputElement>("input")?.focus();
+            }}
+          >
+            Clear filter
+          </Button>
+        </Stack>
       ) : null}
       {empty || !windowed ? null : (
         <VirtualList
-          aria-label="Tags"
-          // THE PANE IS THE WINDOW (#1725, the mock design §5.4): the bound is the finder's own scroll box,
-          // reached by flex (`character-library-body.tsx`'s chain). `min-h-0` is the half that matters — a flex
-          // child defaults to `min-height: auto`, which lets the scroller grow to its content and trips the
-          // primitive's own unbounded-window throw.
+          aria-label="Labels"
           className="min-h-0 flex-1"
           estimateSize={(): number => ESTIMATED_ROW_PX}
-          // The bounded window ends mid-row at an arbitrary height, and with overlay scrollbars that
-          // half-row is the only hint that there is more (side-eye 2026-08-03 P3). The fade lifts at the
-          // bottom, so it never claims more than there is.
           fadeEdge={true}
           gapToken="field"
           getItemKey={(tag): string => tag.id}
@@ -173,7 +84,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
       )}
       {empty || !draggable ? null : (
         <SortableList
-          aria-label="Tags"
+          aria-label="Labels"
           getItemKey={(tag: TagWithUsage): string => tag.id}
           handle={true}
           itemLabel={(tag: TagWithUsage): string => tag.name}
@@ -182,12 +93,9 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
           renderItem={renderRow}
         />
       )}
-      {/* The DERIVED orders below the windowing cap: the same rows, no handles (see the header). LIST
-          SEMANTICS are explicit here (side-eye 2026-08-06 P2) — the two sibling arms of this very component
-          are a `VirtualList` and a `SortableList`, both of which announce "list, N items", so the third arm
-          announcing nothing made the SAME library speak two a11y grammars depending on its sort mode. */}
+
       {empty || windowed || draggable ? null : (
-        <Stack aria-label="Tags" gap="field" role="list">
+        <Stack aria-label="Labels" gap="field" role="list">
           {filtered.map((tag, index) => (
             <Stack aria-posinset={index + 1} aria-setsize={filtered.length} key={tag.id} role="listitem">
               {renderRow(tag)}
@@ -195,96 +103,188 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
           ))}
         </Stack>
       )}
-      {/* THE PRUNE CONFIRM, CONTROLLED — the TRIGGER is the finder's overflow kebab and the QUESTION stays
-          here, because the count and the cascade are the ROWS' knowledge. The `pruneConfirmOpen` store flag is
-          the wire between the two fibers.
-          IT STILL CONFIRMS (side-eye 2026-08-03 P2): it was a bare `prune.mutate()` on a ghost button one
-          row under a virtualized list — at the owner's 430-tag library, one mis-click from deleting 394 rows
-          with no undo. The count goes IN the copy, because "delete unused tags" and "delete 394 tags" are
-          different decisions.
-          AND THE ZERO ARM IS THE HONEST ONE. The button used to be HIDDEN when there was nothing to prune; a
-          menu item built from static `actions` data cannot hide itself, so the truth moved into the dialog:
-          the confirm states there is nothing to delete and its destructive button is DISABLED. That is the
-          same fact the hidden button stated, said by the surface that can still say it. */}
-      <ConfirmDialog
-        confirmDisabled={!hasUnused}
-        confirmLabel={pruneConfirmLabel(unusedCount)}
-        description={
-          hasUnused
-            ? `This deletes ${unusedTagsLabel(unusedCount)} — every tag attached to nothing. This can't be undone.`
-            : "Every tag in this library is attached to something, so there is nothing to delete."
-        }
-        finalFocus={landCloseFocus}
-        onConfirm={onPrune}
-        onOpenChange={setTagPruneConfirmOpen}
-        open={pruneOpen}
-        title={hasUnused ? `Delete ${unusedTagsLabel(unusedCount)}?` : "Nothing to prune"}
-      />
+
+      <LabelsPruneConfirm tags={tags} deps={{ trpc, invalidation }} />
+      {deletion.dialog}
     </Stack>
   );
 }
 
-/** One tag row: the colour swatch, the name, and the usage census — what you SCAN a library by, plus the
- *  kebab Delete (config-delete #271 — the row's one lifecycle verb; the editing controls stay in the member
- *  editor per F-11). The confirm carries the real cascade copy the member editor's delete used to. */
+function LabelsPruneConfirm({
+  tags,
+  deps,
+}: {
+  readonly tags: readonly TagWithUsage[];
+  readonly deps: { readonly trpc: Trpc; readonly invalidation: Invalidation };
+}): ReactElement {
+  const prune = usePruneUnusedTags(deps);
+  const pruneOpen = useTagPruneConfirmOpen();
+  const [pruneDecision, setPruneDecision] = useState({ open: pruneOpen, completed: false, revision: 0 });
+  if (pruneDecision.open !== pruneOpen) {
+    setPruneDecision({
+      open: pruneOpen,
+      completed: pruneOpen ? false : pruneDecision.completed,
+      revision: pruneOpen ? pruneDecision.revision + 1 : pruneDecision.revision,
+    });
+  }
+
+  const activePruneDecision = useRef(pruneDecision);
+  useLayoutEffect(() => {
+    activePruneDecision.current = pruneDecision;
+  }, [pruneDecision]);
+  const movePruneOpen = (open: boolean): void => {
+    if (activePruneDecision.current.revision === pruneDecision.revision && activePruneDecision.current.open) {
+      setTagPruneConfirmOpen(open);
+    }
+  };
+  const unused = tags.filter((tag) => tag.usage.total === 0 && tag.pendingSuggestions === 0);
+  const unusedCount = unused.length;
+  const hasUnused = unusedCount > 0;
+
+  const onPrune = async (): Promise<void> => {
+    await prune.mutateAsync();
+    setPruneDecision((current) => (current === pruneDecision ? { ...current, completed: true } : current));
+  };
+  const pruneFinalFocus = (): boolean => {
+    if (!pruneDecision.completed) {
+      return true;
+    }
+    const target = libraryOrFinder();
+    target?.focus();
+    return document.activeElement !== target;
+  };
+  return (
+    <ConfirmDialog
+      key={pruneDecision.revision}
+      body={
+        hasUnused ? (
+          <VirtualList
+            aria-label="Labels to delete"
+            className="h-64"
+            estimateSize={(): number => ESTIMATED_ROW_PX}
+            getItemKey={(tag): string => tag.id}
+            items={unused}
+            renderItem={(tag): ReactElement => <Text>{tag.name}</Text>}
+          />
+        ) : null
+      }
+      confirmDisabled={!hasUnused}
+      confirmLabel={pruneConfirmLabel(unusedCount)}
+      description={
+        hasUnused
+          ? `This deletes ${unusedTagsLabel(unusedCount)} — every label attached to nothing. This can't be undone.`
+          : "Every label in this library is attached to something, so there is nothing to delete."
+      }
+      finalFocus={pruneFinalFocus}
+      onConfirm={onPrune}
+      onOpenChange={movePruneOpen}
+      open={pruneOpen}
+      title={hasUnused ? `Delete ${unusedTagsLabel(unusedCount)}?` : "Nothing to prune"}
+    />
+  );
+}
+
+function useLabelDelete(
+  deps: { readonly trpc: Trpc; readonly invalidation: Invalidation },
+  selectedId: TagId | null,
+): {
+  readonly requestDelete: (tag: TagWithUsage) => void;
+  readonly dialog: ReactElement;
+} {
+  const remove = useRemoveTag(deps);
+  const [decision, setDecision] = useState<{
+    readonly revision: number;
+    readonly tag: TagWithUsage;
+    readonly wasOpen: boolean;
+    readonly opener: HTMLElement | null;
+    readonly open: boolean;
+    readonly completed: boolean;
+  } | null>(null);
+  const requestDelete = (tag: TagWithUsage): void => {
+    const opener = document.querySelector<HTMLElement>(`[data-label-row="${tag.id}"] [data-slot="list-row-actions"] button`);
+    setDecision((current) => ({ revision: (current?.revision ?? 0) + 1, tag, wasOpen: selectedId === tag.id, opener, open: true, completed: false }));
+  };
+  const onDelete = async (): Promise<void> => {
+    if (decision === null) {
+      return;
+    }
+    await remove.mutateAsync({ tagId: decision.tag.id });
+    labelDeleted(decision.tag.id);
+    setDecision((current) => (current === decision ? { ...decision, completed: true } : current));
+  };
+  const deleteFinalFocus = (): boolean => {
+    if (decision === null) {
+      return true;
+    }
+    let target = finderRoot();
+    if (decision.completed && decision.wasOpen) {
+      target = libraryOrFinder();
+    } else if (!decision.completed && decision.opener?.isConnected === true) {
+      target = decision.opener;
+    }
+    target?.focus();
+    return document.activeElement !== target;
+  };
+  return {
+    requestDelete,
+    dialog: (
+      <ConfirmDialog
+        key={decision?.revision ?? 0}
+        title={decision === null ? "Delete label?" : `Delete "${decision.tag.name}"?`}
+        description={
+          decision === null
+            ? "Deleting removes every attachment and cannot be undone."
+            : `This removes the label from ${usageBreakdown(decision.tag.usage)} and can't be undone.`
+        }
+        confirmLabel="Delete"
+        open={decision?.open ?? false}
+        onOpenChange={(open): void =>
+          setDecision((current) => {
+            if (current === null || current.revision !== decision?.revision) {
+              return current;
+            }
+            return { ...current, open };
+          })
+        }
+        onConfirm={onDelete}
+        finalFocus={deleteFinalFocus}
+      />
+    ),
+  };
+}
+
 function TagCollectionRow({
   tag,
   selected,
   onSelect,
   onDelete,
-  closeFocus,
 }: {
   readonly tag: TagWithUsage;
   readonly selected: boolean;
   readonly onSelect: () => void;
-  readonly onDelete: (id: TagId) => Promise<void>;
-  readonly closeFocus: () => boolean;
+  readonly onDelete: () => void;
 }): ReactElement {
   return (
     <LibraryRow
       actions={{
         name: tag.name,
-        onDelete: (): Promise<void> => onDelete(tag.id),
-        deleteFinalFocus: closeFocus,
-        deleteDescription: `This removes the tag from ${usageBreakdown(tag.usage)} and can't be undone.`,
+        menuItemsAfter: (
+          <MenuItem onClick={onDelete}>
+            <Icon icon={Trash2} size="sm" />
+            Delete
+          </MenuItem>
+        ),
       }}
       leading={
-        // The tag's own colour is USER DATA, not a token — the one legal inline style (a dynamic value the
-        // token gates deliberately scope out), and it rides a layout primitive because a feature may not
-        // put `style` on a raw intrinsic.
-        //
-        // A hover TOOLTIP and nothing else. `ListRow` wraps its whole `leading` slot in `aria-hidden` by
-        // construction (the fallback-initials rule), so a name spelled here could never reach the a11y tree.
-        //
-        // AND THE VALUE DOES NOT BELONG ON THE ROW AT ALL (side-eye re-verify 2026-08-06). The first pass
-        // routed it through `markers`, which is the row's `aria-describedby` channel — so a screen-reader
-        // user scanning a 32-row list heard an 8-word colour disclaimer THIRTY-TWO TIMES, ahead of the
-        // census they were scanning for, and concatenated to it with no separator ("…theme default5 uses":
-        // the adjacent-inline-node trap `chat-documents-section.tsx:172-175` guards with a literal space).
-        // A list row is a SCAN line — swatch, name, usage. The colour's exact value is an EDITING fact and
-        // it is stated once, in words, in the editor the row's own click mounts (`tag-member-surface.tsx`).
         <Row
           aria-hidden={true}
-          className="size-3 shrink-0 rounded-control bg-muted"
+          className="size-3 shrink-0 rounded-control bg-muted ring-1 ring-muted-foreground"
           title={tagColorLabel("Background", tag.color)}
           {...(tag.color === null ? {} : { style: { backgroundColor: tag.color } })}
         />
       }
       onSelect={onSelect}
       selected={selected}
-      // THE CENSUS IS THE SUBTITLE, NOT A TITLE-LINE MARKER (#1824). It rode `markers` — the title line's
-      // TRAILING slot — which was invisible in a 307px LIST column and became the defect the moment #1725
-      // moved these rows into a 990px CONTENT pane: the name's ink ended at x=86 and its own count started
-      // at x=934, an 848px hole, measured 84–86% of every row (side-eye 2026-09-06, run main-1942558, and
-      // 68/81/88% in this file's own width matrix on the pre-fix source). Board 02 and the mock design §3.3 both
-      // draw it under the name ("on 12 things"), and every sibling collection row — regex's scent,
-      // world-info's `bookScent`, a roster's members, databank, preset — already speaks that anatomy; the
-      // tag row was the only one with no subtitle at all.
-      //
-      // `markers` is for rest-visible STATUS (Active / Global / a built-in lock) — a variable-width badge
-      // that earns the title line. A CENSUS is not a status: it is the thing the name is counted by, and a
-      // figure parked several hundred px from the name it counts stops reading as that name's count. Both
-      // slots ride the row's `aria-describedby`, so the spoken description is unchanged ("7 uses").
       subtitle={tagUsageLabel(tag)}
       title={tag.name}
     />

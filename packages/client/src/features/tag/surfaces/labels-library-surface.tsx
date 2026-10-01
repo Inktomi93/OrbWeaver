@@ -8,6 +8,7 @@ import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { CORPUS_MODE_LABELS, LABELS_BLURB, LABELS_EMPTY, useFocusOnMount, useFocusOnSwap } from "#lib";
+import { useMobileViewport, useSectionListMode } from "#state";
 import { LabelsSuggestions } from "../components/labels-suggestions.tsx";
 import type { TagLibraryFact } from "../hooks/use-tag-library.ts";
 import { useTagLibrarySummary } from "../hooks/use-tag-library.ts";
@@ -17,7 +18,9 @@ import { LABELS_LIBRARY_SLOT } from "../lib/labels-focus-targets.ts";
  *  just left the tree, so focus lands here unconditionally. A first arrival keeps the guarded mount focus. */
 export function LabelsLibrarySurface({ returning = false }: { readonly returning?: boolean }): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef, !returning);
+  const phone = useMobileViewport();
+  const listMode = useSectionListMode("corpus");
+  useFocusOnMount(surfaceRef, !returning && (!phone || listMode === "collapsed"));
   useFocusOnSwap(surfaceRef, returning);
   const summary = useTagLibrarySummary();
   return (
@@ -25,7 +28,7 @@ export function LabelsLibrarySurface({ returning = false }: { readonly returning
       <Stack className="outline-none" data-slot={LABELS_LIBRARY_SLOT} gap="section" ref={surfaceRef} tabIndex={-1}>
         <Stack gap="field">
           <Heading level={2}>{CORPUS_MODE_LABELS.labels}</Heading>
-          <Text prose={true} voice="gloss">
+          <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
             {LABELS_BLURB}
           </Text>
         </Stack>

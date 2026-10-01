@@ -8,9 +8,10 @@ import { analyticsDrillSelection } from "./analytics-selection-store.ts";
 import { getCorpusMode, subscribeCorpusMode, writeCorpusMode } from "./corpus-mode-store.ts";
 import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 import { labelDrillSelection } from "./label-selection-store.ts";
+import { collapseListPanel } from "./list-flip-carry.ts";
 import { CORPUS_PHONE_LANDING } from "./panel-resolve.ts";
 import type { SectionSelection } from "./section-registry.ts";
-import { setOpenOverlayPanel, withContentSwap } from "./shell-store.ts";
+import { hideContextPanel, setOpenOverlayPanel, withContentSwap } from "./shell-store.ts";
 
 const exploreSelection = createDrillSelectionStore<CorpusDestination>("corpus-selection");
 
@@ -26,6 +27,15 @@ export const useSelectedCorpusDestination = exploreSelection.usePrimaryId;
 /** Clear the dossier selection (back to the corpus overview home). */
 export function clearCorpusSelection(): void {
   withContentSwap(exploreSelection.clear);
+}
+/** Reveal Explore CONTENT in both panel channels, inside the same deferred content swap. */
+export function revealCorpusOverview(): void {
+  withContentSwap(() => {
+    exploreSelection.clear();
+    collapseListPanel();
+    hideContextPanel();
+    setOpenOverlayPanel("none");
+  });
 }
 /** Reactive: the currently-drilled corpus character id (`null` = the overview home). A primitive selector. */
 export function useSelectedCorpusCharacterId(): CharacterId | null {

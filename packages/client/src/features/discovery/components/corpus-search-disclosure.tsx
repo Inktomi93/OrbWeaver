@@ -23,7 +23,7 @@ export function CorpusSearchDisclosure({ result }: { readonly result: Search }):
       <Text voice="gloss">{TARGET_DISCLOSURE[result.over]}</Text>
       <Collapsible>
         <CollapsibleTrigger>How search works</CollapsibleTrigger>
-        <CollapsiblePanel>
+        <CollapsiblePanel className="pt-row">
           <Text voice="gloss">
             Request limit: {result.coverage.requestLimit}. Candidate limit: {result.coverage.candidateLimit}.
             {result.coverage.evidencePerCharacter === null ? "" : ` Evidence per character: ${result.coverage.evidencePerCharacter}.`} Rerank:{" "}
