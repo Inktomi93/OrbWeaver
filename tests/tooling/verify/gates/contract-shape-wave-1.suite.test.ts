@@ -17,7 +17,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 // stale-exemption health policy sharing its family. None of the three shared a reader with each other or
 // with any sibling gate at conversion time — each is its own two-member family, not a merge candidate.
 //
-// TWO OF THE THREE ARE STILL PAIRS. `contract-derives-not-respells` is NOT: its ALLOWLIST became two central
+// TWO OF THE THREE ARE STILL PAIRS. `contract-derives-not-respells` is NOT: its ALLOWLIST became central
 // reviewed grants and `contract-derives-not-respells-health` retired with the table it audited (#2176 Phase F,
 // 2026-09-15). The health policy's whole subject was "this exemption row names nothing any more", which the
 // central engine now owns as `stale-reviewed-grant` after a complete owner run — so the successor evidence is
@@ -40,14 +40,13 @@ test(
 const CORPUS_GLOBS = ["packages/server/src/**/*.ts", "packages/contracts/src/**/*.ts", "packages/db/src/**/*.ts"];
 
 test(
-  "on the real corpus the two migrated grants are consumed exactly once, and a renamed subject reds as stale",
+  "on the real corpus each remaining grant is consumed exactly once, and a renamed subject reds as stale",
   ({ repoRoot }) => {
     const policies = [contractDerivesNotRespells];
     const project = getWorkspace({ root: repoRoot, globs: CORPUS_GLOBS.map((glob) => `${repoRoot}/${glob}`) });
     const grants = reviewedGrantsFor(policies);
-    // THE DENOMINATOR, read from the central table rather than written here: the migration moved exactly the
-    // two ALLOWLIST rows, so a third row added without a live site must fail this arm rather than ride along.
-    expect(grants.map(({ id }) => id)).toEqual(["contract-derives-not-respells:discovery-theme-row", "contract-derives-not-respells:stats-model-stat-row"]);
+    // Pin the remaining permission so an added grant cannot silently widen this proof.
+    expect(grants.map(({ id }) => id)).toEqual(["contract-derives-not-respells:stats-model-stat-row"]);
 
     const run = (reviewedGrants: readonly ReviewedGateGrant[]): ReturnType<typeof runPolicyPass> =>
       runPolicyPass({ knownPolicies: policies, policies, root: repoRoot, project, reviewedGrants, failOnWarnings: false });

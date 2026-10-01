@@ -72,6 +72,14 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     endsWhen: "reduced motion is read from a CSS-driven signal instead, or the home moves.",
   },
   {
+    id: "no-raw-matchmedia:use-prefers-light-color-scheme",
+    policyId: "no-raw-matchmedia",
+    subject: "packages/ui/src/lib/use-prefers-light-color-scheme.ts",
+    operation: "raw-match-media",
+    why: "The canonical OS color-scheme query and subscription belong in this UI hook; sign-in consumes its boolean without owning browser-query plumbing.",
+    endsWhen: "The color-scheme fact moves to another canonical browser reader, or this hook stops querying matchMedia.",
+  },
+  {
     id: "no-raw-random:entry-compose-chat",
     policyId: "no-raw-random",
     subject: "packages/server/src/entry/compose/chat.ts",

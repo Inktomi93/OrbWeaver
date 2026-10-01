@@ -14,13 +14,13 @@ import { createGatedStore } from "./create-gated-store.ts";
 /** The `@modified` verdict map: per group, the sub ids whose OWNED keys differ from their defaults. Homed
  *  here (the search seam's `#state` file — §7.4's type-home rule) beside the match it filters toward; the
  *  feature's `use-modified-sections.ts` derives it and `lib/config-search.ts` consumes it. */
-export type ModifiedSubIds = ReadonlyMap<ConfigGroupId, ReadonlySet<string>>;
+type ModifiedSubIds = ReadonlyMap<ConfigGroupId, ReadonlySet<string>>;
 
 /** The LEAF half of the same verdict, as the search entry's own `group::sub::setting` id — a flat set
  *  because that id is already the address (#1099 F16: the section-grain map alone made `@modified` answer
  *  for every leaf of a modified section, so one changed setting returned five rows of which three were
  *  unmodified). A leaf that declares no `key` is never in this set: it has no value of its own to differ. */
-export type ModifiedSettingIds = ReadonlySet<string>;
+type ModifiedSettingIds = ReadonlySet<string>;
 
 /** Both grains of "modified", derived together so a section's badge and a leaf's mark cannot disagree. */
 export interface ConfigModifiedMap {

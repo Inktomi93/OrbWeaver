@@ -38,7 +38,7 @@ export const RAIL_ZONES = ["rail.nav", "rail.brand", "rail.end"] as const;
 export type RailZone = (typeof RAIL_ZONES)[number];
 
 /** A section's rail-button identity + mobile-tab curation. */
-export interface RailEntry {
+interface RailEntry {
   readonly label: string;
   readonly icon: LucideIcon;
   readonly group: SectionGroup;
@@ -64,13 +64,13 @@ export interface RailEntry {
  *  "Exit focus mode": focus used to be DERIVED from "both panels collapsed", which zero panels trivially
  *  satisfied. That derivation is gone — focus is one flag now, item 20 — but the toggle still has nothing
  *  to act on here, so it does not render.) */
-export interface SectionPanelAvailability {
+interface SectionPanelAvailability {
   readonly list?: "unavailable";
   readonly context?: "unavailable";
 }
 
 /** A section's honest placeholder copy — a distinct (title, description) per section (gate-checked). */
-export interface SectionPlaceholderCopy {
+interface SectionPlaceholderCopy {
   readonly title: string;
   readonly description: string;
 }

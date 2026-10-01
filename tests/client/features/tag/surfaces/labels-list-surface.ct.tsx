@@ -7,6 +7,8 @@ import type { TagTargetType } from "@orb/contracts/tag";
 // ruling stays pinned in `tests/client/features/tag/components/tag-collection-rows.ct.tsx`.
 
 import { rowActionsName } from "@orb/client/lib";
+import type { CharacterId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
@@ -302,11 +304,12 @@ test("pending-only labels stay outside In use and prune until Apply; Reject remo
   const rejected = { ...tagRow("tag_rejected", "rejected", 0), pendingSuggestions: 1 };
   let rows = [staged, rejected];
   const failures = [trpcError({ code: "INTERNAL_SERVER_ERROR", message: "Scripted failure" })];
-  const suggestionFor = (row: TagWithUsage, characterId: string, characterName: string): TrpcWireOutput<"tag.listPendingSuggestions">[number] => {
+  const suggestionFor = (row: TagWithUsage, characterId: CharacterId, characterName: string): TrpcWireOutput<"tag.listPendingSuggestions">[number] => {
     const { usage: _usage, pendingSuggestions: _pending, ...view } = row;
     return { ...view, characterId, characterName };
   };
-  let suggestions = [suggestionFor(staged, "character_staged", "Aria"), suggestionFor(rejected, "character_rejected", "Bolt")];
+  const stagedCharacterId = mintTypeId(ID_PREFIX.character);
+  let suggestions = [suggestionFor(staged, stagedCharacterId, "Aria"), suggestionFor(rejected, mintTypeId(ID_PREFIX.character), "Bolt")];
   const recorder = await routeTrpc(page, {
     "tag.listTagsWithUsage": () => rows,
     "tag.listAttachedEntities": { entities: [], hasMore: false },
@@ -344,7 +347,7 @@ test("pending-only labels stay outside In use and prune until Apply; Reject remo
   await expect.poll(() => recorder.count("tag.attachTag")).toBe(2);
   await expect
     .poll(() => recorder.lastInput("tag.attachTag"))
-    .toEqual({ tagId: "tag_staged", targetType: "character", targetId: "character_staged", status: "accepted" });
+    .toEqual({ tagId: "tag_staged", targetType: "character", targetId: stagedCharacterId, status: "accepted" });
   await workspace.getByRole("button", { name: "deliver tag change" }).evaluate((button) => (button as HTMLButtonElement).click());
   await expect(facts).toContainText("In use1");
   await expect(content(workspace).getByRole("group", { name: "Suggested staged for Aria" })).toHaveCount(0);

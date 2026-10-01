@@ -84,14 +84,6 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
   },
   {
-    id: "query-freshness-coverage:search-search",
-    policyId: "query-freshness-coverage",
-    subject: "search.search",
-    operation: "uncovered-query-freshness",
-    why: "input-keyed live search (features/discovery/components/corpus-search-results.tsx) — the query text + `over` target are part of the key, so every new search is a cold fetch of a NEW cache entry.",
-    endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
-  },
-  {
     id: "query-freshness-coverage:search-fields",
     policyId: "query-freshness-coverage",
     subject: "search.fields",

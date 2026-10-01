@@ -32,7 +32,7 @@ import type { ConfigSubcategory, SettingsViewerView } from "./config-group-regis
  *
  *  A leaf claimant owns ONLY that leaf: it may never write or CLEAR the parent key (`{engineLaunch: null}`
  *  would wipe the co-owner's leaves), which is why the partition REDs a parent/child claim pair. */
-export type AppSettingsClaimPath = keyof AppSettings | `${keyof AppSettings}.${string}`;
+type AppSettingsClaimPath = keyof AppSettings | `${keyof AppSettings}.${string}`;
 
 /** What a section claims to WRITE (SET-SEAMS §2.3, the S2 partition pin). Absent = the section persists
  *  nothing through the settings tiers (a CRUD surface like tags/personas) and is exempt from the

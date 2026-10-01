@@ -18,13 +18,13 @@ import type { MobileCuration } from "./section-registry.ts";
  *  INTRINSIC DOOR to the mobile projection OF the chrome registry (owner ruling 2026-09-06, #1789) — a door
  *  that was an entry inside the projection it opens would be circular, exactly as a panel toggle is
  *  intrinsic to its panel (D73's "the frame's own grammar is intrinsic"). */
-export const MODAL_TRIGGER_PLACEMENTS = ["rail.end", "topbar.trail", "mobile-tab", "surface"] as const;
+const MODAL_TRIGGER_PLACEMENTS = ["rail.end", "topbar.trail", "mobile-tab", "surface"] as const;
 export type ModalTriggerPlacement = (typeof MODAL_TRIGGER_PLACEMENTS)[number];
 
 /** A modal's self-declared trigger — its reachability + the affordance a deriving surface renders. The
  *  `order`/`mobile` axes are the SAME ones a `ChromeEntry` carries: a mapped trigger derives into a chrome
  *  entry, so its presentation axes are declared here rather than re-decided by whichever lens draws it. */
-export interface ModalTrigger {
+interface ModalTrigger {
   readonly placement: ModalTriggerPlacement;
   readonly label: string;
   readonly icon: LucideIcon;

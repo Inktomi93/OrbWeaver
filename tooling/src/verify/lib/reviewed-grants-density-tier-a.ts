@@ -171,14 +171,6 @@ export const REVIEWED_GRANTS_DENSITY_TIER_A: readonly ReviewedGateGrant[] = [
     endsWhen: "§2.3 gains a label-step + muted-tone voice, retiring the judgment-not-forced class the invite dialog's field-label lines belong to.",
   },
   {
-    id: "density-tier:join-invite-dialog-weight",
-    policyId: "density-tier",
-    subject: "packages/client/src/features/chat/anchors/join-invite-dialog.tsx",
-    operation: "text-axis:weight",
-    why: 'the invite dialog\'s host/member/mode lines (one `weight="semibold"` name line + three `size="label" tone="muted"` field-label lines) are explicitly named in the density burn-down\'s recorded judgment-not-forced set — label+muted pairs are real tone decisions, not vocabulary gaps (spec §2.3).',
-    endsWhen: "§2.3 gains a label-step + muted-tone voice, retiring the judgment-not-forced class the invite dialog's field-label lines belong to.",
-  },
-  {
     id: "density-tier:chat-header-size",
     policyId: "density-tier",
     subject: "packages/client/src/features/chat/components/chat-header.tsx",

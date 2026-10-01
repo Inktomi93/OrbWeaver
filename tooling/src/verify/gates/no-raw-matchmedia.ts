@@ -9,7 +9,7 @@
 // pointer-capability read carried a permanent `@orb-gate-ignore` whose stated reason ("no coarse-pointer home
 // exists") is now FALSE — the home exists — but the read it guards is `(pointer: fine)`, a DIFFERENT query
 // the coarse-pointer home does not answer, so the grant survives with its `why` naming that mismatch instead.
-// All FIVE are exact `(subject, operation)` rows in `lib/reviewed-grants.ts` with `why` and `endsWhen`; the
+// The OS color-scheme hook is another query home. All homes have exact `(subject, operation)` rows in `lib/reviewed-grants.ts` with `why` and `endsWhen`; the
 // marker was DELETED from `media-grid.tsx` when its row was minted, because a reviewed-grant policy has no
 // inline door and a marker that suppresses nothing is the shape the central table exists to replace.
 // A home that moves now reds at its row instead of carrying its exemption into the void.
@@ -71,12 +71,12 @@ const OPERATION = "raw-match-media";
 
 const MESSAGE =
   "a raw `matchMedia` read outside the named media-query one-homes — use `usePrefersReducedMotion()` " +
-  "(render, live-updating), `prefersReducedMotionNow()` or `coarsePointerNow()` (imperative, #1182) from " +
+  "or `usePrefersLightColorScheme()` (render, live-updating), `prefersReducedMotionNow()` or `coarsePointerNow()` (imperative, #1182) from " +
   "`@orb/ui`'s `#lib`, or the shell's viewport hook, instead of forking matchMedia plumbing. See UI-Gates-and-Lessons.md §11.";
 const UNREADABLE =
   "this reference is spelled like the ambient `matchMedia` but the shared readers cannot place its binding, so whether it is the browser api CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
-  "read the fact through its one-home hook (usePrefersReducedMotion / prefersReducedMotionNow / coarsePointerNow / the shell viewport hook); a NEW media query needs a new one-home plus an exact reviewed grant, never a local read.";
+  "read the fact through its one-home hook (usePrefersReducedMotion / usePrefersLightColorScheme / prefersReducedMotionNow / coarsePointerNow / the shell viewport hook); a NEW media query needs a new one-home plus an exact reviewed grant, never a local read.";
 
 /** Could this reference name the global at all? A bare `matchMedia`, or any member read whose leaf is
  *  `matchMedia` (`globalThis.matchMedia`, `window["matchMedia"]`). */

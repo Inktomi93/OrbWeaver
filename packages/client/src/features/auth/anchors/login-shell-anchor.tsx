@@ -10,6 +10,7 @@
 
 import { Card } from "@orb/ui/card";
 import { Container, Layer, Row, Stack } from "@orb/ui/layout";
+import { usePrefersLightColorScheme } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect } from "react";
@@ -26,28 +27,23 @@ export interface LoginShellAnchorProps {
 const WORDMARK_GLYPH_PX = 26;
 
 function useLoginColorScheme(): void {
+  const prefersLight = usePrefersLightColorScheme();
   useEffect(() => {
     const root = document.documentElement;
     const previous = root.getAttribute(DATA_THEME_ATTR);
-    const preference = matchMedia("(prefers-color-scheme: light)");
-    const apply = (): void => {
-      if (preference.matches) {
-        root.setAttribute(DATA_THEME_ATTR, "light");
-      } else {
-        root.removeAttribute(DATA_THEME_ATTR);
-      }
-    };
-    apply();
-    preference.addEventListener("change", apply);
+    if (prefersLight) {
+      root.setAttribute(DATA_THEME_ATTR, "light");
+    } else {
+      root.removeAttribute(DATA_THEME_ATTR);
+    }
     return (): void => {
-      preference.removeEventListener("change", apply);
       if (previous === null) {
         root.removeAttribute(DATA_THEME_ATTR);
       } else {
         root.setAttribute(DATA_THEME_ATTR, previous);
       }
     };
-  }, []);
+  }, [prefersLight]);
 }
 
 /** The stable login card box: full-viewport web backdrop + wordmark + one `max-w-sm` card.
