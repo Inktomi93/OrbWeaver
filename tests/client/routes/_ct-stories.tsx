@@ -4,12 +4,13 @@
 // + real tRPC over the routeTrpc-stubbed network) plus the real section registry (<CtRealSectionRegistry>,
 // mirroring main.tsx's door). AppRoot mounts the shell + active-chat + the four regions.
 
-import { AppErrorBoundary } from "@orb/client/lib";
+import { consumeInboundJoinToken, peekInboundJoinToken } from "@orb/client/data";
+import { AppErrorBoundary, useRouterUrlReplace } from "@orb/client/lib";
 import { useActiveSection, useCorpusMode } from "@orb/client/state";
 import { useQueryClient } from "@tanstack/react-query";
-import { RouterProvider } from "@tanstack/react-router";
+import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { StrictMode, useEffect } from "react";
+import { StrictMode, useEffect, useState } from "react";
 // Deep, not `@orb/client/lib`: production readiness stays out of the barrel.
 import type { RouteResolution } from "../../../packages/client/src/lib/app-ready-signal.ts";
 import { installAppReadySignal } from "../../../packages/client/src/lib/app-ready-signal.ts";
@@ -32,6 +33,57 @@ export function ProductionRouterStory(): ReactElement {
   );
 }
 
+export function ProductionRouterOverlapStory(): ReactElement {
+  return (
+    <>
+      <button type="button" onClick={(): void => void router.navigate({ href: "/login?first=1" })}>
+        First navigation
+      </button>
+      <button type="button" onClick={(): void => void router.navigate({ href: "/login?second=1" })}>
+        Second navigation
+      </button>
+      <ProductionRouterStory />
+    </>
+  );
+}
+
+function TokenHandoffProbe(): ReactElement {
+  const [token] = useState(peekInboundJoinToken);
+  const [remaining, setRemaining] = useState("unread");
+  const replaceUrl = useRouterUrlReplace();
+  useEffect(() => {
+    consumeInboundJoinToken(replaceUrl);
+  }, [replaceUrl]);
+  return (
+    <>
+      <output aria-label="Captured invite">{token}</output>
+      <button type="button" onClick={(): void => setRemaining(peekInboundJoinToken() ?? "spent")}>
+        Read remaining token
+      </button>
+      <output aria-label="Remaining invite">{remaining}</output>
+    </>
+  );
+}
+
+/** The real token consumer and URL replacement hook inside a browser router. */
+export function RouterTokenHandoffStory(): ReactElement {
+  const [handoffRouter] = useState(() => {
+    const root = createRootRoute();
+    const home = createRoute({ getParentRoute: () => root, path: "/", component: TokenHandoffProbe });
+    return createRouter({ routeTree: root.addChildren([home]) });
+  });
+  return <RouterProvider router={handoffRouter} />;
+}
+
+function HomePageRouter(): ReactElement {
+  const [homeRouter] = useState(() => {
+    const root = createRootRoute();
+    const home = createRoute({ getParentRoute: () => root, path: "/", component: AppRoot });
+    return createRouter({ routeTree: root.addChildren([home]) });
+  });
+  return <RouterProvider router={homeRouter} />;
+}
+
 // The route has already resolved when this story mounts, so only the query cache and the boot-read gate decide.
 const RESOLVED_ROUTE: RouteResolution = { isResolving: () => false, subscribe: () => (): void => undefined };
 
@@ -49,7 +101,7 @@ export function HomePageReadinessStory(): ReactElement {
     <CtDataProviders>
       <CtRealSectionRegistry>
         <InstallAppReadySignal />
-        <AppRoot />
+        <HomePageRouter />
       </CtRealSectionRegistry>
     </CtDataProviders>
   );
@@ -61,7 +113,7 @@ export function HomePageStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <AppRoot />
+        <HomePageRouter />
       </CtRealSectionRegistry>
     </CtDataProviders>
   );

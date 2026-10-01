@@ -243,6 +243,7 @@ in its own module header, never restated here.
 | `no-raw-interactive-intrinsics` | — | reviewed-grant/error | @client\* | a raw interactive intrinsic in a… |
 | `no-raw-intl-time` | — | reviewed-grant/error | @authored | raw Intl API or .toLocale\*() date… |
 | `no-raw-matchmedia` | — | reviewed-grant/error | @client,@ui | a raw matchMedia read outside the… |
+| `no-raw-history-writes` | — | hard/error | @client | Client history mutation names route through the router. |
 | `no-raw-random` | ambient-determinism | reviewed-grant/error | @product,@tooling\* | ambient Math.random() — determinism:… |
 | `no-raw-spacing-in-features` | raw-spacing-tier | ordinary/error | @client,@ui | raw spacing utility in a class string… |
 | `no-raw-typography-in-features` | raw-typography-tier | ordinary/error | @client,@ui | raw font-size utility in a class… |

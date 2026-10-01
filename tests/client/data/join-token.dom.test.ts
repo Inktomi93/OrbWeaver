@@ -21,11 +21,13 @@ test("clearJoinParam removes every join field without reserializing unrelated qu
     hash: "#turn-4",
   });
   vi.stubGlobal("history", { replaceState });
+  const replaceUrl = vi.fn();
 
   expect(readJoinToken()).toBe("secret");
-  clearJoinParam();
+  clearJoinParam(replaceUrl);
 
-  expect(replaceState).toHaveBeenCalledWith(null, "", "/chat/room?space=%20&plus=+&slash=%2f&tag=first&tag=second&empty=&flag#turn-4");
+  expect(replaceUrl).toHaveBeenCalledWith("/chat/room?space=%20&plus=+&slash=%2f&tag=first&tag=second&empty=&flag#turn-4");
+  expect(replaceState).not.toHaveBeenCalled();
 });
 
 // D259 — the signed-out round trip: the guard stashes the token (its redirect replaces the `/?join=` entry); after
@@ -42,7 +44,7 @@ test("a stashed token opens the join dialog after sign-in, and only once", () =>
   // The post-sign-in `/` load carries no `?join=`: the dialog's token comes from the tab stash.
   vi.stubGlobal("location", { pathname: "/", search: "", hash: "" });
   expect(peekInboundJoinToken()).toBe("tok_invite");
-  consumeInboundJoinToken();
+  consumeInboundJoinToken(vi.fn());
   expect(tab.size).toBe(0);
   expect(peekInboundJoinToken()).toBeNull();
 });
@@ -51,10 +53,12 @@ test("a signed-in ?join= wins over a stash, and spending it scrubs the address b
   const tab = stubTabStorage();
   tab.set("orb:join-token", "tok_stashed");
   const replaceState = vi.fn();
+  const replaceUrl = vi.fn();
   vi.stubGlobal("location", { pathname: "/", search: "?join=tok_url", hash: "" });
   vi.stubGlobal("history", { replaceState });
   expect(peekInboundJoinToken()).toBe("tok_url");
-  consumeInboundJoinToken();
-  expect(replaceState).toHaveBeenCalledWith(null, "", "/");
+  consumeInboundJoinToken(replaceUrl);
+  expect(replaceUrl).toHaveBeenCalledWith("/");
+  expect(replaceState).not.toHaveBeenCalled();
   expect(tab.size).toBe(0);
 });

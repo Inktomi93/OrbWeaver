@@ -24,6 +24,7 @@ import {
 import { AppShell } from "#features/app-shell";
 import { CharacterGalleryAnchor, JoinInviteDialog } from "#features/chat";
 import { FirstRunPersonaDialog, useViewerCanSpeak } from "#features/persona";
+import { useRouterUrlReplace } from "#lib";
 import { announceStatus, useActiveChatId, useActiveSection, useSelectedCharacterId, useStatusAnnouncement } from "#state";
 import { AppRootSessionBoundary } from "./app-root-session-boundary/index.ts";
 
@@ -39,11 +40,12 @@ export function AppRoot(): ReactElement {
   // stashed before sign-in (D259). Spent at once in the effect, so a raw invite token never lingers in the
   // address bar, in history or in the tab stash.
   const [joinToken, setJoinToken] = useState(peekInboundJoinToken);
+  const replaceUrl = useRouterUrlReplace();
   useEffect(() => {
     if (joinToken !== null) {
-      consumeInboundJoinToken();
+      consumeInboundJoinToken(replaceUrl);
     }
-  }, [joinToken]);
+  }, [joinToken, replaceUrl]);
   const invalidation = useInvalidation();
   // THE socket (SSE-1): one multiplexed SSE connection per tab, carrying every live room the tab attaches.
   // Mounted FIRST so the room registry's mutation channel is bound before the room hooks below join —

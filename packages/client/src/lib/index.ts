@@ -268,6 +268,8 @@ export { formatTrpcOp } from "./trpc-devlog.ts";
 export { trpcErrorReason } from "./trpc-error-reason.ts";
 export { isSilencedTurnAbort, TURN_LOCKED_COPY, TURN_STALE_ABORT_COPY, turnAbortNotice, turnMutationToast } from "./turn-abort-notice.ts";
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
+export { withoutUrlSearchParam } from "./url-search.ts";
 export { useDebouncedValue } from "./use-debounced-value.ts";
 export { useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
+export { useRouterUrlReplace } from "./use-router-url-replace.ts";
 export { motionIsReduced, runAfterViewTransition } from "./view-transition.ts";
