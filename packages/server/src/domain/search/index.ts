@@ -48,3 +48,5 @@ export type { ResolveActiveDocumentIdsOp, SearchService } from "./contract/servi
 export { createSearchService } from "./service.ts";
 
 export { createDigestSources } from "./verbs/digest-sources.ts";
+
+export { createSourceState } from "./verbs/source-state.ts";

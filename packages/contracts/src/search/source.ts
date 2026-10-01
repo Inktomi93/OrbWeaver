@@ -1,5 +1,5 @@
 import type { EmbedGenerationId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 const SOURCE_CONTENT_HASH_MAX = 256;
@@ -9,7 +9,7 @@ const sourceFields = {
   generationId: z
     .string()
     .regex(/^[a-f0-9]{64}$/u)
-    .transform((id) => castId<EmbedGenerationId>(id)),
+    .pipe(brandedId<EmbedGenerationId>()),
   fingerprint: z
     .string()
     .regex(/^[a-f0-9]{64}$/u)
@@ -56,3 +56,12 @@ export interface CorpusDigestSource {
   readonly chatTitle: string | null;
   readonly scopedCharacterName: string | null;
 }
+
+export interface CorpusSourceState {
+  readonly generationFingerprint: string | null;
+  readonly contentHash: string | null;
+  readonly sourceSpanMatches: boolean;
+}
+
+/** Canon readers authorize membership before requesting vector-row identity metadata. */
+export type ResolveCorpusSourceState = (source: CorpusSource) => Promise<CorpusSourceState>;

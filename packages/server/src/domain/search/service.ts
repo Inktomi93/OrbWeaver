@@ -19,6 +19,7 @@ import { createSearch } from "./verbs/search.ts";
 import { createSegments } from "./verbs/segments.ts";
 import { createSimilarArt } from "./verbs/similar-art.ts";
 import { createSimilarCharacters } from "./verbs/similar-characters.ts";
+import { createSourceState } from "./verbs/source-state.ts";
 
 export function createSearchService(ctx: SearchContext): SearchService {
   const knn = createKnn(ctx);
@@ -30,6 +31,7 @@ export function createSearchService(ctx: SearchContext): SearchService {
   const discover = createDiscover(ctx);
   const documents = createDocuments(ctx);
   return {
+    resolveCorpusSourceState: createSourceState(ctx),
     knn,
     findCharacters,
     digests,

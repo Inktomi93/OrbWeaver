@@ -8,8 +8,7 @@
 // one no surface prints a number for (memory recall, databank gather) — do not add it speculatively.
 
 import type { ImageLens } from "@orb/contracts/embeddings";
-import type { BlockKey, DigestSourceHit, DiscoverSegment, ImageSearchHit } from "@orb/contracts/search";
-import type { chatDigests } from "@orb/db";
+import type { BlockKey, CorpusDigestSource, CorpusSource, DigestSourceHit, DiscoverSegment, ImageSearchHit } from "@orb/contracts/search";
 import type { CharacterId, DocumentChunkId, DocumentId } from "@orb/kit/ids";
 
 export interface SearchHit {
@@ -106,7 +105,7 @@ export interface DocumentChunkHit {
 /** The unified search() result — discriminated by `over` (the {@link SearchTarget}), each branch carrying
  *  the underlying verb's hit shape. Exhaustive: a new SearchTarget without a branch here fails `tsc` at the
  *  dispatch's `assertNever`. */
-export interface SearchCoverage {
+interface SearchCoverage {
   readonly requestLimit: number;
   readonly candidateLimit: number;
   readonly evidencePerCharacter: number | null;
@@ -123,11 +122,9 @@ export type UnifiedSearchRows =
   | { readonly over: "images"; readonly hits: readonly ImageSearchHit[] }
   | { readonly over: "documents"; readonly hits: readonly DocumentChunkHit[] };
 
-export interface DigestSourceRow
-  extends Pick<typeof chatDigests.$inferSelect, "id" | "chatId" | "generationId" | "contentHash" | "blockIdx" | "tier" | "scopedCharacterId" | "text"> {
-  readonly fingerprint: string | null;
-  readonly chatTitle: string | null;
-  readonly scopedCharacterName: string | null;
-}
+export type DigestSourceRow = Pick<CorpusDigestSource, "text" | "chatTitle" | "scopedCharacterName"> &
+  Pick<Extract<CorpusSource, { kind: "digest" }>, "chatId" | "generationId" | "contentHash" | "blockIdx" | "tier" | "scopedCharacterId" | "fingerprint"> & {
+    readonly id: Extract<CorpusSource, { kind: "digest" }>["rowId"];
+  };
 
 export type { DigestSearchHit, DigestSourceHit, DiscoverSegment, ImageSearchHit } from "@orb/contracts/search";

@@ -169,7 +169,6 @@ import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 import { buildWireHistory, convertsToEmptyWireRow, fitWireHistory } from "../substrate/wire-history.ts";
-import { createGetMessageWindow } from "./message-window.ts";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
  *  the whole reasoning channel for this game. Resolved through the injected `ChatRpgOps.resolveReasoningHostOnly`
@@ -211,7 +210,6 @@ type ReadVerbs = Pick<
   | "getVariantWire"
   | "previewContextFit"
   | "listEffectiveRegex"
-  | "getMessageWindow"
   | "listMessages"
   | "listMessageVariants"
   | "listParticipants"
@@ -1734,7 +1732,6 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     previewContextFit: createPreviewContextFit(ctx, deps),
     listEffectiveRegex: createListEffectiveRegex(ctx, deps),
     listMessages: createListMessages(ctx, deps),
-    getMessageWindow: createGetMessageWindow(ctx, deps),
     listMessageVariants: createListMessageVariants(ctx),
     listParticipants: createListParticipants(ctx, deps),
 

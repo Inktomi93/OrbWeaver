@@ -8,14 +8,14 @@ import type { ChatService } from "../contract/service.ts";
 import type { MessageWindow } from "../contract/views.ts";
 import { requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
-import { loadWindowAnchor, loadWindowRange, loadWindowSource } from "../persistence/message-window.ts";
+import { loadWindowAnchor, loadWindowRange } from "../persistence/message-window.ts";
 import { loadMessagesPage } from "../persistence/queries.ts";
 import { projectViewForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
 
 const DEFAULT_WINDOW_LIMIT = 40;
 
 /** A bounded canon window resolves source identity before applying the same viewer projection as paging. */
-export function createGetMessageWindow(
+export function createMessageWindow(
   ctx: ChatContext,
   deps: { readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]> },
 ): ChatService["getMessageWindow"] {
@@ -81,7 +81,7 @@ async function resolveSourceWindow(ctx: ChatContext, chatId: ChatId, source: Cor
   if (source.chatId !== chatId || source.fingerprint === null || source.seqStart === null || source.seqEnd === null || source.seqEnd < source.seqStart) {
     return { outcome: "unavailable", anchor: null, end: null };
   }
-  const current = await loadWindowSource(ctx.db, chatId, source);
+  const current = await ctx.resolveCorpusSourceState(source);
   if (current.generationFingerprint !== source.fingerprint) {
     return { outcome: "unavailable", anchor: null, end: null };
   }
@@ -118,7 +118,7 @@ function sourceOutcome({
     anchor.id === source.messageStartId &&
     end?.id === source.messageEndId &&
     anchor.seq === source.seqStart &&
-    end?.seq === source.seqEnd;
+    end.seq === source.seqEnd;
   return exact ? "resolved" : "moved";
 }
 async function readWindowPage(

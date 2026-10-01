@@ -10,6 +10,7 @@ import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { seedUser as seedUserRow } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeDiscoveryHarness, seedAsset, seedCharacter, seedCharacterEmbedding, seedUser, vec } from "../_support.ts";
 
@@ -66,7 +67,7 @@ function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {
 describe("archetypes", () => {
   test("a selected grouping carries every member and a pass identity that changes with its source", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, mintTypeId(ID_PREFIX.user));
+    const owner = (await seedUserRow(db)).id;
     const ids: Awaited<ReturnType<typeof seedCard>>[] = [];
     for (let i = 0; i < 14; i += 1) {
       ids.push(

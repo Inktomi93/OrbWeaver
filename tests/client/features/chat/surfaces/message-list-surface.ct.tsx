@@ -168,6 +168,7 @@ test("an anchored window survives suspension, pages both ways and consumes focus
   await expect(show).toHaveCount(0);
   await expect(selected).toBeVisible();
   await expect(selected).not.toBeFocused();
+  await expect(component.getByRole("status").filter({ hasText: "Opened the exact source moment." })).toHaveCount(0);
   await component.getByRole("button", { name: "Back to Corpus" }).click();
   await expect(component.locator("output")).toContainText("section=corpus");
   await expect.poll(() => trpc.count("chat.listMessages")).toBe(1);

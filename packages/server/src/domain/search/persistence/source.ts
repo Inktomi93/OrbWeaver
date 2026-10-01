@@ -1,4 +1,4 @@
-import type { CorpusSource } from "@orb/contracts/search";
+import type { CorpusSource, CorpusSourceState } from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
 import { characters, chatDigests, chatParticipants, chatSegments, chats, embedGenerations, messages } from "@orb/db";
 import type { ChatDigestId, ChatId, EmbedGenerationId, UserId } from "@orb/kit/ids";
@@ -111,4 +111,53 @@ export async function readDigestSourceLineage(
       ),
     )
     .limit(limit);
+}
+
+/** Only source metadata is read here; canon bytes pass through the ordinary member projection. */
+export async function readCorpusSourceState(db: ReadOnlyDb, source: CorpusSource): Promise<CorpusSourceState> {
+  const chatId = source.chatId;
+  const [generation] = await db
+    .select({ fingerprint: embedGenerations.fingerprint })
+    .from(embedGenerations)
+    .innerJoin(
+      chatParticipants,
+      and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)),
+    )
+    .where(and(eq(embedGenerations.id, source.generationId), eq(embedGenerations.ownerId, chatParticipants.userId)))
+    .limit(1);
+  if (source.kind === "segment") {
+    const [row] = await db
+      .select({ contentHash: chatSegments.contentHash, seqStart: chatSegments.seqStart, seqEnd: chatSegments.seqEnd })
+      .from(chatSegments)
+      .where(
+        and(
+          eq(chatSegments.chatId, chatId),
+          eq(chatSegments.id, source.rowId),
+          eq(chatSegments.generationId, source.generationId),
+          eq(chatSegments.blockIdx, source.blockIdx),
+          eq(chatSegments.chunkIdx, source.chunkIdx),
+        ),
+      )
+      .limit(1);
+    return {
+      generationFingerprint: generation?.fingerprint ?? null,
+      contentHash: row?.contentHash ?? null,
+      sourceSpanMatches: row !== undefined && row.seqStart === source.seqStart && row.seqEnd === source.seqEnd,
+    };
+  }
+  const [row] = await db
+    .select({ contentHash: chatDigests.contentHash })
+    .from(chatDigests)
+    .where(
+      and(
+        eq(chatDigests.chatId, chatId),
+        eq(chatDigests.id, source.rowId),
+        eq(chatDigests.generationId, source.generationId),
+        eq(chatDigests.blockIdx, source.blockIdx),
+        eq(chatDigests.tier, source.tier),
+        eq(chatDigests.scopedCharacterId, source.scopedCharacterId),
+      ),
+    )
+    .limit(1);
+  return { generationFingerprint: generation?.fingerprint ?? null, contentHash: row?.contentHash ?? null, sourceSpanMatches: true };
 }

@@ -5,7 +5,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { ChatNotFoundError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
-import { createGetMessageWindow } from "../../../../../packages/server/src/domain/chat/verbs/message-window.ts";
+import { createMessageWindow } from "../../../../../packages/server/src/domain/chat/verbs/message-window.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal } from "../../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../../support/factories/user.ts";
@@ -19,15 +19,15 @@ interface SourceWindowFixture {
   readonly member: Awaited<ReturnType<typeof seedUserRow>>["id"];
   readonly outsider: Awaited<ReturnType<typeof seedUserRow>>["id"];
   readonly chatId: Awaited<ReturnType<typeof seedChat>>;
-  readonly source: CorpusSource;
-  readonly read: ReturnType<typeof createGetMessageWindow>;
+  readonly source: Extract<CorpusSource, { kind: "segment" }>;
+  readonly read: ReturnType<typeof createMessageWindow>;
   readonly slots: Awaited<ReturnType<typeof seedMessage>>[];
 }
 async function setup(): Promise<SourceWindowFixture> {
   const db = await freshDb();
-  const host = (await seedUserRow(db, { id: mintTypeId(ID_PREFIX.user), handle: castId<Handle>("window-host") })).id;
-  const member = (await seedUserRow(db, { id: mintTypeId(ID_PREFIX.user), handle: castId<Handle>("window-member") })).id;
-  const outsider = (await seedUserRow(db, { id: mintTypeId(ID_PREFIX.user), handle: castId<Handle>("window-outsider") })).id;
+  const host = (await seedUserRow(db, { handle: castId<Handle>("window-host") })).id;
+  const member = (await seedUserRow(db, { handle: castId<Handle>("window-member") })).id;
+  const outsider = (await seedUserRow(db, { handle: castId<Handle>("window-outsider") })).id;
   const chatId = await seedChat(db, "source-room", { id: mintTypeId(ID_PREFIX.chat) });
   await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
   await seedParticipant(db, { chatId, key: "member", userId: member, joinSeq: 24, joinHistoryVisibility: "from-join" });
@@ -57,7 +57,7 @@ async function setup(): Promise<SourceWindowFixture> {
   if (generation === undefined) {
     throw new Error("missing generation fixture");
   }
-  const source: CorpusSource = {
+  const source: Extract<CorpusSource, { kind: "segment" }> = {
     kind: "segment",
     rowId,
     chatId,
@@ -71,11 +71,34 @@ async function setup(): Promise<SourceWindowFixture> {
     messageStartId: slots[19]?.messageId ?? null,
     messageEndId: slots[28]?.messageId ?? null,
   };
-  const read = createGetMessageWindow(makeChatContext(db), { loadParticipantViews: makeLoadParticipantViews(db) });
+  const read = createMessageWindow(makeChatContext(db), { loadParticipantViews: makeLoadParticipantViews(db) });
   return { db, host, member, outsider, chatId, source, read, slots };
 }
 
 describe("member-visible source windows", () => {
+  test("message window loads an early anchor with independent forward and backward paging", async () => {
+    const { db, host: me, chatId, read, slots } = await setup();
+    const rows: Awaited<ReturnType<typeof seedMessage>>[] = [];
+    for (let seq = 61; seq <= 120; seq += 1) {
+      rows.push(await seedMessage(db, chatId, seq, { content: `line ${seq}` }));
+    }
+    const anchor = slots[19];
+    if (anchor === undefined) {
+      throw new Error("missing anchor fixture");
+    }
+    const target = { kind: "message" as const, messageId: anchor.messageId };
+    const page = await read({ principal: principal(me), chatId, target, limit: 10 });
+    expect(page.outcome).toBe("resolved");
+    expect(page.anchorMessageId).toBe(anchor.messageId);
+    expect(page.messages.map((row) => row.seq)).toEqual([16, 17, 18, 19, 20, 21, 22, 23, 24, 25]);
+    expect(page.hasBefore).toBe(true);
+    expect(page.hasAfter).toBe(true);
+    const next = await read({ principal: principal(me), chatId, target, cursor: { kind: "after", seq: 25 }, limit: 10 });
+    expect(next.messages.map((row) => row.seq)).toEqual([26, 27, 28, 29, 30, 31, 32, 33, 34, 35]);
+    const previous = await read({ principal: principal(me), chatId, target, cursor: { kind: "before", seq: 16 }, limit: 10 });
+    expect(previous.messages.map((row) => row.seq)).toEqual([6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+  });
+
   test("resolves the exact chunk and preserves its stable endpoints beyond ordinary paging", async () => {
     const { host, chatId, source, read } = await setup();
     const page = await read({ principal: principal(host), chatId, target: { kind: "source", source }, limit: 10 });

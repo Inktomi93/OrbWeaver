@@ -30,6 +30,7 @@ test("group detail retains every member from its selected pass after recompute",
   await routeTrpc(page, { "discovery.archetypes": [{ ...CLUSTER, passId: "d".repeat(64), members: MEMBERS.slice(0, 2), size: 2 }] });
   const component = await mount(<CorpusArtifactReaderStory destination={GROUP} />);
   await component.getByRole("button", { name: "Select evidence" }).click();
+  await expect(component.getByRole("button", { name: "Back to Explore" })).toBeFocused();
   await expect(component.getByRole("button", { name: "Member 14", exact: true })).toBeVisible();
   await expect(component.getByRole("list").getByRole("listitem")).toHaveCount(14);
   await expect(component.getByRole("status").filter({ hasText: "Showing the selected membership snapshot" })).toBeVisible();

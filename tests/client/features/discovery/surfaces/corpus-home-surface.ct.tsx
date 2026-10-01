@@ -806,6 +806,7 @@ const ROUTES: TrpcWireOutput<"discovery.modelRouting"> = Array.from({ length: 30
   tokensOut: 260_000 - index * 5000,
   tokensOutProvenance: "estimated",
   avgGenTimeMs: 900,
+  genTimeSamples: 400 - index * 10,
   costUsd: index === 17 ? 0.080_644 : null,
 }));
 const PAID_ROUTES = ROUTES.filter((route) => route.costUsd !== null).length;

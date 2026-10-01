@@ -28,7 +28,7 @@ import type { NotificationEvent, PresenceView } from "@orb/contracts/notificatio
 import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ChatRpgPointer, RpgActorRef, RpgGameTemplate } from "@orb/contracts/rpg";
-import type { BlockKey, MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
+import type { BlockKey, MemoryQueryOptions, ResolveCorpusSourceState, ScoredBlock } from "@orb/contracts/search";
 import type { MemorySummarizerConfig } from "@orb/contracts/settings";
 import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { TagView } from "@orb/contracts/tag";
@@ -1484,6 +1484,7 @@ export interface ChatContext {
   readonly embeddingsStore: EmbeddingsStoreOp;
   readonly embeddingsStoreSegments: EmbeddingsStoreSegmentsOp;
   readonly embeddingsPruneBlocks: EmbeddingsPruneBlocksOp;
+  readonly resolveCorpusSourceState: ResolveCorpusSourceState;
   readonly searchDigests: SearchDigestsOp;
   readonly searchCorpus: SearchCorpusOp;
   /** The databank slot GATHER op (DB6) — OPTIONAL; absent = the null-op byte-identical no-op. */

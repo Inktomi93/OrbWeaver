@@ -28,6 +28,8 @@
 // an unsettled DOM and reports zeros; the settled barrier over there is `[data-corpus-focal]`. Same rule,
 // different surface — barrier on a node only the SETTLED arm can produce.
 
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "../../../../support/node/corpus-source.ts";
@@ -518,16 +520,30 @@ const SCENE_HITS: TrpcRoutes<"search.search"> = {
         elevatorPitch: null,
         matchCount: 79,
         segments: [
-          { source: corpusSceneSource("chat_harbour", 2), chatId: "chat_harbour", blockIdx: 2, snippet: PASSAGE, score: 0.1, chatTitle: "Lena Jan 28" },
           {
-            source: corpusSceneSource("chat_harbour_copy", 5),
+            source: corpusSceneSource(castId<ChatId>("chat_harbour"), 2),
+            chatId: "chat_harbour",
+            blockIdx: 2,
+            snippet: PASSAGE,
+            score: 0.1,
+            chatTitle: "Lena Jan 28",
+          },
+          {
+            source: corpusSceneSource(castId<ChatId>("chat_harbour_copy"), 5),
             chatId: "chat_harbour_copy",
             blockIdx: 5,
             snippet: PASSAGE,
             score: 0.12,
             chatTitle: "Lena Jan 28 (2)",
           },
-          { source: corpusSceneSource("chat_market", 9), chatId: "chat_market", blockIdx: 9, snippet: OTHER_PASSAGE, score: 0.2, chatTitle: "Lena Jan 26" },
+          {
+            source: corpusSceneSource(castId<ChatId>("chat_market"), 9),
+            chatId: "chat_market",
+            blockIdx: 9,
+            snippet: OTHER_PASSAGE,
+            score: 0.2,
+            chatTitle: "Lena Jan 26",
+          },
         ],
       },
     ],
@@ -615,8 +631,22 @@ const ONE_ROOM_HITS: TrpcRoutes<"search.search"> = {
         elevatorPitch: null,
         matchCount: 12,
         segments: [
-          { source: corpusSceneSource("chat_harbour", 2), chatId: "chat_harbour", blockIdx: 2, snippet: PASSAGE, score: 0.1, chatTitle: "Lena Jan 28" },
-          { source: corpusSceneSource("chat_harbour", 9), chatId: "chat_harbour", blockIdx: 9, snippet: OTHER_PASSAGE, score: 0.2, chatTitle: "Lena Jan 28" },
+          {
+            source: corpusSceneSource(castId<ChatId>("chat_harbour"), 2),
+            chatId: "chat_harbour",
+            blockIdx: 2,
+            snippet: PASSAGE,
+            score: 0.1,
+            chatTitle: "Lena Jan 28",
+          },
+          {
+            source: corpusSceneSource(castId<ChatId>("chat_harbour"), 9),
+            chatId: "chat_harbour",
+            blockIdx: 9,
+            snippet: OTHER_PASSAGE,
+            score: 0.2,
+            chatTitle: "Lena Jan 28",
+          },
         ],
       },
     ],

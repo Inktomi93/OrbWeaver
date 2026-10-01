@@ -1,5 +1,5 @@
-import type { Archetype, ModelRoutingRow as ModelRoute, ThemeRow as Theme, VisualArchetype } from "@orb/contracts/discovery";
-import type { CorpusDigestSource, DigestSourceHit as Digest, ImageSearchHit as Image, DiscoverSegment as Scene } from "@orb/contracts/search";
+import type { Archetype, ModelRoutingRow, ThemeRow, VisualArchetype } from "@orb/contracts/discovery";
+import type { CorpusDigestSource, DigestSourceHit, DiscoverSegment, ImageSearchHit } from "@orb/contracts/search";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 
 type Cluster = Archetype | VisualArchetype;
@@ -10,9 +10,9 @@ export const CORPUS_DESTINATION_KINDS = ["character", "scene", "digest", "distil
 export type CorpusDestination =
   | { readonly kind: "character"; readonly characterId: CharacterId }
   | { readonly kind: "distill"; readonly characterId: CharacterId }
-  | { readonly kind: "scene"; readonly hit: Scene; readonly characterName: string; readonly rank: number | null }
-  | { readonly kind: "digest"; readonly hit: Digest | CorpusDigestSource; readonly rank: number | null }
-  | { readonly kind: "theme"; readonly row: Theme }
+  | { readonly kind: "scene"; readonly hit: DiscoverSegment; readonly characterName: string; readonly rank: number | null }
+  | { readonly kind: "digest"; readonly hit: DigestSourceHit | CorpusDigestSource; readonly rank: number | null }
+  | { readonly kind: "theme"; readonly row: ThemeRow }
   | { readonly kind: "cluster"; readonly cluster: Cluster; readonly visual: boolean; readonly k: number | null; readonly title: string }
   | {
       readonly kind: "pair";
@@ -35,9 +35,9 @@ export type CorpusDestination =
             readonly relation: string;
           };
     }
-  | { readonly kind: "image"; readonly hit: Image }
+  | { readonly kind: "image"; readonly hit: ImageSearchHit }
   | { readonly kind: "keyword"; readonly keyword: string; readonly frequency: number | null; readonly frequencyScope: string }
-  | { readonly kind: "modelroute"; readonly route: ModelRoute };
+  | { readonly kind: "modelroute"; readonly route: ModelRoutingRow };
 
 /** Identity keys remount reading surfaces when the evidence subject changes. */
 export function corpusDestinationIdentity(destination: CorpusDestination): string {
