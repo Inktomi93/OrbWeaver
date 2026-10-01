@@ -12,6 +12,7 @@
 // `domain/preset/contract/views.ts`, which the client cannot import across the cake.
 
 import { modelDisplayName } from "@orb/kit/model-name";
+import { SAMPLING_KNOBS } from "./capability-panel-model.ts";
 
 /** One resolved knob as the read returns it: the value the wire would carry + which rung produced it. */
 export interface EffectiveKnobRow {
@@ -37,14 +38,6 @@ export interface EffectiveProfileRow {
  *  an unmapped key prints itself rather than being hidden. ONE home: the readout rows, the quality-mapping
  *  gloss and the staleness copy all read it, so the surfaces cannot drift on what a knob is called. */
 const KNOB_LABELS: Readonly<Record<string, string>> = {
-  temperature: "temperature",
-  topP: "top-p",
-  topK: "top-k",
-  minP: "min-p",
-  topA: "top-a",
-  frequencyPenalty: "freq. penalty",
-  presencePenalty: "presence penalty",
-  repetitionPenalty: "rep. penalty",
   seed: "seed",
   effort: "effort",
   thinkingBudgetTokens: "thinking budget",
@@ -56,7 +49,7 @@ const KNOB_LABELS: Readonly<Record<string, string>> = {
 
 /** {@link KNOB_LABELS} with the honest fallback. */
 export function knobLabel(knob: string): string {
-  return KNOB_LABELS[knob] ?? knob;
+  return SAMPLING_KNOBS.find((spec) => spec.key === knob)?.readoutLabel ?? KNOB_LABELS[knob] ?? knob;
 }
 
 /** What a KnobRow needs to paint its inherited state: the number to ghost at + the provenance gloss. */

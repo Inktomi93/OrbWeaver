@@ -53,6 +53,7 @@ import {
   qualityFromSelect,
   qualitySelectValue,
   reasoningControlFor,
+  SAMPLING_KNOBS,
   samplingKnobsFor,
   supportsSeed,
 } from "../lib/capability-panel-model.ts";
@@ -88,17 +89,14 @@ export interface ParamsDeckProps {
 
 /** The staleness row's vocabulary (§4.2): every knob the effective read can report as STORED-BUT-DROPPED,
  *  with the WIRE name the row prints and the one write that unsets it. A closure per row rather than a
- *  computed `params.<knob>` path because the form path must stay a checked literal — a stale knob this
+ *  fabricated path: sampling paths come from the checked catalog, and other paths remain literal. A stale knob this
  *  build does not know is simply not cleared (never a blind write at a fabricated path). */
 const STALE_KNOB_ROWS = [
-  { knob: "temperature", wire: "temperature", clear: (f: AppForm): void => f.setFieldValue("params.temperature", undefined) },
-  { knob: "topP", wire: "top_p", clear: (f: AppForm): void => f.setFieldValue("params.topP", undefined) },
-  { knob: "topK", wire: "top_k", clear: (f: AppForm): void => f.setFieldValue("params.topK", undefined) },
-  { knob: "minP", wire: "min_p", clear: (f: AppForm): void => f.setFieldValue("params.minP", undefined) },
-  { knob: "topA", wire: "top_a", clear: (f: AppForm): void => f.setFieldValue("params.topA", undefined) },
-  { knob: "frequencyPenalty", wire: "frequency_penalty", clear: (f: AppForm): void => f.setFieldValue("params.frequencyPenalty", undefined) },
-  { knob: "presencePenalty", wire: "presence_penalty", clear: (f: AppForm): void => f.setFieldValue("params.presencePenalty", undefined) },
-  { knob: "repetitionPenalty", wire: "repetition_penalty", clear: (f: AppForm): void => f.setFieldValue("params.repetitionPenalty", undefined) },
+  ...SAMPLING_KNOBS.map((spec) => ({
+    knob: spec.key,
+    wire: spec.wire,
+    clear: (f: AppForm): void => f.setFieldValue(spec.field, undefined),
+  })),
   { knob: "seed", wire: "seed", clear: (f: AppForm): void => f.setFieldValue("params.seed", undefined) },
   { knob: "effort", wire: "effort", clear: (f: AppForm): void => f.setFieldValue("params.effort", undefined) },
   { knob: "thinkingBudgetTokens", wire: "thinking_budget", clear: (f: AppForm): void => f.setFieldValue("params.thinkingBudgetTokens", undefined) },

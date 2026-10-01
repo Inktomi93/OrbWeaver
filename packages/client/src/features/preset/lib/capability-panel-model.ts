@@ -11,110 +11,111 @@ import type { Quality } from "@orb/contracts/preset";
 import { QUALITY_LEVELS } from "@orb/contracts/preset";
 import type { SelectItems } from "@orb/ui/select";
 
-// The sampling axis: each entry names the params path it binds, the label, and the capability.sampling
-// key that gates it (renders only when that key carries a Range).
+type Sampling = GenerationCapability["sampling"];
+type NumericSamplingKey = {
+  [K in keyof Sampling]-?: NonNullable<Sampling[K]> extends Range ? K : never;
+}[keyof Sampling];
 
-/** The `PromptConfig.params.*` numeric-knob paths a `KnobRow` may bind — the sampling sliders PLUS the
- *  large-integer rows (output/context/thinking budget) that ride the same grammar at capability-fed ranges
- *  (redesign §4.1's integer arm). ONE tuple: the deck's row component and this model's specs bind from the
- *  same vocabulary, so a knob cannot be given a path no row can render. */
-const KNOB_PARAM_PATHS = [
-  "params.temperature",
-  "params.topP",
-  "params.topK",
-  "params.minP",
-  "params.topA",
-  "params.frequencyPenalty",
-  "params.presencePenalty",
-  "params.repetitionPenalty",
-  "params.maxOutputTokens",
-  "params.maxContextTokens",
-  "params.thinkingBudgetTokens",
-] as const;
-type KnobParamPath = (typeof KNOB_PARAM_PATHS)[number];
+const SPECIAL_KNOB_PARAM_PATHS = ["params.maxOutputTokens", "params.maxContextTokens", "params.thinkingBudgetTokens"] as const;
+type KnobParamPath = `params.${NumericSamplingKey}` | (typeof SPECIAL_KNOB_PARAM_PATHS)[number];
 
-/** The exported carrier for {@link KnobParamPath} — a feature lib may not export a bare `type` alias
- *  (§7.4), so consumers read the path union as `KnobBinding["field"]`. */
+/** Numeric field paths shared by sampling and specialized integer controls. */
 export interface KnobBinding {
   readonly field: KnobParamPath;
 }
 
 interface SamplingKnobSpec {
-  /** The `capability.sampling` key that gates this knob (renders only when it carries a `Range`). It is
-   *  ALSO the `EffectiveKnob` name the effective profile keys its readings by (one spelling, both reads). */
-  readonly key: keyof NonNullable<GenerationCapability["sampling"]>;
-  /** The `params.<field>` path this knob binds (the nested TanStack Form name — a typed literal). */
-  readonly field: KnobParamPath;
-  /** The row's human label. */
+  readonly key: NumericSamplingKey;
+  readonly field: `params.${NumericSamplingKey}`;
   readonly label: string;
-  /** A one-line explainer (the field description). */
+  readonly readoutLabel: string;
+  readonly wire: string;
   readonly description: string;
-  /** Slider step (the knob's granularity — integers use `1`). */
   readonly step: number;
 }
 
-// The Range-bearing sampling knobs, in render order. seed/logitBias/stop are boolean support flags, not
-// sliders — the panel renders them as their own controls when supported.
-const SAMPLING_KNOB_SPECS: readonly SamplingKnobSpec[] = [
-  {
+type SamplingKnobCatalog = {
+  readonly [K in NumericSamplingKey]: SamplingKnobSpec & { readonly key: K; readonly field: `params.${K}` };
+};
+
+// Object insertion order preserves the editor's sampling order.
+const SAMPLING_KNOB_CATALOG = {
+  temperature: {
     key: "temperature",
+    readoutLabel: "temperature",
+    wire: "temperature",
     field: "params.temperature",
     label: "Temperature",
     description: "Higher is more random/creative; lower is more focused/deterministic.",
     step: 0.01,
   },
-  {
+  topP: {
     key: "topP",
+    readoutLabel: "top-p",
+    wire: "top_p",
     field: "params.topP",
     label: "Top-P",
     description: "Nucleus sampling — the cumulative-probability cutoff for candidate tokens.",
     step: 0.01,
   },
-  {
+  topK: {
     key: "topK",
+    readoutLabel: "top-k",
+    wire: "top_k",
     field: "params.topK",
     label: "Top-K",
     description: "Keep only the K most-likely tokens each step (0 = unlimited).",
     step: 1,
   },
-  {
+  minP: {
     key: "minP",
+    readoutLabel: "min-p",
+    wire: "min_p",
     field: "params.minP",
     label: "Min-P",
     description: "Drop tokens below this fraction of the top token's probability (RP-critical).",
     step: 0.01,
   },
-  {
-    // G1 (redesign §10): schema-supported since the knob was minted, with no editor anywhere — the deck's
-    // first honest home for it. Capability-gated like every sibling (OpenRouter advertises `top_a`).
+  topA: {
     key: "topA",
+    readoutLabel: "top-a",
+    wire: "top_a",
     field: "params.topA",
     label: "Top-A",
     description: "Drop tokens whose probability falls below `topA × (top token)²` — an adaptive tail cut.",
     step: 0.01,
   },
-  {
+  frequencyPenalty: {
     key: "frequencyPenalty",
+    readoutLabel: "freq. penalty",
+    wire: "frequency_penalty",
     field: "params.frequencyPenalty",
     label: "Frequency penalty",
     description: "Discourage repeating tokens in proportion to how often they've appeared.",
     step: 0.01,
   },
-  {
+  presencePenalty: {
     key: "presencePenalty",
+    readoutLabel: "presence penalty",
+    wire: "presence_penalty",
     field: "params.presencePenalty",
     label: "Presence penalty",
     description: "Discourage reusing any token that has already appeared at all.",
     step: 0.01,
   },
-  {
+  repetitionPenalty: {
     key: "repetitionPenalty",
+    readoutLabel: "rep. penalty",
+    wire: "repetition_penalty",
     field: "params.repetitionPenalty",
     label: "Repetition penalty",
     description: "A multiplicative penalty on repeated tokens (1 = off).",
     step: 0.01,
   },
-];
+} satisfies SamplingKnobCatalog;
+
+/** Shared sampling metadata for controls, effective readouts and typed stale-value clearing. */
+export const SAMPLING_KNOBS: readonly SamplingKnobSpec[] = Object.values(SAMPLING_KNOB_CATALOG);
 
 /** One renderable sampling knob — a spec PLUS the concrete `Range` the descriptor supplied for it. */
 export interface ResolvedSamplingKnob extends SamplingKnobSpec {
@@ -129,10 +130,9 @@ export interface ResolvedSamplingKnob extends SamplingKnobSpec {
 export function samplingKnobsFor(capability: GenerationCapability): readonly ResolvedSamplingKnob[] {
   const sampling = capability.sampling;
   const knobs: ResolvedSamplingKnob[] = [];
-  for (const spec of SAMPLING_KNOB_SPECS) {
+  for (const spec of SAMPLING_KNOBS) {
     const range = sampling[spec.key];
-    // `sampling.exclusive` is the knob-PAIR list, not a knob — never a slider.
-    if (range !== undefined && typeof range !== "boolean" && !Array.isArray(range)) {
+    if (range !== undefined) {
       knobs.push({ ...spec, range });
     }
   }

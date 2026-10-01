@@ -309,6 +309,8 @@ Per-section grid (end-state; the D62 program builds toward it):
 | Corpus · Labels | the mode switch + the label finder (filter · sort · prune) and the New label primary | label library facts | the autosaving label editor | Usage: labels against generated facets, or the open label's attachments by kind and origin |
 | Refinery | past sessions (default-collapsed) | pick-a-character | pipeline (stepper · assay · issues · compare) | collapsed |
 
+Preset numeric sampling controls, effective labels and unsupported-value clearing share `packages/client/src/features/preset/lib/capability-panel-model.ts`. Its catalog covers every range-bearing sampling capability and binds each key to its matching form field. Specialized reasoning, output and context controls retain their own behavior. Presets own intent; capability evidence, resolution and provider translation remain separate contracts in `packages/inference/`.
+
 **Interaction physics (all six apply):**
 
 1. LIST selection drives CONTENT; CONTEXT follows CONTENT. CONTEXT holds actions ON the artifact, never navigation (§5.1 writer-only).
