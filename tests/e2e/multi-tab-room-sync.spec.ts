@@ -106,6 +106,9 @@ test("a roster change in tab A reaches tab B's open room live (seat added, then 
     // THE load-bearing assertion: tab B never touched anything, yet its OPEN ROOM shows the new member.
     await expect.poll(async () => (await characterChipNames(tabB)).length, { timeout: 15_000 }).toBe(3);
     expect(await characterChipNames(tabB)).toContain(CHARACTERS[2].name);
+    // The multi-add picker remains open intentionally; finish that gesture before using the room again.
+    await tabA.getByPlaceholder("Search characters…", { exact: true }).press("Escape");
+    await expect(tabA.getByPlaceholder("Search characters…", { exact: true })).toBeHidden();
 
     // …and the symmetric drop fans the same way (the seat leaves B's room with no reload).
     await openDetailPanel(tabA);

@@ -17,6 +17,7 @@ export interface StrykerConfigProfile {
 const IGNORE_PATTERNS = [
   ".stryker-tmp/**",
   ".git/**",
+  ".codegraph/**",
   "node_modules/**",
   ".cache/**",
   ".models/**",

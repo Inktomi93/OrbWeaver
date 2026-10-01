@@ -175,6 +175,9 @@ export function batteryCadenceLines(history: readonly RunHistoryEntry[], report:
   }
   const ran = report.stages.some((s) => s.name === BATTERY_STAGE && RAN_MODES.has(s.mode));
   if (ran) {
+    if (report.noVerdict.includes(BATTERY_STAGE)) {
+      return [`[verify] ${BATTERY_STAGE}: RAN but produced NO VERDICT — no complete battery result was collected.`];
+    }
     return [`[verify] ${BATTERY_STAGE}: RAN in this run — the merge train's instrument battery is covered by this verdict (#1983).`];
   }
   const last = lastRanAt(history, BATTERY_STAGE);

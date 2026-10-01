@@ -1,16 +1,6 @@
-// `pnpm check:show`'s FAILED-VERIFY-RUN summary (docs/work item 0267) — every failing stage of the LATEST
-// verify run, with its own transcript's failure lines pulled out, printed before the structure view so one
-// `check:show --errors-only` call after a red `pnpm verify` names every red stage, not only
-// `check:structure`'s. Before this, `--errors-only` read only `reports/check-structure.json`: a run whose
-// `tests:node`, `browser:ct` or another non-structure stage failed printed a clean structure verdict and
-// nothing else — a false clean.
-//
-// WHY A SEPARATE PASS OVER THE LOG, NOT `StageResult.failureExcerpt`. The excerpt is a TAIL of the child's
-// own output (the last few non-blank lines, `ops/run.ts`) — for a tool whose summary block trails its detail
-// (vitest, CT) the tail is the exit-code line, not the finding. This scans the whole transcript for the
-// lines that carry the verdict: the "✗" gate/ratchet/budget rows every one of structure, the CT ratchets,
-// orphan-ratchet and the boot-chunk budget already print, vitest's concise "FAIL" rows, and a boot/webServer
-// timeout, which prints neither glyph.
+// Failed verify stages appear before the structure result, including interrupted test runs.
+// Test-runner verdicts take precedence over intentional negative-fixture diagnostics.
+// The summary is bounded; the stage reader exposes the complete retained transcript.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pointerAdvisories, resolvePointer } from "@orb/tooling/_shared/artifact-pointer";
@@ -22,19 +12,34 @@ import type { ShowInk } from "./show-policy.ts";
 const MARK_LINE = /^\s*✗/u;
 const VITEST_FAIL_LINE = /^\s*FAIL\s+\S/u;
 const BOOT_TIMEOUT_LINE = /timed out waiting.*webserver/iu;
+const VITEST_PROGRESS_FAILURE = /^\s*(?:❯\s+.*\(\d+ tests? \| \d+ failed|×\s+\S)/u;
+const PROCESS_TIMEOUT_LINE = /^\[proc\] TIMED OUT\b/u;
 
 function isFailureLine(line: string): boolean {
   return MARK_LINE.test(line) || VITEST_FAIL_LINE.test(line) || BOOT_TIMEOUT_LINE.test(line);
 }
 
 /** The lines worth showing out of one stage's transcript, capped at `limit`: the matched failure lines when
- *  the log carries any of the three markers above, else the last non-blank lines — the fallback for a stage
+ *  the log carries any of the verdict markers above, else the last non-blank lines — the fallback for a stage
  *  this reader has no extractor for, so a red stage never prints nothing. `more` counts every line the cap
  *  dropped in EITHER branch, so a fallback tail (which drops from the FRONT) reports its drop honestly
  *  instead of always reading zero because the slice already ran before the count did. */
 function stageFailureLines(text: string, limit: number): { readonly shown: readonly string[]; readonly more: number } {
   const lines = text.split(/\r?\n/u);
-  const matched = lines.filter(isFailureLine).map((l) => l.trim());
+  const hasFinalFailures = lines.some((line) => VITEST_FAIL_LINE.test(line));
+  const hasProgressFailures = lines.some((line) => VITEST_PROGRESS_FAILURE.test(line));
+  const matched = lines
+    .filter((line) => {
+      if (PROCESS_TIMEOUT_LINE.test(line)) {
+        return true;
+      }
+      // Tool tests deliberately print failing gate diagnostics; Vitest owns their actual verdicts.
+      if (hasFinalFailures) {
+        return VITEST_FAIL_LINE.test(line);
+      }
+      return hasProgressFailures ? VITEST_PROGRESS_FAILURE.test(line) : isFailureLine(line);
+    })
+    .map((line) => line.trim());
   if (matched.length > 0) {
     return { shown: matched.slice(0, limit), more: Math.max(0, matched.length - limit) };
   }

@@ -358,3 +358,28 @@ test("the flag does NOT go up while a boot-critical DEPENDENT read is still pend
   await expect(page.locator(READY_FLAG)).toHaveCount(1);
   await expect(page.locator("html")).toHaveAttribute("data-app-ready", "");
 });
+
+test("degraded readiness recovers when a late initial read settles", async ({ mount, page }) => {
+  await mount(<AppReadySignalStory />);
+  await expect(page.locator(READY_FLAG)).toHaveAttribute("data-app-ready", "degraded", { timeout: 25_000 });
+  await page.getByRole("button", { name: "land the read" }).click();
+  await expect(page.locator(READY_FLAG)).toHaveAttribute("data-app-ready", "");
+});
+
+test("degraded readiness recovers only after the late route and its read settle", async ({ mount, page }) => {
+  await mount(<AppReadyRouteResolutionStory />);
+  await expect(page.locator(READY_FLAG)).toHaveAttribute("data-app-ready", "degraded", { timeout: 25_000 });
+  await page.getByRole("button", { name: "resolve the route" }).click();
+  await expect(page.getByTestId("route-mounted")).toBeVisible();
+  await expect(page.locator(READY_FLAG)).toHaveAttribute("data-app-ready", "degraded");
+  await page.getByRole("button", { name: "land the read" }).click();
+  await expect(page.locator(READY_FLAG)).toHaveAttribute("data-app-ready", "");
+});
+
+test("degraded readiness recovers only after the boot-critical dependent read settles", async ({ mount, page }) => {
+  await mount(<AppReadyBootReadStory />);
+  await page.getByRole("button", { name: "land the parent read" }).click();
+  await expect(page.locator(READY_FLAG)).toHaveAttribute("data-app-ready", "degraded", { timeout: 25_000 });
+  await page.getByRole("button", { name: "resolve the dependent read" }).click();
+  await expect(page.locator(READY_FLAG)).toHaveAttribute("data-app-ready", "");
+});
