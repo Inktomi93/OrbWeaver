@@ -1,3 +1,4 @@
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { waitFrames } from "../../../support/browser/weave-drive.ts";
 import { WeaveBox } from "./web-weave.fixtures.tsx";
@@ -50,7 +51,10 @@ test("moving glow reuses baked sprites and rebakes on palette changes", async ({
     .toBe(true);
   await waitFrames(page, 12);
   await expect(page.locator("html")).toHaveAttribute(BAKED_BLURS, "3");
-  await page.evaluate(() => document.documentElement.style.setProperty("--color-primary", "rgb(20, 150, 240)"));
+  await page.evaluate(({ name, value }) => document.documentElement.style.setProperty(name, value), {
+    name: TOKENS["color.primary"].cssVar,
+    value: TOKENS["color.sky-day"].value,
+  });
   await waitFrames(page, 3);
   await expect(page.locator("html")).toHaveAttribute(BAKED_BLURS, "6");
   await expect(page.locator("html")).toHaveAttribute(LIVE_BLURS, "0");
