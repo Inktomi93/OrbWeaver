@@ -70,11 +70,13 @@ export function CorpusListSurfaceStory(): ReactElement {
  *  module publishes components to the CT loader, and this one rides inside {@link CorpusListSurfaceNavStory}. */
 function NavReadout(): ReactElement {
   const destination = useSelectedCorpusDestination();
+  const moment = useChatMoment(useActiveChatId());
   return (
     <>
       <div data-testid="ct-nav-readout">
         section:{useActiveSection()} chat:{useActiveChatId() ?? "none"} artifact:{destination?.kind ?? "none"}
       </div>
+      <output data-testid="ct-source-readout">{moment === null ? "none" : JSON.stringify(moment.target)}</output>
       <output data-testid="ct-artifact-identity">{destination === null ? "none" : corpusDestinationIdentity(destination)}</output>
     </>
   );

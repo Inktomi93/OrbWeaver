@@ -34,7 +34,7 @@ import type {
   CharacterCardHit,
   CorpusHit,
   DigestSearchHit,
-  DiscoverCharacter,
+  DiscoverResult,
   DocumentChunkHit,
   FieldSearchResult,
   ImageSearchHit,
@@ -98,7 +98,7 @@ export interface SearchService {
   /** score is a BM25 score (higher = better). */
   readonly fields: (params: FieldSearchParams) => Promise<FieldSearchResult>;
   readonly suggest: (params: SuggestParams) => Promise<SearchSuggestion[]>;
-  readonly discover: (params: DiscoverParams) => Promise<DiscoverCharacter[]>;
+  readonly discover: (params: DiscoverParams) => Promise<DiscoverResult>;
   /** The databank RAG lens (DB5): scope-gated cosine retrieval over `document_chunks`, reading-order
    *  restored. Scope resolves through the injected `resolveActiveDocumentIds` — an empty bank short-circuits
    *  with ZERO embed calls. */

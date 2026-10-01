@@ -1,26 +1,25 @@
-// domain/search/verbs/corpus — cross-chat hybrid corpus retrieval ("where across all my chats did X
-// happen"). Pipeline: embed queryText → owner-wide cosine scan of both lenses → minScore floor → CSLS
-// hub-adjust → joint rerank across lenses (mode mixC) → block-level dedupe → content-hash collapse (after
-// rank, before any k-cap). Owner-derived via characters.ownerId, never chats.ownerId/chat_participants.
-// A segment forms a BlockKey only by matching a tier-0 digest of the same (chatId, blockIdx); unmatched
-// verbatim is dropped: a segment-only block (no digest yet) is not surfaced by corpus (docs/work/0122).
-
-import type { BlockKey } from "@orb/contracts/search";
+// Joint host-scoped digest and transcript retrieval preserves genuine source identity (D16/D20).
+import type { BlockKey, CorpusSource } from "@orb/contracts/search";
 import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { CorpusParams } from "../contract/params.ts";
 import type { CorpusHit } from "../contract/results.ts";
 import type { SearchService } from "../contract/service.ts";
-import { nearestDigests, nearestSegments } from "../persistence/digest-rows.ts";
+import { hostedChatIds, nearestDigests, nearestSegments, segmentBlockKeys } from "../persistence/digest-rows.ts";
+import { resolveChatDisplay } from "../persistence/display.ts";
+import { readSourceAnchors } from "../persistence/source.ts";
 import { SCOPED_POOL_K } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
-import { blockKeyStr, collapseByContentHash, dedupeRankedBlocks } from "../substrate/dedupe.ts";
+import { blockKeyStr, collapseByContentHash } from "../substrate/dedupe.ts";
 import { applyRerank } from "../substrate/rerank.ts";
 import { withActiveQuerySpace } from "../substrate/space.ts";
+import { createDigestSourceCoverage } from "./digest-sources.ts";
 
 interface CorpusCandidate {
   readonly id: string;
-  readonly blockKey: BlockKey;
+  readonly blockKeys: readonly BlockKey[];
+  readonly source: CorpusSource;
+  readonly slot: string;
   readonly sourceText: string;
   readonly contentHash: string;
   readonly distance: number;
@@ -33,6 +32,7 @@ function blockSlot(chatId: BlockKey["chatId"], blockIdx: number): string {
 }
 
 export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
+  const coverage = createDigestSourceCoverage(ctx);
   return async (params: CorpusParams): Promise<CorpusHit[]> => {
     const text = params.queryText;
     const rc = await ctx.roleClientsFor(params.ownerId);
@@ -56,25 +56,24 @@ export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
           limit: SCOPED_POOL_K,
         })
       ).filter((r) => 1 - r.distance >= params.minScore);
-      if (digestPool.length === 0) {
-        return [];
-      }
-
-      const tier0ByBlock = new Map<string, BlockKey[]>();
       const digestCandidates = digestPool.map((d): CorpusCandidate => {
-        const blockKey: BlockKey = {
-          chatId: d.chatId,
-          tier: d.tier,
-          blockIdx: d.blockIdx,
-          scopedCharacterId: d.scopedCharacterId,
-        };
-        if (d.tier === 0) {
-          const slot = blockSlot(d.chatId, d.blockIdx);
-          tier0ByBlock.set(slot, [...(tier0ByBlock.get(slot) ?? []), blockKey]);
-        }
+        const blockKey: BlockKey = { chatId: d.chatId, tier: d.tier, blockIdx: d.blockIdx, scopedCharacterId: d.scopedCharacterId };
         return {
           id: `d|${blockKeyStr(blockKey)}`,
-          blockKey,
+          blockKeys: [blockKey],
+          slot: blockKeyStr(blockKey),
+          source: {
+            kind: "digest",
+            rowId: d.rowId,
+            generationId: d.generationId,
+            fingerprint: d.fingerprint,
+            contentHash: d.contentHash,
+            ...blockKey,
+            seqStart: null,
+            seqEnd: null,
+            messageStartId: null,
+            messageEndId: null,
+          },
           sourceText: d.text,
           contentHash: d.contentHash,
           distance: d.distance,
@@ -83,29 +82,41 @@ export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
         };
       });
 
-      const ownerChatIds = [...new Set(digestPool.map((d) => d.chatId))];
+      const chatIds = await hostedChatIds(ctx.db, params.ownerId);
       const segmentPool = (
-        await nearestSegments(ctx.db, {
-          queryVector,
-          model,
-          generationId: space.generationId,
-          chatIds: ownerChatIds,
-          limit: SCOPED_POOL_K,
-        })
-      ).filter((r) => 1 - r.distance >= params.minScore);
-      const segmentCandidates = segmentPool.flatMap((s): CorpusCandidate[] => {
-        const matches = tier0ByBlock.get(blockSlot(s.chatId, s.blockIdx)) ?? [];
-        const score = cslsAdjust(s.distance, s.hubScore);
-        return matches.map((blockKey) => ({
-          id: `s|${blockKeyStr(blockKey)}`,
-          blockKey,
+        await nearestSegments(ctx.db, { queryVector, model, generationId: space.generationId, ownerId: params.ownerId, chatIds, limit: SCOPED_POOL_K })
+      ).filter((row) => 1 - row.distance >= params.minScore);
+      const tier0ByBlock = new Map<string, BlockKey[]>();
+      for (const key of await segmentBlockKeys(ctx.db, { ownerId: params.ownerId, model, generationId: space.generationId, segments: segmentPool })) {
+        const slot = blockSlot(key.chatId, key.blockIdx);
+        tier0ByBlock.set(slot, [...(tier0ByBlock.get(slot) ?? []), key]);
+      }
+      const segmentCandidates = segmentPool.map(
+        (s): CorpusCandidate => ({
+          id: `s|${s.rowId}`,
+          blockKeys: tier0ByBlock.get(blockSlot(s.chatId, s.blockIdx)) ?? [],
+          slot: blockSlot(s.chatId, s.blockIdx),
+          source: {
+            kind: "segment",
+            rowId: s.rowId,
+            generationId: s.generationId,
+            fingerprint: s.fingerprint,
+            contentHash: s.contentHash,
+            chatId: s.chatId,
+            blockIdx: s.blockIdx,
+            chunkIdx: s.chunkIdx,
+            seqStart: s.seqStart,
+            seqEnd: s.seqEnd,
+            messageStartId: null,
+            messageEndId: null,
+          },
           sourceText: s.text,
           contentHash: s.contentHash,
           distance: s.distance,
           hubScore: s.hubScore,
-          score,
-        }));
-      });
+          score: cslsAdjust(s.distance, s.hubScore),
+        }),
+      );
 
       const candidates = [...digestCandidates, ...segmentCandidates];
       const ranked =
@@ -118,8 +129,40 @@ export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
               ),
             );
 
-      const collapsed = collapseByContentHash(dedupeRankedBlocks(ranked));
-      return collapsed.map((c) => ({ blockKey: c.blockKey, score: c.score, text: c.sourceText }));
+      const seen = new Set<string>();
+      const deduped = ranked.flatMap((candidate): CorpusCandidate[] => {
+        const keys = candidate.blockKeys.map(blockKeyStr);
+        if (keys.length === 0) {
+          keys.push(candidate.slot);
+        }
+        if (keys.every((key) => seen.has(key))) {
+          return [];
+        }
+        const blockKeys = candidate.blockKeys.filter((key) => !seen.has(blockKeyStr(key)));
+        for (const key of keys) {
+          seen.add(key);
+        }
+        return [{ ...candidate, blockKeys }];
+      });
+      const collapsed = collapseByContentHash(deduped);
+      const titles = new Map(
+        (await resolveChatDisplay(ctx.db, [...new Set(collapsed.map((candidate) => candidate.source.chatId))])).map((row) => [row.chatId, row.title]),
+      );
+      return await Promise.all(
+        collapsed.map(async (candidate) => ({
+          source: {
+            ...candidate.source,
+            ...(candidate.source.kind === "digest"
+              ? await coverage(candidate.source, 0)
+              : await readSourceAnchors(ctx.db, candidate.source.chatId, candidate.source)),
+          },
+          blockKeys: candidate.blockKeys,
+          score: candidate.score,
+          relevance: 1 - candidate.distance,
+          text: candidate.sourceText,
+          chatTitle: titles.get(candidate.source.chatId) ?? null,
+        })),
+      );
     });
   };
 }

@@ -1,20 +1,4 @@
-// verb: corpus — the D20 §2 ORDERING invariant: owner-scope is applied BEFORE cosine rank AND before the
-// content-hash collapse, so a same-content block from ANOTHER owner can never (a) collapse the caller's
-// in-scope block out of the result, nor (b) leak its text in as the surviving representative.
-//
-// The existing corpus.int.test.ts proves owner-scope exclusion AND content-hash collapse INDEPENDENTLY.
-// This proves their INTERACTION, which is the actual security claim (D20: "a same-content block from
-// another user can never collapse into the caller's result set"). The discriminator: the foreign row is
-// made STRICTLY MORE similar than the in-scope row AND shares its contentHash — so if scope ran AFTER
-// collapse, the better-ranked foreign copy would be the surviving representative and the in-scope block
-// would be dropped (a leak + a displacement). Because scope is a SQL belt on the pool (nearestDigests
-// ownerId → producer-card JOIN), the foreign row never enters the pool, so the in-scope block survives.
-//
-// Similarity control: the query embeds to vec(1). The foreign digest is vec(1) (cosine distance 0 — the
-// BEST possible rank); the in-scope digest is vec(1, 0.05) (a hair off-axis → cosine sim < 1 → a strictly
-// worse rank). mixB (no rerank) so the cosine order is the whole story. Deterministic embed via the
-// scripted role-clients; real :memory: db.
-
+// D20: scope excludes a closer foreign copy before ranking and content-hash collapse.
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -64,7 +48,7 @@ describe("corpus — D20 scope precedes rank/collapse", () => {
     // Exactly the in-scope block survives — the better-ranked foreign copy is gone BEFORE collapse.
     expect(hits).toHaveLength(1);
     expect(hits[0]?.text).toBe("MINE");
-    expect(hits[0]?.blockKey.scopedCharacterId).toBe(mine);
+    expect(hits[0]?.blockKeys[0]?.scopedCharacterId).toBe(mine);
     // No foreign text leaks under any lens.
     expect(hits.map((h) => h.text)).not.toContain("FOREIGN");
   });

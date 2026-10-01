@@ -1,8 +1,4 @@
-// persistence: digest-rows — the raw digest/segment vector scans (the digest/segment analogues of
-// nearest.ts; the `vector_distance_cos` sites). Asserts ascending-by-distance ordering, the SPACE belt
-// (a different-`model` row never returned), the cross-chat OWNER belt (derived via the producer card — a
-// foreign owner's digest is never returned), the within-chat belt, and the candidate restriction.
-
+// Raw digest and segment scans retain distance order, space, current host, and candidate scope.
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -32,6 +28,7 @@ describe("nearestDigests", () => {
 
     const rows = await nearestDigests(db, {
       queryVector: vec(1),
+      ownerId: owner,
       model: EMBED_MODEL,
       chatIds: [chat],
       limit: 10,
@@ -62,6 +59,7 @@ describe("nearestDigests", () => {
 
     const rows = await nearestDigests(db, {
       queryVector: vec(1),
+      ownerId: owner,
       model: EMBED_MODEL,
       chatIds: [chat],
       limit: 10,
@@ -97,8 +95,8 @@ describe("nearestDigests", () => {
 
     const rows = await nearestDigests(db, {
       queryVector: vec(1),
-      model: EMBED_MODEL,
       ownerId: owner,
+      model: EMBED_MODEL,
       limit: 10,
     });
 
@@ -125,6 +123,7 @@ describe("nearestSegments", () => {
 
     const rows = await nearestSegments(db, {
       queryVector: vec(1),
+      ownerId: owner,
       model: EMBED_MODEL,
       chatIds: [chat],
       limit: 10,

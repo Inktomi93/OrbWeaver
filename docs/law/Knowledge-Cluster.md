@@ -71,3 +71,15 @@ Default-content vectors enter through the injected lookup in `embeddings.store`.
 Image indexing and captioning follow `EMBEDDABLE_ASSET_KINDS` in `packages/contracts/src/assets/index.ts`. Events and sweeps share preparation and coalesce work before captioning or embedding. Reclaim disallowed image vectors without deleting the original assets.
 
 Automatic indexing reads effective configuration when scheduling work. Enabling indexing runs the existing catch-up path; disabling it prevents new automatic work. Seed a missing image-embedding binding through the existing local connection, preserving every existing binding, including explicit null opt-outs.
+
+## Derived retrieval and transcript sources
+
+Room-derived retrieval requires current host membership (D16/D20). Character ownership grants no room authority. Search applies this scope before ranking and collapse.
+
+Corpus and Scenes retrieve indexed transcript segments independently of digest candidates. A segment keeps its own source identity when no digest credits its block.
+
+Source identity retains the row, generation, fingerprint, content hash, and producer span. Chat resolves transcript destinations through authorized canon and history projection.
+
+Stable message endpoints supplement producer sequence spans. Readers resolve those endpoints instead of calculating message positions from block indices.
+
+The memory bridge projects only stored digest block identities. Standalone transcript search does not invent a memory perspective.

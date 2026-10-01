@@ -1,8 +1,4 @@
-// persistence: scope — the chat-memory scope SQL-fragment builders. Asserts the belts in isolation by
-// running a real select with the built condition: the digest candidate restriction matches the full
-// `(chatId, scopedCharacterId, tier, blockIdx)` key, the owner belt (via the producer-card JOIN) excludes a
-// foreign owner, and the segment candidate restriction matches on `(chatId, blockIdx)`.
-
+// SQL scope resolves room authority from current host membership before applying block restrictions.
 import { characters, chatDigests, chatSegments } from "@orb/db";
 import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -35,6 +31,7 @@ describe("digestScopeCond", () => {
     });
 
     const cond = digestScopeCond({
+      ownerId: owner,
       model: EMBED_MODEL,
       chatIds: [chat],
       candidates: [{ chatId: chat, tier: 0, blockIdx: 0, scopedCharacterId: x }],
@@ -59,6 +56,7 @@ describe("digestScopeCond", () => {
       name: "Theirs",
     });
     const chat = await seedChat(db, "chat_a");
+    const otherChat = await seedChat(db, "chat_other");
     await seedChatDigest(db, {
       chatId: chat,
       scopedCharacterId: mine,
@@ -66,7 +64,7 @@ describe("digestScopeCond", () => {
       embedding: vec(1),
     });
     await seedChatDigest(db, {
-      chatId: chat,
+      chatId: otherChat,
       scopedCharacterId: theirs,
       blockIdx: 1,
       embedding: vec(1),
@@ -94,6 +92,7 @@ describe("segmentScopeCond", () => {
 
     // The segment candidate ignores scopedCharacterId — it keys on (chatId, blockIdx) only.
     const cond = segmentScopeCond({
+      ownerId: owner,
       model: EMBED_MODEL,
       chatIds: [chat],
       candidates: [

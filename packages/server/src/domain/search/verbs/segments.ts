@@ -50,6 +50,7 @@ export function createSegments(ctx: SearchContext): SearchService["segments"] {
 
       const pool = await nearestSegments(ctx.db, {
         queryVector,
+        ownerId: params.ownerId,
         model: space.model,
         generationId: space.generationId,
         chatIds: [params.scope.chat],

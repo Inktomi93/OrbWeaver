@@ -1,11 +1,5 @@
-// domain/search/persistence/display — display-enrichment JOINs, queries only.
-//
-// resolveSegmentDisplay's segment→character credit rule: a chat_segments block carries no character column,
-// so a lived-scene segment (chatId, blockIdx) is credited via its tier-0 chat_digests sibling, two ways
-// (unioned + deduped): co-star (every real speaker of the block's digests) and scoped-producer fallback
-// (the digest's own scopedCharacterId). A block with no tier-0 digest yet cannot be credited (shared
-// limitation with corpus).
-
+// Segment character credit derives from tier-zero digest speakers and scoped producers.
+// Uncredited passages remain transcript search results.
 import type { ReadOnlyDb } from "@orb/db";
 import { assets, characterSummaries, characters, chatDigestSpeakers, chatDigests, chats } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
@@ -88,16 +82,8 @@ interface ChatDisplayRow {
   readonly title: string | null;
 }
 
-/**
- * The authored titles of the chats a set of hits came from, for the row subtitle (corpus forensics R1a).
- *
- * SCOPE: the caller passes ids that ALREADY came out of an owner-belted scan (the digest scan's
- * characters-join belt, or discover's owned-chat set), so this is a display join over ids the principal has
- * been served, never a lookup that could name a stranger's room — `chats` carries no ownerId to belt against
- * (D18: membership is the scope) and a second membership read here would re-answer a question the scan
- * already answered. An unnamed room stores `""` as often as NULL, so the empty string normalizes to null and
- * the client's ONE title chain (`deriveChatTitle`) decides what an unnamed room reads as.
- */
+/** Resolve titles only for ids from current-host-authorized source reads or scans (D18).
+ * Empty authored titles normalize to null for the client's title chain. */
 export async function resolveChatDisplay(db: ReadOnlyDb, chatIds: readonly ChatId[]): Promise<ChatDisplayRow[]> {
   if (chatIds.length === 0) {
     return [];

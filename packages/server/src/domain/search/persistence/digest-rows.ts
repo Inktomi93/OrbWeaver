@@ -1,13 +1,9 @@
-// domain/search/persistence/digest-rows — raw chat-memory vector scans. Digest/segment analogues of
-// nearest.ts: same vector_distance_cos + vector32(?) F32-blob pattern, same scope-belt-in-the-WHERE
-// discipline. Queries only. Owner-scope derives via the digest scan inner-joining characters on
-// scopedCharacterId — never chats, never users.
-
+// Ranked digest and segment pools enforce current host scope in SQL before any limit.
 import type { BlockKey } from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
-import { characters, chatDigests, chatSegments, embedGenerations } from "@orb/db";
+import { chatDigests, chatParticipants, chatSegments, embedGenerations } from "@orb/db";
 import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { toVectorBlob } from "./nearest.ts";
 import { digestScopeCond, segmentScopeCond } from "./scope.ts";
 
@@ -31,10 +27,10 @@ interface NearestDigestsParams {
   readonly model: string;
   readonly generationId?: EmbedGenerationId | undefined;
   readonly chatIds?: readonly ChatId[] | undefined;
-  readonly ownerId?: UserId | undefined;
+  readonly ownerId: UserId;
   readonly scopedCharacterId?: CharacterId | undefined;
   /** By-character cross-chat scope: scoped-producer OR present-as-speaker (the chat_digest_speakers
-   *  OR-branch). Owner-belt still applies via the characters join. */
+   *  OR-branch). Current host membership still bounds the pool. */
   readonly speakerCharacterId?: CharacterId | undefined;
   readonly candidates?: readonly BlockKey[] | undefined;
   readonly limit: number;
@@ -59,7 +55,6 @@ export async function nearestDigests(db: ReadOnlyDb, params: NearestDigestsParam
     })
     .from(chatDigests)
     .leftJoin(embedGenerations, eq(embedGenerations.id, chatDigests.generationId))
-    .innerJoin(characters, eq(chatDigests.scopedCharacterId, characters.id))
     .where(
       digestScopeCond({
         model: params.model,
@@ -76,18 +71,38 @@ export async function nearestDigests(db: ReadOnlyDb, params: NearestDigestsParam
   return rows;
 }
 
-/** The owner's materialized chat set, bounding discover's verbatim segment scan (which has no owner column).
- *  groupBy yields the distinct set (ReadOnlyDb has no selectDistinct). */
-export async function ownedChatIds(db: ReadOnlyDb, ownerId: UserId, model: string, generationId?: EmbedGenerationId): Promise<ChatId[]> {
+/** Current hosted rooms, independent of whether a digest has been indexed. */
+export async function hostedChatIds(db: ReadOnlyDb, ownerId: UserId): Promise<ChatId[]> {
   const rows = await db
-    .select({ chatId: chatDigests.chatId })
+    .select({ chatId: chatParticipants.chatId })
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.userId, ownerId), eq(chatParticipants.kind, "human"), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)));
+  return rows.map((row) => row.chatId);
+}
+
+/** Segment recall identities come from stored tier-zero digests, never from a fabricated POV. */
+export async function segmentBlockKeys(
+  db: ReadOnlyDb,
+  params: {
+    readonly ownerId: UserId;
+    readonly model: string;
+    readonly generationId?: EmbedGenerationId | undefined;
+    readonly segments: readonly { readonly chatId: ChatId; readonly blockIdx: number }[];
+  },
+): Promise<BlockKey[]> {
+  if (params.segments.length === 0) {
+    return [];
+  }
+  return await db
+    .select({ chatId: chatDigests.chatId, scopedCharacterId: chatDigests.scopedCharacterId, tier: chatDigests.tier, blockIdx: chatDigests.blockIdx })
     .from(chatDigests)
-    .innerJoin(characters, eq(chatDigests.scopedCharacterId, characters.id))
     .where(
-      and(eq(chatDigests.model, model), generationId === undefined ? undefined : eq(chatDigests.generationId, generationId), eq(characters.ownerId, ownerId)),
-    )
-    .groupBy(chatDigests.chatId);
-  return rows.map((r) => r.chatId);
+      and(
+        digestScopeCond(params),
+        eq(chatDigests.tier, 0),
+        or(...params.segments.map((segment) => and(eq(chatDigests.chatId, segment.chatId), eq(chatDigests.blockIdx, segment.blockIdx)))),
+      ),
+    );
 }
 
 interface NearestSegment {
@@ -106,6 +121,7 @@ interface NearestSegment {
 }
 
 interface NearestSegmentsParams {
+  readonly ownerId: UserId;
   readonly queryVector: Float32Array;
   readonly model: string;
   readonly generationId?: EmbedGenerationId | undefined;
@@ -135,6 +151,7 @@ export async function nearestSegments(db: ReadOnlyDb, params: NearestSegmentsPar
     .leftJoin(embedGenerations, eq(embedGenerations.id, chatSegments.generationId))
     .where(
       segmentScopeCond({
+        ownerId: params.ownerId,
         model: params.model,
         generationId: params.generationId,
         chatIds: params.chatIds,

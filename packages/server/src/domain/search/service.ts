@@ -44,8 +44,6 @@ export function createSearchService(ctx: SearchContext): SearchService {
     documents,
     similarCharacters: createSimilarCharacters(ctx),
     similarArt: createSimilarArt(ctx),
-    // The unified dispatch closes over the owner-wide card/corpus/image verbs + segments + documents (digests
-    // route through the dispatch's own owner-belted scan, not the un-belted memory `digests` verb).
     search: createSearch(ctx, { knn, findCharacters, discover, corpus, images, segments, documents }, createDigestSourceCoverage(ctx)),
   };
 }

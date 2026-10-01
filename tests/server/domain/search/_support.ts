@@ -539,11 +539,23 @@ interface SeedDigestOverrides {
   readonly keywords?: readonly string[];
 }
 
+/** Legacy vector fixtures represent hosted rooms; explicit rosters remain authoritative. */
+async function seedVectorHost(db: Db, chatId: ChatId, ownerId: UserId): Promise<void> {
+  const rows = await db.select({ id: chatParticipants.id }).from(chatParticipants).where(eq(chatParticipants.chatId, chatId)).limit(1);
+  if (rows.length === 0) {
+    await db
+      .insert(chatParticipants)
+      .values({ id: castId<ChatParticipantId>(`chatpart_${chatId}_${ownerId}`), chatId, kind: "human", userId: ownerId, role: "host", joinSeq: 0 })
+      .onConflictDoNothing();
+  }
+}
+
 /** Insert a `chat_digests` row (the distilled lens `digests`/`corpus` scan). */
 export async function seedChatDigest(db: Db, o: SeedDigestOverrides): Promise<ChatDigestId> {
   const id = castId<ChatDigestId>(o.id ?? `chat_digest_${o.chatId}_${o.scopedCharacterId}_${o.tier ?? 0}_${o.blockIdx}`);
   const model = o.model ?? EMBED_MODEL;
   const ownerId = ownerOf(await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, o.scopedCharacterId)), o.scopedCharacterId);
+  await seedVectorHost(db, o.chatId, ownerId);
   const generationId = await seedGeneration(db, ownerId, "embed", model);
   await db.insert(chatDigests).values({
     id,
@@ -583,7 +595,9 @@ export async function seedChatSegment(db: Db, o: SeedSegmentOverrides): Promise<
   const chunkIdx = o.chunkIdx ?? 0;
   const id = castId<ChatSegmentId>(o.id ?? `chat_segment_${o.chatId}_${o.blockIdx}_${chunkIdx}`);
   const model = o.model ?? EMBED_MODEL;
-  const generationId = await seedGeneration(db, await chatOwner(db, o.chatId, model), "embed", model);
+  const ownerId = await chatOwner(db, o.chatId, model);
+  await seedVectorHost(db, o.chatId, ownerId);
+  const generationId = await seedGeneration(db, ownerId, "embed", model);
   await db.insert(chatSegments).values({
     id,
     chatId: o.chatId,
