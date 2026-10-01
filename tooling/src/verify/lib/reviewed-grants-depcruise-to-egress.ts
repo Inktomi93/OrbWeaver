@@ -28,10 +28,7 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
   {
     id: "depcruise-grant-liveness:quickjs-wasm-url",
     policyId: "depcruise-grant-liveness",
-    // POSITIONAL, SO IT MOVES WHEN A `forbidden` RULE LANDS OR LEAVES ABOVE IT: the row goes stale by index
-    // while its pattern stays live. Re-derive the index from the unbound finding's own subject rather than
-    // counting rules by hand.
-    subject: "config.forbidden[69].to.pathNot[0]",
+    subject: "config.forbidden:not-to-unresolvable.to.pathNot[0]",
     operation: 'depcruise-zero-member-pattern:"^@jitl/quickjs-ng-wasmfile-release-sync/wasm\\\\?url$"',
     why: "a vite ASSET QUERY specifier (`?url`), not a module path and not a repo file: its member set is what the bundler emits at build time, which no static tree read can enumerate — dep-cruiser matches it only as an unresolvable-import exemption. Migrated from the retired gate-local RATIFIED row (#1922 / #2176), whose cite `packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts` (the one importer that makes it live) is no longer liveness-checked by anything (successor citation check: #2349).",
     endsWhen:

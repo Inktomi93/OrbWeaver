@@ -13,7 +13,7 @@ import type {
   UnresolvedReferenceFact,
 } from "./reference-fact-contract.ts";
 import { resolveGlobalMemberOriginWith } from "./reference-fact-global.ts";
-import { readMemberReferenceWith } from "./reference-fact-member.ts";
+import { readMemberAccessWith, readMemberReferenceWith } from "./reference-fact-member.ts";
 import { resolveModuleMemberOriginWith } from "./reference-fact-module.ts";
 import { reassignedReferenceSymbols, writtenReferenceSymbols } from "./reference-fact-writes.ts";
 
@@ -384,6 +384,11 @@ function computedName(node: MorphNode, target: ResolutionState): ReferenceFact<s
 
 export function readMemberReference(node: MorphNode): ReferenceFact<MemberReference> {
   return readMemberReferenceWith(node, { unwrapExpression, readComputedName: (member) => computedName(member, state()) });
+}
+
+/** Read a static member's syntax, including assignment, update and delete targets; identity is separate. */
+export function readMemberAccess(node: MorphNode): ReferenceFact<MemberReference> {
+  return readMemberAccessWith(node, { unwrapExpression, readComputedName: (member) => computedName(member, state()) });
 }
 
 function declarationOf(identifier: Identifier): ReferenceFact<MorphNode> {

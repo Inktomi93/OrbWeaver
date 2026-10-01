@@ -18,6 +18,12 @@ export function readMemberReferenceWith(node: MorphNode, services: MemberResolut
       trace: { declarations: [], origin: access },
     };
   }
+  return readMemberAccessWith(node, services);
+}
+
+/** Normalize member syntax without asserting that its value is read rather than written. */
+export function readMemberAccessWith(node: MorphNode, services: MemberResolutionServices): ReferenceFact<MemberReference> {
+  const access = services.unwrapExpression(node);
   if (Node.isPropertyAccessExpression(access)) {
     const nameNode = access.getNameNode();
     return {

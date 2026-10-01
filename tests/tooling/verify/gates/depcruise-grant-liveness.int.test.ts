@@ -34,9 +34,13 @@
 // complete, 210 native-config rows + 9 package facts over 9,426 tracked files), and a dead file-exact
 // `from.path` row planted in the real `.dependency-cruiser.cjs` was reported by the mixed run, then restored —
 // receipt in the deleting commit. The runnability arms stay.
+import { readFileSync } from "node:fs";
 import { Project } from "ts-morph";
-import { classifyRegex, gate } from "../../../../tooling/src/verify/gates/depcruise-grant-liveness.ts";
+import { classifyRegex, gate, selectorIdentity } from "../../../../tooling/src/verify/gates/depcruise-grant-liveness.ts";
+import { readConfigSnapshot } from "../../../../tooling/src/verify/lib/config-snapshot.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
+import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -78,4 +82,41 @@ test("the REAL repository root: this hard policy resolves and runs to a receipte
   expect(result.waiverCarrierRefusals).toEqual([]);
   // The real-tree VERDICT (zero effective findings) is no longer asserted here: the mixed front door runs this
   // policy on the real corpus on every `pnpm check:structure` and owns that verdict — see the header.
+});
+
+test("the actual WASM grant survives insertion above its named forbidden rule", { timeout: scaledBudget(60_000) }, ({ repoRoot }) => {
+  const grant = REVIEWED_GRANTS.find(({ id }) => id === "depcruise-grant-liveness:quickjs-wasm-url");
+  expect(grant).toBeDefined();
+  const config = readFileSync(`${repoRoot}/.dependency-cruiser.cjs`, "utf8");
+  const anchor = "forbidden: [";
+  expect(config.split(anchor)).toHaveLength(2);
+  const inserted = config.replace(anchor, `${anchor}\n { name: "gate-gap-inserted", from: { path: "^packages/kit/" }, to: {} },`);
+  const snapshot = readConfigSnapshot(repoRoot, "depcruise", ".dependency-cruiser.cjs", { overlay: { ".dependency-cruiser.cjs": inserted } });
+  expect(snapshot.kind).toBe("ok");
+  if (snapshot.kind !== "ok" || grant === undefined) {
+    throw new Error("the native configuration or central grant did not resolve");
+  }
+  const selector = snapshot.snapshot.selectors.find(({ value }) => grant.operation === `depcruise-zero-member-pattern:${JSON.stringify(value)}`);
+  expect(selector).toBeDefined();
+  if (selector === undefined) {
+    throw new Error("the WASM selector disappeared");
+  }
+  expect(selectorIdentity(selector)).toBe(grant.subject);
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: repoRoot,
+    project: new Project({ useInMemoryFileSystem: true }),
+    resourceOptions: { overlay: { ".dependency-cruiser.cjs": inserted } },
+    reviewedGrants: [grant],
+    failOnWarnings: false,
+  });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.grantedFindings.map(({ grantId }) => grantId)).toEqual([grant.id]);
+  expect(result.authority.authorityAlarms).toEqual([]);
+  expect(result.authority.effectiveFindings.some(({ subject }) => subject === grant.subject)).toBe(false);
+});
+
+test("depcruise selector witnesses and refusals retain their native-config contract", { timeout: scaledBudget(60_000) }, () => {
+  expect(verifyPolicyProofs([gate])).toEqual([]);
 });

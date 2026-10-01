@@ -52,9 +52,15 @@ export type AuthoredPathIdentity = {
   readonly form: AuthoredPathSelectorForm;
 } & (
   | {
-      readonly status: "file" | "directory" | "absent";
+      readonly status: "file" | "directory";
       /** Repo-relative normalization of `selector`; `.` names the repository root itself. */
       readonly path: string;
+    }
+  | {
+      readonly status: "absent";
+      readonly path: string;
+      /** Citation-only classification; this selector still names no existing authored node. */
+      readonly ignoredBuildOutput?: true;
     }
   | { readonly status: "outside" | "unresolved"; readonly reason: string }
 );
