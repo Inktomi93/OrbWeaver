@@ -56,7 +56,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
-import { Project } from "ts-morph";
+import { Project, SyntaxKind } from "ts-morph";
 import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -499,11 +499,16 @@ test(
     const result = runPolicyPass({ knownPolicies: ALL, policies: ALL, root, project, reviewedGrants: reviewedGrantsFor(ALL), failOnWarnings: false });
     expect(result.toolErrors).toEqual([]);
     expect(result.authority.effectiveFindings).toEqual([]);
-    // Pin the migrated occurrence, not a closed roster of every future ordinary waiver. The complete
-    // run's effective findings and authority alarms below still judge every current occurrence.
+    const subject = "tests/tooling/tool-guard.int.test.ts";
+    const migratedLiteral = project
+      .getSourceFileOrThrow(join(root, subject))
+      .getVariableDeclarationOrThrow("AGENT_TIMEOUT")
+      .getInitializerOrThrow()
+      .getFirstDescendantByKindOrThrow(SyntaxKind.NumericLiteral);
+    // Pin the original declaration; later guard input/output fixtures have independent exact waivers.
     expect(
       result.authority.waivedFindings
-        .filter(({ finding }) => finding.file === "tests/tooling/tool-guard.int.test.ts")
+        .filter(({ finding }) => finding.file === subject && finding.line === migratedLiteral.getStartLineNumber())
         .map(({ finding }) => `${finding.file} ${finding.token ?? ""}`),
     ).toEqual(["tests/tooling/tool-guard.int.test.ts 120_000"]);
     expect(result.authority.reviewedGrantConsumption.filter((row) => row.count !== 1)).toEqual([]);

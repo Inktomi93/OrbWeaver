@@ -82,9 +82,16 @@ function shim(repoRoot: string, id: string): string {
 // The ordinary subject: the Radix spelling on a Base UI part, under the @ui population root.
 const UI_MENU = "packages/ui/src/primitives/probe/menu.tsx";
 const AS_CHILD_LINE = "export const G = <Menu.Trigger asChild />;\n";
-/** The reviewed-grant subject: a raw matchMedia read — at a NON-subject path it is effective, at a real grant
- *  row's subject it is granted. The five real rows are in lib/reviewed-grants.ts. */
+/** A raw matchMedia read is effective outside the exact subjects of the central reviewed grants. */
 const GRANT_SUBJECT = "packages/ui/src/lib/coarse-pointer-now.ts";
+const MATCH_MEDIA_GRANT_IDS = [
+  "no-raw-matchmedia:coarse-pointer-now",
+  "no-raw-matchmedia:media-grid",
+  "no-raw-matchmedia:reduced-motion-now",
+  "no-raw-matchmedia:use-is-mobile-viewport",
+  "no-raw-matchmedia:use-prefers-light-color-scheme",
+  "no-raw-matchmedia:use-prefers-reduced-motion",
+] as const;
 const STRAY_READ = "packages/client/src/features/probe/x.tsx";
 const CLIENT_STRAY_FILE = "packages/client/src/features/probe/y.ts";
 const MATCH_MEDIA_LINE = 'export const G = (): unknown => globalThis.matchMedia("(prefers-reduced-motion: reduce)");\n';
@@ -167,16 +174,17 @@ test("one invocation runs the whole roster into one artifact, each row in the co
   const reviewed = finalRow(report, REVIEWED);
   expect(reviewed).toMatchObject({ authority: "reviewed-grant", severity: "error", ok: false, withheld: false, granted: 0 });
   expect(reviewed.violations.map((v) => v.file)).toEqual([STRAY_READ]);
-  // the final aggregate: no refusals; the five real grant rows are STALE after a complete owner run (this tree holds
-  // none of their subjects) — an alarm each, which is how a grant that reaches nothing stays loud
+  // No granted subject is planted: every exact central identity must raise its stale alarm.
   expect(report.policy).not.toBeNull();
   expect(policyOf(report).authority.toolErrors).toEqual([]);
   expect(policyOf(report).factErrors).toEqual([]);
   expect(policyOf(report).toolErrors).toEqual([]);
-  expect(policyOf(report).authority.alarms.map((a) => a.kind)).toEqual(Array.from({ length: 5 }, () => "stale-reviewed-grant"));
-  expect(policyOf(report).authority.verdict).toEqual({ errors: 2 + 5, warnings: 0, blocking: 7, failOnWarnings: false });
+  expect(policyOf(report).authority.alarms.map((a) => a.kind)).toEqual(MATCH_MEDIA_GRANT_IDS.map(() => "stale-reviewed-grant"));
+  expect(policyOf(report).authority.alarms.flatMap((a) => (a.kind === "stale-reviewed-grant" ? [a.grantId] : []))).toEqual(MATCH_MEDIA_GRANT_IDS);
+  const blocking = 2 + MATCH_MEDIA_GRANT_IDS.length;
+  expect(policyOf(report).authority.verdict).toEqual({ errors: blocking, warnings: 0, blocking, failOnWarnings: false });
   // total = the blocking count the authority verdict produced; ok false
-  expect(report.total).toBe(7);
+  expect(report.total).toBe(blocking);
   expect(report.ok).toBe(false);
 });
 
@@ -274,14 +282,9 @@ test("a reviewed grant reaches only a final reviewed-grant policy: the real row'
   expect(reviewed.violations).toEqual([]);
   expect(reviewed.granted).toBe(1);
   expect(policyOf(report).authority.reviewedGrantConsumption.find(({ id }) => id === "no-raw-matchmedia:coarse-pointer-now")?.count).toBe(1);
-  // the four rows whose subjects this tree does not hold are STALE — loud, never silently forgiven
+  // Only the planted coarse-pointer subject binds; every other exact identity stays stale.
   const stale = policyOf(report).authority.alarms.filter((a) => a.kind === "stale-reviewed-grant");
-  expect(stale.map((a) => a.grantId).toSorted()).toEqual([
-    "no-raw-matchmedia:media-grid",
-    "no-raw-matchmedia:reduced-motion-now",
-    "no-raw-matchmedia:use-is-mobile-viewport",
-    "no-raw-matchmedia:use-prefers-reduced-motion",
-  ]);
+  expect(stale.map((a) => a.grantId).toSorted()).toEqual(MATCH_MEDIA_GRANT_IDS.filter((id) => id !== "no-raw-matchmedia:coarse-pointer-now"));
   // and the door hands the pass ONLY rows naming a loaded policy: no invalid-grant error for the rest of the table
   expect(policyOf(report).authority.toolErrors).toEqual([]);
 });

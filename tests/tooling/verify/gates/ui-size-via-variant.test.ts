@@ -60,7 +60,8 @@ test("named aliases are scanned while namespace and computed-carrier limits rema
   expect(next.authority.effectiveFindings).toEqual([]);
 });
 
-test("both product permissions still bind and product files gain no blanket permission", () => {
+test("the product Select permission binds once and product files gain no blanket permission", () => {
+  const configSubject = "packages/client/src/features/config/components/config-collection-landing.tsx";
   const files = {
     [SUBJECT]: readFileSync(new URL("../../../../packages/client/src/features/character/components/character-library-toolbar.tsx", import.meta.url), "utf8"),
     "packages/client/src/features/config/components/config-collection-landing.tsx": readFileSync(
@@ -70,8 +71,18 @@ test("both product permissions still bind and product files gain no blanket perm
   };
   const result = drive(files);
   expect(result.authority.effectiveFindings).toEqual([]);
-  expect(result.authority.waivedFindings).toHaveLength(2);
+  expect(result.authority.waivedFindings.map(({ finding }) => [finding.file, finding.token])).toEqual([[SUBJECT, "w-auto"]]);
   expect(result.authority.authorityAlarms.filter((a) => a.policyId === gate.id)).toEqual([]);
   const unmarked = Object.fromEntries(Object.entries(files).map(([path, source]) => [path, source.replace(/^.*@orb-waive ui-size-via-variant.*$/gmu, "")]));
-  expect(drive(unmarked).authority.effectiveFindings.map((f) => f.token)).toEqual(["w-auto", "w-auto"]);
+  expect(drive(unmarked).authority.effectiveFindings.map((f) => [f.file, f.token])).toEqual([[SUBJECT, "w-auto"]]);
+  const configSource = files[configSubject];
+  const createButton = '<Button intent="primary" onClick={create} size="sm" type="button">';
+  expect(configSource.split(createButton)).toHaveLength(2);
+  const planted = drive({
+    ...files,
+    [configSubject]: configSource.replace(createButton, '<Button className="h-9" intent="primary" onClick={create} size="sm" type="button">'),
+  });
+  expect(planted.authority.effectiveFindings.map((f) => [f.file, f.token])).toEqual([[configSubject, "h-9"]]);
+  expect(planted.authority.waivedFindings.map(({ finding }) => [finding.file, finding.token])).toEqual([[SUBJECT, "w-auto"]]);
+  expect(planted.authority.authorityAlarms).toEqual([]);
 });

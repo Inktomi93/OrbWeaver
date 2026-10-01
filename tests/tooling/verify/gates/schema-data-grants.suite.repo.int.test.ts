@@ -1,9 +1,5 @@
-// The 24 permissions translated out of six schema/data legacy gates (23 at the conversion; +1
-// `contract-verb-presence:sessions-getOwnerUserId` at 0203a2b98, +1
-// `db-structure-producer-home:connection-bindings` at 146f71cd5, -1 `open-json-column-key-parity`'s
-// stale named-key grant at a91c0c896). The policies are dispatched once over
-// the real checkout, then their production owner results drive the central authority coordinator's identity,
-// stale, and multiplicity controls. No hand-written finding can make this test green.
+// Real schema/data owner results prove each central grant's identity, staleness and multiplicity.
+// The independently named survivors prevent a changed permission roster from passing by count alone.
 import process from "node:process";
 import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
 import type { GateOwnerResult, ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
@@ -29,7 +25,32 @@ const POLICIES: readonly GatePolicy[] = [
   openJsonColumnKeyParity,
   wireSchemaVocabOneHome,
 ];
-const GRANT_COUNT = 24;
+const EXPECTED_GRANT_IDS = [
+  "assets-single-writer:persistence-asset-refs",
+  "assets-single-writer:persistence-queries",
+  "assets-single-writer:verbs-backfill-avatars",
+  "assets-single-writer:verbs-import-asset",
+  "assets-single-writer:verbs-rebuild-from-tree",
+  "assets-single-writer:verbs-store",
+  "contract-verb-presence:chat-room-overrides",
+  "contract-verb-presence:discovery-themes",
+  "contract-verb-presence:sessions-getOwnerUserId",
+  "db-structure-producer-home:connection-bindings",
+  "db-structure-producer-home:gallery",
+  "db-structure-producer-home:rate-limit",
+  "db-structure-producer-home:sdk-session",
+  "json-column-write-parity:automation-rules-actions",
+  "json-column-write-parity:chats-pending-handoff-offer",
+  "json-column-write-parity:message-variants-tool-calls",
+  "json-column-write-parity:preset-replace",
+  "json-column-write-parity:preset-system-reseed",
+  "json-column-write-parity:presets-config",
+  "json-column-write-parity:regex-scripts-behavior",
+  "json-column-write-parity:settings-replace",
+  "json-column-write-parity:user-settings-config",
+  "wire-schema-vocab-one-home:inverse-lift",
+] as const;
+const GRANT_COUNT = EXPECTED_GRANT_IDS.length;
 const BUDGET_MS = scaledBudget(300_000);
 
 function authority(ownerResults: readonly GateOwnerResult[], reviewedGrants: readonly ReviewedGateGrant[]): ReturnType<typeof coordinateGateAuthority> {
@@ -47,13 +68,13 @@ const alarmIds = (result: ReturnType<typeof coordinateGateAuthority>, kind: "sta
   result.authorityAlarms.flatMap((alarm) => (alarm.kind === kind ? [alarm.grantId] : [])).toSorted();
 
 test(
-  "all 24 real schema/data grants bind once; wrong keys stale, missing findings stale, and duplicate findings are over-broad",
+  "every surviving schema/data grant binds once; wrong keys stale, missing findings stale, and duplicate findings are over-broad",
   () => {
     const root = process.cwd();
     const project = getWorkspace({ root });
     const grants = reviewedGrantsFor(POLICIES);
     expect(grants).toHaveLength(GRANT_COUNT);
-    expect(grants.map(({ id }) => id)).toEqual(grants.map(({ id }) => id).toSorted());
+    expect(grants.map(({ id }) => id)).toEqual(EXPECTED_GRANT_IDS);
 
     const dispatched = runPolicyPass({ knownPolicies: POLICIES, policies: POLICIES, root, project, reviewedGrants: [], failOnWarnings: false });
     expect(dispatched.factErrors).toEqual([]);

@@ -173,6 +173,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--cascade` | `V,R,@N` selector/property query | analyzer; CSS cascade arm | outer/session boot | debugging-SDK launch property | owned | KEEP |
 | `--checkpoint` | `B` | call/action; reset evidence at the checkpoint boundary | checkpoint primitive, not scenario file | no synonym | owned | KEEP |
 | `--click` | `V,R,@N` selector | action; real pointer click | checkpoint | `--dom-click` and `--force-click` are distinct mechanisms | owned | KEEP |
+| `--cold-start` | `B` | call; bounded client bootstrap on the captured document, followed by normal app readiness | checkpoint; live origin only, refused with file, isolated or session captures | not an isolated stage selector | owned | KEEP |
 | `--context-tab` | `V,R,@N` fixture context | action; switches tab/context | checkpoint | context selector, not `--contexts` | owned | KEEP |
 | `--contexts` | `V,L` context spec | boot; multi-context fixture mode | outer | `--as` is named fixture convenience, not alias | owned | KEEP |
 | `--contrast` | `V,R,@N` selector | analyzer; computed contrast | checkpoint/arm | pixel sampling is modifier | owned | KEEP |
