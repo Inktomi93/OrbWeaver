@@ -38,7 +38,7 @@ export function AttributeGrid({
       {profile.attributes.length === 0 ? (
         <RpgDoorwayLine>No attributes in this game yet — the host adds them in the Game tab's Stat profile.</RpgDoorwayLine>
       ) : (
-        <Grid cols="tile" gap="field">
+        <Grid cols="cell" gap="field">
           {profile.attributes.map((def) => (
             <StatCell
               key={def.key}

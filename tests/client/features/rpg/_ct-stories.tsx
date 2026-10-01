@@ -270,7 +270,13 @@ export function RpgTakeoverDockedStory(): ReactElement {
  *  width on a 1440px desktop docked panel (396.8px, rounded). A long narrated date beside a long clock+weather
  *  reading — the exact `d20` seed shape (`14th of Emberfall, 3rd Age` · `night · 21:40 · steady rain on the
  *  shutters`) — is the measured case where the when-line's context half collapses to a few characters. */
-export function RpgTakeoverHeaderWhenLongStory({ width = 400 }: { readonly width?: number } = {}): ReactElement {
+export function RpgTakeoverHeaderWhenLongStory({
+  width = 400,
+  calendarDate = "14th of Emberfall, 3rd Age",
+}: {
+  readonly width?: number;
+  readonly calendarDate?: string;
+} = {}): ReactElement {
   return (
     <div style={{ width }}>
       <RpgTakeoverHeader
@@ -278,7 +284,7 @@ export function RpgTakeoverHeaderWhenLongStory({ width = 400 }: { readonly width
         satellitesInBody={true}
         ambient={{
           location: "The Gilded Ember tavern, lower Ashfall",
-          calendarDate: "14th of Emberfall, 3rd Age",
+          calendarDate,
           clock: { day: 14, hour: 21, minute: 40 },
           weather: { type: "rain", label: "steady rain on the shutters" },
         }}

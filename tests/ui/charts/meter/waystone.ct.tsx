@@ -347,3 +347,38 @@ test("reduced motion REMOVES every layer's animation (guide §3.9) — the froze
   await expect(component.locator("[data-slot=waystone-sky]")).toHaveCSS("opacity", "1");
   await page.emulateMedia({ reducedMotion: "no-preference" });
 });
+
+for (const { name, background } of [
+  { name: "light", background: SEED_THEME_VALUE_SETS.light.vars["--color-background"] },
+  { name: "dark", background: TOKENS["color.background"].value },
+]) {
+  test(`readability: the midnight cardinal and active arc read on ${name} with a dark night ground`, async ({ mount }) => {
+    const component = await mount(
+      <ThemeScope tokens={{ background }}>
+        <div data-testid="panel" style={{ backgroundColor: "var(--color-sidebar)", width: 400, containerType: "inline-size" }}>
+          <Waystone clock={{ hour: 0, minute: 0 }} weather="clear" />
+        </div>
+      </ThemeScope>,
+    );
+    const panel = component.getByTestId("panel");
+    const moonSelector = '[data-slot="waystone-cardinal-midnight"]';
+    // The shared kernel reads color; expose the SVG's resolved fill without changing its paint.
+    await panel.locator(moonSelector).evaluate((el) => {
+      (el as SVGElement).style.color = getComputedStyle(el).fill;
+    });
+    await expect.poll(() => panel.evaluate(partVsSurface, moonSelector)).toBeGreaterThanOrEqual(3);
+    await expect(panel.locator('[data-slot="waystone-horizon"]')).toHaveCSS("fill", TOKENS["color.sky-night"].value);
+    await expect
+      .poll(() =>
+        panel.evaluate((el) => {
+          const lit = el.querySelector('[data-slot="waystone-arc"][data-lit="true"]');
+          const rest = el.querySelector('[data-slot="waystone-arc"][data-lit="false"]');
+          if (lit === null || rest === null) {
+            throw new Error("the dial must have active and inactive arcs");
+          }
+          return Number.parseFloat(getComputedStyle(lit).strokeWidth) > Number.parseFloat(getComputedStyle(rest).strokeWidth);
+        }),
+      )
+      .toBe(true);
+  });
+}
