@@ -850,12 +850,9 @@ module.exports = {
       },
     },
     {
-      // Re-enabled as warn 2026-07-13 (its own stated trigger arrived: the tree is wired; a ts-morph
-      // audit measured ~22 orphan files). knip (`pnpm knip`) is the deeper dead-code authority — this
-      // is the cheap in-graph tripwire for NEW orphans.
       name: "no-orphans",
       comment:
-        "A module nothing imports (and that imports nothing reachable) is dead weight or a wiring mistake — delete it or wire it. knip (`pnpm knip`) is the full dead-code/dead-export authority. instruments.ts is carved: the tooling-instrument-proof gate reads it STRUCTURALLY (an AST read, no import edge exists by design — Core-Tooling-Law.md §4.5); knip covers it via the tooling workspace entry. The seeded EXAMPLE-PLUGIN bundles are carved for a stronger reason: `seed-assets/plugins/<slug>/{main,ui}.js` is GUEST source, not host source — it is read as BYTES by `packSeedPluginBundle`, zipped, and executed inside a QuickJS sandbox against a global that does not exist in this graph (`orb.host(1)` on the server, `orb.ui(1)` in the browser worker). An import edge is not merely absent, it is impossible: neither guest realm has a module loader. They live in the `@orb/showcase-plugins` workspace package the server declares as a dependency (#1692 — they used to ride `packages/server/src` because that was the only tree the image copies, which is exactly the image-copy dependence the #1238 ruling refused), and their liveness is proven behaviourally by `tests/server/entry/boot/seed-example-plugins.int.test.ts`, which installs each one and round-trips the scripted example's `ui.js` back out through `getUiBundle`.",
+        "A module without an import edge needs a runtime or tooling consumer. Knip is the full dead-code authority. The tooling-instrument-proof gate reads instruments.ts structurally. Showcase guest entries are consumed as source bytes by compilePluginDirectory: main.ts and ui.ts compile into guest artifacts, and frame.ts embeds into main.ts at its required frame-script marker.",
       severity: "warn",
       from: {
         // Helper entry roots omit their test consumers; native runner/Knip discovery owns their liveness.
@@ -865,12 +862,8 @@ module.exports = {
           "\\.d\\.ts$",
           "(^|/)index\\.ts$",
           "^tooling/src/_shared/instruments\\.ts$",
-          // `main.ts` (the SERVER guest) and `ui.ts` (the Tier-C CLIENT guest U4) — the
-          // SAME carve for the same reason, widened to the second entry name rather than loosened to a
-          // directory glob, so a stray `helper.ts` beside them is still a real orphan. Authored as
-          // TypeScript source (#1692's plugin SDK/toolchain landing) and compiled by the toolchain,
-          // not the raw JS the sandbox originally read as bytes.
-          "^packages/showcase-plugins/bundles/[^/]+/(main|ui)\\.ts$",
+          // Verified byte-consumed entries only; a sibling helper.ts remains an orphan.
+          "^packages/showcase-plugins/bundles/[^/]+/(main|ui|frame)\\.ts$",
         ],
       },
       to: {},
