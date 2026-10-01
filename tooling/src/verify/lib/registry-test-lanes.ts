@@ -109,6 +109,8 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     group: "tests",
     tiers: ["static", "push", "full"],
     argv: ["pnpm", "check:instrument-affected"],
+    // Unknown branch reach runs the full battery, so it needs that battery's derived hang ceiling.
+    hangCeilingBaseMs: toolingSuiteHangCeilingMs(),
     // Our OWN 0/1/2/3-speaking op: a changed instrument reaching no spec is VIOLATIONS (1), never a clean
     // zero, and an uncomputable branch answer runs the whole battery rather than selecting nothing.
     classify: ownScheme,
