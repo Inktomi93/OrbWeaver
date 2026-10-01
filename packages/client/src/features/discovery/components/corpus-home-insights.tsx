@@ -201,7 +201,7 @@ export function CorpusModelEconomicsSection({
         <Text className="max-w-(--reading-measure-prose)" voice="gloss">
           {economicsSummary(routes)}
         </Text>
-        <Text voice="gloss">
+        <Text className="max-w-(--reading-measure-prose)" voice="gloss">
           Aggregate routing for characters with a distilled genre. Token estimates remain approximate; accounting coverage counts routes, not individual
           generations. Cost classifications are not retained in this aggregate.
         </Text>

@@ -3,10 +3,11 @@
 // characters are picked; the "Deep compare" primary adds `compareCharactersDeep`'s narrative. Asserts the
 // diff surfaces the shared/only tags and that Deep compare renders the grounded summary.
 
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { CorpusCompareTabStory } from "../_ct-stories.tsx";
+import { CorpusCompareCatalogRefreshStory, CorpusCompareTabStory } from "../_ct-stories.tsx";
 
 const CATALOG = [
   {
@@ -60,6 +61,28 @@ async function pickThePair(component: Locator, page: Page): Promise<void> {
   await expect(page.getByRole("listbox")).toBeVisible();
   await page.getByRole("option", { name: "Bolt" }).click();
 }
+
+test("off-page picker names survive a warm catalog replacement", async ({ mount, page }) => {
+  let catalog = CATALOG_PAGE;
+  await routeTrpc(page, { "discovery.browseCharacters": () => catalog });
+  const component = await mount(<CorpusCompareCatalogRefreshStory />);
+  await pickThePair(component, page);
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+  catalog = {
+    ...CATALOG_PAGE,
+    items: CATALOG.slice(0, 1).map((card) => ({ ...card, characterId: mintTypeId(ID_PREFIX.character), name: "Someone Else" })),
+    totalCount: 1,
+  };
+  await component.getByRole("button", { name: "Refresh catalog", exact: true }).click();
+  const first = component.getByRole("combobox", { name: "First character" });
+  await first.click();
+  await expect(page.getByRole("option", { name: "Someone Else", exact: true })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Aria", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Escape");
+  await expect(first).toContainText("Aria");
+  await expect(component.getByRole("combobox", { name: "Second character" })).toContainText("Bolt");
+  await expect(component).not.toContainText("char_");
+});
 
 test("picking two characters renders the facet diff; deep compare adds the narrative", async ({ mount, page }) => {
   await routeTrpc(page, {

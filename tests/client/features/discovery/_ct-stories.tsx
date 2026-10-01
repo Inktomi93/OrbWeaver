@@ -32,7 +32,7 @@ import {
 } from "@orb/client/state";
 import type { CharacterId, ThemeClusterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { CorpusArtifactContext } from "../../../../packages/client/src/features/discovery/components/corpus-artifact-context.tsx";
@@ -282,6 +282,28 @@ export function CorpusCompareTabStory(): ReactElement {
   );
 }
 
+/** A catalog refetch must keep the picker names of selections outside the replacement page. */
+export function CorpusCompareCatalogRefreshStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 420 }}>
+        <CorpusCompareTab />
+        <CatalogRefreshControl />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+function CatalogRefreshControl(): ReactElement {
+  const trpc = useTRPC();
+  const client = useQueryClient();
+  return (
+    <button type="button" onClick={(): void => void client.invalidateQueries(trpc.discovery.browseCharacters.pathFilter())}>
+      Refresh catalog
+    </button>
+  );
+}
+
 /** The Corpus CONTENT REGION — the host that owns the pane's scroll and its inset for both surfaces, and
  *  therefore the only honest mount for either a padding or a first-run assertion. Fixed size: the region
  *  fills its host in production, and a content-sized mount root agrees with any inset bug. */
@@ -383,24 +405,27 @@ export function CorpusSimilarityTabStory(): ReactElement {
   );
 }
 
-/** THE SIMILARITY TAB BESIDE THE COMPARE TAB — the mount that can prove a pair row is a door that LANDS,
- *  not merely one that fires. The compare pair lives in a module-private store, so the only honest receipt
- *  for "this row opens that comparison" is the Compare surface rendering the pair (the same reasoning
- *  {@link CorpusSearchToDossierStory} records for the dossier drill-through). Both tab bodies are mounted
- *  at once, which the shell never does — that is deliberate: the shell's tab switch is what makes the
- *  hand-off unobservable, and this story removes it so the STATE hand-off is what is under test. */
-export function CorpusSimilarityToCompareStory(): ReactElement {
+/** Similarity opens readable pair CONTENT; its cold Compare picker remains observable before selection. */
+export function CorpusSimilarityToContentStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ display: "flex", height: 640, width: 900 }}>
-        <div style={{ display: "flex", flexDirection: "column", width: 420 }}>
-          <CorpusSimilarityTab />
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", width: 420 }}>
-          <CorpusCompareTab />
-        </div>
-      </div>
+      <SimilarityContentPanels />
+      <NavReadout />
     </CtDataProviders>
+  );
+}
+
+function SimilarityContentPanels(): ReactElement {
+  const destination = useSelectedCorpusDestination();
+  return (
+    <div style={{ display: "flex", height: 640, width: 900 }}>
+      <div style={{ display: "flex", flexDirection: "column", width: 420 }}>
+        <CorpusSimilarityTab />
+      </div>
+      <div data-slot="ct-pair-content" style={{ display: "flex", flexDirection: "column", width: 420 }}>
+        {destination === null ? <CorpusCompareTab /> : <CorpusArtifactSurface destination={destination} />}
+      </div>
+    </div>
   );
 }
 
