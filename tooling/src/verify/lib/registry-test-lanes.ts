@@ -25,7 +25,7 @@
 import type { StageDef } from "../contract/stage.ts";
 import { asViolations, ownScheme } from "./exit-classifiers.ts";
 import { vitestScopedArgv } from "./registry-argv.ts";
-import { ctSuiteHangCeilingMs } from "./stage-budget.ts";
+import { ctSuiteHangCeilingMs, toolingSuiteHangCeilingMs } from "./stage-budget.ts";
 
 /** The six runtime test lanes, in the order they hold in `REGISTRY`. */
 export const TEST_LANE_STAGES: readonly StageDef[] = [
@@ -84,6 +84,7 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     group: "tests",
     tiers: ["full"],
     argv: ["pnpm", "test:tooling"],
+    hangCeilingBaseMs: toolingSuiteHangCeilingMs(),
     classify: ownScheme,
     // Whole-only by nature, and that is only honest because `tests:node`'s scoped path delegates to
     // Vitest's native configured projects, so a tooling source still reaches its related tests at

@@ -29,6 +29,7 @@ const TEXT_ONLY: KindAcceptance = { generation: ["chat", "summarize"], embedding
 
 /** What each built-in provider accepts for a row of each model kind, keyed by provider id. */
 const ACCEPTANCE: ReadonlyMap<string, KindAcceptance> = new Map([
+  ["google", { generation: ["chat", "summarize", "generateImage"], embedding: ["embed", "imageEmbed"], rerank: [] }],
   ["openrouter", OPENAI_COMPAT_OPEN],
   // OpenAI's row narrows the wire: no image embeddings and no rerank endpoint.
   ["openai", { generation: ["chat", "summarize", "generateImage"], embedding: ["embed"], rerank: [] }],
