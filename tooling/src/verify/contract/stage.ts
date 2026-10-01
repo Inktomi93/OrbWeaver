@@ -198,6 +198,6 @@ export interface VerifyReport {
  *  is every other case a reader cannot say anything useful about (nothing published yet, a newer run writing
  *  right now, a dangling or unslotted alias) — genuinely ambiguous, not evidence of a hidden failure. */
 export type VerifyRunResolution =
-  | { readonly kind: "report"; readonly report: VerifyReport }
+  | { readonly kind: "report"; readonly report: VerifyReport; readonly advisories: readonly string[] }
   | { readonly kind: "advisory"; readonly lines: readonly string[]; readonly toolError: boolean }
   | { readonly kind: "silent" };

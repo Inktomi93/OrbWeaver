@@ -84,7 +84,7 @@ export function resolveLatestVerifyRun(root: string): VerifyRunResolution {
   }
   // @orb-waive caught-failure-ownership(catch): an unparseable verify.json is surfaced as an operator-visible advisory naming the run and the path, never swallowed — the one caller prints it and keeps rendering the structure view beneath it. Ends if the advisory stops reaching the console.
   try {
-    return { kind: "report", report: JSON.parse(readFileSync(res.path, "utf-8")) as VerifyReport };
+    return { kind: "report", report: JSON.parse(readFileSync(res.path, "utf-8")) as VerifyReport, advisories: pointerAdvisories(res) };
   } catch {
     return {
       kind: "advisory",

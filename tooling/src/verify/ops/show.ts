@@ -239,6 +239,7 @@ function printVerifyFailureSummary(root: string, structureRun: StructureReport["
     print("");
     return { failed: false, toolError: resolution.toolError };
   }
+  printAll(resolution.advisories.map((line) => ANSI.red(line)));
   if (resolution.report.ok) {
     return NO_VERIFY_SIGNAL;
   }

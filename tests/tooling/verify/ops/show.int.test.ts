@@ -322,6 +322,7 @@ test("an unknown stage name answers with the names that DO exist, rather than an
 // green structure verdict and nothing else — a false clean nobody reading only `check:show` could catch.
 
 const FAIL_RUN = "main-444-2026-09-29T12-00-00-000Z";
+const NEWER_COMPLETE_RUN = "main-555-2026-09-29T13-00-00-000Z";
 
 function failingVerifyReport(runId: string): string {
   return JSON.stringify({
@@ -464,6 +465,33 @@ function publishVerify(root: string, runId: string): void {
   symlinkSync(join("runs", "verify", runId, "verify.json"), join(root, "reports", "verify.json"));
   symlinkSync(join("runs", "verify", runId, "stages"), join(root, "reports", "verify"));
 }
+
+for (const argv of [[], ["--errors-only"]]) {
+  test(`a stale red verify alias names the newer completed run in show ${JSON.stringify(argv)}`, async ({ runCli, plantedTree }) => {
+    const root = await plantedTree({ ...failingSlot(FAIL_RUN), ...publishedSlot(NEWER_COMPLETE_RUN) });
+    publishVerify(root, FAIL_RUN);
+    const result = await runCli("verify", ["show", ...argv], { cwd: root });
+    await expect(result).toExitWith(EXIT.violations);
+    expect(result.stdout).toContain(`STALE POINTER: reports/verify.json still resolves to ${FAIL_RUN}`);
+    expect(result.stdout).toContain(`NEWER complete run ${NEWER_COMPLETE_RUN}`);
+    expect(result.stdout).toContain("tests:node");
+    expect(result.stdout.indexOf("STALE POINTER")).toBeLessThan(result.stdout.indexOf("verify push FAILED"));
+  });
+}
+
+test("a stale clean verify alias still prints its advisory before the clean structure verdict", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree({
+    ...publishedSlot(OLD_RUN),
+    ...publishedSlot(NEW_RUN),
+    "reports/check-structure.json": JSON.stringify({ gates: [], toolErrors: [], scanAlarms: [], total: 0, ok: true }),
+  });
+  publish(root, OLD_RUN);
+  const result = await runCli("verify", ["show"], { cwd: root });
+  await expect(result).toExitWith(EXIT.clean);
+  expect(result.stdout).toContain(`STALE POINTER: reports/verify.json still resolves to ${OLD_RUN}`);
+  expect(result.stdout).toContain(`NEWER complete run ${NEW_RUN}`);
+  expect(result.stdout).toContain("check:structure passed");
+});
 
 test("--errors-only names every failing stage of a red verify run, not only check:structure's", async ({ runCli, plantedTree }) => {
   const root = await plantedTree(failingSlot(FAIL_RUN));
