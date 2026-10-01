@@ -570,3 +570,27 @@ test("a broken profile file REFUSES loudly and names itself — never a defaulte
     /field "wholeVerifyQueue" is "true"/u,
   );
 });
+
+test("tooling runtime divides only parallel work and preserves its serial floor", () => {
+  const profile = parseConcurrencyProfile(BODY, "shared");
+  const body = BODY.replace(/"defaultMinutes": \d+/u, '"defaultMinutes": 1')
+    .replace(/"toolingParallelWorkerMinutes": \d+/u, '"toolingParallelWorkerMinutes": 80')
+    .replace(/"toolingSerialMinutes": \d+/u, '"toolingSerialMinutes": 30')
+    .replace(/"toolingCeilingFactor": [\d.]+/u, '"toolingCeilingFactor": 1.5');
+  const one = stageBudgetsFor({ ...profile, vitestMaxWorkers: 1 }, body);
+  const four = stageBudgetsFor({ ...profile, vitestMaxWorkers: 4 }, body);
+  expect(one.toolingSuiteMs).toBe(165 * 60_000);
+  expect(four.toolingSuiteMs).toBe(75 * 60_000);
+  expect(four.ctSuiteMs).toBe(one.ctSuiteMs);
+  const floor = body.replace(/"defaultMinutes": \d+/u, '"defaultMinutes": 200');
+  expect(stageBudgetsFor(profile, floor).toolingSuiteMs).toBe(stageBudgetsFor(profile, floor).defaultMs);
+});
+
+test("tooling collection estimates refuse missing and invalid data", () => {
+  const profile = parseConcurrencyProfile(BODY, "shared");
+  for (const field of ["toolingParallelWorkerMinutes", "toolingSerialMinutes", "toolingCeilingFactor"]) {
+    const pattern = new RegExp(`"${field}": [\\d.]+,`, "u");
+    expect(() => stageBudgetsFor(profile, BODY.replace(pattern, ""))).toThrow(`field "${field}" is undefined`);
+    expect(() => stageBudgetsFor(profile, BODY.replace(pattern, `"${field}": 0,`))).toThrow(`field "${field}" is 0`);
+  }
+});

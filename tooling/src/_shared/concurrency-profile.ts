@@ -311,6 +311,7 @@ export function readMachine(): Machine {
 export interface StageBudgets {
   readonly defaultMs: number;
   readonly ctSuiteMs: number;
+  readonly toolingSuiteMs: number;
   readonly ctHostWaitMs: number;
   readonly ts7HostWaitMs: number;
   readonly mutationGateMs: number;
@@ -342,8 +343,13 @@ export function stageBudgetsFor(profile: ConcurrencyProfile, body: string): Stag
   const hostWaitMinutes = positiveField(budgets, "ctHostSlotWaitMinutes");
   const ctMinutes =
     Math.ceil((positiveField(budgets, "ctSuiteWorkerMinutes") / Math.max(1, profile.ctWorkers)) * positiveField(budgets, "ctCeilingFactor")) + hostWaitMinutes;
+  const toolingMinutes = Math.ceil(
+    (positiveField(budgets, "toolingParallelWorkerMinutes") / Math.max(1, profile.vitestMaxWorkers) + positiveField(budgets, "toolingSerialMinutes")) *
+      positiveField(budgets, "toolingCeilingFactor"),
+  );
   return {
     defaultMs: defaultMinutes * MS_PER_MINUTE,
+    toolingSuiteMs: Math.max(defaultMinutes, toolingMinutes) * MS_PER_MINUTE,
     ctSuiteMs: Math.max(defaultMinutes, ctMinutes) * MS_PER_MINUTE,
     ctHostWaitMs: hostWaitMinutes * MS_PER_MINUTE,
     ts7HostWaitMs: positiveField(budgets, "ts7HostSlotWaitMinutes") * MS_PER_MINUTE,

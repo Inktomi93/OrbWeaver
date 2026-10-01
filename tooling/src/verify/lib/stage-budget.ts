@@ -41,3 +41,8 @@ export function ctSuiteHangCeilingMs(): number {
 export function mutationGateHangCeilingMs(): number {
   return readStageBudgets().mutationGateMs;
 }
+
+/** The tooling battery combines worker-parallel tests with a separate serialized repository group. */
+export function toolingSuiteHangCeilingMs(): number {
+  return readStageBudgets().toolingSuiteMs;
+}

@@ -70,3 +70,11 @@ test("no two GATING stages invoke the same script — a split that double-runs i
     .filter((argv) => argv.startsWith("pnpm "));
   expect(new Set(invocations).size, `duplicate stage invocations: ${invocations.join(" · ")}`).toBe(invocations.length);
 });
+
+test("the tooling battery has a dedicated ceiling while preserving its full-only command", () => {
+  const tooling = stage("tests:tooling");
+  expect(tooling.tiers).toEqual(["full"]);
+  expect(tooling.argv).toEqual(["pnpm", "test:tooling"]);
+  expect(stageHangCeilingBaseMs(tooling)).toBe(readStageBudgets().toolingSuiteMs);
+  expect(tooling.hangCeilingBaseMs).toBeGreaterThan(readStageBudgets().defaultMs);
+});
