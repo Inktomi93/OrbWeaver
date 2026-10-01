@@ -22,7 +22,7 @@ import type { Db } from "@orb/db";
 import { assets, messageAssets } from "@orb/db";
 import type { GeneratedImage } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
@@ -30,11 +30,12 @@ import type { ResolvedMediaRef, TurnMessage, TurnPrep, TurnRequest, TurnStreamCh
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
 import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
-import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { loadCanonContentSignatures, loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeCapability, makeGenerationCapability, makeResolved, TEST_PROVIDER_ID } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { createSeededIds } from "../../../../support/ids.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction } from "../_support.ts";
 
@@ -96,6 +97,7 @@ function harness(database: Db, over: { readonly runChatTurn: ChatContext["runCha
   const requests: TurnRequest[] = [];
   const stored: AssetId[] = [];
   let counter = 0;
+  const ids = createSeededIds();
   const ctx = makeChatContext(database, {
     runChatTurn: over.runChatTurn,
     applyStatsDelta: (_batch: unknown, _db: Db, _delta: StatsDelta): void => undefined,
@@ -110,7 +112,7 @@ function harness(database: Db, over: { readonly runChatTurn: ChatContext["runCha
         return null;
       }
       counter += 1;
-      const assetId = castId<AssetId>(`asset_inline_${counter}`);
+      const assetId = typeIdSchema(ID_PREFIX.asset).parse(ids.next(ID_PREFIX.asset));
       await database
         .insert(assets)
         .values({ id: assetId, ownerId, kind: "generated", mime: "image/png", size: 5, hash: `hash_inline_${counter}`, uploadedAt: FROZEN_AT });
@@ -182,7 +184,8 @@ describe("§6.7 inline reply images — the round trip", () => {
     const reply = canon.at(-1);
     // The ALT is the model's own preceding sentence (F22) — never a counter, because it is baked into canon
     // at generation time and can never be corrected at render.
-    expect(reply?.content).toBe("She unrolls the map across the crate.\n\n![She unrolls the map across the crate.](asset:asset_inline_1)");
+    expect(h.stored).toHaveLength(1);
+    expect(reply?.content).toBe(`She unrolls the map across the crate.\n\n![She unrolls the map across the crate.](asset:${h.stored[0]})`);
 
     // THE GC ANCHOR + THE FENCE INPUT, one row. Body `asset:` spans are invisible to `asset-refs.ts`, so
     // without this link the blob is reaped under a live transcript.
@@ -190,7 +193,7 @@ describe("§6.7 inline reply images — the round trip", () => {
       .select()
       .from(messageAssets)
       .where(eq(messageAssets.messageId, reply?.id ?? castId("none")));
-    expect(links.map((l) => ({ assetId: l.assetId, origin: l.origin }))).toEqual([{ assetId: "asset_inline_1", origin: "inline-reply" }]);
+    expect(links.map((l) => ({ assetId: l.assetId, origin: l.origin }))).toEqual([{ assetId: h.stored[0], origin: "inline-reply" }]);
   });
 
   test("THE PIN — a SECOND turn carries the prior assistant picture back as an `image` part on an assistant row", async () => {
@@ -204,7 +207,7 @@ describe("§6.7 inline reply images — the round trip", () => {
 
     const secondTurn = sink.at(-1);
     expect(secondTurn).toBeDefined();
-    expect(mediaParts(secondTurn?.history ?? [])).toEqual([{ type: "image", url: "https://cas.test/asset_inline_1" }]);
+    expect(mediaParts(secondTurn?.history ?? [])).toEqual([{ type: "image", url: `https://cas.test/${h.stored[0]}` }]);
     // …and it rides on an ASSISTANT row, not laundered onto a user line.
     const carrier = (secondTurn?.history ?? []).find((row) => row.content.some((part) => part.type === "image"));
     expect(carrier?.role).toBe("assistant");
@@ -224,12 +227,20 @@ describe("§6.7 inline reply images — the round trip", () => {
     await h.engine.runTurn(prepOf(chatId));
     const publicCanon = await loadCanonHistory(db, chatId);
     expect(JSON.stringify(publicCanon)).not.toContain("private-image-signature");
+    expect(JSON.stringify(publicCanon)).not.toContain("private-text-signature");
+    const privateSignatures = await loadCanonContentSignatures(db, chatId);
+    expect([...privateSignatures.values()]).toEqual([
+      expect.objectContaining({
+        images: [{ assetId: h.stored[0], thoughtSignature: "private-image-signature" }],
+        text: [{ text: "A signed picture.", thoughtSignature: "private-text-signature" }],
+      }),
+    ]);
     await h.engine.runTurn(prepOf(chatId));
     const image = sink
       .at(-1)
       ?.history.flatMap((row) => row.content)
       .find((part) => part.type === "image");
-    expect(image).toMatchObject({ type: "image", url: "https://cas.test/asset_inline_1", thoughtSignature: "private-image-signature" });
+    expect(image).toMatchObject({ type: "image", url: `https://cas.test/${h.stored[0]}`, thoughtSignature: "private-image-signature" });
     const text = sink
       .at(-1)
       ?.history.flatMap((row) => row.content)
