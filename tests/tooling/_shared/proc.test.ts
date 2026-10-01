@@ -66,9 +66,10 @@ vi.mock("cross-spawn", async () => {
   const childProcess = await import("node:child_process");
   return { default: { spawn: childProcess.spawn, sync: childProcess.spawnSync } };
 });
-vi.mock("@orb/tooling/_shared/process-priority", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@orb/tooling/_shared/process-priority")>();
-  return { ...actual, lowerChildPriority: vi.fn() };
+// The child pid is synthetic, so OS priority changes must stay at the external boundary.
+vi.mock("node:os", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:os")>();
+  return { ...actual, setPriority: vi.fn() };
 });
 
 const { killPidGroup, spawnFullPriorityChild, spawnNicedTranscript } = await import("@orb/tooling/_shared/proc");
@@ -155,11 +156,18 @@ test("no tooling source spawns the external kill binary (planted control: the ol
 });
 
 test("a timed-out transcript remains no verdict when a terminated Windows child closes with 0 or 1", async ({ scratch }) => {
+  // @orb-waive test-determinism(vi.useFakeTimers): the subject is the proc door's native setTimeout window, which an injected data clock cannot drive; ends if the door exposes an injected timer seam.
   vi.useFakeTimers();
+  const options = {
+    cwd: scratch,
+    env: {},
+    // @orb-waive tooling-clock-budget(100): virtual timer fixture data advanced explicitly below, not a wall-clock ceiling paid by this run; ends if this test starts waiting on real timers.
+    timeoutMs: 100,
+  };
   const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
   try {
     for (const code of [0, 1]) {
-      const result = spawnNicedTranscript("probe", [], { cwd: scratch, env: {}, timeoutMs: 100 });
+      const result = spawnNicedTranscript("probe", [], options);
       await vi.advanceTimersByTimeAsync(100);
       fake.child?.emit("close", code);
       const captured = await result;
@@ -186,7 +194,7 @@ test("a timed-out transcript remains no verdict when a terminated Windows child 
       ).toEqual(["structure:full"]);
     }
     for (const code of [0, 1]) {
-      const result = spawnNicedTranscript("probe", [], { cwd: scratch, env: {}, timeoutMs: 100 });
+      const result = spawnNicedTranscript("probe", [], options);
       fake.child?.emit("close", code);
       expect(await result).toEqual({ code, transcript: "" });
     }
