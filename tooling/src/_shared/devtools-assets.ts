@@ -15,7 +15,7 @@
 // for hash drift, tuple drift, a missing notice, an unexpected member and a symlink.
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, realpathSync } from "node:fs";
-import { dirname, join, normalize, relative } from "node:path";
+import { dirname, join, posix, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { DevToolsAssetEntry, DevToolsAssetManifest, DevToolsAssetPin, VerifiedDevToolsAssets } from "./devtools-assets-types.ts";
 
@@ -200,10 +200,10 @@ function parseLicenses(input: unknown): DevToolsLicenseManifest {
  *  total: a member surviving all four clauses is a strictly descending relative path, so the former
  *  `resolve(root, member)` escape branch beneath it was unreachable and was deleted with the root argument
  *  rather than carried as dead decoration. The construction that would have reached it — `a/../../b` —
- *  fails `normalize(member) !== member` first, and `..` alone fails the segment test; both directions are
+ *  fails `posix.normalize(member) !== member` first, and `..` alone fails the segment test; both directions are
  *  pinned by the `devtools-frontend-assets` policy's escaping-member proof row. */
 function safeMember(member: string, label: string): string {
-  if (!SAFE_PATH_RE.test(member) || member.startsWith("/") || normalize(member) !== member || member.split("/").includes("..")) {
+  if (!SAFE_PATH_RE.test(member) || member.startsWith("/") || posix.normalize(member) !== member || member.split("/").includes("..")) {
     throw new Error(`${label} is not a canonical relative path: ${member}`);
   }
   return member;
@@ -240,7 +240,7 @@ function closureCensus(root: string, directory = root, into: DevToolsClosureFile
       closureCensus(root, path, into);
     } else if (entry.isFile()) {
       const body = readFileSync(path);
-      into.push({ file: relative(root, path), bytes: body.byteLength, sha256: sha256(body) });
+      into.push({ file: relative(root, path).replaceAll("\\", "/"), bytes: body.byteLength, sha256: sha256(body) });
     } else {
       throw new Error(`non-file asset member forbidden: ${relative(root, path)}`);
     }

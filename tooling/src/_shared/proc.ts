@@ -344,11 +344,13 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
     // leave the group, so the caller's teardown runs AFTER it and the promise waits for it to finish —
     // otherwise the transcript would resolve before the line saying what it reaped.
     let sweeping: Promise<string | null> | null = null;
+    let timedOut = false;
     const teardown = opts.teardown;
     const killGroup = (): void => {
       killPidGroup(child.pid, "SIGKILL");
     };
     const timer = setTimeout(() => {
+      timedOut = true;
       chunks.push(`\n[proc] TIMED OUT after ${opts.timeoutMs}ms — killed the process group of pid ${child.pid ?? "?"}\n`);
       killGroup();
       sweeping = teardown === undefined ? null : teardown.afterTimeoutKill();
@@ -360,7 +362,7 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
       clearTimeout(timer);
       guard?.dispose();
       const line = sweeping === null ? null : await sweeping;
-      resolvePromise({ code, transcript: `${chunks.join("")}${line === null ? "" : `${line}\n`}` });
+      resolvePromise({ code: timedOut ? null : code, transcript: `${chunks.join("")}${line === null ? "" : `${line}\n`}` });
     };
     /** Settle, and NAME a teardown that itself failed — the promise must resolve on every path, or the one
      *  door written to end a hang becomes the hang. A failed teardown is `code: null` (a tool error). */

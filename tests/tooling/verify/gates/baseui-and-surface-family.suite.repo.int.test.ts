@@ -444,7 +444,7 @@ describe("§4.5 — the installed-surface READER's own blindness, which no proof
     // THE POSITIVE CONTROL, without which "the paths are the subject" is a sentence rather than a fact: a
     // reader that ignored its argument and re-globbed the package directory would produce the identical
     // surface here.
-    const withoutSelect = ast.value.declarationPaths.filter((path) => !path.endsWith("/select/index.d.ts"));
+    const withoutSelect = ast.value.declarationPaths.filter((path) => !path.replaceAll("\\", "/").endsWith("/select/index.d.ts"));
     const cut = installedSurfaceFrom(withoutSelect, metadata.value.version);
     if (cut === undefined) {
       throw new Error("the cut surface must still derive — only `Select` is expected to vanish");
@@ -457,7 +457,7 @@ describe("§4.5 — the installed-surface READER's own blindness, which no proof
 // ── §4.6 THE REAL-TREE DRIVE ────────────────────────────────────────────────────────────────────────
 
 describe("the real tree — marker translation, and the conversion differential", () => {
-  test("every translated marker across BOTH families BINDS: 0 effective, 9 waived, 0 alarms", ({ repoRoot }) => {
+  test("every live marker across both families binds its exact policy, source and token", ({ repoRoot }) => {
     const result = runPolicyPass({
       knownPolicies: [...POLICIES],
       policies: [...POLICIES],
@@ -468,18 +468,22 @@ describe("the real tree — marker translation, and the conversion differential"
     });
 
     expect(result.toolErrors).toEqual([]);
-    // A FIXTURE CANNOT TEST THIS. The claim is that two markers a human MOVED in this commit bind to the
-    // nodes the converted policy reports on the files as they sit on disk — which is only ever true or false
-    // about those files. Before the translation this drive read `effective 2 / waived 0`, naming
-    // `new-chat-picker-surface.tsx:133 NewChatPicker` and `corpus-home-surface.tsx:109 CorpusHomeSurface`;
-    // after it, the same two sites are waived and nothing else moved.
+    // Exact identities catch a lost binding and an unintended new waiver without a stale aggregate count.
     expect(result.authority.effectiveFindings).toEqual([]);
-    // 2 + 7: the two `surface-a11y-focus` translations this file was minted for, plus the seven
-    // `baseui-derives-not-respells` markers the #1584 conversion swapped from `@orb-gate-ignore` to
-    // `@orb-waive` (combobox 3 · autocomplete 3 · select 1). `raw 9 = waived 9 = effective 0` is what makes
-    // that swap a MEASUREMENT rather than a hope — a dead marker is silent in both directions and would
-    // simply reappear as an effective finding here.
-    expect(result.authority.waivedFindings).toHaveLength(9);
+    expect(result.authority.waivedFindings.map(({ finding }) => `${finding.policyId}:${finding.file}:${finding.token}`).toSorted()).toEqual([
+      "baseui-derives-not-respells:packages/ui/src/primitives/autocomplete/autocomplete.tsx:defaultValue",
+      "baseui-derives-not-respells:packages/ui/src/primitives/autocomplete/autocomplete.tsx:items",
+      "baseui-derives-not-respells:packages/ui/src/primitives/autocomplete/autocomplete.tsx:value",
+      "baseui-derives-not-respells:packages/ui/src/primitives/combobox/combobox.tsx:defaultValue",
+      "baseui-derives-not-respells:packages/ui/src/primitives/combobox/combobox.tsx:items",
+      "baseui-derives-not-respells:packages/ui/src/primitives/combobox/combobox.tsx:value",
+      "baseui-derives-not-respells:packages/ui/src/primitives/select/select.tsx:items",
+      "surface-a11y-focus:packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx:NewChatPicker",
+      "surface-a11y-focus:packages/client/src/features/discovery/surfaces/corpus-artifact-surface.tsx:CorpusArtifactSurface",
+      "surface-a11y-focus:packages/client/src/features/discovery/surfaces/corpus-home-surface.tsx:CorpusHomeSurface",
+      "surface-a11y-focus:packages/client/src/features/discovery/surfaces/corpus-moment-surface.tsx:CorpusMomentSurface",
+      "surface-a11y-focus:packages/client/src/features/tag/surfaces/tag-member-surface.tsx:TagMemberSurface",
+    ]);
     expect(result.authority.authorityAlarms.filter((alarm) => POLICY_IDS.has(alarm.policyId))).toEqual([]);
   });
 
@@ -502,11 +506,7 @@ describe("the real tree — marker translation, and the conversion differential"
     }
   });
 
-  test("the two waivers are the only `@orb-waive` lines naming these policies, and no legacy grammar survives", ({ repoRoot }) => {
-    // The step-6 marker reconciliation, closed as ARITHMETIC rather than as a per-file diff: a DELETED marker
-    // is silent in both directions, so only a closed total proves nothing is hiding. Legacy total for
-    // `@surface-focus-elsewhere` was 2 marker-form sites; current total is 2 `@orb-waive` lines naming
-    // `surface-a11y-focus`, and the retired vocabulary appears in no product file at all.
+  test("the original surface waivers retain their authored positions and have no legacy marker", ({ repoRoot }) => {
     const sites = [
       "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx",
       "packages/client/src/features/discovery/surfaces/corpus-home-surface.tsx",

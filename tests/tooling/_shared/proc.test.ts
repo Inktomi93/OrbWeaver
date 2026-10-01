@@ -4,8 +4,10 @@ import { EventEmitter } from "node:events";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { PassThrough } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { vi } from "vitest";
+import { noVerdictStages, ownScheme } from "../../../tooling/src/verify/lib/exit-classifiers.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 // The ambient-env WINDOW pins live beside their door in process-env.test.ts (#1848 moved the door out of
@@ -16,12 +18,15 @@ const fake = vi.hoisted(() => ({
   signalCode: null as NodeJS.Signals | null,
   throwCode: null as string | null,
   killCalls: 0,
+  child: undefined as EventEmitter | undefined,
 }));
 
 vi.mock("node:child_process", () => ({
   execFileSync: vi.fn(),
   spawnSync: vi.fn(),
   spawn: (): EventEmitter & {
+    stdout: PassThrough;
+    stderr: PassThrough;
     pid: number;
     exitCode: number | null;
     signalCode: NodeJS.Signals | null;
@@ -29,12 +34,17 @@ vi.mock("node:child_process", () => ({
     unref: () => void;
   } => {
     const child = new EventEmitter() as EventEmitter & {
+      stdout: PassThrough;
+      stderr: PassThrough;
       pid: number;
       exitCode: number | null;
       signalCode: NodeJS.Signals | null;
       kill: () => boolean;
       unref: () => void;
     };
+    child.stdout = new PassThrough();
+    child.stderr = new PassThrough();
+    fake.child = child;
     child.pid = 1234;
     Object.defineProperties(child, {
       exitCode: { get: () => fake.exitCode },
@@ -52,7 +62,16 @@ vi.mock("node:child_process", () => ({
   },
 }));
 
-const { killPidGroup, spawnFullPriorityChild } = await import("@orb/tooling/_shared/proc");
+vi.mock("cross-spawn", async () => {
+  const childProcess = await import("node:child_process");
+  return { default: { spawn: childProcess.spawn, sync: childProcess.spawnSync } };
+});
+vi.mock("@orb/tooling/_shared/process-priority", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@orb/tooling/_shared/process-priority")>();
+  return { ...actual, lowerChildPriority: vi.fn() };
+});
+
+const { killPidGroup, spawnFullPriorityChild, spawnNicedTranscript } = await import("@orb/tooling/_shared/proc");
 
 test("kill rethrows a non-ESRCH child.kill failure", () => {
   fake.exitCode = null;
@@ -133,4 +152,46 @@ test("no tooling source spawns the external kill binary (planted control: the ol
   expect(files.length).toBeGreaterThan(100);
   const offenders = files.filter((file) => EXTERNAL_KILL.test(readFileSync(file, "utf8")));
   expect(offenders, "signal a process group through killPidGroup (tooling/src/_shared/proc.ts), never `kill -SIG -<pgid>`").toEqual([]);
+});
+
+test("a timed-out transcript remains no verdict when a terminated Windows child closes with 0 or 1", async ({ scratch }) => {
+  vi.useFakeTimers();
+  const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
+  try {
+    for (const code of [0, 1]) {
+      const result = spawnNicedTranscript("probe", [], { cwd: scratch, env: {}, timeoutMs: 100 });
+      await vi.advanceTimersByTimeAsync(100);
+      fake.child?.emit("close", code);
+      const captured = await result;
+      expect(captured.code).toBeNull();
+      expect(captured.transcript).toContain("TIMED OUT after 100ms");
+      const exitCode = ownScheme(captured.code);
+      expect(exitCode).toBe(2);
+      expect(
+        noVerdictStages([
+          {
+            name: "structure:full",
+            group: "structure",
+            mode: "full",
+            ok: false,
+            exitCode,
+            childExit: captured.code,
+            durationMs: 100,
+            logFile: null,
+            failureExcerpt: captured.transcript,
+            runsAt: null,
+            notices: [],
+          },
+        ]),
+      ).toEqual(["structure:full"]);
+    }
+    for (const code of [0, 1]) {
+      const result = spawnNicedTranscript("probe", [], { cwd: scratch, env: {}, timeoutMs: 100 });
+      fake.child?.emit("close", code);
+      expect(await result).toEqual({ code, transcript: "" });
+    }
+  } finally {
+    vi.useRealTimers();
+    kill.mockRestore();
+  }
 });

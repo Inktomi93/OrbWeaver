@@ -187,7 +187,7 @@ function walkCensus(root: string, directory = root, into: DevToolsClosureFile[] 
       walkCensus(root, path, into);
     } else {
       const body = readFileSync(path);
-      into.push({ file: relative(root, path), bytes: body.byteLength, sha256: sha256(body) });
+      into.push({ file: relative(root, path).replaceAll("\\", "/"), bytes: body.byteLength, sha256: sha256(body) });
     }
   }
   return into;

@@ -24,6 +24,8 @@ import {
   resetBaseUiSurfaceCache,
   truncatedParts,
 } from "../../../../tooling/src/verify/index.ts";
+import { installedPackageRootOf, installedSurfaceFrom } from "../../../../tooling/src/verify/lib/baseui-read.ts";
+import { nestedDeclarations } from "../../../../tooling/src/verify/lib/baseui-surface-derive.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -179,4 +181,30 @@ test("a RULED disposition survives regeneration verbatim — the ledger is not r
   rerule("sealed-away", ruled);
   execFileSync("node", [...GENERATOR_ARGV], { cwd: root, encoding: "utf8" });
   expect(ruling()).toMatchObject({ disposition: "sealed-away", why: ruled });
+});
+
+test("Windows declaration paths retain the anchored package and nested population", () => {
+  const pkg = "C:/store/node_modules/@base-ui/react";
+  const paths = [`${pkg}/index.d.ts`, `${pkg}/combobox/index.d.ts`, `${pkg}/combobox/root/Root.d.ts`].map((path) => path.replaceAll("/", "\\"));
+  expect(installedPackageRootOf(paths)).toBe(pkg);
+  expect(nestedDeclarations(pkg, paths)).toEqual(paths.slice(1));
+  expect(installedPackageRootOf(["C:\\store\\node_modules\\@base-ui\\react-other\\index.d.ts"])).toBeUndefined();
+});
+
+test("Windows-shaped filesystem declarations derive the same nonempty anatomy and retain the component fence", () => {
+  writeSyntheticPackage();
+  const pkg = join(root, BASE_UI_PKG_REL);
+  const paths = ["index.d.ts", "combobox/index.d.ts", "combobox/index.parts.d.ts", "combobox/root/Aria.d.ts", "combobox/root/ComboboxRoot.d.ts"].map((file) =>
+    join(pkg, file).replaceAll("/", "\\"),
+  );
+  const surface = installedSurfaceFrom(paths, "9.9.9");
+  expect(surface).toEqual(readInstalledSurface(root));
+  expect(surface?.components["Combobox"]?.parts["Root"]?.props).toEqual(["disabled", "items", "onValueChange"]);
+  expect(
+    installedSurfaceFrom(
+      paths.filter((path) => !path.endsWith("combobox\\index.d.ts")),
+      "9.9.9",
+    )?.components,
+  ).toEqual({});
+  expect(installedSurfaceFrom([join(root, "unrelated/index.d.ts")], "9.9.9")).toBeUndefined();
 });
