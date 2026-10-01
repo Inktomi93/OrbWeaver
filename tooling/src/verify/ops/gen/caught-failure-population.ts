@@ -20,7 +20,7 @@
 // this file does not parse a marker, does not own a grammar, and cannot honour one the production engine
 // would refuse. It only lifts the REASON text out of a marker the engine already accepted as well-formed.
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
@@ -39,15 +39,11 @@ import { compilePopulation } from "../../lib/population-resolver.ts";
 // `harnessGlobs` and EXCLUDES `tooling/src/**`, which this gate scans. Deriving the census from it reported
 // 329 sites where the real run finds 448, and the undercount reads exactly like a smaller population. The
 // artifact must walk the SAME fileset the gate run walks, or it is a census of a different tree.
-import { projectCtx } from "../../lib/project-context.ts";
+import { projectCtx, repoRel } from "../../lib/project-context.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline caught-failure-population");
 
 export const POPULATION_REL = JSON_RESOURCE_PATHS["caught-failure-population"];
-
-function relPath(root: string, abs: string): string {
-  return relative(root, abs).replaceAll("\\", "/");
-}
 
 interface DerivedSite {
   readonly siteId: string;
@@ -143,7 +139,7 @@ function waiverReason(sf: SourceFile, markerLine: number): string {
 export function deriveCaughtFailureSites(root: string): readonly CaughtFailureRow[] {
   const includes = compilePopulation(gate.population);
   const files = projectCtx(root)
-    .files.map((sf) => ({ sf, path: relPath(root, sf.getFilePath()) }))
+    .files.map((sf) => ({ sf, path: repoRel(root, sf.getFilePath()) }))
     .filter(({ path }) => includes(path))
     .toSorted((left, right) => left.path.localeCompare(right.path));
   const sources: OrdinaryWaiverSource[] = files.map(({ sf, path }) => ({ kind: "typescript", path, sourceFile: sf }));

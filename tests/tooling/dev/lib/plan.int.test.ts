@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
@@ -9,7 +9,7 @@ import { killPidGroup } from "@orb/tooling/_shared/proc";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { RUN_MARKER_ENV, runMarkerOwnerPid, sweepRunMarker } from "@orb/tooling/_shared/run-marker";
 import { z } from "zod";
-import { devMarkerPreload } from "../../../../tooling/src/dev/lib/plan.ts";
+import { devMarkerPreload, serverSpawnPlan } from "../../../../tooling/src/dev/lib/plan.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -90,3 +90,44 @@ setInterval(() => {}, 1000);`,
     },
   );
 }
+
+test("the Windows watch plan ignores directory and cache churn but restarts on loaded source edits", { timeout: CEILING }, async ({ scratch }) => {
+  const serverDir = join(scratch, "server");
+  const entryDir = join(serverDir, "src", "entry");
+  const dependencyDir = join(scratch, "dependency", "src");
+  mkdirSync(entryDir, { recursive: true });
+  mkdirSync(dependencyDir, { recursive: true });
+  const dependency = join(dependencyDir, "value.ts");
+  writeFileSync(dependency, 'export const value = "first";');
+  writeFileSync(
+    join(entryDir, "index.ts"),
+    `import { value } from ${JSON.stringify(pathToFileURL(dependency).href)}; console.log("BOOT:" + value); setInterval(() => {}, 1000);`,
+  );
+  const plan = serverSpawnPlan({
+    platform: "win32",
+    nodePath: process.execPath,
+    server: { name: "@orb/server", dir: serverDir, workspaceDeps: [] },
+    watchRoots: [join(serverDir, "src"), dependencyDir],
+    cwd: scratch,
+    env: {},
+  });
+  const child = spawn(plan.command, [...plan.args], { cwd: plan.cwd, detached: process.platform !== "win32", stdio: ["ignore", "pipe", "pipe"] });
+  let output = "";
+  child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+    output += chunk;
+  });
+  try {
+    await expect.poll(() => output, { timeout: scaledBudget(5000) }).toContain("BOOT:first");
+    utimesSync(dependencyDir, new Date("2020-01-01T00:00:00Z"), new Date("2020-01-01T00:00:00Z"));
+    writeFileSync(join(dependencyDir, "cache.tmp"), "unrelated");
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(output.match(/BOOT:/gu)).toHaveLength(1);
+    writeFileSync(dependency, 'export const value = "second";');
+    await expect.poll(() => output, { timeout: scaledBudget(5000) }).toContain("BOOT:second");
+    expect(output.match(/BOOT:/gu)).toHaveLength(2);
+  } finally {
+    const exited = once(child, "exit");
+    killPidGroup(child.pid, "SIGKILL");
+    await exited;
+  }
+});

@@ -189,7 +189,14 @@ async function runDevChildren(serverEnv: ServerEnv, vitePort: number, packages: 
   const env = devChildEnv(inheritedProcessEnv(), { server: serverEnv.PORT, vite: vitePort });
 
   const supervision = armSupervision();
-  const serverPlan = serverSpawnPlan({ nodePath: process.execPath, server, watchRoots: serverWatchRoots(packages), cwd: process.cwd(), env });
+  const serverPlan = serverSpawnPlan({
+    platform: process.platform,
+    nodePath: process.execPath,
+    server,
+    watchRoots: serverWatchRoots(packages),
+    cwd: process.cwd(),
+    env,
+  });
   const serverChild = spawnFullPriorityChild(serverPlan.command, serverPlan.args, { cwd: serverPlan.cwd, env: { ...serverPlan.env }, stdio: "pipe-stdout" });
   supervision.attach(serverChild);
   // The server logs pino JSON on stdout; stderr (watch notices, stack traces) stays raw on the terminal.

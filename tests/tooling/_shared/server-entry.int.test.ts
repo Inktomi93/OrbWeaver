@@ -19,6 +19,7 @@ test("the server entry exists in this checkout", ({ repoRoot }) => {
 
 function devPlan(repoRoot: string): ReturnType<typeof serverSpawnPlan> {
   return serverSpawnPlan({
+    platform: process.platform,
     nodePath: "node",
     server: { name: "@orb/server", dir: join(repoRoot, "packages", "server"), workspaceDeps: [] },
     watchRoots: [],

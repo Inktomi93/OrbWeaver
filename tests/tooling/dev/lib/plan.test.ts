@@ -2,7 +2,15 @@
 import { join } from "node:path";
 import { DEV_PORTS, MAX_TCP_PORT } from "@orb/tooling/_shared/ports";
 import type { WorkspacePackage } from "../../../../tooling/src/dev/index.ts";
-import { devChildEnv, resolveVitePort, SERVER_PACKAGE, serverWatchRoots, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "../../../../tooling/src/dev/index.ts";
+import {
+  devChildEnv,
+  resolveVitePort,
+  SERVER_PACKAGE,
+  serverSpawnPlan,
+  serverWatchRoots,
+  VITE_API_TARGET_ENV,
+  VITE_PORT_ENV,
+} from "../../../../tooling/src/dev/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function pkg(name: string, workspaceDeps: readonly string[] = []): WorkspacePackage {
@@ -40,4 +48,15 @@ test("vite's proxy follows the server's resolved port unless the env already nam
 
   const pinned = devChildEnv(Object.fromEntries([[VITE_API_TARGET_ENV, "http://10.0.0.5:8788"]]), { server: 9100, vite: 5190 });
   expect(pinned[VITE_API_TARGET_ENV]).toBe("http://10.0.0.5:8788");
+});
+
+test("Windows filters actual imported files while other platforms retain explicit source roots", () => {
+  const roots = [join("/repo", "packages", "server", "src")];
+  const options = { nodePath: "node", server: pkg(SERVER_PACKAGE), watchRoots: roots, cwd: "/repo", env: {} };
+  const windows = serverSpawnPlan({ ...options, platform: "win32" });
+  expect(windows.args).toContain("--watch");
+  expect(windows.args.some((arg) => arg.startsWith("--watch-path="))).toBe(false);
+  for (const platform of ["linux", "darwin"] as const) {
+    expect(serverSpawnPlan({ ...options, platform }).args).toContain(`--watch-path=${roots[0]}`);
+  }
 });
