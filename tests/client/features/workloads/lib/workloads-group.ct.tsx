@@ -129,36 +129,44 @@ test("the jump's flash ring clears the section's own text, and lights without re
   await page.getByRole("button", { name: "Schedules" }).click();
   await expect(section).toHaveClass(FLASH_ANCHOR_CLASS);
 
-  // Read the transient ring and its glyph geometry in one browser turn, before its timer retires it.
-  const measured = await section.evaluate((el) => {
-    const style = getComputedStyle(el);
-    const probe = document.createElement("div");
-    probe.style.width = "var(--spacing-row)";
-    el.append(probe);
-    const step = probe.getBoundingClientRect().width;
-    probe.remove();
-    const heading = el.querySelector("h2,h3,h4");
-    if (heading === null) {
-      throw new Error("the flashed section did not render its heading");
-    }
-    const box = el.getBoundingClientRect();
-    const glyph = heading.getBoundingClientRect();
-    return {
-      lit: el.classList.contains("settings-flash-anchor--lit"),
-      step,
-      padding: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].map(Number.parseFloat),
-      margin: [style.marginTop, style.marginRight, style.marginBottom, style.marginLeft].map(Number.parseFloat),
-      headingClearance: glyph.y - box.y,
-      outerHeight: box.height + Number.parseFloat(style.marginTop) + Number.parseFloat(style.marginBottom),
-    };
-  });
-  expect(measured.lit).toBe(true);
-  expect(measured.padding).toEqual(Array.from({ length: 4 }, () => measured.step));
-  expect(measured.margin).toEqual(Array.from({ length: 4 }, () => -measured.step));
-  expect(measured.headingClearance, "the heading's cap starts below the ring").toBeGreaterThanOrEqual(measured.step);
-  expect(measured.outerHeight, "lighting the ring does not reflow the pane").toBeCloseTo(before, 1);
-  const content = page.locator('[data-slot="config-content"]');
-  expect(await content.evaluate((el) => el.scrollWidth - el.clientWidth), "the ring fits the scroll viewport").toBe(0);
+  // Poll one atomic snapshot so the transient ring and its geometry must agree in the same browser turn.
+  await expect
+    .poll(() =>
+      section.evaluate((el) => {
+        const style = getComputedStyle(el);
+        const probe = document.createElement("div");
+        probe.style.width = "var(--spacing-row)";
+        el.append(probe);
+        const step = probe.getBoundingClientRect().width;
+        probe.remove();
+        const heading = el.querySelector("h2,h3,h4");
+        if (heading === null) {
+          throw new Error("the flashed section did not render its heading");
+        }
+        const content = el.closest('[data-slot="config-content"]');
+        if (content === null) {
+          throw new Error("the flashed section is outside the configuration scroll viewport");
+        }
+        const box = el.getBoundingClientRect();
+        const glyph = heading.getBoundingClientRect();
+        return {
+          lit: el.classList.contains("settings-flash-anchor--lit"),
+          paddingSteps: [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].map((value) => Number.parseFloat(value) / step),
+          marginSteps: [style.marginTop, style.marginRight, style.marginBottom, style.marginLeft].map((value) => Number.parseFloat(value) / step),
+          headingClearsRing: glyph.y - box.y >= step,
+          outerHeight: box.height + Number.parseFloat(style.marginTop) + Number.parseFloat(style.marginBottom),
+          overflow: content.scrollWidth - content.clientWidth,
+        };
+      }),
+    )
+    .toEqual({
+      lit: true,
+      paddingSteps: [1, 1, 1, 1],
+      marginSteps: [-1, -1, -1, -1],
+      headingClearsRing: true,
+      outerHeight: expect.closeTo(before, 1),
+      overflow: 0,
+    });
 });
 
 // §7.4 / §10 Q4 — a SUB-level deep link resolves the pane in render and lands on the section's anchor once
