@@ -1,0 +1,90 @@
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import process from "node:process";
+import { pathToFileURL } from "node:url";
+import { listProcesses, pnpmInvocation } from "@orb/tooling/_shared/platform";
+import { killPidGroup } from "@orb/tooling/_shared/proc";
+import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { RUN_MARKER_ENV, runMarkerOwnerPid, sweepRunMarker } from "@orb/tooling/_shared/run-marker";
+import { z } from "zod";
+import { devMarkerPreload } from "../../../../tooling/src/dev/lib/plan.ts";
+import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+const CEILING = scaledBudget(20_000);
+const childRecord = z.object({ pid: z.number().int().positive(), marker: z.string(), nodeOptions: z.string() });
+
+for (const launcher of ["node", "pnpm"] as const) {
+  test.skipIf(process.platform === "win32")(
+    `${launcher}: the long-lived child owns the marker and escaped descendants remain sweepable`,
+    { timeout: CEILING },
+    async ({ repoRoot, scratch }) => {
+      const markerFile = join(scratch, "marker");
+      const descendantFile = join(scratch, "descendant.json");
+      const preload = join(scratch, "preload.mjs");
+      writeFileSync(preload, devMarkerPreload(markerFile, pathToFileURL(join(repoRoot, "tooling/src/_shared/run-marker.ts")).href));
+      const descendant = join(scratch, "descendant.mjs");
+      writeFileSync(
+        descendant,
+        `import { writeFileSync } from "node:fs";
+writeFileSync(${JSON.stringify(descendantFile)}, JSON.stringify({ pid: process.pid, marker: process.env[${JSON.stringify(RUN_MARKER_ENV)}], nodeOptions: process.env.NODE_OPTIONS }));
+setInterval(() => {}, 1000);`,
+      );
+      const leader = join(scratch, "leader.mjs");
+      writeFileSync(
+        leader,
+        `import { spawn } from "node:child_process";
+spawn(process.execPath, [${JSON.stringify(descendant)}], { detached: true, stdio: "ignore" }).unref();
+setInterval(() => {}, 1000);`,
+      );
+      const env: NodeJS.ProcessEnv = { ...inheritedProcessEnv() };
+      env["NODE_OPTIONS"] = `--no-warnings --import=${pathToFileURL(preload).href}`;
+      delete env[RUN_MARKER_ENV];
+      writeFileSync(join(scratch, "package.json"), JSON.stringify({ private: true, scripts: { dev: "node leader.mjs" } }));
+      const invocation = pnpmInvocation({ ambient: inheritedProcessEnv(), platform: process.platform, nodePath: process.execPath, args: ["run", "dev"] });
+      if (invocation.kind === "refused") {
+        throw new Error(invocation.reason);
+      }
+      const child =
+        launcher === "node"
+          ? spawn(process.execPath, [leader], { env, detached: true, stdio: "ignore" })
+          : spawn(invocation.command, [...invocation.args], { cwd: scratch, env, detached: true, stdio: "ignore" });
+      const unrelated = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { detached: true, stdio: "ignore" });
+      let marker: string | undefined;
+      try {
+        const deadline = Date.now() + CEILING / 2;
+        while (!existsSync(descendantFile) && Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+        const recorded = childRecord.parse(JSON.parse(readFileSync(descendantFile, "utf8")));
+        marker = readFileSync(markerFile, "utf8");
+        const parents = new Map(listProcesses().map((entry) => [entry.pid, entry.ppid]));
+        let owner: number | null | undefined = runMarkerOwnerPid(marker);
+        const seen = new Set<number>();
+        while (owner !== child.pid && owner !== null && owner !== undefined && !seen.has(owner)) {
+          seen.add(owner);
+          owner = parents.get(owner);
+        }
+        expect(owner, "the marker owner must still belong to the live launched subtree").toBe(child.pid);
+        expect(recorded.marker).toBe(marker);
+        expect(recorded.nodeOptions).toContain("--no-warnings");
+        expect(recorded.nodeOptions).not.toContain(pathToFileURL(preload).href);
+        const exited = once(child, "exit");
+        killPidGroup(child.pid, "SIGKILL");
+        await exited;
+        const swept = await sweepRunMarker(marker);
+        expect([...swept.terminated, ...swept.killed]).toContain(recorded.pid);
+        expect(unrelated.exitCode).toBeNull();
+        expect(unrelated.signalCode).toBeNull();
+      } finally {
+        killPidGroup(child.pid, "SIGKILL");
+        killPidGroup(unrelated.pid, "SIGKILL");
+        if (marker !== undefined) {
+          await sweepRunMarker(marker);
+        }
+      }
+    },
+  );
+}

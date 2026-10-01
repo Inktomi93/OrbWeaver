@@ -243,9 +243,9 @@ function AvailableConnectionEditorBody({
             <ConnectionPromptCache
               busy={busy}
               defaultEnabled={
-                capabilityView.capability?.kind === "generation" ? capabilityView.capability.generation.turns?.promptCacheDefaultEnabled : undefined
+                capabilityView.capability.kind === "generation" ? capabilityView.capability.generation.turns?.promptCacheDefaultEnabled : undefined
               }
-              fixedTtl={capabilityView.capability?.kind === "generation" ? capabilityView.capability.generation.turns?.fixedCacheTtl : undefined}
+              fixedTtl={capabilityView.capability.kind === "generation" ? capabilityView.capability.generation.turns?.fixedCacheTtl : undefined}
               connectionId={connectionId}
               connectionLabel={connection.label}
               onReset={(): void => patch({ promptCache: null })}

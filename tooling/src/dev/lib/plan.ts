@@ -127,3 +127,19 @@ export function devBannerLines(opts: { readonly vitePort: number; readonly serve
     "",
   ];
 }
+
+/** @public The contributor workflow preloads this source in pnpm so the marker owner outlives the readiness step. */
+export function devMarkerPreload(markerFile: string, markerModule: string): string {
+  return `import { writeFileSync } from "node:fs";
+import { mintRunMarker, inheritedRunMarker, runMarkerEnv } from ${JSON.stringify(markerModule)};
+if (inheritedRunMarker() === null) {
+  const marker = mintRunMarker();
+  Object.assign(process.env, runMarkerEnv(marker));
+  writeFileSync(${JSON.stringify(markerFile)}, marker);
+}
+const nodeOptions = process.env.NODE_OPTIONS;
+if (nodeOptions !== undefined) {
+  process.env.NODE_OPTIONS = nodeOptions.replace("--import=" + import.meta.url, "").trim();
+}
+`;
+}

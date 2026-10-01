@@ -38,14 +38,27 @@ jobs:
         run: |
           pnpm exec node --input-type=module - <<'NODE'
           import { writeFileSync } from "node:fs";
-          import { join } from "node:path";
+          import { join, resolve } from "node:path";
+          import { pathToFileURL } from "node:url";
           import { setTimeout as sleep } from "node:timers/promises";
           import { chromium } from "@playwright/test";
           import { spawnFullPriorityChild } from "./tooling/src/_shared/proc.ts";
-          import { STAGE_READY_BASE_MS, STAGE_WARMUP_BASE_MS, STAGE_WARMUP_MAX_RENAVIGATIONS } from "./tooling/src/snap/lib/budgets.ts";
+          import { RUN_MARKER_ENV } from "./tooling/src/_shared/run-marker.ts";
+          import { devMarkerPreload } from "./tooling/src/dev/lib/plan.ts";
+          import { awaitDevClientReady } from "./tooling/src/dev/ops/client-ready.ts";
+          const preload = join(process.env.RUNNER_TEMP, "contributor-marker.mjs");
+          writeFileSync(preload, devMarkerPreload(
+            join(process.env.RUNNER_TEMP, "contributor-dev.marker"),
+            pathToFileURL(resolve("tooling/src/_shared/run-marker.ts")).href,
+          ));
+          const childEnv = { ...process.env };
+          // The native dev proof owns its marker, not a surrounding tool's inherited run.
+          delete childEnv[RUN_MARKER_ENV];
+          childEnv.NODE_OPTIONS = [childEnv.NODE_OPTIONS, `--import=${pathToFileURL(preload).href}`].filter(Boolean).join(" ");
           // The existing spawn door resolves pnpm's .cmd shim on Windows through cross-spawn.
           const child = spawnFullPriorityChild("pnpm", ["dev"], {
             detached: process.platform !== "win32",
+            env: childEnv,
             logPath: join(process.env.RUNNER_TEMP, "contributor-dev.log"),
           });
           let exited = false;
@@ -69,25 +82,21 @@ jobs:
           try {
             const page = await browser.newPage();
             page.on("pageerror", (error) => console.error("CLIENT_ERROR", error.message));
-            const readyAttribute = "data-app-ready";
-            const marker = page.locator(`html[${readyAttribute}]`);
-            // Native Windows cold transforms share the existing startup deadline; macOS uses the proved shorter warm-up.
-            const clientDeadline = process.platform === "win32" ? deadline : Date.now() + STAGE_WARMUP_BASE_MS;
-            let readiness = null;
-            // A degraded marker is permanent for that document; cold Vite needs the same bounded warm-up as Snap.
-            for (let attempt = 0; attempt <= STAGE_WARMUP_MAX_RENAVIGATIONS && Date.now() < clientDeadline; attempt++) {
-              await page.goto(process.env.DEV_ORIGIN, { waitUntil: "commit", timeout: Math.max(1, clientDeadline - Date.now()) });
-              try {
-                await marker.waitFor({ state: "attached", timeout: Math.min(STAGE_READY_BASE_MS, Math.max(1, clientDeadline - Date.now())) });
-                readiness = await marker.getAttribute(readyAttribute);
-              } catch (error) {
-                if (!(error instanceof Error) || error.name !== "TimeoutError") throw error;
-                readiness = "absent";
-              }
-              console.log("Client readiness", { attempt, readiness });
-              if (readiness === "") break;
+            const pending = new Map();
+            page.on("request", (request) => pending.set(request, Date.now()));
+            page.on("requestfinished", (request) => pending.delete(request));
+            page.on("requestfailed", (request) => {
+              pending.delete(request);
+              console.error("CLIENT_REQUEST_FAILED", new URL(request.url()).pathname, request.failure()?.errorText);
+            });
+            try {
+              await awaitDevClientReady(page, process.env.DEV_ORIGIN, deadline);
+            } catch (error) {
+              console.error("CLIENT_PENDING", [...pending].map(([request, since]) => ({
+                path: new URL(request.url()).pathname, type: request.resourceType(), ageMs: Date.now() - since,
+              })));
+              throw error;
             }
-            if (readiness !== "") throw new Error("client did not settle within the cold Vite warm-up budget");
             console.log("READY client mounted without degraded readiness");
           } finally {
             await browser.close();
@@ -99,6 +108,7 @@ jobs:
         run: pnpm snap / --base "$DEV_ORIGIN" --map --aria --json --out contributor-home > "$RUNNER_TEMP/contributor-snap.log" 2>&1
 
       - name: Stop the dev process tree and prove ports are free
+        id: stop-dev
         if: always()
         shell: bash
         run: |
@@ -108,12 +118,18 @@ jobs:
           import { setTimeout as sleep } from "node:timers/promises";
           import { listeningPids } from "./tooling/src/_shared/platform.ts";
           import { killPidGroup } from "./tooling/src/_shared/proc.ts";
+          import { sweepRunMarker, describeRunMarkerSweep } from "./tooling/src/_shared/run-marker.ts";
           const record = join(process.env.RUNNER_TEMP, "contributor-dev.pid");
           if (!existsSync(record)) { console.log("No dev process was started"); process.exit(0); }
           const pid = Number(readFileSync(record, "utf8"));
           killPidGroup(pid, "SIGTERM");
           await sleep(5000);
           killPidGroup(pid, "SIGKILL");
+          const markerFile = join(process.env.RUNNER_TEMP, "contributor-dev.marker");
+          if (existsSync(markerFile)) {
+            const sweep = await sweepRunMarker(readFileSync(markerFile, "utf8").trim());
+            console.log(describeRunMarkerSweep(sweep) ?? "No escaped dev descendants remain");
+          }
           await sleep(1000);
           const ports = listeningPids();
           if (ports.kind === "refused") throw new Error(ports.reason);
@@ -124,9 +140,11 @@ jobs:
           NODE
 
       - name: Static contributor checks
+        if: ${{ !cancelled() && steps.stop-dev.outcome == 'success' }}
         run: pnpm check
 
       - name: Fixed component test
+        if: ${{ !cancelled() && steps.stop-dev.outcome == 'success' }}
         run: pnpm test:ct tests/client/features/chat/components/home-quick-picks-tile-body.ct.tsx
 
       - name: Show contributor logs
