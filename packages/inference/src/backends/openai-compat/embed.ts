@@ -17,21 +17,17 @@ import type { EmbeddingModelV4, JSONObject } from "@ai-sdk/provider";
 import type { EmbeddingCapability } from "@orb/contracts/inference";
 import type { EmbedResult } from "@orb/contracts/providers";
 import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
-import { l2Normalize } from "@orb/kit/vector-math";
 import { ProviderError } from "../../contract/errors.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import type { EmbedRequest } from "../../contract/roles.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { foldAbortInto } from "../kit/abort-flatten.ts";
+import { embeddingPrompt, fitToDim } from "../kit/embedding-input.ts";
 import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import { providerLogger } from "../kit/provider-log.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
 import type { ModelCall, TransportDeps } from "./model.ts";
 import { embeddingModelFor } from "./model.ts";
-
-/** Cookbook instructions (Qwen3-VL-Embedding, asymmetric retrieval). */
-export const DOC_INSTRUCTION = "Represent the user's input.";
-export const QUERY_INSTRUCTION = "Retrieve images or text relevant to the user's query.";
 
 const DIMENSIONS_REJECTED_RE = /dimensions/iu;
 const PROMPT_SCAFFOLD_RESERVE_TOKENS = 64;
@@ -50,11 +46,6 @@ interface KeptInput {
   readonly tokens: number;
 }
 
-/** The ChatML conversation Qwen3-VL-Embedding was trained on. */
-function toChatMlPrompt(text: string, instruction: string): string {
-  return `<|im_start|>system\n${instruction}<|im_end|>\n<|im_start|>user\n${text}<|im_end|>\n<|im_start|>assistant\n`;
-}
-
 function requireEmbedding(connection: Resolved, label: string): EmbeddingCapability {
   if (connection.capability.kind !== "embedding") {
     throw new ProviderError({
@@ -64,28 +55,6 @@ function requireEmbedding(connection: Resolved, label: string): EmbeddingCapabil
     });
   }
   return connection.capability.embedding;
-}
-
-/** MRL truncation down; a REFUSAL for a narrower vector (#1635 — padding invents coordinates). */
-export function fitToDim(vec: readonly number[], dim: number | undefined, prefix: string): Float32Array<ArrayBuffer> {
-  if (dim !== undefined && vec.length < dim) {
-    throw new ProviderError({
-      kind: "invalid",
-      retryable: false,
-      message: `${prefix}: the model returned a ${vec.length}-wide vector, narrower than the ${dim} the space admits`,
-    });
-  }
-  const sliced = dim !== undefined && vec.length > dim ? vec.slice(0, dim) : vec;
-  return l2Normalize(Float32Array.from(sliced)) as Float32Array<ArrayBuffer>;
-}
-
-/** The prompt one input embeds as: the scaffold + instruction the capability says the model was trained on. */
-function promptFor(text: string, req: EmbedRequest, capability: EmbeddingCapability): string {
-  const instruction = req.instruction ?? (req.inputType === "query" ? QUERY_INSTRUCTION : DOC_INSTRUCTION);
-  if (capability.promptScaffold === "chatml") {
-    return toChatMlPrompt(text, instruction);
-  }
-  return capability.instructionAware && req.instruction !== undefined ? `${req.instruction} ${text}` : text;
 }
 
 function selectInputs(
@@ -105,7 +74,7 @@ function selectInputs(
     if (clamped.length !== text.length) {
       warn(i, text.length, clamped.length, budget);
     }
-    const prompt = promptFor(clamped, req, capability);
+    const prompt = embeddingPrompt(clamped, req, capability);
     kept.push({ index: i, prompt, tokens: estimateTokens(prompt) });
   }
   return kept;

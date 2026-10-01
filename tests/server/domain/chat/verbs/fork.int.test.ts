@@ -1161,6 +1161,23 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       expect(dropped, "a HOST fork must copy every non-remapped column verbatim — including the host plane").toEqual([]);
     });
 
+    test.for(["member", "host"] as const)("content signatures obey the %s fork posture", async (role) => {
+      const human = await seedUser(db, castId<Handle>(`signature_${role}`));
+      const chatId = await seedFullyPopulatedRoom(`signature_${role}`, human, role);
+      const source = await tailVariantRow(chatId);
+      expect(source).toBeDefined();
+      if (source === undefined) {
+        return;
+      }
+      const contentSignatures = { text: [{ text: "HOST-ONLY original text", thoughtSignature: "private-signature" }], images: [] };
+      await db
+        .update(messageVariants)
+        .set({ metadata: { ["reasoning_duration"]: 1234, contentSignatures } })
+        .where(eq(messageVariants.id, source.id));
+      const { copy } = await censusRows(chatId, human);
+      expect(copy.metadata).toEqual(role === "host" ? { ["reasoning_duration"]: 1234, contentSignatures } : { ["reasoning_duration"]: 1234 });
+    });
+
     test("a fork preserves recorded provenance after the source connection was deleted", async () => {
       const host = await seedUser(db, castId<Handle>("census_deleted_connection"));
       const chatId = await seedFullyPopulatedRoom("census_deleted_connection_src", host, "host", true);

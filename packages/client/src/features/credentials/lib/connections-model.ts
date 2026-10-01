@@ -62,6 +62,7 @@ const CHAT_API_LABEL_PAIRS = [
   ["chat-completions", "Chat Completions"],
   ["agent-sdk", "Agent SDK (Claude subscription)"],
   ["anthropic-messages", "Anthropic Messages"],
+  ["google-generative-ai", "Google Gemini"],
 ] as const;
 
 /** The api-picker labels (the protocol axis), keyed on `CHAT_APIS` so a new member is a `tsc` error. */

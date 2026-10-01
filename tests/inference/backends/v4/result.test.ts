@@ -76,6 +76,7 @@ function drainOf(overrides: Partial<StreamDrain> = {}): StreamDrain {
     reply: "ok",
     reasoning: "",
     reasoningParts: [],
+    textSignatures: [],
     toolCalls: [],
     images: [],
     finish: { unified: "stop", raw: "end_turn" },

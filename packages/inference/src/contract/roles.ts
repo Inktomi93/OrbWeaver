@@ -104,6 +104,7 @@ export interface ImageGenerateRequest extends TaskRequestCommon<"generateImage">
 }
 
 export interface GeneratedImage {
+  readonly thoughtSignature?: string | undefined;
   readonly url: string | undefined;
   readonly base64: string | undefined;
   readonly mediaType: string | undefined;

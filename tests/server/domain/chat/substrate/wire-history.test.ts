@@ -12,7 +12,7 @@ import type { ChatReasoningPart, MessageView } from "@orb/contracts/chat";
 import { rowIndexAtCacheDepth } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, MessageId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import { buildWireHistory, dropEmptyWireRows, fitWireHistory, wireCostRows } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -364,4 +364,25 @@ test("an untrimmed history is left exactly as SHAPE delivered it", async () => {
   const { fitted, kept } = fitWireHistory(converted, { ...TIGHT_BUDGET, windowTokens: 100_000 }, MERGING_MARKER);
   expect(fitted.droppedCount).toBe(0);
   expect(kept).toEqual(converted);
+});
+
+test("host-only content signatures cannot follow a replaced asset or edited text", async () => {
+  const id = mintTypeId(ID_PREFIX.message);
+  const base = mediaEnv(linked(id, PICTURE, ILLUSTRATION), [canonRow(id, "assistant")]);
+  const signed = {
+    ...base,
+    contentSignaturesByMessage: new Map([
+      [id, { text: [{ text: "Original.", thoughtSignature: "text-private" }], images: [{ assetId: PICTURE, thoughtSignature: "image-private" }] }],
+    ]),
+  };
+  const first = await buildWireHistory(signed, [row("assistant", `Original.${imageMarkdown("picture", PICTURE)}`, id)]);
+  expect(first[0]?.row.content).toEqual([
+    { type: "text", text: "Original.", thoughtSignature: "text-private" },
+    { type: "image", url: "https://cas.test/asset_inline_1", thoughtSignature: "image-private" },
+  ]);
+  const edited = await buildWireHistory(signed, [row("assistant", `Edited.${imageMarkdown("replacement", ILLUSTRATION)}`, id)]);
+  expect(edited[0]?.row.content).toEqual([
+    { type: "text", text: "Edited." },
+    { type: "image", url: "https://cas.test/asset_imagine_1" },
+  ]);
 });

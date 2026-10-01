@@ -155,6 +155,7 @@ export { CHAT_LIST_MAX_LIMIT, chatListCursorSchema } from "./listing.ts";
 export type {
   ChatReasoningPart,
   ConnectionAttributionProvenance,
+  ContentSignatures,
   CueRole,
   MacroFreezeRecord,
   MessageAssetOrigin,
@@ -163,6 +164,7 @@ export type {
   ReasoningPartMeta,
   ReattributeScope,
   StandaloneVariableDelta,
+  TextSignature,
   TokenProvenance,
   ToolCallRecord,
   UserMacroDraws,

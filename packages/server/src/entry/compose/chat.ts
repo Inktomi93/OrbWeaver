@@ -560,6 +560,7 @@ function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
       costDetails: result.usage.costDetails,
       // The replayable reasoning blocks (A1) — stored on the variant; the assembly reads them back.
       reasoningParts: result.reasoningParts ?? null,
+      ...(result.textSignatures === undefined ? {} : { textSignatures: result.textSignatures }),
       maxOutputTokens: result.usage.maxOutputTokens,
       // The provider's per-turn MODEL-CALL count, renamed across the seam (`numTurns` → `modelCalls`)
       // because "turn" already means a CHAT turn on this side. It is what makes `tokensOut` (a sum

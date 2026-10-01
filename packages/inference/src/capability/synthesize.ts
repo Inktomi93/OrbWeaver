@@ -29,7 +29,7 @@ import { applyFamilyFloor } from "./sources/family-floor.ts";
 export interface Evidence {
   readonly declared?: DeclaredCapability | null | undefined;
   readonly measured?: readonly CapabilityOverride[] | undefined;
-  readonly advertised?: Partial<GenerationCapability> | Partial<EmbeddingCapability> | Partial<RerankCapability> | undefined;
+  readonly advertised?: NonNullable<CapabilityOverride["generation"]> | Partial<EmbeddingCapability> | Partial<RerankCapability> | undefined;
   readonly curated?: readonly CapabilityOverride[] | undefined;
 }
 
@@ -134,6 +134,7 @@ function synthesizeEmbedding(evidence: Evidence): SynthesizedCapability {
   capability = mergeFlat(capability, declared);
   const stated =
     [...(evidence.curated ?? []), ...(evidence.measured ?? [])].some((row) => row.embedding?.maxInputTokens !== undefined) ||
+    (evidence.advertised as Partial<EmbeddingCapability> | undefined)?.maxInputTokens !== undefined ||
     declared?.maxInputTokens !== undefined;
   const { windowEstimated: _dropped, ...rest } = capability;
   return {

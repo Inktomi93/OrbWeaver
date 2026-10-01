@@ -189,6 +189,32 @@ function anthropicScript(script: ChatScript): SseEvent[] {
   return out;
 }
 
+function googleScript(script: ChatScript): SseEvent[] {
+  const events: SseEvent[] = script.deltas.map((text) => ({ event: "", data: { candidates: [{ content: { role: "model", parts: [{ text }] } }] } }));
+  if (script.stop !== null) {
+    events.push({
+      event: "",
+      data: {
+        candidates: [{ content: { role: "model", parts: [] }, finishReason: script.stop === "stop" ? "STOP" : script.stop }],
+        usageMetadata: {
+          promptTokenCount: script.tokensIn,
+          candidatesTokenCount: script.tokensOut,
+          totalTokenCount: script.tokensIn + script.tokensOut,
+          cachedContentTokenCount: script.cacheRead ?? 0,
+        },
+      },
+    });
+  }
+  return events;
+}
+
+function hostedScript(wire: Wire, script: ChatScript): SseEvent[] {
+  if (wire === "google-generative-ai") {
+    return googleScript(script);
+  }
+  return wire === "anthropic-messages" ? anthropicScript(script) : openAiCompatScript(script);
+}
+
 /** The agent-sdk rendering: the SDK's own message frames. `system/init` must satisfy the init-frame SHAPE
  *  GUARD (`backends/agent-sdk/verify.ts`), the `stream_event` frames are what `onDelta` sees, and the
  *  `result` frame is the terminal one whose absence is the wire's truncation failure. */
@@ -309,9 +335,9 @@ export function skipReasonFor(wire: Wire, task: ConformanceTask): SkipReason | n
  *  pin's very first run: `openai-compat` serves `embed` and had no driver.) */
 export function hasDriver(wire: Wire, task: ConformanceTask): boolean {
   if (task === "chat" || task === "structured") {
-    return wire === "openai-compat" || wire === "anthropic-messages" || wire === "agent-sdk";
+    return wire === "openai-compat" || wire === "anthropic-messages" || wire === "google-generative-ai" || wire === "agent-sdk";
   }
-  return wire === "local-light" || wire === "openai-compat";
+  return wire === "local-light" || wire === "openai-compat" || wire === "google-generative-ai";
 }
 
 // ── the drivers ───────────────────────────────────────────────────────────────────────────────────────────
@@ -399,6 +425,9 @@ function chatRequestFor(wire: Wire, options: ChatArmOptions, sink: ChatEventSink
   if (wire === "anthropic-messages") {
     return { ...common, api: "anthropic-messages", history } satisfies AnthropicChatRequest;
   }
+  if (wire === "google-generative-ai") {
+    return { ...common, api: "google-generative-ai", history };
+  }
   return { ...common, api: "chat-completions", history } satisfies OpenAiCompatChatRequest;
 }
 
@@ -415,7 +444,7 @@ export async function driveChat(wire: Wire, options: ChatArmOptions): Promise<Ch
   const runtime = runtimeFor(
     wire,
     () => agentSdkFrames(options.script, model),
-    () => (wire === "anthropic-messages" ? anthropicScript(options.script) : openAiCompatScript(options.script)),
+    () => hostedScript(wire, options.script),
     recorded,
   );
   const request = chatRequestFor(wire, options, sink);
@@ -508,12 +537,23 @@ function embeddingsBody(dims: number): string {
 function driveEmbed(wire: Wire, signal?: AbortSignal): Promise<unknown> {
   // `local-light` runs in-process against the fake model cache and issues no request at all; the hosted wire
   // POSTs, so it gets a scripted JSON transport. Both reach the SAME `executor.embed` seam.
-  const runtime = wire === "local-light" ? buildRuntime({}) : buildRuntime({ fetch: abortAware(scriptedJsonFetch([embeddingsBody(EMBED_DIMS)], [])) });
+  const runtime =
+    wire === "local-light"
+      ? buildRuntime({})
+      : buildRuntime({
+          fetch: abortAware(
+            scriptedJsonFetch(
+              [wire === "google-generative-ai" ? JSON.stringify({ embedding: { values: new Array(EMBED_DIMS).fill(1) } }) : embeddingsBody(EMBED_DIMS)],
+              [],
+            ),
+          ),
+        });
   const request: EmbedRequest = {
     connection: fakeResolved({
       task: "embed",
       providerId: providerForWire(wire),
       model: wire === "local-light" ? "jinaai/jina-clip-v2" : "text-embedding-conformance",
+      secret: fakeApiKeySecret("conformance-embed-key"),
       capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: EMBED_DIMS, input: ["text"] } },
     }),
     input: ["conformance"],

@@ -4,7 +4,7 @@
 // and the runtime variable-delta wire (D46) parsed at the DB read seam. A swipe APPENDs a variant + flips a
 // pointer (never a content copy); attribution is slot-level (a swipe never changes the voiced speaker).
 
-import type { CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -95,6 +95,7 @@ export const CHAT_MESSAGE_LIST_MAX_LIMIT = 100;
  *  signature / encrypted-reasoning blob has no business crossing to a browser. The assembly reads them
  *  through the engine's own `loadReasoningParts` op instead (§8.8). */
 export interface ReasoningPartMeta {
+  readonly google?: { readonly thoughtSignature: string } | undefined;
   readonly anthropic?: { readonly signature?: string | undefined; readonly redactedData?: string | undefined } | undefined;
   readonly openrouter?: { readonly reasoningDetails: readonly JsonValue[] } | undefined;
 }
@@ -117,6 +118,7 @@ export const chatReasoningPartSchema = z.object({
   text: z.string(),
   meta: z
     .object({
+      google: z.object({ thoughtSignature: z.string() }).optional(),
       anthropic: z.object({ signature: z.string().optional(), redactedData: z.string().optional() }).optional(),
       openrouter: z.object({ reasoningDetails: z.array(jsonValueSchema).transform((details): readonly JsonValue[] => details) }).optional(),
     })
@@ -238,6 +240,17 @@ export const variantProviderMetadataSchema = z.union([namedProviderMetadataSchem
  *  narrows on. A plugin provider's arm carries `raw` and NO reader by key. */
 export type VariantProviderMetadata = z.infer<typeof variantProviderMetadataSchema>;
 
+/** Host-only replay provenance, matched against the selected variant's exact canonical content. */
+const textSignatureSchema = z.object({ text: z.string(), thoughtSignature: z.string() });
+export type TextSignature = z.infer<typeof textSignatureSchema>;
+const contentSignatureSnapshotSchema = z.object({
+  content: z.string().optional(),
+  text: z.array(textSignatureSchema.partial({ thoughtSignature: true })),
+  images: z.array(z.object({ assetId: brandedId<AssetId>(), thoughtSignature: z.string() })),
+});
+const contentSignaturesSchema = contentSignatureSnapshotSchema.extend({ previous: contentSignatureSnapshotSchema.optional() });
+export type ContentSignatures = z.infer<typeof contentSignaturesSchema>;
+
 /** `message_variants.metadata` PARSED (never cast) at the read seam: the measured reasoning window under
  *  {@link VARIANT_METADATA_REASONING_MS_KEY}, the provider sidecar, and the ST import's foreign residue.
  *
@@ -258,6 +271,7 @@ export const variantMetadataSchema = z.object({
   [VARIANT_METADATA_REASONING_MS_KEY]: z.number().optional(),
   [VARIANT_METADATA_TOKEN_COUNT_KEY]: z.number().optional(),
   providerMetadata: variantProviderMetadataSchema.optional(),
+  contentSignatures: contentSignaturesSchema.optional(),
   importResidue: jsonValueSchema.optional(),
 });
 /** The parsed `message_variants.metadata` sidecar — the type the column's `$type` carries and every reader

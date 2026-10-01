@@ -16,6 +16,7 @@ import type {
   SharedV4ProviderMetadata,
   SharedV4Warning,
 } from "@ai-sdk/provider";
+import type { TextSignature } from "@orb/contracts/chat";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { ReasoningContentPart, ToolCallInput } from "../../contract/chat.ts";
@@ -24,6 +25,8 @@ import type { GeneratedImage } from "../../contract/roles.ts";
 
 const BASE64 = "base64";
 const IMAGE_PREFIX = "image/";
+const GOOGLE_KEY = "google";
+const THOUGHT_SIGNATURE_KEY = "thoughtSignature";
 const ANTHROPIC_KEY = "anthropic";
 const OPENROUTER_KEY = "openrouter";
 const SIGNATURE_KEY = "signature";
@@ -32,6 +35,7 @@ const REASONING_DETAILS_KEY = "reasoning_details";
 
 export interface StreamDrain {
   readonly reply: string;
+  readonly textSignatures: readonly TextSignature[];
   readonly reasoning: string;
   /** One entry per reasoning BLOCK the provider opened, in stream order, carrying that block's text and the
    *  wire-opaque provenance the next leg must replay (§A1). Empty when the wire surfaced no reasoning. */
@@ -61,6 +65,7 @@ export interface DrainCallbacks {
 interface ReasoningAcc {
   text: string;
   signature: string | undefined;
+  thoughtSignature: string | undefined;
   redactedData: string | undefined;
   reasoningDetails: readonly JsonValue[] | undefined;
 }
@@ -69,6 +74,7 @@ interface Accumulator {
   reply: string;
   reasoning: string;
   readonly reasoningParts: Map<string, ReasoningAcc>;
+  readonly textParts: Map<string, { text: string; thoughtSignature: string | undefined }>;
   readonly toolCalls: ToolCallInput[];
   readonly images: GeneratedImage[];
   readonly warnings: SharedV4Warning[];
@@ -108,6 +114,7 @@ function jsonArrayAt(bag: JSONObject | undefined, key: string): readonly JsonVal
  *  the wires deliver provenance incrementally (a signature arrives after its text; OpenRouter re-sends the
  *  whole accumulated details list), so the newest value is always the complete one. */
 function applyReasoningMeta(block: ReasoningAcc, metadata: SharedV4ProviderMetadata | undefined): void {
+  block.thoughtSignature = stringAt(metadata?.[GOOGLE_KEY], THOUGHT_SIGNATURE_KEY) ?? block.thoughtSignature;
   const anthropic = metadata?.[ANTHROPIC_KEY];
   block.signature = stringAt(anthropic, SIGNATURE_KEY) ?? block.signature;
   block.redactedData = stringAt(anthropic, REDACTED_DATA_KEY) ?? block.redactedData;
@@ -119,7 +126,7 @@ function reasoningBlock(acc: Accumulator, id: string): ReasoningAcc {
   if (found !== undefined) {
     return found;
   }
-  const fresh: ReasoningAcc = { text: "", signature: undefined, redactedData: undefined, reasoningDetails: undefined };
+  const fresh: ReasoningAcc = { text: "", thoughtSignature: undefined, signature: undefined, redactedData: undefined, reasoningDetails: undefined };
   acc.reasoningParts.set(id, fresh);
   return fresh;
 }
@@ -143,7 +150,18 @@ function applyReasoningPart(acc: Accumulator, part: LanguageModelV4StreamPart, c
   }
 }
 
+function applyTextSignature(acc: Accumulator, part: LanguageModelV4StreamPart): void {
+  if (part.type === "text-start" || part.type === "text-delta" || part.type === "text-end") {
+    const block = acc.textParts.getOrInsertComputed(part.id, () => ({ text: "", thoughtSignature: undefined }));
+    if (part.type === "text-delta") {
+      block.text += part.delta;
+    }
+    block.thoughtSignature = stringAt(part.providerMetadata?.[GOOGLE_KEY], THOUGHT_SIGNATURE_KEY) ?? block.thoughtSignature;
+  }
+}
+
 function applyContentPart(acc: Accumulator, part: LanguageModelV4StreamPart, callbacks: DrainCallbacks): void {
+  applyTextSignature(acc, part);
   if (part.type === "text-delta") {
     acc.reply += part.delta;
     callbacks.onText?.(part.delta);
@@ -167,7 +185,8 @@ function applyContentPart(acc: Accumulator, part: LanguageModelV4StreamPart, cal
       // model's own output, and it is the only moment that offset is knowable — the drain is the one place
       // text and file parts are still interleaved in stream order. The chat reducer splices the span there
       // and mints the alt from the prose in front of it.
-      const placed: GeneratedImage = { ...image, atChars: acc.reply.length };
+      const signature = stringAt(part.providerMetadata?.[GOOGLE_KEY], THOUGHT_SIGNATURE_KEY);
+      const placed: GeneratedImage = { ...image, atChars: acc.reply.length, ...(signature === undefined ? {} : { thoughtSignature: signature }) };
       acc.images.push(placed);
       callbacks.onImage?.(placed);
     }
@@ -202,6 +221,7 @@ function reasoningPartsOf(acc: Accumulator): readonly ReasoningContentPart[] {
       ...(block.redactedData !== undefined ? { redactedData: block.redactedData } : {}),
     };
     const meta = {
+      ...(block.thoughtSignature === undefined ? {} : { google: { thoughtSignature: block.thoughtSignature } }),
       ...(Object.keys(anthropic).length > 0 ? { anthropic } : {}),
       ...(block.reasoningDetails !== undefined ? { openrouter: { reasoningDetails: block.reasoningDetails } } : {}),
     };
@@ -252,6 +272,7 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
     reply: "",
     reasoning: "",
     reasoningParts: new Map(),
+    textParts: new Map(),
     toolCalls: [],
     images: [],
     warnings: [],
@@ -279,6 +300,9 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
   }
   return {
     reply: acc.reply,
+    textSignatures: [...acc.textParts.values()].flatMap((part) =>
+      part.thoughtSignature === undefined ? [] : [{ text: part.text, thoughtSignature: part.thoughtSignature }],
+    ),
     reasoning: acc.reasoning,
     reasoningParts: reasoningPartsOf(acc),
     toolCalls: acc.toolCalls,

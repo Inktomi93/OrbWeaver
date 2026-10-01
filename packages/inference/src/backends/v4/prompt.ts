@@ -75,6 +75,7 @@ export interface BuildPromptArgs {
    *  row takes the cache breakpoint, the per-turn half stays outside it). Both stay in the system region, where
    *  the prompt order put them. */
   readonly splitSystem?: boolean | undefined;
+  readonly includeAssistantMedia?: boolean | undefined;
 }
 
 function joinSystemPrompt(systemPrompt: { readonly static: string; readonly dynamic: string }): string {
@@ -117,7 +118,11 @@ function userMessage(row: ChatHistoryMessage, options: SharedV4ProviderOptions |
   const parts: Extract<LanguageModelV4Message, { role: "user" }>["content"] = [];
   for (const part of row.content) {
     if (part.type === "text") {
-      parts.push({ type: "text", text: part.text });
+      parts.push({
+        type: "text",
+        text: part.text,
+        ...(part.thoughtSignature === undefined ? {} : { providerOptions: { google: { thoughtSignature: part.thoughtSignature } } }),
+      });
     } else if (part.type === "image" || part.type === "video") {
       parts.push(mediaFilePart({ kind: part.type, url: part.url }));
     }
@@ -142,6 +147,7 @@ function reasoningOptions(meta: ReasoningPartMeta | undefined): SharedV4Provider
     ...(meta.anthropic?.redactedData !== undefined ? { redactedData: meta.anthropic.redactedData } : {}),
   };
   const options: SharedV4ProviderOptions = {
+    ...(meta.google === undefined ? {} : { google: { thoughtSignature: meta.google.thoughtSignature } }),
     ...(Object.keys(anthropic).length > 0 ? { [ANTHROPIC_OPTIONS_KEY]: anthropic } : {}),
     ...(meta.openrouter !== undefined ? { [OPENROUTER_OPTIONS_KEY]: { [REASONING_DETAILS_KEY]: [...meta.openrouter.reasoningDetails] } } : {}),
   };
@@ -158,30 +164,49 @@ function toolCallPart(part: Extract<ChatContentPart, { type: "tool-call" }>): La
   };
 }
 
-function assistantMessage(row: ChatHistoryMessage, options: SharedV4ProviderOptions | undefined): LanguageModelV4Message | null {
-  const parts: Extract<LanguageModelV4Message, { role: "assistant" }>["content"] = [];
-  let hasSubstance = false;
-  for (const part of row.content) {
-    if (part.type === "text") {
-      parts.push({ type: "text", text: part.text });
-      hasSubstance ||= part.text.trim().length > 0;
-    } else if (part.type === "reasoning") {
-      // Deliberately NOT substance: a row carrying only replayed thinking is not a turn, and sending one
-      // alone would be a thinking block with nothing it justifies.
-      const reasoningMeta = reasoningOptions(part.meta);
-      parts.push({ type: "reasoning", text: part.text, ...(reasoningMeta !== undefined ? { providerOptions: reasoningMeta } : {}) });
-    } else if (part.type === "tool-call") {
-      parts.push(toolCallPart(part));
-      hasSubstance = true;
-    } else if (part.type === "image" || part.type === "video") {
-      // Recorded on the plan for the re-attach hook; the converter would drop the part (§8.0).
-      hasSubstance = true;
-    }
+type AssistantPart = Extract<LanguageModelV4Message, { role: "assistant" }>["content"][number];
+
+function assistantPart(part: ChatContentPart, includeMedia: boolean): AssistantPart[] {
+  if (part.type === "text") {
+    return [
+      {
+        type: "text",
+        text: part.text,
+        ...(part.thoughtSignature === undefined ? {} : { providerOptions: { google: { thoughtSignature: part.thoughtSignature } } }),
+      },
+    ];
   }
+  if (part.type === "reasoning") {
+    const options = reasoningOptions(part.meta);
+    return [{ type: "reasoning", text: part.text, ...(options === undefined ? {} : { providerOptions: options }) }];
+  }
+  if (part.type === "tool-call") {
+    return [toolCallPart(part)];
+  }
+  if (includeMedia && (part.type === "image" || part.type === "video")) {
+    const signature = part.type === "image" ? part.thoughtSignature : undefined;
+    return [
+      {
+        ...mediaFilePart({ kind: part.type, url: part.url }),
+        ...(signature === undefined ? {} : { providerOptions: { google: { thoughtSignature: signature } } }),
+      },
+    ];
+  }
+  return [];
+}
+
+function assistantMessage(row: ChatHistoryMessage, options: SharedV4ProviderOptions | undefined, includeMedia: boolean): LanguageModelV4Message | null {
+  const hasSubstance = row.content.some((part) =>
+    part.type === "text" ? part.text.trim().length > 0 : part.type === "image" || part.type === "video" || part.type === "tool-call",
+  );
   if (!hasSubstance) {
     return null;
   }
-  return { role: "assistant", content: parts, ...(options !== undefined ? { providerOptions: options } : {}) };
+  return {
+    role: "assistant",
+    content: row.content.flatMap((part) => assistantPart(part, includeMedia)),
+    ...(options === undefined ? {} : { providerOptions: options }),
+  };
 }
 
 /** One `tool` wire message per `tool-result` part. `isError` maps to the V4 `error-text` output — the
@@ -211,6 +236,7 @@ function toolMessages(row: ChatHistoryMessage, callNames: ReadonlyMap<string, st
 interface PlanBuilder {
   /** Tool-call id → the called tool's name, from every assistant `tool-call` part in the history. */
   readonly callNames: ReadonlyMap<string, string>;
+  readonly includeAssistantMedia: boolean;
   readonly prompt: LanguageModelV4Message[];
   readonly names: Map<number, string>;
   readonly assistantMedia: Map<number, readonly OutboundMedia[]>;
@@ -251,7 +277,7 @@ function pushHistoryRow(builder: PlanBuilder, row: ChatHistoryMessage, options: 
     return;
   }
   if (row.role === "assistant") {
-    const message = assistantMessage(row, options);
+    const message = assistantMessage(row, options, builder.includeAssistantMedia);
     if (message !== null) {
       const toolExchange = row.content.some((part) => part.type === "tool-call");
       pushRow(builder, message, { role: "assistant", toolExchange, text }, row);
@@ -269,7 +295,14 @@ export function buildWirePlan(args: BuildPromptArgs): WirePlan {
   const callNames = new Map(
     args.history.flatMap((row) => row.content.flatMap((part) => (part.type === "tool-call" ? [[part.toolCallId, part.name] as const] : []))),
   );
-  const builder: PlanBuilder = { callNames, prompt: [], names: new Map(), assistantMedia: new Map(), rows: [] };
+  const builder: PlanBuilder = {
+    includeAssistantMedia: args.includeAssistantMedia === true,
+    callNames,
+    prompt: [],
+    names: new Map(),
+    assistantMedia: new Map(),
+    rows: [],
+  };
   const staticText = args.systemPrompt.static.trim();
   const dynamicText = args.systemPrompt.dynamic.trim();
   const split = args.splitSystem === true && staticText.length > 0 && dynamicText.length > 0;

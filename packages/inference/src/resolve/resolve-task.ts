@@ -27,10 +27,12 @@ import type {
 } from "@orb/contracts/inference";
 import { canFund, connectionTasks, effectivePromptCache, foldFeatures, modelIdSchema, requirementMet, taskDef } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
+import { googleModelId } from "../backends/google/model.ts";
 import { resolveEmbedDtype } from "../backends/local-light/model-cache.ts";
 import { detectModelFamily } from "../capability/families.ts";
 import { applyEndpointPosture } from "../capability/floor.ts";
 import { advertisedFromAgentSdk, agentSdkRowFor } from "../capability/sources/advertised/agent-sdk.ts";
+import { advertisedFromGoogle } from "../capability/sources/advertised/google.ts";
 import { advertisedFromOpenAiCompat } from "../capability/sources/advertised/openai-compat.ts";
 import { advertisedFromOpenRouter } from "../capability/sources/advertised/openrouter.ts";
 import { curatedKind, curatedRows } from "../capability/sources/curated/loader.ts";
@@ -94,10 +96,22 @@ function kindOf(
   args: { readonly task: Task; readonly provider: ProviderDef; readonly connection: UserConnection; readonly includeDeclared?: boolean },
 ): ModelKind {
   const { task, provider, connection } = args;
-  const catalogRow = provider.dialect === "openrouter" ? ctx.openRouterCatalog.get()?.find((entry) => entry.id === connection.model) : undefined;
+  let catalogKind: ModelKind | undefined;
+  if (provider.dialect === "openrouter") {
+    catalogKind = ctx.openRouterCatalog.get()?.find((entry) => entry.id === connection.model)?.kind;
+  } else if (provider.wire === "google-generative-ai") {
+    const baseUrl = provider.baseUrl ?? connection.baseUrl;
+    catalogKind =
+      baseUrl === null
+        ? undefined
+        : ctx
+            .endpointModels(baseUrl)
+            .get()
+            ?.find((entry) => entry.id === googleModelId(connection.model))?.kind;
+  }
   return (
     (args.includeDeclared === false ? undefined : connection.declared?.kind) ??
-    catalogRow?.kind ??
+    catalogKind ??
     curatedKind({ model: connection.model, providerId: provider.id, wire: provider.wire }) ??
     taskDef(task).kind
   );
@@ -112,15 +126,28 @@ function advertisedFor(ctx: ResolverContext, provider: ProviderDef, connection: 
     const entry = ctx.openRouterCatalog.get()?.find((candidate) => candidate.id === model);
     return entry === undefined ? undefined : advertisedFromOpenRouter(entry);
   }
-  const baseUrl = provider.wire === "openai-compat" ? (provider.baseUrl ?? connection.baseUrl) : null;
+  const baseUrl = provider.wire === "openai-compat" || provider.wire === "google-generative-ai" ? (provider.baseUrl ?? connection.baseUrl) : null;
   const entry =
     baseUrl === null
       ? undefined
       : ctx
           .endpointModels(baseUrl)
           .get()
-          ?.find((candidate) => candidate.id === model);
+          ?.find((candidate) => candidate.id === (provider.wire === "google-generative-ai" ? googleModelId(model) : model));
+  if (provider.wire === "google-generative-ai") {
+    return googleAdvertised(entry, provider, model);
+  }
   return entry === undefined ? undefined : advertisedFromOpenAiCompat(entry);
+}
+
+function googleAdvertised(entry: EndpointModel | undefined, provider: ProviderDef, model: ModelId): Evidence["advertised"] {
+  if (entry === undefined) {
+    return;
+  }
+  if (entry.kind === "embedding") {
+    return entry.contextLength === null ? {} : { maxInputTokens: entry.contextLength };
+  }
+  return advertisedFromGoogle(entry, curatedRows({ model, providerId: provider.id, wire: provider.wire }));
 }
 
 /** The id the curated/measured rows and the family detector read: the model itself, or — on OpenRouter — the id
@@ -233,6 +260,13 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
       `provider "${connection.providerId}" is not registered (a plugin provider reads no-connection unless one of the owner's enabled plugins contributes it)`,
     );
   }
+  const nativeCredential =
+    provider.wire === "google-generative-ai"
+      ? await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id })
+      : null;
+  if (nativeCredential !== null) {
+    await warmFor(ctx, provider, connection, nativeCredential);
+  }
   const declared = connection.declared;
   const kind = kindOf(ctx, { task: args.task, provider, connection });
   const baselineKind = includeBaseline ? kindOf(ctx, { task: args.task, provider, connection, includeDeclared: false }) : undefined;
@@ -245,8 +279,11 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
     });
   }
   const api = resolveApi(provider, connection, kind);
-  const credential = await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id });
-  await warmFor(ctx, provider, connection, credential);
+  const credential =
+    nativeCredential ?? (await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id }));
+  if (nativeCredential === null) {
+    await warmFor(ctx, provider, connection, credential);
+  }
   const model = normalizeModelId(connection.model, provider.wire === "agent-sdk" ? ctx.agentSdkCatalog.get() : null);
   const factsModel = factsModelFor(ctx, provider, model);
   const family = detectModelFamily(factsModel);

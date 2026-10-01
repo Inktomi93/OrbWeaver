@@ -22,8 +22,8 @@
 // a floor the variable delta LOG collapses the same way, into ONE synthetic baseline batch
 // (`buildForkStandaloneDeltas`, D79 ruling #8).
 
-import type { ChatMetadata, DurableChatBusEvent, ParticipantView, StandaloneVariableDelta } from "@orb/contracts/chat";
-import { variableDeltaSchema } from "@orb/contracts/chat";
+import type { ChatMetadata, DurableChatBusEvent, ParticipantView, StandaloneVariableDelta, VariantMetadata } from "@orb/contracts/chat";
+import { parseVariantMetadata, variableDeltaSchema } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
@@ -81,6 +81,14 @@ type CharacterSeatRow = typeof chatParticipants.$inferSelect & {
 interface ForkCopyPosture {
   readonly stripHidden: boolean;
   readonly stripReasoning: boolean;
+}
+
+function forkVariantMetadata(metadata: VariantMetadata | null, stripHostPlane: boolean): VariantMetadata | null {
+  if (!stripHostPlane || metadata === null) {
+    return metadata;
+  }
+  const { contentSignatures: _hostOnly, ...visible } = parseVariantMetadata(metadata);
+  return Object.keys(visible).length === 0 ? null : visible;
 }
 
 /** THE COPY IS AN ALLOW-LIST, AND `tsc` KEEPS IT TOTAL. This function names EVERY `message_variants` column and is typed
@@ -209,7 +217,7 @@ function forkVariantValues(args: {
     // caller-facing payload, and dropping it would desync the fork's stats REBUILD from its live delta.
     toolCalls: variant.toolCalls,
     variableDelta: variant.variableDelta,
-    metadata: variant.metadata,
+    metadata: forkVariantMetadata(variant.metadata, posture.stripHidden),
     createdAt: variant.createdAt,
   };
 }

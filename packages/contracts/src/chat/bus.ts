@@ -37,14 +37,14 @@ export type ChatDeltaEvent = { chatId: ChatId; kind: "text"; text: string } | { 
  *  the ONE home (D45 "the cross-boundary message DTOs in `@orb/contracts/chat` carry the same"); the infra
  *  `ChatHistoryMessage` imports it. Distinct from the D44 RENDER `MessageContentBlock` (display ⇆ client). */
 export type ChatContentPart =
-  | { readonly type: "text"; readonly text: string }
+  | { readonly type: "text"; readonly text: string; readonly thoughtSignature?: string }
   /* The model's own THINKING, kept so a tool loop can replay it (audit A1). Content, not display: the
    * rendered reasoning a user reads is the variant's `reasoning` string — this part exists because every
    * hosted provider verifies its prior reasoning by an opaque signature and a loop that drops it hands the
    * model an amnesiac transcript (and, on the arms that enforce verification, a 400). `text` may be EMPTY:
    * a redacted thinking block is signature-only. */
   | ChatReasoningPart
-  | { readonly type: "image"; readonly url: string }
+  | { readonly type: "image"; readonly url: string; readonly thoughtSignature?: string }
   /* The #317 video sibling of the image part — same resolve seam, same attachment-only rule, gated by
    * `ModelCapability.input.video` instead of `input.vision`. The MEDIA KIND is a fact of the stored asset
    * (mime, plus the animated byte-fact for gif-as-motion), classified ONCE by the engine's injected

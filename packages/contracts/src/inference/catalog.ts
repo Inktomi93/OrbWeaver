@@ -8,7 +8,15 @@ import { z } from "zod";
 import { effortLevelSchema } from "./capability/generation.ts";
 import { modelKindSchema } from "./kinds.ts";
 
+const googleModelInfoSchema = z.object({
+  thinking: z.boolean().optional(),
+  maxTemperature: z.number().optional(),
+  topP: z.number().optional(),
+  topK: z.number().optional(),
+});
+
 export const modelCatalogEntrySchema = z.object({
+  google: googleModelInfoSchema.optional(),
   id: z.string(),
   name: z.string(),
   /** Only OpenRouter's catalog carries a kind; every other `/v1/models` is kindless (§5.7 `kindOf`). */

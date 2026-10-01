@@ -16,6 +16,7 @@
   "dependencies": {
     "@orb/kit": "workspace:*",
     "@orb/contracts": "workspace:*",
+    "@ai-sdk/google": "catalog:",
     "@ai-sdk/anthropic": "catalog:",
     "@ai-sdk/openai-compatible": "catalog:",
     "@ai-sdk/provider": "catalog:",

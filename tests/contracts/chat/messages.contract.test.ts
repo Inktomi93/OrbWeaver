@@ -343,3 +343,8 @@ test("importResidue is declared-OPAQUE: any JSON rides, and a non-JSON value is 
   // A function is not JSON; the sidecar degrades rather than persisting something that cannot round-trip.
   expect(variantMetadataSchema.safeParse({ importResidue: (): number => 1 }).success).toBe(false);
 });
+
+test("host-only native content signatures survive variant metadata serialization", () => {
+  const metadata = { contentSignatures: { text: [{ text: "A square.", thoughtSignature: "text-signature" }], images: [] } };
+  expect(parseVariantMetadata(JSON.parse(JSON.stringify(metadata)))).toEqual(metadata);
+});

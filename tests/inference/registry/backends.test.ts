@@ -85,3 +85,15 @@ test("an installed runtime becomes usable through the existing registry without 
   expect(built.agentSdk).toBeDefined();
   expect(built.registry.get("local-light")).toBe(local);
 });
+
+test("native Google implements its supported tasks without agent or rerank", () => {
+  const built = buildBackends(fakeDeps({}));
+  const google = [...built.registry.values()].find((backend) => backend.wire === "google-generative-ai");
+  expect(google).toBeDefined();
+  if (google === undefined) {
+    throw new Error("Native Google backend was not built");
+  }
+  expect(implemented(google).toSorted()).toEqual(["chat", "embed", "generateImage", "imageEmbed", "structured", "summarize"]);
+  expect(google.probe).toBeTypeOf("function");
+  expect(google.listModels).toBeTypeOf("function");
+});

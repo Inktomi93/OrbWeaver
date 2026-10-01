@@ -23,6 +23,7 @@ import type { CatalogDraft, MirrorWarm, SpawnIdentity } from "../contract/runtim
 import type { InferenceDeps } from "../deps.ts";
 import type { ProviderRegistry } from "../registry/providers.ts";
 import { fetchEndpointModels } from "./endpoint.ts";
+import { listGoogleModels } from "./google.ts";
 
 export interface CatalogListingDeps {
   readonly registry: ProviderRegistry;
@@ -71,7 +72,7 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
     if ("key" in draft.secret) {
       // A key typed into the add dialog, before anything is saved: a plain read, no row and no decrypt.
       const { key } = draft.secret;
-      return listAnthropicModels(
+      return (provider.wire === "google-generative-ai" ? listGoogleModels : listAnthropicModels)(
         {
           baseUrl: provider.baseUrl ?? draft.baseUrl,
           secret: key,
@@ -126,6 +127,7 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
     switch (provider.wire) {
       case "agent-sdk":
         return await agentSdkListing(draft, provider);
+      case "google-generative-ai":
       case "anthropic-messages":
         return await anthropicListing(draft, provider);
       case "openai-compat":

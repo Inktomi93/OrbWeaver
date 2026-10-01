@@ -16,10 +16,11 @@ const FORCED_TOOL_CHOICE: ToolChoice = { mode: "required" };
 /** The request arm a forced round rides per chat api, `null` where there is none — a mapped Record, so a new
  *  `CHAT_APIS` member is a missing key here and fails `tsc`. The Agent SDK mounts tools as an MCP server it
  *  drives itself, which cannot be forced to call one. */
-const FORCED_TOOL_ROUND: Record<ChatApi, "chat-completions" | "anthropic-messages" | null> = {
+const FORCED_TOOL_ROUND: Record<ChatApi, Exclude<ChatApi, "agent-sdk"> | null> = {
   "agent-sdk": null,
   "chat-completions": "chat-completions",
   "anthropic-messages": "anthropic-messages",
+  "google-generative-ai": "google-generative-ai",
 };
 
 /** Can this connection's backend carry a forced tool round? A caller asks before building one, and takes its
@@ -83,6 +84,7 @@ const STRUCTURED_CHAT: Record<ChatApi, StructuredChatRunner> = {
   "agent-sdk": viaChatTurn,
   "chat-completions": viaStructuredTask,
   "anthropic-messages": viaStructuredTask,
+  "google-generative-ai": viaStructuredTask,
 };
 
 /** Run a structured-output call and return the model's JSON text (`""` when a batch answered with no item). */

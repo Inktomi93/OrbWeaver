@@ -88,6 +88,7 @@ export function draftModelReason(provider: ProviderDef): string {
 const WIRE_MODEL_EXAMPLES: Record<Wire, string> = {
   "openai-compat": "gpt-5",
   "anthropic-messages": "claude-opus-5",
+  "google-generative-ai": "gemini-3-flash-preview",
   "agent-sdk": "opus",
   // A builtin catalog is closed, so its example is a model it actually runs: the seeded encoder's id.
   "local-light": LOCAL_LIGHT_SEED_ROWS[0].model,

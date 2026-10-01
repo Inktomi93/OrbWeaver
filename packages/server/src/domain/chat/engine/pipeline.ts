@@ -28,6 +28,7 @@ import type {
   ChatDeltaEvent,
   ChatInjection,
   ChatReasoningPart,
+  ContentSignatures,
   MessageView,
   ToolCallRecord,
 } from "@orb/contracts/chat";
@@ -96,6 +97,7 @@ interface RunTurnPipelineArgs {
   readonly applyRegexReplace: ApplyRegexReplaceOp;
   /** Resolves a parsed message-image ref → a model-fetchable URL + its media kind, or null to drop it. */
   readonly resolveImageUrl: (ref: ContentImageRef) => Promise<ResolvedMediaRef | null>;
+  readonly loadContentSignatures?: () => Promise<ReadonlyMap<MessageId, ContentSignatures>>;
   /** §8.8's `conversation` carry source: this chat's persisted replayable thinking, keyed by canon slot id.
    *  Injected (the domain holds no db handle) and LAZY — called only when the resolved rung is
    *  `conversation`, so a turn that carries nothing performs no read. */
@@ -191,6 +193,7 @@ const EMPTY_REASONING_BY_MESSAGE: ReadonlyMap<MessageId, readonly ChatReasoningP
 
 /** The pipeline product the engine persists — the reduced generation + the request + the fit offset. */
 interface TurnPipelineResult {
+  readonly imageSignatures?: readonly ContentSignatures["images"][number][];
   readonly request: TurnRequest;
   readonly content: string;
   readonly reasoning: string | null;
@@ -709,6 +712,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
       // db handle) and lazy, so every other turn pays nothing for a feature it did not ask for.
       reasoningByMessage: carryReasoning === "conversation" ? await args.loadReasoningParts() : EMPTY_REASONING_BY_MESSAGE,
       loadInlineReplyAssetIds: args.loadInlineReplyAssetIds,
+      contentSignaturesByMessage: await args.loadContentSignatures?.(),
     },
     shaped.history,
   );
@@ -1180,6 +1184,7 @@ function aggregateEconomics(acc: TurnEconomics | null, next: TurnEconomics | nul
   return {
     ...next,
     content: acc.content + next.content,
+    textSignatures: [...(acc.textSignatures ?? []), ...(next.textSignatures ?? [])],
     reasoning: [acc.reasoning ?? "", next.reasoning ?? ""].join("") || null,
     tokensIn: sum(acc.tokensIn, next.tokensIn),
     tokensOut: sum(acc.tokensOut, next.tokensOut),

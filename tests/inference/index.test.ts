@@ -13,7 +13,7 @@ import { createInferenceRuntime, DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, NoCo
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { principal } from "../support/factories/principal.ts";
 import { expect, test } from "../support/fixtures.ts";
-import { fakeConnection, fakeDeps, memoryClaimKey, memoryStores, newPluginId, newRuleId, newUserId } from "./_support.ts";
+import { fakeApiKeySecret, fakeConnection, fakeDeps, memoryClaimKey, memoryStores, newPluginId, newRuleId, newUserId } from "./_support.ts";
 
 /** The rejection a call produced, as a value — so two refusals can be COMPARED rather than merely matched
  *  one at a time, which is the only way to assert "these two answers are indistinguishable". A call that
@@ -401,4 +401,44 @@ test("a registry refresh failure compensates the durable plugin contribution bef
 
   const restarted = await createInferenceRuntime(s.deps);
   expect(restarted.providers.registry.get(row.id, s.aliceId)).toBeUndefined();
+});
+
+test("native Google cold catalog facts resolve through the shared runtime before task admission", async () => {
+  const ownerId = newUserId();
+  const stores = memoryStores();
+  const row = fakeConnection({ ownerId, providerId: "google", model: "models/gemini-3-flash-preview" });
+  stores.connections.rows.set(row.id, row);
+  const nativeEmbedder = fakeConnection({ ownerId, providerId: "google", model: "new-native-embedder" });
+  stores.connections.rows.set(nativeEmbedder.id, nativeEmbedder);
+  const urls: string[] = [];
+  const deps = fakeDeps({
+    stores,
+    fetch: (url) => {
+      urls.push(String(url));
+      return Promise.resolve(
+        Response.json({
+          models: [
+            {
+              name: "models/gemini-3-flash-preview",
+              supportedGenerationMethods: ["generateContent"],
+              inputTokenLimit: 90_000,
+              outputTokenLimit: 1000,
+              thinking: false,
+              maxTemperature: 1,
+              topP: 0.95,
+            },
+            { name: "models/new-native-embedder", supportedGenerationMethods: ["embedContent"], inputTokenLimit: 4000 },
+          ],
+        }),
+      );
+    },
+  });
+  const runtime = await createInferenceRuntime({ ...deps, resolveCredential: () => Promise.resolve(fakeApiKeySecret("native-runtime-key")) });
+  const { resolved } = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  expect(resolved.api).toBe("google-generative-ai");
+  expect(resolved.capability).toMatchObject({
+    generation: { context: { window: 90_000 }, output: { maxTokens: { max: 1000 } }, reasoning: { enabled: false } },
+  });
+  await expect(runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: nativeEmbedder.id })).rejects.toMatchObject({ kind: "forbidden" });
+  expect(urls).toEqual(["https://generativelanguage.googleapis.com/v1beta/models"]);
 });
