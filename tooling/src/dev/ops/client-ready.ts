@@ -1,5 +1,8 @@
 import type { Page, Request } from "@playwright/test";
 import { print } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+
+refuseDirectInvocation(import.meta.url, "gh workflow run contributor.yml");
 
 const MODULE_QUIET_MS = 500;
 

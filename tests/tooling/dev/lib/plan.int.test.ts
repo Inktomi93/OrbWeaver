@@ -54,7 +54,9 @@ setInterval(() => {}, 1000);`,
       const unrelated = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { detached: true, stdio: "ignore" });
       let marker: string | undefined;
       try {
+        // @orb-waive test-determinism(Date.now): this deadline bounds real OS child startup; a frozen clock cannot measure the external process. Ends if startup uses an injected clock.
         const deadline = Date.now() + CEILING / 2;
+        // @orb-waive test-determinism(Date.now): polling must expire while a real child fails to publish its file. Ends if the child and polling loop share an injected clock.
         while (!existsSync(descendantFile) && Date.now() < deadline) {
           await new Promise((resolve) => setTimeout(resolve, 25));
         }
