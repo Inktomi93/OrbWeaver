@@ -12,6 +12,7 @@ import {
   ARC_GAP_HOURS,
   ARC_GLOW_OPACITY,
   ARC_GLOW_SPREAD,
+  ARC_LIT_WIDTH_GAIN,
   ARC_REST_OPACITY,
   ASH_DOT_R,
   ASH_EMBER_FILL,
@@ -240,13 +241,11 @@ export function DialArcs({ litPhase }: { readonly litPhase: WaystonePhase }): Re
   }
   return (
     <>
-      {/* The current band's GLOW: a wider, softer arc UNDER the ring in the band's own hue. Emphasis has to
-          be hue-agnostic — a brightness step alone reads on the gold bands and vanishes on the indigo ones,
-          so "we are here" is a halo, not a shade. */}
+      {/* Foreground outlines the active band across both pale and dark phase hues. */}
       <path
         d={arcPath(litSpan.from + ARC_GAP_HOURS, litSpan.to - ARC_GAP_HOURS)}
         className="orb-ws-transit"
-        stroke={arcStroke(litPhase, true)}
+        stroke="var(--color-foreground)"
         strokeWidth={RING_W + ARC_GLOW_SPREAD}
         fill="none"
         strokeLinecap="butt"
@@ -259,7 +258,7 @@ export function DialArcs({ litPhase }: { readonly litPhase: WaystonePhase }): Re
           d={arcPath(span.from + ARC_GAP_HOURS, span.to - ARC_GAP_HOURS)}
           className="orb-ws-transit"
           stroke={arcStroke(span.phase, span.phase === litPhase)}
-          strokeWidth={RING_W}
+          strokeWidth={RING_W + (span.phase === litPhase ? ARC_LIT_WIDTH_GAIN : 0)}
           fill="none"
           strokeLinecap="butt"
           opacity={span.phase === litPhase ? 1 : ARC_REST_OPACITY}

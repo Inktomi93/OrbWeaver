@@ -24,9 +24,9 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { TrackerChip, TrackerValue } from "#components";
+import { TrackerValue, VALUE_ROW_TOUCH_FLOOR_AT_COARSE } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useEditSnapshot, usePatchActor, usePatchSheet } from "../hooks/use-rpg-mutations.ts";
@@ -56,15 +56,25 @@ function SheetLevel({ level, onEditLevel }: { readonly level: number | null; rea
     );
   }
   return (
-    <TrackerChip
-      label="Level"
-      value={level === null ? "" : String(level)}
-      onEditValue={(next: string): void => {
-        const trimmed = next.trim();
-        const n = Number.parseInt(trimmed, 10);
-        onEditLevel(trimmed === "" || Number.isNaN(n) ? null : Math.max(0, n));
-      }}
-    />
+    <Badge tone="soft" size="sm" data-slot="sheet-level">
+      <Row gap="field" align="center">
+        <Text as="span" voice="gloss">
+          Level
+        </Text>
+        <TrackerValue
+          ariaLabel="Level value"
+          display={level === null ? "" : String(level)}
+          kind="numeric"
+          onEdit={(next): void => {
+            const trimmed = next.trim();
+            const n = Number.parseInt(trimmed, 10);
+            onEditLevel(trimmed === "" || Number.isNaN(n) ? null : Math.max(0, n));
+          }}
+          className="!w-avatar-md px-field text-right tabular-nums"
+          restClassName="tabular-nums"
+        />
+      </Row>
+    </Badge>
   );
 }
 
@@ -78,21 +88,23 @@ function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; re
       return null;
     }
     return (
-      <Text as="span" voice="label" className="min-w-0 break-words">
+      <Text as="span" voice="label" className="min-w-0 break-words px-field">
         {actor.sheet.flavor}
       </Text>
     );
   }
   return (
-    <TrackerValue
-      ariaLabel={`${actor.name} flavor`}
-      display={actor.sheet.flavor}
-      placeholder="a line about who they are…"
-      tone="muted"
-      onEdit={onEditFlavor}
-      wrap={true}
-      className="!w-auto min-w-0 max-w-full field-sizing-content"
-    />
+    <Row className={`min-w-0 ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`}>
+      <TrackerValue
+        ariaLabel={`${actor.name} flavor`}
+        display={actor.sheet.flavor}
+        placeholder="a line about who they are…"
+        tone="muted"
+        onEdit={onEditFlavor}
+        wrap={true}
+        className="!w-auto min-w-0 max-w-full field-sizing-content"
+      />
+    </Row>
   );
 }
 
@@ -123,7 +135,7 @@ function WalletChip({
             ariaLabel={`${coin.name} amount`}
             display={String(coin.amount)}
             kind="numeric"
-            size="micro"
+            size="label"
             onEdit={(next): void => {
               const n = Number.parseInt(next, 10);
               if (!Number.isNaN(n)) {
@@ -182,7 +194,7 @@ function WalletChips({
 }
 
 /** The IDENTITY block — portrait · name + title · the flavor gloss · the status line · level + wallet. The
- *  sheet planes (title/flavor/level) and the volatile planes (status/wallet) sit on one line because that is how a character reads;
+ *  sheet planes (title/flavor/level) and the volatile planes (status/wallet) share one identity block;
  *  their WRITE doors differ (patchSheet vs editSnapshot), which is why each callback is separate and each is
  *  omitted when the viewer may not make that write (PERMISSION-omit, never a disabled twin). */
 function IdentityBlock({
@@ -207,17 +219,15 @@ function IdentityBlock({
   readonly onReleaseCoin?: (name: string) => void;
 }): ReactElement {
   return (
-    <Row gap="block" align="center" data-slot="rpg-character-identity">
+    <Row gap="block" align="start" data-slot="rpg-character-identity">
       <Avatar size="lg" shape="rounded" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
         {actor.name.slice(0, 1).toUpperCase()}
       </Avatar>
       <Stack gap="field" className="min-w-0 flex-1">
-        <Row gap="field" align="center" className="min-w-0 flex-wrap">
-          <Text as="span" voice="label" className="truncate">
-            {actor.name}
-          </Text>
-          <SheetTitle actor={actor} {...(onEditTitle === undefined ? {} : { onEditTitle })} />
-        </Row>
+        <Heading level={3} voice="label" className="min-w-0 break-words px-field">
+          {actor.name}
+        </Heading>
+        <SheetTitle actor={actor} {...(onEditTitle === undefined ? {} : { onEditTitle })} />
         {/* Flavor sits with the identity, ABOVE the volatile status line: who they are, then how they are. */}
         <SheetFlavor actor={actor} {...(onEditFlavor === undefined ? {} : { onEditFlavor })} />
         <StatusLine status={actor.volatile?.status ?? ""} {...(edit === undefined ? {} : { edit })} />
@@ -390,21 +400,19 @@ function SheetTitle({ actor, onEditTitle }: { readonly actor: RpgActorView; read
       return null;
     }
     return (
-      <Text as="span" voice="gloss" className="truncate">
-        — {actor.sheet.className}
+      <Text as="span" voice="gloss" className="min-w-0 break-words px-field">
+        {actor.sheet.className}
       </Text>
     );
   }
   return (
-    <Row gap="field" align="center" className="min-w-0">
-      <Text as="span" voice="gloss" aria-hidden={true}>
-        —
-      </Text>
+    <Row gap="field" align="center" className={`min-w-0 ${VALUE_ROW_TOUCH_FLOOR_AT_COARSE}`}>
       <TrackerValue
         ariaLabel={`${actor.name} title`}
         display={actor.sheet.className}
         placeholder="title…"
         onEdit={onEditTitle}
+        wrap={true}
         className="!w-auto min-w-0 max-w-full field-sizing-content"
       />
     </Row>

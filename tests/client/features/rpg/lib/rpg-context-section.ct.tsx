@@ -637,7 +637,7 @@ test("the mobile Waystone keeps midnight, exact time, and weather visible beside
   const state = header.locator('[data-slot="rpg-band-when-state"]');
 
   await expect(context).toHaveText("14th of Emberfall, 3rd Age");
-  await expect(state).toHaveText("· midnight · 00:00 · clear");
+  await expect(state).toHaveText("midnight · 00:00 · clear");
   const aria = await header.ariaSnapshot();
   expect(aria).toContain("14th of Emberfall, 3rd Age");
   expect(aria).toContain("midnight · 00:00 · clear");
@@ -651,8 +651,6 @@ test("the mobile Waystone keeps midnight, exact time, and weather visible beside
   if (whenBox === null || stateBox === null) {
     throw new Error("expected the mobile Waystone state row and exact state to be laid out");
   }
-  // Neither half is crushed to keep the other on the same line (0084): the row's own `flex-wrap` is the
-  // escape hatch when a pair does not fit, so BOTH halves stay full-text here.
   expect(contextOverflow).toBeLessThanOrEqual(0);
   expect(stateOverflow.horizontal).toBeLessThanOrEqual(1);
   expect(stateOverflow.vertical).toBeLessThanOrEqual(1);
@@ -682,7 +680,7 @@ test("the mobile Waystone wraps a long authored weather reading without clipping
   const header = component.locator('[data-slot="rpg-takeover-header"]');
   const when = header.locator('[data-slot="rpg-band-when"]');
   const state = header.locator('[data-slot="rpg-band-when-state"]');
-  const stateText = `· night · 21:40 · ${weatherLabel}`;
+  const stateText = `night · 21:40 · ${weatherLabel}`;
 
   await expect(state).toHaveText(stateText);
   expect(await header.ariaSnapshot()).toContain(`night · 21:40 · ${weatherLabel}`);
@@ -3179,7 +3177,8 @@ test("#102: the HUD's NON-VIEWPORT SPEND is pinned — measured as the pane minu
   //     rows — MEASURED at 383×800 on the bracket: see the report of the lane that re-measured it. The
   //     fence is the post-change real number, rounded up one px; no future change may spend more without
   //     saying why here.
-  expect(spend).toBeLessThanOrEqual(384);
+  // Stacking date above state keeps both readable; the measured spend is 390.5px at this width.
+  expect(spend).toBeLessThanOrEqual(391);
   // …and the element sum is the spend minus exactly the band SLOT's own box (its two `row` pads and the
   // 2px binding edge on the bracket root): with the seams gone there is nothing else between the pane and
   // its elements, and this pins that nothing has crept back in.
@@ -4853,3 +4852,72 @@ test.describe("#869 — the coarse tap on a visible tracker datum", () => {
     });
   }
 });
+
+for (const viewportWidth of [360, 1440]) {
+  test(`readability: the character sheet fits full attribute names and identity controls at ${viewportWidth}px`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewportWidth, height: 1000 });
+    const baseGame = d20Game();
+    const game = {
+      ...baseGame,
+      publicConfig: {
+        ...baseGame.publicConfig,
+        statProfile: {
+          ...baseGame.publicConfig.statProfile,
+          attributes: ["Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma"].map((label) => ({
+            key: label.toLowerCase(),
+            label,
+            hint: "",
+          })),
+        },
+      },
+    };
+    const baseTracker = richTracker();
+    const tracker = {
+      ...baseTracker,
+      actors: baseTracker.actors.map((actor) => ({
+        ...actor,
+        sheet: { ...actor.sheet, className: "Warden of the Last Northern Gate and Keeper of the Ember Crown" },
+        volatile: actor.volatile === null ? null : { ...actor.volatile, status: "" },
+      })),
+    };
+    await stubTakeover(page, { game, tracker });
+    const component = await mount(<RpgTakeoverStory width={viewportWidth === 360 ? 360 : 432} height={1000} />);
+    await component.getByRole("button", { name: "Open Mara" }).click();
+    const detail = component.locator('[data-slot="rpg-character-detail"]');
+    await expect(detail.getByRole("heading", { name: "Mara", exact: true })).toBeVisible();
+    await expect(detail.getByRole("button", { name: "Status line", exact: true })).toContainText("Add status");
+    for (const name of ["Status line", "gold amount"]) {
+      await expect
+        .poll(() =>
+          detail
+            .getByRole("button", { name, exact: true })
+            .locator("span")
+            .evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize)),
+        )
+        .toBeGreaterThanOrEqual(13);
+    }
+    await expect(detail.locator('[data-slot="sheet-level"]')).toHaveText(/Level\s*3/);
+    await expect(detail.getByRole("button", { name: "Mara title" })).toHaveText("Warden of the Last Northern Gate and Keeper of the Ember Crown");
+    await expect
+      .poll(() =>
+        detail.locator('[data-slot="stat-cell"]').evaluateAll((cells) => {
+          const rows = new Map<number, number>();
+          const overflow: string[] = [];
+          for (const cell of cells) {
+            const box = cell.getBoundingClientRect();
+            rows.set(Math.round(box.y), (rows.get(Math.round(box.y)) ?? 0) + 1);
+            const label = cell.lastElementChild;
+            if (label === null) {
+              throw new Error("an attribute cell must have a label");
+            }
+            const labelBox = label.getBoundingClientRect();
+            if (labelBox.left < box.left || labelBox.right > box.right || label.scrollWidth > label.clientWidth) {
+              overflow.push(label.textContent ?? "");
+            }
+          }
+          return { count: cells.length, overflow, balanced: new Set(rows.values()).size === 1 };
+        }),
+      )
+      .toEqual({ count: 6, overflow: [], balanced: true });
+  });
+}

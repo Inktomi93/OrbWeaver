@@ -247,7 +247,7 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
       return null;
     }
     return (
-      <Text as="span" voice="gloss" className="truncate">
+      <Text as="span" voice="gloss" className="truncate px-field">
         {status}
       </Text>
     );
@@ -261,11 +261,9 @@ export function StatusLine({ status, subject, edit }: { readonly status: string;
       <TrackerValue
         ariaLabel={trackerFieldName("Status line", subject)}
         display={status}
-        // No placeholder ⇒ TrackerValue's em dash (side-eye 08-01): the old "status…" sat in the datum slot
-        // and read as a written reading ("the story says: status…"). An unwritten line is a dash, like every
-        // other unset value on the card; the `title` ("Click to edit") carries the affordance.
+        placeholder="Add status"
         tone="muted"
-        size="micro"
+        size="label"
         onEdit={edit.onEditStatus}
         className="!w-auto min-w-0 max-w-full field-sizing-content"
       />

@@ -74,6 +74,7 @@ export const SKY_UNSET_OPACITY = 0.5;
 export const ARC_REST_OPACITY = 0.9;
 /** The current band's halo: how far it spreads past the ring, and how strongly (a hue-agnostic "we are here"
  *  — a pure brightness step reads on the gold bands and disappears on the indigo ones). */
+export const ARC_LIT_WIDTH_GAIN = 2;
 export const ARC_GLOW_SPREAD = 4;
 export const ARC_GLOW_OPACITY = 0.42;
 /** The hairline break between adjacent bands, in HOURS of dial. Six sections at 76px need a visible seam even
@@ -120,15 +121,12 @@ export function arcStroke(phase: WaystonePhase, lit: boolean): string {
 }
 
 // ─── Tints (tokens + color-mix ONLY — the §12.1.9 one-home rule for the stone) ───────────────────
-/** The horizon silhouette — a foreground-shifted sidebar tone (polarity-safe contrast, no raw black). It
- *  renders FULLY OPAQUE: at 0.85 the rain fell straight through the hill, which broke the one depth cue the
- *  stone has. Any softening belongs in the fill, never in the opacity. */
-/** The noon sun + midnight moon on the bezel — the two marks that teach the 24h convention. Both are lifted
- *  toward the foreground so they read over ANY of the six band hues they sit against. */
+/** The noon sun and midnight moon teach the 24-hour convention against the sidebar-colored rim. */
 export const CARDINAL_SUN = "color-mix(in oklab, var(--color-sky-ember) 62%, var(--color-sky-star))";
-export const CARDINAL_MOON = "color-mix(in oklab, var(--color-sky-star) 88%, var(--color-sky-night-horizon))";
-export const HORIZON_FILL = "color-mix(in oklab, var(--color-foreground) 25%, var(--color-sidebar))";
-export const GABLE_FILL = "color-mix(in oklab, var(--color-foreground) 42%, var(--color-sidebar))";
+export const CARDINAL_MOON = "var(--color-foreground)";
+/** Night scenery keeps its atmospheric palette in both theme polarities. */
+export const HORIZON_FILL = "var(--color-sky-night)";
+export const GABLE_FILL = "var(--color-sky-night-horizon)";
 /** The lit window — the one ember in the landscape, and the reason the horizon is a PLACE and not a shape. */
 export const GABLE_WINDOW_FILL = "var(--color-primary)";
 /** The window's floor glow by day and how much brighter it burns as the sky darkens (it tracks starOpacity). */
