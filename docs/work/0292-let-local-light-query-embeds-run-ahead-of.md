@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-09-30
+status: doing
+updated: 2026-10-01
 priority: P3
 area: inference
+lane: codex/alpha-launch-proof
 ---
 
 # Let local-light query embeds run ahead of indexer embeds
