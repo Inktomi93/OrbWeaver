@@ -13,7 +13,8 @@ jobs:
   contributor:
     name: contributor (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    # Native Windows static stages need more than the former one-hour collection window.
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:

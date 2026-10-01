@@ -80,8 +80,9 @@ export function devChildEnv(
   return out;
 }
 
-/** The watched server: `node --watch` restarts it on a source change and keeps the log scrollback. */
+/** Windows uses Node's imported-file filter so directory notifications cannot restart the server. */
 export function serverSpawnPlan(opts: {
+  readonly platform: NodeJS.Platform;
   readonly nodePath: string;
   readonly server: WorkspacePackage;
   readonly watchRoots: readonly string[];
@@ -94,7 +95,7 @@ export function serverSpawnPlan(opts: {
       ...SERVER_NODE_FLAGS,
       "--watch",
       "--watch-preserve-output",
-      ...opts.watchRoots.map((root) => `--watch-path=${root}`),
+      ...(opts.platform === "win32" ? [] : opts.watchRoots.map((root) => `--watch-path=${root}`)),
       join(opts.server.dir, SERVER_ENTRY_IN_PACKAGE),
     ],
     cwd: opts.cwd,
