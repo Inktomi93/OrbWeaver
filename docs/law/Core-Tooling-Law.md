@@ -85,6 +85,12 @@ The constitution bans `_shared` drawers in `packages/` (`Core-0-Architecture-and
 
 Every depth-derived root constant is RE-DERIVED at its move, never carried (§9.1-4).
 
+Route OS-specific programs and reads through `tooling/src/_shared/platform.ts` and its leaf `platform-probes.ts`. The leaf owns kernel-file probes below the process doors.
+
+`tooling-os-neutral` checks contributor tooling, scripts and test support. Its case vocabulary lives in `tooling/src/verify/lib/os-neutral.ts`. Container shell scripts and agent hooks are outside its population. Use `os.tmpdir()` for temporary paths, portable line separators, platform-paired environment keys and the shared process and Git doors.
+
+`test-executable-mode` checks test executable modes from the candidate Git index, including staged changes and worktree divergence.
+
 ### 2.4a Shims on a shared session browser
 
 Install every session-wide shim with `context.route` or `context.addInitScript`. A shim reaches a tab by its own scope, not by the connection that installed it. A context-scoped shim also covers a tab that an attached client opens. A `page.route` covers only its own page, so an attached instrument that opens a tab would measure the unshimmed app. A page-scoped route is correct only for a local intercept that one drive installs and removes, such as `tooling/src/snap/ops/appearance-density-persistence.ts`.

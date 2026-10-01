@@ -59,7 +59,7 @@ const WHITESPACE_RE = /\s+/u;
 type Door = "shell" | "raw" | "proc" | null;
 
 const MESSAGE =
-  "an OS-specific program, path, env key or line ending in contributor tooling — tooling/, scripts/ and tests/support/ run on Linux, macOS and Windows, and only the platform module (`tooling/src/_shared/platform.ts` and its leaf `platform-probes.ts`) may branch on the OS (docs/plans/os-neutral-tooling/design.md, The policy).";
+  "an OS-specific program, path, env key or line ending in contributor tooling — tooling/, scripts/ and tests/support/ run on Linux, macOS and Windows, and only the platform module (`tooling/src/_shared/platform.ts` and its leaf `platform-probes.ts`) may branch on the OS (docs/law/Core-Tooling-Law.md §2.4).";
 const FIX =
   "route the OS-specific read through a `_shared/platform.ts` door, take the temp dir from `os.tmpdir()`, spawn pnpm with `pnpmInvocation` or a proc.ts door, set `USERPROFILE` beside `HOME` and `TEMP` and `TMP` beside `TMPDIR`, split file text on `/\\r?\\n/u`, and run git through `runGit`/`execGit` in _shared/git.ts.";
 
