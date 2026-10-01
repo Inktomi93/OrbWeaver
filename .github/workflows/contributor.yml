@@ -105,7 +105,7 @@ jobs:
 
       - name: Capture the ready contributor Home surface
         shell: bash
-        run: pnpm snap / --base "$DEV_ORIGIN" --map --aria --json --out contributor-home > "$RUNNER_TEMP/contributor-snap.log" 2>&1
+        run: pnpm snap --base "$DEV_ORIGIN" --map --aria --json --out contributor-home > "$RUNNER_TEMP/contributor-snap.log" 2>&1
 
       - name: Stop the dev process tree and prove ports are free
         id: stop-dev
@@ -119,6 +119,7 @@ jobs:
           import { listeningPids } from "./tooling/src/_shared/platform.ts";
           import { killPidGroup } from "./tooling/src/_shared/proc.ts";
           import { sweepRunMarker, describeRunMarkerSweep } from "./tooling/src/_shared/run-marker.ts";
+          import { doDevDown, stackContext } from "./tooling/src/stack/index.ts";
           const record = join(process.env.RUNNER_TEMP, "contributor-dev.pid");
           if (!existsSync(record)) { console.log("No dev process was started"); process.exit(0); }
           const pid = Number(readFileSync(record, "utf8"));
@@ -130,6 +131,15 @@ jobs:
             const sweep = await sweepRunMarker(readFileSync(markerFile, "utf8").trim());
             console.log(describeRunMarkerSweep(sweep) ?? "No escaped dev descendants remain");
           }
+          // A Windows wrapper can exit before its actual listener; environment markers are unreadable there.
+          // The existing stack fallback verifies checkout ownership before stopping a remaining port holder.
+          const context = stackContext(process.cwd(), {
+            PORT: new URL(process.env.HEALTHZ).port,
+            VITE_PORT: new URL(process.env.DEV_ORIGIN).port,
+            STACK_RUN_DIR: join(process.env.RUNNER_TEMP, "contributor-stack"),
+          }, null);
+          const stopped = await doDevDown(context);
+          if (stopped !== 0) throw new Error(`owned dev listener cleanup failed with exit ${stopped}`);
           await sleep(1000);
           const ports = listeningPids();
           if (ports.kind === "refused") throw new Error(ports.reason);
