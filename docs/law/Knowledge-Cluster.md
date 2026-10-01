@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-18
+updated: 2026-10-01
 ---
 
 # Knowledge cluster — the producer → store → consumer boundary
@@ -52,9 +52,9 @@ of truth), and **building it never blocks a reply** (post-commit fire-and-forget
    names the file.
 5. **`discovery` (semantics) and `stats` (economics) share no tables.** Stats has zero vector columns
    (the `stats-no-vector-tables` dep-cruiser rule); discovery computes no usage rollup.
-6. **One space per `(model, dim)` tag.** Compare only within a space: store-time dim tripwire
-   (`SpaceMismatchError`) + compare-time kit dim-throw. Same model on a new backend = same space;
-   a new model/dim = a re-index workload.
+6. **Compare only compatible encoder generations and widths.** Store-time `SpaceMismatchError` and
+   compare-time dimension checks reject incompatible vectors. Model names alone do not establish compatibility;
+   the connection fingerprint and effective width rules live in `Tier-3b-Providers.md` §9.
 
 Recall semantics (the 5 modes, tiered bridge, witnessing, egocentric scoping, the two windows, host-only
 execution, trigger discipline) are carried in full by the `chat/memory` code headers
@@ -63,3 +63,11 @@ execution, trigger discipline) are carried in full by the `chat/memory` code hea
 `document_chunks` (the databank RAG table) is written: `domain/databank/ingest` (D107 Phase B) stores each
 chunk via the injected `embeddingsStore` op, and the physical insert lives in
 `embeddings/persistence/queries.ts` — the single write path holds, no carve-out needed.
+
+## Seed vectors and live indexing
+
+Default-content vectors enter through the injected lookup in `embeddings.store`. A hit requires matching content hash, embedding kind and resolved local-light space. Normal generation resolution, width validation and upsert still apply. Other wires use their live encoders.
+
+Image indexing and captioning follow `EMBEDDABLE_ASSET_KINDS` in `packages/contracts/src/assets/index.ts`. Events and sweeps share preparation and coalesce work before captioning or embedding. Reclaim disallowed image vectors without deleting the original assets.
+
+Automatic indexing reads effective configuration when scheduling work. Enabling indexing runs the existing catch-up path; disabling it prevents new automatic work. Seed a missing image-embedding binding through the existing local connection, preserving every existing binding, including explicit null opt-outs.

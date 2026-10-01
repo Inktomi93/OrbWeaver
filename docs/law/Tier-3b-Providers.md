@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-23
+updated: 2026-10-01
 ---
 
 # Orbweaver — `@orb/inference`: the provider runtime (wires · providers · resolution · execution)
@@ -34,6 +34,7 @@ The closed backend-key tuple, the deriveRunner (api, source) matrix, the provide
 - **One backend per wire.** `BACKEND_DEFS: Record<Wire, BackendDef>` (`packages/inference/src/registry/backends.ts`); `buildBackends(deps)` constructs only the wires whose `needs` are present (the `agent-sdk` wire needs the bundled `claude` executable). A wire that is not built is ABSENT from the registry, availability reads `unavailable`/`runtime-missing`, and the picker never offers it.
 - **`apis ⊆ WIRE_DEFS[wire].apis`** and **`serves ⊆ WIRE_DEFS[wire].serves`**, refused at the provider-row parse (`provider-schema.ts::wireIssues`) and re-checked at resolve (`packages/inference/src/resolve/coherence.ts`). A row NARROWS a wire; it never widens it.
 - **`serves` is pinned against the implemented methods** by a table test — `tests/inference/registry/backends.test.ts` walks every `WIRES` member and asserts the built backend's present methods equal `WIRE_DEFS[wire].serves`.
+- Missing agent-sdk availability refreshes on registry access. When the runtime appears, register that backend without replacing other backend instances.
 - **Fail-closed by absence.** An unwired wire and an unimplemented method both throw a typed `ProviderError`, never a silent default (`requireBackend` / `requireMethod`).
 - **Adding a provider is a ROW + the table test** — a `satisfies`-checked entry in `packages/contracts/src/inference/builtin-providers.ts`, or a plugin-manifest / admin row through the same schema at runtime. Zero code. Adding a WIRE is a new sealed backend + a `BACKEND_DEFS` entry + a `WIRE_DEFS` entry; every consumer is unchanged because `Record<Wire, …>` makes a missed case a `tsc` error.
 
@@ -130,7 +131,11 @@ Google embeddings request the space width with `outputDimensionality`, preserve 
 
 ## 9. The embedding-space invariant (lives ABOVE the package; constrains the embed surfaces)
 
-**The embed model DEFINES the vector space `(model, dim)`.** `embeddings` tags every vector with its space; `search`/memory compare ONLY within one space. The deployment's width is a task REQUIREMENT (`EMBED_SPACE_DIMS`, `TASK_DEFS.embed.requires.dims`), so a row that cannot produce it reads `requirement-unmet` instead of poisoning the space. Same model, different backend = the same space = a free local↔hosted switch only with the guard: pin the provider (no silent reroute to a different quant) and probe once (embed the same text both ways, assert cosine ≈ 1.0) — MRL truncation and L2 normalization must match. Different model/dim = its own space = a deliberate re-index workload, never a per-turn knob. The embed/imageEmbed surfaces carry `model` + `dimensions` through so `embeddings` can tag the space; this package never compares vectors (`@orb/kit/vector-math`'s dim-mismatch throw is the tripwire). Cluster boundary: [`Knowledge-Cluster.md`](Knowledge-Cluster.md).
+The resolved encoder configuration defines vector compatibility. Embeddings retain model/precision tags, immutable generation identity and effective output width. Vector comparison fingerprints exclude connection-row identity; generation identity retains the concrete connection fingerprint. Width transformations and normalization must agree within a compatible space. The deployment width is a task requirement (`EMBED_SPACE_DIMS`, `TASK_DEFS.embed.requires.dims`); an incompatible connection reads `requirement-unmet`.
+
+Connection writes compare the same concrete fingerprint used by generation identity, plus the effective width from the inference embedding fold. Changes trigger reindexing even when a native MRL setting changes but served output width does not. A matching model name on another backend does not bypass this comparison. Preserve fingerprint serialization and unchanged stored generation identities.
+
+The embed and imageEmbed surfaces carry model and dimensions through to storage. Caption requests may explicitly permit same-encoder text fallback through `allowTextFallback`; generic multimodal requests remain strict. This package does not compare vectors. Cluster ownership lives in [`Knowledge-Cluster.md`](Knowledge-Cluster.md).
 
 ## 10. Esoteric / detailed rules (preserve exactly — the numbering is cited from code and from the inference program doc; do not renumber)
 

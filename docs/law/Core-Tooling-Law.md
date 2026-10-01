@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-23
+updated: 2026-10-01
 ---
 
 # `@orb/tooling` — tooling-tree law
@@ -136,6 +136,8 @@ removed a second time.
 | `seed/` | demo · chat · multi-user seeding (three verbs) | `seed:demo` |
 | `dev/` | the cross-platform source launcher: the watched server and the vite client in the foreground, with no shell and no engine fleet (D252) | `dev` |
 | `stack/` | the dev and prod stack supervisors on every platform (a detached leader with a heartbeat record, or the foreground body Playwright owns), the production launcher and the two-human fixture | `stack` `start` `share` `fixture` |
+
+The native contributor workflow is `.github/workflows/contributor.yml`. Its readiness helper is `tooling/src/dev/ops/client-ready.ts`: require the normal application marker and let cold module loads finish before retrying. The CI marker belongs to the long-lived pnpm child; descendants inherit it, and teardown sweeps only that run. Installation acceptance remains separate in `.github/workflows/install.yml`.
 
 **Process launchers and supervisors** may live directly under `scripts/`. They adapt native tool invocation, apply the shared capacity policy, supervise processes and preserve honest exit/report behavior. They do not own duplicate policy readers, application logic or compatibility entry points. Reusable tool implementation belongs in `tooling/`. Root `package.json` scripts identify the live launchers; there is no separate filename allowlist. TypeScript launchers are owned by the Node compiler program and the shared direct-script ESLint surface.
 
