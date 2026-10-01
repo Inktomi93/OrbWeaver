@@ -53,6 +53,7 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { can } from "@orb/server/domain/admin";
+import { createSourceState } from "@orb/server/domain/search";
 import { buildAuditStatement } from "@orb/server/foundation/observability";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/context.ts";
@@ -450,6 +451,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     throw new Error("ChatContext op not stubbed in this test");
   };
   const base: ChatContext = {
+    resolveCorpusSourceState: createSourceState({ db }),
     db,
     now: () => FROZEN_AT,
     // D121-E: the four-scope regex dereference. Empty by default — a suite that wants host-tier regex

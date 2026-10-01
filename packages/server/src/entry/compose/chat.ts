@@ -961,6 +961,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const promptTransformRegistry = createPromptTransformRegistry(emitChatEvent, () => input.settings.getEffectiveConfig().promptTransformDeadlineMs);
 
   const chatCtx: ChatContext = {
+    resolveCorpusSourceState: input.search.resolveCorpusSourceState,
     db,
     now,
     can: input.can,

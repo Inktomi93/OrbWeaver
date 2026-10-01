@@ -42,10 +42,14 @@ function AnchoredThread({
       { chatId: props.chatId, target },
       {
         initialCursor: null,
-        getNextPageParam: (page) =>
-          page.hasAfter && page.messages.at(-1) !== undefined ? { kind: "after" as const, seq: page.messages.at(-1)?.seq ?? 0 } : undefined,
-        getPreviousPageParam: (page) =>
-          page.hasBefore && page.messages[0] !== undefined ? { kind: "before" as const, seq: page.messages[0]?.seq ?? 0 } : undefined,
+        getNextPageParam: (page) => {
+          const last = page.messages.at(-1);
+          return page.hasAfter && last !== undefined ? { kind: "after" as const, seq: last.seq } : undefined;
+        },
+        getPreviousPageParam: (page) => {
+          const first = page.messages[0];
+          return page.hasBefore && first !== undefined ? { kind: "before" as const, seq: first.seq } : undefined;
+        },
       },
     ),
   );

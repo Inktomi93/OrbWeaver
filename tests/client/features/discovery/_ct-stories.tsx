@@ -124,22 +124,6 @@ export function CorpusSearchToDossierStory(): ReactElement {
   );
 }
 
-export function CorpusSearchToArtifactStory({ width = 1000 }: { readonly width?: number }): ReactElement {
-  return (
-    <CtDataProviders>
-      <div style={{ display: "flex", flexWrap: "wrap", height: 640, width }}>
-        <div style={{ width: 360 }}>
-          <CorpusListSurface />
-        </div>
-        <div style={{ flex: 1, minWidth: 320 }}>
-          <CorpusContent />
-          <CorpusArtifactContext />
-        </div>
-      </div>
-    </CtDataProviders>
-  );
-}
-
 export function CorpusArtifactReaderStory({ destination, width = 720 }: { readonly destination: CorpusDestination; readonly width?: number }): ReactElement {
   return (
     <CtDataProviders>

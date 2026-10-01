@@ -26,6 +26,7 @@ import { createFork } from "./verbs/fork.ts";
 import { createGenerateImage } from "./verbs/generate-image.ts";
 import { createInvitePreview } from "./verbs/invite-preview.ts";
 import { createInvites } from "./verbs/invites.ts";
+import { createMessageWindow } from "./verbs/message-window.ts";
 import { createParticipants } from "./verbs/participants.ts";
 import { createQuietGenerate } from "./verbs/quiet-generate.ts";
 import { createReactions } from "./verbs/reactions.ts";
@@ -177,6 +178,7 @@ export function createChatService(
       ...imageGen,
       ...invites,
       ...read,
+      getMessageWindow: createMessageWindow(ctx, { loadParticipantViews }),
       ...startChat,
       ...chatLifecycle,
       ...participants,

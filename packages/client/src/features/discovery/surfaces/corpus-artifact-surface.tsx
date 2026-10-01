@@ -20,7 +20,7 @@ import { CorpusMomentSurface } from "./corpus-moment-surface.tsx";
 
 const ASSET_DETAIL_ICON_WIDTH = 192;
 
-/** Each artifact branch is a real reading surface; a new destination must add a renderer. */
+// @orb-waive surface-a11y-focus(CorpusArtifactSurface): CorpusArtifactFrame and CorpusDossierSurface own their Back controls; corpus-artifact-surface.ct.tsx asserts the frame arrival target.
 export function CorpusArtifactSurface({ destination }: { readonly destination: CorpusDestination }): ReactElement {
   switch (destination.kind) {
     case "character":

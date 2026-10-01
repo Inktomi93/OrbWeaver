@@ -67,6 +67,7 @@ for (const width of [360, 720]) {
     });
     const component = await mount(<CorpusArtifactReaderStory destination={DESTINATION} width={width} />);
     await component.getByRole("button", { name: "Select evidence" }).click();
+    await expect(component.getByRole("button", { name: "Back to Explore" })).toBeFocused();
     await expect(component.getByRole("heading", { name: "Generated memory summary" })).toBeVisible();
     await expect(component.getByText("complete selected memory", { exact: true })).toBeVisible();
     await expect(component.getByText("Original member-visible dialogue.")).toBeVisible();

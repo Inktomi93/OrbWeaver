@@ -25,6 +25,7 @@ const SOURCE_OUTCOME_TEXT: Readonly<Record<CorpusSourceOutcome, string>> = {
   unavailable: "This source has no available transcript anchor.",
 };
 
+// @orb-waive surface-a11y-focus(CorpusMomentSurface): CorpusArtifactFrame owns Back to Explore focus; corpus-moment-surface.ct.tsx asserts that arrival target.
 export function CorpusMomentSurface({ destination }: { readonly destination: Moment }): ReactElement {
   const source = destination.hit.source;
   const title = chatSubtitle(destination.hit.chatTitle, destination.kind === "digest" ? destination.hit.scopedCharacterName : destination.characterName);
@@ -38,6 +39,7 @@ export function CorpusMomentSurface({ destination }: { readonly destination: Mom
         </Section>
       ) : null}
       <QueryBoundary
+        reserveKey="corpus.sourceTranscript"
         fallback={<SkeletonRows count={3} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the source moment" onRetry={retry} />}
       >
@@ -46,6 +48,7 @@ export function CorpusMomentSurface({ destination }: { readonly destination: Mom
       <Section heading="Related rooms">
         <Text voice="gloss">A preview from a bounded pool of recent indexed room passages. Older rooms can be absent.</Text>
         <QueryBoundary
+          reserveKey="corpus.relatedRooms"
           fallback={<SkeletonRows count={2} />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="related rooms" onRetry={retry} />}
         >
@@ -54,6 +57,7 @@ export function CorpusMomentSurface({ destination }: { readonly destination: Mom
       </Section>
       <Section heading="Alternate takes">
         <QueryBoundary
+          reserveKey="corpus.alternateTakes"
           fallback={<SkeletonRows count={2} />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="alternate takes" onRetry={retry} />}
         >
@@ -98,15 +102,12 @@ function sourceSpeakerName(message: MessageView, names: ReturnType<typeof buildI
   if (message.role === "assistant" && isNarratorVoiced(message.kind)) {
     return "Narrator";
   }
-  const name =
-    message.role === "user"
-      ? message.personaId === null
-        ? undefined
-        : names.personaNamesById.get(message.personaId)?.name
-      : message.characterId === null
-        ? undefined
-        : names.characterNamesById.get(message.characterId)?.name;
-  return name ?? ROLE_NAMES[message.role];
+  if (message.role === "user") {
+    const persona = message.personaId === null ? undefined : names.personaNamesById.get(message.personaId);
+    return persona?.name ?? ROLE_NAMES.user;
+  }
+  const character = message.characterId === null ? undefined : names.characterNamesById.get(message.characterId);
+  return character?.name ?? ROLE_NAMES[message.role];
 }
 function RelatedRooms({ chatId }: { readonly chatId: Moment["hit"]["source"]["chatId"] }): ReactElement {
   const trpc = useTRPC();
@@ -131,7 +132,13 @@ function AlternateTakes({ chatId }: { readonly chatId: Moment["hit"]["source"]["
   ) : (
     <Stack gap="field">
       {takes.map((take) => (
-        <Button key={take.messageId} intent="ghost" size="wrap" onClick={(): void => openChatMoment(chatId, { kind: "message", messageId: take.messageId })}>
+        <Button
+          aria-label={`${take.snippet} · ${take.variantCount} takes · message ${take.seq}`}
+          key={take.messageId}
+          intent="ghost"
+          size="wrap"
+          onClick={(): void => openChatMoment(chatId, { kind: "message", messageId: take.messageId })}
+        >
           <Stack gap="tight">
             <Text>{take.snippet}</Text>
             <Text voice="gloss">

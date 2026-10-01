@@ -247,8 +247,6 @@ function ChatThread({
 
   const live = isLiveTurnPhase(phase);
 
-  // "am I at the tail" comes from real scroll geometry sampled at settle, not the seal's follow-intent
-  // signal, which desyncs from position once virtual-core writes scrollTop during a re-measure.
   const listHandleRef = useRef<MessageListHandle>(null);
   const anchorAnnouncement = useCorpusAnchor({
     chatId,
@@ -412,9 +410,6 @@ function ChatThread({
             </Stack>
           );
         }}
-        // #107: the transcript is UNBOUNDED, so its rows must not each contribute their action cluster to
-        // the document tab order — measured, a keyboard reader paid ~7 Tabs per message and 32 of them
-        // never reached the composer. One tab stop enters the log; arrows walk the rows.
         rowNavigation="roving"
         scrollContainerRef={jump.scrollContainerRef}
         followTail={window === null}

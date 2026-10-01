@@ -1857,14 +1857,14 @@ export function ChatMomentProbe(): ReactElement {
       <button type="button" onClick={(): void => setOldRequest(moment === null ? 0 : moment.request)}>
         remember request
       </button>
-      <button type="button" onClick={(): void => consumeChatMoment(oldRequest)}>
+      <button type="button" onClick={(): void => consumeChatMoment(oldRequest, "resolved")}>
         consume old request
       </button>
       <button
         type="button"
         onClick={(): void => {
           if (moment !== null) {
-            consumeChatMoment(moment.request);
+            consumeChatMoment(moment.request, "resolved");
           }
         }}
       >

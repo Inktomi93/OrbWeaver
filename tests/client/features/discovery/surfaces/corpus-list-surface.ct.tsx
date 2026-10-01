@@ -5,7 +5,8 @@
 // evidence preview (the J10 chat-search preview); and the browse catalog filter (the `q` param) narrows
 // the rows client-visibly.
 
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "../../../../support/node/corpus-source.ts";
@@ -36,11 +37,17 @@ const DISCOVER_HIT = {
     {
       chatId: "chat_market01",
       blockIdx: 3,
-      source: corpusSceneSource("chat_market01", 3),
+      source: corpusSceneSource(castId<ChatId>("chat_market01"), 3),
       snippet: "The night market hums with secrets.",
       score: 0.3,
     },
-    { source: corpusSceneSource("chat_market01", 7), chatId: "chat_market01", blockIdx: 7, snippet: "She slips between the stalls.", score: 0.28 },
+    {
+      source: corpusSceneSource(castId<ChatId>("chat_market01"), 7),
+      chatId: "chat_market01",
+      blockIdx: 7,
+      snippet: "She slips between the stalls.",
+      score: 0.28,
+    },
   ],
 };
 
@@ -228,14 +235,14 @@ test("returning to Explore restores its scrolled finder and retained artifact sn
   });
   await results.getByRole("button", { name: "Scrolled room 20", exact: true }).click();
   const savedScroll = await results.evaluate((node) => node.scrollTop);
-  expect(savedScroll).toBeGreaterThan(100);
+  await expect.poll(() => results.evaluate((node) => node.scrollTop)).toBeGreaterThan(100);
   await expect(component.getByTestId("ct-nav-readout")).toContainText("artifact:digest");
   const identity = await component.getByTestId("ct-artifact-identity").textContent();
   const lastHit = hits.at(-1);
   if (identity === null || lastHit === undefined) {
     throw new Error("missing selected source fixture");
   }
-  expect(identity).toContain(lastHit.source.rowId);
+  await expect(component.getByTestId("ct-artifact-identity")).toContainText(lastHit.source.rowId);
   await component.getByRole("button", { name: "Leave Corpus" }).click();
   await component.getByRole("button", { name: "Back to Corpus" }).click();
   await expect(omnibox).toHaveValue("retained evidence");

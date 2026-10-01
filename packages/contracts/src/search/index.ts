@@ -77,7 +77,15 @@ export interface MemoryQueryOptions {
   rerankTo: number;
 }
 
-export type { CorpusDigestSource, CorpusSource, CorpusSourceOutcome, MessageWindowCursor, MessageWindowTarget } from "./source.ts";
+export type {
+  CorpusDigestSource,
+  CorpusSource,
+  CorpusSourceOutcome,
+  CorpusSourceState,
+  MessageWindowCursor,
+  MessageWindowTarget,
+  ResolveCorpusSourceState,
+} from "./source.ts";
 export { CORPUS_SOURCE_OUTCOMES, corpusSourceSchema, messageWindowCursorSchema, messageWindowTargetSchema } from "./source.ts";
 
 /** A memory-digest hit as RETRIEVAL returns it — what `memory.recall` assembles a prompt from. EXTENDS the

@@ -3,11 +3,10 @@
 // writeHubScores seam; characterDossier's neighbours arrive via the injected `similar` search seam (wired at
 // the root — type-only here). analyze/swipes read the SEMANTIC messages projection (content, never economics).
 
-import type { CorpusDigestSource } from "@orb/contracts/search";
-import type { ChatDigestId } from "@orb/kit/ids";
 import type { DuplicateRelation } from "@orb/contracts/discovery";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RoleClients } from "@orb/contracts/role-clients";
+import type { CorpusDigestSource } from "@orb/contracts/search";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -15,6 +14,7 @@ import type { SideGenSampling } from "@orb/inference";
 import type {
   CharacterId,
   CharacterKeywordProfileId,
+  ChatDigestId,
   ChatId,
   DuplicateCharacterPairId,
   DuplicateChatPairId,

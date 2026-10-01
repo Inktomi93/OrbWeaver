@@ -23,13 +23,12 @@ const GLIDE_SOURCE =
 export const CLIENT_ARMS: readonly RealCorpusLivenessArm[] = [
   {
     policy: windowedHealth,
-    // "No `infiniteQueryOptions` call site exists under packages/client/src" — there are SEVEN files, so the
-    // control is all seven. Neutralising one less would leave a survivor and prove the opposite of what the
-    // arm claims. use-character-gallery.ts joined the set at e8d24ace1 (the paged character gallery).
+    // Every client factory consumer is neutralised; one surviving call keeps the health census live.
     overlays: [
       blank("packages/client/src/features/databank/surfaces/databank-library-surface.tsx"),
       blank("packages/client/src/features/chat/hooks/use-chat-list-collection.ts"),
       blank("packages/client/src/features/chat/hooks/use-character-gallery.ts"),
+      blank("packages/client/src/features/chat/components/transcript-window.tsx"),
       blank("packages/client/src/features/discovery/components/corpus-browse-view.tsx"),
       blank("packages/client/src/features/character/surfaces/character-library-surface.tsx"),
       blank("packages/client/src/components/character-picker.tsx"),

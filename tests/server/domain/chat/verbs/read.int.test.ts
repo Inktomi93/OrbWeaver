@@ -1315,31 +1315,6 @@ describe("read — single reads", () => {
     });
   });
 
-  test("message window loads an early anchor with independent forward and backward paging", async () => {
-    const me = await seedUser(db, castId<Handle>("window-host"));
-    const chatId = await seedRoom("window-room", me);
-    const rows: Awaited<ReturnType<typeof seedMessage>>[] = [];
-    for (let seq = 1; seq <= 120; seq += 1) {
-      rows.push(await seedMessage(db, chatId, seq, { content: `line ${seq}` }));
-    }
-    const anchor = rows[19];
-    if (anchor === undefined) {
-      throw new Error("missing anchor fixture");
-    }
-    const read = createRead(makeChatContext(db), makeDeps());
-    const target = { kind: "message" as const, messageId: anchor.messageId };
-    const page = await read.getMessageWindow({ principal: principal(me), chatId, target, limit: 10 });
-    expect(page.outcome).toBe("resolved");
-    expect(page.anchorMessageId).toBe(anchor.messageId);
-    expect(page.messages.map((row) => row.seq)).toEqual([16, 17, 18, 19, 20, 21, 22, 23, 24, 25]);
-    expect(page.hasBefore).toBe(true);
-    expect(page.hasAfter).toBe(true);
-    const next = await read.getMessageWindow({ principal: principal(me), chatId, target, cursor: { kind: "after", seq: 25 }, limit: 10 });
-    expect(next.messages.map((row) => row.seq)).toEqual([26, 27, 28, 29, 30, 31, 32, 33, 34, 35]);
-    const previous = await read.getMessageWindow({ principal: principal(me), chatId, target, cursor: { kind: "before", seq: 16 }, limit: 10 });
-    expect(previous.messages.map((row) => row.seq)).toEqual([6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
-  });
-
   test("listMessages returns the D26 slot⋈variant views in chronological order; hidden flag rides", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);

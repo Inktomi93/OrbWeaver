@@ -10,7 +10,6 @@
 // keystone's `enqueueEmbedReindex` holder, databank, and portability — the keystone assigns the returned
 // `enqueueEmbedReindex` onto its late-bound holder so the settings write's embed-model trigger fires it.
 
-import { createResolveViewerVisibility } from "#domain/chat";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
@@ -27,7 +26,7 @@ import { can, isAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { MemoryEmbedSpace } from "#domain/chat";
-import { createResolveStandingAsks } from "#domain/chat";
+import { createResolveStandingAsks, createResolveViewerVisibility } from "#domain/chat";
 import { resolveActiveDocumentIds } from "#domain/databank";
 import type { DiscoveryContext, DiscoveryService } from "#domain/discovery";
 import { createDiscoveryService, distinctCorpusOwners } from "#domain/discovery";

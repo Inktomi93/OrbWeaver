@@ -1,3 +1,4 @@
+import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { TrpcWireOutput } from "./route-trpc.ts";
 
@@ -26,7 +27,7 @@ export function corpusDigestSource(blockKey: Digest["blockKey"]): Extract<Digest
   };
 }
 
-export function corpusSceneSource(chatId: string, blockIdx: number): Scene["source"] {
+export function corpusSceneSource(chatId: ChatId, blockIdx: number): Scene["source"] {
   return {
     kind: "segment",
     rowId: mintTypeId(ID_PREFIX.chatSegment),

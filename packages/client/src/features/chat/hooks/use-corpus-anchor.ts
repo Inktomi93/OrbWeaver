@@ -28,14 +28,19 @@ export function useCorpusAnchor({
   readonly listHandleRef: RefObject<MessageListHandle | null>;
 }): string {
   const moment = useChatMoment(chatId);
-  const [announcement, setAnnouncement] = useState("");
+  // A transcript remount must not reannounce a request that already completed.
+  const [consumedOnMount] = useState(() => {
+    if (moment === null || !moment.consumed) {
+      return null;
+    }
+    return moment.request;
+  });
   useEffect(() => {
     if (moment === null || moment.consumed || outcome === null) {
       return;
     }
     if (anchorMessageId === null) {
-      setAnnouncement(OUTCOME_TEXT[outcome]);
-      consumeChatMoment(moment.request);
+      consumeChatMoment(moment.request, outcome);
       return;
     }
     const index = messages.findIndex((message) => message.id === anchorMessageId);
@@ -45,8 +50,7 @@ export function useCorpusAnchor({
     let frame: number;
     const reveal = (): void => {
       if (listHandleRef.current?.revealIndex(index) === true) {
-        setAnnouncement(OUTCOME_TEXT[outcome]);
-        consumeChatMoment(moment.request);
+        consumeChatMoment(moment.request, outcome);
       } else {
         frame = requestAnimationFrame(reveal);
       }
@@ -54,5 +58,5 @@ export function useCorpusAnchor({
     frame = requestAnimationFrame(reveal);
     return (): void => cancelAnimationFrame(frame);
   }, [moment, messages, anchorMessageId, outcome, listHandleRef]);
-  return announcement;
+  return moment !== null && moment.consumed && moment.request !== consumedOnMount && moment.announcement !== null ? OUTCOME_TEXT[moment.announcement] : "";
 }

@@ -9,11 +9,11 @@
 // it adds one genuinely new capability — the by-character cross-chat digest scan via the
 // chat_digest_speakers OR-branch — and otherwise delegates.
 
-import type { CorpusSource } from "@orb/contracts/search";
-import type { ResolveViewerVisibility } from "#domain/chat";
 import type { RoleClients } from "@orb/contracts/role-clients";
+import type { CorpusSource, ResolveCorpusSourceState } from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
 import type { ChatId, DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
+import type { ResolveViewerVisibility } from "#domain/chat";
 import type { EmbeddingConnectionSnapshot, ResolveEmbeddingConnection } from "#domain/embeddings";
 import type {
   CorpusParams,
@@ -86,6 +86,7 @@ export interface SearchContext {
 }
 
 export interface SearchService {
+  readonly resolveCorpusSourceState: ResolveCorpusSourceState;
   readonly knn: (params: KnnParams) => Promise<SearchHit[]>;
   readonly findCharacters: (params: FindCharactersParams) => Promise<CharacterCardHit[]>;
   /** Returns ranked hits each carrying its BlockKey — the compose root maps these into ChatContext. */

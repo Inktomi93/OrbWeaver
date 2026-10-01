@@ -1,5 +1,3 @@
-
-import { consolidationHash, createResolveViewerVisibility } from "@orb/server/domain/chat";
 // Shared test harness for the search domain (NOT a test file — no `.test` suffix, so test-layout ignores
 // it). Builds a real-db `SearchContext` with a SCRIPTED `RoleClients` bundle — the sanctioned "fake at the
 // edges, inject at the root" doctrine (testing §3): a real injected dep, not an internal-module mock. The
@@ -54,6 +52,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { consolidationHash, createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { and, eq, isNull } from "drizzle-orm";
 import { resolveActiveDocumentIds } from "../../../../packages/server/src/domain/databank/persistence/scope.ts";
 import type { SearchContext, SearchService } from "../../../../packages/server/src/domain/search/index.ts";
