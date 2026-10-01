@@ -57,14 +57,16 @@ function main(): number {
   }
   const range = parseRange(rangeArg);
   const summary = probeMutants({ reportPath, sourceRel, ...(range === undefined ? {} : { range }) });
-  for (const r of summary.receipts.filter((x) => x.timedOut)) {
-    print(`UNMEASURED  ${summary.sourceRel}:${r.line}:${r.column}  ${r.mutator}  (suite hit the wall-clock ceiling)`);
+  for (const r of summary.receipts.filter((x) => x.unmeasured)) {
+    print(
+      `UNMEASURED  ${summary.sourceRel}:${r.line}:${r.column}  ${r.mutator}  (${r.timedOut ? "suite hit the wall-clock ceiling" : "no complete attributed suite verdict"})`,
+    );
   }
-  for (const r of summary.receipts.filter((x) => !(x.killed || x.timedOut))) {
+  for (const r of summary.receipts.filter((x) => !(x.killed || x.unmeasured))) {
     print(`SURVIVED  ${summary.sourceRel}:${r.line}:${r.column}  ${r.mutator}${r.noop ? "  (NOOP-REPLACEMENT)" : ""}`);
   }
   let verdict: number = summary.stillSurvived === 0 && summary.falselyUncovered === 0 ? EXIT.clean : EXIT.violations;
-  if (summary.timedOut > 0) {
+  if (summary.unmeasured > 0) {
     verdict = EXIT.toolError;
   }
   return printVerdict("mutation-probe", {
@@ -78,6 +80,7 @@ function main(): number {
       ["killed", summary.killed],
       ["survived", summary.stillSurvived],
       ["timedOut", summary.timedOut],
+      ["unmeasured", summary.unmeasured],
       ["noop", summary.noopReplacements],
       ["reportedNoCoverage", summary.reportedNoCoverage],
       ["reportedTotal(completeness)", summary.reportedTotal],

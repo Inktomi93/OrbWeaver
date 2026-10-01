@@ -1,12 +1,5 @@
-// The planting operation: for each REPORTED survivor, write its exact replacement at its exact location,
-// run the mirror suite, and record whether the suite went red and which tests did it. The pristine source
-// is restored in a `finally` — never through git, which would risk unrelated uncommitted work.
-//
-// WHY THIS EXISTS: a Stryker incremental report's Survived rows are not trustworthy. Measured 2026-08-22
-// over assemble.ts, 184 of 230 reported survivors were already killed by tests on the tree — an 80% false
-// rate, caused by perTest coverage crediting module-load-scope (`static: true`) mutants to whichever
-// unrelated test loaded the module first. Planting is the per-mutant ground truth, and it attributes each
-// kill to NAMED tests.
+// Plant reported mutants and retain only completed, attributed mirror-suite verdicts.
+// The strand guard restores the exact source without discarding unrelated Git state.
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { budget } from "@orb/tooling/_shared/load-budget";
@@ -17,7 +10,7 @@ import { runNicedSync } from "../../_shared/proc.ts";
 import { resolveMirrors } from "../../_shared/test-mirror.ts";
 import type { MutantPopulation, MutantReceipt, ProbeSummary } from "../contract/types.ts";
 import { lineStarts, offsetRangeOf } from "../lib/offsets.ts";
-import { classifySuiteExit } from "../lib/outcome.ts";
+import { classifySuiteExit, readSuiteEvidence } from "../lib/outcome.ts";
 import type { ReportMutant } from "../lib/report.ts";
 import { mutantsOf, survivorsOf, totalMutants } from "../lib/report.ts";
 import { armStrandGuard, healStranded } from "../lib/stranded.ts";
@@ -30,55 +23,32 @@ const MAX_WORKERS = "4";
 const SUITE_TIMEOUT_MS_BASE = 180_000;
 const SUITE_TIMEOUT_MS = budget(SUITE_TIMEOUT_MS_BASE);
 
-interface VitestAssertion {
-  readonly status?: string;
-  readonly title?: string;
-}
-interface VitestFile {
-  readonly assertionResults?: readonly VitestAssertion[];
-}
-
-/** Failing test titles from a vitest json run. `readable: false` distinguishes "the report was not
- *  there" from "the suite named no failing test" — collapsing both to [] would let an unwritten json
- *  read as a kill attributed to nothing, which is the same absent-evidence lie one level down. */
-function failedTitles(jsonOut: string): { readonly readable: boolean; readonly titles: readonly string[] } {
-  // @orb-waive caught-failure-ownership(catch): the readable:false verdict IS the return contract — the JSDoc above states this distinguishes "the report was not there" from "the suite named no failing test", so a read/parse failure is reported through the return value, not swallowed. Ends if a caller starts treating readable:false the same as readable:true.
-  try {
-    const parsed: unknown = JSON.parse(readFileSync(jsonOut, "utf8"));
-    const files = (parsed as { readonly testResults?: readonly VitestFile[] }).testResults ?? [];
-    return {
-      readable: true,
-      titles: files.flatMap((f) => (f.assertionResults ?? []).filter((a) => a.status === "failed").map((a) => a.title ?? "<untitled>")),
-    };
-  } catch {
-    return { readable: false, titles: [] };
-  }
-}
-
 interface SuiteOutcome {
   readonly killed: boolean;
   readonly timedOut: boolean;
+  readonly unmeasured: boolean;
   readonly failedTests: readonly string[];
   readonly attributionMissing: boolean;
 }
 
-/** Runs the mirror suite once. A non-zero EXIT is a kill — but spawnSync reports a TIMEOUT-killed child as
- *  `status: null`, and `null !== 0` would score an unmeasured hang as a kill, which is the instrument
- *  lying in the direction that hides a real survivor. A null status is its own outcome, never a kill. */
-function runMirrorSuite(root: string, specs: readonly string[], jsonOut: string): SuiteOutcome {
+/** Run the selected mirrors; the exit and fresh completed report must agree before either verdict stands. */
+function runMirrorSuite(root: string, specs: readonly string[], jsonOut: string, now: () => number): SuiteOutcome {
   rmSync(jsonOut, { force: true });
+  const startedAt = now();
   const res = runNicedSync("pnpm", ["test:scoped", ...specs, `--maxWorkers=${MAX_WORKERS}`, "--reporter=json", `--outputFile.json=${jsonOut}`], {
     cwd: root,
     stdio: "ignore",
     timeout: SUITE_TIMEOUT_MS,
   });
-  const verdict = classifySuiteExit(res.status);
-  if (verdict === "unmeasured") {
-    return { killed: false, timedOut: true, failedTests: [], attributionMissing: false };
-  }
-  const attribution = failedTitles(jsonOut);
-  const killed = verdict === "killed";
-  return { killed, timedOut: false, failedTests: attribution.titles, attributionMissing: killed && !attribution.readable };
+  const evidence = readSuiteEvidence({ root, specs, path: jsonOut, startedAt, finishedAt: now() });
+  const verdict = classifySuiteExit(res.status, evidence);
+  return {
+    killed: verdict === "killed",
+    timedOut: res.errorCode === "ETIMEDOUT",
+    unmeasured: verdict === "unmeasured",
+    failedTests: evidence.failedTests,
+    attributionMissing: evidence.attributionMissing,
+  };
 }
 
 export interface ProbeRange {
@@ -91,6 +61,7 @@ export interface ProbeOptions {
   readonly sourceRel: string;
   readonly range?: ProbeRange;
   readonly root?: string;
+  readonly now?: () => number;
 }
 
 interface ReceiptInput {
@@ -111,6 +82,7 @@ function receiptFor(input: ReceiptInput): MutantReceipt {
     noop: input.noop,
     killed: input.outcome.killed,
     timedOut: input.outcome.timedOut,
+    unmeasured: input.outcome.unmeasured,
     failedTests: input.outcome.failedTests,
     attributionMissing: input.outcome.attributionMissing,
   };
@@ -120,6 +92,7 @@ function receiptFor(input: ReceiptInput): MutantReceipt {
  *  population, or a source with no runnable mirror suite — each is a broken measurement, not a verdict. */
 export function probeMutants(options: ProbeOptions): ProbeSummary {
   const root = options.root ?? REPO_ROOT;
+  const now = options.now ?? Date.now;
   const sourceAbs = join(root, options.sourceRel);
 
   // Heal first: a mutation stranded by a previous SIGKILL makes the file dirty, and the pre-flight below
@@ -153,9 +126,12 @@ export function probeMutants(options: ProbeOptions): ProbeSummary {
   const range = options.range;
   // THE POSITIVE CONTROL. A suite that is already red on unmutated source reports EVERY mutant as
   // killed, which reads as a flawless adjudication and is worth nothing. Prove green first or refuse.
-  const baseline = runMirrorSuite(root, specs, join(ensureReportsDir(root, "mutation-probe"), "baseline-vitest.json"));
+  const baseline = runMirrorSuite(root, specs, join(ensureReportsDir(root, "mutation-probe"), "baseline-vitest.json"), now);
   if (baseline.timedOut) {
     throw new Error(`the mirror suite for ${options.sourceRel} timed out on UNMUTATED source — the probe cannot measure anything against it`);
+  }
+  if (baseline.unmeasured) {
+    throw new Error(`the mirror suite for ${options.sourceRel} has no complete attributed verdict on unmutated source — the probe cannot measure against it`);
   }
   if (baseline.killed) {
     throw new Error(
@@ -194,7 +170,7 @@ export function probeMutants(options: ProbeOptions): ProbeSummary {
       const { from, to } = offsetRangeOf(pristine, starts, mutant.location);
       const mutated = pristine.slice(0, from) + mutant.replacement + pristine.slice(to);
       writeFileSync(sourceAbs, mutated);
-      receipts.push(receiptFor({ index: i, mutant, noop: mutated === pristine, outcome: runMirrorSuite(root, specs, jsonOut), population }));
+      receipts.push(receiptFor({ index: i, mutant, noop: mutated === pristine, outcome: runMirrorSuite(root, specs, jsonOut, now), population }));
     }
   } finally {
     guard.release();
@@ -212,10 +188,11 @@ export function probeMutants(options: ProbeOptions): ProbeSummary {
     reportedSurvivors: survivors.length,
     reportedNoCoverage: uncovered.length,
     reportedTotal: totalMutants(options.reportPath, options.sourceRel),
-    measured: receipts.length,
+    measured: receipts.filter((r) => !r.unmeasured).length,
     killed: receipts.filter((r) => r.killed).length,
-    stillSurvived: receipts.filter((r) => !(r.killed || r.timedOut)).length,
+    stillSurvived: receipts.filter((r) => !(r.killed || r.unmeasured)).length,
     timedOut: receipts.filter((r) => r.timedOut).length,
+    unmeasured: receipts.filter((r) => r.unmeasured).length,
     noopReplacements: receipts.filter((r) => r.noop).length,
     falselyUncovered: receipts.filter((r) => r.population === "no-coverage" && r.killed).length,
     receiptsPath: reportsRelPath("mutation-probe", `${slug}-${start}-${end}.json`),
