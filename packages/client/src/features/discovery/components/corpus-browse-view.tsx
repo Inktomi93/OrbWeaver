@@ -40,7 +40,7 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
-import { selectCorpusCharacter } from "#state";
+import { selectCorpusArtifact } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 import { ParamSelect } from "./corpus-controls.tsx";
@@ -176,7 +176,7 @@ function BrowseCharacterRow({ row }: { readonly row: BrowseRow }): ReactElement 
   return (
     <ListRow
       clickable={true}
-      onClick={(): void => selectCorpusCharacter(row.characterId)}
+      onClick={(): void => selectCorpusArtifact({ kind: "distill", characterId: row.characterId })}
       leading={<CharacterAvatar id={row.characterId} name={row.name} hash={row.avatarHash} />}
       title={row.name}
       subtitle={subtitle}

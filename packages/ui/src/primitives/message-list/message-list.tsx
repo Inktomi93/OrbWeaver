@@ -37,6 +37,8 @@ export interface MessageListHandle {
    * is domain-agnostic).
    */
   readonly pinToIndex: (index: number) => void;
+  /** Reveal and focus a mounted row; false keeps a caller request pending until virtualization renders it. */
+  readonly revealIndex: (index: number) => boolean;
 }
 
 export interface MessageListProps<T> {
@@ -345,6 +347,18 @@ export function MessageList<T>({
           return;
         }
         virtualizer.scrollToEnd({ behavior: reducedMotion ? "auto" : "smooth" });
+      },
+      revealIndex: (index): boolean => {
+        setFollowing(false);
+        pinnedIndexRef.current = null;
+        setPinSpacerPx(0);
+        virtualizer.scrollToIndex(index, { align: "start", behavior: "auto" });
+        const row = scrollRef.current?.querySelector<HTMLElement>(`[data-slot="${MESSAGE_LIST_ROW_SLOT}"][data-index="${index}"]`);
+        if (row === null || row === undefined) {
+          return false;
+        }
+        row.focus({ preventScroll: true });
+        return document.activeElement === row;
       },
       pinToIndex: (index) => {
         // A real no-op outside pin-prompt mode: follow mode owns tail placement, so a stray pin would

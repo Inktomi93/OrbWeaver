@@ -1,9 +1,8 @@
-// The Corpus workspace selection (D271): the Explore dossier drill, the mode switch, and the ONE section
-// seam the shell reads. Each mode keeps its own drill store, so switching modes and back restores that
-// mode's subject; the seam answers for whichever mode is active. Nothing here is persisted.
+// Each Corpus mode retains its subject through the section selection seam.
+// Explore stores complete artifact snapshots; Insights and Labels retain their own drills.
 
 import type { CharacterId } from "@orb/kit/ids";
-import type { CorpusMode } from "#lib";
+import type { CorpusDestination, CorpusMode } from "#lib";
 import { CORPUS_MODES } from "#lib";
 import { analyticsDrillSelection } from "./analytics-selection-store.ts";
 import { getCorpusMode, subscribeCorpusMode, writeCorpusMode } from "./corpus-mode-store.ts";
@@ -13,17 +12,29 @@ import { CORPUS_PHONE_LANDING } from "./panel-resolve.ts";
 import type { SectionSelection } from "./section-registry.ts";
 import { setOpenOverlayPanel, withContentSwap } from "./shell-store.ts";
 
-const exploreSelection = createDrillSelectionStore<CharacterId>("corpus-selection");
+const exploreSelection = createDrillSelectionStore<CorpusDestination>("corpus-selection");
 
 /** Drill into a character's dossier (a search hit / browse row / neighbour click) — CONTENT swaps to it. */
-export const selectCorpusCharacter = exploreSelection.select;
+export function selectCorpusCharacter(characterId: CharacterId): void {
+  selectCorpusArtifact({ kind: "character", characterId });
+}
+
+export function selectCorpusArtifact(destination: CorpusDestination): void {
+  withContentSwap(() => exploreSelection.selectFromList(destination));
+}
+export const useSelectedCorpusDestination = exploreSelection.usePrimaryId;
 /** Clear the dossier selection (back to the corpus overview home). */
-export const clearCorpusSelection = exploreSelection.clear;
+export function clearCorpusSelection(): void {
+  withContentSwap(exploreSelection.clear);
+}
 /** Reactive: the currently-drilled corpus character id (`null` = the overview home). A primitive selector. */
-export const useSelectedCorpusCharacterId = exploreSelection.usePrimaryId;
+export function useSelectedCorpusCharacterId(): CharacterId | null {
+  const destination = exploreSelection.usePrimaryId();
+  return destination?.kind === "character" || destination?.kind === "distill" ? destination.characterId : null;
+}
 
 const MODE_SELECTION: Readonly<Record<CorpusMode, SectionSelection>> = {
-  explore: exploreSelection.selection,
+  explore: { ...exploreSelection.selection, clear: clearCorpusSelection },
   insights: analyticsDrillSelection,
   labels: labelDrillSelection,
 };

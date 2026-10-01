@@ -1,12 +1,5 @@
-// The corpus omnibox result renderer (the J10 heart) — runs `search.search` for the active target and
-// renders the discriminated result per branch. Characters/Scenes hits select a character into CONTENT;
-// the Scenes branch is the CHAT-SEARCH PREVIEW: each DiscoverCharacter's evidence segments are grouped
-// per chat so the user previews the matching moments before opening the dossier. The query is owner-scoped;
-// the image target rides the caption-aware lens. Rendered only while the omnibox has a query (parent-gated).
-//
-// WHAT A HIT LOOKS LIKE lives in `corpus-hit-rows.tsx` — the four row components, the relevance readout and
-// the chat door, split out when this file went back over the component-size cap. This file owns the QUERIES,
-// the branch dispatch, the empty state and the list's live region; it decides WHICH rows render, never how.
+// The Corpus omnibox dispatches typed search results into readable artifact destinations.
+// Disclosure comes from the response metadata; repeated prose retains every source occurrence.
 
 import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
 import { Button } from "@orb/ui/button";
@@ -18,11 +11,12 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { testId } from "#lib";
-import { dedupeByEvidence } from "../lib/corpus-result-text.ts";
+import { groupByEvidence, snippetForDisplay } from "../lib/corpus-result-text.ts";
 import { CORPUS_IMAGE_LENS, CORPUS_SEARCH_TOP_N, isNearestOnly, resolveSearchTarget } from "../lib/corpus-search-targets.ts";
 import { percent } from "../lib/corpus-vocabulary.ts";
 import { CharacterHitRow, DigestHitRow, DiscoverHitRow, ImageHitRow } from "./corpus-hit-rows.tsx";
+import { CorpusResultsList } from "./corpus-results-list.tsx";
+import { CorpusSearchDisclosure } from "./corpus-search-disclosure.tsx";
 
 type UnifiedResult = inferOutput<Trpc["search"]["search"]>;
 type UnifiedOver = Extract<ReturnType<typeof resolveSearchTarget>, { kind: "unified" }>["over"];
@@ -38,19 +32,30 @@ const ID_REF_LEN = 6;
 export interface CorpusSearchResultsProps {
   readonly query: string;
   readonly targetId: string;
+  readonly retainFinderScroll?: boolean;
 }
 
 /** Dispatch to the engine the active target names — the unified `search.search`, or the lexical `fields`. */
-export function CorpusSearchResults({ query, targetId }: CorpusSearchResultsProps): ReactElement {
+export function CorpusSearchResults({ query, targetId, retainFinderScroll = false }: CorpusSearchResultsProps): ReactElement {
   const target = resolveSearchTarget(targetId);
   if (target.kind === "fields") {
-    return <FieldsResults query={query} label={target.label} />;
+    return <FieldsResults query={query} label={target.label} retainFinderScroll={retainFinderScroll} />;
   }
-  return <UnifiedResults query={query} over={target.over} label={target.label} />;
+  return <UnifiedResults query={query} over={target.over} label={target.label} retainFinderScroll={retainFinderScroll} />;
 }
 
 /** Run the unified search for the active target + render the discriminated result. */
-function UnifiedResults({ query, over, label }: { readonly query: string; readonly over: UnifiedOver; readonly label: string }): ReactElement {
+function UnifiedResults({
+  query,
+  over,
+  label,
+  retainFinderScroll,
+}: {
+  readonly query: string;
+  readonly over: UnifiedOver;
+  readonly label: string;
+  readonly retainFinderScroll: boolean;
+}): ReactElement {
   const trpc = useTRPC();
   const trimmed = query.trim();
   const result = useQuery(
@@ -73,16 +78,14 @@ function UnifiedResults({ query, over, label }: { readonly query: string; readon
     return <QueryErrorState label="the search" onRetry={result.refetch} />;
   }
 
-  const data = result.data;
-  // THE SAME EVIDENCE TWICE IS ONE ANSWER (side-eye re-pass C2). A duplicated room (an import run twice, a
-  // branch chat) produces digest blocks whose text is byte-identical, and the ranked list showed both — two
-  // rows a reader cannot tell apart, spending two of twenty slots on one memory. The server's order is
-  // descending relevance, so first-wins keeps the better-scored copy. Deliberately NOT applied to the other
-  // branches: a character or an image is its own identity, and two scenes that quote the same block are two
-  // different rooms' evidence, which the grouped preview already tells apart.
-  const shown = data.over === "digests" ? { ...data, hits: dedupeByEvidence(data.hits, (hit) => hit.text) } : data;
+  const shown = result.data;
   if (shown.hits.length === 0) {
-    return <NoMatches label={label} query={trimmed} lexical={false} />;
+    return (
+      <>
+        <CorpusSearchDisclosure result={shown} />
+        <NoMatches label={label} query={trimmed} lexical={false} />
+      </>
+    );
   }
 
   // COSINE ALWAYS ANSWERS (side-eye corpus re-pass #3, P2-B). `zzqqxwvfoobarbaz` returned twenty rows and
@@ -95,16 +98,11 @@ function UnifiedResults({ query, over, label }: { readonly query: string; readon
   return (
     <>
       <ResultsStatus count={shown.hits.length} label={label} nearestOnly={nearestOnly} />
+      <CorpusSearchDisclosure result={shown} />
       {nearestOnly ? <NearestOnlyBanner best={Math.max(...relevances)} /> : null}
-      <Stack
-        aria-label={`Search results — ${label}`}
-        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
-        data-testid={testId("corpusSearchResults")}
-        gap="row"
-        role="list"
-      >
+      <CorpusResultsList label={label} retainFinderScroll={retainFinderScroll}>
         <ResultBranch data={shown} />
-      </Stack>
+      </CorpusResultsList>
     </>
   );
 }
@@ -156,7 +154,15 @@ function relevancesOf(data: UnifiedResult): number[] {
 }
 
 /** The lexical BM25 surface (`search.fields`) — bare id+score hits named against a card-list map. */
-function FieldsResults({ query, label }: { readonly query: string; readonly label: string }): ReactElement {
+function FieldsResults({
+  query,
+  label,
+  retainFinderScroll,
+}: {
+  readonly query: string;
+  readonly label: string;
+  readonly retainFinderScroll: boolean;
+}): ReactElement {
   const trpc = useTRPC();
   const trimmed = query.trim();
   const hits = useQuery(trpc.search.fields.queryOptions({ query: trimmed, topN: CORPUS_SEARCH_TOP_N }, { enabled: trimmed !== "" }));
@@ -168,8 +174,15 @@ function FieldsResults({ query, label }: { readonly query: string; readonly labe
   if (hits.error !== null) {
     return <QueryErrorState label="the text search" onRetry={hits.refetch} />;
   }
-  if (hits.data.length === 0) {
-    return <NoMatches label={label} query={trimmed} lexical={true} />;
+  if (hits.data.hits.length === 0) {
+    return (
+      <>
+        <Text voice="gloss">
+          Text searched {hits.data.coverage.indexedCharacters} indexed cards. Request limit: {hits.data.coverage.requestLimit}.
+        </Text>
+        <NoMatches label={label} query={trimmed} lexical={true} />
+      </>
+    );
   }
 
   const byId = new Map((catalog.data?.items ?? []).map((card) => [card.id, card]));
@@ -192,15 +205,13 @@ function FieldsResults({ query, label }: { readonly query: string; readonly labe
       ) : null}
       {/* The lexical branch is never "nearest only": BM25 is an unbounded per-query score, not a
           similarity, so there is no band to compare it against (the same reason its rows print no percent). */}
-      <ResultsStatus count={hits.data.length} label={label} nearestOnly={false} />
-      <Stack
-        aria-label={`Search results — ${label}`}
-        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
-        data-testid={testId("corpusSearchResults")}
-        gap="row"
-        role="list"
-      >
-        {hits.data.map((hit, index) => {
+      <Text voice="gloss">
+        Text matches card wording with prefix and fuzzy matching. Showing {hits.data.hits.length} of {hits.data.coverage.matchingCharacters} matching cards from{" "}
+        {hits.data.coverage.indexedCharacters} indexed cards; request limit {hits.data.coverage.requestLimit}.
+      </Text>
+      <ResultsStatus count={hits.data.hits.length} label={label} nearestOnly={false} />
+      <CorpusResultsList label={label} retainFinderScroll={retainFinderScroll}>
+        {hits.data.hits.map((hit, index) => {
           const card = byId.get(hit.characterId);
           return (
             <Stack key={hit.characterId} role="listitem">
@@ -217,7 +228,7 @@ function FieldsResults({ query, label }: { readonly query: string; readonly labe
             </Stack>
           );
         })}
-      </Stack>
+      </CorpusResultsList>
     </>
   );
 }
@@ -230,13 +241,11 @@ function NoMatches({ label, query, lexical }: { readonly label: string; readonly
   return (
     <Stack align="center" className="p-block" gap="field">
       <Icon icon={Search} size="lg" />
-      <Text>
-        Nothing in your {label.toLowerCase()} matched “{query}”.
-      </Text>
+      <Text>{lexical ? `Nothing in your ${label.toLowerCase()} matched “${query}”.` : "No result in this preview."}</Text>
       <Text voice="gloss">
         {lexical
-          ? "Text matches card wording exactly. Check the spelling, or try Memories or Scenes — those search by meaning."
-          : "This target searches by meaning, not exact words. Try a fuller phrase, or another target: Text matches card wording exactly."}
+          ? "Text searches card wording with prefix and fuzzy matching. Check the spelling, or try Memories or Scenes — those search by meaning."
+          : "This target searches by meaning, not exact words. Try a fuller phrase, or another target: Text searches card wording."}
       </Text>
     </Stack>
   );
@@ -277,16 +286,22 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
   if (data.over === "digests") {
     return (
       <>
-        {data.hits.map((hit, index) => (
-          <Stack key={`${hit.blockKey.chatId}-${hit.blockKey.tier}-${hit.blockKey.blockIdx}`} role="listitem">
-            <DigestHitRow
-              chatId={hit.blockKey.chatId}
-              chatTitle={hit.chatTitle}
-              rank={index + 1}
-              relevance={hit.relevance}
-              scopedCharacterName={hit.scopedCharacterName}
-              text={hit.text}
-            />
+        {[
+          ...groupByEvidence(
+            data.hits.map((hit, index) => ({ hit, rank: index + 1 })),
+            ({ hit }) => hit.text,
+          ),
+        ].map(([text, occurrences]) => (
+          <Stack key={text} gap="row" role="listitem">
+            {occurrences.length > 1 ? <Text voice="gloss">{snippetForDisplay(text)}</Text> : null}
+            {occurrences.map(({ hit, rank }) => (
+              <DigestHitRow
+                key={`${hit.blockKey.chatId}-${hit.blockKey.scopedCharacterId}-${hit.blockKey.tier}-${hit.blockKey.blockIdx}`}
+                hit={hit}
+                rank={rank}
+                grouped={occurrences.length > 1}
+              />
+            ))}
           </Stack>
         ))}
       </>
@@ -297,14 +312,7 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
       <>
         {data.hits.map((hit, index) => (
           <Stack key={hit.assetId} role="listitem">
-            <ImageHitRow
-              caption={hit.caption}
-              characterId={hit.characterId}
-              characterName={hit.characterName}
-              hash={hit.hash}
-              rank={index + 1}
-              relevance={hit.relevance}
-            />
+            <ImageHitRow hit={hit} rank={index + 1} />
           </Stack>
         ))}
       </>

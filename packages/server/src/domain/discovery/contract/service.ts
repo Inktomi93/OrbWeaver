@@ -3,6 +3,8 @@
 // writeHubScores seam; characterDossier's neighbours arrive via the injected `similar` search seam (wired at
 // the root — type-only here). analyze/swipes read the SEMANTIC messages projection (content, never economics).
 
+import type { CorpusDigestSource } from "@orb/contracts/search";
+import type { ChatDigestId } from "@orb/kit/ids";
 import type { DuplicateRelation } from "@orb/contracts/discovery";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RoleClients } from "@orb/contracts/role-clients";
@@ -147,6 +149,7 @@ export interface ComputeHubScoresDeps {
  *  at the entry root. `themes`/`duplicate*` come from discovery's OWN verbs (self-composition); `similar` is
  *  the one CROSS-domain member — search's `similarCharacters`, narrowed to {@link DossierNeighbor} at the root. */
 export interface ViewsDeps {
+  readonly resolveDigestSources: (ownerId: UserId, ids: readonly ChatDigestId[]) => Promise<readonly CorpusDigestSource[]>;
   readonly themes: (userId: UserId, level?: ThemeLevel) => Promise<ThemeRow[]>;
   readonly duplicateCharacters: (userId: UserId) => Promise<DuplicateCharacterPair[]>;
   readonly duplicateChats: (userId: UserId, opts?: { relation?: DuplicateRelation }) => Promise<DuplicateChatPair[]>;
@@ -185,6 +188,7 @@ export interface DistillCharactersDeps {
 // ── the DI bundle (the full context the service factory closes over) ──────────
 /** The DI bundle the discovery verbs close over (assembled at `entry/`, surfaced via `context.ts`). */
 export interface DiscoveryContext {
+  readonly resolveDigestSources: ViewsDeps["resolveDigestSources"];
   readonly db: Db;
   readonly now: () => number;
   readonly newDuplicateCharacterPairId: () => DuplicateCharacterPairId;

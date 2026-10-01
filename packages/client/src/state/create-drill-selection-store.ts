@@ -10,7 +10,7 @@ import { createGatedStore } from "./create-gated-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
 import { setOpenOverlayPanel } from "./shell-store.ts";
 
-interface DrillSelectionState<P extends string, S extends string> {
+interface DrillSelectionState<P, S extends string> {
   /** The drilled primary entity — `null` = the section's overview/welcome home. */
   readonly primaryId: P | null;
   /** The sub-drill inside the primary (facet/section/entry) — `null` = nothing sub-drilled. Always `null`
@@ -19,7 +19,7 @@ interface DrillSelectionState<P extends string, S extends string> {
 }
 
 /** A primary-only drill store: select/clear the drilled entity + the LIST-callback `selectFromList`. */
-export interface PrimaryDrillStore<P extends string> {
+export interface PrimaryDrillStore<P> {
   /** Reactive: the drilled primary id (`null` = the overview home). A single-field primitive selector. */
   readonly usePrimaryId: () => P | null;
   /** Imperative owner check for async completions that must not publish into a later selection session. */
@@ -43,7 +43,7 @@ export interface PrimaryDrillStore<P extends string> {
 }
 
 /** A drill store with a secondary sub-drill (facet/section/entry) + the CONTEXT `dismissSecondary` arm. */
-export interface DrillSelectionStore<P extends string, S extends string> extends PrimaryDrillStore<P> {
+export interface DrillSelectionStore<P, S extends string> extends PrimaryDrillStore<P> {
   /** Reactive: the sub-drilled secondary id (`null` = none). A single-field primitive selector. */
   readonly useSecondaryId: () => S | null;
   /** Sub-drill into `id` (a facet/section/entry-row click) — reveals the CONTEXT inspector. */
@@ -54,12 +54,9 @@ export interface DrillSelectionStore<P extends string, S extends string> extends
   readonly dismissSecondary: () => void;
 }
 
-export function createDrillSelectionStore<P extends string>(name: string): PrimaryDrillStore<P>;
-export function createDrillSelectionStore<P extends string, S extends string>(name: string, options: { readonly secondary: true }): DrillSelectionStore<P, S>;
-export function createDrillSelectionStore<P extends string, S extends string>(
-  name: string,
-  _options?: { readonly secondary: true },
-): DrillSelectionStore<P, S> {
+export function createDrillSelectionStore<P>(name: string): PrimaryDrillStore<P>;
+export function createDrillSelectionStore<P, S extends string>(name: string, options: { readonly secondary: true }): DrillSelectionStore<P, S>;
+export function createDrillSelectionStore<P, S extends string>(name: string, _options?: { readonly secondary: true }): DrillSelectionStore<P, S> {
   const useSelectionStore = createGatedStore<DrillSelectionState<P, S>>(name, (): DrillSelectionState<P, S> => ({ primaryId: null, secondaryId: null }));
   // The ONE clear (see `clear`'s contract): drop the drill AND release the slide-over request, so every
   // "back" in the app — the shell's topbar door, a surface's own in-content Back, a delete's cleanup —

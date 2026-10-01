@@ -45,6 +45,7 @@ export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService 
   // `similar` is the one CROSS-domain member — search's `similarCharacters`, narrowed to DossierNeighbor at
   // the entry root and threaded in via `ctx.similar` (discovery holds no search runtime).
   const viewsDeps: ViewsDeps = {
+    resolveDigestSources: ctx.resolveDigestSources,
     themes: (userId: UserId, level?: ThemeLevel): Promise<ThemeRow[]> => readThemes(ctx.db, userId, level),
     duplicateCharacters: (userId: UserId): Promise<DuplicateCharacterPair[]> => readDuplicateCharacters(ctx.db, userId),
     duplicateChats: (userId: UserId, opts?): Promise<DuplicateChatPair[]> => readDuplicateChats(ctx.db, userId, opts),

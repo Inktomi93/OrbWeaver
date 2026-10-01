@@ -44,6 +44,7 @@ describe("discover", () => {
     expect(result[0]?.segments).toHaveLength(1);
     expect(result[0]?.segments[0]?.snippet).toContain("moonlit alley");
     expect(result[0]?.segments[0]?.chatId).toBe(chat);
+    expect(result[0]?.segments[0]).toMatchObject({ source: { kind: "segment", blockIdx: 0, seqStart: 0, seqEnd: 9 } });
   });
 
   // #172: a chunked block is N rows. `matchCount` and the evidence list are per SCENE, so the chunks collapse

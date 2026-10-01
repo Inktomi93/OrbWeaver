@@ -19,6 +19,8 @@
 import type { ImageCaptionMeta, ImageFacetMetaKey } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import { stableStringify } from "@orb/kit/stable-stringify";
+import { sha256Hex } from "#kit/content-hash";
 import type { DiscoveryContext } from "../context.ts";
 import type { ArchetypeMember, ImageDuplicatePair, VisualArchetype } from "../contract/results.ts";
 import type { DiscoveryService } from "../contract/service.ts";
@@ -30,16 +32,15 @@ import { pairsAboveThreshold } from "../substrate/pair-cosine.ts";
 const DEFAULT_IMAGE_DUP_THRESHOLD = 0.92;
 const DEFAULT_VISUAL_K = 8;
 const VISUAL_SEED = 1;
-const MAX_MEMBERS = 12;
 
 type AvatarVector = Awaited<ReturnType<typeof readOwnedAvatarVectors>>[number];
 
-function groupByModel<T extends { readonly model: string }>(rows: readonly T[]): Map<string, T[]> {
+function groupByModel<T extends { readonly model: string; readonly generationId: string }>(rows: readonly T[]): Map<string, T[]> {
   const groups = new Map<string, T[]>();
   for (const row of rows) {
-    const bucket = groups.get(row.model);
+    const bucket = groups.get(`${row.model}|${row.generationId}`);
     if (bucket === undefined) {
-      groups.set(row.model, [row]);
+      groups.set(`${row.model}|${row.generationId}`, [row]);
     } else {
       bucket.push(row);
     }
@@ -267,7 +268,12 @@ function lowestMemberId(acc: VisualClusterAcc): string {
  *  cluster-index order — which is assignment order over an unordered SELECT — so an unchanged corpus could
  *  swap two families' labels between runs. The member id breaks the tie the same way `mode`/`rankCandidates`
  *  already break theirs. */
-function labelClusters(accs: readonly VisualClusterAcc[], corpus: FacetCounts, corpusSize: number, model: string): VisualArchetype[] {
+function labelClusters(
+  accs: readonly VisualClusterAcc[],
+  corpus: FacetCounts,
+  corpusSize: number,
+  provenance: Pick<VisualArchetype, "model" | "generationId" | "fingerprint" | "passId">,
+): VisualArchetype[] {
   const taken = new Set<string>();
   return accs
     .toSorted((a, b) => b.members.length - a.members.length || (lowestMemberId(a) < lowestMemberId(b) ? -1 : 1))
@@ -278,6 +284,7 @@ function labelClusters(accs: readonly VisualClusterAcc[], corpus: FacetCounts, c
         taken.add(label);
       }
       return {
+        baseLabel: candidates[0]?.value ?? UNANALYSED_LABEL,
         label: label ?? UNANALYSED_LABEL,
         genre: mode(acc.genre),
         tone: mode(acc.tone),
@@ -285,8 +292,8 @@ function labelClusters(accs: readonly VisualClusterAcc[], corpus: FacetCounts, c
         palette: mode(acc.facets.get("palette") ?? new Map()),
         mood: mode(acc.facets.get("mood") ?? new Map()),
         size: acc.members.length,
-        members: acc.members.slice(0, MAX_MEMBERS),
-        model,
+        members: acc.members,
+        ...provenance,
       };
     });
 }
@@ -344,10 +351,29 @@ async function visualArchetypes(db: Db, ownerId: UserId, k = DEFAULT_VISUAL_K): 
     }
   }
   const out: VisualArchetype[] = [];
-  for (const [, group] of groupByModel(avatars)) {
+  for (const [, rows] of groupByModel(avatars)) {
+    const group = rows.toSorted((a, b) => a.characterId.localeCompare(b.characterId));
     // The baseline is the whole owner corpus, not this embedding space — a family is "more X than your
     // library", and which model embedded it is not part of that question.
-    out.push(...labelClusters(accumulateClusters(group, labels, k), corpus, Math.max(corpusSize, 1), group[0]?.model ?? ""));
+    const first = group[0];
+    if (first === undefined) {
+      continue;
+    }
+    const passId = sha256Hex(
+      stableStringify({
+        k,
+        rows: group.map((row) => [row.characterId, row.generationId, row.contentHash]),
+        labels: [...labels.entries()].toSorted(([a], [b]) => a.localeCompare(b)),
+      }),
+    );
+    out.push(
+      ...labelClusters(accumulateClusters(group, labels, k), corpus, Math.max(corpusSize, 1), {
+        model: first.model,
+        generationId: first.generationId,
+        fingerprint: first.fingerprint,
+        passId,
+      }),
+    );
   }
   return out.sort((a, b) => b.size - a.size);
 }

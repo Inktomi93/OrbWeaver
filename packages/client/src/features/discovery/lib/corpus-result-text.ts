@@ -128,16 +128,7 @@ export function roomNumberingHint(title: string): string | undefined {
   return NUMBERED_ROOM.test(title) ? `${title} — rooms that share a name are numbered.` : undefined;
 }
 
-/** Keep the FIRST hit per evidence key (C2 — the server's rank order is descending relevance, so first-wins
- *  keeps the better-scored copy of a duplicated room's byte-identical block). */
-export function dedupeByEvidence<T>(hits: readonly T[], evidenceOf: (hit: T) => string): T[] {
-  const seen = new Set<string>();
-  return hits.filter((hit) => {
-    const key = evidenceOf(hit).trim();
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
+/** Group repeated prose without dropping the identity or rank of any source occurrence. */
+export function groupByEvidence<T>(hits: readonly T[], evidenceOf: (hit: T) => string): ReadonlyMap<string, readonly T[]> {
+  return Map.groupBy(hits, (hit) => evidenceOf(hit).trim());
 }

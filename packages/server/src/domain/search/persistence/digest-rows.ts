@@ -5,13 +5,16 @@
 
 import type { BlockKey } from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
-import { characters, chatDigests, chatSegments } from "@orb/db";
-import type { CharacterId, ChatId, EmbedGenerationId, UserId } from "@orb/kit/ids";
+import { characters, chatDigests, chatSegments, embedGenerations } from "@orb/db";
+import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
 import { toVectorBlob } from "./nearest.ts";
 import { digestScopeCond, segmentScopeCond } from "./scope.ts";
 
 interface NearestDigest {
+  readonly rowId: ChatDigestId;
+  readonly generationId: EmbedGenerationId;
+  readonly fingerprint: string | null;
   readonly chatId: ChatId;
   readonly scopedCharacterId: CharacterId;
   readonly tier: number;
@@ -41,6 +44,9 @@ export async function nearestDigests(db: ReadOnlyDb, params: NearestDigestsParam
   const distance = sql<number>`vector_distance_cos(${chatDigests.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;
   const rows = await db
     .select({
+      rowId: chatDigests.id,
+      generationId: chatDigests.generationId,
+      fingerprint: embedGenerations.fingerprint,
       chatId: chatDigests.chatId,
       scopedCharacterId: chatDigests.scopedCharacterId,
       tier: chatDigests.tier,
@@ -52,6 +58,7 @@ export async function nearestDigests(db: ReadOnlyDb, params: NearestDigestsParam
       keywords: chatDigests.keywords,
     })
     .from(chatDigests)
+    .leftJoin(embedGenerations, eq(embedGenerations.id, chatDigests.generationId))
     .innerJoin(characters, eq(chatDigests.scopedCharacterId, characters.id))
     .where(
       digestScopeCond({
@@ -84,6 +91,12 @@ export async function ownedChatIds(db: ReadOnlyDb, ownerId: UserId, model: strin
 }
 
 interface NearestSegment {
+  readonly rowId: ChatSegmentId;
+  readonly generationId: EmbedGenerationId;
+  readonly fingerprint: string | null;
+  readonly chunkIdx: number;
+  readonly seqStart: number;
+  readonly seqEnd: number;
   readonly chatId: ChatId;
   readonly blockIdx: number;
   readonly distance: number;
@@ -105,6 +118,12 @@ export async function nearestSegments(db: ReadOnlyDb, params: NearestSegmentsPar
   const distance = sql<number>`vector_distance_cos(${chatSegments.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;
   const rows = await db
     .select({
+      rowId: chatSegments.id,
+      generationId: chatSegments.generationId,
+      fingerprint: embedGenerations.fingerprint,
+      chunkIdx: chatSegments.chunkIdx,
+      seqStart: chatSegments.seqStart,
+      seqEnd: chatSegments.seqEnd,
       chatId: chatSegments.chatId,
       blockIdx: chatSegments.blockIdx,
       distance,
@@ -113,6 +132,7 @@ export async function nearestSegments(db: ReadOnlyDb, params: NearestSegmentsPar
       contentHash: chatSegments.contentHash,
     })
     .from(chatSegments)
+    .leftJoin(embedGenerations, eq(embedGenerations.id, chatSegments.generationId))
     .where(
       segmentScopeCond({
         model: params.model,

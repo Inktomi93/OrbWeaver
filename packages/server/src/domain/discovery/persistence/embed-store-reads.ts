@@ -14,10 +14,11 @@ import {
   chatSegments,
   chats,
   digestThemeAssignments,
+  embedGenerations,
   imageEmbeddings,
   themeClusters,
 } from "@orb/db";
-import type { AssetId, CharacterId, ChatDigestId, ChatId, ThemeClusterId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, max, min, notInArray, sql } from "drizzle-orm";
 import { ownedRealCharacters } from "./character-scope.ts";
@@ -33,6 +34,8 @@ interface DigestKeywordRow {
 }
 
 interface OwnedCharacterVector {
+  readonly generationId: EmbedGenerationId;
+  readonly fingerprint: string | null;
   readonly characterId: CharacterId;
   readonly ownerId: UserId;
   readonly model: string;
@@ -88,6 +91,8 @@ export async function readOwnedCharacterHashes(db: Db, ownerId: UserId): Promise
 export async function readOwnedCharacterVectors(db: Db, ownerId?: UserId | null): Promise<OwnedCharacterVector[]> {
   return await db
     .select({
+      generationId: characterEmbeddings.generationId,
+      fingerprint: embedGenerations.fingerprint,
       characterId: characterEmbeddings.characterId,
       ownerId: characters.ownerId,
       model: characterEmbeddings.model,
@@ -95,6 +100,7 @@ export async function readOwnedCharacterVectors(db: Db, ownerId?: UserId | null)
       contentHash: characterEmbeddings.contentHash,
     })
     .from(characterEmbeddings)
+    .leftJoin(embedGenerations, eq(embedGenerations.id, characterEmbeddings.generationId))
     .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
     .where(ownedRealCharacters(ownerId));
 }
@@ -589,6 +595,9 @@ function excludeShared(shared: readonly AssetId[]): SQL | undefined {
 }
 
 interface AvatarVector {
+  readonly generationId: EmbedGenerationId;
+  readonly fingerprint: string | null;
+  readonly contentHash: string;
   readonly characterId: CharacterId;
   readonly name: string;
   readonly avatarHash: string;
@@ -601,6 +610,9 @@ export async function readOwnedAvatarVectors(db: Db, ownerId: UserId): Promise<A
   const shared = await sharedAvatarAssetIds(db, ownerId);
   return await db
     .select({
+      generationId: imageEmbeddings.generationId,
+      fingerprint: embedGenerations.fingerprint,
+      contentHash: imageEmbeddings.contentHash,
       characterId: characters.id,
       name: characters.name,
       avatarHash: assets.hash,
@@ -608,6 +620,7 @@ export async function readOwnedAvatarVectors(db: Db, ownerId: UserId): Promise<A
       embedding: imageEmbeddings.embedding,
     })
     .from(imageEmbeddings)
+    .leftJoin(embedGenerations, eq(embedGenerations.id, imageEmbeddings.generationId))
     .innerJoin(characters, eq(characters.avatarAssetId, imageEmbeddings.assetId))
     .innerJoin(assets, eq(assets.id, imageEmbeddings.assetId))
     .where(and(ownedRealCharacters(ownerId), eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS), excludeShared(shared)));
@@ -728,4 +741,16 @@ export async function readOwnedSegmentVectorsByChat(
     // Target chat first (its rows are never evicted by the cap), then recency for the rest.
     .orderBy(desc(eq(chatSegments.chatId, targetChatId)), desc(chatSegments.createdAt))
     .limit(cap);
+}
+
+/** Representative source rows remain scoped at the cluster read boundary. */
+export async function readThemeClusterDigestIds(db: Db, ownerId: UserId, themeClusterId: ThemeClusterId, limit: number): Promise<readonly ChatDigestId[]> {
+  const rows = await db
+    .select({ id: chatDigests.id })
+    .from(digestThemeAssignments)
+    .innerJoin(themeClusters, ownedThemeCluster(ownerId, themeClusterId))
+    .innerJoin(chatDigests, eq(chatDigests.id, digestThemeAssignments.digestId))
+    .orderBy(asc(chatDigests.chatId), asc(chatDigests.tier), asc(chatDigests.blockIdx), asc(chatDigests.id))
+    .limit(limit);
+  return rows.map((row) => row.id);
 }

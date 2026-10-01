@@ -77,6 +77,7 @@ test("picking two characters renders the facet diff; deep compare adds the narra
   });
   const component = await mount(<CorpusCompareTabStory />);
   await pickThePair(component, page);
+  await component.getByRole("button", { name: "Read comparison" }).click();
 
   // The no-LLM facet diff renders the shared + only tags.
   await expect(component.getByText("rogue")).toBeVisible();
@@ -105,6 +106,7 @@ test("a DEGRADED narrative is labelled as the model's raw reply, not rendered as
   });
   const component = await mount(<CorpusCompareTabStory />);
   await pickThePair(component, page);
+  await component.getByRole("button", { name: "Read comparison" }).click();
   await component.getByRole("button", { name: "Deep compare" }).click();
 
   // Barrier on the SETTLED degraded arm (the query has resolved and painted), never an in-flight state.

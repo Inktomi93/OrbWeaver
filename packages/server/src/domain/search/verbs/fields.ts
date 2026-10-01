@@ -5,13 +5,13 @@
 
 import type { SearchContext } from "../context.ts";
 import type { FieldSearchParams, SuggestParams } from "../contract/params.ts";
-import type { FieldSearchHit, SearchSuggestion } from "../contract/results.ts";
+import type { FieldSearchResult, SearchSuggestion } from "../contract/results.ts";
 import type { SearchService } from "../contract/service.ts";
 import { loadCardFields } from "../persistence/cards.ts";
 import { getOrBuildFieldIndex, queryFields, suggestFields } from "../substrate/field-index.ts";
 
 export function createFields(ctx: SearchContext): SearchService["fields"] {
-  return async (params: FieldSearchParams): Promise<FieldSearchHit[]> => {
+  return async (params: FieldSearchParams): Promise<FieldSearchResult> => {
     const index = await getOrBuildFieldIndex(params.ownerId, ctx.now(), () => loadCardFields(ctx.db, params.ownerId));
     return queryFields(index, params.query, params.topN);
   };

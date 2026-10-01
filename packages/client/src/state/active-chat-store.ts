@@ -16,11 +16,13 @@
 // otherwise, and the 24h TTL belt is the real guarantee. Nav is never blocked on it.
 
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
+import type { MessageWindowTarget } from "@orb/contracts/search";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { ChatContextTabId } from "#lib";
 import type { ChatHandle } from "./chat-handle.ts";
 import { committedChat, isCommitted, isLanding, landingChat } from "./chat-handle.ts";
+import { clearChatMoment, requestChatMoment } from "./chat-moment-store.ts";
 import { readComposerDraft } from "./composer-draft-store.ts";
 import { createPersistedStore } from "./create-persisted-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
@@ -147,6 +149,7 @@ export function clearNewChatIntent(): void {
 /** Make an existing chat active. Keyed by the chat id, so re-selecting the same chat is idempotent and
  *  switching chats remounts the slot. */
 export function selectChat(chatId: ChatId): void {
+  clearChatMoment();
   // The three user-driven CONTENT pane swaps (create, select-a-chat, return-to-landing) go through the
   // shell's ONE content-swap door: the router's VT never fires at a constant route, and a room change must
   // not leave a float ABOUT THE OLD ROOM's content painted over the new one (#1795).
@@ -175,6 +178,12 @@ export function goToLanding(): void {
     const createdChatId = releaseCreatedChat(null);
     useActiveChatStore.setState({ handle: landingChat(), newChatIntent: undefined, createdChatId, inviteChatId: null }, true, "activeChat/goToLanding");
   });
+}
+
+/** Open a retained source or stable message target through the same room navigation door. */
+export function openChatMoment(chatId: ChatId, target: MessageWindowTarget): void {
+  resumeChat(chatId);
+  withContentSwap(() => requestChatMoment(chatId, target));
 }
 
 /**

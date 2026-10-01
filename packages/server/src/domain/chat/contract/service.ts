@@ -45,6 +45,7 @@ import type {
   GetChatParams,
   GetGroupConfigForChatParams,
   GetMemberCardParams,
+  GetMessageWindowParams,
   GetRoomOverridesForChatParams,
   GetRuntimeVariablesParams,
   GetShapeTraceParams,
@@ -142,6 +143,7 @@ import type {
   MessagesPage,
   MessageVariantSummary,
   MessageView,
+  MessageWindow,
   ParticipantView,
   SectionPreview,
   ShapeTrace,
@@ -207,6 +209,7 @@ export interface ChatService {
   readonly previewContextFit: (params: PreviewContextFitParams) => Promise<ContextFitAnswer>;
   /** Paged canon read — each slot joined to its selected variant + the page's macro name producer. */
   readonly listMessages: (params: ListMessagesParams) => Promise<MessagesPage>;
+  readonly getMessageWindow: (params: GetMessageWindowParams) => Promise<MessageWindow>;
   /** The full sibling-variant set for one slot — `{variantId, idx}[]` ordered by idx, no content. */
   readonly listMessageVariants: (params: ListMessageVariantsParams) => Promise<MessageVariantSummary[]>;
   /** The resolved present roster. */

@@ -17,7 +17,7 @@ import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { AutomationRuleId, CharacterId, ChatId, ChatTurnId, DocumentId, MessageId, PluginId, PresetId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, vi } from "vitest";
 import { withViewTransition } from "../../../packages/client/src/lib/view-transition.ts";
@@ -87,6 +87,7 @@ function seedReads(queryClient: QueryClient, keys: Iterable<readonly unknown[]>)
 const TRACKED_KEYS = [
   "getChat",
   "listMessages",
+  "getMessageWindow",
   "listMessageVariants",
   // The transcript divider's present-tense fit budget (previewContextFit) — refetched on every canon terminal
   // (the boundary moves when canon commits/trims) alongside the message list.
@@ -149,7 +150,14 @@ type TrackedKey = (typeof TRACKED_KEYS)[number];
 // (chatUpdated/personaSwitched/chatOpened/historyTruncated/wi*/chatDeleted). The canon-TERMINAL events
 // (messageCommitted/turnCompleted) use this: the chat LIST + character library recency rides the server's
 // `chatsChanged` member-fan on the same moment (one driver per surface, no triple-invalidate).
-const CHAT_CANON_READS: readonly TrackedKey[] = ["listMessages", "listMessageVariants", "previewContextFit", "previewAssembly", "getShapeTrace"];
+const CHAT_CANON_READS: readonly TrackedKey[] = [
+  "listMessages",
+  "getMessageWindow",
+  "listMessageVariants",
+  "previewContextFit",
+  "previewAssembly",
+  "getShapeTrace",
+];
 
 // The host-reveal derivation (`rpg.revealHidden`) rides the BODY-WRITE terminals only — `messageCommitted`
 // and the non-terminal canon mutations — never `turnCompleted`. A generated turn emits `messageCommitted`
@@ -261,6 +269,7 @@ describe("invalidation — the bus half (invalidate)", () => {
       const keys: Record<TrackedKey, readonly unknown[]> = {
         getChat: trpc.chat.getChat.queryKey({ chatId: CHAT_ID }),
         listMessages: trpc.chat.listMessages.queryKey({ chatId: CHAT_ID }),
+        getMessageWindow: trpc.chat.getMessageWindow.queryKey({ chatId: CHAT_ID, target: { kind: "message", messageId: MESSAGE_ID } }),
         listMessageVariants: trpc.chat.listMessageVariants.queryKey({
           chatId: CHAT_ID,
           messageId: MESSAGE_ID,
@@ -464,13 +473,10 @@ const USER_TRACKED_KEYS = [
   // The corpus-analytics router root (`trpc.discovery`) — all 27 dashboard reads. Their writers are
   // background workloads, so before `corpusRecomputed` they had no driver of any kind (§2.5).
   "discovery",
-  // `search.similarArt`, tracked SEPARATELY from a search root that deliberately does not exist here: it is
-  // pure image-vector cosine written by the same passes, while its `search.*` neighbours are input-keyed
-  // live queries that must NOT be dragged into a recompute invalidate.
   "similarArt",
-  // An input-keyed live search (`search.search`) — tracked ONLY as the negative control for the row above:
-  // it must stay untouched by every member, including `corpusRecomputed`.
+  // Explore retains its query and source snapshot while recompute replaces index rows.
   "searchQuery",
+  "sourceWindow",
   // The VIEWER'S identity (`sessions.me` — userId/handle/globalRole). Before `identityChanged` (W7b) this key
   // was in ZERO rows: an `admin.setRole` grant, or an SSO login elsewhere that renamed the handle, reached a
   // live client only on a full page reload. Tracked separately from `userSettings`/`persona` — the other two
@@ -516,10 +522,7 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // two reads under that one router. Notably NOT `chatGet`: a host's attach changes what the ROOM sees, but
   // that half is member-visible state on the chat bus, never a user-bus widening (`membership-fan-guard`).
   databankChanged: ["databank"],
-  // The discovery ROOT + `search.similarArt`, and deliberately NOT `searchQuery`: the live search reads are
-  // input-keyed (the typed query IS the cache key), so invalidating them on a background recompute would
-  // re-run someone's search for no freshness gain. That exclusion is the point of the negative control.
-  corpusRecomputed: ["discovery", "similarArt"],
+  corpusRecomputed: ["discovery", "similarArt", "searchQuery", "sourceWindow"],
   // The VIEWER TRIPLE and nothing else (W7b) — `sessions.me` plus the two reads a composed current-persona
   // derivation would need (`settings.getUserSettings`/`persona.list`). It routes through the SAME
   // `identityFilters` helper the recovery ladder's resume rung calls, so this row is also the pin that the
@@ -544,6 +547,23 @@ function userEventOf(type: UserBusEvent["type"]): UserBusEvent {
 }
 
 describe("invalidation — the USER-bus half (invalidateUser)", () => {
+  test("corpus recompute refreshes a retained search and both source-window cache kinds without repaging ordinary canon", () => {
+    const { invalidateUser, queryClient, trpc } = setup();
+    const chatId = mintTypeId(ID_PREFIX.chat);
+    const target = { kind: "message" as const, messageId: mintTypeId(ID_PREFIX.message) };
+    const search = trpc.search.search.queryKey({ query: "retained evidence", over: "digests", scope: { kind: "owner" }, topN: 20 });
+    const window = trpc.chat.getMessageWindow.queryKey({ chatId, target });
+    const infinite = trpc.chat.getMessageWindow.infiniteQueryOptions(
+      { chatId, target },
+      { initialCursor: null, getNextPageParam: (): undefined => undefined },
+    ).queryKey;
+    const ordinary = trpc.chat.listMessages.queryKey({ chatId });
+    const lexical = trpc.search.fields.queryKey({ query: "retained evidence", topN: 20 });
+    seedReads(queryClient, [search, window, infinite, ordinary, lexical]);
+    invalidateUser({ type: "corpusRecomputed" });
+    expect([search, window, infinite].map((key) => isInvalidated(queryClient, key))).toEqual([true, true, true]);
+    expect([ordinary, lexical].map((key) => isInvalidated(queryClient, key))).toEqual([false, false]);
+  });
   test("the event→filter contract holds for EVERY UserBusEvent type", () => {
     const actual: Record<string, readonly UserTrackedKey[]> = {};
 
@@ -575,6 +595,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         discovery: trpc.discovery.home.queryKey(),
         similarArt: trpc.search.similarArt.queryKey({ characterId: CHARACTER_ID }),
         searchQuery: trpc.search.search.queryKey({ query: "anything" }),
+        sourceWindow: trpc.chat.getMessageWindow.queryKey({ chatId: CHAT_ID, target: { kind: "message", messageId: MESSAGE_ID } }),
         sessionsMe: trpc.sessions.me.queryKey(),
         pluginSurfaceState: trpc.plugin.getSurfaceState.queryKey({ pluginId: PLUGIN_ID, surfaceId: "panel" }),
       };

@@ -4,6 +4,7 @@
 // character in ranked order, capped. Answers "who has lived scenes like X" (distinct from findCharacters'
 // card match and corpus' block match). Rerank rejections propagate — search owns no fallback.
 
+import type { CorpusSource } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
 import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
@@ -12,6 +13,7 @@ import type { DiscoverCharacter, DiscoverSegment } from "../contract/results.ts"
 import type { ActiveQuerySpace, SearchService } from "../contract/service.ts";
 import { nearestSegments, ownedChatIds } from "../persistence/digest-rows.ts";
 import { resolveChatDisplay, resolveSegmentDisplay } from "../persistence/display.ts";
+import { readSourceAnchors } from "../persistence/source.ts";
 import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, SNIPPET_CHARS } from "../substrate/constants.ts";
 import { compareCslsBy, cslsAdjust, relevanceOf } from "../substrate/csls.ts";
 import { collapseSegmentChunks } from "../substrate/dedupe.ts";
@@ -20,6 +22,7 @@ import { withActiveQuerySpace } from "../substrate/space.ts";
 import { requirePositiveTopN } from "../substrate/top-n.ts";
 
 interface DiscoverCandidate {
+  readonly source: DiscoverSegment["source"];
   readonly id: string;
   readonly chatId: DiscoverSegment["chatId"];
   readonly blockIdx: number;
@@ -57,6 +60,7 @@ function creditSegment(
   titleByChat: ReadonlyMap<DiscoverSegment["chatId"], string | null>,
 ): void {
   const evidence: DiscoverSegment = {
+    source: seg.source,
     chatId: seg.chatId,
     blockIdx: seg.blockIdx,
     snippet: seg.sourceText.slice(0, SNIPPET_CHARS),
@@ -115,7 +119,28 @@ async function groupByCharacter(
   for (const seg of ranked) {
     creditSegment(byChar, seg, creditsBySlot.get(blockSlot(seg.chatId, seg.blockIdx)) ?? [], titleByChat);
   }
-  return [...byChar.values()].slice(0, topN);
+  const anchors = new Map<CorpusSource["rowId"], Promise<Pick<CorpusSource, "seqStart" | "seqEnd" | "messageStartId" | "messageEndId">>>();
+  return await Promise.all(
+    [...byChar.values()].slice(0, topN).map(async (group) => ({
+      ...group,
+      segments: await Promise.all(
+        group.segments.map(async (segment) => ({
+          ...segment,
+          source: {
+            ...segment.source,
+            ...(await anchors.getOrInsertComputed(segment.source.rowId, async () =>
+              readSourceAnchors(
+                ctx.db,
+                segment.source.chatId,
+                segment.source,
+                (await ctx.resolveViewerVisibility(segment.source.chatId, ownerId))?.historyFloorSeq ?? null,
+              ),
+            )),
+          },
+        })),
+      ),
+    })),
+  );
 }
 
 export function createDiscover(ctx: SearchContext): SearchService["discover"] {
@@ -147,6 +172,20 @@ export function createDiscover(ctx: SearchContext): SearchService["discover"] {
       const sorted: DiscoverCandidate[] = collapseSegmentChunks(
         pool
           .map((s) => ({
+            source: {
+              kind: "segment" as const,
+              rowId: s.rowId,
+              generationId: s.generationId,
+              fingerprint: s.fingerprint,
+              contentHash: s.contentHash,
+              chatId: s.chatId,
+              blockIdx: s.blockIdx,
+              chunkIdx: s.chunkIdx,
+              seqStart: s.seqStart,
+              seqEnd: s.seqEnd,
+              messageStartId: null,
+              messageEndId: null,
+            },
             id: blockSlot(s.chatId, s.blockIdx),
             chatId: s.chatId,
             blockIdx: s.blockIdx,

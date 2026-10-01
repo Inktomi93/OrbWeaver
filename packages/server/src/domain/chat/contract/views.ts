@@ -9,16 +9,7 @@
 //
 // The chat-DOMAIN-specific read-models (the list/detail/lineage/pool projections) are declared here.
 
-import type {
-  AssembledPrompt,
-  AssembleTrace,
-  AssemblyBudgetPreview,
-  ChatBusEvent,
-  ChatIdentity,
-  ChatInjection,
-  ChatListCursor,
-  MessageView,
-} from "@orb/contracts/chat";
+import type { AssembledPrompt, AssembleTrace, AssemblyBudgetPreview, ChatBusEvent, ChatInjection, ChatListCursor, MessageView } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, TemplateDefId, UserMacroValues } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, ChatInjectionId, ChatStreamGenerationId, MessageVariantId } from "@orb/kit/ids";
@@ -34,7 +25,9 @@ export type {
   ContextFitAnswer,
   InvitePreview,
   InviteView,
+  MessagesPage,
   MessageView,
+  MessageWindow,
   ParticipantView,
   SectionPreview,
   // The content-free SHAPE trace (getShapeTrace) — the cross-boundary wire node (`@orb/contracts/chat`),
@@ -144,17 +137,6 @@ export interface ChatListPage {
   /** When the viewer last spoke anywhere in this list's scope (not only this page), or null for an account that
    *  never has: Home's first-run test. */
   readonly viewerLastTurnAt: number | null;
-}
-
-/** The `listMessages` page result (Chat-Macro-Resolution.md §1/§3) — the chronological `MessageView[]`
- *  window + the page's CHAT IDENTITY producer: participant-scoped coverage (the `ChatDetail.identities` floor)
- *  UNION this page's own loaded rows' `characterId`/`personaId` stamps (covers a since-switched persona whose
- *  id isn't any participant's CURRENT active persona but is still stamped on an older row in THIS page). The
- *  client merges identity sets across pages as it paginates backward, accumulating full coverage. */
-export interface MessagesPage {
-  readonly messages: readonly MessageView[];
-  /** This page's own loaded rows' stamp coverage — see {@link ChatDetail.identities}. */
-  readonly identities: readonly ChatIdentity[];
 }
 
 /** The fork-lineage chain (getChatLineage) — the chat's ancestors then self, oldest-root first. Each ancestor

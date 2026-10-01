@@ -13,6 +13,7 @@ export {
   clearRoomInvite,
   enterCreatedChat,
   goToLanding,
+  openChatMoment,
   openNewChatPicker,
   openRoomInvite,
   resumeChat,
@@ -85,6 +86,7 @@ export {
   useChatListMonth,
   useChatListSearch,
 } from "./chat-list-filter-store.ts";
+export { clearChatMoment, consumeChatMoment, requestChatMoment, useChatMoment } from "./chat-moment-store.ts";
 export type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream.ts";
 export {
   __setFrameSchedulerForTest,
@@ -191,13 +193,22 @@ export {
   useCorpusCompareBName,
 } from "./corpus-compare-store.ts";
 export { healCorpusModeFrom, useCorpusMode } from "./corpus-mode-store.ts";
-export { setCorpusSearchQuery, setCorpusSearchTarget, useCorpusSearchQuery, useCorpusSearchTargetId } from "./corpus-search-store.ts";
+export {
+  readCorpusResultScroll,
+  setCorpusResultScroll,
+  setCorpusSearchQuery,
+  setCorpusSearchTarget,
+  useCorpusSearchQuery,
+  useCorpusSearchTargetId,
+} from "./corpus-search-store.ts";
 export {
   clearCorpusSelection,
   corpusSectionSelection,
+  selectCorpusArtifact,
   selectCorpusCharacter,
   setCorpusMode,
   useSelectedCorpusCharacterId,
+  useSelectedCorpusDestination,
 } from "./corpus-selection-store.ts";
 export type { DrillSelectionStore, PrimaryDrillStore } from "./create-drill-selection-store.ts";
 export { createDrillSelectionStore } from "./create-drill-selection-store.ts";

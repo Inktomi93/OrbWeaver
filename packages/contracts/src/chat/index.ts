@@ -150,6 +150,7 @@ export type { ChatDetail, RedeemInviteResult } from "./detail.ts";
 export { chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";
 export type { ChatListCursor } from "./listing.ts";
 export { CHAT_LIST_MAX_LIMIT, chatListCursorSchema } from "./listing.ts";
+export type { MessagesPage, MessageWindow } from "./message-pages.ts";
 // `MacroFreeze` (the single occurrence) is NOT re-exported here — kit owns that shape and consumers import it
 // from `@orb/kit/macro`; contracts owns only the persisted/wire ARRAY (`MacroFreezeRecord`) + its parse seam.
 export type {

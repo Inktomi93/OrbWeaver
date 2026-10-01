@@ -31,11 +31,18 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
-import { setCorpusCompareA, setCorpusCompareB, useCorpusCompareA, useCorpusCompareAName, useCorpusCompareB, useCorpusCompareBName } from "#state";
+import {
+  selectCorpusArtifact,
+  setCorpusCompareA,
+  setCorpusCompareB,
+  useCorpusCompareA,
+  useCorpusCompareAName,
+  useCorpusCompareB,
+  useCorpusCompareBName,
+} from "#state";
 
 const NONE = "";
 const REDUNDANCY_PRECISION = 2;
@@ -71,15 +78,7 @@ function CompareBody(): ReactElement {
   const b = useCorpusCompareB();
   const aName = useCorpusCompareAName();
   const bName = useCorpusCompareBName();
-  // DEEP IS PER-PAIR, AND IT IS DERIVED RATHER THAN SYNCED. It used to be a boolean the two pickers reset
-  // by hand, which was correct while this component OWNED the pair — it no longer does, so a pair seeded
-  // from the Similarity tab would have arrived carrying the previous pair's escalation and fired a model
-  // call nobody asked for. Storing WHICH pair was escalated makes the stale case unrepresentable; no
-  // effect, no reset call, and the two pickers go back to doing one thing.
-  const [deepPair, setDeepPair] = useState(NONE);
-
   const ready = a !== NONE && b !== NONE && a !== b;
-  const pairKey = `${a}\u0000${b}`;
   const idA = castId<CharacterId>(a);
   const idB = castId<CharacterId>(b);
 
@@ -99,7 +98,13 @@ function CompareBody(): ReactElement {
         onB={setCorpusCompareB}
       />
       {ready ? (
-        <CompareResult deep={deepPair === pairKey} idA={idA} idB={idB} onDeep={(): void => setDeepPair(pairKey)} />
+        <Button
+          intent="secondary"
+          size="sm"
+          onClick={(): void => selectCorpusArtifact({ kind: "pair", pair: { kind: "characters", idA, idB, nameA: aName, nameB: bName, score: null } })}
+        >
+          Read comparison
+        </Button>
       ) : (
         <Text voice="gloss">Pick two different characters to compare.</Text>
       )}
@@ -149,7 +154,7 @@ function ComparePickers({
   );
 }
 
-function CompareResult({
+export function CompareResult({
   idA,
   idB,
   deep,

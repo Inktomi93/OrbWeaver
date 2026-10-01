@@ -118,6 +118,10 @@ describe("themeDetail", () => {
     expect(detail?.name).toBe("Quests");
     expect(detail?.timeline).toEqual([{ bucket: "2024-01", count: 1 }]);
     expect(detail?.members).toEqual([{ characterId: hero, name: "Hero", count: 1 }]);
+    expect(detail?.sources).toHaveLength(1);
+    expect(detail?.sources[0]).toMatchObject({ source: { kind: "digest", rowId: "digest_1", chatId: chat, scopedCharacterId: hero, tier: 0, blockIdx: 0 } });
+    expect(detail?.sources[0]?.text).toBeTruthy();
+    expect(detail?.sourceLimit).toBeGreaterThanOrEqual(detail?.sources.length ?? 0);
   });
 
   test("null when no cluster matches (clusterIdx, level)", async () => {

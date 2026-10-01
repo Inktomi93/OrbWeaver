@@ -7,8 +7,8 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
   chatSubtitle,
-  dedupeByEvidence,
   evidenceScent,
+  groupByEvidence,
   groupEvidenceByPassage,
   roomNumberingHint,
   sharedRooms,
@@ -55,19 +55,19 @@ describe("evidenceScent (C3)", () => {
   });
 });
 
-describe("dedupeByEvidence (C2)", () => {
-  test("byte-identical evidence collapses to the FIRST hit — the server's order is descending relevance", () => {
+describe("groupByEvidence (C2)", () => {
+  test("byte-identical evidence groups every original occurrence in rank order", () => {
     const hits = [
       { id: "a", text: "the copper tub", relevance: 0.91 },
       { id: "b", text: "the copper tub", relevance: 0.9 },
       { id: "c", text: "the farmhouse porch", relevance: 0.8 },
     ];
-    expect(dedupeByEvidence(hits, (hit) => hit.text).map((hit) => hit.id)).toEqual(["a", "c"]);
+    expect([...groupByEvidence(hits, (hit) => hit.text).values()].map((group) => group.map((hit) => hit.id))).toEqual([["a", "b"], ["c"]]);
   });
 
   test("surrounding whitespace is not an identity — the same block trimmed differently is still one answer", () => {
     const hits = [{ text: "the copper tub" }, { text: "  the copper tub \n" }];
-    expect(dedupeByEvidence(hits, (hit) => hit.text)).toHaveLength(1);
+    expect([...groupByEvidence(hits, (hit) => hit.text).values()]).toEqual([hits]);
   });
 });
 

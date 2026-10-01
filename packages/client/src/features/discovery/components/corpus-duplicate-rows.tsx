@@ -31,7 +31,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
-import { compareCorpusPair, revealContextPanel, selectChat, selectCorpusCharacter, setActiveSection } from "#state";
+import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
 import { groupIdenticalArt } from "../lib/corpus-duplicate-groups.ts";
 import { percent } from "../lib/corpus-vocabulary.ts";
 
@@ -122,12 +122,13 @@ export function CorpusDuplicateChats({ pairs }: { readonly pairs: readonly Dupli
               place that said so, which a keyboard or touch reader never sees. The rule is the section's, so
               it is stated at the section; each row then names its own destination in its accessible name,
               where a screen-reader user meets it. */}
-          <Muted>There is no chat-diff surface yet, so opening a pair opens the first of the two chats — the one named first in the row.</Muted>
+          <Muted>Open a pair to read its relation and visit either room.</Muted>
           <CapNote noun="pairs" shown={shown.length} total={pairs.length} />
           {shown.map((pair) => (
             <ChatPairRow
               badge={pair.relation}
               chatId={pair.chatIdA}
+              otherChatId={pair.chatIdB}
               key={pair.id}
               left={pair.titleA ?? "Untitled"}
               right={pair.titleB ?? "Untitled"}
@@ -189,8 +190,7 @@ export function CharacterPairRow({
       onClick={(): void => {
         // The NAMES travel with the ids (#563): the Compare tab's pickers can only name a selection they
         // can find in their own catalog page, and a pair from this list routinely is not in it.
-        compareCorpusPair({ id: idA, name: left }, { id: idB, name: right });
-        revealContextPanel("compare");
+        selectCorpusArtifact({ kind: "pair", pair: { kind: "characters", idA, idB, nameA: left, nameB: right, score } });
       }}
       size="wrap"
     >
@@ -199,16 +199,16 @@ export function CharacterPairRow({
   );
 }
 
-/** A pair of CHATS — a door into the FIRST room. There is no chat-diff surface, and inventing a
- *  destination is worse than naming a real one; the accessible name says which room opens. */
 function ChatPairRow({
   chatId,
+  otherChatId,
   left,
   right,
   score,
   badge,
 }: {
   readonly chatId: ChatId;
+  readonly otherChatId: ChatId;
   readonly left: string;
   readonly right: string;
   readonly score: number;
@@ -221,15 +221,14 @@ function ChatPairRow({
       // screen reader that announces the button's content instead. An explicit `aria-label` replaces the
       // content-derived name and keeps everything that name carried — both titles and the score — plus the
       // one fact the row could not otherwise state.
-      aria-label={`${left} ↔ ${right}, ${percent(score)} similar — opens ${left}`}
+      aria-label={`${left} ↔ ${right}, ${percent(score)} similar — compare rooms`}
       className="w-full justify-between"
       intent="ghost"
       onClick={(): void => {
-        // The corpus's one cross-section destination, spelled exactly as chat's own callers spell it
-        // (`corpus-hit-rows.tsx`): section first, then the room, so CONTENT is already showing chats when
-        // the active chat changes.
-        setActiveSection("chats");
-        selectChat(chatId);
+        selectCorpusArtifact({
+          kind: "pair",
+          pair: { kind: "chats", idA: chatId, idB: otherChatId, nameA: left, nameB: right, score, relation: badge ?? "similar" },
+        });
       }}
       size="wrap"
     >

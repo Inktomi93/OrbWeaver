@@ -4,7 +4,7 @@
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import MiniSearch from "minisearch";
-import type { FieldSearchHit, SearchSuggestion } from "../contract/results.ts";
+import type { FieldSearchResult, SearchSuggestion } from "../contract/results.ts";
 
 /** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const FIELD_INDEX_TTL_MS = 300_000;
@@ -100,11 +100,12 @@ export async function getOrBuildFieldIndex(ownerId: UserId, nowMs: number, load:
 }
 
 /** Run the BM25 query (fuzzy + prefix + field boosts), return the top `topN` card ids by score. */
-export function queryFields(index: MiniSearch<CardDoc>, query: string, topN: number): FieldSearchHit[] {
-  return index
-    .search(query)
-    .slice(0, topN)
-    .map((r) => ({ characterId: r.id as CharacterId, score: r.score }));
+export function queryFields(index: MiniSearch<CardDoc>, query: string, topN: number): FieldSearchResult {
+  const matches = index.search(query);
+  return {
+    hits: matches.slice(0, topN).map((row) => ({ characterId: row.id as CharacterId, score: row.score })),
+    coverage: { requestLimit: topN, indexedCharacters: index.documentCount, matchingCharacters: matches.length },
+  };
 }
 
 /** Autocomplete the partial query into whole-term suggestions (the `suggest` verb), top `limit` by score. */

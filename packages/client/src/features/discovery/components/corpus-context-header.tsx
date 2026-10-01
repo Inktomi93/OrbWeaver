@@ -24,11 +24,13 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { CORPUS_WHOLE_LABEL } from "#lib";
+import { useSelectedCorpusDestination } from "#state";
 import { distilledCensus } from "../lib/corpus-vocabulary.ts";
 
 export function CorpusContextHeader(): ReactElement {
   const trpc = useTRPC();
-  const catalog = useQuery(trpc.discovery.catalog.queryOptions());
+  const subject = useSelectedCorpusDestination();
+  const catalog = useQuery(trpc.discovery.catalog.queryOptions(undefined, { enabled: subject === null }));
   const distilled = catalog.data?.totalDistilled ?? 0;
   const count = distilledCensus(distilled, catalog.data?.totalCharacters ?? 0);
 
@@ -57,9 +59,9 @@ export function CorpusContextHeader(): ReactElement {
       <Icon icon={Library} size="sm" />
       {/* D271: owner-wide context must never read as a description of the selected artifact. */}
       <Text className="truncate" voice="promoted">
-        {CORPUS_WHOLE_LABEL}
+        {subject === null ? CORPUS_WHOLE_LABEL : "Selected artifact"}
       </Text>
-      {census}
+      {subject === null ? census : null}
     </Row>
   );
 }
