@@ -27,6 +27,72 @@ function activityDocument(activeBody: string, retainedBody: string): string {
 <section data-testid="retained" style="display:none;color-scheme:light dark">${retainedBody}</section></body></html>`;
 }
 
+test("a closed inactive off-canvas pane stays in identity accounting without requesting off-frame paint", async ({ runCli, scratch }) => {
+  const document = `<!doctype html><html data-app-ready="settled" style="color-scheme:dark"><head><title>closed pane</title></head>
+    <body style="margin:0;overflow:hidden;background:#000;color:#fff;font:16px system-ui"><main><h1>Active surface</h1></main>
+    <aside inert aria-hidden="true" style="position:fixed;inset:0 auto 0 0;width:360px;translate:360px;background:#fff">
+      <button data-testid="closed-control" style="width:8px;height:8px"></button>
+      <span data-testid="closed-paint" style="color:#fff;background:#fff">Map caption</span>
+    </aside></body></html>`;
+  await writeFile(join(scratch, "closed-pane.html"), document);
+  const result = await runCli("snap", ["--file", join(scratch, "closed-pane.html"), "--viewport", "360x640", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as ActivityAuditReport;
+  expect(report.domPopulation.accounting).toMatchObject({ walked: 7, renderedSubjects: 4, retainedHiddenSubjects: 3 });
+  expect(report.findings.some(({ selector }) => selector?.includes("closed-") ?? false)).toBe(false);
+  expect(result.stdout).not.toContain("INSTRUMENT ERROR");
+});
+
+test("visible inactive paint and boxless ancestors remain judged", async ({ runCli, scratch }) => {
+  const body = `<h1>Active surface</h1>
+    <aside inert aria-hidden="true" style="position:fixed;left:350px;top:0;width:360px;height:100px">
+      <span data-testid="partial-paint" style="position:fixed;left:10px;top:50px;color:#fff;background:#fff">Partial pane paint</span>
+      <div style="position:fixed;left:400px;top:0;width:8px;height:8px"></div>
+    </aside>
+    <section inert style="position:fixed;left:400px;top:0;width:0;height:0">
+      <span data-testid="zero-box-paint" style="position:fixed;left:10px;top:100px;color:#fff;background:#fff">Zero box paint</span>
+      <div style="position:fixed;left:400px;top:10px;width:8px;height:8px"></div>
+    </section>
+    <section aria-hidden="true" style="display:contents">
+      <span data-testid="contents-paint" style="position:fixed;left:10px;top:150px;color:#fff;background:#fff">Contents paint</span>
+      <div style="position:fixed;left:400px;top:20px;width:8px;height:8px"></div>
+    </section>
+    <aside inert aria-hidden="true" style="position:fixed;left:400px;top:0;width:360px;height:100px">
+      <span data-testid="escaped-paint" style="position:fixed;left:10px;top:200px;color:#fff;background:#fff">Escaped pane paint</span>
+    </aside>
+    <div aria-hidden="true" style="position:fixed;left:400px;top:30px;width:8px;height:8px"></div>`;
+  await writeFile(join(scratch, "pane-controls.html"), activityDocument(body, ""));
+  const result = await runCli("snap", ["--file", join(scratch, "pane-controls.html"), "--viewport", "360x640", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as ActivityAuditReport;
+  for (const testId of ["partial-paint", "zero-box-paint", "escaped-paint"]) {
+    expect(report.findings.some(({ rule, selector }) => rule === "inactive-control-legibility" && (selector?.includes(testId) ?? false))).toBe(true);
+  }
+  expect(report.findings.some(({ rule, selector }) => rule === "contrast" && (selector?.includes("contents-paint") ?? false))).toBe(true);
+  expect(report.domPopulation.accounting).toMatchObject({ walked: 17, renderedSubjects: 13, retainedHiddenSubjects: 4 });
+  expect(report.domPopulation.accounting.renderedSubjects + report.domPopulation.accounting.retainedHiddenSubjects).toBe(
+    report.domPopulation.accounting.walked,
+  );
+});
+
+test("active off-frame controls retain the loud viewport measurement refusal", async ({ runCli, scratch }) => {
+  await writeFile(
+    join(scratch, "active-off-frame.html"),
+    activityDocument(
+      '<button style="position:fixed;left:400px;top:200px;width:8px;height:8px"></button><div aria-hidden="true" style="position:fixed;left:400px;top:30px;width:8px;height:8px"></div>',
+      "",
+    ),
+  );
+  const result = await runCli("snap", ["--file", join(scratch, "active-off-frame.html"), "--viewport", "360x640", ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  expect(result.stdout).toContain("the interactive census's viewport reach");
+  expect(result.stdout).toContain("1 offered control(s) were found and NONE could be measured");
+  await expect(result).toExitWith(2);
+});
+
 test("retained Activity-shaped DOM stays in identity accounting but outside the rendered verdict", async ({ runCli, scratch }) => {
   const retained = `<div data-slot="theme-scope" style="--color-background:#fff"></div><main data-testid="hidden-main"><h3>Skipped heading</h3>
     <button data-testid="hidden-control" tabindex="3" style="position:relative;z-index:9999;width:8px;height:8px"></button>

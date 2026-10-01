@@ -7,6 +7,7 @@
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import { INTERACTIVE_SELECTOR_JS } from "../../lib/checks-interactive.ts";
 import { SELECTION_RAIL_SEL } from "../../lib/selection-rail-sel.ts";
+import { WALKER_VISIBILITY } from "./visibility.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
@@ -76,21 +77,7 @@ export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = ${INTERACTIVE_SEL
     opacityCache.set(el, value);
     return value;
   }
-  function isVisible(el) {
-    if (!(el instanceof Element)) return false;
-    var targetStyle = getComputedStyle(el);
-    if (targetStyle.visibility === "hidden" || targetStyle.visibility === "collapse") return false;
-    for (var renderAncestor = el; renderAncestor !== null; renderAncestor = renderAncestor.parentElement) {
-      var ancestorStyle = getComputedStyle(renderAncestor);
-      if (renderAncestor.hidden || ancestorStyle.display === "none") return false;
-    }
-    if (accumulatedOpacity(el) === 0) return false;
-    var rect = el.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0;
-  }
-  function isOperable(el) {
-    return isVisible(el) && el.closest("[inert],[aria-hidden='true']") === null;
-  }
+${WALKER_VISIBILITY}
   // A REST-HIDDEN REVEAL CLUSTER, NOT A GENUINELY HIDDEN ONE (#1077, orb-ui audit F5). ROW_REVEAL
   // (opacity-0 at rest, group-hover/focus-within/pointer-coarse:opacity-100) and ListRow's
   // subtitleReveal are the house idiom: display stays IN FLOW, the box has real geometry, only PAINT
