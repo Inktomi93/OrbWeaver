@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { vi } from "vitest";
@@ -38,4 +38,14 @@ test("shared generated prefixes query Git once per document and a fresh invocati
   } finally {
     spy.mockRestore();
   }
+});
+
+test("references in a not-yet-created tree report missing paths without writing the root", ({ scratch }) => {
+  const root = join(scratch, "not-created");
+  expect(existsSync(root)).toBe(false);
+  expect(referenceProblems(root, "docs/work/pending.md", "Edit `tooling/src/gone.ts` and `packages/showcase-plugins/dist/bundles/`.")).toEqual([
+    "docs/work/pending.md:1: path does not exist: tooling/src/gone.ts",
+    "docs/work/pending.md:1: path does not exist: packages/showcase-plugins/dist/bundles",
+  ]);
+  expect(existsSync(root)).toBe(false);
 });

@@ -12,6 +12,10 @@ import { backtickedRelativePaths, backtickedRepoPaths, markdownLinkTargets } fro
  *  directory and git ignores that segment. A fresh checkout has no build output, so the check cannot see
  *  it. A missing descendant of an existing ignored directory must exist; Git ignoring its ancestor is not evidence. */
 function isIgnoredBuildOutput(root: string, path: string, ignored: (path: string) => boolean): boolean {
+  // A mint validates references before it creates the target tree.
+  if (!existsSync(root)) {
+    return false;
+  }
   let existing = posix.dirname(path);
   let missing = path;
   while (existing !== "." && !existsSync(join(root, existing))) {
