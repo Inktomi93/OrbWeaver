@@ -167,7 +167,7 @@ test("the host's filter string narrows the OWNER's rows", async ({ mount, page }
 });
 
 // PRUNE CONFIRMS (side-eye 2026-08-03 P2): it was a bare `prune.mutate()` on a ghost button, one mis-click
-// from deleting every unused tag with no undo — 394 of them at the owner's library. The confirm is the
+// from deleting every unused label with no undo — 394 of them at the owner's library. The confirm is the
 // defect's fix, so the CT pins BOTH halves: the click alone must not delete, and the count must be in the
 // words the user agrees to.
 test("Prune unused ASKS FIRST — the click opens a counted confirm and fires nothing", async ({ mount, page }) => {
@@ -175,7 +175,7 @@ test("Prune unused ASKS FIRST — the click opens a counted confirm and fires no
   const rows = await mount(<TagCollectionRowsStory />);
   await rows.getByRole("button", { name: "open prune confirm" }).click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Delete 1 unused tag?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Delete 1 unused label?" })).toBeVisible();
   // Dismiss and settle on the CLOSED dialog before reading the recorder: the barrier is a rendered state
   // that can only exist after the whole open→cancel round-trip, so a call the click had fired would have
   // been recorded by now.
@@ -188,7 +188,7 @@ test("Prune unused fires the library verb once the confirm is accepted", async (
   const trpc = await stub(page);
   const rows = await mount(<TagCollectionRowsStory />);
   await rows.getByRole("button", { name: "open prune confirm" }).click();
-  // SINGULAR (side-eye 2026-08-03 P3): "Delete them" under "Delete 1 unused tag?" was the confirm
+  // SINGULAR (side-eye 2026-08-03 P3): "Delete them" under "Delete 1 unused label?" was the confirm
   // disagreeing with the question it answers.
   await page.getByRole("button", { name: "Delete it" }).click();
   await expect.poll(() => trpc.count("tag.pruneUnusedTags"), { intervals: [20, 50, 100] }).toBe(1);
@@ -199,7 +199,7 @@ test("the prune confirm's LABEL agrees in number with its own title", async ({ m
   await stub(page, [TAGS[0], TAGS[1], second]);
   const rows = await mount(<TagCollectionRowsStory />);
   await rows.getByRole("button", { name: "open prune confirm" }).click();
-  await expect(page.getByRole("heading", { name: "Delete 2 unused tags?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Delete 2 unused labels?" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Delete them" })).toBeVisible();
 });
 
@@ -209,13 +209,13 @@ test("the prune confirm's LABEL agrees in number with its own title", async ({ m
 test("an EMPTY library says nothing about filters (the host's empty slot is the only voice)", async ({ mount, page }) => {
   await stub(page, []);
   const rows = await mount(<TagCollectionRowsStory />);
-  await expect(rows.getByText("No tags match that filter.")).toHaveCount(0);
+  await expect(rows.getByText("No labels match that filter.")).toHaveCount(0);
 });
 
 test("a filter that matches nothing DOES say so", async ({ mount, page }) => {
   await stub(page);
   const rows = await mount(<TagCollectionRowsStory filter="zzzz" />);
-  await expect(rows.getByText("No tags match that filter.")).toBeVisible();
+  await expect(rows.getByText("No labels match that filter.")).toBeVisible();
 });
 
 // NOTHING TO PRUNE — the ruling survives, its SURFACE changed (#1725). The verb used to be a button the
@@ -223,7 +223,7 @@ test("a filter that matches nothing DOES say so", async ({ mount, page }) => {
 // cannot hide itself, so the same fact is stated by the dialog: it says there is nothing to delete and its
 // destructive button is DISABLED. Asserting the disabled state matters more than asserting the copy — a
 // confirm that reads "nothing to prune" over a live Delete button would be the capability lie inverted.
-test("no unused tags ⇒ the prune confirm says so and cannot fire", async ({ mount, page }) => {
+test("no unused labels ⇒ the prune confirm says so and cannot fire", async ({ mount, page }) => {
   const trpc = await stub(page, [TAGS[0]]);
   const rows = await mount(<TagCollectionRowsStory />);
   await expect(rows.getByText("adventure")).toBeVisible();

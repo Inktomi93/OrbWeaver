@@ -16,15 +16,15 @@ test("the LIST band names the Explore mode and states the distilled count out of
   const component = await mount(<CorpusListHeaderStory />);
 
   await expect(component.getByText("Explore")).toBeVisible();
-  await expect(component.getByText("12 of 20")).toBeVisible();
+  await expect(component.getByText("12 of 20 distilled")).toBeVisible();
 });
 
 // A denominator that equals its numerator says nothing and costs a 48px chrome row eight characters.
-test("a fully distilled library prints the bare count, with no denominator", async ({ mount, page }) => {
+test("a fully distilled library still labels the count", async ({ mount, page }) => {
   await routeTrpc(page, { "discovery.catalog": { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 12, totalCharacters: 12 } });
   const component = await mount(<CorpusListHeaderStory />);
 
-  await expect(component.getByText("12")).toBeVisible();
+  await expect(component.getByText("12 distilled")).toBeVisible();
   await expect(component.getByText("of")).toHaveCount(0);
 });
 

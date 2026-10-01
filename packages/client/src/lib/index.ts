@@ -242,6 +242,7 @@ export {
   FOLDER_TYPE_ITEMS,
   LABELS_BLURB,
   LABELS_EMPTY,
+  NEW_LABEL_NAME,
   pruneConfirmLabel,
   tagColorLabel,
   tagColorValueLabel,

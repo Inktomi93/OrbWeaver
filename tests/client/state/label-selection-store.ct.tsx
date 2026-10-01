@@ -35,3 +35,14 @@ test("finder selection and clear release the list overlay", async ({ mount }) =>
   await probe.getByRole("button", { name: "clear label" }).click();
   await expect(probe.locator("output")).toHaveText("selected=none focus=none overlay=null");
 });
+
+test("an earlier delete completion cannot clear the later editor", async ({ mount }) => {
+  const probe = await mount(<LabelSelectionProbe />);
+  await probe.getByRole("button", { name: "select label", exact: true }).click();
+  await probe.getByRole("button", { name: "select later label", exact: true }).click();
+  const later = await probe.locator("output").textContent();
+  await probe.getByRole("button", { name: "delete first label", exact: true }).click();
+  await expect(probe.locator("output")).toHaveText(later ?? "missing later selection");
+  await probe.getByRole("button", { name: "delete later label", exact: true }).click();
+  await expect(probe.locator("output")).toContainText("selected=none");
+});

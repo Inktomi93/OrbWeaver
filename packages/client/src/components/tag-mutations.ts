@@ -6,7 +6,7 @@ import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
 /** The toast for a create the name index refused. */
-export const CREATE_TAG_CONFLICT_TOAST = "Couldn't create the tag — that name may already be in use.";
+export const CREATE_TAG_CONFLICT_TOAST = "Couldn't create the label — that name may already be in use.";
 
 /** The server's case-folded name index refused the create (`DomainConflictError` → CONFLICT). Keyed on the
  *  structured code, never message text. */
@@ -20,49 +20,47 @@ export function isTagNameConflict(error: unknown): boolean {
 export const useCreateTag = createEntityMutation<inferInput<Trpc["tag"]["createTag"]>, inferOutput<Trpc["tag"]["createTag"]>>({
   options: (trpc) => trpc.tag.createTag.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => (isTagNameConflict(error) ? null : "Couldn't create the tag."),
+  errorToast: (error) => (isTagNameConflict(error) ? null : "Couldn't create the label."),
 });
 
 /** Rename a tag (name-only patch). Its own instance for a name-conflict-aware toast. */
 export const useRenameTag = createEntityMutation<inferInput<Trpc["tag"]["updateTag"]>, unknown>({
   options: (trpc) => trpc.tag.updateTag.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't rename the tag — that name may already be in use.",
+  errorToast: "Couldn't rename the label — that name may already be in use.",
 });
 
 /** Update a tag's style/behavior (color · color2 · folderType · isHiddenOnCard). */
 export const useUpdateTagStyle = createEntityMutation<inferInput<Trpc["tag"]["updateTag"]>, unknown>({
   options: (trpc) => trpc.tag.updateTag.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't update the tag.",
+  errorToast: "Couldn't update the label.",
 });
 
-/** Delete a tag (cascades its junction rows server-side). */
+/** Delete a label; ConfirmDialog owns rejection feedback and retry. */
 export const useRemoveTag = createEntityMutation<inferInput<Trpc["tag"]["removeTag"]>, unknown>({
   options: (trpc) => trpc.tag.removeTag.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't delete the tag.",
 });
 
 /** Merge one tag into another (re-points every attachment, then deletes the source). */
 export const useMergeTags = createEntityMutation<inferInput<Trpc["tag"]["mergeTags"]>, unknown>({
   options: (trpc) => trpc.tag.mergeTags.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't merge the tags.",
+  errorToast: "Couldn't merge the labels.",
 });
 
 /** Persist the manual tag order (position → sortOrder). */
 export const useSetTagOrder = createEntityMutation<inferInput<Trpc["tag"]["setTagOrder"]>, unknown>({
   options: (trpc) => trpc.tag.setTagOrder.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't reorder the tags.",
+  errorToast: "Couldn't reorder the labels.",
 });
 
-/** Delete every tag with zero attachments (the "Prune unused" action). */
+/** Prune unused labels; ConfirmDialog owns rejection feedback and retry. */
 export const usePruneUnusedTags = createEntityMutation<void, unknown>({
   options: (trpc) => trpc.tag.pruneUnusedTags.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't prune the unused tags.",
 });
 /** Apply a suggestion; the tag user-bus event refreshes both Labels and character projections. */
 export const useAcceptSuggestion = createEntityMutation<inferInput<Trpc["tag"]["attachTag"]>, unknown>({

@@ -115,7 +115,11 @@ interface SectionWithList {
   readonly listHeader?: () => ReactNode;
   readonly selection: SectionSelection;
   /** The phone's existing list door names its destination when the section has a more precise noun. */
-  readonly listDoorLabel?: { readonly useLabel: () => string | null };
+  readonly listDoorLabel?: {
+    readonly useLabel: () => string | null;
+    /** A mode's no-selection Content destination and Back label. */
+    readonly useContentLabel?: () => string;
+  };
 }
 interface SectionWithoutList {
   readonly listDoorLabel?: never;

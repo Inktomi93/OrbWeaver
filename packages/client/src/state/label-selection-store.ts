@@ -16,3 +16,10 @@ export const clearLabelSelection = labelSelection.clear;
 export const useSelectedLabelId = labelSelection.usePrimaryId;
 /** The Labels mode's drill seam, composed into the Corpus section selection. */
 export const labelDrillSelection = labelSelection.selection;
+
+/** Release a deleted label only while it still owns the editor. */
+export function labelDeleted(id: TagId): void {
+  if (labelSelection.getPrimaryId() === id) {
+    labelSelection.clear();
+  }
+}

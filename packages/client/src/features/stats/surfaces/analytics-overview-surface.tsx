@@ -192,7 +192,7 @@ function OverviewBody(): ReactElement {
                 cache columns, so it could only ever be 1 or 0. Against input tokens it answers the
                 question the tile asks, and it says which question that is. */}
             <StatFigure label="Cache hits (of input)" value={formatPercent(overview.cacheHitRate, overview.tokensInProvenance)} />
-            <StatFigure label={REASONING_LABEL} value={formatPercent(overview.reasoningRate)} />
+            <StatFigure label={REASONING_LABEL} value={formatPercent(overview.assistantTurns + overview.swipes === 0 ? null : overview.reasoningRate)} />
             {/* The reasoning WINDOW beside the reasoning RATE (#184): the rollups have carried `reasoningMs`
                 on three tables and three views with no reader at all, so the number a user's thinking models
                 produce had nowhere to land. Same duration voice as "Time generating" above. */}

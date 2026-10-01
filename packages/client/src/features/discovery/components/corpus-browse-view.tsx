@@ -27,6 +27,7 @@
 // nested inside the primitive's own — two lists is the defect A6 fixed, spelled a second way.
 
 import type { BrowseSort } from "@orb/contracts/discovery";
+import { Button } from "@orb/ui/button";
 import { Icon, Library } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -42,6 +43,7 @@ import { createCollectionSurface, QueryErrorState, SkeletonRows, useTRPC } from 
 import { testId } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
+import { openCorpusOverview } from "../lib/corpus-overview-door.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 import { ParamSelect } from "./corpus-controls.tsx";
 import { CorpusRunJobEmptyState } from "./corpus-run-job-empty-state.tsx";
@@ -145,9 +147,13 @@ function BrowseRows({
         <Text>No characters match — loosen the filters.</Text>
       </Stack>
     ) : (
-      // The LIST pane names its own emptiness and stands down on the verb (#99 item 1): the CONTENT pane
-      // beside it carries the one "Run a job…" door, and on first run both panes are empty at once.
-      <CorpusRunJobEmptyState title="No characters distilled yet" description="Run Distill characters to build this catalog." offerDoor={false} />
+      // The overview owns the run control; this door reaches it when the finder is the phone screen.
+      <Stack gap="field" align="center">
+        <CorpusRunJobEmptyState title="No characters distilled yet" description="Run Distill characters to build this catalog." offerDoor={false} />
+        <Button intent="secondary" size="sm" onClick={openCorpusOverview}>
+          Open understanding pass
+        </Button>
+      </Stack>
     );
   }
   return (

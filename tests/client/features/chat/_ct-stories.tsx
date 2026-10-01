@@ -31,6 +31,7 @@ import {
   makeChatControlsContribution,
   NewChatPicker,
 } from "@orb/client/features/chat";
+import { corpusModePaletteSource } from "@orb/client/features/discovery";
 import { HomeSurface } from "@orb/client/features/home";
 // #618 — the shell-level detail modal the room-image click opens; imported through the SAME front door the
 // providers use, never a relative path (a relative import gets a different React context instance).
@@ -45,6 +46,7 @@ import type {
   ChatControlSourceMountProps,
   ChatSurfaceAnchor,
   ChatSurfaceContribution,
+  CommandPaletteSource,
   ContextTabDef,
   ContributorRegistry,
   MessageRenderContext,
@@ -58,6 +60,7 @@ import type {
 import { bindNotify, createContributorRegistry, notify, resolveRowRenderPolicy, toNotice } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import {
+  CommandPaletteSourceRegistryProvider,
   cancelEditingMessage,
   chatDeletedFromList,
   chatStream,
@@ -1895,6 +1898,7 @@ export interface CommandPaletteSurfaceStoryProps {
    *  `"none"` mounts NO Provider at all: the zero-registrant baseline (navigation groups only).
    *  `"contributed"` adds one fake contribution on top of the door set (the extension proof). */
   readonly commands?: "door" | "none" | "contributed";
+  readonly corpus?: boolean;
 }
 
 /** The palette's registry: the real door set, plus one grafted contribution in the `"contributed"` arm.
@@ -1919,15 +1923,18 @@ function buildPaletteRegistry(commands: CommandPaletteSurfaceStoryProps["command
 /** The J4 ⌘K command palette body, wired to the real data layer (routeTrpc stubs `chat.listChats`).
  *  `goToSections` is a fixed CT literal (app-root derives it from the section registry in production);
  *  the COMMAND rows come from the real slash-command registry, exactly as they do at the door. */
-export function CommandPaletteSurfaceStory({ commands = "door" }: CommandPaletteSurfaceStoryProps): ReactElement {
+export function CommandPaletteSurfaceStory({ commands = "door", corpus = false }: CommandPaletteSurfaceStoryProps): ReactElement {
   const [ranFake, setRanFake] = useState(false);
   const registry = buildPaletteRegistry(commands, (): void => setRanFake(true));
 
+  const sources = createContributorRegistry<CommandPaletteSource>("command-palette-sources", corpus ? [corpusModePaletteSource] : []);
   const body = (
-    <div style={{ height: 480, width: 560 }}>
-      <CommandPaletteSurface goToSections={CT_GO_TO_SECTIONS} />
-      <div data-testid="ct-palette-command-ran">{ranFake ? "ran" : ""}</div>
-    </div>
+    <CommandPaletteSourceRegistryProvider value={sources}>
+      <div style={{ height: 480, width: 560 }}>
+        <CommandPaletteSurface goToSections={[...CT_GO_TO_SECTIONS, { id: "config", label: "Settings" }]} />
+        <div data-testid="ct-palette-command-ran">{ranFake ? "ran" : ""}</div>
+      </div>
+    </CommandPaletteSourceRegistryProvider>
   );
   return <CtDataProviders>{commands === "none" ? body : <SlashCommandRegistryProvider value={registry}>{body}</SlashCommandRegistryProvider>}</CtDataProviders>;
 }

@@ -10,7 +10,7 @@ import { TAG_SORT_MODES } from "./tag-sort.ts";
 
 // A Map, not an object literal, so the contract's uppercase keys don't trip the camelCase naming lint.
 const FOLDER_TYPE_LABELS = new Map<TagFolderType, string>([
-  ["NONE", "Plain tag"],
+  ["NONE", "Plain label"],
   ["OPEN", "Open folder"],
   ["CLOSED", "Closed folder"],
 ]);
@@ -30,34 +30,15 @@ const SORT_MODE_LABELS: Record<TagSortMode, string> = {
   manual: "Manual order",
 };
 
-/** The sort-mode Select options, derived from the canonical tuple — the DATA behind the Labels finder's
- *  sort control (the mock design §3.2).
- *
- *  `handlesAvailable` is the library-SIZE verdict, not a preference: above `COLLECTION_LARGE_GROUP`
- *  the list virtualizes and drag handles cannot exist (a windowed list has no stable drop target for an
- *  unrendered row), so "Manual order" up there is a mode with nothing behind it — measured at the owner's
- *  413-tag library as `{mode:"Manual order", handles:0}`, and because every `sortOrder` is null the
- *  comparator tiebreaks on name, making it pixel-identical to A–Z with nothing saying so (side-eye
- *  2026-08-03 P1). The option is DISABLED there rather than silently inert: an unselectable option with a
- *  stated reason is a fact about the library; a selectable one that does nothing is a control that lies.
- *
- *  ═══ THE HINT IS THE OPTION'S DESCRIPTION NOW — THE RULING SURVIVES, ITS ADDRESS CHANGED (#1725) ══════
- *  The 2026-08-03 P1/P2 findings bought a `tagOrderHint` LINE beside the Select: nothing told anyone that
- *  dragging existed at all (it lives behind a third option in a control that reads as a view preference),
- *  and above the cap nothing said why the mode was dead. Both sentences survive verbatim; what changed is
- *  where they are said. The approved board 02 draws the control row as `filter · sort · create · overflow`
- *  and no sentence, and "must match the mockups" is the newer and higher word — so the copy moved into
- *  `SelectOption.description`, the option row's own gloss slot, which the primitive documents as existing
- *  precisely because a legend outside the popup is OCCLUDED the moment the select opens. It is
- *  `aria-describedby`-wired there, so it reaches a screen reader as a description rather than renaming the
- *  option. The P2 half ("the Select sat alone on its line with 230px of dead space") is answered by the
- *  control row itself: the Select now shares a line with the filter, the create verb and the overflow. */
+/** Manual order needs mounted rows; a windowed library disables drag and explains its cap. */
 export function tagSortItems(handlesAvailable: boolean, cap: number): readonly SelectOption<TagSortMode>[] {
   return TAG_SORT_MODES.map((value) => ({
     label: SORT_MODE_LABELS[value],
     value,
     disabled: value === "manual" && !handlesAvailable,
-    ...(value === "manual" ? { description: handlesAvailable ? "Manual order lets you drag rows." : `Drag to reorder is off above ${String(cap)} tags.` } : {}),
+    ...(value === "manual"
+      ? { description: handlesAvailable ? "Manual order lets you drag rows." : `Drag to reorder is off above ${String(cap)} labels.` }
+      : {}),
   }));
 }
 
@@ -67,12 +48,15 @@ export function pruneConfirmLabel(count: number): string {
   return count === 1 ? "Delete it" : "Delete them";
 }
 
+/** The create action and placeholder name share one vocabulary. */
+export const NEW_LABEL_NAME = "New label";
+
 /** What the Labels library is for — the landing's lead line. */
 export const LABELS_BLURB =
   "Your own labels for characters, chats, books, personas and presets. Generated genres, themes and archetypes are analysis facets, not labels.";
 
-/** What an empty library says, on the landing and in the finder: the sentence names the one create verb. */
-export const LABELS_EMPTY = "No tags yet. New tag starts one, and tags you adopt from character cards land here too.";
+/** The empty library landing names its create door; the finder states only its census. */
+export const LABELS_EMPTY = `Create a label with ${NEW_LABEL_NAME}. Labels you adopt from character cards land here too.`;
 
 /** The five per-target usage counts (singular labels, pluralized in {@link usageBreakdown}). */
 const USAGE_LABELS: Record<Exclude<keyof TagUsage, "total">, string> = {
@@ -103,7 +87,7 @@ export const USAGE_KIND_TITLES: Record<Exclude<keyof TagUsage, "total">, string>
 /** How many tags a prune would delete, as words — the noun BOTH halves of the prune confirm name (its title
  *  and its body), so the count a user reads and the count they agree to cannot drift. */
 export function unusedTagsLabel(count: number): string {
-  return `${count} unused tag${count === 1 ? "" : "s"}`;
+  return `${count} unused label${count === 1 ? "" : "s"}`;
 }
 
 /** The "no colour at all" state, in words — ONE sentence, spent two ways below. `null` is a real state, not

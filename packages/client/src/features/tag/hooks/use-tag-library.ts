@@ -9,26 +9,20 @@ import { useRef } from "react";
 import { CREATE_TAG_CONFLICT_TOAST, isTagNameConflict, useCreateTag } from "#components";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { TagSortMode } from "#lib";
-import { COLLECTION_LARGE_GROUP, notify, tagSortItems, USAGE_KIND_TITLES } from "#lib";
+import { COLLECTION_LARGE_GROUP, NEW_LABEL_NAME, notify, tagSortItems, USAGE_KIND_TITLES } from "#lib";
 import { selectLabel, setLabelNameFocus, setTagPruneConfirmOpen, setTagSortMode, useTagSortMode } from "#state";
 
-/** The name a created tag lands with — the editor's Name field is the rename affordance, so create needs no
- *  name dialog (C-7: the editor is MOUNTED, so create-then-edit is one motion). */
-const NEW_TAG_NAME = "New tag";
-
-/** The first `New tag`, `New tag 2`, … no tag already wears. Compared case-folded, because the server's
- *  name index is on `lower(name)`: a library holding `new tag` must not be offered `New tag`. `alsoTaken`
- *  carries a name the server just refused that the cached rows do not show yet. */
-function uniqueNewTagName(rows: readonly TagWithUsage[], alsoTaken?: string): string {
+// Case-folded names include writes and conflicts the cached library has not observed yet.
+function uniqueNewTagName(rows: readonly TagWithUsage[], alsoTaken: ReadonlySet<string>): string {
   const taken = new Set(rows.map((row) => row.name.toLowerCase()));
-  if (alsoTaken !== undefined) {
-    taken.add(alsoTaken.toLowerCase());
+  for (const name of alsoTaken) {
+    taken.add(name.toLowerCase());
   }
   let suffix = 1;
-  let name = NEW_TAG_NAME;
+  let name = NEW_LABEL_NAME;
   while (taken.has(name.toLowerCase())) {
     suffix += 1;
-    name = `${NEW_TAG_NAME} ${String(suffix)}`;
+    name = `${NEW_LABEL_NAME} ${String(suffix)}`;
   }
   return name;
 }
@@ -67,7 +61,7 @@ export function useTagLibrarySummary(): { readonly count: number; readonly facts
   const unused = rows.filter((row) => row.usage.total === 0 && row.pendingSuggestions === 0);
   const byType = (Object.keys(USAGE_KIND_TITLES) as (keyof typeof USAGE_KIND_TITLES)[]).map((key) => ({
     id: `on-${key}`,
-    label: `Tags on ${USAGE_KIND_TITLES[key].toLowerCase()}`,
+    label: `Labels on ${USAGE_KIND_TITLES[key].toLowerCase()}`,
     value: String(rows.filter((row) => row.usage[key] > 0).length),
   }));
   const facts: readonly TagLibraryFact[] = [
@@ -101,12 +95,18 @@ export function useCreateLabel(): { readonly run: () => void; readonly pending: 
   const rows = useTagRows() ?? [];
   // A double click lands both clicks before React re-renders with `isPending`, so the handler holds its own latch.
   const inFlight = useRef(false);
+  const reservedNames = useRef(new Set<string>());
   const open = (created: { readonly id: TagId }): void => {
     setLabelNameFocus(created.id);
     selectLabel(created.id);
   };
+  const reserveNext = (): string => {
+    const name = uniqueNewTagName(rows, reservedNames.current);
+    reservedNames.current.add(name);
+    return name;
+  };
   const createOnce = async (): Promise<void> => {
-    const first = uniqueNewTagName(rows);
+    const first = reserveNext();
     // @orb-waive caught-failure-ownership(error): a non-conflict failure is toasted by `useCreateTag`'s errorToast through the MutationCache; a conflict is retried below. Ends if the create stops toasting its own failures.
     try {
       open(await create.mutateAsync({ input: { name: first } }));
@@ -116,7 +116,7 @@ export function useCreateLabel(): { readonly run: () => void; readonly pending: 
       }
       // @orb-waive caught-failure-ownership(retryError): a second conflict is toasted here, any other failure by `useCreateTag`'s errorToast. Ends if the create stops toasting its own failures.
       try {
-        open(await create.mutateAsync({ input: { name: uniqueNewTagName(rows, first) } }));
+        open(await create.mutateAsync({ input: { name: reserveNext() } }));
       } catch (retryError) {
         if (isTagNameConflict(retryError)) {
           notify.error(CREATE_TAG_CONFLICT_TOAST);

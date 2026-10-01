@@ -36,6 +36,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { CorpusArtifactContext } from "../../../../packages/client/src/features/discovery/components/corpus-artifact-context.tsx";
+import { CorpusSearchDisclosure } from "../../../../packages/client/src/features/discovery/components/corpus-search-disclosure.tsx";
 import { CorpusSearchResults } from "../../../../packages/client/src/features/discovery/components/corpus-search-results.tsx";
 import { CorpusThemeSection } from "../../../../packages/client/src/features/discovery/components/corpus-theme-section.tsx";
 import { CorpusArtifactSurface } from "../../../../packages/client/src/features/discovery/surfaces/corpus-artifact-surface.tsx";
@@ -523,5 +524,20 @@ export function CorpusModePaletteStory(): ReactElement {
         </div>
       </CommandPaletteSourceRegistryProvider>
     </CtDataProviders>
+  );
+}
+
+export function CorpusSearchDisclosureStory({ width }: { readonly width: number }): ReactElement {
+  return (
+    <div style={{ width }}>
+      <CorpusSearchDisclosure
+        result={{
+          over: "discover",
+          hits: [],
+          standaloneSegments: [],
+          coverage: { requestLimit: 40, candidateLimit: 400, evidencePerCharacter: 3, reranked: false },
+        }}
+      />
+    </div>
   );
 }

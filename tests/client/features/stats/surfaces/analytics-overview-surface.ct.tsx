@@ -478,3 +478,18 @@ test("#1727 the overview surface scrolls past the fold AND remembers its settled
   await expect.poll(() => readSurfaceBoxBlob(page)).toContain("analytics.overview");
   await expect.poll(() => readRememberedBox(page, "analytics.overview")).toBeGreaterThan(0);
 });
+
+test("an activity rollup without any replies has no reasoning ratio", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": { computedAt: COMPUTED_AT, stale: false, hasData: true },
+    "stats.overview": { ...OVERVIEW, assistantTurns: 0, swipes: 0, reasoningRate: 0 },
+    "stats.wrapped": { ...WRAPPED, replies: 0, swipes: 0 },
+    "stats.momentum": MOMENTUM,
+  });
+  const component = await mount(<AnalyticsOverviewSurfaceStory />);
+  await expect(
+    component.locator('[data-slot="stat-figure"]', { hasText: "Reasoning (of replies + swipes)" }).locator('[data-slot="stat-figure-value"]'),
+  ).toHaveText("—");
+  await test.info().attach("0314-no-replies", { body: await component.screenshot(), contentType: "image/png" });
+  await test.info().attach("0314-no-replies-aria", { body: Buffer.from(await component.ariaSnapshot()), contentType: "text/plain" });
+});

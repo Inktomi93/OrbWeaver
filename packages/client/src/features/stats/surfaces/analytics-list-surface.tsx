@@ -71,6 +71,7 @@ export function AnalyticsListSurface(): ReactElement {
       <Input aria-label="Search characters" onValueChange={setAnalyticsSearchQuery} placeholder="Search characters" value={search} />
       <ToggleGroup
         aria-label="Sort characters"
+        className="grid w-full grid-cols-2"
         data-testid={testId("analyticsLeaderboardSort")}
         value={[sort]}
         onValueChange={(picked): void => setSort((picked[0] ?? ANALYTICS_DEFAULT_SORT) as SortId)}

@@ -28,7 +28,7 @@ import { CorpusArchetypesTabStory } from "../_ct-stories.tsx";
 const SABLE_HASH = "cccc3333";
 
 /** The invitation's door, as a locator pattern (top-level: a regex literal inside a test body is lint-RED). */
-const RUN_DOOR = /Run the understanding pass/;
+const RUN_DOOR = /Show Explore overview/;
 
 /** One writing archetype: a member the CAS can serve a portrait for, and TWO it cannot. The second faceless
  *  member exists for the hue arm below — the fallback seeds its colour off the member's NAME, so before #154
@@ -131,7 +131,7 @@ test("a cluster member carrying a hash draws its blob; a null one draws hue-seed
     .toBe(false);
 });
 
-test("with the understanding pass un-run the tab shows the invitation and ZERO cluster data", async ({ mount, page }) => {
+test("with the understanding pass un-run the tab points to Explore without duplicating its understanding pass", async ({ mount, page }) => {
   await routeTrpc(page, {
     // Real clusters on the wire — the gate must hold against data being there, not against an empty verb.
     // #649 — the viewer's settings row. Not this tab's subject, but unfed it resolved `routeTrpc`'s null and
@@ -149,6 +149,7 @@ test("with the understanding pass un-run the tab shows the invitation and ZERO c
 
   // SETTLED: the un-run arm has painted (the invitation's heading is unique to it).
   await expect(component.getByRole("button", { name: RUN_DOOR })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Run the understanding pass", exact: true })).toHaveCount(0);
 
   // …and none of the cluster surface exists. Each of these is a thing the audited screenshot showed.
   await expect(component.getByText("Brooding rogues")).toHaveCount(0);

@@ -5,7 +5,7 @@
 
 import { Library } from "@orb/ui/icons";
 import type { ContextTabDef, ContributorRegistry, CorpusContextState } from "#lib";
-import { defineContextTabs } from "#lib";
+import { CORPUS_MODE_LABELS, defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { corpusSectionSelection, useCorpusMode, useSelectedCorpusDestination } from "#state";
 import { CorpusArchetypesTab } from "../components/corpus-archetypes-tab.tsx";
@@ -58,7 +58,13 @@ export function makeCorpusSection(contributions: CorpusSectionContributions): Se
     listHeader: () => <CorpusWorkspaceListHeader modes={modes} />,
     // The shell's "is a subject open?" and Back, answered for the ACTIVE mode, plus the per-mode phone landing.
     selection: corpusSectionSelection,
-    listDoorLabel: { useLabel: (): string | null => (useCorpusMode() === "insights" ? "Characters" : null) },
+    listDoorLabel: {
+      useLabel: (): string | null => {
+        const mode = useCorpusMode();
+        return mode === "insights" ? "Characters" : null;
+      },
+      useContentLabel: (): string => CORPUS_MODE_LABELS[useCorpusMode()],
+    },
     useSelectionTitle: (): string | null => useCorpusWorkspaceTitle(modes),
     content: () => <CorpusWorkspaceContent modes={modes} />,
     context: defineContextTabs<CorpusContextState>({

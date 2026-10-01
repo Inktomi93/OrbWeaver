@@ -53,6 +53,7 @@ test("the leaderboard renders ranked rows on the default sort", async ({ mount, 
   await expect(component.getByText("Bolt")).toBeVisible();
   // The row summary carries the replies + gen-time subtitle.
   await expect(component.getByText("42 replies", { exact: false })).toBeVisible();
+  await test.info().attach("0314-insights-sort", { body: await component.screenshot(), contentType: "image/png" });
 });
 
 // P2a: `tokensOut: null` off the verb means the turns were never accounted (an ST-imported history), and
