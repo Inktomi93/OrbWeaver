@@ -1,3 +1,4 @@
+import type { ChatContentPart } from "@orb/contracts/chat";
 // verbs/turn — the turn-running front doors (.int: real libSQL for the lock + the D26 canon persist + a REAL
 // engine via `createTurnEngine`). Proves the wiring: identity triple → connection → ONE assemble ctx →
 // arbitrate → driveRound; the group round (N speakers), @mention force, auto-mode chaining, send's solo
@@ -17,7 +18,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chatParticipants, chats, personaBooks, personas, statsCanonVersions, worldBooks, worldEntries } from "@orb/db";
+import { chatParticipants, chats, messageVariants, personaBooks, personas, statsCanonVersions, worldBooks, worldEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
@@ -39,12 +40,14 @@ import { recallMemory } from "../../../../../packages/server/src/domain/chat/mem
 import { loadPendingTurns, loadPendingTurnsForReclaim } from "../../../../../packages/server/src/domain/chat/persistence/invites.ts";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock.ts";
 import {
+  loadCanonContentSignatures,
   loadCanonHistory,
   loadMaxMessageSeq,
   loadMessageView,
   loadSlotTarget,
   loadTurnOrigin,
 } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { buildWireHistory } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
 import { createRequestTurn, createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn.ts";
 import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
@@ -2330,6 +2333,63 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
     const reverted = await h.turn.revertContinue({ principal: principal(host), chatId, messageId });
     expect(reverted.content).toBe("Once upon a timeHi there");
     expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBe(2);
+  });
+
+  test("continue, undo and revert retain exact ordered private signed parts and reject edited bodies", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      characterId: chars[0] ?? null,
+      content: "The secret word is",
+    });
+    await db
+      .update(messageVariants)
+      .set({ metadata: { contentSignatures: { text: [{ text: "The secret word is", thoughtSignature: "prefix-proof" }], images: [] } } })
+      .where(eq(messageVariants.id, variantId));
+    const h = harness(db, names, {
+      runChatTurn: () =>
+        (async function* (): AsyncGenerator<TurnStreamChunk> {
+          await Promise.resolve();
+          yield { kind: "text", text: " ORBIT." };
+          yield { kind: "final", economics: { content: " ORBIT.", textSignatures: [{ text: " ORBIT.", thoughtSignature: "suffix-proof" }] } };
+        })(),
+    });
+    const replay = async (): Promise<readonly ChatContentPart[]> => {
+      const canon = await loadCanonHistory(db, chatId);
+      const view = canon.find((item) => item.id === messageId);
+      if (view === undefined) {
+        throw new Error("Missing continued canon");
+      }
+      const rows = await buildWireHistory(
+        {
+          visionOk: false,
+          videoOk: false,
+          resolveImageUrl: () => Promise.resolve(null),
+          cardKeepLastX: undefined,
+          canon,
+          reasoningByMessage: new Map(),
+          contentSignaturesByMessage: await loadCanonContentSignatures(db, chatId),
+          loadInlineReplyAssetIds: () => Promise.resolve(new Map()),
+        },
+        [{ role: "assistant", messageId, content: view.content }],
+      );
+      return rows[0]?.row.content ?? [];
+    };
+    await h.turn.continueTurn({ principal: principal(host), chatId, messageId });
+    expect(await replay()).toEqual([
+      { type: "text", text: "The secret word is", thoughtSignature: "prefix-proof" },
+      { type: "text", text: " ORBIT.", thoughtSignature: "suffix-proof" },
+    ]);
+    await h.turn.undoContinue({ principal: principal(host), chatId, messageId });
+    expect(await replay()).toEqual([{ type: "text", text: "The secret word is", thoughtSignature: "prefix-proof" }]);
+    await h.turn.revertContinue({ principal: principal(host), chatId, messageId });
+    expect(await replay()).toEqual([
+      { type: "text", text: "The secret word is", thoughtSignature: "prefix-proof" },
+      { type: "text", text: " ORBIT.", thoughtSignature: "suffix-proof" },
+    ]);
+    await db.update(messageVariants).set({ content: "Edited: The secret word is ORBIT." }).where(eq(messageVariants.id, variantId));
+    expect(await replay()).toEqual([{ type: "text", text: "Edited: The secret word is ORBIT." }]);
+    expect(JSON.stringify(h.events)).not.toContain("proof");
   });
 
   test("undoContinue on a never-continued variant is refused no_continuation", async () => {

@@ -21,6 +21,7 @@ import type {
   ChatDeltaEvent,
   ChatReasoningPart,
   ChatWarning,
+  ContentSignatures,
   DurableChatBusEvent,
   MessageView,
   TokenProvenance,
@@ -29,7 +30,6 @@ import type {
 } from "@orb/contracts/chat";
 import { buildIdentityNameContext, DEFAULT_MESSAGE_KIND, INLINE_REPLY_ORIGIN, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import type { NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
-
 import type { ContinuePostfix, UserIntent } from "@orb/contracts/preset";
 import {
   DEFAULT_COMPACT_INSTRUCTIONS,
@@ -92,6 +92,7 @@ import { holdsLock, refreshLock, releaseLock, tryAcquireLock } from "../persiste
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import {
+  loadCanonContentSignatures,
   loadCanonCues,
   loadCanonHistory,
   loadCanonReasoningParts,
@@ -104,6 +105,7 @@ import {
   loadVariableDeltas,
 } from "../persistence/queries.ts";
 import { insertChatStreamEventStatements } from "../persistence/stream-events.ts";
+import { continuedSignatureMetadata } from "../substrate/content-signatures.ts";
 import { digestsDerivable } from "../substrate/digests-derivable.ts";
 import { resolveGroupBucketCharacterId } from "../substrate/group-bucket.ts";
 import { spliceInlineReplyImages } from "../substrate/inline-reply-images.ts";
@@ -256,8 +258,11 @@ async function readCommittedView(ctx: ChatContext, messageId: MessageId): Promis
  */
 function liveVariantMetadata(result: Awaited<ReturnType<typeof runTurnPipeline>>): VariantMetadata | null {
   const providerMetadata = result.economics?.providerMetadata;
+  const text = [...(result.economics?.textSignatures ?? [])];
+  const images = [...(result.imageSignatures ?? [])];
   const sidecar: VariantMetadata = {
     ...(result.reasoningMs === null ? {} : { [VARIANT_METADATA_REASONING_MS_KEY]: result.reasoningMs }),
+    ...(text.length === 0 && images.length === 0 ? {} : { contentSignatures: { content: result.content, text, images } }),
     ...(providerMetadata === null || providerMetadata === undefined ? {} : { providerMetadata }),
   };
   return Object.keys(sidecar).length === 0 ? null : sidecar;
@@ -577,6 +582,12 @@ function buildCommitPlan(args: {
       variant: {
         ...variant,
         content: target.content + continuationContent,
+        metadata: continuedSignatureMetadata({
+          beforeContent: target.content,
+          additionContent: continuationContent,
+          before: target.metadata,
+          addition: variant.metadata,
+        }),
         reasoning: combineReasoning(target.reasoning, result.reasoning),
       },
       preContinueContent: target.content,
@@ -1539,12 +1550,25 @@ async function absorbInlineReplyImages(
       refused += 1;
       continue;
     }
-    placed.push({ assetId: stored.assetId, atChars: image.atChars ?? result.content.length });
+    placed.push({
+      assetId: stored.assetId,
+      atChars: image.atChars ?? result.content.length,
+      ...(image.thoughtSignature === undefined ? {} : { thoughtSignature: image.thoughtSignature }),
+    });
   }
   if (refused > 0) {
     await deps.emit({ type: "warning", chatId: prep.chatId, code: "reply_image_failed" });
   }
-  return { result: { ...result, content: spliceInlineReplyImages(result.content, placed) }, assetIds: placed.map((p) => p.assetId) };
+  return {
+    result: {
+      ...result,
+      content: spliceInlineReplyImages(result.content, placed),
+      imageSignatures: placed.flatMap((image) =>
+        image.thoughtSignature === undefined ? [] : [{ assetId: image.assetId, thoughtSignature: image.thoughtSignature }],
+      ),
+    },
+    assetIds: placed.map((p) => p.assetId),
+  };
 }
 
 function assertGeneratedContent(result: Awaited<ReturnType<typeof runTurnPipeline>>, chatId: ChatId): void {
@@ -1802,6 +1826,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       now: ctx.now,
       applyRegexReplace: ctx.applyRegexReplace,
       resolveImageUrl: (ref): Promise<ResolvedMediaRef | null> => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
+      loadContentSignatures: (): Promise<ReadonlyMap<MessageId, ContentSignatures>> => loadCanonContentSignatures(ctx.db, prep.chatId),
       // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.
       loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => loadCanonReasoningParts(ctx.db, prep.chatId),
       loadCues: (): Promise<ReadonlyMap<MessageId, DeliveredCue>> => loadCanonCues(ctx.db, prep.chatId),
@@ -2174,6 +2199,7 @@ async function generateTextUnpersisted(ctx: ChatContext, prep: TurnPrep, onText:
       now: ctx.now,
       applyRegexReplace: ctx.applyRegexReplace,
       resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
+      loadContentSignatures: (): Promise<ReadonlyMap<MessageId, ContentSignatures>> => loadCanonContentSignatures(ctx.db, prep.chatId),
       // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.
       loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => loadCanonReasoningParts(ctx.db, prep.chatId),
       loadCues: (): Promise<ReadonlyMap<MessageId, DeliveredCue>> => loadCanonCues(ctx.db, prep.chatId),

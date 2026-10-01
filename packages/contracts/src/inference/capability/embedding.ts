@@ -21,7 +21,9 @@ export const embeddingCapabilitySchema = z.object({
   /** The text scaffold the encoder was trained on when served over a plain `/v1/embeddings` `input`:
    *  `chatml` = the Qwen3-VL-Embedding cookbook conversation (`<|im_start|>system … assistant\n`). A
    *  capability fact the curated row states, never a wire feature — a served OpenAI embedder has none. */
-  promptScaffold: z.enum(["chatml"]).optional(),
+  promptScaffold: z.enum(["chatml", "gemini-retrieval"]).optional(),
+  /** The model supports retrieval task types through a native embedding API. */
+  retrievalTaskType: z.boolean().optional(),
   windowEstimated: z.boolean().optional(),
 });
 export type EmbeddingCapability = z.infer<typeof embeddingCapabilitySchema>;

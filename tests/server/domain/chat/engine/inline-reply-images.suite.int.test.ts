@@ -15,7 +15,7 @@
 // fence reads, and it is also the ONLY reference the asset GC can see (body `asset:` spans are invisible to
 // `asset-refs.ts` — `db/schema/chat.ts`'s header). A unit double for either would prove nothing.
 
-import type { ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
+import type { ChatBusEvent, DurableChatBusEvent, TextSignature } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
@@ -53,13 +53,28 @@ const IMAGE_CONNECTION = makeResolved({
 const PNG: GeneratedImage = { url: undefined, base64: "aGVsbG8=", mediaType: "image/png" };
 
 /** A turn that writes prose and emits ONE picture after the first sentence, captured into `sink`. */
-function pictureTurn(sink: TurnRequest[], prose: string, images: readonly GeneratedImage[]): ChatContext["runChatTurn"] {
+function pictureTurn(
+  sink: TurnRequest[],
+  prose: string,
+  images: readonly GeneratedImage[],
+  textSignatures?: readonly TextSignature[],
+): ChatContext["runChatTurn"] {
   return (req: TurnRequest) => {
     sink.push(req);
     return (async function* (): AsyncGenerator<TurnStreamChunk> {
       await Promise.resolve();
       yield { kind: "text", text: prose };
-      yield { kind: "final", economics: { content: prose, model: testModelId("test-model"), replyImages: images, tokensIn: 1, tokensOut: 1 } };
+      yield {
+        kind: "final",
+        economics: {
+          content: prose,
+          model: testModelId("test-model"),
+          replyImages: images,
+          ...(textSignatures === undefined ? {} : { textSignatures }),
+          tokensIn: 1,
+          tokensOut: 1,
+        },
+      };
     })();
   };
 }
@@ -193,6 +208,35 @@ describe("§6.7 inline reply images — the round trip", () => {
     // …and it rides on an ASSISTANT row, not laundered onto a user line.
     const carrier = (secondTurn?.history ?? []).find((row) => row.content.some((part) => part.type === "image"));
     expect(carrier?.role).toBe("assistant");
+  });
+
+  test("native image signatures persist host-side and ride only on the matching selected asset", async () => {
+    const chatId = await seedRoom(db, "inline-signature");
+    const sink: TurnRequest[] = [];
+    const h = harness(db, {
+      runChatTurn: pictureTurn(
+        sink,
+        "A signed picture.",
+        [{ ...PNG, thoughtSignature: "private-image-signature" }],
+        [{ text: "A signed picture.", thoughtSignature: "private-text-signature" }],
+      ),
+    });
+    await h.engine.runTurn(prepOf(chatId));
+    const publicCanon = await loadCanonHistory(db, chatId);
+    expect(JSON.stringify(publicCanon)).not.toContain("private-image-signature");
+    await h.engine.runTurn(prepOf(chatId));
+    const image = sink
+      .at(-1)
+      ?.history.flatMap((row) => row.content)
+      .find((part) => part.type === "image");
+    expect(image).toMatchObject({ type: "image", url: "https://cas.test/asset_inline_1", thoughtSignature: "private-image-signature" });
+    const text = sink
+      .at(-1)
+      ?.history.flatMap((row) => row.content)
+      .find((part) => part.type === "text" && part.thoughtSignature !== undefined);
+    expect(text).toMatchObject({ type: "text", text: "A signed picture.", thoughtSignature: "private-text-signature" });
+    expect(JSON.stringify(h.events)).not.toContain("private-image-signature");
+    expect(JSON.stringify(h.events)).not.toContain("private-text-signature");
   });
 
   test("THE CONTROL — an /imagine illustration post in the SAME room does NOT ride, though it is an assistant row with a real asset ref", async () => {

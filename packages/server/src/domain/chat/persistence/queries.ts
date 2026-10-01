@@ -13,6 +13,7 @@ import type {
   ChatBusEvent,
   ChatListCursor,
   ChatReasoningPart,
+  ContentSignatures,
   HandoffOffer,
   JoinHistoryVisibility,
   MessageView,
@@ -52,6 +53,7 @@ import type { ChatMetadata } from "../contract/metadata.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 import type { DeliveredCue } from "../contract/results.ts";
 import type { ChatStreamReplayEvent, StreamEventBounds, VariantWireView } from "../contract/views.ts";
+import { signaturesForContent } from "../substrate/content-signatures.ts";
 
 const LIMIT_ONE = 1;
 
@@ -685,6 +687,21 @@ export async function loadInlineReplyAssetIds(db: Db, chatId: ChatId): Promise<R
   return out;
 }
 
+/** Selected-variant replay provenance stays behind the host's generation path, outside MessageView. */
+export async function loadCanonContentSignatures(db: Db, chatId: ChatId): Promise<ReadonlyMap<MessageId, ContentSignatures>> {
+  const rows = await db
+    .select({ messageId: messages.id, metadata: messageVariants.metadata, content: messageVariants.content })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(eq(messages.chatId, chatId));
+  return new Map(
+    rows.flatMap((row) => {
+      const signatures = signaturesForContent(parseVariantMetadata(row.metadata).contentSignatures, row.content);
+      return signatures === undefined ? [] : [[row.messageId, signatures] as const];
+    }),
+  );
+}
+
 /** THE §8.8 `conversation` CARRY SOURCE: every canon slot's persisted replayable thinking, keyed by slot id.
  *  Rows with a NULL/empty/malformed blob are simply absent from the map — a caller asks "does this row have
  *  thinking to replay" and gets one answer.
@@ -878,11 +895,13 @@ const slotTargetSelection = {
   reasoning: messageVariants.reasoning,
   // Raw JSON — parsed (safeParse-degrade) into `SlotTarget.macroDraws` by `loadSlotTarget`, never surfaced raw.
   macroDraws: messageVariants.macroDraws,
+  metadata: messageVariants.metadata,
   variantCount: sql<number>`(select count(*) from ${messageVariants} where ${messageVariants.messageId} = ${messages.id})`,
 } as const;
 
 /** The write target for a swipe (`append-variant`) / `continue`. */
 interface SlotTarget {
+  metadata: VariantMetadata;
   messageId: MessageId;
   seq: number;
   role: MessageRole;
@@ -926,7 +945,7 @@ export async function loadSlotTarget(db: Db, chatId: ChatId, messageId: MessageI
   // Parse the draw record at the read seam (never surface raw JSON) — a malformed blob degrades to null,
   // so a swipe/continue of it draws fresh rather than throwing (the `variableDelta` degrade precedent).
   const parsedDraws = userMacroDrawsSchema.safeParse(row.macroDraws);
-  return { ...row, macroDraws: parsedDraws.success ? parsedDraws.data : null };
+  return { ...row, metadata: parseVariantMetadata(row.metadata), macroDraws: parsedDraws.success ? parsedDraws.data : null };
 }
 
 /** The continue-undo snapshot for a slot's selected variant. All-null ⇒ never continued (undo/revert

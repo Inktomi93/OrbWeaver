@@ -202,6 +202,7 @@ export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult
   const providerMetadata = variantProviderMetadataOf(ctx.providerId, drain.providerMetadata?.[ctx.providerId]);
   return {
     reply: drain.reply,
+    ...(drain.textSignatures.length === 0 ? {} : { textSignatures: drain.textSignatures }),
     ...(toolCalls !== undefined ? { toolCalls } : {}),
     reasoning: drain.reasoning,
     ...(drain.reasoningParts.length > 0 ? { reasoningParts: drain.reasoningParts } : {}),
@@ -212,7 +213,7 @@ export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult
     stopReason: raw,
     terminalReason: null,
     // Surfaced calls ARE the finish signal on every wire (a tool-calling turn may terminate `stop`).
-    finishReason: toolCalls !== undefined ? "tool" : normalizeFinishReason(raw),
+    finishReason: toolCalls !== undefined ? "tool" : normalizeFinishReason(drain.finish.unified),
     ttftMs: ctx.firstDeltaAt !== undefined ? ctx.firstDeltaAt - ctx.startedAt : null,
     durationApiMs: ctx.now - ctx.startedAt,
     apiErrorStatus: null,

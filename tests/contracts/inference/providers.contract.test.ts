@@ -64,7 +64,7 @@ test("derived policy is not wider than the hand rows it replaced", () => {
   const imageProviders = taskProviders("generateImage")
     .map((row) => row.id)
     .toSorted();
-  expect(imageProviders.filter((id) => builtinProvider(id)?.metered === true)).toEqual(["openai", "openrouter"]);
+  expect(imageProviders.filter((id) => builtinProvider(id)?.metered === true)).toEqual(["google", "openai", "openrouter"]);
   // agent: the agent-sdk wire's rows and only those, by construction.
   for (const row of taskProviders("agent")) {
     expect(row.wire).toBe("agent-sdk");

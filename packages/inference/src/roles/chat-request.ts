@@ -36,7 +36,7 @@ function arrayWireTools(tools: ChatTurnTools | undefined): readonly WireTool[] |
 /** The HISTORY-ARRAY wires (chat-completions / anthropic-messages): the transcript travels as real rows, the
  *  tools as declarations the caller's own loop answers (`execute` is never called — the calls come back on
  *  `ChatResult.toolCalls` with `finishReason: "tool"`), and the array-only knobs ride as-is. */
-function toArrayWireChatRequest(input: ChatTurnInput, api: "chat-completions" | "anthropic-messages"): ChatRequest {
+function toArrayWireChatRequest(input: ChatTurnInput, api: Exclude<ChatApi, "agent-sdk">): ChatRequest {
   const tools = arrayWireTools(input.tools);
   return {
     api,
@@ -62,6 +62,7 @@ function toArrayWireChatRequest(input: ChatTurnInput, api: "chat-completions" | 
 const PROJECTIONS: Record<ChatApi, (input: ChatTurnInput) => ChatRequest> = {
   "agent-sdk": toAgentSdkChatRequest,
   "chat-completions": (input) => toArrayWireChatRequest(input, "chat-completions"),
+  "google-generative-ai": (input) => toArrayWireChatRequest(input, "google-generative-ai"),
   "anthropic-messages": (input) => toArrayWireChatRequest(input, "anthropic-messages"),
 };
 

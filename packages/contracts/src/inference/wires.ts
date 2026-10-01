@@ -8,7 +8,7 @@ import type { ChatApi } from "./apis.ts";
 import type { DeltaKind } from "./deltas.ts";
 import type { Task } from "./tasks.ts";
 
-export const WIRES = ["openai-compat", "anthropic-messages", "agent-sdk", "local-light"] as const;
+export const WIRES = ["openai-compat", "anthropic-messages", "google-generative-ai", "agent-sdk", "local-light"] as const;
 export type Wire = (typeof WIRES)[number];
 export const wireSchema = z.enum(WIRES) satisfies z.ZodType<Wire>;
 
@@ -21,6 +21,11 @@ export interface WireDef {
 }
 
 export const WIRE_DEFS: Record<Wire, WireDef> = {
+  "google-generative-ai": {
+    apis: ["google-generative-ai"],
+    serves: ["chat", "summarize", "structured", "generateImage", "embed", "imageEmbed"],
+    deltas: ["text", "reasoning", "image", "tool-call", "citation", "usage"],
+  },
   // Two transports (`openai-compatible`, `openrouter`), one backend over the Vercel AI SDK (§8.1).
   // `generateImage` rides the row's `features.images` arm, `rerank` the row's `features.rerankPath`,
   // `imageEmbed` a model whose embedding capability declares `input ∋ image` — the wire CAN serve them;

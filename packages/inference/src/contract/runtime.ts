@@ -4,6 +4,7 @@
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { BindingActorKind, ConnectionBinding, ProviderDef, ProviderId, RoutableTask, UserConnection } from "@orb/contracts/inference";
+import { modelCatalogEntrySchema } from "@orb/contracts/inference";
 import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
 import type { AutomationRuleId, PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -52,7 +53,13 @@ export type ReachabilityProbe = (args: {
   readonly sleepPath: string | undefined;
 }) => Promise<Reachability>;
 
-const endpointModelSchema = z.object({ id: z.string(), contextLength: z.number().nullable() });
+const endpointModelSchema = z.object({
+  id: z.string(),
+  contextLength: z.number().nullable(),
+  kind: modelCatalogEntrySchema.shape.kind,
+  google: modelCatalogEntrySchema.shape.google,
+  maxCompletionTokens: modelCatalogEntrySchema.shape.maxCompletionTokens,
+});
 export type EndpointModel = z.infer<typeof endpointModelSchema>;
 export const endpointModelsSchema = z.array(endpointModelSchema) satisfies z.ZodType<EndpointModel[]>;
 

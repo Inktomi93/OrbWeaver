@@ -97,6 +97,7 @@ test("the cost-provenance ARM each wire reaches on a cost-bearing turn — an ob
     "openai-compat": "measured",
     // The direct Anthropic wire has NO cost channel; the row's shipped pricing × tokens is the honest arm.
     "anthropic-messages": "estimated",
+    "google-generative-ai": "estimated",
     // The subscription: the SDK computes what the turn WOULD have billed at API prices. No invoice exists,
     // so it is `estimated` BY RULING even though a number is present (`contracts/inference/usage.ts`).
     "agent-sdk": "estimated",

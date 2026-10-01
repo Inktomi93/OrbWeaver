@@ -63,6 +63,7 @@ test("the structured-failure kinds each wire reaches — a drifting classificati
     // surfaces through `providerErrorFromHttp`'s transport-name fallback.
     "openai-compat": "unknown",
     "anthropic-messages": "unknown",
+    "google-generative-ai": "unknown",
     // The subscription wire reduced a complete, successful turn that simply carried no schema frame.
     "agent-sdk": "invalid",
     // `WIRE_DEFS["local-light"].serves` has no `structured`; the dispatcher's typed refusal is the answer.

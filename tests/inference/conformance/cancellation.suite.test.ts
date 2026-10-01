@@ -55,6 +55,7 @@ test("the cancellation matrix covers every wire — no wire is excused from the 
   // The positive control on the matrix itself: a silent shortfall here would make every arm above pass while
   // covering less than it claims, which is the vacuity this suite exists to make impossible.
   expect(CONFORMANCE_WIRES.map((wire) => `${wire}:${cancellationTaskFor(wire)}`)).toEqual([
+    "google-generative-ai:chat",
     "openai-compat:chat",
     "anthropic-messages:chat",
     "agent-sdk:chat",

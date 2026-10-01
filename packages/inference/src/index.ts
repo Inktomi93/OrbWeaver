@@ -27,6 +27,7 @@ import type { LocalLightBackend } from "./backends/local-light/index.ts";
 import { curatedKind } from "./capability/sources/curated/loader.ts";
 import type { SynthesizedCapability } from "./capability/synthesize.ts";
 import { fetchEndpointModels } from "./catalog/endpoint.ts";
+import { fetchGoogleModels } from "./catalog/google.ts";
 import { builtinCatalog, createCatalogListing } from "./catalog/listing.ts";
 import type { Mirror, MirrorDeps } from "./catalog/mirror.ts";
 import { createMirror } from "./catalog/mirror.ts";
@@ -243,7 +244,10 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     }
     const secrets = resolvedScrubSet({ credential: { secret }, transport: connection.transport });
     await endpointModels(baseUrl).warm(
-      () => fetchEndpointModels({ fetch: fetchImpl, baseUrl, secret, headers: connection.transport?.headers, secrets }),
+      () =>
+        provider.wire === "google-generative-ai"
+          ? fetchGoogleModels({ baseUrl, secret, secrets, label: "Google models" }, fetchImpl)
+          : fetchEndpointModels({ fetch: fetchImpl, baseUrl, secret, headers: connection.transport?.headers, secrets }),
       secrets,
     );
   };

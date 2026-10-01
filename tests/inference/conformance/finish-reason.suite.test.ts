@@ -35,6 +35,9 @@ const BASE: Omit<ChatScript, "stop"> = { deltas: ["done"], tokensIn: 9, tokensOu
 /** A raw word the shared map RECOGNISES, in each wire's own vocabulary — the fixture is per-wire because the
  *  provider vocabularies genuinely differ; the EXPECTATION is the shared map's, which is the point. */
 function mappedStopFor(wire: Wire): string {
+  if (wire === "google-generative-ai") {
+    return "STOP";
+  }
   return wire === "openai-compat" ? "stop" : "end_turn";
 }
 

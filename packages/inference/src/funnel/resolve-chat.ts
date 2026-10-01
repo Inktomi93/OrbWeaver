@@ -238,16 +238,16 @@ export function resolveCarryReasoning(params: UserIntent, capability: Generation
 /** THE SIDE-GENERATION REASONING POSTURE (#2575) — what a `summarize` / `structured` call runs. The posture is
  *  "reasoning OFF" (a summary is not worth thinking tokens), resolved through the SAME on/off decision and
  *  mandatory clamp a chat turn takes, never spelled `disabled` straight at the wire: a model whose reasoning is
- *  mandatory (Fable, Opus 5.5) 400s that, so it runs at its LOWEST effort with `reasoning_mandatory_clamp`.
+ *  mandatory (Fable, Opus 5.5) 400s that, so it runs at its minimum effort or budget with `reasoning_mandatory_clamp`.
  *  No display is resolved — a batch reads only the reply text. */
 export function resolveSideGenReasoning(capability: GenerationCapability, warnings: ResolvedWarning[]): ResolvedReasoning {
   const r = capability.reasoning;
-  const { enabled, effort } = reasoningEnabledFor({ effort: EFFORT_OFF }, capability, warnings);
-  if (!enabled) {
-    return { mode: r.mode, enabled: false };
-  }
-  const resolvedEffort = resolveEffort(effort, r.effortLevels, warnings);
-  return { mode: r.mode, enabled, ...(resolvedEffort !== undefined ? { effort: resolvedEffort } : {}) };
+  const params: UserIntent = {
+    effort: EFFORT_OFF,
+    ...(r.mode === "budget" && r.mandatory === true && r.budgetRange !== undefined ? { thinkingBudgetTokens: r.budgetRange.min } : {}),
+  };
+  const { display: _display, ...resolved } = resolveReasoning(params, capability, undefined, warnings);
+  return resolved;
 }
 
 function resolveReasoning(

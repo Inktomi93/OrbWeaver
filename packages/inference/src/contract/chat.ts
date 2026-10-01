@@ -2,8 +2,8 @@
 // the runtime handed it and calls the executor; it never sees sessions, seed frames, child env or transport
 // spelling. Discriminated on `api` (the protocol axis) — never on a wire or a provider id.
 
-import type { ChatContentPart, VariantProviderMetadata } from "@orb/contracts/chat";
-import type { ChatUsage, NormalizedFinishReason } from "@orb/contracts/inference";
+import type { ChatContentPart, TextSignature, VariantProviderMetadata } from "@orb/contracts/chat";
+import type { ChatApi, ChatUsage, NormalizedFinishReason } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
@@ -188,7 +188,7 @@ export type ChatRequest =
        *  handed back on {@link ChatResult.toolCalls}. */
       readonly terminalTools?: readonly WireTool[] | undefined;
     })
-  | (HistoryChatRequest & { readonly api: "chat-completions" | "anthropic-messages" });
+  | (HistoryChatRequest & { readonly api: Exclude<ChatApi, "agent-sdk"> });
 
 /**
  * The BACKEND-NEUTRAL chat turn: one shape whatever the connection's wire, projected onto the {@link ChatRequest}
@@ -236,6 +236,7 @@ export interface ForcedToolRoundInput {
 
 export type AgentSdkChatRequest = ChatRequest & { readonly api: "agent-sdk" };
 export type OpenAiCompatChatRequest = ChatRequest & { readonly api: "chat-completions" };
+export type GoogleChatRequest = ChatRequest & { readonly api: "google-generative-ai" };
 export type AnthropicChatRequest = ChatRequest & { readonly api: "anthropic-messages" };
 
 /** The per-wire raw → normalized fold. `other` is a NAMED arm for a recognised-but-unclassified value; an
@@ -288,6 +289,7 @@ export interface AgentMcpServerHealth {
 /** The result every chat/agent backend returns. No session id — the session is backend-internal. */
 export interface ChatResult {
   readonly reply: string;
+  readonly textSignatures?: readonly TextSignature[] | undefined;
   readonly toolCalls?: readonly ToolCallInput[] | undefined;
   readonly reasoning: string;
   /** The model's thinking as REPLAYABLE parts, in stream order, each carrying the wire's own opaque

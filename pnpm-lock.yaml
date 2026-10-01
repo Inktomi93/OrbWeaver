@@ -167,6 +167,9 @@ catalogs:
     '@ai-sdk/anthropic':
       specifier: 4.0.58
       version: 4.0.58
+    '@ai-sdk/google':
+      specifier: 4.0.77
+      version: 4.0.77
     '@ai-sdk/openai-compatible':
       specifier: 3.0.53
       version: 3.0.53
@@ -887,6 +890,9 @@ importers:
       '@ai-sdk/anthropic':
         specifier: 'catalog:'
         version: 4.0.58(zod@4.4.3)
+      '@ai-sdk/google':
+        specifier: 'catalog:'
+        version: 4.0.77(zod@4.4.3)
       '@ai-sdk/openai-compatible':
         specifier: 'catalog:'
         version: 3.0.53(zod@4.4.3)
@@ -1279,6 +1285,12 @@ packages:
 
   '@ai-sdk/gateway@4.0.87':
     resolution: {integrity: sha512-6wJmX/D5OO7tvDJbtFdXdBuRt8AkCnW+FLK+W35UHe/tHgolAa4hclXtJcMSYnlTDy/t5DNRgdesVaoMXtwzow==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/google@4.0.77':
+    resolution: {integrity: sha512-7s1Gy6PL/KRk12s31g+LMMY5v1D80AQT6Lm+HUGXvCXw5T5WCxzbUuxOrBegXhhLPfIXTRunkYgSIjcRys37Zw==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -8444,6 +8456,12 @@ snapshots:
       '@ai-sdk/provider': 4.0.17
       '@ai-sdk/provider-utils': 5.0.45(zod@4.4.3)
       '@vercel/oidc': 3.2.0
+      zod: 4.4.3
+
+  '@ai-sdk/google@4.0.77(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.17
+      '@ai-sdk/provider-utils': 5.0.45(zod@4.4.3)
       zod: 4.4.3
 
   '@ai-sdk/openai-compatible@3.0.53(zod@4.4.3)':

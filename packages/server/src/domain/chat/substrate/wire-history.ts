@@ -27,7 +27,7 @@
 // row's thinking. The later replies' thinking never reaches the model, and nothing reports it. One message
 // holding every reply's thinking is refused on both OpenRouter endpoints (OR-9, scripts/probes/openrouter/RESULTS.md).
 
-import type { ChatContentPart, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
+import type { ChatContentPart, ChatReasoningPart, ContentSignatures, MessageView } from "@orb/contracts/chat";
 import type { WireMeta } from "@orb/inference";
 import { cacheDepthCovering, rowIndexAtCacheDepth } from "@orb/inference";
 import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
@@ -36,6 +36,7 @@ import type { AssetId, MessageId } from "@orb/kit/ids";
 import type { ResolvedMediaRef, TurnMessage } from "../contract/results.ts";
 import type { shapeTurn } from "./assembly-access.ts";
 import { fitHistory, historyTurnTokens } from "./assembly-access.ts";
+import { replayTextSignatures } from "./content-signatures.ts";
 
 /** A media-only row whose every part drops must not collapse to an empty text part — the runner's
  *  empty-row wire filter would delete it, ending the delivered history on the prior assistant row (then
@@ -129,6 +130,7 @@ interface WirePartsEnv {
   readonly fullCards: ReadonlySet<ContentSpan>;
   /** §6.7's per-(slot, asset) inline-reply set — see {@link ridesAsModelMedia}. */
   readonly inlineReply: InlineReplyAssets;
+  readonly contentSignatures: ReadonlyMap<MessageId, ContentSignatures> | undefined;
 }
 
 /** The PER-ROW facts the projection needs (only the image arm reads them — see {@link ridesAsModelMedia}). */
@@ -247,7 +249,14 @@ const WIRE_PART_HANDLERS: { readonly [K in ContentSpanKind]: WirePartHandler<K> 
     if (resolved.media === "video") {
       return env.videoOk ? { type: "video", url: resolved.url } : { droppedAlt: span.alt, droppedMedia: "video" };
     }
-    return env.visionOk ? { type: "image", url: resolved.url } : { droppedAlt: span.alt, droppedMedia: "image" };
+    const assetId = span.ref.kind === "asset" ? span.ref.assetId : undefined;
+    const signature =
+      row.role === "assistant" && row.messageId !== undefined
+        ? env.contentSignatures?.get(row.messageId)?.images.find((image) => image.assetId === assetId)?.thoughtSignature
+        : undefined;
+    return env.visionOk
+      ? { type: "image", url: resolved.url, ...(signature === undefined ? {} : { thoughtSignature: signature }) }
+      : { droppedAlt: span.alt, droppedMedia: "image" };
   },
 };
 
@@ -424,6 +433,7 @@ export async function buildWireHistory(
      *  engine's in-turn loop and never reaches the persisted history. A map rather than a `MessageView` field
      *  because these blobs are host-side replay material that must not cross to a client. */
     readonly reasoningByMessage: ReadonlyMap<MessageId, readonly ChatReasoningPart[]>;
+    readonly contentSignaturesByMessage?: ReadonlyMap<MessageId, ContentSignatures> | undefined;
     /** §6.7's INLINE-REPLY ORIGIN SET, LAZY — awaited at most ONCE per build, and only when some
      *  assistant-delivered row actually carries an `asset:` span. A history with no model-emitted picture
      *  (every history today, and every history on a text-only model forever) performs NO read, the same
@@ -448,6 +458,7 @@ export async function buildWireHistory(
     resolveImageUrl: env.resolveImageUrl,
     fullCards: resolveFullCards(tokenized, env.cardKeepLastX),
     inlineReply: mayCarryInlineReply ? await env.loadInlineReplyAssetIds() : NO_INLINE_REPLY_ASSETS,
+    contentSignatures: env.contentSignaturesByMessage,
   };
   // The canon rows a SHAPE fold may have re-roled to `user` (`scopeToSpeaker` stamps another character's
   // assistant line as `Name: …`) — their images stay character-authored, so they never count as attachments.
@@ -458,7 +469,10 @@ export async function buildWireHistory(
       const { parts: bodyParts, imageDropped, videoDropped } = await toContentParts(spans, partsEnv, { role: h.role, userAuthored, messageId: h.messageId });
       // A SHAPE fold may have re-roled a character's assistant line to `user` (`scopeToSpeaker`); its thinking
       // must not ride back on a row the wire will deliver as the user speaking.
-      const parts = h.role === "assistant" && h.messageId !== undefined ? carryReasoningParts(bodyParts, env.reasoningByMessage.get(h.messageId)) : bodyParts;
+      const signedParts =
+        h.role === "assistant" && h.messageId !== undefined ? replayTextSignatures(bodyParts, env.contentSignaturesByMessage?.get(h.messageId)) : bodyParts;
+      const parts =
+        h.role === "assistant" && h.messageId !== undefined ? carryReasoningParts(signedParts, env.reasoningByMessage.get(h.messageId)) : signedParts;
       const row: TurnMessage = {
         role: h.role,
         content: parts,

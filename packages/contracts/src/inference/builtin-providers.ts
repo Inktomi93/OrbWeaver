@@ -7,6 +7,17 @@ import type { ProviderDefInput } from "./provider-schema.ts";
 
 export const BUILTIN_PROVIDER_ROWS = [
   {
+    id: "google",
+    label: "Google Gemini",
+    wire: "google-generative-ai",
+    auth: "apiKey",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+    apis: ["google-generative-ai"],
+    catalog: "url",
+    metered: true,
+    docsUrl: "https://ai.google.dev/gemini-api/docs",
+  },
+  {
     id: "openrouter",
     label: "OpenRouter",
     wire: "openai-compat",

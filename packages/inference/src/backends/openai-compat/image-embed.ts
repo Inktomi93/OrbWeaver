@@ -11,11 +11,11 @@ import { z } from "zod";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ImageEmbedRequest } from "../../contract/roles.ts";
 import { decodeEmbeddingVector } from "../kit/embedding-decode.ts";
+import { DOC_INSTRUCTION, fitToDim, QUERY_INSTRUCTION } from "../kit/embedding-input.ts";
 import { authHeaders, fetchJson, openAiPath } from "../kit/fetch-json.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
 import { toImageUrl } from "../v4/batch.ts";
-import { DOC_INSTRUCTION, fitToDim, QUERY_INSTRUCTION } from "./embed.ts";
 
 const DIMENSIONS_REJECTED_RE = /dimensions/iu;
 const EMBEDDINGS_PATH = "/embeddings";

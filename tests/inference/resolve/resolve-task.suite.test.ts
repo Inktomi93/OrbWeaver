@@ -297,16 +297,16 @@ test("each grok generation resolves to its documented reasoning efforts, and an 
 // Gemini row gets the family's tools, Google's documented effort words, and no replay.
 
 test("a models/gemini id on the direct route resolves to the Google family facts, spelled for the compatibility wire", async () => {
-  for (const [model, mandatory] of [
-    ["models/gemini-3.8-flash", true],
-    ["models/gemini-2.5-pro", true],
-    ["gemini-3.1-pro-preview", true],
-    ["models/gemini-2.5-flash", undefined],
-    ["models/gemini-2.5-flash-lite", undefined],
+  for (const [model, mandatory, levels] of [
+    ["models/gemini-3.8-flash", true, ["low", "medium", "high"]],
+    ["models/gemini-2.5-pro", true, ["minimal", "low", "medium", "high"]],
+    ["gemini-3.1-pro-preview", true, ["low", "medium", "high"]],
+    ["models/gemini-2.5-flash", undefined, ["minimal", "low", "medium", "high"]],
+    ["models/gemini-2.5-flash-lite", undefined, ["minimal", "low", "medium", "high"]],
   ] as const) {
     const generation = await directGeneration(GEMINI, model);
     expect(generation.tools, model).toMatchObject({ parallel: true });
-    expect(generation.reasoning, model).toMatchObject({ mode: "effort", enabled: true, effortLevels: ["minimal", "low", "medium", "high"], replay: "none" });
+    expect(generation.reasoning, model).toMatchObject({ mode: "effort", enabled: true, effortLevels: levels, replay: "none" });
     expect(generation.reasoning.mandatory, model).toBe(mandatory);
   }
 });

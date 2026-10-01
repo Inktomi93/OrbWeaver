@@ -13,6 +13,7 @@ import type {
   MessageView,
   ReactionEmoji,
   SpeakerRef,
+  TextSignature,
   TokenProvenance,
   TurnAbortReason,
   TurnInitiator,
@@ -317,6 +318,7 @@ export interface TurnEconomics {
    *  materializes them through the SSRF-safe belt and stores them in the host's CAS, which is also the only
    *  moment an `asset:` id exists to spell into the body. Absent on every text-only turn. */
   readonly replyImages?: readonly GeneratedImage[] | undefined;
+  readonly textSignatures?: readonly TextSignature[] | undefined;
 }
 
 /** §6.7 — the PLACED twin of a `TurnEconomics.replyImages` entry: one picture the engine has already
@@ -325,6 +327,7 @@ export interface TurnEconomics {
  *  because the receive tier rewrites those bytes in between. It lives here rather than beside the splice
  *  because a domain-internal shape's home is `contract/` (`no-inline-domain-interface`). */
 export interface PlacedInlineImage {
+  readonly thoughtSignature?: string | undefined;
   readonly assetId: AssetId;
   readonly atChars: number;
 }

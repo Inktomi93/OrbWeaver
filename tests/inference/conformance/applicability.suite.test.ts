@@ -75,6 +75,7 @@ test("the driver table covers exactly WIRE_DEFS[wire].serves ∩ CONFORMANCE_TAS
   // Pinned so the SHAPE of the matrix is legible in one place and a change to any wire's `serves` shows up
   // here as a diff rather than as a silently smaller run.
   expect(coverage).toEqual({
+    "google-generative-ai": ["chat", "embed", "structured"],
     "openai-compat": ["chat", "embed", "structured"],
     "anthropic-messages": ["chat", "structured"],
     "agent-sdk": ["chat", "structured"],

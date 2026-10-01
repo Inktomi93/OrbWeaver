@@ -7,24 +7,13 @@ import type { CapabilityOverrideInput } from "@orb/contracts/inference";
 export const googleRows = [
   {
     match: {
-      model: "^(google/|models/)?gemini",
+      model: "^(google/|models/)?gemini-(?!embedding)",
     },
     kind: "generation",
     generation: {
-      reasoning: {
-        mode: "budget",
-        enabled: true,
-        budgetRange: {
-          min: 1024,
-          max: 32_000,
-        },
-        // Gemini's thought signatures are the same replay contract under a different name, and the OpenRouter
-        // provider's `reasoning_details` covers them (audit H4 — A1 is not Anthropic-only on that route).
-        replay: "signed",
-      },
-      tools: {
-        parallel: true,
-      },
+      input: ["text", "image", "video", "audio", "file"],
+      sampling: { temperature: { min: 0, max: 2 }, topP: { min: 0, max: 1 }, topK: { min: 1, max: 64 }, seed: true, stop: true },
+      reasoning: { mode: "none", enabled: false, replay: "none" },
     },
     evidence: {
       tier: "curated",
@@ -33,8 +22,26 @@ export const googleRows = [
     },
   },
   {
+    match: { model: "^(google/|models/)?gemini-(?!embedding)(?!.*(image|transcribe|tts|live))" },
+    generation: { tools: { parallel: true }, output: { structured: true } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "https://ai.google.dev/gemini-api/docs/models: general Gemini text models support function calling and structured output; specialized media models do not inherit these tasks",
+    },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-(2[-.]5|3)(?!.*(transcribe|tts|live))" },
+    generation: { reasoning: { mode: "budget", enabled: true, budgetRange: { min: 1024, max: 32_000 }, replay: "signed" } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "https://ai.google.dev/gemini-api/docs/thinking: Gemini 2.5 and 3 support thinking; route rows spell budget versus effort",
+    },
+  },
+  {
     match: {
-      model: "^(google/|models/)?gemini-2[-.]5-flash-image",
+      model: "^(google/|models/)?gemini-(2[-.]5-flash-image|3-pro-image|3[-.]1-flash-image|3[-.]1-flash-lite-image)(-preview)?$",
     },
     generation: {
       input: ["text", "image"],
@@ -42,6 +49,7 @@ export const googleRows = [
         modalities: ["text", "image"],
       },
       imageEdit: true,
+      imageReferences: true,
     },
     evidence: {
       tier: "curated",
@@ -73,7 +81,7 @@ export const googleRows = [
   },
   {
     match: {
-      model: "^(google/|models/)?gemini-3[-.]1-flash-image$",
+      model: "^(google/|models/)?gemini-3[-.]1-flash-image(-preview)?$",
     },
     generation: {
       context: {
@@ -91,7 +99,7 @@ export const googleRows = [
   },
   {
     match: {
-      model: "^(google/|models/)?gemini-(2[-.]5-flash-image|3-pro-image)$",
+      model: "^(google/|models/)?gemini-(2[-.]5-flash-image|3-pro-image)(-preview)?$",
     },
     generation: {
       context: {
@@ -109,7 +117,7 @@ export const googleRows = [
   },
   {
     match: {
-      model: "^(google/|models/)?gemini-3[-.]1-flash-lite-image$",
+      model: "^(google/|models/)?gemini-3[-.]1-flash-lite-image(-preview)?$",
     },
     generation: {
       context: {
@@ -131,7 +139,7 @@ export const googleRows = [
   // are not in its effort table and keep the family cell.
   {
     match: {
-      model: "^(models/)?gemini-(?!.*-image)",
+      model: "^(models/)?gemini-(2[-.]5|3)(?!.*-image)",
       provider: "custom-openai",
     },
     generation: {
@@ -162,6 +170,145 @@ export const googleRows = [
       tier: "curated",
       dated: "2026-09-25",
       cite: "ai.google.dev/gemini-api/docs/openai: 'you can set reasoning_effort to \"none\" for 2.5 models. Reasoning cannot be turned off for Gemini 2.5 Pro or 3 models.'",
+    },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-embedding-001$" },
+    kind: "embedding",
+    embedding: { dims: 3072, mrl: true, maxInputTokens: 2048, input: ["text"], output: ["vector"], instructionAware: false, retrievalTaskType: true },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "https://ai.google.dev/gemini-api/docs/embeddings: Embedding 1 dimensions, token limits, task types and normalization",
+    },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-embedding-2(-preview)?$" },
+    kind: "embedding",
+    embedding: {
+      dims: 3072,
+      mrl: true,
+      maxInputTokens: 8192,
+      input: ["text", "image", "video", "audio", "file"],
+      output: ["vector"],
+      instructionAware: true,
+      promptScaffold: "gemini-retrieval",
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "https://ai.google.dev/gemini-api/docs/embeddings: Embedding 2 retrieval query/document scaffolds, multimodal inputs, dimensions and normalization",
+    },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-(3[-.]|2[-.]5-pro)(?!.*-image)" },
+    generation: { reasoning: { mandatory: true } },
+    evidence: { tier: "curated", dated: "2026-09-30", cite: "https://ai.google.dev/gemini-api/docs/thinking: Gemini 3 and 2.5 Pro cannot disable thinking" },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-3(?!.*-image)", wire: "google-generative-ai" },
+    generation: { reasoning: { mode: "effort", effortLevels: ["minimal", "low", "medium", "high"], replay: "signed" } },
+    evidence: { tier: "curated", dated: "2026-09-30", cite: "https://ai.google.dev/gemini-api/docs/thinking: native Gemini 3 thinkingLevel" },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-3(?!.*-image)" },
+    generation: {
+      sampling: {
+        temperature: { min: 0, max: 2 },
+        topP: { min: 0, max: 1 },
+        topK: { min: 1, max: 64 },
+        seed: true,
+        stop: true,
+        frequencyPenalty: { min: -2, max: 2 },
+        presencePenalty: { min: -2, max: 2 },
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "@ai-sdk/google/src/google-language-model.ts: native 2.5 drops frequencyPenalty and presencePenalty; Gemini 3 generationConfig forwards both",
+    },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-(3[-.]7-flash|3[-.]8-flash|3[-.]1-pro-preview)$" },
+    generation: { reasoning: { effortLevels: ["low", "medium", "high"] } },
+    evidence: { tier: "curated", dated: "2026-09-30", cite: "https://ai.google.dev/gemini-api/docs/thinking: supported thinking levels by model" },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-3-pro-preview$" },
+    generation: { reasoning: { effortLevels: ["low", "high"] } },
+    evidence: { tier: "curated", dated: "2026-09-30", cite: "https://ai.google.dev/gemini-api/docs/thinking: Gemini 3 Pro supports low and high thinking" },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-2[-.]5-flash-image(-preview)?$" },
+    generation: { reasoning: { mode: "none", enabled: false, replay: "none" } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "https://ai.google.dev/gemini-api/docs/image-generation: thinking applies to Gemini 3 image models",
+    },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-3[-.]1-flash(-lite)?-image(-preview)?$" },
+    generation: { reasoning: { mode: "effort", enabled: true, mandatory: true, effortLevels: ["minimal", "high"] } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "https://ai.google.dev/gemini-api/docs/image-generation: Gemini 3.1 image thinking supports minimal and high and cannot be disabled",
+    },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-3-pro-image(-preview)?$" },
+    generation: { reasoning: { mandatory: true } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "https://ai.google.dev/gemini-api/docs/image-generation: Gemini 3 image thinking cannot be disabled; SDK keeps Pro image on the budget mapping",
+    },
+  },
+  {
+    match: { model: "^(models/)?gemini-3-flash-preview$", wire: "google-generative-ai" },
+    generation: { turns: { assistantPrefill: true } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "Measured native generateContent accepted final model prefix 'The secret word is' and returned only ' ORBIT.' under an exact-response prompt",
+    },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-embedding-2(-preview)?$", wire: "openai-compat" },
+    embedding: { input: ["text"] },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "The compatibility embedding transport sends scalar input strings; its imageEmbed method uses the vLLM messages dialect. Native Google carries per-value multimodal content. Advertised or declared route evidence may refine the compatibility input set.",
+    },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-2[-.]5-flash$", wire: "google-generative-ai" },
+    generation: { reasoning: { budgetRange: { min: 1, max: 24_576 } } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "https://ai.google.dev/gemini-api/docs/generate-content/thinking: model-specific positive thinking budget; zero is the explicit-off sentinel",
+    },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-2[-.]5-flash-lite$", wire: "google-generative-ai" },
+    generation: { reasoning: { budgetRange: { min: 512, max: 24_576 } } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "https://ai.google.dev/gemini-api/docs/generate-content/thinking: model-specific positive thinking budget; zero is the explicit-off sentinel",
+    },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-2[-.]5-pro$", wire: "google-generative-ai" },
+    generation: { reasoning: { budgetRange: { min: 128, max: 32_768 } } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "https://ai.google.dev/gemini-api/docs/generate-content/thinking: model-specific positive thinking budget; zero is the explicit-off sentinel",
     },
   },
 ] as const satisfies readonly CapabilityOverrideInput[];

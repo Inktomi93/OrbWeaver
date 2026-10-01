@@ -5,6 +5,7 @@ import { WIRE_DEFS, WIRES } from "@orb/contracts/inference";
 import type { AgentSdkBackend } from "../backends/agent-sdk/index.ts";
 import { createAgentSdkBackend } from "../backends/agent-sdk/index.ts";
 import { createAnthropicBackend } from "../backends/anthropic-messages/index.ts";
+import { createGoogleBackend } from "../backends/google/index.ts";
 import type { LocalLightBackend } from "../backends/local-light/index.ts";
 import { createLocalLightBackend } from "../backends/local-light/index.ts";
 import type { OpenAiCompatBackend } from "../backends/openai-compat/index.ts";
@@ -42,6 +43,7 @@ class RefreshingBackendRegistry extends Map<Wire, ProviderBackend> {
  *  directory index, so there is no `registry` subpath at all: that is what seals wire→backend dispatch
  *  inside this package at RESOLVE time (a server import fails `tsc` TS2307 and dependency-cruiser both). */
 export const BACKEND_DEFS: Record<Wire, BackendDef> = {
+  "google-generative-ai": { serves: WIRE_DEFS["google-generative-ai"].serves, needs: ALWAYS },
   "openai-compat": { serves: WIRE_DEFS["openai-compat"].serves, needs: ALWAYS },
   "anthropic-messages": { serves: WIRE_DEFS["anthropic-messages"].serves, needs: ALWAYS },
   "agent-sdk": {
@@ -106,6 +108,7 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
   const built: [Wire, ProviderBackend | undefined][] = [
     ["openai-compat", openAiCompat.backend],
     ["anthropic-messages", anthropic],
+    ["google-generative-ai", createGoogleBackend({ ...shared, embedSpaceDims: deps.embedSpace.dims })],
     ["agent-sdk", agentSdk?.backend],
     ["local-light", localLight.backend],
   ];

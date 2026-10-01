@@ -58,6 +58,7 @@ test("a failed submit is one sentence: with a saved key it names the row (or say
 
 test("the typed-id example is in each provider's own spelling", () => {
   expect(BUILTIN_PROVIDERS.map((provider) => [provider.id, modelIdExample(provider)])).toEqual([
+    ["google", "e.g. gemini-3-flash-preview"],
     ["openrouter", "e.g. anthropic/claude-opus-5"],
     ["anthropic", "e.g. claude-opus-5"],
     ["claude-sub", "e.g. opus"],

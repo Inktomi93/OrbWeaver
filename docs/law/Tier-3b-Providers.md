@@ -23,7 +23,7 @@ The closed backend-key tuple, the deriveRunner (api, source) matrix, the provide
 | **kind** | what the model IS (`generation` · `embedding` · `rerank`) | closed tuple | `packages/contracts/src/inference/kinds.ts` |
 | **modality** | `text` · `image` · `video` · `audio` · `file` · `vector` | closed tuple | `packages/contracts/src/inference/modalities.ts` |
 
-**The tuples are the truth, not this prose.** Wires today: `openai-compat` · `anthropic-messages` · `agent-sdk` · `local-light`. Tasks today: `chat` · `agent` · `summarize` · `structured` · `generateImage` · `embed` · `imageEmbed` · `rerank`. Read the tuple, never a list in a doc.
+**The tuples are the truth, not this prose.** Read `WIRES` for the sealed backends. Tasks today: `chat` · `agent` · `summarize` · `structured` · `generateImage` · `embed` · `imageEmbed` · `rerank`. Read the tuple, never a list in a doc.
 
 **`vllm` is a PROVIDER ROW, not a module** (D7): an `auth: endpoint` row on the `openai-compat` wire whose `features` carry the prefill/sleep/rerank knobs. The only surviving runtime slice is `packages/inference/src/backends/openai-compat/reachability.ts`, keyed on the folded `features.sleep` and never on a provider id. LM Studio, Ollama and the BYO row are the same shape — a server's quirks are `features`, never a code path (`packages/contracts/src/inference/features.ts`).
 
@@ -87,7 +87,7 @@ packages/inference/src/
 │                     mirror.ts (the snapshot + TTL mirror)
 ├── funnel/           resolve-chat.ts · resolve-embed.ts — (intent × capability) → wire knobs
 ├── roles/            executor.ts · role-clients.ts · diagnostics.ts
-└── backends/         openai-compat/ · anthropic-messages/ · agent-sdk/ (+ session/) · local-light/ ·
+└── backends/         openai-compat/ · anthropic-messages/ · google/ · agent-sdk/ (+ session/) · local-light/ ·
                       v4/ (the Vercel-AI-SDK v4 seam) · kit/ (the shared pure wire helpers)
 ```
 
@@ -115,6 +115,16 @@ The caller that owns a workload supplies `funderUserId`. Chat turns derive it fr
 ## 8. Capability synthesis
 
 ONE fold in `EVIDENCE_TIERS` order — `declared → measured → advertised → curated → family-floor → kind-floor` (`packages/contracts/src/inference/evidence.ts`, folded by `packages/inference/src/capability/synthesize.ts`). Each tier is a PARTIAL that overrides only the fields it states; `family-floor` ORs in and never subtracts; `sampling` REPLACES because it is the stated SET a tier vouches for and a patch grammar cannot express a measured absence. `declared` wins over a dated measurement with a `declared_overrides_measured` warning naming the field — the user's box is the truth about the user's box.
+
+### Native Google
+
+The `google` provider uses `google-generative-ai` through the low-level V4 models from `@ai-sdk/google` (D279). Shared callers, prompt planning, stream reduction and task dispatch remain the runtime boundary. Native model discovery contributes method-derived kinds and advertised limits through the endpoint catalog mirror. `curated/google.ts` owns shared Gemini model facts; route-specific rows describe transport differences.
+
+Native tool signatures remain separate from optional reasoning carry. Signed reasoning uses the existing host-only reasoning parts. Signed text and generated-image provenance use `contentSignatures` in variant metadata. History reads only selected variants and matches exact text or content-addressed asset ids before attaching signatures. Member-to-host forks remove this metadata. Public message views carry no signatures.
+
+The native converter sends leading system instructions separately and preserves model-turn order. Shared model rows declare role floors and reasoning modes. Assistant prefill is enabled only where the curated route row records support. Native catalog thinking and sampler facts refine curated evidence; declared capability remains authoritative.
+
+Google embeddings request the space width with `outputDimensionality`, preserve empty slots and normalize returned vectors. Embedding 1 uses native retrieval task types. Embedding 2 uses the shared retrieval text scaffold, with unprefixed multimodal pairs. The model and width remain the embedding-space identity.
 
 ## 9. The embedding-space invariant (lives ABOVE the package; constrains the embed surfaces)
 
