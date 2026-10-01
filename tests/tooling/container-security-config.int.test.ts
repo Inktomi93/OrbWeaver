@@ -40,6 +40,12 @@ test("the runtime assembler invokes the checked version-stamp entry without pnpm
   expect(assembler).not.toContain("node --input-type=module -e");
 });
 
+test("the runtime installs system certificate authorities for the pinned relay's verified TLS", ({ repoRoot }) => {
+  const dockerfile = read(repoRoot, "Dockerfile");
+  const runtime = dockerfile.split(/^FROM .* AS runtime$/mu)[1];
+  expect(runtime).toMatch(/apt-get install[^\n]*\bca-certificates\b/u);
+});
+
 test("compose publishes on loopback by default, ships a credentialed login mode, and keeps secrets out of the tracked env file", ({ repoRoot }) => {
   const compose = read(repoRoot, "docker-compose.yaml");
   const env = read(repoRoot, "docker/orbweaver.env");
