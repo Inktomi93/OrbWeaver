@@ -11,6 +11,7 @@
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Project } from "ts-morph";
 import { DEVTOOLS_CLOSURE_PIN, DEVTOOLS_CLOSURE_ROOT } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
 import { gate as devtoolsFrontendAssets } from "../../../../tooling/src/verify/gates/devtools-frontend-assets.ts";
@@ -18,7 +19,7 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const REPO_ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
+const REPO_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const CLOSURE_ROOT = join(REPO_ROOT, DEVTOOLS_CLOSURE_ROOT);
 
 /** The live closure's member count, DERIVED rather than pinned as a literal: the vendored root is
@@ -87,7 +88,7 @@ test("the closure root the policy reads is the one the repository actually ships
   const members = new Set(
     readdirSync(CLOSURE_ROOT, { withFileTypes: true, recursive: true })
       .filter((entry) => entry.isFile())
-      .map((entry) => relative(CLOSURE_ROOT, join(entry.parentPath, entry.name))),
+      .map((entry) => relative(CLOSURE_ROOT, join(entry.parentPath, entry.name)).replaceAll("\\", "/")),
   );
 
   expect(members).toContain("pin.json");

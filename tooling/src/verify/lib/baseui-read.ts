@@ -93,7 +93,7 @@ export function resetBaseUiSurfaceCache(): void {
  *  changed"). */
 export function installedPackageRootOf(declarationPaths: readonly string[]): string | undefined {
   const anchor = `/${INSTALLED_PACKAGE_DEFINITIONS["base-ui"].specifier}/`;
-  const inside = declarationPaths.find((path) => path.includes(anchor));
+  const inside = declarationPaths.map((path) => path.replaceAll("\\", "/")).find((path) => path.includes(anchor));
   return inside === undefined ? undefined : inside.slice(0, inside.lastIndexOf(anchor) + anchor.length - 1);
 }
 
@@ -129,7 +129,7 @@ function declaredSurfaceProject(pkgDir: string, declarationPaths: readonly strin
   }
   const project = new Project({ skipAddingFilesFromTsConfig: true, skipFileDependencyResolution: true });
   for (const path of nestedDeclarations(pkgDir, declarationPaths)) {
-    project.addSourceFileAtPath(path);
+    project.addSourceFileAtPath(path.replaceAll("\\", "/"));
   }
   projectByDeclarationSet.set(declarationPaths, project);
   return project;
@@ -182,7 +182,7 @@ export function readInstalledSurface(root: string): InstalledSurface | undefined
   if (hit !== undefined) {
     return hit;
   }
-  const pkgDir = join(root, BASE_UI_PKG_REL);
+  const pkgDir = join(root, BASE_UI_PKG_REL).replaceAll("\\", "/");
   if (!existsSync(join(pkgDir, "package.json"))) {
     return;
   }

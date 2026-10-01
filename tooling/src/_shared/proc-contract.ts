@@ -182,7 +182,7 @@ export interface TranscriptTeardown {
 }
 
 export interface TranscriptResult {
-  /** null = killed by signal — ALWAYS a tool error, never a verdict. */
+  /** null = spawn failure, signal kill or timeout — ALWAYS a tool error, even if a terminated child reports a numeric exit. */
   readonly code: number | null;
   /** stdout+stderr as ONE transcript in ARRIVAL order — so the TAIL of the transcript is the tail of the
    *  RUN. Whole-stream CONCATENATION (`stdout + stderr`) put the tail of STDERR last, which for a compound

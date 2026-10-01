@@ -1,6 +1,6 @@
 // Deterministic complete TypeScript leaf configs, derived from authored world/test/ambient intent.
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { join, posix } from "node:path";
 import type { PluginAuthorWorld } from "@orb/plugin-toolchain";
 import { PLUGIN_AUTHOR_WORLDS } from "@orb/plugin-toolchain";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
@@ -79,8 +79,8 @@ function baseLibraries(root: string): readonly string[] {
 }
 
 function relativeAmbientRoots(configPath: string, ambients: readonly string[]): readonly string[] {
-  const configDir = join("/", dirname(configPath));
-  return ambients.map((ambient) => relative(configDir, join("/", ambient)) || ".");
+  const configDir = posix.join("/", posix.dirname(configPath));
+  return ambients.map((ambient) => posix.relative(configDir, posix.join("/", ambient)) || ".");
 }
 
 function packageConfig(packageName: string, world: Parameters<typeof worldTemplateFor>[0]): JsonObject {

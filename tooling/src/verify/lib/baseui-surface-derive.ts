@@ -33,8 +33,11 @@ const NON_COMPONENT_DIRS = new Set(["docs", "internals", "types", "utils", "floa
 /** The door's paths, fenced to the fs glob's own set: every declaration at least one directory below the
  *  package root. See the header — this is what makes the two acquisitions admit the identical set. */
 export function nestedDeclarations(pkgDir: string, declarationPaths: readonly string[]): readonly string[] {
-  const prefix = `${pkgDir}/`;
-  return declarationPaths.filter((path) => path.startsWith(prefix) && path.slice(prefix.length).includes("/"));
+  const prefix = `${pkgDir.replaceAll("\\", "/")}/`;
+  return declarationPaths.filter((path) => {
+    const normalized = path.replaceAll("\\", "/");
+    return normalized.startsWith(prefix) && normalized.slice(prefix.length).includes("/");
+  });
 }
 
 function sortKeys<T>(obj: Record<string, T>): Record<string, T> {
@@ -96,7 +99,7 @@ function publishedName(project: Project, pkgDir: string, dir: string): string | 
  *  for the entry; the entry test is what actually decided, so reading the loaded project's own paths admits
  *  the identical set with no second filesystem question. */
 function componentDirs(project: Project, pkgDir: string): string[] {
-  const prefix = `${pkgDir}/`;
+  const prefix = `${pkgDir.replaceAll("\\", "/")}/`;
   const dirs = new Set<string>();
   for (const sf of project.getSourceFiles()) {
     const path = sf.getFilePath();
