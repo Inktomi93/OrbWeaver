@@ -3,6 +3,7 @@
 
 import {
   inspectReferenceWrites,
+  readMemberAccess,
   readMemberReference,
   readStaticNumber,
   readStaticString,
@@ -496,4 +497,15 @@ test("exported declarations refuse an absent export instead of publishing an emp
   expect(resolveExportedDeclarations(sf, "privateValue")).toMatchObject({ kind: "unresolved", reason: "missing" });
   expect(resolveExportedDeclarations(sf, "absent")).toMatchObject({ kind: "unresolved", reason: "missing" });
   expect(expectResolved(resolveExportedDeclarations(sf, "publicValue")).value).toHaveLength(1);
+});
+
+test("member syntax admits writes while the value-read door still refuses them", () => {
+  const sf = sourceOf('const KEY = "computed"; obj.foo = 1; obj[KEY]++; delete obj.bar;');
+  const accesses = sf.getDescendants().filter((node) => node.isKind(SyntaxKind.PropertyAccessExpression) || node.isKind(SyntaxKind.ElementAccessExpression));
+  expect(accesses.map((access) => readMemberAccess(access))).toEqual([
+    expect.objectContaining({ kind: "resolved", value: expect.objectContaining({ name: "foo" }) }),
+    expect.objectContaining({ kind: "resolved", value: expect.objectContaining({ name: "computed" }) }),
+    expect.objectContaining({ kind: "resolved", value: expect.objectContaining({ name: "bar" }) }),
+  ]);
+  expect(accesses.map((access) => readMemberReference(access))).toEqual(accesses.map(() => expect.objectContaining({ kind: "unresolved", reason: "write" })));
 });

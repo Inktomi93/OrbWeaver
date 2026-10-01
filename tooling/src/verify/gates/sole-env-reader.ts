@@ -1,6 +1,6 @@
 // Policy: sole-env-reader (Tier-2-Foundation.md invariant #1) — `foundation/env` is the ONE place that
 // touches `process.env`; every other tier imports the frozen `env` object. Biome's `noProcessEnv` catches the
-// dotted spelling; this policy is the AST backstop that also catches `process["env"]`, reads only real access
+// dotted spelling; this policy is the AST backstop that also catches `process["env"]`, visits real read/write access
 // nodes (a comment naming process.env is not a read), and — since the conversion — resolves the RECEIVER's
 // identity rather than its text.
 //
@@ -75,10 +75,11 @@ import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import {
   inspectBindingReassignment,
-  readMemberReference,
+  readMemberAccess,
   referenceResolutionServices,
   resolveGlobalMemberOrigin,
   resolveModuleMemberOrigin,
+  resolveStableExpression,
 } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
@@ -92,7 +93,7 @@ const OPERATION = "process-env-read";
 const PROCESS_DOORS: readonly string[] = ["node:process", "process"];
 
 const MESSAGE =
-  "reads process.env outside foundation/env — env is the SOLE reader: import the frozen `env` and " +
+  "touches process.env outside foundation/env — env is the SOLE reader: import the frozen `env` and " +
   "dot-access a typed key (docs/law/Tier-2-Foundation.md inv #1).";
 const FIX = "import the frozen `env` from foundation/env and dot-access a typed key; foundation/env is the ONE place that touches process.env.";
 
@@ -117,7 +118,7 @@ function readsProcessEnv(node: MorphNode): boolean {
     const path = module.value.memberPath;
     return PROCESS_DOORS.includes(originModuleSpecifier(module.value)) && path.length === 1 && path[0] === ENV_MEMBER;
   }
-  const read = readMemberReference(node);
+  const read = readMemberAccess(node);
   const receiver = read.kind === "resolved" ? referenceResolutionServices.unwrapExpression(read.value.receiver) : node;
   const initializer = module.reason === "write" ? memberWrittenConstInitializer(receiver) : undefined;
   if (initializer !== undefined) {
@@ -160,7 +161,15 @@ function isProcess(node: MorphNode): boolean {
   if (module.kind === "resolved") {
     return PROCESS_DOORS.includes(originModuleSpecifier(module.value)) && module.value.memberPath.length === 0;
   }
-  return classifyOriginRefusal(module.reason, node) === "unreadable";
+  const stable = resolveStableExpression(node);
+  if (stable.kind === "resolved") {
+    return false;
+  }
+  if (stable.reason === "cycle") {
+    return true;
+  }
+  const initializer = module.reason === "write" ? memberWrittenConstInitializer(node) : undefined;
+  return initializer === undefined ? classifyOriginRefusal(module.reason, node) === "unreadable" : isProcess(initializer);
 }
 
 /** Is this identifier the NAME of a destructuring binding element whose property is `env` — the one spelling
@@ -169,7 +178,7 @@ function namesEnvBag(node: MorphNode): boolean {
   if (Node.isIdentifier(node)) {
     return destructuresEnv(node);
   }
-  const member = readMemberReference(node);
+  const member = readMemberAccess(node);
   return member.kind === "resolved" && member.value.name === ENV_MEMBER;
 }
 
@@ -197,7 +206,7 @@ function readKey(node: MorphNode): string | undefined {
   if (parent.getExpression() !== node) {
     return;
   }
-  const member = readMemberReference(parent);
+  const member = readMemberAccess(parent);
   return member.kind === "resolved" ? member.value.name : undefined;
 }
 
@@ -254,6 +263,30 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: { "packages/server/src/domain/hub/cyclic-write.ts": "const left = right;\nconst right = left;\nleft.env.X = 1;\n" },
+      expect: { count: 1, messageIncludes: "process-env-read:X" },
+      why: "An unreadable written alias cycle reports once rather than recursing through initializers.",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/hub/module-write.ts":
+          'import process from "node:process";\nprocess["env"]["X"] = "1";\nprocess.env.Y++;\ndelete process.env.Z;\n',
+      },
+      expect: { count: 3, messageIncludes: "process-env-read:X" },
+      why: "Computed assignment, update and deletion touch the module environment bag with independent key identities.",
+    },
+    {
+      mode: "types",
+      files: {
+        ...nodeTypesProof(),
+        "packages/server/src/domain/hub/write.ts": "process.env.X = 1;\n",
+      },
+      expect: { count: 1, messageIncludes: "process-env-read:X" },
+      why: "An assignment reaches the real ambient environment bag even when the member-read primitive refuses write targets.",
+    },
     {
       mode: "types",
       files: { "packages/server/src/domain/hub/x.ts": "export const x = process.env.SOME_VAR;\n" },
@@ -347,13 +380,13 @@ export const gate = defineGate({
         "packages/server/src/domain/hub/alias-written.ts":
           'import process from "node:process";\nconst proc = process;\nproc.env.SEEDED = "1";\nexport const x = proc.env.SOME_VAR;\n',
       },
-      expect: { count: 1, messageIncludes: "process-env-read:SOME_VAR" },
+      expect: { count: 2, messageIncludes: "process-env-read:SOME_VAR" },
       why: "THE MEMBER-WRITE ACQUITTAL FOLLOWS THE ALIAS: a `const` alias of the real `process` whose bag is written is judged by its initializer, which IS `process`, so the read still reports. Acquitting every written `const` receiver would pass this",
     },
     {
       mode: "types",
       files: { "packages/server/src/domain/hub/alias-undeclared.ts": 'const proc = process;\nproc.env.SEEDED = "1";\nexport const x = proc.env.SOME_VAR;\n' },
-      expect: { count: 1, messageIncludes: "process-env-read:SOME_VAR" },
+      expect: { count: 2, messageIncludes: "process-env-read:SOME_VAR" },
       why: "the same written alias over an UNDECLARED `process`: the initializer resolves through neither door, so it takes the fail-closed refusal and reports",
     },
     {
@@ -367,6 +400,22 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/hub/local-alias-write.ts":
+          "const process = { env: { X: 0 } };\nconst proc = process;\nproc.env.X = 1;\nexport const value = proc.env.X;\n",
+      },
+      why: "A member-written const alias retains its local initializer identity instead of failing closed as the runtime process.",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/hub/local-write.ts":
+          'const process = { env: { X: 0 } };\nprocess.env.X = 1;\nprocess["env"]["X"]++;\ndelete process.env.X;\n',
+      },
+      why: "Writing a local process lookalike cannot turn its environment field into the runtime environment.",
+    },
     {
       mode: "types",
       files: { "packages/server/src/domain/hub/z.ts": "// process.env is only read in foundation/env (inv #1)\nexport const x = 1;\n" },

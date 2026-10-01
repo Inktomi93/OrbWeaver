@@ -2,10 +2,11 @@
 // Backticked repo-path and strict UPPER_SNAKE mentions in the derived living-doc corpus must resolve.
 // The former ARM3_ALLOW/ARM4_ALLOW tables were permissions, not classifications: every row is now an
 // exact central reviewed grant, and central reconciliation owns zero-use staleness. The hard sibling
-// retains descriptor/link integrity, derived-corpus blindness, and the three-sided generated-path
-// classification. Both siblings read the same corpus and citation predicates from lib/.
+// retains descriptor/link integrity and derived-corpus blindness. This policy classifies absent ignored
+// build paths through authored-path metadata; existing build descendants still require existence. Both siblings read the same corpus and citation predicates from lib/.
 import type { GatePolicyContext, GatePolicyProof } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
+import type { AuthoredPathIndex } from "../contract/resource-path.ts";
 import type { PathStatusIndex } from "../lib/dangling-ref-citations.ts";
 import {
   collectDeclarationName,
@@ -30,10 +31,9 @@ const UNREADABLE = "a living-doc citation could not be resolved to a grant ident
 const FIX =
   "repoint the cite to the live path or declaration, strike/rider deliberate history, or add an exact reviewed grant with a cited reason and end condition.";
 
-function statusIndex(ctx: GatePolicyContext, selectors: readonly string[]): PathStatusIndex {
+function citationIdentities(ctx: GatePolicyContext, selectors: readonly string[]): AuthoredPathIndex {
   const demanded = [...new Set(selectors)];
-  const identities = readyResourceValue(ctx.resources.authoredPaths(demanded.length > 0 ? demanded : [ANCHOR_PATH])).identities;
-  return new Map(identities.map((identity) => [identity.selector, identity.status]));
+  return readyResourceValue(ctx.resources.authoredPaths(demanded.length > 0 ? demanded : [ANCHOR_PATH]));
 }
 
 function reportCitations(ctx: GatePolicyContext, declaredNames: ReadonlySet<string>): void {
@@ -45,13 +45,17 @@ function reportCitations(ctx: GatePolicyContext, declaredNames: ReadonlySet<stri
   const texts = danglingRefTextIndex(documentFacts, outsideText);
   const docs = danglingRefCorpora(documentFacts.documents, outsidePaths);
   const pathScan = scanPathCitations(texts, docs.audit);
-  const paths = statusIndex(
+  const { identities } = citationIdentities(
     ctx,
     pathScan.cites.flatMap(({ ref }) => shorthandCandidates(ref)),
   );
+  const paths: PathStatusIndex = new Map(identities.map((identity) => [identity.selector, identity.status]));
+  const ignoredBuildOutputs = new Set(
+    identities.filter((identity) => identity.status === "absent" && identity.ignoredBuildOutput === true).map((identity) => identity.selector),
+  );
   const entries = [...packageEntries, ...toolingEntries];
   const pathCandidates: ReviewedGrantFileCandidate[] = pathScan.cites
-    .filter(({ ref }) => !shorthandExists(paths, entries, ref))
+    .filter(({ ref }) => !(ignoredBuildOutputs.has(ref) || shorthandExists(paths, entries, ref)))
     .map(({ file, line, ref }) => ({ file, line, note: ref, subject: ref, operation: DANGLING_PATH_OPERATION }));
   const symbolCandidates: ReviewedGrantFileCandidate[] = scanSymbolCitations(texts, docs.symbols, declaredNames).map(({ file, line, ref }) => ({
     file,
@@ -124,6 +128,16 @@ export const gate = defineGate({
   },
   mustFlag: [
     {
+      mode: "resource",
+      files: {
+        ...PROOF_FILES,
+        "docs/law/__generated_typo.md": "---\nkind: law\nstatus: active\n---\n\nSee `packages/showcase-plugins/dist/bundlez/`.\n",
+        "packages/showcase-plugins/dist/bundles/live.js": "export const live = 1;\n",
+      },
+      expect: { count: 1, messageIncludes: "dist/bundlez" },
+      why: "A missing descendant under an existing ignored build directory is a typo, not an absent build.",
+    },
+    {
       mode: "resource" as const,
       files: {
         ...PROOF_FILES,
@@ -175,6 +189,13 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    proof(
+      {
+        "docs/law/__generated.md": "---\nkind: law\nstatus: active\n---\n\nSee `packages/showcase-plugins/dist/bundles/`.\n",
+        "packages/showcase-plugins/package.json": "{}\n",
+      },
+      "A fresh checkout has no ignored build directory; its generated citation is classified without a grant.",
+    ),
     proof(
       {
         "docs/law/__probe3.md": "---\nkind: law\n---\n\nSee `domain/__g_ok/x.ts` and `@orb/kit/__g_ok`.\n",

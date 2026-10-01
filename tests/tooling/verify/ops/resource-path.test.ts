@@ -5,8 +5,11 @@
 //
 // Every arm below plants a REAL filesystem object and reads a REAL verdict; there is no in-memory stand-in
 // for a symlink, which is exactly why the door exists at this layer rather than in a pure reader.
+
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { vi } from "vitest";
 import type { AuthoredPathIdentity } from "../../../../tooling/src/verify/contract/resource-path.ts";
 import { loadAuthoredPaths } from "../../../../tooling/src/verify/ops/resource-path.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -116,4 +119,44 @@ test("the door owns no population: a ready fact publishes zero resource paths", 
   // the opposite of the verdict the policy asked for.
   expect(load.paths).toEqual([]);
   expect(load.members).toBe(2);
+});
+
+test("ignored build classification preserves absence and rejects missing descendants of existing output", ({ scratch }) => {
+  execFixtureGit(scratch, ["init", "-q"]);
+  plantFile(scratch, ".gitignore", "dist/\n");
+  plantFile(scratch, "packages/showcase-plugins/package.json", "{}\n");
+  const selector = "packages/showcase-plugins/dist/bundles/";
+  expect(identify(scratch, [selector])).toEqual([
+    { selector, form: "repo-relative", status: "absent", path: "packages/showcase-plugins/dist/bundles", ignoredBuildOutput: true },
+  ]);
+  plantFile(scratch, "packages/showcase-plugins/dist/bundles/live.js");
+  expect(identify(scratch, [selector])[0]?.status).toBe("directory");
+  const typo = "packages/showcase-plugins/dist/bundlez/";
+  expect(identify(scratch, [typo])).toEqual([{ selector: typo, form: "repo-relative", status: "absent", path: "packages/showcase-plugins/dist/bundlez" }]);
+});
+
+test("ignored-output metadata does not acquit a missing path behind an external symlink", ({ scratch }) => {
+  const root = join(scratch, "repo");
+  plantFile(root, ".gitignore", "dist/\n");
+  mkdirSync(join(scratch, "external"), { recursive: true });
+  symlinkSync(join(scratch, "external"), join(root, "linked"));
+  execFixtureGit(root, ["init", "-q"]);
+  const selector = "linked/dist/bundles";
+  expect(identify(root, [selector])).toEqual([{ selector, form: "repo-relative", status: "absent", path: selector }]);
+});
+
+test("a resource load shares prefix answers and the next load sees ignore edits", async ({ scratch }) => {
+  execFixtureGit(scratch, ["init", "-q"]);
+  plantFile(scratch, ".gitignore", "dist/\n");
+  plantFile(scratch, "packages/showcase-plugins/package.json", "{}\n");
+  const selectors = ["packages/showcase-plugins/dist/a.js", "packages/showcase-plugins/dist/b.js"];
+  const spy = vi.spyOn(await import("../../../../tooling/src/_shared/git.ts"), "runGit");
+  try {
+    expect(identify(scratch, selectors).every((identity) => identity.status === "absent" && identity.ignoredBuildOutput === true)).toBe(true);
+    expect(spy).toHaveBeenCalledTimes(2);
+    plantFile(scratch, ".gitignore", "out/\n");
+    expect(identify(scratch, selectors).every((identity) => identity.status === "absent" && identity.ignoredBuildOutput === undefined)).toBe(true);
+  } finally {
+    spy.mockRestore();
+  }
 });

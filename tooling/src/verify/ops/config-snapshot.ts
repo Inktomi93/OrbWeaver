@@ -173,10 +173,26 @@ async function loadAuthoredDepcruiseConfig(root: string, config: string): Promis
   return loaded.default;
 }
 
+function depcruiseArrayOwner(owner: string, index: number, entry: unknown, names: Set<string>): string {
+  const positional = `${owner}[${String(index)}]`;
+  if (owner !== "config.forbidden") {
+    return positional;
+  }
+  if (typeof entry !== "object" || entry === null || !("name" in entry) || typeof entry.name !== "string" || entry.name === "") {
+    throw new Error(`${positional} has no rule name`);
+  }
+  if (names.has(entry.name)) {
+    throw new Error(`${owner} has duplicate rule name ${entry.name}`);
+  }
+  names.add(entry.name);
+  return `${owner}:${entry.name}`;
+}
+
 function collectDepcruiseSelectors(value: unknown, owner: string, selectors: DepcruiseSelectorSnapshot[]): void {
   if (Array.isArray(value)) {
+    const names = new Set<string>();
     for (const [index, entry] of value.entries()) {
-      collectDepcruiseSelectors(entry, `${owner}[${String(index)}]`, selectors);
+      collectDepcruiseSelectors(entry, depcruiseArrayOwner(owner, index, entry, names), selectors);
     }
     return;
   }

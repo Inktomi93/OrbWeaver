@@ -82,9 +82,9 @@ module.exports = { forbidden: [{ name: "derived", from: { path: [...paths, exact
 
   expect(snapshot).toMatchObject({ runner: "depcruise", effectiveRules: 1 });
   expect(snapshot.selectors).toEqual([
-    { owner: "config.forbidden[0].from", field: "path", position: 0, value: "^packages/kit/src/" },
-    { owner: "config.forbidden[0].from", field: "path", position: 1, value: String.raw`^packages/ui/src/live\.ts$` },
-    { owner: "config.forbidden[0].to", field: "pathNot", position: 0, value: String.raw`^packages/ui/src/grant\.ts$` },
+    { owner: "config.forbidden:derived.from", field: "path", position: 0, value: "^packages/kit/src/" },
+    { owner: "config.forbidden:derived.from", field: "path", position: 1, value: String.raw`^packages/ui/src/live\.ts$` },
+    { owner: "config.forbidden:derived.to", field: "pathNot", position: 0, value: String.raw`^packages/ui/src/grant\.ts$` },
   ]);
 });
 
@@ -103,7 +103,7 @@ test("loads the effective dependency-cruiser chain but snapshots only repository
   const snapshot = await snapshotDepcruiseConfig(scratch, DEPCRUISE_CONFIG_REL);
 
   expect(snapshot.effectiveRules).toBe(2);
-  expect(snapshot.selectors).toEqual([{ owner: "config.forbidden[0].from", field: "path", position: 0, value: "^packages/kit/src/" }]);
+  expect(snapshot.selectors).toEqual([{ owner: "config.forbidden:root.from", field: "path", position: 0, value: "^packages/kit/src/" }]);
 });
 
 test("dependency-cruiser evaluates required helper bytes from the overlay transaction", ({ scratch }) => {
@@ -119,7 +119,7 @@ test("dependency-cruiser evaluates required helper bytes from the overlay transa
   });
 
   expect(read.kind === "ok" ? read.snapshot.selectors : []).toContainEqual({
-    owner: "config.forbidden[0].from",
+    owner: "config.forbidden:overlay.from",
     field: "path",
     position: 0,
     value: "^overlay/",
@@ -552,4 +552,14 @@ test("keeps local-ignore counterfactuals from widening universal selectors or un
   expect(live?.rules?.quotes).toBeDefined();
   expect(testFile?.rules?.semi).toBeUndefined();
   expect(testFile?.rules?.quotes).toBeUndefined();
+});
+
+test("dependency-cruiser rule identity refuses missing and duplicate names", async ({ plantedTree }) => {
+  for (const [rules, message] of [
+    ['{ from: { path: "^packages/kit/" }, to: {} }', "has no rule name"],
+    ['{ name: "same", from: { path: "^packages/kit/" }, to: {} }, { name: "same", from: { path: "^packages/ui/" }, to: {} }', "duplicate rule name"],
+  ] as const) {
+    const root = await plantedTree({ [DEPCRUISE_CONFIG_REL]: `module.exports = { forbidden: [${rules}] };\n` });
+    await expect(snapshotDepcruiseConfig(root, DEPCRUISE_CONFIG_REL)).rejects.toThrow(message);
+  }
 });

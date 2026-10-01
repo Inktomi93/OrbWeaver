@@ -45,7 +45,7 @@
 // resolving). §5 forbids a gate-owned exemption table, so the three rows are now exact
 // `(policy, subject, operation)` rows in `lib/reviewed-grants.ts` and this policy reports EVERY dead row. The
 // identity keeps both halves of each retired row, exactly as `eslint-grant-liveness` does one config over:
-//   · SUBJECT = the positional selector identity (`config.options.exclude.path[0]`) — the authored coordinate.
+//   · SUBJECT = the named-rule selector identity (`config.options.exclude.path[0]`) — the authored coordinate.
 //   · OPERATION = `depcruise-dead-exact:<JSON path>` or `depcruise-zero-member-pattern:<JSON pattern>`, so a
 //     grant binds the VALUE it reviewed and never whatever later occupies the same position.
 //   · STALE → central `stale-reviewed-grant` (zero consumption after a complete owner run). Stronger: a module
@@ -94,7 +94,7 @@ const PATTERN_MESSAGES: PatternLivenessMessages = {
     "pattern at the tier/package it means, delete the rule, or — if its members genuinely cannot be " +
     "enumerated from the tree — it is a REVIEWED GRANT: add a row to " +
     "tooling/src/verify/lib/reviewed-grants.ts keyed on this policy id, the finding's subject and its " +
-    "operation, with its `why` and its `endsWhen`. The finding TOKEN is the positional selector identity " +
+    "operation, with its `why` and its `endsWhen`. The finding TOKEN is the named-rule selector identity " +
     "(a regex source carries parentheses, which no @orb-waive position may name); the pattern itself is in " +
     "this message and in the grant operation.",
   // The two RATIFIED arms are unreachable by construction now (`ratified: {}`, `anchorOk: false`) and
@@ -134,7 +134,7 @@ interface NativeGrantRow {
 const OPERATION_EXACT = "depcruise-dead-exact:";
 const OPERATION_PATTERN = "depcruise-zero-member-pattern:";
 
-/** The positional identity — the finding token's home in the executable config. EXPORTED so the permanent
+/** The selector identity — the finding token's home in the executable config. EXPORTED so the permanent
  *  pin speaks the same identity language instead of re-deriving `owner.field[position]`. */
 export function selectorIdentity(row: Pick<DepcruiseSelectorSnapshot, "owner" | "field" | "position">): string {
   return `${row.owner}.${row.field}[${String(row.position)}]`;
@@ -273,7 +273,7 @@ function reportPatternRows(ctx: GatePolicyContext, input: PatternRowsInput): voi
     }
     const subject = selectorIdentity(row);
     const operation = `${OPERATION_PATTERN}${JSON.stringify(row.value)}`;
-    // THE TOKEN IS THE POSITIONAL IDENTITY, NOT THE PATTERN (#2176), and the runtime is what taught it: a
+    // THE TOKEN IS THE SELECTOR IDENTITY, NOT THE PATTERN (#2176), and the runtime is what taught it: a
     // dep-cruiser pattern is REGEX SOURCE, and a pattern carrying regex punctuation is spellable nowhere in
     // the ordinary-waiver position grammar, which makes the finding permanently unnameable. The dispatcher
     // REFUSES such a token and withholds the owner. MEASURED VERBATIM on the example that taught it — since
@@ -337,13 +337,13 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "resource",
-      grant: { subject: "config.forbidden[0].to.pathNot[0]", operation: 'depcruise-dead-exact:"packages/ui/src/gone.ts"' },
+      grant: { subject: "config.forbidden:r.to.pathNot[0]", operation: 'depcruise-dead-exact:"packages/ui/src/gone.ts"' },
       files: {
         ...PACKAGE_FIXTURE_FILES,
         [CONFIG_REL]: `module.exports = { forbidden: [{ name: "r", from: {}, to: { pathNot: "^packages/ui/src/gone\\.ts$" } }] };\n`,
       },
       expect: { count: 1, token: "packages/ui/src/gone.ts" },
-      why: "the founding shape — a file-exact `pathNot` EXEMPTION whose file is GONE (mode B: nothing visits it, so nothing examines the promise). The grant witness binds its exact (positional selector, authored path) pair, so a review can license this arm and nothing else",
+      why: "the founding shape — a file-exact `pathNot` EXEMPTION whose file is GONE (mode B: nothing visits it, so nothing examines the promise). The grant witness binds its exact (named-rule selector, authored path) pair, so a review can license this arm and nothing else",
     },
     {
       mode: "resource",
@@ -363,7 +363,7 @@ export const gate = defineGate({
         [CONFIG_REL]: dependencyPatternConfig("node_modules/echarts/"),
         "packages/kit/src/live.ts": "export const live = 1;\n",
       },
-      expect: { count: 1, token: "config.forbidden[0].from.path[0]", messageIncludes: 'operation: depcruise-zero-member-pattern:"node_modules/echarts/"' },
+      expect: { count: 1, token: "config.forbidden:r.from.path[0]", messageIncludes: 'operation: depcruise-zero-member-pattern:"node_modules/echarts/"' },
       why: "#973 — a DEPENDENCY pattern lives on the declared dependency set, not on repo paths; UNDECLARED, it is dead exactly like a repo-path pattern with no member",
     },
   ],
