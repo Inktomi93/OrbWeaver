@@ -386,7 +386,7 @@ export function getWorkspace(opts: WorkspaceOptions): Project {
     addGlobbedSourceFiles(project, opts.root, opts.globs ?? searchGlobs(opts.root));
     return project;
   }
-  const project = new Project({ skipAddingFilesFromTsConfig: true });
+  const project = new Project({ skipAddingFilesFromTsConfig: true, ...(opts.resolutionHost === undefined ? {} : { resolutionHost: opts.resolutionHost }) });
   addGlobbedSourceFiles(project, opts.root, opts.globs ?? harnessGlobs(opts.root));
   return project;
 }

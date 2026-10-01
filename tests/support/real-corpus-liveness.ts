@@ -2,8 +2,10 @@
 // Each policy sees exactly its own ordered overlays; identical interventions may share a pass.
 // Restoration failure poisons the runner so later results cannot describe a damaged corpus.
 import { existsSync, readFileSync } from "node:fs";
+import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import { createWorkspaceResolutionCache } from "@orb/tooling/_shared/ts-workspace-resolution";
 import type { GatePolicy } from "@orb/tooling/verify";
-import { projectCtx, resourceRequestIdentity, reviewedGrantsFor, runPolicyPass } from "@orb/tooling/verify";
+import { resourceRequestIdentity, reviewedGrantsFor, runPolicyPass } from "@orb/tooling/verify";
 import type { Project } from "ts-morph";
 import { expect } from "./fixtures.ts";
 
@@ -477,6 +479,7 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
   const policies = arms.map((arm) => arm.policy);
   const reviewedGrants = reviewedGrantsFor(policies);
   let corpus: Project | undefined;
+  const resolution = createWorkspaceResolutionCache();
   // Set when a batch could not put the corpus back: every later pass would then measure a tree that is not
   // the real one, and must refuse rather than report a verdict about it.
   let damagedBy: string | undefined;
@@ -484,7 +487,7 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
     if (damagedBy !== undefined) {
       throw new Error(`real-corpus liveness: the batch [${damagedBy}] failed to restore the shared corpus, so no later verdict describes the real tree`);
     }
-    corpus ??= projectCtx(repoRoot).project;
+    corpus ??= getWorkspace({ root: repoRoot, resolutionHost: resolution.host });
     return corpus;
   };
   const pass = (selected: readonly GatePolicy[], passResourceOptions?: LivenessResourceOptions): PassResult =>
@@ -498,8 +501,16 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
       ...(passResourceOptions === undefined ? {} : { resourceOptions: passResourceOptions }),
     });
 
+  const invalidateSemantics = (loaded: Project, originals: Originals): void => {
+    resolution.invalidate(originals.keys());
+    if (originals.size > 0) {
+      // Recreated source files can reuse script versions while the language service retains old reference results.
+      loaded.getLanguageService().compilerObject.cleanupSemanticCache();
+    }
+  };
   const restoreOrDamage = (loaded: Project, originals: Originals, batch: readonly RealCorpusLivenessArm[]): void => {
     try {
+      invalidateSemantics(loaded, originals);
       restoreOriginals(loaded, originals);
     } catch (error) {
       damagedBy = batch.map((arm) => arm.policy.id).join(", ");
@@ -521,6 +532,7 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
     let restorationMs: number;
     try {
       const overlayStarted = performance.now();
+      invalidateSemantics(loaded, originals);
       applyOverlays(loaded, repoRoot, first);
       const options = resourceOptions(repoRoot, [first]);
       overlayMs = performance.now() - overlayStarted;

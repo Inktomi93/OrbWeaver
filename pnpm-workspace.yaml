@@ -485,9 +485,11 @@ minimumReleaseAgeExclude:
 patchedDependencies:
   '@stryker-mutator/core@10.0.0': patches/@stryker-mutator__core@10.0.0.patch
   '@stryker-mutator/typescript-checker@10.0.0': patches/@stryker-mutator__typescript-checker@10.0.0.patch
+  '@ts-morph/common@0.29.0': patches/@ts-morph__common@0.29.0.patch
   chrome-devtools-mcp@1.8.0: patches/chrome-devtools-mcp@1.8.0.patch
   # #0081: clone packs are attacker-controlled. This exact-version patch bounds object count, declared and
   # actual inflation, aggregate work, delta depth, and pre-concat delta output. A dependency bump must port it.
   isomorphic-git@1.42.2: patches/isomorphic-git@1.42.2.patch
+  ts-morph@28.0.0: patches/ts-morph@28.0.0.patch
 
 nodeOptions: "--max-old-space-size=16384"

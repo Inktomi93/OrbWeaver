@@ -1,0 +1,32 @@
+diff --git a/dist/ts-morph-common.js b/dist/ts-morph-common.js
+index 5af00c34c0dd35cf9436f09040219463a487033e..c30c63c59bbfd46e6690811bfbc67b7af6a6b93c 100644
+--- a/dist/ts-morph-common.js
++++ b/dist/ts-morph-common.js
+@@ -1486,6 +1486,7 @@ function createHosts(options) {
+                 || transactionalFileSystem.directoryExistsSync(dirPath);
+         },
+         resolveModuleNames: resolutionHost.resolveModuleNames,
++        resolveModuleNameLiterals: resolutionHost.resolveModuleNameLiterals,
+         resolveTypeReferenceDirectives: resolutionHost.resolveTypeReferenceDirectives,
+         getResolvedModuleWithFailedLookupLocationsFromCache: resolutionHost.getResolvedModuleWithFailedLookupLocationsFromCache,
+         realpath: path => transactionalFileSystem.realpathSync(transactionalFileSystem.getStandardizedAbsolutePath(path)),
+@@ -1513,6 +1514,7 @@ function createHosts(options) {
+         getEnvironmentVariable: (name) => runtime.getEnvVar(name),
+         directoryExists: dirName => languageServiceHost.directoryExists(dirName),
+         resolveModuleNames: resolutionHost.resolveModuleNames,
++        resolveModuleNameLiterals: resolutionHost.resolveModuleNameLiterals,
+         resolveTypeReferenceDirectives: resolutionHost.resolveTypeReferenceDirectives,
+         realpath: languageServiceHost.realpath,
+     };
+diff --git a/lib/ts-morph-common.d.ts b/lib/ts-morph-common.d.ts
+index fc9c9023b451eb20b214794744abde1a928dee3c..d745ef8409462b2356f9136efd304f0a595dd117 100644
+--- a/lib/ts-morph-common.d.ts
++++ b/lib/ts-morph-common.d.ts
+@@ -258,6 +258,7 @@ export declare class DocumentRegistry implements ts.DocumentRegistry {
+ 
+ /** Host for implementing custom module and/or type reference directive resolution. */
+ export interface ResolutionHost {
++    resolveModuleNameLiterals?: ts.LanguageServiceHost["resolveModuleNameLiterals"];
+     resolveModuleNames?: ts.LanguageServiceHost["resolveModuleNames"];
+     getResolvedModuleWithFailedLookupLocationsFromCache?: ts.LanguageServiceHost["getResolvedModuleWithFailedLookupLocationsFromCache"];
+     resolveTypeReferenceDirectives?: ts.LanguageServiceHost["resolveTypeReferenceDirectives"];

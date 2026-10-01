@@ -1,0 +1,12 @@
+diff --git a/lib/ts-morph.d.ts b/lib/ts-morph.d.ts
+index db463d483ac69df3fe98cd2a2bb292848ff003b4..f471308f53fc9f72486c345a4776987d5c09a5c2 100644
+--- a/lib/ts-morph.d.ts
++++ b/lib/ts-morph.d.ts
+@@ -124,6 +124,7 @@ export declare class InMemoryFileSystemHost implements FileSystemHost {
+ 
+ /** Host for implementing custom module and/or type reference directive resolution. */
+ export interface ResolutionHost {
++  resolveModuleNameLiterals?: ts.LanguageServiceHost["resolveModuleNameLiterals"];
+   resolveModuleNames?: ts.LanguageServiceHost["resolveModuleNames"];
+   getResolvedModuleWithFailedLookupLocationsFromCache?: ts.LanguageServiceHost["getResolvedModuleWithFailedLookupLocationsFromCache"];
+   resolveTypeReferenceDirectives?: ts.LanguageServiceHost["resolveTypeReferenceDirectives"];
