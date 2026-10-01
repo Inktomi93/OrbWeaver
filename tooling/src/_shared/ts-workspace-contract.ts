@@ -1,4 +1,4 @@
-import type { FileSystemHost, Node, Project, SourceFile } from "ts-morph";
+import type { FileSystemHost, Node, Project, ResolutionHostFactory, SourceFile } from "ts-morph";
 import type { CompilerProgram, CompilerSourceOverlay } from "./compiler-programs-contract.ts";
 
 export interface WorkspaceOptions {
@@ -11,6 +11,14 @@ export interface WorkspaceOptions {
   readonly skipFileDependencyResolution?: boolean;
   /** Override the file set. Default: harnessGlobs (types:false) / searchGlobs (types:true). */
   readonly globs?: readonly string[];
+  /** Optional resolution lifecycle for a mutable pure-AST corpus. */
+  readonly resolutionHost?: ResolutionHostFactory;
+}
+
+export interface WorkspaceResolutionCache {
+  readonly host: ResolutionHostFactory;
+  /** Absolute paths changed in the virtual corpus, including restored paths. */
+  readonly invalidate: (paths: Iterable<string>) => void;
 }
 
 export interface SemanticProgram {
