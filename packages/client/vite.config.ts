@@ -8,6 +8,7 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import type { Plugin, ResolvedConfig } from "vite";
 import { defineConfig, isFileLoadingAllowed, resolveConfig, searchForWorkspaceRoot } from "vite";
 import checker from "vite-plugin-checker";
+import { nativeTypecheck } from "./native-typecheck.config.ts";
 
 const WORKSPACE_ROOT = searchForWorkspaceRoot(import.meta.dirname);
 
@@ -518,10 +519,10 @@ export default defineConfig({
     react(),
     withCompilerTransformCache(babel({ presets: [reactCompilerPreset(REACT_COMPILER_OPTIONS)] }), REACT_COMPILER_OPTIONS),
     tailwindcss(),
-    // Dev-only overlay: tsc + this eslint config (react-hooks/Compiler/TanStack) in-browser.
+    nativeTypecheck(WORKSPACE_ROOT),
+    // Native TypeScript and typed ESLint retain terminal and browser diagnostics without duplicate JS programs.
     // enableBuild:false — `pnpm check` owns gate-time. eslint auto-discovers the root eslint.config.js.
     checker({
-      typescript: true,
       eslint: {
         useFlatConfig: true,
         lintCommand: "eslint 'src/**/*.{ts,tsx}'",

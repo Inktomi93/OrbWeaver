@@ -341,12 +341,19 @@ childProcess.spawn = (command, args, options) => {
   const child = new EventEmitter();
   process.nextTick(() => {
     if (outcome === "spawn-error") child.emit("error", new Error("planted spawn failure"));
-    else if (outcome === "signal") child.emit("exit", null, "SIGTERM");
-    else child.emit("exit", Number(outcome), null);
+    else if (outcome === "signal") { child.emit("exit", null, "SIGTERM"); child.emit("close", null, "SIGTERM"); }
+    else { child.emit("exit", Number(outcome), null); child.emit("close", Number(outcome), null); }
   });
   return child;
 };
-require("node:module").syncBuiltinESMExports();
+const moduleApi = require("node:module");
+moduleApi.syncBuiltinESMExports();
+moduleApi.registerHooks({ load(url, context, nextLoad) {
+  if (url.endsWith("/eslint/bin/eslint.js")) return { format: "module", shortCircuit: true, source:
+    'import fs from "node:fs"; fs.writeFileSync(process.env.ORB_WRAPPER_CAPTURE, JSON.stringify({command:process.execPath,args:process.argv.slice(2),cwd:process.cwd()}));'
+  };
+  return nextLoad(url, context);
+} });
 `;
 
 interface WrapperCapture {

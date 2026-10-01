@@ -5,7 +5,9 @@
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
+import { killPidGroup } from "@orb/tooling/_shared/proc";
 import { admitTs7Run, TS7_POOL_NAME, TS7_SLOT_BUSY_EXIT, ts7SlotLabel } from "@orb/tooling/_shared/ts7-admission";
 
 const INCREMENTAL_OPTION = "--incremental";
@@ -86,28 +88,70 @@ const checkers = args.includes("--checkers") ? [] : ["--checkers", String(profil
 // ONE HOST-WIDE SLOT PER WHOLE-PROGRAM RUN. The notices go to stderr on lines of their own: Vitest folds this
 // process's stderr into the output it parses, and a line that is not a `file(l,c): error TS…` diagnostic is
 // ignored there.
-const admission = await admitTs7Run(args, {
-  label: ts7SlotLabel(args, process.cwd()),
-  deps: {
-    onQueued: (holder) =>
-      process.stderr.write(`ts7: every host typecheck slot is taken; queued behind pid ${String(holder.pid)} (${holder.label}) since ${holder.startedAt}\n`),
-    onNotice: (message) => process.stderr.write(`ts7: ${message}\n`),
-  },
-});
-if (admission.kind === "busy") {
-  process.stderr.write(`ts7: all ${String(admission.slots)} host "${TS7_POOL_NAME}" typecheck slots are busy; this advisory run was SKIPPED\n`);
-  process.exit(TS7_SLOT_BUSY_EXIT);
+const managedByIpc = process.send !== undefined;
+const stop = new AbortController();
+let child: ReturnType<typeof spawn> | undefined;
+const cancel = (): void => {
+  stop.abort();
+  if (child !== undefined && child.exitCode === null && child.signalCode === null) {
+    if (managedByIpc || process.platform === "win32") {
+      killPidGroup(child.pid, "SIGKILL");
+    } else {
+      child.kill("SIGKILL");
+    }
+  }
+};
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+  process.on(signal, cancel);
+}
+process.on("disconnect", cancel);
+// A dev parent can disappear before this module has finished loading.
+if (managedByIpc && !process.connected) {
+  cancel();
 }
 
-// Give the Node launcher its heap allowance even when the caller did not inherit pnpm's NODE_OPTIONS.
-// Asynchronous, not spawnSync: the host slot's lease beats on a timer, and a compiler run that blocked this
-// event loop for longer than the slot's stale window would read as a dead holder and lose its slot.
-const child = spawn(process.execPath, ["--max-old-space-size=16384", tscPath, ...checkers, ...args], { stdio: "inherit" });
-const status = await new Promise<number | null>((settle) => {
-  child.once("error", () => settle(null));
-  child.once("exit", (code) => settle(code));
-});
-if (admission.kind === "admitted") {
-  admission.lease.release();
+try {
+  stop.signal.throwIfAborted();
+  const admission = await admitTs7Run(args, {
+    label: ts7SlotLabel(args, process.cwd()),
+    deps: {
+      sleep: async (ms) => {
+        await sleep(ms, undefined, { signal: stop.signal });
+      },
+      onQueued: (holder) =>
+        process.stderr.write(`ts7: every host typecheck slot is taken; queued behind pid ${String(holder.pid)} (${holder.label}) since ${holder.startedAt}\n`),
+      onNotice: (message) => process.stderr.write(`ts7: ${message}\n`),
+    },
+  });
+  if (admission.kind === "busy") {
+    process.stderr.write(`ts7: all ${String(admission.slots)} host "${TS7_POOL_NAME}" typecheck slots are busy; this advisory run was SKIPPED\n`);
+    process.exitCode = TS7_SLOT_BUSY_EXIT;
+  } else {
+    try {
+      stop.signal.throwIfAborted();
+      // The Windows JS launcher owns a native grandchild; termination must cover the whole compiler tree.
+      child = spawn(process.execPath, ["--max-old-space-size=16384", tscPath, ...checkers, ...args], {
+        stdio: "inherit",
+        detached: managedByIpc && process.platform !== "win32",
+      });
+      const status = await new Promise<number | null>((settle) => {
+        child?.once("error", () => settle(null));
+        child?.once("close", (code) => settle(code));
+      });
+      process.exitCode = status ?? ABNORMAL_COMPILER_EXIT;
+    } finally {
+      if (admission.kind === "admitted") {
+        admission.lease.release();
+      }
+    }
+  }
+} catch (error) {
+  if (!stop.signal.aborted) {
+    throw error;
+  }
+  process.exitCode = ABNORMAL_COMPILER_EXIT;
+} finally {
+  if (process.connected) {
+    process.disconnect?.();
+  }
 }
-process.exit(status ?? ABNORMAL_COMPILER_EXIT);
