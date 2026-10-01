@@ -2,8 +2,8 @@
 // document, so changes inside one save window land as one write. The depth field commits on blur or Enter, never
 // per keystroke. With caching off the dependent controls stay rendered and disabled, and their gloss says why.
 
-import type { PromptCacheSettings } from "@orb/contracts/inference";
-import { effectivePromptCache, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
+import type { PromptCacheSettings, PromptCacheTtl } from "@orb/contracts/inference";
+import { effectivePromptCache } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
@@ -24,16 +24,20 @@ export interface ConnectionPromptCacheProps {
   /** The connection's label, for the controls' accessible names. */
   readonly connectionLabel: string;
   readonly busy: boolean;
+  readonly fixedTtl?: PromptCacheTtl | undefined;
+  readonly defaultEnabled?: boolean | undefined;
   /** Persist the whole document; the autosave session calls it once per save window. */
   readonly save: (next: PromptCacheSettings) => Promise<unknown>;
   /** Write `null`, so the connection goes back to the shipped behavior. */
   readonly onReset: () => void;
 }
 
-export function ConnectionPromptCache({ connectionId, stored, save, ...body }: ConnectionPromptCacheProps): ReactElement {
+export function ConnectionPromptCache({ connectionId, stored, save, defaultEnabled, fixedTtl, ...body }: ConnectionPromptCacheProps): ReactElement {
   return (
-    <PromptCacheAutosaveForm entityId={connectionId} save={save} serverValues={effectivePromptCache(stored)}>
-      {(session): ReactElement => <PromptCacheBody {...body} hasStored={stored !== null} session={session} />}
+    <PromptCacheAutosaveForm entityId={connectionId} save={save} serverValues={effectivePromptCache(stored, defaultEnabled, fixedTtl)}>
+      {(session): ReactElement => (
+        <PromptCacheBody {...body} defaultEnabled={defaultEnabled} fixedTtl={fixedTtl} hasStored={stored !== null} session={session} />
+      )}
     </PromptCacheAutosaveForm>
   );
 }
@@ -43,18 +47,28 @@ interface PromptCacheBodyProps {
   readonly hasStored: boolean;
   readonly connectionLabel: string;
   readonly busy: boolean;
+  readonly fixedTtl?: PromptCacheTtl | undefined;
+  readonly defaultEnabled?: boolean | undefined;
   readonly onReset: () => void;
 }
 
-function PromptCacheBody({ session, hasStored, connectionLabel, busy, onReset }: PromptCacheBodyProps): ReactElement {
+function PromptCacheBody({ session, hasStored, connectionLabel, busy, onReset, fixedTtl, defaultEnabled }: PromptCacheBodyProps): ReactElement {
   const { form, reseed } = session;
   const depthLabelId = useId();
   const ttlLabelId = useId();
+  const systemGloss =
+    fixedTtl === undefined
+      ? "Mark the fixed system prompt separately. History cache entries still include preceding system content."
+      : "Mark a stable-only system prompt. A dynamic system tail prevents a separate marker; history entries still include the whole system prompt.";
+  const cacheGloss =
+    fixedTtl === undefined
+      ? "The provider keeps the unchanged start of each request for a while, so the next turn re-reads it at a tenth of the input price instead of paying for it again."
+      : "Request explicit caching for unchanged prompt content. Provider cache and storage pricing applies; automatic caching can still occur when this is off.";
   // The depth field's IN-PROGRESS edit, boxed because a cleared field (`null`) is an edit; `null` = not editing.
   const [depthDraft, setDepthDraft] = useState<{ readonly value: number | null } | null>(null);
   // The reset drops any edit still inside the save window before it writes NULL, so the edit cannot land after it.
   const resetToDefaults = (): void => {
-    reseed(SHIPPED_PROMPT_CACHE);
+    reseed(effectivePromptCache(null, defaultEnabled, fixedTtl));
     onReset();
   };
 
@@ -62,10 +76,7 @@ function PromptCacheBody({ session, hasStored, connectionLabel, busy, onReset }:
     <form.Subscribe selector={(state): boolean => !state.values.enabled}>
       {(off): ReactElement => (
         <Stack data-slot="connection-prompt-cache" gap="row">
-          <SettingLine
-            gloss="The provider keeps the unchanged start of each request for a while, so the next turn re-reads it at a tenth of the input price instead of paying for it again."
-            label="Cache prompts"
-          >
+          <SettingLine gloss={cacheGloss} label="Cache prompts">
             <form.Field name="enabled">
               {(field): ReactElement => (
                 <Switch
@@ -78,12 +89,7 @@ function PromptCacheBody({ session, hasStored, connectionLabel, busy, onReset }:
               )}
             </form.Field>
           </SettingLine>
-          <SettingLine
-            gloss={
-              off ? "Turn caching on to choose this." : "The fixed part of the system prompt. Turn it off if you'd rather not have it stored between turns."
-            }
-            label="Cache the system prompt"
-          >
+          <SettingLine gloss={off ? "Turn caching on to choose this." : systemGloss} label="Cache the system prompt">
             <form.Field name="cacheSystem">
               {(field): ReactElement => (
                 <Switch
@@ -133,37 +139,47 @@ function PromptCacheBody({ session, hasStored, connectionLabel, busy, onReset }:
               )}
             </form.Field>
           </SettingLine>
-          <Stack gap="tight">
-            <Text id={ttlLabelId} voice="label">
-              Keep the cache for
-            </Text>
-            <Text voice="gloss">
-              {off
-                ? "Turn caching on to choose this."
-                : "Writing to the cache costs more than plain input. The longer time pays off when you pause for more than five minutes between turns."}
-            </Text>
-            <form.Field name="ttl">
-              {(field): ReactElement => (
-                <RadioGroup
-                  aria-labelledby={ttlLabelId}
-                  disabled={busy || off}
-                  onValueChange={(value): void => {
-                    const ttl = promptCacheTtlOf(value);
-                    if (ttl !== undefined && ttl !== field.state.value) {
-                      field.handleChange(ttl);
-                    }
-                  }}
-                  value={field.state.value}
-                >
-                  {PROMPT_CACHE_TTL_OPTIONS.map((option) => (
-                    <RadioGroupItem key={option.value} value={option.value}>
-                      {`${option.label} · writes cost ${option.writeCost} input`}
-                    </RadioGroupItem>
-                  ))}
-                </RadioGroup>
-              )}
-            </form.Field>
-          </Stack>
+          {fixedTtl !== undefined ? (
+            <Stack gap="tight">
+              <Text voice="label">Cache retention</Text>
+              <Text voice="gloss">
+                {PROMPT_CACHE_TTL_OPTIONS.find((option) => option.value === fixedTtl)?.label} fixed by this route. Cache hits do not extend retention. Other
+                saved retention choices do not apply.
+              </Text>
+            </Stack>
+          ) : (
+            <Stack gap="tight">
+              <Text id={ttlLabelId} voice="label">
+                Keep the cache for
+              </Text>
+              <Text voice="gloss">
+                {off
+                  ? "Turn caching on to choose this."
+                  : "Writing to the cache costs more than plain input. The longer time pays off when you pause for more than five minutes between turns."}
+              </Text>
+              <form.Field name="ttl">
+                {(field): ReactElement => (
+                  <RadioGroup
+                    aria-labelledby={ttlLabelId}
+                    disabled={busy || off}
+                    onValueChange={(value): void => {
+                      const ttl = promptCacheTtlOf(value);
+                      if (ttl !== undefined && ttl !== field.state.value) {
+                        field.handleChange(ttl);
+                      }
+                    }}
+                    value={field.state.value}
+                  >
+                    {PROMPT_CACHE_TTL_OPTIONS.map((option) => (
+                      <RadioGroupItem key={option.value} value={option.value}>
+                        {`${option.label} · writes cost ${option.writeCost} input`}
+                      </RadioGroupItem>
+                    ))}
+                  </RadioGroup>
+                )}
+              </form.Field>
+            </Stack>
+          )}
           {hasStored ? (
             <Row justify="start">
               <Button disabled={busy} intent="secondary" onClick={resetToDefaults} size="sm">

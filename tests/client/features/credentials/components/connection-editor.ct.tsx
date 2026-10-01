@@ -875,3 +875,38 @@ test("stored settings with caching off: the dependent controls are disabled, the
     .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
     .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: null } });
 });
+
+test("fixed-retention caching exposes switches and depth without unsupported TTLs or Anthropic prices", async ({ mount, page }) => {
+  const capability = {
+    ...EXPLICIT_CACHE_CAPABILITY,
+    generation: {
+      ...EXPLICIT_CACHE_CAPABILITY.generation,
+      turns: {
+        assistantPrefill: false,
+        midConversationSystem: false,
+        historySystemRows: false,
+        roleHandlingFloor: "strict" as const,
+        explicitPromptCache: true,
+        fixedCacheTtl: "5m" as const,
+        promptCacheDefaultEnabled: false,
+      },
+    },
+  };
+  const recorder = await stubEditor(page, { capabilities: { ...EXPLICIT_CACHE_CAPABILITIES, capability, baseline: capability } });
+  await mount(<ConnectionEditorNarrowStory />);
+  const body = await openCacheTier(page);
+  await expect(body.getByRole("radio")).toHaveCount(0);
+  await expect(body.getByText("5 minutes fixed by this route.", { exact: false })).toBeVisible();
+  await expect(body.getByText("Provider cache and storage pricing applies", { exact: false })).toBeVisible();
+  await expect(body.getByText("a tenth", { exact: false })).toHaveCount(0);
+  await expect(body.getByText("writes cost", { exact: false })).toHaveCount(0);
+  await expect(body.getByRole("switch")).toHaveCount(2);
+  await expect(body.getByRole("switch").nth(0)).toHaveAttribute("aria-checked", "false");
+  await expect(body.getByRole("textbox")).toBeVisible();
+  await expect(body.getByRole("textbox")).toBeDisabled();
+  await body.getByRole("switch").nth(0).click();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: { ...SHIPPED, enabled: true, ttl: "5m" } } });
+  await expect(body.getByRole("textbox")).toBeEnabled();
+});

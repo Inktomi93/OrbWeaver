@@ -22,8 +22,8 @@ import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { resolveChat } from "../../funnel/resolve-chat.ts";
 import { effortWordOf } from "../kit/applied-effort.ts";
-import type { AnthropicCachePlan, OpenRouterRouting } from "../kit/cache-control.ts";
-import { anthropicCachePlan, cachesByAnthropicMarkers, effectiveProviderRouting, isAnthropicModel, placeAnthropicCacheMarkers } from "../kit/cache-control.ts";
+import type { ExplicitCachePlan, OpenRouterRouting } from "../kit/cache-control.ts";
+import { cachesByAnthropicMarkers, effectiveProviderRouting, explicitCachePlan, isAnthropicModel, placeExplicitCacheMarkers } from "../kit/cache-control.ts";
 import { extractHttpErrorDiagnostic, providerErrorFromHttp } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
@@ -89,7 +89,7 @@ function isMandatoryReasoningRejection(error: unknown): boolean {
   return MANDATORY_REASONING_RE.test(`${diag.body ?? ""} ${diag.cause ?? ""} ${errorMessage(error)}`);
 }
 
-// ── cache placement (openrouter × Anthropic route) ────────────────────────────────────────────────────────
+// ── cache placement (OpenRouter explicit-cache routes) ────────────────────────────────────────────────────────
 
 interface CacheWriteReceipt {
   readonly historyDepths: readonly number[];
@@ -101,19 +101,19 @@ interface CachePlacement {
   readonly written: CacheWriteReceipt;
 }
 
-/** The message-level markers: only on an OpenRouter route to an Anthropic model (OpenRouter's `cache_control`
- *  is Anthropic-only), under the connection's plan (`null` ⇒ caching off ⇒ nothing placed). */
+/** Place only markers admitted by the resolved route and connection settings. */
 function placeCache(args: {
   readonly plan: WirePlan;
   readonly req: OpenAiCompatChatRequest;
-  readonly cachePlan: AnthropicCachePlan | null;
+  readonly cachePlan: ExplicitCachePlan | null;
   readonly generation: GenerationCapability;
   readonly log: ProviderLogger;
   readonly anthropicRoute: boolean;
 }): CachePlacement {
   const { plan, req, generation, log } = args;
-  const placed = placeAnthropicCacheMarkers({
-    plan: args.anthropicRoute ? args.cachePlan : null,
+  const placed = placeExplicitCacheMarkers({
+    plan: args.cachePlan,
+    systemMinTokens: args.anthropicRoute ? 0 : cacheMinTokensOf(generation),
     rows: plan.rows,
     staticSystem: req.systemPrompt.static.trim(),
     generation,
@@ -484,8 +484,11 @@ function emitReceipts(args: {
   });
 }
 
-function rowOptionsFor(dialect: Dialect, cachePlan: AnthropicCachePlan | null): ((row: ChatHistoryMessage) => SharedV4ProviderOptions | undefined) | undefined {
-  if (dialect !== "openrouter" || cachePlan === null) {
+function rowOptionsFor(
+  anthropicRoute: boolean,
+  cachePlan: ExplicitCachePlan | null,
+): ((row: ChatHistoryMessage) => SharedV4ProviderOptions | undefined) | undefined {
+  if (!anthropicRoute || cachePlan === null) {
     return;
   }
   return (row) => (row.wireMeta?.cacheBreakpoint === true ? { [OPENROUTER_KEY]: { cacheControl: { ...cachePlan.directive } } } : undefined);
@@ -502,6 +505,16 @@ async function drainWithReplay(run: (includeReasoning: boolean) => Promise<Strea
     }
     throw err;
   }
+}
+
+function openRouterCachePlan(req: OpenAiCompatChatRequest, generation: GenerationCapability, log: ProviderLogger): ExplicitCachePlan | null {
+  if (
+    req.connection.provider.dialect !== "openrouter" ||
+    !(isAnthropicModel(req.connection) || (generation.turns?.explicitPromptCache === true && generation.turns.fixedCacheTtl !== undefined))
+  ) {
+    return null;
+  }
+  return explicitCachePlan({ connection: req.connection, requestedDepth: req.cacheBreakpointDepth, fixedTtl: generation.turns?.fixedCacheTtl, log });
 }
 
 /** Runs one chat-completions turn — the only api this wire speaks (`WIRE_DEFS["openai-compat"].apis`). */
@@ -522,11 +535,11 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   const attempt: { shape: TurnShape | undefined; rateLimit: RateLimitSnapshot | null } = { shape: undefined, rateLimit: null };
   const secrets = resolvedScrubSet(connection);
   const anthropicRoute = dialect === "openrouter" && isAnthropicModel(connection);
-  const cachePlan = anthropicCachePlan({ connection, requestedDepth: req.cacheBreakpointDepth, log });
+  const cachePlan = openRouterCachePlan(req, generation, log);
   const plan = buildWirePlan({
     systemPrompt: req.systemPrompt,
     history: req.history,
-    rowOptions: rowOptionsFor(dialect, cachePlan),
+    rowOptions: rowOptionsFor(anthropicRoute, cachePlan),
     splitSystem: anthropicRoute,
   });
   if (plan.toolResultErrorDropped) {

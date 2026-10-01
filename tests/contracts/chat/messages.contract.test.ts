@@ -348,3 +348,12 @@ test("host-only native content signatures survive variant metadata serialization
   const metadata = { contentSignatures: { text: [{ text: "A square.", thoughtSignature: "text-signature" }], images: [] } };
   expect(parseVariantMetadata(JSON.parse(JSON.stringify(metadata)))).toEqual(metadata);
 });
+
+test("native image signature provenance admits only asset TypeIDs", () => {
+  const metadata = { contentSignatures: { text: [], images: [{ assetId: mintTypeId(ID_PREFIX.asset), thoughtSignature: "fixture" }] } };
+  expect(variantMetadataSchema.parse(metadata)).toEqual(metadata);
+  expect(
+    variantMetadataSchema.safeParse({ contentSignatures: { text: [], images: [{ assetId: mintTypeId(ID_PREFIX.message), thoughtSignature: "fixture" }] } })
+      .success,
+  ).toBe(false);
+});

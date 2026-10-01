@@ -2,9 +2,10 @@ import { advertisedFromGoogle } from "../../../../../packages/inference/src/capa
 import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { testProviderId } from "../../../../support/inference-identities.ts";
 
 test("native advertised thinking, token limits and sampling exclusions override curated facts while declared wins", () => {
-  const curated = curatedRows({ model: "gemini-3-flash-preview", providerId: "google", wire: "google-generative-ai" });
+  const curated = curatedRows({ model: "gemini-3-flash-preview", providerId: testProviderId("google"), wire: "google-generative-ai" });
   const advertised = advertisedFromGoogle(
     { contextLength: 99_999, maxCompletionTokens: 1234, google: { thinking: false, maxTemperature: 1, topP: 0.95 } },
     curated,

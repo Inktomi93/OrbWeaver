@@ -1,15 +1,5 @@
-// Anthropic `cache_control` wire directive + the turn's cache PLAN + the provider-routing pin + the breakpoint
-// placement primitive, shared by every HTTP runner talking to an Anthropic-backed endpoint. OpenRouter's
-// `cache_control` is Anthropic-only, so we emit it iff the routed model is Anthropic, and pin the
-// Anthropic provider (order + allow_fallbacks:false) so an unpinned model can't silently land on a
-// non-caching endpoint. Measured wire facts (ttl "1h" honored, the fallback leak, the silent invalid-ttl
-// drop) are recorded in `scripts/probes/openrouter/RESULTS.md`.
-// `computeCacheBreakpointPlacements` is the pure positional core the openrouter runner maps onto its own
-// wire dialect; its DEPTH axis (role switches, tool exchanges transparent) is specified at that function.
-// `anthropicCachePlan` turns the connection's user settings (`Resolved.promptCache`, `@orb/contracts/inference`
-// `prompt-cache.ts`) into the turn's plan, and `placeAnthropicCacheMarkers` is the ONE placer both hosted
-// runners call with it.
-
+// Shared explicit-cache planning and placement; route capabilities own TTL and prefix constraints.
+// Conversational depth ignores within-turn tool exchanges and never moves authored prompt content.
 import type { GenerationCapability, PromptCacheSettings } from "@orb/contracts/inference";
 import { cacheMinTokensOf, PROMPT_CACHE_TTLS } from "@orb/contracts/inference";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -59,7 +49,7 @@ function anthropicCacheDirective(ttl: string, log?: ProviderLogger): AnthropicCa
 /** One turn's explicit-cache plan. ONE directive for every marker the turn places — tools, system block,
  *  history — which is how the TTL ORDER rule holds (a longer-TTL breakpoint must precede any shorter one, so a
  *  1h marker may never follow a 5m one): a turn carries a single ttl, so the order cannot be violated. */
-export interface AnthropicCachePlan {
+export interface ExplicitCachePlan {
   readonly directive: AnthropicCacheDirective;
   /** Mark the static system block. */
   readonly cacheSystem: boolean;
@@ -73,17 +63,21 @@ export interface AnthropicCachePlan {
  *  carries max(SHAPE's volatile boundary, the admin floor `promptCacheMinDepth`), and the user's
  *  `historyDepth` is one more minimum on top of it, so the user can move the breakpoint deeper and never
  *  shallower than the admin floor. A request with no depth gets no history breakpoint whatever the setting. */
-export function anthropicCachePlan(args: {
+export function explicitCachePlan(args: {
   readonly connection: Pick<Resolved, "promptCache">;
   readonly requestedDepth: number | undefined;
+  readonly fixedTtl?: PromptCacheSettings["ttl"] | undefined;
   readonly log?: ProviderLogger | undefined;
-}): AnthropicCachePlan | null {
+}): ExplicitCachePlan | null {
   const settings: PromptCacheSettings = args.connection.promptCache;
   if (!settings.enabled) {
     return null;
   }
+  if (args.fixedTtl !== undefined && settings.ttl !== args.fixedTtl) {
+    args.log?.emit("warn", "provider.cache_ttl_rejected", { ttl: settings.ttl, accepted: [args.fixedTtl], applied: args.fixedTtl });
+  }
   return {
-    directive: anthropicCacheDirective(settings.ttl, args.log),
+    directive: anthropicCacheDirective(args.fixedTtl ?? settings.ttl, args.log),
     cacheSystem: settings.cacheSystem,
     historyDepth: args.requestedDepth === undefined ? undefined : Math.max(args.requestedDepth, settings.historyDepth ?? 0),
   };
@@ -279,15 +273,15 @@ export interface CacheMarkerPlacement {
 const SYSTEM_ROLE = "system";
 const NO_CACHE_MARKERS: CacheMarkerPlacement = { patches: new Map(), historyDepths: [], systemBlocks: 0 };
 
-/** THE ONE message-level placer both hosted runners call (anthropic-messages direct, openai-compat on an
- *  OpenRouter-Anthropic route): the static system block when the plan caches it and the plan's first row IS that
+/** The message-level placer for native Anthropic and OpenRouter explicit-cache routes: the static system block when the plan caches it and the plan's first row IS that
  *  block, then the history pair at the plan's depth when the capability says `explicitPromptCache`. Every patch
  *  carries the plan's one directive. A `null` plan (caching off) places nothing. */
-export function placeAnthropicCacheMarkers(args: {
-  readonly plan: AnthropicCachePlan | null;
+export function placeExplicitCacheMarkers(args: {
+  readonly plan: ExplicitCachePlan | null;
   readonly rows: readonly CacheMarkerRow[];
   /** The static system half, trimmed — the cached prefix's first bytes and the floor's head start. */
   readonly staticSystem: string;
+  readonly systemMinTokens?: number | undefined;
   readonly generation: GenerationCapability;
   readonly log?: ProviderLogger | undefined;
 }): CacheMarkerPlacement {
@@ -297,7 +291,19 @@ export function placeAnthropicCacheMarkers(args: {
   }
   const patches = new Map<number, { readonly cacheControl: AnthropicCacheDirective }>();
   let systemBlocks = 0;
-  if (plan.cacheSystem && staticSystem.length > 0 && rows[0]?.role === SYSTEM_ROLE) {
+  if (plan.cacheSystem && staticSystem.length > 0 && rows[0]?.role === SYSTEM_ROLE && rows[0].text !== staticSystem) {
+    args.log?.emit("warn", "provider.cache_system_dynamic", {
+      applied: false,
+      reason: "The joined system instruction contains dynamic content; its static prefix cannot be cached separately",
+    });
+  }
+  if (
+    plan.cacheSystem &&
+    staticSystem.length > 0 &&
+    rows[0]?.role === SYSTEM_ROLE &&
+    rows[0].text === staticSystem &&
+    estimateTokens(staticSystem) >= (args.systemMinTokens ?? 0)
+  ) {
     patches.set(0, { cacheControl: { ...plan.directive } });
     systemBlocks = 1;
   }

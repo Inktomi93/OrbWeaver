@@ -53,3 +53,24 @@ test("the TTL options follow the contract tuple and carry its write price; only 
   expect(promptCacheTtlOf("5m")).toBe("5m");
   expect(promptCacheTtlOf("9z")).toBeUndefined();
 });
+
+test("fixed-route defaults do not show an override until explicit caching is enabled", () => {
+  const capability: Capability = {
+    kind: "generation",
+    generation: {
+      ...GENERATION_FLOOR,
+      turns: {
+        assistantPrefill: false,
+        midConversationSystem: false,
+        historySystemRows: false,
+        roleHandlingFloor: "strict",
+        explicitPromptCache: true,
+        fixedCacheTtl: "5m",
+        promptCacheDefaultEnabled: false,
+      },
+    },
+  };
+  expect(promptCacheChangedCount(null, capability)).toBe(0);
+  expect(promptCacheChangedCount({ ...SHIPPED_PROMPT_CACHE, enabled: false, ttl: "5m" }, capability)).toBe(0);
+  expect(promptCacheChangedCount({ ...SHIPPED_PROMPT_CACHE, enabled: true, ttl: "5m" }, capability)).toBe(1);
+});

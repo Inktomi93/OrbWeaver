@@ -27,6 +27,7 @@ import type { ChatDeltaSubscription, ChatResult, OpenAiCompatChatRequest } from 
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import { openRouterCatalogFetch } from "../../_openrouter-catalog.ts";
 import { fakeApiKeySecret, fakeConnection, fakeDeps, fakeResolved, memoryStores, newUserId } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
@@ -994,4 +995,69 @@ test("OR prompt cache depth: the connection's minimum moves the pair deeper, and
   expect(orMarkers(await sentBody(orCacheTurn({ ...SHIPPED_PROMPT_CACHE, historyDepth: 3 }, 1))).map(([index]) => index)).toEqual([0, 2, 4]);
   // Request depth 3 (admin-floored upstream), user minimum 1 ⇒ the request's depth stands.
   expect(orMarkers(await sentBody(orCacheTurn({ ...SHIPPED_PROMPT_CACHE, historyDepth: 1 }, 3))).map(([index]) => index)).toEqual([0, 2, 4]);
+});
+
+function geminiCacheTurn(overrides: Partial<PromptCacheSettings> = {}, dynamic = ""): OpenAiCompatChatRequest {
+  const model = "google/gemini-2.5-flash";
+  const capability = synthesizeCapability("generation", "google", {
+    curated: curatedRows({ model, providerId: testProviderId("openrouter"), wire: "openai-compat" }),
+  }).capability;
+  return orRequest({
+    connection: fakeResolved({
+      task: "chat",
+      providerId: "openrouter",
+      model,
+      capability,
+      secret: fakeApiKeySecret("fake-or-key"),
+      promptCache: { ...SHIPPED_PROMPT_CACHE, ...overrides },
+    }),
+    params: { effort: "none" },
+    tools: undefined,
+    systemPrompt: { static: "Stable knowledge. ".repeat(1800), dynamic },
+    history: orCacheTurn(SHIPPED_PROMPT_CACHE).history,
+    cacheBreakpointDepth: 1,
+  });
+}
+
+test("Gemini OR explicit cache uses its fixed TTL on stable system and history without an Anthropic routing pin", async () => {
+  const body = await sentBody(geminiCacheTurn());
+  expect(orMarkers(body)).toEqual([
+    [0, { type: "ephemeral", ttl: "5m" }],
+    [4, { type: "ephemeral", ttl: "5m" }],
+    [6, { type: "ephemeral", ttl: "5m" }],
+  ]);
+  expect(body).not.toHaveProperty("provider");
+});
+
+test("Gemini OR preserves the dynamic system position and marks only history; off and insufficient prefixes never mark", async () => {
+  const req = geminiCacheTurn({}, "Changing turn context.");
+  const body = await sentBody(req);
+  expect(orMarkers(body).map(([index]) => index)).toEqual([4, 6]);
+  expect(body["messages"]).toEqual(
+    expect.arrayContaining([
+      { role: "system", content: [{ type: "text", text: req.systemPrompt.static.trim() + "\n\nChanging turn context." }] },
+      { role: "user", content: "u0" },
+    ]),
+  );
+  expect(orMarkers(await sentBody(geminiCacheTurn({ enabled: false })))).toEqual([]);
+  expect(orMarkers(await sentBody({ ...geminiCacheTurn(), systemPrompt: { static: "small", dynamic: "" } }))).toEqual([]);
+  expect(orMarkers(await sentBody(geminiCacheTurn({ cacheSystem: false, historyDepth: 3 }))).map(([index]) => index)).toEqual([2, 4]);
+});
+
+test("measured OR Gemini 3.1 Pro prefill remains a final assistant prefix through the SDK", async () => {
+  const req = geminiCacheTurn({ enabled: false });
+  const model = "google/gemini-3.1-pro-preview";
+  const capability = synthesizeCapability("generation", "google", {
+    curated: curatedRows({ model, providerId: testProviderId("openrouter"), wire: "openai-compat" }),
+  }).capability;
+  const body = await sentBody({
+    ...req,
+    connection: { ...req.connection, model: testModelId(model), capability },
+    systemPrompt: { static: "Keep order.", dynamic: "" },
+    history: [
+      { role: "user", content: orText("Respond: The answer is ORBIT.") },
+      { role: "assistant", content: orText("The answer is") },
+    ],
+  });
+  expect(body["messages"]).toMatchObject([{ role: "system" }, { role: "user" }, { role: "assistant", content: "The answer is" }]);
 });

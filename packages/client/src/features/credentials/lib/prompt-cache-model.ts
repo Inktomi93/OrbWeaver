@@ -9,7 +9,6 @@ import {
   PROMPT_CACHE_DEPTH_MIN,
   PROMPT_CACHE_TTLS,
   PROMPT_CACHE_WRITE_MULTIPLIER,
-  SHIPPED_PROMPT_CACHE,
 } from "@orb/contracts/inference";
 
 /** Does this connection's wire place explicit cache markers — the one condition under which the tier shows? */
@@ -20,9 +19,12 @@ export function showsPromptCache(capability: Capability | null): boolean {
 const SETTING_KEYS = ["enabled", "cacheSystem", "historyDepth", "ttl"] as const satisfies readonly (keyof PromptCacheSettings)[];
 
 /** How many settings differ from the shipped behavior — the tier's count badge. A NULL row is zero. */
-export function promptCacheChangedCount(stored: PromptCacheSettings | null): number {
-  const settings = effectivePromptCache(stored);
-  return SETTING_KEYS.filter((key) => settings[key] !== SHIPPED_PROMPT_CACHE[key]).length;
+export function promptCacheChangedCount(stored: PromptCacheSettings | null, capability?: Capability | null): number {
+  const enabled = capability?.kind === "generation" ? capability.generation.turns?.promptCacheDefaultEnabled : undefined;
+  const ttl = capability?.kind === "generation" ? capability.generation.turns?.fixedCacheTtl : undefined;
+  const defaults = effectivePromptCache(null, enabled, ttl);
+  const settings = effectivePromptCache(stored, enabled, ttl);
+  return SETTING_KEYS.filter((key) => settings[key] !== defaults[key]).length;
 }
 
 /** A committed depth-field value → the `historyDepth` to write: an empty field is `null` (automatic); a value

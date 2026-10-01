@@ -36,7 +36,6 @@ import type { AssetId, MessageId } from "@orb/kit/ids";
 import type { ResolvedMediaRef, TurnMessage } from "../contract/results.ts";
 import type { shapeTurn } from "./assembly-access.ts";
 import { fitHistory, historyTurnTokens } from "./assembly-access.ts";
-import { replayTextSignatures } from "./content-signatures.ts";
 
 /** A media-only row whose every part drops must not collapse to an empty text part — the runner's
  *  empty-row wire filter would delete it, ending the delivered history on the prior assistant row (then
@@ -612,4 +611,52 @@ function shiftBreakpoint(
  *  the CONTRACT this spelling carries directly, in addition to the in-file callers. */
 export function wireCostRows(converted: readonly WireRow[]): ShapedHistoryRow[] {
   return converted.map((w) => w.costRow);
+}
+
+/** Signed boundaries must cover a complete canonical text run; edits cannot acquire a signature by substring. */
+function replayTextSignatures(parts: readonly ChatContentPart[], signatures: ContentSignatures | undefined): readonly ChatContentPart[] {
+  if (signatures === undefined) {
+    return parts;
+  }
+  return parts.flatMap((part): readonly ChatContentPart[] => {
+    if (part.type !== "text") {
+      return [part];
+    }
+    const matched = matchingRun(part.text, signatures.text);
+    if (matched === undefined) {
+      return [part];
+    }
+    const text = matched.map((item) => item.text).join("");
+    const start = part.text.indexOf(text);
+    const before = part.text.slice(0, start);
+    const after = part.text.slice(start + text.length);
+    return [
+      ...(before.length === 0 ? [] : [{ type: "text" as const, text: before }]),
+      ...matched.map(
+        (item): ChatContentPart => ({
+          type: "text",
+          text: item.text,
+          ...(item.thoughtSignature === undefined ? {} : { thoughtSignature: item.thoughtSignature }),
+        }),
+      ),
+      ...(after.length === 0 ? [] : [{ type: "text" as const, text: after }]),
+    ];
+  });
+}
+
+function matchingRun(content: string, parts: ContentSignatures["text"]): ContentSignatures["text"] | undefined {
+  const matches: ContentSignatures["text"][] = [];
+  for (let start = 0; start < parts.length; start += 1) {
+    let joined = "";
+    for (let end = start; end < parts.length; end += 1) {
+      joined += parts[end]?.text ?? "";
+      if (joined.length > content.length) {
+        break;
+      }
+      if (joined.length > 0 && joined.trim() === content.trim() && content.includes(joined)) {
+        matches.push(parts.slice(start, end + 1));
+      }
+    }
+  }
+  return matches.length === 1 ? matches[0] : undefined;
 }

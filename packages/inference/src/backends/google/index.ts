@@ -24,11 +24,11 @@ function dialOf(req: ListModelsRequest): Parameters<typeof listGoogleModels>[0] 
 
 async function probe(req: ProbeRequest, deps: GoogleBackendDeps): Promise<CredentialHealth> {
   const checkedAt = deps.now();
+  // @orb-waive caught-failure-ownership(err): the credential probe returns revoked or unreachable with a scrubbed reason. Ends if health stops carrying the failure disposition.
   try {
     await fetchGoogleModels(dialOf(req), deps.fetch);
     return { status: "ok", checkedAt };
   } catch (err) {
-    // @orb-waive caught-failure-ownership(err): the credential probe returns revoked or unreachable with a scrubbed reason. Ends if health stops carrying the failure disposition.
     const reason = scrubbedReason(err, resolvedScrubSet(req.connection));
     return { status: AUTH_FAILURE.test(reason) ? "revoked" : "unreachable", checkedAt, reason };
   }

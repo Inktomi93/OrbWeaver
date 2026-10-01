@@ -1,4 +1,4 @@
-import type { ChatContentPart } from "@orb/contracts/chat";
+import type { ChatContentPart, ChatReasoningPart } from "@orb/contracts/chat";
 // verbs/turn — the turn-running front doors (.int: real libSQL for the lock + the D26 canon persist + a REAL
 // engine via `createTurnEngine`). Proves the wiring: identity triple → connection → ONE assemble ctx →
 // arbitrate → driveRound; the group round (N speakers), @mention force, auto-mode chaining, send's solo
@@ -2367,7 +2367,7 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
           resolveImageUrl: () => Promise.resolve(null),
           cardKeepLastX: undefined,
           canon,
-          reasoningByMessage: new Map(),
+          reasoningByMessage: new Map<MessageId, readonly ChatReasoningPart[]>(),
           contentSignaturesByMessage: await loadCanonContentSignatures(db, chatId),
           loadInlineReplyAssetIds: () => Promise.resolve(new Map()),
         },

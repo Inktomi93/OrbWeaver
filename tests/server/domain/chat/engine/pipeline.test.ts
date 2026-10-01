@@ -2969,6 +2969,7 @@ describe("spanToWirePart — CONTENT_CLASS_POLICY binding", () => {
     resolveImageUrl: async () => null,
     fullCards: new Set<ContentSpan>(),
     inlineReply: new Map<MessageId, ReadonlySet<AssetId>>(),
+    contentSignatures: undefined,
   };
   const wireRow = { role: "assistant" as const, userAuthored: false, messageId: undefined };
 
