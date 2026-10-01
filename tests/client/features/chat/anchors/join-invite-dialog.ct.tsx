@@ -27,6 +27,31 @@ test("a ready invite uses the shared room sentence and focuses Join chat", async
   await expect.soft(page.getByTestId("join-invite-confirm")).toBeFocused();
 });
 
+test("a ready preview arriving before queued popup focus still focuses Join chat", async ({ mount, page }) => {
+  await routeTrpc(page, { "invites.previewInvite": () => PREVIEW });
+  await page.evaluate(() => {
+    const root = document.documentElement as HTMLElement & { releaseInviteFocus?: () => void };
+    const nativeFocus = HTMLElement.prototype.focus;
+    HTMLElement.prototype.focus = function (options): void {
+      if (this.getAttribute("data-testid") === "join-invite-dialog") {
+        root.releaseInviteFocus = (): void => {
+          HTMLElement.prototype.focus = nativeFocus;
+          nativeFocus.call(this, options);
+        };
+        return;
+      }
+      nativeFocus.call(this, options);
+    };
+  });
+  await mount(<JoinInviteDialogStory token="tok_ct_secret" />);
+  await expect(page.getByTestId("join-invite-confirm")).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => typeof (document.documentElement as HTMLElement & { releaseInviteFocus?: () => void }).releaseInviteFocus))
+    .toBe("function");
+  await page.evaluate(() => (document.documentElement as HTMLElement & { releaseInviteFocus?: () => void }).releaseInviteFocus?.());
+  await expect(page.getByTestId("join-invite-confirm")).toBeFocused();
+});
+
 test("mount previews the token; confirm redeems and closes into the chat", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "invites.previewInvite": () => PREVIEW,
@@ -89,7 +114,10 @@ test("'Not now' dismisses without redeeming (the link stays usable)", async ({ m
   await mount(<JoinInviteDialogStory token="tok_ct_secret" />);
   await expect(page.getByText(INVITE_SENTENCE, { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Not now" }).click();
+  const dismiss = page.getByRole("button", { name: "Not now" });
+  await dismiss.focus();
+  await expect(dismiss).toBeFocused();
+  await dismiss.click();
   await expect(page.getByTestId("ct-join-done")).toBeVisible();
   await expect.poll(() => trpc.count("invites.redeemInvite")).toBe(0);
 });

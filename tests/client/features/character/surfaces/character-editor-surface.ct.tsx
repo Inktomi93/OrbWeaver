@@ -846,9 +846,12 @@ test.describe("P2-5 suggestion chips at a coarse pointer", () => {
     const floor = await touchFloorPx(page);
     const accept = await component.getByRole("button", { name: `Accept ${FIRST_SUGGESTION}` }).boundingBox();
     const dismiss = await component.getByRole("button", { name: `Dismiss ${FIRST_SUGGESTION}` }).boundingBox();
+    const edit = await component.getByRole("button", { name: `Edit label ${FIRST_SUGGESTION}`, exact: true }).boundingBox();
     expect(accept?.height ?? 0).toBeGreaterThanOrEqual(floor);
     expect(dismiss?.height ?? 0).toBeGreaterThanOrEqual(floor);
     expect(dismiss?.width ?? 0).toBeGreaterThanOrEqual(floor);
+    expect(edit?.height ?? 0).toBeGreaterThanOrEqual(floor);
+    expect(edit?.width ?? 0).toBeGreaterThanOrEqual(floor);
 
     // ROW FILL is the finding, stated directly: group the chips by their top edge and measure how much of
     // the block's width each row actually spends. The review measured a ~55% median over 8 rows.

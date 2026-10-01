@@ -30,7 +30,7 @@ import { __resetLongTaskEvidence, installLongTaskTracer } from "../../../package
 import { installAnimationLifecycleRecorder } from "../../../packages/client/src/lib/motion-animation-record.ts";
 import { setFrameDropTrackingPaused } from "../../../packages/client/src/lib/motion-animation-state.ts";
 import { installDeadClassFlagger, motionFlaggersDrain, motionFlaggersSettled } from "../../../packages/client/src/lib/motion-dead-class-flagger.ts";
-import { __resetMotionFlags, installMotionFlaggers, MOTION_BUDGETS, motionFlags } from "../../../packages/client/src/lib/motion-flaggers.ts";
+import { __resetMotionFlags, installMotionFlaggers, motionFlags } from "../../../packages/client/src/lib/motion-flaggers.ts";
 import {
   __resetMotionStats,
   installMotionObservers,
@@ -522,43 +522,21 @@ export function MotionFlaggersAuditPauseStory(): ReactElement {
   );
 }
 
-/** The app's sortable drop settle uses WAAPI, which has no CSS animation lifecycle events. Exercise the
- * dev-only Element.animate boundary directly: one arm proves finish/cancel retire both effects; the other
- * keeps an effect live across a blocked frame so `[drop]` must still fire.
- *
- * THE RETIRED ARM'S STAGING IS LAW, NOT DECORATION (#422). `motion-animation-state.ts` releases a WAAPI
- * target SYNCHRONOUSLY inside the `finish`/`cancel` listener it registers at `Element.animate()` time
- * (`retireTarget`), and from then on attributes an ended lifetime by EXACT interval overlap: a frame is
- * blamed iff `endTime >= frame.startTime` (`targetsOverlapping`). So a blocked frame that STARTED before
- * the animation ended is an HONEST `[drop]`, and this story only tests retirement when its blocked frame
- * begins strictly after the retirement instant. Two things buy that determinism:
- *   1. The block is scheduled as a TASK from inside a rendering update (`requestAnimationFrame` →
- *      `setTimeout`). WAAPI finish/cancel events dispatch during the rendering update's "update
- *      animations and send events" step; a timer task cannot run inside that same update, so the blocked
- *      frame's first task — i.e. its LoAF `startTime` — is strictly later than the retirement instant.
- *      The nested-rAF wait this replaced left a MEASURED 0.1ms margin (probe, 2026-08-22: retire 663.8,
- *      blocked frame start 663.9), which is a coin flip, and collapsing the hop reproduced the issue's
- *      verbatim line with a frame starting 13.5ms BEFORE the retirement. The rendering update's rAF
- *      timestamp is the ordering boundary: unlike `Event.timeStamp` (when the event was created), it is
- *      sampled after both retirement listeners have run and before the timer task can start.
- *   2. The ordering verdict is rendered from THE app's single LoAF observer
- *      (`subscribeLongAnimationFrames` — never a second PerformanceObserver), so the test can barrier on
- *      a SETTLED state: the blocked frame observed AND classified. Without it `expect(lines).toEqual([])`
- *      ran before the observer delivered and passed vacuously — verified: the planted overlap above went
- *      green under the old assertion while the console carried the accusing line. */
-export function MotionFlaggersWaapiDropStory(): ReactElement {
+/** Uses real finish/cancel events and the app's LoAF observer to distinguish retired from overlapping effects. */
+export function MotionFlaggersWaapiDropStory({ overlap = false }: { readonly overlap?: boolean }): ReactElement {
   const targetRef = useRef<HTMLDivElement>(null);
   const [retired, setRetired] = useState(false);
   const [blockedFrameOrder, setBlockedFrameOrder] = useState<string | null>(null);
   const retiredAtRef = useRef<number | null>(null);
+  const blockedAtRef = useRef<number | null>(null);
   useEffect(() => {
     installMotionObservers();
     installMotionFlaggers();
     return subscribeLongAnimationFrames((frame) => {
       const retiredAt = retiredAtRef.current;
-      // Frames that ended before the retirement (this story's own mount work) carry no verdict; the
-      // first over-budget frame that REACHES the retirement instant is the plant.
-      if (retiredAt === null || frame.duration <= MOTION_BUDGETS.frameGapMs || frame.startTime + frame.duration < retiredAt) {
+      const blockedAt = blockedAtRef.current;
+      // Classify the planted block's frame, never incidental mount or retirement work delivered later.
+      if (retiredAt === null || blockedAt === null || frame.startTime > blockedAt || frame.startTime + frame.duration < blockedAt) {
         return;
       }
       setBlockedFrameOrder((current) => current ?? (frame.startTime > retiredAt ? "after" : "overlap"));
@@ -580,17 +558,21 @@ export function MotionFlaggersWaapiDropStory(): ReactElement {
           finished.finish();
           canceled.cancel();
           void Promise.all([finishEvent, cancelEvent]).then(() => {
-            // Both flagger listeners were registered inside the `Element.animate` wrapper, so they ran
-            // BEFORE these. The next rendering update is therefore a conservative post-retirement
-            // boundary; its callback timestamp belongs to that update, while Event.timeStamp belongs to
-            // event creation and can precede the flagger listener's retirement bookkeeping.
-            requestAnimationFrame((postRetirementAt) => {
-              retiredAtRef.current = postRetirementAt;
-              setTimeout(() => {
-                blockMainThread(80);
-                setRetired(true);
-              }, 0);
-            });
+            // @orb-waive test-determinism(performance.now): real WAAPI retirement is compared with native LoAF timestamps; a frozen clock cannot prove ordering. Ends if this story stops measuring browser frame lifetimes.
+            retiredAtRef.current = performance.now();
+            const block = (): void => {
+              // @orb-waive test-determinism(performance.now): identify the exact native LoAF containing the deliberate block, not an earlier frame. Ends if the browser supplies a frame identity for a task.
+              blockedAtRef.current = performance.now();
+              blockMainThread(80);
+              setRetired(true);
+            };
+            if (overlap) {
+              block();
+            } else {
+              // A second rendering update separates retirement from the task; rAF's timestamp itself
+              // can predate finish/cancel delivery and is not a post-retirement clock sample.
+              requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(block, 0)));
+            }
           });
         }}
       >
