@@ -30,4 +30,4 @@ Local signup took 95.5 ms. The immediate first search refused with `search_space
 
 A standalone warm query took 199.9 ms. A query submitted during native card indexing took 10829.0 ms: 10741.0 ms queued, then 87.0 ms in native inference. It ran before the remaining cards. The cold case used cached weights and a new worker; the filesystem page cache was not cleared.
 
-The 500 ms requirement remains unmet during active indexing. Cold first search also exceeds it. Interrupting native inference or loading a separate query worker requires a resource decision. This remeasurement changes no inference behavior. Shared static acceptance remains pending.
+The 500 ms requirement remains unmet during active indexing. Cold first search also exceeds it. Interrupting native inference or loading a separate query worker requires a resource decision. This remeasurement changes no inference behavior. The static barrier passed at `b7f4d564d`. Its affected-instrument stage selected nothing after the push, so the behavioral measurements remain separate evidence.

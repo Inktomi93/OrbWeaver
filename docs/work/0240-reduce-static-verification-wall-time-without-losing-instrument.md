@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: blocked
-updated: 2026-09-30
+updated: 2026-10-01
 priority: P1
 area: verification
 blocked: owner
@@ -49,18 +49,20 @@ Selection lives in `tooling/src/verify/lib/instrument-affected-reach.ts`, `tooli
 
 ### Performance and verification
 
-Timings cover preparation, overlays, execution, restoration, and policy/fact phases. Verification is pending; speedup is unproven.
+Timings cover preparation, overlays, execution, restoration, and policy/fact phases. Resolution caching reduces measured overlay execution cost; broader same-changed-set verification performance remains deferred.
 
 ts-morph already passes its previous program to TypeScript `createProgram` and retains unchanged source objects. Another corpus cache duplicates that reuse. Resource hosts, facts, and reference caches remain invocation-local.
 
-`Project.getTypeChecker()` returns a lazy wrapper; direct node methods can bypass it. Checker work remains inside policy/fact timings. Capture a native CPU profile to separate compiler construction/binding from readers. Avoid forced early compilation because dependency loading can alter subsequent population resolution.
+The resolution cache matches fresh solo findings, refusals, grants and populations. Controls cover changed exports, disk twins, globals, fact/resource changes and failed resolution recovery.
 
-A future cache must match fresh solo findings, refusals, grants, and populations. Plant changed exports through unchanged importers, removed imports with disk twins, globals, fact/resource changes, and failure followed by recovery.
-
-Main owns red-first controls, suites, the barrier and one benchmark after source freeze. Compare durations, scope, pass timings, test count and `test-report.json`. Retain serial execution and proof requirements.
+Main owns the frozen benchmark. Compare durations, scope, pass timings and test reports. Retain serial execution and complete proofs.
 
 ## Evidence
 
 Owner deferred this work. Resume only on an explicit owner request.
 
-Narrowing is in `e9fe219ff`; wall time is not fixed. Pre-commit scopes to the whole working tree, not the staged diff. Liveness: 1317 s, ~240 builds of ~1.6 s.
+Narrowing is in `e9fe219ff`; resolution caching is in `2d2b27975`. Pre-commit checks the staged diff.
+
+The optimized liveness roster passed; matching overlay batches took 8.5% less time. The uncached baseline precondition passed after catch-census regeneration. Policy and pass populations match, but that correction prevents a strict identical-byte timing claim.
+
+The static barrier passed at `b7f4d564d`. Its affected-instrument stage selected nothing after the push advanced the remote base, so behavioral evidence remains separate. This does not complete the broader same-changed-set performance criterion.
