@@ -40,6 +40,7 @@ import type { WeaveState, WovenWeb } from "./web-weave-geometry.ts";
 import { buildStrandOut, buildWeb } from "./web-weave-geometry.ts";
 import type { WeaveGlintSegment } from "./web-weave-glint.ts";
 import { buildGlintIndex } from "./web-weave-glint.ts";
+import { bakeWeaveGlow } from "./web-weave-glow.ts";
 import { createPreyState } from "./web-weave-prey.ts";
 import type { WeavePalette } from "./web-weave-render.ts";
 import { bakeStaticWeb, drawLiveLayers, renderWeaveFrame } from "./web-weave-render.ts";
@@ -192,6 +193,7 @@ export function WebWeave({
     wrapper.appendChild(probe);
 
     let palette = resolvePalette(probe);
+    let paintGlow = bakeWeaveGlow(canvas.ownerDocument, palette.glow);
     let web: WovenWeb | null = null;
     let glint: readonly WeaveGlintSegment[] = [];
     let width = 0;
@@ -294,6 +296,7 @@ export function WebWeave({
         t: bakeT,
         now,
         palette,
+        paintGlow,
         dim: 1,
         still: true,
         spider,
@@ -324,7 +327,7 @@ export function WebWeave({
       ctx.globalAlpha = 1;
       // …then paint only the live layers on top, in CSS-px space.
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      drawLiveLayers(ctx, { web, state, t, now, palette, dim, still: false, spider, strandOut, glint, ...frame }, tracker);
+      drawLiveLayers(ctx, { web, state, t, now, palette, paintGlow, dim, still: false, spider, strandOut, glint, ...frame }, tracker);
     };
 
     const paint = (now: number): void => {
@@ -346,7 +349,7 @@ export function WebWeave({
       } else {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, width, height);
-        renderWeaveFrame(ctx, { web, state, t, now, palette, dim, still: reduced, spider, strandOut, glint, ...frame }, tracker);
+        renderWeaveFrame(ctx, { web, state, t, now, palette, paintGlow, dim, still: reduced, spider, strandOut, glint, ...frame }, tracker);
       }
       notify(t);
       frames += 1;
@@ -412,6 +415,7 @@ export function WebWeave({
     // follow-up (§9.9); every in-app theme path touches the documentElement and is caught here.
     const themeObserver = new MutationObserver(() => {
       palette = resolvePalette(probe);
+      paintGlow = bakeWeaveGlow(canvas.ownerDocument, palette.glow);
       // Invalidate the cache so the resting loop re-bakes with the new palette (the raw string reads
       // the fresh tokens next frame). Reduced motion has no loop, so repaint its one static frame now.
       baked = false;
