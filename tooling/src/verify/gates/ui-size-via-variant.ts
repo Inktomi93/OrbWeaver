@@ -3,8 +3,8 @@
 // The shared Tailwind reader preserves both important spellings and exact authored token positions.
 // The legacy named-import and literal-className limits remain: no namespace tags, computed className,
 // CSS-variable shorthand, or min-w/max-w/max-h widening. Unsized layout/media APIs own no size seal.
-// Two former file-wide Select permissions now bind only their w-auto occurrences through ordinary
-// markers. Central authority owns staleness; the family test replaces the legacy stale-table proof.
+// Select permissions bind only exact w-auto occurrences through ordinary markers.
+// Central authority owns staleness; the family test proves the product occurrence and extra-size refusal.
 // Population is unchanged: client and UI authored sources. Per-file imports live inside create.
 import type { JsxOpeningElement, JsxSelfClosingElement, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";

@@ -38,6 +38,10 @@ type Waiver =
 // Every chat component WITHOUT its own `.ct.tsx`, with the reason. `coveredBy` names the CT (basename)
 // that mounts the real parent and drives this sub-part through it; that CT must exist (verified below).
 const WAIVERS: Readonly<Record<string, Waiver>> = {
+  "transcript-window": {
+    coveredBy: "message-list-surface",
+    why: "MessageListSurface renders TranscriptWindow; message-list-surface.ct drives ordinary-to-anchored suspension, earlier/later paging, one-shot focus across resume, Back to Corpus, and the deleted-source fallback in an empty room.",
+  },
   // Sub-parts driven through a parent's real CT.
   // (`message-wire-trigger` USED to sit here, covered by variant-wire-viewer.ct. WIREBTN deleted the
   //  component: the wire trace is a kebab item on `message-actions-row` now, whose `open` state must live

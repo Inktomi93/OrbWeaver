@@ -18,6 +18,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { closeProbeSession, launchProbeSession } from "@orb/tooling/_shared/browser";
 import { listProcesses, processInfo } from "@orb/tooling/_shared/platform";
+import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import type { RunMarkerDeps } from "@orb/tooling/_shared/run-marker";
 import {
   beginRunLease,
@@ -25,6 +26,8 @@ import {
   markedPids,
   mintRunMarker,
   processRunIdentities,
+  RUN_LEASE_ENV,
+  RUN_MARKER_ENV,
   runLeaseArg,
   runMarkerArg,
   sweepAbandonedRunMarkersNow,
@@ -129,7 +132,9 @@ function aliveNow(pid: number): boolean {
  *  cannot be relied on for cleanup. */
 async function spawnLeakChromium(name: string, marker: string | null): Promise<number> {
   const dir = join(LEAK_TEMP, name);
-  const child = spawn(chromium.executablePath(), [...leakChromiumArgs(dir, marker)], { detached: true, stdio: "ignore" });
+  // These plants test argv identities; inherited stage identities would replace their premise.
+  const env = inheritedProcessEnv({ [RUN_MARKER_ENV]: undefined, [RUN_LEASE_ENV]: undefined });
+  const child = spawn(chromium.executablePath(), [...leakChromiumArgs(dir, marker)], { detached: true, stdio: "ignore", env });
   child.unref();
   const pid = child.pid;
   if (pid === undefined) {
@@ -235,7 +240,8 @@ test("a MARKED reparented-leak chromium is reaped once its owner is gone, and le
 async function spawnLeasedChromium(name: string, marker: string, lease: string): Promise<number> {
   const dir = join(LEAK_TEMP, name);
   const args = ["--headless", "--no-sandbox", "--disable-gpu", `--user-data-dir=${dir}`, runMarkerArg(marker), runLeaseArg(lease), "about:blank"];
-  const child = spawn(chromium.executablePath(), args, { detached: true, stdio: "ignore" });
+  const env = inheritedProcessEnv({ [RUN_MARKER_ENV]: undefined, [RUN_LEASE_ENV]: undefined });
+  const child = spawn(chromium.executablePath(), args, { detached: true, stdio: "ignore", env });
   child.unref();
   const pid = child.pid;
   if (pid === undefined) {
