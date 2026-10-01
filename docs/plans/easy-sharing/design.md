@@ -12,7 +12,7 @@ A host with no shell skill, on bare metal or Docker, takes one step and friends 
 
 ## Shape
 
-Legs T, L, H, R, S and J are built. The remaining Docker path is `docs/work/0174-share-from-a-container-through-the-same-pinned.md`, which requires the pinned relay download instead of a sidecar. Optional IP certificates remain in `docs/work/0172-easy-sharing-leg-c-an-automatic-ip-certificate.md`. The sections below describe the design and its probes; claims marked unverified still need proof.
+Legs T, L, H, R, S, D and J are built. Docker sharing uses the pinned relay download defined by D272. Its runtime supplies system certificate authorities, and a disposable-volume proof verifies public health and cache reuse after restart. Optional IP certificates remain in `docs/work/0172-easy-sharing-leg-c-an-automatic-ip-certificate.md`. The sections below describe the design and its probes; claims marked unverified still need proof.
 
 ### 1. Premises re-derived against the tree
 

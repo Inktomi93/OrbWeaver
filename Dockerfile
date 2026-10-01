@@ -67,6 +67,8 @@ RUN sh docker/assemble-runtime.sh /app /app/deploy /app/runtime /app/runtime-lin
 
 # ── Stage 3: runtime ─────────────────────────────────────────────────────────────────────────────────
 FROM node:26.10.0-bookworm-slim@sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2 AS runtime
+# cloudflared uses the system trust store; the slim base does not contain it.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ARG GIT_SHA=unknown
 ARG IMAGE_VERSION=dev
