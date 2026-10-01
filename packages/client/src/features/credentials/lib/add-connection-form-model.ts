@@ -6,6 +6,7 @@
 
 import type { ProviderAuth, ProviderDef, Wire } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDisplayLabel } from "@orb/contracts/inference";
+import { ADD_CONNECTION_PATH } from "#lib";
 import { clauseOf, MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 
 /** The command the Claude-subscription step asks the user to run (§5.3a: "a copyable `claude setup-token`"). */
@@ -125,7 +126,7 @@ export const CONNECTION_FORM_COPY = {
   labelHint: "Optional — defaults to “provider · model”.",
   backgroundLabel: "Allow background work",
   backgroundDescription: "Let summaries, captions and memory digests run on this connection unattended.",
-  submit: "Add connection",
+  submit: ADD_CONNECTION_PATH.leaf,
   submitFailed: "Couldn't submit the connection.",
 } as const;
 

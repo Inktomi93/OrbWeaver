@@ -71,6 +71,7 @@ import type { ConfigGroupDefinition, ConfigGroupId, ConfigSectionPartition, Conf
 import { isCollectionGroup, isPlaceholderGroup, useConfigGroupOpen } from "#state";
 import { CONFIG_UNBUILT_MARKER } from "../lib/config-copy.ts";
 import { CollectionListGroup } from "./config-list-collection-group.tsx";
+import { ConfigModifiedMark } from "./config-modified-mark.tsx";
 
 export interface ConfigListGroupProps {
   readonly group: ConfigGroupDefinition;
@@ -308,11 +309,7 @@ function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, b
               {CONFIG_UNBUILT_MARKER}
             </Badge>
           ) : null}
-          {modifiedMarker === undefined ? null : (
-            <Badge data-slot="config-group-modified" intent="neutral" size="sm" tone="soft">
-              {modifiedMarker}
-            </Badge>
-          )}
+          {modifiedMarker === undefined ? null : <ConfigModifiedMark label={modifiedMarker} slot="config-group-modified" />}
         </>
       }
       onClick={(): void => onSelectGroup(group)}
@@ -336,29 +333,7 @@ interface SubcategoryRowProps {
   readonly onSelectSub: (groupId: ConfigGroupId, subId: string) => void;
 }
 
-/** ONE section row. The row renders `navLabel` when the section declares one — a name too long for the LIST
- *  column is ABBREVIATED here, never renamed at its heading. The full `label` rides `fullTitle` so hovering
- *  recovers it. Extracted so the plain cohort and the fold's cohort are provably the SAME row (they are
- *  drawn in two places now; a copy would let the fold's rows drift into a second grammar).
- *
- *  ── THE ROW SAYS WHAT IS TRUE OF ITS SECTION (#1169) ──
- *  ONE state slot, `meta`, with a stated precedence — a failed save outranks a modified value, because it
- *  is the fact the reader can act on and it already implies the section differs from what is stored. The
- *  row therefore grows ONE grammar, not two: `meta` is the primitive's trailing title-line datum, already
- *  the `Save failed` marker's home and already part of the row's `aria-describedby`, so the new mark is
- *  announced without touching the row's NAME. #1712 re-affirmed this default against the "compose both
- *  words" alternative — the divergence a failed save implies is discoverable at `SAVE_FAILED_MARKER`'s
- *  doc (`lib/config-copy.ts`), never a second visible mark on this row.
- *
- *  A `Badge` IN `markers` WAS MEASURED AND REFUSED — with a PLANTED CONTROL, not an argument. `markers` is
- *  the peers' rest-visible-state slot (the chats row's `Archived` badge), and adopting it is what
- *  "converge on the shared grammar" would mean read literally. Built that way and run against the row-pitch
- *  pin, the Appearance group measured `Set { 35, 42 }`: the one modified row grew to 42px while its eight
- *  siblings stayed at 35, i.e. the LIST's row pitch became a function of the reader's settings. The cause
- *  is the box, not the slot — a `sm` Badge is `text-label`/`leading-label` over `py-field` twice, ~30px,
- *  against this row's 16px title line — and a chats row absorbs the same badge only because it is already
- *  44px with a portrait and a subtitle. The slot is the peers'; the box is not, and the reason is the
- *  PAYLOAD, not the pane. That control is what makes the row-pitch pin a defect proof rather than a fence. */
+/** Section state stays in the row description; a failed save takes precedence over its modified mark. */
 function SubcategoryRow({
   sub,
   groupId,
@@ -371,11 +346,12 @@ function SubcategoryRow({
   onSelectSub,
 }: SubcategoryRowProps): ReactElement {
   const modified = modifiedSubIds.has(sub.id) ? modifiedMarker : undefined;
-  const state = erroredSubIds.has(sub.id) ? saveFailedMarker : modified;
+  const failed = erroredSubIds.has(sub.id);
   return (
     <ListRow
       clickable={true}
-      {...(state === undefined ? {} : { meta: state })}
+      {...(failed ? { meta: saveFailedMarker } : {})}
+      {...(!failed && modified !== undefined ? { markers: <ConfigModifiedMark label={modified} slot="config-section-modified" /> } : {})}
       fullTitle={sub.label}
       onClick={(): void => onSelectSub(groupId, sub.id)}
       selected={active && activeSub === sub.id}

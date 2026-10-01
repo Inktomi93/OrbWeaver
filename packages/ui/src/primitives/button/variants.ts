@@ -37,6 +37,15 @@ function glyphBox(box: string): string[] {
   return [box, "relative shrink-0 p-0", TOUCH_TARGET_PSEUDO];
 }
 
+function inlineBox(typeStep: string): string[] {
+  return [
+    "relative h-auto min-h-0 justify-start font-normal",
+    typeStep,
+    "before:absolute before:top-1/2 before:left-1/2 before:h-touch-target before:w-full before:min-w-touch-target",
+    "before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']",
+  ];
+}
+
 export const buttonVariants = tv({
   base: [
     "inline-flex select-none items-center justify-center gap-field whitespace-nowrap font-sans font-medium",
@@ -121,11 +130,9 @@ export const buttonVariants = tv({
       // It is `::before` for the #1843 reason spelled out on `glyphBox` above: the CTA ring owns `::after`
       // unlayered, so an `inline` PRIMARY button's hit area was being replaced by a ring that cannot be
       // clicked. Pinned by COMPUTED box in tests/ui/primitives/button/button.ct.tsx.
-      inline: [
-        "relative h-auto min-h-0 justify-start font-normal text-label leading-label",
-        "before:absolute before:top-1/2 before:left-1/2 before:h-touch-target before:w-full before:min-w-touch-target",
-        "before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']",
-      ],
+      inline: inlineBox("text-label leading-label"),
+      // A recovery action inside body prose must keep that sentence's type step and the same touch target.
+      "inline-body": inlineBox("text-body leading-body"),
       // GLYPH: the SQUARE ICON-ONLY MICRO-BUTTON ramp — the `icon` size's sub-control twin. `icon` is a full
       // `control-md` box (a toolbar button that happens to hold a glyph); a glyph button rides INSIDE a dense
       // row — a badge's dismiss, a list row's trailing delete, an editor row's toggle strip — where a control

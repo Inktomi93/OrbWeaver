@@ -774,6 +774,7 @@ test("a distant section-row click lands on the target, never an intermediate (sp
 // Flash geometry (owner P3): after a jump the flashed SECTION carries the inset-ring highlight, its box hugs
 // the section's own content (no grid stretch), and it sits fully within the scroll container's visible width.
 test("the jump flash hugs the section box and stays within the scroll container", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await stub(page);
   const component = await mount(<ConfigHostStory target="appearance" />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
@@ -783,7 +784,15 @@ test("the jump flash hugs the section box and stays within the scroll container"
 
   // The flash is a TRANSIENT ring (rAF-polled + smooth scroll), so every read below is a retrying one over
   // the same in-page measurement, taken while the ring is present.
-  const readFlashGeometry = (): Promise<{ hasInsetRing: boolean; hugs: boolean; withinLeft: boolean; withinRight: boolean } | null> =>
+  const readFlashGeometry = (): Promise<{
+    hasInsetRing: boolean;
+    hugs: boolean;
+    withinLeft: boolean;
+    withinRight: boolean;
+    landedTop: boolean;
+    inlineClearance: boolean;
+    noHorizontalScroll: boolean;
+  } | null> =>
     page.evaluate(() => {
       const section = document.querySelector('[id$="-avatars"]') as HTMLElement | null;
       const region = document.querySelector('[data-slot="config-content"]') as HTMLElement | null;
@@ -792,6 +801,8 @@ test("the jump flash hugs the section box and stays within the scroll container"
       }
       const sb = section.getBoundingClientRect();
       const rb = region.getBoundingClientRect();
+      const heading = section.querySelector("h3");
+      const clearance = Number.parseFloat(getComputedStyle(section).paddingBlockStart);
       return {
         // The flash is an INSET ring on the section (never an outset outline clipped at the scroll edge).
         hasInsetRing: getComputedStyle(section).boxShadow.includes("inset"),
@@ -799,12 +810,20 @@ test("the jump flash hugs the section box and stays within the scroll container"
         hugs: Math.abs(Math.round(sb.height) - section.scrollHeight) <= 2,
         withinLeft: sb.left >= rb.left - 1,
         withinRight: sb.right <= rb.left + region.clientWidth + 1,
+        landedTop: sb.top >= rb.top - 1 && sb.top <= rb.top + 1,
+        inlineClearance: clearance > 0 && heading !== null && heading.getBoundingClientRect().left - sb.left >= clearance - 1,
+        noHorizontalScroll: region.scrollWidth <= region.clientWidth + 1,
       };
     });
-  await expect.poll(async () => (await readFlashGeometry())?.hasInsetRing).toBe(true);
-  await expect.poll(async () => (await readFlashGeometry())?.hugs).toBe(true);
-  await expect.poll(async () => (await readFlashGeometry())?.withinLeft).toBe(true);
-  await expect.poll(async () => (await readFlashGeometry())?.withinRight).toBe(true);
+  await expect.poll(readFlashGeometry).toEqual({
+    hasInsetRing: true,
+    hugs: true,
+    withinLeft: true,
+    withinRight: true,
+    landedTop: true,
+    inlineClearance: true,
+    noHorizontalScroll: true,
+  });
 });
 
 // SCROLL-SPY, the no-scroll arm: a group that FITS its column is at its top AND its bottom at once. The

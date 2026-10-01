@@ -5,14 +5,14 @@ interface ViewTransitionSettlement {
 }
 
 function isSkippedTransition(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "name" in error && error.name === "AbortError";
+  return typeof error === "object" && error !== null && "name" in error && (error.name === "AbortError" || error.name === "TimeoutError");
 }
 
 /** Observe fire-and-forget ViewTransition settlement without hiding update callback failures. */
 export function observeViewTransition(transition: ViewTransitionSettlement | undefined): void {
   const surfacedFailures = new Set<unknown>();
   const observe = (settled: Promise<unknown> | undefined, absorbSkipped: boolean): void => {
-    // @orb-waive caught-failure-ownership(settled): only AbortError from platform settlement is absorbed; callback settlement never absorbs it. Every other unique rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement.
+    // @orb-waive caught-failure-ownership(settled): platform AbortError/TimeoutError skips the visual transition; callback settlement never absorbs either. Every other unique rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement.
     settled?.catch((error: unknown) => {
       if ((absorbSkipped && isSkippedTransition(error)) || surfacedFailures.has(error)) {
         return;

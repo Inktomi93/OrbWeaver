@@ -170,9 +170,10 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
             editor-pane inset on the token scale, and a per-editor inset is the same defect waiting for the
             next group. The INLINE half of that inset now belongs to the column above (so the receipt shares
             it); this box keeps the block half, which is scroll geometry and nobody else's. */}
+        {/* Reserve ring clearance inside the scroller without changing the column's content alignment. */}
         <Stack
           aria-label={regionLabel}
-          className="relative h-full min-h-0 flex-1 overflow-y-auto overscroll-contain py-section outline-none"
+          className="relative -mx-row h-full min-h-0 flex-1 overflow-y-auto overscroll-contain px-row py-section outline-none"
           data-slot="config-content"
           ref={contentRef}
           role="region"

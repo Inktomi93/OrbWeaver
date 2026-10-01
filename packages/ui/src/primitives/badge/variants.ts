@@ -27,6 +27,8 @@ export const badgeVariants = tv({
       ghost: "border bg-transparent",
     },
     size: {
+      // Title-only rows need state chrome without the vertical padding that changes their pitch.
+      compact: "px-field font-sans text-label leading-label",
       sm: "px-row py-field text-label leading-label",
       md: "px-block py-field text-body leading-body",
       // THE IN-FLOW ARM (side-eye F-6, 2026-08-03) — a chip that sits INSIDE a run of prose (a `{{macro}}`

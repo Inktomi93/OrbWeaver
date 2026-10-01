@@ -252,7 +252,7 @@ function LocalInviteArm({
   }
   const room = preview.data;
   if (room === null || room === undefined) {
-    return <InviteUnavailable onBack={(): void => onDismissJoin?.()} />;
+    return <InviteUnavailable onBack={(): void => onDismissJoin?.()} onUseSignIn={(): void => setSignIn(true)} />;
   }
   return (
     <Stack gap="block">

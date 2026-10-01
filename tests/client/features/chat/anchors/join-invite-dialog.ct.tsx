@@ -5,7 +5,7 @@
 // confirming fires `invites.redeemInvite({ token })` then closes (the story surfaces `onDone` as
 // text). A bad token renders the ONE flat "invalid or expired" state — leak-free, no oracle.
 
-import { DEAD_INVITE_SENTENCE, memberCountPhrase } from "@orb/client/lib";
+import { DEAD_INVITE_SENTENCE } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { JoinInviteDialogStory } from "../_ct-stories.tsx";
@@ -17,6 +17,15 @@ const PREVIEW = {
   memberCount: 3,
   modeLabel: "Each character speaks for themselves, and the story picks who speaks next.",
 };
+const INVITE_SENTENCE = "Invited by alex to Tavern Night (3 members).";
+
+test("a ready invite uses the shared room sentence and focuses Join chat", async ({ mount, page }) => {
+  await routeTrpc(page, { "invites.previewInvite": () => PREVIEW });
+  await mount(<JoinInviteDialogStory token="tok_ct_secret" />);
+  await expect(page.getByTestId("join-invite-confirm")).toBeVisible();
+  await expect.soft(page.getByText(INVITE_SENTENCE, { exact: true })).toBeVisible();
+  await expect.soft(page.getByTestId("join-invite-confirm")).toBeFocused();
+});
 
 test("mount previews the token; confirm redeems and closes into the chat", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
@@ -32,9 +41,7 @@ test("mount previews the token; confirm redeems and closes into the chat", async
   // The MINIMAL preview renders (room · host · members · mode) — the DOM consequence of the
   // preview read landing, so await that directly instead of polling the call count.
   await expect(page.getByTestId("join-invite-dialog")).toBeVisible();
-  await expect(page.getByText("Tavern Night")).toBeVisible();
-  await expect(page.getByText("Host: alex")).toBeVisible();
-  await expect(page.getByText(memberCountPhrase(PREVIEW.memberCount), { exact: true })).toBeVisible();
+  await expect(page.getByText(INVITE_SENTENCE, { exact: true })).toBeVisible();
   // The guest's mode sentence renders as the server sent it, with no host-vocabulary label in front.
   await expect(page.getByText(PREVIEW.modeLabel, { exact: true })).toBeVisible();
   // The preview-then-confirm read fired with the RAW token in the POST body.
@@ -49,11 +56,11 @@ test("mount previews the token; confirm redeems and closes into the chat", async
   await expect.poll(() => trpc.lastInput("invites.redeemInvite")).toEqual({ token: "tok_ct_secret" });
 });
 
-// The host's handle is lowercase, and the sentence names the room; the handle has its own Host line.
+// The host's lowercase handle must not become the opening word.
 test("the invite sentence opens on a capital, not on the host's handle", async ({ mount, page }) => {
   await routeTrpc(page, { "invites.previewInvite": () => PREVIEW });
   await mount(<JoinInviteDialogStory token="tok_ct_secret" />);
-  const sentence = page.getByText(PREVIEW.roomName, { exact: true }).locator("..");
+  const sentence = page.getByText(INVITE_SENTENCE, { exact: true });
   await expect(sentence).toHaveText(/^\p{Lu}/u);
 });
 
@@ -67,7 +74,8 @@ test("a bad token renders the flat 'invalid or expired' state (leak-free NOT_FOU
   // The one dead-link sentence every invite door shares.
   await expect(page.getByText(DEAD_INVITE_SENTENCE, { exact: true })).toBeVisible();
   // No preview fields leak for a bad token.
-  await expect(page.getByText("Host:", { exact: false })).toHaveCount(0);
+  await expect(page.getByText(PREVIEW.roomName, { exact: false })).toHaveCount(0);
+  await expect(page.getByText(PREVIEW.hostHandle, { exact: false })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByTestId("ct-join-done")).toBeVisible();
@@ -79,7 +87,7 @@ test("'Not now' dismisses without redeeming (the link stays usable)", async ({ m
   });
 
   await mount(<JoinInviteDialogStory token="tok_ct_secret" />);
-  await expect(page.getByText("Tavern Night")).toBeVisible();
+  await expect(page.getByText(INVITE_SENTENCE, { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Not now" }).click();
   await expect(page.getByTestId("ct-join-done")).toBeVisible();

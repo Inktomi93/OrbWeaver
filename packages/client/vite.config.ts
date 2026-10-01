@@ -391,8 +391,8 @@ async function withCompilerTransformCache(pluginPromise: ReturnType<typeof babel
 //
 // Intra-package imports use the package.json `#*` subpath field (resolved natively by Vite) — there is
 // NO `@`/tsconfig-paths alias (orbweaver principle #2). No `base` (served at root), no version
-// `define`s (foundation/env owns runtime config), no hand-written `manualChunks` (Rolldown
-// auto-chunks). The heavy seals with large deps — @orb/ui/stat-figure (ECharts) and @orb/ui/code-editor
+// `define`s (foundation/env owns runtime config). Zod and its client configuration share one chunk;
+// Rolldown auto-chunks the rest. The heavy seals — @orb/ui/stat-figure (ECharts) and @orb/ui/code-editor
 // (CodeMirror) — are `React.lazy`'d at their client call sites (character-provenance-section.tsx,
 // theme-editor.tsx), each getting its own chunk instead of riding the entry bundle (P1, rollup audit).
 //
@@ -579,6 +579,14 @@ export default defineConfig({
     removeSsrLoadModule: "warn",
   },
   build: {
+    // Every Zod consumer loads its client configuration before constructing a schema, even across chunks.
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [{ name: "zod", test: /[\\/]node_modules[\\/]zod[\\/]|[\\/]lib[\\/]zod-jitless\.ts$/ }],
+        },
+      },
+    },
     // Fully es2025. NOTE (corrected 2026-08-07): this is lowered by OXC/Rolldown, NOT esbuild — vite 8
     // treats esbuild as an optional peer it only lazily imports for `cssMinify: "esbuild"` and the
     // deprecated `transformWithEsbuild`. The old comment here claimed the target rode a pnpm-workspace
@@ -628,7 +636,7 @@ export default defineConfig({
     // 692 kB), boot payload 3,012,985 B (was 818,188 B). The limit sits above the largest chunk with
     // ~7% headroom; the real fence on the boot payload is `pnpm check:boot-chunk`, re-calibrated in the
     // same commit. (Use build.rolldownOptions — NEVER the deprecated rollupOptions — for any manual
-    // output config; none needed today, Rolldown auto-chunks.)
+    // output config; the Zod group above preserves client configuration order.)
     chunkSizeWarningLimit: 2800,
     // The canonical bundle location: the server's SPA registrar (entry/http/spa.ts) serves this dir —
     // CLIENT_DIST_DIR defaults to packages/client/dist and must move with any change here.

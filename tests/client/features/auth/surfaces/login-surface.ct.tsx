@@ -213,6 +213,22 @@ test("local + a stashed invite that no longer admits → the unavailable state, 
   await expect(page.getByTestId("signup-handle")).toHaveCount(0);
 });
 
+test("local invite signup refusal retains the invite while an existing account signs in", async ({ mount, page }) => {
+  const preview = await stubSignupPreview(page, false);
+  await page.route("**/api/auth/login", (route) => route.fulfill({ status: 200, json: { ok: true } }));
+  await mount(<LoginArmStory config={config({ mode: "local", multiHumanCapable: true })} joinToken="tok_sign_in_only" />);
+  await expect(page.getByTestId("invite-unavailable")).toBeVisible();
+  await expect(page.getByTestId("signup-invite-form")).toHaveCount(0);
+  await page.getByRole("button", { name: "Sign in to join", exact: true }).click();
+  await expect(page.getByTestId("login-local-form")).toBeVisible();
+  await expect(page.getByTestId("ct-login-invite-dismissed")).toHaveText("false");
+  await page.getByTestId("login-password").fill("existing-account-password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByTestId("ct-login-done")).toBeVisible();
+  await expect(page.getByTestId("ct-login-invite-dismissed")).toHaveText("false");
+  expect(preview.bodies).toEqual([{ token: "tok_sign_in_only" }]);
+});
+
 // P1-1 — a handle with a space fails the rule. The field says so at once, with aria-invalid, and a submit sends nothing
 // and returns focus to it; the button never goes silent.
 test("local + a stashed invite → a handle that breaks the rule is marked invalid, and submit sends nothing and focuses it", async ({ mount, page }) => {

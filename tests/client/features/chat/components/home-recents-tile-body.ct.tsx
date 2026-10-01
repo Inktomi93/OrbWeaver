@@ -512,7 +512,7 @@ test("an empty chats list renders a TEACHING empty state with an action, not a b
   const home = await mount(<ChatRecentsTileStory />);
   const tile = home.locator('[data-home-tile="chat.recents"]');
 
-  await expect(tile.getByText("No chats yet")).toBeVisible();
+  await expect(tile.getByText("No rooms yet")).toBeVisible();
   await expect(tile.getByRole("button", { name: "New chat" })).toBeVisible();
 });
 

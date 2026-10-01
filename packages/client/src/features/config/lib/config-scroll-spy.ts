@@ -95,8 +95,8 @@ export function computeVisibleSettings(container: HTMLElement, prefix: string): 
 /** Scroll a jumped-to section to the top of the pane and flash its inset ring, so the eye lands on the
  *  thing the jump named instead of hunting a silently-repositioned page. */
 export function flashAnchor(el: HTMLElement): void {
-  el.scrollIntoView({ block: "start", behavior: scrollBehavior() });
   el.classList.add(FLASH_BASE_CLASS, FLASH_LIT_CLASS);
+  el.scrollIntoView({ block: "start", behavior: scrollBehavior() });
   globalThis.setTimeout(() => {
     el.classList.remove(FLASH_LIT_CLASS);
     // Reduced motion REMOVES the transition (the imported UI globals floor sets `transition-property: none`),

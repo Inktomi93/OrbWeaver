@@ -180,7 +180,7 @@ export function FirstRunPersonaDialog(): ReactElement | null {
   return (
     // Forced-open: onOpenChange is deliberately inert, the only way out is creating the persona.
     <FormDialog
-      description="Chats speak to you through a persona — the name (and optional description) characters see as you. Create yours to get started; you can refine it any time from the avatar at the rail's foot."
+      description="Chats speak to you through a persona — the name (and optional description) characters see as you. Create yours to get started; you can refine it any time in Settings under Personas."
       onOpenChange={(): void => {
         // Ignored by design.
       }}

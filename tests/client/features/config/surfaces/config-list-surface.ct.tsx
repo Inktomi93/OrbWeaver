@@ -1300,18 +1300,36 @@ test("the section ROW says WHICH section differs from its default", async ({ mou
   await expect(body).toHaveAccessibleDescription(new RegExp(CONFIG_MODIFIED_MARK));
 });
 
+test("Modified has one visual treatment at shelf, group and section level", async ({ mount, page }) => {
+  await stubModified(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  const marks = workspace.locator(LIST_PANE).getByText(CONFIG_MODIFIED_MARK, { exact: true });
+  await expect(marks).toHaveCount(3);
+  const treatments = await marks.evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const style = getComputedStyle(node);
+      return [
+        style.fontFamily,
+        style.fontSize,
+        style.fontWeight,
+        style.lineHeight,
+        style.backgroundColor,
+        style.borderRadius,
+        style.paddingBlock,
+        style.paddingInline,
+      ].join("|");
+    }),
+  );
+  expect(new Set(treatments).size).toBe(1);
+});
+
 /** Every mounted Appearance row's height, zero-boxed rows dropped — so the LENGTH is a real measured count
  *  and a silent empty sweep can never read as a pass (the band sweep's own discipline). */
 function appearanceRowHeights(workspace: Locator): Promise<readonly number[]> {
   return appearanceRows(workspace).evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height).filter((height) => height > 0));
 }
 
-// THE MARK MUST NOT MOVE THE ROW. This is the mechanism half of the refusal recorded at `SubcategoryRow`:
-// the peers' rest-visible-state slot (`ListRow.markers`, the chats row's `Archived` badge) takes a `sm`
-// Badge BOX (~30px) that a title-only 35px row cannot absorb, so a modified row would out-grow its
-// unmodified siblings and the LIST's pitch would depend on the reader's settings. `meta` is a 16px
-// title-line datum and costs nothing. Measured against the OTHER rows in the same group rather than a
-// literal, so a correct density retune moves them together and this stays true.
+// Compare sibling rows so the mark cannot make row pitch depend on the settings value.
 test("…and the mark does not change the row's pitch — one height across the whole group", async ({ mount, page }) => {
   await stubModified(page);
   const workspace = await mount(<ConfigWorkspaceStory />);

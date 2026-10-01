@@ -77,9 +77,9 @@ export function HomeRecentsTileBody(): ReactElement {
               New chat
             </Button>
           }
-          description="Your threads land here the moment you start one."
+          description="Your rooms appear here when you start one."
           icon={<Icon icon={MessagesSquare} size="lg" />}
-          title="No chats yet"
+          title="No rooms yet"
         />
       </Stack>
     );

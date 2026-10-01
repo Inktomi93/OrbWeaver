@@ -21,7 +21,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { DEAD_INVITE_SENTENCE, memberCountPhrase, testId } from "#lib";
+import { DEAD_INVITE_SENTENCE, inviteRoomSentence, testId } from "#lib";
 import { selectChat, setActiveSection } from "#state";
 import { usePreviewInvite, useRedeemInvite } from "../hooks/use-invite-mutations.ts";
 
@@ -43,6 +43,8 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
   const preview = usePreviewInvite({ trpc, invalidation });
   const redeem = useRedeemInvite({ trpc, invalidation });
   const [state, setState] = useState<PreviewState>({ kind: "loading" });
+  const popupRef = useRef<HTMLDivElement>(null);
+  const primaryRef = useRef<HTMLButtonElement>(null);
   // One-shot mount fire (ref-guarded against StrictMode's dev double-invoke + the hook identity churn):
   // preview is a POST-shaped READ — refiring is harmless server-side but would flap the UI state.
   const fired = useRef(false);
@@ -58,6 +60,13 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
       () => setState({ kind: "invalid" }),
     );
   }, [previewAsync, token]);
+
+  useEffect(() => {
+    // The action mounts after preview resolves; leave focus alone if the reader already moved it.
+    if (state.kind !== "loading" && document.activeElement === popupRef.current) {
+      primaryRef.current?.focus();
+    }
+  }, [state.kind]);
 
   const join = (): void => {
     redeem.mutateAsync({ token }).then(
@@ -83,7 +92,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
         }
       }}
     >
-      <DialogPopup data-testid={testId("joinInviteDialog")}>
+      <DialogPopup data-testid={testId("joinInviteDialog")} ref={popupRef} initialFocus={primaryRef}>
         <Stack gap="block">
           <DialogTitle>Join a chat</DialogTitle>
           {state.kind === "loading" ? <Text voice="quiet">Checking the invite…</Text> : null}
@@ -91,7 +100,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
             <>
               <DialogDescription>{DEAD_INVITE_SENTENCE}</DialogDescription>
               <Row gap="field" justify="end">
-                <Button intent="secondary" onClick={onDone}>
+                <Button intent="secondary" onClick={onDone} ref={primaryRef}>
                   Close
                 </Button>
               </Row>
@@ -99,20 +108,8 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
           ) : null}
           {state.kind === "ready" ? (
             <>
-              <DialogDescription>
-                You're invited to join{" "}
-                <Text as="span" weight="semibold">
-                  {state.preview.roomName}
-                </Text>
-                .
-              </DialogDescription>
+              <DialogDescription>{inviteRoomSentence(state.preview)}</DialogDescription>
               <Stack gap="field">
-                <Text size="label" tone="muted">
-                  Host: {state.preview.hostHandle}
-                </Text>
-                <Text size="label" tone="muted">
-                  {memberCountPhrase(state.preview.memberCount)}
-                </Text>
                 <Text size="label" tone="muted">
                   {state.preview.modeLabel}
                 </Text>
@@ -121,7 +118,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
                 <Button intent="ghost" onClick={onDone}>
                   Not now
                 </Button>
-                <Button intent="primary" disabled={redeem.isPending} onClick={join} data-testid={testId("joinInviteConfirm")}>
+                <Button intent="primary" disabled={redeem.isPending} onClick={join} data-testid={testId("joinInviteConfirm")} ref={primaryRef}>
                   {redeem.isPending ? "Joining…" : "Join chat"}
                 </Button>
               </Row>

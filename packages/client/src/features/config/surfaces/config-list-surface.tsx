@@ -12,7 +12,6 @@
 // THE SEARCH (S2) rides the top of this scroller as a `role="search"` block, not the 48px LIST band
 // (fork F-11 — the corpus omnibox precedent).
 
-import { Badge } from "@orb/ui/badge";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -33,6 +32,7 @@ import {
 } from "#state";
 import { ConfigListGroup } from "../components/config-list-group.tsx";
 import { ConfigMobileTeaching } from "../components/config-mobile-teaching.tsx";
+import { ConfigModifiedMark } from "../components/config-modified-mark.tsx";
 import { ConfigSearchInput } from "../components/config-search-input.tsx";
 import { useConfigModified } from "../hooks/use-modified-sections.ts";
 import { CONFIG_MODIFIED_MARKER, SAVE_FAILED_MARKER } from "../lib/config-copy.ts";
@@ -134,11 +134,7 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
                 <Text id={configShelfLabelId(shelf)} voice="kicker">
                   {CONFIG_SHELF_LABELS[shelf]}
                 </Text>
-                {members.some((group) => isGroupModified(group.id)) ? (
-                  <Badge data-slot="config-shelf-modified" intent="neutral" size="sm" tone="soft">
-                    {CONFIG_MODIFIED_MARKER}
-                  </Badge>
-                ) : null}
+                {members.some((group) => isGroupModified(group.id)) ? <ConfigModifiedMark label={CONFIG_MODIFIED_MARKER} slot="config-shelf-modified" /> : null}
               </Row>
               {members.map((group) => (
                 <ConfigListGroup

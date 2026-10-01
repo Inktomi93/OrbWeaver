@@ -152,9 +152,8 @@ const BUILD_TIMEOUT_MS = budget(BUILD_TIMEOUT_MS_BASE);
 //   focus-ring-D9Uf2YJG.js    1,039 B  (<link rel="modulepreload">)
 //   ────────────────────────────────
 //   boot payload          3,012,985 B  (was 818,188 B)
-// CEILING = 3,163,000 B. Same arithmetic as every row above: 3,012,985 × 1.05 = 3,163,634.25, rounded
-// DOWN to the flat 3,163,000 → 150,015 B of headroom = 4.98%. The fence's PURPOSE is unchanged and it
-// still bites: a six-figure-byte barrel re-entry on top of this baseline is caught exactly as before.
+// Owner-approved production payload: 3,197,557 bytes, including the ordered Zod configuration chunk.
+// Keep 5% headroom, rounded down to the nearest kilobyte.
 //
 // RE-CALIBRATE when: a deliberate, reviewed boot-graph addition lands (raise it, with its own measured
 // receipt and this same arithmetic); or a win like #433/#448 lands and the ceiling should ratchet DOWN
@@ -162,7 +161,7 @@ const BUILD_TIMEOUT_MS = budget(BUILD_TIMEOUT_MS_BASE);
 // follows the emitted html — though it will still move the number. This is deliberately ONE-SIDED — a
 // shrink is never RED, it is reported as headroom in the stage output so a large drop is visible and
 // can be ratcheted by hand.
-export const BOOT_CHUNK_CEILING_BYTES = 3_163_000;
+export const BOOT_CHUNK_CEILING_BYTES = 3_357_000;
 
 /** The `/assets/<name>.js` an emitted boot ref points at, or undefined for anything else (a CSS href, a
  *  favicon, an external URL) — the parser is anchored, never "whatever happens to be there". */

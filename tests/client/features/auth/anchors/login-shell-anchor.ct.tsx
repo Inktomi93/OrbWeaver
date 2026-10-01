@@ -21,6 +21,20 @@ import { LoginConfigTransitionStory, LoginInviteSceneStory, LoginSceneStory } fr
 const PHONE_W = 390;
 const DESKTOP_W = 1280;
 
+test("the sign-in page follows OS color scheme changes and restores the prior palette on exit", async ({ mount, page }) => {
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "mocha"));
+  const cfg = config({});
+  await stubAuthConfig(page, cfg);
+  const scene = await mount(<LoginSceneStory width={DESKTOP_W} config={cfg} />);
+  const login = page.getByTestId("login-page");
+  await expect(login).toHaveCSS("color-scheme", "light");
+  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "no-preference" });
+  await expect(login).toHaveCSS("color-scheme", "dark");
+  await scene.unmount();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "mocha");
+});
+
 function config(overrides: Partial<AuthConfig>): AuthConfig {
   return {
     mode: "local",

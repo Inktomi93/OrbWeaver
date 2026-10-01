@@ -121,10 +121,10 @@ describe("withViewTransition", () => {
     expect(after).toHaveBeenCalledOnce();
   });
 
-  test("absorbs only skipped-transition AbortError and surfaces update failures", async () => {
+  test.each(["AbortError", "TimeoutError"])("absorbs platform %s but surfaces the same error from the update callback", async (name) => {
     const queued: Array<() => void> = [];
-    const failure = new Error("update callback failed");
-    const abort = Object.assign(new Error("transition skipped"), { name: "AbortError" });
+    const failure = Object.assign(new Error("update callback failed"), { name });
+    const abort = Object.assign(new Error("transition skipped"), { name });
     vi.stubGlobal("queueMicrotask", (callback: () => void) => queued.push(callback));
     vi.stubGlobal("matchMedia", () => ({ matches: false }));
     vi.stubGlobal("document", {

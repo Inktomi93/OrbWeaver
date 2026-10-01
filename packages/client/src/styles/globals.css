@@ -139,15 +139,12 @@ body {
   animation: orb-stream-caret var(--motion-shimmer) ease-in-out infinite;
 }
 
-/* Jump-to-anchor flash ring (settings scroll-spy). An INSET box-shadow (not outline) clips to the target's
- * border-box instead of bleeding past its scroll container. Class-toggle, not imperative `el.style.*`, so
- * it stays token-gated. The padding buys the ring clearance from the heading and note, and the equal
- * negative margin returns it so toggling the class reflows nothing. Block-axis only: inline padding would
- * widen the section and flash a horizontal scrollbar for the ring's 1.2s life. */
+/* Equal padding and negative margin give the inset ring clearance without moving or narrowing content.
+ * Establish this geometry before scrolling so the highlighted border stays inside the pane. */
 .settings-flash-anchor {
   border-radius: var(--radius-card);
-  padding-block: var(--spacing-row);
-  margin-block: calc(var(--spacing-row) * -1);
+  padding: var(--spacing-row);
+  margin: calc(var(--spacing-row) * -1);
   transition: box-shadow var(--motion-base) var(--ease-out-expo);
 }
 .settings-flash-anchor--lit {

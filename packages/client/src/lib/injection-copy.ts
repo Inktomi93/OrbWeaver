@@ -184,7 +184,7 @@ export const MODEL_ROLES_PATH = { trail: CONNECTIONS_TRAIL, leaf: "Model roles" 
 export const MODEL_ROLES_PATH_TEXT = `${MODEL_ROLES_PATH.trail} → ${MODEL_ROLES_PATH.leaf}`;
 
 /** Where the user adds a connection: the Connections list's add verb, spelled as a settings trail plus leaf. */
-export const ADD_CONNECTION_PATH = { trail: CONNECTIONS_TRAIL, leaf: "Add a connection" } as const;
+export const ADD_CONNECTION_PATH = { trail: CONNECTIONS_TRAIL, leaf: "Add connection" } as const;
 
 /** A composer refusal reason: a server cause, or `no-chat-connection`, the host-side split of `no-connection`
  *  for a host with no connection that can serve chat, where the Model roles picker has nothing to offer. */

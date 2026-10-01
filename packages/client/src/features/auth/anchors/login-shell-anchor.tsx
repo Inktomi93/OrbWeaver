@@ -12,8 +12,10 @@ import { Card } from "@orb/ui/card";
 import { Container, Layer, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { useEffect } from "react";
 import { WeaveGlyph } from "#components";
 import { testId } from "#lib";
+import { DATA_THEME_ATTR } from "#state";
 import { LoginWeaveBackdrop } from "../components/login-weave-backdrop.tsx";
 
 export interface LoginShellAnchorProps {
@@ -23,12 +25,38 @@ export interface LoginShellAnchorProps {
 /** The wordmark glyph size (px) — between the rail's 24 and the boot veil's hero mark. */
 const WORDMARK_GLYPH_PX = 26;
 
+function useLoginColorScheme(): void {
+  useEffect(() => {
+    const root = document.documentElement;
+    const previous = root.getAttribute(DATA_THEME_ATTR);
+    const preference = matchMedia("(prefers-color-scheme: light)");
+    const apply = (): void => {
+      if (preference.matches) {
+        root.setAttribute(DATA_THEME_ATTR, "light");
+      } else {
+        root.removeAttribute(DATA_THEME_ATTR);
+      }
+    };
+    apply();
+    preference.addEventListener("change", apply);
+    return (): void => {
+      preference.removeEventListener("change", apply);
+      if (previous === null) {
+        root.removeAttribute(DATA_THEME_ATTR);
+      } else {
+        root.setAttribute(DATA_THEME_ATTR, previous);
+      }
+    };
+  }, []);
+}
+
 /** The stable login card box: full-viewport web backdrop + wordmark + one `max-w-sm` card.
  *  @remarks The document never scrolls (`overflow: clip` on html/body), so this box is the scroll owner for a
  *  card taller than the window. The web shares one grid cell with the content and sticks to the top of it:
  *  it holds still while the card scrolls, and a wheel or thumb over it still chains to this scroller. A
  *  `fixed` web would chain to the unscrollable document instead and swallow the gesture. */
 export function LoginShellAnchor({ children }: LoginShellAnchorProps): ReactElement {
+  useLoginColorScheme();
   return (
     <Stack className="relative h-dvh overflow-y-auto bg-background text-foreground" data-testid={testId("loginPage")}>
       <Layer className="min-h-full shrink-0">

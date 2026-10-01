@@ -38,6 +38,7 @@ export function LoginArmStory({
   readonly joinToken?: string | null;
 }): ReactElement {
   const [done, setDone] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   // Where the shell would land after the arm finishes: a sign-up through an invite selects the joined room.
   const activeChatId = useActiveChatId();
   const activeSection = useActiveSection();
@@ -48,11 +49,13 @@ export function LoginArmStory({
           config={config}
           authError={authError}
           joinToken={joinToken}
+          onDismissJoin={(): void => setDismissed(true)}
           onDone={(): void => {
             setDone(true);
           }}
         />
         {done ? <p data-testid="ct-login-done">done</p> : null}
+        <output data-testid="ct-login-invite-dismissed">{String(dismissed)}</output>
         <output data-testid="ct-login-landing">{`chat=${activeChatId ?? "none"} section=${activeSection}`}</output>
       </div>
     </CtDataProviders>

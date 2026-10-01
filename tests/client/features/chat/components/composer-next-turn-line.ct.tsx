@@ -109,11 +109,22 @@ test("a host in a no-connection room never asks for the chat role, which could o
 // The two recovery paths. The Model roles picker can only offer a connection the host already has, so a host
 // with none is sent to the add flow; a host with connections but no chat role is sent to the role.
 for (const recovery of [
-  { name: "with connections but no chat role, the door lands on the chat model role", rows: [WORK_KEY], target: "config|connections|model-roles|chat-model" },
-  { name: "with no connection at all, the door lands on the add-connection flow", rows: [], target: "config|connections|connections|add-connection" },
+  {
+    name: "with connections but no chat role, the door lands on the chat model role",
+    label: "Model roles",
+    rows: [WORK_KEY],
+    target: "config|connections|model-roles|chat-model",
+  },
+  {
+    name: "with no connection at all, the door lands on the add-connection flow",
+    label: "Add connection",
+    rows: [],
+    target: "config|connections|connections|add-connection",
+  },
   // A fresh account carries built-in embedding rows, none of which the Chat picker can offer.
   {
     name: "with only embedding connections, the door lands on the add-connection flow",
+    label: "Add connection",
     rows: [EMBED_ONLY],
     target: "config|connections|connections|add-connection",
   },
@@ -130,6 +141,7 @@ for (const recovery of [
 
     const door = line(component).getByRole("button");
     await expect(door).toHaveCount(1);
+    await expect(door).toHaveAccessibleName(recovery.label);
     await door.click();
     await expect(component.getByTestId("composer-config-target")).toHaveText(recovery.target);
   });
@@ -325,7 +337,7 @@ test.describe("coarse pointer", () => {
         const owner = document.createTreeWalker(el, NodeFilter.SHOW_TEXT).nextNode()?.parentElement;
         return owner === null || owner === undefined ? "" : getComputedStyle(owner).fontSize;
       });
-    await expect.poll(paintedSize).toBe(`${Number.parseFloat(TOKENS["text.label"].value) * ROOT_PX}px`);
+    await expect.poll(paintedSize).toBe(`${Number.parseFloat(TOKENS["text.body"].value) * ROOT_PX}px`);
     const floor = await touchFloorPx(page);
     await expect.poll(() => hitExtent(door, "x")).toBeGreaterThanOrEqual(floor);
     await expect.poll(() => hitExtent(door, "y")).toBeGreaterThanOrEqual(floor);

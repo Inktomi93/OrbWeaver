@@ -883,7 +883,7 @@ test("the empty recents block has zero drift from its declared first-boot reserv
   const reserved = (await recents.boundingBox())?.height ?? 0;
   expect(reserved).toBeGreaterThan(0);
   chats.release(chatListResponder([])({ limit: RECENTS_LIMIT }));
-  await expect(recents.getByText("No chats yet", { exact: true })).toBeVisible();
+  await expect(recents.getByText("No rooms yet", { exact: true })).toBeVisible();
   await expect(recents.locator("[aria-busy]")).toHaveCount(0);
   await expect.poll(async () => (await recents.boundingBox())?.height ?? 0).toBe(reserved);
 });
@@ -2054,7 +2054,7 @@ test("a failed room list keeps the fallback shelf visible while Recents Retry wa
   await expect(home.locator("[data-home-shelf]")).toBeVisible();
   await expect.poll(async () => await starterPlacement(page, false)).toEqual({ column: "hearth", sameNode: true });
   retry.release(chatListResponder([])({ limit: RECENTS_LIMIT }));
-  await expect(recents.getByText("No chats yet")).toBeVisible();
+  await expect(recents.getByText("No rooms yet")).toBeVisible();
 });
 
 test("a device that last saw Start with on the shelf paints it there, and a house with rooms keeps it there", async ({ mount, page }) => {
@@ -2252,7 +2252,7 @@ test.describe("Start with on a phone", () => {
     const reserved = await recents.boundingBox();
     expect(reserved?.height ?? 0).toBeGreaterThan(0);
     chats.release(chatListResponder([])({ limit: RECENTS_LIMIT }));
-    await expect(recents.getByText("No chats yet", { exact: true })).toBeVisible();
+    await expect(recents.getByText("No rooms yet", { exact: true })).toBeVisible();
     await expect(recents.locator("[aria-busy]")).toHaveCount(0);
     await expect.poll(async () => (await recents.boundingBox())?.height ?? 0).toBe(reserved?.height);
     await expect.poll(pointer).toEqual({ coarse: true, touchPoints: 1 });

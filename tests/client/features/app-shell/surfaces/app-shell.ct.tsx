@@ -33,6 +33,7 @@ import type { Locator, Page } from "@playwright/test";
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/modal-slot-ids.ts";
 import type { SectionId } from "../../../../../packages/client/src/state/section-ids.ts";
 import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/_shared/appearance-presets.json" with { type: "json" };
+import { touchDrag } from "../../../../support/browser/weave-drive.ts";
 import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { defineTrpcRoutes, routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
@@ -1678,6 +1679,45 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Settings", exact: true })).toHaveCount(0);
   await expect(page.getByText("Your generation presets live here", { exact: false })).toBeVisible();
+});
+
+test.describe("You sheet with the first-run plugin notice", () => {
+  test.use({ hasTouch: true, viewport: { width: 360, height: 640 } });
+
+  test("the rows below the fold remain reachable by touch scrolling", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...SHELL_AMBIENT_ROUTES,
+      "notifications.markAllRead": { markedCount: 1 },
+      "notifications.list": {
+        items: [
+          {
+            id: mintTypeId(ID_PREFIX.notification),
+            type: "plugins-awaiting-consent",
+            payload: { type: "plugins-awaiting-consent", recipientUserId: "user_ct_shell", pendingCount: 9 },
+            seq: 1,
+            readAt: null,
+            dismissedAt: null,
+            actionable: true,
+            createdAt: 1_750_000_000_000,
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    const shell = await mount(<AppShellStory />);
+    await shell.getByRole("button", { name: "You", exact: true }).click();
+    const popup = page.locator('[data-slot="drawer-popup"]');
+    await expect(popup.getByText("9 plugins are installed but not allowed to do anything yet", { exact: true })).toBeVisible();
+    const last = popup.getByRole("group", { name: "More", exact: true }).getByRole("button").last();
+    await expect(last).not.toBeInViewport();
+    const from = { x: 24, y: 560 };
+    const to = { x: 24, y: 180 };
+    await touchDrag(page, from, to, 8);
+    await touchDrag(page, from, to, 8);
+    await expect(last).toBeInViewport({ ratio: 1 });
+    await last.click();
+    await expect(popup).toHaveCount(0);
+  });
 });
 
 test("mobile: the You sheet's Settings row switches to the config SECTION and closes the sheet", async ({ mount, page }) => {

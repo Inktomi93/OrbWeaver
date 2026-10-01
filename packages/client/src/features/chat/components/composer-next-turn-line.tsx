@@ -73,8 +73,13 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
         {door === undefined ? null : (
           <>
             {` ${door.lead} `}
-            {/* The door keeps the inline arm's own label step and touch-target hit area. */}
-            <Button className="underline" intent="ghost" onClick={(): void => openConfigTo("connections", door.sub, door.setting)} size="inline" type="button">
+            <Button
+              className="underline"
+              intent="ghost"
+              onClick={(): void => openConfigTo("connections", door.sub, door.setting)}
+              size="inline-body"
+              type="button"
+            >
               {door.label}
             </Button>
           </>

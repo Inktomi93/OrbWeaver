@@ -9,10 +9,7 @@
 // stay import-thin: everything it pulls is in the boot chunk that every visitor downloads before the login
 // form can paint. Add a section/modal/pane/contributor in `compose/authed-app.tsx`, never here.
 
-// FIRST import, before ANYTHING that constructs a Zod schema: opts Zod into jitless so its
-// `new Function` eval-probe never fires under our strict CSP. Zod memoizes that probe at the
-// first object-schema construction — which happens during THIS module's imports, not its body —
-// so configuring it below would be too late. See ./lib/zod-jitless.ts for the full diagnosis.
+// Configure before schema imports; the production build preserves this order across shared chunks.
 import "./lib/zod-jitless.ts";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
