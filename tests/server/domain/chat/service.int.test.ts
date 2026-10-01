@@ -23,7 +23,7 @@ import { freshDb } from "../../../support/db.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { testModelId } from "../../../support/inference-identities.ts";
-import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, testConnection } from "./_support.ts";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "./_support.ts";
 
 let db: Db;
 
@@ -214,6 +214,33 @@ describe("createChatService — assembly", () => {
     expect(outcome.messages.length).toBeGreaterThanOrEqual(1);
     expect(events.some((e) => e.type === "turnStarted")).toBe(true);
     expect(events.some((e) => e.type === "turnCompleted")).toBe(true);
+  });
+
+  test("an assembled canon window enforces the member floor and strips hidden bytes", async () => {
+    const { host, chatId, names } = await seedRoom();
+    const member = await seedUser(db, castId<Handle>("window-member"));
+    await seedParticipant(db, { chatId, key: "window-member", userId: member, joinSeq: 45, joinHistoryVisibility: "from-join" });
+    let anchor: Awaited<ReturnType<typeof seedMessage>> | undefined;
+    for (let seq = 1; seq <= 60; seq += 1) {
+      const row = await seedMessage(db, chatId, seq, {
+        content: seq === 45 ? 'public <lie character="Witness" type="location" truth="private truth" reason="hidden"/> end' : `line ${seq}`,
+      });
+      if (seq === 50) {
+        anchor = row;
+      }
+    }
+    if (anchor === undefined) {
+      throw new Error("missing canon window anchor");
+    }
+    const { service } = makeService(names);
+    const target = { kind: "message" as const, messageId: anchor.messageId };
+    const window = await service.getMessageWindow({ principal: principal(member), chatId, target, limit: 12 });
+    expect(window).toMatchObject({ outcome: "resolved", anchorMessageId: anchor.messageId, anchorSeq: 50, hasBefore: false });
+    expect(window.messages.map((message) => message.seq)).toEqual([45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56]);
+    expect(window.messages[0]?.content).toBe("public  end");
+    expect(JSON.stringify(window)).not.toContain("private truth");
+    const hostWindow = await service.getMessageWindow({ principal: principal(host), chatId, target, limit: 12 });
+    expect(hostWindow.messages[0]?.content).toContain("private truth");
   });
 
   test("loadParticipantViews resolves the host + the resolveSeatDeco-backed character name", async () => {
