@@ -2326,9 +2326,9 @@
       "reason": "best-effort cleanup unpausing an in-page flag in a finally block — the page may already be closed/navigated by the time this runs, and there is nothing further downstream that could act on this failure. Ends if this flag gates behavior a later step depends on."
     },
     {
-      "siteId": "tooling/src/mutation-probe/ops/probe.ts::failedTitles::catch::1",
+      "siteId": "tooling/src/mutation-probe/lib/outcome.ts::readSuiteEvidence::catch::1",
       "verdict": "deliberate-absorb",
-      "reason": "the readable:false verdict IS the return contract — the JSDoc above states this distinguishes \"the report was not there\" from \"the suite named no failing test\", so a read/parse failure is reported through the return value, not swallowed. Ends if a caller starts treating readable:false the same as readable:true."
+      "reason": "unreadable or invalid JSON is explicit incomplete evidence and cannot establish either verdict. Ends if incomplete evidence can be scored."
     },
     {
       "siteId": "tooling/src/render-trace/ops/fire.ts::fireOp.teardown::catch::1",
