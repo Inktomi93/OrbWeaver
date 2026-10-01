@@ -10,7 +10,7 @@
 // WHAT EACH TEST PINS:
 //   • the three duplicate FINDINGS sections render above the raw edge list, within the first viewport;
 //   • the edge list draws a bounded head and STATES what it left out;
-//   • a character pair row is a control that LANDS — the Compare surface renders the pair it seeded, which
+//   • a character pair row is a control that LANDS — pair CONTENT renders its actual comparison, which
 //     is the only honest receipt for a module-private store (a click that "fires" proves nothing);
 //   • a chat pair row is a control too, and its door goes somewhere that exists.
 //
@@ -22,7 +22,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { CorpusSimilarityTabStory, CorpusSimilarityToCompareStory } from "../_ct-stories.tsx";
+import { CorpusSimilarityTabStory, CorpusSimilarityToContentStory } from "../_ct-stories.tsx";
 
 /** The truncation line the capped list owes — matched loosely so the cap can be re-tuned without a re-red. */
 const TRUNCATION_NOTE = /Showing the closest \d+ of \d+ pairs/;
@@ -30,7 +30,7 @@ const TRUNCATION_NOTE = /Showing the closest \d+ of \d+ pairs/;
 const CHARACTER_PAIR = /Freya ↔ Frida/;
 const CHAT_PAIR = /Ayami — Aug 18, 2025 \(3\) ↔ Ayami — Aug 19, 2025 \(4\)/;
 /** N8: the chat door's destination, in the accessible NAME rather than a hover-only `title`. */
-const CHAT_PAIR_DESTINATION = /opens Ayami — Aug 18, 2025 \(3\)/;
+const CHAT_PAIR_DESTINATION = /compare rooms/;
 /** #564: a pairwise row naming a clique member — the expansion the collapse deletes. */
 const CLIQUE_PAIR_ROW = /Card A ↔ Card/;
 /** …and the one near-identical pair that must NOT collapse (0.97 is not a transitive relation). */
@@ -164,9 +164,9 @@ test("#554: the raw pair list draws a bounded head and states what it left out",
   await expect(rows.first()).toContainText("99%");
 });
 
-test("#554: a character pair row is a door that LANDS in Compare, pre-filled", async ({ mount, page }) => {
+test("#554: a character pair row opens readable pair Content with its comparison", async ({ mount, page }) => {
   await routeTrpc(page, POPULATED);
-  const component = await mount(<CorpusSimilarityToCompareStory />);
+  const component = await mount(<CorpusSimilarityToContentStory />);
   await settled(page);
 
   // Before the click the Compare surface is at its rest state — the receipt only means something if the
@@ -175,17 +175,15 @@ test("#554: a character pair row is a door that LANDS in Compare, pre-filled", a
 
   await component.getByRole("button", { name: CHARACTER_PAIR }).click();
 
-  // THE LANDING, not the firing: the Compare surface renders the diff for the pair the row carried.
+  // The readable result, not only a state write, proves both carried identities reached the reader.
   await expect(component.getByRole("heading", { name: "Facet diff" })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Freya ↔ Frida", exact: true })).toBeVisible();
   await expect(component.getByText("Pick two different characters to compare.")).toHaveCount(0);
   await expect(component.getByText("Redundancy:", { exact: false })).toBeVisible();
 });
 
-test("#563: the Compare pickers NAME a seeded pair that is off the catalog page", async ({ mount, page }) => {
-  // THE DEFECT, exactly: a Select resolves its trigger text out of the `items` it was handed, and this tab
-  // reads ONE page of `browseCharacters`. A pair seeded from a 313-card similarity list routinely is not in
-  // it, so both triggers printed raw ULIDs over a body that named the same two characters in words. The
-  // fixture is the page WITHOUT the pair — which is the only arm the old code could fail.
+test("#563: pair Content retains names outside the warm catalog page", async ({ mount, page }) => {
+  // A warm catalog page omits the pair; CONTENT must name its retained snapshot independently of that page.
   await routeTrpc(page, {
     ...POPULATED,
     "discovery.browseCharacters": {
@@ -194,24 +192,24 @@ test("#563: the Compare pickers NAME a seeded pair that is off the catalog page"
       totalCount: 1,
     },
   });
-  const component = await mount(<CorpusSimilarityToCompareStory />);
+  const component = await mount(<CorpusSimilarityToContentStory />);
   await settled(page);
+  await expect(component.getByRole("combobox", { name: "First character" })).toContainText("Pick a character");
 
   await component.getByRole("button", { name: CHARACTER_PAIR }).click();
-  // Barrier on the settled landing, then read the triggers.
+  // The result has landed before its snapshot title and onward actions are inspected.
   await expect(component.getByRole("heading", { name: "Facet diff" })).toBeVisible();
 
-  const first = component.getByRole("combobox", { name: "First character" });
-  const second = component.getByRole("combobox", { name: "Second character" });
-  await expect(first, "the picker names the character, never its database key").toContainText("Freya");
-  await expect(second).toContainText("Frida");
-  await expect(first).not.toContainText("character_");
-  await expect(second).not.toContainText("character_");
+  const content = component.locator('[data-slot="ct-pair-content"]');
+  await expect(content.getByRole("heading", { name: "Freya ↔ Frida", exact: true })).toBeVisible();
+  await expect(content.getByRole("button", { name: "Open Freya", exact: true })).toBeVisible();
+  await expect(content.getByRole("button", { name: "Open Frida", exact: true })).toBeVisible();
+  await expect(content).not.toContainText("character_");
 });
 
-test("#554: a chat pair row is a control too, and names the room it opens", async ({ mount, page }) => {
+test("#554: a chat pair names its comparison and keeps both room doors reachable", async ({ mount, page }) => {
   await routeTrpc(page, POPULATED);
-  const component = await mount(<CorpusSimilarityTabStory />);
+  const component = await mount(<CorpusSimilarityToContentStory />);
   await settled(page);
 
   // The house rowQualifier treatment the report singled out as the one this section already gets right —
@@ -219,11 +217,20 @@ test("#554: a chat pair row is a control too, and names the room it opens", asyn
   const row = component.getByRole("button", { name: CHAT_PAIR });
   await expect(row).toBeVisible();
   await expect(row, "the badge and the score ride the visible face, so the row shows its own finding").toContainText("forked");
-  // N8: the destination used to live in a `title` tooltip — invisible to touch, to keyboard, and to a
-  // screen reader announcing the button's content. It is in the accessible NAME now, and the section says
-  // the rule once above the rows.
+  // Keyboard and touch readers meet the comparison destination in its accessible name.
   await expect(row).toHaveAccessibleName(CHAT_PAIR_DESTINATION);
-  await expect(component.getByText("opening a pair opens the first of the two chats", { exact: false })).toBeVisible();
+  await row.focus();
+  await row.press("Enter");
+  const content = component.locator('[data-slot="ct-pair-content"]');
+  await expect(content.getByRole("heading", { name: CHAT_PAIR })).toBeVisible();
+  const first = content.getByRole("button", { name: "Open Ayami — Aug 18, 2025 (3)", exact: true });
+  const second = content.getByRole("button", { name: "Open Ayami — Aug 19, 2025 (4)", exact: true });
+  await expect(first).toBeVisible();
+  await expect(second).toBeVisible();
+  await first.click();
+  await expect(component.getByTestId("ct-nav-readout")).toContainText("section:chats chat:chat_aug18");
+  await second.click();
+  await expect(component.getByTestId("ct-nav-readout")).toContainText("section:chats chat:chat_aug19");
 });
 
 test("#564: an identical-art clique is ONE finding, not C(n,2) pairwise rows", async ({ mount, page }) => {

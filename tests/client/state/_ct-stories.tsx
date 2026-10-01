@@ -299,6 +299,11 @@ function SectionTitleRows(): ReactElement {
   const registry = useSectionRegistry();
   return (
     <div>
+      {CORPUS_MODES.map((mode) => (
+        <button key={mode} type="button" onClick={(): void => setCorpusMode(mode)}>
+          Corpus mode {mode}
+        </button>
+      ))}
       {SECTION_IDS.map((id) => (
         <SectionTitleRow definition={registry.get(id)} key={id} />
       ))}

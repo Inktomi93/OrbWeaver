@@ -724,7 +724,9 @@ export function CharacterRestoreBookActionStory(): ReactElement {
 export function CharacterSuggestWarmLabelsStory(): ReactElement {
   return (
     <CtAppDataProviders>
-      <SuggestWarmLabelsPanels />
+      <CtRealSectionRegistry>
+        <SuggestWarmLabelsPanels />
+      </CtRealSectionRegistry>
     </CtAppDataProviders>
   );
 }

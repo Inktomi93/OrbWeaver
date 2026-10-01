@@ -31,6 +31,7 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { corpusGroupingProvenance } from "../../../../support/node/corpus-source.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
@@ -45,6 +46,7 @@ import {
 
 const FAMILIES = [
   {
+    ...corpusGroupingProvenance("mixed"),
     label: "mixed",
     genre: null,
     tone: null,
@@ -59,6 +61,7 @@ const FAMILIES = [
     model: "Qwen/Qwen3-VL-Embedding-2B",
   },
   {
+    ...corpusGroupingProvenance("mixed"),
     label: "mixed",
     genre: null,
     tone: null,
@@ -69,7 +72,7 @@ const FAMILIES = [
     members: [{ characterId: "character_orphan", name: "Morgatha", avatarHash: null }],
     model: "Qwen/Qwen3-VL-Embedding-2B",
   },
-];
+] satisfies TrpcWireOutput<"discovery.visualArchetypes">;
 
 /** The viewer-identity read (#649) — spread FIRST into every `routeTrpc` call in this file. The corpus
  *  surface's run-the-pass door resolves the viewer off it, and it is nobody's subject here. Unfed it
@@ -627,7 +630,8 @@ test("the readiness rail states no keyword measurement while the keyword read is
 // six one-word lines in a ~130px column because a `flex-wrap` Row cannot wrap around a `min-w-0` child.
 // §5: at 1224px the readiness column ended ~250px above the island beside it, because the grid was
 // `items-start` and the rail's height is fixed by construction while the island's grows with the library.
-const MANY_FAMILIES = Array.from({ length: 8 }, (_, i) => ({
+const MANY_FAMILIES: TrpcWireOutput<"discovery.visualArchetypes"> = Array.from({ length: 8 }, (_, i) => ({
+  ...corpusGroupingProvenance("mixed"),
   label: "mixed",
   genre: null,
   tone: null,
@@ -774,7 +778,8 @@ const BUSIEST_ROUTES = /Busiest routes/;
  *  whitespace split reads the whole tile as one token and the assertion never sees the rank it found. */
 const LEADING_RANK = /^\d+/u;
 
-const POP_FAMILIES = FAMILY_SIZES.map((size, index) => ({
+const POP_FAMILIES: TrpcWireOutput<"discovery.visualArchetypes"> = FAMILY_SIZES.map((size, index) => ({
+  ...corpusGroupingProvenance(index === 6 ? UNLABELLED_FAMILY : `Family ${index}`),
   label: index === 6 ? UNLABELLED_FAMILY : `Family ${index}`,
   genre: null,
   tone: null,
@@ -785,7 +790,7 @@ const POP_FAMILIES = FAMILY_SIZES.map((size, index) => ({
   palette: index === 6 ? null : "warm",
   mood: index === 6 ? null : "playful",
   size,
-  members: Array.from({ length: Math.min(size, 4) }, (_, seat) => ({
+  members: Array.from({ length: size }, (_, seat) => ({
     characterId: `character_${index}_${seat}`,
     name: `Member ${index}-${seat}`,
     avatarHash: null,
@@ -1034,8 +1039,8 @@ test("#553: model economics renders the COMPLETE quantities over mostly-null cos
   // …and the coverage of the metric that IS mostly missing is stated rather than implied by its absence.
   // N6: the clause NAMES the route it is about. The one priced route is index 17, which the 12-bar head
   // never draws — so "cost recorded for 1 of 30 routes" pointed at a row no control on this page reaches.
-  await expect(component.getByText(new RegExp(`recorded across ${PAID_ROUTES.toString()} of ${ROUTES.length.toString()} routes`))).toBeVisible();
-  await expect(component.getByText("$0.08 recorded across", { exact: false })).toBeVisible();
+  await expect(component.getByText(new RegExp(`reported across ${PAID_ROUTES.toString()} of ${ROUTES.length.toString()} routes`))).toBeVisible();
+  await expect(component.getByText("$0.08 reported across", { exact: false })).toBeVisible();
   await expect(component.getByText("model-17", { exact: false })).toBeVisible();
 });
 
