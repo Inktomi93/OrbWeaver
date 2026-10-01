@@ -203,3 +203,13 @@ test("the two failure paths do not interact: a malformed config refuses BEFORE t
   // V8's position detail is preserved rather than swallowed.
   expect((caught as Error).cause).toBeInstanceOf(SyntaxError);
 });
+
+test("Windows diagnostic separators preserve live grants and retain genuine stale grants", () => {
+  const live = { group: "style", rule: "noDefaultExport", files: ["tooling/src/live.ts"], anchor: "tooling/src/live.ts" };
+  const dead = { ...live, files: ["tooling/src/dead.ts"], anchor: "tooling/src/dead.ts" };
+  const report = JSON.stringify({
+    summary: { unchanged: 2 },
+    diagnostics: [{ category: "lint/style/noDefaultExport", location: { path: "tooling\\src\\live.ts" } }],
+  });
+  expect(judgeReport([live, dead], report)).toEqual({ dead: [dead], deadFilePairs: 1 });
+});

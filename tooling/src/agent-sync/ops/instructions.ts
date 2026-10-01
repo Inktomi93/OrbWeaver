@@ -9,7 +9,7 @@
 // The docs tree has its own walk in `doc/ops/check.ts`, run from the same `--check` door. Each check takes
 // the repository root, so the tests run it on planted trees.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join, posix } from "node:path";
 import { docFileCount, docLayerProblems } from "#doc";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { referenceProblems } from "../../_shared/prose-references.ts";
@@ -37,7 +37,7 @@ function markdownUnder(root: string, dir: string): readonly string[] {
   }
   const found: string[] = [];
   for (const entry of readdirSync(abs, { withFileTypes: true })) {
-    const rel = join(dir, entry.name);
+    const rel = posix.join(dir, entry.name);
     if (entry.isSymbolicLink()) {
       continue;
     }
@@ -67,7 +67,7 @@ function readAlwaysOn(root: string): string {
 }
 
 function ruleFiles(root: string): readonly string[] {
-  return instructionFiles(root).filter((rel) => dirname(rel) === join(".claude", "rules"));
+  return instructionFiles(root).filter((rel) => posix.dirname(rel) === ".claude/rules");
 }
 
 /** `AGENTS.md` plus each file it imports with an `@path` line, plus every rule with no `paths:` list. */

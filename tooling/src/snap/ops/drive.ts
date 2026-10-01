@@ -1,8 +1,10 @@
 // The page DRIVE: navigation + app-readiness (the dataless tripwire, #145), the argv-ordered action
 // queue (navs + steps + mid-chain evals — the interleave IS the contract, 2026-08-15/16), and the
 // trailing-eval split that keeps a trailing `--eval` a settled-surface observer.
+
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
+import { awaitDevClientReady } from "#dev";
 import { print } from "../../_shared/artifacts.ts";
 import { settle } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -145,7 +147,9 @@ export async function navigate(page: Page, opts: Args, url: string, failures?: D
   // lib/throttle.ts driveBudgets for why a throttled run cannot be held to the un-throttled budget.
   const budgets = driveBudgets({ isolated: opts.isolated, cpuRate: opts.cpuThrottle, network: opts.network });
   const navTimeout = budgets.nav;
-  const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: navTimeout });
+  const resp = opts.coldStart
+    ? await awaitDevClientReady(page, url, Date.now() + STAGE_WARMUP_TIMEOUT_MS)
+    : await page.goto(url, { waitUntil: "domcontentloaded", timeout: navTimeout });
   let navError: string | null = null;
   if (!resp) {
     navError = "no response";

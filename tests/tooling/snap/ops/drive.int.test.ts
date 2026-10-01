@@ -431,3 +431,24 @@ test("--swipe scrolls a touch scroller by dispatched touch events, and refuses w
   }
   expect(parseSnapArgs(["/", "--swipe", "#list=400"]).errors.join("\n")).toContain("--swipe needs a touch-capable context");
 });
+
+test("explicit cold bootstrap waits on the actual capture document beyond ordinary readiness", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    let documents = 0;
+    await page.route("http://cold-capture.test/", (route) => {
+      documents++;
+      return route.fulfill({
+        contentType: "text/html",
+        body: '<html><body><main>loading</main><script>globalThis.__orb={queries:()=>[{}]}; setTimeout(() => { document.querySelector("main").textContent="ready capture"; document.documentElement.setAttribute("data-app-ready", ""); }, 11000);</script></body></html>',
+      });
+    });
+    const args = parseSnapArgs(["--cold-start", "--base", "http://cold-capture.test"]);
+    expect(await navigate(page, args, "http://cold-capture.test/")).toBeNull();
+    expect(await page.getByRole("main").textContent()).toBe("ready capture");
+    expect(documents).toBe(1);
+  } finally {
+    await browser.close();
+  }
+});

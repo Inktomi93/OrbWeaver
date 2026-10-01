@@ -70,6 +70,7 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
   --fill <selector=value>  --key <selector=Key> | --key <Key>
                             bare --key Tab walks focus (no re-focus); the selector= form re-anchors
   --hover <selector>      --wait-for <selector|text=phrase>    --goto <target>
+  --cold-start           bounded cold bootstrap on the capture page (live origins only)
   --wait <selector>       after page/app readiness, require this selector to become visible
   --upload <selector>=<path[,path...]>   choose file(s) through a direct/descendant input or a trigger's
                             Playwright filechooser. A single directory path is accepted only when the

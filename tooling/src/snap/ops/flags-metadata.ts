@@ -115,6 +115,7 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--appearance-preset": { group: "Environment", summary: "a curated appearance profile" },
   "--full-motion": { group: "Environment", summary: "render with the app's own reduce-motion setting OFF" },
   "--theme": { group: "Environment", summary: "render as if that theme were selected; none = no selection" },
+  "--cold-start": { group: "Where", summary: "bounded cold bootstrap on the captured document; waits for the normal readiness marker" },
   "--idle": { group: "Reach", summary: "bounded network-idle settle instead of the default fixed mount settle" },
   "--scale": { group: "Pixels", summary: "image pixels per CSS pixel (default css halves the token cost)" },
   "--probe": { group: "Pixels", summary: "deterministic pixels: seeded probe mode, animations floored from first paint" },

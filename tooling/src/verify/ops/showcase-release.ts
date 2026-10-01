@@ -176,7 +176,7 @@ function candidateCompilerPaths(root: string): ReadonlySet<string> {
 
 function isCompilerEnvironmentInput(path: string): boolean {
   // Installed TypeScript is pinned by the candidate manifest and lockfile, not authored Git input.
-  const libraryDirectory = dirname(ts.getDefaultLibFilePath({}));
+  const libraryDirectory = dirname(resolve(ts.getDefaultLibFilePath({})));
   const name = basename(path);
   const libraryPrefix = "lib.";
   const declarationSuffix = ".d.ts";

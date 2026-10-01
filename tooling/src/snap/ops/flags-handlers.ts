@@ -255,6 +255,9 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--theme": (a, rest) => {
     applyThemeFlag(a, parseThemeFlag(rest.shift() ?? ""));
   },
+  "--cold-start": (a) => {
+    a.coldStart = true;
+  },
   "--idle": (a) => {
     a.idle = true;
   },

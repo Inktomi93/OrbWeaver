@@ -105,7 +105,7 @@ jobs:
 
       - name: Capture the ready contributor Home surface
         shell: bash
-        run: pnpm snap --base "$DEV_ORIGIN" --map --aria --json --out contributor-home > "$RUNNER_TEMP/contributor-snap.log" 2>&1
+        run: pnpm snap --cold-start --base "$DEV_ORIGIN" --map --aria --json --out contributor-home > "$RUNNER_TEMP/contributor-snap.log" 2>&1
 
       - name: Stop the dev process tree and prove ports are free
         id: stop-dev
