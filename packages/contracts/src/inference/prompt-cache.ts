@@ -4,7 +4,7 @@
 
 import { z } from "zod";
 
-/** The two TTLs the Anthropic cache accepts, spelled `{"type":"ephemeral","ttl":…}` with no `anthropic-beta`
+/** The user TTL vocabulary; a route may fix retention through its capability. Anthropic accepts both, spelled `{"type":"ephemeral","ttl":…}` with no `anthropic-beta`
  *  header on either route. An unknown ttl is not an upstream error on OpenRouter: it answers 200 and silently
  *  drops the whole block (`scripts/probes/openrouter/RESULTS.md`). */
 export const PROMPT_CACHE_TTLS = ["5m", "1h"] as const;
@@ -33,7 +33,7 @@ export const promptCacheSettingsSchema = z.object({
    * admin floor. A turn SHAPE gave no depth places no history breakpoint whatever this says.
    */
   historyDepth: z.number().int().min(PROMPT_CACHE_DEPTH_MIN).max(PROMPT_CACHE_DEPTH_CEIL).nullable(),
-  /** One TTL for every marker a turn places, so a longer-TTL breakpoint can never follow a shorter one. */
+  /** Requested TTL; a fixed route TTL overrides it with a warning. All markers in one turn use the same applied value. */
   ttl: z.enum(PROMPT_CACHE_TTLS),
 });
 export type PromptCacheSettings = z.infer<typeof promptCacheSettingsSchema>;
@@ -42,6 +42,10 @@ export type PromptCacheSettings = z.infer<typeof promptCacheSettingsSchema>;
 export const SHIPPED_PROMPT_CACHE: PromptCacheSettings = { enabled: true, cacheSystem: true, historyDepth: null, ttl: "1h" };
 
 /** The settings a turn runs on: the row's own, or the shipped behavior when it stored none. */
-export function effectivePromptCache(stored: PromptCacheSettings | null): PromptCacheSettings {
-  return stored ?? SHIPPED_PROMPT_CACHE;
+export function effectivePromptCache(
+  stored: PromptCacheSettings | null,
+  defaultEnabled = SHIPPED_PROMPT_CACHE.enabled,
+  defaultTtl = SHIPPED_PROMPT_CACHE.ttl,
+): PromptCacheSettings {
+  return stored ?? { ...SHIPPED_PROMPT_CACHE, enabled: defaultEnabled, ttl: defaultTtl };
 }

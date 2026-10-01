@@ -310,3 +310,18 @@ test("a models/gemini id on the direct route resolves to the Google family facts
     expect(generation.reasoning.mandatory, model).toBe(mandatory);
   }
 });
+
+test("Gemini explicit caching defaults off and a saved opt-in survives the real resolve", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const unset = fakeConnection({ ownerId, providerId: "openrouter", model: "google/gemini-3.1-pro-preview" });
+  const optedIn = fakeConnection({ ownerId, providerId: "openrouter", model: "google/gemini-3.1-pro-preview", promptCache: SHIPPED_PROMPT_CACHE });
+  stores.connections.rows.set(unset.id, unset);
+  stores.connections.rows.set(optedIn.id, optedIn);
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: openRouterCatalogFetch() }));
+  const implicit = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: unset.id });
+  const explicit = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: optedIn.id });
+  expect(implicit.resolved.promptCache).toMatchObject({ enabled: false, ttl: "5m" });
+  expect(implicit.resolved.capability).toMatchObject({ generation: { turns: { fixedCacheTtl: "5m", assistantPrefill: true } } });
+  expect(explicit.resolved.promptCache.enabled).toBe(true);
+});

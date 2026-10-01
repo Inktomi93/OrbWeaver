@@ -1,8 +1,4 @@
-import {
-  continuedSignatureMetadata,
-  replayTextSignatures,
-  signaturesForContent,
-} from "../../../../../packages/server/src/domain/chat/substrate/content-signatures.ts";
+import { continuedSignatureMetadata, signaturesForContent } from "../../../../../packages/server/src/domain/chat/substrate/content-signatures.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("an unsigned prefix and signed continuation reconstruct only the exact canonical body", () => {
@@ -13,10 +9,7 @@ test("an unsigned prefix and signed continuation reconstruct only the exact cano
     addition: { contentSignatures: { content: " suffix", text: [{ text: " suffix", thoughtSignature: "signed" }], images: [] } },
   });
   const signatures = signaturesForContent(metadata?.contentSignatures, "Prefix suffix");
-  expect(replayTextSignatures([{ type: "text", text: "Prefix suffix" }], signatures)).toEqual([
-    { type: "text", text: "Prefix" },
-    { type: "text", text: " suffix", thoughtSignature: "signed" },
-  ]);
+  expect(signatures?.text).toEqual([{ text: "Prefix" }, { text: " suffix", thoughtSignature: "signed" }]);
   expect(signaturesForContent(metadata?.contentSignatures, "Edited Prefix suffix")).toBeUndefined();
   expect(signaturesForContent(metadata?.contentSignatures, "Prefix")?.text).toEqual([{ text: "Prefix" }]);
 });

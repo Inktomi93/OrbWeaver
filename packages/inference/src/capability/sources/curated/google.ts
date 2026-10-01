@@ -311,4 +311,31 @@ export const googleRows = [
       cite: "https://ai.google.dev/gemini-api/docs/generate-content/thinking: model-specific positive thinking budget; zero is the explicit-off sentinel",
     },
   },
+  {
+    match: { model: "^(google/|models/)?gemini-(?!.*(image|tts|live|transcribe))(2[-.]5-(flash|flash-lite|pro)(-|$)|3[-.])", provider: "openrouter" },
+    generation: { turns: { explicitPromptCache: true, cacheMinTokens: 4096, fixedCacheTtl: "5m", promptCacheDefaultEnabled: false } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "https://openrouter.ai/docs/guides/best-practices/prompt-caching: Gemini explicit content markers, fixed five-minute retention and minimum prefix; dynamic system tails cannot stay outside a cached system instruction",
+    },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-2[-.]5-flash$", provider: "openrouter" },
+    generation: { turns: { cacheMinTokens: 1024 } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "https://openrouter.ai/docs/guides/best-practices/prompt-caching: OpenRouter Gemini 2.5 Flash explicit-cache minimum is 1024 tokens; native implicit caching has separate thresholds",
+    },
+  },
+  {
+    match: { model: "^google/gemini-3[-.]1-pro-preview$", provider: "openrouter" },
+    generation: { turns: { assistantPrefill: true } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-30",
+      cite: "OpenRouter Gemini 3.1 Pro accepted final assistant prefix 'The answer is' and returned only ' ORBIT.'; no inference about other models or disabling thinking generally",
+    },
+  },
 ] as const satisfies readonly CapabilityOverrideInput[];

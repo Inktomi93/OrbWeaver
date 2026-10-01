@@ -4,7 +4,7 @@
 // and the runtime variable-delta wire (D46) parsed at the DB read seam. A swipe APPENDs a variant + flips a
 // pointer (never a content copy); attribution is slot-level (a swipe never changes the voiced speaker).
 
-import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -246,7 +246,7 @@ export type TextSignature = z.infer<typeof textSignatureSchema>;
 const contentSignatureSnapshotSchema = z.object({
   content: z.string().optional(),
   text: z.array(textSignatureSchema.partial({ thoughtSignature: true })),
-  images: z.array(z.object({ assetId: brandedId<AssetId>(), thoughtSignature: z.string() })),
+  images: z.array(z.object({ assetId: typeIdSchema(ID_PREFIX.asset), thoughtSignature: z.string() })),
 });
 const contentSignaturesSchema = contentSignatureSnapshotSchema.extend({ previous: contentSignatureSnapshotSchema.optional() });
 export type ContentSignatures = z.infer<typeof contentSignaturesSchema>;

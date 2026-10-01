@@ -331,7 +331,11 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
     extras: connection.extras,
     transport: connection.transport,
     allowBackground: connection.allowBackground,
-    promptCache: effectivePromptCache(connection.promptCache),
+    promptCache: effectivePromptCache(
+      connection.promptCache,
+      capability.kind === "generation" ? capability.generation.turns?.promptCacheDefaultEnabled : undefined,
+      capability.kind === "generation" ? capability.generation.turns?.fixedCacheTtl : undefined,
+    ),
     factsModel,
   };
   const warnings: ResolvedWarning[] = [...synthesized.warnings];

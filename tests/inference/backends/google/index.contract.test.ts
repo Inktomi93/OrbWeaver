@@ -6,6 +6,7 @@ import { synthesizeCapability } from "../../../../packages/inference/src/capabil
 import type { GoogleChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
 import type { Resolved } from "../../../../packages/inference/src/contract/resolved.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { testProviderId } from "../../../support/inference-identities.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
 import { fakeApiKeySecret, fakeDeps, fakeResolved } from "../../_support.ts";
 
@@ -13,8 +14,10 @@ const SIGNATURE = "signed-native-tool-fixture";
 const NOW = 1_700_000_000_000;
 function connection<T extends Task>(task: T, model = "gemini-3-flash-preview"): Resolved<T> {
   const kind = task === "embed" || task === "imageEmbed" ? "embedding" : "generation";
-  const capability = synthesizeCapability(kind, "google", { curated: curatedRows({ model, providerId: "google", wire: "google-generative-ai" }) }).capability;
-  return fakeResolved({ task, providerId: "google", model, capability, secret: fakeApiKeySecret("native-test-key") });
+  const capability = synthesizeCapability(kind, "google", {
+    curated: curatedRows({ model, providerId: testProviderId("google"), wire: "google-generative-ai" }),
+  }).capability;
+  return fakeResolved({ task, providerId: testProviderId("google"), model, capability, secret: fakeApiKeySecret("native-test-key") });
 }
 function request(): GoogleChatRequest {
   return {
@@ -359,5 +362,24 @@ test("native 2.5 positive budgets clamp per model and utility calls choose off o
       { thinkingConfig: { thinkingBudget: utility } },
       { thinkingConfig: { thinkingBudget: utility } },
     ]);
+  }
+});
+
+test("native cached-content references and implicit cache usage keep the shared accounting shape", async () => {
+  for (const cachedContent of [undefined, "cachedContents/test-reference"]) {
+    let body: Record<string, unknown> = {};
+    const native = backend((_url, init) => {
+      body = z.record(z.string(), z.unknown()).parse(JSON.parse(String(init?.body)));
+      const chunk = {
+        candidates: [{ content: { parts: [{ text: "ok" }] }, finishReason: "STOP" }],
+        usageMetadata: { promptTokenCount: 5000, candidatesTokenCount: 2, cachedContentTokenCount: 4096, totalTokenCount: 5002 },
+      };
+      return Promise.resolve(new Response(`data: ${JSON.stringify(chunk)}\n\n`, { headers: { "content-type": "text/event-stream" } }));
+    });
+    const req = request();
+    const result = await native.runChatTurn({ ...req, connection: { ...req.connection, extras: cachedContent === undefined ? null : { cachedContent } } });
+    expect(body["cachedContent"]).toBe(cachedContent);
+    expect(body).not.toHaveProperty("cache_control");
+    expect(result.usage).toMatchObject({ tokensIn: 5000, cacheReadTokens: 4096, cacheWriteTokens: 0 });
   }
 });

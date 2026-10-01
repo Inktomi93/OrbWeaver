@@ -694,6 +694,7 @@ export async function loadCanonContentSignatures(db: Db, chatId: ChatId): Promis
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(eq(messages.chatId, chatId));
+  // @orb-waive persistence-no-in-memory-state(Map): this call-local projection returns selected SQL rows to one generation request; it retains no state between queries. Ends if the map is retained across calls.
   return new Map(
     rows.flatMap((row) => {
       const signatures = signaturesForContent(parseVariantMetadata(row.metadata).contentSignatures, row.content);

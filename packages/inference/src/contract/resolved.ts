@@ -51,7 +51,7 @@ export interface Resolved<T extends Task = Task> extends ResolvedConnectionView 
   readonly transport: ConnectionTransport | null;
   readonly allowBackground: boolean;
   /** The connection's prompt-cache settings, folded once at resolve: the row's own, or `SHIPPED_PROMPT_CACHE`
-   *  when it stored none. Read only by a runner that places explicit Anthropic markers (`backends/kit/cache-control.ts`). */
+   *  when it stored none. Read only by a runner that places explicit cache markers (`backends/kit/cache-control.ts`). */
   readonly promptCache: PromptCacheSettings;
   /** The id the model's FACTS come from: `model` itself, or the id an OpenRouter catalog row says it shares
    *  them with (a floating alias's target, a `:batch` variant's base). The capability fold read it, so every

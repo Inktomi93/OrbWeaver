@@ -235,13 +235,17 @@ function AvailableConnectionEditorBody({
 
         {showsPromptCache(capabilityView.capability) ? (
           <EditorTier
-            badge={overrideBadge(promptCacheChangedCount(connection.promptCache))}
+            badge={overrideBadge(promptCacheChangedCount(connection.promptCache, capabilityView.capability))}
             defaultOpen={false}
             kicker="On or off · system prompt · depth · how long it lasts"
             title="Prompt caching"
           >
             <ConnectionPromptCache
               busy={busy}
+              defaultEnabled={
+                capabilityView.capability?.kind === "generation" ? capabilityView.capability.generation.turns?.promptCacheDefaultEnabled : undefined
+              }
+              fixedTtl={capabilityView.capability?.kind === "generation" ? capabilityView.capability.generation.turns?.fixedCacheTtl : undefined}
               connectionId={connectionId}
               connectionLabel={connection.label}
               onReset={(): void => patch({ promptCache: null })}

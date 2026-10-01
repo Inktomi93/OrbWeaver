@@ -28,8 +28,8 @@ import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { resolveChat } from "../../funnel/resolve-chat.ts";
 import { effortWordOf } from "../kit/applied-effort.ts";
-import type { AnthropicCachePlan } from "../kit/cache-control.ts";
-import { anthropicCachePlan, placeAnthropicCacheMarkers } from "../kit/cache-control.ts";
+import type { ExplicitCachePlan } from "../kit/cache-control.ts";
+import { explicitCachePlan, placeExplicitCacheMarkers } from "../kit/cache-control.ts";
 import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
@@ -89,7 +89,7 @@ export function sdkEffortOf(effort: string | undefined, warnings: ResolvedWarnin
  *  says the model honours it) + the per-turn effort. */
 function rowOptionsFor(
   generation: GenerationCapability,
-  cachePlan: AnthropicCachePlan | null,
+  cachePlan: ExplicitCachePlan | null,
   warnings: ResolvedWarning[],
 ): (row: ChatHistoryMessage) => SharedV4ProviderOptions | undefined {
   return (row) => {
@@ -128,13 +128,13 @@ interface CacheWriteReceipt {
 function placeCache(args: {
   readonly plan: WirePlan;
   readonly req: AnthropicChatRequest;
-  readonly cachePlan: AnthropicCachePlan | null;
+  readonly cachePlan: ExplicitCachePlan | null;
   readonly generation: GenerationCapability;
   readonly log: ProviderLogger;
   readonly toolBlocks: number;
 }): { readonly patches: ReadonlyMap<number, Record<string, unknown>>; readonly written: CacheWriteReceipt } {
   const { plan, req, cachePlan, generation, log, toolBlocks } = args;
-  const placed = placeAnthropicCacheMarkers({ plan: cachePlan, rows: plan.rows, staticSystem: req.systemPrompt.static.trim(), generation, log });
+  const placed = placeExplicitCacheMarkers({ plan: cachePlan, rows: plan.rows, staticSystem: req.systemPrompt.static.trim(), generation, log });
   return { patches: placed.patches, written: { historyDepths: placed.historyDepths, systemBlocks: placed.systemBlocks, toolBlocks } };
 }
 
@@ -179,7 +179,7 @@ function raiseThinkingDrops(log: ProviderLogger, drain: StreamDrain, turnId: str
  *  is worth the write AND the connection has caching on; `undefined` leaves every tool's provider options
  *  absent. Tools come FIRST in Anthropic's prefix order, so this marker carries the turn's one directive: a
  *  5m tool marker ahead of a 1h system or history marker is exactly the order the API forbids. */
-function toolCacheOptions(generation: GenerationCapability, cachePlan: AnthropicCachePlan | null, hasTools: boolean): SharedV4ProviderOptions | undefined {
+function toolCacheOptions(generation: GenerationCapability, cachePlan: ExplicitCachePlan | null, hasTools: boolean): SharedV4ProviderOptions | undefined {
   return hasTools && cachePlan !== null && generation.turns?.explicitPromptCache === true
     ? { [ANTHROPIC_KEY]: { cacheControl: { ...cachePlan.directive } } }
     : undefined;
@@ -344,7 +344,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   // after an `await` to its initializer (a property read is re-widened across the call).
   const response: { rateLimit: RateLimitSnapshot | null } = { rateLimit: null };
   const secrets = resolvedScrubSet(connection);
-  const cachePlan = anthropicCachePlan({ connection, requestedDepth: req.cacheBreakpointDepth, log });
+  const cachePlan = explicitCachePlan({ connection, requestedDepth: req.cacheBreakpointDepth, log });
   const plan = buildWirePlan({
     systemPrompt: req.systemPrompt,
     history: req.history,
