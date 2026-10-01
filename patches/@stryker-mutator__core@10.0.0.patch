@@ -1,5 +1,5 @@
 diff --git a/dist/src/sandbox/sandbox.js b/dist/src/sandbox/sandbox.js
-index 57a6c8e823aac0ecd7d20e85d2b0ea458fb10143..dd99d0192dd7b3f90e49c0a411e38d283ab036b5 100644
+index 57a6c8e823aac0ecd7d20e85d2b0ea458fb10143..9018e5752c5fc40ada1fdf8b1080e83be77b3fb6 100644
 --- a/dist/src/sandbox/sandbox.js
 +++ b/dist/src/sandbox/sandbox.js
 @@ -1,4 +1,5 @@
@@ -30,16 +30,14 @@ index 57a6c8e823aac0ecd7d20e85d2b0ea458fb10143..dd99d0192dd7b3f90e49c0a411e38d28
                  }
              }
              else {
-@@ -99,6 +89,40 @@ export class Sandbox {
+@@ -99,6 +89,63 @@ export class Sandbox {
              }
          }
      }
 +    /**
-+     * Creates a REAL directory for the sandbox's node_modules and symlinks each entry to the
-+     * original — EXCEPT symlinked entries that resolve inside the project but outside any
-+     * node_modules (i.e. workspace packages: pnpm/yarn/npm workspaces). Those are re-pointed at
-+     * the sandbox's own copy, so the instrumented code and the tests load ONE copy of each
-+     * workspace module (no module duplication / instanceof breakage / dead mutant coverage).
++     * Creates real node_modules directories and copies the pnpm store for permissioned children.
++     * Dependency links target that sandbox store, while workspace links target the instrumented
++     * package copies so the tests and instrumented code load one copy of each workspace module.
 +     */
 +    async linkNodeModulesEntries(basePath, realDir, sandboxDir) {
 +        await fs.promises.mkdir(sandboxDir, { recursive: true });
@@ -59,10 +57,35 @@ index 57a6c8e823aac0ecd7d20e85d2b0ea458fb10143..dd99d0192dd7b3f90e49c0a411e38d28
 +                            return;
 +                        }
 +                    }
++                    // Permissioned children may only read the sandbox's dependency store.
++                    const sandboxTarget = !rel.startsWith('..') && !path.isAbsolute(rel)
++                        ? path.join(this.workingDirectory, rel)
++                        : realPath;
++                    await fileUtils.symlinkJunction(sandboxTarget, sandboxEntry).catch(() => { });
++                    return;
 +                }
 +            }
 +            else if (entry.isDirectory() && entry.name.startsWith('@')) {
 +                await this.linkNodeModulesEntries(basePath, realEntry, sandboxEntry);
++                return;
++            }
++            else if (entry.isDirectory() && entry.name === '.pnpm') {
++                // ESM loads canonical paths, so a link to the original store escapes sandbox read grants.
++                await fs.promises.cp(realEntry, sandboxEntry, {
++                    recursive: true, verbatimSymlinks: true, mode: fs.constants.COPYFILE_FICLONE,
++                    filter: async (source, destination) => {
++                        if (!(await fs.promises.lstat(source)).isSymbolicLink() || !path.isAbsolute(await fs.promises.readlink(source))) {
++                            return true;
++                        }
++                        // Windows junctions are absolute; relocate them instead of retaining original-store reads.
++                        const rel = path.relative(basePath, await fs.promises.realpath(source));
++                        if (rel.startsWith('..') || path.isAbsolute(rel)) {
++                            return true;
++                        }
++                        await fileUtils.symlinkJunction(path.join(this.workingDirectory, rel), destination);
++                        return false;
++                    },
++                });
 +                return;
 +            }
 +            await fileUtils.symlinkJunction(realEntry, sandboxEntry).catch(() => { });
@@ -72,7 +95,7 @@ index 57a6c8e823aac0ecd7d20e85d2b0ea458fb10143..dd99d0192dd7b3f90e49c0a411e38d28
       * Sandboxes a file (writes it to the sandbox). Either in-place, or an actual sandbox directory.
       * @param name The name of the file
 diff --git a/dist/src/utils/file-utils.js b/dist/src/utils/file-utils.js
-index 67da071..aba21ec 100644
+index 67da071b8e2d1a382d35a464823c6252bb4473c4..aba21ec3956c4376e26f35fe3809f34a0d5d58bf 100644
 --- a/dist/src/utils/file-utils.js
 +++ b/dist/src/utils/file-utils.js
 @@ -82,15 +82,44 @@ export const fileUtils = {
