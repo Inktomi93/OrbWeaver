@@ -27,7 +27,7 @@ import {
 } from "../_support.ts";
 
 describe("search (unified dispatch)", () => {
-  test("source endpoint ids are member-floored and withheld after membership ends", async () => {
+  test("non-host search withholds source bytes and endpoints before and after departure", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("source-viewer") });
     const host = await seedUser(db, { handle: castId<Handle>("source-host") });
@@ -42,9 +42,8 @@ describe("search (unified dispatch)", () => {
       joinSeq: 24,
       joinHistoryVisibility: "from-join",
     });
-    const messageIds = new Map<number, string>();
     for (let seq = 20; seq <= 29; seq += 1) {
-      messageIds.set(seq, (await seedMessage(db, chatId, seq, { content: `source ${seq}` })).messageId);
+      await seedMessage(db, chatId, seq, { content: `source ${seq}` });
     }
     const digestId = await seedChatDigest(db, { chatId, scopedCharacterId: character, blockIdx: 2, embedding: vec(1) });
     const segmentId = await seedChatSegment(db, { chatId, blockIdx: 2, embedding: vec(1) });
@@ -59,14 +58,13 @@ describe("search (unified dispatch)", () => {
     if (current.over !== "digests") {
       throw new Error("expected digest result");
     }
-    expect(current.hits[0]?.source).toMatchObject({ seqStart: 20, seqEnd: 29, messageStartId: messageIds.get(24), messageEndId: messageIds.get(29) });
-    expect(JSON.stringify(current.hits[0]?.source)).not.toContain(messageIds.get(20));
+    expect(current.hits).toEqual([]);
     await db.update(chatParticipants).set({ leftSeq: 30 }).where(eq(chatParticipants.id, memberId));
     const departed = await service.search(params);
     if (departed.over !== "digests") {
       throw new Error("expected digest result");
     }
-    expect(departed.hits[0]?.source).toMatchObject({ messageStartId: null, messageEndId: null });
+    expect(departed.hits).toEqual([]);
   });
 
   test("digests · character scope: the OR-branch includes a co-star block the character only spoke in", async () => {

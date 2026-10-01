@@ -8,7 +8,7 @@ import type { Trpc } from "#data";
 type Search = inferOutput<Trpc["search"]["search"]>;
 const TARGET_DISCLOSURE: Readonly<Record<Search["over"], string>> = {
   characters: "Semantic matches across indexed character cards. Saved facets can be absent.",
-  discover: "Nearest indexed chat passages, grouped by character. This is a top-results preview, not every scene.",
+  discover: "Nearest indexed chat passages. Character groups use saved memory credit; other passages open their transcript. This is a top-results preview.",
   digests: "Nearest saved memory digests. These are generated summaries, not verbatim dialogue.",
   images: "Caption and image-likeness matches from indexed assets.",
   entities: "Nearest indexed entities.",

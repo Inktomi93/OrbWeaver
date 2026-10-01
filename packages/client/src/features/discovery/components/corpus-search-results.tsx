@@ -5,12 +5,14 @@ import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
 import { Button } from "@orb/ui/button";
 import { Icon, Search } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { openChatMoment } from "#state";
 import { groupByEvidence, snippetForDisplay } from "../lib/corpus-result-text.ts";
 import { CORPUS_IMAGE_LENS, CORPUS_SEARCH_TOP_N, isNearestOnly, resolveSearchTarget } from "../lib/corpus-search-targets.ts";
 import { percent } from "../lib/corpus-vocabulary.ts";
@@ -79,7 +81,8 @@ function UnifiedResults({
   }
 
   const shown = result.data;
-  if (shown.hits.length === 0) {
+  const resultCount = shown.hits.length + (shown.over === "discover" ? shown.standaloneSegments.length : 0);
+  if (resultCount === 0) {
     return (
       <>
         <CorpusSearchDisclosure result={shown} />
@@ -97,7 +100,7 @@ function UnifiedResults({
 
   return (
     <>
-      <ResultsStatus count={shown.hits.length} label={label} nearestOnly={nearestOnly} />
+      <ResultsStatus count={resultCount} label={label} nearestOnly={nearestOnly} />
       <CorpusSearchDisclosure result={shown} />
       {nearestOnly ? <NearestOnlyBanner best={Math.max(...relevances)} /> : null}
       <CorpusResultsList label={label} retainFinderScroll={retainFinderScroll}>
@@ -142,7 +145,7 @@ function relevancesOf(data: UnifiedResult): number[] {
     return data.hits.map((hit) => hit.relevance);
   }
   if (data.over === "discover") {
-    return data.hits.map((hit) => hit.relevance);
+    return [...data.hits.map((hit) => hit.relevance), ...data.standaloneSegments.map((segment) => segment.relevance)];
   }
   if (data.over === "digests") {
     return data.hits.map((hit) => hit.relevance);
@@ -279,6 +282,19 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
       <>
         {data.hits.map((hit, index) => (
           <DiscoverHitRow hit={hit} key={hit.characterId} rank={index + 1} />
+        ))}
+        {data.standaloneSegments.length > 0 ? <Text voice="gloss">Transcript passages without character credit</Text> : null}
+        {data.standaloneSegments.map((segment, index) => (
+          <Stack key={segment.source.rowId} role="listitem">
+            <ListRow
+              clickable={true}
+              onClick={(): void => openChatMoment(segment.chatId, { kind: "source", source: segment.source })}
+              title={segment.chatTitle ?? "Untitled chat"}
+              subtitle={snippetForDisplay(segment.snippet)}
+              subtitleWrap={true}
+              meta={`${index + 1} · ${percent(segment.relevance)}`}
+            />
+          </Stack>
         ))}
       </>
     );

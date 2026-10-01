@@ -10,7 +10,7 @@ import { freshDb } from "../../../../support/db.ts";
 import { principal } from "../../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../../support/factories/user.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { seedChatSegment, vec } from "../../search/_support.ts";
+import { makeSearch, seedChatSegment, vec } from "../../search/_support.ts";
 import { makeChatContext, makeLoadParticipantViews, seedChat, seedMessage, seedParticipant } from "../_support.ts";
 
 interface SourceWindowFixture {
@@ -76,6 +76,27 @@ async function setup(): Promise<SourceWindowFixture> {
 }
 
 describe("member-visible source windows", () => {
+  test("a digest-free Scenes result resolves through ordinary authorized transcript projection", async () => {
+    const { db, host, member, chatId, read } = await setup();
+    const result = await makeSearch(db).search({ ownerId: host, query: "selected chunk", topN: 5, over: "discover", scope: { kind: "owner" } });
+    if (result.over !== "discover") {
+      throw new Error("expected Scenes response");
+    }
+    expect(result.hits).toEqual([]);
+    const hit = result.standaloneSegments[0];
+    if (hit === undefined) {
+      throw new Error("missing standalone transcript result");
+    }
+    expect(hit.source).toMatchObject({ kind: "segment", chatId, blockIdx: 2, chunkIdx: 1 });
+    expect(await read({ principal: principal(host), chatId, target: { kind: "source", source: hit.source } })).toMatchObject({
+      outcome: "resolved",
+      anchorMessageId: hit.source.messageStartId,
+    });
+    const memberWindow = await read({ principal: principal(member), chatId, target: { kind: "source", source: hit.source } });
+    expect(memberWindow.messages[0]?.seq).toBe(24);
+    expect(memberWindow.messages[0]?.content).toBe("public  end");
+    expect(JSON.stringify(memberWindow)).not.toContain("private truth");
+  });
   test("message window loads an early anchor with independent forward and backward paging", async () => {
     const { db, host: me, chatId, read, slots } = await setup();
     const rows: Awaited<ReturnType<typeof seedMessage>>[] = [];

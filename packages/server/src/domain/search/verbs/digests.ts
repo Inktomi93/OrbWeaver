@@ -1,8 +1,8 @@
 // domain/search/verbs/digests — within-chat digest retrieval; the ONLY search op memory.recall calls.
 // Embed queryText → cosine scan chat_digests scoped to one authorized chat + embed space + optional
 // candidates → CSLS hub-adjust rank → minScore floor (+ optional keywordMatch fold) → retrieveK top-K cut →
-// optional rerank to rerankTo (mode mixC). No membership derivation: the caller already holds the authorized
-// chat. retrieveK is the "top retrieveK" retrieval count (the cosine-ranked, floor-passing pool cut to its
+// optional rerank to rerankTo (mode mixC). The SQL scan requires current host membership before ranking.
+// retrieveK is the "top retrieveK" retrieval count (the cosine-ranked, floor-passing pool cut to its
 // head — and the pool the mixC cross-encoder reranks); rerankTo is the mixC keep-count after that rerank.
 // The embed + rerank carry the digests SCOPE_INSTRUCTIONS (#330 P3) — the SAME conditioning the corpus digest
 // scan uses (`verbs/search.ts` digestScan); an instruction-aware family (Qwen3-VL) sharpens on it, a text-only
@@ -134,6 +134,7 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
 
       const pool = await nearestDigests(ctx.db, {
         queryVector,
+        ownerId: params.ownerId,
         model: space.model,
         generationId: space.generationId,
         chatIds: [params.scope.chat],

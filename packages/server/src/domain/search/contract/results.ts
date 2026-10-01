@@ -40,7 +40,11 @@ export interface SegmentSearchHit {
 
 /** A block that survived the joint digest+segment rerank, block-level dedupe, and content-hash collapse. */
 export interface CorpusHit {
-  readonly blockKey: BlockKey;
+  readonly source: CorpusSource;
+  /** Stored digest identities usable by the memory bridge; standalone transcripts carry none. */
+  readonly blockKeys: readonly BlockKey[];
+  readonly chatTitle: string | null;
+  readonly relevance: number;
   readonly score: number;
   readonly text: string;
 }
@@ -79,6 +83,12 @@ export interface DiscoverCharacter {
   readonly segments: readonly DiscoverSegment[];
 }
 
+/** Character credit and uncredited transcript evidence remain separate; no synthetic character identity. */
+export interface DiscoverResult {
+  readonly hits: readonly DiscoverCharacter[];
+  readonly standaloneSegments: readonly DiscoverSegment[];
+}
+
 /** CSLS applies here (same-space image↔image), unlike the cross-modal images verb which skips it. */
 export interface SimilarArtHit {
   readonly characterId: CharacterId;
@@ -115,7 +125,7 @@ export type UnifiedSearchResult = UnifiedSearchRows & { readonly coverage: Searc
 export type UnifiedSearchRows =
   | { readonly over: "entities"; readonly hits: readonly SearchHit[] }
   | { readonly over: "characters"; readonly hits: readonly CharacterCardHit[] }
-  | { readonly over: "discover"; readonly hits: readonly DiscoverCharacter[] }
+  | ({ readonly over: "discover" } & DiscoverResult)
   | { readonly over: "segments"; readonly hits: readonly SegmentSearchHit[] }
   | { readonly over: "digests"; readonly hits: readonly DigestSourceHit[] }
   | { readonly over: "corpus"; readonly hits: readonly CorpusHit[] }

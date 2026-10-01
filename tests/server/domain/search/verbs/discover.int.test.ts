@@ -35,7 +35,7 @@ describe("discover", () => {
     });
 
     const svc = makeSearch(db, { embedVector: () => vec(1) });
-    const result = await svc.discover({ ownerId: owner, queryText: "a duel at night", topN: 5 });
+    const result = (await svc.discover({ ownerId: owner, queryText: "a duel at night", topN: 5 })).hits;
 
     expect(result).toHaveLength(1);
     expect(result[0]?.characterId).toBe(nyx);
@@ -59,7 +59,7 @@ describe("discover", () => {
     await seedChatSegment(db, { chatId: chat, blockIdx: 0, chunkIdx: 1, text: "Nyx drew her blade in the moonlit alley.", embedding: vec(1) });
 
     const svc = makeSearch(db, { embedVector: () => vec(1) });
-    const result = await svc.discover({ ownerId: owner, queryText: "a duel at night", topN: 5 });
+    const result = (await svc.discover({ ownerId: owner, queryText: "a duel at night", topN: 5 })).hits;
 
     expect(result).toHaveLength(1);
     expect(result[0]?.matchCount).toBe(1); // ONE scene, not two
@@ -97,7 +97,7 @@ describe("discover", () => {
     });
 
     const svc = makeSearch(db, { embedVector: () => vec(1) });
-    const result = await svc.discover({ ownerId: owner, queryText: "an argument", topN: 5 });
+    const result = (await svc.discover({ ownerId: owner, queryText: "an argument", topN: 5 })).hits;
 
     const credited = new Set(result.map((r) => r.characterId));
     expect(credited).toEqual(new Set([alice, bob]));
@@ -132,7 +132,7 @@ describe("discover", () => {
     );
 
     const svc = makeSearch(db, { embedVector: () => vec(1) });
-    const result = await svc.discover({ ownerId: owner, queryText: "scene", topN: 5 });
+    const result = (await svc.discover({ ownerId: owner, queryText: "scene", topN: 5 })).hits;
 
     expect(result).toHaveLength(1);
     expect(result[0]?.matchCount).toBe(4);
@@ -172,7 +172,7 @@ describe("discover", () => {
     });
 
     const svc = makeSearch(db, { embedVector: () => vec(1) });
-    const result = await svc.discover({ ownerId: owner, queryText: "a scene", topN: 10 });
+    const result = (await svc.discover({ ownerId: owner, queryText: "a scene", topN: 10 })).hits;
 
     expect(result.map((r) => r.characterId)).toEqual([mine]);
   });
@@ -219,15 +219,17 @@ describe("discover", () => {
         }),
     });
 
-    const plain = await svc.discover({ ownerId: owner, queryText: "scene", topN: 5 });
+    const plain = (await svc.discover({ ownerId: owner, queryText: "scene", topN: 5 })).hits;
     expect(plain.map((r) => r.characterId)).toEqual([a, b]);
 
-    const reranked = await svc.discover({
-      ownerId: owner,
-      queryText: "scene",
-      topN: 5,
-      rerank: true,
-    });
+    const reranked = (
+      await svc.discover({
+        ownerId: owner,
+        queryText: "scene",
+        topN: 5,
+        rerank: true,
+      })
+    ).hits;
     expect(reranked.map((r) => r.characterId)).toEqual([b, a]);
   });
 
@@ -270,7 +272,7 @@ describe("chunk collapse follows the CSLS ranking, not raw distance", () => {
     });
 
     const svc = makeSearch(db, { embedVector: () => vec(1) });
-    const result = await svc.discover({ ownerId: owner, queryText: "a duel at night", topN: 5 });
+    const result = (await svc.discover({ ownerId: owner, queryText: "a duel at night", topN: 5 })).hits;
 
     expect(result).toHaveLength(1);
     expect(result[0]?.segments).toHaveLength(1);

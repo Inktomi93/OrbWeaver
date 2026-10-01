@@ -1,19 +1,15 @@
-// domain/search/persistence/scope — chat-memory scope SQL-fragment builders (digests/segments/corpus).
-// Fragment builders ONLY, no query execution. Belts always in the WHERE, never a post-filter: SPACE
-// (model=?), WITHIN-CHAT or OWNER (derived via characters.ownerId, never chats.ownerId/chat_participants,
-// never a users read), and optional CANDIDATES restricting to given block-keys.
-
+// Room-derived pools require a current human host before ranking (D16/D20).
 import type { BlockKey } from "@orb/contracts/search";
-import { characters, chatDigestSpeakers, chatDigests, chatSegments } from "@orb/db";
+import { chatDigestSpeakers, chatDigests, chatParticipants, chatSegments } from "@orb/db";
 import type { CharacterId, ChatId, EmbedGenerationId, UserId } from "@orb/kit/ids";
-import type { SQL } from "drizzle-orm";
+import type { SQL, SQLWrapper } from "drizzle-orm";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 interface DigestScopeParams {
   readonly model: string;
   readonly generationId?: EmbedGenerationId | undefined;
   readonly chatIds?: readonly ChatId[] | undefined;
-  readonly ownerId?: UserId | undefined;
+  readonly ownerId: UserId;
   readonly scopedCharacterId?: CharacterId | undefined;
   /** The membership-widened by-character cross-chat scope (D16): match digests this character
    *  egocentrically produced OR co-star blocks where it was merely PRESENT (a `chat_digest_speakers`
@@ -23,17 +19,19 @@ interface DigestScopeParams {
   readonly candidates?: readonly BlockKey[] | undefined;
 }
 
-/** The scan MUST inner-join `characters` on `scopedCharacterId` so the owner belt resolves. */
+/** Current room authority derives from membership, independent of character ownership. */
+export function hostScopeCond(chatId: SQLWrapper, ownerId: UserId): SQL {
+  return sql`EXISTS (SELECT 1 FROM ${chatParticipants} WHERE ${chatParticipants.chatId} = ${chatId} AND ${chatParticipants.userId} = ${ownerId} AND ${chatParticipants.kind} = ${"human"} AND ${chatParticipants.role} = ${"host"} AND ${chatParticipants.leftSeq} IS NULL)`;
+}
+
 export function digestScopeCond(params: DigestScopeParams): SQL | undefined {
   const belts: (SQL | undefined)[] = [
     eq(chatDigests.model, params.model),
+    hostScopeCond(chatDigests.chatId, params.ownerId),
     params.generationId === undefined ? undefined : eq(chatDigests.generationId, params.generationId),
   ];
   if (params.chatIds !== undefined) {
     belts.push(inArray(chatDigests.chatId, [...params.chatIds]));
-  }
-  if (params.ownerId !== undefined) {
-    belts.push(eq(characters.ownerId, params.ownerId));
   }
   if (params.candidates !== undefined) {
     belts.push(
@@ -64,6 +62,7 @@ export function digestScopeCond(params: DigestScopeParams): SQL | undefined {
 }
 
 interface SegmentScopeParams {
+  readonly ownerId: UserId;
   readonly model: string;
   readonly generationId?: EmbedGenerationId | undefined;
   readonly chatIds: readonly ChatId[];
@@ -73,6 +72,7 @@ interface SegmentScopeParams {
 export function segmentScopeCond(params: SegmentScopeParams): SQL | undefined {
   const belts: (SQL | undefined)[] = [
     eq(chatSegments.model, params.model),
+    hostScopeCond(chatSegments.chatId, params.ownerId),
     params.generationId === undefined ? undefined : eq(chatSegments.generationId, params.generationId),
     inArray(chatSegments.chatId, [...params.chatIds]),
   ];

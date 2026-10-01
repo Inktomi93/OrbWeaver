@@ -1,17 +1,12 @@
-// domain/search/verbs/discover — character discovery by best-segment neighbourhood. Pipeline: embed
-// queryText → owner's materialized chat set → owner-wide cosine scan of chat_segments → CSLS hub-adjust
-// → optional rerank of segments BEFORE grouping → credit each segment to its character(s) → group by
-// character in ranked order, capped. Answers "who has lived scenes like X" (distinct from findCharacters'
-// card match and corpus' block match). Rerank rejections propagate — search owns no fallback.
-
+// Host-scoped transcript search credits stored character evidence and retains uncredited passages.
 import type { CorpusSource } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
 import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
 import type { DiscoverParams } from "../contract/params.ts";
-import type { DiscoverCharacter, DiscoverSegment } from "../contract/results.ts";
+import type { DiscoverResult, DiscoverSegment } from "../contract/results.ts";
 import type { ActiveQuerySpace, SearchService } from "../contract/service.ts";
-import { nearestSegments, ownedChatIds } from "../persistence/digest-rows.ts";
+import { hostedChatIds, nearestSegments } from "../persistence/digest-rows.ts";
 import { resolveChatDisplay, resolveSegmentDisplay } from "../persistence/display.ts";
 import { readSourceAnchors } from "../persistence/source.ts";
 import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, SNIPPET_CHARS } from "../substrate/constants.ts";
@@ -99,7 +94,7 @@ async function groupByCharacter(
   ownerId: DiscoverParams["ownerId"],
   ranked: readonly DiscoverCandidate[],
   topN: number,
-): Promise<DiscoverCharacter[]> {
+): Promise<DiscoverResult> {
   const [credits, chatDisplays] = await Promise.all([
     resolveSegmentDisplay(
       ctx.db,
@@ -119,47 +114,78 @@ async function groupByCharacter(
   for (const seg of ranked) {
     creditSegment(byChar, seg, creditsBySlot.get(blockSlot(seg.chatId, seg.blockIdx)) ?? [], titleByChat);
   }
+  const selectedCharacters = new Set<CharacterId>();
+  const selectedSegments = new Set<DiscoverSegment["source"]["rowId"]>();
+  for (const candidate of ranked) {
+    const credit = creditsBySlot.get(blockSlot(candidate.chatId, candidate.blockIdx)) ?? [];
+    if (credit.length === 0 && selectedCharacters.size + selectedSegments.size < topN) {
+      selectedSegments.add(candidate.source.rowId);
+    }
+    for (const row of credit) {
+      if (selectedCharacters.size + selectedSegments.size < topN) {
+        selectedCharacters.add(row.characterId);
+      }
+    }
+  }
   const anchors = new Map<CorpusSource["rowId"], Promise<Pick<CorpusSource, "seqStart" | "seqEnd" | "messageStartId" | "messageEndId">>>();
-  return await Promise.all(
-    [...byChar.values()].slice(0, topN).map(async (group) => ({
-      ...group,
-      segments: await Promise.all(
-        group.segments.map(async (segment) => ({
-          ...segment,
-          source: {
-            ...segment.source,
-            ...(await anchors.getOrInsertComputed(segment.source.rowId, async () =>
-              readSourceAnchors(
-                ctx.db,
-                segment.source.chatId,
-                segment.source,
-                (await ctx.resolveViewerVisibility(segment.source.chatId, ownerId))?.historyFloorSeq ?? null,
-              ),
-            )),
-          },
-        })),
-      ),
-    })),
+  const hits = await Promise.all(
+    [...byChar.values()]
+      .filter((group) => selectedCharacters.has(group.characterId))
+      .map(async (group) => ({
+        ...group,
+        segments: await Promise.all(
+          group.segments.map(async (segment) => ({
+            ...segment,
+            source: {
+              ...segment.source,
+              ...(await anchors.getOrInsertComputed(segment.source.rowId, async () =>
+                readSourceAnchors(
+                  ctx.db,
+                  segment.source.chatId,
+                  segment.source,
+                  (await ctx.resolveViewerVisibility(segment.source.chatId, ownerId))?.historyFloorSeq ?? null,
+                ),
+              )),
+            },
+          })),
+        ),
+      })),
   );
+  const standaloneSegments = await Promise.all(
+    ranked
+      .filter((candidate) => selectedSegments.has(candidate.source.rowId))
+      .map(
+        async (candidate): Promise<DiscoverSegment> => ({
+          source: { ...candidate.source, ...(await readSourceAnchors(ctx.db, candidate.chatId, candidate.source)) },
+          chatId: candidate.chatId,
+          blockIdx: candidate.blockIdx,
+          snippet: candidate.sourceText.slice(0, SNIPPET_CHARS),
+          score: candidate.score,
+          relevance: relevanceOf(candidate.distance),
+          chatTitle: titleByChat.get(candidate.chatId) ?? null,
+        }),
+      ),
+  );
+  return { hits, standaloneSegments };
 }
 
 export function createDiscover(ctx: SearchContext): SearchService["discover"] {
-  return async (params: DiscoverParams): Promise<DiscoverCharacter[]> => {
+  return async (params: DiscoverParams): Promise<DiscoverResult> => {
     const { ownerId, queryText, topN } = params;
     const rc = await ctx.roleClientsFor(ownerId);
     return await withActiveQuerySpace(ctx, ownerId, "embed", async (space) => {
       const queryVector = await embedDiscoverQuery(space.connection.embed, queryText, topN);
       const model = space.model;
 
-      const chatIds = await ownedChatIds(ctx.db, ownerId, model, space.generationId);
+      const chatIds = await hostedChatIds(ctx.db, ownerId);
       if (chatIds.length === 0) {
-        return [];
+        return { hits: [], standaloneSegments: [] };
       }
 
       const poolK = Math.min(topN * DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENT_POOL_CAP);
-      const pool = await nearestSegments(ctx.db, { queryVector, model, generationId: space.generationId, chatIds, limit: poolK });
+      const pool = await nearestSegments(ctx.db, { ownerId, queryVector, model, generationId: space.generationId, chatIds, limit: poolK });
       if (pool.length === 0) {
-        return [];
+        return { hits: [], standaloneSegments: [] };
       }
 
       // RANK FIRST, COLLAPSE SECOND. Each block's chunk rows collapse to ONE (#172 — a block is N rows now):

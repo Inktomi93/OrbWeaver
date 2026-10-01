@@ -29,7 +29,7 @@
 // different surface — barrier on a node only the SETTLED arm can produce.
 
 import type { ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "../../../../support/node/corpus-source.ts";
@@ -507,6 +507,7 @@ const OTHER_PASSAGE = "She counted the coins twice, then pushed the whole stack 
 const SCENE_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "discover",
+    standaloneSegments: [],
     coverage: { ...CORPUS_PREVIEW_COVERAGE, candidateLimit: 400, evidencePerCharacter: 3 },
     hits: [
       {
@@ -618,6 +619,7 @@ test("SCENES: the honesty line is readable, not clipped to '…— showin' (P2-3
 const ONE_ROOM_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "discover",
+    standaloneSegments: [],
     coverage: { ...CORPUS_PREVIEW_COVERAGE, candidateLimit: 400, evidencePerCharacter: 3 },
     hits: [
       {
@@ -739,4 +741,27 @@ test("#2226 the ambient fixture FEEDS every pipeline the mounted section request
   await expect(component.getByText("Nothing in your library yet")).toBeVisible();
   // …and every one of them was answered with a view rather than `null`.
   await expect.poll(() => trpc.unstubbed(), { intervals: [20, 50, 100, 250] }).toEqual([]);
+});
+
+test("SCENES: a standalone indexed transcript opens its genuine source moment", async ({ mount, page }) => {
+  const chatId = mintTypeId(ID_PREFIX.chat);
+  const source = corpusSceneSource(chatId, 7);
+  await routeTrpc(page, {
+    ...CORPUS_AMBIENT_ROUTES,
+    "search.search": {
+      over: "discover",
+      coverage: { ...CORPUS_PREVIEW_COVERAGE, candidateLimit: 400, evidencePerCharacter: 3 },
+      hits: [],
+      standaloneSegments: [
+        { source, chatId, blockIdx: 7, snippet: "The retained standalone transcript.", score: 0, relevance: 0.9, chatTitle: "Standalone room" },
+      ],
+    },
+  });
+  const component = await mount(<CorpusListSurfaceNavStory />);
+  await component.getByRole("button", { name: "Search Scenes" }).click();
+  await component.getByRole("combobox", { name: "Search your corpus" }).fill("retained transcript");
+  await expect(component.getByText("The retained standalone transcript.")).toBeVisible();
+  await component.getByRole("button", { name: "Standalone room", exact: true }).click();
+  await expect(component.getByTestId("ct-nav-readout")).toHaveText(`section:chats chat:${chatId} artifact:none`);
+  await expect(component.getByTestId("ct-source-readout")).toHaveText(JSON.stringify({ kind: "source", source }));
 });

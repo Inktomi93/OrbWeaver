@@ -1397,8 +1397,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return hits.map((h) => ({ blockKey: h.blockKey, score: h.score, relevance: h.relevance }));
     },
     // The owner-wide corpus lens. MemoryQueryOptions deliberately carries no owner, so the owner is
-    // resolved FROM CONTEXT here: the chat's present host (D19 — the room authority; every roster character
-    // is host-owned, so the host's corpus IS this room's corpus). Hostless/stale room ⇒ empty
+    // resolved FROM CONTEXT here: the chat's present host (D19 — the room authority). The memory bridge
+    // keeps stored digest identities; standalone transcript sources remain search evidence. Hostless/stale room ⇒ empty
     // (leak-free unknown-owner, the resolvePromptVariables posture); an empty queryText propagates the
     // corpus verb's own SEARCH_EMPTY_QUERY refusal (flag-don't-fake).
     searchCorpus: async (query) => {
@@ -1412,7 +1412,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         mode: query.mode,
         minScore: query.minScore,
       });
-      return hits.map((h) => h.blockKey);
+      return hits.flatMap((h) => h.blockKeys);
     },
     log: (entry) => recordMemoryLog(entry),
     // #250 — absent recorder ⇒ the field stays unset ⇒ recall's `ctx.recordRecall?.()` is a no-op.

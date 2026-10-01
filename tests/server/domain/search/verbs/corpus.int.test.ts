@@ -1,8 +1,4 @@
-// verb: corpus — cross-chat hybrid retrieval. Asserts owner-wide scope (derived via the producer card, no
-// chat_participants), the joint digest+segment scan, block-level dedupe (a digest + its segment of the same
-// block collapse to ONE — the better-ranked lens wins under mixC), content-hash collapse (fork/import copies
-// across chats collapse to one representative), and the empty-pool short-circuit.
-
+// Joint host-scoped retrieval preserves digest/segment block dedupe and content-hash collapse.
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -30,7 +26,7 @@ describe("corpus", () => {
 
     expect(hits).toHaveLength(1);
     expect(hits[0]?.text).toBe("DIGEST");
-    expect(hits[0]?.blockKey).toEqual({
+    expect(hits[0]?.blockKeys[0]).toEqual({
       chatId: chat,
       tier: 0,
       blockIdx: 0,
@@ -126,10 +122,10 @@ describe("corpus", () => {
     const hits = await svc.corpus({ ownerId: owner, queryText: "q", mode: "mixB", minScore: 0 });
 
     expect(hits).toHaveLength(1);
-    expect(hits[0]?.blockKey.scopedCharacterId).toBe(mine);
+    expect(hits[0]?.blockKeys[0]?.scopedCharacterId).toBe(mine);
   });
 
-  test("an empty digest pool short-circuits to no hits", async () => {
+  test("an empty index returns no hits", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const svc = makeSearch(db, { embedVector: () => vec(1) });

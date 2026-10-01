@@ -58,7 +58,12 @@ function searchResponder(input: TrpcInput<"search.search">): TrpcFixtureOutput<"
     return { over: "characters", coverage: CORPUS_PREVIEW_COVERAGE, hits: [CHARACTER_HIT] };
   }
   if (over === "discover") {
-    return { over: "discover", coverage: { ...CORPUS_PREVIEW_COVERAGE, candidateLimit: 400, evidencePerCharacter: 3 }, hits: [DISCOVER_HIT] };
+    return {
+      over: "discover",
+      standaloneSegments: [],
+      coverage: { ...CORPUS_PREVIEW_COVERAGE, candidateLimit: 400, evidencePerCharacter: 3 },
+      hits: [DISCOVER_HIT],
+    };
   }
   return { over: over ?? "characters", coverage: CORPUS_PREVIEW_COVERAGE, hits: [] };
 }
