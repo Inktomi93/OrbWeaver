@@ -51,7 +51,7 @@ Selection lives in `tooling/src/verify/lib/instrument-affected-reach.ts`, `tooli
 
 Timings cover preparation, overlays, execution, restoration, and policy/fact phases. Resolution caching reduces measured overlay execution cost; broader same-changed-set verification performance remains deferred.
 
-ts-morph already passes its previous program to TypeScript `createProgram` and retains unchanged source objects. Another corpus cache duplicates that reuse. Resource hosts, facts, and reference caches remain invocation-local.
+ts-morph already reuses its previous program. Resource hosts, facts and reference caches remain invocation-local.
 
 The resolution cache matches fresh solo findings, refusals, grants and populations. Controls cover changed exports, disk twins, globals, fact/resource changes and failed resolution recovery.
 
