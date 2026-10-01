@@ -662,3 +662,25 @@ test("the fallback tail (no extractor matched) reports how many lines it dropped
   expect(result.stdout).toContain("plain line 29");
   expect(result.stdout).toContain("…and 27 more (pnpm check:show --stage quality:boot-chunk to widen)");
 });
+
+test("an interrupted Vitest stage names real failing suites and cases instead of fixture diagnostics", async ({ runCli, plantedTree }) => {
+  const root = await plantedTree({
+    ...failingSlot(FAIL_RUN),
+    [`reports/runs/verify/${FAIL_RUN}/stages/tests-node.log`]: [
+      "  ✗ 1 final policy REGRESSED: fixture-alpha",
+      " ❯ |tooling| tests/tooling/actual.test.ts (3 tests | 1 failed) 120ms",
+      "   ✓ a passing control 10ms",
+      "   × the real failing case 110ms",
+      "[proc] TIMED OUT after 2700000ms — killed the process group of pid 123",
+    ].join("\n"),
+  });
+  publishVerify(root, FAIL_RUN);
+  const result = await runCli("verify", ["show", "--errors-only", "--limit", "100"], { cwd: root });
+  await expect(result).toExitWith(EXIT.violations);
+  expect(result.stdout).toContain("tests/tooling/actual.test.ts (3 tests | 1 failed)");
+  expect(result.stdout).toContain("the real failing case");
+  expect(result.stdout).toContain("[proc] TIMED OUT");
+  expect(result.stdout).not.toContain("fixture-alpha");
+  expect(result.stdout).not.toContain("a passing control");
+  expect(result.stdout).toContain("a planted structure violation");
+});

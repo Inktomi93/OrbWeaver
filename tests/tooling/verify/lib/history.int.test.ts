@@ -211,3 +211,17 @@ test("#1983 — an EMPTY history says so honestly, and a SCOPED run says nothing
   // about the wrong question. Without this arm every `verify --changed` would carry the nag.
   expect(batteryCadenceLines([], report([{ name: "lint:biome", mode: "scoped" }], "packages/db"))).toStrictEqual([]);
 });
+
+test("an interrupted tooling battery never claims coverage", () => {
+  const base = report([BATTERY]);
+  const lines = batteryCadenceLines([], {
+    ...base,
+    ok: false,
+    exitCode: 2,
+    failed: 1,
+    noVerdict: [BATTERY.name],
+    stages: base.stages.map((stage) => ({ ...stage, ok: false, exitCode: 2, childExit: null })),
+  }).join("\n");
+  expect(lines).toContain("NO VERDICT");
+  expect(lines).not.toContain("covered by this verdict");
+});

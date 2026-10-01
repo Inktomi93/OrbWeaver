@@ -6,7 +6,7 @@
 //
 // Orb adaptation vs neo (verified against the live client): tRPC is at `/api/trpc/*` (queries batch;
 // chat.getChat + chat.listChats ride one batched GET). Since SSE-1 the room stream is NOT a per-chat
-// procedure: the tab holds ONE `stream.connect` EventSource (httpSubscriptionLink) and opening a chat ATTACHES
+// procedure: the tab holds ONE `stream.connect` POST stream and opening a chat ATTACHES
 // its room with a `stream.attach` POST — so the "subscribe" half of this sequence is those two requests, not
 // a `chat.streamMessages` GET. Orb has no `[chat-stream] open` console line to pin — instead the SSE "open"
 // signal is `window.__orb.bus().live` climbing to ≥1, and the `chatUpdated` delivery is a real entry in
@@ -76,9 +76,10 @@ test.describe("order-of-operations", () => {
     // batch order — requiring `chat.` to be first was the real flake (the query fires either way).
     const getLabels = timeline.filter((e) => e.label.startsWith("→ GET")).map((e) => e.label);
     expect(getLabels.some((l) => l.includes("chat."))).toBe(true);
-    // The socket: exactly ONE `stream.connect` EventSource for the whole tab (that is the multiplex's own
-    // claim — a second room costs zero connections), opened by the app root, not by this chat.
-    expect(getLabels.filter((l) => l.includes("stream.connect"))).toHaveLength(1);
+    // Canceled starts do not establish sockets; every attempt still uses the POST transport.
+    const socketRequests = timeline.filter((entry) => entry.label.startsWith("→ ") && entry.label.includes("stream.connect"));
+    expect(new Set(socketRequests.map((entry) => entry.label))).toEqual(new Set(["→ POST stream.connect"]));
+    expect(timeline.filter((entry) => entry.label === "← 200 stream.connect")).toHaveLength(1);
     // …and opening the chat ATTACHED its room over the ordinary batched mutation link (a POST, no connection).
     const postLabels = timeline.filter((e) => e.label.startsWith("→ POST")).map((e) => e.label);
     expect(postLabels.some((l) => l.includes("stream.attach"))).toBe(true);

@@ -11,6 +11,7 @@ const GATE_CONFIG = "stryker.gate.config.ts";
 const IGNORE_PATTERNS = [
   ".stryker-tmp/**",
   ".git/**",
+  ".codegraph/**",
   "node_modules/**",
   ".cache/**",
   ".models/**",
