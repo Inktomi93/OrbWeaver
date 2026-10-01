@@ -3,17 +3,12 @@ import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 const SOURCE_CONTENT_HASH_MAX = 256;
+const SOURCE_FINGERPRINT_PATTERN = /^[a-f0-9]{64}$/u;
 
 const sourceFields = {
   chatId: typeIdSchema(ID_PREFIX.chat),
-  generationId: z
-    .string()
-    .regex(/^[a-f0-9]{64}$/u)
-    .pipe(brandedId<EmbedGenerationId>()),
-  fingerprint: z
-    .string()
-    .regex(/^[a-f0-9]{64}$/u)
-    .nullable(),
+  generationId: brandedId<EmbedGenerationId>().refine((id) => SOURCE_FINGERPRINT_PATTERN.test(id)),
+  fingerprint: z.string().regex(SOURCE_FINGERPRINT_PATTERN).nullable(),
   contentHash: z.string().max(SOURCE_CONTENT_HASH_MAX),
   blockIdx: z.number().int().nonnegative(),
   seqStart: z.number().int().nonnegative().nullable(),
