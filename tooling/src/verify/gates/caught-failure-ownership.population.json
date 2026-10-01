@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 666,
+    "sites": 663,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 666,
+      "deliberate-absorb": 663,
       "unproven": 0
     },
     "byGrammar": {
       "default": 155,
       "empty": 346,
-      "promise": 165
+      "promise": 162
     }
   },
   "rows": [
@@ -544,21 +544,6 @@
       "siteId": "packages/client/src/forms/editor/create-autosave-entity-form.tsx::createAutosaveEntityForm.Session.retrySave::form.handleSubmit::1",
       "verdict": "deliberate-absorb",
       "reason": "explicit user retry — same swallow as the debounce driver, the injected save's own errorToast surfaces the failure. Ends if the injected save stops wiring an errorToast."
-    },
-    {
-      "siteId": "packages/client/src/lib/app-ready-signal.ts::installAppReadySignal::appReady::1",
-      "verdict": "deliberate-absorb",
-      "reason": "both arms only unsubscribe this listener; `appReady`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `appReady`."
-    },
-    {
-      "siteId": "packages/client/src/lib/app-ready-signal.ts::installAppReadySignal::appReady::2",
-      "verdict": "deliberate-absorb",
-      "reason": "both arms only unsubscribe this listener; `appReady`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `appReady`."
-    },
-    {
-      "siteId": "packages/client/src/lib/app-ready-signal.ts::installAppReadySignal::appReady::3",
-      "verdict": "deliberate-absorb",
-      "reason": "both arms only unsubscribe this listener; `appReady`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `appReady`."
     },
     {
       "siteId": "packages/client/src/lib/console-error-ring.ts::describe::catch::1",
