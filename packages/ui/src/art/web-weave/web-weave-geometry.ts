@@ -117,7 +117,7 @@ const WIDTH_BRIDGE = 1.15;
 const WIDTH_FRAME = 1.0;
 const WIDTH_RADIUS = 0.95;
 const WIDTH_AUX = 0.55;
-const WIDTH_CAPTURE = 0.8;
+export const WIDTH_CAPTURE = 0.8;
 /** Sample densities. */
 const BRIDGE_SAMPLES = 48;
 const DROP_SAMPLES = 16;

@@ -130,6 +130,13 @@ export function useScrollportSync(input: {
   readonly setPinSpacerPx: Dispatch<SetStateAction<number>>;
 }): void {
   const { virtualizer, scrollRef, pinnedIndexRef, contentHeightPx, setScrollportHeightPx, setPinSpacerPx } = input;
+  // A jump's scroll event precedes the new virtual rows; judge their sticky headers after each commit.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el !== null) {
+      updateEdgeFades(el);
+    }
+  });
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (el === null) {

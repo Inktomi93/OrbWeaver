@@ -13,6 +13,7 @@ import { buildWeb, WEAVE_TIMELINE } from "@orb/ui/web-weave";
 import { describe } from "vitest";
 import { WEAVE_CHARACTER_PRESETS } from "../../../../packages/ui/src/art/web-weave/web-weave-character.ts";
 import { buildGlintIndex, glintSegmentLit, glintSweepAngle } from "../../../../packages/ui/src/art/web-weave/web-weave-glint.ts";
+import type { WeaveGlowPainter } from "../../../../packages/ui/src/art/web-weave/web-weave-glow.ts";
 import type { WeavePalette } from "../../../../packages/ui/src/art/web-weave/web-weave-render.ts";
 import { renderWeaveFrame } from "../../../../packages/ui/src/art/web-weave/web-weave-render.ts";
 import type { WeavePluckMap } from "../../../../packages/ui/src/art/web-weave/web-weave-sway.ts";
@@ -44,16 +45,29 @@ interface RecordedArc {
 class RecordingContext {
   readonly strokes: RecordedStroke[] = [];
   readonly arcs: RecordedArc[] = [];
+  readonly blurWrites: number[] = [];
+  readonly glows: { readonly kind: Parameters<WeaveGlowPainter>[1]; readonly start: WeavePoint; readonly end: WeavePoint }[] = [];
+  readonly paintGlow: WeaveGlowPainter = (_ctx, kind, start, end): void => {
+    this.glows.push({ kind, start, end });
+  };
   lineCap = "butt";
   strokeStyle = "";
   fillStyle = "";
   lineWidth = 1;
   shadowColor = "";
-  shadowBlur = 0;
+  private blur = 0;
   private alpha = 1;
   private alphaSets = 0;
   private path: WeavePoint[] = [];
   private depth = 0;
+
+  get shadowBlur(): number {
+    return this.blur;
+  }
+  set shadowBlur(value: number) {
+    this.blur = value;
+    this.blurWrites.push(value);
+  }
 
   get globalAlpha(): number {
     return this.alpha;
@@ -127,6 +141,7 @@ function recordSettledFrame(over?: { plucks?: WeavePluckMap; wind?: number; web?
       t: WEAVE_TIMELINE.rest,
       now: NOW_MS,
       palette: PALETTE,
+      paintGlow: recorder.paintGlow,
       dim: 1,
       still: false,
       spider: true,
@@ -211,6 +226,13 @@ describe("glintSegmentLit — the per-segment highlight", () => {
 
 describe("renderWeaveFrame — the settled frame", () => {
   const frame = recordSettledFrame();
+
+  test("moving strands and highlights never compute a live blur", () => {
+    expect(frame.strokes.length).toBeGreaterThan(0);
+    expect(frame.glows.some((glow) => glow.kind === "capture")).toBe(true);
+    expect(frame.glows.some((glow) => glow.kind === "glint")).toBe(true);
+    expect(frame.blurWrites.filter((blur) => blur > 0)).toEqual([]);
+  });
 
   test("no stroked path mixes alphas — a multi-segment path is stroked with one value", () => {
     // A path accumulated across several segments while the alpha is re-set per segment paints them ALL
