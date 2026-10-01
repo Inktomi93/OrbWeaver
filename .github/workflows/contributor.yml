@@ -53,6 +53,7 @@ jobs:
             pathToFileURL(resolve("tooling/src/_shared/run-marker.ts")).href,
           ));
           const childEnv = { ...process.env };
+          childEnv.DEBUG = [childEnv.DEBUG, "vite:load,vite:transform"].filter(Boolean).join(",");
           // The native dev proof owns its marker, not a surrounding tool's inherited run.
           delete childEnv[RUN_MARKER_ENV];
           childEnv.NODE_OPTIONS = [childEnv.NODE_OPTIONS, `--import=${pathToFileURL(preload).href}`].filter(Boolean).join(" ");
@@ -71,36 +72,72 @@ jobs:
             try { return (await fetch(url, { signal: AbortSignal.timeout(5000) })).ok; }
             catch { return false; }
           };
-          const deadline = Date.now() + 600_000;
-          while (!(await ready(process.env.HEALTHZ) && await ready(process.env.DEV_ORIGIN))) {
-            if (exited) throw new Error("pnpm dev exited before both endpoints answered");
-            if (Date.now() >= deadline) throw new Error("server and Vite readiness timed out");
-            await sleep(1000);
+          let sampler;
+          let samplerExit;
+          if (process.platform === "win32") {
+            const script = join(process.env.RUNNER_TEMP, "contributor-resources.ps1");
+            writeFileSync(script, String.raw`
+          $ErrorActionPreference = "Stop"
+          for ($sample = 0; $sample -lt 44; $sample++) {
+            $memory = Get-CimInstance Win32_OperatingSystem
+            $processes = @(Get-CimInstance Win32_Process -Filter "Name='node.exe' OR Name='chrome.exe' OR Name='tsgo.exe'" |
+              Select-Object ProcessId,ParentProcessId,Name,WorkingSetSize,PrivatePageCount,KernelModeTime,UserModeTime,ThreadCount)
+            [ordered]@{ atUtc = [DateTime]::UtcNow.ToString("o"); freePhysicalKiB = $memory.FreePhysicalMemory;
+              totalPhysicalKiB = $memory.TotalVisibleMemorySize; processes = $processes } | ConvertTo-Json -Depth 5 -Compress
+            Start-Sleep -Seconds 15
           }
-          console.log("READY server", process.env.HEALTHZ, "Vite", process.env.DEV_ORIGIN);
-          // A fresh Vite checkout must finish its cold module transforms before Snap's bounded navigation.
-          const browser = await chromium.launch({ headless: true });
-          try {
-            const page = await browser.newPage();
-            page.on("pageerror", (error) => console.error("CLIENT_ERROR", error.message));
-            const pending = new Map();
-            page.on("request", (request) => pending.set(request, Date.now()));
-            page.on("requestfinished", (request) => pending.delete(request));
-            page.on("requestfailed", (request) => {
-              pending.delete(request);
-              console.error("CLIENT_REQUEST_FAILED", new URL(request.url()).pathname, request.failure()?.errorText);
+          `);
+            sampler = spawnFullPriorityChild("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
+              logPath: join(process.env.RUNNER_TEMP, "contributor-resources.log"),
             });
-            try {
-              await awaitDevClientReady(page, process.env.DEV_ORIGIN, deadline);
-            } catch (error) {
-              console.error("CLIENT_PENDING", [...pending].map(([request, since]) => ({
-                path: new URL(request.url()).pathname, type: request.resourceType(), ageMs: Date.now() - since,
-              })));
-              throw error;
+            samplerExit = sampler.wait();
+          }
+          try {
+            const deadline = Date.now() + 600_000;
+            while (!(await ready(process.env.HEALTHZ) && await ready(process.env.DEV_ORIGIN))) {
+              if (exited) throw new Error("pnpm dev exited before both endpoints answered");
+              if (Date.now() >= deadline) throw new Error("server and Vite readiness timed out");
+              await sleep(1000);
             }
-            console.log("READY client mounted without degraded readiness");
+            console.log("READY server", process.env.HEALTHZ, "Vite", process.env.DEV_ORIGIN);
+            // A fresh Vite checkout must finish its cold module transforms before Snap's bounded navigation.
+            const browser = await chromium.launch({ headless: true });
+            try {
+              const context = await browser.newContext({
+                recordHar: { path: join(process.env.RUNNER_TEMP, "contributor-startup.har"), mode: "full", content: "omit" },
+              });
+              try {
+                const page = await context.newPage();
+                page.on("pageerror", (error) => console.error("CLIENT_ERROR", error.message));
+                const pending = new Map();
+                page.on("request", (request) => pending.set(request, Date.now()));
+                page.on("requestfinished", (request) => pending.delete(request));
+                page.on("requestfailed", (request) => {
+                  pending.delete(request);
+                  console.error("CLIENT_REQUEST_FAILED", new URL(request.url()).pathname, request.failure()?.errorText);
+                });
+                try {
+                  await awaitDevClientReady(page, process.env.DEV_ORIGIN, deadline);
+                } catch (error) {
+                  const observations = [...pending].map(([request, since]) => ({
+                    path: new URL(request.url()).pathname, type: request.resourceType(), ageMs: Date.now() - since,
+                  }));
+                  writeFileSync(join(process.env.RUNNER_TEMP, "contributor-pending.json"), JSON.stringify(observations, null, 2));
+                  console.error("CLIENT_PENDING_COUNT", observations.length);
+                  throw error;
+                }
+                console.log("READY client mounted without degraded readiness");
+              } finally {
+                await context.close();
+              }
+            } finally {
+              await browser.close();
+            }
           } finally {
-            await browser.close();
+            if (sampler !== undefined) {
+              sampler.kill("SIGTERM");
+              console.log("RESOURCE_SAMPLER_EXIT", await samplerExit);
+            }
           }
           NODE
 
@@ -174,5 +211,7 @@ jobs:
           path: |
             reports/
             ${{ runner.temp }}/contributor-*.log
+            ${{ runner.temp }}/contributor-startup.har
+            ${{ runner.temp }}/contributor-pending.json
           if-no-files-found: warn
           retention-days: 14

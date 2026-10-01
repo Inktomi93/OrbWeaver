@@ -1,4 +1,7 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { chromium } from "@playwright/test";
+import { z } from "zod";
 import { awaitDevClientReady } from "../../../../tooling/src/dev/ops/client-ready.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -79,6 +82,35 @@ test("a degraded document waits for dynamic modules but not a live subscription 
     expect(documents).toBe(2);
     expect(moduleFinished).toBe(true);
     expect(abortedModules).toEqual([]);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("failed startup retains HAR request timing without response bodies", { timeout: PROBE_TIMEOUT }, async ({ scratch }) => {
+  const browser = await chromium.launch({ headless: true });
+  const har = join(scratch, "startup.har");
+  try {
+    const context = await browser.newContext({ recordHar: { path: har, mode: "full", content: "omit" } });
+    try {
+      const page = await context.newPage();
+      await page.route("http://contributor.test/", (route) =>
+        route.fulfill({ contentType: "text/html", body: '<html><script src="/diagnostic.js"></script></html>' }),
+      );
+      await page.route("http://contributor.test/diagnostic.js", (route) =>
+        route.fulfill({ contentType: "text/javascript", body: 'globalThis.privateBodyMarker = "must-not-be-retained";' }),
+      );
+      // @orb-waive test-determinism(Date.now): the real browser must exhaust the startup deadline before HAR closure. Ends if the browser and deadline share an injected clock.
+      await expect(awaitDevClientReady(page, "http://contributor.test/", Date.now() + 500)).rejects.toThrow();
+    } finally {
+      await context.close();
+    }
+    const source = readFileSync(har, "utf8");
+    const report = z
+      .object({ log: z.object({ entries: z.array(z.object({ request: z.object({ url: z.string() }), timings: z.object({ receive: z.number() }) })) }) })
+      .parse(JSON.parse(source));
+    expect(report.log.entries.some((entry) => entry.request.url.endsWith("/diagnostic.js") && entry.timings.receive >= 0)).toBe(true);
+    expect(source).not.toContain("must-not-be-retained");
   } finally {
     await browser.close();
   }
