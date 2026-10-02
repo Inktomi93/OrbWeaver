@@ -4,8 +4,8 @@
 // op's `idByName`) so the chat importers can attribute their `user_name`s. MUST run BEFORE the chat importers
 // (the driver + the import-st runner order it so).
 //
-// DEDUP is the persona op's job (name collision reuses the FIRST existing persona — imports never duplicate an
-// authoring identity). `avatarAssetId` is set by the driver after storing `avatarBytes` (domain/import can't
+// DEDUP is the persona op's job (content identity per D286: an equal persona is reused; a different persona under
+// the same name lands beside it under a numbered name, never merged). `avatarAssetId` is set by the driver after storing `avatarBytes` (domain/import can't
 // reach domain/assets — the avatar store is injected, same as the card PNG).
 
 import type { BulkImportPersonaInput, PersonaMetadata } from "@orb/contracts/persona";

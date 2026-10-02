@@ -38,7 +38,7 @@ import { ImportReportSummary } from "./import-report-summary.tsx";
 const IMPORT_CONSEQUENCE = [
   "Importing ADDS to your library — nothing you already have is deleted. Settings in an Orbweaver backup merge into yours.",
   "Anything already in your library — the same card, world book, theme or preset — is skipped, so running the same import twice is not a duplicate.",
-  "A world book, theme or preset that shares a name with a DIFFERENT one of yours is imported under a numbered name. Two different cards that share a name stay two characters, and a persona whose name matches is reused rather than added again.",
+  "A world book, theme, preset or persona that shares a name with a DIFFERENT one of yours is imported under a numbered name. Two different cards that share a name stay two characters.",
 ] as const;
 
 /** What was picked, in words — the folder arm counts the files the plan will send, the file arm names the

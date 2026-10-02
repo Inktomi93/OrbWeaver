@@ -17,9 +17,9 @@
 // locations, the preset NAME rule, and the never-throw envelope.
 //
 // Preset names are QUALIFIED (`Marinara's Spaghetti Recipe (OpenAI)`) because the preset import verb is
-// idempotent on (ownerId, name) and MERGES a same-named preset in place. ST ships a preset literally called
-// `Default.json`; an unqualified import would silently overwrite an owner's own preset of that name with
-// SillyTavern's, which is the one thing a whole-profile import must never do.
+// additive (D286: an equal preset is reused, a different same-named one lands under a numbered name). ST ships a
+// preset literally called `Default.json`; qualifying the name keeps SillyTavern's apart from an owner's own
+// preset of that name instead of numbering it "Default 2".
 
 import { buildPresetFile, tryImportStChatCompletionPreset } from "@orb/contracts/preset";
 import type { RegexScriptCard } from "@orb/contracts/regex";
