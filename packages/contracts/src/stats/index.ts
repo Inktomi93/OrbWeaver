@@ -54,7 +54,7 @@ export const statsDeltaSchema = z.object({
   activeIdxSum: z.number().optional(),
   variantMessages: z.number().optional(),
   forkedChats: z.number().optional(),
-  contentBytes: z.number().optional(),
+  contentChars: z.number().optional(),
   cacheReadTokens: z.number().optional(),
   cacheWriteTokens: z.number().optional(),
   // per-OWNER chat count (chat created / forked). The per-CHARACTER half is `characterChats` below.
@@ -187,6 +187,7 @@ export interface OwnerStatsView extends ExtraStats {
   chats: number;
   userTurns: number;
   assistantTurns: number;
+  /** Kept separately so complete turn accounting does not drop system canon. */
   systemTurns: number;
   swipes: number;
   userWords: number;
@@ -205,7 +206,8 @@ export interface OwnerStatsView extends ExtraStats {
   p50TtftMs: number | null;
   p90TtftMs: number | null;
   reasoningRate: number;
-  contentBytes: number;
+  /** JavaScript string.length totals: UTF-16 code units, not UTF-8 bytes, code points or graphemes. */
+  contentChars: number;
   firstChatAt: number | null;
   lastActivityAt: number | null;
   computedAt: number;
@@ -392,7 +394,7 @@ export const ownerStatsViewSchema = extraStatsSchema.extend({
   p50TtftMs: z.number().nullable(),
   p90TtftMs: z.number().nullable(),
   reasoningRate: z.number(),
-  contentBytes: z.number(),
+  contentChars: z.number(),
   firstChatAt: z.number().nullable(),
   lastActivityAt: z.number().nullable(),
   computedAt: z.number(),

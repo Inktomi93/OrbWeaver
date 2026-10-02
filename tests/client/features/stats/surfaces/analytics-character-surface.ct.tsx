@@ -34,7 +34,7 @@ const CHARACTER_STATS: TrpcWireOutput<"stats.character"> = {
   p50TtftMs: 250,
   p90TtftMs: 500,
   reasoningRate: 0.1,
-  contentBytes: 40_000,
+  contentChars: 40_000,
   firstChatAt: 1_740_000_000_000,
   lastActivityAt: 1_750_000_000_000,
   computedAt: 1_750_000_000_000,

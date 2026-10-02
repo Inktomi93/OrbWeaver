@@ -54,7 +54,7 @@ interface CharAccum extends TokenSampleAccum {
   costSamples: number;
   activeIdxSum: number;
   variantMessages: number;
-  contentBytes: number;
+  contentChars: number;
   lastMsgAt: number;
 }
 interface ModelAccum extends TokenSampleAccum {
@@ -102,7 +102,7 @@ interface OwnerAccum extends TokenSampleAccum {
   costSamples: number;
   activeIdxSum: number;
   variantMessages: number;
-  contentBytes: number;
+  contentChars: number;
   cacheReadTokens: number;
   cacheWriteTokens: number;
   maxContextTokens: number | null;
@@ -144,7 +144,7 @@ const freshChar = (): CharAccum => ({
   costSamples: 0,
   activeIdxSum: 0,
   variantMessages: 0,
-  contentBytes: 0,
+  contentChars: 0,
   lastMsgAt: 0,
 });
 const freshModel = (): ModelAccum => ({
@@ -204,7 +204,7 @@ const freshOwner = (): OwnerAccum => ({
   costSamples: 0,
   activeIdxSum: 0,
   variantMessages: 0,
-  contentBytes: 0,
+  contentChars: 0,
   cacheReadTokens: 0,
   cacheWriteTokens: 0,
   maxContextTokens: null,
@@ -388,10 +388,10 @@ interface MessageRow {
   variantCount: number;
 }
 
-/** Owner-grain economics from a message's SELECTED variant (tokens/cost/cache/ctx/bytes/gen/reasoning). */
+/** Owner-grain economics from a message's SELECTED variant (tokens/cost/cache/ctx/chars/gen/reasoning). */
 function foldOwnerMessage(owner: OwnerAccum, day: DayAccum, r: MessageRow): void {
-  const bytes = r.content?.length ?? 0;
-  owner.contentBytes += bytes;
+  const chars = r.content?.length ?? 0;
+  owner.contentChars += chars;
   owner.tokensIn += r.ti ?? 0;
   owner.tokensOut += r.tout ?? 0;
   foldTokenSamples(owner, r);
@@ -445,7 +445,7 @@ function foldMessageChar(charMap: Map<string, CharAccum>, r: MessageRow): void {
   const c = get(charMap, r.cid as string, freshChar);
   c.assistantTurns++;
   c.assistantWords += wordCount(r.content);
-  c.contentBytes += r.content?.length ?? 0;
+  c.contentChars += r.content?.length ?? 0;
   c.tokensIn += r.ti ?? 0;
   c.tokensOut += r.tout ?? 0;
   foldTokenSamples(c, r);
@@ -557,7 +557,7 @@ function foldSwipeChar(charMap: Map<string, CharAccum>, r: SwipeRow): void {
   const c = get(charMap, r.cid as string, freshChar);
   c.swipes++;
   c.swipeWords += wordCount(r.content);
-  c.contentBytes += r.content?.length ?? 0;
+  c.contentChars += r.content?.length ?? 0;
   c.tokensIn += r.ti ?? 0;
   c.tokensOut += r.tout ?? 0;
   foldTokenSamples(c, r);
@@ -579,7 +579,7 @@ function foldSwipe(r: SwipeRow, a: Accums): void {
   const gen = genDurationMs(r);
   a.owner.swipes++;
   a.owner.swipeWords += wordCount(r.content);
-  a.owner.contentBytes += r.content?.length ?? 0;
+  a.owner.contentChars += r.content?.length ?? 0;
   a.owner.tokensIn += r.ti ?? 0;
   a.owner.tokensOut += r.tout ?? 0;
   foldTokenSamples(a.owner, r);
@@ -735,7 +735,7 @@ function buildCharRows(charMap: Map<string, CharAccum>, meta: ChatMeta, now: num
       activeIdxSum: c.activeIdxSum,
       variantMessages: c.variantMessages,
       forkedChats: m?.forkedChats ?? 0,
-      contentBytes: c.contentBytes,
+      contentChars: c.contentChars,
       firstChatAt: m?.firstChatAt ?? null,
       lastActivityAt,
       computedAt: now,
@@ -770,7 +770,7 @@ function buildOwnerRow(ownerId: UserId, owner: OwnerAccum, meta: ChatMeta, now: 
     activeIdxSum: owner.activeIdxSum,
     variantMessages: owner.variantMessages,
     forkedChats: meta.library.forkedChats,
-    contentBytes: owner.contentBytes,
+    contentChars: owner.contentChars,
     cacheReadTokens: owner.cacheReadTokens,
     cacheWriteTokens: owner.cacheWriteTokens,
     maxContextTokens: owner.maxContextTokens,

@@ -5,12 +5,26 @@
 // `characterId`; the `(owner, model, provider)` unique-index conflict; and the epoch-ms NUMBER timestamps
 // (never Date). ZERO vector columns is enforced structurally by the dep-cruiser gate, not here.
 
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { Db } from "@orb/db";
-import { characterStats, characters, dailyStats, modelStats, ownerStats } from "@orb/db";
+import {
+  assertReferentialIntegrity,
+  characterStats,
+  characters,
+  createDb,
+  dailyStats,
+  hasPendingMigrations,
+  modelStats,
+  ownerStats,
+  runMigrations,
+} from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { CharacterHandle, CharacterId, CharacterStatId, DailyStatId, Handle, ModelStatId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { and, eq, sql } from "drizzle-orm";
+import { readMigrationFiles } from "drizzle-orm/migrator";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../support/inference-identities.ts";
@@ -336,4 +350,61 @@ test("D23 ownership split: owner/daily/model KEEP ownerId; character_stats has N
   // DERIVE — character_stats reaches the owner via characterId → characters.ownerId (no own column).
   expect("ownerId" in characterStats).toBe(false);
   expect(characterStats.characterId).toBeDefined();
+});
+
+const MIGRATIONS_DIR = "packages/db/src/migrations";
+const PRE_RENAME_TAGS = ["0000_baseline", "0001_native-google"] as const;
+
+test("the forward content-unit migration preserves populated rollups, signed counts and daily grain", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "orb-stats-content-migration-"));
+  try {
+    mkdirSync(join(dir, "meta"));
+    const migrations = readMigrationFiles({ migrationsFolder: MIGRATIONS_DIR });
+    const entries = PRE_RENAME_TAGS.map((tag, idx) => {
+      const migration = migrations[idx];
+      if (migration === undefined) {
+        throw new Error(`missing immutable migration ${tag}`);
+      }
+      writeFileSync(join(dir, `${tag}.sql`), readFileSync(join(MIGRATIONS_DIR, `${tag}.sql`)));
+      return { idx, version: "6", when: migration.folderMillis, tag, breakpoints: true };
+    });
+    writeFileSync(join(dir, "meta", "_journal.json"), JSON.stringify({ version: "7", dialect: "sqlite", entries }));
+    const db = await createDb(":memory:");
+    await runMigrations(db, dir);
+    const ownerId = await seedUser(db, { id: "user_content_migration", handle: castId<Handle>("content-migration") });
+    const characterId = await seedCharacter(db, ownerId, mintTypeId(ID_PREFIX.character));
+    const characterStatId = mintTypeId(ID_PREFIX.characterStat);
+    const dailyStatId = mintTypeId(ID_PREFIX.dailyStat);
+    await db.run(sql`INSERT INTO owner_stats (owner_id, content_bytes, user_turns, system_turns, cost_usd, computed_at)
+      VALUES (${ownerId}, 17, 5, 2, 1.75, 1700000000000)`);
+    await db.run(sql`INSERT INTO character_stats (id, character_id, content_bytes, assistant_turns, system_turns, computed_at)
+      VALUES (${characterStatId}, ${characterId}, -9, 4, 1, 1700000000000)`);
+    await db.run(sql`INSERT INTO daily_stats (id, owner_id, day, user_turns, system_turns, tokens_out, message_dates_approx, computed_at)
+      VALUES (${dailyStatId}, ${ownerId}, '2026-06-26', 3, 7, 11, 1, 1700000000000)`);
+    const beforeOwner = await db.get<Record<string, unknown>>(sql`SELECT * FROM owner_stats WHERE owner_id = ${ownerId}`);
+    const beforeCharacter = await db.get<Record<string, unknown>>(sql`SELECT * FROM character_stats WHERE character_id = ${characterId}`);
+    const beforeDaily = await db.get<Record<string, unknown>>(sql`SELECT * FROM daily_stats WHERE owner_id = ${ownerId}`);
+    expect(beforeOwner?.["content_bytes"]).toBe(17);
+    expect(beforeCharacter?.["content_bytes"]).toBe(-9);
+    expect(beforeDaily?.["system_turns"]).toBe(7);
+    expect(await hasPendingMigrations(db, MIGRATIONS_DIR)).toBe(true);
+    await runMigrations(db, MIGRATIONS_DIR);
+    await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
+    const afterOwner = await db.get<Record<string, unknown>>(sql`SELECT * FROM owner_stats WHERE owner_id = ${ownerId}`);
+    const afterCharacter = await db.get<Record<string, unknown>>(sql`SELECT * FROM character_stats WHERE character_id = ${characterId}`);
+    const afterDaily = await db.get<Record<string, unknown>>(sql`SELECT * FROM daily_stats WHERE owner_id = ${ownerId}`);
+    const renamed = (row: Record<string, unknown> | undefined): Record<string, unknown> =>
+      Object.fromEntries(Object.entries(row ?? {}).map(([key, value]) => [key === "content_bytes" ? "content_chars" : key, value]));
+    expect(afterOwner).toEqual(renamed(beforeOwner));
+    expect(afterCharacter).toEqual(renamed(beforeCharacter));
+    expect(afterDaily).toEqual(beforeDaily);
+    expect(afterDaily).not.toHaveProperty("content_chars");
+    expect(await hasPendingMigrations(db, MIGRATIONS_DIR)).toBe(false);
+    await runMigrations(db, MIGRATIONS_DIR);
+    expect(await db.get(sql`SELECT * FROM owner_stats WHERE owner_id = ${ownerId}`)).toEqual(afterOwner);
+    expect(await db.get(sql`SELECT * FROM character_stats WHERE character_id = ${characterId}`)).toEqual(afterCharacter);
+    expect((await db.get<Record<string, number>>(sql`PRAGMA foreign_keys`))?.["foreign_keys"]).toBe(1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
