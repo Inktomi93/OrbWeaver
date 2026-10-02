@@ -34,6 +34,7 @@ import { TESTS_ARMS } from "./_liveness/tests.ts";
 import { TOOLING_ARMS } from "./_liveness/tooling.ts";
 import { TOOLING_AND_AUTHORED_ARMS } from "./_liveness/tooling-and-authored.ts";
 import { TOOLING_TESTS_ARMS } from "./_liveness/tooling-tests.ts";
+import { TRPC_OUTPUT_ARMS } from "./_liveness/trpc-output.ts";
 
 const CHUNKS = {
   authored: AUTHORED_ARMS,
@@ -51,6 +52,7 @@ const CHUNKS = {
   tooling: TOOLING_ARMS,
   toolingAndAuthored: TOOLING_AND_AUTHORED_ARMS,
   toolingTests: TOOLING_TESTS_ARMS,
+  trpcOutput: TRPC_OUTPUT_ARMS,
 } as const;
 const ALL_ARMS: readonly RealCorpusLivenessArm[] = Object.values(CHUNKS).flat();
 const AFFECTED_POLICY_IDS = decodeInstrumentAffectedPolicyIds(processEnvValue(INSTRUMENT_AFFECTED_POLICIES_ENV));

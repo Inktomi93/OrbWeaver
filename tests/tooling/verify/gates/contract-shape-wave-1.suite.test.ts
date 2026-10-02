@@ -40,13 +40,13 @@ test(
 const CORPUS_GLOBS = ["packages/server/src/**/*.ts", "packages/contracts/src/**/*.ts", "packages/db/src/**/*.ts"];
 
 test(
-  "on the real corpus each remaining grant is consumed exactly once, and a renamed subject reds as stale",
+  "on the real corpus no contract projection grant remains, and the retired stats subject reds as stale",
   ({ repoRoot }) => {
     const policies = [contractDerivesNotRespells];
     const project = getWorkspace({ root: repoRoot, globs: CORPUS_GLOBS.map((glob) => `${repoRoot}/${glob}`) });
     const grants = reviewedGrantsFor(policies);
-    // Pin the remaining permission so an added grant cannot silently widen this proof.
-    expect(grants.map(({ id }) => id)).toEqual(["contract-derives-not-respells:stats-model-stat-row"]);
+    // No projection permission survives the canonical wire-home migration.
+    expect(grants).toEqual([]);
 
     const run = (reviewedGrants: readonly ReviewedGateGrant[]): ReturnType<typeof runPolicyPass> =>
       runPolicyPass({ knownPolicies: policies, policies, root: repoRoot, project, reviewedGrants, failOnWarnings: false });
@@ -56,8 +56,7 @@ test(
     expect(exact.factErrors).toEqual([]);
     expect(exact.authority.toolErrors).toEqual([]);
     expect(exact.authority.withheldPolicyIds).toEqual([]);
-    // The §6.4 exemption-mechanism-move receipt: every formerly hidden site is exactly ONE live consumed
-    // grant, nothing else is left over, and no row is over-broad.
+    // Complete real evidence must be clean without projection permission.
     expect(exact.authority.effectiveFindings).toEqual([]);
     expect(exact.authority.grantedFindings).toHaveLength(grants.length);
     expect(exact.authority.reviewedGrantConsumption).toEqual(grants.map(({ id }) => ({ id, count: 1 })));
@@ -66,19 +65,24 @@ test(
     // is an `ordinary-waiver` "unknown policy" alarm about somebody else. The grant kinds are the verdict.
     expect(exact.authority.authorityAlarms.filter((alarm) => alarm.kind !== "ordinary-waiver")).toEqual([]);
 
-    // THE RETIRED HEALTH POLICY'S SUCCESSOR. Its one subject was a row whose `<file>::<Shape>` key no longer
-    // names a live hand-spelled shape; rename the subject and the central engine raises the same accusation,
-    // unsuppressibly, and hands the finding back as effective.
-    const renamed = run(grants.map((grant) => ({ ...grant, subject: `${grant.subject}Renamed` })));
-    expect(renamed.authority.toolErrors).toEqual([]);
-    expect(renamed.authority.grantedFindings).toEqual([]);
-    expect(renamed.authority.effectiveFindings).toHaveLength(grants.length);
+    const retiredGrant = {
+      id: "contract-derives-not-respells:stats-model-stat-row",
+      policyId: contractDerivesNotRespells.id,
+      subject: "packages/server/src/domain/stats/contract/views.ts::ModelStatRow",
+      operation: "contract-hand-row:modelStats",
+      why: "A retired server projection cannot consume permission after its canonical wire-home migration.",
+      endsWhen: "The subject no longer declares a hand-written row.",
+    } satisfies ReviewedGateGrant;
+    const stale = run([retiredGrant]);
+    expect(stale.toolErrors).toEqual([]);
+    expect(stale.authority.toolErrors).toEqual([]);
+    expect(stale.authority.grantedFindings).toEqual([]);
+    expect(stale.authority.effectiveFindings).toEqual([]);
     expect(
-      renamed.authority.authorityAlarms
+      stale.authority.authorityAlarms
         .filter((alarm) => alarm.kind !== "ordinary-waiver")
-        .map((alarm) => `${alarm.kind} ${"grantId" in alarm ? alarm.grantId : ""}`)
-        .toSorted(),
-    ).toEqual(grants.map(({ id }) => `stale-reviewed-grant ${id}`).toSorted());
+        .map((alarm) => `${alarm.kind} ${"grantId" in alarm ? alarm.grantId : ""}`),
+    ).toEqual([`stale-reviewed-grant ${retiredGrant.id}`]);
   },
   FAMILY_TIMEOUT_MS,
 );

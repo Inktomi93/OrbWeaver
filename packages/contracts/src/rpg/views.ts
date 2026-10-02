@@ -376,7 +376,7 @@ const actorVolatileViewSchema = rpgActorVolatileSchema.strict().extend({
   wallet: z.array(rpgActorVolatileSchema.shape.wallet.unwrap().element.strict()),
 });
 const plotViewSchema = rpgPlotSchema.strict().extend({ acts: z.array(rpgPlotSchema.shape.acts.unwrap().element.strict()) });
-export const rpgEffectiveDeliverySchema = z.strictObject({
+const rpgEffectiveDeliverySchema = z.strictObject({
   path: z.enum(RPG_DELIVERY_PATHS),
   fallbackReason: z.enum(RPG_FOLD_FALLBACK_REASONS).nullable(),
 }) satisfies z.ZodType<RpgEffectiveDelivery>;
@@ -399,7 +399,7 @@ export const rpgGameViewSchema = z.strictObject({
     plotProgression: z.boolean(),
   }),
 }) satisfies z.ZodType<RpgGameView>;
-export const rpgActorViewSchema = z
+const rpgActorViewSchema = z
   .strictObject({
     actorRef: actorRefViewSchema,
     name: z.string(),
@@ -411,18 +411,18 @@ export const rpgActorViewSchema = z
     trackers: z.array(trackerDefViewSchema).readonly(),
   })
   .transform(({ avatar, ...view }) => ({ ...view, ...(avatar !== undefined ? { avatar } : {}) })) satisfies z.ZodType<RpgActorView>;
-export const rpgTrackerEntrySchema = z.strictObject({
+const rpgTrackerEntrySchema = z.strictObject({
   def: trackerDefViewSchema,
   value: trackerValueViewSchema.nullable(),
 }) satisfies z.ZodType<RpgTrackerEntry>;
-export const rpgQuestViewSchema = z.strictObject({
+const rpgQuestViewSchema = z.strictObject({
   id: z.string(),
   name: z.string(),
   status: z.string(),
   description: z.string(),
   objectives: z.array(z.strictObject({ id: z.string(), text: z.string(), completed: z.boolean() })).readonly(),
 }) satisfies z.ZodType<RpgQuestView>;
-export const rpgTrackerOrbSchema = z.strictObject({
+const rpgTrackerOrbSchema = z.strictObject({
   key: z.string(),
   label: z.string(),
   value: z.number(),
@@ -457,7 +457,7 @@ export const rpgJournalEntryViewSchema = z.strictObject({
   content: z.string(),
   createdAt: z.number(),
 }) satisfies z.ZodType<RpgJournalEntryView>;
-export const rpgToolCallDisclosureSchema = z.strictObject({
+const rpgToolCallDisclosureSchema = z.strictObject({
   name: z.string(),
   args: z.string(),
   verdict: z.enum(RPG_TOOL_CALL_VERDICTS),
@@ -493,16 +493,16 @@ export const rpgConfigViewSchema = rpgGameConfigSchema
     ...rpgGameFeaturesSchema.shape,
     presetMacroNames: z.array(z.string()).readonly(),
   }) satisfies z.ZodType<RpgConfigView>;
-export const rpgRevealedSpanSchema = z.strictObject({
+const rpgRevealedSpanSchema = z.strictObject({
   tag: z.string(),
   revealLabel: z.string(),
   fields: z.array(z.strictObject({ key: z.string(), value: z.string() })).readonly(),
 }) satisfies z.ZodType<RpgRevealedSpan>;
-export const rpgRevealedMessageSchema = z.strictObject({
+const rpgRevealedMessageSchema = z.strictObject({
   messageId: typeIdSchema(ID_PREFIX.message),
   spans: z.array(rpgRevealedSpanSchema).readonly(),
 }) satisfies z.ZodType<RpgRevealedMessage>;
-export const rpgStandingLieSchema = z.strictObject({
+const rpgStandingLieSchema = z.strictObject({
   character: z.string(),
   type: z.string(),
   truth: z.string(),

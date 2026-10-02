@@ -169,8 +169,8 @@ const refineryFieldRefShape = {
   greetingIndex: z.number().optional(),
   appendIndex: z.number().optional(),
 };
-export const appliedFieldRefSchema = z.strictObject({ ...refineryFieldRefShape, kind: z.enum(APPLIED_FIELD_KINDS) }) satisfies z.ZodType<AppliedFieldRef>;
-export const droppedFieldSchema = z.strictObject({ ...refineryFieldRefShape, reason: z.enum(APPLY_DROP_REASONS) }) satisfies z.ZodType<DroppedField>;
+const appliedFieldRefSchema = z.strictObject({ ...refineryFieldRefShape, kind: z.enum(APPLIED_FIELD_KINDS) }) satisfies z.ZodType<AppliedFieldRef>;
+const droppedFieldSchema = z.strictObject({ ...refineryFieldRefShape, reason: z.enum(APPLY_DROP_REASONS) }) satisfies z.ZodType<DroppedField>;
 export const applyFieldsResultSchema = z.strictObject({
   applied: z.array(appliedFieldRefSchema).readonly(),
   dropped: z.array(droppedFieldSchema).readonly(),

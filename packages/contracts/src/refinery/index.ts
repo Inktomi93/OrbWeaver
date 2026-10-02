@@ -776,6 +776,7 @@ export const preflightResultSchema = z.strictObject({
 }) satisfies z.ZodType<PreflightResult>;
 /** Dynamic model-authored object, already belted against the author's selected schema by the service. */
 export const refineryTestResultSchema = z.record(z.string(), z.unknown());
+export type RefineryTestResult = z.infer<typeof refineryTestResultSchema>;
 export const schemaForgeResultSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("draft"), name: z.string(), schema: refineryTestResultSchema, dropped: z.array(z.string()).readonly() }),
   z.strictObject({ kind: z.literal("needs-raw"), message: z.string(), skeleton: refineryTestResultSchema }),
