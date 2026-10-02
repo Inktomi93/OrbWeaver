@@ -123,7 +123,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D136 | [Portability R6: an account backup carries the ROOM WHOLE, the ST jsonl branch stays the SHARE door, and every cross-plane reference inside the bundle is POSITIONAL](0136-portability-r6-an-account-backup-carries-the-room.md) | active |
 | D137 | [a chat's referenced identities are served by ONE kind-discriminated identity producer, and the four-field card face has ONE contracts home](0137-a-chat-s-referenced-identities-are-served-by.md) | active |
 | D138 | [three data classes, one contract each](0138-three-data-classes-one-contract-each.md) | active |
-| D139 | [one work graph, one documentation catalog, no wiki](0139-one-work-graph-one-documentation-catalog-no-wiki.md) | active |
+| D139 | [one work graph, one documentation catalog, no wiki](0139-one-work-graph-one-documentation-catalog-no-wiki.md) | superseded by [0282-user-docs-live-in-the-github-wiki.md](0282-user-docs-live-in-the-github-wiki.md) |
 | D140 | [mutable state, recovery context, process, and provenance have four distinct homes](0140-mutable-state-recovery-context-process-and-provenance-have.md) | active |
 | D141 | [code comments carry only irreducible current WHY](0141-code-comments-carry-only-irreducible-current-why.md) | active |
 | D142 | [The chat default for new principals](0142-chat-default-for-new-principals.md) | superseded |

@@ -30,7 +30,7 @@ A page never mixes kinds. A how-to that stops to explain theory links to the exp
 
 ## Reference lives in the app
 
-A setting's meaning has one home: its in-app help, the `teach` text of its `ConfigTeachView` in `packages/client/src/lib/registry-contracts.ts`. A wiki page never restates what a setting does. It names the setting and describes the task. When a page needs to explain a setting, fix the setting's `teach` text instead.
+A setting's meaning has one home: its in-app help, authored as the `teach` declaration (`SettingTeachDecl`) on the setting's leaf in `packages/client/src/state/config-group-registry.ts`. A wiki page never restates what a setting does. It names the setting and describes the task. When a page needs to explain a setting, fix that setting's `teach` declaration instead.
 
 ## Writing a page
 
