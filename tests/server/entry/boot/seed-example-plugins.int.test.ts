@@ -1008,7 +1008,7 @@ test("keepsake camera: the spend pipeline — structured quiet falls back, the p
 });
 
 /** The flagship's CI slice, honest about its edge: like the familiar, the atlas's fetch arms (`safeFetch` has
- *  no injection seam) would be LIVE requests to two community hubs, so CI drives everything UP TO the wire —
+ *  no injection seam) would be LIVE requests to community card hubs, so CI drives everything UP TO the wire —
  *  the ARM C page spec surviving a REAL registration, the activation-time publish, and the no-network action
  *  arms. The wire halves (search decode incl. the devalue un-flatten, paging, the tag filters, the reshape,
  *  the add-to-library import) were probed against both live hubs on 2026-08-29 and are the live side-eye

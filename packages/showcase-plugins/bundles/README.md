@@ -21,7 +21,7 @@ story-clocks/          room mechanics     writes CHAT VARIABLES (the member-visi
 keepsake-camera/       spend pipeline     llm.quiet with a SCHEMA → imagery.generate, designed around the
                                           5 s host bound; an ARM-C bound-grid album page
 pocket-arcade/         escape hatch       ui.frame — its own pixels (a playable 2048) in an isolated frame
-card-atlas/            hub browser        the flagship: search two community hubs, preview, and import
+card-atlas/            hub browser        the flagship: search the community card hubs, preview, and import
                                           cards with provenance stamps — the product-sized template
 ```
 
