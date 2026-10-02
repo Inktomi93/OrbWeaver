@@ -50,7 +50,7 @@ interface Group {
   card?: CollectedCard;
   chats: CollectedChat[];
   /** The ORIGINAL chats/ directory name (first writer wins) — the orphan wave's provenance + name-fallback
-   *  signal; the slugified handle key loses the author's own casing/underscores ("Bonnie_Cow"). */
+   *  signal; the slugified handle key loses the author's own casing/underscores ("Clover_Owl"). */
   dirName?: string;
 }
 

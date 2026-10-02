@@ -86,8 +86,6 @@ function clockMs(): number {
   return performance.timeOrigin + performance.now();
 }
 
-/** `chat_01kwv…rcy6z7` → `chat_…cy6z7`: the id-family tag + tail — enough to eyeball-match one chat's
- *  lines across the log without the full 26-char ulid on every row. */
 function shortId(id: string): string {
   const cut = id.indexOf("_");
   return cut === -1 || id.length <= SHORT_ID_WHOLE_MAX ? id : `${id.slice(0, cut + 1)}…${id.slice(-SHORT_ID_TAIL)}`;

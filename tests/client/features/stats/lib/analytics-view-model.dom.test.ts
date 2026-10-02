@@ -165,13 +165,13 @@ describe("formatMonthLabel", () => {
 describe("disambiguatedNames", () => {
   test("a shared name gets a stable id ref on BOTH twins; unique names are untouched", () => {
     const names = disambiguatedNames([
-      { characterId: castId<CharacterId>("character_aaaak3f9"), name: "Mira" },
-      { characterId: castId<CharacterId>("character_bbbbq7x2"), name: "Mira" },
-      { characterId: castId<CharacterId>("character_ccccm1p4"), name: "Iris" },
+      { characterId: castId<CharacterId>("character_aaaak3f9"), name: "Tamsin" },
+      { characterId: castId<CharacterId>("character_bbbbq7x2"), name: "Tamsin" },
+      { characterId: castId<CharacterId>("character_ccccm1p4"), name: "Selva" },
     ]);
-    expect(names["character_aaaak3f9"]).toBe("Mira (#k3f9)");
-    expect(names["character_bbbbq7x2"]).toBe("Mira (#q7x2)");
-    expect(names["character_ccccm1p4"]).toBe("Iris");
+    expect(names["character_aaaak3f9"]).toBe("Tamsin (#k3f9)");
+    expect(names["character_bbbbq7x2"]).toBe("Tamsin (#q7x2)");
+    expect(names["character_ccccm1p4"]).toBe("Selva");
   });
   test("the ref is the id tail, not an ordinal — so it survives a re-sort", () => {
     const rows = [

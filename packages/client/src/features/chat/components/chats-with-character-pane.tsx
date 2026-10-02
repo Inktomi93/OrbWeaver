@@ -10,7 +10,7 @@
 // store anywhere in this file — the projection is an argument to the one first-class chats read.
 //
 // PAGED + VIRTUALIZED (2026-08-09), and the projection moved SERVER-side with it: this used to pull the
-// caller's entire membership list and `.filter()` it down to her threads, which on an 872-chat library meant
+// caller's entire membership list and `.filter()` it down to her threads, which on an 880-chat library meant
 // ~880 queries and one rendered row per chat to show three. Now the server does the narrowing, the rows
 // arrive a keyset page at a time, and `<VirtualList>` paints only the window. Search is a server param too
 // (the chats pane's header carries the ruling).
@@ -94,7 +94,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
   }
 
   const items = collection.items;
-  // This pane is THE collision case (side-eye P2c): every row can be titled "Azarael", and the newest few
+  // This pane is THE collision case (side-eye P2c): every row can be titled "Aveline", and the newest few
   // share a stamp — so the disambiguator is resolved across the list, not per row.
   const qualifiers = chatRowQualifiers(items);
   const renderRow = (chat: ChatListItem, index: number): ReactNode => (

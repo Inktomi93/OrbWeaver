@@ -691,7 +691,7 @@ function listPane(): ReactElement {
   return (
     <>
       <Input aria-label="Search" defaultValue="" />
-      <ListRow markers={<span>★</span>} meta="2h" subtitle="Rain again, and she is late" title="Azarael" />
+      <ListRow markers={<span>★</span>} meta="2h" subtitle="Rain again, and she is late" title="Aveline" />
     </>
   );
 }
@@ -759,7 +759,7 @@ test("S2 CONFORMANCE: every @orb/ui island lands on its ASSIGNED radius step, no
   const tree = await mount(
     <div>
       <ToolCallBlock record={{ toolCallId: "t1", name: "search", arguments: "{}", result: "{}", isError: false, durationMs: 12 }} />
-      <Avatar alt="Azarael" shape="rounded" />
+      <Avatar alt="Aveline" shape="rounded" />
       <MessageMedia alt="A pixel" media="image" src={{ kind: "asset", url: PIXEL_GIF }} />
       <SandboxFrame html="<p>card</p>" title="Sandboxed card" />
       <FileDropzone />

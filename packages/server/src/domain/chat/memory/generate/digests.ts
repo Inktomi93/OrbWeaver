@@ -561,7 +561,7 @@ export async function collectConsolidationTier(
   const consolidationSystem = consolidationSystemPrompt(prose);
   // #329 P1: the consolidation is fed the children's FULL stored digests (anchor · facts · keywords), fitted to
   // the summarizer context. Feeding only anchor+keywords starved it of the actual facts and it CONFABULATED
-  // relations (measured: "Mara married to Alex" when the child tier-0 digest correctly says Sam). The budget
+  // relations by changing who did what. The budget
   // is resolved ONCE per tier (the system prompt + output reserve are the same for every parent this pass).
   const consolidationBudget = {
     contextTokens: await ctx.summarizerContextTokens(args.funderUserId),

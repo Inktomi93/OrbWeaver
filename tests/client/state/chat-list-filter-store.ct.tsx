@@ -30,11 +30,11 @@ test("#490 search and month set + clear independently, and neither disturbs the 
   await expect(state).toHaveText("search=none month=none");
 
   await probe.getByRole("button", { name: "type a search" }).click();
-  await expect(state).toHaveText("search=hikari month=none");
+  await expect(state).toHaveText("search=tamsin month=none");
 
   // The two axes compose — narrowing by month must not drop the search the pane is still showing.
   await probe.getByRole("button", { name: "anchor a month" }).click();
-  await expect(state).toHaveText("search=hikari month=2026-06");
+  await expect(state).toHaveText("search=tamsin month=2026-06");
 
   await probe.getByRole("button", { name: "clear the search" }).click();
   await expect(state).toHaveText("search=none month=2026-06");

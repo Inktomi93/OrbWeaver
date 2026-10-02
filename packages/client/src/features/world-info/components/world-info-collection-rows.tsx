@@ -142,11 +142,8 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
         />
       );
     }
-    // LIST SEMANTICS ARE EXPLICIT HERE (side-eye 2026-08-19 P2), the tag/regex small-arm spelling: the
-    // windowed sibling above announces "list, N items" of its own, so a bare `Stack` of buttons made ONE
-    // library speak two a11y grammars depending only on how many books the reader owns. Invisible on the
-    // owner's corpus (59 books window into the `VirtualList` arm) — which is exactly why the pin for it is
-    // a small-list CT fixture and not a live drive.
+    // Both small and windowed collections expose the same list/listitem grammar. A small-list CT is needed
+    // because a long library exercises only the VirtualList arm.
     return (
       <Stack aria-label="World books" gap="tight" role="list">
         {filtered.map((book, index) => (

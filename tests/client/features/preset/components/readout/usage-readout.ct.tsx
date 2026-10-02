@@ -52,7 +52,7 @@ const SETTINGS_VIEW = { userId: "user_ct_readout", schemaVersion: 1, config: DEF
  *  reach for, at the same shape the sibling readout suites feed (`actions-readout.ct.tsx`'s CHAT_DETAIL). */
 const BOUND_CHAT_DETAIL = {
   id: "chat_ct_readoutbound",
-  title: "Azarael & the Court",
+  title: "Aveline & the Court",
   starred: false,
   archived: false,
   temporary: false,

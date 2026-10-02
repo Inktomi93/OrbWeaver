@@ -1,6 +1,6 @@
 // The keystroke→REQUEST damper. Distinct from `useDeferredValue` and not a substitute for it: deferring
 // changes which RENDER a value lands in (a React scheduling concern, UI-Arch §4a), while a value that feeds a
-// SERVER query needs the trips themselves bounded — otherwise "azarael" is eight round trips, seven of them
+// SERVER query needs the trips themselves bounded — otherwise "aveline" is eight round trips, seven of them
 // already stale when they land.
 //
 // Used by the chats pane's server-side search (owner ruling 2026-08-09: chat search resolves on the server

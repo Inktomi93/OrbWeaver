@@ -111,7 +111,7 @@ export interface TrackerChipProps {
   readonly value: string;
   /** WHOSE reading this is, for the editable value's accessible name (side-eye 08-01): a Scene tab with two
    *  npc cards offered two buttons both called "Trust value" and two called "Role value", so a
-   *  name-navigating reader could not tell Sera's trust from Mara's. Absent ⇒ the bare label (a chip with no
+   *  name-navigating reader could not tell Sola's trust from Mira's. Absent ⇒ the bare label (a chip with no
    *  subject, e.g. a game-level reading). */
   readonly subject?: string;
   /** A persistent-guide chip — a leading gauge glyph distinguishes it from a condition (§3.2). */

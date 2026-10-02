@@ -40,9 +40,9 @@ const PRESET_DETAIL: TrpcWireOutput<"preset.get"> = {
 /** The bound read's answer for the EXTRACT case: the chat resolved what it could and passed the seam's DATA
  *  tokens through untouched (`kit/macro`'s unknown-macro passthrough) — exactly the verb's real shape. */
 const RESOLVED: TrpcWireOutput<"chat.previewActionTemplates"> = {
-  identity: { user: "Alex", char: "Azarael" },
+  identity: { user: "Alex", char: "Aveline" },
   templates: [
-    { id: "response", resolved: "Azarael responds. {{input}}" },
+    { id: "response", resolved: "Aveline responds. {{input}}" },
     { id: "rpg.extract.tool.updateParty", resolved: "Record changes to any actor. {{actorTrackers}} {{partyExample}}" },
   ],
 };
@@ -55,7 +55,7 @@ const SETTINGS_VIEW: TrpcWireOutput<"settings.getUserSettings"> = {
   configUnreadable: null,
 };
 // See readout-binding.ct.tsx — the binding names its room through `chat.getChat`.
-const CHAT_DETAIL = { id: CHAT, title: "Azarael & the Court", starred: false, archived: false, temporary: false, parentChatId: null, participants: [] };
+const CHAT_DETAIL = { id: CHAT, title: "Aveline & the Court", starred: false, archived: false, temporary: false, parentChatId: null, participants: [] };
 
 /** The guided family's unbound-gloss tell — the sibling suite's own spelling (`readout-binding.ct.tsx`). */
 const RESOLVES_IN_CHAT_RE = /resolves in chat/i;

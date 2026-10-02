@@ -33,7 +33,7 @@ async function seedTwoCards(db: Awaited<ReturnType<typeof freshDb>>): Promise<{
 }> {
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const a = await seedCharacter(db, owner, { id: "character_a", name: "Aria" });
-  const b = await seedCharacter(db, owner, { id: "character_b", name: "Bram" });
+  const b = await seedCharacter(db, owner, { id: "character_b", name: "Bryn" });
   return {
     owner,
     a,
@@ -41,7 +41,7 @@ async function seedTwoCards(db: Awaited<ReturnType<typeof freshDb>>): Promise<{
     ids: [a, b],
     texts: new Map([
       [a, "Aria — a curious traveler."],
-      [b, "Bram — a grumpy blacksmith."],
+      [b, "Bryn — a grumpy blacksmith."],
     ]),
   };
 }

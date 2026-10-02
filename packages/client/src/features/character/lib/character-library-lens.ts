@@ -24,21 +24,10 @@ export interface LibraryChipTag {
   readonly name: string;
 }
 
-/** What the filter row's live region says — how many characters the current search + chips MATCH, which is
- *  the server's census over the whole library, not the rows this pane happens to have paged in. Before the
- *  first page lands there is no census — the loaded count is then the only true thing to say.
- *
- *  IT USED TO PRINT BOTH NUMBERS ("30 of 412 characters"), AND THE RULING SURVIVES — ITS INPUT CHANGED
- *  (#493, side-eye 2026-08-22 rail-characters P2-1). The ruling was that the loaded count alone is a number
- *  this list stopped being able to print honestly the day it went keyset-paged, and the census alone reads
- *  as a claim about what is on screen. The second half died on the owner's real library: at rest the line
- *  read `30 of 327 characters` — the PAGE SIZE (`character.list {limit:30}`) worded as a result count —
- *  230px under a band already reading `CHARACTERS 327`, whose natural reading is "only 30 of your
- *  characters match". It is false, and it is the resting state, so it is the state everyone sees.
- *
- *  What is preserved: the number here is the SERVER's census, never the loaded rows, and the loaded-vs-
- *  census signal is not lost — it MOVES to the foot of the list, beside the tail-fetch sentinel, where
- *  "how much of it have I got" is the question being asked ({@link loadedProgressLabel}). */
+/** The filter-row live region reports the server census for the current search/chips, not the loaded page
+ *  (#493). Before the first page lands no census exists. At rest, page size must not read as a match count.
+ *  Loaded-versus-census progress belongs at the foot beside the tail sentinel; see loadedProgressLabel.
+ */
 export function resultCountLabel(loaded: number, totalCount: number | null): string {
   const matched = totalCount ?? loaded;
   return `${String(matched)} character${matched === 1 ? "" : "s"}`;

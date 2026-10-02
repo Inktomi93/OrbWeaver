@@ -4,7 +4,7 @@
 //   · the read still in flight   · the read FAILED   · an empty library   · everything already attached
 //   · a stocked library, at rest.
 // A null-when-empty field would read as unbuilt, one shared "no results" sentence would be wrong in four of
-// the five, and `.data ?? []` said "No tags yet" over a 413-tag library that simply hadn't arrived.
+// the five, and `.data ?? []` said "No tags yet" over a populated library that simply hadn't arrived.
 //
 // Also pinned: the picker never suggests a tag that is already attached (a suggestion whose only outcome
 // is a no-op write), and it submits the LIBRARY's spelling when the typed text differs only in case —

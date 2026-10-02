@@ -452,7 +452,7 @@ function ShellStoreProbeBody(): ReactElement {
 
 const PROBE_CHARACTER = castId<CharacterId>("char_probe_aria");
 const PROBE_SELECT_CHAT = castId<ChatId>("chat_probe_select");
-const PROBE_MIGRATED_CHAT = castId<ChatId>("chat_01m02xhnwkeh7s32mxccy1x17f");
+const PROBE_MIGRATED_CHAT = castId<ChatId>("chat_01j00000000000000000000m01");
 const PROBE_CREATED_CHAT = castId<ChatId>("chat_probe_created");
 const PROBE_LIST_CHAT = castId<ChatId>("chat_probe_list");
 const PROBE_OTHER_CHAT = castId<ChatId>("chat_probe_other");
@@ -617,7 +617,7 @@ export function ChatListNarrowingProbe(): ReactElement {
   return (
     <div>
       <output>{`search=${search === "" ? "none" : search} month=${month === "" ? "none" : month}`}</output>
-      <button onClick={(): void => setChatListSearch("hikari")} type="button">
+      <button onClick={(): void => setChatListSearch("tamsin")} type="button">
         type a search
       </button>
       <button onClick={(): void => setChatListSearch("")} type="button">
@@ -770,8 +770,8 @@ export function CharacterLibraryStoreProbe(): ReactElement {
       </button>
       {/* #518 — the pane's search text is STORE state now, because the LIST chrome band prints the census
           and cannot see the pane's props. */}
-      <button type="button" onClick={(): void => setCharacterSearch("hikari")}>
-        search hikari
+      <button type="button" onClick={(): void => setCharacterSearch("tamsin")}>
+        search tamsin
       </button>
       <button type="button" onClick={(): void => setCharacterSearch("")}>
         clear search
@@ -953,7 +953,7 @@ export function CorpusComparePairProbe(): ReactElement {
       <button onClick={(): void => compareCorpusPair({ id: "character_freya", name: "Freya" }, { id: "character_frida", name: "Frida" })} type="button">
         seed corpus pair
       </button>
-      <button onClick={(): void => setCorpusCompareA("character_yuki", "Yuki")} type="button">
+      <button onClick={(): void => setCorpusCompareA("character_remy", "Remy")} type="button">
         set corpus compare a
       </button>
       <button onClick={(): void => setCorpusCompareB("", "")} type="button">
@@ -1368,11 +1368,9 @@ export function RefineryLandingFocusProbe(): ReactElement {
   );
 }
 
-/** TagLibraryProbe — the tag library's per-device UI state. Its sort default is the thing that matters:
- *  the roster opens on MOST-USED, not on the authored order, at the owner's ~400-tag library. The prune
- *  confirm's open flag rides the same store because the verb and its question live in two fibers since
- *  #1725 (the host draws the overflow item, the rows own the dialog); it is TRANSIENT — excluded from
- *  `partialize`, so a reload never restores an open destructive dialog. */
+/** TagLibraryProbe pins most-used default sorting. Prune confirmation is shared by the host overflow
+ *  trigger and rows dialog, but excluded from partialize so reload cannot reopen a destructive prompt.
+ */
 export function TagLibraryProbe(): ReactElement {
   const mode = useTagSortMode();
   const pruneOpen = useTagPruneConfirmOpen();

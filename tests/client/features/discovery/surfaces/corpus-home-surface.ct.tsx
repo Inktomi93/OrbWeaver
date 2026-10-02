@@ -503,7 +503,7 @@ test("the Never-played list announces as a list of listitems, not a bag of divs 
 });
 
 // ── §5 `distill`: THE MASTHEAD STATES EACH NUMBER ONCE ───────────────────────────────────────────────
-// The h1 read "327 characters, distilled into 24 story themes" while the figure block beside it printed 327
+// The h1 read "320 characters, distilled into 24 story themes" while the figure block beside it printed 320
 // and 24 again. The derivation is unit-tested at every phase boundary; this is the RENDERED half — that the
 // surface actually prints one of each, and that the figure block DISAPPEARS rather than repeating itself.
 test("the masthead never prints a number its own sentence just said (§5 distill)", async ({ mount, page }) => {
@@ -736,12 +736,12 @@ test("the mobile masthead STACKS rather than squeezing the headline into a colum
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════
-// THE POPULATED ARM — the same surface at 327 characters / 896 chats (side-eye 2026-08-23,
+// THE POPULATED ARM — the same surface at 320 characters / 900 chats (side-eye 2026-08-23,
 // 2026-08-23; issues #553 #535 #536 #556 #557).
 //
 // Everything above pins the surface's COMPOSITION on a library small enough that its every list fits.
 // Everything below is a VOLUME finding — a 142-route economics table whose cost column is 141/142 null, a
-// 50-bar keyword canvas, a 204-row never-played list, an 8-family map whose eighth plate is unlabelled,
+// a keyword canvas, a 200-row never-played list, an 8-family map whose eighth plate is unlabelled,
 // and a workload history deep enough to hold a crash UNDER a later success. None of them is reachable
 // from the 10-card fixture above, so the FIXTURE is what had to change; the assertions are ordinary
 // geometry and ordinary roles.
@@ -753,13 +753,13 @@ test("the mobile masthead STACKS rather than squeezing the headline into a colum
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 // ── THE POPULATED FIXTURE ─────────────────────────────────────────────────────────────────────────────
-// Proportional to the audited library rather than a copy of it: the ratios are what the assertions read
-// (242 clustered of 327 owned, one labelled cost among many null ones, more keywords than any cap).
+// Synthetic populations exercise count denominators and bounded lists
+// (212 clustered of 320 owned, one labelled cost among many null ones, more keywords than any cap).
 
-const CHARACTERS = 327;
-const DISTILLED = 313;
-/** Eight families summing to 242 — the audited shape, and the 85-character shortfall that is the finding. */
-const FAMILY_SIZES = [50, 40, 35, 30, 28, 27, 25, 7];
+const CHARACTERS = 320;
+const DISTILLED = 300;
+/** The synthetic families leave an explicit unclassified population. */
+const FAMILY_SIZES = [48, 36, 32, 28, 24, 20, 16, 8];
 const CLUSTERED = FAMILY_SIZES.reduce((total, size) => total + size, 0);
 /** The biggest family — the plate whose member run is longest, i.e. the N7 worst case. */
 const LARGEST_FAMILY = Math.max(...FAMILY_SIZES);
@@ -770,11 +770,11 @@ const UNFAMILIED = CHARACTERS - CLUSTERED;
  *  rendered its members' names instead, which is [P2-1]. */
 const UNLABELLED_FAMILY = "Unanalysed portraits";
 /** The gloss the unlabelled plate keeps once its label slot stops carrying the member run. */
-const UNLABELLED_FAMILY_GLOSS = /25 members/;
+const UNLABELLED_FAMILY_GLOSS = /16 members/;
 /** The economics chart's accessible name — matched loosely so the denominator may ride the heading. */
 const BUSIEST_ROUTES = /Busiest routes/;
 /** The LEADING digits of a tile's text — where the rank ordinal has to be. Anchored rather than split on
- *  whitespace: adjacent spans concatenate with no separator in `textContent` (`1BBess567,106`), so a
+ *  whitespace: adjacent spans concatenate with no separator in `textContent` (`1OOrla510,000`), so a
  *  whitespace split reads the whole tile as one token and the assertion never sees the rank it found. */
 const LEADING_RANK = /^\d+/u;
 
@@ -798,7 +798,7 @@ const POP_FAMILIES: TrpcWireOutput<"discovery.visualArchetypes"> = FAMILY_SIZES.
   model: "Qwen/Qwen3-VL-Embedding-2B",
 }));
 
-/** 50 keywords, counts 6 → 2 — the audited spread, where every bar is 72-100% of its track. */
+/** 50 keywords, counts 6 → 2 — a synthetic spread, where every bar is 72-100% of its track. */
 const KEYWORDS = Array.from({ length: 50 }, (_, index) => ({ keyword: `keyword-${index}`, count: Math.max(2, 6 - Math.floor(index / 12)) }));
 
 /** 30 routes, ONE of which reports a dollar cost. Generations and tokens are complete on all of them —
@@ -812,46 +812,46 @@ const ROUTES: TrpcWireOutput<"discovery.modelRouting"> = Array.from({ length: 30
   tokensOutProvenance: "estimated",
   avgGenTimeMs: 900,
   genTimeSamples: 400 - index * 10,
-  costUsd: index === 17 ? 0.080_644 : null,
+  costUsd: index === 17 ? 0.12 : null,
 }));
 const PAID_ROUTES = ROUTES.filter((route) => route.costUsd !== null).length;
 
-const UNUSED = Array.from({ length: 204 }, (_, index) => ({
+const UNUSED = Array.from({ length: 200 }, (_, index) => ({
   characterId: `character_unused_${index}`,
   name: `Unplayed ${index}`,
   avatarHash: null,
 }));
 
 /** Three gems in the verb's RANK order (message volume × how long quiet) whose token totals ASCEND — the
- *  audited row 2, `567,106 · 597,739 · 629,696`, where the bars climb while the rank falls. */
+ *  synthetic totals keep bars climbing while the rank falls. */
 const GEMS: TrpcWireOutput<"discovery.forgottenGems"> = [
   {
-    characterId: "character_bess",
-    name: "Mara",
+    characterId: "character_orla",
+    name: "Orla",
     avatarHash: null,
     messageCount: 900,
     lastActiveAt: 1,
-    tokensOut: 567_106,
+    tokensOut: 510_000,
     tokensOutProvenance: "measured",
     costUsd: null,
   },
   {
-    characterId: "character_azarael",
-    name: "Azarael",
+    characterId: "character_aveline",
+    name: "Aveline",
     avatarHash: null,
     messageCount: 800,
     lastActiveAt: 2,
-    tokensOut: 597_739,
+    tokensOut: 540_000,
     tokensOutProvenance: "measured",
     costUsd: null,
   },
   {
-    characterId: "character_bengal",
-    name: "Rowan",
+    characterId: "character_briar",
+    name: "Briar",
     avatarHash: null,
     messageCount: 700,
     lastActiveAt: 3,
-    tokensOut: 629_696,
+    tokensOut: 570_000,
     tokensOutProvenance: "measured",
     costUsd: null,
   },
@@ -868,9 +868,9 @@ const RUNS: TrpcWireOutput<"workloads.list"> = [
     mode: "singular",
     lane: "sweep",
     dependsOn: null,
-    createdAt: 1_787_443_344_202,
-    updatedAt: 1_787_443_344_202,
-    scheduledAt: 1_787_443_344_202,
+    createdAt: 1_704_067_200_000,
+    updatedAt: 1_704_067_200_000,
+    scheduledAt: 1_704_067_200_000,
     params: {},
     progress: null,
     error: null,
@@ -885,9 +885,9 @@ const RUNS: TrpcWireOutput<"workloads.list"> = [
     mode: "singular",
     lane: "sweep",
     dependsOn: null,
-    createdAt: 1_787_431_820_258,
-    updatedAt: 1_787_431_820_258,
-    scheduledAt: 1_787_431_820_258,
+    createdAt: 1_704_052_800_000,
+    updatedAt: 1_704_052_800_000,
+    scheduledAt: 1_704_052_800_000,
     params: {},
     progress: null,
     error: null,
@@ -902,9 +902,9 @@ const RUNS: TrpcWireOutput<"workloads.list"> = [
     mode: "singular",
     lane: "sweep",
     dependsOn: null,
-    createdAt: 1_787_436_170_285,
-    updatedAt: 1_787_436_170_285,
-    scheduledAt: 1_787_436_170_285,
+    createdAt: 1_704_060_000_000,
+    updatedAt: 1_704_060_000_000,
+    scheduledAt: 1_704_060_000_000,
     params: {},
     progress: null,
     error: "worker heartbeat went stale — row reaped",
@@ -927,12 +927,12 @@ const POPULATED: TrpcRoutes<
   | "workloads.list"
 > = {
   "discovery.home": {
-    coverage: { characters: CHARACTERS, digests: 2429, segments: 2026 },
+    coverage: { characters: CHARACTERS, digests: 2400, segments: 2000 },
     sceneThemes: [],
     arcThemes: [],
     duplicateCounts: { characters: 1, chats: 1, identicalCharacterPairs: 3 },
   },
-  // `totalCharacters` is the base the distilled count is out of (#535) — the same 327 `discovery.home`
+  // `totalCharacters` is the base the distilled count is out of (#535) — the same 320 `discovery.home`
   // reports, because both are `count(*)` over the owner's characters. A fixture that omitted it would let
   // a census assertion pass off a `?? 0` fallback.
   "discovery.catalog": { totalDistilled: DISTILLED, totalCharacters: CHARACTERS, genres: [], tones: [], topTags: [] },
@@ -954,7 +954,7 @@ async function settled(page: Page): Promise<void> {
 
 // ── #555 / [P1-3]: THE RAIL REPORTS THE LIBRARY'S STATE, NOT AN ARCHIVED CRASH ────────────────────────
 // `lastFailure()` picked the newest terminal row with no test for a later success, so a two-hour-old
-// `worker_died` was announced forever — under five green checks, beside a button inviting a 327-character
+// `worker_died` was announced forever — under five green checks, beside a button inviting a 320-character
 // re-run of a pass that had already succeeded. That is a trust defect and a compute bill.
 
 test("#555: a crash a LATER run of the same kind fixed is not announced (P1-3)", async ({ mount, page }) => {
@@ -982,8 +982,8 @@ test("#555: a pass that RAN and found nothing reads 'none found', not 'not run' 
 });
 
 // ── #535-surviving: EVERY DENOMINATOR NAMES ITS BASE ─────────────────────────────────────────────────
-// The rail's first row read `8 families · 242 characters` on a 327-character library. 242 is the one number
-// the surface never accounts for, and 85 characters in no visual family is a fact a reader can act on.
+// The rail's first row read `8 families · 212 characters` on a 320-character library. 242 is the one number
+// the surface never accounts for, and 108 characters in no visual family is a fact a reader can act on.
 
 test("#535: the visual-families row names the base its count is out of", async ({ mount, page }) => {
   await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
@@ -1003,7 +1003,7 @@ test("#535: the visual-families row names the base its count is out of", async (
 });
 
 // …AND THE DENOMINATOR DID NOT COST THE ROW ITS NAME (#535 N1, the regression the fix above caused). With
-// the datum grown to "8 families · 242 of 327 characters" and the row spelled `label: truncate` beside
+// the datum grown to "8 families · 212 of 320 characters" and the row spelled `label: truncate` beside
 // `datum: shrink-0`, the only thing that could give was the LABEL: "Visual families" rendered "Visu…" at
 // the 1280px context-closed width. The rail's whole job is naming what has and has not run.
 test("#535 N1: no readiness row ellipsises the PASS NAME to fit its measurement", async ({ mount, page }) => {
@@ -1022,8 +1022,8 @@ test("#535 N1: no readiness row ellipsises the PASS NAME to fit its measurement"
 
 // ── #553 / [P1-1]: THE ECONOMICS SECTION CHARTS WHAT ITS DATA CARRIES ────────────────────────────────
 // 30 routes, one of which reports a dollar cost. The old guard tested SPEND, so this whole library's
-// economics rendered as one bar reading $0.08 — full width, in accent orange, the visual weight saying
-// "large" about the smallest number on the page — with 11,321 generations and 8M tokens rendered nowhere.
+// economics rendered as one bar reading $0.12 — full width, in accent orange, the visual weight saying
+// "large" about the smallest number on the page — while complete generation and token quantities were not shown.
 
 test("#553: model economics renders the COMPLETE quantities over mostly-null cost (P1-1)", async ({ mount, page }) => {
   await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
@@ -1040,7 +1040,7 @@ test("#553: model economics renders the COMPLETE quantities over mostly-null cos
   // N6: the clause NAMES the route it is about. The one priced route is index 17, which the 12-bar head
   // never draws — so "cost recorded for 1 of 30 routes" pointed at a row no control on this page reaches.
   await expect(component.getByText(new RegExp(`reported across ${PAID_ROUTES.toString()} of ${ROUTES.length.toString()} routes`))).toBeVisible();
-  await expect(component.getByText("$0.08 reported across", { exact: false })).toBeVisible();
+  await expect(component.getByText("$0.12 reported across", { exact: false })).toBeVisible();
   await expect(component.getByText("model-17", { exact: false })).toBeVisible();
 });
 
@@ -1125,7 +1125,7 @@ test("#556: the overview's chart canvases stay inside a budget (the 287ms attrib
 });
 
 // ── #557 / [P2-4]: "NEVER PLAYED" STATES ITS COUNT ──────────────────────────────────────────────────
-// 204 of 327 characters — 62% of the library — rendered as eight names under a bare heading, with no
+// 200 of 320 characters — rendered as eight names under a bare heading, with no
 // denominator anywhere. A reader concludes they have eight unplayed cards.
 
 test("#557: the never-played section states how many there are (P2-4)", async ({ mount, page }) => {
@@ -1157,7 +1157,7 @@ test("#557: the unlabelled family plate carries the name its sibling surface giv
 });
 
 // ── #557 / [P2-2] + #536: THE GEM SHELF'S SORT IS VISIBLE AS A DATUM ────────────────────────────────
-// The shelf ranks by message volume × how long quiet and BARS token totals, so at 327 characters the bars
+// The shelf ranks by message volume × how long quiet and BARS token totals, so at 320 characters the bars
 // visibly ascend down a descending list. The report's sanctioned arm: render the rank ordinal, so the
 // sequence a reader is looking at is itself the datum rather than a claim the numbers contradict.
 

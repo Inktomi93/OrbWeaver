@@ -48,7 +48,7 @@ test("each avatar keeps its own name as its accessible name", async ({ mount }) 
 
 test("falls back to initials when no image src is given", async ({ mount }) => {
   const component = await mount(<AvatarStack items={[{ name: "Alex Ward" }]} />);
-  await expect(component.locator('[data-slot="avatar-stack-item"]')).toHaveText("NW");
+  await expect(component.locator('[data-slot="avatar-stack-item"]')).toHaveText("AW");
 });
 
 // ── RED-FIRST (#102 review F5): a seat is named ONCE ────────────────────────────────────────────────

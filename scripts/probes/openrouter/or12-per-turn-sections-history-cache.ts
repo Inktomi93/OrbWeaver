@@ -119,24 +119,24 @@ const CONFIG_BY_ARM: Readonly<Record<Arm, PromptConfig>> = {
 };
 
 const CHARACTER = {
-  name: "Mara",
+  name: "Mira",
   description:
-    "Mara keeps the lighthouse on a cold northern coast. She is forty, practical, dry-humoured and slow to trust. " +
+    "Mira keeps the lighthouse on a cold northern coast. She is forty, practical, dry-humoured and slow to trust. " +
     "She logs every ship, every storm and every lamp trim in a leather ledger, and she reads the weather from the gulls.",
   personality: "Terse, observant, loyal once earned.",
-  scenario: "A traveller has come to stay the winter at the lighthouse and helps Mara with the ledger.",
+  scenario: "A traveller has come to stay the winter at the lighthouse and helps Mira with the ledger.",
 };
 const PERSONA = { name: "Alex", description: "A traveller wintering at the lighthouse." };
 
 const MEMORY_POOL = [
   "Alex promised to fix the east shutter before the next gale.",
-  "Mara's brother drowned off the salt weirs eleven years ago.",
-  "The ferry pilot Wren owes Mara three barrels of lamp oil.",
+  "Mira's brother drowned off the salt weirs eleven years ago.",
+  "The ferry pilot Wren owes Mira three barrels of lamp oil.",
   "Alex is afraid of heights but climbs the lamp stair anyway.",
-  "Mara hides the good whisky behind the tide tables.",
+  "Mira hides the good whisky behind the tide tables.",
   "A ship called the Grey Heron went missing in the thaw month.",
   "Alex once worked as a clerk in the harbour office.",
-  "Mara distrusts the new harbour master and his brass telescope.",
+  "Mira distrusts the new harbour master and his brass telescope.",
   "The gulls went quiet the night before the last great storm.",
   "Alex found a sealed letter under the ledger's back board.",
 ];
@@ -149,12 +149,12 @@ const DATABANK_POOL = [
   "Supply ledger: lamp oil is delivered by the ferry on the first day of each month, weather permitting.",
 ];
 const STEERS = [
-  "Have Mara mention the sealed letter.",
-  "Make Mara impatient with the weather.",
-  "Let Mara share one memory of her brother.",
-  "Have Mara ask Alex about the harbour office.",
+  "Have Mira mention the sealed letter.",
+  "Make Mira impatient with the weather.",
+  "Let Mira share one memory of her brother.",
+  "Have Mira ask Alex about the harbour office.",
   "Keep the reply quiet and cold.",
-  "Have Mara check the lamp before answering.",
+  "Have Mira check the lamp before answering.",
 ];
 const QUESTIONS = [
   "Any ships tonight?",

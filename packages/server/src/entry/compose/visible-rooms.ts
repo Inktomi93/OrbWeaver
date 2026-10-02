@@ -31,7 +31,7 @@ import { REMOVED_MEMBER_LABEL } from "#domain/chat";
  * This op used to return a finished `name`, and its header said, verbatim, that the middle rung of the chats
  * list's title chain — the participant-name projection — was "deliberately not re-derived here…not worth
  * making regex's cheapest read pay for it". The consequence was the reported defect: every unnamed room in
- * the regex roster read "Untitled chat" while the chats list two panes over called the same room "Azarael".
+ * the regex roster read "Untitled chat" while the chats list two panes over called the same room "Aveline".
  * The owner ruled the roster should name rooms the way the chats list does.
  *
  * THE COST ARGUMENT IS PRESERVED, not discarded — it is why this is TWO statements and not an N+1:

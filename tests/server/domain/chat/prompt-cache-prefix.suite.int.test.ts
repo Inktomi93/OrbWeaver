@@ -185,7 +185,7 @@ describe("F8 — an off-roster or unattributed reply keeps its label whoever spe
         injectionTokenBudget: 0,
       });
     const scn = await scenario.chat(tape().reply("aria speaks").reply("kai speaks"), { characters: ["aria", "kai"], resolveForeignInputs: contentPreset });
-    const departed = await seedCharacter(scn.db, scn.host, "mara");
+    const departed = await seedCharacter(scn.db, scn.host, "mira");
     await seedMessage(scn.db, scn.chatId, 1, { role: "user", authorUserId: scn.host, content: "hi all" });
     await seedMessage(scn.db, scn.chatId, 2, { role: "assistant", characterId: departed, content: "I was here" });
     await seedMessage(scn.db, scn.chatId, 3, { role: "user", authorUserId: scn.host, content: "and you?" });
@@ -203,7 +203,7 @@ describe("F8 — an off-roster or unattributed reply keeps its label whoever spe
       (req?.history ?? []).map((m) => m.content.map((p) => (p.type === "text" ? p.text : "")).join(""));
     const first = texts(scn.requests[0]);
     const second = texts(scn.requests[1]);
-    expect(first[1]).toBe("mara: I was here");
+    expect(first[1]).toBe("mira: I was here");
     expect(first[3]).toBe("agent line");
     // Every row above the tail (which carries this call's speaker cue) is byte-identical.
     expect(second.slice(0, 4)).toEqual(first.slice(0, 4));

@@ -10,7 +10,7 @@ const avatarLgPx = Math.round(SNAPPED_LENGTH_BASE_PX["spacing.avatar-lg"]);
 test("renders the image when it loads", async ({ mount, page }) => {
   await mount(
     <Avatar alt="Alex" src={TINY_SVG}>
-      NT
+      AX
     </Avatar>,
   );
 
@@ -23,20 +23,20 @@ test("renders the image when it loads", async ({ mount, page }) => {
 test("falls back to initials when the image fails to load", async ({ mount, page }) => {
   await mount(
     <Avatar alt="Alex" src="/definitely-not-a-real-image.png">
-      NT
+      AX
     </Avatar>,
   );
 
   const fallback = page.locator('[data-slot="avatar-fallback"]');
   await expect(fallback).toBeVisible();
-  await expect(fallback).toHaveText("NT");
+  await expect(fallback).toHaveText("AX");
   await expect(page.locator('[data-slot="avatar-image"]')).toBeHidden();
 });
 
 test("falls back when no image source is given", async ({ mount, page }) => {
-  await mount(<Avatar alt="Alex">NT</Avatar>);
+  await mount(<Avatar alt="Alex">AX</Avatar>);
 
-  await expect(page.locator('[data-slot="avatar-fallback"]')).toHaveText("NT");
+  await expect(page.locator('[data-slot="avatar-fallback"]')).toHaveText("AX");
   await expect(page.locator('[data-slot="avatar-image"]')).toHaveCount(0);
 });
 
@@ -46,14 +46,14 @@ test("falls back when no image source is given", async ({ mount, page }) => {
 // label, or an `aria-label` when the avatar is the sole content of a control.
 test("the initials fallback is decorative (aria-hidden) — visible but not in the a11y name", async ({ mount, page }) => {
   await mount(
-    <button aria-label="Open the owner's profile" type="button">
-      <Avatar alt="Alex">NT</Avatar>
+    <button aria-label="Open Alex's profile" type="button">
+      <Avatar alt="Alex">AX</Avatar>
     </button>,
   );
   const fallback = page.locator('[data-slot="avatar-fallback"]');
   await expect(fallback).toBeVisible();
   await expect(fallback).toHaveAttribute("aria-hidden", "true");
-  await expect(page.getByRole("button")).toHaveAccessibleName("Open the owner's profile");
+  await expect(page.getByRole("button")).toHaveAccessibleName("Open Alex's profile");
 });
 
 test("shape variants map to the radius tokens", async ({ mount, page }) => {

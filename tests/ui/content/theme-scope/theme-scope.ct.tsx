@@ -334,7 +334,7 @@ test("an INK-ONLY scope under a LIGHT ambient renders its three voices at AA —
     <ThemeScope tokens={{}} ambientBackground={LIGHT_SEED_BASE}>
       <ThemeScope tokens={{ speaker: ST_DARK_INK, dialogueColor: ST_DARK_INK, narrationColor: ST_DARK_INK }}>
         <span data-testid="speaker" style={{ backgroundColor: LIGHT_SEED_BASE, color: "var(--color-speaker)" }}>
-          Mira
+          Tamsin
         </span>
         <span data-testid="dialogue" style={{ backgroundColor: LIGHT_SEED_BASE, color: "var(--color-dialogue)" }}>
           "HE'S DOING THE THING!"

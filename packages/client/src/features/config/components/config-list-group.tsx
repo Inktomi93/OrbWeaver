@@ -1,63 +1,22 @@
-// ONE config GROUP in the Settings LIST — the HOST half of the seam (C-4/C-6):
-// the props contract, the KIND dispatch, and the SETTINGS arm — a group's
-// SUBCATEGORY rows (the retired settings nav column's rows, `selected` = the scroll-spy's current section).
-// `ConfigListGroup` dispatches on `body.kind`, which is a BUILD fact fixed at the door, so each arm's hooks
-// run unconditionally in a fixed position. The COLLECTION arm — the band's count + trailing verbs and the
-// contribution's own member rows — is `config-list-collection-group.tsx`, split out when this file crossed
-// the `component-size` cap; the two arms are two species and only the dispatch is shared.
+// ConfigListGroup owns the kind dispatch, props contract, and settings subcategory rows. body.kind is
+// fixed at the door so each arm's hooks have an unconditional position. The collection arm lives in
+// config-list-collection-group.tsx; only the dispatch is shared.
 //
-// GROUPS START COLLAPSED (owner ruling 2026-08-02, superseding the mocks' always-expanded drawing): a real
-// library is not a glance — the owner's tag library is ~400 rows — so an expanded group would bury every
-// sibling below its scroll and the LIST would stop being the map of what EXISTS. The band is the map;
-// expanding is one click, and the expanded set is remembered per device. ONE amendment for the unified
-// surface: the ACTIVE group is always expanded and its band cannot collapse it — selection and disclosure
-// are one act (the `selectCollectionMember` rule, now for every kind).
+// Groups start collapsed to keep the list a map rather than burying siblings under one long library (owner
+// ruling 2026-08-02). Expanded groups are remembered per device. The active group is always expanded and
+// cannot collapse: selection and disclosure are one act.
 //
-// A SETTINGS GROUP'S ROWS ARE THE PANE'S SEQUENCE, FOLD AND ALL (#978 F4, superseding the earlier "the
-// fold is a CONTENT posture, LIST rows are untouched" clause on `ConfigGroupBase.advancedFold`). The rows
-// arrive already partitioned by `ConfigSectionPartition` — the ONE order contract, shared with CONTENT —
-// and the advanced cohort is drawn LAST, inside a nested `role="group"` labelled by the disclosure's own
-// name. A map that shows a section where the pane does not paint it is worse than a map that admits the
-// section is behind a door.
+// Settings rows share ConfigSectionPartition with Content; the advanced cohort comes last in a nested
+// named group (#978). Band controls are siblings, never buttons inside the disclosure button.
 //
-// THE BAND'S CONTROLS ARE SIBLINGS, never nested — a button inside the disclosure button would be
-// unclickable-by-spec and unreadable to a screen reader. It bites hardest on the collection band, which is
-// the one with trailing verbs, so the rule and its ordering live at that band (`config-list-collection-group.tsx`).
+// The pane's voice budget (#1169/#1714) is kicker for a non-control region name, interactiveKicker for a
+// controlling region name, datum for a mono count, and gloss for prose. Names are the groups' aria-
+// labelledby targets. State is a Badge, never a second name in the same voice. This covers collection
+// member rows as well as bands.
 //
-// ── THE LIST PANE'S VOICE BUDGET (#1169, owner ruling 2026-09-05 "receipt + full convergence") ──────────
-// This is the ONE home for it, for every element the Settings LIST draws. Measured across the four LIST
-// panes on 2026-09-05 (2026-09-05 §7): config's pane spoke
-// FOUR `data-voice` registers where chats speaks two, characters one and presets none. The set is not the
-// defect — this pane genuinely has four kinds of thing to say — but nobody had ever judged WHICH job each
-// voice holds, and two of them were doing a job that is not a voice at all. The budget, one job each:
-//   · `kicker`            — the NAME of a region that is not a control (the shelf label, the advanced-fold
-//                           label). Both are the `aria-labelledby` target of the group they name, so the
-//                           visible word and the announced one cannot drift.
-//   · `interactiveKicker` — the NAME of a region that IS a control (both band arms).
-//   · `datum`             — a mono COUNT (the collection band's census).
-//   · `gloss`             — prose (an empty library's one sentence).
-//   · STATE IS A `Badge`, NEVER A VOICE. A state mark drawn in the same register as a NAME is read as a
-//     second name of equal rank; #1214-2 measured it on the shelf ("USER MODIFIED", same step, same
-//     tracking, same 8.45:1 ink) and moved that mark to a Badge. The band's two marks were the same shape,
-//     one level down, and are Badges now for the same reason.
-//
-// ITS SCOPE IS THE WHOLE PANE, AND THAT IS NOW SWEPT RATHER THAN ASSUMED (#1714, 2026-09-05). The budget
-// was derived from this file and the collection BAND; the four collections' MEMBER rows sat on the other
-// side of the #925 species fence and were never checked against it. The owner retired that fence
-// so they were swept — `tag-collection-rows.tsx`,
-// `regex-collection-rows.tsx`, `world-info-collection-rows.tsx`, `roster-collection-rows.tsx`, two methods.
-// They speak `datum` (a count) and `gloss` (an empty library's sentence) and nothing else: ZERO violations,
-// zero changes. The budget already held across a boundary nobody had looked over — which is exactly the
-// class of claim a retired fence turns from an assumption into a receipt.
-//
-// ── THE RULING FORK, STATED (#1099 Errand A's own clause in this file, preserved) ───────────────────────
-// The modified mark's note here read "`kicker` is a text voice, not a box: the band's height is untouched",
-// and that MECHANISM is the thing the clause was protecting — a band that grows when a setting changes
-// would make the LIST's rhythm depend on the reader's data. It survives INTACT and is now provable rather
-// than argued: the band is `size="sm"`, i.e. `h-control-sm`, a FIXED height (32px fine / 44px coarse,
-// measured 2026-09-05 across all fourteen bands), so a ~30px Badge inside it cannot move it. What changed is
-// the clause's INPUT — the reason to prefer text over a box was never "text", it was "no growth", and the
-// box does not grow it. The band-height CT pins the number at both pointer classes.
+// The #1099 band-height ruling protects no growth when modified state changes, not a preference for text
+// over a box. size=sm fixes the band height at h-control-sm for both pointer classes; an internal Badge
+// cannot move it. The band-height CT retains that contract.
 
 import { Badge } from "@orb/ui/badge";
 import { Stack } from "@orb/ui/layout";

@@ -19,7 +19,7 @@ Every user-supplied rendering input is exactly one trust level, and that determi
 - **TRUSTED** = authored by the box owner / this user (global theme CSS, own persona theme, own uploaded images). Risk is self-inflicted + design-system integrity, not security.
 - **UNTRUSTED** = from an imported character card, another participant, or the LLM (per-character CSS, card HTML, external image URLs, message markdown). Risk is D21 "no leaks ever" — CSS exfiltration, clickjacking, tracking pixels, mutation-XSS.
 
-**Rule:** untrusted content is contained by a *browser-enforced boundary* (sandboxed iframe · CSP · token-validation), NEVER by ST-style regex-sanitize-and-scope (verified bypassable string-munging — archaeology record).
+**Rule:** untrusted content is contained by a *browser-enforced boundary* (sandboxed iframe · CSP · token-validation), never by regex sanitize-and-scope, which filters rather than isolates.
 
 ### 12.1 Theming — the CSS story (scopes = Global owner + Per-character)
 

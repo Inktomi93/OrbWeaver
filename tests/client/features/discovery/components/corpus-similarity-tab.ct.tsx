@@ -28,13 +28,13 @@ import { CorpusSimilarityTabStory, CorpusSimilarityToContentStory } from "../_ct
 const TRUNCATION_NOTE = /Showing the closest \d+ of \d+ pairs/;
 /** The two pair rows the door tests click, by their rendered face. */
 const CHARACTER_PAIR = /Freya ↔ Frida/;
-const CHAT_PAIR = /Ayami — Aug 18, 2025 \(3\) ↔ Ayami — Aug 19, 2025 \(4\)/;
+const CHAT_PAIR = /Alina — Apr 12, 2024 \(3\) ↔ Alina — Apr 13, 2024 \(4\)/;
 /** N8: the chat door's destination, in the accessible NAME rather than a hover-only `title`. */
 const CHAT_PAIR_DESTINATION = /compare rooms/;
 /** #564: a pairwise row naming a clique member — the expansion the collapse deletes. */
 const CLIQUE_PAIR_ROW = /Card A ↔ Card/;
 /** …and the one near-identical pair that must NOT collapse (0.97 is not a transitive relation). */
-const SUB_IDENTICAL_PAIR = /Yuki ↔ Yuuna/;
+const SUB_IDENTICAL_PAIR = /Remy ↔ Yuuna/;
 
 /** More edges than any cap, ranked so the head is predictable. Proportional to the audited 1,782. */
 const EDGE_COUNT = 120;
@@ -58,14 +58,14 @@ const DUP_CHARACTERS = [
     computedAt: 1,
   },
 ];
-const DUP_ART = [{ characterIdA: "character_yuki", nameA: "Yuki", characterIdB: "character_yuuna", nameB: "Yuuna", similarity: 0.97 }];
+const DUP_ART = [{ characterIdA: "character_remy", nameA: "Remy", characterIdB: "character_yuuna", nameB: "Yuuna", similarity: 0.97 }];
 const DUP_CHATS = [
   {
     id: "dupchat_1",
     chatIdA: "chat_aug18",
     chatIdB: "chat_aug19",
-    titleA: "Ayami — Aug 18, 2025 (3)",
-    titleB: "Ayami — Aug 19, 2025 (4)",
+    titleA: "Alina — Apr 12, 2024 (3)",
+    titleB: "Alina — Apr 13, 2024 (4)",
     similarity: 1,
     cslsScore: 0.9,
     relation: "forked",
@@ -223,8 +223,8 @@ test("#554: a chat pair names its comparison and keeps both room doors reachable
   await row.press("Enter");
   const content = component.locator('[data-slot="ct-pair-content"]');
   await expect(content.getByRole("heading", { name: CHAT_PAIR })).toBeVisible();
-  const first = content.getByRole("button", { name: "Open Ayami — Aug 18, 2025 (3)", exact: true });
-  const second = content.getByRole("button", { name: "Open Ayami — Aug 19, 2025 (4)", exact: true });
+  const first = content.getByRole("button", { name: "Open Alina — Apr 12, 2024 (3)", exact: true });
+  const second = content.getByRole("button", { name: "Open Alina — Apr 13, 2024 (4)", exact: true });
   await expect(first).toBeVisible();
   await expect(second).toBeVisible();
   await first.click();

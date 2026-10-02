@@ -21,7 +21,7 @@ describe("removeActionName", () => {
 
 describe("selectActionName", () => {
   test("the house grammar is `Select <subject>`", () => {
-    expect(selectActionName("Bram")).toBe("Select Bram");
+    expect(selectActionName("Bryn")).toBe("Select Bryn");
   });
 
   test("the table's unlabelled-row fallback reads as a position, not an id", () => {

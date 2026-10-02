@@ -110,7 +110,7 @@ export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, 
         className="group"
         // The DERIVED display title (participant names when unauthored) names the kebab menu ("Chat actions
         // for <title>") so the per-row menus are distinguishable, not N identical "Chat actions" (finding #4).
-        // The title alone is NOT enough on a per-character projection (N rows all titled "Azarael"), so the
+        // The title alone is NOT enough on a per-character projection (N rows all titled "Aveline"), so the
         // name carries the row's stamp too — the same one the row shows, escalated by the surface where even
         // that collided (side-eye P3a + P2c).
         // `title` (raw, nullable) still seeds the rename input — the empty box for an unnamed chat is intact.

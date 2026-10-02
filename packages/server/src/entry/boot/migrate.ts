@@ -6,25 +6,14 @@ import type { Db } from "@orb/db";
 import { assertReferentialIntegrity, backupBeforeMigrate, checkBaseline, hasPendingMigrations, pruneDbBackups, resetDevDatabase, runMigrations } from "@orb/db";
 import { getLog } from "#foundation/observability";
 
-// LAUNCHED since 2026-09-18 (owner ruling on #316, Arm A — "might as well flip it"). A baseline-hash
-// mismatch is now boot-FATAL on EVERY database this binary opens: the dev box's own db carries the owner's
-// real corpus, and on 2026-08-19 the pre-launch arm read a hand-edited baseline as "regenerated" and
-// dropped 344 characters / 895 chats / 22,784 messages at a prod boot (restored from the pre-migrate
-// backup within the hour — that it was recoverable at all was luck). The switch is a CONSTANT, not
-// posture-scoped: a posture-scoped flip would leave exactly the auto-wipe arm that fired, armed, on the
-// one box that holds the data. Schema changes ship as forward incremental migrations from here
-// (Tier-1-DB.md §"Regime 2"); its former twin, the `baseline-single-migration` gate, was DELETED in the
-// same commit as its own header demanded.
-// The `: boolean` annotation stays: it is the EXPORTED type every caller's `launched` key is checked
-// against, so the posture remains a value the guard below reasons about rather than a literal the checker
-// folds away at each call site.
+// DB_LAUNCHED is a constant since the owner ruling on #316, not posture-scoped. Baseline mismatch is boot-
+// fatal for every database; forward incremental migrations are the schema-change path (Tier-1-DB Regime
+// 2). Leaving an auto-wipe arm active for a development posture would still endanger persisted data.
 //
-// EXPORTED, and passed EXPLICITLY by every caller (#1392). It used to be a private fallback behind an
-// optional `deps.launched`, and the production caller (`entry/lifecycle`) simply never passed the key — so
-// the `??` resolved to the permissive arm on every real boot and the refusal below had never once been
-// armed outside a test. Its inertness would have first mattered on the first launched deployment, at the
-// exact moment nothing about the transition would make anyone look. The key is REQUIRED now: a caller that
-// forgets it is a compile error, not a silent auto-wipe.
+// The exported boolean annotation keeps posture as a checked value rather than a literal folded at
+// callers. Every caller passes launched explicitly (#1392): an optional dependency/fallback previously
+// selected the permissive arm when production omitted the key. A missing key is now a compile error, never
+// silent reset permission.
 export const DB_LAUNCHED: boolean = true;
 
 const HASH_LOG_PREFIX = 12;

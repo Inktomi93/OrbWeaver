@@ -15,9 +15,9 @@ import { expect, test } from "../../../../../../support/fixtures.ts";
 
 const aria = castId<CharacterId>("character_aria");
 const cole = castId<CharacterId>("character_cole");
-const alex = castId<UserId>("user_nate");
-const bram = castId<UserId>("user_bram");
-const mara = castId<PersonaId>("persona_mara");
+const alex = castId<UserId>("user_alex");
+const bryn = castId<UserId>("user_bryn");
+const mira = castId<PersonaId>("persona_mira");
 const vex = castId<PersonaId>("persona_vex");
 
 function row(seq: number, over: Partial<MsgRow> = {}): MsgRow {
@@ -100,7 +100,7 @@ describe("memory/generate/substrate/transcript", () => {
   test("G1: the BODY resolves {{char}}→the row's character and {{user}}→the row's persona (never the raw macro or typeid)", () => {
     const ctx = macroCtx({
       chars: [[aria, "Aria"]],
-      personas: [[mara, "Mara", "a wandering knight"]],
+      personas: [[mira, "Mira", "a wandering knight"]],
     });
     const rows = [
       // an AI line owns its `{{char}}`; a user line owns its `{{user}}`/`{{persona}}` (per-row stamps).
@@ -108,22 +108,22 @@ describe("memory/generate/substrate/transcript", () => {
       row(2, {
         characterId: null,
         authorUserId: alex,
-        personaId: mara,
+        personaId: mira,
         content: "and I am {{user}} — {{persona}}.",
       }),
     ];
     const out = renderTranscript(rows, ctx);
-    expect(out).toBe("Aria: I am Aria.\nUser: and I am Mara — a wandering knight.");
+    expect(out).toBe("Aria: I am Aria.\nUser: and I am Mira — a wandering knight.");
     // the summarizer/embedding NEVER sees the literal macro or the id typeid.
     expect(out).not.toContain("{{");
-    expect(out).not.toContain("persona_mara");
+    expect(out).not.toContain("persona_mira");
     expect(out).not.toContain("character_aria");
   });
 
   test("G1 multi-human: two humans' rows resolve to their OWN persona names (not both the generic 'User')", () => {
     const ctx = macroCtx({
       personas: [
-        [mara, "Mara"],
+        [mira, "Mira"],
         [vex, "Vex"],
       ],
     });
@@ -131,20 +131,20 @@ describe("memory/generate/substrate/transcript", () => {
       row(1, {
         characterId: null,
         authorUserId: alex,
-        personaId: mara,
+        personaId: mira,
         content: "{{user}} enters",
       }),
       row(2, {
         characterId: null,
-        authorUserId: bram,
+        authorUserId: bryn,
         personaId: vex,
         content: "{{user}} follows",
       }),
     ];
     const out = renderTranscript(rows, ctx);
     // both LABELS are the generic "User" (label is role-based), but the BODIES distinguish the two humans.
-    expect(out).toBe("User: Mara enters\nUser: Vex follows");
-    expect(out).toContain("Mara enters");
+    expect(out).toBe("User: Mira enters\nUser: Vex follows");
+    expect(out).toContain("Mira enters");
     expect(out).toContain("Vex follows");
   });
 
@@ -162,7 +162,7 @@ describe("memory/generate/substrate/transcript", () => {
   });
 
   test("G2: PERSONA reattribution busts the hash (memory self-heals — was persona-blind before)", () => {
-    const base = [row(1, { characterId: null, authorUserId: alex, personaId: mara, content: "hi" })];
+    const base = [row(1, { characterId: null, authorUserId: alex, personaId: mira, content: "hi" })];
     const h = blockHash("0:0", base);
     // same speaker (authorUserId) + same content, only the authoring persona re-stamped → the hash MUST change
     // (pre-fix this was a silent no-op: personaId was not folded, so the digest never re-embedded).
@@ -192,7 +192,7 @@ describe("memory/generate/substrate/transcript", () => {
   });
 
   test("renderTranscript with an empty producer floors every macro (no raw id leak on {{user}})", () => {
-    const rows = [row(1, { characterId: null, authorUserId: alex, personaId: mara, content: "{{user}}" })];
+    const rows = [row(1, { characterId: null, authorUserId: alex, personaId: mira, content: "{{user}}" })];
     // TWO different floors, deliberately: the LABEL is the transcript's ROLE prefix (`USER_LABEL` — "who is
     // speaking on this line", the twin of "Aria:"), while the BODY's `{{user}}` is the unresolved-PERSONA
     // name (`DEFAULT_PERSONA_NAME`). They used to be the same literal by coincidence; they are not the same

@@ -32,7 +32,7 @@ export interface ListRowProps {
   /**
    * A DISAMBIGUATOR for a row whose TITLE collides with another row's — appended to the clickable row's
    * accessible name AND rendered after the title as `"<title> · <qualifier>"`. For a list whose titles
-   * genuinely collide (three characters named "Emily" as three identical `button "Emily"`, #492): the
+   * genuinely collide (three characters named "Eleni" as three identical `button "Eleni"`, #492): the
    * caller decides what disambiguates (`rowActionSubject`, #443/#458/#463) and this carries it into the
    * NAME, which `subtitle` cannot — a description is what low-verbosity and voice-control modes drop.
    *

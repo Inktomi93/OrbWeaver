@@ -40,9 +40,9 @@ import { GROUP_CHAR, seedSegment, sharedScope } from "./_support.ts";
 /** THE LABELED CORPUS — six blocks, each a distinct "topic" pinned to its own basis dimension. The `text` is
  *  what `{{memory}}` renders, so an assertion can name the scene a human would name. */
 const CORPUS = [
-  { blockIdx: 0, topic: "bath", text: "[the bath house] Mara and Niko share the steaming pool." },
+  { blockIdx: 0, topic: "bath", text: "[the bath house] Mira and Niko share the steaming pool." },
   { blockIdx: 1, topic: "market", text: "[the night market] Haggling over lantern oil." },
-  { blockIdx: 2, topic: "duel", text: "[the duel] Mara wins the bout on the bridge." },
+  { blockIdx: 2, topic: "duel", text: "[the duel] Mira wins the bout on the bridge." },
   { blockIdx: 3, topic: "shrine", text: "[the shrine] An offering left for the road spirits." },
   { blockIdx: 4, topic: "storm", text: "[the storm] The caravan shelters under the cliff." },
   { blockIdx: 5, topic: "farewell", text: "[the farewell] Niko rides north at dawn." },

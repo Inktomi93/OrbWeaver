@@ -1,5 +1,5 @@
 // Tier-4-Transport.md (#45/#46): a paged/list tRPC input must never accept an UNBOUNDED `limit`. A zod
-// number chain with no `.max(…)` feeds an unbounded SQL `.limit()` — the 872-chat fetch bomb — while a
+// number chain with no `.max(…)` feeds an unbounded SQL `.limit()` — the 880-chat fetch bomb — while a
 // `.max()` at the trust boundary turns an over-ask into a BAD_REQUEST. The chain ROOT is proven through the
 // shared module-origin reader (`z`/`z.coerce`/a namespace/a direct `number` import all resolve to zod's
 // `number`; a local object named `z` does not), and the field VALUE resolves through the shared binding

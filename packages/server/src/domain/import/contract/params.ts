@@ -42,7 +42,7 @@ export interface RestoreCharacterBookInput {
  *  chats can import instead of being skipped (7 real dirs on the 2026-08-15 corpus run). `headerNames` are
  *  the transcripts' parsed `character_name` headers — the only name signal beyond the dir name itself. */
 export interface ImportOrphanCharacterInput {
-  /** The ORIGINAL chats/ directory name (provenance + the name fallback), e.g. `"Bonnie_Cow"`. */
+  /** The ORIGINAL chats/ directory name (provenance + the name fallback), e.g. `"Clover_Owl"`. */
   readonly dirName: string;
   /** The collect-time slug for the dir — the mint's handle base + its idempotency key. */
   readonly handle: CharacterHandle;

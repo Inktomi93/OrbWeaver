@@ -86,14 +86,14 @@ test("the LIST band shows the Insights title + the leaderboard count, with NO cr
   await expect(component.getByRole("button", { name: "New" })).toHaveCount(0);
 });
 
-// P2g: the band read `ANALYTICS 50` against a 328-character library, because `rows.length` on a page
+// P2g: the band read `ANALYTICS 50` against a 330-character library, because `rows.length` on a page
 // capped at 50 IS the cap. A census that silently reports its own limit is not a census.
 test("the LIST band states the RELATIONSHIP when the page is capped, not the page length", async ({ mount, page }) => {
-  await routeTrpc(page, { "stats.leaderboard": () => ({ rows: LEADERBOARD_ROWS, total: 328 }) });
+  await routeTrpc(page, { "stats.leaderboard": () => ({ rows: LEADERBOARD_ROWS, total: 330 }) });
   const component = await mount(<AnalyticsListHeaderStory />);
   await component.getByRole("button", { name: "show insights" }).click();
 
-  await expect(component.getByText("2 of 328")).toBeVisible();
+  await expect(component.getByText("2 of 330")).toBeVisible();
   // The bare page length must NOT be what the band says.
   await expect(component.getByText("2", { exact: true })).toHaveCount(0);
 });

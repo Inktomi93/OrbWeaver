@@ -123,10 +123,8 @@ function PickerBody({
   const [filter, setFilter] = useState("");
   const attachedIds = new Set(attached.map((row) => row.id));
 
-  // THE FILTER IS THE COLLECTION GROUP'S, GATED ON THE SAME CONSTANT (side-eye 2026-08-06). This picker maps
-  // the owner's WHOLE library flat — 35 rows at the seeded fixture, ~400 in the owner's real one — and a
-  // library past a glance earns the same box, in the same place, with the same grammar as the config rail's
-  // group frame. One constant (`COLLECTION_LARGE_GROUP`), one behaviour, both homes.
+  // The picker and config rail share COLLECTION_LARGE_GROUP and the same filter grammar; a long library
+  // must not acquire a second threshold or filtering behavior.
   const filterable = library.data.length > COLLECTION_LARGE_GROUP;
   const needle = filterable ? filter.trim().toLowerCase() : "";
   const matches = (script: RegexScriptRow): boolean => needle === "" || regexScriptTitle(script).toLowerCase().includes(needle);

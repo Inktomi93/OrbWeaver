@@ -1749,7 +1749,7 @@
 
   /* ONE NAME PER SCREEN (side-eye leg-4 P3). In this same arm the topbar prints the section's own name, so
    * the LIST band's unscoped title repeats it ~50px lower — measured on Characters, "Characters" twice.
-   * A SCOPED band ("CHATS · Sera") names a swapped pane, which is a different fact, so it survives. */
+   * A SCOPED band ("CHATS · Sola") names a swapped pane, which is a different fact, so it survives. */
   .shell-grid[data-list-mode="docked"] .shell-panel[data-panel-side="list"] [data-slot="list-pane-title"]:not([data-scoped]) {
     display: none;
   }

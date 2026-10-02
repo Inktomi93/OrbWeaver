@@ -489,16 +489,16 @@ describe("update", () => {
       principal: principal(owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
-    const mara = await svc.create({
+    const mira = await svc.create({
       principal: principal(owner),
-      input: { handle: castId<CharacterHandle>("mara"), name: "Mara", description: "d" },
+      input: { handle: castId<CharacterHandle>("mira"), name: "Mira", description: "d" },
     });
 
-    await expect(svc.update({ principal: principal(owner), characterId: mara.id, input: { handle: castId<CharacterHandle>("nyx") } })).rejects.toMatchObject({
+    await expect(svc.update({ principal: principal(owner), characterId: mira.id, input: { handle: castId<CharacterHandle>("nyx") } })).rejects.toMatchObject({
       code: "handle_conflict",
     });
-    const reread = await svc.get({ principal: principal(owner), characterId: mara.id });
-    expect(reread.handle).toBe("mara");
+    const reread = await svc.get({ principal: principal(owner), characterId: mira.id });
+    expect(reread.handle).toBe("mira");
   });
 
   test("D44 §12.1/§12.5 — themeOverride round-trips (set, then null clears it)", async () => {

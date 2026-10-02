@@ -19,7 +19,7 @@ export const ST_RUNTIME_DIR = path.join(DATA_ROOT, "sillytavern-runtime");
 
 /** The canonical chat inputs `build-fixtures.ts` seeds the ST runtime from. Read THESE, never the ST
  *  runtime's copy: ST rewrites its chat files as it generates — so a runtime read replays whatever ST left
- *  behind (measured: a 65-line seed truncated to one greeting, which collapsed 44 captures into one).
+ *  behind; a greeting-only runtime copy would lose the multi-turn and depth-injection cases.
  *  The rig owns them, checked in beside the scripts: the product seeds no transcript (D263), and every
  *  sweep's fixtures name `ashen-spire`, the chat the captures in `output/` replay. */
 export const SEED_CHATS_DIR = path.join(RIG_DIR, "seed-chats");

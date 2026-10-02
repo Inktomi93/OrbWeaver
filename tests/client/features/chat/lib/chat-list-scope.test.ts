@@ -17,7 +17,7 @@ import {
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ARIA = castId<CharacterId>("char_aria");
-const SERA = castId<CharacterId>("char_sera");
+const SOLA = castId<CharacterId>("char_sola");
 const UNSCOPED = { beforeRecencyAt: null, characterId: null, search: "" };
 
 test("the month bound is the first UTC instant of the FOLLOWING month, rolling December into January", () => {
@@ -46,7 +46,7 @@ test("every axis moves the scope key, and no two distinct scopes alias into one"
   const keys = [
     chatListScopeKey(UNSCOPED),
     chatListScopeKey({ ...UNSCOPED, characterId: ARIA }),
-    chatListScopeKey({ ...UNSCOPED, characterId: SERA }),
+    chatListScopeKey({ ...UNSCOPED, characterId: SOLA }),
     chatListScopeKey({ ...UNSCOPED, search: "aria" }),
     // The unsearched `""` is not the unscoped `null` — an encoding that drops empties aliases these two.
     chatListScopeKey({ ...UNSCOPED, search: "null" }),

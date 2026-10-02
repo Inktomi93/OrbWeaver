@@ -1000,7 +1000,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
 
   test("the author re-stamps their OWN user message: personaId updated + messageEdited emitted", async () => {
     const { member, chatId } = await seedRoom();
-    const persona = await seedPersona(db, member, "mara");
+    const persona = await seedPersona(db, member, "mira");
     const { messageId } = await seedUserMsg(chatId, 1, member);
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
@@ -1020,7 +1020,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
 
   test("the host re-stamps ANOTHER member's message to a persona that MEMBER owns", async () => {
     const { host, member, chatId } = await seedRoom();
-    const persona = await seedPersona(db, member, "mara"); // owned by the MEMBER (the row's author)
+    const persona = await seedPersona(db, member, "mira"); // owned by the MEMBER (the row's author)
     const { messageId } = await seedUserMsg(chatId, 1, member);
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
@@ -1039,7 +1039,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
     const { member, chatId } = await seedRoom();
     const other = await seedUser(db, castId<Handle>("other"));
     await seedParticipant(db, { chatId, key: "o", userId: other, role: "member" });
-    const persona = await seedPersona(db, member, "mara");
+    const persona = await seedPersona(db, member, "mira");
     const { messageId } = await seedUserMsg(chatId, 1, member); // authored by `member`
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
@@ -1080,7 +1080,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
 
   test("user-rows-only: targeting an assistant row is refused with not_user_message (nothing written)", async () => {
     const { host, member, chatId, charA } = await seedRoom();
-    const persona = await seedPersona(db, member, "mara");
+    const persona = await seedPersona(db, member, "mira");
     const asst = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
@@ -1100,7 +1100,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
 
   test("bulk: N user-row ids → exactly N messageEdited events, each carrying the new personaId", async () => {
     const { member, chatId } = await seedRoom();
-    const persona = await seedPersona(db, member, "mara");
+    const persona = await seedPersona(db, member, "mira");
     const m1 = await seedUserMsg(chatId, 1, member);
     const m2 = await seedUserMsg(chatId, 2, member);
     const m3 = await seedUserMsg(chatId, 3, member);
@@ -1122,7 +1122,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
 
   test("an empty messageIds set is an idempotent no-op (no event, no write)", async () => {
     const { member, chatId } = await seedRoom();
-    const persona = await seedPersona(db, member, "mara");
+    const persona = await seedPersona(db, member, "mira");
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributePersona({
@@ -1137,17 +1137,17 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
   // ── C5 (#59 §6 parity lock), server side: after the stamp flips, the SAME kit atom re-resolves {{user}} ──
   test("C5 server: reattributePersona flips the stamp → resolveRowMacros renders the NEW persona for {{user}}", async () => {
     const { member, chatId } = await seedRoom();
-    const mara = await seedPersona(db, member, "mara");
+    const mira = await seedPersona(db, member, "mira");
     const zara = await seedPersona(db, member, "zara");
     const { messageId } = await seedUserMsg(chatId, 1, member, {
-      personaId: mara,
+      personaId: mira,
       content: "{{user}} waves",
     });
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     // The per-chat name producer (Chat-Macro-Resolution §1) covering both personas.
     const personaNamesById = new Map<PersonaId, RowPersonaName>([
-      [mara, { name: "Mara", description: "" }],
+      [mira, { name: "Mira", description: "" }],
       [zara, { name: "Zara", description: "" }],
     ]);
     const ctx = {
@@ -1155,9 +1155,9 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
       personaNamesById,
     };
 
-    // Before: the row is stamped Mara → {{user}} resolves to Mara.
+    // Before: the row is stamped Mira → {{user}} resolves to Mira.
     const before = await db.select().from(messages).where(eq(messages.id, messageId));
-    expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: before[0]?.personaId ?? null }, ctx)).toBe("Mara waves");
+    expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: before[0]?.personaId ?? null }, ctx)).toBe("Mira waves");
 
     await edit.reattributePersona({
       principal: principal(member),
@@ -1190,7 +1190,7 @@ const LONG_CHAT = RETIRED_CLIENT_WINDOW + 20;
 describe("reattributePersona — the `mine` scope resolves the caller's own rows server-side", () => {
   test("restamps EVERY row the caller authored — including the ones past the retired 100-message window", async () => {
     const { member, chatId } = await seedRoom();
-    const persona = await seedPersona(db, member, "mara");
+    const persona = await seedPersona(db, member, "mira");
     // Seeded serially: `seq` is UNIQUE per chat and each row's insert must land before the next claims one.
     for (let seq = 1; seq <= LONG_CHAT; seq += 1) {
       await seedMessage(db, chatId, seq, { role: "user", authorUserId: member, content: "{{user}} waves" });
@@ -1209,7 +1209,7 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
 
   test("only the CALLER's user rows move — a co-member's lines and every assistant row are untouched", async () => {
     const { host, member, chatId, charA } = await seedRoom();
-    const persona = await seedPersona(db, member, "mara");
+    const persona = await seedPersona(db, member, "mira");
     const mine = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member });
     const theirs = await seedMessage(db, chatId, 2, { role: "user", authorUserId: host });
     const reply = await seedMessage(db, chatId, 3, { role: "assistant", characterId: charA });
@@ -1226,17 +1226,17 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
 
   test("`fromSeq` floors the sweep — only the wrong-persona stretch is re-stamped, earlier history keeps its name", async () => {
     const { member, chatId } = await seedRoom();
-    const mara = await seedPersona(db, member, "mara");
+    const mira = await seedPersona(db, member, "mira");
     const zara = await seedPersona(db, member, "zara");
-    const early = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member, personaId: mara });
-    const cut = await seedMessage(db, chatId, 2, { role: "user", authorUserId: member, personaId: mara });
-    const late = await seedMessage(db, chatId, 3, { role: "user", authorUserId: member, personaId: mara });
+    const early = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member, personaId: mira });
+    const cut = await seedMessage(db, chatId, 2, { role: "user", authorUserId: member, personaId: mira });
+    const late = await seedMessage(db, chatId, 3, { role: "user", authorUserId: member, personaId: mira });
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributePersona({ principal: principal(member), chatId, scope: { kind: "mine", fromSeq: 2 }, personaId: zara });
 
     const byId = new Map((await db.select().from(messages).where(eq(messages.chatId, chatId))).map((r) => [r.id, r]));
-    expect(byId.get(early.messageId)?.personaId).toBe(mara); // BELOW the floor — history, not a mistake
+    expect(byId.get(early.messageId)?.personaId).toBe(mira); // BELOW the floor — history, not a mistake
     expect(byId.get(cut.messageId)?.personaId).toBe(zara); // the floor is INCLUSIVE
     expect(byId.get(late.messageId)?.personaId).toBe(zara);
   });
@@ -1244,7 +1244,7 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
   test("a NON-MEMBER's mine-scope call is a leak-free NOT_FOUND — it can never resolve another room's rows", async () => {
     const { member, chatId } = await seedRoom();
     const stranger = await seedUser(db, castId<Handle>("stranger"));
-    const persona = await seedPersona(db, member, "mara");
+    const persona = await seedPersona(db, member, "mira");
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: member });
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
@@ -1258,7 +1258,7 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
 
   test("a member with no rows of their own is an idempotent no-op (no event, no write)", async () => {
     const { host, member, chatId } = await seedRoom();
-    const persona = await seedPersona(db, member, "mara");
+    const persona = await seedPersona(db, member, "mira");
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: host }); // someone ELSE's line
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
@@ -1277,9 +1277,9 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
   // action and must never ride this button) · and the slot's own non-persona columns.
   test("NEVER-TOUCH: a full mine-restamp moves personaId and NOTHING else — content, slot columns, rpg snapshots, digests", async () => {
     const { member, chatId, charA } = await seedRoom();
-    const persona = await seedPersona(db, member, "mara");
+    const persona = await seedPersona(db, member, "mira");
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: member, content: "{{user}} waves" });
-    const beat = await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA, content: "Mara, the door groans open." });
+    const beat = await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA, content: "Mira, the door groans open." });
 
     // An rpg game + a committed snapshot keyed to the assistant beat's variant (the plane `resyncFromStory`
     // rebuilds — this verb must not so much as read it), and a memory digest for the chat (D55).
@@ -1291,11 +1291,11 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
       variantId: beat.variantId,
       ...emptyState(),
       location: "the konbini",
-      recentEvents: ["Mara asked about the drinks"],
+      recentEvents: ["Mira asked about the drinks"],
       committed: 1,
       createdAt: FROZEN_AT,
     });
-    await seedDigest(db, { chatId, scopedCharacterId: charA, tier: 0, blockIdx: 0, text: "Mara bargained with the clerk." });
+    await seedDigest(db, { chatId, scopedCharacterId: charA, tier: 0, blockIdx: 0, text: "Mira bargained with the clerk." });
 
     const before = {
       variants: await db.select().from(messageVariants).orderBy(asc(messageVariants.id)),
@@ -1314,7 +1314,7 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
       digests: await db.select().from(chatDigests),
     };
     // Content is BYTE-identical: `{{user}}` stays raw in the user row (it resolves live off the new stamp),
-    // and the assistant's baked "Mara" vocative is story history we never rewrite.
+    // and the assistant's baked "Mira" vocative is story history we never rewrite.
     expect(after.variants).toEqual(before.variants);
     // The rpg state plane and the memory digests are not this verb's rows — untouched, byte for byte.
     expect(after.snapshots).toEqual(before.snapshots);

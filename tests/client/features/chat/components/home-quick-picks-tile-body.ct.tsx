@@ -196,14 +196,14 @@ test("P2-9 the cell's name is a step above its gloss, and both wrap instead of c
 // ── ONE RANK, NOT SIX LOOSE OBJECTS (side-eye home re-score 2026-08-18, #216-d) ─────────────────────
 // `line-clamp-2` CAPS the name at two lines; it never RESERVED them. So in one grid row a one-line name
 // and a two-line name pushed their pitch lines to different baselines — measured on the live shelf at
-// 1920: `descTop` 359 (Mira) vs 380 (Calamity, Doomblade of the Ninth Epoch), a 21px drift you cannot
+// 1920: `descTop` 359 (Tamsin) vs 380 (Calamity, Doomblade of the Ninth Epoch), a 21px drift you cannot
 // unsee. The receipt the review asked for is exactly this: every cell in a row reports the same descTop.
 test("#216 every cell in a row starts its pitch at the same baseline, whatever its name's length", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...NO_ROOMS,
     "character.list": {
       items: [
-        makeCharacterSummary({ id: "char_short", name: "Mira", elevatorPitch: "A burnt-out night-shift medic." }),
+        makeCharacterSummary({ id: "char_short", name: "Tamsin", elevatorPitch: "A burnt-out night-shift medic." }),
         makeCharacterSummary({
           id: "char_long",
           name: "Calamity, Doomblade of the Ninth Epoch",
@@ -252,7 +252,7 @@ test("P3-5 every cell in a row ENDS at the same edge, whatever its pitch's lengt
     ...NO_ROOMS,
     "character.list": {
       items: [
-        makeCharacterSummary({ id: "char_terse", name: "Mira", elevatorPitch: "A medic." }),
+        makeCharacterSummary({ id: "char_terse", name: "Tamsin", elevatorPitch: "A medic." }),
         makeCharacterSummary({
           id: "char_wordy",
           name: "Renata",

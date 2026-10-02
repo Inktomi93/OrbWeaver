@@ -98,14 +98,14 @@ describe("cardFromJson", () => {
 
   test("normalizes a V1 (root-level fields) card", () => {
     const v1 = {
-      name: "Bram",
+      name: "Bryn",
       description: "A gruff smith.",
       personality: "stoic",
       scenario: "a forge",
       first_mes: "What do you want?",
     };
     const card = cardFromJson(v1, "fallback");
-    expect(card.name).toBe("Bram");
+    expect(card.name).toBe("Bryn");
     expect(card.description).toBe("A gruff smith.");
     expect(card.greetings).toEqual([{ text: "What do you want?" }]);
   });
@@ -169,7 +169,7 @@ describe("V3 content promotions + residualData (card-import expansion)", () => {
   });
 
   test("no residual data.* keys → null (not an empty object)", () => {
-    const card = cardFromJson({ data: { name: "Bram" } }, "fallback");
+    const card = cardFromJson({ data: { name: "Bryn" } }, "fallback");
     expect(card.residualData).toBeNull();
   });
 
@@ -363,7 +363,7 @@ describe("spec dispatch + round-trip (Character-Card V2 / V3)", () => {
   });
 
   test("a specless card (V1 / Pygmalion / app-authored) leaves spec undefined", () => {
-    expect(cardFromJson({ name: "Bram", description: "d", personality: "", scenario: "", first_mes: "hi", mes_example: "" }, "fallback").spec).toBeUndefined();
+    expect(cardFromJson({ name: "Bryn", description: "d", personality: "", scenario: "", first_mes: "hi", mes_example: "" }, "fallback").spec).toBeUndefined();
     expect(cardFromJson({ char_name: "Pyg", char_greeting: "hi" }, "fallback").spec).toBeUndefined();
   });
 

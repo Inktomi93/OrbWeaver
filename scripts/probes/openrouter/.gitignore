@@ -1,4 +1,4 @@
-# Scratch output dirs stay on disk; `results/` (the committed JSONL evidence) is re-included.
+# Generated probe conversations stay on disk, not in the public source tree.
 #
 # THIS FILE NO LONGER OWNS THE BIOME FENCE (#2299, 2026-09-13). It used to, as a documented SIDE EFFECT:
 # biome runs with `vcs.useIgnoreFile: true`, reads nested ignore files, and does not honour their
@@ -9,4 +9,3 @@
 # `files.includes`, which `biome.edit.jsonc` inherits by `extends`, and its reason plus END CONDITION are
 # data in `tests/tooling/biome-scripts-probe-scope.int.test.ts`. Change the fence THERE, not here.
 */
-!results/

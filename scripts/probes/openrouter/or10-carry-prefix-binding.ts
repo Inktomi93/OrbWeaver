@@ -46,7 +46,7 @@ const MODES = ["error", "drop_block"] as const;
 type Mode = (typeof MODES)[number];
 
 // Neutral wording: claude-opus-5-5's classifier refused a "group role-play" system prompt in OR-9.
-const SYSTEM = "Three friends, Mara, Wren and Kai, solve puzzles about a garden log together. Reply in one or two sentences, starting with the named friend's name and a colon.";
+const SYSTEM = "Three friends, Mira, Wren and Kai, solve puzzles about a garden log together. Reply in one or two sentences, starting with the named friend's name and a colon.";
 const SOLO_SYSTEM = "You help solve puzzles about a garden log. Reply in one or two sentences.";
 const LORE = (colour: string): string => `Lore: the greenhouse door is painted ${colour}.`;
 const NOTE = "Author's note: end your reply with the word lantern.";
@@ -57,7 +57,7 @@ const QUESTIONS = [
   "Puzzle 3: on which day were carrots first picked?",
   "Puzzle 4: how many days mention the greenhouse?",
 ] as const;
-const CUES = ["[Mara answers next.]", "[Wren answers next.]", "[Kai answers next.]", "[Mara answers next.]"] as const;
+const CUES = ["[Mira answers next.]", "[Wren answers next.]", "[Kai answers next.]", "[Mira answers next.]"] as const;
 const NOTE_DEPTH = 4;
 
 const CROPS = ["beans", "squash", "kale", "peas", "carrots", "leeks", "basil", "onions"];

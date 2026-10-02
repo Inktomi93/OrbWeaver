@@ -20,12 +20,12 @@
 // "no answer yet" are different facts, and only the second one owes a reserved box (`FaceStripPlaceholder`,
 // which carries the measurement that bought it).
 //
-// ONE PITCH (#153, owner-observed live 2026-08-18: "weird fucking spacing between portraits that is
+// ONE PITCH (#153, owner-observed live 2026-08-18: "inconsistent spacing between portraits that is
 // determined by the characters names"). A CAPTIONED face's cell is a fixed `w-avatar-hero` — the same 64px
 // ceiling the caption already truncated at — so the portraits keep one rhythm no matter what the faces are
 // called. The name still drove the CELL until now: the button was content-sized over a `min-w-control-md`
 // floor, so a face called "Bo" measured the floor and one called "Aria Nightshade" measured its caption, and
-// the gap between portraits wobbled per name across a 327-character library.
+// the gap between portraits wobbled per name across a 320-character library.
 //   · It does NOT reverse the P2a ruling below (the caption's own box stays a MAX, not a width): a short
 //     name still takes its natural width and is NOT clipped — it is now CENTRED in a uniform cell instead of
 //     shrinking the cell around itself. Both facts are pinned in face-strip.ct.tsx.
@@ -98,7 +98,7 @@ export interface FaceStripProps {
    *  printed "Filter by character" and announced "Recent characters", so a speech-input user saying the
    *  words on screen addressed nothing and an AT user and a sighted user were told about different lists. */
   readonly label: string;
-  /** Per-face verb for the accessible name, e.g. "Open" → "Open Azarael". @defaultValue "Open" */
+  /** Per-face verb for the accessible name, e.g. "Open" → "Open Aveline". @defaultValue "Open" */
   readonly verb?: string;
   /** Print each face's name under it. Off by default (the favorites strip is portraits only). */
   readonly caption?: boolean;

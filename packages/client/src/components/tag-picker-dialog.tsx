@@ -1,46 +1,19 @@
-// TagPickerDialog — the client-shared tag-name prompt. Four sites across TWO features hand-
-// rolled the byte-identical "type a tag name → Apply/Create" Dialog (character bulk-bar + tags-row,
-// settings tag-create-button). Built ON FormDialog's PROMPT mode. OWNER RULING: lives client-shared (spans
-// character + settings — the RowActionsMenu/ConfirmDialog precedent; NOT @orb/ui — ui stays parts-only).
+// TagPickerDialog is client-shared across character and settings, built on FormDialog prompt mode rather
+// than duplicating the tag-name dialog or moving data wiring into @orb/ui.
 //
-// IT SUGGESTS NOW (tag-experience audit 2026-08-03, the register's highest value-per-effort row). It was a
-// bare `Input` on both lineages: at the owner's ~400-tag library, typing "fan" with no suggestions is
-// exactly how "fantasy", "Fantasy" and "fantsy" become three tags. The two things that fix duplicate rot
-// are both here — the near-duplicate is OFFERED before it can be retyped, and CREATING is a labelled act
-// (the confirm reads `Create "fantsy"`, never a generic Apply that quietly mints a fourth spelling).
+// Suggestions offer existing near-duplicates before a new spelling is authored; creation is explicit in
+// the confirm label. Autocomplete inline keeps suggestions in flow: a popup can cover the footer or make
+// the title/helper inaccessible in a small prompt. A prompt has no safe overlay space above or below its
+// single field.
 //
-// THE SUGGESTIONS ARE IN FLOW, NOT A POPUP (side-eye 2026-08-03 P0). The first cut anchored Base UI's
-// overlay under the field. Measured at the owner's 413-tag library, typing `fan`: an ~347px popup (8 rows)
-// inside a 271–560px dialog ran from y425 to y775 past a card ending at y511, `elementFromPoint(Cancel)`
-// returned a `role="option"` — Cancel AND Apply unclickable — and Base UI's own outside-content hiding put
-// `aria-hidden` on the title, the description, the helper line and the whole footer, collapsing the dialog
-// for AT to a Dismiss button and a combobox. On mobile it flipped ABOVE and ate the title instead. A prompt
-// is not a page-level combobox: there is no room, in either direction, for an overlay anchored to its one
-// field. `Autocomplete inline` renders the same list, same keyboard model, IN the body — so nothing is
-// covered, nothing is `aria-hidden`, and the helper line below is actually always visible, which is what
-// its own comment already claimed.
+// tag.listTagsWithUsage shares the management collection query key and runs only while open. Opening
+// beside a loaded roster is a cache hit; opening from the character library can require a fetch. Pending,
+// failed, and empty reads remain distinct states with a visible retry; data ?? [] must not invite
+// duplicate creation while the library is unresolved.
 //
-// THE READ: `tag.listTagsWithUsage`, the SAME query key the config rail's Tags collection uses, gated on
-// `open` — so a picker opened while that roster is mounted is a cache hit with no request, and a picker
-// opened from the character library (where nothing has loaded the tag library) pays exactly one fetch, once,
-// shared by every later picker. The audit's "already cached, zero new fetches" premise is only true for the
-// first case: `listTagsWithUsage` has no app-wide prefetch (its only two consumers live in features/tag).
-//
-// …WHICH MEANS THE READ CAN BE IN FLIGHT OR BROKEN, AND BOTH ARE STATES (side-eye 2026-08-03 P1). `.data ??
-// []` collapsed three situations into one: measured at open with the query still `pending`, the helper read
-// "No tags yet — the name you type becomes your first one." over a 413-tag library, and on a failed fetch it
-// said so FOREVER, with no error and no retry — then invited creating a tag the user already owns, which is
-// the exact duplicate rot this component exists to prevent. Five states, one total Record.
-//
-// AN ATTACHED TAG IS A MATCH, NOT AN UNKNOWN NAME (#1488). The suggestions drop what is already attached;
-// the create-vs-attach QUESTION must not, or typing the exact name of a tag the target already has reads
-// `Create "fantasy"` — this component offering the duplicate spelling it exists to prevent. So the exact
-// match is taken from the whole library and gets its own third arm: the confirm is refused (button AND
-// Enter) and the helper line says the name is already attached.
-//
-// CANONICAL NAME ON THE WIRE: when the typed text case-insensitively matches an existing tag, the EXISTING
-// tag's spelling is submitted, not the typed one — the server folds case on create, but sending "Fantasy"
-// for a library that says "fantasy" is how a display-name drifts from what the user picked.
+// Suggestions omit already attached tags, but the exact-name decision examines the whole library (#1488).
+// An attached exact match refuses both confirm and Enter and explains why. A case-insensitive existing
+// match submits the library's canonical spelling, not the typed spelling.
 
 import { Autocomplete } from "@orb/ui/autocomplete";
 import { Button } from "@orb/ui/button";

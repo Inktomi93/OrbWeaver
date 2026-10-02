@@ -260,8 +260,8 @@ export function MeterRow({
     // THE BLOCK CARRIES THE COARSE TOUCH FLOOR (#869). Two meter rows stack their editable value cells 36px
     // apart (18px text-height line + the track + `gap-field`), and each cell's 44px hit `::after` therefore
     // ends 14px below its own centre instead of 22 — the row BELOW, painted later, takes the rest. MEASURED at
-    // 430 coarse on the rpg Status card: `Mara Vitality value` yExtent=36 against a 44 floor, its bottom band
-    // resolving to `Mara Resolve value`. Flooring the BLOCK (never the value — `tracker-value.tsx` states the
+    // 430 coarse on the rpg Status card: `Mira Vitality value` yExtent=36 against a 44 floor, its bottom band
+    // resolving to `Mira Resolve value`. Flooring the BLOCK (never the value — `tracker-value.tsx` states the
     // no-shift rule the rest→edit swap depends on) makes the pitch ≥44 so each cell's pseudo fits its own band.
     <Stack gap="field" className={VALUE_ROW_TOUCH_FLOOR_AT_COARSE} data-slot="meter-row" data-unset={value === null}>
       {/* `center` (not `baseline`): the click-to-edit input's border-box baseline sits lower than the

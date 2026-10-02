@@ -33,7 +33,7 @@
 // need no inference but ride the same @live gate (they share the seed harness + the stack the loop specs boot).
 // Run with:  E2E_LIVE=1 pnpm e2e rpg-lite-loop.spec.ts
 //
-// SEED (owner rule): NEVER seed the "Mara" character in a live-inference seed — she destabilizes the 8B →
+// SEED (owner rule): NEVER seed the "Mira" character in a live-inference seed — she destabilizes the 8B →
 // flaky asserts. Each spec mints its OWN spec-owned chatless probe card (Thornwick) on a fresh chat.
 
 import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
@@ -78,7 +78,7 @@ import {
 
 const NON_WHITESPACE = /\S/u;
 
-// A spec-owned, chatless probe card (NOT "Mara" — owner rule). Minted fresh per run so the game seeds on a
+// A spec-owned, chatless probe card (NOT "Mira" — owner rule). Minted fresh per run so the game seeds on a
 // virgin chat (a character WITH prior chats resumes its latest room). The greeting keeps the room model-free.
 const GM_NAME = "Thornwick";
 const GM_GREETING = "The lantern gutters as you step into the Rusted Gate tavern.";

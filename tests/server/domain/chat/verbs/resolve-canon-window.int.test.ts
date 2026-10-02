@@ -23,11 +23,11 @@ test("projects the selected-lineage canon, name-stamped + chronological, within 
   const chatId = await seedChat(db, "w");
   const userId = await seedUser(db, castId<Handle>("host"));
   // seedCharacter/seedPersona use the key as the NAME (character_<key> / persona_<key>).
-  const characterId = await seedCharacter(db, userId, "Mara");
+  const characterId = await seedCharacter(db, userId, "Mira");
   const personaId = await seedPersona(db, userId, "Aldric");
 
   await seedMessage(db, chatId, 1, { role: "user", personaId, content: "I draw my sword." });
-  await seedMessage(db, chatId, 2, { role: "assistant", characterId, content: "Mara parries." });
+  await seedMessage(db, chatId, 2, { role: "assistant", characterId, content: "Mira parries." });
 
   const resolveCanonWindow = createResolveCanonWindow(makeChatContext(db));
   const window = await resolveCanonWindow(chatId, { maxTokens: 10_000 });
@@ -35,7 +35,7 @@ test("projects the selected-lineage canon, name-stamped + chronological, within 
   // Chronological (oldest→newest), name-stamped by role origin (user→persona, assistant→character).
   expect(window.map((m) => ({ role: m.role, speakerName: m.speakerName, content: m.content }))).toEqual([
     { role: "user", speakerName: "Aldric", content: "I draw my sword." },
-    { role: "assistant", speakerName: "Mara", content: "Mara parries." },
+    { role: "assistant", speakerName: "Mira", content: "Mira parries." },
   ]);
   // Every row carries a positive token measure (the consumer budgets off it).
   expect(window.every((m) => m.tokens > 0)).toBe(true);

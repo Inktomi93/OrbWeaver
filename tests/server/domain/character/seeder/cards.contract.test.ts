@@ -146,6 +146,6 @@ describe("DEFAULT_CHARACTER_CARDS — the authored pack parses at the write boun
   test("the purged CardRefinery meta-cards are gone from the pack", () => {
     const handles = DEFAULT_CHARACTER_CARDS.map((c) => c.input.handle);
     expect(handles).not.toContain("rev-card-refinery");
-    expect(handles).not.toContain("mara-soul-check");
+    expect(handles).not.toContain("mira-soul-check");
   });
 });

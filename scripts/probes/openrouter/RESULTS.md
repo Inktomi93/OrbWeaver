@@ -4,7 +4,7 @@
 via OpenRouter (Anthropic pinned, `allow_fallbacks:false`), plus the Anthropic Messages API for F5's native
 reference arms.
 **Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08) · **$0.104** OpenRouter + ~$0.10 Anthropic native (09-23, OR-8) · **$0.86** OpenRouter + ~$0.7 Anthropic native (09-23, OR-9) · **$0.07** OpenRouter + ~$0.6 Anthropic native (09-23, OR-10) · about $0.08 + $1.79 + $0.20 Anthropic native (09-24, OR-11 legs 1, 2 and 3, estimated at list prices) · about $1.19 Anthropic and OpenAI direct (09-25, OR-12 with its smoke runs, estimated at list prices).
-**Raw evidence:** `results/<probe>.jsonl` — every arm's HTTP status + full usage block, append-only.
+**Raw evidence:** privately archived model conversations. Fresh runs write ignored `results/<probe>.jsonl` files. The public measurement tables remain the technical record.
 **Sibling docs:** D174.
 
 | # | Question | Verdict | Consequence |
@@ -274,14 +274,14 @@ Messages direct (`claude-sonnet-5`) and OpenRouter (`anthropic/claude-sonnet-5`,
 (36,669 write / 14,829 read tokens over 30 calls, priced at OR's per-token rates).
 
 The defect under test: in a per-speaker group room, SHAPE's `squashSameRole` (`chat/assembly/role-squash.ts`) joins
-adjacent assistant rows into ONE string. In call 1 the marker sits on `"Mara: …"`. In call 2 that block is
-`"Mara: …\n\nWren: …"`, so the block boundary the entry ended on is gone and the read falls back to the system
-entry. The lane cache-check measured this: `msg_011CfLbSECMApXsYxJBSxnBf` wrote 3159 on Mara's row, and
-`msg_011CfLbSPpYVWa6rGmBypmGb` read 3405, system only. Here the system prompt is short and unmarked, so a miss
+adjacent assistant rows into ONE string. In call 1 the marker sits on `"Mira: …"`. In call 2 that block is
+`"Mira: …\n\nWren: …"`, so the block boundary the entry ended on is gone and the read falls back to the system
+entry. The lane cache-check measured this: `private-message` wrote 3159 on Mira's row, and
+`private-message` read 3405, system only. Here the system prompt is short and unmarked, so a miss
 reads **0**.
 
 Each variant is its own nonce'd two-call pair. P = the long user row, M/W = the two speakers, `*` = the marker. Every
-call ends on a user speaker cue, and the cue differs between the calls (`[Wren speaks next.]`, then `[Mara speaks next.]`).
+call ends on a user speaker cue, and the cue differs between the calls (`[Wren speaks next.]`, then `[Mira speaks next.]`).
 
 | variant | call 1 | call 2 |
 | - | - | - |
@@ -298,48 +298,48 @@ call ends on a user speaker cue, and the cue differs between the calls (`[Wren s
 
 | variant | call | status | response id (run 2) | prompt | write | read | run 1 write / read |
 | - | - | - | - | - | - | - | - |
-| D-control | 1 | 200 | `msg_011CfLcipMyoKvKFJXQ9Bt6X` | 1275 | 1198 | 0 | 2113 / 0 |
-| D-control | 2 | 200 | `msg_011CfLciugxa2jFYaszcYB5J` | 1333 | 0 | **1198** | 0 / 2113 |
-| A-squash | 1 | 200 | `msg_011CfLcizfMYuSySL3b4Wh71` | 1275 | 1261 | 0 | 2176 / 0 |
-| A-squash | 2 | 200 | `msg_011CfLcj5hDKahTZDDc6PvKS` | 1333 | 1319 | **0** | 2234 / 0 |
-| A2-pair | 1 | 200 | `msg_011CfLcjAqXi4UgA7ATnsZ3U` | 1294 | 1280 | 0 | 2210 / 0 |
-| A2-pair | 2 | 200 | `msg_011CfLcjGJCZBAcc5SqurgPR` | 1352 | 121 | **1217** | 121 / 2147 |
-| B-parts | 1 | 200 | `msg_011CfLcjMcB5yWLbUsU8H15r` | 1275 | 1261 | 0 | 2176 / 0 |
-| B-parts | 2 | 200 | `msg_011CfLcjbw9KyRoj6JrhpsSM` | 1332 | 57 | **1261** | 57 / 2176 |
-| C-unsquashed | 1 | 200 | `msg_011CfLcjq4S4E4inABSP1cUj` | 1275 | 1261 | 0 | 2176 / 0 |
-| C-unsquashed | 2 | 200 | `msg_011CfLcjuyMeRcfkGersFZaU` | 1333 | 58 | **1261** | 58 / 2176 |
-| CS-product-spelling | 1 | 200 | `msg_011CfLckPwbn1hv4KfXMw4Ep` | 1294 | 1280 | 0 | not run |
-| CS-product-spelling | 2 | 200 | `msg_011CfLckVRW6pHBjbgioxRSu` | 1352 | 58 | **1280** | not run |
-| EB-parts-tampered | 1 | 200 | `msg_011CfLck17fpHrtZxWHNEF6D` | 1294 | 1280 | 0 | 2210 / 0 |
-| EB-parts-tampered | 2 | 200 | `msg_011CfLck7X8qfN1ox2GxYBMQ` | 1352 | 1338 | **0** | 2268 / 0 |
-| EC-unsquashed-tampered | 1 | 200 | `msg_011CfLckDts3cSFfRWkrPiBd` | 1294 | 1280 | 0 | 2210 / 0 |
-| EC-unsquashed-tampered | 2 | 200 | `msg_011CfLckJgqkcCvsvDWaoAnJ` | 1353 | 1339 | **0** | 2269 / 0 |
+| D-control | 1 | 200 | `private-message` | 1275 | 1198 | 0 | 2113 / 0 |
+| D-control | 2 | 200 | `private-message` | 1333 | 0 | **1198** | 0 / 2113 |
+| A-squash | 1 | 200 | `private-message` | 1275 | 1261 | 0 | 2176 / 0 |
+| A-squash | 2 | 200 | `private-message` | 1333 | 1319 | **0** | 2234 / 0 |
+| A2-pair | 1 | 200 | `private-message` | 1294 | 1280 | 0 | 2210 / 0 |
+| A2-pair | 2 | 200 | `private-message` | 1352 | 121 | **1217** | 121 / 2147 |
+| B-parts | 1 | 200 | `private-message` | 1275 | 1261 | 0 | 2176 / 0 |
+| B-parts | 2 | 200 | `private-message` | 1332 | 57 | **1261** | 57 / 2176 |
+| C-unsquashed | 1 | 200 | `private-message` | 1275 | 1261 | 0 | 2176 / 0 |
+| C-unsquashed | 2 | 200 | `private-message` | 1333 | 58 | **1261** | 58 / 2176 |
+| CS-product-spelling | 1 | 200 | `private-message` | 1294 | 1280 | 0 | not run |
+| CS-product-spelling | 2 | 200 | `private-message` | 1352 | 58 | **1280** | not run |
+| EB-parts-tampered | 1 | 200 | `private-message` | 1294 | 1280 | 0 | 2210 / 0 |
+| EB-parts-tampered | 2 | 200 | `private-message` | 1352 | 1338 | **0** | 2268 / 0 |
+| EC-unsquashed-tampered | 1 | 200 | `private-message` | 1294 | 1280 | 0 | 2210 / 0 |
+| EC-unsquashed-tampered | 2 | 200 | `private-message` | 1353 | 1339 | **0** | 2269 / 0 |
 | N-no-cue | 1 | **400** | — | — | — | — | 400 |
 
 ### OpenRouter (Anthropic pinned)
 
 | variant | call | status | generation id (run 2) | prompt | write | read | run 1 write / read |
 | - | - | - | - | - | - | - | - |
-| D-control | 1 | 200 | `gen-1790177732-ayvrs8Ax3fOG8LT92eQ9` | 1313 | 1236 | 0 | 2181 / 0 |
-| D-control | 2 | 200 | `gen-1790177734-2lmnbYDMAJJ2E9ADwjdp` | 1371 | 0 | **1236** | 0 / 2181 |
-| A-squash | 1 | 200 | `gen-1790177736-ODO9MNNIyYWCorIF42nw` | 1313 | 1299 | 0 | 2244 / 0 |
-| A-squash | 2 | 200 | `gen-1790177737-x2RrHU8yGxMSDCN6vl8c` | 1371 | 1357 | **0** | 2302 / 0 |
-| A2-pair | 1 | 200 | `gen-1790177739-P2b9rEynlA96tCcScew3` | 1332 | 1318 | 0 | 2278 / 0 |
-| A2-pair | 2 | 200 | `gen-1790177740-n6GGtkkqdjXu6DtgRfO9` | 1390 | 121 | **1255** | 121 / 2215 |
-| B-parts | 1 | 200 | `gen-1790177742-x0EpDOUREXNngheiOtTX` | 1313 | 1299 | 0 | 2244 / 0 |
-| B-parts | 2 | 200 | `gen-1790177743-3Y2D6hLHKYu3z3w2FLSy` | 1370 | 57 | **1299** | 57 / 2244 |
-| C-unsquashed | 1 | 200 | `gen-1790177745-zrfz7wnxIESJTHzr8btr` | 1313 | 1299 | 0 | 2244 / 0 |
-| C-unsquashed | 2 | 200 | `gen-1790177746-Plh6LANYNgzdFPObzUsr` | 1370 | 57 | **1299** | 57 / 2244 |
-| CS-product-spelling | 1 | 200 | `gen-1790177754-bLzCrl379LVcQs9QtRZL` | 1332 | 1318 | 0 | not run |
-| CS-product-spelling | 2 | 200 | `gen-1790177756-RGsEkwLcMfhjWIcM2tga` | 1389 | 57 | **1318** | not run |
-| EB-parts-tampered | 1 | 200 | `gen-1790177747-fJLSolHJIhuHE8pWzqmi` | 1332 | 1318 | 0 | 2278 / 0 |
-| EB-parts-tampered | 2 | 200 | `gen-1790177749-YRBfRca9psLB2xx8Biyk` | 1390 | 1376 | **0** | 2336 / 0 |
-| EC-unsquashed-tampered | 1 | 200 | `gen-1790177750-j5VYDmZdds4aghCYts2P` | 1332 | 1318 | 0 | 2278 / 0 |
-| EC-unsquashed-tampered | 2 | 200 | `gen-1790177752-lGFC40xOyuwiU5lrWvgd` | 1390 | 1376 | **0** | 2336 / 0 |
+| D-control | 1 | 200 | `private-request` | 1313 | 1236 | 0 | 2181 / 0 |
+| D-control | 2 | 200 | `private-request` | 1371 | 0 | **1236** | 0 / 2181 |
+| A-squash | 1 | 200 | `private-request` | 1313 | 1299 | 0 | 2244 / 0 |
+| A-squash | 2 | 200 | `private-request` | 1371 | 1357 | **0** | 2302 / 0 |
+| A2-pair | 1 | 200 | `private-request` | 1332 | 1318 | 0 | 2278 / 0 |
+| A2-pair | 2 | 200 | `private-request` | 1390 | 121 | **1255** | 121 / 2215 |
+| B-parts | 1 | 200 | `private-request` | 1313 | 1299 | 0 | 2244 / 0 |
+| B-parts | 2 | 200 | `private-request` | 1370 | 57 | **1299** | 57 / 2244 |
+| C-unsquashed | 1 | 200 | `private-request` | 1313 | 1299 | 0 | 2244 / 0 |
+| C-unsquashed | 2 | 200 | `private-request` | 1370 | 57 | **1299** | 57 / 2244 |
+| CS-product-spelling | 1 | 200 | `private-request` | 1332 | 1318 | 0 | not run |
+| CS-product-spelling | 2 | 200 | `private-request` | 1389 | 57 | **1318** | not run |
+| EB-parts-tampered | 1 | 200 | `private-request` | 1332 | 1318 | 0 | 2278 / 0 |
+| EB-parts-tampered | 2 | 200 | `private-request` | 1390 | 1376 | **0** | 2336 / 0 |
+| EC-unsquashed-tampered | 1 | 200 | `private-request` | 1332 | 1318 | 0 | 2278 / 0 |
+| EC-unsquashed-tampered | 2 | 200 | `private-request` | 1390 | 1376 | **0** | 2336 / 0 |
 | N-no-cue | 1 | **400** | — | — | — | — | 400 |
 
 N-no-cue gave the same error on both wires. OR relays it with `provider_name: Anthropic`, request
-`req_011CfLcnQuhbYwBFo8fHX4UR`. Verbatim:
+`private-request`. Verbatim:
 
 ```text
 400 invalid_request_error: This model does not support assistant message prefill. The conversation must end with a user message.
@@ -347,27 +347,27 @@ N-no-cue gave the same error on both wires. OR relays it with `provider_name: An
 
 ### What OpenRouter sends upstream
 
-These are the echoed `messages`, with long text cut to its head and length. The upstream `system` is
+These neutral illustrations retain the observed roles, content-part boundaries, speaker cues and cache-marker placement. Recorded conversation text, request identifiers and run nonces are privately archived. The upstream `system` shape is
 `[{type:"text", text:<the system prompt>}]` on every call.
 
 ```text
 A-squash call 2: one string, and the marker covers the whole joined block
-[{"role":"user","content":[{"type":"text","text":"The chronicle so far:\n[or8-openrouter-1790177732…(3136 chars)"}]},
- {"role":"assistant","content":[{"type":"text","text":"Mara: I set the lantern on the salt-crusted tabl…(327 chars)","cache_control":{"type":"ephemeral"}}]},
- {"role":"user","content":[{"type":"text","text":"[Mara speaks next.]"}]}]
+[{"role":"user","content":[{"type":"text","text":"Synthetic conversation history"}]},
+ {"role":"assistant","content":[{"type":"text","text":"Mira: The parcel is blue.\n\nWren: Its label says north.","cache_control":{"type":"ephemeral"}}]},
+ {"role":"user","content":[{"type":"text","text":"[Mira speaks next.]"}]}]
 
 C-unsquashed call 2: we sent TWO assistant messages; OR sent ONE message with two text parts, byte-identical to B-parts call 2
-[{"role":"user","content":[{"type":"text","text":"The chronicle so far:\n[or8-openrouter-1790177732…(3136 chars)"}]},
- {"role":"assistant","content":[{"type":"text","text":"Mara: I set the lantern on the salt-crusted tabl…(168 chars)"},
-                                {"type":"text","text":"Wren: I lean over her shoulder and squint at the…(157 chars)","cache_control":{"type":"ephemeral"}}]},
- {"role":"user","content":[{"type":"text","text":"[Mara speaks next.]"}]}]
+[{"role":"user","content":[{"type":"text","text":"Synthetic conversation history"}]},
+ {"role":"assistant","content":[{"type":"text","text":"Mira: The parcel is blue."},
+                                {"type":"text","text":"Wren: Its label says north.","cache_control":{"type":"ephemeral"}}]},
+ {"role":"user","content":[{"type":"text","text":"[Mira speaks next.]"}]}]
 
 CS call 2: an unmarked plain-string assistant message and a one-part marked one fold into the same two parts;
 user strings pass through as strings
-[{"role":"user","content":"The chronicle so far:\n[or8-openrouter-1790177732…(3155 chars)"},
- {"role":"assistant","content":[{"type":"text","text":"Mara: I set the lantern on the salt-crusted tabl…(168 chars)"},
-                                {"type":"text","text":"Wren: I lean over her shoulder and squint at the…(157 chars)","cache_control":{"type":"ephemeral"}}]},
- {"role":"user","content":"[Mara speaks next.]"}]
+[{"role":"user","content":"Synthetic conversation history"},
+ {"role":"assistant","content":[{"type":"text","text":"Mira: The parcel is blue."},
+                                {"type":"text","text":"Wren: Its label says north.","cache_control":{"type":"ephemeral"}}]},
+ {"role":"user","content":"[Mira speaks next.]"}]
 ```
 
 OpenRouter does not merge content parts, and it does not move the marker. It does fold consecutive same-role
@@ -552,12 +552,6 @@ Constant: top-level system prompt, `u1` (a houseplant question), a fixed `a1` re
 
 Request ids, in trial order:
 
-- sonnet-5 `system`: `req_011CfNXQZmZTRoQtXrNmjd1p` (smoke), `req_011CfNXR4GKK4kk4M38AEE5h`, `req_011CfNXR9V6crWDai7bkDQFS`, `req_011CfNXRNjp8NaqVVdjszyDJ`, `req_011CfNXRezNQVL5i3uQypeZ1` (missed), `req_011CfNXRooSzZE3SjvnUwbbY`
-- sonnet-5 `folded`: `req_011CfNXRyS8WqpUeD4GsBQud`, `req_011CfNXS7NsbZz2qHWwXpRSa`, `req_011CfNXSFAw1dLBkmDAijenn` (honoured), `req_011CfNXSQ5TdRuhrdRWvUsqh`, `req_011CfNXSWr1DCjW8qZunFZjk`
-- opus-4-8 `system`: `req_011CfNXSh1w73PuN9rFBMZ1W`, `req_011CfNXSr9ra9eCG79nHjMfc`, `req_011CfNXT18cFSH7ae3EjzS5v`, `req_011CfNXTALVwjPYeDBjDuu9h`, `req_011CfNXTJuBr5AAY42bdNtr9`
-- opus-4-8 `folded`: `req_011CfNXTSRdEdL227Mp2YaLR`, `req_011CfNXTa4WYwT1B6eBW57Ck`, `req_011CfNXTiF8jELCnXmjP6RQR`, `req_011CfNXTrJKbE3FVVisBsGZL`, `req_011CfNXTzfc25LE7tptuKnQf`
-- opus-5-5 `system`: `req_011CfNXU8pF5RGPWKi63ZvEu`, `req_011CfNXUKHXsrDKLq7nDgXQ1`, `req_011CfNXUWeexLaSu2pm2C43s`, `req_011CfNXUjVpH6UgZaCDfRMVu`, `req_011CfNXUuzMHUCw9svhU1SPK`
-- opus-5-5 `folded`: `req_011CfNXV5Z4jHigetQPwLpQx`, `req_011CfNXVGWP9jvCYpnwNxXWY`, `req_011CfNXVUhMm6D1UFhBek6Qt`, `req_011CfNXVfU1Q1dGgkHFaEzEm`, `req_011CfNXVsBhgcAUQ6VWBCTjV`
 
 ### Verdict
 
@@ -605,7 +599,6 @@ Every cell is 5 trials. The finalists (`b`, `c`, `d` with `consideration` and `b
 
 opus-5-5 control on the finalists (5 trials each): `standing` 5/5 on `c/consideration`, `c/bare`, `d/consideration`, `d/bare`; `next` 5/5 on `d/consideration` and `d/bare`, 0/5 on `c/consideration` and `c/bare`.
 
-Sample request ids (first and last trial of a cell): today's `b/consideration` standing sonnet-5 `req_011CfNagYicJ8u4DZgL3zieo` … `req_011CfNcAVbywmdSy9BnoZhYn`; `d/consideration` standing sonnet-5 `req_011CfNb1g9cesANnPoAKePRT` … `req_011CfNcMVKR94osvZbJ91X8b`, opus-4-8 `req_011CfNb2LArbP6L3b4U89sr7` … `req_011CfNcNsdsgydyyBE2hYSFz`, opus-5-5 `req_011CfNcBcSX3vwYcJgbBecBw` … `req_011CfNcCPbsn5wAi2sgKQVui`; `d/consideration` next sonnet-5 `req_011CfNbpi8F771P1PhojjJtj` … `req_011CfNcgna2h648GUEoquxWE`, opus-4-8 `req_011CfNbqJUxuXvcb2W5yDYak` … `req_011CfNciURBW24KbLgfrWpn4`.
 
 ### Leg 2 verdict
 
@@ -643,7 +636,6 @@ Sample request ids (first and last trial of a cell): today's `b/consideration` s
 | `e/consideration` (the trailing fold before this change) | 0/10 | 6/10 |
 | `e/bare` (the shipped trailing fold) | 0/10 | 9/10 |
 
-Sample request ids (first and last trial): `b/consideration` next `req_011CfNeieXsbdcbFbk5Qokgd` … `req_011CfNemAPnU1HczRZQ1F7MP`; `c/bare` next `req_011CfNequm73NFZ9tBhNJB4g` … `req_011CfNesR1XeUbHdjsV1pWHb`; `e/bare` next `req_011CfNeucmGLBjWEuA3ehruY` … `req_011CfNew5kWhdRxLA9ALEKsY`; `d/bare` standing `req_011CfNeyao4QNxrejAuo4D2k` … `req_011CfNf1Q9AZhNfDBw6cKzbf`.
 
 **Verdict.** haiku-4-5 improves under the shipped fold and loses nothing. A next-reply note goes from 2/10 to 10/10 at depth 2 and from 6/10 to 9/10 at the tail. haiku-4-5 follows no standing note in any user-text placement, the latest message included (`d` 0/10 with either frame), so no fold placement fixes that; it is the model, not the fold. At depth 2 haiku-4-5 follows a next-reply note that names a reply already given, which opus-5-5 declines (leg 2); the probe counts it as honoured.
 
@@ -693,12 +685,6 @@ Where the wire put things, read from the captured request body: on sonnet-5 the 
 
 Request ids, in call order (`2f0fceae`; the last of each is the replay):
 
-- sonnet-5 `off`: `req_011CfPgw2AT44afzR8EzepDF`, `req_011CfPgwHvEiqZa9tsXjKXaj`, `req_011CfPgwcaePghg2HLfgbkv3`, `req_011CfPgwqGPf65V2gfoAJbBy`, `req_011CfPgx6DZPwmPDmfDYPXAD`, `req_011CfPgxPuRwijPagdaYaA6V`
-- sonnet-5 `below`: `req_011CfPgxjbMZPe5fGXzZCCrV`, `req_011CfPgyohgsm9r1ibJBbpMf`, `req_011CfPgzSJbmdzTnWYpLqp34`, `req_011CfPh13uEeamoKFVWGm5Cu`, `req_011CfPh1WPgp4KQ9nk72NvCa`, `req_011CfPh2FKMvQdG5uRvK5CLJ`
-- sonnet-5 `above`: `req_011CfPh2yDmAibYcyewi1pki`, `req_011CfPh3WE5L7BAVoxqgEZTQ`, `req_011CfPh4FW5TYBTX73KyaY22`, `req_011CfPh4eMW1EAednRUyn3d3`, `req_011CfPh4y7cqTLuVzVkcTJFi`, `req_011CfPh5XMbhCGJtLt6ErVnZ`
-- OpenAI `off`: `req_77e10e95250545109581f0ae1d789b83`, `req_03ae8c84a2e54c4280a450788f0b9d24`, `req_33c9f8625a77416b821eec2437dcb841`, `req_91ed55f926eb47a491db23d05c69e8cc`, `req_d4312cd8da6944b8baffc492651679b0`, `req_788a936c2aa6464da137ce63fa953131`
-- OpenAI `below`: `req_adaaa6ec2e184f87a2b3b1245ed29659`, `req_c9ba1ea4eb4944dbb46285a0a92b130e`, `req_4a947846679947c2941f133a5e3cf225` (the full miss), `req_94bb37544efe476cba97075ba0153994`, `req_a388db18f850412aae900b04baf71917`, `req_05c904f4da644fea8d611d9925761829`
-- OpenAI `above`: `req_256fc36d4a5945f1803f93fa8fa51d8f`, `req_f9f54b9e65be48dbb2196a21fd51759d`, `req_60ee586360b44073b419c1001ee7d7a8`, `req_0b30ffd2ba674256a29707c8a37d2b03`, `req_6e2b267bf0164608aabff750eb277303`, `req_e4641b53ffa24a96a717e633edcceb6f`
 
 The repeat runs' ids are in `results/or12.jsonl` under their `runId`.
 
@@ -706,7 +692,7 @@ The repeat runs' ids are in `results/or12.jsonl` under their `runId`.
 
 1. **Above Chat History, per-turn sections cost the whole history its cache on both wires.** Every steady turn read 0 and rewrote the full prompt. Each arm's replay read 0.98 to 0.999, so the cache worked; the edited system prompt made every later byte a new prefix. On sonnet-5 that is a 1h-TTL write of about 13k tokens every turn.
 2. **Below Chat History (shipped), the loss is the per-turn tail.** On sonnet-5 each turn reads 0.95 to 0.98 of the previous prompt, against 0.97 to 0.999 with the sections off (the first pair is lower in both arms). The difference is the folded sections and the previous turn's rows, which sit after the deepest marker. The replay reads 0.980, not 0.999, because the fold rides the latest user message, which carries no marker.
-3. **On OpenAI the shipped placement reads 0.92 to 0.93 in two runs.** One pair in twelve read 0 (`req_4a947846…`), and the replay after it read 0.985. The off arm read 0.98 to 0.99 on all twelve of its pairs. OpenAI caches best effort, and orb sends no `prompt_cache_key`. This sample cannot say whether that miss comes from the placement.
+3. **On OpenAI the shipped placement reads 0.92 to 0.93 in two runs.** One pair in twelve read 0 (`private-request`), and the replay after it read 0.985. The off arm read 0.98 to 0.99 on all twelve of its pairs. OpenAI caches best effort, and orb sends no `prompt_cache_key`. This sample cannot say whether that miss comes from the placement.
 4. **What the default-preset move (item 0159) bought:** input cost per turn drops from $0.0529 to $0.0047 on sonnet-5 (11x) and from $0.0039 to $0.0012 to $0.0019 on OpenAI (2x to 3x). Against sections off, the shipped placement costs $0.0014 more input per turn on sonnet-5 and up to $0.0009 on OpenAI.
 
 ### Findings (not built here)

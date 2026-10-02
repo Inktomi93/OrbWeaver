@@ -42,7 +42,7 @@ const leaderboardResponder: LeaderboardResponder = (input) => {
   // "Recent" ranks Bolt first (latest activity); the default (replies) ranks Aria first.
   const rows = sort === "lastActivityAt" ? [BOLT, ARIA] : [ARIA, BOLT];
   // A PAGE, not an array: the rows are capped and `total` is the population they were cut from.
-  return { rows, total: 328 };
+  return { rows, total: 330 };
 };
 
 test("the leaderboard renders ranked rows on the default sort", async ({ mount, page }) => {
@@ -72,15 +72,15 @@ test("a row whose turns carry no token accounting renders a dash, not `0 tok`", 
 // P3a: two characters sharing a name were indistinguishable in the row AND in its accessible name, so
 // "your top character" and "the falling one" could be different people with the same label.
 test("duplicate names are disambiguated in the row and in its accessible name", async ({ mount, page }) => {
-  const twinA = { ...ARIA, characterId: "character_aaaak3f9", name: "Mira" };
-  const twinB = { ...BOLT, characterId: "character_bbbbq7x2", name: "Mira" };
+  const twinA = { ...ARIA, characterId: "character_aaaak3f9", name: "Tamsin" };
+  const twinB = { ...BOLT, characterId: "character_bbbbq7x2", name: "Tamsin" };
   await routeTrpc(page, { "stats.leaderboard": () => ({ rows: [twinA, twinB], total: 2 }) });
   const component = await mount(<AnalyticsListSurfaceStory />);
 
   // The accessible NAME carries the ref (ListRow's aria-label is the title), so the rows are tellable
   // apart by a screen reader too, not only by eye.
-  await expect(component.getByRole("button", { name: "Mira (#k3f9)" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Mira (#q7x2)" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Tamsin (#k3f9)" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Tamsin (#q7x2)" })).toBeVisible();
 });
 
 // D13 (#711 re-audit): on a FIRST-LOAD failure the query settles `isError` true while `page` is still
@@ -135,7 +135,7 @@ test("the leaderboard is an accessible list of listitems (not a bare role=list)"
 // the viewport's, not asserted.
 test("a large leaderboard renders only a windowed slice of rows (virtualized)", async ({ mount, page }) => {
   const many = Array.from({ length: 60 }, (_v, i) => ({ ...ARIA, characterId: `char_${i}`, name: `Char ${i}`, assistantTurns: 60 - i }));
-  await routeTrpc(page, { "stats.leaderboard": () => ({ rows: many, total: 328 }) });
+  await routeTrpc(page, { "stats.leaderboard": () => ({ rows: many, total: 330 }) });
   const component = await mount(<AnalyticsListSurfaceStory />);
 
   await expect(component.getByText("Char 0")).toBeVisible();

@@ -4,7 +4,7 @@
 // tail-fetch guard, or a suspending variant.
 //
 // WHY IT EXISTS: `listChats` used to serve the caller's ENTIRE membership list, and every row costs the verb
-// a per-chat participant resolve — an 872-chat import turned one pane mount into ~880 queries and ~872
+// a per-chat participant resolve — an 880-chat import turned one pane mount into ~880 queries and ~880
 // rendered rows. The read is now a keyset page and the rows ride `<VirtualList>`.
 //
 // ALL narrowing axes resolve SERVER-side, and each is part of the query INPUT — so changing one resets the

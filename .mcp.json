@@ -3,7 +3,7 @@
     "codegraph": {
       "type": "stdio",
       "command": "codegraph",
-      "args": ["serve", "--mcp", "-p", "~/dev/orbweaver"],
+      "args": ["serve", "--mcp", "-p", "."],
       "alwaysLoad": true
     }
   }

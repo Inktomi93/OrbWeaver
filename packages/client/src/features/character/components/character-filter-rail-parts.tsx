@@ -28,10 +28,9 @@ import { vocabularyPanelTags } from "../lib/character-library-lens.ts";
 const TAG_CHIP_SELECTOR = "[data-tag-filter-state]";
 const EDIT_LABEL_KEY = "F2";
 
-/** How many panel chips one animation frame mounts. The expansion's whole cost used to land in the click's
- *  own task (648ms blocking, `dispatchDiscreteEvent`); mounting in chunks keeps the FIRST paint to this many
- *  chips and hands every later batch its own frame, so no single task owns the vocabulary. 48 is the widest
- *  batch that stayed inside the 200ms INP budget at the owner's 551-tag library. */
+/** The expansion mounts chips in frame-sized chunks so the first paint stays bounded and later batches run
+ *  in separate tasks. This is a rendering budget, not a limit on the available vocabulary.
+ */
 const TAG_CHIP_CHUNK = 48;
 
 /** How one chip STATE presents itself. One interface + one total Record = a fourth state is a tsc error
@@ -135,15 +134,6 @@ export function TagVocabularyPanel({
         />
         <RailAction accessibleName="Show fewer tags" controls={panelId} expanded={true} label="Show fewer" onClick={onCollapse} />
       </Row>
-      {/* `wrapContent` IS LOAD-BEARING, and it took a rendered shot to find it (`done ≠ rendered`):
-          ScrollArea's content wrapper measures at `min-width: fit-content` so a horizontally-overflowing
-          child can size past the viewport — right for its usual tenant, exactly wrong for a WRAPPING rail,
-          which then lays out at max-content and never wraps. Measured without it, live at 290px: 551 chips
-          on ONE clipped line behind a horizontal scrollbar, with the vertical cap working perfectly above
-          it. (It is a primitive prop, not a `className`: Base UI sets that min-width INLINE, so no class
-          short of an `!important` escape can outrank it.)
-          The cap goes on the VIEWPORT, not the root: a root whose own height is auto cannot make the
-          viewport's `h-full` definite, so the region would CLIP at 192px instead of scrolling. */}
       {/* THE VIEWPORT IS A NAMED REGION (#523, side-eye se-verify-1). Base UI makes an overflowing viewport
           `tabindex=0`, and correctly so — a scroll region a keyboard user cannot reach is a trap — but an
           unnamed one announces as a bare generic between "Show fewer tags" and the tag toolbar, i.e. a stop

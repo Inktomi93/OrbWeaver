@@ -177,8 +177,6 @@ export type PresetId = TypeIdOf<"preset">;
 export type ThemeId = TypeIdOf<"theme">;
 export type WorldBookId = TypeIdOf<"world_book">;
 export type WorldEntryId = TypeIdOf<"world_entry">;
-/** A row in the owner-stamped regex SCRIPT LIBRARY (D121-E — the world-info pattern: one store, attached
- *  at scopes through per-type FK junctions). Distinct from the client-minted UUID an ST card carries. */
 export type RegexScriptId = TypeIdOf<"regex_script">;
 export type TagId = TypeIdOf<"tag">;
 export type AssetId = TypeIdOf<"asset">;

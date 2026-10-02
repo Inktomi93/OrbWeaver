@@ -247,7 +247,7 @@ export function formatMonthLabel(month: string): string {
 }
 
 /** Display names for a leaderboard page, keyed by character id: a name shared by two or more characters
- *  gets a stable short id ref appended (`Mira (#k3f9)`), everyone else is untouched. Two identically
+ *  gets a stable short id ref appended (`Tamsin (#k3f9)`), everyone else is untouched. Two identically
  *  named characters were indistinguishable in the row, in its accessible name, and in the crown callout —
  *  so "your top character" and "the falling one" could not be told apart. The ref is the ID's tail rather
  *  than an ordinal because an ordinal changes under every sort. */

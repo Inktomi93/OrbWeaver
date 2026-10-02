@@ -68,14 +68,14 @@ function chatJsonl(userName: string, characterName: string, meta: Record<string,
 
 /** A real-shaped ST GROUP-CHAT `.jsonl`: the per-line `original_avatar` (the SPEAKING CARD'S FILENAME) is the
  *  identity key an ST group export actually carries — verbatim from a real `group chats/*.jsonl` in the corpus,
- *  where every assistant line stamps `original_avatar: "Rowan.png"` beside the display `name`. */
+ *  where every assistant line stamps `original_avatar: "Briar.png"` beside the display `name`. */
 function groupChatJsonl(userName: string): string {
   return [
     JSON.stringify({ user_name: userName, character_name: "unused", create_date: "2025-07-18@12h00m00s" }),
     JSON.stringify({ name: "Aria", is_user: false, original_avatar: "Aria.png", mes: "Aria speaks.", send_date: "2025-07-18@12h00m01s" }),
     JSON.stringify({ name: userName, is_user: true, mes: "Hi both!", send_date: "2025-07-18@12h00m02s" }),
     // No `original_avatar` — the pre-group-era shape; resolves by the roster-SCOPED display name instead.
-    JSON.stringify({ name: "Bram", is_user: false, mes: "Bram answers.", send_date: "2025-07-18@12h00m03s" }),
+    JSON.stringify({ name: "Bryn", is_user: false, mes: "Bryn answers.", send_date: "2025-07-18@12h00m03s" }),
     // A speaker that is NEITHER seated NOR named in the roster → falls through to the room's primary.
     JSON.stringify({ name: "Ghost", is_user: false, original_avatar: "Ghost.png", mes: "A stranger.", send_date: "2025-07-18@12h00m04s" }),
   ].join("\n");
@@ -86,7 +86,7 @@ function groupChatJsonl(userName: string): string {
 function groupJson(members: readonly string[], chats: readonly string[], over: Record<string, unknown> = {}): string {
   return JSON.stringify({
     id: "1773514134935",
-    name: "Group: Aria + Bram",
+    name: "Group: Aria + Bryn",
     members,
     avatar_url: "/thumbnail?type=avatar&file=Aria.png",
     allow_self_responses: false,
@@ -523,7 +523,7 @@ describe("runProfileDirImport", () => {
     // import mid-loop — "hundreds of characters, only 2 imported". The backfill is now deferred to ONE enqueue
     // after the entire import, so every character lands and embeddings never run mid-import.
     const files: Record<string, Uint8Array> = {};
-    for (const name of ["Aria", "Bram", "Cleo", "Dex"]) {
+    for (const name of ["Aria", "Bryn", "Cleo", "Dex"]) {
       files[`root/userA/characters/${name}.png`] = cardPng(name);
       files[`root/userA/chats/${name}/chat1.jsonl`] = ENC.encode(chatJsonl("Alex", name));
     }
@@ -640,10 +640,10 @@ describe("runProfileDirImport", () => {
 function presetAndGroupFiles(root: string): Record<string, Uint8Array> {
   return {
     [`${root}/userA/characters/Aria.png`]: cardPng("Aria"),
-    [`${root}/userA/characters/Bram.png`]: cardPng("Bram"),
+    [`${root}/userA/characters/Bryn.png`]: cardPng("Bryn"),
     [`${root}/userA/OpenAI Settings/Marinara.json`]: ENC.encode(openAiPresetJson()),
     [`${root}/userA/settings.json`]: ENC.encode(JSON.stringify({ oai_settings: JSON.parse(openAiPresetJson({ temperature: 0.7 })) })),
-    [`${root}/userA/groups/1773514134935.json`]: ENC.encode(groupJson(["Aria.png", "Bram.png"], ["party-night"])),
+    [`${root}/userA/groups/1773514134935.json`]: ENC.encode(groupJson(["Aria.png", "Bryn.png"], ["party-night"])),
     [`${root}/userA/group chats/party-night.jsonl`]: ENC.encode(groupChatJsonl("Alex")),
   };
 }
@@ -732,10 +732,10 @@ describe("runProfileDirImport — ST groups", () => {
     // card-filename → characterId map exist at all).
     const groupWrite = f.chatWrites.at(-1);
     const chat = groupWrite?.chats[0];
-    // Aria is the room's PRIMARY (ST's first member); Bram is the extra roster seat.
+    // Aria is the room's PRIMARY (ST's first member); Bryn is the extra roster seat.
     expect(groupWrite?.characterId).toBe(castId<CharacterId>("chr_1"));
     expect(chat?.characterIds).toEqual([castId<CharacterId>("chr_2")]);
-    // Per-turn attribution: `original_avatar` resolves Aria BY CARD FILENAME; Bram's line carries none, so the
+    // Per-turn attribution: `original_avatar` resolves Aria BY CARD FILENAME; Bryn's line carries none, so the
     // roster-scoped display name resolves it; the user turn is never character-attributed; and an off-roster
     // speaker falls through to the primary by carrying NO characterId (absent ⇒ primary, per the op's contract).
     expect(chat?.messages.map((m) => m.characterId)).toEqual([castId<CharacterId>("chr_1"), undefined, castId<CharacterId>("chr_2"), undefined]);
@@ -746,7 +746,7 @@ describe("runProfileDirImport — ST groups", () => {
   test("ST generation_mode 1 (append) becomes a NARRATOR room", async () => {
     const files = {
       ...presetAndGroupFiles("root"),
-      "root/userA/groups/g.json": ENC.encode(groupJson(["Aria.png", "Bram.png"], ["party-night"], { generation_mode: 1 })),
+      "root/userA/groups/g.json": ENC.encode(groupJson(["Aria.png", "Bryn.png"], ["party-night"], { generation_mode: 1 })),
     };
     const fs = memoryFs(files);
     const f = fakes();
@@ -771,7 +771,7 @@ describe("runProfileDirImport — ST groups", () => {
 
     expect(report.groupsImported).toBe(1);
     expect(report.skippedGroupMembers).toEqual([
-      { group: "Group: Aria + Bram", member: "Nobody.png", reason: "no character with that card filename in the import set or the library" },
+      { group: "Group: Aria + Bryn", member: "Nobody.png", reason: "no character with that card filename in the import set or the library" },
     ]);
     // One seat only — the room formed around the member that did resolve.
     expect(f.chatWrites.at(-1)?.chats[0]?.characterIds).toEqual([]);
@@ -785,7 +785,7 @@ describe("runProfileDirImport — ST groups", () => {
     const report = await runProfileDirImport(deps(fs, f));
 
     expect(report.groupsImported).toBe(0);
-    expect(report.skippedGroups).toEqual([{ group: "Group: Aria + Bram", reason: "none of its member cards resolved to an imported or existing character" }]);
+    expect(report.skippedGroups).toEqual([{ group: "Group: Aria + Bryn", reason: "none of its member cards resolved to an imported or existing character" }]);
     // The character wave still landed both cards.
     expect(f.log.filter((l) => l === "character.create")).toHaveLength(2);
   });
@@ -793,7 +793,7 @@ describe("runProfileDirImport — ST groups", () => {
   test("a transcript leaf the group claims but that has no file is recorded, never silent", async () => {
     const files = {
       ...presetAndGroupFiles("root"),
-      "root/userA/groups/1773514134935.json": ENC.encode(groupJson(["Aria.png", "Bram.png"], ["party-night", "gone"])),
+      "root/userA/groups/1773514134935.json": ENC.encode(groupJson(["Aria.png", "Bryn.png"], ["party-night", "gone"])),
     };
     const fs = memoryFs(files);
     const f = fakes();
@@ -820,7 +820,7 @@ describe("runProfileDirImport — ST groups", () => {
     expect(groupChat?.messages[0]?.createdAt).toBe(DENVER_CREATE_MS + ONE_SECOND_MS);
     // The title's date is rendered from the SAME instant in the SAME zone — it was already zone-correct
     // (the group verb threads the zone to the mapper), which is exactly why the drift stayed invisible.
-    expect(groupChat?.title).toBe("Group: Aria + Bram — Jul 18, 2025");
+    expect(groupChat?.title).toBe("Group: Aria + Bryn — Jul 18, 2025");
   });
 
   test("a byte-identical second run is a clean idempotent no-op across BOTH new planes", async () => {
@@ -967,17 +967,17 @@ describe("runProfileDirImport — ST groups", () => {
   test("an orphan chats/ dir mints a placeholder (evidence-only), imports its chats, and is tagged for the owner", async () => {
     const files: Record<string, Uint8Array> = {
       ...fixtureFiles("root"),
-      // A REAL corpus shape: `Bonnie_Cow/` has no `Bonnie_Cow.png` card; its header carries the `"unused"`
+      // The synthetic `Clover_Owl/` has no `Clover_Owl.png` card; its header carries the `"unused"`
       // sentinel, so the DIR NAME is the mint's evidence.
-      "root/userA/chats/Bonnie_Cow/Bonnie Cow - 2025-07-18@12h00m00s.jsonl": ENC.encode(chatJsonl("Alex", "unused")),
+      "root/userA/chats/Clover_Owl/Clover Owl - 2025-07-18@12h00m00s.jsonl": ENC.encode(chatJsonl("Alex", "unused")),
     };
     const f = fakes();
 
     const report = await runProfileDirImport(deps(memoryFs(files), f));
 
     // The FOUND list still names the dir (the honesty line), and the new section says what happened to it.
-    expect(report.orphanChatDirs).toEqual(["bonnie-cow"]);
-    expect(report.orphanImports).toEqual([{ dir: "Bonnie_Cow", characterName: "Bonnie Cow", created: true, chatsImported: 1 }]);
+    expect(report.orphanChatDirs).toEqual(["clover-owl"]);
+    expect(report.orphanImports).toEqual([{ dir: "Clover_Owl", characterName: "Clover Owl", created: true, chatsImported: 1 }]);
     expect(report.orphanSkipped).toEqual([]);
     // The mint is discoverable: ONE library tag, manual/accepted, on the minted character (chr_2 — the card
     // character chr_1 minted first).
@@ -989,7 +989,7 @@ describe("runProfileDirImport — ST groups", () => {
 
     // The RE-RUN: the synthetic dir-keyed hash resolves the same mint; the chat dedups by its byte hash.
     const second = await runProfileDirImport(deps(memoryFs(files), f));
-    expect(second.orphanImports).toEqual([{ dir: "Bonnie_Cow", characterName: "Bonnie Cow", created: false, chatsImported: 0 }]);
+    expect(second.orphanImports).toEqual([{ dir: "Clover_Owl", characterName: "Clover Owl", created: false, chatsImported: 0 }]);
     expect(second.changed).toBe(0);
     // No second tag — the tag attaches only on a CREATE.
     expect(f.tagAttaches).toHaveLength(1);
@@ -998,13 +998,13 @@ describe("runProfileDirImport — ST groups", () => {
   test("dryRun leaves orphan dirs reported-only (zero mints, zero writes)", async () => {
     const files: Record<string, Uint8Array> = {
       ...fixtureFiles("root"),
-      "root/userA/chats/Bonnie_Cow/Bonnie Cow - 2025-07-18@12h00m00s.jsonl": ENC.encode(chatJsonl("Alex", "unused")),
+      "root/userA/chats/Clover_Owl/Clover Owl - 2025-07-18@12h00m00s.jsonl": ENC.encode(chatJsonl("Alex", "unused")),
     };
     const f = fakes();
 
     const report = await runProfileDirImport(deps(memoryFs(files), f, { dryRun: true }));
 
-    expect(report.orphanChatDirs).toEqual(["bonnie-cow"]);
+    expect(report.orphanChatDirs).toEqual(["clover-owl"]);
     expect(report.orphanImports).toEqual([]);
     expect(f.log).toHaveLength(0);
   });

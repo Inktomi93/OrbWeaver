@@ -494,7 +494,7 @@ describe("store — the chat-block digest lens", () => {
     const svc = createEmbeddingsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const aria = await seedCharacter(db, owner, { id: "character_aria", name: "Aria" });
-    const bram = await seedCharacter(db, owner, { id: "character_bram", name: "Bram" });
+    const bryn = await seedCharacter(db, owner, { id: "character_bryn", name: "Bryn" });
     const grp = await seedCharacter(db, owner, { id: "character_grp", name: "Group" });
     const chatId = await seedChat(db);
     const base = {
@@ -523,8 +523,8 @@ describe("store — the chat-block digest lens", () => {
       return s.map((x) => x.characterId).sort();
     };
 
-    await svc.store({ ...base, speakerCharacterIds: [aria, bram], contentHash: "h1", ownerId: owner });
-    expect(await speakerSet()).toEqual([aria, bram].sort());
+    await svc.store({ ...base, speakerCharacterIds: [aria, bryn], contentHash: "h1", ownerId: owner });
+    expect(await speakerSet()).toEqual([aria, bryn].sort());
 
     // re-digest (changed hash) with a different speaker set → REPLACED, not appended.
     await svc.store({ ...base, speakerCharacterIds: [aria], contentHash: "h2", ownerId: owner });
@@ -581,7 +581,7 @@ describe("store — the chat-block digest lens", () => {
     const svc = createEmbeddingsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const aria = await seedCharacter(db, owner, { id: "character_aria", name: "Aria" });
-    const bram = await seedCharacter(db, owner, { id: "character_bram", name: "Bram" });
+    const bryn = await seedCharacter(db, owner, { id: "character_bryn", name: "Bryn" });
     const chatId = await seedChat(db);
     const base = {
       kind: "chat-block",
@@ -593,13 +593,13 @@ describe("store — the chat-block digest lens", () => {
       text: digestText,
       topicAnchor: "[anchor]",
       keywords: ["k"],
-      speakerCharacterIds: [aria, bram],
+      speakerCharacterIds: [aria, bryn],
       model: EMBED_MODEL,
       dim: EMBED_DIM,
     } as const;
 
     await svc.store({ ...base, scopedCharacterId: aria, contentHash: "h-aria", ownerId: owner });
-    await svc.store({ ...base, scopedCharacterId: bram, contentHash: "h-bram", ownerId: owner });
+    await svc.store({ ...base, scopedCharacterId: bryn, contentHash: "h-bryn", ownerId: owner });
 
     // distinct scopedCharacterId ⇒ no collision under the (chat, scope, tier, block) UNIQUE.
     const rows = await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));

@@ -1,49 +1,16 @@
-// "INVESTED, BUT QUIET" — the forgotten-gem shelf (program #102 corpus leg, issue #127; mockup A's
-// understanding TILES).
+// Forgotten gems are per-character lifetime aggregates, not conversation rows, so they use shelf tiles and
+// a lifetime-totals label (#127). The magnitude is tokens returned, never words or cost; imported/local
+// data can have no token or price measurement. Missing tokens say not recorded, distinct from a measured
+// zero (#174/B2).
 //
-// THE TWO DEFECTS THIS SHAPE ANSWERS, both measured on the live instance:
-//   1. A GEM WAS WEARING CHAT-ROW CLOTHING. A per-CHARACTER lifetime aggregate rendered in a `ListRow` reads
-//      as one conversation — the largest real chat on this instance is 71 messages, so a career total looked
-//      like a bug. A gem is now a TILE in a shelf: a different anatomy from a row, and the band above says
-//      "lifetime totals" once so the aggregate is framed rather than mistaken.
-//   2. A DEAD COST COLUMN. Six identical `$0.00` cells, because a local-model instance records no spend.
-//      Cost appears NOWHERE here. The trailing magnitude is TOKENS RETURNED (`tokensOut`), the signal that
-//      actually varies on this corpus (10,217 → 0), so the column carries information instead of zeros.
-//      IT IS LABELLED "tokens returned", NOT "words" (#174, owner-observed live 2026-08-18: "Mira 281,711
-//      words"). The field is the model's OUTPUT TOKEN total — as a word claim it overstates by ~30-40%, and
-//      this app already counts real words elsewhere off a real `wordCount()` (`stats.wrapped.words`, the
-//      analytics overview's "Words" figure), so the two are separately true numbers and the label decides
-//      which one the reader thinks they are reading. AND THE COLUMN HAS A THIRD STATE (B2): "not recorded".
-//      The zeros came back on an imported library because nothing had ever written a token count, which the
-//      wire reported as 0; `tokensOut` is nullable now and that case says so in words and draws no bar.
+// Each tile is a ghost button following the home quick-pick anatomy. Its name stays at the label step; the
+// focal voice is rationed to the surface primary.
 //
-// THE TILE IS A GHOST BUTTON, not a Card — the shipped precedent for an interactive grid cell whose subject
-// is a character (`home-quick-picks-tile-body.tsx`), and it keeps the name at the `label` step, which is the
-// only step a feature can spell inside a control (`size` is an @orb/ui-internal axis the density A3 arm reds
-// at any feature call site, and `focal` is the ONE-per-surface promotion voice this shelf must not spend).
-//
-// ── THE BAR IS GONE, AND THAT REVERSES A RULING THIS FILE RECORDED (side-eye #536 residual, taken 2026-08-23
-//    with the orchestrator's authorization; BOTH texts are kept, per the house fork idiom) ─────────────────
-//   THE OLD RULING (kept, verbatim in substance): "THE BAR SITS OUTSIDE THE BUTTON AND IS DECORATION.
-//     `TrackBar` is aria-hidden by contract — its own header states the law: 'the value TEXT is the
-//     accessible datum; bars are decorative, never colour-alone meaning', and the magnitude is already
-//     stated in the tile's gloss. The alternative, `Meter`, is `role='meter'` (bar-as-datum) and would
-//     announce the same magnitude a second time inside a named control. RECEIPTED DEVIATION on its tint:
-//     the mockup paints the bar with `--color-primary` mixed toward muted, and TrackBar's palette arms are
-//     the CATEGORICAL track ramp (vitality green — a hue this surface does not otherwise contain) or a
-//     semantic zone accent; `info` at the arm's rationed 55% is the honest closest."
-//   WHAT REFUTED IT ([P2-2]/#536, twice, and the second pass is why it goes): the shelf RANKS by the
-//     conjunction volume × how-long-quiet and the bar MEASURED tokens returned, so on the audited library
-//     row 2 read left→right 567,106 · 597,739 · 629,696 — bars climbing DOWN a descending list. The first
-//     fix added a shelf-wide legend clause saying so in words. A chart that needs a sentence explaining why
-//     it disagrees with the list it is drawn on is not decoration that happens to be quiet; it is the one
-//     element on the shelf whose only available reading is wrong, and the apology is the tell.
-//   RESOLUTION: no bar. Nothing is LOST — `gemMagnitudes` already prints the tokens figure as the tile's own
-//     datum, in words, with its provenance ("~", "not recorded"), which is strictly more than a length ever
-//     said; and the ordinal added in the same pass is what makes the RANK visibly the datum. What goes with
-//     it is the legend clause, because it existed only to explain the bar. The old ruling's MECHANISM — the
-//     value text is the accessible datum, bars are never colour-alone meaning — is untouched and is in fact
-//     what makes the removal free.
+// The #536 successor removes the decorative bar while retaining the old accessibility ruling: value text
+// is the accessible datum, and bars cannot carry color-alone meaning. A Meter would duplicate the
+// announced magnitude. The shelf ranks volume × time quiet while the old bar measured token totals; these
+// independent orders can disagree, so a bar misstates rank. gemMagnitudes retains the value/provenance in
+// words, and the ordinal states rank. The obsolete explanatory legend goes with the bar.
 
 import { Button } from "@orb/ui/button";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
@@ -127,7 +94,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
               <Row align="center" className="w-full min-w-0" gap="row">
                 {/* THE RANK IS A DATUM, NOT AN IMPLICATION (side-eye populated arm, [P2-2] / #536). The
                     shelf ranks by the CONJUNCTION volume × how-long-quiet and BARS tokens returned, so at
-                    327 characters the audited row 2 read left→right 567,106 · 597,739 · 629,696 — bars
+                    320 characters the audited row 2 read left→right 510,000 · 540,000 · 570,000 — bars
                     climbing down a descending list. Every reader parses a ranked list's leading number as
                     its sort key, and the only leading number here was the wrong one.
                     The report's two arms were "display the quantity you rank by" or "render the rank

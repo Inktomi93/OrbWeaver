@@ -23,11 +23,8 @@ import {
 } from "../../../../../packages/client/src/features/character/lib/character-library-lens.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-// The vocabulary read's four fields — `tag.listTagFilterVocabulary`, ALREADY RANKED most-used-first by the
-// server (side-eye 2026-08-18 P2-6: the chip rail used to read the management screen's five-junction
-// rollup, 433KB for 1,736 rows to paint 8 chips). So these fixtures are written in the order the server
-// would return them, and `tagVocabulary` is asserted to PRESERVE it rather than to produce it — the rank
-// itself is pinned server-side (tests/server/domain/tag/tag.int.test.ts).
+// The chip rail reads the four-field character tag projection, already most-used-first, not the management
+// rollup over all junctions. Synthetic fixtures preserve that wire contract.
 const libraryTag = (id: string, name: string, characters: number, isHiddenOnCard = false): TagFilterVocabularyEntry => ({
   id: castId<TagId>(id),
   name,
@@ -44,8 +41,8 @@ test("resultCountLabel: with every match loaded it states one number, pluralised
 // THE RULING SURVIVES — ITS INPUT CHANGED (#493, side-eye 2026-08-22 rail-characters P2-1). The half that
 // held: the number here is the SERVER's census, never "loaded so far" — "30 characters" over a 412-match
 // library is a false statement and always was. The half that died: printing BOTH numbers here. At rest the
-// line read `30 of 327 characters` — the page size (`character.list {limit:30}`) worded as a result count,
-// 230px under a band already reading `CHARACTERS 327` — and the natural reading is "only 30 of your
+// line read `30 of 320 characters` — the page size (`character.list {limit:30}`) worded as a result count,
+// 230px under a band already reading `CHARACTERS 320` — and the natural reading is "only 30 of your
 // characters match", which is false in the state everybody sees.
 test("resultCountLabel: a partially-loaded page states the CENSUS, not the page size", () => {
   expect(resultCountLabel(30, 412)).toBe("412 characters");
@@ -55,7 +52,7 @@ test("resultCountLabel: a partially-loaded page states the CENSUS, not the page 
 // …and the loaded number is not lost: it moves to the foot of the list, beside the tail-fetch sentinel,
 // which is where "how much of it have I got" is the question being asked.
 test("loadedProgressLabel: reports the loaded fraction only while there IS one", () => {
-  expect(loadedProgressLabel(30, 327)).toBe("30 of 327 loaded");
+  expect(loadedProgressLabel(30, 320)).toBe("30 of 320 loaded");
   // Complete, or no census yet — a progress line with nothing to report is noise.
   expect(loadedProgressLabel(30, 30)).toBeNull();
   expect(loadedProgressLabel(30, null)).toBeNull();
@@ -63,7 +60,7 @@ test("loadedProgressLabel: reports the loaded fraction only while there IS one",
 
 // `partialGroupingLabel`'s TEST WENT WITH THE FUNCTION (#1696). #493 P2-2 measured the defect it described —
 // `ADVENTURE 1 · … · UNCATEGORIZED 27`, four counts summing to the 30 rows paged in, read as library facts
-// over a 327-character library — and the blanket caveat was the honest thing to say WHILE the counts were
+// over a 320-character library — and the blanket caveat was the honest thing to say WHILE the counts were
 // the page's. They are `character.listTagGroups`' census now, so the sentence would be false; the property
 // that replaced it is per-bucket and lives where the buckets are made
 // (`tests/client/features/character/lib/character-list-view.test.ts`).

@@ -41,7 +41,7 @@ export interface ImpersonateFixture {
 
 const SEREN_ID = castId<CharacterId>("chr_seren");
 const HOLT_ID = castId<CharacterId>("chr_holt");
-const MARA_ID = castId<CharacterId>("chr_mara");
+const MIRA_ID = castId<CharacterId>("chr_mira");
 const KESTREL_LOOKALIKE_ID = castId<CharacterId>("chr_kestrelin");
 
 const KESTREL: AssemblePersona = {
@@ -62,8 +62,8 @@ const HOLT: AssembleCharacter = {
   personality: "Blunt, suspicious, loyal to the letter of the law.",
 };
 
-const MARA: AssembleCharacter = {
-  name: "Mara",
+const MIRA: AssembleCharacter = {
+  name: "Mira",
   description: "A tinker camped in the waystation yard, mending a wheel that will not hold.",
   personality: "Chatty, distractible, secretly frightened.",
 };
@@ -127,8 +127,8 @@ export const FIXTURES: readonly ImpersonateFixture[] = [
     id: "multi-char-scene",
     tempts: "Three characters in the room, each with a stamped label — maximum pull toward voicing SOMEONE else.",
     character: SEREN,
-    characters: [SEREN, HOLT, MARA],
-    characterIds: [SEREN_ID, HOLT_ID, MARA_ID],
+    characters: [SEREN, HOLT, MIRA],
+    characterIds: [SEREN_ID, HOLT_ID, MIRA_ID],
     persona: KESTREL,
     namesBehavior: "default",
     canon: [
@@ -147,9 +147,9 @@ export const FIXTURES: readonly ImpersonateFixture[] = [
       { role: "user", content: "I put the writ on the table, face down, and slide it across.", authorName: "Kestrel" },
       {
         role: "assistant",
-        content: "Mara leans in from the yard door, wheel spoke in hand. \"Oh, that's a ford writ. Those are — those are the ones with the wax, aren't they?\"",
-        authorName: "Mara",
-        characterId: MARA_ID,
+        content: "Mira leans in from the yard door, wheel spoke in hand. \"Oh, that's a ford writ. Those are — those are the ones with the wax, aren't they?\"",
+        authorName: "Mira",
+        characterId: MIRA_ID,
       },
       {
         role: "assistant",

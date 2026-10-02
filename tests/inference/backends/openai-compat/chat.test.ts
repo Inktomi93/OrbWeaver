@@ -878,7 +878,7 @@ function cachedParts(messages: readonly Record<string, unknown>[]): { readonly e
 const orText = (value: string): [{ type: "text"; text: string }] => [{ type: "text", text: value }];
 const ROUND_OPENING = [
   { role: "user", content: orText("We head for the harbor.") },
-  { role: "assistant", content: orText("Mara: Mara leads.") },
+  { role: "assistant", content: orText("Mira: Mira leads.") },
   { role: "assistant", content: orText("Wren: Wren scouts.") },
 ] satisfies OpenAiCompatChatRequest["history"];
 const KAI_CUE = { role: "user", content: orText("[Write the next reply only as Kai.]") } satisfies OpenAiCompatChatRequest["history"][number];
@@ -923,7 +923,7 @@ for (const { model, assistantPrefill } of [
     expect(kaiTurn[2]).toEqual({
       role: "assistant",
       content: [
-        { type: "text", text: "Mara: Mara leads." },
+        { type: "text", text: "Mira: Mira leads." },
         { type: "text", text: "Wren: Wren scouts.", cache_control: CC_1H },
       ],
     });
@@ -931,7 +931,7 @@ for (const { model, assistantPrefill } of [
     expect(nextSend[2]).toEqual({
       role: "assistant",
       content: [
-        { type: "text", text: "Mara: Mara leads." },
+        { type: "text", text: "Mira: Mira leads." },
         { type: "text", text: "Wren: Wren scouts." },
         { type: "text", text: "Kai: Kai follows.", cache_control: CC_1H },
       ],
@@ -954,7 +954,7 @@ test("OR non-Anthropic model: the round's rows pass through 1:1 with no history 
   expect(messages).toEqual([
     { role: "system", content: [{ type: "text", text: "You are a helpful assistant." }] },
     { role: "user", content: "We head for the harbor." },
-    { role: "assistant", content: "Mara: Mara leads." },
+    { role: "assistant", content: "Mira: Mira leads." },
     { role: "assistant", content: "Wren: Wren scouts." },
     { role: "user", content: "[Write the next reply only as Kai.]" },
   ]);

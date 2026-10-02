@@ -192,14 +192,14 @@ test("the copied cast's SHEETS re-key onto the copies in the swap batch (the roo
   const oldHost = await seedUser(db, castId<Handle>("oldhost_sheets"));
   await seedUser(db, castId<Handle>("nominee"));
   const { chatId, gameId } = await seedGameRoom(db, "sheets");
-  const source = await seedSheetFor(db, gameId, oldHost, "mara_src");
+  const source = await seedSheetFor(db, gameId, oldHost, "mira_src");
   // The copy card already exists in the nominee's library (chat minted it before the swap batch).
-  const copy = castId<CharacterId>("character_mara_copy");
+  const copy = castId<CharacterId>("character_mira_copy");
   await db.insert(characters).values({
     id: copy,
     ownerId: NEW_HOST,
-    handle: castId<CharacterHandle>("mara_copy"),
-    name: "Mara",
+    handle: castId<CharacterHandle>("mira_copy"),
+    name: "Mira",
     contentHash: "c",
     tokenSize: 0,
     createdAt: FROZEN_AT,

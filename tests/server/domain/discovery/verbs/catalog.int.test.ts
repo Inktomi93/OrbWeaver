@@ -144,8 +144,6 @@ describe("compareCharacters", () => {
   });
 });
 
-// #1467 item 1: the per-room synthetic group bucket is a `characters` row that is not a card. It was counted
-// in `totalCharacters` (the "313 of 327" denominator) and, once distilled, in every facet/tag tally.
 describe("catalog excludes the synthetic per-room group buckets", () => {
   test("a synthetic character inflates neither the denominator nor the facet/tag tallies", async () => {
     const db = await freshDb();

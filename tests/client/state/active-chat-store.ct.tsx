@@ -26,7 +26,7 @@ test("selectChat makes an existing chat active; goToLanding returns to the landi
   await expect(probe.getByTestId("active-chat-inspection")).toHaveText("active=chat_probe_select");
 
   await probe.getByRole("button", { name: "migrate active chat" }).click();
-  await expect(probe.getByTestId("active-chat-inspection")).toHaveText("migrated=chat_01m02xhnwkeh7s32mxccy1x17f");
+  await expect(probe.getByTestId("active-chat-inspection")).toHaveText("migrated=chat_01j00000000000000000000m01");
 
   await probe.getByRole("button", { name: "go landing" }).click();
   await expect(state).toHaveText("handle=landing openOverlayPanel=none reaped=none");

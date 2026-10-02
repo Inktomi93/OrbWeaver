@@ -17,14 +17,14 @@ import { makeParticipant } from "./_support.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");
 const OTHER_ID = castId<UserId>("user_other");
-const NATE_PERSONA = castId<PersonaId>("persona_nate");
+const ALEX_PERSONA = castId<PersonaId>("persona_alex");
 const ALICE_ID = castId<CharacterId>("char_alice");
 const BOB_ID = castId<CharacterId>("char_bob");
 /** The real shape of an OIDC account: the handle IS the email, and there is no display name behind it, so
  *  the server's `publics.displayName ?? handle` rule hands the client the email in BOTH fields. */
 const OIDC_EMAIL = "owner@example.com";
 
-const NATE_CAST: ChatIdentity = { kind: "persona", id: NATE_PERSONA, name: "Alex", description: "", avatarHash: "persona-hash" };
+const ALEX_CAST: ChatIdentity = { kind: "persona", id: ALEX_PERSONA, name: "Alex", description: "", avatarHash: "persona-hash" };
 
 function sourcesOf(over: Partial<MemberRowSources> = {}): MemberRowSources {
   return {
@@ -54,7 +54,7 @@ function oidcSeat(over: Parameters<typeof makeParticipant>[0] = {}): ReturnType<
 }
 
 test("a human seat renders the PERSONA it is playing — the handle appears nowhere on the row", () => {
-  const rows = toPersonRows(sourcesOf({ participants: [oidcSeat({ activePersonaId: NATE_PERSONA })], identities: [NATE_CAST] }));
+  const rows = toPersonRows(sourcesOf({ participants: [oidcSeat({ activePersonaId: ALEX_PERSONA })], identities: [ALEX_CAST] }));
 
   expect(rows.map((r) => r.displayName)).toEqual(["Alex"]);
   // The whole serialized row, so a future field cannot smuggle the handle back in beside the name — the
@@ -74,7 +74,7 @@ test("a persona-less seat falls back to the wire displayName, and still renders 
 });
 
 test("the persona's own portrait wins for the row avatar; the seat's own hash is the fallback", () => {
-  const playing = toPersonRows(sourcesOf({ participants: [oidcSeat({ activePersonaId: NATE_PERSONA })], identities: [NATE_CAST] }));
+  const playing = toPersonRows(sourcesOf({ participants: [oidcSeat({ activePersonaId: ALEX_PERSONA })], identities: [ALEX_CAST] }));
   expect(playing[0]?.avatarHash).toBe("persona-hash");
 
   const bare = toPersonRows(sourcesOf({ participants: [oidcSeat({ avatarHash: "account-hash" })] }));
@@ -82,9 +82,9 @@ test("the persona's own portrait wins for the row avatar; the seat's own hash is
 });
 
 test("a persona the identities producer does not carry falls back to the wire name, never to a raw id", () => {
-  const rows = toPersonRows(sourcesOf({ participants: [oidcSeat({ activePersonaId: NATE_PERSONA })] }));
+  const rows = toPersonRows(sourcesOf({ participants: [oidcSeat({ activePersonaId: ALEX_PERSONA })] }));
   expect(rows.map((r) => r.displayName)).toEqual([OIDC_EMAIL]);
-  expect(rows.map((r) => r.displayName)).not.toContain(NATE_PERSONA);
+  expect(rows.map((r) => r.displayName)).not.toContain(ALEX_PERSONA);
 });
 
 test("host / viewer / nominee flags come off the seat, and a DEPARTED human is not a member row", () => {
@@ -142,12 +142,12 @@ test("an EMPTY resolved set is a real answer (everyone offline), NOT the unknown
 });
 
 test("the accessible name carries presence as a WORD — and says nothing at all when it is unknown", () => {
-  const [unknown] = toPersonRows(sourcesOf({ participants: [oidcSeat({ activePersonaId: NATE_PERSONA })], identities: [NATE_CAST] }));
+  const [unknown] = toPersonRows(sourcesOf({ participants: [oidcSeat({ activePersonaId: ALEX_PERSONA })], identities: [ALEX_CAST] }));
   const [online] = toPersonRows(
-    sourcesOf({ participants: [oidcSeat({ activePersonaId: NATE_PERSONA })], identities: [NATE_CAST], onlineUserIds: new Set([OWNER_ID]) }),
+    sourcesOf({ participants: [oidcSeat({ activePersonaId: ALEX_PERSONA })], identities: [ALEX_CAST], onlineUserIds: new Set([OWNER_ID]) }),
   );
   const [offline] = toPersonRows(
-    sourcesOf({ participants: [oidcSeat({ activePersonaId: NATE_PERSONA })], identities: [NATE_CAST], onlineUserIds: new Set<UserId>() }),
+    sourcesOf({ participants: [oidcSeat({ activePersonaId: ALEX_PERSONA })], identities: [ALEX_CAST], onlineUserIds: new Set<UserId>() }),
   );
 
   expect(unknown === undefined ? "" : rowAccessibleName(unknown)).toBe("Alex — host, you");

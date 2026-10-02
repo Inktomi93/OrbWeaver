@@ -2,7 +2,7 @@ import { initialsFor } from "@orb/kit/initials";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("initialsFor takes the first + last word initial", () => {
-  expect(initialsFor("Alex Silver")).toBe("NS");
+  expect(initialsFor("Alex Silver")).toBe("AS");
 });
 
 test("initialsFor uses first-and-LAST for 3+ word names (not first-two)", () => {

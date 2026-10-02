@@ -6804,8 +6804,6 @@ test.describe("the mobile topbar at 320px, coarse pointer", () => {
       .evaluateAll((els) => els.filter((el) => el.checkVisibility()).map((el) => el.getBoundingClientRect().width));
     const widestControl = Math.max(...controls, 0);
     const roomForTheName = leadWidth - widestControl;
-    // The measured defect was 80px of 320 (25%) with four trailing controls out-ranking the one thing
-    // saying where you are. The floor is RELATIVE — a token retune of the tap target moves both sides.
     expect(roomForTheName).toBeGreaterThan(widestControl);
     expect(roomForTheName / MOBILE_NARROW.width).toBeGreaterThan(0.3);
     // …and the name itself is really painted in it (never the 0px the leg-2 defect produced).

@@ -8,7 +8,7 @@ body:
     id: question
     attributes:
       label: Decision
-      description: One sentence naming the exact choice Alex is making.
+      description: One sentence naming the exact choice the owner is making.
     validations:
       required: true
   - type: textarea
@@ -43,6 +43,6 @@ body:
     id: disposition
     attributes:
       label: Durable landing point
-      description: Name the law, design, runbook, or issue field that will record the ruling after Alex decides.
+      description: Name the law, design, runbook, or issue field that will record the ruling after the owner decides.
     validations:
       required: true

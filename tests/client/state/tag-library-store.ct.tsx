@@ -1,6 +1,6 @@
 // tag-library-store CT — the tag library's per-device UI state on the real persisted (localStorage-backed)
 // store. The sort DEFAULT is the load-bearing assertion: the owner's ask was "most-used", and a store that
-// silently opened on `manual` would leave a ~400-tag library reading in an authored order the ≤30 drag cap
+// silently opened on `manual` would leave a large tag library reading in an authored order the ≤30 drag cap
 // makes unreachable to author.
 
 import { expect, test } from "@playwright/experimental-ct-react";

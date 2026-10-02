@@ -846,9 +846,9 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     const chatId = await seedChat(db, "perspeaker");
     await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, HOST, "aria"); // present since the chat opened
-    const bram = await seedCharacter(db, HOST, "bram"); // a late joiner
+    const bryn = await seedCharacter(db, HOST, "bryn"); // a late joiner
     await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 1, leftSeq: null });
-    await seedParticipant(db, { chatId, key: "bram", characterId: bram, joinSeq: 20, leftSeq: null });
+    await seedParticipant(db, { chatId, key: "bryn", characterId: bryn, joinSeq: 20, leftSeq: null });
 
     // Record every per-speaker recall dispatch (bucket + horizons) the engine issues.
     const calls: { scoped: string; group: string; witnessing: readonly WitnessInterval[] | undefined }[] = [];
@@ -874,12 +874,12 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     });
 
     await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: aria, shape: scopedShape(aria, "aria"), memoryRecall }));
-    await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: bram, shape: scopedShape(bram, "bram"), memoryRecall }));
+    await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: bryn, shape: scopedShape(bryn, "bryn"), memoryRecall }));
 
     // Each speaker recalled ITS OWN bucket, filtered by ITS join horizon — sourced live from chat_participants.
     expect(calls).toEqual([
       { scoped: aria, group: aria, witnessing: [{ joinSeq: 1, leftSeq: null }] },
-      { scoped: bram, group: aria, witnessing: [{ joinSeq: 20, leftSeq: null }] },
+      { scoped: bryn, group: aria, witnessing: [{ joinSeq: 20, leftSeq: null }] },
     ]);
   });
 
@@ -918,9 +918,9 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     const chatId = await seedChat(db, "rerankwarn");
     await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, HOST, "aria");
-    const bram = await seedCharacter(db, HOST, "bram");
+    const bryn = await seedCharacter(db, HOST, "bryn");
     await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 1, leftSeq: null });
-    await seedParticipant(db, { chatId, key: "bram", characterId: bram, joinSeq: 1, leftSeq: null });
+    await seedParticipant(db, { chatId, key: "bryn", characterId: bryn, joinSeq: 1, leftSeq: null });
 
     const speakerRecall = vi.fn<Parameters<typeof createTurnEngine>[1]["recallMemory"]>((_ctx, args) => {
       args.warningEpisode?.reportRerankUnavailable();
@@ -945,7 +945,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
       warningEpisode: firstEpisode,
     };
     await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: aria, shape: scopedShape(aria, "aria"), memoryConfig: { mode: "off" }, memoryRecall: shared }));
-    await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: bram, shape: scopedShape(bram, "bram"), memoryConfig: { mode: "off" }, memoryRecall: shared }));
+    await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: bryn, shape: scopedShape(bryn, "bryn"), memoryConfig: { mode: "off" }, memoryRecall: shared }));
 
     expect(h.events.filter((event) => event.type === "warning")).toEqual([{ type: "warning", chatId, code: "memory_rerank_unavailable" }]);
     expect(speakerRecall).toHaveBeenCalledTimes(2); // both speaker failures happened; dedupe did not skip work
@@ -1829,12 +1829,9 @@ describe("createTurnEngine — turn-lock heartbeat", () => {
   });
 });
 
-// VER-1b — the EMPTY-CONTENT guard class. FIELD EVIDENCE (chat_01kywqtrrdfqasspzxn0b3n3na seq 5): a swipe on a
-// wire that silences prose when `tools[]` ride came back `content:""` / `finish_reason:"tool_calls"`, the engine
-// committed it as variant idx 2 and FLIPPED the slot's `selectedVariantId` to it — an invisible row selected
-// while two real-prose siblings sat behind it. The guard refuses the commit instead, so the pointer never moves.
-// The three arms that must stay apart: ZERO content = refuse · PARTIAL content = commit · ABORT = commit nothing
-// (already the grammar — pinned here so a future "persist what streamed" change is a deliberate one).
+// The empty-content guard refuses an empty tool_calls-only swipe before commit or selectedVariantId
+// movement, preserving the existing prose siblings. Keep its three arms distinct: zero content refuses;
+// partial content commits; abort commits nothing.
 describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, never a committed variant", () => {
   /** The field shape: a completion that answered with tool calls and zero prose. */
   const proseLessTurn = scripted([

@@ -52,14 +52,14 @@ describe("createBulkImportPersonas", () => {
       personas: [persona("Alex", true), persona("Eve")],
     });
 
-    const nateKey = "alex";
+    const alexKey = "alex";
     expect(result.personasCreated).toBe(2);
     expect(result.personasSkipped).toBe(0);
-    expect(result.defaultPersonaId).toBe(result.idByName[nateKey]);
-    expect(Object.keys(result.idByName).sort()).toEqual(["eve", "alex"]);
+    expect(result.defaultPersonaId).toBe(result.idByName[alexKey]);
+    expect(Object.keys(result.idByName).sort()).toEqual(["alex", "eve"]);
 
     const rows = await db.select({ name: personas.name }).from(personas).where(eq(personas.ownerId, owner.id));
-    expect(rows.map((r) => r.name).sort()).toEqual(["Eve", "Alex"]);
+    expect(rows.map((r) => r.name).sort()).toEqual(["Alex", "Eve"]);
   });
 
   test("dedup-by-name — a re-import (or existing row) reuses the identity, never duplicates", async () => {
@@ -70,12 +70,12 @@ describe("createBulkImportPersonas", () => {
     const first = await op({ ownerId: owner.id, personas: [persona("Alex")] });
     const second = await op({ ownerId: owner.id, personas: [persona("Alex"), persona("New")] });
 
-    const nateKey = "alex";
+    const alexKey = "alex";
     expect(first.personasCreated).toBe(1);
     expect(second.personasCreated).toBe(1); // only "New"
     expect(second.personasSkipped).toBe(1); // "Alex" reused
     // The reused id matches the first run's (idByName is stable across runs).
-    expect(second.idByName[nateKey]).toBe(first.idByName[nateKey]);
+    expect(second.idByName[alexKey]).toBe(first.idByName[alexKey]);
 
     const rows = await db.select({ id: personas.id }).from(personas).where(eq(personas.ownerId, owner.id));
     expect(rows).toHaveLength(2);

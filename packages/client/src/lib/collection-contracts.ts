@@ -42,14 +42,10 @@
 
 import type { ReactNode } from "react";
 
-/** Member count above which the owner VIRTUALIZES its rows. The owner's real library is ~400 tags, so "the
- *  list is a glance" stops being true well before then.
- *
- *  IT NO LONGER GATES THE FILTER (#1725, owner ruling 2026-09-05). It had two readers and two jobs: this
- *  threshold, and "a group earns the host's FILTER input". The filter half died with its premise — three
- *  collapsible bands shared ONE list scroll column, so 32px of chrome per band was worth spending only past
- *  a glance, and the library has its own pane now (the mock design §3.2). The filter is always drawn; what
- *  survives here is a RENDERING budget, which never depended on the geometry that changed. */
+/** Member count above which rows are virtualized. This is a rendering budget, not the filter visibility
+ *  gate (#1725): each library now has its own pane and its filter is always drawn. The old shared-scroll-
+ *  column chrome budget no longer applies.
+ */
 export const COLLECTION_LARGE_GROUP = 30;
 
 /** ═══ `COLLECTION_WINDOW_MAX_HEIGHT` WAS RE-BOUND, NOT RETUNED, AND THEN DELETED (#1725, the mock design §5.4) ══

@@ -36,7 +36,7 @@ describe("stats.leaderboard", () => {
     /** Three ranked characters so a search proves it narrows both the rows AND the census. */
     async function seedThree(): Promise<UserId> {
       const owner = await seedUser(db);
-      await seedRanked(owner, "character_hik", "Mira", 30);
+      await seedRanked(owner, "character_tam", "Tamsin", 30);
       await seedRanked(owner, "character_kat", "Kate", 20);
       await seedRanked(owner, "character_bolt", "Bolt", 10);
       return owner;
@@ -54,8 +54,8 @@ describe("stats.leaderboard", () => {
     test("is case-insensitive", async () => {
       const owner = await seedThree();
       const svc = createStatsService(db, () => STATS_NOW);
-      const page = await svc.leaderboard(owner, { search: "HIK" });
-      expect(page.rows.map((r) => r.name)).toEqual(["Mira"]);
+      const page = await svc.leaderboard(owner, { search: "TAM" });
+      expect(page.rows.map((r) => r.name)).toEqual(["Tamsin"]);
       expect(page.total).toBe(1);
     });
 

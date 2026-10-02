@@ -14,7 +14,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { BeatRowTwoWritersStory } from "../_ct-stories.tsx";
 
 /** The body editor's accessible name — `${title} entry`, shared by the rest trigger and the field. */
-const BODY = "Sera's debt entry";
+const BODY = "Sola's debt entry";
 const ARRIVED = "The debt was called in at the Lantern.";
 
 test("an untouched open editor commits NOTHING over a body that changed underneath (#1502)", async ({ mount, page }) => {

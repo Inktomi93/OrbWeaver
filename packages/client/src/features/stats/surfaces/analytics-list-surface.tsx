@@ -1,21 +1,11 @@
-// The Analytics LIST navigator — the character leaderboard. Reads `leaderboard` (owner-scoped ranked
-// rows) under a NAME SEARCH + a sort toggle whose keys mirror the server's `LEADERBOARD_SORTS` wire enum
-// (the shared `ANALYTICS_SORT_OPTIONS` vocabulary in analytics-view-model). Selecting a row drills that
-// character's stats into CONTENT (`selectAnalyticsCharacterFromList`); the drilled row reads selected. Per A2 there
-// is no create action in this section — the "Analytics" title + count live in the `.shell-panel-header`
-// band (`analytics-list-header.tsx`, N1/N2), and search + sort are the finder affordances.
+// The Analytics list reads owner-scoped leaderboard rows with server name search and sort keys from
+// LEADERBOARD_SORTS/ANALYTICS_SORT_OPTIONS. Selection drills stats into Content; this section has no
+// create action.
 //
-// THE SEARCH REACHES PAST THE PAGE CAP (side-eye rail-analytics 2026-08-19 P2g). The verb returns a PAGE
-// (50 of a larger ranked total — 278 characters were unreachable), so the search is a SERVER predicate
-// (`stats.leaderboard`'s `search`), not a filter over the loaded 50: a name below the cut is otherwise
-// unreachable from the only surface that ranks it. The query is section state (`analytics-search-store`) so
-// the chrome BAND's census answers off the SAME narrowed page — "N of M matches", not "50 of 328" beside
-// three rows. `keepPreviousData` keeps the current rows on screen while a keystroke's page resolves.
-//
-// THE ROWS ARE WINDOWED (side-eye P1f/P2c). 50 unvirtualized rows both cost the section-entry frame and put
-// 50 tab stops in the pane; `<VirtualList>` bounds the DOM to the visible window (which also emits the
-// role="list"/"listitem" chain — the P2c list-surface defect dies here rather than a hand-wrapped listitem)
-// and `useLeaderboardRoving` makes exactly one row body tabbable with Arrow/Home/End nav (P2g).
+// Search must reach beyond the page cap, not filter only loaded rows. analytics-search-store lets the band
+// census and surface rows read the same narrowed query; keepPreviousData retains rows while the next
+// request resolves. VirtualList bounds DOM and emits list semantics, while useLeaderboardRoving gives row
+// bodies one tab stop with Arrow/Home/End navigation.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";

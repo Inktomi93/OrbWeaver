@@ -12,8 +12,8 @@ export function actorKey(actor: RpgActorView): string {
 
 /**
  * The A11Y SUBJECT for each actor in one participant list, keyed by {@link actorKey} — the string every control on
- * that actor's block runs through the tracker kit's `subject` grammar ("Mara Vitality value", "Add
- * condition to Mara").
+ * that actor's block runs through the tracker kit's `subject` grammar ("Mira Vitality value", "Add
+ * condition to Mira").
  *
  * A DISPLAY NAME IS NOT UNIQUE (#1531). Two participant entries may legally carry the same name — #1366 keys
  * distinct SPELLINGS distinctly, and identical spellings stay allowed — and when they do, the whole #1383

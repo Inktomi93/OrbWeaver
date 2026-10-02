@@ -359,11 +359,11 @@ describe("generateImage — gallery auto-add target", () => {
     // The recording context answers with `asset_one`; the generated-post link the verb writes needs that row to exist.
     await seedGeneratedAsset(host, "one");
     const aria = await seedCharacter(db, host, "aria");
-    const bram = await seedCharacter(db, host, "bram");
+    const bryn = await seedCharacter(db, host, "bryn");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 0 });
-    await seedParticipant(db, { chatId, key: "bram", characterId: bram, joinSeq: 1 });
+    await seedParticipant(db, { chatId, key: "bryn", characterId: bryn, joinSeq: 1 });
     const calls: PictureCall[] = [];
     const { generateImage } = createGenerateImage(recordingContext(calls), { emit, claimChat: noClaim });
 

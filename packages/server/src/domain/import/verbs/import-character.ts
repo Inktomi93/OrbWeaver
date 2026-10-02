@@ -1,7 +1,7 @@
 // verb: importCharacter — one ST character card → one canonical character. Flow: parse bytes → hash whole
 // file → byte-identical dedup (the ONLY dedup: the same FILE, never a name) → flatten+validate → mint a FREE
 // per-owner handle (a name-slug collision suffixes the HANDLE only, never the display name — two distinct
-// "Emily" cards are two characters) → create fresh with provenance + CAS-store avatar → attach tags → re-link
+// "Eleni" cards are two characters) → create fresh with provenance + CAS-store avatar → attach tags → re-link
 // carried attached-book references, else carry the embedded lorebook clone (the fallback when no
 // reference resolves on this install, and only into a FREE primary seat — #1598). All cross-feature ops are
 // injected via context.ts — import never reads a db table directly.
@@ -47,8 +47,8 @@ function fallbackNameFrom(filename: string | undefined): string {
 }
 
 /** Resolve a FREE per-owner character handle: `characters.handle` is per-owner UNIQUE, so a byte-new card
- *  whose name-slug is already taken gets a numeric suffix (`emily` → `emily-2` → `emily-3`). This suffixes the
- *  HANDLE only — the card's display `name` is untouched. We NEVER dedupe by name: two distinct "Emily" cards
+ *  whose name-slug is already taken gets a numeric suffix (`eleni` → `eleni-2` → `eleni-3`). This suffixes the
+ *  HANDLE only — the card's display `name` is untouched. We NEVER dedupe by name: two distinct "Eleni" cards
  *  are two characters (byte-identical files already deduped upstream by importHash). */
 async function freeHandle(ctx: ImportContext, base: CharacterHandle): Promise<CharacterHandle> {
   let handle: CharacterHandle = base;

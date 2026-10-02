@@ -37,7 +37,7 @@ test("greeting previews resolve against the room anchor for every viewer, re-pin
   const host = await seedUser(db, castId<Handle>("host"));
   const member = await seedUser(db, castId<Handle>("member"));
   const anchor = await seedPersona(db, host, "Nyx");
-  const replacement = await seedPersona(db, member, "Mara");
+  const replacement = await seedPersona(db, member, "Mira");
   const character = await seedCharacter(db, host, "Aria");
   const chatId = await seedChat(db, "greeting-preview", { anchorPersonaId: anchor });
   await seedParticipant(db, { chatId, key: "greeting-host", userId: host, role: "host" });
@@ -51,7 +51,7 @@ test("greeting previews resolve against the room anchor for every viewer, re-pin
     expect(page.items[0]?.lastMessagePreview).toBe("Aria greets Nyx. {{roll:1d6}}");
   }
   await db.update(chats).set({ anchorPersonaId: replacement }).where(eq(chats.id, chatId));
-  expect((await read.listChats({ principal: principal(host) })).items[0]?.lastMessagePreview).toBe("Aria greets Mara. {{roll:1d6}}");
+  expect((await read.listChats({ principal: principal(host) })).items[0]?.lastMessagePreview).toBe("Aria greets Mira. {{roll:1d6}}");
   const stored = await db.select({ content: messageVariants.content }).from(messageVariants).where(eq(messageVariants.id, variantId));
   expect(stored).toEqual([{ content: raw }]);
 });

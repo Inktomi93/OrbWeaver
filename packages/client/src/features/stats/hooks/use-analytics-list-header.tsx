@@ -18,15 +18,15 @@
 // instead of the whole band suspending.
 //
 // THE COUNT STATES A RELATIONSHIP, NOT A LENGTH (side-eye rail-analytics 2026-08-19 P2g). The band read
-// `ANALYTICS 50` against a 328-character library, because `rows.length` on a page capped at 50 IS the cap.
-// The verb now returns the ranked `total` beside the page, so a truncated band reads `50 of 328` — the
+// `ANALYTICS 50` against a 330-character library, because `rows.length` on a page capped at 50 IS the cap.
+// The verb now returns the ranked `total` beside the page, so a truncated band reads `50 of 330` — the
 // string arm of `ListPaneHeader.count`, minted for exactly this (a page-BOUNDED count that already read
 // `100+` off its own limit). An untruncated band keeps the bare number: `12 of 12` is noise.
 //
 // THE CENSUS ANSWERS OFF THE SAME LENS AS THE ROWS (P2g). The search lives in `analytics-search-store` (the
 // preset-search precedent) precisely so this band — rendered by the shell, in a different part of the tree
 // than the rows — narrows WITH them: under a search, `total` is the MATCH count, so the band reads "3 of 3"
-// / "50 of 120 matches" rather than "50 of 328" beside three rows. The key mirrors the surface's DEFAULT_SORT
+// / "50 of 120 matches" rather than "50 of 330" beside three rows. The key mirrors the surface's DEFAULT_SORT
 // read exactly (search omitted when empty), so on the rest state the two still share one cached page.
 
 // The hook supplies view data; the shell owns the band renderer. Actions and overlays retain their existing behavior.

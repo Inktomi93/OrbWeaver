@@ -8,7 +8,7 @@ import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusListHeaderStory } from "../_ct-stories.tsx";
 
 // AND THE COUNT NAMES ITS BASE (issue #535). The band printed a bare `CORPUS 313` beside an overview h1
-// reading "327 characters" — two true numbers of two different things, one of them unlabelled. The census
+// reading "320 characters" — two true numbers of two different things, one of them unlabelled. The census
 // is asserted through the RENDERED band text, not through the projection, because the defect was what a
 // reader met: a number with no denominator.
 test("the LIST band names the Explore mode and states the distilled count out of the library", async ({ mount, page }) => {

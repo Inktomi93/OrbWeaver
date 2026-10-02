@@ -762,7 +762,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
 
 // ── The ATTACHMENT-ONLY image wire rule (owner ruling, ST parity) ────────────────────────────────────────
 // A model-visible image part requires a DELIBERATE user attachment: an owned-CAS `asset:` ref on a
-// user-authored row. Every other embedded image — an imported card's greeting picture (the Azarael bug: the
+// user-authored row. Every other embedded image — an imported card's greeting picture (the Aveline bug: the
 // card ends its greeting with `![](https://files.catbox.moe/….png)` and that rode a vision turn as a real
 // image part), narrator/`/imagine` media, a pasted link — is DISPLAY-ONLY: it renders forever, and the wire
 // gets a short marker instead of both the image part AND the raw URL bytes.
@@ -772,7 +772,7 @@ const VISION: Resolved<"chat"> = {
     makeGenerationCapability({ input: ["text", "image"], output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 200_000 } }),
   ),
 };
-/** The real Azarael card's greeting image target (external, empty alt) — the bug's exact shape. */
+/** The real Aveline card's greeting image target (external, empty alt) — the bug's exact shape. */
 const CARD_IMAGE_URL = "https://files.catbox.moe/2dxdt9.png";
 const imageParts = (req: TurnRequest): unknown[] => req.history.flatMap((h) => h.content).filter((p) => p.type === "image");
 
@@ -1098,7 +1098,7 @@ function macroNamesOf(
   };
 }
 
-const MARA = castId<PersonaId>("persona_mara");
+const MIRA = castId<PersonaId>("persona_mira");
 const ZARA = castId<PersonaId>("persona_zara");
 
 describe("runTurnPipeline — history macro resolution", () => {
@@ -1123,7 +1123,7 @@ describe("runTurnPipeline — history macro resolution", () => {
 
   test("a stored {{user}} in a history row resolves via the PRODUCER to THAT row's own stamped persona — never the active NOR the pinned anchor", async () => {
     // Chat anchored to Nyx (pinned); the current speaker's active persona is Zara; the row is stamped
-    // personaId=Mara (the Chat-Macro-Resolution.md §6 3-way-distinct fixture). The stamp wins over BOTH
+    // personaId=Mira (the Chat-Macro-Resolution.md §6 3-way-distinct fixture). The stamp wins over BOTH
     // axes — the row's personaId is the macro subject now, not just attribution chrome.
     const ctx = ctxOf({
       pinnedPersona: { name: "Nyx", description: "the frozen anchor POV" },
@@ -1131,31 +1131,31 @@ describe("runTurnPipeline — history macro resolution", () => {
     });
     const { args } = baseArgs({
       assembleContext: ctx,
-      canon: [userRowWithPersona("{{user}} nods", MARA)],
-      historyMacroNames: macroNamesOf([], [{ id: MARA, name: "Mara" }]),
+      canon: [userRowWithPersona("{{user}} nods", MIRA)],
+      historyMacroNames: macroNamesOf([], [{ id: MIRA, name: "Mira" }]),
     });
     const result = await runTurnPipeline(args);
     const text = historyText(result.request);
-    expect(text).toContain("Mara nods");
+    expect(text).toContain("Mira nods");
     expect(text).not.toContain("Zara nods");
     expect(text).not.toContain("Nyx nods");
   });
 
   test("two rows with DIFFERENT personaId stamps each resolve {{user}} to their OWN persona", async () => {
     const { args } = baseArgs({
-      canon: [userRowWithPersona("{{user}} waves", ZARA), userRowWithPersona("{{user}} nods", MARA)],
+      canon: [userRowWithPersona("{{user}} waves", ZARA), userRowWithPersona("{{user}} nods", MIRA)],
       historyMacroNames: macroNamesOf(
         [],
         [
           { id: ZARA, name: "Zara" },
-          { id: MARA, name: "Mara" },
+          { id: MIRA, name: "Mira" },
         ],
       ),
     });
     const result = await runTurnPipeline(args);
     const text = historyText(result.request);
     expect(text).toContain("Zara waves");
-    expect(text).toContain("Mara nods");
+    expect(text).toContain("Mira nods");
   });
 
   test("a null personaId stamp falls back to the chat ANCHOR (pinnedPersona), never the active persona", async () => {
@@ -1365,8 +1365,8 @@ describe("runTurnPipeline — the preset params fold into the wire request", () 
 // (names.test.ts) previously hand-fed.
 describe("runTurnPipeline — the wire name-stamp axis (F4)", () => {
   test("completion mode stamps each user row's wire `name` from ITS OWN personaId, not the active persona", async () => {
-    // Active persona is Alex; the row is authored under Mara (a since-switched persona). The wire `name` must
-    // be Mara — the row's own author — not the current active (which would misattribute Mara's line to Alex).
+    // Active persona is Alex; the row is authored under Mira (a since-switched persona). The wire `name` must
+    // be Mira — the row's own author — not the current active (which would misattribute Mira's line to Alex).
     const { args } = baseArgs({
       connection: {
         ...CONNECTION,
@@ -1378,23 +1378,23 @@ describe("runTurnPipeline — the wire name-stamp axis (F4)", () => {
       assembleContext: ctxOf({
         promptConfig: { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "completion" },
       }),
-      canon: [userRowWithPersona("hi there", MARA)],
-      historyMacroNames: macroNamesOf([], [{ id: MARA, name: "Mara" }]),
+      canon: [userRowWithPersona("hi there", MIRA)],
+      historyMacroNames: macroNamesOf([], [{ id: MIRA, name: "Mira" }]),
     });
     const result = await runTurnPipeline(args);
     const named = result.request.history.find((m) => m.name !== undefined);
-    expect(named?.name).toBe("Mara");
+    expect(named?.name).toBe("Mira");
   });
 
   test('"default" mode prefixes a user row authored under a since-switched persona (disambiguation is now LIVE)', async () => {
-    // author (Mara) ≠ the active persona (Alex) → "default" prefixes the row. Before F4 every user row was
+    // author (Mira) ≠ the active persona (Alex) → "default" prefixes the row. Before F4 every user row was
     // stamped with the active persona, so author always equalled speakers.user and this NEVER fired.
     const { args } = baseArgs({
-      canon: [userRowWithPersona("hi there", MARA)],
-      historyMacroNames: macroNamesOf([], [{ id: MARA, name: "Mara" }]),
+      canon: [userRowWithPersona("hi there", MIRA)],
+      historyMacroNames: macroNamesOf([], [{ id: MIRA, name: "Mira" }]),
     });
     const result = await runTurnPipeline(args);
-    expect(historyText(result.request)).toContain("Mara: hi there");
+    expect(historyText(result.request)).toContain("Mira: hi there");
   });
 
   // Still true, and now for a STATED reason: the row is the active persona owner's (`authorUserId === activePersonaUserId`),
@@ -1771,7 +1771,7 @@ describe("runTurnPipeline — RECEIVE per-speaker canon clean (F1)", () => {
   });
 
   test("a mid-word self-tag splice never persists to canon (the dumJFC word-boundary case)", async () => {
-    // P1 corruption regression, fixture message_01kyctjmg6e4e88m0vg5dwr8cd (seq 5): a speakerTags group
+    // P1 corruption regression, fixture synthetic assistant message (seq 5): a speakerTags group
     // turn trained the model to echo its own `Kai:` tag, and it spat one MID-WORD at a token boundary
     // (`dum` + `Kai: —` + `b`). The `^`-anchored leading strip can't reach it — RED before the inline scrub.
     const { args } = baseArgs({

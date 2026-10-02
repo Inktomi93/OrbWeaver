@@ -62,7 +62,7 @@ const GLOW =
  */
 const PLATE_NAME_CAP = 2;
 
-/** The member run: a bounded, boundary-ending list — `Elara · Bram +19 more`, never a cut-off name. */
+/** The member run: a bounded, boundary-ending list — `Elara · Bryn +19 more`, never a cut-off name. */
 function memberNames(family: VisualFamily): string {
   const names = family.members.map((member) => member.name);
   const shown = names.slice(0, PLATE_NAME_CAP);
@@ -92,7 +92,7 @@ function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly
     // background it steps UP. Card's own `bg-card` default would be invisible inside the island.
     // A PLATE IS A LIST ITEM (#537, corpus ARIA sweep). The grid rendered as role-less cards, so eight
     // families reached a screen reader as ONE flat run of text: no boundary to step to between plates, and
-    // no way to tell where a family's NAME ended and its census ("4 members · Elara · Bram · …") began —
+    // no way to tell where a family's NAME ended and its census ("4 members · Elara · Bryn · …") began —
     // the two spans are separate elements, but nothing said the run had eight parts. The listitem supplies
     // the boundary, and with it the count, so a reader steps family by family and reads the census inside
     // the one they stopped on. Deliberately NO `aria-label` here: a named container is announced INSTEAD of
@@ -123,7 +123,7 @@ function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly
                   information and `none` reads as a rendering fault. The arm was
                   `isUnlabelled(family) ? memberNames(family) : facetLabel(family.label)`.
                 WHAT REFUTED ITS PREMISE: on a 12-card library the unlabelled family genuinely had no
-                  name. On the 327-card library it DOES — the server labels it `Unanalysed portraits`
+                  name. On the 320-card library it DOES — the server labels it `Unanalysed portraits`
                   (`domain/discovery/image-analytics/retrieve.ts`), and the Archetypes tab 30px to the
                   right renders exactly that through `facetLabel`. So the member-run arm was not rescuing
                   a nameless group; it was DISPLACING a name the payload already carried, giving one

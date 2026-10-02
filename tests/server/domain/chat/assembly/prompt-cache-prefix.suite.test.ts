@@ -77,7 +77,7 @@ function claudeCall(canon: readonly CanonRow[], over: Partial<ShapeArgs> & { rea
     cardScope: "merged",
     scopedTargetId: null,
     namesBehavior: "default",
-    speakers: { user: "Alex", assistant: "Mara" },
+    speakers: { user: "Alex", assistant: "Mira" },
     groupNudge: null,
     convertsToEmptyWireRow,
     roleHandlingFloor: floor,
@@ -88,7 +88,7 @@ function claudeCall(canon: readonly CanonRow[], over: Partial<ShapeArgs> & { rea
 
 const CLAUDE_FLOORS: readonly RoleHandling[] = ["strict", "slotted"];
 
-const MARA = mintTypeId(ID_PREFIX.character);
+const MIRA = mintTypeId(ID_PREFIX.character);
 const WREN = mintTypeId(ID_PREFIX.character);
 const KAI = mintTypeId(ID_PREFIX.character);
 const cue = (name: string): string => `[Write the next reply only as ${name}.]`;
@@ -98,26 +98,26 @@ describe("a merged group round keeps every cached block (F1)", () => {
   // crosses the round boundary. Each speaker's call ends on SHAPE's cue, so its pin is the reply just before
   // it, and the next speaker's reply lands directly under that pinned block.
   const greetings = [
-    canonRow("assistant", "Mara waves.", "Mara", MARA),
+    canonRow("assistant", "Mira waves.", "Mira", MIRA),
     canonRow("assistant", "Wren nods.", "Wren", WREN),
     canonRow("assistant", "Kai grins.", "Kai", KAI),
   ];
   const u1 = canonRow("user", "We head for the harbor.", "Alex");
-  const m1 = canonRow("assistant", "Mara leads.", "Mara", MARA);
+  const m1 = canonRow("assistant", "Mira leads.", "Mira", MIRA);
   const w1 = canonRow("assistant", "Wren scouts.", "Wren", WREN);
   const k1 = canonRow("assistant", "Kai follows.", "Kai", KAI);
   const u2 = canonRow("user", "Board the ship.", "Alex");
-  const m2 = canonRow("assistant", "Mara climbs aboard.", "Mara", MARA);
+  const m2 = canonRow("assistant", "Mira climbs aboard.", "Mira", MIRA);
 
   for (const floor of CLAUDE_FLOORS) {
     test(`floor ${floor}: seed, round, and the round boundary each repeat the prior call's cached prefix`, () => {
       const turn = (canon: readonly CanonRow[], speaker: string): Shaped =>
         shape(claudeCall(canon, { floor, groupNudge: cue(speaker), speakers: { user: "Alex", assistant: speaker } }));
       const calls = [
-        turn([...greetings, u1], "Mara"),
+        turn([...greetings, u1], "Mira"),
         turn([...greetings, u1, m1], "Wren"),
         turn([...greetings, u1, m1, w1], "Kai"),
-        turn([...greetings, u1, m1, w1, k1, u2], "Mara"),
+        turn([...greetings, u1, m1, w1, k1, u2], "Mira"),
         turn([...greetings, u1, m1, w1, k1, u2, m2], "Wren"),
       ];
       expect(prefixLeaks(calls)).toEqual([]);
@@ -127,11 +127,11 @@ describe("a merged group round keeps every cached block (F1)", () => {
   test("each speaker keeps their own label, and the level still yields one turn per run", () => {
     const out = shape(claudeCall([...greetings, u1, m1, w1], { floor: "strict", groupNudge: cue("Kai"), speakers: { user: "Alex", assistant: "Kai" } }));
     expect(blocks(out.history)).toEqual([
-      { role: "assistant", content: "Mara: Mara waves.", name: undefined },
+      { role: "assistant", content: "Mira: Mira waves.", name: undefined },
       { role: "assistant", content: "Wren: Wren nods.", name: undefined },
       { role: "assistant", content: "Kai: Kai grins.", name: undefined },
       { role: "user", content: "We head for the harbor.", name: undefined },
-      { role: "assistant", content: "Mara: Mara leads.", name: undefined },
+      { role: "assistant", content: "Mira: Mira leads.", name: undefined },
       { role: "assistant", content: "Wren: Wren scouts.", name: undefined },
       { role: "user", content: cue("Kai"), name: undefined },
     ]);
@@ -149,21 +149,21 @@ describe("a merged group round keeps every cached block (F1)", () => {
       }),
     );
     expect(out.history.map((row) => row.content)).toEqual([
-      "Mara: Mara waves.\n\nWren: Wren nods.\n\nKai: Kai grins.",
+      "Mira: Mira waves.\n\nWren: Wren nods.\n\nKai: Kai grins.",
       "We head for the harbor.",
-      "Mara: Mara leads.\n\nWren: Wren scouts.",
+      "Mira: Mira leads.\n\nWren: Wren scouts.",
       cue("Kai"),
     ]);
   });
 });
 
 describe("multi-human rooms: back-to-back user rows keep every cached block (F1)", () => {
-  const greeting = canonRow("assistant", "Aria opens the door.", "Aria", MARA);
-  const nate1 = canonRow("user", "I step inside.", "Alex");
+  const greeting = canonRow("assistant", "Aria opens the door.", "Aria", MIRA);
+  const alex1 = canonRow("user", "I step inside.", "Alex");
   const joe1 = canonRow("user", "I follow him in.", "Joe");
-  const aria1 = canonRow("assistant", "Aria lights a lamp.", "Aria", MARA);
-  const nate2 = canonRow("user", "I sit down.", "Alex");
-  const aria2 = canonRow("assistant", "Aria pours tea.", "Aria", MARA);
+  const aria1 = canonRow("assistant", "Aria lights a lamp.", "Aria", MIRA);
+  const alex2 = canonRow("user", "I sit down.", "Alex");
+  const aria2 = canonRow("assistant", "Aria pours tea.", "Aria", MIRA);
   const joe2 = canonRow("user", "I take a cup.", "Joe");
 
   for (const floor of CLAUDE_FLOORS) {
@@ -171,10 +171,10 @@ describe("multi-human rooms: back-to-back user rows keep every cached block (F1)
       const send = (canon: readonly CanonRow[], trigger: string): Shaped =>
         shape(claudeCall(canon, { floor, namesBehavior: "content", speakers: { user: trigger, assistant: "Aria" } }));
       const calls = [
-        send([greeting, nate1], "Alex"),
-        send([greeting, nate1, joe1], "Joe"),
-        send([greeting, nate1, joe1, aria1, nate2], "Alex"),
-        send([greeting, nate1, joe1, aria1, nate2, aria2, joe2], "Joe"),
+        send([greeting, alex1], "Alex"),
+        send([greeting, alex1, joe1], "Joe"),
+        send([greeting, alex1, joe1, aria1, alex2], "Alex"),
+        send([greeting, alex1, joe1, aria1, alex2, aria2, joe2], "Joe"),
       ];
       expect(prefixLeaks(calls)).toEqual([]);
     });
@@ -185,9 +185,9 @@ describe("a solo chat is byte-identical on a caching wire (golden)", () => {
   const marker: ChatInjection = { position: "in_chat", depth: BEFORE_HISTORY_DEPTH, role: "user", content: "[Start a new chat]", origin: "new-chat-marker" };
   const note: ChatInjection = { position: "in_chat", depth: 2, role: "user", content: "Keep it short." };
   const canon = [
-    canonRow("assistant", "Hello, traveller.", "Aria", MARA),
+    canonRow("assistant", "Hello, traveller.", "Aria", MIRA),
     canonRow("user", "Hi.", "Alex"),
-    canonRow("assistant", "Where to?", "Aria", MARA),
+    canonRow("assistant", "Where to?", "Aria", MIRA),
     canonRow("user", "North.", "Alex"),
   ];
 
@@ -217,7 +217,7 @@ describe("a depth-scoped PROMPT_HISTORY script never rewrites a block above the 
   });
   const turnRows = (count: number): CanonRow[] =>
     Array.from({ length: count }, (_, index) =>
-      index % 2 === 0 ? canonRow("user", `u${index} secret`, "Alex") : canonRow("assistant", `a${index} secret`, "Aria", MARA),
+      index % 2 === 0 ? canonRow("user", `u${index} secret`, "Alex") : canonRow("assistant", `a${index} secret`, "Aria", MIRA),
     );
   const history = turnRows(12);
 

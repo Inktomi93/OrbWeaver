@@ -138,7 +138,7 @@ export function macroArgDiagnostics(violations: readonly MacroArgViolation[], sp
 
 /** Validate a macro call's RESOLVED args against its metadata. Returns the diagnostics (arity + per-arg
  *  type) at `severity` — `"error"` under strictArgs (the rule/template editors), `"warning"` otherwise
- *  (default-lenient: imported ST content is sloppy). An empty array = the call is well-formed. Derived
+ *  (default-lenient: imported content can be loosely formed). An empty array = the call is well-formed. Derived
  *  from {@link checkMacroArgs} + {@link macroArgDiagnostics} (the ONE violation home — the evaluator's
  *  runtime enforcement composes the same pair). Determinism: pure function of its inputs; no clock/PRNG. */
 export function validateMacroArgs(metadata: MacroMetadata, args: readonly string[], span: MacroSpan, strict: boolean): MacroDiagnostic[] {

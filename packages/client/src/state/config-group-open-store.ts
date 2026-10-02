@@ -1,21 +1,10 @@
-// CONFIG GROUP DISCLOSURE — which groups are EXPANDED in the Configuration LIST, remembered per device
-// (owner ruling, 2026-08-02; every kind since the config revamp, #866 S1 C-12).
+// Config disclosure is device-local working posture, not a preference carried to another screen
+// (#866/persistence-boundary). Groups start closed so one long library does not bury its siblings; the
+// band is the map. The active group is always expanded, derived by the list rather than held independently
+// here.
 //
-// WHY GROUPS START CLOSED: the LIST stacks N groups in one 330px pane, and a real library is not a
-// glance — the owner's own tag library is ~400 rows. Always-expanded (as the mocks drew it) buries every
-// sibling group below one group's scroll, so the LIST stops being the map of what EXISTS, which is the
-// whole thing the workspace teaches. Collapsed-by-default makes the band the map and the rows the
-// drill-down; the welcome pane carries the orientation for a first-ever visit. ONE amendment for the
-// unified surface: the ACTIVE group is always expanded — selection and disclosure are one act (the
-// `selectCollectionMember` rule, now for every kind) — which the LIST derives, not this store.
-//
-// WHY PER DEVICE: "tags open, regex closed" is a working posture on THIS screen, not a preference that
-// should follow a user to a phone — the `character-library` browse-prefs precedent (§12.1). Registered as
-// device-local in tooling/src/verify/gates/persistence-boundary.ts.
-//
-// The stored shape is an id LIST, not a total Record: a persisted id that no longer registers (a retired
-// group, an older spelling) costs one dead array member and is dropped on the next toggle — the sanitizer
-// keeps only live `ConfigGroupId`s.
+// The stored shape is an id list, not a total Record. The sanitizer keeps live ConfigGroupIds;
+// retired/older ids are harmless dead entries dropped on the next toggle.
 
 import type { ConfigGroupId } from "./config-group-ids.ts";
 import { isConfigGroupId } from "./config-group-ids.ts";

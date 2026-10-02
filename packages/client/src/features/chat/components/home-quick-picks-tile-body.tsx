@@ -183,7 +183,7 @@ export function HomeQuickPicksTileBody(): ReactElement {
                   line inside a `-webkit-box` clamp overflows its cell with no ellipsis at all (measured on
                   the 2000px stage receipt, which is why this was `block truncate` before).
                   AND IT RESERVES BOTH LINES (`lines={2}`, side-eye home re-score 2026-08-18 #216-d): the
-                  clamp CAPS at two lines, it does not reserve them, so a one-line name ("Mira") and a
+                  clamp CAPS at two lines, it does not reserve them, so a one-line name ("Tamsin") and a
                   two-line one ("Calamity, Doomblade of the Ninth Epoch") started their captions 21px apart
                   IN THE SAME ROW (measured `descTop` 359 vs 380 at 1920) and the shelf read as six loose
                   objects instead of one rank. Reserving is the fix the shape allows — the cells are a

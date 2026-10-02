@@ -260,12 +260,12 @@ test("if comparator compares a bare identifier against a quoted literal", () => 
 // ── default registry: cast / group ─────────────────────────────────────────────────────────────
 
 test("group joins the character names; a solo chat collapses group to char (byte-identical)", () => {
-  expect(processMacros("{{group}}", opts({ characterNames: ["Alice", "Bram"] }))).toBe("Alice, Bram");
+  expect(processMacros("{{group}}", opts({ characterNames: ["Alice", "Bryn"] }))).toBe("Alice, Bryn");
   expect(processMacros("{{group}}", opts())).toBe("Alice");
 });
 
 test("notChar drops the current speaker from the cast", () => {
-  expect(processMacros("{{notchar}}", opts({ characterNames: ["Alice", "Bram"] }))).toBe("Bram");
+  expect(processMacros("{{notchar}}", opts({ characterNames: ["Alice", "Bryn"] }))).toBe("Bryn");
 });
 
 // ── default registry: clock (deterministic via nowMs + timezone) ───────────────────────────────
@@ -509,8 +509,8 @@ test("banned renders empty (legacy upstreams strip its contents)", () => {
 });
 
 test("groupnotmuted excludes muted characters; group still includes them", () => {
-  const withMuted = opts({ characterNames: ["Alice", "Bram", "Cleo"], unmutedCharacterNames: ["Alice", "Cleo"] });
-  expect(processMacros("{{group}}", withMuted)).toBe("Alice, Bram, Cleo");
+  const withMuted = opts({ characterNames: ["Alice", "Bryn", "Cleo"], unmutedCharacterNames: ["Alice", "Cleo"] });
+  expect(processMacros("{{group}}", withMuted)).toBe("Alice, Bryn, Cleo");
   expect(processMacros("{{groupnotmuted}}", withMuted)).toBe("Alice, Cleo");
 });
 

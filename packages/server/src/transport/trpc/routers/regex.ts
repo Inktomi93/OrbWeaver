@@ -76,9 +76,8 @@ export const regexRouter = t.router({
     .input(scriptIdInput)
     .mutation(({ ctx, input }) => ctx.services.regex.duplicateScript({ principal: ctx.auth, scriptId: input.scriptId })),
 
-  // ── The BULK arm (REGX2 — the library's multi-select bar) ───────────────────────────────────────────
-  // Three verbs, one id-list shape. `scriptIds` is capped so a hostile caller cannot turn one request into
-  // an unbounded statement; the cap is far above any real selection (the owner's library is ~34 globals).
+  // Bulk script verbs share one capped id-list shape, so a hostile caller cannot turn a request into an
+  // unbounded statement.
   bulkSetEnabled: authedProcedure
     .output(bulkResultSchema)
     .input(z.object({ scriptIds: scriptIdsInput, enabled: z.boolean() }))

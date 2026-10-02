@@ -289,7 +289,7 @@ test("a resumed turn records its own cost: the session total less what the trans
     childEnv: () => ({}),
   };
   const turn = await runChatTurn(
-    { api: "agent-sdk", connection, chatId, params: {}, systemPrompt: { static: "You are Mara.", dynamic: "" }, prompt: "Any ships?" },
+    { api: "agent-sdk", connection, chatId, params: {}, systemPrompt: { static: "You are Mira.", dynamic: "" }, prompt: "Any ships?" },
     deps,
     sessions,
     createAgentSdkLog(quietLog, "claude-sub"),
@@ -314,7 +314,7 @@ test("a resumed turn whose saved total is unreadable records its cost as unrecor
 // across four calls under a 300-token cap (turn_15, numTurns 4).
 const CAP = 300;
 const CAP_NOTICE = `API Error: Claude's response exceeded the ${CAP} output token maximum. To configure this behavior, set the CLAUDE_CODE_MAX_OUTPUT_TOKENS environment variable.`;
-const LEGS = ["Mara trims the wick and the lamp flares. ", "Wren ties the ferry off below the rocks. ", "The fog rolls in over both of them."];
+const LEGS = ["Mira trims the wick and the lamp flares. ", "Wren ties the ferry off below the rocks. ", "The fog rolls in over both of them."];
 
 function cappedTurn(legs: readonly string[]): SdkStream {
   const model = "claude-sonnet-5";
@@ -473,7 +473,7 @@ async function capturedBody(tailSystem: string | undefined): Promise<Record<stri
       api: "agent-sdk",
       connection,
       params: {},
-      systemPrompt: { static: "You are Mara.", dynamic: "Scene: the harbor." },
+      systemPrompt: { static: "You are Mira.", dynamic: "Scene: the harbor." },
       ...(tailSystem !== undefined ? { tailSystem } : {}),
       prompt: "Hello.",
     },
@@ -490,12 +490,12 @@ async function capturedBody(tailSystem: string | undefined): Promise<Record<stri
 
 test("the capture records the hook's context when a tail system row rides it, and the dynamic half stays in the system prompt", async () => {
   const body = await capturedBody(HOOK_RULE);
-  expect(body["systemPrompt"]).toBe("You are Mara.\n\nScene: the harbor.");
+  expect(body["systemPrompt"]).toBe("You are Mira.\n\nScene: the harbor.");
   expect(body["hookContext"]).toBe(HOOK_RULE);
 });
 
 test("no tail system row mounts no hook, on a model that takes one too", async () => {
   const body = await capturedBody(undefined);
-  expect(body["systemPrompt"]).toBe("You are Mara.\n\nScene: the harbor.");
+  expect(body["systemPrompt"]).toBe("You are Mira.\n\nScene: the harbor.");
   expect(body["hookContext"]).toBeNull();
 });

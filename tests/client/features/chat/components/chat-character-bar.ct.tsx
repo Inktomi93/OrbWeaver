@@ -140,7 +140,7 @@ test("#490 neither a host nor a member gets an add-member door on the strip (its
 // for the message row's own bands, and the one rule #237 extends across the shell's chrome. The backing
 // is self-gated on the shell's `data-has-bg-image`, so the plain-background arm must not move a pixel.
 test("#229: over a wallpaper the strip takes the derived plate + blur; without one it is byte-identical", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHARACTER_ROUTE, "chat.getChat": () => roster(character("a", "Birdie"), character("b", "Mira")) });
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHARACTER_ROUTE, "chat.getChat": () => roster(character("a", "Birdie"), character("b", "Tamsin")) });
   const plain = await mount(<ChatCharacterBarStory />);
   const plainStrip = plain.getByTestId("chat-character-bar");
   await expect(plainStrip).toBeVisible();
@@ -227,8 +227,8 @@ const CROWDED_ROSTER = [
   seatedHuman("member", "casey@example.com"),
   character("aria", "Aria of the Ninth Gate"),
   character("bryn", "Bryn Ashgrove, the Warden"),
-  character("azarael", "Azarael"),
-  character("sera", "Sera of the Long Winter Court"),
+  character("aveline", "Aveline"),
+  character("sola", "Sola of the Long Winter Court"),
 ];
 
 const PHONE_ROOM_STUB: TrpcRoutes<"chat.previewContextFit" | "chat.listMessages" | "chat.getChat"> = {
@@ -300,8 +300,8 @@ for (const width of [430, 390, 320]) {
       expect(measured.names).toEqual([
         "Aria of the Ninth Gate",
         "Bryn Ashgrove, the Warden",
-        "Azarael",
-        "Sera of the Long Winter Court",
+        "Aveline",
+        "Sola of the Long Winter Court",
         "you@example.com",
         "casey@example.com",
       ]);

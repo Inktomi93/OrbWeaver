@@ -122,9 +122,9 @@ test("a GRANT reaches an actor the class missed; a REVOKE beats the class AND a 
   const npcOnly = def({ key: "bound_will", label: "Bound Will", shape: "meter", write: "delta", subject: "actor", appliesTo: "npcs" });
   const everyone = def({ key: "mana", label: "Mana", shape: "meter", write: "delta", subject: "actor", appliesTo: "everyone" });
   expect(carriesTracker(npcOnly, carrier("Kael", "party", { grants: ["bound_will"] }))).toBe(true);
-  expect(carriesTracker(everyone, carrier("Sera", "party", { revokes: ["mana"] }))).toBe(false);
+  expect(carriesTracker(everyone, carrier("Sola", "party", { revokes: ["mana"] }))).toBe(false);
   // A revoke wins even against an explicit grant — it is the host saying "not this one, not on them".
-  expect(carriesTracker(everyone, carrier("Sera", "party", { grants: ["mana"], revokes: ["mana"] }))).toBe(false);
+  expect(carriesTracker(everyone, carrier("Sola", "party", { grants: ["mana"], revokes: ["mana"] }))).toBe(false);
 });
 
 test("a GAME-subject tracker has no carriers at all (it is one reading on the snapshot)", () => {
@@ -138,11 +138,11 @@ test("the two read directions agree — who carries THIS tracker, and what does 
   const mana = def({ key: "mana", label: "Mana", shape: "meter", write: "delta", subject: "actor", appliesTo: "party" });
   const trust = def({ key: "trust", label: "Trust", shape: "text", write: "set", subject: "actor", appliesTo: "npcs" });
   const kael = carrier("Kael", "party");
-  const sera = carrier("Sera", "party", { revokes: ["mana"] });
+  const sola = carrier("Sola", "party", { revokes: ["mana"] });
   const mira = carrier("Mira", "npcs");
-  expect(resolveTrackerCarriers(mana, [kael, sera, mira]).map((c) => c.name)).toEqual(["Kael"]);
+  expect(resolveTrackerCarriers(mana, [kael, sola, mira]).map((c) => c.name)).toEqual(["Kael"]);
   expect(trackersForCarrier([mana, trust], kael).map((d) => d.key)).toEqual(["mana"]);
-  expect(trackersForCarrier([mana, trust], sera)).toEqual([]);
+  expect(trackersForCarrier([mana, trust], sola)).toEqual([]);
   expect(trackersForCarrier([mana, trust], mira).map((d) => d.key)).toEqual(["trust"]);
 });
 

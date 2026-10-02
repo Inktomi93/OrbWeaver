@@ -199,7 +199,7 @@ test("cleanPerSpeakerReply strips own label then truncates foreign drift", () =>
 
 // P1 canon-corruption regression: the model, trained on the `Name:`-prefixed transcript in a speakerTags
 // group turn, interleaves its OWN tag MID-generation. The `dumJFC: —b` word-splice observed in fixture
-// message_01kyctjmg6e4e88m0vg5dwr8cd (seq 5): the model spat `JFC: —` at a token boundary between `dum`
+// synthetic assistant message (seq 5): the model spat `JFC: —` at a token boundary between `dum`
 // and `b`. The `^`-anchored leading/foreign strips can't reach a mid-content self-label — before the fix
 // the fragment persisted into canon. RED on old code (stripInlineSpeakerLabel didn't exist).
 test("stripInlineSpeakerLabel removes a mid-word self-tag splice (the dumJFC case)", () => {
@@ -209,7 +209,7 @@ test("stripInlineSpeakerLabel removes a mid-word self-tag splice (the dumJFC cas
 test("stripInlineSpeakerLabel scrubs every inline self-label but leaves foreign names and prose colons", () => {
   expect(stripInlineSpeakerLabel("one JFC: two JFC: three", "JFC")).toBe("one two three");
   // A different speaker's inline label is left alone (foreign-drift truncation owns that case).
-  expect(stripInlineSpeakerLabel("mine Mara: hers", "JFC")).toBe("mine Mara: hers");
+  expect(stripInlineSpeakerLabel("mine Mira: hers", "JFC")).toBe("mine Mira: hers");
   // Empty name is a no-op.
   expect(stripInlineSpeakerLabel("JFC: text", "")).toBe("JFC: text");
 });
@@ -272,8 +272,8 @@ test("stripInlineSpeakerLabel still removes a mid-word torn label carrying markd
 // leave ANY self-tag fragment — leading, inline, or foreign-drift — in the stored body. This is the exact
 // shape the corrupted fixture row should have persisted. RED on old code (mid-word fragment survived).
 test("cleanPerSpeakerReply persists NO self-tag fragment — leading + inline + foreign all scrubbed", () => {
-  const raw = "JFC: My whole religion fits on an index card: ship the dumJFC: —b version.\nMara: her line";
-  expect(cleanPerSpeakerReply(raw, "JFC", ["Mara", "Niko"])).toBe("My whole religion fits on an index card: ship the dumb version.");
+  const raw = "JFC: My whole religion fits on an index card: ship the dumJFC: —b version.\nMira: her line";
+  expect(cleanPerSpeakerReply(raw, "JFC", ["Mira", "Niko"])).toBe("My whole religion fits on an index card: ship the dumb version.");
 });
 
 // foreignLabelStops (IMP-1) — the WIRE half of the same foreign-label grammar truncateAtForeignLabel

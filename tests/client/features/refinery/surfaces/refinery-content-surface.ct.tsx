@@ -272,10 +272,7 @@ const COMPLETED_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 /** The session `startSession` hands back on the mint arm. */
 const MINTED_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 
-/** A library big enough to outgrow one `character.list` page — the owner's live corpus size (#157 scope
- *  add). The picker used to ask for ONE 100-row page, so cards 101…327 were unreachable from the landing
- *  even though the roster beside it could name them. */
-const BIG_LIBRARY_SIZE = 327;
+const BIG_LIBRARY_SIZE = 320;
 const BIG_LIBRARY = Array.from({ length: BIG_LIBRARY_SIZE }, (_, i) =>
   makeCharacterSummary({ id: `chr_ct_lib_${String(i + 1).padStart(3, "0")}`, name: `Ward ${String(i + 1).padStart(3, "0")}` }),
 );
@@ -400,7 +397,10 @@ test("the LANDING leads with the picker: the search box is live at first paint, 
   expect(searchBox?.y ?? 0, "the picker sits above the teaching material").toBeLessThan(steps?.y ?? 0);
 });
 
-test("the landing picker exposes the WHOLE library — a card past the first page is reachable, and it is a real 327-card corpus", async ({ mount, page }) => {
+test("the landing picker exposes the WHOLE library — a card past the first page is reachable, and it is a synthetic multi-page corpus", async ({
+  mount,
+  page,
+}) => {
   await freeze(page);
   await routeTrpc(page, {
     ...landingRoutes([]),
@@ -411,7 +411,7 @@ test("the landing picker exposes the WHOLE library — a card past the first pag
   // Page one landed…
   await expect(page.getByRole("option", { name: "Ward 001" })).toBeVisible();
   // …and the tail of the library is NOT on it. Under the old fixed `limit: 100` picker this stayed true
-  // forever: cards 101…327 had no affordance that could reach them.
+  // forever: cards 101…320 had no affordance that could reach them.
   await expect(page.getByRole("option", { name: DEEPEST_CARD })).toHaveCount(0);
 
   // The picker's keyboard paging walks to the end with no dead "Load more" chrome (#334). `End` moves the

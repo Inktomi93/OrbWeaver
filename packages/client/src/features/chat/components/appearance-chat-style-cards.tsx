@@ -80,7 +80,7 @@ function withPreviewBannerWidth(className: string): string {
 
 const PREVIEW_COPY: Record<MessageRole, { readonly name: string; readonly line: string; readonly followup: string }> = {
   user: { name: "You", line: "Wait by the old gate.", followup: "I'll bring the map." },
-  assistant: { name: "Mara", line: "The lantern is still warm.", followup: "Someone was here." },
+  assistant: { name: "Mira", line: "The lantern is still warm.", followup: "Someone was here." },
   system: { name: "Story", line: "The room falls quiet.", followup: "" },
 };
 

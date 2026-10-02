@@ -40,7 +40,7 @@ function card(key: string, name: string, description: string): CardSpec {
   return { key, name, description, greeting: `${name} looks up.`, systemPrompt: `Stay in character as ${name}. ${BREVITY}` };
 }
 
-const MARA = card("mara", "Mara", "Mara keeps the lighthouse on a cold northern coast.");
+const MIRA = card("mira", "Mira", "Mira keeps the lighthouse on a cold northern coast.");
 const WREN = card("wren", "Wren", "Wren pilots the harbor ferry and talks about the tide.");
 const ANSEL = card("ansel", "Ansel", "Ansel runs the harbor tavern and trades gossip.");
 
@@ -68,14 +68,14 @@ const ROUND_PREFIX_STEPS: readonly ProbeStep[] = [
  * round, so `list` runs a single speaker. `cardScope` keeps its default, `merged`, the one roster system block.
  */
 export const ROOMS: Readonly<Record<RoomKind, RoomSpec>> = {
-  solo: { cards: [MARA], opening: "first-message", group: null, prefixSteps: PREFIX_STEPS },
+  solo: { cards: [MIRA], opening: "first-message", group: null, prefixSteps: PREFIX_STEPS },
   "per-speaker": {
-    cards: [MARA, WREN, ANSEL],
+    cards: [MIRA, WREN, ANSEL],
     opening: "greet-all",
     group: { output: "per-speaker", policy: "list" },
     prefixSteps: ROUND_PREFIX_STEPS,
   },
-  narrator: { cards: [MARA, WREN], opening: "greet-all", group: { output: "narrator", policy: "natural" }, prefixSteps: PREFIX_STEPS },
+  narrator: { cards: [MIRA, WREN], opening: "greet-all", group: { output: "narrator", policy: "natural" }, prefixSteps: PREFIX_STEPS },
 };
 
 // Any in-chat injection at depth 2 or deeper moves the history breakpoint; 4 is where an author's note sits.

@@ -97,13 +97,13 @@ test("the character picker narrows through the SERVER — the typed term reaches
   await expect.poll(() => trpc.count("worldInfo.listAttachmentsForBook")).toBe(1);
   await expect.poll(() => trpc.count("worldInfo.listForCharacter")).toBe(0);
 
-  await context.getByRole("textbox", { name: "Search characters" }).fill("bram");
+  await context.getByRole("textbox", { name: "Search characters" }).fill("bryn");
 
   // SETTLED arm two: the term has landed at the verb and the roster is the SEARCHED answer. Both assertions
   // are on the settled render — Astrid leaving is the tell that a new page arrived, not a local filter.
   await expect(context.getByRole("switch", { name: "Attach to Bramble" })).toBeVisible();
   await expect(context.getByRole("switch", { name: "Attach to Astrid" })).toHaveCount(0);
-  await expect.poll(() => trpc.lastInput("character.list"), { intervals: [20, 50, 100] }).toEqual({ limit: 100, search: "bram" });
+  await expect.poll(() => trpc.lastInput("character.list"), { intervals: [20, 50, 100] }).toEqual({ limit: 100, search: "bryn" });
 });
 
 test("a search that matches nothing says so about the TERM, and offers the way back out", async ({ mount, page }) => {

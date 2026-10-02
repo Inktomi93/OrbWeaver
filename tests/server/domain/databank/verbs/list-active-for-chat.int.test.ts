@@ -77,7 +77,7 @@ test("D-2: each row carries the junction(s) crediting it — global · chat · c
   const host = await seedUser(db, { handle: castId<Handle>("host") });
   const chatId = await seedChat(db, "chat_room");
   await seedChatHost(db, chatId, host, "host");
-  const characterId = await seedCharacter(db, host, { id: "character_azarael", name: "Azarael" });
+  const characterId = await seedCharacter(db, host, { id: "character_aveline", name: "Aveline" });
   await seedRosterCharacter(db, chatId, characterId);
 
   const globalDoc = await h.service.createFromText({ principal: principalFor(host), name: "g.md", text: "global canon" });

@@ -731,7 +731,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     });
   });
 
-  // #165: the live 895-chat run logged `chat FAILED during plan and was skipped (unexpected error)` and the
+  // #165: the live 890-chat run logged `chat FAILED during plan and was skipped (unexpected error)` and the
   // ops read of the pretty single-line stream never reached the serialized `err` block, so the failure was
   // undiagnosable from the log at a glance for two whole runs. The CAUSE now rides as scalar fields on the
   // line itself — phase + error name + message — next to the (still-serialized) `err`.

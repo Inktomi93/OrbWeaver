@@ -363,7 +363,7 @@ export interface MacroContext {
   __currentSpan?: MacroSpan | undefined;
   // Arg-validation mode. `true` → a bad-arity/bad-arg-type call renders "" + an `error`
   // diagnostic (the rule/template EDITORS hold new authorship to the bar); `false`/undefined
-  // (default) → best-effort render + a `warning` diagnostic (imported ST content is sloppy).
+  // (default) → best-effort render + a `warning` diagnostic (imported content can be loosely formed).
   strictArgs?: boolean;
   // Optional diagnostics sink — mirrors `opLog`. When present, the evaluator pushes each
   // MacroDiagnostic (unknown-macro under strict, arg-validation, {{expr}} errors) here; absent ⇒

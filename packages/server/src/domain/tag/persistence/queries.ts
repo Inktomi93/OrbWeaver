@@ -335,25 +335,11 @@ export async function listOwnedTagsWithUsage(db: Db, ownerId: UserId): Promise<T
   });
 }
 
-/**
- * The character-library FILTER VOCABULARY — every owned tag, projected to what a filter chip reads, ranked
- * MOST-USED-FIRST (ties alphabetical, the order the chip rail's cap depends on being meaningful).
- *
- * ONE `GROUP BY`, NOT FIVE, and four columns instead of eleven: the chip rail used to ride
- * {@link listOwnedTagsWithUsage}, the MANAGEMENT screen's read, which counts all five junctions and ships
- * the full display axes — 433KB over the wire for 1,736 tags to paint 8 chips (side-eye 2026-08-18 P2-6).
- * The other four counts are not a datum any chip can use.
- *
- * THE RANK IS THE SERVER'S (paged-list lenses go server-side): the client no longer re-sorts what it was
- * handed, so the cap's "the filters that can do the most sit in the visible slice" rule has ONE author.
- * Every owned tag is returned, including hidden and zero-usage ones — the caller drops those from the RAIL
- * but needs them as the referential authority for a persisted filter (see `TagFilterVocabularyEntry`).
- *
- * `characters` IS THE ACCEPTED COUNT, AND THAT IS WHAT MAKES THE RAIL'S OWN GATE TRUE (#839) — see
- * {@link countAcceptedCharacterTags}. The client drops a `characters === 0` entry from the chips
- * (`tagVocabulary`), so this number is the predicate deciding whether a facet is OFFERED; counting a
- * pending suggestion here offered 28 facets that the list's `status = 'accepted'` filter could never match.
- * Zero-count rows still SHIP (the referential authority is the row set, not the count).
+/** The character-filter vocabulary is most-used-first with alphabetical ties, ranked by the server rather
+ *  than resorted by the client. One GROUP BY projects the character junction, not the management rollup
+ *  over all five junctions. Every owned tag, including hidden and zero-usage rows, ships as referential
+ *  authority. characters counts accepted links only (countAcceptedCharacterTags/#839); pending suggestions
+ *  must not offer facets that the list accepted predicate cannot match.
  */
 export async function listOwnedTagFilterVocabulary(db: Db, ownerId: UserId): Promise<TagFilterVocabularyEntry[]> {
   const owned = await listOwnedTags(db, ownerId);

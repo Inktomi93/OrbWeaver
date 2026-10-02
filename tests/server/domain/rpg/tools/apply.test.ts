@@ -150,14 +150,14 @@ test("update_inventory adds an item + applies a wallet delta on the same actor",
 test("update_inventory patches an existing item without re-minting it", () => {
   const state = emptyState({
     actorState: [
-      actorRow("hikari", {
+      actorRow("tamsin", {
         inventory: [{ id: "i1", name: "small brass key", description: "a worn key", quantity: 1, location: "shirt pocket", type: "key", icon: "key" }],
       }),
     ],
   });
   const result = applyUpdateInventory(
     state,
-    { targetRef: "Mira", update: [{ name: "small brass key", description: "hanging from a silver chain", location: "around her neck" }] },
+    { targetRef: "Tamsin", update: [{ name: "small brass key", description: "hanging from a silver chain", location: "around her neck" }] },
     idSeq("item"),
     NO_PARTICIPANTS,
   );
@@ -167,10 +167,10 @@ test("update_inventory patches an existing item without re-minting it", () => {
 });
 
 test("update_inventory salvages an update for a new story item as an add", () => {
-  const state = emptyState({ actorState: [actorRow("hikari")] });
+  const state = emptyState({ actorState: [actorRow("tamsin")] });
   const result = applyUpdateInventory(
     state,
-    { targetRef: "Mira", update: [{ name: "Phone", description: "dead phone", location: "charging on counter" }] },
+    { targetRef: "Tamsin", update: [{ name: "Phone", description: "dead phone", location: "charging on counter" }] },
     idSeq("item"),
     NO_PARTICIPANTS,
   );
@@ -653,7 +653,7 @@ test("EXT-4b: the heal does NOT resurrect the custom label — a healed entry is
 
 // ── buildActorRefIndex — the player self-alias (R2, belt-and-suspenders with the schema enum constraint) ──
 test("the player (user-kind) actor answers to the universal self-aliases (player/you/self/me)", () => {
-  const userId = castId<UserId>("user_nate");
+  const userId = castId<UserId>("user_alex");
   const idx = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "Alex" }]);
   // The participant name AND each self-alias resolve to the SAME user ref — never a phantom npc:player.
   for (const key of ["alex", "player", "you", "self", "me", "the player"]) {

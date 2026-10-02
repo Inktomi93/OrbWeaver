@@ -1,13 +1,9 @@
-// The Corpus Explore mode's phone title — the mobile pushed frame's topbar names the DOSSIER's subject,
-// not the section (side-eye P2). An inactive mode returns `null` and fetches nothing. Cache-first + gated: it shares the `character.get` read the dossier beside
-// it already made; `null` until it lands ⇒ the shell prints the section label rather than a blank bar.
-// (Its own lines rather than a shared helper: `client-features-no-cross` bars importing character's.)
+// Explore's phone topbar names the open dossier, not just the section. The gated cache-first character.get
+// read shares the dossier query; inactive mode fetches nothing and null falls back to the section label.
+// The client-feature boundary prevents a sideways character-helper import.
 //
-// WITH NO DOSSIER OPEN IT NAMES THE MODE *AND ITS SIZE* (#1676, the #1670 class). On a phone the LIST pane
-// IS the screen and the ONE-NAME rule (shell.css) sheds the LIST band's title — and the census travels INSIDE
-// that title (`components/list-pane-header.tsx`), so the catalog's size was printed nowhere at all. The count
-// goes back with the noun that survives, which on a phone is this one, and it is the SAME `useCorpusCensus`
-// the band reads: `Corpus · 313 of 327` here and `Corpus 313 of 327` there are one statement in one place.
+// With no dossier selected, the surviving mode noun carries useCorpusCensus, the same census the list band
+// reads. The phone one-name rule sheds that band's title, so the size otherwise disappears (#1676).
 
 import { useGatedQuery, useTRPC } from "#data";
 import type { CorpusDestination } from "#lib";
