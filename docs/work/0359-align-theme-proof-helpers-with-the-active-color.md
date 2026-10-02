@@ -10,7 +10,7 @@ area: ui
 
 ## What
 
-Remove the unused oklabToOklch converter and obsolete muted-foreground solver. Keep contrast proof helpers in test support when no product caller needs them.
+Remove the unused oklabToOklch converter and obsolete muted-foreground solver. Keep contrast proof helpers, including `readingBandSurface`, in test support when no product caller needs them.
 
 ## Why
 
@@ -22,4 +22,6 @@ Confirm consumers across packages, barrels, tooling and tests. Preserve OKLab pa
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The captured-zero audit also identifies `readingBandSurface` in `packages/kit/src/theme-derivation/index.ts`. Its calls are in theme derivation and palette contrast tests; its product references describe the calculation in prose. Preserve the band contrast and derivation assertions when moving this convenience helper.
+
+Evidence: `/tmp/claude-launch-zero-audit/RESULTS.md`. Root confirmed the call sites with literal and structural searches. A focused parser read shows that the JSDoc link enters the AST identifier walk; this is not a production call.
