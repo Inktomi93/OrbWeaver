@@ -703,7 +703,8 @@ async function importOneChat(args: {
   readonly ci: BulkImportChatInput;
 }): Promise<void> {
   const { ctx, state, ownerId, characterId, ci } = args;
-  const already = state.existing[ci.importHash];
+  // The content identity first; the whole-file hash a row imported before it carries second.
+  const already = state.existing[ci.importHash] ?? (ci.fileHash === undefined ? undefined : state.existing[ci.fileHash]);
   if (already !== undefined) {
     await recordSkippedImport({ ctx, state, existing: already, ownerId, ci });
     return;
@@ -743,7 +744,7 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
     const existing = await loadExistingImports(
       db,
       characterId,
-      input.map((c) => c.importHash),
+      input.flatMap((c) => (c.fileHash === undefined ? [c.importHash] : [c.importHash, c.fileHash])),
     );
 
     const state: ImportRunState = {

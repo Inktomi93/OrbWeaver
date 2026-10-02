@@ -1,8 +1,8 @@
 // verb: import — restore an owned persona from one portable FILE (the `export.ts` round-trip twin, and THE
 // one import path the single-entity door AND the bundle descriptor both call). Load-bearing: mints an owned,
-// avatar-less row (audited); defaults omitted fields exactly like `create`; IDEMPOTENT (audit gap G-7) —
-// dedups on `(ownerId, name)`, so re-importing the same backup MERGES into the existing persona (same id)
-// and creates ZERO duplicate rows; and NEVER throws for a malformed file — the refusal is a typed outcome
+// avatar-less row (audited); defaults omitted fields exactly like `create`; ADDITIVE — equal content reuses
+// the owned persona untouched (same id, zero duplicate rows), the same name with different content lands as
+// a second persona under " 2"; and NEVER throws for a malformed file — the refusal is a typed outcome
 // carrying the words the import door renders.
 
 import { personas } from "@orb/db";
@@ -83,14 +83,14 @@ describe("import", () => {
     const file = await svc.export({ principal: principal(owner), personaId: source.id });
     const restored = imported(await svc.import({ principal: principal(owner), bytes: file.bytes }));
 
-    // (ownerId, name) dedup: the backup's name already exists for the owner, so import merges in place.
+    // Equal content: the backup IS the source persona, so the import reuses it untouched.
     expect(restored.id).toBe(source.id);
     expect(restored.name).toBe(source.name);
     expect(restored.description).toBe(source.description);
     expect(restored.starred).toBe(source.starred);
   });
 
-  test("re-importing the same backup is idempotent — ZERO duplicate rows (audit gap G-7)", async () => {
+  test("re-importing the same backup is idempotent; an EDITED backup under the same name lands beside it, never over it", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -103,15 +103,18 @@ describe("import", () => {
       await svc.import({ principal: principal(owner), bytes: fileFor({ name: "Restored", description: "edited on re-import", starred: true }) }),
     );
 
-    // Same owned row reused across every re-import (dedup on `(ownerId, name)`).
+    // The equal backup reuses the owned row; the edited one is a second persona under the next free name.
     expect(second.id).toBe(first.id);
-    expect(third.id).toBe(first.id);
-    // The merge applied the changed field in place.
+    expect(third.id).not.toBe(first.id);
+    expect(third.name).toBe("Restored 2");
     expect(third.description).toBe("edited on re-import");
 
-    // Exactly ONE "Restored" row exists for the owner — re-import minted no duplicates.
+    // The original row is untouched, and nothing was duplicated.
     const rows = await db.select().from(personas).where(eq(personas.ownerId, owner));
-    expect(rows.filter((r) => r.name === "Restored")).toHaveLength(1);
+    expect(rows.map((r) => [r.name, r.description]).toSorted((a, b) => (a[0] ?? "").localeCompare(b[0] ?? ""))).toEqual([
+      ["Restored", "brought back"],
+      ["Restored 2", "edited on re-import"],
+    ]);
   });
 
   test("a DIFFERENT name still mints a fresh row (dedup keys on name, not blanket-merge)", async () => {
@@ -145,7 +148,7 @@ describe("import", () => {
     expect(await db.select().from(personas).where(eq(personas.ownerId, owner))).toHaveLength(0);
   });
 
-  test("`created` discriminates a fresh mint from an in-place merge (the descriptor's dedup signal)", async () => {
+  test("`created` discriminates a fresh mint from a reuse (the descriptor's dedup signal)", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -158,26 +161,27 @@ describe("import", () => {
   });
 
   // ── THE TWO DOORS AGREE ON WHAT "the same persona" MEANS ────────────────────────────────────────────────
-  // The single-file door and the bulk (profile-import) door BOTH dedup on the owner's persona NAME, and they
-  // used to disagree about it: this verb compared the name BYTE-FOR-BYTE while `createBulkImportPersonas`
-  // compared `name.trim().toLowerCase()`. So "Alice" through one door and " alice " through the other minted
-  // TWO rows for one person — and which door a persona arrived through is an accident of how the user
-  // imported, never a statement about identity. One normalisation, one home, both doors.
-  test("the single-file door dedups on the SAME normalised name the bulk door does (whitespace + case)", async () => {
+  // The single-file door and the bulk (profile-import) door resolve through the ONE content identity beside
+  // the persona serde: the folded name plus the content. "Alice" and " alice " with the same description are
+  // one person whichever door they came through; "Alice" with another description is a second persona.
+  test("the single-file door folds the name the way the bulk door does (whitespace + case) when the content is equal", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const first = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: "Alice", description: "a" }) }));
     // The SAME person, spelled the way an export from another tool (or a hand-edited file) spells it.
-    const second = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: " alice ", description: "b" }) }));
-
+    const second = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: " alice ", description: "a" }) }));
     expect(second.id).toBe(first.id);
     expect(await db.select().from(personas).where(eq(personas.ownerId, owner))).toHaveLength(1);
+
+    // A different description under the same name is a second persona, named apart.
+    const third = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: "Alice", description: "b" }) }));
+    expect(third.id).not.toBe(first.id);
+    expect(third.name).toBe("Alice 2");
+    expect(await db.select().from(personas).where(eq(personas.ownerId, owner))).toHaveLength(2);
   });
 
-  // GREEN BEFORE the fix (the bulk door already normalised) — an honest FENCE, not a defect proof: it is what
-  // keeps the two doors agreeing now that the single-file door normalises too.
   test("the BULK door lands on the row the single-file door already minted (one persona, not two)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
@@ -188,7 +192,7 @@ describe("import", () => {
     const bulk = createBulkImportPersonas({ db, now: h.ctx.now, newPersonaId: h.ctx.newPersonaId });
     const result = await bulk({
       ownerId: owner,
-      personas: [{ name: "ALICE", description: "from a profile", avatarAssetId: null, metadata: null, isDefault: false }],
+      personas: [{ name: "ALICE", description: "a", avatarAssetId: null, metadata: null, isDefault: false }],
     });
 
     expect(result.personasCreated).toBe(0);

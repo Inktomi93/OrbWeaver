@@ -156,7 +156,10 @@ export function PersonaList(): ReactElement {
 }
 
 /** The list's BAND — its name and its three verbs. The playing-as identity lives on the row (see above). */
-const IMPORT_LABEL = "Restore a persona from a backup file";
+/** Names the FORMAT: this control takes an Orbweaver persona backup only. A SillyTavern persona has no
+ *  standalone file — it lives in the profile's settings — so that route is the profile-folder import under
+ *  Backup & Restore, which the Personas help points to. */
+const IMPORT_LABEL = "Restore a persona from an Orbweaver backup file";
 const FROM_CHARACTER_LABEL = "New persona from a character";
 
 function PersonaHeader({

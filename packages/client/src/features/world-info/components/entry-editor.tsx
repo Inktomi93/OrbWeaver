@@ -23,7 +23,7 @@
 
 import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldEntryId } from "@orb/kit/ids";
-import { ENTRY_POSITIONS, ENTRY_SCOPE_MODES } from "@orb/kit/world-info";
+import { ENTRY_POSITIONS, ENTRY_SCOPE_MODES, inertActivationFields } from "@orb/kit/world-info";
 import { Button } from "@orb/ui/button";
 import { Combobox } from "@orb/ui/combobox";
 import { Field } from "@orb/ui/field";
@@ -222,6 +222,37 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
           )
         }
       </form.Subscribe>
+
+      <InertActivationList metadata={entry.metadata} />
+    </Stack>
+  );
+}
+
+/** One kept value, readable: a list or object as JSON, anything else as its string. */
+function formatInertValue(value: unknown): string {
+  return typeof value === "object" && value !== null ? JSON.stringify(value) : String(value);
+}
+
+/** The SillyTavern activation settings this entry carries that Orbweaver stores untouched and does not
+ *  apply (owner ruling: keep every field, show it as kept and not active yet). Read-only; the save mapper
+ *  preserves them, so nothing here is editable. Renders nothing for an entry that carries none. */
+function InertActivationList({ metadata }: { readonly metadata: EntryView["metadata"] }): ReactElement | null {
+  const kept = inertActivationFields(metadata);
+  if (kept.length === 0) {
+    return null;
+  }
+  const title = "Kept from SillyTavern — not active yet";
+  return (
+    <Stack aria-label={title} data-slot="inert-activation" gap="tight" role="group">
+      <Text voice="label">{title}</Text>
+      <Text voice="gloss">These activation settings came with the import. Orbweaver keeps them on the entry untouched and does not apply them yet.</Text>
+      <Stack gap="tight" role="list">
+        {kept.map(({ field, value }) => (
+          <Text key={field} role="listitem" voice="gloss">
+            {field}: {formatInertValue(value)}
+          </Text>
+        ))}
+      </Stack>
     </Stack>
   );
 }

@@ -73,7 +73,19 @@ export const NOT_AN_IMAGE = { name: "notes.txt", mimeType: "text/plain", content
 /** Serve the upload caps with a small image cap; the other caps are irrelevant to this dialog. */
 export async function capImageUploads(page: Page): Promise<void> {
   await page.route("**/api/auth/config", (route) =>
-    route.fulfill({ json: { uploads: { assetUpload: 1_000_000, image: IMAGE_CAP_BYTES, databankUpload: 1_000_000, importTotal: 1_000_000 } } }),
+    route.fulfill({
+      json: {
+        uploads: {
+          assetUpload: 1_000_000,
+          image: IMAGE_CAP_BYTES,
+          databankUpload: 1_000_000,
+          importTotal: 1_000_000,
+          importTreeTotal: 1_000_000,
+          importTreeFile: 1_000_000,
+          importTreeFiles: 50_000,
+        },
+      },
+    }),
   );
 }
 

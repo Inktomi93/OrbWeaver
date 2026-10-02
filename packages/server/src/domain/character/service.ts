@@ -10,13 +10,12 @@
 
 import type { CharacterContext } from "./context.ts";
 import type { CharacterService } from "./contract/service.ts";
-
+import { createAttachImportedArt } from "./verbs/attach-imported-art.ts";
 import { createBulkAddCardTag } from "./verbs/bulk-add-card-tag.ts";
 import { createBulkArchive } from "./verbs/bulk-archive.ts";
 import { createBulkRemove } from "./verbs/bulk-remove.ts";
 import { createBulkRemoveCardTag } from "./verbs/bulk-remove-card-tag.ts";
 import { createCreate } from "./verbs/create.ts";
-
 import { createDuplicate } from "./verbs/duplicate.ts";
 import { createFindByHandle } from "./verbs/find-by-handle.ts";
 import { createFindByImportHash } from "./verbs/find-by-import-hash.ts";
@@ -63,6 +62,7 @@ export function createCharacterService(ctx: CharacterContext): CharacterService 
     loadCardText: createLoadCardText(ctx),
     listEmbeddableCharacterIds: createListEmbeddableCharacterIds(ctx),
     findByImportHash: createFindByImportHash(ctx),
+    attachImportedArt: createAttachImportedArt(ctx),
     findByImportedFrom: createFindByImportedFrom(ctx),
     mintSyntheticGroupCharacter: createMintSyntheticGroupCharacter(ctx),
     findSyntheticGroupCharacter: createFindSyntheticGroupCharacter(ctx),

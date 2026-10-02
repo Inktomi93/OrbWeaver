@@ -58,6 +58,7 @@ const EMPTY: ImportReport = {
   themesCreated: 0,
   skippedThemes: [],
   themeNotes: [],
+  worldNotes: [],
   backgroundsImported: 0,
   skippedBackgrounds: [],
   appearanceKeysApplied: [],
@@ -185,7 +186,7 @@ describe("writeImportReport — an unhandled plane is named, with its reason whe
   test("`secrets.json` renders the operator's receipt that API keys were deliberately not imported", async () => {
     const { md } = await render({ ...EMPTY, unhandled: ["secrets.json"] });
 
-    expect(md).toContain("`secrets.json` — API keys — deliberately NOT imported (credentials are entered per-install)");
+    expect(md).toContain("`secrets.json` — API keys — never uploaded and never imported (credentials are entered per-install)");
   });
 
   test("a settings section with a known reason renders it; an UNKNOWN plane still renders BARE", async () => {
@@ -199,11 +200,47 @@ describe("writeImportReport — an unhandled plane is named, with its reason whe
 });
 
 describe("writeImportReport — the summary arithmetic is derived, never re-reported", () => {
-  test("presets/themes render `(new, merged)` with merged computed from imported − created", async () => {
+  test("presets/themes render `(new, already in your library)` with the reused count computed from imported − created", async () => {
     const { md } = await render({ ...EMPTY, presetsImported: 5, presetsCreated: 2, themesImported: 4, themesCreated: 4 });
 
-    expect(md).toContain("- Presets imported: 5 (2 new, 3 merged onto an existing preset)");
-    expect(md).toContain("- Themes converted: 4 (4 new, 0 merged onto an existing imported theme)");
+    expect(md).toContain("- Presets imported: 5 (2 new, 3 already in your library)");
+    expect(md).toContain("- Themes converted: 4 (4 new, 0 already in your library)");
+  });
+
+  test("a renamed preset or theme says which same-named row it landed beside", async () => {
+    const { md } = await render({
+      ...EMPTY,
+      presetNotes: [{ name: "Marinara 2", renamedFrom: "Marinara", sourceFile: "a.json", fields: [], scriptsLifted: 0, scriptsReused: 0 }],
+      themeNotes: [{ name: "Azure (SillyTavern) 2", renamedFrom: "Azure (SillyTavern)", sourceFile: "t.json", fields: [] }],
+    });
+    expect(md).toContain("- `Marinara 2` (from `a.json`) — imported under a new name; you already have a different `Marinara` — everything mapped");
+    expect(md).toContain(
+      "- `Azure (SillyTavern) 2` (from `t.json`) — imported under a new name; you already have a different `Azure (SillyTavern)` — everything mapped",
+    );
+  });
+
+  test("world books list where each landed and the ST activation fields kept inert, with per-field entry counts", async () => {
+    const { md } = await render({
+      ...EMPTY,
+      worldNotes: [
+        {
+          name: "Harbor",
+          renamedFrom: null,
+          created: true,
+          entries: 3,
+          inertFields: [
+            { field: "keysecondary", entries: 2 },
+            { field: "probability", entries: 1 },
+          ],
+        },
+        { name: "Harbor (2)", renamedFrom: "Harbor", created: true, entries: 1, inertFields: [] },
+        { name: "Tide", renamedFrom: null, created: false, entries: 4, inertFields: [] },
+      ],
+    });
+    expect(md).toContain("- World books imported: 3 (2 new, 1 already in your library)");
+    expect(md).toContain("- `Harbor` — 3 entries, new; kept but not active yet: `keysecondary` (2 entries), `probability` (1 entry)");
+    expect(md).toContain("- `Harbor (2)` — 1 entry, new — imported under a new name; you already have a different `Harbor`");
+    expect(md).toContain("- `Tide` — 4 entries, already in your library");
   });
 
   test("the dedup-repair line renders even at zero — it is the only signal a re-run did anything", async () => {
@@ -217,8 +254,8 @@ describe("writeImportReport — per-preset lossiness renders as ONE nested block
     const { md } = await render({
       ...EMPTY,
       presetNotes: [
-        { name: "Whole", sourceFile: "a.json", fields: [], scriptsLifted: 0, scriptsReused: 0 },
-        { name: "Lossy", sourceFile: "b.json", fields: [{ field: "mirostat", reason: "no orb seat" }], scriptsLifted: 0, scriptsReused: 0 },
+        { name: "Whole", renamedFrom: null, sourceFile: "a.json", fields: [], scriptsLifted: 0, scriptsReused: 0 },
+        { name: "Lossy", renamedFrom: null, sourceFile: "b.json", fields: [{ field: "mirostat", reason: "no orb seat" }], scriptsLifted: 0, scriptsReused: 0 },
       ],
     });
 
@@ -230,7 +267,7 @@ describe("writeImportReport — per-preset lossiness renders as ONE nested block
   test("a preset that carried regex scripts appends the lift accounting NESTED under its head line", async () => {
     const { md } = await render({
       ...EMPTY,
-      presetNotes: [{ name: "WithScripts", sourceFile: "c.json", fields: [], scriptsLifted: 2, scriptsReused: 1 }],
+      presetNotes: [{ name: "WithScripts", renamedFrom: null, sourceFile: "c.json", fields: [], scriptsLifted: 2, scriptsReused: 1 }],
     });
 
     expect(md).toContain(

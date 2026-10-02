@@ -13,6 +13,7 @@ import type { BatchStmt } from "@orb/db/kit";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
+  AttachImportedArtParams,
   BulkAddCardTagParams,
   BulkArchiveParams,
   BulkRemoveCardTagParams,
@@ -164,6 +165,9 @@ export interface CharacterService {
   readonly listEmbeddableCharacterIds: (ownerId?: UserId | null) => Promise<readonly CharacterId[]>;
 
   readonly findByImportHash: (params: FindByImportHashParams) => Promise<CharacterRef | null>;
+  /** Give an art-less owned character its avatar and re-key its import identity, in one conditional write.
+   *  True when the row took the art; false when it already had one (nothing written). */
+  readonly attachImportedArt: (params: AttachImportedArtParams) => Promise<boolean>;
   /** Batched provenance oracle (hub-injected): the owner's characters carrying any of `values` in
    *  `importedFrom` — backs the hub search page's already-imported markers (doc 03 §2.1). */
   readonly findByImportedFrom: (params: FindByImportedFromParams) => Promise<ImportedFromMatch[]>;

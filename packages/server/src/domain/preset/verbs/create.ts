@@ -1,17 +1,17 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
 import type { PresetContext } from "../context.ts";
 import type { CreatePresetParams } from "../contract/params.ts";
 import type { PresetService } from "../contract/service.ts";
 import type { PresetDetail } from "../contract/views.ts";
 import { insertPreset, listOwnedPresetNames } from "../persistence/queries.ts";
-import { uniquePresetName } from "../substrate/names.ts";
 import { toPresetDetail } from "../substrate/views.ts";
 
 // verb: create — write a new OWNED preset (ownerId = the resolved caller). The config defaults to
 // DEFAULT_PROMPT_CONFIG when the caller omits one (a fresh "start from default" preset); `schemaVersion`
 // mirrors `config.schemaVersion` (the reseed-gate compare key). Timestamps come from the injected clock.
-// The submitted name is de-collided against the caller's own library at mint time (`uniquePresetName`) —
+// The submitted name is de-collided against the caller's own library at mint time (`nextFreeName`) —
 // the client's Duplicate derives "Copy of X" from a row, so repeat duplicates would otherwise stack
 // indistinguishable rows (visual-blech audit F5).
 
@@ -23,7 +23,7 @@ export function createCreate(ctx: PresetContext): Pick<PresetService, "create"> 
     const id = ctx.newPresetId();
     const now = ctx.now();
     const config = params.config ?? DEFAULT_PROMPT_CONFIG;
-    const name = uniquePresetName(params.name, await listOwnedPresetNames(ctx.db, params.userId));
+    const name = nextFreeName(params.name, await listOwnedPresetNames(ctx.db, params.userId));
     const row = {
       id,
       ownerId: params.userId,

@@ -4,8 +4,8 @@
 // tokens), and the build -> parse -> build ROUND-TRIP identity (the drift guard against the two halves diverging).
 
 import type { PortableParse } from "@orb/contracts/portability";
-import type { CanonicalTheme, ThemeBackup } from "@orb/server/kit/serde/theme";
-import { buildThemeBackup, parseThemeBackup, THEME_SCHEMA_KIND, THEME_SCHEMA_VERSION } from "@orb/server/kit/serde/theme";
+import type { CanonicalTheme, ThemeBackup, ThemeFileParse } from "@orb/server/kit/serde/theme";
+import { buildThemeBackup, parseThemeBackup, parseThemeFile, THEME_SCHEMA_KIND, THEME_SCHEMA_VERSION, themeContentKey } from "@orb/server/kit/serde/theme";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -105,5 +105,58 @@ describe("build -> parse -> build identity", () => {
     const bytes1 = buildThemeBackup(source);
     const bytes2 = buildThemeBackup(must(parseThemeBackup(bytes1)));
     expect(new TextDecoder().decode(bytes2)).toBe(new TextDecoder().decode(bytes1));
+  });
+});
+
+describe("parseThemeFile — the three grammars one picked file can arrive in", () => {
+  const encoder = new TextEncoder();
+
+  /** The landed parse, or a thrown assertion — keeps every expectation unconditional. */
+  function landed(parsed: ThemeFileParse): Extract<ThemeFileParse, { ok: true }> {
+    if (!parsed.ok) {
+      throw new Error(`expected the theme file to parse, got ${parsed.reason}`);
+    }
+    return parsed;
+  }
+
+  test("an orb.theme backup parses as itself (stTheme null)", () => {
+    const parsed = landed(parseThemeFile(buildThemeBackup({ themes: [ctheme({ name: "Backed" })] }), "ignored"));
+    expect(parsed.value.themes.map((t) => t.name)).toEqual(["Backed"]);
+    expect(parsed.stTheme).toBeNull();
+  });
+
+  test("the Looks section's own {name, override, css} export reads back as one theme", () => {
+    const bytes = encoder.encode(JSON.stringify({ name: "Weft", override: { accent: "oklch(0.7 0.14 250)" }, css: null }));
+    const parsed = landed(parseThemeFile(bytes, "ignored"));
+    expect(parsed.value.themes).toEqual([{ name: "Weft", override: { accent: "oklch(0.7 0.14 250)" }, css: null }]);
+    expect(parsed.stTheme).toBeNull();
+  });
+
+  test("a raw SillyTavern theme maps through the ST grammar, qualified and named from the file when nameless", () => {
+    const bytes = encoder.encode('{"blur_tint_color":"rgba(20, 24, 30, 1)","main_text_color":"rgba(230, 230, 230, 1)","font_scale":1}');
+    const parsed = landed(parseThemeFile(bytes, "Night Dock"));
+    expect(parsed.value.themes.map((t) => t.name)).toEqual(["Night Dock (SillyTavern)"]);
+    expect(parsed.value.themes[0]?.override.background).toMatch(/^oklch\(/u);
+    expect(parsed.stTheme?.unmapped.map((f) => f.field)).toEqual(["font_scale"]);
+  });
+
+  test("a JSON object in none of the three is refused with the ST grammar's reason — never a blank theme", () => {
+    expect(parseThemeFile(encoder.encode('{"name":"Nothing","chat_width":50}'), "Nothing")).toEqual({
+      ok: false,
+      reason: "foreign-kind",
+      detail: expect.stringContaining("no base surface colour"),
+    });
+    expect(parseThemeFile(encoder.encode("{not json"), "x")).toEqual({ ok: false, reason: "not-json", detail: null });
+  });
+});
+
+describe("themeContentKey — the content identity", () => {
+  test("equal override and css under any key order are one key; a changed token is another", () => {
+    const a = themeContentKey({ override: { accent: "oklch(0.7 0.14 250)", bodyColor: "oklch(0.9 0 0)" }, css: null });
+    const b = themeContentKey({ override: { bodyColor: "oklch(0.9 0 0)", accent: "oklch(0.7 0.14 250)" }, css: null });
+    const c = themeContentKey({ override: { accent: "oklch(0.6 0.14 250)", bodyColor: "oklch(0.9 0 0)" }, css: null });
+    expect(a).toBe(b);
+    expect(a).not.toBe(c);
+    expect(themeContentKey({ override: {}, css: ".x{}" })).not.toBe(themeContentKey({ override: {}, css: null }));
   });
 });

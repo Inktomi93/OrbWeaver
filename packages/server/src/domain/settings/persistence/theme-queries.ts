@@ -7,8 +7,7 @@
 
 import type { Db } from "@orb/db";
 import { themes, userSettings } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany, isConstraintViolation } from "@orb/db/kit";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
@@ -69,37 +68,19 @@ export async function insertTheme(db: Db, row: ThemeInsert): Promise<void> {
   await db.insert(themes).values(row);
 }
 
-/** Idempotent batch RESTORE for the portable theme-backup import (O-3: restore-wins). A `(ownerId, name)`
- *  that already exists is UPDATED in place — "restore my backup" means the backup's palette, not the one
- *  the user has been editing since; the row identity (and every reference to it) survives. Returns the
- *  newly-inserted count, so a re-import of the same backup still reports `created: 0`. */
-export async function restoreOwnedThemes(db: Db, ownerId: UserId, values: readonly (typeof themes.$inferInsert)[]): Promise<number> {
-  if (values.length === 0) {
-    return 0;
-  }
-  const existing = await listOwnedThemeNames(db, ownerId);
-  // Each carried theme's payload differs, so the restore is N statements — but ONE batch, not N awaits.
-  const updates: BatchStmt[] = values
-    .filter((row) => existing.includes(row.name))
-    .map((row) =>
-      db
-        .update(themes)
-        .set({ override: row.override, css: row.css, updatedAt: row.updatedAt })
-        .where(and(eq(themes.ownerId, ownerId), eq(themes.name, row.name))),
-    );
-  if (updates.length > 0) {
-    await db.batch(batchMany(updates));
-  }
-  const fresh = values.filter((row) => !existing.includes(row.name));
-  if (fresh.length === 0) {
-    return 0;
+/** Insert the import verb's already-decided rows in one statement and return the ids that landed. The verb
+ *  owns the collision decision (reuse on equal content, a free name otherwise); the `(ownerId, name)` guard
+ *  holds for a concurrent import that took the same free name first — that row is skipped, never an error. */
+export async function insertThemes(db: Db, rows: readonly ThemeInsert[]): Promise<ThemeId[]> {
+  if (rows.length === 0) {
+    return [];
   }
   const inserted = await db
     .insert(themes)
-    .values([...fresh])
+    .values([...rows])
     .onConflictDoNothing({ target: [themes.ownerId, themes.name] })
     .returning({ id: themes.id });
-  return inserted.length;
+  return inserted.map((row) => row.id);
 }
 
 /** Patch an owned row. Returns the updated row, or `undefined` when nothing matched. */

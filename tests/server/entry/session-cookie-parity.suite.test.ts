@@ -217,6 +217,7 @@ function appDeps(): AppDeps {
     exportService: untouched,
     portability: [inertChatPortability],
     importWorldInfo: untouched,
+    importCardScripts: untouched,
     sessions: untouched,
     isShuttingDown: (): boolean => false,
     credentialsKeyOk: (): boolean => true,

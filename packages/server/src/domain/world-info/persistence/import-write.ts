@@ -10,13 +10,22 @@
 // (`domain/import/verbs/restore-character-book.ts`), where "the card file is the source of truth" is the
 // thing the owner asked for. `replaced: true` reports it either way.
 //
-// CENTRAL DEDUP (owner ruling 2026-08-19, issue #303 — "one source of books"): when the character has no
-// primary yet, the embedded book is CONTENT-matched against the owner's existing library BEFORE minting
-// (`substrate/book-dedup`, the regex `planCardLift` shape). A match LINKS this character to the existing
+// CENTRAL DEDUP (owner ruling — "one source of books"): when the character has no primary yet, the embedded
+// book is CONTENT-matched against the owner's existing library BEFORE minting (`#kit/serde/world-info`'s
+// `findDuplicateBook`, the regex `planCardLift` shape). A match LINKS this character to the existing
 // world_books row (a fresh primary character_books attach); no book is duplicated. Only a genuinely new
 // book mints a fresh row + entries. This is the FALLBACK channel — the reference channel (`linkCarriedBooks`)
 // resolves first and, when it links, the caller skips the embedded book entirely. One db.batch per
 // book; db.transaction() is banned (the :memory: trap).
+//
+// THE STANDALONE PATH IS ADDITIVE (owner ruling): an import never edits or deletes an owned book. Equal
+// content reuses the owned row under whatever name it carries; different content under a taken name lands
+// beside it under the next free name. Only the restore door above replaces.
+//
+// ENTRY TITLES ARE FREE. Entries are keyed by their minted id; a title is SillyTavern's optional `comment`
+// (empty by default, never unique), so a book whose entries share a title, or carry none, lands whole. The
+// uniqueness check this write once ran protected the title-keyed `upsertEntries` stream (its callers key by
+// title); that verb documents last-write-wins for a repeated title and needs no refusal here.
 
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
 import { entryMetadataSchema } from "@orb/contracts/world-info";
@@ -24,12 +33,13 @@ import type { Db } from "@orb/db";
 import { characterBooks, characters, worldBooks, worldEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
-import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import type { DedupBook, DedupCandidateBook, DedupLoreEntry } from "../contract/book-dedup.ts";
+import { nextFreeLabel } from "@orb/kit/strings";
+import { and, asc, eq, inArray } from "drizzle-orm";
+import type { DedupBook, DedupCandidateBook, DedupLoreEntry } from "#kit/serde/world-info";
+import { findDuplicateBook } from "#kit/serde/world-info";
 import type { AttachOwnedBooksByName, BulkImportLorebook, HasPrimaryBook, ImportStandaloneLorebook, WorldInfoImportContext } from "../contract/import.ts";
-import { findDuplicateBook } from "../substrate/book-dedup.ts";
 
 /** The FK would fail-closed anyway, but the explicit check gives a typed DomainNotFoundError. */
 async function assertOwnedCharacter(db: Db, ownerId: UserId, characterId: CharacterId): Promise<void> {
@@ -92,15 +102,6 @@ function entryStmts(ctx: WorldInfoImportContext, worldBookId: WorldBookId, book:
   );
 }
 
-function assertUniqueEntryTitles(book: BulkImportLorebookInput): void {
-  const titles = book.entries.map((entry) => entry.title).toSorted();
-  for (let i = 1; i < titles.length; i += 1) {
-    if (titles[i - 1] === titles[i]) {
-      throw new DomainOperationError("world_info_duplicate_entry_title", `lorebook import contains duplicate entry title: ${titles[i] ?? ""}`);
-    }
-  }
-}
-
 /** The incoming embedded book projected onto the dedup shape. `metadata` is SCHEMA-PARSED here so its
  *  canonical key matches the stored form (`entryStmts` stores `entryMetadataSchema.parse(raw)`); miss that
  *  and a re-encoded identical book fails to match. `keys` collapse is deferred to the pure normalizer. */
@@ -122,16 +123,13 @@ function toDedupBook(book: BulkImportLorebookInput): DedupBook {
   };
 }
 
-/** The owner's books that share the incoming book's NAME, each with its entries, as dedup candidates. Name is
- *  part of the content key, so a differently-named book can never match — filtering to same-name candidates is
- *  a pure read optimization. Owner-scoped in the WHERE (a foreign book is never a candidate — cross-tenant
- *  gate). Two reads (books, then their entries) grouped in memory; `world_entries` metadata is the stored
- *  schema-parsed blob, so it is comparable to `toDedupBook`'s parsed side without re-parsing. */
-async function loadOwnedBooksByNameForDedup(db: Db, ownerId: UserId, name: string): Promise<DedupCandidateBook[]> {
-  const books = await db
-    .select({ id: worldBooks.id, name: worldBooks.name })
-    .from(worldBooks)
-    .where(and(eq(worldBooks.ownerId, ownerId), eq(worldBooks.name, name)));
+/** EVERY book the owner holds, each with its entries, as dedup candidates: the identity is the entry set,
+ *  not the name, so a book that landed under a collision suffix still matches. Owner-scoped in the WHERE (a
+ *  foreign book is never a candidate — cross-tenant gate). Two reads (books, then their entries) grouped in
+ *  memory; `world_entries` metadata is the stored schema-parsed blob, so it is comparable to `toDedupBook`'s
+ *  parsed side without re-parsing. */
+async function loadOwnedBooksForDedup(db: Db, ownerId: UserId): Promise<DedupCandidateBook[]> {
+  const books = await db.select({ id: worldBooks.id, name: worldBooks.name }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId));
   if (books.length === 0) {
     return [];
   }
@@ -173,7 +171,6 @@ async function loadOwnedBooksByNameForDedup(db: Db, ownerId: UserId, name: strin
 // @orb-waive owner-scoped-writes(worldBooks): `existingBookId` is not caller input — it is the PRIMARY book attached to a character this function just proved the caller owns (`assertOwnedCharacter`), and every path that can create that attachment gates both ends (`attachToCharacter` loads the owned book, `linkCarriedBooks` and `copyCharacterBooks` both carry the owned-source `ownerId` gate). Ends the day an attach can land a book the character's owner does not own — then this re-import would edit a stranger's book in place.
 export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImportLorebook {
   return async ({ ownerId, characterId, book }): Promise<BulkImportLorebookResult> => {
-    assertUniqueEntryTitles(book);
     const { db } = ctx;
     await assertOwnedCharacter(db, ownerId, characterId);
     const at = ctx.now();
@@ -186,16 +183,16 @@ export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImpor
         ...entryStmts(ctx, existingBookId, book, at),
       ];
       await db.batch(batchMany(stmts));
-      return { worldBookId: existingBookId, entryCount: book.entries.length, replaced: true };
+      return { worldBookId: existingBookId, entryCount: book.entries.length, replaced: true, created: false, name: book.name, renamedFrom: null };
     }
 
-    // CENTRAL DEDUP (#303): before minting, link to an existing content-equivalent book the owner already
-    // holds ("one source of books"). The primary seat is free here (no existing primary above), so the match
+    // CENTRAL DEDUP: before minting, link to an existing content-equivalent book the owner already holds
+    // ("one source of books"). The primary seat is free here (no existing primary above), so the match
     // attaches as `primary`; onConflictDoNothing keeps a re-link idempotent.
-    const duplicateId = findDuplicateBook(toDedupBook(book), await loadOwnedBooksByNameForDedup(db, ownerId, book.name));
-    if (duplicateId !== null) {
-      await db.insert(characterBooks).values({ characterId, worldBookId: duplicateId, role: "primary", createdAt: at }).onConflictDoNothing();
-      return { worldBookId: duplicateId, entryCount: book.entries.length, replaced: false };
+    const duplicate = findDuplicateBook(toDedupBook(book), await loadOwnedBooksForDedup(db, ownerId));
+    if (duplicate !== null) {
+      await db.insert(characterBooks).values({ characterId, worldBookId: duplicate.id, role: "primary", createdAt: at }).onConflictDoNothing();
+      return { worldBookId: duplicate.id, entryCount: book.entries.length, replaced: false, created: false, name: duplicate.name, renamedFrom: null };
     }
 
     const bookId = ctx.newBookId();
@@ -221,7 +218,7 @@ export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImpor
       ),
     ];
     await db.batch(batchMany(stmts));
-    return { worldBookId: bookId, entryCount: book.entries.length, replaced: false };
+    return { worldBookId: bookId, entryCount: book.entries.length, replaced: false, created: true, name: book.name, renamedFrom: null };
   };
 }
 
@@ -279,47 +276,33 @@ export function createAttachOwnedBooksByName(ctx: WorldInfoImportContext): Attac
 }
 
 // The standalone (unattached) path — a sibling of createBulkImportLorebook that lands a lone book with no
-// character attach. Dedup key is (ownerId, name); newest wins when names collide.
+// character attach, additively: equal content reuses the owned row (under the name it carries), different
+// content lands under the next free name, and no owned row is ever edited.
 
-/** Newest-wins by (ownerId, name). The `id DESC` tiebreak is load-bearing, not cosmetic: this LIMIT 1 picks
- *  the row a re-import REPLACES (entries deleted + reinserted), so with same-name books tied on `created_at`
- *  an unstable sort chose a destructive target by scan order. TypeIDs are uuidv7-backed — id order IS mint
- *  order — so the tiebreak resolves "newest" rather than inventing a rule. */
-async function findBookByName(db: Db, ownerId: UserId, name: string): Promise<WorldBookId | null> {
-  const rows = await db
-    .select({ id: worldBooks.id })
-    .from(worldBooks)
-    .where(and(eq(worldBooks.ownerId, ownerId), eq(worldBooks.name, name)))
-    .orderBy(desc(worldBooks.createdAt), desc(worldBooks.id))
-    .limit(1);
-  return rows[0]?.id ?? null;
+/** Every name the caller's own books carry — the collision scan for the free-name mint. */
+async function listOwnedBookNames(db: Db, ownerId: UserId): Promise<string[]> {
+  const rows = await db.select({ name: worldBooks.name }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId));
+  return rows.map((row) => row.name);
 }
 
-// @orb-waive owner-scoped-writes(worldBooks): `existingBookId` is resolved one line down by `findBookByName(db, ownerId, name)`, an OWNER-SCOPED read — the dedup key is `(ownerId, name)`, so a book that is not the caller's is never a candidate. Ends if the dedup lookup stops carrying `eq(worldBooks.ownerId, …)`.
 export function createImportStandaloneLorebook(ctx: WorldInfoImportContext): ImportStandaloneLorebook {
   return async ({ ownerId, book }): Promise<BulkImportLorebookResult> => {
-    assertUniqueEntryTitles(book);
     const { db } = ctx;
     const at = ctx.now();
-    const existingBookId = await findBookByName(db, ownerId, book.name);
 
-    if (existingBookId !== null) {
-      const stmts: BatchStmt[] = [
-        batchStmt(db.update(worldBooks).set({ name: book.name, description: book.description, updatedAt: at }).where(eq(worldBooks.id, existingBookId))),
-        batchStmt(db.delete(worldEntries).where(eq(worldEntries.worldBookId, existingBookId))),
-        ...entryStmts(ctx, existingBookId, book, at),
-      ];
-      await db.batch(batchMany(stmts));
-      return { worldBookId: existingBookId, entryCount: book.entries.length, replaced: true };
+    const duplicate = findDuplicateBook(toDedupBook(book), await loadOwnedBooksForDedup(db, ownerId));
+    if (duplicate !== null) {
+      return { worldBookId: duplicate.id, entryCount: book.entries.length, replaced: false, created: false, name: duplicate.name, renamedFrom: null };
     }
 
+    const name = nextFreeLabel(book.name, await listOwnedBookNames(db, ownerId));
     const bookId = ctx.newBookId();
     const stmts: BatchStmt[] = [
       batchStmt(
         db.insert(worldBooks).values({
           id: bookId,
           ownerId,
-          name: book.name,
+          name,
           description: book.description,
           createdAt: at,
           updatedAt: at,
@@ -328,6 +311,6 @@ export function createImportStandaloneLorebook(ctx: WorldInfoImportContext): Imp
       ...entryStmts(ctx, bookId, book, at),
     ];
     await db.batch(batchMany(stmts));
-    return { worldBookId: bookId, entryCount: book.entries.length, replaced: false };
+    return { worldBookId: bookId, entryCount: book.entries.length, replaced: false, created: true, name, renamedFrom: name === book.name ? null : book.name };
   };
 }

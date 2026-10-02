@@ -49,6 +49,26 @@ function harness(
 }
 
 describe("importChatFile", () => {
+  test("a re-saved transcript (same lines, other bytes) carries the SAME importHash and its own fileHash", async () => {
+    const h = harness();
+    const original = transcript();
+    // The same lines with the header's keys in another order and trailing whitespace: other bytes, one chat.
+    const resaved = ENC.encode(
+      new TextDecoder()
+        .decode(original)
+        .split("\n")
+        .map((row, i) => (i === 0 ? JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(row) as Record<string, unknown>).toReversed())) : `${row} `))
+        .join("\n"),
+    );
+
+    await h.verb({ filename: "aria/chat_2025.jsonl", bytes: original });
+    await h.verb({ filename: "aria/chat_2025.jsonl", bytes: resaved });
+
+    const [first, second] = h.chatCalls.map((call) => call.chats[0]);
+    expect(first?.importHash).toBe(second?.importHash);
+    expect(first?.fileHash).not.toBe(second?.fileHash);
+  });
+
   test("resolves the character from the DIRECTORY and delegates to the one chat-import path", async () => {
     const h = harness();
 

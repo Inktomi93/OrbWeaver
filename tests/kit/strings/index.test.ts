@@ -1,4 +1,4 @@
-import { formatBytes, formatUsd, groupThousands, nextFreeLabel, stripLabelSuffix } from "@orb/kit/strings";
+import { fileStem, formatBytes, formatUsd, groupThousands, nextFreeLabel, nextFreeName, stripLabelSuffix, stripNameSuffix } from "@orb/kit/strings";
 import { expect, test } from "../../support/fixtures.ts";
 
 // The three `escapeRegExp` tests died with the function (Node-26 program §4.7 — `RegExp.escape` owns
@@ -94,4 +94,30 @@ test("stripLabelSuffix undoes exactly the suffix nextFreeLabel adds", () => {
   }
   // A parenthesis that is part of the name, not a collision count, stays.
   expect(stripLabelSuffix("Local (vLLM)")).toBe("Local (vLLM)");
+});
+
+test("fileStem keeps the last segment minus its final extension, from either separator, and trims", () => {
+  expect(fileStem("worlds/Harbor Town.json")).toBe("Harbor Town");
+  expect(fileStem("C:\\profile\\themes\\Night.Dock.json")).toBe("Night.Dock");
+  expect(fileStem(" plain ")).toBe("plain");
+  expect(fileStem(".json")).toBe("");
+});
+
+test("nextFreeName: a free name passes through; a taken one takes the lowest free ' N' from 2, skipping gaps", () => {
+  expect(nextFreeName("Default (edited)", ["Roleplay", "Default"])).toBe("Default (edited)");
+  expect(nextFreeName("Adventures", new Set())).toBe("Adventures");
+  expect(nextFreeName("Default (edited)", ["Default (edited)"])).toBe("Default (edited) 2");
+  expect(nextFreeName("Adventures", new Set(["Adventures", "Adventures 2", "Adventures 3"]))).toBe("Adventures 4");
+  // A deleted ordinal is reused while a higher one lives — the scan wants FREE, not count+1.
+  expect(nextFreeName("Copy of X", ["Copy of X", "Copy of X 3"])).toBe("Copy of X 2");
+  expect(nextFreeName("Adventures", new Set(["Adventures", "Adventures 2"]))).toBe("Adventures 3");
+  // Collision is the exact name only — a shared prefix is not a collision.
+  expect(nextFreeName("Default", ["Default (edited)", "Default 2 backup"])).toBe("Default");
+});
+
+test("stripNameSuffix removes only a trailing ' N' count", () => {
+  expect(stripNameSuffix("Alex 2")).toBe("Alex");
+  expect(stripNameSuffix("Alex")).toBe("Alex");
+  expect(stripNameSuffix("Agent 47")).toBe("Agent");
+  expect(stripNameSuffix("Alex 2 backup")).toBe("Alex 2 backup");
 });

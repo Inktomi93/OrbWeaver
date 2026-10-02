@@ -61,6 +61,8 @@ export type { ChatImportResult } from "./import-chats.ts";
 export { importChats } from "./import-chats.ts";
 export type { TreeImportStarted } from "./import-tree.ts";
 export { importTree, relativePathOf } from "./import-tree.ts";
+export type { SkippedTreeFile, TreeImportCaps, TreeImportPlan } from "./import-tree-plan.ts";
+export { OVER_FILE_CAP_REASON, planTreeImport, skippedByReason } from "./import-tree-plan.ts";
 export type { InvalidateFilter, Invalidation } from "./invalidation.ts";
 export { createInvalidation } from "./invalidation.ts";
 export { applyCanonView } from "./invalidation-carrier.ts";

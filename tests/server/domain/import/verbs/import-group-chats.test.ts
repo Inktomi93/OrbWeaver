@@ -74,6 +74,7 @@ function ctxWith(written: Written, opts: { readonly throws?: boolean } = {}): Im
     findByHandle: unused,
     findByName: unused,
     storeAsset: unused,
+    attachImportedArt: unused,
     attachCardTag: unused,
     profile: {
       now: () => 1_700_000_000_000,

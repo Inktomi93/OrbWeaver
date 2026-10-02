@@ -12,6 +12,7 @@ export {
 export type { CharacterHandoffCopyContext, CopyAssetToOwner, CopyHandoffCards, HandoffCardCopy } from "./contract/handoff-copy.ts";
 export { handoffProvenance } from "./contract/handoff-copy.ts";
 export type {
+  AttachImportedArtParams,
   BulkAddCardTagParams,
   BulkArchiveParams,
   BulkRemoveCardTagParams,

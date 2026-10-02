@@ -22,7 +22,7 @@ import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { sha256Hex } from "#kit/content-hash";
-import { parseChatJsonl } from "#kit/serde/chat";
+import { chatContentHash, parseChatJsonl } from "#kit/serde/chat";
 import type { ImportContext } from "../context.ts";
 import type { ImportChatFileOutcome } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
@@ -101,7 +101,7 @@ export function createImportChatFile(
     }
     const result = await importChats({
       characterId: character.characterId,
-      chats: [{ parsed, importedFrom: filename, importHash: sha256Hex(bytes) }],
+      chats: [{ parsed, importedFrom: filename, importHash: chatContentHash(parsed), fileHash: sha256Hex(bytes) }],
     });
     // The ST interchange carries no overlay planes at all (no tags, no campaign — that is the whole reason
     // the orb-native bundle exists), so this arm can never skip one. The EMPTY list still rides: an absent

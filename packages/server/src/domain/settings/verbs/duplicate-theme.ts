@@ -3,12 +3,12 @@
 // de-duped by a numeric suffix). Seeds are never edited in place.
 
 import { DomainConflictError } from "@orb/kit/errors";
+import { nextFreeName } from "@orb/kit/strings";
 import { ThemeNotFoundError } from "../contract/errors.ts";
 import type { DuplicateThemeParams } from "../contract/params.ts";
 import type { SettingsContext, SettingsService } from "../contract/service.ts";
 import type { ThemeView } from "../contract/views.ts";
 import { insertTheme, isThemeNameConflict, listOwnedThemeNames, readableTheme } from "../persistence/theme-queries.ts";
-import { freeThemeName } from "../substrate/names.ts";
 import { toThemeView } from "../substrate/theme-views.ts";
 
 const THEME_DUPLICATE = "theme.duplicate";
@@ -25,7 +25,7 @@ export function createDuplicateTheme(ctx: SettingsContext): Pick<SettingsService
 
     const taken = new Set(await listOwnedThemeNames(ctx.db, ownerId));
     const desired = params.name ?? `${source.name}${COPY_SUFFIX}`;
-    const name = freeThemeName(desired, taken);
+    const name = nextFreeName(desired, taken);
 
     const id = ctx.newThemeId();
     const at = ctx.now();

@@ -6,12 +6,17 @@
 // /worlds/*.json, /OpenAI Settings/*.json (chat-completion presets), /groups/*.json + /group chats/*.jsonl.
 // Cards and chat dirs pair by slugifyHandle. Every non-happy path is recorded in CollectResult, never silent.
 
+import type { StProfileHandledEntry } from "@orb/contracts/import";
+import { chatDirCardCandidates, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import { regexScriptCardSchema } from "@orb/contracts/regex";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
-import { parseChatJsonl } from "#kit/serde/chat";
+import { chatContentHash, parseChatJsonl } from "#kit/serde/chat";
+import { portableParseError } from "#kit/serde/lib";
+import { parseThemeFile, THEME_SCHEMA_KIND } from "#kit/serde/theme";
+import { parseWorldBookFile } from "#kit/serde/world-info";
 import { ImportInfraFailureError, ProfileImportLimitError } from "../contract/errors.ts";
 import type {
   CollectedBackground,
@@ -27,13 +32,11 @@ import type {
 } from "../contract/views.ts";
 import { ST_POWER_USER_KEY, stAppearancePatch } from "../substrate/appearance.ts";
 import { ST_BACKGROUND_DIR, stBackgroundMime, stBackgroundName } from "../substrate/background.ts";
-import { importFileHash, parseCardPng } from "../substrate/card.ts";
+import { importFileHash, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "../substrate/card.ts";
 import { parseStGroupFile } from "../substrate/group.ts";
 import { parseStPersonas } from "../substrate/persona.ts";
 import { parseStPresetFile, parseStSettingsPreset, ST_PRESET_DIR, ST_PRESET_SETTINGS_KEY } from "../substrate/preset.ts";
 import { parseStTags } from "../substrate/tags.ts";
-import { parseStThemeFile, ST_THEME_DIR } from "../substrate/theme.ts";
-import { parseStWorldFile } from "../substrate/world.ts";
 
 // Ceiling so a hostile staging dir with a million empty entries can't pin the loop.
 const MAX_DIR_ENTRIES = 100_000;
@@ -42,9 +45,6 @@ const MAX_JSONL_BYTES = 67_108_864;
 const PNG_EXT = /\.png$/i;
 const JSONL_EXT = /\.jsonl$/i;
 const JSON_EXT = /\.json$/i;
-const TRAILING_DIGITS = /\d+$/;
-const TRAILING_HYPHENS = /-+$/;
-const SPEC_WRAPPER = /^main-(.+)-spec-v\d+$/;
 
 interface Group {
   card?: CollectedCard;
@@ -84,27 +84,19 @@ interface CollectState {
 
 /** The flat profile-level dir holding EVERY group's transcripts (ST does not sub-directory them per group the
  *  way solo chats are; a group's own `chats[]` list is the only thing that says which leaves are its own). */
-const GROUP_CHATS_DIR = "group chats";
-const GROUPS_DIR = "groups";
+const GROUP_CHATS_DIR = "group chats" satisfies StProfileHandledEntry;
+const GROUPS_DIR = "groups" satisfies StProfileHandledEntry;
+const WORLDS_DIR = "worlds" satisfies StProfileHandledEntry;
+const CHARACTERS_DIR = "characters" satisfies StProfileHandledEntry;
+const CHATS_DIR = "chats" satisfies StProfileHandledEntry;
+const AVATARS_DIR = "User Avatars" satisfies StProfileHandledEntry;
+/** The ST profile subdirectory holding saved UI themes. */
+const ST_THEME_DIR = "themes" satisfies StProfileHandledEntry;
 
-// The top-level profile names the importer DOES consume — everything else in a user profile dir is reported
-// as unhandled so a whole-folder import never silently drops a plane (quick replies, extensions, …).
-// The CHAT-COMPLETION preset dir is handled; the three TEXT-completion families deliberately are not (owner
-// ruling — orb has no text-completion mode), so they keep reporting as unhandled with that reason.
-// `themes/` and `backgrounds/` are handled too (owner rulings: backgrounds ARE orb's media library; a
-// theme converts to the orb palette it safely maps to) — their old "no domain home" report reasons are gone.
-const HANDLED_ENTRIES: ReadonlySet<string> = new Set([
-  "characters",
-  "chats",
-  "worlds",
-  "User Avatars",
-  "settings.json",
-  GROUPS_DIR,
-  GROUP_CHATS_DIR,
-  ST_PRESET_DIR,
-  ST_THEME_DIR,
-  ST_BACKGROUND_DIR,
-]);
+// The top-level profile names the importer DOES consume are `ST_PROFILE_HANDLED_ENTRIES` in
+// `@orb/contracts/import` — the one home both the browser planner and this collector read, so what the
+// picker skips and what the report names agree. Every other entry is reported as unhandled so a
+// whole-folder import never silently drops a plane.
 // The settings.json sections the importer reads: `power_user` (personas + the viewer `appearance` ergonomics
 // + the GENERATION knobs that fold onto the live preset) + `tags`/`tag_map` (library tags, attached to
 // imported characters by their card filename) + `oai_settings` (the LIVE chat-completion preset — the
@@ -227,7 +219,7 @@ function disambiguate(state: CollectState, base: string, file: string): Characte
 }
 
 async function collectCards(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
-  const charsDir = fs.join(profileDir, "characters");
+  const charsDir = fs.join(profileDir, CHARACTERS_DIR);
   for (const ent of await listDir(fs, charsDir, state)) {
     if (ent.kind !== "file" || !PNG_EXT.test(ent.name)) {
       continue;
@@ -249,7 +241,16 @@ async function collectCards(fs: ImportFsPort, profileDir: string, state: Collect
     // one). It stays in the extensions residue too (lossless); this copy is the driver's attach key.
     const worldRaw = parsed.card.extensions?.["world"];
     const worldName = typeof worldRaw === "string" && worldRaw.trim().length > 0 ? worldRaw : null;
-    group(state, handle).card = { handle, cardBytes: bytes, filename: ent.name, cardName: parsed.card.name, worldName, chats: [] };
+    group(state, handle).card = {
+      handle,
+      cardBytes: bytes,
+      contentHash: parsedCardImportHash(parsed),
+      textHash: parsedCardTextHash(parsed),
+      filename: ent.name,
+      cardName: parsed.card.name,
+      worldName,
+      chats: [],
+    };
   }
 }
 
@@ -290,22 +291,21 @@ async function collectChatsForDir(args: {
     group(state, handle).chats.push({
       parsed,
       importedFrom: fileEnt.name,
-      importHash: importFileHash(bytes),
+      importHash: chatContentHash(parsed),
+      fileHash: importFileHash(bytes),
     });
   }
 }
 
-// A chat dir whose slug minus an ST folder-name decoration uniquely matches a card. First candidate wins.
+// A chat dir whose slug minus an ST folder-name decoration matches a card (`chatDirCardCandidates`, the one
+// rule the browser planner also pairs by). First candidate wins.
 function fuzzyPair(state: CollectState): { chatDir: string; handle: CharacterHandle }[] {
   const fuzzyPairedDirs: { chatDir: string; handle: CharacterHandle }[] = [];
   for (const [handle, g] of state.byHandle) {
     if (g.card !== undefined || g.chats.length === 0) {
       continue;
     }
-    const candidates = [handle.replace(TRAILING_DIGITS, "").replace(TRAILING_HYPHENS, ""), SPEC_WRAPPER.exec(handle)?.[1]].filter(
-      (b): b is string => b !== undefined && b.length > 0 && b !== handle,
-    );
-    for (const base of candidates) {
+    for (const base of chatDirCardCandidates(handle)) {
       const target = state.byHandle.get(base);
       if (target?.card !== undefined && !state.skippedHandles.has(base)) {
         target.chats.push(...g.chats);
@@ -318,21 +318,22 @@ function fuzzyPair(state: CollectState): { chatDir: string; handle: CharacterHan
   return fuzzyPairedDirs;
 }
 
-// ST-native standalone lorebooks: `<profileDir>/worlds/*.json`. Each is parsed to the canonical book shape
-// (name = filename stem); an unparseable file is recorded, never silent. A missing `worlds/` dir yields [].
+// Standalone lorebooks: `<profileDir>/worlds/*.json`, the ST grammar or an orb export, through the ONE
+// world-info serde (an ST file takes the filename stem as its name); an unparseable file is recorded, never
+// silent. A missing `worlds/` dir yields [].
 async function collectWorlds(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
-  const worldsDir = fs.join(profileDir, "worlds");
+  const worldsDir = fs.join(profileDir, WORLDS_DIR);
   for (const ent of await listDir(fs, worldsDir, state)) {
     if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
       continue;
     }
     const bytes = await readStagedFile(fs, fs.join(worldsDir, ent.name));
-    const book = parseStWorldFile(bytes, ent.name.replace(JSON_EXT, ""));
-    if (book === null) {
+    const book = parseWorldBookFile(bytes, ent.name.replace(JSON_EXT, ""));
+    if (!book.ok) {
       state.unreadableWorlds.push(ent.name);
       continue;
     }
-    state.worlds.push({ book });
+    state.worlds.push({ book: book.value });
   }
 }
 
@@ -356,10 +357,9 @@ async function collectPresetDir(fs: ImportFsPort, profileDir: string, state: Col
   }
 }
 
-// ST saved UI THEMES: `<profileDir>/themes/*.json`. Each converts to the orb palette its colours safely map
-// to — flattened and oklch-converted before entering Orb's total ThemeScope derivation (`substrate/theme.ts`).
-// A refusal always carries its reason (unreadable or colour-less), never a silent drop. A missing dir yields
-// nothing.
+// Saved UI THEMES: `<profileDir>/themes/*.json`, through the ONE theme serde (an ST theme converts to the
+// orb palette its colours safely map to; an orb export reads back as itself). A refusal always carries its
+// reason, never a silent drop. A missing dir yields nothing.
 async function collectThemes(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
   const dir = fs.join(profileDir, ST_THEME_DIR);
   for (const ent of await listDir(fs, dir, state)) {
@@ -368,12 +368,14 @@ async function collectThemes(fs: ImportFsPort, profileDir: string, state: Collec
     }
     const sourceFile = fs.join(ST_THEME_DIR, ent.name);
     const bytes = await readStagedFile(fs, fs.join(dir, ent.name));
-    const result = parseStThemeFile(bytes, ent.name.replace(JSON_EXT, ""));
+    const result = parseThemeFile(bytes, ent.name.replace(JSON_EXT, ""));
     if (!result.ok) {
-      state.refusedThemes.push({ file: sourceFile, reason: result.reason });
+      state.refusedThemes.push({ file: sourceFile, reason: result.detail ?? portableParseError(THEME_SCHEMA_KIND, result.reason) });
       continue;
     }
-    state.themes.push({ parsed: result.parsed, sourceFile });
+    for (const theme of result.value.themes) {
+      state.themes.push({ parsed: { name: theme.name, override: theme.override, unmapped: result.stTheme?.unmapped ?? [] }, sourceFile });
+    }
   }
 }
 
@@ -402,7 +404,7 @@ async function collectBackgrounds(fs: ImportFsPort, profileDir: string, state: C
  *  settings.json contributes nothing (the same best-effort posture as tags/personas). */
 async function collectSettingsPreset(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
   let settingsRaw: unknown;
-  const settingsPath = fs.join(profileDir, "settings.json");
+  const settingsPath = fs.join(profileDir, ST_SETTINGS_FILE);
   // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates any real infra
   // fault (permission/disk); only a missing/corrupt settings.json falls through here, the documented
   // best-effort posture above (same as tags/personas) — nothing is dropped, there is nothing to collect.
@@ -464,7 +466,7 @@ async function collectGroupChats(args: {
       missingChatLeaves.push(fileName);
       continue;
     }
-    chats.push({ parsed, importedFrom: fileName, importHash: importFileHash(bytes) });
+    chats.push({ parsed, importedFrom: fileName, importHash: chatContentHash(parsed), fileHash: importFileHash(bytes) });
   }
   return { chats, missingChatLeaves };
 }
@@ -489,16 +491,16 @@ async function collectGroups(fs: ImportFsPort, profileDir: string, state: Collec
   }
 }
 
-// Enumerate what the importer does NOT process: every top-level profile entry outside HANDLED_ENTRIES, plus
+// Enumerate what the importer does NOT process: every top-level profile entry the contracts tuple omits, plus
 // every settings.json top-level section outside HANDLED_SETTINGS. Feeds the import report so a whole-folder
 // import is honest about what it left behind (presets, quick replies, themes, extension configs, …).
 async function collectUnhandled(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
   for (const ent of await listDir(fs, profileDir, state)) {
-    if (!HANDLED_ENTRIES.has(ent.name)) {
+    if (!stProfileEntryDisposition(ent.name, ent.kind === "directory").handled) {
       state.unhandled.push(ent.kind === "directory" ? `${ent.name}/` : ent.name);
     }
   }
-  const settingsPath = fs.join(profileDir, "settings.json");
+  const settingsPath = fs.join(profileDir, ST_SETTINGS_FILE);
   // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates real infra
   // faults; a missing/corrupt settings.json is documented below as nothing-to-report (personas collection
   // records its own absence separately).
@@ -521,7 +523,7 @@ async function collectUnhandled(fs: ImportFsPort, profileDir: string, state: Col
 /** Best-effort: the orb `appearance` patch this profile's `power_user` section carries (the VIEWER half of
  *  what ST bundles into a theme file). A missing/corrupt settings.json yields `{}` — nothing is patched. */
 async function collectAppearance(fs: ImportFsPort, profileDir: string): Promise<Record<string, unknown>> {
-  const settingsPath = fs.join(profileDir, "settings.json");
+  const settingsPath = fs.join(profileDir, ST_SETTINGS_FILE);
   // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates real infra
   // faults; only a missing/corrupt settings.json falls through, documented above as "yields `{}` — nothing
   // is patched."
@@ -550,7 +552,7 @@ function descend(raw: unknown, ...keys: string[]): unknown {
 /** Best-effort settings.json read shared by the two side-collectors below (tags/personas already own their
  *  copies of this posture): null on a missing/corrupt file, never a throw. */
 async function readSettingsJson(fs: ImportFsPort, profileDir: string): Promise<unknown> {
-  const settingsPath = fs.join(profileDir, "settings.json");
+  const settingsPath = fs.join(profileDir, ST_SETTINGS_FILE);
   // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates real infra
   // faults; documented above — "null on a missing/corrupt file, never a throw," the shared best-effort
   // posture every side-collector below relies on.
@@ -646,7 +648,7 @@ async function countUserPlanes(fs: ImportFsPort, profileDir: string, state: Coll
 // A missing/corrupt settings.json yields an empty map. The driver attaches these to each imported character
 // by matching the card filename against the map key (ST's `tag_map[character.avatar]`).
 async function collectTags(fs: ImportFsPort, profileDir: string): Promise<ReadonlyMap<string, readonly string[]>> {
-  const settingsPath = fs.join(profileDir, "settings.json");
+  const settingsPath = fs.join(profileDir, ST_SETTINGS_FILE);
   // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates real infra
   // faults; only a missing/corrupt settings.json falls through, documented above as "yields an empty map."
   try {
@@ -661,7 +663,7 @@ async function collectTags(fs: ImportFsPort, profileDir: string): Promise<Readon
 // Best-effort: a missing/corrupt settings.json yields []; a missing avatar yields an avatar-less persona.
 async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<CollectedPersona[]> {
   let settingsRaw: unknown;
-  const settingsPath = fs.join(profileDir, "settings.json");
+  const settingsPath = fs.join(profileDir, ST_SETTINGS_FILE);
   // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates real infra
   // faults; documented above — "a missing/corrupt settings.json yields []."
   try {
@@ -672,7 +674,7 @@ async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<Co
     return [];
   }
   const { personas } = parseStPersonas(settingsRaw);
-  const avatarsDir = fs.join(profileDir, "User Avatars");
+  const avatarsDir = fs.join(profileDir, AVATARS_DIR);
   const out: CollectedPersona[] = [];
   for (const parsed of personas) {
     let avatarBytes: Uint8Array | undefined;
@@ -731,7 +733,7 @@ export async function collectBundlesFromDir(
   await collectGroups(fs, profileDir, state, wallClockZone);
   await collectUnhandled(fs, profileDir, state);
 
-  const chatsDir = fs.join(profileDir, "chats");
+  const chatsDir = fs.join(profileDir, CHATS_DIR);
   for (const dirEnt of await listDir(fs, chatsDir, state)) {
     if (dirEnt.kind === "directory") {
       await collectChatsForDir({ fs, chatsDir, dirName: dirEnt.name, state, wallClockZone });

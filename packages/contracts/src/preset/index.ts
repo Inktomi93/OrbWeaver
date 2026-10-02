@@ -15,6 +15,7 @@ import { MACRO_ARG_TYPES, MACRO_NAME_RE, USER_MACRO_INPUT_KINDS } from "@orb/kit
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { RegexPlacement } from "@orb/kit/regex";
+import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel } from "#inference";
 import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, userRoleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
@@ -3370,6 +3371,13 @@ export function buildPresetFile(name: string, config: PromptConfig): PresetFile 
 }
 
 export type ParsePresetResult = { ok: true; name: string; config: PromptConfig } | { ok: false; error: string };
+
+/** The content identity of a preset: its config under a stable key order. Two presets with equal keys are
+ *  one preset for import dedup, whatever their names. A stored blob this build cannot read is compared as
+ *  the bytes it holds, so it never equals a readable file's config. */
+export function presetContentKey(config: unknown): string {
+  return stableStringify(config);
+}
 
 /** Parse an `orb.preset` file. Validates the envelope, LIFTS an older config forward through the
  *  `CONFIG_LIFTS` chain (a v1/v2-era orb config imports — the config blob carries its own schemaVersion),

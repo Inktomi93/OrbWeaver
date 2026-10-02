@@ -37,10 +37,10 @@ export const PERSONA_NOTIFICATIONS_SUBCATEGORY: ConfigSubcategory = {
 export const PERSONA_LIST_SUBCATEGORY: ConfigSubcategory = {
   id: "your-personas",
   label: "Your personas",
-  keywords: ["persona", "new persona", "import", "restore", "current", "default", "avatar"],
+  keywords: ["persona", "new persona", "import", "restore", "current", "default", "avatar", "sillytavern", "backup"],
   teach: {
     summary:
-      "Your persona collection: each row expands into an editor for title, description, injection depth and lore book. The description is what the model reads as you.",
+      "Your persona collection: each row expands into an editor for title, description, injection depth and lore book. The description is what the model reads as you. The restore control takes an Orbweaver persona backup file; coming from SillyTavern, import your whole profile folder under Backup & Restore and your personas come with it.",
     affects: ["how the model sees you wherever a persona plays"],
   },
   settings: [

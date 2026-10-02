@@ -35,6 +35,7 @@ import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { hostTimeZone } from "@orb/kit/time";
+import { inertActivationFields } from "@orb/kit/world-info";
 import type { BulkImportChats } from "#domain/chat";
 import type {
   CollectedBackground,
@@ -58,8 +59,9 @@ import type {
   ImportSkippedGroupMember,
   ImportThemeNote,
   ImportUnresolvedPinnedPersona,
+  ImportWorldNote,
 } from "#domain/import";
-import { collectBundlesFromDir, createImportService, importFileHash, ProfileImportLimitError } from "#domain/import";
+import { collectBundlesFromDir, createImportService, findImportedCharacter, ProfileImportLimitError } from "#domain/import";
 import type { BulkImportPersonas } from "#domain/persona";
 import type { ImportPreset } from "#domain/preset";
 import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "#domain/regex";
@@ -69,7 +71,7 @@ import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldIn
 import { buildImportContext } from "./build-import-context.ts";
 
 /** The settings-owned theme-import op (`createImportTheme`) as the driver consumes it. */
-type ImportTheme = (ownerId: UserId, bytes: Uint8Array) => Promise<SettingsImportOutcome>;
+type ImportTheme = (ownerId: UserId, bytes: Uint8Array, fallbackName?: string) => Promise<SettingsImportOutcome>;
 /** The settings-owned `appearance` landing op (`createApplyImportedAppearance`). */
 type ApplyImportedAppearance = (ownerId: UserId, imported: ImportedAppearance) => Promise<ImportedAppearanceOutcome>;
 
@@ -392,9 +394,11 @@ function tallyScanned(collected: Collected): number {
   return scanned;
 }
 
-/** dryRun prediction: a card writes iff neither the byte-identical importHash oracle nor the handle oracle
- *  matches (a create). Both lookups are reads — zero writes. Personas/chats can't be predicted without their
- *  write op, so they are examined (counted in scanned) but never in the dryRun `changed`. */
+/** dryRun prediction: a card writes iff neither the import-identity lookup (the one order every door uses)
+ *  nor the handle oracle matches (a create). Every lookup is a read — zero writes. A text-only match counts as
+ *  found: whether that row may take the PNG's art is decided by the write, not predicted here. Personas/chats
+ *  can't be predicted without their write op, so they are examined (counted in scanned) but never in the
+ *  dryRun `changed`. */
 async function countWouldCreate(deps: ProfileDirImportDeps, bundles: readonly CollectedCard[]): Promise<number> {
   const ownerId = deps.principal.userId;
   let changed = 0;
@@ -402,9 +406,12 @@ async function countWouldCreate(deps: ProfileDirImportDeps, bundles: readonly Co
     if (deps.signal.aborted) {
       break;
     }
-    const importHash = importFileHash(b.cardBytes);
-    const byHash = await deps.character.findByImportHash({ ownerId, importHash });
-    if (byHash !== null) {
+    const found = await findImportedCharacter(async (importHash) => (await deps.character.findByImportHash({ ownerId, importHash }))?.characterId ?? null, {
+      importHash: b.contentHash,
+      textHash: b.textHash,
+      bytes: b.cardBytes,
+    });
+    if (found !== null) {
       continue;
     }
     const byHandle = await deps.character.findByHandle({ ownerId, handle: b.handle });
@@ -508,20 +515,44 @@ async function landBackgroundsAndAppearance(
   return { backgroundsImported: outcome.backgroundsAdded, appearanceKeysApplied: outcome.patchedKeys, skippedBackgrounds: stored.skipped };
 }
 
-/** Import the collected standalone ST worlds as UNATTACHED owner library books; returns the net-new count
- *  (a name-collision re-import replaces in place and is not counted). Aborts cleanly on signal. */
-async function importCollectedWorlds(deps: ProfileDirImportDeps, worlds: readonly CollectedWorld[]): Promise<number> {
+/** The inert SillyTavern activation fields a book's entries carry, each with the count of entries carrying
+ *  it — the report's "kept but not active yet" line per book (owner ruling). */
+function inertFieldCounts(book: CollectedWorld["book"]): ImportWorldNote["inertFields"] {
+  const counts = new Map<string, number>();
+  for (const entry of book.entries) {
+    for (const { field } of inertActivationFields(entry.metadata)) {
+      counts.set(field, (counts.get(field) ?? 0) + 1);
+    }
+  }
+  return [...counts].map(([field, entries]) => ({ field, entries }));
+}
+
+/** Import the collected standalone ST worlds as UNATTACHED owner library books, additively: an equal book is
+ *  reused and a same-named different one lands under a free name. Returns the net-new count plus one note per
+ *  book for the report. Aborts cleanly on signal. */
+async function importCollectedWorlds(
+  deps: ProfileDirImportDeps,
+  worlds: readonly CollectedWorld[],
+): Promise<{ readonly created: number; readonly notes: ImportWorldNote[] }> {
   let created = 0;
+  const notes: ImportWorldNote[] = [];
   for (const world of worlds) {
     if (deps.signal.aborted) {
       break;
     }
     const bookResult = await deps.importStandaloneLorebook({ ownerId: deps.principal.userId, book: world.book });
-    if (!bookResult.replaced) {
+    if (bookResult.created) {
       created += 1;
     }
+    notes.push({
+      name: bookResult.name,
+      renamedFrom: bookResult.renamedFrom,
+      created: bookResult.created,
+      entries: world.book.entries.length,
+      inertFields: inertFieldCounts(world.book),
+    });
   }
-  return created;
+  return { created, notes };
 }
 
 /** Assemble the import report from the merged collect results + the run's counts + the per-card skips. The
@@ -539,6 +570,7 @@ interface WaveOutcomes {
   /** The settings domain's per-theme refusals ONLY — the converter's own are merged in `reportFrom`. */
   readonly skippedThemes: readonly ImportSkippedCard[];
   readonly themeNotes: readonly ImportThemeNote[];
+  readonly worldNotes: readonly ImportWorldNote[];
   readonly backgroundsImported: number;
   /** Backgrounds the STORE refused (magic mismatch, over-cap) — the non-media ones are merged in `reportFrom`. */
   readonly skippedBackgrounds: readonly ImportSkippedCard[];
@@ -583,6 +615,7 @@ const NO_WAVES: WaveOutcomes = {
   themesCreated: 0,
   skippedThemes: [],
   themeNotes: [],
+  worldNotes: [],
   backgroundsImported: 0,
   skippedBackgrounds: [],
   skippedCardTags: [],
@@ -1010,9 +1043,10 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
     changed += personaResult.personasCreated;
   }
 
-  // Standalone ST worlds BEFORE characters — imported as UNATTACHED owner library books (dedup by name). Ahead
-  // of the character wave so a future card name-link (`extensions.world`) can resolve an already-imported book.
-  changed += await importCollectedWorlds(deps, collected.worlds);
+  // Standalone ST worlds BEFORE characters — imported as UNATTACHED owner library books (additive by content).
+  // Ahead of the character wave so a card name-link (`extensions.world`) can resolve an already-imported book.
+  const worldResult = await importCollectedWorlds(deps, collected.worlds);
+  changed += worldResult.created;
 
   // ST chat-completion presets — independent of every other plane (a preset references no character), so the
   // wave runs before the characters and its `changed` counts as new canon like a world book does.
@@ -1101,6 +1135,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
       themesCreated: themeResult.themesCreated,
       skippedThemes: themeResult.skippedThemes,
       themeNotes: themeResult.notes,
+      worldNotes: worldResult.notes,
       backgroundsImported,
       skippedBackgrounds: appearanceWave.skippedBackgrounds,
       appearanceKeysApplied,

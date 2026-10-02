@@ -28,8 +28,10 @@ import type { MessageKind, TokenProvenance, VariantMetadata } from "@orb/contrac
 import { DEFAULT_MESSAGE_KIND, VARIANT_METADATA_REASONING_MS_KEY, VARIANT_METADATA_TOKEN_COUNT_KEY } from "@orb/contracts/chat";
 import { jsonValueSchema } from "@orb/kit/json";
 import type { MessageRole } from "@orb/kit/message-role";
+import { stableStringify } from "@orb/kit/stable-stringify";
 import { epochToMs, isoToMs, msToWallClock, wallClockToMs } from "@orb/kit/time";
 import { z } from "zod";
+import { sha256Hex } from "#kit/content-hash";
 
 // ── the canonical shape (NAME-level; the serde owns its wire shape, server/kit type-home-exempt) ──────────
 
@@ -1090,4 +1092,33 @@ function txtAuthor(m: ParsedChatMessage): string {
 export function buildChatTxt(chat: ParsedChat): string {
   const blocks = chat.messages.map((m) => `${txtAuthor(m)}: ${m.content}`);
   return `${blocks.join("\n\n")}\n`;
+}
+
+// ── The transcript content identity ──────────────────────────────────────────────────────────────────
+// A chat's import identity is its PARSED content, never the file bytes: the header's two names and create
+// date, then the ordered messages — speaker, text, swipes, timestamps as parsed — so a re-saved transcript
+// (re-indented, re-keyed, re-dated by a migration header rewrite the filename date overrides) is one chat and
+// the same lines under another character are another. Rows imported before this identity carry the
+// whole-file hash; the chat write op tries that second (`fileHash`).
+
+/** sha-256 hex over the transcript's normalized content — the per-chat import identity (`chats.importHash`). */
+export function chatContentHash(parsed: ParsedChat): string {
+  return sha256Hex(
+    new TextEncoder().encode(
+      stableStringify({
+        characterName: parsed.characterName,
+        userName: parsed.userName,
+        createDate: parsed.createDate,
+        messages: parsed.messages.map((m) => ({
+          role: m.role,
+          kind: m.kind,
+          speakerName: m.speakerName,
+          content: m.content,
+          sendDate: m.sendDate,
+          activeVariantIdx: m.activeVariantIdx,
+          variants: m.variants.map((v) => v.content),
+        })),
+      }),
+    ),
+  );
 }

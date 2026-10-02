@@ -316,8 +316,8 @@ test("Delete does not destroy immediately — it opens an AlertDialog confirm (F
   expect(trpc.count("settings.removeTheme")).toBe(0);
 });
 
-test("Export downloads the row's own bytes; Import feeds createTheme the parsed file", async ({ mount, page }) => {
-  const trpc = await stub(page, { "settings.createTheme": () => OWNED });
+test("Export downloads the row's own bytes; Import sends the file to the server's theme door", async ({ mount, page }) => {
+  const trpc = await stub(page, { "settings.importThemeFile": () => ({ created: true, name: "Weft", renamedFrom: null }) });
   const component = await mount(<LooksSectionStory />);
 
   await component.getByRole("button", { name: themeActionsName("My Theme") }).click();
@@ -329,13 +329,18 @@ test("Export downloads the row's own bytes; Import feeds createTheme the parsed 
   const exported: unknown = JSON.parse(readFileSync(path, "utf8"));
   expect(exported).toEqual({ name: OWNED.name, override: OWNED.override, css: null });
 
-  // Import the SAME bytes back — the round-trip is identity at the create input.
+  // Import the SAME bytes back — the file's own text and name go to the ONE server door, which reads this
+  // export, an orb backup or a raw SillyTavern theme through the one theme serde (never a client-side parse
+  // that could land a blank theme).
   const file = join(tmpdir(), "cbc34-looks-import-fixture.json");
-  writeFileSync(file, JSON.stringify({ name: "Weft", override: OWNED.override, css: null }));
+  const fileText = JSON.stringify({ name: "Weft", override: OWNED.override, css: null });
+  writeFileSync(file, fileText);
   const chooserPromise = page.waitForEvent("filechooser");
   await component.getByRole("button", { name: "Import a theme file" }).click();
   await (await chooserPromise).setFiles(file);
-  await expect.poll(() => trpc.lastInput("settings.createTheme"), { intervals: [50, 100, 200] }).toEqual({ name: "Weft", override: OWNED.override });
+  await expect
+    .poll(() => trpc.lastInput("settings.importThemeFile"), { intervals: [50, 100, 200] })
+    .toEqual({ fileText, filename: "cbc34-looks-import-fixture.json" });
 });
 
 // ── #1100 (re-drive G1): the section must not walk out from under the pointer ────────────────────────

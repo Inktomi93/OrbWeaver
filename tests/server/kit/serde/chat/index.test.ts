@@ -7,7 +7,7 @@
 import type { VariantMetadata } from "@orb/contracts/chat";
 import type { JsonValue } from "@orb/kit/json";
 import type { ParsedChat, ParsedChatMessage } from "@orb/server/kit/serde/chat";
-import { buildChatJsonl, buildChatTxt, formatStDate, parseChatJsonl, parseStDate } from "@orb/server/kit/serde/chat";
+import { buildChatJsonl, buildChatTxt, chatContentHash, formatStDate, parseChatJsonl, parseStDate } from "@orb/server/kit/serde/chat";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -700,5 +700,50 @@ describe("build → parse → build identity", () => {
     // stays exactly the bytes it was before the two fields existed.
     const bareHeader = JSON.parse(bare.split("\n")[0] ?? "") as Record<string, Record<string, unknown>>;
     expect(Object.keys(bareHeader["chat_metadata"] ?? {})).toEqual([]);
+  });
+});
+
+describe("chatContentHash — the transcript's content identity", () => {
+  test("a re-saved transcript (other key order, other whitespace) hashes the same; a changed line does not", () => {
+    const opts = { fileName: "a.jsonl", charDirName: "Aria" };
+    const saved = parseChatJsonl(`${header()}\n${line({ mes: "one" })}\n${line({ mes: "two", is_user: true })}`, opts);
+    const resaved = parseChatJsonl(
+      [
+        JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(header()) as Record<string, unknown>).toReversed())),
+        JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(line({ mes: "one" })) as Record<string, unknown>).toReversed())),
+        `  ${line({ mes: "two", is_user: true })}  `,
+      ].join("\n"),
+      opts,
+    );
+    const edited = parseChatJsonl(`${header()}\n${line({ mes: "one" })}\n${line({ mes: "two!", is_user: true })}`, opts);
+    if (saved === null || resaved === null || edited === null) {
+      throw new Error("the fixtures must parse");
+    }
+    expect(chatContentHash(resaved)).toBe(chatContentHash(saved));
+    expect(chatContentHash(edited)).not.toBe(chatContentHash(saved));
+  });
+
+  test("the identity is the ordered messages: speaker, text, swipes and timestamps; economics are not", () => {
+    const base = chatContentHash(pchat([pmsg()]));
+    expect(chatContentHash(pchat([pmsg({ tokensOut: 99, model: "other" })]))).toBe(base);
+    expect(chatContentHash(pchat([pmsg({ speakerName: "Bram" })]))).not.toBe(base);
+    expect(chatContentHash(pchat([pmsg({ sendDate: BUILD_DATE + 1 })]))).not.toBe(base);
+    expect(chatContentHash(pchat([pmsg(), pmsg({ content: "again" })]))).not.toBe(base);
+    const take = pmsg().variants[0];
+    if (take === undefined) {
+      throw new Error("the message fixture carries one take");
+    }
+    expect(
+      chatContentHash(
+        pchat([
+          pmsg({
+            variants: [
+              { ...take, content: "hello" },
+              { ...take, idx: 1, content: "a swipe" },
+            ],
+          }),
+        ]),
+      ),
+    ).not.toBe(base);
   });
 });

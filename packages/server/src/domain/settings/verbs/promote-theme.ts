@@ -13,18 +13,18 @@
 // `css` either — cards have no CSS tier. Fidelity is exact by construction: the result is an OWNED row, so
 // it renders through the same `clampThemeTokens` derivation the room takeover already ran on these values.
 //
-// Name policy: MINT-TIME de-collision (`freeThemeName`), because this door supplies a name the user never
+// Name policy: MINT-TIME de-collision (`nextFreeName`), because this door supplies a name the user never
 // typed (the character's). `createTheme`'s explicit-name editor path keeps the typed conflict — two doors,
 // two input modes. The constraint race still classifies to `DomainConflictError`, never a 500.
 // Never writes `ownerId: null`: promote can never mint a seed (isSeed derives from a NULL owner, D71).
 
 import { cardEmbeddableSubset, themeOverrideSchema } from "@orb/contracts/theme";
 import { DomainConflictError } from "@orb/kit/errors";
+import { nextFreeName } from "@orb/kit/strings";
 import type { PromoteThemeParams } from "../contract/params.ts";
 import type { SettingsContext, SettingsService } from "../contract/service.ts";
 import type { ThemeView } from "../contract/views.ts";
 import { insertTheme, isThemeNameConflict, listOwnedThemeNames } from "../persistence/theme-queries.ts";
-import { freeThemeName } from "../substrate/names.ts";
 import { toThemeView } from "../substrate/theme-views.ts";
 
 const THEME_PROMOTE = "theme.promote";
@@ -40,7 +40,7 @@ export function createPromoteTheme(ctx: SettingsContext): Pick<SettingsService, 
     const override = cardEmbeddableSubset(themeOverrideSchema.parse(input.override));
 
     const taken = new Set(await listOwnedThemeNames(ctx.db, ownerId));
-    const name = freeThemeName(input.name, taken);
+    const name = nextFreeName(input.name, taken);
 
     const id = ctx.newThemeId();
     const at = ctx.now();

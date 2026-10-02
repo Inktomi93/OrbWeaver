@@ -153,6 +153,7 @@ function stImportContext(db: Db, ownerId: UserId, personas: Map<string, PersonaI
     findByHandle: inert,
     findByName: inert,
     storeAsset: inert,
+    attachImportedArt: inert,
     attachCardTag: inert,
     profile: {
       now: (): number => NOW,

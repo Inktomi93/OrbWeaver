@@ -1,27 +1,20 @@
-// domain/import/substrate/color — the ST→orb COLOR conversion the theme plane needs, and nothing else.
-// Pure: strings in, strings out, `null` on anything it cannot read.
-//
-// WHY IT EXISTS (two hard requirements the ST values fail without it):
-//  1. POLARITY. `@orb/ui` `content/theme-scope/clamp.ts` derives `color-scheme` (and therefore which arm every
-//     `light-dark()` intent token resolves to) by reading the OKLCH LIGHTNESS of the picked `background` —
-//     `colorSchemeFor` returns null for ANY non-oklch form and fails open. ST writes every theme color as
-//     `rgba(r, g, b, a)` (its picker reads `getComputedStyle`), so an ST palette imported verbatim would give
-//     a LIGHT theme the dark intent arms. Converting at import is what makes an imported light theme legible.
-//  2. ALPHA. ST theme colors are TINTS layered over a background photo: the chat panel tints the app surface,
-//     the message tints sit on the chat panel. orb's `background` is an opaque BASE surface that a neutral
-//     ramp derives from (`oklch(from background calc(l + Δ) c h)` — relative color syntax drops alpha, so a
-//     translucent base would give a translucent `--color-background` and OPAQUE derived surfaces). So the
-//     conversion FLATTENS: each tint is composited over the surface ST painted it on, and the result is an
-//     opaque `oklch(L C H)`. That is what ST actually renders, not a guess.
-//
-// The sRGB→OKLab transform is Björn Ottosson's published matrix pair. Every coefficient is a named constant
-// (`noMagicNumbers`), the same shape `client/features/config/lib/theme-contrast.ts` uses for its WCAG luma
-// weights. NOT kit-homed: one owner, one consumer (the ST theme parser beside it) — the placement rule puts a
-// single-owner pure helper in its domain, and `@orb/kit/safe-color` is the SAFETY predicate's home, not a
-// colorimetry library.
+// The ST→orb COLOR conversion the theme serde's SillyTavern grammar needs: `rgba()`/hex in, opaque OKLCH out.
+// Converting is required, not cosmetic: `@orb/ui`'s theme scope reads the OKLCH lightness of `background` to
+// pick the colour scheme (any other form fails open to dark), and an ST tint is layered over a photo, so it
+// is FLATTENED onto the surface ST painted it on — a translucent base would give a translucent
+// `--color-background` under opaque derived surfaces. The sRGB→OKLab transform is Björn Ottosson's
+// published matrix pair; every coefficient is a named constant.
 
 import type { Oklch } from "@orb/kit/theme-derivation";
-import type { SrgbColor } from "../contract/views.ts";
+
+/** An sRGB colour with straight (non-premultiplied) alpha; channels 0–255, alpha 0–1. ST writes `rgba()`
+ *  tints; only the flattened result becomes an OKLCH token. */
+export interface SrgbColor {
+  readonly r: number;
+  readonly g: number;
+  readonly b: number;
+  readonly a: number;
+}
 
 const SRGB_MAX = 255;
 const ALPHA_OPAQUE = 1;

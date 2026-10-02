@@ -4,18 +4,38 @@
 // registry is composed at the entry root.
 
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
+import type { UserId } from "@orb/kit/ids";
 
 export interface SettingsPortableFile {
   readonly filename: string;
   readonly bytes: Uint8Array;
 }
 
-/** Never throws for a malformed file, so one bad entry can't abort a bundle. */
+/** Where one theme in a file landed: the name it carries now, the file's own name when a collision suffix
+ *  applied, and whether a row was minted (false = an owned theme with equal content was reused). */
+export interface ImportedThemeLanding {
+  readonly name: string;
+  readonly renamedFrom: string | null;
+  readonly created: boolean;
+}
+
+/** Never throws for a malformed file, so one bad entry can't abort a bundle. `landed` is the theme import's
+ *  per-theme accounting (absent on the user-settings import). */
 export interface SettingsImportOutcome {
   readonly ok: boolean;
   readonly created?: boolean;
   readonly error?: string;
+  readonly landed?: readonly ImportedThemeLanding[];
 }
+
+/** The theme import op every door calls: the bundle descriptor, the profile import and the single-file door.
+ *  `fallbackName` names a raw SillyTavern theme that carries no `name` (the picked file's stem). */
+export type ImportTheme = (ownerId: UserId, bytes: Uint8Array, fallbackName?: string) => Promise<SettingsImportOutcome>;
+
+/** The single-theme door's answer: the landed theme, or the parser's refusal as words. */
+export type ImportThemeFileOutcome =
+  | { readonly ok: true; readonly created: boolean; readonly name: string; readonly renamedFrom: string | null }
+  | { readonly ok: false; readonly error: string };
 
 /** The `appearance` half of a foreign-profile import (today: the SillyTavern profile importer). Two planes in
  *  ONE write because both land in the same JSON namespace and the array plane needs a read-modify-write that

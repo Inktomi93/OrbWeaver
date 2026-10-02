@@ -19,6 +19,13 @@ export interface ImportCharacterPort {
     readonly provenance?: { readonly importedFrom: string | null; readonly importHash: string };
   }) => Promise<{ readonly id: CharacterId }>;
   readonly findByImportHash: (params: { readonly ownerId: UserId; readonly importHash: string }) => Promise<{ readonly characterId: CharacterId } | null>;
+  /** The JSON-then-PNG exception of the import identity: true when the art-less row took the art. */
+  readonly attachImportedArt: (params: {
+    readonly ownerId: UserId;
+    readonly characterId: CharacterId;
+    readonly avatarAssetId: AssetId;
+    readonly importHash: string;
+  }) => Promise<boolean>;
   readonly findByHandle: (params: { readonly ownerId: UserId; readonly handle: CharacterHandle }) => Promise<{ readonly characterId: CharacterId } | null>;
   readonly findByName: (params: {
     readonly ownerId: UserId;
@@ -109,6 +116,7 @@ export function buildImportContext(wiring: ImportContextWiring): ImportContext {
       const ref = await character.findByImportHash({ ownerId, importHash });
       return ref?.characterId ?? null;
     },
+    attachImportedArt: ({ characterId, avatarAssetId, importHash }) => character.attachImportedArt({ ownerId, characterId, avatarAssetId, importHash }),
     findByHandle: async ({ handle }) => {
       const ref = await character.findByHandle({ ownerId, handle });
       return ref?.characterId ?? null;

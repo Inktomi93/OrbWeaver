@@ -923,6 +923,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       exportService: built.exportService,
       portability: built.portability,
       importWorldInfo: built.importWorldInfo,
+      importCardScripts: built.importCardScripts,
       sessions: built.sessions,
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,

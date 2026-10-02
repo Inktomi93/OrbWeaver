@@ -282,3 +282,96 @@ export function matchEntryKeys(keys: readonly string[], haystack: string, option
 export function buildKeywordHaystack(recentMessages: readonly string[], names: readonly string[]): string {
   return [...recentMessages, ...names.filter((n) => n.length > 0)].join("\n").toLowerCase();
 }
+
+// ── SillyTavern activation fields the import keeps but the engine does not apply ─────────────────────
+// An imported entry's metadata carries every ST field untouched (owner ruling). The fields below steer
+// activation in ST and have no engine here yet; the entry editor and the import report show them as kept
+// and not active, so the owner never reads a stored knob as a working one.
+
+/** The ST entry fields that steer activation there and are stored inert here. */
+export const ST_INERT_ACTIVATION_FIELDS = [
+  "keysecondary",
+  "probability",
+  "scanDepth",
+  "caseSensitive",
+  "matchWholeWords",
+  "group",
+  "sticky",
+  "cooldown",
+  "delay",
+  "excludeRecursion",
+  "preventRecursion",
+  "delayUntilRecursion",
+  "vectorized",
+  "triggers",
+  "characterFilter",
+  "automationId",
+  "outletName",
+  "matchPersonaDescription",
+  "matchCharacterDescription",
+  "matchCharacterPersonality",
+  "matchCharacterDepthPrompt",
+  "matchScenario",
+  "matchCreatorNotes",
+] as const;
+
+export type StInertActivationField = (typeof ST_INERT_ACTIVATION_FIELDS)[number];
+
+/** One inert field an entry carries with a value that departs from ST's own default. */
+export interface InertActivationField {
+  readonly field: StInertActivationField;
+  readonly value: unknown;
+}
+
+/** ST's `probability` default: an entry at this value is not gated. */
+const ST_PROBABILITY_ALWAYS = 100;
+
+const isTrue = (value: unknown): boolean => value === true;
+const isBoolean = (value: unknown): boolean => typeof value === "boolean";
+const isNumber = (value: unknown): boolean => typeof value === "number" && Number.isFinite(value);
+const isPositive = (value: unknown): boolean => typeof value === "number" && value > 0;
+const nonEmptyString = (value: unknown): boolean => typeof value === "string" && value.trim().length > 0;
+const nonEmptyArray = (value: unknown): boolean => Array.isArray(value) && value.length > 0;
+
+/** When each inert field carries a value ST would act on. A `Record` over the tuple, so a new member fails
+ *  `tsc` until it says when it is set. */
+const SET_WHEN: Record<StInertActivationField, (value: unknown, metadata: Record<string, unknown>) => boolean> = {
+  keysecondary: nonEmptyArray,
+  probability: (value, metadata) => isNumber(value) && (value as number) < ST_PROBABILITY_ALWAYS && metadata["useProbability"] !== false,
+  scanDepth: isNumber,
+  caseSensitive: isBoolean,
+  matchWholeWords: isBoolean,
+  group: nonEmptyString,
+  sticky: isPositive,
+  cooldown: isPositive,
+  delay: isPositive,
+  excludeRecursion: isTrue,
+  preventRecursion: isTrue,
+  delayUntilRecursion: isTrue,
+  vectorized: isTrue,
+  triggers: nonEmptyArray,
+  characterFilter: (value) => isPlainObject(value) && (nonEmptyArray(value["names"]) || nonEmptyArray(value["tags"])),
+  automationId: nonEmptyString,
+  outletName: nonEmptyString,
+  matchPersonaDescription: isTrue,
+  matchCharacterDescription: isTrue,
+  matchCharacterPersonality: isTrue,
+  matchCharacterDepthPrompt: isTrue,
+  matchScenario: isTrue,
+  matchCreatorNotes: isTrue,
+};
+
+/** The inert ST activation fields an entry's metadata carries with a non-default value, in tuple order. */
+export function inertActivationFields(metadata: unknown): InertActivationField[] {
+  if (!isPlainObject(metadata)) {
+    return [];
+  }
+  const out: InertActivationField[] = [];
+  for (const field of ST_INERT_ACTIVATION_FIELDS) {
+    const value = metadata[field];
+    if (value !== undefined && value !== null && SET_WHEN[field](value, metadata)) {
+      out.push({ field, value });
+    }
+  }
+  return out;
+}

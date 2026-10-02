@@ -362,6 +362,7 @@ function chatShell(
     title: importedChatTitle(displayName, created, deps.wallClockZone ?? ST_DEFAULT_WALL_CLOCK_ZONE) ?? ci.importedFrom.replace(JSONL_EXT, ""),
     importedFrom: ci.importedFrom,
     importHash: ci.importHash,
+    ...(ci.fileHash === undefined ? {} : { fileHash: ci.fileHash }),
     anchorPersonaId: chatPersonaId,
     createdAt: created,
     updatedAt,

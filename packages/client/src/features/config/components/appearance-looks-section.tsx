@@ -37,10 +37,12 @@
 // the box this device last saw the collection settle at, with the authored skeleton count as the first-boot
 // guess. It is the same shape every other anchored config section already used (plugins, automation).
 //
-// Export/Import are CLIENT-SIDE over the row's own bytes ({name, override, css} JSON — the same values the
-// theme renders from).
+// Export is CLIENT-SIDE over the row's own bytes ({name, override, css} JSON — the same values the theme
+// renders from). Import is the SERVER's `settings.importThemeFile` door, which reads that export back, an
+// orb.theme backup, or a raw SillyTavern theme through the one theme serde — so a non-theme file is refused
+// with words instead of landing as a blank theme.
 
-import type { CreateThemeInput, Theme } from "@orb/contracts/theme";
+import type { Theme } from "@orb/contracts/theme";
 import type { ThemeId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { FileTrigger } from "@orb/ui/file-trigger";
@@ -54,7 +56,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { downloadTextFile, notify } from "#lib";
 import { configAnchorId } from "#state";
-import { useCreateTheme, useDuplicateTheme, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
+import { useCreateTheme, useDuplicateTheme, useImportThemeFile, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
 import { APPEARANCE_LOOKS_SUBCATEGORY } from "../lib/appearance-looks-nav.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeInputFromForm } from "../lib/theme-editor-model.ts";
@@ -85,19 +87,24 @@ function exportTheme(theme: Theme): void {
   downloadTextFile(`${theme.name}.orbtheme.json`, JSON.stringify(file, null, 2));
 }
 
-/** Parse an imported theme file into a create input — the SERVER's schema is the real validator; this
- *  only shapes the bytes and refuses non-objects with words. */
-function parseThemeFile(text: string): CreateThemeInput {
-  const parsed: unknown = JSON.parse(text);
-  if (typeof parsed !== "object" || parsed === null) {
-    throw new Error("That file isn't a theme export.");
+/** The toast for a landed theme: imported, imported under a numbered name beside a different same-named
+ *  theme, or already in the library (equal content, nothing written). */
+function importedThemeMessage({
+  created,
+  name,
+  renamedFrom,
+}: {
+  readonly created: boolean;
+  readonly name: string;
+  readonly renamedFrom: string | null;
+}): string {
+  if (!created) {
+    return `“${name}” is already in your themes — nothing was added.`;
   }
-  const bag = parsed as { name?: unknown; override?: unknown; css?: unknown };
-  return {
-    name: typeof bag.name === "string" && bag.name.trim().length > 0 ? bag.name : "Imported theme",
-    override: (bag.override ?? {}) as CreateThemeInput["override"],
-    ...(typeof bag.css === "string" ? { css: bag.css } : {}),
-  };
+  if (renamedFrom !== null) {
+    return `Imported as “${name}” — you already have a different “${renamedFrom}”.`;
+  }
+  return `Imported “${name}”.`;
 }
 
 /** How many skeleton bars the loading box paints on a device that has never seen this section settle
@@ -130,6 +137,7 @@ function LooksBody(): ReactElement {
 
   const selectTheme = useSelectTheme({ trpc, invalidation });
   const createTheme = useCreateTheme({ trpc, invalidation });
+  const importTheme = useImportThemeFile({ trpc, invalidation });
   const duplicateTheme = useDuplicateTheme({ trpc, invalidation });
   const removeTheme = useRemoveTheme({ trpc, invalidation });
   const [editing, setEditing] = useState<EditorSession | null>(null);
@@ -163,8 +171,8 @@ function LooksBody(): ReactElement {
 
   const onImportFile = async (file: File): Promise<void> => {
     try {
-      const created = await createTheme.mutateAsync(parseThemeFile(await file.text()));
-      notify.success(`Imported “${created.name}”.`);
+      const landed = await importTheme.mutateAsync({ fileText: await file.text(), filename: file.name });
+      notify.success(importedThemeMessage(landed));
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "Couldn't import the theme.");
     }

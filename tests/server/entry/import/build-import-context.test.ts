@@ -42,6 +42,7 @@ const CARD: CreateCharacterInput = createCharacterSchema.parse({ handle: "aria",
 interface Ports {
   readonly create: Mock<ImportCharacterPort["create"]>;
   readonly findByImportHash: Mock<ImportCharacterPort["findByImportHash"]>;
+  readonly attachImportedArt: Mock<ImportCharacterPort["attachImportedArt"]>;
   readonly findByHandle: Mock<ImportCharacterPort["findByHandle"]>;
   readonly findByName: Mock<ImportCharacterPort["findByName"]>;
   readonly storeAvatar: Mock<ImportAssetPort["store"]>;
@@ -52,6 +53,7 @@ function ports(): Ports {
   return {
     create: vi.fn<ImportCharacterPort["create"]>(() => Promise.resolve({ id: CHARACTER })),
     findByImportHash: vi.fn<ImportCharacterPort["findByImportHash"]>(() => Promise.resolve({ characterId: CHARACTER })),
+    attachImportedArt: vi.fn<ImportCharacterPort["attachImportedArt"]>(() => Promise.resolve(true)),
     findByHandle: vi.fn<ImportCharacterPort["findByHandle"]>(() => Promise.resolve(null)),
     findByName: vi.fn<ImportCharacterPort["findByName"]>(() => Promise.resolve([{ characterId: CHARACTER }])),
     storeAvatar: vi.fn<ImportAssetPort["store"]>(() => Promise.resolve({ assetId: ASSET })),
@@ -62,7 +64,13 @@ function ports(): Ports {
 function wiring(p: Ports): ImportContextWiring {
   return {
     principal: PRINCIPAL,
-    character: { create: p.create, findByImportHash: p.findByImportHash, findByHandle: p.findByHandle, findByName: p.findByName },
+    character: {
+      create: p.create,
+      findByImportHash: p.findByImportHash,
+      attachImportedArt: p.attachImportedArt,
+      findByHandle: p.findByHandle,
+      findByName: p.findByName,
+    },
     storeAvatar: p.storeAvatar,
     attachCardTag: p.attachCardTag,
   };

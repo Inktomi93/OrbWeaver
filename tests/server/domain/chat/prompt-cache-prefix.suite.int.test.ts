@@ -15,6 +15,7 @@ import { rowIndexAtCacheDepth } from "@orb/inference";
 import type { Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createTurnPersonaResolver } from "@orb/server/entry/compose";
+import { parseWorldBookFile } from "@orb/server/kit/serde/world-info";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
@@ -23,7 +24,6 @@ import { assemblePrompt } from "../../../../packages/server/src/domain/chat/asse
 import { buildAssembleContext } from "../../../../packages/server/src/domain/chat/assembly/context.ts";
 import type { ResolveForeignInputsOp } from "../../../../packages/server/src/domain/chat/contract/foreign.ts";
 import type { GroupOutput, TurnMessage, TurnRequest } from "../../../../packages/server/src/domain/chat/contract/results.ts";
-import { parseStWorldFile } from "../../../../packages/server/src/domain/import/substrate/world.ts";
 import { loadPersonasForOwners } from "../../../../packages/server/src/domain/persona/persistence/queries.ts";
 import type { ChatScenario } from "../../../support/chat/index.ts";
 import { scenario, tape } from "../../../support/chat/index.ts";
@@ -621,7 +621,8 @@ describe("F5 — keyword lore follows its entry's anchor, in the per-turn half",
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "lore");
     const characterId = await seedCharacter(db, host, "aria");
-    const book = parseStWorldFile(stAnchoredWorld(), "Port");
+    const parsedBook = parseWorldBookFile(stAnchoredWorld(), "Port");
+    const book = parsedBook.ok ? parsedBook.value : null;
     if (book === null) {
       throw new Error("the ST world file did not parse");
     }

@@ -18,8 +18,19 @@ const ENC = new TextEncoder();
 
 /** One preset's lossiness note — emitted for EVERY imported preset, empty `fields` included, so the operator
  *  can tell "this landed whole" apart from "this was never looked at". */
-function noteFor(p: CollectedPreset, scripts: { readonly created: number; readonly reused: number }): ImportPresetNote {
-  return { name: p.parsed.name, sourceFile: p.sourceFile, fields: p.parsed.unmapped, scriptsLifted: scripts.created, scriptsReused: scripts.reused };
+function noteFor(
+  p: CollectedPreset,
+  landed: { readonly name: string; readonly renamedFrom: string | null },
+  scripts: { readonly created: number; readonly reused: number },
+): ImportPresetNote {
+  return {
+    name: landed.name,
+    renamedFrom: landed.renamedFrom,
+    sourceFile: p.sourceFile,
+    fields: p.parsed.unmapped,
+    scriptsLifted: scripts.created,
+    scriptsReused: scripts.reused,
+  };
 }
 
 const NO_SCRIPTS = { created: 0, reused: 0 } as const;
@@ -93,12 +104,12 @@ export function createImportPresets(ctx: ImportContext): Pick<ImportService, "im
         continue;
       }
       presetsImported += 1;
-      // Only a CREATE is net-new canon; a merge is the idempotent re-run path (see ImportPresetsResult).
+      // Only a CREATE is net-new canon; a reused equal preset is the idempotent re-run path.
       if (outcome.created === true) {
         presetsCreated += 1;
       }
       const scripts = await liftPresetScripts({ ctx, p, presetId: outcome.presetId, skippedPresets });
-      notes.push(noteFor(p, scripts));
+      notes.push(noteFor(p, { name: outcome.name ?? p.parsed.name, renamedFrom: outcome.renamedFrom ?? null }, scripts));
     }
     return { presetsImported, presetsCreated, skippedPresets, notes };
   }

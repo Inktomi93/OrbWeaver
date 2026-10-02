@@ -18,11 +18,15 @@ import { createThemeInputSchema, promoteThemeInputSchema, updateThemeInputSchema
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { updateCheckSchema, upstreamHeadSchema, versionIdentitySchema } from "@orb/kit/version-identity";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 
 /** Upper bound on a pasted background URL (well past any real image URL; bounds the wire before safeFetch). */
 const MAX_BACKGROUND_URL_LENGTH = 2048;
+/** A theme file is a palette plus optional custom CSS; the cap only fences a hostile upload. */
+const MAX_THEME_FILE_CHARS = 1_000_000;
+const MAX_FILENAME_CHARS = 512;
 
 export const settingsRouter = t.router({
   // ── build identity (owner ask 2026-09-18) — the two DEPLOYMENT-GLOBAL reads behind Settings → About.
@@ -139,4 +143,21 @@ export const settingsRouter = t.router({
   removeTheme: authedProcedure
     .input(z.object({ id: typeIdSchema(ID_PREFIX.theme) }))
     .mutation(({ ctx, input }) => ctx.services.settings.removeTheme({ principal: ctx.auth, id: input.id })),
+
+  // The single-theme import door — an orb export, an orb backup or a raw SillyTavern theme, through the
+  // same op the bundle restore calls. `filename` names an ST theme that carries no name of its own. The
+  // refusal reason reaches the user as words.
+  importThemeFile: authedProcedure
+    .input(z.object({ fileText: z.string().max(MAX_THEME_FILE_CHARS), filename: z.string().max(MAX_FILENAME_CHARS).optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const outcome = await ctx.services.settings.importThemeFile({
+        principal: ctx.auth,
+        fileText: input.fileText,
+        ...(input.filename === undefined ? {} : { filename: input.filename }),
+      });
+      if (!outcome.ok) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: outcome.error });
+      }
+      return { created: outcome.created, name: outcome.name, renamedFrom: outcome.renamedFrom };
+    }),
 });

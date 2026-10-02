@@ -74,15 +74,15 @@ describe("buildWorldBookFile", () => {
 
 describe("parseWorldBookFile", () => {
   test("round-trips the canonical shape (keys, metadata blob, and the null/empty fields all survive)", () => {
-    const canonical = must(parseWorldBookFile(buildWorldBookFile(book())));
+    const canonical = must(parseWorldBookFile(buildWorldBookFile(book()), "fallback"));
     expect(canonical).toEqual(book());
     expect(canonical.entries[0]?.keys).toEqual(["kingdom", "realm"]);
     expect(Object.isFrozen(canonical.entries[0]?.keys)).toBe(false);
   });
 
   test("null for non-JSON text", () => {
-    expect(refusalOf(parseWorldBookFile(ENC.encode("{not json")))).toBe("not-json");
-    expect(refusalOf(parseWorldBookFile(ENC.encode("")))).toBe("not-json");
+    expect(refusalOf(parseWorldBookFile(ENC.encode("{not json"), "fallback"))).toBe("not-json");
+    expect(refusalOf(parseWorldBookFile(ENC.encode(""), "fallback"))).toBe("not-json");
   });
 
   test("null for a wrong schemaKind (a foreign file is not silently imported)", () => {
@@ -92,7 +92,7 @@ describe("parseWorldBookFile", () => {
       name: "x",
       entries: [],
     });
-    expect(refusalOf(parseWorldBookFile(ENC.encode(wrong)))).toBe("foreign-kind");
+    expect(refusalOf(parseWorldBookFile(ENC.encode(wrong), "fallback"))).toBe("foreign-kind");
   });
 
   test("null for a structurally-wrong entry (a mistyped field fails the shape schema)", () => {
@@ -103,7 +103,7 @@ describe("parseWorldBookFile", () => {
       description: null,
       entries: [{ title: "t", content: 42 }],
     });
-    expect(refusalOf(parseWorldBookFile(ENC.encode(bad)))).toBe("malformed");
+    expect(refusalOf(parseWorldBookFile(ENC.encode(bad), "fallback"))).toBe("malformed");
   });
 });
 
@@ -116,7 +116,7 @@ describe("accept-old-forever (external artifacts)", () => {
       description: null,
       entries: [],
     });
-    expect(must(parseWorldBookFile(ENC.encode(legacy))).name).toBe("Old Book");
+    expect(must(parseWorldBookFile(ENC.encode(legacy), "fallback")).name).toBe("Old Book");
   });
 
   test("a book from a NEWER writer is REFUSED by name, not half-parsed with today's semantics", () => {
@@ -127,7 +127,7 @@ describe("accept-old-forever (external artifacts)", () => {
       description: null,
       entries: [],
     });
-    expect(refusalOf(parseWorldBookFile(ENC.encode(future)))).toBe("newer-version");
+    expect(refusalOf(parseWorldBookFile(ENC.encode(future), "fallback"))).toBe("newer-version");
   });
 });
 
@@ -135,7 +135,7 @@ describe("build -> parse -> build identity", () => {
   test("the serialized JSON text is the stable fixed point", () => {
     const source = book();
     const bytes1 = buildWorldBookFile(source);
-    const bytes2 = buildWorldBookFile(must(parseWorldBookFile(bytes1)));
+    const bytes2 = buildWorldBookFile(must(parseWorldBookFile(bytes1, "fallback")));
     expect(new TextDecoder().decode(bytes2)).toBe(new TextDecoder().decode(bytes1));
   });
 });

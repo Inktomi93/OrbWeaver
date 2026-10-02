@@ -1,5 +1,5 @@
 import { deflateSync } from "node:zlib";
-import { isPng, readCardChunk, writeCardChunk } from "@orb/kit/png-card-chunk";
+import { isPng, readCardChunk, stripCardChunks, writeCardChunk } from "@orb/kit/png-card-chunk";
 import { expect, test } from "../../support/fixtures.ts";
 
 const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -283,4 +283,17 @@ test("writeCardChunk throws on a non-PNG and on a PNG with no IEND", () => {
   expect(() => writeCardChunk(Uint8Array.from([1, 2, 3]), "{}")).toThrow("not a PNG");
   const noIend = Uint8Array.from([...PNG_SIG, 0, 0, 0, 1, ...TEXT_TYPE_BYTES, 0x41, 0, 0, 0, 0]);
   expect(() => writeCardChunk(noIend, "{}")).toThrow("IEND");
+});
+
+test("stripCardChunks returns the image without its card chunks — byte-identical to the base it was written on", () => {
+  const base = makeBasePng();
+  const written = writeCardChunk(base, v3Json("Aria"));
+  expect([...stripCardChunks(written)]).toEqual([...base]);
+  // Two card texts on one picture strip to one image.
+  expect([...stripCardChunks(writeCardChunk(base, v3Json("Bram")))]).toEqual([...stripCardChunks(written)]);
+  // Not a PNG, or a PNG with no IEND: the bytes come back as they are.
+  const notPng = Uint8Array.from([1, 2, 3]);
+  expect(stripCardChunks(notPng)).toBe(notPng);
+  const noIend = Uint8Array.from([...PNG_SIG, 0, 0, 0, 1, ...TEXT_TYPE_BYTES, 0x41, 0, 0, 0, 0]);
+  expect(stripCardChunks(noIend)).toBe(noIend);
 });
