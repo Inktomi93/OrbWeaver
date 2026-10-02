@@ -113,8 +113,11 @@ export function terminalCall(node: MorphNode): ReferenceFact<CallExpression> {
   }
   const origin = resolveModuleMemberOrigin(node);
   const declaration = origin.kind === "resolved" && origin.value.canonical.kind === "project" ? origin.value.canonical.declaration : undefined;
-  const initializer = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
-  return initializer === undefined ? fact : terminalCall(initializer);
+  if (!Node.isVariableDeclaration(declaration) || declaration.getInitializer() === undefined) {
+    return fact;
+  }
+  // A module home does not prove binding stability; re-enter that proof before following its initializer.
+  return terminalCall(declaration.getNameNode());
 }
 
 export function operationChain(expression: MorphNode): {
