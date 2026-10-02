@@ -1,13 +1,6 @@
-// verb: listTagFilterVocabulary — the character-library chip vocabulary. The projection `listTagsWithUsage`
-// is NOT: four columns, the CHARACTER junction only, and the rank the chip rail's 8-chip cap depends on
-// (side-eye 2026-08-18 P2-6 — the rail was reading the management rollup, 433,399 bytes over 1,736 rows to
-// paint 8 chips and a "+1,728 more" link).
-//
-// The two properties worth a db: the RANK is the server's (most-used first, ties alphabetical — the client
-// no longer sorts what it was handed), and the ROW SET is every owned tag INCLUDING the zero-usage and
-// card-hidden ones, because this answer doubles as the referential authority a persisted tag filter is
-// checked against (`character-library-lens.ts` knownTagIds — an omitted id reads as "deleted" and would
-// silently drop a live filter).
+// The filter-vocabulary database proof pins server rank (most-used, alphabetical ties) and the complete
+// owned row set including zero-usage/card-hidden tags. Those rows are authority for persisted filters;
+// omitting a live id would falsely delete the filter.
 
 import { createTagService } from "@orb/server/domain/tag";
 import { describe } from "vitest";

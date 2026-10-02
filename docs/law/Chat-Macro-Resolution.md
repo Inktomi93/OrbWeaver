@@ -215,6 +215,6 @@ The block changes only on a join, a leave (`leftSeq`), a persona swap, a descrip
 
 Guaranteed by (1) the ONE shared atom (§2) and (2) the SAME producer semantics (§1) on both sides.
 Pinned by the regression matrix (`tests/*`): one fixture — chat anchor = Nyx, active =
-Zara, a user row stamped `personaId` = Mara, content `"{{user}} waves"` — resolves to **Mara** on BOTH
+Zara, a user row stamped `personaId` = Mira, content `"{{user}} waves"` — resolves to **Mira** on BOTH
 server-assemble and client-display, and to Zara/"User" only when the stamp is null. A card `{{user}}`
 in the same fixture resolves to Nyx (pin). Storage of that row stays the literal `"{{user}} waves"`.

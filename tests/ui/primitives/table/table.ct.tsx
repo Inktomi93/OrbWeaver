@@ -20,7 +20,7 @@ test("renders columns and rows", async ({ mount, page }) => {
   await expect(page.getByRole("columnheader", { name: "Age" })).toBeVisible();
   await expect(page.getByRole("row")).toHaveCount(5); // 1 header + 4 data rows
   await expect(page.getByText("Elara")).toBeVisible();
-  await expect(page.getByText("Bram")).toBeVisible();
+  await expect(page.getByText("Bryn")).toBeVisible();
 });
 
 test("clicking a sortable header cycles none -> asc -> desc -> none with aria-sort + a glyph swap", async ({ mount, page }) => {
@@ -34,7 +34,7 @@ test("clicking a sortable header cycles none -> asc -> desc -> none with aria-so
 
   await sortButton.click();
   await expect(header).toHaveAttribute("aria-sort", "ascending");
-  await expect(bodyRows.first()).toContainText("Bram"); // alphabetically first
+  await expect(bodyRows.first()).toContainText("Bryn"); // alphabetically first
   const ascGlyph = await sortButton.locator("svg").innerHTML();
   // A NON-COLOR signal: the glyph itself is a different icon (different SVG markup), not just a
   // color swap on the same shape.
@@ -144,12 +144,12 @@ for (const paginationCase of [
 test("row selection: select-all checks every row and goes indeterminate on a partial selection", async ({ mount, page }) => {
   await mount(<BasicTableStory selectable={true} />);
   const selectAll = page.getByRole("checkbox", { name: "Select all rows" });
-  const bram = page.getByRole("checkbox", { name: selectActionName("Bram") });
+  const bryn = page.getByRole("checkbox", { name: selectActionName("Bryn") });
   const elara = page.getByRole("checkbox", { name: selectActionName("Elara") });
 
   await expect(selectAll).toHaveAttribute("aria-checked", "false");
-  await bram.click();
-  await expect(bram).toHaveAttribute("aria-checked", "true");
+  await bryn.click();
+  await expect(bryn).toHaveAttribute("aria-checked", "true");
   await expect(selectAll).toHaveAttribute("aria-checked", "mixed");
 
   await selectAll.click(); // from indeterminate, select-all selects everything
@@ -158,7 +158,7 @@ test("row selection: select-all checks every row and goes indeterminate on a par
 
   await selectAll.click(); // fully selected -> clears
   await expect(selectAll).toHaveAttribute("aria-checked", "false");
-  await expect(bram).toHaveAttribute("aria-checked", "false");
+  await expect(bryn).toHaveAttribute("aria-checked", "false");
 });
 
 // THE SELECTED ROW LEFT THE ACCENT FILL (#1840, side-eye 2026-09-06 E2). This arm asserted
@@ -173,14 +173,14 @@ test("row selection: select-all checks every row and goes indeterminate on a par
 // compositing. The delta IS the claim.
 test("a selected row wears the ruled row idiom — the rail lights and the row tints", async ({ mount, page }) => {
   await mount(<BasicTableStory selectable={true} />);
-  const row = page.locator("tbody tr", { hasText: "Bram" });
+  const row = page.locator("tbody tr", { hasText: "Bryn" });
   const paint = async (): Promise<{ readonly fill: string; readonly rail: string }> =>
     await row.evaluate((el: Element) => {
       const style = getComputedStyle(el);
       return { fill: style.backgroundColor, rail: style.borderLeftColor };
     });
   const rest = await paint();
-  await page.getByRole("checkbox", { name: selectActionName("Bram") }).click();
+  await page.getByRole("checkbox", { name: selectActionName("Bryn") }).click();
   await expect(row).toHaveAttribute("data-selected", /.*/);
   const selected = await paint();
   expect(selected.rail, "the reserved rail lights on selection").not.toBe(rest.rail);

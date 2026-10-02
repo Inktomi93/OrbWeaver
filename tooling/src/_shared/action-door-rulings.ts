@@ -151,6 +151,7 @@ export const ACTION_DOOR_RULINGS: readonly ActionDoorRuling[] = Object.freeze([
       "packages/client/src/features/chat/components/appearance-avatars-section.tsx",
       "packages/client/src/features/chat/components/appearance-message-details-section.tsx",
       "packages/client/src/features/chat/components/appearance-message-style-section.tsx",
+      "packages/client/src/features/chat/components/chat-attachment-quality-section.tsx",
       "packages/client/src/features/chat/components/chat-behavior-message-handling-section.tsx",
       "packages/client/src/features/chat/components/chat-behavior-streaming-section.tsx",
       "packages/client/src/features/chat/components/databank-settings-section.tsx",

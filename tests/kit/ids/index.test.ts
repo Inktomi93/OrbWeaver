@@ -13,6 +13,14 @@ test("mintTypeId values are unique", () => {
   expect(a).not.toBe(b);
 });
 
+test("automation birth requests validate distinctly from server resource identities", () => {
+  const request = mintTypeId(ID_PREFIX.automationRuleCreation);
+  const rule = mintTypeId(ID_PREFIX.automationRule);
+  expect(typeIdSchema(ID_PREFIX.automationRuleCreation).parse(request)).toBe(request);
+  expect(typeIdSchema(ID_PREFIX.automationRuleCreation).safeParse(rule).success).toBe(false);
+  expect(typeIdSchema(ID_PREFIX.automationRule).safeParse(request).success).toBe(false);
+});
+
 test("typeIdSchema accepts a matching prefix and rejects a mismatched one", () => {
   const schema = typeIdSchema(ID_PREFIX.persona);
   const good = mintTypeId(ID_PREFIX.persona);

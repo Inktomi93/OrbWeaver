@@ -79,17 +79,12 @@ more rigorous, committed answer): `run.ts`, `run-coverage.ts`, `native-wire-prob
 → `git show <sha>^:scripts/probes/rpg-extraction/<path>`. Their value is preserved in
 `SPEC.md` + `SPEC-coverage.md`.
 
-The three tracked capture JSONs those harnesses read — `real-cheap-toolround.json`,
-`real-reliable-structured.json`, `real-narrative-turn.json` — are KEPT despite losing every reader
-in this tree: they are
-the frozen wire-shape record behind the spike's findings. They are a standing evidence artifact, not
-live fixtures — do not treat their presence as a signal that a harness still runs them.
+Recorded model conversations are private probe output. The public tree retains the methods and measurement summaries, with synthetic fixture inputs where a reader needs them.
 
 `steer-probe.ts` was assessed as a delete-candidate (superseded by `steer-probe-real.ts`) but kept —
 weak row, 172 lines, costs nothing to keep; see the assessment doc for the full call.
 
-Contrast `openrouter/`, where the "committed RESULTS" claim IS true: `results/*.jsonl` are git-tracked
-and re-included by that dir's own `.gitignore` negation.
+OpenRouter probe output is ignored. `openrouter/RESULTS.md` retains the technical measurement summaries.
 
 ## Tool dependencies that LEFT this zone
 

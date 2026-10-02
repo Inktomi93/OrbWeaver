@@ -354,7 +354,7 @@ export const gate = defineGate({
         // deletion, efc4cc2b2) and the two CT assertions on it survived, green under every scoped floor.
         "tests/client/features/character/_ct-stories.tsx": 'export const S = () => <p data-testid="cast-count">2</p>;\n',
         "tests/client/features/character/components/list-pane.ct.tsx":
-          'test("cast", async () => {\n  await expect(component.getByTestId("draft-cast")).toHaveText("Azarael");\n});\n',
+          'test("cast", async () => {\n  await expect(component.getByTestId("draft-cast")).toHaveText("Aveline");\n});\n',
       },
       expect: { count: 1, token: '"draft-cast"', messageIncludes: "A1: nothing on the tree mints" },
       why: "the founding defect — a CT selecting a testid whose producer was deleted out from under it; the sibling live id in the same story proves the arm is per-VALUE, not per-file. The position is the QUOTED literal (the §3 house convention), which is also the §4.2 identity arm's marker text",
@@ -394,9 +394,9 @@ export const gate = defineGate({
       mode: "source",
       files: {
         // The normal shape: the CT selects what the story stamps.
-        "tests/client/features/character/_ct-stories.tsx": 'export const S = () => <p data-testid="draft-cast">Azarael</p>;\n',
+        "tests/client/features/character/_ct-stories.tsx": 'export const S = () => <p data-testid="draft-cast">Aveline</p>;\n',
         "tests/client/features/character/components/list-pane.ct.tsx":
-          'test("cast", async () => {\n  await expect(component.getByTestId("draft-cast")).toHaveText("Azarael");\n});\n',
+          'test("cast", async () => {\n  await expect(component.getByTestId("draft-cast")).toHaveText("Aveline");\n});\n',
       },
       why: "a live producer/consumer pair, the producer being a CT STORY — stories mint ids for their own harness and are first-class producers. Cutting the `tests/` root out of the population turns this row RED",
     },

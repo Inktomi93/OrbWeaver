@@ -31,13 +31,15 @@ import {
   ANALYSIS_GUIDANCE_MAX,
   AUTOMATION_FIRE_OUTCOMES,
   AUTOMATION_OWNER_BUDGET_DEFAULTS,
+  AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR,
+  AUTOMATION_RULE_NAME_MAX_CHARS,
   AUTOMATION_TRIGGER_BUSES,
   CHAT_TRIGGER_TYPES,
   DOMAIN_TRIGGER_TYPES,
   GLOBAL_VARIABLE_KEY_MAX_CHARS,
   GLOBAL_VARIABLE_VALUE_MAX_BYTES,
 } from "@orb/contracts/automation";
-import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
+import type { AutomationFireId, AutomationRuleCreationId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import {
   check,
@@ -47,14 +49,13 @@ import {
   primaryKey,
   sqliteTable,
   text,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { checkList } from "../kit/check-list.ts";
 import { chats } from "./chat.ts";
 import { users } from "./users.ts";
 
 // Named numeric bounds/defaults (`noMagicNumbers`).
-const RULE_NAME_MAX_CHARS = 120;
-const RULE_MAX_FIRES_PER_HOUR_DEFAULT = 30;
 /** Storage admits one in-flight state beyond the public terminal vocabulary. */
 export const AUTOMATION_FIRE_STORAGE_OUTCOMES = [...AUTOMATION_FIRE_OUTCOMES, "reserved"] as const;
 // The owner budget + global-variable caps derive from @orb/contracts/automation (the ONE home — the
@@ -78,6 +79,8 @@ export const automationRules = sqliteTable(
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    // Immutable row-local birth identity; legacy and preset births retain NULL.
+    creationRequestId: text("creation_request_id").$type<AutomationRuleCreationId>(),
     // NULL = owner-global — WIRED at C5 (`createRule` admits NULL under the owner check; the rate belt is
     // `automation_owner_budgets`). A global rule's arms are restricted to the chat-INDEPENDENT set.
     chatId: text("chat_id")
@@ -123,7 +126,7 @@ export const automationRules = sqliteTable(
     // the create/update PUT nor of the mint-provenance biconditional below.
     suggestOnRefusal: integer("suggest_on_refusal", { mode: "boolean" }).notNull().default(true),
     cooldownSeconds: integer("cooldown_seconds").notNull().default(0),
-    maxFiresPerHour: integer("max_fires_per_hour").notNull().default(RULE_MAX_FIRES_PER_HOUR_DEFAULT),
+    maxFiresPerHour: integer("max_fires_per_hour").notNull().default(AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR),
     // Increments on predicate_error/action_error, resets on a clean fire; auto-disable at 20.
     consecutiveErrors: integer("consecutive_errors").notNull().default(0),
     // The last skip reason (host debug surface).
@@ -138,7 +141,8 @@ export const automationRules = sqliteTable(
     // The owner CASCADE parent + the owner-global rule list: SQLite auto-indexes no child FK, so a user
     // hard-delete would scan every rule (`fk-columns-indexed` gate).
     index("automation_rules_owner_idx").on(t.ownerId),
-    check("automation_rules_name_check", sql.raw(`length(name) <= ${RULE_NAME_MAX_CHARS}`)),
+    uniqueIndex("automation_rules_owner_creation_request_unique").on(t.ownerId, t.creationRequestId),
+    check("automation_rules_name_check", sql.raw(`length(name) <= ${AUTOMATION_RULE_NAME_MAX_CHARS}`)),
     // Provenance is both-or-neither — a half-stamped row (an id with no bag, a bag with no id) is
     // unrepresentable, so every reader may treat one field's presence as the pair's.
     check("automation_rules_rule_preset_check", sql.raw("(rule_preset_id IS NULL) = (rule_preset_knobs IS NULL)")),

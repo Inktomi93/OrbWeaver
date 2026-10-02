@@ -388,7 +388,7 @@ export function makeRpgService(
     ...(over.foldedToolsThrow !== undefined ? { foldedToolsThrow: over.foldedToolsThrow } : {}),
     resyncDelta: over.resyncDelta ?? { statePatch: {}, journal: [] },
     canonWindow: over.canonWindow ?? [],
-    cardCorpus: { name: "Mara", card: "DESCRIPTION:\nA warden of a fallen house.", opening: "You meet at the ford." },
+    cardCorpus: { name: "Mira", card: "DESCRIPTION:\nA warden of a fallen house.", opening: "You meet at the ford." },
     populateDelta: over.populateDelta ?? { statePatch: {}, sheet: {} },
     ownedPresets: new Set(),
     copyPresetFails: over.copyPresetFails ?? false,

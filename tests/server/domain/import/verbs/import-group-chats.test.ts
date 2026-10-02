@@ -15,16 +15,16 @@ import { expect, test } from "../../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 const ARIA = castId<CharacterId>("chr_aria");
-const BRAM = castId<CharacterId>("chr_bram");
+const BRYN = castId<CharacterId>("chr_bryn");
 const ENC = new TextEncoder();
 
 /** A real-shaped ST group transcript. `original_avatar` (the SPEAKING CARD'S FILENAME) is what ST stamps on
- *  every group assistant line; the Bram line deliberately omits it (the pre-group-era shape). */
+ *  every group assistant line; the Bryn line deliberately omits it (the pre-group-era shape). */
 const GROUP_JSONL = [
   JSON.stringify({ user_name: "Alex", character_name: "unused", create_date: "2025-07-18@12h00m00s" }),
   JSON.stringify({ name: "Aria", is_user: false, original_avatar: "Aria.png", mes: "Aria speaks.", send_date: "2025-07-18@12h00m01s" }),
   JSON.stringify({ name: "Alex", is_user: true, mes: "Hi both!", send_date: "2025-07-18@12h00m02s" }),
-  JSON.stringify({ name: "Bram", is_user: false, mes: "Bram answers.", send_date: "2025-07-18@12h00m03s" }),
+  JSON.stringify({ name: "Bryn", is_user: false, mes: "Bryn answers.", send_date: "2025-07-18@12h00m03s" }),
   JSON.stringify({ name: "Ghost", is_user: false, original_avatar: "Ghost.png", mes: "A stranger.", send_date: "2025-07-18@12h00m04s" }),
 ].join("\n");
 
@@ -33,7 +33,7 @@ function group(members: readonly string[], over: Record<string, unknown> = {}): 
   const bytes = ENC.encode(
     JSON.stringify({
       id: "1773514134935",
-      name: "Group: Aria + Bram",
+      name: "Group: Aria + Bryn",
       members,
       allow_self_responses: false,
       generation_mode: 0,
@@ -110,43 +110,43 @@ function input(groups: readonly CollectedGroup[]): ImportGroupsInput {
     groups,
     characterIdByCardFilename: new Map([
       ["Aria.png", ARIA],
-      ["Bram.png", BRAM],
+      ["Bryn.png", BRYN],
     ]),
     characterNameByCardFilename: new Map([
       ["Aria.png", "Aria"],
-      ["Bram.png", "Bram"],
+      ["Bryn.png", "Bryn"],
     ]),
   };
 }
 
 // ── The COLLISION fixture: two DIFFERENT cards that share one display name ────────────────────────────────
 // This is the case the whole filename-keyed design exists for, and the only fixture that can tell the two
-// resolution paths apart: a name match resolves "emily" to whichever seat wrote the map last (EMILY_B), while
-// the filename match resolves `original_avatar: "Emily.png"` to EMILY_A. With identical display names the
+// resolution paths apart: a name match resolves "eleni" to whichever seat wrote the map last (ELENI_B), while
+// the filename match resolves `original_avatar: "Eleni.png"` to ELENI_A. With identical display names the
 // earlier fixture was structurally incapable of failing when the filename path was removed (verified by
 // planting exactly that break — it stayed green).
-const EMILY_A = castId<CharacterId>("chr_emily_a");
-const EMILY_B = castId<CharacterId>("chr_emily_b");
+const ELENI_A = castId<CharacterId>("chr_eleni_a");
+const ELENI_B = castId<CharacterId>("chr_eleni_b");
 
 const COLLIDING_JSONL = [
   JSON.stringify({ user_name: "Alex", character_name: "unused", create_date: "2025-07-18@12h00m00s" }),
-  JSON.stringify({ name: "Emily", is_user: false, original_avatar: "Emily.png", mes: "The first Emily.", send_date: "2025-07-18@12h00m01s" }),
+  JSON.stringify({ name: "Eleni", is_user: false, original_avatar: "Eleni.png", mes: "The first Eleni.", send_date: "2025-07-18@12h00m01s" }),
 ].join("\n");
 
 function collidingGroup(): CollectedGroup {
-  const bytes = ENC.encode(JSON.stringify({ id: "g2", name: "Two Emilys", members: ["Emily.png", "Emily-2.png"], generation_mode: 0, chats: ["emilys"] }));
+  const bytes = ENC.encode(JSON.stringify({ id: "g2", name: "Two Elenis", members: ["Eleni.png", "Eleni-2.png"], generation_mode: 0, chats: ["elenis"] }));
   const parsed = parseStGroupFile(bytes, "g2");
   if (parsed === null) {
     throw new Error("fixture is not a recognizable ST group");
   }
-  const chat = parseChatJsonl(COLLIDING_JSONL, { fileName: "emilys.jsonl", charDirName: parsed.name });
+  const chat = parseChatJsonl(COLLIDING_JSONL, { fileName: "elenis.jsonl", charDirName: parsed.name });
   if (chat === null) {
     throw new Error("fixture group transcript did not parse");
   }
   return {
     parsed,
     sourceFile: "groups/g2.json",
-    chats: [{ parsed: chat, importedFrom: "emilys.jsonl", importHash: importFileHash(ENC.encode(COLLIDING_JSONL)) }],
+    chats: [{ parsed: chat, importedFrom: "elenis.jsonl", importHash: importFileHash(ENC.encode(COLLIDING_JSONL)) }],
     missingChatLeaves: [],
   };
 }
@@ -159,43 +159,43 @@ describe("importGroupChats", () => {
     await service.importGroupChats({
       groups: [collidingGroup()],
       characterIdByCardFilename: new Map([
-        ["Emily.png", EMILY_A],
-        ["Emily-2.png", EMILY_B],
+        ["Eleni.png", ELENI_A],
+        ["Eleni-2.png", ELENI_B],
       ]),
-      // Both cards are literally named "Emily" — exactly what ST's handle disambiguation produces.
+      // Both cards are literally named "Eleni" — exactly what ST's handle disambiguation produces.
       characterNameByCardFilename: new Map([
-        ["Emily.png", "Emily"],
-        ["Emily-2.png", "Emily"],
+        ["Eleni.png", "Eleni"],
+        ["Eleni-2.png", "Eleni"],
       ]),
     });
 
-    // `original_avatar: "Emily.png"` must seat the FIRST Emily. A display-name match would seat EMILY_B here.
-    expect(written.calls[0]?.chats[0]?.messages[0]?.characterId).toBe(EMILY_A);
+    // `original_avatar: "Eleni.png"` must seat the FIRST Eleni. A display-name match would seat ELENI_B here.
+    expect(written.calls[0]?.chats[0]?.messages[0]?.characterId).toBe(ELENI_A);
   });
 
   test("seats the whole cast and attributes each assistant slot to the character that voiced it", async () => {
     const written: Written = { calls: [] };
     const service = createImportService(ctxWith(written));
 
-    const result = await service.importGroupChats(input([group(["Aria.png", "Bram.png"])]));
+    const result = await service.importGroupChats(input([group(["Aria.png", "Bryn.png"])]));
 
     expect(result.groupsImported).toBe(1);
     expect(result.groupChatsImported).toBe(1);
     const call = written.calls[0];
     // ST's FIRST member is the room's primary; the rest are the extra roster seats, in ST's own order.
     expect(call?.characterId).toBe(ARIA);
-    expect(call?.chats[0]?.characterIds).toEqual([BRAM]);
-    // Aria resolves by `original_avatar` (the FILENAME — the identity key); Bram's line carries none so the
+    expect(call?.chats[0]?.characterIds).toEqual([BRYN]);
+    // Aria resolves by `original_avatar` (the FILENAME — the identity key); Bryn's line carries none so the
     // roster-scoped display name resolves it; the user slot is never character-attributed; and an off-roster
     // speaker carries NO characterId, which the write op's own contract reads as "the run's primary".
-    expect(call?.chats[0]?.messages.map((m) => m.characterId)).toEqual([ARIA, undefined, BRAM, undefined]);
+    expect(call?.chats[0]?.messages.map((m) => m.characterId)).toEqual([ARIA, undefined, BRYN, undefined]);
   });
 
   test("the room is born with the group's OWN behaviour blob (generation_mode → the output axis)", async () => {
     const perSpeaker: Written = { calls: [] };
-    await createImportService(ctxWith(perSpeaker)).importGroupChats(input([group(["Aria.png", "Bram.png"])]));
+    await createImportService(ctxWith(perSpeaker)).importGroupChats(input([group(["Aria.png", "Bryn.png"])]));
     const narrator: Written = { calls: [] };
-    await createImportService(ctxWith(narrator)).importGroupChats(input([group(["Aria.png", "Bram.png"], { generation_mode: 1 })]));
+    await createImportService(ctxWith(narrator)).importGroupChats(input([group(["Aria.png", "Bryn.png"], { generation_mode: 1 })]));
 
     const readOutput = (w: Written): string | undefined => (w.calls[0]?.chats[0]?.metadata as { group?: { output?: string } } | undefined)?.group?.output;
     // ST `generation_mode` 0 = swap (one speaker per turn) → per-speaker; 1 = append (the whole cast in one
@@ -212,7 +212,7 @@ describe("importGroupChats", () => {
 
     expect(result.groupsImported).toBe(1);
     expect(result.skippedMembers).toEqual([
-      { group: "Group: Aria + Bram", member: "Nobody.png", reason: "no character with that card filename in the import set or the library" },
+      { group: "Group: Aria + Bryn", member: "Nobody.png", reason: "no character with that card filename in the import set or the library" },
     ]);
     expect(written.calls[0]?.chats[0]?.characterIds).toEqual([]);
   });
@@ -224,7 +224,7 @@ describe("importGroupChats", () => {
     const result = await service.importGroupChats(input([group(["Nobody.png"])]));
 
     expect(result.groupsImported).toBe(0);
-    expect(result.skippedGroups).toEqual([{ group: "Group: Aria + Bram", reason: "none of its member cards resolved to an imported or existing character" }]);
+    expect(result.skippedGroups).toEqual([{ group: "Group: Aria + Bryn", reason: "none of its member cards resolved to an imported or existing character" }]);
     expect(written.calls).toEqual([]);
   });
 
@@ -232,11 +232,11 @@ describe("importGroupChats", () => {
     const written: Written = { calls: [] };
     const service = createImportService(ctxWith(written, { throws: true }));
 
-    const result = await service.importGroupChats(input([group(["Aria.png", "Bram.png"])]));
+    const result = await service.importGroupChats(input([group(["Aria.png", "Bryn.png"])]));
 
     expect(result.groupsImported).toBe(0);
     // The refusal carries the write op's own last line, the same concision rule the card wave uses.
-    expect(result.skippedGroups).toEqual([{ group: "Group: Aria + Bram", reason: "chr_stranger" }]);
+    expect(result.skippedGroups).toEqual([{ group: "Group: Aria + Bryn", reason: "chr_stranger" }]);
   });
 
   test("a group with no readable transcript is skipped with its own distinct reason", async () => {
@@ -246,7 +246,7 @@ describe("importGroupChats", () => {
 
     const result = await service.importGroupChats(input([empty]));
 
-    expect(result.skippedGroups).toEqual([{ group: "Group: Aria + Bram", reason: "the group claimed no readable transcript under `group chats/`" }]);
+    expect(result.skippedGroups).toEqual([{ group: "Group: Aria + Bryn", reason: "the group claimed no readable transcript under `group chats/`" }]);
     expect(written.calls).toEqual([]);
   });
 
@@ -257,15 +257,15 @@ describe("importGroupChats", () => {
   test("a display name shared by two seated cards attributes NOBODY and is reported as ambiguous", async () => {
     const written: Written = { calls: [] };
     const service = createImportService(ctxWith(written));
-    // The same two-Emily room, but the line carries NO `original_avatar` — the pre-group-era export shape,
+    // The same two-Eleni room, but the line carries NO `original_avatar` — the pre-group-era export shape,
     // the only case the name fallback exists for.
     const jsonl = [
       JSON.stringify({ user_name: "Alex", character_name: "unused", create_date: "2025-07-18@12h00m00s" }),
-      JSON.stringify({ name: "Emily", is_user: false, mes: "Which Emily?", send_date: "2025-07-18@12h00m01s" }),
+      JSON.stringify({ name: "Eleni", is_user: false, mes: "Which Eleni?", send_date: "2025-07-18@12h00m01s" }),
     ].join("\n");
-    const bytes = ENC.encode(JSON.stringify({ id: "g3", name: "Two Emilys", members: ["Emily.png", "Emily-2.png"], generation_mode: 0, chats: ["emilys"] }));
+    const bytes = ENC.encode(JSON.stringify({ id: "g3", name: "Two Elenis", members: ["Eleni.png", "Eleni-2.png"], generation_mode: 0, chats: ["elenis"] }));
     const parsed = parseStGroupFile(bytes, "g3");
-    const chat = parseChatJsonl(jsonl, { fileName: "emilys.jsonl", charDirName: "Two Emilys" });
+    const chat = parseChatJsonl(jsonl, { fileName: "elenis.jsonl", charDirName: "Two Elenis" });
     if (parsed === null || chat === null) {
       throw new Error("fixture did not parse");
     }
@@ -275,34 +275,34 @@ describe("importGroupChats", () => {
         {
           parsed,
           sourceFile: "groups/g3.json",
-          chats: [{ parsed: chat, importedFrom: "emilys.jsonl", importHash: importFileHash(ENC.encode(jsonl)) }],
+          chats: [{ parsed: chat, importedFrom: "elenis.jsonl", importHash: importFileHash(ENC.encode(jsonl)) }],
           missingChatLeaves: [],
         },
       ],
       characterIdByCardFilename: new Map([
-        ["Emily.png", EMILY_A],
-        ["Emily-2.png", EMILY_B],
+        ["Eleni.png", ELENI_A],
+        ["Eleni-2.png", ELENI_B],
       ]),
       characterNameByCardFilename: new Map([
-        ["Emily.png", "Emily"],
-        ["Emily-2.png", "Emily"],
+        ["Eleni.png", "Eleni"],
+        ["Eleni-2.png", "Eleni"],
       ]),
     });
 
     // No characterId is proposed: the slot falls through to the room's primary rather than being assigned to
     // the LAST same-named seat (which is what the collapsing map did).
     expect(written.calls[0]?.chats[0]?.messages[0]?.characterId).toBeUndefined();
-    expect(result.ambiguousSpeakerNames).toEqual([{ group: "Two Emilys", name: "Emily", seats: 2 }]);
+    expect(result.ambiguousSpeakerNames).toEqual([{ group: "Two Elenis", name: "Eleni", seats: 2 }]);
   });
 
   test("a UNIQUE display name still resolves by name — the fallback is narrowed, not removed", async () => {
     const written: Written = { calls: [] };
     const service = createImportService(ctxWith(written));
 
-    const result = await service.importGroupChats(input([group(["Aria.png", "Bram.png"])]));
+    const result = await service.importGroupChats(input([group(["Aria.png", "Bryn.png"])]));
 
-    // Bram's line carries no `original_avatar`; his name is unique in this room, so it still seats him.
-    expect(written.calls[0]?.chats[0]?.messages[2]?.characterId).toBe(BRAM);
+    // Bryn's line carries no `original_avatar`; his name is unique in this room, so it still seats him.
+    expect(written.calls[0]?.chats[0]?.messages[2]?.characterId).toBe(BRYN);
     expect(result.ambiguousSpeakerNames).toEqual([]);
   });
 
@@ -314,13 +314,13 @@ describe("importGroupChats", () => {
     const written: Written = { calls: [] };
     const service = createImportService(ctxWith(written));
 
-    const result = await service.importGroupChats(input([group(["Aria.png", "Bram.png"], { disabled_members: ["Bram.png"] })]));
+    const result = await service.importGroupChats(input([group(["Aria.png", "Bryn.png"], { disabled_members: ["Bryn.png"] })]));
 
-    // The cast is unchanged — Bram keeps his seat (the recorded ruling)…
-    expect(written.calls[0]?.chats[0]?.characterIds).toEqual([BRAM]);
+    // The cast is unchanged — Bryn keeps his seat (the recorded ruling)…
+    expect(written.calls[0]?.chats[0]?.characterIds).toEqual([BRYN]);
     // …and the write op is handed the mute for exactly that seat (the knob the room is born with).
-    expect(written.calls[0]?.chats[0]?.seatKnobs).toEqual([{ characterId: BRAM, disabled: true }]);
-    expect(result.seatedDisabledMembers).toEqual([{ group: "Group: Aria + Bram", member: "Bram.png" }]);
+    expect(written.calls[0]?.chats[0]?.seatKnobs).toEqual([{ characterId: BRYN, disabled: true }]);
+    expect(result.seatedDisabledMembers).toEqual([{ group: "Group: Aria + Bryn", member: "Bryn.png" }]);
   });
 
   test("a DISABLED member whose card never resolved is a skipped member, never a phantom muted seat", async () => {
@@ -340,18 +340,18 @@ describe("importGroupChats", () => {
     const written: Written = { calls: [] };
     const service = createImportService(ctxWith(written));
 
-    const result = await service.importGroupChats(input([group(["Aria.png", "Bram.png"], { disabled_members: ["Aria.png"] })]));
+    const result = await service.importGroupChats(input([group(["Aria.png", "Bryn.png"], { disabled_members: ["Aria.png"] })]));
 
     // Aria is the room's primary (first resolved member); the knob names her all the same.
     expect(written.calls[0]?.chats[0]?.seatKnobs).toEqual([{ characterId: ARIA, disabled: true }]);
-    expect(result.seatedDisabledMembers).toEqual([{ group: "Group: Aria + Bram", member: "Aria.png" }]);
+    expect(result.seatedDisabledMembers).toEqual([{ group: "Group: Aria + Bryn", member: "Aria.png" }]);
   });
 
   test("a group with no disabled members reports an empty list, never a missing one, and carries NO knobs", async () => {
     const written: Written = { calls: [] };
     const service = createImportService(ctxWith(written));
 
-    const result = await service.importGroupChats(input([group(["Aria.png", "Bram.png"])]));
+    const result = await service.importGroupChats(input([group(["Aria.png", "Bryn.png"])]));
 
     expect(result.seatedDisabledMembers).toEqual([]);
     // ABSENT, not an empty array: the field's contract says absent ⇒ every seat takes the column defaults,

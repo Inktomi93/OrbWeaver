@@ -4,7 +4,7 @@
 // here.
 //
 // PAGED + VIRTUALIZED (2026-08-09). `chat.listChats` is a keyset page, read through the shared
-// `useChatListCollection`, and the rows render into the sealed `<VirtualList>` — an 872-chat library used to
+// `useChatListCollection`, and the rows render into the sealed `<VirtualList>` — an 880-chat library used to
 // arrive as one array and paint one DOM row per chat. Two consequences the copy has to be honest about:
 //   • The per-character scope is a SERVER filter now (`characterId` on the query), not a client `.filter()`
 //     over the whole library — so scoping to a character costs one bounded read instead of pulling

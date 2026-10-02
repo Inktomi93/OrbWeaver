@@ -1,6 +1,6 @@
 // The `local-light` wire's sealed backend (D39 — the keyless "any box" tier, in-process transformers.js/ONNX on
 // its own worker thread). Serves ONLY embed / imageEmbed / rerank (the other methods are ABSENT — the
-// dispatcher's typed refusal). The matte op and the prefetch handle ride beside the backend for the composition root.
+// dispatcher's typed refusal). The prefetch handle rides beside the backend for the composition root.
 
 import type { ModelId } from "@orb/kit/ids";
 import type { ProviderBackend } from "../../contract/backend.ts";
@@ -10,7 +10,7 @@ import { localLightEmbedSpaceTag, resolveEmbedDtype } from "./model-cache.ts";
 import type { LocalLightPrefetchHandle } from "./prefetch.ts";
 import { createLocalLightPrefetch } from "./prefetch.ts";
 import { createScheduledCache } from "./scheduled-cache.ts";
-import { createLocalLightEmbed, createLocalLightImageEmbed, createLocalLightMatte, createLocalLightRerank } from "./tasks.ts";
+import { createLocalLightEmbed, createLocalLightImageEmbed, createLocalLightRerank } from "./tasks.ts";
 import { createWorkerModelCache } from "./worker-cache.ts";
 
 export type { LocalLightModelSlot } from "../../contract/runtime.ts";
@@ -29,7 +29,6 @@ export interface LocalLightBackendDeps {
 export interface LocalLightBackend {
   readonly backend: ProviderBackend;
   readonly prefetch: LocalLightPrefetchHandle;
-  readonly matte: ReturnType<typeof createLocalLightMatte>;
   /** THE ACTIVE local-light embedding space tag for a model id — the same string the embed results carry. */
   readonly embedSpace: (modelId: ModelId) => string;
   readonly loadFailed: LocalLightModelCache["loadFailed"];
@@ -64,7 +63,6 @@ export function createLocalLightBackend(deps: LocalLightBackendDeps): LocalLight
       imageEmbed: createLocalLightImageEmbed(cache, embedSpace),
     },
     prefetch,
-    matte: createLocalLightMatte(cache),
     embedSpace,
     loadFailed: (modelId): boolean => cache.loadFailed(modelId),
     close,

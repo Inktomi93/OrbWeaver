@@ -233,12 +233,10 @@ export interface LeaderboardRow {
   lastActivityAt: number | null;
 }
 
-/** A BOUNDED page of leaderboard rows plus the census it was cut from. The rows are capped (50 by
- *  default, 200 max), so a consumer that prints `rows.length` as a census states a falsehood the moment
- *  the library is larger than the cap — the list band read "ANALYTICS 50" against a 328-character
- *  library. `total` is the number of the owner's characters that HAVE a rollup row, i.e. exactly the
- *  population these rows rank; it is deliberately not the library character count (a character never
- *  played has no rank to be 328th of). */
+/** A bounded leaderboard page plus its ranked-population census. Rows are capped at 50 by default and 200
+ *  maximum; rows.length is not a census. total counts owner characters with a rollup, not every library
+ *  character: a never-played character has no rank.
+ */
 export interface LeaderboardPage {
   rows: LeaderboardRow[];
   total: number;

@@ -34,10 +34,8 @@ const DAY_MS = 86_400_000;
 /**
  * THE CONJUNCTION IS THE RANK (corpus forensics §6, R5). "Invested, BUT QUIET" is an AND, and it used to be
  * a lexicographic sort — `messageCount` primary, `lastActiveAt` a tie-break — over a high-cardinality
- * integer, so the second term was unreachable by construction: on the live library 20 of 20 gems had
- * distinct message counts, the quiet axis contributed NOTHING, and the headline "forgotten gem" was the
- * character the owner had played six hours earlier. The owner-picked mockup drew every tile reading
- * "2w quiet", i.e. its data had the quiet axis doing visible work; this restores that, it does not invent it.
+ * integer, so distinct message counts made the quiet term unreachable. Both axes must contribute to
+ * the ranking rather than using quiet duration only to break equal-count ties.
  *
  * `messageCount × log1p(daysQuiet)` multiplies rather than orders, so neither term can be starved by the
  * other's cardinality: a huge, still-live character scores ~0 (it is not forgotten), and a tiny, ancient one

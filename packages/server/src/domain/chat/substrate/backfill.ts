@@ -248,7 +248,7 @@ async function planAllBuckets(
       }
       sweep.failed += 1;
       // The CAUSE rides as scalar fields, not only inside the serialized `err` (#165): the dev stack's
-      // pretty stream renders the message line and the object separately, and two whole 895-chat runs were
+      // pretty stream renders the message line and the object separately, and two whole 890-chat runs were
       // read as "no exception logged" because the stack block below the line was never scrolled to. `err`
       // still rides for the stack; these three are what a one-line read needs. Metadata only — an error
       // MESSAGE from a provider/db is a shape, never RP content (the logs-are-metadata doctrine holds).

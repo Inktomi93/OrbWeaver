@@ -12,6 +12,7 @@ import type {
   AutomationCelEnv,
   AutomationEmitSource,
   AutomationOrigin,
+  AutomationRuleToolView,
   AutomationRunOutcome,
   AutomationSuggestionKind,
   AutomationTrigger,
@@ -31,7 +32,18 @@ import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
 import type { automationRules, Db } from "@orb/db";
-import type { AutomationRuleId, AutomationSuggestionId, CharacterId, ChatId, MessageId, MessageVariantId, PluginId, UserId, WorldBookId } from "@orb/kit/ids";
+import type {
+  AutomationRuleCreationId,
+  AutomationRuleId,
+  AutomationSuggestionId,
+  CharacterId,
+  ChatId,
+  MessageId,
+  MessageVariantId,
+  PluginId,
+  UserId,
+  WorldBookId,
+} from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { ResolveViewerVisibility } from "#domain/chat";
 import type { AnalysisConfirmAct } from "./analysis.ts";
@@ -51,6 +63,7 @@ export type RuleRow = typeof automationRules.$inferSelect;
 export interface PlannedRuleInsert {
   readonly id: AutomationRuleId;
   readonly ownerId: UserId;
+  readonly creationRequestId: AutomationRuleCreationId | null;
   /** NULL = the owner-GLOBAL lane (C5). The column was born nullable for this. */
   readonly chatId: ChatId | null;
   readonly name: string;
@@ -74,6 +87,12 @@ export interface PlannedRuleInsert {
  *  into `createRuleFromPreset` the same way the whole verb used to be (a verb never imports a sibling verb),
  *  so a preset set can validate EVERY member before its first write and then commit them in one batch. */
 export type PlanRule = (params: CreateRuleParams) => Promise<PlannedRuleInsert>;
+
+/** A chat order includes every author; a global order is exactly one authenticated owner's lane. */
+export type RuleOrderScope = { readonly chatId: ChatId } | { readonly chatId: null; readonly ownerId: UserId };
+
+/** Synchronous caller-shelf projection, wired at composition without exposing a rule author's shelf. */
+export type ListRuleTools = (userId: UserId) => AutomationRuleToolView[];
 
 /** The fact resolver's output: the CEL fact + the event's cascade depth (0 = human plane). */
 export interface ResolvedTrigger {

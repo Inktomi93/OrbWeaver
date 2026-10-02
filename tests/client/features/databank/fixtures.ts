@@ -209,7 +209,7 @@ export async function stubDatabank(
     // whole point of the leak-safe read.
     "databank.listAttachments": () => ({
       global: true,
-      chats: [{ id: ATTACHED_ROOM, title: null, participantNames: ["Azarael"], at: NOW }],
+      chats: [{ id: ATTACHED_ROOM, title: null, participantNames: ["Aveline"], at: NOW }],
       characters: [{ id: ATTACHED_CHARACTER, name: "Duskwater Warden" }],
     }),
     "databank.reindex": () => ({ workloadId: "workload_0000000000000000001" }),

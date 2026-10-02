@@ -30,7 +30,7 @@ export interface CharacterCategorizedListProps<T extends { readonly id: string }
  * THE LIBRARY (#1696, side-eye 2026-09-05).
  *
  * #493's measurement stands and is worth keeping in front of whoever reads this next: on the owner's
- * 327-character library, switching Group on produced
+ * 320-character library, switching Group on produced
  * `ADVENTURE 1 · CAN BE WHOLESOME, CAN BE SEXY 2 · FANTASY 1 · UNCATEGORIZED 27` — four counts summing to the
  * 30 rows paged in, presented as library facts, re-forming under the reader as scrolling pulled more rows.
  *

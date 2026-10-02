@@ -7,8 +7,7 @@
 // so there is no single required FK to derive the owner through): `ownerId` is stamped, and
 // `roster_preset_members` DERIVES through its required `presetId` FK (no ownerId column — stamping one
 // would mint the guardable-mismatch state D23 exists to kill). Member rows are a REAL FK junction, never
-// marinara's JSON id-array: a deleted character CASCADEs out of every roster instead of rotting into a
-// dangling id, and per-seat knobs have a typed home.
+// a free-form id array: a deleted character cascades out of each roster through its foreign key.
 //
 // Deletion physics (the test surface, tests/server/domain/roster-preset/persistence): character delete →
 // seat row gone, preset survives smaller; persona delete → anchor NULL; preset delete → members CASCADE,
@@ -77,7 +76,7 @@ export const rosterPresetMembers = sqliteTable(
       .$type<RosterPresetId>()
       .notNull()
       .references(() => rosterPresets.id, { onDelete: "cascade" }),
-    // Real FK — never marinara's JSON array. A character delete CASCADEs the seat out of every roster.
+    // A character delete cascades the seat out of each roster through its foreign key.
     characterId: text("character_id")
       .$type<CharacterId>()
       .notNull()

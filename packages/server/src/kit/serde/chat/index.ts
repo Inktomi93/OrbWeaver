@@ -4,7 +4,7 @@
 // resolves character/persona ids → names before buildChatJsonl; import maps names → ids after
 // parseChatJsonl. So the serde only ever sees speakerName/characterName/userName strings.
 //
-// Load-bearing esoterica (carried verbatim from the corpus study — do not re-derive):
+// External wire invariants:
 //   • the filename date wins over the header create_date (ST re-save rewrites the header to migration time).
 //   • buildVariants drops empty swipe slots + remaps the active index; `mes` is authoritative regardless.
 //   • dates emit in the legacy human form (minute precision); parseStDate reads it back. That form is a
@@ -91,11 +91,11 @@ export interface ParsedChatMessage {
    *  {@link DEFAULT_MESSAGE_KIND} — see `kindOf`/`extraTypeFor`. */
   readonly kind: MessageKind;
   readonly speakerName: string | null;
-  /** ST's per-line `original_avatar` — the SPEAKING CHARACTER'S CARD FILENAME (`"Rowan.png"`), written by
+  /** ST's per-line `original_avatar` — the SPEAKING CHARACTER'S CARD FILENAME (`"Briar.png"`), written by
    *  ST on every group-chat assistant line. It is the ONLY per-turn speaker signal in the interchange that is
    *  an IDENTITY rather than a display label: the group importer resolves it against the collect-time card
-   *  filename → characterId map, which is handle-suffix-safe (two cards named "Emily" disambiguate to
-   *  `emily`/`emily-2` but keep distinct filenames), where a `speakerName` match would seat the wrong card.
+   *  filename → characterId map, which is handle-suffix-safe (two cards named "Eleni" disambiguate to
+   *  `eleni`/`eleni-2` but keep distinct filenames), where a `speakerName` match would seat the wrong card.
    *  ABSENT on a solo transcript and on pre-group-era exports — the importer falls back to a roster-SCOPED
    *  display-name match there. Emitted on build only when present, so a solo line stays byte-identical. */
   readonly originalAvatar?: string | null;
@@ -149,7 +149,7 @@ export interface ParsedNotePlacement {
  *  `extension_prompt_types`/`extension_prompt_roles` enums the author's note records — SOURCE-PINNED,
  *  SillyTavern `public/scripts/slash-commands.js` `/inject` → `chat_metadata.script_injects[id]`).
  *  `scan` (include in world-info scans) and `filter` (a closure source string) have NO orb seat — the
- *  import mapper documents both drops; the corpus records `scan:true` once and `filter:null` on all rows.
+ *  import mapper records both unsupported fields when it drops them.
  *  BUILD-SIDE: not emitted — orb's injections table does not remember which door a row entered by, and the
  *  export's one prose seat is the note (writing these twice would give one fact two spellings). */
 export interface ParsedScriptInject {
@@ -172,34 +172,25 @@ export interface ParsedChat {
   readonly isBranch: boolean;
   readonly parentRef: string | null;
   readonly notePrompt: string | null;
-  /** The recorded placement for {@link notePrompt}, in ST's vocabulary. Null when the file records no knob at
-   *  all (the mapper then uses orb's house register). Parsed even when `notePrompt` is empty — 1,070 of the
-   *  1,097 real-corpus chats carry the knobs and ZERO carry note TEXT, so the two are genuinely independent. */
+  /** Recorded placement for notePrompt in ST vocabulary; null if no knob is recorded, so the mapper uses
+   *  its house register. Parse placement even when notePrompt is empty: knobs and text are independent.
+   */
   readonly notePlacement: ParsedNotePlacement | null;
-  /** ST's `chat_metadata.variables` — the per-chat `{{setvar}}`/`{{getvar}}` store (494 of 1,097 corpus
-   *  chats). STRING VALUES ONLY: orb's seat (`chats.variableValues`) is a flat `Record<string,string>` and
-   *  ST's own macro engine stores strings, so a non-string value from a foreign/extension writer is dropped
-   *  rather than stringified into a shape no reader could interpret. Null when the chat records none. */
+  /** ST chat_metadata.variables is the per-chat setvar/getvar string store. Drop non-string foreign values
+   *  rather than stringify them into an uninterpretable shape; chats.variableValues is
+   *  `Record<string,string>`. Null when absent.
+   */
   readonly variables: Record<string, string> | null;
-  /** ST's CHAT-BOUND persona pick — `chat_metadata.pinnedPersona`, whose value is a persona display NAME
-   *  (corpus-driven: 71 of 1,097 chats, `"Alex"` ×63 / `"Ashley"` ×8, 71/71 strings). ST wrote the header
-   *  `user_name` as the literal sentinel `"unused"` on all 71, so this is their only HEADER-level signal — but
-   *  the sentinel is NOT the pin's tell, and reading it that way cost ~500 unattributed rooms: `"unused"`
-   *  appears on 569 of 1,083 transcripts, 498 of which carry no pin either (re-measured 2026-08-18). The
-   *  import mapper resolves THIS first, falls back to `userName`, and then to the USER TURNS' own `name`
-   *  stamps — the full ordering + its receipts live in `domain/import/substrate/chat-input.ts`.
-   *
-   *  DELIBERATELY NOT the same field as ST's own upstream `chat_metadata.persona` (SillyTavern
-   *  `public/scripts/personas.js`), whose value is an AVATAR FILENAME rather than a name and which appears on
-   *  4 corpus chats. Two keys, two vocabularies; reading the filename one needs a filename→persona map the
-   *  chat mapper is not given, so it stays unread rather than half-resolved.
-   *
-   *  Null when the chat records none. BUILD-SIDE: not emitted — orb's single seat (`chats.anchorPersonaId`)
-   *  already exports as the header `user_name`, and writing it twice would give one fact two spellings. */
+  /** ST chat_metadata.pinnedPersona is a persona display name, not chat_metadata.persona, whose vocabulary
+   *  is avatar filenames. The mapper resolves the pin first, then userName, then user-turn sender stamps; a
+   *  sentinel header does not prove a pin exists. The separate filename key stays unread without a
+   *  filename-to-persona map. Null without a recorded pin. Build does not emit it because anchorPersonaId
+   *  already exports as header user_name; see domain/import/substrate/chat-input.ts.
+   */
   readonly pinnedPersonaName: string | null;
-  /** ST's `/inject`-saved per-chat injections (`chat_metadata.script_injects`), each with non-empty text —
-   *  5 of 1,097 corpus chats carry one. Empty list when the chat records none (never null — the mapper
-   *  concatenates it after the note without a second absent-spelling). */
+  /** ST script_injects carries per-chat injections with nonempty text. Absence is an empty list, never
+   *  null, so the mapper concatenates it after the note without a second absent spelling.
+   */
   readonly scriptInjects: readonly ParsedScriptInject[];
   readonly bucket: ChatBucket;
   readonly sourceMetadata: Record<string, unknown> | null;
@@ -299,14 +290,10 @@ const MONTHS: Record<string, number> = {
 
 // Guard a numeric-string epoch to ≥10 digits so a bare "2025" isn't misread as 2025 epoch-seconds.
 const NUMERIC_EPOCH = /^\d{10,}$/;
-// ST create_date / message dates / chat filenames: "2025-07-03@14h56m48s" (+ optional "989ms").
-// The digit counts are 1-2 and EVERY separator is space-tolerant because ST itself writes several spellings
-// and reads all of them — SOURCE-PINNED to `public/scripts/utils.js parseTimestamp`, whose three "humanized"
-// patterns are `(\d{4})-(\d{1,2})-(\d{1,2})@…`, the same with a trailing ms group, and
-// `(\d{4})-(\d{1,2})-(\d{1,2}) @(\d{1,2})h (\d{1,2})m (\d{1,2})s (\d{1,3})ms`. A stricter 2-digit/no-space
-// pattern is NOT a safe subset: 76 of the 1,097 real-corpus chat files carry a form it rejects
-// ("Emily Singleton - 2025-5-7 @22h 52m 11s 856ms.jsonl"), and a filename miss silently degrades the chat's
-// createdAt to the first send_date or — with no dated message either — to the import clock.
+// ST humanized timestamps accept one- or two-digit month/day and space-tolerant separators, with an
+// optional millisecond group (public/scripts/utils.js parseTimestamp). The synthetic Eleni Northwell
+// filename exercises that grammar. A two-digit/no-space restriction is not a safe subset: a miss falls
+// back from filename createdAt to first send_date or the import clock.
 const ST_AT_DATE = /(\d{4})-\s*(\d{1,2})-\s*(\d{1,2})\s*@\s*(\d{1,2})h\s*(\d{1,2})m\s*(\d{1,2})s/;
 // The filename creation token — the same shape, embedded in "Char - 2023-11-11@09h41m32s538ms.jsonl". Kept
 // as a separate NON-capturing twin (it feeds its whole match back through parseStDate), so it must stay
@@ -402,9 +389,8 @@ export const ST_DEFAULT_WALL_CLOCK_ZONE = "UTC";
  *  shared `@orb/kit/time` parsers exactly as before, and `zone` cannot move them. ST's two human forms are a
  *  zone-less LOCAL WALL CLOCK (SOURCE-PINNED: `RossAscends-mods.js humanizedDateTime` builds them from
  *  `Date.getHours()`, and ST reads the meridiem form back through a NAIVE moment in its own
- *  `parseTimestamp`), so they resolve in `zone`. Reading them as UTC — which this did until the 2026-08-08
- *  import-fidelity audit — shifts every such timestamp by the writing box's UTC offset; measured against the
- *  real corpus, 231 files at exactly +7h and 110 at exactly +6h (America/Denver, both DST arms). */
+ *  `parseTimestamp`), so they resolve in `zone`. Reading them as UTC shifts a local wall-clock timestamp
+ *  by the writing box's UTC offset, including its DST adjustment. */
 export function parseStDate(v: unknown, zone: string = ST_DEFAULT_WALL_CLOCK_ZONE): number | null {
   if (v === null || v === undefined || v === "") {
     return null;
@@ -518,7 +504,7 @@ function parseScriptInjects(meta: Record<string, unknown> | null): ParsedScriptI
 }
 
 /** The `chat_metadata` key carrying the chat-bound persona pick, as a NAME — see
- *  {@link ParsedChat.pinnedPersonaName} for the corpus census and for why ST's own `persona` key (an avatar
+ *  {@link ParsedChat.pinnedPersonaName} for why ST's own `persona` key (an avatar
  *  filename) is a different field this does not read. */
 const ST_PINNED_PERSONA_KEY = "pinnedPersona";
 
@@ -624,8 +610,8 @@ function kindOf(m: RawMessage, role: MessageRole): MessageKind {
 
 // The `swipe_info[i]` keys that are NOT part of the take's generation sidecar: `extra` is unwrapped INTO the
 // blob, and the two timings are promoted to their own columns (`genStarted`/`genFinished`), exactly as a
-// single-take row's line-level `gen_started`/`gen_finished` are. Everything else — `send_date` (78,407 corpus
-// entries) and any foreign residue — rides along untouched, so flattening is not a drop.
+// single-take row's line-level `gen_started`/`gen_finished` are. The remaining `send_date` and foreign
+// residue ride along untouched, so flattening is not a drop.
 const SWIPE_INFO_NON_SIDECAR_KEYS: ReadonlySet<string> = new Set(["extra", "gen_started", "gen_finished"]);
 
 /** One of ST's numeric sidecar values (`reasoning_duration`, `token_count`) as a number, or `undefined` when
@@ -643,32 +629,13 @@ function importedNumber(value: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-/** ONE canonical shape for a variant's `metadata`, on BOTH parse paths: ST's FLAT `extra` blob, with the
- *  swipe entry's non-sidecar residue merged underneath it.
- *
- *  This existed as TWO shapes until the 2026-08-08 import-fidelity audit: a single-take row stored `extra`
- *  flat while a swipe-bearing row stored the whole `swipe_info[i]`, which NESTS `extra`. The column's readers
- *  address it by PATH — `json_extract(metadata, '$.reasoning_duration')` in `domain/stats`'s rebuild and the
- *  live `substrate/stats-delta` twin — so the nested shape resolved to NULL and reasoning time was lost for
- *  every swipe-bearing imported message (12,718 of 24,824 corpus rows; `reasoning_duration` is present on
- *  75,309 of 76,238 swipe entries). The fix is one shape at the WRITER, never dual-shape readers.
- *
- *  `extra` wins on a key collision: it is the authoritative generation sidecar, the residue is context.
- *
- *  THE PRODUCER-SIDE PARSE (§5.3c class 3). The column is `VariantMetadata`, so this writer emits THAT shape
- *  rather than the flattened bag. The two keys that HAVE named live readers stay at the TOP level —
- *  `reasoning_duration` (the one place the rollups' `json_extract(metadata, '$.reasoning_duration')` can see
- *  it, which is the 2026-08-08 fix, unchanged) and `token_count` (`domain/import`'s token-usage backfill) —
- *  and everything else ST carried lands verbatim under `importResidue`, a declared-OPAQUE `JsonValue`
- *  (§5.3c class 4: never compared, switched on or joined). Nothing is dropped; what changes is that a
- *  FOREIGN FILE CAN NO LONGER AUTHOR A KEY AT THE MODELED LEVEL. Pre-fix, an `extra.providerMetadata` in
- *  someone else's export flattened straight into the slot our own per-provider sidecar reads — foreign bytes
- *  wearing our contract's name, which is the whole reason class 3 refuses a bag.
- *
- *  The residue is PARSED, not cast: `jsonValueSchema` is the proof these foreign bytes are storable JSON, and
- *  a residue that cannot be (it never happens through `JSON.parse`, but the type cannot say so) is omitted
- *  rather than asserted. An empty residue is omitted too — an entry whose only keys were the promoted ones
- *  should not carry an empty object. */
+/** Both parse paths produce the one VariantMetadata shape. Flatten swipe_info extra before promotion: live
+ *  stats readers address top-level reasoning_duration, and token_count supports import backfill; nested
+ *  sidecars would silently resolve null. extra wins collisions over contextual swipe residue. All other
+ *  foreign keys live under opaque importResidue, never the modeled providerMetadata plane. jsonValueSchema
+ *  proves residue is storable JSON; invalid or empty residue is omitted. The fix is one writer shape, not
+ *  dual-shape readers.
+ */
 function variantMetadata(swipeEntry: unknown): VariantMetadata | null {
   const si = asObj(swipeEntry);
   if (si === null) {

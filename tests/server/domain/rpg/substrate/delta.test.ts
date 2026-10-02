@@ -157,11 +157,11 @@ test("inventory — reports carrying-detail changes on an existing item", () => 
     location,
     type: "key",
   });
-  const prev = state({ actorState: [castVolatile("hikari", { inventory: [item("a worn key", "shirt pocket")] })] });
-  const cur = state({ actorState: [castVolatile("hikari", { inventory: [item("hanging from a silver chain", "around her neck")] })] });
+  const prev = state({ actorState: [castVolatile("tamsin", { inventory: [item("a worn key", "shirt pocket")] })] });
+  const cur = state({ actorState: [castVolatile("tamsin", { inventory: [item("hanging from a silver chain", "around her neck")] })] });
   const out = buildDeltaBlock(prev, cur, ctx());
-  expect(out).toContain("hikari small brass key moved: shirt pocket → around her neck");
-  expect(out).toContain("hikari small brass key description → hanging from a silver chain");
+  expect(out).toContain("tamsin small brass key moved: shirt pocket → around her neck");
+  expect(out).toContain("tamsin small brass key description → hanging from a silver chain");
 });
 
 test("wallet — a signed numeric delta per currency", () => {

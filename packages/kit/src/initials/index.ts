@@ -1,7 +1,7 @@
 // initials — a display name → a 1–2 char avatar-fallback glyph. ONE grapheme-safe home for what were four
 // near-identical local copies across features (character library, chat attribution, the two persona
 // panels — §13.0's third-consumer bar exceeded). Semantics: the first grapheme of the FIRST word + the
-// first grapheme of the LAST word ("Alex Silver" → "NS"; "John F. Kennedy" → "JK"; a single word → its
+// first grapheme of the LAST word ("Alex Silver" → "AS"; "John F. Kennedy" → "JK"; a single word → its
 // first grapheme; empty/whitespace-only → "?").
 //
 // Grapheme-safe by construction: `Intl.Segmenter` yields whole grapheme CLUSTERS, so a name led by an

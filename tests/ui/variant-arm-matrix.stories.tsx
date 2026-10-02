@@ -89,15 +89,15 @@ const RENDERERS = {
   ),
   "empty-state": (props: EmptyStateProps): ReactElement => <EmptyState {...props} description="Import a character to begin." title="Nothing here yet" />,
   "highlighted-text": (props: HighlightedTextProps): ReactElement => <HighlightedText {...props} ranges={[{ start: 4, end: 9 }]} text="The quick brown fox" />,
-  input: (props: InputProps, ctx: RenderCtx): ReactElement => <Input {...props} aria-label="Name" defaultValue="Azarael" disabled={ctx.disabled} />,
+  input: (props: InputProps, ctx: RenderCtx): ReactElement => <Input {...props} aria-label="Name" defaultValue="Aveline" disabled={ctx.disabled} />,
   kbd: (props: KbdProps): ReactElement => <Kbd {...props}>⌘K</Kbd>,
   // The tv axis `float` reaches the component as the `actionsFloat` prop — the ONE axis↔prop rename in
   // the storied set; translated here so the plan keeps speaking the tv axis vocabulary.
   "list-row": ({ float, ...props }: ListRowProps & { readonly float?: boolean }): ReactElement => (
-    <ListRow {...props} {...(float === undefined ? {} : { actionsFloat: float })} meta="2h" subtitle="Rain again, and she is late" title="Azarael" />
+    <ListRow {...props} {...(float === undefined ? {} : { actionsFloat: float })} meta="2h" subtitle="Rain again, and she is late" title="Aveline" />
   ),
   "picker-cell": (props: PickerCellProps): ReactElement => (
-    <PickerCell {...props} art={<div className="h-full w-full bg-card" />} description="A quiet second line" label="Azarael" />
+    <PickerCell {...props} art={<div className="h-full w-full bg-card" />} description="A quiet second line" label="Aveline" />
   ),
   select: (props: SelectProps, ctx: RenderCtx): ReactElement => (
     <Select {...props} aria-label="Model picker" disabled={ctx.disabled} items={SELECT_ITEMS} placeholder="Pick one" />

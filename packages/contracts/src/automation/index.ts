@@ -6,6 +6,7 @@
 
 import type { AutomationRuleId, AutomationSuggestionId, ChatId, PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { jsonValueSchema } from "@orb/kit/json";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { z } from "zod";
@@ -132,6 +133,11 @@ export const automationFireOutcomeSchema = z.enum(AUTOMATION_FIRE_OUTCOMES) sati
  *  `CHARACTER_LIST_MAX_LIMIT` precedent) — the host-only debug surface is a growing per-rule catalog, so an
  *  over-bound ask is a BAD_REQUEST rather than an unbounded log fetch. */
 export const AUTOMATION_FIRES_LIST_MAX_LIMIT = 200;
+
+/** Shared authoring/storage bounds; live admission remains the domain's responsibility. */
+export const AUTOMATION_RULE_NAME_MAX_CHARS = 120;
+export const AUTOMATION_RULE_MAX_FIRES_PER_HOUR = 240;
+export const AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR = 30;
 
 // ── the per-user global-variable plane ────────────────────────────────────────────────────────────
 // The KV substrate caps live here (the ONE home) — `@orb/db`'s CHECK-generating DDL imports them so the
@@ -1021,3 +1027,48 @@ export const automationActionViewSchema = z.union([
   }),
   toolAction.strict(),
 ]) satisfies z.ZodType<AutomationAction>;
+
+/** A complete authored replacement, excluding authority, lifecycle and birth metadata. */
+export const automationRuleEditableSchema = z.strictObject({
+  // SQLite's name CHECK counts code points, not UTF-16 units; existing astral names must remain editable.
+  name: z.string().refine((name) => name.length > 0 && [...name].length <= AUTOMATION_RULE_NAME_MAX_CHARS, {
+    message: `name must contain 1..${AUTOMATION_RULE_NAME_MAX_CHARS} characters`,
+  }),
+  description: z.string().nullable().optional(),
+  trigger: automationTriggerViewSchema,
+  predicateCel: z.string().nullable().optional(),
+  actions: z.array(automationActionViewSchema).min(AUTOMATION_ACTION_ARMS_MIN).max(AUTOMATION_ACTION_ARMS_MAX),
+  matchAutomationEvents: z.boolean().default(false),
+  cooldownSeconds: z.number().int().nonnegative().default(0),
+  maxFiresPerHour: z.number().int().min(0).max(AUTOMATION_RULE_MAX_FIRES_PER_HOUR).default(AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR),
+});
+export type AutomationRuleEditable = z.infer<typeof automationRuleEditableSchema>;
+export type AutomationRuleEditableInput = z.input<typeof automationRuleEditableSchema>;
+
+export const automationRuleCreateSchema = automationRuleEditableSchema.extend({
+  chatId: typeIdSchema(ID_PREFIX.chat).nullable(),
+  creationRequestId: typeIdSchema(ID_PREFIX.automationRuleCreation),
+});
+export type AutomationRuleCreate = z.output<typeof automationRuleCreateSchema>;
+export type AutomationRuleCreateInput = z.input<typeof automationRuleCreateSchema>;
+
+export const automationRuleUpdateSchema = automationRuleEditableSchema.extend({ ruleId: typeIdSchema(ID_PREFIX.automationRule) });
+export type AutomationRuleUpdate = z.output<typeof automationRuleUpdateSchema>;
+export type AutomationRuleUpdateInput = z.input<typeof automationRuleUpdateSchema>;
+
+export const automationRuleReorderSchema = z.strictObject({
+  chatId: typeIdSchema(ID_PREFIX.chat).nullable(),
+  orderedIds: z.array(typeIdSchema(ID_PREFIX.automationRule)),
+});
+export type AutomationRuleReorder = z.output<typeof automationRuleReorderSchema>;
+export type AutomationRuleReorderInput = z.input<typeof automationRuleReorderSchema>;
+
+/** Caller-drivable metadata only; arbitrary parameter keys remain JSON, never executable registry state. */
+export const automationRuleToolViewSchema = z.strictObject({
+  name: z.string(),
+  description: z.string(),
+  parameters: z.record(z.string(), jsonValueSchema),
+});
+export type AutomationRuleToolView = z.infer<typeof automationRuleToolViewSchema>;
+export const automationRuleToolsSchema = z.array(automationRuleToolViewSchema);
+export type AutomationRuleTools = z.output<typeof automationRuleToolsSchema>;

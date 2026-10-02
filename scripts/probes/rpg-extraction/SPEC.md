@@ -18,17 +18,9 @@ This is a THROWAWAY benchmark — no production wiring, no gates, lives only und
 - Spend is authorized (~$2-4 total). Bound it: 7 methods × 6 turns × 1 rep. Do NOT loop-retry beyond
   2 attempts per call. If total calls would exceed ~70, STOP and report instead.
 
-## Real templates (LOAD these — do NOT reconstruct)
-Under this dir (`scratchpad/spike/`):
-- `real-cheap-toolround.json`  — real body of a cheap tool round. `.tools` = the 7 production tools
-  (update_party, update_inventory, update_scene, set_widget_value, upsert_quest, add_journal_entry,
-  no_changes). `.tool_choice` = "required". USE `.tools` verbatim for cheap/tool methods.
-- `real-reliable-structured.json` — real reliable body. `.response_format` = the `rpg_state_extraction`
-  strict json_schema (top props: party, inventory, scene, widgets, quests, journal). `.messages[0]`
-  (system) = the real extraction system prompt. USE these verbatim for reliable/structured methods.
-- `real-narrative-turn.json` — real narrative body. `.messages[0]` (system, has cache_control) = the
-  GM persona. The last user message = the `[Note from system: # Game state ...]` reminder that folds
-  tracked state into the turn. Study its FORMAT (below) and regenerate it each turn from evolving state.
+## Probe templates
+
+Generate private captures from the current production tool and extraction contracts. Recorded model conversations are not published as fixture inputs. The methods below describe the measured wire shapes, not a current executable capture.
 
 ## The reminder / state-fold format (regenerate each turn from running state)
 The narrative turn's final user message = the player action, followed by a fenced block:
@@ -114,7 +106,7 @@ turns-with-full-state, any failures.
 ## Outputs
 - `scratchpad/spike/out/<method>/turn-<n>.json` — full raw {requestMeta(no key), response message, usage}.
 - `scratchpad/spike/out/<method>/transcript.md` — human-readable: per turn = player action → narrative →
-  extracted state (pretty) → delta line. THIS is what Alex reads to see behavior.
+  extracted state (pretty) → delta line. THIS is what the owner reads to see behavior.
 - `scratchpad/spike/out/summary.json` — the metrics matrix.
 - `scratchpad/spike/out/SUMMARY.md` — a markdown comparison table (methods × [cost, latency,
   mean completeness, narrative kept?, notes]) + a short prose verdict on which method(s) look best on

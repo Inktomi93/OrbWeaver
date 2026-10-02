@@ -25,14 +25,14 @@ import { expect, test } from "../../support/tool-fixtures.ts";
 const LIBRARY = [
   { id: "theme_00000000000000000000000001", name: "Hearth", isSeed: true, override: { background: "oklch(0.158 0.02 255)" }, css: null },
   { id: "theme_00000000000000000000000003", name: "Light", isSeed: true, override: { background: "oklch(0.97 0.01 255)" }, css: null },
-  { id: "theme_01jd0000000000000000000abc", name: "the owner's Neon", isSeed: false, override: { background: "oklch(0.72 0.1 120)" }, css: ".neon{}" },
+  { id: "theme_01jd0000000000000000000abc", name: "Alex's Neon", isSeed: false, override: { background: "oklch(0.72 0.1 120)" }, css: ".neon{}" },
   { id: "theme_01jd0000000000000000000def", name: "Midnight", isSeed: false, override: { background: "oklch(0.2 0.04 260)" }, css: null },
 ];
 const LIST_BODY = [{ result: { data: LIBRARY } }];
 const EXPECTED_LIBRARY = [
   { id: "theme_00000000000000000000000001", name: "Hearth", isSeed: true, background: "oklch(0.158 0.02 255)", polarity: "dark", hasCustomCss: false },
   { id: "theme_00000000000000000000000003", name: "Light", isSeed: true, background: "oklch(0.97 0.01 255)", polarity: "light", hasCustomCss: false },
-  { id: "theme_01jd0000000000000000000abc", name: "the owner's Neon", isSeed: false, background: "oklch(0.72 0.1 120)", polarity: "light", hasCustomCss: true },
+  { id: "theme_01jd0000000000000000000abc", name: "Alex's Neon", isSeed: false, background: "oklch(0.72 0.1 120)", polarity: "light", hasCustomCss: true },
   { id: "theme_01jd0000000000000000000def", name: "Midnight", isSeed: false, background: "oklch(0.2 0.04 260)", polarity: "dark", hasCustomCss: false },
 ];
 
@@ -53,7 +53,7 @@ test("catalog capabilities are derived from real rows and expose seed/custom pol
   expect(themeCatalogCapabilities(readThemeList(LIST_BODY) ?? [])).toEqual({
     seed: { light: [expect.objectContaining({ name: "Light" })], dark: [expect.objectContaining({ name: "Hearth" })] },
     custom: {
-      light: [expect.objectContaining({ name: "the owner's Neon", hasCustomCss: true })],
+      light: [expect.objectContaining({ name: "Alex's Neon", hasCustomCss: true })],
       dark: [expect.objectContaining({ name: "Midnight", hasCustomCss: false })],
     },
     unknown: [],

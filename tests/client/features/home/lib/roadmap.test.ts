@@ -29,8 +29,8 @@ const ITEM_FILE_RE = /^(\d{4})-[\w-]+\.md$/u;
 const PROGRAM_TITLE_RE = /\bprogram\b/iu;
 /** A finished item is off the roadmap; every other state is still coming. */
 const DONE_STATUS = "done";
-/** A plan the roadmap points at is a live plan. */
-const ACTIVE_STATUS = "active";
+/** Retained program concepts stay parked until the owner resumes implementation. */
+const PARKED_STATUS = "parked";
 /** Buddy is NOT a program item — it is the purged-pending-return domain, and it keeps its own tile file. */
 const BUDDY_TILE_ID = "buddy";
 /** Every roadmap doorway sorts after buddy's 80 (`roadmap.ts` ROADMAP_ORDER_BASE). */
@@ -80,13 +80,17 @@ const itemOf = (id: number): WorkItem | undefined => items.find((item) => item.i
 const openPrograms = items.filter((item) => item.status !== DONE_STATUS && item.plan !== null && PROGRAM_TITLE_RE.test(item.title));
 const byNumber = (a: number, b: number): number => a - b;
 
+test("retirement: roadmap promises only retained programs", () => {
+  expect(HOME_ROADMAP.map((program) => program.id)).toEqual(["rpg", "reactions", "world-state", "agents", "maps"]);
+});
+
 test("CONTROL — the work items actually parsed (a broken read would pass every pin below vacuously)", () => {
   expect(items.length).toBeGreaterThan(HOME_ROADMAP.length);
   expect(new Set(items.map((item) => item.status)).size, "the parse must reach items in more than one state").toBeGreaterThan(1);
   expect(openPrograms.length).toBeGreaterThan(0);
 });
 
-test("every roadmap entry mirrors an open program item that links its plan, and the plan is live", () => {
+test("every roadmap entry mirrors an open program item that links its parked plan", () => {
   for (const program of HOME_ROADMAP) {
     const item = itemOf(program.item);
     const label = `item ${String(program.item)} ("${program.id}")`;
@@ -96,7 +100,7 @@ test("every roadmap entry mirrors an open program item that links its plan, and 
     expect(item?.plan, `${label} links a different plan`).toBe(program.plan);
     const design = join(PLANS_DIR, program.plan, "design.md");
     expect(existsSync(design), `plan \`${program.plan}\` has no design.md`).toBe(true);
-    expect(field(readFileSync(design, "utf8"), "status"), `plan \`${program.plan}\` is not active`).toBe(ACTIVE_STATUS);
+    expect(field(readFileSync(design, "utf8"), "status"), `plan \`${program.plan}\` is not parked`).toBe(PARKED_STATUS);
   }
 });
 

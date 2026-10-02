@@ -130,21 +130,12 @@ interface SectionDefinitionBase {
   readonly header?: () => ReactNode;
   /** REQUIRED — `{ kind: "none" }` is an explicit decision, never an absence. */
   readonly context: ContextDefinition;
-  /** What the MOBILE topbar calls the current screen — the OPEN member's own name (side-eye P2: every
-   *  section but chats named the SECTION over a member, because only chats supplied a topbar `header`).
-   *  A hook, called by the shell inside a component KEYED on the active section, so it may read the
-   *  section's own cache; `null` = nothing open, or the name has not landed yet — the shell then prints the
-   *  section label, never a blank bar.
-   *
-   *  IT NAMES THE SCREEN, NOT ONLY A MEMBER (#1670). With nothing open, a section MAY answer with its own
-   *  roster's name instead of falling back — which is how a phone gets its LIST census printed at all: the
-   *  ONE-NAME rule sheds the LIST band's title (`features/app-shell/surfaces/shell.css`) and the count
-   *  travels inside it (`components/list-pane-header.tsx`), so the surviving noun has to carry it
-   *  (`Characters · 327`). A section that answers `null` here keeps today's bare section label.
-   *
-   *  REQUIRED on EVERY section, including the ones with no list: `{@link NO_SELECTION_TITLE}` is the answer
-   *  "I have no member to name", and spelling it is what lets the shell call this hook unconditionally
-   *  (an optional field means a conditional hook call — `useHookAtTopLevel`, and it is right). */
+  /** The shell calls every section useSelectionTitle hook unconditionally inside a component keyed on the
+   *  active section. It may read that section cache. Null falls back to the section label rather than
+   *  blanking the bar. An open member is named; with none open a section may name its roster and census
+   *  because the phone one-name rule sheds the list band (#1670). No-list sections explicitly use
+   *  NO_SELECTION_TITLE; an optional field would require a conditional hook call.
+   */
   readonly useSelectionTitle: () => string | null;
 }
 

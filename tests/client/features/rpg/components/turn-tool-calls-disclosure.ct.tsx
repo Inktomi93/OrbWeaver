@@ -70,7 +70,7 @@ const RECORDED_TURN = [
         name: "update_inventory",
         args: '{"targetRef":"Alex","items":[{"name":"Coil of rope","location":"belt"}]}',
         verdict: "overridden" as const,
-        issues: ["locked actorState.user:u_nate.volatile.inventory — your manual edit holds this value"],
+        issues: ["locked actorState.user:u_alex.volatile.inventory — your manual edit holds this value"],
         withheld: null,
       },
     ],
@@ -80,7 +80,7 @@ const RECORDED_TURN = [
 const RE_TRIGGER = /Game actions on this turn/;
 const RE_COUNT_4 = /4/;
 const RE_EXPECTED_STRING = /Invalid input: expected string/;
-const RE_LOCKED_PATH = /locked actorState\.user:u_nate\.volatile\.inventory/;
+const RE_LOCKED_PATH = /locked actorState\.user:u_alex\.volatile\.inventory/;
 
 test("collapsed by default; opening it names each call and whether it landed", async ({ mount, page }) => {
   await routeTrpc(page, { ...GAME_ROOM, "rpg.listTurnToolCalls": () => RECORDED_TURN });

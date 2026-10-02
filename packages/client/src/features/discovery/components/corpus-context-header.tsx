@@ -12,7 +12,7 @@
 //
 // AND IT NAMES ITS BASE (issue #535, the one-pass denominator rule). This band printed a bare `Corpus 313`
 // — the DISTILLED total — one pane away from the LIST band printing the same bare 313 and an h1 reading
-// "327 characters": three numbers in one viewport, two of them unlabelled, reading as a contradiction. The
+// "320 characters": three numbers in one viewport, two of them unlabelled, reading as a contradiction. The
 // census projection is shared with the LIST band (`lib/corpus-vocabulary.ts`) rather than re-spelled here,
 // so the two bands of one section cannot drift into two answers.
 

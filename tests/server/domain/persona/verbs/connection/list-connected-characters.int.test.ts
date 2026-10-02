@@ -18,7 +18,7 @@ describe("listConnectedCharacters", () => {
     const svc = createPersonaService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const connectedA = await seedCharacter(db, { ownerId: owner, id: "character_linked_a", name: "Aria" });
-    const connectedB = await seedCharacter(db, { ownerId: owner, id: "character_linked_b", name: "Bram" });
+    const connectedB = await seedCharacter(db, { ownerId: owner, id: "character_linked_b", name: "Bryn" });
     // The exclusion control: an owned character with NO junction row must not appear.
     await seedCharacter(db, { ownerId: owner, id: "character_unlinked", name: "Unlinked" });
 

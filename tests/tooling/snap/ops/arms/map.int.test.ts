@@ -22,7 +22,7 @@ const TWO_ARM_HTML = `<!doctype html><html data-app-ready="settled"><body>
 <button id="both-visible"><span>Save</span> <span>changes</span></button>
 <button id="visibility-hidden"><span style="visibility:hidden">ghost arm</span><span>Delete room</span></button>
 <button id="hidden-attribute"><span hidden>ghost arm</span><span>Archive room</span></button>
-<button id="aria-hidden-arm"><span aria-hidden="true">DD</span><span>Diana</span></button>
+<button id="aria-hidden-arm"><span aria-hidden="true">DD</span><span>Della</span></button>
 </body></html>`;
 
 test("--map computes the accessible name the a11y tree does: non-rendered arms contribute nothing", { timeout: BROWSER_TIMEOUT_MS }, async ({
@@ -40,7 +40,7 @@ test("--map computes the accessible name the a11y tree does: non-rendered arms c
   expect(result.stdout).toContain(`button  "Delete room"`);
   expect(result.stdout).toContain(`button  "Archive room"`);
   // aria-hidden was already excluded before #877 — the fence keeps it that way (no "DDiana").
-  expect(result.stdout).toContain(`button  "Diana"`);
+  expect(result.stdout).toContain(`button  "Della"`);
   // The precision neighbour: two RENDERED spans are one name, whitespace-collapsed, not one arm.
   expect(result.stdout).toContain(`button  "Save changes"`);
 });

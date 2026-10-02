@@ -31,7 +31,7 @@ const CRASHED = [
   "INFO ProjectReader No incremental result file found at reports/stryker-gate-incremental.json, a full mutation testing run will be performed.",
   "INFO ProjectReader Found 4 of 10431 file(s) to be mutated.",
   "INFO Instrumenter Instrumented 4 source file(s) with 1177 mutant(s)",
-  "ERROR Stryker Unexpected error occurred while running Stryker Error: ENOENT: no such file or directory, scandir '~/dev/orbweaver/.claude/worktrees/agent-aaa9b6274e7956db3'",
+  "ERROR Stryker Unexpected error occurred while running Stryker Error: ENOENT: no such file or directory, scandir '/workspace/orbweaver/.claude/worktrees/agent-aaa9b6274e7956db3'",
   "node:internal/process/promises:324",
   "[ELIFECYCLE] Command failed with exit code 1.",
 ].join("\n");

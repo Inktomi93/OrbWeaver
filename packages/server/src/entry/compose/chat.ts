@@ -319,18 +319,15 @@ export interface ChatComposeInput {
   readonly readPresence: PresenceReadOp;
   /** imagery's orchestrator → chat's `generatePicture` op (mapped to the chat-local structural result below). */
   readonly generatePicture: ImageryService["generatePicture"];
-  /** The expressions post-turn classify hook (E3 — docs/plans/expressions/design.md) — OPTIONAL; absent wires
-   *  `ChatContext.expressions` to null (byte-identical no-op). Bridged from `expressions.onTurnCompleted`. */
-  readonly expressions?: ChatContext["expressions"];
   /** The injected rpg turn ops (docs/plans/rpg/design.md) — OPTIONAL; absent wires `ChatContext.rpg` to null
    *  (byte-identical no-op). Built at the composition root over the rpg service + its standalone gather op. */
   readonly rpg?: ChatContext["rpg"] | undefined;
   /** FOREIGN S2 teaching contributions — OPTIONAL; absent wires the
-   *  registry to chat's own contribution alone (byte-identical no-op, the `rpg`/`expressions` precedent).
+   *  registry to chat's own contribution alone (byte-identical no-op, the `rpg` precedent).
    *  Chat's own contributor is ALWAYS present, which is why the ctx field itself is not nullable. */
   readonly teaching?: ChatContext["teaching"] | undefined;
   /** The per-turn PLUGIN-MACRO resolve — OPTIONAL; absent wires
-   *  `ChatContext.pluginMacros` to null (byte-identical no-op, the `rpg`/`expressions` precedent). Minted at the
+   *  `ChatContext.pluginMacros` to null (byte-identical no-op, the `rpg` precedent). Minted at the
    *  composition root as the plugin-macro registry's `resolveForTurn`, so chat and the plugin plane share ONE
    *  registry without either importing the other. */
   readonly pluginMacros?: ChatContext["pluginMacros"] | undefined;
@@ -1437,10 +1434,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     resolvePromptVariables,
     resolvePromptUserMacros,
-    // Null ⇒ expressions not wired (byte-identical no-op — the `tools` precedent). The classify hook fires
-    // fire-and-forget after a variant commits.
-    expressions: input.expressions ?? null,
-    // Null ⇒ rpg not wired (byte-identical no-op — the `expressions`/`tools` precedent). The 5 injected rpg
+    // Null ⇒ rpg not wired (byte-identical no-op — the `tools` precedent). The 5 injected rpg
     // turn ops fire at GATHER / preset-resolve / send-commit / turn-end.
     rpg: input.rpg ?? null,
     // The S2 teaching registry: chat's OWN contribution (the rpg-gather

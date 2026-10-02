@@ -1,23 +1,20 @@
 // The execution-membership reconciliation stage — tests-type-membership's EXECUTION-lane sibling
 // (GitHub issue #22): every test file is EXECUTED by some runner, and every runner glob
-// matches ≥1 file. Three directions, all proven triple-evidenced against the reference repos this program
-// burned down (marinara's 10k-line hand-rolled regression layer + its server `pnpm test` globs matching
-// ZERO files — silent no-op; ST's 7,300-line suite unenforced by any script; neo's workspace suite outside
-// the root `pnpm test`).
+// matches at least one file. Runner-owned listings establish membership in both directions.
 //
 // Speaks the repo's own 0/1/2/3 exit scheme: 0 clean · 1 violations (an unrun file, an empty-match glob, or
 // a file claimed by TWO+ runtime views) · 2 tool error (a runner's own `--list` broke — a broken listing is
 // not a verdict).
 //
 // EVIDENCE SOURCE, NOT RE-IMPLEMENTATION: rather than hand-parsing each config's glob strings (which drifts
-// the instant a config changes — the exact disease this stage exists to prevent), it asks each runner its
+// the instant a config changes — the exact drift this stage exists to prevent), it asks each runner its
 // OWN `--list` view: `vitest list --filesOnly --json` (every execution group in one call — unit/
 // integration/repository/tooling/contract/types), `playwright test --list --reporter=json -c playwright.config.ts`
 // (e2e; run with `E2E_LIVE=1` so the `@live`-gated specs, which the runner reaches structurally but skips by
 // grep at routine-run time, still count as "reachable" — a grep filter is a SELECTION policy, not a
 // membership question), and the same `--list` against `playwright-ct.config.ts` (CT). Each `--list` also
 // IS the "does this glob match anything" answer for its config — an empty result set from a runner whose
-// test tree is non-empty is the shortcut pattern live.
+// test tree is non-empty is the test-membership defect class live.
 import { readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import process from "node:process";
@@ -331,7 +328,7 @@ export function runTestsExecutionMembership(root: string): number {
   const ctFilesOk = ct as { readonly files: ReadonlySet<string> };
 
   // ── direction 1: GLOB→FILE — every runner's --list view must be non-empty (an empty match is the
-  // marinara silent-no-op disease: the config resolves, the runner exits 0, and NOTHING ran). ──
+  // silent-no-op defect class: the config resolves, the runner exits 0, and NOTHING ran). ──
   const runnerViews: readonly { readonly label: string; readonly files: ReadonlySet<string> }[] = [
     { label: "vitest", files: vitestFilesOk.files },
     { label: "playwright e2e (playwright.config.ts)", files: e2eFilesOk.files },

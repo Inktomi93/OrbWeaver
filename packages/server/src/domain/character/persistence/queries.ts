@@ -518,22 +518,12 @@ export async function countOwnedCharactersWithoutVisibleTag(db: Db, ownerId: Use
   return rows.at(0)?.total ?? 0;
 }
 
-/** WHICH OF THESE NAMES IS AMBIGUOUS in the owner's library (#517) — the lowercased names carried by MORE
- *  THAN ONE of the owner's non-synthetic characters. The library-list row spends its handle as a visible +
- *  announced disambiguator exactly on these.
- *
- *  ONE grouped COUNT over the PAGE's names, answered against the WHOLE library. Both halves are load-bearing:
- *  bounded by the page (never a census of every name the owner has), yet page-INDEPENDENT in its answer, so a
- *  keyset list cannot tell a reader a name is unique on page 1 and ambiguous on page 4. It is also
- *  LENS-INDEPENDENT by construction — `ownedCharacterScope`'s filters are deliberately not applied: two
- *  characters sharing a name is a fact about the library, and a row must not lose its disambiguator because
- *  the other one is filtered out of view.
- *
- *  Case-insensitive, because `Emily` and `emily` are the collision a reader has to resolve, not a distinction.
- *  Empty input reads nothing (never a bare `IN ()`).
- *
- *  Returns a LIST, not a lookup: `persistence/` is queries-only (`persistence-no-in-memory-state`), so the
- *  caller builds whatever index it wants — the verb hands the resulting set to {@link summaryOf}. */
+/** Ambiguous names are lowercased names shared by multiple owned non-synthetic characters (#517). One
+ *  grouped COUNT is bounded to the page names but answers against the whole library; its result is page-
+ *  and lens-independent so later pages or filters cannot change a row announced identity. Case-folded names
+ *  collide; empty input reads nothing. Persistence returns a list rather than owning in-memory indexes, and
+ *  the caller passes its set to summaryOf.
+ */
 export async function ambiguousNamesFor(db: Db, ownerId: UserId, names: readonly string[]): Promise<readonly string[]> {
   if (names.length === 0) {
     return [];

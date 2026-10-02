@@ -140,8 +140,8 @@ export function parsePluginImportedFrom(importedFrom: string | null): { readonly
 // V3 `data.assets[]` — the media manifest; each entry is `{type,uri,name,ext}` (the RisuAI/charx shape,
 // e.g. `{type:"icon",uri:"ccdefault:",name:"main",ext:"png"}` or an `embeded://…` charx-ZIP path). PARSED +
 // PRESERVED only. Resolving an asset URI — charx ZIP extraction, an `http(s)` fetch, `ccdefault:` — and
-// consuming it (expression sprites → the expressions domain, the gallery) is a SEPARATE later chunk that
-// MUST ride the H1 egress firewall: a card is untrusted, so a URI fetch is an SSRF surface. The serde stays
+// consuming it is outside this parser. URI fetches must use the network egress guard: a card is untrusted,
+// so a URI fetch is an SSRF surface. The serde stays
 // pure parse-and-validate (kit is isomorphic, zero I/O). `.loose()` keeps unknown asset keys; the fields are
 // lenient (a real-world asset with a missing `type`/`name` never throws — ST defaults them to `""`).
 const cardAssetSchema = z
@@ -399,7 +399,7 @@ export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 //
 // THE CEILING IS LOUD, NOT SILENT (2026-08-09). It used to be a `Math.min` inside the verb: four callers
 // asked for 200-500 rows to build id→name/portrait LOOKUP MAPS, silently got 100, and quietly under-covered
-// a 320-character library — the chats list simply stopped resolving portraits past the hundredth card, with
+// a large library — the chats list simply stopped resolving portraits past the loaded page, with
 // nothing anywhere saying so. The router now REFUSES an over-ceiling ask (a wire-level BAD_REQUEST naming
 // the bound), so an ask that cannot be served fails where it is written instead of being answered wrong.
 // 500 is the ceiling those lookup callers needed. THE CHAT-ROW ONE IS GONE (#192, 2026-08-18): the shape

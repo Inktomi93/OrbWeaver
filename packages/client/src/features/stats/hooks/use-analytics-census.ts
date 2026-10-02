@@ -15,8 +15,8 @@ function censusOf(shown: number, total: number): number | string {
 
 /**
  * THE COUNT STATES A RELATIONSHIP, NOT A LENGTH (side-eye rail-analytics 2026-08-19 P2g). It read
- * `ANALYTICS 50` against a 328-character library, because `rows.length` on a page capped at 50 IS the cap.
- * The verb returns the ranked `total` beside the page, so a truncated readout is `50 of 328` — the string arm
+ * `ANALYTICS 50` against a 330-character library, because `rows.length` on a page capped at 50 IS the cap.
+ * The verb returns the ranked `total` beside the page, so a truncated readout is `50 of 330` — the string arm
  * of `ListPaneHeader.count`, minted for exactly this. An untruncated one keeps the bare number: `12 of 12` is
  * noise.
  *

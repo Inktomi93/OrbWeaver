@@ -193,9 +193,9 @@ test("with no renderContext, {{char}}/{{user}} render LITERALLY — the pre-fix 
 
 test("with a renderContext, {{char}}/{{user}} resolve to real names before Markdown", async ({ mount }) => {
   const component = await mount(
-    <MessageContentSpansStory content="{{char}} doesn't look up. So here's the deal, {{user}}:" characterName="Kira" userName="Alex" />,
+    <MessageContentSpansStory content="{{char}} doesn't look up. So here's the deal, {{user}}:" characterName="Kora" userName="Alex" />,
   );
-  await expect(component.getByText("Kira doesn't look up. So here's the deal, Alex:")).toBeVisible();
+  await expect(component.getByText("Kora doesn't look up. So here's the deal, Alex:")).toBeVisible();
   await expect(component.getByText("{{char}}", { exact: false })).toHaveCount(0);
   await expect(component.getByText("{{user}}", { exact: false })).toHaveCount(0);
 });

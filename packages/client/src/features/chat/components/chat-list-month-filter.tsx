@@ -8,7 +8,7 @@
 // scrolling, and the ✕ is the only way back. "Jump" means move-within (a scroll target you can leave by
 // scrolling); a BOUND is what the control actually is, and saying so makes the one-way behaviour the copy's
 // own statement rather than a surprise. The BOUND is not the defect and does not move: it is what makes the
-// keyset page cheap, and re-rooting a 896-row virtualized list is the only honest way to reach 2024.
+// keyset page cheap, and re-rooting a 900-row virtualized list is the only honest way to reach 2024.
 //
 // THAT RULING SURVIVES — ITS WORD DID NOT (#1348). #490 spelled the bound "Show chats from", and *from* is
 // heard by every reader as on-or-AFTER, which is the opposite of what the predicate does. Measured on live

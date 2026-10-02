@@ -416,7 +416,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-23",
-      cite: "turns.ts anthropicMidConvSystem: wire-tested, only Opus 4.8 on the anthropic-cli shape; the tail row rides the hook (obeyed 2/2, chat_01m36759qtf689cr8ptn0bps6c). Floor slotted so the level keeps it (SHAPING-MATRIX §3, §5)",
+      cite: "turns.ts anthropicMidConvSystem: wire-tested, only Opus 4.8 on the anthropic-cli shape; the tail row rides the hook (obeyed 2/2). Floor slotted so the level keeps it (SHAPING-MATRIX §3, §5)",
     },
   },
   {

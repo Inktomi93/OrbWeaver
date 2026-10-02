@@ -57,7 +57,7 @@ export function characterCredit(participantNames: readonly string[]): string {
 }
 
 /** The SUBJECT a row action names ("Star …", "Chat actions for …"). The title alone is not unique on a
- *  chats list — the character projection is N rows all titled "Azarael", and N identical accessible names
+ *  chats list — the character projection is N rows all titled "Aveline", and N identical accessible names
  *  make a screen-reader/agent walk of the list ambiguous. The disambiguator is the recency stamp the row
  *  ALREADY shows in its meta slot, so what is announced matches what is on screen. */
 export function chatRowActionName(title: string, stamp: string): string {
@@ -66,7 +66,7 @@ export function chatRowActionName(title: string, stamp: string): string {
 
 /** The per-row disambiguators for ONE rendered chats list, in list order (`rowQualifiers`, side-eye P2c).
  *  The row's own stamp is the discriminator until it collides — which it does on exactly the list this
- *  projection produces (N rows titled "Azarael", the newest few all "2h") — and then it escalates. Both
+ *  projection produces (N rows titled "Aveline", the newest few all "2h") — and then it escalates. Both
  *  chats panes call THIS, so the two lists disambiguate identically. */
 export function chatRowQualifiers(chats: readonly ChatSummaryItem[]): readonly string[] {
   return rowQualifiers(

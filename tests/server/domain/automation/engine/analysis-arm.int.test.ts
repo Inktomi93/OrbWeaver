@@ -135,9 +135,9 @@ function makeFrame(args: { chatId: ChatId; authorUserId: UserId; ruleId: Automat
 async function setup(messageCount: number): Promise<{ db: Db; host: UserId; chatId: ChatId; ruleId: AutomationRuleId }> {
   const db = await freshDb();
   const host = await seedUser(db, "user_host");
-  const chatId = await seedChat(db, "ana");
-  await seedParticipant(db, { chatId, key: "ana_host", userId: host, role: "host" });
-  const ruleId = castId<AutomationRuleId>("automation_rule_ana");
+  const chatId = await seedChat(db, "ada");
+  await seedParticipant(db, { chatId, key: "ada_host", userId: host, role: "host" });
+  const ruleId = castId<AutomationRuleId>("automation_rule_ada");
   await db.insert(automationRules).values({
     id: ruleId,
     ownerId: host,
@@ -161,7 +161,7 @@ async function setup(messageCount: number): Promise<{ db: Db; host: UserId; chat
  *  validates the suffix, so a hand-spelled short id would refuse at parse, not at the belt under test. */
 async function seedBook(db: Db, ownerId: UserId, chatId: ChatId, attach: boolean): Promise<WorldBookId> {
   const bookId = mintTypeId(ID_PREFIX.worldBook);
-  await db.insert(worldBooks).values({ id: bookId, ownerId, name: "ana book" });
+  await db.insert(worldBooks).values({ id: bookId, ownerId, name: "ada book" });
   if (attach) {
     await db.insert(chatBooks).values({ chatId, worldBookId: bookId });
   }

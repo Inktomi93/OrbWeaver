@@ -2,7 +2,7 @@
 //   • Threads — ENTITY navigation, derived from `chat.listChats` (data-driven: a row per thread is not a
 //     declarable command, it is a query result). CAPPED at the most-recent `RECENT_THREADS` (2026-08-09):
 //     it used to render a `CommandItem` per thread over the caller's ENTIRE membership list, so opening the
-//     palette on an 872-chat library mounted 872 scored items.
+//     palette on an 880-chat library mounted 880 scored items.
 //     THE CAP IS THE DESIGN, not a shortcut around virtualization: cmdk OWNS filtering and scoring, and it
 //     can only score items it has MOUNTED — a `<VirtualList>` inside a `CommandGroup` would windowed-render
 //     the rows and silently make the palette's own search blind to everything off-screen, which is worse

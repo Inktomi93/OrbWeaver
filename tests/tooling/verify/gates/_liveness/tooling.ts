@@ -32,8 +32,6 @@ export const TOOLING_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: warningWorkitemLiveness,
-    // A warning policy whose owner names no docs/work item: the live gate corpus plus one probe module must
-    // report exactly that probe, at its `workItem` property.
     overlays: [
       {
         kind: "add",

@@ -41,9 +41,9 @@ describe("createEntityDraftStore", () => {
     const store = createEntityDraftStore<CardDraft>({ name: "t-roundtrip", storage });
 
     expect(store.hasDraft("a")).toBe(false);
-    store.setDraft("a", { name: "Kira" });
+    store.setDraft("a", { name: "Kora" });
     store.setField("a", "description", "a ranger");
-    expect(store.readDraft("a")).toEqual({ name: "Kira", description: "a ranger" });
+    expect(store.readDraft("a")).toEqual({ name: "Kora", description: "a ranger" });
     expect(store.hasDraft("a")).toBe(true);
 
     store.clearDraft("a");
@@ -53,7 +53,7 @@ describe("createEntityDraftStore", () => {
   test("persists ONLY the drafts key (partialize) with a version stamp; entries are envelopes", () => {
     const { storage, map } = memoryStorage();
     const store = createEntityDraftStore<CardDraft>({ name: "t-partialize", storage });
-    store.setDraft("a", { name: "Kira" });
+    store.setDraft("a", { name: "Kora" });
 
     const raw = map.get("orb-draft:t-partialize");
     expect(raw).toBeDefined();
@@ -61,7 +61,7 @@ describe("createEntityDraftStore", () => {
     expect(Object.keys(persisted.state)).toEqual(["drafts"]);
     expect(persisted.version).toBe(1);
     // The per-entity slot is the #11 envelope, not the bare values.
-    expect(persisted.state.drafts["a"]).toEqual({ values: { name: "Kira" }, schemaVersion: 0 });
+    expect(persisted.state.drafts["a"]).toEqual({ values: { name: "Kora" }, schemaVersion: 0 });
   });
 
   test("migrate is TOTAL: garbage/legacy persisted shapes degrade to empty, never throw", () => {
@@ -103,11 +103,11 @@ describe("createEntityDraftStore", () => {
     const { storage } = memoryStorage();
     const store = createEntityDraftStore<CardDraft>({ name: "t-baseline", storage, validate, schemaVersion: 1 });
 
-    store.setDraft("a", { name: "Kira", description: "ranger" }, "server-hash-A");
+    store.setDraft("a", { name: "Kora", description: "ranger" }, "server-hash-A");
     // Matching baseline → the draft survives.
-    expect(store.readDraft("a", "server-hash-A")).toEqual({ name: "Kira", description: "ranger" });
+    expect(store.readDraft("a", "server-hash-A")).toEqual({ name: "Kora", description: "ranger" });
     // Re-write (server unchanged) then read against a DIFFERENT baseline → discarded (server moved on).
-    store.setDraft("a", { name: "Kira", description: "ranger" }, "server-hash-A");
+    store.setDraft("a", { name: "Kora", description: "ranger" }, "server-hash-A");
     expect(store.readDraft("a", "server-hash-B")).toBeUndefined();
     // ...and the dead slot was cleared by that read.
     expect(store.hasDraft("a")).toBe(false);
@@ -129,7 +129,7 @@ describe("createEntityDraftStore", () => {
     // Hand-plant an envelope stamped schemaVersion 1; the store now expects 2.
     map.set(
       "orb-draft:t-schema",
-      JSON.stringify({ state: { drafts: { a: { values: { name: "Kira", description: "r" }, schemaVersion: 1, baselineHash: "h" } } }, version: 1 }),
+      JSON.stringify({ state: { drafts: { a: { values: { name: "Kora", description: "r" }, schemaVersion: 1, baselineHash: "h" } } }, version: 1 }),
     );
     const store = createEntityDraftStore<CardDraft>({ name: "t-schema", storage, validate, schemaVersion: 2 });
     expect(store.readDraft("a", "h")).toBeUndefined();

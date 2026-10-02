@@ -64,7 +64,7 @@ test("characterListSummaries returns user-facing characters newest-created first
       handle: castId<CharacterHandle>("card-b"),
       ownerId: userId,
       contentHash: "h-b",
-      name: "Bram",
+      name: "Bryn",
       createdAt: 2000,
     },
     // The hidden per-room group-memory identity — must be filtered from a user-facing list.
@@ -80,7 +80,7 @@ test("characterListSummaries returns user-facing characters newest-created first
   ]);
 
   const rows = await characterListSummaries(db);
-  expect(rows.map((r) => r.name)).toEqual(["Bram", "Aria"]);
+  expect(rows.map((r) => r.name)).toEqual(["Bryn", "Aria"]);
   expect(rows.map((r) => r.id)).not.toContain(castId<CharacterId>("character_list_synth"));
   expect(rows[0]?.handle).toBe("card-b");
 });

@@ -1,5 +1,5 @@
 // The ONE generic, model-agnostic token estimator — for UI/field/prompt-size displays.
-// We deliberately do NOT ship a per-model tokenizer zoo: there is no public Claude-3+ tokenizer,
+// We deliberately do NOT ship a per-model tokenizer set: there is no public Claude-3+ tokenizer,
 // counts vary per model anyway, and OpenRouter's own guidance is "don't pre-estimate — read the
 // response `usage`". So this is an advisory estimate, not billing truth. Truth = the provider
 // `usage` we capture post-turn.
@@ -20,7 +20,7 @@ const CHARS_PER_TOKEN = 4;
  *
  * QuadChars is an ADVISORY estimate, not a tokenizer, and it undercounts real BPE vocabularies on dense
  * prose/code. Measured live against the box's embed engine (Qwen3-VL-Embedding-2B, `max_model_len` 8192) over
- * the imported 895-chat corpus: the engine's own `prompt_tokens` ran up to **1.4156×** this estimate, and 6 of
+ * the imported 890-chat corpus: the engine's own `prompt_tokens` ran up to **1.4156×** this estimate, and 6 of
  * the 30 largest transcript blocks — cut to exactly `window - 64` estimated tokens — were refused HTTP 400
  * ("at least 8193 input tokens"). A FLAT reserve cannot absorb a PROPORTIONAL error, which is why the old
  * 64-token scaffold reserve did not save them.

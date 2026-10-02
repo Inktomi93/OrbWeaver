@@ -105,7 +105,7 @@ describe("listTurnToolCalls", () => {
 // field put the GM's truth in a member's payload; a dropped call's `issues` line carries the model-sent value
 // too, and THAT is the half the panel paints. Every principal is named: `host` holds the host seat, `member`
 // is a plain present member.
-const HIDDEN = '<lie character="Mara" truth="she is the informant"/>';
+const HIDDEN = '<lie character="Mira" truth="she is the informant"/>';
 const TRUTH = "she is the informant";
 const MEMBER = principal(castId<Handle>("member"));
 

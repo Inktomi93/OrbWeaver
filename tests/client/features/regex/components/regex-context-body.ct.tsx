@@ -40,7 +40,7 @@ const FULL_USAGE: TrpcWireOutput<"regex.listScriptUsage"> = {
     { id: "preset_novella", name: "Novella long-form" },
     { id: "preset_cheap", name: "Local 8B — cheap mode" },
   ],
-  characters: [{ id: "character_azarael", name: "Azarael" }],
+  characters: [{ id: "character_aveline", name: "Aveline" }],
   rooms: [],
 };
 
@@ -64,7 +64,7 @@ test("the three scopes render as named rosters, counted in their own headings", 
   await expect(page.getByText("Novella long-form")).toBeVisible();
   await expect(page.getByText("Local 8B — cheap mode")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Attached by characters · 1" })).toBeVisible();
-  await expect(page.getByText("Azarael")).toBeVisible();
+  await expect(page.getByText("Aveline")).toBeVisible();
 
   // The read is keyed on the SELECTED script, not on "the library" — the rosters can never belong to the
   // previously-open row.
@@ -155,8 +155,8 @@ test("an UNNAMED room is named by its cast, exactly as the chats list names it",
   await stubPane(page, {
     ...EMPTY_USAGE,
     rooms: [
-      { id: "chat_named", title: "The Long Dark", participantNames: ["Azarael"], at: ROOM_AT },
-      { id: "chat_unnamed", title: "   ", participantNames: ["Azarael", "Niko"], at: ROOM_AT - ONE_DAY_MS },
+      { id: "chat_named", title: "The Long Dark", participantNames: ["Aveline"], at: ROOM_AT },
+      { id: "chat_unnamed", title: "   ", participantNames: ["Aveline", "Niko"], at: ROOM_AT - ONE_DAY_MS },
     ],
   });
   await mount(<RegexContextStory />);
@@ -165,18 +165,18 @@ test("an UNNAMED room is named by its cast, exactly as the chats list names it",
   // An authored title wins, trimmed…
   await expect(page.getByText("The Long Dark")).toBeVisible();
   // …and a room nobody renamed reads as WHO IS IN IT, never "Untitled chat" (the reported defect).
-  await expect(page.getByText("Azarael, Niko")).toBeVisible();
+  await expect(page.getByText("Aveline, Niko")).toBeVisible();
   await expect(page.getByText("Untitled chat")).toHaveCount(0);
 });
 
 test("rooms that share a derived title are told apart by their recency stamp", async ({ mount, page }) => {
-  // The collision titling-by-cast creates: "Azarael" is a perfectly good name for three different rooms.
+  // The collision titling-by-cast creates: "Aveline" is a perfectly good name for three different rooms.
   await stubPane(page, {
     ...EMPTY_USAGE,
     rooms: [
-      { id: "chat_a", title: null, participantNames: ["Azarael"], at: ROOM_AT },
-      { id: "chat_b", title: null, participantNames: ["Azarael"], at: ROOM_AT - 3 * ONE_DAY_MS },
-      { id: "chat_c", title: null, participantNames: ["Azarael"], at: ROOM_AT - 30 * ONE_DAY_MS },
+      { id: "chat_a", title: null, participantNames: ["Aveline"], at: ROOM_AT },
+      { id: "chat_b", title: null, participantNames: ["Aveline"], at: ROOM_AT - 3 * ONE_DAY_MS },
+      { id: "chat_c", title: null, participantNames: ["Aveline"], at: ROOM_AT - 30 * ONE_DAY_MS },
     ],
   });
   await mount(<RegexContextStory />);
@@ -194,7 +194,7 @@ test("an UNBREAKABLE room title clips, and its stamp survives at the 320px conte
   // reachable (an authored room title is free text) and is what actually forces the squeeze.
   await stubPane(page, {
     ...EMPTY_USAGE,
-    rooms: [{ id: "chat_crowded", title: "Azaraelundyingfleshweaverofthenorthernwastesandbeyond", participantNames: [], at: ROOM_AT }],
+    rooms: [{ id: "chat_crowded", title: "Avelineundyingfleshweaverofthenorthernwastesandbeyond", participantNames: [], at: ROOM_AT }],
   });
   await mount(<RegexContextStory />);
   await expect(page.getByRole("heading", { name: "Attached by rooms · 1" })).toBeVisible();

@@ -6,7 +6,7 @@
 //
 // What it pins:
 //   · the LIST pane is the LIBRARY in both arms — a selection no longer swaps it to her chats (the defect:
-//     the section whose job is browsing 327 characters lost the library on every pick);
+//     the section whose job is browsing 320 characters lost the library on every pick);
 //   · the BAND has one mode — `CHARACTERS` + the create primary — and never grows a back chevron;
 //   · her chats are a CONTEXT tab, carrying the same server-narrowed projection the LIST used to;
 //   · the hero's "N chats ›" LANDS there (the re-pointed intent, asserted through the rendered tab state,
@@ -23,11 +23,11 @@ import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../../chat
 import { CharactersContextStory, CharactersListStory, CharactersScreenStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail, makeCharacterSummary } from "../fixtures.ts";
 
-const AZARAEL = "char_ct_azarael0001";
-const SERA = "char_ct_sera00000001";
+const AVELINE = "char_ct_aveline0001";
+const SOLA = "char_ct_sola00000001";
 
 const CHARACTER_PAGE = {
-  items: [makeCharacterSummary({ id: AZARAEL, name: "Azarael", createdAt: 2000 }), makeCharacterSummary({ id: SERA, name: "Sera", createdAt: 1000 })],
+  items: [makeCharacterSummary({ id: AVELINE, name: "Aveline", createdAt: 2000 }), makeCharacterSummary({ id: SOLA, name: "Sola", createdAt: 1000 })],
   nextCursor: null,
   totalCount: 2,
 };
@@ -37,15 +37,15 @@ const SETTINGS = { userId: "user_ct_pane", schemaVersion: 1, config: DEFAULT_USE
 /** The band + the context tabs + the editor all read this key; the editor seeds every field off it. The
  *  RAW inputs are named separately because a derived field is re-derived from THEM, never from a finished
  *  row — see the shipped arm at the `#843` test below. */
-const AZARAEL_INPUT = { id: AZARAEL, handle: castId<CharacterHandle>("azarael"), name: "Azarael" };
-const AZARAEL_DETAIL = makeCharacterDetail(AZARAEL_INPUT);
+const AVELINE_INPUT = { id: AVELINE, handle: castId<CharacterHandle>("aveline"), name: "Aveline" };
+const AVELINE_DETAIL = makeCharacterDetail(AVELINE_INPUT);
 
 const HER_CHAT = makeChatSummary({
   id: "chat_ct_newest",
   title: "Winter court",
-  filterCharacterIds: [AZARAEL],
-  participantNames: ["Azarael"],
-  participantPortraits: [makeSeatPortrait(AZARAEL, "Azarael")],
+  filterCharacterIds: [AVELINE],
+  participantNames: ["Aveline"],
+  participantPortraits: [makeSeatPortrait(AVELINE, "Aveline")],
   lastMessageAt: 300,
   updatedAt: 300,
 });
@@ -53,8 +53,8 @@ const HER_CHAT = makeChatSummary({
 async function routeAll(page: Page): Promise<void> {
   await routeTrpc(page, {
     "character.list": () => CHARACTER_PAGE,
-    "character.get": () => AZARAEL_DETAIL,
-    "character.update": () => AZARAEL_DETAIL,
+    "character.get": () => AVELINE_DETAIL,
+    "character.update": () => AVELINE_DETAIL,
     "chat.listChats": chatListResponder([HER_CHAT]),
     "settings.getUserSettings": () => SETTINGS,
     "worldInfo.listForCharacter": () => [],
@@ -74,8 +74,8 @@ test("nothing selected: the LIST pane is the library and the band names the sect
   await routeAll(page);
   const component = await mount(<CharactersListStory />);
 
-  await expect(component.getByText("Azarael", { exact: true })).toBeVisible();
-  await expect(component.getByText("Sera", { exact: true })).toBeVisible();
+  await expect(component.getByText("Aveline", { exact: true })).toBeVisible();
+  await expect(component.getByText("Sola", { exact: true })).toBeVisible();
   const band = page.getByTestId("list-band");
   await expect(band.getByRole("heading", { level: 2 })).toContainText("Characters");
   await expect(band.getByRole("heading", { level: 2 })).not.toContainText("Chats");
@@ -83,15 +83,15 @@ test("nothing selected: the LIST pane is the library and the band names the sect
   await expect(band.getByRole("button", { name: "New chat" })).toHaveCount(0);
 });
 
-// THE #501 PIN. Pre-#501 this arm rendered her CHATS in this slot and the picker was gone — "Sera" (the
+// THE #501 PIN. Pre-#501 this arm rendered her CHATS in this slot and the picker was gone — "Sola" (the
 // character you might look at next) had no row, and the band carried a back chevron to get her back.
 test("a selection LEAVES THE LIBRARY DOCKED — every other character is still one click away", async ({ mount, page }) => {
   await routeAll(page);
-  const component = await mount(<CharactersListStory selectedCharacterId={AZARAEL} />);
+  const component = await mount(<CharactersListStory selectedCharacterId={AVELINE} />);
 
   // The library, whole: the open character AND the one you would look at next.
-  await expect(component.getByRole("button", { name: "Azarael", exact: true })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Sera", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Aveline", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Sola", exact: true })).toBeVisible();
   // …and her chats did NOT take the slot.
   await expect(component.getByText("Winter court")).toHaveCount(0);
 
@@ -106,7 +106,7 @@ test("a selection LEAVES THE LIBRARY DOCKED — every other character is still o
 // …and the history the LIST stopped carrying is reachable, in CONTEXT, with the SAME rows.
 test("her chats are a CONTEXT tab, carrying the server-narrowed projection", async ({ mount, page }) => {
   await routeAll(page);
-  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+  const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} />);
 
   const chatsTab = component.getByRole("button", { name: "Chats", exact: true });
   await expect(chatsTab).toBeVisible();
@@ -114,18 +114,18 @@ test("her chats are a CONTEXT tab, carrying the server-narrowed projection", asy
   await expect(component.getByText("Winter court")).toBeVisible();
   // The rows still name WHOSE chats these are, for a rotor reader — the identity ROW is gone (CONTENT
   // prints her portrait and name), the accessible name is not. ONE node carries it, not two.
-  await expect(component.getByRole("list", { name: "Chats with Azarael" })).toBeVisible();
+  await expect(component.getByRole("list", { name: "Chats with Aveline" })).toBeVisible();
 });
 
 // The hero's "N chats ›" was a LIST intent (dock the pane her chats had become). It is a CONTEXT intent now,
 // and the pin is the RENDERED landing — the tab the user ends up on — never the store write that got there.
 test('the editor hero\'s "N chats ›" lands on the CONTEXT Chats tab', async ({ mount, page }) => {
   await routeAll(page);
-  const component = await mount(<CharactersScreenStory deepLinkCharacterId={AZARAEL} />);
+  const component = await mount(<CharactersScreenStory deepLinkCharacterId={AVELINE} />);
 
-  await component.getByRole("button", { name: "Azarael", exact: true }).click();
+  await component.getByRole("button", { name: "Aveline", exact: true }).click();
   // Settled: the editor is up (its own read resolved) before anything is clicked in it.
-  await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue("Azarael");
+  await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue("Aveline");
   const context = component.getByTestId("context-region");
   // The resting tab is Overview — the overview card, not her chats. (It was named "Field" until #843: the
   // tab's resting body is the overview card with the pick-a-field line as its FOOTER, so "Field" described
@@ -147,7 +147,7 @@ test('the editor hero\'s "N chats ›" lands on the CONTEXT Chats tab', async ({
 // the snapshot log or the trust ladder did not work, it was that nothing on screen suggested they existed.
 test("#841 the CONTEXT roster is the six named tabs, in order", async ({ mount, page }) => {
   await routeAll(page);
-  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+  const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} />);
 
   // The roster is the context bracket's FOOT rail (#860): a toolbar of button cells, never `tab`s.
   await expect(component.locator('[data-slot="context-rail"] [data-slot="context-cell-caption"]')).toHaveText([
@@ -164,7 +164,7 @@ test("#841 the CONTEXT roster is the six named tabs, in order", async ({ mount, 
 
 test("#841 the snapshot log is its own CONTEXT tab, one click from the open character", async ({ mount, page }) => {
   await routeAll(page);
-  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+  const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} />);
 
   await component.locator('[data-slot="context-rail"]').getByRole("button", { name: "History", exact: true }).click();
   // The log's own affordance — the thing that used to be 1560px down the Options tab.
@@ -175,7 +175,7 @@ test("#841 the snapshot log is its own CONTEXT tab, one click from the open char
 
 test("#841 Trust is its own door too — a security concern reads as one", async ({ mount, page }) => {
   await routeAll(page);
-  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+  const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} />);
 
   await component.locator('[data-slot="context-rail"]').getByRole("button", { name: "Trust", exact: true }).click();
   await expect(component.getByRole("combobox", { name: "HTML rendering" })).toBeVisible();
@@ -200,11 +200,11 @@ test("#843 the Origin card tells a shipped example card apart from one you made"
     // `creator: "orbweaver"` AND a hand-set `provenance: "shipped"` past the factory; now only the RAW
     // column is stated (the shared marker the seeder stamps, not a re-typed literal) and
     // `characterProvenanceOf` answers the verdict, so it cannot drift from the columns that produce it.
-    // BUILT FROM `AZARAEL_INPUT`, NOT FROM `AZARAEL_DETAIL`: a derived field on the OVERRIDES is an
+    // BUILT FROM `AVELINE_INPUT`, NOT FROM `AVELINE_DETAIL`: a derived field on the OVERRIDES is an
     // explicit pin (`overrides.provenance ?? …`), so re-running the factory over a finished row carries
     // the OLD verdict forward — measured, this file's #843 pin went red rendering `Made here`.
-    "character.get": () => makeCharacterDetail({ ...AZARAEL_INPUT, creator: AUTHORED_CARD_CREATOR }),
-    "character.update": () => AZARAEL_DETAIL,
+    "character.get": () => makeCharacterDetail({ ...AVELINE_INPUT, creator: AUTHORED_CARD_CREATOR }),
+    "character.update": () => AVELINE_DETAIL,
     "chat.listChats": chatListResponder([]),
     "settings.getUserSettings": () => SETTINGS,
     "worldInfo.listForCharacter": () => [],
@@ -213,7 +213,7 @@ test("#843 the Origin card tells a shipped example card apart from one you made"
     "tag.listPendingSuggestions": () => [],
     "character.listSnapshots": () => [],
   });
-  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+  const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} />);
 
   await expect(component.getByText("Origin", { exact: true })).toBeVisible();
   await expect(component.getByText("Example — shipped with Orbweaver")).toBeVisible();
@@ -224,7 +224,7 @@ test("#843 the Origin card tells a shipped example card apart from one you made"
 // is a third arm on a three-arm fact, not a blanket relabel.
 test("#843 a card without the shipped marker still reads as Made here", async ({ mount, page }) => {
   await routeAll(page);
-  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+  const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} />);
 
   await expect(component.getByText("Origin", { exact: true })).toBeVisible();
   await expect(component.getByText("Made here", { exact: true })).toBeVisible();
@@ -238,11 +238,11 @@ test("#843 a card without the shipped marker still reads as Made here", async ({
 // tabs. The pin is the RENDERED band over the RENDERED rail, in that order, and the absence of the strip.
 test("#860 the CONTEXT head band is the open character's identity, over a foot rail named for the artifact", async ({ mount, page }) => {
   await routeAll(page);
-  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+  const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} />);
 
   const band = component.locator('[data-slot="character-context-band"]');
-  await expect(band.getByRole("heading", { level: 2, name: "Azarael" })).toBeVisible();
-  await expect(band.getByText("@azarael", { exact: true })).toBeVisible();
+  await expect(band.getByRole("heading", { level: 2, name: "Aveline" })).toBeVisible();
+  await expect(band.getByText("@aveline", { exact: true })).toBeVisible();
   // The chips: the census (one chat in this fixture — the same page-of-one the hero's link spends) and the
   // token estimate (the editor's own estimator, so the two can never disagree).
   await expect(band.getByText("1 chat", { exact: true })).toBeVisible();
@@ -271,8 +271,8 @@ test("#860 a card with its own look carries the Own look mark in the band", asyn
     "character.list": () => CHARACTER_PAGE,
     // `accent` is a card-embeddable `ThemeOverride` key; `primary` is a rendered CSS custom property and
     // never a wire key, so a stub carrying it projects to an empty card theme and the mark stays hidden.
-    "character.get": () => makeCharacterDetail({ ...AZARAEL_DETAIL, themeOverride: { accent: "#ff8800" } }),
-    "character.update": () => AZARAEL_DETAIL,
+    "character.get": () => makeCharacterDetail({ ...AVELINE_DETAIL, themeOverride: { accent: "#ff8800" } }),
+    "character.update": () => AVELINE_DETAIL,
     "chat.listChats": chatListResponder([]),
     "settings.getUserSettings": () => SETTINGS,
     "worldInfo.listForCharacter": () => [],
@@ -281,7 +281,7 @@ test("#860 a card with its own look carries the Own look mark in the band", asyn
     "tag.listPendingSuggestions": () => [],
     "character.listSnapshots": () => [],
   });
-  const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} />);
+  const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} />);
 
   const band = component.locator('[data-slot="character-context-band"]');
   await expect(band.getByRole("button", { name: "Own look" })).toBeVisible();
@@ -314,7 +314,7 @@ test.describe("phone", () => {
   test("#860 at 430 coarse the six cells sit at the touch floor and fit the sheet in one row", async ({ mount, page }) => {
     await page.setViewportSize({ width: 430, height: 860 });
     await routeAll(page);
-    const component = await mount(<CharactersContextStory selectedCharacterId={AZARAEL} paneWidth={430} />);
+    const component = await mount(<CharactersContextStory selectedCharacterId={AVELINE} paneWidth={430} />);
 
     const rail = component.getByRole("toolbar", { name: "Character" });
     await expect(rail.getByRole("button")).toHaveCount(6);

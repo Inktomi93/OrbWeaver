@@ -12,11 +12,7 @@ them with `git log --diff-filter=D --oneline -- scripts/probes/rpg-extraction/<p
 `git show <sha>^:scripts/probes/rpg-extraction/<path>`. Their measured value lives on in this
 directory's `SPEC.md` + `SPEC-coverage.md`.
 
-`real-cheap-toolround.json`, `real-reliable-structured.json`, `real-narrative-turn.json`, and
-`captures.json` all carry the retired `hpDelta`/`setHp` party vocab (pre-actor-state-reshape) and lost
-their only in-tree readers with the deletion above. They are KEPT anyway — they are a frozen wire-shape
-record: the spike doc (`:1255-1256`) still cites them by name as the corpus behind its findings. Do not
-run anything against them as if they were live fixtures; mint fresh corpora instead.
+Raw captures and sampled model conversations are privately archived, not published as fixtures. `SPEC.md` and `SPEC-coverage.md` retain the methods and verdicts. Generate fresh private captures from the current contracts when running a probe.
 
 `card-teach-probe.ts` is the **F2** harness (§4h) — a 10-turn scene of pure card OPPORTUNITIES, the real
 `buildLiteReminder` with only the card-teach block swapped per arm (A–H), scored twice: `emitted` (a `:::card`
@@ -30,7 +26,7 @@ finding — Sonnet emits 95%, we render 73%, the gap is a malformed open fence w
 | `CARD_DRY=1` | print each arm's assembled injection and exit — **no spend** |
 | `CARD_SCORE=<file>` | re-score a saved transcript with the current scorer — **no spend** |
 
-Sampled outputs: `CARD-TEACH-SAMPLES.md`.
+Sampled model outputs are private. Use `CARD_SCORE` to score an ignored local capture.
 
 `out/`, `out2/`, `out2-medium/` hold the results — gitignored, so they live on disk only. Everything here
 was recovered from a session scratchpad on 2026-07-30; don't let it drift back to `/tmp`.

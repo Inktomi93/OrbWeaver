@@ -26,7 +26,7 @@ describe("listJournal", () => {
 // #1528 — the journal is the OTHER member-facing free-text plane (the source half of #1398, whose fork strip
 // already belts a journal `title`/`content` precisely because a member could read these bytes here).
 // Principals: `host` holds the room's host seat, `member` is a plain present member.
-const HIDDEN = '<lie character="Mara" truth="she is the informant"/>';
+const HIDDEN = '<lie character="Mira" truth="she is the informant"/>';
 const TRUTH = "she is the informant";
 
 describe("listJournal — hidden spans are the HOST's plane, not the member's", () => {

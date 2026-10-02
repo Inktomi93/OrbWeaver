@@ -12,20 +12,15 @@ plan: spatial-maps
 
 ## What
 
-Owner ruling: this program stays parked and stays valid. It is not a decision to resolve now. Do not close or drop it. It wakes when the owner un-parks the program.
-
-`docs/plans/spatial-maps/design.md` records a hierarchical world-map feature from
-another app and sketches its cost and seams here. It states that a build needs its own owner ruling. The
-owner rules whether to make it a program, and where it sits relative to the RPG program.
+Retain the story-location concept under `docs/plans/spatial-maps/design.md`, parked until the owner resumes it.
 
 ## Why
 
-The capture is not queued work. Without a ruling it stays a document that item 0011 cannot place.
+Domain placement and movement scope need a fresh product design, not an inherited feature list.
 
 ## Done when
 
-The ruling is recorded. For yes, a plan under `docs/plans/` exists and names its dependencies on the RPG
-program. For no, the capture is deleted.
+The owner resumes the program and approves its scope, domain placement and history-safe behavior.
 
 ## Evidence
 

@@ -26,8 +26,8 @@ export function RowToggleActionHarness({ initialPressed = false, rest = "when-on
     <div className="group">
       <RowToggleAction
         icon={Star}
-        labelOff="Star Mara"
-        labelOn="Unstar Mara"
+        labelOff="Star Mira"
+        labelOn="Unstar Mira"
         onToggle={(): void => {
           setPressed((prev) => !prev);
           setToggles((n) => n + 1);

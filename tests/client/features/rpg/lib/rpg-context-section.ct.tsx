@@ -34,7 +34,7 @@ const NONEMPTY_ID = /.+/u;
 /** The Vitality meter's two editable cells — the reading and this carrier's ceiling. `subject`-qualified
  *  names are the `MeterRow` rule (two npc cards must not both offer a button called "Vitality value"), so
  *  the participant row's pair carries the actor's name and the takeover's does not; this matches both. */
-const VITALITY_CELLS = /^(Mara )?Vitality (value|max)$/;
+const VITALITY_CELLS = /^(Mira )?Vitality (value|max)$/;
 
 // A `chat.getChat` stub carrying the rpg POINTER (fires the takeover) + the host gate + the viewer identity.
 // `viewerActivePersonaId` is what the resync control's opt-in restamp stamps TO (null ⇒ nothing to stamp to).
@@ -119,8 +119,8 @@ function trackerView(trackersReadOnly: boolean): TrpcWireOutput<"rpg.getTrackerV
     },
     actors: [
       {
-        actorRef: { kind: "character", characterId: "character_ct_mara" },
-        name: "Mara",
+        actorRef: { kind: "character", characterId: "character_ct_mira" },
+        name: "Mira",
         presence: false,
         identity: null,
         sheet: { className: "Warden", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
@@ -139,11 +139,11 @@ function trackerView(trackersReadOnly: boolean): TrpcWireOutput<"rpg.getTrackerV
       // a departure (a presence drop) can no longer destroy half of her. This stub's cast carries no trackers,
       // so the Scene renders her row without tracked values.
       {
-        actorRef: { kind: "npc", npcKey: "sera" },
-        name: "Sera",
+        actorRef: { kind: "npc", npcKey: "sola" },
+        name: "Sola",
         presence: true,
         identity: {
-          name: "Sera",
+          name: "Sola",
           emoji: "🕯️",
           mood: "guarded",
           // RV-11 — the standing guides the extraction round writes every beat. `outfit` is deliberately
@@ -157,7 +157,7 @@ function trackerView(trackersReadOnly: boolean): TrpcWireOutput<"rpg.getTrackerV
         volatile: null,
       },
     ],
-    cast: ["npc:sera"],
+    cast: ["npc:sola"],
     trackerDefs: [VITALITY, RESOLVE],
     gameTrackers: [],
     quests: [{ id: "q1", name: "Keep the bone key", status: "active", description: "", objectives: [{ id: "o1", text: "Hold the door", completed: true }] }],
@@ -350,7 +350,7 @@ const CHAT_PANEL_AMBIENT_ROUTES: TrpcRoutes<
 // R4c: a `custom` entry carries its OWN free `label` ("prophecy") — the row must render that word, not the
 // generic "Custom" (the label was stored + model-written and no surface showed it).
 const JOURNAL_ENTRIES: TrpcWireOutput<"rpg.listJournal"> = [
-  { id: "rpg_journal_ct_1", type: "npc", label: "", title: "Sera's debt", content: "She owes the party a favour.", createdAt: 2000 },
+  { id: "rpg_journal_ct_1", type: "npc", label: "", title: "Sola's debt", content: "She owes the party a favour.", createdAt: 2000 },
   { id: "rpg_journal_ct_2", type: "location", label: "", title: "The Rusted Lantern", content: "", createdAt: 1000 },
   { id: "rpg_journal_ct_3", type: "custom", label: "prophecy", title: "The drowned crown", content: "", createdAt: 500 },
 ];
@@ -610,7 +610,7 @@ test("a tab body renders real tracker data (Status: participant row + pool meter
   // so the last successfully recorded state is surfaced in real panel geometry.
   await expect(component.getByText("Last recorded beat")).toBeVisible();
   // The participant row: name + className + the pool MeterRow value text + the condition chip.
-  await expect(component.getByText("Mara")).toBeVisible();
+  await expect(component.getByText("Mira")).toBeVisible();
   await expect(component.getByText("Warden")).toBeVisible();
   await expect(component.getByText("poisoned")).toBeVisible();
 });
@@ -733,11 +733,11 @@ test("the mobile Waystone wraps a long authored weather reading without clipping
  *  express a collision at all. */
 function twoCharacterTrackerView(): TrpcWireOutput<"rpg.getTrackerView"> {
   const base = trackerView(false);
-  const mara = base.actors.find((actor) => actor.name === "Mara");
-  if (mara === undefined) {
-    throw new Error("tracker fixture must contain Mara");
+  const mira = base.actors.find((actor) => actor.name === "Mira");
+  if (mira === undefined) {
+    throw new Error("tracker fixture must contain Mira");
   }
-  const bryn: (typeof base.actors)[number] = { ...mara, actorRef: { kind: "character", characterId: "character_ct_bryn" }, name: "Bryn" };
+  const bryn: (typeof base.actors)[number] = { ...mira, actorRef: { kind: "character", characterId: "character_ct_bryn" }, name: "Bryn" };
   return { ...base, actors: [...base.actors, bryn] };
 }
 
@@ -751,20 +751,20 @@ test("#1383 Status: every character block is a NAMED GROUP and no control name c
   await expect(tab.locator('[data-slot="rpg-status-card"]')).toHaveCount(2);
 
   // HALF 1 — the boundary a reader navigates by.
-  await expect(component.getByRole("group", { name: "Mara", exact: true })).toBeVisible();
+  await expect(component.getByRole("group", { name: "Mira", exact: true })).toBeVisible();
   await expect(component.getByRole("group", { name: "Bryn", exact: true })).toBeVisible();
 
   // HALF 2 — every control says WHOSE, so a scope-blind name lookup resolves exactly one control.
   for (const name of [
-    "Mara Vitality value",
+    "Mira Vitality value",
     "Bryn Vitality value",
-    "Mara Vitality max",
+    "Mira Vitality max",
     "Bryn Vitality max",
-    "Mara Status line",
+    "Mira Status line",
     "Bryn Status line",
-    "Add condition to Mara",
+    "Add condition to Mira",
     "Add condition to Bryn",
-    "Remove poisoned from Mara",
+    "Remove poisoned from Mira",
     "Remove poisoned from Bryn",
   ]) {
     await expect(tab.getByRole("button", { name, exact: true }), `"${name}" must name exactly one control`).toHaveCount(1);
@@ -785,20 +785,20 @@ test("#1383 Status: every character block is a NAMED GROUP and no control name c
  *  whole #1383 repair is built on `actor.name`, so an identical name collapses BOTH halves at once. */
 function sameNameTrackerView(): TrpcWireOutput<"rpg.getTrackerView"> {
   const base = trackerView(false);
-  const mara = base.actors.find((actor) => actor.name === "Mara");
-  if (mara === undefined) {
-    throw new Error("tracker fixture must contain Mara");
+  const mira = base.actors.find((actor) => actor.name === "Mira");
+  if (mira === undefined) {
+    throw new Error("tracker fixture must contain Mira");
   }
-  const twin: (typeof base.actors)[number] = { ...mara, actorRef: { kind: "character", characterId: "character_ct_mara_twin" } };
+  const twin: (typeof base.actors)[number] = { ...mira, actorRef: { kind: "character", characterId: "character_ct_mira_twin" } };
   return { ...base, actors: [...base.actors, twin] };
 }
 
-// #1531 — the #1383 repair's own blind spot. Two entries named "Mara" published two groups with ONE
+// #1531 — the #1383 repair's own blind spot. Two entries named "Mira" published two groups with ONE
 // accessible name and a byte-identical control set under each, which is exactly the state #1383 exists to
 // prevent, reached by legal participants instead of by a missing feature. The qualifier is participant POSITION
 // because it is the one disambiguator a reader can hear (an actor key read aloud is not) and it tells them
 // there is more than one. The UNCONTENDED case is fenced by the #1383 test above, which asserts the bare
-// `group "Mara"` for distinct-name participants — qualifying unconditionally reds it.
+// `group "Mira"` for distinct-name participants — qualifying unconditionally reds it.
 test("#1531 Status: two SAME-NAMED characters still resolve to distinct group and control names", async ({ mount, page }) => {
   await stubTakeover(page, { tracker: sameNameTrackerView() });
   const component = await mount(<RpgTakeoverStory />);
@@ -808,26 +808,26 @@ test("#1531 Status: two SAME-NAMED characters still resolve to distinct group an
   // SETTLED barrier: both cards have painted their control sets before any name is read or counted.
   await expect(tab.locator('[data-slot="rpg-status-card"]')).toHaveCount(2);
 
-  // HALF 1 — two boundaries, two names. Before the fix both were "Mara".
-  await expect(component.getByRole("group", { name: "Mara (1 of 2)", exact: true })).toBeVisible();
-  await expect(component.getByRole("group", { name: "Mara (2 of 2)", exact: true })).toBeVisible();
-  await expect(component.getByRole("group", { name: "Mara", exact: true }), "the colliding bare name must be gone").toHaveCount(0);
+  // HALF 1 — two boundaries, two names. Before the fix both were "Mira".
+  await expect(component.getByRole("group", { name: "Mira (1 of 2)", exact: true })).toBeVisible();
+  await expect(component.getByRole("group", { name: "Mira (2 of 2)", exact: true })).toBeVisible();
+  await expect(component.getByRole("group", { name: "Mira", exact: true }), "the colliding bare name must be gone").toHaveCount(0);
 
   // HALF 2 — every control, including the card's own door, resolves to exactly one node by name.
   for (const name of [
-    "Open Mara (1 of 2)",
-    "Open Mara (2 of 2)",
-    "Mara (1 of 2) Vitality value",
-    "Mara (2 of 2) Vitality value",
-    "Mara (1 of 2) Status line",
-    "Mara (2 of 2) Status line",
-    "Add condition to Mara (1 of 2)",
-    "Add condition to Mara (2 of 2)",
+    "Open Mira (1 of 2)",
+    "Open Mira (2 of 2)",
+    "Mira (1 of 2) Vitality value",
+    "Mira (2 of 2) Vitality value",
+    "Mira (1 of 2) Status line",
+    "Mira (2 of 2) Status line",
+    "Add condition to Mira (1 of 2)",
+    "Add condition to Mira (2 of 2)",
   ]) {
     await expect(tab.getByRole("button", { name, exact: true }), `"${name}" must name exactly one control`).toHaveCount(1);
   }
   // …and the names that named TWO controls each now name none.
-  for (const collided of ["Open Mara", "Mara Vitality value", "Mara Status line", "Add condition to Mara"]) {
+  for (const collided of ["Open Mira", "Mira Vitality value", "Mira Status line", "Add condition to Mira"]) {
     await expect(tab.getByRole("button", { name: collided, exact: true }), `the colliding "${collided}" must be gone`).toHaveCount(0);
   }
 
@@ -979,21 +979,21 @@ test("RV-11: the Scene npcs card shows the standing guides, omits the unwritten 
 
   // The host may correct what the story wrote: since R2 a guide is an OP on her actor row (an identity write),
   // so the receipt is the patchActor payload — ONE datum, addressed to her, naming no sibling plane.
-  await card.getByRole("button", { name: "Sera appearance: tall, silver-haired, a burn scar down one forearm" }).click();
-  const field = component.getByRole("textbox", { name: "Sera appearance" });
+  await card.getByRole("button", { name: "Sola appearance: tall, silver-haired, a burn scar down one forearm" }).click();
+  const field = component.getByRole("textbox", { name: "Sola appearance" });
   await field.fill("shaven-headed, a fresh scar");
   await field.blur();
   await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll above already settled the recorder — the call IS recorded, so reading its payload is a read of SETTLED state, not a race. (Polling the payload would just re-read the same frozen object.)
   expect(trpc.lastInput("rpg.patchActor")).toMatchObject({
-    targetRef: { kind: "npc", npcKey: "sera" },
+    targetRef: { kind: "npc", npcKey: "sola" },
     ops: [{ op: "setIdentityText", field: "appearance", text: "shaven-headed, a fresh scar" }],
   });
 });
 
 // The npc's whole volatile half, as `getTrackerView` projects it on her ONE actor row (R2) — a pack, a
-// purse, conditions and a status the story wrote onto her `npc:sera` plane.
-const SERA_VOLATILE: TrackerVolatile = {
+// purse, conditions and a status the story wrote onto her `npc:sola` plane.
+const SOLA_VOLATILE: TrackerVolatile = {
   trackerValues: { trust: { value: 3, items: null, max: 10 } },
   conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: 2 }],
   inventory: [{ id: "item_ct_key", name: "bone key", description: "", quantity: 1, location: "", type: "" }],
@@ -1014,7 +1014,7 @@ test("editing an npc's tracker sends ONE op naming only that datum (her other pl
     tracker: {
       ...base,
       // Her carried tracker + its reading ride her OWN row — there is no second cast-value projection.
-      actors: base.actors.map((actor) => (actor.name === "Sera" ? { ...actor, trackers: [TRUST_METER], volatile: SERA_VOLATILE } : actor)),
+      actors: base.actors.map((actor) => (actor.name === "Sola" ? { ...actor, trackers: [TRUST_METER], volatile: SOLA_VOLATILE } : actor)),
     },
   });
   const component = await mount(<RpgTakeoverStory />);
@@ -1034,7 +1034,7 @@ test("editing an npc's tracker sends ONE op naming only that datum (her other pl
       async () =>
         (trpc.lastInput("rpg.patchActor") as { readonly targetRef: Record<string, unknown>; readonly ops: readonly Record<string, unknown>[] }).targetRef,
     )
-    .toEqual({ kind: "npc", npcKey: "sera" });
+    .toEqual({ kind: "npc", npcKey: "sola" });
   await expect
     .poll(
       async () => (trpc.lastInput("rpg.patchActor") as { readonly targetRef: Record<string, unknown>; readonly ops: readonly Record<string, unknown>[] }).ops,
@@ -1058,22 +1058,22 @@ test("editing an npc's tracker sends ONE op naming only that datum (her other pl
 // her. Departure is a presence drop now, and this section is where the retained person lives.
 test("R2: an OFFSTAGE npc is listed, editable and dismissable — never on the On-stage list", async ({ mount, page }) => {
   const base = trackerView(false);
-  const sera = base.actors.find((actor) => actor.name === "Sera");
-  if (sera === undefined || sera.identity === null) {
-    throw new Error("tracker fixture must contain Sera identity");
+  const sola = base.actors.find((actor) => actor.name === "Sola");
+  if (sola === undefined || sola.identity === null) {
+    throw new Error("tracker fixture must contain Sola identity");
   }
   const trpc = await stubTakeover(page, {
     tracker: {
       ...base,
-      // Sera stays on stage; Vesna is TRACKED but absent from the presence plane — the offstage row.
+      // Sola stays on stage; Vesna is TRACKED but absent from the presence plane — the offstage row.
       actors: [
         ...base.actors,
         {
-          ...sera,
+          ...sola,
           actorRef: { kind: "npc", npcKey: "vesna" },
           name: "Sister Vesna",
           presence: false,
-          identity: { ...sera.identity, name: "Sister Vesna", mood: "guarded", appearance: "", thoughts: "" },
+          identity: { ...sola.identity, name: "Sister Vesna", mood: "guarded", appearance: "", thoughts: "" },
         },
       ],
     },
@@ -1115,9 +1115,9 @@ test("R2: an OFFSTAGE npc is listed, editable and dismissable — never on the O
 // stance is an npc's datum). A host who learns that after the fact learns it as a bug.
 test("R4: an offstage npc can be PROMOTED to the room's characters — two-step, named by whose it is, and honest about the stance", async ({ mount, page }) => {
   const base = trackerView(false);
-  const sera = base.actors.find((actor) => actor.name === "Sera");
-  if (sera === undefined || sera.identity === null) {
-    throw new Error("tracker fixture must contain Sera identity");
+  const sola = base.actors.find((actor) => actor.name === "Sola");
+  if (sola === undefined || sola.identity === null) {
+    throw new Error("tracker fixture must contain Sola identity");
   }
   const trpc = await stubTakeover(page, {
     tracker: {
@@ -1125,11 +1125,11 @@ test("R4: an offstage npc can be PROMOTED to the room's characters — two-step,
       actors: [
         ...base.actors,
         {
-          ...sera,
+          ...sola,
           actorRef: { kind: "npc", npcKey: "vesna" },
           name: "Sister Vesna",
           presence: false,
-          identity: { ...sera.identity, name: "Sister Vesna", mood: "guarded", appearance: "", thoughts: "" },
+          identity: { ...sola.identity, name: "Sister Vesna", mood: "guarded", appearance: "", thoughts: "" },
         },
       ],
     },
@@ -1278,15 +1278,15 @@ test("a beat row's inline title edit fires editJournalEntry (host) — the mutat
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
 
   // Display-at-rest (§12.4.1): the title is a button; the inline field appears on click, commits on blur.
-  await component.getByRole("button", { name: "Sera's debt title" }).click();
-  const field = component.getByRole("textbox", { name: "Sera's debt title" });
-  await field.fill("Sera's bargain");
+  await component.getByRole("button", { name: "Sola's debt title" }).click();
+  const field = component.getByRole("textbox", { name: "Sola's debt title" });
+  await field.fill("Sola's bargain");
   await field.blur();
 
   await expect.poll(() => trpc.count("rpg.editJournalEntry"), { intervals: [20, 50, 100] }).toBe(1);
   await expect
     .poll(() => trpc.lastInput("rpg.editJournalEntry"), { intervals: [20, 50, 100] })
-    .toMatchObject({ entryId: "rpg_journal_ct_1", patch: { title: "Sera's bargain" } });
+    .toMatchObject({ entryId: "rpg_journal_ct_1", patch: { title: "Sola's bargain" } });
 });
 
 // Owner dogfood (2026-07-31): the BODY edited through a one-line input — "it just does a single line and
@@ -1298,12 +1298,12 @@ test("a beat row's BODY expands in place into a multi-line editor, and blur save
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
 
   // At rest the body is the chronicle's muted line — the trigger, not an input (the instrument posture).
-  const bodyTrigger = component.getByRole("button", { name: "Sera's debt entry" });
+  const bodyTrigger = component.getByRole("button", { name: "Sola's debt entry" });
   await expect(bodyTrigger).toContainText("She owes the party a favour.");
-  await expect(component.getByRole("textbox", { name: "Sera's debt entry" })).toHaveCount(0);
+  await expect(component.getByRole("textbox", { name: "Sola's debt entry" })).toHaveCount(0);
 
   await bodyTrigger.click();
-  const body = component.getByRole("textbox", { name: "Sera's debt entry" });
+  const body = component.getByRole("textbox", { name: "Sola's debt entry" });
   await expect(body).toBeVisible();
   // The click's continuation: the editor took the trigger's place, so it takes the focus too (the trigger
   // it replaced is unmounted — without this the keyboard path would dead-end).
@@ -1319,7 +1319,7 @@ test("a beat row's BODY expands in place into a multi-line editor, and blur save
     .poll(() => trpc.lastInput("rpg.editJournalEntry"), { intervals: [20, 50, 100] })
     .toMatchObject({ entryId: "rpg_journal_ct_1", patch: { content: "She owes the party a favour, and the debt is called in at the Lantern." } });
   // The editor collapses back to the row (one place at a time — the chronicle stays a reading surface).
-  await expect(component.getByRole("textbox", { name: "Sera's debt entry" })).toHaveCount(0);
+  await expect(component.getByRole("textbox", { name: "Sola's debt entry" })).toHaveCount(0);
 });
 
 test("Escape abandons an open beat-body draft — nothing is sent", async ({ mount, page }) => {
@@ -1327,12 +1327,12 @@ test("Escape abandons an open beat-body draft — nothing is sent", async ({ mou
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
 
-  await component.getByRole("button", { name: "Sera's debt entry" }).click();
-  const body = component.getByRole("textbox", { name: "Sera's debt entry" });
+  await component.getByRole("button", { name: "Sola's debt entry" }).click();
+  const body = component.getByRole("textbox", { name: "Sola's debt entry" });
   await body.fill("half a thought");
   await body.press("Escape");
-  await expect(component.getByRole("textbox", { name: "Sera's debt entry" })).toHaveCount(0);
-  await expect(component.getByRole("button", { name: "Sera's debt entry" })).toContainText("She owes the party a favour.");
+  await expect(component.getByRole("textbox", { name: "Sola's debt entry" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Sola's debt entry" })).toContainText("She owes the party a favour.");
   await expect.poll(() => trpc.count("rpg.editJournalEntry"), { intervals: [20, 50, 100] }).toBe(0);
 });
 
@@ -1342,7 +1342,7 @@ test("a beat row's confirmed delete fires deleteJournalEntry (host) — the muta
 
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
 
-  await component.getByRole("button", { name: "Delete entry: Sera's debt" }).click();
+  await component.getByRole("button", { name: "Delete entry: Sola's debt" }).click();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   await expect.poll(() => trpc.count("rpg.deleteJournalEntry"), { intervals: [20, 50, 100] }).toBe(1);
   await expect.poll(() => trpc.lastInput("rpg.deleteJournalEntry"), { intervals: [20, 50, 100] }).toMatchObject({ entryId: "rpg_journal_ct_1" });
@@ -1355,11 +1355,11 @@ test("a MEMBER reads the chronicle with NO authoring affordances (PERMISSION-omi
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Journal" }).click();
 
   // The beats still READ (the list verb is member-read) — the entry text is there…
-  await expect(component.getByText("Sera's debt")).toBeVisible();
+  await expect(component.getByText("Sola's debt")).toBeVisible();
   // …but nothing to author with: no composer, no per-row edit button, no delete.
   await expect(component.getByRole("textbox", { name: "New entry title" })).toHaveCount(0);
-  await expect(component.getByRole("button", { name: "Sera's debt title" })).toHaveCount(0);
-  await expect(component.getByRole("button", { name: "Delete entry: Sera's debt" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Sola's debt title" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Delete entry: Sola's debt" })).toHaveCount(0);
 });
 
 test("P5: the ACT RAIL renders the snapshot plot plane (current act embered; null plot ⇒ no rail)", async ({ mount, page }) => {
@@ -1587,10 +1587,8 @@ test("RV-2: an archived-card row wears the artifact chrome — title, turn ref, 
   await expect(page.locator('[data-slot="dialog-popup"]')).toBeVisible();
 });
 
-// The three bodies that were LIVE-EMPTY on the dogfood DB (chat_01kym4aq7…, chat_01kym4w52…,
-// chat_01kym4b1y…), verbatim in shape: a nested-closer card and two generations truncated mid-attribute.
-// Each showed the reader a raw `:::card title="…"` line in the transcript and NOTHING in the archive.
-// With the committed EOF-close they are cards again — in the archive AND in the transcript.
+// Synthetic malformed card bodies preserve three failure shapes: nested closers and generations truncated
+// mid-attribute. Repair must keep readable prose rather than silently dropping the card.
 const BROKEN_CARD_MESSAGES: TrpcFixtureOutput<"chat.listMessages"> = {
   messages: [
     {
@@ -1639,7 +1637,7 @@ test("the band's host-only VEILED count (P3) renders off rpg.revealHidden — cr
   await stubTakeover(page, {
     reveal: revealView([
       {
-        character: "Sera",
+        character: "Sola",
         type: "lie",
         truth: "she pocketed the key",
         reason: "claims she never touched it",
@@ -1660,7 +1658,7 @@ test("the Veiled ledger (P3, host) renders the standing lies off rpg.revealHidde
   await stubTakeover(page, {
     reveal: revealView([
       {
-        character: "Sera",
+        character: "Sola",
         type: "lie",
         truth: "she pocketed the key",
         reason: "claims she never touched it",
@@ -1807,8 +1805,8 @@ function richTracker(): TrpcWireOutput<"rpg.getTrackerView"> {
     ...trackerView(false),
     actors: [
       {
-        actorRef: { kind: "character", characterId: "character_ct_mara" },
-        name: "Mara",
+        actorRef: { kind: "character", characterId: "character_ct_mira" },
+        name: "Mira",
         // A PARTICIPANT actor: `presence` is the presence plane's business, and she carries NO `identity` half —
         // her name is chat's and her standing prose is the sheet's (R2). A stub that mirrors the
         // wire is the discipline; a stale one is a dead shape the next CT copies.
@@ -1872,23 +1870,23 @@ function packedTracker(): TrpcWireOutput<"rpg.getTrackerView"> {
 // way to tell which number is lying.
 test("R2: the purse's carried note is coherent with the party-total exclusion — omitted for a CAST subject", async ({ mount, page }) => {
   const base = richTracker();
-  const mara = base.actors[0];
-  if (mara?.volatile === null || mara?.volatile === undefined) {
+  const mira = base.actors[0];
+  if (mira?.volatile === null || mira?.volatile === undefined) {
     throw new Error("tracker fixture must contain a volatile actor");
   }
-  const volatile = mara.volatile;
+  const volatile = mira.volatile;
   const purse = (amount: number): TrackerVolatile => ({ ...volatile, wallet: [{ name: "gold", amount }] });
   await stubTakeover(page, {
     tracker: {
       ...base,
       actors: [
-        { ...mara, volatile: purse(50) },
+        { ...mira, volatile: purse(50) },
         {
-          ...mara,
-          actorRef: { kind: "npc", npcKey: "sera" },
-          name: "Sera",
+          ...mira,
+          actorRef: { kind: "npc", npcKey: "sola" },
+          name: "Sola",
           presence: true,
-          identity: { name: "Sera", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
+          identity: { name: "Sola", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
           volatile: purse(30),
         },
       ],
@@ -1903,11 +1901,11 @@ test("R2: the purse's carried note is coherent with the party-total exclusion �
   await expect(purseLine).not.toContainText("30");
 
   // Flip to the CAST subject: the total is UNCHANGED (her 30 was never in it) and the note stays away — the
-  // old pairing rendered "50 gold — 30 on Sera", claiming 30 of the 50 was hers when none of it was.
+  // old pairing rendered "50 gold — 30 on Sola", claiming 30 of the 50 was hers when none of it was.
   await component.getByRole("combobox", { name: "Whose pack" }).click();
-  await page.getByRole("option", { name: "Sera" }).click();
+  await page.getByRole("option", { name: "Sola" }).click();
   await expect(purseLine).toContainText("50 gold");
-  await expect(purseLine).not.toContainText("on Sera");
+  await expect(purseLine).not.toContainText("on Sola");
   await expect(purseLine).not.toContainText("30");
 });
 
@@ -1918,7 +1916,7 @@ test("Status: expanding a participant entry TAKES OVER the panel with the charac
 
   // The participant list is the list of people; the name IS the door (a named button, not a mystery row).
   await expect(component.locator('[data-slot="rpg-status-tab"]')).toBeVisible();
-  await component.getByRole("button", { name: "Open Mara" }).click();
+  await component.getByRole("button", { name: "Open Mira" }).click();
 
   // The takeover REPLACES the participant list (one place at a time — not an accordion under the row).
   const detail = component.locator('[data-slot="rpg-character-detail"]');
@@ -1927,10 +1925,10 @@ test("Status: expanding a participant entry TAKES OVER the panel with the charac
 
   // The Sheet-tab inventory of planes, all present on the character: title, level, wallet, the attribute
   // value under its profile label, and this actor's live tracker readings + conditions.
-  await expect(detail.getByRole("button", { name: "Mara title" })).toContainText("Warden");
+  await expect(detail.getByRole("button", { name: "Mira title" })).toContainText("Warden");
   // RV-11 — the sheet's FLAVOR prose, the gloss line under the name (written by patchSheet, read by nobody
   // until now). Editable here (host), so it is the click-to-edit rest button carrying the text.
-  await expect(detail.getByRole("button", { name: "Mara flavor" })).toContainText("Sworn to a house that no longer exists.");
+  await expect(detail.getByRole("button", { name: "Mira flavor" })).toContainText("Sworn to a house that no longer exists.");
   await expect(detail.getByRole("button", { name: "Level value" })).toContainText("3");
   await expect(detail.getByRole("button", { name: "gold amount" })).toContainText("128");
   await expect(detail.getByRole("button", { name: "STR value" })).toContainText("14");
@@ -1952,7 +1950,7 @@ test("#1774 the takeover breadcrumb's visible label is the word its accessible n
   await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
-  await component.getByRole("button", { name: "Open Mara" }).click();
+  await component.getByRole("button", { name: "Open Mira" }).click();
 
   const back = component.locator('[data-slot="rpg-character-detail"]').getByRole("button", { name: "Back to the characters" });
   await expect(back).toBeVisible();
@@ -1964,7 +1962,7 @@ test("Status takeover: a sheet edit fires patchSheet and a tracker edit fires pa
   const trpc = await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
-  await component.getByRole("button", { name: "Open Mara" }).click();
+  await component.getByRole("button", { name: "Open Mira" }).click();
 
   // An ATTRIBUTE value (the plane that only existed on the dissolved tab) writes through patchSheet.
   await component.getByRole("button", { name: "STR value" }).click();
@@ -2001,7 +1999,7 @@ test.describe("the takeover at mobile width", () => {
     await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
     const component = await mount(<RpgTakeoverStory />);
     await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
-    await component.getByRole("button", { name: "Open Mara" }).click();
+    await component.getByRole("button", { name: "Open Mira" }).click();
 
     const detail = component.locator('[data-slot="rpg-character-detail"]');
     await expect(detail).toBeVisible();
@@ -2235,11 +2233,11 @@ test("clicking a GRID tile edits that item in place — the same click-to-edit g
 // NOTHING for it: no chip, no hint, no release. The host could not see that the story had been fenced off the
 // item, let alone hand it back. (The section pin it did render read `actorState.<key>.inventory` — a path with
 // no `volatile` segment, which the server has never written, so it could not fire either.)
-const MARA_PACK_BASE = "actorState.character:character_ct_mara.volatile.inventory.item_ct_key";
+const MIRA_PACK_BASE = "actorState.character:character_ct_mira.volatile.inventory.item_ct_key";
 
 test("#78: a hand-pinned ITEM carries its own pin and ONE click releases it — the pack itself stays the story's", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, {
-    tracker: { ...richTracker(), lockedPaths: [`${MARA_PACK_BASE}.name`, `${MARA_PACK_BASE}.quantity`] },
+    tracker: { ...richTracker(), lockedPaths: [`${MIRA_PACK_BASE}.name`, `${MIRA_PACK_BASE}.quantity`] },
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
@@ -2271,7 +2269,7 @@ test("#78: a hand-pinned ITEM carries its own pin and ONE click releases it — 
 
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): settled by the poll. Releasing the ITEM hands back EVERY pin it carries — a per-field residue would leave a pin the panel no longer renders and the host can never reach.
-  expect(trpc.lastInput("rpg.editSnapshot")).toMatchObject({ patch: {}, releaseLocks: [`${MARA_PACK_BASE}.name`, `${MARA_PACK_BASE}.quantity`] });
+  expect(trpc.lastInput("rpg.editSnapshot")).toMatchObject({ patch: {}, releaseLocks: [`${MIRA_PACK_BASE}.name`, `${MIRA_PACK_BASE}.quantity`] });
 });
 
 test("#78: a LEGACY plane-wide pack lock still renders its section Release (no snapshot is rewritten to fix it)", async ({ mount, page }) => {
@@ -2279,7 +2277,7 @@ test("#78: a LEGACY plane-wide pack lock still renders its section Release (no s
   // locks are never migrated (the dev corpus is the owner's), so the READ side keeps honoring the old path and
   // the section keeps the affordance that lets a host let it go.
   const trpc = await stubTakeover(page, {
-    tracker: { ...richTracker(), lockedPaths: ["actorState.character:character_ct_mara.volatile.inventory"] },
+    tracker: { ...richTracker(), lockedPaths: ["actorState.character:character_ct_mira.volatile.inventory"] },
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Inventory" }).click();
@@ -2289,7 +2287,7 @@ test("#78: a LEGACY plane-wide pack lock still renders its section Release (no s
   await pin.click();
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the poll above settled the recorder — the call IS recorded, so this reads a frozen payload.
-  expect(trpc.lastInput("rpg.editSnapshot")).toMatchObject({ releaseLocks: ["actorState.character:character_ct_mara.volatile.inventory"] });
+  expect(trpc.lastInput("rpg.editSnapshot")).toMatchObject({ releaseLocks: ["actorState.character:character_ct_mira.volatile.inventory"] });
 });
 
 // The P4 card knobs were STORED, wired into the reminder + the §4.8 lenient wrap, and had NO editor —
@@ -2405,7 +2403,7 @@ test("Status takeover: the born-state button fires populateFromCharacter for THI
   const trpc = await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
-  await component.getByRole("button", { name: "Open Mara" }).click();
+  await component.getByRole("button", { name: "Open Mira" }).click();
 
   const populate = component.locator('[data-slot="rpg-populate-control"]').getByRole("button", { name: "Fill from card" });
   await expect(populate).toBeEnabled();
@@ -2426,7 +2424,7 @@ test("Status takeover: a connection with no structured writer DISABLES the born-
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
-  await component.getByRole("button", { name: "Open Mara" }).click();
+  await component.getByRole("button", { name: "Open Mira" }).click();
 
   // Still PRESENT (the affordance is real and the reason is stated) — and refusing, so no call is ever made.
   const populate = component.locator('[data-slot="rpg-populate-control"]').getByRole("button", { name: "Fill from card" });
@@ -2444,7 +2442,7 @@ test("Status takeover: a connection with no structured writer DISABLES the born-
 /** Open the Status takeover's born-state control on the NOTIFY story (the `rpg-notified` sink) and fire it. */
 async function firePopulate(component: Locator): Promise<void> {
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
-  await component.getByRole("button", { name: "Open Mara" }).click();
+  await component.getByRole("button", { name: "Open Mira" }).click();
   await component.locator('[data-slot="rpg-populate-control"]').getByRole("button", { name: "Fill from card" }).click();
 }
 
@@ -2755,7 +2753,7 @@ test("#112: the rail keeps ONE tab stop with arrow keys inside it — the toolba
   const rail = component.getByRole("toolbar", { name: "Game state" });
   await expect(rail.getByRole("button")).toHaveCount(6);
 
-  expect(await tabInto(page, '[data-slot="context-rail"] [role="toolbar"]')).toBe(true);
+  expect(await tabInto(page, '[data-slot="context-rail"] [role="toolbar"][aria-label="Game state"]')).toBe(true);
   const focused = (): Promise<string> => page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? "");
   const first = await focused();
   expect(first).not.toBe("");
@@ -3581,7 +3579,6 @@ test("HUD-1 §7.1 (AMENDED): the AMBIENT-SET band's chrome stays inside the SET 
   const railHeight = railBoxes.reduce((total, box) => total + (box?.height ?? 0), 0);
   expect(regionBox.height).toBeCloseTo(900, -1);
 
-  // MEASURED 2026-08-01 at this reference: region 900 · band 254.6 · rails 116.4 · chrome 371 — 41.2%.
   const chrome = bandBox.height + railHeight;
   expect(chrome / regionBox.height).toBeLessThanOrEqual(0.45);
   // THE RULE THAT SURVIVES BOTH ARMS, and the reason the budget exists at all: the VIEWPORT owns the
@@ -3701,12 +3698,12 @@ test("side-eye 08-01: the pack grid ends on the LAST ITEM — no empty ghost soc
 
 test("side-eye 08-01: a npc card's tracked readings are named by WHOSE they are", async ({ mount, page }) => {
   // Two npcs carrying the same tracker gave a name-navigating reader two buttons called "Trust
-  // value" and no way to tell Sera's from Mara's — the card's own name was in the DOM, not in the control's.
+  // value" and no way to tell Sola's from Mira's — the card's own name was in the DOM, not in the control's.
   const trust = { ...VITALITY, key: "trust", label: "Trust", shape: "text", max: null, appliesTo: "npcs" } satisfies RpgTrackerDef;
   const base = trackerView(false);
-  const sera = base.actors.find((actor) => actor.name === "Sera");
-  if (sera === undefined || sera.identity === null) {
-    throw new Error("tracker fixture must contain Sera identity");
+  const sola = base.actors.find((actor) => actor.name === "Sola");
+  if (sola === undefined || sola.identity === null) {
+    throw new Error("tracker fixture must contain Sola identity");
   }
   const reading = (value: string): TrackerVolatile => ({
     trackerValues: { trust: { value, items: null, max: null } },
@@ -3719,24 +3716,24 @@ test("side-eye 08-01: a npc card's tracked readings are named by WHOSE they are"
     tracker: {
       ...base,
       actors: [
-        ...base.actors.map((a) => (a === sera ? { ...sera, trackers: [trust], volatile: reading("wary") } : a)),
+        ...base.actors.map((a) => (a === sola ? { ...sola, trackers: [trust], volatile: reading("wary") } : a)),
         {
-          ...sera,
-          actorRef: { kind: "npc", npcKey: "mara-npc" },
-          name: "Mara the elder",
-          identity: { ...sera.identity, name: "Mara the elder", appearance: "", thoughts: "" },
+          ...sola,
+          actorRef: { kind: "npc", npcKey: "mira-npc" },
+          name: "Mira the elder",
+          identity: { ...sola.identity, name: "Mira the elder", appearance: "", thoughts: "" },
           trackers: [trust],
           volatile: reading("warm"),
         },
       ],
-      cast: [...base.cast, "npc:mara-npc"],
+      cast: [...base.cast, "npc:mira-npc"],
     },
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Scene" }).click();
 
-  await expect(component.getByRole("button", { name: "Sera Trust" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Mara the elder Trust" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Sola Trust" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Mira the elder Trust" })).toBeVisible();
   // The old subjectless name is gone (it named two different readings).
   await expect(component.getByRole("button", { name: "Trust value" })).toHaveCount(0);
 });
@@ -4434,30 +4431,30 @@ test("a fine pointer keeps the band's satellites and the owning rail's FULL kick
 // `carriesTracker` on the post-write refetch, so the takeover renders the SETTLED new carriage; (3) a MEMBER
 // sees no editor (grants are the host's call — PERMISSION-omit).
 
-// Mara is a CHARACTER actor ⇒ the `party` carrier class. `vitality`/`resolve` (party) reach her by class and
+// Mira is a CHARACTER actor ⇒ the `party` carrier class. `vitality`/`resolve` (party) reach her by class and
 // can be revoked; `bound-will` (explicit EMPTY list) reaches her ONLY by a grant. All actor-subject meters,
 // `satisfies`-typed (VITALITY/RESOLVE above) so they feed the ONE carrier predicate without a literal-cast.
 const BOUND_WILL = { ...VITALITY, key: "bound-will", label: "Bound Will", appliesTo: [], sort: 2, pinned: false } satisfies RpgTrackerDef;
 const GRANT_DEFS = [VITALITY, RESOLVE, BOUND_WILL];
-const MARA_REF = { kind: "character", characterId: "character_ct_mara" } as const;
-const MARA_KEY = actorRefKey({ kind: "character", characterId: castId<CharacterId>("character_ct_mara") });
+const MIRA_REF = { kind: "character", characterId: "character_ct_mira" } as const;
+const MIRA_KEY = actorRefKey({ kind: "character", characterId: castId<CharacterId>("character_ct_mira") });
 
-/** A LIVE grants/revokes store: `tracker()` re-resolves Mara's carried set through the ONE carrier predicate on
+/** A LIVE grants/revokes store: `tracker()` re-resolves Mira's carried set through the ONE carrier predicate on
  *  every read, `patch()` mutates the store from a whole-list `patchSheet` payload. So a persisted grant really
  *  starts carrying on the refetch — the applicability half, not just a payload assertion. */
 function grantsStore(): { readonly tracker: () => TrpcWireOutput<"rpg.getTrackerView">; readonly patch: PatchSheetResponder } {
   const grants: string[] = [];
   const revokes: string[] = [];
   const defs = GRANT_DEFS;
-  const carrier = (): RpgTrackerCarrier => ({ actorKey: MARA_KEY, name: "Mara", kind: "party", grants, revokes });
+  const carrier = (): RpgTrackerCarrier => ({ actorKey: MIRA_KEY, name: "Mira", kind: "party", grants, revokes });
   return {
     tracker: (): TrpcWireOutput<"rpg.getTrackerView"> => ({
       ...trackerView(false),
       trackerDefs: defs,
       actors: [
         {
-          actorRef: MARA_REF,
-          name: "Mara",
+          actorRef: MIRA_REF,
+          name: "Mira",
           presence: false,
           identity: null,
           sheet: { className: "Warden", attributes: {}, flavor: "", level: null, trackerGrants: [...grants], trackerRevokes: [...revokes] },
@@ -4484,7 +4481,7 @@ test("host GRANTS a class-excluded tracker: whole-list patchSheet persists it, a
   const trpc = await stubTakeover(page, { game: d20Game(), liveTracker: store.tracker, patchSheet: store.patch });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
-  await component.getByRole("button", { name: "Open Mara" }).click();
+  await component.getByRole("button", { name: "Open Mira" }).click();
 
   const editor = component.locator('[data-slot="rpg-tracker-grants"]');
   await expect(editor).toBeVisible();
@@ -4496,7 +4493,7 @@ test("host GRANTS a class-excluded tracker: whole-list patchSheet persists it, a
   // the badge (aria-describedby → the visible chip), so a screen-reader/keyboard user focusing it hears the
   // resolved carriage and not only the exception state ("By class"). Asserted as the COMPUTED description, so
   // it proves the whole id→describedby→Trigger chain rather than an attribute string.
-  const picker = row.getByRole("combobox", { name: "Bound Will access for Mara" });
+  const picker = row.getByRole("combobox", { name: "Bound Will access for Mira" });
   await expect(picker).toHaveAccessibleDescription("Doesn't carry");
   // A long host-authored label truncates in this column, so it carries its full text for mouse recovery.
   await expect(row.locator('[data-slot="rpg-tracker-grant-label"]')).toHaveAttribute("title", "Bound Will");
@@ -4509,7 +4506,7 @@ test("host GRANTS a class-excluded tracker: whole-list patchSheet persists it, a
   await expect.poll(() => trpc.count("rpg.patchSheet"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   await expect
     .poll(() => trpc.lastInput("rpg.patchSheet"), { intervals: [20, 50, 100] })
-    .toMatchObject({ actorRef: { kind: "character", characterId: "character_ct_mara" }, patch: { trackerGrants: ["bound-will"], trackerRevokes: [] } });
+    .toMatchObject({ actorRef: { kind: "character", characterId: "character_ct_mira" }, patch: { trackerGrants: ["bound-will"], trackerRevokes: [] } });
 
   // APPLICABILITY — the post-write refetch re-resolves carriage from the store, so the SETTLED outcome flips.
   await expect(row.locator('[data-slot="rpg-tracker-grant-outcome"]')).toHaveText("Carries");
@@ -4523,13 +4520,13 @@ test("host REVOKES a class-included tracker: patchSheet persists the revoke and 
   const trpc = await stubTakeover(page, { game: d20Game(), liveTracker: store.tracker, patchSheet: store.patch });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
-  await component.getByRole("button", { name: "Open Mara" }).click();
+  await component.getByRole("button", { name: "Open Mira" }).click();
 
   const row = component.locator('[data-slot="rpg-tracker-grants"] [data-slot="rpg-tracker-grant-row"][data-tracker-key="vitality"]');
   // The party class swept her in at rest.
   await expect(row.locator('[data-slot="rpg-tracker-grant-outcome"]')).toHaveText("Carries");
 
-  await row.getByRole("combobox", { name: "Vitality access for Mara" }).click();
+  await row.getByRole("combobox", { name: "Vitality access for Mira" }).click();
   await page.getByRole("option", { name: "Revoked" }).click();
 
   await expect
@@ -4549,7 +4546,7 @@ test("a MEMBER sees NO grants editor in the takeover — grants are the host's c
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
-  await component.getByRole("button", { name: "Open Mara" }).click();
+  await component.getByRole("button", { name: "Open Mira" }).click();
 
   const detail = component.locator('[data-slot="rpg-character-detail"]');
   await expect(detail).toBeVisible();
@@ -4572,17 +4569,17 @@ test("a MEMBER sees NO grants editor in the takeover — grants are the host's c
 function singleMeterTrackerView(): TrpcWireOutput<"rpg.getTrackerView"> {
   const base = trackerView(false);
   const actors = base.actors;
-  const mara = actors[0];
-  if (mara === undefined) {
-    throw new Error("tracker fixture must contain Mara");
+  const mira = actors[0];
+  if (mira === undefined) {
+    throw new Error("tracker fixture must contain Mira");
   }
   return {
     ...base,
     actors: [
       {
-        ...mara,
+        ...mira,
         trackers: [VITALITY],
-        volatile: mara.volatile === null ? null : { ...mara.volatile, trackerValues: { vitality: { value: 24, items: null, max: 30 } } },
+        volatile: mira.volatile === null ? null : { ...mira.volatile, trackerValues: { vitality: { value: 24, items: null, max: 30 } } },
       },
       ...actors.slice(1),
     ],
@@ -4796,10 +4793,10 @@ test("Journal ▸ Cards: a FAILED transcript read never says 'No cards yet' (#15
 // pixel it overlaps — including the pixels the upper control paints its DATUM on.
 //
 // MEASURED here at 430 coarse on a just-started game (status line directly above `+ condition`, `gap-field`
-// between them), against the source before the fix: `Mara Status line` owned **yExtent=23, xExtent=1** — one
+// between them), against the source before the fix: `Mira Status line` owned **yExtent=23, xExtent=1** — one
 // column of pixels — because `+ condition` is a full-width control whose 44x198 pseudo covered the row above
 // it. Tapping the visible `—` opened the ADD-CONDITION editor. The populated card was the same defect one
-// row down: `Mara Vitality value` owned yExtent=36, its bottom band resolving to `Mara Resolve value`.
+// row down: `Mira Vitality value` owned yExtent=36, its bottom band resolving to `Mira Resolve value`.
 //
 // The #863 review filed this as an ASYMMETRIC pseudo (`inset: 6.56 -32.33 -37.44 11.67`) — that reading is
 // refuted here: `top:50%` + `-translate-y-1/2` centres the pseudo exactly, and that inset pair is the same
@@ -4816,10 +4813,10 @@ test.describe("#869 — the coarse tap on a visible tracker datum", () => {
   /** A just-started game's card: no trackers written, no conditions — a status line above `+ condition`. */
   function bareCardTrackerView(): TrpcWireOutput<"rpg.getTrackerView"> {
     const base = trackerView(false);
-    const mara = base.actors.filter((actor) => actor.name === "Mara");
+    const mira = base.actors.filter((actor) => actor.name === "Mira");
     return {
       ...base,
-      actors: mara.map((actor) => ({
+      actors: mira.map((actor) => ({
         ...actor,
         trackers: [],
         volatile: actor.volatile === null ? null : { ...actor.volatile, trackerValues: {}, conditions: [] },
@@ -4882,9 +4879,9 @@ for (const viewportWidth of [360, 1440]) {
     };
     await stubTakeover(page, { game, tracker });
     const component = await mount(<RpgTakeoverStory width={viewportWidth === 360 ? 360 : 432} height={1000} />);
-    await component.getByRole("button", { name: "Open Mara" }).click();
+    await component.getByRole("button", { name: "Open Mira" }).click();
     const detail = component.locator('[data-slot="rpg-character-detail"]');
-    await expect(detail.getByRole("heading", { name: "Mara", exact: true })).toBeVisible();
+    await expect(detail.getByRole("heading", { name: "Mira", exact: true })).toBeVisible();
     await expect(detail.getByRole("button", { name: "Status line", exact: true })).toContainText("Add status");
     for (const name of ["Status line", "gold amount"]) {
       await expect
@@ -4897,7 +4894,7 @@ for (const viewportWidth of [360, 1440]) {
         .toBeGreaterThanOrEqual(13);
     }
     await expect(detail.locator('[data-slot="sheet-level"]')).toHaveText(/Level\s*3/);
-    await expect(detail.getByRole("button", { name: "Mara title" })).toHaveText("Warden of the Last Northern Gate and Keeper of the Ember Crown");
+    await expect(detail.getByRole("button", { name: "Mira title" })).toHaveText("Warden of the Last Northern Gate and Keeper of the Ember Crown");
     await expect
       .poll(() =>
         detail.locator('[data-slot="stat-cell"]').evaluateAll((cells) => {

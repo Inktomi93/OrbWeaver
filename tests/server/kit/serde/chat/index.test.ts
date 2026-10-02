@@ -66,7 +66,7 @@ describe("parseStDate", () => {
   const denver = "America/Denver";
 
   test("both wall-clock forms resolve in the supplied zone, not UTC", () => {
-    // MST (UTC-7) — the winter arm; 231 corpus files measured at exactly +7h.
+    // The winter arm uses MST (UTC-7), not the summer offset.
     expect(parseStDate("2025-11-30@11h47m20s989ms", denver)).toBe(Date.UTC(2025, 10, 30, 18, 47, 20));
     expect(parseStDate("December 28, 2025 12:55pm", denver)).toBe(Date.UTC(2025, 11, 28, 19, 55));
     // MDT (UTC-6) — the summer arm, resolved PER INSTANT (a fixed offset could not express both).
@@ -84,10 +84,10 @@ describe("parseStDate", () => {
     expect(parseStDate(formatStDate(ms, denver), denver)).toBe(ms);
   });
 
-  test("ST's spaced / single-digit @-date spellings parse (76 of 1097 corpus files carry one)", () => {
+  test("ST's spaced / single-digit @-date spellings parse", () => {
     // SOURCE-PINNED to ST's own `utils.js parseTimestamp` patterns; a miss here silently degraded a chat's
     // createdAt to the import clock.
-    expect(parseStDate("2025-5-7 @22h 52m 11s 856ms")).toBe(Date.UTC(2025, 4, 7, 22, 52, 11));
+    expect(parseStDate("2024-3-6 @14h 23m 45s 123ms")).toBe(Date.UTC(2024, 2, 6, 14, 23, 45));
     expect(parseStDate("2024-3-3@14h33m22s")).toBe(Date.UTC(2024, 2, 3, 14, 33, 22));
   });
 });
@@ -95,10 +95,10 @@ describe("parseStDate", () => {
 describe("parseChatJsonl — the 2026-08-08 import-fidelity pins", () => {
   test("the filename date survives ST's spaced/single-digit spelling instead of degrading to null", () => {
     const parsed = parseChatJsonl(`${header({ create_date: undefined })}\n${line({ send_date: undefined })}`, {
-      fileName: "Emily Singleton - 2025-5-7 @22h 52m 11s 856ms.jsonl",
-      charDirName: "Emily Singleton",
+      fileName: "Eleni Northwell - 2024-3-6 @14h 23m 45s 123ms.jsonl",
+      charDirName: "Eleni Northwell",
     });
-    expect(parsed?.createDate).toBe(Date.UTC(2025, 4, 7, 22, 52, 11));
+    expect(parsed?.createDate).toBe(Date.UTC(2024, 2, 6, 14, 23, 45));
   });
 
   test("token_count routes by ROLE: user/system inbound, assistant outbound", () => {
@@ -110,7 +110,7 @@ describe("parseChatJsonl — the 2026-08-08 import-fidelity pins", () => {
     ].join("\n");
     const parsed = parseChatJsonl(jsonl, { fileName: "m.jsonl", charDirName: "Aria" });
     // ST's ONE field is the count of the row's OWN text, so a user's typed tokens are INBOUND. Crediting
-    // them to tokensOut put 1,247,278 corpus tokens of typed text into every "model output" rollup.
+    // them to tokensOut would credit typed input to model output.
     expect(parsed?.messages[0]).toMatchObject({ role: "user", tokensIn: 409, tokensOut: null, tokenProvenance: "measured" });
     expect(parsed?.messages[1]).toMatchObject({ role: "assistant", tokensIn: null, tokensOut: 657, tokenProvenance: "measured" });
     expect(parsed?.messages[2]).toMatchObject({ role: "system", tokensIn: 3299, tokensOut: null, tokenProvenance: "measured" });
@@ -150,11 +150,10 @@ describe("parseChatJsonl — the 2026-08-08 import-fidelity pins", () => {
     const parsed = parseChatJsonl(`${header()}\n${swiped}`, { fileName: "m.jsonl", charDirName: "Aria" });
     const pool = parsed?.messages[0]?.variants ?? [];
     // `reasoning_duration` sits at the TOP level — the only shape `json_extract(metadata,'$.reasoning_duration')`
-    // (domain/stats' rebuild + the live stats-delta twin) can resolve. The nested `{extra:{…}}` shape this
-    // stored until 2026-08-08 read NULL for all 12,718 swipe-bearing corpus rows.
+    // (domain/stats' rebuild + the live stats-delta twin) can resolve; a nested `{extra:{…}}` shape reads NULL.
     expect(pool.map((v) => v.metadata?.["reasoning_duration"])).toEqual([1200, 900]);
     // §5.3c class 3: everything ST carried that is NOT one of the two keys with a named reader rides under
-    // `importResidue` — flattening is still not a drop (78,407 corpus send_dates), but a foreign file can no
+    // `importResidue` — flattening is still not a drop, but a foreign file can no
     // longer author a key at the MODELED level.
     expect(residueOf(pool[0]?.metadata)?.["bias"]).toBe("x");
     expect(residueOf(pool[0]?.metadata)?.["send_date"]).toBe("2025-07-18@11h00m00s");
@@ -221,8 +220,6 @@ describe("parseChatJsonl — the 2026-08-08 import-fidelity pins", () => {
     const parsed = parseChatJsonl(`${header({ chat_metadata: meta })}\n${line()}`, { fileName: "n.jsonl", charDirName: "Aria" });
     // UNTRANSLATED here by design — the serde owns ST's grammar; the import mapper owns the conversion.
     expect(parsed?.notePlacement).toEqual({ depth: 2, position: 0, role: 1, interval: 1 });
-    // Knobs are parsed INDEPENDENTLY of the note text: 1,070 of the 1,097 corpus chats record the knobs and
-    // ZERO carry note text, so a text-gated read would have found nothing to convert.
     const knobsOnly = parseChatJsonl(`${header({ chat_metadata: { note_prompt: "", note_depth: 4 } })}\n${line()}`, { fileName: "n.jsonl", charDirName: "A" });
     expect(knobsOnly?.notePrompt).toBeNull();
     expect(knobsOnly?.notePlacement).toEqual({ depth: 4, position: null, role: null, interval: null });
@@ -231,7 +228,6 @@ describe("parseChatJsonl — the 2026-08-08 import-fidelity pins", () => {
   });
 
   test("chat_metadata.script_injects parses to typed injects — ST's own numeric vocabulary, text-less entries dropped", () => {
-    // The corpus shape verbatim (5 of 1,097 chats): {value, position, depth, scan, role, filter}.
     const meta = {
       script_injects: {
         clothes: { value: "[Relevant Informations for portraying characters clothes]", position: 1, depth: 1, scan: true, role: 2, filter: null },

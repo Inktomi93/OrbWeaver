@@ -584,7 +584,7 @@ For example, a three-line sign is enough:
       "add exists for. update: existing items whose description, quantity, or " +
       "carrying location changed. remove: items used/lost/given away. walletDeltas: coin " +
       "gained/spent (negative=spent). EXAMPLE — an existing key moves from a pocket onto a necklace: " +
-      "`{targetRef:'Mira', update:[{name:'Small brass key', description:'key hanging on a silver chain', " +
+      "`{targetRef:'Tamsin', update:[{name:'Small brass key', description:'key hanging on a silver chain', " +
       "location:'silver chain around her neck'}]}`. EXAMPLE — gifted an oil vial, paid 20 gold: `{targetRef:'player', " +
       "add:[{name:'Vial of Sanctified Oil', description:'warded holy oil, faintly glowing', quantity:1, " +
       "location:'belt pouch'}], walletDeltas:[{name:'gold', delta:-20}]}`.",

@@ -58,7 +58,7 @@ describe("readCharacterEconomics", () => {
   test("a character whose turns recorded NO token count reads null, not 0 — absent accounting is not a zero", async () => {
     db = await freshDb();
     const owner = await seedUser(db);
-    const imported = await seedCharacter(db, owner, { id: "character_imported", name: "Mira" });
+    const imported = await seedCharacter(db, owner, { id: "character_imported", name: "Tamsin" });
     const chat = await seedChat(db, imported, { id: "chat_imported" });
     // An imported transcript: assistant turns with a selected variant carrying no economics at all.
     await seedMessage(db, { chatId: chat, seq: 1, role: "assistant", characterId: imported, variants: [{ model: "gpt" }] });

@@ -38,7 +38,7 @@ export type ProviderOrigin = { readonly plugin: PluginId; readonly pluginName: s
 
 export type SpawnIdentity = Pick<Resolved, "ownerId" | "credential">;
 
-export const LOCAL_LIGHT_MODEL_SLOTS = ["rerank", "embed", "matte"] as const;
+export const LOCAL_LIGHT_MODEL_SLOTS = ["rerank", "embed"] as const;
 export type LocalLightModelSlot = (typeof LOCAL_LIGHT_MODEL_SLOTS)[number];
 
 const MODEL_FAMILIES = ["anthropic", "openai", "google", "meta", "deepseek", "qwen", "mistral", "xai", "other"] as const;

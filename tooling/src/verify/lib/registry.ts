@@ -119,8 +119,8 @@ const GATING_STAGES: readonly StageDef[] = [
     // Our OWN 0/1/2/3-speaking tsx script (tooling/src/verify/ops/tests-execution-membership.ts): types-membership's
     // EXECUTION-lane sibling (GitHub issue #22) — reconciles every tests/** runner-suffixed file
     // against the union of vitest's `--list` view + both playwright configs' `--list` views, BOTH directions
-    // (a file matched by no runner REDs; a runner view matching zero files REDs — the marinara silent-no-op
-    // disease). Asks each runner its OWN --list, never re-parses glob strings (drift-proof).
+    // (a file matched by no runner REDs; a runner view matching zero files REDs — the silent-no-op
+    // defect class). Asks each runner its OWN --list, never re-parses glob strings (drift-proof).
     classify: ownScheme,
     // A WHOLE-TREE invariant (unions every runner's file listing) — whole-only, deferred at a scoped tier.
   },

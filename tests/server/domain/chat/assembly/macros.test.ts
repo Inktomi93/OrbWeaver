@@ -160,7 +160,7 @@ describe("P6 macro × rpg channel — celBindings / idle_duration / rpg macros r
 const ARIA = castId<CharacterId>("char_aria");
 const NYX = castId<PersonaId>("persona_nyx");
 const ZARA = castId<PersonaId>("persona_zara");
-const MARA = castId<PersonaId>("persona_mara");
+const MIRA = castId<PersonaId>("persona_mira");
 
 describe("renderHistoryMacros", () => {
   test("{{char}} binds to the ROW'S OWN speaker via the producer, not the ctx primary", () => {
@@ -201,16 +201,16 @@ describe("renderHistoryMacros", () => {
       [],
       [
         { id: ZARA, name: "Zara", description: "the active one" },
-        { id: MARA, name: "Mara", description: "an older persona" },
+        { id: MIRA, name: "Mira", description: "an older persona" },
       ],
     );
     const rowZara: RowMacroStamps = { characterId: null, personaId: ZARA };
-    const rowMara: RowMacroStamps = { characterId: null, personaId: MARA };
+    const rowMira: RowMacroStamps = { characterId: null, personaId: MIRA };
     expect(renderHistoryMacros("{{user}} nods", rowZara, ctx, { producer })).toBe("Zara nods");
-    expect(renderHistoryMacros("{{user}} nods", rowMara, ctx, { producer })).toBe("Mara nods");
+    expect(renderHistoryMacros("{{user}} nods", rowMira, ctx, { producer })).toBe("Mira nods");
   });
 
-  test("the 3-way-distinct fixture: anchor=Nyx, active=Zara, a row stamped personaId=Mara → {{user}} resolves to Mara", () => {
+  test("the 3-way-distinct fixture: anchor=Nyx, active=Zara, a row stamped personaId=Mira → {{user}} resolves to Mira", () => {
     // Chat-Macro-Resolution.md §6's regression fixture: the PINNED anchor and the ACTIVE persona are both
     // distinct from the row's own stamped author — the stamp wins over BOTH (it is the macro subject
     // now, not just attribution chrome).
@@ -218,9 +218,9 @@ describe("renderHistoryMacros", () => {
       pinnedPersona: { name: "Nyx", description: "the frozen anchor" },
       activePersona: { name: "Zara", description: "the live active persona" },
     });
-    const producer = producerOf([], [{ id: MARA, name: "Mara", description: "an older persona" }]);
-    const stamps: RowMacroStamps = { characterId: null, personaId: MARA };
-    expect(renderHistoryMacros("{{user}} waves", stamps, ctx, { producer })).toBe("Mara waves");
+    const producer = producerOf([], [{ id: MIRA, name: "Mira", description: "an older persona" }]);
+    const stamps: RowMacroStamps = { characterId: null, personaId: MIRA };
+    expect(renderHistoryMacros("{{user}} waves", stamps, ctx, { producer })).toBe("Mira waves");
   });
 
   test("a null personaId stamp falls back to the chat ANCHOR (pinnedPersona), never the active persona", () => {

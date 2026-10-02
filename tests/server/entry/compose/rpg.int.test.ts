@@ -923,9 +923,9 @@ test("#36 (vehicle knob): the rpg extraction rail asks for NO vehicle on either 
   // ARM 2 — the `structured` dispatcher (a non-agent-sdk wire), reached through the host POPULATE door.
   const structuredSpy = emptySpy();
   const populate = await seedHostGameChat(db, "vehicle-structured");
-  const characterId = await seedCharacter(db, populate.hostId, "mara", { id: mintTypeId(ID_PREFIX.character) });
+  const characterId = await seedCharacter(db, populate.hostId, "mira", { id: mintTypeId(ID_PREFIX.character) });
   await seedParticipant(db, { chatId: populate.chatId, key: "vehicle_char", characterId, joinSeq: 1 });
-  await seedMessage(db, populate.chatId, 1, { role: "assistant", content: "You meet Mara at the ford." });
+  await seedMessage(db, populate.chatId, 1, { role: "assistant", content: "You meet Mira at the ford." });
   const structuredCompose = buildCannedRpgWithText({
     app,
     db,
@@ -1019,8 +1019,8 @@ test("§1.3 (window arm): the RECENT STORY block carries the turn's transcript, 
   const turn = tc("agent-sdk", {
     transcript: transcript([
       { speaker: "You", text: "I draw my blade and step into the ruined hall.", role: "user" },
-      { speaker: "Mara", text: "Mara nocks an arrow, whispering: stay behind me." },
-      { speaker: "Mara", text: "The dragon lunges." }, // the latest beat (transcript.at(-1))
+      { speaker: "Mira", text: "Mira nocks an arrow, whispering: stay behind me." },
+      { speaker: "Mira", text: "The dragon lunges." }, // the latest beat (transcript.at(-1))
     ]),
   });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turn);
@@ -1029,7 +1029,7 @@ test("§1.3 (window arm): the RECENT STORY block carries the turn's transcript, 
   // The RECENT STORY block exists and carries the PRIOR beats (the arc), oldest-first, name-stamped.
   expect(prompt).toContain("RECENT STORY (oldest first):");
   expect(prompt).toContain("You: I draw my blade and step into the ruined hall.");
-  expect(prompt).toContain("Mara: Mara nocks an arrow, whispering: stay behind me.");
+  expect(prompt).toContain("Mira: Mira nocks an arrow, whispering: stay behind me.");
   // The newest turn rides the LATEST BEAT block, not the story block (the delta target).
   expect(prompt).toContain("LATEST BEAT (the newest story turn above — your delta covers exactly this):\nThe dragon lunges.");
   // The three-block structure — CURRENT TRACKED STATE sits between story and beat.
@@ -1050,7 +1050,7 @@ test("§1.3 (beat arm): the request is BYTE-IDENTICAL to the pre-redesign shape 
   const turn = tc("agent-sdk", {
     transcript: transcript([
       { speaker: "You", text: "prior beat that must NOT appear on the beat arm", role: "user" },
-      { speaker: "Mara", text: "They cross the bridge." },
+      { speaker: "Mira", text: "They cross the bridge." },
     ]),
   });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turn);
@@ -2734,14 +2734,14 @@ const CANNED_POPULATE = {
   sheet: { title: "Warden of House Vane", level: 3 },
   inventory: [
     {
-      targetRef: "mara",
+      targetRef: "mira",
       add: [{ name: "Bone key", description: "cold to the touch", quantity: 1, location: "belt pouch" }],
       walletDeltas: [{ name: "gold", delta: 20 }],
     },
   ],
   quests: [{ name: "Reach the Vault of Ash", action: "create", objectives: ["Find the road north"] }],
   scene: { location: "SHOULD NEVER LAND", recentEvent: "SHOULD NEVER LAND" },
-  party: [{ targetRef: "mara", trackerDeltas: [{ key: "hp", delta: -5 }] }],
+  party: [{ targetRef: "mira", trackerDeltas: [{ key: "hp", delta: -5 }] }],
   journal: [{ type: "note", title: "nope", content: "SHOULD NEVER LAND" }],
 };
 
@@ -2750,11 +2750,11 @@ test("POPULATE (real round): the card's identity + gear land, and the live-play 
   // A real CARD the host owns, with prose the corpus read renders, seated in the room.
   // A REAL minted TypeID: the snapshot write re-validates the volatile `actorRef`, so a fabricated
   // `character_<key>` id would be dropped at the F1 backstop and the gear would silently vanish.
-  const characterId = await seedCharacter(db, hostId, "mara", { id: mintTypeId(ID_PREFIX.character) });
+  const characterId = await seedCharacter(db, hostId, "mira", { id: mintTypeId(ID_PREFIX.character) });
   await db.update(characters).set({ description: "A warden of a fallen house, sworn to a dead name." }).where(eq(characters.id, characterId));
   await seedParticipant(db, { chatId, key: "populate_char", characterId, joinSeq: 1 });
   // The room's OPENING line (the first canon slot) — the second half of the corpus.
-  await seedMessage(db, chatId, 1, { role: "assistant", content: "You meet Mara at the ford, her cloak heavy with rain." });
+  await seedMessage(db, chatId, 1, { role: "assistant", content: "You meet Mira at the ford, her cloak heavy with rain." });
 
   const spy = emptySpy();
   const rpgCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: JSON.stringify(CANNED_POPULATE) });
@@ -2773,13 +2773,13 @@ test("POPULATE (real round): the card's identity + gear land, and the live-play 
   };
   expect(schema.required).toContain("sheet");
   expect((schema.properties.sheet.required ?? []).toSorted()).toEqual(["level", "title"]);
-  expect(schema.properties.inventory.items.properties.targetRef.enum).toEqual(["mara"]);
+  expect(schema.properties.inventory.items.properties.targetRef.enum).toEqual(["mira"]);
   // The prompt carried BOTH halves of the corpus — the card prose and the room's opening line.
   expect(spy.userPrompts[0]).toContain("sworn to a dead name");
   expect(spy.userPrompts[0]).toContain("her cloak heavy with rain");
 
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
-  const actor = view.actors.find((a) => a.name === "mara");
+  const actor = view.actors.find((a) => a.name === "mira");
   // The WIRE said `title`; the SHEET stores `className` (the one mapping, at the parse seam).
   expect(actor?.sheet.className).toBe("Warden of House Vane");
   expect(actor?.sheet.level).toBe(3);

@@ -483,8 +483,8 @@ test("an actor's host-written sheet FLAVOR rides a continuation line under its p
   const view = emptyView({
     actors: [
       {
-        actorRef: { kind: "character", characterId: castId<CharacterId>("character_mara") },
-        name: "Mara",
+        actorRef: { kind: "character", characterId: castId<CharacterId>("character_mira") },
+        name: "Mira",
         presence: false,
         identity: null,
         sheet: {
@@ -501,15 +501,15 @@ test("an actor's host-written sheet FLAVOR rides a continuation line under its p
     ],
   });
   const out = buildLiteReminder(input({ view }));
-  expect(out).toContain("- Mara — (Warden) — Lv 3\n  flavor: Sworn to a house that no longer exists.");
+  expect(out).toContain("- Mira — (Warden) — Lv 3\n  flavor: Sworn to a house that no longer exists.");
 });
 
 test("an EMPTY sheet flavor omits its line (no dangling `flavor:` label)", () => {
   const view = emptyView({
     actors: [
       {
-        actorRef: { kind: "character", characterId: castId<CharacterId>("character_mara") },
-        name: "Mara",
+        actorRef: { kind: "character", characterId: castId<CharacterId>("character_mira") },
+        name: "Mira",
         presence: false,
         identity: null,
         sheet: { className: "Warden", attributes: {}, flavor: "   ", level: null, trackerGrants: [], trackerRevokes: [] },
@@ -519,7 +519,7 @@ test("an EMPTY sheet flavor omits its line (no dangling `flavor:` label)", () =>
     ],
   });
   const out = buildLiteReminder(input({ view }));
-  expect(out).toContain("- Mara — (Warden)");
+  expect(out).toContain("- Mira — (Warden)");
   expect(out).not.toContain("flavor:");
 });
 

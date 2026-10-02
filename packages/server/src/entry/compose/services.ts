@@ -664,7 +664,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const tag = createTagService(tagCtx);
 
   // The one chat bus, built early (persona composes before buildChatService — chat needs persona.get for turn
-  // assembly, a genuine cycle) and threaded into persona's write, expressions' classify emit, and
+  // assembly, a genuine cycle) and threaded into persona's write and
   // buildChatService.
   const chatBus = createChatBus({ db, now, newEventId: minter(ID_PREFIX.chatEvent) });
   const emitChatEventChecked: ChatComposeInput["emitChatEventChecked"] = async (event, claimStatement) => {

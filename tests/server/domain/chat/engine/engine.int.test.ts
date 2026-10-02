@@ -115,9 +115,6 @@ function harness(
     now?: () => number;
     /** The injected rpg turn ops (default null = not wired). The I-7 abort-trace pin wires a recorder. */
     rpg?: ChatContext["rpg"];
-    /** The injected expressions post-turn classify (default null = not wired). The I-7 classify-trace pin
-     *  wires a recorder. */
-    expressions?: ChatContext["expressions"];
     /** Override the durable chat emitter while preserving the harness recorder. */
     emit?: Parameters<typeof createTurnEngine>[1]["emit"];
     /** Override the stats-delta sink — the one seam that can fail INSIDE `commitGeneration` but BEFORE its
@@ -134,7 +131,6 @@ function harness(
     runChatTurn: over.runChatTurn ?? OK_TURN,
     ...(over.now !== undefined ? { now: over.now } : {}),
     ...(over.rpg !== undefined ? { rpg: over.rpg } : {}),
-    ...(over.expressions !== undefined ? { expressions: over.expressions } : {}),
     applyStatsDelta:
       over.applyStatsDelta ??
       ((_batch: unknown, _db: Db, delta: StatsDelta): void => {
@@ -846,9 +842,9 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     const chatId = await seedChat(db, "perspeaker");
     await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, HOST, "aria"); // present since the chat opened
-    const bram = await seedCharacter(db, HOST, "bram"); // a late joiner
+    const bryn = await seedCharacter(db, HOST, "bryn"); // a late joiner
     await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 1, leftSeq: null });
-    await seedParticipant(db, { chatId, key: "bram", characterId: bram, joinSeq: 20, leftSeq: null });
+    await seedParticipant(db, { chatId, key: "bryn", characterId: bryn, joinSeq: 20, leftSeq: null });
 
     // Record every per-speaker recall dispatch (bucket + horizons) the engine issues.
     const calls: { scoped: string; group: string; witnessing: readonly WitnessInterval[] | undefined }[] = [];
@@ -874,12 +870,12 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     });
 
     await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: aria, shape: scopedShape(aria, "aria"), memoryRecall }));
-    await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: bram, shape: scopedShape(bram, "bram"), memoryRecall }));
+    await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: bryn, shape: scopedShape(bryn, "bryn"), memoryRecall }));
 
     // Each speaker recalled ITS OWN bucket, filtered by ITS join horizon — sourced live from chat_participants.
     expect(calls).toEqual([
       { scoped: aria, group: aria, witnessing: [{ joinSeq: 1, leftSeq: null }] },
-      { scoped: bram, group: aria, witnessing: [{ joinSeq: 20, leftSeq: null }] },
+      { scoped: bryn, group: aria, witnessing: [{ joinSeq: 20, leftSeq: null }] },
     ]);
   });
 
@@ -918,9 +914,9 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     const chatId = await seedChat(db, "rerankwarn");
     await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, HOST, "aria");
-    const bram = await seedCharacter(db, HOST, "bram");
+    const bryn = await seedCharacter(db, HOST, "bryn");
     await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 1, leftSeq: null });
-    await seedParticipant(db, { chatId, key: "bram", characterId: bram, joinSeq: 1, leftSeq: null });
+    await seedParticipant(db, { chatId, key: "bryn", characterId: bryn, joinSeq: 1, leftSeq: null });
 
     const speakerRecall = vi.fn<Parameters<typeof createTurnEngine>[1]["recallMemory"]>((_ctx, args) => {
       args.warningEpisode?.reportRerankUnavailable();
@@ -945,7 +941,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
       warningEpisode: firstEpisode,
     };
     await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: aria, shape: scopedShape(aria, "aria"), memoryConfig: { mode: "off" }, memoryRecall: shared }));
-    await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: bram, shape: scopedShape(bram, "bram"), memoryConfig: { mode: "off" }, memoryRecall: shared }));
+    await h.engine.runTurn(prepOf(chatId, { speakerCharacterId: bryn, shape: scopedShape(bryn, "bryn"), memoryConfig: { mode: "off" }, memoryRecall: shared }));
 
     expect(h.events.filter((event) => event.type === "warning")).toEqual([{ type: "warning", chatId, code: "memory_rerank_unavailable" }]);
     expect(speakerRecall).toHaveBeenCalledTimes(2); // both speaker failures happened; dedupe did not skip work
@@ -1487,45 +1483,13 @@ describe("createTurnEngine — abort signal (FLAG[abort-into-engine] resolved)",
   });
 });
 
-// ── I-7: the three remaining trace-ring holes are now DETACHED roots of their own ──────────────────────
-// The expressions classify, the rpg turn-abort clear, and the post-turn memory build all ran under NO live
-// span (same outlives-the-request class SM4 fixed for the rpg round: their dispatch instant still has the
-// request span active, but their actual work runs after that root sealed — a parented span would silently
-// never land). Proved through the TRACE RING (`recentTraces`), driven from INSIDE an outer request root
-// exactly like production — that nesting is the exact condition a non-detached root would have lost.
+// Post-turn memory and RPG abort work own detached traces because they outlive the request.
 const TRACE_SCAN_LIMIT = 50;
 const OUTER_REQUEST_ID = "i7-trace-outer-request";
-const EXPR_REQUEST_ID_RE = /^expr-turn:/;
 const RPG_ABORT_REQUEST_ID_RE = /^rpg-turn-abort:/;
 const MEMORY_REQUEST_ID_RE = /^memory-turn:/;
 
 describe("createTurnEngine — I-7 trace-ring landing proofs", () => {
-  test("the expressions post-turn classify opens its OWN request trace", async () => {
-    initTracing();
-    const chatId = await seedChat(db, "expr-trace");
-    let classifyDone: () => void = () => undefined;
-    const classified = new Promise<void>((resolve) => {
-      classifyDone = resolve;
-    });
-    const expressions: NonNullable<ChatContext["expressions"]> = {
-      onTurnCompleted: async () => {
-        await Promise.resolve();
-        classifyDone();
-      },
-    };
-    const h = harness(db, { expressions });
-
-    const outcome = await withRequestSpan(OUTER_REQUEST_ID, "http POST /api/trpc/chat.send", {}, () => h.engine.runTurn(prepOf(chatId)));
-    expect(outcome.aborted).toBe(false);
-    await classified;
-
-    const trace = recentTraces(TRACE_SCAN_LIMIT).find((t) => t.rootName === "expressions.turnCompleted");
-    expect(trace).toBeDefined();
-    expect(trace?.requestId).toMatch(EXPR_REQUEST_ID_RE);
-    expect(trace?.status).toBe("ok");
-    expect(trace?.requestId).not.toBe(OUTER_REQUEST_ID);
-  });
-
   test("the rpg turn-abort staging clear opens its OWN request trace", async () => {
     initTracing();
     const chatId = await seedChat(db, "rpg-abort-trace");
@@ -1596,16 +1560,9 @@ describe("createTurnEngine — I-7 trace-ring landing proofs", () => {
   });
 });
 
-// ── #1461: EVERY post-turn hook reports its own failure ────────────────────────────────────────────────
-// `fireRpgTurnCompleted` logs on catch and the memory build logs + emits + rethrows for the span; the
-// expressions classify and the rpg turn-abort clear used `.catch(() => undefined)`, so a rejecting injected
-// op left NO log line and NO durable trace of stale derived state (expressions runs on every committed
-// turn; the abort clear runs on every abort path — a failed clear leaks staged writes into the NEXT turn).
-// Each pin ships its own PLANTED CONTROL: the resolving arm of the same op must produce no line at all.
 const HOOK_WARN_TIMEOUT = 2000;
 
-/** The warn messages the two hooks emit — spelled once so a reword breaks the pins, not the reader. */
-const EXPR_HOOK_WARN = "expressions: post-turn classify failed (reply already committed)";
+/** The abort-clear warning is the repair signal for stale staged state. */
 const RPG_ABORT_HOOK_WARN = "rpg: turn-abort staging clear failed (the turn is still aborted)";
 
 /** Every `getLog().warn` MESSAGE the spy saw (the second positional — the first is the fields object). Typed
@@ -1619,49 +1576,6 @@ function warnMessages(spy: WarnSpy): string[] {
 }
 
 describe("createTurnEngine — #1461: a failing post-turn hook is LOGGED, never swallowed", () => {
-  test("a REJECTING expressions classify warns with the chat + turn ids", async () => {
-    const chatId = await seedChat(db, "expr-hook-warn");
-    const expressions: NonNullable<ChatContext["expressions"]> = {
-      onTurnCompleted: () => Promise.reject(new Error("classify backend down")),
-    };
-    const h = harness(db, { expressions });
-    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
-    try {
-      const outcome = await h.engine.runTurn(prepOf(chatId));
-      // The happy path is UNCHANGED: the reply still committed (the hook is fire-and-forget).
-      expect(outcome.aborted).toBe(false);
-      await vi.waitFor(() => expect(warnMessages(warnSpy)).toContain(EXPR_HOOK_WARN), { timeout: HOOK_WARN_TIMEOUT, interval: 5 });
-      const [fields] = warnSpy.mock.calls.find((call) => call[1] === EXPR_HOOK_WARN) ?? [];
-      expect(fields).toMatchObject({ chatId });
-      expect((fields as { turnId?: string } | undefined)?.turnId).toBeDefined();
-    } finally {
-      warnSpy.mockRestore();
-    }
-  });
-
-  test("…PLANTED CONTROL: a RESOLVING expressions classify logs nothing", async () => {
-    const chatId = await seedChat(db, "expr-hook-quiet");
-    let classifyDone: () => void = () => undefined;
-    const classified = new Promise<void>((resolve) => {
-      classifyDone = resolve;
-    });
-    const expressions: NonNullable<ChatContext["expressions"]> = {
-      onTurnCompleted: async () => {
-        await Promise.resolve();
-        classifyDone();
-      },
-    };
-    const h = harness(db, { expressions });
-    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
-    try {
-      await h.engine.runTurn(prepOf(chatId));
-      await classified;
-      expect(warnMessages(warnSpy)).not.toContain(EXPR_HOOK_WARN);
-    } finally {
-      warnSpy.mockRestore();
-    }
-  });
-
   test("a REJECTING rpg turn-abort clear warns with the chat + turn ids", async () => {
     const chatId = await seedChat(db, "rpg-abort-hook-warn");
     // @orb-waive no-test-fabrication(unknown): instrumentation double — the abort path reaches only `onTurnAborted` (the I-7 Ends when this deliberate test boundary can be expressed without a fabricated typed value.
@@ -1829,12 +1743,9 @@ describe("createTurnEngine — turn-lock heartbeat", () => {
   });
 });
 
-// VER-1b — the EMPTY-CONTENT guard class. FIELD EVIDENCE (chat_01kywqtrrdfqasspzxn0b3n3na seq 5): a swipe on a
-// wire that silences prose when `tools[]` ride came back `content:""` / `finish_reason:"tool_calls"`, the engine
-// committed it as variant idx 2 and FLIPPED the slot's `selectedVariantId` to it — an invisible row selected
-// while two real-prose siblings sat behind it. The guard refuses the commit instead, so the pointer never moves.
-// The three arms that must stay apart: ZERO content = refuse · PARTIAL content = commit · ABORT = commit nothing
-// (already the grammar — pinned here so a future "persist what streamed" change is a deliberate one).
+// The empty-content guard refuses an empty tool_calls-only swipe before commit or selectedVariantId
+// movement, preserving the existing prose siblings. Keep its three arms distinct: zero content refuses;
+// partial content commits; abort commits nothing.
 describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, never a committed variant", () => {
   /** The field shape: a completion that answered with tool calls and zero prose. */
   const proseLessTurn = scripted([

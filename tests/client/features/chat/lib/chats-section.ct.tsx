@@ -61,7 +61,7 @@ function cell(component: Locator, name: string): Locator {
   return component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name, exact: true });
 }
 
-const NATE_HOST_RE = /Alex — host/u;
+const ALEX_HOST_RE = /Alex — host/u;
 const ARIA_CHARACTER_RE = /Aria — character/u;
 const BUDDY_MEMBER_RE = /Buddy — member/u;
 
@@ -760,7 +760,7 @@ test("capable HOST: Members lists the humans (host chip) and the invite dialog m
     "invites.listInvites": () => [],
     "invites.createInvite": () => CREATED_INVITE,
     // The mint dialog reads the viewer: a host who is not a global admin gets no sign-up switch and no sharing door.
-    "sessions.me": () => ({ userId: "user_nate", handle: "alex", globalRole: "user" }),
+    "sessions.me": () => ({ userId: "user_alex", handle: "alex", globalRole: "user" }),
   });
   await stubMultiHumanCapable(page, true);
 
@@ -768,9 +768,9 @@ test("capable HOST: Members lists the humans (host chip) and the invite dialog m
   await cell(component, "Members").click();
 
   // The People section — humans differentiated from the seated characters, host crowned; the server
-  // `viewerIsHost:true` also means the viewer's own seat carries the "you" marker on the owner's row.
+  // `viewerIsHost:true` also means the viewer's own seat carries the "you" marker on Alex's row.
   const panel = page.getByTestId("members-panel");
-  await expect(panel.getByRole("button", { name: NATE_HOST_RE })).toBeVisible();
+  await expect(panel.getByRole("button", { name: ALEX_HOST_RE })).toBeVisible();
   await expect(panel.getByRole("button", { name: BUDDY_MEMBER_RE })).toBeVisible();
 
   // The host's invite affordance: the People-header action → the §8.2 mint dialog.
@@ -808,10 +808,10 @@ test("capable MEMBER: Members shows who's here but NO invite/kick controls (host
   await cell(component, "Members").click();
 
   const panel = page.getByTestId("members-panel");
-  await expect(panel.getByRole("button", { name: NATE_HOST_RE })).toBeVisible();
+  await expect(panel.getByRole("button", { name: ALEX_HOST_RE })).toBeVisible();
   // No invite header action; no kick menu on another human's row (zero actions ⇒ no menu opens).
   await expect(panel.getByRole("button", { name: "Invite people" })).toHaveCount(0);
-  await panel.getByRole("button", { name: NATE_HOST_RE }).click();
+  await panel.getByRole("button", { name: ALEX_HOST_RE }).click();
   await expect(page.getByRole("menu")).toHaveCount(0);
 });
 

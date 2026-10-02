@@ -32,17 +32,17 @@ test("renders the card's prose as labeled blocks + the room's OPENING line (the 
   const chatId = await seedChat(db, "c");
   const hostId = await seedUser(db, castId<Handle>("host"));
   await seedParticipant(db, { chatId, key: "c_host", userId: hostId, role: "host" });
-  const characterId = await seedCharacter(db, hostId, "Mara");
-  await seedParticipant(db, { chatId, key: "c_mara", characterId });
+  const characterId = await seedCharacter(db, hostId, "Mira");
+  await seedParticipant(db, { chatId, key: "c_mira", characterId });
   await seedMessage(db, chatId, 1, { role: "assistant", content: "You meet at the ford." });
   await seedMessage(db, chatId, 2, { role: "user", content: "a later beat that is NOT the opening" });
 
   const resolve = createResolveRpgCardCorpus(
-    makeChatContext(db, { getCard: () => Promise.resolve(card({ name: "Mara", description: "A warden.", scenario: "The ford at dusk." })) }),
+    makeChatContext(db, { getCard: () => Promise.resolve(card({ name: "Mira", description: "A warden.", scenario: "The ford at dusk." })) }),
   );
   const corpus = await resolve(chatId, characterId);
 
-  expect(corpus?.name).toBe("Mara");
+  expect(corpus?.name).toBe("Mira");
   expect(corpus?.card).toBe("DESCRIPTION:\nA warden.\n\nSCENARIO:\nThe ford at dusk.");
   expect(corpus?.card).not.toContain("PERSONALITY"); // an empty section is OMITTED, never an empty heading
   expect(corpus?.opening).toBe("You meet at the ford.");

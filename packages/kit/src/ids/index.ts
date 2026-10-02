@@ -83,6 +83,7 @@ export const ID_PREFIX = {
   galleryItem: "gallery_item",
   // `global_variables` deliberately has NO TypeID — the natural key (ownerId, key) IS the identity.
   automationRule: "automation_rule",
+  automationRuleCreation: "automation_rule_creation",
   automationFire: "automation_fire",
   // EPHEMERAL — the S4 suggest/confirm pending ask (RULED F1: an in-RAM
   // map with a TTL, never a table; a respawn wipes them by design). It needs an id because it crosses the
@@ -177,8 +178,6 @@ export type PresetId = TypeIdOf<"preset">;
 export type ThemeId = TypeIdOf<"theme">;
 export type WorldBookId = TypeIdOf<"world_book">;
 export type WorldEntryId = TypeIdOf<"world_entry">;
-/** A row in the owner-stamped regex SCRIPT LIBRARY (D121-E — the world-info pattern: one store, attached
- *  at scopes through per-type FK junctions). Distinct from the client-minted UUID an ST card carries. */
 export type RegexScriptId = TypeIdOf<"regex_script">;
 export type TagId = TypeIdOf<"tag">;
 export type AssetId = TypeIdOf<"asset">;
@@ -235,6 +234,8 @@ export type ModelStatId = TypeIdOf<"model_stat">;
 
 // --- Automation (rules + the fire log) ----------------------------------
 export type AutomationRuleId = TypeIdOf<"automation_rule">;
+/** An owner-local creation request, not the server-minted automation rule identity. */
+export type AutomationRuleCreationId = TypeIdOf<"automation_rule_creation">;
 export type AutomationFireId = TypeIdOf<"automation_fire">;
 /** An S4 pending suggestion (confirm-first card / rate-refusal invitation). NO table — the store is the
  *  in-RAM per-process map RULED F1; the brand exists because the id is the CLAIM handle on the wire. */

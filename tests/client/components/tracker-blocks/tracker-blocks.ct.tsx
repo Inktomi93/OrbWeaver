@@ -316,7 +316,7 @@ test("TrackerChip editable: display-at-rest → click reveals the field; commit 
 test("NpcCard: name + mood line + customFields as chip rows", async ({ mount }) => {
   const component = await mount(
     <NpcCard
-      name="Sera"
+      name="Sola"
       mood="guarded"
       fields={[
         { name: "Trust", value: "low" },
@@ -324,7 +324,7 @@ test("NpcCard: name + mood line + customFields as chip rows", async ({ mount }) 
       ]}
     />,
   );
-  await expect(component).toContainText("Sera");
+  await expect(component).toContainText("Sola");
   await expect(component).toContainText("guarded");
   await expect(component).toContainText("Trust");
   await expect(component).toContainText("3 favors");
@@ -356,7 +356,7 @@ test("NpcCard: a long model-authored mood WRAPS instead of overflowing the card 
   await mount(
     <div style={{ width: 280 }}>
       <NpcCard
-        name="Sera"
+        name="Sola"
         mood={longMood}
         fields={[]}
         relationship={{ kind: "friend", label: "" }}
@@ -366,7 +366,7 @@ test("NpcCard: a long model-authored mood WRAPS instead of overflowing the card 
       />
     </div>,
   );
-  const rest = page.getByRole("button", { name: `Sera mood: ${longMood}` });
+  const rest = page.getByRole("button", { name: `Sola mood: ${longMood}` });
   await expect(rest).toBeVisible();
   await expect
     .poll(
@@ -396,7 +396,7 @@ test("NpcCard: a long model-authored mood WRAPS instead of overflowing the card 
 // NOWHERE; these pin the three contracts of the read side: shown when written, ABSENT when not, and the
 // unspoken one reads in its own (italic) voice.
 test("NpcCard guides: appearance/outfit/thoughts render as quiet lines, and an unwritten one is ABSENT", async ({ mount }) => {
-  const component = await mount(<NpcCard name="Sera" emoji="🕯️" mood="guarded" appearance="tall, silver-haired" thoughts="weighing whether to trust you" />);
+  const component = await mount(<NpcCard name="Sola" emoji="🕯️" mood="guarded" appearance="tall, silver-haired" thoughts="weighing whether to trust you" />);
   // The model-written cast emoji leads the name (same written-never-rendered class as the guides).
   await expect(component).toContainText("🕯️");
   await expect(component).toContainText("tall, silver-haired");
@@ -414,7 +414,7 @@ test("NpcCard guides: long model-authored guide prose WRAPS instead of widening 
   const longOutfit = "a burnt-hem travelling coat stitched with cooling runes over a mail shirt she has not taken off in nine days";
   await mount(
     <div style={{ width: 280 }}>
-      <NpcCard name="Sera" outfit={longOutfit} />
+      <NpcCard name="Sola" outfit={longOutfit} />
     </div>,
   );
   await expect.poll(async () => await page.evaluate(() => document.body.scrollWidth - document.body.clientWidth)).toBe(0);
@@ -429,7 +429,7 @@ test("NpcCard guides editable: click-to-edit commits with (field, value)", async
   let captured: [string, string] = ["", ""];
   await mount(
     <NpcCard
-      name="Sera"
+      name="Sola"
       appearance="tall, silver-haired"
       onEditGuide={(guide, next): void => {
         captured = [guide, next];
@@ -438,8 +438,8 @@ test("NpcCard guides editable: click-to-edit commits with (field, value)", async
   );
   // Display-at-rest like every other value in the kit: no input until the value is clicked.
   await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(0);
-  await page.getByRole("button", { name: "Sera appearance: tall, silver-haired" }).click();
-  const field = page.getByRole("textbox", { name: "Sera appearance" });
+  await page.getByRole("button", { name: "Sola appearance: tall, silver-haired" }).click();
+  const field = page.getByRole("textbox", { name: "Sola appearance" });
   await field.fill("shaven-headed, a fresh scar");
   await field.blur();
   expect(captured).toEqual(["appearance", "shaven-headed, a fresh scar"]);
@@ -449,7 +449,7 @@ test("NpcCard editable: clicking a field's rest value reveals the editor; onEdit
   let captured: [string, string] = ["", ""];
   await mount(
     <NpcCard
-      name="Sera"
+      name="Sola"
       fields={[{ name: "Trust", value: "low" }]}
       onEditField={(fieldName, next): void => {
         captured = [fieldName, next];
@@ -458,8 +458,8 @@ test("NpcCard editable: clicking a field's rest value reveals the editor; onEdit
   );
   // The chip's control is named by WHOSE reading it is (side-eye 08-01): two cards on one tab otherwise
   // offer two identical "Trust value" buttons.
-  await page.getByRole("button", { name: "Sera Trust" }).click();
-  const field = page.getByRole("textbox", { name: "Sera Trust" });
+  await page.getByRole("button", { name: "Sola Trust" }).click();
+  const field = page.getByRole("textbox", { name: "Sola Trust" });
   await field.fill("high");
   await field.blur();
   expect(captured).toEqual(["Trust", "high"]);
@@ -501,8 +501,8 @@ test("NpcCard: a neutral relationship badges NOTHING (no clutter)", async ({ mou
 });
 
 test("NpcCard editable relationship names the current value", async ({ mount, page }) => {
-  await mount(<NpcCard name="Sera" relationship={{ kind: "friend", label: "" }} onEditRelationshipKind={(): void => undefined} />);
-  await expect(page.getByRole("button", { name: "Sera relationship: friend" })).toBeVisible();
+  await mount(<NpcCard name="Sola" relationship={{ kind: "friend", label: "" }} onEditRelationshipKind={(): void => undefined} />);
+  await expect(page.getByRole("button", { name: "Sola relationship: friend" })).toBeVisible();
 });
 
 test("NpcCard: numeric cast-field meters render above the text chips (feature C, §2.8)", async ({ mount }) => {
@@ -522,8 +522,8 @@ test("NpcCard: numeric cast-field meters render above the text chips (feature C,
 // ── BeatLine ──────────────────────────────────────────────────────────────────────────────────────
 
 test("BeatLine: renders a muted one-liner", async ({ mount }) => {
-  const component = await mount(<BeatLine>Sera pocketed the bone key while you argued.</BeatLine>);
-  await expect(component).toContainText("Sera pocketed the bone key");
+  const component = await mount(<BeatLine>Sola pocketed the bone key while you argued.</BeatLine>);
+  await expect(component).toContainText("Sola pocketed the bone key");
 });
 
 // ── AmbientStrip ──────────────────────────────────────────────────────────────────────────────────
@@ -873,7 +873,7 @@ test("Scene region — ambient strip → npc card w/ per-NPC meter → beats (mo
       <AmbientStrip location="The Rusted Lantern — Common Room" date="day 3" timeOfDay="night" weather="rain" />
       {sectionLabel("On stage — 1")}
       <NpcCard
-        name="Sera"
+        name="Sola"
         mood="guarded"
         meters={<MeterRow label="Corruption" value={70} max={100} color={4} />}
         fields={[
@@ -885,7 +885,7 @@ test("Scene region — ambient strip → npc card w/ per-NPC meter → beats (mo
       <GoalLine text="Recover the bone key" clock={{ filled: 1, total: 3 }} />
       {sectionLabel("Just now")}
       <Stack gap="field">
-        <BeatLine>Sera pocketed the bone key while you argued.</BeatLine>
+        <BeatLine>Sola pocketed the bone key while you argued.</BeatLine>
         <BeatLine>The rain has not let up since dusk.</BeatLine>
       </Stack>
     </Stack>,

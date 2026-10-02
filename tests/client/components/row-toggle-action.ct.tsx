@@ -20,7 +20,7 @@ const COARSE_CONTROL_MD_PX = SNAPPED_LENGTH_BASE_PX["spacing.control-md"];
 test("announces as a toggle: aria-pressed carries the state and the name flips to the un-set verb", async ({ mount }) => {
   const component = await mount(<RowToggleActionHarness />);
 
-  const unpressed = component.getByRole("button", { name: "Star Mara", exact: true });
+  const unpressed = component.getByRole("button", { name: "Star Mira", exact: true });
   await expect(unpressed).toHaveAttribute("aria-pressed", "false");
 
   // The unpressed star rests hidden AND un-hit-testable (P3b), so reach it the way a user does: hover the
@@ -28,14 +28,14 @@ test("announces as a toggle: aria-pressed carries the state and the name flips t
   await component.hover();
   await unpressed.click();
   // The SAME element now announces pressed under the un-set name — one element, marker + affordance.
-  await expect(component.getByRole("button", { name: "Unstar Mara", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(component.getByRole("button", { name: "Unstar Mira", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(component.getByTestId("toggle-count")).toHaveText("1");
 });
 
 test("rest posture (D11): unpressed rests hidden with the hover/focus/coarse reveal wired; pressed stays put", async ({ mount }) => {
   const component = await mount(<RowToggleActionHarness />);
 
-  const unpressed = component.getByRole("button", { name: "Star Mara", exact: true });
+  const unpressed = component.getByRole("button", { name: "Star Mira", exact: true });
   await expect(unpressed).toHaveCSS("opacity", "0");
   await expect(unpressed).toHaveClass(REVEAL_ON_HOVER);
   await expect(unpressed).toHaveClass(REVEAL_ON_FOCUS);
@@ -50,7 +50,7 @@ test("rest posture (D11): unpressed rests hidden with the hover/focus/coarse rev
 
   await component.hover();
   await unpressed.click();
-  const pressed = component.getByRole("button", { name: "Unstar Mara", exact: true });
+  const pressed = component.getByRole("button", { name: "Unstar Mira", exact: true });
   await expect(pressed).toHaveCSS("opacity", "1");
   await expect(pressed).not.toHaveClass(REVEAL_ON_HOVER);
 });
@@ -58,14 +58,14 @@ test("rest posture (D11): unpressed rests hidden with the hover/focus/coarse rev
 test('rest="always" keeps the UNPRESSED state visible too (the non-revealing surface posture)', async ({ mount }) => {
   const component = await mount(<RowToggleActionHarness rest="always" />);
 
-  const button = component.getByRole("button", { name: "Star Mara", exact: true });
+  const button = component.getByRole("button", { name: "Star Mira", exact: true });
   await expect(button).toHaveCSS("opacity", "1");
   await expect(button).not.toHaveClass(REVEAL_ON_HOVER);
 });
 
 test("the control box IS the resolved control-md token square (the per-pointer floor, no hand math)", async ({ mount }) => {
   const component = await mount(<RowToggleActionHarness initialPressed={true} />);
-  const button = component.getByRole("button", { name: "Unstar Mara", exact: true });
+  const button = component.getByRole("button", { name: "Unstar Mira", exact: true });
 
   // Derived from the element's OWN resolved custom property, so this holds under either pointer arm — what
   // it proves is that the box is the TOKEN, never a hardcoded px.

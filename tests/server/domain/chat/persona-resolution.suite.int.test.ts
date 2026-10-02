@@ -173,14 +173,14 @@ describe("THE FOUR WORKED EXAMPLES (FINAL-Persona §A.2 — the headline accepta
 
     // History: a message authored BEFORE the swap (stamped Alex) resolves {{user}} to Alex, not the
     // now-active Steve — the row's OWN stamp wins over `ctx.activePersona` (Chat-Macro-Resolution §2).
-    const nateId = castId<PersonaId>("persona_nate");
+    const alexId = castId<PersonaId>("persona_alex");
     const producer: HistoryMacroNames = {
       characterNamesById: new Map<CharacterId, { name: string }>(),
-      personaNamesById: new Map([[nateId, { name: "Alex", description: "Alex is a doctor" }]]),
+      personaNamesById: new Map([[alexId, { name: "Alex", description: "Alex is a doctor" }]]),
     };
     const resolved = renderHistoryMacros(
       "{{user}} waves",
-      { characterId: null, personaId: nateId },
+      { characterId: null, personaId: alexId },
       out, // out.activePersona is Steve — proves the fallback is NOT taken
       { producer },
     );
@@ -212,7 +212,7 @@ describe("THE FOUR WORKED EXAMPLES (FINAL-Persona §A.2 — the headline accepta
     const alex = { name: "Alex", description: "my hair is brown" };
     const steve = { name: "Steve", description: "Steve is a mage" };
 
-    // Mid-swap: anchor=Alex (established card identity), active=Steve (the current speaker). the owner's
+    // Mid-swap: anchor=Alex (established card identity), active=Steve (the current speaker). Alex's
     // description reaches the model via the framed in_static card-context block (§A.6b gap #1) so the
     // character retains it even though Alex isn't speaking.
     const swapped = await assembledText(ctx, inputOf(chatId, host, [charId], { anchor: alex, active: steve }));

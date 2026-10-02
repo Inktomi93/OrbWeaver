@@ -562,17 +562,9 @@ export async function checkBaseline(db: Db, migrationsFolder: string): Promise<B
   return { status: "regenerated", appliedHash: applied.hash, currentHash: shipped.newest.hash };
 }
 
-// ── the CHAIN-DIVERGENCE FORECAST (issue #534, minted from #533; re-aimed 2026-09-18 by #316) ────────
-// Minted as a DROP forecast: pre-launch the reset below was by design, and what was missing was a tripwire
-// at the DECISION point — on 2026-08-23 a lane hand-edited `0000_baseline.sql`, the hash changed, and the
-// next `node --watch` respawn dropped a 1,242-chat import plus ten corpus-analysis passes (~8h GPU), the
-// only warning being a server.log line read hours later. Since the launch flip the consequence it forecasts
-// is the OPPOSITE one: the next boot REFUSES to start. The question is unchanged and still answerable
-// WITHOUT booting — "is what this db recorded still in the shipped chain?" — and it is the same verdict
-// {@link checkBaseline} gives the boot step. `pnpm check`'s db-baseline stage is the live caller.
-//
-// READ-ONLY BY CONSTRUCTION: it opens a bare client (NO pragmas — not even the tuning block) and issues
-// two SELECTs. It never migrates, never writes, and never decides anything.
+// Baseline divergence forecasts a boot refusal, never an automatic reset (#534/#316). checkBaseline
+// answers whether the database-recorded baseline is still in the shipped chain without booting. This
+// reader opens a bare client without pragmas and performs only two SELECTs: it never migrates or writes.
 const MIN_FORECAST_BYTES = 8_388_608; // 8 MiB — a freshly-migrated, never-used db is well under this.
 
 /**

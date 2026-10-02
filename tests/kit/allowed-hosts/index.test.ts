@@ -61,7 +61,7 @@ test("the machine's names are lower-cased with one .local form, whatever each OS
   // Windows reports the NetBIOS name in upper case; Linux may report a domain; macOS may already report `.local`.
   expect(machineHostNames("DESKTOP-7Q2K")).toEqual(["desktop-7q2k", "desktop-7q2k.local"]);
   expect(machineHostNames("box.home.example.com")).toEqual(["box.home.example.com", "box.local"]);
-  expect(machineHostNames("Alexs-MacBook-Pro.local")).toEqual(["nates-macbook-pro.local"]);
+  expect(machineHostNames("Alex-MacBook-Pro.local")).toEqual(["alex-macbook-pro.local"]);
   expect(machineHostNames("game_pc")).toEqual(["game_pc", "game_pc.local"]);
   // A name outside the grammar is never admitted or offered.
   expect(machineHostNames("my box")).toEqual([]);

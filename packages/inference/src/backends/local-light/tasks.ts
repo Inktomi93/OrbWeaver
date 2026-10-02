@@ -1,8 +1,7 @@
 // The local-light task impls — PURE transforms over the model cache: `embed` (the jina-clip-v2 text encoder;
 // empties → `null`, MRL truncation + re-L2, the space tag as `model`), `rerank` (the ONNX cross-encoder; caller
 // ids preserved, raw logit as score, text-only), `imageEmbed` (the joint image/text space; the `multimodal`
-// PAIR kind requires explicit text fallback — jina-clip has two encoders and defines no fused vector), and the `matte` op
-// (RMBG background removal — NOT a task; the composition root binds it as a narrow op).
+// PAIR kind requires explicit text fallback — jina-clip has two encoders and defines no fused vector).
 
 import { LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult, RerankResult } from "@orb/contracts/providers";
@@ -13,11 +12,9 @@ import type { EmbedRequest, ImageEmbedRequest, RerankRequest } from "../../contr
 import type { LocalLightModelCache } from "./model-cache.ts";
 import { abortableWait, normalizeVector, throwIfAborted } from "./model-cache.ts";
 
-/** The bundled models — the rows `curated/local-light.ts` lists; the encoder + reranker are the SEEDED rows
- *  (`LOCAL_LIGHT_SEED_ROWS`, contracts), the matte is the imagery op's default. */
+/** The bundled encoder and reranker share the canonical seed rows. */
 export const DEFAULT_EMBED_MODEL = modelIdSchema.parse(LOCAL_LIGHT_SEED_ROWS[0].model);
 export const DEFAULT_RERANK_MODEL = modelIdSchema.parse(LOCAL_LIGHT_SEED_ROWS[1].model);
-const DEFAULT_MATTE_MODEL = modelIdSchema.parse("briaai/RMBG-1.4");
 
 interface KeptInput {
   readonly index: number;
@@ -187,18 +184,5 @@ export function createLocalLightImageEmbed(
     const vectors = await abortableWait(embedByKind(cache, modelId, req.input), req.signal);
     throwIfAborted(req.signal);
     return { vectors, model: spaceTag(modelId) };
-  };
-}
-
-/** The alpha-matte op: image bytes in → alpha-matted PNG bytes out. Not a task (§8.3): compose binds it narrowly. */
-export function createLocalLightMatte(
-  cache: LocalLightModelCache,
-): (bytes: Uint8Array, opts?: { model?: string; signal?: AbortSignal }) => Promise<Uint8Array> {
-  return async (bytes, opts) => {
-    throwIfAborted(opts?.signal);
-    const modelId = opts?.model !== undefined && opts.model.trim().length > 0 ? modelIdSchema.parse(opts.model) : DEFAULT_MATTE_MODEL;
-    const out = await abortableWait(cache.removeBackground(modelId, bytes), opts?.signal);
-    throwIfAborted(opts?.signal);
-    return out;
   };
 }

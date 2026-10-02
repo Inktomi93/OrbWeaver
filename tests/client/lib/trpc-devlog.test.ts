@@ -64,11 +64,11 @@ describe("formatTrpcOp", () => {
     // Bare `key` matches EXACTLY — `queryKey` (and plain values) stay visible; the scrub
     // recurses into arrays/objects (nested password redacted, sibling name kept).
     info.mockClear();
-    formatTrpcOp(upEntry({ queryKey: ["chars"], nested: [{ password: "hunter2", name: "Kira" }] }));
+    formatTrpcOp(upEntry({ queryKey: ["chars"], nested: [{ password: "hunter2", name: "Kora" }] }));
     const mixedLine = firstLine(info);
     expect(mixedLine).not.toContain("hunter2");
     expect(mixedLine).toContain('"queryKey":["chars"]');
-    expect(mixedLine).toContain('"name":"Kira"');
+    expect(mixedLine).toContain('"name":"Kora"');
   });
 
   test("long inputs truncate to one compact line; circular inputs degrade to [unserializable]", () => {

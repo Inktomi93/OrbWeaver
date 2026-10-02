@@ -226,7 +226,7 @@ async function openFilters(component: Locator): Promise<void> {
   await component.getByRole("button", { name: MORE_FILTERS }).click();
 }
 
-/** The FOOT-of-list progress line (#493) — "30 of 327 loaded", absent once the matched set is fully paged
+/** The FOOT-of-list progress line (#493) — "30 of 320 loaded", absent once the matched set is fully paged
  *  in. Top level: a regex literal built inside a test body is a fresh compile per call. */
 const LOADED_PROGRESS = /of \d+ loaded$/u;
 
@@ -463,8 +463,8 @@ test("D1 a favorite that lives deep in the library arrives on the FIRST page of 
 // readout that prints `loaded` against the server census can — a dropped page reads "50 of 60".
 //
 // WHICH READOUT MOVED (#493, side-eye 2026-08-22 rail-characters P2-1). It used to be the pane's `status`
-// line, and that line no longer prints the loaded count: at rest it read `30 of 327 characters` — the PAGE
-// SIZE worded as a result count, under a band already saying `CHARACTERS 327`. The loaded-vs-census signal
+// line, and that line no longer prints the loaded count: at rest it read `30 of 320 characters` — the PAGE
+// SIZE worded as a result count, under a band already saying `CHARACTERS 320`. The loaded-vs-census signal
 // lives at the FOOT of the list now, beside the tail-fetch sentinel, and that is what this asserts. The
 // detector is unchanged in kind: a dropped head page still makes it read "50 of 60 loaded" and never
 // disappear, because the run never reaches its census.
@@ -1210,7 +1210,6 @@ test("naming the groups stays HEIGHT-NEUTRAL — the OPEN rail's chrome holds it
 // THE SIDE-EYE RE-PASS (2026-08-17, program #102's own review — reports/snaps/se-chars-*). Every pin below
 // names the measurement it was minted from; each one was RENDERED evidence, never a code reading.
 
-/** The owner's real tag library, as the review measured it (`tag.listTagsWithUsage … 551 rows`). */
 const OWNER_VOCABULARY = 551;
 /** The panel's own scroll cap (`max-h-48` = 12rem). The assertion is `<=` this, never `===`: the region is
  *  content-sized below the cap, which is half of what "bounded" means. */
@@ -1632,10 +1631,10 @@ test("P1-3 a starred row shows its ★ at rest on the TITLE LINE, and it yields 
  *  tail-fetch guard inside this story's short viewport, and asserting mid-flight is the flake the CT law
  *  bans. What is under test is the two LABELS the partial state produces, and they read `loaded` against
  *  `totalCount` only. */
-const BIG_CENSUS = 327;
+const BIG_CENSUS = 320;
 
 /** The buckets THE LIBRARY has, not the ones the page happens to carry — the whole point of #1696. `rpg`
- *  holds 47 of the 327 and the pane will have paged in at most one of them. */
+ *  holds 47 of the 320 and the pane will have paged in at most one of them. */
 const BIG_RPG_BUCKET = 47;
 const BIG_UNCATEGORIZED = 265;
 
@@ -1769,51 +1768,37 @@ test("#491 the pane's skip link lands focus on the first character row", async (
   await expect(component.locator('[data-slot="list-row-body"]').first()).toBeFocused();
 });
 
-// ── #492 → #517 · WCAG 2.5.3 / the three Emilys ──────────────────────────────────────────────────────
-// The library holds real same-name collisions (three `Emily` at handles emily/emily-2/emily-3, `Mira`×2
-// and `Nell`×2 inside the first 50 rows) and every row announced its NAME alone: three identical
-// `button "Emily"`. Voice control could address none of them; list-navigation and low-verbosity screen
-// reader modes, which drop descriptions, heard one name three times.
-//
-// #492 FIXED THE ANNOUNCEMENT AND GATED IT ON THE WRONG THING (side-eye se-verify-1, 2026-08-22 — the
-// verification pass over #492's own fix). The gate was DERIVABILITY (is the handle `slugifyHandle(name)`?),
-// chosen because a collision scan over a keyset-paged list would answer about the PAGE. Measured
-// consequence on the owner's library: 13 rows, 8 qualified, 0 of the 8 colliding — `Charlotte · assistant`
-// reads as a role, while `Emily`/`emily` (a real collision with a derivable handle) got nothing. And the
-// qualifier was ACCESSIBLE-NAME ONLY, so the sighted reader's only disambiguator was the subtitle ladder,
-// whose last rung is the handle. #517 answers the paging objection at the source — the row projection
-// carries a library-wide `nameIsAmbiguous` — and RENDERS what it announces.
-const EMILY_PLAIN = makeCharacterSummary({ id: "char_e1", name: "Emily", handle: castId<CharacterHandle>("emily"), createdAt: 3000 });
-const EMILY_THIRD = makeCharacterSummary({ id: "char_e3", name: "Emily", handle: castId<CharacterHandle>("emily-3"), createdAt: 2000 });
+const ELENI_PLAIN = makeCharacterSummary({ id: "char_e1", name: "Eleni", handle: castId<CharacterHandle>("eleni"), createdAt: 3000 });
+const ELENI_THIRD = makeCharacterSummary({ id: "char_e3", name: "Eleni", handle: castId<CharacterHandle>("eleni-3"), createdAt: 2000 });
 /** The other half of #517: a UNIQUE name whose handle is not derivable from it. `Charlotte · assistant` is
  *  the misleading qualifier the derivability gate minted — it reads as a role and disambiguates nothing. */
 const CHARLOTTE = makeCharacterSummary({ id: "char_c1", name: "Charlotte", handle: castId<CharacterHandle>("assistant"), createdAt: 1000 });
 
-test("#517 the qualifier is spent on AMBIGUITY — both Emilys carry one, the unique Charlotte does not", async ({ mount, page }) => {
+test("#517 the qualifier is spent on AMBIGUITY — both Elenis carry one, the unique Charlotte does not", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,
-    "character.list": characterListResponder([EMILY_PLAIN, EMILY_THIRD, CHARLOTTE]),
+    "character.list": characterListResponder([ELENI_PLAIN, ELENI_THIRD, CHARLOTTE]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],
   });
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
-  await expect(component.getByRole("button", { name: "Emily · emily-3", exact: true })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Eleni · eleni-3", exact: true })).toHaveCount(1);
 
-  // BOTH colliding rows are qualified — `emily` IS `slugifyHandle("Emily")`, and under the old DERIVABILITY
-  // gate that row announced a bare "Emily" beside another row announcing "Emily · emily-3": a real collision
+  // BOTH colliding rows are qualified — `eleni` IS `slugifyHandle("Eleni")`, and under the old DERIVABILITY
+  // gate that row announced a bare "Eleni" beside another row announcing "Eleni · eleni-3": a real collision
   // the disambiguator skipped because the handle happened to be derivable (side-eye se-verify-1, #517).
-  await expect(component.getByRole("button", { name: "Emily · emily", exact: true })).toHaveCount(1);
-  await expect(component.getByRole("button", { name: "Emily", exact: true })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Eleni · eleni", exact: true })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Eleni", exact: true })).toHaveCount(0);
   // …and the row that collides with NOTHING spends nothing. `Charlotte · assistant` was the derivability
   // gate's other failure direction: eight qualified rows on the owner's library, none of them colliding.
   await expect(component.getByRole("button", { name: "Charlotte", exact: true })).toHaveCount(1);
   await expect(component.getByRole("button", { name: "Charlotte · assistant", exact: true })).toHaveCount(0);
 
   // …and the row's CONTROLS speak the same identity (`rowActionSubject`, #443/#458/#463) — fixing only the
-  // body would have left two identically-named kebabs and two identical "Chat with Emily" behind it.
-  await expect(component.getByRole("button", { name: rowActionsName(rowActionSubject("Emily", "emily-3")) })).toHaveCount(1);
-  await expect(component.getByRole("button", { name: 'Chat with "Emily" · emily-3' })).toHaveCount(1);
-  await expect(component.getByRole("button", { name: 'Chat with "Emily" · emily', exact: true })).toHaveCount(1);
+  // body would have left two identically-named kebabs and two identical "Chat with Eleni" behind it.
+  await expect(component.getByRole("button", { name: rowActionsName(rowActionSubject("Eleni", "eleni-3")) })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: 'Chat with "Eleni" · eleni-3' })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: 'Chat with "Eleni" · eleni', exact: true })).toHaveCount(1);
 });
 
 // #517, THE SIGHTED HALF (the P1 the reviewer rated and could not reproduce only because the corpus is
@@ -1824,35 +1809,35 @@ test("#517 the qualifier is spent on AMBIGUITY — both Emilys carry one, the un
 test("#517 the qualifier is VISIBLE, and the row's visible label IS its accessible name", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...LIBRARY_AMBIENT_ROUTES,
-    // Both Emilys carry a pitch, so the old subtitle ladder shows the SAME line on both rows: the case the
+    // Both Elenis carry a pitch, so the old subtitle ladder shows the SAME line on both rows: the case the
     // corpus happened not to contain, and the one the sighted reader cannot solve.
     "character.list": characterListResponder([
-      makeCharacterSummary({ ...EMILY_PLAIN, elevatorPitch: "A quiet archivist." }),
-      makeCharacterSummary({ ...EMILY_THIRD, elevatorPitch: "A quiet archivist." }),
+      makeCharacterSummary({ ...ELENI_PLAIN, elevatorPitch: "A quiet archivist." }),
+      makeCharacterSummary({ ...ELENI_THIRD, elevatorPitch: "A quiet archivist." }),
     ]),
     "chat.listChats": chatListResponder([]),
     "tag.listTagFilterVocabulary": () => [],
   });
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
-  const qualified = component.getByRole("button", { name: "Emily · emily-3", exact: true });
+  const qualified = component.getByRole("button", { name: "Eleni · eleni-3", exact: true });
   await expect(qualified).toHaveCount(1);
 
   // RENDERED, not sr-only: a real box with the handle in it.
   const qualifier = qualified.locator('[data-slot="list-row-title-qualifier"]');
-  await expect(qualifier).toHaveText("· emily-3");
+  await expect(qualifier).toHaveText("· eleni-3");
   await expect.poll(async () => (await qualifier.boundingBox())?.width ?? 0).toBeGreaterThan(0);
 
   // The visible label and the announced one are the SAME STRING — a voice-control user can say what they
   // read, and there is nothing in the name that is not on the screen. Scoped to the TITLE LINE: the row's
   // button also wraps the `aria-hidden` avatar (whose fallback paints the name's initials) and the subtitle.
-  await expect(qualified.locator('[data-slot="list-row-title-row"]')).toHaveText("Emily · emily-3");
-  await expect(qualified).toHaveAttribute("aria-label", "Emily · emily-3");
+  await expect(qualified.locator('[data-slot="list-row-title-row"]')).toHaveText("Eleni · eleni-3");
+  await expect(qualified).toHaveAttribute("aria-label", "Eleni · eleni-3");
 });
 
 // ── #493 · the honesty P2s ───────────────────────────────────────────────────────────────────────────
 
-// P2-1 — `30 of 327 characters` is the PAGE SIZE worded as a result count, 230px under a band already
-// reading `CHARACTERS 327`. At rest the status now states the census; the loaded number moves to the foot
+// P2-1 — `30 of 320 characters` is the PAGE SIZE worded as a result count, 230px under a band already
+// reading `CHARACTERS 320`. At rest the status now states the census; the loaded number moves to the foot
 // of the list, next to the tail-fetch sentinel, where it is a fact about the list rather than a claim
 // about the library.
 test("#493 the status line states the CENSUS; the loaded count moves to the foot of the list", async ({ mount, page }) => {
@@ -1872,7 +1857,7 @@ test("#493 the status line states the CENSUS; the loaded count moves to the foot
 // to the 30 rows paged in, presented as library facts, re-forming under the reader as scrolling paged more
 // in. #493 shipped a blanket caveat because the only census available then was lens-blind and had no
 // Uncategorized arm; `character.listTagGroups` is neither, so the caveat is gone and the NUMBERS are the
-// fix. These arms mount a library the pane can never finish paging — 3 rows against a 327-row census — so
+// fix. These arms mount a library the pane can never finish paging — 3 rows against a 320-row census — so
 // every header count on screen is one the loaded rows could not have produced.
 test("#1696 group headers carry the LIBRARY's count, not the loaded page's", async ({ mount, page }) => {
   await routePartialLibrary(page, [ARIA, BOLT, CASSIUS]);
@@ -1960,7 +1945,7 @@ test("#502 the tag vocabulary is NOT read while the filter disclosure is shut �
 
 // ── se-verify-1 (2026-08-22): #518 the census · #519 the disclosure label · #523 the scroll region ────
 
-// #518 — `CHARACTERS 327` (band) and `327 characters` (the FILTERS status line) printed the same number
+// #518 — `CHARACTERS 320` (band) and `320 characters` (the FILTERS status line) printed the same number
 // ~130px apart in a 290px column. ONE VISIBLE HOME, and it is the band, by the chats precedent (#490): the
 // band's census answers the LENS in front of the reader (`N of TOTAL`), which is why the pane's search now
 // lives in the library store where the band — a sibling shell region — can see it. The pane keeps a

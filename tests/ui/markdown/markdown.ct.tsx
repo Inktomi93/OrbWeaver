@@ -332,7 +332,7 @@ test("streaming: a complete message still renders its markdown (bold + list)", a
 // that the opt-in prop mounts the components override, that the span really resolves the scope's
 // `--color-dialogue` (computed value, never the class string), and that OFF is the untouched render.
 const DIALOGUE_SPAN = '[data-slot="dialogue"]';
-const AZARAEL_LINE = "He doesn't look up from the ledger. “You're late,” he says, turning a page.";
+const AVELINE_LINE = "He doesn't look up from the ledger. “You're late,” he says, turning a page.";
 
 /** The COMPUTED color of the first tinted span vs the scope's resolved `--color-dialogue`. */
 function tintVsToken(span: Locator): Promise<{ readonly tint: string; readonly token: string }> {
@@ -352,7 +352,7 @@ function tintVsToken(span: Locator): Promise<{ readonly tint: string; readonly t
 test("colorQuotes ON: a quoted run renders a span painted with the resolved --color-dialogue", async ({ mount }) => {
   const cmp = await mount(
     <Markdown trust="untrusted" mode="static" colorQuotes={true}>
-      {AZARAEL_LINE}
+      {AVELINE_LINE}
     </Markdown>,
   );
   const span = cmp.locator(DIALOGUE_SPAN);
@@ -367,7 +367,7 @@ test("colorQuotes ON: a quoted run renders a span painted with the resolved --co
 test("colorQuotes OFF (the default): the same line renders plain — no tint span at all", async ({ mount }) => {
   const cmp = await mount(
     <Markdown trust="untrusted" mode="static">
-      {AZARAEL_LINE}
+      {AVELINE_LINE}
     </Markdown>,
   );
   await expect(cmp.locator(DIALOGUE_SPAN)).toHaveCount(0);

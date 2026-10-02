@@ -26,7 +26,7 @@ describe("resolveAllowedHosts", () => {
     const input = { allowedHosts: undefined, oidcRedirectUris: undefined, machineHostname: machineHostnameFor(false, "Game-PC") };
     expect(resolveAllowedHosts(input)).toEqual(["game-pc", "game-pc.local"]);
     // macOS may already report the .local form; it is not doubled.
-    expect(resolveAllowedHosts({ ...input, machineHostname: machineHostnameFor(false, "Alexs-MBP.local") })).toEqual(["nates-mbp.local"]);
+    expect(resolveAllowedHosts({ ...input, machineHostname: machineHostnameFor(false, "Alex-MBP.local") })).toEqual(["alex-mbp.local"]);
   });
 
   test("in a container the machine's name (a random id) is not admitted", () => {

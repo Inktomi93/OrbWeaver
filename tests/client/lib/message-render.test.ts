@@ -12,25 +12,25 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
-const KIRA = castId<CharacterId>("char_testrenderaaaa");
+const KORA = castId<CharacterId>("char_testrenderaaaa");
 const ALEX = castId<PersonaId>("persona_testrenderaaaa");
 const NOW_MS = 1_783_080_000_000; // 2026-07-03T12:00:00Z — precomputed literal
 
 const CTX = {
-  characterNamesById: new Map<CharacterId, RowCharacterName>([[KIRA, { name: "Kira of the Vale" }]]),
+  characterNamesById: new Map<CharacterId, RowCharacterName>([[KORA, { name: "Kora of the Vale" }]]),
   personaNamesById: new Map<PersonaId, RowPersonaName>([[ALEX, { name: "Alex", description: "a developer" }]]),
-  speakerCharName: "Kira",
+  speakerCharName: "Kora",
   fallbackPersonaName: "Alex",
   nowMs: NOW_MS,
 };
 
 describe("renderMessageForDisplay", () => {
   test("substitutes macros with the ctx's default (null-stamp) subjects", () => {
-    expect(renderMessageForDisplay("{{char}} waves at {{user}}.", CTX)).toBe("Kira waves at Alex.");
+    expect(renderMessageForDisplay("{{char}} waves at {{user}}.", CTX)).toBe("Kora waves at Alex.");
   });
 
   test("a row's own stamps retarget {{char}}/{{user}} to ITS speaker/author via the producer", () => {
-    expect(renderMessageForDisplay("{{char}} nods at {{user}}.", CTX, KIRA, ALEX)).toBe("Kira of the Vale nods at Alex.");
+    expect(renderMessageForDisplay("{{char}} nods at {{user}}.", CTX, KORA, ALEX)).toBe("Kora of the Vale nods at Alex.");
   });
 
   // The `{{user}}` floor is the ONE unresolved-persona name (`DEFAULT_PERSONA_NAME`, @orb/kit/persona) —

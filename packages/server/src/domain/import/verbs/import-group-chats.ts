@@ -8,9 +8,9 @@
 // is written). Chat learns nothing about SillyTavern; import mints no participant row.
 //
 // MEMBER RESOLUTION IS BY CARD FILENAME, never by display name. ST's group file lists `members:
-// ["Rowan.png", "Lisa.png"]` and stamps `original_avatar: "Rowan.png"` on every group-chat assistant line —
+// ["Briar.png", "Lisa.png"]` and stamps `original_avatar: "Briar.png"` on every group-chat assistant line —
 // the same key `settings.tag_map` uses and the same key the collector carries on `CollectedCard.filename`. Two
-// cards named "Emily" disambiguate to handles `emily`/`emily-2` while keeping distinct filenames, so a
+// cards named "Eleni" disambiguate to handles `eleni`/`eleni-2` while keeping distinct filenames, so a
 // name-keyed roster seats the wrong card in silence. A display-name match, SCOPED to this group's own roster,
 // is the fallback for pre-group-era exports whose lines carry no `original_avatar`.
 //
@@ -83,7 +83,7 @@ function resolveMembers(
  *  `.set(name, id)` over the cast collapsed two same-named cards onto whichever seat wrote last, so a
  *  pre-group-era line carrying only a name was attributed to the WRONG character — deterministically, and
  *  with no record. A name two seats share resolves to NOBODY (the write op's documented "absent ⇒ the run's
- *  primary") and is reported instead: guessing between two Emilys is exactly the silent misattribution the
+ *  primary") and is reported instead: guessing between two Elenis is exactly the silent misattribution the
  *  filename-keyed design exists to prevent. A UNIQUE name still resolves — the fallback is narrowed, not
  *  removed. */
 function speakerNamesOf(
@@ -92,7 +92,7 @@ function speakerNamesOf(
   input: ImportGroupsInput,
 ): { readonly byName: ReadonlyMap<string, CharacterId>; readonly ambiguous: ImportAmbiguousSpeakerName[] } {
   // Keyed by the LOWERCASED name (the lookup key a transcript line matches against), carrying the card's own
-  // casing for the report — the operator recognizes "Emily", not "emily".
+  // casing for the report — the operator recognizes "Eleni", not "eleni".
   const seatsByName = new Map<string, { readonly display: string; readonly seats: Set<CharacterId> }>();
   for (const s of seated) {
     const display = input.characterNameByCardFilename.get(s.file)?.trim();

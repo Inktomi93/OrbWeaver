@@ -15,7 +15,7 @@ import { useState } from "react";
 
 /** Deliberately UNEVEN name lengths — a captioned face takes its name's natural width, so a fold that
  *  assumes a uniform slot is wrong the moment two names differ. */
-const NAMES = ["Az", "Sera", "Niko", "Aria Nightshade", "Bo", "Wren of the Long Winter Court", "Cass", "Ilya", "Mara Vex", "Tuo", "Perrin Halloway", "Ro"];
+const NAMES = ["Az", "Sola", "Niko", "Aria Nightshade", "Bo", "Wren of the Long Winter Court", "Cass", "Ilya", "Mira Vex", "Tuo", "Perrin Halloway", "Ro"];
 
 export interface FaceStripFoldHarnessProps {
   /** The measuring host's inline size — the pane the strip has to fit into. @defaultValue 256 */

@@ -20,7 +20,7 @@ import { makeParticipant } from "./_support.ts";
 
 const ALICE_ID = castId<CharacterId>("char_alice");
 const BOB_ID = castId<CharacterId>("char_bob");
-const NATE_PERSONA_ID = castId<PersonaId>("persona_nate");
+const ALEX_PERSONA_ID = castId<PersonaId>("persona_alex");
 
 test("assistant row with no roster/producer threaded gets no attribution chrome (solo-chat default)", () => {
   const result = resolveRowAttribution({
@@ -163,11 +163,11 @@ test("a non-character participant (human/agent/observer) never counts toward mul
 });
 
 test("user row resolves the message's own personaId against the producer", () => {
-  const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Alex", description: "" }]]);
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([[ALEX_PERSONA_ID, { name: "Alex", description: "" }]]);
   const result = resolveRowAttribution({
     role: "user",
     characterId: null,
-    personaId: NATE_PERSONA_ID,
+    personaId: ALEX_PERSONA_ID,
     personaNamesById,
   });
   expect(result.name).toBe("Alex");
@@ -180,28 +180,28 @@ test("user row resolves the message's own personaId against the producer", () =>
 });
 
 test("user row resolves the avatar HASH from the separate personaAvatarsById producer (#67)", () => {
-  const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Alex", description: "" }]]);
-  const personaAvatarsById = new Map<PersonaId, string | null>([[NATE_PERSONA_ID, "hash_nate"]]);
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([[ALEX_PERSONA_ID, { name: "Alex", description: "" }]]);
+  const personaAvatarsById = new Map<PersonaId, string | null>([[ALEX_PERSONA_ID, "hash_alex"]]);
   const result = resolveRowAttribution({
     role: "user",
     characterId: null,
-    personaId: NATE_PERSONA_ID,
+    personaId: ALEX_PERSONA_ID,
     personaNamesById,
     personaAvatarsById,
   });
   expect(result.name).toBe("Alex");
-  expect(result.avatarHash).toBe("hash_nate");
+  expect(result.avatarHash).toBe("hash_alex");
 });
 
 test("user row with a null personaId falls back to the viewer's active persona — ONLY on the viewer's OWN row (legacy rows)", () => {
-  const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Alex", description: "" }]]);
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([[ALEX_PERSONA_ID, { name: "Alex", description: "" }]]);
   const viewer = castId<UserId>("user_viewer");
   const result = resolveRowAttribution({
     role: "user",
     characterId: null,
     personaId: null,
     personaNamesById,
-    activePersonaId: NATE_PERSONA_ID,
+    activePersonaId: ALEX_PERSONA_ID,
     authorUserId: viewer,
     viewerUserId: viewer,
   });
@@ -213,13 +213,13 @@ test("user row with a null personaId falls back to the viewer's active persona �
 // every one of them with the VIEWER's persona. Another human's words appeared under the host's name, in
 // the transcript AND in the prompt built from those rows.
 test("a DIFFERENT author's null-persona row never borrows the viewer's persona", () => {
-  const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Alex", description: "" }]]);
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([[ALEX_PERSONA_ID, { name: "Alex", description: "" }]]);
   const result = resolveRowAttribution({
     role: "user",
     characterId: null,
     personaId: null,
     personaNamesById,
-    activePersonaId: NATE_PERSONA_ID,
+    activePersonaId: ALEX_PERSONA_ID,
     authorUserId: castId<UserId>("user_someone_else"),
     viewerUserId: castId<UserId>("user_viewer"),
   });
@@ -227,8 +227,8 @@ test("a DIFFERENT author's null-persona row never borrows the viewer's persona",
 });
 
 test("fail-closed: an UNKNOWN author (or unknown viewer) gets no fallback", () => {
-  const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Alex", description: "" }]]);
-  const result = resolveRowAttribution({ role: "user", characterId: null, personaId: null, personaNamesById, activePersonaId: NATE_PERSONA_ID });
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([[ALEX_PERSONA_ID, { name: "Alex", description: "" }]]);
+  const result = resolveRowAttribution({ role: "user", characterId: null, personaId: null, personaNamesById, activePersonaId: ALEX_PERSONA_ID });
   expect(result.name).not.toBe("Alex");
 });
 
@@ -252,10 +252,10 @@ test("user row with NO resolvable persona labels 'Traveler' — never 'You' (the
 //    post-mutation refetch), BOTH the #21 badge AND the {{user}} macro re-resolve to the NEW persona off the
 //    SAME stamp + the SAME producer — no UI needed, just the pure render path. Twin of the server C5 test. ──
 test("C5 client: a changed personaId stamp re-resolves BOTH the badge and {{user}} to the new persona", () => {
-  const mara = castId<PersonaId>("persona_mara");
+  const mira = castId<PersonaId>("persona_mira");
   const zara = castId<PersonaId>("persona_zara");
   const personaNamesById = new Map<PersonaId, RowPersonaName>([
-    [mara, { name: "Mara", description: "" }],
+    [mira, { name: "Mira", description: "" }],
     [zara, { name: "Zara", description: "" }],
   ]);
   const macroCtx = {
@@ -263,17 +263,17 @@ test("C5 client: a changed personaId stamp re-resolves BOTH the badge and {{user
     personaNamesById,
   };
 
-  // Before reattribution: the row is stamped Mara. The viewer's CURRENT persona is Zara — it must NOT win
+  // Before reattribution: the row is stamped Mira. The viewer's CURRENT persona is Zara — it must NOT win
   // over the row's own stamp (that's the whole point of the per-message stamp).
   const badgeBefore = resolveRowAttribution({
     role: "user",
     characterId: null,
-    personaId: mara,
+    personaId: mira,
     personaNamesById,
     activePersonaId: zara,
   });
-  expect(badgeBefore.name).toBe("Mara");
-  expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: mara }, macroCtx)).toBe("Mara waves");
+  expect(badgeBefore.name).toBe("Mira");
+  expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: mira }, macroCtx)).toBe("Mira waves");
 
   // After reattribution the refetched row carries personaId = Zara → badge + macro both flip to Zara.
   const badgeAfter = resolveRowAttribution({
@@ -291,14 +291,14 @@ test("the message's OWN personaId wins over the active persona (historical autho
   const oldPersonaId = castId<PersonaId>("persona_old");
   const personaNamesById = new Map<PersonaId, RowPersonaName>([
     [oldPersonaId, { name: "Old Persona", description: "" }],
-    [NATE_PERSONA_ID, { name: "Alex", description: "" }],
+    [ALEX_PERSONA_ID, { name: "Alex", description: "" }],
   ]);
   const result = resolveRowAttribution({
     role: "user",
     characterId: null,
     personaId: oldPersonaId,
     personaNamesById,
-    activePersonaId: NATE_PERSONA_ID,
+    activePersonaId: ALEX_PERSONA_ID,
   });
   expect(result.name).toBe("Old Persona");
 });
@@ -524,8 +524,8 @@ test("a USER row is untouched by the kind arm (purpose gates the assistant plane
   const result = resolveRowAttribution({
     role: "user",
     characterId: null,
-    personaId: NATE_PERSONA_ID,
-    personaNamesById: new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Alex", description: "" }]]),
+    personaId: ALEX_PERSONA_ID,
+    personaNamesById: new Map<PersonaId, RowPersonaName>([[ALEX_PERSONA_ID, { name: "Alex", description: "" }]]),
     kind: "narrator",
   });
   expect(result.name).toBe("Alex");

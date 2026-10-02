@@ -663,8 +663,8 @@ describe("list — totalCount (the census the readouts print)", () => {
 describe("list — nameIsAmbiguous (the row's disambiguation gate)", () => {
   async function seedTwins(db: Awaited<ReturnType<typeof freshDb>>): Promise<UserId> {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await seedRawCharacter(db, { id: "character_e1", ownerId: owner, handle: castId<CharacterHandle>("emily"), name: "Emily", createdAt: 3000 });
-    await seedRawCharacter(db, { id: "character_e2", ownerId: owner, handle: castId<CharacterHandle>("emily-3"), name: "Emily", createdAt: 2000 });
+    await seedRawCharacter(db, { id: "character_e1", ownerId: owner, handle: castId<CharacterHandle>("eleni"), name: "Eleni", createdAt: 3000 });
+    await seedRawCharacter(db, { id: "character_e2", ownerId: owner, handle: castId<CharacterHandle>("eleni-3"), name: "Eleni", createdAt: 2000 });
     await seedRawCharacter(db, { id: "character_solo", ownerId: owner, handle: castId<CharacterHandle>("assistant"), name: "Charlotte", createdAt: 1000 });
     return owner;
   }
@@ -677,9 +677,9 @@ describe("list — nameIsAmbiguous (the row's disambiguation gate)", () => {
     const page = await svc.list({ principal: principal(owner) });
     const byHandle = new Map(page.items.map((row) => [row.handle, row.nameIsAmbiguous]));
     // BOTH twins, including the one whose handle IS the slugified name — the case the client's derivability
-    // gate skipped, which is what left two rows announcing "Emily" and "Emily · emily-3" side by side.
-    expect(byHandle.get(castId<CharacterHandle>("emily"))).toBe(true);
-    expect(byHandle.get(castId<CharacterHandle>("emily-3"))).toBe(true);
+    // gate skipped, which is what left two rows announcing "Eleni" and "Eleni · eleni-3" side by side.
+    expect(byHandle.get(castId<CharacterHandle>("eleni"))).toBe(true);
+    expect(byHandle.get(castId<CharacterHandle>("eleni-3"))).toBe(true);
     // …and `Charlotte · assistant`, the misleading qualifier the same gate minted, is gone.
     expect(byHandle.get(castId<CharacterHandle>("assistant"))).toBe(false);
   });
@@ -697,8 +697,8 @@ describe("list — nameIsAmbiguous (the row's disambiguation gate)", () => {
 
     // …and a search that matches exactly one of the twins keeps it too — filtering the other one out of
     // view does not make two characters stop sharing a name.
-    const searched = await svc.list({ principal: principal(owner), search: "emily-3" });
-    expect(searched.items.map((row) => row.handle)).toEqual(["emily-3"]);
+    const searched = await svc.list({ principal: principal(owner), search: "eleni-3" });
+    expect(searched.items.map((row) => row.handle)).toEqual(["eleni-3"]);
     expect(searched.items[0]?.nameIsAmbiguous).toBe(true);
   });
 });

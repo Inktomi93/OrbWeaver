@@ -12,25 +12,15 @@ plan: agent-principals
 
 ## What
 
-Owner ruling: this program stays parked and stays valid. It is not a decision to resolve now. Do not close or drop it. It wakes when the owner un-parks the program.
-
-The design set in `docs/plans/agent-principals/design.md` describes agents as principals: a
-mint, participant attribution, a capability ceiling and seats. The tree keeps only the dormant `kind` and
-`ownerUserId` columns in `packages/db/src/schema/users.ts`. The mint, the seating path and `canAgent` do
-not exist. The owner rules one of two outcomes:
-
-- Rebuild. Refresh the design against the tree and the ADRs, then build it in phases with behavioral tests.
-- Delete. Remove the design set, and decide whether the dormant columns stay.
+Retain the agent-principal concept under `docs/plans/agent-principals/design.md`, parked until the owner resumes it. Design seats and capabilities from current Orbweaver needs then.
 
 ## Why
 
-The set reads as a committed program, but nothing on the tree implements it. The seats in the RPG program
-depend on it. Item 0011 cannot place the set until the owner rules.
+The concept is not queued implementation and does not authorize an alternate identity or tool path.
 
 ## Done when
 
-The ruling is recorded. For a rebuild, a plan under `docs/plans/` exists and its build items are filed. For
-a deletion, the design set is gone and no doc cites it.
+The owner resumes the program and approves a current design under the standing identity and funding rules.
 
 ## Evidence
 

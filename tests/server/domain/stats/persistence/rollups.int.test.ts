@@ -132,7 +132,7 @@ describe("readCharacter / readLeaderboard owner-scoping (D23 — no ownerId on c
     expect(bySwipes.rows[0]?.characterId).toBe(a);
   });
 
-  // "ANALYTICS 50" read as a census of a 328-character library (P2g). `rows.length` on a capped page IS
+  // "ANALYTICS 50" read as a census of a 330-character library (P2g). `rows.length` on a capped page IS
   // the cap, so the page carries the population it was cut from and the band states a relationship.
   test("the page carries the UNCAPPED ranked total beside the capped rows", async () => {
     await Promise.all(

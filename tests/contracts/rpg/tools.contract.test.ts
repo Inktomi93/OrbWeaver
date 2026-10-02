@@ -77,7 +77,7 @@ test("update_inventory carries walletDeltas (the stored wallet writer)", () => {
 
 test("update_inventory can patch an existing item's carrying details", () => {
   const parsed = updateInventoryArgsSchema.parse({
-    targetRef: "Mira",
+    targetRef: "Tamsin",
     update: [{ name: "small brass key", description: "hanging from a silver chain", location: "around her neck" }],
   });
   expect(parsed.update).toEqual([{ name: "small brass key", description: "hanging from a silver chain", location: "around her neck" }]);

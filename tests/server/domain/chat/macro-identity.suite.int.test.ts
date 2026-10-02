@@ -200,16 +200,16 @@ test("S1 solo: a user row's {{user}} resolves to its own stamped persona on both
   const { scene, personas } = await seedScene(db, {
     key: "a1s1",
     characters: ["Aria"],
-    humans: [{ personaKey: "mara" }],
-    anchor: "mara",
+    humans: [{ personaKey: "mira" }],
+    anchor: "mira",
   });
   const out = await scene.resolve({
     role: "user",
     content: "{{user}} waves",
     characterId: null,
-    personaId: personas["mara"] ?? null,
+    personaId: personas["mira"] ?? null,
   });
-  expect([out.server, out.client]).toStrictEqual(["a1s1_mara waves", "a1s1_mara waves"]);
+  expect([out.server, out.client]).toStrictEqual(["a1s1_mira waves", "a1s1_mira waves"]);
 });
 
 test("S3 group MxN: each human's line carries THEIR OWN persona — viewer-independent, per-row", async () => {
@@ -285,8 +285,8 @@ test("S1 solo: greeting {{user}} → the one human's persona (anchor == active b
   const { scene, chars } = await seedScene(db, {
     key: "a2s1",
     characters: ["Aria"],
-    humans: [{ personaKey: "mara" }],
-    anchor: "mara",
+    humans: [{ personaKey: "mira" }],
+    anchor: "mira",
   });
   const out = await scene.resolve({
     role: "assistant",
@@ -294,7 +294,7 @@ test("S1 solo: greeting {{user}} → the one human's persona (anchor == active b
     characterId: chars["Aria"] ?? null,
     personaId: null,
   });
-  expect([out.server, out.client]).toStrictEqual(["Hello a2s1_mara", "Hello a2s1_mara"]);
+  expect([out.server, out.client]).toStrictEqual(["Hello a2s1_mira", "Hello a2s1_mira"]);
 });
 
 // ═══ Axis 3 / ruling B — a HUMAN's `{{char}}` → the CHARACTER NAMES (group in multi, the one char in solo) ═══════════
@@ -306,14 +306,14 @@ test("S2 group 1xN: a user's {{char}} → the JOINED character names (== {{group
   const { scene, personas } = await seedScene(db, {
     key: "bs2",
     characters: ["Aria", "Kai"],
-    humans: [{ personaKey: "mara" }],
-    anchor: "mara",
+    humans: [{ personaKey: "mira" }],
+    anchor: "mira",
   });
   const out = await scene.resolve({
     role: "user",
     content: "{{char}}, gather round",
     characterId: null,
-    personaId: personas["mara"] ?? null,
+    personaId: personas["mira"] ?? null,
   });
   const ideal = "bs2_Aria, bs2_Kai, gather round";
   expect([out.server, out.client]).toStrictEqual([ideal, ideal]);
@@ -342,14 +342,14 @@ test("S1 solo: a user's {{char}} → the ONE character (a set of one, no join)",
   const { scene, personas } = await seedScene(db, {
     key: "bs1",
     characters: ["Aria"],
-    humans: [{ personaKey: "mara" }],
-    anchor: "mara",
+    humans: [{ personaKey: "mira" }],
+    anchor: "mira",
   });
   const out = await scene.resolve({
     role: "user",
     content: "{{char}} listens",
     characterId: null,
-    personaId: personas["mara"] ?? null,
+    personaId: personas["mira"] ?? null,
   });
   expect([out.server, out.client]).toStrictEqual(["bs1_Aria listens", "bs1_Aria listens"]);
 });
@@ -361,8 +361,8 @@ test("S2 group: a past Aria line keeps {{char}} = Aria even as Kai is the curren
   const { scene, chars } = await seedScene(db, {
     key: "a5s2",
     characters: ["Aria", "Kai"],
-    humans: [{ personaKey: "mara" }],
-    anchor: "mara",
+    humans: [{ personaKey: "mira" }],
+    anchor: "mira",
   });
   const out = await scene.resolve({
     role: "assistant",
@@ -380,7 +380,7 @@ test("SAD null persona + NO anchor → {{user}} floors to the ONE unresolved-per
   const { scene, chars } = await seedScene(db, {
     key: "sadnp",
     characters: ["Aria"],
-    humans: [{ personaKey: "mara" }],
+    humans: [{ personaKey: "mira" }],
     anchor: null,
   });
   const out = await scene.resolve({
@@ -419,8 +419,8 @@ test("SAD deleted character → the CLIENT display floors {{char}} to 'Character
   const { scene } = await seedScene(db, {
     key: "saddc",
     characters: ["Aria", "Kai"],
-    humans: [{ personaKey: "mara" }],
-    anchor: "mara",
+    humans: [{ personaKey: "mira" }],
+    anchor: "mira",
   });
   // A VOICED row stamped a since-deleted characterId (producer miss) — the atom floors to "Character", NOT
   // the character-name join (only a NULL characterId means "every character"). The server's `charForSpeaker` fallback to the
@@ -440,16 +440,16 @@ test("SAD persona reattribution: re-stamping the row re-resolves {{user}} to the
   const { scene, personas } = await seedScene(db, {
     key: "sadre",
     characters: ["Aria"],
-    humans: [{ personaKey: "mara" }],
-    anchor: "mara",
+    humans: [{ personaKey: "mira" }],
+    anchor: "mira",
     extraPersonas: ["nyx"],
   });
-  // Before: stamped Mara → "Mara". After reattribution (a new personaId stamp): → "Nyx", on BOTH homes.
+  // Before: stamped Mira → "Mira". After reattribution (a new personaId stamp): → "Nyx", on BOTH homes.
   const before = await scene.resolve({
     role: "user",
     content: "{{user}} waves",
     characterId: null,
-    personaId: personas["mara"] ?? null,
+    personaId: personas["mira"] ?? null,
   });
   const after = await scene.resolve({
     role: "user",
@@ -457,7 +457,7 @@ test("SAD persona reattribution: re-stamping the row re-resolves {{user}} to the
     characterId: null,
     personaId: personas["nyx"] ?? null,
   });
-  expect([before.server, before.client]).toStrictEqual(["sadre_mara waves", "sadre_mara waves"]);
+  expect([before.server, before.client]).toStrictEqual(["sadre_mira waves", "sadre_mira waves"]);
   expect([after.server, after.client]).toStrictEqual(["sadre_nyx waves", "sadre_nyx waves"]);
 });
 
@@ -466,19 +466,19 @@ test("SAD persona-switch mid-chat: a PAST row keeps its send-time stamp (a live 
   const { scene, personas } = await seedScene(db, {
     key: "sadsw",
     characters: ["Aria"],
-    humans: [{ personaKey: "mara" }],
-    anchor: "mara",
+    humans: [{ personaKey: "mira" }],
+    anchor: "mira",
     extraPersonas: ["nyx"],
   });
-  // The human's active persona later switches to Nyx, but the OLD row still carries its Mara stamp → still
-  // resolves to Mara (the stamp is the source of truth; only reattribution rewrites it).
+  // The human's active persona later switches to Nyx, but the OLD row still carries its Mira stamp → still
+  // resolves to Mira (the stamp is the source of truth; only reattribution rewrites it).
   const out = await scene.resolve({
     role: "user",
     content: "{{user}} spoke",
     characterId: null,
-    personaId: personas["mara"] ?? null,
+    personaId: personas["mira"] ?? null,
   });
-  expect([out.server, out.client]).toStrictEqual(["sadsw_mara spoke", "sadsw_mara spoke"]);
+  expect([out.server, out.client]).toStrictEqual(["sadsw_mira spoke", "sadsw_mira spoke"]);
 });
 
 test("SAD one human viewing another human's line: it resolves to the AUTHOR, identical for every viewer", async () => {
@@ -505,14 +505,14 @@ test("hostile / typo macro in stored content fails open to the literal token (bo
   const { scene, personas } = await seedScene(db, {
     key: "sadho",
     characters: ["Aria"],
-    humans: [{ personaKey: "mara" }],
-    anchor: "mara",
+    humans: [{ personaKey: "mira" }],
+    anchor: "mira",
   });
   const out = await scene.resolve({
     role: "user",
     content: "{{nope::x}} {{user}}",
     characterId: null,
-    personaId: personas["mara"] ?? null,
+    personaId: personas["mira"] ?? null,
   });
-  expect([out.server, out.client]).toStrictEqual(["{{nope::x}} sadho_mara", "{{nope::x}} sadho_mara"]);
+  expect([out.server, out.client]).toStrictEqual(["{{nope::x}} sadho_mira", "{{nope::x}} sadho_mira"]);
 });

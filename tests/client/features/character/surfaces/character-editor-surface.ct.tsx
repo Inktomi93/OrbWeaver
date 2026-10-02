@@ -761,11 +761,8 @@ function fontSizePx(node: Locator): Promise<number> {
   return node.evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize));
 }
 
-// P1-2 — every facet row's Button carried the whole field BODY as its accessible name: the Description
-// row measured 1,283 characters, Example messages ~2,000, announced as the NAME of a control with nothing
-// saying what activating it does (WCAG 2.4.6 / 4.1.2). The correct pattern already shipped one component
-// over (the list rows' aria-label + aria-describedby; Lighthouse's mismatch flag on it is a FALSE POSITIVE
-// — the review's retraction R2 — so the list rows are deliberately untouched).
+// Facet buttons must announce the field name, not the entire field body; the preview remains a description
+// rather than an oversized accessible control name.
 test("P1-2 a FILLED facet row is named by its LABEL, not by the field body it previews", async ({ mount, page }) => {
   await routeEditor(page);
   const component = await mount(<CharacterEditorSurfaceStory />);
@@ -776,7 +773,7 @@ test("P1-2 a FILLED facet row is named by its LABEL, not by the field body it pr
   await expect(row).toHaveAccessibleName("Description");
   // The preview is still on screen — this is a NAMING fix, not a content one.
   await expect(component.getByText(CARD.description ?? "")).toBeVisible();
-  // …and the BODY is not the row's DESCRIPTION either: a 1,283-character description only moves the wall.
+  // …and the BODY is not the row's DESCRIPTION either: a long description only moves the wall.
   // The pin is the WALL's absence, not an empty description — #254 found that an empty one made a filled
   // row and an empty one announce identically, so the description now carries a terse fill STATE (the count,
   // never the prose; the full arms live in character-facet-row.ct.tsx). The original ruling is intact: what

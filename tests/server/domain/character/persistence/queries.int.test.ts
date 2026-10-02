@@ -39,14 +39,14 @@ describe("persistence/queries", () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    await seedRawCharacter(db, { id: "character_e1", ownerId: owner, handle: castId<CharacterHandle>("emily"), name: "Emily" });
-    await seedRawCharacter(db, { id: "character_e2", ownerId: owner, handle: castId<CharacterHandle>("emily-2"), name: "emily" });
+    await seedRawCharacter(db, { id: "character_e1", ownerId: owner, handle: castId<CharacterHandle>("eleni"), name: "Eleni" });
+    await seedRawCharacter(db, { id: "character_e2", ownerId: owner, handle: castId<CharacterHandle>("eleni-2"), name: "eleni" });
     await seedRawCharacter(db, { id: "character_solo", ownerId: owner, handle: castId<CharacterHandle>("assistant"), name: "Charlotte" });
     // A synthetic bucket and ANOTHER owner's row must not manufacture a collision for this owner.
     await seedRawCharacter(db, { id: "character_grp2", ownerId: owner, handle: castId<CharacterHandle>("__group__c2"), name: "Charlotte", synthetic: true });
     await seedRawCharacter(db, { id: "character_far", ownerId: other, handle: castId<CharacterHandle>("charlotte"), name: "Charlotte" });
 
-    expect(await ambiguousNamesFor(db, owner, ["Emily", "emily", "Charlotte"])).toEqual(["emily"]);
+    expect(await ambiguousNamesFor(db, owner, ["Eleni", "eleni", "Charlotte"])).toEqual(["eleni"]);
     // A name the page does not carry is never answered about (the read is bounded by the page)…
     expect(await ambiguousNamesFor(db, owner, ["Charlotte"])).toEqual([]);
     // …and an empty page reads nothing at all.
@@ -56,7 +56,7 @@ describe("persistence/queries", () => {
   test("summaryOf carries the ambiguity verdict onto the row (#517)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await seedRawCharacter(db, { id: "character_amb", ownerId: owner, handle: castId<CharacterHandle>("emily"), name: "Emily" });
+    await seedRawCharacter(db, { id: "character_amb", ownerId: owner, handle: castId<CharacterHandle>("eleni"), name: "Eleni" });
 
     const rows = await listOwnedCharactersWithAvatar(db, { ownerId: owner, limit: 10, sort: "recent", cursor: undefined });
     const row = rows[0];
@@ -64,7 +64,7 @@ describe("persistence/queries", () => {
       throw new Error("expected the seeded row");
     }
     expect(summaryOf(row, [], NO_AMBIGUOUS_NAMES).nameIsAmbiguous).toBe(false);
-    expect(summaryOf(row, [], new Set(["emily"])).nameIsAmbiguous).toBe(true);
+    expect(summaryOf(row, [], new Set(["eleni"])).nameIsAmbiguous).toBe(true);
   });
 
   test("loadOwnedCharacterRow is owner-scoped (undefined for a foreign row)", async () => {

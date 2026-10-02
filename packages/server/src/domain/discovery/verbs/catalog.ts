@@ -61,9 +61,8 @@ async function catalog(db: Db, ownerId: UserId): Promise<CatalogStats> {
     .from(characterSummaries)
     .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
     .where(ownedRealCharacters(ownerId));
-  // The BASE the distilled count is out of (#535). Owner-scoped `characters`, the same scope the join
-  // above derives — so `totalDistilled ≤ totalCharacters` holds by construction and a surface can print
-  // "313 of 327" without joining a second, heavier read for the denominator.
+  // totalCharacters uses the same owner scope as the distilled join, so totalDistilled ≤ totalCharacters
+  // and the surface can state the denominator without a second heavier read.
   const ownedRows = await db.select({ count: sql<number>`count(*)` }).from(characters).where(ownedRealCharacters(ownerId));
   return { genres, tones, topTags, tagPairs, totalDistilled: totalRows[0]?.count ?? 0, totalCharacters: ownedRows[0]?.count ?? 0 };
 }

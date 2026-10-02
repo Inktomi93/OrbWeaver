@@ -1,17 +1,6 @@
-// Boot step: decide WHICH local-light model slots this box should warm after the listener binds. The
-// DOWNLOAD itself is the runtime's (`@orb/inference` local-light `prefetch`); this file is the half that
-// needs a RESOLVE — which is why it lives in entry: only the runtime's binding fold knows whether a task
-// lands on the in-process tier or on a hosted/endpoint row for a given user (inference program §8.3).
-//
-// THE RULE: warm a slot ONLY when a task ACTUALLY resolves to a local-light connection. A box whose vector
-// tasks run on vLLM or OpenRouter downloads nothing — its weights would be dead bytes, and an unexplained
-// multi-GB fetch on a GPU box is worse than a lazy one. `matte` (RMBG-1.4) is never planned: nothing calls the
-// alpha-matte op while the expressions program is parked (docs/work/0049-expressions-program.md), so the
-// download would buy nothing. Un-parking expressions puts it back in this plan.
-//
-// WHOSE bindings: the boot passes the principals it can honestly ask for (today the box owner; a user-less
-// OIDC box has none and keeps the lazy path — §15c). The plan is ORDERED by `LOCAL_LIGHT_MODEL_SLOTS`
-// (smallest weights first) because the prefetch walks it sequentially; that order has ONE home.
+// Prefetch only slots that resolve to local-light for an available principal.
+// The shared image/text encoder warms once; tuple order keeps downloads sequential.
+// Resolver failures preserve lazy loading and never fail boot.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { RoutableTask } from "@orb/contracts/inference";
@@ -24,7 +13,7 @@ const LOCAL_LIGHT_PROVIDER_ID = "local-light";
 
 /** Which tasks feed which prefetch slot. `embed` and `imageEmbed` share ONE slot on purpose: they are the same
  *  jina-clip-v2 weights (one joint text↔image space), so warming them separately would be the same download
- *  twice — the first of them that lands on local-light claims the slot. `matte` is not planned; see the header. */
+ *  twice — the first of them that lands on local-light claims the slot. */
 const TASK_SLOTS: readonly { readonly slot: LocalLightModelSlot; readonly tasks: readonly RoutableTask[] }[] = [
   { slot: "rerank", tasks: ["rerank"] },
   { slot: "embed", tasks: ["embed", "imageEmbed"] },

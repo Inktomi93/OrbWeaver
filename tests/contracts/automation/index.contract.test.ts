@@ -9,10 +9,16 @@ import {
   AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR,
   AUTOMATION_FIRE_OUTCOMES,
   AUTOMATION_OWNER_BUDGET_DEFAULTS,
+  AUTOMATION_RULE_NAME_MAX_CHARS,
   AUTOMATION_TRIGGER_BUSES,
   automationActionSchema,
   automationActionsSchema,
   automationFireOutcomeSchema,
+  automationRuleCreateSchema,
+  automationRuleEditableSchema,
+  automationRuleReorderSchema,
+  automationRuleToolViewSchema,
+  automationRuleUpdateSchema,
   automationTriggerFor,
   automationTriggerSchema,
   CHAT_TRIGGER_TYPES,
@@ -27,6 +33,7 @@ import {
   triggerFactSchema,
 } from "@orb/contracts/automation";
 import { DOMAIN_EVENT_TYPES } from "@orb/contracts/events";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -452,4 +459,103 @@ test("the budget ceiling is a whole number above the owner plane default", () =>
   expect(Number.isInteger(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR)).toBe(true);
   // A ceiling at or below the default would make the shipped default itself unsettable.
   expect(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR).toBeGreaterThan(AUTOMATION_OWNER_BUDGET_DEFAULTS.maxFiresPerHour);
+});
+
+describe("custom rule authored wire boundary", () => {
+  const editable = {
+    name: "custom",
+    trigger: { bus: "chat", type: "messageCommitted" },
+    actions: [{ type: "set_variable", scope: "chat", key: "k", op: "set", value: "" }],
+  };
+
+  test("authored names use the storage code-point cap rather than rejecting valid astral characters", () => {
+    const name = "🙂".repeat(AUTOMATION_RULE_NAME_MAX_CHARS);
+    expect(automationRuleEditableSchema.safeParse({ ...editable, name }).success).toBe(true);
+    expect(automationRuleEditableSchema.safeParse({ ...editable, name: `${name}x` }).success).toBe(false);
+  });
+
+  test("requires a distinct birth key and explicit scope, and forbids lifecycle/authority/provenance fields", () => {
+    const birth = { ...editable, chatId: null, creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation) };
+    expect(automationRuleCreateSchema.parse(birth)).toMatchObject({ chatId: null, cooldownSeconds: 0, maxFiresPerHour: 30, matchAutomationEvents: false });
+    for (const key of ["ownerId", "enabled", "position", "id", "rulePresetId", "rulePresetKnobs", "consecutiveErrors", "creation_request_id"]) {
+      expect(automationRuleCreateSchema.safeParse({ ...birth, [key]: "forged" }).success, key).toBe(false);
+    }
+    expect(automationRuleCreateSchema.safeParse(editable).success).toBe(false);
+    expect(automationRuleCreateSchema.safeParse({ ...birth, creationRequestId: mintTypeId(ID_PREFIX.automationRule) }).success).toBe(false);
+    expect(automationRuleCreateSchema.safeParse({ ...birth, chatId: "chat_bad" }).success).toBe(false);
+    expect(
+      automationRuleUpdateSchema.safeParse({ ...editable, ruleId: mintTypeId(ID_PREFIX.automationRule), creationRequestId: birth.creationRequestId }).success,
+    ).toBe(false);
+    expect(automationRuleReorderSchema.safeParse({ chatId: null, orderedIds: [birth.creationRequestId] }).success).toBe(false);
+  });
+
+  test("preserves null/empty/false/zero values, bounds the actual 120-character name and rejects fractional controls", () => {
+    const body = { ...editable, description: "", predicateCel: null, matchAutomationEvents: false, cooldownSeconds: 0, maxFiresPerHour: 0 };
+    expect(automationRuleEditableSchema.parse(body)).toEqual(body);
+    expect(automationRuleEditableSchema.safeParse({ ...body, name: "n".repeat(AUTOMATION_RULE_NAME_MAX_CHARS) }).success).toBe(true);
+    expect(automationRuleEditableSchema.safeParse({ ...body, name: "n".repeat(AUTOMATION_RULE_NAME_MAX_CHARS + 1) }).success).toBe(false);
+    expect(automationRuleEditableSchema.safeParse({ ...body, cooldownSeconds: 0.5 }).success).toBe(false);
+    expect(automationRuleEditableSchema.safeParse({ ...body, maxFiresPerHour: 241 }).success).toBe(false);
+    expect(automationRuleEditableSchema.safeParse({ ...body, actions: [] }).success).toBe(false);
+  });
+
+  test("retains every action arm and its parsed fields rather than narrowing the editor vocabulary", () => {
+    const bookId = mintTypeId(ID_PREFIX.worldBook);
+    const arms = [
+      { type: "set_variable", scope: "global", key: "k", op: "set", value: "" },
+      { type: "transform_draft", target: "assembled_dynamic", template: "{{draft}}" },
+      { type: "insert_world_info_entry", bookId, entryKey: "key", keys: ["a"], contentTemplate: "content", position: "before", confirmFirst: true },
+      { type: "surface_quick_reply", choices: [{ label: "Plan", sendTemplate: "Wait", mode: "compose" }] },
+      { type: "post_notification", recipient: "host", messageTemplate: "notice" },
+      { type: "trigger_turn", speakerCharacterId: mintTypeId(ID_PREFIX.character), guidedTemplate: "Stay", confirmFirst: true },
+      {
+        type: "generate_image",
+        mode: "free",
+        prompt: "mountain",
+        negative: "rain",
+        n: 2,
+        size: "square",
+        subjectCharacterId: mintTypeId(ID_PREFIX.character),
+        useAvatarReference: true,
+        reuse: "never",
+        quiet: true,
+        confirmFirst: true,
+      },
+      { type: "set_chat_background", instruction: "sunset", confirmFirst: true },
+      {
+        type: "run_analysis",
+        brief: "Read",
+        steer: "",
+        routes: { steer: { apply: "confirm" }, lore: { bookId }, suggest: {}, rewrite: {}, vars: { key: "v" } },
+      },
+      { type: "run_tool", name: "plugin_test_tool", argsTemplate: '{"k":"{{draft}}"}', resultVar: "captured", resultScope: "global" },
+    ];
+    expect(arms.map((arm) => automationRuleEditableSchema.parse({ ...editable, actions: [arm] }).actions[0])).toEqual(
+      arms.map((arm) => automationActionSchema.parse(arm)),
+    );
+    expect(arms.map((arm) => arm.type)).toEqual([...AUTOMATION_ACTION_TYPES]);
+  });
+
+  test("rejects recursive trigger, action, choice and analysis-route extras instead of silently stripping them", () => {
+    const forged = [
+      { ...editable, trigger: { ...editable.trigger, ownerId: "foreign" } },
+      { ...editable, actions: [{ ...editable.actions[0], enabled: true }] },
+      { ...editable, actions: [{ type: "surface_quick_reply", choices: [{ label: "Go", sendTemplate: "go", ownerId: "foreign" }] }] },
+      ...["steer", "lore", "suggest", "rewrite", "vars"].map((route) => ({
+        ...editable,
+        actions: [{ type: "run_analysis", brief: "b", routes: { [route]: { bookId: mintTypeId(ID_PREFIX.worldBook), key: "v", secret: "foreign" } } }],
+      })),
+      { ...editable, actions: [{ type: "run_tool", name: "plugin_x", confirmFirst: true }] },
+    ];
+    for (const body of forged) {
+      expect(automationRuleEditableSchema.safeParse(body).success).toBe(false);
+    }
+  });
+
+  test("catalog admits JSON-only schema metadata and an exact allowlisted envelope", () => {
+    const tool = { name: "plugin_x", description: "mine", parameters: { type: "object", properties: { tag: { type: "string" } } } };
+    expect(automationRuleToolViewSchema.parse(tool)).toEqual(tool);
+    expect(automationRuleToolViewSchema.safeParse({ ...tool, ownerId: "foreign" }).success).toBe(false);
+    expect(automationRuleToolViewSchema.safeParse({ ...tool, parameters: { execute: (): string => "not JSON" } }).success).toBe(false);
+  });
 });

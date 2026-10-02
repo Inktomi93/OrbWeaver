@@ -32,7 +32,7 @@ describe("group memory build↔recall round-trip (F1 regression)", () => {
     // Two seated characters + the REAL synthetic group-as-character (a hidden `characters` row minted for the
     // room). The FK target for the shared bucket is this synthetic row — NOT the `__group__` handle string.
     const c1 = await seedCharacter(db, host, "aria");
-    const c2 = await seedCharacter(db, host, "bram");
+    const c2 = await seedCharacter(db, host, "bryn");
     const synthetic = await seedCharacter(db, host, "grp_synthetic");
     const chatId = await seedChat(db, "grp");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });

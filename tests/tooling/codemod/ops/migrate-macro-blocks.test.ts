@@ -13,7 +13,7 @@ import { migrateMacroBlocks } from "../../../../tooling/src/codemod/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function opts(extra: Partial<ProcessMacroOptions> = {}): ProcessMacroOptions {
-  return { char: "Aria", user: "Mara", persona: "Hero", scenario: "A quest", env: {}, ...extra };
+  return { char: "Aria", user: "Mira", persona: "Hero", scenario: "A quest", env: {}, ...extra };
 }
 
 // A representative owner-seed shape: conditionals (plain / comparator / else), the transform family,
@@ -32,7 +32,7 @@ const MIGRATED_SEED = [
   "{{setvar::hp::10}}HP {{getvar::hp}}",
 ].join("\n");
 
-const EXPECTED_RENDER = ["The hearth glows.", "Aria greets Mara.", "BEWARE", "HP 10"].join("\n");
+const EXPECTED_RENDER = ["The hearth glows.", "Aria greets Mira.", "BEWARE", "HP 10"].join("\n");
 
 test("the golden: old-form seed migrates to the universal form and renders byte-identical", () => {
   const { text, rewrites, skipped } = migrateMacroBlocks(OLD_FORM_SEED);

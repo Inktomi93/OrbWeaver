@@ -23,8 +23,8 @@ test("reserves the aspect box via aspectRatio even when src is null", async ({ m
 });
 
 test("alt is applied to the rendered image", async ({ mount, page }) => {
-  await mount(<CrossfadeImage alt="the owner's avatar" aspectRatio="1" src={ONE_PX_SVG} />);
-  await expect(page.locator('[data-slot="crossfade-image-current"]')).toHaveAttribute("alt", "the owner's avatar");
+  await mount(<CrossfadeImage alt="Alex's avatar" aspectRatio="1" src={ONE_PX_SVG} />);
+  await expect(page.locator('[data-slot="crossfade-image-current"]')).toHaveAttribute("alt", "Alex's avatar");
 });
 
 test("on src change the new image fades in over the old, which is then dropped", async ({ mount, page }) => {

@@ -27,17 +27,19 @@ import "../../../support/composed-real.ts";
 import type { AutomationActionInput } from "@orb/contracts/automation";
 import type { InvocationChat } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
-import { automationRules, chats } from "@orb/db";
+import { automationRules, chatParticipants, chats } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserConnectionId, UserId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { RuleValidationError } from "@orb/server/domain/automation";
 import { loadPresentRole } from "@orb/server/domain/chat";
 import type { PluginToolHandle } from "@orb/server/domain/tool-use";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { MockInstance } from "vitest";
 import { vi } from "vitest";
-import { expect, test } from "../../../support/fixtures.ts";
+import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../../support/fixtures.ts";
 import { principal, seedHostChat, seedUser } from "../../domain/automation/_support.ts";
+import { seedParticipant } from "../../domain/chat/_support.ts";
 
 /** ONE namespaced name, installed by TWO users — the #677 shape (`plugin_<slug'>_<name>` is derived from a
  *  manifest, so two people installing the same plugin produce byte-identical names). */
@@ -51,19 +53,32 @@ interface ToolProbe {
   readonly handle: PluginToolHandle;
 }
 
+interface ToolSpec {
+  readonly marker: string;
+  readonly description?: string;
+  readonly schemaValue?: string;
+  readonly name?: string;
+}
+
 /** Install `installer`'s copy of {@link TOOL} through the REAL runtime registrar, with a marker-prefixed
  *  result so a captured value names which shelf it came off. `resolveInstallerRole` is the production wiring
  *  verbatim (chat's own `loadPresentRole` over the real roster), so the PL-C ceiling is real too. */
-function installTool(app: ServicesResult, db: Db, installer: UserId, marker: string): ToolProbe {
+function installTool(app: ServicesResult, db: Db, installer: UserId, definition: string | ToolSpec): ToolProbe {
+  const spec: ToolSpec = typeof definition === "string" ? { marker: definition } : definition;
   const calls: { argsJson: string; chat: InvocationChat | null }[] = [];
   const handle = app.toolUse.registerPluginTool({
-    name: TOOL,
-    description: "report the room's mood",
-    parameters: { type: "object", properties: { tag: { type: "string" } }, required: ["tag"], additionalProperties: false },
+    name: spec.name ?? TOOL,
+    description: spec.description ?? "report the room's mood",
+    parameters: {
+      type: "object",
+      properties: { tag: { type: "string", ...(spec.schemaValue === undefined ? {} : { enum: [spec.schemaValue] }) } },
+      required: ["tag"],
+      additionalProperties: false,
+    },
     installer: principal(installer),
     invoke: (argsJson, chat): Promise<string> => {
       calls.push({ argsJson, chat });
-      return Promise.resolve(`${marker}:${argsJson}`);
+      return Promise.resolve(`${spec.marker}:${argsJson}`);
     },
     resolveInstallerRole: (chatId) => loadPresentRole(db, chatId, installer),
   });
@@ -103,6 +118,87 @@ async function chatVariables(db: Db, chatId: ChatId): Promise<Record<string, str
   const rows = await db.select({ v: chats.runtimeVariables }).from(chats).where(eq(chats.id, chatId)).limit(1);
   return rows.at(0)?.v ?? {};
 }
+
+test("catalog resolves only the caller's installed metadata and never exposes executable/identity fields", async ({ app, db, ownerCaller, otherCaller }) => {
+  const author = OWNER_USER_ID;
+  const stranger = OTHER_USER_ID;
+  const foreign = installTool(app, db, stranger, {
+    marker: "foreign credential result marker",
+    description: "foreign catalog marker",
+    schemaValue: "foreign schema marker",
+  });
+  const own = installTool(app, db, author, { marker: "private execution marker", description: "own catalog marker", schemaValue: "own schema marker" });
+  const expectedParameters = {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    type: "object",
+    properties: { tag: { type: "string", enum: ["own schema marker"] } },
+    required: ["tag"],
+    additionalProperties: false,
+  };
+  expect(await ownerCaller.automation.listRuleTools()).toEqual([{ name: TOOL, description: "own catalog marker", parameters: expectedParameters }]);
+  expect(await otherCaller.automation.listRuleTools()).toEqual([
+    {
+      name: TOOL,
+      description: "foreign catalog marker",
+      parameters: { ...expectedParameters, properties: { tag: { type: "string", enum: ["foreign schema marker"] } } },
+    },
+  ]);
+  expect(own.calls).toEqual([]);
+  expect(foreign.calls).toEqual([]);
+  own.handle.unregister();
+  expect(await ownerCaller.automation.listRuleTools()).toEqual([]);
+});
+
+test("host handoff edits use stored-author tool admission, while birth recovery bypasses vanished tool admission only for its author", async ({ app, db }) => {
+  const { author, stranger, chatId } = await seedScene(db);
+  const own = installTool(app, db, author, "author");
+  await seedParticipant(db, { chatId, key: "successor", userId: stranger, role: "member" });
+  const birth = {
+    principal: principal(author),
+    chatId,
+    creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation),
+    name: "tool birth",
+    trigger: { bus: "chat" as const, type: "messageCommitted" as const },
+    actions: [{ type: "run_tool" as const, name: TOOL, argsTemplate: ARGS_TEMPLATE, resultVar: "mood", resultScope: "chat" as const }],
+  };
+  const original = await app.automation.createRule(birth);
+  await db
+    .update(chatParticipants)
+    .set({ role: "member" })
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, author)));
+  await db
+    .update(chatParticipants)
+    .set({ role: "host" })
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, stranger)));
+  const successorOnlyTool = "plugin_successor_only";
+  installTool(app, db, stranger, { marker: "successor private result", description: "successor-only metadata", name: successorOnlyTool });
+  expect((await app.automation.listRuleTools({ principal: principal(stranger) })).map((tool) => tool.name)).toEqual([successorOnlyTool]);
+  const originalRows = await db.select().from(automationRules).where(eq(automationRules.id, original.id));
+  await expect(
+    app.automation.updateRule({ ...birth, principal: principal(stranger), ruleId: original.id, actions: [{ type: "run_tool", name: successorOnlyTool }] }),
+  ).rejects.toThrow(RuleValidationError);
+  expect(await db.select().from(automationRules).where(eq(automationRules.id, original.id))).toEqual(originalRows);
+  const edited = await app.automation.updateRule({ ...birth, principal: principal(stranger), ruleId: original.id, name: "successor edit" });
+  expect(edited.actions).toEqual(original.actions);
+  await app.automation.setRuleEnabled({ principal: principal(stranger), ruleId: original.id, enabled: true });
+  own.handle.unregister();
+  installTool(app, db, stranger, "wrong shelf");
+  await expect(app.automation.updateRule({ ...birth, principal: principal(stranger), ruleId: original.id })).rejects.toThrow(RuleValidationError);
+  expect(await app.automation.runRuleNow({ principal: principal(stranger), ruleId: original.id })).toEqual({ outcome: "paused" });
+  await db
+    .update(chatParticipants)
+    .set({ role: "member" })
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, stranger)));
+  await db
+    .update(chatParticipants)
+    .set({ role: "host" })
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, author)));
+  const before = await db.select().from(automationRules).where(eq(automationRules.id, original.id));
+  expect(await app.automation.createRule(birth)).toEqual({ ...edited, enabled: true });
+  expect(await db.select().from(automationRules).where(eq(automationRules.id, original.id))).toEqual(before);
+  await expect(app.automation.createRule({ ...birth, creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation) })).rejects.toThrow(RuleValidationError);
+  expect(own.calls).toEqual([]);
+});
 
 test("the AUTHOR'S OWN copy of a shared tool name runs, and its result lands in the chat variable", async ({ app, db }) => {
   const { author, stranger, chatId } = await seedScene(db);

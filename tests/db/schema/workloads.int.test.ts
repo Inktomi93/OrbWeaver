@@ -14,7 +14,7 @@ import { users, workloadSchedules, workloads } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
@@ -40,9 +40,10 @@ test("workloads.admissionKey is free TEXT (no enum) and accepts an entity id as 
   expect(workloads.admissionKey.enumValues).toBeUndefined();
   const db = await freshDb();
   const id = castId<WorkloadId>("workload_admission_key");
-  await db.insert(workloads).values({ id, kind: "databank-ingest", admissionKey: "document_01kz3vwne4fzrskkzhba0xbhzs" });
+  const documentId = mintTypeId(ID_PREFIX.document);
+  await db.insert(workloads).values({ id, kind: "databank-ingest", admissionKey: documentId });
   const rows = await db.select().from(workloads).where(eq(workloads.id, id));
-  expect(rows[0]?.admissionKey).toBe("document_01kz3vwne4fzrskkzhba0xbhzs");
+  expect(rows[0]?.admissionKey).toBe(documentId);
 });
 
 test("workloads.lane enum mirrors WORKLOAD_LANES (db derives the contracts tuple)", () => {

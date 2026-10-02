@@ -1,6 +1,6 @@
 // Mirror test for domain/import/substrate/chat-input — the pure ST→canonical mapping. This file pins the two
 // TRANSLATIONS the mapper owns and nothing else writes: ST's author's-note placement vocabulary onto orb's
-// injection axis (the whole matrix, including the arms the real corpus has 1 of), and the imported room's
+// injection axis (the complete external placement matrix), and the imported room's
 // DISPLAY TITLE (cast/room name + the chat's own date, plus the within-run collision suffix). The DB-mediated
 // proof that these reach their columns lives in `tests/server/entry/import/st-chat-fidelity.suite.int.test.ts`.
 
@@ -22,9 +22,9 @@ const NOW = 1_700_000_000_000;
 const DEPS = { now: (): number => NOW, personaByUserName: new Map<string, PersonaId>() };
 
 /** One collected ST chat whose header carries `metaOver` as its `chat_metadata`. */
-function collected(fileName: string, metaOver: Record<string, unknown> = {}, characterName = "Emily Singleton"): CollectedChat {
-  const header = JSON.stringify({ user_name: "Alex", character_name: characterName, create_date: "2025-5-7 @22h 52m 11s 856ms", chat_metadata: metaOver });
-  const body = JSON.stringify({ is_user: false, mes: "Hello.", send_date: "May 7, 2025 10:52pm" });
+function collected(fileName: string, metaOver: Record<string, unknown> = {}, characterName = "Eleni Northwell"): CollectedChat {
+  const header = JSON.stringify({ user_name: "Alex", character_name: characterName, create_date: "2024-3-6 @14h 23m 45s 123ms", chat_metadata: metaOver });
+  const body = JSON.stringify({ is_user: false, mes: "Hello.", send_date: "Mar 6, 2024 10:52pm" });
   const parsed = parseChatJsonl(`${header}\n${body}\n`, { fileName, charDirName: characterName });
   if (parsed === null) {
     throw new Error(`fixture parse failed: ${fileName}`);
@@ -34,7 +34,7 @@ function collected(fileName: string, metaOver: Record<string, unknown> = {}, cha
 
 /** The ONE injection an ST note converts to, or undefined when the chat carries none. */
 function noteOf(meta: Record<string, unknown>): BulkImportChatInput["injections"] extends readonly (infer R)[] | undefined ? R | undefined : never {
-  return buildBulkImportChatInput(collected("Chat - 2025-5-7 @22h 52m 11s 856ms.jsonl", meta), DEPS).injections?.[0];
+  return buildBulkImportChatInput(collected("Chat - 2024-3-6 @14h 23m 45s 123ms.jsonl", meta), DEPS).injections?.[0];
 }
 
 const NOTE = { note_prompt: "Keep it tense." };
@@ -70,7 +70,7 @@ describe("ST author's note → orb's injection system (owner ruling 2026-08-08)"
       role: "system",
       content: "Keep it tense.",
       order: null,
-      createdAt: Date.UTC(2025, 4, 7, 22, 52, 11),
+      createdAt: Date.UTC(2024, 2, 6, 14, 23, 45),
     });
   });
 
@@ -89,19 +89,18 @@ describe("ST author's note → orb's injection system (owner ruling 2026-08-08)"
   });
 
   test("a chat with knobs but NO note text mints no injection at all", () => {
-    // The real corpus is exactly this: 1,070 chats record the knobs, ZERO carry note text.
     expect(buildBulkImportChatInput(collected("x.jsonl", { note_prompt: "", note_depth: 4, note_position: 1 }), DEPS).injections).toBeUndefined();
   });
 });
 
 // ── ST `/inject`-saved injections → the SAME door (the silent-gap sweep, 2026-08-15) ─────────────────────
 // `chat_metadata.script_injects` rides the same extension_prompt enums the note does, so the conversion is
-// the same matrix — 5 corpus chats / 6 injections were parsed to sourceMetadata and thrown away (§5.7).
+// the same matrix; parsed injection metadata must reach the canonical rows.
 describe("ST script_injects → orb's injection system", () => {
-  test("a corpus-shaped inject becomes one chat_injections row through the note's own conversion", () => {
-    // Verbatim corpus shape (`main_Tessa_spec_v2` — the one non-null `scan` row): position 1, depth 1, role 2.
+  test("a synthetic external inject becomes one chat_injections row through the note's own conversion", () => {
+    // The synthetic entry exercises scan=true alongside the placement and role conversion.
     const injects = {
-      clothes: { value: "[Relevant Informations for portraying characters clothes]", position: 1, depth: 1, scan: true, role: 2, filter: null },
+      parcel: { value: "Record the parcel label.", position: 1, depth: 1, scan: true, role: 2, filter: null },
     };
     const input = buildBulkImportChatInput(collected("x.jsonl", { script_injects: injects }), DEPS);
     expect(input.injections).toEqual([
@@ -109,9 +108,9 @@ describe("ST script_injects → orb's injection system", () => {
         position: "in_chat",
         depth: 1,
         role: "assistant",
-        content: "[Relevant Informations for portraying characters clothes]",
+        content: "Record the parcel label.",
         order: null,
-        createdAt: Date.UTC(2025, 4, 7, 22, 52, 11),
+        createdAt: Date.UTC(2024, 2, 6, 14, 23, 45),
       },
     ]);
   });
@@ -139,8 +138,8 @@ describe("ST script_injects → orb's injection system", () => {
 
 describe("imported variant token accounting", () => {
   function importedAttribution(model: string, provider: string): BulkImportChatInput["messages"][number]["variants"][number] {
-    const header = JSON.stringify({ user_name: "Alex", character_name: "Aria", create_date: "May 7, 2025 10:52pm" });
-    const body = JSON.stringify({ is_user: false, mes: "Hello.", send_date: "May 7, 2025 10:52pm", extra: { model, api: provider } });
+    const header = JSON.stringify({ user_name: "Alex", character_name: "Aria", create_date: "Mar 6, 2024 10:52pm" });
+    const body = JSON.stringify({ is_user: false, mes: "Hello.", send_date: "Mar 6, 2024 10:52pm", extra: { model, api: provider } });
     const parsed = parseChatJsonl(`${header}\n${body}\n`, { fileName: "identity.jsonl", charDirName: "Aria" });
     if (parsed === null) {
       throw new Error("fixture parse failed");
@@ -164,8 +163,8 @@ describe("imported variant token accounting", () => {
   });
 
   test("an inspected ST token_count remains measured on its role-routed axis", () => {
-    const header = JSON.stringify({ user_name: "Alex", character_name: "Aria", create_date: "May 7, 2025 10:52pm" });
-    const body = JSON.stringify({ is_user: false, mes: "Hello.", send_date: "May 7, 2025 10:52pm", extra: { token_count: 7 } });
+    const header = JSON.stringify({ user_name: "Alex", character_name: "Aria", create_date: "Mar 6, 2024 10:52pm" });
+    const body = JSON.stringify({ is_user: false, mes: "Hello.", send_date: "Mar 6, 2024 10:52pm", extra: { token_count: 7 } });
     const parsed = parseChatJsonl(`${header}\n${body}\n`, { fileName: "exact.jsonl", charDirName: "Aria" });
     if (parsed === null) {
       throw new Error("fixture parse failed");
@@ -186,31 +185,31 @@ describe("imported variant token accounting", () => {
 
 describe("the imported chat's display title", () => {
   test("the cast name + the chat's own date, never the ST filename token", () => {
-    const input = buildBulkImportChatInput(collected("Emily Singleton - 2025-5-7 @22h 52m 11s 856ms.jsonl"), DEPS);
-    expect(input.title).toBe("Emily Singleton — May 7, 2025");
+    const input = buildBulkImportChatInput(collected("Eleni Northwell - 2024-3-6 @14h 23m 45s 123ms.jsonl"), DEPS);
+    expect(input.title).toBe("Eleni Northwell — Mar 6, 2024");
     // The raw filename keeps its provenance seat (and stays the branch-lineage key).
-    expect(input.importedFrom).toBe("Emily Singleton - 2025-5-7 @22h 52m 11s 856ms.jsonl");
+    expect(input.importedFrom).toBe("Eleni Northwell - 2024-3-6 @14h 23m 45s 123ms.jsonl");
   });
 
   test("the title's date renders in the SAME zone the ST dates were read in", () => {
     // 22:52 Denver-local is the NEXT UTC day; the title must say the day the filename spelled, not UTC's.
-    const input = buildBulkImportChatInput(collected("Emily - 2025-5-7 @22h 52m 11s 856ms.jsonl"), { ...DEPS, wallClockZone: "America/Denver" });
-    expect(input.title).toBe("Emily Singleton — May 7, 2025");
+    const input = buildBulkImportChatInput(collected("Eleni - 2024-3-6 @14h 23m 45s 123ms.jsonl"), { ...DEPS, wallClockZone: "America/Denver" });
+    expect(input.title).toBe("Eleni Northwell — Mar 6, 2024");
   });
 
   test("same cast + same day ⇒ a numeric suffix, in file order, never a merge", () => {
     const titled = disambiguateChatTitles([
-      buildBulkImportChatInput(collected("A - 2025-5-7 @22h 52m 11s 856ms.jsonl"), DEPS),
-      buildBulkImportChatInput(collected("B - 2025-5-7 @23h 04m 02s 118ms.jsonl"), DEPS),
-      buildBulkImportChatInput(collected("C - 2025-5-7 @23h 40m 09s 001ms.jsonl"), DEPS),
+      buildBulkImportChatInput(collected("A - 2024-3-6 @14h 23m 45s 123ms.jsonl"), DEPS),
+      buildBulkImportChatInput(collected("B - 2024-3-6 @23h 04m 02s 118ms.jsonl"), DEPS),
+      buildBulkImportChatInput(collected("C - 2024-3-6 @23h 40m 09s 001ms.jsonl"), DEPS),
     ]);
-    expect(titled.map((c) => c.title)).toEqual(["Emily Singleton — May 7, 2025", "Emily Singleton — May 7, 2025 (2)", "Emily Singleton — May 7, 2025 (3)"]);
+    expect(titled.map((c) => c.title)).toEqual(["Eleni Northwell — Mar 6, 2024", "Eleni Northwell — Mar 6, 2024 (2)", "Eleni Northwell — Mar 6, 2024 (3)"]);
     // Never a merge: three inputs, three distinct rows, each keeping its own dedup oracle.
     expect(new Set(titled.map((c) => c.importHash)).size).toBe(3);
   });
 
   test("a GROUP room is titled by the group's name, not the header character", () => {
-    const input = buildGroupChatInput(collected("Tavern Night - 2025-5-7 @22h 52m 11s 856ms.jsonl"), {
+    const input = buildGroupChatInput(collected("Tavern Night - 2024-3-6 @14h 23m 45s 123ms.jsonl"), {
       ...DEPS,
       roomName: "Tavern Night",
       primaryCharacterId: castId<CharacterId>("character_a"),
@@ -222,21 +221,21 @@ describe("the imported chat's display title", () => {
     });
     // ST writes ONE member into a group transcript's `character_name`; titling the room after it would name
     // a five-hander after one seat.
-    expect(input.title).toBe("Tavern Night — May 7, 2025");
+    expect(input.title).toBe("Tavern Night — Mar 6, 2024");
   });
 });
 
 // ── the ANCHOR PERSONA's three signals (owner ruling 2026-08-17, #163) ───────────────────────────────────
 //
 // A room's playing-as is resolved best-effort FROM THE TRANSCRIPT, never from whatever persona happens to be
-// active in orb. The mapper's own section header carries the corpus receipts; this pins the ORDER, the
+// active in orb. This pins the signal ORDER and the
 // per-turn arm, and the two refusals (no near-match; nothing rather than a guess).
 
-const ALEX = castId<PersonaId>("persona_nate");
-const ASHLEY = castId<PersonaId>("persona_ashley");
+const ALEX = castId<PersonaId>("persona_alex");
+const ROBIN = castId<PersonaId>("persona_robin");
 const PERSONAS = new Map<string, PersonaId>([
   ["alex", ALEX],
-  ["ashley", ASHLEY],
+  ["robin", ROBIN],
 ]);
 const WITH_PERSONAS = { ...DEPS, personaByUserName: PERSONAS };
 
@@ -244,14 +243,14 @@ const WITH_PERSONAS = { ...DEPS, personaByUserName: PERSONAS };
 function transcript(args: { readonly userName: string; readonly pinned?: string; readonly turnNames: readonly (string | null)[] }): CollectedChat {
   const header = JSON.stringify({
     user_name: args.userName,
-    character_name: "Emily Singleton",
-    create_date: "2025-5-7 @22h 52m 11s 856ms",
+    character_name: "Eleni Northwell",
+    create_date: "2024-3-6 @14h 23m 45s 123ms",
     chat_metadata: args.pinned === undefined ? {} : { pinnedPersona: args.pinned },
   });
   const lines = args.turnNames.map((name) =>
-    JSON.stringify({ is_user: true, mes: "hi", send_date: "May 7, 2025 10:52pm", ...(name === null ? {} : { name }) }),
+    JSON.stringify({ is_user: true, mes: "hi", send_date: "Mar 6, 2024 10:52pm", ...(name === null ? {} : { name }) }),
   );
-  const parsed = parseChatJsonl([header, ...lines, ""].join("\n"), { fileName: "u.jsonl", charDirName: "Emily Singleton" });
+  const parsed = parseChatJsonl([header, ...lines, ""].join("\n"), { fileName: "u.jsonl", charDirName: "Eleni Northwell" });
   if (parsed === null) {
     throw new Error("fixture parse failed");
   }
@@ -260,11 +259,11 @@ function transcript(args: { readonly userName: string; readonly pinned?: string;
 
 describe("the anchor persona — ST's three signals, in order", () => {
   test("the chat-bound PIN wins over the header user_name (ST's own 'locked persona' precedence)", () => {
-    expect(buildBulkImportChatInput(transcript({ userName: "Ashley", pinned: "Alex", turnNames: ["Ashley"] }), WITH_PERSONAS).anchorPersonaId).toBe(ALEX);
+    expect(buildBulkImportChatInput(transcript({ userName: "Robin", pinned: "Alex", turnNames: ["Robin"] }), WITH_PERSONAS).anchorPersonaId).toBe(ALEX);
   });
 
   test("the header user_name resolves when there is no pin", () => {
-    expect(buildBulkImportChatInput(transcript({ userName: "Ashley", turnNames: [null] }), WITH_PERSONAS).anchorPersonaId).toBe(ASHLEY);
+    expect(buildBulkImportChatInput(transcript({ userName: "Robin", turnNames: [null] }), WITH_PERSONAS).anchorPersonaId).toBe(ROBIN);
   });
 
   // THE #163 DEFECT. 569 of the owner's 1,083 transcripts write the sentinel `"unused"` as their header
@@ -278,13 +277,13 @@ describe("the anchor persona — ST's three signals, in order", () => {
   });
 
   test("an unstamped leading turn does not stop the scan — the FIRST resolvable stamp anchors the room", () => {
-    expect(buildBulkImportChatInput(transcript({ userName: "unused", turnNames: [null, "Ashley"] }), WITH_PERSONAS).anchorPersonaId).toBe(ASHLEY);
+    expect(buildBulkImportChatInput(transcript({ userName: "unused", turnNames: [null, "Robin"] }), WITH_PERSONAS).anchorPersonaId).toBe(ROBIN);
   });
 
   test("a turn credits its OWN persona when the author switched mid-chat; the anchor stays the first", () => {
-    const input = buildBulkImportChatInput(transcript({ userName: "unused", turnNames: ["Alex", "Ashley"] }), WITH_PERSONAS);
+    const input = buildBulkImportChatInput(transcript({ userName: "unused", turnNames: ["Alex", "Robin"] }), WITH_PERSONAS);
     expect(input.anchorPersonaId).toBe(ALEX);
-    expect(input.messages.map((m) => m.personaId)).toEqual([ALEX, ASHLEY]);
+    expect(input.messages.map((m) => m.personaId)).toEqual([ALEX, ROBIN]);
   });
 
   test("NOTHING is guessed: an unmatched name anywhere leaves the room unattributed (owner ruling)", () => {

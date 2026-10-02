@@ -19,7 +19,7 @@ const COUNT_ONLY_PAGE = 1;
  * THE COUNT ANSWERS THE LIST IN FRONT OF THE READER (#490).
  *
  * It was the library census and nothing else, so it printed `896` unchanged while the pane below showed
- * twelve `Mira` rows — and printed `896` over a "No matches" empty state. A number that ignores the three
+ * twelve `Tamsin` rows — and printed `896` over a "No matches" empty state. A number that ignores the three
  * filters sitting directly beneath it is not a fact about anything visible.
  *
  * Neither reader can see the pane's props (the band feeds a DIFFERENT shell slot; the topbar's screen title

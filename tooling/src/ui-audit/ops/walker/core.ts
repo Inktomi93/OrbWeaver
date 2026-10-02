@@ -39,12 +39,9 @@ export const WALKER_PRIMITIVES = `  var INTERACTIVE_SELECTOR = ${INTERACTIVE_SEL
   var RGB_RE = /rgba?\\(\\s*([\\d.]+)\\s*,\\s*([\\d.]+)\\s*,\\s*([\\d.]+)\\s*(?:,\\s*([\\d.]+))?\\)/;
   // Interactive/code contexts for the type-floor checks (impeccable undersized-ui-text).
   var INTERACTIVE_CTX = "a[href],button,summary,label,select,textarea,[role=button],[role=link],[role=tab],[role=menuitem],[role=option],[role=checkbox],[role=radio],[role=switch],[tabindex]";
-  // NO \`[aria-hidden='true']\` here, deliberately (issue #253): this is the GRAPHIC/CODE exemption — text
-  // whose glyphs are data (a code span) or geometry (an svg label) and which the type ramp does not govern.
-  // aria-hidden is an ACCESSIBILITY-TREE fact and says nothing about pixels; carrying it in this selector
-  // silently exempted every decorative-but-RENDERED string from the type floors, and three live findings
-  // (wide-tracking, line-length, undersized-ui-text on the facet preview) vanished from the scan the day
-  // #230 marked that preview aria-hidden — while it still painted at 10.5px / 0.84px tracking / 1,283 chars.
+  // NO \`[aria-hidden='true']\` here (#253): graphic/code exemptions concern glyphs as data or geometry.
+  // aria-hidden is an accessibility-tree fact, not a paint exemption; otherwise rendered text silently
+  // escapes the visual floors.
   var CODE_CTX = "pre,code,kbd,samp,var,svg";
   // Sanctioned radial-glow carriers (owner effect axes — ui/src/styles/globals.css): the
   // empty-state aura, the media-grid pointer spotlight, the brand loader glow.

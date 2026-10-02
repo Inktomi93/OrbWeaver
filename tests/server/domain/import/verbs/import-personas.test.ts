@@ -35,7 +35,7 @@ describe("importPersonas (Option B mapping)", () => {
     // Delegated to the injected op with the canonical mapping.
     expect(h.personaCalls).toHaveLength(1);
     expect(h.personaCalls[0]?.ownerId).toBe(OWNER);
-    expect(h.personaCalls[0]?.personas.map((p) => p.name).sort()).toEqual(["Eve", "Alex"]);
+    expect(h.personaCalls[0]?.personas.map((p) => p.name).sort()).toEqual(["Alex", "Eve"]);
     expect(h.personaCalls[0]?.personas[0]?.description).toBe("Alex desc");
 
     expect(result.personasCreated).toBe(2);

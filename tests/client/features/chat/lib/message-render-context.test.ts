@@ -19,7 +19,7 @@ import { makeParticipant } from "./_support.ts";
 
 const ALICE_ID = castId<CharacterId>("char_alice_render");
 const BOB_ID = castId<CharacterId>("char_bob_render");
-const NATE_PERSONA_ID = castId<PersonaId>("persona_nate_render");
+const ALEX_PERSONA_ID = castId<PersonaId>("persona_alex_render");
 
 const EMPTY_CHARACTER_NAMES: ReadonlyMap<CharacterId, RowCharacterName> = new Map<CharacterId, RowCharacterName>();
 const EMPTY_PERSONA_NAMES: ReadonlyMap<PersonaId, RowPersonaName> = new Map<PersonaId, RowPersonaName>();
@@ -78,11 +78,11 @@ test("a non-character participant never counts toward the solo/group split", () 
 });
 
 test("fallbackPersonaName + description resolve the chat ANCHOR persona id against the producer", () => {
-  const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Alex", description: "the pinned host POV" }]]);
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([[ALEX_PERSONA_ID, { name: "Alex", description: "the pinned host POV" }]]);
   const result = resolveMessageRenderContext({
     characterNamesById: EMPTY_CHARACTER_NAMES,
     personaNamesById,
-    anchorPersonaId: NATE_PERSONA_ID,
+    anchorPersonaId: ALEX_PERSONA_ID,
   });
   // The null-stamp {{user}}/{{persona}} fallback is the ANCHOR (ruling A) — never the viewer's own persona.
   expect(result.fallbackPersonaName).toBe("Alex");
@@ -90,7 +90,7 @@ test("fallbackPersonaName + description resolve the chat ANCHOR persona id again
 });
 
 test("no anchor persona id set: fallbackPersonaName stays undefined (kit's own floor applies later)", () => {
-  const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Alex", description: "" }]]);
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([[ALEX_PERSONA_ID, { name: "Alex", description: "" }]]);
   const result = resolveMessageRenderContext({
     characterNamesById: EMPTY_CHARACTER_NAMES,
     personaNamesById,

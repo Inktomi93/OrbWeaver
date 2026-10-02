@@ -316,13 +316,13 @@ describe("writeImportReport — the #1469 silent planes now have lines", () => {
     const { md } = await render({
       ...EMPTY,
       skippedCardTags: [{ character: "Aria.png", tag: "bard", reason: "UNIQUE constraint failed" }],
-      ambiguousSpeakerNames: [{ group: "Two Emilys", name: "Emily", seats: 2 }],
-      seatedDisabledMembers: [{ group: "The Party", member: "Bram.png" }],
+      ambiguousSpeakerNames: [{ group: "Two Elenis", name: "Eleni", seats: 2 }],
+      seatedDisabledMembers: [{ group: "The Party", member: "Bryn.png" }],
     });
 
     expect(md).toContain("`Aria.png` → `bard` — UNIQUE constraint failed");
-    expect(md).toContain("`Two Emilys` — 2 seated cards are called `Emily`");
-    expect(md).toContain("`The Party` → `Bram.png` — seated in the room with its mute ON, exactly as ST had it");
+    expect(md).toContain("`Two Elenis` — 2 seated cards are called `Eleni`");
+    expect(md).toContain("`The Party` → `Bryn.png` — seated in the room with its mute ON, exactly as ST had it");
   });
 
   test("a DRY RUN says so at the top and lists what a real run would attempt, per wave", async () => {

@@ -262,29 +262,29 @@ describe("rebasePatchOntoHead — replaying an applier's patch onto a head it wa
   // merely carried, or a hand removal made after the base was read is silently undone.
 
   test("a CARRIED element the head no longer has is dropped (the resurrection class)", () => {
-    const base = { presentCharacters: ["npc:mara", "npc:ilya"] };
-    const patch = { presentCharacters: ["npc:mara", "npc:ilya"] }; // byte-identical carry
-    const head = { presentCharacters: ["npc:ilya"] }; // the host dismissed mara after the base was read
+    const base = { presentCharacters: ["npc:mira", "npc:ilya"] };
+    const patch = { presentCharacters: ["npc:mira", "npc:ilya"] }; // byte-identical carry
+    const head = { presentCharacters: ["npc:ilya"] }; // the host dismissed mira after the base was read
     expect(rebasePatchOntoHead(patch, base, head)).toEqual({ presentCharacters: ["npc:ilya"] });
   });
 
   test("a genuine ADD still lands (absent from the round's base)", () => {
-    const base = { presentCharacters: ["npc:mara"] };
-    const patch = { presentCharacters: ["npc:mara", "npc:new"] };
-    const head = { presentCharacters: [] }; // mara dismissed meanwhile
+    const base = { presentCharacters: ["npc:mira"] };
+    const patch = { presentCharacters: ["npc:mira", "npc:new"] };
+    const head = { presentCharacters: [] }; // mira dismissed meanwhile
     expect(rebasePatchOntoHead(patch, base, head)).toEqual({ presentCharacters: ["npc:new"] });
   });
 
   test("a genuine REMOVE by the round is honored against the head too", () => {
-    const base = { presentCharacters: ["npc:mara", "npc:ilya"] };
-    const patch = { presentCharacters: ["npc:ilya"] }; // the round walked mara off-stage
-    const head = { presentCharacters: ["npc:mara", "npc:ilya", "npc:late"] };
+    const base = { presentCharacters: ["npc:mira", "npc:ilya"] };
+    const patch = { presentCharacters: ["npc:ilya"] }; // the round walked mira off-stage
+    const head = { presentCharacters: ["npc:mira", "npc:ilya", "npc:late"] };
     expect(rebasePatchOntoHead(patch, base, head)).toEqual({ presentCharacters: ["npc:ilya", "npc:late"] });
   });
 
   test("a CHANGED keyed element wins even when the head dropped it (the boarded tombstone boundary)", () => {
-    const base = { actorState: [actorWithWallet("mara", 3, 2)] };
-    const patch = { actorState: [actorWithWallet("mara", 99, 2)] }; // a real write, not a carry
+    const base = { actorState: [actorWithWallet("mira", 3, 2)] };
+    const patch = { actorState: [actorWithWallet("mira", 99, 2)] }; // a real write, not a carry
     const head = { actorState: [] };
     const out = rebasePatchOntoHead(patch, base, head)["actorState"] as { volatile: { wallet: { amount: number }[] } }[];
     expect(out[0]?.volatile.wallet[0]?.amount).toBe(99);

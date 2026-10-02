@@ -9,7 +9,7 @@
 // (`use-library-import.ts` — zero requests), and this preflight states the consequence in the words the
 // server verbs actually implement, then asks. The consequence copy is DERIVED, not reassuring:
 //   · `import-character.ts` — identity is the parsed content (`cardImportHash`), never the name, so an equal
-//     card is skipped and two "Emily" cards stay two characters.
+//     card is skipped and two "Eleni" cards stay two characters.
 //   · the world-book, theme and preset imports — equal content is reused; a same-named DIFFERENT row keeps
 //     its row and the file lands under a numbered name. Nothing is edited in place.
 //   · `import-personas.ts` — a name collision REUSES the first existing persona (skipped, never duplicated).

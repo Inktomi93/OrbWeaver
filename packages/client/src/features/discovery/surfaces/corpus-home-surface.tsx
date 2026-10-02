@@ -139,17 +139,10 @@ function CorpusHomeBody(): ReactElement {
   // a cache hit rather than a second fetch of the same analytics.
   const { data: families } = useSuspenseQuery(trpc.discovery.visualArchetypes.queryOptions({}));
   const { data: gems } = useSuspenseQuery(trpc.discovery.forgottenGems.queryOptions());
-  // HAS THE NEAR-DUP PASS EVER FINISHED? (issue #164 item 4.) A zero from a pass that ran is "none found";
-  // a zero from a pass that has never run is "not run", and the rail printed the first for both — the owner
-  // reasonably read "none found" on a 327-card ST library as a defect, when the pass simply had not run yet.
-  // The queue is the only place that knows, and `workloads.list` with `{}` is the SAME input the invitation's
-  // hook already holds, so this is a cache hit rather than a second question. NON-suspending: an unresolved
-  // queue must not hold the whole surface, and its honest pre-answer is the conservative "not run".
-  // …AND A QUEUE THAT DID NOT ANSWER IS NOT A QUEUE THAT SAID NO (#1546). The conservative pre-answer above
-  // is right for a read still IN FLIGHT — it settles in a beat — and wrong for one that FAILED, which does
-  // not settle at all: three rows then printed "not run" for passes that may all have run, with no failure
-  // said and nothing to press. The flags stay plain booleans (they are `some(…)` over one result); WHICH
-  // read produced them travels beside them as `queueRead`, and the rail carries the retry.
+  // The queue distinguishes not run from a measured zero (#164). workloads.list shares the invitation hook
+  // input and does not suspend the surface. Pending conservatively means not run; a failed queue read is
+  // not evidence that a pass never ran. queueRead carries the failure/retry beside the plain boolean flags
+  // (#1546).
   const runs = useQuery(trpc.workloads.list.queryOptions({}));
   const ranSuccessfully = (kind: string): boolean => (runs.data ?? []).some((row) => row.kind === kind && row.status === "succeeded");
   // KEYWORDS ARE THEIR OWN PASS (issue #164's lesson, applied one row up). The rail row said "Story themes &

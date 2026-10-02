@@ -597,7 +597,7 @@ function withTrackers(
   return { actorRef, identity: { name: named.name, emoji: "", mood: named.mood ?? "", relationship: { kind: "neutral", label: "" } }, volatile };
 }
 
-const NIKO = "01kyw994c1ecrtvwbmx4avkqzz"; // a real 26-char TypeID suffix (the actorState schema validates it)
+const NIKO = mintTypeId("character").slice("character_".length);
 const CORRUPTION = trackerDef({
   key: "corruption",
   label: "Corruption",

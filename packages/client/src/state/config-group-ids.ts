@@ -27,7 +27,6 @@ export const CONFIG_GROUP_IDS = [
   "connections",
   "automation",
   "admin",
-  // ── collections (F-1: the closed tuple; ids are the owners' own). Tags are Corpus Labels (D271). ──
   "regex",
   "worldInfo",
   "rosterPreset",

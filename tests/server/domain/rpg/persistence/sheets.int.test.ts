@@ -73,7 +73,7 @@ describe("the participants ∪ rows projection (derivation pinned inline)", () =
     const gameId = await seedGame(db, chatId);
     const owner = await seedUser(db, castId<Handle>("owner"));
     const withRow = await seedChar(owner, "aria");
-    const withoutRow = await seedChar(owner, "bram");
+    const withoutRow = await seedChar(owner, "bryn");
     await upsertSheet(db, { id: castId<RpgSheetId>("rpg_sheet_aria"), gameId, characterId: withRow, userId: null, sheet: sheetWith("rogue"), now: FROZEN_AT });
 
     // The verb's projection: for each participant actor, its row's sheet OR the default.

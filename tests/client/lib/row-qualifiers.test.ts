@@ -1,6 +1,6 @@
 // The list-wide action-name disambiguator. The load-bearing arms are the COLLISIONS — the reason the
 // qualifier stopped being a per-row derivation: eight forks minted in the same hour all show "9h ago", and a
-// character's chat projection is N rows titled "Azarael" whose newest few all show "2h", so the per-row form
+// character's chat projection is N rows titled "Aveline" whose newest few all show "2h", so the per-row form
 // produced N identical accessible names. The escalation must fire ONLY on the collided rows (a longer stamp
 // everywhere is noise), and it must terminate even when two rows are identical to the millisecond.
 
@@ -55,9 +55,9 @@ describe("rowQualifiers", () => {
 
   test("rows identical to the millisecond fall back to an ORDINAL (the escalation always terminates)", () => {
     const rows = [
-      { name: "Azarael", at: NOW - 2 * HOUR },
-      { name: "Azarael", at: NOW - 2 * HOUR },
-      { name: "Azarael", at: NOW - 2 * HOUR },
+      { name: "Aveline", at: NOW - 2 * HOUR },
+      { name: "Aveline", at: NOW - 2 * HOUR },
+      { name: "Aveline", at: NOW - 2 * HOUR },
     ];
     const qualifiers = rowQualifiers(rows, stamp, absolute);
 
@@ -84,11 +84,11 @@ describe("rowQualifiers", () => {
 // to a COPY change. The wording is pinned once, here, at the builder's own home.
 describe("rowActionsName", () => {
   test("the house grammar is `Actions for <subject>`", () => {
-    expect(rowActionsName("Azarael")).toBe("Actions for Azarael");
+    expect(rowActionsName("Aveline")).toBe("Actions for Aveline");
   });
 
   test("it composes with the disambiguated subject — the kebab announces what the row shows", () => {
-    expect(rowActionsName(rowActionSubject("Emily", "emily-3"))).toBe('Actions for "Emily" · emily-3');
+    expect(rowActionsName(rowActionSubject("Eleni", "eleni-3"))).toBe('Actions for "Eleni" · eleni-3');
   });
 });
 

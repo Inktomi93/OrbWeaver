@@ -40,8 +40,8 @@ describe("importChats (Option B mapping)", () => {
     const h = makeProfileHarness(OWNER);
     const character = castId<CharacterId>("character_aria");
     // Attribute the user's "Alex" turns to a persona the map already knows.
-    const personaNate = castId<PersonaId>("persona_nate");
-    h.profile.personaByUserName.set("alex", personaNate);
+    const personaAlex = castId<PersonaId>("persona_alex");
+    h.profile.personaByUserName.set("alex", personaAlex);
     const svc = createImportChats(h.ctx);
 
     const result = await svc({
@@ -65,12 +65,12 @@ describe("importChats (Option B mapping)", () => {
       { position: "in_chat", depth: 4, role: "system", content: "stay in character", order: null, createdAt: Date.UTC(2025, 6, 18, 12, 0, 0) },
     ]);
     // Persona attribution — the anchor + the user turn credit "Alex"'s persona; the assistant turn is null.
-    expect(chat?.anchorPersonaId).toBe(personaNate);
+    expect(chat?.anchorPersonaId).toBe(personaAlex);
     expect(chat?.messages).toHaveLength(2);
     expect(chat?.messages[0]?.role).toBe("assistant");
     expect(chat?.messages[0]?.personaId).toBeNull();
     expect(chat?.messages[1]?.role).toBe("user");
-    expect(chat?.messages[1]?.personaId).toBe(personaNate);
+    expect(chat?.messages[1]?.personaId).toBe(personaAlex);
     // Every message resolves a selected variant carrying the rendered `mes`.
     expect(chat?.messages[0]?.variants[chat.messages[0].selectedIdx]?.content).toBe("Hello traveller.");
 

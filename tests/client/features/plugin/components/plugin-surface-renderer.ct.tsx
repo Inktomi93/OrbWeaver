@@ -590,7 +590,7 @@ test("hub v1.2: a bound grid tile carrying `tags` renders its chip row — the f
     "plugin.getSurfaceState": () => ({
       tiles: [
         { id: "r0", title: "Aria", subtitle: "cartographer · 1.2k↓", tags: ["fantasy", "vampire"] },
-        { id: "r1", title: "Bram", subtitle: "untagged" },
+        { id: "r1", title: "Bryn", subtitle: "untagged" },
       ],
     }),
     "plugin.getLog": () => [],

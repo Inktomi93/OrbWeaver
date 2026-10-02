@@ -1,18 +1,10 @@
-// The DB-mediated ST-transcript fidelity round trip — the four planes the 2026-08-08 import-fidelity audit
-// (§5.1/§5.5/§5.6 + the owner's "imported chat names are ugly" report) found landing wrong or not at all.
-// Every assertion here reads a COLUMN or a ROLLUP, never an import-side shape: the REAL `importChats` verb
-// runs over the REAL `createBulkImportChats` write op against a real db, and then the REAL `reconcileStats`
-// reads it back the way the stats domain does in production. That is deliberate — §5.1's defect was
-// invisible at every hop except the reader's `json_extract`, so a mapping-level assertion would have stayed
-// green through it, and the title-collision rule is a WHOLE-RUN fact only the verb can express.
+// The ST round trip reads database columns and rollups after real
+// importChats/createBulkImportChats/reconcileStats, not only mapping shapes. Nested swipe sidecars, string
+// variables, independent note knobs, sentinel headers/persona pins, sender attribution, and one-
+// digit/spaced filenames are synthetic fixture cases. The title collision is a whole-run property and
+// stats json_extract is the load-bearing reader.
 //
-// The fixtures are the REAL corpus shapes (1,097-file ST profile, both user dirs): a swipe pool whose
-// `swipe_info[i]` NESTS its `extra` (75,309 of 76,238 swipe entries carry `reasoning_duration` there), a
-// `chat_metadata.variables` bag of strings (494 chats), the author's-note knobs (1,070 chats), and a
-// filename ST wrote with 1-digit month/day and interior spaces (76 chats).
-//
-// Zone: every fixture resolves in the serde's `"UTC"` default, so the expected instants and the expected
-// title date are fixed literals rather than host-zone-dependent.
+// Every fixture uses the serde UTC default so instants/title dates do not depend on the host zone.
 
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants, ownerStats } from "@orb/db";
@@ -48,12 +40,12 @@ const NOW = 1_700_000_000_000;
 const SWIPE_A_REASONING_MS = 1200;
 const SWIPE_B_REASONING_MS = 900;
 
-/** The exact spelling ST wrote for 76 of the 1,097 corpus files: 1-digit month/day, spaces inside the time. */
-const UGLY_FILENAME = "Emily Singleton - 2025-5-7 @22h 52m 11s 856ms.jsonl";
+/** Synthetic fixtures preserve the external wire grammar: nested swipe extras, independent note knobs, sentinel headers, persona pins, and sender attribution. */
+const UGLY_FILENAME = "Eleni Northwell - 2024-3-6 @14h 23m 45s 123ms.jsonl";
 /** A SECOND transcript for the same character on the SAME calendar day (the title-collision case). */
-const UGLY_FILENAME_SAME_DAY = "Emily Singleton - 2025-5-7 @23h 4m 2s 118ms.jsonl";
+const UGLY_FILENAME_SAME_DAY = "Eleni Northwell - 2024-3-6 @23h 4m 2s 118ms.jsonl";
 
-const CHARACTER_NAME = "Emily Singleton";
+const CHARACTER_NAME = "Eleni Northwell";
 
 /** A deterministic counter-minted `ChatImportContext` (no ambient clock/ids under tests/). */
 function importCtx(db: Db): ChatImportContext {
@@ -79,7 +71,7 @@ function importCtx(db: Db): ChatImportContext {
   };
 }
 
-/** One ST swipe_info entry, in the corpus's own NESTED shape: the take's economics live under `extra`, the
+/** One synthetic ST swipe_info entry with the external NESTED shape: the take's economics live under `extra`, the
  *  timings + the per-swipe `send_date` sit beside it. */
 function swipeInfo(reasoningDurationMs: number, sendDate: string): Record<string, unknown> {
   return {
@@ -103,12 +95,11 @@ function stChatBytes(metaOver: Record<string, unknown> = {}): string {
   const header = {
     user_name: "Alex",
     character_name: CHARACTER_NAME,
-    create_date: "2025-5-7 @22h 52m 11s 856ms",
+    create_date: "2024-3-6 @14h 23m 45s 123ms",
     chat_metadata: {
-      // ST's `{{setvar}}`/`{{getvar}}` store — 494 corpus chats carry one; every value is a string.
+      // ST's `{{setvar}}`/`{{getvar}}` store carries string values.
       variables: { questGiver: "Marla", coins: "37" },
-      // The author's note + the placement knobs ST records alongside it. Deliberately NOT the corpus's
-      // overwhelming `d=4 p=1 r=0` combo: these are the 1-in-1,070 arms, so a hardcoded house register
+      // Note placement differs from the house in_chat/depth/system default so hardcoding that register
       // cannot pass by coincidence.
       note_prompt: "Keep it tense.",
       note_depth: 2,
@@ -122,18 +113,18 @@ function stChatBytes(metaOver: Record<string, unknown> = {}): string {
   };
   const lines = [
     JSON.stringify(header),
-    JSON.stringify({ is_user: false, mes: "Hello traveller.", send_date: "May 7, 2025 10:52pm", extra: { api: "openrouter", model: "gpt" } }),
-    JSON.stringify({ is_user: true, mes: "Hi Emily!", send_date: "May 7, 2025 10:53pm", extra: { token_count: 4 } }),
+    JSON.stringify({ is_user: false, mes: "Hello traveller.", send_date: "Mar 6, 2024 10:52pm", extra: { api: "openrouter", model: "gpt" } }),
+    JSON.stringify({ is_user: true, mes: "Hi Eleni!", send_date: "Mar 6, 2024 10:53pm", extra: { token_count: 4 } }),
     JSON.stringify({
       is_user: false,
       mes: "Take two, as rendered.",
-      send_date: "May 7, 2025 10:54pm",
+      send_date: "Mar 6, 2024 10:54pm",
       // The MESSAGE-level extra of a swipe-bearing row. Pre-fix this blob was carried; the per-swipe
       // `swipe_info[i]` was carried INSTEAD, nested, so no `$.reasoning_duration` existed at the read path.
       extra: { api: "openrouter", model: "gpt", reasoning: "weighing it", reasoning_duration: SWIPE_B_REASONING_MS },
       swipes: ["Take one, discarded.", "Take two, as rendered."],
       swipe_id: 1,
-      swipe_info: [swipeInfo(SWIPE_A_REASONING_MS, "May 7, 2025 10:53pm"), swipeInfo(SWIPE_B_REASONING_MS, "May 7, 2025 10:54pm")],
+      swipe_info: [swipeInfo(SWIPE_A_REASONING_MS, "Mar 6, 2024 10:53pm"), swipeInfo(SWIPE_B_REASONING_MS, "Mar 6, 2024 10:54pm")],
     }),
   ];
   return `${lines.join("\n")}\n`;
@@ -206,7 +197,7 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
       return typeof d === "number" ? [d] : [];
     });
     expect(durations.sort((a, b) => a - b)).toEqual([SWIPE_B_REASONING_MS, SWIPE_A_REASONING_MS].sort((a, b) => a - b));
-    // Lossless: the per-swipe `send_date` ST records beside `extra` (78,407 corpus entries) still rides in the
+    // Lossless: the per-swipe `send_date` ST records beside `extra` still rides in the
     // blob — under the declared-opaque `importResidue` since §5.3c class 3 closed the column, because
     // flattening must not become a drop.
     expect(
@@ -272,11 +263,11 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
     expect(rows[0]).toMatchObject({ position: "in_chat", depth: 4, role: "system", content: "Keep it tense." });
   });
 
-  test("§5.5 — the corpus's own dominant combo (depth 4 / in_chat / system) is unchanged", async () => {
+  test("§5.5 — depth 4 / in_chat / system placement survives unchanged", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
-    // 1,065 of the 1,070 note-bearing corpus chats record exactly this: it must land where it always did.
+    // Synthetic fixtures preserve the external wire grammar: nested swipe extras, independent note knobs, sentinel headers, persona pins, and sender attribution.
     await importStChats({
       db,
       ownerId: owner.id,
@@ -294,19 +285,14 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
     await importStChats({ db, ownerId: owner.id, characterId: character.id, files: [{ name: UGLY_FILENAME, text: stChatBytes() }] });
 
     const row = (await db.select().from(chats))[0];
-    expect(row?.title).toBe("Emily Singleton — May 7, 2025");
+    expect(row?.title).toBe("Eleni Northwell — Mar 6, 2024");
     // …and the raw ST filename is still the provenance record, so nothing is lost by the rename.
     expect(row?.importedFrom).toBe(UGLY_FILENAME);
   });
 
-  // §5.7 — ST's chat-bound persona pick. CORPUS-DRIVEN (whole 1,097-file profile, both user dirs, this lane):
-  // the key is `chat_metadata.pinnedPersona` on 71 chats, its value is a persona NAME (`"Alex"` ×63,
-  // `"Ashley"` ×8, 71/71 strings), and on ALL 71 the header `user_name` is the literal sentinel `"unused"` —
-  // which is exactly why the pin matters: `personaByUserName.get("unused")` resolves nothing, so before this
-  // those 71 chats imported with NO anchor persona and NO user-turn attribution at all. (583 of the 1,097
-  // corpus chats carry that sentinel; the pin recovers the anchor for the 71 that also recorded a pick.)
-  // ST's OWN upstream key `chat_metadata.persona` is a different field with a different vocabulary — an AVATAR
-  // FILENAME, on 4 corpus chats, 2 of which also carry `pinnedPersona` — and is deliberately NOT read here.
+  // pinnedPersona carries a display name even when user_name is the unused sentinel. The pin must reach
+  // anchor and user-turn attribution; chat_metadata.persona is a separate avatar-filename namespace and is
+  // deliberately not read here.
   test("§5.7 — chat_metadata.pinnedPersona resolves the anchor persona BY NAME (user_name is the `unused` sentinel)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
@@ -315,7 +301,7 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
     // assertion — the resolution has to land on a persona that exists.
     const { id: alex } = await seedPersona(db, { ownerId: owner.id, name: "Alex" });
     const personas = new Map<string, PersonaId>([["alex", alex]]);
-    // The real corpus header shape for a pinned chat.
+    // The synthetic header records an explicit persona pin.
     const pinned = stChatBytes({ pinnedPersona: "Alex" }).replace('"user_name":"Alex"', '"user_name":"unused"');
 
     await importStChats({ db, ownerId: owner.id, characterId: character.id, files: [{ name: UGLY_FILENAME, text: pinned }], personas });
@@ -327,23 +313,18 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
     expect(userRows.filter((m) => m.role === "user").map((m) => m.personaId)).toEqual([alex]);
   });
 
-  // §5.7 THIRD SIGNAL — the USER TURNS' own `name` stamp (#162/#163, owner-observed 2026-08-17, re-measured
-  // against the owner's whole ST snapshot 2026-08-18). The pin recovers 71 chats; the sentinel covers 569 of
-  // 1,083, so ~500 rooms had NO anchor and NO user-turn attribution from the two header signals alone — and
-  // on the live corpus 417 of 895 imported rooms were sitting unattributed. ST stamps every line's `name`
-  // with its sender at SEND time, and 468 of those sentinel chats carry a resolvable persona name there
-  // (Alex ×438 · Ashley ×21 · Ash ×10 · Sam Rowe ×4 · Yuki ×3). This is the DB-mediated proof that the
-  // signal reaches all three columns: the room's pin, the host seat's active persona, and the user slot.
+  // User-turn sender names are the third signal after pin/header. Sentinel headers without pins must still
+  // resolve into the room anchor, host active persona, and user slot when a sender is known.
   test("§5.7 — a sentinel-header chat with NO pin resolves from its USER TURNS' own name stamps", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
     const { id: alex } = await seedPersona(db, { ownerId: owner.id, name: "Alex" });
     const personas = new Map<string, PersonaId>([["alex", alex]]);
-    // The majority corpus shape: the sentinel header, no pin, and the persona named only on the user line.
+    // The synthetic sentinel header has no pin; only the user line names the persona.
     const stamped = stChatBytes()
       .replace('"user_name":"Alex"', '"user_name":"unused"')
-      .replace('{"is_user":true,"mes":"Hi Emily!"', '{"is_user":true,"name":"Alex","mes":"Hi Emily!"');
+      .replace('{"is_user":true,"mes":"Hi Eleni!"', '{"is_user":true,"name":"Alex","mes":"Hi Eleni!"');
 
     await importStChats({ db, ownerId: owner.id, characterId: character.id, files: [{ name: UGLY_FILENAME, text: stamped }], personas });
 
@@ -359,17 +340,17 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
     const { id: alex } = await seedPersona(db, { ownerId: owner.id, name: "Alex" });
-    const { id: ashley } = await seedPersona(db, { ownerId: owner.id, name: "Ashley" });
+    const { id: robin } = await seedPersona(db, { ownerId: owner.id, name: "Robin" });
     const personas = new Map<string, PersonaId>([
       ["alex", alex],
-      ["ashley", ashley],
+      ["robin", robin],
     ]);
     // Both resolvable, and they disagree: the explicit chat-bound pick is the authoritative answer.
-    const pinned = stChatBytes({ pinnedPersona: "Ashley" });
+    const pinned = stChatBytes({ pinnedPersona: "Robin" });
 
     await importStChats({ db, ownerId: owner.id, characterId: character.id, files: [{ name: UGLY_FILENAME, text: pinned }], personas });
 
-    expect((await db.select().from(chats))[0]?.anchorPersonaId).toBe(ashley);
+    expect((await db.select().from(chats))[0]?.anchorPersonaId).toBe(robin);
   });
 
   test("§5.7 — an unresolvable pin is OMITTED and REPORTED, never guessed; the header user_name still applies", async () => {
@@ -441,6 +422,6 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
 
     const rows = await db.select({ title: chats.title }).from(chats).orderBy(asc(chats.id));
     expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.title).sort()).toEqual(["Emily Singleton — May 7, 2025", "Emily Singleton — May 7, 2025 (2)"]);
+    expect(rows.map((r) => r.title).sort()).toEqual(["Eleni Northwell — Mar 6, 2024", "Eleni Northwell — Mar 6, 2024 (2)"]);
   });
 });

@@ -18,7 +18,7 @@
 // header states, applied to every listed program). The `{dormant}` body arm and the marker are the SAME field, so
 // building one of these means writing `body: () => <…/>`, which deletes the promise in the same edit: a
 // stale doorway stays unrepresentable. They are HOME-owned for the same reason buddy is — an empty
-// `features/expressions/` dir is `feature-owns-definition` RED, and the day the domain lands it takes its
+// feature dir without its implementation is `feature-owns-definition` RED; a landed domain takes its
 // tile with it.
 //
 // THE COPY RULE (owner): one honest line each, house voice, and NO date is ever promised. The state line
@@ -26,7 +26,7 @@
 // with a built part; the test pins that grammar and refuses a year or a quarter in either line.
 
 import type { LucideIcon } from "@orb/ui/icons";
-import { Drama, ListChecks, MapIcon, SmilePlus, Swords, UserPlus } from "@orb/ui/icons";
+import { ListChecks, MapIcon, SmilePlus, Swords, UserPlus } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
 
 /** One committed-but-unrealized program, as home says it out loud + the provenance that proves it.
@@ -64,15 +64,6 @@ export const HOME_ROADMAP: readonly RoadmapProgram[] = [
     state: "Partly built — the table runs; encounters and handing the GM seat to a person are still to come.",
     plan: "rpg",
     item: 50,
-  },
-  {
-    id: "expressions",
-    title: "Expressions",
-    icon: Drama,
-    gloss: "Portraits that change with the mood of a reply, so a character's face answers you as well as their words.",
-    state: "Partly built — image-sheet prep is in place; sprite storage, mood classification, and portrait swapping are still to come.",
-    plan: "expressions",
-    item: 49,
   },
   {
     id: "reactions",

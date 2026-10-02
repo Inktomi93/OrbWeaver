@@ -15,7 +15,7 @@
 // selecting somebody replaced the library with her chats (the
 // unconditional arm — a design RECOMMENDATION, never an owner-ruled ledger
 // entry, and whose priced cost was exactly "you can't browse the library while editing her"). On the owner's
-// 327-character library that price came due: the section whose whole job is browsing a big library lost the
+// 320-character library that price came due: the section whose whole job is browsing a big library lost the
 // library on every pick, so "look at the next one" cost a back-chevron trip (side-eye 2026-08-22
 // rail-characters, the taste verdict). The list is now the library, always — the chats-section shape (LIST
 // drives CONTENT, LIST never becomes something else) — and her chats moved to CONTEXT, where artifact-scoped

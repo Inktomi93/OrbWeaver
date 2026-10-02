@@ -446,12 +446,10 @@ interface OneChatArgs {
   readonly narratorCharacterId: CharacterId | null;
 }
 
-/** The chat's whole PROSE plane, written verbatim from the ONE carried list. Both arms arrive here already
- *  resolved: an orb-native bundle carries its `chat_injections` rows as they stood, and the ST arm's mapper
- *  (`domain/import/substrate/chat-input.ts`) has already converted `note_prompt` + ST's recorded placement
- *  knobs into exactly one row, applying the house author's-note register as the fallback. This write op holds
- *  no placement policy of its own — it used to hardcode `in_chat`/depth 4/`system` for the ST arm, which
- *  silently overrode the placement 1,070 corpus chats actually recorded. */
+/** Both import arms arrive with the whole resolved prose list: native chat_injections or the ST mapper
+ *  conversion of note_prompt and recorded placement knobs. This writer applies no placement policy and must
+ *  not hardcode in_chat/depth 4/system over the mapper result.
+ */
 function injectionStmts(ctx: ChatImportContext, chatId: ChatId, ci: BulkImportChatInput): BatchStmt[] {
   const { db } = ctx;
   return (ci.injections ?? []).map((injection) =>

@@ -250,7 +250,7 @@ test("no flush in flight: the hand door still writes IN PLACE on the settled tur
 
 /** Seed a settled beat that mints an actor + their presence, then lock it in with the ordinary next send. */
 async function seedActorBeat(h: Awaited<ReturnType<typeof seedLiteGame>>["h"], chatId: ChatId): Promise<void> {
-  h.fakes.toolRoundDelta = { statePatch: { actorState: [actorWithWallet("mara", 3, 2)], presentCharacters: ["npc:mara"] }, journal: [] };
+  h.fakes.toolRoundDelta = { statePatch: { actorState: [actorWithWallet("mira", 3, 2)], presentCharacters: ["npc:mira"] }, journal: [] };
   const beat = await seedMessage(h.ctx.db, chatId, 1, { role: "assistant" });
   await h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_seed"), turnConnection());
   const sent = await seedMessage(h.ctx.db, chatId, 2, { role: "user", content: "ok" });
@@ -273,7 +273,7 @@ test("CE1: a mid-flight dismissActor is NOT undone by the fold (the round's own 
   });
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_dismiss"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
-  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mara" } })).resolves.toEqual({ ok: true });
+  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mira" } })).resolves.toEqual({ ok: true });
   releaseRound();
   await flush;
 
@@ -281,7 +281,7 @@ test("CE1: a mid-flight dismissActor is NOT undone by the fold (the round's own 
   expect(head?.row.actorState ?? []).toHaveLength(0); // she STAYS dismissed
   expect(head?.row.presentCharacters ?? []).toHaveLength(0); // and so does her presence
   const view = await h.service.getTrackerView({ principal: HOST, chatId });
-  expect(view.actors.some((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "mara")).toBe(false);
+  expect(view.actors.some((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "mira")).toBe(false);
   expect(view.ambient?.weather?.type).toBe("fog"); // …while the round's own write is not sacrificed to save her
 });
 
@@ -298,8 +298,8 @@ test("CE1 (PRODUCTION patch shape): a round that re-authors PRESENCE does not re
 
   h.fakes.toolRoundDelta = {
     statePatch: {
-      presentCharacters: ["npc:mara"], // carried from the round's base, not authored
-      actorState: [actorWithWallet("mara", 3, 2)], // ditto — byte-identical to what the base already held
+      presentCharacters: ["npc:mira"], // carried from the round's base, not authored
+      actorState: [actorWithWallet("mira", 3, 2)], // ditto — byte-identical to what the base already held
       weather: { type: "fog", label: "nightfall mist" }, // the round's ONE genuine write
     },
     journal: [],
@@ -311,7 +311,7 @@ test("CE1 (PRODUCTION patch shape): a round that re-authors PRESENCE does not re
   });
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_p6"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
-  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mara" } })).resolves.toEqual({ ok: true });
+  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mira" } })).resolves.toEqual({ ok: true });
   releaseRound();
   await flush;
 
@@ -333,7 +333,7 @@ test("the tombstone BOUNDARY: a round that genuinely CHANGES the dismissed actor
   await seedActorBeat(h, chatId);
 
   h.fakes.toolRoundDelta = {
-    statePatch: { presentCharacters: ["npc:mara"], actorState: [actorWithWallet("mara", 99, 2)] }, // 3 → 99: a real write
+    statePatch: { presentCharacters: ["npc:mira"], actorState: [actorWithWallet("mira", 99, 2)] }, // 3 → 99: a real write
     journal: [],
   };
   const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
@@ -343,13 +343,13 @@ test("the tombstone BOUNDARY: a round that genuinely CHANGES the dismissed actor
   });
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_tomb"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
-  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mara" } })).resolves.toEqual({ ok: true });
+  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mira" } })).resolves.toEqual({ ok: true });
   releaseRound();
   await flush;
 
   const head = await resolveSnapshotHead(db, { id: gameId, chatId });
-  const mara = head?.row.actorState?.find((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "mara");
-  expect(mara?.volatile.wallet).toEqual([{ name: "gold", amount: 99 }]); // the round's genuine write survives
+  const mira = head?.row.actorState?.find((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "mira");
+  expect(mira?.volatile.wallet).toEqual([{ name: "gold", amount: 99 }]); // the round's genuine write survives
 });
 
 test("TWO staged writes on ONE flat plane: the fold duplicates nothing (beats and presence stay as narrated)", async () => {
@@ -443,10 +443,10 @@ test("CE1 (no race at all): dismiss, then REGEN that slot — the reroll's fold 
   // ordinary swipe gesture stays clean under the patch-replaying fold.
   const { chatId, gameId, h } = await seedLiteGame(db, {});
   await pinExtractionMode(h, chatId, "cheap");
-  h.fakes.toolRoundDelta = { statePatch: { actorState: [actorWithWallet("mara", 3, 2)], presentCharacters: ["npc:mara"] }, journal: [] };
+  h.fakes.toolRoundDelta = { statePatch: { actorState: [actorWithWallet("mira", 3, 2)], presentCharacters: ["npc:mira"] }, journal: [] };
   const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
   await h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_r1"), turnConnection());
-  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mara" } })).resolves.toEqual({ ok: true });
+  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mira" } })).resolves.toEqual({ ok: true });
 
   // Reroll the SAME assistant slot: a new variant, selected — the swipe pointer moves with zero snapshot writes.
   const rerolled = await addVariant(db, beat.messageId, 1, "b");

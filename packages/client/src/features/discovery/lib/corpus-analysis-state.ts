@@ -214,19 +214,10 @@ function passDatum(everRan: CorpusPassRan, found: number, foundLabel: string): s
   return foundLabel;
 }
 
-/**
- * The keyword row, which has TWO more states than its neighbours because its count arrives from a read that
- * does not suspend the surface (issue #384).
- *
- * THE DEFECT THIS EXISTS FOR, and it is the #164 incident recreated by a correct performance fix. The #269
- * deferral moved `topKeywords` off the suspense boundary — right, and it stays — so the rail now renders
- * while that read is in flight. The count then arrived as `data?.length ?? 0`, which is a MEASUREMENT branch,
- * and a library whose keyword pass had genuinely succeeded read "Keywords — none found" for one round trip
- * before flipping to the real number. That is the sentence the owner read as a defect on a 327-card library,
- * and it was fabricated from a table nobody had looked at yet.
- *
- * The un-run arm still outranks everything: a queue that says the pass never succeeded is a fact about the
- * pass, not about the read, and it is true whatever the keyword table happens to hold.
+/** Keywords has extra unresolved/error states because topKeywords no longer suspends the surface
+ *  (#384/#269). data?.length ?? 0 would announce none found before reading the table. The queue saying the
+ *  pass never succeeded outranks the read state: that is a fact about the pass, not a measurement of its
+ *  rows.
  */
 function keywordsDatum(everRan: CorpusPassRan, count: CorpusPassCount): string {
   if (everRan === false) {
@@ -316,22 +307,10 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
   const headline = headlineFor(phase, input, families, storyThemes);
   const stated = new Set(headline.states);
 
-  // THE FIGURES STATE WHAT THE SENTENCE DOES NOT — the fork, resolved (side-eye corpus re-pass 2026-08-19
-  // §5, and it contradicts what this file used to say, so both readings are recorded).
-  //   OLD MECHANISM (kept): `hero` is the voice for THE value, at most one per surface, and WHICH figure it
-  //     is moves with the phase rather than being pinned to a column.
-  //   NEW SYMPTOM: on the audited library the h1 read "327 characters, distilled into 24 story themes" and
-  //     the figure row beside it printed 327 and 24 again. The masthead argued with itself; the only figure
-  //     that added anything was the family count.
-  //   RESOLUTION: a figure is DROPPED when the headline already gives its number, and the hero is then the
-  //     first SURVIVOR in the phase's own priority order. Nothing survives ⇒ no figure row at all, and the
-  //     sentence carries the masthead alone — which is the honest end of "state it once".
-  //
-  // The other two subtractions are unchanged:
-  //   • whichever figure the hero already is never repeats as a companion (the same datum twice on one row);
-  //   • while the library is un-analysed, anything at ZERO is absent — a pass that has never run has not
-  //     measured zero, it has measured nothing, and the readiness rail says "not run" for exactly those.
-  //     Once the semantic pass HAS run a zero prints, because then it IS a measurement (#99 item 7).
+  // Headline numbers are not repeated in the figure row; the hero is the first survivor in the phase
+  // priority order (#99/2026-08-19 fork). With no survivor there is no figure row. A hero never repeats as
+  // a companion. Before analysis, zero is absent because nothing was measured; after a successful pass, a
+  // measured zero is shown.
   const candidates: readonly { readonly figure: CorpusFigure; readonly count: number }[] = [
     { figure: { id: "characters", value: formatCount(input.characters), caption: "characters" }, count: input.characters },
     { figure: { id: "families", value: formatCount(families), caption: "visual families" }, count: families },
@@ -358,10 +337,10 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
       // different units and the copy has to say so.
       //
       // …AND THE CHARACTER COUNT NAMES ITS BASE (side-eye populated arm, #535's surviving half). This read
-      // `8 families · 242 characters` on a 327-character library: 242 is a real measurement of a real
+      // `8 families · 242 characters` on a 320-character library: 242 is a real measurement of a real
       // thing — how many characters the portrait clustering placed — and NOTHING on the surface said what
       // it was 242 OUT OF, so the 85 characters in no visual family were invisible in every one of the
-      // four denominators this section prints (327 / 313 / 242 / 204). A clustered count and an owned
+      // four denominators this section prints (320 / 313 / 242 / 204). A clustered count and an owned
       // count are still different units from the family count, which is why the row keeps two clauses
       // rather than collapsing to one ratio — the second clause simply stops being a bare number.
       datum: families === 0 ? "not run" : `${formatCount(families)} families · ${formatCount(clustered)} of ${plural(input.characters, "character")}`,
@@ -397,11 +376,8 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
     {
       id: "duplicates",
       label: "Near-duplicates",
-      // "none found" IS A RESULT — but only once the pass has produced one (issue #164 item 4). The old line
-      // read `nearDuplicates === 0 ? "none found"`, which stated a measurement for a pass that had never run:
-      // the owner read "none found" on a 327-card imported library and reasonably took it for a defect. It
-      // was not; `find-duplicates` simply had not run yet (it later found 30 pairs). The rail's whole
-      // contract is "a zero must be a state a reader can act on", and those two zeros need different actions.
+      // None found is a result only after the pass ran (#164). A zero from an un-run pass means not run;
+      // those states require different actions.
       datum: duplicatesDatum(passRan(input.duplicatesEverRan, input.queueRead), nearDuplicates, input.identicalCharacterPairs),
       done: nearDuplicates > 0 || input.identicalCharacterPairs > 0,
     },

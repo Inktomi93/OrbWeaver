@@ -183,8 +183,6 @@ export function setCharacterSearch(search: string): void {
 export function setBulkMode(bulkMode: boolean): void {
   useCharacterLibraryStore.setState({ bulkMode }, false, "character-library/setBulkMode");
 }
-/** Show/hide the filter rail's INACTIVE vocabulary (#491) — the collapsed default is what gave the 327-row
- *  library its vertical space and its keyboard back. Never touches the filter VALUES. */
 export function toggleFiltersOpen(): void {
   useCharacterLibraryStore.setState((s) => ({ filtersOpen: !s.filtersOpen }), false, "character-library/toggleFiltersOpen");
 }

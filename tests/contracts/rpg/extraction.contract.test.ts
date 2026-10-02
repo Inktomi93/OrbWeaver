@@ -185,28 +185,28 @@ const TRUST = tracker({ key: "trust", label: "Trust", shape: "text", write: "set
 const SEALED = tracker({ key: "sealed", label: "Sealed", shape: "meter", write: "delta", subject: "actor", appliesTo: "everyone", locked: true });
 
 test("R6: ONE carrier set keeps the party schema FLAT (the common game pays nothing for the machinery)", () => {
-  const groups = buildTrackerWriteGroups([MANA], [carrier("Kael", "party"), carrier("Sera", "party")]);
+  const groups = buildTrackerWriteGroups([MANA], [carrier("Kael", "party"), carrier("Sola", "party")]);
   expect(groups).toHaveLength(1);
   const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
     ...BARE_REFS,
-    actorRefs: ["Kael", "Sera"],
+    actorRefs: ["Kael", "Sola"],
     trackerWriteGroups: groups,
   });
   const item = ["properties", "party", "items"] as const;
   expect(refEnum(constrained, [...item, "oneOf"])).toBeUndefined();
-  expect(refEnum(constrained, [...item, "properties", "targetRef", "enum"])).toEqual(["Kael", "Sera"]);
+  expect(refEnum(constrained, [...item, "properties", "targetRef", "enum"])).toEqual(["Kael", "Sola"]);
   expect(refEnum(constrained, [...item, "properties", "trackerDeltas", "items", "properties", "key", "enum"])).toEqual(["mana"]);
   // Nobody carries a `set` tracker here, so that arm is REMOVED (never an empty-enum husk).
   expect(refEnum(constrained, [...item, "properties", "trackerSets"])).toBeUndefined();
 });
 
 test("R6: an actor who does NOT carry a tracker is never offered it (the whole point — a oneOf branch each)", () => {
-  // Kael carries Mana (party class); Mira is an NPC carrying Trust; Sera had Mana REVOKED on her sheet.
-  const groups = buildTrackerWriteGroups([MANA, TRUST], [carrier("Kael", "party"), carrier("Sera", "party", { revokes: ["mana"] }), carrier("Mira", "npcs")]);
+  // Kael carries Mana (party class); Mira is an NPC carrying Trust; Sola had Mana REVOKED on her sheet.
+  const groups = buildTrackerWriteGroups([MANA, TRUST], [carrier("Kael", "party"), carrier("Sola", "party", { revokes: ["mana"] }), carrier("Mira", "npcs")]);
   expect(groups).toHaveLength(3);
   const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), {
     ...BARE_REFS,
-    actorRefs: ["Kael", "Sera", "Mira"],
+    actorRefs: ["Kael", "Sola", "Mira"],
     trackerWriteGroups: groups,
   });
   const branches = refEnum(constrained, ["properties", "party", "items", "oneOf"]) as Record<string, unknown>[];
@@ -223,10 +223,10 @@ test("R6: an actor who does NOT carry a tracker is never offered it (the whole p
   // Kael: Mana on the delta arm, no set arm at all.
   expect(armKeys("Kael", "trackerDeltas")).toEqual(["mana"]);
   expect(byTarget.get("Kael")?.["trackerSets"]).toBeUndefined();
-  // Sera: Mana revoked ⇒ NO tracker arms whatsoever (she is still targetable for conditions/status).
-  expect(byTarget.get("Sera")?.["trackerDeltas"]).toBeUndefined();
-  expect(byTarget.get("Sera")?.["trackerSets"]).toBeUndefined();
-  expect(byTarget.get("Sera")?.["addCondition"]).toBeDefined();
+  // Sola: Mana revoked ⇒ NO tracker arms whatsoever (she is still targetable for conditions/status).
+  expect(byTarget.get("Sola")?.["trackerDeltas"]).toBeUndefined();
+  expect(byTarget.get("Sola")?.["trackerSets"]).toBeUndefined();
+  expect(byTarget.get("Sola")?.["addCondition"]).toBeDefined();
   // Mira: the NPC-class Trust on the SET arm, and no delta arm.
   expect(armKeys("Mira", "trackerSets")).toEqual(["trust"]);
   expect(byTarget.get("Mira")?.["trackerDeltas"]).toBeUndefined();
@@ -251,12 +251,12 @@ test("R6: a GRANT reaches an actor the class missed; a REVOKE beats everything",
   const bound = tracker({ key: "bound_will", label: "Bound Will", shape: "meter", write: "delta", subject: "actor", appliesTo: "npcs" });
   const groups = buildTrackerWriteGroups(
     [MANA, bound],
-    [carrier("Kael", "party", { grants: ["bound_will"] }), carrier("Sera", "party", { revokes: ["mana"] })],
+    [carrier("Kael", "party", { grants: ["bound_will"] }), carrier("Sola", "party", { revokes: ["mana"] })],
   );
   // Ordered by the ONE tracker ordering (sort, then key) — stable across calls, so the per-call schema
   // never reshuffles for nothing (a prompt-cache + xgrammar-compile miss).
   expect(groups.find((g) => g.targetRefs.includes("Kael"))?.deltaKeys).toEqual(["bound_will", "mana"]);
-  expect(groups.find((g) => g.targetRefs.includes("Sera"))?.deltaKeys).toEqual([]);
+  expect(groups.find((g) => g.targetRefs.includes("Sola"))?.deltaKeys).toEqual([]);
 });
 
 test("R6: the game-subject write keys split by the write axis and drop the locked ones", () => {
@@ -993,11 +993,11 @@ test("POPULATE offers NO live-play plane — scene/party/trackers/journal are ab
 test("POPULATE salvage DISCARDS a live-play plane even when a non-enforcing wire volunteers one", () => {
   const { extraction, sheet } = salvagePopulate({
     sheet: { title: "Warden of House Vane", level: 3 },
-    inventory: [{ targetRef: "Mara", add: [{ name: "Bone key", quantity: 1 }], walletDeltas: [{ name: "gold", delta: 20 }] }],
+    inventory: [{ targetRef: "Mira", add: [{ name: "Bone key", quantity: 1 }], walletDeltas: [{ name: "gold", delta: 20 }] }],
     quests: [{ name: "Find the vault", action: "create" }],
     // The planes a card read must never write — emitted anyway (an unconstrained wire), and dropped on the floor.
     scene: { location: "the tower" },
-    party: [{ targetRef: "Mara", hpDelta: -5 }],
+    party: [{ targetRef: "Mira", hpDelta: -5 }],
     trackers: [{ key: "alarm", value: 30 }],
     journal: [{ type: "note", content: "a beat" }],
   });
@@ -1013,7 +1013,7 @@ test("POPULATE salvage DISCARDS a live-play plane even when a non-enforcing wire
 test("POPULATE salvage is PER-ENTRY (EXT-4a): a bad item drops alone, and a bad sheet costs only the sheet", () => {
   const { sheet, extraction, dropped } = salvagePopulate({
     sheet: { level: -3 }, // below the min ⇒ the sheet half is refused whole
-    inventory: [{ targetRef: "Mara", add: [{ name: "Rope" }] }, { add: [{ name: "no target" }] }],
+    inventory: [{ targetRef: "Mira", add: [{ name: "Rope" }] }, { add: [{ name: "no target" }] }],
     quests: [{ name: "Find the vault", action: "create" }],
   });
   expect(sheet).toBeNull();
@@ -1032,12 +1032,12 @@ test("POPULATE: an empty round parses (a card that established nothing), and a n
 
 test("POPULATE constraint pins inventory.targetRef to the ONE character and REQUIRES the sheet fields (the xgrammar lever)", () => {
   // WireReady is an opaque branded Record; widen to the plain record (assignable, no cast) then read its shape.
-  const populated: Record<string, unknown> = constrainPopulateSchema(projectJsonSchema(rpgPopulateSchema), "Mara");
+  const populated: Record<string, unknown> = constrainPopulateSchema(projectJsonSchema(rpgPopulateSchema), "Mira");
   const constrained = populated as {
     required?: string[];
     properties: { sheet: { required?: string[] }; inventory: { items: { properties: { targetRef: { enum?: string[] } } } } };
   };
-  expect(constrained.properties.inventory.items.properties.targetRef.enum).toEqual(["Mara"]);
+  expect(constrained.properties.inventory.items.properties.targetRef.enum).toEqual(["Mira"]);
   expect(constrained.required).toContain("sheet");
   expect((constrained.properties.sheet.required ?? []).toSorted()).toEqual(["level", "title"]);
   // …and the input projection is untouched (the cached schema also feeds other wires).
@@ -1047,7 +1047,7 @@ test("POPULATE constraint pins inventory.targetRef to the ONE character and REQU
 
 test("POPULATE teaching: the two born planes + the invent-nothing doctrine, and NO live-play plane fragment", () => {
   const config = rpgGameConfigSchema.parse({});
-  const teaching = composePopulateTeaching({ config, refs: { ...BARE_REFS, actorRefs: ["Mara"] } });
+  const teaching = composePopulateTeaching({ config, refs: { ...BARE_REFS, actorRefs: ["Mira"] } });
   expect(teaching).toContain("sheet.title");
   expect(teaching).toContain("INVENTORY");
   expect(teaching).toContain("QUESTS");
@@ -1058,7 +1058,7 @@ test("POPULATE teaching: the two born planes + the invent-nothing doctrine, and 
 });
 
 test("POPULATE teaching carries the deception surface-only clause on a deception-active game", () => {
-  const refs = { ...BARE_REFS, actorRefs: ["Mara"] };
+  const refs = { ...BARE_REFS, actorRefs: ["Mira"] };
   const plain = composePopulateTeaching({ config: rpgGameConfigSchema.parse({}), refs });
   const deceptive = composePopulateTeaching({ config: rpgGameConfigSchema.parse({ features: { deception: true } }), refs });
   expect(plain).not.toContain("hidden layers");
@@ -1177,9 +1177,9 @@ test("WIRE: the Anthropic wire REFUSES the multi-group extraction schema (oneOf)
   const bound = tracker({ key: "bound_will", label: "Bound Will", shape: "meter", write: "delta", subject: "actor", appliesTo: "npcs" });
   const groups = buildTrackerWriteGroups(
     [MANA, bound],
-    [carrier("Kael", "party", { grants: ["bound_will"] }), carrier("Sera", "party", { revokes: ["mana"] })],
+    [carrier("Kael", "party", { grants: ["bound_will"] }), carrier("Sola", "party", { revokes: ["mana"] })],
   );
-  const multi = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { ...WIRE_REFS, actorRefs: ["Kael", "Sera"], trackerWriteGroups: groups });
+  const multi = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { ...WIRE_REFS, actorRefs: ["Kael", "Sola"], trackerWriteGroups: groups });
   expect(wireKeywords(multi).has("oneOf")).toBe(true);
   expect(scrubWireSchema(multi, "anthropic-format").refused).toEqual(["oneOf"]);
   // Every other wire carries it: the forced-tool vehicle compiles no grammar, and xgrammar accepts unions.

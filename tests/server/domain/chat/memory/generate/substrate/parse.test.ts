@@ -35,10 +35,10 @@ describe("memory/generate/substrate/parse", () => {
   // #330 P5 — the real corpus row: the model appended `Keywords:` INLINE after the final fact sentence rather
   // than on its own line, and the old `^\s*keywords:` anchor lost the whole block's keywords (1 in 26 measured).
   test("an INLINE `Keywords:` after a fact sentence still yields the keyword list, keeping the fact prefix", () => {
-    const d = parseDigest("[Mara — the kitchen]\nBess wraps a gift for Sam. Keywords: Mara, Sam, gift");
-    expect(d.topicAnchor).toBe("[Mara — the kitchen]");
-    expect(d.facts).toBe("Mara wraps a gift for Sam.");
-    expect(d.keywords).toEqual(["Mara", "Sam", "gift"]);
+    const d = parseDigest("[Orla — the depot]\nOrla records a parcel for Orin. Keywords: Orla, Orin, parcel");
+    expect(d.topicAnchor).toBe("[Orla — the depot]");
+    expect(d.facts).toBe("Orla records a parcel for Orin.");
+    expect(d.keywords).toEqual(["Orla", "Orin", "parcel"]);
   });
 
   test("a fact that merely MENTIONS `keywords:` mid-body does not steal the real trailing keyword list", () => {

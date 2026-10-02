@@ -3,7 +3,7 @@
 // render through it, so the conformance the private copies each held by hand is pinned ONCE here:
 //
 //   · the title is the DISPLAY step against the GENERATED token map (not a hardcoded px), the count is mono;
-//   · the accent half (`Chats · Azarael`) recedes to the muted tone behind the name it qualifies;
+//   · the accent half (`Chats · Aveline`) recedes to the muted tone behind the name it qualifies;
 //   · a zero count renders NOTHING (a zero census is noise) while a real count renders;
 //   · `back` is a real focusable button carrying its accessible name (the glyph has no text);
 //   · exactly ONE action node renders (D66 A2 — one primary per pane per mode).
@@ -92,11 +92,11 @@ test("#525 the census reads as a datum beside the name: no caps anywhere in the 
 });
 
 test("the accent half rides the title's step and recedes behind it in tone", async ({ mount }) => {
-  const component = await mount(<ListPaneHeader accent="Azarael" title="Chats" />);
+  const component = await mount(<ListPaneHeader accent="Aveline" title="Chats" />);
 
-  // The whole cluster reads as one line: "Chats · Azarael".
-  await expect(component.getByRole("heading", { level: 2 })).toContainText("Azarael");
-  const accent = component.getByText("Azarael", { exact: true });
+  // The whole cluster reads as one line: "Chats · Aveline".
+  await expect(component.getByRole("heading", { level: 2 })).toContainText("Aveline");
+  const accent = component.getByText("Aveline", { exact: true });
   await expect(accent, "#1136 — the entity half is the same step as the name it qualifies").toHaveCSS("font-size", DISPLAY_PX);
   // The accent RECEDES behind the foreground title (#1136 flipped which half is muted) — the pin is that
   // they are two resolved colors, so the pane still reads as "Chats, scoped to HER" and not two equal nouns.
@@ -108,14 +108,14 @@ test("the accent half rides the title's step and recedes behind it in tone", asy
 });
 
 test("back is a real focusable button named by its label; absent when not supplied", async ({ mount, page }) => {
-  const component = await mount(<ListPaneHeader accent="Azarael" back={{ label: "Back to all characters", onClick: (): void => undefined }} title="Chats" />);
+  const component = await mount(<ListPaneHeader accent="Aveline" back={{ label: "Back to all characters", onClick: (): void => undefined }} title="Chats" />);
 
   const back = component.getByRole("button", { name: "Back to all characters", exact: true });
   await expect(back).toBeVisible();
   await back.focus();
   await expect(back).toBeFocused();
 
-  await component.update(<ListPaneHeader accent="Azarael" title="Chats" />);
+  await component.update(<ListPaneHeader accent="Aveline" title="Chats" />);
   await expect(page.getByRole("button", { name: "Back to all characters" })).toHaveCount(0);
 });
 
@@ -188,10 +188,10 @@ test("MOBILE: the count travels with the title — no orphan number on a nameles
 
 test("MOBILE: a band that still has something to say KEEPS its row (a scoped title, or the pane's action)", async ({ mount, page }) => {
   await page.setViewportSize(PHONE);
-  const scoped = await mount(<ListBandInShell accent="Sera" count={8} />);
+  const scoped = await mount(<ListBandInShell accent="Sola" count={8} />);
   await expect(page.locator(".shell-panel-header")).not.toHaveCSS("display", "none");
   // A SCOPED band names a swapped pane — a different fact from the topbar's — so title AND count stay.
-  await expect(scoped.getByText("Sera", { exact: true })).toBeVisible();
+  await expect(scoped.getByText("Sola", { exact: true })).toBeVisible();
   await expect(scoped.getByText("8", { exact: true })).toBeVisible();
 
   await scoped.update(<ListBandInShell withAction={true} />);

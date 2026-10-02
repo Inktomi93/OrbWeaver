@@ -626,7 +626,7 @@ describe("read — listChats orders by the clock its rows DISPLAY (#150)", () =>
   });
 });
 
-describe("read — listChats PAGING, projection + search (the 872-chat class)", () => {
+describe("read — listChats PAGING, projection + search (the 880-chat class)", () => {
   /** N rooms hosted by `me`, all stamped the SAME `updatedAt` — the shape a bulk import writes, and the one
    *  an `updated_at`-only keyset silently skips or repeats rows across. */
   async function seedSameStampRooms(me: UserId, count: number, stamp: number, prefix = "page"): Promise<readonly ChatId[]> {
@@ -756,7 +756,7 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
   test("the date lens composes with D18 membership, archive, character projection, search, and the census", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
     const other = await seedUser(db, castId<Handle>("other"));
-    const her = await seedCharacter(db, me, "Azarael");
+    const her = await seedCharacter(db, me, "Aveline");
 
     const included = await seedChat(db, "dated_included", { archived: true, title: "Needle beneath", updatedAt: 8000 });
     await seedParticipant(db, { chatId: included, key: "di_h", userId: me, role: "host" });
@@ -785,7 +785,7 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
 
   test("`characterId` PROJECTS server-side — present AND departed seats, and it scopes the census too", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
-    const her = await seedCharacter(db, me, "azarael");
+    const her = await seedCharacter(db, me, "aveline");
     const him = await seedCharacter(db, me, "kai");
 
     const withHer = await seedChat(db, "withher", { title: "Rain" });
@@ -817,7 +817,7 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
   // history filter, which keeps departed seats but must NOT turn one into a face.
   test("`participantPortraits` carries the PRESENT character seats in seat order — humans and departed seats excluded", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
-    const her = await seedCharacter(db, me, "azarael");
+    const her = await seedCharacter(db, me, "aveline");
     const him = await seedCharacter(db, me, "kai");
     const gone = await seedCharacter(db, me, "vanished");
 
@@ -840,7 +840,7 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
 
   test("`characterId` never duplicates a row when a character holds TWO seats in one chat", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
-    const her = await seedCharacter(db, me, "azarael");
+    const her = await seedCharacter(db, me, "aveline");
     const chatId = await seedChat(db, "twice", { title: "Twice" });
     await seedParticipant(db, { chatId, key: "tw_h", userId: me, role: "host" });
     // A re-join leaves the departed seat behind, so a chat legitimately carries two rows for one character.
@@ -857,7 +857,7 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
 
   test("`search` matches the TITLE, a CHARACTER SEAT's name, and the NEWEST message's body", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
-    const her = await seedCharacter(db, me, "Azarael");
+    const her = await seedCharacter(db, me, "Aveline");
 
     const byTitle = await seedChat(db, "bytitle", { title: "The Ashen Spire" });
     await seedParticipant(db, { chatId: byTitle, key: "bt_h", userId: me, role: "host" });
@@ -880,7 +880,7 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
 
     // Case-insensitive across all three arms — the user types what they remember, not what was stored.
     expect(await found("ashen")).toEqual([byBody, byTitle].sort());
-    expect(await found("azarael")).toEqual([byName]);
+    expect(await found("aveline")).toEqual([byName]);
     expect(await found("  ")).toEqual([byBody, byName, byTitle, decoy].sort());
     expect(await found("nothing-in-here")).toEqual([]);
     // The census answers about the SEARCH, or the band would print the unsearched library over a filtered page.
@@ -955,7 +955,7 @@ describe("read — listChats PAGING, projection + search (the 872-chat class)", 
   test("the filters COMPOSE — search inside a character projection stays membership-scoped", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
     const stranger = await seedUser(db, castId<Handle>("stranger"));
-    const her = await seedCharacter(db, me, "azarael");
+    const her = await seedCharacter(db, me, "aveline");
 
     const mineHit = await seedChat(db, "minehit", { title: "Rain over the spire" });
     await seedParticipant(db, { chatId: mineHit, key: "mh_h", userId: me, role: "host" });
@@ -1934,14 +1934,14 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // resolved through the same `getCard` op the turn assembles from (no client-side guessing, no shim).
     const me = await seedUser(db, castId<Handle>("cast_host"));
     const chatId = await seedChat(db, "cast");
-    const maraId = await seedCharacter(db, me, "mara");
+    const miraId = await seedCharacter(db, me, "mira");
     const nikoId = await seedCharacter(db, me, "niko");
     await seedParticipant(db, { chatId, key: "cast_h", userId: me, role: "host" });
-    await seedParticipant(db, { chatId, key: "cast_mara", characterId: maraId });
+    await seedParticipant(db, { chatId, key: "cast_mira", characterId: miraId });
     await seedParticipant(db, { chatId, key: "cast_niko", characterId: nikoId });
 
     const cards: Record<string, { name: string; description: string; regexScripts: [] }> = {
-      [maraId]: { name: "Mara", description: "A bold knight of the Lantern Road who never yields her post.", regexScripts: [] },
+      [miraId]: { name: "Mira", description: "A bold knight of the Lantern Road who never yields her post.", regexScripts: [] },
       [nikoId]: { name: "Niko", description: "A wary scout.", regexScripts: [] },
     };
     const ctx = makeChatContext(db, {
@@ -1953,17 +1953,17 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     const cardsRow = budget.sources.find((s) => s.source === "cards");
     // Both present members are named — the detail line AND a part apiece with its own real token count.
-    expect(cardsRow?.detail).toBe("Mara · Niko");
-    expect(cardsRow?.parts.map((p) => p.label)).toEqual(["Mara", "Niko"]);
+    expect(cardsRow?.detail).toBe("Mira · Niko");
+    expect(cardsRow?.parts.map((p) => p.label)).toEqual(["Mira", "Niko"]);
     expect(cardsRow?.parts.every((p) => p.tokens > 0)).toBe(true);
-    // Mara's card is the longer one, so she costs more — the numbers track the actual bytes, not a stub.
-    const mara = cardsRow?.parts.find((p) => p.label === "Mara");
+    // Mira's card is the longer one, so she costs more — the numbers track the actual bytes, not a stub.
+    const mira = cardsRow?.parts.find((p) => p.label === "Mira");
     const niko = cardsRow?.parts.find((p) => p.label === "Niko");
-    expect(mara?.tokens ?? 0).toBeGreaterThan(niko?.tokens ?? 0);
-    expect(mara?.text).toContain("Lantern Road");
+    expect(mira?.tokens ?? 0).toBeGreaterThan(niko?.tokens ?? 0);
+    expect(mira?.text).toContain("Lantern Road");
     expect(niko?.text).toContain("wary scout");
     // …and each member's bytes are bytes the model actually receives.
-    expect(cardsRow?.text).toBe([mara?.text, niko?.text].join("\n\n"));
+    expect(cardsRow?.text).toBe([mira?.text, niko?.text].join("\n\n"));
   });
 
   // NARRATOR follow-up: buildPreviewContext / shapeNextTurn hardcoded `output: "per-speaker"`, so a
@@ -2104,7 +2104,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const gatherTurnContext = vi.fn(() =>
       Promise.resolve({
         macros: {},
-        injections: [{ position: "in_chat" as const, depth: 0, role: "system" as const, content: "## Game state\nroster: Mara (VIT 24/30)" }],
+        injections: [{ position: "in_chat" as const, depth: 0, role: "system" as const, content: "## Game state\nroster: Mira (VIT 24/30)" }],
         tools: [],
       }),
     );
@@ -2146,7 +2146,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const { budget } = await createRead(ctx, deps).previewAssembly({ principal: principal(me), chatId });
 
     const gameState = budget.sources.find((s) => s.source === "game-state");
-    expect(gameState?.text).toBe("## Game state\nroster: Mara (VIT 24/30)");
+    expect(gameState?.text).toBe("## Game state\nroster: Mira (VIT 24/30)");
     expect(gameState?.detail).toBe("state block");
     expect(gameState?.tokens).toBeGreaterThan(0);
     // Turnless + dice-ineligible: the preview never marks a turn or feeds a queued roll.
@@ -2527,7 +2527,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const impersonate = preview.templates.find((t) => t.id === "impersonate")?.resolved ?? "";
 
     // REAL: the chat's persona is what `{{user}}` became — the editor could not have known this alone.
-    expect(impersonate).toContain("Write the owner's next message");
+    expect(impersonate).toContain("Write Alex's next message");
     expect(impersonate).not.toContain("{{user}}");
     // HONESTLY PARTIAL: both fire-time tokens are still tokens.
     expect(impersonate).toContain("{{person}}");

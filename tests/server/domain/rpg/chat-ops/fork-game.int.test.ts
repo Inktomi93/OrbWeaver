@@ -53,7 +53,7 @@ import {
 
 /** A hidden-span `<lie …/>` the strip must remove. `stripHiddenSpans` deletes the whole self-closing tag, so
  *  the `truth` attr's secret never survives into a non-host forker's copy. */
-const LIE = '<lie character="Mara" truth="she is the assassin"/>';
+const LIE = '<lie character="Mira" truth="she is the assassin"/>';
 
 /** Seed a preset row for an ALREADY-seeded owner (no user re-seed — the FK owner exists). The `gmPresetId` FK
  *  references `presets.id`, so a game's preset knob must point at a real row. */
@@ -82,7 +82,7 @@ async function seedSourceGame(
   const gameId = castId<RpgGameId>(`rpg_game_src_${gmHandle}`);
   const config = {
     ...liteConfig(),
-    lite: { steeringNote: "GM SECRET: Mara betrays the party in act 3" },
+    lite: { steeringNote: "GM SECRET: Mira betrays the party in act 3" },
     features: { ...liteConfig().features, deception: opts.deception ?? false },
   };
   await insertGame(db, {
@@ -106,7 +106,7 @@ async function seedSourceGame(
     variantId,
     ...emptyState(),
     location: "the tavern",
-    recentEvents: [`Mara smiles warmly ${LIE}`],
+    recentEvents: [`Mira smiles warmly ${LIE}`],
     committed: 1,
     createdAt: FROZEN_AT,
   });
@@ -192,7 +192,7 @@ test("a NON-HOST forker's copy carries NO host secrets: steeringNote stripped, f
   // STRIP 3 — the hidden-span BELT: snapshot recentEvents + journal content lose the `<lie>` truth.
   const forkSnaps = await listSnapshots(db, forkGame?.id as RpgGameId);
   expect(forkSnaps).toHaveLength(1);
-  expect(forkSnaps[0]?.recentEvents).toEqual(["Mara smiles warmly "]);
+  expect(forkSnaps[0]?.recentEvents).toEqual(["Mira smiles warmly "]);
   expect(forkSnaps[0]?.recentEvents?.join("")).not.toContain("assassin");
 
   const forkJournal = await listAllJournal(db, forkGame?.id as RpgGameId);
@@ -217,12 +217,12 @@ test("a NON-HOST forker's copy strips hidden spans from EVERY free-text plane, n
     .update(rpgSnapshots)
     .set({
       location: `the tavern ${LIE}`,
-      quests: [quest("q1", { name: `Find Mara ${LIE}`, description: `She was last seen at the ford ${LIE}` })],
+      quests: [quest("q1", { name: `Find Mira ${LIE}`, description: `She was last seen at the ford ${LIE}` })],
       plot: { act: 1, title: `The Betrayal ${LIE}`, acts: [{ title: `Act one ${LIE}`, summary: `The party gathers ${LIE}` }] },
       actorState: [
         {
-          actorRef: { kind: "npc", npcKey: "mara" },
-          identity: { name: "Mara", emoji: "", mood: `wary ${LIE}`, thoughts: `she plans it tonight ${LIE}`, relationship: { kind: "neutral", label: "" } },
+          actorRef: { kind: "npc", npcKey: "mira" },
+          identity: { name: "Mira", emoji: "", mood: `wary ${LIE}`, thoughts: `she plans it tonight ${LIE}`, relationship: { kind: "neutral", label: "" } },
           volatile: {
             trackerValues: {},
             conditions: [],
@@ -236,7 +236,7 @@ test("a NON-HOST forker's copy strips hidden spans from EVERY free-text plane, n
     .where(eq(rpgSnapshots.id, src.snapshotId));
   await db
     .update(rpgJournal)
-    .set({ title: `The meeting ${LIE}`, label: `Mara ${LIE}` })
+    .set({ title: `The meeting ${LIE}`, label: `Mira ${LIE}` })
     .where(eq(rpgJournal.gameId, src.gameId));
   await db
     .update(rpgCheckpoints)
@@ -275,7 +275,7 @@ test("a NON-HOST forker's copy strips hidden spans from EVERY free-text plane, n
   // hidden span, never the field). This is the control: an over-broad "blank the column" fix fails here.
   const forkSnap = (await listSnapshots(db, forkId))[0];
   expect(forkSnap?.location).toBe("the tavern ");
-  expect(forkSnap?.quests?.[0]?.name).toBe("Find Mara ");
+  expect(forkSnap?.quests?.[0]?.name).toBe("Find Mira ");
   expect(forkSnap?.plot?.acts[0]?.summary).toBe("The party gathers ");
   expect(forkSnap?.actorState?.[0]?.volatile.status).toBe("hiding something ");
   expect(forkSnap?.actorState?.[0]?.volatile.inventory[0]?.name).toBe("a folded note ");
@@ -576,7 +576,7 @@ test("a HOST forker (readsHidden) copies verbatim — no strip (they already rea
   });
 
   const forkGame = await findGameByChat(db, forkChatId);
-  expect(forkGame?.config.lite.steeringNote).toBe("GM SECRET: Mara betrays the party in act 3");
+  expect(forkGame?.config.lite.steeringNote).toBe("GM SECRET: Mira betrays the party in act 3");
   expect(forkGame?.gmPresetId).toBe(ownPreset);
   const forkSnaps = await listSnapshots(db, forkGame?.id as RpgGameId);
   // The host reads the reveal plane — the `<lie>` prose is left intact in their copy.
@@ -738,7 +738,7 @@ async function seedHostPlaneConfigGame(db: Db, key: string): Promise<{ chatId: C
     gmPresetId: null,
     config: {
       ...base,
-      lite: { steeringNote: "GM SECRET: Mara betrays the party in act 3" },
+      lite: { steeringNote: "GM SECRET: Mira betrays the party in act 3" },
       userMacros: [SECRET_MACRO],
       features: { ...base.features, relationshipHints: RELATIONSHIP_HINTS, journalTypeHints: JOURNAL_TYPE_HINTS },
     },
@@ -791,7 +791,7 @@ test("§3.6 config: a HOST forker carries every host-plane config field verbatim
   });
 
   const forkConfig = (await findGameByChat(db, forkChatId))?.config as RpgGameConfig;
-  expect(forkConfig.lite.steeringNote).toBe("GM SECRET: Mara betrays the party in act 3");
+  expect(forkConfig.lite.steeringNote).toBe("GM SECRET: Mira betrays the party in act 3");
   expect(forkConfig.userMacros).toEqual([SECRET_MACRO]);
   expect(forkConfig.features.relationshipHints).toEqual(RELATIONSHIP_HINTS);
   expect(forkConfig.features.journalTypeHints).toEqual(JOURNAL_TYPE_HINTS);
@@ -998,9 +998,9 @@ test("no COPIED column is silently dropped — every populated row-plane column 
     calendarDate: "3rd of Frostmoon",
     location: "the drowned chapel",
     weather: { type: "rain", label: "torrential sleet" },
-    presentCharacters: ["npc:mara"],
+    presentCharacters: ["npc:mira"],
     recentEvents: ["the bell rang twice"],
-    actorState: [actorWithWallet("mara", 12, 3)],
+    actorState: [actorWithWallet("mira", 12, 3)],
     trackerValues: { morale: { value: 4, items: null, max: 10 } },
     quests: [quest("ford", { name: "Cross the ford" })],
     plot: { act: 2, title: "The reckoning", acts: [{ title: "Arrival", summary: "s1" }] },

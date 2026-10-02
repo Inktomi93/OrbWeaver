@@ -71,7 +71,7 @@ describe("memory-backfill", () => {
     );
   });
 
-  // #165/#156 (the vacuous-success family): the 895-chat run that skipped every chat on an embed timeout
+  // #165/#156 (the vacuous-success family): the 890-chat run that skipped every chat on an embed timeout
   // still landed `succeeded` because the sweep RETURNS its failure tally instead of failing on it. A skip is
   // a chat whose memory silently did not build — the row must read FAILED, and the progress copy already
   // names the count, so the throw carries it too.

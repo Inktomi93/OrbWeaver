@@ -181,7 +181,7 @@ export interface ImportContext {
 export interface ImportService {
   /** Imports one ST character card; idempotent by importHash (a byte-identical re-import RECONCILES its
    *  overlay planes, #1470). A byte-new card that collides on handle disambiguates via `freeHandle`
-   *  (`emily` → `emily-2`) instead of matching by name — #1470 replaced the earlier handle-match
+   *  (`eleni` → `eleni-2`) instead of matching by name — #1470 replaced the earlier handle-match
    *  edit-in-place with this "never dedupe by name" rule, so a re-import never routes to an update. */
   readonly importCharacter: (input: ImportCharacterInput) => Promise<ImportCharacterResult>;
   /** THE RESTORE DOOR (#1598, owner ruling 2026-09-05). Re-asserts a card file's EMBEDDED lorebook over the

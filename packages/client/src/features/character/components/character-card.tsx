@@ -88,25 +88,10 @@ export interface CharacterCardTileProps {
   readonly onDelete: (id: string) => void;
 }
 
-/**
- * THE ROW'S IDENTITY DISAMBIGUATOR (#492 → #517) — the HANDLE when another character shares this row's name,
- * `undefined` when the name already tells the reader which row this is.
- *
- * The library holds genuine same-name collisions (three `Emily` at handles `emily`/`emily-2`/`emily-3`;
- * `Mira`×2 and `Nell`×2 inside the first 50 rows), and the row announced its `name` alone: three identical
- * `button "Emily"`. Voice control could address none of them ("click emily-3" matches nothing) and
- * list-navigation / low-verbosity screen-reader modes, which drop descriptions, heard one name three times.
- *
- * IT USED TO GATE ON DERIVABILITY (is the handle `slugifyHandle(name)`?) AND THE RULING SURVIVES — ITS INPUT
- * CHANGED (#517, side-eye se-verify-1, the verification pass over #492's own fix). The reason for that gate
- * was real and is preserved verbatim: this list is keyset-paged 30 at a time, so a collision scan over the
- * LOADED PAGE would answer about the page rather than the library, and a row's announced name would change
- * under a screen-reader user as later pages arrived. What died is the assumption that per-row derivability
- * was the only paging-stable rule available. Measured cost of that stand-in on the owner's library: 13 rows,
- * 8 qualified, 0 of the 8 colliding — `Charlotte · assistant` reads as a ROLE, while `Emily`/`emily` (a real
- * collision whose handle is derivable) got nothing at all. So the AMBIGUITY itself is answered where the
- * library lives (`character.list`'s `nameIsAmbiguous`, a library-wide, lens-independent, page-independent
- * verdict), and the handle — unique per owner, therefore always separating — is spent on exactly that.
+/** The row spends its owner-unique handle as a visible and announced disambiguator only when character.list
+ *  says nameIsAmbiguous (#492/#517). A loaded-page collision scan would change names as later pages arrive;
+ *  handle derivability misses genuine collisions. Ambiguity is library-wide, page-independent, and lens-
+ *  independent, while the handle separates the colliding rows.
  */
 function handleQualifier(character: Pick<CharacterCardItem, "handle" | "nameIsAmbiguous">): string | undefined {
   return character.nameIsAmbiguous ? character.handle : undefined;
@@ -132,7 +117,7 @@ export function CharacterCardTile({
   // exactOptionalPropertyTypes: omit `src` entirely for a missing avatar so it falls to the fallback.
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
   // ONE announced identity for the row AND every control that acts on it (`rowActionSubject`, #443/#458/#463):
-  // "Star Emily" / "Chat with Emily" / "Actions for Emily" collided across the three Emilys exactly as the row
+  // "Star Eleni" / "Chat with Eleni" / "Actions for Eleni" collided across the three Elenis exactly as the row
   // body did, so fixing only the body would have left three identically-named kebabs behind it.
   const qualifier = handleQualifier(character);
   const subject = rowActionSubject(character.name, qualifier);
@@ -161,7 +146,7 @@ export function CharacterCardTile({
       }
       // THE NAME GETS ITS WIDTH BACK (side-eye 2026-08-18 P1-3). The cluster is three hover-revealed
       // controls, and reserving their strip in flow spent 114px of a 290px row on nothing you can see at
-      // rest while the TITLE — the one thing a 327-character library is scanned by, with 27 duplicate-name
+      // rest while the TITLE — the one thing a 320-character library is scanned by, with 27 duplicate-name
       // groups in it — got the same 114px and clipped on 3 of 18 loaded rows. `actionsFloat` lifts the
       // cluster out of flow at the row's inline end (fine pointers only), so the text column keeps the full
       // width at rest AND the reveal costs no reflow — the truncation point does not jump under the pointer.
@@ -252,9 +237,9 @@ function NormalRowActions({
 }: {
   readonly character: CharacterCardItem;
   /** The row's announced identity (`rowActionSubject(name, handleQualifier)`) — what every control here
-   *  embeds, so a library holding three "Emily"s cannot ship three identically-named kebabs (#492). The
+   *  embeds, so a library holding three "Eleni"s cannot ship three identically-named kebabs (#492). The
    *  ROW BODY renders and announces the same pair without the action grammar's quotes
-   *  (`ListRow.titleQualifier` → a visible `Emily · emily-3`): one identity, two sentence shapes — a name
+   *  (`ListRow.titleQualifier` → a visible `Eleni · eleni-3`): one identity, two sentence shapes — a name
    *  standing alone, and a name inside a verb. */
   readonly subject: string;
   readonly onChat: (id: string) => void;

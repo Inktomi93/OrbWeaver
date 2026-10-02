@@ -2,18 +2,223 @@
 // cap · cooldown floor · unattached book), and the born-disabled/position-0 creation (04 §2).
 
 import type { AutomationActionInput, AutomationTrigger } from "@orb/contracts/automation";
+import { AUTOMATION_RULE_NAME_MAX_CHARS } from "@orb/contracts/automation";
 import { rpgGameConfigSchema } from "@orb/contracts/rpg";
-import { rpgGames } from "@orb/db";
+import { automationRules, chatParticipants, rpgGames } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { AutomationChatNotFoundError, AutomationReservedTriggerError, RuleValidationError } from "@orb/server/domain/automation";
-import { describe } from "vitest";
+import { and, eq, sql } from "drizzle-orm";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedParticipant } from "../../chat/_support.ts";
-import { FIXED_NOW_MS, MSG_COMMITTED, principal, ruleFixture, SET_VAR, seedUser } from "../_support.ts";
+import { FIXED_NOW_MS, MSG_COMMITTED, principal, ruleFixture, SET_VAR, seedHostChat, seedUser } from "../_support.ts";
+
+const CREATION_REQUEST_PREFIX = ID_PREFIX.automationRuleCreation;
+const rulePersistence = await import("../../../../../packages/server/src/domain/automation/persistence/rules.ts");
 
 describe("createRule — authority", () => {
+  test("a competing birth does not conceal a later live admission refusal; a sequential retry still recovers", async () => {
+    let installed = true;
+    const fx = await ruleFixture({ tools: { isToolDrivableBy: () => installed, runTool: () => Promise.resolve({ ok: false, reason: "unavailable" }) } });
+    const birth = {
+      principal: principal(fx.host),
+      chatId: fx.chatId,
+      creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
+      name: "winner",
+      trigger: MSG_COMMITTED,
+      actions: [{ type: "run_tool" as const, name: "plugin_test" }],
+    };
+    const lookupComplete = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const read = rulePersistence.selectRuleByCreationRequest;
+    const gate = vi.spyOn(rulePersistence, "selectRuleByCreationRequest").mockImplementationOnce(async (...args) => {
+      const row = await read(...args);
+      lookupComplete.resolve();
+      await release.promise;
+      return row;
+    });
+    let losing: Promise<string> | undefined;
+    try {
+      losing = fx.svc.createRule(birth).then(
+        () => "resolved",
+        (error) => (error instanceof RuleValidationError ? "live-admission-refusal" : String(error)),
+      );
+      await lookupComplete.promise;
+      const winner = await fx.svc.createRule(birth);
+      installed = false;
+      release.resolve();
+      expect(await losing).toBe("live-admission-refusal");
+      expect(await fx.svc.createRule(birth)).toEqual(winner);
+      expect(await fx.svc.listRules({ principal: principal(fx.host), chatId: fx.chatId })).toEqual([winner]);
+      expect(fx.events).toEqual([{ type: "rulesChanged", chatId: fx.chatId }]);
+    } finally {
+      release.resolve();
+      await losing;
+      gate.mockRestore();
+    }
+  });
+  test("the same request key is owner-local across a host handoff in the same chat", async () => {
+    const { db, host, chatId, svc } = await ruleFixture();
+    const other = await seedUser(db, "cohost");
+    await seedParticipant(db, { chatId, key: "cohost", userId: other, role: "member" });
+    const body = { chatId, creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX), trigger: MSG_COMMITTED, actions: [SET_VAR] };
+    const foreign = await svc.createRule({ ...body, principal: principal(host), name: "foreign private marker" });
+    await db
+      .update(chatParticipants)
+      .set({ role: "member" })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, host)));
+    await db
+      .update(chatParticipants)
+      .set({ role: "host" })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, other)));
+    const own = await svc.createRule({ ...body, principal: principal(other), name: "own body" });
+    expect(own.id).not.toBe(foreign.id);
+    expect(await svc.createRule({ ...body, principal: principal(other), name: "retry" })).toEqual(own);
+    await expect(svc.createRule({ ...body, principal: principal(host), name: "retry" })).rejects.toThrow(DomainForbiddenError);
+  });
+
+  test("own request in a different authorized scope is a fixed conflict, without changing either scope", async () => {
+    const { db, host, chatId, svc, events } = await ruleFixture();
+    const otherChat = await seedHostChat(db, host, "second");
+    const body = {
+      principal: principal(host),
+      creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
+      name: "one",
+      trigger: MSG_COMMITTED,
+      actions: [SET_VAR],
+    };
+    await svc.createRule({ ...body, chatId });
+    const before = await db.select().from(automationRules);
+    const count = events.length;
+    await expect(svc.createRule({ ...body, chatId: otherChat })).rejects.toMatchObject({
+      code: "automation_rule_creation_scope_conflict",
+      message: "This creation request was already used for another scope.",
+    });
+    await expect(svc.createRule({ ...body, chatId: null })).rejects.toMatchObject({ code: "automation_rule_creation_scope_conflict" });
+    expect(await db.select().from(automationRules)).toEqual(before);
+    expect(events).toHaveLength(count);
+  });
+
+  test("recovery rechecks host authority before reading the committed birth", async () => {
+    const { db, host, chatId, svc, events } = await ruleFixture();
+    const birth = {
+      principal: principal(host),
+      chatId,
+      creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
+      name: "private",
+      trigger: MSG_COMMITTED,
+      actions: [SET_VAR],
+    };
+    await svc.createRule(birth);
+    await db
+      .update(chatParticipants)
+      .set({ role: "member" })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, host)));
+    await expect(svc.createRule(birth)).rejects.toThrow(DomainForbiddenError);
+    expect(events).toHaveLength(1);
+    expect(await db.select().from(automationRules)).toHaveLength(1);
+  });
+
+  test("birth recovery preserves raw metadata; deleting the birth ends the recovery guarantee", async () => {
+    const { db, host, chatId, svc } = await ruleFixture();
+    const birth = {
+      principal: principal(host),
+      chatId,
+      creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
+      name: "birth",
+      trigger: MSG_COMMITTED,
+      actions: [SET_VAR],
+    };
+    const original = await svc.createRule(birth);
+    await db
+      .update(automationRules)
+      .set({ enabled: true, lastError: "retained error", consecutiveErrors: 7, lastFiredAt: FIXED_NOW_MS - 1, updatedAt: FIXED_NOW_MS + 1 })
+      .where(eq(automationRules.id, original.id));
+    const before = await db.select().from(automationRules).where(eq(automationRules.id, original.id));
+    expect(await svc.createRule({ ...birth, predicateCel: "invalid ==", name: "never applied" })).toMatchObject({
+      id: original.id,
+      enabled: true,
+      lastError: "retained error",
+    });
+    expect(await db.select().from(automationRules).where(eq(automationRules.id, original.id))).toEqual(before);
+    await svc.deleteRule({ principal: principal(host), ruleId: original.id });
+    await expect(svc.createRule({ ...birth, predicateCel: "invalid ==" })).rejects.toThrow(RuleValidationError);
+    expect(await db.select().from(automationRules)).toEqual([]);
+    const replacement = await svc.createRule(birth);
+    expect(replacement.id).not.toBe(original.id);
+    expect(replacement.enabled).toBe(false);
+  });
+
+  test("global recovery uses NULL scope and does not reveal a foreign request's occupancy", async () => {
+    const { db, host, svc, events } = await ruleFixture();
+    const other = await seedUser(db, "other-global");
+    const body = {
+      chatId: null,
+      creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
+      name: "global marker",
+      trigger: { bus: "domain" as const, type: "character.updated" as const },
+      actions: [{ ...SET_VAR, scope: "global" as const }],
+    };
+    const foreign = await svc.createRule({ ...body, principal: principal(other) });
+    const own = await svc.createRule({ ...body, principal: principal(host), name: "own" });
+    expect(own.id).not.toBe(foreign.id);
+    expect(await svc.createRule({ ...body, principal: principal(host), name: "ignored retry" })).toEqual(own);
+    expect(events).toEqual([]);
+  });
+  test("same-author creation retries recover one born-disabled rule without another position or notification", async () => {
+    const { host, chatId, svc, events } = await ruleFixture();
+    const birth = {
+      principal: principal(host),
+      chatId,
+      creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
+      name: "one birth",
+      trigger: MSG_COMMITTED,
+      actions: [SET_VAR],
+    };
+    const original = await svc.createRule(birth);
+    const recovered = await svc.createRule({ ...birth, name: "retry is not an update" });
+    expect(recovered).toEqual(original);
+    expect(recovered.enabled).toBe(false);
+    expect(await svc.listRules({ principal: principal(host), chatId })).toEqual([original]);
+    expect(events).toEqual([{ type: "rulesChanged", chatId }]);
+  });
+
+  test("concurrent different bodies for one author/request preserve the winning birth until an explicit update", async () => {
+    const { host, chatId, svc, events } = await ruleFixture();
+    const birth = {
+      principal: principal(host),
+      chatId,
+      creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
+      trigger: MSG_COMMITTED,
+      actions: [SET_VAR],
+    };
+    const results = await Promise.all(["first", "second", "third"].map((name) => svc.createRule({ ...birth, name })));
+    expect(new Set(results.map((rule) => rule.id)).size).toBe(1);
+    expect(results).toEqual([results[0], results[0], results[0]]);
+    expect(await svc.listRules({ principal: principal(host), chatId })).toEqual([results[0]]);
+    expect(events).toEqual([{ type: "rulesChanged", chatId }]);
+  });
+
+  test("birth recovery preserves the current edited enabled row rather than replaying the old payload", async () => {
+    const { host, chatId, svc } = await ruleFixture();
+    const birth = {
+      principal: principal(host),
+      chatId,
+      creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
+      name: "birth snapshot",
+      trigger: MSG_COMMITTED,
+      actions: [SET_VAR],
+    };
+    const original = await svc.createRule(birth);
+    const edited = await svc.updateRule({ ...birth, ruleId: original.id, name: "current stored edit" });
+    await svc.setRuleEnabled({ principal: principal(host), ruleId: original.id, enabled: true });
+    const current = (await svc.listRules({ principal: principal(host), chatId }))[0];
+    expect(current).toEqual({ ...edited, enabled: true });
+    expect(await svc.createRule(birth)).toEqual(current);
+  });
+
   test("a host creates a rule born disabled at position 0, and the roster announces itself", async () => {
     const { host, chatId, svc, events } = await ruleFixture();
     const rule = await svc.createRule({ principal: principal(host), chatId, name: "greet", trigger: MSG_COMMITTED, actions: [SET_VAR] });
@@ -65,6 +270,22 @@ describe("createRule — authority", () => {
 });
 
 describe("createRule — validation refusals", () => {
+  test("a storage-valid astral name survives whole-body editing and fresh authoring at the exact same cap", async () => {
+    const { db, host, chatId, svc } = await ruleFixture();
+    const name = "🙂".repeat(AUTOMATION_RULE_NAME_MAX_CHARS);
+    const row = await svc.createRule({ principal: principal(host), chatId, name: "legacy", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+    await db.update(automationRules).set({ name }).where(eq(automationRules.id, row.id));
+    expect(await db.get(sql`SELECT length(name) AS codePoints FROM automation_rules WHERE id=${row.id}`)).toEqual({
+      codePoints: AUTOMATION_RULE_NAME_MAX_CHARS,
+    });
+    const edited = await svc.updateRule({ principal: principal(host), ruleId: row.id, name, trigger: MSG_COMMITTED, actions: [SET_VAR] });
+    expect(edited.name).toBe(name);
+    expect((await svc.createRule({ principal: principal(host), chatId, name, trigger: MSG_COMMITTED, actions: [SET_VAR] })).name).toBe(name);
+    await expect(svc.updateRule({ principal: principal(host), ruleId: row.id, name: `${name}x`, trigger: MSG_COMMITTED, actions: [SET_VAR] })).rejects.toThrow(
+      RuleValidationError,
+    );
+    expect((await svc.listRules({ principal: principal(host), chatId })).find((rule) => rule.id === row.id)?.name).toBe(name);
+  });
   test("refuses a reserved trigger — and a validation refusal announces nothing", async () => {
     const { host, chatId, svc, events } = await ruleFixture();
     const trigger: AutomationTrigger = { bus: "chat", type: "messageHidden" };
@@ -120,7 +341,7 @@ describe("createRule — validation refusals", () => {
     expect(rule.actions).toEqual([arm]);
   });
 
-  // D146-b — THE MINT GATE. A first-party contributor seam asserts exhaustive-and-unique against a compile-time
+  // The established mint gate: a first-party seam asserts exhaustive-and-unique against a compile-time
   // tuple and is BOOT-FATAL both ways; a contributor seam cannot (the vocabulary is not knowable at compile
   // time), so the equivalent strictness moves to the mint and is fatal to the ONE rule that got it wrong.
   //

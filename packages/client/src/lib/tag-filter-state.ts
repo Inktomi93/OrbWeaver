@@ -1,6 +1,6 @@
 // The tag-FILTER axis — a three-state chip (off → include → exclude → off), the ST `toggleTagThreeState`
 // capability neither our lineage nor neo ever built. "Everything tagged `npc` that ISN'T `retired`" is a
-// query shape a pure-AND multi-select cannot express at all, and at ~400 tags it is a routine one.
+// query shape a pure-AND multi-select cannot express in a large tag library.
 //
 // The axis lives at the lib floor because `state/` persists it and `features/character` both renders and
 // applies it, and state/ may not import a feature. ONE union, and the two ACTIVE members are DERIVED from

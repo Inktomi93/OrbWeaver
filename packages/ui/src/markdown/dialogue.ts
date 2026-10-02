@@ -1,7 +1,7 @@
 // The quoted-speech DETECTOR (the engine half of the `--color-dialogue` tint; the React half is
 // dialogue-paragraph.tsx). Imported ST cards carry their entire visual structure in QUOTED SPEECH ("…"
-// for dialogue, plain prose for narration; Azarael's five greetings contain ZERO asterisks and ZERO
-// HTML), which ST tints with its own quote color. Rendering those quotes at body color is why such a
+// for dialogue, plain prose for narration; an imported greeting need not contain asterisks or HTML),
+// which ST tints with its own quote color. Rendering those quotes at body color is why such a
 // card reads as "unformatted" here.
 //
 // The grammar is deliberately timid — fail plain, never wrong (a mis-tint is worse than no tint):

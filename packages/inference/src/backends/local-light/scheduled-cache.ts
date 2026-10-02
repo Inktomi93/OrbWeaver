@@ -154,7 +154,6 @@ export function createScheduledCache(cache: LocalLightModelCache): LocalLightMod
     embedClipTexts: (modelId, texts) => text("embedClipTexts", modelId, texts),
     embedImages: (modelId, images) => admit(() => enqueue(() => cache.embedImages(modelId, images))),
     scorePairs: (modelId, query, documents) => admit(() => enqueue(() => cache.scorePairs(modelId, query, documents))),
-    removeBackground: (modelId, image) => admit(() => enqueue(() => cache.removeBackground(modelId, image))),
     preload: (slot, modelId) => admit(() => enqueue(() => cache.preload(slot, modelId))),
     loadFailed: cache.loadFailed,
   };

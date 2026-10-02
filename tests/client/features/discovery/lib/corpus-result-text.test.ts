@@ -18,21 +18,21 @@ import { corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 
 describe("chatSubtitle", () => {
   test("an authored room title wins; an unnamed room falls through to its cast, never an id", () => {
-    expect(chatSubtitle("Amethyst Hollow", "Iris")).toBe("Amethyst Hollow");
-    expect(chatSubtitle(null, "Iris")).toBe("Iris");
+    expect(chatSubtitle("Lantern Court", "Selva")).toBe("Lantern Court");
+    expect(chatSubtitle(null, "Selva")).toBe("Selva");
     expect(chatSubtitle(null, null)).not.toContain("chat_");
   });
 });
 
 describe("snippetForDisplay (C1)", () => {
   test("markdown is flattened — emphasis, stacked block markers and fences never reach the reader", () => {
-    expect(snippetForDisplay("**Iris** said:\n\n> ### the copper tub\n\nThey settle in.")).toBe("Iris said: the copper tub They settle in.");
+    expect(snippetForDisplay("**Selva** said:\n\n> ### the blue parcel\n\nThey check it.")).toBe("Selva said: the blue parcel They check it.");
   });
 
   test("a long excerpt is cut on a WORD boundary and ends in an ellipsis — never half a word", () => {
     // The wire slices at 280 chars mid-word and the row then closes the quotation mark after the cut, which
     // is the "fake closing quote" the re-pass named. A 300-word line is past the display budget either way.
-    const long = `${"the harvest is in and the evening is quiet ".repeat(20)}finally`;
+    const long = `${"the shipment arrived and the stall is ready ".repeat(20)}finally`;
     const shown = snippetForDisplay(long);
     expect(shown.endsWith("…")).toBe(true);
     expect(shown.length).toBeLessThanOrEqual(240);
@@ -58,15 +58,15 @@ describe("evidenceScent (C3)", () => {
 describe("groupByEvidence (C2)", () => {
   test("byte-identical evidence groups every original occurrence in rank order", () => {
     const hits = [
-      { id: "a", text: "the copper tub", relevance: 0.91 },
-      { id: "b", text: "the copper tub", relevance: 0.9 },
-      { id: "c", text: "the farmhouse porch", relevance: 0.8 },
+      { id: "a", text: "the blue parcel", relevance: 0.91 },
+      { id: "b", text: "the blue parcel", relevance: 0.9 },
+      { id: "c", text: "the market stall", relevance: 0.8 },
     ];
     expect([...groupByEvidence(hits, (hit) => hit.text).values()].map((group) => group.map((hit) => hit.id))).toEqual([["a", "b"], ["c"]]);
   });
 
   test("surrounding whitespace is not an identity — the same block trimmed differently is still one answer", () => {
-    const hits = [{ text: "the copper tub" }, { text: "  the copper tub \n" }];
+    const hits = [{ text: "the blue parcel" }, { text: "  the blue parcel \n" }];
     expect([...groupByEvidence(hits, (hit) => hit.text).values()]).toEqual([hits]);
   });
 });
@@ -106,7 +106,7 @@ describe("groupByEvidence source occurrences", () => {
   });
 
   test("display-equivalent slices group together without truncating retained evidence", () => {
-    const long = `${"the harvest is in and the evening is quiet ".repeat(20)}finally`;
+    const long = `${"the shipment arrived and the stall is ready ".repeat(20)}finally`;
     const first = occurrence(chatA, "One", long, 1);
     const second = occurrence(chatB, "Two", `${long} and then some more`, 2);
     const passages = groupByEvidence([first, second], (hit) => snippetForDisplay(hit.snippet));
@@ -125,10 +125,10 @@ describe("groupByEvidence source occurrences", () => {
 
 describe("roomNumberingHint (P3-6)", () => {
   test("a numbered room title explains its number; an ordinary one gets no tooltip at all", () => {
-    expect(roomNumberingHint("Lena Jan 28 (2)")).toContain("numbered");
-    expect(roomNumberingHint("Lena Jan 28 (2)")).toContain("Lena Jan 28 (2)");
-    expect(roomNumberingHint("Lena Jan 28")).toBeUndefined();
+    expect(roomNumberingHint("Elora Jan 28 (2)")).toContain("numbered");
+    expect(roomNumberingHint("Elora Jan 28 (2)")).toContain("Elora Jan 28 (2)");
+    expect(roomNumberingHint("Elora Jan 28")).toBeUndefined();
     // Not a suffix, not a hint: the parenthetical has to END the title, the way the importer writes it.
-    expect(roomNumberingHint("Lena (2) and the harbour")).toBeUndefined();
+    expect(roomNumberingHint("Elora (2) and the harbour")).toBeUndefined();
   });
 });

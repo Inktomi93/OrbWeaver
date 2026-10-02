@@ -19,6 +19,10 @@
 import {
   AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR,
   AUTOMATION_FIRES_LIST_MAX_LIMIT,
+  automationRuleCreateSchema,
+  automationRuleReorderSchema,
+  automationRuleToolsSchema,
+  automationRuleUpdateSchema,
   ownerBudgetViewSchema,
   rulePresetIdSchema,
   rulePresetKnobValuesSchema,
@@ -30,6 +34,24 @@ import { confirmSuggestionResultSchema, fireViewSchema, ruleViewSchema, runRuleN
 import { authedProcedure, t } from "../trpc.ts";
 
 export const automationRouter = t.router({
+  createRule: authedProcedure
+    .input(automationRuleCreateSchema)
+    .output(ruleViewSchema)
+    .mutation(({ ctx, input }) => ctx.services.automation.createRule({ ...input, principal: ctx.auth })),
+
+  updateRule: authedProcedure
+    .input(automationRuleUpdateSchema)
+    .output(ruleViewSchema)
+    .mutation(({ ctx, input }) => ctx.services.automation.updateRule({ ...input, principal: ctx.auth })),
+
+  reorderRules: authedProcedure
+    .input(automationRuleReorderSchema)
+    .mutation(({ ctx, input }) => ctx.services.automation.reorderRules({ ...input, principal: ctx.auth })),
+
+  listRuleTools: authedProcedure
+    .input(z.strictObject({}).optional())
+    .output(automationRuleToolsSchema)
+    .query(({ ctx }) => ctx.services.automation.listRuleTools({ principal: ctx.auth })),
   // The host-only rule list is position-ordered.
   listRules: authedProcedure
     .output(z.array(ruleViewSchema))
@@ -62,8 +84,8 @@ export const automationRouter = t.router({
   // Mint a preset's ordered RULE SET into a chat (S3). Thin driver: the wire validates the id + the partial
   // knob-override bag SHAPE; the verb resolves the overrides against the named preset's own descriptors (a
   // typed refusal on anything off-shape or out of bounds), substitutes them into the CEL sources as literals,
-  // and creates each rule through the EXISTING host-gated `createRule` — so the host gate fires per rule, and
-  // every minted rule is born DISABLED. An absent `knobs` takes every descriptor default (exactOptional).
+  // and validates every rule through the shared planner after one scope gate, committing the set atomically.
+  // Every minted rule is born DISABLED. An absent `knobs` takes every descriptor default (exactOptional).
   // `chatId` nullable for the same reason `createRule`'s is — and the verb additionally refuses a chat that
   // DISAGREES with the named preset's own declared scope, in both directions.
   createRuleFromPreset: authedProcedure

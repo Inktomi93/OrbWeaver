@@ -1,5 +1,5 @@
 // @orb/contracts/chat/listing — the `listChats` KEYSET wire (the character-list precedent, `@orb/contracts/
-// character`'s `characterListCursorSchema`). A membership list is unbounded by construction — an 872-chat
+// character`'s `characterListCursorSchema`). A membership list is unbounded by construction — an 880-chat
 // library pulled every row, and each row costs `buildSummaries` a per-chat participant read — so the read is
 // paged and the cursor shape is a cross-boundary contract, not a router local.
 //

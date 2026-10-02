@@ -6,7 +6,7 @@
 // fourth consumer arrived). The regex library's "Attached by rooms" roster is a NON-chat surface that names
 // chat rooms, so it had no way to reach this function and shipped its own two-rung copy of the chain
 // (authored title → the untitled fallback). The missing middle rung is what put "Untitled chat" on every
-// unnamed room in that roster while the chats list two panes over called the same room "Azarael".
+// unnamed room in that roster while the chats list two panes over called the same room "Aveline".
 //
 // A second copy of a fallback chain is a drift generator, so there is now exactly one. `features/chat`
 // re-exports from here; nothing re-spells it.

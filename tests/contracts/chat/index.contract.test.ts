@@ -134,7 +134,7 @@ test("chatOpened + worldInfoActivated round-trip their id-only shapes (event-bus
 // representative-round-trip test above.
 
 // ── §6 parity keystone (Chat-Macro-Resolution.md §6 / task #59 P1) ──────────────────────────────────
-// The doctrine's ONE shared fixture: anchor(pinned)=Nyx, active=Zara, a row stamped personaId=Mara,
+// The doctrine's ONE shared fixture: anchor(pinned)=Nyx, active=Zara, a row stamped personaId=Mira,
 // content "{{user}} waves". Server ASSEMBLE (`engine/pipeline.ts`'s `toShapeCanon`, via `engine.ts`'s
 // `buildIdentityNameContext` call over the loaded cast producer) and client DISPLAY
 // (`message-list-surface.tsx`'s merge, via the SAME projection over the wire cast) each derive
@@ -143,11 +143,11 @@ test("chatOpened + worldInfoActivated round-trip their id-only shapes (event-bus
 // diverge (the atom-level parity — resolveRowMacros itself — is pinned separately in
 // tests/kit/macro/row-macros.test.ts; the projection's own routing/totality is pinned in
 // producers.contract.test.ts). Two independently-built map pairs from the SAME array, fed through
-// `resolveRowMacros`, must both resolve to Mara — never Zara (active) nor Nyx (the pinned anchor, a CARD-
+// `resolveRowMacros`, must both resolve to Mira — never Zara (active) nor Nyx (the pinned anchor, a CARD-
 // only axis — never a history row's subject).
-test("§6 parity keystone: server-build and client-build of the SAME identities array both resolve a row's {{user}} to Mara, never the active nor the pinned anchor", () => {
-  const maraId = castId<PersonaId>(mintTypeId(ID_PREFIX.persona));
-  const identities: ChatIdentity[] = [{ kind: "persona", id: maraId, name: "Mara", description: "a wandering scholar", avatarHash: null }];
+test("§6 parity keystone: server-build and client-build of the SAME identities array both resolve a row's {{user}} to Mira, never the active nor the pinned anchor", () => {
+  const miraId = castId<PersonaId>(mintTypeId(ID_PREFIX.persona));
+  const identities: ChatIdentity[] = [{ kind: "persona", id: miraId, name: "Mira", description: "a wandering scholar", avatarHash: null }];
 
   // "server ASSEMBLE"-side build — mirrors engine.ts's `buildIdentityNameContext(cast)` call.
   const { characterNamesById: serverCharacterNamesById, personaNamesById: serverPersonaNamesById } = buildIdentityNameContext(identities);
@@ -155,19 +155,19 @@ test("§6 parity keystone: server-build and client-build of the SAME identities 
   // copy stands in for "the cast arrived over the wire", never the SAME in-memory reference).
   const { characterNamesById: clientCharacterNamesById, personaNamesById: clientPersonaNamesById } = buildIdentityNameContext([...identities]);
 
-  const rowStamps = { characterId: null, personaId: maraId };
+  const rowStamps = { characterId: null, personaId: miraId };
   const serverOut = resolveRowMacros("{{user}} waves", rowStamps, {
     characterNamesById: serverCharacterNamesById,
     personaNamesById: serverPersonaNamesById,
-    fallbackPersonaName: "Nyx", // the ANCHOR fallback — must lose to the row's own Mara stamp.
+    fallbackPersonaName: "Nyx", // the ANCHOR fallback — must lose to the row's own Mira stamp.
   });
   const clientOut = resolveRowMacros("{{user}} waves", rowStamps, {
     characterNamesById: clientCharacterNamesById,
     personaNamesById: clientPersonaNamesById,
     fallbackPersonaName: "Nyx",
   });
-  expect(serverOut).toBe("Mara waves");
-  expect(clientOut).toBe("Mara waves");
+  expect(serverOut).toBe("Mira waves");
+  expect(clientOut).toBe("Mira waves");
   expect(serverOut).toBe(clientOut);
 
   // …and a NULL stamp (no producer entry the row itself owns) falls to the chat ANCHOR on BOTH sides — a

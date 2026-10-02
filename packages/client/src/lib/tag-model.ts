@@ -112,7 +112,7 @@ export function tagColorValueLabel(value: string | null): string {
  *
  *  IT IS NOT A ROW DATUM. The 2026-08-06 re-verify caught the first pass routing this through
  *  `ListRow.markers` — the row's `aria-describedby` channel — which made a screen reader recite the whole
- *  disclaimer once per row across a 400-tag library. A list row is a scan line; this is an editing fact. */
+ *  disclaimer once per row across a large tag library. A list row is a scan line; this is an editing fact. */
 export function tagColorLabel(kind: "Background" | "Text", value: string | null): string {
   return value === null ? `${kind}: ${COLOR_UNSET_LABEL.toLowerCase()}` : `${kind}: ${value}`;
 }

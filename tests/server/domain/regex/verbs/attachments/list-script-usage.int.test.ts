@@ -36,7 +36,7 @@ describe("listScriptUsage", () => {
     // order too if the rows went in alphabetically, so they deliberately do not.
     const presetZ = await seedPreset(db, owner, "z");
     const presetA = await seedPreset(db, owner, "a");
-    const character = await seedCharacter(db, owner, "azarael");
+    const character = await seedCharacter(db, owner, "aveline");
     const chatId = await seedChat(db, "room");
 
     const svc = createRegexService(makeHarness(db, { requireChatHost: allowChat }).ctx);
@@ -50,7 +50,7 @@ describe("listScriptUsage", () => {
       makeHarness(db, {
         resolveVisibleRooms: (_principal, chatIds) => {
           roomsSeen.push([...chatIds]);
-          return Promise.resolve([{ id: chatId, title: "The Long Dark", participantNames: ["Azarael"], at: ROOM_AT }]);
+          return Promise.resolve([{ id: chatId, title: "The Long Dark", participantNames: ["Aveline"], at: ROOM_AT }]);
         },
       }).ctx,
     ).listScriptUsage({ principal: principal(owner), scriptId });
@@ -62,7 +62,7 @@ describe("listScriptUsage", () => {
     expect(usage.characters).toEqual([{ id: character, name: "Char" }]);
     // The verb PASSES CHAT'S ANSWER THROUGH untouched — it never names, trims or re-sorts a room (the
     // title chain is the client's one `deriveChatTitle`).
-    expect(usage.rooms).toEqual([{ id: chatId, title: "The Long Dark", participantNames: ["Azarael"], at: ROOM_AT }]);
+    expect(usage.rooms).toEqual([{ id: chatId, title: "The Long Dark", participantNames: ["Aveline"], at: ROOM_AT }]);
     // The room CANDIDATES handed to chat are exactly the junction's chat ids — regex resolves no visibility
     // of its own, and it does not hand chat the whole library to filter.
     expect(roomsSeen).toEqual([[chatId]]);

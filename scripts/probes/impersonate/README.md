@@ -2,7 +2,7 @@
 
 Measures whether the production impersonate voice-lock nudge holds — does the model write the USER's next
 line, or does it slip back into the character's voice? Read the findings first:
-[`RESULTS.md`](RESULTS.md). Full transcripts + judge verdicts: `results.jsonl` (committed).
+[`RESULTS.md`](RESULTS.md). The runner writes private transcripts and judge verdicts to the ignored `results.jsonl`. Public fixtures are authored test inputs, not recorded conversations.
 
 The request for each fixture is assembled by the SERVER'S OWN code (`buildPrompt` → `resolveNudgeText` →
 `shapeTurn`, through `substrate/assembly-access`) — only the HTTP call is hand-rolled. See `prompt.ts` for

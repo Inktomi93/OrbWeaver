@@ -38,7 +38,7 @@ describe("setFieldValue dontUpdateMeta (the promote() contract)", () => {
 
   test("the two dirty signals stay distinct: revert clears isDefaultValue, never isDirty", () => {
     const form = headlessForm();
-    form.setFieldValue("name", "Kira");
+    form.setFieldValue("name", "Kora");
     expect(form.state.isDefaultValue).toBe(false);
     expect(form.state.isDirty).toBe(true);
     form.setFieldValue("name", "");

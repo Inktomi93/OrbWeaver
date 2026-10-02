@@ -302,7 +302,7 @@ export interface RefineryContextState {
  *  first-class chats read — never a "chats of a character" ownership seam. */
 export interface CharacterChatsProjectionView {
   readonly characterId: CharacterId;
-  /** Names the pane + its empty state ("No chats with Azarael yet"). */
+  /** Names the pane + its empty state ("No chats with Aveline yet"). */
   readonly characterName: string;
   /** Start a fresh chat with her. HOST-owned: it also leaves the section, which is the host's call. */
   readonly onNewChat: () => void;

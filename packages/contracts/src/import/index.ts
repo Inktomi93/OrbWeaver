@@ -40,7 +40,7 @@ export const ST_PROFILE_UNHANDLED_REASONS: ReadonlyMap<string, string> = new Map
   ["NovelAI Settings/", TEXT_COMPLETION_PRESETS],
   ["KoboldAI Settings/", TEXT_COMPLETION_PRESETS],
   ["QuickReplies/", "STscript quick-reply buttons — orb has no STscript executor (orb automation is CEL-based, D46)"],
-  ["assets/", "ST extension assets (expression sprites, audio) — no domain home"],
+  ["assets/", "ST extension assets (portraits, audio) — no supported importer"],
   ["vectors/", "ST's own vector store — orb re-embeds locally after import, so a foreign index never travels"],
   ["extensions/", "third-party extension INSTALLS (code, not state) — out of scope"],
   ["backups/", "ST's own chat backups — the live chats import; a backup copy would duplicate them"],

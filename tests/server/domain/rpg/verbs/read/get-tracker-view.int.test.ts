@@ -72,7 +72,7 @@ describe("getTrackerView — the turnless-game default-state synthesis (no born 
 // host authored, or that an extractor quoted out of the model's prose into a state field, is GM-plane by the
 // same §3.6 rule that strips it from a member's message payload and serves it only through the host-only
 // reveal eye. Every principal is named: `host` holds the room's host seat, `member` is a plain present member.
-const HIDDEN = '<lie character="Mara" truth="she is the informant"/>';
+const HIDDEN = '<lie character="Mira" truth="she is the informant"/>';
 const TRUTH = "she is the informant";
 
 describe("getTrackerView — hidden spans are the HOST's plane, not the member's", () => {

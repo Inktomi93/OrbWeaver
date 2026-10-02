@@ -1,8 +1,7 @@
 // domain/import/verbs/import-orphan-character — the ORPHAN-dir placeholder mint (the silent-gap sweep,
 // 2026-08-15). Pins the EVIDENCE RULE (majority non-sentinel header name, else the humanized dir name;
 // description stays EMPTY — never invented prose), the synthetic dir-keyed importHash idempotency, and the
-// free-handle probe. The 7 real corpus dirs (Aestel/Ana/Bonnie_Cow/Diana/Mako/Misery/Sala) are the shapes
-// these fixtures mirror: 6 of their 8 headers carry ST's literal `"unused"` sentinel, one carries "Diana".
+// free-handle probe. Synthetic directories exercise sentinel headers and an explicit non-echo name.
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
@@ -52,43 +51,43 @@ function ctxWith(takenHandles: readonly string[] = []): { ctx: ImportContext; mi
 /** hex-64 — the sha256Hex output shape the synthetic oracle key must produce. */
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 
-const BONNIE: { dirName: string; handle: CharacterHandle; headerNames: string[] } = {
-  dirName: "Bonnie_Cow",
-  handle: castId<CharacterHandle>("bonnie-cow"),
+const CLOVER: { dirName: string; handle: CharacterHandle; headerNames: string[] } = {
+  dirName: "Clover_Owl",
+  handle: castId<CharacterHandle>("clover-owl"),
   headerNames: ["unused"],
 };
 
 describe("importOrphanCharacter", () => {
   test("mints a husk from the dir's own evidence: humanized dir name, EMPTY description, provenance stamped", async () => {
     const { ctx, mints } = ctxWith();
-    const result = await createImportService(ctx).importOrphanCharacter(BONNIE);
+    const result = await createImportService(ctx).importOrphanCharacter(CLOVER);
 
     expect(result.created).toBe(true);
-    // The corpus's dominant case: every header is ST's `"unused"` sentinel — the DIR NAME is the evidence.
-    expect(result.name).toBe("Bonnie Cow");
+    // A sentinel-only header leaves the humanized directory name as the evidence.
+    expect(result.name).toBe("Clover Owl");
     expect(mints).toHaveLength(1);
-    expect(mints[0]?.input).toEqual({ handle: "bonnie-cow", name: "Bonnie Cow", description: "" });
-    expect(mints[0]?.importedFrom).toBe("chats/Bonnie_Cow");
+    expect(mints[0]?.input).toEqual({ handle: "clover-owl", name: "Clover Owl", description: "" });
+    expect(mints[0]?.importedFrom).toBe("chats/Clover_Owl");
   });
 
   test("a real (non-echo) header name WINS over the dir name", async () => {
     const { ctx } = ctxWith();
     const result = await createImportService(ctx).importOrphanCharacter({
-      dirName: "Diana",
-      handle: castId<CharacterHandle>("diana"),
+      dirName: "Della",
+      handle: castId<CharacterHandle>("della"),
       // One genuinely-authored header name beside a sentinel. NOTE: a header EQUAL to the dir name is not
       // evidence — the serde substitutes the dir name for a sentinel header, so that spelling is an echo.
-      headerNames: ["Princess Diana", "unused", "Diana"],
+      headerNames: ["Princess Della", "unused", "Della"],
     });
-    expect(result.name).toBe("Princess Diana");
+    expect(result.name).toBe("Princess Della");
   });
 
   test("re-running resolves the SAME row via the synthetic dir-keyed hash — zero second mints", async () => {
     const { ctx, mints } = ctxWith();
     const service = createImportService(ctx);
 
-    const first = await service.importOrphanCharacter(BONNIE);
-    const second = await service.importOrphanCharacter(BONNIE);
+    const first = await service.importOrphanCharacter(CLOVER);
+    const second = await service.importOrphanCharacter(CLOVER);
 
     expect(second.created).toBe(false);
     expect(second.characterId).toBe(first.characterId);
@@ -98,10 +97,10 @@ describe("importOrphanCharacter", () => {
   });
 
   test("an occupied handle suffixes the MINT's handle (never adopts the owner's same-named character)", async () => {
-    const { ctx, mints } = ctxWith(["bonnie-cow"]);
-    const result = await createImportService(ctx).importOrphanCharacter(BONNIE);
+    const { ctx, mints } = ctxWith(["clover-owl"]);
+    const result = await createImportService(ctx).importOrphanCharacter(CLOVER);
 
     expect(result.created).toBe(true);
-    expect(mints.map((m) => m.input.handle)).toEqual(["bonnie-cow-2"]);
+    expect(mints.map((m) => m.input.handle)).toEqual(["clover-owl-2"]);
   });
 });

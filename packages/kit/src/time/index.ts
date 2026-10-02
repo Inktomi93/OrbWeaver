@@ -93,17 +93,13 @@ export function isoToMs(value: string): number | null {
   return exactInstantMs(value) ?? naiveIsoMs(value);
 }
 
-// ─── WALL-CLOCK instants (a foreign corpus's zone-less local timestamps) ───────────────────────────
-// The paragraph above is about NAIVE ISO and numeric epochs, where "read it as UTC" is the honest
-// determinism call. It is NOT true of every foreign format: SillyTavern writes its two human date forms
-// off `Date.getHours()`/`getFullYear()` on the machine ST ran on (`RossAscends-mods.js`
-// `humanizedDateTime`) and reads the meridiem form back with a NAIVE (local) moment
-// (`utils.js parseTimestamp` → `"YYYY-MM-DDTHH:mm:00"`, no `Z`). Those strings are a LOCAL WALL CLOCK
-// with no zone recorded, so reading them as UTC silently shifts every imported timestamp by the writer's
-// UTC offset — measured 6h/7h across a 1,097-file ST corpus (America/Denver, both DST arms).
-// The recovery is to name the zone EXPLICITLY at the boundary that knows it, never to read an ambient
-// one down in a parser: hence a required `zone` argument here plus {@link hostTimeZone} as the single
-// sanctioned resolver for "the box this corpus came off".
+// Numeric epochs and naive ISO have separate deterministic rules from ST humanized wall-clock forms. ST
+// writes those forms from local Date getters (RossAscends-mods.js humanizedDateTime) and reads meridiem
+// form through utils.js parseTimestamp without a Z. Treating them as UTC shifts instants by the writing
+// zone's offset, including DST.
+//
+// The boundary must name that zone explicitly. The parser takes a required zone; hostTimeZone is the one
+// sanctioned resolver for the source box, never an ambient parser read.
 
 /** The IANA zone name of the host process — the ONE sanctioned ambient-zone read (this module is the
  *  `no-raw-intl-time` exemption zone). For a foreign corpus whose wall-clock timestamps carry no zone,

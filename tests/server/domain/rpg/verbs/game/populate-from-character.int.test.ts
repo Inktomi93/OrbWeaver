@@ -32,8 +32,8 @@ async function seedCharacterGame(
   key = "a",
 ): Promise<{ chatId: Awaited<ReturnType<typeof seedLiteGame>>["chatId"]; characterId: CharacterId; h: RpgHarness }> {
   const ownerId = await seedUser(db, castId<Handle>("cardowner"));
-  const characterId = await seedCharacter(db, ownerId, "mara", { id: mintTypeId(ID_PREFIX.character) });
-  const seeded = await seedLiteGame(db, { participants: [{ actorRef: { kind: "character", characterId }, name: "Mara" }], ...over }, key);
+  const characterId = await seedCharacter(db, ownerId, "mira", { id: mintTypeId(ID_PREFIX.character) });
+  const seeded = await seedLiteGame(db, { participants: [{ actorRef: { kind: "character", characterId }, name: "Mira" }], ...over }, key);
   return { chatId: seeded.chatId, characterId, h: seeded.h };
 }
 
@@ -60,9 +60,9 @@ function bornQuest(id: string, name: string): RpgQuest {
 test("HOST fill: the card's identity + gear land — sheet, inventory, purse, quest, on a message-less HAND row", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, castId<Handle>("cardowner"));
-  const characterId = await seedCharacter(db, ownerId, "mara", { id: mintTypeId(ID_PREFIX.character) });
+  const characterId = await seedCharacter(db, ownerId, "mira", { id: mintTypeId(ID_PREFIX.character) });
   const { chatId, h } = await seedLiteGame(db, {
-    participants: [{ actorRef: { kind: "character", characterId }, name: "Mara" }],
+    participants: [{ actorRef: { kind: "character", characterId }, name: "Mira" }],
     populateDelta: {
       statePatch: { actorState: [filledActor(characterId)], quests: [bornQuest("q_vault", "Reach the Vault of Ash")] },
       sheet: { className: "Warden of House Vane", level: 3 },
@@ -76,7 +76,7 @@ test("HOST fill: the card's identity + gear land — sheet, inventory, purse, qu
   expect(h.fakes.cardCorpusReads).toEqual([{ chatId, characterId }]);
   expect(h.fakes.populateCalls).toHaveLength(1);
   expect(h.fakes.populateCalls[0]?.hostUserId).toBe("user_host");
-  expect(h.fakes.populateCalls[0]?.targetRef).toBe("Mara");
+  expect(h.fakes.populateCalls[0]?.targetRef).toBe("Mira");
   expect(h.fakes.populateCalls[0]?.corpus.card).toContain("warden of a fallen house");
   // The deep STORY read is NOT this verb's — a born-state round never reads play (that is resyncFromStory).
   expect(h.fakes.canonWindowReads).toEqual([]);
@@ -85,7 +85,7 @@ test("HOST fill: the card's identity + gear land — sheet, inventory, purse, qu
   expect(h.fakes.narratorPosts).toEqual([]);
 
   const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
-  const actor = view.actors.find((a) => a.name === "Mara");
+  const actor = view.actors.find((a) => a.name === "Mira");
   expect(actor?.sheet.className).toBe("Warden of House Vane");
   expect(actor?.sheet.level).toBe(3);
   expect(actor?.volatile?.inventory.map((i) => i.name)).toEqual(["Bone key"]);
@@ -98,9 +98,9 @@ test("HOST fill: the card's identity + gear land — sheet, inventory, purse, qu
 test("FILL, never overwrite: a title/level the host already wrote SURVIVES the round", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, castId<Handle>("cardowner"));
-  const characterId = await seedCharacter(db, ownerId, "mara", { id: mintTypeId(ID_PREFIX.character) });
+  const characterId = await seedCharacter(db, ownerId, "mira", { id: mintTypeId(ID_PREFIX.character) });
   const { chatId, h } = await seedLiteGame(db, {
-    participants: [{ actorRef: { kind: "character", characterId }, name: "Mara" }],
+    participants: [{ actorRef: { kind: "character", characterId }, name: "Mira" }],
     populateDelta: { statePatch: {}, sheet: { className: "the model's title", level: 9 } },
   });
   // The host typed their own title + level first — the sheet has no lock plane, so "already written" IS the pin.
@@ -115,7 +115,7 @@ test("FILL, never overwrite: a title/level the host already wrote SURVIVES the r
   await h.service.populateFromCharacter({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } });
 
   const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
-  const actor = view.actors.find((a) => a.name === "Mara");
+  const actor = view.actors.find((a) => a.name === "Mira");
   expect(actor?.sheet.className).toBe("Hand-written");
   expect(actor?.sheet.level).toBe(1);
   // Nothing changed ⇒ no row write, no repaint (a byte-identical non-acting round).

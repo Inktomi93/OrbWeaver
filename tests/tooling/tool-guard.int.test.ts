@@ -117,7 +117,7 @@ const BG = { runInBackground: true };
 // `git commit` in them is not also a commit-timeout row; that rule has its own test.
 // @orb-waive tooling-clock-budget(120_000): an agent-chosen tool timeout handed to the guard as input, not a clock this run pays.
 const AGENT_TIMEOUT = { timeout: 120_000 };
-const TASKS = "/tmp/claude/-home-p/sess/tasks";
+const TASKS = "/tmp/claude-1234/-home-p/sess/tasks";
 type Row = [BatchResult["decision"] | "advisory", string | null, string, Omit<BatchCase, "command">?];
 
 // SECURITY (verifier-refuted c7ca3094e, leg 2, 2026-09-29): a rewrite rule proves only the ONE clause it
@@ -356,13 +356,13 @@ const ROWS: Row[] = [
   // is applied. `SP=/tmp/…/scratchpad; rm -f "$SP/x.log"` is the everyday long-run launch idiom — 52 of the
   // 53 quoted-rm rows in a live decision log are that shape, and the identical unquoted spelling was already
   // asking. This is EVIDENCE, not a hint: the value comes from the command's own text. ----
-  ["pass", null, 'SP=/tmp/claude/x/scratchpad\nrm -f "$SP/check2.log" "$SP/check2.exit"\necho launched'],
-  ["pass", null, 'export SP="/tmp/claude/x/scratchpad"; rm -rf "$SP/y"'],
+  ["pass", null, 'SP=/tmp/claude-1234/x/scratchpad\nrm -f "$SP/check2.log" "$SP/check2.exit"\necho launched'],
+  ["pass", null, 'export SP="/tmp/claude-1234/x/scratchpad"; rm -rf "$SP/y"'],
   ["pass", null, "SP='/tmp/a b/scratchpad'; rm -rf \"$SP/x\""], // a quoted value with a space is ONE value
   // the unquoted twin of the live-log shape — it asked before this leg, which is why lanes learned to quote
   ["pass", null, "WT=/home/x/orb/.claude/worktrees/agent-ab75; rm -f $WT/.claude/verifier-run-husk.sh"],
   ["pass", null, 'R=/home/x/orb; W=$R/.claude/worktrees/agent-a; rm -rf "$W"'], // resolved through a chain
-  ["pass", null, `SP=/tmp/claude/x/scratchpad; rm -rf "\${SP}/y"`], // the braced spelling resolves alike
+  ["pass", null, `SP=/tmp/claude-1234/x/scratchpad; rm -rf "\${SP}/y"`], // the braced spelling resolves alike
   // MUST BITE — resolution is what makes the pass safe, so everything it cannot prove still asks
   ["ask", "rm-rf-unsafe", 'R=/home/x/dev/orbweaver; rm -rf "$R"'],
   ["ask", "rm-rf-unsafe", 'R=/home/x/orb; W=$R/packages/server; rm -rf "$W"'],
@@ -1003,7 +1003,7 @@ const ROWS: Row[] = [
   ["deny", "sleep-wait-loop", "while pgrep -f x >/dev/null; do for i in 1; do :; done; sleep 5; done"],
   // the hard floor and the rm rule hold inside a loop body, an `if`, a subshell and a brace group
   ["ask", "rm-rf-unsafe", "for i in 1; do rm -rf /; done"],
-  ["ask", "rm-rf-unsafe", "while true; do rm -rf /home/user; done"],
+  ["ask", "rm-rf-unsafe", "while true; do rm -rf /home/example; done"],
   ["ask", "rm-rf-unsafe", "(rm -rf /)"],
   ["ask", "rm-rf-unsafe", "{ rm -rf /; }"],
   ["ask", "rm-rf-unsafe", "if true; then rm -rf /; fi"],
@@ -1993,7 +1993,7 @@ test("push-in-flight: a live `git push` process turns a commit into a warn (neve
  *  shape that kills line-by-line classification — the invocation spans four lines via `\`. */
 const REAL_CT_WRAPPER = `#!/usr/bin/env bash
 WT=/home/x/orbweaver/.claude/worktrees/agent-a662d9e17adb6dc35
-SP=/tmp/claude/-home-x-orbweaver/db7648b6/scratchpad
+SP=/tmp/claude-1234/-home-x-orbweaver/db7648b6/scratchpad
 cd "$WT" || exit 2
 pnpm test:ct \\
   client/features/chat/surfaces/chat-room-surface.ct.tsx \\
