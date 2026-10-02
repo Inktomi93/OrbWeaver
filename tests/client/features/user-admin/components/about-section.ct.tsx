@@ -24,6 +24,7 @@ const VERSION = {
   commit: LOCAL_COMMIT,
   short: LOCAL_COMMIT.slice(0, 12),
   source: "checkout",
+  channel: "main",
 } satisfies TrpcWireOutput<"settings.getVersion">;
 const CHECK_BUTTON = "Check for updates";
 
@@ -35,20 +36,20 @@ test("renders the version line a bug report quotes, anchored at the admin pane's
   await stub(page);
   const component = await mount(<AboutSectionStory />);
 
-  // The exact string the issue form asks for — release, SHORT commit, and where the answer came from.
-  await expect(component.getByTestId("about-version-line")).toHaveText("v0.4.1 (823d76f4343a, checkout)");
+  // The exact string the issue form asks for: a main build is a dev pre-release carrying its SHORT commit.
+  await expect(component.getByTestId("about-version-line")).toHaveText("0.4.1-dev+823d76f4343a");
   await expect(component.getByText("Read from this checkout's git refs at startup.")).toBeVisible();
   await expect(component.getByRole("button", { name: "Copy version for a bug report" })).toBeVisible();
   await expect(page.locator("#config-anchor-admin-about")).toBeVisible();
 });
 
-test("a container build reports its stamp INSTEAD of a checkout, and says when it was built", async ({ mount, page }) => {
+test("a stable release image reports its release tag, and says when it was built", async ({ mount, page }) => {
   await stub(page, {
-    "settings.getVersion": () => ({ ...VERSION, builtAt: "2026-09-18T09:30:00.000Z", source: "container" }),
+    "settings.getVersion": () => ({ ...VERSION, builtAt: "2026-09-18T09:30:00.000Z", source: "container", channel: "stable" }),
   });
   const component = await mount(<AboutSectionStory />);
 
-  await expect(component.getByTestId("about-version-line")).toHaveText("v0.4.1 (823d76f4343a, container)");
+  await expect(component.getByTestId("about-version-line")).toHaveText("v0.4.1");
   await expect(component.getByText(/Stamped into the container image when it was built/u)).toBeVisible();
 });
 
@@ -77,15 +78,14 @@ test("up-to-date renders as up-to-date", async ({ mount, page }) => {
   await component.getByRole("button", { name: CHECK_BUTTON }).click();
   const verdict = component.getByTestId("about-update-verdict");
   await expect(verdict).toContainText("Up to date");
-  await expect(verdict).toContainText("newest commit on GitHub");
 });
 
-test("behind NAMES the upstream commit and its date — the reader can go look at it", async ({ mount, page }) => {
+test("a main build that is behind NAMES main's newer commit — the reader can go look at it", async ({ mount, page }) => {
   await stub(page, {
     "settings.checkForUpdate": () => ({
       status: "behind",
       local: LOCAL_COMMIT,
-      remote: { commit: REMOTE_COMMIT, short: REMOTE_COMMIT.slice(0, 12), committedAt: "2026-09-17T12:00:00.000Z" },
+      remote: { channel: "main", commit: REMOTE_COMMIT, short: REMOTE_COMMIT.slice(0, 12), committedAt: "2026-09-17T12:00:00.000Z" },
       reason: null,
     }),
   });
@@ -95,7 +95,24 @@ test("behind NAMES the upstream commit and its date — the reader can go look a
   const verdict = component.getByTestId("about-update-verdict");
   await expect(verdict).toContainText("Update available");
   await expect(verdict).toContainText("f00dcafe1234");
-  await expect(verdict).toContainText("committed");
+});
+
+test("a stable build that is behind NAMES the newer release", async ({ mount, page }) => {
+  await stub(page, {
+    "settings.getVersion": () => ({ ...VERSION, channel: "stable" }),
+    "settings.checkForUpdate": () => ({
+      status: "behind",
+      local: "0.4.1",
+      remote: { channel: "stable", version: "0.5.0", publishedAt: "2026-10-01T12:00:00.000Z" },
+      reason: null,
+    }),
+  });
+  const component = await mount(<AboutSectionStory />);
+
+  await component.getByRole("button", { name: CHECK_BUTTON }).click();
+  const verdict = component.getByTestId("about-update-verdict");
+  await expect(verdict).toContainText("Update available");
+  await expect(verdict).toContainText("v0.5.0");
 });
 
 test("an UNREACHABLE check says so WITH its reason — never a silent up-to-date", async ({ mount, page }) => {

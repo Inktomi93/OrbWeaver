@@ -2,8 +2,9 @@ name: install
 
 # Proves the README's "Run it" paths on fresh runners. Each source job runs the README's install lines, a
 # non-interactive `pnpm start` (start.cmd on Windows), waits for /healthz and stops the server, then runs the
-# targeted plugin-broker process-tree proof. The docker job runs the README's Docker lines and the same proof
-# inside the production image. No job installs Node: package.json `devEngines.runtime` (onFail: download) makes
+# targeted plugin-broker process-tree proof. The docker job runs the README's Docker lines: it pulls the
+# published release image the default compose file names, with no build step, and runs the same proof inside
+# it. Dispatch on `release` so the compose file and the proofs match that image. No job installs Node: package.json `devEngines.runtime` (onFail: download) makes
 # pnpm fetch the pinned Node itself, which is the README's path.
 # Manual only, like ci.yml.
 on:
@@ -185,7 +186,9 @@ jobs:
       # The README's `git clone`, at the ref this run was dispatched on.
       - uses: actions/checkout@v4
 
-      - run: docker compose up -d --build
+      - run: docker compose pull
+
+      - run: docker compose up -d
 
       - name: Wait for /healthz
         run: |

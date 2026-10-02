@@ -7,8 +7,8 @@ One image runs the app. The app starts its plugin watchdog and isolated broker a
 Needs Docker Engine 24+ with Compose v2.24+ (or Podman 4+ with `podman compose`) and git.
 
 ```sh
-git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
-docker compose up -d --build        # builds the image from the checkout (a few minutes the first time)
+git clone --branch release https://github.com/Inktomi93/orbweaver && cd orbweaver
+docker compose up -d                # pulls the latest stable release image, no build step
 ```
 
 Open <http://localhost:8788>. You are the owner; there is no login. Settings → Connections: add an API
@@ -19,8 +19,21 @@ or liveness failure. The app and broker share this container's cgroup, so this m
 overshoot and is not a broker-only kernel memory limit. Every setting remains optional in `docker/orbweaver.env`,
 overridable in `docker/orbweaver.local.env`.
 
-There is no published image: the checkout is the source of truth and the build is part of `up`. To update:
-`git pull && docker compose up -d --build` (migrations run at boot, with a backup of the database first).
+The image is `ghcr.io/inktomi93/orbweaver`, published with every stable release as `:<version>` and `:latest`
+(linux/amd64). The `release` branch carries the compose file that matches it. To update:
+`git pull && docker compose pull && docker compose up -d` (migrations run at boot, with a backup of the
+database first). Pin one release with `ORB_IMAGE=ghcr.io/inktomi93/orbweaver:<version>`.
+
+To run `main` or your own changes instead, build the image from the checkout with the build overlay:
+
+```sh
+git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
+docker compose -f docker-compose.yaml -f docker/compose.build.yaml up -d --build
+```
+
+The overlay names the result `orbweaver:local`, so it never replaces the pulled release. With another
+overlay from this page, list the build overlay right after `docker-compose.yaml`. Settings → Admin → About this install reports `vX.Y.Z` for a
+release and `X.Y.Z-dev+<commit>` for a build of anything else.
 
 ## A model server on your machine
 
@@ -175,7 +188,7 @@ and a container restart ends the share. Nothing else to run: no second container
 3. Start the app with the tunnel overlay, which runs `cloudflared` as a second container:
 
 ```sh
-CLOUDFLARE_TUNNEL_TOKEN=<token> docker compose -f docker-compose.yaml -f docker/compose.cloudflared.yaml up -d --build
+CLOUDFLARE_TUNNEL_TOKEN=<token> docker compose -f docker-compose.yaml -f docker/compose.cloudflared.yaml up -d
 ```
 
 The tunnel container sends `X-Forwarded-Proto: https` from its address on this project's network, so the session
@@ -244,9 +257,14 @@ project's network (`docker network inspect orbweaver_default`), or `127.0.0.1/32
   with a retention sweep; `touch` a `.keep` beside a copy to exempt it), then migrates, then verifies
   referential integrity; a boot that changes nothing makes no copy. There are no "down" migrations: to roll
   back, stop the container, put the backup file back in place of `db/orbweaver.db` (remove any
-  `-wal`/`-shm` beside it), and start the OLDER checkout again. Back up the whole volume before a big update:
-  `docker run --rm -v orbweaver_orbweaver-data:/data -v "$PWD":/out alpine sh -c 'umask 077 && tar czf /out/orbweaver-data.tgz -C /data .'`
-  (the mask keeps the archive, which holds the secrets, readable by its owner only).
+  `-wal`/`-shm` beside it), and start the OLDER image again (`ORB_IMAGE=ghcr.io/inktomi93/orbweaver:<version>`
+  or the older checkout). Back up the whole volume before a big update, with the app stopped
+  (`docker compose stop`):
+  `docker run --rm -v orbweaver_orbweaver-data:/data -v "$PWD":/out alpine sh -c 'umask 077 && tar czf /out/orbweaver-data.tgz -C /data . && chown "$(stat -c %u:%g /out)" /out/orbweaver-data.tgz'`
+  The mask keeps the archive, which holds the secrets, readable by its owner only, and the `chown` makes that
+  owner whoever owns the current folder. Without it, rootful Docker leaves a root-owned archive you cannot
+  read. To restore, stop the container and unpack into the empty volume:
+  `docker run --rm -v orbweaver_orbweaver-data:/data -v "$PWD":/in alpine tar xzf /in/orbweaver-data.tgz -C /data`.
 
 ## Secrets as files
 
@@ -284,8 +302,9 @@ the composed posture at boot and warns per open exposure.
 
 ## Troubleshooting
 
-- **`docker compose up` tries to pull `orbweaver:local` and fails** — you left off `--build`; the image is
-  built from the checkout, never pulled.
+- **`docker compose up` cannot pull `ghcr.io/inktomi93/orbweaver`** — no stable release has been published
+  yet, or this machine cannot reach `ghcr.io`. Build from the checkout instead with the build overlay
+  ("Quick start").
 - **Everything answers 401** in `single-user` — `AUTH_FALLBACK_TRUSTED_PEERS` was emptied or your docker
   network uses a range outside the shipped list (`docker network inspect` → add it), or you are on a custom
   network outside the shipped ranges (`10.0.0.0/8` covers Podman's default `10.88.0.0/16`). The reason is under "Login modes".
@@ -313,6 +332,7 @@ the composed posture at boot and warns per open exposure.
 
 ## Building
 
-`docker build --target runtime -t orbweaver:local .` builds the image alone. The image is the server as
+`docker build --target runtime -t orbweaver:local .` builds the image alone, and
+`.github/workflows/release.yml` builds the same target for each release. The image is the server as
 source (node 26 runs TypeScript directly), the built client, and a pruned production `node_modules`; how the
 runtime file set is assembled has one home, `docker/assemble-runtime.sh`.

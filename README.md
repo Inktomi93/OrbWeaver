@@ -1,26 +1,47 @@
 # Orbweaver
 
-A self-hosted, agent-native AI roleplay chat platform — a ground-up rebuild of an earlier codebase of
-ours, rewritten so the architecture is enforced rather than documented.
+**Roleplay with your friends in the same scene, live.**
 
-**Status: active development.** The rebuild IS the live line (`main`); the pre-rollback code survives
-as the `legacy-main` branch, reference-only. Orbweaver keeps what worked in the previous codebase (the
-per-feature template) and rebuilds the rest so the **file structure is self-documenting** and the
-**boundaries are physics, not lint**. Mutable work lives in
-[Orbweaver Project 1](https://github.com/users/Inktomi93/projects/1).
+Orbweaver is a self-hosted AI roleplay app with real-time multiplayer: several people and several characters
+in one live scene. Invite friends in, turn any story into a game, and keep chats that remember what happened
+a hundred messages ago. It runs on your own machine, and your characters, chats and keys stay there. It is an
+alpha.
+
+**The [Orbweaver wiki](https://github.com/Inktomi93/orbweaver/wiki) is the user guide:** install, connecting a
+model, your first chat, and every feature below.
+
+## What it does
+
+- **Play together.** Invite friends into a room. Everyone takes turns, the characters answer all of you, and
+  every device you sign in on stays live. ([Share with friends](https://github.com/Inktomi93/orbweaver/wiki/Share-with-Friends))
+- **Turn any story into a game.** One switch adds stats, relationships, quests, inventory and a journal that
+  the story keeps up to date, with optional D20 rules. ([RPG mode](https://github.com/Inktomi93/orbweaver/wiki/RPG-Mode))
+- **Stories that remember.** Rolling summaries keep long chats coherent, and old moments come back by meaning
+  and by keyword. ([How memory works](https://github.com/Inktomi93/orbweaver/wiki/How-Memory-Works))
+- **Your library.** Browse characters as a map of similar cards, search by description, and improve cards with
+  the Refinery. ([Refinery](https://github.com/Inktomi93/orbweaver/wiki/Refinery))
+- **Plugins and themes.** Sandboxed plugins that show what they want before they run, and themes down to the
+  backdrop and type. ([Plugins](https://github.com/Inktomi93/orbweaver/wiki/Plugins), [Themes](https://github.com/Inktomi93/orbweaver/wiki/Themes))
+- **Coming from SillyTavern.** One import brings your characters, chats, personas, presets, lorebooks and
+  themes, and reports anything it skipped. ([Coming from SillyTavern](https://github.com/Inktomi93/orbweaver/wiki/Coming-from-SillyTavern))
+
+Orbweaver ships no language model. Paste an API key (OpenRouter, Anthropic and others) or point it at a model
+server you already run, such as Ollama, KoboldCpp, LM Studio or vLLM.
+([Connect a model](https://github.com/Inktomi93/orbweaver/wiki/Connect-a-Model))
 
 ## Run it
 
-Pick one path. Each serves the app at <http://localhost:8788>.
+Pick one path. Each serves the app at <http://localhost:8788>. Both install the latest stable release from
+the `release` branch; `main` is the development line.
 
 ### Docker (Linux, macOS, Windows)
 
 ```bash
-git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
-docker compose up -d --build
+git clone --branch release https://github.com/Inktomi93/orbweaver && cd orbweaver
+docker compose up -d
 ```
 
-Open <http://localhost:8788>. There is no login: the port is published on this machine only, and you are the owner. The app starts its plugin watchdog and isolated broker as child processes inside the container. [`docker/README.md`](docker/README.md) covers login modes, LAN and HTTPS, tunnels, secrets and backups.
+Open <http://localhost:8788>. There is no login: the port is published on this machine only, and you are the owner. Compose pulls the published release image, so there is no build step; [`docker/README.md`](docker/README.md) shows how to build from the checkout instead. The app starts its plugin watchdog and isolated broker as child processes inside the container. [`docker/README.md`](docker/README.md) also covers updates, login modes, LAN and HTTPS, tunnels, secrets and backups.
 
 ### From source
 
@@ -37,10 +58,12 @@ Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expr
 If Windows Defender blocks the pnpm binary, run `winget install -e --id pnpm.pnpm` instead. Then, on every platform:
 
 ```bash
-git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
+git clone --branch release https://github.com/Inktomi93/orbweaver && cd orbweaver
 pnpm install
 pnpm start
 ```
+
+To update, stop the app, then `git pull`, `pnpm install` and `pnpm start` again.
 
 The first `pnpm start` in a terminal asks for the port and who uses the app, and saves the answers in `.env`. It builds the client bundle when needed, runs the server in this terminal, and opens the app in your default browser once the server answers. Set `OPEN_BROWSER=off` in `.env` to keep the browser closed. Ctrl-C stops the server. With no terminal (a service, CI, piped input) it asks nothing, opens nothing and starts on the defaults. Over SSH it opens no browser. `pnpm start --port 9000` uses another port for one run.
 
@@ -69,7 +92,11 @@ A device on your network signs in over plain http, so the password and the sessi
 
 Everything the app keeps is in `data/`, or wherever `DATA_DIR` points. Stop the app, copy `data/` except `data/cache/`, and start it again. `data/secrets/` holds `credentials_key` (it decrypts saved provider keys) and `session_secret` (the pepper for passwords and sign-ins); a database restored without them cannot read its keys or sign anyone in, and boot refuses and names the file. Before a boot applies new migrations, it copies the database to `data/backups/`. Migrations only go forward: to roll back, stop the app, put a backup in place of `data/db/orbweaver.db`, delete the `-wal` and `-shm` files beside it, and start the older checkout.
 
-### Work on the code
+## Work on the code
+
+Everything below is for contributors. Orbweaver's code is written mostly by AI agents, so its architecture is
+enforced by the toolchain rather than documented. Development happens on `main`; clone it without
+`--branch release`.
 
 `pnpm dev` runs the watched server and the Vite client from source on Linux, macOS and Windows; open <http://localhost:5173>. The server restarts on a source change, and Ctrl-C stops both. `pnpm stack up` runs the same dev stack detached, and `pnpm stack down` stops it. See [CONTRIBUTING.md](CONTRIBUTING.md) for checks and native platform evidence.
 
@@ -77,7 +104,7 @@ Everything the app keeps is in `data/`, or wherever `DATA_DIR` points. Stop the 
 
 - **`docs/law/Constitution.md`** — the cold-start reading router and current architecture map.
 - **`docs/law/Core-0-Architecture-and-Structure.md`** — the constitution: package layout, server tiers, per-feature
-  template, central test mirror, the partitioning rule, and the 13 enforcement gates.
+  template, central test mirror, the partitioning rule, and the enforcement gates.
 
 ## Core bets
 
@@ -118,34 +145,45 @@ External versions are centralized in the pnpm **catalog** (`pnpm-workspace.yaml`
 
 ## Versioning + releases
 
-Every running Orbweaver reports ONE identity block — `{ version, commit, short, builtAt?, source }` — in
-four places, so a bug report can always say what it is running:
+There are two channels. `main` is integration and development: lanes, hooks and worktrees all work against
+it. The `release` branch is stable: release-please versions it from conventional commits, and every stable
+release is a `v<version>` tag, a GitHub Release with its notes, and a `ghcr.io/inktomi93/orbweaver` image.
+Below 1.0, a `feat` commit bumps the minor version and a `fix` the patch; a breaking change also bumps only
+the minor. The first release is v0.1.0.
+
+Every running Orbweaver reports ONE identity block — `{ version, commit, short, builtAt?, source, channel }` —
+in four places, so a bug report can always say what it is running:
 
 | Where | What it shows |
 | - | - |
-| **Settings → Admin → About this install** | `v0.0.0 (823d76f4343a, checkout)` + a Copy button, and a manual "Check for updates" |
+| **Settings → Admin → About this install** | the version line + a Copy button, and a manual "Check for updates" |
 | `GET /healthz` | the same block on every arm, 200 and 503 alike |
-| the boot log's FIRST line | `boot: orbweaver v0.0.0 (823d76f4343a, checkout)` |
+| the boot log's FIRST line | `boot: orbweaver <version line>` |
 | a captured bug report (`pnpm bug:reports`) | the first header field of the bundle |
 
-`version` is the ROOT `package.json` version — the number a release bumps. `commit` is read from `.git`'s
-plain ref files at boot (no git binary, no child process); a container image has no `.git`, so the build
-stamps `/app/version.json` instead and the reader prefers it. When neither can answer, the commit reads
-`unknown` — never a fabricated sha. There is no `dirty` flag: it cannot be derived without git, and a
-field that is always `false` would lie exactly when it matters.
+The version line is `v0.1.0` for a stable release and `0.1.0-dev+823d76f4343a` for anything else. `version`
+is the ROOT `package.json` version. `commit` is read from `.git`'s plain ref files at boot (no git binary,
+no child process); a container image has no `.git`, so the build stamps `/app/version.json` instead and the
+reader prefers it. When neither can answer, the commit reads `unknown` — never a fabricated sha. A build is
+`stable` only when its commit is the commit its own `v<version>` tag names, so a checkout or image of the
+release tag is stable and everything else, including `main`, is a dev build. There is no `dirty` flag: it
+cannot be derived without git, and a field that is always `false` would lie exactly when it matters.
 
-**Cutting a release:**
+**Shipping a stable release** (`.github/workflows/release.yml`, `release-please-config.json`):
 
-```bash
-pnpm version minor        # (or patch/major) — bumps the root package.json AND creates the v<version> tag
-git push origin main --follow-tags
-```
+1. Promote `main`: open a pull request from `main` into `release` on GitHub and merge it with a merge commit.
+2. The push to `release` runs release-please, which opens or updates the release PR: the next version, the
+   root `package.json` bump, and the release notes built from the conventional commits since the last
+   release.
+3. Merge the release PR. The same workflow tags `v<version>`, publishes the GitHub Release, builds the image
+   from the tag, checks that it reports itself as that stable release, and pushes `:<version>` and `:latest`.
+4. Merge `release` back into `main`, so dev builds report the new version (`0.2.0-dev+<commit>`).
 
-Push the tag, then write the changelog on GitHub's release page for that tag — that page is the
-changelog's one home; nothing in this repository duplicates it.
+The GitHub Release page is the changelog's one home; nothing in this repository duplicates it.
 
-**Checking for updates** is manual and one-shot: the About section's button performs a single
-unauthenticated `GET https://api.github.com/repos/Inktomi93/orbweaver/commits/main` through the app's
-SSRF-safe egress belt, compares that sha to this build's, and reports `up to date` / `update available` /
-`couldn't check` + why. No polling, no timer, no persisted state, and nothing about your deployment is
-sent anywhere.
+**Checking for updates** is manual and one-shot. The About section's button sends a single unauthenticated
+GET through the app's SSRF-safe egress belt and reports `up to date`, `update available`, or `couldn't
+check` with the reason. A stable build asks for the latest GitHub Release
+(`https://api.github.com/repos/Inktomi93/orbweaver/releases/latest`) and compares versions; a dev build asks
+for main's head (`https://api.github.com/repos/Inktomi93/orbweaver/commits/main`) and compares commits. No
+polling, no timer, no persisted state, and nothing about your deployment is sent anywhere.

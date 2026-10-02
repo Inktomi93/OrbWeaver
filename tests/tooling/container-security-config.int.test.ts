@@ -22,9 +22,9 @@ test("the Dockerfile is a single app-only target: no corepack, no GPU stage, pnp
   expect(dockerfile).not.toMatch(/^RUN .*corepack/mu);
   expect(dockerfile).toContain("require('./package.json').packageManager");
   expect(dockerfile).not.toMatch(/nvidia\/cuda|runtime-gpu|gpu-base|vllm==|vllm\/vllm-openai/iu);
-  // exactly one final target, named `runtime`, and compose builds that name
+  // exactly one final target, named `runtime`, and the source-build overlay builds that name
   expect(dockerfile.match(/^FROM .* AS runtime$/gmu)).toHaveLength(1);
-  expect(read(repoRoot, "docker-compose.yaml")).toContain("target: runtime");
+  expect(read(repoRoot, "docker/compose.build.yaml")).toContain("target: runtime");
   // the runtime file set has ONE home and the Dockerfile delegates to it
   expect(dockerfile).toContain("docker/assemble-runtime.sh");
 });
@@ -157,6 +157,7 @@ test("every compose shape resolves (the base and every overlay)", ({ repoRoot, s
     );
   const shapes: readonly (readonly [readonly string[], readonly string[]])[] = [
     [["docker-compose.yaml"], []],
+    [["docker-compose.yaml", "docker/compose.build.yaml"], []],
     [["docker-compose.yaml", "docker/compose.host-network.yaml"], []],
     [["docker-compose.yaml", "docker/compose.secrets.yaml"], []],
     [["docker-compose.yaml", "docker/compose.dev.yaml"], []],

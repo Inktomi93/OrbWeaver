@@ -143,7 +143,7 @@ const HOST_AMBIENT_ROUTES = defineTrpcRoutes({
   "connection.listBindings": [],
   "connection.providersAvailable": [],
   // About (last at the `admin` anchor) suspends on the version identity.
-  "settings.getVersion": { version: "0.4.1", commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d", short: "823d76f4343a", source: "checkout" },
+  "settings.getVersion": { version: "0.4.1", commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d", short: "823d76f4343a", source: "checkout", channel: "main" },
   "plugin.list": [],
   "plugin.listDistributed": [],
   "automation.listOwnerRules": [],

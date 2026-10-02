@@ -59,6 +59,7 @@ import {
   pluginManifestSchema,
 } from "@orb/contracts/plugin";
 import { sniffMime } from "@orb/kit/image-sniff";
+import { compareSemver } from "@orb/kit/semver";
 import type { UnzipFileInfo } from "fflate";
 import { unzipSync } from "fflate";
 import { z } from "zod";
@@ -320,21 +321,6 @@ export function parseBundle(bundle: Uint8Array): PluginBundle {
     );
   }
   return uiJs === undefined ? { manifest: parsed.data, mainJs, uiAssets } : { manifest: parsed.data, mainJs, uiJs, uiAssets };
-}
-
-/** The manifest version is exactly `major.minor.patch` (schema regex) — three numeric segments. */
-const SEMVER_SEGMENTS = 3;
-
-/** Semver compare on the `\d+.\d+.\d+` version the manifest schema already validates (`-1|0|1`). */
-function compareSemver(a: string, b: string): number {
-  const pa = a.split(".").map(Number);
-  const pb = b.split(".").map(Number);
-  for (let i = 0; i < SEMVER_SEGMENTS; i += 1) {
-    if (pa[i] !== pb[i]) {
-      return (pa[i] ?? 0) > (pb[i] ?? 0) ? 1 : -1;
-    }
-  }
-  return 0;
 }
 
 /** True when installing `candidate` over `installed` would ROLL BACK (owner-ruled) — the

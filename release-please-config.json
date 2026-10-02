@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "75b9132f5a7bbfb342fea747c07f0c4f84fc590d",
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "package-name": "orbweaver",
+      "include-component-in-tag": false,
+      "include-v-in-tag": true,
+      "initial-version": "0.1.0",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": false,
+      "skip-changelog": true
+    }
+  }
+}
