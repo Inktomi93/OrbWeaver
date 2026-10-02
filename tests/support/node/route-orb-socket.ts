@@ -95,8 +95,13 @@ export interface RouteOrbSocketOptions {
    * so the reconnect happens exactly once. @defaultValue false
    */
   readonly dropFirstConnection?: boolean;
+  /** Consecutive EOF connections for multi-episode recovery schedules. */
+  readonly dropConnectionCount?: number;
+  /** Process identity per connection; the last value persists for subsequent reconnects. */
+  readonly serverInstanceIds?: readonly string[];
 }
 
+const DEFAULT_SERVER_INSTANCE_ID = "orb-ct-server";
 const HANDSHAKE_TIMEOUT_MS = 5000;
 const HANDSHAKE_POLL_MS = 25;
 
@@ -139,7 +144,8 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
   const frames = opts.frames ?? [];
   const awaitAttaches = opts.awaitAttaches ?? 0;
   const closeStream = opts.closeStream ?? true;
-  const dropFirstConnection = opts.dropFirstConnection ?? false;
+  const dropConnectionCount = opts.dropConnectionCount ?? Number(opts.dropFirstConnection ?? false);
+  const serverInstanceIds = opts.serverInstanceIds ?? [DEFAULT_SERVER_INSTANCE_ID];
   const attached: AttachRequest[] = [];
   const detached: AttachRequest[] = [];
   let connects = 0;
@@ -161,12 +167,22 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
       while (attached.length < awaitAttaches && Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, HANDSHAKE_POLL_MS));
       }
-      // A dropped FIRST connection omits the `return` frame → EOF → the link reconnects (see the option).
-      const clean = closeStream && !(dropFirstConnection && connects === 1);
+      // Dropped connections omit `return` → EOF → the link reconnects under the scripted process identity.
+      const clean = closeStream && connects > dropConnectionCount;
       await route.fulfill({
         status: 200,
         headers: { "content-type": "text/event-stream", "cache-control": "no-cache" },
-        body: socketBody(frames, clean),
+        body: socketBody(
+          [
+            {
+              channel: "control",
+              type: "serverReady",
+              serverInstanceId: serverInstanceIds[Math.min(connects - 1, serverInstanceIds.length - 1)] ?? DEFAULT_SERVER_INSTANCE_ID,
+            },
+            ...frames,
+          ],
+          clean,
+        ),
       });
       return;
     }

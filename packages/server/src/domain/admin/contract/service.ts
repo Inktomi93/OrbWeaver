@@ -85,6 +85,8 @@ interface EmbedProducerPort {
 export interface ServerRestartPort {
   /** True when the launcher that respawns on the restart exit code started this process (`@orb/kit/supervisor`). */
   readonly supervised: boolean;
+  /** The same process-lifetime identity the live transport publishes; a request must name this instance. */
+  readonly serverInstanceId: string;
   /** Closes the app and exits with the restart code on a later tick, so the caller's answer is sent first. Never throws. */
   readonly restart: () => void;
 }

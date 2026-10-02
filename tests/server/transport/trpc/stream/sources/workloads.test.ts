@@ -32,6 +32,7 @@ import { createSocketRegistry, publishUserEvent } from "@orb/server/transport/tr
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
+import { consumeServerReady } from "../_support.ts";
 
 const OWNER = castId<UserId>("user_workload_owner");
 const STRANGER = castId<UserId>("user_workload_stranger");
@@ -82,6 +83,7 @@ async function openWorkloadRoom(ctx: Context, workloadId: WorkloadId, opts: { re
   await call.stream.attach({ socketId, ref: { channel: "workloads", workloadId }, ...(opts.sinceSeq === undefined ? {} : { sinceSeq: opts.sinceSeq }) });
   const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
   const iterator = socket[Symbol.asyncIterator]();
+  await consumeServerReady(iterator);
   const ack = await iterator.next();
   expect(frameOf(ack.value)).toEqual({ channel: "control", type: "attached", ref: { channel: "workloads", workloadId } });
   return iterator;
@@ -220,6 +222,7 @@ describe("the gate runs at attach ONLY — deliberately, not by omission", () =>
 
     const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
     const iterator = socket[Symbol.asyncIterator]();
+    await consumeServerReady(iterator);
     const frames: StreamFrame[] = [];
     const first = iterator.next();
     await new Promise((resolve) => setTimeout(resolve, 0));

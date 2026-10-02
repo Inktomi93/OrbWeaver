@@ -27,6 +27,7 @@ import { createPresenceRegistry, createSocketRegistry, publishUserEvent } from "
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
+import { consumeServerReady } from "../stream/_support.ts";
 
 // MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
 const ID = {
@@ -69,6 +70,7 @@ function frameOf(yielded: unknown): StreamFrame {
 /** Pull frames off a live socket until `count` have arrived, publishing via `drive` once the pumps are up. */
 async function collect(socket: AsyncIterable<unknown>, count: number, drive: () => Promise<void> | void): Promise<StreamFrame[]> {
   const iterator = socket[Symbol.asyncIterator]();
+  await consumeServerReady(iterator);
   // The first pull starts the generator (its setup slice runs synchronously), THEN the events fire — so the
   // pumps are attached before anything is published and nothing races into a gap.
   const first = iterator.next();
@@ -85,6 +87,20 @@ async function collect(socket: AsyncIterable<unknown>, count: number, drive: () 
 }
 
 describe("one socket, N rooms", () => {
+  test("server process identity is present without rooms and stable across connections and registries", async () => {
+    const open = async (connectionContext: Context): Promise<string> => {
+      const socket = await caller(connectionContext).stream.connect({ socketId: nextSocket() });
+      const iterator = (socket as AsyncIterable<unknown>)[Symbol.asyncIterator]();
+      const id = await consumeServerReady(iterator);
+      await iterator.return?.(undefined);
+      return id;
+    };
+    const ctx = ctxWith(seated);
+    const before = await open(ctx);
+    expect(await open(ctx)).toBe(before);
+    expect(await open(ctxWith(seated))).toBe(before);
+  });
+
   test("attach-before-connect: the socket re-hydrates the room and relays its events", async () => {
     const socketId = nextSocket();
     const call = caller(ctxWith(seated));

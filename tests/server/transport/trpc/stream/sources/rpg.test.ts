@@ -28,6 +28,7 @@ import { createSocketRegistry } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
+import { consumeServerReady } from "../_support.ts";
 
 // MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
 const ID = {
@@ -76,6 +77,7 @@ async function openRpgRoom(ctx: Context): Promise<AsyncIterator<unknown>> {
   await call.stream.attach({ socketId, ref: { channel: "rpg", chatId: CHAT } });
   const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
   const iterator = socket[Symbol.asyncIterator]();
+  await consumeServerReady(iterator);
   const ack = await iterator.next();
   expect(frameOf(ack.value)).toEqual({ channel: "control", type: "attached", ref: { channel: "rpg", chatId: CHAT } });
   return iterator;

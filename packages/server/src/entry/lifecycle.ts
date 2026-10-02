@@ -45,6 +45,7 @@ import {
   resolveOwnerFallbackPeers,
 } from "#foundation/env";
 import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
+import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import { versionIdentity } from "#foundation/version";
 import { ACME_POLLING, createAcmeIssuer, createCertificateStore, LETS_ENCRYPT_DIRECTORY, openChallengeResponder } from "#infra/acme";
 import type { OwnerClaimCode } from "#infra/auth";
@@ -645,6 +646,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // code, so the respawned boot is the one that reports what is wrong.
     const serverRestart: ServerRestartPort = {
       supervised: launchedBySupervisor(),
+      serverInstanceId: SERVER_INSTANCE_ID,
       restart: (): void => {
         setImmediate(() => {
           if (isShuttingDown) {

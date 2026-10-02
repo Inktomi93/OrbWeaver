@@ -21,6 +21,7 @@ import { describe } from "vitest";
 import { createChatEventSeqGuard } from "../../../../../packages/client/src/data/bus/chat-event-seq-guard.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
+import { consumeServerReady } from "./_support.ts";
 
 // MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
 const ID = {
@@ -73,6 +74,7 @@ describe("the room cursor counts DELIVERED frames, never enqueued ones", () => {
 
     const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
     const iterator = socket[Symbol.asyncIterator]();
+    await consumeServerReady(iterator);
     await iterator.next(); // the `attached` ack
     await iterator.next(); // chatOpened (seq 0 — the non-advancing cursor synthesis)
 
@@ -128,6 +130,7 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
 
     const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
     const iterator = socket[Symbol.asyncIterator]();
+    await consumeServerReady(iterator);
     // The first pull starts the generator (and its pump); then the consumer STALLS — the backgrounded tab.
     // The pump keeps replaying into the bounded queue with nobody draining it, which is the only way to
     // reach the overflow this test is about.
@@ -202,6 +205,7 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
 
     const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
     const iterator = socket[Symbol.asyncIterator]();
+    await consumeServerReady(iterator);
     await iterator.next(); // start the generator, then STALL so the queue saturates and sheds
     await new Promise((resolve) => setTimeout(resolve, 25));
     // …and NOW, with the notice still sitting undelivered in the queue, the client re-attaches the room
@@ -278,6 +282,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     const cell = sockets.adopt(MEMBER, socketId, null);
     const first = (await caller(ctx).stream.connect({ socketId })) as AsyncIterable<unknown>;
     const it1 = first[Symbol.asyncIterator]();
+    await consumeServerReady(it1);
     for (let i = 0; i < 7; i++) {
       const frame = frameOf((await it1.next()).value);
       if (isChatFrame(frame) && frame.seq > 3) {
@@ -297,6 +302,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     // ── socket #2: the reconnect. The barrier holds this room until the client announces. ──
     const second = (await caller(ctx).stream.connect({ socketId })) as AsyncIterable<unknown>;
     const it2 = second[Symbol.asyncIterator]();
+    await consumeServerReady(it2);
     // ONE outstanding pull, raced against a timer and then REUSED below — a `next()` abandoned here would
     // never settle and `.return()` on a parked generator would hang with it.
     const parked = it2.next();
@@ -364,6 +370,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     const cell = sockets.adopt(MEMBER, socketId, null);
     const first = (await caller(ctx).stream.connect({ socketId })) as AsyncIterable<unknown>;
     const it1 = first[Symbol.asyncIterator]();
+    await consumeServerReady(it1);
     for (let i = 0; i < 7; i++) {
       const frame = frameOf((await it1.next()).value);
       if (isChatFrame(frame) && frame.seq > 3) {
@@ -378,6 +385,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     // ── socket #2 connects while #1 is STILL LIVE (no `.return()`, no goDark) ──
     const second = (await caller(ctx).stream.connect({ socketId })) as AsyncIterable<unknown>;
     const it2 = second[Symbol.asyncIterator]();
+    await consumeServerReady(it2);
     const parked = it2.next();
     const held = await Promise.race([parked.then(() => "delivered"), new Promise<string>((resolve) => setTimeout(() => resolve("held"), 60))]);
     // THE PIN: the barrier holds even though `goDark` never ran for the predecessor.
@@ -422,12 +430,14 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     await call.stream.attach({ socketId, ref: { channel: "rpg", chatId } });
     const first = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
     const it1 = first[Symbol.asyncIterator]();
+    await consumeServerReady(it1);
     await it1.next(); // the attached ack
     await it1.return?.(undefined);
 
     // RECONNECT with no re-announce at all: the room is pumping immediately.
     const second = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
     const it2 = second[Symbol.asyncIterator]();
+    await consumeServerReady(it2);
     const frame = frameOf((await it2.next()).value);
     await it2.return?.(undefined);
 
@@ -458,6 +468,7 @@ describe("session eviction ends the live socket (W7a)", () => {
       await call.stream.attach({ socketId, ref: { channel: "rpg", chatId } });
       const stream = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
       const iterator = stream[Symbol.asyncIterator]();
+      await consumeServerReady(iterator);
       await iterator.next(); // the attached ack — the socket is live and pumping
       return iterator;
     };

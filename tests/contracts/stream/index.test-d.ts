@@ -46,6 +46,9 @@ test("each data-frame arm carries exactly its routing fields and its room's even
 });
 
 test("each control-frame arm carries exactly its declared fields", () => {
+  expectTypeOf<Extract<StreamControlFrame, { type: "serverReady" }>>().toEqualTypeOf<
+    { readonly channel: "control" } & { readonly type: "serverReady"; readonly serverInstanceId: string }
+  >();
   expectTypeOf<Extract<StreamControlFrame, { type: "attached" }>>().toEqualTypeOf<
     { readonly channel: "control" } & { readonly type: "attached"; readonly ref: StreamRoomRef }
   >();
@@ -58,7 +61,7 @@ test("each control-frame arm carries exactly its declared fields", () => {
   expectTypeOf<Extract<StreamControlFrame, { type: "roomFailed" }>>().toEqualTypeOf<
     { readonly channel: "control" } & { readonly type: "roomFailed"; readonly ref: StreamRoomRef; readonly code: StreamErrorCode; readonly message: string }
   >();
-  expectTypeOf<StreamControlFrame["type"]>().toEqualTypeOf<"attached" | "detached" | "roomLagged" | "roomFailed">();
+  expectTypeOf<StreamControlFrame["type"]>().toEqualTypeOf<"serverReady" | "attached" | "detached" | "roomLagged" | "roomFailed">();
 });
 
 test("StreamFrameFor narrows to the one arm a room hook receives", () => {

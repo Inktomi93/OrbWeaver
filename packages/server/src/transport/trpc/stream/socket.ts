@@ -47,6 +47,7 @@ import type { SocketId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { getLog, superviseDetached } from "#foundation/observability";
+import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import type { Services } from "../context.ts";
 import { classifyDomainError } from "../error-mapping.ts";
 import { createFrameQueue } from "./frame-queue.ts";
@@ -102,6 +103,7 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
     // what was shed. Nothing else can — the shedding pump's high-water mark has already passed those rows.
     onShed: (ref) => pausePump(ref),
   });
+  queue.pushControl({ channel: "control", type: "serverReady", serverInstanceId: SERVER_INSTANCE_ID });
   const pumps = new Map<string, AbortController>();
 
   async function pumpRoom(ref: StreamRoomRef, cursor: number | null, control: AbortController): Promise<void> {

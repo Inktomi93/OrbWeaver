@@ -2032,8 +2032,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
     "self-scoped (U8 seam 15): fetches a CALLER-named URL through the egress guard and returns its manifest — READ-ONLY, no owned id, touches no row; the wall is safeFetch's SSRF/private-range denial, not a tenant axis (a stranger can only ever preview a URL they themselves named)",
   "plugin.installFromUrl":
     "self-scoped (U8 seam 15): fetches a CALLER-named URL through the egress guard then DELEGATES to install, which mints the CALLER's own row (ownerId = caller.userId) — no foreign id, exactly the self-authority of plugin.install one byte-source over",
-  "plugin.installUnpacked":
-    "peer-local and development-gated: the identity seam's fallback Principal proves loopback admission before packing a caller-named server directory, then install mints or upgrade owner-scopes the CALLER's own row; a remote owner role alone is refused before filesystem access",
   "plugin.previewFromGit": "self-scoped: guarded shallow-clones a CALLER-named HTTPS repository and returns its manifest; read-only, no foreign row id",
   "plugin.installFromGit": "self-scoped: guarded shallow-clones a CALLER-named HTTPS repository then delegates to install, which mints the CALLER's own row",
   "plugin.checkForUpdates":

@@ -34,7 +34,6 @@ import type {
   InstallFromGitParams,
   InstallFromUrlParams,
   InstallPluginParams,
-  InstallUnpackedPluginParams,
   InvokeUiActionParams,
   InvokeUiCommandParams,
   ListBundleAssetsParams,
@@ -315,10 +314,7 @@ export interface PluginContext {
    *  the `fetchWebDocument`→`ScrapeFailedError` precedent); the URL verbs collapse every throw to a single
    *  leak-free {@link PluginBundleFetchError}, so no SSRF oracle crosses the boundary. */
   readonly fetchBundle: (url: string) => Promise<Uint8Array>;
-  /** Local-source doors stay injected: the domain owns lifecycle policy, while filesystem/Git I/O stays in
-   * outer tiers. The unpacked-directory verb admits only the peer-gated fallback Principal before this I/O. */
-  readonly development: boolean;
-  readonly packPluginDirectory: (directory: string) => Promise<Uint8Array>;
+  /** Git I/O stays in outer tiers; the domain retains lifecycle and install policy. */
   readonly gitSource: {
     readonly clone: (url: string) => Promise<{ readonly bundle: Uint8Array; readonly commit: string }>;
     readonly head: (url: string) => Promise<string>;
@@ -423,7 +419,6 @@ export interface PluginService {
   readonly install: (params: InstallPluginParams) => Promise<PluginView>;
   /** Replace the bundle for an installed plugin (slug must match; downgrade refused; new caps ⇒ disabled). */
   readonly upgrade: (params: UpgradePluginParams) => Promise<PluginView>;
-  readonly installUnpacked: (params: InstallUnpackedPluginParams) => Promise<PluginView>;
   readonly previewFromGit: (params: PreviewFromGitParams) => Promise<PluginGitPreview>;
   readonly installFromGit: (params: InstallFromGitParams) => Promise<PluginView>;
   readonly upgradeFromStoredGit: (params: UpgradeFromStoredGitParams) => Promise<PluginView>;

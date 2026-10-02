@@ -223,7 +223,8 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D273 | [Pre-commit runs the static tier over the staged change](0273-pre-commit-runs-the-static-tier-over-the-staged-change.md) | superseded by [0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md](0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) |
 | D274 | [The commit gate runs only what narrows to the staged files](0274-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) | active |
 | D275 | [The IP certificate comes from acme-client over HTTP-01](0275-the-ip-certificate-comes-from-acme-client-over-http-01.md) | active |
-| D276 | [Every plugin install door lands through the one bundle funnel](0276-plugin-install-doors-share-one-funnel.md) | active |
+| D276 | [Every plugin install door lands through the one bundle funnel](0276-plugin-install-doors-share-one-funnel.md) | superseded by [0280-plugin-supported-install-sources.md](0280-plugin-supported-install-sources.md) |
 | D277 | [Rooms attribute each reply and picture honestly without exposing another user's connection](0277-room-connection-attribution-and-pictures.md) | active |
 | D278 | [The people block renders every present human in the persona marker](0278-people-block-in-the-persona-marker.md) | active |
 | D279 | [Native Google inference uses the shared runtime](0279-native-google-inference.md) | active |
+| D280 | [Supported plugin install sources share one bundle funnel](0280-plugin-supported-install-sources.md) | active |

@@ -10,7 +10,7 @@ import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
 
 /** WHERE an install got its bytes — the honest origin + source provenance to remember (U8 2b). The
  *  install verb is source-agnostic (`substrate/manifest.ts`); the CALLING verb states the source, never the
- *  client. Absent ⇒ a file/folder/unpacked upload (`origin:"upload"`, no remembered source); URL and Git
+ *  client. Absent ⇒ a file/folder upload (`origin:"upload"`, no remembered source); URL and Git
  *  callers pass the source URL, and Git also passes the exact resolved commit. The URL/commit pairings are
  *  enforced at DB CHECKs, so this type carries every coupled field together. */
 type PluginInstallSource =
@@ -41,12 +41,6 @@ export interface UpgradePluginParams {
   readonly pluginId: PluginId;
   readonly bundle: Uint8Array;
   readonly source?: PluginInstallSource;
-}
-
-export interface InstallUnpackedPluginParams {
-  readonly caller: Principal;
-  readonly directory: string;
-  readonly grant: readonly PluginCapability[];
 }
 
 export interface PreviewFromGitParams {

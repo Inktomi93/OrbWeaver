@@ -2,8 +2,12 @@
 // stories reach feature internals the front door doesn't re-export (the section BODIES are mounted by the
 // settings host through the contribution defs) — the settings _ct-stories.tsx precedent.
 
+import { QueryBoundary } from "@orb/client/components";
+import { useBusRoom, useOrbSocket, useTRPC } from "@orb/client/data";
 import { TooltipProvider } from "@orb/ui/tooltip";
+import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { AboutSection } from "../../../../packages/client/src/features/user-admin/components/about-section.tsx";
 import { AdminApprovalsSection } from "../../../../packages/client/src/features/user-admin/components/admin-approvals-section.tsx";
 import { AdminLinkSsoSection } from "../../../../packages/client/src/features/user-admin/components/admin-link-sso-section.tsx";
@@ -174,6 +178,47 @@ export function OperationsSectionStory(): ReactElement {
       <TooltipProvider>
         <div style={{ padding: 16, width: 720 }}>
           <OperationsSection sectionId="admin-operations" />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
+function OperationsWithSocket(): ReactElement {
+  useOrbSocket();
+  return (
+    <QueryBoundary fallback={<output>Loading operations</output>}>
+      <OperationsConnectionProbe />
+      <OperationsSection sectionId="admin-operations" />
+    </QueryBoundary>
+  );
+}
+
+function OperationsConnectionProbe(): ReactElement {
+  const trpc = useTRPC();
+  useSuspenseQueries({ queries: [trpc.settings.getAppSettingsWithOverrides.queryOptions(), trpc.sessions.me.queryOptions()] });
+  const [connections, setConnections] = useState(0);
+  useBusRoom(
+    { channel: "user" },
+    {
+      onEvent: () => undefined,
+      onServerReady: (id) => {
+        if (id !== null) {
+          setConnections((count) => count + 1);
+        }
+      },
+    },
+  );
+  return <span data-testid="operations-connections">{connections}</span>;
+}
+
+/** Restart recovery follows the real app socket and room hooks; the CT stubs only transport. */
+export function OperationsRestartStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TooltipProvider>
+        <div style={{ padding: 16, width: 720 }}>
+          <OperationsWithSocket />
         </div>
       </TooltipProvider>
     </CtDataProviders>

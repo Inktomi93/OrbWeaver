@@ -64,6 +64,88 @@ function fakeTransport(): {
 }
 
 describe("ref-counting", () => {
+  test("connection readiness includes first connect but never room lag-heal", () => {
+    const registry = createRoomRegistry();
+    let connected = 0;
+    registry.join(USER_ROOM, {
+      onEvent: () => undefined,
+      onSocketConnected: () => {
+        connected += 1;
+      },
+    });
+    expect(connected).toBe(0);
+    registry.socketLive();
+    expect(connected).toBe(1);
+    registry.lagged(USER_ROOM);
+    expect(connected).toBe(1);
+    registry.socketDown();
+    registry.socketLive();
+    expect(connected).toBe(2);
+  });
+
+  test("a subscriber joining an already-live transport learns readiness without a reconnect", () => {
+    const registry = createRoomRegistry();
+    registry.socketLive();
+    let connected = 0;
+    let reconnected = 0;
+    registry.join(USER_ROOM, {
+      onEvent: () => undefined,
+      onSocketConnected: () => {
+        connected += 1;
+      },
+      onSocketReconnect: () => {
+        reconnected += 1;
+      },
+    });
+    expect(connected).toBe(1);
+    expect(reconnected).toBe(0);
+  });
+
+  test("socket reconnect observers ignore first connect and room lag-heal", () => {
+    const registry = createRoomRegistry();
+    registry.bindTransport(fakeTransport().transport);
+    let reconnects = 0;
+    let heals = 0;
+    registry.join(USER_ROOM, {
+      onEvent: () => undefined,
+      onSocketReconnect: () => {
+        reconnects += 1;
+      },
+      onSocketLive: () => {
+        heals += 1;
+      },
+    });
+    registry.socketLive();
+    registry.lagged(USER_ROOM);
+    expect(heals).toBe(1);
+    expect(reconnects).toBe(0);
+    registry.socketDown();
+    registry.socketLive();
+    expect(reconnects).toBe(1);
+    expect(heals).toBe(2);
+  });
+
+  test("a room joining during downtime receives the socket reconnect even on its first live episode", () => {
+    const registry = createRoomRegistry();
+    registry.bindTransport(fakeTransport().transport);
+    registry.socketLive();
+    registry.socketDown();
+    let reconnects = 0;
+    let heals = 0;
+    registry.join(USER_ROOM, {
+      onEvent: () => undefined,
+      onSocketReconnect: () => {
+        reconnects += 1;
+      },
+      onSocketLive: () => {
+        heals += 1;
+      },
+    });
+    registry.socketLive();
+    expect(reconnects).toBe(1);
+    expect(heals).toBe(0);
+  });
+
   test("two subscribers of ONE room cost one attach; only the last leaver detaches", () => {
     // @orb-waive test-determinism(vi.useFakeTimers): legacy fake-timers usage not yet migrated to the frozen-clock composition seam; ends when this test adopts tests/support/clock.ts
     vi.useFakeTimers();
@@ -627,5 +709,44 @@ describe("a failed announce is retried, and never silently abandoned", () => {
 
     expect(calls).toBe(1);
     expect(errors).toEqual([]);
+  });
+});
+
+describe("server process readiness is not connection or room recovery", () => {
+  test("identities arrive from the server, repeat on old-process reconnect, and never from room lag", () => {
+    const registry = createRoomRegistry();
+    const ids: (string | null)[] = [];
+    registry.join(USER_ROOM, { onEvent: () => undefined, onServerReady: (id) => ids.push(id) });
+    registry.socketLive();
+    expect(ids).toEqual([]);
+    registry.serverReady("old-process");
+    registry.lagged(USER_ROOM);
+    registry.socketDown();
+    registry.socketLive();
+    expect(ids).toEqual(["old-process", null]);
+    registry.serverReady("old-process");
+    registry.socketDown();
+    registry.socketLive();
+    registry.serverReady("new-process");
+    expect(ids).toEqual(["old-process", null, "old-process", null, "new-process"]);
+  });
+
+  test("a join on an identified live server gets its identity, while a join during downtime does not", () => {
+    const registry = createRoomRegistry();
+    registry.socketLive();
+    registry.serverReady("old-process");
+    const live: (string | null)[] = [];
+    registry.join(USER_ROOM, { onEvent: () => undefined, onServerReady: (id) => live.push(id) });
+    expect(live).toEqual(["old-process"]);
+    registry.socketDown();
+    // The existing subscriber is invalidated in this same call, before any reconnect or render.
+    expect(live).toEqual(["old-process", null]);
+    const dark: (string | null)[] = [];
+    registry.join(RPG_ROOM, { onEvent: () => undefined, onServerReady: (id) => dark.push(id) });
+    expect(dark).toEqual([]);
+    registry.socketLive();
+    registry.serverReady("new-process");
+    expect(dark).toEqual(["new-process"]);
+    expect(live).toEqual(["old-process", null, "new-process"]);
   });
 });

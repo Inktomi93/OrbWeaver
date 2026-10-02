@@ -29,6 +29,7 @@ import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser } from "../../../../domain/chat/_support.ts";
 import { caller, principal as callerPrincipal, makeContext } from "../../_support.ts";
+import { consumeServerReady } from "../_support.ts";
 
 let db: Db;
 
@@ -86,6 +87,7 @@ async function openChatRoom(read: ReturnType<typeof createRead>, userId: UserId,
   await call.stream.attach({ socketId, ref: { channel: "chat", chatId }, ...(sinceSeq === undefined ? {} : { sinceSeq }) });
   const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
   const iterator = socket[Symbol.asyncIterator]();
+  await consumeServerReady(iterator);
   expect(frameOf((await iterator.next()).value)).toEqual({ channel: "control", type: "attached", ref: { channel: "chat", chatId } });
   return iterator;
 }

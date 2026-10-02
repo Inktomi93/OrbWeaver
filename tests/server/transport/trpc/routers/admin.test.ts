@@ -20,6 +20,8 @@ function harness(role: UserRole): {
   return { admin, restart };
 }
 
+const INSTANCE_ID = "20000000-0000-4000-8000-000000000002";
+
 // A handle's key normalizes, and NFKC/NFD over a long run of combining marks is quadratic, so the length cap is
 // enforced before any key is computed.
 const COMBINING_MARKS = "\u0345\u0301\u0316\u0334";
@@ -58,7 +60,11 @@ describe("admin.createUser handle length", () => {
 describe("admin.restart", () => {
   test("without the confirm it answers BAD_REQUEST and the verb never runs", async () => {
     const h = harness("owner");
-    for (const input of [{}, { confirm: false }, { confirm: "true" }]) {
+    for (const input of [
+      { expectedServerInstanceId: INSTANCE_ID },
+      { confirm: false, expectedServerInstanceId: INSTANCE_ID },
+      { confirm: "true", expectedServerInstanceId: INSTANCE_ID },
+    ]) {
       // @ts-expect-error the wire can carry a missing or wrong confirm; the input schema is what refuses it
       const refusal = h.admin.restart(input);
       await expect(refusal, JSON.stringify(input)).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -66,16 +72,24 @@ describe("admin.restart", () => {
     expect(h.restart).not.toHaveBeenCalled();
   });
 
+  test("a missing or malformed expected instance never reaches the verb", async () => {
+    const h = harness("owner");
+    // @ts-expect-error the input boundary must refuse a wire request without its expected process identity
+    await expect(h.admin.restart({ confirm: true })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(h.admin.restart({ confirm: true, expectedServerInstanceId: "not-a-process-uuid" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(h.restart).not.toHaveBeenCalled();
+  });
+
   test("a plain user is refused at layer 1 and the verb never runs", async () => {
     const h = harness("user");
-    await expect(h.admin.restart({ confirm: true })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(h.admin.restart({ confirm: true, expectedServerInstanceId: INSTANCE_ID })).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(h.restart).not.toHaveBeenCalled();
   });
 
   test("control: the confirmed call reaches the verb with the caller and the confirm", async () => {
     const h = harness("owner");
-    await expect(h.admin.restart({ confirm: true })).resolves.toEqual({ restarting: true });
-    expect(h.restart).toHaveBeenCalledExactlyOnceWith({ principal: principal("owner"), confirm: true });
+    await expect(h.admin.restart({ confirm: true, expectedServerInstanceId: INSTANCE_ID })).resolves.toEqual({ restarting: true });
+    expect(h.restart).toHaveBeenCalledExactlyOnceWith({ principal: principal("owner"), confirm: true, expectedServerInstanceId: INSTANCE_ID });
   });
 });
 

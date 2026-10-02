@@ -1,1 +1,1 @@
-export { packPluginDir, packPreparedPluginDir } from "./pack-plugin-dir.ts";
+export { packPreparedPluginDir } from "./pack-plugin-dir.ts";
