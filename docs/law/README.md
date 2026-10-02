@@ -46,4 +46,5 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [UI-Primitives-and-Reuse](UI-Primitives-and-Reuse.md) | active |
 | [UI-Theming-and-Content](UI-Theming-and-Content.md) | active |
 | [Unified Verification Design](UNIFIED-VERIFICATION-DESIGN.md) | active |
+| [User docs](user-docs.md) | active |
 | [THE VOCABULARY MAP — one concept, one word](vocabulary-map.md) | active |

@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-09-23
+status: superseded
+updated: 2026-10-02
+superseded-by: docs/adr/0282-user-docs-live-in-the-github-wiki.md
 ---
 
 # one work graph, one documentation catalog, no wiki
