@@ -20,10 +20,11 @@
 // wrong list — and the Automation pane's list is invalidation-only by necessity: the automation bus is
 // per-CHAT, so an owner-global rule's fire reaches no live feed (`domain/automation/substrate/rule-feed.ts`).
 
-import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
+import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { activeDurableLocalUserId, durableLocalReadyFor } from "#state";
 
 /** The `listRules` read this section reconciles — tRPC-inferred (`readonly RuleView[]`), so the optimistic
  *  enable/disable patch below stays honest against the wire shape. */
@@ -47,6 +48,84 @@ function ruleListFilter(trpc: Trpc, chatId: ChatId | null): ReturnType<Trpc["aut
 function ruleListKey(trpc: Trpc, chatId: ChatId | null): readonly unknown[] {
   return chatId === null ? trpc.automation.listOwnerRules.queryKey() : trpc.automation.listRules.queryKey({ chatId });
 }
+
+function ruleCacheOwnerCurrent(owner: UserId): boolean {
+  return activeDurableLocalUserId() === owner && durableLocalReadyFor(owner);
+}
+
+function echoRule(old: RuleList | undefined, row: RuleList[number]): RuleList | undefined {
+  if (old === undefined) {
+    return;
+  }
+  return old.some((rule) => rule.id === row.id)
+    ? old.map((rule) => (rule.id === row.id ? row : rule))
+    : [...old, row].toSorted((left, right) => left.position - right.position);
+}
+
+/** Custom creation is strict; only its canonical wire body reaches the transport. */
+export const useCreateRule = createEntityMutation<
+  { readonly cacheOwnerId: UserId; readonly chatId: ChatId | null; readonly input: inferInput<Trpc["automation"]["createRule"]> },
+  inferOutput<Trpc["automation"]["createRule"]>,
+  RuleList
+>({
+  options: (trpc) => {
+    const options = trpc.automation.createRule.mutationOptions();
+    return {
+      mutationKey: options.mutationKey,
+      mutationFn: (vars, context) => {
+        if (options.mutationFn === undefined) {
+          throw new Error("The rule creation transport is unavailable.");
+        }
+        return options.mutationFn(vars.input, context);
+      },
+    };
+  },
+  echo: {
+    readKey: (trpc, vars) => ruleListKey(trpc, vars.chatId),
+    allowed: (vars) => ruleCacheOwnerCurrent(vars.cacheOwnerId),
+    update: (old, row) => echoRule(old, row),
+  },
+  // The owner-global key is shared across sign-ins; an old settle must not refetch the new viewer's list.
+  invalidates: (trpc, vars) => (ruleCacheOwnerCurrent(vars.cacheOwnerId) ? [ruleListFilter(trpc, vars.chatId)] : []),
+  errorToast: "Couldn't create that rule. Your draft is kept.",
+});
+
+/** Cache scope is local metadata, explicitly excluded from the strict update payload. */
+export const useUpdateRule = createEntityMutation<
+  { readonly cacheOwnerId: UserId; readonly chatId: ChatId | null; readonly input: inferInput<Trpc["automation"]["updateRule"]> },
+  inferOutput<Trpc["automation"]["updateRule"]>,
+  RuleList
+>({
+  options: (trpc) => {
+    const options = trpc.automation.updateRule.mutationOptions();
+    return {
+      mutationKey: options.mutationKey,
+      mutationFn: (vars, context) => {
+        if (options.mutationFn === undefined) {
+          throw new Error("The rule update transport is unavailable.");
+        }
+        return options.mutationFn(vars.input, context);
+      },
+    };
+  },
+  echo: {
+    readKey: (trpc, vars) => ruleListKey(trpc, vars.chatId),
+    allowed: (vars) => ruleCacheOwnerCurrent(vars.cacheOwnerId),
+    update: (old, row) => echoRule(old, row),
+  },
+  invalidates: (trpc, vars) => (ruleCacheOwnerCurrent(vars.cacheOwnerId) ? [ruleListFilter(trpc, vars.chatId)] : []),
+  errorToast: "Couldn't save that rule. Your draft is kept.",
+});
+
+/** Ordering covers the complete selected scope, including the author's global scope. */
+export const useReorderRules = createEntityMutation<
+  inferInput<Trpc["automation"]["reorderRules"]> & { readonly chatId: ChatId | null },
+  inferOutput<Trpc["automation"]["reorderRules"]>
+>({
+  options: (trpc) => trpc.automation.reorderRules.mutationOptions(),
+  invalidates: (trpc, vars) => [ruleListFilter(trpc, vars.chatId)],
+  errorToast: "Couldn't reorder these rules. The list may have changed; review its current order and try again.",
+});
 
 /** Enable/disable a rule (host-only; the consent act). OPTIMISTIC on the `listRules` cache so the switch
  *  paints before the round trip — a discrete-write control outside any autosave form — then reconciled by

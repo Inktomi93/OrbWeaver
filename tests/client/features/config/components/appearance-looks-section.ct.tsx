@@ -261,7 +261,7 @@ test("builder door + zero edits + Back mints NOTHING — no row ever existed", a
 
   await component.getByRole("button", { name: "New theme from Hearth…" }).click();
   await expect(component.getByRole("textbox", { name: "Theme name" })).toBeVisible();
-  await expect(component.locator('[data-slot="autosave-status"]')).toHaveText("Draft — edit to create");
+  await expect(component.locator('[data-slot="autosave-status"]')).toHaveText("Not saved yet");
   await component.getByRole("button", { name: "← Back to Looks" }).click();
   await expect(component.getByRole("radio", { name: "My Theme", exact: true })).toBeVisible();
 

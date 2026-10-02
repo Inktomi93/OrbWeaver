@@ -150,8 +150,11 @@ bindSessionDocumentHost({
 export function CtDataProviders({
   children,
   refetchOnWindowFocus = true,
+  configureQueryClient,
 }: {
   readonly children: ReactNode;
+  /** Instrument the freshly constructed client before any provider consumer mounts. */
+  readonly configureQueryClient?: (queryClient: QueryClient) => void;
   /** Opt OUT of react-query's `refetchOnWindowFocus` (v5 default: `true`).
    *
    *  Needed by any story whose pin is "THIS interaction issued the re-read": an errored query is stale, so a
@@ -167,6 +170,7 @@ export function CtDataProviders({
       mutations: { retry: false },
     },
   });
+  configureQueryClient?.(queryClient);
   const trpcClient = createTrpcClient();
   return (
     <QueryClientProvider client={queryClient}>

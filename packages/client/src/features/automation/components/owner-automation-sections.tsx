@@ -20,26 +20,16 @@
 import { Field } from "@orb/ui/field";
 import { Section, Stack } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
-import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary } from "#components";
-import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { configAnchorId } from "#state";
 import { AUTOMATION_BUDGET_SUBCATEGORY, AUTOMATION_RULES_SUBCATEGORY } from "../lib/automation-nav.ts";
 import { useSetOwnerBudgets } from "../lib/owner-budget-mutations.ts";
-import { RulePresetPicker } from "./rule-preset-picker.tsx";
-import { RuleRow } from "./rule-row.tsx";
-
-/** One row of the rule list — tRPC-inferred, so a wire reshape breaks here at compile time. Declared per
- *  consumer rather than exported from `rule-row.tsx`: a feature `components/` file is not a type home
- *  (`no-inline-types`), and the client feature tree has no `contract/` to move it to. The alias is one line
- *  off the SAME inferred source in both places, so the two cannot drift. */
-type Rule = inferOutput<Trpc["automation"]["listRules"]>[number];
+import { RuleManager } from "./rule-manager.tsx";
 
 /** The owner ceiling's editable range. 0 is a real, useful value — "stop all of my library rules" without
  *  disabling them one by one — and the top is the same 240/hour ceiling a single rule may carry, because a
@@ -151,19 +141,8 @@ function OwnerRulesBody(): ReactElement {
         <Text voice="gloss">
           Nothing is watching your library yet. Add a rule — illustrate a character when its card changes, for instance — and it starts off until you enable it.
         </Text>
-      ) : (
-        <Stack gap="section">
-          {rules.map((rule: Rule, index: number) => (
-            <Stack key={rule.id} gap="section">
-              {index === 0 ? null : <Separator />}
-              {/* `chatId: null` IS the scope — it reaches the mutations, where it addresses this list for
-                  the settle invalidate rather than a room's. */}
-              <RuleRow chatId={null} rule={rule} />
-            </Stack>
-          ))}
-        </Stack>
-      )}
-      <RulePresetPicker chatId={null} />
+      ) : null}
+      <RuleManager chatId={null} rules={rules} />
     </Stack>
   );
 }
