@@ -38,28 +38,31 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
       className={cn(
         CHAT_TRACK,
         "relative isolate rounded-card border border-border bg-card px-field py-field hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
-        "before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:rounded-(--radius-card) before:content-[''] focus-within:before:shadow-glow",
+        "before:pointer-events-none before:absolute before:inset-0 before:z-(--z-base) before:rounded-(--radius-card) before:content-[''] focus-within:before:shadow-glow",
         // The DRAG-OVER paint reuses the focus lift, so an armed surface reads in the language the composer
         // already speaks instead of inventing a second one.
         "data-[drag-over]:border-primary data-[drag-over]:bg-muted data-[drag-over]:ring-2 data-[drag-over]:ring-ring",
       )}
     >
-      {/* The drop AFFORDANCE — a designed state, not an afterthought: a drag over the composer is an empty
+      {/* Keep real content above the inert glow using the two governed in-context tiers. */}
+      <Stack className="relative z-(--z-raised) min-w-0" data-slot="composer-content" gap="field">
+        {/* The drop AFFORDANCE — a designed state, not an afterthought: a drag over the composer is an empty
           state that has to name what will be taken (both media classes) or the highlight teaches nothing.
           Rendered in flow at the top of the card so it reads inside the surface it describes. */}
-      {dragActive ? (
-        <Row
-          gap="field"
-          align="center"
-          justify="center"
-          data-slot="composer-drop-affordance"
-          className="rounded-base border border-primary border-dashed py-field"
-        >
-          <Icon icon={ImagePlus} size="sm" />
-          <Text voice="gloss">{DROP_AFFORDANCE}</Text>
-        </Row>
-      ) : null}
-      {children}
+        {dragActive ? (
+          <Row
+            gap="field"
+            align="center"
+            justify="center"
+            data-slot="composer-drop-affordance"
+            className="rounded-base border border-primary border-dashed py-field"
+          >
+            <Icon icon={ImagePlus} size="sm" />
+            <Text voice="gloss">{DROP_AFFORDANCE}</Text>
+          </Row>
+        ) : null}
+        {children}
+      </Stack>
     </Stack>
   );
 }
