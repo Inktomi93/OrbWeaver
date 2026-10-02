@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-01
+status: doing
+updated: 2026-10-02
 priority: P3
 area: inference
+lane: wt/agent-launch-inference
 ---
 
 # Let local-light query embeds run ahead of indexer embeds
