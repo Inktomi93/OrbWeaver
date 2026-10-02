@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-02
 priority: P2
 area: audit
-lane: main
 ---
 
 # Adjudicate the launch AST audit findings
