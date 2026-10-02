@@ -45,16 +45,6 @@ export const CALLER_FREE_OP_ROWS: readonly CallerFreeOpRow[] = [
       "returns no row data. Ends the day the reap stops consulting the reference registry first.",
   },
   {
-    op: "ListCharacterSpriteAssetsOp",
-    why:
-      "docs/plans/expressions/design.md — OPTIONAL and currently UNWIRED (no compose root supplies it; the FK cascade " +
-      "plus the next GC sweep is the live behavior). It is now a READ of the assetIds bound to a character, " +
-      "taken before the owner-scoped delete that actually frees them, and it returns ids the caller already " +
-      "proved it owns; it no longer DELETES anything (renamed from `ReapCharacterSpritesOp` when the detach " +
-      "was moved behind the delete). Ends the day the expressions leaf lands: the wiring must carry the " +
-      "caller then, because the ids it returns would be reachable by characterId alone.",
-  },
-  {
     op: "ResolveAssetHashOp",
     why:
       "the un-principal indexer/assembly read (D20): it returns a CAS content hash, never row data, and its " +

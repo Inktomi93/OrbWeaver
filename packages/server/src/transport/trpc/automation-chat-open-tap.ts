@@ -4,7 +4,7 @@
 // subscription can't see it. This module is the sanctioned tap: the stream generator calls `notifyChatOpened`
 // as it yields the synthetic, and the composition root injects the sink (`setChatOpenTap`) that forwards to
 // `automation.handleEvent({ type: "chatOpened", chatId })`. The sink is null until wired — a byte-identical
-// no-op (the `tools`/`rpg`/`expressions` null-op precedent). EVERY attach fires (reconnects included); the
+// no-op (the `tools`/`rpg` null-op precedent). EVERY attach fires (reconnects included); the
 // dispatch budget gates bound the refire.
 
 import type { ChatId, UserId } from "@orb/kit/ids";

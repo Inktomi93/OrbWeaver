@@ -163,6 +163,16 @@ export const gate = defineGate({
       expect: { count: 1 },
       why: "the POSITIONAL form of the same hole — a bare id param, not an options object; a reader keyed only on object members would miss half the corpus",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/kit/src/ids/index.ts": 'export type CharacterId = TypeIdOf<"character">;\n',
+        "packages/server/src/domain/character/contract/service.ts":
+          "export type ListCharacterSpriteAssetsOp = (characterId: CharacterId) => Promise<readonly AssetId[]>;\n",
+      },
+      expect: { count: 1, token: "ListCharacterSpriteAssetsOp" },
+      why: "a removed op cannot leave caller-free permission for a later declaration that reuses its name",
+    },
   ],
   mustPass: [
     {

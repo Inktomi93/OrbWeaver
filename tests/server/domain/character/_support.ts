@@ -57,11 +57,6 @@ export interface CharacterHarness {
   readonly audits: AuditCall[];
   readonly events: DomainEvent[];
   readonly reaps: AssetId[][];
-  /** The recorded `listCharacterSpriteAssets` calls — a READ, so a delete that then refuses has destroyed
-   *  nothing (the op used to detach the bindings up front). */
-  readonly spriteAssetReads: CharacterId[];
-  /** Override the listed sprite assetIds — the set remove folds into the post-delete `reapAssets` call. */
-  setSpriteAssetsResult: (ids: readonly AssetId[]) => void;
   readonly tagAttaches: TagAttachArgs[];
   readonly tagDetaches: TagDetachArgs[];
   /** The recorded `emitUserEvent` calls (assert `charactersChanged` fires after a durable write). */
@@ -92,13 +87,11 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
   const audits: AuditCall[] = [];
   const events: DomainEvent[] = [];
   const reaps: AssetId[][] = [];
-  const spriteAssetReads: CharacterId[] = [];
   const tagAttaches: TagAttachArgs[] = [];
   const tagDetaches: TagDetachArgs[] = [];
   const userEvents: UserEventCall[] = [];
   let tagAttachResult = true;
   let tagDetachResult = true;
-  let spriteAssetsResult: readonly AssetId[] = [];
   const greetingTemplateCalls: { caller: Principal; kind: "greeting_rewrite" | "greeting_new" }[] = [];
   const greetingTextCalls: { caller: Principal; prompt: string }[] = [];
   let greetingTemplate = "[TPL {{base}} {{input}}]";
@@ -123,10 +116,6 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
     reapAssets: (assetIds: readonly AssetId[]): Promise<void> => {
       reaps.push([...assetIds]);
       return Promise.resolve();
-    },
-    listCharacterSpriteAssets: (characterId: CharacterId): Promise<readonly AssetId[]> => {
-      spriteAssetReads.push(characterId);
-      return Promise.resolve(spriteAssetsResult);
     },
     attachCardTag: (args: TagAttachArgs): Promise<boolean> => {
       tagAttaches.push(args);
@@ -164,14 +153,10 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
     audits,
     events,
     reaps,
-    spriteAssetReads,
     tagAttaches,
     tagDetaches,
     userEvents,
     advance: (ms: number): void => clock.advance(ms),
-    setSpriteAssetsResult: (assetIds: readonly AssetId[]): void => {
-      spriteAssetsResult = assetIds;
-    },
     setTagAttachResult: (result: boolean): void => {
       tagAttachResult = result;
     },

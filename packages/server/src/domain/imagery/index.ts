@@ -1,5 +1,5 @@
 // domain/imagery — FRONT DOOR, the only legal external import (domain-no-cross-feature): siblings (chat,
-// automation, expressions, rpg) receive an injected `generatePicture` op at the composition root, never a
+// automation, rpg) receive an injected `generatePicture` op at the composition root, never a
 // sideways runtime import of this domain's internals.
 
 export type { ImageryContext } from "./context.ts";

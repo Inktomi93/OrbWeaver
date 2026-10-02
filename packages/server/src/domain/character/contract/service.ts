@@ -53,20 +53,6 @@ import type { CharacterDetail } from "./views.ts";
 /** Best-effort reap of avatar assets a deleted character may have orphaned (FK is onDelete: set null). */
 export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;
 
-/** READS the assetIds bound to a character's expression sprites, so remove can fold them into the
- *  `reapAssets` set AFTER the character row is actually gone (docs/plans/expressions/design.md). Injected +
- *  OPTIONAL: a deploy without the expressions leaf (tests/scripts) omits it and the FK cascade still wipes
- *  the bindings — the now-unreferenced blobs are reclaimed by the next `assets:gc` mark-sweep instead of the
- *  targeted reap.
- *
- *  IT IS A READ, AND IT RUNS BEFORE THE DELETE. This op used to DELETE the bindings and return what it had
- *  freed, and remove called it before `deleteOwnedCharacter` — so a delete that then failed (a lost race, a
- *  db error) left a LIVE character whose sprites had already been detached, silently. The reason the call
- *  has to happen first is unchanged and still true — the FK cascade wipes the bindings without surfacing
- *  their ids — so the fix is to READ the ids first and let the cascade do the detaching: nothing is
- *  destroyed until the row delete has succeeded, and a refused delete costs one wasted SELECT. */
-type ListCharacterSpriteAssetsOp = (characterId: CharacterId) => Promise<readonly AssetId[]>;
-
 /** Attaches a tag by name to one owned character; returns whether it was newly attached (idempotent). */
 export type AttachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
 
@@ -110,8 +96,6 @@ export interface CharacterContext {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly emit: (event: DomainEvent) => void;
   readonly reapAssets: ReapAssetsOp;
-  /** Injected sprite-asset READ (docs/plans/expressions/design.md); OPTIONAL — absent = the FK cascade + a later GC sweep. */
-  readonly listCharacterSpriteAssets?: ListCharacterSpriteAssetsOp;
   readonly attachCardTag: AttachCardTagOp;
   readonly detachCardTag: DetachCardTagOp;
   /** Carries attached world-info book references onto a duplicate (world-info owns the junction, D28). */

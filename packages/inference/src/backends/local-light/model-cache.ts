@@ -35,8 +35,8 @@ function loadTransformers(): Promise<TransformersModule> {
 const DEFAULT_DEVICE: DeviceType = "auto";
 const CPU_DEVICE: DeviceType = "cpu";
 const DEFAULT_DTYPE: DataType = "fp32";
-/** The encoder's own dtype axis (#2417): the ENCODER is quantized (fp32 is 3.455 GB; q8 874 MB); rerank/matte
- *  are small enough that their fp32 weights cost nothing worth trading accuracy for. */
+/** The encoder's own dtype axis (#2417): the ENCODER is quantized (fp32 is 3.455 GB; q8 874 MB); the reranker
+ *  is small enough that its fp32 weights cost nothing worth trading accuracy for. */
 const DEFAULT_EMBED_DTYPE: DataType = "q8";
 const DEVICE_TYPES: readonly DeviceType[] = ["auto", "gpu", "cpu", "wasm", "webgpu", "cuda", "dml", "webnn", "webnn-npu", "webnn-gpu", "webnn-cpu"];
 const DATA_TYPES: readonly DataType[] = ["auto", "fp32", "fp16", "q8", "int8", "uint8", "q4", "bnb4", "q4f16"];
@@ -82,7 +82,6 @@ export interface LocalLightModelCache {
   readonly scorePairs: (modelId: ModelId, query: string, documents: readonly string[]) => Promise<number[]>;
   readonly embedImages: (modelId: ModelId, images: readonly ImageInput[]) => Promise<Float32Array[]>;
   readonly embedClipTexts: (modelId: ModelId, texts: readonly string[]) => Promise<Float32Array[]>;
-  readonly removeBackground: (modelId: ModelId, image: ImageInput) => Promise<Uint8Array>;
   /** Warm a slot's memos WITHOUT running inference — the prefetch's whole surface. */
   readonly preload: (slot: LocalLightModelSlot, modelId: ModelId) => Promise<void>;
   /** Whether the latest load of any part of this model (weights, tokenizer, processor) failed and no later
@@ -175,28 +174,6 @@ function requireTensor(out: Record<string, unknown>, key: string, modelId: Model
     throw new ProviderError({ kind: "server", retryable: false, message: `local-light model "${modelId}" produced no "${key}" output tensor` });
   }
   return value;
-}
-
-type PretrainedConfig = Awaited<ReturnType<TransformersModule["AutoConfig"]["from_pretrained"]>>;
-type AutoModelClass = Pick<TransformersModule["AutoModelForSemanticSegmentation"], "supports" | "MODEL_CLASS_MAPPINGS">;
-
-// Some published configs (briaai/RMBG-1.4) name a model CLASS as their `model_type`. transformers.js 4.x
-// picks a pipeline's model class by `model_type` key only (its class-name fallback compares one character),
-// so it refuses such a model. Rewrite the type to the key that maps to that class among the pipeline's own
-// candidates; an unknown type is left alone and the pipeline refuses it with its own message.
-function normalizeClassNamedModelType(modelConfig: PretrainedConfig, candidates: readonly AutoModelClass[]): void {
-  const modelType = modelConfig.model_type;
-  if (modelType === null || candidates.some((auto) => auto.supports(modelType))) {
-    return;
-  }
-  for (const mapping of candidates.flatMap((auto) => auto.MODEL_CLASS_MAPPINGS)) {
-    for (const [key, className] of mapping) {
-      if (className === modelType) {
-        modelConfig.model_type = key;
-        return;
-      }
-    }
-  }
 }
 
 function toImageSource(image: ImageInput): string | Blob {
@@ -466,24 +443,6 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     config.detach,
     "local-light.model.dispose:processor",
   );
-  const bgRemover = createMemo(
-    async (id) => {
-      const mod = await transformers();
-      const modelConfig = await mod.AutoConfig.from_pretrained(id, loadOpts);
-      normalizeClassNamedModelType(modelConfig, [
-        mod.AutoModelForImageSegmentation,
-        mod.AutoModelForSemanticSegmentation,
-        mod.AutoModelForUniversalSegmentation,
-      ]);
-      return await loadWithCpuFallback(device, log, (dev) =>
-        mod.pipeline("background-removal", id, { device: dev, dtype, session_options: sessionOptions, config: modelConfig, ...loadOpts }),
-      );
-    },
-    async (p) => p.dispose(),
-    config.detach,
-    "local-light.model.dispose:background-removal",
-  );
-
   const embedJinaTexts = async (modelId: ModelId, texts: readonly string[]): Promise<Float32Array[]> =>
     processor.withLease(modelId, (proc) =>
       jinaEmbedder.withLease(modelId, async (model) => {
@@ -501,12 +460,9 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     embed: async (modelId) => {
       await Promise.all([processor(modelId), jinaEmbedder(modelId)]);
     },
-    matte: async (modelId) => {
-      await bgRemover(modelId);
-    },
   };
 
-  const modelParts: readonly Pick<ModelMemo<unknown>, "failed">[] = [jinaEmbedder, reranker, tokenizer, processor, bgRemover];
+  const modelParts: readonly Pick<ModelMemo<unknown>, "failed">[] = [jinaEmbedder, reranker, tokenizer, processor];
 
   return {
     async preload(slot, modelId): Promise<void> {
@@ -548,13 +504,6 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     },
     embedClipTexts(modelId, texts): Promise<Float32Array[]> {
       return texts.length === 0 ? Promise.resolve([]) : embedJinaTexts(modelId, texts);
-    },
-    async removeBackground(modelId, image): Promise<Uint8Array> {
-      return await bgRemover.withLease(modelId, async (segmenter) => {
-        const matted = await segmenter(toImageSource(image));
-        const buf = await matted.toSharp().png().toBuffer();
-        return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
-      });
     },
   };
 }

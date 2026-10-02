@@ -289,7 +289,6 @@ export function fakeModelCache(
   readonly scorePairs: (repo: string, query: string, documents: readonly string[]) => Promise<number[]>;
   readonly embedImages: (repo: string, images: readonly (string | Uint8Array)[]) => Promise<Float32Array[]>;
   readonly embedClipTexts: (repo: string, texts: readonly string[]) => Promise<Float32Array[]>;
-  readonly removeBackground: (repo: string, image: string | Uint8Array) => Promise<Uint8Array>;
   readonly preload: (slot: string, repo: string) => Promise<void>;
   readonly loadFailed: (repo: string) => boolean;
   readonly calls: { method: string; repo: string; count: number }[];
@@ -322,10 +321,6 @@ export function fakeModelCache(
     embedClipTexts: (repo, texts): Promise<Float32Array[]> => {
       note("embedClipTexts", repo, texts.length);
       return Promise.resolve(texts.map((text) => vectorFor(text.length)));
-    },
-    removeBackground: (modelId): Promise<Uint8Array> => {
-      note("removeBackground", modelId, 1);
-      return Promise.resolve(new Uint8Array([0x89, 0x50, 0x4e, 0x47]));
     },
     preload: (slot, repo): Promise<void> => {
       note(`preload:${slot}`, repo, 1);

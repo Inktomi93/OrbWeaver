@@ -227,8 +227,6 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
       images.length === 0 ? [] : await vectors({ op: "embedImages", modelId, images: images.map(requireImageBytes) }),
     scorePairs: async (modelId, query, documents): Promise<number[]> =>
       documents.length === 0 ? [] : ((await call({ op: "scorePairs", modelId, query, documents })) as number[]),
-    removeBackground: async (modelId, image): Promise<Uint8Array> =>
-      (await call({ op: "removeBackground", modelId, image: requireImageBytes(image) })) as Uint8Array,
     preload: async (slot, modelId): Promise<void> => {
       await call({ op: "preload", modelId, slot });
     },

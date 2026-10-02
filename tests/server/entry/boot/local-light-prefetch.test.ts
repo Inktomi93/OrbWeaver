@@ -74,9 +74,7 @@ describe("planLocalLightPrefetch", () => {
     expect(resolve).not.toHaveBeenCalled();
   });
 
-  // The matte model has no caller while the expressions program is parked (docs/work/0049-expressions-program.md),
-  // so a local-light box warms the embedder and reranker only.
-  test("plans rerank → embed (smallest first) with the seeded rows on a local-light box, and never the matte model", async () => {
+  test("plans rerank → embed (smallest first) with the seeded rows on a local-light box", async () => {
     const plan = await planLocalLightPrefetch({ resolve: resolverFor(ALL_LOCAL_LIGHT), principals: [OWNER], enabled: true });
 
     expect(plan).toEqual([

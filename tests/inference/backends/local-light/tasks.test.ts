@@ -1,15 +1,10 @@
 // backends/local-light/tasks — the pure task transforms over a FAKE model cache (the `deps.localLight.cache`
 // seam; no ONNX loads): empties → `null` at their index, MRL truncation + re-L2, a request for MORE dims
 // than the model emits is refused (never padded), the space tag rides as `result.model`, rerank preserves
-// caller ids and sorts by score, the multimodal PAIR kind is refused, and the matte op returns PNG bytes.
+// caller ids and sorts by score, the multimodal PAIR kind is refused.
 
 import { EMBEDDING_FLOOR, RERANK_FLOOR } from "@orb/contracts/inference";
-import {
-  createLocalLightEmbed,
-  createLocalLightImageEmbed,
-  createLocalLightMatte,
-  createLocalLightRerank,
-} from "../../../../packages/inference/src/backends/local-light/tasks.ts";
+import { createLocalLightEmbed, createLocalLightImageEmbed, createLocalLightRerank } from "../../../../packages/inference/src/backends/local-light/tasks.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { fakeModelCache, fakeResolved } from "../../_support.ts";
@@ -130,16 +125,6 @@ test("imageEmbed: image and text arms share the space tag; the multimodal pair i
   await expect(
     imageEmbed({ connection: conn, input: { kind: "multimodal", input: { text: "a", image: "data:image/png;base64,AA==" } } }),
   ).rejects.toMatchObject({ kind: "invalid" });
-});
-
-test("matte: the default model unless one is named; PNG bytes back", async () => {
-  const cache = fakeModelCache();
-  const matte = createLocalLightMatte(cache);
-  const out = await matte(new Uint8Array([9, 9]));
-  expect([...out.slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
-  expect(cache.calls[0]).toEqual({ method: "removeBackground", repo: "briaai/RMBG-1.4", count: 1 });
-  await matte(new Uint8Array([9]), { model: "acme/matte" });
-  expect(cache.calls[1]?.repo).toBe("acme/matte");
 });
 
 test("imageEmbed: explicit pair fallback uses the same text tower and preserves batch empty slots", async () => {
