@@ -89,7 +89,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D76 | [Healthz stays minimal](0076-healthz-stays-minimal.md) | active |
 | D77 | [Accepted ingress differences from neo](0077-accepted-ingress-differences-from-neo.md) | active |
 | D78 | [Autosave forms mount through the factory session](0078-autosave-forms-mount-through-factory-session.md) | active |
-| D86 | [The rpg stat-profile spine + the lite/full mode axis (AMENDS D58; spec home: the docs/plans/rpg/design.md set — doc 13 + the 03/04/05/10 amendments)](0086-the-rpg-stat-profile-spine-the-lite-full.md) | active |
+| D86 | [The rpg stat-profile spine + the lite/full mode axis (AMENDS D58; spec home: the docs/plans/rpg/design.md set — doc 13 + the 03/04/05/10 amendments)](0086-the-rpg-stat-profile-spine-the-lite-full.md) | superseded by [0281-rpg-profiles-follow-live-rulesets.md](0281-rpg-profiles-follow-live-rulesets.md) |
 | D106 | [Chat read visibility uses a presence-interval clamp](0106-chat-read-visibility-uses-presence-interval-clamp.md) | active |
 | D107 | [A declared knob is wired or cited as dormant](0107-declared-knob-wired-or-cited-as-dormant.md) | active |
 | D108 | [The retro brings rpg back as the LITE-PLUS-GUIDED substrate (W1 domain vertical); AMENDS D86's lite branch + the D58/D86 single-turn write model with the two-mode extraction delivery fork (owner sign-off)](0108-the-retro-brings-rpg-back-as-the-lite.md) | active |
@@ -228,3 +228,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D278 | [The people block renders every present human in the persona marker](0278-people-block-in-the-persona-marker.md) | active |
 | D279 | [Native Google inference uses the shared runtime](0279-native-google-inference.md) | active |
 | D280 | [Supported plugin install sources share one bundle funnel](0280-plugin-supported-install-sources.md) | active |
+| D281 | [RPG profiles follow live rulesets](0281-rpg-profiles-follow-live-rulesets.md) | active |

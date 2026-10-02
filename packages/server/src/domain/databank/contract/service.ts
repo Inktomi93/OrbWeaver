@@ -14,7 +14,7 @@
 
 import type { StoredAsset } from "@orb/contracts/assets";
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
-import type { BankHealthView, DatabankSettings, IngestRunResult, ReindexMode, ReindexScope } from "@orb/contracts/databank";
+import type { BankHealthView, DatabankSettings, IngestRunResult, ReindexMode, ReindexResult, ReindexScope } from "@orb/contracts/databank";
 import type { ExtractTextOp } from "@orb/contracts/extraction";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -223,7 +223,7 @@ export interface DatabankService {
   readonly remove: (params: RemoveDocumentParams) => Promise<void>;
 
   /** Enqueue a `databank-reindex` workload (param/model/extractor change). */
-  readonly reindex: (params: ReindexParams) => Promise<{ readonly workloadId: WorkloadId }>;
+  readonly reindex: (params: ReindexParams) => Promise<ReindexResult>;
 
   readonly attachGlobal: (params: GlobalAttachParams) => Promise<void>;
   readonly detachGlobal: (params: GlobalAttachParams) => Promise<void>;

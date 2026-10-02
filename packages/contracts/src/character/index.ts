@@ -1,14 +1,17 @@
+import type { TagFolderType, TagView } from "#tag";
+import { tagFolderTypeSchema, tagViewSchema } from "#tag";
+import type { ThemeBackground, ThemeOverride } from "#theme";
 // @orb/contracts/character — THE ONE canonical character card.
 // No versions: the card IS the flat `characters` row, edited in place. No `raw` blob — every known field
 // has a typed home, so an app-authored card round-trips identically to an imported one.
 
-import type { CharacterHandle, PluginId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, PluginId, TagId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { z } from "zod";
 import { cardFaceFields } from "#card-face";
-import { refineryAnalyzePayloadSchema } from "#refinery";
-import { regexScriptCardSchema } from "#regex";
+import { refineryAnalyzePayloadSchema, refineryAnalyzePayloadViewSchema } from "#refinery";
+import { regexScriptCardSchema, regexScriptCardViewSchema } from "#regex";
 import { themeBackgroundSchema, themeOverrideSchema } from "#theme";
 import { worldBookRoleSchema } from "#world-info";
 
@@ -619,9 +622,9 @@ export const CHARACTER_BULK_TAG_RESOLVE_FAILED_OP_CODE = "tag_resolve_failed" as
 export const CHARACTER_BULK_TAG_UNEXPECTED_OP_CODE = "unexpected" as const;
 export const CHARACTER_BULK_TAG_FAILURE_CODES = [CHARACTER_BULK_TAG_RESOLVE_FAILED_OP_CODE, CHARACTER_BULK_TAG_UNEXPECTED_OP_CODE] as const;
 
-export const characterBulkTagFailureSchema = z.object({
+export const characterBulkTagFailureSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.character),
-  error: z.object({
+  error: z.strictObject({
     code: z.enum(CHARACTER_BULK_TAG_FAILURE_CODES),
     message: z.string(),
   }),
@@ -632,8 +635,296 @@ export type CharacterBulkTagFailure = z.infer<typeof characterBulkTagFailureSche
  *  actually landed on; `failed` names every one it did not, and why. A character in neither array was
  *  skipped as a silent no-op exactly as before this row (unowned/missing, or the tag was already in the
  *  target state) — that degrade is unchanged, only the REJECTED half is now legible. */
-export const characterBulkTagResultSchema = z.object({
+export const characterBulkTagResultSchema = z.strictObject({
   applied: z.array(typeIdSchema(ID_PREFIX.character)),
   failed: z.array(characterBulkTagFailureSchema),
 });
 export type CharacterBulkTagResult = z.infer<typeof characterBulkTagResultSchema>;
+
+/** The full owned-card detail. What create/get/update/duplicate/restore return. The card's face fields
+ *  compose `#card-face` (D137(E)) at the SCHEMA level; this view CONFORMS to the nullable-description
+ *  `ResolvedCardFace` structurally (pinned in `tests/contracts/card-face/index.contract.test.ts` — a
+ *  zod-inferred card's mutable members cannot `extends` a readonly interface identically, so the pin is
+ *  the belt). (`CharacterSummary` below is deliberately NOT a face carrier: the list row omits
+ *  `description`.) */
+export interface CharacterDetail extends CharacterCard {
+  readonly id: CharacterId;
+  readonly handle: CharacterHandle;
+  readonly starred: boolean;
+  readonly archived: boolean;
+  readonly synthetic: boolean;
+  /** Tri-state: null = inherit deployment default, true = forbid, false = allow. */
+  readonly forbidExternalMedia: boolean | null;
+  /** Tri-state: null = inherit deployment default, true = trusted, false = force untrusted. */
+  readonly trustHtml: boolean | null;
+  /** The interactive-card opt-in (#111) — `true` = this card's routed frames are built under the
+   *  `interactive` posture, `null`/`false` = static (no deployment tier inherits here). On the DETAIL only:
+   *  this view is what the editor and the roster's seat decoration pass to `resolveRenderPolicy` as the
+   *  card's `RenderPolicyOverride`, while the library-list summary renders no card content and reads none
+   *  of the three policy columns. */
+  readonly interactiveHtml: boolean | null;
+  /** Raw, unmerged theme-token override; null = inherit the user's global theme. */
+  readonly themeOverride: ThemeOverride | null;
+  /** BG-C — the raw carried card BACKGROUND source (the `themeOverride` twin); null = no card background. */
+  readonly backgroundOverride: ThemeBackground | null;
+  readonly importedFrom: string | null;
+  readonly importHash: string | null;
+  /** #865 — the CLOSED where-it-came-from verdict, derived ONCE at the read seam (`characterProvenanceOf`)
+   *  from `importedFrom` + `creator`. The Origin readout DISPATCHES on this rather than re-deriving it, so
+   *  the detail and the library row can never disagree about a card's origin. Distinct from the card's own
+   *  `source` (the ST V3 provenance-URL list this view inherits from `CharacterCard`). */
+  readonly provenance: CharacterProvenance;
+  readonly contentHash: string;
+  readonly createdAt: number;
+  readonly avatarHash: string | null;
+  /** The accepted canonical tags (editor chips); pending suggestions read through tag's own surface. */
+  readonly tags: readonly TagView[];
+}
+
+/** The library-list row — light, owner-scoped, synthetic rows excluded. */
+export interface CharacterSummary {
+  readonly id: CharacterId;
+  readonly handle: CharacterHandle;
+  readonly name: string;
+  readonly starred: boolean;
+  readonly archived: boolean;
+  readonly forbidExternalMedia: boolean | null;
+  readonly trustHtml: boolean | null;
+  readonly themeOverride: ThemeOverride | null;
+  /** BG-C — the raw carried card BACKGROUND source (the `themeOverride` twin); null = no card background. */
+  readonly backgroundOverride: ThemeBackground | null;
+  readonly avatarAssetId: CharacterCard["avatarAssetId"];
+  readonly avatarHash: string | null;
+  readonly createdAt: number;
+  /** Advisory card-heft estimate — list display only. */
+  readonly tokenSize: number;
+  readonly tags: readonly TagView[];
+  /** LEFT JOIN character_summaries.elevatorPitch; null until the distill producer has run. */
+  readonly elevatorPitch: string | null;
+  /**
+   * WHEN THIS OWNER LAST SPOKE TO HER — `MAX(coalesce(newest message, chat.updated_at))` over her
+   * member-visible rooms; null = never chatted. Drives the `recent` sort + resume-or-new, and the landing
+   * PRINTS it ("chatted 3h ago").
+   *
+   * IT IS CANON, NOT `character_stats` (#1131). The read used to LEFT JOIN the stats rollup's
+   * `last_activity_at`, which is turn ECONOMICS on a different clock: measured on the dev library
+   * 2026-09-02, nine of ten characters with real seated chats had no stats row at all — so the Characters
+   * landing's "Recently chatted" shelf could only ever show one face — and the tenth's rollup stamp
+   * disagreed with her newest message by 29 days. Now it is the SAME expression `chat.listChats` orders and
+   * displays by (`@orb/db/kit` `chatRecencyExpr`), so the landing, the editor header and the context pane
+   * cannot print three answers.
+   */
+  readonly lastChattedAt: number | null;
+  /**
+   * WHICH ROOM that stamp belongs to — the RESUME target, `null` when she has never been chatted with. Same
+   * visibility scope and same recency clock as {@link CharacterSummary.lastChattedAt}, ordered
+   * recency → `updatedAt` → id (the total order #1503 paid for), so the room a resume door opens is by
+   * construction the room whose stamp the surface printed beside it.
+   *
+   * IT IS A PROJECTION, NOT A CLIENT FOLD (#1662). The client used to reverse-index a BOUNDED `listChats`
+   * page into a `characterId → chatId` map, which answered about the last 100 rooms: a character outside
+   * that window fell through to "start a new chat" from a control that said resume. One home, one order,
+   * the whole library — and no second read, because every consumer of this view already has the row.
+   */
+  readonly lastChatId: ChatId | null;
+  /**
+   * #865 — HOW MANY THREADS this character has: a `COUNT` of the same member-visible seated rooms
+   * `lastChattedAt` maxes over, which is what the editor header's "N chats" and the context band's chip
+   * already counted through `chat.listChats.totalCount`.
+   *
+   * IT IS NOT `character_stats.chats` (#1131). That counter is bumped only for a room's FIRST founding
+   * character (`chatCreatedDelta`, `domain/chat/verbs/claim-chat.ts`); a character seated second — or
+   * joined into a running room — contributes message deltas and never a chat, so the rollup read `0` for a
+   * character the rest of the app said had one.
+   *
+   * NOT NULLABLE: a character with no rooms counts zero, and the face prints a NUMBER — a nullable field
+   * would push a three-state decision onto every consumer for a distinction the product does not make. The
+   * two chat-count SORTS see the same zero and still sink it to their tail.
+   */
+  readonly chatCount: number;
+  /** #865 — the CLOSED where-it-came-from verdict; the {@link CharacterDetail} twin, same one derivation.
+   *  This is what lets the landing name its fresh-install shelf without a second read per row. */
+  readonly provenance: CharacterProvenance;
+  /**
+   * Does ANOTHER of this owner's characters carry the same name (case-insensitively)? #517 — the row's
+   * DISAMBIGUATION gate, and the reason it is a projection field rather than a client derivation.
+   *
+   * The library is keyset-paged 30 at a time, so a collision scan over the loaded rows would answer about
+   * the PAGE: the same name would be "unique" on page 1 and ambiguous on page 4, and a row's announced
+   * identity would change under a screen-reader user as pages arrived. This is computed over the owner's
+   * WHOLE non-synthetic library and is deliberately LENS-INDEPENDENT — whether two characters share a name
+   * is a fact about the library, not about the current search, so a row cannot lose (or gain) its
+   * disambiguator by filtering.
+   */
+  readonly nameIsAmbiguous: boolean;
+}
+
+/**
+ * ONE BUCKET OF THE LIBRARY'S GROUP-BY-TAG CENSUS (#1696) — a visible tag and how many characters carry it
+ * WITHIN THE CURRENT LENS.
+ *
+ * `characters` is a real `COUNT` over the same scope `character.list` pages and `totalCount` counts, so the
+ * grouped view's headers are library facts rather than an arithmetic over whatever pages happened to be in
+ * memory. It is deliberately NOT `TagFilterVocabularyEntry.characters`, which is the same shape over the
+ * WHOLE library: printing a lens-blind census beside lens-filtered members is the second-wrong-answer this
+ * verb exists to avoid (the refusal recorded in `character-categorized-list.tsx` — see the verb).
+ *
+ * `folderType` rides along because the grouped view's FIRST paint is decided by it (C9-1d,
+ * `groupStartsOpen`), and a header the client renders from a census it did not previously have must carry
+ * everything that header needs — otherwise the client is back to reading it off a loaded row, i.e. off the
+ * window.
+ */
+export interface CharacterTagGroupCensus {
+  readonly id: TagId;
+  readonly name: string;
+  readonly folderType: TagFolderType;
+  /** How many of the owner's non-synthetic characters carry this tag WITHIN the request's lens. Always ≥ 1:
+   *  a tag no matching character carries is not a group, and an empty header is not a fact worth a row. */
+  readonly characters: number;
+}
+
+/** Returned by the greeting-studio verbs (`rewriteGreeting`/`generateGreeting`, audit §3): the generated
+ *  greeting text + the side-LLM spend. The verb NEVER writes — the client previews `text` and appends it to
+ *  `characters.greetings` via `character.update` on accept. `costUsd` is null when the provider didn't report it. */
+export interface GeneratedGreeting {
+  readonly text: string;
+  readonly costUsd: number | null;
+}
+
+/** Returned by `snapshot`. */
+export interface SnapshotRef {
+  readonly id: CharacterSnapshotId;
+  readonly characterId: CharacterId;
+  readonly createdAt: number;
+}
+
+/** A browse-history row (the git "commit log" entry); the opaque blob itself is read only on `restore`
+ *  and through {@link SnapshotView} (the refinery Versions walk's compare read — schema-renderer §16.2:
+ *  the LIST stays trimmed; content is fetched per selected snapshot). */
+export interface SnapshotSummary {
+  readonly id: CharacterSnapshotId;
+  readonly label: string | null;
+  readonly createdAt: number;
+}
+
+/** One snapshot WITH its card blob — the compare/inspect read (`getSnapshot`). Read-only: the STORED row
+ *  is the D28 opaque history entry and is never rewritten, healed or migrated (it describes the card as it
+ *  stood). What crosses THIS boundary is the `cardOf` projection of it — the same seam `restore` reads the
+ *  blob through — so `content` is an honest `CharacterCard` and the compare view shows what a restore
+ *  would actually produce. */
+export interface SnapshotView extends SnapshotSummary {
+  readonly content: CharacterCard;
+}
+
+/** A cursor page of the caller's own character library — sorted per the request's `sort` (default recent),
+ *  synthetic buckets excluded (invariant 3). Mirrors `domain/notifications`'s `ListInboxResult`
+ *  `{items, nextCursor}` shape. */
+export interface ListCharactersResult {
+  readonly items: readonly CharacterSummary[];
+  /** The sort-discriminated keyset cursor to pass as the next `cursor`, or `null` when a short page came
+   *  back (no further row remains in this sort's order). Its `sort` matches the request's. */
+  readonly nextCursor: CharacterListCursor | null;
+  /** A real server `COUNT` over the SAME scope this page windows (search + chips included), never
+   *  `items.length` — the `ChatListPage.totalCount` precedent. The band printed no count at all while the
+   *  only number available was "loaded so far"; this is the honest one, so it can print again. */
+  readonly totalCount: number;
+}
+
+/**
+ * THE GROUP-BY-TAG CENSUS (#1696) — every bucket the categorized view can render, counted over the request's
+ * lens.
+ *
+ * `uncategorized` is a FIRST-CLASS member rather than a derivation: it is the biggest bucket on a real
+ * library and it cannot be computed from `groups` (a character with two tags is counted in both, so the
+ * group counts do not sum to the matched total). It is also precisely the number the prior arm could not
+ * source at all, which is the reason that arm refused a census outright.
+ */
+export interface ListCharacterTagGroupsResult {
+  /** One bucket per VISIBLE tag that at least one matching character carries — most-populated first, ties
+   *  alphabetical, so the same total order the header list is rendered in has one author (the server). */
+  readonly groups: readonly CharacterTagGroupCensus[];
+  /** Matching characters carrying NO visible tag — the "Uncategorized" bucket. */
+  readonly uncategorized: number;
+}
+
+// Vendor extensions and residual data retain their existing opaque contract; typed card fields do not.
+export const characterCardViewSchema = characterCardSchema.strict().extend({
+  greetings: z.array(greetingSchema.strict()).max(GREETINGS_MAX),
+  regexScripts: z.array(regexScriptCardViewSchema).max(REGEX_SCRIPTS_MAX).optional(),
+  depthPrompt: cardDepthPromptSchema.strict().nullable(),
+  refinery: refinerySignalsSchema.strict().extend({ analysis: refineryAnalyzePayloadViewSchema.nullable() }).nullable(),
+}) satisfies z.ZodType<CharacterCard>;
+const characterListCursorViewSchema = z.union(characterListCursorSchema.options.map((option) => option.strict()));
+export const characterDetailSchema = characterCardViewSchema.extend({
+  id: typeIdSchema(ID_PREFIX.character),
+  handle: characterHandleSchema,
+  starred: z.boolean(),
+  archived: z.boolean(),
+  synthetic: z.boolean(),
+  forbidExternalMedia: z.boolean().nullable(),
+  trustHtml: z.boolean().nullable(),
+  interactiveHtml: z.boolean().nullable(),
+  themeOverride: themeOverrideSchema.nullable(),
+  backgroundOverride: themeBackgroundSchema.nullable(),
+  importedFrom: z.string().nullable(),
+  importHash: z.string().nullable(),
+  provenance: z.enum(CHARACTER_PROVENANCES),
+  contentHash: z.string(),
+  createdAt: z.number(),
+  avatarHash: z.string().nullable(),
+  tags: z.array(tagViewSchema).readonly(),
+}) satisfies z.ZodType<CharacterDetail>;
+
+export const characterSummarySchema = characterDetailSchema
+  .pick({
+    id: true,
+    handle: true,
+    name: true,
+    starred: true,
+    archived: true,
+    forbidExternalMedia: true,
+    trustHtml: true,
+    themeOverride: true,
+    backgroundOverride: true,
+    avatarAssetId: true,
+    avatarHash: true,
+    createdAt: true,
+    tags: true,
+    provenance: true,
+  })
+  .extend({
+    tokenSize: z.number(),
+    elevatorPitch: z.string().nullable(),
+    lastChattedAt: z.number().nullable(),
+    lastChatId: typeIdSchema(ID_PREFIX.chat).nullable(),
+    chatCount: z.number(),
+    nameIsAmbiguous: z.boolean(),
+  }) satisfies z.ZodType<CharacterSummary>;
+
+export const characterTagGroupCensusSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.tag),
+  name: z.string(),
+  folderType: tagFolderTypeSchema,
+  characters: z.number(),
+}) satisfies z.ZodType<CharacterTagGroupCensus>;
+export const listCharactersResultSchema = z.strictObject({
+  items: z.array(characterSummarySchema).readonly(),
+  nextCursor: characterListCursorViewSchema.nullable(),
+  totalCount: z.number(),
+}) satisfies z.ZodType<ListCharactersResult>;
+export const listCharacterTagGroupsResultSchema = z.strictObject({
+  groups: z.array(characterTagGroupCensusSchema).readonly(),
+  uncategorized: z.number(),
+}) satisfies z.ZodType<ListCharacterTagGroupsResult>;
+export const generatedGreetingSchema = z.strictObject({ text: z.string(), costUsd: z.number().nullable() }) satisfies z.ZodType<GeneratedGreeting>;
+export const snapshotRefSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.characterSnapshot),
+  characterId: typeIdSchema(ID_PREFIX.character),
+  createdAt: z.number(),
+}) satisfies z.ZodType<SnapshotRef>;
+export const snapshotSummarySchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.characterSnapshot),
+  label: z.string().nullable(),
+  createdAt: z.number(),
+}) satisfies z.ZodType<SnapshotSummary>;
+export const snapshotViewSchema = snapshotSummarySchema.extend({ content: characterCardViewSchema }) satisfies z.ZodType<SnapshotView>;

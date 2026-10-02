@@ -12,7 +12,9 @@ import type { MacroFreeze, VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
 import type { NormalizedFinishReason } from "../inference/finish-reasons.ts";
+import { normalizedFinishReasonSchema } from "../inference/finish-reasons.ts";
 import type { ProviderId } from "../inference/provider-schema.ts";
+import { providerIdSchema } from "../inference/provider-schema.ts";
 import type { MessageKind } from "./participants.ts";
 import { messageKindSchema, messageRoleSchema } from "./participants.ts";
 
@@ -544,3 +546,46 @@ export type ReattributeScope = z.infer<typeof reattributeScopeSchema>;
 // "the tail" and "the last assistant" had to mean "skipping the rows that are not messages". Those rows no
 // longer exist — a hand-written snapshot is a message-less `rpg_snapshots` row — so every consumer is back
 // to a plain `findLast`, and the regression class the seam guarded died with the rows.
+
+export const messageViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.message),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  seq: z.number(),
+  role: messageRoleSchema,
+  kind: messageKindSchema,
+  authorUserId: brandedId<UserId>().nullable(),
+  characterId: typeIdSchema(ID_PREFIX.character).nullable(),
+  personaId: typeIdSchema(ID_PREFIX.persona).nullable(),
+  excludedFromPrompt: z.boolean(),
+  createdAt: z.number(),
+  editedAt: z.number().nullable(),
+  selectedVariantId: typeIdSchema(ID_PREFIX.messageVariant),
+  selectedVariantIdx: z.number(),
+  variantCount: z.number(),
+  hasContinuation: z.boolean(),
+  outputCapReached: z.boolean(),
+  content: z.string(),
+  reasoning: z.string().nullable(),
+  model: brandedId<ModelId>().nullable(),
+  provider: providerIdSchema.nullable(),
+  finishReason: normalizedFinishReasonSchema.nullable(),
+  stopReason: z.string().nullable(),
+  terminalReason: z.string().nullable(),
+  tokensIn: z.number().nullable(),
+  tokensOut: z.number().nullable(),
+  tokenProvenance: tokenProvenanceSchema,
+  cacheReadTokens: z.number().nullable(),
+  cacheWriteTokens: z.number().nullable(),
+  contextWindow: z.number().nullable(),
+  contextBoundaryMessageId: typeIdSchema(ID_PREFIX.message).nullable(),
+  costUsd: z.number().nullable(),
+  costProvenance: tokenProvenanceSchema,
+  ttftMs: z.number().nullable(),
+  genStartedAt: z.number().nullable(),
+  genFinishedAt: z.number().nullable(),
+  // @orb-waive no-raw-id(generationId): upstream provider billing handle (OpenRouter gen-…), not the separately minted ChatStreamGenerationId; ends if billing provenance becomes an Orbweaver identity.
+  generationId: z.string().nullable(),
+  connectionAttributionProvenance: connectionAttributionProvenanceSchema,
+  connectionId: typeIdSchema(ID_PREFIX.userConnection).nullable(),
+  toolCalls: z.array(toolCallRecordSchema.strict()).readonly(),
+}) satisfies z.ZodType<MessageView>;

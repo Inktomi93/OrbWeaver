@@ -40,6 +40,7 @@ import { z } from "zod";
 // The chat MODULE FILE, not the `#chat` barrel: `chat/assemble.ts` imports this module, so routing through
 // the barrel would close a cycle (`no-circular`). The shape's home is unchanged — chat owns it.
 import type { VisibleRoomRef } from "../chat/visible-rooms.ts";
+import { visibleRoomRefSchema } from "../chat/visible-rooms.ts";
 
 // ── Field caps (named so the literals aren't bare magic numbers) ──────────────
 const MIN_CARD_ID_LENGTH = 1;
@@ -151,6 +152,11 @@ export const regexScriptSchema = regexScriptBehaviorSchema.extend({
 
 export type RegexScriptRow = z.infer<typeof regexScriptSchema>;
 
+// Outputs validate already-normalized rows without changing the storage or foreign-card grammars.
+export const regexScriptViewSchema = regexScriptSchema.strict().safeExtend({
+  historyDepth: regexHistoryDepthSchema.strict().optional(),
+}) satisfies z.ZodType<RegexScriptRow>;
+
 /** The ST CARD-WIRE script (`data.extensions.regex_scripts`). Its `id` is a FOREIGN client-minted UUID —
  *  the lift mints a real `regex_script_…` row from it and the carried-refs key re-links a same-install
  *  re-import, so this id is provenance, never a library identity.
@@ -212,6 +218,17 @@ export const regexScriptCardSchema = z.preprocess(
 );
 
 export type RegexScriptCard = z.output<typeof regexScriptCardSchema>;
+
+// The wire output is normalized already: foreign aliases/polarity are input-only, not output fields.
+export const regexScriptCardViewSchema = regexScriptBehaviorFields
+  .strict()
+  .extend({
+    id: regexScriptCardFieldsSchema.shape.id,
+    name: regexScriptCardFieldsSchema.shape.name,
+    enabled: z.boolean(),
+    historyDepth: regexHistoryDepthSchema.strict().optional(),
+  })
+  .superRefine(historyDepthMatchesPlacement) satisfies z.ZodType<RegexScriptCard>;
 
 /** Project a card script back onto the ST wire — `disabled` beside our `enabled`, so the card is readable
  *  by both engines with one meaning. The ONE emit-side home for the polarity (the parse side is above). */
@@ -332,6 +349,12 @@ export interface RegexScriptUsage {
   readonly rooms: readonly VisibleRoomRef[];
 }
 
+export const regexScriptUsageSchema = z.strictObject({
+  presets: z.array(z.strictObject({ id: typeIdSchema(ID_PREFIX.preset), name: z.string() })).readonly(),
+  characters: z.array(z.strictObject({ id: typeIdSchema(ID_PREFIX.character), name: z.string() })).readonly(),
+  rooms: z.array(visibleRoomRefSchema).readonly(),
+}) satisfies z.ZodType<RegexScriptUsage>;
+
 /** The PORTABLE file shape — one script per `regex/*.json` in a backup bundle. `global` is the only
  *  attachment carried: it is a property of the script itself (the `global_regex_scripts` PK-is-the-script
  *  junction), where character/preset/chat attachments point at rows the bundle does not guarantee. */
@@ -340,3 +363,36 @@ export const portableRegexScriptSchema = createRegexScriptSchema.extend({
 });
 
 export type PortableRegexScript = z.infer<typeof portableRegexScriptSchema>;
+
+/** `removeScript` — `deleted` is always `true` on success (a not-owned/missing target throws
+ *  `RegexNotFoundError` instead; the DB CASCADE clears every junction row). */
+export interface RemoveResult {
+  readonly deleted: boolean;
+}
+
+/** `detachFrom{Character,Preset,Chat}` / `detachGlobal` — `false` when the junction row was already absent
+ *  (idempotent no-op), `true` when a row was removed. */
+export interface DetachResult {
+  readonly detached: boolean;
+}
+
+/** `applyScopeOrder` — how many attachments had their `position` rewritten. */
+export interface ReorderResult {
+  readonly reordered: number;
+}
+
+/** Every BULK verb's answer (REGX2): how many of the requested scripts the operation actually changed.
+ *  It is NOT the requested count — a foreign id, an id another device already deleted, and an id that was
+ *  already in the requested state all fall out, and the caller's toast should say what happened rather than
+ *  what was asked. */
+export interface BulkResult {
+  readonly affected: number;
+}
+
+export const removeResultSchema = z.strictObject({ deleted: z.boolean() }) satisfies z.ZodType<RemoveResult>;
+export const detachResultSchema = z.strictObject({ detached: z.boolean() }) satisfies z.ZodType<DetachResult>;
+export const reorderResultSchema = z.strictObject({ reordered: z.number() }) satisfies z.ZodType<ReorderResult>;
+export const bulkResultSchema = z.strictObject({ affected: z.number() }) satisfies z.ZodType<BulkResult>;
+
+export const importScriptFileResultSchema = z.strictObject({ created: z.boolean() });
+export type ImportScriptFileResult = z.output<typeof importScriptFileResultSchema>;

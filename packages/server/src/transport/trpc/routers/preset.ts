@@ -8,9 +8,10 @@
 // preset that already carries a broken wrapper still loads and can be fixed in the editor.
 
 import { capabilityTargetSchema } from "@orb/contracts/inference";
-import { promptConfigWriteSchema } from "@orb/contracts/preset";
+import { presetImportOutcomeSchema, promptConfigWriteSchema } from "@orb/contracts/preset";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { effectivePresetSchema, presetDetailSchema, presetSummarySchema, presetUsageViewSchema } from "#domain/preset";
 import { authedProcedure, t } from "../trpc.ts";
 
 /** Upload bound for one `orb.preset` file. A preset blob is sections + knobs + templates — generous next to
@@ -20,6 +21,7 @@ const MAX_PRESET_FILE_CHARS = 8_000_000;
 
 export const presetRouter = t.router({
   create: authedProcedure
+    .output(presetDetailSchema)
     .input(
       z.object({
         name: z.string().min(1),
@@ -36,13 +38,15 @@ export const presetRouter = t.router({
       }),
     ),
 
-  list: authedProcedure.query(({ ctx }) => ctx.services.preset.list({ userId: ctx.auth.userId })),
+  list: authedProcedure.output(z.array(presetSummarySchema)).query(({ ctx }) => ctx.services.preset.list({ userId: ctx.auth.userId })),
 
   get: authedProcedure
+    .output(presetDetailSchema)
     .input(z.object({ id: typeIdSchema(ID_PREFIX.preset) }))
     .query(({ ctx, input }) => ctx.services.preset.get({ userId: ctx.auth.userId, id: input.id })),
 
   update: authedProcedure
+    .output(presetDetailSchema)
     .input(
       z.object({
         id: typeIdSchema(ID_PREFIX.preset),
@@ -73,6 +77,7 @@ export const presetRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.preset.remove({ userId: ctx.auth.userId, id: input.id })),
 
   resetToDefault: authedProcedure
+    .output(presetDetailSchema)
     .input(z.object({ id: typeIdSchema(ID_PREFIX.preset) }))
     .mutation(({ ctx, input }) => ctx.services.preset.resetToDefault({ userId: ctx.auth.userId, id: input.id })),
 
@@ -80,6 +85,7 @@ export const presetRouter = t.router({
   // against one of the caller's own connections (the chat role unless a target names another). Caller-scoped
   // both ways — the preset must be readable by them, and the capability half is owner-checked by connection.
   resolveEffective: authedProcedure
+    .output(effectivePresetSchema)
     .input(z.object({ id: typeIdSchema(ID_PREFIX.preset), target: capabilityTargetSchema.optional() }))
     .query(({ ctx, input }) =>
       ctx.services.preset.resolveEffective({ principal: ctx.auth, id: input.id, ...(input.target !== undefined ? { target: input.target } : {}) }),
@@ -88,12 +94,14 @@ export const presetRouter = t.router({
   // The CONTEXT panel's backward bindings (#279) — principal-carrying like `resolveEffective`, because its
   // room half is membership-scoped (D18) and is resolved for the ACTING caller, never a supplied user id.
   listUsage: authedProcedure
+    .output(presetUsageViewSchema)
     .input(z.object({ id: typeIdSchema(ID_PREFIX.preset) }))
     .query(({ ctx, input }) => ctx.services.preset.listUsage({ principal: ctx.auth, id: input.id })),
 
   // The single-preset import door (G6) — a thin arm over the ONE `ImportPreset` verb the profile bundle uses,
   // so the merge/collision semantics are the bundle's by construction. The file is UTF-8 JSON text.
   importFile: authedProcedure
+    .output(presetImportOutcomeSchema)
     .input(z.object({ fileText: z.string().max(MAX_PRESET_FILE_CHARS) }))
     .mutation(({ ctx, input }) => ctx.services.preset.importFile({ userId: ctx.auth.userId, fileText: input.fileText })),
 });

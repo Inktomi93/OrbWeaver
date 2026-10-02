@@ -68,12 +68,15 @@ export {
   CHAT_INJECTION_ORIGINS,
   CHAT_INJECTION_POSITIONS,
   chatInjectionInputSchema,
+  contextFitAnswerSchema,
   MEMORY_RECALL_REJECTS_SHOWN,
   MEMORY_RECALL_VERDICTS,
   SHAPE_BREAKPOINT_DECISIONS,
   SHAPE_FOLD_REASONS,
   SHAPE_ROW_SOURCES,
   sentPromptSchema,
+  shapeTraceSchema,
+  variantWireViewSchema,
 } from "./assemble.ts";
 // The two corpus-sweep workload results chat OWNS (the junk-drawer exit: a workload's result shape is
 // authored by the OWNING domain) — `memory-backfill` + `group-character-backfill`.
@@ -151,6 +154,7 @@ export { chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } fr
 export type { ChatListCursor } from "./listing.ts";
 export { CHAT_LIST_MAX_LIMIT, chatListCursorSchema } from "./listing.ts";
 export type { MessagesPage, MessageWindow } from "./message-pages.ts";
+export { messagesPageSchema, messageWindowSchema } from "./message-pages.ts";
 // `MacroFreeze` (the single occurrence) is NOT re-exported here — kit owns that shape and consumers import it
 // from `@orb/kit/macro`; contracts owns only the persisted/wire ARRAY (`MacroFreezeRecord`) + its parse seam.
 export type {
@@ -186,6 +190,7 @@ export {
   macroFreezeRecordSchema,
   macroFreezeSchema,
   messageSlotSchema,
+  messageViewSchema,
   parseVariantMetadata,
   reattributeScopeSchema,
   standaloneVariableDeltaSchema,
@@ -220,6 +225,7 @@ export {
   GROUP_POLICIES,
   GROUP_POLICY_LABELS,
   GUIDED_STEER_INPUT_MAX,
+  groupConfigInputSchema,
   groupConfigSchema,
   groupPolicySchema,
   guidedSteerSchema,
@@ -233,6 +239,7 @@ export {
   storedGroupConfigSchema,
 } from "./metadata.ts";
 export type { NextTurnConnectionView } from "./next-turn-connection.ts";
+export { nextTurnConnectionViewSchema } from "./next-turn-connection.ts";
 export type { MessageKind, MessageKindPolicy, ParticipantKind, SpeakerRef } from "./participants.ts";
 // B7 — the narrator-voice predicate, promoted from the client (the server's segment-anchor validation and
 // the client picker must gate the plain-label span grammar identically).
@@ -275,6 +282,8 @@ export type { ChatReactionsView, MessageReactionGroup, ReactionEmoji } from "./r
 export {
   CHAT_REACT_TOOL_NAME,
   CHAT_REACTION_SLOT_WINDOW,
+  chatReactionsViewSchema,
+  messageReactionGroupSchema,
   REACTION_ATTRIBUTION_CONTENT_CAP,
   REACTION_ATTRIBUTION_MAX_PER_MESSAGE,
   REACTION_ATTRIBUTION_SLOT_WINDOW,
@@ -294,7 +303,10 @@ export type {
 } from "./regex-tiers.ts";
 export {
   characterRegexTierKey,
+  effectiveRegexViewSchema,
   FIXED_REGEX_TIER_KEYS,
+  type HostTierRegexAllow,
+  hostTierRegexAllowSchema,
   isRegexEnabledInChat,
   isRegexTierAllowed,
   parseCharacterRegexTierKey,
@@ -352,6 +364,7 @@ export {
   inviteViewSchema,
   JOIN_HISTORY_VISIBILITIES,
   joinHistoryVisibilitySchema,
+  memberCardViewSchema,
   NO_HANDOFF_OFFER,
   NO_HANDOFF_OFFER_CONTENTS,
   PENDING_JOIN_ERROR_CODES,
@@ -390,6 +403,9 @@ export type {
   ImportedTokenUsageResolution,
   ListImportedTokenUsageCandidates,
 } from "./token-usage-backfill.ts";
+export * from "./views.ts";
 // The leak-safe reverse-room read (D18) — one shape + one op type for every library that keeps a chat-scope
 // attachment junction (regex scripts · databank documents · the rpg GM preset).
 export type { ResolveVisibleRoomsOp, VisibleRoomRef } from "./visible-rooms.ts";
+
+export { visibleRoomRefSchema } from "./visible-rooms.ts";

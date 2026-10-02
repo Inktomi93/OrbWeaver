@@ -53,7 +53,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(352 registered gates)
+(353 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -376,6 +376,7 @@ in its own module header, never restated here.
 | `tooling-runner-config-literals` | plumbing-literals | hard/error | none | a runner-config literal outside its… |
 | `tooling-size` | — | hard/error | @tooling\* | a @orb/tooling source file exceeds… |
 | `tooling-slot-template` | — | hard/error | @tooling | a @orb/tooling tree entry violates… |
+| `trpc-output-declarations` | — | hard/error | @server\* | A mounted AppRouter query/mutation… |
 | `tsconfig-entry-liveness` | grant-liveness | reviewed-grant/error | none | a FILE-EXACT include/exclude entry in… |
 | `tsconfig-entry-liveness-health` | grant-liveness | hard/error | none | the tsconfig roster parsed but ZERO… |
 | `turn-identity` | — | ordinary/error | @server\* | the chat engine is Principal-BLIND… |

@@ -19,7 +19,7 @@ import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel } from "#inference";
 import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, userRoleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
 import type { ProseOverrides, ProseSlotId } from "#prose-slot";
-import { hasProseToken, proseOverridesSchema } from "#prose-slot";
+import { hasProseToken, proseOverridesSchema, proseOverridesViewSchema } from "#prose-slot";
 import type { VersionedParseIssue } from "#versioned-config";
 import { defineVersionedConfig } from "#versioned-config";
 import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
@@ -3415,3 +3415,48 @@ export function parsePresetFile(raw: unknown): ParsePresetResult {
   const name = typeof rawName === "string" && rawName.trim().length > 0 ? rawName : "Imported preset";
   return { ok: true, name, config: result.data };
 }
+
+export { type PresetImportOutcome, presetImportOutcomeSchema } from "./portability.ts";
+
+// Wire outputs validate already-produced configuration; storage parsing retains its lenient degradation.
+export const userIntentViewSchema = userIntentSchema.extend({
+  compaction: userIntentSchema.shape.compaction.unwrap().strict().optional(),
+  advanced: userIntentSchema.shape.advanced.unwrap().strict().optional(),
+}) satisfies z.ZodType<UserIntent>;
+const promptSectionViewSchema = z.union([
+  literalSection.strict().extend({ inject: injectSchema.strict().optional() }),
+  plainMarkerSection.strict(),
+  templatedMarkerSection.strict().extend({ inject: injectSchema.strict().optional() }),
+]) satisfies z.ZodType<PromptSection>;
+const choiceBlockViewSchema = choiceBlockSchema.strict().extend({
+  options: z.array(choiceBlockOptionSchema.strict()).min(MIN_CHOICE_OPTIONS).max(MAX_CHOICE_OPTIONS),
+}) satisfies z.ZodType<ChoiceBlockSpec>;
+const userMacroInputViewSchema = userMacroInputSchema.strict().extend({
+  options: z.array(userMacroInputOptionSchema.strict()).max(MAX_CHOICE_OPTIONS),
+});
+export const userMacroViewSchema = userMacroSchema.strict().safeExtend({
+  args: z.array(userMacroArgSchema.strict()).max(MAX_USER_MACRO_ARGS),
+  inputs: z.array(userMacroInputViewSchema).max(MAX_USER_MACRO_INPUTS),
+}) satisfies z.ZodType<UserMacroSpec>;
+const guidedActionViewSchema = guidedActionConfigSchema.strict();
+const guidedActionsViewSchema = guidedActionsSchema.strict().extend({
+  response: guidedActionViewSchema,
+  swipe: guidedActionViewSchema,
+  impersonate: guidedActionViewSchema,
+  rewrite: guidedActionViewSchema,
+  opening: guidedActionViewSchema,
+  continue: guidedActionViewSchema,
+  greeting_rewrite: guidedActionViewSchema,
+  greeting_new: guidedActionViewSchema,
+});
+export const promptConfigViewSchema = promptConfigSchema.strict().extend({
+  sections: z.array(promptSectionViewSchema).max(MAX_SECTIONS),
+  params: userIntentViewSchema,
+  prose: proseOverridesViewSchema,
+  variables: z.array(choiceBlockViewSchema).max(MAX_VARIABLES),
+  userMacros: z.array(userMacroViewSchema).max(MAX_USER_MACROS),
+  formatStrings: formatStringsSchema.strict().optional(),
+  guidedActions: guidedActionsViewSchema.optional(),
+  postProcess: promptConfigSchema.shape.postProcess.unwrap().strict().optional(),
+  reasoningParse: promptConfigSchema.shape.reasoningParse.unwrap().strict().optional(),
+}) satisfies z.ZodType<PromptConfig>;

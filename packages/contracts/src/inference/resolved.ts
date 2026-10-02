@@ -81,3 +81,8 @@ export const providerAvailabilitySchema = z.strictObject({
   available: z.boolean(),
   cause: unavailableCauseSchema.extract(["unavailable", "runtime-missing"]).optional(),
 }) satisfies z.ZodType<ProviderAvailability>;
+
+export const sendAvailabilitySchema = z.discriminatedUnion("available", [
+  z.strictObject({ available: z.literal(true) }),
+  z.strictObject({ available: z.literal(false), cause: unavailableCauseSchema }),
+]) satisfies z.ZodType<SendAvailability>;

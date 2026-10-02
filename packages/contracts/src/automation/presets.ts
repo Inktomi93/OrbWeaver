@@ -258,6 +258,9 @@ export type RulePresetKnobValueInput = RulePresetKnobValueInputs[string];
  *  descriptor default, and a knob it LOST refuses loudly at the re-mint, never silently). */
 export type RulePresetKnobValues = Readonly<Record<string, RulePresetKnobValue>>;
 
+export const rulePresetKnobValueSchema = z.union([z.number(), z.string(), z.array(z.string()).readonly()]) satisfies z.ZodType<RulePresetKnobValue>;
+export const rulePresetKnobOutputValuesSchema = z.record(z.string(), rulePresetKnobValueSchema).readonly() satisfies z.ZodType<RulePresetKnobValues>;
+
 /** A stored/resolved bag re-spelled as the WIRE INPUT bag (mutable arrays — the values schema takes
  *  `string[]`, and a `readonly string[]` will not assign into it). For surfaces that
  *  ECHO a view's bag back into a write (the saved-cast capture + the library editor's full-replace
@@ -323,3 +326,38 @@ export interface RulePresetView {
   readonly spends: boolean;
   readonly knobs: readonly RulePresetKnobView[];
 }
+
+const knobViewFields = { key: z.string(), label: z.string(), help: z.string().optional() };
+export const rulePresetKnobViewSchema = z
+  .discriminatedUnion("kind", [
+    z.strictObject({ ...knobViewFields, kind: z.literal("number"), default: z.number(), min: z.number(), max: z.number() }),
+    z.strictObject({ ...knobViewFields, kind: z.literal("text"), default: z.string(), minLength: z.number(), maxLength: z.number() }),
+    z.strictObject({
+      ...knobViewFields,
+      kind: z.literal("textList"),
+      default: z.array(z.string()).readonly(),
+      minItems: z.number(),
+      maxItems: z.number(),
+      maxLength: z.number(),
+    }),
+    z.strictObject({
+      ...knobViewFields,
+      kind: z.literal("choice"),
+      options: z.array(z.string()).readonly(),
+      optionLabels: z.record(z.string(), z.string()),
+      default: z.string(),
+    }),
+    z.strictObject({ ...knobViewFields, kind: z.literal("entityRef"), entity: z.enum(RULE_PRESET_ENTITY_KINDS) }),
+  ])
+  .transform(({ help, ...knob }): RulePresetKnobView => ({ ...knob, ...(help === undefined ? {} : { help }) })) satisfies z.ZodType<RulePresetKnobView>;
+
+export const rulePresetViewSchema = z.strictObject({
+  id: rulePresetIdSchema,
+  scope: rulePresetScopeSchema,
+  title: z.string(),
+  summary: z.string(),
+  ruleCount: z.number(),
+  confirmFirst: z.boolean(),
+  spends: z.boolean(),
+  knobs: z.array(rulePresetKnobViewSchema).readonly(),
+}) satisfies z.ZodType<RulePresetView>;

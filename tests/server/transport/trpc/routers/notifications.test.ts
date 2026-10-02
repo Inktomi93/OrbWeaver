@@ -16,6 +16,7 @@
 // The inbox CRUD trio is NO LONGER on that belt (#1627 — see the second describe below); `presence` is, and
 // its belt row lives with the others in `trpc.test.ts` (the `beltSurfaces` table).
 
+import type { InboxView } from "@orb/contracts/notifications";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { NotificationsService } from "@orb/server/domain/notifications";
@@ -132,11 +133,20 @@ describe("the inbox CRUD trio on a deployment that cannot seat a second human (#
 
   test("dismiss reaches the verb with the caller's principal AND the asked id — the pairing IS the belt", async () => {
     const notificationId = ID.notificationOwn;
-    // @orb-waive no-test-fabrication(never): the router is a thin pass-through; the returned view is never read by this assertion. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    const dismiss = vi.fn<NotificationsService["dismiss"]>(() => Promise.resolve({} as never));
+    const view = {
+      id: notificationId,
+      type: "kicked",
+      payload: { type: "kicked", recipientUserId: VIEWER, chatId: mintTypeId(ID_PREFIX.chat) },
+      actionable: false,
+      seq: 1,
+      readAt: null,
+      dismissedAt: 1000,
+      createdAt: 100,
+    } satisfies InboxView;
+    const dismiss = vi.fn<NotificationsService["dismiss"]>(() => Promise.resolve(view));
     const ctx = makeContext({ ...notCapable, services: { notifications: { dismiss } } });
 
-    await caller(ctx).notifications.dismiss({ notificationId });
+    await expect(caller(ctx).notifications.dismiss({ notificationId })).resolves.toEqual(view);
     expect(dismiss.mock.calls[0]?.[0]).toMatchObject({ notificationId, principal: { userId: VIEWER } });
   });
 

@@ -251,3 +251,5 @@ export interface EmbedPassResult {
   readonly embedded: number;
   readonly skipped: number;
 }
+
+export const embedPassResultSchema = z.strictObject({ embedded: z.number(), skipped: z.number() }) satisfies z.ZodType<EmbedPassResult>;

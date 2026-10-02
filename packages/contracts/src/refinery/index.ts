@@ -687,3 +687,104 @@ export const refinerySessionSummarySchema = z.object({
   updatedAt: z.number().int(),
 });
 export type RefinerySessionSummary = z.infer<typeof refinerySessionSummarySchema>;
+
+/** One `iterate` round: the refinement rewrite + the analyze that judged it, plus the bumped counter. */
+export interface IterateResult {
+  readonly rewrite: RefineryRun;
+  readonly analyze: RefineryRun;
+  readonly iterationCount: number;
+}
+
+/** One stage's preflight readout (schema-renderer §8) — the RESOLVED posture (floor + the owner's preset
+ *  params, re-run per call) plus both fit estimates. Estimates are QuadChars-honest ADVISORIES: the copy
+ *  says "likely", never a hard number (`@orb/kit/tokens`' own doctrine). */
+export interface StagePreflight {
+  readonly stage: RefineryStage;
+  readonly model: ModelId;
+  readonly temperature: number | null;
+  readonly maxOutputTokens: number | null;
+  /** Estimated PROMPT tokens for this stage as currently configured (the real assembled prompt, measured). */
+  readonly inputEstimate: number;
+  /** Estimated OUTPUT tokens this stage's reply wants (§8's per-stage arithmetic). */
+  readonly outputEstimate: number;
+}
+
+export interface PreflightResult {
+  /** The summarize role's context window, when the backend declares one. */
+  readonly contextTokens: number | null;
+  readonly stages: readonly StagePreflight[];
+}
+
+/** `generateSchema`/`refineSchema` — ERRORS-AS-DATA (the applyRefusal precedent): a draft that failed the
+ *  belt on BOTH turns still RESOLVES, carrying the refusal + the model's raw last reply so the editor can
+ *  offer it for hand-fixing (the extension's own show-the-partial policy, NL design §1.1.5/§2.1 — the raw
+ *  never rides an error message). Provider faults still throw. */
+export type SchemaForgeResult =
+  /** `dropped` itemizes design rows the transpiler could not place (a duplicate path, a path that collides
+   *  with a value). Never silence — a dropped row is data the editor shows (D112 (3)). */
+  | { readonly kind: "draft"; readonly name: string; readonly schema: Record<string, unknown>; readonly dropped: readonly string[] }
+  /** The HONEST-REFUSAL arm (task #36, owner: "think about the people who want to do weird scorings"): the
+   *  ask needs a construct the generator's guaranteed-servable leaf language cannot express (a union, a
+   *  heterogeneous array, deeper nesting). The RAW JSON-Schema door takes the full liftable vocabulary, so
+   *  the editor routes there with `skeleton` — whatever the design DID reach — as the starting point. A
+   *  lossy flat approximation of the author's idea would be the wrong answer. */
+  | { readonly kind: "needs-raw"; readonly message: string; readonly skeleton: Record<string, unknown> }
+  | { readonly kind: "failed"; readonly message: string; readonly raw: string | null };
+
+// Output projections validate typed envelopes after model/read parsing has normalized and itemized them.
+export const refineryAnalyzePayloadViewSchema = refineryAnalyzePayloadSchema.strict() satisfies z.ZodType<RefineryAnalyzePayload>;
+const refineryScorePayloadViewSchema = refineryScorePayloadSchema.strict().extend({
+  fieldScores: z.array(refineryFieldScoreSchema.strict()).max(ENTRIES_MAX),
+}) satisfies z.ZodType<RefineryScorePayload>;
+const refineryRewriteFieldViewSchema = z.union(refineryRewriteFieldSchema.options.map((option) => option.strict()));
+const refineryRewritePayloadViewSchema = refineryRewritePayloadSchema.strict().extend({
+  fields: z.array(refineryRewriteFieldViewSchema).max(ENTRIES_MAX),
+}) satisfies z.ZodType<RefineryRewritePayload>;
+export const refineryStageConfigViewSchema = refineryStageConfigSchema.strict().extend({
+  score: z.union(refineryScoreConfigSchema.options.map((option) => option.strict())),
+  rewrite: refineryRewriteConfigSchema.strict(),
+  analyze: z.union(refineryAnalyzeConfigSchema.options.map((option) => option.strict())),
+}) satisfies z.ZodType<RefineryStageConfig>;
+const refineryCustomRunConfigViewSchema = refineryCustomRunConfigSchema.strict();
+const [scoreFixedRun, scoreCustomRun, rewriteRun, analyzeFixedRun, analyzeCustomRun] = refineryRunSchema.options;
+export const refineryRunViewSchema = z.union([
+  scoreFixedRun.strict().extend({ payloadConfig: refineryScoreFixedConfigSchema.strict(), payload: refineryScorePayloadViewSchema }),
+  scoreCustomRun.strict().extend({ payloadConfig: refineryCustomRunConfigViewSchema }),
+  rewriteRun.strict().extend({
+    payloadConfig: z.union([refineryRewriteConfigSchema.strict(), refineryManualRewriteConfigSchema.strict()]),
+    payload: refineryRewritePayloadViewSchema,
+  }),
+  analyzeFixedRun.strict().extend({ payloadConfig: refineryAnalyzeFixedConfigSchema.strict(), payload: refineryAnalyzePayloadViewSchema }),
+  analyzeCustomRun.strict().extend({ payloadConfig: refineryCustomRunConfigViewSchema }),
+]) satisfies z.ZodType<RefineryRun>;
+export const iterateResultSchema = z.strictObject({
+  rewrite: refineryRunViewSchema,
+  analyze: refineryRunViewSchema,
+  iterationCount: z.number(),
+}) satisfies z.ZodType<IterateResult>;
+export const stagePreflightSchema = z.strictObject({
+  stage: refineryStageSchema,
+  model: brandedId<ModelId>(),
+  temperature: z.number().nullable(),
+  maxOutputTokens: z.number().nullable(),
+  inputEstimate: z.number(),
+  outputEstimate: z.number(),
+}) satisfies z.ZodType<StagePreflight>;
+export const preflightResultSchema = z.strictObject({
+  contextTokens: z.number().nullable(),
+  stages: z.array(stagePreflightSchema).readonly(),
+}) satisfies z.ZodType<PreflightResult>;
+/** Dynamic model-authored object, already belted against the author's selected schema by the service. */
+export const refineryTestResultSchema = z.record(z.string(), z.unknown());
+export const schemaForgeResultSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("draft"), name: z.string(), schema: refineryTestResultSchema, dropped: z.array(z.string()).readonly() }),
+  z.strictObject({ kind: z.literal("needs-raw"), message: z.string(), skeleton: refineryTestResultSchema }),
+  z.strictObject({ kind: z.literal("failed"), message: z.string(), raw: z.string().nullable() }),
+]) satisfies z.ZodType<SchemaForgeResult>;
+
+export const refineryScoreSweepResultSchema = z.strictObject({
+  scanned: z.number(),
+  scored: z.number(),
+  skipped: z.number(),
+  failed: z.number(),
+}) satisfies z.ZodType<RefineryScoreSweepResult>;

@@ -4,14 +4,26 @@
 // widening the member type). The panel is swipe-consistent BY CONSTRUCTION — every tab reads the SAME
 // resolved-current snapshot, so a swipe re-resolves everything at once (the owner's ratification demand).
 
-import type { ChatId, MessageId, MessageVariantId, RpgGameId } from "@orb/kit/ids";
+import type { ChatId, MessageId, MessageVariantId, PresetId, RpgGameId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
+import { MAX_USER_MACROS, userMacroViewSchema } from "#preset";
 import type { RpgActorIdentity, RpgActorRef, RpgActorVolatile } from "./actor.ts";
+import { rpgActorIdentitySchema, rpgActorRefSchema, rpgActorVolatileSchema } from "./actor.ts";
 import type { RpgClockTime, RpgWeather } from "./ambient.ts";
+import { rpgClockTimeSchema, rpgWeatherSchema } from "./ambient.ts";
 import type { RpgDeliveryPath, RpgFoldFallbackReason, RpgGameConfig } from "./config.ts";
+import { RPG_DELIVERY_PATHS, RPG_FOLD_FALLBACK_REASONS, rpgGameConfigSchema, rpgGameFeaturesSchema } from "./config.ts";
 import type { RpgGameMode, RpgGameStatus } from "./enums.ts";
+import { rpgCheckpointTriggerSchema, rpgGameModeSchema, rpgGameStatusSchema } from "./enums.ts";
 import type { RpgToolCallVerdict } from "./extraction.ts";
+import { RPG_TOOL_CALL_VERDICTS } from "./extraction.ts";
+import { RPG_PROFILE_MAX_ATTRIBUTES, rpgStatProfileSchema } from "./profile.ts";
+import { rpgSheetSchema } from "./sheet.ts";
 import type { RpgPlot } from "./snapshot.ts";
+import { rpgPlotSchema } from "./snapshot.ts";
 import type { RpgTrackerDef, RpgTrackerValue } from "./tracker.ts";
+import { rpgTrackerDefSchema, rpgTrackerValueSchema } from "./tracker.ts";
 
 /** EFF-3 — the EFFECTIVE state delivery for this room, as opposed to the `extractionMode` KNOB that asked for
  *  it (D112 (4)'s KNOWN GAP: a `folded` game whose wire cannot fold was still showing "Live" while it rounded a
@@ -265,7 +277,7 @@ export interface RpgConfigView {
    *  above is what an apply merged into. */
   readonly ruleset: RpgGameConfig["ruleset"];
   readonly steeringNote: string;
-  readonly gmPresetId: string | null;
+  readonly gmPresetId: PresetId | null;
   readonly extractionMode: RpgGameConfig["extractionMode"];
   /** The §1.3 extraction-depth knobs (host editor) — how much story the state round reads, the `window` arm's
    *  token budget, and the reconcile cadence (0 = off). */
@@ -343,3 +355,170 @@ export interface RpgRevealView {
   /** The standing lies grouped by character (each character's active lies, most-recent-wins per truth). */
   readonly standingLies: readonly { readonly character: string; readonly lies: readonly RpgStandingLie[] }[];
 }
+
+// Output-only projections close typed envelopes; stored state and model patch grammars remain unchanged.
+const statProfileViewSchema = rpgStatProfileSchema.strict().extend({
+  attributes: z.array(rpgStatProfileSchema.shape.attributes.element.strict()).max(RPG_PROFILE_MAX_ATTRIBUTES),
+  range: rpgStatProfileSchema.shape.range.strict(),
+  modifier: rpgStatProfileSchema.shape.modifier.strict(),
+  resolution: z.union(rpgStatProfileSchema.shape.resolution.options.map((option) => option.strict())),
+});
+const actorRefViewSchema = z.union(rpgActorRefSchema.options.map((option) => option.strict()));
+const actorIdentityViewSchema = rpgActorIdentitySchema.strict().extend({
+  relationship: rpgActorIdentitySchema.shape.relationship.unwrap().strict(),
+});
+const trackerDefViewSchema = rpgTrackerDefSchema.strict();
+const trackerValueViewSchema = rpgTrackerValueSchema.strict();
+const actorVolatileViewSchema = rpgActorVolatileSchema.strict().extend({
+  trackerValues: z.record(rpgActorVolatileSchema.shape.trackerValues.unwrap().keyType, trackerValueViewSchema),
+  conditions: z.array(rpgActorVolatileSchema.shape.conditions.unwrap().element.strict()),
+  inventory: z.array(rpgActorVolatileSchema.shape.inventory.unwrap().element.strict()),
+  wallet: z.array(rpgActorVolatileSchema.shape.wallet.unwrap().element.strict()),
+});
+const plotViewSchema = rpgPlotSchema.strict().extend({ acts: z.array(rpgPlotSchema.shape.acts.unwrap().element.strict()) });
+export const rpgEffectiveDeliverySchema = z.strictObject({
+  path: z.enum(RPG_DELIVERY_PATHS),
+  fallbackReason: z.enum(RPG_FOLD_FALLBACK_REASONS).nullable(),
+}) satisfies z.ZodType<RpgEffectiveDelivery>;
+export const rpgGameViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.rpgGame),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  mode: rpgGameModeSchema,
+  status: rpgGameStatusSchema,
+  trackersReadOnly: z.boolean(),
+  canPopulate: z.boolean(),
+  extractionMode: rpgGameConfigSchema.shape.extractionMode,
+  effectiveDelivery: rpgEffectiveDeliverySchema,
+  publicConfig: z.strictObject({
+    statProfile: statProfileViewSchema,
+    ruleset: rpgGameConfigSchema.shape.ruleset,
+    dateMode: rpgGameConfigSchema.shape.dateMode,
+    immersiveHtml: z.boolean(),
+    cyoa: z.boolean(),
+    cyoaChoiceBehavior: rpgGameFeaturesSchema.shape.cyoaChoiceBehavior,
+    plotProgression: z.boolean(),
+  }),
+}) satisfies z.ZodType<RpgGameView>;
+export const rpgActorViewSchema = z
+  .strictObject({
+    actorRef: actorRefViewSchema,
+    name: z.string(),
+    avatar: z.string().optional(),
+    presence: z.boolean(),
+    identity: actorIdentityViewSchema.nullable(),
+    sheet: rpgSheetSchema.strict().extend({ trackerGrants: z.array(z.string()).readonly(), trackerRevokes: z.array(z.string()).readonly() }),
+    volatile: actorVolatileViewSchema.nullable(),
+    trackers: z.array(trackerDefViewSchema).readonly(),
+  })
+  .transform(({ avatar, ...view }) => ({ ...view, ...(avatar !== undefined ? { avatar } : {}) })) satisfies z.ZodType<RpgActorView>;
+export const rpgTrackerEntrySchema = z.strictObject({
+  def: trackerDefViewSchema,
+  value: trackerValueViewSchema.nullable(),
+}) satisfies z.ZodType<RpgTrackerEntry>;
+export const rpgQuestViewSchema = z.strictObject({
+  id: z.string(),
+  name: z.string(),
+  status: z.string(),
+  description: z.string(),
+  objectives: z.array(z.strictObject({ id: z.string(), text: z.string(), completed: z.boolean() })).readonly(),
+}) satisfies z.ZodType<RpgQuestView>;
+export const rpgTrackerOrbSchema = z.strictObject({
+  key: z.string(),
+  label: z.string(),
+  value: z.number(),
+  max: z.number().nullable(),
+  color: z.string().nullable(),
+}) satisfies z.ZodType<RpgTrackerOrb>;
+export const rpgTrackerViewSchema = z.strictObject({
+  ambient: z
+    .strictObject({
+      location: z.string(),
+      calendarDate: z.string().nullable(),
+      clock: rpgClockTimeSchema.strict().nullable(),
+      weather: rpgWeatherSchema.strict().nullable(),
+    })
+    .nullable(),
+  actors: z.array(rpgActorViewSchema).readonly(),
+  cast: z.array(z.string()).readonly(),
+  trackerDefs: z.array(trackerDefViewSchema).readonly(),
+  gameTrackers: z.array(rpgTrackerEntrySchema).readonly(),
+  quests: z.array(rpgQuestViewSchema).readonly(),
+  plot: plotViewSchema.nullable(),
+  recentBeats: z.array(z.string()).readonly(),
+  trackersReadOnly: z.boolean(),
+  trackerOrbs: z.array(rpgTrackerOrbSchema).readonly(),
+  lockedPaths: z.array(z.string()).readonly(),
+}) satisfies z.ZodType<RpgTrackerView>;
+export const rpgJournalEntryViewSchema = z.strictObject({
+  id: z.string(),
+  type: z.string(),
+  label: z.string(),
+  title: z.string(),
+  content: z.string(),
+  createdAt: z.number(),
+}) satisfies z.ZodType<RpgJournalEntryView>;
+export const rpgToolCallDisclosureSchema = z.strictObject({
+  name: z.string(),
+  args: z.string(),
+  verdict: z.enum(RPG_TOOL_CALL_VERDICTS),
+  issues: z.array(z.string()).readonly(),
+  withheld: z.enum(RPG_TOOL_CALL_WITHHOLD_REASONS).nullable(),
+}) satisfies z.ZodType<RpgToolCallDisclosure>;
+export const rpgTurnToolCallsViewSchema = z.strictObject({
+  variantId: typeIdSchema(ID_PREFIX.messageVariant),
+  messageId: typeIdSchema(ID_PREFIX.message),
+  calls: z.array(rpgToolCallDisclosureSchema).readonly(),
+  failure: z.string().nullable(),
+  createdAt: z.number(),
+}) satisfies z.ZodType<RpgTurnToolCallsView>;
+export const rpgConfigViewSchema = rpgGameConfigSchema
+  .pick({
+    statProfile: true,
+    ruleset: true,
+    extractionMode: true,
+    extractionContext: true,
+    extractionWindowTokens: true,
+    reconcileEveryBeats: true,
+    dateMode: true,
+    trackers: true,
+    userMacros: true,
+  })
+  .strict()
+  .extend({
+    statProfile: statProfileViewSchema,
+    trackers: z.array(trackerDefViewSchema),
+    userMacros: z.array(userMacroViewSchema).max(MAX_USER_MACROS),
+    steeringNote: rpgGameConfigSchema.shape.lite.unwrap().shape.steeringNote,
+    gmPresetId: typeIdSchema(ID_PREFIX.preset).nullable(),
+    ...rpgGameFeaturesSchema.shape,
+    presetMacroNames: z.array(z.string()).readonly(),
+  }) satisfies z.ZodType<RpgConfigView>;
+export const rpgRevealedSpanSchema = z.strictObject({
+  tag: z.string(),
+  revealLabel: z.string(),
+  fields: z.array(z.strictObject({ key: z.string(), value: z.string() })).readonly(),
+}) satisfies z.ZodType<RpgRevealedSpan>;
+export const rpgRevealedMessageSchema = z.strictObject({
+  messageId: typeIdSchema(ID_PREFIX.message),
+  spans: z.array(rpgRevealedSpanSchema).readonly(),
+}) satisfies z.ZodType<RpgRevealedMessage>;
+export const rpgStandingLieSchema = z.strictObject({
+  character: z.string(),
+  type: z.string(),
+  truth: z.string(),
+  reason: z.string(),
+  messageId: typeIdSchema(ID_PREFIX.message),
+}) satisfies z.ZodType<RpgStandingLie>;
+export const rpgRevealViewSchema = z.strictObject({
+  messages: z.array(rpgRevealedMessageSchema).readonly(),
+  standingLies: z.array(z.strictObject({ character: z.string(), lies: z.array(rpgStandingLieSchema).readonly() })).readonly(),
+}) satisfies z.ZodType<RpgRevealView>;
+export const rpgCheckpointViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.rpgCheckpoint),
+  gameId: typeIdSchema(ID_PREFIX.rpgGame),
+  snapshotId: typeIdSchema(ID_PREFIX.rpgSnapshot),
+  label: z.string(),
+  trigger: rpgCheckpointTriggerSchema,
+  createdAt: z.number(),
+});
+export type RpgCheckpointView = z.output<typeof rpgCheckpointViewSchema>;

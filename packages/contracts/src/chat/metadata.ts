@@ -189,6 +189,28 @@ export const storedGroupConfigSchema = z.preprocess(stripRetiredGroupKeys, group
  *  {@link GroupConfig} before persisting, so a stored blob is always fully-defaulted. */
 export type GroupConfigInput = z.input<typeof groupConfigSchema>;
 
+const [narratorGroupSchema, perSpeakerGroupSchema] = groupConfigSchema.options;
+const groupInputFields = {
+  policy: groupPolicySchema.unwrap().unwrap().optional(),
+  speakerTags: narratorGroupSchema.shape.speakerTags.unwrap().unwrap().optional(),
+  groupNudge: narratorGroupSchema.shape.groupNudge.unwrap().unwrap().optional(),
+  autoMode: autoModeFields.autoMode.unwrap().unwrap().optional(),
+  autoModeMaxTurns: autoModeFields.autoModeMaxTurns.unwrap().unwrap().optional(),
+  autoModeDelayMs: autoModeFields.autoModeDelayMs.unwrap().unwrap().optional(),
+  allowSelfResponses: autoModeFields.allowSelfResponses.unwrap().unwrap().optional(),
+  memberCardVisibility: memberCardVisibilityField.memberCardVisibility.unwrap().unwrap().optional(),
+};
+
+/** Validates the raw input plane without applying the parsed room defaults or corruption heals. */
+export const groupConfigInputSchema = z.discriminatedUnion("output", [
+  z.strictObject({ output: narratorGroupSchema.shape.output, ...groupInputFields }),
+  z.strictObject({
+    output: perSpeakerGroupSchema.shape.output,
+    ...groupInputFields,
+    cardScope: perSpeakerGroupSchema.shape.cardScope.unwrap().unwrap().optional(),
+  }),
+]) satisfies z.ZodType<GroupConfigInput>;
+
 /** The default room behavior (Part III §7): per-speaker × merged, natural arbitration, no speaker tags,
  *  group-nudge on, auto-mode OFF, member cards visible at `sheet` (D22). */
 export const DEFAULT_GROUP_CONFIG: GroupConfig = {

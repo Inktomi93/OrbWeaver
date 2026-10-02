@@ -23,7 +23,15 @@
 // socket per tab that class no longer exists.
 
 import {
+  createGameResultSchema,
+  handDoorResultSchema,
+  populateResultSchema,
+  promoteActorResultSchema,
+  resyncResultSchema,
+  rollDiceResultSchema,
   rpgAddJournalEntryInputSchema,
+  rpgCheckpointViewSchema,
+  rpgConfigViewSchema,
   rpgCreateCheckpointInputSchema,
   rpgCreateGameInputSchema,
   rpgDeleteJournalEntryInputSchema,
@@ -32,35 +40,51 @@ import {
   rpgEditJournalEntryInputSchema,
   rpgEditQuestObjectiveInputSchema,
   rpgEditSnapshotInputSchema,
+  rpgGameViewSchema,
+  rpgJournalEntryViewSchema,
   rpgListJournalInputSchema,
   rpgListTurnToolCallsInputSchema,
   rpgPatchActorInputSchema,
   rpgPatchSheetInputSchema,
   rpgPopulateFromCharacterInputSchema,
   rpgPromoteActorInputSchema,
+  rpgQuestSchema,
   rpgReadGameInputSchema,
   rpgRestoreCheckpointInputSchema,
+  rpgRevealViewSchema,
   rpgRollDiceInputSchema,
+  rpgTrackerViewSchema,
+  rpgTurnToolCallsViewSchema,
   rpgUpdateConfigInputSchema,
   rpgUpsertQuestInputSchema,
 } from "@orb/contracts/rpg";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const rpgRouter = t.router({
   // ── writes (host-gated shared planes + member own-row writes; authz INSIDE each verb) ──────────────────
-  createGame: authedProcedure.input(rpgCreateGameInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.createGame({ principal: ctx.auth, ...input })),
+  createGame: authedProcedure
+    .output(createGameResultSchema)
+    .input(rpgCreateGameInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.createGame({ principal: ctx.auth, ...input })),
   updateConfig: authedProcedure
     .input(rpgUpdateConfigInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.updateConfig({ principal: ctx.auth, ...input })),
   patchSheet: authedProcedure.input(rpgPatchSheetInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.patchSheet({ principal: ctx.auth, ...input })),
   editSnapshot: authedProcedure
+    .output(handDoorResultSchema)
     .input(rpgEditSnapshotInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.editSnapshot({ principal: ctx.auth, ...input })),
   // R1 — the OP-SHAPED actor door + its removal gesture (they replaced `editSnapshot`'s `actorState` image,
   // which that verb now refuses). Host-gated INSIDE each verb like every shared-plane write; both are
   // chatId-scoped, so the cross-tenant sweep classifies them PROBED.
-  patchActor: authedProcedure.input(rpgPatchActorInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.patchActor({ principal: ctx.auth, ...input })),
+  patchActor: authedProcedure
+    .output(handDoorResultSchema)
+    .input(rpgPatchActorInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.patchActor({ principal: ctx.auth, ...input })),
   dismissActor: authedProcedure
+    .output(handDoorResultSchema)
     .input(rpgDismissActorInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.dismissActor({ principal: ctx.auth, ...input })),
   // R4 — the PROMOTION doorway (`dismissActor`'s opposite). Also chatId-scoped and host-gated inside the verb,
@@ -68,14 +92,19 @@ export const rpgRouter = t.router({
   // write reaches outside the game (a character card + a roster seat), which is exactly why the verb resolves
   // the host FIRST and threads that userId into the injected mint.
   promoteActor: authedProcedure
+    .output(promoteActorResultSchema)
     .input(rpgPromoteActorInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.promoteActor({ principal: ctx.auth, ...input })),
-  upsertQuest: authedProcedure.input(rpgUpsertQuestInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.upsertQuest({ principal: ctx.auth, ...input })),
+  upsertQuest: authedProcedure
+    .output(rpgQuestSchema.shape.id)
+    .input(rpgUpsertQuestInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.upsertQuest({ principal: ctx.auth, ...input })),
   editQuestObjective: authedProcedure
     .input(rpgEditQuestObjectiveInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.editQuestObjective({ principal: ctx.auth, ...input })),
   deleteQuest: authedProcedure.input(rpgDeleteQuestInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.deleteQuest({ principal: ctx.auth, ...input })),
   addJournalEntry: authedProcedure
+    .output(typeIdSchema(ID_PREFIX.rpgJournal))
     .input(rpgAddJournalEntryInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.addJournalEntry({ principal: ctx.auth, ...input })),
   editJournalEntry: authedProcedure
@@ -85,12 +114,16 @@ export const rpgRouter = t.router({
     .input(rpgDeleteJournalEntryInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.deleteJournalEntry({ principal: ctx.auth, ...input })),
   createCheckpoint: authedProcedure
+    .output(typeIdSchema(ID_PREFIX.rpgCheckpoint))
     .input(rpgCreateCheckpointInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.createCheckpoint({ principal: ctx.auth, ...input })),
   restoreCheckpoint: authedProcedure
     .input(rpgRestoreCheckpointInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.restoreCheckpoint({ principal: ctx.auth, ...input })),
-  rollDice: authedProcedure.input(rpgRollDiceInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.rollDice({ principal: ctx.auth, ...input })),
+  rollDice: authedProcedure
+    .output(rollDiceResultSchema)
+    .input(rpgRollDiceInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.rollDice({ principal: ctx.auth, ...input })),
   // §3.3 dangling-pointer HEAL — HOST-gated (a stamped-id write boundary): null a `metadata.rpg` pointer at a
   // game that no longer exists (a pre-fix fork / any desync). Chat-scoped (the chatId-only read envelope); a
   // non-member collapses to leak-free NOT_FOUND, a non-host member to FORBIDDEN, a LIVE game to a refusal.
@@ -102,6 +135,7 @@ export const rpgRouter = t.router({
   // non-member stranger collapses to leak-free NOT_FOUND and a non-host member to FORBIDDEN BEFORE any model
   // call — a member can never trigger the host-principal model call. Chat-scoped (the chatId-only read envelope).
   resyncFromStory: authedProcedure
+    .output(resyncResultSchema)
     .input(rpgReadGameInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.resyncFromStory({ principal: ctx.auth, ...input })),
   // populateFromCharacter — HOST-gated (a stamped-id write + model-call boundary): read ONE character's card +
@@ -110,19 +144,39 @@ export const rpgRouter = t.router({
   // (`resolveHost`), so a non-member collapses to leak-free NOT_FOUND and a non-host member to FORBIDDEN BEFORE
   // any model call. Actor-scoped; an actor with no card is refused there too.
   populateFromCharacter: authedProcedure
+    .output(populateResultSchema)
     .input(rpgPopulateFromCharacterInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.populateFromCharacter({ principal: ctx.auth, ...input })),
 
   // ── reads (member-gated; getConfigView host-gated — the leak-free NOT_FOUND collapse INSIDE the verb) ──
-  getGame: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.getGame({ principal: ctx.auth, ...input })),
-  getTrackerView: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.getTrackerView({ principal: ctx.auth, ...input })),
-  listJournal: authedProcedure.input(rpgListJournalInputSchema).query(({ ctx, input }) => ctx.services.rpg.listJournal({ principal: ctx.auth, ...input })),
+  getGame: authedProcedure
+    .output(rpgGameViewSchema)
+    .input(rpgReadGameInputSchema)
+    .query(({ ctx, input }) => ctx.services.rpg.getGame({ principal: ctx.auth, ...input })),
+  getTrackerView: authedProcedure
+    .output(rpgTrackerViewSchema)
+    .input(rpgReadGameInputSchema)
+    .query(({ ctx, input }) => ctx.services.rpg.getTrackerView({ principal: ctx.auth, ...input })),
+  listJournal: authedProcedure
+    .output(z.array(rpgJournalEntryViewSchema).readonly())
+    .input(rpgListJournalInputSchema)
+    .query(({ ctx, input }) => ctx.services.rpg.listJournal({ principal: ctx.auth, ...input })),
   // WHAT THE MODEL DID (TOOLCALLS-INVISIBLE, arm A) — member-gated inside the verb, like every read above it.
   listTurnToolCalls: authedProcedure
+    .output(z.array(rpgTurnToolCallsViewSchema).readonly())
     .input(rpgListTurnToolCallsInputSchema)
     .query(({ ctx, input }) => ctx.services.rpg.listTurnToolCalls({ principal: ctx.auth, ...input })),
-  getConfigView: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.getConfigView({ principal: ctx.auth, ...input })),
+  getConfigView: authedProcedure
+    .output(rpgConfigViewSchema)
+    .input(rpgReadGameInputSchema)
+    .query(({ ctx, input }) => ctx.services.rpg.getConfigView({ principal: ctx.auth, ...input })),
   // §3.6 HOST-reveal read — the eye + standing-lie inventory (host-gated; leak-free NOT_FOUND for a member INSIDE the verb).
-  revealHidden: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.revealHidden({ principal: ctx.auth, ...input })),
-  listCheckpoints: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.listCheckpoints({ principal: ctx.auth, ...input })),
+  revealHidden: authedProcedure
+    .output(rpgRevealViewSchema)
+    .input(rpgReadGameInputSchema)
+    .query(({ ctx, input }) => ctx.services.rpg.revealHidden({ principal: ctx.auth, ...input })),
+  listCheckpoints: authedProcedure
+    .output(z.array(rpgCheckpointViewSchema).readonly())
+    .input(rpgReadGameInputSchema)
+    .query(({ ctx, input }) => ctx.services.rpg.listCheckpoints({ principal: ctx.auth, ...input })),
 });

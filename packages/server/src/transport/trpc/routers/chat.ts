@@ -11,23 +11,49 @@
 
 import { ASSET_LIST_LIMIT_MAX, assetIdSchema } from "@orb/contracts/assets";
 import {
+  actionTemplatesPreviewSchema,
+  assemblyPreviewSchema,
   CHAT_LIST_MAX_LIMIT,
   CHAT_MESSAGE_LIST_MAX_LIMIT,
+  chatDetailSchema,
   chatInjectionInputSchema,
+  chatInjectionViewSchema,
   chatListCursorSchema,
+  chatListPageSchema,
+  chatReactionsViewSchema,
+  chatVariablesSchema,
+  contextFitAnswerSchema,
+  effectiveRegexViewSchema,
+  forkResultSchema,
   groupConfigSchema,
   guidedSteerSchema,
+  hostTierRegexAllowSchema,
+  memberCardViewSchema,
   messageContentBlockSchema,
+  messagesPageSchema,
+  messageVariantSummarySchema,
+  messageViewSchema,
+  messageWindowSchema,
+  nextTurnConnectionViewSchema,
   openingPolicySchema,
+  participantViewSchema,
   REACTION_SPEAKER_NAME_MAX,
   reactionEmojiSchema,
+  reapResultSchema,
   reattributeScopeSchema,
   regexTierKeySchema,
   roomOverridesSchema,
   seatKnobsSchema,
+  shapeTraceSchema,
+  startChatResultSchema,
+  turnOutcomeSchema,
+  userMacroPicksViewSchema,
+  variablePicksViewSchema,
+  variantWireViewSchema,
 } from "@orb/contracts/chat";
 import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
+import { sendAvailabilitySchema } from "@orb/contracts/inference";
 import { choiceBlockValuesSchema, userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import { rpgGameTemplateSchema } from "@orb/contracts/rpg";
 import { messageWindowCursorSchema, messageWindowTargetSchema } from "@orb/contracts/search";
@@ -478,7 +504,10 @@ const forceCharacterTurnSchema = z.object({
 });
 
 export const chatRouter = t.router({
-  startChat: authedProcedure.input(startChatSchema).mutation(({ ctx, input }) => ctx.services.chat.startChat({ principal: ctx.auth, ...input })),
+  startChat: authedProcedure
+    .output(startChatResultSchema)
+    .input(startChatSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.startChat({ principal: ctx.auth, ...input })),
   // Keyset-paged (the `character.list` precedent). `cursor` rides as ONE input field because tRPC's
   // `infiniteQueryOptions` threads exactly one `cursor` through as the page param, overwriting it wholesale
   // per next-page fetch. `.nullish()` on it because `getNextPageParam` hands back the page's own
@@ -486,6 +515,7 @@ export const chatRouter = t.router({
   // `characterId` is the D18 PROJECTION filter — "her threads" resolved server-side, so a character screen
   // stops pulling the whole library to find three rows.
   listChats: authedProcedure
+    .output(chatListPageSchema)
     .input(
       z
         .object({
@@ -512,24 +542,34 @@ export const chatRouter = t.router({
       }),
     ),
   getChat: authedProcedure
+    .output(chatDetailSchema)
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.chat.getChat({ principal: ctx.auth, chatId: input.chatId })),
   // The honest-refusal pre-send gate (#54): the deterministic serveability verdict for the chat's own
   // resolved connection — the composer disables SEND + the guided fire actions when `!available`. Member-gated
   // inside the verb; fires no turn/API call (a configured hosted connection reads available, never pre-flighted).
   checkSendAvailability: authedProcedure
+    .output(sendAvailabilitySchema)
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.chat.checkSendAvailability({ principal: ctx.auth, chatId: input.chatId })),
   getNextTurnConnection: authedProcedure
+    .output(nextTurnConnectionViewSchema)
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.chat.getNextTurnConnection({ principal: ctx.auth, chatId: input.chatId })),
   // D22 member-card read — member-gated + roster-scoped INSIDE the verb (leak-free NOT_FOUND for a
   // non-participant OR a not-in-roster characterId); level-clamped fields are NULL server-side.
-  getMemberCard: authedProcedure.input(getMemberCardSchema).query(({ ctx, input }) => ctx.services.chat.getMemberCard({ principal: ctx.auth, ...input })),
+  getMemberCard: authedProcedure
+    .output(memberCardViewSchema)
+    .input(getMemberCardSchema)
+    .query(({ ctx, input }) => ctx.services.chat.getMemberCard({ principal: ctx.auth, ...input })),
   // A paged canon read (D26), member-gated (`requireParticipant` inside the verb — leak-free NOT_FOUND
   // for a non-member, the same collapse `getChat` uses). `beforeSeq`/`limit` page backwards from the tail.
-  listMessages: authedProcedure.input(listMessagesSchema).query(({ ctx, input }) => ctx.services.chat.listMessages({ principal: ctx.auth, ...input })),
+  listMessages: authedProcedure
+    .output(messagesPageSchema)
+    .input(listMessagesSchema)
+    .query(({ ctx, input }) => ctx.services.chat.listMessages({ principal: ctx.auth, ...input })),
   getMessageWindow: authedProcedure
+    .output(messageWindowSchema)
     .input(
       z.object({
         chatId: typeIdSchema(ID_PREFIX.chat),
@@ -541,17 +581,37 @@ export const chatRouter = t.router({
     .query(({ ctx, input }) => ctx.services.chat.getMessageWindow({ principal: ctx.auth, ...input })),
   // The swipe strip's step-target resolver (see the schema's header note above).
   listMessageVariants: authedProcedure
+    .output(z.array(messageVariantSummarySchema))
     .input(listMessageVariantsSchema)
     .query(({ ctx, input }) => ctx.services.chat.listMessageVariants({ principal: ctx.auth, ...input })),
-  send: authedProcedure.input(sendSchema).mutation(({ ctx, input }) => ctx.services.chat.send({ principal: ctx.auth, ...input })),
-  commitMessage: authedProcedure.input(commitMessageSchema).mutation(({ ctx, input }) => ctx.services.chat.commitMessage({ principal: ctx.auth, ...input })),
-  swipe: authedProcedure.input(swipeSchema).mutation(({ ctx, input }) => ctx.services.chat.swipe({ principal: ctx.auth, ...input })),
-  selectVariant: authedProcedure.input(selectVariantSchema).mutation(({ ctx, input }) => ctx.services.chat.selectVariant({ principal: ctx.auth, ...input })),
+  send: authedProcedure
+    .output(turnOutcomeSchema)
+    .input(sendSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.send({ principal: ctx.auth, ...input })),
+  commitMessage: authedProcedure
+    .output(turnOutcomeSchema)
+    .input(commitMessageSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.commitMessage({ principal: ctx.auth, ...input })),
+  swipe: authedProcedure
+    .output(turnOutcomeSchema)
+    .input(swipeSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.swipe({ principal: ctx.auth, ...input })),
+  selectVariant: authedProcedure
+    .output(messageViewSchema)
+    .input(selectVariantSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.selectVariant({ principal: ctx.auth, ...input })),
   // The three guided-generations verbs (see the schemas' header note above).
-  continueTurn: authedProcedure.input(continueTurnSchema).mutation(({ ctx, input }) => ctx.services.chat.continueTurn({ principal: ctx.auth, ...input })),
+  continueTurn: authedProcedure
+    .output(turnOutcomeSchema)
+    .input(continueTurnSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.continueTurn({ principal: ctx.auth, ...input })),
   // The continue undo/redo pair (Lane C — F2; see restoreContinueSchema's header note above).
-  undoContinue: authedProcedure.input(restoreContinueSchema).mutation(({ ctx, input }) => ctx.services.chat.undoContinue({ principal: ctx.auth, ...input })),
+  undoContinue: authedProcedure
+    .output(messageViewSchema)
+    .input(restoreContinueSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.undoContinue({ principal: ctx.auth, ...input })),
   revertContinue: authedProcedure
+    .output(messageViewSchema)
     .input(restoreContinueSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.revertContinue({ principal: ctx.auth, ...input })),
   // Guided impersonate is NON-PERSISTING (owner ruling) and STREAMING: a SUBSCRIPTION that yields text deltas
@@ -567,35 +627,50 @@ export const chatRouter = t.router({
         trackedImpersonationDeltas(ctx.services.chat.impersonateStream({ principal: ctx.auth, ...input, signal: signal ?? new AbortController().signal })),
       ),
     ),
-  generate: authedProcedure.input(generateSchema).mutation(({ ctx, input }) => ctx.services.chat.generate({ principal: ctx.auth, ...input })),
+  generate: authedProcedure
+    .output(turnOutcomeSchema)
+    .input(generateSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.generate({ principal: ctx.auth, ...input })),
   abort: authedProcedure.input(abortSchema).mutation(({ ctx, input }) => ctx.services.chat.abort({ principal: ctx.auth, ...input })),
   // The per-message ACTION cluster's four verbs (see the schemas' header note above).
-  editMessage: authedProcedure.input(editMessageSchema).mutation(({ ctx, input }) => ctx.services.chat.editMessage({ principal: ctx.auth, ...input })),
+  editMessage: authedProcedure
+    .output(messageViewSchema)
+    .input(editMessageSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.editMessage({ principal: ctx.auth, ...input })),
   setSeededGreeting: authedProcedure
+    .output(messageViewSchema)
     .input(setSeededGreetingSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setSeededGreeting({ principal: ctx.auth, ...input })),
   setMessageHidden: authedProcedure
+    .output(messageViewSchema)
     .input(setMessageHiddenSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setMessageHidden({ principal: ctx.auth, ...input })),
   deleteMessages: authedProcedure.input(deleteMessagesSchema).mutation(({ ctx, input }) => ctx.services.chat.deleteMessages({ principal: ctx.auth, ...input })),
   reattributePersona: authedProcedure
     .input(reattributePersonaSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.reattributePersona({ principal: ctx.auth, ...input })),
-  forkChat: authedProcedure.input(forkChatSchema).mutation(({ ctx, input }) => ctx.services.chat.forkChat({ principal: ctx.auth, ...input })),
+  forkChat: authedProcedure
+    .output(forkResultSchema)
+    .input(forkChatSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.forkChat({ principal: ctx.auth, ...input })),
   // The CONTEXT-panel cluster (task #28 — see the schemas' header note above). Thin pass-throughs.
   setRoomOverrides: authedProcedure
+    .output(roomOverridesSchema)
     .input(setRoomOverridesSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setRoomOverrides({ principal: ctx.auth, ...input })),
   setChatDocumentVisibility: authedProcedure
+    .output(chatDocumentVisibilitySchema.strict())
     .input(setChatDocumentVisibilitySchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setChatDocumentVisibility({ principal: ctx.auth, ...input })),
   // BG-C — the host's per-chat carried background (host-gated + asset-ownership-gated INSIDE the verb).
   setChatBackground: authedProcedure
+    .output(themeBackgroundSchema)
     .input(setChatBackgroundSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setChatBackground({ principal: ctx.auth, ...input })),
 
   // D121-E display-tier room OPTION — host-gated in the verb (a member's call is a refusal, not a no-op).
   setHostDisplayScripts: authedProcedure
+    .output(z.boolean())
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.chat.setHostDisplayScripts({ principal: ctx.auth, ...input })),
 
@@ -604,6 +679,7 @@ export const chatRouter = t.router({
   // (#1450). The tier key is validated by the contracts schema, so a lever naming a tier this build cannot
   // address is refused at the door rather than stored as a flag nothing draws.
   setRegexAllow: authedProcedure
+    .output(hostTierRegexAllowSchema)
     .input(
       z.object({
         chatId: typeIdSchema(ID_PREFIX.chat),
@@ -618,12 +694,14 @@ export const chatRouter = t.router({
   // #1742 — the Regex section's body: what runs in this room, in run order, by tier. HOST-only in the verb
   // (three of the four tiers are the host's own library, D19); a member's rack is `regex.listForChat`.
   listEffectiveRegex: authedProcedure
+    .output(effectiveRegexViewSchema)
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.chat.listEffectiveRegex({ principal: ctx.auth, chatId: input.chatId })),
 
   // B1 — the per-room offer-choices posture. Host-gated in the verb (a member's call is a refusal, not a
   // no-op), like every other `chatMetadata` write on this router.
   setOfferChoices: authedProcedure
+    .output(z.boolean())
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.chat.setOfferChoices({ principal: ctx.auth, ...input })),
 
@@ -631,48 +709,73 @@ export const chatRouter = t.router({
   // gates the `react` tool's attach; `reactionsEnabled` is the reaction plane's master switch, ENFORCED at
   // the reaction verbs (toggle refuses, list answers empty-with-verdict) rather than merely hidden.
   setCharactersCanReact: authedProcedure
+    .output(z.boolean())
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.chat.setCharactersCanReact({ principal: ctx.auth, ...input })),
   setReactionsEnabled: authedProcedure
+    .output(z.boolean())
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.chat.setReactionsEnabled({ principal: ctx.auth, ...input })),
   setToolRecurseLimit: authedProcedure
+    .output(toolRecurseLimitSchema)
     .input(setToolRecurseLimitSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setToolRecurseLimit({ principal: ctx.auth, ...input })),
   setUserMacroValues: authedProcedure
     .input(setUserMacroValuesSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setUserMacroValues({ principal: ctx.auth, ...input })),
   getUserMacroPicks: authedProcedure
+    .output(userMacroPicksViewSchema)
     .input(getUserMacroPicksSchema)
     .query(({ ctx, input }) => ctx.services.chat.getUserMacroPicks({ principal: ctx.auth, ...input })),
   setVariables: authedProcedure.input(setVariablesSchema).mutation(({ ctx, input }) => ctx.services.chat.setVariables({ principal: ctx.auth, ...input })),
   getVariablePicks: authedProcedure
+    .output(variablePicksViewSchema)
     .input(getVariablePicksSchema)
     .query(({ ctx, input }) => ctx.services.chat.getVariablePicks({ principal: ctx.auth, ...input })),
   // S5 §4 — the room's RUNTIME variable fold (member-gated INSIDE the verb; the vars plane is
   // member-visible by design). B9's clock widget and the needle's meter read here; invalidation rides the
   // existing turn-commit/swipe bus events.
   getRuntimeVariables: authedProcedure
+    .output(chatVariablesSchema)
     .input(getRuntimeVariablesSchema)
     .query(({ ctx, input }) => ctx.services.chat.getRuntimeVariables({ principal: ctx.auth, ...input })),
   // B6/MR0 — the reaction toggle + the room's bounded grouped window (member-gated INSIDE the verb).
-  toggleReaction: authedProcedure.input(toggleReactionSchema).mutation(({ ctx, input }) => ctx.services.chat.toggleReaction({ principal: ctx.auth, ...input })),
-  listReactions: authedProcedure.input(listReactionsSchema).query(({ ctx, input }) => ctx.services.chat.listReactions({ principal: ctx.auth, ...input })),
-  previewAssembly: authedProcedure.input(previewAssemblySchema).query(({ ctx, input }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input })),
+  toggleReaction: authedProcedure
+    .output(z.boolean())
+    .input(toggleReactionSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.toggleReaction({ principal: ctx.auth, ...input })),
+  listReactions: authedProcedure
+    .output(chatReactionsViewSchema)
+    .input(listReactionsSchema)
+    .query(({ ctx, input }) => ctx.services.chat.listReactions({ principal: ctx.auth, ...input })),
+  previewAssembly: authedProcedure
+    .output(assemblyPreviewSchema)
+    .input(previewAssemblySchema)
+    .query(({ ctx, input }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input })),
   previewActionTemplates: authedProcedure
+    .output(actionTemplatesPreviewSchema)
     .input(previewActionTemplatesSchema)
     .query(({ ctx, input }) => ctx.services.chat.previewActionTemplates({ principal: ctx.auth, ...input })),
   // The content-free SHAPE trace — a host/admin inspector read (`requireHost` INSIDE the verb).
-  getShapeTrace: authedProcedure.input(getShapeTraceSchema).query(({ ctx, input }) => ctx.services.chat.getShapeTrace({ principal: ctx.auth, ...input })),
+  getShapeTrace: authedProcedure
+    .output(shapeTraceSchema)
+    .input(getShapeTraceSchema)
+    .query(({ ctx, input }) => ctx.services.chat.getShapeTrace({ principal: ctx.auth, ...input })),
   // The per-variant WIRE RECORD — a host/admin inspector read (`requireHost` INSIDE the verb).
-  getVariantWire: authedProcedure.input(getVariantWireSchema).query(({ ctx, input }) => ctx.services.chat.getVariantWire({ principal: ctx.auth, ...input })),
+  getVariantWire: authedProcedure
+    .output(variantWireViewSchema)
+    .input(getVariantWireSchema)
+    .query(({ ctx, input }) => ctx.services.chat.getVariantWire({ principal: ctx.auth, ...input })),
   previewContextFit: authedProcedure
+    .output(contextFitAnswerSchema)
     .input(previewContextFitSchema)
     .query(({ ctx, input }) => ctx.services.chat.previewContextFit({ principal: ctx.auth, ...input })),
   setChatInjection: authedProcedure
+    .output(chatInjectionViewSchema)
     .input(setChatInjectionSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setChatInjection({ principal: ctx.auth, ...input })),
   listChatInjections: authedProcedure
+    .output(z.array(chatInjectionViewSchema))
     .input(listChatInjectionsSchema)
     .query(({ ctx, input }) => ctx.services.chat.listChatInjections({ principal: ctx.auth, ...input })),
   deleteChatInjection: authedProcedure
@@ -680,20 +783,29 @@ export const chatRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.chat.deleteChatInjection({ principal: ctx.auth, ...input })),
   // The group-roster-controls cluster (task #29 — see the schemas' header note above). Thin pass-throughs.
   addCharacterToChat: authedProcedure
+    .output(participantViewSchema)
     .input(addCharacterToChatSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.addCharacterToChat({ principal: ctx.auth, ...input })),
   removeCharacterFromChat: authedProcedure
     .input(removeCharacterFromChatSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.removeCharacterFromChat({ principal: ctx.auth, ...input })),
   // The ONE AI-seat knob write (D80 — replaces the retired per-kind forking). Host-gated INSIDE the verb.
-  setSeatKnobs: authedProcedure.input(setSeatKnobsSchema).mutation(({ ctx, input }) => ctx.services.chat.setSeatKnobs({ principal: ctx.auth, ...input })),
+  setSeatKnobs: authedProcedure
+    .output(participantViewSchema)
+    .input(setSeatKnobsSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.setSeatKnobs({ principal: ctx.auth, ...input })),
   forceCharacterTurn: authedProcedure
+    .output(turnOutcomeSchema)
     .input(forceCharacterTurnSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.forceCharacterTurn({ principal: ctx.auth, ...input })),
   getGroupConfig: authedProcedure
+    .output(groupConfigSchema)
     .input(getGroupConfigSchema)
     .query(({ ctx, input }) => ctx.services.chat.getGroupConfigForChat({ principal: ctx.auth, ...input })),
-  setGroupConfig: authedProcedure.input(setGroupConfigSchema).mutation(({ ctx, input }) => ctx.services.chat.setGroupConfig({ principal: ctx.auth, ...input })),
+  setGroupConfig: authedProcedure
+    .output(groupConfigSchema)
+    .input(setGroupConfigSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.setGroupConfig({ principal: ctx.auth, ...input })),
   // The chat-ROW lifecycle cluster (J5 — the LIST-panel row kebab). Thin pass-throughs; host-only INSIDE.
   updateTitle: authedProcedure.input(updateTitleSchema).mutation(({ ctx, input }) => ctx.services.chat.updateTitle({ principal: ctx.auth, ...input })),
   star: authedProcedure.input(starChatSchema).mutation(({ ctx, input }) => ctx.services.chat.star({ principal: ctx.auth, ...input })),
@@ -707,7 +819,7 @@ export const chatRouter = t.router({
   // caller presently HOSTS), so there is no id to leak and nothing to cross-tenant probe — the client
   // fires it fire-and-forget on home mount (owner decision H5; a workloads runner would add scheduling
   // for one indexed delete).
-  reapTemporaryChats: authedProcedure.mutation(({ ctx }) => ctx.services.chat.reapTemporaryChats({ principal: ctx.auth })),
+  reapTemporaryChats: authedProcedure.output(reapResultSchema).mutation(({ ctx }) => ctx.services.chat.reapTemporaryChats({ principal: ctx.auth })),
   // R0 §4.6 — the nav-away husk drop. Fired when the client deliberately leaves a room it believes nobody
   // started; the VERB re-checks `started_at IS NULL` under the host gate, so this input is a request, never a
   // verdict, and a chatId the caller does not host is the usual leak-free refusal. Host-only + id-scoped, so
@@ -717,17 +829,20 @@ export const chatRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.chat.reapHusk({ principal: ctx.auth, chatId: input.chatId })),
   // Generate image(s) in a chat (the I5 mode picker + /imagine surface). mode/prompt/n/size map onto
   // `chat.generateImage` → `imagery.generatePicture` (an absent `size` falls to the leaf's `defaultSizeFor`).
-  generateImage: authedProcedure.input(generatePictureRequestSchema.extend({ chatId: typeIdSchema(ID_PREFIX.chat) })).mutation(({ ctx, input }) =>
-    ctx.services.chat.generateImage({
-      principal: ctx.auth,
-      chatId: input.chatId,
-      mode: input.mode,
-      prompt: input.prompt,
-      n: input.n,
-      size: input.size,
-      gallery: input.gallery,
-    }),
-  ),
+  generateImage: authedProcedure
+    .output(messageViewSchema)
+    .input(generatePictureRequestSchema.extend({ chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.generateImage({
+        principal: ctx.auth,
+        chatId: input.chatId,
+        mode: input.mode,
+        prompt: input.prompt,
+        n: input.n,
+        size: input.size,
+        gallery: input.gallery,
+      }),
+    ),
 });
 
 // Wrap the domain's bare impersonation `{ delta }` yields in `tracked()` envelopes (the shape

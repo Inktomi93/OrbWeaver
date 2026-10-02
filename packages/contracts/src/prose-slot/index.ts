@@ -319,6 +319,9 @@ export const proseOverridesSchema = z
   .prefault({});
 export type ProseOverrides = z.infer<typeof proseOverridesSchema>;
 
+// Stored parsing heals individual overrides; transport validates the typed values already produced.
+export const proseOverridesViewSchema = z.partialRecord(proseSlotIdSchema, proseOverrideSchema.strict().optional()) satisfies z.ZodType<ProseOverrides>;
+
 export interface ProseResolution {
   readonly text: string;
   readonly source: "default" | "override";

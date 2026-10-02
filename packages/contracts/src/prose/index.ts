@@ -48,6 +48,7 @@ export {
   proseOverrideFromLegacy,
   proseOverrideSchema,
   proseOverridesSchema,
+  proseOverridesViewSchema,
   proseSlotIdSchema,
   resolveProseFrom,
   spliceProseTokens,

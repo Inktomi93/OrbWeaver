@@ -12,7 +12,18 @@ import type {
   RulePresetId,
   RulePresetKnobValues,
 } from "@orb/contracts/automation";
+import {
+  AUTOMATION_ACTION_TYPES,
+  automationActionViewSchema,
+  automationFireOutcomeSchema,
+  automationRunOutcomeSchema,
+  automationTriggerViewSchema,
+  rulePresetIdSchema,
+  rulePresetKnobOutputValuesSchema,
+} from "@orb/contracts/automation";
 import type { AutomationFireId, AutomationRuleId, ChatId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
 
 /** One host-authored automation rule, projected for the editor + list surfaces. `actions` is the
  *  lazy-parsed arm list; `trigger` recomposes the stored `{bus, type}` pair. */
@@ -94,6 +105,64 @@ export interface ConfirmSuggestionResult {
   readonly ran: "stashed-arm" | "fresh-run";
   readonly outcome: AutomationRunOutcome;
 }
+
+export const ruleViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.automationRule),
+  chatId: typeIdSchema(ID_PREFIX.chat).nullable(),
+  name: z.string(),
+  description: z.string().nullable(),
+  enabled: z.boolean(),
+  position: z.number(),
+  trigger: automationTriggerViewSchema,
+  predicateCel: z.string().nullable(),
+  actions: z.array(automationActionViewSchema).readonly(),
+  actionsCorrupt: z.boolean(),
+  rulePresetId: rulePresetIdSchema.nullable(),
+  rulePresetKnobs: rulePresetKnobOutputValuesSchema.nullable(),
+  matchAutomationEvents: z.boolean(),
+  suggestOnRefusal: z.boolean(),
+  cooldownSeconds: z.number(),
+  maxFiresPerHour: z.number(),
+  lastError: z.string().nullable(),
+  lastFiredAt: z.number().nullable(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+}) satisfies z.ZodType<RuleView>;
+
+export const fireViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.automationFire),
+  ruleId: typeIdSchema(ID_PREFIX.automationRule),
+  chatId: typeIdSchema(ID_PREFIX.chat).nullable(),
+  triggerType: z.string(),
+  outcome: automationFireOutcomeSchema,
+  detail: z.record(z.string(), z.unknown()).nullable(),
+  firedAt: z.number(),
+}) satisfies z.ZodType<FireView>;
+
+export const armPreviewSchema = z
+  .strictObject({
+    type: z.enum(AUTOMATION_ACTION_TYPES),
+    renderedPreview: z.string().optional(),
+    error: z.string().optional(),
+  })
+  .transform(
+    ({ renderedPreview, error, type }): ArmPreview => ({
+      type,
+      ...(renderedPreview === undefined ? {} : { renderedPreview }),
+      ...(error === undefined ? {} : { error }),
+    }),
+  ) satisfies z.ZodType<ArmPreview>;
+
+export const testRunResultSchema = z.strictObject({
+  predicate: z.union([z.boolean(), z.strictObject({ error: z.string() })]),
+  arms: z.array(armPreviewSchema).readonly(),
+}) satisfies z.ZodType<TestRunResult>;
+
+export const runRuleNowResultSchema = z.strictObject({ outcome: automationRunOutcomeSchema }) satisfies z.ZodType<RunRuleNowResult>;
+export const confirmSuggestionResultSchema = z.strictObject({
+  ran: z.literal(["stashed-arm", "fresh-run"]),
+  outcome: automationRunOutcomeSchema,
+}) satisfies z.ZodType<ConfirmSuggestionResult>;
 
 /** The `automation.stream` subscriber's authority tier over a chat. The stream is the ONE procedure
  *  projecting by caller authority (the agents host/member filter): a `host` subscriber receives every bus event;

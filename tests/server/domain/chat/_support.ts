@@ -207,6 +207,8 @@ export async function seedParticipant(
   opts: {
     readonly chatId: ChatId;
     readonly key: string;
+    /** A native TypeID for a seeded seat that a transport output parser reads. */
+    readonly id?: ChatParticipantId;
     readonly userId?: UserId;
     readonly characterId?: CharacterId;
     readonly role?: ParticipantRole;
@@ -221,7 +223,7 @@ export async function seedParticipant(
     readonly joinHistoryVisibility?: JoinHistoryVisibility;
   },
 ): Promise<ChatParticipantId> {
-  const id = castId<ChatParticipantId>(`chat_participant_${opts.key}`);
+  const id = opts.id ?? castId<ChatParticipantId>(`chat_participant_${opts.key}`);
   await db.insert(chatParticipants).values({
     id,
     chatId: opts.chatId,

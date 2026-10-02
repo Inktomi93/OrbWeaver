@@ -253,6 +253,39 @@ export interface InboxView {
   readonly createdAt: number;
 }
 
+const [
+  inviteEvent,
+  kickedEvent,
+  handoffNominatedEvent,
+  handoffAcceptedEvent,
+  deferredTurnDroppedEvent,
+  automationNoticeEvent,
+  pluginDisabledEvent,
+  pluginsAwaitingConsentEvent,
+] = notificationEventSchema.options;
+const [ruleNoticeSource, pluginNoticeSource] = automationNoticeEvent.shape.source.options;
+const notificationOutputSchema = z.discriminatedUnion("type", [
+  inviteEvent.strict(),
+  kickedEvent.strict(),
+  handoffNominatedEvent.extend({ offer: handoffOfferContentsSchema.strict() }).strict(),
+  handoffAcceptedEvent.strict(),
+  deferredTurnDroppedEvent.strict(),
+  automationNoticeEvent.extend({ source: z.discriminatedUnion("kind", [ruleNoticeSource.strict(), pluginNoticeSource.strict()]) }).strict(),
+  pluginDisabledEvent.strict(),
+  pluginsAwaitingConsentEvent.strict(),
+]) satisfies z.ZodType<NotificationEvent>;
+
+export const inboxViewSchema: z.ZodType<InboxView> = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.notification),
+  type: z.enum(NOTIFICATION_TYPES),
+  payload: notificationOutputSchema,
+  actionable: z.boolean(),
+  seq: z.number(),
+  readAt: z.number().nullable(),
+  dismissedAt: z.number().nullable(),
+  createdAt: z.number(),
+}) satisfies z.ZodType<InboxView>;
+
 /** The `notifications.presence` ask CEILING, enforced at the transport trust boundary (the
  *  {@link NOTIFICATIONS_LIST_MAX_LIMIT} precedent) — an over-bound ask is a BAD_REQUEST, never an unbounded
  *  registry sweep. Sized well past the biggest plausible human roster: the read is a per-id question, so the
@@ -275,6 +308,10 @@ export interface PresenceSnapshot {
   readonly onlineUserIds: readonly UserId[];
 }
 
+export const presenceSnapshotSchema = z.strictObject({
+  onlineUserIds: z.array(brandedId<UserId>()).readonly(),
+}) satisfies z.ZodType<PresenceSnapshot>;
+
 /** The per-user presence shape transport derives from the live SSE connection ref-count. A read-model
  *  view, not an inbound wire schema — presence is never client-asserted (a spoofable heartbeat would be
  *  a prompt-composition attack), so there is deliberately no `presenceSchema` to parse a client claim into. */
@@ -283,3 +320,19 @@ export interface PresenceView {
   online: boolean;
   lastSeenAt: number | null;
 }
+
+/** Newest-first, dismissedAt-excluded (active inbox only). */
+export interface ListInboxResult {
+  readonly items: readonly InboxView[];
+  readonly nextCursor: number | null;
+}
+
+export interface MarkAllReadResult {
+  readonly markedCount: number;
+}
+
+export const listInboxResultSchema = z.strictObject({
+  items: z.array(inboxViewSchema).readonly(),
+  nextCursor: z.number().nullable(),
+}) satisfies z.ZodType<ListInboxResult>;
+export const markAllReadResultSchema = z.strictObject({ markedCount: z.number() }) satisfies z.ZodType<MarkAllReadResult>;

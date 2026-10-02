@@ -5,9 +5,14 @@
 // domain-internal `SYSTEM_DEFAULT_PRESET_ID` sentinel.
 
 import type { VisibleRoomRef } from "@orb/contracts/chat";
+import { visibleRoomRefSchema } from "@orb/contracts/chat";
 import type { PromptConfig } from "@orb/contracts/preset";
+import { promptConfigViewSchema } from "@orb/contracts/preset";
 import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
+import { versionedParseFailureSchema } from "@orb/contracts/versioned-config";
 import type { ModelId, PresetId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
 
 export interface PresetSummary {
   readonly id: PresetId;
@@ -150,3 +155,36 @@ export interface EffectivePreset {
   /** What the QUALITY dial feeds, per the dial's own table — `null` with no dial set. */
   readonly qualityMapping: QualityMapping | null;
 }
+
+export const presetSummarySchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.preset),
+  name: z.string(),
+  kind: z.string(),
+  isSystemDefault: z.boolean(),
+  forkedFrom: typeIdSchema(ID_PREFIX.preset).nullable(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+}) satisfies z.ZodType<PresetSummary>;
+export const presetDetailSchema = presetSummarySchema.extend({
+  config: promptConfigViewSchema,
+  schemaVersion: z.number(),
+  configUnreadable: versionedParseFailureSchema.nullable(),
+}) satisfies z.ZodType<PresetDetail>;
+export const presetUsageViewSchema = z.strictObject({
+  isUserDefault: z.boolean(),
+  gmRooms: z.array(visibleRoomRefSchema).readonly(),
+}) satisfies z.ZodType<PresetUsageView>;
+const effectiveKnobValueSchema = z.union([z.number(), z.string()]);
+export const effectiveKnobReadingSchema = z.strictObject({
+  value: effectiveKnobValueSchema,
+  provenance: z.enum(EFFECTIVE_PROVENANCES),
+}) satisfies z.ZodType<EffectiveKnobReading>;
+export const staleKnobSchema = z.strictObject({ knob: z.enum(EFFECTIVE_KNOBS), value: effectiveKnobValueSchema }) satisfies z.ZodType<StaleKnob>;
+export const qualityMappingSchema = z.strictObject({ quality: z.string(), entries: z.array(staleKnobSchema).readonly() }) satisfies z.ZodType<QualityMapping>;
+export const effectivePresetSchema = z.strictObject({
+  presetId: typeIdSchema(ID_PREFIX.preset),
+  model: brandedId<ModelId>(),
+  knobs: z.partialRecord(z.enum(EFFECTIVE_KNOBS), effectiveKnobReadingSchema),
+  stale: z.array(staleKnobSchema).readonly(),
+  qualityMapping: qualityMappingSchema.nullable(),
+}) satisfies z.ZodType<EffectivePreset>;

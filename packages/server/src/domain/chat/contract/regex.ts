@@ -10,7 +10,7 @@
 // model is untouched: every slice is pre-resolved under the host, and a non-host member has no parameter on
 // this surface, so the member-exclusion stays STRUCTURAL rather than a runtime check.
 
-import type { CharacterRegexSlice, RegexTierAllow } from "@orb/contracts/chat";
+import type { CharacterRegexSlice, HostTierRegexAllow } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
@@ -61,15 +61,6 @@ export interface RegexTierLabels {
   readonly preset: string | null;
 }
 
-/** The room's regex levers as the resolver consumes them — the two `ChatMetadata` keys, lifted out of the
- *  blob so the pure resolver never has to know what a chat row looks like. */
-export interface HostTierRegexAllow {
-  /** `ChatMetadata.regexEnabled` verbatim. Absent ⇒ the master is ON. */
-  readonly enabled: boolean | undefined;
-  /** `ChatMetadata.regexTiers` verbatim. Absent, or a key absent, ⇒ that tier runs. */
-  readonly tiers: RegexTierAllow | undefined;
-}
-
 /**
  * The per-turn execution seams the EPHEMERAL `PROMPT_HISTORY` leg runs under (`assembly/history-regex`).
  * Homed here, beside the sources it consumes, for the same reason `HostTierRegexSources` is: the leg is
@@ -89,3 +80,5 @@ export interface PromptHistoryRegexEnv {
    *  pass (its header states why history length must never multiply a watchdog trip). */
   readonly onScriptFailure: (err: unknown, script: RegexScriptInput) => void;
 }
+
+export type { HostTierRegexAllow } from "@orb/contracts/chat";

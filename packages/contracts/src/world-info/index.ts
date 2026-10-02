@@ -5,6 +5,7 @@
 // world-info-local re-spell.
 
 import type { CharacterId, ChatId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { ENTRY_KEY_MODES, ENTRY_POSITIONS, ENTRY_SCOPE_MODES } from "@orb/kit/world-info";
 import { z } from "zod";
@@ -177,6 +178,54 @@ export interface BookAttachmentTargets {
   readonly characters: readonly { readonly characterId: CharacterId; readonly role: WorldBookRole }[];
   readonly personaIds: readonly PersonaId[];
 }
+
+export const bookViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.worldBook),
+  name: z.string(),
+  description: z.string().nullable(),
+  createdAt: z.number(),
+}) satisfies z.ZodType<BookView>;
+export const bookUsageSchema = z.strictObject({
+  characters: z.number(),
+  personas: z.number(),
+  chats: z.number(),
+  global: z.boolean(),
+  total: z.number(),
+}) satisfies z.ZodType<BookUsage>;
+export const bookWithUsageSchema = bookViewSchema.extend({ entryCount: z.number(), usage: bookUsageSchema }) satisfies z.ZodType<BookWithUsage>;
+export const entryViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.worldEntry),
+  worldBookId: typeIdSchema(ID_PREFIX.worldBook),
+  title: z.string(),
+  description: z.string().nullable(),
+  content: z.string(),
+  keys: z.array(z.string()).nullable(),
+  enabled: z.boolean(),
+  priority: z.number(),
+  ignoreBudget: z.boolean(),
+  metadata: entryMetadataSchema.nullable(),
+}) satisfies z.ZodType<EntryView>;
+export const bookAttachmentViewSchema = bookViewSchema.extend({ role: worldBookRoleSchema.nullable() }) satisfies z.ZodType<BookAttachmentView>;
+export const bookAttachmentTargetsSchema = z.strictObject({
+  characters: z.array(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), role: worldBookRoleSchema })).readonly(),
+  personaIds: z.array(typeIdSchema(ID_PREFIX.persona)).readonly(),
+}) satisfies z.ZodType<BookAttachmentTargets>;
+export interface RemoveResult {
+  readonly deleted: boolean;
+}
+export interface DetachResult {
+  readonly detached: boolean;
+}
+export interface BackfillResult {
+  readonly filled: number;
+}
+export interface ReorderResult {
+  readonly reordered: number;
+}
+export const removeResultSchema = z.strictObject({ deleted: z.boolean() }) satisfies z.ZodType<RemoveResult>;
+export const detachResultSchema = z.strictObject({ detached: z.boolean() }) satisfies z.ZodType<DetachResult>;
+export const backfillResultSchema = z.strictObject({ filled: z.number() }) satisfies z.ZodType<BackfillResult>;
+export const reorderResultSchema = z.strictObject({ reordered: z.number() }) satisfies z.ZodType<ReorderResult>;
 
 // Entry-level variants are emitted by domain/world-info/verbs/entries/{create,update,remove}.
 

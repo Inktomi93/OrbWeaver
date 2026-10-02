@@ -60,3 +60,10 @@ export interface CorpusSourceState {
 
 /** Canon readers authorize membership before requesting vector-row identity metadata. */
 export type ResolveCorpusSourceState = (source: CorpusSource) => Promise<CorpusSourceState>;
+
+export const corpusDigestSourceSchema = z.strictObject({
+  source: corpusSourceSchema.options[1].strict(),
+  text: z.string(),
+  chatTitle: z.string().nullable(),
+  scopedCharacterName: z.string().nullable(),
+}) satisfies z.ZodType<CorpusDigestSource>;

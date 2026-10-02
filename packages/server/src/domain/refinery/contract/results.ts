@@ -4,18 +4,15 @@
 // import-direction law), while this domain-tier contract may (type-only, downward). The tRPC client types
 // flow from the router either way.
 
-import type { CharacterCard } from "@orb/contracts/character";
-import type {
-  RefinableField,
-  RefineryRewriteField,
-  RefineryRun,
-  RefinerySelection,
-  RefinerySessionStatus,
-  RefineryStage,
-  RefineryStageConfig,
-} from "@orb/contracts/refinery";
+import type { CharacterCard, CharacterDetail } from "@orb/contracts/character";
+import { characterCardViewSchema, characterDetailSchema } from "@orb/contracts/character";
+import type { RefinableField, RefineryRewriteField, RefinerySelection, RefinerySessionStatus, RefineryStageConfig } from "@orb/contracts/refinery";
+import { refinableFieldSchema, refinerySelectionSchema, refinerySessionStatusSchema, refineryStageConfigViewSchema } from "@orb/contracts/refinery";
 import type { CharacterId, CharacterSnapshotId, ModelId, RefinerySessionId } from "@orb/kit/ids";
-import type { CharacterDetail } from "#domain/character";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
+
+export type { IterateResult, PreflightResult, SchemaForgeResult, StagePreflight } from "@orb/contracts/refinery";
 
 /** A held ROUND CLAIM (#1568) — what `substrate/round-claim.ts::takeRoundClaim` hands back and what
  *  `releaseRoundClaim` requires. The deadline is the claim's IDENTITY, not merely its expiry: the release is
@@ -153,45 +150,33 @@ export interface ApplyAsCopyResult {
   readonly character: CharacterDetail | null;
 }
 
-/** One `iterate` round: the refinement rewrite + the analyze that judged it, plus the bumped counter. */
-export interface IterateResult {
-  readonly rewrite: RefineryRun;
-  readonly analyze: RefineryRun;
-  readonly iterationCount: number;
-}
+export const refinerySessionViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.refinerySession),
+  characterId: typeIdSchema(ID_PREFIX.character),
+  name: z.string().nullable(),
+  status: refinerySessionStatusSchema,
+  originalCard: characterCardViewSchema,
+  selection: refinerySelectionSchema.strict(),
+  stageConfig: refineryStageConfigViewSchema,
+  guidance: z.string().nullable(),
+  iterationCount: z.number(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+}) satisfies z.ZodType<RefinerySessionView>;
 
-/** One stage's preflight readout (schema-renderer §8) — the RESOLVED posture (floor + the owner's preset
- *  params, re-run per call) plus both fit estimates. Estimates are QuadChars-honest ADVISORIES: the copy
- *  says "likely", never a hard number (`@orb/kit/tokens`' own doctrine). */
-export interface StagePreflight {
-  readonly stage: RefineryStage;
-  readonly model: ModelId;
-  readonly temperature: number | null;
-  readonly maxOutputTokens: number | null;
-  /** Estimated PROMPT tokens for this stage as currently configured (the real assembled prompt, measured). */
-  readonly inputEstimate: number;
-  /** Estimated OUTPUT tokens this stage's reply wants (§8's per-stage arithmetic). */
-  readonly outputEstimate: number;
-}
-
-export interface PreflightResult {
-  /** The summarize role's context window, when the backend declares one. */
-  readonly contextTokens: number | null;
-  readonly stages: readonly StagePreflight[];
-}
-
-/** `generateSchema`/`refineSchema` — ERRORS-AS-DATA (the applyRefusal precedent): a draft that failed the
- *  belt on BOTH turns still RESOLVES, carrying the refusal + the model's raw last reply so the editor can
- *  offer it for hand-fixing (the extension's own show-the-partial policy, NL design §1.1.5/§2.1 — the raw
- *  never rides an error message). Provider faults still throw. */
-export type SchemaForgeResult =
-  /** `dropped` itemizes design rows the transpiler could not place (a duplicate path, a path that collides
-   *  with a value). Never silence — a dropped row is data the editor shows (D112 (3)). */
-  | { readonly kind: "draft"; readonly name: string; readonly schema: Record<string, unknown>; readonly dropped: readonly string[] }
-  /** The HONEST-REFUSAL arm (task #36, owner: "think about the people who want to do weird scorings"): the
-   *  ask needs a construct the generator's guaranteed-servable leaf language cannot express (a union, a
-   *  heterogeneous array, deeper nesting). The RAW JSON-Schema door takes the full liftable vocabulary, so
-   *  the editor routes there with `skeleton` — whatever the design DID reach — as the starting point. A
-   *  lossy flat approximation of the author's idea would be the wrong answer. */
-  | { readonly kind: "needs-raw"; readonly message: string; readonly skeleton: Record<string, unknown> }
-  | { readonly kind: "failed"; readonly message: string; readonly raw: string | null };
+const refineryFieldRefShape = {
+  field: refinableFieldSchema,
+  greetingIndex: z.number().optional(),
+  appendIndex: z.number().optional(),
+};
+export const appliedFieldRefSchema = z.strictObject({ ...refineryFieldRefShape, kind: z.enum(APPLIED_FIELD_KINDS) }) satisfies z.ZodType<AppliedFieldRef>;
+export const droppedFieldSchema = z.strictObject({ ...refineryFieldRefShape, reason: z.enum(APPLY_DROP_REASONS) }) satisfies z.ZodType<DroppedField>;
+export const applyFieldsResultSchema = z.strictObject({
+  applied: z.array(appliedFieldRefSchema).readonly(),
+  dropped: z.array(droppedFieldSchema).readonly(),
+  character: characterDetailSchema,
+  snapshotId: typeIdSchema(ID_PREFIX.characterSnapshot).nullable(),
+}) satisfies z.ZodType<ApplyFieldsResult>;
+export const applyAsCopyResultSchema = applyFieldsResultSchema
+  .omit({ snapshotId: true })
+  .extend({ character: characterDetailSchema.nullable() }) satisfies z.ZodType<ApplyAsCopyResult>;

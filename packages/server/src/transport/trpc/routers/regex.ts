@@ -25,7 +25,19 @@
 //     scripts to a non-host member — that is the feature, and the room's opt-in flag is the gate. Off ⇒ [].
 //   • EXEMPT: none.
 
-import { createRegexScriptSchema, regexAttachScopeSchema, regexPlacementListSchema, updateRegexScriptSchema } from "@orb/contracts/regex";
+import {
+  bulkResultSchema,
+  createRegexScriptSchema,
+  detachResultSchema,
+  importScriptFileResultSchema,
+  regexAttachScopeSchema,
+  regexPlacementListSchema,
+  regexScriptUsageSchema,
+  regexScriptViewSchema,
+  removeResultSchema,
+  reorderResultSchema,
+  updateRegexScriptSchema,
+} from "@orb/contracts/regex";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -42,21 +54,25 @@ const scriptIdInput = z.object({ scriptId: typeIdSchema(ID_PREFIX.regexScript) }
 const scriptIdsInput = z.array(typeIdSchema(ID_PREFIX.regexScript)).max(MAX_BULK_SCRIPTS);
 
 export const regexRouter = t.router({
-  listScripts: authedProcedure.query(({ ctx }) => ctx.services.regex.listScripts({ principal: ctx.auth })),
+  listScripts: authedProcedure.output(z.array(regexScriptViewSchema)).query(({ ctx }) => ctx.services.regex.listScripts({ principal: ctx.auth })),
 
   createScript: authedProcedure
+    .output(regexScriptViewSchema)
     .input(z.object({ input: createRegexScriptSchema }))
     .mutation(({ ctx, input }) => ctx.services.regex.createScript({ principal: ctx.auth, input: input.input })),
 
   updateScript: authedProcedure
+    .output(regexScriptViewSchema)
     .input(z.object({ scriptId: typeIdSchema(ID_PREFIX.regexScript), input: updateRegexScriptSchema }))
     .mutation(({ ctx, input }) => ctx.services.regex.updateScript({ principal: ctx.auth, scriptId: input.scriptId, input: input.input })),
 
   removeScript: authedProcedure
+    .output(removeResultSchema)
     .input(scriptIdInput)
     .mutation(({ ctx, input }) => ctx.services.regex.removeScript({ principal: ctx.auth, scriptId: input.scriptId })),
 
   duplicateScript: authedProcedure
+    .output(regexScriptViewSchema)
     .input(scriptIdInput)
     .mutation(({ ctx, input }) => ctx.services.regex.duplicateScript({ principal: ctx.auth, scriptId: input.scriptId })),
 
@@ -64,10 +80,12 @@ export const regexRouter = t.router({
   // Three verbs, one id-list shape. `scriptIds` is capped so a hostile caller cannot turn one request into
   // an unbounded statement; the cap is far above any real selection (the owner's library is ~34 globals).
   bulkSetEnabled: authedProcedure
+    .output(bulkResultSchema)
     .input(z.object({ scriptIds: scriptIdsInput, enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.regex.bulkSetScriptsEnabled({ principal: ctx.auth, scriptIds: input.scriptIds, enabled: input.enabled })),
 
   bulkSetGlobal: authedProcedure
+    .output(bulkResultSchema)
     .input(z.object({ scriptIds: scriptIdsInput, global: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.regex.bulkSetScriptsGlobal({ principal: ctx.auth, scriptIds: input.scriptIds, global: input.global })),
 
@@ -75,10 +93,12 @@ export const regexRouter = t.router({
   // `placement` (`@orb/kit/regex`), so the wire carries no flags. `regexPlacementListSchema` is the STRICT
   // enum-array (a garbage member is rejected, not salvaged — the card-boundary heal is the import lift's).
   bulkSetPlacement: authedProcedure
+    .output(bulkResultSchema)
     .input(z.object({ scriptIds: scriptIdsInput, placement: regexPlacementListSchema }))
     .mutation(({ ctx, input }) => ctx.services.regex.bulkSetScriptsPlacement({ principal: ctx.auth, scriptIds: input.scriptIds, placement: input.placement })),
 
   bulkRemove: authedProcedure
+    .output(bulkResultSchema)
     .input(z.object({ scriptIds: scriptIdsInput }))
     .mutation(({ ctx, input }) => ctx.services.regex.bulkRemoveScripts({ principal: ctx.auth, scriptIds: input.scriptIds })),
 
@@ -97,6 +117,7 @@ export const regexRouter = t.router({
   // The refusal REASON is the serde's own (`DomainOperationError` → BAD_REQUEST with its message), so a file
   // written by a newer orbweaver no longer reads as "not a valid file". The import dialog renders it.
   importScriptFile: authedProcedure
+    .output(importScriptFileResultSchema)
     .input(z.object({ fileText: z.string().max(MAX_SCRIPT_FILE_CHARS) }))
     .mutation(({ ctx, input }) => ctx.services.regex.importScriptFile({ principal: ctx.auth, fileText: input.fileText })),
 
@@ -104,6 +125,7 @@ export const regexRouter = t.router({
   // the script (`getScript`'s gate verbatim) AND filtered again per roster — the preset/character joins
   // carry `ownerId`, the rooms go through chat's injected membership filter.
   listScriptUsage: authedProcedure
+    .output(regexScriptUsageSchema)
     .input(scriptIdInput)
     .query(({ ctx, input }) => ctx.services.regex.listScriptUsage({ principal: ctx.auth, scriptId: input.scriptId })),
 
@@ -112,20 +134,23 @@ export const regexRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.regex.attachGlobal({ principal: ctx.auth, scriptId: input.scriptId })),
 
   detachGlobal: authedProcedure
+    .output(detachResultSchema)
     .input(scriptIdInput)
     .mutation(({ ctx, input }) => ctx.services.regex.detachGlobal({ principal: ctx.auth, scriptId: input.scriptId })),
 
-  listGlobal: authedProcedure.query(({ ctx }) => ctx.services.regex.listGlobal({ principal: ctx.auth })),
+  listGlobal: authedProcedure.output(z.array(regexScriptViewSchema)).query(({ ctx }) => ctx.services.regex.listGlobal({ principal: ctx.auth })),
 
   attachToCharacter: authedProcedure
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.attachToCharacter({ principal: ctx.auth, characterId: input.characterId, scriptId: input.scriptId })),
 
   detachFromCharacter: authedProcedure
+    .output(detachResultSchema)
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.detachFromCharacter({ principal: ctx.auth, characterId: input.characterId, scriptId: input.scriptId })),
 
   listForCharacter: authedProcedure
+    .output(z.array(regexScriptViewSchema))
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .query(({ ctx, input }) => ctx.services.regex.listForCharacter({ principal: ctx.auth, characterId: input.characterId })),
 
@@ -134,10 +159,12 @@ export const regexRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.regex.attachToPreset({ principal: ctx.auth, presetId: input.presetId, scriptId: input.scriptId })),
 
   detachFromPreset: authedProcedure
+    .output(detachResultSchema)
     .input(z.object({ presetId: typeIdSchema(ID_PREFIX.preset), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.detachFromPreset({ principal: ctx.auth, presetId: input.presetId, scriptId: input.scriptId })),
 
   listForPreset: authedProcedure
+    .output(z.array(regexScriptViewSchema))
     .input(z.object({ presetId: typeIdSchema(ID_PREFIX.preset) }))
     .query(({ ctx, input }) => ctx.services.regex.listForPreset({ principal: ctx.auth, presetId: input.presetId })),
 
@@ -146,20 +173,24 @@ export const regexRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.regex.attachToChat({ principal: ctx.auth, chatId: input.chatId, scriptId: input.scriptId })),
 
   detachFromChat: authedProcedure
+    .output(detachResultSchema)
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), scriptId: typeIdSchema(ID_PREFIX.regexScript) }))
     .mutation(({ ctx, input }) => ctx.services.regex.detachFromChat({ principal: ctx.auth, chatId: input.chatId, scriptId: input.scriptId })),
 
   listForChat: authedProcedure
+    .output(z.array(regexScriptViewSchema))
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.regex.listForChat({ principal: ctx.auth, chatId: input.chatId })),
 
   // D121-E host option: the room's BROADCAST display set. MEMBER-gated (the verb's injected chat guard) —
   // a non-member is refused, and a member of a room that never opted in gets `[]`.
   listRoomDisplayScripts: authedProcedure
+    .output(z.array(regexScriptViewSchema))
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.regex.listRoomDisplayScripts({ principal: ctx.auth, chatId: input.chatId })),
 
   applyScopeOrder: authedProcedure
+    .output(reorderResultSchema)
     .input(z.object({ scope: regexAttachScopeSchema, orderedScriptIds: z.array(typeIdSchema(ID_PREFIX.regexScript)) }))
     .mutation(({ ctx, input }) => ctx.services.regex.applyScopeOrder({ principal: ctx.auth, scope: input.scope, orderedScriptIds: input.orderedScriptIds })),
 });

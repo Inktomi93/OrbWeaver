@@ -2256,7 +2256,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
 
     // The turn/canon rows sidestep the provider — seed them directly (owner A is the host member).
     const chatId = await seedChat(db, "idor", { id: mintTypeId(ID_PREFIX.chat), title: "AlphaSecretChatTitle" });
-    await seedParticipant(db, { chatId, key: "idor_h", userId: OWNER_USER_ID, role: "host" });
+    await seedParticipant(db, { chatId, key: "idor_h", id: mintTypeId(ID_PREFIX.chatParticipant), userId: OWNER_USER_ID, role: "host" });
     const { messageId } = await seedMessage(db, chatId, 1, {
       id: mintTypeId(ID_PREFIX.message),
       variantId: mintTypeId(ID_PREFIX.messageVariant),

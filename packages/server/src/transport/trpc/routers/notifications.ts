@@ -39,7 +39,14 @@
 // OTHER humans is a multi-human surface, so a deployment that cannot seat a second human refuses it as
 // nonexistent, and the client only renders the People section on such a deployment anyway.
 
-import { NOTIFICATIONS_LIST_MAX_LIMIT, PRESENCE_READ_MAX_USER_IDS } from "@orb/contracts/notifications";
+import {
+  inboxViewSchema,
+  listInboxResultSchema,
+  markAllReadResultSchema,
+  NOTIFICATIONS_LIST_MAX_LIMIT,
+  PRESENCE_READ_MAX_USER_IDS,
+  presenceSnapshotSchema,
+} from "@orb/contracts/notifications";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -48,6 +55,7 @@ import { authedProcedure, multiHumanProcedure, t } from "../trpc.ts";
 
 export const notificationsRouter = t.router({
   list: authedProcedure
+    .output(listInboxResultSchema)
     .input(z.object({ cursor: z.number().optional(), limit: z.number().int().min(1).max(NOTIFICATIONS_LIST_MAX_LIMIT).optional() }).optional())
     .query(({ ctx, input }) =>
       ctx.services.notifications.list({
@@ -57,20 +65,24 @@ export const notificationsRouter = t.router({
       }),
     ),
 
-  markAllRead: authedProcedure.mutation(({ ctx }) => ctx.services.notifications.markAllRead({ principal: ctx.auth })),
+  markAllRead: authedProcedure.output(markAllReadResultSchema).mutation(({ ctx }) => ctx.services.notifications.markAllRead({ principal: ctx.auth })),
 
-  dismiss: authedProcedure.input(z.object({ notificationId: typeIdSchema(ID_PREFIX.notification) })).mutation(({ ctx, input }) =>
-    ctx.services.notifications.dismiss({
-      principal: ctx.auth,
-      notificationId: input.notificationId,
-    }),
-  ),
+  dismiss: authedProcedure
+    .output(inboxViewSchema)
+    .input(z.object({ notificationId: typeIdSchema(ID_PREFIX.notification) }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.notifications.dismiss({
+        principal: ctx.auth,
+        notificationId: input.notificationId,
+      }),
+    ),
 
   // Presence disclosure (#1039) — "which of these people are online right now". The AUDIENCE decision and
   // the seam a later membership tightening edits live in `presence-disclosure.ts`; this line is wire
   // plumbing only, so the policy can never end up half-stated in two places. The `.max()` is the trust
   // boundary: an over-bound ask is a BAD_REQUEST before the registry is touched.
   presence: multiHumanProcedure
+    .output(presenceSnapshotSchema)
     .input(z.object({ userIds: z.array(brandedId<UserId>()).min(1).max(PRESENCE_READ_MAX_USER_IDS) }))
     .query(({ ctx, input }) => readPresenceDisclosure(ctx.presence, input.userIds)),
 });

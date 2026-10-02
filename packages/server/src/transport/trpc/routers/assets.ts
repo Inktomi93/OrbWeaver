@@ -5,8 +5,11 @@
 // serve); this router is the JSON verb surface (list/curate).
 
 import {
+  assetBlobRefSchema,
+  assetListItemSchema,
   galleryAddParamsSchema,
   galleryItemIdSchema,
+  galleryItemViewSchema,
   galleryListParamsSchema,
   listOwnedParamsSchema,
   resolveBlobRefsParamsSchema,
@@ -16,9 +19,15 @@ import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const assetsRouter = t.router({
-  listOwned: authedProcedure.input(listOwnedParamsSchema).query(({ ctx, input }) => ctx.services.assets.listOwned({ principal: ctx.auth, ...input })),
+  listOwned: authedProcedure
+    .output(z.array(assetListItemSchema))
+    .input(listOwnedParamsSchema)
+    .query(({ ctx, input }) => ctx.services.assets.listOwned({ principal: ctx.auth, ...input })),
 
-  addToGallery: authedProcedure.input(galleryAddParamsSchema).mutation(({ ctx, input }) => ctx.services.assets.addToGallery({ principal: ctx.auth, ...input })),
+  addToGallery: authedProcedure
+    .output(galleryItemViewSchema)
+    .input(galleryAddParamsSchema)
+    .mutation(({ ctx, input }) => ctx.services.assets.addToGallery({ principal: ctx.auth, ...input })),
 
   removeFromGallery: authedProcedure.input(z.object({ galleryItemId: galleryItemIdSchema })).mutation(({ ctx, input }) =>
     ctx.services.assets.removeFromGallery({
@@ -27,11 +36,15 @@ export const assetsRouter = t.router({
     }),
   ),
 
-  listGallery: authedProcedure.input(galleryListParamsSchema).query(({ ctx, input }) => ctx.services.assets.listGallery({ principal: ctx.auth, ...input })),
+  listGallery: authedProcedure
+    .output(z.array(galleryItemViewSchema))
+    .input(galleryListParamsSchema)
+    .query(({ ctx, input }) => ctx.services.assets.listGallery({ principal: ctx.auth, ...input })),
 
   // #67 — resolve inline-message `asset:<id>` refs → `(assetId, hash)` for render. Owner scoped to the
   // SESSION principal (never a user-supplied owner); the client builds `blobUrl(hash)` from each pair.
   resolveBlobRefs: authedProcedure
+    .output(z.array(assetBlobRefSchema).readonly())
     .input(resolveBlobRefsParamsSchema)
     .query(({ ctx, input }) => ctx.services.assets.resolveOwnedAssetRefs(ctx.auth.userId, input.assetIds)),
 
@@ -41,6 +54,7 @@ export const assetsRouter = t.router({
   // owner present + caller present), so a non-participant caller or an asset not attached in this chat
   // resolves to nothing (leak-free — the same gate as the model render path).
   resolveChatBlobRefs: authedProcedure
+    .output(z.array(assetBlobRefSchema).readonly())
     .input(resolveChatBlobRefsParamsSchema)
     .query(({ ctx, input }) => ctx.services.assets.resolveChatAssetRefs(ctx.auth.userId, input.chatId, input.assetIds)),
 });

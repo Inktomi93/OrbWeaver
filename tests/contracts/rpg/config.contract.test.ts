@@ -1,13 +1,19 @@
 // @orb/contracts/rpg/config — the rpg_games.config blob (§4.1). Pins: statProfile defaults to freeform,
 // the steeringNote cap, and that an empty blob self-heals to the born-default config.
 
+import type { RpgConfigView } from "@orb/contracts/rpg";
 import {
+  handDoorResultSchema,
   isDeceptionActive,
+  populateResultSchema,
+  promoteActorResultSchema,
   RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT,
   RPG_PROFILE_FREEFORM,
   RPG_RECENT_BEATS_KEEP_DEFAULT,
   RPG_RECONCILE_EVERY_BEATS_DEFAULT,
   RPG_STEERING_NOTE_MAX,
+  resyncResultSchema,
+  rpgConfigViewSchema,
   rpgGameConfigSchema,
 } from "@orb/contracts/rpg";
 import { expect, test } from "../../support/fixtures.ts";
@@ -94,4 +100,22 @@ test("the game config carries no prose plane, and a stale stored `prose` key is 
   const parsed: Record<string, unknown> = rpgGameConfigSchema.parse({ prose: { "rpg.reminder.steeringLicense": { text: "my license", baseVersion: 1 } } });
   expect(Object.hasOwn(parsed, "prose")).toBe(false);
   expect(Object.hasOwn(rpgGameConfigSchema.parse({}), "prose")).toBe(false);
+});
+
+test("host configuration output preserves its complete flattened projection and rejects storage-only fields", () => {
+  const { features, lite, engaged, ...config } = rpgGameConfigSchema.parse({});
+  const view = { ...config, ...features, steeringNote: lite.steeringNote, gmPresetId: null, presetMacroNames: ["gmTone"] } satisfies RpgConfigView;
+  expect(rpgConfigViewSchema.parse(view)).toEqual(view);
+  expect(rpgConfigViewSchema.safeParse({ ...view, engaged }).success).toBe(false);
+});
+
+test("hand-door output verdicts preserve refusal and no-op distinctions without cross-arm residue", () => {
+  const refusal = { ok: false, reason: "the actor is absent" };
+  for (const schema of [handDoorResultSchema, resyncResultSchema, populateResultSchema, promoteActorResultSchema]) {
+    expect(schema.parse(refusal)).toEqual(refusal);
+    expect(schema.safeParse({ ...refusal, rebuilt: true }).success).toBe(false);
+  }
+  expect(resyncResultSchema.parse({ ok: true, rebuilt: false })).toEqual({ ok: true, rebuilt: false });
+  expect(populateResultSchema.parse({ ok: true, populated: false })).toEqual({ ok: true, populated: false });
+  expect(promoteActorResultSchema.parse({ ok: true, issues: ["name shortened"] })).toEqual({ ok: true, issues: ["name shortened"] });
 });

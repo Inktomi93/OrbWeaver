@@ -1,9 +1,10 @@
 // @orb/contracts/portability — the entity-agnostic export/import REGISTRY contract. The delivery core
 // streams a zip of every entity's files and, on upload, routes each file back to the owning entity via
-// a registry of descriptors it iterates — it knows nothing about any specific entity. Types-only: no
-// zod, since `exportAll`/`importFile` are server-side functions, not a wire payload to validate.
+// a registry of descriptors it iterates — it knows nothing about any specific entity. Function seams
+// remain server-side types; import-outcome schemas also support outcomes exposed by transport.
 
 import type { UserId } from "@orb/kit/ids";
+import { z } from "zod";
 
 /** The closed set of portable entity kinds. New entity = one member here + the union widens everywhere.
  *  Declaration order is the design's list; import order is a separate concern (below). */
@@ -130,3 +131,10 @@ export interface PortableEntity {
 /** The registry the delivery core iterates. Assembled ONCE at entry/compose; adding an entity appends its
  *  descriptor. The core imports a full bundle in PORTABLE_IMPORT_ORDER, independent of this array's order. */
 export type PortabilityRegistry = readonly PortableEntity[];
+
+export const portableImportOutcomeSchema = z.strictObject({
+  ok: z.boolean(),
+  created: z.boolean().exactOptional(),
+  error: z.string().exactOptional(),
+  notes: z.array(z.string()).readonly().exactOptional(),
+}) satisfies z.ZodType<PortableImportOutcome>;

@@ -198,3 +198,25 @@ describe("character.bulkAddCardTag — output boundary", () => {
     await expect(caller(ctx).character.bulkAddCardTag({ tagName: "hero", characterIds: [characterId] })).rejects.toThrow("Output validation failed");
   });
 });
+
+test("bulk card-tag outputs preserve partial failures and reject additions at every typed envelope", async () => {
+  const id = mintTypeId(ID_PREFIX.character);
+  const valid = { applied: [id], failed: [{ id, error: { code: "unexpected", message: "failed" } }] } satisfies Awaited<
+    ReturnType<CharacterService["bulkAddCardTag"]>
+  >;
+  const output = vi.fn<CharacterService["bulkAddCardTag"]>().mockResolvedValue(valid);
+  const ctx = makeContext({ auth: principal("user"), services: { character: { bulkAddCardTag: output, bulkRemoveCardTag: output } } });
+  const api = caller(ctx).character;
+  for (const invoke of [api.bulkAddCardTag, api.bulkRemoveCardTag]) {
+    output.mockResolvedValue(valid);
+    await expect(invoke({ tagName: "hero", characterIds: [id] })).resolves.toEqual(valid);
+    for (const widened of [
+      { ...valid, privateInternal: "secret" },
+      { ...valid, failed: valid.failed.map((failure) => ({ ...failure, privateInternal: "secret" })) },
+      { ...valid, failed: valid.failed.map((failure) => ({ ...failure, error: { ...failure.error, privateInternal: "secret" } })) },
+    ]) {
+      output.mockResolvedValue(widened);
+      await expect(invoke({ tagName: "hero", characterIds: [id] })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+    }
+  }
+});

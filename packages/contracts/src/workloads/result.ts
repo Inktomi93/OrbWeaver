@@ -7,6 +7,7 @@
 // whose owner has its own contracts module are promoted there stage by stage; this module carries the ones
 // still awaiting their owner + assembles the exhaustive map.
 
+import { z } from "zod";
 import type { FsckReport } from "#assets";
 import type { BackfillPassResult, MemoryBackfillResult } from "#chat";
 import type { IngestRunResult } from "#databank";
@@ -84,3 +85,33 @@ export interface WorkloadResultByKind {
   "databank-reindex": IngestRunResult;
   "refine-score-sweep": RefineryScoreSweepResult;
 }
+
+export const maintenanceResultSchema = z
+  .strictObject({ scanned: z.number(), changed: z.number(), dryRun: z.boolean(), failed: z.number().optional(), reportPath: z.string().optional() })
+  .transform(({ failed, reportPath, ...view }) => ({
+    ...view,
+    ...(failed !== undefined ? { failed } : {}),
+    ...(reportPath !== undefined ? { reportPath } : {}),
+  })) satisfies z.ZodType<MaintenanceResult>;
+
+export const bundleImportWorkloadResultSchema = z.strictObject({
+  imported: z.number(),
+  skipped: z.number(),
+  failed: z.number(),
+  notes: z.array(z.string()).readonly(),
+}) satisfies z.ZodType<BundleImportWorkloadResult>;
+
+export const importTokenUsageBackfillResultSchema = z.strictObject({
+  scanned: z.number(),
+  exactRecovered: z.number(),
+  legacyPromoted: z.number(),
+  estimated: z.number(),
+  alreadyMeasured: z.number(),
+  alreadyEstimated: z.number(),
+  compareAndSetSkipped: z.number(),
+  ownersScanned: z.number(),
+  ownersReconciled: z.number(),
+  dryRun: z.boolean(),
+}) satisfies z.ZodType<ImportTokenUsageBackfillResult>;
+
+export const deferredResultSchema = z.strictObject({ deferred: z.literal(true) }) satisfies z.ZodType<DeferredResult>;

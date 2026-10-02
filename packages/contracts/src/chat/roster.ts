@@ -12,9 +12,11 @@ import type { AuthMode, ParticipantRole } from "#identity";
 import { PARTICIPANT_ROLES } from "#identity";
 import { joinerPersonaSchema } from "#persona";
 import type { TagView } from "#tag";
+import { tagViewSchema } from "#tag";
 import type { CardEmbeddableTheme, ThemeBackground, ThemeOverride } from "#theme";
 import { cardEmbeddableSubset, themeBackgroundSchema, themeOverrideSchema } from "#theme";
 import type { MemberCardVisibility } from "./metadata.ts";
+import { memberCardVisibilitySchema } from "./metadata.ts";
 import type { ParticipantKind } from "./participants.ts";
 import { participantKindSchema } from "./participants.ts";
 
@@ -740,3 +742,26 @@ export const createInviteResultSchema = z.strictObject({
   token: z.string().min(INVITE_TOKEN_MIN),
 });
 export type CreateInviteResult = z.infer<typeof createInviteResultSchema>;
+
+export const memberCardViewSchema = z.strictObject({
+  characterId: typeIdSchema(ID_PREFIX.character),
+  visibility: memberCardVisibilitySchema,
+  name: z.string(),
+  avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable(),
+  avatarHash: z.string().nullable(),
+  description: z.string().nullable(),
+  personality: z.string().nullable(),
+  scenario: z.string().nullable(),
+  greetings: z.array(z.string()).nullable(),
+  exampleMessages: z.string().nullable(),
+  tags: z.array(z.string()).nullable(),
+  editableTags: z
+    .array(tagViewSchema.pick({ id: true, name: true }))
+    .readonly()
+    .nullable(),
+  creatorNotes: z.string().nullable(),
+  lore: z.array(z.string()).nullable(),
+  systemPrompt: z.string().nullable(),
+  postHistoryInstructions: z.string().nullable(),
+  authorsNoteDepth: z.number().nullable(),
+}) satisfies z.ZodType<MemberCardView>;

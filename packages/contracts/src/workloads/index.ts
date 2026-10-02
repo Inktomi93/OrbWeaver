@@ -48,3 +48,20 @@ export {
   WORKLOAD_LIST_MAX_LIMIT,
 } from "./params.ts";
 export type { BundleImportWorkloadResult, DeferredResult, ImportTokenUsageBackfillResult, MaintenanceResult, WorkloadResultByKind } from "./result.ts";
+
+export {
+  type CancelWorkloadResult,
+  cancelWorkloadResultSchema,
+  type WorkloadRef,
+  type WorkloadRowAnyKind,
+  type WorkloadRunnableRow,
+  type WorkloadScheduleRef,
+  type WorkloadScheduleView,
+  workloadPoisonRowSchema,
+  workloadProgressSchema,
+  workloadRefSchema,
+  workloadRowAnyKindSchema,
+  workloadRunnableRowSchema,
+  workloadScheduleRefSchema,
+  workloadScheduleViewSchema,
+} from "./views.ts";

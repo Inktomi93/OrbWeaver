@@ -24,6 +24,8 @@
 // chats list two panes over called the same room by its characters.
 
 import type { ChatId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
 import type { Principal } from "#identity";
 
 /**
@@ -44,6 +46,13 @@ export interface VisibleRoomRef {
   /** Last activity (`chats.updatedAt`), epoch-ms. */
   readonly at: number;
 }
+
+export const visibleRoomRefSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.chat),
+  title: z.string().nullable(),
+  participantNames: z.array(z.string()).readonly(),
+  at: z.number(),
+}) satisfies z.ZodType<VisibleRoomRef>;
 
 /**
  * The injected reverse-roster filter: of these CANDIDATE rooms, the ones this caller may see.

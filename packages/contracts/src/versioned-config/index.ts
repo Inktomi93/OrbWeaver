@@ -236,3 +236,5 @@ export function tolerantArray<T>(entry: z.ZodType<T>, whenNotAnArray: readonly T
     )
     .catch([...whenNotAnArray]);
 }
+
+export const versionedParseFailureSchema = z.enum(VERSIONED_PARSE_FAILURES) satisfies z.ZodType<VersionedParseFailure>;

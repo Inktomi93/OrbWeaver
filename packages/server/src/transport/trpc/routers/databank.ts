@@ -8,7 +8,22 @@
 // leak-free BAD_REQUEST (`ScrapeFailedError`). The chat GATHER op + the search.documents lens are later waves
 // (DB5/DB6). The character-scope attach/detach verbs are DB8 (owner-gated on BOTH sides).
 
-import { docOriginSchema, documentListCursorSchema, ingestPhaseSchema, reindexModeSchema, reindexScopeSchema } from "@orb/contracts/databank";
+import {
+  activeChatDocumentViewSchema,
+  bankHealthViewSchema,
+  docOriginSchema,
+  documentAttachmentsViewSchema,
+  documentDetailViewSchema,
+  documentIdSchema,
+  documentListCursorSchema,
+  documentViewSchema,
+  ingestPhaseSchema,
+  listDocumentsResultSchema,
+  reindexModeSchema,
+  reindexResultSchema,
+  reindexScopeSchema,
+  uploadResultSchema,
+} from "@orb/contracts/databank";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
@@ -20,22 +35,27 @@ const LIMIT_MAX = 500;
 
 export const databankRouter = t.router({
   createFromText: authedProcedure
+    .output(uploadResultSchema)
     .input(z.object({ name: z.string().min(1).max(NAME_MAX), text: z.string().min(TEXT_MIN) }))
     .mutation(({ ctx, input }) => ctx.services.databank.createFromText({ principal: ctx.auth, name: input.name, text: input.text })),
 
   scrapeWeb: authedProcedure
+    .output(uploadResultSchema)
     .input(z.object({ url: z.url() }))
     .mutation(({ ctx, input }) => ctx.services.databank.scrapeWeb({ principal: ctx.auth, url: input.url })),
 
   scrapeYoutube: authedProcedure
+    .output(uploadResultSchema)
     .input(z.object({ url: z.url(), lang: z.string().default("en") }))
     .mutation(({ ctx, input }) => ctx.services.databank.scrapeYoutube({ principal: ctx.auth, url: input.url, lang: input.lang })),
 
   scrapeWiki: authedProcedure
+    .output(uploadResultSchema)
     .input(z.object({ url: z.url() }))
     .mutation(({ ctx, input }) => ctx.services.databank.scrapeWiki({ principal: ctx.auth, url: input.url })),
 
   get: authedProcedure
+    .output(documentDetailViewSchema)
     .input(z.object({ id: typeIdSchema(ID_PREFIX.document), includeText: z.boolean().optional() }))
     .query(({ ctx, input }) =>
       ctx.services.databank.get({ principal: ctx.auth, id: input.id, ...(input.includeText !== undefined ? { includeText: input.includeText } : {}) }),
@@ -48,6 +68,7 @@ export const databankRouter = t.router({
   // separate top-level inputs, so changing a lens RESETS the infinite query's pages rather than mixing
   // keysets. `.nullish()` on the cursor because the client seeds the first page with `initialCursor: null`.
   list: authedProcedure
+    .output(listDocumentsResultSchema)
     .input(
       z.object({
         origin: docOriginSchema.optional(),
@@ -72,9 +93,10 @@ export const databankRouter = t.router({
 
   // The home tile's D-7 census (owner-wide counts + passage sums). Its own read, never a field on `list`:
   // resolving it costs a bank-wide chunk read that the paging library must not pay per page (verbs/bank-health.ts).
-  bankHealth: authedProcedure.query(({ ctx }) => ctx.services.databank.bankHealth({ principal: ctx.auth })),
+  bankHealth: authedProcedure.output(bankHealthViewSchema).query(({ ctx }) => ctx.services.databank.bankHealth({ principal: ctx.auth })),
 
   rename: authedProcedure
+    .output(documentViewSchema.strict())
     .input(z.object({ id: typeIdSchema(ID_PREFIX.document), name: z.string().min(1).max(NAME_MAX) }))
     .mutation(({ ctx, input }) => ctx.services.databank.rename({ principal: ctx.auth, id: input.id, name: input.name })),
 
@@ -83,6 +105,7 @@ export const databankRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.databank.remove({ principal: ctx.auth, id: input.id })),
 
   reindex: authedProcedure
+    .output(reindexResultSchema)
     .input(z.object({ scope: reindexScopeSchema, mode: reindexModeSchema.optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.databank.reindex({ principal: ctx.auth, scope: input.scope, ...(input.mode !== undefined ? { mode: input.mode } : {}) }),
@@ -98,7 +121,7 @@ export const databankRouter = t.router({
 
   // D-1: the library row's `Everywhere` state as ONE read — the `worldInfo.listGlobal`
   // twin. Without it the row toggle's only source is a `listAttachments` per row (legacy's N+1).
-  listGlobal: authedProcedure.query(({ ctx }) => ctx.services.databank.listGlobal({ principal: ctx.auth })),
+  listGlobal: authedProcedure.output(z.array(documentIdSchema)).query(({ ctx }) => ctx.services.databank.listGlobal({ principal: ctx.auth })),
 
   attachToChat: authedProcedure
     .input(z.object({ documentId: typeIdSchema(ID_PREFIX.document), chatId: typeIdSchema(ID_PREFIX.chat) }))
@@ -121,10 +144,12 @@ export const databankRouter = t.router({
     ),
 
   listAttachments: authedProcedure
+    .output(documentAttachmentsViewSchema)
     .input(z.object({ id: typeIdSchema(ID_PREFIX.document) }))
     .query(({ ctx, input }) => ctx.services.databank.listAttachments({ principal: ctx.auth, id: input.id })),
 
   listActiveForChat: authedProcedure
+    .output(z.array(activeChatDocumentViewSchema))
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.databank.listActiveForChat({ principal: ctx.auth, chatId: input.chatId })),
 });

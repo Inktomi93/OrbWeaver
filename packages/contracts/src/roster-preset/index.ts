@@ -19,9 +19,9 @@ import type { CharacterId, PersonaId, RosterPresetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { RulePresetId, RulePresetKnobValueInputs, RulePresetKnobValues } from "#automation";
-import { RULE_PRESET_IDS, rulePresetIdSchema, rulePresetKnobValuesSchema } from "#automation";
+import { RULE_PRESET_IDS, rulePresetIdSchema, rulePresetKnobOutputValuesSchema, rulePresetKnobValuesSchema } from "#automation";
 import type { CharacterMemberSpec, GroupConfigInput } from "#chat";
-import { characterMemberSpecSchema, groupConfigSchema } from "#chat";
+import { characterMemberSpecSchema, groupConfigInputSchema, groupConfigSchema } from "#chat";
 import type { RpgGameTemplate } from "#rpg";
 import { rpgGameTemplateSchema } from "#rpg";
 
@@ -187,3 +187,50 @@ export interface ApplyRosterPresetResult {
    *  room) still surfaces and aborts — the member-drive posture, and a retry converges. */
   readonly rulesSkipped: readonly RosterPresetRuleSkip[];
 }
+
+export const rosterPresetMemberViewSchema = z.strictObject({
+  characterId: typeIdSchema(ID_PREFIX.character),
+  position: z.number(),
+  talkativeness: z.number().nullable(),
+  disabled: z.boolean(),
+  name: z.string(),
+  avatarHash: z.string().nullable(),
+}) satisfies z.ZodType<RosterPresetMemberView>;
+
+export const rosterPresetRuleViewSchema = z.strictObject({
+  rulePresetId: rulePresetIdSchema,
+  knobs: rulePresetKnobOutputValuesSchema,
+}) satisfies z.ZodType<RosterPresetRuleView>;
+
+export const rosterPresetViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.rosterPreset),
+  name: z.string(),
+  description: z.string(),
+  anchorPersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
+  groupConfig: groupConfigInputSchema.nullable(),
+  game: rpgGameTemplateSchema.strict().nullable(),
+  members: z.array(rosterPresetMemberViewSchema).readonly(),
+  rules: z.array(rosterPresetRuleViewSchema).readonly(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+}) satisfies z.ZodType<RosterPresetView>;
+
+export const rosterPresetSummarySchema = rosterPresetViewSchema.omit({ groupConfig: true, createdAt: true }).extend({
+  characterCount: z.number(),
+  hasGroupConfig: z.boolean(),
+}) satisfies z.ZodType<RosterPresetSummary>;
+
+export const rosterPresetRuleSkipSchema = z.strictObject({
+  rulePresetId: rulePresetIdSchema,
+  reason: z.string(),
+}) satisfies z.ZodType<RosterPresetRuleSkip>;
+
+export const applyRosterPresetResultSchema = z.strictObject({
+  added: z.array(typeIdSchema(ID_PREFIX.character)).readonly(),
+  alreadyPresent: z.array(typeIdSchema(ID_PREFIX.character)).readonly(),
+  skipped: z.array(typeIdSchema(ID_PREFIX.character)).readonly(),
+  configApplied: z.boolean(),
+  rulesMinted: z.array(rulePresetIdSchema).readonly(),
+  rulesAlreadyPresent: z.array(rulePresetIdSchema).readonly(),
+  rulesSkipped: z.array(rosterPresetRuleSkipSchema).readonly(),
+}) satisfies z.ZodType<ApplyRosterPresetResult>;

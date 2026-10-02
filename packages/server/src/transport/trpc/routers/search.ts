@@ -4,7 +4,14 @@
 // Thin: validate → `ctx.services.search.<verb>` → map errors.
 
 import { imageLensSchema } from "@orb/contracts/embeddings";
-import { SEARCH_SUGGEST_MAX_LIMIT, SEARCH_TOP_N_MAX } from "@orb/contracts/search";
+import {
+  fieldSearchResultSchema,
+  SEARCH_SUGGEST_MAX_LIMIT,
+  SEARCH_TOP_N_MAX,
+  searchSuggestionSchema,
+  similarArtHitSchema,
+  unifiedSearchResultSchema,
+} from "@orb/contracts/search";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { SEARCH_TARGETS } from "#domain/search";
@@ -44,15 +51,19 @@ const similarArtInput = similarCharactersInput.extend({
 });
 
 export const searchRouter = t.router({
-  fields: authedProcedure.input(z.object({ query: z.string().min(1), topN: z.number().int().positive().max(SEARCH_TOP_N_MAX) })).query(({ ctx, input }) =>
-    ctx.services.search.fields({
-      ownerId: ctx.auth.userId,
-      query: input.query,
-      topN: input.topN,
-    }),
-  ),
+  fields: authedProcedure
+    .output(fieldSearchResultSchema)
+    .input(z.object({ query: z.string().min(1), topN: z.number().int().positive().max(SEARCH_TOP_N_MAX) }))
+    .query(({ ctx, input }) =>
+      ctx.services.search.fields({
+        ownerId: ctx.auth.userId,
+        query: input.query,
+        topN: input.topN,
+      }),
+    ),
 
   suggest: authedProcedure
+    .output(z.array(searchSuggestionSchema))
     .input(z.object({ query: z.string().min(1), limit: z.number().int().positive().max(SEARCH_SUGGEST_MAX_LIMIT) }))
     .query(({ ctx, input }) =>
       ctx.services.search.suggest({
@@ -62,26 +73,32 @@ export const searchRouter = t.router({
       }),
     ),
 
-  similarArt: authedProcedure.input(similarArtInput).query(({ ctx, input }) =>
-    ctx.services.search.similarArt({
-      ownerId: ctx.auth.userId,
-      characterId: input.characterId,
-      topN: input.topN,
-      lens: input.lens,
-    }),
-  ),
+  similarArt: authedProcedure
+    .output(z.array(similarArtHitSchema))
+    .input(similarArtInput)
+    .query(({ ctx, input }) =>
+      ctx.services.search.similarArt({
+        ownerId: ctx.auth.userId,
+        characterId: input.characterId,
+        topN: input.topN,
+        lens: input.lens,
+      }),
+    ),
 
   // Unified dispatch: query + target + scope → the matching verb's hits, tagged by `over`. Owner =
   // resolved principal (audit #1). Any ids in `scope` are owner-belted in the domain (cross-tenant-swept).
-  search: authedProcedure.input(unifiedSearchInput).query(({ ctx, input }) =>
-    ctx.services.search.search({
-      ownerId: ctx.auth.userId,
-      query: input.query,
-      topN: input.topN,
-      over: input.over,
-      scope: input.scope,
-      rerank: input.rerank,
-      lens: input.lens,
-    }),
-  ),
+  search: authedProcedure
+    .output(unifiedSearchResultSchema)
+    .input(unifiedSearchInput)
+    .query(({ ctx, input }) =>
+      ctx.services.search.search({
+        ownerId: ctx.auth.userId,
+        query: input.query,
+        topN: input.topN,
+        over: input.over,
+        scope: input.scope,
+        rerank: input.rerank,
+        lens: input.lens,
+      }),
+    ),
 });

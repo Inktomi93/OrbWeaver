@@ -80,3 +80,8 @@ export interface CatalogRefreshResult {
   readonly models: number | null;
   readonly agentSdkModels: number | null;
 }
+
+export const catalogRefreshResultSchema = z.strictObject({
+  models: z.number().nullable(),
+  agentSdkModels: z.number().nullable(),
+}) satisfies z.ZodType<CatalogRefreshResult>;
