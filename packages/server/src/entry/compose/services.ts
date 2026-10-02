@@ -111,6 +111,7 @@ import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
 import { createExtractText } from "#infra/extraction";
 import { createImageAdapter } from "#infra/image";
+import { prepareVideo } from "#infra/media";
 import { endpointAdmission, publishPrivateEndpointAllowlist } from "#infra/network";
 import { createCas, createUserRuntimeDirs, createVariantCache } from "#infra/storage";
 import { createChatBus, requireParticipant } from "../../domain/chat/index.ts";
@@ -922,6 +923,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // is what keeps this out of the late-bind shape the S4 confirmed-act runner had to take.
   const pluginMacros = createPluginMacroRegistry();
   const chatCompose = buildChatService({
+    mediaProcessing: { frameCount: imageAdapter.frameCount, prepareVideo },
     toolUse,
     db,
     now,

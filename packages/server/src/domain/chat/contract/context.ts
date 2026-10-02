@@ -23,7 +23,7 @@ import type {
 } from "@orb/contracts/chat";
 import type { Can, ChatMembership, ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
-import type { SendAvailability } from "@orb/contracts/inference";
+import type { AttachmentQuality, SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -282,7 +282,13 @@ type ResolveUserPublicsOp = (
 /** Resolves a parsed message-image ref to a model-fetchable URL/data-URI + its media kind
  *  ({@link ResolvedMediaRef}, homed in `results.ts` — the D51 seam set). Null blocks the attachment (owner
  *  policy or a gone asset) and the engine drops that part. */
-type ResolveImageUrlOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId; readonly ref: ContentImageRef }) => Promise<ResolvedMediaRef | null>;
+type ResolveImageUrlOp = (params: {
+  readonly ownerId: UserId;
+  readonly chatId: ChatId;
+  readonly ref: ContentImageRef;
+  readonly quality?: AttachmentQuality | undefined;
+  readonly signal?: AbortSignal | undefined;
+}) => Promise<ResolvedMediaRef | null>;
 
 /** Resolves an asset id to just its content hash — a hash is not a secret, so this is a bare lookup, never
  *  an existence/ownership oracle. Null for a null id or a gone row. */

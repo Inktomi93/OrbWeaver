@@ -7,7 +7,7 @@ import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
 import { STRUCTURED_OUTPUT_VEHICLES } from "@orb/contracts/role-clients";
 import type { StructuredOutputShape } from "@orb/contracts/settings";
 import { STRUCTURED_OUTPUT_SHAPES } from "@orb/contracts/settings";
-import type { SelectItems } from "@orb/ui/select";
+import type { SelectItems } from "@orb/ui/select/items";
 
 /** SHORT by measurement, not by taste: the `Select` primitive's trigger is a fixed 200px, and a descriptive
  *  label ("As projected — optional fields stay optional") renders ELLIPSED there — the selected value becomes

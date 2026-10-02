@@ -16,6 +16,8 @@ import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, Pers
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { executeRegexScripts } from "@orb/kit/regex";
+import type { ImageRefAssets } from "@orb/server/entry/compose";
+import { resolveImageRefToUrl } from "@orb/server/entry/compose";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
 import { HISTORY_TRIM_CHUNK_FRACTION, historyTurnTokens } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
@@ -534,6 +536,79 @@ describe("runTurnPipeline — request shaping + fit", () => {
     const result = await runTurnPipeline(args);
     expect(result.imageDropped).toBe(true);
     expect(resolver).not.toHaveBeenCalled();
+  });
+
+  for (const example of [
+    { name: "unsupported MP4", mime: "video/mp4", frames: 1, videoOk: false, media: "video" },
+    { name: "unsupported animated GIF", mime: "image/gif", frames: 2, videoOk: false, media: "video" },
+    { name: "static GIF", mime: "image/gif", frames: 1, videoOk: false, media: "image" },
+    { name: "supported MP4", mime: "video/mp4", frames: 1, videoOk: true, media: "video" },
+    { name: "supported animated GIF", mime: "image/gif", frames: 2, videoOk: true, media: "video" },
+  ] as const) {
+    const bytes = Uint8Array.from(example.mime === "image/gif" ? [0x47, 0x49, 0x46, 0x38, 0x39, 0x61] : [7, 8, 9]);
+    const prepared = Uint8Array.from([1, 2, 3]);
+    const motionPrepared = example.media === "video" && example.videoOk;
+    const videoDropped = example.media === "video" && !example.videoOk;
+    const output = example.media === "video" ? prepared : bytes;
+    const expectedContent = videoDropped
+      ? [{ type: "text", text: "[video: a clip]" }]
+      : [{ type: example.media, url: `data:${example.media === "video" ? "video/mp4" : "image/gif"};base64,${Buffer.from(output).toString("base64")}` }];
+    test(`the actual media resolver keeps preparation behind the pipeline capability gate: ${example.name}`, async () => {
+      const host = castId<UserId>("user_host");
+      const chatId = castId<ChatId>("chat_a");
+      const quality = { imageDetail: "high", videoMaxResolution: "480" } as const;
+      const signal = new AbortController().signal;
+      const prepareVideo = vi.fn<ImageRefAssets["prepareVideo"]>(() =>
+        example.videoOk ? Promise.resolve(prepared) : Promise.reject(new Error("Unsupported motion must never reach the decoder")),
+      );
+      const frameCount = vi.fn(() => Promise.resolve(example.frames));
+      const assets: ImageRefAssets = {
+        assetCasRefById: () => Promise.resolve({ ownerId: host, mime: example.mime }),
+        loadAssetBytes: () => Promise.resolve(bytes),
+        frameCount,
+        prepareVideo,
+      };
+      const memberGate = vi.fn(() => Promise.reject(new Error("The frozen host's asset must not need a membership lookup")));
+      const connection = makeResolved({
+        generation: makeGenerationCapability({ ...CAPABILITY, input: example.videoOk ? ["text", "image", "video"] : ["text", "image"] }),
+      });
+      const result = await runTurnPipeline(
+        baseArgs({
+          connection,
+          attachmentQuality: quality,
+          chatId,
+          signal,
+          resolveImageUrl: (ref) => resolveImageRefToUrl(assets, memberGate, false, { ownerId: host, chatId, ref, quality, signal }),
+          canon: [rowOf("assistant", "previous reply"), userRow("![a clip](asset:ast_9)")],
+        }).args,
+      );
+      expect(memberGate).not.toHaveBeenCalled();
+      expect(frameCount).toHaveBeenCalledTimes(example.mime === "image/gif" ? 1 : 0);
+      expect(result.imageDropped).toBe(false);
+      expect(prepareVideo.mock.calls).toEqual(motionPrepared ? [[bytes, example.mime, "480", { signal }]] : []);
+      expect(result.videoDropped).toBe(videoDropped);
+      expect(result.request.history.at(-1)?.content).toEqual(expectedContent);
+    });
+  }
+
+  test("an admitted video's preparation failure remains a real turn failure", async () => {
+    const failure = new Error("Video preparation failed");
+    const prepareVideo = vi.fn<ImageRefAssets["prepareVideo"]>(() => Promise.reject(failure));
+    const host = castId<UserId>("user_host");
+    const chatId = castId<ChatId>("chat_a");
+    const assets: ImageRefAssets = {
+      assetCasRefById: () => Promise.resolve({ ownerId: host, mime: "video/mp4" }),
+      loadAssetBytes: () => Promise.resolve(Uint8Array.from([7, 8, 9])),
+      frameCount: () => Promise.resolve(1),
+      prepareVideo,
+    };
+    const { args } = baseArgs({
+      connection: makeResolved({ generation: makeGenerationCapability({ ...CAPABILITY, input: ["text", "image", "video"] }) }),
+      resolveImageUrl: (ref) => resolveImageRefToUrl(assets, () => Promise.resolve(false), false, { ownerId: host, chatId, ref }),
+      canon: [userRow("![a clip](asset:ast_9)")],
+    });
+    await expect(runTurnPipeline(args)).rejects.toBe(failure);
+    expect(prepareVideo).toHaveBeenCalledOnce();
   });
 
   test("the §8 fit drops oldest turns under a tiny window (keeps the newest)", async () => {

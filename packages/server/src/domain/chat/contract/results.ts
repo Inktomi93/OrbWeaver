@@ -21,7 +21,7 @@ import type {
   VariantProviderMetadata,
 } from "@orb/contracts/chat";
 import type { ChatMembership } from "@orb/contracts/identity";
-import type { CostDetails, NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
+import type { AttachmentQuality, CostDetails, NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type {
@@ -108,14 +108,10 @@ export type TurnPersist =
   | { readonly mode: "append-variant"; readonly targetMessageId: MessageId }
   | { readonly mode: "continue"; readonly targetMessageId: MessageId };
 
-/** A resolved attachment ref: the model-fetchable URL/data-URI plus its MEDIA KIND (#317). The kind is the
- *  ASSET's stored fact (mime `video/*` → `video`; a gif that sniffs animated → `video`, the owner's
- *  gif-as-motion rule; every other image → `image`), classified ONCE at the compose resolver so the
- *  engine's kind-gate (`input.vision` vs `input.video`) and the wire-part constructor agree by
- *  construction. The kind axis is DERIVED from the url-carrying `ChatContentPart` members, never re-spelled
- *  (§5.5). Homed HERE (the D51 seam set) because it derives from the part union. */
+/** An authorized attachment's classified kind and ready URL or deferred URL preparation. D51's CONVERT
+ *  admits the kind before invoking preparation, so unsupported motion never reaches its decoder. */
 export interface ResolvedMediaRef {
-  readonly url: string;
+  readonly url: string | (() => Promise<string>);
   readonly media: Extract<ChatContentPart, { readonly url: string }>["type"];
 }
 
@@ -141,6 +137,7 @@ export interface TurnMessage {
  * request at the boundary.
  */
 export interface TurnRequest {
+  readonly attachmentQuality?: AttachmentQuality | undefined;
   readonly connection: Resolved<"chat">;
   /** The chat this turn belongs to — the stateful backend keys its resume cache by it. */
   readonly chatId: ChatId;
@@ -337,6 +334,7 @@ export interface PlacedInlineImage {
  * mutation.
  */
 export interface TurnPrep {
+  readonly attachmentQuality?: AttachmentQuality | undefined;
   /** The room this turn runs in — keys the lock, the canon persist, and every bus event. */
   readonly chatId: ChatId;
   readonly assembleContext: AssembleContext;

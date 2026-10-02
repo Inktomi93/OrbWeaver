@@ -32,6 +32,7 @@ import type {
   MessageView,
   ToolCallRecord,
 } from "@orb/contracts/chat";
+import type { AttachmentQuality } from "@orb/contracts/inference";
 import {
   acceptsAssistantPrefill,
   acceptsHistorySystemRows,
@@ -90,6 +91,7 @@ import { buildWireHistory, convertsToEmptyWireRow, dropEmptyWireRows, fitWireHis
  *  as `Parameters<typeof runTurnPipeline>[0]` — the same derive-from-the-function pattern `engine.ts` already
  *  uses for the RESULT (`Awaited<ReturnType<typeof runTurnPipeline>>`), so there is exactly one definition. */
 interface RunTurnPipelineArgs {
+  readonly attachmentQuality?: AttachmentQuality | undefined;
   readonly runChatTurn: RunChatTurnOp;
   /** The turn's clock (`ChatContext.now`) — the pipeline's ONE time source, used to measure the reasoning
    *  stream window. Injected, never ambient: no `Date.now()` in a verb (determinism law). */
@@ -737,6 +739,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const videoDropped = kept.some((w) => w.videoDropped);
 
   const baseRequest: TurnRequest = {
+    attachmentQuality: args.attachmentQuality,
     connection: args.connection,
     chatId: args.chatId,
     prompt: assembled,

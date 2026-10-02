@@ -4,7 +4,7 @@
 
 import type { TagFolderType, TagTargetType, TagUsage, TagWithUsage } from "@orb/contracts/tag";
 import { TAG_FOLDER_TYPES } from "@orb/contracts/tag";
-import type { SelectOption } from "@orb/ui/select";
+import type { SelectOption } from "@orb/ui/select/items";
 import type { TagSortMode } from "./tag-sort.ts";
 import { TAG_SORT_MODES } from "./tag-sort.ts";
 

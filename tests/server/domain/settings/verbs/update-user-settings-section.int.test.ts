@@ -14,6 +14,20 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("updateUserSettingsSection", () => {
+  test("attachment quality persists independently and preserves sibling chat settings", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const u = await seedUser(db);
+    const p = principal(u, "user");
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "chat", patch: { enterSends: false, attachmentQuality: { imageDetail: "high", videoMaxResolution: "original" } } },
+    });
+    await h.svc.updateUserSettingsSection({ principal: p, input: { section: "chat", patch: { attachmentQuality: { videoMaxResolution: "480" } } } });
+    const view = await h.svc.getUserSettings({ principal: p });
+    expect(view.config.chat.attachmentQuality).toEqual({ imageDetail: "high", videoMaxResolution: "480" });
+    expect(view.config.chat.enterSends).toBe(false);
+  });
   test("two concurrent patches on sibling sections BOTH land (serialized per user)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);

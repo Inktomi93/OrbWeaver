@@ -71,6 +71,7 @@ export interface SpriteGridOptions {
  *  `domain/assets`. Stateless (sharp holds no per-instance state) — the factory exists only to keep the
  *  injection seam uniform with the other infra handles. */
 export interface ImageAdapter {
+  frameCount: (bytes: Uint8Array) => Promise<number>;
   /** Decode → auto-orient → optional resize → re-encode, stripping all metadata. Rejects non-images. */
   transform: (bytes: Uint8Array, opts?: ImageTransformOptions) => Promise<Uint8Array>;
   /** Decode just the header to report format + dimensions. Rejects (throws) on non-image bytes — the
@@ -115,6 +116,9 @@ function encode(pipeline: Sharp, format: ImageFormat, quality: number): Sharp {
 
 export function createImageAdapter(): ImageAdapter {
   return {
+    async frameCount(bytes): Promise<number> {
+      return (await sharp(bytes).metadata()).pages ?? 1;
+    },
     async transform(bytes, opts): Promise<Uint8Array> {
       const format = opts?.format ?? DEFAULT_FORMAT;
       const quality = opts?.quality ?? DEFAULT_QUALITY;

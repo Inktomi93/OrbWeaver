@@ -1823,9 +1823,11 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     // would be a second definition of the turn, free to drift.
     const pipelineArgs = {
       runChatTurn: ctx.runChatTurn,
+      attachmentQuality: prep.attachmentQuality,
       now: ctx.now,
       applyRegexReplace: ctx.applyRegexReplace,
-      resolveImageUrl: (ref): Promise<ResolvedMediaRef | null> => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
+      resolveImageUrl: (ref): Promise<ResolvedMediaRef | null> =>
+        ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref, quality: prep.attachmentQuality, signal: prep.signal }),
       loadContentSignatures: (): Promise<ReadonlyMap<MessageId, ContentSignatures>> => loadCanonContentSignatures(ctx.db, prep.chatId),
       // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.
       loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => loadCanonReasoningParts(ctx.db, prep.chatId),
@@ -2196,9 +2198,11 @@ async function generateTextUnpersisted(ctx: ChatContext, prep: TurnPrep, onText:
   try {
     const result = await runTurnPipeline({
       runChatTurn: ctx.runChatTurn,
+      attachmentQuality: prep.attachmentQuality,
       now: ctx.now,
       applyRegexReplace: ctx.applyRegexReplace,
-      resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
+      resolveImageUrl: (ref) =>
+        ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref, quality: prep.attachmentQuality, signal: prep.signal }),
       loadContentSignatures: (): Promise<ReadonlyMap<MessageId, ContentSignatures>> => loadCanonContentSignatures(ctx.db, prep.chatId),
       // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.
       loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => loadCanonReasoningParts(ctx.db, prep.chatId),

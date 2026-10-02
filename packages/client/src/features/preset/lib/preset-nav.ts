@@ -14,7 +14,7 @@
 
 import type { CompactionMode, ContinuePostfix, NamesBehavior, ThinkingDisplay } from "@orb/contracts/preset";
 import { COMPACTION_MODES, CONTINUE_POSTFIX_TYPES, NAMES_BEHAVIOR, THINKING_DISPLAYS } from "@orb/contracts/preset";
-import type { SelectItems } from "@orb/ui/select";
+import type { SelectItems } from "@orb/ui/select/items";
 import { selectPresetSection, setPresetEditorView } from "#state";
 
 /** THE CROSS-VIEW SECTION DOOR (crunch-list O-13). A rack section is only reachable in the PROMPT view, so

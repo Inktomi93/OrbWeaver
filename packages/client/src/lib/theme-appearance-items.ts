@@ -13,7 +13,7 @@
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { THEME_DENSITIES } from "@orb/contracts/theme";
-import type { SelectOption } from "@orb/ui/select";
+import type { SelectOption } from "@orb/ui/select/items";
 
 const DENSITY_LABELS: Record<AppearanceSettings["density"], string> = {
   comfortable: "Comfortable",

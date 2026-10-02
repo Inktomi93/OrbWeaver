@@ -145,7 +145,6 @@ body {
   border-radius: var(--radius-card);
   padding: var(--spacing-row);
   margin: calc(var(--spacing-row) * -1);
-  transition: box-shadow var(--motion-base) var(--ease-out-expo);
 }
 .settings-flash-anchor--lit {
   box-shadow: inset 0 0 0 2px var(--color-ring);

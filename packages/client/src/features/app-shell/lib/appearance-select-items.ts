@@ -10,7 +10,7 @@
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { APPEARANCE_BACKGROUND_FITS, BLUR_SURFACES } from "@orb/contracts/settings";
-import type { SelectOption } from "@orb/ui/select";
+import type { SelectOption } from "@orb/ui/select/items";
 
 // FLAT rows typed to the UNION (#866 §7.8) — the illustrated elevation cards key their total diagram
 // map off `item.value`, so the table carries the real member type, not a widened string.

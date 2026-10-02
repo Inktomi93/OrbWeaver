@@ -44,7 +44,8 @@ import type { MemoryConfig } from "./memory.ts";
 export type ChatBehaviorInputs = Pick<
   ChatSettings,
   "autoContinue" | "autoContinueRounds" | "autoSwipe" | "charactersCanReact" | "customStoppingStrings" | "offerChoices" | "reactionsEnabled"
->;
+> &
+  Partial<Pick<ChatSettings, "attachmentQuality">>;
 
 /** The resolved personas for a turn (the persona domain owns the read — FOREIGN).
  *   • `anchor` is `{{user}}` for card-derived sections (the chat-open anchor — `chats.anchorPersonaId`).

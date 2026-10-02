@@ -4,7 +4,7 @@
 import type { IndexSource, WorkloadKind, WorkloadLane, WorkloadStatus } from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES, INDEX_SOURCES, WORKLOAD_KIND_MODES, WORKLOAD_KINDS, WORKLOAD_LANES } from "@orb/contracts/workloads";
 import type { BadgeProps } from "@orb/ui/badge";
-import type { SelectItems } from "@orb/ui/select";
+import type { SelectItems } from "@orb/ui/select/items";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 

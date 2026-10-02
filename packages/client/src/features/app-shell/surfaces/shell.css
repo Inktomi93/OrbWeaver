@@ -1304,6 +1304,17 @@
  *  · the ⌘K chip's "jump" TEXT label (~87px) — redundant on a phone with no ⌘K key. The chip itself
  *    stays (icon-only) so the command menu is still reachable; only its word label sheds. */
 @container shell-main (max-width: 30rem) {
+  /* Wrap the registry trail rather than spending the screen title's minimum on overlapping controls. */
+  .shell-topbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: var(--dimension-chrome-row);
+    row-gap: 0;
+  }
+  .shell-topbar-lead,
+  .shell-topbar-trail {
+    min-height: var(--dimension-chrome-row);
+  }
   .shell-chat-member-chip,
   .shell-chat-recall-chip,
   .shell-topbar-jump-label {
@@ -1317,8 +1328,14 @@
     display: none;
   }
   .shell-topbar-identity[data-identity="narrow"] {
-    display: block;
-    min-width: 0;
+    display: flex;
+    flex: 1;
+    min-width: min-content;
+  }
+  /* Intrinsic sizing uses the title's own font-relative floor, not its full nowrap string. */
+  .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
+    width: 0;
+    flex: 1;
   }
 
   /* …AND WHATEVER THE CONTENT REGION WAS ALSO CALLING IT STANDS DOWN (side-eye 2026-08-19 P2, first
@@ -1333,18 +1350,10 @@
   [data-shell-identity="defer"] {
     display: none;
   }
-  /* The lead SHRINKS and its title truncates — and what protects it from collapsing under its own control
-   * is the TRAIL's floor below, not a floor of its own. Two measurements taught that, in order:
-   *   · `min-width: 0` + an UNSHRINKABLE trail (`flex: none`, 277px of ⌘K/focus/toggles) squeezed the lead
-   *     to 10.7px, and the back button's 48px box painted UNDER the trail — later in DOM, so it took every
-   *     click, and the ONLY exit from a chat opened the command palette instead (side-eye P1);
-   *   · `min-width: min-content` overcorrected: a truncating title is `white-space: nowrap`, whose
-   *     min-content is the FULL string, so the lead demanded 262px for the room's name and pushed the
-   *     trail's own icons to x=324 — the chat's options kebab sat 4px off a 320px screen.
-   * With the trail floored at its content and the desktop-shaped affordances shed, the lead always gets the
-   * remainder (measured 204px at 320px), which is far past its 44px control. */
+  /* The lead's minimum includes the actual title floor and its control; excess trail chrome wraps. */
   .shell-topbar-lead {
-    min-width: 0;
+    flex-basis: 0;
+    min-width: min-content;
   }
   /* …and here the TRAIL gives too — but only down to its OWN content. `min-width: 0` let it shrink past
    * that, and its icons (each `flex: none`) overflowed the box: MEASURED on the live stage at 320px, the

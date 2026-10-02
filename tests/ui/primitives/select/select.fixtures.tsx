@@ -1,6 +1,7 @@
 // Story wrappers for select CT (CT mounts from a non-test module).
 import { Select } from "@orb/ui/select";
 import type { ReactElement } from "react";
+import { useId } from "react";
 
 const ITEMS = [
   { label: "Alpha", value: "alpha" },
@@ -17,4 +18,15 @@ const ITEMS = [
  */
 export function RenderValueStory(): ReactElement {
   return <Select defaultValue="beta" items={ITEMS} renderValue={(value): string => `Selected: ${String(value)}`} />;
+}
+
+/** Linked visible-label mode, including the seal's explicit override of its own standalone label. */
+export function LinkedLabelStory(): ReactElement {
+  const label = useId();
+  return (
+    <>
+      <span id={label}>Region</span>
+      <Select label="Wrong name" aria-labelledby={label} items={ITEMS} defaultValue="alpha" />
+    </>
+  );
 }

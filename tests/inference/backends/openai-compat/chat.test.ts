@@ -79,6 +79,49 @@ function warningCodes(turn: ChatResult): string[] {
   return turn.events.flatMap((event) => (event.kind === "warning" ? [event.code] : []));
 }
 
+test("the actual OpenRouter SDK body admits image detail only from connection capability", async () => {
+  for (const admitted of [true, false]) {
+    for (const detail of ["auto", "low", "high"] as const) {
+      const recorded: RecordedRequest[] = [];
+      const connection = fakeResolved({
+        task: "chat",
+        providerId: "openrouter",
+        model: "openai/gpt-4.1",
+        capability: generationCapability({ imageDetail: admitted }),
+        secret: fakeApiKeySecret("sk-or-not-a-real-key"),
+      });
+      await runOpenAiCompatChatTurn(
+        orRequest({
+          connection,
+          tools: undefined,
+          attachmentQuality: { imageDetail: detail, videoMaxResolution: "720" },
+          history: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Inspect the picture." },
+                { type: "image", url: "data:image/png;base64,YQ==" },
+              ],
+            },
+          ],
+        }),
+        turnDeps(scriptedSseFetch([openAiTextStream("A picture.")], recorded)),
+      );
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0]?.body["messages"]).toEqual([
+        { role: "system", content: [{ type: "text", text: "You are a helpful assistant." }] },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Inspect the picture." },
+            { type: "image_url", image_url: { url: "data:image/png;base64,YQ==", ...(admitted ? { detail } : {}) } },
+          ],
+        },
+      ]);
+    }
+  }
+});
+
 test("OR tool loop: leg 1's reasoning_details ride back on leg 2's assistant row", async () => {
   const recorded: RecordedRequest[] = [];
   const fetchImpl = scriptedSseFetch([openRouterReasoningToolStream({ text: REASONING, signature: SIGNATURE }), openAiTextStream("18C and clear.")], recorded);

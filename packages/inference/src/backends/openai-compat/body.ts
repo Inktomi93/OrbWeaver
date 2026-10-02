@@ -29,7 +29,7 @@
 //      alternating without joining their text. It adds and removes no row, so the tail is whatever SHAPE sent.
 // Warnings are collected on a per-call sink the caller folds into the turn's `warning` events (D41).
 
-import type { Dialect, EndpointFeatures } from "@orb/contracts/inference";
+import type { Dialect, EndpointFeatures, ImageDetail } from "@orb/contracts/inference";
 import { isBeltOwnedBodyKey } from "@orb/contracts/inference";
 import { deepMergeRequestBody } from "@orb/kit/custom-parameters";
 import type { JsonValue } from "@orb/kit/json";
@@ -75,6 +75,7 @@ export interface ShapeArgs {
   /** Rule 10 runs: the turn caches by explicit Anthropic block markers (`cachesByAnthropicMarkers`). */
   readonly foldSameRole: boolean;
   readonly replyImages: boolean;
+  readonly imageDetail?: ImageDetail | undefined;
   readonly warnings: ResolvedWarning[];
 }
 
@@ -276,9 +277,33 @@ export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs)
   if (args.plan !== null) {
     body = reattachRows(body, args.plan, args.warnings);
   }
+  body = applyImageDetail(body, args.imageDetail);
   body = applyPrefill(body, args);
   if (args.replyImages) {
     body = { ...body, [MODALITIES_KEY]: [...REPLY_MODALITIES] };
   }
   return applySameRoleFold(applyCacheMarkerSpelling(applyOutputCapSpelling(applyEffortSpelling(body, args), args), args), args);
+}
+
+function applyImageDetail(body: Record<string, unknown>, detail: ImageDetail | undefined): Record<string, unknown> {
+  const messages = body["messages"];
+  if (detail === undefined || !Array.isArray(messages)) {
+    return body;
+  }
+  return {
+    ...body,
+    messages: messages.map((message: unknown) => {
+      if (!(isRecord(message) && Array.isArray(message["content"]))) {
+        return message;
+      }
+      return {
+        ...message,
+        content: message["content"].map((part: unknown) =>
+          isRecord(part) && part["type"] === IMAGE_URL_TYPE && isRecord(part[IMAGE_URL_TYPE])
+            ? { ...part, [IMAGE_URL_TYPE]: { ...part[IMAGE_URL_TYPE], detail } }
+            : part,
+        ),
+      };
+    }),
+  };
 }

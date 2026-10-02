@@ -31,18 +31,21 @@ import {
   openConfigTo,
   setActiveSection,
   setMobileViewport,
+  setPanelMode,
   useActiveSection,
 } from "@orb/client/state";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { AppearanceLooksSection } from "../../../../packages/client/src/features/config/components/appearance-looks-section.tsx";
+import { createAnchorFlasher } from "../../../../packages/client/src/features/config/lib/config-scroll-spy.ts";
 import { makeConfigSection } from "../../../../packages/client/src/features/config/lib/config-section.tsx";
 import { ConfigContentSurface } from "../../../../packages/client/src/features/config/surfaces/config-content-surface.tsx";
 import { ConfigListSurface } from "../../../../packages/client/src/features/config/surfaces/config-list-surface.tsx";
 import { placeholderConfigGroups, realConfigGroups } from "../../../support/browser/ct-config-groups.ts";
 import { CtDataProviders, CtRealConfigSectionRegistry, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
+import { createManualTimer } from "../../../support/clock.ts";
 
 /** The determinism button every story carries: the disclosure memory, the nav and the selection all reset. */
 function ResetGroupsButton(): ReactElement {
@@ -443,4 +446,93 @@ export function AppearanceGroupStory(): ReactElement {
 /** The REAL chat-behavior group, same posture. */
 export function ChatBehaviorGroupStory(): ReactElement {
   return <ConfigHostStory target="chat-behavior" height={900} width={1160} />;
+}
+
+/** The actual DOM flash operation, with two independent anchors and a repeated navigation door. */
+export function ConfigFlashStory(): ReactElement {
+  const first = useRef<HTMLElement>(null);
+  const second = useRef<HTMLElement>(null);
+  const [firstMounted, setFirstMounted] = useState(true);
+  const [timer] = useState(createManualTimer);
+  const [flash] = useState(() => createAnchorFlasher(timer.schedule));
+  const [armed, setArmed] = useState<readonly number[]>([]);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={(): void => {
+          if (first.current) {
+            flash(first.current);
+          }
+          setArmed(timer.armed());
+        }}
+      >
+        Jump first
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          if (second.current) {
+            flash(second.current);
+          }
+          setArmed(timer.armed());
+        }}
+      >
+        Jump second
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          timer.fire();
+          setArmed(timer.armed());
+        }}
+      >
+        Expire cues
+      </button>
+      <output aria-label="Armed cues">{armed.length}</output>
+      <output aria-label="Cue hold intervals">{armed.join(",")}</output>
+      <button type="button" onClick={(): void => setFirstMounted(false)}>
+        Unmount first anchor
+      </button>
+      {firstMounted === true && (
+        <section ref={first} aria-label="First anchor">
+          First anchor
+        </section>
+      )}
+      <section ref={second} aria-label="Second anchor">
+        Second anchor
+      </section>
+    </>
+  );
+}
+
+/** Actual Configuration shell at the docked crossover, with both panel doors retained. */
+export function ConfigDockedShellStory(): ReactElement {
+  useState(() => {
+    __resetConfigNav();
+    clearCollectionSelection();
+    setActiveSection("config");
+    openConfigTo("chat-behavior");
+    setPanelMode("list", "docked");
+    setPanelMode("context", "docked");
+    return null;
+  });
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <button
+          type="button"
+          onClick={(): void => {
+            setActiveSection("config");
+            openConfigTo("chat-behavior");
+            setPanelMode("list", "docked");
+            setPanelMode("context", "docked");
+          }}
+        >
+          Dock panels
+        </button>
+        <AppShell />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
 }

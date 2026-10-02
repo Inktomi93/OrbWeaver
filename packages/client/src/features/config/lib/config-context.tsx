@@ -184,7 +184,10 @@ function focusedLeafAddress(focus: { readonly group: ConfigGroupId; readonly sub
  * object as its JSON (a composite row that declares a `key` — rare, and a wrong-looking blob is a truer
  * answer than a confident lie).
  */
-function valueLabel(value: unknown, options: ConfigSettingLeaf["options"]): string {
+function valueLabel(value: unknown, options: ConfigSettingLeaf["options"], formatValue?: ConfigSettingLeaf["formatValue"]): string {
+  if (formatValue !== undefined) {
+    return formatValue(value);
+  }
   if (typeof value === "boolean") {
     return value ? "On" : "Off";
   }
@@ -204,13 +207,13 @@ function valueLabel(value: unknown, options: ConfigSettingLeaf["options"]): stri
 /** Project the row hook's binding into the state-free teach shape (drop the chrome-only `resetPending`).
  *  The two values cross this seam already LABELLED — the tabs render display data and never re-resolve —
  *  while `reset` still closes over the RAW default the hook bound, so a label can never decide a write. */
-function projectLeafValue(binding: ConfigLeafValue | null, options: ConfigSettingLeaf["options"]): ConfigTeachValue | null {
+function projectLeafValue(binding: ConfigLeafValue | null, leaf: ConfigSettingLeaf | undefined): ConfigTeachValue | null {
   if (binding === null) {
     return null;
   }
   return {
-    current: valueLabel(binding.current, options),
-    defaultValue: valueLabel(binding.defaultValue, options),
+    current: valueLabel(binding.current, leaf?.options, leaf?.formatValue),
+    defaultValue: valueLabel(binding.defaultValue, leaf?.options, leaf?.formatValue),
     modified: binding.modified,
     reset: binding.reset,
   };
@@ -245,7 +248,7 @@ function buildRoster(
       id: configLeafKey(row),
       label: leaf.label,
       gloss: isTeachNone(leaf.teach) ? null : settingGloss(leaf.teach.summary),
-      value: reading === undefined ? null : valueLabel(reading.current, leaf.options),
+      value: reading === undefined ? null : valueLabel(reading.current, leaf.options, leaf.formatValue),
       modified: reading?.modified ?? false,
     });
   }
@@ -282,7 +285,7 @@ function drillState(drill: DrillInput): ConfigContextState | null {
   if (sub === undefined) {
     return null;
   }
-  const leafValue = projectLeafValue(binding, findLeaf(sections, address.group, address.sub, address.setting)?.options);
+  const leafValue = projectLeafValue(binding, findLeaf(sections, address.group, address.sub, address.setting));
   // The DRILL empties the roster: About renders one arm, and WHICH arm is a fact about the state rather
   // than a branch the tab body has to re-derive.
   return { teach: focusLesson({ group, sub, settingId: address.setting }, sections, fallback, leafValue), member: null, roster: [] };

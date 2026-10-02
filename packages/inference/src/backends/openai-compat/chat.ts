@@ -8,7 +8,7 @@
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { Dialect, GenerationCapability } from "@orb/contracts/inference";
-import { acceptsAssistantPrefill, cacheMinTokensOf, scrubWireSchema } from "@orb/contracts/inference";
+import { acceptsAssistantPrefill, cacheMinTokensOf, DEFAULT_ATTACHMENT_QUALITY, scrubWireSchema } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
@@ -577,6 +577,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           prefillAllowed: acceptsAssistantPrefill(generation) && req.tools === undefined,
           foldSameRole: cachesByAnthropicMarkers(connection, generation),
           replyImages: knobs.replyImages,
+          ...(generation.imageDetail === true ? { imageDetail: req.attachmentQuality?.imageDetail ?? DEFAULT_ATTACHMENT_QUALITY.imageDetail } : {}),
           warnings,
           extraBody: shape.extraBody,
           openRouterChat: shape.openRouterChat,

@@ -1217,6 +1217,7 @@ async function fitShapedHistory(args: {
   /** The CONVERT env — the previews' twin of the turn's (`runTurnPipeline`), resolved under the HOST because
    *  every preview already is (`resolvePreviewInputs`: connection, preset, `{{user}}`). */
   readonly convert: {
+    readonly quality: NonNullable<ForeignInputs["chatBehavior"]>["attachmentQuality"];
     /** The room's frozen host — the owner scope the attachment resolve runs under. */
     readonly hostUserId: UserId;
     readonly chatId: ChatId;
@@ -1240,7 +1241,7 @@ async function fitShapedHistory(args: {
     {
       visionOk: args.capability !== undefined && acceptsImageInput(args.capability),
       videoOk: args.capability !== undefined && acceptsVideoInput(args.capability),
-      resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ ownerId: args.convert.hostUserId, chatId: args.convert.chatId, ref }),
+      resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ ownerId: args.convert.hostUserId, chatId: args.convert.chatId, ref, quality: args.convert.quality }),
       cardKeepLastX: args.convert.cardKeepLastX,
       canon: args.convert.canon,
       // §8.8: the preview prices the SAME rows the next turn sends, so it resolves the carry rung the way
@@ -1327,7 +1328,7 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
       assembled: prompt,
       capability: inputs.capability,
       shaped,
-      convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon },
+      convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
     });
     const budget = buildAssemblyBudget({
@@ -1491,7 +1492,7 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
       assembled,
       capability: inputs.capability,
       shaped,
-      convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon },
+      convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
     });
     const chatRow = await loadChatRow(ctx.db, chatId);

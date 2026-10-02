@@ -33,6 +33,7 @@ import {
   appearanceMessageDetailsSection,
   appearanceMessageStyleSection,
   ChatsWithCharacterPane,
+  chatAttachmentQualitySection,
   chatMessageHandlingSection,
   chatQuickPicksTile,
   chatRecentsTile,
@@ -297,6 +298,7 @@ const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = cre
   automationLibraryRulesSection,
   automationBudgetSection,
   // chat-behavior ← the DECOMPOSED pane (SET-SEAMS stage 2) leading, then the already-contributed sections.
+  chatAttachmentQualitySection,
   chatMessageHandlingSection,
   chatStreamingSection,
   memorySettingsSection,

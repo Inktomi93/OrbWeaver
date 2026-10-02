@@ -5,7 +5,7 @@
 import type { UserRole } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import type { BadgeProps } from "@orb/ui/badge";
-import type { SelectItems } from "@orb/ui/select";
+import type { SelectItems } from "@orb/ui/select/items";
 
 /** Mirrors the server's weak_password floor so the dialog can teach the rule before the server bounces it. */
 export const ADMIN_MIN_PASSWORD_LENGTH = 8;

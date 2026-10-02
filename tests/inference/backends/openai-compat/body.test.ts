@@ -34,6 +34,39 @@ function args(overrides: Partial<ShapeArgs> = {}): ShapeArgs & { readonly warnin
 
 const RAW = { model: "m", messages: [{ role: "user", content: "hi" }], temperature: 0.7, reasoning_effort: "high" };
 
+test("image detail is applied to normalized user and assistant image parts only when admitted", () => {
+  const raw = {
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "image_url", image_url: { url: "data:image/png;base64,YQ==" } },
+          { type: "text", text: "inspect" },
+        ],
+      },
+      { role: "assistant", content: [{ type: "image_url", image_url: { url: "data:image/png;base64,Yg==" } }] },
+      { role: "user", content: [{ type: "video_url", video_url: { url: "data:video/mp4;base64,Yw==" } }] },
+    ],
+  };
+  for (const detail of ["auto", "low", "high"] as const) {
+    const admitted = { ...args(), imageDetail: detail };
+    expect(shapeOutboundBody(raw, admitted)).toEqual({
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: "data:image/png;base64,YQ==", detail } },
+            { type: "text", text: "inspect" },
+          ],
+        },
+        { role: "assistant", content: [{ type: "image_url", image_url: { url: "data:image/png;base64,Yg==", detail } }] },
+        raw.messages[2],
+      ],
+    });
+  }
+  expect(shapeOutboundBody(raw, args())).toEqual(raw);
+});
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }

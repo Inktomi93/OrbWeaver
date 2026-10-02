@@ -13,7 +13,7 @@
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
-import type { SelectOption } from "@orb/ui/select";
+import type { SelectOption } from "@orb/ui/select/items";
 
 const CHAT_STYLE_LABELS: Record<AppearanceSettings["chatStyle"], string> = {
   bubble: "Bubble",

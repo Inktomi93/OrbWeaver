@@ -386,6 +386,7 @@ interface BuiltTurnContext {
 type SharedTurnPrepFields = Pick<
   TurnPrep,
   | "assembleContext"
+  | "attachmentQuality"
   | "connection"
   | "triggeredBy"
   | "funderUserId"
@@ -421,6 +422,7 @@ function sharedTurnPrepFields(env: {
     runAsUserId: identity.runAsUserId,
     intent: intent ?? {},
     extraStopSequences: built.chatBehavior.customStoppingStrings,
+    attachmentQuality: built.chatBehavior.attachmentQuality,
     memoryConfig: built.memoryConfig,
     ...(built.memoryRecall !== null ? { memoryRecall: built.memoryRecall } : {}),
     attachedToolNames: built.attachedToolNames,
@@ -2255,6 +2257,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
           // nudge alone leaves 28% character bleed on the local 8B (scripts/probes/impersonate). Rides the
           // host's own custom stops; a stop-less model drops them capability-gated + loud (resolveChat).
           extraStopSequences: [...chatBehavior.customStoppingStrings, ...foreignLabelStops(room.speakerCandidates.map((c) => c.name))],
+          attachmentQuality: chatBehavior.attachmentQuality,
           memoryConfig,
           ...(memoryRecall !== null ? { memoryRecall } : {}),
           attachedToolNames,

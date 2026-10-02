@@ -26,7 +26,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { ConfigWorkspaceStory } from "../_ct-stories.tsx";
+import { ConfigDockedShellStory, ConfigFlashStory, ConfigWorkspaceStory } from "../_ct-stories.tsx";
 
 const REGEX_BAND = /Regex scripts/;
 const ROSTERS_BAND = /Rosters/;
@@ -67,11 +67,16 @@ const ROSTER = {
 
 const SETTINGS_VIEW = { userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
 
-function stub(page: Page): Promise<TrpcRecorder> {
+function stub(
+  page: Page,
+  readSettings: () => TrpcFixtureOutput<"settings.getUserSettings"> = () => SETTINGS_VIEW,
+  resetQuality: () => TrpcFixtureOutput<"settings.updateUserSettingsSection"> = () => SETTINGS_VIEW,
+): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     // The Appearance skimmer's sections all read the settings blob — fed the real defaults so the knob
     // rows (the SettingRow seam under test) mount for real instead of suspending forever.
-    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "settings.getUserSettings": readSettings,
+    "settings.updateUserSettingsSection": resetQuality,
     // The Looks section (#866 S4) reads the theme library — three seeds, no owned rows.
     "settings.listThemes": () => [
       { id: "theme_00000000000000000000000001", name: "Hearth", override: {}, css: null, isSeed: true, isDefault: true, createdAt: 0, updatedAt: 0 },
@@ -100,6 +105,13 @@ function stub(page: Page): Promise<TrpcRecorder> {
     "worldInfo.listBooksWithUsage": () => [],
     "persona.list": () => [],
     "character.list": () => ({ items: [], nextCursor: null }),
+    "notifications.list": () => ({ items: [], nextCursor: null }),
+    "chat.reapTemporaryChats": () => ({ reaped: 0 }),
+    "refinery.listSessions": () => [],
+    "tag.listTagsWithUsage": () => [],
+    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "databank.list": () => ({ items: [], nextCursor: null, totalCount: 0 }),
+    "databank.bankHealth": () => ({ total: 0, passages: 0, chunks: 0, byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 } }),
   });
 }
 
@@ -400,4 +412,172 @@ test("About shows Current vs Default on a MODIFIED leaf, and its Reset fires the
   await expect
     .poll(() => trpc.lastInput("settings.updateUserSettingsSection"), { intervals: [20, 50, 100] })
     .toEqual({ section: "appearance", patch: { colorQuotedSpeech: DEFAULT_USER_SETTINGS.appearance.colorQuotedSpeech } });
+});
+
+const DEFAULT_QUALITY_WORDS = "Image detail: Auto · Video maximum resolution: 720p";
+const MODIFIED_QUALITY_WORDS = "Image detail: High · Video maximum resolution: 480p";
+
+for (const modified of [false, true]) {
+  test(`actual attachment teacher uses control vocabulary and raw object Reset (${modified ? "modified" : "default"})`, async ({ mount, page }) => {
+    let config = modified
+      ? {
+          ...DEFAULT_USER_SETTINGS,
+          chat: { ...DEFAULT_USER_SETTINGS.chat, attachmentQuality: { imageDetail: "high" as const, videoMaxResolution: "480" as const } },
+        }
+      : DEFAULT_USER_SETTINGS;
+    const recorder = await stub(
+      page,
+      () => ({ ...SETTINGS_VIEW, config }),
+      () => {
+        config = DEFAULT_USER_SETTINGS;
+        return { ...SETTINGS_VIEW, config };
+      },
+    );
+    const workspace = await mount(<ConfigWorkspaceStory key="initial" />);
+    const openQuality = async (): Promise<void> => {
+      await workspace.getByRole("button", { name: "reset groups" }).click();
+      await workspace
+        .locator('[data-slot="config-list"]')
+        .getByRole("button", { name: /Chat behavior/ })
+        .click();
+      await workspace.locator('[data-setting="attachment-quality"]').scrollIntoViewIfNeeded();
+    };
+    await openQuality();
+    const pane = workspace.locator(CONTEXT_PANE);
+    await expect(pane.locator('[data-slot="teacher-roster-entry"][data-setting="attachments/attachment-quality"]')).toContainText(
+      modified ? MODIFIED_QUALITY_WORDS : DEFAULT_QUALITY_WORDS,
+    );
+    await workspace.getByRole("combobox", { name: "Image detail", exact: true }).focus();
+    const assertDefault = async (): Promise<void> => {
+      await expect(pane.getByText(`Using the default — ${DEFAULT_QUALITY_WORDS}.`, { exact: true })).toBeVisible();
+      await expect(pane.getByRole("button", { name: "Reset to default", exact: true })).toHaveCount(0);
+    };
+    if (!modified) {
+      await assertDefault();
+      return;
+    }
+    await expect(pane.getByText(`Current ${MODIFIED_QUALITY_WORDS}`, { exact: true })).toBeVisible();
+    await expect(pane.getByText(`Default ${DEFAULT_QUALITY_WORDS}`, { exact: true })).toBeVisible();
+    const reset = pane.getByRole("button", { name: "Reset to default", exact: true });
+    await expect(reset).toHaveCount(1);
+    await reset.click();
+    await expect
+      .poll(() => recorder.lastInput("settings.updateUserSettingsSection"))
+      .toEqual({ section: "chat", patch: { attachmentQuality: DEFAULT_USER_SETTINGS.chat.attachmentQuality } });
+    // CT has no live invalidation bus; a fresh provider reads the persisted response instead.
+    await workspace.update(<ConfigWorkspaceStory key="after-reset" />);
+    await openQuality();
+    await expect(workspace.getByRole("combobox", { name: "Image detail", exact: true })).toContainText("Auto");
+    await expect(workspace.getByRole("combobox", { name: "Video maximum resolution", exact: true })).toContainText("720p");
+    await workspace.getByRole("combobox", { name: "Image detail", exact: true }).focus();
+    await expect(pane.getByText(`Using the default — ${DEFAULT_QUALITY_WORDS}.`, { exact: true })).toBeVisible();
+    await expect(reset).toHaveCount(0);
+  });
+}
+
+for (const reducedMotion of ["reduce", "no-preference"] as const) {
+  test(`navigation cue is static and clears both geometry classes (${reducedMotion})`, async ({ mount, page }) => {
+    await page.emulateMedia({ reducedMotion, colorScheme: "dark" });
+    await mount(<ConfigFlashStory />);
+    const first = page.getByRole("region", { name: "First anchor", exact: true });
+    const second = page.getByRole("region", { name: "Second anchor", exact: true });
+    await page.getByRole("button", { name: "Jump first", exact: true }).click();
+    await expect(first).toHaveClass(/settings-flash-anchor--lit/);
+    await expect(first).not.toHaveCSS("box-shadow", "none");
+    await expect.poll(() => first.evaluate((node) => node.getAnimations().length)).toBe(0);
+    await expect
+      .poll(() =>
+        first.evaluate((node) =>
+          getComputedStyle(node)
+            .transitionProperty.split(",")
+            .map((v) => v.trim()),
+        ),
+      )
+      .not.toContain("box-shadow");
+    await page.getByRole("button", { name: "Jump first", exact: true }).click();
+    await page.getByRole("button", { name: "Jump second", exact: true }).click();
+    await expect(first).toHaveClass(/settings-flash-anchor--lit/);
+    await expect(second).toHaveClass(/settings-flash-anchor--lit/);
+    await expect(page.getByRole("status", { name: "Armed cues", exact: true })).toHaveText("2");
+    await expect(page.getByRole("status", { name: "Cue hold intervals", exact: true })).toHaveText("1200,1200");
+    await page.getByRole("button", { name: "Expire cues", exact: true }).click();
+    await expect(first).not.toHaveClass(/settings-flash-anchor/);
+    await expect(second).not.toHaveClass(/settings-flash-anchor/);
+  });
+}
+
+test("cue expiry clears its detached anchor after React unmount", async ({ mount, page }) => {
+  await mount(<ConfigFlashStory />);
+  const first = page.getByRole("region", { name: "First anchor", exact: true });
+  await page.getByRole("button", { name: "Jump first", exact: true }).click();
+  await expect(first).toHaveClass(/settings-flash-anchor--lit/);
+  const detached = await first.elementHandle();
+  if (detached === null) {
+    throw new Error("The flashed anchor did not mount.");
+  }
+  await page.getByRole("button", { name: "Unmount first anchor", exact: true }).click();
+  await expect(first).toHaveCount(0);
+  await expect.poll(() => detached.evaluate((node) => node.isConnected)).toBe(false);
+  await expect.poll(() => detached.evaluate((node) => node.classList.contains("settings-flash-anchor--lit"))).toBe(true);
+  await expect(page.getByRole("status", { name: "Armed cues", exact: true })).toHaveText("1");
+  await page.getByRole("button", { name: "Expire cues", exact: true }).click();
+  await expect.poll(() => detached.evaluate((node) => [...node.classList])).toEqual([]);
+  await expect(page.getByRole("status", { name: "Armed cues", exact: true })).toHaveText("0");
+  await detached.dispose();
+});
+
+test("actual docked 1040px shell allocates its title floor without covering command controls", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1040, height: 800 });
+  await stub(page);
+  const shell = await mount(<ConfigDockedShellStory />);
+  await shell.getByRole("button", { name: "Dock panels", exact: true }).click();
+  await expect(shell.locator(".shell-grid")).toHaveAttribute("data-list-mode", "docked");
+  await expect(shell.locator(".shell-grid")).toHaveAttribute("data-context-mode", "docked");
+  await expect
+    .poll(() =>
+      shell
+        .locator(".shell-grid")
+        .evaluate((node) =>
+          ["data-list-flip", "data-context-flip", "data-list-settle", "data-context-settle"].every((attribute) => !node.hasAttribute(attribute)),
+        ),
+    )
+    .toBe(true);
+  const title = shell.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
+  const command = shell.getByRole("button", { name: "⌘K jump — the command menu", exact: true });
+  await expect(title).toBeVisible();
+  await expect(command).toBeVisible();
+  const geometry = (): Promise<{ readonly width: number; readonly parentWidth: number; readonly contained: boolean; readonly titleHit: boolean }> =>
+    title.evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      const parent = node.parentElement?.getBoundingClientRect();
+      const header = node.closest("header")?.getBoundingClientRect();
+      const center = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      if (!(parent && header)) {
+        throw new Error("Missing real title allocation");
+      }
+      return {
+        width: box.width,
+        parentWidth: parent.width,
+        contained: box.left >= header.left && box.right <= header.right,
+        titleHit: center === node || node.contains(center),
+      };
+    });
+  await expect
+    .poll(async () => {
+      const box = await geometry();
+      return box.parentWidth - box.width;
+    })
+    .toBeGreaterThanOrEqual(0);
+  await expect.poll(async () => (await geometry()).contained).toBe(true);
+  await expect.poll(async () => (await geometry()).titleHit).toBe(true);
+  const controls = await shell.locator(".shell-topbar button").evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const box = node.getBoundingClientRect();
+      const header = node.closest("header")?.getBoundingClientRect();
+      return box.width === 0 || (!!header && box.left >= header.left && box.right <= header.right && box.top >= header.top && box.bottom <= header.bottom);
+    }),
+  );
+  expect(controls.every(Boolean)).toBe(true);
+  await command.click();
+  await expect(page.getByRole("dialog")).toBeVisible();
 });

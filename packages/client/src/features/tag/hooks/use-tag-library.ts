@@ -4,7 +4,7 @@
 
 import type { TagWithUsage } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
-import type { SelectOption } from "@orb/ui/select";
+import type { SelectOption } from "@orb/ui/select/items";
 import { useRef } from "react";
 import { CREATE_TAG_CONFLICT_TOAST, isTagNameConflict, useCreateTag } from "#components";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";

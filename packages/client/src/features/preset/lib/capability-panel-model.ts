@@ -9,7 +9,7 @@
 import type { EffortLevel, GenerationCapability, Range, Verbosity } from "@orb/contracts/inference";
 import type { Quality } from "@orb/contracts/preset";
 import { QUALITY_LEVELS } from "@orb/contracts/preset";
-import type { SelectItems } from "@orb/ui/select";
+import type { SelectItems } from "@orb/ui/select/items";
 
 type Sampling = GenerationCapability["sampling"];
 type NumericSamplingKey = {

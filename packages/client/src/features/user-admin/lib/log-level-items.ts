@@ -4,7 +4,7 @@
 
 import type { LogLevel } from "@orb/contracts/settings";
 import { LOG_LEVELS } from "@orb/contracts/settings";
-import type { SelectItems } from "@orb/ui/select";
+import type { SelectItems } from "@orb/ui/select/items";
 
 const LOG_LEVEL_LABELS: Record<LogLevel, string> = {
   fatal: "Fatal",

@@ -3,7 +3,7 @@
 // spelling. Discriminated on `api` (the protocol axis) — never on a wire or a provider id.
 
 import type { ChatContentPart, TextSignature, VariantProviderMetadata } from "@orb/contracts/chat";
-import type { ChatApi, ChatUsage, NormalizedFinishReason } from "@orb/contracts/inference";
+import type { AttachmentQuality, ChatApi, ChatUsage, NormalizedFinishReason } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
@@ -124,6 +124,7 @@ export const AGENT_PROMPT_TAIL_JOINER = "\n\n";
 export const AGENT_CONTINUATION_PROMPT_STUB = "*The scene continues.*";
 
 interface ChatRequestBase {
+  readonly attachmentQuality?: AttachmentQuality | undefined;
   readonly connection: Resolved<"chat">;
   readonly params: UserIntent;
   /** Split system prompt: a stable static prefix + a volatile dynamic tail (cache placement). */

@@ -247,6 +247,7 @@ export function createSignupMinterCheck(
 /** What `buildChatService` needs from the composition root — boot primitives + the already-built sibling
  *  services chat's injected ops route through (their front doors only). */
 export interface ChatComposeInput {
+  readonly mediaProcessing: Pick<Parameters<typeof resolveImageRefToUrl>[0], "frameCount" | "prepareVideo">;
   /** Optional — absent wires `ChatContext.tools` to null (byte-identical no-op). */
   readonly toolUse?: ToolUseService | undefined;
   readonly db: Db;
@@ -517,6 +518,7 @@ function chatTurnInputOf(args: {
     // extras and capability — the runtime picks the wire off it; nothing here re-derives a routing fact.
     connection: req.connection,
     params: req.intent,
+    attachmentQuality: req.attachmentQuality,
     systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
     // Carried so the wire-capture sink keys the recorded body by chat (the debug endpoint's `chatId` filter),
     // and so the stateful backend keys its resume cache by it.
@@ -1155,7 +1157,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // scoped chat_participants read.
     resolveImageUrl: (params) =>
       resolveImageRefToUrl(
-        input.assets,
+        { ...input.assets, ...input.mediaProcessing },
         async (userId, forChatId) => {
           const rows = await db
             .select({ id: chatParticipants.id })
@@ -1504,6 +1506,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         memoryConfig,
         // The host's turn-behavior arm the engine honors (custom stops + auto-continue/auto-swipe).
         chatBehavior: {
+          attachmentQuality: us.chat.attachmentQuality,
           autoContinue: us.chat.autoContinue,
           autoContinueRounds: us.chat.autoContinueRounds,
           autoSwipe: us.chat.autoSwipe,

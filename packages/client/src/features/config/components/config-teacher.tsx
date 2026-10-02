@@ -80,17 +80,14 @@ function TeacherValueBlock({ value }: { readonly value: ConfigTeachValue }): Rea
   }
   return (
     <Stack gap="tight" data-slot="teacher-value">
-      <Row align="center" gap="field" className="min-w-0">
-        <Text as="span" voice="label" className="min-w-0 truncate">
+      <Stack gap="tight" className="min-w-0">
+        <Text as="span" voice="label">
           Current {value.current}
         </Text>
-        <Text as="span" voice="gloss" aria-hidden={true}>
-          ·
-        </Text>
-        <Text as="span" voice="gloss" className="min-w-0 truncate">
+        <Text as="span" voice="gloss">
           Default {value.defaultValue}
         </Text>
-      </Row>
+      </Stack>
       <Row>
         <Button intent="ghost" size="sm" onClick={value.reset}>
           <Icon icon={RotateCcw} size="sm" />
@@ -122,7 +119,7 @@ function TeacherRoster({ roster }: { readonly roster: readonly ConfigRosterEntry
                 with no values would answer "what is in here?" and not "what is it set to?", and the
                 second question is the one a settings surface you touch twice a year is opened for. */}
             {entry.value === null ? null : (
-              <Text as="span" voice="gloss" className="min-w-0 truncate" data-slot="teacher-roster-value">
+              <Text as="span" voice="gloss" className="min-w-0" data-slot="teacher-roster-value">
                 {entry.value}
               </Text>
             )}
