@@ -3,9 +3,9 @@
 // settings host through the contribution defs) — the settings _ct-stories.tsx precedent.
 
 import { QueryBoundary } from "@orb/client/components";
-import { useBusRoom, useOrbSocket, useTRPC } from "@orb/client/data";
+import { createAppQueryClient, createTrpcClient, createTrpcProxy, TRPCProvider, useBusRoom, useOrbSocket, useTRPC } from "@orb/client/data";
 import { TooltipProvider } from "@orb/ui/tooltip";
-import { useSuspenseQueries } from "@tanstack/react-query";
+import { QueryClientProvider, useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { AboutSection } from "../../../../packages/client/src/features/user-admin/components/about-section.tsx";
@@ -21,6 +21,7 @@ import { RateLimitsSection } from "../../../../packages/client/src/features/user
 import { StructuredOutputSection } from "../../../../packages/client/src/features/user-admin/components/structured-output-section.tsx";
 import { SystemTuningSection } from "../../../../packages/client/src/features/user-admin/components/system-tuning-section.tsx";
 import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
+import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { ConfigHostStory } from "../config/_ct-stories.tsx";
 
 /** The Users SECTION (SET-SEAMS stage 3) in isolation — `admin.listUsers` + `sessions.me` (the viewer's role
@@ -222,6 +223,28 @@ export function OperationsRestartStory(): ReactElement {
         </div>
       </TooltipProvider>
     </CtDataProviders>
+  );
+}
+
+/** The real global mutation-error outlet plus contrary defaults prove restart's no-toast/no-retry policy. */
+export function OperationsRestartMutationBeltStory(): ReactElement {
+  const [clients] = useState(() => {
+    const queryClient = createAppQueryClient();
+    const trpcClient = createTrpcClient();
+    const trpc = createTrpcProxy(trpcClient, queryClient);
+    queryClient.setMutationDefaults(trpc.admin.restart.mutationOptions().mutationKey, { retry: 2, retryDelay: 0 });
+    return { queryClient, trpcClient };
+  });
+  return (
+    <QueryClientProvider client={clients.queryClient}>
+      <TRPCProvider trpcClient={clients.trpcClient} queryClient={clients.queryClient}>
+        <CtToastSurface>
+          <div style={{ padding: 16, width: 720 }}>
+            <OperationsWithSocket />
+          </div>
+        </CtToastSurface>
+      </TRPCProvider>
+    </QueryClientProvider>
   );
 }
 

@@ -11,7 +11,7 @@ import type { Locator, Page } from "@playwright/test";
 import { isOrbSocketRequest } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { OperationsRestartStory, OperationsSectionStory } from "../_ct-stories.tsx";
+import { OperationsRestartMutationBeltStory, OperationsRestartStory, OperationsSectionStory } from "../_ct-stories.tsx";
 import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
 import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.ts";
 
@@ -469,6 +469,52 @@ test("admission followed by lost ACK stays uncertain and guarded until reconnect
   await expect(page.getByRole("status")).toContainText("restart itself could not be confirmed");
   await expect(page.getByRole("button", { name: "Restart server", exact: true })).toBeEnabled();
   await expect.poll(() => restartRequests).toBe(1);
+});
+
+test("the mutation belt preserves new-identity-before-lost-ACK without a false failure toast or retry", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "sessions.me": () => OWNER,
+    "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED, {}),
+    "stream.attach": () => undefined,
+    "stream.detach": () => undefined,
+  });
+  const socket = await socketSchedule(page);
+  const requested = Promise.withResolvers<void>();
+  const loseResponse = Promise.withResolvers<void>();
+  let restartRequests = 0;
+  await page.route("**/api/trpc/**", async (route) => {
+    if (route.request().url().includes(RESTART_PROC)) {
+      restartRequests += 1;
+      requested.resolve();
+      await loseResponse.promise;
+      await route.abort("aborted");
+      return;
+    }
+    await route.fallback();
+  });
+  try {
+    await mount(<OperationsRestartMutationBeltStory />);
+    await expect(page.getByTestId("operations-connections")).toHaveText("1");
+    await page.getByRole("button", { name: "Restart server", exact: true }).click();
+    const dialog = page.getByRole("alertdialog");
+    const confirm = dialog.getByRole("button", { name: "Restart server", exact: true });
+    await confirm.click();
+    await requested.promise;
+    socket.releaseReconnect();
+    await expect(page.getByTestId("operations-connections")).toHaveText("2", { timeout: 15_000 });
+    await expect(dialog.getByRole("status")).toHaveText("Sending the restart request…");
+    await expect(confirm).toBeDisabled();
+    await page.keyboard.press("Enter");
+    await expect.poll(() => restartRequests).toBe(1);
+    loseResponse.resolve();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole("status")).toHaveText("Server is back online. The response was lost, so the restart itself could not be confirmed.");
+    await expect(page.getByRole("button", { name: "Restart server", exact: true })).toBeEnabled();
+    await expect.soft(page.locator('[data-slot="toast-root"]')).toHaveCount(0);
+    await expect.poll(() => restartRequests).toBe(1);
+  } finally {
+    loseResponse.resolve();
+  }
 });
 
 test("toggling the indexer patches EXACTLY that key", async ({ mount, page }) => {

@@ -1,11 +1,18 @@
 // The Admin pane's mutations, one createEntityMutation per verb. None are busDriven: the admin verbs act
-// on other users' rows so the actor's own bus never carries them, so each self-invalidates its read on
-// settle.
+// on other users' rows so the actor's own bus never carries them. Row writes invalidate their reads;
+// process restart reconciles no cached row and instead awaits a new live process identity.
 
 import type { AppSettings, EffectiveAppConfig } from "@orb/contracts/settings";
-import type { inferInput } from "@trpc/tanstack-react-query";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+
+/** Restart has no row to invalidate. The confirmation owns definitive refusal, and the control owns
+ *  response-loss uncertainty; an error toast would falsely claim the restart was not admitted. */
+export const useRestartServer = createEntityMutation<inferInput<Trpc["admin"]["restart"]>, inferOutput<Trpc["admin"]["restart"]>>({
+  options: (trpc) => trpc.admin.restart.mutationOptions({ retry: false }),
+  invalidates: () => [],
+});
 
 /** Mint a loginable local human (handle + password + role). Invalidates the user table. */
 export const useCreateUser = createEntityMutation<inferInput<Trpc["admin"]["createUser"]>, unknown>({

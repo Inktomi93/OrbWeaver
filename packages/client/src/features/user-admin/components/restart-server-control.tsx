@@ -2,12 +2,12 @@
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useMutation } from "@tanstack/react-query";
 import { isTRPCClientError } from "@trpc/client";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
-import { useBusRoom, useTRPC } from "#data";
+import { useBusRoom, useInvalidation, useTRPC } from "#data";
+import { useRestartServer } from "../hooks/use-admin-mutations.ts";
 
 const RESTART_SERVER_LABEL = "Restart server";
 const RESTART_NOT_READY_COPY = "Waiting for live updates before restart becomes available.";
@@ -30,7 +30,8 @@ const RESTART_COPY: Record<RestartPhase, string> = {
 
 export function RestartServerControl(): ReactElement {
   const trpc = useTRPC();
-  const restart = useMutation({ ...trpc.admin.restart.mutationOptions(), retry: false });
+  const invalidation = useInvalidation();
+  const restart = useRestartServer({ trpc, invalidation });
   const operation = useRef<RestartOperation | null>(null);
   const serverInstanceId = useRef<string | null>(null);
   const hintId = useId();
