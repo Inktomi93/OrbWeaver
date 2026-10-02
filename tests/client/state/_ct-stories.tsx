@@ -133,6 +133,7 @@ import {
   setCorpusSearchQuery,
   setCorpusSearchTarget,
   setDatabankPhaseFilter,
+  setExtensionsSearchQuery,
   setFocusMode,
   setLabelFilter,
   setLabelNameFocus,
@@ -190,6 +191,7 @@ import {
   useCorpusSearchTargetId,
   useDatabankPhaseFilter,
   useErroredSaveSections,
+  useExtensionsSearchQuery,
   useFavoritesOnly,
   useFiltersOpen,
   useFocusMode,
@@ -1917,6 +1919,32 @@ export function CorpusScrollProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => setCorpusSearchTarget("digests")}>
         change target
+      </button>
+    </div>
+  );
+}
+
+function ExtensionsSearchReader({ name }: { readonly name: string }): ReactElement {
+  const query = useExtensionsSearchQuery();
+  return <output aria-label={name}>{query}</output>;
+}
+
+/** Actual independent hook readers survive remounts and share only the Extensions session query. */
+export function ExtensionsSearchProbe(): ReactElement {
+  const query = useExtensionsSearchQuery();
+  const preset = usePresetSearchQuery();
+  const [showSibling, setShowSibling] = useState(true);
+  return (
+    <div>
+      <input aria-label="Extensions query" value={query} onChange={(event): void => setExtensionsSearchQuery(event.target.value)} />
+      <input aria-label="Preset query" value={preset} onChange={(event): void => setPresetSearchQuery(event.target.value)} />
+      <ExtensionsSearchReader name="First extensions reader" />
+      {showSibling ? <ExtensionsSearchReader name="Second extensions reader" /> : null}
+      <button type="button" onClick={(): void => setShowSibling(!showSibling)}>
+        Toggle sibling reader
+      </button>
+      <button type="button" onClick={(): void => setExtensionsSearchQuery("")}>
+        Clear extensions query
       </button>
     </div>
   );

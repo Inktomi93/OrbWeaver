@@ -1744,56 +1744,79 @@ for (const viewport of [
   });
 }
 
-test("focus lift uses a separate inert layer while the composer ring survives", async ({ mount, page }, testInfo) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
-  const component = await mount(<ComposerStory />);
-  const composer = component.locator('[data-slot="composer"]');
-  await component.getByLabel("Message", { exact: true }).fill("A focused draft");
-  await testInfo.attach("focused-composer", { body: await composer.screenshot(), contentType: "image/png" });
-  await expect
-    .poll(async () => {
-      const paint = await composer.evaluate((element) => {
-        const root = getComputedStyle(element);
-        const effect = getComputedStyle(element, "::before");
-        return {
-          ring: root.getPropertyValue("--tw-ring-shadow"),
-          shadow: root.getPropertyValue("--tw-shadow"),
-          glow: root.getPropertyValue("--shadow-glow"),
-          effect: effect.boxShadow,
-          content: effect.content,
-          pointer: effect.pointerEvents,
-          position: effect.position,
-          z: Number(effect.zIndex),
-          radius: effect.borderRadius,
-          rootRadius: root.borderRadius,
-          isolation: root.isolation,
-        };
-      });
-      return {
-        ringPresent: paint.ring !== "",
-        ringNonzero: !paint.ring.includes("0 0 #0000"),
-        rootNotGlow: paint.shadow.trim() !== paint.glow.trim(),
-        contentPresent: paint.content !== "none",
-        effectPresent: paint.effect !== "none",
-        pointer: paint.pointer,
-        position: paint.position,
-        behind: paint.z < 0,
-        sameRadius: paint.radius === paint.rootRadius,
-        isolation: paint.isolation,
-      };
-    })
-    .toEqual({
-      ringPresent: true,
-      ringNonzero: true,
-      rootNotGlow: true,
-      contentPresent: true,
-      effectPresent: true,
-      pointer: "none",
-      position: "absolute",
-      behind: true,
-      sameRadius: true,
-      isolation: "isolate",
+for (const width of [1440, 360]) {
+  test.describe(`governed composer glow at ${width}`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width === 360 });
+    test("focus lift uses governed layers while backing, ring and real input remain intact", async ({ mount, page }, testInfo) => {
+      await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+      const component = await mount(<ComposerStory />);
+      const composer = component.locator('[data-slot="composer"]');
+      const message = component.getByLabel("Message", { exact: true });
+      await message.click();
+      await expect(message).toBeFocused();
+      await page.keyboard.type("A focused draft");
+      await expect(message).toHaveValue("A focused draft");
+      await expect
+        .poll(() =>
+          composer.evaluate((element) => {
+            const root = getComputedStyle(element);
+            const effect = getComputedStyle(element, "::before");
+            const content = element.querySelector('[data-slot="composer-content"]');
+            const contentStyle = content === null ? null : getComputedStyle(content);
+            const probe = document.createElement("div");
+            probe.style.backgroundColor = "var(--color-muted)";
+            element.append(probe);
+            const expectedBacking = getComputedStyle(probe).backgroundColor;
+            probe.remove();
+            return {
+              ringPresent: root.getPropertyValue("--tw-ring-shadow") !== "",
+              ringNonzero: !root.getPropertyValue("--tw-ring-shadow").includes("0 0 #0000"),
+              rootNotGlow: root.getPropertyValue("--tw-shadow").trim() !== root.getPropertyValue("--shadow-glow").trim(),
+              contentPresent: effect.content !== "none",
+              effectPresent: effect.boxShadow !== "none",
+              pointer: effect.pointerEvents,
+              position: effect.position,
+              base: Number(effect.zIndex) === Number(root.getPropertyValue("--z-base")),
+              raised: contentStyle !== null && Number(contentStyle.zIndex) === Number(root.getPropertyValue("--z-raised")),
+              behindContent: contentStyle !== null && Number(effect.zIndex) < Number(contentStyle.zIndex),
+              sameRadius: effect.borderRadius === root.borderRadius,
+              isolation: root.isolation,
+              backing: root.backgroundColor === expectedBacking,
+              opacity: root.opacity,
+            };
+          }),
+        )
+        .toEqual({
+          ringPresent: true,
+          ringNonzero: true,
+          rootNotGlow: true,
+          contentPresent: true,
+          effectPresent: true,
+          pointer: "none",
+          position: "absolute",
+          base: true,
+          raised: true,
+          behindContent: true,
+          sameRadius: true,
+          isolation: "isolate",
+          backing: true,
+          opacity: "1",
+        });
+      await testInfo.attach(`focused-composer-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+      await dragFiles(component, [{ name: "cat.png", type: "image/png", bytes: 4 }], ["dragenter", "dragover"]);
+      const affordance = composer.locator('[data-slot="composer-content"]').locator(DROP_AFFORDANCE);
+      await expect(affordance).toBeVisible();
+      await expect(affordance).toHaveText("Drop images or video to attach");
+      await expect(composer).toHaveAttribute("data-drag-over", "");
+      await testInfo.attach(`drag-composer-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+      await dragFiles(component, [{ name: "cat.png", type: "image/png", bytes: 4 }], ["dragleave"]);
+      await expect(affordance).toHaveCount(0);
+
+      await component.getByRole("button", { name: "Message tools", exact: true }).click();
+      await page.getByRole("menuitem", { name: "Clear input", exact: true }).click();
+      await expect(message).toHaveValue("");
+      await page.getByTestId("drive-begin").focus();
+      await expect.poll(() => composer.evaluate((element) => getComputedStyle(element, "::before").boxShadow)).toBe("none");
     });
-  await page.getByTestId("drive-begin").focus();
-  await expect.poll(() => composer.evaluate((element) => getComputedStyle(element, "::before").boxShadow)).toBe("none");
-});
+  });
+}
