@@ -28,6 +28,8 @@ Each page is one of these:
 
 A page never mixes kinds. A how-to that stops to explain theory links to the explanation instead. A dated artifact is not kept current.
 
+A getting-started page carries the shortest working path and nothing else. Its depth moves to a guide it links to.
+
 ## Reference lives in the app
 
 A setting's meaning has one home: its in-app help, authored as the `teach` declaration (`SettingTeachDecl`) on the setting's leaf in `packages/client/src/state/config-group-registry.ts`. A wiki page never restates what a setting does. It names the setting and describes the task. When a page needs to explain a setting, fix that setting's `teach` declaration instead.
@@ -39,7 +41,10 @@ A setting's meaning has one home: its in-app help, authored as the `teach` decla
 - Add a screenshot only where words fail. Render it from the live app with `pnpm snap`, so a new capture is one command.
 - Write plain, friendly prose for a reader who has never seen the code. Leave out internal names, type names and file paths.
 - Do not put version numbers or dates in a guide or explanation.
+- For a feature that makes model calls in the background, name the model it runs on in one line, such as "runs on your Utility model" or "runs locally". Do not estimate cost: it depends on the reader's model and settings.
 
 ## Keeping pages true
 
 Pages rot slowly because they describe tasks, not layout. When a reader reports a wrong page, fix that page. The wiki has no sync tooling, no review cadence and no version stamps.
+
+The Known issues page lists every rough edge a reader can hit in the current release. Add an entry when a known problem ships, and remove it when the fix ships.
