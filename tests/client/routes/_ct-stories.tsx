@@ -1,3 +1,9 @@
+import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
+import { insightsCorpusMode } from "@orb/client/features/stats";
+import { labelsCorpusMode } from "@orb/client/features/tag";
+import type { CorpusMode, ListSearchPolicy } from "@orb/client/lib";
+import { CORPUS_MODES } from "@orb/client/lib";
+import { setActiveSection, setCorpusMode, useSectionRegistry } from "@orb/client/state";
 // Route CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The `/` route
 // (AppRoot) is the app's central navigation seam; it comes in via a relative path into the package
 // (a route has no front-door subpath) and is wrapped in the real data layer (<CtDataProviders> — Query
@@ -127,5 +133,73 @@ export function ProductionRouterAliasStory(): ReactElement {
       <output aria-label="Workspace destination">{`${section}:${mode}`}</output>
       <ProductionRouterStory />
     </>
+  );
+}
+
+/** The census derives its subjects from the production registry, including each Corpus mode. */
+export function SectionRosterCensusStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <SectionRosterCensus />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+function SectionRosterCensus(): ReactElement {
+  const registry = useSectionRegistry();
+  const sectionId = useActiveSection();
+  const mode = useCorpusMode();
+  const definition = registry.get(sectionId);
+  const corpusSearch: Readonly<Record<CorpusMode, ListSearchPolicy>> = {
+    explore: registry.get("corpus").listSearch ?? "required",
+    insights: insightsCorpusMode.listSearch,
+    labels: labelsCorpusMode.listSearch,
+  };
+  const searchPolicy = sectionId === "corpus" ? corpusSearch[mode] : definition.listSearch;
+  return (
+    <div>
+      <nav aria-label="Roster census">
+        {registry
+          .list()
+          .filter((section) => section.list !== undefined)
+          .flatMap((section) =>
+            section.id === "corpus"
+              ? CORPUS_MODES.map((variant) => (
+                  <button
+                    key={`${section.id}:${variant}`}
+                    type="button"
+                    onClick={(): void => {
+                      setActiveSection(section.id);
+                      setCorpusMode(variant);
+                    }}
+                  >
+                    Census {section.id}:{variant}
+                  </button>
+                ))
+              : [
+                  <button key={section.id} type="button" onClick={(): void => setActiveSection(section.id)}>
+                    Census {section.id}
+                  </button>,
+                ],
+          )}
+      </nav>
+      {definition.list === undefined ? null : (
+        <section
+          aria-label="Census list"
+          data-search-policy={typeof searchPolicy === "string" ? searchPolicy : "planned"}
+          data-search-reason={typeof searchPolicy === "object" ? searchPolicy.planned : ""}
+          style={{ width: 400, height: 700, display: "flex", flexDirection: "column" }}
+        >
+          <div data-slot="census-band">
+            <ListPaneHeaderHost key={sectionId} useView={definition.useListHeader} />
+          </div>
+          <div style={{ minHeight: 0, flex: 1 }}>
+            <QueryBoundary fallback={<p>Loading roster</p>}>{definition.list()}</QueryBoundary>
+          </div>
+        </section>
+      )}
+    </div>
   );
 }

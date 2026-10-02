@@ -14,6 +14,7 @@
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary } from "#components";
+import { SkeletonRows } from "#data";
 import type { ResolvedContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { ContextTabsPanel } from "./context-tabs-panel.tsx";
@@ -57,7 +58,17 @@ export function SectionContextHost({ definition, dismissLabel, onDismiss }: Sect
     return context.body();
   }
   return (
-    <QueryBoundary fallback={<Text voice="quiet">Loading details…</Text>}>
+    <QueryBoundary
+      fallback={
+        <ContextTabsPanel
+          tabs={[]}
+          railLabel={definition.rail.label}
+          empty={<SkeletonRows count={3} />}
+          {...(dismissLabel === undefined ? {} : { dismissLabel })}
+          {...(onDismiss === undefined ? {} : { onDismiss })}
+        />
+      }
+    >
       <ResolvedTabsHost
         empty={contextEmpty(context)}
         useResolved={context.useResolved}
@@ -78,7 +89,7 @@ export function SectionContextHost({ definition, dismissLabel, onDismiss }: Sect
 export function SectionContextHeader({ definition }: Pick<SectionContextHostProps, "definition">): ReactNode {
   const { context } = definition;
   if (context.kind === "single") {
-    return context.header === undefined ? CONTEXT_HEADER_DEFAULT : context.header();
+    return context.header() ?? CONTEXT_HEADER_DEFAULT;
   }
   if (context.kind === "none") {
     return CONTEXT_HEADER_DEFAULT;
@@ -96,15 +107,13 @@ interface ResolvedTabsHostProps {
 
 function ResolvedTabsHost({ useResolved, empty, railFallback, dismissLabel, onDismiss }: ResolvedTabsHostProps): ReactElement {
   const resolved = useResolved();
-  if (resolved === null || resolved.tabs.length === 0) {
-    return <>{empty}</>;
-  }
   return (
     <ContextTabsPanel
-      tabs={resolved.tabs}
-      actions={resolved.actions}
-      header={resolved.header}
-      railLabel={resolved.railLabel ?? railFallback}
+      tabs={resolved?.tabs ?? []}
+      actions={resolved?.actions}
+      header={resolved?.header}
+      railLabel={resolved?.railLabel ?? railFallback}
+      empty={empty}
       {...(dismissLabel === undefined ? {} : { dismissLabel })}
       {...(onDismiss === undefined ? {} : { onDismiss })}
     />

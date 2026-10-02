@@ -88,7 +88,7 @@ export function TeachingState({ onStart, starting }: TeachingStateProps): ReactE
   // the landing-focus nonce. At mount the nonce is 0, so nothing is stolen on first paint.
   const focusRef = useLandingPickerFocusOnRequest();
   return (
-    <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" padding="section" ref={focusRef}>
+    <Stack align="center" data-testid={testId("refineryTeaching")} gap="section" className="py-section" ref={focusRef}>
       <Stack align="center" className="max-w-(--reading-measure)" gap="tight">
         {/* `text-center` on BOTH lines, not just the gloss: the Stack centres each child as a BLOCK, so a
             two-line heading at the reading measure sat left-aligned above a centred sentence — two

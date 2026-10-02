@@ -112,10 +112,10 @@ export function HomeQuickPicksTileBody(): ReactElement {
     //
     // `role="list"` needs `listitem` CHILDREN or the cells are generic to AT and the list announces empty.
     //
-    // The swipe row bleeds through Home's page inset (`px-gutter`) to the screen edge, so a face runs off the screen
+    // The swipe row bleeds through Home's page inset (`px-section`) to the screen edge, so a face runs off the screen
     // rather than being cut mid-page, and its scroll padding keeps a revealed face clear of that edge.
     <Grid
-      className={swipe ? "-mx-gutter px-gutter scroll-px-gutter" : undefined}
+      className={swipe ? "-mx-section px-section scroll-px-section" : undefined}
       cols={swipe ? "cellSwipe" : "cellFixed"}
       gap="row"
       onFocus={swipe ? revealFocused : undefined}

@@ -1,5 +1,5 @@
 // useCorpusCensus — the corpus catalog's ONE census read. Its own module since #1676 because it now has TWO
-// readers: the LIST chrome band (`components/corpus-list-header.tsx`) and the phone topbar's screen title
+// readers: the LIST chrome band (`hooks/use-corpus-list-header.tsx`) and the phone topbar's screen title
 // (`lib/corpus-selection-title.ts`), which is where the count lives once the ONE-NAME rule (shell.css) sheds
 // the band's title. Both readers share the `discovery.catalog` cache (the browse view below suspends on it
 // already), so the second one costs no request.

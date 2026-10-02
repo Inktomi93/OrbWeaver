@@ -30,6 +30,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
+import { ListSearch } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
@@ -68,7 +69,9 @@ export function AnalyticsListSurface(): ReactElement {
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsListSurface")} gap="block">
       {/* §14 LIST anatomy: search → sort → rows. The search is the reach past the page cap; the sort orders
           the page that comes back. */}
-      <Input aria-label="Search characters" onValueChange={setAnalyticsSearchQuery} placeholder="Search characters" value={search} />
+      <ListSearch>
+        <Input aria-label="Search characters" onValueChange={setAnalyticsSearchQuery} placeholder="Search characters" value={search} />
+      </ListSearch>
       <ToggleGroup
         aria-label="Sort characters"
         className="grid w-full grid-cols-2"

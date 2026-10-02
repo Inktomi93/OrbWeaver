@@ -21,7 +21,6 @@
 // separately; standing here on a phone borrows a bar slot like every other overflow section (#484).
 
 import { Settings } from "@orb/ui/icons";
-import { ListPaneHeader } from "#components";
 import type { ConfigGroupRegistry, SectionDefinition, SectionSelection } from "#state";
 import { clearActiveConfigGroup, collectionMemberSelection, getActiveConfigGroup, subscribeConfigNav, worldEntrySelectionSeam } from "#state";
 import { ConfigContentSurface } from "../surfaces/config-content-surface.tsx";
@@ -85,6 +84,7 @@ export function makeConfigSection(groups: ConfigGroupRegistry): SectionDefinitio
   return {
     id: "config",
     rail: { label: CONFIG_SECTION_LABEL, icon: Settings, group: "authoring", mobile: "sheet", zone: "rail.end" },
+    contentInset: { planned: "The settings skimmer owns its pinned navigation and independently scrolling editor." },
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: CONFIG_SECTION_LABEL,
@@ -100,7 +100,8 @@ export function makeConfigSection(groups: ConfigGroupRegistry): SectionDefinitio
     // it is the CONTENT library's own primary now — one home, in the pane the library occupies. The C-2
     // ruling is untouched; only the create's address changed, which is the same sentence the members'
     // address change is.
-    listHeader: () => <ListPaneHeader title={CONFIG_SECTION_LABEL} />,
+    listSearch: "required",
+    useListHeader: () => ({ title: CONFIG_SECTION_LABEL }),
     selection: makeSelectionSeam(),
     useSelectionTitle: (): string | null => useConfigSelectionTitle(groups),
     content: () => <ConfigContentSurface groups={groups} />,

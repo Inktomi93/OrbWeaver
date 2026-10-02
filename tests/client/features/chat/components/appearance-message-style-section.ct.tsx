@@ -308,3 +308,15 @@ test("at a narrow width the horizontal field stacks — the control column can't
   await expect.poll(async () => (await readGeoAtAssertion()).labelW).toBeGreaterThanOrEqual(geo.labelWantsW - 1);
   expect(geo.fieldW).toBeGreaterThan(0); // positive control: a zero-width field would pass both reads
 });
+
+for (const width of [1440, 360]) {
+  test(`message-style miniatures render readable examples at ${width}`, async ({ mount, page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await stub(page);
+    await mount(width === 360 ? <AppearanceMessageStyleNarrowStory /> : <AppearanceMessageStyleSectionStory />);
+    const cards = page.getByRole("radiogroup", { name: "Chat display" });
+    await expect(cards.getByRole("radio")).toHaveCount(CHAT_STYLE_COUNT);
+    await expect(cards.getByText("The lantern is still warm.").first()).toBeVisible();
+    await testInfo.attach(`chat-style-miniatures-${width}`, { body: await cards.screenshot(), contentType: "image/png" });
+  });
+}

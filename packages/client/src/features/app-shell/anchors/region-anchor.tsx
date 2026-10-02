@@ -17,11 +17,12 @@ type ShellRegion = (typeof SHELL_REGIONS)[number];
 export interface RegionAnchorProps {
   readonly region: ShellRegion;
   readonly children: ReactNode;
+  readonly inset?: boolean;
 }
 
-export function RegionAnchor({ region, children }: RegionAnchorProps): ReactElement {
+export function RegionAnchor({ region, children, inset = false }: RegionAnchorProps): ReactElement {
   return (
-    <Container name={region} className="shell-region-fill">
+    <Container name={region} className={inset ? "shell-region-fill px-section" : "shell-region-fill"}>
       {/* Per-region <Profiler> boundary → the render heatmap (`window.__orb.renders()`, dev-only; bare
           children in prod). Gives content/list/context render frequency + cost with one wrapper. */}
       <RenderProfiler id={`region:${region}`}>{children}</RenderProfiler>

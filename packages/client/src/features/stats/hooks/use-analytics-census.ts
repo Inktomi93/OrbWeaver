@@ -1,5 +1,5 @@
 // useAnalyticsCensus — the leaderboard's ONE census read. Its own module since #1676 because it now has TWO
-// readers: the LIST chrome band (`components/analytics-list-header.tsx`) and the phone topbar's screen title
+// readers: the LIST chrome band (`hooks/use-analytics-list-header.tsx`) and the phone topbar's screen title
 // (`lib/analytics-selection-title.ts`), which is where the count lives once the ONE-NAME rule (shell.css)
 // sheds the band's title. Both share the `leaderboard` cache with the list surface below (the DEFAULT_SORT
 // key), so neither costs a request the pane did not already make.

@@ -24,7 +24,7 @@
 import { Blocks } from "@orb/ui/icons";
 import type { SectionDefinition } from "#state";
 import { pluginPageSectionSelection } from "#state";
-import { ExtensionsListHeader } from "../components/extensions-list-header.tsx";
+import { useExtensionsListHeader } from "../hooks/use-extensions-list-header.tsx";
 import { ExtensionsPageSurface } from "../surfaces/extensions-page-surface.tsx";
 import { ExtensionsSwitcherSurface } from "../surfaces/extensions-switcher-surface.tsx";
 import { EXTENSIONS_PLACEHOLDER } from "./extensions-copy.ts";
@@ -34,18 +34,14 @@ import { useExtensionsSelectionTitle } from "./use-extensions-selection-title.ts
 export const extensionsSection: SectionDefinition = {
   id: "extensions",
   rail: { label: EXTENSIONS_SECTION_LABEL, icon: Blocks, group: "authoring", mobile: "sheet" },
-  // The DECLARED SHADOW of `context: {kind:"none"}` below (#1223). The shell derives "has a context pane"
-  // from `panels.context` alone (`use-shell-layout.ts`), never from the context slot, so a section that
-  // declares no context CONTENT but omits this ships a live topbar toggle onto the generic placeholder —
-  // exactly the door H3/arm L-b removed for home. Interim: the design's §3.4b would DERIVE availability
-  // from `kind:"none"`, and until it lands the two statements are spelled separately and must agree.
-  panels: { context: "unavailable" },
+  contentInset: { planned: "The plugin attribution band and page viewport occupy the full content region." },
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: EXTENSIONS_PLACEHOLDER,
   list: () => <ExtensionsSwitcherSurface />,
   // The LIST chrome-band content (#1190): "Extensions" title + a live page count. Browse-shaped, no create
   // action — a page is registered by a plugin, not made from this band (see the header's own note).
-  listHeader: () => <ExtensionsListHeader />,
+  listSearch: "required",
+  useListHeader: useExtensionsListHeader,
   // How the SHELL reads "is a page open?" — the mobile ONE-SHELL rule's input and its back affordance.
   selection: pluginPageSectionSelection,
   // …and what the MOBILE topbar calls the open page: the page's own name, never the section's.

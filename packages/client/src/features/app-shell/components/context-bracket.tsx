@@ -47,6 +47,7 @@ export interface ContextBracketProps {
   readonly view: ContextRegionView;
   /** The HEAD band's content — the section's `header` or a claiming region's band. Absent ⇒ no band. */
   readonly band?: ReactNode;
+  readonly empty?: ReactNode;
   /** The FOOT rail's name: the artifact noun the pane is about ("Chat", "Character", or the section). */
   readonly railLabel: string;
   /** The floating pane's own way out (overlay mode only) — rendered into the band's top-right corner. */
@@ -78,7 +79,7 @@ function railSelection(active: ResolvedContextTab | null, strip: ResolvedContext
 // If the owner wants `Game` last it is an explicit ORDER field on the tab definition, decided on a later
 // word — never a predicate guessed from a flag that means something else.
 
-export function ContextBracket({ view, band, railLabel, dismissLabel, onDismiss }: ContextBracketProps): ReactElement {
+export function ContextBracket({ view, band, empty, railLabel, dismissLabel, onDismiss }: ContextBracketProps): ReactElement {
   const gameTabs = view.tabs.filter((tab) => tab.strip === "game");
   const metaTabs = view.tabs.filter((tab) => tab.strip === "meta");
   // WHICH RAIL OWNS THE SELECTION — the one fact neither strip's renderer could know before (F6 defect 1).
@@ -187,6 +188,11 @@ export function ContextBracket({ view, band, railLabel, dismissLabel, onDismiss 
           shell is always rendered (Base UI needs it for its `inert`/`hidden` bookkeeping), but its
           CHILDREN are deferred until first visit, cutting the initial commit-phase cost from 169-214ms
           to only the active tab's tree. */}
+      {view.tabs.length === 0 ? (
+        <Stack className="relative min-h-0 overflow-y-auto overscroll-contain" padding="row">
+          {empty}
+        </Stack>
+      ) : null}
       {view.tabs.map((tab) => (
         <TabsPanel
           key={tab.id}

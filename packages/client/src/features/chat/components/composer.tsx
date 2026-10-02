@@ -43,7 +43,6 @@ import { useComposerFocusOnRequest } from "../hooks/use-composer-focus.ts";
 import { useComposerMediaDrop } from "../hooks/use-composer-media-drop.ts";
 import { useContinueTurn } from "../hooks/use-continue-turn.ts";
 import { useGenerateImage } from "../hooks/use-generate-image.ts";
-import { useRoomGalleryDoor } from "../hooks/use-room-gallery-door.ts";
 import { useSendAvailability } from "../hooks/use-send-availability.ts";
 import { useSendMessage } from "../hooks/use-send-message.ts";
 import { useSharedRoom } from "../hooks/use-shared-room.ts";
@@ -151,7 +150,6 @@ export function Composer({
   // The verb posts one user message with asset: refs (D51), so it renders through the normal stream.
   const generateImage = useGenerateImage(chatId);
   const sharedRoom = useSharedRoom(chatId);
-  const galleryDoor = useRoomGalleryDoor(chatId);
 
   const trimmed = value.trim();
   const hasAttachments = attachments.length > 0;
@@ -333,7 +331,6 @@ export function Composer({
     // The SECOND image door (#623) — the same `openImagine` #state action the `/imagine` slash runner fires
     // (never a `#features/imagery` import, §5.1). Seeded, not cleared: nothing has been spent yet.
     onOpenImagine: (): void => openImagine({ chatId, mode: "free", prompt: trimmed }),
-    gallery: galleryDoor,
   };
 
   return (

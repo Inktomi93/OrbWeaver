@@ -17,7 +17,7 @@
 // live keyboard walk produced one persisted `settings.updateUserSettingsSection` per arrow press. The
 // counter is this harness's stand-in for that mutation log, so a spec can assert N arrows → 0 commits.
 
-import { LibraryListLayout, LibraryRow, RowToggleAction } from "@orb/client/components";
+import { LibraryListLayout, LibraryRow, LibrarySurfaceShell, RowToggleAction } from "@orb/client/components";
 import { Circle } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -86,5 +86,19 @@ export function LibraryListHarness(): ReactElement {
       <p data-testid="active-id">{activeId}</p>
       <p data-testid="commit-count">{commits}</p>
     </div>
+  );
+}
+
+const PENDING_LIBRARY = new Promise<never>(() => undefined);
+
+function PendingLibraryRows(): never {
+  throw PENDING_LIBRARY;
+}
+
+export function LoadingLibraryStory(): ReactElement {
+  return (
+    <LibrarySurfaceShell loadingLabel="Loading your library" errorLabel="your library">
+      <PendingLibraryRows />
+    </LibrarySurfaceShell>
   );
 }

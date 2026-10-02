@@ -91,7 +91,7 @@ export function useSectionListMode(section: SectionId): PanelMode {
   const openOverlayPanel = useOpenOverlayPanel();
   const listIsScreen = useSectionListIsScreen(section);
   const override = usePanelOverride(section, "list");
-  if (definition.panels?.list === "unavailable") {
+  if (definition.list === undefined) {
     return "collapsed";
   }
   const resolved = override ?? definition.panelDefaults.list;

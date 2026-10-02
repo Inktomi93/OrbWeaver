@@ -18,7 +18,7 @@
 //
 // WHY THE TWO COMPOSITES CANNOT SIMPLY MERGE: `LibraryListLayout` has FOUR consumers but only TWO of them
 // (preset, databank) nest it inside `LibrarySurfaceShell`'s boundary — `refinery-list-surface` composes the
-// layout with no shell at all, and the shell's THIRD consumer (`extensions-switcher-surface`) uses no layout.
+// layout with no shell at all, and Extensions uses the split frame so its search remains outside the loading boundary.
 // One merged component would force a boundary on the first and a layout on the second. `LibraryListLayout`
 // survives as exactly `LibraryListFrame` + `LibraryListRows` for the two consumers that need no boundary
 // between them, so there is one definition of each piece and nothing to re-merge.
@@ -28,7 +28,7 @@
 // exactly the chrome a mixed-kind config list can't keep, so the slot goes with it rather than waiting.
 //
 // The in-pane micro-caps TITLE + actions row this used to carry is GONE (L4): both
-// consumers now supply a `listHeader` and their title/create live in the `.shell-panel-header` band, like
+// consumers now supply a `useListHeader` and their title/create live in the `.shell-panel-header` band, like
 // every other section's (D66 A1/A2). The A1/N2 migration this file once deferred to "a separate lane" IS
 // that lane.
 //
@@ -37,12 +37,14 @@
 
 import { Input } from "@orb/ui/input";
 import { Stack, Surface } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
-import { QueryErrorState } from "#data";
+import { QueryErrorState, SkeletonRows } from "#data";
+import { ListSearch } from "./list-search.tsx";
 import { QueryBoundary } from "./query-boundary.tsx";
 import { useRovingRadioGroup } from "./use-roving-radio-group.ts";
+
+const LIBRARY_LOADING_ROWS = 3;
 
 export interface LibrarySurfaceShellProps {
   /** Suspense fallback copy, e.g. "Loading your presets…". */
@@ -66,7 +68,11 @@ export interface LibrarySurfaceShellProps {
 export function LibrarySurfaceShell({ loadingLabel, errorLabel, reserveKey, children }: LibrarySurfaceShellProps): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">{loadingLabel}</Text>}
+      fallback={
+        <Stack role="status" aria-label={loadingLabel}>
+          <SkeletonRows count={LIBRARY_LOADING_ROWS} />
+        </Stack>
+      }
       renderError={(_error, retry): ReactElement => <QueryErrorState label={errorLabel} onRetry={retry} />}
       {...(reserveKey === undefined ? {} : { reserveKey })}
     >
@@ -111,7 +117,9 @@ export function LibraryListFrame({
     // construction instead of each picking steps by taste.
     <Surface tier="instrument">
       <Stack className="h-full" gap="row">
-        <Input aria-label={searchLabel} onValueChange={onSearchChange} placeholder={searchPlaceholder} value={searchValue} />
+        <ListSearch>
+          <Input aria-label={searchLabel} onValueChange={onSearchChange} placeholder={searchPlaceholder} value={searchValue} />
+        </ListSearch>
 
         {scroll ? (
           <Stack className={LIBRARY_SCROLL_BOX} data-slot="library-list-scroll">

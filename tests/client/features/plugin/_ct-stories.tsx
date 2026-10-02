@@ -9,6 +9,7 @@
 // and the declared list comes from a client-side manifest read of the uploaded bytes — a story that passed
 // the capability list in as a prop would prove nothing about the path that actually produces it.
 
+import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, useTRPC } from "@orb/client/data";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
 import {
@@ -334,7 +335,7 @@ function ExtensionsListHarness(): ReactElement {
   return <>{list()}</>;
 }
 
-/** The Extensions section's LIST chrome-band, through the real registry (`registry.get("extensions").listHeader`)
+/** The Extensions section's LIST chrome-band, through the real registry (`registry.get("extensions").useListHeader`)
  *  — the exact call the shell's `.shell-panel-header` band makes (#1190). */
 export function ExtensionsListHeaderStory({ width = SWITCHER_PANE_WIDTH }: { readonly width?: number }): ReactElement {
   return (
@@ -350,11 +351,42 @@ export function ExtensionsListHeaderStory({ width = SWITCHER_PANE_WIDTH }: { rea
 
 function ExtensionsListHeaderHarness(): ReactElement {
   const registry = useSectionRegistry();
-  const listHeader = registry.get("extensions").listHeader;
+  const listHeader = registry.get("extensions").useListHeader;
   if (typeof listHeader !== "function") {
     throw new Error("ct-stories: the extensions section declares no list header");
   }
-  return <>{listHeader()}</>;
+  return <>{<ListPaneHeaderHost useView={listHeader} />}</>;
+}
+
+/** Composes the real sibling census consumer and finder over the same section registry. */
+export function ExtensionsCensusStory({ phone = false }: { readonly phone?: boolean }): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <ExtensionsCensusHarness phone={phone} />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+function ExtensionsCensusHarness({ phone }: { readonly phone: boolean }): ReactElement {
+  const definition = useSectionRegistry().get("extensions");
+  const title = definition.useSelectionTitle();
+  return (
+    <div style={{ width: 320, height: 700 }}>
+      {phone ? (
+        <h1>{title ?? definition.rail.label}</h1>
+      ) : (
+        <div data-slot="ct-extensions-band">
+          <ListPaneHeaderHost useView={definition.useListHeader} />
+        </div>
+      )}
+      <button type="button" onClick={clearPluginPage}>
+        Back to extensions
+      </button>
+      <ExtensionsListHarness />
+    </div>
+  );
 }
 
 /** The Extensions section's CONTENT pane, through the real registry. `selectKey` drives the module-singleton

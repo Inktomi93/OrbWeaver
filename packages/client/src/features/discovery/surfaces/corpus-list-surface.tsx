@@ -24,7 +24,7 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, RefObject } from "react";
 import { useDeferredValue, useRef } from "react";
-import { QueryBoundary } from "#components";
+import { ListSearch, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { setCorpusSearchQuery, setCorpusSearchTarget, useCorpusSearchQuery, useCorpusSearchTargetId } from "#state";
@@ -155,21 +155,23 @@ function SearchOmnibox({
 
   return (
     <Stack data-testid={testId("corpusSearchSuggest")}>
-      <Autocomplete
-        aria-label="Search your corpus"
-        inline={true}
-        inputRef={inputRef}
-        mode="none"
-        items={items}
-        open={true}
-        value={query}
-        onValueChange={onQuery}
-        // SHORT ENOUGH TO RENDER WHOLE (side-eye re-pass C9): the old line ("Search characters, scenes,
-        // memories…") clipped with NO ellipsis under the `reading` appearance preset — a placeholder cut
-        // mid-word reads as a rendering fault, and the per-target rest hint below already teaches what each
-        // target searches, so the placeholder only has to name the act.
-        placeholder="Search your corpus…"
-      />
+      <ListSearch>
+        <Autocomplete
+          aria-label="Search your corpus"
+          inline={true}
+          inputRef={inputRef}
+          mode="none"
+          items={items}
+          open={true}
+          value={query}
+          onValueChange={onQuery}
+          // SHORT ENOUGH TO RENDER WHOLE (side-eye re-pass C9): the old line ("Search characters, scenes,
+          // memories…") clipped with NO ellipsis under the `reading` appearance preset — a placeholder cut
+          // mid-word reads as a rendering fault, and the per-target rest hint below already teaches what each
+          // target searches, so the placeholder only has to name the act.
+          placeholder="Search your corpus…"
+        />
+      </ListSearch>
     </Stack>
   );
 }

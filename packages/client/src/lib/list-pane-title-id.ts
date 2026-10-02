@@ -13,7 +13,7 @@
 // `SectionDefinition` — and it is the same principle as the row fix one file over, that the accessible name
 // is the visible text rather than a parallel string.
 //
-// A FIXED id is safe here BECAUSE `ListPaneHeader` renders in exactly one place: the `listHeader` slot of
+// A FIXED id is safe here BECAUSE `ListPaneHeader` renders in exactly one place: the `useListHeader` slot of
 // the LIST panel (verified across all eight sections that declare one — no context-panel or second
 // in-page use). One list panel exists at a time, so the id cannot collide with itself.
 //

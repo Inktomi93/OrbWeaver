@@ -1,5 +1,5 @@
 // The Characters LIST chrome-band header — `CHARACTERS` + the count + the ONE primary (New, with Import
-// beside it as the band ghost). It closed the A1/N2 gap: characters passed no `listHeader` at all, so its
+// beside it as the band ghost). It closed the A1/N2 gap: characters passed no `useListHeader` data at all, so its
 // title + create lived in the in-surface toolbar while every other section had migrated to the band.
 //
 // ONE MODE (#501, owner ruling 2026-08-22). The band used to SWAP with the pane (D9): a back chevron +
@@ -24,14 +24,15 @@
 // one visible census on screen, still travelling with the title, in both regimes. Both readers call the one
 // `useCharacterCensus`, so the lens-awareness above is not re-derived anywhere.
 
-import type { ReactElement } from "react";
-import { ListPaneHeader } from "#components";
+// The hook supplies view data; the shell owns the band renderer. Actions and overlays retain their existing behavior.
+
+import type { ListPaneHeaderView } from "#lib";
 import { useMobileViewport } from "#state";
+import { CharacterCreateActions } from "../components/character-create-actions.tsx";
 import { useCharacterCensus } from "../hooks/use-character-census.ts";
 import { CHARACTERS_SECTION_LABEL } from "../lib/characters-section-label.ts";
-import { CharacterCreateActions } from "./character-create-actions.tsx";
 
-export function CharactersListHeader(): ReactElement {
+export function useCharactersListHeader(): ListPaneHeaderView {
   const count = useCharacterCensus();
   // ON A PHONE THE BAND CARRIES NO ACTION, AND SO THE BAND GOES (#1669 arm A, owner-ruled 2026-09-05). The
   // ONE-NAME rule had already shed the title here; the `action` slot was the only thing left keeping a 48px
@@ -44,5 +45,5 @@ export function CharactersListHeader(): ReactElement {
   // IT MUST BE AN OMITTED PROP, NEVER A HIDDEN ONE: a `display:none` action is still a child, and the shed
   // rule is `:has(> *:not([data-slot="list-pane-identity"]))` — CSS cannot un-see it.
   const mobile = useMobileViewport();
-  return <ListPaneHeader count={count ?? 0} title={CHARACTERS_SECTION_LABEL} {...(mobile ? {} : { action: <CharacterCreateActions /> })} />;
+  return { count: count ?? 0, title: CHARACTERS_SECTION_LABEL, ...(mobile ? {} : { action: <CharacterCreateActions /> }) };
 }

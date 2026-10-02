@@ -1,5 +1,5 @@
 // The bank's ONE census read, in two shapes. Its own module since #1676 because it now has TWO readers: the
-// LIST chrome band (`components/databank-list-header.tsx`) and the phone topbar's screen title
+// LIST chrome band (`hooks/use-databank-list-header.tsx`) and the phone topbar's screen title
 // (`lib/databank-selection-title.ts`), which is where the count lives once the ONE-NAME rule (shell.css) sheds
 // the band's title. One query key, so the second reader costs no request.
 //

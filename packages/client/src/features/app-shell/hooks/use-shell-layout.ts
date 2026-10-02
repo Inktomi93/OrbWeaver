@@ -38,12 +38,12 @@ export interface ShellLayout {
   readonly activeSection: SectionId;
   readonly activeSectionLabel: string;
   readonly listMode: PanelMode;
-  /** Does the active section HAVE a LIST pane at all (`SectionDefinition.panels.list`)? `false` ⇒ the
+  /** Does the active section HAVE a LIST pane at all (`SectionDefinition.list`)? `false` ⇒ the
    *  topbar renders NO list toggle and `listMode` is pinned `collapsed` (H3 / arm L-b) — the shell never
    *  offers a door onto a surface that does not exist. */
   readonly listAvailable: boolean;
   readonly contextMode: PanelMode;
-  /** Does the active section HAVE a CONTEXT pane at all (`SectionDefinition.panels.context`)? The LIST
+  /** Does the active section HAVE a CONTEXT pane at all (`SectionDefinition.context`)? The LIST
    *  twin: `false` ⇒ NO detail-panel toggle and `contextMode` pinned `collapsed`. */
   readonly contextAvailable: boolean;
   /** Does the section have ANY panel? `false` ⇒ focus mode is a control over nothing (the section has no
@@ -138,8 +138,8 @@ export function useShellLayout(): ShellLayout {
   const activeDef = registry.get(activeSection);
   // A section that declares no LIST pane resolves `collapsed` UNCONDITIONALLY — a persisted override from
   // some other section's habit must never re-open a pane that does not exist (H3 / arm L-b).
-  const listAvailable = activeDef.panels?.list !== "unavailable";
-  const contextAvailable = activeDef.panels?.context !== "unavailable";
+  const listAvailable = activeDef.list !== undefined;
+  const contextAvailable = activeDef.context.kind !== "none";
   const listDefault = listOverride ?? activeDef.panelDefaults.list;
   const contextDefault = contextOverride ?? activeDef.panelDefaults.context;
   // The registry already tells us whether both panes are real and LIST requests a dock. At the content-floor

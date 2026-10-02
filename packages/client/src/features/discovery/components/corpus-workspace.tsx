@@ -3,13 +3,12 @@
 // heads the LIST, or heads CONTENT while the LIST is off screen, so exactly one is ever visible.
 
 import { Stack } from "@orb/ui/layout";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import type { CorpusModeContribution } from "#lib";
 import { useCorpusMode, useSectionListMode } from "#state";
 import { CorpusListAnchor } from "../anchors/corpus-list-anchor.tsx";
 import { CorpusListSurface } from "../surfaces/corpus-list-surface.tsx";
 import { CorpusContent } from "./corpus-content.tsx";
-import { CorpusListHeader } from "./corpus-list-header.tsx";
 import { CorpusModeSwitch } from "./corpus-mode-switch.tsx";
 
 /** The two contributed modes, handed in by the door. */
@@ -34,11 +33,6 @@ export function CorpusWorkspaceList({ modes }: { readonly modes: CorpusModes }):
       </Stack>
     </Stack>
   );
-}
-
-export function CorpusWorkspaceListHeader({ modes }: { readonly modes: CorpusModes }): ReactNode {
-  const mode = useCorpusMode();
-  return mode === "explore" ? <CorpusListHeader /> : modes[mode].listHeader();
 }
 
 export function CorpusWorkspaceContent({ modes }: { readonly modes: CorpusModes }): ReactElement {

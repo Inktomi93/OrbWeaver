@@ -20,6 +20,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
+import { ListSearch } from "#components";
 import { setBulkMode, setCharacterSortMode, setCharacterViewMode, useCharacterBulkMode, useCharacterSortMode, useCharacterViewMode } from "#state";
 
 /** The §4.5 sort labels — a TOTAL Record over `CHARACTER_LIST_SORTS` (a new sort member fails `tsc`;
@@ -65,7 +66,9 @@ export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibra
           as glyph buttons and re-opened the same wrap. The search keeps its floor; it is the row's PRIMARY
           control. The commands never needed relocating, they needed NAMING. */}
       <Row align="center" className="flex-wrap" gap="field">
-        <Input aria-label="Search characters" className="min-w-40 flex-1" onValueChange={onQueryChange} placeholder="Search characters…" value={query} />
+        <ListSearch>
+          <Input aria-label="Search characters" className="min-w-40 flex-1" onValueChange={onQueryChange} placeholder="Search characters…" value={query} />
+        </ListSearch>
         {/* `w-auto` beats the trigger's own `w-full` (FIELD_CONTROL): as a flex sibling of a `flex-1` Input a
             100%-wide trigger claims the whole row and crushes the search box to its ~26px minimum (stickler
             2026-08-01 F1 — measured 298.5px trigger vs a 26px input). Content-sized, the sort takes only its

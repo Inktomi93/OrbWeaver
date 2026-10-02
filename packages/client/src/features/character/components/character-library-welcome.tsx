@@ -362,7 +362,7 @@ function LandingFrame({
   return (
     // THE SCROLL BOX AND ITS `Container` LIVE ABOVE THE BOUNDARY (#1748) — `character-library-welcome.tsx`'s
     // own header carries why. What is left here is the chrome the read authors: the lead, the doors, the shelves.
-    <Stack gap="section" padding="section">
+    <Stack gap="section" className="py-section">
       {/* THE DOORS DROP BELOW THE LEAD ON A NARROW PANE (measured at 430, 2026-08-30): held on one line by
             `justify=between`, the two buttons took ~250px of a 398px pane and squeezed "Pick up where you
             left off" into a ~110px column eleven lines tall. `@max-md:flex-col` is the `actionBar` recipe's

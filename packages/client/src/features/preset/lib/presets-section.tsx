@@ -15,9 +15,9 @@ import type { SectionDefinition } from "#state";
 import { presetSectionSelection, selectPresetFromList } from "#state";
 import { PresetLibraryAnchor } from "../anchors/preset-library-anchor.tsx";
 import { PresetContent } from "../components/preset-content.tsx";
-import { PresetListHeader } from "../components/preset-list-header.tsx";
 import { PresetReadout } from "../components/readout/preset-readout.tsx";
 import { PresetReadoutHeader } from "../components/readout/preset-readout-header.tsx";
+import { usePresetListHeader } from "../hooks/use-preset-list-header.tsx";
 import { PresetLibrarySurface } from "../surfaces/preset-library-surface.tsx";
 import { usePresetSelectionTitle } from "./preset-selection-title.ts";
 import { PRESETS_SECTION_LABEL } from "./presets-section-label.ts";
@@ -28,6 +28,7 @@ export const presetsSection: SectionDefinition = {
   // BOTH docked at boot (crunch-list O-19★, owner ruling): the library IS how you pick what you are
   // editing, and the readout IS the product — a Presets section that opens with neither pane looks
   // unbuilt. The persisted per-panel override still wins thereafter.
+  contentInset: "section",
   panelDefaults: { list: "docked", context: "docked" },
   placeholder: {
     title: "Presets",
@@ -39,7 +40,8 @@ export const presetsSection: SectionDefinition = {
     </PresetLibraryAnchor>
   ),
   // The LIST chrome-band content (D66 A1/A2 — the L4 sweep): "PRESETS" + count + the create verbs.
-  listHeader: () => <PresetListHeader />,
+  listSearch: "required",
+  useListHeader: usePresetListHeader,
   // How the SHELL reads "is a preset open?" — the mobile ONE-SHELL rule's input + its back affordance.
   selection: presetSectionSelection,
   // …and what it calls the open preset in the pushed frame's topbar.

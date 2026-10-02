@@ -11,6 +11,7 @@ import type { ReactElement, ReactNode, RefObject } from "react";
 // biome's resolver can't see Activity as a named export through react's namespace merge; this file carries a scoped noUnresolvedImports override — tsc remains the real gate.
 import { Activity, useLayoutEffect, useRef, useState } from "react";
 import type { SectionId } from "#state";
+import { useSectionRegistry } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor.tsx";
 
 /** How many recently-active sections stay mounted-but-hidden at once (the active one + N-1 prior). */
@@ -32,6 +33,7 @@ function pushRecent(window: readonly SectionId[], active: SectionId): SectionId[
 }
 
 export function SectionContent({ activeSection, contentBySection, fallback, focusAnchorRef }: SectionContentProps): ReactElement {
+  const registry = useSectionRegistry();
   const activeBody = contentBySection[activeSection];
   // Advanced via React's "adjust state during render" pattern, not a mid-render ref mutation (which react-hooks/refs bans as a concurrent-safety hazard).
   const hasActiveBody = activeBody !== undefined;
@@ -65,13 +67,17 @@ export function SectionContent({ activeSection, contentBySection, fallback, focu
   return (
     <>
       <Activity mode="visible" name={`section:${activeSection}`}>
-        <RegionAnchor region="content">{activeBody ?? fallback}</RegionAnchor>
+        <RegionAnchor region="content" inset={registry.get(activeSection).contentInset === "section"}>
+          {activeBody ?? fallback}
+        </RegionAnchor>
       </Activity>
       {kept
         .filter((id) => id !== activeSection)
         .map((id) => (
           <Activity key={id} mode="hidden" name={`section:${id}`}>
-            <RegionAnchor region="content">{contentBySection[id]}</RegionAnchor>
+            <RegionAnchor region="content" inset={registry.get(id).contentInset === "section"}>
+              {contentBySection[id]}
+            </RegionAnchor>
           </Activity>
         ))}
     </>

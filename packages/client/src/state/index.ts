@@ -234,6 +234,7 @@ export {
   durableLocalWritesAllowed,
   registerDurableLocalStore,
 } from "./durable-local.ts";
+export { setExtensionsSearchQuery, useExtensionsSearchQuery } from "./extensions-search-store.ts";
 export {
   GAME_MODE_KEPT_LINE,
   GAME_MODE_OFF_KICKER,

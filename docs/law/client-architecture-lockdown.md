@@ -269,13 +269,13 @@ Applications: sections (§6) · settings panes (§8) · contributors (§6c) · m
 
 ### 6a. SectionDefinition (absorbs six structures)
 
-A `SectionDefinition` carries: `id`; `rail` (label, icon, group, mobile fate, rail zone); an optional
-`panels` (which panels the section has at all — absent = both); `panelDefaults` (the boot default per
-panel — the persisted override wins); `placeholder` (distinct title/description, gate-checked); an
-optional `list`, with an optional `listHeader` riding beside it; `content` — a real content pane, or the
-declared-planned case (below), never absent; an optional `header`; and `context: ContextDefinition` —
-`{kind:"none"}` is an explicit decision, never an absence. The shape's law is the header of
-`client/src/state/section-registry.ts` (§15).
+A `SectionDefinition` carries its rail identity, panel defaults, placeholder, content, content-inset declaration, selection title, and context.
+A list-bearing section declares its selection seam, search policy, and `useListHeader` data hook. The shell renders `ListPaneHeader` from that data.
+Pane availability derives from the list body and context kind. A section cannot declare a separate availability override.
+The shell applies `--spacing-section` as the CONTENT inline inset. A full-bleed surface declares a reason through `{ planned: "<reason>" }`.
+Every roster search uses `ListSearch`. The registry-derived roster CT census covers section lists and Corpus modes, including newly registered members.
+A no-search declaration carries a nonempty reason. Type tests reject omitted band, inset, and search declarations.
+The shape's law is the header of `client/src/state/section-registry.ts` (§15).
 
 - One definition per section, co-located `features/<owner>/lib/<id>-section.ts`, exported on the front door. Section-id↔feature-name is not a mechanical mirror — ownership is declared by where the definition lives; G1 keys on location, never name derivation.
 - Definitions are self-contained: they read `#state` (selection pointers), `#data` (trpc/Query, `useInvalidation`), `#components`/`@orb/ui` directly, calling `#state` module actions themselves rather than receiving them as props.
@@ -316,10 +316,10 @@ list): `when: (state: S) => boolean` (absent = always visible), `icon`, `strip` 
 absent = the meta rail), `crown` (a host-only presentation marker), `badge`, `disabledReason`, and
 `defaultTab: (state: S) => boolean` (a preferred-default marker — see below). `ContextDefinition` is
 non-generic, with three cases, each carrying an optional `empty` no-selection slot (§11):
-`{kind:"none"}`, `{kind:"single", body: () => ReactNode, header?}`, and `{kind:"tabs", useResolved: () =>
+`{kind:"none"}`, `{kind:"single", body: () => ReactNode, header}`, and `{kind:"tabs", useResolved: () =>
 ResolvedContextTabs | null}` where `useResolved` is minted only by `defineContextTabs` (G3).
-`ContextTabsSpec<S>` carries `useContextState: () => S | null`, `tabs`, and a set of optional fields: `actions`,
-`header`, `railLabel`, `empty`, `contributors: ContributorRegistry<ContextTabDef<S>>` (§6c), and
+`ContextTabsSpec<S>` carries `useContextState: () => S | null`, `tabs`, required `header`, and optional fields: `actions`,
+`railLabel`, `empty`, `contributors: ContributorRegistry<ContextTabDef<S>>` (§6c), and
 `regions: ContributorRegistry<ContextRegionDef<S>>` (band claims, below). The mint,
 `defineContextTabs<S>(spec): ContextDefinition`, throws at construction on a duplicate tab id. Shapes'
 law is the header of `client/src/lib/registry-contracts.ts` (§15).

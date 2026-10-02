@@ -37,7 +37,8 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
       // interaction LIFT survives on the opaque `bg-muted` step + the border/ring/shadow focus cues.
       className={cn(
         CHAT_TRACK,
-        "rounded-card border border-border bg-card px-field py-field hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:shadow-glow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
+        "relative isolate rounded-card border border-border bg-card px-field py-field hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
+        "before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:rounded-(--radius-card) before:content-[''] focus-within:before:shadow-glow",
         // The DRAG-OVER paint reuses the focus lift, so an armed surface reads in the language the composer
         // already speaks instead of inventing a second one.
         "data-[drag-over]:border-primary data-[drag-over]:bg-muted data-[drag-over]:ring-2 data-[drag-over]:ring-ring",

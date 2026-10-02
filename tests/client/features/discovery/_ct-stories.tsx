@@ -2,6 +2,7 @@
 // module). Surfaces come through the feature front door, wrapped in the real client data layer
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network).
 
+import { ListPaneHeaderHost } from "@orb/client/components";
 import { useTRPC } from "@orb/client/data";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
 import {
@@ -11,12 +12,12 @@ import {
   CorpusContextHeader,
   CorpusDossierSurface,
   CorpusHomeSurface,
-  CorpusListHeader,
   CorpusListSurface,
   CorpusMapTab,
   CorpusSimilarityTab,
   CorpusUnderstandingInvitation,
   corpusModePaletteSource,
+  useCorpusListHeader,
 } from "@orb/client/features/discovery";
 import type { CommandPaletteSource, CorpusDestination } from "@orb/client/lib";
 import { corpusDestinationIdentity, createContributorRegistry } from "@orb/client/lib";
@@ -219,7 +220,7 @@ export function CorpusSectionArrivalStory(): ReactElement {
 export function CorpusListHeaderStory(): ReactElement {
   return (
     <CtDataProviders>
-      <CorpusListHeader />
+      <ListPaneHeaderHost useView={useCorpusListHeader} />
     </CtDataProviders>
   );
 }

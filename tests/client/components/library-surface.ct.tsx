@@ -10,7 +10,7 @@
 // means anything across a set of radios. See the harness for the anatomy.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { LibraryListHarness } from "./library-surface.fixtures.tsx";
+import { LibraryListHarness, LoadingLibraryStory } from "./library-surface.fixtures.tsx";
 
 test("F-4: the state column lands at ONE x on every row, whatever each row's cluster holds", async ({ mount, page }) => {
   await mount(<LibraryListHarness />);
@@ -136,4 +136,11 @@ test("F-5: End jumps to the last radio, Home back to the first, wrapping with Ar
   await page.keyboard.press("ArrowUp");
   await expect(page.getByRole("radio", { name: "Activate New preset for generation" })).toBeFocused();
   await expect(component.getByTestId("commit-count")).toHaveText("0");
+});
+
+test("loading libraries keep a named row-shaped skeleton instead of a text-only flash", async ({ mount, page }) => {
+  await mount(<LoadingLibraryStory />);
+  const loading = page.getByRole("status", { name: "Loading your library" });
+  await expect(loading).toBeVisible();
+  await expect(loading.locator('[data-slot="skeleton"]').first()).toBeVisible();
 });

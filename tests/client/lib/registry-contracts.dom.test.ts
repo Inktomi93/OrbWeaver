@@ -24,27 +24,21 @@ function tab(id: string, when?: (s: State) => boolean): ContextTabDef<State> {
 
 describe("resolveContextTabs", () => {
   test("filters out a tab whose when() returns false", () => {
-    const spec: ContextTabsSpec<State> = {
-      useContextState: () => ({ n: 1 }),
-      tabs: [tab("a"), tab("b", (s) => s.n >= 2)],
-    };
+    const spec: ContextTabsSpec<State> = { header: () => "Context", useContextState: () => ({ n: 1 }), tabs: [tab("a"), tab("b", (s) => s.n >= 2)] };
     const resolved = resolveContextTabs(spec, { n: 1 });
     expect(resolved.tabs.map((t) => t.id)).toEqual(["a"]);
   });
 
   test("declares own tabs before contributors, in each list's own order", () => {
     const contributors = createContributorRegistry<ContextTabDef<State>>("t", [tab("z"), tab("y")]);
-    const spec: ContextTabsSpec<State> = {
-      useContextState: () => ({ n: 1 }),
-      tabs: [tab("b"), tab("a")],
-      contributors,
-    };
+    const spec: ContextTabsSpec<State> = { header: () => "Context", useContextState: () => ({ n: 1 }), tabs: [tab("b"), tab("a")], contributors };
     const resolved = resolveContextTabs(spec, { n: 1 });
     expect(resolved.tabs.map((t) => t.id)).toEqual(["b", "a", "z", "y"]);
   });
 
   test("resolves defaultTab against state (false when absent) — the §4.1 preferred-landing flag", () => {
     const spec: ContextTabsSpec<State> = {
+      header: () => "Context",
       useContextState: () => ({ n: 2 }),
       tabs: [tab("a"), { id: "b", label: "b", body: (s) => s.n, defaultTab: (s) => s.n >= 2 }],
     };
@@ -60,6 +54,7 @@ describe("resolveContextTabs", () => {
     // paint host-only cells without carrying a list of foreign tab ids. Absent must mean false, not
     // undefined — the renderer branches on it and an untouched section never spells it.
     const spec: ContextTabsSpec<State> = {
+      header: () => "Context",
       useContextState: () => ({ n: 1 }),
       tabs: [tab("a"), { id: "b", label: "b", crown: true, body: (s) => s.n }],
     };
@@ -70,24 +65,20 @@ describe("resolveContextTabs", () => {
   });
 
   test("binds actions against the same state", () => {
-    const spec: ContextTabsSpec<State> = {
-      useContextState: () => ({ n: 5 }),
-      tabs: [tab("a")],
-      actions: (s) => s.n,
-    };
+    const spec: ContextTabsSpec<State> = { header: () => "Context", useContextState: () => ({ n: 5 }), tabs: [tab("a")], actions: (s) => s.n };
     const resolved = resolveContextTabs(spec, { n: 5 });
     expect(resolved.actions).toBe(5);
   });
 
-  test("binds the header band identity against the same state (N4), undefined when absent", () => {
+  test("binds the required header band identity against the same state", () => {
     const withHeader: ContextTabsSpec<State> = {
       useContextState: () => ({ n: 7 }),
       tabs: [tab("a")],
       header: (s) => s.n,
     };
     expect(resolveContextTabs(withHeader, { n: 7 }).header).toBe(7);
-    const noHeader: ContextTabsSpec<State> = { useContextState: () => ({ n: 1 }), tabs: [tab("a")] };
-    expect(resolveContextTabs(noHeader, { n: 1 }).header).toBeUndefined();
+    const noHeader: ContextTabsSpec<State> = { header: () => "Context", useContextState: () => ({ n: 1 }), tabs: [tab("a")] };
+    expect(resolveContextTabs(noHeader, { n: 1 }).header).toBe("Context");
   });
 });
 
@@ -138,6 +129,7 @@ describe("resolveContextTabs — regions", () => {
 
   test("two claimants at one state: the FIRST in declared order wins, deterministically", () => {
     const spec: ContextTabsSpec<State> = {
+      header: () => "Context",
       useContextState: () => ({ n: 1 }),
       tabs: [tab("a")],
       regions: createContributorRegistry("r", [region("first", () => true), region("second", () => true)]),
@@ -146,9 +138,9 @@ describe("resolveContextTabs — regions", () => {
   });
 
   test("`railLabel` passes through the resolve untouched, and is absent when the spec names none", () => {
-    const named: ContextTabsSpec<State> = { useContextState: () => ({ n: 1 }), tabs: [tab("a")], railLabel: "Chat" };
+    const named: ContextTabsSpec<State> = { header: () => "Context", useContextState: () => ({ n: 1 }), tabs: [tab("a")], railLabel: "Chat" };
     expect(resolveContextTabs(named, { n: 1 }).railLabel).toBe("Chat");
-    const unnamed: ContextTabsSpec<State> = { useContextState: () => ({ n: 1 }), tabs: [tab("a")] };
+    const unnamed: ContextTabsSpec<State> = { header: () => "Context", useContextState: () => ({ n: 1 }), tabs: [tab("a")] };
     expect("railLabel" in resolveContextTabs(unnamed, { n: 1 })).toBe(false);
   });
 
@@ -156,6 +148,7 @@ describe("resolveContextTabs — regions", () => {
     const contributors = createContributorRegistry<ContextTabDef<State>>("t", [tab("a")]);
     expect(() =>
       defineContextTabs<State>({
+        header: () => "Context",
         useContextState: () => ({ n: 1 }),
         tabs: [tab("a")],
         contributors,
@@ -168,17 +161,13 @@ describe("resolveContextTabs — regions", () => {
 describe("defineContextTabs", () => {
   test("throws at construction on a duplicate tab id across own tabs and contributors", () => {
     const contributors = createContributorRegistry<ContextTabDef<State>>("t", [tab("a")]);
-    expect(() =>
-      defineContextTabs<State>({
-        useContextState: () => ({ n: 1 }),
-        tabs: [tab("a")],
-        contributors,
-      }),
-    ).toThrow(DUPLICATE_TAB_RE);
+    expect(() => defineContextTabs<State>({ header: () => "Context", useContextState: () => ({ n: 1 }), tabs: [tab("a")], contributors })).toThrow(
+      DUPLICATE_TAB_RE,
+    );
   });
 
   test("useResolved returns null when the projection hook reports no selection", () => {
-    const definition = defineContextTabs<State>({ useContextState: () => null, tabs: [tab("a")] });
+    const definition = defineContextTabs<State>({ header: () => "Context", useContextState: () => null, tabs: [tab("a")] });
     if (definition.kind !== "tabs") {
       throw new Error("expected a tabs ContextDefinition");
     }
@@ -186,10 +175,7 @@ describe("defineContextTabs", () => {
   });
 
   test("useResolved resolves the live tab strip when a state is present", () => {
-    const definition = defineContextTabs<State>({
-      useContextState: () => ({ n: 1 }),
-      tabs: [tab("a"), tab("b", (s) => s.n >= 2)],
-    });
+    const definition = defineContextTabs<State>({ header: () => "Context", useContextState: () => ({ n: 1 }), tabs: [tab("a"), tab("b", (s) => s.n >= 2)] });
     if (definition.kind !== "tabs") {
       throw new Error("expected a tabs ContextDefinition");
     }

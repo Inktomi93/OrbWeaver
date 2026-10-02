@@ -1,5 +1,5 @@
 // useCharacterCensus — the Characters library's ONE census read. Its own module since #1670 because it now
-// has TWO readers: the LIST chrome band (`components/characters-list-header.tsx`) and the phone topbar's
+// has TWO readers: the LIST chrome band (`hooks/use-characters-list-header.tsx`) and the phone topbar's
 // screen title (`lib/character-selection-title.ts`), which is where the count lives when the ONE-NAME rule
 // sheds the band's title. Both readers share the query cache, so the second one costs no request.
 

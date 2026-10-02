@@ -3,7 +3,7 @@
 // precedent): the rows, the finder and the member editor are mounted by the Corpus Labels mode, never
 // exported standalone.
 
-import { EditableTagChip, QueryBoundary } from "@orb/client/components";
+import { EditableTagChip, ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import { useInvalidation } from "@orb/client/data";
 import { labelsContextTabs, labelsCorpusMode } from "@orb/client/features/tag";
 import {
@@ -129,7 +129,7 @@ export function LabelsWorkspaceStory(): ReactElement {
           <LabelMutationStatus />
           <div style={{ display: "flex", gap: 16, height: 720 }}>
             <div data-slot="ct-labels-list" style={{ display: "flex", flexDirection: "column", width: 320 }}>
-              <div data-slot="ct-labels-band">{labelsCorpusMode.listHeader()}</div>
+              <div data-slot="ct-labels-band">{<ListPaneHeaderHost useView={labelsCorpusMode.useListHeader} />}</div>
               <div style={{ flex: 1, minHeight: 0 }}>{labelsCorpusMode.list()}</div>
             </div>
             <div data-slot="ct-labels-content" style={{ flex: 1, minWidth: 0 }}>

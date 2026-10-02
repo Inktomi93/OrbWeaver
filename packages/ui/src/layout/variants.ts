@@ -430,3 +430,14 @@ export const toolbarInputVariants = tv({
 export function gutterCentredTracks(): string {
   return gridVariants({ cols: "gutterCentred" });
 }
+
+export const actionBarVariants = tv({
+  slots: {
+    root: "flex min-w-0 flex-wrap items-center gap-field",
+    leading: "min-w-0 max-w-full shrink-0",
+    primary: "min-w-0 max-w-full shrink-0",
+    primaryContent: "flex w-max max-w-full flex-wrap items-center gap-field",
+    trailing: "ms-auto shrink-0",
+  },
+  variants: { stacked: { true: { primary: "basis-full" } } },
+});

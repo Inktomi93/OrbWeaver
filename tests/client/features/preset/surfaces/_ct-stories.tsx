@@ -8,6 +8,7 @@
 // re-renders the editor with a new preset id) so the CT proves switching A→B rekeys the boundary's Session
 // and seeds from B's row (never A's surviving frozen seed).
 
+import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation } from "@orb/client/data";
 import { PresetEditorSurface, PresetLibrarySurface, PresetLibraryWelcome } from "@orb/client/features/preset";
 import { __resetPresetSelection, selectPreset, setFocusMode, setPresetSearchQuery, useSectionRegistry, useSelectedPresetId } from "@orb/client/state";
@@ -258,11 +259,11 @@ export function PresetLibraryWelcomeListModeStory(): ReactElement {
   );
 }
 
-/** The section's own `listHeader` closure, rendered where the shell's PanelChrome renders it — the title,
+/** The section's own `useListHeader` closure, rendered where the shell's PanelChrome renders it — the title,
  *  the count and the create verbs live THERE now (list-pane-projection L4). */
 function PresetListBand(): ReactElement {
   const registry = useSectionRegistry();
-  return <div data-testid="list-band">{registry.get("presets").listHeader?.()}</div>;
+  return <div data-testid="list-band">{<ListPaneHeaderHost useView={registry.get("presets").useListHeader} />}</div>;
 }
 
 /** The FORK-ONCE harness: the editor mounted exactly the way production mounts it — off the SELECTION STORE

@@ -6,6 +6,7 @@ import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
@@ -136,9 +137,23 @@ function FamilyPlate({ family, name }: { readonly family: VisualFamily; readonly
                   because `facetLabel` already answers that case and answers it in the same words on both
                   surfaces. The names it displaced now ride the gloss on every plate (see `plateGloss`),
                   and the `isUnlabelled` predicate is deleted rather than left beside its replacement. */}
-          <Button intent="ghost" size="sm" onClick={(): void => selectCorpusArtifact({ kind: "cluster", cluster: family, visual: true, k: null, title: name })}>
-            {name}
-          </Button>
+          <Tooltip describesTrigger={false}>
+            <TooltipTrigger
+              render={
+                <Button
+                  className="min-w-0 max-w-full justify-start"
+                  intent="ghost"
+                  size="sm"
+                  onClick={(): void => selectCorpusArtifact({ kind: "cluster", cluster: family, visual: true, k: null, title: name })}
+                >
+                  <Text as="span" className="min-w-0 truncate" voice="label" ink="inherit">
+                    {name}
+                  </Text>
+                </Button>
+              }
+            />
+            <TooltipPopup>{name}</TooltipPopup>
+          </Tooltip>
           <Text as="span" className="truncate" voice="gloss">
             {plateGloss(family)}
           </Text>

@@ -2,7 +2,7 @@
 // `.shell-panel-header` band wraps for the LIST panel: the "INSIGHTS" micro-caps mode title + a live
 // leaderboard count on the left. Insights is READ-ONLY (A2: no create), so the band is title + count
 // only — the census, never an addition (contrast the chats band's ONE primary New). Flows into the band
-// through the Insights mode's `listHeader` (`insights-mode.tsx`), so the domain-agnostic shell never names
+// through the Insights mode's `useListHeader` data (`insights-mode.tsx`), so the domain-agnostic shell never names
 // a feature.
 //
 // The cluster itself is the shared `ListPaneHeader` composite (§11.2); the count READ moved out to
@@ -29,12 +29,13 @@
 // / "50 of 120 matches" rather than "50 of 328" beside three rows. The key mirrors the surface's DEFAULT_SORT
 // read exactly (search omitted when empty), so on the rest state the two still share one cached page.
 
-import type { ReactElement } from "react";
-import { ListPaneHeader } from "#components";
+// The hook supplies view data; the shell owns the band renderer. Actions and overlays retain their existing behavior.
+
+import type { ListPaneHeaderView } from "#lib";
 import { CORPUS_MODE_LABELS } from "#lib";
 import { useAnalyticsCensus } from "../hooks/use-analytics-census.ts";
 
-export function AnalyticsListHeader(): ReactElement {
-  const count = useAnalyticsCensus();
-  return <ListPaneHeader count={count ?? 0} title={CORPUS_MODE_LABELS.insights} />;
+export function useAnalyticsListHeader(active = true): ListPaneHeaderView {
+  const count = useAnalyticsCensus(active);
+  return { count: count ?? 0, title: CORPUS_MODE_LABELS.insights };
 }

@@ -28,12 +28,12 @@ import { ChatListAnchor } from "../anchors/chat-list-anchor.tsx";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel.tsx";
 import { ChatContent } from "../components/chat-content.tsx";
 import { ChatContextBand } from "../components/chat-context-band.tsx";
-import { ChatListHeader } from "../components/chat-list-header.tsx";
 import { ChatsTopbarHeader } from "../components/chats-topbar-header.tsx";
 import type { CommittedMembersTabProps } from "../components/committed-members-tab.tsx";
 import { CommittedMembersTab } from "../components/committed-members-tab.tsx";
 import { CommittedSettingsTab } from "../components/settings-context-tab.tsx";
 import { useChatContextState } from "../hooks/use-chat-context-state.ts";
+import { useChatListHeader } from "../hooks/use-chat-list-header.tsx";
 import { ChatListSurface } from "../surfaces/chat-list-surface.tsx";
 import { CHATS_SECTION_LABEL } from "./chats-section-label.ts";
 import { useChatsSelectionTitle } from "./chats-selection-title.ts";
@@ -131,6 +131,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
   return {
     id: "chats",
     rail: { label: CHATS_SECTION_LABEL, icon: MessagesSquare, group: "primary", mobile: "tab" },
+    contentInset: { planned: "The transcript, composer and room chrome own separate scroll regions and touch the content edges." },
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: "Chats",
@@ -144,7 +145,8 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
       </ChatListAnchor>
     ),
     // The LIST chrome-band content (§4 N2): "CHATS" title + count + the ONE primary New action.
-    listHeader: () => <ChatListHeader />,
+    listSearch: "required",
+    useListHeader: useChatListHeader,
     // How the SHELL reads "is a room open?" — the mobile ONE-SHELL rule's input + its back affordance.
     selection: chatSectionSelection,
     // …and what it calls the open room in the pushed frame's topbar.

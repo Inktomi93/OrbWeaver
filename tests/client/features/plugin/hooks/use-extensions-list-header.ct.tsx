@@ -1,5 +1,5 @@
 // CT: the Extensions LIST chrome-band header (#1190) — the section identity that fills the
-// `.shell-panel-header` band via the `listHeader` mint slot, mirroring `corpus-list-header.ct.tsx`. Pins that
+// `.shell-panel-header` band via the `useListHeader` mint slot, mirroring `corpus-list-header.ct.tsx`. Pins that
 // the band names the section ("Extensions") and states the live page count; a zero count renders the title
 // alone (no "0"), matching every other section's band idiom (`ListPaneHeader`'s own zero-census rule).
 

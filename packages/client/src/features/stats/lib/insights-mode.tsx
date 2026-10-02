@@ -6,10 +6,10 @@ import type { ContextTabDef, CorpusContextState, CorpusModeContribution } from "
 import { AnalyticsListAnchor } from "../anchors/analytics-list-anchor.tsx";
 import { AnalyticsContent } from "../components/analytics-content.tsx";
 import { AnalyticsContextHeader } from "../components/analytics-context-header.tsx";
-import { AnalyticsListHeader } from "../components/analytics-list-header.tsx";
 import { AnalyticsModelsTab } from "../components/analytics-models-tab.tsx";
 import { AnalyticsPersonasTab } from "../components/analytics-personas-tab.tsx";
 import { AnalyticsTimeTab } from "../components/analytics-time-tab.tsx";
+import { useAnalyticsListHeader } from "../hooks/use-analytics-list-header.tsx";
 import { AnalyticsListSurface } from "../surfaces/analytics-list-surface.tsx";
 import { useAnalyticsSelectionTitle } from "./analytics-selection-title.ts";
 
@@ -19,7 +19,8 @@ export const insightsCorpusMode: CorpusModeContribution = {
       <AnalyticsListSurface />
     </AnalyticsListAnchor>
   ),
-  listHeader: () => <AnalyticsListHeader />,
+  listSearch: "required",
+  useListHeader: useAnalyticsListHeader,
   content: () => <AnalyticsContent />,
   contextHeader: () => <AnalyticsContextHeader />,
   useSelectionTitle: useAnalyticsSelectionTitle,

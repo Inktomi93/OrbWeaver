@@ -10,6 +10,7 @@
   "exports": {
     "./token-contract": "./token-contract.ts",
     "./tokens-build": "./tokens.build.ts",
+    "./action-bar": "./src/layout/action-bar.tsx",
     "./accordion": "./src/primitives/accordion/index.ts",
     "./alert-dialog": "./src/primitives/alert-dialog/index.ts",
     "./aria-announcer": "./src/primitives/aria-announcer/index.ts",

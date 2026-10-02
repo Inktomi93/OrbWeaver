@@ -1,7 +1,7 @@
 // The Analytics LIST search store: what the leaderboard pane is filtering by.
 //
 // WHY IT IS A STORE AND NOT `useState` (the preset-search precedent). The pane's chrome BAND ("Analytics
-// 50 of 328") is rendered by the shell from the section definition's `listHeader` slot, and the ROWS are
+// 50 of 328") is rendered by the shell from the section definition's `useListHeader` slot, and the ROWS are
 // rendered by the surface below it — two components with no common React parent that can hold the query.
 // So the band would count the whole population while the surface counts the FILTERED page, and a search
 // with three hits would print "50 of 328" beside three rows. Both read this ONE store, and the search rides

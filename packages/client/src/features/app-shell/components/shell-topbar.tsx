@@ -143,11 +143,10 @@ function listToggleLabel(mobile: boolean, listCollapsed: boolean, title: string)
   return listCollapsed ? `Show ${title} list` : `Show ${title} overview`;
 }
 
-/** The topbar's one title voice. A single component so the file carries ONE element with the `<Text>` type
- *  axes (the density-tier A3 budget this file is baselined at), rendered from both identity arms. */
+/** Both identity arms share the page-title display step, distinct from editable body text without enlarging adjacent chrome. */
 function TopbarTitle({ className, children, title }: { readonly className?: string; readonly children: ReactNode; readonly title?: string }): ReactElement {
   return (
-    <Text className={className} size="title" weight="semibold" title={title}>
+    <Text className={className} size="display" weight="semibold" title={title}>
       {children}
     </Text>
   );

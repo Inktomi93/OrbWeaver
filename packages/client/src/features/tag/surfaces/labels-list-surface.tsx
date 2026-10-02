@@ -1,4 +1,5 @@
 // The Labels finder owns phone arrival; the visible library owns desktop arrival.
+
 import { Button } from "@orb/ui/button";
 import { Icon, MoreVertical, Trash2 } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
@@ -9,7 +10,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { QueryBoundary } from "#components";
+import { ListSearch, QueryBoundary } from "#components";
 import { QueryErrorState } from "#data";
 import { useFocusOnMount } from "#lib";
 import { selectLabelFromList, setLabelFilter, setTagPruneConfirmOpen, useLabelFilter, useMobileViewport, useSectionListMode, useSelectedLabelId } from "#state";
@@ -31,7 +32,9 @@ export function LabelsListSurface(): ReactElement {
       <Stack className="h-full min-h-0 outline-none" data-slot={LABELS_FINDER_SLOT} gap="block" ref={surfaceRef} tabIndex={-1}>
         <Row align="center" data-slot="labels-control-row" gap="field">
           <Row align="center" className="min-w-0 flex-1">
-            <Input aria-label="Filter labels" onValueChange={setLabelFilter} placeholder="Filter labels…" value={filter} />
+            <ListSearch>
+              <Input aria-label="Filter labels" onValueChange={setLabelFilter} placeholder="Filter labels…" value={filter} />
+            </ListSearch>
           </Row>
           <LabelsSortSelect />
           <LabelsOverflow />

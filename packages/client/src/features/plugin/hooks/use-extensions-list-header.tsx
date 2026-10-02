@@ -1,6 +1,6 @@
 // The Extensions LIST chrome-band header (#1190) — the content the `.shell-panel-header` band wraps for the
 // Extensions LIST panel: the "Extensions" title + a live page count. Flows into the band through the section
-// definition's `listHeader` slot (`extensions-section.tsx`), the same definition-owned seam chats/corpus/
+// definition's `useListHeader` data slot (`extensions-section.tsx`), the same definition-owned seam chats/corpus/
 // presets/databank already ride — the domain-agnostic shell never names a feature.
 //
 // THE SECTION SHIPPED WITHOUT ONE (#1190 side-eye finding): every other rail section with a LIST pane names
@@ -13,18 +13,16 @@
 // TITLE"), so the page roster's size was printed NOWHERE there. It now also rides the topbar's screen title
 // (`lib/use-extensions-selection-title.ts`), the noun that survives; both call `useExtensionsCensus`.
 //
-// NO ACTION, browse-shaped like Corpus (§2 action-ownership): a page is registered by a PLUGIN, not created
-// from this band, so there is no create verb to carry. The count is bare — `usePluginPages()` already reads
-// the CALLER's full, unfiltered roster (no search/facet narrows this switcher), so there is no "N of TOTAL"
-// split to state; a flat count is exactly the databank/preset-unfiltered idiom (`ListPaneHeader` already omits
-// a `0` census, so the band goes quiet rather than printing "Extensions 0" while the reads settle).
+// NO ACTION, browse-shaped like Corpus (§2 action-ownership): pages are registered by plugins.
+// The count follows the finder's shared filter. A filtered zero carries its total rather than disappearing.
 
-import type { ReactElement } from "react";
-import { ListPaneHeader } from "#components";
+// The hook supplies view data; the shell owns the band renderer. Actions and overlays retain their existing behavior.
+
+import type { ListPaneHeaderView } from "#lib";
 import { useExtensionsCensus } from "../hooks/use-extensions-census.ts";
 import { EXTENSIONS_SECTION_LABEL } from "../lib/extensions-section-label.ts";
 
-export function ExtensionsListHeader(): ReactElement {
+export function useExtensionsListHeader(): ListPaneHeaderView {
   const count = useExtensionsCensus();
-  return <ListPaneHeader count={count} title={EXTENSIONS_SECTION_LABEL} />;
+  return { count, title: EXTENSIONS_SECTION_LABEL };
 }

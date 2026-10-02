@@ -208,9 +208,9 @@ test("DESKTOP: the band is untouched — title, count and action all paint", asy
 
 // NO CHILDLESS-BAND CTs (side-eye 2026-08-08, RULED). Two tests here used to drive an `EmptyListBandInShell`
 // fixture against a `:empty` rule aimed at the then-planned refinery — a DOM the shell cannot produce: a
-// childless LIST band only exists for a section with no `listHeader`, and the one such section (home — its
+// childless LIST band only exists for a section with no `useListHeader`, and the one such section (home — its
 // list is `unavailable`) can never reach `data-list-mode="docked"` at ≤48rem. (Refinery graduated in R3 with
-// a `listHeader` + `selection` pair, which only strengthens the ruling.) The rule and its fixture went with
+// a `useListHeader` + `selection` pair, which only strengthens the ruling.) The rule and its fixture went with
 // them; see the ruling comment in shell.css.
 
 // ── #1154 · THE BAND'S OWN ARITHMETIC: EVERY OCCUPANT LANDS ON A DEVICE PIXEL ──────────────────────

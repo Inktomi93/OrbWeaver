@@ -5,7 +5,7 @@
 // for a different layer). Data-layer stories wrap in <CtDataProviders> (Query + real tRPC over the
 // stubbed network); pure-render stories rely on the beforeMount toast/tooltip chrome.
 
-import { QueryBoundary } from "@orb/client/components";
+import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import type { ChatBusDeps } from "@orb/client/data";
 import { applyChatBusEvent, createInvalidation, QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
 import { automationActivityTab, automationQuickReplySource, automationSuggestionSource } from "@orb/client/features/automation";
@@ -142,7 +142,6 @@ import { DisclosureSection } from "../../../../packages/client/src/features/chat
 import { ChatDocumentsSection } from "../../../../packages/client/src/features/chat/components/chat-documents-section.tsx";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
 import { ChatImportDialog } from "../../../../packages/client/src/features/chat/components/chat-import-dialog.tsx";
-import { ChatListHeader } from "../../../../packages/client/src/features/chat/components/chat-list-header.tsx";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu.tsx";
 import { ChatRecallIndicator } from "../../../../packages/client/src/features/chat/components/chat-recall-indicator.tsx";
 import { ChatsTopbarHeader } from "../../../../packages/client/src/features/chat/components/chats-topbar-header.tsx";
@@ -184,6 +183,7 @@ import { SwipeStrip } from "../../../../packages/client/src/features/chat/compon
 import type { ResolvedAttachment } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context.tsx";
 import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context.tsx";
 import { ChoiceSendContext } from "../../../../packages/client/src/features/chat/hooks/choice-send-context.tsx";
+import { useChatListHeader } from "../../../../packages/client/src/features/chat/hooks/use-chat-list-header.tsx";
 import type { PendingAttachment } from "../../../../packages/client/src/features/chat/hooks/use-composer-attachments.ts";
 import { speakerThemesByName } from "../../../../packages/client/src/features/chat/lib/attribution.ts";
 import { useChatsSelectionTitle } from "../../../../packages/client/src/features/chat/lib/chats-selection-title.ts";
@@ -1611,7 +1611,7 @@ export function ChatListHeaderStory({ width }: { readonly width: number }): Reac
     <CtDataProviders>
       <div>
         <header className="shell-panel-header" style={{ width }}>
-          <ChatListHeader />
+          <ListPaneHeaderHost useView={useChatListHeader} />
         </header>
       </div>
     </CtDataProviders>
@@ -1626,7 +1626,7 @@ export function ChatListBandAndSurfaceStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 360 }}>
         <header className="shell-panel-header">
-          <ChatListHeader />
+          <ListPaneHeaderHost useView={useChatListHeader} />
         </header>
         <div style={{ height: 420 }}>
           <ChatListAnchor>

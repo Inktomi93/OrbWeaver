@@ -1,5 +1,5 @@
 // The Databank LIST chrome-band header (north-star §4 N2, D66 A1/A2) — the content the section definition's
-// `listHeader` slot feeds into `.shell-panel-header`: "DATABANK" · the live document count · the pane's ONE
+// `useListHeader` data slot feeds into `.shell-panel-header`: "DATABANK" · the live document count · the pane's ONE
 // primary (Add) · a maintenance kebab.
 //
 // EXACTLY ONE PRIMARY: Add, which opens the three-mode ingest dialog (upload · paste · link).
@@ -31,21 +31,23 @@
 // first page was the only number the client had, and reporting a page as a census was the lie that reading
 // made visible (side-eye 2026-08-08 P2-d).
 
+// The hook supplies view data; the shell owns the band renderer. Actions and overlays retain their existing behavior.
+
 import { Button } from "@orb/ui/button";
 import { Icon, Plus, RefreshCw } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuGroup, MenuGroupLabel, MenuItem } from "@orb/ui/menu";
 import { useToastManager } from "@orb/ui/toast";
-import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, ListPaneHeader, RowActionsMenu } from "#components";
+import { ConfirmDialog, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import type { ListPaneHeaderView } from "#lib";
 import { openModal } from "#state";
 import { useDatabankBankHealth, useDatabankCensus } from "../hooks/use-databank-census.ts";
 import { useReindexDocuments } from "../hooks/use-databank-mutations.ts";
 import { DATABANK_SECTION_LABEL } from "../lib/databank-section-label.ts";
 
-export function DatabankListHeader(): ReactElement {
+export function useDatabankListHeader(): ListPaneHeaderView {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const toast = useToastManager();
@@ -87,72 +89,73 @@ export function DatabankListHeader(): ReactElement {
     );
   };
 
-  return (
-    <>
-      <ListPaneHeader
-        action={
-          // ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge.
-          <Row align="center" gap="field">
-            <RowActionsMenu label="Databank maintenance">
-              {/* A DISABLED CONTROL OWES ITS REASON (side-eye 2026-08-19 N-6). Both items grey out over an
+  return {
+    action: (
+      <Row align="center" gap="field">
+        <RowActionsMenu label="Databank maintenance">
+          {/* A DISABLED CONTROL OWES ITS REASON (side-eye 2026-08-19 N-6). Both items grey out over an
                   empty bank and said nothing about why, which reads as a broken menu rather than a closed
                   door. The reason rides a GROUP LABEL, not a `title=` on the items: a disabled MenuItem
                   takes no pointer events and no focus, so a tooltip on it is a sentence the one reader who
                   needs it can never reach. The group's label is announced with the items it labels. */}
-              <MenuGroup>
-                {bankIsEmpty ? <MenuGroupLabel>Add a document first — these sweeps run over your whole bank.</MenuGroupLabel> : null}
-                {health.isError ? <MenuGroupLabel>Couldn't check your bank, so these sweeps stay closed.</MenuGroupLabel> : null}
-                {/* The failed arm's way out. A group label cannot be actioned and a disabled item cannot be
+          <MenuGroup>
+            {bankIsEmpty ? <MenuGroupLabel>Add a document first — these sweeps run over your whole bank.</MenuGroupLabel> : null}
+            {health.isError ? <MenuGroupLabel>Couldn't check your bank, so these sweeps stay closed.</MenuGroupLabel> : null}
+            {/* The failed arm's way out. A group label cannot be actioned and a disabled item cannot be
                     hovered, so the re-read is its own item — the same "a read failure is never a dead end"
                     rule `QueryErrorState` carries, spelled in the one grammar a menu has. */}
-                {health.isError ? (
-                  <MenuItem onClick={(): void => void health.refetch()}>
-                    <Icon icon={RefreshCw} size="sm" />
-                    Check the bank again
-                  </MenuItem>
-                ) : null}
-                <MenuItem disabled={reindex.isPending || bankIsEmpty || countUnknown} onClick={(): void => setReindexOpen(true)}>
-                  <Icon icon={RefreshCw} size="sm" />
-                  Reindex everything
-                </MenuItem>
-                <MenuItem disabled={reindex.isPending || bankIsEmpty || countUnknown} onClick={(): void => setReExtractOpen(true)}>
-                  <Icon icon={RefreshCw} size="sm" />
-                  Re-extract everything
-                </MenuItem>
-              </MenuGroup>
-            </RowActionsMenu>
-            <Button intent="primary" onClick={(): void => openModal("addDocument")} size="sm">
-              <Icon icon={Plus} size="sm" />
-              Add
-            </Button>
-          </Row>
-        }
-        {...countProp}
-        title={DATABANK_SECTION_LABEL}
-      />
-      {/* REINDEX CONFIRMS TOO (side-eye 2026-08-19 P3). It used to fire BARE from the menu while its
+            {health.isError ? (
+              <MenuItem onClick={(): void => void health.refetch()}>
+                <Icon icon={RefreshCw} size="sm" />
+                Check the bank again
+              </MenuItem>
+            ) : null}
+            <MenuItem disabled={reindex.isPending || bankIsEmpty || countUnknown} onClick={(): void => setReindexOpen(true)}>
+              <Icon icon={RefreshCw} size="sm" />
+              Reindex everything
+            </MenuItem>
+            <MenuItem disabled={reindex.isPending || bankIsEmpty || countUnknown} onClick={(): void => setReExtractOpen(true)}>
+              <Icon icon={RefreshCw} size="sm" />
+              Re-extract everything
+            </MenuItem>
+          </MenuGroup>
+        </RowActionsMenu>
+        <Button intent="primary" onClick={(): void => openModal("addDocument")} size="sm">
+          <Icon icon={Plus} size="sm" />
+          Add
+        </Button>
+      </Row>
+    ),
+    ...countProp,
+    title: DATABANK_SECTION_LABEL,
+    overlay: (
+      <>
+        {/* REINDEX CONFIRMS TOO (side-eye 2026-08-19 P3). It used to fire BARE from the menu while its
           slower sibling sat behind a dialog — so the one owner-wide sweep a mis-aimed click could start was
           the one with no way back, and the pair taught that a confirm means "slow" rather than "this is
           everything you own". Both arms now name their consequence first; `primary`, not destructive, for
           the reason the re-extract confirm records — nothing is deleted. */}
-      <ConfirmDialog
-        confirmIntent="primary"
-        confirmLabel="Reindex"
-        description="Every document you own is re-chunked and re-embedded. Nothing is deleted — this is the sweep you run after a chunking or embedding-model change, and it can take a while on a large bank."
-        onConfirm={(): void => sweep("chunk-embed")}
-        onOpenChange={setReindexOpen}
-        open={reindexOpen}
-        title="Reindex every document?"
-      />
-      <ConfirmDialog
-        confirmIntent="primary"
-        confirmLabel="Re-extract"
-        description="Extraction runs again over every source file you uploaded, then everything is re-chunked and re-embedded. Nothing is deleted — this is the slow sweep you run after an extractor upgrade."
-        onConfirm={(): void => sweep("re-extract")}
-        onOpenChange={setReExtractOpen}
-        open={reExtractOpen}
-        title="Re-extract every document?"
-      />
-    </>
-  );
+
+        <ConfirmDialog
+          confirmIntent="primary"
+          confirmLabel="Reindex"
+          description="Every document you own is re-chunked and re-embedded. Nothing is deleted — this is the sweep you run after a chunking or embedding-model change, and it can take a while on a large bank."
+          onConfirm={(): void => sweep("chunk-embed")}
+          onOpenChange={setReindexOpen}
+          open={reindexOpen}
+          title="Reindex every document?"
+        />
+
+        <ConfirmDialog
+          confirmIntent="primary"
+          confirmLabel="Re-extract"
+          description="Extraction runs again over every source file you uploaded, then everything is re-chunked and re-embedded. Nothing is deleted — this is the slow sweep you run after an extractor upgrade."
+          onConfirm={(): void => sweep("re-extract")}
+          onOpenChange={setReExtractOpen}
+          open={reExtractOpen}
+          title="Re-extract every document?"
+        />
+      </>
+    ),
+  };
 }

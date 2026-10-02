@@ -18,3 +18,28 @@ test("a kept section is revealed on return, not mounted again", async ({ mount }
   await component.getByRole("button", { name: "go home" }).click();
   await expect(component.getByTestId("probe-home")).toHaveText("home mount 1");
 });
+
+test("the shell applies the section inset and preserves declared full-bleed content", async ({ mount }) => {
+  const component = await mount(<SectionContentKeepMountedStory />);
+  const region = component.locator(".shell-region-fill:visible");
+  await component.getByRole("button", { name: "go presets", exact: true }).click();
+  await expect(component.getByTestId("probe-presets")).toBeVisible();
+  await expect
+    .poll(async () => {
+      const inset = await region.evaluate((node) => {
+        const probe = document.createElement("div");
+        probe.style.paddingInlineStart = "var(--spacing-section)";
+        node.append(probe);
+        const expected = getComputedStyle(probe).paddingInlineStart;
+        probe.remove();
+        const style = getComputedStyle(node);
+        return { expected, start: style.paddingInlineStart, end: style.paddingInlineEnd };
+      });
+      return { nonzero: inset.expected !== "0px", start: inset.start === inset.expected, end: inset.end === inset.expected };
+    })
+    .toEqual({ nonzero: true, start: true, end: true });
+  await component.getByRole("button", { name: "go chats", exact: true }).click();
+  await expect(component.getByTestId("probe-chats")).toBeVisible();
+  await expect(region).toHaveCSS("padding-inline-start", "0px");
+  await expect(region).toHaveCSS("padding-inline-end", "0px");
+});

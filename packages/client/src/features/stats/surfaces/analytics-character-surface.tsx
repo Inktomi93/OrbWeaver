@@ -49,7 +49,7 @@ export function AnalyticsCharacterSurface({ characterId, onBack }: AnalyticsChar
           boundary resolves `h-full` to `auto` and the surface stops scrolling; hoisted, the measuring wrapper
           sits INSIDE the scroller and the scroller survives the read. The inset and the `analytics-content`
           slot ride the scroller, which is where #1200 put them. */}
-      <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" data-slot="analytics-content" padding="section">
+      <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain py-section" data-slot="analytics-content">
         <QueryBoundary
           fallback={<Text voice="gloss">Loading character stats…</Text>}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="these stats" onRetry={retry} />}

@@ -7,7 +7,7 @@
 
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
-import type { ContextDefinition } from "#lib";
+import type { ContextDefinition, ListPaneHeaderView, ListSearchPolicy } from "#lib";
 import type { PanelMode, PanelName, PhoneLanding } from "./panel-resolve.ts";
 import type { SectionId } from "./section-ids.ts";
 
@@ -52,23 +52,6 @@ interface RailEntry {
   readonly zone?: RailZone;
 }
 
-/** A section's declared PANEL CAPABILITY — the shell's "this section has no such pane" arm (owner
- *  decision H3 / arm L-b). Absent ⇒ the section has both panels, exactly as every section does today.
- *  `"unavailable"` is NOT a fourth `PanelMode`: the panel resolves `collapsed` (its track is already
- *  zero-width) and the topbar renders NO toggle for it, so the shell can never offer a door onto a
- *  surface that does not exist ("Home list — this surface isn't wired yet").
- *
- *  The axis is PER PANEL and covers BOTH: a pane-less section (home declares both) must not ship the
- *  detail-panel toggle either — nor the focus-mode toggle, which on a section with zero panels is a
- *  control whose only job is hiding panels that aren't there. (Its original tell was a cold boot reading
- *  "Exit focus mode": focus used to be DERIVED from "both panels collapsed", which zero panels trivially
- *  satisfied. That derivation is gone — focus is one flag now, item 20 — but the toggle still has nothing
- *  to act on here, so it does not render.) */
-interface SectionPanelAvailability {
-  readonly list?: "unavailable";
-  readonly context?: "unavailable";
-}
-
 /** A section's honest placeholder copy — a distinct (title, description) per section (gate-checked). */
 interface SectionPlaceholderCopy {
   readonly title: string;
@@ -105,14 +88,13 @@ export interface SectionSelection {
 /** The LIST-slot pair. `list` and `selection` are ONE decision — the shell cannot apply the mobile
  *  list-as-screen rule to a list it cannot ask "is anything open?" — so tsc carries it: a `list` without a
  *  `selection` does not type-check, and a section with no list may declare neither. That is what makes the
- *  rule un-opt-out-able (a section must not be able to sit out the shell rule silently); `listHeader` rides
+ *  rule un-opt-out-able (a section must not be able to sit out the shell rule silently); `useListHeader` rides
  *  the same arm because a band with no list is a band over nothing. */
 interface SectionWithList {
   readonly list: () => ReactNode;
-  /** Content for the LIST panel's `.shell-panel-header` chrome band (north-star §4 N2, D66 A1) — the
-   *  section title/count + the panel's ONE primary action. Definition-owned so the domain-agnostic shell
-   *  never names a feature; absent ⇒ the band renders empty-but-present (the P1 baseline horizon). */
-  readonly listHeader?: () => ReactNode;
+  /** The shell renders the identity from data, so a section cannot substitute its own band anatomy. */
+  readonly useListHeader: () => ListPaneHeaderView;
+  readonly listSearch: ListSearchPolicy;
   readonly selection: SectionSelection;
   /** The phone's existing list door names its destination when the section has a more precise noun. */
   readonly listDoorLabel?: {
@@ -124,7 +106,8 @@ interface SectionWithList {
 interface SectionWithoutList {
   readonly listDoorLabel?: never;
   readonly list?: never;
-  readonly listHeader?: never;
+  readonly useListHeader?: never;
+  readonly listSearch?: never;
   readonly selection?: never;
 }
 
@@ -138,13 +121,12 @@ export const NO_SELECTION_TITLE = (): null => null;
 interface SectionDefinitionBase {
   readonly id: SectionId;
   readonly rail: RailEntry;
-  /** Which panels this section HAS at all (H3 / arm L-b). Absent ⇒ both, as today. */
-  readonly panels?: SectionPanelAvailability;
   /** The boot-default panel modes; the persisted per-panel override wins thereafter. */
   readonly panelDefaults: Record<PanelName, PanelMode>;
   readonly placeholder: SectionPlaceholderCopy;
   /** REQUIRED — a real content pane, or the DECLARED-PLANNED arm (`{ planned: "<reason>" }`). */
   readonly content: (() => ReactNode) | { readonly planned: string };
+  readonly contentInset: "section" | { readonly planned: string };
   readonly header?: () => ReactNode;
   /** REQUIRED — `{ kind: "none" }` is an explicit decision, never an absence. */
   readonly context: ContextDefinition;

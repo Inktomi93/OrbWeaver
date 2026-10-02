@@ -7,13 +7,14 @@
 // This module exports COMPONENTS ONLY — playwright-ct rewrites named imports of a story module into
 // generated component consts, so a mixed export (component + constant) fails to parse.
 
+import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, useOrbSocket, useUserBus } from "@orb/client/data";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ModalHost } from "../../../../packages/client/src/features/app-shell/components/modal-host.tsx";
 import { DatabankContextBody } from "../../../../packages/client/src/features/databank/components/databank-context-body.tsx";
-import { DatabankListHeader } from "../../../../packages/client/src/features/databank/components/databank-list-header.tsx";
+import { useDatabankListHeader } from "../../../../packages/client/src/features/databank/hooks/use-databank-list-header.tsx";
 import { databankDocumentsTile } from "../../../../packages/client/src/features/databank/lib/home-documents-tile.tsx";
 import { DatabankDetailSurface } from "../../../../packages/client/src/features/databank/surfaces/databank-detail-surface.tsx";
 import { DatabankLibrarySurface } from "../../../../packages/client/src/features/databank/surfaces/databank-library-surface.tsx";
@@ -62,7 +63,7 @@ export function DatabankListHeaderStory(): ReactElement {
     <CtDataProviders>
       <CtRealSectionRegistry>
         <div style={{ display: "flex", justifyContent: "space-between", width: 320 }}>
-          <DatabankListHeader />
+          <ListPaneHeaderHost useView={useDatabankListHeader} />
         </div>
         <CtModalSlotHost />
       </CtRealSectionRegistry>

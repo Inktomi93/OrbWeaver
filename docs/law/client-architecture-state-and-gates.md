@@ -171,7 +171,7 @@ illustrative, not exhaustive — read the current, complete shape off its code h
 
 | Shape | The law lives at |
 | - | - |
-| `SectionDefinition` · `RailEntry` · `SectionPlaceholderCopy` · `SectionPanelAvailability` | `client/src/state/section-registry.ts` |
+| `SectionDefinition` · `RailEntry` · `SectionPlaceholderCopy` | `client/src/state/section-registry.ts` |
 | `ContextDefinition` · `ContextTabDef<S>` · `ResolvedContextTab(s)` · `ContextRegionDef<S>` · `ContextRegionView` · every published `S` projection | `client/src/lib/registry-contracts.ts` (path is critical — G3 case 3 resolves projections against it) |
 | `ConfigGroupDefinition` · `SettingsViewerView` | `client/src/state/config-group-registry.ts` |
 
