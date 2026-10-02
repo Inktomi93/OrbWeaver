@@ -229,3 +229,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D279 | [Native Google inference uses the shared runtime](0279-native-google-inference.md) | active |
 | D280 | [Supported plugin install sources share one bundle funnel](0280-plugin-supported-install-sources.md) | active |
 | D281 | [RPG profiles follow live rulesets](0281-rpg-profiles-follow-live-rulesets.md) | active |
+| D282 | [User docs live in the GitHub wiki](0282-user-docs-live-in-the-github-wiki.md) | active |

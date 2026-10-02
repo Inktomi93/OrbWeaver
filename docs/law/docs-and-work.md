@@ -20,6 +20,8 @@ agents follow `.claude/rules/docs.md`, and for style, `.claude/rules/writing.md`
 | `docs/work/` | One work item per file: a bug, a piece of work, an owner decision, or a tooling change | Moves through its states; landing deletes it, and the landing commit keeps the record |
 | `docs/Mission.md` | Why the product exists | Rarely |
 
+User docs live outside this tree, in the GitHub wiki; [User docs](user-docs.md) holds their rules.
+
 The code is the doc for anything the code shows. A domain's behavior lives in its code and file headers,
 not in a prose file.
 
