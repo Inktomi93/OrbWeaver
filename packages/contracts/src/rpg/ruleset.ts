@@ -14,9 +14,8 @@
 // a host picked up stays). That is why the apply is a pure MERGE over contract data and lives here rather
 // than as a re-profile arm in the verb: the law is the data, the verb only commits it.
 //
-// `special` is NOT a ruleset arm: it is a packaged attribute TEMPLATE a host reaches through the stat-profile
-// editor (`RPG_PACKAGED_PROFILE_BY_KEY`). The segmented control offers exactly the two arms the two retired
-// start doors offered.
+// Profile vocabulary is editable independently of the ruleset. The editor supports manual changes,
+// not a packaged-profile picker (D281); applying a ruleset never replaces those host-owned edits.
 
 import { z } from "zod";
 import type { RpgStatProfile } from "./profile.ts";

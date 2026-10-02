@@ -1,25 +1,8 @@
 // @orb/contracts/rpg/profile — the statProfile IS the compatibility promise (§2.3). Pins: the schema
-// parses/validates the full mechanical shape, the ≤12 attribute cap, and that all three packaged profiles
-// (freeform/d20/special) parse + carry the reserved fields lite never reads (the graft contract).
+// parses the mechanical shape and preserves saved/custom vocabulary independently of live defaults.
 
-import {
-  RPG_PACKAGED_PROFILE_BY_KEY,
-  RPG_PACKAGED_PROFILES,
-  RPG_PROFILE_D20,
-  RPG_PROFILE_FREEFORM,
-  RPG_PROFILE_MAX_ATTRIBUTES,
-  RPG_PROFILE_SPECIAL,
-  rpgStatProfileSchema,
-} from "@orb/contracts/rpg";
+import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, RPG_PROFILE_MAX_ATTRIBUTES, rpgGameConfigSchema, rpgStatProfileSchema } from "@orb/contracts/rpg";
 import { expect, test } from "../../support/fixtures.ts";
-
-test("all three packaged profiles are shipped and parse against the schema", () => {
-  expect(RPG_PACKAGED_PROFILES).toEqual(["freeform", "d20", "special"]);
-  for (const key of RPG_PACKAGED_PROFILES) {
-    const profile = RPG_PACKAGED_PROFILE_BY_KEY[key];
-    expect(rpgStatProfileSchema.safeParse(profile).success).toBe(true);
-  }
-});
 
 test("freeform is lite's empty-attribute default with an identity-ish modifier", () => {
   expect(RPG_PROFILE_FREEFORM.attributes).toEqual([]);
@@ -33,10 +16,26 @@ test("d20 ships the classic six with (score-10)/2 modifier dials", () => {
   expect(RPG_PROFILE_D20.perceptionAttribute).toBe("wis");
 });
 
-test("special ships the SPECIAL seven with (score-5) modifier dials", () => {
-  expect(RPG_PROFILE_SPECIAL.attributes).toHaveLength(7);
-  expect(RPG_PROFILE_SPECIAL.modifier).toEqual({ center: 5, step: 1 });
-  expect(RPG_PROFILE_SPECIAL.range).toEqual({ min: 1, max: 10 });
+test("saved non-ruleset profiles preserve their vocabulary and normalization dials", () => {
+  const saved = {
+    attributes: [
+      { key: "strength", label: "Strength", hint: "carry weight and melee damage" },
+      { key: "perception", label: "Perception", hint: "awareness and ranged accuracy" },
+      { key: "endurance", label: "Endurance", hint: "hit points and resistances" },
+      { key: "charisma", label: "Charisma", hint: "barter and speech" },
+      { key: "intelligence", label: "Intelligence", hint: "skill points and hacking" },
+      { key: "agility", label: "Agility", hint: "action points and sneak" },
+      { key: "luck", label: "Luck", hint: "crit chance and random fortune" },
+    ],
+    range: { min: 1, max: 10 },
+    modifier: { center: 5, step: 1 },
+    skillGoverning: { melee: "strength", ranged: "perception", science: "intelligence" },
+    defaultAttribute: "strength",
+    perceptionAttribute: "perception",
+    resolution: { kind: "house-d20" },
+  };
+  expect(rpgStatProfileSchema.parse(saved)).toEqual(saved);
+  expect(rpgGameConfigSchema.parse({ statProfile: saved }).statProfile).toEqual(saved);
 });
 
 test("the schema enforces the ≤12 attribute cap", () => {
@@ -50,4 +49,11 @@ test("the schema enforces the ≤12 attribute cap", () => {
 test("resolution rejects an unknown discriminant (the reserved single-arm union)", () => {
   const bad = { ...RPG_PROFILE_FREEFORM, resolution: { kind: "gurps" } };
   expect(rpgStatProfileSchema.safeParse(bad).success).toBe(false);
+});
+
+test("the public RPG contract does not publish a dormant template catalog", async () => {
+  const rpgContracts = await import("@orb/contracts/rpg");
+  expect(Object.hasOwn(rpgContracts, "RPG_PROFILE_SPECIAL")).toBe(false);
+  expect(Object.hasOwn(rpgContracts, "RPG_PACKAGED_PROFILE_BY_KEY")).toBe(false);
+  expect(Object.hasOwn(rpgContracts, "RPG_PACKAGED_PROFILES")).toBe(false);
 });

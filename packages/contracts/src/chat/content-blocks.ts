@@ -146,3 +146,15 @@ export function contentSpansToBlocks(spans: readonly ContentSpan[], options?: Co
   flushText();
   return blocks;
 }
+
+// Transport validates typed block envelopes after the stored-content projection has already degraded.
+const [markdownBlock, mediaBlock, htmlBlock, choicesBlock] = messageContentBlockSchema.options;
+export const messageContentBlockViewSchema = z.union([
+  markdownBlock.strict(),
+  mediaBlock.strict().extend({
+    src: z.union(mediaBlock.shape.src.options.map((option) => option.strict())),
+    dims: mediaBlock.shape.dims.unwrap().strict().optional(),
+  }),
+  htmlBlock.strict(),
+  choicesBlock.strict(),
+]) satisfies z.ZodType<MessageContentBlock>;

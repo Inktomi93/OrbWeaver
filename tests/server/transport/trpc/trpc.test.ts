@@ -10,6 +10,9 @@
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
+import type { ParticipantView, StartChatResult } from "@orb/contracts/chat";
+import type { UserSettingsView } from "@orb/contracts/settings";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ProviderError, providerErrorFromHttp, resolvedScrubSet } from "@orb/inference";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
@@ -33,6 +36,14 @@ const ID = {
   chatInvite1: mintTypeId(ID_PREFIX.chatInvite),
 } as const;
 
+const UPDATED_SETTINGS = {
+  userId: principal("user").userId,
+  schemaVersion: DEFAULT_USER_SETTINGS.schemaVersion,
+  config: DEFAULT_USER_SETTINGS,
+  updatedAt: 1,
+  configUnreadable: null,
+} satisfies UserSettingsView;
+
 describe("authedProcedure", () => {
   test("rejects an anonymous caller with UNAUTHORIZED", async () => {
     const ctx = makeContext({ auth: null });
@@ -40,9 +51,9 @@ describe("authedProcedure", () => {
   });
 
   test("admits an authenticated caller (the gate passes through to the verb)", async () => {
-    const list = vi.fn<PersonaService["list"]>();
+    const list = vi.fn<PersonaService["list"]>(async () => []);
     const ctx = makeContext({ auth: principal("user"), services: { persona: { list } } });
-    await caller(ctx).persona.list();
+    await expect(caller(ctx).persona.list()).resolves.toEqual([]);
     expect(list).toHaveBeenCalledWith({ principal: ctx.auth });
   });
 });
@@ -98,35 +109,35 @@ describe("CSRF gate (cookie-authed mutations only)", () => {
   });
 
   test("a cookie mutation WITH the custom header passes", async () => {
-    const updateUserSettingsSection = vi.fn<SettingsService["updateUserSettingsSection"]>();
+    const updateUserSettingsSection = vi.fn<SettingsService["updateUserSettingsSection"]>(async () => UPDATED_SETTINGS);
     const ctx = makeContext({
       auth: principal("user", { via: "cookie" }),
       csrfHeaderPresent: true,
       services: { settings: { updateUserSettingsSection } },
     });
-    await caller(ctx).settings.updateUserSettingsSection({ section: "profile", patch });
+    await expect(caller(ctx).settings.updateUserSettingsSection({ section: "profile", patch })).resolves.toEqual(UPDATED_SETTINGS);
     expect(updateUserSettingsSection).toHaveBeenCalledWith({ principal: ctx.auth, input: { section: "profile", patch } });
   });
 
   test("a header-authed mutation is exempt (no cross-site surface)", async () => {
-    const updateUserSettingsSection = vi.fn<SettingsService["updateUserSettingsSection"]>();
+    const updateUserSettingsSection = vi.fn<SettingsService["updateUserSettingsSection"]>(async () => UPDATED_SETTINGS);
     const ctx = makeContext({
       auth: principal("user", { via: "header" }),
       csrfHeaderPresent: false,
       services: { settings: { updateUserSettingsSection } },
     });
-    await caller(ctx).settings.updateUserSettingsSection({ section: "profile", patch });
+    await expect(caller(ctx).settings.updateUserSettingsSection({ section: "profile", patch })).resolves.toEqual(UPDATED_SETTINGS);
     expect(updateUserSettingsSection).toHaveBeenCalledTimes(1);
   });
 
   test("a query is never CSRF-gated (even cookie-authed without the header)", async () => {
-    const list = vi.fn<PersonaService["list"]>();
+    const list = vi.fn<PersonaService["list"]>(async () => []);
     const ctx = makeContext({
       auth: principal("user", { via: "cookie" }),
       csrfHeaderPresent: false,
       services: { persona: { list } },
     });
-    await caller(ctx).persona.list();
+    await expect(caller(ctx).persona.list()).resolves.toEqual([]);
     expect(list).toHaveBeenCalledTimes(1);
   });
 });
@@ -322,18 +333,52 @@ describe("multiHumanProcedure — the multi-human capability 404 belt (B4)", () 
   // founding a room and seating characters — must work while NOT multi-human capable (single-user AND
   // local-single-human). A regression here breaks the product for every local/single-user install.
   test("multi-CHARACTER chat is NOT gated: startChat + addCharacterToChat reachable while not capable", async () => {
-    const startChat = vi.fn<ChatService["startChat"]>();
-    const addCharacterToChat = vi.fn<ChatService["addCharacterToChat"]>();
+    const viewer = principal("user");
+    const hostSeat = {
+      ...INVITE_RESULTS.joinerRow,
+      chatId,
+      userId: viewer.userId,
+      role: "host",
+      activePersonaId: null,
+      joinSeq: 0,
+      joinHistoryVisibility: "full",
+    } satisfies ParticipantView;
+    const started = {
+      chat: {
+        ...INVITE_RESULTS.redeemed.chat,
+        id: chatId,
+        participants: [hostSeat],
+        viewerIsHost: true,
+        viewerUserId: viewer.userId,
+        viewerActivePersonaId: null,
+        identities: [],
+      },
+      opening: null,
+    } satisfies StartChatResult;
+    const added = {
+      ...hostSeat,
+      id: mintTypeId(ID_PREFIX.chatParticipant),
+      kind: "character",
+      userId: null,
+      characterId: ID.character1,
+      role: "member",
+      displayName: "Aria",
+      handle: null,
+    } satisfies ParticipantView;
+    const startChat = vi.fn<ChatService["startChat"]>(async () => started);
+    const addCharacterToChat = vi.fn<ChatService["addCharacterToChat"]>(async () => added);
     const ctx = makeContext({
       auth: principal("user"),
       multiHumanCapable: false,
       services: { chat: { startChat, addCharacterToChat } },
     });
-    await caller(ctx).chat.startChat({ characterIds: [] });
-    await caller(ctx).chat.addCharacterToChat({
-      chatId,
-      characterId: ID.character1,
-    });
+    await expect(caller(ctx).chat.startChat({ characterIds: [] })).resolves.toEqual(started);
+    await expect(
+      caller(ctx).chat.addCharacterToChat({
+        chatId,
+        characterId: ID.character1,
+      }),
+    ).resolves.toEqual(added);
     expect(startChat).toHaveBeenCalledTimes(1);
     expect(addCharacterToChat).toHaveBeenCalledTimes(1);
   });

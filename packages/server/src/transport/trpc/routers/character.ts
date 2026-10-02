@@ -6,9 +6,16 @@
 import {
   CHARACTER_LIST_MAX_LIMIT,
   characterBulkTagResultSchema,
+  characterDetailSchema,
   characterListCursorSchema,
   characterListSortSchema,
   createCharacterSchema,
+  generatedGreetingSchema,
+  listCharactersResultSchema,
+  listCharacterTagGroupsResultSchema,
+  snapshotRefSchema,
+  snapshotSummarySchema,
+  snapshotViewSchema,
   updateCharacterSchema,
 } from "@orb/contracts/character";
 import { GREETING_TRANSFORM_IDS } from "@orb/contracts/preset";
@@ -21,10 +28,12 @@ const greetingTransformIds = z.array(z.enum(GREETING_TRANSFORM_IDS));
 
 export const characterRouter = t.router({
   create: authedProcedure
+    .output(characterDetailSchema)
     .input(z.object({ input: createCharacterSchema }))
     .mutation(({ ctx, input }) => ctx.services.character.create({ principal: ctx.auth, input: input.input })),
 
   get: authedProcedure
+    .output(characterDetailSchema)
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .query(({ ctx, input }) => ctx.services.character.get({ principal: ctx.auth, characterId: input.characterId })),
 
@@ -34,6 +43,7 @@ export const characterRouter = t.router({
   // overwriting it wholesale on every next-page fetch (a sibling would go stale). `sort` is a separate
   // top-level input (part of the query key), so changing it resets the infinite query's pages.
   list: authedProcedure
+    .output(listCharactersResultSchema)
     .input(
       z
         .object({
@@ -71,6 +81,7 @@ export const characterRouter = t.router({
   // that could be sorted, cursored or limited would be window-dependent again, which is exactly the defect
   // it exists to close, so those three are not in the shape at all.
   listTagGroups: authedProcedure
+    .output(listCharacterTagGroupsResultSchema)
     .input(
       z
         .object({
@@ -93,19 +104,23 @@ export const characterRouter = t.router({
       }),
     ),
 
-  update: authedProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), input: updateCharacterSchema })).mutation(({ ctx, input }) =>
-    ctx.services.character.update({
-      principal: ctx.auth,
-      characterId: input.characterId,
-      input: input.input,
-    }),
-  ),
+  update: authedProcedure
+    .output(characterDetailSchema)
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), input: updateCharacterSchema }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.update({
+        principal: ctx.auth,
+        characterId: input.characterId,
+        input: input.input,
+      }),
+    ),
 
   remove: authedProcedure
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .mutation(({ ctx, input }) => ctx.services.character.remove({ principal: ctx.auth, characterId: input.characterId })),
 
   duplicate: authedProcedure
+    .output(characterDetailSchema)
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .mutation(({ ctx, input }) => ctx.services.character.duplicate({ principal: ctx.auth, characterId: input.characterId })),
 
@@ -155,23 +170,29 @@ export const characterRouter = t.router({
       }),
     ),
 
-  snapshot: authedProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), label: z.string().nullish() })).mutation(({ ctx, input }) =>
-    ctx.services.character.snapshot({
-      principal: ctx.auth,
-      characterId: input.characterId,
-      ...(input.label !== undefined ? { label: input.label } : {}),
-    }),
-  ),
+  snapshot: authedProcedure
+    .output(snapshotRefSchema)
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), label: z.string().nullish() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.snapshot({
+        principal: ctx.auth,
+        characterId: input.characterId,
+        ...(input.label !== undefined ? { label: input.label } : {}),
+      }),
+    ),
 
   listSnapshots: authedProcedure
+    .output(z.array(snapshotSummarySchema))
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .query(({ ctx, input }) => ctx.services.character.listSnapshots({ principal: ctx.auth, characterId: input.characterId })),
 
   getSnapshot: authedProcedure
+    .output(snapshotViewSchema)
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), snapshotId: typeIdSchema(ID_PREFIX.characterSnapshot) }))
     .query(({ ctx, input }) => ctx.services.character.getSnapshot({ principal: ctx.auth, characterId: input.characterId, snapshotId: input.snapshotId })),
 
   restore: authedProcedure
+    .output(characterDetailSchema)
     .input(
       z.object({
         characterId: typeIdSchema(ID_PREFIX.character),
@@ -193,6 +214,7 @@ export const characterRouter = t.router({
   // bytes are `preset.greetingTransform.*` prose slots the verb resolves from the caller's preset (the
   // templating fork, ARM B — owner 2026-08-09), the same doctrine `guidedSteerSchema.gameSteer` states.
   rewriteGreeting: authedProcedure
+    .output(generatedGreetingSchema)
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), greeting: z.string(), steer: z.string(), transforms: greetingTransformIds.optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.character.rewriteGreeting({
@@ -205,6 +227,7 @@ export const characterRouter = t.router({
     ),
 
   generateGreeting: authedProcedure
+    .output(generatedGreetingSchema)
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), steer: z.string(), transforms: greetingTransformIds.optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.character.generateGreeting({

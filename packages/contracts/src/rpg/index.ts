@@ -3,7 +3,7 @@
 // index re-exports, consumer-invisible):
 //   • enums.ts    — the string-union tuples (mode/status/quest/journal/checkpoint/widget), CHECK-derived in db
 //   • mode.ts     — the `MODE_POLICY` exhaustive record + the mode capability axis (§2.2)
-//   • profile.ts  — `statProfile` as data + the three packaged profiles (§2.3)
+//   • profile.ts  — `statProfile` as data + live ruleset profile defaults (D281)
 //   • ruleset.ts  — the RULESET axis (#862): the host setting that picks a game's vocabulary + dice, and the
 //                   ADDITIVE apply the write door commits (owner ruling 2026-08-30)
 //   • sheet.ts    — the per-actor identity sheet (§4.3)
@@ -227,16 +227,13 @@ export type { RpgModePolicy } from "./mode.ts";
 export { MODE_POLICY } from "./mode.ts";
 export type { ChatRpgPointer } from "./pointer.ts";
 export { chatRpgPointerSchema, isRpgEngaged } from "./pointer.ts";
-export type { RpgPackagedProfileKey, RpgStatAttributeDef, RpgStatProfile, RpgStatResolution } from "./profile.ts";
+export type { RpgStatAttributeDef, RpgStatProfile, RpgStatResolution } from "./profile.ts";
 export {
   attributeGloss,
   attributeReading,
-  RPG_PACKAGED_PROFILE_BY_KEY,
-  RPG_PACKAGED_PROFILES,
   RPG_PROFILE_D20,
   RPG_PROFILE_FREEFORM,
   RPG_PROFILE_MAX_ATTRIBUTES,
-  RPG_PROFILE_SPECIAL,
   RPG_SEED_HP_MAX,
   rpgSeedTrackers,
   rpgStatAttributeDefSchema,
@@ -244,6 +241,20 @@ export {
   rpgStatResolutionSchema,
 } from "./profile.ts";
 export { RPG_PROSE_SLOTS } from "./prose.ts";
+export {
+  type CreateGameResult,
+  createGameResultSchema,
+  type HandDoorResult,
+  handDoorResultSchema,
+  type PopulateResult,
+  type PromoteActorResult,
+  populateResultSchema,
+  promoteActorResultSchema,
+  type ResyncResult,
+  type RollDiceResult,
+  resyncResultSchema,
+  rollDiceResultSchema,
+} from "./results.ts";
 export type { RpgGameTemplate, RpgRuleset, RpgRulesetVocabulary } from "./ruleset.ts";
 export {
   applyRulesetVocabulary,
@@ -351,4 +362,15 @@ export type {
   RpgTrackerView,
   RpgTurnToolCallsView,
 } from "./views.ts";
-export { RPG_STATE_ROUND_FAILED_SUMMARY, RPG_TOOL_CALL_WITHHOLD_REASONS } from "./views.ts";
+export {
+  RPG_STATE_ROUND_FAILED_SUMMARY,
+  RPG_TOOL_CALL_WITHHOLD_REASONS,
+  type RpgCheckpointView,
+  rpgCheckpointViewSchema,
+  rpgConfigViewSchema,
+  rpgGameViewSchema,
+  rpgJournalEntryViewSchema,
+  rpgRevealViewSchema,
+  rpgTrackerViewSchema,
+  rpgTurnToolCallsViewSchema,
+} from "./views.ts";

@@ -7,7 +7,7 @@
 // are pinned on the room source at `tests/server/transport/trpc/stream/sources/chat.test.ts`. The one
 // subscription left on this router is `impersonateStream` (permanently unfolded, spec §14 decision 2).
 
-import type { ChatBusEvent, ChatIdentity, MessageView } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatIdentity, ChatReactionsView, MessageView, StartChatResult } from "@orb/contracts/chat";
 import { CHAT_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -679,52 +679,51 @@ describe("chat.deleteMessages — the bulk delete verb (chat-surface lane wire-t
   });
 });
 
+const FORK_RESULT: Awaited<ReturnType<ChatService["forkChat"]>> = {
+  chat: {
+    id: ID.chatForked1,
+    title: "Forked chat",
+    starred: false,
+    archived: false,
+    // A fork is born non-temporary (the flag is set only at `startChat`).
+    temporary: false,
+    // D121-E: the room display-tier option is OFF on a fresh fork (options never default on).
+    hostDisplayScripts: false,
+    // B1: a fresh fork has never been pinned, so its posture is `null` = INHERIT the host's own default
+    // (NOT `false` — the tri-state is the point of the field).
+    offerChoices: null,
+    // B7: the two reaction knobs are the same tri-state — a fresh fork inherits on both.
+    charactersCanReact: null,
+    reactionsEnabled: null,
+    parentChatId: CHAT,
+    forkedAt: 0,
+    anchorPersonaId: null,
+    participants: [],
+    viewerActivePersonaId: null,
+    viewerIsHost: true,
+    viewerUserId: MEMBER,
+    viewerOwnedCharacterIds: [],
+    viewerGalleryCharacterId: null,
+    pendingHostUserId: null,
+    group: DEFAULT_GROUP_CONFIG,
+    roomOverrides: DEFAULT_ROOM_OVERRIDES,
+    toolRecurseLimit: null,
+    rpg: null,
+    background: null,
+    opening: null,
+    compactSummary: null,
+    compactedAtSeq: null,
+    createdAt: 0,
+    updatedAt: 0,
+    identities: EMPTY_CAST,
+  },
+};
+
 describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lane wire-through)", () => {
   const ForkedChat = ID.chatForked1;
-  // A minimal ChatDetail literal — this router test only proves the wire-through, not the view shape
-  // (the same posture the file-header MESSAGE fixture takes).
-  const ForkResult: Awaited<ReturnType<ChatService["forkChat"]>> = {
-    chat: {
-      id: ForkedChat,
-      title: "Forked chat",
-      starred: false,
-      archived: false,
-      // A fork is born non-temporary (the flag is set only at `startChat`).
-      temporary: false,
-      // D121-E: the room display-tier option is OFF on a fresh fork (options never default on).
-      hostDisplayScripts: false,
-      // B1: a fresh fork has never been pinned, so its posture is `null` = INHERIT the host's own default
-      // (NOT `false` — the tri-state is the point of the field).
-      offerChoices: null,
-      // B7: the two reaction knobs are the same tri-state — a fresh fork inherits on both.
-      charactersCanReact: null,
-      reactionsEnabled: null,
-      parentChatId: CHAT,
-      forkedAt: 0,
-      anchorPersonaId: null,
-      participants: [],
-      viewerActivePersonaId: null,
-      viewerIsHost: true,
-      viewerUserId: MEMBER,
-      viewerOwnedCharacterIds: [],
-      viewerGalleryCharacterId: null,
-      pendingHostUserId: null,
-      group: DEFAULT_GROUP_CONFIG,
-      roomOverrides: DEFAULT_ROOM_OVERRIDES,
-      toolRecurseLimit: null,
-      rpg: null,
-      background: null,
-      opening: null,
-      compactSummary: null,
-      compactedAtSeq: null,
-      createdAt: 0,
-      updatedAt: 0,
-      identities: EMPTY_CAST,
-    },
-  };
 
   test("a thin pass-through: chatId/throughSeq/title reach the verb with the resolved Principal", async () => {
-    const forkChat = vi.fn<ChatService["forkChat"]>(async () => ForkResult);
+    const forkChat = vi.fn<ChatService["forkChat"]>(async () => FORK_RESULT);
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
       services: { chat: { forkChat } },
@@ -1409,16 +1408,47 @@ describe("chat.startChat — CREATION-INTENT inputs only (R2)", () => {
   });
 
   test("a well-formed creation body still passes the boundary and reaches the verb", async () => {
-    // @orb-waive no-test-fabrication(unknown): partial StartChatResult stub — this test asserts the boundary→verb CALL shape only; the response is never read. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    const startChat = vi.fn<ChatService["startChat"]>(async () => ({ chat: { id: CHAT } }) as unknown as Awaited<ReturnType<ChatService["startChat"]>>);
+    const result = { chat: { ...FORK_RESULT.chat, id: CHAT, parentChatId: null, forkedAt: null }, opening: null } satisfies StartChatResult;
+    const startChat = vi.fn<ChatService["startChat"]>(async () => result);
     const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { startChat } } });
 
-    await caller(ctx).chat.startChat({ characterIds: [ID.characterAria], opening: "greet-all" });
+    await expect(caller(ctx).chat.startChat({ characterIds: [ID.characterAria], opening: "greet-all" })).resolves.toEqual(result);
 
     expect(startChat).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: MEMBER }),
       characterIds: [ID.characterAria],
       opening: "greet-all",
     });
+  });
+});
+
+describe("chat output declarations", () => {
+  test("member message pages reject a service result carrying host-only raw generation material", async () => {
+    const widened = { ...MESSAGE, rawContent: "host-only raw text" };
+    const listMessages = vi.fn<ChatService["listMessages"]>().mockResolvedValue({ messages: [widened], identities: EMPTY_CAST });
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listMessages } } });
+    await expect(caller(ctx).chat.listMessages({ chatId: CHAT })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+  });
+
+  test("reaction output preserves the stored segment anchor and reactor membership", async () => {
+    const view = {
+      reactionsEnabled: true,
+      groups: [
+        {
+          variantId: ID.messageVariant1,
+          segmentIndex: 2,
+          segmentSpeaker: "Aria",
+          segmentSnippet: "a remembered line",
+          emoji: "❤️",
+          emojiImageAssetId: null,
+          reactorParticipantIds: [ID.chatParticipant1],
+        },
+      ],
+    } satisfies ChatReactionsView;
+    const listReactions = vi.fn<ChatService["listReactions"]>().mockResolvedValue(view);
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listReactions } } });
+    await expect(caller(ctx).chat.listReactions({ chatId: CHAT })).resolves.toEqual(view);
+    listReactions.mockResolvedValue({ ...view, groups: view.groups.map((group) => ({ ...group, privateReactorUserId: NON_MEMBER })) });
+    await expect(caller(ctx).chat.listReactions({ chatId: CHAT })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
   });
 });

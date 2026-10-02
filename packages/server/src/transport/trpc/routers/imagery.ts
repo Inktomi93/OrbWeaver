@@ -10,7 +10,7 @@
 // via tRPC `inferOutput`, so no contract result type is duplicated here.
 
 import { assetIdSchema } from "@orb/contracts/assets";
-import { promptTemplateModeSchema, sizePresetSchema } from "@orb/contracts/imagery";
+import { extractedPromptSchema, generatedPictureSchema, generationProvenanceSchema, promptTemplateModeSchema, sizePresetSchema } from "@orb/contracts/imagery";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
@@ -31,6 +31,7 @@ export const imageryRouter = t.router({
   // over tRPC (the SSRF/size posture, doc 04 §7). Throws `ImageEditUnsupportedError` (→ BAD_REQUEST) when the
   // resolved generateImage model lacks `input.imageEdit` — the client shows the capability refusal.
   editImage: authedProcedure
+    .output(generatedPictureSchema)
     .input(
       z.object({
         sourceAssetId: assetIdSchema,
@@ -54,6 +55,7 @@ export const imageryRouter = t.router({
   // The preview-before-spend surface: resolve the prompt for a mode WITHOUT generating, so the user reviews
   // (and edits) it, then generates with it as a verbatim `prompt`. Spends the summarize-role shaper call.
   extractPrompt: authedProcedure
+    .output(extractedPromptSchema)
     .input(
       z.object({
         chatId: typeIdSchema(ID_PREFIX.chat),
@@ -74,6 +76,7 @@ export const imageryRouter = t.router({
   // regenerate affordance's source prompt. Owner-scoped through the `assets` join; `null` when the asset has
   // no provenance row or isn't the caller's.
   readProvenance: authedProcedure
+    .output(generationProvenanceSchema.nullable())
     .input(z.object({ assetId: assetIdSchema }))
     .query(({ ctx, input }) => ctx.services.imagery.readProvenance({ caller: ctx.auth, assetId: input.assetId })),
 });

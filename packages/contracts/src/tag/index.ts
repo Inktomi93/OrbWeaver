@@ -5,6 +5,7 @@
 // accepted) is a `character_tags`-only junction column, not a parallel store.
 
 import type { CharacterId, ChatId, PersonaId, PresetId, TagId, WorldBookId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 const NAME_MIN_LENGTH = 1;
@@ -154,3 +155,58 @@ export interface TagReachView {
   readonly entities: readonly TagAttachedEntity[];
   readonly hasMore: boolean;
 }
+
+export const tagViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.tag),
+  name: z.string(),
+  color: z.string().nullable(),
+  color2: z.string().nullable(),
+  source: tagSourceSchema.nullable(),
+  folderType: tagFolderTypeSchema,
+  sortOrder: z.number().nullable(),
+  isHiddenOnCard: z.boolean(),
+}) satisfies z.ZodType<TagView>;
+
+export const tagUsageSchema = z.strictObject({
+  characters: z.number(),
+  chats: z.number(),
+  worldBooks: z.number(),
+  personas: z.number(),
+  presets: z.number(),
+  total: z.number(),
+}) satisfies z.ZodType<TagUsage>;
+
+export const tagWithUsageSchema = tagViewSchema.extend({
+  usage: tagUsageSchema,
+  pendingSuggestions: z.number(),
+}) satisfies z.ZodType<TagWithUsage>;
+
+export const tagSuggestionViewSchema = tagViewSchema.extend({
+  characterId: typeIdSchema(ID_PREFIX.character),
+  characterName: z.string(),
+}) satisfies z.ZodType<TagSuggestionView>;
+
+export const tagFilterVocabularyEntrySchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.tag),
+  name: z.string(),
+  isHiddenOnCard: z.boolean(),
+  characters: z.number(),
+}) satisfies z.ZodType<TagFilterVocabularyEntry>;
+
+export const tagAttachedEntitySchema = z.discriminatedUnion("targetType", [
+  z.strictObject({ targetType: z.literal("character"), targetId: typeIdSchema(ID_PREFIX.character), name: z.string() }),
+  z.strictObject({ targetType: z.literal("chat"), targetId: typeIdSchema(ID_PREFIX.chat), name: z.string() }),
+  z.strictObject({ targetType: z.literal("worldBook"), targetId: typeIdSchema(ID_PREFIX.worldBook), name: z.string() }),
+  z.strictObject({ targetType: z.literal("persona"), targetId: typeIdSchema(ID_PREFIX.persona), name: z.string() }),
+  z.strictObject({ targetType: z.literal("preset"), targetId: typeIdSchema(ID_PREFIX.preset), name: z.string() }),
+]) satisfies z.ZodType<TagAttachedEntity>;
+
+export const tagReachViewSchema = z.strictObject({
+  entities: z.array(tagAttachedEntitySchema).readonly(),
+  hasMore: z.boolean(),
+}) satisfies z.ZodType<TagReachView>;
+
+export interface PruneUnusedResult {
+  readonly removed: number;
+}
+export const pruneUnusedResultSchema = z.strictObject({ removed: z.number() }) satisfies z.ZodType<PruneUnusedResult>;

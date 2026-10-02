@@ -2,7 +2,14 @@
 // (ownership IS the gate). Thin: validate → `ctx.services.persona.<verb>` → map errors. Input shapes
 // derive from `@orb/contracts/persona`.
 
-import { createPersonaSchema, updatePersonaSchema } from "@orb/contracts/persona";
+import {
+  connectedCharacterViewSchema,
+  createPersonaSchema,
+  disconnectResultSchema,
+  personaDetailSchema,
+  removePersonaResultSchema,
+  updatePersonaSchema,
+} from "@orb/contracts/persona";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { TRPCError } from "@trpc/server";
@@ -16,24 +23,30 @@ const DEC = new TextDecoder();
 
 export const personaRouter = t.router({
   create: authedProcedure
+    .output(personaDetailSchema)
     .input(z.object({ input: createPersonaSchema }))
     .mutation(({ ctx, input }) => ctx.services.persona.create({ principal: ctx.auth, input: input.input })),
 
-  list: authedProcedure.query(({ ctx }) => ctx.services.persona.list({ principal: ctx.auth })),
+  list: authedProcedure.output(z.array(personaDetailSchema)).query(({ ctx }) => ctx.services.persona.list({ principal: ctx.auth })),
 
   get: authedProcedure
+    .output(personaDetailSchema)
     .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
     .query(({ ctx, input }) => ctx.services.persona.get({ principal: ctx.auth, personaId: input.personaId })),
 
-  update: authedProcedure.input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona), input: updatePersonaSchema })).mutation(({ ctx, input }) =>
-    ctx.services.persona.update({
-      principal: ctx.auth,
-      personaId: input.personaId,
-      input: input.input,
-    }),
-  ),
+  update: authedProcedure
+    .output(personaDetailSchema)
+    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona), input: updatePersonaSchema }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.persona.update({
+        principal: ctx.auth,
+        personaId: input.personaId,
+        input: input.input,
+      }),
+    ),
 
   remove: authedProcedure
+    .output(removePersonaResultSchema)
     .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
     .mutation(({ ctx, input }) => ctx.services.persona.remove({ principal: ctx.auth, personaId: input.personaId })),
 
@@ -58,13 +71,16 @@ export const personaRouter = t.router({
       }),
     ),
 
-  createFromCharacter: authedProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), swapMacros: z.boolean() })).mutation(({ ctx, input }) =>
-    ctx.services.persona.createFromCharacter({
-      principal: ctx.auth,
-      characterId: input.characterId,
-      swapMacros: input.swapMacros,
-    }),
-  ),
+  createFromCharacter: authedProcedure
+    .output(personaDetailSchema)
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), swapMacros: z.boolean() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.persona.createFromCharacter({
+        principal: ctx.auth,
+        characterId: input.characterId,
+        swapMacros: input.swapMacros,
+      }),
+    ),
 
   connectToCharacter: authedProcedure
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), personaId: typeIdSchema(ID_PREFIX.persona) }))
@@ -77,6 +93,7 @@ export const personaRouter = t.router({
     ),
 
   disconnectFromCharacter: authedProcedure
+    .output(disconnectResultSchema)
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), personaId: typeIdSchema(ID_PREFIX.persona) }))
     .mutation(({ ctx, input }) =>
       ctx.services.persona.disconnectFromCharacter({
@@ -86,23 +103,30 @@ export const personaRouter = t.router({
       }),
     ),
 
-  listConnectedToCharacter: authedProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) })).query(({ ctx, input }) =>
-    ctx.services.persona.listConnectedToCharacter({
-      principal: ctx.auth,
-      characterId: input.characterId,
-    }),
-  ),
+  listConnectedToCharacter: authedProcedure
+    .output(z.array(personaDetailSchema))
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
+    .query(({ ctx, input }) =>
+      ctx.services.persona.listConnectedToCharacter({
+        principal: ctx.auth,
+        characterId: input.characterId,
+      }),
+    ),
 
   // The junction read from the PERSONA side (#866 S4 — the editor's "Connected characters" section).
-  listConnectedCharacters: authedProcedure.input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) })).query(({ ctx, input }) =>
-    ctx.services.persona.listConnectedCharacters({
-      principal: ctx.auth,
-      personaId: input.personaId,
-    }),
-  ),
+  listConnectedCharacters: authedProcedure
+    .output(z.array(connectedCharacterViewSchema))
+    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
+    .query(({ ctx, input }) =>
+      ctx.services.persona.listConnectedCharacters({
+        principal: ctx.auth,
+        personaId: input.personaId,
+      }),
+    ),
 
   // FINAL-Persona §A.6b gap #2/#3 — duplicate + the export/import backup round-trip.
   duplicate: authedProcedure
+    .output(personaDetailSchema)
     .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
     .mutation(({ ctx, input }) => ctx.services.persona.duplicate({ principal: ctx.auth, personaId: input.personaId })),
 
@@ -114,13 +138,16 @@ export const personaRouter = t.router({
     return { filename: file.filename, fileText: DEC.decode(file.bytes) };
   }),
 
-  import: authedProcedure.input(z.object({ fileText: z.string().max(MAX_PERSONA_FILE_CHARS) })).mutation(async ({ ctx, input }) => {
-    const outcome = await ctx.services.persona.import({ principal: ctx.auth, bytes: ENC.encode(input.fileText) });
-    if (!outcome.ok) {
-      // The refusal REASON reaches the user as words (a newer-orbweaver backup no longer reads as
-      // "not a valid file") — the import door renders this message.
-      throw new TRPCError({ code: "BAD_REQUEST", message: outcome.error });
-    }
-    return outcome.persona;
-  }),
+  import: authedProcedure
+    .output(personaDetailSchema)
+    .input(z.object({ fileText: z.string().max(MAX_PERSONA_FILE_CHARS) }))
+    .mutation(async ({ ctx, input }) => {
+      const outcome = await ctx.services.persona.import({ principal: ctx.auth, bytes: ENC.encode(input.fileText) });
+      if (!outcome.ok) {
+        // The refusal REASON reaches the user as words (a newer-orbweaver backup no longer reads as
+        // "not a valid file") — the import door renders this message.
+        throw new TRPCError({ code: "BAD_REQUEST", message: outcome.error });
+      }
+      return outcome.persona;
+    }),
 });

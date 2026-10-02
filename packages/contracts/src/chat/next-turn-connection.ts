@@ -2,7 +2,10 @@
 // A non-host member may see provider/model but never the host's custom label.
 
 import type { ModelId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
+import { z } from "zod";
 import type { ProviderId } from "../inference/provider-schema.ts";
+import { providerIdSchema } from "../inference/provider-schema.ts";
 
 export type NextTurnConnectionView =
   | { readonly state: "unset" }
@@ -13,3 +16,14 @@ export type NextTurnConnectionView =
       readonly providerLabel: string;
       readonly model: ModelId;
     };
+
+export const nextTurnConnectionViewSchema = z.discriminatedUnion("state", [
+  z.strictObject({ state: z.literal("unset") }),
+  z.strictObject({
+    state: z.literal("configured"),
+    connectionLabel: z.string().nullable(),
+    provider: providerIdSchema,
+    providerLabel: z.string(),
+    model: brandedId<ModelId>(),
+  }),
+]) satisfies z.ZodType<NextTurnConnectionView>;

@@ -4,6 +4,7 @@
 // The mutation verbs (add/remove) are structurally identical authedProcedures; their behavior is covered by
 // the domain slice tests.
 
+import type { AssetListItem } from "@orb/contracts/assets";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { describe, vi } from "vitest";
@@ -11,6 +12,28 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 describe("assets router", () => {
+  const asset = {
+    assetId: mintTypeId(ID_PREFIX.asset),
+    hash: "asset-hash",
+    kind: "gallery",
+    mime: "image/png",
+    size: 12,
+    uploadedAt: 100,
+    animated: false,
+  } satisfies AssetListItem;
+
+  test("listOwned preserves the declared asset view", async () => {
+    const listOwned = vi.fn<AssetsService["listOwned"]>().mockResolvedValue([asset]);
+    const ctx = makeContext({ auth: principal("user"), services: { assets: { listOwned } } });
+    await expect(caller(ctx).assets.listOwned({ limit: 20 })).resolves.toEqual([asset]);
+  });
+
+  test("listOwned refuses a service result widened with private storage data", async () => {
+    const widened = { ...asset, storagePath: "/private/asset.png" };
+    const listOwned = vi.fn<AssetsService["listOwned"]>().mockResolvedValue([widened]);
+    const ctx = makeContext({ auth: principal("user"), services: { assets: { listOwned } } });
+    await expect(caller(ctx).assets.listOwned({ limit: 20 })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+  });
   test("rejects an anonymous caller with UNAUTHORIZED", async () => {
     const ctx = makeContext({ auth: null });
     await expect(caller(ctx).assets.listOwned({ limit: 20 })).rejects.toMatchObject({

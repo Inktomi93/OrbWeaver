@@ -19,16 +19,20 @@
 import {
   AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR,
   AUTOMATION_FIRES_LIST_MAX_LIMIT,
+  ownerBudgetViewSchema,
   rulePresetIdSchema,
   rulePresetKnobValuesSchema,
+  rulePresetViewSchema,
 } from "@orb/contracts/automation";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { confirmSuggestionResultSchema, fireViewSchema, ruleViewSchema, runRuleNowResultSchema, testRunResultSchema } from "#domain/automation";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const automationRouter = t.router({
   // The host-only rule list is position-ordered.
   listRules: authedProcedure
+    .output(z.array(ruleViewSchema))
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.automation.listRules({ principal: ctx.auth, chatId: input.chatId })),
 
@@ -53,7 +57,7 @@ export const automationRouter = t.router({
   // id/title/summary/knob descriptors, in catalogue order. Static (no principal/chat/db), but authed: the
   // picker is a host-only surface and the vocabulary is not public. The CEL predicates + arm handlers stay
   // domain-side — only the projection crosses the wire (`@orb/contracts/automation`'s `RulePresetView`).
-  listRulePresets: authedProcedure.query(({ ctx }) => ctx.services.automation.listRulePresets()),
+  listRulePresets: authedProcedure.output(z.array(rulePresetViewSchema)).query(({ ctx }) => ctx.services.automation.listRulePresets()),
 
   // Mint a preset's ordered RULE SET into a chat (S3). Thin driver: the wire validates the id + the partial
   // knob-override bag SHAPE; the verb resolves the overrides against the named preset's own descriptors (a
@@ -63,6 +67,7 @@ export const automationRouter = t.router({
   // `chatId` nullable for the same reason `createRule`'s is — and the verb additionally refuses a chat that
   // DISAGREES with the named preset's own declared scope, in both directions.
   createRuleFromPreset: authedProcedure
+    .output(z.array(ruleViewSchema))
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat).nullable(), presetId: rulePresetIdSchema, knobs: rulePresetKnobValuesSchema.optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.automation.createRuleFromPreset({
@@ -76,6 +81,7 @@ export const automationRouter = t.router({
   // The dry-run: evaluate the predicate + render every arm's templates, executing NOTHING (the editor's
   // diagnostics surface). The optional sampleEvent is synthesized in the verb from the rule's trigger.
   testRule: authedProcedure
+    .output(testRunResultSchema)
     .input(z.object({ ruleId: typeIdSchema(ID_PREFIX.automationRule) }))
     .mutation(({ ctx, input }) => ctx.services.automation.testRule({ principal: ctx.auth, ruleId: input.ruleId })),
 
@@ -83,6 +89,7 @@ export const automationRouter = t.router({
   // it: testRule executes NOTHING and stays that way, this one really runs the rule. Its one gate exemption
   // (the engine's fire-rate cap) is argued in the verb; every belt inside the arm's own pipeline still bites.
   runRuleNow: authedProcedure
+    .output(runRuleNowResultSchema)
     .input(z.object({ ruleId: typeIdSchema(ID_PREFIX.automationRule) }))
     .mutation(({ ctx, input }) => ctx.services.automation.runRuleNow({ principal: ctx.auth, ruleId: input.ruleId })),
 
@@ -90,6 +97,7 @@ export const automationRouter = t.router({
   // reaches the client on the host-only `suggestionRaised` bus event and comes back here. Take-once lives in
   // the verb, so a double-click's loser gets NOT_FOUND rather than a second execution.
   confirmSuggestion: authedProcedure
+    .output(confirmSuggestionResultSchema)
     .input(z.object({ suggestionId: typeIdSchema(ID_PREFIX.automationSuggestion) }))
     .mutation(({ ctx, input }) => ctx.services.automation.confirmSuggestion({ principal: ctx.auth, suggestionId: input.suggestionId })),
 
@@ -99,6 +107,7 @@ export const automationRouter = t.router({
 
   // The fire-log debug surface (host-only, newest first) — the "why didn't my rule fire" answer.
   listFires: authedProcedure
+    .output(z.array(fireViewSchema))
     .input(z.object({ ruleId: typeIdSchema(ID_PREFIX.automationRule), limit: z.number().int().min(1).max(AUTOMATION_FIRES_LIST_MAX_LIMIT).optional() }))
     .query(({ ctx, input }) =>
       ctx.services.automation.listFires({
@@ -113,6 +122,7 @@ export const automationRouter = t.router({
   // domain guard is `requireChatHost(chatId)` — a non-member passing a foreign chatId collapses to a leak-free
   // NOT_FOUND, exactly like `listRules`. Same page ceiling as `listFires`.
   listChatActivity: authedProcedure
+    .output(z.array(fireViewSchema))
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), limit: z.number().int().min(1).max(AUTOMATION_FIRES_LIST_MAX_LIMIT).optional() }))
     .query(({ ctx, input }) =>
       ctx.services.automation.listChatActivity({
@@ -129,9 +139,9 @@ export const automationRouter = t.router({
   // listFires) are the SAME procedures the chat surface uses — they take a ruleId and the domain guard
   // answers for its scope, so the pane needs no duplicates of them.
 
-  listOwnerRules: authedProcedure.query(({ ctx }) => ctx.services.automation.listOwnerRules({ principal: ctx.auth })),
+  listOwnerRules: authedProcedure.output(z.array(ruleViewSchema)).query(({ ctx }) => ctx.services.automation.listOwnerRules({ principal: ctx.auth })),
 
-  getOwnerBudgets: authedProcedure.query(({ ctx }) => ctx.services.automation.getOwnerBudgets({ principal: ctx.auth })),
+  getOwnerBudgets: authedProcedure.output(ownerBudgetViewSchema).query(({ ctx }) => ctx.services.automation.getOwnerBudgets({ principal: ctx.auth })),
 
   // The owner-wide fire-rate cap (#1430) mirrors the domain verb's authoritative ceiling at the wire edge.
   setOwnerBudgets: authedProcedure

@@ -4,16 +4,6 @@
 
 import type { PersonaDetail } from "./views.ts";
 
-/** `remove` — `deleted` is always `true` on success (a not-owned/missing persona throws instead). */
-export interface RemovePersonaResult {
-  readonly deleted: boolean;
-}
-
-/** `disconnectFromCharacter` — `false` when the junction row was already absent (idempotent no-op). */
-export interface DisconnectResult {
-  readonly disconnected: boolean;
-}
-
 /** `export` — one portable persona file, ready for either door (the bundle descriptor streams it; the
  *  single-entity door hands its bytes down as text). */
 export interface PersonaPortableFile {
@@ -27,3 +17,5 @@ export interface PersonaPortableFile {
 export type PersonaImportOutcome =
   | { readonly ok: true; readonly persona: PersonaDetail; readonly created: boolean }
   | { readonly ok: false; readonly error: string };
+
+export type { DisconnectResult, RemovePersonaResult } from "@orb/contracts/persona";

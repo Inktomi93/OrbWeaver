@@ -10,7 +10,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
+import { presetDetailSchema, presetSummarySchema, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { describe } from "vitest";
 import { toPresetDetail, toPresetSummary } from "../../../../../packages/server/src/domain/preset/substrate/views.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -110,4 +110,13 @@ describe("toPresetDetail (lenient parse seam)", () => {
     // …and the damage is bounded to params alone.
     expect(d.config.params).toEqual({});
   });
+});
+
+test("output schemas retain degraded-config provenance and reject widened preset rows", () => {
+  const source = row({ id: SYSTEM_DEFAULT_PRESET_ID, ownerId: null, schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion + 1 });
+  const detail = toPresetDetail(source);
+  expect(presetDetailSchema.parse(detail)).toEqual(detail);
+  expect(detail.configUnreadable).toBe("version-from-future");
+  expect(presetDetailSchema.safeParse({ ...detail, ownerId: source.ownerId }).success).toBe(false);
+  expect(presetSummarySchema.safeParse({ ...toPresetSummary(source), config: source.config }).success).toBe(false);
 });

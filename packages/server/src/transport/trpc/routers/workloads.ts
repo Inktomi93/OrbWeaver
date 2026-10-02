@@ -16,11 +16,16 @@
 
 import {
   asStartWorkloadInput,
+  cancelWorkloadResultSchema,
   scheduleCadenceSchema,
   startWorkloadEnvelope,
   WORKLOAD_LIST_MAX_LIMIT,
   workloadKindSchema,
   workloadModeSchema,
+  workloadRefSchema,
+  workloadRowAnyKindSchema,
+  workloadScheduleRefSchema,
+  workloadScheduleViewSchema,
   workloadStatusSchema,
 } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
@@ -31,6 +36,7 @@ import { authedProcedure, t } from "../trpc.ts";
 
 export const workloadsRouter = t.router({
   start: authedProcedure
+    .output(workloadRefSchema)
     .input(
       z.object({
         input: startWorkloadEnvelope,
@@ -59,10 +65,12 @@ export const workloadsRouter = t.router({
     }),
 
   cancel: authedProcedure
+    .output(cancelWorkloadResultSchema)
     .input(z.object({ id: typeIdSchema(ID_PREFIX.workload) }))
     .mutation(({ ctx, input }) => ctx.services.workloads.cancel({ id: input.id, caller: ctx.auth })),
 
   retry: authedProcedure
+    .output(workloadRefSchema)
     .input(z.object({ id: typeIdSchema(ID_PREFIX.workload) }))
     .mutation(({ ctx, input }) => ctx.services.workloads.retry({ id: input.id, caller: ctx.auth })),
 
@@ -71,10 +79,12 @@ export const workloadsRouter = t.router({
   // reconnect gap-heal reads it for real now (#248 — one run to resolve, no list to drive off), so the
   // exemption is deleted rather than left standing as a false claim about who calls this.
   get: authedProcedure
+    .output(workloadRowAnyKindSchema)
     .input(z.object({ id: typeIdSchema(ID_PREFIX.workload) }))
     .query(({ ctx, input }) => ctx.services.workloads.get({ id: input.id, caller: ctx.auth })),
 
   list: authedProcedure
+    .output(z.array(workloadRowAnyKindSchema).readonly())
     .input(
       z
         .object({
@@ -102,6 +112,7 @@ export const workloadsRouter = t.router({
   //    SINGULAR schedule is any authed caller; a BULK schedule is BOX-OWNER-only (LAYER-1 gate here, re-checked
   //    in the verb); read/mutate-by-id collapse a foreign id to leak-free NOT_FOUND. ──
   createSchedule: authedProcedure
+    .output(workloadScheduleRefSchema)
     .input(
       z.object({
         input: startWorkloadEnvelope,
@@ -125,6 +136,7 @@ export const workloadsRouter = t.router({
     }),
 
   updateSchedule: authedProcedure
+    .output(workloadScheduleViewSchema)
     .input(
       z.object({
         id: typeIdSchema(ID_PREFIX.workloadSchedule),
@@ -150,18 +162,24 @@ export const workloadsRouter = t.router({
     .input(z.object({ id: typeIdSchema(ID_PREFIX.workloadSchedule) }))
     .mutation(({ ctx, input }) => ctx.services.workloads.deleteSchedule({ id: input.id, caller: ctx.auth })),
 
-  setScheduleEnabled: authedProcedure.input(z.object({ id: typeIdSchema(ID_PREFIX.workloadSchedule), enabled: z.boolean() })).mutation(({ ctx, input }) =>
-    ctx.services.workloads.setScheduleEnabled({
-      id: input.id,
-      caller: ctx.auth,
-      enabled: input.enabled,
-    }),
-  ),
+  setScheduleEnabled: authedProcedure
+    .output(workloadScheduleViewSchema)
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.workloadSchedule), enabled: z.boolean() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.workloads.setScheduleEnabled({
+        id: input.id,
+        caller: ctx.auth,
+        enabled: input.enabled,
+      }),
+    ),
 
-  listSchedules: authedProcedure.input(z.object({ kind: workloadKindSchema.optional() }).optional()).query(({ ctx, input }) =>
-    ctx.services.workloads.listSchedules({
-      caller: ctx.auth,
-      ...(input?.kind !== undefined ? { kind: input.kind } : {}),
-    }),
-  ),
+  listSchedules: authedProcedure
+    .output(z.array(workloadScheduleViewSchema).readonly())
+    .input(z.object({ kind: workloadKindSchema.optional() }).optional())
+    .query(({ ctx, input }) =>
+      ctx.services.workloads.listSchedules({
+        caller: ctx.auth,
+        ...(input?.kind !== undefined ? { kind: input.kind } : {}),
+      }),
+    ),
 });

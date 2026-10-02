@@ -1,17 +1,25 @@
+import type { ThemeId, UserId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { JsonValue } from "@orb/kit/json";
+import { jsonValueSchema } from "@orb/kit/json";
+import type { ThemeOverride } from "#theme";
+import { themeOverrideSchema } from "#theme";
+import type { VersionedParseFailure } from "#versioned-config";
+import { VERSIONED_PARSE_FAILURES } from "#versioned-config";
 // `@orb/contracts/settings` — the two DB-backed config tiers: per-user `UserSettings` and admin-runtime
 // `AppSettings`, both built on `defineVersionedConfig`. The domain owns the verbs/resolver/serializers.
 
 import { isPlainObject } from "@orb/kit/guards";
 import { SCROLL_MODES } from "@orb/kit/scroll-mode";
 import { z } from "zod";
-import { DEFAULT_GROUP_CONFIG, storedGroupConfigSchema } from "#chat";
+import { DEFAULT_GROUP_CONFIG, groupConfigSchema, storedGroupConfigSchema } from "#chat";
 import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
 import type { IpCertificateSetting } from "#identity";
 import { ipCertificateSettingSchema } from "#identity";
 import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
 import { PROMPT_CACHE_DEPTH_CEIL } from "#inference";
-import { legacyProseOverrides, proseOverridesSchema, resolveProseText } from "#prose";
+import { legacyProseOverrides, proseOverridesSchema, proseOverridesViewSchema, resolveProseText } from "#prose";
 import type { StructuredOutputVehicle } from "#role-clients";
 import { structuredOutputVehicleSchema } from "#role-clients";
 import { memoryRetrievalModeSchema } from "#search";
@@ -986,3 +994,134 @@ export interface AppSettingsView {
   readonly resolved: EffectiveAppConfig;
   readonly overrides: AppSettings;
 }
+
+/** A never-touched account reads defaults with updatedAt: 0 and no row written. */
+export interface UserSettingsView {
+  userId: UserId;
+  schemaVersion: number;
+  config: UserSettings;
+  updatedAt: number;
+  /**
+   * WHY THE `config` ABOVE MAY NOT BE THIS USER'S (#1716) — `null` ⇒ the stored blob was read faithfully
+   * (and, for a never-written account, there is nothing to fail to read: absence is not corruption);
+   * a failure kind ⇒ `config` is a STAND-IN and every settings write derived from it is refused with
+   * `stored_config_unreadable` (`#kit/stored-config`, the #471 guard).
+   *
+   * Projected from the SAME `userSettingsConfig.parseOutcome(row.config, row.schemaVersion)` call
+   * `writeUserConfig` makes, so the state a settings pane renders cannot disagree with the refusal its
+   * save would produce. The KIND crosses because the repairs differ: a `version-from-future` blob is
+   * intact data an older build cannot represent, the rest is corruption. Leak-free — a verdict about the
+   * blob, never its contents.
+   */
+  configUnreadable: VersionedParseFailure | null;
+}
+
+export interface GlobalSettingView {
+  key: string;
+  value: JsonValue;
+  updatedAt: number;
+}
+
+export interface ThemeView {
+  readonly id: ThemeId;
+  readonly name: string;
+  /** Lenient-parsed at the read seam — a corrupt stored blob degrades to defaults, never throws. */
+  readonly override: ThemeOverride;
+  readonly css: string | null;
+  /** Derived (ownerId IS NULL) — a seed palette is un-editable/un-deletable by construction. */
+  readonly isSeed: boolean;
+  /** Derived (the row IS the default palette's sentinel row) — what `theme.selectedThemeId: null` resolves
+   *  to. The sentinel id stays domain-internal (`../constants.ts`); this flag is what crosses (#1671). */
+  readonly isDefault: boolean;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+}
+
+export const resolvedRateLimitsSchema = z.strictObject({
+  aiTurn: z.number(),
+  publicIp: z.number(),
+  authed: z.number(),
+  login: z.number(),
+}) satisfies z.ZodType<ResolvedRateLimits>;
+export const resolvedAgentSdkConcurrencySchema = z.strictObject({ summarize: z.number() }) satisfies z.ZodType<ResolvedAgentSdkConcurrency>;
+export const effectiveAppConfigSchema = z.strictObject({
+  corpusAutoindex: z.boolean(),
+  importSkipCharacters: z.array(z.string()),
+  logLevel: logLevelSchema,
+  forbidExternalMedia: z.boolean(),
+  trustHtml: z.boolean(),
+  allowInteractiveCards: z.boolean(),
+  memoryDefaults: memoryDefaultsSchema.strict(),
+  memorySummarizer: memorySummarizerSchema.strict(),
+  rateLimits: resolvedRateLimitsSchema,
+  agentSdkConcurrency: resolvedAgentSdkConcurrencySchema,
+  privateEndpointAllowlist: z.array(z.string()),
+  localMultiUser: z.boolean(),
+  discreetLogin: z.boolean(),
+  ipCertificate: ipCertificateSettingSchema.nullable(),
+  maxImageBytes: z.number(),
+  maxDatabankBytes: z.number(),
+  promptTransformDeadlineMs: z.number(),
+  catalogRefreshIntervalMs: z.number(),
+  imageVariantQuality: z.number(),
+  structuredOutputShape: structuredOutputShapeSchema,
+  structuredOutputVehicle: structuredOutputVehicleSchema,
+  promptCacheMinDepth: z.number(),
+}) satisfies z.ZodType<EffectiveAppConfig>;
+// Read producers already normalize configuration; wire envelopes reject typed additions without re-healing objects.
+const appSettingsOutputSchema = appSettingsSchema.strict().extend({
+  memoryDefaults: memoryDefaultsSchema.strict().nullable().optional(),
+  memorySummarizer: memorySummarizerSchema.strict().nullable().optional(),
+  rateLimits: rateLimitsSchema.strict().nullable().optional(),
+  agentSdkConcurrency: agentSdkConcurrencySchema.strict().nullable().optional(),
+});
+const userSettingsOutputSchema = userSettingsSchema.strict().extend({
+  groupDefaults: groupConfigSchema,
+  prose: proseOverridesViewSchema,
+  seeds: seedsSchema.unwrap().strict(),
+  worldInfo: worldInfoSchema.unwrap().strict(),
+  memory: memorySchema.unwrap().strict(),
+  databank: databankSchema.unwrap().strict().extend({
+    chunk: databankSchema.unwrap().shape.chunk.unwrap().strict(),
+    retrieval: databankSchema.unwrap().shape.retrieval.unwrap().strict(),
+  }),
+  chat: chatSchema.unwrap().strict().extend({ autoSwipe: chatSchema.unwrap().shape.autoSwipe.unwrap().strict() }),
+  library: librarySchema.unwrap().strict(),
+  imagery: imagerySchema.unwrap().strict().extend({
+    templates: imagerySchema.unwrap().shape.templates.unwrap().strict(),
+    captions: imagerySchema.unwrap().shape.captions.unwrap().strict(),
+  }),
+  persona: personaSchema.unwrap().strict(),
+  onboarding: onboardingSchema.unwrap().strict(),
+  workloads: workloadsSchema.unwrap().strict(),
+  profile: profileSchema.unwrap().strict(),
+  appearance: appearanceSettingsSchema.unwrap().strict(),
+  theme: themeSettingsSchema.unwrap().strict(),
+}) satisfies z.ZodType<UserSettings>;
+export const appSettingsViewSchema = z.strictObject({
+  resolved: effectiveAppConfigSchema,
+  overrides: appSettingsOutputSchema,
+}) satisfies z.ZodType<AppSettingsView>;
+
+export const userSettingsViewSchema = z.strictObject({
+  userId: brandedId<UserId>(),
+  schemaVersion: z.number(),
+  config: userSettingsOutputSchema,
+  updatedAt: z.number(),
+  configUnreadable: z.enum(VERSIONED_PARSE_FAILURES).nullable(),
+}) satisfies z.ZodType<UserSettingsView>;
+export const globalSettingViewSchema = z.strictObject({
+  key: z.string(),
+  value: jsonValueSchema,
+  updatedAt: z.number(),
+}) satisfies z.ZodType<GlobalSettingView>;
+export const themeViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.theme),
+  name: z.string(),
+  override: themeOverrideSchema,
+  css: z.string().nullable(),
+  isSeed: z.boolean(),
+  isDefault: z.boolean(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+}) satisfies z.ZodType<ThemeView>;

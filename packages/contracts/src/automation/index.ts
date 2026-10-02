@@ -205,6 +205,8 @@ export interface OwnerBudgetView {
   readonly maxFiresPerHour: number;
 }
 
+export const ownerBudgetViewSchema = z.strictObject({ maxFiresPerHour: z.number() }) satisfies z.ZodType<OwnerBudgetView>;
+
 // ── trigger liveness ───────────────────────────────────────────────────────────────────────────
 /** Which tuple members are LIVE (wired to a handler). `createRule`/`updateRule` refuse a reserved
  *  trigger with `AutomationReservedTriggerError` (a typed, user-visible refusal — not a silent no-op).
@@ -831,7 +833,9 @@ export const AUTOMATION_SUGGESTION_SUMMARY_MAX = 200;
  *    self-healing by construction — it changes NO stored state, so the very next event after the plugin comes
  *    back dispatches normally. A first-party contributor cannot vanish; a plugin does so by ordinary user
  *    action, which is why this terminal exists at all. */
-export type AutomationRunOutcome = AutomationFireOutcome | "suggested" | "paused";
+export const AUTOMATION_RUN_OUTCOMES = [...AUTOMATION_FIRE_OUTCOMES, "suggested", "paused"] as const;
+export type AutomationRunOutcome = (typeof AUTOMATION_RUN_OUTCOMES)[number];
+export const automationRunOutcomeSchema = z.enum(AUTOMATION_RUN_OUTCOMES) satisfies z.ZodType<AutomationRunOutcome>;
 
 // ── the cascade origin + the automation bus ─────────────────────────────────────────────────────────
 /** Turn-path/write origin stamped by an automation-initiated effect: the rule + its cascade depth.
@@ -978,10 +982,42 @@ export {
   rulePresetIdSchema,
   rulePresetKnobBagsEqual,
   rulePresetKnobBagToInputs,
+  rulePresetKnobOutputValuesSchema,
+  rulePresetKnobValueSchema,
   rulePresetKnobValuesSchema,
+  rulePresetKnobViewSchema,
   rulePresetScopeSchema,
+  rulePresetViewSchema,
 } from "./presets.ts";
 
 // The PROSE-1 slot table (census row 91) — the `set_chat_background` quiet pick's two authored clauses.
 // `#prose` imports this to compose `PROSE_SLOTS`; it lives beside the action vocabulary it teaches.
 export { AUTOMATION_PROSE_SLOTS } from "./prose.ts";
+
+// These projections police typed wire additions, not persisted action normalization or dynamic fire detail.
+export const automationTriggerViewSchema = z.union(automationTriggerSchema.options.map((option) => option.strict())) satisfies z.ZodType<AutomationTrigger>;
+const [variableAction, draftAction, loreAction, quickReplyAction, noticeAction, turnAction, imageAction, backgroundAction, analysisAction, toolAction] =
+  automationActionSchema.options;
+const analysisRoutes = analysisAction.shape.routes;
+export const automationActionViewSchema = z.union([
+  variableAction.strict(),
+  draftAction.strict(),
+  loreAction.strict(),
+  quickReplyAction
+    .strict()
+    .extend({ choices: z.array(quickReplyAction.shape.choices.element.strict()).min(QUICK_REPLY_MIN_CHOICES).max(QUICK_REPLY_MAX_CHOICES) }),
+  noticeAction.strict(),
+  turnAction.strict(),
+  imageAction.strict(),
+  backgroundAction.strict(),
+  analysisAction.strict().extend({
+    routes: analysisRoutes.strict().extend({
+      steer: analysisRoutes.shape.steer.unwrap().strict().optional(),
+      lore: analysisRoutes.shape.lore.unwrap().strict().optional(),
+      suggest: analysisRoutes.shape.suggest.unwrap().strict().optional(),
+      rewrite: analysisRoutes.shape.rewrite.unwrap().strict().optional(),
+      vars: analysisRoutes.shape.vars.unwrap().strict().optional(),
+    }),
+  }),
+  toolAction.strict(),
+]) satisfies z.ZodType<AutomationAction>;

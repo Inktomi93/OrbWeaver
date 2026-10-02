@@ -1,3 +1,5 @@
+import type { VisibleRoomRef } from "../chat/visible-rooms.ts";
+import { visibleRoomRefSchema } from "../chat/visible-rooms.ts";
 // `@orb/contracts/databank` — the databank source-document ORIGIN axis, promoted to contracts so
 // `@orb/db` can derive its `documents.origin` enum column from the ONE canonical tuple (the D34 pattern
 // that already governs `workloads.kind`). `@orb/db` deps are `@orb/kit` + `@orb/contracts` + drizzle
@@ -9,7 +11,7 @@
 // haul megabytes — a dedicated `get` with `includeText` returns it).
 
 import type { ChunkParams } from "@orb/kit/chunk";
-import type { DocumentId } from "@orb/kit/ids";
+import type { CharacterId, DocumentId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -257,3 +259,142 @@ export interface IngestRunResult {
   readonly reExtracted: number;
   readonly failed: readonly { readonly documentId: DocumentId; readonly error: string }[];
 }
+
+/** `get({ includeText })` — the panel's source view. `extractedText` present iff asked (list payloads never
+ *  haul the canon); `extractorVersion` surfaces the re-extract-on-upgrade affordance. */
+export interface DocumentDetailView extends DocumentView {
+  readonly extractedText?: string;
+  readonly extractorVersion: string;
+}
+
+/** One CHARACTER that carries this document, as the CONTEXT roster prints it: the id its door navigates to
+ *  and the name it shows. A character HAS a name — one authored string the row owns — so unlike a room this
+ *  needs no chain and no membership filter, only the owner scope the junction already has (`characters` is
+ *  owner-stamped, and `attachToCharacter` gates on it). */
+export interface DocumentCharacterRef {
+  readonly id: CharacterId;
+  readonly name: string;
+}
+
+/**
+ * Reverse of the scope junctions: where a document is attached (the CONTEXT panel's "Active in" roster +
+ * detach UX). `global` is a boolean (single-owned personal bank).
+ *
+ * NAMES, NOT IDS (#276, 2026-08-19). This used to hand back `chatIds`/`characterIds`, which is why the pane
+ * above it could only render two integers and why its no-selection copy had to downgrade its promise. The
+ * two scopes resolve differently and the difference is the whole design:
+ *   • CHARACTERS are a cheap owner-scoped join — the caller owns both sides of that junction.
+ *   • CHATS are membership-scoped (D18 — chats carry no `ownerId`) and `attachToChat` is HOST authority, so
+ *     a `chat_documents` row OUTLIVES its attacher's seat. Naming those ids straight off the junction would
+ *     tell an ex-host that a room they can no longer open still exists and still feeds on their document.
+ *     They resolve through the injected `resolveVisibleRooms` (`@orb/contracts/chat`), which answers PRESENT
+ *     membership only and drops the rest — no residue, no count of what was dropped.
+ */
+export interface DocumentAttachmentsView {
+  readonly global: boolean;
+  /** The rooms the CALLER may see, newest-first, carrying the client title chain's inputs. A room the caller
+   *  has left is absent — the count is the visible count, deliberately (a "…and 2 more" would leak it). */
+  readonly chats: readonly VisibleRoomRef[];
+  readonly characters: readonly DocumentCharacterRef[];
+}
+
+/** `listActiveForChat` row (D85): a document ACTIVE for the chat's retrieval union + its host-visibility state.
+ *  `hidden` = the host excluded it from retrieval (`chats.metadata.databankVisibility`). Only the HOST ever
+ *  receives hidden rows (they own the toggle); a member's payload is filtered to the visible set, so a member
+ *  never learns a host-hidden document's name (`hidden` is always `false` in a member's payload). */
+export interface ActiveChatDocumentView extends DocumentView {
+  readonly hidden: boolean;
+  /** WHY this document is active (D-2): the scope junction(s) crediting it — `global` (a present member's
+   *  global attachment) · `chat` (attached to THIS chat) · `character` (on a present roster character). A
+   *  document can be credited by several at once. Never empty: a row exists only because a junction put it
+   *  there. It is also the DETACHABILITY datum — only `chat` is a junction this room's host owns, so a row
+   *  without it can be HIDDEN but never detached from here. */
+  readonly sources: readonly DocumentScopeSource[];
+}
+
+/** The producer verbs' return. `outcome:'duplicate'` = the `(ownerId, importHash)` unique hit (the existing
+ *  document is returned, ingest skipped — its chunks already exist / are healing anyway). `warning` surfaces a
+ *  succeeded-but-empty extraction (a scanned image-only PDF; `charCount ≈ 0`) — DATA, not a throw. */
+export interface UploadResult {
+  readonly document: DocumentView;
+  readonly outcome: "created" | "duplicate";
+  readonly ingest: IngestOutcome;
+  readonly warning?: "empty-extraction";
+}
+
+/** One page of `list`. `nextCursor` is the last row's `(updatedAt, id)` when a FULL page came back (more may
+ *  remain below it), else `null` — the bank is exhausted, which is what the library pane's "Load more"
+ *  disappears on. The `ListCharactersResult` / `ListInboxResult` page shape, so the client's paged-collection
+ *  machine consumes all three identically. */
+export interface ListDocumentsResult {
+  readonly items: readonly DocumentView[];
+  readonly nextCursor: DocumentListCursor | null;
+  /** How many documents match the SAME lens this page is a window into — a real `COUNT`, never `items.length`.
+   *  It is what retired the surfaces' `100+` reading: the band header and the home tile used to print a full
+   *  first PAGE as the bank's size-floor because a page was the only number they had (side-eye 2026-08-08
+   *  P2-d). A census is a different question from "how many rows this page happened to carry", and both
+   *  surfaces print the census. */
+  readonly totalCount: number;
+}
+
+export interface ReindexResult {
+  readonly workloadId: WorkloadId;
+}
+export const reindexResultSchema = z.strictObject({ workloadId: typeIdSchema(ID_PREFIX.workload) }) satisfies z.ZodType<ReindexResult>;
+
+export const bankHealthViewSchema = z.strictObject({
+  total: z.number(),
+  passages: z.number(),
+  chunks: z.number(),
+  byPhase: z.record(z.enum(INGEST_PHASES), z.number()),
+}) satisfies z.ZodType<BankHealthView>;
+
+export const documentDetailViewSchema = documentViewSchema
+  .strict()
+  .extend({
+    extractedText: z.string().optional(),
+    extractorVersion: z.string(),
+  })
+  .transform(
+    ({ extractedText, ...view }): DocumentDetailView => ({ ...view, ...(extractedText === undefined ? {} : { extractedText }) }),
+  ) satisfies z.ZodType<DocumentDetailView>;
+
+export const documentCharacterRefSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.character),
+  name: z.string(),
+}) satisfies z.ZodType<DocumentCharacterRef>;
+
+export const documentAttachmentsViewSchema = z.strictObject({
+  global: z.boolean(),
+  chats: z.array(visibleRoomRefSchema).readonly(),
+  characters: z.array(documentCharacterRefSchema).readonly(),
+}) satisfies z.ZodType<DocumentAttachmentsView>;
+
+export const activeChatDocumentViewSchema = documentViewSchema.strict().extend({
+  hidden: z.boolean(),
+  sources: z.array(z.enum(DOCUMENT_SCOPE_SOURCES)).readonly(),
+}) satisfies z.ZodType<ActiveChatDocumentView>;
+
+export const uploadResultSchema = z
+  .strictObject({
+    document: documentViewSchema.strict(),
+    outcome: z.literal(["created", "duplicate"]),
+    ingest: z.enum(INGEST_OUTCOMES),
+    warning: z.literal("empty-extraction").optional(),
+  })
+  .transform(({ warning, ...result }): UploadResult => ({ ...result, ...(warning === undefined ? {} : { warning }) })) satisfies z.ZodType<UploadResult>;
+
+export const listDocumentsResultSchema = z.strictObject({
+  items: z.array(documentViewSchema.strict()).readonly(),
+  nextCursor: documentListCursorSchema.strict().nullable(),
+  totalCount: z.number(),
+}) satisfies z.ZodType<ListDocumentsResult>;
+
+export const ingestRunResultSchema = z.strictObject({
+  documents: z.number(),
+  chunksUpserted: z.number(),
+  chunksNoop: z.number(),
+  chunksPruned: z.number(),
+  reExtracted: z.number(),
+  failed: z.array(z.strictObject({ documentId: documentIdSchema, error: z.string() })).readonly(),
+}) satisfies z.ZodType<IngestRunResult>;

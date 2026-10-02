@@ -1,5 +1,13 @@
-import type { DuplicateRelation } from "@orb/contracts/discovery";
-import { computeThemesWorkloadParams, duplicateRelationSchema, findDuplicatesWorkloadParams, RELATIONS } from "@orb/contracts/discovery";
+import type { DuplicateRelation, ForgottenGem, HomeView } from "@orb/contracts/discovery";
+import {
+  computeThemesWorkloadParams,
+  duplicateRelationSchema,
+  findDuplicatesWorkloadParams,
+  forgottenGemSchema,
+  homeViewSchema,
+  RELATIONS,
+} from "@orb/contracts/discovery";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
 // ── The dedup `relation` axis (D34 — promoted to contracts so db `duplicate_chat_pairs.relation` derives it) ──
@@ -46,4 +54,35 @@ test("findDuplicatesWorkloadParams accepts an optional cosine threshold (0..1) a
   expect(findDuplicatesWorkloadParams.parse({})).toEqual({});
   expect(() => findDuplicatesWorkloadParams.parse({ threshold: 1.5 })).toThrow();
   expect(() => findDuplicatesWorkloadParams.parse({ threshold: -0.1 })).toThrow();
+});
+
+test("corpus home output preserves its complete coverage and rejects nested private census data", () => {
+  const view = {
+    coverage: { characters: 3, digests: 0, segments: 4 },
+    sceneThemes: [],
+    arcThemes: [],
+    duplicateCounts: { characters: 0, chats: 0, identicalCharacterPairs: 1 },
+  } satisfies HomeView;
+  expect(homeViewSchema.parse(view)).toEqual(view);
+  expect(homeViewSchema.safeParse({ ...view, coverage: { ...view.coverage, storageRows: 8 } }).success).toBe(false);
+});
+
+test("forgotten-gem output preserves unrecorded economics separately from measured zero", () => {
+  const gem = {
+    characterId: mintTypeId(ID_PREFIX.character),
+    name: "Quiet",
+    avatarHash: null,
+    messageCount: 4,
+    lastActiveAt: 100,
+    tokensOut: null,
+    tokensOutProvenance: "unrecorded",
+    costUsd: null,
+  } satisfies ForgottenGem;
+  expect(forgottenGemSchema.parse(gem)).toEqual(gem);
+  expect(forgottenGemSchema.parse({ ...gem, tokensOut: 0, tokensOutProvenance: "measured", costUsd: 0 })).toEqual({
+    ...gem,
+    tokensOut: 0,
+    tokensOutProvenance: "measured",
+    costUsd: 0,
+  });
 });

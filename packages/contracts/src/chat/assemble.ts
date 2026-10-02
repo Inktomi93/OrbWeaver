@@ -13,14 +13,17 @@ import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import type { EntryKeyMode, EntryPosition } from "@orb/kit/world-info";
 import { z } from "zod";
 import type { GenerationType, PromptConfig, UserIntent } from "#preset";
+import { userIntentViewSchema } from "#preset";
 import type { ProseOverrides } from "#prose-slot";
 import type { RegexScriptRow } from "#regex";
 import type { MemoryRetrievalMode } from "#search";
+import { memoryRetrievalModeSchema } from "#search";
 import type { WorldInfoScope } from "#world-info";
 import type { MacroFreezeRecord, UserMacroDraws } from "./messages.ts";
+import { macroFreezeSchema, userMacroDrawsSchema } from "./messages.ts";
 import type { RoomOverrides } from "./metadata.ts";
 import type { MessageKind, SpeakerRef } from "./participants.ts";
-import { messageRoleSchema } from "./participants.ts";
+import { messageKindSchema, messageRoleSchema } from "./participants.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE ASSEMBLE FAMILY — slim assembly projections, NOT re-exports of the full card/persona/entry shapes.
@@ -721,3 +724,141 @@ export interface SectionPreview {
   half: "static" | "dynamic";
   trace: AssembleTrace;
 }
+
+const sentPromptViewSchema = sentPromptSchema.strict().extend({ afterHistory: z.array(sentPromptSchema.shape.afterHistory.element.strict()) });
+
+export const chatInjectionSchema = z.strictObject({
+  position: z.enum(CHAT_INJECTION_POSITIONS),
+  depth: z.number(),
+  role: messageRoleSchema,
+  content: z.string(),
+  order: z.number().exactOptional(),
+  origin: z.enum(CHAT_INJECTION_ORIGINS).exactOptional(),
+  originLabel: z.string().exactOptional(),
+}) satisfies z.ZodType<ChatInjection>;
+
+export const memoryRecallCandidateSchema = z.strictObject({
+  tier: z.number(),
+  blockIdx: z.number(),
+  scopedCharacterId: typeIdSchema(ID_PREFIX.character),
+  verdict: z.enum(MEMORY_RECALL_VERDICTS),
+  score: z.number().exactOptional(),
+  relevance: z.number().exactOptional(),
+  rank: z.number().exactOptional(),
+}) satisfies z.ZodType<MemoryRecallCandidate>;
+
+export const memoryRecallSliceSchema = z.strictObject({
+  mode: memoryRetrievalModeSchema,
+  queryText: z.string().nullable(),
+  queryEmbedded: z.boolean(),
+  poolSize: z.number(),
+  candidateCount: z.number(),
+  surfaced: z.number(),
+  ms: z.number(),
+  note: z.string().nullable(),
+  candidates: z.array(memoryRecallCandidateSchema).readonly(),
+}) satisfies z.ZodType<MemoryRecallSlice>;
+
+export const assembleTraceSchema = z.strictObject({
+  staticSections: z.array(z.string()),
+  dynamicSections: z.array(z.string()),
+  worldInfoIncluded: z.number(),
+  worldInfoDropped: z.array(z.strictObject({ id: z.string(), reason: z.literal("budget") })),
+  worldInfoActivated: z.array(z.strictObject({ id: z.string(), keys: z.array(z.string()) })),
+  matchedKeys: z.array(z.strictObject({ key: z.string(), matchedLatestUserMessage: z.boolean() })),
+  compactSummaryIncluded: z.boolean(),
+  memoryIncluded: z.boolean(),
+  memoryRecall: memoryRecallSliceSchema.nullable(),
+  databankIncluded: z.boolean(),
+  guidedInstructionIncluded: z.boolean(),
+  staticCacheBusters: z.array(z.string()),
+  chatInjectionsIncluded: z.number(),
+  afterHistorySections: z.array(z.string()),
+  overrideSources: z
+    .strictObject({
+      mainPrompt: z.string().exactOptional(),
+      postHistory: z.string().exactOptional(),
+      scenario: z.string().exactOptional(),
+      authorsNote: z.string().exactOptional(),
+    })
+    .exactOptional(),
+  mergedFallbackTruncated: z
+    .strictObject({ mainPrompt: z.array(z.string()).exactOptional(), postHistory: z.array(z.string()).exactOptional() })
+    .exactOptional(),
+}) satisfies z.ZodType<AssembleTrace>;
+
+export const assemblyBudgetPartSchema = z.strictObject({ label: z.string(), tokens: z.number(), text: z.string() }) satisfies z.ZodType<AssemblyBudgetPart>;
+
+export const assemblyBudgetSliceSchema = z.strictObject({
+  source: z.enum(ASSEMBLY_SOURCES),
+  detail: z.string(),
+  tokens: z.number(),
+  parts: z.array(assemblyBudgetPartSchema).readonly(),
+  text: z.string(),
+}) satisfies z.ZodType<AssemblyBudgetSlice>;
+
+export const assemblySectionRowSchema = z.strictObject({ label: z.string(), tokens: z.number() }) satisfies z.ZodType<AssemblySectionRow>;
+
+export const assemblySectionCostSchema = z.strictObject({
+  // @orb-waive no-raw-id(sectionId): preset-local authored/imported section key, not a row identity; ends if prompt sections acquire a canonical minted identity.
+  sectionId: z.string(),
+  tokens: z.number(),
+  rows: z.array(assemblySectionRowSchema).readonly(),
+}) satisfies z.ZodType<AssemblySectionCost>;
+
+export const assemblyBudgetPreviewSchema = z.strictObject({
+  ceilingTokens: z.number(),
+  ceilingEstimated: z.boolean(),
+  totalTokens: z.number(),
+  sources: z.array(assemblyBudgetSliceSchema).readonly(),
+  sections: z.array(assemblySectionCostSchema).readonly(),
+}) satisfies z.ZodType<AssemblyBudgetPreview>;
+
+export const shapeTraceRowSchema = z.strictObject({
+  role: messageRoleSchema,
+  name: z.string().exactOptional(),
+  source: z.enum(SHAPE_ROW_SOURCES),
+  kind: messageKindSchema.exactOptional(),
+  chars: z.number(),
+  folded: z.enum(SHAPE_FOLD_REASONS).exactOptional(),
+}) satisfies z.ZodType<ShapeTraceRow>;
+
+export const shapeTraceSchema = z.strictObject({
+  multiCharacter: z.boolean(),
+  stageCounts: z.strictObject({ withTail: z.number(), injected: z.number(), squashed: z.number(), named: z.number() }),
+  squashMerges: z.number(),
+  cacheBreakpointFromEnd: z.number().exactOptional(),
+  breakpointDecision: z.enum(SHAPE_BREAKPOINT_DECISIONS),
+  rows: z.array(shapeTraceRowSchema).readonly(),
+}) satisfies z.ZodType<ShapeTrace>;
+
+export const contextFitPreviewSchema = z.strictObject({
+  boundaryMessageId: typeIdSchema(ID_PREFIX.message).nullable(),
+  usedTokens: z.number(),
+  ceilingTokens: z.number(),
+  ceilingEstimated: z.boolean(),
+  reserveOutputTokens: z.number(),
+  droppedCount: z.number(),
+  compactSummary: z.string().nullable(),
+}) satisfies z.ZodType<ContextFitPreview>;
+
+export const contextFitUnboundSchema = z.strictObject({ unbound: z.literal(true) }) satisfies z.ZodType<ContextFitUnbound>;
+
+export const assembledPromptSchema = z.strictObject({
+  static: z.string(),
+  dynamic: z.string(),
+  afterHistory: z.array(chatInjectionSchema),
+  sendHistory: z.boolean(),
+  trace: assembleTraceSchema,
+}) satisfies z.ZodType<AssembledPrompt>;
+
+export const variantWireViewSchema = z.strictObject({
+  variantId: typeIdSchema(ID_PREFIX.messageVariant),
+  prompt: sentPromptViewSchema.nullable(),
+  params: userIntentViewSchema.nullable(),
+  macroDraws: userMacroDrawsSchema.nullable(),
+  rawContent: z.string().nullable(),
+  macroFreezes: z.array(macroFreezeSchema.strict()).nullable(),
+}) satisfies z.ZodType<VariantWireView>;
+
+export const contextFitAnswerSchema = z.union([contextFitPreviewSchema, contextFitUnboundSchema]) satisfies z.ZodType<ContextFitAnswer>;

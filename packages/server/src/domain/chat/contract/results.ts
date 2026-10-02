@@ -10,14 +10,13 @@ import type {
   ChatContentPart,
   CueRole,
   GroupConfig,
-  MessageView,
   ReactionEmoji,
   SpeakerRef,
   TextSignature,
   TokenProvenance,
-  TurnAbortReason,
   TurnInitiator,
   TurnIntent,
+  TurnOutcome,
   UserMacroDraws,
   VariantProviderMetadata,
 } from "@orb/contracts/chat";
@@ -41,7 +40,7 @@ import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/m
 import type { MessageRole } from "@orb/kit/message-role";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
 import type { ReactAsCharacterParams, RequestTurnParams } from "./params.ts";
-import type { ChatDetail, ChatVariables } from "./views.ts";
+import type { ChatVariables } from "./views.ts";
 
 // The invite results are wire nodes: their strict schemas are the invite procedures' tRPC output parsers.
 export type { CreateInviteResult, RedeemInviteResult, TurnIntent } from "@orb/contracts/chat";
@@ -468,15 +467,6 @@ export interface GeneratedText {
  *  op shape is contract surface. See {@link RequestTurnParams} for the four walls it enforces. */
 export type RequestTurnOp = (params: RequestTurnParams) => Promise<TurnOutcome>;
 
-/** The verb-level result of a completed (or aborted) turn — the committed message(s) joined to their
- *  selected variant. A per-speaker group round commits several rows. */
-export interface TurnOutcome {
-  /** Empty when the turn aborted before any commit. */
-  readonly messages: readonly MessageView[];
-  readonly aborted: boolean;
-  readonly abortReason?: TurnAbortReason | undefined;
-}
-
 /** The scope of a deferred-turn drain (Part III §5). `all` = the boot reclaim (every chat's queued turns);
  *  `hostUserId` = the host-return drain (only the turns funded by the returning host's box). Neither carries
  *  a `principal` — a drain is system-triggered, and the durable `pending_turns` row IS the authorization
@@ -488,22 +478,6 @@ export type DrainDeferredTurnsScope = { readonly all: true } | { readonly hostUs
 export interface DrainReport {
   readonly ran: number;
   readonly dropped: number;
-}
-
-/** `startChat` — the lazily-created chat (+ roster) and the seeded opening, if any. `opening` is null when
- *  the resolved policy seeded no greeting (`none`, or a founding character with no card greeting). The
- *  `generate` opening + its `openingFailure` DEGRADED-NOT-BROKEN apparatus (START-1) retired with the
- *  creation-time draft carry (D166) — "guide the opening" is
- *  now an ordinary post-creation turn against the real room, so a failed generation is just a failed
- *  turn with the standard toast, never data on a successful `startChat`. */
-export interface StartChatResult {
-  readonly chat: ChatDetail;
-  readonly opening: TurnOutcome | null;
-}
-
-/** `forkChat` — the new deep-copied, membership-scoped fork. */
-export interface ForkResult {
-  readonly chat: ChatDetail;
 }
 
 /** `impersonateStream` — ONE text delta yielded by the impersonation stream, appended to the composer as it
@@ -522,11 +496,6 @@ export interface CompactResult {
   readonly updated: boolean;
 }
 
-/** `reapTemporaryChats` — how many temporary chats were reaped. */
-export interface ReapResult {
-  readonly reaped: number;
-}
-
 /** `getVariables` — the ChoiceBlock variable map. */
 export type VariablesResult = ChatVariables;
 
@@ -543,3 +512,5 @@ export type ReactAsCharacterResult =
  *  `ChatService` member (its one consumer is the composition root's `react` tool definition; see
  *  `contract/params.ts::ReactAsCharacterParams`). */
 export type ReactAsCharacterOp = (params: ReactAsCharacterParams) => Promise<ReactAsCharacterResult>;
+
+export type { ForkResult, ReapResult, StartChatResult, TurnOutcome } from "@orb/contracts/chat";

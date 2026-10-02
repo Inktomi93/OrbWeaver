@@ -3,6 +3,7 @@
 // `memory-backfill` sweeps the memory subsystem's segments/digests; `group-character-backfill` mints the
 // synthetic group character for every >1-character room that lacks one (D38).
 
+import { z } from "zod";
 /** A backfill sweep's counts: rows examined, rows changed. Shared by both sweeps. */
 export interface BackfillPassResult {
   readonly scanned: number;
@@ -23,3 +24,12 @@ export interface MemoryBackfillResult {
    *  `error`-level log), never vanishing without a trace. */
   readonly failed: number;
 }
+
+export const backfillPassResultSchema = z.strictObject({ scanned: z.number(), changed: z.number() }) satisfies z.ZodType<BackfillPassResult>;
+
+export const memoryBackfillResultSchema = z.strictObject({
+  segments: backfillPassResultSchema,
+  digests: backfillPassResultSchema,
+  segmentsSkippedOverWindow: z.number(),
+  failed: z.number(),
+}) satisfies z.ZodType<MemoryBackfillResult>;

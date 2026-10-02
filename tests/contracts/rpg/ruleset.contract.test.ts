@@ -26,7 +26,7 @@ const HOUSE_TRACKER: RpgTrackerDef = {
   locked: false,
 };
 
-test("the axis is closed: `special` is a packaged PROFILE template, never a ruleset arm", () => {
+test("the ruleset axis excludes unsupported vocabulary selections", () => {
   expect([...RPG_RULESETS]).toEqual(["freeform", "d20"]);
   expect(rpgRulesetSchema.safeParse("special").success).toBe(false);
 });

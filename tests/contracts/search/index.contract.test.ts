@@ -1,5 +1,5 @@
-import type { BlockKey, MemoryQueryOptions, MemoryRetrievalMode } from "@orb/contracts/search";
-import { MEMORY_RETRIEVAL_MODES, memoryRetrievalModeSchema } from "@orb/contracts/search";
+import type { BlockKey, MemoryQueryOptions, MemoryRetrievalMode, UnifiedSearchResult } from "@orb/contracts/search";
+import { MEMORY_RETRIEVAL_MODES, memoryRetrievalModeSchema, unifiedSearchResultSchema } from "@orb/contracts/search";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
@@ -8,6 +8,25 @@ import { expect, test } from "../../support/fixtures.ts";
 const SAMPLE_CHAT_ID = castId<ChatId>("chat_sample");
 const SAMPLE_OWNER_ID = castId<UserId>("user_owner");
 const SAMPLE_CHARACTER_ID = castId<CharacterId>("character_sample");
+
+test("unified search output keeps coverage beside every branch without stripping or rejecting sibling fields", () => {
+  const coverage = { requestLimit: 10, candidateLimit: 20, evidencePerCharacter: null, reranked: false };
+  const answers = [
+    { over: "entities", hits: [], coverage },
+    { over: "characters", hits: [], coverage },
+    { over: "discover", hits: [], standaloneSegments: [], coverage },
+    { over: "segments", hits: [], coverage },
+    { over: "digests", hits: [], coverage },
+    { over: "corpus", hits: [], coverage },
+    { over: "images", hits: [], coverage },
+    { over: "documents", hits: [], coverage },
+  ] satisfies UnifiedSearchResult[];
+  for (const answer of answers) {
+    expect(unifiedSearchResultSchema.parse(answer)).toEqual(answer);
+    expect(unifiedSearchResultSchema.safeParse({ ...answer, privateQueryVector: [1] }).success).toBe(false);
+    expect(unifiedSearchResultSchema.safeParse({ ...answer, coverage: { ...coverage, internalCandidateIds: [] } }).success).toBe(false);
+  }
+});
 
 // The retrieval-mode axis is EXACTLY the neo `memoryDefaults.mode` members — a drift here would desync
 // the `contracts/settings` memory-defaults enum that derives from this tuple.

@@ -34,9 +34,7 @@ export interface CancelWorkloadParams {
   readonly caller: Principal | null;
 }
 
-export interface CancelWorkloadResult {
-  readonly status: "cancelling" | "cancelled" | null;
-}
+export type { CancelWorkloadResult } from "@orb/contracts/workloads";
 
 export interface RetryWorkloadParams {
   readonly id: WorkloadId;

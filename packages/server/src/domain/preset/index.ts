@@ -34,7 +34,14 @@ export type {
   PresetUsageView,
   StaleKnob,
 } from "./contract/views.ts";
-export { EFFECTIVE_KNOBS, EFFECTIVE_PROVENANCES } from "./contract/views.ts";
+export {
+  EFFECTIVE_KNOBS,
+  EFFECTIVE_PROVENANCES,
+  effectivePresetSchema,
+  presetDetailSchema,
+  presetSummarySchema,
+  presetUsageViewSchema,
+} from "./contract/views.ts";
 export { createCopyPresetToUser } from "./persistence/handoff-copy-write.ts";
 export { migrateProseSlotVocab } from "./persistence/migrate-prose-slot-vocab.ts";
 export { ensureSystemDefaultPreset } from "./seed.ts";

@@ -45,7 +45,8 @@ describe("chat.removeCharacterFromChat — the symmetric drop, driven through th
     const chatId: ChatId = await seedChat(db, "room", { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId, key: "room_h", userId: host, role: "host" });
 
-    const roster = createParticipants(makeChatContext(db, { getCard: ownedCard(db) }), {
+    const participantId = mintTypeId(ID_PREFIX.chatParticipant);
+    const roster = createParticipants(makeChatContext(db, { getCard: ownedCard(db), newParticipantId: () => participantId }), {
       claimChat: (): Promise<void> => Promise.resolve(),
       emit: () => Promise.resolve(),
     });
@@ -77,7 +78,8 @@ describe("chat.removeCharacterFromChat — the symmetric drop, driven through th
     await seedParticipant(db, { chatId, key: "room_h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "room_m", userId: member, role: "member" });
 
-    const roster = createParticipants(makeChatContext(db, { getCard: ownedCard(db) }), {
+    const participantId = mintTypeId(ID_PREFIX.chatParticipant);
+    const roster = createParticipants(makeChatContext(db, { getCard: ownedCard(db), newParticipantId: () => participantId }), {
       claimChat: (): Promise<void> => Promise.resolve(),
       emit: () => Promise.resolve(),
     });

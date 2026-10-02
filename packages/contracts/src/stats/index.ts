@@ -3,12 +3,13 @@
 // substrate fulfils). Lives here (not `domain/stats`) because a feature home would force an illegal
 // chat→stats sideways import; the apply IMPL lives in `domain/stats/write/apply-delta.ts`.
 
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { MODEL_PROVIDER_UNKNOWN } from "@orb/kit/stats-tally";
 import { z } from "zod";
-import type { TokenProvenance } from "#chat";
 import { modelIdSchema, providerIdSchema } from "#inference";
+import type { TokenProvenance } from "../chat/messages.ts";
+import { tokenProvenanceSchema } from "../chat/messages.ts";
 
 /** The page CEILING for the stats top-N reads (`leaderboard`, `byModel`, `momentum`), enforced at the
  *  transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT` precedent). The same 200 the persistence
@@ -162,3 +163,392 @@ export interface ReconcileStatsWorkloadResult {
   readonly owners: number;
   readonly characters: number;
 }
+
+export interface ExtraStats {
+  reasoningMs: number;
+  /** `null` when no contributing generation reported a dollar cost. */
+  costUsd: number | null;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  forkedChats: number;
+  variantMessages: number;
+  maxContextTokens: number | null;
+  throughputTps: number;
+  avgSwipeDepth: number;
+  swipeRate: number;
+  /** Share of INPUT tokens served from the prompt cache; `null` when the row carries no cache accounting. */
+  cacheHitRate: number | null;
+  avgReplyWords: number;
+}
+
+/** Unrecorded economics stay null: zero means a measured zero, never missing accounting. */
+export interface OwnerStatsView extends ExtraStats {
+  characters: number;
+  chats: number;
+  userTurns: number;
+  assistantTurns: number;
+  systemTurns: number;
+  swipes: number;
+  userWords: number;
+  assistantWords: number;
+  swipeWords: number;
+  /** `null` when no generation behind this rollup recorded usage. */
+  tokensIn: number | null;
+  tokensOut: number | null;
+  tokensInProvenance: TokenProvenance;
+  tokensOutProvenance: TokenProvenance;
+  totalGenTimeMs: number;
+  avgGenMs: number | null;
+  p50GenMs: number | null;
+  p90GenMs: number | null;
+  avgTtftMs: number | null;
+  p50TtftMs: number | null;
+  p90TtftMs: number | null;
+  reasoningRate: number;
+  contentBytes: number;
+  firstChatAt: number | null;
+  lastActivityAt: number | null;
+  computedAt: number;
+}
+
+export interface CharacterStatsView extends OwnerStatsView {
+  characterId: CharacterId;
+  name: string;
+}
+
+export interface LeaderboardRow {
+  characterId: CharacterId;
+  name: string;
+  chats: number;
+  userTurns: number;
+  assistantTurns: number;
+  swipes: number;
+  tokensOut: number | null;
+  tokensOutProvenance: TokenProvenance;
+  totalGenTimeMs: number;
+  reasoningRate: number;
+  firstChatAt: number | null;
+  lastActivityAt: number | null;
+}
+
+/** A BOUNDED page of leaderboard rows plus the census it was cut from. The rows are capped (50 by
+ *  default, 200 max), so a consumer that prints `rows.length` as a census states a falsehood the moment
+ *  the library is larger than the cap — the list band read "ANALYTICS 50" against a 328-character
+ *  library. `total` is the number of the owner's characters that HAVE a rollup row, i.e. exactly the
+ *  population these rows rank; it is deliberately not the library character count (a character never
+ *  played has no rank to be 328th of). */
+export interface LeaderboardPage {
+  rows: LeaderboardRow[];
+  total: number;
+}
+
+export interface DailyPoint {
+  day: string;
+  chatsCreated: number;
+  userTurns: number;
+  assistantTurns: number;
+  swipes: number;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  tokensInProvenance: TokenProvenance;
+  tokensOutProvenance: TokenProvenance;
+  genTimeMs: number;
+  messageDatesApprox: boolean;
+}
+
+export interface ModelStatRow {
+  model: string;
+  provider: string | null;
+  generations: number;
+  /** Distinct characters generated for; model_stats is character-less, so this is a separate GROUP BY. */
+  charactersUsedWith: number;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  tokensInProvenance: TokenProvenance;
+  tokensOutProvenance: TokenProvenance;
+  totalGenTimeMs: number;
+  avgGenMs: number | null;
+  avgTtftMs: number | null;
+  p50TtftMs: number | null;
+  p90TtftMs: number | null;
+  reasoningRate: number;
+  throughputTps: number;
+  costUsd: number | null;
+  reasoningMs: number;
+  cacheHitRate: number | null;
+}
+
+export interface StatsFreshness {
+  computedAt: number | null;
+  /** Always false — rollups are maintained live on the write path, so a read is never stale. */
+  stale: boolean;
+  hasData: boolean;
+}
+
+export interface PersonaUsageRow {
+  personaId: PersonaId;
+  name: string;
+  chatCount: number;
+  messageCount: number;
+  tokensOut: number | null;
+  tokensOutProvenance: TokenProvenance;
+  lastUsedAt: number | null;
+}
+
+export interface TemporalStats {
+  activeDays: number;
+  longestStreakDays: number;
+  busiestDay: { day: string; count: number } | null;
+  /** Sun..Sat, index 0 = Sunday. */
+  dayOfWeek: number[];
+}
+
+export interface WrappedSummary {
+  firstChatAt: number | null;
+  lastActivityAt: number | null;
+  characters: number;
+  chats: number;
+  words: number;
+  replies: number;
+  swipes: number;
+  genTimeMs: number;
+  reasoningMs: number;
+  costUsd: number | null;
+  avgSwipeDepth: number;
+  swipeRate: number;
+  throughputTps: number;
+  forkedChats: number;
+  topCharacter: { name: string; assistantTurns: number } | null;
+  temporal: TemporalStats;
+  computedAt: number;
+}
+
+export interface ActivityHeatmap {
+  /** 7 rows (0 = Sunday … 6 = Saturday) × 24 cols (UTC hour). */
+  matrix: number[][];
+  total: number;
+  peak: { dayOfWeek: number; hour: number; count: number } | null;
+}
+
+export interface MomentumRow {
+  characterId: CharacterId;
+  name: string;
+  current: number;
+  prev: number;
+  delta: number;
+}
+
+export interface CharacterMomentum {
+  /** Most recent calendar months with activity (YYYY-MM), or null if fewer than two. */
+  latestMonth: string | null;
+  prevMonth: string | null;
+  rising: MomentumRow[];
+  falling: MomentumRow[];
+}
+
+export interface LatencyStats {
+  avgTtftMs: number | null;
+  p50TtftMs: number | null;
+  p90TtftMs: number | null;
+  avgGenMs: number | null;
+  p50GenMs: number | null;
+  p90GenMs: number | null;
+}
+
+export const extraStatsSchema = z.strictObject({
+  reasoningMs: z.number(),
+  costUsd: z.number().nullable(),
+  cacheReadTokens: z.number(),
+  cacheWriteTokens: z.number(),
+  forkedChats: z.number(),
+  variantMessages: z.number(),
+  maxContextTokens: z.number().nullable(),
+  throughputTps: z.number(),
+  avgSwipeDepth: z.number(),
+  swipeRate: z.number(),
+  cacheHitRate: z.number().nullable(),
+  avgReplyWords: z.number(),
+}) satisfies z.ZodType<ExtraStats>;
+
+export const ownerStatsViewSchema = extraStatsSchema.extend({
+  characters: z.number(),
+  chats: z.number(),
+  userTurns: z.number(),
+  assistantTurns: z.number(),
+  systemTurns: z.number(),
+  swipes: z.number(),
+  userWords: z.number(),
+  assistantWords: z.number(),
+  swipeWords: z.number(),
+  tokensIn: z.number().nullable(),
+  tokensOut: z.number().nullable(),
+  tokensInProvenance: tokenProvenanceSchema,
+  tokensOutProvenance: tokenProvenanceSchema,
+  totalGenTimeMs: z.number(),
+  avgGenMs: z.number().nullable(),
+  p50GenMs: z.number().nullable(),
+  p90GenMs: z.number().nullable(),
+  avgTtftMs: z.number().nullable(),
+  p50TtftMs: z.number().nullable(),
+  p90TtftMs: z.number().nullable(),
+  reasoningRate: z.number(),
+  contentBytes: z.number(),
+  firstChatAt: z.number().nullable(),
+  lastActivityAt: z.number().nullable(),
+  computedAt: z.number(),
+}) satisfies z.ZodType<OwnerStatsView>;
+
+export const characterStatsViewSchema = ownerStatsViewSchema.extend({
+  characterId: typeIdSchema(ID_PREFIX.character),
+  name: z.string(),
+}) satisfies z.ZodType<CharacterStatsView>;
+
+export const leaderboardRowSchema = z.strictObject({
+  characterId: typeIdSchema(ID_PREFIX.character),
+  name: z.string(),
+  chats: z.number(),
+  userTurns: z.number(),
+  assistantTurns: z.number(),
+  swipes: z.number(),
+  tokensOut: z.number().nullable(),
+  tokensOutProvenance: tokenProvenanceSchema,
+  totalGenTimeMs: z.number(),
+  reasoningRate: z.number(),
+  firstChatAt: z.number().nullable(),
+  lastActivityAt: z.number().nullable(),
+}) satisfies z.ZodType<LeaderboardRow>;
+
+export const leaderboardPageSchema = z.strictObject({
+  rows: z.array(leaderboardRowSchema),
+  total: z.number(),
+}) satisfies z.ZodType<LeaderboardPage>;
+
+export const dailyPointSchema = z.strictObject({
+  day: z.string(),
+  chatsCreated: z.number(),
+  userTurns: z.number(),
+  assistantTurns: z.number(),
+  swipes: z.number(),
+  tokensIn: z.number().nullable(),
+  tokensOut: z.number().nullable(),
+  tokensInProvenance: tokenProvenanceSchema,
+  tokensOutProvenance: tokenProvenanceSchema,
+  genTimeMs: z.number(),
+  messageDatesApprox: z.boolean(),
+}) satisfies z.ZodType<DailyPoint>;
+
+export const modelStatRowSchema = z.strictObject({
+  model: z.string(),
+  provider: z.string().nullable(),
+  generations: z.number(),
+  charactersUsedWith: z.number(),
+  tokensIn: z.number().nullable(),
+  tokensOut: z.number().nullable(),
+  tokensInProvenance: tokenProvenanceSchema,
+  tokensOutProvenance: tokenProvenanceSchema,
+  totalGenTimeMs: z.number(),
+  avgGenMs: z.number().nullable(),
+  avgTtftMs: z.number().nullable(),
+  p50TtftMs: z.number().nullable(),
+  p90TtftMs: z.number().nullable(),
+  reasoningRate: z.number(),
+  throughputTps: z.number(),
+  costUsd: z.number().nullable(),
+  reasoningMs: z.number(),
+  cacheHitRate: z.number().nullable(),
+}) satisfies z.ZodType<ModelStatRow>;
+
+export const statsFreshnessSchema = z.strictObject({
+  computedAt: z.number().nullable(),
+  stale: z.boolean(),
+  hasData: z.boolean(),
+}) satisfies z.ZodType<StatsFreshness>;
+
+export const personaUsageRowSchema = z.strictObject({
+  personaId: typeIdSchema(ID_PREFIX.persona),
+  name: z.string(),
+  chatCount: z.number(),
+  messageCount: z.number(),
+  tokensOut: z.number().nullable(),
+  tokensOutProvenance: tokenProvenanceSchema,
+  lastUsedAt: z.number().nullable(),
+}) satisfies z.ZodType<PersonaUsageRow>;
+
+export const temporalStatsSchema = z.strictObject({
+  activeDays: z.number(),
+  longestStreakDays: z.number(),
+  busiestDay: z.strictObject({ day: z.string(), count: z.number() }).nullable(),
+  dayOfWeek: z.array(z.number()),
+}) satisfies z.ZodType<TemporalStats>;
+
+export const wrappedSummarySchema = z.strictObject({
+  firstChatAt: z.number().nullable(),
+  lastActivityAt: z.number().nullable(),
+  characters: z.number(),
+  chats: z.number(),
+  words: z.number(),
+  replies: z.number(),
+  swipes: z.number(),
+  genTimeMs: z.number(),
+  reasoningMs: z.number(),
+  costUsd: z.number().nullable(),
+  avgSwipeDepth: z.number(),
+  swipeRate: z.number(),
+  throughputTps: z.number(),
+  forkedChats: z.number(),
+  topCharacter: z.strictObject({ name: z.string(), assistantTurns: z.number() }).nullable(),
+  temporal: temporalStatsSchema,
+  computedAt: z.number(),
+}) satisfies z.ZodType<WrappedSummary>;
+
+export const activityHeatmapSchema = z.strictObject({
+  matrix: z.array(z.array(z.number())),
+  total: z.number(),
+  peak: z.strictObject({ dayOfWeek: z.number(), hour: z.number(), count: z.number() }).nullable(),
+}) satisfies z.ZodType<ActivityHeatmap>;
+
+export const momentumRowSchema = z.strictObject({
+  characterId: typeIdSchema(ID_PREFIX.character),
+  name: z.string(),
+  current: z.number(),
+  prev: z.number(),
+  delta: z.number(),
+}) satisfies z.ZodType<MomentumRow>;
+
+export const characterMomentumSchema = z.strictObject({
+  latestMonth: z.string().nullable(),
+  prevMonth: z.string().nullable(),
+  rising: z.array(momentumRowSchema),
+  falling: z.array(momentumRowSchema),
+}) satisfies z.ZodType<CharacterMomentum>;
+
+export const latencyStatsSchema = z.strictObject({
+  avgTtftMs: z.number().nullable(),
+  p50TtftMs: z.number().nullable(),
+  p90TtftMs: z.number().nullable(),
+  avgGenMs: z.number().nullable(),
+  p50GenMs: z.number().nullable(),
+  p90GenMs: z.number().nullable(),
+}) satisfies z.ZodType<LatencyStats>;
+
+/** What a full `reconcileStats` rebuild touched — the workload runner logs it; the drift test asserts it. */
+export interface ReconcileStatsResult {
+  owners: number;
+  characters: number;
+  days: number;
+  models: number;
+  computedAt: number;
+}
+
+export const reconcileStatsResultSchema = z.strictObject({
+  owners: z.number(),
+  characters: z.number(),
+  days: z.number(),
+  models: z.number(),
+  computedAt: z.number(),
+}) satisfies z.ZodType<ReconcileStatsResult>;
+
+export const reconcileStatsWorkloadResultSchema = z.strictObject({
+  owners: z.number(),
+  characters: z.number(),
+}) satisfies z.ZodType<ReconcileStatsWorkloadResult>;

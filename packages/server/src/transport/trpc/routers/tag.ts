@@ -2,22 +2,35 @@
 // (tags are personal labels, no resource-role). Thin: validate → `ctx.services.tag.<verb>` → map errors.
 // Wire input shapes + axes derive from `@orb/contracts/tag` (no inline re-spell — §7.4).
 
-import { createTagSchema, tagStatusSchema, tagTargetTypeSchema, updateTagSchema } from "@orb/contracts/tag";
+import {
+  createTagSchema,
+  pruneUnusedResultSchema,
+  tagFilterVocabularyEntrySchema,
+  tagReachViewSchema,
+  tagStatusSchema,
+  tagSuggestionViewSchema,
+  tagTargetTypeSchema,
+  tagViewSchema,
+  tagWithUsageSchema,
+  updateTagSchema,
+} from "@orb/contracts/tag";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const tagRouter = t.router({
   createTag: authedProcedure
+    .output(tagViewSchema)
     .input(z.object({ input: createTagSchema }))
     .mutation(({ ctx, input }) => ctx.services.tag.createTag({ principal: ctx.auth, input: input.input })),
 
   // @test-fixture: the CT typed-read template verb — the client-data CTs (create-entity-mutation.ct.tsx,
   // _ct-stories.tsx) pair createTag + listTags as the optimistic-cache fixture; production reads run through
   // listTagsWithUsage. Ships as the always-available CT surface, no other client consumer.
-  listTags: authedProcedure.query(({ ctx }) => ctx.services.tag.listTags({ principal: ctx.auth })),
+  listTags: authedProcedure.output(z.array(tagViewSchema)).query(({ ctx }) => ctx.services.tag.listTags({ principal: ctx.auth })),
 
   updateTag: authedProcedure
+    .output(tagViewSchema)
     .input(z.object({ tagId: typeIdSchema(ID_PREFIX.tag), patch: updateTagSchema }))
     .mutation(({ ctx, input }) => ctx.services.tag.updateTag({ principal: ctx.auth, tagId: input.tagId, patch: input.patch })),
 
@@ -36,27 +49,33 @@ export const tagRouter = t.router({
     ),
 
   listAttachedEntities: authedProcedure
+    .output(tagReachViewSchema)
     .input(z.object({ tagId: typeIdSchema(ID_PREFIX.tag), targetType: tagTargetTypeSchema }))
     .query(({ ctx, input }) => ctx.services.tag.listAttachedEntities({ principal: ctx.auth, ...input })),
 
-  listTagsWithUsage: authedProcedure.query(({ ctx }) => ctx.services.tag.listTagsWithUsage({ principal: ctx.auth })),
+  listTagsWithUsage: authedProcedure.output(z.array(tagWithUsageSchema)).query(({ ctx }) => ctx.services.tag.listTagsWithUsage({ principal: ctx.auth })),
 
   // The character library's filter-chip vocabulary — the same owned rows as listTagsWithUsage, projected to
   // the four fields a chip reads. Split off because the rail was paying 433KB of five-junction management
   // rows to paint eight chips (side-eye 2026-08-18 P2-6). No input: the vocabulary is keyless, so cycling a
   // chip never re-keys (and never refetches) it.
-  listTagFilterVocabulary: authedProcedure.query(({ ctx }) => ctx.services.tag.listTagFilterVocabulary({ principal: ctx.auth })),
+  listTagFilterVocabulary: authedProcedure
+    .output(z.array(tagFilterVocabularyEntrySchema))
+    .query(({ ctx }) => ctx.services.tag.listTagFilterVocabulary({ principal: ctx.auth })),
 
   // The Accept/Reject review queue: the owner's STAGED (`pending`) character-tag suggestions (distill +
   // import staged card tags). `characterId` narrows to one editor's suggestions; absent = the whole inbox.
-  listPendingSuggestions: authedProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional()).query(({ ctx, input }) =>
-    ctx.services.tag.listPendingSuggestions({
-      principal: ctx.auth,
-      ...(input?.characterId !== undefined ? { characterId: input.characterId } : {}),
-    }),
-  ),
+  listPendingSuggestions: authedProcedure
+    .output(z.array(tagSuggestionViewSchema))
+    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional())
+    .query(({ ctx, input }) =>
+      ctx.services.tag.listPendingSuggestions({
+        principal: ctx.auth,
+        ...(input?.characterId !== undefined ? { characterId: input.characterId } : {}),
+      }),
+    ),
 
-  pruneUnusedTags: authedProcedure.mutation(({ ctx }) => ctx.services.tag.pruneUnusedTags({ principal: ctx.auth })),
+  pruneUnusedTags: authedProcedure.output(pruneUnusedResultSchema).mutation(({ ctx }) => ctx.services.tag.pruneUnusedTags({ principal: ctx.auth })),
 
   setTagOrder: authedProcedure
     .input(z.object({ orderedIds: z.array(typeIdSchema(ID_PREFIX.tag)).min(1) }))

@@ -65,6 +65,7 @@ export type { PluginSubscriberRegistry, PluginTriggerSubscriber } from "./contra
 export type { ErasedRulePresetDef, RulePresetDef, RulePresetKnobOverrides, RulePresetRuleDef } from "./contract/presets.ts";
 export { RULE_PRESETS } from "./contract/presets.ts";
 export type { ArmPreview, ConfirmSuggestionResult, FireView, RuleView, RunRuleNowResult, StreamAuthority, TestRunResult } from "./contract/results.ts";
+export { confirmSuggestionResultSchema, fireViewSchema, ruleViewSchema, runRuleNowResultSchema, testRunResultSchema } from "./contract/results.ts";
 export type { AutomationService, AutomationWatcherEnv, AutomationWatcherHandle } from "./contract/service.ts";
 export type { GlobalVariableView } from "./contract/views.ts";
 export { createArmExecutors } from "./engine/arm-executors.ts";

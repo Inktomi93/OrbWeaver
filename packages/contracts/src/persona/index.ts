@@ -1,3 +1,5 @@
+import type { CharacterId } from "@orb/kit/ids";
+import type { CardFace, ResolvedCardFace } from "#card-face";
 // @orb/contracts/persona — the persona wire schemas (create/update/metadata). Persona no longer
 // imports `@orb/contracts/world-info`: the `{depth, role}` inject shape comes from `@orb/kit/injection`
 // (the shared neutral primitive every injector uses), never a world-info-local re-spell.
@@ -114,3 +116,53 @@ export interface BulkImportPersonasResult {
   readonly defaultPersonaId: PersonaId | null;
   readonly idByName: Record<string, PersonaId>;
 }
+
+/** Extends BOTH face planes (D137(E)): the authored face (`avatarAssetId`) AND the resolved face
+ *  (`avatarHash` joined from assets) — a persona detail is the row + its resolved avatar. `D = string`:
+ *  persona description is NOT NULL ("" is a value to `{{persona}}`). */
+export interface PersonaDetail extends CardFace<string>, ResolvedCardFace<string> {
+  readonly id: PersonaId;
+  /** Display subtitle for pickers/lists — never injected into the prompt. */
+  readonly title: string | null;
+  readonly metadata: PersonaMetadata | null;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+}
+
+/** The persona-side read of the character⇄persona junction (`listConnectedCharacters`, #866 S4 — the
+ *  editor's "Connected characters" section). Deliberately a SUMMARY, not the character detail: the persona
+ *  domain names only what its relation list renders (id to act on, name + title to display) — the full card
+ *  stays behind the character domain's own verbs, so this view can never become a second character home. */
+export interface ConnectedCharacterView {
+  readonly id: CharacterId;
+  readonly name: string;
+}
+
+export const personaDetailSchema = z.strictObject({
+  ...cardFaceFields,
+  id: typeIdSchema(ID_PREFIX.persona),
+  title: z.string().nullable(),
+  avatarHash: z.string().nullable(),
+  metadata: personaMetadataSchema.nullable(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+}) satisfies z.ZodType<PersonaDetail>;
+
+export const connectedCharacterViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.character),
+  name: z.string(),
+}) satisfies z.ZodType<ConnectedCharacterView>;
+
+/** `remove` — `deleted` is always `true` on success (a not-owned/missing persona throws instead). */
+export interface RemovePersonaResult {
+  readonly deleted: boolean;
+}
+
+/** `disconnectFromCharacter` — `false` when the junction row was already absent (idempotent no-op). */
+export interface DisconnectResult {
+  readonly disconnected: boolean;
+}
+
+export const removePersonaResultSchema = z.strictObject({ deleted: z.boolean() }) satisfies z.ZodType<RemovePersonaResult>;
+
+export const disconnectResultSchema = z.strictObject({ disconnected: z.boolean() }) satisfies z.ZodType<DisconnectResult>;

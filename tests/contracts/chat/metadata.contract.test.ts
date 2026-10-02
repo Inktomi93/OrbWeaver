@@ -1,6 +1,7 @@
 import {
   DEFAULT_GROUP_CONFIG,
   DEFAULT_ROOM_OVERRIDES,
+  groupConfigInputSchema,
   groupConfigSchema,
   MEMBER_CARD_VISIBILITY_LEVELS,
   memberCardVisibilitySchema,
@@ -9,6 +10,26 @@ import {
 } from "@orb/contracts/chat";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
+
+test("raw group input validation preserves a sparse input instead of applying room defaults", () => {
+  for (const output of ["narrator", "per-speaker"] as const) {
+    const sparse = { output, autoMode: false };
+    expect(groupConfigInputSchema.parse(sparse)).toEqual(sparse);
+    expect(groupConfigSchema.parse(sparse)).not.toEqual(sparse);
+  }
+});
+
+test("raw group input refuses malformed fields that the room parser deliberately heals", () => {
+  const malformed = { output: "per-speaker", autoMode: "bad" };
+  expect(groupConfigSchema.safeParse(malformed).success).toBe(true);
+  expect(groupConfigInputSchema.safeParse(malformed).success).toBe(false);
+});
+
+test("raw and parsed group schemas retain the same discriminated field population", () => {
+  expect(groupConfigInputSchema.options.map((option) => ({ output: option.shape.output.value, fields: Object.keys(option.shape).toSorted() }))).toEqual(
+    groupConfigSchema.options.map((option) => ({ output: option.shape.output.value, fields: Object.keys(option.shape).toSorted() })),
+  );
+});
 
 // ═══ groupConfigSchema — memberCardVisibility default sheet (D22) ════════════════
 

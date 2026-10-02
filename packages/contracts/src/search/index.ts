@@ -1,10 +1,13 @@
 // Memory retrieval options and immutable Corpus evidence are shared boundary shapes.
 // Search execution params and internal scan rows remain in the server domain contracts.
 
-import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DocumentChunkId, DocumentId, UserId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { ImageLens } from "../embeddings/index.ts";
+import { imageLensSchema } from "../embeddings/index.ts";
 import type { CorpusSource } from "./source.ts";
+import { corpusSourceSchema } from "./source.ts";
 
 // The chat-scoped retrieval-mode axis: off | mixA (all tier-0, chronological) | mixB (+vector retrieve)
 // | mixC (+rerank) | tiered (consolidation bridge). `contracts/settings`'s memory defaults enum derives
@@ -145,3 +148,270 @@ export interface ImageSearchHit {
   readonly lens: ImageLens;
   readonly caption: string | null;
 }
+
+export interface SearchHit {
+  readonly characterId: CharacterId;
+  readonly score: number;
+  /** Carried here because `findCharacters` layers display over THIS hit — the raw distance dies inside knn
+   *  otherwise, and a card row could then only render the clamped score. */
+  readonly relevance: number;
+}
+
+/** A findCharacters hit — a {@link SearchHit} enriched with distilled card facets + the avatar CAS key. */
+export interface CharacterCardHit {
+  readonly characterId: CharacterId;
+  readonly score: number;
+  readonly relevance: number;
+  readonly name: string;
+  readonly avatarHash: string | null;
+  readonly genre: string | null;
+  readonly tone: string | null;
+  readonly elevatorPitch: string | null;
+}
+
+/** blockKey.tier is 0 (segments are tier-0 verbatim blocks); scopedCharacterId is the caller's egocentric POV. */
+export interface SegmentSearchHit {
+  readonly blockKey: BlockKey;
+  readonly score: number;
+  readonly text: string;
+}
+
+/** A block that survived the joint digest+segment rerank, block-level dedupe, and content-hash collapse. */
+export interface CorpusHit {
+  readonly source: CorpusSource;
+  /** Stored digest identities usable by the memory bridge; standalone transcripts carry none. */
+  readonly blockKeys: readonly BlockKey[];
+  readonly chatTitle: string | null;
+  readonly relevance: number;
+  readonly score: number;
+  readonly text: string;
+}
+
+/** score is the BM25 score (higher = better) — the lexical surface's own unit, never mixed with CSLS. */
+export interface FieldSearchHit {
+  readonly characterId: CharacterId;
+  readonly score: number;
+}
+
+export interface FieldSearchResult {
+  readonly hits: readonly FieldSearchHit[];
+  readonly coverage: {
+    readonly requestLimit: number;
+    readonly indexedCharacters: number;
+    readonly matchingCharacters: number;
+  };
+}
+
+export interface SearchSuggestion {
+  readonly suggestion: string;
+  readonly score: number;
+}
+
+/** A group-scene block credits every co-star present in it, so one segment can be evidence for several characters. */
+export interface DiscoverCharacter {
+  readonly characterId: CharacterId;
+  readonly score: number;
+  readonly relevance: number;
+  readonly name: string;
+  readonly avatarHash: string | null;
+  readonly genre: string | null;
+  readonly tone: string | null;
+  readonly elevatorPitch: string | null;
+  readonly matchCount: number;
+  readonly segments: readonly DiscoverSegment[];
+}
+
+/** Character credit and uncredited transcript evidence remain separate; no synthetic character identity. */
+export interface DiscoverResult {
+  readonly hits: readonly DiscoverCharacter[];
+  readonly standaloneSegments: readonly DiscoverSegment[];
+}
+
+/** CSLS applies here (same-space image↔image), unlike the cross-modal images verb which skips it. */
+export interface SimilarArtHit {
+  readonly characterId: CharacterId;
+  readonly score: number;
+  readonly relevance: number;
+  readonly name: string;
+  readonly avatarHash: string | null;
+  readonly lens: ImageLens;
+}
+
+/** One databank chunk hit. `score` is the CSLS-adjusted retrieval score
+ *  (LOWER = closer), preserved even when rerank reordered the list. `documentName` is joined from
+ *  `documents` for the `# {name}` provenance header the slot renders; `contentHash` is the collapse key. */
+export interface DocumentChunkHit {
+  readonly documentId: DocumentId;
+  readonly documentName: string;
+  readonly chunkId: DocumentChunkId;
+  readonly chunkIdx: number;
+  readonly content: string;
+  readonly score: number;
+  readonly contentHash: string;
+}
+
+/** The unified search() result — discriminated by `over` (the {@link SearchTarget}), each branch carrying
+ *  the underlying verb's hit shape. Exhaustive: a new SearchTarget without a branch here fails `tsc` at the
+ *  dispatch's `assertNever`. */
+interface SearchCoverage {
+  readonly requestLimit: number;
+  readonly candidateLimit: number;
+  readonly evidencePerCharacter: number | null;
+  readonly reranked: boolean;
+}
+
+export type UnifiedSearchResult = UnifiedSearchRows & { readonly coverage: SearchCoverage };
+
+export type UnifiedSearchRows =
+  | { readonly over: "entities"; readonly hits: readonly SearchHit[] }
+  | { readonly over: "characters"; readonly hits: readonly CharacterCardHit[] }
+  | ({ readonly over: "discover" } & DiscoverResult)
+  | { readonly over: "segments"; readonly hits: readonly SegmentSearchHit[] }
+  | { readonly over: "digests"; readonly hits: readonly DigestSourceHit[] }
+  | { readonly over: "corpus"; readonly hits: readonly CorpusHit[] }
+  | { readonly over: "images"; readonly hits: readonly ImageSearchHit[] }
+  | { readonly over: "documents"; readonly hits: readonly DocumentChunkHit[] };
+
+const [segmentSource, digestSource] = corpusSourceSchema.options;
+const strictSegmentSource = segmentSource.strict();
+const strictDigestSource = digestSource.strict();
+const strictCorpusSource = z.discriminatedUnion("kind", [strictSegmentSource, strictDigestSource]);
+
+export const blockKeySchema = z.strictObject({
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  tier: z.number(),
+  blockIdx: z.number(),
+  scopedCharacterId: typeIdSchema(ID_PREFIX.character),
+}) satisfies z.ZodType<BlockKey>;
+
+export const scoredBlockSchema = z.strictObject({
+  blockKey: blockKeySchema,
+  score: z.number(),
+  relevance: z.number(),
+}) satisfies z.ZodType<ScoredBlock>;
+
+export const digestSearchHitSchema = scoredBlockSchema.extend({ text: z.string() }) satisfies z.ZodType<DigestSearchHit>;
+export const digestSourceHitSchema = digestSearchHitSchema.extend({
+  source: strictDigestSource,
+  chatTitle: z.string().nullable(),
+  scopedCharacterName: z.string().nullable(),
+}) satisfies z.ZodType<DigestSourceHit>;
+
+export const discoverSegmentSchema = z.strictObject({
+  source: strictSegmentSource,
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  blockIdx: z.number(),
+  snippet: z.string(),
+  score: z.number(),
+  relevance: z.number(),
+  chatTitle: z.string().nullable(),
+}) satisfies z.ZodType<DiscoverSegment>;
+
+export const imageSearchHitSchema = z.strictObject({
+  assetId: typeIdSchema(ID_PREFIX.asset),
+  hash: z.string(),
+  characterId: typeIdSchema(ID_PREFIX.character).nullable(),
+  characterName: z.string().nullable(),
+  score: z.number(),
+  relevance: z.number(),
+  lens: imageLensSchema,
+  caption: z.string().nullable(),
+}) satisfies z.ZodType<ImageSearchHit>;
+
+export const searchHitSchema = z.strictObject({
+  characterId: typeIdSchema(ID_PREFIX.character),
+  score: z.number(),
+  relevance: z.number(),
+}) satisfies z.ZodType<SearchHit>;
+
+export const characterCardHitSchema = searchHitSchema.extend({
+  name: z.string(),
+  avatarHash: z.string().nullable(),
+  genre: z.string().nullable(),
+  tone: z.string().nullable(),
+  elevatorPitch: z.string().nullable(),
+}) satisfies z.ZodType<CharacterCardHit>;
+
+export const segmentSearchHitSchema = z.strictObject({
+  blockKey: blockKeySchema,
+  score: z.number(),
+  text: z.string(),
+}) satisfies z.ZodType<SegmentSearchHit>;
+
+export const corpusHitSchema = z.strictObject({
+  source: strictCorpusSource,
+  blockKeys: z.array(blockKeySchema).readonly(),
+  chatTitle: z.string().nullable(),
+  relevance: z.number(),
+  score: z.number(),
+  text: z.string(),
+}) satisfies z.ZodType<CorpusHit>;
+
+export const fieldSearchHitSchema = z.strictObject({
+  characterId: typeIdSchema(ID_PREFIX.character),
+  score: z.number(),
+}) satisfies z.ZodType<FieldSearchHit>;
+
+export const fieldSearchResultSchema = z.strictObject({
+  hits: z.array(fieldSearchHitSchema).readonly(),
+  coverage: z.strictObject({ requestLimit: z.number(), indexedCharacters: z.number(), matchingCharacters: z.number() }),
+}) satisfies z.ZodType<FieldSearchResult>;
+
+export const searchSuggestionSchema = z.strictObject({ suggestion: z.string(), score: z.number() }) satisfies z.ZodType<SearchSuggestion>;
+
+export const discoverCharacterSchema = characterCardHitSchema.extend({
+  matchCount: z.number(),
+  segments: z.array(discoverSegmentSchema).readonly(),
+}) satisfies z.ZodType<DiscoverCharacter>;
+
+export const discoverResultSchema = z.strictObject({
+  hits: z.array(discoverCharacterSchema).readonly(),
+  standaloneSegments: z.array(discoverSegmentSchema).readonly(),
+}) satisfies z.ZodType<DiscoverResult>;
+
+export const similarArtHitSchema = searchHitSchema.extend({
+  name: z.string(),
+  avatarHash: z.string().nullable(),
+  lens: imageLensSchema,
+}) satisfies z.ZodType<SimilarArtHit>;
+
+export const documentChunkHitSchema = z.strictObject({
+  documentId: typeIdSchema(ID_PREFIX.document),
+  documentName: z.string(),
+  chunkId: typeIdSchema(ID_PREFIX.documentChunk),
+  chunkIdx: z.number(),
+  content: z.string(),
+  score: z.number(),
+  contentHash: z.string(),
+}) satisfies z.ZodType<DocumentChunkHit>;
+
+const searchCoverageSchema = z.strictObject({
+  requestLimit: z.number(),
+  candidateLimit: z.number(),
+  evidencePerCharacter: z.number().nullable(),
+  reranked: z.boolean(),
+}) satisfies z.ZodType<SearchCoverage>;
+
+export const unifiedSearchRowsSchema = z.discriminatedUnion("over", [
+  z.strictObject({ over: z.literal("entities"), hits: z.array(searchHitSchema).readonly() }),
+  z.strictObject({ over: z.literal("characters"), hits: z.array(characterCardHitSchema).readonly() }),
+  discoverResultSchema.extend({ over: z.literal("discover") }),
+  z.strictObject({ over: z.literal("segments"), hits: z.array(segmentSearchHitSchema).readonly() }),
+  z.strictObject({ over: z.literal("digests"), hits: z.array(digestSourceHitSchema).readonly() }),
+  z.strictObject({ over: z.literal("corpus"), hits: z.array(corpusHitSchema).readonly() }),
+  z.strictObject({ over: z.literal("images"), hits: z.array(imageSearchHitSchema).readonly() }),
+  z.strictObject({ over: z.literal("documents"), hits: z.array(documentChunkHitSchema).readonly() }),
+]) satisfies z.ZodType<UnifiedSearchRows>;
+
+const [entitiesRows, charactersRows, discoverRows, segmentRows, digestRows, corpusRows, imageRows, documentRows] = unifiedSearchRowsSchema.options;
+const searchCoverageFields = { coverage: searchCoverageSchema };
+export const unifiedSearchResultSchema = z.discriminatedUnion("over", [
+  entitiesRows.extend(searchCoverageFields),
+  charactersRows.extend(searchCoverageFields),
+  discoverRows.extend(searchCoverageFields),
+  segmentRows.extend(searchCoverageFields),
+  digestRows.extend(searchCoverageFields),
+  corpusRows.extend(searchCoverageFields),
+  imageRows.extend(searchCoverageFields),
+  documentRows.extend(searchCoverageFields),
+]) satisfies z.ZodType<UnifiedSearchResult>;

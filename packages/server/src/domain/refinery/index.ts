@@ -43,6 +43,7 @@ export type {
   SchemaForgeResult,
   StagePreflight,
 } from "./contract/results.ts";
+export { applyAsCopyResultSchema, applyFieldsResultSchema, refinerySessionViewSchema } from "./contract/results.ts";
 export type { RefineryService, RefineryWorkloadDeps, ScoreSweep } from "./contract/service.ts";
 export { createRefineryService } from "./service.ts";
 export { SCHEMA_NAME_TAKEN_REASON, SCHEMA_STALE_PATCH_REASON } from "./substrate/schema-library.ts";

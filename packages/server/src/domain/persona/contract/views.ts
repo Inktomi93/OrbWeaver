@@ -2,21 +2,8 @@
 // metadata is typed (not Record<string, unknown>); persistence/queries.ts detailOf narrows the stored
 // blob through personaMetadataSchema at the read seam. avatarHash is joined from assets, null when unset.
 
-import type { CardFace, ResolvedCardFace } from "@orb/contracts/card-face";
 import type { PersonaMetadata } from "@orb/contracts/persona";
-import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
-
-/** Extends BOTH face planes (D137(E)): the authored face (`avatarAssetId`) AND the resolved face
- *  (`avatarHash` joined from assets) — a persona detail is the row + its resolved avatar. `D = string`:
- *  persona description is NOT NULL ("" is a value to `{{persona}}`). */
-export interface PersonaDetail extends CardFace<string>, ResolvedCardFace<string> {
-  readonly id: PersonaId;
-  /** Display subtitle for pickers/lists — never injected into the prompt. */
-  readonly title: string | null;
-  readonly metadata: PersonaMetadata | null;
-  readonly createdAt: number;
-  readonly updatedAt: number;
-}
+import type { PersonaId, UserId } from "@orb/kit/ids";
 
 /** A persona's PRESENTATION SURFACE for a room whose participants consent to it (the multi-human resolution
  *  widening — the `ResolvePersonasForParticipants` op, `contract/ops.ts`). Deliberately NARROWER than {@link PersonaDetail}: name +
@@ -32,11 +19,4 @@ export interface PersonaListView {
   readonly metadata: PersonaMetadata | null;
 }
 
-/** The persona-side read of the character⇄persona junction (`listConnectedCharacters`, #866 S4 — the
- *  editor's "Connected characters" section). Deliberately a SUMMARY, not the character detail: the persona
- *  domain names only what its relation list renders (id to act on, name + title to display) — the full card
- *  stays behind the character domain's own verbs, so this view can never become a second character home. */
-export interface ConnectedCharacterView {
-  readonly id: CharacterId;
-  readonly name: string;
-}
+export type { ConnectedCharacterView, PersonaDetail } from "@orb/contracts/persona";

@@ -6,20 +6,37 @@
 // `latencyScopeSchema` discriminated union — both come off the `stats` front door (§7.5 derive-don't-respell;
 // a transport router must NOT deep-import `contract/params` nor re-spell the union inline).
 
-import { STATS_LIST_MAX_LIMIT } from "@orb/contracts/stats";
+import {
+  activityHeatmapSchema,
+  characterMomentumSchema,
+  characterStatsViewSchema,
+  dailyPointSchema,
+  latencyStatsSchema,
+  leaderboardPageSchema,
+  modelStatRowSchema,
+  ownerStatsViewSchema,
+  personaUsageRowSchema,
+  reconcileStatsResultSchema,
+  STATS_LIST_MAX_LIMIT,
+  statsFreshnessSchema,
+  temporalStatsSchema,
+  wrappedSummarySchema,
+} from "@orb/contracts/stats";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { LEADERBOARD_SORTS, latencyScopeSchema } from "#domain/stats";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const statsRouter = t.router({
-  overview: authedProcedure.query(({ ctx }) => ctx.services.stats.overview(ctx.auth.userId)),
+  overview: authedProcedure.output(ownerStatsViewSchema.nullable()).query(({ ctx }) => ctx.services.stats.overview(ctx.auth.userId)),
 
   character: authedProcedure
+    .output(characterStatsViewSchema.nullable())
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .query(({ ctx, input }) => ctx.services.stats.character(ctx.auth.userId, input.characterId)),
 
   leaderboard: authedProcedure
+    .output(leaderboardPageSchema)
     .input(
       z
         .object({
@@ -34,36 +51,43 @@ export const statsRouter = t.router({
     .query(({ ctx, input }) => ctx.services.stats.leaderboard(ctx.auth.userId, { sort: input?.sort, limit: input?.limit, search: input?.search })),
 
   timeseries: authedProcedure
+    .output(z.array(dailyPointSchema))
     .input(z.object({ from: z.string().optional(), to: z.string().optional() }).optional())
     .query(({ ctx, input }) => ctx.services.stats.timeseries(ctx.auth.userId, { from: input?.from, to: input?.to })),
 
   byModel: authedProcedure
+    .output(z.array(modelStatRowSchema))
     .input(z.object({ limit: z.number().int().positive().max(STATS_LIST_MAX_LIMIT).optional() }).optional())
     .query(({ ctx, input }) => ctx.services.stats.byModel(ctx.auth.userId, { limit: input?.limit })),
 
-  freshness: authedProcedure.query(({ ctx }) => ctx.services.stats.freshness(ctx.auth.userId)),
+  freshness: authedProcedure.output(statsFreshnessSchema).query(({ ctx }) => ctx.services.stats.freshness(ctx.auth.userId)),
 
   // `characterId` is a PROJECTION filter, not an access decision: the read is scoped by
   // `personas.owner_id = principal.userId` regardless, so an id the caller does not own matches no chats
   // and returns the roster at zero — there is nothing here to IDOR.
   personaUsage: authedProcedure
+    .output(z.array(personaUsageRowSchema))
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional())
     .query(({ ctx, input }) => ctx.services.stats.personaUsage(ctx.auth.userId, { characterId: input?.characterId })),
 
-  wrapped: authedProcedure.query(({ ctx }) => ctx.services.stats.wrapped(ctx.auth.userId)),
+  wrapped: authedProcedure.output(wrappedSummarySchema.nullable()).query(({ ctx }) => ctx.services.stats.wrapped(ctx.auth.userId)),
 
-  temporal: authedProcedure.query(({ ctx }) => ctx.services.stats.temporal(ctx.auth.userId)),
+  temporal: authedProcedure.output(temporalStatsSchema).query(({ ctx }) => ctx.services.stats.temporal(ctx.auth.userId)),
 
-  activityHeatmap: authedProcedure.query(({ ctx }) => ctx.services.stats.activityHeatmap(ctx.auth.userId)),
+  activityHeatmap: authedProcedure.output(activityHeatmapSchema).query(({ ctx }) => ctx.services.stats.activityHeatmap(ctx.auth.userId)),
 
   momentum: authedProcedure
+    .output(characterMomentumSchema)
     .input(z.object({ limit: z.number().int().positive().max(STATS_LIST_MAX_LIMIT).optional() }).optional())
     .query(({ ctx, input }) => ctx.services.stats.momentum(ctx.auth.userId, input?.limit)),
 
-  latency: authedProcedure.input(latencyScopeSchema).query(({ ctx, input }) => ctx.services.stats.latency(ctx.auth.userId, input)),
+  latency: authedProcedure
+    .output(latencyStatsSchema)
+    .input(latencyScopeSchema)
+    .query(({ ctx, input }) => ctx.services.stats.latency(ctx.auth.userId, input)),
 
   // The ONE write on this surface: rebuild the CALLER's rollups from canon, awaited (the instant "recompute
   // my stats"). Owner-scoped by construction — `ownerId` is the resolved principal, never input — so there is
   // no id to IDOR. The all-owners sweep stays the owner-gated `reconcile-stats` workload.
-  reconcile: authedProcedure.mutation(({ ctx }) => ctx.services.stats.reconcile(ctx.auth.userId)),
+  reconcile: authedProcedure.output(reconcileStatsResultSchema).mutation(({ ctx }) => ctx.services.stats.reconcile(ctx.auth.userId)),
 });

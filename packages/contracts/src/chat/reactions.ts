@@ -24,6 +24,7 @@
 // rule is kit's `resolveSegmentAnchor`, shared by the client display and the server attribution read).
 
 import type { AssetId, ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 /** THE REACTION EMOJI VOCABULARY — a closed tuple, and the picker's own content in this order.
@@ -118,3 +119,18 @@ export const REACTION_SPEAKER_NAME_MAX = 200;
 export const REACTION_ATTRIBUTION_MAX_PER_MESSAGE = 8;
 export const REACTION_ATTRIBUTION_CONTENT_CAP = 32_000;
 export const REACTION_ATTRIBUTION_SLOT_WINDOW = 10;
+
+export const messageReactionGroupSchema = z.strictObject({
+  variantId: typeIdSchema(ID_PREFIX.messageVariant),
+  segmentIndex: z.number().nullable(),
+  segmentSpeaker: z.string().nullable(),
+  segmentSnippet: z.string().nullable(),
+  emoji: reactionEmojiSchema,
+  emojiImageAssetId: typeIdSchema(ID_PREFIX.asset).nullable(),
+  reactorParticipantIds: z.array(typeIdSchema(ID_PREFIX.chatParticipant)).readonly(),
+}) satisfies z.ZodType<MessageReactionGroup>;
+
+export const chatReactionsViewSchema = z.strictObject({
+  reactionsEnabled: z.boolean(),
+  groups: z.array(messageReactionGroupSchema).readonly(),
+}) satisfies z.ZodType<ChatReactionsView>;
