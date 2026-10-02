@@ -1,13 +1,17 @@
-// Mirror test for domain/import/substrate/world — the ST-NATIVE `worlds/*.json` parser: the field-spelling
-// adaptation onto the shared entry mapper, and the ONE native-only divergence, delimited-key regex detection
-// (owner ruling 2026-08-19, #268 arm (a)).
+// Mirror test for the world-info serde's raw SillyTavern grammar: the field-spelling adaptation onto the
+// shared entry mapper, and the ONE native-only divergence, delimited-key regex detection (owner ruling).
 
+import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import { matchEntryKeys } from "@orb/kit/world-info";
+import { parseWorldBookFile } from "@orb/server/kit/serde/world-info";
 import { describe } from "vitest";
-// `parseStWorldFile` is a substrate-internal export (the loader imports it by relative path) — this is its
-// mirror test, so it reaches the module directly, as the sibling card mirror does.
-import { parseStWorldFile } from "../../../../../packages/server/src/domain/import/substrate/world.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+
+/** The ST grammar through the one detecting parser; null when it refused (the old null-on-unreadable shape). */
+function parseStWorldFile(bytes: Uint8Array, name: string): BulkImportLorebookInput | null {
+  const parsed = parseWorldBookFile(bytes, name);
+  return parsed.ok ? parsed.value : null;
+}
 
 const encoder = new TextEncoder();
 
@@ -58,5 +62,38 @@ describe("parseStWorldFile — ST-native world-info", () => {
     expect(book?.entries[0]?.priority).toBe(42);
     expect(parseStWorldFile(encoder.encode("{not json"), "x")).toBeNull();
     expect(parseStWorldFile(encoder.encode(JSON.stringify({ entries: {} })), "x")).toBeNull();
+  });
+});
+
+describe("parseWorldBookFile — grammar detection", () => {
+  test("a JSON object in neither grammar is refused `foreign-kind`; an ST file with no entries is `malformed`", () => {
+    expect(parseWorldBookFile(encoder.encode(JSON.stringify({ name: "x", findRegex: "a" })), "x")).toEqual({ ok: false, reason: "foreign-kind" });
+    expect(parseWorldBookFile(encoder.encode(JSON.stringify({ entries: {} })), "x")).toEqual({ ok: false, reason: "malformed" });
+  });
+
+  test("an ST file takes the fallback name; a native file keeps its own", () => {
+    const st = parseWorldBookFile(stWorldBytes(["hello"]), "From Stem");
+    expect(st.ok && st.value.name).toBe("From Stem");
+    const native = parseWorldBookFile(
+      encoder.encode(JSON.stringify({ schemaKind: "orb.world-info.book", schemaVersion: 1, name: "Own Name", description: null, entries: [] })),
+      "From Stem",
+    );
+    expect(native.ok && native.value.name).toBe("Own Name");
+  });
+
+  test("ST numeric positions and `constant` map to the orb anchor and scope, in entry order", () => {
+    const bytes = encoder.encode(
+      JSON.stringify({
+        entries: {
+          "0": { uid: 0, key: ["a"], comment: "before", content: "x", order: 10, position: 0, disable: false, constant: true },
+          "1": { uid: 1, key: ["b"], comment: "after", content: "y", order: 5, position: 1, disable: false },
+        },
+      }),
+    );
+    const book = parseStWorldFile(bytes, "w");
+    expect(book?.entries.map((e) => [e.title, e.priority, e.metadata?.["position"], e.metadata?.["scopeMode"]])).toEqual([
+      ["before", 10, "before", "always"],
+      ["after", 5, "after", undefined],
+    ]);
   });
 });

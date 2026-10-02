@@ -7,7 +7,7 @@
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, worldBooks, worldEntries } from "@orb/db";
-import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -38,6 +38,11 @@ function importCtx(db: Db): WorldInfoImportContext {
     newBookId: (): WorldBookId => castId<WorldBookId>(`world_book_${counter()}`),
     newEntryId: (): WorldEntryId => castId<WorldEntryId>(`world_entry_${counter()}`),
   };
+}
+
+/** A second owned book with its OWN content: equal entries under another name would be the same book. */
+function eldoria(): BulkImportLorebookInput {
+  return book({ name: "Eldoria", entries: book().entries.map((e) => ({ ...e, title: "Eldoria", content: "A realm of its own." })) });
 }
 
 function book(over: Partial<BulkImportLorebookInput> = {}): BulkImportLorebookInput {
@@ -177,39 +182,90 @@ describe("createBulkImportLorebook", () => {
 });
 
 describe("createImportStandaloneLorebook", () => {
-  test("rejects duplicate entry titles within one request before replacing an existing book", async () => {
+  // ENTRY TITLES ARE FREE: a title is SillyTavern's optional `comment` (empty by default, never unique), and
+  // entries are keyed by their minted id, so a book whose entries share a title, or carry none, lands whole.
+  test("entries that share a title, or carry an empty one, ALL land (titles are not keys)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const op = createImportStandaloneLorebook(importCtx(db));
-    await op({ ownerId: owner.id, book: book() });
     const originalEntry = book().entries.at(0);
     if (originalEntry === undefined) {
       throw new Error("book fixture must contain an entry");
     }
-    const duplicate = book({ entries: [originalEntry, { ...originalEntry, content: "conflicting duplicate" }] });
+    const shared = book({
+      entries: [
+        originalEntry,
+        { ...originalEntry, content: "a second entry under the same title" },
+        { ...originalEntry, title: "", content: "an untitled entry" },
+      ],
+    });
 
-    await expect(op({ ownerId: owner.id, book: duplicate })).rejects.toBeInstanceOf(DomainOperationError);
+    const result = await op({ ownerId: owner.id, book: shared });
 
-    expect((await db.select().from(worldEntries)).map((entry) => entry.content)).toEqual(["A realm of eternal dusk."]);
+    expect(result.entryCount).toBe(3);
+    const landed = await db.select().from(worldEntries);
+    expect(landed.map((entry) => entry.content).toSorted()).toEqual(["A realm of eternal dusk.", "a second entry under the same title", "an untitled entry"]);
+    expect(landed.map((entry) => entry.title).toSorted()).toEqual(["", "The Kingdom", "The Kingdom"]);
   });
 
-  // The (ownerId, name) dedup key resolves NEWEST-WINS through a `createdAt DESC LIMIT 1` — and `createdAt`
-  // is not unique, so two same-name books minted in one instant (a bundle restore) leave the storage engine
-  // to pick which one this import REPLACES. That is a destructive read: the loser keeps stale entries and
-  // the winner changes between runs. `id DESC` makes "newest" total.
-  test("same-name books tied on createdAt resolve to ONE deterministic target (newest id wins)", async () => {
+  test("a book that landed under a numbered name is found again by CONTENT: a third import reuses it, never mints the next number", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const op = createImportStandaloneLorebook(importCtx(db));
+    const originalEntry = book().entries.at(0);
+    if (originalEntry === undefined) {
+      throw new Error("book fixture must contain an entry");
+    }
+    const different = book({ entries: [{ ...originalEntry, content: "another realm under the same book name" }] });
+
+    await op({ ownerId: owner.id, book: book() });
+    const second = await op({ ownerId: owner.id, book: different });
+    expect(second.name).toBe("Aria's World (2)");
+
+    const third = await op({ ownerId: owner.id, book: different });
+    expect(third).toEqual({ worldBookId: second.worldBookId, entryCount: 1, replaced: false, created: false, name: "Aria's World (2)", renamedFrom: null });
+    const again = await op({ ownerId: owner.id, book: book() });
+    expect(again.created).toBe(false);
+    expect((await db.select().from(worldBooks)).map((row) => row.name).toSorted()).toEqual(["Aria's World", "Aria's World (2)"]);
+  });
+
+  // THE STANDALONE PATH IS ADDITIVE (owner ruling): a same-named book with DIFFERENT content is never a
+  // replace target. The file lands beside it under the next free name, and every existing row keeps its
+  // entries. Two same-name owned books (a bundle restore) prove the free-name scan sees both.
+  test("a same-named DIFFERENT book lands beside the owned ones under the next free name; nothing is replaced", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const older = castId<WorldBookId>("world_book_aaa");
     const newer = castId<WorldBookId>("world_book_zzz");
-    // Inserted lowest-id-FIRST so storage-scan order is the opposite of the expected winner.
     await db.insert(worldBooks).values({ id: older, ownerId: owner.id, name: "Aria's World", description: null, createdAt: NOW });
-    await db.insert(worldBooks).values({ id: newer, ownerId: owner.id, name: "Aria's World", description: null, createdAt: NOW });
+    await db.insert(worldBooks).values({ id: newer, ownerId: owner.id, name: "Aria's World (2)", description: null, createdAt: NOW });
 
     const result = await createImportStandaloneLorebook(importCtx(db))({ ownerId: owner.id, book: book() });
 
-    expect(result).toEqual({ worldBookId: newer, entryCount: 1, replaced: true });
-    expect((await db.select().from(worldEntries)).map((entry) => entry.worldBookId)).toEqual([newer]);
+    expect(result).toEqual({
+      worldBookId: "world_book_00000000000000000000000001",
+      entryCount: 1,
+      replaced: false,
+      created: true,
+      name: "Aria's World (3)",
+      renamedFrom: "Aria's World",
+    });
+    // The two existing rows are untouched (still no entries); the new entry hangs off the new book only.
+    expect((await db.select().from(worldBooks)).map((row) => row.name).toSorted()).toEqual(["Aria's World", "Aria's World (2)", "Aria's World (3)"]);
+    expect((await db.select().from(worldEntries)).map((entry) => entry.worldBookId)).toEqual([result.worldBookId]);
+  });
+
+  test("a same-named EQUAL book reuses the owned row (created:false, nothing written)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const op = createImportStandaloneLorebook(importCtx(db));
+    const first = await op({ ownerId: owner.id, book: book() });
+    const second = await op({ ownerId: owner.id, book: book() });
+
+    expect(first.created).toBe(true);
+    expect(second).toEqual({ worldBookId: first.worldBookId, entryCount: 1, replaced: false, created: false, name: "Aria's World", renamedFrom: null });
+    expect(await db.select().from(worldBooks)).toHaveLength(1);
+    expect(await db.select().from(worldEntries)).toHaveLength(1);
   });
 });
 
@@ -317,7 +373,7 @@ describe("createAttachOwnedBooksByName", () => {
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const ctx = importCtx(db);
-    await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: book({ name: "Eldoria" }) });
+    await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: eldoria() });
     const op = createAttachOwnedBooksByName(ctx);
 
     const result = await op({ ownerId: owner.id, characterId: character.id, names: ["Eldoria", "Never Downloaded"], role: "primary" });
@@ -337,7 +393,7 @@ describe("createAttachOwnedBooksByName", () => {
     const ctx = importCtx(db);
     // The embedded `character_book` import runs FIRST in the profile-import ordering and takes primary.
     await createBulkImportLorebook(ctx)({ ownerId: owner.id, characterId: character.id, book: book({ name: "Embedded" }) });
-    await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: book({ name: "Eldoria" }) });
+    await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: eldoria() });
 
     const result = await createAttachOwnedBooksByName(ctx)({ ownerId: owner.id, characterId: character.id, names: ["Eldoria"], role: "primary" });
 
@@ -366,5 +422,29 @@ describe("createAttachOwnedBooksByName", () => {
     // Idempotent: the PK collision no-ops, the attach count stays 1.
     await op({ ownerId: owner.id, characterId: character.id, names: ["Extra Lore"], role: "auxiliary" });
     expect(await db.select().from(characterBooks)).toHaveLength(1);
+  });
+});
+
+describe("createBulkImportLorebook — entry titles are free", () => {
+  test("an embedded book whose entries share a title lands whole on the character", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const aria = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const op = createBulkImportLorebook(importCtx(db));
+    const originalEntry = book().entries.at(0);
+    if (originalEntry === undefined) {
+      throw new Error("book fixture must contain an entry");
+    }
+
+    const result = await op({
+      ownerId: owner.id,
+      characterId: aria.id,
+      book: book({ entries: [originalEntry, { ...originalEntry, content: "the same title again" }, { ...originalEntry, title: "", content: "untitled" }] }),
+    });
+
+    expect(result.created).toBe(true);
+    expect(result.entryCount).toBe(3);
+    expect(await db.select().from(worldEntries)).toHaveLength(3);
+    expect((await listCharacterBooks(db, owner.id, aria.id)).map((b) => b.id)).toEqual([result.worldBookId]);
   });
 });

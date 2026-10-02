@@ -5,10 +5,10 @@
 import type { ChatMetadata } from "@orb/contracts/chat";
 import type { PresetFile, StDroppedField } from "@orb/contracts/preset";
 import type { RegexScriptCard } from "@orb/contracts/regex";
-import type { ThemeOverride } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, PersonaId } from "@orb/kit/ids";
 import type { ParsedChat } from "#kit/serde/chat";
+import type { ParsedStTheme } from "#kit/serde/theme";
 
 /** name is the key an imported chat's user_name maps against (case-insensitively) to attribute messages. */
 export interface ParsedPersona {
@@ -55,13 +55,20 @@ export interface ImportFsPort {
 export interface CollectedChat {
   readonly parsed: ParsedChat;
   readonly importedFrom: string;
+  /** The transcript's content identity (`chatContentHash`). */
   readonly importHash: string;
+  /** The whole-file hash a row imported before the content identity carries (the write op's second lookup). */
+  readonly fileHash?: string;
 }
 
 /** domain/import can't reach domain/assets — cardBytes/filename ride through to the driver that stores them. */
 export interface CollectedCard {
   readonly handle: CharacterHandle;
   readonly cardBytes: Uint8Array;
+  /** The card's import identity (`parsedCardImportHash`) and the same without its art (`parsedCardTextHash`)
+   *  — what the dry run's create prediction asks by, in the one lookup order every door uses. */
+  readonly contentHash: string;
+  readonly textHash: string;
   readonly filename: string;
   /** The card's DISPLAY name off the parsed card. Carried because the ST group importer needs a card-name →
    *  seat fallback for pre-group-era transcript lines that carry no `original_avatar` filename; the handle is
@@ -154,32 +161,8 @@ export interface CollectedPreset {
   readonly sourceFile: string;
 }
 
-/** One ST `themes/*.json` mapped to an orb theme: the QUALIFIED name (`Azure (SillyTavern)` — the theme import
- *  op merges on (ownerId, name), so an unqualified name could overwrite the owner's own theme), the clamped
- *  token set, and the ST keys that carry a meaningful value but produce no orb theme token. */
-export interface ParsedStTheme {
-  readonly name: string;
-  readonly override: ThemeOverride;
-  /** ST theme keys present with a meaningful value that orb's THEME model has no seat for — several are
-   *  homed on the viewer's `appearance` namespace instead and import from `power_user` (see the reasons). */
-  readonly unmapped: readonly StDroppedField[];
-}
-
-/** An sRGB colour with straight (non-premultiplied) alpha; channels 0–255, alpha 0–1. The ST theme plane's
- *  intermediate: ST writes `rgba()` tints, `substrate/color.ts` flattens them here, and only the flattened
- *  result becomes an OKLCH token. Homed in the contract because two substrate files share it. */
-export interface SrgbColor {
-  readonly r: number;
-  readonly g: number;
-  readonly b: number;
-  readonly a: number;
-}
-
-/** One ST theme file's parse: the converted palette, or the REASON it could not convert. A refusal always
- *  carries its reason — "unreadable JSON" or "no base surface colour". The report prints it verbatim. */
-export type StThemeParse = { readonly ok: true; readonly parsed: ParsedStTheme } | { readonly ok: false; readonly reason: string };
-
-/** One collected ST theme + the `themes/<file>` path the report names. */
+/** One collected theme + the `themes/<file>` path the report names. `parsed` is the theme serde's ST shape
+ *  (an orb-native file dropped into `themes/` carries an empty `unmapped`). */
 export interface CollectedTheme {
   readonly parsed: ParsedStTheme;
   readonly sourceFile: string;
@@ -321,6 +304,8 @@ export interface ImportDryRunCensus {
  *  losslessly rather than being told nothing. */
 export interface ImportPresetNote {
   readonly name: string;
+  /** The file's own name when the landed name took a collision suffix (a different same-named preset exists). */
+  readonly renamedFrom: string | null;
   readonly sourceFile: string;
   readonly fields: readonly { readonly field: string; readonly reason: string }[];
   /** The preset's carried regex scripts, LIFTED into the library + attached to this preset (fresh rows). */
@@ -334,8 +319,22 @@ export interface ImportPresetNote {
  *  from "this palette was never looked at". */
 export interface ImportThemeNote {
   readonly name: string;
+  /** The file's own name when the landed name took a collision suffix (a different same-named theme exists). */
+  readonly renamedFrom: string | null;
   readonly sourceFile: string;
   readonly fields: readonly { readonly field: string; readonly reason: string }[];
+}
+
+/** One standalone world book the run landed: where it landed, and the SillyTavern activation fields its
+ *  entries keep stored but inert (owner ruling: kept untouched, shown as not active yet). */
+export interface ImportWorldNote {
+  readonly name: string;
+  /** The file's own name when the landed name took a collision suffix (a different same-named book exists). */
+  readonly renamedFrom: string | null;
+  readonly created: boolean;
+  readonly entries: number;
+  /** Each inert activation field present with a non-default value, with how many entries carry it. */
+  readonly inertFields: readonly { readonly field: string; readonly entries: number }[];
 }
 
 /** One ST group the importer could NOT turn into a room, with the reason (no member resolved, the chat write
@@ -431,6 +430,8 @@ export interface ImportReport {
   /** Per-imported-theme: which ST keys had no orb THEME seat, INCLUDING any individual colour dropped as
    *  unsafe with its measured contrast ratio. The honest half of "themes convert now". */
   readonly themeNotes: readonly ImportThemeNote[];
+  /** Per standalone world book the run landed: where it landed and the inert activation fields it keeps. */
+  readonly worldNotes: readonly ImportWorldNote[];
   /** ST background images CAS-stored and appended to `appearance.backgroundLibrary` (a re-run adds none —
    *  the CAS is content-addressed and the append dedups by assetId). */
   readonly backgroundsImported: number;

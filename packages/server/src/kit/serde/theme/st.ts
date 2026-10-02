@@ -1,15 +1,8 @@
-// domain/import/substrate/theme — the ST THEME-FILE parser: one `themes/<name>.json` in → an orb `ThemeOverride`
-// out, plus the honest per-file list of the ST keys that found no orb seat. Pure: bytes in, data out, null on
-// unparseable — never throws, so one bad theme is one skipped theme and never an aborted profile import.
+// The raw SillyTavern THEME grammar of the theme serde: one ST theme object in → an orb `ThemeOverride` out,
+// plus the per-file list of ST keys that found no orb seat. A theme carries colour only (D63/D71); the viewer
+// ergonomics keys ST bundles into a theme are homed on `appearance` and import from `power_user` instead.
 //
-// THE MAPPING IS SEVEN KEYS, AND THAT IS THE WHOLE PALETTE. ST's theme file (`getThemeObject` in ST's
-// `public/scripts/power-user.js` — 45 keys) is a PALETTE plus a pile of viewer ERGONOMICS toggles. orb splits
-// those two deliberately (D63/D71 + the card-embeddable partition): a THEME carries colour/atmosphere, the
-// VIEWER's own `appearance` settings carry size/density/what-is-shown. So the ergonomics keys are not "lossy"
-// here, they are HOMED ELSEWHERE — and the ACTIVE values of most of them DO import, out of `settings.json`'s
-// `power_user` section (see `substrate/appearance.ts`). Each reported reason says which.
-//
-// The seven that map, with ST's own CSS-variable names as the semantic receipt:
+// The seven that map, with ST's own CSS-variable names:
 //   main_text_color            (--SmartThemeBodyColor)          → bodyColor
 //   italics_text_color         (--SmartThemeEmColor)            → narrationColor   (ST italicises narration/action)
 //   quote_text_color           (--SmartThemeQuoteColor)         → dialogueColor    (orb's `colorQuotedSpeech` is
@@ -19,36 +12,42 @@
 //   bot_mes_blur_tint_color    (--SmartThemeBotMesBlurTintColor) → aiBubble.bg
 //   border_color               (--SmartThemeBorderColor)        → borderColor      (the schema's own "(ST parity)")
 // `chat_tint_color` is CONSUMED but emits no token — it is the surface ST paints the message tints onto, so it
-// is the compositing backdrop (see `substrate/color.ts` for why every tint is flattened).
+// is the compositing backdrop (`./color.ts` says why every tint is flattened).
 //
-// THE CONVERSION ENTERS ORB'S TOTAL THEME DERIVATION (owner ruling: "if we can do it safely"). Orb never
-// lets a semantic foreground be picked: ThemeScope derives each one against its actual surface, and every
-// accepted base/bubble lightness is total. This importer therefore preserves the flattened base and bubble
-// intent instead of maintaining a narrower server-only acceptance band. One safety gate remains:
-//   • each AUTHORED TEXT colour is kept only if IT clears AA against the surface it will actually render on
-//     — the one place ST can hand orb an unsafe pair the derivation cannot fix, because ST painted that text
-//     over a background PHOTO orb does not reproduce.
-// A dropped colour is reported with its MEASURED ratio and the base palette's own (provably safe) value shows
-// through. Nothing is ever forced through raw.
+// THE SAFETY GATE (owner ruling: convert "if we can do it safely"): orb derives every semantic foreground
+// against its actual surface, so flattened base and bubble intent is preserved whole. Each AUTHORED TEXT
+// colour is kept only if it clears AA against the surface it renders on — the one pair the derivation cannot
+// fix, because ST painted that text over a background PHOTO orb does not reproduce. A dropped colour is
+// reported with its MEASURED ratio and the base palette's own value shows through.
 //
-// NAMES ARE QUALIFIED (`Azure (SillyTavern)`) for the same reason preset names are: the theme import op is
-// idempotent on (ownerId, name) and MERGES a same-named theme IN PLACE. ST ships themes called `Dark Lite` and
-// `Azure`; an unqualified import could silently overwrite an owner's own theme of that name. Seed palettes are
-// `ownerId IS NULL` and unreachable by that write either way, so an orb default can never be clobbered.
+// NAMES ARE QUALIFIED (`Azure (SillyTavern)`): ST ships themes called `Dark Lite` and `Azure`, and the import
+// is additive by name, so an unqualified import would land beside an owner's own theme as a numbered copy.
 
 import type { StDroppedField } from "@orb/contracts/preset";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { isPlainObject } from "@orb/kit/guards";
 import type { Oklch } from "@orb/kit/theme-derivation";
 import { AA_NORMAL_RATIO, oklchToSrgb, wcagContrastRatio } from "@orb/kit/theme-derivation";
-import type { SrgbColor, StThemeParse } from "../contract/views.ts";
+import type { SrgbColor } from "./color.ts";
 import { compositeOver, oklchLiteral, opaque, parseSrgb, toOklch } from "./color.ts";
+
+/** One ST theme mapped to an orb theme: the QUALIFIED name, the clamped token set, and the ST keys that
+ *  carry a meaningful value but produce no orb theme token. */
+export interface ParsedStTheme {
+  readonly name: string;
+  readonly override: ThemeOverride;
+  /** ST theme keys present with a meaningful value that orb's THEME model has no seat for — several are
+   *  homed on the viewer's `appearance` namespace instead and import from `power_user` (see the reasons). */
+  readonly unmapped: readonly StDroppedField[];
+}
+
+/** One ST theme's parse: the converted palette, or the REASON it could not convert ("not a JSON object",
+ *  "no base surface colour"). A refusal always carries its reason; the report prints it verbatim. */
+export type StThemeParse = { readonly ok: true; readonly parsed: ParsedStTheme } | { readonly ok: false; readonly reason: string };
 
 /** Ratio decimals in a refusal reason — enough to act on, not enough to read as false precision. */
 const RATIO_PRECISION = 2;
 
-/** The ST profile SUBDIRECTORY holding saved UI themes. */
-export const ST_THEME_DIR = "themes";
 /** The name qualifier — see the module header for why every imported theme carries one. */
 const SOURCE_LABEL = "SillyTavern";
 
@@ -212,15 +211,4 @@ export function stThemeFromJson(raw: unknown, stem: string): StThemeParse {
     ...(borderColor === null ? {} : { borderColor: oklchLiteral(borderColor) }),
   };
   return { ok: true, parsed: { name: stThemeName(themeLabel(raw, stem)), override, unmapped } };
-}
-
-/** Parse one `themes/<stem>.json`. Every refusal carries its reason — the report never says "skipped". */
-export function parseStThemeFile(bytes: Uint8Array, stem: string): StThemeParse {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(new TextDecoder("utf-8").decode(bytes));
-  } catch {
-    return { ok: false, reason: "not readable as JSON" };
-  }
-  return stThemeFromJson(raw, stem);
 }

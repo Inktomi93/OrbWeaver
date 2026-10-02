@@ -22,8 +22,9 @@ import { requireProfile } from "../guard.ts";
 
 /** One theme's lossiness note — emitted for EVERY imported theme, empty `fields` included, so the operator can
  *  tell "this palette landed whole" apart from "this palette was never looked at". */
-function noteFor(t: CollectedTheme): ImportThemeNote {
-  return { name: t.parsed.name, sourceFile: t.sourceFile, fields: t.parsed.unmapped };
+function noteFor(t: CollectedTheme, landed: { readonly name: string; readonly renamedFrom: string | null } | undefined): ImportThemeNote {
+  const where = landed ?? { name: t.parsed.name, renamedFrom: null };
+  return { name: where.name, renamedFrom: where.renamedFrom, sourceFile: t.sourceFile, fields: t.parsed.unmapped };
 }
 
 export function createImportThemes(ctx: ImportContext): Pick<ImportService, "importThemes"> {
@@ -53,11 +54,11 @@ export function createImportThemes(ctx: ImportContext): Pick<ImportService, "imp
         continue;
       }
       themesImported += 1;
-      // Only a CREATE is net-new canon; a merge is the idempotent re-run path (the preset wave's line).
+      // Only a CREATE is net-new canon; a reused equal theme is the idempotent re-run path (the preset wave's line).
       if (outcome.created === true) {
         themesCreated += 1;
       }
-      notes.push(noteFor(t));
+      notes.push(noteFor(t, outcome.landed?.[0]));
     }
     return { themesImported, themesCreated, skippedThemes, notes };
   }

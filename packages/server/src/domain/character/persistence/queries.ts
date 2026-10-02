@@ -627,6 +627,26 @@ export async function findByOwnerImportHash(db: Db, ownerId: UserId, importHash:
   return rows[0]?.id;
 }
 
+/** Give an art-less owned character its avatar and re-key its import identity in ONE conditional write. True
+ *  when the row took the art; false when it already had one (nothing written). */
+export async function attachArtIfMissing(
+  db: Db,
+  {
+    ownerId,
+    characterId,
+    avatarAssetId,
+    importHash,
+    at,
+  }: { ownerId: UserId; characterId: CharacterId; avatarAssetId: AssetId; importHash: string; at: number },
+): Promise<boolean> {
+  const rows = await db
+    .update(characters)
+    .set({ avatarAssetId, importHash, updatedAt: at })
+    .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId), isNull(characters.avatarAssetId)))
+    .returning({ id: characters.id });
+  return rows.length > 0;
+}
+
 /** Batched provenance oracle: the owner's characters whose `importedFrom` is any of `values` (one indexed
  *  `IN` read). Empty `values` short-circuits to no rows (never a bare `IN ()`). Owner-scoped in the WHERE, so
  *  a different owner's same-provenance card is never returned. */

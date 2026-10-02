@@ -64,6 +64,14 @@ interface LinkBooksCall {
   readonly refs: readonly AttachedBookRef[];
 }
 
+/** One recorded `attachImportedArt` call (the JSON-then-PNG exception). */
+interface ArtAttachCall {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly avatarAssetId: AssetId;
+  readonly importHash: string;
+}
+
 export interface ImportHarness {
   readonly ctx: ImportContext;
   readonly ownerId: UserId;
@@ -78,6 +86,10 @@ export interface ImportHarness {
   readonly lorebooks: LorebookCall[];
   /** Every attached-book re-link the verb issued (the injected `linkCarriedBooks` op). */
   readonly linkBooks: LinkBooksCall[];
+  /** Every art attach the verb asked for (a PNG meeting a row that landed from a JSON card). */
+  readonly artAttaches: ArtAttachCall[];
+  /** Whether the fake `attachImportedArt` reports the row TOOK the art (default) or already had some. */
+  readonly setArtAttach: (took: boolean) => void;
   /** Set what the fake `linkCarriedBooks` returns for the NEXT calls (default: links every carried ref). The
    *  verb skips the embedded-clone fallback when `linked > 0`, so this drives the same-vs-foreign-install split. */
   readonly setLinkOutcome: (outcome: (refs: readonly AttachedBookRef[]) => { linked: number; skipped: number }) => void;
@@ -103,6 +115,8 @@ export function makeHarness(): ImportHarness {
   const tagAttaches: TagAttachCall[] = [];
   const lorebooks: LorebookCall[] = [];
   const linkBooks: LinkBooksCall[] = [];
+  const artAttaches: ArtAttachCall[] = [];
+  let artAttach = true;
   let linkOutcome: (refs: readonly AttachedBookRef[]) => { linked: number; skipped: number } = (refs) => ({ linked: refs.length, skipped: 0 });
   let primaryBookTaken = false;
   const existingByHash = new Map<string, CharacterId>();
@@ -134,6 +148,10 @@ export function makeHarness(): ImportHarness {
       stores.push(args);
       return Promise.resolve(STORED_ASSET_ID);
     },
+    attachImportedArt: (args): Promise<boolean> => {
+      artAttaches.push(args);
+      return Promise.resolve(artAttach);
+    },
     attachCardTag: (args): Promise<boolean> => {
       tagAttaches.push(args);
       return Promise.resolve(true);
@@ -144,6 +162,9 @@ export function makeHarness(): ImportHarness {
         worldBookId: castId<WorldBookId>("world_book_00000000000000000000000000"),
         entryCount: args.book.entries.length,
         replaced: false,
+        created: true,
+        name: args.book.name,
+        renamedFrom: null,
       });
     },
     hasPrimaryBook: (): Promise<boolean> => Promise.resolve(primaryBookTaken),
@@ -164,6 +185,10 @@ export function makeHarness(): ImportHarness {
     tagAttaches,
     lorebooks,
     linkBooks,
+    artAttaches,
+    setArtAttach: (took): void => {
+      artAttach = took;
+    },
     setLinkOutcome: (outcome): void => {
       linkOutcome = outcome;
     },
@@ -298,6 +323,7 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
     findByHandle: inert,
     findByName: inert,
     storeAsset: inert,
+    attachImportedArt: inert,
     attachCardTag: inert,
     profile,
   };

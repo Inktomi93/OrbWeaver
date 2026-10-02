@@ -1,11 +1,11 @@
-// Mirror test for domain/import/substrate/color — the ST→orb colour conversion the theme plane rests on.
+// Mirror test for kit/serde/theme/color — the ST→orb colour conversion the theme serde's ST grammar rests on.
 // Pins the three things a wrong answer here would silently corrupt every imported palette with: the sRGB
 // parse surface (ST writes `rgba()`; a hand-edited theme may write hex), the alpha FLATTENING (ST tints are
 // layered over a backdrop and orb's base surface must be opaque), and the sRGB→OKLCH transform against
 // PUBLISHED reference values (a transposed matrix coefficient produces plausible-looking wrong colours).
 
 import { describe } from "vitest";
-import { compositeOver, oklchLiteral, opaque, parseSrgb, toOklch } from "../../../../../packages/server/src/domain/import/substrate/color.ts";
+import { compositeOver, oklchLiteral, opaque, parseSrgb, toOklch } from "../../../../../packages/server/src/kit/serde/theme/color.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The literal for a colour string, or null when it does not parse — the whole pipeline in one call. */

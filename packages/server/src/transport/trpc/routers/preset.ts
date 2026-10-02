@@ -55,7 +55,7 @@ export const presetRouter = t.router({
         config: promptConfigWriteSchema.optional(),
         // The copy-on-write fork intent (only meaningful when `id` is the system default) — absent means
         // `converge`, the historical silent behavior. `name` is required and non-empty on the "new" arm so a
-        // nameless mint is unrepresentable; the verb de-collides it (`uniquePresetName`).
+        // nameless mint is unrepresentable; the verb de-collides it (`nextFreeName`).
         fork: z
           .discriminatedUnion("mode", [z.object({ mode: z.literal("converge") }), z.object({ mode: z.literal("new"), name: z.string().min(1) })])
           .optional(),

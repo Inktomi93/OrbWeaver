@@ -38,9 +38,10 @@ const noopAssets: ImportAssetPort = {
 // The handle-suffix disambiguation loop (`freeHandle`) is pinned at the domain level; these driver tests
 // don't exercise it — `findByHandle` always misses (#1470 dropped `ImportCharacterPort`'s `update` op
 // entirely — the earlier handle-match edit-in-place this stub backed no longer exists).
-const noHandleMatch: Pick<ImportCharacterPort, "findByHandle" | "findByName"> = {
+const noHandleMatch: Pick<ImportCharacterPort, "findByHandle" | "findByName" | "attachImportedArt"> = {
   findByHandle: (): Promise<null> => Promise.resolve(null),
   findByName: (): Promise<readonly never[]> => Promise.resolve([]),
+  attachImportedArt: (): Promise<boolean> => Promise.resolve(false),
 };
 
 interface TagAttachCall {
@@ -183,6 +184,33 @@ describe("runProfileImport", () => {
     });
 
     expect(seenOwner).toBe(OWNER.userId);
+  });
+
+  test("threads the card regex-script lift, so a card's embedded scripts reach the regex domain through this door", async () => {
+    const character: ImportCharacterPort = {
+      create: (): Promise<{ id: CharacterId }> => Promise.resolve({ id: castId<CharacterId>("chr_scripted") }),
+      findByImportHash: (): Promise<null> => Promise.resolve(null),
+      ...noHandleMatch,
+    };
+    // Raw ST wire TEXT (snake_case by spec) — the format IS the fixture.
+    const withScripts =
+      '{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Scripted","description":"x","extensions":{"regex_scripts":[{"id":"st-1","scriptName":"Trim ellipsis","findRegex":"/\\\\.{3}/g","replaceString":"…","placement":[2],"disabled":false}]}}}';
+    const lifts: { readonly characterId: CharacterId; readonly scripts: number }[] = [];
+
+    const result = await runProfileImport({
+      principal: OWNER,
+      character,
+      assets: noopAssets,
+      tag: noopTag,
+      importCardScripts: ({ characterId, scripts }) => {
+        lifts.push({ characterId, scripts: scripts.length });
+        return Promise.resolve({ created: scripts.length, reused: 0 });
+      },
+      files: [{ bytes: new TextEncoder().encode(withScripts), filename: "scripted.json" }],
+    });
+
+    expect(result.failed).toHaveLength(0);
+    expect(lifts).toEqual([{ characterId: "chr_scripted", scripts: 1 }]);
   });
 
   test("carries the card's tags as card/pending suggestions to the created character", async () => {

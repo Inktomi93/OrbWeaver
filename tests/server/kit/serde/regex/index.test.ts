@@ -75,3 +75,46 @@ describe("parseRegexScriptFile", () => {
     expect(refusalOf(parseRegexScriptFile(ENC.encode(JSON.stringify({ schemaKind: REGEX_SCRIPT_SCHEMA_KIND, schemaVersion: 1, name: "" }))))).toBe("malformed");
   });
 });
+
+describe("parseRegexScriptFile — a raw SillyTavern regex export", () => {
+  // The genuine ST spelling: `scriptName`, INTEGER placements, `disabled`, and the ST-only depth pair.
+  const StExport =
+    '{"id":"1a2b","scriptName":"Trim ellipsis","findRegex":"/\\\\.{3}/g","replaceString":"…","trimStrings":["  "],"placement":[1,2],"disabled":true,"markdownOnly":false,"promptOnly":true,"runOnEdit":false,"substituteRegex":0,"minDepth":null,"maxDepth":null}';
+
+  test("parses through the ONE ST normalization: name, find/replace, numeric placements converted, disabled mapped", () => {
+    const script = must(parseRegexScriptFile(ENC.encode(StExport)));
+    expect(script.name).toBe("Trim ellipsis");
+    expect(script.findRegex).toBe("/\\.{3}/g");
+    expect(script.replaceString).toBe("…");
+    expect(script.placement).toEqual(["USER_INPUT", "AI_OUTPUT"]);
+    expect(script.enabled).toBe(false);
+    expect(script.promptOnly).toBe(true);
+    expect(script.trimStrings).toEqual(["  "]);
+    expect(script.global).toBe(false);
+    // ST's id is ST's own; the library mints its row id.
+    expect("id" in script).toBe(false);
+  });
+
+  test("the ST script re-emits as a native file that round-trips (one canonical value under both grammars)", () => {
+    const script = must(parseRegexScriptFile(ENC.encode(StExport)));
+    const native = must(parseRegexScriptFile(buildRegexScriptFile(script)));
+    expect(native).toEqual(script);
+  });
+
+  test("an ST script carrying a placement orb has no leg for drops the MEMBER, never the script", () => {
+    const withSlash = StExport.replace('"placement":[1,2]', '"placement":[3,2]');
+    expect(must(parseRegexScriptFile(ENC.encode(withSlash))).placement).toEqual(["AI_OUTPUT"]);
+  });
+
+  test("ST's older BOOLEAN substituteRegex maps onto the kit enum (true = raw, false = none)", () => {
+    const raw = JSON.stringify({ id: "1a2b", scriptName: "Sub", findRegex: "a", replaceString: "b", placement: [2], substituteRegex: true });
+    expect(must(parseRegexScriptFile(ENC.encode(raw))).substituteRegex).toBe(SubstituteFindRegex.raw);
+    const none = raw.replace('"substituteRegex":true', '"substituteRegex":false');
+    expect(must(parseRegexScriptFile(ENC.encode(none))).substituteRegex).toBe(SubstituteFindRegex.none);
+  });
+
+  test("a JSON object in neither grammar is still `malformed`; an enveloped foreign kind stays `foreign-kind`", () => {
+    expect(refusalOf(parseRegexScriptFile(ENC.encode(JSON.stringify({ name: "x", entries: {} }))))).toBe("malformed");
+    expect(refusalOf(parseRegexScriptFile(ENC.encode(JSON.stringify({ schemaKind: "orb.theme", schemaVersion: 1, scriptName: "x" }))))).toBe("foreign-kind");
+  });
+});

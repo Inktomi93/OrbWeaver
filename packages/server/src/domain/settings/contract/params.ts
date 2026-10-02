@@ -78,6 +78,13 @@ export interface DuplicateThemeParams extends ThemeActorParams {
   readonly name?: string;
 }
 
+/** The single-theme IMPORT door. The FILE is the unit — the same bytes the bundle descriptor handles.
+ *  `filename` names a raw SillyTavern theme; its stem becomes the theme name when the file carries none. */
+export interface ImportThemeFileParams extends ThemeActorParams {
+  readonly fileText: string;
+  readonly filename?: string;
+}
+
 export interface UpdateThemeParams extends ThemeActorParams {
   readonly id: ThemeId;
   readonly input: UpdateThemeInput;

@@ -119,6 +119,9 @@ export interface BulkImportChatInput {
   readonly title: string;
   readonly importedFrom: string;
   readonly importHash: string;
+  /** The whole-file hash a row imported before the content identity carries; the claim lookup tries it after
+   *  `importHash`. Absent for a door whose file hash IS its identity (the orb-native chat bundle). */
+  readonly fileHash?: string;
   readonly anchorPersonaId: PersonaId | null;
   readonly createdAt: number;
   readonly updatedAt: number;

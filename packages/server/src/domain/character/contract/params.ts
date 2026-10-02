@@ -6,7 +6,7 @@ import type { CharacterListCursor, CharacterListSort, CreateCharacterInput, Upda
 
 import type { Principal } from "@orb/contracts/identity";
 import type { GreetingTransformId } from "@orb/contracts/preset";
-import type { CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, TagId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, TagId, UserId } from "@orb/kit/ids";
 
 export type { CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
 
@@ -189,6 +189,15 @@ export interface FindGroupCharParams {
 /** Re-import dedup lookup (import-injected, internal): the owner's character already carrying importHash. */
 export interface FindByImportHashParams {
   readonly ownerId: UserId;
+  readonly importHash: string;
+}
+
+/** The JSON-then-PNG exception of the import identity (import-injected, internal): the owner's character that
+ *  landed from a JSON card takes this stored art and the with-art `importHash`, once. */
+export interface AttachImportedArtParams {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly avatarAssetId: AssetId;
   readonly importHash: string;
 }
 

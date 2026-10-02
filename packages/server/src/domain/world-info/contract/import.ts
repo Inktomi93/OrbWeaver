@@ -36,23 +36,27 @@ export type HasPrimaryBook = (args: { readonly ownerId: UserId; readonly charact
 
 // ── the STANDALONE (unattached) path — the worlds/*.json portability lane ──────────
 
-/** Lands a lone book with NO character attach; dedupes on (ownerId, name): existing book edited in place,
- *  otherwise a fresh unattached book is created. */
+/** Lands a lone book with NO character attach, additively: equal content under the same name reuses the owned
+ *  row; different content lands as a fresh book under the next free name. Never edits an owned book. */
 export type ImportStandaloneLorebook = (args: { readonly ownerId: UserId; readonly book: BulkImportLorebookInput }) => Promise<BulkImportLorebookResult>;
 
 export interface ImportWorldBookContext {
   readonly importStandalone: ImportStandaloneLorebook;
 }
 
-/** ok:false + error for a malformed upload (never thrown); created:false when a same-named book was replaced. */
+/** ok:false + error for a malformed upload (never thrown); created:false when the book content-matched an
+ *  owned book. `name` is the landed name; `renamedFrom` the file's own name when a collision suffix applied. */
 export interface ImportWorldBookOutcome {
   readonly ok: boolean;
   readonly created?: boolean;
+  readonly name?: string;
+  readonly renamedFrom?: string | null;
   readonly error?: string;
 }
 
-/** Never throws for a malformed file — returns \{ ok:false, error \}. */
-export type ImportWorldBook = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<ImportWorldBookOutcome>;
+/** Never throws for a malformed file — returns \{ ok:false, error \}. `filename` names a raw SillyTavern
+ *  world file (its stem is the book name); an orb-native file carries its own name. */
+export type ImportWorldBook = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array; readonly filename?: string }) => Promise<ImportWorldBookOutcome>;
 
 // ── the character.duplicate CARRY ─────────────────────────────────────────
 

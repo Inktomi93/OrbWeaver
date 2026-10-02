@@ -11,11 +11,12 @@ import { characterCardV3Schema } from "@orb/contracts/character";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import { messageRoleToSt } from "@orb/kit/message-role";
 import { matchEntryKeys } from "@orb/kit/world-info";
-import type { ExportCardFields } from "@orb/server/kit/serde/card";
+import type { CardImportIdentity, ExportCardFields, ExportWorldEntry } from "@orb/server/kit/serde/card";
 import {
   buildCardV3,
   cardContentHash,
   cardFromJson,
+  cardImportHash,
   exportBookEntry,
   extractLorebook,
   loreEntryColumns,
@@ -838,5 +839,142 @@ describe("the WI-entry round-trip (IN ∘ OUT is the exact inverse — byte-iden
     expect(matchEntryKeys(["dr."], "the dru walked in")).toEqual([]);
     const out = exportBookEntry({ keys: ["dr."], content: "c", enabled: true, priority: 0, title: "t", ignoreBudget: false, metadata: meta });
     expect(out["use_regex"]).toBe(false);
+  });
+});
+
+describe("cardImportHash — the character import identity", () => {
+  const identity = (over: Partial<CardImportIdentity> = {}): CardImportIdentity => ({
+    card: cardFromJson({ spec: "chara_card_v3", spec_version: "3.0", data: { name: "Harbor", description: "a port", creator_notes: "v1" } }, "Harbor"),
+    book: null,
+    artHash: null,
+    ...over,
+  });
+
+  test("the embedded book's identity is residue-free: an export's normalized entry spellings are the import's book", () => {
+    const entry = { title: "Tide", description: null, content: "x", keys: ["tide"], enabled: true, priority: 1, ignoreBudget: false };
+    // The import keeps the raw entry as lossless metadata; the export re-writes it with every normalized field.
+    const imported = identity({
+      book: {
+        name: "Harbor Lore",
+        description: null,
+        entries: [{ ...entry, metadata: { keys: ["tide"], content: "x", comment: "Tide", insertion_order: 1 } }],
+      },
+    });
+    const exported = identity({
+      book: {
+        name: "Harbor Lore",
+        description: null,
+        entries: [
+          {
+            ...entry,
+            metadata: { keys: ["tide"], content: "x", comment: "Tide", insertion_order: 1, enabled: true, constant: false, use_regex: false, extensions: {} },
+          },
+        ],
+      },
+    });
+    expect(cardImportHash(exported)).toBe(cardImportHash(imported));
+    // A semantic metadata key IS identity.
+    const scoped = identity({ book: { name: "Harbor Lore", description: null, entries: [{ ...entry, metadata: { scopeMode: "always" } }] } });
+    expect(cardImportHash(scoped)).not.toBe(cardImportHash(imported));
+  });
+
+  test("a kept ST activation field is identity when set, and its default spelling is not", () => {
+    const entry = { title: "Tide", description: null, content: "x", keys: ["tide"], enabled: true, priority: 1, ignoreBudget: false };
+    const bookWith = (metadata: Record<string, unknown> | null): CardImportIdentity =>
+      identity({ book: { name: "Harbor Lore", description: null, entries: [{ ...entry, metadata }] } });
+    const base = cardImportHash(bookWith(null));
+    // An edit made in SillyTavern to a field orb keeps inert is a different book — the kept value is data.
+    expect(cardImportHash(bookWith({ probability: 50, useProbability: true }))).not.toBe(base);
+    expect(cardImportHash(bookWith({ sticky: 3 }))).not.toBe(base);
+    expect(cardImportHash(bookWith({ keysecondary: ["moon"] }))).not.toBe(base);
+    // An export that writes the ST defaults spells the same book.
+    expect(cardImportHash(bookWith({ probability: 100, useProbability: true, sticky: 0, cooldown: 0, excludeRecursion: false, keysecondary: [] }))).toBe(base);
+  });
+
+  test("art is identity: one text under two pictures is two characters; the wire spec is not identity", () => {
+    const base = cardImportHash(identity());
+    const painted = cardImportHash(identity({ artHash: "a".repeat(64) }));
+    expect(painted).not.toBe(base);
+    expect(cardImportHash(identity({ artHash: "b".repeat(64) }))).not.toBe(painted);
+    // A V2 card and the V3 the export writes it back as are one character (the row keeps no spec).
+    const v2 = cardFromJson({ spec: "chara_card_v2", spec_version: "2.0", data: { name: "Harbor", description: "a port", creator_notes: "v1" } }, "Harbor");
+    expect(cardImportHash(identity({ card: v2 }))).toBe(base);
+  });
+
+  test("the parsed content hashes the same under any wire key order (two files, one character)", () => {
+    const reordered = cardFromJson(
+      { data: { creator_notes: "v1", description: "a port", name: "Harbor" }, spec_version: "3.0", spec: "chara_card_v3" },
+      "Harbor",
+    );
+    expect(cardImportHash(identity({ card: reordered }))).toBe(cardImportHash(identity()));
+  });
+
+  test("a note, an embedded book or a script changes the identity, even under the same name", () => {
+    const base = cardImportHash(identity());
+    const noted = cardFromJson({ spec: "chara_card_v3", spec_version: "3.0", data: { name: "Harbor", description: "a port", creator_notes: "v2" } }, "Harbor");
+    expect(cardImportHash(identity({ card: noted }))).not.toBe(base);
+    expect(
+      cardImportHash(
+        identity({
+          book: {
+            name: "Harbor Lore",
+            description: null,
+            entries: [{ title: "Tide", description: null, content: "x", keys: [], enabled: true, priority: 0, ignoreBudget: false, metadata: null }],
+          },
+        }),
+      ),
+    ).not.toBe(base);
+    const scripted = cardFromJson(
+      {
+        spec: "chara_card_v3",
+        spec_version: "3.0",
+        data: {
+          name: "Harbor",
+          description: "a port",
+          creator_notes: "v1",
+          extensions: { regex_scripts: [{ id: "s1", name: "Trim", findRegex: "a", replaceString: "b", placement: ["AI_OUTPUT"] }] },
+        },
+      },
+      "Harbor",
+    );
+    expect(cardImportHash(identity({ card: scripted }))).not.toBe(base);
+  });
+
+  test("a script's id is provenance, not identity: the same script under another id is the same character", () => {
+    const withId = (id: string): CharacterCard =>
+      cardFromJson(
+        {
+          spec: "chara_card_v3",
+          spec_version: "3.0",
+          data: {
+            name: "Harbor",
+            description: "a port",
+            extensions: { regex_scripts: [{ id, name: "Trim", findRegex: "a", replaceString: "b", placement: ["AI_OUTPUT"] }] },
+          },
+        },
+        "Harbor",
+      );
+    expect(cardImportHash(identity({ card: withId("st-client-id") }))).toBe(cardImportHash(identity({ card: withId("regex_script_01library0000000000000") })));
+  });
+});
+
+describe("buildCardV3 — the embedded book carries its own name", () => {
+  const entry: ExportWorldEntry = {
+    keys: ["tide"],
+    content: "The tide turns.",
+    enabled: true,
+    priority: 0,
+    title: "Tide",
+    ignoreBudget: false,
+    metadata: null,
+  };
+
+  test("a named primary book emits `character_book.name`; a nameless one emits its entries only", () => {
+    const named = buildCardV3({ ...fullFields(), bookName: "Harbor Lore" }, [entry]);
+    const namedBook = (named.data as Record<string, unknown>)["character_book"] as { readonly name?: unknown; readonly entries: unknown[] };
+    expect(namedBook.name).toBe("Harbor Lore");
+    expect(namedBook.entries).toHaveLength(1);
+    const nameless = buildCardV3(fullFields(), [entry]);
+    expect("name" in ((nameless.data as Record<string, unknown>)["character_book"] as object)).toBe(false);
   });
 });

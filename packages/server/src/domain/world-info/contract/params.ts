@@ -25,9 +25,11 @@ export interface ExportBookParams extends WorldInfoActorParams {
   readonly bookId: WorldBookId;
 }
 
-/** The single-book IMPORT door (F2). The FILE is the unit — the same bytes the bundle descriptor handles. */
+/** The single-book IMPORT door. The FILE is the unit — the same bytes the bundle descriptor handles.
+ *  `filename` names a raw SillyTavern world file; its stem becomes the book name. */
 export interface ImportBookFileParams extends WorldInfoActorParams {
   readonly fileText: string;
+  readonly filename?: string;
 }
 
 export interface GetBookParams extends WorldInfoActorParams {

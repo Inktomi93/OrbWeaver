@@ -13,6 +13,8 @@ import { createDuplicateTheme } from "./verbs/duplicate-theme.ts";
 import { createGetTheme } from "./verbs/get-theme.ts";
 import { createGetUserSettings } from "./verbs/get-user-settings.ts";
 import { createGlobalSettings } from "./verbs/global-settings.ts";
+import { createImportTheme } from "./verbs/import-theme.ts";
+import { createImportThemeFile } from "./verbs/import-theme-file.ts";
 import { createListThemes } from "./verbs/list-themes.ts";
 import { createLoadUserSettings } from "./verbs/load-user-settings.ts";
 import { createPromoteTheme } from "./verbs/promote-theme.ts";
@@ -47,5 +49,8 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
     duplicateTheme: createDuplicateTheme(ctx).duplicateTheme,
     updateTheme: createUpdateTheme(ctx).updateTheme,
     removeTheme: createRemoveTheme(ctx).removeTheme,
+    // The single-theme door is a thin arm over the SAME import op the bundle descriptor and the profile
+    // import compose, so one parser and one collision rule serve every door.
+    importThemeFile: createImportThemeFile({ importTheme: createImportTheme(ctx) }).importThemeFile,
   };
 }

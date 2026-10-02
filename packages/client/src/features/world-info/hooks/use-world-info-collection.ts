@@ -81,10 +81,31 @@ export function useCreateWorldInfoMember(): () => void {
   };
 }
 
-/** The import runner — one portable book file, through the SAME thin-arm verb the backup bundle calls, so a
- *  shared book and a restored one can never diverge. The SERVER's refusal reason is what the reader sees:
- *  "written by a newer version of orbweaver" is a different problem from "that isn't a world-info book", and
- *  only the difference is actionable. */
+/** The toast for a landed book: imported, imported under a numbered name beside a different same-named
+ *  book, or already in the library (equal content, nothing written). */
+function importedBookMessage({
+  created,
+  name,
+  renamedFrom,
+}: {
+  readonly created: boolean;
+  readonly name: string | null;
+  readonly renamedFrom: string | null;
+}): string {
+  if (!created) {
+    return "That book is already in your library — nothing was added.";
+  }
+  if (renamedFrom !== null) {
+    return `Imported as “${name ?? renamedFrom}” — you already have a different “${renamedFrom}”.`;
+  }
+  return "Book imported.";
+}
+
+/** The import runner — one book file (an Orbweaver export or a raw SillyTavern world file, named from the
+ *  file), through the SAME thin-arm verb the backup bundle calls, so a shared book and a restored one can
+ *  never diverge. The SERVER's refusal reason is what the reader sees: "written by a newer version of
+ *  orbweaver" is a different problem from "that isn't a world-info book", and only the difference is
+ *  actionable. */
 export function useImportWorldInfoMember(): (file: File) => void {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -92,9 +113,9 @@ export function useImportWorldInfoMember(): (file: File) => void {
   return (file: File): void => {
     void file
       .text()
-      .then((fileText) => importBook.mutateAsync({ fileText }))
-      .then(({ created }) => {
-        notify.success(created ? "Book imported." : "Book merged into the one with the same name.");
+      .then((fileText) => importBook.mutateAsync({ fileText, filename: file.name }))
+      .then((outcome) => {
+        notify.success(importedBookMessage(outcome));
       })
       .catch((error: unknown) => {
         notify.error(error instanceof Error ? error.message : "Couldn't import the book.");

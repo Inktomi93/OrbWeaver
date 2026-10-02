@@ -2,9 +2,10 @@
 // plugin-ingested BEFORE #1702 minted `importedFrom`. Those rows carry `importedFrom: null` and still read
 // "Made here" (`characterProvenanceOf` collapses a null `importedFrom` to `authored`).
 //
-// THE CANDIDATE SET IS ALREADY TIGHT WITHOUT THE RESERVED KEY. `importHash` is stamped by `importFileHash`
-// for every row that went through the import funnel (file upload OR plugin ingest) and stays NULL for an
-// authored row (`schema/character.ts`: "Null when authored"); post-#1702 every import ALSO stamps
+// THE CANDIDATE SET IS ALREADY TIGHT WITHOUT THE RESERVED KEY. `importHash` is stamped by the import funnel
+// (the card's import identity, `cardImportHash`; the whole-file hash on rows imported before it) for every
+// row that went through it (file upload OR plugin ingest) and stays NULL for an authored row
+// (`schema/character.ts`: "Null when authored"); post-#1702 every import ALSO stamps
 // `importedFrom` (a filename, or the plugin marker). So `importedFrom IS NULL AND importHash IS NOT NULL`
 // already means "this row was imported, but provenance was never stamped" — which, after #1702 shipped, is
 // reachable ONLY by a pre-#1702 plugin ingest. That pair is the CANDIDATE predicate; the reserved key below
@@ -16,11 +17,10 @@
 // carrying no such key, or naming a slug this owner has since uninstalled, has no recoverable plugin identity
 // and is left authored (counted, never guessed) — the row body's own "when present".
 //
-// THE CONTENT HASH IS THE ROW'S OWN `importHash`, never re-derived from re-serialized card bytes: it is
-// EXACTLY the value `importFileHash(bytes)` produced when this card was first imported (the same input
-// #1702's live mint hashes), so reading the stored column IS "re-hashing the stored card bytes" — recomputing
-// it from a reconstructed file would risk a byte-for-byte mismatch against the original upload and could never
-// be VERIFIED as the same value the live path would have minted.
+// THE HASH IS THE ROW'S OWN `importHash`, never re-derived: it is the value the import minted when this card
+// landed, and the plugin marker (`pluginImportedFrom`) pairs with that same value, so reading the stored
+// column is the only mint `findByImportedFrom` can match — a hash recomputed from a reconstructed card could
+// never be verified as the one the live path produced.
 //
 // IDEMPOTENT BY PREDICATE, no marker column: every per-row UPDATE re-asserts `importedFrom IS NULL` (this
 // file's own read predicate) so a second boot, or a concurrent write that already stamped the row, matches

@@ -51,7 +51,13 @@ export function usePresetListHeader(): ListPaneHeaderView {
       return outcome.error ?? "That file isn't a valid orbweaver preset export.";
     }
     setImportOpen(false);
-    notify.success(outcome.created === true ? "Preset imported." : "Preset merged into the one with the same name.");
+    if (outcome.created !== true) {
+      notify.success("That preset is already in your library — nothing was added.");
+    } else if (outcome.renamedFrom !== null && outcome.renamedFrom !== undefined) {
+      notify.success(`Imported as “${outcome.name ?? outcome.renamedFrom}” — you already have a different “${outcome.renamedFrom}”.`);
+    } else {
+      notify.success("Preset imported.");
+    }
     return null;
   };
 

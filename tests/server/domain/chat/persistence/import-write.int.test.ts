@@ -288,6 +288,26 @@ describe("createBulkImportChats", () => {
     expect(again.identities).toEqual(first.identities);
   });
 
+  test("a row imported before the content identity (claimed under its byte hash) still dedups through `fileHash`", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const op = createBulkImportChats(importCtx(db, owner.id));
+    const legacy = chatInput("Aria.jsonl");
+
+    await op({ ownerId: owner.id, characterId: character.id, chats: [legacy] });
+    // The same transcript, now carrying its content identity as `importHash` and the old byte hash as `fileHash`.
+    const again = await op({
+      ownerId: owner.id,
+      characterId: character.id,
+      chats: [{ ...legacy, importHash: "content-Aria", fileHash: legacy.importHash }],
+    });
+
+    expect(again.chatsImported).toBe(0);
+    expect(again.chatsSkipped).toBe(1);
+    expect(await db.select().from(chats)).toHaveLength(1);
+  });
+
   // ── the dedup-skip arm's HEAL (owner ruling 2026-08-17, #163) ─────────────────────────────────────────
   //
   // The importer is idempotent by importHash, so a corpus imported BEFORE the mapper could resolve its user

@@ -12,7 +12,7 @@ import { removeActionName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
-import { EntryEditorStory, EntryEditorSwitchStory } from "../_ct-stories.tsx";
+import { EntryEditorInertStory, EntryEditorStory, EntryEditorSwitchStory } from "../_ct-stories.tsx";
 
 test("renders every field, commits a keyword chip, and autosaves the full input", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
@@ -315,4 +315,23 @@ test("a SUCCESSFUL delete DOES close it — the host must not hold a dead editor
 
   await expect.poll(() => trpc.count("worldInfo.removeEntry"), { intervals: [20, 50, 100] }).toBe(1);
   await expect(deleted).not.toHaveText("none");
+});
+
+// The owner ruling on imported activation fields: stored untouched, SHOWN as kept and not active. The list
+// renders only the fields that carry a non-default value, and an entry without any renders no list at all.
+test("an ST-imported entry shows its inert activation fields as kept, not active; a plain entry shows no such list", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  await mount(<EntryEditorInertStory />);
+
+  const kept = page.getByRole("group", { name: "Kept from SillyTavern — not active yet" });
+  await expect(kept).toBeVisible();
+  const items = kept.getByRole("listitem");
+  await expect(items).toHaveText(['keysecondary: ["dock","pier"]', "probability: 50", "scanDepth: 3"]);
+});
+
+test("an entry carrying no inert activation fields renders no kept list", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  await mount(<EntryEditorStory />);
+  await expect(page.getByRole("textbox", { name: "Title" })).toHaveValue("Eldoria");
+  await expect(page.getByRole("group", { name: "Kept from SillyTavern — not active yet" })).toHaveCount(0);
 });

@@ -115,11 +115,10 @@ export function createUpsertEntries(ctx: WorldInfoContext): WorldInfoService["up
       // FOLD THE MAP FORWARD. `title` IS the upsert key inside the book (contracts/world-info,
       // `UpsertLoreEntryInput`), so two inputs carrying one title are two writes to ONE key and the second
       // must land on the row the first just wrote. Against the pre-request snapshot alone both saw
-      // `prior === undefined` and INSERTED, minting two rows under one key — a state no later re-run can
-      // repair, because the next snapshot then has two candidates for that title. Refusing the request (the
-      // bulk importer's `assertUniqueEntryTitles`) is the FILE contract, not this one: an import validates a
-      // document the user can fix, while this op is a machine writer's keyed stream whose callers have no
-      // per-entry error channel — last-write-wins is what a keyed upsert means.
+      // `prior === undefined` and INSERTED, minting two rows under one key. An IMPORTED book may already hold
+      // two rows under one title (entries are keyed by id there; a SillyTavern comment is never unique), and
+      // this keyed stream then lands on the newest of them — last-write-wins is what a keyed upsert means,
+      // and its callers have no per-entry error channel to refuse through.
       byTitle.set(input.title, row);
       if (outcome === "skip") {
         counts.skippedHandEdited += 1;

@@ -2,6 +2,7 @@ import {
   buildKeywordHaystack,
   ENTRY_POSITIONS,
   ENTRY_SCOPE_MODES,
+  inertActivationFields,
   isDelimitedKeyPattern,
   keyRegex,
   matchEntryKeys,
@@ -294,4 +295,51 @@ test("the haystack builder lower-cases without locale dependence", () => {
   // Under a Turkish host `toLocaleLowerCase` would produce "wıfı zone"; the locale-independent fold
   // yields "wifi zone" on every platform, so the scan haystack is identical server- and client-side.
   expect(buildKeywordHaystack(["WIFI ZONE"], [])).toBe("wifi zone");
+});
+
+// The owner ruling: every imported ST activation field stays on the entry untouched and is SHOWN as kept,
+// not active. The reader must list only the fields that depart from ST's own defaults — a profile is
+// mostly defaults, and thirty "false" rows would bury the two that matter.
+test("inertActivationFields lists the ST activation fields carrying a non-default value, in tuple order", () => {
+  const metadata = {
+    keysecondary: ["dock"],
+    selective: true,
+    probability: 50,
+    useProbability: true,
+    scanDepth: 3,
+    caseSensitive: false,
+    matchWholeWords: null,
+    group: "",
+    sticky: 0,
+    cooldown: 2,
+    excludeRecursion: true,
+    preventRecursion: false,
+    vectorized: false,
+    triggers: [],
+    characterFilter: { isExclude: false, names: ["Aria"], tags: [] },
+    automationId: "",
+    matchPersonaDescription: true,
+    // Fields orb APPLIES are never listed, whatever they carry.
+    scopeMode: "always",
+    position: "after",
+    constant: true,
+  };
+  expect(inertActivationFields(metadata).map(({ field }) => field)).toEqual([
+    "keysecondary",
+    "probability",
+    "scanDepth",
+    "caseSensitive",
+    "cooldown",
+    "excludeRecursion",
+    "characterFilter",
+    "matchPersonaDescription",
+  ]);
+});
+
+test("inertActivationFields treats ST's defaults as absent: probability 100, an empty group, null depths", () => {
+  expect(inertActivationFields({ probability: 100, useProbability: true, group: "", scanDepth: null, keysecondary: [], triggers: [] })).toEqual([]);
+  // probability below 100 but gating switched off is not active in ST either.
+  expect(inertActivationFields({ probability: 20, useProbability: false })).toEqual([]);
+  expect(inertActivationFields(null)).toEqual([]);
+  expect(inertActivationFields("junk")).toEqual([]);
 });

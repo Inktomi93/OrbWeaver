@@ -1,6 +1,6 @@
 // importFile — the SINGLE-preset import door (§16.1 G6). The door owns no semantics, so what needs proving
 // is exactly that: the bytes the EXPORT arm produces round-trip through it, and the bundle's own rules
-// (idempotent on `(ownerId, name)` → merge in place; contained error on a malformed file) reach the caller
+// (additive: an equal file reuses its row, a same-named different one lands beside it; contained error on a malformed file) reach the caller
 // unchanged. A divergence here would mean a second serde or a second collision rule had grown — the banned
 // parallel path.
 
@@ -33,13 +33,19 @@ describe("importFile", () => {
     const stranger = await seedUser(db, "stranger");
     const outcome = await svc.importFile({ userId: stranger, fileText: new TextDecoder().decode(file?.bytes) });
 
-    expect(outcome).toStrictEqual({ ok: true, created: true, presetId: castId<PresetId>("preset_00000000000000000000000001") });
+    expect(outcome).toStrictEqual({
+      ok: true,
+      created: true,
+      presetId: castId<PresetId>("preset_00000000000000000000000001"),
+      name: "Roundtrip",
+      renamedFrom: null,
+    });
     const rows = await db.select().from(presets).where(eq(presets.ownerId, stranger));
     expect(rows.map((r) => r.name)).toStrictEqual(["Roundtrip"]);
     expect(rows[0]?.config.params.temperature).toBe(0.42);
   });
 
-  test("inherits the bundle's collision rule: the same name MERGES in place, never a second row", async () => {
+  test("inherits the bundle's collision rule: an equal file is reused, a same-named DIFFERENT one lands beside it", async () => {
     const db = await freshDb();
     const svc = createPresetService(makeHarness(db).ctx);
     const owner = await seedUser(db);
@@ -50,16 +56,29 @@ describe("importFile", () => {
       ok: true,
       created: true,
       presetId: castId<PresetId>("preset_00000000000000000000000001"),
+      name: "Shared",
+      renamedFrom: null,
     });
-    expect(await svc.importFile({ userId: owner, fileText: text(1.1) })).toStrictEqual({
+    expect(await svc.importFile({ userId: owner, fileText: text(0.3) })).toStrictEqual({
       ok: true,
       created: false,
       presetId: castId<PresetId>("preset_00000000000000000000000001"),
+      name: "Shared",
+      renamedFrom: null,
+    });
+    expect(await svc.importFile({ userId: owner, fileText: text(1.1) })).toStrictEqual({
+      ok: true,
+      created: true,
+      presetId: castId<PresetId>("preset_00000000000000000000000002"),
+      name: "Shared 2",
+      renamedFrom: "Shared",
     });
 
-    const rows = await db.select().from(presets).where(eq(presets.ownerId, owner));
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.config.params.temperature).toBe(1.1);
+    const rows = (await db.select().from(presets).where(eq(presets.ownerId, owner))).toSorted((a, b) => a.name.localeCompare(b.name));
+    expect(rows.map((r) => [r.name, r.config.params.temperature])).toEqual([
+      ["Shared", 0.3],
+      ["Shared 2", 1.1],
+    ]);
   });
 
   test("a malformed file is a CONTAINED error, never a throw and never a row", async () => {

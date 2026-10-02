@@ -14,6 +14,7 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, Handle, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { AssetContentRejectedError } from "@orb/server/domain/assets";
+import type { ImportCardScripts } from "@orb/server/domain/regex";
 import type { UploadAssetsPort, UploadDeps } from "@orb/server/entry/http";
 import { registerUpload } from "@orb/server/entry/http";
 import type { ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "@orb/server/entry/import";
@@ -139,6 +140,7 @@ const okAssets: UploadAssetsPort = {
 const creatingCharacter: ImportCharacterPort = {
   create: (): Promise<{ id: CharacterId }> => Promise.resolve({ id: castId<CharacterId>("chr_1") }),
   findByImportHash: (): Promise<null> => Promise.resolve(null),
+  attachImportedArt: (): Promise<boolean> => Promise.resolve(false),
   findByHandle: (): Promise<null> => Promise.resolve(null),
   findByName: (): Promise<readonly never[]> => Promise.resolve([]),
 };
@@ -148,7 +150,8 @@ const noopTag: ImportTagPort = {
 };
 // A no-op embedded-lorebook port (the W1 write is proven in the world-info + run-profile-import suites).
 const noopWorldInfo: ImportWorldInfoPort = {
-  importLorebook: () => Promise.resolve({ worldBookId: castId<WorldBookId>("wbk_0"), entryCount: 0, replaced: false }),
+  importLorebook: ({ book }) =>
+    Promise.resolve({ worldBookId: castId<WorldBookId>("wbk_0"), entryCount: 0, replaced: false, created: true, name: book.name, renamedFrom: null }),
   // #1598: no character in this suite already holds a primary book, so the seat always reads FREE and the
   // import route's embedded-book plane behaves exactly as it did before the guard existed.
   hasPrimaryBook: () => Promise.resolve(false),
@@ -165,11 +168,19 @@ const DATABANK_ROUTE_CAP_BYTES = 20 * 1024 * 1024;
 const generousMaxImageBytes = (): number => ROUTE_CAP_BYTES * 2;
 const routeMaxDatabankBytes = (): number => DATABANK_ROUTE_CAP_BYTES;
 
+// A recording card-scripts lift: the import route must thread it, or a card's embedded scripts are dropped.
+const scriptLifts: { readonly characterId: CharacterId; readonly scripts: readonly unknown[] }[] = [];
+const recordingCardScripts: ImportCardScripts = ({ characterId, scripts }) => {
+  scriptLifts.push({ characterId, scripts });
+  return Promise.resolve({ created: scripts.length, reused: 0 });
+};
+
 const okDeps: UploadDeps = {
   assets: okAssets,
   character: creatingCharacter,
   tag: noopTag,
   worldInfo: noopWorldInfo,
+  importCardScripts: recordingCardScripts,
   databank: noopDatabank,
   maxImageBytes: generousMaxImageBytes,
   maxDatabankBytes: routeMaxDatabankBytes,
@@ -218,6 +229,7 @@ describe("registerUpload — asset upload", () => {
       character: creatingCharacter,
       tag: noopTag,
       worldInfo: noopWorldInfo,
+      importCardScripts: recordingCardScripts,
       databank: noopDatabank,
       maxImageBytes: generousMaxImageBytes,
       maxDatabankBytes: routeMaxDatabankBytes,
@@ -339,6 +351,20 @@ describe("registerUpload — import delegate", () => {
     expect(result.imported).toHaveLength(1);
     expect(result.failed).toHaveLength(0);
   });
+
+  test("a card carrying embedded regex scripts reaches the script lift through this door", async () => {
+    scriptLifts.length = 0;
+    // Raw ST wire TEXT (snake_case by spec) rather than an object literal — the format IS the fixture.
+    const withScripts =
+      '{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Scripted","description":"carries a script","extensions":{"regex_scripts":[{"id":"st-1","scriptName":"Trim ellipsis","findRegex":"/\\\\.{3}/g","replaceString":"…","placement":[2],"disabled":false}]}}}';
+    const form = new FormData();
+    form.append("file", new File([new TextEncoder().encode(withScripts)], "scripted.json", { type: "application/json" }));
+    const res = await handlerFor(okDeps, IMPORT_ROUTE)(makeCtx(OWNER, form));
+    expect(res.status).toBe(200);
+    expect(scriptLifts).toHaveLength(1);
+    expect(scriptLifts[0]?.characterId).toBe("chr_1");
+    expect(scriptLifts[0]?.scripts).toHaveLength(1);
+  });
 });
 
 describe("registerUpload — the #1598 card-lorebook RESTORE door", () => {
@@ -361,7 +387,7 @@ describe("registerUpload — the #1598 card-lorebook RESTORE door", () => {
     expect(res.status).toBe(400);
     expect((await res.json()) as { ok: boolean; error: string }).toStrictEqual({
       ok: false,
-      error: expect.stringContaining("No character of yours was imported from this exact card file"),
+      error: expect.stringContaining("No character of yours was imported from this card"),
     });
   });
 

@@ -6,7 +6,7 @@
 import type { CharacterHandle, CharacterId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
-import { createImportService, ImportCardError } from "@orb/server/domain/import";
+import { createImportService, ImportCardError, importFileHash } from "@orb/server/domain/import";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness } from "../_support.ts";
@@ -251,39 +251,30 @@ describe("importCharacter", () => {
     expect(result.attachedBooksSkipped).toBe(1);
   });
 
-  // ── #1470 — a run that dies after the character row is committed must not be permanently partial ────────
-  test("a run that FAILS after the create heals on a retry of the same bytes — the dedup hit reconciles the missing planes", async () => {
+  // ── a run that dies after the character row is committed must not be permanently partial ────────────
+  test("an equal-content re-import REUSES the character and re-runs its planes idempotently (owner ruling)", async () => {
     const h = makeHarness();
     const svc = createImportService(h.ctx);
     const card = cardWithRefs([{ worldBookId: bookA, role: "primary" }], true);
     const bytes = encoder.encode(card);
 
-    // RUN 1 — the carried-book re-link throws. The character row + its tags are already committed; the book
-    // plane never ran. Before #1470 this state was permanent: the row carries the importHash, so every retry
-    // of these bytes hit `existing !== null` and returned zeros without touching the missing planes.
-    h.setLinkOutcome(() => {
-      throw new Error("world-info unavailable");
-    });
-    await expect(svc.importCharacter({ card: { bytes } })).rejects.toThrow("world-info unavailable");
+    const first = await svc.importCharacter({ card: { bytes } });
+    const linksAfterFirst = h.linkBooks.length;
+    const tagsAfterFirst = h.tagAttaches.length;
+    expect(linksAfterFirst).toBe(1);
+
+    const second = await svc.importCharacter({ card: { bytes } });
+
+    expect(second.created).toBe(false);
+    expect(second.characterId).toBe(first.characterId);
     expect(h.creates).toHaveLength(1);
-    expect(h.lorebooks).toHaveLength(0);
-    // The harness's create mints a deterministic id and registers its importHash, exactly as the real
-    // provenance-stamping create does — so the retry below resolves THIS row through the dedup oracle.
-    const characterId = castId<CharacterId>("character_created_1");
-
-    // RUN 2 — the same bytes, world-info back (foreign install: nothing links, so the embedded clone is the
-    // fallback). The dedup arm resolves the incomplete character and FINISHES it.
-    h.setLinkOutcome((refs) => ({ linked: 0, skipped: refs.length }));
-    const healed = await svc.importCharacter({ card: { bytes } });
-
-    expect(healed.created).toBe(false);
-    expect(healed.characterId).toBe(characterId);
-    expect(h.creates).toHaveLength(1); // no second character was minted
-    // …and the plane that was lost has landed, on the SAME character, with the report saying so.
-    expect(h.lorebooks).toHaveLength(1);
-    expect(h.lorebooks[0]?.characterId).toBe(characterId);
-    expect(healed.attachedBooksLinked).toBe(0);
-    expect(healed.attachedBooksSkipped).toBe(1);
+    // Every plane runs again on the SAME character, so a first import that stopped after the row was written
+    // lands its planes now; each op is idempotent for the (character, card) pair.
+    expect(h.linkBooks).toHaveLength(linksAfterFirst * 2);
+    expect(h.tagAttaches).toHaveLength(tagsAfterFirst * 2);
+    expect(second.attachedBooksLinked).toBe(1);
+    // A reuse is `created:false`; `skippedOverlays` names only a plane NOT asserted, and every plane landed.
+    expect(second.skippedOverlays).toEqual([]);
   });
 
   test("a card carrying NO references never calls the re-link op (regression pin)", async () => {
@@ -311,26 +302,40 @@ describe("importCharacter", () => {
     expect(h.tagAttaches).toHaveLength(0);
   });
 
-  test("the dedup path RE-ASSERTS the card's tags against the existing character (#1470)", async () => {
-    // This inverts a pin that used to assert the dedup arm attached nothing. That behaviour was the #1470
-    // defect's other half: the tag attach is one of the planes a failed run can leave missing, and the arm
-    // that could heal it was the arm that returned early. The attach is idempotent and by NAME, so
-    // re-asserting a tag that already landed writes nothing.
+  test("identity is the PARSED content: a re-ordered JSON of the same card dedups, a changed field does not", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    const first = await svc.importCharacter({ card: { bytes: encoder.encode(V3_JSON) } });
+
+    // The same card with its top-level keys in another order is a DIFFERENT file and the SAME character.
+    const parsed = JSON.parse(V3_JSON) as Record<string, unknown>;
+    const reordered = JSON.stringify(Object.fromEntries(Object.entries(parsed).reverse()));
+    const same = await svc.importCharacter({ card: { bytes: encoder.encode(reordered) } });
+    expect(same.created).toBe(false);
+    expect(same.characterId).toBe(first.characterId);
+    expect(same.importHash).toBe(first.importHash);
+
+    // A changed field (a note) is a different character, even under the same name.
+    const changed = JSON.stringify({ ...parsed, data: { ...(parsed["data"] as Record<string, unknown>), creator_notes: "second edition" } });
+    const other = await svc.importCharacter({ card: { bytes: encoder.encode(changed) } });
+    expect(other.created).toBe(true);
+    expect(other.characterId).not.toBe(first.characterId);
+    expect(h.creates).toHaveLength(2);
+  });
+
+  test("a row imported before the content identity (whole-file hash) still dedups the same file", async () => {
     const h = makeHarness();
     const svc = createImportService(h.ctx);
     const bytes = encoder.encode(V3_JSON);
+    const legacyId = castId<CharacterId>("character_legacy");
+    // The pre-identity row carries sha-256 of the FILE BYTES as its importHash.
+    h.setExisting(importFileHash(bytes), legacyId);
 
-    const first = await svc.importCharacter({ card: { bytes } });
-    h.tagAttaches.length = 0; // ignore the first import's attaches
+    const result = await svc.importCharacter({ card: { bytes } });
 
-    const second = await svc.importCharacter({ card: { bytes } });
-
-    expect(second.created).toBe(false);
-    expect(second.characterId).toBe(first.characterId);
-    expect(h.tagAttaches.map((t) => t.tagName)).toEqual(["bard", "fantasy"]);
-    for (const attach of h.tagAttaches) {
-      expect(attach.characterId).toBe(first.characterId);
-    }
+    expect(result.created).toBe(false);
+    expect(result.characterId).toBe(legacyId);
+    expect(h.creates).toHaveLength(0);
   });
 
   test("a bare-JSON card stores no avatar (no image) and still creates", async () => {
@@ -350,7 +355,7 @@ describe("importCharacter", () => {
     expect(call.input.avatarAssetId).toBeNull();
   });
 
-  test("dedups on importHash: a byte-identical re-import mints NO second character and stores no avatar", async () => {
+  test("dedups on the import hash: an equal re-import mints NO second character and stores no avatar", async () => {
     const h = makeHarness();
     const svc = createImportService(h.ctx);
     const bytes = encoder.encode(V3_JSON);
@@ -364,7 +369,6 @@ describe("importCharacter", () => {
     expect(second.created).toBe(false);
     expect(second.characterId).toBe(existingId);
     // The dedup arm short-circuits the CHARACTER write — the avatar store and the create never run again.
-    // (It does re-assert the overlay planes; that is #1470's reconcile, pinned separately.)
     expect(h.creates).toHaveLength(1);
     expect(h.stores).toHaveLength(0);
   });
@@ -454,5 +458,63 @@ describe("importCharacter", () => {
     expect(result.created).toBe(true);
     expect(h.creates).toHaveLength(1);
     expect(h.findsByHandle.at(-1)?.handle).toBe("bryn");
+  });
+});
+
+describe("importCharacter — art is identity (owner ruling)", () => {
+  /** A base PNG with one non-card chunk (`tIME`, CRC unchecked by the walk), so its ART differs from
+   *  MINIMAL_PNG while the card text it carries is equal. */
+  const OtherArtPng = Uint8Array.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 1, 0x74, 0x49, 0x4d, 0x45, 0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60,
+    0x82,
+  ]);
+
+  test("the same PNG twice is ONE character (the art hash reads the image, not the card chunks)", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    const png = writeCardChunk(MINIMAL_PNG, V3_JSON);
+    const first = await svc.importCharacter({ card: { bytes: png, filename: "Aria.png" } });
+    const second = await svc.importCharacter({ card: { bytes: png, filename: "Aria.png" } });
+    expect(second.created).toBe(false);
+    expect(second.characterId).toBe(first.characterId);
+    expect(h.artAttaches).toHaveLength(0);
+  });
+
+  test("the same text under a DIFFERENT picture is a separate character (an alt-art version)", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    const first = await svc.importCharacter({ card: { bytes: writeCardChunk(MINIMAL_PNG, V3_JSON), filename: "Aria.png" } });
+    const second = await svc.importCharacter({ card: { bytes: writeCardChunk(OtherArtPng, V3_JSON), filename: "Aria.png" } });
+    expect(second.created).toBe(true);
+    expect(second.characterId).not.toBe(first.characterId);
+    expect(second.importHash).not.toBe(first.importHash);
+    expect(h.creates).toHaveLength(2);
+    expect(h.artAttaches).toHaveLength(0);
+  });
+
+  test("a JSON card followed by its PNG gives the art-less row its art and keeps the one character", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    const first = await svc.importCharacter({ card: { bytes: encoder.encode(V3_JSON), filename: "Aria.json" } });
+    const second = await svc.importCharacter({ card: { bytes: writeCardChunk(MINIMAL_PNG, V3_JSON), filename: "Aria.png" } });
+    expect(second.created).toBe(false);
+    expect(second.characterId).toBe(first.characterId);
+    expect(h.creates).toHaveLength(1);
+    // The PNG's art is stored and attached, and the row is re-keyed to the with-art identity.
+    expect(h.stores).toHaveLength(1);
+    expect(h.artAttaches).toEqual([{ ownerId: h.ownerId, characterId: first.characterId, avatarAssetId: h.storedAssetId, importHash: second.importHash }]);
+    expect(second.importHash).not.toBe(first.importHash);
+  });
+
+  test("a row that already HAS art never takes another: that PNG is an alt-art version, a new character", async () => {
+    const h = makeHarness();
+    h.setArtAttach(false);
+    const svc = createImportService(h.ctx);
+    const first = await svc.importCharacter({ card: { bytes: encoder.encode(V3_JSON), filename: "Aria.json" } });
+    const second = await svc.importCharacter({ card: { bytes: writeCardChunk(MINIMAL_PNG, V3_JSON), filename: "Aria.png" } });
+    expect(h.artAttaches).toHaveLength(1);
+    expect(second.created).toBe(true);
+    expect(second.characterId).not.toBe(first.characterId);
+    expect(h.creates).toHaveLength(2);
   });
 });

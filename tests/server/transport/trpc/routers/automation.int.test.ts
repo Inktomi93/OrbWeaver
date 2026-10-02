@@ -103,6 +103,7 @@ test("lost mounted HTTP response after real commit recovers one unchanged birth 
     character: app.services.character,
     portability: app.portability,
     importWorldInfo: app.importWorldInfo,
+    importCardScripts: app.importCardScripts,
     exportService: app.exportService,
     sessions: app.sessions,
     isShuttingDown: () => false,

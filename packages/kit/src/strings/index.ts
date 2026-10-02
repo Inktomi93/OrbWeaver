@@ -152,3 +152,43 @@ const FREE_LABEL_SUFFIX = /\s\(\d+\)$/u;
 export function stripLabelSuffix(label: string): string {
   return label.replace(FREE_LABEL_SUFFIX, "");
 }
+
+// ── free names ───────────────────────────────────────────────────────────────────────────────────────
+// The file-manager convention for a row minted under a name the user did not type (a copy, a promotion, an
+// import landing beside a different row of the same name): the first row keeps the bare name, every later
+// collision gets " 2", " 3", … The scan is over the owner's own names only.
+
+/** The first ordinal a colliding mint takes — the original row is the un-numbered one. */
+const FIRST_FREE_ORDINAL = 2;
+
+/** `base` when it is free, else the lowest `"<base> <n>"` (n ≥ 2) not in `taken`. A gap is reused: the
+ *  scan wants the lowest FREE ordinal, not the count plus one. */
+export function nextFreeName(base: string, taken: Iterable<string>): string {
+  const used = taken instanceof Set ? taken : new Set(taken);
+  if (!used.has(base)) {
+    return base;
+  }
+  let ordinal = FIRST_FREE_ORDINAL;
+  while (used.has(`${base} ${String(ordinal)}`)) {
+    ordinal += 1;
+  }
+  return `${base} ${String(ordinal)}`;
+}
+
+// The ` N` nextFreeName appends; only a trailing count matches.
+const FREE_NAME_SUFFIX = /\s\d+$/u;
+
+/** The base a {@link nextFreeName} result was minted from: the name with its trailing ` N` count removed. */
+export function stripNameSuffix(name: string): string {
+  return name.replace(FREE_NAME_SUFFIX, "");
+}
+
+// ── file names ───────────────────────────────────────────────────────────────────────────────────────
+const PATH_SEPARATOR = /[/\\]/u;
+const FILE_EXTENSION = /\.[^.]+$/u;
+
+/** The last path segment of `filename` without its final extension, trimmed; `""` when nothing remains. */
+export function fileStem(filename: string): string {
+  const base = filename.split(PATH_SEPARATOR).pop() ?? filename;
+  return base.replace(FILE_EXTENSION, "").trim();
+}

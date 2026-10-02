@@ -1,20 +1,21 @@
 // verb: import — restore an owned persona from ONE portable FILE, the export.ts round-trip twin. THE one
 // import path: the single-entity door and the bundle descriptor both land here, so the refusal copy and the
-// merge semantics have exactly one home (F8 — the descriptor used to carry this body at the composition
-// root, where no domain test mirror could see it). The backup shape never carries avatarAssetId, so there is
-// no asset-ownership belt to run here. Idempotent: dedups on (ownerId, name) — a same-named persona is merged
-// in place (merged:true in the audit); otherwise a fresh row is minted. NEVER throws for a malformed file.
+// collision rule have exactly one home. ADDITIVE (owner ruling): an owned persona with equal content —
+// folded name, description, title, placement, art (`findDuplicatePersona`, beside the persona serde) — is
+// reused untouched; the same name with different content lands as a second persona under the next free
+// name; nothing is merged in place. The backup shape never carries avatarAssetId, so there is no
+// asset-ownership guard to run here. NEVER throws for a malformed file.
 
 import { personas } from "@orb/db";
-import { and, eq } from "drizzle-orm";
+import { nextFreeName } from "@orb/kit/strings";
 import { portableParseError } from "#kit/serde/lib";
-import { PERSONA_SCHEMA_KIND, parsePersonaBackup } from "#kit/serde/persona";
+import { findDuplicatePersona, PERSONA_SCHEMA_KIND, parsePersonaBackup, personaPlacementOf } from "#kit/serde/persona";
 import type { PersonaContext } from "../context.ts";
 import { PersonaNotFoundError } from "../contract/errors.ts";
 import type { ImportPersonaParams } from "../contract/params.ts";
 import type { PersonaImportOutcome } from "../contract/results.ts";
 import type { PersonaService } from "../contract/service.ts";
-import { detailOf, findOwnedPersonaByName, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
+import { detailOf, loadOwnedPersonaCandidates, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
 
 export function createImport(ctx: PersonaContext): PersonaService["import"] {
   return async ({ principal, bytes }: ImportPersonaParams): Promise<PersonaImportOutcome> => {
@@ -26,34 +27,36 @@ export function createImport(ctx: PersonaContext): PersonaService["import"] {
     }
     const backup = parsed.value;
 
-    const existingId = await findOwnedPersonaByName(ctx.db, ownerId, backup.name);
-
-    const personaId = existingId ?? ctx.newPersonaId();
-    if (existingId !== null) {
-      await ctx.db
-        .update(personas)
-        .set({
-          title: backup.title,
-          description: backup.description,
-          starred: backup.starred,
-          metadata: backup.metadata,
-          updatedAt: at,
-        })
-        .where(and(eq(personas.id, existingId), eq(personas.ownerId, ownerId)));
-    } else {
-      await ctx.db.insert(personas).values({
-        id: personaId,
-        ownerId,
-        name: backup.name,
-        title: backup.title,
-        description: backup.description,
-        starred: backup.starred,
-        avatarAssetId: null,
-        metadata: backup.metadata,
-        createdAt: at,
-        updatedAt: at,
-      });
+    const candidates = await loadOwnedPersonaCandidates(ctx.db, ownerId);
+    const duplicate = findDuplicatePersona(
+      { name: backup.name, title: backup.title, description: backup.description, placement: personaPlacementOf(backup.metadata), artHash: null },
+      candidates,
+    );
+    if (duplicate !== null) {
+      const existing = await loadOwnedPersonaWithAvatar(ctx.db, ownerId, duplicate.id);
+      if (existing === undefined) {
+        throw new PersonaNotFoundError(duplicate.id);
+      }
+      return { ok: true, persona: detailOf(existing), created: false };
     }
+
+    const personaId = ctx.newPersonaId();
+    const name = nextFreeName(
+      backup.name,
+      candidates.map((c) => c.name),
+    );
+    await ctx.db.insert(personas).values({
+      id: personaId,
+      ownerId,
+      name,
+      title: backup.title,
+      description: backup.description,
+      starred: backup.starred,
+      avatarAssetId: null,
+      metadata: backup.metadata,
+      createdAt: at,
+      updatedAt: at,
+    });
 
     await ctx.audit(
       {
@@ -61,21 +64,17 @@ export function createImport(ctx: PersonaContext): PersonaService["import"] {
         action: "persona.import",
         entityType: "persona",
         entityId: personaId,
-        metadata: { name: backup.name, merged: existingId !== null },
+        metadata: { name, renamedFrom: name === backup.name ? null : backup.name },
       },
       at,
     );
     ctx.emitUserEvent(ownerId, { type: "personasChanged", personaId });
-    // The MERGE arm is a content write to a persona that may be seated in live rooms (a restore over an
-    // existing name rewrites title/description/metadata), so it takes the room plane too (entity→room bridge
-    // §3.6). Emitted on the fresh-mint arm as well: the reach lookup resolves ∅ for an unseated persona, so
-    // the branch would buy one query's difference at the cost of a second code path.
     ctx.emit({ type: "persona.updated", personaId });
 
     const row = await loadOwnedPersonaWithAvatar(ctx.db, ownerId, personaId);
     if (row === undefined) {
       throw new PersonaNotFoundError(personaId);
     }
-    return { ok: true, persona: detailOf(row), created: existingId === null };
+    return { ok: true, persona: detailOf(row), created: true };
   };
 }

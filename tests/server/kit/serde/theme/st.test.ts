@@ -1,13 +1,13 @@
-// Mirror test for domain/import/substrate/theme — the ST theme→orb palette converter.
+// Mirror test for kit/serde/theme/st — the ST theme→orb palette converter (the theme serde's raw-SillyTavern grammar).
 //
 // The load-bearing thing here is the SAFETY GATE (owner ruling: convert "if we can do it safely"). Each of
 // its three arms gets a PLANTED POSITIVE CONTROL — a fixture built specifically to trip it — because the real
 // ST corpus trips none of them (all five shipped themes are dark and convert cleanly), so a gate proven only
 // against the corpus would be a gate that has never been shown to fire.
 
+import type { ParsedStTheme } from "@orb/server/kit/serde/theme";
+import { parseThemeFile, stThemeFromJson, stThemeName } from "@orb/server/kit/serde/theme";
 import { describe } from "vitest";
-import type { ParsedStTheme } from "../../../../../packages/server/src/domain/import/contract/views.ts";
-import { parseStThemeFile, stThemeFromJson, stThemeName } from "../../../../../packages/server/src/domain/import/substrate/theme.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The real `themes/Azure.json` from the corpus, verbatim (trimmed to the keys that matter here). */
@@ -144,13 +144,13 @@ describe("stThemeFromJson — the SAFETY GATE (planted positive controls)", () =
   });
 });
 
-describe("stThemeFromJson / parseStThemeFile — refusals carry reasons", () => {
+describe("stThemeFromJson / parseThemeFile — refusals carry reasons", () => {
   test("every refusal names WHY, so the report never says just 'skipped'", () => {
     expect(refusedBecause([])).toBe("not a JSON object");
     // A JSON object under `themes/` with no readable colour is not a theme — refused, never imported blank.
     expect(refusedBecause({ name: "Nothing", chat_width: 50 })).toContain("no base surface colour");
-    const notJson = parseStThemeFile(new TextEncoder().encode("{ not json"), "x");
-    expect(notJson.ok ? "converted" : notJson.reason).toBe("not readable as JSON");
+    const notJson = parseThemeFile(new TextEncoder().encode("{ not json"), "x");
+    expect(notJson.ok ? "converted" : notJson.reason).toBe("not-json");
   });
 
   test("falls back to the file stem when the theme carries no `name`", () => {

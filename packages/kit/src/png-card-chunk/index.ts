@@ -251,6 +251,20 @@ export function writeCardChunk(basePng: Uint8Array, cardJson: string): Uint8Arra
   return concatChunks([PNG_SIGNATURE, ...kept, v2Chunk, v3Chunk, iend, ...(trailing === null ? [] : [trailing])]);
 }
 
+/** The PNG with every `chara`/`ccv3` card chunk removed: the IMAGE as the card's art identity reads it, so
+ *  one picture under two card texts is one piece of art. Bytes that are not a PNG, or a PNG with no IEND,
+ *  come back unchanged. */
+export function stripCardChunks(png: Uint8Array): Uint8Array {
+  if (!isPng(png)) {
+    return png;
+  }
+  const { kept, iend, trailing } = splitChunks(png);
+  if (iend === null) {
+    return png;
+  }
+  return concatChunks([PNG_SIGNATURE, ...kept, iend, ...(trailing === null ? [] : [trailing])]);
+}
+
 /** Walk `png` up to IEND, dropping stale `chara`/`ccv3` card chunks of BOTH types and separating IEND from
  *  everything else kept. Anything AFTER IEND is returned VERBATIM as `trailing`.
  *

@@ -16,6 +16,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId } from "@orb/kit/ids";
 import type { RestoreCharacterBookResult } from "#domain/import";
 import { createImportService } from "#domain/import";
+import type { ImportCardScripts } from "#domain/regex";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "./build-import-context.ts";
 import { buildImportContext } from "./build-import-context.ts";
 
@@ -32,11 +33,14 @@ export interface ProfileImportDeps {
   readonly tag: ImportTagPort;
   /** When composed, embedded card lorebooks import to world_books/character_books. */
   readonly worldInfo?: ImportWorldInfoPort;
+  /** When composed, a card's embedded regex scripts land as library rows attached to the character — the same
+   *  lift the profile-dir driver and the bundle restore compose, so no door drops a card's scripts. */
+  readonly importCardScripts?: ImportCardScripts;
   readonly files: readonly ImportFile[];
 }
 
-/** One successfully imported (or deduped) card. `created:false` = a byte-identical re-import: no new
- *  CHARACTER row — the card's overlay planes are still reconciled against the existing one (#1470). */
+/** One successfully imported (or deduped) card. `created:false` = an equal-content card is already in the
+ *  library: no new CHARACTER row, and the existing one is left as the owner has it. */
 export interface ImportedCard {
   readonly filename: string | null;
   readonly characterId: CharacterId;
@@ -64,7 +68,7 @@ export interface ProfileImportResult {
  *  lorebook restore) compose the identical wiring, so a port that lands on one arm can never be missing from
  *  the other. */
 function cardImportService(deps: Omit<ProfileImportDeps, "files">): ReturnType<typeof createImportService> {
-  const { principal, character, assets, tag, worldInfo } = deps;
+  const { principal, character, assets, tag, worldInfo, importCardScripts } = deps;
   return createImportService(
     buildImportContext({
       principal,
@@ -74,6 +78,7 @@ function cardImportService(deps: Omit<ProfileImportDeps, "files">): ReturnType<t
       ...(worldInfo !== undefined
         ? { importLorebook: worldInfo.importLorebook, hasPrimaryBook: worldInfo.hasPrimaryBook, linkCarriedBooks: worldInfo.linkCarriedBooks }
         : {}),
+      ...(importCardScripts !== undefined ? { importCardScripts } : {}),
     }),
   );
 }

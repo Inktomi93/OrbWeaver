@@ -57,6 +57,7 @@ async function importCtx(db: Db): Promise<ImportContext> {
     findByHandle: (): Promise<null> => Promise.resolve(null),
     findByName: (): Promise<readonly CharacterId[]> => Promise.resolve([]),
     storeAsset: (): Promise<never> => Promise.reject(new Error("no avatar store in this suite (bare-JSON cards)")),
+    attachImportedArt: (): Promise<never> => Promise.reject(new Error("no art in this suite (bare-JSON cards)")),
     attachCardTag: (): Promise<boolean> => Promise.resolve(true),
     importLorebook: createBulkImportLorebook({
       db,
@@ -104,7 +105,7 @@ describe("restoreCharacterBook — the explicit way back to the card's own loreb
 
     const outcome = await service.restoreCharacterBook({ card: { bytes: CARD_BYTES, filename: "aria.json" } });
 
-    expect(outcome).toStrictEqual({ ok: false, error: expect.stringContaining("No character of yours was imported from this exact card file") });
+    expect(outcome).toStrictEqual({ ok: false, error: expect.stringContaining("No character of yours was imported from this card") });
     expect(await db.select({ id: worldBooks.id }).from(worldBooks)).toHaveLength(0);
   });
 

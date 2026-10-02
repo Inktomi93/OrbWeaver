@@ -5,89 +5,19 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { ST_PROFILE_UNHANDLED_REASONS, ST_SETTINGS_UNHANDLED_REASONS } from "@orb/contracts/import";
 import type { ImportReport } from "#domain/import";
 
-// Why each still-unhandled ST plane / settings section has no importer — so the report is honest about intent,
-// not just absence (owner ruling: "record it as still-unhandled with a one-line reason"). A name not listed
-// here renders bare, so this map must cover EVERY section a real profile emits (a verifier found 11 rendering
-// bare in 2026-08; they are all present now). The prompt-format template planes remain a deferred epic; the
-// cosmetic/session planes have no canon; the TEXT-COMPLETION preset families are a deliberate owner refusal,
-// not a gap. A Map (not an object literal) keeps the ST snake_case section names as string-literal DATA.
-//
-// THE TEXT-COMPLETION RULING (owner, 2026-08-08): orb is not a text-completion app. Its connection vocabulary
-// has no such protocol arm (`ROUTING_ROLE_KEYS` is chat/embed/rerank/imageEmbed/summarize/generateImage; a
-// whole-tree sweep for a `v1/completions` wire returns zero), so a TextGen/Kobold/NovelAI sampler set has
-// nothing here to be spent by. The CHAT-COMPLETION family DOES import (`OpenAI Settings/` + `oai_settings`) —
-// neither appears below any more.
-// GRADUATED 2026-08-08 (owner rulings) — these two are IMPORTED now and no longer appear here at all:
-//   `backgrounds/` → CAS assets (kind `background`) appended to `appearance.backgroundLibrary`;
-//   `themes/`      → converted palettes, through orb's own derivation-safety gate.
-// A reason row for a handled plane would be a lie the report tells forever, so the rows were deleted rather
-// than reworded. `HANDLED_ENTRIES` in `domain/import/loader/collect.ts` is the other half of that graduation.
-const UNHANDLED_REASONS = new Map<string, string>([
-  // Top-level profile planes.
-  // THE TEXT-COMPLETION TEMPLATE PLANES (context/instruct/sysprompt/reasoning + the oai_settings trio) are
-  // BY-DESIGN exclusions, not deferred work: the owner reaffirmed 2026-08-15 that orb will never run
-  // text-completion, so the old "needs an ST→orb template mapper (separate epic)" wording is gone — a
-  // deferral line on a ruled-out feature reads as debt forever.
-  ["movingUI/", "saved UI layout state — no domain home"],
-  ["context/", "text-completion context templates — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)"],
-  ["instruct/", "text-completion instruct templates — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)"],
-  ["sysprompt/", "text-completion system-prompt templates — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)"],
-  [
-    "reasoning/",
-    "saved reasoning-format template library — the ACTIVE template already folds onto the live preset (reasoningParse); the library is text-completion-era and out of product scope (owner ruling, reaffirmed 2026-08-15)",
-  ],
-  ["TextGen Settings/", "text-completion preset files — orb has no text-completion mode; ruled out by owner 2026-08-08"],
-  ["NovelAI Settings/", "text-completion preset files — orb has no text-completion mode; ruled out by owner 2026-08-08"],
-  ["KoboldAI Settings/", "text-completion preset files — orb has no text-completion mode; ruled out by owner 2026-08-08"],
-  ["QuickReplies/", "STscript quick-reply buttons — orb has no STscript executor (orb automation is CEL-based, D46)"],
-  // Both observed rendering BARE on a real profile drive (2026-08-08).
-  ["assets/", "ST extension assets (portraits, audio) — no supported importer"],
-  ["vectors/", "ST's own vector store — orb re-embeds locally after import, so a foreign index never travels"],
-  ["extensions/", "third-party extension INSTALLS (code, not state) — out of scope"],
-  [
-    "user/",
-    "user/files (Data Bank) + user/images (character gallery) ARE walked and counted (see the Data Bank / gallery section); user/workflows is ST's stock ComfyUI workflow pair — orb has no ComfyUI workflow store",
-  ],
-  ["secrets.json", "API keys — deliberately NOT imported (credentials are entered per-install)"],
-  ["stats.json", "usage stats — recomputed locally, not import canon"],
-  ["content.log", "ST install log — not canon"],
-  ["image-metadata.json", "ST gallery/background thumbnail metadata — orb derives its own media metadata at CAS-store time"],
-  // settings.json sections (ST snake_case interchange names)
-  ["textgenerationwebui_settings", "live text-completion preset — orb has no text-completion mode; ruled out by owner 2026-08-08"],
-  ["nai_settings", "live text-completion preset — orb has no text-completion mode; ruled out by owner 2026-08-08"],
-  ["kai_settings", "live text-completion preset — orb has no text-completion mode; ruled out by owner 2026-08-08"],
-  [
-    "world_info_settings",
-    "global world-info activation knobs have no orb home; the per-character charLore bindings ARE read (see the world name-link section) and per-book WI is imported",
-  ],
-  ["horde_settings", "Horde backend config — no import canon"],
-  [
-    "extension_settings",
-    "extension state — READ for regex (global scripts import; see the regex section; regex_presets/character_allowed_regex have no orb counterpart) and INVENTORIED for the Data Bank index (attachments/character_attachments); the rest is out of scope",
-  ],
-  ["background", "which background was SELECTED — selection state; the background IMAGES themselves import"],
-  ["proxies", "connection proxy config — no import canon"],
-  ["selected_proxy", "selected proxy — no import canon"],
-  // The eleven a verifier found rendering BARE (2026-08): ST install/session/selection state, plus the legacy
-  // TOP-LEVEL generation knobs that predate ST's per-family blobs and are superseded by them.
-  ["firstRun", "ST first-run flag — install state, not canon"],
-  ["accountStorage", "ST per-account browser-storage mirror — session state, not canon"],
-  ["currentVersion", "the ST version stamp that wrote this profile — provenance, nothing to import"],
-  ["username", "the ST account's own display name — orb identity is per-install (personas ARE imported)"],
-  ["active_character", "which character was open when ST last saved — selection state, not canon"],
-  ["active_group", "which group was open when ST last saved — selection state (the GROUPS themselves import)"],
-  ["user_avatar", "which persona avatar was selected — selection state (the personas + avatars themselves import)"],
-  ["amount_gen", "legacy top-level response length — superseded by the per-family preset blobs"],
-  ["max_context", "legacy top-level context size — superseded by the per-family preset blobs"],
-  ["main_api", "which backend ST was pointed at — orb connections are configured per-install, never imported"],
-  ["swipes", "the swipes-enabled UI toggle — a client preference; the swipe DATA itself imports with each chat"],
-]);
+// The reasons live in `@orb/contracts/import` — the one home the browser planner also reads, so what the
+// picker leaves out before upload and what this report names agree. A name absent from both maps renders
+// bare, so a new ST plane shows up instead of being swallowed.
+function unhandledReason(name: string): string | undefined {
+  return ST_PROFILE_UNHANDLED_REASONS.get(name) ?? ST_SETTINGS_UNHANDLED_REASONS.get(name);
+}
 
 /** One "not imported" line: the plane name + its one-line reason when known, else bare. */
 function unhandledLine(name: string): string {
-  const reason = UNHANDLED_REASONS.get(name);
+  const reason = unhandledReason(name);
   return reason === undefined ? `\`${name}\`` : `\`${name}\` — ${reason}`;
 }
 
@@ -117,15 +47,33 @@ function presetNoteLines(report: ImportReport): string[] {
   });
 }
 
+/** The collision suffix an import took, as the report says it. */
+function renamedSuffix(renamedFrom: string | null): string {
+  return renamedFrom === null ? "" : ` — imported under a new name; you already have a different \`${renamedFrom}\``;
+}
+
 /** The shared renderer for a per-entity lossiness note (presets + themes carry the identical shape). */
 function noteLines(notes: ImportReport["presetNotes"] | ImportReport["themeNotes"]): string[] {
   return notes.map((note) => {
-    const head = `\`${note.name}\` (from \`${note.sourceFile}\`)`;
+    const head = `\`${note.name}\` (from \`${note.sourceFile}\`)${renamedSuffix(note.renamedFrom)}`;
     if (note.fields.length === 0) {
       return `${head} — everything mapped`;
     }
     const nested = note.fields.map((f) => `  - \`${f.field}\` — ${f.reason}`).join("\n");
     return `${head} — ${note.fields.length} field(s) not imported:\n${nested}`;
+  });
+}
+
+/** One line per standalone world book the run landed: where it landed, and the SillyTavern activation
+ *  fields its entries keep stored but inert (owner ruling: kept untouched, shown as not active yet). */
+function worldLines(report: ImportReport): string[] {
+  return report.worldNotes.map((note) => {
+    const landed = note.created ? "new" : "already in your library";
+    const inert =
+      note.inertFields.length === 0
+        ? ""
+        : `; kept but not active yet: ${note.inertFields.map((f) => `\`${f.field}\` (${f.entries} ${f.entries === 1 ? "entry" : "entries"})`).join(", ")}`;
+    return `\`${note.name}\` — ${note.entries} ${note.entries === 1 ? "entry" : "entries"}, ${landed}${renamedSuffix(note.renamedFrom)}${inert}`;
   });
 }
 
@@ -210,8 +158,9 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
     `- Entities scanned: ${report.scanned}`,
     `- New canon written (characters + personas + chats + world books + presets + group rooms): ${report.changed}`,
     `- Cards skipped (could not import): ${report.skippedCards.length}`,
-    `- Presets imported: ${report.presetsImported} (${report.presetsCreated} new, ${report.presetsImported - report.presetsCreated} merged onto an existing preset)`,
-    `- Themes converted: ${report.themesImported} (${report.themesCreated} new, ${report.themesImported - report.themesCreated} merged onto an existing imported theme)`,
+    `- World books imported: ${report.worldNotes.length} (${report.worldNotes.filter((n) => n.created).length} new, ${report.worldNotes.filter((n) => !n.created).length} already in your library)`,
+    `- Presets imported: ${report.presetsImported} (${report.presetsCreated} new, ${report.presetsImported - report.presetsCreated} already in your library)`,
+    `- Themes converted: ${report.themesImported} (${report.themesCreated} new, ${report.themesImported - report.themesCreated} already in your library)`,
     `- Background images imported: ${report.backgroundsImported}`,
     `- Group rooms imported: ${report.groupsImported} (${report.groupChatsImported} group transcript(s))`,
     // The dedup-skip HEAL. Rendered even at zero: a re-run over an already-imported corpus writes no new
@@ -226,6 +175,7 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
       "Unreadable card files",
       report.unreadableCards.map((f) => `\`${f}\``),
     ),
+    section("World books imported (SillyTavern activation settings are kept on each entry but not active yet)", worldLines(report)),
     section(
       "World books that failed to parse",
       report.unreadableWorlds.map((f) => `\`${f}\``),

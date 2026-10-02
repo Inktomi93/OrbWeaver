@@ -17,6 +17,7 @@ import type {
   GetAppSettingsParams,
   GetThemeParams,
   GetUserSettingsParams,
+  ImportThemeFileParams,
   ListThemesParams,
   PromoteThemeParams,
   RemoveThemeParams,
@@ -25,6 +26,7 @@ import type {
   UpdateThemeParams,
   UpdateUserSettingsSectionParams,
 } from "./params.ts";
+import type { ImportThemeFileOutcome } from "./portability.ts";
 import type { GlobalSettingView, ThemeView, UserSettingsView } from "./views.ts";
 
 /** The DI bundle every verb closes over, wired at the composition root. */
@@ -147,4 +149,7 @@ export interface SettingsService {
   readonly updateTheme: (params: UpdateThemeParams) => Promise<ThemeView>;
   /** Delete an OWNED theme (never a seed). Throws `ThemeNotFoundError` when unowned/missing/a seed. */
   readonly removeTheme: (params: RemoveThemeParams) => Promise<void>;
+  /** The single-theme import door: an orb export, an orb backup or a raw SillyTavern theme, through the same
+   *  op the bundle restore calls. Never throws for a malformed file; the refusal is what the door renders. */
+  readonly importThemeFile: (params: ImportThemeFileParams) => Promise<ImportThemeFileOutcome>;
 }

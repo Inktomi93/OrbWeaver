@@ -290,7 +290,8 @@ test("a picked file makes ZERO requests: the preflight states the consequence an
   // It names the FILE it is about to send, and says what an import does to what you already own.
   await expect(preflight).toContainText("villain.png");
   await expect(preflight).toContainText("nothing you already have is deleted");
-  await expect(preflight).toContainText("updated in place");
+  await expect(preflight).toContainText("Settings in an Orbweaver backup merge into yours");
+  await expect(preflight).toContainText("imported under a numbered name");
   // …and nothing has been sent.
   expect(uploads).toEqual([]);
 });
@@ -347,4 +348,39 @@ test("the shared browser file actions drive the production dropzone and sibling 
   await expect(page.locator('[data-slot="import-preflight"]')).toContainText("Import 2 files from the folder you picked?");
   expect(folder).toMatchObject({ kind: "upload", feeder: "filechooser", files: 2, directory: true });
   expect(folder.identities.map((file) => file.relativePath)).toEqual(["library-tree/characters/hero.png", "library-tree/settings.json"]);
+});
+
+// ── THE FOLDER PLAN: secrets.json never leaves the browser, and the preflight says what stays behind ────
+// The picked folder carries the ST credentials file beside the planes the importer reads. The plan skips it
+// with its reason, and the ONE POST the confirm makes carries no part for it — asserted on the real
+// multipart body, not on a rendered line.
+test("a picked SillyTavern folder never posts secrets.json, and the preflight names it as left out", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  const tree = join(FILE_ACTION_ROOT, "st-profile");
+  mkdirSync(join(tree, "characters"), { recursive: true });
+  writeFileSync(join(tree, "settings.json"), "{}");
+  writeFileSync(join(tree, "secrets.json"), '{"api_key_openai":"never-sent"}');
+  writeFileSync(join(tree, "characters", "hero.png"), "PNG");
+  const bodies: string[] = [];
+  // The route REFUSES after capturing the body: a 202 would mount the workload tracker and its socket room,
+  // which this test does not drive — the claim here is what the one POST carried, nothing after it.
+  await page.route("**/api/import/tree", async (route) => {
+    bodies.push(route.request().postDataBuffer()?.toString("latin1") ?? "");
+    await route.fulfill({ status: 400, headers: { "content-type": "application/json" }, body: JSON.stringify({ error: "captured by the test" }) });
+  });
+
+  await mount(<BackupSettingsStory />);
+  await driveFileUpload(page.getByRole("button", { name: "Import a folder…" }), "role=button[name='Import a folder…']", [tree], 10_000);
+
+  const preflight = page.locator('[data-slot="import-preflight"]');
+  await expect(preflight).toContainText("Import 2 files from the folder you picked?");
+  await expect(preflight).toContainText("1 file will stay on your disk — API keys");
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+
+  await expect.poll(() => bodies.length, { intervals: [20, 50, 100] }).toBe(1);
+  const body = bodies[0] ?? "";
+  expect(body).toContain('filename="st-profile/characters/hero.png"');
+  expect(body).toContain('filename="st-profile/settings.json"');
+  expect(body).not.toContain("secrets.json");
+  expect(body).not.toContain("never-sent");
 });

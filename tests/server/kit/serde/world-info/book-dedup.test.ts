@@ -1,13 +1,13 @@
-// Unit test for domain/world-info/substrate/book-dedup — the PURE embedded-book content-dedup rule (#303).
+// Unit test for kit/serde/world-info — the PURE book content-identity rule every import door dedups by.
 // The planner decides which incoming embedded book LINKS to an owned library book vs mints a fresh one. This
 // pins the identity rule: name + entry SET (order-independent), object-key-order-independent, and the
 // null-vs-[] keys collapse — the properties that let a re-encoded identical book match its stored twin.
 
 import type { WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { DedupBook, DedupCandidateBook, DedupLoreEntry } from "@orb/server/kit/serde/world-info";
+import { bookContentKey, findDuplicateBook } from "@orb/server/kit/serde/world-info";
 import { describe } from "vitest";
-import type { DedupBook, DedupCandidateBook, DedupLoreEntry } from "../../../../../packages/server/src/domain/world-info/contract/book-dedup.ts";
-import { bookContentKey, findDuplicateBook } from "../../../../../packages/server/src/domain/world-info/substrate/book-dedup.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function entry(over: Partial<DedupLoreEntry> = {}): DedupLoreEntry {
@@ -51,18 +51,19 @@ describe("bookContentKey", () => {
     expect(bookContentKey(empty)).toBe(bookContentKey(nulled));
   });
 
-  test("a different name, entry content, or entry set keys DIFFERENTLY", () => {
+  test("a different entry content or entry set keys DIFFERENTLY; a different NAME does not (a renamed book is the same book)", () => {
     const base = book();
-    expect(bookContentKey(book({ name: "Other" }))).not.toBe(bookContentKey(base));
+    expect(bookContentKey(book({ name: "Other" }))).toBe(bookContentKey(base));
+    expect(bookContentKey(book({ name: "Aria's World (2)" }))).toBe(bookContentKey(base));
     expect(bookContentKey(book({ entries: [entry({ content: "changed" })] }))).not.toBe(bookContentKey(base));
     expect(bookContentKey(book({ entries: [entry(), entry({ title: "Extra" })] }))).not.toBe(bookContentKey(base));
   });
 });
 
 describe("findDuplicateBook", () => {
-  test("returns the id of a content-equal candidate (the LINK case)", () => {
-    const match = findDuplicateBook(book(), [candidate("world_book_a"), candidate("world_book_b", { name: "Different" })]);
-    expect(match).toBe(castId<WorldBookId>("world_book_a"));
+  test("returns the content-equal candidate with the name it carries (the LINK case), whatever the incoming name", () => {
+    const match = findDuplicateBook(book(), [candidate("world_book_a", { name: "Aria's World (2)" }), candidate("world_book_b", { entries: [] })]);
+    expect(match).toEqual(candidate("world_book_a", { name: "Aria's World (2)" }));
   });
 
   test("returns null when no candidate matches (the MINT case) — a same-name different-content book is NOT a match", () => {

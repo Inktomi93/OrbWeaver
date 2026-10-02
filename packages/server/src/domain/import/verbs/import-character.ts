@@ -1,20 +1,19 @@
-// verb: importCharacter — one ST character card → one canonical character. Flow: parse bytes → hash whole
-// file → byte-identical dedup (the ONLY dedup: the same FILE, never a name) → flatten+validate → mint a FREE
-// per-owner handle (a name-slug collision suffixes the HANDLE only, never the display name — two distinct
-// "Eleni" cards are two characters) → create fresh with provenance + CAS-store avatar → attach tags → re-link
-// carried attached-book references, else carry the embedded lorebook clone (the fallback when no
-// reference resolves on this install, and only into a FREE primary seat — #1598). All cross-feature ops are
-// injected via context.ts — import never reads a db table directly.
+// verb: importCharacter — one ST character card → one canonical character. Flow: parse bytes → hash the
+// PARSED CONTENT (the card, its tags and its embedded book; never the file bytes) → content dedup (the ONLY
+// dedup: equal content is the same character, never a name) → flatten+validate → mint a FREE per-owner
+// handle (a name-slug collision suffixes the HANDLE only, never the display name — two distinct "Eleni"
+// cards are two characters) → create fresh with provenance + CAS-store avatar → attach tags → re-link
+// carried attached-book references, else carry the embedded lorebook clone (the fallback when no reference
+// resolves on this install, and only into a FREE primary seat). All cross-feature ops are injected via
+// context.ts — import never reads a db table directly.
 //
-// THE DEDUP HIT FINISHES THE IMPORT; IT DOES NOT SKIP IT (#1470). A card lands as a character row PLUS three
-// overlay planes (tags · books · scripts), each its own awaited op, so a throw after the create commits a
-// character with planes missing — and the dedup key is that character's own `importHash`, so it is the exact
-// row that answers "already imported". The dedup arm therefore runs the SAME `attachAllPlanes` the create arm
-// does and returns the counts it actually landed: `created:false` means no new CHARACTER was written, never
-// that nothing was. Why RECONCILE rather than one transaction: `db.transaction()` is banned in this tree (the
-// replacement-connection trap, `Tier-1-DB` §6) and a `db.batch` is one db's statements — it cannot span four
-// injected cross-DOMAIN ops, and this verb touches no db at all. So the resumable state is the one the owning
-// domains already hold, and each plane's op is idempotent for the same (character, card) pair.
+// THE DEDUP HIT REUSES THE CHARACTER AND RE-RUNS ITS PLANES (owner ruling): an equal-content card answers
+// `created:false` (the doors' "already in your library"), and its tags, books and scripts are landed again
+// idempotently — `skippedOverlays` stays what it is, the planes NOT asserted (the kept-book note) — so a
+// first import that died after the row was written finishes on the next one. ART IS IDENTITY: the same text
+// under a different picture is a separate character; the one exception is a JSON card followed by its PNG,
+// which gives the art-less row its art. Rows imported before the content identity landed carry the
+// whole-file hash, so the lookup tries that last (`findImportedCharacter`).
 
 import type { AttachedBookRef } from "@orb/contracts/character";
 import { pluginImportedFrom } from "@orb/contracts/character";
@@ -28,7 +27,7 @@ import { ImportCardError } from "../contract/errors.ts";
 import type { ImportCharacterInput } from "../contract/params.ts";
 import type { ImportCharacterResult } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
-import { cardToCreateInput, importFileHash, parseCardJson, parseCardPng } from "../substrate/card.ts";
+import { cardToCreateInput, findImportedCharacter, parseCardJson, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "../substrate/card.ts";
 
 const PNG_MIME = "image/png";
 const DEFAULT_FALLBACK_NAME = "Imported Character";
@@ -46,10 +45,10 @@ function fallbackNameFrom(filename: string | undefined): string {
   return stem.length > 0 ? stem : DEFAULT_FALLBACK_NAME;
 }
 
-/** Resolve a FREE per-owner character handle: `characters.handle` is per-owner UNIQUE, so a byte-new card
+/** Resolve a FREE per-owner character handle: `characters.handle` is per-owner UNIQUE, so a content-new card
  *  whose name-slug is already taken gets a numeric suffix (`eleni` → `eleni-2` → `eleni-3`). This suffixes the
  *  HANDLE only — the card's display `name` is untouched. We NEVER dedupe by name: two distinct "Eleni" cards
- *  are two characters (byte-identical files already deduped upstream by importHash). */
+ *  are two characters (equal-content cards already deduped upstream by the import hash). */
 async function freeHandle(ctx: ImportContext, base: CharacterHandle): Promise<CharacterHandle> {
   let handle: CharacterHandle = base;
   let n = 2;
@@ -93,11 +92,10 @@ interface CarriedContent {
 const BOOK_KEPT_NOTE =
   "the card's embedded world book was NOT re-asserted — this character already holds a primary world book, and your edits to it win (use the card world book restore door to put the card's version back)";
 
-/** #1598: is the character's PRIMARY book seat already taken? A re-upload of the same card file re-runs every
- *  overlay plane (#1470), and the embedded-book plane is the one that is not idempotent — world-info's write
- *  REPLACES an existing primary's entries, reverting whatever the owner has since edited into that book. So
- *  the plane is skipped when the seat is taken and the outcome SAYS so; the explicit restore verb is the
- *  opt-in path back to the card's own version (owner ruling 2026-09-05).
+/** Is the character's PRIMARY book seat already taken? The embedded-book plane lands only into a free seat:
+ *  world-info's write REPLACES an existing primary's entries, reverting whatever the owner has since edited
+ *  into that book, so a taken seat is skipped and the outcome SAYS so; the explicit restore verb is the
+ *  opt-in path back to the card's own version (owner ruling).
  *
  *  An UNWIRED oracle answers "free": it travels with `importLorebook` on world-info's one import port, so a
  *  composition that can write the book can always ask — the only ctx without it is one whose `importLorebook`
@@ -117,8 +115,8 @@ function primaryBookTaken(ctx: ImportContext, characterId: CharacterId): Promise
  *  • LOREBOOK is either/or, and never destructive. A resolved reference IS the book on this install, so when
  *    ANY reference links we SKIP the embedded clone — cloning it would duplicate the book (double primary).
  *    The clone is the fallback for a foreign install (no reference resolved) and for cards carrying no
- *    references at all, and it lands ONLY into a FREE primary seat (#1598): a taken seat holds a book the
- *    owner may have edited, and world-info's write would replace its entries wholesale.
+ *    references at all, and it lands ONLY into a FREE primary seat: a taken seat holds a book the owner may
+ *    have edited, and world-info's write would replace its entries wholesale.
  *  • REGEX takes BOTH channels at once and resolves them INTERNALLY (`planCardLift`): a carried reference
  *    this owner holds attaches the existing row, and a by-value script content-dedups against the library,
  *    minting only when genuinely new. So a same-install re-import produces zero duplicate rows and a
@@ -162,24 +160,54 @@ async function attachCarriedContent(
   return { attachedBooksLinked, attachedBooksSkipped, regexScriptsLifted, regexScriptsReused, skippedOverlays };
 }
 
-/** EVERY plane a card lands beyond the character row, in one place — because BOTH arms of the verb run it
- *  (#1470). The create arm runs it to finish a fresh import; the dedup arm runs it to RECONCILE one that did
- *  not finish. One function, so the two arms cannot drift into different definitions of "imported". */
+/** EVERY plane a card lands beyond the character row, in one place, because BOTH arms of the verb run it:
+ *  the create arm to finish a fresh import, the reuse arm to land what an earlier run of the same card left
+ *  missing. Each plane is idempotent for the same (character, card) pair: the tag attach is by name, the
+ *  carried re-link is `onConflictDoNothing`, the script lift content-dedups, and the embedded book lands only
+ *  into a FREE primary seat. */
 async function attachAllPlanes(
   ctx: ImportContext,
   characterId: CharacterId,
   tags: readonly string[],
   carried: CarriedContent,
-): Promise<{
-  readonly attachedBooksLinked: number;
-  readonly attachedBooksSkipped: number;
-  readonly regexScriptsLifted: number;
-  readonly regexScriptsReused: number;
-  readonly skippedOverlays: readonly string[];
-}> {
+): Promise<Awaited<ReturnType<typeof attachCarriedContent>>> {
   await attachCardTags(ctx, characterId, tags);
   return await attachCarriedContent(ctx, characterId, carried);
 }
+
+/** The character this card already landed as, or null for a new one. A `text` match (the row landed from a
+ *  JSON card and this is its PNG) takes the art only when the row has none; a row that already has art makes
+ *  this card an alt-art version, which is a separate character. */
+async function resolveExisting({
+  ctx,
+  parsed,
+  bytes,
+  png,
+  importHash,
+}: {
+  readonly ctx: ImportContext;
+  readonly parsed: ParsedCardIdentity;
+  readonly bytes: Uint8Array;
+  readonly png: boolean;
+  readonly importHash: string;
+}): Promise<CharacterId | null> {
+  const found = await findImportedCharacter((hash) => ctx.findByImportHash({ ownerId: ctx.ownerId, importHash: hash }), {
+    importHash,
+    textHash: parsedCardTextHash(parsed),
+    bytes,
+  });
+  if (found === null) {
+    return null;
+  }
+  if (found.match !== "text" || !png) {
+    return found.characterId;
+  }
+  const avatarAssetId = await ctx.storeAsset({ ownerId: ctx.ownerId, bytes, mime: PNG_MIME });
+  const tookArt = await ctx.attachImportedArt({ ownerId: ctx.ownerId, characterId: found.characterId, avatarAssetId, importHash });
+  return tookArt ? found.characterId : null;
+}
+
+type ParsedCardIdentity = NonNullable<ReturnType<typeof parseCardJson>>;
 
 export function createImportCharacter(ctx: ImportContext): ImportService["importCharacter"] {
   return async ({ card }: ImportCharacterInput): Promise<ImportCharacterResult> => {
@@ -198,8 +226,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     }
     const { card: characterCard, tags, book, attachedBooks, attachedRegexScripts } = parsed;
 
-    const importHash = importFileHash(bytes);
-
+    const importHash = parsedCardImportHash(parsed);
     const carried: CarriedContent = {
       book,
       attachedBooks,
@@ -207,32 +234,20 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
       attachedRegexScripts,
     };
 
-    const existing = await ctx.findByImportHash({ ownerId: ctx.ownerId, importHash });
+    const existing = await resolveExisting({ ctx, parsed, bytes, png, importHash });
     if (existing !== null) {
-      // THE DEDUP HIT RECONCILES; IT DOES NOT RETURN EARLY (#1470). The character row and its overlay planes
-      // are written by SEPARATE awaited ops, so a throw anywhere after the create leaves a committed character
-      // whose tags/books/scripts never landed — and because the dedup key is the card's own `importHash`, the
-      // row that proves "already imported" is exactly the row that is incomplete. Returning zeros here made
-      // that state PERMANENT: every retry of the same bytes short-circuited on it, and nothing anywhere
-      // recorded the character as unfinished. So a re-import re-runs the overlays and reports what actually
-      // landed. It is safe to re-run because every plane is idempotent for the same (character, card) pair —
-      // the tag attach is race-safe and by name, the carried re-link is `onConflictDoNothing` on its junction
-      // PK, and the script lift content-dedups against the library. The embedded-book plane was the ONE that
-      // is not idempotent (world-info REPLACES an existing primary's entries), so it is now SKIPPED when the
-      // character already holds a primary — the owner's edits win, the outcome names the kept book, and the
-      // restore verb is the opt-in way back to the card's version (#1598, owner ruling 2026-09-05).
-      const reconciled = await attachAllPlanes(ctx, existing, tags, carried);
-      return { characterId: existing, created: false, importHash, ...reconciled };
+      const attached = await attachAllPlanes(ctx, existing, tags, carried);
+      return { characterId: existing, created: false, importHash, ...attached };
     }
 
     // Content-addressed store: a byte-identical re-import resolves to the same asset id.
     const avatarAssetId = png ? await ctx.storeAsset({ ownerId: ctx.ownerId, bytes, mime: PNG_MIME }) : null;
     const baseInput = cardToCreateInput(characterCard, avatarAssetId);
-    // A byte-new card is always a NEW character; only its per-owner-unique handle is disambiguated (the name stays).
+    // A content-new card is always a NEW character; only its per-owner-unique handle is disambiguated (the name stays).
     const handle = await freeHandle(ctx, baseInput.handle);
-    // Two provenance channels, never both: a file upload carries a filename; a plugin funnel (#1702) carries
-    // no filename at all (its wire shape is `{card}`/`{assetId}`, never a name) but knows its OWN manifest id
-    // — paired with this card's own `importHash` so a byte-identical re-ingest through the SAME plugin mints
+    // Two provenance channels, never both: a file upload carries a filename; a plugin funnel carries no
+    // filename at all (its wire shape is `{card}`/`{assetId}`, never a name) but knows its OWN manifest id
+    // — paired with this card's own `importHash` so an equal-content re-ingest through the SAME plugin mints
     // the SAME `importedFrom` (the `findByImportedFrom` re-ingest match).
     const importedFrom = filename ?? (pluginId === undefined ? null : pluginImportedFrom(pluginId, importHash));
     const ref = await ctx.createCharacter({
@@ -242,9 +257,8 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
       importHash,
     });
     const characterId = ref.characterId;
-    const created = true;
     const attached = await attachAllPlanes(ctx, characterId, tags, carried);
 
-    return { characterId, created, importHash, ...attached };
+    return { characterId, created: true, importHash, ...attached };
   };
 }
