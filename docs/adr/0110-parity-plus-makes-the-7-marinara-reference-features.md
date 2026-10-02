@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-09-23
+status: superseded
+updated: 2026-10-02
+superseded-by: docs/adr/0285-parked-program-concepts-and-retained-product-boundaries.md
 ---
 
 # Parity-plus makes the 7 marinara-reference features first-class-and-better, built FOUNDATION-FIRST so each dramatic feature is register-a-row not build-a-subsystem (owner-ratified v2.2; this entry anchors the LANDED foundation — P0/P1/P2/MG/ME/MU — and reserves the feature waves P3–P6 as named doorways)

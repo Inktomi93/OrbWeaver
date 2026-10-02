@@ -12,15 +12,15 @@ plan: message-reactions
 
 ## What
 
-Build the custom-emoji half of reactions described in `docs/plans/message-reactions/design.md`: users and characters react with custom emoji images through the same reaction plane as Unicode, with the image stored in CAS. The Unicode plane is built.
+Retain image reactions as a parked concept under `docs/plans/message-reactions/design.md`. Preserve Unicode reactions and current asset access.
 
 ## Why
 
-The owner ruled that custom emoji ships too, and the GitHub issue that tracked it ("Finish custom emoji reactions before launch") was never imported into docs/work. The home roadmap lists reactions as partly built.
+Custom emoji is deferred, and the owner retained D21 without a room-member asset-access exception.
 
 ## Done when
 
-A user and a character can each react with a custom emoji image, the reaction persists as chat canon, and the next turn can see it. The plan is deleted when this lands.
+The owner resumes the program and approves the asset-access design before implementation and rendered acceptance.
 
 ## Evidence
 

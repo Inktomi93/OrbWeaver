@@ -59,7 +59,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D46 | [Scripting variables live on two planes](0046-scripting-variables-live-on-two-planes.md) | active |
 | D47 | [Seven SillyTavern gaps are committed](0047-seven-sillytavern-gaps-committed.md) | active |
 | D48 | [Tool calling and structured output ride capabilities](0048-tool-calling-and-structured-output-ride-capabilities.md) | active |
-| D49 | [The SillyTavern gap register is closed](0049-sillytavern-gap-register-closed.md) | active |
+| D49 | [The SillyTavern gap register is closed](0049-sillytavern-gap-register-closed.md) | superseded by [0285-parked-program-concepts-and-retained-product-boundaries.md](0285-parked-program-concepts-and-retained-product-boundaries.md) |
 | D50 | [Event bus parity members](0050-event-bus-parity-members.md) | active |
 | D51 | [Content parts are built once at the request seam](0051-content-parts-built-once-at-request-seam.md) | active |
 | D52 | [ECharts is the one chart primitive](0052-echarts-one-chart-primitive.md) | active |
@@ -71,7 +71,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D58 | [RPG mode is a committed feature domain](0058-rpg-mode-committed-feature-domain.md) | active |
 | D59 | [The crew design is kept as design of record](0059-crew-design-kept-as-design-of-record.md) | active |
 | D60 | [Agents are first-class principals](0060-agents-first-class-principals.md) | active |
-| D61 | [Marinara borrow dispositions](0061-marinara-borrow-dispositions.md) | active |
+| D61 | [Marinara borrow dispositions](0061-marinara-borrow-dispositions.md) | superseded by [0285-parked-program-concepts-and-retained-product-boundaries.md](0285-parked-program-concepts-and-retained-product-boundaries.md) |
 | D62 | [The UI and UX revamp rulings](0062-ui-and-ux-revamp-rulings.md) | active |
 | D63 | [The app background image is an appearance setting](0063-app-background-image-appearance-setting.md) | active |
 | D64 | [Handoff and fork drop the prior host's characters](0064-handoff-and-fork-drop-prior-host-characters.md) | active |
@@ -94,7 +94,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D107 | [A declared knob is wired or cited as dormant](0107-declared-knob-wired-or-cited-as-dormant.md) | active |
 | D108 | [The retro brings rpg back as the LITE-PLUS-GUIDED substrate (W1 domain vertical); AMENDS D86's lite branch + the D58/D86 single-turn write model with the two-mode extraction delivery fork (owner sign-off)](0108-the-retro-brings-rpg-back-as-the-lite.md) | active |
 | D109 | [The rpg-lite exchange is TWO turns (the character turn + the state round); out-of-turn model calls INHERIT the turn's resolved connection + consent; `structured` is the constrained-generation primitive; vLLM is chat-completions-only (AMENDS D108's cheap branch; proven live end-to-end both modes, commit `fc85f1c0`)](0109-the-rpg-lite-exchange-is-two-turns-the.md) | active |
-| D110 | [Parity-plus makes the 7 marinara-reference features first-class-and-better, built FOUNDATION-FIRST so each dramatic feature is register-a-row not build-a-subsystem (owner-ratified v2.2; this entry anchors the LANDED foundation — P0/P1/P2/MG/ME/MU — and reserves the feature waves P3–P6 as named doorways)](0110-parity-plus-makes-the-7-marinara-reference-features.md) | active |
+| D110 | [Parity-plus makes the 7 marinara-reference features first-class-and-better, built FOUNDATION-FIRST so each dramatic feature is register-a-row not build-a-subsystem (owner-ratified v2.2; this entry anchors the LANDED foundation — P0/P1/P2/MG/ME/MU — and reserves the feature waves P3–P6 as named doorways)](0110-parity-plus-makes-the-7-marinara-reference-features.md) | superseded by [0285-parked-program-concepts-and-retained-product-boundaries.md](0285-parked-program-concepts-and-retained-product-boundaries.md) |
 | D111 | [The rpg state round READS THE STORY; the tracker tracks SURFACE reality; the composer wand is the ST-style control map; a fork CLONES the game](0111-the-rpg-state-round-reads-the-story-the.md) | active |
 | D112 | [The hosted extraction fold (AMENDS D108's delivery fork and D109-1's tool-less rule)](0112-the-hosted-extraction-fold-amends-d108-s-delivery.md) | active |
 | D113 | [The Tracker is the ONE tracked-field concept (SUPERSEDES the pool/cast-field/widget trichotomy)](0113-the-tracker-is-the-one-tracked-field-concept.md) | active |
@@ -232,3 +232,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D282 | [User docs live in the GitHub wiki](0282-user-docs-live-in-the-github-wiki.md) | active |
 | D283 | [Documentation lifecycle permits bounded publication editorial corrections](0283-docs-lifecycle-and-publication-editorial-corrections.md) | active |
 | D284 | [Persona resolution proof permits identity-only publication anonymization](0284-persona-resolution-proof-allows-publication-anonymization.md) | active |
+| D285 | [Parked programs retain concepts and implemented product boundaries](0285-parked-program-concepts-and-retained-product-boundaries.md) | active |

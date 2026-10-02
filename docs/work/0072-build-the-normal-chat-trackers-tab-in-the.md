@@ -12,15 +12,15 @@ plan: world-state-clips
 
 ## What
 
-Add a Trackers tab to the context pane of a normal (non-game) chat, rendering the chat's trackers with the tracker block kit in `packages/client/src/components/tracker-blocks/`. The chat section's context tabs are members, settings and preview today.
+Keep normal-chat narrative-state presentation parked with `docs/plans/world-state-clips/design.md`. Decide its presentation only when that program resumes.
 
 ## Why
 
-The context panel program specified this tab and left it unbuilt: it depends on the world-state layer or the steering wave. The world-state-clips plan names it.
+The parked concept does not commit to a new tab or a duplicate RPG tracker.
 
 ## Done when
 
-A normal chat with trackers shows a Trackers tab that renders them with the block kit, and a chat without trackers shows no empty tab. A CT pins both cases.
+The resumed program has an approved presentation design and its behavioral and rendered acceptance is implemented.
 
 ## Evidence
 
