@@ -1,85 +1,12 @@
 #!/bin/sh
-# ── the container entrypoint: file-secret indirection + the zero-config first boot ──────────────────
-#
-# Two jobs, then `exec "$@"` (the real command; signals reach node directly — with compose `init: true` the
-# chain is tini → node).
-#
-# 1. *_FILE secret indirection (the containerize build plan §1.3). The app reads secrets from process.env
-#    only (foundation/env parses once at module load; there is no *_FILE support in the schema). A hardened
-#    deployment mounts file secrets at /run/secrets/* (docker/compose.secrets.yaml) and points <VAR>_FILE at
-#    them; this shim exports each file's contents as <VAR>, so secret VALUES never sit in the container's
-#    static config (`docker inspect` shows only the paths). Semantics, per listed VAR:
-#      <VAR> already set (non-empty)      → left alone (an explicit env wins over the file)
-#      <VAR>_FILE unset                   → nothing to do
-#      <VAR>_FILE set, file readable      → export <VAR> = file contents (trailing newline stripped —
-#                                           `openssl rand | tee` style files Just Work)
-#      <VAR>_FILE set, file EMPTY         → treated as UNSET (a required-but-empty secret still fails loudly
-#                                           at the env schema's superRefine)
-#      <VAR>_FILE set, file unreadable    → exit 1 (a pointed-at-but-missing secret is a deploy bug; boot
-#                                           must name it, not limp into the schema error one layer deeper)
-#    The allowlist is explicit — it documents exactly which secrets are file-mountable.
-#
-#    Every name in the `for name in` line below is EXPORTED into the server's process.env. The agent-sdk
-#    child copies only an allowlist of host keys (packages/inference/src/backends/agent-sdk/env.ts), and the
-#    plugin broker and its watchdog get NODE_ENV alone (packages/server/src/infra/plugin-host/process-runtime.ts).
-#    Right after the env parse the server entry deletes every app secret from process.env, so no later child
-#    (cloudflared, tar, git) inherits one. /proc/<pid>/environ still holds them: finding 7 in
-#    docs/law/container-deployment-security.md.
-#
-# 0. PUID/PGID: start as root, own the data dir, drop to that uid/gid, re-exec this script (job 0 below).
-#
-# 2. The zero-config first boot. Two things a fresh container cannot get from a browser, because the app's
-#    un-credentialed owner fallback and its first-run password screen are both gated on a LOOPBACK TCP peer
-#    (infra/auth/dispatch.ts — a published bridge port never delivers one):
-#      AUTH_MODE=single-user  → AUTH_FALLBACK is exported as `owner` here (that mode's ONLY credential; the
-#                               schema refuses an EXPLICIT `deny` pairing as a box that serves nobody, and
-#                               since #2406 resolves an UNSET key to `owner` for this mode anyway — so this
-#                               export restates the resolved value rather than supplying it). The owner
-#                               arrives through the published bridge port only because docker/orbweaver.env
-#                               declares the bridge ranges in AUTH_FALLBACK_TRUSTED_PEERS; without them only a
-#                               loopback peer is the owner (docker/compose.host-network.yaml), and boot says so.
-#      AUTH_MODE=local        → SESSION_SECRET is generated once and kept in the data volume when neither the
-#                               env nor a *_FILE provides it; LOCAL_INITIAL_PASSWORD likewise — generated on the
-#                               first boot, PRINTED ONCE to the log, and kept at
-#                               $DATA_DIR/secrets/initial_password. The owner seed is first-boot-only and
-#                               never clobbers a password changed in-app, so re-exporting the kept value on
-#                               later boots is inert. Delete the file after changing your password if you
-#                               do not want the initial one on disk.
-#    Both generated files live in the data volume's secrets/ dir, beside the credentials key the server
-#    generates there and in the same backup unit as the database they protect — the pepper therefore does
-#    not survive a volume leak on its own. That is the accepted trade for a first boot with zero setup; a
-#    deployment that wants the secret elsewhere provides SESSION_SECRET / SESSION_SECRET_FILE and nothing is
-#    generated. The data volume's tree (db/, backups/, assets/, users/, secrets/, reports/, cache/) is the
-#    server's own layout (packages/server/src/foundation/data-layout); DATA_DIR is exported below so the
-#    shell and the server read ONE name for its root.
+# Generates first-boot files and drops privileges before starting the app.
+# The app reads *_FILE itself: exporting file contents would expose them through /proc/<pid>/environ.
+# Explicit nonempty env values still win over files; only generated file paths are exported here.
 set -eu
 # Everything the app writes is private to its user. A bind-mounted ./data is a host directory, and the
 # database, uploads and backups in it must not be readable by other users of that host. The mask survives
 # the setpriv exec below and is inherited by node and every child it starts.
 umask 077
-
-load_secret() {
-  var="$1"
-  file_var="${var}_FILE"
-  eval "file=\${${file_var}:-}"
-  eval "current=\${${var}:-}"
-  if [ -n "${current}" ] || [ -z "${file}" ]; then
-    return 0
-  fi
-  if [ ! -r "${file}" ]; then
-    echo "entrypoint: ${file_var}=${file} is not readable — refusing to boot without the named secret" >&2
-    exit 1
-  fi
-  value="$(cat "${file}")"
-  if [ -z "${value}" ]; then
-    return 0
-  fi
-  export "${var}=${value}"
-}
-
-for name in SESSION_SECRET OIDC_CLIENT_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD OPENROUTER_API_KEY DEBUG_TOKEN; do
-  load_secret "${name}"
-done
 
 # ── job 0: run as YOUR user (PUID/PGID), the SillyTavern / linuxserver pattern ───────────────────────
 # The image starts as root ONLY to (a) make the data dir owned by the app user — a bind-mounted host
@@ -144,6 +71,18 @@ keep_generated() {
   echo generated
 }
 
+# An unreadable declared file must reach the app's refusal, not be replaced by a generated secret.
+secret_unset() {
+  var="$1"
+  file_var="${var}_FILE"
+  eval "file=\${${file_var}:-}"
+  eval "current=\${${var}:-}"
+  [ -z "${current}" ] || return 1
+  [ -n "${file}" ] || return 0
+  secret_contents="$(cat "${file}")" || return 1
+  [ -z "${secret_contents}" ]
+}
+
 mode="${AUTH_MODE:-single-user}"
 case "${mode}" in
   single-user)
@@ -168,24 +107,22 @@ case "${mode}" in
   local|oidc)
     # Both cookie modes need SESSION_SECRET (the scrypt pepper + session-token HMAC); an OIDC deployer
     # should not have to mint one by hand any more than a password-mode one.
-    if [ -z "${SESSION_SECRET:-}" ]; then
+    if secret_unset SESSION_SECRET; then
       state="$(keep_generated session_secret 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')"
-      SESSION_SECRET="$(cat "${secrets_dir}/session_secret")"
-      export SESSION_SECRET
+      export SESSION_SECRET_FILE="${secrets_dir}/session_secret"
       echo "entrypoint: SESSION_SECRET ${state} at ${secrets_dir}/session_secret" >&2
     fi
     [ "${mode}" = oidc ] && exec "$@"
-    if [ -z "${LOCAL_INITIAL_PASSWORD:-}" ]; then
+    if secret_unset LOCAL_INITIAL_PASSWORD; then
       state="$(keep_generated initial_password 'process.stdout.write(require("node:crypto").randomBytes(15).toString("base64url"))')"
-      LOCAL_INITIAL_PASSWORD="$(cat "${secrets_dir}/initial_password")"
-      export LOCAL_INITIAL_PASSWORD
+      export LOCAL_INITIAL_PASSWORD_FILE="${secrets_dir}/initial_password"
       handle="${OWNER_HANDLES:-${DEFAULT_USER_HANDLE:-owner}}"
       if [ "${state}" = generated ]; then
         {
           echo "entrypoint: ┌──────────────────────────────────────────────────────────────────────────┐"
           echo "entrypoint: │  FIRST BOOT — your login (no LOCAL_INITIAL_PASSWORD was set, so one was made)  "
           echo "entrypoint: │    user:     ${handle}"
-          echo "entrypoint: │    password: ${LOCAL_INITIAL_PASSWORD}"
+          echo "entrypoint: │    password: $(cat "${LOCAL_INITIAL_PASSWORD_FILE}")"
           echo "entrypoint: │  Kept at ${secrets_dir}/initial_password. Change it in Settings, then delete the file."
           echo "entrypoint: └──────────────────────────────────────────────────────────────────────────┘"
         } >&2

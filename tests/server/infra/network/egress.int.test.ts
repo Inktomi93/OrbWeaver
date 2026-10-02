@@ -37,8 +37,11 @@
 // The safeFetch path is untouched by all of it: its unconditional private-range denial never consults the
 // allowlist (the `ownerConfiguredEndpoint` class is the one named opt-out, compose-bound, not caller-suppliable).
 
-import type { LookupFunction } from "node:net";
+import { once } from "node:events";
+import { createServer } from "node:http";
+import type { LookupFunction, Socket } from "node:net";
 import process from "node:process";
+import { setImmediate } from "node:timers/promises";
 import {
   __firewallConnectForTest,
   __setFirewallLookupForTest,
@@ -47,7 +50,7 @@ import {
   publishPrivateEndpointAllowlist,
 } from "@orb/server/infra/network";
 import type { Dispatcher } from "undici";
-import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
+import { getGlobalDispatcher, request, setGlobalDispatcher } from "undici";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -170,6 +173,56 @@ describe("publishPrivateEndpointAllowlist — the deployment's private-endpoint 
     publishPrivateEndpointAllowlist(["127.0.0.1"]);
     expect(endpointAdmission("http://127.0.0.1:8703")).toBe("admitted");
     expect(await dialVerdict("http://127.0.0.1:8703/v1/models")).toBe("attempted");
+  });
+
+  test.each(["host", "port", "range", "port-narrowing"] as const)("revoking a %s grant refuses the next request on a real keep-alive pool", async (kind) => {
+    const sockets = new Set<Socket>();
+    let requests = 0;
+    const server = createServer((_req, res) => {
+      requests += 1;
+      res.end("admitted");
+    });
+    server.on("connection", (socket) => {
+      sockets.add(socket);
+      socket.on("close", () => sockets.delete(socket));
+    });
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    try {
+      const address = server.address();
+      if (address === null || typeof address === "string") {
+        throw new Error("expected TCP listener");
+      }
+      const url = `http://127.0.0.1:${String(address.port)}`;
+      const entry = {
+        host: "127.0.0.1",
+        port: `127.0.0.1:${String(address.port)}`,
+        range: "127.0.0.0/8",
+        "port-narrowing": "127.0.0.1",
+      }[kind];
+      publishPrivateEndpointAllowlist([entry]);
+      expect(await (await request(url)).body.text()).toBe("admitted");
+      await setImmediate();
+      expect(await (await request(url)).body.text()).toBe("admitted");
+      await setImmediate();
+      expect(sockets.size, "the positive control must reuse one live keep-alive socket").toBe(1);
+      const installed = getGlobalDispatcher();
+      publishPrivateEndpointAllowlist([entry]);
+      expect(getGlobalDispatcher(), "an unrelated settings reload must not replace an unchanged policy's pool").toBe(installed);
+      publishPrivateEndpointAllowlist(kind === "port-narrowing" ? [`127.0.0.1:${String(address.port + 1)}`] : []);
+      const error = await fetch(url).then(
+        async (response) => {
+          await response.arrayBuffer();
+          return null;
+        },
+        (err: Error) => err,
+      );
+      expect(errorChainText(error)).toContain("SSRF_BLOCKED");
+      expect(requests).toBe(2);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => server.close((err) => (err === undefined ? resolve() : reject(err))));
+    }
   });
 
   // THE WIDENING A BARE ENTRY BUYS, stated rather than discovered, and the BACKWARD-COMPATIBILITY pin for

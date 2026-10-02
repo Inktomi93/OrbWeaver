@@ -3,7 +3,7 @@
 // firewall spreads into its child.
 //
 // Every other tier imports `env` and dot-accesses a typed key. This file is the sole place that touches
-// process.env; never written, parsed once, frozen, read down as the floor.
+// process.env. File-secret contents enter only the parser input, never the process environment.
 
 import { readFileSync } from "node:fs";
 import { hostname } from "node:os";
@@ -772,16 +772,31 @@ const envSchema = z
 
 // A refused parse throws the named refusal, which the entry point prints without a stack.
 function parseProcessEnv(): z.infer<typeof envSchema> {
-  const parsed = envSchema.safeParse(process.env);
+  const input = { ...process.env };
+  for (const key of APP_SECRET_ENV_KEYS) {
+    const fileKey = `${key}_FILE`;
+    const file = input[fileKey];
+    const current = input[key];
+    if ((current !== undefined && current.length > 0) || file === undefined || file.length === 0) {
+      continue;
+    }
+    let value: string;
+    try {
+      value = readFileSync(file, "utf8").replace(/\n+$/u, "");
+    } catch (err) {
+      throw new EnvRefusedError(
+        new z.ZodError([{ code: "custom", path: [fileKey], message: "The named secret file is unreadable; check its path and permissions." }]),
+        { cause: err },
+      );
+    }
+    input[key] = value === "" ? undefined : value;
+  }
+  const parsed = envSchema.safeParse(input);
   if (!parsed.success) {
     throw new EnvRefusedError(parsed.error);
   }
   return parsed.data;
 }
-
-/** The parsed, frozen env floor. Read down by every tier; a refused key throws {@link EnvRefusedError} here (at
- *  module load) on a misconfigured deploy. */
-export const env: Readonly<z.infer<typeof envSchema>> = Object.freeze(parseProcessEnv());
 
 /** The app secrets the parse reads. Every child process inherits `process.env` unless its spawn passes an `env`, so
  *  {@link scrubAppSecretsFromProcessEnv} deletes these once `env` holds them. Nothing reads them from `process.env`
@@ -795,6 +810,9 @@ export const APP_SECRET_ENV_KEYS = [
   "DEBUG_TOKEN",
   "LOCAL_INITIAL_PASSWORD",
 ] as const satisfies readonly (keyof z.input<typeof envSchema>)[];
+
+/** The parsed, frozen env floor. File secrets never enter `process.env`; explicit env values take precedence. */
+export const env: Readonly<z.infer<typeof envSchema>> = Object.freeze(parseProcessEnv());
 
 /** Deletes every {@link APP_SECRET_ENV_KEYS} entry from `process.env`, so no child process started afterwards inherits
  *  an app secret. The server entry calls it once, right after the parse. It cannot run at module load: the dev

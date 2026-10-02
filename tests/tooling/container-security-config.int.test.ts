@@ -10,8 +10,7 @@ import { expect, test } from "../support/tool-fixtures.ts";
 // The 2026-09-18 owner ruling retired the GPU all-in-one image + the vLLM sibling profile: ONE image, ONE
 // compose service, engines are the deployer's own. What these pins hold is the part a careless edit would
 // silently invert — the default port binding (loopback), the login-mode default (a credentialed mode, since
-// single-user cannot work through a bridge-published port), and the `*_FILE` shim's allowlist line staying
-// the ONE line the agent-sdk firewall test parses.
+// single-user cannot work through a bridge-published port), and file secrets staying outside the original server environment.
 
 function read(repoRoot: string, rel: string): string {
   return readFileSync(join(repoRoot, rel), "utf8");
@@ -110,9 +109,12 @@ test("the shipped compose carries every runtime hardening key, and dropping any 
   }
 });
 
-test("the entrypoint keeps its single *_FILE allowlist line, keeps the data volume private, and fills the two zero-config values", ({ repoRoot }) => {
+test("the entrypoint exports generated file paths, keeps the data volume private, and fills the zero-config values", ({ repoRoot }) => {
   const shim = read(repoRoot, "docker/entrypoint.sh");
-  expect(shim.match(/^for name in [^;]+; do$/gmu)).toHaveLength(1);
+  expect(shim).not.toContain("load_secret");
+  expect(shim).not.toMatch(/export (?:SESSION_SECRET|LOCAL_INITIAL_PASSWORD)(?:=|\s|$)/mu);
+  expect(shim).toContain('export SESSION_SECRET_FILE="${secrets_dir}/session_secret"');
+  expect(shim).toContain('export LOCAL_INITIAL_PASSWORD_FILE="${secrets_dir}/initial_password"');
   // A bind-mounted ./data is a host directory: files the app creates must not be readable by other host users.
   expect(shim).toMatch(/^umask 077$/mu);
   // …and the data root is closed on every boot, which covers files written before the mask.

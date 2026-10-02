@@ -251,7 +251,7 @@ project's network (`docker network inspect orbweaver_default`), or `127.0.0.1/32
 ## Secrets as files
 
 Values in an env file are readable from `docker inspect`. For anything you consider a real secret use the
-file overlay — the container gets files at `/run/secrets/*` and the entrypoint exports each as its env var:
+file overlay — the app reads files at `/run/secrets/*` without putting their contents in the process environment:
 
 ```sh
 ORB_SECRETS_DIR=/etc/orbweaver/secrets docker compose -f docker-compose.yaml -f docker/compose.secrets.yaml up -d

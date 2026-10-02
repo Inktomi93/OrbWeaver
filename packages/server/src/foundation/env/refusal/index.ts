@@ -11,8 +11,8 @@ export function formatEnvRefusal(error: z.ZodError): string {
 
 /** Thrown by the env module's parse. The entry point catches it by class and prints only its message. */
 export class EnvRefusedError extends Error {
-  constructor(error: z.ZodError) {
-    super(formatEnvRefusal(error));
+  constructor(error: z.ZodError, options?: ErrorOptions) {
+    super(formatEnvRefusal(error), options);
     this.name = "EnvRefusedError";
   }
 }

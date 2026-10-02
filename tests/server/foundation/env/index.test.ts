@@ -9,6 +9,7 @@ import { parseEnv } from "node:util";
 import { AUTH_MODES, CONTAINER_LOCAL_LOGIN_ENV } from "@orb/contracts/identity";
 import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
 import { runsInContainer } from "../../../../packages/server/src/foundation/env/container.ts";
+import { APP_SECRET_ENV_KEYS } from "../../../../packages/server/src/foundation/env/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 // Every re-import runs with the process CWD parked in a throwaway directory. foundation/env's `.env`
@@ -110,6 +111,30 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
     await expect(reimportEnvWith({ PLUGIN_BROKER_WORKER_MAX: "0" })).rejects.toThrow("PLUGIN_BROKER_WORKER_MAX");
     await expect(reimportEnvWith({ PLUGIN_BROKER_MEMORY_LIMIT_BYTES: "1e9" })).rejects.toThrow("PLUGIN_BROKER_MEMORY_LIMIT_BYTES");
   });
+
+  for (const key of APP_SECRET_ENV_KEYS) {
+    test(`${key}_FILE loads into the frozen floor, never process.env`, async () => {
+      const file = join(makeDir("orb-env-secret-"), "secret");
+      const value = "file-secret-that-is-long-enough-for-session-validation";
+      writeFileSync(file, `${value}\n\n`);
+      const mod = await reimportEnvWith({ [key]: "", [`${key}_FILE`]: file });
+      expect(mod.env[key]).toBe(value);
+      expect(mod.processEnvSnapshot()[key]).toBe("");
+    });
+
+    test(`${key} explicit nonempty env wins over a missing file`, async () => {
+      const value = "explicit-secret-that-is-long-enough-for-session-validation";
+      const mod = await reimportEnvWith({ [key]: value, [`${key}_FILE`]: join(EMPTY_DIR, "missing") });
+      expect(mod.env[key]).toBe(value);
+    });
+
+    test(`${key}_FILE empty means unset, but unreadable refuses boot`, async () => {
+      const file = join(makeDir("orb-env-empty-secret-"), "secret");
+      writeFileSync(file, "\n\n");
+      expect((await reimportEnvWith({ [`${key}_FILE`]: file })).env[key]).toBeUndefined();
+      await expect(reimportEnvWith({ [`${key}_FILE`]: join(EMPTY_DIR, "missing") })).rejects.toThrow(`${key}_FILE`);
+    });
+  }
 
   test("AUTH_MODE=oidc WITHOUT OIDC_ISSUER → boot FAILS at parse", async () => {
     await expect(
