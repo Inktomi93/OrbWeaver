@@ -12,24 +12,15 @@ plan: rpg
 
 ## What
 
-Owner ruling: this program stays parked and stays valid. It is not a decision to resolve now. Do not close or drop it. It wakes when the owner un-parks the program.
-
-The RPG domain exists in `packages/server/src/domain/rpg/` and `packages/client/src/features/rpg/`, and
-the design set in `docs/plans/rpg/design.md` is partly built. Its build plan,
-`docs/plans/rpg/design.md`, has not been checked against the tree. The
-tool-use registry it needs is built. Refresh the plan against the tree, then the owner rules which remaining
-chunks still belong in the program and in what order. Human game-master seats depend on the ruling in item
-0048\.
+Retain the future RPG engine concept under `docs/plans/rpg/design.md`. Preserve the implemented RPG experience. Remaining game-engine scope and ordering await an explicit owner request.
 
 ## Why
 
-The design set's status lines are stale. No one can start RPG work until the owner says which parts are
-still wanted.
+A parked concept is not a detailed feature commitment.
 
 ## Done when
 
-A refreshed plan under `docs/plans/` lists what is built, what remains and the order. The owner approved
-it, and the remaining chunks are filed as work items.
+The owner resumes the program, chooses its scope and approves a current design with behavioral acceptance.
 
 ## Evidence
 

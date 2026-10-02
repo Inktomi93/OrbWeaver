@@ -50,14 +50,13 @@ function imageSeed(image: Uint8Array | string): string {
 }
 
 /** A scripted in-process model cache: every slot answers deterministically from its input bytes. `preload`
- *  is a no-op (nothing to download), and the matte op refuses — no seeder cuts a background. */
+ *  is a no-op because the cache downloads nothing. */
 export function fakeLocalLightCache(dim: number): LocalLightModelCache {
   return {
     embedTexts: (_modelId, texts) => Promise.resolve(texts.map((t) => fakeVector(t, dim))),
     embedClipTexts: (_modelId, texts) => Promise.resolve(texts.map((t) => fakeVector(t, dim))),
     embedImages: (_modelId, images) => Promise.resolve(images.map((img) => fakeVector(imageSeed(img), dim))),
     scorePairs: (_modelId, query, documents) => Promise.resolve(documents.map((doc) => seededStream(`${query}\n${doc}`)())),
-    removeBackground: (_modelId, _image) => Promise.reject(new Error("seed fake local-light: no matte model offline")),
     preload: () => Promise.resolve(),
     loadFailed: () => false,
   };

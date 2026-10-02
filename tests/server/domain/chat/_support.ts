@@ -564,9 +564,6 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     resolveUserEnabled: () => Promise.resolve(true),
     // The imagery op (chat.generateImage) — a throwing stub; the generate-image verb test overrides it.
     generatePicture: notStubbed,
-    // Default = null ⇒ expressions not wired (byte-identical no-op — the `tools` precedent). A classify-hook
-    // test overrides with a recorder to assert the fire-and-forget after commit.
-    expressions: null,
     rpg: null,
     // The S2 teaching registry, wired EXACTLY as the composition root wires it: chat's own contributors
     // (the rpg-gather projection + B7's attribution/react-attach rows, which read this same test db). A

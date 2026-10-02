@@ -6,7 +6,7 @@
 // `chats.standalone_variable_deltas` and refolds the cache in the SAME atomic statement — exactly like a
 // swipe's re-fold. Seq-stamped at the chat's max message seq so a turn committed AFTER still overrides it (the
 // fold interleaves by seq). Generic + principal-free (the injected op automation wires at compose; teaches
-// chat nothing automation-shaped — the rpg/expressions op precedent).
+// chat nothing automation-shaped — the rpg op precedent).
 //
 // THE WRITE IS A COMPARE-AND-SET, because this plane has no lock and never will (#1463 item 1). Its callers
 // are an automation arm executor, the analysis arm and the plugin-host membrane, all fire-and-forget on their

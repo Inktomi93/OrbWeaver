@@ -58,10 +58,9 @@ export function createModelCache(): LocalLightModelCache {
   return {
     embedTexts: (_modelId, texts): Promise<Float32Array[]> => embed(texts),
     embedClipTexts: (_modelId, texts): Promise<Float32Array[]> => embed(texts),
-    embedImages: (_modelId, images): Promise<Float32Array[]> => Promise.resolve(images.map(() => Float32Array.from([0]))),
+    embedImages: (_modelId, images): Promise<Float32Array[]> =>
+      Promise.resolve(images.map((image) => Float32Array.from(typeof image === "string" ? [] : [image[0] ?? 0, image.at(-1) ?? 0]))),
     scorePairs: (_modelId, _query, documents): Promise<number[]> => Promise.resolve(documents.map((_doc, i) => i)),
-    removeBackground: (_modelId, image): Promise<Uint8Array> =>
-      Promise.resolve(typeof image === "string" ? new Uint8Array() : Uint8Array.from(image).reverse()),
     preload: (_slot, modelId): Promise<void> => {
       if (modelId === ABSENT_MODEL) {
         failed.add(modelId);

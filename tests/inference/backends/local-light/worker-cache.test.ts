@@ -86,7 +86,11 @@ test("vectors, scores and bytes cross the thread boundary intact", async () => {
     ]);
     expect(vectors[0]).toBeInstanceOf(Float32Array);
     await expect(cache.scorePairs(MODEL, "q", ["a", "b", "c"])).resolves.toEqual([0, 1, 2]);
-    await expect(cache.removeBackground(MODEL, Uint8Array.from([1, 2, 3]))).resolves.toEqual(Uint8Array.from([3, 2, 1]));
+    const images = await cache.embedImages(MODEL, [Uint8Array.from([1, 2, 3]), Uint8Array.from([5, 6])]);
+    expect(images.map((row) => [...row])).toEqual([
+      [1, 3],
+      [5, 6],
+    ]);
   } finally {
     await cache.close();
   }
@@ -192,7 +196,6 @@ test("an image given as a URL or path is refused as invalid and never reaches th
   const cache = stubCache();
   try {
     await expect(cache.embedImages(MODEL, [Uint8Array.from([1]), "http://127.0.0.1/avatar.png"])).rejects.toMatchObject({ kind: "invalid", retryable: false });
-    await expect(cache.removeBackground(MODEL, "/etc/hostname")).rejects.toMatchObject({ kind: "invalid", retryable: false });
     await expect(cache.embedImages(MODEL, [Uint8Array.from([1])])).resolves.toHaveLength(1);
   } finally {
     await cache.close();
@@ -209,7 +212,6 @@ test("a model id that is not a Hub owner/repo is refused as invalid on every cal
         cache.embedClipTexts(modelId, ["a"]),
         cache.embedImages(modelId, [Uint8Array.from([1])]),
         cache.scorePairs(modelId, "q", ["a"]),
-        cache.removeBackground(modelId, Uint8Array.from([1])),
         cache.preload("embed", modelId),
       ];
       for (const outcome of await Promise.allSettled(calls)) {
@@ -232,10 +234,10 @@ test("a parent-directory id never makes the real loader read a model config outs
   // A config the loader parses, then fails at the absent weights file: reaching "model.onnx" means it read this file.
   const planted = join(root, "outside", "model");
   mkdirSync(planted, { recursive: true });
-  writeFileSync(join(planted, "config.json"), JSON.stringify({ model_type: "segformer" }));
+  writeFileSync(join(planted, "config.json"), JSON.stringify({ model_type: "bert" }));
   const cache = createWorkerModelCache({ cacheDir, allowRemoteModels: false, device: "cpu", log: { debug: noop, info: noop, warn: noop, error: noop } });
   try {
-    const failure = await cache.preload("matte", modelIdSchema.parse("../outside/model")).then(
+    const failure = await cache.preload("rerank", modelIdSchema.parse("../outside/model")).then(
       () => null,
       (err: unknown) => err,
     );

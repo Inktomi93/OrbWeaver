@@ -29,7 +29,6 @@ const recordingCache: LocalLightModelCache = {
   scorePairs: () => Promise.resolve([]),
   embedImages: () => Promise.resolve([]),
   embedClipTexts: () => Promise.resolve([]),
-  removeBackground: () => Promise.resolve(new Uint8Array()),
   loadFailed: () => false,
   preload: (slot: string): Promise<void> => {
     preloads.push(slot);

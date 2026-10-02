@@ -620,7 +620,7 @@ export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
 
 /** The D50 PromptTransform seam apply op — the injected registry over which
  *  automation's `transform_draft` rules and the plugin host register. `ChatContext.promptTransforms` is
- *  `null` when no registrar is wired — a byte-identical no-op (the `tools`/`expressions`/`rpg` null-op
+ *  `null` when no registrar is wired — a byte-identical no-op (the `tools`/`rpg` null-op
  *  precedent). Applies every registered transform for `point` in ascending `order`, each under a 250 ms
  *  deadline; a timeout or throw SKIPS that transform (the draft passes through UNCHANGED) + emits a
  *  `prompt_transform_skipped` warning — a broken transform never eats a turn (D53). Chat learns nothing about
@@ -640,7 +640,7 @@ export type ApplyPromptTransformsOp = (
 /** The PLUGIN-MACRO resolve op — the per-turn read of the TURN AUTHOR's own
  *  enabled plugins' registered macros, already resolved (each guest invoked once, under the plugin plane's
  *  assembly deadline) into kit `UserMacroDef`s the turn's macro registry takes as DATA. `ChatContext.pluginMacros`
- *  is `null` when no plugin host is wired — the byte-identical no-op the `rpg`/`expressions`/`tools` seams use.
+ *  is `null` when no plugin host is wired — the byte-identical no-op the `rpg`/`tools` seams use.
  *
  *  IT IS AN INJECTED OP AND THAT IS THE WHOLE POINT: chat never imports `domain/plugin`, and the plugin domain
  *  never imports chat. Chat asks "what macros does this author have this turn?" and receives DATA; whose plugin,
@@ -661,14 +661,6 @@ export interface PromptTransformRegistry {
   readonly unregister: (id: string) => void;
   /** The currently registered transforms (compose/debug read). */
   readonly list: () => readonly PromptTransform[];
-}
-
-/** The injected expressions post-turn hook (docs/plans/expressions/design.md). `ChatContext.expressions` is `null`
- *  when expressions isn't wired — a byte-identical no-op (the `tools: … | null` precedent). Fire-and-forget
- *  after a variant commits; the op swallows its own errors and NEVER blocks or fails the turn. Chat stays
- *  expressions-blind — it hands ids only (D38), the op re-reads canon. */
-interface ChatExpressionsOps {
-  readonly onTurnCompleted: (chatId: ChatId, messageId: MessageId, variantId: MessageVariantId) => Promise<void>;
 }
 
 /** The generic name→value macro map + reminder injection(s) + tool names a game turn's GATHER contributes
@@ -700,7 +692,7 @@ export interface ChatRpgGatherResult {
 }
 
 /** The injected rpg turn ops (docs/plans/rpg/design.md). `ChatContext.rpg` is null when rpg isn't wired — a
- *  byte-identical no-op (the `tools`/`expressions` null-op precedent). Chat learns nothing rpg-shaped: gather
+ *  byte-identical no-op (the `tools` null-op precedent). Chat learns nothing rpg-shaped: gather
  *  returns the generic {@link ChatRpgGatherResult}, and the GM-voice preset redirect rides its OWN early hop
  *  (`resolvePresetOverride`, resolved BEFORE preset resolution — the gather op runs AFTER, so it cannot carry
  *  the override; docs/plans/rpg/design.md). */
@@ -1466,12 +1458,10 @@ export interface ChatContext {
 
   readonly readPresence: PresenceReadOp;
   readonly generatePicture: GeneratePictureOp;
-  /** Null means expressions isn't wired — byte-identical no-op (the `tools: … | null` precedent). */
-  readonly expressions: ChatExpressionsOps | null;
   /** The injected rpg turn ops (docs/plans/rpg/design.md). Null when rpg isn't wired — byte-identical no-op. */
   readonly rpg: ChatRpgOps | null;
   /** The S2 teaching registry ({@link ChatTeachingRegistry}), assembled at `entry/compose`. REQUIRED and
-   *  non-nullable on purpose, unlike the `rpg`/`expressions`/`tools` null-op ops beside it: the null-op
+   *  non-nullable on purpose, unlike the `rpg`/`tools` null-op ops beside it: the null-op
    *  default belongs on the compose INPUT (`[...createChatTeachingContributions(), ...(input.teaching ?? [])]`),
    *  because chat's OWN contribution is the rpg-gather projection — a ctx that could silently omit the
    *  registry would silently drop a game turn's state block. An EMPTY array is the honest "nothing teaches"

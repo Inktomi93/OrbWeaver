@@ -1,7 +1,7 @@
 // The BOOT WARM-UP for the in-process tier: local-light's weights download LAZILY on first use, and on the
 // GPU-less box this tier exists for that makes the FIRST search stall for minutes. The prefetch moves the
 // download to just after the listener binds — but fires ONLY for the slots a task has ACTUALLY resolved to
-// (§8.3: embed/imageEmbed → the encoder; rerank → MiniLM; matte only when imagery is used), never all three.
+// (§8.3: embed/imageEmbed → the encoder; rerank → MiniLM).
 // State is PER BACKEND INSTANCE (not module globals): a `downloading / ready / failed` record per slot, read
 // in-process by the composition root. It has NO tRPC route and is owed none (owner ruling 2026-09-20, §8.3):
 // the prefetch is a latency optimisation whose failure path is automatic, so there is no user-actionable

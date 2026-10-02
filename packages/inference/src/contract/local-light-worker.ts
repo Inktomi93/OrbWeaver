@@ -20,13 +20,12 @@ export type LocalLightWorkerCall =
   | { readonly op: "embedTexts" | "embedClipTexts"; readonly modelId: ModelId; readonly texts: readonly string[] }
   | { readonly op: "scorePairs"; readonly modelId: ModelId; readonly query: string; readonly documents: readonly string[] }
   | { readonly op: "embedImages"; readonly modelId: ModelId; readonly images: readonly Uint8Array[] }
-  | { readonly op: "removeBackground"; readonly modelId: ModelId; readonly image: Uint8Array }
   | { readonly op: "preload"; readonly modelId: ModelId; readonly slot: LocalLightModelSlot };
 
 /** A thrown value as it crosses the thread boundary: a `ProviderError` keeps every field. */
 export type LocalLightWorkerFailure = { readonly kind: "provider"; readonly init: ProviderErrorInit } | { readonly kind: "error"; readonly message: string };
 
-export type LocalLightWorkerValue = Float32Array[] | number[] | Uint8Array | null;
+export type LocalLightWorkerValue = Float32Array[] | number[] | null;
 
 export type LocalLightHostMessage = { readonly type: "call"; readonly id: number; readonly call: LocalLightWorkerCall } | { readonly type: "close" };
 

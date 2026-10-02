@@ -43,7 +43,7 @@ const UNHANDLED_REASONS = new Map<string, string>([
   ["KoboldAI Settings/", "text-completion preset files — orb has no text-completion mode; ruled out by owner 2026-08-08"],
   ["QuickReplies/", "STscript quick-reply buttons — orb has no STscript executor (orb automation is CEL-based, D46)"],
   // Both observed rendering BARE on a real profile drive (2026-08-08).
-  ["assets/", "ST extension assets (expression sprites, audio) — no domain home (the expressions design set is parked)"],
+  ["assets/", "ST extension assets (portraits, audio) — no supported importer"],
   ["vectors/", "ST's own vector store — orb re-embeds locally after import, so a foreign index never travels"],
   ["extensions/", "third-party extension INSTALLS (code, not state) — out of scope"],
   [

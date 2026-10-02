@@ -82,6 +82,12 @@ function seedLocalLight(s: Scene, ownerId: UserId, opts: { allowBackground?: boo
   return { embed: embed.id, rerank: rerank.id };
 }
 
+test("retirement: runtime exposes only live local-light lifecycle handles", async () => {
+  const runtime = await createInferenceRuntime(scene().deps);
+  expect(Object.keys(runtime.localLight).toSorted()).toEqual(["close", "embedSpace", "prefetch"]);
+  await runtime.localLight.close();
+});
+
 test("no binding ⇒ NoConnectionError on resolve and `no-connection` on availability — never a born default", async () => {
   const s = scene();
   const runtime = await createInferenceRuntime(s.deps);

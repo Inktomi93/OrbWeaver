@@ -15,9 +15,8 @@
 // policy). `assets` remains on the `residualData` passthrough (preserved verbatim,
 // non-lossy) pending its own lane; `group_only_greetings` folds into the `greetings` array (`groupOnly:true`
 // entries — V3 promotion Phase B), re-split on export. V3 `data.assets[]` is PARSED + PRESERVED only:
-// resolving an asset URI (charx ZIP embed, `http(s)`, `ccdefault:`) → expression sprites / the gallery is a
-// SEPARATE later chunk that MUST ride the H1 egress firewall (a card is untrusted — an asset fetch is an
-// SSRF surface). This reader stays pure parse-and-validate, zero I/O.
+// resolving an asset URI is outside this parser. URI fetches must use the network egress guard because a
+// card is untrusted. This reader stays pure parse-and-validate, zero I/O.
 
 import { createHash } from "node:crypto";
 import type { AttachedBookRef, CardDepthPrompt, CardSpec, CharacterCard, CharacterCardV3, Greeting } from "@orb/contracts/character";

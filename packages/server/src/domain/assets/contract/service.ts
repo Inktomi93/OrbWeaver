@@ -76,7 +76,7 @@ export interface AssetsService {
   /** The image-embed canon re-reader: CAS bytes of an asset by id alone, no owner gate (system re-reader). */
   readonly loadAssetBytes: (assetId: AssetId) => Promise<Uint8Array | null>;
   /** Owner-gated byte read (EC-B): the CALLER'S OWN asset bytes + mime by id — imagery caption/edit source,
-   *  expressions sheet re-read, rpg, databank. Throws AssetNotFoundError when missing OR not the caller's
+   *  rpg, databank. Throws AssetNotFoundError when missing OR not the caller's
    *  (collapsed, leak-free). NOT `loadAssetBytes` — that is the un-principal indexer read (D20). */
   readonly readOwnedAssetBytes: (caller: Principal, assetId: AssetId) => Promise<OwnedAssetBytes>;
   /** Resolve an asset's `(ownerId, hash, mime)` from its row id alone — un-principal, pure row lookup. */

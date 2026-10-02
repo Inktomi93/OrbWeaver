@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
+status: superseded
 updated: 2026-10-02
+superseded-by: docs/adr/0285-parked-program-concepts-and-retained-product-boundaries.md
 ---
 
 # The SillyTavern gap register is closed

@@ -2,7 +2,7 @@
 // asset bytes + stored mime by id. THROWS AssetNotFoundError when the id is missing OR isn't the caller's (the
 // two collapse — no foreign-existence leak, the D21 posture the gallery mutations already take). This is NOT
 // `loadAssetBytes`: that is the deliberately un-principal'd embeddings-indexer re-read (D20, no owner gate).
-// Consumed at compose by imagery (caption source + editImage source), expressions E4 (sheet re-read), rpg
+// Consumed at compose by imagery (caption source + editImage source), rpg
 // RC-D, and databank — every one an owner-scoped read of an asset the acting Principal owns.
 
 import type { Principal } from "@orb/contracts/identity";

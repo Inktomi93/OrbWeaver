@@ -35,8 +35,6 @@ function run(cache: LocalLightModelCache, call: LocalLightWorkerCall): Promise<L
       return cache.embedImages(call.modelId, call.images);
     case "scorePairs":
       return cache.scorePairs(call.modelId, call.query, call.documents);
-    case "removeBackground":
-      return cache.removeBackground(call.modelId, call.image);
     case "preload":
       return cache.preload(call.slot, call.modelId).then(() => null);
     default: {

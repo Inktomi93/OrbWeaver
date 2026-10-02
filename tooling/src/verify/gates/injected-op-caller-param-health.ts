@@ -166,7 +166,6 @@ export const gate = defineGate({
         [IDS_MODULE]: 'export type AssetId = TypeIdOf<"asset">;\nexport type CharacterId = TypeIdOf<"character">;\n',
         "packages/server/src/domain/character/contract/service.ts":
           "export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;\n" +
-          "export type ListCharacterSpriteAssetsOp = (characterId: CharacterId) => Promise<readonly AssetId[]>;\n" +
           "export type ResolveAssetHashOp = (assetId: AssetId) => Promise<string>;\n" +
           "export type LoadAssetBytesOp = (assetId: AssetId) => Promise<Uint8Array>;\n" +
           "export type LoadAssetBytes = (assetId: AssetId) => Promise<Uint8Array>;\n" +

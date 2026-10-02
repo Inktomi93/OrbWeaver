@@ -751,39 +751,6 @@ async function assertTurnMayCommit(ctx: ChatContext, deps: EngineDeps, prep: Tur
   throw new ChatOperationError(CHAT_OP_CODES.aborted, "turn-lock lost before the canon write (stolen or gone)");
 }
 
-/** The expressions classify's own trace root (I-7: it ran under NO live span — same outlives-the-request class
- *  as the rpg round below). One name so the debug surface and any future filter agree. */
-const EXPRESSIONS_SPAN = "expressions.turnCompleted";
-
-/** The trace-ring request id the expressions classify is bucketed under — its OWN id, never the HTTP request's
- *  (see `rpgRoundRequestId` for why: the classify's dispatch instant still has the `trpc.*` span active, but its
- *  actual work runs after that root has sealed, so a parented span would be silently dropped as a late orphan). */
-function expressionsRequestId(turnId: ChatTurnId): string {
-  return `expr-turn:${turnId}`;
-}
-
-/** Fire-and-forget the injected expressions post-turn classify (docs/plans/expressions/design.md): after the variant
- *  commits, classify the speaker's affect and emit an ephemeral sprite-swap. Null op = expressions not wired
- *  (byte-identical no-op — the memory-trigger posture). The op swallows its own errors; `.catch` covers a
- *  synchronous throw so nothing reaches the reply path. Wrapped in its own DETACHED root (`withRequestSpan`,
- *  `root: true`) for the same reason the rpg round is: it outlives the request.
- *
- *  #1461 — the catch LOGS (it was `.catch(() => undefined)`): a rejecting classify left stale affect state
- *  with no repair signal and no trace, on every committed turn. Warn, not error, and the ids come with it —
- *  the file's own sibling convention (`fireRpgTurnCompleted` below). The SPAN is already marked ERROR without
- *  extra work here: this `.catch` sits OUTSIDE `withRequestSpan`, so the rejection passes through the root's
- *  own catch first (unlike the memory build, which owns an INNER try and must rethrow to reach it). */
-function fireExpressionClassify(ctx: ChatContext, view: MessageView, turnId: ChatTurnId): void {
-  if (ctx.expressions !== null) {
-    const expressions = ctx.expressions;
-    void withRequestSpan(expressionsRequestId(turnId), EXPRESSIONS_SPAN, { chatId: view.chatId, messageId: view.id, turnId }, () =>
-      expressions.onTurnCompleted(view.chatId, view.id, view.selectedVariantId),
-    ).catch((err: unknown) =>
-      getLog().warn({ err, chatId: view.chatId, messageId: view.id, turnId }, "expressions: post-turn classify failed (reply already committed)"),
-    );
-  }
-}
-
 /** Project the turn's loaded canon (`canonAll`) PLUS the just-committed reply (`view`) into the name-stamped,
  *  token-measured transcript the rpg state round reasons from (crunchy-cluster redesign §1.3). `canonAll` was
  *  loaded pre-turn so it does NOT carry this reply; append `view` (the latest beat) and drop any stale row with
@@ -873,7 +840,7 @@ function rpgAbortRequestId(turnId: ChatTurnId): string {
  *  #1461 — the catch LOGS (it was `.catch(() => undefined)`). This is the hook whose silence costs the most:
  *  a failed clear leaves the dead turn's staged writes in place, so the NEXT turn on this chat flushes them
  *  — the exact cross-turn contamination the clear exists to prevent, previously invisible. Warn + ids (the
- *  sibling convention); the span is already ERROR for the same reason stated on `fireExpressionClassify`. */
+ *  sibling convention); the detached root records the rejection before this outer catch logs it. */
 function fireRpgTurnAborted(ctx: ChatContext, chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason): void {
   if (ctx.rpg !== null) {
     const rpg = ctx.rpg;
@@ -2046,8 +2013,6 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     // and keyed off the SAME fit boundary. Runs only in `compaction.mode:"managed"`, off the hot path, and
     // never blocks/faults the reply.
     fireManagedCompaction(ctx, deps, prep, { turnId, result, canonAll });
-
-    fireExpressionClassify(ctx, view, turnId);
 
     return committedOutcome([view]);
   } catch (err) {
