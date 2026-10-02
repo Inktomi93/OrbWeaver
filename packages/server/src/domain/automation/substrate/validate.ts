@@ -9,7 +9,7 @@
 // belt's ceiling belongs beside the per-rule ceiling it has to cohere with, not only on the wire. The db CHECKs + the `actions` zod are the ultimate guards; this gives a clean, user-visible refusal
 // first.
 //
-// D146-b — WHERE THE BOOT-FATAL POSTURE WENT. A first-party contributor seam asserts exhaustive-and-unique
+// The existing rule-mint invariant applies to contributor names. A first-party seam asserts exhaustive-and-unique
 // against a compile-time tuple and is BOOT-FATAL both ways, because a first-party contributor is a build
 // artifact: absent means the build is wrong. A CONTRIBUTOR (plugin) seam can do none of that — the vocabulary
 // is not knowable at compile time. The equivalent strictness moves HERE, to the mint: a rule naming a tool its
@@ -18,7 +18,14 @@
 // opposite things by a `false`: here it means "you never had this", there it means "it went away".
 
 import type { AutomationAction, AutomationActionInput, AutomationTrigger } from "@orb/contracts/automation";
-import { AUTOMATION_ARM_SCOPE, AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR, automationActionsSchema, LIVE_TRIGGERS } from "@orb/contracts/automation";
+import {
+  AUTOMATION_ARM_SCOPE,
+  AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR,
+  AUTOMATION_RULE_MAX_FIRES_PER_HOUR,
+  automationActionsSchema,
+  automationRuleEditableSchema,
+  LIVE_TRIGGERS,
+} from "@orb/contracts/automation";
 import { MULTIMODAL_MODES } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
@@ -33,9 +40,13 @@ import { hasActiveGame, isBookAttachedToChat, isBookOwnedBy } from "../persisten
  *  trains dismissal. DERIVED from the notice's own wire vocabulary (one home, two enforcers: this authoring
  *  gate and the plugin `notify` call-time floor), never a second literal. */
 const POST_NOTIFICATION_COOLDOWN_FLOOR = AUTOMATION_NOTICE_COOLDOWN_SECONDS;
-/** The per-rule fires/hour ceiling (default 30, cap 240). */
-const RULE_MAX_FIRES_CAP = 240;
-export const RULE_MAX_FIRES_DEFAULT = 30;
+/** Direct service callers meet the same authored name bound as the wire and storage. */
+export function assertRuleName(name: string): void {
+  const parsed = automationRuleEditableSchema.shape.name.safeParse(name);
+  if (!parsed.success) {
+    throw new RuleValidationError("name", parsed.error.issues.map((issue) => issue.message).join("; "));
+  }
+}
 
 /** THE AUTHORITATIVE BOUND on the editable fire-rate BELT — the per-owner cap (`setOwnerBudgets`) — #1430.
  *
@@ -172,7 +183,7 @@ async function assertBooksWritable(deps: ValidateDeps, scope: RuleScope, actions
 // is the half a per-type Record structurally cannot express — the arm CONFIGURATIONS that name a room even
 // though their arm type does not have to.
 //
-// Every refusal is TYPED and happens at the MINT, which is the D146-b posture applied to scope: a rule that
+// Every refusal is TYPED and happens at the MINT: a rule that
 // could only ever fail is never stored, so the fire log never fills with `action_error` rows explaining a
 // mistake the author made once at authoring time.
 
@@ -278,7 +289,7 @@ function assertPredicateScopeAdmissible(scope: RuleScope, predicateCel: string |
 }
 
 /** S5's admission rows for a `run_analysis` arm, all three refusing at MINT so no stored rule can only
- *  ever fail (the D146-b posture applied to this arm):
+ *  ever fail:
  *   • ≥1 route — a routeless pass would think and route nothing, an arm that can never do anything;
  *   • at most ONE confirm-class route — the S4 pending store REPLACES per `(chatId, ruleId)` slot
  *     (RULED F1), so two card-raising routes on one rule would silently eat each other's asks;
@@ -315,7 +326,7 @@ async function assertAnalysisAdmissible(db: Db, chatId: ChatId | null, actions: 
   }
 }
 
-/** D146-b — every `run_tool` arm must name a tool the rule's AUTHOR can actually drive, or the rule does not
+/** Every `run_tool` arm must name a tool the rule's AUTHOR can actually drive, or the rule does not
  *  get stored. Refusing at the mint is what makes the dispatch-time PAUSE unambiguous: because the name was
  *  drivable once, a later `false` can only mean the contributor went away, so the engine can pause instead of
  *  guessing between "gone" and "never yours" — and a typo can never masquerade as a paused plugin.
@@ -343,8 +354,8 @@ export async function validateRuleInput(deps: ValidateDeps, scope: RuleScope, in
   if (!LIVE_TRIGGERS[input.trigger.type]) {
     throw new AutomationReservedTriggerError(input.trigger.type);
   }
-  if (input.maxFiresPerHour < 0 || input.maxFiresPerHour > RULE_MAX_FIRES_CAP) {
-    throw new RuleValidationError("fires_cap", `maxFiresPerHour must be in 0..${RULE_MAX_FIRES_CAP}`);
+  if (input.maxFiresPerHour < 0 || input.maxFiresPerHour > AUTOMATION_RULE_MAX_FIRES_PER_HOUR) {
+    throw new RuleValidationError("fires_cap", `maxFiresPerHour must be in 0..${AUTOMATION_RULE_MAX_FIRES_PER_HOUR}`);
   }
   if (input.cooldownSeconds < 0) {
     throw new RuleValidationError("cooldown_negative", "cooldownSeconds must be ≥ 0");

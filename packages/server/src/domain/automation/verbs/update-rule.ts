@@ -3,19 +3,21 @@
 // disable countdown). The chat/owner/position/enabled state is immutable here (enable is its own verb;
 // reorder is its own verb). Returns the stored view.
 
+import { AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR } from "@orb/contracts/automation";
 import type { UpdateRuleParams } from "../contract/params.ts";
 import type { RuleView } from "../contract/results.ts";
 import type { AutomationContext, AutomationService } from "../contract/service.ts";
 import { requireRuleAuthority } from "../guard.ts";
 import { applyRuleUpdate, selectRuleRow, toRuleView } from "../persistence/rules.ts";
 import { notifyRulesChanged } from "../substrate/rule-feed.ts";
-import { RULE_MAX_FIRES_DEFAULT, validateRuleInput } from "../substrate/validate.ts";
+import { assertRuleName, validateRuleInput } from "../substrate/validate.ts";
 
 export function createUpdateRule(ctx: AutomationContext): AutomationService["updateRule"] {
   return async (params: UpdateRuleParams): Promise<RuleView> => {
     const rule = await requireRuleAuthority(ctx, params.principal, params.ruleId);
+    assertRuleName(params.name);
     const cooldownSeconds = params.cooldownSeconds ?? 0;
-    const maxFiresPerHour = params.maxFiresPerHour ?? RULE_MAX_FIRES_DEFAULT;
+    const maxFiresPerHour = params.maxFiresPerHour ?? AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR;
     // The SCOPE is the rule's OWN and is immutable here — an edit can move a rule's trigger, arms and caps,
     // never the lane it lives in. Passing the stored `chatId` (rather than anything the caller sent) is what
     // makes that true: there is no field on this verb that could move a room's rule onto the owner-global

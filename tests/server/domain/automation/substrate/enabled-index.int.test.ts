@@ -15,6 +15,7 @@ async function seedEnabledChatRule(fixture: Awaited<ReturnType<typeof ruleFixtur
   await insertRule(fixture.db, {
     id,
     ownerId: fixture.host,
+    creationRequestId: null,
     chatId: fixture.chatId,
     name: "r",
     description: null,
@@ -67,6 +68,7 @@ describe("createEnabledRuleIndex", () => {
     await insertRule(fixture.db, {
       id,
       ownerId: fixture.host,
+      creationRequestId: null,
       chatId: null,
       name: "global",
       description: null,

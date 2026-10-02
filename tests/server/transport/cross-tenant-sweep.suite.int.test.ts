@@ -61,11 +61,12 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AutomationService } from "@orb/server/domain/automation";
+import { loadPresentRole } from "@orb/server/domain/chat";
 import type { ConnectionService } from "@orb/server/domain/connection";
 import { CREDENTIALS_OP_CODES } from "@orb/server/domain/credentials";
 import { appRouter } from "@orb/server/transport/trpc";
 import { strToU8, zipSync } from "fflate";
-import { describe } from "vitest";
+import { describe, onTestFinished } from "vitest";
 import type { AppCaller } from "../../support/fixtures.ts";
 import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../support/fixtures.ts";
 import { principal as automationPrincipal } from "../domain/automation/_support.ts";
@@ -90,6 +91,7 @@ const MARK = {
   // A host-authored automation rule's NAME bound to A's chat — leaks via a broken `automation.listRules`
   // host gate (the RuleView carries `name` verbatim).
   automationRule: "AlphaSecretRule",
+  automationTool: "AlphaSecretAutomationTool",
   // C5 — an owner-GLOBAL rule authored by A (`automation_rules.chat_id IS NULL`). Its NAME is the marker a
   // stranger's `automation.listOwnerRules` would echo if `listRuleRowsForOwnerGlobal`'s `ownerId` predicate
   // were ever dropped (the query is `isNull(chatId) AND ownerId = …` — drop half and every user's private
@@ -1301,6 +1303,31 @@ const PROBES: readonly Probe[] = [
   //    BEFORE any write, so the seeded rule's name (MARK.automationRule) never leaks and its body is untouched
   //    (the post-sweep integrity re-read proves preset-mint/delete/setRuleEnabled mutated nothing). ──
   { path: "automation.listRules", call: (c, i) => c.automation.listRules({ chatId: i.chatId }) },
+  {
+    path: "automation.createRule",
+    call: (c, i) =>
+      c.automation.createRule({
+        chatId: i.chatId,
+        creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation),
+        name: ATTACKER_TEXT,
+        trigger: { bus: "chat", type: "messageCommitted" },
+        actions: [{ type: "set_variable", scope: "chat", key: "probe", op: "set", value: "1" }],
+      }),
+    requireNotFound: true,
+  },
+  {
+    path: "automation.updateRule",
+    call: (c, i) =>
+      c.automation.updateRule({
+        ruleId: i.automationRuleId,
+        name: ATTACKER_TEXT,
+        trigger: { bus: "chat", type: "messageCommitted" },
+        actions: [{ type: "set_variable", scope: "chat", key: "probe", op: "set", value: "1" }],
+      }),
+    requireNotFound: true,
+  },
+  { path: "automation.reorderRules", call: (c, i) => c.automation.reorderRules({ chatId: i.chatId, orderedIds: [i.automationRuleId] }), requireNotFound: true },
+  { path: "automation.listRuleTools", call: (c) => c.automation.listRuleTools() },
   { path: "automation.setRuleEnabled", call: (c, i) => c.automation.setRuleEnabled({ ruleId: i.automationRuleId, enabled: true }) },
   // B4's per-rule F4 opt-out — rule-scoped like `setRuleEnabled`, so it takes the SAME `requireRuleAuthority`
   // chokepoint and a stranger collapses to RuleNotFoundError → NOT_FOUND before the one-column write. Probed
@@ -1360,6 +1387,22 @@ const PROBES: readonly Probe[] = [
   //        BORNS THE STRANGER'S OWN row (it can name no other), so leak-freedom is not the question: the
   //        question is whether A's row moved, and the post-sweep re-read is what answers it.
   { path: "automation.listOwnerRules", call: (c) => c.automation.listOwnerRules() },
+  {
+    path: "automation.updateRule",
+    call: (c, i) =>
+      c.automation.updateRule({
+        ruleId: i.automationOwnerRuleId,
+        name: ATTACKER_TEXT,
+        trigger: { bus: "domain", type: "character.updated" },
+        actions: [{ type: "set_variable", scope: "global", key: "probe", op: "set", value: "1" }],
+      }),
+    requireNotFound: true,
+  },
+  {
+    path: "automation.reorderRules",
+    call: (c, i) => c.automation.reorderRules({ chatId: null, orderedIds: [i.automationOwnerRuleId] }),
+    refusal: { code: "BAD_REQUEST", reason: "automation_reorder_foreign" },
+  },
   { path: "automation.getOwnerBudgets", call: (c) => c.automation.getOwnerBudgets() },
   { path: "automation.setOwnerBudgets", call: (c) => c.automation.setOwnerBudgets({ maxFiresPerHour: OWNER_BUDGET_STRANGER }) },
   // …and the OTHER half of C5's surface: the rule-lifecycle verbs are SHARED between the two lanes, so A's
@@ -2265,9 +2308,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       content: MARK.message,
     });
 
-    // A host-authored automation rule on A's chat. The tRPC hand-authoring wrapper is gone, so fixture setup
-    // uses the composed domain front door directly; this preserves the unique marker without reintroducing a
-    // privileged transport bypass. The rule is born DISABLED, and its id feeds every surviving wire probe.
+    // Seed the ordinary composed domain front door; the strict mounted authoring wrappers are probed above.
     const automationRule = await automation.createRule({
       principal: automationPrincipal(OWNER_USER_ID),
       chatId,
@@ -2588,14 +2629,29 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     };
   }
 
-  test("owner A sees its own marker (the leak-detector has teeth) but a stranger never does", async ({ db, ownerCaller, otherCaller, services }) => {
+  test("owner A sees its own marker (the leak-detector has teeth) but a stranger never does", async ({ db, ownerCaller, otherCaller, services, app }) => {
     const ids = await seedOwnerWorld(ownerCaller, db, services.automation, services.connection);
+    const catalogTool = app.toolUse.registerPluginTool({
+      name: "plugin_cross_tenant_probe",
+      description: MARK.automationTool,
+      parameters: {
+        type: "object",
+        properties: { marker: { type: "string", enum: [MARK.automationTool] } },
+        required: ["marker"],
+        additionalProperties: false,
+      },
+      installer: automationPrincipal(OWNER_USER_ID),
+      invoke: (): Promise<string> => Promise.resolve("catalog probe never executes a tool"),
+      resolveInstallerRole: (chatId) => loadPresentRole(db, chatId, OWNER_USER_ID),
+    });
+    onTestFinished(() => catalogTool.unregister());
 
     // CONTROL: the owner's OWN read carries the marker — proving the detector below is not blind.
     const ownView = JSON.stringify(await ownerCaller.character.get({ characterId: ids.characterId }));
     expect(ownView).toContain(MARK.character);
     // …and the installer IS offered its own plugin provider, so the providersAvailable probe has a marker to leak.
     expect(JSON.stringify(await ownerCaller.connection.providersAvailable())).toContain(MARK.pluginProvider);
+    expect(JSON.stringify(await ownerCaller.automation.listRuleTools())).toContain(MARK.automationTool);
 
     // THE SWEEP: every id-taking procedure, probed as the stranger, must be leak-free. Verdicts are
     // collected then asserted ONCE (no branching expect) so EVERY leak surfaces in a single readable diff.

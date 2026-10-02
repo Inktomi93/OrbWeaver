@@ -2,14 +2,17 @@
 // the total reorder (chat-scoped), and the lazy-parse fault isolation of `toRuleView`.
 
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
-import { mintTypeId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
   applyReorder,
   insertRule,
+  insertRuleForCreationRequest,
   insertRules,
   listRuleIdsForChat,
   listRuleRowsForChat,
+  listRuleRowsForOwnerGlobal,
+  selectRuleByCreationRequest,
   selectRuleRow,
   selectRuleRowsByIds,
   toRuleView,
@@ -26,6 +29,7 @@ function plannedRule(opts: { ownerId: UserId; chatId: ChatId | null; name: strin
   return {
     id: mintTypeId("automation_rule"),
     ownerId: opts.ownerId,
+    creationRequestId: null,
     chatId: opts.chatId,
     name: opts.name,
     description: null,
@@ -50,6 +54,86 @@ async function seedRule(db: Parameters<typeof insertRule>[0], opts: { ownerId: U
 }
 
 describe("automation_rules persistence", () => {
+  test("birth conflict targets only owner/request; NULL legacy keys and other owners remain independent", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const other = await seedUser(db, "other");
+    const request = mintTypeId(ID_PREFIX.automationRuleCreation);
+    const first = { ...plannedRule({ ownerId: owner, chatId: null, name: "private marker" }), creationRequestId: request };
+    expect(await insertRuleForCreationRequest(db, first)).toBe(true);
+    expect(await insertRuleForCreationRequest(db, { ...first, id: mintTypeId(ID_PREFIX.automationRule), name: "not an edit" })).toBe(false);
+    const otherBirth = { ...plannedRule({ ownerId: other, chatId: null, name: "other owner" }), creationRequestId: request };
+    expect(await insertRuleForCreationRequest(db, otherBirth)).toBe(true);
+    expect(await selectRuleByCreationRequest(db, owner, request, null)).toMatchObject({ id: first.id, name: first.name });
+    expect(await selectRuleByCreationRequest(db, other, request, null)).toMatchObject({ id: otherBirth.id, name: otherBirth.name });
+    await insertRules(db, [plannedRule({ ownerId: owner, chatId: null, name: "legacy a" }), plannedRule({ ownerId: owner, chatId: null, name: "legacy b" })]);
+    expect((await listRuleRowsForOwnerGlobal(db, owner)).map((row) => row.creationRequestId)).toEqual([request, null, null]);
+  });
+
+  test("birth recovery cannot turn PK, FK or CHECK failures into a successful conflict loser", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const row = { ...plannedRule({ ownerId: owner, chatId: null, name: "existing" }), creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation) };
+    expect(await insertRuleForCreationRequest(db, row)).toBe(true);
+    await expect(insertRuleForCreationRequest(db, { ...row, creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation) })).rejects.toThrow();
+    await expect(
+      insertRuleForCreationRequest(db, {
+        ...row,
+        id: mintTypeId(ID_PREFIX.automationRule),
+        creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation),
+        ownerId: castId<UserId>("missing-owner"),
+      }),
+    ).rejects.toThrow();
+    await expect(
+      insertRuleForCreationRequest(db, {
+        ...row,
+        id: mintTypeId(ID_PREFIX.automationRule),
+        creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation),
+        name: "n".repeat(121),
+      }),
+    ).rejects.toThrow();
+    expect(await listRuleRowsForOwnerGlobal(db, owner)).toHaveLength(1);
+  });
+
+  test("SQL exact-set global reorder scopes both admission and writes to the owner and preserves rejected rows", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const other = await seedUser(db, "other");
+    const a = plannedRule({ ownerId: owner, chatId: null, name: "a" });
+    const b = plannedRule({ ownerId: owner, chatId: null, name: "b" });
+    const foreign = plannedRule({ ownerId: other, chatId: null, name: "foreign marker" });
+    await insertRules(db, [a, b, foreign]);
+    const before = await selectRuleRowsByIds(db, [a.id, b.id, foreign.id]);
+    expect(await applyReorder(db, { chatId: null, ownerId: owner }, [b.id, foreign.id], FIXED_NOW_MS + 1)).toBe(false);
+    expect(await selectRuleRowsByIds(db, [a.id, b.id, foreign.id])).toEqual(before);
+    expect(await applyReorder(db, { chatId: null, ownerId: owner }, [b.id, a.id], FIXED_NOW_MS + 1)).toBe(true);
+    expect((await listRuleRowsForOwnerGlobal(db, owner)).map((row) => [row.id, row.position])).toEqual([
+      [b.id, 0],
+      [a.id, 1],
+    ]);
+    expect(await selectRuleRow(db, foreign.id)).toEqual(before.find((row) => row.id === foreign.id));
+    expect(await applyReorder(db, { chatId: null, ownerId: owner }, [], FIXED_NOW_MS + 2)).toBe(false);
+    const emptyOwner = await seedUser(db, "empty");
+    expect(await applyReorder(db, { chatId: null, ownerId: emptyOwner }, [], FIXED_NOW_MS + 2)).toBe(true);
+  });
+
+  test("concurrent complete reorder statements never leave a mixed order", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const rows = ["a", "b", "c"].map((name) => plannedRule({ ownerId: owner, chatId: null, name }));
+    await insertRules(db, rows);
+    const ids = rows.map((row) => row.id);
+    expect(
+      await Promise.all([
+        applyReorder(db, { chatId: null, ownerId: owner }, ids, FIXED_NOW_MS + 1),
+        applyReorder(db, { chatId: null, ownerId: owner }, ids.toReversed(), FIXED_NOW_MS + 2),
+      ]),
+    ).toEqual([true, true]);
+    const current = await listRuleRowsForOwnerGlobal(db, owner);
+    expect([ids, ids.toReversed()]).toContainEqual(current.map((row) => row.id));
+    expect(current.map((row) => row.position)).toEqual([0, 1, 2]);
+    expect(new Set(current.map((row) => row.updatedAt)).size).toBe(1);
+  });
   test("insertRule forces enabled=false and ALLOCATES position from the scope — the first rule lands at 0", async () => {
     const db = await freshDb();
     const owner = await seedUser(db);
@@ -137,7 +221,7 @@ describe("automation_rules persistence", () => {
     const chatId = await seedHostChat(db, owner);
     const a = await seedRule(db, { ownerId: owner, chatId, name: "a" });
     const b = await seedRule(db, { ownerId: owner, chatId, name: "b" });
-    await applyReorder(db, chatId, [b, a], FIXED_NOW_MS);
+    await applyReorder(db, { chatId }, [b, a], FIXED_NOW_MS);
     const rows = await listRuleRowsForChat(db, chatId);
     expect(rows.map((r) => r.name)).toEqual(["b", "a"]);
   });

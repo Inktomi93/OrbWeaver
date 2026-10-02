@@ -25,7 +25,7 @@ export class AutomationReservedTriggerError extends DomainOperationError {
 /** `createRule`/`updateRule` refused for a validation reason other than a reserved trigger: a reserved
  *  action arm, an unparseable CEL predicate, an out-of-range arm cap, a cooldown floor violation, an
  *  unattached world-info book, or (`unknown_tool`) a `run_tool` arm naming a tool the rule's AUTHOR cannot
- *  drive — D146-b's per-rule replacement for a first-party seam's boot-fatal assertion. Carries a machine
+ *  drive under the existing rule-mint invariant. Carries a machine
  *  `code` for the editor's inline surface. */
 export class RuleValidationError extends DomainOperationError {
   constructor(code: string, reason: string) {
@@ -34,14 +34,15 @@ export class RuleValidationError extends DomainOperationError {
   }
 }
 
-/** `reorderRules` refused: the supplied id list is not a TOTAL, unique order over the chat's current rule
- *  set (#1429). The verb rewrites `position = array index` per id, so anything less than the complete set
- *  leaves the chat with duplicate positions and a non-total order while reporting success — and order IS
- *  semantics here (arms mutate the shared variable env in position order). The three codes name what the
- *  editor got wrong: `duplicate` (an id twice), `foreign` (an id that is not this chat's rule — the batch's
- *  chat predicate already makes it touch no row, so it is a caller BUG, not a leak), `incomplete` (a rule of
- *  this chat is missing from the list). Never a leak: `foreign` names no id, because a caller who guessed a
- *  rule id must not learn from the refusal whether it exists. */
+/** A caller reused their own birth request in another immutable scope; reveals no foreign occupancy. */
+export class RuleCreationScopeConflictError extends DomainOperationError {
+  constructor() {
+    super("automation_rule_creation_scope_conflict", "This creation request was already used for another scope.");
+    this.name = this.constructor.name;
+  }
+}
+
+/** A non-total order or a scope set changed before the SQL write; foreign and nonexistent IDs have one refusal. */
 export class RuleReorderError extends DomainOperationError {
   constructor(code: string, reason: string) {
     super(`automation_reorder_${code}`, reason);

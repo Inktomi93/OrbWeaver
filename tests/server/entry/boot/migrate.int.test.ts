@@ -1,14 +1,18 @@
 // Boot-migration integration: baseline apply/reset, WAL-complete backup/retention, integrity gate, and
 // launched refusal against real libSQL memory and file databases.
 
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
-import { checkBaseline, createDb, runMigrations } from "@orb/db";
+import { checkBaseline, closeDb, createDb, runMigrations } from "@orb/db";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { DB_LAUNCHED, resolveMigrationsFolder, runBootMigrations } from "@orb/server/entry/boot";
 import { sql } from "drizzle-orm";
+import { z } from "zod";
+import { seedCharacter } from "../../../support/factories/character.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { seedHostChat, seedUser } from "../../domain/automation/_support.ts";
 
 const FK_ON = 1;
 const BACKUP_RE = /\.backup-\d+$/;
@@ -20,6 +24,86 @@ const ALREADY_EXISTS_RE = /already exists/i;
 // `backupBeforeMigrate`'s own refusal, not just "something threw" — the abort must be the BACKUP failing.
 const BACKUP_FAILED_RE = /pre-migrate backup of .* FAILED/;
 const LAUNCHED_FATAL_RE = /launched/i;
+
+test("0003 preserves a populated actual 0002 chain, all prior rule/child bytes and renamed stats metrics", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "orb-rule-birth-migration-"));
+  const url = `file:${join(dir, "fixture.db")}`;
+  const db = await createDb(url);
+  try {
+    const shipped = resolveMigrationsFolder();
+    const oldFolder = join(dir, "through-0002");
+    mkdirSync(join(oldFolder, "meta"), { recursive: true });
+    const journalSchema = z.object({
+      version: z.string(),
+      dialect: z.string(),
+      entries: z.array(z.object({ idx: z.number(), version: z.string(), when: z.number(), tag: z.string(), breakpoints: z.boolean() })),
+    });
+    const journal = journalSchema.parse(JSON.parse(readFileSync(join(shipped, "meta", "_journal.json"), "utf8")));
+    const prior = journal.entries.filter((entry) => entry.idx <= 2);
+    expect(prior.at(-1)?.tag).toBe("0002_rename-stats-content-chars");
+    expect(journal.entries.find((entry) => entry.idx === 3)?.tag).toBe("0003_automation-rule-creation-request");
+    for (const entry of prior) {
+      copyFileSync(join(shipped, `${entry.tag}.sql`), join(oldFolder, `${entry.tag}.sql`));
+    }
+    writeFileSync(join(oldFolder, "meta", "_journal.json"), JSON.stringify({ ...journal, entries: prior }));
+    await runMigrations(db, oldFolder);
+    const owner = await seedUser(db);
+    const other = await seedUser(db, "migration-other");
+    const chatId = await seedHostChat(db, owner);
+    const character = await seedCharacter(db, { ownerId: owner });
+    const ruleId = mintTypeId(ID_PREFIX.automationRule);
+    const legacyId = mintTypeId(ID_PREFIX.automationRule);
+    const actions = ' [ { "type":"run_tool", "name":"plugin_old", "argsTemplate":"{}", "resultVar":"keep", "resultScope":"chat" } ] ';
+    const knobs = ' { "k" : "keep verbatim" } ';
+    await db.run(sql`INSERT INTO automation_rules (id,owner_id,chat_id,name,description,enabled,position,trigger_bus,trigger_type,predicate_cel,actions,rule_preset_id,rule_preset_knobs,match_automation_events,suggest_on_refusal,cooldown_seconds,max_fires_per_hour,consecutive_errors,last_error,last_fired_at,created_at,updated_at)
+      VALUES (${ruleId},${owner},${chatId},'legacy marker','description',1,7,'chat','messageCommitted','true',${actions},'autoAddLore',${knobs},1,0,61,17,9,'old error',123,111,222)`);
+    await db.run(
+      sql`INSERT INTO automation_rules (id,owner_id,chat_id,name,position,trigger_bus,trigger_type,actions) VALUES (${legacyId},${owner},NULL,'legacy global',0,'domain','character.updated','[]')`,
+    );
+    await db.run(
+      sql`INSERT INTO automation_fires (id,rule_id,chat_id,trigger_type,outcome,detail,automation_depth,fired_at) VALUES (${mintTypeId(ID_PREFIX.automationFire)},${ruleId},${chatId},'messageCommitted','fired',' { "old": "detail" } ',3,321)`,
+    );
+    await db.run(
+      sql`INSERT INTO automation_rule_state (rule_id,state,guidance,updated_at) VALUES (${ruleId},' { "settledThroughSeq": 13 } ','retained guidance',333)`,
+    );
+    await db.run(sql`INSERT INTO owner_stats (owner_id,content_chars) VALUES (${owner},-31)`);
+    await db.run(sql`INSERT INTO character_stats (id,character_id,content_chars) VALUES (${mintTypeId(ID_PREFIX.characterStat)},${character.id},73)`);
+    const tables = ["automation_rules", "automation_fires", "automation_rule_state", "owner_stats", "character_stats"];
+    const columnSchema = z.array(z.object({ name: z.string() }));
+    const snapshots = await Promise.all(
+      tables.map(async (table) => ({
+        table,
+        columns: columnSchema.parse(await db.all(sql.raw(`PRAGMA table_info(${table})`))).map((column) => column.name),
+        rows: await db.values(sql.raw(`SELECT * FROM ${table} ORDER BY 1`)),
+      })),
+    );
+    const backups = join(dir, "fixture-backups");
+    await runBootMigrations({ db, databaseUrl: url, backupDir: backups, launched: true });
+    expect((await checkBaseline(db, shipped)).status).toBe("current");
+    for (const snapshot of snapshots) {
+      const columns = snapshot.columns.map((column) => `"${column}"`).join(",");
+      const after = await db.values(sql.raw(`SELECT ${columns} FROM ${snapshot.table} ORDER BY 1`));
+      expect(after).toEqual(snapshot.rows);
+    }
+    expect(await db.all(sql`SELECT creation_request_id AS creationRequestId FROM automation_rules`)).toEqual([
+      { creationRequestId: null },
+      { creationRequestId: null },
+    ]);
+    const request = mintTypeId(ID_PREFIX.automationRuleCreation);
+    await db.run(sql`UPDATE automation_rules SET creation_request_id=${request} WHERE id=${ruleId}`);
+    await expect(db.run(sql`UPDATE automation_rules SET creation_request_id=${request} WHERE id=${legacyId}`)).rejects.toThrow();
+    await db.run(
+      sql`INSERT INTO automation_rules (id,owner_id,name,position,trigger_bus,trigger_type,actions,creation_request_id) VALUES (${mintTypeId(ID_PREFIX.automationRule)},${other},'independent',0,'domain','character.updated','[]',${request})`,
+    );
+    expect(await db.all(sql`PRAGMA foreign_key_check`)).toEqual([]);
+    expect(readdirSync(backups).filter((name) => BACKUP_RE.test(name))).toHaveLength(1);
+    await runBootMigrations({ db, databaseUrl: url, backupDir: backups, launched: true });
+    expect(readdirSync(backups).filter((name) => BACKUP_RE.test(name))).toHaveLength(1);
+  } finally {
+    closeDb(db);
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 test("resolveMigrationsFolder points at @orb/db's generated baseline dir", () => {
   const folder = resolveMigrationsFolder();

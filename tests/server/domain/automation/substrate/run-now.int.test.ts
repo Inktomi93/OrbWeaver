@@ -27,6 +27,7 @@ async function seedEnabledRule(
   await insertRule(fixture.db, {
     id,
     ownerId: fixture.host,
+    creationRequestId: null,
     chatId: fixture.chatId,
     name: "r",
     description: null,

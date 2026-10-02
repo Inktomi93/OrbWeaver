@@ -1,4 +1,4 @@
-import type { CharacterId, ChatId, MessageId, TypeIdOf, UserId, VerifiedUserId, WorldBookId } from "@orb/kit/ids";
+import type { AutomationRuleCreationId, AutomationRuleId, CharacterId, ChatId, MessageId, TypeIdOf, UserId, VerifiedUserId, WorldBookId } from "@orb/kit/ids";
 import { brandedId, castId, ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
 import { assertType, expectTypeOf, test } from "vitest";
 import { z } from "zod";
@@ -12,6 +12,14 @@ test("distinct entity brands are mutually non-assignable", () => {
   expectTypeOf<ChatId>().not.toEqualTypeOf<CharacterId>();
   // The non-TypeID brand (UserId) is also distinct from a TypeID brand.
   expectTypeOf<UserId>().not.toEqualTypeOf<ChatId>();
+});
+
+test("creation requests and rule resources remain nonempty mutually distinct brands", () => {
+  expectTypeOf<AutomationRuleCreationId>().not.toExtend<AutomationRuleId>();
+  expectTypeOf<AutomationRuleId>().not.toExtend<AutomationRuleCreationId>();
+  expectTypeOf<AutomationRuleCreationId>().not.toEqualTypeOf<never>();
+  expectTypeOf(mintTypeId(ID_PREFIX.automationRuleCreation)).toEqualTypeOf<AutomationRuleCreationId>();
+  expectTypeOf<z.infer<ReturnType<typeof typeIdSchema<typeof ID_PREFIX.automationRuleCreation>>>>().toEqualTypeOf<AutomationRuleCreationId>();
 });
 
 test("a branded id is assignable TO string, but a plain string is NOT a brand", () => {

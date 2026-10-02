@@ -218,6 +218,7 @@ export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}):
     newSuggestionId: () => mintTypeId(ID_PREFIX.automationSuggestion),
     can,
     ops,
+    listRuleTools: () => [],
     runArm: overrides.runArm ?? NOT_WIRED_DISPATCH,
     enabled: overrides.enabled ?? createEnabledRuleIndex(db),
     // S4 — ONE store per harness (the compose posture): a test that raises through the dispatch and confirms
