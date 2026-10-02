@@ -12,6 +12,7 @@ import { resolveCallableDeclaration } from "../../_shared/reference-fact-call.ts
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
+import { terminalCall } from "../lib/schema-fact-value.ts";
 import { declaredByPackage, resolveTypeIdentityOrigin, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
 import { symbolDeclarations } from "../lib/type-member-origin-core.ts";
 import { trpcOutputProof } from "./_proof/trpc-output.ts";
@@ -32,12 +33,8 @@ function property(type: Type, name: string, at: MorphNode): Type | undefined {
   return type.getProperty(name)?.getTypeAtLocation(at);
 }
 function invocation(raw: MorphNode): import("ts-morph").CallExpression {
-  const fact = resolveStableExpression(raw);
-  const terminal = unwrapExpression(fact.kind === "resolved" ? fact.value : fact.node);
-  if (fact.kind === "unresolved" && fact.reason !== "dynamic") {
-    return refuse(`unreadable builder (${fact.reason}): ${fact.detail}`);
-  }
-  return Node.isCallExpression(terminal) ? terminal : refuse(`unreadable builder terminal: ${terminal.getKindName()}`);
+  const fact = terminalCall(raw);
+  return fact.kind === "resolved" ? fact.value : refuse(`unreadable builder (${fact.reason}): ${fact.detail}`);
 }
 function nativeMethod(callee: MorphNode, name: string): boolean {
   const member = readMemberReference(callee);
@@ -306,6 +303,16 @@ export const gate = defineGate({
       files: {
         ...trpcOutputProof(),
         "packages/server/src/transport/trpc/router.ts":
+          'import * as transport from "./trpc.ts"; declare function service():{id:string}; export const appRouter=transport.t.router({read:transport.authedProcedure.query(()=>service())});',
+      },
+      expect: { count: 1, messageIncludes: "Mounted: read" },
+      why: "A namespace-qualified transport builder denotes the same mounted service DTO and cannot hide its missing parser",
+    },
+    {
+      mode: "types",
+      files: {
+        ...trpcOutputProof(),
+        "packages/server/src/transport/trpc/router.ts":
           'import {t,authedProcedure} from "./trpc.ts"; declare function service():{id:string}; const child=t.router({read:authedProcedure.query(()=>service())}); export const appRouter=t.router({a:child,b:child});',
       },
       expect: { count: 1, messageIncludes: "Mounted: a.read, b.read" },
@@ -433,6 +440,24 @@ export const gate = defineGate({
       files: {
         ...trpcOutputProof(),
         "packages/server/src/transport/trpc/router.ts":
+          'import * as transport from "./trpc.ts"; import * as native from "@trpc/server"; declare function service():{id:string}; export const appRouter=transport.t.router({read:transport.authedProcedure.output(native.schema).query(()=>service())});',
+      },
+      why: "The parser belongs to the mounted namespace-qualified builder's own native output chain",
+    },
+    {
+      mode: "types",
+      files: {
+        ...trpcOutputProof(),
+        "packages/server/src/transport/trpc/router.ts":
+          'import * as transport from "./trpc.ts"; declare function service():void; export const appRouter=transport.t.router({write:transport.authedProcedure.mutation(()=>service()),literal:transport.authedProcedure.query(()=>({ok:true})),feed:transport.authedProcedure.subscription(function*(){yield {id:"x"};})});',
+      },
+      why: "Namespace qualification preserves native void, subscription, and visibly transport-owned literal exemptions",
+    },
+    {
+      mode: "types",
+      files: {
+        ...trpcOutputProof(),
+        "packages/server/src/transport/trpc/router.ts":
           'import {t,authedProcedure} from "./trpc.ts"; export const appRouter=t.router({read:authedProcedure.query(()=>{const helper=()=>({private:true}); return {ok:true};})});',
       },
       why: "Only nearest-function returns belong to an authored literal resolver",
@@ -512,6 +537,29 @@ export const gate = defineGate({
     },
   ],
   mustRefuse: [
+    {
+      mode: "types",
+      files: {
+        ...trpcOutputProof(),
+        "packages/server/src/transport/trpc/trpc.ts": 'import {t} from "@trpc/server"; export {t}; export let authedProcedure=t.procedure.use({});',
+        "packages/server/src/transport/trpc/router.ts":
+          'import * as transport from "./trpc.ts"; declare function service():{id:string}; export const appRouter=transport.t.router({read:transport.authedProcedure.query(()=>service())});',
+      },
+      expect: { messageIncludes: "unreadable builder (write)" },
+      why: "A namespace-exported mutable builder cannot borrow its initial native chain as proof of the mounted runtime value",
+    },
+    {
+      mode: "types",
+      files: {
+        ...trpcOutputProof(),
+        "packages/server/src/transport/trpc/trpc.ts":
+          'import {t} from "@trpc/server"; export {t}; export const first:typeof t.procedure=second; export const second:typeof t.procedure=first;',
+        "packages/server/src/transport/trpc/router.ts":
+          'import * as transport from "./trpc.ts"; declare function service():{id:string}; export const appRouter=transport.t.router({read:transport.first.query(()=>service())});',
+      },
+      expect: { messageIncludes: "unreadable builder (dynamic)" },
+      why: "Namespace-qualified cyclic exports retain native procedure types but their unproven binding aliases still refuse",
+    },
     {
       mode: "types",
       files: {

@@ -153,7 +153,6 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "settings-context-tab",
     why: "the two host-only B7 reaction switches (the plane's master + the react-tool opt-in) render inside CommittedSettingsTab's Reactions section; settings-context-tab.ct drives both end-to-end (host sees + toggles → setReactionsEnabled/setCharactersCanReact fire; the never-pinned room seats from the host's per-user defaults through the ONE contracts resolvers; member sees neither), the offer-choices-control precedent.",
   },
-  "chat-list-header": { coveredBy: "chat-list-surface", why: "the list header renders inside the list surface; chat-list-surface.ct covers it." },
   "chat-list-character-filter": {
     coveredBy: "chat-list-surface",
     why: "#490 split the faces strip + 'Filtered: X ✕' chip out of the list SURFACE under the 450-line cap; they render inside it and chat-list-surface.ct drives both (face tap scopes the list, the chip clears it).",
