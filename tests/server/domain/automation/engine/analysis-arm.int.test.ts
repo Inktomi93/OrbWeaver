@@ -17,12 +17,15 @@
 //     on a successful direct apply — a confirm RAISE leaves it unmoved (§3-S5.5 retryability).
 
 import type { AutomationBusEvent, AutomationCelEnv, TriggerFact } from "@orb/contracts/automation";
+import type { UpsertLoreEntryInput } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { automationRuleState, automationRules, chatBooks, messages, worldBooks } from "@orb/db";
 import type { AutomationRuleId, ChatId, MessageId, MessageVariantId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { ZWSP } from "@orb/kit/macro";
+import { createAutomationService } from "@orb/server/domain/automation";
+import { createWorldInfoService } from "@orb/server/domain/world-info";
 import { sha256Hex } from "@orb/server/kit/content-hash";
 import { eq } from "drizzle-orm";
 import { EMPTY_ANALYSIS_STATE } from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
@@ -40,7 +43,8 @@ import { createSuggestionStore } from "../../../../../packages/server/src/domain
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedMessage, seedParticipant } from "../../chat/_support.ts";
-import { arm, NO_TOOLS, seedUser } from "../_support.ts";
+import { makeHarness as makeWorldInfoHarness } from "../../world-info/_support.ts";
+import { arm, makeAutomationHarness, NO_TOOLS, principal, seedUser } from "../_support.ts";
 
 const FIXED_NOW_MS = 1_700_000_000_000;
 const FIXED_PRNG = (): number => 0.42;
@@ -48,7 +52,7 @@ const FIXED_PRNG = (): number => 0.42;
 /** What the captured ops recorded. */
 interface Captured {
   readonly varOps: { chatId: ChatId; ops: readonly VarOp[] }[];
-  readonly upserts: { authorUserId: UserId; bookId: WorldBookId; entries: readonly { title: string; keys: readonly string[]; content: string }[] }[];
+  readonly upserts: { authorUserId: UserId; bookId: WorldBookId; entries: readonly UpsertLoreEntryInput[] }[];
   readonly turns: AutomationTurnRequest[];
   readonly quiet: { systemPrompt: string; prompt: string; posture: string; schemaName: string | null }[];
   readonly bus: AutomationBusEvent[];
@@ -61,8 +65,12 @@ interface Captured {
 function makeHarness(
   db: Db,
   quietReplies: readonly string[],
-  opts: { readonly throwOnVarOps?: boolean; readonly duringModelCall?: () => Promise<void> } = {},
-): { dispatch: ArmDispatch; captured: Captured; suggestions: SuggestionStore } {
+  opts: {
+    readonly throwOnVarOps?: boolean;
+    readonly duringModelCall?: () => Promise<void>;
+    readonly upsertEntries?: AutomationOps["worldInfo"]["upsertEntries"];
+  } = {},
+): { dispatch: ArmDispatch; captured: Captured; suggestions: SuggestionStore; ops: AutomationOps } {
   const captured: Captured = { varOps: [], upserts: [], turns: [], quiet: [], bus: [] };
   const replies = [...quietReplies];
   const ops: AutomationOps = {
@@ -88,7 +96,7 @@ function makeHarness(
     worldInfo: {
       upsertEntries: (args) => {
         captured.upserts.push(args);
-        return Promise.resolve({ inserted: args.entries.length, updated: 0, skippedHandEdited: 0 });
+        return opts.upsertEntries?.(args) ?? Promise.resolve({ inserted: args.entries.length, updated: 0, skippedHandEdited: 0 });
       },
     },
     notifications: { emit: () => Promise.resolve() },
@@ -108,7 +116,7 @@ function makeHarness(
     suggestions,
     newSuggestionId: () => mintTypeId(ID_PREFIX.automationSuggestion),
   });
-  return { dispatch, captured, suggestions };
+  return { dispatch, captured, suggestions, ops };
 }
 
 function makeFrame(args: { chatId: ChatId; authorUserId: UserId; ruleId: AutomationRuleId }): Parameters<ArmDispatch>[1] {
@@ -135,6 +143,7 @@ async function setup(messageCount: number): Promise<{ db: Db; host: UserId; chat
     ownerId: host,
     chatId,
     name: "analysis",
+    enabled: true,
     position: 1,
     triggerBus: "chat",
     triggerType: "turnCompleted",
@@ -574,4 +583,182 @@ test("a pass whose model output never validates is a typed arm_error (one bounde
   expect(outcome).toMatchObject({ ok: false, kind: "arm_error" });
   expect(captured.quiet).toHaveLength(2); // exactly one bounded retry, never a loop.
   expect(await db.select().from(automationRuleState).where(eq(automationRuleState.ruleId, ruleId))).toEqual([]);
+});
+
+for (const cold of [true, false]) {
+  test(`analysis lore persists the actual ${cold ? "cold newest" : "warm earliest"} capped slice, not the coverage cursor`, async () => {
+    const { db, host, chatId, ruleId } = await setup(SLICE_CHAT_MESSAGES);
+    const bookId = await seedBook(db, host, chatId, true);
+    const world = createWorldInfoService(makeWorldInfoHarness(db).ctx);
+    if (!cold) {
+      await upsertRuleState(db, { ruleId, state: { ...EMPTY_ANALYSIS_STATE, settledThroughSeq: WARM_FROM_SEQ }, nowMs: FIXED_NOW_MS });
+    }
+    const { dispatch, captured } = makeHarness(
+      db,
+      [reply({ ...EMPTY_PLOT, lore: [{ key: "fact", keys: ["courier"], content: "The courier {{roll::d20}} left." }] })],
+      {
+        upsertEntries: ({ authorUserId, ...args }) => world.upsertEntries({ principal: principal(authorUserId), ...args }),
+      },
+    );
+    expect(
+      await dispatch(
+        arm({ type: "run_analysis", brief: "b", routes: { lore: { apply: "direct", bookId } } }),
+        makeFrame({ chatId, authorUserId: host, ruleId }),
+      ),
+    ).toEqual({ ok: true });
+    const rows = await world.listEntries({ principal: principal(host), bookId });
+    expect(rows).toHaveLength(1);
+    const fromSeq = cold ? SLICE_THROUGH - 300 : WARM_FROM_SEQ;
+    const toSeq = cold ? SLICE_THROUGH : WARM_FROM_SEQ + 300;
+    expect(rows[0]?.title).toBe(`auto/${ruleId}:s${cold ? 0 : WARM_FROM_SEQ}.fact`);
+    expect(rows[0]?.metadata?.provenance?.span).toEqual({ fromSeq, toSeq });
+    expect(rows[0]?.metadata?.provenance?.contentHash).toBe(sha256Hex(rows[0]?.content ?? ""));
+    expect(rows[0]?.content).toContain(`{${ZWSP}{roll::d20}${ZWSP}}`);
+    expect(settledSection(captured.quiet[0]?.prompt)).toContain(`beat ${fromSeq + 1}`);
+    expect(settledSection(captured.quiet[0]?.prompt)).toContain(`beat ${toSeq}`);
+    expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(toSeq);
+  });
+}
+
+test("delayed lore confirmation persists captured read bounds after chat growth, without another analysis", async () => {
+  const { db, host, chatId, ruleId } = await setup(SLICE_CHAT_MESSAGES);
+  const bookId = await seedBook(db, host, chatId, true);
+  const world = createWorldInfoService(makeWorldInfoHarness(db).ctx);
+  const h = makeHarness(db, [reply({ ...EMPTY_PLOT, lore: [{ key: "fact", keys: ["courier"], content: "A promise." }] })], {
+    upsertEntries: ({ authorUserId, ...args }) => world.upsertEntries({ principal: principal(authorUserId), ...args }),
+  });
+  const svc = createAutomationService(makeAutomationHarness(db, { ops: h.ops, suggestions: h.suggestions, runArm: h.dispatch }));
+  expect(await h.dispatch(arm({ type: "run_analysis", brief: "b", routes: { lore: { bookId } } }), makeFrame({ chatId, authorUserId: host, ruleId }))).toEqual({
+    ok: true,
+    suggested: true,
+  });
+  expect(await world.listEntries({ principal: principal(host), bookId })).toEqual([]);
+  expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(0);
+  const pending = h.suggestions.listForChat(chatId, FIXED_NOW_MS)[0];
+  if (pending === undefined) {
+    throw new Error("analysis did not raise a card");
+  }
+  await seedMessage(db, chatId, SLICE_CHAT_MESSAGES + 100, { role: "assistant", content: "Later play." });
+  expect(await svc.confirmSuggestion({ principal: principal(host), suggestionId: pending.id })).toEqual({ ran: "stashed-arm", outcome: "fired" });
+  const rows = await world.listEntries({ principal: principal(host), bookId });
+  expect(rows).toHaveLength(1);
+  expect(rows[0]?.title).toBe(`auto/${ruleId}:s0.fact`);
+  expect(rows[0]?.metadata?.provenance?.span).toEqual({ fromSeq: SLICE_THROUGH - 300, toSeq: SLICE_THROUGH });
+  expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(SLICE_THROUGH);
+  expect(h.captured.quiet).toHaveLength(1);
+});
+
+test("ordinary host-authored lore stays spanless while empty analysis reads and empty lore fabricate no entries", async () => {
+  const { db, host, chatId, ruleId } = await setup(LORE_CHAT_MESSAGES);
+  const bookId = await seedBook(db, host, chatId, true);
+  const world = createWorldInfoService(makeWorldInfoHarness(db).ctx);
+  const h = makeHarness(db, [reply({ ...EMPTY_PLOT, lore: [] }), reply({ ...EMPTY_PLOT, lore: [{ key: "unread", keys: [], content: "No source." }] })], {
+    upsertEntries: ({ authorUserId, ...args }) => world.upsertEntries({ principal: principal(authorUserId), ...args }),
+  });
+  const frame = makeFrame({ chatId, authorUserId: host, ruleId });
+  expect(
+    await h.dispatch(arm({ type: "insert_world_info_entry", bookId, entryKey: "host", keys: ["k"], contentTemplate: "Host-authored fact." }), frame),
+  ).toEqual({ ok: true });
+  const before = await world.listEntries({ principal: principal(host), bookId });
+  expect(before).toHaveLength(1);
+  expect(before[0]?.metadata?.provenance?.contentHash).toBe(sha256Hex("Host-authored fact."));
+  expect(before[0]?.metadata?.provenance).not.toHaveProperty("span");
+  const action = arm({ type: "run_analysis", brief: "b", routes: { lore: { apply: "direct", bookId } } });
+  expect(await h.dispatch(action, frame)).toEqual({ ok: true });
+  expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(LORE_SPAN_END);
+  expect(await h.dispatch(action, frame)).toEqual({ ok: true });
+  expect(await world.listEntries({ principal: principal(host), bookId })).toEqual(before);
+  expect(h.captured.upserts).toHaveLength(1);
+});
+
+test("analysis provenance bounds come from visible rows without claiming sequence-hole contiguity", async () => {
+  const { db, host, chatId, ruleId } = await setup(LORE_CHAT_MESSAGES);
+  const bookId = await seedBook(db, host, chatId, true);
+  await db
+    .update(messages)
+    .set({ selectedVariantId: null })
+    .where(eq(messages.id, auditedIds(chatId, 1).messageId));
+  await db
+    .update(messages)
+    .set({ selectedVariantId: null })
+    .where(eq(messages.id, auditedIds(chatId, 3).messageId));
+  const world = createWorldInfoService(makeWorldInfoHarness(db).ctx);
+  const h = makeHarness(db, [reply({ ...EMPTY_PLOT, lore: [{ key: "fact", keys: [], content: "Visible play." }] })], {
+    upsertEntries: ({ authorUserId, ...args }) => world.upsertEntries({ principal: principal(authorUserId), ...args }),
+  });
+  expect(
+    await h.dispatch(
+      arm({ type: "run_analysis", brief: "b", routes: { lore: { apply: "direct", bookId } } }),
+      makeFrame({ chatId, authorUserId: host, ruleId }),
+    ),
+  ).toEqual({ ok: true });
+  const settled = settledSection(h.captured.quiet[0]?.prompt);
+  expect(settled).toContain("beat 2");
+  expect(settled).toContain("beat 4");
+  expect(settled).not.toContain("beat 1");
+  expect(settled).not.toContain("beat 3");
+  const rows = await world.listEntries({ principal: principal(host), bookId });
+  expect(rows[0]?.metadata?.provenance?.span).toEqual({ fromSeq: 1, toSeq: 4 });
+  expect(rows[0]?.title).toBe(`auto/${ruleId}:s0.fact`);
+  expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(LORE_SPAN_END);
+});
+
+test("dismissed analysis lore retries the same title and original slice while the watermark stays uncovered", async () => {
+  const { db, host, chatId, ruleId } = await setup(LORE_CHAT_MESSAGES);
+  const bookId = await seedBook(db, host, chatId, true);
+  const world = createWorldInfoService(makeWorldInfoHarness(db).ctx);
+  const payload = reply({ ...EMPTY_PLOT, lore: [{ key: "fact", keys: [], content: "A promise." }] });
+  const h = makeHarness(db, [payload, payload], {
+    upsertEntries: ({ authorUserId, ...args }) => world.upsertEntries({ principal: principal(authorUserId), ...args }),
+  });
+  const svc = createAutomationService(makeAutomationHarness(db, { ops: h.ops, suggestions: h.suggestions, runArm: h.dispatch }));
+  const action = arm({ type: "run_analysis", brief: "b", routes: { lore: { bookId } } });
+  const frame = makeFrame({ chatId, authorUserId: host, ruleId });
+  expect(await h.dispatch(action, frame)).toEqual({ ok: true, suggested: true });
+  const first = h.suggestions.listForChat(chatId, FIXED_NOW_MS)[0];
+  if (first === undefined) {
+    throw new Error("analysis did not raise the first card");
+  }
+  expect(h.suggestions.drop(first.id, FIXED_NOW_MS)).toEqual(first);
+  expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(0);
+  expect(await world.listEntries({ principal: principal(host), bookId })).toEqual([]);
+  expect(await h.dispatch(action, frame)).toEqual({ ok: true, suggested: true });
+  const retry = h.suggestions.listForChat(chatId, FIXED_NOW_MS)[0];
+  if (retry === undefined) {
+    throw new Error("analysis did not retry the dismissed card");
+  }
+  expect(retry.payload).toEqual(first.payload);
+  expect(await svc.confirmSuggestion({ principal: principal(host), suggestionId: retry.id })).toEqual({ ran: "stashed-arm", outcome: "fired" });
+  const rows = await world.listEntries({ principal: principal(host), bookId });
+  expect(rows).toHaveLength(1);
+  expect(rows[0]?.title).toBe(`auto/${ruleId}:s0.fact`);
+  expect(rows[0]?.metadata?.provenance?.span).toEqual({ fromSeq: 0, toSeq: LORE_SPAN_END });
+  expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(LORE_SPAN_END);
+  expect(h.captured.quiet).toHaveLength(2);
+});
+
+test("an empty settled read never stamps requested bounds or writes model lore", async () => {
+  const { db, host, chatId, ruleId } = await setup(LORE_CHAT_MESSAGES);
+  const bookId = await seedBook(db, host, chatId, true);
+  for (const seq of [1, 2, 3, 4]) {
+    await db
+      .update(messages)
+      .set({ selectedVariantId: null })
+      .where(eq(messages.id, auditedIds(chatId, seq).messageId));
+  }
+  const world = createWorldInfoService(makeWorldInfoHarness(db).ctx);
+  const h = makeHarness(db, [reply({ ...EMPTY_PLOT, lore: [{ key: "unread", keys: [], content: "No source." }] })], {
+    upsertEntries: ({ authorUserId, ...args }) => world.upsertEntries({ principal: principal(authorUserId), ...args }),
+  });
+  expect(
+    await h.dispatch(
+      arm({ type: "run_analysis", brief: "b", routes: { lore: { apply: "direct", bookId } } }),
+      makeFrame({ chatId, authorUserId: host, ruleId }),
+    ),
+  ).toEqual({ ok: true });
+  expect(h.captured.quiet).toHaveLength(1);
+  expect(h.captured.quiet[0]?.prompt).not.toContain("SETTLED transcript");
+  expect(h.captured.upserts).toEqual([]);
+  expect(await world.listEntries({ principal: principal(host), bookId })).toEqual([]);
+  expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(0);
 });

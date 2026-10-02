@@ -112,6 +112,7 @@ describe("buildConfirmedActRunner — a confirmed act meets the PLUGIN's gates, 
     // The braces are inert — a `worldinfo.write` grant must not become a DELAYED `chat.variables.write` at
     // assembly time, and a host saying "yes" to a lore entry did not say yes to that.
     expect(rec.lore[0]?.entries[0]?.content).not.toContain("{{setvar");
+    expect(rec.lore[0]?.entries[0]).not.toHaveProperty("span");
   });
 
   test("an UNATTACHED book refuses at confirm time — the room can withdraw consent between ask and answer", async () => {

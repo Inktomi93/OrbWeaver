@@ -260,6 +260,8 @@ describe("buildPluginBridge — the lore write is gated, capped, namespaced and 
     // Neutralized, not mangled: the text still reads identically to a human (a U+200B between the braces).
     expect(stored).toContain("setvar::tension::99");
     expect(stored).toBe(neutralizeMacros(LIVE_MACRO));
+    expect(rec.writes).toHaveLength(1);
+    expect(rec.writes[0]?.entries[0]).not.toHaveProperty("span");
   });
 
   test("a book NOT attached to the invocation chat is REFUSED (the attachment is the room's consent)", async () => {
