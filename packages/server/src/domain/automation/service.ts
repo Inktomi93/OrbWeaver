@@ -19,6 +19,7 @@ import { createListFires } from "./verbs/list-fires.ts";
 import { createListGlobalVariables } from "./verbs/list-global-variables.ts";
 import { createListOwnerRules } from "./verbs/list-owner-rules.ts";
 import { createListRulePresets } from "./verbs/list-rule-presets.ts";
+import { createListRuleTools } from "./verbs/list-rule-tools.ts";
 import { createListRules } from "./verbs/list-rules.ts";
 import { createReorderRules } from "./verbs/reorder-rules.ts";
 import { createResolveStreamAuthority } from "./verbs/resolve-stream-authority.ts";
@@ -52,6 +53,7 @@ export function createAutomationService(ctx: AutomationContext): AutomationServi
     reorderRules: createReorderRules(ctx),
     listRules: createListRules(ctx),
     listOwnerRules: createListOwnerRules(ctx),
+    listRuleTools: createListRuleTools(ctx),
     listFires: createListFires(ctx),
     listChatActivity: createListChatActivity(ctx),
     getOwnerBudgets: createGetOwnerBudgets(ctx),

@@ -22,6 +22,13 @@
       "when": 1790949711061,
       "tag": "0002_rename-stats-content-chars",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790954942007,
+      "tag": "0003_automation-rule-creation-request",
+      "breakpoints": true
     }
   ]
 }

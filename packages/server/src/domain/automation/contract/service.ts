@@ -4,7 +4,7 @@
 // watcher/dispatch slice implement. The action-arms slice wires the injected `runArm` dispatcher + WIDENS
 // `AutomationOps` with the write ops — no stubs, no reserved slots here.
 
-import type { GlobalVariableView, OwnerBudgetView, RulePresetView } from "@orb/contracts/automation";
+import type { AutomationRuleToolView, GlobalVariableView, OwnerBudgetView, RulePresetView } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Can } from "@orb/contracts/identity";
@@ -19,6 +19,7 @@ import type {
   ExecutePluginSuggestion,
   IsAuthorEnabled,
   IsPluginLive,
+  ListRuleTools,
   PromptTransformIndex,
   ResolveAuthorPrincipal,
   SuggestionStore,
@@ -37,6 +38,7 @@ import type {
   ListGlobalVariablesParams,
   ListOwnerRulesParams,
   ListRulesParams,
+  ListRuleToolsParams,
   ReorderRulesParams,
   ResolveStreamAuthorityParams,
   RunRuleNowParams,
@@ -65,6 +67,7 @@ export interface AutomationContext {
   readonly can: Can;
   /** The injected cross-feature READ ops (chat projections) the fact resolver + CEL env consume. */
   readonly ops: AutomationOps;
+  readonly listRuleTools: ListRuleTools;
   /** The arm dispatcher seam — the injected `runArm` the dispatch invokes per matched
    *  arm. A not-yet-filled default records `action_error` for every arm until the real switch is wired. */
   readonly runArm: ArmDispatch;
@@ -120,12 +123,13 @@ export interface AutomationService {
   /** Create a rule in EITHER scope — a chat (host-gated) or the caller's owner-GLOBAL lane (`chatId: null`,
    *  C5). Validates trigger liveness, CEL parse, the action schemas + arm caps + reserved-arm refusal, the
    *  owner-global scope matrix, book consent, and the cooldown floor. Assigns `position = max+1` WITHIN the
-   *  scope; the rule is born DISABLED (enabling is the consent act). */
+   *  scope; a fresh rule is born DISABLED. An existing owner/request in this exact scope is recovered
+   *  unchanged, before live admission; recovery neither edits nor disables the stored row. */
   readonly createRule: (params: CreateRuleParams) => Promise<RuleView>;
   /** Mint a §4 catalogue PRESET's ordered rule set into a chat (host-only). Resolves the caller's partial
    *  knob overrides against the preset's descriptors (a typed refusal on anything off-shape), substitutes
-   *  them into the preset's CEL sources as literals, and creates each rule through `createRule` — same gate,
-   *  same validation, born DISABLED. Returns the minted rules in mint (position) order. */
+   *  them into the preset's CEL sources as literals, and validates through the shared planner after one
+   *  scope gate. Commits the set atomically, born DISABLED, in mint (position) order. */
   readonly createRuleFromPreset: (params: CreateRuleFromPresetParams) => Promise<RuleView[]>;
   /** The preset picker's read model — the committed catalogue projected to id/title/summary/knob
    *  descriptors, in catalogue order. Static: no principal, no chat, no db. */
@@ -140,13 +144,15 @@ export interface AutomationService {
   readonly setRuleSuggestOnRefusal: (params: SetRuleSuggestOnRefusalParams) => Promise<void>;
   /** Delete a rule (host-only). */
   readonly deleteRule: (params: DeleteRuleParams) => Promise<void>;
-  /** Rewrite `position` over a chat's rules (host-only; the ST-familiar drag list — a TOTAL reorder). */
+  /** Total chat-host or owner-global order, admitted against the exact set at the SQL write snapshot. */
   readonly reorderRules: (params: ReorderRulesParams) => Promise<void>;
   /** List a chat's rules (host-only in v1), ordered by position. */
   readonly listRules: (params: ListRulesParams) => Promise<RuleView[]>;
   /** C5 — list the caller's OWN owner-global (chat-less) rules, ordered by position. The D18 single-owned
    *  read: the scope is `principal.userId`, so there is no id to pass and no lane but your own to see. */
   readonly listOwnerRules: (params: ListOwnerRulesParams) => Promise<RuleView[]>;
+  /** The caller's currently drivable plugin-tool metadata; never an alternate author's catalog. */
+  readonly listRuleTools: (params: ListRuleToolsParams) => Promise<AutomationRuleToolView[]>;
   /** The debug surface: a rule's recent fire log (host-only), newest first. */
   readonly listFires: (params: ListFiresParams) => Promise<FireView[]>;
   /** B11 — the room ACTIVITY read: a chat's recent fire log across ALL its rules (host-only), newest first.

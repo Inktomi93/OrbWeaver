@@ -18,6 +18,7 @@
 // Every author→Principal edge in this file must stay a ROW READ; a `UserId` arriving here carries no authority.
 
 import { randomUUID } from "node:crypto";
+import { automationRuleToolViewSchema } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
 import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
@@ -126,7 +127,10 @@ export interface AutomationPluginComposeDeps {
    *  `run_tool` arm's (D146): the direct-drive reachability predicate this seam re-checks itself, plus the
    *  resolve→execute pair every other tool consumer already funnels through. Deliberately still a `Pick` —
    *  neither automation nor the membrane may reach `register` (compose-time, first-party only). */
-  readonly toolUse: Pick<ToolUseService, "registerPluginTool" | "isToolDrivableBy" | "resolveTools" | "executeToolCalls">;
+  readonly toolUse: Pick<
+    ToolUseService,
+    "registerPluginTool" | "isToolDrivableBy" | "resolveTools" | "executeToolCalls" | "listDrivableToolNames" | "toToolDefinitions"
+  >;
   /** The plugin fan-out's RECIPIENT enumeration (D147 clause (d)), and nothing else — a `Pick` of exactly the
    *  one admin read, because `admin` is the only sanctioned reader of `users` and a distribution needs to know
    *  who the humans are. It re-gates on the acting admin, so the list is never obtained on nobody's authority. */
@@ -441,6 +445,13 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     newSuggestionId,
     can,
     ops: automationOps,
+    listRuleTools: (userId) => {
+      const names = deps.toolUse.listDrivableToolNames(userId);
+      const resolved = deps.toolUse.resolveTools(userId, names);
+      return deps.toolUse
+        .toToolDefinitions(resolved)
+        .map(({ name, description, parameters }) => automationRuleToolViewSchema.parse({ name, description, parameters }));
+    },
     runArm: createArmExecutors({
       db,
       ops: automationOps,

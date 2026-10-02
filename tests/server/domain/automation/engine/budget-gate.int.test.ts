@@ -27,6 +27,7 @@ async function seedRule(
   await insertRule(db, {
     id,
     ownerId,
+    creationRequestId: null,
     chatId,
     name: "r",
     description: null,

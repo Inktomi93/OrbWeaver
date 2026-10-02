@@ -5,7 +5,7 @@
 //
 // POSITION IS ALLOCATED BY THE DB, NEVER BY A CALLER (#1427). It is a total order per scope, so every write
 // that mints it does so inside its own statement — the INSERT carries a `max+1` scalar subquery over the
-// rule's scope, and `applyReorder` rewrites the whole order in one batch. There is no exported way to hand a
+// rule's scope, and `applyReorder` admits the exact set and rewrites it in one UPDATE. There is no exported way to hand a
 // position in: a caller that could would be a caller that can duplicate one.
 
 import type { AutomationAction, AutomationTrigger } from "@orb/contracts/automation";
@@ -14,10 +14,11 @@ import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
-import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
+import type { AutomationRuleCreationId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import type { PlannedRuleInsert, RuleRow } from "../contract/ops.ts";
+import type { SQLiteInsertValue } from "drizzle-orm/sqlite-core";
+import type { PlannedRuleInsert, RuleOrderScope, RuleRow } from "../contract/ops.ts";
 import type { RuleView } from "../contract/results.ts";
 
 const LIMIT_ONE = 1;
@@ -106,17 +107,18 @@ function nextPositionInScope(chatId: ChatId | null, ownerId: UserId): SQL<number
     : sql<number>`(select ${highest} from ${automationRules} where ${automationRules.chatId} = ${chatId})`;
 }
 
-/** The unexecuted INSERT for one planned rule — BORN DISABLED, position db-allocated. File-local builder; the
- *  two executors below own the run (the single-rule write and the all-or-nothing set write). */
+// Both insertion policies share these values so request-key writes cannot bypass disabled birth or position allocation.
+function ruleInsertValues(row: PlannedRuleInsert): SQLiteInsertValue<typeof automationRules> {
+  return {
+    ...row,
+    actions: row.actions as RuleRow["actions"],
+    enabled: false,
+    position: nextPositionInScope(row.chatId, row.ownerId),
+  };
+}
+
 function buildInsertRule(db: Db, row: PlannedRuleInsert): BatchStmt {
-  return batchStmt(
-    db.insert(automationRules).values({
-      ...row,
-      actions: row.actions as RuleRow["actions"],
-      enabled: false,
-      position: nextPositionInScope(row.chatId, row.ownerId),
-    }),
-  );
+  return batchStmt(db.insert(automationRules).values(ruleInsertValues(row)));
 }
 
 /** C5 — an OWNER's chat-less rules in list order, `position` then `created_at` (the `listRuleRowsForChat`
@@ -131,6 +133,51 @@ export function listRuleRowsForOwnerGlobal(db: Db, ownerId: UserId): Promise<Rul
 
 export async function insertRule(db: Db, row: PlannedRuleInsert): Promise<void> {
   await insertRules(db, [row]);
+}
+
+/** Only the owner/request pair can lose a birth race; unrelated constraints still reject the write. */
+export async function insertRuleForCreationRequest(db: Db, row: PlannedRuleInsert): Promise<boolean> {
+  const inserted = await db
+    .insert(automationRules)
+    .values(ruleInsertValues(row))
+    .onConflictDoNothing({ target: [automationRules.ownerId, automationRules.creationRequestId] })
+    .returning({ id: automationRules.id });
+  return inserted.length === 1;
+}
+
+/** Birth recovery is stricter than room-host editing: the request must belong to this author and scope. */
+export async function selectRuleByCreationRequest(
+  db: Db,
+  ownerId: UserId,
+  creationRequestId: AutomationRuleCreationId,
+  chatId: ChatId | null,
+): Promise<RuleRow | undefined> {
+  const rows = await db
+    .select()
+    .from(automationRules)
+    .where(
+      and(
+        eq(automationRules.ownerId, ownerId),
+        eq(automationRules.creationRequestId, creationRequestId),
+        chatId === null ? isNull(automationRules.chatId) : eq(automationRules.chatId, chatId),
+      ),
+    )
+    .limit(LIMIT_ONE);
+  return rows[0];
+}
+
+/** Classify only this author's reused request, never a foreign request's occupancy. */
+export async function selectRuleCreationScope(
+  db: Db,
+  ownerId: UserId,
+  creationRequestId: AutomationRuleCreationId,
+): Promise<Pick<RuleRow, "chatId"> | undefined> {
+  const rows = await db
+    .select({ chatId: automationRules.chatId })
+    .from(automationRules)
+    .where(and(eq(automationRules.ownerId, ownerId), eq(automationRules.creationRequestId, creationRequestId)))
+    .limit(LIMIT_ONE);
+  return rows[0];
 }
 
 /** ALL-OR-NOTHING: one `db.batch`, so a preset's rule set is committed whole or not at all (#1427) — and the
@@ -168,6 +215,20 @@ export async function selectRuleRow(db: Db, ruleId: AutomationRuleId): Promise<R
  *  set against the chat's complete current one and needs nothing else off the rows. */
 export async function listRuleIdsForChat(db: Db, chatId: ChatId): Promise<AutomationRuleId[]> {
   const rows = await db.select({ id: automationRules.id }).from(automationRules).where(eq(automationRules.chatId, chatId));
+  return rows.map((row) => row.id);
+}
+
+function orderScopePredicate(scope: RuleOrderScope): SQL {
+  return scope.chatId === null
+    ? sql`${automationRules.chatId} is null and ${automationRules.ownerId} = ${scope.ownerId}`
+    : eq(automationRules.chatId, scope.chatId);
+}
+
+export async function listRuleIdsForScope(db: Db, scope: RuleOrderScope): Promise<AutomationRuleId[]> {
+  if (scope.chatId !== null) {
+    return listRuleIdsForChat(db, scope.chatId);
+  }
+  const rows = await db.select({ id: automationRules.id }).from(automationRules).where(orderScopePredicate(scope));
   return rows.map((row) => row.id);
 }
 
@@ -312,21 +373,24 @@ export async function disableRule(db: Db, ruleId: AutomationRuleId, reason: stri
   await db.update(automationRules).set({ enabled: false, lastError: reason, updatedAt: now }).where(eq(automationRules.id, ruleId));
 }
 
-/** Rewrite `position` over the given ordered ids (host-reorder — a TOTAL order). Each update is scoped to
- *  the chat so a foreign id in the list can never touch another chat's row. One batch, atomic. */
-// @orb-waive owner-scoped-writes(automationRules): the D18 HOST rung, not the stamp — `requireRuleHost(ctx, principal, ruleId)` runs in every calling verb (`reorder-rules`, via `requireChatHost`) and is STRICTER than `eq(ownerId, …)` (a rule's owner is its author, but only the room's host may touch it), so an owner predicate here would encode the WEAKER check. Ends the day a verb writes a rule without that guard. The chat predicate beside each id is the SECOND belt: a foreign rule id in the list touches no row.
-export async function applyReorder(db: Db, chatId: ChatId, orderedIds: readonly AutomationRuleId[], now: number): Promise<void> {
+/** One SQL snapshot admits the exact immutable scope set before rewriting every position and timestamp. */
+// @orb-waive owner-scoped-writes(automationRules): the chat arm is D18 host-authorized, not author-filtered; the global arm includes caller-derived ownerId in the write AND both admission subqueries through orderScopePredicate. Ends if a caller reaches this without its matching scope authority.
+export async function applyReorder(db: Db, scope: RuleOrderScope, orderedIds: readonly AutomationRuleId[], now: number): Promise<boolean> {
   if (orderedIds.length === 0) {
-    return;
+    return (await listRuleIdsForScope(db, scope)).length === 0;
   }
-  await db.batch(
-    batchMany(
-      orderedIds.map((ruleId, position) =>
-        db
-          .update(automationRules)
-          .set({ position, updatedAt: now })
-          .where(and(eq(automationRules.id, ruleId), eq(automationRules.chatId, chatId))),
-      ),
-    ),
-  );
+  const scopeWhere = orderScopePredicate(scope);
+  const requestedWhere = and(scopeWhere, inArray(automationRules.id, [...orderedIds]));
+  const admitsExactSet = sql`(select count(*) from ${automationRules} where ${scopeWhere}) = ${orderedIds.length}
+    and (select count(*) from ${automationRules} where ${requestedWhere}) = ${orderedIds.length}`;
+  const positions = sql`case ${automationRules.id} ${sql.join(
+    orderedIds.map((ruleId, position) => sql`when ${ruleId} then ${position}`),
+    sql` `,
+  )} end`;
+  const updated = await db
+    .update(automationRules)
+    .set({ position: positions, updatedAt: now })
+    .where(and(scopeWhere, admitsExactSet))
+    .returning({ id: automationRules.id });
+  return updated.length === orderedIds.length;
 }

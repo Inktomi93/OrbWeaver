@@ -4,9 +4,9 @@
 // vocabulary (trigger/action shapes) lives in `@orb/contracts/automation`; these are server-internal call
 // shapes.
 
-import type { AutomationActionInput, AutomationTrigger, RulePresetId, RulePresetKnobValues, TriggerFact } from "@orb/contracts/automation";
+import type { AutomationActionInput, AutomationRuleEditableInput, RulePresetId, RulePresetKnobValues, TriggerFact } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
-import type { AutomationRuleId, AutomationSuggestionId, ChatId } from "@orb/kit/ids";
+import type { AutomationRuleCreationId, AutomationRuleId, AutomationSuggestionId, ChatId } from "@orb/kit/ids";
 import type { RulePresetKnobOverrides } from "./presets.ts";
 
 /** Common to every global-variable verb: the acting principal whose `userId` scopes the plane. */
@@ -40,17 +40,10 @@ export interface ListGlobalVariablesParams extends AutomationActorParams {
 
 /** The editable rule fields shared by `createRule` + `updateRule`. Defaults (born disabled, position, the
  *  DB budget defaults) are the verb's / schema's concern — not the caller's. */
-interface RuleEditableParams {
-  readonly name: string;
-  readonly description?: string;
-  readonly trigger: AutomationTrigger;
-  readonly predicateCel?: string | null;
+interface RuleEditableParams extends Readonly<Omit<AutomationRuleEditableInput, "actions">> {
   /** AUTHORED arms (the schema's INPUT — defaulted fields optional). The verb PARSES them and persists
    *  the parsed result, so a caller never spells a default it did not choose. */
   readonly actions: readonly AutomationActionInput[];
-  readonly matchAutomationEvents?: boolean;
-  readonly cooldownSeconds?: number;
-  readonly maxFiresPerHour?: number;
 }
 
 /** Mint provenance (the §3-S3 flip shape) — WHICH rule preset a mint came from, with the COMPLETE
@@ -66,6 +59,8 @@ export interface CreateRuleParams extends AutomationActorParams, RuleEditablePar
    *  rather than optional, deliberately: a caller must SAY which lane it means, so an omitted field can never
    *  silently mint a global rule. */
   readonly chatId: ChatId | null;
+  /** Optional only for internal/preset callers; the mounted custom create requires an owner-local key. */
+  readonly creationRequestId?: AutomationRuleCreationId;
   /** VERB-ONLY (never on the tRPC wire — the router's schema does not spell it, so a hand-authored rule
    *  can never claim a preset's mint): `createRuleFromPreset` stamps this on each rule of its set, which
    *  is what holds the provenance biconditional (present ⟺ the row is exactly that preset's mint —
@@ -77,7 +72,7 @@ export interface UpdateRuleParams extends AutomationActorParams, RuleEditablePar
   readonly ruleId: AutomationRuleId;
 }
 
-/** S3 — mint a preset's ordered rule SET into a chat (host-only; each rule through `createRule`). `knobs`
+/** S3 — mint a preset's ordered rule SET through the shared planner and one scope gate. `knobs`
  *  is a PARTIAL override bag; an absent key takes its descriptor default, and an unknown key is refused.
  *  v1 has no post-mint knob edit — the edit path is delete + re-mint. */
 export interface CreateRuleFromPresetParams extends AutomationActorParams {
@@ -109,7 +104,7 @@ export interface DeleteRuleParams extends AutomationActorParams {
 }
 
 export interface ReorderRulesParams extends AutomationActorParams {
-  readonly chatId: ChatId;
+  readonly chatId: ChatId | null;
   readonly orderedIds: readonly AutomationRuleId[];
 }
 
@@ -138,6 +133,8 @@ export interface ListChatActivityParams extends AutomationActorParams {
  *  posture). There is no way to ask for someone else's lane, which is what makes the read leak-free by
  *  construction rather than by a gate. */
 export type ListOwnerRulesParams = AutomationActorParams;
+
+export type ListRuleToolsParams = AutomationActorParams;
 
 /** C5 — read the caller's own owner-global fire-rate cap. Same single-owned posture as above. */
 export type GetOwnerBudgetsParams = AutomationActorParams;
