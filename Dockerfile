@@ -98,7 +98,7 @@ STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD ["node","-e","fetch(`http://127.0.0.1:${process.env.PORT??8788}/healthz`).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
 # Exec-form so signals reach PID 1; the shim execs node, so with compose `init: true` the chain is
-# tini → node. Secrets ride *_FILE indirection through the shim; the shim also fills the two values a fresh
+# tini → node. The app reads *_FILE secrets; the shim also generates the files a fresh
 # container cannot ask a browser for (docker/entrypoint.sh).
 ENTRYPOINT ["/app/docker/entrypoint.sh"]
 CMD ["node","packages/server/src/entry/index.ts"]

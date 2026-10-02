@@ -2,7 +2,7 @@ import { lookup as dnsLookup } from "node:dns";
 import type { LookupFunction } from "node:net";
 import { effectiveHttpPort, parseTcpPort } from "@orb/kit/http-endpoint";
 import { parseIp } from "@orb/kit/ip";
-import { Agent, buildConnector, setGlobalDispatcher } from "undici";
+import { Agent, buildConnector, getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { env, parseTrustedPrivateRanges } from "#foundation/env";
 import { getLog, securityEvent } from "../../foundation/observability/logger.ts";
 import { superviseDetached } from "../../foundation/observability/tracing.ts";
@@ -164,6 +164,22 @@ interface PrivateEndpointAllowlist {
  *  CONSTRUCTION: it gates THIS process's undici dispatcher; a second replica publishes its own copy from the
  *  same AppSettings row at its own boot, and one that has not yet fails CLOSED. */
 let privateEndpointAllowlist: PrivateEndpointAllowlist = { hosts: new Set<string>(), hostPorts: new Map<string, ReadonlySet<number>>(), ranges: [] };
+let firewallAgent: Agent | undefined;
+
+function samePrivateEndpointAllowlist(next: PrivateEndpointAllowlist): boolean {
+  const previous = privateEndpointAllowlist;
+  return (
+    previous.hosts.size === next.hosts.size &&
+    [...previous.hosts].every((host) => next.hosts.has(host)) &&
+    previous.ranges.length === next.ranges.length &&
+    previous.ranges.every((range) => next.ranges.includes(range)) &&
+    previous.hostPorts.size === next.hostPorts.size &&
+    [...previous.hostPorts].every(([host, ports]) => {
+      const nextPorts = next.hostPorts.get(host);
+      return nextPorts !== undefined && ports.size === nextPorts.size && [...ports].every((port) => nextPorts.has(port));
+    })
+  );
+}
 
 const HOSTNAME_MAX_LENGTH = 253;
 const HOSTNAME_LABEL_MAX_LENGTH = 63;
@@ -337,7 +353,12 @@ export function publishPrivateEndpointAllowlist(entries: readonly string[]): voi
   }
   const hostPorts = collectHostPorts(classified);
   const { hosts, ranges, narrowed } = collectAnyPortEntries(classified, hostPorts);
-  privateEndpointAllowlist = { hosts, hostPorts, ranges };
+  const next = { hosts, hostPorts, ranges };
+  const changed = !samePrivateEndpointAllowlist(next);
+  privateEndpointAllowlist = next;
+  if (changed && firewallAgent !== undefined && getGlobalDispatcher() === firewallAgent) {
+    replaceFirewallAgent();
+  }
   const counts = { hosts: hosts.size, hostPorts: hostPorts.size, ranges: ranges.length, narrowed, refused };
   if (refused > 0) {
     getLog().warn(
@@ -426,9 +447,20 @@ export function installEgressFirewall(): void {
   if (!env.EGRESS_FIREWALL) {
     return;
   }
-  const { connect, allowlist } = createFirewallConnect();
-  setGlobalDispatcher(new Agent({ connect }));
+  const allowlist = replaceFirewallAgent();
   getLog().info({ allowlist: [...allowlist] }, "security: egress firewall installed (private egress blocked)");
+}
+
+// Replacing before teardown prevents the next request from bypassing the guard on an already-admitted socket.
+function replaceFirewallAgent(): ReadonlySet<string> {
+  const previous = firewallAgent;
+  const { connect, allowlist } = createFirewallConnect();
+  firewallAgent = new Agent({ connect });
+  setGlobalDispatcher(firewallAgent);
+  if (previous !== undefined) {
+    superviseEgressCleanup("firewall-policy-change", () => previous.destroy());
+  }
+  return allowlist;
 }
 
 /** TEST-ONLY seam: the connect function {@link installEgressFirewall} hands the global dispatcher, so a test can
