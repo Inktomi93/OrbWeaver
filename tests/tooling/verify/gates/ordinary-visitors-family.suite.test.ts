@@ -21,8 +21,11 @@ import { gate as registryAssemblyAtDoorOnly } from "../../../../tooling/src/veri
 import { gate as untrustedRegexSafeExec } from "../../../../tooling/src/verify/gates/untrusted-regex-safe-exec.ts";
 import { gate as zodErrorIssuesHome } from "../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
 import { gate as zodModernSpellings } from "../../../../tooling/src/verify/gates/zod-modern-spellings.ts";
+import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-pass-receipts.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
+import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -285,6 +288,65 @@ test("a soft-reference grant keyed on the FILE rather than the pair licenses not
 
   expect(mismatched.authority.effectiveFindings).toHaveLength(1);
   expect(mismatched.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant" }]);
+});
+
+test("the creation-request non-row grant licenses only its exact column and retains stale and over-broad controls", () => {
+  const files = {
+    "packages/db/src/schema/automation.ts":
+      'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+      'export const automationRules = sqliteTable("automation_rules", { id: text("id").primaryKey(), creationRequestId: text("creation_request_id"), ruleId: text("rule_id") });\n' +
+      'export const unrelated = sqliteTable("unrelated", { creationRequestId: text("creation_request_id") });\n',
+  };
+  const raw = passOf(noUntypedSoftRef, files);
+  const subjects = ["automation_rules.creationRequestId", "automation_rules.ruleId", "unrelated.creationRequestId"];
+  expect(raw.toolErrors).toEqual([]);
+  expect(raw.authority.withheldPolicyIds).toEqual([]);
+  expect(raw.authority.effectiveFindings.map(({ subject }) => subject).toSorted()).toEqual(subjects);
+
+  const grant = reviewedGrantsFor([noUntypedSoftRef]).find(({ subject }) => subject === "automation_rules.creationRequestId");
+  expect(grant).toBeDefined();
+  if (grant === undefined) {
+    throw new Error("The reviewed non-row creation-request grant is missing.");
+  }
+  const granted = passOf(noUntypedSoftRef, files, [grant]);
+  expect(granted.toolErrors).toEqual([]);
+  expect(granted.authority.grantedFindings.map(({ finding }) => finding.subject)).toEqual(["automation_rules.creationRequestId"]);
+  expect(granted.authority.effectiveFindings.map(({ subject }) => subject).toSorted()).toEqual(subjects.slice(1));
+  expect(granted.authority.reviewedGrantConsumption).toEqual([{ id: grant.id, count: 1 }]);
+  expect(granted.authority.authorityAlarms).toEqual([]);
+
+  const wrong = passOf(noUntypedSoftRef, files, [{ ...grant, operation: `${grant.operation}:wrong` }]);
+  expect(wrong.authority.grantedFindings).toEqual([]);
+  expect(wrong.authority.effectiveFindings.map(({ subject }) => subject).toSorted()).toEqual(subjects);
+  expect(wrong.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: grant.id }]);
+
+  const stale = passOf(
+    noUntypedSoftRef,
+    {
+      "packages/db/src/schema/automation.ts":
+        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const automationRules = sqliteTable("automation_rules", { id: text("id").primaryKey() });\n',
+    },
+    [grant],
+  );
+  expect(stale.toolErrors).toEqual([]);
+  expect(stale.authority.effectiveFindings).toEqual([]);
+  expect(stale.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: grant.id }]);
+
+  const multiplied = coordinateGateAuthority({
+    knownPolicies: [noUntypedSoftRef],
+    selectedPolicies: [noUntypedSoftRef],
+    ordinaryWaiverSources: [],
+    ownerResults: raw.policies.map((policy) => {
+      const owner = authorityOwnerResult(policy);
+      return { ...owner, findings: owner.findings.flatMap((finding) => (finding.subject === grant.subject ? [finding, finding] : [finding])) };
+    }),
+    reviewedGrants: [grant],
+    failOnWarnings: false,
+  });
+  expect(multiplied.toolErrors).toEqual([]);
+  expect(multiplied.grantedFindings).toEqual([]);
+  expect(multiplied.effectiveFindings).toHaveLength(subjects.length + 1);
+  expect(multiplied.authorityAlarms).toMatchObject([{ kind: "over-broad-reviewed-grant", grantId: grant.id }]);
 });
 
 test("a soft-reference grant that matches nothing after a complete run is STALE", () => {

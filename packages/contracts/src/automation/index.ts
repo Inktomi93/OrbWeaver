@@ -1049,15 +1049,18 @@ export const automationRuleCreateSchema = automationRuleEditableSchema.extend({
   chatId: typeIdSchema(ID_PREFIX.chat).nullable(),
   creationRequestId: typeIdSchema(ID_PREFIX.automationRuleCreation),
 });
+export type AutomationRuleCreate = z.output<typeof automationRuleCreateSchema>;
 export type AutomationRuleCreateInput = z.input<typeof automationRuleCreateSchema>;
 
 export const automationRuleUpdateSchema = automationRuleEditableSchema.extend({ ruleId: typeIdSchema(ID_PREFIX.automationRule) });
+export type AutomationRuleUpdate = z.output<typeof automationRuleUpdateSchema>;
 export type AutomationRuleUpdateInput = z.input<typeof automationRuleUpdateSchema>;
 
 export const automationRuleReorderSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat).nullable(),
   orderedIds: z.array(typeIdSchema(ID_PREFIX.automationRule)),
 });
+export type AutomationRuleReorder = z.output<typeof automationRuleReorderSchema>;
 export type AutomationRuleReorderInput = z.input<typeof automationRuleReorderSchema>;
 
 /** Caller-drivable metadata only; arbitrary parameter keys remain JSON, never executable registry state. */
@@ -1068,3 +1071,4 @@ export const automationRuleToolViewSchema = z.strictObject({
 });
 export type AutomationRuleToolView = z.infer<typeof automationRuleToolViewSchema>;
 export const automationRuleToolsSchema = z.array(automationRuleToolViewSchema);
+export type AutomationRuleTools = z.output<typeof automationRuleToolsSchema>;

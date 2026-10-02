@@ -1,14 +1,5 @@
-// Reviewed grants: no-raw-interactive-intrinsics, no-raw-intl-time, no-raw-matchmedia, no-raw-random....
-// Split from reviewed-grants.ts — see that file for the central home comment.
-//
-// NO `no-raw-egress` ROW LIVES HERE ANY MORE (2026-09-20, lane cb-gate-reach, the @orb/inference §12 extraction
-// audit). The three this file carried — `vllm-fleet-control`, `vllm-gen-window`, `vllm-supervisor` — licensed
-// loopback engine-plane calls under `packages/server/src/infra/providers/vllm/engine/`. That whole plane left the
-// server for the owner's fleet tooling in the same program (the F1 fleet yeet; since moved out of the repo,
-// D7), which is OUTSIDE this policy's population and its law: D61/B5a is about the SERVER's egress surface, not a dev
-// instrument's loopback control of engines the developer's own box supervises. The rows were RETIRED rather than
-// re-pointed because re-pointing would have widened an SSRF policy into the instrument tree by side effect. The
-// surviving `no-raw-egress` rows are in `reviewed-grants-depcruise-to-egress.ts`.
+// Central reviewed grants for primitive access, non-relational identifiers and factory boundaries.
+// reviewed-grants.ts owns aggregation; network-egress grants live in reviewed-grants-depcruise-to-egress.ts.
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
@@ -145,6 +136,14 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     why: "the append-only audit log must outlive an arbitrary referent of unknown TYPE — the one D24 sanctioned soft ref. An FK would either pin the log to one table or delete history with its subject, and the log's whole purpose is to survive both.",
     endsWhen:
       "the audit log stops recording polymorphic referents (each entity kind gains its own typed log table), at which point this column can carry a real FK.",
+  },
+  {
+    id: "no-untyped-soft-ref:automation-rule-creation-request",
+    policyId: "no-untyped-soft-ref",
+    subject: "automation_rules.creationRequestId",
+    operation: "soft-reference",
+    why: "D24 governs row references; this immutable AutomationRuleCreationId is an owner-local birth request identity, not the independently server-minted rule ID or a foreign entity. No request row exists to reference. The authored boundary validates its distinct brand, UNIQUE(owner_id, creation_request_id) arbitrates retries, and recovery reads only the authenticated owner in the exact chat or global scope.",
+    endsWhen: "request identities become persisted relational rows, or this non-relational creation-request column is retired.",
   },
   {
     id: "no-untyped-soft-ref:automation-rule-preset",

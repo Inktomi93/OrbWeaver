@@ -374,7 +374,6 @@ export async function disableRule(db: Db, ruleId: AutomationRuleId, reason: stri
 }
 
 /** One SQL snapshot admits the exact immutable scope set before rewriting every position and timestamp. */
-// @orb-waive owner-scoped-writes(automationRules): the chat arm is D18 host-authorized, not author-filtered; the global arm includes caller-derived ownerId in the write AND both admission subqueries through orderScopePredicate. Ends if a caller reaches this without its matching scope authority.
 export async function applyReorder(db: Db, scope: RuleOrderScope, orderedIds: readonly AutomationRuleId[], now: number): Promise<boolean> {
   if (orderedIds.length === 0) {
     return (await listRuleIdsForScope(db, scope)).length === 0;

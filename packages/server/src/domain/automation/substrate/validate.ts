@@ -44,7 +44,7 @@ const POST_NOTIFICATION_COOLDOWN_FLOOR = AUTOMATION_NOTICE_COOLDOWN_SECONDS;
 export function assertRuleName(name: string): void {
   const parsed = automationRuleEditableSchema.shape.name.safeParse(name);
   if (!parsed.success) {
-    throw new RuleValidationError("name", parsed.error.issues.map((issue) => issue.message).join("; "));
+    throw new RuleValidationError("name", z.prettifyError(parsed.error));
   }
 }
 
