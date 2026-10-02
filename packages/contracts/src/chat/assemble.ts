@@ -737,7 +737,7 @@ export const chatInjectionSchema = z.strictObject({
   originLabel: z.string().exactOptional(),
 }) satisfies z.ZodType<ChatInjection>;
 
-export const memoryRecallCandidateSchema = z.strictObject({
+const memoryRecallCandidateSchema = z.strictObject({
   tier: z.number(),
   blockIdx: z.number(),
   scopedCharacterId: typeIdSchema(ID_PREFIX.character),
@@ -747,7 +747,7 @@ export const memoryRecallCandidateSchema = z.strictObject({
   rank: z.number().exactOptional(),
 }) satisfies z.ZodType<MemoryRecallCandidate>;
 
-export const memoryRecallSliceSchema = z.strictObject({
+const memoryRecallSliceSchema = z.strictObject({
   mode: memoryRetrievalModeSchema,
   queryText: z.string().nullable(),
   queryEmbedded: z.boolean(),
@@ -787,9 +787,9 @@ export const assembleTraceSchema = z.strictObject({
     .exactOptional(),
 }) satisfies z.ZodType<AssembleTrace>;
 
-export const assemblyBudgetPartSchema = z.strictObject({ label: z.string(), tokens: z.number(), text: z.string() }) satisfies z.ZodType<AssemblyBudgetPart>;
+const assemblyBudgetPartSchema = z.strictObject({ label: z.string(), tokens: z.number(), text: z.string() }) satisfies z.ZodType<AssemblyBudgetPart>;
 
-export const assemblyBudgetSliceSchema = z.strictObject({
+const assemblyBudgetSliceSchema = z.strictObject({
   source: z.enum(ASSEMBLY_SOURCES),
   detail: z.string(),
   tokens: z.number(),
@@ -797,9 +797,9 @@ export const assemblyBudgetSliceSchema = z.strictObject({
   text: z.string(),
 }) satisfies z.ZodType<AssemblyBudgetSlice>;
 
-export const assemblySectionRowSchema = z.strictObject({ label: z.string(), tokens: z.number() }) satisfies z.ZodType<AssemblySectionRow>;
+const assemblySectionRowSchema = z.strictObject({ label: z.string(), tokens: z.number() }) satisfies z.ZodType<AssemblySectionRow>;
 
-export const assemblySectionCostSchema = z.strictObject({
+const assemblySectionCostSchema = z.strictObject({
   // @orb-waive no-raw-id(sectionId): preset-local authored/imported section key, not a row identity; ends if prompt sections acquire a canonical minted identity.
   sectionId: z.string(),
   tokens: z.number(),
@@ -814,7 +814,7 @@ export const assemblyBudgetPreviewSchema = z.strictObject({
   sections: z.array(assemblySectionCostSchema).readonly(),
 }) satisfies z.ZodType<AssemblyBudgetPreview>;
 
-export const shapeTraceRowSchema = z.strictObject({
+const shapeTraceRowSchema = z.strictObject({
   role: messageRoleSchema,
   name: z.string().exactOptional(),
   source: z.enum(SHAPE_ROW_SOURCES),
@@ -832,7 +832,7 @@ export const shapeTraceSchema = z.strictObject({
   rows: z.array(shapeTraceRowSchema).readonly(),
 }) satisfies z.ZodType<ShapeTrace>;
 
-export const contextFitPreviewSchema = z.strictObject({
+const contextFitPreviewSchema = z.strictObject({
   boundaryMessageId: typeIdSchema(ID_PREFIX.message).nullable(),
   usedTokens: z.number(),
   ceilingTokens: z.number(),
@@ -842,7 +842,7 @@ export const contextFitPreviewSchema = z.strictObject({
   compactSummary: z.string().nullable(),
 }) satisfies z.ZodType<ContextFitPreview>;
 
-export const contextFitUnboundSchema = z.strictObject({ unbound: z.literal(true) }) satisfies z.ZodType<ContextFitUnbound>;
+const contextFitUnboundSchema = z.strictObject({ unbound: z.literal(true) }) satisfies z.ZodType<ContextFitUnbound>;
 
 export const assembledPromptSchema = z.strictObject({
   static: z.string(),

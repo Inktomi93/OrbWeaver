@@ -16,4 +16,4 @@ export interface DocumentAttachmentRows {
   readonly characters: readonly DocumentCharacterRef[];
 }
 
-export type { ActiveChatDocumentView, DocumentAttachmentsView, DocumentCharacterRef, DocumentDetailView } from "@orb/contracts/databank";
+export type { ActiveChatDocumentView, DocumentAttachmentsView, DocumentDetailView } from "@orb/contracts/databank";

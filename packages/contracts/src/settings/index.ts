@@ -321,7 +321,7 @@ export const PROMPT_CACHE_MIN_DEPTH_FLOOR = 0;
 export const PROMPT_CACHE_MIN_DEPTH_CEIL = PROMPT_CACHE_DEPTH_CEIL;
 
 // Every field `.nullable()` AS WELL AS `.optional().catch(undefined)`: null is the CLEAR sentinel.
-export const appSettingsSchema = z.object({
+const appSettingsShape = {
   corpusAutoindex: z.boolean().nullable().optional().catch(undefined),
   importSkipCharacters: z.array(z.string()).nullable().optional().catch(undefined),
   logLevel: logLevelSchema.nullable().optional().catch(undefined),
@@ -370,7 +370,9 @@ export const appSettingsSchema = z.object({
   // The Anthropic prompt-cache breakpoint depth FLOOR (role switches from the end) — see above. Bounded at
   // parse: an out-of-range value drops to the floor rather than pushing a breakpoint past the lookback.
   promptCacheMinDepth: z.number().int().min(PROMPT_CACHE_MIN_DEPTH_FLOOR).max(PROMPT_CACHE_MIN_DEPTH_CEIL).nullable().optional().catch(undefined),
-});
+};
+
+export const appSettingsSchema = z.object(appSettingsShape);
 
 export type AppSettings = z.infer<typeof appSettingsSchema>;
 

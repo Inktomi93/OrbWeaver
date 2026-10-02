@@ -7,7 +7,14 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import type { RefineryRun, RefinerySchemaSummary, RefineryScoreSweepResult, RefinerySessionSummary, RefineryStage } from "@orb/contracts/refinery";
+import type {
+  RefineryRun,
+  RefinerySchemaSummary,
+  RefineryScoreSweepResult,
+  RefinerySessionSummary,
+  RefineryStage,
+  RefineryTestResult,
+} from "@orb/contracts/refinery";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -193,5 +200,5 @@ export interface RefineryService {
   readonly refineSchema: (params: RefineSchemaParams) => Promise<SchemaForgeResult>;
   /** A drill: one stage pass against an owned card under the DRAFT schema; returns the payload for
    *  preview rendering. No run row, no stamps. */
-  readonly testSchema: (params: TestSchemaParams) => Promise<Record<string, unknown>>;
+  readonly testSchema: (params: TestSchemaParams) => Promise<RefineryTestResult>;
 }

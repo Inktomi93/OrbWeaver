@@ -139,7 +139,7 @@ export const fireViewSchema = z.strictObject({
   firedAt: z.number(),
 }) satisfies z.ZodType<FireView>;
 
-export const armPreviewSchema = z
+const armPreviewSchema = z
   .strictObject({
     type: z.enum(AUTOMATION_ACTION_TYPES),
     renderedPreview: z.string().optional(),

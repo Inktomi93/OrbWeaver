@@ -175,12 +175,12 @@ export const presetUsageViewSchema = z.strictObject({
   gmRooms: z.array(visibleRoomRefSchema).readonly(),
 }) satisfies z.ZodType<PresetUsageView>;
 const effectiveKnobValueSchema = z.union([z.number(), z.string()]);
-export const effectiveKnobReadingSchema = z.strictObject({
+const effectiveKnobReadingSchema = z.strictObject({
   value: effectiveKnobValueSchema,
   provenance: z.enum(EFFECTIVE_PROVENANCES),
 }) satisfies z.ZodType<EffectiveKnobReading>;
-export const staleKnobSchema = z.strictObject({ knob: z.enum(EFFECTIVE_KNOBS), value: effectiveKnobValueSchema }) satisfies z.ZodType<StaleKnob>;
-export const qualityMappingSchema = z.strictObject({ quality: z.string(), entries: z.array(staleKnobSchema).readonly() }) satisfies z.ZodType<QualityMapping>;
+const staleKnobSchema = z.strictObject({ knob: z.enum(EFFECTIVE_KNOBS), value: effectiveKnobValueSchema }) satisfies z.ZodType<StaleKnob>;
+const qualityMappingSchema = z.strictObject({ quality: z.string(), entries: z.array(staleKnobSchema).readonly() }) satisfies z.ZodType<QualityMapping>;
 export const effectivePresetSchema = z.strictObject({
   presetId: typeIdSchema(ID_PREFIX.preset),
   model: brandedId<ModelId>(),

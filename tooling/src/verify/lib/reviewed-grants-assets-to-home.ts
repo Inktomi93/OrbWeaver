@@ -270,15 +270,6 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
     endsWhen:
       "the wire seam stops taking content PARTS (D51 is retired) or this module stops naming the type; either way the row is consumed zero times and reds.",
   },
-  {
-    id: "contract-derives-not-respells:stats-model-stat-row",
-    policyId: "contract-derives-not-respells",
-    subject: "packages/server/src/domain/stats/contract/views.ts::ModelStatRow",
-    operation: "contract-hand-row:modelStats",
-    why: "AGGREGATE: a read-time GROUP BY projection over `model_stats` carrying computed fields that are never columns (`charactersUsedWith` — model_stats is character-less, plus the p50/p90 percentiles the file header says are computed on read, invariant #6). Deriving it from `$inferSelect` would be a lie about what the read returns.",
-    endsWhen:
-      "the projection stops being hand-written (it derives, or it is renamed so it no longer collides), or the `modelStats` table disappears — the row is then consumed zero times and reds as `stale-reviewed-grant`.",
-  },
   // THE THREE BOUNDED DIRECT-SKIN RECIPES (#2181, #1584). They replace `EXPECTED_DIRECT_CLIENT_UI_MECHANISMS`
   // — three hand-spelled COUNTS in `lib/css-family-census.ts` that §12.5 bans and that the §5b audit measured
   // reached by ZERO proof rows (cut f07) and unmoved by a changed number (cut f08). The exemption is real and

@@ -176,19 +176,19 @@ export interface HostTierRegexAllow {
 export const hostTierRegexAllowSchema = z
   .strictObject({ enabled: z.boolean().optional(), tiers: regexTierAllowSchema.optional() })
   .transform((view) => ({ enabled: view.enabled, tiers: view.tiers })) satisfies z.ZodType<HostTierRegexAllow>;
-export const regexTierRowViewSchema = z.strictObject({
+const regexTierRowViewSchema = z.strictObject({
   script: regexScriptViewSchema,
   position: z.number(),
   runsAt: z.number().nullable(),
   attachedElsewhere: z.boolean(),
 }) satisfies z.ZodType<RegexTierRowView>;
-export const regexTierGroupViewSchema = z.strictObject({
+const regexTierGroupViewSchema = z.strictObject({
   scope: regexTierKeySchema,
   allowed: z.boolean(),
   label: z.string().optional(),
   rows: z.array(regexTierRowViewSchema).readonly(),
 }) satisfies z.ZodType<RegexTierGroupView>;
-export const effectiveRegexEntrySchema = z.strictObject({ scriptId: regexScriptSchema.shape.id, runsAt: z.number() }) satisfies z.ZodType<EffectiveRegexEntry>;
+const effectiveRegexEntrySchema = z.strictObject({ scriptId: regexScriptSchema.shape.id, runsAt: z.number() }) satisfies z.ZodType<EffectiveRegexEntry>;
 export const effectiveRegexViewSchema = z.strictObject({
   enabled: z.boolean(),
   tiers: z.array(regexTierGroupViewSchema).readonly(),
