@@ -1,7 +1,8 @@
 ---
 kind: plan
-status: active
-updated: 2026-09-23
+status: parked
+updated: 2026-10-02
+blocked: owner
 ---
 
 # Message reactions: custom emoji

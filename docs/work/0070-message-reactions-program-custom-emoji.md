@@ -1,10 +1,10 @@
 ---
 kind: work
-status: doing
+status: blocked
 updated: 2026-10-02
 priority: P2
 area: client
-lane: wt/agent-launch-ui
+blocked: owner
 plan: message-reactions
 ---
 
@@ -24,4 +24,4 @@ A user and a character can each react with a custom emoji image, the reaction pe
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The owner deferred custom emoji and retained the asset-access rule in D21. Resume only on an explicit owner request. Unicode reactions remain unchanged.
