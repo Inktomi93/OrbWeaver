@@ -100,9 +100,10 @@ import type {
   ContextTabDef,
   ContributorRegistry,
   CorpusContextState,
+  ListPaneHeaderView,
   ToolRenderer,
 } from "@orb/client/lib";
-import { bindSessionDocumentHost, createContributorRegistry, createRegistry } from "@orb/client/lib";
+import { bindSessionDocumentHost, createContributorRegistry, createRegistry, defineContextTabs } from "@orb/client/lib";
 import type {
   ChromeEntry,
   ChromeRegistry,
@@ -561,8 +562,9 @@ export function CtFakeModalRegistry({ body, children }: { readonly body: (id: Mo
 
 /** Per-section fake injection: `list`/`content`/`context` slots the story wants to render. A `context`
  *  slot is delivered through the real `single` ContextDefinition arm so `SectionContextHost` renders it
- *  live (the shell's real consumer path); a non-injected section's context is `{ kind: "none" }`. */
+ *  live. Non-injected panes retain real capability with empty content, so shell toggles stay testable. */
 export interface CtFakeSection {
+  readonly withoutList?: boolean;
   readonly list?: ReactNode;
   readonly content?: ReactNode;
   readonly context?: ReactNode;
@@ -574,10 +576,10 @@ export interface CtFakeSection {
    *  supplies avatars + name + a member chip here, and it is what fills the topbar's LEAD. A story that
    *  measures the row needs it, or the lead is one control wide and the defect cannot appear. */
   readonly header?: ReactNode;
-  /** The section-owned LIST chrome band (`SectionDefinition.listHeader`). A story needs it whenever the
+  /** The section-owned LIST chrome band (`SectionDefinition.useListHeader`). A story needs it whenever the
    *  assertion is about the band itself — since #493 the LIST landmark is NAMED BY the band's heading
-   *  (`LIST_PANE_TITLE_ID`), so a story with no band exercises only the `aria-label` fallback. */
-  readonly listHeader?: ReactNode;
+   *  (`LIST_PANE_TITLE_ID`). A story without custom view data uses the section's structural identity. */
+  readonly listHeader?: ListPaneHeaderView;
   /** The section's `useSelectionTitle` for the story — absent ⇒ the REAL one when the section has it, else
    *  a `null` stand-in (the shell falls back to the section label). */
   readonly selectionTitle?: () => string | null;
@@ -592,23 +594,37 @@ const CT_NEVER_SELECTED: SectionSelection = {
   clear: (): void => undefined,
 };
 
+// A shell-only placeholder list has no member to select; its explicit content landing preserves the
+// shell fixture's pane-toggle tests without pretending that a member is open.
+const CT_CONTENT_LANDING: SectionSelection = {
+  subscribe: CT_NEVER_SELECTED.subscribe,
+  hasSelection: CT_NEVER_SELECTED.hasSelection,
+  clear: CT_NEVER_SELECTED.clear,
+  phoneLanding: () => "content",
+};
+
 function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDefinition {
   const real = REAL[id];
+  const fallbackContext =
+    real.context.kind === "none" ? real.context : defineContextTabs<void>({ useContextState: () => null, tabs: [], header: () => real.rail.label });
   const base = {
     id,
     rail: real.rail,
     // The section's declared PANEL CAPABILITY is shell anatomy, not story content — carry it through so a
     // shell CT sees the real "this section has no LIST pane" arm (home).
-    ...(real.panels === undefined ? {} : { panels: real.panels }),
     panelDefaults: real.panelDefaults,
+    contentInset: real.contentInset,
     placeholder: real.placeholder,
     // A non-injected section renders its real placeholder (the planned arm) — the old "unwired ⇒ fallback".
     content: slot?.content !== undefined ? (): ReactNode => slot.content : { planned: "ct" },
-    context: slot?.context !== undefined ? { kind: "single" as const, body: (): ReactNode => slot.context } : { kind: "none" as const },
+    context:
+      slot?.context !== undefined
+        ? { kind: "single" as const, body: (): ReactNode => slot.context, header: (): ReactNode => real.rail.label }
+        : fallbackContext,
     useSelectionTitle: slot?.selectionTitle ?? real.useSelectionTitle,
     ...(slot?.header === undefined ? {} : { header: (): ReactNode => slot.header }),
   };
-  if (slot?.list === undefined) {
+  if (slot?.withoutList === true || (real.list === undefined && slot?.list === undefined)) {
     return base;
   }
   // `list` and `selection` are ONE arm of the definition union (section-registry.ts) — the fake honours that
@@ -619,9 +635,10 @@ function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDef
   // stand-in, whose title is `null` (the shell then prints the section label).
   return {
     ...base,
-    list: (): ReactNode => slot.list,
-    selection: slot.selection ?? real.selection ?? CT_NEVER_SELECTED,
-    ...(slot.listHeader === undefined ? {} : { listHeader: (): ReactNode => slot.listHeader }),
+    list: (): ReactNode => slot?.list ?? null,
+    selection: slot?.selection ?? (slot?.list === undefined ? CT_CONTENT_LANDING : (real.selection ?? CT_NEVER_SELECTED)),
+    useListHeader: (): ListPaneHeaderView => slot?.listHeader ?? { title: real.rail.label },
+    listSearch: { planned: "Isolated shell stories replace roster content." },
   };
 }
 

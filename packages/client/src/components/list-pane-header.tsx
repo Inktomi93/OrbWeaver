@@ -1,5 +1,5 @@
 // ListPaneHeader — the client-shared LIST chrome-band cluster (D12). The content
-// a section definition's `listHeader` slot feeds into `.shell-panel-header`: an optional back affordance, the
+// a section definition's `useListHeader` slot feeds into `.shell-panel-header`: an optional back affordance, the
 // section title at the DISPLAY step (optionally `Title · <accent>` for a scoped/entity mode — #1136, see the
 // heading), a live mono count, and the panel's ONE primary action (D66 A2).
 //
@@ -18,29 +18,11 @@ import { Button } from "@orb/ui/button";
 import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
+import type { ListPaneHeaderProps } from "#lib";
 import { LIST_PANE_TITLE_ID } from "#lib";
 
-/** The band's leading back affordance — a mode-swapped pane's way out (Arm A's projection → picker). */
-export interface ListPaneHeaderBack {
-  /** The button's accessible name, e.g. "Back to all characters" (the glyph carries no text). */
-  readonly label: string;
-  readonly onClick: () => void;
-}
-
-export interface ListPaneHeaderProps {
-  /** The section title, rendered at the DISPLAY step (`Chats`, `Corpus`, …) — #1136. */
-  readonly title: string;
-  /** The scoped-mode entity half — renders as `Title · <accent>` with the accent in the muted tone. */
-  readonly accent?: string;
-  /** A live census. Rendered mono/label/muted, and omitted at 0 (a zero census is noise, not information). A
-   *  string is a page-BOUNDED count that already read `"100+"` off its own limit (P2-d) — the caller decided
-   *  the cap, this band just prints what it is handed. */
-  readonly count?: number | string;
-  readonly back?: ListPaneHeaderBack;
-  /** The panel's ONE primary action. Omit for a browse-shaped pane with no create verb. */
-  readonly action?: ReactNode;
-}
+export type { ListPaneHeaderProps } from "#lib";
 
 /** One LIST chrome-band: `[‹] Title · accent  count … action`. */
 export function ListPaneHeader({ title, accent, count, back, action }: ListPaneHeaderProps): ReactElement {

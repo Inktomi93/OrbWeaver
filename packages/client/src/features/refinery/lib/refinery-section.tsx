@@ -7,6 +7,7 @@
 // restates CONTENT's payload; every row carries its action.
 
 import { FlaskConical } from "@orb/ui/icons";
+import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { ContextTabDef, RefineryContextState } from "#lib";
 import { defineContextTabs } from "#lib";
@@ -14,9 +15,10 @@ import type { SectionDefinition } from "#state";
 import { refinerySectionSelection, useSelectedRefinerySessionId } from "#state";
 import { RefineryListAnchor } from "../anchors/refinery-list-anchor.tsx";
 import { RunsTabBody, SetupTabBody, VersionsTabBody } from "../components/refinery-context-tabs.tsx";
+import { useRefineryListHeader } from "../hooks/use-refinery-list-header.tsx";
 import { useRefineryCensus, useRefinerySession, useRefinerySessions } from "../hooks/use-refinery-sessions.ts";
 import { RefineryContentSurface } from "../surfaces/refinery-content-surface.tsx";
-import { RefineryListHeader, RefineryListSurface } from "../surfaces/refinery-list-surface.tsx";
+import { RefineryListSurface } from "../surfaces/refinery-list-surface.tsx";
 
 /** The Runs · Setup · Versions tab DEFS (delta 2 arm A) — the array lives with
  *  the section (a component module exports only components); the BODIES are the components. */
@@ -88,6 +90,7 @@ export const refinerySection: SectionDefinition = {
   id: "refinery",
   rail: { label: REFINERY_SECTION_LABEL, icon: FlaskConical, group: "authoring", mobile: "sheet" },
   // D62's content-first hub: both side panels default collapsed; the persisted override wins thereafter.
+  contentInset: "section",
   panelDefaults: { list: "collapsed", context: "collapsed" },
   placeholder: {
     title: "Refinery",
@@ -98,12 +101,14 @@ export const refinerySection: SectionDefinition = {
       <RefineryListSurface />
     </RefineryListAnchor>
   ),
-  listHeader: (): ReactElement => <RefineryListHeader />,
+  listSearch: "required",
+  useListHeader: useRefineryListHeader,
   selection: refinerySectionSelection,
   useSelectionTitle: useRefinerySelectionTitle,
   content: (): ReactElement => <RefineryContentSurface />,
   context: defineContextTabs<RefineryContextState>({
     useContextState: useRefineryContextState,
+    header: () => <Text voice="label">Refinery</Text>,
     tabs: refineryContextTabs,
     empty: {
       title: "Refinery",

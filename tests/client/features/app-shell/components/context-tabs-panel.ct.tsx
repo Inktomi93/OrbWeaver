@@ -16,7 +16,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { ContextDefaultTabStory, ContextTabStatesStory, ContextTabStripStory } from "../_ct-stories.tsx";
+import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
+import { ContextDefaultTabStory, ContextTabStatesStory, ContextTabStripStory, EmptyContextScrollStory } from "../_ct-stories.tsx";
 
 const TAB_NAMES = ["Members", "Settings", "Preview", "Injections"] as const;
 
@@ -355,7 +356,7 @@ test("badge: a boolean dot + a count, never on the active cell", async ({ mount 
 
 // ── The HEAD BAND and the floating pane's own way out ────────────────────────────────────────────────────
 
-test("the head band renders the section's header ABOVE the rails; with no header there is no band at all", async ({ mount }) => {
+test("the head band renders the section's header above the rails", async ({ mount }) => {
   const withBand = await mount(<ContextTabStripStory width={291} withBand={true} />);
   const band = withBand.locator('[data-slot="context-bracket-band"]');
   await expect(band).toBeVisible();
@@ -368,10 +369,11 @@ test("the head band renders the section's header ABOVE the rails; with no header
       .then((box) => box?.y ?? Number.NaN),
   ]);
   expect(bandBottom).toBeLessThanOrEqual(viewportTop);
-  await withBand.unmount();
+});
 
-  const without = await mount(<ContextTabStripStory width={291} />);
-  await expect(without.locator('[data-slot="context-bracket-band"]')).toHaveCount(0);
+test("a context without loaded identity retains its named band", async ({ mount }) => {
+  const component = await mount(<ContextTabStripStory width={291} />);
+  await expect(component.locator('[data-slot="context-bracket-band"]')).toHaveText("Chat");
 });
 
 test("a FLOATING pane's dismiss rides inside the band's corner — present only when the shell hands one in", async ({ mount }) => {
@@ -414,4 +416,19 @@ test.describe("coarse pointer (touch)", () => {
     await expect(railBlock(component, page, "Chat").locator('[data-slot="context-rail-kicker"]')).toHaveText("Chat · Members");
     await expect(component.locator('[data-slot="context-rail-selection"]')).toBeVisible();
   });
+});
+
+test("empty context keeps absolute descendants inside its scroll container", async ({ mount, page }) => {
+  const component = await mount(<EmptyContextScrollStory />);
+  const scroller = component.getByTestId("empty-context-content").locator("..");
+  await expect(scroller).toHaveCSS("position", "relative");
+  await expect.poll(() => readPhantomScrollers(page)).toEqual([]);
+  await scroller.evaluate((node) => {
+    (node as HTMLElement).style.position = "static";
+  });
+  await expect.poll(async () => (await readPhantomScrollers(page)).length).toBeGreaterThan(0);
+  await scroller.evaluate((node) => {
+    (node as HTMLElement).style.removeProperty("position");
+  });
+  await expect.poll(() => readPhantomScrollers(page)).toEqual([]);
 });

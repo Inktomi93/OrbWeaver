@@ -2,8 +2,9 @@
 // module). Surfaces come through the feature front door, wrapped in the real client data layer
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network). The N4/P4 CONTEXT-band and
 // the N1/N2 LIST band mount through the REAL section registry (CtRealSectionRegistry) with Corpus in its
-// Insights mode — the shell's own consumers of the `header`/`listHeader` slots.
+// Insights mode — the shell's own consumers of the `header`/`useListHeader` slots.
 
+import { ListPaneHeaderHost } from "@orb/client/components";
 import {
   AnalyticsCharacterSurface,
   AnalyticsListAnchor,
@@ -162,10 +163,10 @@ function AnalyticsContextHeaderHarness(): ReactElement {
 // slot — the same call the shell's `PanelChrome` makes for the list panel.
 function AnalyticsListHeaderHarness(): ReactElement {
   const registry = useSectionRegistry();
-  const listHeader = registry.get("corpus").listHeader;
+  const listHeader = registry.get("corpus").useListHeader;
   return (
     <InInsights>
-      <div style={{ width: 320 }}>{listHeader?.()}</div>
+      <div style={{ width: 320 }}>{<ListPaneHeaderHost useView={listHeader} />}</div>
     </InInsights>
   );
 }

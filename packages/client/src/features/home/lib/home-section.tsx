@@ -11,12 +11,7 @@
 // it renders the chrome entry the registry derived from THIS declaration, exactly as it renders every
 // other rail button. `icon: Compass` is the mobile/⌘K face; the desktop face is the glyph itself.
 //
-// `panels = { list, context }: "unavailable"` (owner decision H3 / arm L-b): home has NEITHER pane, and
-// the shell must not ship a toggle that reveals "Home list — this surface isn't wired yet" on the app's
-// front door, nor a detail-panel toggle onto `context: { kind: "none" }`, nor a focus-mode toggle whose
-// whole job is hiding panes home does not have (it cold-booted labelled "Exit focus mode" back when focus
-// was DERIVED from "both collapsed", which zero panels trivially satisfied — focus is one flag now, item
-// 20, but the toggle still has nothing to act on here).
+// Home owns neither side pane; availability derives from its absent list and context body.
 
 import { Compass } from "@orb/ui/icons";
 import type { ContributorRegistry } from "#lib";
@@ -28,9 +23,9 @@ export function makeHomeSection(tiles: ContributorRegistry<HomeTileContribution>
   return {
     id: "home",
     rail: { label: "Home", icon: Compass, group: "primary", mobile: "tab", zone: "rail.brand" },
-    panels: { list: "unavailable", context: "unavailable" },
     // No member to name — the mobile topbar prints the section label (NO_SELECTION_TITLE).
     useSelectionTitle: NO_SELECTION_TITLE,
+    contentInset: { planned: "The full-width Home scroller contains touch shelves that extend through its section inset." },
     panelDefaults: { list: "collapsed", context: "collapsed" },
     placeholder: {
       title: "Home",

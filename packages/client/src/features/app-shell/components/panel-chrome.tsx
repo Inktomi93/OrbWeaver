@@ -40,7 +40,7 @@ export interface PanelChromeProps {
   readonly header?: ReactNode;
   /** The current mode — sets `data-panel-mode` (shell.css owns the transform/width per mode). */
   readonly mode: PanelMode;
-  /** Does the ACTIVE SECTION declare this pane at all (`SectionDefinition.panels`, `section-registry.ts`)?
+  /** Does the ACTIVE SECTION declare this pane at all (`SectionDefinition.list` / `context`, `section-registry.ts`)?
    *  Published as `data-panel-available` because the declaration is otherwise UNREACHABLE outside React:
    *  before it, `agent-nav/panel-request.ts` could only infer the answer from a write that failed to land
    *  ("the active section LIKELY declares no pane") and design-audit's SURFACE-AXIS census had to call an

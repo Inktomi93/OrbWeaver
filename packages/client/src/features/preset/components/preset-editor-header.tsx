@@ -94,7 +94,7 @@ export function PresetEditorHeader({
           measured is a THIRD, deeper column: the Params deck's own 720px instrument cap
           (`params-deck.tsx`, side-eye 2026-08-19 P2), which is why the offset shows on Params and on no
           other tab. Fenced by a CT; the deck's cap is argued at its own site. */}
-      <Stack gap="block" padding="block" className="sticky top-0 z-(--z-raised) bg-card">
+      <Stack gap="block" className="py-block sticky top-0 z-(--z-raised) bg-card">
         <Container className="w-full">
           <Stack className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide)" gap="block">
             <Row align="center" justify="between" gap="field">

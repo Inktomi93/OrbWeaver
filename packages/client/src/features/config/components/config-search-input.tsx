@@ -21,6 +21,7 @@ import { Icon, SlidersHorizontal } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { ListSearch } from "#components";
 import { useSettingsViewerView } from "#data";
 import type { ConfigQueryToken, ParsedConfigQuery } from "#lib";
 import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "#lib";
@@ -186,7 +187,15 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
                 its own internal ref to correct cmdk's `aria-expanded`, and a `ref` passed through its props
                 replaces that one — the correction then reads `null` and the box claims an expanded listbox
                 that does not exist. The arrival focus lands on the active group's BAND instead. */}
-            <CommandInput aria-label="Search settings" expanded={expanded} onValueChange={setConfigSearchQuery} placeholder="Search settings…" value={query} />
+            <ListSearch>
+              <CommandInput
+                aria-label="Search settings"
+                expanded={expanded}
+                onValueChange={setConfigSearchQuery}
+                placeholder="Search settings…"
+                value={query}
+              />
+            </ListSearch>
           </Stack>
           {/* The FUNNEL — inserts `@` and the token menu opens, so the grammar teaches itself (§3.3). */}
           <CommandAuxiliaryButton

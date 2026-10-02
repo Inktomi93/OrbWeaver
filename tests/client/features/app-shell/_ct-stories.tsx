@@ -45,7 +45,6 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { Toaster } from "@orb/ui/toast";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { ListPaneHeader } from "../../../../packages/client/src/components/list-pane-header.tsx";
 import { AppearanceBackgroundSection } from "../../../../packages/client/src/features/app-shell/components/appearance-background-section.tsx";
 import { AppearanceEffectsSection } from "../../../../packages/client/src/features/app-shell/components/appearance-effects-section.tsx";
 import { AppearanceReadingSection } from "../../../../packages/client/src/features/app-shell/components/appearance-reading-section.tsx";
@@ -92,12 +91,13 @@ function LandOn({ section }: { readonly section: SectionId }): null {
  *  back. The chats `context` slot backs the CONTEXT-follows-section CT (§4.2 rule 1); the chats content
  *  slot carries one real focusable control so the "content behind an open sheet is inert" CT can prove
  *  the keyboard actually cannot reach back there (a bare `<p>` is unfocusable either way). */
-export function AppShellStory(): ReactElement {
+export function AppShellStory({ withoutList = false }: { readonly withoutList?: boolean }): ReactElement {
   return (
     <CtDataProviders>
       <CtFakeSectionRegistry
         sections={{
           chats: {
+            withoutList,
             content: (
               <>
                 <p>chats content pane</p>
@@ -249,7 +249,7 @@ export function AppShellListPrimaryStory(): ReactElement {
           chats: { content: <p>chats content pane</p> },
           corpus: {
             // The pane's PRIMARY — a real focusable control inside the LIST panel (DOM-before `<main>`), the
-            // same tab-order position the production `listHeader` band's create button occupies.
+            // same tab-order position the production `useListHeader` band's create button occupies.
             list: (
               <button type="button" data-testid="list-primary">
                 New corpus item
@@ -481,19 +481,10 @@ export function AppShellTrackDoorsStory(): ReactElement {
         sections={{
           chats: {
             list: <p>chats list pane</p>,
-            listHeader: (
-              <>
-                <span data-testid="list-band-lead">Chats</span>
-                {/* `data-slot="list-pane-action"` is the SHELL'S marker, not this story's convenience: it
-                    is what `ListPaneHeader` wraps a real section's D66 A2 action in, and what shell.css's
-                    fourth alignment class selects (#2463). The story stands in for that band, so it wears
-                    the same marker — the coupling back to the composite that emits it is pinned in
-                    `tests/client/components/list-pane-header.ct.tsx`. */}
-                <span data-slot="list-pane-action" data-testid="list-band-action">
-                  action
-                </span>
-              </>
-            ),
+            listHeader: {
+              title: "Chats",
+              action: <span data-testid="list-band-action">action</span>,
+            },
             content: (
               <div className="flex w-full flex-col">
                 <div className={CHAT_TRACK} data-slot="message-row" data-testid="track-row">
@@ -779,7 +770,7 @@ export function AppShellNamedListBandStory({
           chats: {
             content: <p>chats content pane</p>,
             list: <p>chats list pane</p>,
-            listHeader: <ListPaneHeader title={title} {...(accent === undefined ? {} : { accent })} {...(count === undefined ? {} : { count })} />,
+            listHeader: { title, ...(accent === undefined ? {} : { accent }), ...(count === undefined ? {} : { count }) },
           },
         }}
       >
@@ -928,6 +919,7 @@ function fakeHeaderSection(context: SectionDefinition["context"]): SectionDefini
     id: "chats",
     rail: { label: "Chats", icon: MessagesSquare, group: "primary", mobile: "tab" },
     panelDefaults: { list: "docked", context: "docked" },
+    contentInset: "section",
     placeholder: { title: "Chats", description: "Fake section for the header-channel CT." },
     content: { planned: "ct" },
     context,
@@ -982,22 +974,29 @@ export function SectionContentKeepMountedStory(): ReactElement {
   const [active, setActive] = useState<SectionId>("home");
   const focusAnchorRef = useRef<HTMLDivElement>(null);
   return (
-    <div>
-      <button type="button" onClick={(): void => setActive("home")}>
-        go home
-      </button>
-      <button type="button" onClick={(): void => setActive("chats")}>
-        go chats
-      </button>
-      <div ref={focusAnchorRef} tabIndex={-1}>
-        <SectionContent
-          activeSection={active}
-          contentBySection={{ home: <MountProbe name="home" />, chats: <MountProbe name="chats" /> }}
-          fallback={null}
-          focusAnchorRef={focusAnchorRef}
-        />
-      </div>
-    </div>
+    <CtDataProviders>
+      <CtFakeSectionRegistry>
+        <div>
+          <button type="button" onClick={(): void => setActive("presets")}>
+            go presets
+          </button>
+          <button type="button" onClick={(): void => setActive("home")}>
+            go home
+          </button>
+          <button type="button" onClick={(): void => setActive("chats")}>
+            go chats
+          </button>
+          <div ref={focusAnchorRef} tabIndex={-1}>
+            <SectionContent
+              activeSection={active}
+              contentBySection={{ presets: <MountProbe name="presets" />, home: <MountProbe name="home" />, chats: <MountProbe name="chats" /> }}
+              fallback={null}
+              focusAnchorRef={focusAnchorRef}
+            />
+          </div>
+        </div>
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
   );
 }
 
@@ -1251,6 +1250,7 @@ function regionSection(regions: ContributorRegistry<ContextRegionDef<void>>): Se
     id: "chats",
     rail: { label: "Chats", icon: MessagesSquare, group: "primary", mobile: "tab" },
     panelDefaults: { list: "docked", context: "docked" },
+    contentInset: "section",
     placeholder: { title: "Chats", description: "Fake section for the region-claim CT." },
     content: { planned: "ct" },
     context: defineContextTabs<void>({
@@ -1369,3 +1369,21 @@ export function AppearanceBackgroundSectionStory(): ReactElement {
 // compared 0 to 0. The pin now samples RENDERED GEOMETRY per animation frame off the plain
 // `AppearanceBackgroundSectionStory` above (the #1873 pattern, `tests/client/features/chat/_ct-stories.tsx`).
 // Do not re-add a commit tally to a CT; it cannot fail.
+
+/** Empty context bodies keep absolute descendants inside their own scrollable containing block. */
+export function EmptyContextScrollStory(): ReactElement {
+  return (
+    <div style={{ width: 320, height: 240 }}>
+      <ContextTabsPanel
+        tabs={[]}
+        railLabel="Details"
+        empty={
+          <div data-testid="empty-context-content" style={{ height: 600 }}>
+            Empty context
+            <span style={{ position: "absolute" }}>Read status</span>
+          </div>
+        }
+      />
+    </div>
+  );
+}

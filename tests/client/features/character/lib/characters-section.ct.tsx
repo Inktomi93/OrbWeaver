@@ -1,6 +1,6 @@
 // CT: the Characters section's IA — what each shell region IS, and what a selection does to them (#501,
 // owner ruling 2026-08-22 "library stays docked"). Driven through the REAL section registry
-// (`registry.get("characters").list()` / `.listHeader()` / `.context`), which is the production path: the
+// (`registry.get("characters").list()` / `.useListHeader()` / `.context`), which is the production path: the
 // `makeCharactersSection` door param, the chat-owned projection threaded in at the door, and the shell's own
 // `SectionContextHost`. A bespoke mount of any one component would prove none of it.
 //

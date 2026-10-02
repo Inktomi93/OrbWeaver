@@ -37,8 +37,8 @@ import { CharacterFacetInspector } from "../components/character-facet-inspector
 import { CharacterHistoryTab } from "../components/character-history-tab.tsx";
 import { CharacterRelationsTab } from "../components/character-relations-tab.tsx";
 import { CharacterTrustTab } from "../components/character-trust-tab.tsx";
-import { CharactersListHeader } from "../components/characters-list-header.tsx";
 import { useCharacterContextState } from "../hooks/use-character-context-state.ts";
+import { useCharactersListHeader } from "../hooks/use-characters-list-header.tsx";
 import { CharacterLibrarySurface } from "../surfaces/character-library-surface.tsx";
 import { CHARACTER_CHATS_TAB_ID } from "./character-chat-intents.ts";
 import { useCharactersSelectionTitle } from "./character-selection-title.ts";
@@ -51,6 +51,7 @@ export function makeCharactersSection(
   return {
     id: "characters",
     rail: { label: CHARACTERS_SECTION_LABEL, icon: Users, group: "primary", mobile: "tab" },
+    contentInset: "section",
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: CHARACTERS_SECTION_LABEL,
@@ -63,7 +64,8 @@ export function makeCharactersSection(
       </CharacterLibraryAnchor>
     ),
     // …so the band has ONE mode too: `CHARACTERS` + the create primary.
-    listHeader: () => <CharactersListHeader />,
+    listSearch: "required",
+    useListHeader: useCharactersListHeader,
     // How the SHELL reads "is someone open?" — the mobile ONE-SHELL rule's input + its back affordance.
     selection: characterSectionSelection,
     // …and what the phone topbar calls this screen: the open character, else `Characters · <census>` (#1670).

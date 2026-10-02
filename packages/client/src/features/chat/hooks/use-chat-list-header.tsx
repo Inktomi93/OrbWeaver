@@ -1,7 +1,7 @@
 // The chat-LIST chrome-band header (north-star §4 N2, D66 A1/A2) — the content the `.shell-panel-header`
 // band wraps for the LIST panel: the "CHATS" micro-caps section title + a live count on the left, and the
 // panel's ONE primary action (New) on the right. Flows into the band through the section definition's
-// `listHeader` slot (`chats-section.tsx`), the same definition-owned seam the topbar `header` rides — the
+// `useListHeader` data slot (`chats-section.tsx`), the same definition-owned seam the topbar `header` rides — the
 // domain-agnostic shell never names a feature.
 //
 // The band CLUSTER is the shared `ListPaneHeader` composite (§11.2) — this file owns only what New does. The
@@ -27,53 +27,50 @@
 // doors so neither reads as the odd one out.
 //
 // Import sits beside New as a GHOST icon — the ratified band anatomy (the presets band's landed precedent):
-// a secondary entry into the same "get a chat" job, and the ONE home for transcript import (the room's ⋯
-// menu carries no lifecycle chrome). Export is its opposite number on the row kebab.
+// a secondary entry into the same "get a chat" job, and the ONE home for transcript // The hook supplies view data; the shell owns the band renderer. Actions and overlays retain their existing behavior.
 
 import { Button } from "@orb/ui/button";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
-import type { ReactElement } from "react";
 import { useState } from "react";
-import { ListPaneHeader } from "#components";
+import type { ListPaneHeaderView } from "#lib";
 import { openNewChatPicker } from "#state";
+import { ChatImportDialog } from "../components/chat-import-dialog.tsx";
 import { useChatCensus } from "../hooks/use-chat-census.ts";
 import { CHATS_SECTION_LABEL } from "../lib/chats-section-label.ts";
-import { ChatImportDialog } from "./chat-import-dialog.tsx";
 
 const IMPORT_CHAT_LABEL = "Import a chat transcript";
 
-export function ChatListHeader(): ReactElement {
+export function useChatListHeader(): ListPaneHeaderView {
   const count = useChatCensus();
   const [importOpen, setImportOpen] = useState(false);
 
-  return (
-    <>
-      <ListPaneHeader
-        action={
-          // ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge.
-          <Row align="center" gap="field">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button aria-label={IMPORT_CHAT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm">
-                    <Icon icon={Upload} size="sm" />
-                  </Button>
-                }
-              />
-              <TooltipPopup side="bottom">{IMPORT_CHAT_LABEL}</TooltipPopup>
-            </Tooltip>
-            <Button intent="primary" onClick={(): void => openNewChatPicker()} size="sm">
-              <Icon icon={Plus} size="sm" />
-              New
-            </Button>
-          </Row>
-        }
-        count={count ?? 0}
-        title={CHATS_SECTION_LABEL}
-      />
-      <ChatImportDialog onOpenChange={setImportOpen} open={importOpen} />
-    </>
-  );
+  return {
+    action: (
+      <Row align="center" gap="field">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button aria-label={IMPORT_CHAT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon-sm">
+                <Icon icon={Upload} size="sm" />
+              </Button>
+            }
+          />
+          <TooltipPopup side="bottom">{IMPORT_CHAT_LABEL}</TooltipPopup>
+        </Tooltip>
+        <Button intent="primary" onClick={(): void => openNewChatPicker()} size="sm">
+          <Icon icon={Plus} size="sm" />
+          New
+        </Button>
+      </Row>
+    ),
+    count: count ?? 0,
+    title: CHATS_SECTION_LABEL,
+    overlay: (
+      <>
+        <ChatImportDialog onOpenChange={setImportOpen} open={importOpen} />
+      </>
+    ),
+  };
 }

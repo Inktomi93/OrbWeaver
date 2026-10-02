@@ -88,11 +88,11 @@ export function useTagName(tagId: TagId | null): string | undefined {
  *  leaves the reader typing the real name of the thing they just made. `pending` holds the door shut while a
  *  create is in flight: the rows only learn the new name on the bus refetch, so a second click would offer
  *  the same one. A conflict the rows could not predict retries once with the next free name. */
-export function useCreateLabel(): { readonly run: () => void; readonly pending: boolean } {
+export function useCreateLabel(active = true): { readonly run: () => void; readonly pending: boolean } {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const create = useCreateTag({ trpc, invalidation });
-  const rows = useTagRows() ?? [];
+  const rows = useTagRows(active) ?? [];
   // A double click lands both clicks before React re-renders with `isPending`, so the handler holds its own latch.
   const inFlight = useRef(false);
   const reservedNames = useRef(new Set<string>());

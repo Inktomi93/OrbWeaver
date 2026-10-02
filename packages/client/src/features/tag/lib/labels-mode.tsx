@@ -4,13 +4,15 @@
 
 import { Hash } from "@orb/ui/icons";
 import type { ContextTabDef, CorpusContextState, CorpusModeContribution } from "#lib";
-import { LabelsContent, LabelsContextHeader, LabelsContextTab, LabelsListHeader } from "../components/labels-panes.tsx";
+import { LabelsContent, LabelsContextHeader, LabelsContextTab } from "../components/labels-panes.tsx";
+import { useLabelsListHeader } from "../hooks/use-labels-list-header.tsx";
 import { LabelsListSurface } from "../surfaces/labels-list-surface.tsx";
 import { useLabelsSelectionTitle } from "./labels-selection-title.ts";
 
 export const labelsCorpusMode: CorpusModeContribution = {
   list: () => <LabelsListSurface />,
-  listHeader: () => <LabelsListHeader />,
+  listSearch: "required",
+  useListHeader: useLabelsListHeader,
   content: () => <LabelsContent />,
   contextHeader: () => <LabelsContextHeader />,
   useSelectionTitle: useLabelsSelectionTitle,

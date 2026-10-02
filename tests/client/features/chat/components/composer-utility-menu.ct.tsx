@@ -9,8 +9,8 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { ComposerStory } from "../_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID } from "../fixtures.ts";
+import { ChatSurfaceContributorStory, ComposerStory } from "../_ct-stories.tsx";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 type ParticipantFixture = NonNullable<TrpcFixtureOutput<"chat.getChat">["participants"]>[number];
 
@@ -132,9 +132,8 @@ for (const viewport of [
   });
 }
 
-// ── The gallery door (gallery parity, gap 3). The Media group opens the gallery of the room character the viewer
-// owns, through the `#state` store the app root's host reads; the story's probe prints what it asked for. A
-// viewer who owns no character here gets no row: that gallery would be someone else's.
+// Gallery has one menu home in Options. Its ownership filter and store dispatch survive removing the
+// single-character Tools shortcut; a guest must never receive another owner's door.
 
 function characterSeat(key: string, name: string): ParticipantFixture {
   return {
@@ -154,6 +153,7 @@ function galleryRoom(viewerOwnsAria: boolean): TrpcFixtureOutput<"chat.getChat">
   return {
     ...roomWith([human("hostess", "host"), human("guest", "member"), characterSeat("aria", "Aria")]),
     viewerGalleryCharacterId: viewerOwnsAria ? "character_ct_aria" : null,
+    viewerOwnedCharacterIds: viewerOwnsAria ? ["character_ct_aria"] : [],
   };
 }
 
@@ -161,13 +161,16 @@ for (const viewport of [
   { name: "mobile", width: 360, height: 780 },
   { name: "desktop", width: 1440, height: 900 },
 ] as const) {
-  test(`${viewport.name}: the owner's Media group opens the room character's gallery`, async ({ mount, page }) => {
+  test(`${viewport.name}: the gallery has one menu home in Options, not Tools`, async ({ mount, page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": galleryRoom(true) });
     const component = await mount(<ComposerStory />);
     await openMediaGroup(page);
 
-    const door = page.getByRole("menuitem", { name: "Aria's gallery…", exact: true });
+    await expect(page.getByRole("menuitem", { name: /gallery/u })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Chat options", exact: true }).click();
+    const door = page.getByRole("menuitem", { name: "Aria's gallery", exact: true });
     await expect(door).toBeInViewport();
     await door.click();
     await expect(component.getByTestId("composer-gallery-target")).toHaveText(`character_ct_aria|Aria|${COMPOSER_CHAT_ID}`);
@@ -179,8 +182,117 @@ for (const viewport of [
     await mount(<ComposerStory />);
     await openMediaGroup(page);
 
-    // The room note renders from the same roster read, so the absence below is settled, not pending.
-    await expect(page.locator('[data-slot="composer-room-pictures-note"]')).toBeVisible();
+    // Both menus must be settled before the permission-shaped absence is asserted.
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Chat options", exact: true }).click();
+    await expect(page.getByRole("menuitem", { name: "Close chat", exact: true })).toBeVisible();
     await expect(page.getByRole("menuitem", { name: /gallery/u })).toHaveCount(0);
+  });
+}
+
+test.describe("owned galleries on a touch pointer", () => {
+  test.use({ hasTouch: true, viewport: { width: 360, height: 780 } });
+  test("both owned-character rows dispatch their own gallery and chat context", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...CHAT_ROOM_ROUTES,
+      "chat.getChat": {
+        ...galleryRoom(true),
+        participants: [human("hostess", "host"), characterSeat("aria", "Aria"), characterSeat("bryn", "Bryn")],
+        viewerOwnedCharacterIds: ["character_ct_aria", "character_ct_bryn"],
+      },
+    });
+    const component = await mount(<ComposerStory />);
+    for (const [id, name] of [
+      ["aria", "Aria"],
+      ["bryn", "Bryn"],
+    ] as const) {
+      await component.getByRole("button", { name: "Chat options", exact: true }).tap();
+      await page.getByRole("menuitem", { name: "Character galleries", exact: true }).tap();
+      await page.getByRole("menuitem", { name, exact: true }).tap();
+      await expect(component.getByTestId("composer-gallery-target")).toHaveText(`character_ct_${id}|${name}|${COMPOSER_CHAT_ID}`);
+    }
+  });
+});
+
+for (const action of [
+  { label: "Undo continuation", route: "chat.undoContinue" },
+  { label: "Revert continuation", route: "chat.revertContinue" },
+] as const) {
+  test(`${action.label} remains keyboard-reachable and targets the tail assistant`, async ({ mount, page }) => {
+    const tail = makeMessageView({ role: "assistant", hasContinuation: true });
+    const calls = await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...CHAT_ROOM_ROUTES,
+      "chat.listMessages": makeMessagesPage([tail]),
+      "chat.undoContinue": tail,
+      "chat.revertContinue": tail,
+    });
+    const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={tail.id} />);
+    const tools = component.getByRole("button", { name: "Message tools", exact: true });
+    await tools.focus();
+    await page.keyboard.press("Enter");
+    const continuation = page.getByRole("menuitem", { name: "Continuation", exact: true });
+    await continuation.focus();
+    await page.keyboard.press("ArrowRight");
+    const item = page.getByRole("menuitem", { name: action.label, exact: true });
+    await expect(item).toBeEnabled();
+    await item.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.getByRole("menu", { name: "Continuation", exact: true })).toBeHidden();
+    await expect(continuation).toBeFocused();
+    await page.keyboard.press("ArrowRight");
+    await item.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await expect(tools).toBeFocused();
+    await expect.poll(() => calls.lastInput(action.route)).toEqual({ chatId: COMPOSER_CHAT_ID, messageId: tail.id });
+  });
+}
+
+const COMPOSER_CONTRIBUTION_ROUTES = {
+  ...CHAT_AMBIENT_ROUTES,
+  ...CHAT_ROOM_ROUTES,
+  "chat.previewContextFit": {
+    boundaryMessageId: null,
+    usedTokens: 120,
+    ceilingTokens: 32_768,
+    ceilingEstimated: false,
+    reserveOutputTokens: 2048,
+    droppedCount: 0,
+    compactSummary: null,
+  },
+};
+
+for (const width of [1440, 360]) {
+  test.describe(`composer contributions at ${width}`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch: width === 360 });
+    test("composer-action survives regrouping inside the primary slot", async ({ mount, page }) => {
+      await routeTrpc(page, COMPOSER_CONTRIBUTION_ROUTES);
+      const component = await mount(<ChatSurfaceContributorStory anchor="composer-action" visible={true} />);
+      const bar = component.locator('[data-slot="action-bar"]');
+      const contribution = bar.locator('[data-slot="action-bar-primary"]').getByText("fake composer-action", { exact: true });
+      await expect(contribution).toBeVisible();
+      await expect
+        .poll(async () => {
+          const bounds = await contribution.evaluate((node) => {
+            const host = node.closest('[data-slot="action-bar"]')?.getBoundingClientRect();
+            const box = node.getBoundingClientRect();
+            return host !== undefined && box.left >= host.left && box.right <= host.right;
+          });
+          return bounds;
+        })
+        .toEqual(true);
+      await expect(bar.getByRole("button", { name: "Send message", exact: true })).toBeVisible();
+    });
+    for (const anchor of ["composer-room", "composer-media"] as const) {
+      test(`${anchor} survives regrouping in Message tools`, async ({ mount, page }) => {
+        await routeTrpc(page, COMPOSER_CONTRIBUTION_ROUTES);
+        const component = await mount(<ChatSurfaceContributorStory anchor={anchor} visible={true} />);
+        await expect(component.getByRole("button", { name: "Send message", exact: true })).toBeVisible();
+        await component.getByRole("button", { name: "Message tools", exact: true }).click();
+        await expect(page.getByRole("menu", { name: "Message tools", exact: true }).getByText(`fake ${anchor}`, { exact: true })).toBeVisible();
+      });
+    }
   });
 }

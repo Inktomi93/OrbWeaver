@@ -43,6 +43,7 @@ export { SchemaEditorDialog } from "./components/schema-editor-dialog.tsx";
  *  context instance (this door's own header). */
 export { ScopeEditorDialog } from "./components/scope-editor-dialog.tsx";
 export { TeachingState } from "./components/teaching-state.tsx";
+export { useRefineryListHeader } from "./hooks/use-refinery-list-header.tsx";
 export {
   useApplyRefineryAsCopy,
   useApplyRefineryFields,
@@ -73,4 +74,4 @@ export { reviewEntriesOf } from "./lib/review-entries.ts";
  *  per-block rewrite decision → apply → the terminal outcome) — `refinerySection` imports it relatively,
  *  and a story importing it relatively would mount against a different React context instance (header). */
 export { RefineryContentSurface } from "./surfaces/refinery-content-surface.tsx";
-export { RefineryListHeader, RefineryListSurface } from "./surfaces/refinery-list-surface.tsx";
+export { RefineryListSurface } from "./surfaces/refinery-list-surface.tsx";

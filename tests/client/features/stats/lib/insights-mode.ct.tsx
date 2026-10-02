@@ -2,7 +2,7 @@
 // through the REAL section registry with Corpus in Insights:
 //  · the N4/P4 CONTEXT band — the mode's `contextHeader` names the leaderboard-drilled character (avatar +
 //    name from `character.get`); nothing drilled shows the neutral "Insights" identity.
-//  · the N1/N2 LIST band — the mode's `listHeader` shows the "Insights" title + the leaderboard census
+//  · the N1/N2 LIST band — the mode's `useListHeader` shows the "Insights" title + the leaderboard census
 //    count, and (A2, read-only) exposes NO New action.
 
 import type { CharacterId } from "@orb/kit/ids";

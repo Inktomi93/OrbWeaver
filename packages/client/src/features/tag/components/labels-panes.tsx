@@ -5,39 +5,20 @@
 import type { TagSource } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Icon, Plus } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ListPaneHeader, MemberDrillHeader, QueryBoundary } from "#components";
+import { MemberDrillHeader, QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
-import { CORPUS_MODE_LABELS, NEW_LABEL_NAME, tagUsageLabel, USAGE_KIND_TITLES } from "#lib";
+import { CORPUS_MODE_LABELS, tagUsageLabel, USAGE_KIND_TITLES } from "#lib";
 import { clearLabelSelection, useSelectedLabelId } from "#state";
-import { useCreateLabel, useTagCensus, useTagName } from "../hooks/use-tag-library.ts";
+import { useTagName } from "../hooks/use-tag-library.ts";
 import { LabelsLibrarySurface } from "../surfaces/labels-library-surface.tsx";
 import { TagMemberSurface } from "../surfaces/tag-member-surface.tsx";
 import { LabelAttachedEntities } from "./label-attached-entities.tsx";
-
-/** The LIST band: the mode's name, the library census, and the finder's ONE primary verb. */
-export function LabelsListHeader(): ReactElement {
-  const count = useTagCensus();
-  const create = useCreateLabel();
-  return (
-    <ListPaneHeader
-      action={
-        <Button intent="primary" loading={create.pending} onClick={create.run} size="sm" type="button">
-          <Icon icon={Plus} size="sm" />
-          {NEW_LABEL_NAME}
-        </Button>
-      }
-      count={count ?? 0}
-      title={CORPUS_MODE_LABELS.labels}
-    />
-  );
-}
 
 /** CONTENT: the region owns the scroll and the inset once, for both surfaces (the `corpus-content.tsx`
  *  precedent). The editor suspends on the library read, so its Back is the boundary's fallback too: the exit
@@ -53,7 +34,7 @@ export function LabelsContent(): ReactElement {
   const exit = <MemberDrillHeader back={{ label: `Back to ${CORPUS_MODE_LABELS.labels}`, onClick: clearLabelSelection }} />;
   return (
     <Container className="h-full min-h-0">
-      <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" data-slot="labels-content" padding="section">
+      <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain py-section" data-slot="labels-content">
         {tagId === null ? (
           <LabelsLibrarySurface returning={editorWasOpen} />
         ) : (

@@ -1,5 +1,5 @@
-// The composer's compact action rail: four always-visible guided actions, room/tools doors and the terminal
-// send. It wraps only when the controls no longer fit. The connection readout is the next-turn line under
+// The composer's compact action rail: four direct guided actions, adjacent room/tools doors and terminal Send.
+// The layout primitive moves whole keyed groups when their measured widths do not fit. The connection readout is the next-turn line under
 // the composer card (`composer-next-turn-line.tsx`), not a slot here.
 //
 // DUAL-MODE: empty composer = the plain action; typed text = the guided action (the text IS the steer,
@@ -33,12 +33,13 @@
 //
 // THE ONE CONDITIONAL CONTROL (IMP-2): while the impersonate STREAM fills the composer, its Stop belongs
 // beside Draft your line inside `Your message` because both govern the same user-draft operation. The
-// terminal turn Stop remains in `Attach and send`: it aborts a chat TURN, which an impersonation is not.
+// terminal turn Stop remains in `Send controls`: it aborts a chat TURN, which an impersonation is not.
 // While drafting runs, every icon's reason names the stream instead of a phantom current reply.
 
 import type { GuidedImpersonatePerson } from "@orb/contracts/preset";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { ActionBar } from "@orb/ui/action-bar";
 import { FastForward, RotateCcw } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -84,8 +85,7 @@ export interface ComposerGuidedClusterProps {
   readonly sendControl: ReactNode;
 }
 
-/** The composer's compact action rail: room actions, guided message/reply actions, then attachment utilities
- *  and the terminal send control, with the band's coarse-pointer refusal line under it. */
+/** The paired menu doors, intact guided actions and terminal Send, with the refusal line below. */
 export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactElement {
   const {
     chatId,
@@ -154,82 +154,92 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
       {/* The refusal line below is a SECOND row under the rail, so the two are spaced by a Stack's gap rather
           than a margin (`Container` is a plain block — the house rule is "space via Stack/Grid gap",
           variants.ts). With no refusal the Stack has one child and spends nothing. */}
-      <Stack gap="field">
-        <Row align="center" className="min-w-0 flex-wrap" data-slot="composer-guided-cluster" gap="field">
-          <Row aria-label="Chat actions" className="shrink-0" data-slot="composer-chat-actions" gap="field" role="group">
-            {chatControl}
-          </Row>
-          <Row aria-label="Your message" className="shrink-0" data-slot="composer-you-actions" gap="field" role="group">
-            <ImpersonateGuidedButton
-              disabled={!idle}
-              hasText={hasText}
-              onPick={fireImpersonate}
-              reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)}
-              refusalStatedBy={offStatedBy}
-            />
-            {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
-          </Row>
-          <Row aria-label="Their reply" className="min-w-0 shrink-0" data-slot="composer-them-actions" gap="field" role="group">
-            <GuidedIconButton
-              icon={RotateCcw}
-              label={hasText ? "Try another reply with this direction" : "Try another reply"}
-              steerCue={STEER_CUE_SWIPE}
-              hasText={hasText}
-              disabled={!(canTargetTail && idle)}
-              reason={reasonFor(SWIPE_NEEDS_REPLY)}
-              buttonTestId="composerGuidedSwipe"
-              refusalStatedBy={offStatedBy}
-              onFire={(): void => guided.fireSwipe(trimmed)}
-            />
-            <ResponseGuidedButton
-              hasText={hasText}
-              idle={idle}
-              characters={characters}
-              onFire={fireResponse}
-              disabledReason={persistentOffReason}
-              refusalStatedBy={offStatedBy}
-            />
-            <GuidedIconButton
-              icon={FastForward}
-              label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
-              steerCue={STEER_CUE_CONTINUE}
-              hasText={hasText}
-              disabled={!(canTargetTail && idle)}
-              reason={reasonFor(SWIPE_NEEDS_REPLY)}
-              buttonTestId="composerGuidedContinue"
-              refusalStatedBy={offStatedBy}
-              onFire={(): void => fireAndClear(guided.fireContinue)}
-            />
-          </Row>
-          {actionContributions}
-          <Row aria-label="Attach and send" className="ms-auto shrink-0" data-slot="composer-attach-actions" gap="field" role="group">
-            <ComposerGuidedUtilityMenu
-              hasText={hasText}
-              trimmed={trimmed}
-              idle={idle}
-              generationUnavailableReason={reasonFor("Wait for the current reply to finish")}
-              canTargetTail={canTargetTail}
-              guided={guided}
-              utilities={utilities}
-              onChange={onChange}
-              onRewrite={rewrite.open}
-              game={game}
-              image={imageControls}
-              roomContributions={roomContributions}
-              mediaContributions={mediaContributions}
-            />
-            {sendControl}
-          </Row>
-          <RewriteDialog
-            open={rewrite.isOpen}
-            onOpenChange={rewrite.setOpen}
-            instruction={rewrite.instruction}
-            onInstructionChange={rewrite.setInstruction}
-            selected={rewrite.toggles}
-            onToggle={rewrite.toggle}
-            onApply={rewrite.apply}
-          />
-        </Row>
+      <Stack gap="field" data-slot="composer-guided-cluster">
+        <ActionBar
+          leading={
+            <Row aria-label="Chat and message tools" gap="field" role="group">
+              {chatControl}
+              <ComposerGuidedUtilityMenu
+                hasText={hasText}
+                trimmed={trimmed}
+                idle={idle}
+                generationUnavailableReason={reasonFor("Wait for the current reply to finish")}
+                canTargetTail={canTargetTail}
+                guided={guided}
+                utilities={utilities}
+                onChange={onChange}
+                onRewrite={rewrite.open}
+                game={game}
+                image={imageControls}
+                roomContributions={roomContributions}
+                mediaContributions={mediaContributions}
+              />
+            </Row>
+          }
+          primary={
+            <>
+              <Row aria-label="Guided actions" className="shrink-0" gap="field" role="group">
+                <Row aria-label="Your message" className="shrink-0" data-slot="composer-you-actions" gap="field" role="group">
+                  <ImpersonateGuidedButton
+                    disabled={!idle}
+                    hasText={hasText}
+                    onPick={fireImpersonate}
+                    reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)}
+                    refusalStatedBy={offStatedBy}
+                  />
+                  {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
+                </Row>
+                <Row aria-label="Their reply" className="min-w-0 shrink-0" data-slot="composer-them-actions" gap="field" role="group">
+                  <GuidedIconButton
+                    icon={RotateCcw}
+                    label={hasText ? "Try another reply with this direction" : "Try another reply"}
+                    steerCue={STEER_CUE_SWIPE}
+                    hasText={hasText}
+                    disabled={!(canTargetTail && idle)}
+                    reason={reasonFor(SWIPE_NEEDS_REPLY)}
+                    buttonTestId="composerGuidedSwipe"
+                    refusalStatedBy={offStatedBy}
+                    onFire={(): void => guided.fireSwipe(trimmed)}
+                  />
+                  <ResponseGuidedButton
+                    hasText={hasText}
+                    idle={idle}
+                    characters={characters}
+                    onFire={fireResponse}
+                    disabledReason={persistentOffReason}
+                    refusalStatedBy={offStatedBy}
+                  />
+                  <GuidedIconButton
+                    icon={FastForward}
+                    label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
+                    steerCue={STEER_CUE_CONTINUE}
+                    hasText={hasText}
+                    disabled={!(canTargetTail && idle)}
+                    reason={reasonFor(SWIPE_NEEDS_REPLY)}
+                    buttonTestId="composerGuidedContinue"
+                    refusalStatedBy={offStatedBy}
+                    onFire={(): void => fireAndClear(guided.fireContinue)}
+                  />
+                </Row>
+              </Row>
+              {actionContributions}
+            </>
+          }
+          trailing={
+            <Row aria-label="Send controls" gap="field" role="group">
+              {sendControl}
+            </Row>
+          }
+        />
+        <RewriteDialog
+          open={rewrite.isOpen}
+          onOpenChange={rewrite.setOpen}
+          instruction={rewrite.instruction}
+          onInstructionChange={rewrite.setInstruction}
+          selected={rewrite.toggles}
+          onToggle={rewrite.toggle}
+          onApply={rewrite.apply}
+        />
         {/* THE REFUSAL IS VISIBLE WHERE NO TOOLTIP CAN OPEN (#2443). When the cluster is off for a PERSISTENT
             cause, every icon here and the Send beside them carry the same one reason — and on a phone that
             reason had no carrier at all: Base UI's tooltip is `mouseOnly: true` with a `:focus-visible`-gated

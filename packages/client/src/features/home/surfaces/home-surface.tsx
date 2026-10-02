@@ -152,11 +152,9 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
     // resolve the airy steps. It keeps the tier even though the tiles lost their cards — the tier is what
     // the ONE surviving island (the hearth hero) resolves its padding and radius from.
     <Surface tier="form">
-      {/* The page inset is the mockup's own: `--spacing-section` over the masthead, `--spacing-gutter`
-          down the sides and under the last block. `Stack padding="section"` would have run 24px all round
-          and pulled the two columns tighter to the frame than the shelf's own rhythm. */}
+      {/* The full-width scroller owns the section inset so swipe shelves can extend to the screen edge. */}
       <Stack
-        className={`${SCROLL_FADE_Y_CLASS} relative h-full min-h-0 overflow-y-auto overscroll-contain px-gutter pt-section pb-gutter outline-none`}
+        className={`${SCROLL_FADE_Y_CLASS} relative h-full min-h-0 overflow-y-auto overscroll-contain px-section pt-section pb-gutter outline-none`}
         gap="section"
         ref={surfaceRef}
         tabIndex={-1}

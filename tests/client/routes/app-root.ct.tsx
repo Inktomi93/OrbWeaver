@@ -33,7 +33,7 @@ import { routeTrpc, trpcHold } from "../../support/node/route-trpc.ts";
 import { STREAM_MUTATION_ROUTES } from "../data/bus/fixtures.ts";
 import { makeCharacterSummary } from "../features/character/fixtures.ts";
 import { CHAT_AMBIENT_ROUTES, chatListResponder, makeChatSummary } from "../features/chat/fixtures.ts";
-import { HomePageReadinessStory, HomePageStory } from "./_ct-stories.tsx";
+import { HomePageReadinessStory, HomePageStory, SectionRosterCensusStory } from "./_ct-stories.tsx";
 
 const ARIA = makeCharacterSummary({ id: "char_home_aria", name: "Aria Nightshade" });
 // Spans BOTH vocabularies — desktop names the frame region, the phone names the screen a tap lands on
@@ -790,8 +790,10 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
   | "tag.listTagsWithUsage"
   | "tag.listPendingSuggestions"
   | "tag.listAttachedEntities"
+  | "worldInfo.listBooksWithUsage"
 > = {
   ...HOME_AMBIENT_ROUTES,
+  "worldInfo.listBooksWithUsage": [],
   "chat.listChats": chatListResponder(CENSUS_CHATS),
   "character.list": NO_CHARACTERS,
   "persona.list": PERSONAS,
@@ -1251,4 +1253,50 @@ test.describe("the phone's Characters screen with a member open", () => {
     characterGet.release({ id: ARIA.id, name: ARIA.name, greetings: [] });
     await expect(screenName).toHaveText(ARIA.name);
   });
+});
+
+test("every registered roster and Corpus mode renders a structural band and search", async ({ mount, page }) => {
+  await routeTrpc(page, SECTION_CENSUS_ROUTES);
+  const component = await mount(<SectionRosterCensusStory />);
+  const cases = component.getByRole("navigation", { name: "Roster census" }).getByRole("button");
+  await expect(cases.first()).toBeVisible();
+  const names = await cases.allTextContents();
+  await expect(cases).not.toHaveCount(0);
+  for (const name of names) {
+    await component.getByRole("button", { name, exact: true }).click();
+    const list = component.getByRole("region", { name: "Census list" });
+    await expect(list.locator('[data-slot="list-pane-title"]')).not.toHaveText("");
+    await expect(list.locator('[data-slot="list-pane-identity"]')).toHaveCount(1);
+    await expect.poll(() => listSearchDefect(list), { message: name }).toBeNull();
+  }
+});
+
+async function listSearchDefect(list: Locator): Promise<string | null> {
+  const policy = await list.getAttribute("data-search-policy");
+  if (policy === "planned") {
+    return (await list.getAttribute("data-search-reason"))?.trim() ? null : "empty-search-reason";
+  }
+  if (policy !== "required") {
+    return "unclassified-search";
+  }
+  return (await list.locator('[data-slot="list-search"] input').first().isVisible()) ? null : "missing-search";
+}
+
+test("roster census rejects an omitted search and permits only a reasoned no-search declaration", async ({ mount, page }) => {
+  await routeTrpc(page, SECTION_CENSUS_ROUTES);
+  const component = await mount(<SectionRosterCensusStory />);
+  await component.getByRole("button", { name: "Census extensions", exact: true }).click();
+  const list = component.getByRole("region", { name: "Census list" });
+  await expect.poll(() => listSearchDefect(list)).toBeNull();
+  await list.locator('[data-slot="list-search"]').evaluate((node) => node.remove());
+  expect(await listSearchDefect(list)).toBe("missing-search");
+  await list.evaluate((node) => {
+    node.setAttribute("data-search-policy", "planned");
+    node.setAttribute("data-search-reason", "A fixed status surface has no roster.");
+  });
+  expect(await listSearchDefect(list)).toBeNull();
+  await list.evaluate((node) => node.setAttribute("data-search-reason", " "));
+  expect(await listSearchDefect(list)).toBe("empty-search-reason");
+  await list.evaluate((node) => node.removeAttribute("data-search-policy"));
+  expect(await listSearchDefect(list)).toBe("unclassified-search");
 });

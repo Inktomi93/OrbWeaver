@@ -19,7 +19,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { ExtensionsPageStory, ExtensionsSwitcherStory } from "../_ct-stories.tsx";
+import { ExtensionsCensusStory, ExtensionsPageStory, ExtensionsSwitcherStory } from "../_ct-stories.tsx";
 
 type PluginListRow = TrpcWireOutput<"plugin.list">[number];
 type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
@@ -123,6 +123,23 @@ const ALL_OFF: TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> = {
 };
 
 test.describe("the page switcher", () => {
+  test("search matches page and plugin names and clearing restores the roster", async ({ mount, page }) => {
+    await routeTrpc(page, TWO_PAGES);
+    await mount(<ExtensionsSwitcherStory />);
+    const search = page.getByRole("textbox", { name: "Search extension pages" });
+    await search.fill("oracle");
+    await expect(page.getByRole("button", { name: /The Deck.*Oracle Deck/u })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Chips.*Scene Chips/u })).toHaveCount(0);
+    await search.fill("chips");
+    await expect(page.getByRole("button", { name: /Chips.*Scene Chips/u })).toBeVisible();
+    await search.fill("no such page");
+    await expect(page.getByText("No matching extension pages")).toBeVisible();
+    await page.getByRole("button", { name: "Clear search", exact: true }).click();
+    await expect(search).toHaveValue("");
+    await expect(page.getByRole("button", { name: /The Deck.*Oracle Deck/u })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Chips.*Scene Chips/u })).toBeVisible();
+  });
+
   test("arrival focus lands on the named Extensions list region", async ({ mount, page }) => {
     await routeTrpc(page, TWO_PAGES);
     // A section switch starts with focus on the rail control that activated it. Keep that precondition
@@ -355,4 +372,58 @@ test.describe("the page-scale shell", () => {
     await expect(page.getByText("That page is no longer available")).toBeVisible();
     await expect(page.getByTestId("plugin-page-attribution")).toHaveCount(0);
   });
+});
+
+for (const phone of [false, true]) {
+  test.describe(`Extensions composed census (${phone ? "phone title" : "desktop band"})`, () => {
+    test.use({ viewport: { width: phone ? 360 : 1440, height: 900 }, hasTouch: phone });
+    test("the census follows matching rows, no matches and Clear search", async ({ mount, page }) => {
+      await routeTrpc(page, TWO_PAGES);
+      const component = await mount(<ExtensionsCensusStory phone={phone} />);
+      const identity = phone ? component.getByRole("heading", { level: 1 }) : component.locator('[data-slot="list-pane-title"]');
+      const label = (count: string): string => (phone ? `Extensions · ${count}` : `Extensions${count}`);
+      await expect(identity).toHaveText(label("2"));
+      const search = component.getByRole("textbox", { name: "Search extension pages" });
+      await search.fill("oracle");
+      await expect(component.getByRole("button", { name: /The Deck.*Oracle Deck/u })).toBeVisible();
+      await expect(component.getByRole("button", { name: /Chips.*Scene Chips/u })).toHaveCount(0);
+      await expect(identity).toHaveText(label("1"));
+      await search.fill("no such page");
+      await expect(component.getByText("No matching extension pages", { exact: true })).toBeVisible();
+      await expect(identity).toHaveText(label("0 of 2"));
+      await component.getByRole("button", { name: "Clear search", exact: true }).click();
+      await expect(search).toHaveValue("");
+      await expect(component.getByRole("button", { name: /Chips.*Scene Chips/u })).toBeVisible();
+      await expect(identity).toHaveText(label("2"));
+    });
+  });
+}
+
+test("an open page keeps its phone title when a roster filter excludes it", async ({ mount, page }) => {
+  await routeTrpc(page, TWO_PAGES);
+  const component = await mount(<ExtensionsCensusStory phone={true} />);
+  await component.getByRole("button", { name: /The Deck.*Oracle Deck/u }).click();
+  const title = component.getByRole("heading", { level: 1 });
+  await expect(title).toHaveText("The Deck");
+  await component.getByRole("textbox", { name: "Search extension pages" }).fill("chips");
+  await expect(component.getByRole("button", { name: /The Deck.*Oracle Deck/u })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: /Chips.*Scene Chips/u })).toBeVisible();
+  await expect(title).toHaveText("The Deck");
+  await component.getByRole("button", { name: "Back to extensions", exact: true }).click();
+  await expect(title).toHaveText("Extensions · 1");
+});
+
+test("surfaces without a visible plugin enter neither the composed roster nor its census", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...TWO_PAGES,
+    "plugin.list": [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck")],
+  });
+  const component = await mount(<ExtensionsCensusStory phone={true} />);
+  const title = component.getByRole("heading", { level: 1 });
+  await expect(component.getByRole("button", { name: /The Deck.*Oracle Deck/u })).toBeVisible();
+  await expect(component.getByRole("button", { name: /Chips.*Scene Chips/u })).toHaveCount(0);
+  await expect(title).toHaveText("Extensions · 1");
+  await component.getByRole("textbox", { name: "Search extension pages" }).fill("chips");
+  await expect(component.getByText("No matching extension pages", { exact: true })).toBeVisible();
+  await expect(title).toHaveText("Extensions · 0 of 1");
 });

@@ -179,7 +179,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
     // INSTRUMENT tier (UI-Density-Law.md §3.1): the workbench is a cockpit you scan — three payloads per
     // glance — so its islands resolve the dense steps and its rails are kickers + hairlines, not boxes.
     <Surface tier="instrument">
-      <Stack className="px-gutter pt-block pb-gutter" data-testid={testId("refineryContent")} gap="block">
+      <Stack className="pt-block pb-gutter" data-testid={testId("refineryContent")} gap="block">
         <SessionMasthead
           anchoredAt={view.createdAt}
           applied={outcome !== null && outcome.applied.length > 0}

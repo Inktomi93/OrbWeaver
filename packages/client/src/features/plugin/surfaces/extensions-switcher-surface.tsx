@@ -23,18 +23,18 @@ import { Container, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { LibrarySurfaceShell } from "#components";
+import { LibraryListFrame, LibrarySurfaceShell } from "#components";
 import { SkeletonRows } from "#data";
 import { testId, useFocusOnMount } from "#lib";
-import { openConfigTo, selectPluginPageFromList, usePluginPageKey } from "#state";
+import { openConfigTo, selectPluginPageFromList, setExtensionsSearchQuery, useExtensionsSearchQuery, usePluginPageKey } from "#state";
 import { ExtensionsAwaitingConsent } from "../components/extensions-awaiting-consent.tsx";
 import { useExtensionsEmpty } from "../hooks/use-extensions-empty.ts";
-import { usePluginPages } from "../hooks/use-plugin-pages.ts";
+import { useExtensionsRoster } from "../hooks/use-extensions-roster.ts";
 import { EXTENSIONS_EMPTY_COPY } from "../lib/extensions-copy.ts";
 
 /** The rows, or the teaching empty. Split from the shell so the boundary wraps a component that reads. */
 function ExtensionsPageList(): ReactElement {
-  const pages = usePluginPages();
+  const { pages, matching } = useExtensionsRoster();
   const empty = useExtensionsEmpty();
   const active = usePluginPageKey();
   if (pages.length === 0) {
@@ -63,9 +63,23 @@ function ExtensionsPageList(): ReactElement {
       />
     );
   }
+  if (matching.length === 0) {
+    return (
+      <EmptyState
+        action={
+          <Button intent="secondary" onClick={(): void => setExtensionsSearchQuery("")} size="sm">
+            Clear search
+          </Button>
+        }
+        description="Try a page title or plugin name."
+        title="No matching extension pages"
+        titleAs="h2"
+      />
+    );
+  }
   return (
     <Stack gap="tight">
-      {pages.map((page) => (
+      {matching.map((page) => (
         <ListRow
           clickable={true}
           key={page.key}
@@ -89,6 +103,7 @@ function ExtensionsPageList(): ReactElement {
 
 /** The LIST pane surface. */
 export function ExtensionsSwitcherSurface(): ReactElement {
+  const search = useExtensionsSearchQuery();
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
@@ -96,15 +111,23 @@ export function ExtensionsSwitcherSurface(): ReactElement {
     // assistive technology; the Presets list uses the same named-region convention for the same hook.
     <Container
       aria-label="Extension pages"
-      className="min-h-0 outline-none"
+      className="h-full min-h-0 outline-none"
       data-testid={testId("extensionsSwitcher")}
       ref={surfaceRef}
       role="region"
       tabIndex={-1}
     >
-      <LibrarySurfaceShell errorLabel="your extension pages" loadingLabel="Loading extension pages…">
-        <ExtensionsPageList />
-      </LibrarySurfaceShell>
+      <LibraryListFrame
+        searchValue={search}
+        onSearchChange={setExtensionsSearchQuery}
+        searchLabel="Search extension pages"
+        searchPlaceholder="Search extension pages"
+        scroll={true}
+      >
+        <LibrarySurfaceShell errorLabel="your extension pages" loadingLabel="Loading extension pages…">
+          <ExtensionsPageList />
+        </LibrarySurfaceShell>
+      </LibraryListFrame>
     </Container>
   );
 }

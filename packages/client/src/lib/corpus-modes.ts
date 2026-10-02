@@ -3,6 +3,7 @@
 // imports stats or tag.
 
 import type { ReactNode } from "react";
+import type { ListPaneHeaderView, ListSearchPolicy } from "./list-pane-header-view.ts";
 
 export const CORPUS_MODES = ["explore", "insights", "labels"] as const;
 export type CorpusMode = (typeof CORPUS_MODES)[number];
@@ -23,7 +24,8 @@ export interface CorpusModeContribution {
   /** The LIST body below the mode switch, already inside its own container anchor. */
   readonly list: () => ReactNode;
   /** The LIST chrome band: the mode's title and census. */
-  readonly listHeader: () => ReactNode;
+  readonly useListHeader: (active?: boolean) => ListPaneHeaderView;
+  readonly listSearch: ListSearchPolicy;
   readonly content: () => ReactNode;
   /** The CONTEXT head band while this mode is active. */
   readonly contextHeader: () => ReactNode;

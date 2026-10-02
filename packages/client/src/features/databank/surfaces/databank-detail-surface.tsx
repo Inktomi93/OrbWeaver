@@ -208,10 +208,9 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
           region (`RegionAnchor`), not a box this surface owns: `<Surface>` is `display: contents`, so it
           adds none. `w-full` rides with `mx-auto` because that region is a flex column. */}
       <Stack
-        className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide)"
+        className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) py-section"
         data-slot="databank-detail-editor"
         gap="section"
-        padding="section"
       >
         <Row align="start" gap="field" justify="between">
           <Stack className="min-w-0" gap="tight">

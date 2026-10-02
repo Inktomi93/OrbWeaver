@@ -4,7 +4,7 @@
 // imports stats and tag and hands them in, so discovery imports neither (§6c).
 
 import { Library } from "@orb/ui/icons";
-import type { ContextTabDef, ContributorRegistry, CorpusContextState } from "#lib";
+import type { ContextTabDef, ContributorRegistry, CorpusContextState, ListPaneHeaderView } from "#lib";
 import { CORPUS_MODE_LABELS, defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { corpusSectionSelection, useCorpusMode, useSelectedCorpusDestination } from "#state";
@@ -16,7 +16,8 @@ import { CorpusMapTab } from "../components/corpus-map-tab.tsx";
 import { CorpusSimilarityTab } from "../components/corpus-similarity-tab.tsx";
 import { CorpusVisualsTab } from "../components/corpus-visuals-tab.tsx";
 import type { CorpusModes } from "../components/corpus-workspace.tsx";
-import { CorpusWorkspaceContent, CorpusWorkspaceList, CorpusWorkspaceListHeader } from "../components/corpus-workspace.tsx";
+import { CorpusWorkspaceContent, CorpusWorkspaceList } from "../components/corpus-workspace.tsx";
+import { useCorpusListHeader } from "../hooks/use-corpus-list-header.tsx";
 import { CORPUS_SECTION_LABEL } from "./corpus-section-label.ts";
 import { useCorpusSelectionTitle } from "./corpus-selection-title.ts";
 
@@ -41,6 +42,16 @@ function useCorpusWorkspaceTitle(modes: CorpusModes): string | null {
   return titles[mode];
 }
 
+function useCorpusWorkspaceListHeader(modes: CorpusModes): ListPaneHeaderView {
+  const mode = useCorpusMode();
+  const views = {
+    explore: useCorpusListHeader(mode === "explore"),
+    insights: modes.insights.useListHeader(mode === "insights"),
+    labels: modes.labels.useListHeader(mode === "labels"),
+  };
+  return views[mode];
+}
+
 const isExplore = (state: CorpusContextState): boolean => state.mode === "explore" && (state.subject === null || state.subject === undefined);
 
 export function makeCorpusSection(contributions: CorpusSectionContributions): SectionDefinition {
@@ -49,13 +60,15 @@ export function makeCorpusSection(contributions: CorpusSectionContributions): Se
     id: "corpus",
     // D271: the phone bar is Home · Chats · Characters · You, and Corpus enters through the You sheet.
     rail: { label: CORPUS_SECTION_LABEL, icon: Library, group: "primary", mobile: "sheet" },
+    contentInset: "section",
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: "Corpus",
       description: "Search, read, understand and label your whole library in one place.",
     },
     list: () => <CorpusWorkspaceList modes={modes} />,
-    listHeader: () => <CorpusWorkspaceListHeader modes={modes} />,
+    listSearch: "required",
+    useListHeader: (): ListPaneHeaderView => useCorpusWorkspaceListHeader(modes),
     // The shell's "is a subject open?" and Back, answered for the ACTIVE mode, plus the per-mode phone landing.
     selection: corpusSectionSelection,
     listDoorLabel: {

@@ -2248,7 +2248,16 @@ test.describe("Start with on a phone", () => {
       page.evaluate(() => ({ coarse: matchMedia("(pointer: coarse)").matches, touchPoints: navigator.maxTouchPoints }));
     await expect.poll(pointer).toEqual({ coarse: true, touchPoints: 1 });
     await expect(recents.locator("[aria-busy]")).toBeVisible();
-    await expect.poll(async () => (await recents.boundingBox())?.width).toBe(296);
+    const inset = await recents.evaluate((node) => {
+      const scroller = node.closest('[data-slot="surface"]') ?? node.parentElement;
+      const probe = document.createElement("div");
+      probe.style.width = "var(--spacing-section)";
+      scroller?.append(probe);
+      const width = probe.getBoundingClientRect().width;
+      probe.remove();
+      return width;
+    });
+    await expect.poll(async () => (await recents.boundingBox())?.width).toBe(PHONE_CONTENT_PX - inset * 2);
     const reserved = await recents.boundingBox();
     expect(reserved?.height ?? 0).toBeGreaterThan(0);
     chats.release(chatListResponder([])({ limit: RECENTS_LIMIT }));

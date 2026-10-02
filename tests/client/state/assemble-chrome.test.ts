@@ -16,6 +16,7 @@ function section(id: SectionDefinition["id"], mobile: SectionDefinition["rail"][
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: { title: id, description: id },
     content: { planned: "test" },
+    contentInset: "section",
     // Every section answers "what do I call the current screen?" — nothing to name here (see
     // `NO_SELECTION_TITLE`), which is what keeps the shell's call unconditional.
     useSelectionTitle: NO_SELECTION_TITLE,

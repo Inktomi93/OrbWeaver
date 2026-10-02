@@ -25,8 +25,10 @@ export type { LibraryRowActions, LibraryRowProps } from "./library-row.tsx";
 export { LibraryRow } from "./library-row.tsx";
 export type { LibraryListFrameProps, LibraryListLayoutProps, LibraryListRowsProps, LibrarySurfaceShellProps } from "./library-surface.tsx";
 export { LibraryListFrame, LibraryListLayout, LibraryListRows, LibrarySurfaceShell } from "./library-surface.tsx";
-export type { ListPaneHeaderBack, ListPaneHeaderProps } from "./list-pane-header.tsx";
+export type { ListPaneHeaderProps } from "./list-pane-header.tsx";
 export { ListPaneHeader } from "./list-pane-header.tsx";
+export { ListPaneHeaderHost } from "./list-pane-header-host.tsx";
+export { ListSearch } from "./list-search.tsx";
 export type { MemberDrillBack, MemberDrillHeaderProps } from "./member-drill-header.tsx";
 export { MemberDrillHeader } from "./member-drill-header.tsx";
 export {

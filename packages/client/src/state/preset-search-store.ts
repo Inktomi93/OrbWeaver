@@ -1,7 +1,7 @@
 // The Presets LIST search store: what the preset library pane is filtering by.
 //
 // WHY IT IS A STORE AND NOT `useState` (side-eye 2026-08-19 P2 — the header count). The pane's chrome BAND
-// ("PRESETS · 6" + New/Import) is rendered by the shell, from the section definition's `listHeader` slot, and
+// ("PRESETS · 6" + New/Import) is rendered by the shell, from the section definition's `useListHeader` slot, and
 // the ROWS are rendered by the surface below it — two components with no common React parent that can hold
 // the query. So the band counted `preset.list` while the surface counted the FILTER, and a search with no
 // hits printed "PRESETS 6" beside "No matches". A census that ignores the lens it sits on is not a census.

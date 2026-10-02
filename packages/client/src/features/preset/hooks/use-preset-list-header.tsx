@@ -1,41 +1,31 @@
 // The Presets LIST chrome-band header (north-star §4 N2, D66 A1/A2 — the L4 band sweep). Presets was one of
 // the two sections still printing its title INSIDE the pane via `LibraryListLayout`; the title, the live
 // preset count, and the pane's create affordances now ride the `.shell-panel-header` band through the
-// section definition's `listHeader` slot, like chats/corpus/analytics already did.
+// section definition's `useListHeader` data slot, like chats/corpus/analytics already did.
 //
 // Exactly ONE primary action: New. Import sits beside it as a GHOST icon — a secondary entry into the same
 // "get a preset" job, ember-free, exactly as it was in the retired in-pane header. Both create paths (and
-// the ONE import dialog they open) live here, because the band owns the pane's create verbs.
-//
-// The import door is format-agnostic (§16 row 2 — ONE home for import): the dialog sniffs the file and this
-// band wires BOTH arms — the ST arm through `preset.create` (the browser-side mapper's output), the
-// orb-native arm through `preset.importFile`, whose outcome the dialog reports because a rejected file must
-// keep the dialog open with the server's reason. The orb arm resolves to no id (a MERGE targets a row the
-// caller never named), so it closes on success without stealing the selection.
-//
-// The count is a non-suspending read sharing the `preset.list` cache with the suspending list below, so no
-// extra fetch: the title + actions render immediately and stay put while the count settles.
+// the ONE // The hook supplies view data; the shell owns the band renderer. Actions and overlays retain their existing behavior.
 
 import { Button } from "@orb/ui/button";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
-import type { ReactElement } from "react";
 import { useState } from "react";
-import { ListPaneHeader } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import type { ListPaneHeaderView } from "#lib";
 import { notify } from "#lib";
 import { selectPresetFromList } from "#state";
+import { PresetImportDialog } from "../components/preset-import-dialog.tsx";
 import { usePresetCensus } from "../hooks/use-preset-census.ts";
 import { useCreatePreset, useImportPresetFile } from "../hooks/use-preset-mutations.ts";
 import { PRESETS_SECTION_LABEL } from "../lib/presets-section-label.ts";
-import { PresetImportDialog } from "./preset-import-dialog.tsx";
 
 const NEW_PRESET_NAME = "New preset";
 const NEW_PRESET_KIND = "generation";
 /** ONE string for the import door's accessible name AND its hover tooltip (O-3). */
 const IMPORT_LABEL = "Import a preset";
 
-export function PresetListHeader(): ReactElement {
+export function usePresetListHeader(): ListPaneHeaderView {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   // The census (its two side-eye rulings and the lens they ride) moved to `hooks/use-preset-census.ts` with
@@ -65,47 +55,46 @@ export function PresetListHeader(): ReactElement {
     return null;
   };
 
-  return (
-    <>
-      <ListPaneHeader
-        action={
-          // ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge.
-          <Row align="center" gap="field">
-            {/* O-3: icon-only, so the aria-label served AT and left sighted users with nothing on hover —
+  return {
+    action: (
+      <Row align="center" gap="field">
+        {/* O-3: icon-only, so the aria-label served AT and left sighted users with nothing on hover —
                 the native `title` is the same string, so the tooltip and the accessible name can't drift.
                 `size="icon"`, not `sm` (side-eye F-22): the `sm` box is width-fitted to a LABEL, so an
                 icon-only trigger measured 40×44 under coarse-pointer emulation — the only sub-44 target on
                 the surface. `size="icon"` is `size-control-md`, which is 34px fine / 48px coarse BY TOKEN
                 (D62 P1), so the touch floor holds without any hand math here. */}
-            <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon" title={IMPORT_LABEL}>
-              <Icon icon={Upload} size="sm" />
-            </Button>
-            <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
-              <Icon icon={Plus} size="sm" />
-              New
-            </Button>
-          </Row>
-        }
-        count={census ?? 0}
-        title={PRESETS_SECTION_LABEL}
-      />
-      <PresetImportDialog
-        busy={create.isPending || importFile.isPending}
-        onImportOrb={onImportOrb}
-        onImportSt={({ name, config }): void => {
-          create.mutate(
-            { name, kind: NEW_PRESET_KIND, config },
-            {
-              onSuccess: (created): void => {
-                setImportOpen(false);
-                selectPresetFromList(created.id);
+        <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon" title={IMPORT_LABEL}>
+          <Icon icon={Upload} size="sm" />
+        </Button>
+        <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
+          <Icon icon={Plus} size="sm" />
+          New
+        </Button>
+      </Row>
+    ),
+    count: census ?? 0,
+    title: PRESETS_SECTION_LABEL,
+    overlay: (
+      <>
+        <PresetImportDialog
+          busy={create.isPending || importFile.isPending}
+          onImportOrb={onImportOrb}
+          onImportSt={({ name, config }): void => {
+            create.mutate(
+              { name, kind: NEW_PRESET_KIND, config },
+              {
+                onSuccess: (created): void => {
+                  setImportOpen(false);
+                  selectPresetFromList(created.id);
+                },
               },
-            },
-          );
-        }}
-        onOpenChange={setImportOpen}
-        open={importOpen}
-      />
-    </>
-  );
+            );
+          }}
+          onOpenChange={setImportOpen}
+          open={importOpen}
+        />
+      </>
+    ),
+  };
 }

@@ -37,7 +37,7 @@ const RESPONSE_GUIDED = "Guided generate reply";
 const TAIL_ASSISTANT_ID = castId<MessageId>("message_ct_tail_assistant");
 const NEEDS_REPLY = /needs an existing reply/iu;
 const PLAIN_REROLL = /another version of the last reply/iu;
-const GROUP_LABELS = ["Input", "Reply", "Continuation", "Media"] as const;
+const GROUP_LABELS = ["Input", "Reply", "Media"] as const;
 /** A curated DOMAIN message on the typed terminal frame (what the participant gate / an honest refusal reads
  *  like) — it must reach the user verbatim, unlike a raw transport fault. */
 const DOMAIN_REFUSAL = "This chat has no working connection.";
@@ -307,7 +307,7 @@ test("P1-A: an enabled Regenerate carries the plain-reroll helper (distinct from
 });
 
 // P2-A: the menu is regrouped with labeled groups (Base UI wires each label to its group as an aria heading).
-test("P2-A: the ✨ menu is grouped with labeled sections (Input · Reply · Continuation · Media)", async ({ mount, page }) => {
+test("P2-A: the ✨ menu is grouped with labeled sections (Input · Reply · Media)", async ({ mount, page }) => {
   const component = await mount(<ComposerStory />);
   await component.getByRole("button", { name: "Message tools" }).click();
   await Promise.all(GROUP_LABELS.map((label) => expect(page.getByRole("group", { name: label, exact: true })).toBeVisible()));

@@ -1,5 +1,5 @@
 // CT: the Corpus Explore LIST chrome-band header (north-star §6.3 N1/N2) — the finder identity that fills the
-// `.shell-panel-header` band via the `listHeader` slot. It names the active MODE ("Explore", D271) and renders
+// `.shell-panel-header` band via the `useListHeader` slot. It names the active MODE ("Explore", D271) and renders
 // the distilled-card count as a quiet mono readout; a zero count renders the title alone (no "0"). The count
 // reads the shared `discovery.catalog` cache.
 

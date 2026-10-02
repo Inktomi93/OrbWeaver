@@ -335,13 +335,13 @@ function groupedComposerChat(): TrpcFixtureOutput<"chat.getChat"> {
 }
 
 const COMPOSER_ACTIONS = [
-  { name: "Chat options", group: "Chat actions" },
+  { name: "Chat options", group: "Chat and message tools" },
   { name: "Draft your line", group: "Your message" },
   { name: "Try another reply", group: "Their reply" },
   { name: "Generate reply", group: "Their reply" },
   { name: "Continue the reply", group: "Their reply" },
-  { name: "Message tools", group: "Attach and send" },
-  { name: "Send message", group: "Attach and send" },
+  { name: "Message tools", group: "Chat and message tools" },
+  { name: "Send message", group: "Send controls" },
 ] as const;
 const LIVE_COMPOSER_ACTIONS = [
   COMPOSER_ACTIONS[0],
@@ -371,9 +371,14 @@ interface ActionSpec {
 }
 
 async function controlBoxes(component: Locator, actions: readonly ActionSpec[]): Promise<readonly ControlBox[]> {
+  const order = await component
+    .getByTestId("composer")
+    .getByRole("button")
+    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label")));
+  const ordered = actions.toSorted((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
   const controls = [
     { name: "Message", locator: component.getByRole("textbox", { name: "Message", exact: true }) },
-    ...actions.map(({ name }) => ({ name, locator: component.getByRole("button", { name, exact: true }) })),
+    ...ordered.map(({ name }) => ({ name, locator: component.getByRole("button", { name, exact: true }) })),
   ];
   return await Promise.all(
     controls.map(async ({ name, locator }) => {
@@ -424,20 +429,19 @@ async function expectExplicitCoarseRows(component: Locator): Promise<void> {
   expect(barBox, "the action bar must have rendered geometry").not.toBeNull();
   const bar = barBox ?? { x: 0, y: 0, width: 0, height: 0 };
   const groupBoxes = await Promise.all(
-    ["Chat actions", "Your message", "Their reply", "Attach and send"].map(async (name) => {
+    ["Chat and message tools", "Your message", "Their reply", "Send controls"].map(async (name) => {
       const box = await component.getByRole("group", { name, exact: true }).boundingBox();
       expect(box, `${name} must have rendered geometry`).not.toBeNull();
       return { name, ...(box ?? { x: 0, y: 0, width: 0, height: 0 }) };
     }),
   );
-  const [chat, yours] = groupBoxes;
-  if (chat === undefined || yours === undefined) {
+  const [chat, yours, theirs] = groupBoxes;
+  if (chat === undefined || yours === undefined || theirs === undefined) {
     throw new Error("Missing composer group geometry");
   }
-  // The two leading homes still open the bar together — that is the ORDER half of #206, and it holds whether
-  // the bar takes one row or two.
-  expect(Math.abs(chat.y - yours.y), "Chat actions and Your message share the first row").toBeLessThanOrEqual(0.5);
-  expectRowMajorOrder(groupBoxes);
+  expect(yours.y).toBe(theirs.y);
+  const stacked = await component.locator('[data-slot="action-bar"]').getAttribute("data-stacked");
+  expect(stacked === "true" ? chat.y > yours.y : chat.y === yours.y && chat.x < yours.x).toBe(true);
   // Whatever the fit produces, the FINAL row reaches the composer's right edge: the terminal Send home is
   // right-anchored on a wrapped line exactly as it is on a full one (the auto margins, not a grid column).
   const lastRowY = Math.max(...groupBoxes.map((group) => group.y));
@@ -572,7 +576,7 @@ test("#206: the message leads one compact, truthfully grouped action rail", asyn
   const component = await mount(<ComposerStory />);
 
   await Promise.all(
-    ["Your message", "Their reply", "Attach and send"].map(async (group) => {
+    ["Your message", "Their reply", "Send controls"].map(async (group) => {
       await expect(component.getByRole("group", { name: group, exact: true })).toHaveCount(1);
     }),
   );
@@ -1475,7 +1479,10 @@ function measureActionBar(page: Page): Promise<{
 }> {
   return page.evaluate(() => {
     const bar = document.querySelector<HTMLElement>('[data-testid="composer"] [data-slot="composer-guided-cluster"]');
-    const homes = [...(bar?.querySelectorAll<HTMLElement>('[role="group"]') ?? [])];
+    const homes = [
+      ...(bar?.querySelectorAll<HTMLElement>('[data-slot="action-bar-leading"], [data-slot="action-bar-primary-content"], [data-slot="action-bar-trailing"]') ??
+        []),
+    ];
     const firstHome = homes[0];
     if (bar === null || firstHome === undefined) {
       throw new Error("the composer action bar did not render");
@@ -1487,7 +1494,7 @@ function measureActionBar(page: Page): Promise<{
       coarse: matchMedia("(pointer: coarse)").matches,
       barWidth: Math.round(bar.getBoundingClientRect().width),
       // The `field` gap the homes already use BETWEEN their own controls — the bar's own floor for "fits".
-      homeInnerGap: Math.round(Number.parseFloat(getComputedStyle(firstHome).columnGap)),
+      homeInnerGap: Math.round(Number.parseFloat(getComputedStyle(bar.querySelector('[data-slot="action-bar"]') ?? bar).columnGap)),
       rows: new Set(tops).size,
       homeWidths: homes.map((el) => Math.round(el.getBoundingClientRect().width)),
       // Every focusable control in the bar — the row saving must not have been bought by crushing targets.
@@ -1501,7 +1508,7 @@ function measureActionBar(page: Page): Promise<{
 /** The coarse-pointer touch floor the bar's icon controls are sized to (`h-control-*`, pointer-conditional). */
 const COARSE_TOUCH_FLOOR = 44;
 /** The four ordered action homes, by their announced group names — the bar's whole content. */
-const ACTION_HOMES = ["Chat actions", "Your message", "Their reply", "Attach and send"] as const;
+const ACTION_HOMES = ["Chat and message tools", "Your message", "Their reply", "Send controls"] as const;
 
 for (const width of [430, 390, 320]) {
   test.describe(`#531 phone composer at ${width}px`, () => {
@@ -1547,7 +1554,7 @@ test.describe("the desktop composer keeps the same compact flex rail", () => {
   test("at a wide container the four action homes hold one flex row", async ({ mount, page }) => {
     await routeTrpc(page, PHONE_ROOM_STUB);
     const room = await mount(<ChatRoomPhoneStory paneHeight={822} />);
-    await expect(room.getByRole("group", { name: "Attach and send", exact: true })).toBeVisible();
+    await expect(room.getByRole("group", { name: "Send controls", exact: true })).toBeVisible();
     // Settled snapshot: the same context-fixed media match as the coarse arms — no `hasTouch`, decided before the
     // page opened, and it is the discriminator for this whole describe.
     await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
@@ -1555,7 +1562,7 @@ test.describe("the desktop composer keeps the same compact flex rail", () => {
     const bar = await measureActionBar(page);
     expect(bar.rows).toBe(1);
     await expect(page.locator('[data-slot="composer-guided-cluster"]')).toHaveCSS("display", "flex");
-    await expect(page.locator('[data-slot="composer-guided-cluster"]')).toHaveCSS("flex-wrap", "wrap");
+    await expect(page.locator('[data-slot="action-bar"]')).toHaveCSS("flex-wrap", "wrap");
   });
 });
 
@@ -1612,4 +1619,181 @@ test.describe("#539 the group-room phone composer", () => {
     expect(needed, `a group room's four homes must fit a ${String(bar.barWidth)}px phone bar`).toBeLessThanOrEqual(bar.barWidth);
     expect(bar.rows, "a group room must not buy a second action row for a duplicate door").toBe(1);
   });
+});
+
+for (const viewport of [
+  { width: 1440, height: 900, touch: false },
+  { width: 360, height: 780, touch: true },
+]) {
+  test.describe(`launch composer organization at ${viewport.width}`, () => {
+    test.use({ viewport: { width: viewport.width, height: viewport.height }, hasTouch: viewport.touch });
+    test("captures the rendered action groups and menu organization", async ({ mount, page }, testInfo) => {
+      await routeTrpc(page, {
+        ...GROUP_PHONE_STUB,
+        "character.get": ({ characterId }) => ({ id: characterId, name: "Aria", avatarHash: null, greetings: [] }),
+        "chat.previewContextFit": () => ({
+          boundaryMessageId: null,
+          usedTokens: 120,
+          ceilingTokens: 32_768,
+          ceilingEstimated: false,
+          reserveOutputTokens: 2048,
+          droppedCount: 0,
+          compactSummary: null,
+        }),
+        "chat.getChat": () => ({
+          ...CHAT_ROOM_ROUTES["chat.getChat"],
+          viewerGalleryCharacterId: "character_aria",
+          title: "Council",
+          viewerIsHost: true,
+          anchorPersonaId: null,
+          identities: [],
+          participants: [composerCharacter("aria", "Aria"), composerCharacter("bryn", "Bryn")],
+          viewerOwnedCharacterIds: ["character_aria", "character_bryn"],
+        }),
+      });
+      const room = await mount(<ChatRoomPhoneStory paneHeight={viewport.height - 80} />);
+      await expect(room.getByRole("button", { name: "Send message", exact: true })).toBeVisible();
+      await expect
+        .poll(async () => {
+          const layout = await page.evaluate(() => {
+            const root = document.querySelector('[data-testid="composer"]');
+            const button = (name: string): DOMRect => {
+              const el = root?.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
+              if (el === undefined || el === null) {
+                throw new Error(`Missing ${name}`);
+              }
+              return el.getBoundingClientRect();
+            };
+            const options = button("Chat options");
+            const tools = button("Message tools");
+            const send = button("Send message");
+            const guided = root?.querySelector('[aria-label="Their reply"]')?.getBoundingClientRect();
+            if (guided === undefined) {
+              throw new Error("Missing guided controls");
+            }
+            const gap = Number.parseFloat(getComputedStyle(root?.querySelector('[aria-label="Your message"]') as Element).columnGap);
+            return {
+              paired: options.y === tools.y && tools.left - options.right <= gap,
+              narrow: guided.y < options.y && send.y === options.y,
+              wide: guided.x > tools.x && send.x > guided.x,
+            };
+          });
+          return { paired: layout.paired, fit: viewport.touch ? layout.narrow : layout.wide };
+        })
+        .toEqual({ paired: true, fit: true });
+      const geometry = await measureActionBar(page);
+      expect(geometry.controlHeights.length).toBeGreaterThan(0);
+      expect(geometry.coarse).toBe(viewport.touch);
+      await testInfo.attach("composer-rest", { body: await page.screenshot(), contentType: "image/png" });
+      await testInfo.attach("composer-geometry", { body: JSON.stringify(geometry), contentType: "application/json" });
+      await page.getByRole("button", { name: "Message tools", exact: true }).click();
+      await expect(page.getByRole("menuitem", { name: "Generate image from text", exact: true })).toBeVisible();
+      await expect(page.getByRole("menu", { name: "Message tools", exact: true })).toHaveCSS("opacity", "1");
+      await testInfo.attach("message-tools", { body: await page.screenshot(), contentType: "image/png" });
+      await testInfo.attach("message-tools-tree", { body: await page.getByRole("menu").first().ariaSnapshot(), contentType: "text/plain" });
+      const continuation = page.getByRole("menuitem", { name: "Continuation", exact: true });
+      await continuation.scrollIntoViewIfNeeded();
+      if (viewport.touch) {
+        await continuation.tap();
+      } else {
+        await continuation.focus();
+        await page.keyboard.press("ArrowRight");
+      }
+      const continuationPopup = page.getByRole("menu", { name: "Continuation", exact: true });
+      await expect(continuationPopup).toHaveCSS("opacity", "1");
+      await expect(continuationPopup.getByRole("menuitem", { name: "Undo continuation", exact: true })).toBeDisabled();
+      await expect(continuationPopup.getByText("Continue a reply first — nothing to undo or revert yet", { exact: true })).toBeVisible();
+      await testInfo.attach("continuation-submenu", { body: await page.screenshot(), contentType: "image/png" });
+      // An all-disabled submenu keeps focus on its trigger; Escape closes that level.
+      await page.keyboard.press("Escape");
+      await expect(continuation).toBeFocused();
+      await expect(continuationPopup).toBeHidden();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("button", { name: "Message tools", exact: true })).toBeFocused();
+      await page.getByRole("button", { name: "Chat options", exact: true }).click();
+      await expect(page.getByRole("menuitem", { name: "New chat with the same characters", exact: true })).toBeVisible();
+      await expect(page.getByRole("menu", { name: "Chat options", exact: true })).toHaveCSS("opacity", "1");
+      await testInfo.attach("chat-options", { body: await page.screenshot(), contentType: "image/png" });
+      await testInfo.attach("chat-options-tree", { body: await page.getByRole("menu").first().ariaSnapshot(), contentType: "text/plain" });
+      const galleries = page.getByRole("menuitem", { name: "Character galleries", exact: true });
+      if (viewport.touch) {
+        await galleries.tap();
+      } else {
+        await galleries.focus();
+        await page.keyboard.press("ArrowRight");
+      }
+      const galleryPopup = page.getByRole("menu", { name: "Character galleries", exact: true });
+      await expect(galleryPopup).toHaveCSS("opacity", "1");
+      await expect(galleryPopup.getByRole("menuitem", { name: "Aria", exact: true })).toBeVisible();
+      await expect(galleryPopup.getByRole("menuitem", { name: "Bryn", exact: true })).toBeVisible();
+      const menuBounds = await page.getByRole("menu").evaluateAll((menus) =>
+        menus.map((menu) => {
+          const box = menu.getBoundingClientRect();
+          return box.left >= 0 && box.right <= innerWidth && box.top >= 0 && box.bottom <= innerHeight;
+        }),
+      );
+      expect(menuBounds.every(Boolean)).toBe(true);
+      await testInfo.attach("gallery-submenu", { body: await page.screenshot(), contentType: "image/png" });
+      await galleryPopup.getByRole("menuitem", { name: "Aria", exact: true }).focus();
+      await page.keyboard.press("ArrowLeft");
+      await expect(galleries).toBeFocused();
+      await expect(galleryPopup).toBeHidden();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("button", { name: "Chat options", exact: true })).toBeFocused();
+    });
+  });
+}
+
+test("focus lift uses a separate inert layer while the composer ring survives", async ({ mount, page }, testInfo) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES });
+  const component = await mount(<ComposerStory />);
+  const composer = component.locator('[data-slot="composer"]');
+  await component.getByLabel("Message", { exact: true }).fill("A focused draft");
+  await testInfo.attach("focused-composer", { body: await composer.screenshot(), contentType: "image/png" });
+  await expect
+    .poll(async () => {
+      const paint = await composer.evaluate((element) => {
+        const root = getComputedStyle(element);
+        const effect = getComputedStyle(element, "::before");
+        return {
+          ring: root.getPropertyValue("--tw-ring-shadow"),
+          shadow: root.getPropertyValue("--tw-shadow"),
+          glow: root.getPropertyValue("--shadow-glow"),
+          effect: effect.boxShadow,
+          content: effect.content,
+          pointer: effect.pointerEvents,
+          position: effect.position,
+          z: Number(effect.zIndex),
+          radius: effect.borderRadius,
+          rootRadius: root.borderRadius,
+          isolation: root.isolation,
+        };
+      });
+      return {
+        ringPresent: paint.ring !== "",
+        ringNonzero: !paint.ring.includes("0 0 #0000"),
+        rootNotGlow: paint.shadow.trim() !== paint.glow.trim(),
+        contentPresent: paint.content !== "none",
+        effectPresent: paint.effect !== "none",
+        pointer: paint.pointer,
+        position: paint.position,
+        behind: paint.z < 0,
+        sameRadius: paint.radius === paint.rootRadius,
+        isolation: paint.isolation,
+      };
+    })
+    .toEqual({
+      ringPresent: true,
+      ringNonzero: true,
+      rootNotGlow: true,
+      contentPresent: true,
+      effectPresent: true,
+      pointer: "none",
+      position: "absolute",
+      behind: true,
+      sameRadius: true,
+      isolation: "isolate",
+    });
+  await page.getByTestId("drive-begin").focus();
+  await expect.poll(() => composer.evaluate((element) => getComputedStyle(element, "::before").boxShadow)).toBe("none");
 });

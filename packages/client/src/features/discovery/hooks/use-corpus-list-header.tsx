@@ -1,6 +1,6 @@
 // The corpus-LIST chrome-band header (north-star §4 N1/N2, §6.3) — the content the `.shell-panel-header`
 // band wraps for the Corpus LIST panel: the "CORPUS" micro-caps section title + a live distilled-card
-// count. Flows into the band through the section definition's `listHeader` slot (`corpus-section.tsx`),
+// count. Flows into the band through the section definition's `useListHeader` data slot (`corpus-section.tsx`),
 // the same definition-owned seam the chats lane rides — the domain-agnostic shell never names a feature.
 //
 // Per §2 action-ownership, Corpus is BROWSE-shaped: it has no create verb, so the band carries title +
@@ -24,13 +24,14 @@
 // (`lib/corpus-selection-title.ts`), the noun that survives — still exactly one visible census on screen,
 // per regime, and both readers call the one `useCorpusCensus` so `distilledCensus` is not re-spelled.
 
-import type { ReactElement } from "react";
-import { ListPaneHeader } from "#components";
+// The hook supplies view data; the shell owns the band renderer. Actions and overlays retain their existing behavior.
+
+import type { ListPaneHeaderView } from "#lib";
 import { CORPUS_MODE_LABELS } from "#lib";
 import { useCorpusCensus } from "../hooks/use-corpus-census.ts";
 
 /** The band names the active MODE (D271): the LIST landmark follows it, so the pane announces its finder. */
-export function CorpusListHeader(): ReactElement {
-  const count = useCorpusCensus();
-  return <ListPaneHeader count={count ?? 0} title={CORPUS_MODE_LABELS.explore} />;
+export function useCorpusListHeader(active = true): ListPaneHeaderView {
+  const count = useCorpusCensus(active);
+  return { count: count ?? 0, title: CORPUS_MODE_LABELS.explore };
 }

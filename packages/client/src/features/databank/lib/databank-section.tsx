@@ -33,7 +33,7 @@ import type { SectionDefinition } from "#state";
 import { databankSectionSelection } from "#state";
 import { DatabankLibraryAnchor } from "../anchors/databank-library-anchor.tsx";
 import { DatabankContextBody, DatabankContextHeader } from "../components/databank-context-body.tsx";
-import { DatabankListHeader } from "../components/databank-list-header.tsx";
+import { useDatabankListHeader } from "../hooks/use-databank-list-header.tsx";
 import { DatabankDetailSurface } from "../surfaces/databank-detail-surface.tsx";
 import { DatabankLibrarySurface } from "../surfaces/databank-library-surface.tsx";
 import { DATABANK_CONTEXT_EMPTY } from "./databank-copy.ts";
@@ -43,6 +43,7 @@ import { useDatabankSelectionTitle } from "./databank-selection-title.ts";
 export const databankSection: SectionDefinition = {
   id: "databank",
   rail: { label: DATABANK_SECTION_LABEL, icon: Database, group: "authoring", mobile: "sheet" },
+  contentInset: "section",
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: {
     title: "Databank",
@@ -54,7 +55,8 @@ export const databankSection: SectionDefinition = {
     </DatabankLibraryAnchor>
   ),
   // The LIST chrome-band content (D66 A1/A2): "DATABANK" + count + Add + the maintenance kebab.
-  listHeader: () => <DatabankListHeader />,
+  listSearch: "required",
+  useListHeader: useDatabankListHeader,
   // How the SHELL reads "is a document open?" — the mobile ONE-SHELL rule's input + its back affordance.
   selection: databankSectionSelection,
   // …and what it calls the open document in the pushed frame's topbar.

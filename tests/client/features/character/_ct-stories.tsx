@@ -7,7 +7,7 @@
 // component that executes post-mount in the real browser context, never at the `.ct.tsx` call site —
 // the same "build the branded shape inside the story" precedent `MessageRowStory` sets for `Map`s).
 
-import { QueryBoundary } from "@orb/client/components";
+import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import { useTRPC } from "@orb/client/data";
 import {
   CharacterActionsMenu,
@@ -333,19 +333,19 @@ export function CharacterLibrarySurfaceStory({ width }: CharacterLibrarySurfaceS
   );
 }
 
-/** The characters section's own `listHeader` closure, rendered where the shell's PanelChrome renders it. */
+/** The characters section's own `useListHeader` closure, rendered where the shell's PanelChrome renders it. */
 function CharactersListBand(): ReactElement {
   const registry = useSectionRegistry();
-  return <div data-testid="list-band">{registry.get("characters").listHeader?.()}</div>;
+  return <div data-testid="list-band">{<ListPaneHeaderHost useView={registry.get("characters").useListHeader} />}</div>;
 }
 
-/** The same band UNWRAPPED — the registry's `listHeader` fragment as the DIRECT children of the shell's
+/** The same band UNWRAPPED — the registry's `useListHeader` fragment as the DIRECT children of the shell's
  *  `<header>`, which is what the production chain renders and what `space-between` distributes. The wrapper
  *  above is fine for content assertions and fatal for geometry ones: one div child collapses the band's
  *  two-child split into one. */
 function CharactersListBandBare(): ReactNode {
   const registry = useSectionRegistry();
-  return registry.get("characters").listHeader?.() ?? null;
+  return <ListPaneHeaderHost useView={registry.get("characters").useListHeader} />;
 }
 
 export interface CharactersBandInShellStoryProps {
@@ -363,7 +363,7 @@ export interface CharactersBandInShellStoryProps {
  * the `container-type: inline-size` box every width-keyed stand-down inside the band resolves against. A
  * bare mount of `CharactersListHeader` has neither, so it would measure a layout the shell never produces —
  * the same reason `tests/client/components/list-pane-header.fixtures.tsx` exists for the generic case. This
- * one carries the REAL section band (registry `listHeader`) over the real data layer, because the finding is
+ * one carries the REAL section band (registry `useListHeader`) over the real data layer, because the finding is
  * about the Characters band specifically: the longest section title on the tree beside the only two-control
  * action cluster.
  */
@@ -439,7 +439,7 @@ export function CharacterBulkBarStory(): ReactElement {
 }
 
 // ── The LIST pane + the CONTEXT pane, through the REAL section registry ─────────────────────────────
-// `registry.get("characters").list()` / `.listHeader()` / `.context` are the same calls the shell's list
+// `registry.get("characters").list()` / `.useListHeader()` / `.context` are the same calls the shell's list
 // region, PanelChrome and `SectionContextHost` make — so these drive the PRODUCTION path end to end,
 // including the `makeCharactersSection` door param and the chat-owned projection body threaded in at it.
 // A bespoke mount of a pane component would prove none of that.
@@ -460,7 +460,7 @@ function CharactersListHarness(): ReactElement {
   const activeChatId = useActiveChatId();
   return (
     <div style={{ height: 560, width: 320 }}>
-      <div data-testid="list-band">{definition.listHeader?.()}</div>
+      <div data-testid="list-band">{<ListPaneHeaderHost useView={definition.useListHeader} />}</div>
       {list()}
       {/* Probes for the cross-section WRITES the pane fires (assert the store action, not a UI echo). */}
       <p data-testid="active-section">{activeSection}</p>
@@ -549,7 +549,7 @@ function CharactersScreenHarness(): ReactElement {
   return (
     <div style={{ display: "flex", height: 560 }}>
       <div style={{ width: 320 }}>
-        <div data-testid="list-band">{definition.listHeader?.()}</div>
+        <div data-testid="list-band">{<ListPaneHeaderHost useView={definition.useListHeader} />}</div>
         {list()}
       </div>
       <div data-testid="content-region" style={{ flex: 1, minWidth: 0 }}>

@@ -11,7 +11,7 @@
 // `CtFakeSectionRegistry` (`tests/support/browser/ct-data-providers.tsx`), which is REAL for the shell's own
 // anatomy — rail, `panels`, `panelDefaults`, `placeholder`, the modal/chrome/config registries, and each
 // section's real `selection` store whenever a story injects a `list` — and STORY-INJECTED for everything a
-// section RENDERS: `list`, `content`, `context`, `header` and `listHeader` bodies. So this file is the
+// section RENDERS: `list`, `content`, `context`, `header` and `useListHeader` bodies. So this file is the
 // floor for shell CHROME: region layout, panel clamp/overlay, focus modes, the rail, the modal host, the
 // mobile tab bar and the one-shell rule.
 //
@@ -1379,7 +1379,7 @@ test("landmark uniqueness: exactly ONE main, distinct complementary labels, one 
 
   // The complementary landmarks (asides) must have distinct accessible names
   // In default chats layout, it's "Chats list" and "Chats details"
-  await expect(page.getByRole("complementary", { name: "Chats list", exact: true })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Chats", exact: true })).toBeVisible();
   await expect(page.getByRole("complementary", { name: "Chats details", exact: true, includeHidden: true })).toBeAttached();
 
   // No unnamed complementary landmarks, and all labels are distinct
@@ -1413,7 +1413,7 @@ test("#493 the LIST landmark is named by its own band, and follows it when the p
   await mount(<AppShellNamedListBandStory accent="Sabine Veyra" title="Chats" />);
   await expect(page.getByRole("complementary", { name: "Chats · Sabine Veyra", exact: true })).toBeVisible();
   // …and the stale section-derived name is gone, not merely joined.
-  await expect(page.getByRole("complementary", { name: "Chats list", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("complementary", { name: "Chats", exact: true })).toHaveCount(0);
 });
 
 // #1349 — A FENCE, NOT A DEFECT PROOF, AND IT SAYS SO. The row filed the LIST landmark's name as `Chats6`
@@ -1603,7 +1603,7 @@ test("mobile: the bottom bar is the curated four; overflow + footer affordances 
 // live because they are about different sections, and the shell decides from the declaration alone.
 test("mobile: a section with no LIST pane lands on CONTENT — the list track is collapsed, not an open sheet", async ({ mount, page }) => {
   await page.setViewportSize(MOBILE);
-  await mount(<AppShellStory />);
+  await mount(<AppShellStory withoutList={true} />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
   await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(page.getByText("chats content pane")).toBeVisible();
@@ -7479,4 +7479,110 @@ test.describe("a floating CONTEXT pane and focus, on a phone", () => {
     await expect(pane).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(shell.getByRole("button", { name: "Show details" })).toBeFocused();
   });
+});
+
+test.describe("Home section inset in the real phone shell", () => {
+  test.use({ hasTouch: true, viewport: { width: 360, height: 800 } });
+
+  test("owns one section inset while its touch shelf reaches both shell edges", async ({ mount, page }, testInfo) => {
+    await routeTrpc(page, {
+      ...SHELL_AMBIENT_ROUTES,
+      "chat.listChats": chatListResponder([]),
+      "character.list": {
+        items: Array.from({ length: 8 }, (_, i) => makeCharacterSummary({ id: `character_home_${i}`, name: `Home face ${i}` })),
+        nextCursor: null,
+      },
+    });
+    const shell = await mount(<AppShellOnSectionStory section="home" />);
+    const faces = shell.getByRole("list", { name: "Character quick-picks" }).getByRole("button");
+    await expect(faces).toHaveCount(6);
+    await faces.first().scrollIntoViewIfNeeded();
+    const readGeometry = (): Promise<{ edges: number[]; overflows: boolean; contentPadding: string | null; coarse: boolean }> =>
+      faces.first().evaluate((face) => {
+        const shelf = face.closest('[role="list"]')?.parentElement;
+        const main = face.closest("main");
+        const region = face.closest(".shell-region-fill");
+        if (shelf === null || shelf === undefined || main === null) {
+          throw new Error("Missing real shell or swipe shelf");
+        }
+        const bounds = shelf.getBoundingClientRect();
+        const host = main.getBoundingClientRect();
+        return {
+          edges: [Math.round(bounds.left - host.left), Math.round(host.right - bounds.right)],
+          overflows: shelf.scrollWidth > shelf.clientWidth,
+          contentPadding: region === null ? null : getComputedStyle(region).paddingInlineStart,
+          coarse: matchMedia("(pointer: coarse)").matches,
+        };
+      });
+    await expect.poll(readGeometry).toEqual({ edges: [0, 0], overflows: true, contentPadding: "0px", coarse: true });
+    await faces.first().focus();
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await expect(faces.nth(2)).toBeFocused();
+    await expect
+      .poll(() =>
+        faces.nth(2).evaluate((face) => {
+          const shelf = face.closest('[role="list"]')?.parentElement?.getBoundingClientRect();
+          const box = face.getBoundingClientRect();
+          return shelf !== undefined && box.left >= shelf.left && box.right <= shelf.right;
+        }),
+      )
+      .toBe(true);
+    await testInfo.attach("home-real-shell", { body: await page.screenshot(), contentType: "image/png" });
+    await testInfo.attach("home-real-shell-geometry", { body: JSON.stringify(await readGeometry()), contentType: "application/json" });
+  });
+});
+
+test.describe("page identity hierarchy", () => {
+  test.use({ hasTouch: true });
+  for (const width of [320, 360, 430]) {
+    test(`page identity outranks body without changing control geometry @${width}`, async ({ mount, page }, testInfo) => {
+      await page.setViewportSize({ width, height: 780 });
+      await routeTrpc(page, SHELL_AMBIENT_ROUTES);
+      const shell = await mount(<AppShellMobileRuleStory section="chats" />);
+      await shell.getByRole("button", { name: "open a member" }).click();
+      const title = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
+      await expect(title).toBeVisible();
+      await expect
+        .poll(() => page.locator('.shell-panel[data-panel-side="list"]').evaluate((element) => element.getBoundingClientRect().right))
+        .toBeLessThanOrEqual(0);
+      await testInfo.attach("phone-identity", { body: await page.screenshot(), contentType: "image/png" });
+      await expect
+        .poll(async () => {
+          const geometry = await title.evaluate((element) => {
+            const style = getComputedStyle(element);
+            const probe = document.createElement("span");
+            probe.style.fontSize = "var(--text-display)";
+            element.append(probe);
+            const headline = getComputedStyle(probe).fontSize;
+            probe.style.fontSize = "var(--text-body)";
+            const body = getComputedStyle(probe).fontSize;
+            probe.remove();
+            return { size: style.fontSize, headline, body, overflow: style.textOverflow, right: element.getBoundingClientRect().right };
+          });
+          return {
+            display: geometry.size === geometry.headline,
+            largerThanBody: Number.parseFloat(geometry.size) > Number.parseFloat(geometry.body),
+            overflow: geometry.overflow,
+            contained: geometry.right <= width,
+          };
+        })
+        .toEqual({ display: true, largerThanBody: true, overflow: "ellipsis", contained: true });
+      await expect(page.locator(".shell-topbar-title:visible")).toHaveCount(1);
+      const controls = await page.locator(".shell-topbar button:visible").evaluateAll((elements) =>
+        elements.map((element) => {
+          const rect = element.getBoundingClientRect();
+          return { width: rect.width, height: rect.height, right: rect.right };
+        }),
+      );
+      expect(controls.length).toBeGreaterThan(0);
+      for (const control of controls) {
+        expect(control.width).toBeGreaterThanOrEqual(48);
+        expect(control.height).toBeGreaterThanOrEqual(48);
+        expect(control.right).toBeLessThanOrEqual(width);
+      }
+      await page.getByRole("button", { name: "Back to Chats" }).click();
+      await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
+    });
+  }
 });

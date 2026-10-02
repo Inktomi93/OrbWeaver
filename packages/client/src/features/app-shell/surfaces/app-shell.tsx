@@ -10,6 +10,7 @@ import { TooltipProvider } from "@orb/ui/tooltip";
 import type { CSSProperties, ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef } from "react";
 import { preload } from "react-dom";
+import { ListPaneHeaderHost } from "#components";
 import { resolveThemeScopeTokens } from "#lib";
 import type { SectionId } from "#state";
 import { closeModal, openModal, setActiveSection, useChromeRegistry, useSectionRegistry } from "#state";
@@ -323,7 +324,7 @@ export function AppShell(): ReactElement {
               panel="list"
               label={`${layout.activeSectionLabel} list`}
               available={layout.listAvailable}
-              header={activeDef.listHeader?.()}
+              header={activeDef.useListHeader === undefined ? null : <ListPaneHeaderHost key={layout.activeSection} useView={activeDef.useListHeader} />}
               mode={layout.listMode}
               onDismiss={(): void => layout.collapsePanel("list")}
               primaryContent={layout.listIsPrimaryContent}

@@ -1,10 +1,10 @@
-// The composer ✨ menu's MEDIA group: attach images and video, generate from text, the /imagine door, and the
-// character gallery door. Split from `composer-utility-menu.tsx`, which renders it; the composer owns the
+// The composer ✨ menu's MEDIA group: attach images and video, generate from text, and the /imagine door.
+// Split from `composer-utility-menu.tsx`, which renders it; the composer owns the
 // controls (`ComposerImageControls`) and this file only renders them as menu rows.
 
 import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { FileDropzone } from "@orb/ui/file-dropzone";
-import { Icon, ImagePlus, Images, LayoutGrid, Sparkles } from "@orb/ui/icons";
+import { Icon, ImagePlus, Images, Sparkles } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { MenuGroup, MenuGroupLabel, MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
@@ -15,7 +15,7 @@ import { IMAGE_GEN_SPENDS_NOW, IMAGINE_DOOR_HELPER, ROOM_PICTURES_NOTE, testId }
 // gestures gate on the same tuple, so the dialog filter and the runtime gate cannot drift.
 import { ATTACH_MEDIA_ACCEPT } from "../lib/attach-media.ts";
 
-/** The image controls the ✨ menu's Media group renders — attach, generate-from-text, /imagine and the gallery
+/** The image controls the ✨ menu's Media group renders — attach, immediate generation and the modes/preview
  *  door. Owned by the composer (upload caps, the generate hook, the F-P1 clear-on-success); the wand only renders
  *  them. Homed HERE (the group that renders them) so the cluster imports it DOWN this one edge — no import cycle. */
 export interface ComposerImageControls {
@@ -35,13 +35,9 @@ export interface ComposerImageControls {
    *  a first-timer meets an enabled door that shows the price before spending, not a greyed-out one. Free
    *  mode with no text is a legal seed (the modal's own Generate carries the gate). */
   readonly onOpenImagine: () => void;
-  /** The room's gallery door (`useRoomGalleryDoor`): the character whose gallery opens, or `null` when the viewer
-   *  owns no character here. A gallery is its character's owner's, so the door is permission-gated and a viewer
-   *  without one gets no row at all, the one exception to this menu's disabled-with-a-reason posture. */
-  readonly gallery: { readonly characterName: string; readonly open: () => void } | null;
 }
 
-/** The ✨ menu's MEDIA group — attach, the two image doors, and the room's gallery door. The label, items and
+/** The ✨ menu's MEDIA group — attach and the two distinct image-generation doors. The label, items and
  *  hidden picker live together so the menu file stays one concern per group. */
 export function ComposerMediaGroup({ image }: { readonly image: ComposerImageControls }): ReactElement {
   return (
@@ -70,12 +66,6 @@ export function ComposerMediaGroup({ image }: { readonly image: ComposerImageCon
         <Icon icon={Images} size="sm" />
         Imagine — modes & preview…
       </MenuItem>
-      {image.gallery === null ? null : (
-        <MenuItem onClick={image.gallery.open}>
-          <Icon icon={LayoutGrid} size="sm" />
-          {image.gallery.characterName}'s gallery…
-        </MenuItem>
-      )}
     </MenuGroup>
   );
 }

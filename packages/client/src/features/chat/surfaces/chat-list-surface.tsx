@@ -37,11 +37,11 @@
 // would grant nothing and its own stale-exemption arm would RED it; the RUNTIME half (design-audit's
 // `duplicate-action-door`) groups by `role|accessible name` and has no allowance table at all, and "New" and
 // "New chat" are different names, so it never pairs them either. The ruling therefore lives HERE and in
-// `components/chat-list-header.tsx` — at both doors, so neither can be "tidied away" as the odd one out.
+// `hooks/use-chat-list-header.tsx` — at both doors, so neither can be "tidied away" as the odd one out.
 //
 // THE THREE NARROWING AXES ARE STORE STATE, NOT LOCAL STATE (#490 — `state/chat-list-filter-store.ts`). The
 // per-character filter always was; search and month joined it, because the LIST CHROME BAND that prints the
-// census (`components/chat-list-header.tsx`) feeds a different shell slot and could not see a `useState`
+// census (`hooks/use-chat-list-header.tsx`) feeds a different shell slot and could not see a `useState`
 // here — which is how `CHATS 896` came to sit above twelve filtered rows. The faces strip + "Filtered: X ✕"
 // chip live in `components/chat-list-character-filter.tsx` (the 450-line cap; this file composes them).
 
@@ -55,6 +55,7 @@ import { VirtualList } from "@orb/ui/virtual-list";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
+import { ListSearch } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { useDebouncedValue, useFocusOnMount } from "#lib";
@@ -191,13 +192,15 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
             inset at the field's own inline end, over a constant `CLEAR_INSET_RESERVE` so the value never
             reflows when it appears. */}
         <Row align="center" className="relative">
-          <Input
-            aria-label={SEARCH_LABEL}
-            className={`min-w-0 flex-1 ${CLEAR_INSET_RESERVE}`}
-            onValueChange={setChatListSearch}
-            placeholder="Search chats…"
-            value={query}
-          />
+          <ListSearch>
+            <Input
+              aria-label={SEARCH_LABEL}
+              className={`min-w-0 flex-1 ${CLEAR_INSET_RESERVE}`}
+              onValueChange={setChatListSearch}
+              placeholder="Search chats…"
+              value={query}
+            />
+          </ListSearch>
           {query === "" ? null : <ClearFilterGlyph label={CLEAR_SEARCH_LABEL} onClick={clearSearch} />}
         </Row>
         {/* The DESKTOP column's month bound. On a phone it is inside the Filters panel above — one home for

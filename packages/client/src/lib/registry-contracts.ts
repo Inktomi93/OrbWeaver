@@ -144,7 +144,7 @@ export function defineContextRegion<S>(def: ContextRegionDef<S>): ContextRegionD
  *  bracket, #860): the section's own `header` from the SAME `S` the tabs read, or the FIRST claiming
  *  region's band in its place. It mounts in the bracket's band slot inside the body — the shell's
  *  `.shell-panel-header` renders nothing for a tabs pane — so ONE consumer (`ContextTabsPanel`) takes the
- *  whole resolve. Absent ⇒ the bracket renders no band (the column starts at its first rail). */
+ *  whole resolve. The shell names an empty or unresolved pane from its section label. */
 export interface ResolvedContextTabs {
   readonly tabs: readonly ResolvedContextTab[];
   readonly actions?: ReactNode;
@@ -184,12 +184,8 @@ export type ContextDefinition =
   | ({
       readonly kind: "single";
       readonly body: () => ReactNode;
-      /** The CONTEXT-panel BAND identity for a single-body context — the same P4 slot a `tabs` context
-       *  supplies through `defineContextTabs`, available here because a single body is just as capable of
-       *  naming what it reads. Absent ⇒ the neutral "Details" default (world-info's arm, unchanged).
-       *  Preset's readout swaps its whole content per editor VIEW, so a band reading "Details" above a
-       *  panel of Actions data names nothing (crunch item 11). */
-      readonly header?: () => ReactNode;
+      /** Each real context body names its subject in the shared band. */
+      readonly header: () => ReactNode;
     } & ContextEmptyArm)
   | ({
       readonly kind: "tabs";
@@ -208,7 +204,7 @@ export interface ContextTabsSpec<S> {
    *  drawn from the SAME `S` the tabs read (north-star §4 N4, P4; the context bracket's band slot, #860).
    *  Definition-owned + mint-supplied (never a route-fed prop or a shell-side per-section switch); the
    *  shell renders it blind in the bracket's band. A claiming region's band replaces it. */
-  readonly header?: (state: S) => ReactNode;
+  readonly header: (state: S) => ReactNode;
   /** The FOOT rail's name — the artifact NOUN the pane is about ("Chat", "Character"), printed as the
    *  rail's kicker and carried as its a11y group name. Absent ⇒ the section's rail label (the honest name
    *  for a pane that is about the section itself: Corpus, Refinery). */
@@ -244,7 +240,7 @@ export function resolveContextTabs<S>(spec: ContextTabsSpec<S>, state: S): Resol
   // decides, so the outcome is deterministic; the ≤1-claimant gate arm makes a second claimant unbuildable
   // anyway. A claim never suppresses resolution: `tabs`/`actions` are the same set either way.
   const claim = spec.regions?.list().find((candidate) => candidate.claims(state));
-  const header = claim === undefined ? spec.header?.(state) : claim.band();
+  const header = claim === undefined ? spec.header(state) : claim.band();
   return {
     tabs,
     actions: spec.actions?.(state),

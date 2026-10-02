@@ -1203,7 +1203,7 @@ test("#1748 the search input survives the pending read, and the rows still reach
   // split it lived under the boundary and this locator resolved to nothing while the read was in flight.
   const search = component.getByRole("textbox", { name: "Search presets" });
   await expect(search).toBeVisible();
-  await expect(component.getByText("Loading your presets…")).toBeVisible();
+  await expect(component.getByRole("status", { name: "Loading your presets…" })).toBeVisible();
 
   hold.release(MANY_PRESETS);
   await expect(component.getByText("Bulk preset 0", { exact: true })).toBeVisible();

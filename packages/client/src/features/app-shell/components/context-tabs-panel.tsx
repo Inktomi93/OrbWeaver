@@ -17,6 +17,7 @@
 // foreign/absent value falls back to a tab instead of selecting nothing — a `defaultTab`-flagged tab
 // (rpg.status for a game chat, §4.1) if one is present, else the first visible tab.
 
+import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import type { ResolvedContextTab } from "#lib";
 import { useContextTabSelection } from "../hooks/use-context-tab-selection.ts";
@@ -28,6 +29,7 @@ export interface ContextTabsPanelProps {
   readonly actions?: ReactNode;
   /** The HEAD band's content (`ResolvedContextTabs.header`). Absent ⇒ the column starts at its first rail. */
   readonly header?: ReactNode;
+  readonly empty?: ReactNode;
   /** The FOOT rail's name — the artifact noun ("Chat"), or the section's own label. */
   readonly railLabel: string;
   /** The floating pane's own way out (overlay mode only). */
@@ -35,16 +37,14 @@ export interface ContextTabsPanelProps {
   readonly onDismiss?: () => void;
 }
 
-export function ContextTabsPanel({ tabs, actions, header, railLabel, dismissLabel, onDismiss }: ContextTabsPanelProps): ReactElement | null {
+export function ContextTabsPanel({ tabs, actions, header, empty, railLabel, dismissLabel, onDismiss }: ContextTabsPanelProps): ReactElement | null {
   // The ONE selection resolver (HUD-1 §3.4) — stored → `defaultTab` → declared-first.
   const { activeTab, selectTab } = useContextTabSelection(tabs);
-  if (tabs.length === 0) {
-    return null;
-  }
   return (
     <ContextBracket
       view={{ tabs, activeTab, selectTab, ...(actions === undefined ? {} : { actions }) }}
-      band={header}
+      band={header ?? <Text voice="label">{railLabel}</Text>}
+      empty={empty}
       railLabel={railLabel}
       {...(dismissLabel === undefined ? {} : { dismissLabel })}
       {...(onDismiss === undefined ? {} : { onDismiss })}

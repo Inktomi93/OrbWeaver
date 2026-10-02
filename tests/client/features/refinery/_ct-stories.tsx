@@ -19,6 +19,7 @@
 // the honest form of the `CharacterCardTileStory` note, not a departure from it: that story takes plain
 // strings because its ids come from a fixture's display data, not from a mint.
 
+import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, useOpenRefinery, useTRPC } from "@orb/client/data";
 import type { PayloadLaneProps, ReviewEntry, RewriteLaneProps } from "@orb/client/features/refinery";
 import {
@@ -29,7 +30,6 @@ import {
   PayloadLane,
   PayloadView,
   RefineryContentSurface,
-  RefineryListHeader,
   RefineryListSurface,
   RewriteLane,
   RunControlsCard,
@@ -41,6 +41,7 @@ import {
   useApplyRefineryFields,
   useDeleteRefinerySession,
   useIterateRefinery,
+  useRefineryListHeader,
   useRefineryRuns,
   useRefinerySession,
   useRefinerySessions,
@@ -240,7 +241,7 @@ export function RefineryLandingStory({ mobile = false }: { readonly mobile?: boo
       <CtToastSurface>
         <Suspense fallback={<p>loading roster</p>}>
           <div>
-            <RefineryListHeader />
+            <ListPaneHeaderHost useView={useRefineryListHeader} />
             <RefineryListSurface />
           </div>
           <RefineryContentSurface />
@@ -333,7 +334,7 @@ export function RefineryRosterStory({ mobile = false, selectedSessionId }: Refin
     <CtAppDataProviders>
       <Suspense fallback={<p>loading roster</p>}>
         <div>
-          <RefineryListHeader />
+          <ListPaneHeaderHost useView={useRefineryListHeader} />
           <RefineryListSurface />
         </div>
       </Suspense>

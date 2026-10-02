@@ -1,5 +1,5 @@
 // usePresetCensus — the preset library's ONE census read. Its own module since #1676 because it now has TWO
-// readers: the LIST chrome band (`components/preset-list-header.tsx`) and the phone topbar's screen title
+// readers: the LIST chrome band (`hooks/use-preset-list-header.tsx`) and the phone topbar's screen title
 // (`lib/preset-selection-title.ts`), which is where the count lives once the ONE-NAME rule (shell.css) sheds
 // the band's title. Both share the `preset.list` cache with the suspending list below, so neither costs a
 // request the pane did not already make.

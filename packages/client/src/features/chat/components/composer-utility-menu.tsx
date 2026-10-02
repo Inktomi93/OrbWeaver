@@ -1,5 +1,5 @@
 // The composer's ✨ UTILITY menu (wand v2) — everything BUSY lives here so the composer's top row is just the
-// four guided icons + this ✨ trigger. Regrouped by concept (side-eye P2-A), each group a labeled MenuGroup +
+// four guided icons and the adjacent Options/Tools doors. Regrouped by concept (side-eye P2-A), each group a labeled MenuGroup +
 // GroupLabel. The room's own groups lead — the `composer-room` contributions (a game's Dice rolls), then Story —
 // so a phone reaches a game's main action without scrolling past the generic groups. Media leads those, because
 // image actions are a main use and a phone must reach them without a hidden scroll; the rest follow by frequency:
@@ -7,18 +7,18 @@
 //              NOT a focus target inside the menuitem's accessible name — P1-C; accepts image/* + mp4/webm,
 //              #317) · the TWO image doors: Generate image from text (fast, spends on click — its typed text
 //              IS the prompt) and Imagine (opens the /imagine modal: mode strip + preview-before-spend). Both
-//              are here because both cost money and only one used to be findable (#623 P1-IA) · the room
-//              character's gallery. The group renders from `composer-media-group.tsx`.
+//              are here because both cost money and only one used to be findable (#623 P1-IA).
+//              The group renders from `composer-media-group.tsx`; galleries live only in Options.
 //   • Input  — Recover input (recall the last FIRED steer — the D57 ring, owner-clarified) · Corrections (the
 //              rewrite/OOC dialog) · Clear input
 //   • Reply  — Regenerate (a PLAIN reroll of the tail assistant, distinct RefreshCw glyph + helper — the
 //              steer-aware reroll stays the ⟳ Swipe icon, §2.3e dual-home) · Simple send (post without
 //              generating) · Offer choices (R3/B1 — the ONE-SHOT ask for the next reply; un-game-gated and
 //              moved out of Plot, because the standing sibling and the fence renderer are both general now)
-//   • Continuation — Undo / Revert continuation
+//              · Continuation submenu — Undo / Revert continuation
 //   • Story  — game-only, first after the room contributions: the six plot steers under one submenu (P1-B)
 // Each item is the omit-doctrine's disabled-affordance law: rendered enabled, or disabled-with-a-legible-reason,
-// never hidden — except a permission-gated one (the gallery door, for a viewer who owns no character here).
+// never hidden. Permission-filtered gallery doors live in Chat options.
 
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import { RPG_PLOT_STEER_KINDS, RPG_PLOT_STEERS } from "@orb/kit/guided";
@@ -271,25 +271,31 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             <Icon icon={ListOrdered} size="sm" />
             Offer choices
           </MenuItem>
-        </MenuGroup>
-        <MenuSeparator />
-        {/* CONTINUATION — undo/revert the last continuation. */}
-        <MenuGroup>
-          <MenuGroupLabel>Continuation</MenuGroupLabel>
-          <UtilityActionItem
-            icon={Undo2}
-            label="Undo continuation"
-            onAction={onUndo}
-            enabled={onUndo !== undefined && canUndoRevert}
-            disabledReason="Continue a reply first — nothing to undo yet"
-          />
-          <UtilityActionItem
-            icon={Redo2}
-            label="Revert continuation"
-            onAction={onRevert}
-            enabled={onRevert !== undefined && canUndoRevert}
-            disabledReason="Continue a reply first — nothing to revert yet"
-          />
+          <MenuSubmenuRoot>
+            <MenuSubmenuTrigger>
+              <Icon icon={Undo2} size="sm" />
+              Continuation
+            </MenuSubmenuTrigger>
+            <MenuPopup>
+              <MenuGroup>
+                <MenuGroupLabel>{canUndoRevert ? "Continuation" : "Continue a reply first — nothing to undo or revert yet"}</MenuGroupLabel>
+                <UtilityActionItem
+                  icon={Undo2}
+                  label="Undo continuation"
+                  onAction={onUndo}
+                  enabled={onUndo !== undefined && canUndoRevert}
+                  disabledReason="Continue a reply first — nothing to undo yet"
+                />
+                <UtilityActionItem
+                  icon={Redo2}
+                  label="Revert continuation"
+                  onAction={onRevert}
+                  enabled={onRevert !== undefined && canUndoRevert}
+                  disabledReason="Continue a reply first — nothing to revert yet"
+                />
+              </MenuGroup>
+            </MenuPopup>
+          </MenuSubmenuRoot>
         </MenuGroup>
       </MenuPopup>
     </Menu>
