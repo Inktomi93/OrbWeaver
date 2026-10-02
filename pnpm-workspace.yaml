@@ -427,7 +427,7 @@ overrides:
   # Force the single @vitejs/plugin-react up to the catalog's v6 (vite-8-compatible). @playwright/
   # experimental-ct-react pins a transitive v4.7.0 whose vite peer maxes at ^7 → unmet-peer warning
   # against our vite 8. v6 is the only line that peers vite ^8, so we dedupe both the client build and
-  # the CT harness onto it. (Alex-approved 2026-07-02: accept the CT-harness major-bump to clear the peer.)
+  # the CT harness onto it. (the owner-approved 2026-07-02: accept the CT-harness major-bump to clear the peer.)
   "@vitejs/plugin-react": "catalog:"
   # @huggingface/transformers@4.2.0 declares its own `sharp: ^0.34.5` dependency (matching our own
   # pre-bump floor), which resolves to a separate 0.34.5 tree alongside our catalog `sharp: ^0.35.0` —

@@ -301,7 +301,7 @@ export interface AssemblyBudgetPart {
  *  LOCAL estimate (`@orb/kit/tokens` QuadChars — the same estimator the history fit runs), never billing truth. */
 export interface AssemblyBudgetSlice {
   source: AssemblySource;
-  /** The contributors that make up this slice, deduped in prompt order ("Mara · Niko · Sera"), or the history
+  /** The contributors that make up this slice, deduped in prompt order ("Mira · Niko · Sola"), or the history
    *  row's "N turns · M dropped". Empty string ⇒ nothing to add beyond the source name. Derived from
    *  {@link AssemblyBudgetSlice.parts} — the same names, as one line. */
   detail: string;

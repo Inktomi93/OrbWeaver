@@ -28,7 +28,7 @@ import {
 
 const PRESET = "preset_ct_readoutbind";
 const CHAT = "chat_ct_readoutbind";
-const CHAT_TITLE = "Azarael & the Court";
+const CHAT_TITLE = "Aveline & the Court";
 
 const PRESET_DETAIL: TrpcWireOutput<"preset.get"> = {
   id: PRESET,
@@ -46,10 +46,10 @@ const PRESET_DETAIL: TrpcWireOutput<"preset.get"> = {
 /** What the SERVER returns for the bound read — the resolution already happened chat-side (Ruling B), so the
  *  fixture is shaped exactly as the verb shapes it: identity REAL, fire-time tokens intact. */
 const RESOLVED: TrpcWireOutput<"chat.previewActionTemplates"> = {
-  identity: { user: "Alex", char: "Azarael" },
+  identity: { user: "Alex", char: "Aveline" },
   templates: [
-    { id: "impersonate", resolved: "Write the owner's next message from a {{person}}-person perspective. {{input}}" },
-    { id: "response", resolved: "Azarael responds. {{input}}" },
+    { id: "impersonate", resolved: "Write Alex's next message from a {{person}}-person perspective. {{input}}" },
+    { id: "response", resolved: "Aveline responds. {{input}}" },
   ],
 };
 
@@ -83,14 +83,14 @@ const ASSEMBLY_TRACE = {
 };
 
 const ASSEMBLY: TrpcWireOutput<"chat.previewAssembly"> = {
-  prompt: { static: "You are Azarael.", dynamic: "", afterHistory: [], sendHistory: true, trace: ASSEMBLY_TRACE },
+  prompt: { static: "You are Aveline.", dynamic: "", afterHistory: [], sendHistory: true, trace: ASSEMBLY_TRACE },
   trace: ASSEMBLY_TRACE,
   budget: {
     ceilingTokens: 8192,
     ceilingEstimated: false,
     totalTokens: 2266,
     sources: [
-      { source: "system", detail: "Main", tokens: 412, parts: [{ label: "Main", tokens: 412, text: "You are Azarael." }], text: "You are Azarael." },
+      { source: "system", detail: "Main", tokens: 412, parts: [{ label: "Main", tokens: 412, text: "You are Aveline." }], text: "You are Aveline." },
       { source: "world-info", detail: "World info (before)", tokens: 230, parts: [{ label: "World info (before)", tokens: 230, text: "LORE" }], text: "LORE" },
       { source: "history", detail: "3 turns · 2 dropped", tokens: 1624, parts: [], text: "" },
     ],
@@ -102,7 +102,7 @@ const ASSEMBLY: TrpcWireOutput<"chat.previewAssembly"> = {
         tokens: 1624,
         rows: [
           { label: "user", tokens: 300 },
-          { label: "Azarael", tokens: 924 },
+          { label: "Aveline", tokens: 924 },
           { label: "user", tokens: 400 },
         ],
       },
@@ -191,7 +191,7 @@ test("BOUND — the Actions preview resolves identity for REAL and keeps the fir
   // and the two fire-time tokens are still tokens because the user has typed no steer and picked no
   // perspective. A preview that resolved those would be inventing a value.
   const preview = probe.getByTestId(testId("presetResolvedPreview"));
-  await expect(preview).toContainText("Write the owner's next message");
+  await expect(preview).toContainText("Write Alex's next message");
   await expect(preview).not.toContainText("{{user}}");
   await expect(preview).toContainText("{{person}}");
   await expect(preview).toContainText("{{input}}");
@@ -205,7 +205,7 @@ test("DISMISSED — the ✕ falls back to the token view, and the whole binding 
   await probe.getByRole("button", { name: DISMISS_RE }).click();
 
   // The bound resolution is gone and the honest arm stands in its place — never a blank pane.
-  await expect(probe.getByText("Write the owner's next message")).toBeHidden();
+  await expect(probe.getByText("Write Alex's next message")).toBeHidden();
   await expect(probe.getByText(RESOLVES_IN_CHAT_RE)).toBeVisible();
 
   // ONE control, two states (§16 row 33): the same slot now offers the re-bind, and taking it restores the
@@ -243,9 +243,9 @@ test("PROMPT + BOUND — the rack is priced by the bound chat, and the selected 
   await expect(probe.getByRole("button", { name: CARRIER_UNPRICED })).toBeHidden();
 
   // ST's inspect panel, with honest data: the selected carrier's MATERIALIZED rows, ordinalled (three
-  // `user`/`Azarael` turns are only told apart by position) and each with its own true cost.
+  // `user`/`Aveline` turns are only told apart by position) and each with its own true cost.
   await expect(probe.getByRole("heading", { name: "Selected — materialized" })).toBeVisible();
-  await expect(probe.getByText("2. Azarael")).toBeVisible();
+  await expect(probe.getByText("2. Aveline")).toBeVisible();
   await expect(probe.getByText("~924")).toBeVisible();
   await expect(probe.getByText(MATERIALIZED_COUNT_RE)).toBeVisible();
 });

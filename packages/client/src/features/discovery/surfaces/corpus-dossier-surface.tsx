@@ -316,7 +316,7 @@ function SimilarArtBody({ characterId }: { readonly characterId: CharacterId }):
  *
  * It prints `relevance` (cosine similarity, higher = closer) as a whole percent, never the CSLS `score` it
  * used to print: that is a hub-adjusted DISTANCE clamped at zero, so this strip read
- * 0, 0, 0, 0, 0, 0.006, 0.011, 0.014 for Mira's eight nearest neighbours — the five reading zero were the
+ * 0, 0, 0, 0, 0, 0.006, 0.011, 0.014 for Tamsin's eight nearest neighbours — the five reading zero were the
  * five CLOSEST (corpus forensics §3). The ORDER is still the server's CSLS rank.
  *
  * THE RANK IS PRINTED BESIDE IT NOW (side-eye populated arm 2026-08-23, [P2-2]), which is what lets the

@@ -50,12 +50,12 @@ type Model = (typeof MODELS)[number];
 // Neutral wording on purpose: claude-opus-5-5's classifier refused (stop_reason "refusal", zero output) both a
 // "group role-play" system prompt and the kit's nonce'd toll-ledger filler.
 const SYSTEM =
-  "Three friends, Mara, Wren and Kai, solve a puzzle together and answer in turn. Reply in one or two sentences as the named friend, starting with that name and a colon.";
+  "Three friends, Mira, Wren and Kai, solve a puzzle together and answer in turn. Reply in one or two sentences as the named friend, starting with that name and a colon.";
 // A small puzzle each speaker must answer, so adaptive thinking engages and every reply carries a real signed
 // thinking block (a plain chat line gets none, even at high effort).
 const RIDDLE =
   "Puzzle: the garden log lists five harvests of 17, 23, 31, 44 and 53 beans. Four numbers share a property and one does not. Each friend names the odd number, gives the reason, and adds one new observation.";
-const CUE_A = "[Mara answers next.]";
+const CUE_A = "[Mira answers next.]";
 const CUE_B = "[Wren answers next.]";
 const CUE_NEXT = "[Kai answers next.]";
 const CROPS = ["beans", "squash", "kale", "peas", "carrots", "leeks", "basil", "onions"];

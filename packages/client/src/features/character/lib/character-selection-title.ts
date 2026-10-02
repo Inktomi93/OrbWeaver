@@ -15,9 +15,9 @@
 // WITH NOBODY OPEN IT NAMES THE LIBRARY *AND ITS SIZE* (#1670). On a phone the LIST pane IS the screen and
 // the ONE-NAME rule (shell.css) sheds the LIST band's title — and the census travels INSIDE that title
 // (`components/list-pane-header.tsx`: "THE COUNT TRAVELS WITH THE TITLE"), so a phone printed the library's
-// size nowhere at all: a 327-character library and an empty one read identically. The count goes back with
-// the noun that survives, which on a phone is this one — so the desktop's `Characters 327` and the phone's
-// `Characters · 327` are the same statement in the same place, the screen's name.
+// size nowhere at all: a 320-character library and an empty one read identically. The count goes back with
+// the noun that survives, which on a phone is this one — so the desktop's `Characters 320` and the phone's
+// `Characters · 320` are the same statement in the same place, the screen's name.
 //
 // Corpus and Analytics drill the same ENTITY from their own selection stores and each carry their own
 // three-line twin: `client-features-no-cross` bars them from importing this one, and a shared home would

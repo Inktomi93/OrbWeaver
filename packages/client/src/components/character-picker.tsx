@@ -1,49 +1,22 @@
-// CharacterPicker — the client-shared searchable character-picker body (clone-audit item 3): the
-// QueryBoundary(SkeletonRows/QueryErrorState) → useSuspenseQuery(character.list) → @orb/ui/command list of
-// avatar+name rows shared by add-member-popover ↔ new-chat-picker-surface. The OUTER chrome differs (an
-// anchored Popover vs a modal focus-stack) and stays with each consumer; this composite owns the query +
-// the Command body. Reads characters through the tRPC seam (`trpc.character.list`), never a character-feature
-// internal — so it is legal to consume from the chat feature.
+// CharacterPicker is client-shared: it owns the QueryBoundary, character.list read, and Command body; each
+// caller owns its outer Popover or modal chrome. It uses the tRPC seam, not character-feature internals.
 //
-// THE SEARCH IS THE SERVER'S (owner ruling 2026-08-13). This used to be ONE `limit: 100` recency page with
-// cmdk filtering inside it: past the hundredth card a character was simply unreachable from the new-chat
-// picker, and typing her name found nothing while she sat in the library — the owner hit exactly that. The
-// typed value is now a DEBOUNCED `character.list` search param over the whole library, so the picker and the
-// library answer the same question with the same predicate. cmdk's own value filter is left ON: it is a
-// second, cheap narrowing of the page already in hand, and it keeps keyboard highlighting coherent while a
-// new page is in flight.
+// The search is a debounced server predicate over the whole library (owner ruling 2026-08-13). cmdk also
+// narrows the loaded page to keep keyboard highlighting coherent while a request is in flight. Browsing is
+// a keyset infinite query with no maxPages: evicting head pages makes earlier rows unrecoverable; the list
+// max-height bounds its DOM cost (#157).
 //
-// …AND THE LIST IS THE WHOLE LIBRARY NOW, NOT ITS FIRST PAGE (owner, 2026-08-17, #157 scope add). Fixing
-// the SEARCH left the BROWSE half of the same defect standing: with 327 cards live, a picker that asked
-// for one 100-row page simply did not contain cards 101…327, so anyone who did not already know a name
-// could not reach them by scrolling. The read is a keyset INFINITE query now — the same
-// `character.list.infiniteQueryOptions` walk the library surface runs, with the same no-`maxPages` ruling
-// (windowing evicts head pages unrecoverably; the DOM cost here is bounded by the list's own max-height).
+// The tail loads on pointer scroll and when KeyboardTailLoader sees the roving highlight reach the last
+// loaded row (#334). Keyboard reachability must not depend on scrollIntoView firing onScroll. This
+// supersedes the footer Load more button, which was previously moved out of the listbox to avoid
+// announcing it as a character option. The footer retains the server totalCount and Clear affordance.
 //
-// THE TAIL LOADS ON NAVIGATION, WITH NO BUTTON (owner ruling 2026-08-19, #334 Bug 2 — supersedes the
-// footer-button ruling below). This ruling SURVIVES; its INPUT changed. The a11y concern the footer button
-// answered — a scroll-only tail is unreachable by keyboard — is now delivered by KEYBOARD-NAV-TRIGGERS-LOAD
-// instead of a control the user has to Tab to and click:
-//   · `onScroll` fetches the next page as the list bottoms out (the pointer path, unchanged);
-//   · `<KeyboardTailLoader>` fetches it when cmdk's roving highlight (Arrow/Page/Home/End) reaches the last
-//     loaded row — the STATE signal, so the tail is reachable by keyboard without depending on cmdk's
-//     `scrollIntoView({block:"nearest"})` happening to fire `onScroll`.
-// The owner OVERRODE the button: keyboard users navigate the list or search, and a visible "Load more"
-// control pointer users never click (the fetch already fires on scroll) reads as confusing dead chrome.
-// PRIOR RULING (kept for provenance, no longer the shape): "THE TAIL AFFORDANCE IS A FOOTER, NOT AN OPTION"
-// (side-eye 2026-08-19, refinery P2) — the paging control was moved out of the listbox into a real footer
-// `<Button>` because as a `forceMount`ed `CommandItem` it announced to a screen reader as a selectable
-// character at row 101 of a deep scroll. That button is now removed.
-// The footer REMAINS for the honest count (`totalCount` is a real server COUNT over the same scope this page
-// windows, so "showing N of M" states the walk) and for CLEAR: a search that matches nothing left "No
-// characters match." as the whole pane, with the only way out being to hand-delete the term you typed.
-// Exclusions are applied AFTER each server page because `character.list` deliberately has no arbitrary-id
-// exclusion input. Filtered pages therefore advance until the remaining rows have a pointer-scrollable
-// tail or exhaust the walk; a rejected tail remains visible as an error + retry beside retained pages.
+// Exclusions apply after each server page because character.list has no arbitrary-id exclusion input.
+// Filtered pages advance until a remaining row provides a scrollable tail or the walk exhausts; a rejected
+// tail exposes error/retry beside retained pages.
 //
-// OWNER RULING: lives client-shared (NOT @orb/ui — it wires #data/#state client seams). Named `CharacterPicker`
-// (not the spec's generic "EntityPicker"): both consumers pick characters and the row is character-shaped
-// (avatar+name); an honest name beats a speculative generalization (§13.9).
+// The owner ruled this client-shared, not @orb/ui: it wires client data/state seams. The name
+// CharacterPicker reflects its character-shaped rows rather than a speculative EntityPicker abstraction.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId } from "@orb/kit/ids";

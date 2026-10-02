@@ -7,7 +7,7 @@
 // the merge rule from the report of a merge that had already happened. A pick now STAGES
 // (`use-library-import.ts` — zero requests), and this preflight states the consequence in the words the
 // server verbs actually implement, then asks. The consequence copy is DERIVED, not reassuring:
-//   · `import-character.ts` — dedup is the same FILE (`importHash`) and NEVER the name, so two "Emily"
+//   · `import-character.ts` — dedup is the same FILE (`importHash`) and NEVER the name, so two "Eleni"
 //     cards stay two characters and a re-dropped file is skipped.
 //   · `import-themes.ts` / `import-presets.ts` — the settings/preset domain's import is idempotent on
 //     (ownerId, name) and MERGES a same-named row IN PLACE.

@@ -657,7 +657,7 @@ describe("buildPluginBridge — the U8 ingest writes close over the installer (n
     const rec = ingestRecordingOps();
     const bridge = buildPluginBridge(rec.ops, INSTALLER, OTHER_PLUGIN_REF, freeBelts());
 
-    await bridge.character.ingest({ name: "Bram" });
+    await bridge.character.ingest({ name: "Bryn" });
 
     expect(rec.characterCalls[0]?.pluginId).toBe(OTHER_PLUGIN);
   });
@@ -666,7 +666,7 @@ describe("buildPluginBridge — the U8 ingest writes close over the installer (n
     const rec = ingestRecordingOps();
     const bridge = buildPluginBridge(rec.ops, INSTALLER, null, freeBelts());
 
-    await bridge.character.ingest({ name: "Bram" });
+    await bridge.character.ingest({ name: "Bryn" });
 
     expect(rec.characterCalls[0]?.pluginId).toBeNull();
   });

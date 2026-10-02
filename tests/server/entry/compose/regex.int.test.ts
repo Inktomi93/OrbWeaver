@@ -55,12 +55,12 @@ describe("compose/regex — resolveVisibleRooms (the reverse roster's room filte
   });
 
   // THE FIX (owner pick 2026-08-09). Before it, this room's roster row said "Untitled chat" — naming nobody,
-  // while the chats list called the same room "azarael".
+  // while the chats list called the same room "aveline".
   test("an UNNAMED room carries its cast, so the client's one title chain can name it", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "strip ooc" });
-    const characterId = await seedCharacter(db, owner, "azarael");
+    const characterId = await seedCharacter(db, owner, "aveline");
 
     const untitled = await seedChat(db, "untitled", { title: "   ", updatedAt: NOW });
     await seedParticipant(db, { chatId: untitled, key: "u", userId: owner, role: "host" });
@@ -71,7 +71,7 @@ describe("compose/regex — resolveVisibleRooms (the reverse roster's room filte
 
     // The authored title arrives RAW — the trim is the chain's, not this op's, so nothing here decides that
     // "   " means unnamed.
-    expect(usage.rooms).toEqual([{ id: untitled, title: "   ", participantNames: ["azarael"], at: NOW }]);
+    expect(usage.rooms).toEqual([{ id: untitled, title: "   ", participantNames: ["aveline"], at: NOW }]);
   });
 
   test("the CALLER's own seat is suppressed, and a HUMAN reads as their active persona, else their handle", async () => {

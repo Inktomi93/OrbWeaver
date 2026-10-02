@@ -136,7 +136,7 @@ test("each miniature draws the runtime mode's defining message anatomy", async (
     const messageCount = style === "whisper" || style === "tide" ? 1 : 2;
     await expect(preview(style).locator('[data-slot="chat-style-preview-message"]')).toHaveCount(messageCount);
     await expect(preview(style).locator('[data-slot="chat-style-preview-header"]')).toHaveCount(messageCount);
-    await expect(preview(style).getByText("Mara", { exact: true })).toBeVisible();
+    await expect(preview(style).getByText("Mira", { exact: true })).toBeVisible();
     await expect(preview(style).getByText("The lantern is still warm.", { exact: true })).toBeVisible();
   }
 

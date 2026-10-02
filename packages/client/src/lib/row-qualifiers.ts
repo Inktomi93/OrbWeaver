@@ -1,9 +1,9 @@
 // The per-row action-name DISAMBIGUATOR, resolved across a WHOLE list (side-eye P2c).
 //
-// A row action names its subject ('Star "Azarael" · 3d', 'Duplicate "Default (edited)" · 9h ago'), and the
+// A row action names its subject ('Star "Aveline" · 3d', 'Duplicate "Default (edited)" · 9h ago'), and the
 // subject is the row's name plus the stamp the row already SHOWS — so what is announced matches the screen.
 // A per-row derivation cannot know that the stamp collided: eight forks minted in the same hour all read
-// "9h ago", and a character's projection is N rows titled "Azarael" whose newest few all read "2h". The
+// "9h ago", and a character's projection is N rows titled "Aveline" whose newest few all read "2h". The
 // result is N identical accessible names — a screen-reader or agent walk of the list cannot tell them apart,
 // which is the exact defect the qualifier exists to fix.
 //

@@ -251,7 +251,7 @@ test("rule 9: a marker on a text-less tool-call row moves to the nearest earlier
   const raw = {
     model: "anthropic/claude-sonnet-5",
     messages: [
-      { role: "system", content: [{ type: "text", text: "You are Mara.", cache_control: CC }] },
+      { role: "system", content: [{ type: "text", text: "You are Mira.", cache_control: CC }] },
       { role: "user", content: "What is the tide?" },
       {
         role: "assistant",
@@ -296,7 +296,7 @@ const ROUND = {
   messages: [
     { role: "system", content: [{ type: "text", text: "You are the narrator.", cache_control: CC }] },
     { role: "user", content: "We head for the harbor." },
-    { role: "assistant", content: "Mara: Mara leads." },
+    { role: "assistant", content: "Mira: Mira leads." },
     { role: "assistant", content: "Wren: Wren scouts.", cache_control: CC },
     { role: "user", content: "[Write the next reply only as Kai.]" },
   ],
@@ -308,7 +308,7 @@ test("rule 10: consecutive plain rows fold into one message, one part per row, t
   expect(messages[2]).toEqual({
     role: "assistant",
     content: [
-      { type: "text", text: "Mara: Mara leads." },
+      { type: "text", text: "Mira: Mira leads." },
       { type: "text", text: "Wren: Wren scouts.", cache_control: CC },
     ],
   });
@@ -319,14 +319,14 @@ test("rule 10: an absent field spelled as an undefined key does not block the fo
     model: "claude-sonnet-5",
     messages: [
       { role: "user", content: "Go." },
-      { role: "assistant", content: "Mara: on it.", tool_calls: undefined },
+      { role: "assistant", content: "Mira: on it.", tool_calls: undefined },
       { role: "assistant", content: "Wren: me too.", tool_calls: undefined },
     ],
   };
   const messages = recordsAt(shapeOutboundBody(raw, args({ foldSameRole: true })), "messages");
   expect(messages.map((message) => message["role"])).toEqual(["user", "assistant"]);
   expect(messages[1]?.["content"]).toEqual([
-    { type: "text", text: "Mara: on it." },
+    { type: "text", text: "Mira: on it." },
     { type: "text", text: "Wren: me too." },
   ]);
 });
@@ -341,11 +341,11 @@ test("rule 10: a row carrying a name, tool calls or replayed reasoning keeps its
     model: "anthropic/claude-sonnet-5",
     messages: [
       { role: "user", content: "Go." },
-      { role: "assistant", content: "Mara: on it." },
+      { role: "assistant", content: "Mira: on it." },
       { role: "assistant", content: null, tool_calls: [{ id: "call_1", type: "function", function: { name: "roll", arguments: "{}" } }] },
       { role: "assistant", content: "Kai: done.", reasoning: "…", reasoning_details: [] },
       { role: "user", content: "Joe's line", name: "Joe" },
-      { role: "user", content: "the owner's line" },
+      { role: "user", content: "Alex's line" },
     ],
   };
   const messages = recordsAt(shapeOutboundBody(raw, args({ dialect: "openrouter", foldSameRole: true })), "messages");

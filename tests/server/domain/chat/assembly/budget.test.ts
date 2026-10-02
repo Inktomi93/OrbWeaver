@@ -53,14 +53,14 @@ test("a plain (non-game) chat has NO game-state row; a game chat does", () => {
   expect(plain.sources.map((s) => s.source)).toEqual(["system"]);
 
   const game = buildAssemblyBudget({
-    slices: [slice("system", "main prompt", "RULES"), slice("game-state", "state block", "## Game state\nroster: Mara")],
+    slices: [slice("system", "main prompt", "RULES"), slice("game-state", "state block", "## Game state\nroster: Mira")],
     history: NO_HISTORY,
     ceilingTokens: 0,
     ceilingEstimated: false,
     sections: [],
   });
   expect(game.sources.map((s) => s.source)).toEqual(["system", "game-state"]);
-  expect(game.sources.find((s) => s.source === "game-state")?.text).toContain("roster: Mara");
+  expect(game.sources.find((s) => s.source === "game-state")?.text).toContain("roster: Mira");
 });
 
 test("the history row carries COST and shape, never content", () => {
@@ -90,10 +90,10 @@ test("the history row carries COST and shape, never content", () => {
 test("the detail line dedupes contributors and caps the spelled-out set", () => {
   const budget = buildAssemblyBudget({
     slices: [
-      slice("cards", "Mara", "a"),
-      slice("cards", "Mara", "b"), // the same member across two sections ⇒ named ONCE
+      slice("cards", "Mira", "a"),
+      slice("cards", "Mira", "b"), // the same member across two sections ⇒ named ONCE
       slice("cards", "Niko", "c"),
-      slice("cards", "Sera", "d"),
+      slice("cards", "Sola", "d"),
       slice("cards", "Alex (persona)", "e"),
     ],
     history: NO_HISTORY,
@@ -102,7 +102,7 @@ test("the detail line dedupes contributors and caps the spelled-out set", () => 
     sections: [],
   });
 
-  expect(budget.sources[0]?.detail).toBe("Mara · Niko · Sera · +1 more");
+  expect(budget.sources[0]?.detail).toBe("Mira · Niko · Sola · +1 more");
   // The drill-in body is every contribution joined — the whole card block, verbatim.
   expect(budget.sources[0]?.text).toBe("a\n\nb\n\nc\n\nd\n\ne");
 });
@@ -135,7 +135,7 @@ test("the section partition keys on RACK IDS, in rack order, and omits what rend
 test("the history PIVOT is priced off the FIT, with one materialized row per kept turn", () => {
   const rows = [
     { label: "user", tokens: 300 },
-    { label: "Azarael", tokens: 924 },
+    { label: "Aveline", tokens: 924 },
   ];
   const budget = buildAssemblyBudget({
     sections: [marker("main", "main_prompt"), marker("chat-history", "chat_history"), marker("chat-history-2", "chat_history")],
@@ -157,9 +157,9 @@ test("a section's rows FOLD by contributor — a merged card section is one row 
   const budget = buildAssemblyBudget({
     sections: [marker("char-desc", "char_description")],
     slices: [
-      slice("cards", "Mara", "Mara is a bold knight of the Lantern Road.", "char-desc"),
+      slice("cards", "Mira", "Mira is a bold knight of the Lantern Road.", "char-desc"),
       slice("cards", "Niko", "Niko is a wary scout.", "char-desc"),
-      slice("cards", "Mara", "Mara holds the line.", "char-desc"),
+      slice("cards", "Mira", "Mira holds the line.", "char-desc"),
     ],
     history: NO_HISTORY,
     ceilingTokens: 0,
@@ -167,7 +167,7 @@ test("a section's rows FOLD by contributor — a merged card section is one row 
   });
 
   const desc = budget.sections[0];
-  expect(desc?.rows.map((r) => r.label)).toEqual(["Mara", "Niko"]);
+  expect(desc?.rows.map((r) => r.label)).toEqual(["Mira", "Niko"]);
   expect(desc?.rows.every((r) => r.tokens > 0)).toBe(true);
   // The section total is estimated over the JOINED text (the source-row rule), so it is the whole block's cost.
   expect(desc?.tokens).toBeGreaterThan(desc?.rows[0]?.tokens ?? 0);
@@ -177,9 +177,9 @@ test("each source carries its per-CONTRIBUTOR parts — a room member is ONE lin
   // The owner's question the tab must answer: what is each character in the room costing me?
   const budget = buildAssemblyBudget({
     slices: [
-      slice("cards", "Mara", "Mara is a bold knight of the Lantern Road."),
+      slice("cards", "Mira", "Mira is a bold knight of the Lantern Road."),
       slice("cards", "Niko", "Niko is a wary scout."),
-      slice("cards", "Mara", "Mara's example dialogue: 'Hold the line.'"), // a 2nd section for the SAME member
+      slice("cards", "Mira", "Mira's example dialogue: 'Hold the line.'"), // a 2nd section for the SAME member
       slice("system", "Main", "SYSTEM RULES"),
     ],
     history: { usedTokens: 40, keptCount: 2, droppedCount: 0, rows: [] },
@@ -189,11 +189,11 @@ test("each source carries its per-CONTRIBUTOR parts — a room member is ONE lin
   });
 
   const cards = budget.sources.find((s) => s.source === "cards");
-  expect(cards?.parts.map((p) => p.label)).toEqual(["Mara", "Niko"]);
-  // Mara's two sections FOLD into one line carrying both bodies + a real token count.
-  const mara = cards?.parts.find((p) => p.label === "Mara");
-  expect(mara?.text).toBe("Mara is a bold knight of the Lantern Road.\n\nMara's example dialogue: 'Hold the line.'");
-  expect(mara?.tokens).toBeGreaterThan(0);
+  expect(cards?.parts.map((p) => p.label)).toEqual(["Mira", "Niko"]);
+  // Mira's two sections FOLD into one line carrying both bodies + a real token count.
+  const mira = cards?.parts.find((p) => p.label === "Mira");
+  expect(mira?.text).toBe("Mira is a bold knight of the Lantern Road.\n\nMira's example dialogue: 'Hold the line.'");
+  expect(mira?.tokens).toBeGreaterThan(0);
   expect(cards?.parts.every((p) => p.tokens > 0)).toBe(true);
   // A single-contributor source still reports its one part (the panel then skips the redundant sub-row).
   expect(budget.sources.find((s) => s.source === "system")?.parts).toEqual([{ label: "Main", tokens: expect.any(Number), text: "SYSTEM RULES" }]);

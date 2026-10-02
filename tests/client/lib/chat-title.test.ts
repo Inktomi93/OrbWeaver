@@ -33,6 +33,6 @@ test("deriveChatTitle: no title AND no participants → 'Untitled chat'", () => 
 });
 
 test("deriveChatTitle: names join in the order given (roster order is the caller's to decide)", () => {
-  expect(deriveChatTitle(null, ["Azarael", "Niko"])).toBe("Azarael, Niko");
-  expect(deriveChatTitle(null, ["Niko", "Azarael"])).toBe("Niko, Azarael");
+  expect(deriveChatTitle(null, ["Aveline", "Niko"])).toBe("Aveline, Niko");
+  expect(deriveChatTitle(null, ["Niko", "Aveline"])).toBe("Niko, Aveline");
 });

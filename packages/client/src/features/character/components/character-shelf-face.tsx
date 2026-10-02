@@ -69,8 +69,8 @@ export interface ShelfFaceResume {
 }
 
 /** THE NAME SAYS WHAT THE PRESS DOES (#1662, WCAG 2.5.3 + the `duplicate-action-door` finding this
- *  closes): two buttons both named "Sera" were two doors AT accessed identically; "Resume the chat with
- *  Sera" and "Sera" are two different offers, which is what they actually are. `starred` still rides the
+ *  closes): two buttons both named "Sola" were two doors AT accessed identically; "Resume the chat with
+ *  Sola" and "Sola" are two different offers, which is what they actually are. `starred` still rides the
  *  tail rather than the head, so the verb leads in both arms. */
 function faceActionName(name: string, starred: boolean, resume: ShelfFaceResume | null): string {
   const offer = resume === null ? name : `Resume the chat with ${name}`;

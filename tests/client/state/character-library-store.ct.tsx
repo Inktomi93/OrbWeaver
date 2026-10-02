@@ -95,7 +95,7 @@ test("clearCharacterFilters drops favorites + tags in one act, and leaves the ar
 
 // #491 — the filter rail's vocabulary is a DISCLOSURE, and its posture is a browse PREFERENCE: it survives
 // a rail round trip and a reload, exactly like the sort and the view mode beside it. Default `false`: the
-// collapsed rail is what gave the 327-character library back its vertical space and its keyboard.
+// collapsed rail is what gave the 320-character library back its vertical space and its keyboard.
 test("toggleFiltersOpen flips the rail's disclosure, and the posture PERSISTS (it is a preference, not a mode)", async ({ mount, page }) => {
   const probe = await mount(<CharacterLibraryStoreProbe />);
   const state = probe.locator("output");
@@ -122,11 +122,11 @@ test("setCharacterSearch drives the pane's search text, and it is deliberately N
   const state = probe.locator("output");
   await expect(state).toContainText("search=none");
 
-  await probe.getByRole("button", { name: "search hikari" }).click();
-  await expect(state).toContainText("search=hikari");
+  await probe.getByRole("button", { name: "search tamsin" }).click();
+  await expect(state).toContainText("search=tamsin");
 
   const stored = await page.evaluate((key) => globalThis.localStorage.getItem(key), STORAGE_KEY);
-  expect(stored ?? "").not.toContain("hikari");
+  expect(stored ?? "").not.toContain("tamsin");
 
   await probe.getByRole("button", { name: "clear search" }).click();
   await expect(state).toContainText("search=none");

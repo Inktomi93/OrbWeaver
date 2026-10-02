@@ -33,7 +33,7 @@ const emptySummarize = (inputs: readonly SummarizeInput[]): Promise<SummarizeRes
 
 const ENTITIES_ANCHOR_RE = /^\[entities/u;
 const aria = castId<CharacterId>("character_aria");
-const bram = castId<CharacterId>("character_bram");
+const bryn = castId<CharacterId>("character_bryn");
 
 let db: Db;
 let owner: UserId;
@@ -41,7 +41,7 @@ beforeEach(async () => {
   db = await freshDb();
   owner = await seedUser(db, castId<Handle>("owner"));
   await seedCharacter(db, owner, "aria"); // id === `character_aria` (the `aria` const) — FK target for speakers
-  await seedCharacter(db, owner, "bram"); // a second cast char — FK target for the consolidation speaker-union
+  await seedCharacter(db, owner, "bryn"); // a second cast char — FK target for the consolidation speaker-union
   await seedCharacter(db, owner, "group"); // id === GROUP_CHAR — FK target for the shared-bucket digests
 });
 
@@ -238,8 +238,7 @@ describe("memory/generate/digests", () => {
   });
 
   // #329 P1 (RED-FIRST): the consolidation is fed the children's FULL stored digests (anchor · facts · keywords),
-  // NOT just the anchor+keywords facets. Facts-stripped input made the summarizer CONFABULATE relations (measured
-  // live: an arc said "Mara married to Alex" when the child tier-0 digest correctly says Sam). The child's facts
+  // NOT just the anchor+keywords facets, which can omit who did what. The child's facts
   // BODY must reach the consolidation prompt. Compiles against OLD source (it asserts on the summarizer input).
   test("the consolidation prompt is fed the children's FULL facts body, not just anchor+keywords (#329 P1)", async () => {
     const chatId = await seedChat(db, "consolidation-facts");
@@ -570,19 +569,19 @@ describe("memory/generate/digests — adversarial (self-heal re-digest, tiering,
   test("self-heal: PERSONA reattribution of a digested user block re-digests it (G2 — memory was persona-BLIND before; FAILS pre-fix)", async () => {
     const chatId = await seedChat(db, "personareattr");
     const human = await seedUser(db, castId<Handle>("human"));
-    const mara = await seedPersona(db, human, "mara");
+    const mira = await seedPersona(db, human, "mira");
     const vex = await seedPersona(db, human, "vex");
-    // One aged-out block of two USER turns authored under persona Mara.
+    // One aged-out block of two USER turns authored under persona Mira.
     await seedMessage(db, chatId, 1, {
       role: "user",
       authorUserId: human,
-      personaId: mara,
+      personaId: mira,
       content: "hello 1",
     });
     await seedMessage(db, chatId, 2, {
       role: "user",
       authorUserId: human,
-      personaId: mara,
+      personaId: mira,
       content: "hello 2",
     });
     const cfg = { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 } as const;
@@ -591,7 +590,7 @@ describe("memory/generate/digests — adversarial (self-heal re-digest, tiering,
     await generateDigests(ctx1(pass1.store), { scope: sharedScope(chatId), config: cfg, funderUserId: owner });
     expect(pass1.digests.map((d) => d.key.blockIdx)).toEqual([0]);
 
-    // Reattribute the block's persona Mara → Vex (same author, same content) — the `{{user}}` subject changed.
+    // Reattribute the block's persona Mira → Vex (same author, same content) — the `{{user}}` subject changed.
     // Pre-fix the block hash omitted personaId, so this was a SILENT no-op on memory (the digest never refreshed).
     await db.update(messages).set({ personaId: vex }).where(eq(messages.chatId, chatId));
 
@@ -617,8 +616,8 @@ describe("memory/generate/digests — adversarial (self-heal re-digest, tiering,
     await generateDigests(ctx1(pass1.store), { scope: sharedScope(chatId), config: cfg, funderUserId: owner });
     expect(pass1.digests.map((d) => d.key.blockIdx)).toEqual([0]);
 
-    // Re-voice the block from Aria → Bram (a genuine `{{char}}` re-attribution) — the characterId fold busts it.
-    await db.update(messages).set({ characterId: bram }).where(eq(messages.chatId, chatId));
+    // Re-voice the block from Aria → Bryn (a genuine `{{char}}` re-attribution) — the characterId fold busts it.
+    await db.update(messages).set({ characterId: bryn }).where(eq(messages.chatId, chatId));
 
     const sum2 = fakeSummarize();
     const pass2 = upsertingStore(db);
@@ -634,11 +633,11 @@ describe("memory/generate/digests — adversarial (self-heal re-digest, tiering,
   test("G1: the digest transcript resolves {{user}}→the persona name in the summarizer input (not the raw macro)", async () => {
     const chatId = await seedChat(db, "digestbody");
     const human = await seedUser(db, castId<Handle>("human2"));
-    const mara = await seedPersona(db, human, "mara");
+    const mira = await seedPersona(db, human, "mira");
     await seedMessage(db, chatId, 1, {
       role: "user",
       authorUserId: human,
-      personaId: mara,
+      personaId: mira,
       content: "I am {{user}}.",
     });
     await seedMessage(db, chatId, 2, { characterId: aria, content: "Hi {{char}} speaking." });
@@ -646,7 +645,7 @@ describe("memory/generate/digests — adversarial (self-heal re-digest, tiering,
     const store = fakeEmbeddingsStore(db);
     const macroNames: RowMacroNameContext = {
       characterNamesById: new Map([[aria, { name: "Aria" }]]),
-      personaNamesById: new Map([[mara, { name: "Mara", description: "" }]]),
+      personaNamesById: new Map([[mira, { name: "Mira", description: "" }]]),
     };
     await generateDigests(makeChatContext(db, { summarize: sum.op, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments }), {
       scope: sharedScope(chatId),
@@ -655,10 +654,10 @@ describe("memory/generate/digests — adversarial (self-heal re-digest, tiering,
       funderUserId: owner,
     });
     const prompt = sum.calls.at(0)?.userPrompt ?? "";
-    expect(prompt).toContain("I am Mara."); // {{user}} → the authoring persona name
+    expect(prompt).toContain("I am Mira."); // {{user}} → the authoring persona name
     expect(prompt).toContain("Aria speaking"); // {{char}} → the row's character name
     expect(prompt).not.toContain("{{user}}"); // never the literal macro
-    expect(prompt).not.toContain("persona_mara"); // never the raw typeid
+    expect(prompt).not.toContain("persona_mira"); // never the raw typeid
   });
 
   test("self-heal: editing a PROTECTED-TIP message never busts a settled digest (the protect zone shields it)", async () => {
@@ -757,8 +756,8 @@ describe("memory/generate/digests — adversarial (self-heal re-digest, tiering,
 
   test("tier consolidation: ONE tier-1 per fanOut group via the DELTA prompt, a real synthesis, speakers unioned", async () => {
     const chatId = await seedChat(db, "consol");
-    // 4 tier-0 blocks (blockSize 2) voiced by alternating speakers → the tier-1 unions [aria, bram] (first-seen).
-    const voices = [aria, aria, bram, bram, aria, aria, bram, bram];
+    // 4 tier-0 blocks (blockSize 2) voiced by alternating speakers → the tier-1 unions [aria, bryn] (first-seen).
+    const voices = [aria, aria, bryn, bryn, aria, aria, bryn, bryn];
     for (const [i, characterId] of voices.entries()) {
       await seedMessage(db, chatId, i + 1, { characterId, content: `t${i + 1}` });
     }
@@ -779,7 +778,7 @@ describe("memory/generate/digests — adversarial (self-heal re-digest, tiering,
     expect(tier1[0]?.text).toContain("scene 5");
     expect(tier1[0]?.text).not.toContain("scene 1");
     // speakers unioned across the group, first-seen order.
-    expect(tier1[0]?.speakerCharacterIds).toEqual([aria, bram]);
+    expect(tier1[0]?.speakerCharacterIds).toEqual([aria, bryn]);
   });
 
   test("token-guard at build: an over-budget OLDEST message is trimmed (block STILL digested) — never a silent tail truncation", async () => {

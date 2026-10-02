@@ -82,16 +82,9 @@ describe("the THIN in-between — analysed, but barely", () => {
   });
 });
 
-// ── THE MASTHEAD STATES EACH NUMBER ONCE (side-eye corpus re-pass 2026-08-19 §5 `distill`) ─────────────
-// THE FORK, ON THE RECORD. This block used to pin "un-analysed ⇒ the hero IS the family count" and
-// "analysed ⇒ the hero IS the story-theme count", from the ruling that the hero MOVES WITH THE PHASE. The
-// re-pass measured what that produces on a real library: the h1 read "327 characters, distilled into 24
-// story themes" and the figure row beside it printed 327 and 24 AGAIN — one of six more-than-one-home
-// findings, and the only one where a surface argues with itself six inches apart.
-// The old MECHANISM is kept (at most one hero, chosen by phase, never a zero while un-analysed); what is
-// new is that the sentence is spent FIRST — a figure whose number the headline already gives is dropped,
-// and the hero is the first survivor. When the sentence covers everything the library knows, there is no
-// figure row at all, which is what "state it once" means when the sentence wins.
+// Masthead numbers appear once. A headline displaces an identical figure, and the phase priority chooses
+// the first remaining hero. Un-run zero is absent; successful measured zero can render. These cases
+// preserve the recorded fork rather than pinning the obsolete family-hero rule.
 describe("the hero figure — at most ONE per surface, and never a number the sentence just said", () => {
   test("un-analysed: the sentence already names the characters AND the families, so no figure repeats them", () => {
     const state = deriveCorpusAnalysisState(AUDITED);
@@ -146,13 +139,8 @@ describe("the hero figure — at most ONE per surface, and never a number the se
 
 describe("the readiness rail — a measurement or an honest 'not run', never a bare zero", () => {
   test("families reads as TWO UNITS, not the mockup's false 'N of M clustered' — and names its base", () => {
-    // The mockup's "8 of 10 clustered" parses as "8 of 10 characters are clustered", which is false: all
-    // ten are, into eight families. §L.8 deviation, pinned here so it cannot drift back — the two numbers
-    // are still different UNITS, which is why the row keeps two clauses.
-    // WHAT CHANGED (side-eye populated arm 2026-08-23, #535's surviving half): the character clause now
-    // names what it is out of. On the audited 327-character library this read "8 families · 242
-    // characters" and nothing on the surface accounted for the other 85 — a real measurement of a real
-    // thing, printed as if it were the whole library.
+    // Families and clustered characters are different counts. The readiness datum names each and states
+    // the character denominator; it must not imply that a family count is a subset of the character count.
     expect(stageDatum(AUDITED, "families")).toBe("8 families · 10 of 10 characters");
     expect(stageDatum({ ...AUDITED, characters: 12 }, "families"), "the shortfall is derivable from the row itself").toBe("8 families · 10 of 12 characters");
   });
@@ -186,9 +174,8 @@ describe("the readiness rail — a measurement or an honest 'not run', never a b
   });
 
   test("…but only once the pass has RUN: an un-run dedup reads 'not run', never the reassuring zero (#164)", () => {
-    // The owner read "none found" on a 327-card imported library and took it for a defect. It was not — the
-    // `find-duplicates` pass had simply never run (it later found 30 pairs). Two zeros, two different
-    // actions, and this rail's whole contract is that a zero is a state a reader can act on.
+    // An un-run duplicate pass and a successful empty result are different zeros with different
+    // labels/actions.
     expect(stageDatum({ ...AUDITED, duplicatesEverRan: false }, "duplicates")).toBe("not run");
     // A pass that never ran cannot have found anything, so the un-run arm outranks a stale count too.
     expect(stageDatum({ ...AUDITED, duplicatesEverRan: false, duplicateChats: 4 }, "duplicates")).toBe("not run");

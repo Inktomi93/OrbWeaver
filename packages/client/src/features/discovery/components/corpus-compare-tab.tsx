@@ -1,24 +1,11 @@
-// The Corpus CONTEXT "Compare" tab — a two-character facet diff. Two Selects (populated from
-// `browseCharacters`) pick the pair → `compareCharacters` renders the no-LLM diff (shared/only tags +
-// redundancy). "Deep compare" adds `compareCharactersDeep`'s grounded narrative — this tab's ONE primary.
+// The Compare tab reads the selected pair's facet diff; Deep compare is its one primary and adds grounded
+// narrative. The pair lives in corpus-compare-store so Similarity can seed it and the handoff survives the
+// shell unmounting the previous Context tab (#554).
 //
-// THE PAIR LIVES IN A STORE, NOT IN THIS COMPONENT (side-eye populated arm 2026-08-23, #554). It was
-// `useState` here, which made this tab the ONLY way to name a pair — and next door the Similarity tab was
-// listing 1,782 of them as inert text with `clickablePairs: 0`, the app's best answer to "are these two
-// the same character?" sitting one tab away from the question and unreachable from it. A pair row is a
-// door now, and a door needs somewhere to put what it carries: `state/corpus-compare-store.ts` (which also
-// survives the CONTEXT tab body being unmounted on the tab switch that door performs).
-//
-// AND THE PICKERS NAME WHAT THEY HOLD (side-eye se-verify-4 N2, issue #563). Base UI's `Select.Value`
-// resolves the trigger's text by looking the value up in the `items` it was handed; these items are ONE
-// page of `browseCharacters`, so a pair seeded by the door above — from anywhere in a 313-card catalog —
-// routinely is not among them, and the trigger fell back to printing the raw value: two
-// `character_01m0n6e2…` ULIDs above a body naming those same two characters in words, the same entity
-// spelled twice in one frame, once as a database key. Paging the picker would not close it (the seeded pair
-// can always be off whatever page is loaded), so the NAME travels with the id in the store and this tab
-// MERGES a named-but-unlisted selection into its own item list. The picker then names the pair it holds
-// whatever page is loaded, and because the merge produces a real option the dropdown shows the current pick
-// as selected rather than as a missing one.
+// Select.Value resolves labels from its current items, but browseCharacters is paged and a seeded pair can
+// be outside any loaded page (#563). The store carries each name with its id; the tab merges named-but-
+// unlisted selections into its options so the trigger remains legible and the dropdown marks the current
+// selection.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

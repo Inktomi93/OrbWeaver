@@ -37,7 +37,7 @@ export interface ChatListRowMenuProps {
   readonly title: string | null;
   /** The row's DISAMBIGUATED name (`chatRowActionName` — derived display title + the stamp the row shows) —
    *  names the kebab trigger so the per-row menus are distinguishable, not N identical "Chat actions"
-   *  (finding #4), and not N identical "Chat actions for Azarael" in her projection (side-eye P3a). */
+   *  (finding #4), and not N identical "Chat actions for Aveline" in her projection (side-eye P3a). */
   readonly rowName: string;
   readonly starred: boolean;
   readonly archived: boolean;

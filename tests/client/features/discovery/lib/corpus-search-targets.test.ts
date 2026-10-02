@@ -1,11 +1,6 @@
-// The corpus omnibox's NEAREST-ONLY band (side-eye corpus re-pass #3, P2-B) — the one decision on the
-// target axis that is a judgment rather than a lookup, and the one whose constants were measured against the
-// owner's live library rather than chosen (the table lives in `corpus-search-targets.ts`).
-//
-// WHAT IS PINNED HERE AND WHY: that the band is PER TARGET (gibberish scores .20 against images and .60
-// against digests — a single constant is wrong somewhere by construction), and that an empty list is never
-// "degraded" (it has its own designed empty state, and `Math.max()` of nothing is -Infinity). The banner's
-// rendering is a CT's job (`corpus-search-results.ct.tsx`); this is the arithmetic underneath it.
+// Nearest-only display bands are target-specific; relevance is not comparable across targets. A low score
+// labels the result list but never hides rows or changes server ranking. Constants and the rendering
+// decision are tested here without exporting private calibration measurements.
 
 import { describe } from "vitest";
 import { CORPUS_NEAREST_ONLY_BELOW, isNearestOnly } from "../../../../../packages/client/src/features/discovery/lib/corpus-search-targets.ts";

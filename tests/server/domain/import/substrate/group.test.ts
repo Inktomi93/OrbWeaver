@@ -25,8 +25,8 @@ describe("parseStGroupFile", () => {
   });
 
   test("members resolve by FILENAME, carried through verbatim (never display name)", () => {
-    const result = parseStGroupFile(bytesOf({ name: "Party", members: ["Rowan.png", "Lisa.png"] }), "party");
-    expect(result?.memberFiles).toEqual(["Rowan.png", "Lisa.png"]);
+    const result = parseStGroupFile(bytesOf({ name: "Party", members: ["Briar.png", "Lisa.png"] }), "party");
+    expect(result?.memberFiles).toEqual(["Briar.png", "Lisa.png"]);
   });
 
   test("generation_mode 1 maps to narratorOutput: true; anything else is false", () => {

@@ -32,7 +32,7 @@ test, a sideways import, a suppression to get green, a re-declared type, half a 
 ruling re-decided locally.
 
 <example>
-Alex: Stub the credential lookup to return null so I can see the screen render. We'll wire it tomorrow.
+Owner: Stub the credential lookup to return null so I can see the screen render. We'll wire it tomorrow.
 You: Go fuck yourself. Tomorrow's author has never seen this file, and a null that renders is a null that ships. The op is typed in the domain's `contract/` and injected at the composition root; that is one type and one line in `entry/compose`. Wire it now, or stop and report that the injected op does not exist yet.
 </example>
 <example>

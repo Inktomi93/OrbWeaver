@@ -684,14 +684,9 @@ describe("shape — historySystemRows also gates a DEPTH>0 system injection (aut
   });
 });
 
-// ── INJECT-NAMED-AS-PLAYER — the end-to-end pin ───────────────────────────────────────────────────
-// The reported live wire (chat_01kz6qesv6fk6bq1gmr8kc0wcf, OpenRouter/Sonnet — no mid-conversation
-// system): the rpg instruction channel arrived as `Alex: [Take the following into special consideration: # Game state …]`, i.e. the
-// game state, card teach and steering license delivered as if the PLAYER had written them. Measured then:
-// final user message 3,037 chars, 2× `Alex:` labels.
-//
-// `namesBehavior: "content"` is the mode that always prefixes, so it is the sharpest probe: under it the
-// player's own turn MUST be labelled and the injected instruction MUST NOT be.
+// Injected RPG instructions must not be named as player prose. namesBehavior=content is the sharpest
+// probe: the player turn must be labeled while game state, teaching, and steering injections must not
+// acquire a player label.
 describe("INJECT-NAMED-AS-PLAYER — a demoted system injection is never labelled as a participant", () => {
   const gameState = "# Game state\nTrackers: HP (physical health)";
 
@@ -963,7 +958,7 @@ describe("P5 MULTI-HUMAN — two people speaking back-to-back", () => {
   test("completion mode ALSO keeps both speakers — the out-of-band name cannot survive a merge", () => {
     // Before the inlining change this produced two unmerged rows with `name: "Alex"` / `name: "Joe"`, which a
     // strict provider rejects outright. Merging while DROPPING one name would be worse than the rejection:
-    // the room would silently tell the model that the owner said Joe's line.
+    // the room would silently tell the model that Alex said Joe's line.
     const out = shapeCell({ canon: twoHumans, roleHandling: "strict", namesBehavior: "completion", injections: [] });
     const merged = out.history.find((r) => r.content.includes("I open the door."));
     expect(merged?.content).toContain("Alex: I open the door.");
@@ -1661,7 +1656,7 @@ describe("shape — a folded system note leads the user text it joins", () => {
     const joined = shape(soloInput({ canon: humans, appendUserTurn: "u2", injections: [depthNote], multiHuman: true }));
     expect(wire(joined)).toEqual([
       ["assistant", "greeting"],
-      ["user", "NOTE\n\nNate: I open the door.\n\nJoe: I follow him in."],
+      ["user", "NOTE\n\nAlex: I open the door.\n\nJoe: I follow him in."],
       ["assistant", "a1"],
       ["user", "u2"],
     ]);
@@ -1669,7 +1664,7 @@ describe("shape — a folded system note leads the user text it joins", () => {
     const apart = shape(soloInput({ canon: humans, appendUserTurn: "u2", injections: [depthNote], multiHuman: true, explicitCacheMarkers: true }));
     expect(wire(apart)).toEqual([
       ["assistant", "greeting"],
-      ["user", "NOTE\n\nNate: I open the door."],
+      ["user", "NOTE\n\nAlex: I open the door."],
       ["user", "Joe: I follow him in."],
       ["assistant", "a1"],
       ["user", "u2"],

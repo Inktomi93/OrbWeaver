@@ -562,14 +562,8 @@ test("the rgb-authored twin stays clean — the normalizer widened the parse, it
   expect(onLine, `the rgb ramp was never blind and its contrast is the same ~14:1 — got ${JSON.stringify(onLine)}`).toEqual([]);
 });
 
-// ── aria-hidden is an ACCESSIBILITY fact, not a paint one (issue #253) ────────────────────────────
-// The text walk skipped every `aria-hidden` subtree outright, and `aria-hidden` also sat inside the
-// type-floor's code-context exemption. So three baseline findings (wide-tracking, line-length,
-// undersized-ui-text on the facet preview) VANISHED from the scan the day #230 marked that preview
-// aria-hidden — correctly, for naming — while it still rendered at 10.5px / 0.84px tracking / 1,283 chars.
-// Sighted users read what the scanner had stopped looking at. The split these two tests pin: the VISUAL
-// families judge rendered pixels regardless of the accessibility tree, and the NAME/target families keep
-// skipping aria-hidden, because that is where the attribute really decides the answer.
+// aria-hidden changes the accessibility tree, not rendered pixels (#253). Visual type-floor families still
+// inspect painted text; name/target families continue excluding hidden names. These tests pin that split.
 test("the visual families judge aria-hidden text — pixels do not consult the accessibility tree", async ({ mount, page }) => {
   await mount(<WalkerAriaHiddenVisualStory />);
   const findings = collectFindings(await samplesOf(page));

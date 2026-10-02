@@ -333,7 +333,7 @@ export interface RpgComposeResult {
 // order: `acceptHostHandoff` (D64) swaps roles in place, so the first-joined human is NOT the host (stickler F3).
 // Both the resync extraction (whose human funds the model call) and the capability verdict read it.
 
-/** Render one transcript row as a labeled story line (`Mara: …`, `You: …`, `System: …`). A null speaker
+/** Render one transcript row as a labeled story line (`Mira: …`, `You: …`, `System: …`). A null speaker
  *  name renders by role (user → "You", system → "System", assistant → "Narrator") — the model reads coherent
  *  story attribution without needing the id plumbing. */
 const TRANSCRIPT_ROLE_FALLBACK: Readonly<Record<RpgTurnTranscriptMessage["role"], string>> = { user: "You", system: "System", assistant: "Narrator" };

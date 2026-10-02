@@ -48,7 +48,7 @@ const TIDE_TWO_PARAGRAPHS = "One.\n\nTwo.";
 
 const ALICE_ID = castId<CharacterId>("char_alice");
 const BOB_ID = castId<CharacterId>("char_bob");
-const NATE_PERSONA_ID = castId<PersonaId>("persona_nate");
+const ALEX_PERSONA_ID = castId<PersonaId>("persona_alex");
 
 function alice(): ParticipantView {
   return {
@@ -313,7 +313,7 @@ test("a null characterId in a multi-character room shows a neutral Narrator, unc
 
 test("user row resolves the message's personaId against the macro-name producer", async ({ mount }) => {
   const component = await mount(
-    <MessageRowStory chatStyle="bubble" messageRole="user" personaId={NATE_PERSONA_ID} personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]} />,
+    <MessageRowStory chatStyle="bubble" messageRole="user" personaId={ALEX_PERSONA_ID} personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]} />,
   );
   await expect(component.locator(ATTRIBUTION)).toContainText("Alex");
   // User-row attribution carries no color wrap — the per-role user-bubble token owns that already.
@@ -349,7 +349,7 @@ for (const chatStyle of ["bubble", "flat", "document"] as const) {
       <GroupTranscriptAttributionStory
         chatStyle={chatStyle}
         participants={[alice(), bob()]}
-        persona={{ id: NATE_PERSONA_ID, name: "Alex" }}
+        persona={{ id: ALEX_PERSONA_ID, name: "Alex" }}
         showInChatAvatars={false}
       />,
     );
@@ -463,7 +463,7 @@ test("an assistant avatar sits BEFORE the content column (§B.1)", async ({ moun
 // "container already has a React root"). The mirror is its own test rather than a second mount above.
 test("a user row mirrors it — avatar AFTER the content column (§B.1 own-message mirroring)", async ({ mount }) => {
   const user = await mount(
-    <MessageRowStory chatStyle="bubble" messageRole="user" personaId={NATE_PERSONA_ID} personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]} />,
+    <MessageRowStory chatStyle="bubble" messageRole="user" personaId={ALEX_PERSONA_ID} personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]} />,
   );
   const userChildren = user.locator(`${ROW_BODY} > *`);
   await expect(userChildren.first()).toHaveAttribute("data-slot", "message-content-column");
@@ -515,8 +515,8 @@ test("a message with {{char}}/{{user}} resolves real names once the roster + anc
       content="{{char}} waves at {{user}}."
       characterId={ALICE_ID}
       participants={[alice()]}
-      personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]}
-      anchorPersonaId={NATE_PERSONA_ID}
+      personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]}
+      anchorPersonaId={ALEX_PERSONA_ID}
     />,
   );
   await expect(component.getByText("Alice waves at Alex.")).toBeVisible();
@@ -590,7 +590,7 @@ test("echo: the art pane is a FIXED column outside the prose measure, sized to t
 
 test("echo: a persona-kind (user) row is decorated too, mirrored to its own outer edge", async ({ mount }) => {
   const component = await mount(
-    <MessageRowStory chatStyle="echo" messageRole="user" personaId={NATE_PERSONA_ID} personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]} />,
+    <MessageRowStory chatStyle="echo" messageRole="user" personaId={ALEX_PERSONA_ID} personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]} />,
   );
   const bubble = component.locator(BUBBLE);
   const artWidthPx = remTokenPx(TOKENS["immersive.echo-art-width"].value);
@@ -982,8 +982,8 @@ for (const style of ALL_CHAT_STYLES) {
         <MessageRowStory
           chatStyle={style}
           messageRole="user"
-          personaId={NATE_PERSONA_ID}
-          personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]}
+          personaId={ALEX_PERSONA_ID}
+          personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]}
           metadataVisibility={meta({ showTimestamps: true })}
         />
       </div>,
@@ -2042,27 +2042,9 @@ test("without a bg image the swipe strip stays unbacked — don't chip what does
   expect(backdrop).toBe("none");
 });
 
-// ── #312: THE SWIPE STRIP RIDES THE TRAILING EDGE, aligned with the row's other actions ────────────
-// Owner-observed: the ‹ n/m › pager sat LEFT-by-omission — it is a `w-fit` chip and a direct child of the
-// content column (a `flex-col` Stack whose cross-start is the LEFT edge), while every other row action
-// (edit/fork/kebab, in the name row) packs to the TRAILING edge. It belongs with them. The fix places the
-// chip at the column's RIGHT edge (`self-end`) so its right edge shares the actions cluster's right edge —
-// verified across a NARROW and a WIDE column (a point measurement never proves a range property), because a
-// left-aligned chip and a trailing one only diverge once the column is wider than the chip.
-//
-// The strip is an assistant-only affordance and the name row's actions are trailing for the assistant side,
-// so the two clusters share ONE right edge; the assertion is that shared edge, not a hardcoded coordinate.
-//
-// THE BODY IS SIZED FOR THE PRECONDITION, and that is not decoration (2026-08-23). The bubble family's row
-// outer carries `items-start`, so the row body SHRINK-WRAPS and the content column resolves to its widest
-// child — the #245 comment on `message-row.tsx` states exactly that. This pin therefore only observes
-// anything while the column's max-content is the BODY. #490 (462e47559) gave the pager a visible "Variant"
-// word, which grew the strip from ~123px to 177.5px — past the two-word default body's 167px bubble — so the
-// column collapsed ONTO the strip (measured: column 178 == strip 178 at BOTH 360px and 720px) and every
-// alignment assertion below became vacuous, then failed on its own "narrower than the column" guard. A body
-// long enough to reach the track is what restores the property under test, at both ends of the width matrix:
-// measured after this change, the column is 330px at a 360px mount and 558px at a 720px mount (the reading
-// measure's own cap), while the strip stays 177.5px and rides the trailing edge in both.
+// The swipe pager rides the trailing edge aligned with the row actions (#312). Measure its own box rather
+// than a stretching wrapper, and cover both narrow and wide mounts; setting width alone does not prove
+// alignment.
 const TRAILING_EDGE_BODY = "The pale light of the second moon slid across the courtyard flagstones, and Alice counted the guards again before she answered.";
 
 for (const width of [360, 720] as const) {
@@ -2330,8 +2312,8 @@ test("#935 custom-light inside headers inherit the role bubble's paired ink, not
         <MessageRowStory
           chatStyle="bubble"
           messageRole="user"
-          personaId={NATE_PERSONA_ID}
-          personas={[{ id: NATE_PERSONA_ID, name: "Traveler" }]}
+          personaId={ALEX_PERSONA_ID}
+          personas={[{ id: ALEX_PERSONA_ID, name: "Traveler" }]}
           metadataVisibility={meta({ showTimestamps: true })}
         />
       ),
@@ -2380,8 +2362,8 @@ test("#288 a user row mirrors its header like the ST ref — time paints before 
     <MessageRowStory
       chatStyle="bubble"
       messageRole="user"
-      personaId={NATE_PERSONA_ID}
-      personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]}
+      personaId={ALEX_PERSONA_ID}
+      personas={[{ id: ALEX_PERSONA_ID, name: "Alex" }]}
       metadataVisibility={meta({ showTimestamps: true })}
     />,
   );

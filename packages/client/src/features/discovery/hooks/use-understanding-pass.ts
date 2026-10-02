@@ -113,7 +113,7 @@ function currentRun(rows: readonly PassRow[]): PassRow | null {
  * newest terminal row and stopped, so a crash was announced FOREVER: on the audited library
  * `distill-characters` died at `createdAt 1787436170285` and the same kind succeeded two hours later at
  * `1787443344202`, and the rail still read "The last pass stopped unexpectedly — run it again" under five
- * green checks, beside a primary button offering to re-run a 327-character distillation that had already
+ * green checks, beside a primary button offering to re-run a 320-character distillation that had already
  * finished. That is a trust defect and a compute bill, and it is permanent on any library whose history
  * holds one reaped worker.
  *

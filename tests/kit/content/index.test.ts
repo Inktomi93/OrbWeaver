@@ -298,9 +298,8 @@ describe("directive fences (§3.2b — registry-driven)", () => {
       expect(tokenizeContent(truncated)).toEqual<ContentSpan[]>([{ kind: "text", text: truncated }]);
     });
 
-    // The LIVE repro (chat_01kym4aq7…): the model opened a card, wrote prose, then opened `:::choices`
-    // INSIDE it and spent the single closer on the inner fence — the outer card never closed, so the whole
-    // message degraded to raw fence text in the transcript with nothing in the archive.
+    // A nested choices fence can consume the only closer while its outer card remains unclosed. The repair
+    // must preserve prose and archive content instead of degrading the whole message to raw fence text.
     test("nested-closer repro + committed → ONE card at EOF; the swallowed choices ride the card body as text", () => {
       const body = ':::card title="The Blade’s Whisper"\n\nA flicker of steel.\n\n:::choices\n1. Demand answers\n2. Walk away\n:::';
       const spans = tokenizeContent(body, { committed: true });

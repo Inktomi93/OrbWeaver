@@ -54,9 +54,8 @@ describe("cacheHitRate is the share of INPUT tokens, or null", () => {
   });
 });
 
-// `0 tok` / `$0.00` asserted a measurement that never happened on ST-imported and agent-sdk turns. Probed
-// against the owner corpus 2026-08-19: 8,713 of one character's variants carry NULL on BOTH token columns
-// while that character has 1,187 real replies — the rollup's 0 is absence, not a measurement.
+// An absent token/cost measurement is not 0 tok or $0.00. Imported and agent-sdk turns can have null token
+// columns despite real replies; the display must preserve that distinction.
 describe("recordedTokens / recordedCost decide unrecorded vs zero", () => {
   test("no provenance samples means UNRECORDED even behind real generations", () => {
     expect(recordedTokens(0, 0, 0)).toBeNull();

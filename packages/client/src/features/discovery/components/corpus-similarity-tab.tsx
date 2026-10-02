@@ -1,48 +1,15 @@
-// The Corpus CONTEXT "Similarity" tab — the near-duplicate FINDINGS, then the raw ranked-edge list they
-// were found in. `duplicateCharacters` / `imageDuplicates` / `duplicateChats` list the owner's
-// near-duplicate pairs (text/art/chat); `similarityGraph` is rendered as a RANKED EDGE LIST (nameA ↔ nameB
-// + cosine), not a force graph, with two compute knobs (`minSimilarity` edge floor + `maxNodes` cap) driven
-// as a plain refetching query so a knob change re-ranks in place.
+// Similarity renders duplicate findings before the ranked raw cosine-edge list (#554). Raw pairs are
+// evidence, not a substitute for findings, and remain available for pairs not flagged by a duplicate pass.
+// The list draws a bounded head and states showing N of M; Default control labels resolve their actual
+// values.
 //
-// ── THE THREE THINGS THIS TAB GOT WRONG AT 327 CHARACTERS (side-eye populated arm 2026-08-23, #554) ────
-// Every one of them was invisible at the 12-character library the previous pass reviewed, where the edge
-// list was ONE pair.
+// Character pairs open Compare with both ids; chat pairs open the first room because there is no chat-diff
+// surface, and the accessible name states that destination. This remains in-RAM analytics, not retrieval:
+// caps/order apply to discovery.similarityGraph and no search path is introduced.
 //
-//   1. THE FINDINGS WERE BURIED UNDER THE RAW MATERIAL. Measured inside the 384px CONTEXT panel:
-//      `panelScrollH: 56177` against `panelClientH: 1493` — 37.6 screens — with the three duplicate
-//      headings at offsets 52,151 / 52,270 / 54,882px. The tab's three named jobs began ~87 scroll flicks
-//      down, past a wall of text. The ORDER IS THE FIX: `Nearest pairs` is the corpus of pairs the
-//      duplicate passes SEARCHED; the duplicate sections are what they FOUND. Findings first, evidence
-//      after — and the raw list keeps its place at the foot rather than being deleted, because it is the
-//      only surface that can show a pair the passes did not flag.
-//
-//   2. THE RAW LIST WAS UNBOUNDED. 1,782 rows, and the `Max nodes` control that would have bounded it read
-//      "Default" — so a reader could see neither that the default admits 1,782 pairs nor what to change it
-//      to. It draws a HEAD now, with "showing N of M" stated on the section itself, and the knob's Default
-//      option says what the default is instead of naming itself.
-//
-//   3. NOT ONE ROW WAS A CONTROL. `pairRows: 1782 · clickablePairs: 0`; the tab's whole `--map` was two
-//      comboboxes. And the data is good — `Ayami — Aug 18, 2025 (3) ↔ Ayami — Aug 19, 2025 (4) · forked ·
-//      100%` is exactly the actionable, disambiguated row this section needed — it just could not be acted
-//      on. Every pair row is a door now, to the surface that answers the question the row poses:
-//        • a CHARACTER pair (nearest pairs, duplicate characters, duplicate art) opens the COMPARE tab
-//          pre-filled with both ids (`state/corpus-compare-store.ts`), which is the app's existing answer
-//          to "are these two the same?" and was previously reachable only by naming both from a dropdown;
-//        • a CHAT pair opens the first room, because there is no chat-diff surface to send it to and a door
-//          onto something that does not exist is the defect this whole pass deletes. The row says so in its
-//          accessible name rather than leaving the reader to find out by clicking.
-//
-// THE IN-RAM COSINE STAYS ANALYTICS (Knowledge-Cluster boundary). Nothing here reaches for `search`: the
-// cap, the ordering and the section order are all applied to what `discovery.similarityGraph` already
-// returned. This tab does no retrieval and gained none.
-//
-// ── THE FINDINGS MOVED NEXT DOOR (the `component-size` cap, 2026-08-23) ───────────────────────────────
-// The three duplicate sections grew what #564 says they owed — a stated cap, and the identical-art
-// equivalence-class collapse that turns 66 pairwise rows back into the one finding they were — and this
-// file is the tab's COMPOSITION: the three reads, the section ORDER (findings first, raw material after),
-// and the ranked-edge query with its two knobs. `corpus-duplicate-rows.tsx` owns what a finding looks like;
-// the pair-row anatomy it shares with the list below comes back from there so the two kinds of row stay one
-// shape.
+// The tab composes the reads, section order, and graph knobs. corpus-duplicate-rows owns finding
+// presentation and shared pair-row anatomy; identical-art equivalence classes collapse pairwise rows into
+// one finding (#564).
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -71,9 +38,8 @@ const NEAREST_PAIR_CAP = 40;
 /** The edge floor. The VALUES are the wire's cosines; the labels are the surface's one similarity spelling
  *  (P2-5), so the knob and the rows it filters cannot speak two scales at each other. */
 const MIN_SIMILARITY_ITEMS: SelectItems<string> = [
-  // "Default" NAMED ITSELF and nothing else (#554 / the re-pass's standing "Sort reads Default" finding):
-  // three sibling controls on this section resolve their value and this one did not, so the reader could
-  // not tell what floor was in force or that it was the reason 1,782 pairs qualified.
+  // A Default option must resolve the actual floor, not merely name itself, so the reader can tell why
+  // pairs qualify (#554).
   { value: DEFAULT, label: "Any similarity" },
   { value: "0.5", label: "50%" },
   { value: "0.6", label: "60%" },

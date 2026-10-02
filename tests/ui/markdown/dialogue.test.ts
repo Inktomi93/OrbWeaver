@@ -36,7 +36,7 @@ describe("straight + typographic runs", () => {
     expect(quoted(text('She said "hello there" and left.'))).toEqual(['"hello there"']);
   });
 
-  test("a typographic “…” run is tinted (the Azarael card's own delimiters)", () => {
+  test("a typographic “…” run is tinted (the Aveline card's own delimiters)", () => {
     expect(quoted(text("He tilts his head. “You're late,” he says."))).toEqual(["“You're late,”"]);
   });
 

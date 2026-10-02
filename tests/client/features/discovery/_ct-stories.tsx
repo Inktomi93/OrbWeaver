@@ -35,13 +35,15 @@ import type { CharacterId, ThemeClusterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
+// Reach the shell's internal host, rather than restamping its registry-derived inset in a story.
+import { SectionContent } from "../../../../packages/client/src/features/app-shell/components/section-content.tsx";
 import { CorpusArtifactContext } from "../../../../packages/client/src/features/discovery/components/corpus-artifact-context.tsx";
 import { CorpusSearchDisclosure } from "../../../../packages/client/src/features/discovery/components/corpus-search-disclosure.tsx";
 import { CorpusSearchResults } from "../../../../packages/client/src/features/discovery/components/corpus-search-results.tsx";
 import { CorpusThemeSection } from "../../../../packages/client/src/features/discovery/components/corpus-theme-section.tsx";
 import { CorpusArtifactSurface } from "../../../../packages/client/src/features/discovery/surfaces/corpus-artifact-surface.tsx";
-import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 
 // The theme rows the overview hands the section, spelled at the REAL prop type so a field added to
 // `discovery.home`'s theme projection breaks this module at compile time rather than surviving as a hole.
@@ -305,15 +307,28 @@ function CatalogRefreshControl(): ReactElement {
   );
 }
 
-/** The Corpus CONTENT REGION — the host that owns the pane's scroll and its inset for both surfaces, and
- *  therefore the only honest mount for either a padding or a first-run assertion. Fixed size: the region
- *  fills its host in production, and a content-sized mount root agrees with any inset bug. */
+/** The bare Corpus body owns vertical scroll, not the shell's registry-derived inline inset. */
 export function CorpusContentStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ height: 640, width: 720 }}>
         <CorpusContent />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The actual shell host resolves Corpus's contentInset from the real section registry. A fixed host
+ *  makes token padding and the body's inset geometry observable without mounting unrelated shell chrome. */
+export function CorpusContentInsetStory(): ReactElement {
+  const focusAnchorRef = useRef<HTMLElement | null>(null);
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div style={{ height: 640, width: 720 }}>
+          <SectionContent activeSection="corpus" contentBySection={{ corpus: <CorpusContent /> }} fallback={null} focusAnchorRef={focusAnchorRef} />
+        </div>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -373,16 +388,9 @@ export function CorpusHomeWarmQueueStory(): ReactElement {
   );
 }
 
-/** THE OVERVIEW AT THE OWNER'S DEFAULT PANE WIDTH, FOR THE **POPULATED** ARM — the 327-character /
- *  896-chat library the 2026-08-23 rail sweep measured, where findings exist that a 10-card fixture cannot
- *  produce: a 142-route economics table whose cost column is 141/142 null, a 50-bar keyword canvas, a
- *  204-row never-played list, an 8-family map whose eighth plate is unlabelled, and a workload history
- *  carrying a stale crash UNDER a later success.
- *
- *  A SEPARATE STORY NAME, NOT A SECOND IMPORT of `CorpusHomeDefaultPaneStory`: playwright-ct hoists every
- *  imported story into ONE generated registry, so two CT files importing the same story name collide at
- *  bundle eval. The width is deliberately identical — these defects are about CONTENT volume, and the pane
- *  they have to be honest in is the shipped default. */
+/** Populated synthetic corpus overview: findings, null-cost routes, and multi-page populations expose
+ *  states a small empty fixture cannot. Stories use the normal read seams, not privileged database access.
+ */
 export function CorpusHomePopulatedStory(): ReactElement {
   return (
     <CtDataProviders>

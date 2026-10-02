@@ -22,7 +22,7 @@ test("reports the document's global flag and NAMES the rooms chat says the calle
   const h = makeDatabankHarness(db, {
     resolveVisibleRooms: (_principal, chatIds) => {
       seen.push([...chatIds]);
-      return Promise.resolve(chatIds.map((id) => ({ id, title: "The Long Dark", participantNames: ["Azarael"], at: ROOM_AT })));
+      return Promise.resolve(chatIds.map((id) => ({ id, title: "The Long Dark", participantNames: ["Aveline"], at: ROOM_AT })));
     },
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -34,7 +34,7 @@ test("reports the document's global flag and NAMES the rooms chat says the calle
 
   const view = await h.service.listAttachments({ principal: principalFor(owner), id: document.id });
   expect(view.global).toBe(true);
-  expect(view.chats).toEqual([{ id: chatId, title: "The Long Dark", participantNames: ["Azarael"], at: ROOM_AT }]);
+  expect(view.chats).toEqual([{ id: chatId, title: "The Long Dark", participantNames: ["Aveline"], at: ROOM_AT }]);
   expect(view.characters).toEqual([]);
   // The junction's ids are what got handed to chat — the verb filters nothing itself.
   expect(seen).toEqual([[chatId]]);

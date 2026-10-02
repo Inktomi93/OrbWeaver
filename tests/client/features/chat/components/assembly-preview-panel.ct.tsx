@@ -53,7 +53,7 @@ const PREVIEW_TRACE = {
 /** A PLAIN chat's budget: no `game-state` row (the server omits an empty source). The `cards` row carries the
  *  ROOM's members as parts — the owner's question ("what is each character in the room costing me") is the
  *  per-contributor breakdown, not the bucket total. */
-const MARA_CARD = "Mara — a bold knight of the Lantern Road.";
+const MIRA_CARD = "Mira — a bold knight of the Lantern Road.";
 const NIKO_CARD = "Niko — a wary scout.";
 
 const PLAIN_BUDGET = {
@@ -70,13 +70,13 @@ const PLAIN_BUDGET = {
     },
     {
       source: "cards" as const,
-      detail: "Mara · Niko",
+      detail: "Mira · Niko",
       tokens: 1208,
       parts: [
-        { label: "Mara", tokens: 812, text: MARA_CARD },
+        { label: "Mira", tokens: 812, text: MIRA_CARD },
         { label: "Niko", tokens: 396, text: NIKO_CARD },
       ],
-      text: `${MARA_CARD}\n\n${NIKO_CARD}`,
+      text: `${MIRA_CARD}\n\n${NIKO_CARD}`,
     },
     {
       source: "world-info" as const,
@@ -96,7 +96,7 @@ const PLAIN_BUDGET = {
   ],
 };
 
-const GAME_STATE_TEXT = "## Game state\nroster: Mara (VIT 24/30)";
+const GAME_STATE_TEXT = "## Game state\nroster: Mira (VIT 24/30)";
 
 const PREVIEW_ASSEMBLY_DATA = {
   prompt: {
@@ -232,20 +232,20 @@ test("the Cards row breaks down PER ROSTER MEMBER — each character's own token
   const component = await mount(<AssemblyPreviewPanelStory />);
 
   // The room's members are named on the closed row…
-  await expect(component.getByText("Mara · Niko")).toBeVisible();
+  await expect(component.getByText("Mira · Niko")).toBeVisible();
 
   // …and drilling in lists them one per line with THEIR token count, not one opaque bucket total.
   await component.getByRole("button", { name: RE_CARDS }).click();
-  await expect(component.getByText("Mara", { exact: true })).toBeVisible();
+  await expect(component.getByText("Mira", { exact: true })).toBeVisible();
   await expect(component.getByText("812", { exact: true })).toBeVisible();
   await expect(component.getByText("Niko", { exact: true })).toBeVisible();
   await expect(component.getByText("396", { exact: true })).toBeVisible();
 
   // Each member drills one level further into the exact bytes their card contributes. (The member trigger is
-  // named by its OWN row — "Mara 812" — distinct from the source row, whose name carries the detail line.)
-  await expect(component.getByText(MARA_CARD)).toHaveCount(0);
-  await component.getByRole("button", { name: "Mara 812", exact: true }).click();
-  await expect(component.getByText(MARA_CARD)).toBeVisible();
+  // named by its OWN row — "Mira 812" — distinct from the source row, whose name carries the detail line.)
+  await expect(component.getByText(MIRA_CARD)).toHaveCount(0);
+  await component.getByRole("button", { name: "Mira 812", exact: true }).click();
+  await expect(component.getByText(MIRA_CARD)).toBeVisible();
   await expect(component.getByText(NIKO_CARD)).toHaveCount(0);
 });
 
@@ -325,7 +325,7 @@ test("a GAME chat adds the game-state row + the mono state excerpt; a plain chat
   await expect(component.getByText("Game state", { exact: true })).toBeVisible();
   await expect(component.getByText("state block")).toBeVisible();
   // The excerpt renders the state block VERBATIM, without needing a drill-in (the mock's honesty card).
-  await expect(component.getByText("roster: Mara (VIT 24/30)")).toBeVisible();
+  await expect(component.getByText("roster: Mira (VIT 24/30)")).toBeVisible();
 });
 
 test("a plain chat renders no game-state row (the row is game-conditional)", async ({ mount, page }) => {
@@ -337,7 +337,7 @@ test("a plain chat renders no game-state row (the row is game-conditional)", asy
   const component = await mount(<AssemblyPreviewPanelStory />);
 
   await expect(component.getByText("Game state", { exact: true })).toHaveCount(0);
-  await expect(component.getByText("roster: Mara (VIT 24/30)")).toHaveCount(0);
+  await expect(component.getByText("roster: Mira (VIT 24/30)")).toHaveCount(0);
 });
 
 test("no trustworthy ceiling ⇒ the total stands alone, never a fabricated denominator", async ({ mount, page }) => {
@@ -481,7 +481,7 @@ test("the Trace section names the members whose merged fallback was cut", async 
   await routeTrpc(page, {
     "chat.previewAssembly": () => ({
       ...PREVIEW_ASSEMBLY_DATA,
-      trace: { ...PREVIEW_TRACE, mergedFallbackTruncated: { mainPrompt: ["Mara", "Niko"], postHistory: ["Niko"] } },
+      trace: { ...PREVIEW_TRACE, mergedFallbackTruncated: { mainPrompt: ["Mira", "Niko"], postHistory: ["Niko"] } },
     }),
     "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
   });
@@ -490,7 +490,7 @@ test("the Trace section names the members whose merged fallback was cut", async 
 
   // Both fields fold into ONE line, deduped — Niko is cut in both and must not read as two contributors.
   await expect(component.getByText("Merged fallback cut")).toBeVisible();
-  await expect(component.getByText("Mara, Niko", { exact: true })).toBeVisible();
+  await expect(component.getByText("Mira, Niko", { exact: true })).toBeVisible();
 });
 
 test("nothing cut ⇒ the line is ABSENT, not an empty row", async ({ mount, page }) => {

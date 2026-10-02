@@ -118,20 +118,20 @@ describe("search (unified dispatch)", () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const alice = await seedCharacter(db, { id: "character_alice", ownerId: owner, name: "Alice" });
-    const named = await seedChat(db, "chat_named", "Amethyst Hollow");
+    const named = await seedChat(db, "chat_named", "Lantern Court");
     const unnamed = await seedChat(db, "chat_unnamed", "");
-    await seedChatDigest(db, { chatId: named, scopedCharacterId: alice, blockIdx: 0, text: "The bath scene.", embedding: vec(1) });
+    await seedChatDigest(db, { chatId: named, scopedCharacterId: alice, blockIdx: 0, text: "The depot inventory.", embedding: vec(1) });
     await seedChatDigest(db, { chatId: unnamed, scopedCharacterId: alice, blockIdx: 0, text: "The farm scene.", embedding: vec(1) });
 
     const svc = makeSearch(db, { embedVector: () => vec(1), embedModel: EMBED_MODEL });
-    const result = await svc.search({ ownerId: owner, query: "the bath", topN: 5, over: "digests", scope: { kind: "owner" } });
+    const result = await svc.search({ ownerId: owner, query: "the depot", topN: 5, over: "digests", scope: { kind: "owner" } });
     if (result.over !== "digests") {
       throw new Error(`expected digests branch, got ${result.over}`);
     }
 
     // The unnamed room's stored `""` normalizes to null, so the client's title chain reaches its cast rung
     // instead of rendering a blank line (a `?? "Untitled chat"` is defeated by an empty string).
-    expect(result.hits.map((h) => h.chatTitle).toSorted()).toEqual(["Amethyst Hollow", null]);
+    expect(result.hits.map((h) => h.chatTitle).toSorted()).toEqual(["Lantern Court", null]);
     expect(result.hits.map((h) => h.scopedCharacterName)).toEqual(["Alice", "Alice"]);
     // An exact vector match: distance 0 ⇒ relevance 1, while the CSLS score sits clamped at its 0 floor.
     expect(result.hits[0]?.relevance).toBeCloseTo(1);

@@ -104,12 +104,12 @@ const CORPUS_AMBIENT_ROUTES: TrpcRoutes<
 
 /** The line the row used to carry for its room: the literal word "Chat" plus a 6-character id slice. */
 const RAW_CHAT_REF = /^Chat \w{6}$/;
-const NAMED_CHAT = "chat_amethyst";
+const NAMED_CHAT = "chat_lantern";
 const UNNAMED_CHAT = "chat_unnamed";
 /** The named room's authored title — since U2 this is the ROW'S NAME (and its accessible name). */
-const NAMED_ROOM = "Amethyst Hollow";
-const BATH_TEXT = "[Alex, Iris — hotel room bath scene] All three strip and settle into the copper tub.";
-const FARM_TEXT = "[Alex, Kira — farmhouse porch] The harvest is in and the evening is quiet.";
+const NAMED_ROOM = "Lantern Court";
+const DEPOT_TEXT = "[Alex, Selva — depot inventory] The crew checks the blue parcel and records its destination.";
+const MARKET_TEXT = "[Alex, Kora — market delivery] The shipment has arrived and the stall is ready.";
 
 /** Two digest hits whose CSLS `score` is identical at the clamp floor — so the only thing that can order or
  *  distinguish them on screen is the relevance the fix adds. */
@@ -119,22 +119,22 @@ const MEMORY_HITS: TrpcRoutes<"search.search"> = {
     coverage: { ...CORPUS_PREVIEW_COVERAGE },
     hits: [
       {
-        blockKey: { chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_sample" },
-        source: corpusDigestSource({ chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_sample" }),
+        blockKey: { chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_selva" },
+        source: corpusDigestSource({ chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_selva" }),
         score: 0,
         relevance: 0.88,
-        text: BATH_TEXT,
-        chatTitle: "Amethyst Hollow",
-        scopedCharacterName: "Iris",
+        text: DEPOT_TEXT,
+        chatTitle: "Lantern Court",
+        scopedCharacterName: "Selva",
       },
       {
-        blockKey: { chatId: UNNAMED_CHAT, tier: 1, blockIdx: 9, scopedCharacterId: "character_kira" },
-        source: corpusDigestSource({ chatId: UNNAMED_CHAT, tier: 1, blockIdx: 9, scopedCharacterId: "character_kira" }),
+        blockKey: { chatId: UNNAMED_CHAT, tier: 1, blockIdx: 9, scopedCharacterId: "character_kora" },
+        source: corpusDigestSource({ chatId: UNNAMED_CHAT, tier: 1, blockIdx: 9, scopedCharacterId: "character_kora" }),
         score: 0,
         relevance: 0.61,
-        text: FARM_TEXT,
+        text: MARKET_TEXT,
         chatTitle: null,
-        scopedCharacterName: "Kira",
+        scopedCharacterName: "Kora",
       },
     ],
   },
@@ -145,8 +145,8 @@ const MEMORY_HITS: TrpcRoutes<"search.search"> = {
  *  hide which assertion is actually red. */
 async function searchMemories(component: ReturnType<Page["locator"]>): Promise<void> {
   await component.getByRole("button", { name: "Search Memories" }).click();
-  await component.getByRole("combobox", { name: "Search your corpus" }).fill("shared bathing");
-  await expect(component.getByText(BATH_TEXT)).toBeVisible();
+  await component.getByRole("combobox", { name: "Search your corpus" }).fill("parcel sorting");
+  await expect(component.getByText(DEPOT_TEXT)).toBeVisible();
 }
 
 test("a closer memory reads a HIGHER relevance than a further one", async ({ mount, page }) => {
@@ -208,8 +208,8 @@ test("a memory hit retains its complete generated-summary destination", async ({
 // them at any z-index, which is what the shared `Autocomplete` `inline` arm was built for (its founding
 // caller is the prompt dialog, whose popup covered the confirm row it pointed at).
 const SUGGESTIONS = [
-  { suggestion: "shared bathing", score: 0.9 },
-  { suggestion: "shared bath house", score: 0.8 },
+  { suggestion: "parcel sorting", score: 0.9 },
+  { suggestion: "parcel depot", score: 0.8 },
 ];
 
 test("an open typeahead never covers a result: row 1 is clickable with the suggestions showing", async ({ mount, page }) => {
@@ -217,7 +217,7 @@ test("an open typeahead never covers a result: row 1 is clickable with the sugge
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
-  const suggestion = page.getByRole("option", { name: "shared bath house" });
+  const suggestion = page.getByRole("option", { name: "parcel depot" });
   await expect(suggestion).toBeVisible();
 
   const [suggestionBox, rowBox] = await Promise.all([suggestion.boundingBox(), component.getByRole("button", { name: NAMED_ROOM }).boundingBox()]);
@@ -244,22 +244,22 @@ const NOISE_HITS: TrpcRoutes<"search.search"> = {
     coverage: { ...CORPUS_PREVIEW_COVERAGE },
     hits: [
       {
-        blockKey: { chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_sample" },
-        source: corpusDigestSource({ chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_sample" }),
+        blockKey: { chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_selva" },
+        source: corpusDigestSource({ chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_selva" }),
         score: 0,
         relevance: 0.41,
-        text: BATH_TEXT,
+        text: DEPOT_TEXT,
         chatTitle: NAMED_ROOM,
-        scopedCharacterName: "Iris",
+        scopedCharacterName: "Selva",
       },
       {
-        blockKey: { chatId: UNNAMED_CHAT, tier: 1, blockIdx: 9, scopedCharacterId: "character_kira" },
-        source: corpusDigestSource({ chatId: UNNAMED_CHAT, tier: 1, blockIdx: 9, scopedCharacterId: "character_kira" }),
+        blockKey: { chatId: UNNAMED_CHAT, tier: 1, blockIdx: 9, scopedCharacterId: "character_kora" },
+        source: corpusDigestSource({ chatId: UNNAMED_CHAT, tier: 1, blockIdx: 9, scopedCharacterId: "character_kora" }),
         score: 0,
         relevance: 0.39,
-        text: FARM_TEXT,
+        text: MARKET_TEXT,
         chatTitle: null,
-        scopedCharacterName: "Kira",
+        scopedCharacterName: "Kora",
       },
     ],
   },
@@ -421,11 +421,11 @@ test("a memory hit names its room, never a raw chat id", async ({ mount, page })
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
-  // Read the TITLE slot specifically: "Kira" also appears inside its row's memory text, so a bare text
+  // Read the TITLE slot specifically: "Kora" also appears inside its row's memory text, so a bare text
   // query would resolve to two nodes and prove nothing about where the name is rendered.
   const titles = component.locator('[data-slot="list-row-title"]');
   // The unnamed room falls through the chat-title chain to its cast, never to a hex slice.
-  await expect(titles).toHaveText([NAMED_ROOM, "Kira"]);
+  await expect(titles).toHaveText([NAMED_ROOM, "Kora"]);
   await expect(component.getByText(RAW_CHAT_REF)).toHaveCount(0);
 });
 
@@ -449,54 +449,54 @@ test("a memory row's accessible name is its ROOM, short and readable — not the
   // LABEL-IN-NAME: the name is exactly the text rendered as the row's title.
   await expect(row.locator('[data-slot="list-row-title"]')).toHaveText(accName);
   // The memory itself is still on the row — as the body, where it is allowed to wrap.
-  await expect(row.locator('[data-slot="list-row-subtitle"]')).toHaveText(BATH_TEXT);
+  await expect(row.locator('[data-slot="list-row-subtitle"]')).toHaveText(DEPOT_TEXT);
 });
 
 // ── C1 + C2: HONEST BODIES, ONE PER PIECE OF EVIDENCE ────────────────────────────────────────────────
 // C1: the wire hands back raw model prose sliced at 280 chars — markdown rendered as literal syntax, cut
 // mid-word, then closed by the row's own quotation mark. C2: a duplicated room yields digest blocks whose
 // text is byte-identical, and the ranked list showed both.
-const MARKDOWN_DIGEST = "**Iris** said:\n\n> ### the copper tub\n\nThey settle in, and the steam takes the room.";
+const MARKDOWN_DIGEST = "**Selva** said:\n\n> ### the blue parcel\n\nThey check it, and the list is complete.";
 const DUPLICATE_HITS: TrpcRoutes<"search.search"> = {
   "search.search": {
     over: "digests",
     coverage: { ...CORPUS_PREVIEW_COVERAGE },
     hits: [
       {
-        blockKey: { chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_sample" },
-        source: corpusDigestSource({ chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_sample" }),
+        blockKey: { chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_selva" },
+        source: corpusDigestSource({ chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_selva" }),
         score: 0,
         relevance: 0.91,
         text: MARKDOWN_DIGEST,
         chatTitle: NAMED_ROOM,
-        scopedCharacterName: "Iris",
+        scopedCharacterName: "Selva",
       },
       {
         // The SAME evidence out of a duplicated room, one day later and one block over — two rows a reader
         // cannot tell apart, spending two of twenty slots on one memory.
-        blockKey: { chatId: UNNAMED_CHAT, tier: 1, blockIdx: 5, scopedCharacterId: "character_sample" },
-        source: corpusDigestSource({ chatId: UNNAMED_CHAT, tier: 1, blockIdx: 5, scopedCharacterId: "character_sample" }),
+        blockKey: { chatId: UNNAMED_CHAT, tier: 1, blockIdx: 5, scopedCharacterId: "character_selva" },
+        source: corpusDigestSource({ chatId: UNNAMED_CHAT, tier: 1, blockIdx: 5, scopedCharacterId: "character_selva" }),
         score: 0,
         relevance: 0.9,
         text: MARKDOWN_DIGEST,
-        chatTitle: "Amethyst Hollow (copy)",
-        scopedCharacterName: "Iris",
+        chatTitle: "Lantern Court (copy)",
+        scopedCharacterName: "Selva",
       },
       {
-        blockKey: { chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_kira" },
-        source: corpusDigestSource({ chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_kira" }),
+        blockKey: { chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_kora" },
+        source: corpusDigestSource({ chatId: NAMED_CHAT, tier: 1, blockIdx: 4, scopedCharacterId: "character_kora" }),
         score: 0,
         relevance: 0.89,
         text: MARKDOWN_DIGEST,
         chatTitle: NAMED_ROOM,
-        scopedCharacterName: "Kira",
+        scopedCharacterName: "Kora",
       },
     ],
   },
 };
 
 // ── P1-1 + P2-2 + P2-3: THE SCENES BRANCH, WHERE THE EVIDENCE IS THE UNIT ────────────────────────────
-// The re-pass measured three room doors — "Lena Jan 28" / "Jan 26 (3)" / "Jan 28 (2)" — each sitting over
+// The re-pass measured three room doors — "Elora Jan 28" / "Jan 26 (3)" / "Jan 28 (2)" — each sitting over
 // the byte-identical 220-char snippet, because the preview grouped a character's segments BY CHAT. Twenty
 // slots, one memory, and a reader who reasonably concludes the search is broken. The C2 dedupe that fixed
 // the Memories branch is deliberately NOT the fix here: dropping a hit would drop a real room. The grouping
@@ -511,10 +511,10 @@ const SCENE_HITS: TrpcRoutes<"search.search"> = {
     coverage: { ...CORPUS_PREVIEW_COVERAGE, candidateLimit: 400, evidencePerCharacter: 3 },
     hits: [
       {
-        characterId: "character_sample2",
+        characterId: "character_elora",
         score: 0.1,
         relevance: 0.83,
-        name: "Lena",
+        name: "Elora",
         avatarHash: null,
         genre: "noir",
         tone: "wry",
@@ -527,7 +527,7 @@ const SCENE_HITS: TrpcRoutes<"search.search"> = {
             blockIdx: 2,
             snippet: PASSAGE,
             score: 0.1,
-            chatTitle: "Lena Jan 28",
+            chatTitle: "Elora Jan 28",
           },
           {
             source: corpusSceneSource(castId<ChatId>("chat_harbour_copy"), 5),
@@ -535,7 +535,7 @@ const SCENE_HITS: TrpcRoutes<"search.search"> = {
             blockIdx: 5,
             snippet: PASSAGE,
             score: 0.12,
-            chatTitle: "Lena Jan 28 (2)",
+            chatTitle: "Elora Jan 28 (2)",
           },
           {
             source: corpusSceneSource(castId<ChatId>("chat_market"), 9),
@@ -543,7 +543,7 @@ const SCENE_HITS: TrpcRoutes<"search.search"> = {
             blockIdx: 9,
             snippet: OTHER_PASSAGE,
             score: 0.2,
-            chatTitle: "Lena Jan 26",
+            chatTitle: "Elora Jan 26",
           },
         ],
       },
@@ -552,7 +552,7 @@ const SCENE_HITS: TrpcRoutes<"search.search"> = {
 };
 
 /** The three room doors the fixture must produce (hoisted — the loop body is a locator per name). */
-const SCENE_ROOMS = ["Lena Jan 28", "Lena Jan 28 (2)", "Lena Jan 26"];
+const SCENE_ROOMS = ["Elora Jan 28", "Elora Jan 28 (2)", "Elora Jan 26"];
 /** The numbering hint, matched loosely: the sentence is the client's, the tell is the word. */
 const NUMBERED_HINT = /numbered/;
 
@@ -571,7 +571,7 @@ test("SCENES: one passage renders ONCE, with a door into every room it was found
   await expect(component.getByText(PASSAGE)).toHaveCount(1);
   await expect(component.getByText(OTHER_PASSAGE)).toHaveCount(1);
   // …and NOTHING was dropped to get there — all three rooms are still reachable, as doors.
-  // EXACT names: "Lena Jan 28" is a PREFIX of "Lena Jan 28 (2)", and Playwright's name match is a
+  // EXACT names: "Elora Jan 28" is a PREFIX of "Elora Jan 28 (2)", and Playwright's name match is a
   // substring by default — the loose form resolves two nodes for one room and reports a defect that is
   // the query's, not the surface's.
   await Promise.all(SCENE_ROOMS.map(async (room) => expect(component.getByRole("button", { name: room, exact: true })).toHaveCount(1)));
@@ -582,7 +582,7 @@ test("SCENES: a room is a door that LANDS, and it looks like one — left-aligne
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchScenes(component);
-  const door = component.getByRole("button", { name: "Lena Jan 28 (2)" });
+  const door = component.getByRole("button", { name: "Elora Jan 28 (2)" });
   // DOOR VOCABULARY, measured: the label starts at the control's leading edge (it was centred) and the
   // arrow the surface's other doors carry is present. Colour is asserted as "not the body ink", which is
   // what "reads as a heading" meant — the exact token is the ghost intent's business.
@@ -623,10 +623,10 @@ const ONE_ROOM_HITS: TrpcRoutes<"search.search"> = {
     coverage: { ...CORPUS_PREVIEW_COVERAGE, candidateLimit: 400, evidencePerCharacter: 3 },
     hits: [
       {
-        characterId: "character_sample2",
+        characterId: "character_elora",
         score: 0.1,
         relevance: 0.83,
-        name: "Lena",
+        name: "Elora",
         avatarHash: null,
         genre: "noir",
         tone: "wry",
@@ -639,7 +639,7 @@ const ONE_ROOM_HITS: TrpcRoutes<"search.search"> = {
             blockIdx: 2,
             snippet: PASSAGE,
             score: 0.1,
-            chatTitle: "Lena Jan 28",
+            chatTitle: "Elora Jan 28",
           },
           {
             source: corpusSceneSource(castId<ChatId>("chat_harbour"), 9),
@@ -647,7 +647,7 @@ const ONE_ROOM_HITS: TrpcRoutes<"search.search"> = {
             blockIdx: 9,
             snippet: OTHER_PASSAGE,
             score: 0.2,
-            chatTitle: "Lena Jan 28",
+            chatTitle: "Elora Jan 28",
           },
         ],
       },
@@ -663,7 +663,7 @@ test("SCENES: two passages from one room retain separate source destinations", a
   // Both passages still render — nothing was collapsed but the echo.
   await expect(component.getByText(PASSAGE)).toHaveCount(1);
   await expect(component.getByText(OTHER_PASSAGE)).toHaveCount(1);
-  await expect(component.getByRole("button", { name: "Lena Jan 28", exact: true })).toHaveCount(2);
+  await expect(component.getByRole("button", { name: "Elora Jan 28", exact: true })).toHaveCount(2);
 });
 
 test("SCENES: a numbered room title explains its own number (P3-6)", async ({ mount, page }) => {
@@ -673,8 +673,8 @@ test("SCENES: a numbered room title explains its own number (P3-6)", async ({ mo
   await searchScenes(component);
   // The `(2)` is part of the room's STORED title (rooms that arrive sharing a name are numbered at import),
   // so the label cannot explain itself and the hint states the app's rule — on the numbered door only.
-  await expect(component.getByRole("button", { name: "Lena Jan 28 (2)" })).toHaveAttribute("title", NUMBERED_HINT);
-  await expect(component.getByRole("button", { name: "Lena Jan 26" })).not.toHaveAttribute("title", NUMBERED_HINT);
+  await expect(component.getByRole("button", { name: "Elora Jan 28 (2)" })).toHaveAttribute("title", NUMBERED_HINT);
+  await expect(component.getByRole("button", { name: "Elora Jan 26" })).not.toHaveAttribute("title", NUMBERED_HINT);
 });
 
 test("a memory body reads as prose — flattened markdown, no raw syntax — and identical evidence renders ONCE", async ({ mount, page }) => {
@@ -682,16 +682,16 @@ test("a memory body reads as prose — flattened markdown, no raw syntax — and
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await component.getByRole("button", { name: "Search Memories" }).click();
-  await component.getByRole("combobox", { name: "Search your corpus" }).fill("copper tub");
+  await component.getByRole("combobox", { name: "Search your corpus" }).fill("blue parcel");
 
   // Group the prose while preserving every source occurrence as a destination.
   const roomOccurrences = component.getByRole("button", { name: NAMED_ROOM, exact: true });
   await expect(roomOccurrences).toHaveCount(2);
-  await expect(roomOccurrences.first().getByText("Iris", { exact: true })).toBeVisible();
-  await expect(roomOccurrences.nth(1).getByText("Kira", { exact: true })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Amethyst Hollow (copy)" })).toBeVisible();
+  await expect(roomOccurrences.first().getByText("Selva", { exact: true })).toBeVisible();
+  await expect(roomOccurrences.nth(1).getByText("Kora", { exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Lantern Court (copy)" })).toBeVisible();
   // C1: one line of prose — the emphasis markers, the quote/heading prefixes and the blank lines are gone.
-  await expect(component.getByText("Iris said: the copper tub They settle in, and the steam takes the room.", { exact: true })).toHaveCount(1);
+  await expect(component.getByText("Selva said: the blue parcel They check it, and the list is complete.", { exact: true })).toHaveCount(1);
 });
 
 // ── #1500 · THE NAME MAP CAN FAIL ON ITS OWN ─────────────────────────────────────────────────────

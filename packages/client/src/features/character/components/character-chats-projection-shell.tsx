@@ -3,7 +3,7 @@
 // container and its accessible name.
 //
 // IT MOVED OUT OF THE LIST PANE (#501, owner ruling 2026-08-22 — "library stays docked"). This used to be
-// the LIST pane's second role: selecting somebody swapped the 327-character library out for her chats, so
+// the LIST pane's second role: selecting somebody swapped the 320-character library out for her chats, so
 // browsing the library cost a back-chevron trip per character (side-eye 2026-08-22 rail-characters). The
 // list is the library now, always, and her history lives where artifact-scoped detail belongs — CONTEXT
 // (§14). Two things went with the move:

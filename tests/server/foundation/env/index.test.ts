@@ -657,7 +657,7 @@ describe("foundation/env — the .env load (override semantics + parser toleranc
         "# a leading comment",
         "",
         "export DEFAULT_USER_HANDLE=exported",
-        "IMPORT_SKIP_CHARACTERS='Wren, Assistant'",
+        "IMPORT_SKIP_CHARACTERS='Pell, Assistant'",
         'ST_PROFILE_DIR="/tmp/st profiles"',
         'EGRESS_ALLOWLIST="a\\nb"',
         "this line is junk with no separator",
@@ -667,7 +667,7 @@ describe("foundation/env — the .env load (override semantics + parser toleranc
     );
     const { env } = await reimportEnvIn(dir, {}, { vitest: false });
     expect(env.DEFAULT_USER_HANDLE).toBe("exported");
-    expect(env.IMPORT_SKIP_CHARACTERS).toBe("Wren, Assistant");
+    expect(env.IMPORT_SKIP_CHARACTERS).toBe("Pell, Assistant");
     expect(env.ST_PROFILE_DIR).toBe("/tmp/st profiles");
     expect(env.EGRESS_ALLOWLIST).toBe("a\nb");
     expect(env.OWNER_GROUP).toBe("admins");

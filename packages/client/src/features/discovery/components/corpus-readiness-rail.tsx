@@ -76,7 +76,7 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
       <Stack aria-label="Analysis passes" role="list">
         {stages.map((stage) => (
           // THE PASS'S NAME IS NEVER THE SHRINK VICTIM (#535 N1, a regression of the row's own fix).
-          // The datum grew a denominator ("8 families · 242 of 327 characters") while the row was
+          // The datum grew a denominator ("8 families · 242 of 320 characters") while the row was
           // `label: min-w-0 truncate` beside `datum: shrink-0` — so at the 1280px context-closed width the
           // only thing that could give was the LABEL, and "Visual families" rendered as "Visu…". A rail
           // whose whole job is to name what has and has not run cannot ellipsise the name: it is the half

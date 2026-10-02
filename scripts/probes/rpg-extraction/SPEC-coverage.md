@@ -14,8 +14,8 @@ Throwaway — lives under scratchpad/spike/, reuses the Spike-1 OR plumbing in r
 ## Reuse from Spike 1
 - OR call plumbing from `scratchpad/spike/run.mjs` (env OPENROUTER_API_KEY from repo .env — NEVER print;
   model `anthropic/claude-sonnet-5`; stream:false; usage:{include:true}; the reminder/state-fold format).
-- The 7 tools live in `real-cheap-toolround.json` (`.tools`). Arm A uses their `.function.description`
-  VERBATIM. Arm B REPLACES each description with the enriched version below (same names + parameter
+- Generate the tool descriptions from the current production contract. Arm A uses each `.function.description`
+  verbatim. Arm B REPLACES each description with the enriched version below (same names + parameter
   schemas — ONLY the description string changes; tool_choice stays "auto"; max_tokens 8192).
 
 ## Model / mechanics

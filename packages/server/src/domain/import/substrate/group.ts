@@ -1,10 +1,10 @@
 // domain/import/substrate/group — the ST GROUP-DEFINITION parser: one `groups/<id>.json` in → the roster +
 // transcript-file list out (or null when the object is not a group), never throws.
 //
-// ST's group file names its members by CARD FILENAME (`members: ["Rowan.png", "Lisa.png"]`) — the same key
+// ST's group file names its members by CARD FILENAME (`members: ["Briar.png", "Lisa.png"]`) — the same key
 // `settings.tag_map` uses and the same key the collector already carries on every `CollectedCard.filename`.
 // That is deliberate here and load-bearing: member resolution goes filename → the collect-time characterId,
-// NEVER display name. Two cards named "Emily" disambiguate to handles `emily`/`emily-2` while keeping distinct
+// NEVER display name. Two cards named "Eleni" disambiguate to handles `eleni`/`eleni-2` while keeping distinct
 // filenames, so a name-keyed roster would seat the wrong card in silence.
 //
 // The group's `chats: [...]` array names its transcripts by LEAF (no `.jsonl`), all of which live in the flat

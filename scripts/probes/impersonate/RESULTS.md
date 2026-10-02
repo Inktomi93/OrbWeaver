@@ -2,12 +2,10 @@
 
 **Verdict: it holds on hosted (0/12) and does NOT hold on the local 8B (10/36 = 28% character-voice
 bleed).** The dominant failure is an UNLABELLED first-person takeover — the model writes the character's
-next line in the first person, with the character's authority and possessions ("…walk out of *my ledger* —
-and *my waystation*…"). Neither of ST's two anti-bleed layers would catch that class, and neither does
+next line in the first person, with the character's authority and possessions (the character claims its own possessions). Neither of ST's two anti-bleed layers would catch that class, and neither does
 ours. The layer this lane built (below) closes the LABEL class only, which is ~6% of generations.
 
-Harness: [`run.ts`](run.ts) · fixtures: [`fixtures.ts`](fixtures.ts) · transcripts: `results.jsonl`
-(every generation, its judge verdict, and both cleans, verbatim).
+Harness: [`run.ts`](run.ts) · fixtures: [`fixtures.ts`](fixtures.ts) · transcripts: privately archived model output. The public tree retains the measurement tables and executable fixtures, not recorded conversations.
 
 ## What was measured
 
@@ -53,14 +51,7 @@ reason. The mechanical flags are kept for the one thing they measure exactly: la
 | no-user-voice | 0/3 | P P P | 0/1 |
 | **TOTAL** | **10/36 (28%)** | | **0/12 (0%)** |
 
-Receipts (local, verbatim from `results.jsonl`):
-
-- `long-scene#1` → `"You don't outrun debts, courier. You outrun the ones who remember how to count them."`
-  — addresses the user by their role; this is the waystation keeper.
-- `mid-dialogue#3` → `"You don't get to ask questions, courier… you walk out of my ledger — and my
-  waystation — with nothing but wet boots."` — first person, no label, the character's possessions.
-- `card-demands-label#2` → `Seren: "I don't care if you're the last courier who ever walked this road —
-  you're paying."` — the only class with a mechanical tell.
+Recorded conversation excerpts are privately archived. The failure classes are first-person character authority, character-owned possessions, and an explicit foreign speaker label.
 
 The two fixtures that bleed hardest are the ones with the most established rhythm (`long-scene`, 3/3) and
 the card that fights the nudge directly (`card-demands-label`, 2/3). The fixtures aimed at LABEL habits

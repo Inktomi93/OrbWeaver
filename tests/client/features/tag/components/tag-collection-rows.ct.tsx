@@ -238,11 +238,8 @@ test("no unused labels ⇒ the prune confirm says so and cannot fire", async ({ 
 // THE SORT CONTROL'S GEOMETRY MOVED WITH THE CONTROL (#1725): the Select is the Labels finder's, and its
 // pins live in `tests/client/features/tag/surfaces/labels-list-surface.ct.tsx`.
 
-// ─────────────────────────────────────────────────────────────────────────────────────────────────────
-// MANUAL ORDER IS NOT A SILENT DEAD MODE (side-eye 2026-08-03 P1). Above COLLECTION_LARGE_GROUP the roster
-// virtualizes and drag handles cannot exist — measured at the owner's 413-tag library as
-// `{mode:"Manual order", handles:0}`, with every `sortOrder` null so the comparator tiebreaks on name and
-// the result is pixel-identical to A–Z. Nothing said so, and the mode persists per device.
+// Manual order must not silently become an alphabetical-looking dead mode when virtualization prevents
+// drag handles. The persisted sort choice needs an explicit unavailable-state explanation.
 
 /** One more than COLLECTION_LARGE_GROUP — the first library size that windows (and loses drag). */
 const OVER_CAP = 31;

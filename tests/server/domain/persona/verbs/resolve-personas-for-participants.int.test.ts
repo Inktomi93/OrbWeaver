@@ -26,7 +26,7 @@ async function seedTwoOwners(): Promise<{
   const alice = await seedUser(db, { handle: castId<Handle>("alice") });
   const bob = await seedUser(db, { handle: castId<Handle>("bob") });
   const alicePersona = (await svc.create({ principal: principal(alice), input: { name: "Zara", description: "a cartographer" } })).id;
-  const bobPersona = (await svc.create({ principal: principal(bob), input: { name: "Mara", description: "a smith" } })).id;
+  const bobPersona = (await svc.create({ principal: principal(bob), input: { name: "Mira", description: "a smith" } })).id;
   return { resolve: createResolvePersonasForParticipants(harness.ctx), alice, bob, alicePersona, bobPersona };
 }
 
@@ -40,7 +40,7 @@ describe("resolvePersonasForParticipants", () => {
     expect(map.get(alicePersona)?.name).toBe("Zara");
     expect(map.get(alicePersona)?.description).toBe("a cartographer");
     expect(map.get(alicePersona)?.ownerId).toBe(alice);
-    expect(map.get(bobPersona)?.name).toBe("Mara");
+    expect(map.get(bobPersona)?.name).toBe("Mira");
   });
 
   test("REFUSAL: a persona whose owner is NOT in the consent set is absent (a departed/never-member's pin)", async () => {

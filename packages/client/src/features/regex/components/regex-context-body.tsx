@@ -140,13 +140,6 @@ function RegexScopePanel({
         rows={usage.characters}
       />
       <RoomList rooms={usage.rooms} />
-      {/* THE LISTS LEAD, THE ORDER FOLLOWS (side-eye 2026-08-03 P2 "panel burial"). The order editor used
-          to sit directly under the global switch: at the owner's 34 global scripts its 34 rows pushed
-          "Attached by presets / characters / rooms" ~1400px below the fold, in a panel whose entire stated
-          job is telling you where this script runs. The three lists ARE that answer and they are bounded
-          (a script is attached by a handful of carriers); the order list is unbounded in the library's size,
-          so it goes last. Still gated: one global script has no run order, and a non-global script's pane
-          has no business editing a tier it is not in. */}
       {isGlobal && globals.length > 1 ? (
         <Section kicker="Global run order">
           <Stack gap="field">
@@ -218,7 +211,7 @@ function AttachmentList({
  *
  * AND THE STAMP, for the reason titling by character names CREATES: "Alex, Niko" is a perfectly good title for three
  * different rooms. `rowQualifiers` is the house answer to exactly that collision on exactly this data (it
- * disambiguates the chats list, whose N rows titled "Azarael" are the same shape), escalating only where it
+ * disambiguates the chats list, whose N rows titled "Aveline" are the same shape), escalating only where it
  * must — the short relative form when the rooms are distinguishable by it, the absolute date-time when they
  * are not, an ordinal when nothing on screen can tell them apart. So a room row here reads the way a chats
  * row does: who is in it, and when it last moved.

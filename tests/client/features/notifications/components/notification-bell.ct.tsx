@@ -263,15 +263,15 @@ test("each inbox row owns its pending action: double-click is singular while a s
 
   await mount(<NotificationBellStory />);
   await page.getByRole("button", { name: "Notifications (2 unread)" }).click();
-  const nateRow = page.locator('[data-slot="inbox-row"]').filter({ hasText: "Invited to a chat by alex" });
+  const alexRow = page.locator('[data-slot="inbox-row"]').filter({ hasText: "Invited to a chat by alex" });
   const miraRow = page.locator('[data-slot="inbox-row"]').filter({ hasText: "Invited to a chat by mira" });
-  const nateAccept = nateRow.getByRole("button", { name: "Accept invitation from alex" });
+  const alexAccept = alexRow.getByRole("button", { name: "Accept invitation from alex" });
   const miraAccept = miraRow.getByRole("button", { name: "Accept invitation from mira" });
 
-  await nateAccept.dblclick();
+  await alexAccept.dblclick();
   await held.requested;
-  await expect(nateAccept).toBeDisabled();
-  await expect(nateRow.getByRole("status")).toHaveText("Updating invitation from alex…");
+  await expect(alexAccept).toBeDisabled();
+  await expect(alexRow.getByRole("status")).toHaveText("Updating invitation from alex…");
   await expect(miraRow.getByRole("status")).toHaveCount(0);
   await expect(miraAccept).toBeEnabled();
   await expect.poll(() => trpc.count("invites.acceptInvite")).toBe(1);

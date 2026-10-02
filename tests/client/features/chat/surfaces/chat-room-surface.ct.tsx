@@ -90,7 +90,7 @@ const ROSTER_STUB: TrpcRoutes<"chat.getChat"> = {
 const NOVA = "persona_nova";
 const FORMATTED_BODY = "*She looks up.* **Well met**, {{user}} — try `:help` sometime.";
 
-// The ST-card shape (Azarael: quoted dialogue + plain narration, zero asterisks) — the `colorQuotedSpeech`
+// The ST-card shape (Aveline: quoted dialogue + plain narration, zero asterisks) — the `colorQuotedSpeech`
 // appearance knob has to reach the body from the settings read. The knob-OFF case is the discriminator: an
 // always-on tint (a transform mounted unconditionally in the seal) passes the ON tests and fails that one.
 const QUOTED_GREETING = "He doesn’t look up from the ledger. “You’re late,” he says.";

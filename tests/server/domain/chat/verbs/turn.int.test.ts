@@ -546,7 +546,7 @@ describe("send — volatile-macro FREEZE at commit (Chat-Macro-Resolution §0 / 
         },
       );
     expect(view("Zara")).toBe(`I roll ${frozenRoll} and Zara smiles`);
-    expect(view("Yuki")).toBe(`I roll ${frozenRoll} and Yuki smiles`);
+    expect(view("Remy")).toBe(`I roll ${frozenRoll} and Remy smiles`);
   });
 
   test("{{time}} freezes to the send-time clock value, not the raw macro", async () => {

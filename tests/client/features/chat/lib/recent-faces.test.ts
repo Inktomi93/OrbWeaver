@@ -17,8 +17,8 @@ function seat(id: string, name: string, avatarHash: string | null = null): FaceS
 }
 
 const SEATS = new Map([
-  ["char_azarael", seat("char_azarael", "Azarael", "hash_azarael")],
-  ["char_sera", seat("char_sera", "Sera")],
+  ["char_aveline", seat("char_aveline", "Aveline", "hash_aveline")],
+  ["char_sola", seat("char_sola", "Sola")],
   ["char_niko", seat("char_niko", "Niko")],
 ]);
 
@@ -28,18 +28,18 @@ function chat(...seats: readonly string[]): FaceSourceChat {
 }
 
 test("faces are distinct, in FIRST-APPEARANCE order over the newest-first chats", () => {
-  const faces = recentFaces([chat("char_sera"), chat("char_azarael", "char_sera"), chat("char_niko")]);
-  expect(faces.map((face) => face.id)).toEqual(["char_sera", "char_azarael", "char_niko"]);
+  const faces = recentFaces([chat("char_sola"), chat("char_aveline", "char_sola"), chat("char_niko")]);
+  expect(faces.map((face) => face.id)).toEqual(["char_sola", "char_aveline", "char_niko"]);
 });
 
 test("a character seen in several chats appears ONCE, at its most recent position", () => {
-  const faces = recentFaces([chat("char_niko"), chat("char_niko"), chat("char_sera")]);
-  expect(faces.map((face) => face.id)).toEqual(["char_niko", "char_sera"]);
+  const faces = recentFaces([chat("char_niko"), chat("char_niko"), chat("char_sola")]);
+  expect(faces.map((face) => face.id)).toEqual(["char_niko", "char_sola"]);
 });
 
 test("the cap bounds the run when a caller has one", () => {
-  const faces = recentFaces([chat("char_azarael", "char_sera", "char_niko")], 2);
-  expect(faces.map((face) => face.id)).toEqual(["char_azarael", "char_sera"]);
+  const faces = recentFaces([chat("char_aveline", "char_sola", "char_niko")], 2);
+  expect(faces.map((face) => face.id)).toEqual(["char_aveline", "char_sola"]);
 });
 
 // FACEFILT: the curation used to cap at 8 "to stay one glanceable row" — a count that knew nothing about
@@ -51,7 +51,7 @@ test("uncapped by default — every chatted character is offered, and the strip'
 });
 
 test("each face carries what the strip draws it with (the FaceStrip item shape, no adapter)", () => {
-  expect(recentFaces([chat("char_azarael")])).toEqual([{ id: "char_azarael", name: "Azarael", avatarHash: "hash_azarael" }]);
+  expect(recentFaces([chat("char_aveline")])).toEqual([{ id: "char_aveline", name: "Aveline", avatarHash: "hash_aveline" }]);
 });
 
 test("no chats (or a room with no character seats at all) yields an empty strip, never a shell", () => {

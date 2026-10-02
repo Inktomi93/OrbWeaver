@@ -642,7 +642,7 @@ test("the DESKTOP census is untouched — it stays in the LIST band and the narr
 //
 // The defect, per section: the census travels inside the LIST band's title (`list-pane-header.tsx`), the
 // ONE-NAME rule sheds that title when the pane IS the screen (`shell.css`), so a phone printed the library's
-// size NOWHERE — a 328-row leaderboard and an empty one read identically. The count now rides the noun that
+// size NOWHERE — a 330-row leaderboard and an empty one read identically. The count now rides the noun that
 // survives, which keeps exactly ONE visible census per regime. Config is deliberately absent from this table:
 // its band carries no count at all (`config-section.tsx` renders `<ListPaneHeader title={…} />` bare), because
 // its LIST is a nav of settings groups — a number there would count doors, not a library.
@@ -661,7 +661,7 @@ const ANALYTICS_ROW = {
   firstChatAt: 1000,
   lastActivityAt: 5000,
 };
-const ANALYTICS_PAGE = { rows: [ANALYTICS_ROW, { ...ANALYTICS_ROW, characterId: "char_bolt", name: "Bolt", assistantTurns: 9 }], total: 328 };
+const ANALYTICS_PAGE = { rows: [ANALYTICS_ROW, { ...ANALYTICS_ROW, characterId: "char_bolt", name: "Bolt", assistantTurns: 9 }], total: 330 };
 /** Four presets, none filtered (this route never types in the search) — the unnarrowed census is the length. */
 const PRESET_ROWS = [1, 2, 3, 4].map((n) => ({
   id: `preset_census_${String(n)}`,
@@ -882,7 +882,7 @@ interface CensusCase {
 const CENSUS_CASES: readonly CensusCase[] = [
   { label: "Chats", onPhoneBar: true, phoneTitle: "Chats · 3", bandCount: "3" },
   { label: "Corpus", onPhoneBar: false, phoneTitle: "Explore · 12 of 19 distilled", bandCount: "12 of 19 distilled", bandTitle: "Explore" },
-  { label: "Corpus", mode: "Insights", onPhoneBar: false, phoneTitle: "Insights · 2 of 328", bandCount: "2 of 328", bandTitle: "Insights" },
+  { label: "Corpus", mode: "Insights", onPhoneBar: false, phoneTitle: "Insights · 2 of 330", bandCount: "2 of 330", bandTitle: "Insights" },
   { label: "Corpus", mode: "Labels", onPhoneBar: false, phoneTitle: "Labels · 3", bandCount: "3", bandTitle: "Labels" },
   { label: "Presets", onPhoneBar: false, phoneTitle: "Presets · 4", bandCount: "4" },
   { label: "Databank", onPhoneBar: false, phoneTitle: "Databank · 2", bandCount: "2" },
@@ -1066,7 +1066,7 @@ test.describe("the Corpus workbench on a phone", () => {
     const main = component.locator("main.shell-content");
     await expect(main.getByText("No insights yet")).toBeVisible();
     await expect(main.getByRole("radio", { name: "Insights" })).toHaveAttribute("aria-checked", "true");
-    await expect(component.locator(".shell-topbar-title")).toHaveText("Insights · 2 of 328");
+    await expect(component.locator(".shell-topbar-title")).toHaveText("Insights · 2 of 330");
 
     // Labels lands on its finder again.
     await main.getByRole("radio", { name: "Labels" }).tap();

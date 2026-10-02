@@ -14,13 +14,13 @@ import { seedAsset, seedCharacter, seedCharacterSummary, seedChat, seedUser } fr
 describe("resolveChatDisplay", () => {
   test("returns the authored title, normalizes an unnamed room to null, and skips ids that vanished", async () => {
     const db = await freshDb();
-    const named = await seedChat(db, "chat_named", "Amethyst Hollow");
+    const named = await seedChat(db, "chat_named", "Lantern Court");
     const blank = await seedChat(db, "chat_blank", "   ");
     const never = await seedChat(db, "chat_never");
 
     const rows = await resolveChatDisplay(db, [named, blank, never, castId<ChatId>("chat_gone")]);
     const byId = new Map(rows.map((r) => [r.chatId, r.title]));
-    expect(byId.get(named)).toBe("Amethyst Hollow");
+    expect(byId.get(named)).toBe("Lantern Court");
     // A whitespace-only or NULL title is "unnamed" — the client's chain reaches its cast rung either way,
     // and a `?? "Untitled chat"` on the raw column would have rendered a blank line for the first case.
     expect(byId.get(blank)).toBeNull();

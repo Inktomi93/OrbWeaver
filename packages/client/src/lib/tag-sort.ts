@@ -11,9 +11,9 @@
 
 import type { TagUsage } from "@orb/contracts/tag";
 
-/** The three orderings a tag library can be read in. `used` is the DEFAULT (the owner's ~400-tag library
- *  makes "what am I actually reaching for" the useful first screen); `alpha` is the hunt-by-name scan;
- *  `manual` is the authored `sortOrder`. ONE home — a new member fails `tsc` at every Record over it. */
+/** Tag sort has one home: used is the default scan by actual use, alpha scans names, and manual follows
+ *  authored sortOrder. A new member must fail tsc at every Record over the vocabulary.
+ */
 export const TAG_SORT_MODES = ["used", "alpha", "manual"] as const;
 export type TagSortMode = (typeof TAG_SORT_MODES)[number];
 

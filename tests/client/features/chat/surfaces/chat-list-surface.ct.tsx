@@ -82,9 +82,9 @@ function resolvedPx(component: Page, token: string): Promise<number> {
 const GROUP = makeChatSummary({
   id: "chat_group",
   title: "The Crimson Court",
-  participantNames: ["Aria Nightshade", "Sera", "Niko"],
-  filterCharacterIds: ["char_aria", "char_sera", "char_niko"],
-  participantPortraits: [ARIA_SEAT, makeSeatPortrait("char_sera", "Sera"), makeSeatPortrait("char_niko", "Niko")],
+  participantNames: ["Aria Nightshade", "Sola", "Niko"],
+  filterCharacterIds: ["char_aria", "char_sola", "char_niko"],
+  participantPortraits: [ARIA_SEAT, makeSeatPortrait("char_sola", "Sola"), makeSeatPortrait("char_niko", "Niko")],
 });
 
 // The character library the OVERFLOW PICKER lists (`FaceStrip`'s "filter by another character" tile). It no
@@ -93,7 +93,7 @@ const CHARACTERS = {
   items: [
     { id: "char_aria", name: "Aria Nightshade", avatarHash: "hash_aria" },
     { id: "char_faceless", name: "Faceless", avatarHash: null },
-    { id: "char_sera", name: "Sera", avatarHash: null },
+    { id: "char_sola", name: "Sola", avatarHash: null },
     { id: "char_niko", name: "Niko", avatarHash: null },
   ],
 };
@@ -124,7 +124,7 @@ const ONE_BY_ONE_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC
 const ADVENTURE_ROW = "A grand adventure";
 const UNTITLED_ROW = "Untitled chat";
 
-// ACTION names carry the row's own recency stamp after the title (side-eye P3a — N rows titled "Azarael"
+// ACTION names carry the row's own recency stamp after the title (side-eye P3a — N rows titled "Aveline"
 // in the character projection produced N identical menu names). The stamp is clock-relative, so the CTs pin
 // the SHAPE (a prefix) and the DISTINCTNESS, never the literal elapsed text.
 const ADVENTURE_MENU = /^Chat actions for "A grand adventure" · /u;
@@ -1160,7 +1160,7 @@ test("FACEFILT: a cast that already fits keeps every face and grows NO picker ti
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Show chats with Sera", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Show chats with Sola", exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Show chats with Niko", exact: true })).toBeVisible();
 
   await expect(component.getByRole("button", { name: OVERFLOW_TILE })).toHaveCount(0);
@@ -1495,13 +1495,8 @@ test("#490 the chrome band's count reflects the pane's filters, and returns to t
 
 // ── #500 (side-eye 2026-08-22 rail-chats, the P3 cluster) ────────────────────────────────────────────
 
-// P3 item 1 — the row's visual WEIGHT was inverted against its information VALUE. Measured at 896-chat
-// density: title 13px/600, subtitle 10.5px/400 — the instrument tier's micro gloss, the same step the
-// "CHATS" / "FILTER BY CHARACTER" chrome kickers take. On the imported corpus the titles share a leading
-// token, so the loudest element in each row was the part identical ACROSS rows while the only
-// discriminating content (the scent line) was the quietest thing on the surface. Read from computed values
-// against the document's OWN tokens, never a hardcoded px — the fix is `subtitleStep="label"`, and the
-// guard is that the resolved step is the label one and NOT the micro one.
+// The snippet is the row discriminant when titles share a leading name/date. It uses the readable label
+// floor while the title retains weight/tone hierarchy (#500).
 test("#500 the scent line takes the LABEL step, not the chrome kickers' micro gloss — and the title still outranks it", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([GAME, ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);

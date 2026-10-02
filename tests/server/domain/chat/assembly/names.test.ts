@@ -160,8 +160,8 @@ describe('applyNamesBehavior — "none" runs as "default" in a room with more th
   });
 
   test("a narrator row keeps its own attribution and takes no row label", () => {
-    const narrator = { role: "assistant" as const, content: "Kai: hey.\nMara: hi.", authorName: "Group", kind: "narrator" as const };
-    expect(applyNamesBehavior([alice, narrator], "none", speakers, { multiHuman: true }).map((r) => r.content)).toEqual(["Alice: hi", "Kai: hey.\nMara: hi."]);
+    const narrator = { role: "assistant" as const, content: "Kai: hey.\nMira: hi.", authorName: "Group", kind: "narrator" as const };
+    expect(applyNamesBehavior([alice, narrator], "none", speakers, { multiHuman: true }).map((r) => r.content)).toEqual(["Alice: hi", "Kai: hey.\nMira: hi."]);
   });
 
   test("a solo room keeps a true none, byte-identical", () => {

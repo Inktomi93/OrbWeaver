@@ -52,8 +52,8 @@ describe("persistence/identity — loadChatIdentityProducer (§1 member-gated co
   test("covers a message-stamped id NOT on any participant (a since-switched persona)", async () => {
     const owner = await seedUser(db, castId<Handle>("owner"));
     const activePersona = await seedPersona(db, owner, "zara");
-    const oldAvatar = await seedAsset(db, owner, "mara_avatar", { hash: "hash_mara" });
-    const oldPersona = await seedPersona(db, owner, "mara", { avatarAssetId: oldAvatar });
+    const oldAvatar = await seedAsset(db, owner, "mira_avatar", { hash: "hash_mira" });
+    const oldPersona = await seedPersona(db, owner, "mira", { avatarAssetId: oldAvatar });
 
     const identities = await loadChatIdentityProducer(db, {
       participants: [{ characterId: null, activePersonaId: activePersona }],
@@ -61,7 +61,7 @@ describe("persistence/identity — loadChatIdentityProducer (§1 member-gated co
     });
     // Both the participant's CURRENT active persona and the message's HISTORICAL stamp resolve.
     expect(new Set(identities.map((e) => e.id))).toEqual(new Set([activePersona, oldPersona]));
-    expect(entryOf(identities, oldPersona)?.avatarHash).toBe("hash_mara");
+    expect(entryOf(identities, oldPersona)?.avatarHash).toBe("hash_mira");
   });
 
   test("covers a message-stamped characterId NOT on any participant (a REMOVED character's portrait floor)", async () => {

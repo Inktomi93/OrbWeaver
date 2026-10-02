@@ -41,7 +41,7 @@ export const DEMO_DOCUMENT_TEXT = [
   "spokes and re-splice it by hand, singing the old counting songs that keep the tension true.",
   "",
   "Rev runs the card refinery on the third ring, where broken personas are melted down and re-cast.",
-  "Mara audits every splice for drift, and Niko keeps the archive of songs no one else remembers.",
+  "Mira audits every splice for drift, and Niko keeps the archive of songs no one else remembers.",
   "The Assistant speaks for the Loom itself, translating its slow machine-thoughts into human words.",
   "Together they hold the wheel against the long dark, one thread and one turn at a time.",
 ].join("\n");

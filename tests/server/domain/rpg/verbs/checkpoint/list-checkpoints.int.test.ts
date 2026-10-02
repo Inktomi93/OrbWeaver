@@ -29,7 +29,7 @@ describe("listCheckpoints", () => {
 // as the tracker view and the journal. The member→host fork already stripped checkpoint labels for exactly
 // this reason; the source read served them whole. Principals: `host` (the room's host), `member` (a plain
 // present member).
-const HIDDEN_SPAN = '<lie character="Mara" truth="she is the informant"/>';
+const HIDDEN_SPAN = '<lie character="Mira" truth="she is the informant"/>';
 
 describe("listCheckpoints — hidden spans are the HOST's plane, not the member's", () => {
   test("a member reads the label STRIPPED; the host reads it whole", async () => {

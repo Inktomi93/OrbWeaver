@@ -12,8 +12,8 @@ interface Card {
 }
 
 const CARDS: readonly Card[] = [
-  { id: "c1", name: "Kira", description: "a ranger of the northern vale" },
-  { id: "c2", name: "Brint", description: "a merchant who admires kira" },
+  { id: "c1", name: "Kora", description: "a ranger of the northern vale" },
+  { id: "c2", name: "Brint", description: "a merchant who admires kora" },
   { id: "c3", name: "Vale", description: "a sentient fortress" },
 ];
 
@@ -26,13 +26,13 @@ describe("fuzzySearch", () => {
   });
 
   test("matches across indexed fields and maps back to the ORIGINAL item objects", () => {
-    const hits = fuzzySearch(CARDS, "kira", FIELDS);
+    const hits = fuzzySearch(CARDS, "kora", FIELDS);
     expect(hits.map((c) => c.id).sort()).toEqual(["c1", "c2"]);
     expect(hits.every((c) => CARDS.includes(c))).toBe(true); // original refs, not widened copies
   });
 
   test("per-call searchFields scopes ONE index without a rebuild (name-only excludes c2)", () => {
-    const nameOnly = fuzzySearch(CARDS, "kira", { ...FIELDS, searchFields: ["name"] });
+    const nameOnly = fuzzySearch(CARDS, "kora", { ...FIELDS, searchFields: ["name"] });
     expect(nameOnly.map((c) => c.id)).toEqual(["c1"]);
   });
 
@@ -43,6 +43,6 @@ describe("fuzzySearch", () => {
   });
 
   test("limit caps the result set", () => {
-    expect(fuzzySearch(CARDS, "kira", { ...FIELDS, limit: 1 })).toHaveLength(1);
+    expect(fuzzySearch(CARDS, "kora", { ...FIELDS, limit: 1 })).toHaveLength(1);
   });
 });

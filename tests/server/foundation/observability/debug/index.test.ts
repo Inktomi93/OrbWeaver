@@ -135,8 +135,8 @@ describe("/api/_debug/stream/sockets — the one-socket-per-tab pin", () => {
 
   test("narrows to one principal with ?userId=", async () => {
     const { inspector, lastUserId } = stubSockets(1);
-    await socketsApp(inspector).fetch(authed("/api/_debug/stream/sockets?userId=user_nate"));
-    expect(lastUserId()).toBe("user_nate");
+    await socketsApp(inspector).fetch(authed("/api/_debug/stream/sockets?userId=user_alex"));
+    expect(lastUserId()).toBe("user_alex");
   });
 
   test("an unauthorized request is rejected by the gate (401), never reaching the registry", async () => {

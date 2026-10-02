@@ -277,7 +277,7 @@ describe("patchSheet — the tracker EXCEPTIONS are host-only, even on a member'
     // neither arm tells a member anything the other would not.
     const { chatId, service, fakes } = await seedGameWithMember();
     const member = principal(castId<Handle>("member"));
-    const characterRef = { kind: "character" as const, characterId: castId<CharacterId>("character_mara") };
+    const characterRef = { kind: "character" as const, characterId: castId<CharacterId>("character_mira") };
     fakes.busEvents.length = 0;
 
     await expect(service.patchSheet({ principal: member, chatId, actorRef: characterRef, patch: { trackerGrants: ["bound_will"] } })).rejects.toThrow(
@@ -293,7 +293,7 @@ describe("patchSheet — the tracker EXCEPTIONS are host-only, even on a member'
     if (!game) {
       throw new Error("no game");
     }
-    expect(await findSheet(db, game.id, { characterId: castId<CharacterId>("character_mara") })).toBeUndefined();
+    expect(await findSheet(db, game.id, { characterId: castId<CharacterId>("character_mira") })).toBeUndefined();
     expect(fakes.busEvents).toEqual([]);
   });
 

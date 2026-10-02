@@ -51,7 +51,7 @@ describe("compose/visible-rooms — the shared reverse-roster filter", () => {
     const friend = await seedUser(db, { handle: castId<Handle>("friend") });
     const personaId = castId<PersonaId>("persona_friend");
     await db.insert(personas).values({ id: personaId, ownerId: friend, name: "Sabine Veyra", description: "" });
-    const characterId = await seedCharacter(db, owner, "azarael");
+    const characterId = await seedCharacter(db, owner, "aveline");
 
     const room = await seedChat(db, "room", { title: "   ", updatedAt: NOW });
     await seedParticipant(db, { chatId: room, key: "me", userId: owner, role: "host" });
@@ -62,7 +62,7 @@ describe("compose/visible-rooms — the shared reverse-roster filter", () => {
 
     // The blank title arrives UNTRIMMED — deciding that "   " means unnamed is the client chain's job, and a
     // second copy of that rule here is what produced the "Untitled chat" defect this shape was minted to fix.
-    expect(rooms).toEqual([{ id: room, title: "   ", participantNames: ["Sabine Veyra", "azarael"], at: NOW }]);
+    expect(rooms).toEqual([{ id: room, title: "   ", participantNames: ["Sabine Veyra", "aveline"], at: NOW }]);
   });
 
   test("the SOLO floor keeps a room named, and rooms come back newest-first", async () => {

@@ -49,10 +49,10 @@ export interface CharacterLibraryBodyProps {
    *  WIDER than the `CharacterCardItem` this body renders, so importing the whole slot would flip the
    *  callback's variance and fail to assign. The list keys by `item.id` below, which is the same key. */
   readonly listProps: Pick<CollectionSurface<CharacterCardItem>["listProps"], "endApproachRows" | "onEndApproach">;
-  /** "30 of 327 loaded" — the loaded-vs-census progress line, `null` once the whole matched set is in
-   *  (#493). It renders at the FOOT of the list, beside the tail-fetch sentinel: that is where "how much of
-   *  it have I got" is the question, and it is the number the pane's top status line had to stop printing
-   *  because at rest it read as a result count (`character-library-lens.ts`'s own note). */
+  /** Loaded-versus-census progress, null once the matched set is fully loaded (#493). It belongs beside the
+   *  tail-fetch sentinel at the foot, where the reader asks how much is loaded; the top status reports
+   *  matches rather than disguising page size as a result count.
+   */
   readonly loadedProgress: string | null;
   /** The GROUP-BY-TAG census (#1696) — the buckets and their LIBRARY sizes under the current lens, or `null`
    *  while `character.listTagGroups` is in flight. Only the categorized arm reads it, and only that arm's

@@ -130,21 +130,12 @@ function printGroup(label: string, statements: readonly string[]): void {
   }
 }
 
-// ── the LOCAL-DB DIVERGENCE TRIPWIRE (advisory — issue #534, re-aimed by #316) ───────────────────────
-// The gating arm above asks "does the committed CHAIN account for the live SCHEMA". This one asks the
-// other question the same file governs: "is what the LOCAL DB recorded still in that chain" — because
-// when it is not, the next server boot ABORTS (`DB_LAUNCHED`, boot/migrate.ts). It used to forecast the
-// opposite consequence, an automatic wipe: on 2026-08-23 that cost a 1,242-chat import and ~8h of GPU
-// passes with no signal but a server.log line read hours later (#533), and on 2026-08-19 it took the
-// owner's whole corpus (#316, the incident behind the launch flip).
+// The local-baseline notice asks whether what a developer database recorded still belongs to the committed
+// chain; divergence predicts DB_LAUNCHED boot refusal (#534/#316), never a wipe.
 //
-// It stays a NOTICE, never a violation: the stage's verdict is about the COMMITTED tree, and whatever a
-// particular developer's db recorded is not a property of the commit. What it buys is VISIBILITY at the
-// decision point — the line rides the `[verify-notice]` channel, which `printSummary` renders in the tail
-// beside the verdict.
-//
-// A lane worktree has no `data/` and gets `no-db` (silence); a fresh checkout gets `trivial` (silence);
-// an unreadable db gets `unknown`, which is REPORTED — "I could not measure" is never printed as clean.
+// It is advisory, not a commit violation: local database state is not a property of the committed tree.
+// The verify-notice channel makes it visible beside the verdict. No database and trivial fresh state are
+// silent; an unreadable database reports unknown rather than pretending clean.
 const DEV_DB_MIGRATIONS = "packages/db/src/migrations";
 const MIB = 1_048_576;
 const HASH_PREFIX = 12;

@@ -154,7 +154,7 @@ describe("exportChat — the D26/D28 assembly", () => {
     const { ctx } = makeHarness(db);
     const host = await seedUser(db, { handle: castId<Handle>("host") });
     const aria = await seedCharacter(db, { ownerId: host, name: "Aria", handle: castId<CharacterHandle>("aria") });
-    const personaId = castId<PersonaId>("persona_nate");
+    const personaId = castId<PersonaId>("persona_alex");
     await db.insert(personas).values({
       id: personaId,
       ownerId: host,

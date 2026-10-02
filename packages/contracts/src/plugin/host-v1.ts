@@ -1,6 +1,6 @@
 // @orb/contracts/plugin — the `PluginHostV1` membrane surface in full. The ONE typed
 // thing a guest sees: the frozen, versioned, capability-gated surface it receives from `orb.host(1)` — the
-// antithesis of ST's `getContext()` god-object. Only JSON-safe primitives and OPAQUE HANDLES cross the
+// JSON-safe host-mediated API. Only JSON-safe primitives and OPAQUE HANDLES cross the
 // boundary; every host function is gated at the FUNCTION (not the namespace) by a `PluginCapability`, and the
 // clock/PRNG/id sources are injected (determinism is enforced, not requested — `test-determinism`). This file
 // is pure wire vocabulary (types + the capability→function completeness map); the runtime that implements it is

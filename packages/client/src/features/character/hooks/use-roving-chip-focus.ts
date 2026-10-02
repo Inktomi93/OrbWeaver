@@ -1,29 +1,13 @@
-// A ROVING KEYBOARD MODEL — one tab stop for a whole group of sibling controls, arrows within it (WAI-APG's
-// toolbar pattern). Two groups on this surface take it: the tag-vocabulary chip cloud (below) and the
-// character editor's `Opening N` strip (#1132), which had four tab stops and no arrow arm at all.
+// Roving focus gives the tag-chip cloud and Opening strip one tab stop, with arrows within the group (WAI-
+// APG toolbar model, #491/#1132). Large vocabularies must not require one Tab per offscreen chip to reach
+// the panel exit.
 //
-// WHY IT EXISTS (#491, side-eye 2026-08-22 rail-characters P1-1, measured on the owner's 551-tag library):
-// every chip was sequentially tabbable, so opening the vocabulary put **563 tab stops** between a keyboard
-// user and the first character row — with 529 of those chips scrolled outside the panel's 192px viewport at
-// any moment. The panel's own exit ("Show fewer") sits above the scroller, but reaching it from inside the
-// cloud cost 551 presses. One stop in, one stop out.
+// Do not compose ToolbarButton through render: its full control skin would compete with the ratified pill
+// skin by stylesheet order. Borrow only the keyboard model. No ref is returned because react-hooks/refs
+// taints render-time reads of a hook result that carries one; event currentTarget is the container.
 //
-// WHY NOT `@orb/ui`'s `<Toolbar>` (which already wraps Base UI's roving tabindex): its `ToolbarButton`
-// carries `toolbarButtonVariants` — a full control skin (`h-control-sm`, `rounded-control`, `text-label`,
-// its own focus ring) — and these chips are `Button intent="outline" shape="pill" size="chip"` with a
-// ratified pill box, a selection ring and a strike arm. Composing them through Base UI's `render` prop
-// concatenates two complete skins onto one element and the winner is decided by stylesheet order, not by
-// either variant. The keyboard model is the only part we need, so the model is what this borrows.
-//
-// NO REF, DELIBERATELY. The first spelling handed the caller a `RefObject` alongside the render-time tab
-// index, and `react-hooks/refs` is right to red it: a hook result whose object carries a ref taints EVERY
-// read of that object during render ("Cannot access refs during render"), including a plain number. The
-// container is always the event's own `currentTarget`, so the handlers find their chips without one — which
-// is both the lint-clean shape and the simpler one.
-//
-// The cloud WRAPS, so both axes walk the same linear order: there is no stable column to move "down" to
-// when the line lengths are content-derived, and APG's toolbar pattern says a wrapping toolbar may treat
-// its items as one sequence.
+// The cloud wraps with content-derived line lengths, so both axes follow the same linear order rather than
+// inventing a stable column.
 
 import type { FocusEvent as ReactFocusEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useState } from "react";

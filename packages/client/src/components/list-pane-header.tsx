@@ -39,7 +39,7 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
         )}
         {/* `data-slot` + `data-scoped`: on a phone the ONE-SHELL rule makes this pane the screen and the
             TOPBAR prints its name, so an UNSCOPED band title says the same word twice within 50px
-            (side-eye leg-4 P3 — measured on Characters). A SCOPED band ("CHATS · Sera") is a different
+            (side-eye leg-4 P3 — measured on Characters). A SCOPED band ("CHATS · Sola") is a different
             statement about a swapped pane, so it stays. shell.css sheds the duplicate; the decision lives
             there because "is this pane the screen?" is the shell's fact, not this composite's. */}
         {/* THE COUNT TRAVELS WITH THE TITLE (side-eye 2026-08-06). It used to be the heading's SIBLING, so

@@ -712,7 +712,7 @@ export interface ChatRpgGatherResult {
 export interface RpgTurnTranscriptMessage {
   /** The canon row's role (derived from `MESSAGE_ROLES` — never a re-spelled inline union, §7.5). */
   readonly role: MessageRole;
-  /** Resolved via the engine's `historyMacroNames` ("Mara", "You (Aldric)"); `null` for a system row. */
+  /** Resolved via the engine's `historyMacroNames` ("Mira", "You (Aldric)"); `null` for a system row. */
   readonly speakerName: string | null;
   /** The stored body (post-freeze canon, macro-raw identity ok — the state round reads the raw story). */
   readonly content: string;

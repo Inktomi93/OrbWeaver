@@ -10,8 +10,8 @@
 // New chat is the editor hero's primary (CONTENT tier, where she is open) plus the chats pane's own empty
 // state.
 //
-// IT IS ALSO THE ONE VISIBLE HOME OF THE CENSUS (#518, side-eye se-verify-1). `CHARACTERS 327` and the
-// filter rail's `327 characters` printed the same number ~130px apart in a 290px column; the band survives
+// IT IS ALSO THE ONE VISIBLE HOME OF THE CENSUS (#518, side-eye se-verify-1). `CHARACTERS 320` and the
+// filter rail's `320 characters` printed the same number ~130px apart in a 290px column; the band survives
 // by the chats precedent (`chat-list-header.tsx` — a list band prints its list's count), and the pane's line
 // stays as a spoken live region only. That single-homing is what makes the lens-aware count below
 // mandatory rather than a nicety: one visible census that ignored the filters beside it would be the exact

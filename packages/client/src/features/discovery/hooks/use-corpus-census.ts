@@ -9,7 +9,7 @@ import { distilledCensus } from "../lib/corpus-vocabulary.ts";
 
 /**
  * THE COUNT NAMES ITS BASE (#535). The band printed a bare `CORPUS 313` — `totalDistilled`, the size of the
- * DISTILLED catalog the list browses — in the same frame as an overview h1 reading "327 characters": two true
+ * DISTILLED catalog the list browses — in the same frame as an overview h1 reading "320 characters": two true
  * numbers of two different things, one of them unlabelled. `distilledCensus` is the ONE home of that
  * `N of TOTAL` phrasing, shared with the CONTEXT band, so the readers cannot drift.
  *

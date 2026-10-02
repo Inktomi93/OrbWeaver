@@ -9,7 +9,7 @@
 // Home DECIDED: the old "candidate → infra" target was ILLEGAL under the
 // `infra-no-db` dep-cruiser law (a DB-backed primitive cannot live in infra — the proof case is
 // `oidc-store.ts`, which moved OUT of infra for exactly this). The lock stays domain-local; promote to
-// `@orb/db/kit` ONLY iff a second domain ever needs a DB lock (Alex-doctrine YAGNI).
+// `@orb/db/kit` ONLY iff a second domain ever needs a DB lock (the owner-doctrine YAGNI).
 
 import type { Db } from "@orb/db";
 import { chatLocks } from "@orb/db";

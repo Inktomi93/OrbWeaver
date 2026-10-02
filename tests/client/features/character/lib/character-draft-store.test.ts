@@ -15,7 +15,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 test("character draft mirrors a form-value change and reads it back keyed by entityId", () => {
   expect(readDraftSeed(characterDraftStore, "char_1")).toBeUndefined();
 
-  const edited = { ...DEFAULT_CHARACTER_CARD_FORM, name: "Kira", description: "a rogue" };
+  const edited = { ...DEFAULT_CHARACTER_CARD_FORM, name: "Kora", description: "a rogue" };
   mirrorDraft(characterDraftStore, "char_1", edited);
   expect(readDraftSeed(characterDraftStore, "char_1")).toEqual(edited);
 

@@ -12,7 +12,7 @@
 /** One row of a chart's text equivalent: the row header (a category/bucket) plus its formatted cells. */
 interface ChartDataRow {
   /** The row's identity, which for a chart IS ITS RANK — a library can hold two characters called
-   *  "Mira" (the report's own P3), so the header is not an identity and never was. Assigned by the
+   *  "Tamsin" (the report's own P3), so the header is not an identity and never was. Assigned by the
    *  builders below so the renderer never has to invent one out of an array index. */
   readonly id: string;
   readonly header: string;

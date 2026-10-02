@@ -86,14 +86,14 @@ describe("squashSameRole — canonApart", () => {
 
   test("a second stored row opens its own row; the marker and the cue join their neighbours", () => {
     expect(squashSameRole(run, { canonApart: true })).toEqual([
-      { role: "user", content: "[Start a new chat]\n\nNate: in", messageId: a },
+      { role: "user", content: "[Start a new chat]\n\nAlex: in", messageId: a },
       { role: "user", content: "Joe: in too\n\n[Write the next reply only as Kai.]", messageId: b },
     ]);
   });
 
   test("without it the whole run joins (the control)", () => {
     expect(squashSameRole(run)).toEqual([
-      { role: "user", content: "[Start a new chat]\n\nNate: in\n\nJoe: in too\n\n[Write the next reply only as Kai.]", messageId: a },
+      { role: "user", content: "[Start a new chat]\n\nAlex: in\n\nJoe: in too\n\n[Write the next reply only as Kai.]", messageId: a },
     ]);
   });
 });

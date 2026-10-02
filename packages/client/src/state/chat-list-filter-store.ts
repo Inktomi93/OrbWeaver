@@ -22,7 +22,7 @@ export interface ChatListCharacterFilter {
 // THE OTHER TWO NARROWING AXES LIVE HERE TOO NOW (#490). They were `useState` inside `ChatListSurface`,
 // which made them invisible to the LIST CHROME BAND — a sibling shell region with no shared React ancestor,
 // exactly the problem this store was minted for. The measured consequence: the band printed `CHATS 896`
-// while the pane showed twelve rows for `Mira`, and printed the same 896 over a "No matches" empty state.
+// while the pane showed twelve rows for `Tamsin`, and printed the same 896 over a "No matches" empty state.
 // A census that ignores the filters beside it is not a fact about anything the reader can see.
 //
 // The RAW typed search is what is stored, not the debounced one: the field is controlled off it, and a

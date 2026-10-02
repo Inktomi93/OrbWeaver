@@ -1,28 +1,11 @@
-// THE CORPUS OVERVIEW'S TWO BELOW-FOLD INVENTORY BLOCKS — "Never played" and "Model economics".
+// Corpus-home-insights owns the Never played and Model economics block presentation, not the surface's
+// queries. It receives read state so stories can exercise the block without a data layer; the composition
+// retains its four reads and derived masthead/focal/rail.
 //
-// WHY THEY LEFT THE SURFACE (the `component-size` cap, 2026-08-23). They were inline arms of
-// `corpus-home-surface.tsx`, which is the overview's COMPOSITION: four suspended reads, the derived
-// analysis state, the masthead, the focal/rail grid. Both blocks then grew the honesty each of them owed
-// — a denominator, a coverage sentence, a ranked-and-capped series — and the composition file is not where
-// a section's own copy belongs. Same seam `corpus-home-charts.tsx` was cut on: the surface keeps the
-// queries, these keep what a block LOOKS like, and each takes the READ'S STATE rather than a query object
-// so a story can drive it with no data layer.
-//
-// ── WHAT WAS WRONG WITH BOTH, AND IT WAS ONE THING (side-eye populated arm 2026-08-23) ────────────────
-// Each block reported a fraction of what it knew and named no denominator, so on the audited 327-character
-// library both were read as statements about the whole library and both were false:
-//   • NEVER PLAYED rendered eight names — the window of a virtualized list of 204 — under a bare heading
-//     with no count and no ordering. 204 of 327 characters never played is 62% of the library and the most
-//     actionable fact the overview holds; the surface presented it as eight names ([P2-4]).
-//   • MODEL ECONOMICS guarded on SPEND, which is right on the guard's own terms and catastrophic on its
-//     data: 141 of 142 routes carry `costUsd: null` (a local model has no dollar cost, and OpenRouter rows
-//     arrive estimated), while `generations` and `tokensOut` are populated on ALL of them. So a library
-//     with 11,321 generations and 7.96M returned tokens rendered as one bar reading $0.08, drawn at full
-//     width in accent orange — the heaviest visual weight on the page spent on its smallest number, and a
-//     reader's honest conclusion is either "my 896-chat library cost eight cents" or "this is broken"
-//     ([P1-1]).
-// The fix in both places is the same shape: rank and render the quantity the data ACTUALLY carries, state
-// the denominator, and keep the sparse metric as an ANNOTATION where it exists rather than as the gate.
+// Both blocks report a ranked, bounded quantity with its denominator rather than implying the visible
+// window is the whole library. Model economics does not gate on spend: local/estimated routes may carry
+// generations and tokens with absent dollar cost. Sparse cost is an annotation where recorded, never a
+// fabricated zero or a gate hiding populated quantities.
 
 import { modelDisplayName } from "@orb/kit/model-name";
 import { BarList } from "@orb/ui/bar-list";

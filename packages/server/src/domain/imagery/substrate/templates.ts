@@ -2,7 +2,7 @@
 // quiet-extraction and multimodal vision-caption instructions live in `@orb/contracts/imagery`. Each carries a
 // load-bearing "Begin your reply with: <prefix>," so the LLM opens the keyword list with the composition the size
 // defaults assume; REQUIRED_PREFIXES + ensurePrefix are the drift belt (doc 02 §1 step 4) when the LLM drops it.
-// The negative-prompt BASE is a deduped generic defect-suppression core adapted from Marinara Engine's negative prompts (doc 02 §6) — appended-to,
+// The negative-prompt BASE is the negative-prompt lists adapted from Marinara Engine (doc 02 §6) — appended-to,
 // never replaced — and since PROSE-1 S1 it is a slot in the `@orb/contracts/imagery` catalog like its template
 // siblings, so `composeNegative` takes the resolved base rather than owning the bytes.
 // Modernized from ST's promptTemplates (index.js:174): the "Ignore previous instructions" jailbreak

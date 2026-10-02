@@ -1,11 +1,5 @@
-// CT: the Configuration workspace — the host frame over the REAL regex + world-info + roster collections.
-//
-// This is the seam's acceptance test: the host draws bands, disclosure, counts, create and the filter; the
-// contributions draw rows, editors and context bodies; and the ONE kinded selection routes between them.
-//
-// AT SCALE, ON PURPOSE (owner ruling 2026-08-02): the large-library fixture is FOUR HUNDRED rows, because that is
-// the owner's real library and every decision here — collapsed by default, the count-driven filter, the
-// windowed rows — exists for that size. A five-row toy would pass while the shipped surface stalled.
+// Configuration CTs mount the host frame over the real regex, world-info, and roster collections; settings
+// selection remains the host section contract.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -785,11 +779,8 @@ test("no control on the Configuration plane is offered from two of its three pan
   expect(twoHomed, "one verb, one home per plane").toEqual([]);
 });
 
-// THE LIST_PANE SPEAKS ONE A11Y GRAMMAR (side-eye 2026-08-19 P2). The regex rows were bare buttons in a
-// `Stack` — no list role, so a screen-reader user got no item count and no boundaries, while the tag
-// collection's own small arm announces "list, N items". The world-info small arm had the identical hole;
-// it is invisible on the owner's corpus (59 books window into the `VirtualList` arm, which announces a
-// list of its own), which is why it needed a small-list fixture rather than a live drive.
+// Small and virtualized collection arms must announce the same list count/boundaries. A small fixture
+// exercises the non-windowed branch rather than assuming a long-library drive covers it.
 for (const [collectionId, band, count] of [
   ["regex", REGEX_BAND, SCRIPTS.length],
   ["worldInfo", WORLD_INFO_BAND, BOOKS.length],

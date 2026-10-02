@@ -142,7 +142,6 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
       input: { name: "Shared Theme", override: {}, css: null },
     });
 
-    // Export the owner's full library through the real library route.
     const exportRoutes = captureExport({ export: app.exportService, registry: app.portability });
     const exportHandler = exportRoutes.get("GET /api/export/library");
     if (exportHandler === undefined) {

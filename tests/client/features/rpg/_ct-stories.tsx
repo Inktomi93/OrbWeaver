@@ -67,7 +67,7 @@ export function BeatRowTwoWritersStory(): ReactElement {
   return (
     <div style={{ width: 430 }}>
       <BeatRow
-        beat={{ key: "rpg_journal_ct_1", type: "npc", label: "", title: "Sera's debt", content }}
+        beat={{ key: "rpg_journal_ct_1", type: "npc", label: "", title: "Sola's debt", content }}
         edit={{
           onEditTitle: (): void => undefined,
           onEditContent: (_entryId, next): void => {

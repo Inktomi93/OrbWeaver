@@ -110,7 +110,7 @@ describe("assemblePrompt — section walk", () => {
     expect(assemblePrompt(config, roomed).static).toBe("ROOM CARD PRESET");
   });
 
-  // PRIVILEGE PRECEDENCE (regression :3032 — "a lower-privilege setting must not suppress a
+  // PRIVILEGE PRECEDENCE (prior-art case :3032 — "a lower-privilege setting must not suppress a
   // higher-privilege one"). The card-authored `systemPrompt` is integrity-load-bearing: a per-chat room
   // override (lower-privilege, per-chat) may REPLACE it (room > card by design, `{{original}}` recovers the
   // card value), but it can NEVER strip it to empty, and a preset-author LOCK (`forbidRoomOverride`) pins the
@@ -143,7 +143,7 @@ describe("assemblePrompt — section walk", () => {
     });
   });
 
-  // DELIMITER-INJECTION POSTURE (regression — "Rana</role>", card fields carrying `</role>`/`<system>`).
+  // DELIMITER-INJECTION POSTURE (prior-art case — "Rana</role>", card fields carrying `</role>`/`<system>`).
   // Orbweaver does NOT XML-wrap user content: markers render to PLAIN TEXT joined with blank lines, and
   // history is delivered as role-separated wire messages — so there is no structural delimiter for
   // user-authored `</role>`-shaped tokens to break out of; they pass through as inert prose. This pins that
@@ -690,7 +690,7 @@ describe("assemblePromptWithSlices — per-source budget attribution", () => {
     ]);
     const injections: ChatInjection[] = [
       { position: "in_prompt", depth: 0, role: "system", content: "operator note", origin: "user" },
-      { position: "in_chat", depth: 0, role: "system", content: "## Game state\nroster: Mara", origin: "game-state" },
+      { position: "in_chat", depth: 0, role: "system", content: "## Game state\nroster: Mira", origin: "game-state" },
       { position: "in_chat", depth: 2, role: "system", content: "the author's note", origin: "authors-note" },
     ];
     const ctx = ctxOf({ worldInfoBefore: "LORE: the lantern road", chatInjections: injections });
@@ -698,7 +698,7 @@ describe("assemblePromptWithSlices — per-source budget attribution", () => {
     const { prompt, slices } = assemblePromptWithSlices(config, ctx);
 
     expect(slices.map((s) => s.source)).toEqual(["system", "cards", "world-info", "steering", "game-state", "steering"]);
-    expect(slices.find((s) => s.source === "game-state")?.text).toBe("## Game state\nroster: Mara");
+    expect(slices.find((s) => s.source === "game-state")?.text).toBe("## Game state\nroster: Mira");
 
     // Every attributed slice IS text the model receives (the system halves ∪ the injection contents)…
     const delivered = [prompt.static, prompt.dynamic, ...injections.map((i) => i.content)].join("\n");

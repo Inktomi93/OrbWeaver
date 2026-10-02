@@ -1,20 +1,11 @@
-// verb: importOrphanCharacter — mint a MINIMAL placeholder character for an ORPHAN chats/ directory
-// (transcripts whose card PNG is absent from the profile), so its chats can import instead of being
-// skipped. 7 real dirs on the 2026-08-15 corpus run (Aestel/Ana/Bonnie_Cow/Diana/Mako/Misery/Sala).
+// importOrphanCharacter preserves transcripts whose card PNG is absent by minting only directory-proven
+// facts. Name is the most frequent non-sentinel header character_name, falling back to the humanized
+// directory name. Description stays empty; the owner supplies prose. The driver marks orphan import for
+// library discovery.
 //
-// THE EVIDENCE RULE — the mint carries ONLY what the directory proves, NEVER invented prose:
-//   • name: the most frequent NON-SENTINEL transcript header `character_name` (ST writes the literal
-//     sentinel `"unused"` on 583 of the 1,097 corpus headers — measured 6 of the 7 orphan dirs' 8 files;
-//     one Diana file carries the real name), else the directory's own name, underscores humanized
-//     ("Bonnie_Cow" → "Bonnie Cow").
-//   • description: EMPTY. A husk is a husk — the owner fleshes it out (the driver tags every mint
-//     "orphan import", manual/accepted, so the library filter finds them all).
-//
-// IDEMPOTENCY: a SYNTHETIC importHash — sha256 of a namespaced dir key (below) — through the same
-// (ownerId, importHash) oracle a card's byte hash uses. Chosen over a handle match because it survives the
-// owner RENAMING the minted character's handle, and the namespace prefix can never collide with a real
-// card-file hash (those are hex of the PNG bytes; this hashes a prefixed key). Re-runs resolve the same
-// row and write nothing; the chats then dedup by their own byte hashes.
+// The namespaced directory key has a synthetic importHash, resolved through the same ownerId/importHash
+// oracle as card imports. It cannot collide with a card-file hash and survives handle renames. Reruns
+// resolve the same row without writing; chats independently dedup by byte hash.
 
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

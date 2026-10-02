@@ -22,7 +22,7 @@ describe("listEmbeddableCharacterIds", () => {
     });
     const bobCard = await svc.create({
       principal: principal(bob),
-      input: { handle: castId<CharacterHandle>("bram"), name: "Bram", description: "a grumpy blacksmith" },
+      input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a grumpy blacksmith" },
     });
     await seedRawCharacter(db, {
       id: "character_group",
@@ -55,7 +55,7 @@ describe("listEmbeddableCharacterIds", () => {
     });
     await svc.create({
       principal: principal(bob),
-      input: { handle: castId<CharacterHandle>("bram"), name: "Bram", description: "a grumpy blacksmith" },
+      input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a grumpy blacksmith" },
     });
 
     // Alice's singular sweep sees ONLY her card — never bob's.

@@ -14,20 +14,20 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { resolveSpacingPxIn } from "../../support/browser/touch-floor.ts";
 import { FaceStripFoldHarness } from "./face-strip.fixtures.tsx";
 
-const AZARAEL = { id: "char_azarael", name: "Azarael", avatarHash: null };
-const SERA = { id: "char_sera", name: "Sera of the Long Winter Court", avatarHash: null };
+const AVELINE = { id: "char_aveline", name: "Aveline", avatarHash: null };
+const SOLA = { id: "char_sola", name: "Sola of the Long Winter Court", avatarHash: null };
 const AVATAR_MD_PX = SNAPPED_LENGTH_BASE_PX["spacing.avatar-md"];
 /** WCAG 2.5.5's target floor — the law's coarse-pointer bar (D62 P1 / touch-target-floor.suite.ct.tsx). */
 const WCAG_FLOOR = 44;
 const OVERFLOW_COUNT_TEXT_RE = /^\+\d+$/u;
 
 test("each face is a named button; the selected one announces aria-current", async ({ mount }) => {
-  const component = await mount(<FaceStrip items={[AZARAEL, SERA]} label="Recent characters" onSelect={(): void => undefined} selectedId={AZARAEL.id} />);
+  const component = await mount(<FaceStrip items={[AVELINE, SOLA]} label="Recent characters" onSelect={(): void => undefined} selectedId={AVELINE.id} />);
 
-  const selected = component.getByRole("button", { name: "Open Azarael", exact: true });
+  const selected = component.getByRole("button", { name: "Open Aveline", exact: true });
   await expect(selected).toHaveAttribute("aria-current", "true");
   // The other face is present and NOT current — state is on exactly one.
-  await expect(component.getByRole("button", { name: `Open ${SERA.name}`, exact: true })).not.toHaveAttribute("aria-current", "true");
+  await expect(component.getByRole("button", { name: `Open ${SOLA.name}`, exact: true })).not.toHaveAttribute("aria-current", "true");
   // The strip IS the mount root, so assert on it directly (a descendant query would never reach it).
   await expect.poll(() => component.evaluate((root) => root.tagName)).toBe("UL");
   await expect(component).toHaveRole("list");
@@ -39,7 +39,7 @@ test("tapping a face fires onSelect with its id", async ({ mount }) => {
   let picked = "";
   const component = await mount(
     <FaceStrip
-      items={[AZARAEL, SERA]}
+      items={[AVELINE, SOLA]}
       label="Recent characters"
       onSelect={(id): void => {
         picked = id;
@@ -49,8 +49,8 @@ test("tapping a face fires onSelect with its id", async ({ mount }) => {
     />,
   );
 
-  await component.getByRole("button", { name: "Show chats with Azarael", exact: true }).click();
-  expect(picked).toBe(AZARAEL.id);
+  await component.getByRole("button", { name: "Show chats with Aveline", exact: true }).click();
+  expect(picked).toBe(AVELINE.id);
 });
 
 // side-eye P2a: the caption used to be a FIXED `w-avatar-lg` box, so every name — including a short one the
@@ -58,7 +58,7 @@ test("tapping a face fires onSelect with its id", async ({ mount }) => {
 // natural width and only a genuinely long one truncates.
 test("a caption takes its NATURAL width; only a long name truncates, and the full name stays the accessible name", async ({ mount }) => {
   const component = await mount(
-    <FaceStrip caption={true} items={[AZARAEL, SERA]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />,
+    <FaceStrip caption={true} items={[AVELINE, SOLA]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />,
   );
 
   const measure = (name: string): Promise<{ overflow: string; textOverflow: string; whiteSpace: string; width: number; scrollWidth: number }> =>
@@ -73,31 +73,31 @@ test("a caption takes its NATURAL width; only a long name truncates, and the ful
       };
     });
 
-  // "Azarael" fits — it is NOT clipped (the round-1 defect: rendered "Azarae…" in a 40px box).
-  const short = await measure(AZARAEL.name);
+  // "Aveline" fits — it is NOT clipped (the round-1 defect: rendered "Azarae…" in a 40px box).
+  const short = await measure(AVELINE.name);
   expect(Math.round(short.scrollWidth)).toBeLessThanOrEqual(Math.ceil(short.width));
   // The long one still truncates rather than warping the strip's rhythm.
-  const long = await measure(SERA.name);
+  const long = await measure(SOLA.name);
   // NATURAL, not fixed: the two captions differ in width because each takes its own content's. This
   // replaces a `> 40px` floor that silently encoded the caption's letter-spacing — the density pass moved
   // the caption onto the `label` VOICE, which drops the micro-caps `tracking` a lowercase name never
-  // wanted, and the same un-clipped "Azarael" now measures ~36px (UI-Density-Law.md §2.3).
+  // wanted, and the same un-clipped "Aveline" now measures ~36px (UI-Density-Law.md §2.3).
   expect(short.width).not.toBe(long.width);
   expect(long.overflow).toBe("hidden");
   expect(long.textOverflow).toBe("ellipsis");
   expect(long.whiteSpace).toBe("nowrap");
   expect(long.scrollWidth).toBeGreaterThan(long.width);
   // Nothing is lost: the button still announces the whole name.
-  await expect(component.getByRole("button", { name: `Open ${SERA.name}`, exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: `Open ${SOLA.name}`, exact: true })).toBeVisible();
 });
 
 test("#365 a visible face-filter caption clears the 11px functional-label floor", async ({ mount }) => {
   const component = await mount(
-    <FaceStrip caption={true} items={[AZARAEL]} label="Filter by character" onSelect={(): void => undefined} selectedId={null} verb="Show chats with" />,
+    <FaceStrip caption={true} items={[AVELINE]} label="Filter by character" onSelect={(): void => undefined} selectedId={null} verb="Show chats with" />,
   );
-  const caption = component.getByText(AZARAEL.name, { exact: true });
+  const caption = component.getByText(AVELINE.name, { exact: true });
   await expect.poll(async () => await caption.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(11);
-  await expect(component.getByRole("button", { name: `Show chats with ${AZARAEL.name}`, exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: `Show chats with ${AVELINE.name}`, exact: true })).toBeVisible();
 });
 
 test("#365 the visible overflow count inside its face-filter button clears the 11px functional-label floor", async ({ mount }) => {
@@ -120,7 +120,7 @@ const CALAMITY = { id: "char_calamity", name: "Calamity, Doomblade of the Ninth 
 
 test("#153 captioned: every face cell is ONE width regardless of name length, and so are the portraits' positions", async ({ mount }) => {
   const component = await mount(
-    <FaceStrip caption={true} items={[BO, KOHAKU, CALAMITY, AZARAEL]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />,
+    <FaceStrip caption={true} items={[BO, KOHAKU, CALAMITY, AVELINE]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />,
   );
   await expect(component.getByRole("listitem")).toHaveCount(4);
   let widths = await component.evaluate((root) => [...root.querySelectorAll("button")].map((el) => Math.round(el.getBoundingClientRect().width)));
@@ -166,12 +166,12 @@ test("#153 UNCAPTIONED (the favorites-strip posture) is untouched: no name in th
 // #208: the kicker is a BOOLEAN — it prints the strip's own `label`, so the word on screen and the
 // announced name are one string and cannot drift (they did: "Filter by character" vs "Recent characters").
 test("a kicker prints the strip's OWN name in micro-caps above the faces (and is omitted by default)", async ({ mount }) => {
-  const bare = await mount(<FaceStrip caption={true} items={[AZARAEL]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
+  const bare = await mount(<FaceStrip caption={true} items={[AVELINE]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
   await expect(bare.getByText("Recent characters", { exact: true })).toHaveCount(0);
   await bare.unmount();
 
   const labelled = await mount(
-    <FaceStrip caption={true} items={[AZARAEL]} kicker={true} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />,
+    <FaceStrip caption={true} items={[AVELINE]} kicker={true} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />,
   );
   const kicker = labelled.getByText("Recent characters", { exact: true });
   await expect(kicker).toBeVisible();
@@ -206,10 +206,10 @@ test("the SELECTED face tints its caption to the accent — the filter-state tre
   const component = await mount(
     <FaceStrip
       caption={true}
-      items={[AZARAEL, SERA]}
+      items={[AVELINE, SOLA]}
       label="Recent characters"
       onSelect={(): void => undefined}
-      selectedId={AZARAEL.id}
+      selectedId={AVELINE.id}
       verb="Show chats with"
     />,
   );
@@ -229,13 +229,13 @@ test("the SELECTED face tints its caption to the accent — the filter-state tre
   const muted = await resolve("--color-muted-foreground");
   expect(primary).not.toBe(muted);
 
-  await expect(component.getByText(AZARAEL.name, { exact: true })).toHaveCSS("color", primary);
-  await expect(component.getByText(SERA.name, { exact: true })).toHaveCSS("color", muted);
+  await expect(component.getByText(AVELINE.name, { exact: true })).toHaveCSS("color", primary);
+  await expect(component.getByText(SOLA.name, { exact: true })).toHaveCSS("color", muted);
 });
 
 test("no caption by default (the favorites-strip posture: portraits only)", async ({ mount }) => {
-  const component = await mount(<FaceStrip items={[SERA]} label="Favorite characters" onSelect={(): void => undefined} selectedId={null} />);
-  await expect(component.getByText(SERA.name, { exact: true })).toHaveCount(0);
+  const component = await mount(<FaceStrip items={[SOLA]} label="Favorite characters" onSelect={(): void => undefined} selectedId={null} />);
+  await expect(component.getByText(SOLA.name, { exact: true })).toHaveCount(0);
 });
 
 test("an empty set renders NOTHING — never an empty shell", async ({ mount, page }) => {
@@ -245,8 +245,8 @@ test("an empty set renders NOTHING — never an empty shell", async ({ mount, pa
 });
 
 test("the face's hit box is the avatar token square — content-sized, not a collapsed control", async ({ mount }) => {
-  const component = await mount(<FaceStrip items={[AZARAEL]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
-  const button = component.getByRole("button", { name: "Open Azarael", exact: true });
+  const component = await mount(<FaceStrip items={[AVELINE]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
+  const button = component.getByRole("button", { name: "Open Aveline", exact: true });
   // `size="media"` is content-sized, so the button IS its avatar child — never smaller than it (the F2 defect).
   await expect.poll(async () => (await button.boundingBox())?.width).toBeGreaterThanOrEqual(AVATAR_MD_PX);
   await expect.poll(async () => (await button.boundingBox())?.height).toBeGreaterThanOrEqual(AVATAR_MD_PX);
@@ -422,7 +422,7 @@ test("a face picked from the OVERFLOW picker is hoisted into the visible row —
 });
 
 test("a strip with NO overflow prop is untouched — it still scrolls, and grows no tile (the favorites-strip posture)", async ({ mount }) => {
-  const component = await mount(<FaceStrip items={[AZARAEL, SERA]} label="Favorite characters" onSelect={(): void => undefined} selectedId={null} />);
+  const component = await mount(<FaceStrip items={[AVELINE, SOLA]} label="Favorite characters" onSelect={(): void => undefined} selectedId={null} />);
 
   await expect(component.getByRole("button", { name: OVERFLOW_TILE })).toHaveCount(0);
   await expect(component).toHaveCSS("overflow-x", "auto");
@@ -436,8 +436,8 @@ test.describe("coarse pointer — the face meets the touch floor", () => {
   test("a face is at least the 44px WCAG floor, and in practice the 48px coarse control box", async ({ mount, page }) => {
     // @orb-waive ct-no-oneshot-live-read-assert(expect): a media-query match on a context flag set BEFORE the page opened — nothing async can change it (the touch-target-floor suite's own R6 probe reads it the same way).
     expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-    const component = await mount(<FaceStrip items={[AZARAEL]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
-    const button = component.getByRole("button", { name: "Open Azarael", exact: true });
+    const component = await mount(<FaceStrip items={[AVELINE]} label="Recent characters" onSelect={(): void => undefined} selectedId={null} />);
+    const button = component.getByRole("button", { name: "Open Aveline", exact: true });
     const shortSide = async (): Promise<number> => {
       const box = await button.boundingBox();
       return Math.min(box?.width ?? 0, box?.height ?? 0);

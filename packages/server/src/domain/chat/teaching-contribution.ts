@@ -131,7 +131,7 @@ const EMPTY_COLLECTION: TeachingCollection = { injections: [], toolNames: [] };
 
 // ── The B7/MR4 reaction-attribution loop ────────────────────────────────────────────────────────────────
 //
-// Marinara's clever half, on this codebase's rails: recent reactions are narrated INTO the next turn's
+// Context-aware teaching, on this codebase's rails: recent reactions are narrated INTO the next turn's
 // prompt so the model can acknowledge them — the engagement payoff that makes a reaction steer the story.
 // The mechanism is deliberately NOT the mini-spec's per-message inline splice: §3-S2's convergence law puts
 // ALL prose steering on the ONE ChatInjection channel (single placement), and a second

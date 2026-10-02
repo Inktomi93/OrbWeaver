@@ -198,7 +198,7 @@ test("P0 regression: the reveal swap does not move the row's layout (the hover-o
 // half that was actually about legibility: the revealed line is a real line, and the glyphs that cover its
 // tail sit on an OPAQUE backdrop, never directly on text.
 test("P1 regression: the revealed metadata is a legible line, and the floated cluster paints its own backdrop", async ({ mount }) => {
-  const component = await mount(<CharacterCardTileStory handle={castId<CharacterHandle>("mara-soul-check")} name="Mara" />);
+  const component = await mount(<CharacterCardTileStory handle={castId<CharacterHandle>("mira-soul-check")} name="Mira" />);
   // Reveal deterministically via keyboard focus (group-focus-within) — :focus-within is reliable in CT
   // where :hover is not; focusing the row BODY (the reveal lives in its content column) triggers the swap.
   await component.locator('[data-slot="list-row-body"]').focus();

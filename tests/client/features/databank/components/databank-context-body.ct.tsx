@@ -29,7 +29,7 @@ const ROSTER_PROMISE = /which chats and characters it already feeds/u;
 
 /** The two Active-in DOORS, by the name a reader meets them under — the room is titled by its CAST (the
  *  fixture's room carries no authored title, which is the point), the card by its own name. */
-const ROOM_DOOR = /Azarael/;
+const ROOM_DOOR = /Aveline/;
 const CARD_DOOR = "Duskwater Warden";
 const NEW_CHARACTER = makeCharacterSummary({ id: "character_0000000000000000002", name: "Mirelight Cartographer" });
 const DATABANK_CHANGED: StreamFrame = {
@@ -42,7 +42,7 @@ type AttachmentView = TrpcWireOutput<"databank.listAttachments">;
 function attachmentView(characters: AttachmentView["characters"]): AttachmentView {
   return {
     global: true,
-    chats: [{ id: ATTACHED_ROOM, title: null, participantNames: ["Azarael"], at: 1_750_000_000_000 }],
+    chats: [{ id: ATTACHED_ROOM, title: null, participantNames: ["Aveline"], at: 1_750_000_000_000 }],
     characters,
   };
 }
@@ -129,7 +129,7 @@ test("the activation body owns the Everywhere write and states where the documen
   // pane when the title refuses to give. Measured, not assumed — a clipped row is invisible to every other
   // assertion here.
   const overflow = await page.evaluate(() => {
-    const button = [...document.querySelectorAll("button")].find((el) => el.textContent?.includes("Azarael"));
+    const button = [...document.querySelectorAll("button")].find((el) => el.textContent?.includes("Aveline"));
     if (button === undefined) {
       return { fits: false, why: "no door" };
     }

@@ -383,7 +383,7 @@ test("the top-character subtitle names the real affordance while collapsed and d
   await routeTrpc(page, {
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
-    "stats.wrapped": () => ({ ...WRAPPED, topCharacter: { name: "Azarael", assistantTurns: 12 } }),
+    "stats.wrapped": () => ({ ...WRAPPED, topCharacter: { name: "Aveline", assistantTurns: 12 } }),
     "stats.momentum": () => MOMENTUM,
   });
 

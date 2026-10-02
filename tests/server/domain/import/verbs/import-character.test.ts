@@ -444,15 +444,15 @@ describe("importCharacter", () => {
     const newCard = JSON.stringify({
       spec: "chara_card_v3",
       spec_version: "3.0",
-      data: { name: "Bram", description: "A blacksmith." },
+      data: { name: "Bryn", description: "A blacksmith." },
     });
 
     const result = await svc.importCharacter({
-      card: { bytes: encoder.encode(newCard), filename: "bram.json" },
+      card: { bytes: encoder.encode(newCard), filename: "bryn.json" },
     });
 
     expect(result.created).toBe(true);
     expect(h.creates).toHaveLength(1);
-    expect(h.findsByHandle.at(-1)?.handle).toBe("bram");
+    expect(h.findsByHandle.at(-1)?.handle).toBe("bryn");
   });
 });

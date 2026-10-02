@@ -2,8 +2,8 @@
 // one call writes on the first speaker's row survives the next call, where a second speaker was appended?
 //
 // Production today (`chat/assembly/shape.ts:squashSameRole`) concatenates the two assistant rows into ONE
-// string, so the block call 1 marked ("Mara: …") no longer exists as a block boundary in call 2. Measured on
-// the lane cache-check: msg_011CfLbSECMApXsYxJBSxnBf wrote 3159 on Mara's row, the next call
+// string, so the block call 1 marked ("Mira: …") no longer exists as a block boundary in call 2. Measured on
+// the lane cache-check: msg_011CfLbSECMApXsYxJBSxnBf wrote 3159 on Mira's row, the next call
 // msg_011CfLbSPpYVWa6rGmBypmGb read only the system entry. This probe measures the candidate layouts.
 //
 // Every variant is a two-call pair with its OWN nonce (so no variant can read another's entry), fired on BOTH
@@ -39,12 +39,12 @@ const MAX_TOKENS = 16;
 const PREFIX_LINES = 19;
 
 const SYSTEM = "You narrate a group role-play. Reply in one short sentence as the named speaker.";
-const MARA = "Mara: I set the lantern on the salt-crusted table and trace the ledger's last entry with one finger. \"Someone paid this toll in a name, not in coin. Whose name was it?\"";
+const MIRA = "Mira: I set the lantern on the salt-crusted table and trace the ledger's last entry with one finger. \"Someone paid this toll in a name, not in coin. Whose name was it?\"";
 const WREN = "Wren: I lean over her shoulder and squint at the smudged ink. \"That hand is the keeper's own. He paid his own toll, and he paid it the night the weir broke.\"";
-// One byte changed inside MARA (the "lantern" → "lanterN"): the planted negative's mover.
-const MARA_TAMPERED = MARA.replace("lantern", "lanterN");
+// One byte changed inside MIRA (the "lantern" → "lanterN"): the planted negative's mover.
+const MIRA_TAMPERED = MIRA.replace("lantern", "lanterN");
 const CUE_WREN = "[Wren speaks next.]";
-const CUE_MARA = "[Mara speaks next.]";
+const CUE_MIRA = "[Mira speaks next.]";
 
 interface Part {
   readonly text: string;
@@ -77,7 +77,7 @@ interface Variant {
 
 function variants(nonce: string): Variant[] {
   const long = (tag: string) => `The chronicle so far:\n${filler(`${nonce}-${tag}`, PREFIX_LINES)}`;
-  const squashed = `${MARA}\n\n${WREN}`;
+  const squashed = `${MIRA}\n\n${WREN}`;
   const pD = long("D");
   const pA = long("A");
   const pA2 = long("A2");
@@ -88,46 +88,46 @@ function variants(nonce: string): Variant[] {
   const pN = long("N");
   const pCS = long("CS");
   return [
-    { name: "D-control", calls: [[text("user", pD, true), text("assistant", MARA), text("user", CUE_WREN)], [text("user", pD, true), text("assistant", squashed), text("user", CUE_MARA)]] },
-    { name: "A-squash", calls: [[text("user", pA), text("assistant", MARA, true), text("user", CUE_WREN)], [text("user", pA), text("assistant", squashed, true), text("user", CUE_MARA)]] },
-    { name: "A2-pair", calls: [[text("user", pA2, true), text("assistant", MARA, true), text("user", CUE_WREN)], [text("user", pA2, true), text("assistant", squashed, true), text("user", CUE_MARA)]] },
+    { name: "D-control", calls: [[text("user", pD, true), text("assistant", MIRA), text("user", CUE_WREN)], [text("user", pD, true), text("assistant", squashed), text("user", CUE_MIRA)]] },
+    { name: "A-squash", calls: [[text("user", pA), text("assistant", MIRA, true), text("user", CUE_WREN)], [text("user", pA), text("assistant", squashed, true), text("user", CUE_MIRA)]] },
+    { name: "A2-pair", calls: [[text("user", pA2, true), text("assistant", MIRA, true), text("user", CUE_WREN)], [text("user", pA2, true), text("assistant", squashed, true), text("user", CUE_MIRA)]] },
     {
       name: "B-parts",
       calls: [
-        [text("user", pB), parts("assistant", { text: MARA, mark: true }), text("user", CUE_WREN)],
-        [text("user", pB), parts("assistant", { text: MARA }, { text: WREN, mark: true }), text("user", CUE_MARA)],
+        [text("user", pB), parts("assistant", { text: MIRA, mark: true }), text("user", CUE_WREN)],
+        [text("user", pB), parts("assistant", { text: MIRA }, { text: WREN, mark: true }), text("user", CUE_MIRA)],
       ],
     },
     {
       name: "C-unsquashed",
       calls: [
-        [text("user", pC), text("assistant", MARA, true), text("user", CUE_WREN)],
-        [text("user", pC), text("assistant", MARA), text("assistant", WREN, true), text("user", CUE_MARA)],
+        [text("user", pC), text("assistant", MIRA, true), text("user", CUE_WREN)],
+        [text("user", pC), text("assistant", MIRA), text("assistant", WREN, true), text("user", CUE_MIRA)],
       ],
     },
     {
       name: "EB-parts-tampered",
       calls: [
-        [text("user", pEB), parts("assistant", { text: MARA, mark: true }), text("user", CUE_WREN)],
-        [text("user", pEB), parts("assistant", { text: MARA_TAMPERED }, { text: WREN, mark: true }), text("user", CUE_MARA)],
+        [text("user", pEB), parts("assistant", { text: MIRA, mark: true }), text("user", CUE_WREN)],
+        [text("user", pEB), parts("assistant", { text: MIRA_TAMPERED }, { text: WREN, mark: true }), text("user", CUE_MIRA)],
       ],
     },
     {
       name: "EC-unsquashed-tampered",
       calls: [
-        [text("user", pEC), text("assistant", MARA, true), text("user", CUE_WREN)],
-        [text("user", pEC), text("assistant", MARA_TAMPERED), text("assistant", WREN, true), text("user", CUE_MARA)],
+        [text("user", pEC), text("assistant", MIRA, true), text("user", CUE_WREN)],
+        [text("user", pEC), text("assistant", MIRA_TAMPERED), text("assistant", WREN, true), text("user", CUE_MIRA)],
       ],
     },
     {
       name: "CS-unsquashed-product-spelling",
       spelling: "product",
       calls: [
-        [text("user", pCS), text("assistant", MARA, true), text("user", CUE_WREN)],
-        [text("user", pCS), text("assistant", MARA), text("assistant", WREN, true), text("user", CUE_MARA)],
+        [text("user", pCS), text("assistant", MIRA, true), text("user", CUE_WREN)],
+        [text("user", pCS), text("assistant", MIRA), text("assistant", WREN, true), text("user", CUE_MIRA)],
       ],
     },
-    { name: "N-no-cue", calls: [[text("user", pN), text("assistant", MARA, true)]] },
+    { name: "N-no-cue", calls: [[text("user", pN), text("assistant", MIRA, true)]] },
   ];
 }
 

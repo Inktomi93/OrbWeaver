@@ -1,54 +1,19 @@
-// §4.5 filter chips (under the search row): Favorites-only · Archived (opt-in disclosure — hidden by
-// default) · a tag multi-select. Favorites/Archived are pressable on/off `@orb/ui/toggle`s (R4). The TAG
-// chips are not: they carry THREE states (off → include → exclude → off, the ST `toggleTagThreeState`
-// capability neither our lineage nor neo ever built), and `aria-pressed` cannot express three. They are
-// `Button`s whose accessible NAME states which of the three they are in — the state is never carried by
-// colour alone, and never by hover — AND what activating will do next, because a cycling control whose
-// name states only its state leaves a screen-reader user to guess where the cycle goes (side-eye P2).
+// Favorites and Archived are two-state toggles; tag chips cycle off → include → exclude → off. aria-
+// pressed cannot represent three states, so each Button names both its current state and its next action;
+// neither color nor hover carries the state alone (§4.5).
 //
-// THE ROW IS CAPPED (side-eye 2026-08-03 P2). Uncapped it was a WALL: measured at the owner's library, 22
-// chips built a 298px block in a 290px-wide pane — 40% of the pane, above the first character row — and
-// 344px of a 740px mobile viewport. Worse, the vocabulary is derived from the LOADED rows, so it GREW and
-// reflowed underneath the reader as pages arrived. The cap holds the block to one glance; an ACTIVE chip is
-// never hidden by it (a filter you cannot see is a filter you cannot turn off), and the rest are one
-// disclosure away.
+// The visible row is capped, but active filters are never hidden. Expansion is a bounded
+// TagVocabularyPanel with its own scroller, an exit and search above the scroll, and chunked mounts. The
+// character list remains visible; the full-picker alternative was declined by the owner on 2026-08-17.
 //
-// …AND THE DISCLOSURE IS BOUNDED (side-eye 2026-08-17 P1 — se-chars-more.png / se-chars-trap.json /
-// perf-meter se-chars-expandperf.json). "+543 more" used to flip `expanded` and render the WHOLE vocabulary
-// back into this wrapping rail: 551 chips, a 5,957px chip wall, the character list's own height driven to
-// ZERO, the only way out 5.3k px away, and a 648ms blocking mount on the click. That is the exact defect the
-// cap above was minted against, at 25× scale. So the expansion is a REGION, not a longer rail
-// ({@link TagVocabularyPanel}): bounded height with its own scroller, its exit and a tag-search index above
-// the scroll (never scrolled away), chips mounted in CHUNKS so the click never blocks a frame, and the
-// character list still on screen underneath. The tag vocabulary stays fully visible as a concept — this is
-// where it lives, not a picker behind a dialog (owner ruling 2026-08-17: variant C, the full-picker IA, was
-// DECLINED).
+// The inactive vocabulary is collapsed on first visit (#491). Scope pills, all active chips including
+// orphans, the active count, and Clear all render in both states. Scope pills never move in the DOM on
+// activation. A filter that cannot be seen cannot be turned off.
 //
-// …AND THE VOCABULARY IS COLLAPSED BY DEFAULT (#491, side-eye 2026-08-22 rail-characters — the review's own
-// "single biggest opportunity"). At the owner's 327-character library this block was measured eating 34% of
-// the desktop pane and 42% of the phone (five rows visible of 327), density-immune (`compact` moved the
-// chrome 272px → 260px while the row went 44 → 40), and costing 18 tab stops before the first character —
-// 563 with the vocabulary open. The block is a DISCLOSURE now, shut on first visit.
-//
-// WHAT DOES NOT COLLAPSE, and that is the whole design: "a filter you cannot see is a filter you cannot turn
-// off" (the owner's 2026-08-13 P1, stated below) is not negotiable, so the SCOPE pills and every ACTIVE chip
-// — orphans included — render in BOTH states, together with the `N active` datum and Clear all. Only the
-// INACTIVE vocabulary, its `+N more` and the expansion panel go behind the disclosure. Nothing that is
-// currently narrowing the library can be hidden by it, and the scope pills never move in the DOM (a control
-// that relocates when you press it takes the focus with it).
-//
-// AN ACTIVE FILTER ALWAYS GETS A CHIP (owner's live P1, 2026-08-13). The vocabulary used to be derived from
-// the LOADED ROWS, so an active tag entry that matched no loaded row rendered nothing at all: the library
-// came back empty, no chip said why, and the only cure was wiping localStorage. The vocabulary is the
-// server's tag library now, and this component closes the last hole — an active entry that is in NO
-// vocabulary at all (a deleted tag, a foreign id from a previous dev era) still renders, named "Deleted
-// tag", so it can be cleared by the same cycle as any other chip. Validating/neutralizing such an id is a
-// separate work item (design doc W5); making it VISIBLE is this one. Inside the expansion the same rule is
-// kept by ORDER, not by pinning: `vocabularyPanelTags` floats the active entries to the head of the panel,
-// so an active chip is above the fold of a bounded scroller rather than 400 chips down it.
-//
-// Pure leaf apart from that disclosure: the states + the tag vocabulary come from the surface (the library
-// view-prefs store + `tag.listTagsWithUsage`, most-used first), the chips fire store actions.
+// Vocabulary comes from the server, not loaded character rows. A persisted id absent from that vocabulary
+// still renders as Deleted tag and can be cleared; validating it is a separate concern.
+// vocabularyPanelTags places active entries first so they remain above the fold. The surface owns the
+// state and ranked vocabulary; this leaf owns only disclosure.
 
 import type { TagId } from "@orb/kit/ids";
 import type { LucideIcon } from "@orb/ui/icons";
@@ -201,8 +166,8 @@ export function CharacterFilterChips({
       </Stack>
       {/* THE DATUM LINE — the group's own full-width row. It used to carry TWO numbers; it carries one
           printed number and one spoken one now (#518, side-eye se-verify-1).
-          WHY THE CENSUS STOPPED PRINTING: `327 characters` here sat ~130px under a band already reading
-          `CHARACTERS 327`, in a 290px column — the same number twice, and at rest that is the only state
+          WHY THE CENSUS STOPPED PRINTING: `320 characters` here sat ~130px under a band already reading
+          `CHARACTERS 320`, in a 290px column — the same number twice, and at rest that is the only state
           anyone sees. A census has ONE home and it is the band (the chats precedent: a list band prints its
           list's count), which is why the band answers the LENS now rather than the library. What did NOT
           move is the ANNOUNCEMENT: this is still a mounted `role="status"` region stating what the current

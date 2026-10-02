@@ -10,7 +10,7 @@ import { expect, test } from "../../support/fixtures.ts";
 
 const ARIA_ID = castId<CharacterId>("character_aria");
 const KAI_ID = castId<CharacterId>("character_kai");
-const MARA_ID = castId<PersonaId>("persona_mara");
+const MIRA_ID = castId<PersonaId>("persona_mira");
 const ZARA_ID = castId<PersonaId>("persona_zara");
 
 function ctx(overrides: Partial<RowMacroNameContext> = {}): RowMacroNameContext {
@@ -19,17 +19,17 @@ function ctx(overrides: Partial<RowMacroNameContext> = {}): RowMacroNameContext 
     [KAI_ID, { name: "Kai" }],
   ]);
   const personaNamesById = new Map<PersonaId, RowPersonaName>([
-    [MARA_ID, { name: "Mara", description: "a wandering scholar" }],
+    [MIRA_ID, { name: "Mira", description: "a wandering scholar" }],
     [ZARA_ID, { name: "Zara", description: "a stoic guard" }],
   ]);
   return { characterNamesById, personaNamesById, ...overrides };
 }
 
-// ── §6 fixture: a user row stamped personaId = Mara resolves {{user}} to Mara on both consumers ──
+// ── §6 fixture: a user row stamped personaId = Mira resolves {{user}} to Mira on both consumers ──
 
-test("resolveRowMacros: {{user}} resolves to the row's stamped persona name (Mara)", () => {
-  const out = resolveRowMacros("{{user}} waves", { characterId: null, personaId: MARA_ID }, ctx({ fallbackPersonaName: "Zara" }));
-  expect(out).toBe("Mara waves");
+test("resolveRowMacros: {{user}} resolves to the row's stamped persona name (Mira)", () => {
+  const out = resolveRowMacros("{{user}} waves", { characterId: null, personaId: MIRA_ID }, ctx({ fallbackPersonaName: "Zara" }));
+  expect(out).toBe("Mira waves");
 });
 
 // ── null personaId ⇒ falls to the chat ANCHOR fallback (never the row-stamp lookup) ──
@@ -70,7 +70,7 @@ test('resolveRowMacros: {{char}} falls back to the literal "Character" when noth
 test("resolveRowMacros: {{char}} in a user row resolves to the JOINED character names in a multi-character room", () => {
   const out = resolveRowMacros(
     "{{char}}, look here",
-    { characterId: null, personaId: MARA_ID },
+    { characterId: null, personaId: MIRA_ID },
     ctx({ characterNames: ["Aria", "Kai"], speakerCharName: "Aria" }),
   );
   // A user's own {{char}} addresses the whole cast (== {{group}}), NOT the arbitrary current speaker.
@@ -78,7 +78,7 @@ test("resolveRowMacros: {{char}} in a user row resolves to the JOINED character 
 });
 
 test("resolveRowMacros: {{char}} in a user row resolves to the ONE character in a solo room", () => {
-  const out = resolveRowMacros("{{char}}, look here", { characterId: null, personaId: MARA_ID }, ctx({ characterNames: ["Aria"] }));
+  const out = resolveRowMacros("{{char}}, look here", { characterId: null, personaId: MIRA_ID }, ctx({ characterNames: ["Aria"] }));
   expect(out).toBe("Aria, look here");
 });
 
@@ -121,7 +121,7 @@ test("resolveRowMacros: a <speaker> tag is left intact — the macro parser only
 // ── {{persona}} resolves the persona's DESCRIPTION, distinct from {{user}}'s name ──────────────
 
 test("resolveRowMacros: {{persona}} resolves to the row's stamped persona description", () => {
-  const out = resolveRowMacros("{{persona}}", { characterId: null, personaId: MARA_ID }, ctx());
+  const out = resolveRowMacros("{{persona}}", { characterId: null, personaId: MIRA_ID }, ctx());
   expect(out).toBe("a wandering scholar");
 });
 
@@ -169,7 +169,7 @@ test("resolveRowMacros: a flagged identity macro in a stored row resolves (flags
 });
 
 test("resolveRowMacros: identity names still resolve while volatile macros pass through verbatim", () => {
-  const out = resolveRowMacros("{{char}} tells {{user}} the time is {{time}} — rolled {{roll:d6}}", { characterId: ARIA_ID, personaId: MARA_ID }, ctx());
+  const out = resolveRowMacros("{{char}} tells {{user}} the time is {{time}} — rolled {{roll:d6}}", { characterId: ARIA_ID, personaId: MIRA_ID }, ctx());
   // Names resolve from the row's stamps; {{time}}/{{roll}} re-emit verbatim (stable).
-  expect(out).toBe("Aria tells Mara the time is {{time}} — rolled {{roll:d6}}");
+  expect(out).toBe("Aria tells Mira the time is {{time}} — rolled {{roll:d6}}");
 });

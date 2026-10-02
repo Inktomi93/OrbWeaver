@@ -1,15 +1,6 @@
-// corpus-COMPARE store CT — the pair the Corpus CONTEXT panel's Compare tab diffs, driven through its
-// module actions with the read hooks rendered as text. A CT (not a plain unit test) for the same reason as
-// its search and selection siblings: the store's only read surface is a reactive hook, and
-// `useSyncExternalStore` needs a real browser render.
-//
-// WHY THE STORE EXISTS AT ALL (#554). The pair used to be `useState` on the Compare tab, which made that
-// tab the only way to name one — while the Similarity tab next door listed 1,782 pairs as inert text
-// (`clickablePairs: 0`). A pair row is a door now, and the shell UNMOUNTS a CONTEXT tab body on the tab
-// switch that door performs, so component state would be discarded at exactly the moment of the hand-off.
-//
-// WHAT THIS PINS that the surface CTs cannot: a seed is ONE transition (a half-filled pair would let the
-// Compare tab fire a diff for a pair nobody asked for), and a single-slot write leaves its sibling alone.
+// Compare store CT uses real browser renders for useSyncExternalStore. The pair survives a Similarity-to-
+// Compare tab switch that unmounts the previous body. Seeding is one transition, never a half-filled pair
+// that could fire an unasked diff; a single-slot write preserves its sibling.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CorpusComparePairProbe } from "./_ct-stories.tsx";
@@ -26,10 +17,10 @@ test("a seeded pair lands whole, and each slot is writable on its own", async ({
 
   // …and the tab's own pickers still write one slot at a time, without disturbing the other.
   await probe.getByRole("button", { name: "set corpus compare a" }).click();
-  await expect(state).toHaveText("a=character_yuki b=character_frida");
+  await expect(state).toHaveText("a=character_remy b=character_frida");
 
   await probe.getByRole("button", { name: "clear corpus compare b" }).click();
-  await expect(state).toHaveText("a=character_yuki b=none");
+  await expect(state).toHaveText("a=character_remy b=none");
 });
 
 // #563: the NAME is part of the slot, because the Compare tab's Select can only name a value it finds in
@@ -45,8 +36,8 @@ test("each slot carries its NAME, and a slot's name moves with its id", async ({
   // A single-slot write replaces that slot's name and leaves its sibling's alone — the pairing is what
   // makes a stale name (the previous character's, under the new id) unrepresentable.
   await probe.getByRole("button", { name: "set corpus compare a" }).click();
-  await expect(names).toHaveText("aName=Yuki bName=Frida");
+  await expect(names).toHaveText("aName=Remy bName=Frida");
 
   await probe.getByRole("button", { name: "clear corpus compare b" }).click();
-  await expect(names).toHaveText("aName=Yuki bName=none");
+  await expect(names).toHaveText("aName=Remy bName=none");
 });

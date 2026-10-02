@@ -16,7 +16,7 @@ interface Person {
 // Deliberately NOT alphabetical/numeric insertion order — sorting must visibly reorder rows.
 const PEOPLE: readonly Person[] = [
   { id: "u1", name: "Elara", age: 34 },
-  { id: "u2", name: "Bram", age: 19 },
+  { id: "u2", name: "Bryn", age: 19 },
   { id: "u3", name: "Cass", age: 47 },
   { id: "u4", name: "Dex", age: 25 },
 ];

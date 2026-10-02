@@ -684,7 +684,7 @@ test("a group round keeps the block the previous call marked: same bytes, same e
     (await recordedTurn(turnRequest({ connection, tools: undefined, cacheBreakpointDepth: 1, history }), anthropicTextStream("ok"))).body;
   const opening = [
     { role: "user", content: text("We head for the harbor.") },
-    { role: "assistant", content: text("Mara: Mara leads.") },
+    { role: "assistant", content: text("Mira: Mira leads.") },
   ] satisfies AnthropicChatRequest["history"];
 
   const wren = await call([...opening, { role: "user", content: text("[Write the next reply only as Wren.]") }]);
@@ -697,14 +697,14 @@ test("a group round keeps the block the previous call marked: same bytes, same e
   const n = cachedBlocks(wren);
   const next = cachedBlocks(kai);
   const deepest = Math.max(...n.marked);
-  // System (0) and Mara's block (2) are marked on the first call.
+  // System (0) and Mira's block (2) are marked on the first call.
   expect(n.marked).toEqual([0, 2]);
   expect(next.blocks.slice(0, deepest + 1)).toEqual(n.blocks.slice(0, deepest + 1));
   // The run is still ONE assistant turn on the wire, made of two blocks, and the marker moved to the newest one.
   const messages = kai?.body["messages"] as Record<string, unknown>[];
   expect(messages.map((message) => message["role"])).toEqual(["user", "assistant", "user"]);
   expect(messages[1]?.["content"]).toEqual([
-    { type: "text", text: "Mara: Mara leads." },
+    { type: "text", text: "Mira: Mira leads." },
     { type: "text", text: "Wren: Wren scouts.", cache_control: { type: "ephemeral", ttl: "1h" } },
   ]);
 });
@@ -719,7 +719,7 @@ test("SDK pin: adjacent same-role rows group into one message and each row's mar
       tools: undefined,
       history: [
         { role: "user", content: [text("We head for the harbor.")] },
-        { role: "assistant", content: [text("Mara: "), text("Mara leads.")], wireMeta: { cacheBreakpoint: true } },
+        { role: "assistant", content: [text("Mira: "), text("Mira leads.")], wireMeta: { cacheBreakpoint: true } },
         { role: "assistant", content: [text("Wren: Wren scouts.")] },
         { role: "user", content: [text("[Write the next reply only as Kai.]")] },
       ],
@@ -729,8 +729,8 @@ test("SDK pin: adjacent same-role rows group into one message and each row's mar
   const messages = body?.body["messages"] as Record<string, unknown>[];
   expect(messages.map((message) => message["role"])).toEqual(["user", "assistant", "user"]);
   expect(messages[1]?.["content"]).toEqual([
-    { type: "text", text: "Mara: " },
-    { type: "text", text: "Mara leads.", cache_control: { type: "ephemeral", ttl: "1h" } },
+    { type: "text", text: "Mira: " },
+    { type: "text", text: "Mira leads.", cache_control: { type: "ephemeral", ttl: "1h" } },
     { type: "text", text: "Wren: Wren scouts." },
   ]);
 });

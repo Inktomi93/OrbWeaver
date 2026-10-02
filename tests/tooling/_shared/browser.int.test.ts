@@ -418,13 +418,13 @@ test("snap maps repeated accessible names to distinct executable selectors", () 
 });
 
 test("snap maps the browser-computed name, excluding aria-hidden avatar initials", () => {
-  const page = fixture("map-aria-hidden", '<button><span aria-hidden="true">DD</span><span>Diana</span></button>');
+  const page = fixture("map-aria-hidden", '<button><span aria-hidden="true">DD</span><span>Della</span></button>');
   const name = `${RUN_ID}_map_aria_hidden`;
   const result = runSnap(["--file", page, "--no-shot", "--map", "--json", "--no-failure-evidence", "--out", name]);
 
   expect(result.status, result.stdout + result.stderr).toBe(0);
   const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ name: string }> }>)[0];
-  expect(capture?.mapResult).toContainEqual(expect.objectContaining({ name: "Diana" }));
+  expect(capture?.mapResult).toContainEqual(expect.objectContaining({ name: "Della" }));
 });
 
 test("snap concatenates a multi-text-node accessible name with no separator, matching the real accname algorithm", () => {

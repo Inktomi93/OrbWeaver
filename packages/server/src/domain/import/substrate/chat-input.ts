@@ -166,11 +166,10 @@ function noteDepthFor(position: BulkImportInjectionInput["position"], recorded: 
   return recorded !== null && recorded >= 0 ? recorded : HOUSE_NOTE_DEPTH;
 }
 
-/** ST's `note_prompt` converted to the ONE `chat_injections` row it becomes, or null when the chat carries no
- *  note text. `note_interval` (ST's "re-insert every N messages") is DROPPED: orb's injection system has no
- *  periodic-insertion concept and inventing one here would be a new placement knob, not a conversion. The
- *  corpus records interval 1 (= every message, i.e. always present) on 1,068 of 1,070 note-bearing chats, so
- *  orb's always-present injection is the faithful reading for effectively all of them. */
+/** Convert note_prompt to one chat_injections row, or null without text. note_interval is not mapped: orb
+ *  has no periodic-insertion concept, and adding one here would invent a placement knob rather than convert
+ *  an existing contract.
+ */
 function importedNoteInjection(notePrompt: string | null, placement: ParsedNotePlacement | null, createdAt: number): BulkImportInjectionInput | null {
   if (notePrompt === null) {
     return null;
@@ -193,8 +192,8 @@ function importedNoteInjection(notePrompt: string | null, placement: ParsedNoteP
  *  position/role conversion the note rides (they are the same ST enums — the serde's source pins). The
  *  house register is the same fallback for an unrecorded/unmappable knob. TWO ST fields have no orb seat
  *  and are dropped, recorded here: `scan` (include the text in world-info keyword scans — orb's injections
- *  do not feed WI scanning; 1 corpus row records `true`) and `filter` (an STscript closure source string —
- *  orb has no STscript executor; null on every corpus row). Order: after the note, in ST's own key order —
+ *  do not feed WI scanning) and `filter` (an STscript closure source string — orb has no STscript executor).
+ *  Order: after the note, in ST's own key order —
  *  `order: null` (unordered within their position band, like the note). */
 function importedScriptInjections(injects: readonly ParsedScriptInject[], createdAt: number): BulkImportInjectionInput[] {
   return injects.map((inject): BulkImportInjectionInput => {
@@ -212,7 +211,7 @@ function importedScriptInjections(injects: readonly ParsedScriptInject[], create
 
 // ── The imported chat's DISPLAY TITLE ────────────────────────────────────────────────────────────────────
 //
-// ST's filename IS its chat name, and it is a machine token: "Emily Singleton - 2025-5-7 @22h 52m 11s
+// ST's filename IS its chat name, and it is a machine token: "Eleni Northwell - 2024-3-6 @22h 52m 11s
 // 856ms". Importing it verbatim put that string in every chat list row. orb's own convention (client
 // `lib/chat-summary-row.ts`) is that a room shows its CAST and a date stamp, and its list date form is
 // `formatDate`'s `Mon D, YYYY` — so an imported chat gets the same two facts, composed once, here.
@@ -224,7 +223,7 @@ const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "S
 /** Name and date are joined by an em dash — the name is not part of a date range, it is a separate fact. */
 const TITLE_SEPARATOR = "—";
 
-/** "Emily Singleton — May 7, 2025" for one imported room. `zone` is the SAME ST wall-clock zone the dates
+/** "Eleni Northwell — Mar 6, 2024" for one imported room. `zone` is the SAME ST wall-clock zone the dates
  *  were parsed in, so the rendered day is the day the ST filename spelled rather than a UTC-shifted one.
  *  Null only when neither fact exists (no cast name AND an unformattable instant) — the caller then keeps the
  *  source filename, which is worse-looking but never blank. */
@@ -266,13 +265,8 @@ export function disambiguateChatTitles(inputs: readonly BulkImportChatInput[]): 
 //   3. THE USER TURNS' OWN `name` STAMP — the first one that resolves. ST writes every line's `name` with its
 //      sender's display name at send time, so a user turn IS a record of who wrote it.
 //
-// SIGNAL 3 IS THE LOAD-BEARING ONE ON A REAL CORPUS, and its absence is the bug this ordering was rebuilt to
-// fix (owner-observed 2026-08-17, measured against the owner's ST snapshot 2026-08-18). Of 1,083 transcripts,
-// **569 write the header `user_name` as the literal sentinel `"unused"`** and only 71 carry a pin — so signals
-// 1+2 alone leave ~500 chats with no anchor and no user-turn attribution at all (the live corpus showed 417 of
-// 895 imported rooms unattributed). Of those "unused" chats, **468 carry a resolvable persona name on their
-// user turns** (Alex ×438 · Ashley ×21 · Ash ×10 · Sam Rowe ×4 · Yuki ×3). The earlier note here — that
-// `"unused"` is the pinned chats' tell — was true and MISLEADING: the sentinel is far more common than the pin.
+// A sentinel header and absent pin must still resolve a persona from a user-turn sender.
+// The sender stamp is independent of both header signals.
 //
 // EVERY signal is a best-effort EXACT (case/whitespace-insensitive) NAME match against the personas this run
 // imported (owner ruling 2026-08-17: match, never guess, and NEVER fling the currently-active orb persona at
@@ -280,8 +274,8 @@ export function disambiguateChatTitles(inputs: readonly BulkImportChatInput[]): 
 // It never near-matches, and it never blocks the chat: ST likewise drops a dangling lock and falls back to the
 // ambient persona, so the later signals are still consulted underneath.
 //
-// DELIBERATELY STILL UNREAD: `chat_metadata.persona`, whose value is an avatar FILENAME rather than a name (4
-// corpus chats, 2 of them otherwise unattributed). That is a second key space, and the serde's own header
+// DELIBERATELY STILL UNREAD: `chat_metadata.persona`, whose value is an avatar FILENAME rather than a name.
+// That is a second key space, and the serde's own header
 // records the ruling — it stays unread rather than half-resolved until a filename→persona map crosses this
 // seam.
 

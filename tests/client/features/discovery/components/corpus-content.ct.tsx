@@ -35,7 +35,7 @@ import { readPhantomScrollers } from "../../../../support/browser/scroll-contain
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
-import { CorpusContentNarrowStory, CorpusContentStory } from "../_ct-stories.tsx";
+import { CorpusContentInsetStory, CorpusContentNarrowStory, CorpusContentStory } from "../_ct-stories.tsx";
 
 /** The frozen page clock. Every stamp below is derived from it; no test here reads a wall clock. */
 const FROZEN_AT_MS = 1_760_000_000_000;
@@ -451,7 +451,7 @@ const FREE_ROUTES = [
 // THE OLD PIN (verbatim, so the reversal is legible): "MODEL ECONOMICS IS GUARDED ON SPEND, not on row
 //   count (forensics §7)" — `modelRouting` returns a row per (genre × model) whether or not money moved,
 //   so the original `routing.length` guard rendered 134 rows, 133 of them exactly $0.00, at 4,304px.
-// WHAT KILLED ITS PREMISE: on the 327-character library 141 of 142 routes carry `costUsd: null` (a local
+// WHAT KILLED ITS PREMISE: on the 320-character library 141 of 142 routes carry `costUsd: null` (a local
 //   model has no dollar cost; OpenRouter rows arrive estimated) while `generations` and `tokensOut` are
 //   populated on ALL of them. The spend guard therefore reduced 11,321 generations and 7.96M tokens to
 //   ONE bar reading $0.08 — full width, in accent orange, the page's heaviest visual weight spent on its
@@ -514,14 +514,15 @@ test("a large never-played library is windowed instead of mounting every avatar 
   await expect(list.getByRole("listitem").first()).toHaveAttribute("aria-setsize", LARGE_UNUSED_LIBRARY.length.toString());
 });
 
-test("the CONTENT region insets its own body — no row starts flush at the pane edge", async ({ mount, page }) => {
+test("the CONTENT region insets its body through the shell host — no row starts flush at the pane edge", async ({ mount, page }) => {
   await stub(page, ANALYSED);
-  const component = await mount(<CorpusContentStory />);
+  const component = await mount(<CorpusContentInsetStory />);
   const masthead = component.getByRole("heading", { level: 1 });
   await expect(masthead).toBeVisible();
 
   // The RESOLVED token, never a hardcoded px: the region pads on the `section` step.
-  const measured = await page.locator('[data-slot="corpus-content"]').evaluate((el) => {
+  const region = component.locator(".shell-region-fill");
+  const measured = await region.evaluate((el) => {
     const style = globalThis.getComputedStyle(el);
     const probe = document.createElement("div");
     probe.style.width = "var(--spacing-section)";
@@ -534,7 +535,7 @@ test("the CONTENT region insets its own body — no row starts flush at the pane
     .poll(
       async () =>
         (
-          await page.locator('[data-slot="corpus-content"]').evaluate((el) => {
+          await region.evaluate((el) => {
             const style = globalThis.getComputedStyle(el);
             const probe = document.createElement("div");
             probe.style.width = "var(--spacing-section)";
@@ -550,7 +551,7 @@ test("the CONTENT region insets its own body — no row starts flush at the pane
     .poll(
       async () =>
         (
-          await page.locator('[data-slot="corpus-content"]').evaluate((el) => {
+          await region.evaluate((el) => {
             const style = globalThis.getComputedStyle(el);
             const probe = document.createElement("div");
             probe.style.width = "var(--spacing-section)";
@@ -563,7 +564,7 @@ test("the CONTENT region insets its own body — no row starts flush at the pane
     )
     .toBe(measured.expected);
 
-  const [regionBox, headingBox] = await Promise.all([page.locator('[data-slot="corpus-content"]').boundingBox(), masthead.boundingBox()]);
+  const [regionBox, headingBox] = await Promise.all([region.boundingBox(), masthead.boundingBox()]);
   if (regionBox === null || headingBox === null) {
     throw new Error("the corpus content region or its masthead did not render a box");
   }

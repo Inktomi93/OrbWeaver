@@ -21,7 +21,7 @@ const FAMILIES = MEMBERS.map((name) => ({
   members: [
     { characterId: mintTypeId(ID_PREFIX.character), name, avatarHash: null },
     { characterId: mintTypeId(ID_PREFIX.character), name: "Elara", avatarHash: null },
-    { characterId: mintTypeId(ID_PREFIX.character), name: "Bram", avatarHash: null },
+    { characterId: mintTypeId(ID_PREFIX.character), name: "Bryn", avatarHash: null },
   ],
 })) satisfies VisualArchetype[];
 

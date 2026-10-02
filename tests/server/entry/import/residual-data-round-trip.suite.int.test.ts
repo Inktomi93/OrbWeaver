@@ -119,7 +119,7 @@ describe("residualData survives the DB-mediated import→export round-trip", () 
       spec: "chara_card_v3",
       // biome-ignore lint/style/useNamingConvention: ST Character-Card wire field names (snake_case) appear verbatim in these card fixtures — they ARE the format.
       spec_version: "3.0",
-      data: { name: "Bram", description: "A blacksmith." },
+      data: { name: "Bryn", description: "A blacksmith." },
     });
 
     const result = await runProfileImport({
@@ -132,7 +132,7 @@ describe("residualData survives the DB-mediated import→export round-trip", () 
       },
       assets: noopAssets,
       tag: noopTag,
-      files: [{ bytes: new TextEncoder().encode(plainCard), filename: "bram.json" }],
+      files: [{ bytes: new TextEncoder().encode(plainCard), filename: "bryn.json" }],
     });
 
     const characterId = result.imported[0]?.characterId as CharacterId;

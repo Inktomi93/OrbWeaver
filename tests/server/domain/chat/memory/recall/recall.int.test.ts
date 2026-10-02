@@ -16,7 +16,7 @@ import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } f
 import { fakeEmbeddingsStore, fakeSearchDigests, fakeSummarize, GROUP_CHAR, seedDigest, seedSegment, seedTurns, sharedScope } from "../_support.ts";
 
 const aria = castId<CharacterId>("character_aria");
-const bram = castId<CharacterId>("character_bram");
+const bryn = castId<CharacterId>("character_bryn");
 
 /** #250 — `recallMemory` now returns `{ text, trace }`. These suites assert the RENDERED `{{memory}}` block,
  *  so they read `.text` through this alias; the trace itself is pinned by `recall-trace.int.test.ts`. */
@@ -26,12 +26,12 @@ let db: Db;
 let owner: UserId;
 beforeEach(async () => {
   db = await freshDb();
-  // FK parents for the digest `scopedCharacterId` (the synthetic group char for the shared bucket + aria/bram
+  // FK parents for the digest `scopedCharacterId` (the synthetic group char for the shared bucket + aria/bryn
   // for the scoped buckets — inv 8: a real CharacterId, never the `''` sentinel).
   owner = await seedUser(db, castId<Handle>("owner"));
   await seedCharacter(db, owner, "group"); // id === GROUP_CHAR
   await seedCharacter(db, owner, "aria");
-  await seedCharacter(db, owner, "bram");
+  await seedCharacter(db, owner, "bryn");
 });
 
 // Build the expected {{memory}} block(s) from parts (avoids a `keywords:`-shaped literal tripping noSecrets).
@@ -247,10 +247,10 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     });
     await seedDigest(db, {
       chatId,
-      scopedCharacterId: bram,
+      scopedCharacterId: bryn,
       tier: 0,
       blockIdx: 0,
-      topicAnchor: "[bram]",
+      topicAnchor: "[bryn]",
       keywords: [],
     });
     const ctx = makeChatContext(db);
@@ -261,20 +261,20 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
       config: { mode: "mixA" },
     });
     expect(ariaOut).toBe("[aria]");
-    expect(ariaOut).not.toContain("[bram]");
+    expect(ariaOut).not.toContain("[bryn]");
 
-    const bramOut = await recallText(ctx, {
-      scope: { chatId, scopedCharacterId: bram, isGroup: true },
+    const brynOut = await recallText(ctx, {
+      scope: { chatId, scopedCharacterId: bryn, isGroup: true },
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixA" },
     });
-    expect(bramOut).toBe("[bram]");
-    expect(bramOut).not.toContain("[aria]");
+    expect(brynOut).toBe("[bryn]");
+    expect(brynOut).not.toContain("[aria]");
   });
 
   test("mode-switch union (§4): a switched chat recalls the shared (merged-era) ∪ the speaker's own scoped era", async () => {
     const chatId = await seedChat(db, "switch");
-    // merged era → shared (group-char) bucket, block 0; scoped era → per-character buckets, blocks 1 (aria) + 2 (bram).
+    // merged era → shared (group-char) bucket, block 0; scoped era → per-character buckets, blocks 1 (aria) + 2 (bryn).
     await seedDigest(db, {
       chatId,
       scopedCharacterId: GROUP_CHAR,
@@ -293,10 +293,10 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     });
     await seedDigest(db, {
       chatId,
-      scopedCharacterId: bram,
+      scopedCharacterId: bryn,
       tier: 0,
       blockIdx: 2,
-      topicAnchor: "[bram]",
+      topicAnchor: "[bryn]",
       keywords: [],
     });
     const ctx = makeChatContext(db);
@@ -306,19 +306,19 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixA" },
     });
-    // aria recalls the merged-era block (everyone) + its own scoped block — NOT bram's scoped block.
+    // aria recalls the merged-era block (everyone) + its own scoped block — NOT bryn's scoped block.
     expect(ariaOut).toContain("[merged]");
     expect(ariaOut).toContain("[aria]");
-    expect(ariaOut).not.toContain("[bram]");
+    expect(ariaOut).not.toContain("[bryn]");
 
-    const bramOut = await recallText(ctx, {
-      scope: { chatId, scopedCharacterId: bram, isGroup: true },
+    const brynOut = await recallText(ctx, {
+      scope: { chatId, scopedCharacterId: bryn, isGroup: true },
       groupCharacterId: GROUP_CHAR,
       config: { mode: "mixA" },
     });
-    expect(bramOut).toContain("[merged]");
-    expect(bramOut).toContain("[bram]");
-    expect(bramOut).not.toContain("[aria]");
+    expect(brynOut).toContain("[merged]");
+    expect(brynOut).toContain("[bryn]");
+    expect(brynOut).not.toContain("[aria]");
   });
 
   test("witnessing filter (§4 / inv 12): the speaker does NOT recall a merged-era block before it joined", async () => {
@@ -386,26 +386,26 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
       await seedDigest(db, { chatId, scopedCharacterId: GROUP_CHAR, tier: 0, blockIdx: b, topicAnchor: `[b${b}]`, keywords: [] });
       await seedSegment(db, { ownerId: owner, chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
     }
-    // aria present since the chat opened (seq 1); bram joined at seq 17 (the start of block 2).
+    // aria present since the chat opened (seq 1); bryn joined at seq 17 (the start of block 2).
     await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 1, leftSeq: null });
-    await seedParticipant(db, { chatId, key: "bram", characterId: bram, joinSeq: 17, leftSeq: null });
+    await seedParticipant(db, { chatId, key: "bryn", characterId: bryn, joinSeq: 17, leftSeq: null });
     const ctx = makeChatContext(db);
 
     // Horizons SOURCED live (not hand-passed) — exactly what the engine's per-speaker recall feeds.
     const ariaHorizons = await loadWitnessHorizons(db, chatId, aria);
-    const bramHorizons = await loadWitnessHorizons(db, chatId, bram);
+    const brynHorizons = await loadWitnessHorizons(db, chatId, bryn);
 
     const recall = async (scopedCharacterId: typeof aria, witnessing: Awaited<ReturnType<typeof loadWitnessHorizons>>): Promise<string> =>
       recallText(ctx, { scope: { chatId, scopedCharacterId, isGroup: true }, groupCharacterId: GROUP_CHAR, witnessing, config: { mode: "mixA" } });
 
     const ariaOut = await recall(aria, ariaHorizons);
-    const bramOut = await recall(bram, bramHorizons);
+    const brynOut = await recall(bryn, brynHorizons);
 
-    // aria (since open) recalls the early scene; bram (joined at block 2) does NOT — DIFFERENT recall per presence.
+    // aria (since open) recalls the early scene; bryn (joined at block 2) does NOT — DIFFERENT recall per presence.
     expect(ariaOut).toContain("[b0]");
-    expect(bramOut).not.toContain("[b0]");
-    expect(bramOut).not.toContain("[b1]");
-    expect(bramOut).toContain("[b2]"); // bram witnessed block 2 onward
+    expect(brynOut).not.toContain("[b0]");
+    expect(brynOut).not.toContain("[b1]");
+    expect(brynOut).toContain("[b2]"); // bryn witnessed block 2 onward
   });
 
   test("an empty pool → empty string + a logged `memory.recall` skip (no embed — inv 10)", async () => {

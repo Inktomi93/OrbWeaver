@@ -399,7 +399,7 @@ export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 //
 // THE CEILING IS LOUD, NOT SILENT (2026-08-09). It used to be a `Math.min` inside the verb: four callers
 // asked for 200-500 rows to build id→name/portrait LOOKUP MAPS, silently got 100, and quietly under-covered
-// a 320-character library — the chats list simply stopped resolving portraits past the hundredth card, with
+// a large library — the chats list simply stopped resolving portraits past the loaded page, with
 // nothing anywhere saying so. The router now REFUSES an over-ceiling ask (a wire-level BAD_REQUEST naming
 // the bound), so an ask that cannot be served fails where it is written instead of being answered wrong.
 // 500 is the ceiling those lookup callers needed. THE CHAT-ROW ONE IS GONE (#192, 2026-08-18): the shape
