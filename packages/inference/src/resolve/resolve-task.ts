@@ -117,7 +117,17 @@ function kindOf(
   );
 }
 
-function advertisedFor(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection, model: ModelId): Evidence["advertised"] {
+/** The advertised tier for one (row × model) read as `kind`: a catalog row describes a chat model and an embedder
+ *  differently, so the baseline fold (which may read another kind) asks again. */
+function advertisedFor(
+  ctx: ResolverContext,
+  {
+    provider,
+    connection,
+    model,
+    kind,
+  }: { readonly provider: ProviderDef; readonly connection: UserConnection; readonly model: ModelId; readonly kind: ModelKind },
+): Evidence["advertised"] {
   if (provider.wire === "agent-sdk") {
     const row = agentSdkRowFor(model, ctx.agentSdkCatalog.get());
     return row === undefined ? undefined : advertisedFromAgentSdk(row);
@@ -137,7 +147,7 @@ function advertisedFor(ctx: ResolverContext, provider: ProviderDef, connection: 
   if (provider.wire === "google-generative-ai") {
     return googleAdvertised(entry, provider, model);
   }
-  return entry === undefined ? undefined : advertisedFromOpenAiCompat(entry);
+  return entry === undefined ? undefined : advertisedFromOpenAiCompat(entry, kind);
 }
 
 function googleAdvertised(entry: EndpointModel | undefined, provider: ProviderDef, model: ModelId): Evidence["advertised"] {
@@ -293,7 +303,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
     // Matched per (model × route) like the curated rows — a measurement through OpenRouter never reaches the
     // direct wire, and one for opus-5 never reaches haiku.
     measured: measuredRows(rowQuery),
-    advertised: advertisedFor(ctx, provider, connection, model),
+    advertised: advertisedFor(ctx, { provider, connection, model, kind }),
     curated: curatedRows(rowQuery),
   };
   const synthesized = synthesizeCapability(kind, family, evidence);
@@ -307,7 +317,15 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
     baselineKind === undefined
       ? undefined
       : withLocalLightEmbedDtype(
-          applyEndpointPosture(provider, synthesizeCapability(baselineKind, family, { ...evidence, declared: undefined }).capability, false),
+          applyEndpointPosture(
+            provider,
+            synthesizeCapability(baselineKind, family, {
+              ...evidence,
+              declared: undefined,
+              advertised: advertisedFor(ctx, { provider, connection, model, kind: baselineKind }),
+            }).capability,
+            false,
+          ),
           provider,
           undefined,
           ctx.deps.localLight?.embedDtype,

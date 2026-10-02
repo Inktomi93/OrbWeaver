@@ -49,6 +49,23 @@ export function KindVerdict({
   );
 }
 
+/** The Purpose tier's notes (`purposeNotes`): each says what an unstated or guessed fact costs and where to
+ *  state it. Nothing renders when the fold has nothing to say. */
+export function PurposeNotes({ notes }: { readonly notes: readonly string[] }): ReactElement | null {
+  if (notes.length === 0) {
+    return null;
+  }
+  return (
+    <Stack data-slot="connection-purpose-notes" gap="tight">
+      {notes.map((note) => (
+        <Text className="max-w-(--reading-measure-prose) text-warning" key={note} prose={true} voice="gloss">
+          {note}
+        </Text>
+      ))}
+    </Stack>
+  );
+}
+
 /** The task-requirement rail. GREENS FIRST and greens truncate LAST: below the container's `lg` step the
  *  can't-serve badges give way to one summary line, so the rail keeps saying what the connection CAN do.
  *  A can't-serve badge is MUTED with `✗` and its reason — destructive colour is reserved for a BOUND role

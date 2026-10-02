@@ -38,7 +38,6 @@
 // SAVED row invalidates its credential, its base URL, its model and its kind at once; a control that starts
 // that cascade and handles none of it is worse than no control. The row says so and points at the add flow.
 
-import type { DeclaredCapability } from "@orb/contracts/inference";
 import { providerDisplayLabel } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -54,6 +53,7 @@ import { useId, useState } from "react";
 import { QueryBoundary, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
+import { capabilityFactRows } from "../lib/connection-capability-fact-model.ts";
 import type { ExtraRow } from "../lib/connection-editor-model.ts";
 import {
   capabilityBadges,
@@ -62,17 +62,19 @@ import {
   extrasFromRows,
   hostLabel,
   inferredKindOf,
+  purposeNotes,
   rowsFromExtras,
 } from "../lib/connection-editor-model.ts";
-import type { FactRow } from "../lib/connection-fact-model.ts";
-import { capabilityFactRows, quirkFactRows, withDeclaredOverride, withoutDeclaredOverride } from "../lib/connection-fact-model.ts";
+
+import { withDeclaredOverride, withoutDeclaredOverride } from "../lib/connection-fact-model.ts";
 import { promptCacheChangedCount, showsPromptCache } from "../lib/prompt-cache-model.ts";
+import { ClaudeSubscriptionNotice } from "./claude-subscription-notice.tsx";
 import { ConnectionAccount } from "./connection-account.tsx";
 import { ModelField, SavedTextField } from "./connection-editor-essential.tsx";
-import { CapabilityRail, KindVerdict } from "./connection-editor-purpose.tsx";
+import { CapabilityRail, KindVerdict, PurposeNotes } from "./connection-editor-purpose.tsx";
 import { ConnectionEditorHeader, ConnectionEditorUnavailable } from "./connection-editor-unavailable.tsx";
 import { ConnectionExtrasEditor } from "./connection-extras-editor.tsx";
-import { FactRowList } from "./connection-fact-rows.tsx";
+import { FactRowList, QuirksBlock } from "./connection-fact-rows.tsx";
 import { ConnectionInspector } from "./connection-inspector.tsx";
 import { ConnectionPromptCache } from "./connection-prompt-cache.tsx";
 import { ConnectionReachability } from "./connection-reachability.tsx";
@@ -182,6 +184,7 @@ function AvailableConnectionEditorBody({
                 value={connection.baseUrl}
               />
             )}
+            {provider.auth === "oauthToken" ? <ClaudeSubscriptionNotice /> : null}
             <ModelField
               busy={busy}
               connectionId={connectionId}
@@ -214,6 +217,7 @@ function AvailableConnectionEditorBody({
               <CapabilityRail badges={capabilityBadges(capabilityView.capability, capabilityView.tasks)} />
               <Text voice="gloss">This connection is greyed out in Model roles for a role it can't serve, with the same reason.</Text>
             </Stack>
+            <PurposeNotes notes={purposeNotes(capabilityView.capability, provider.auth === "endpoint")} />
             <Row align="start" gap="field" justify="between">
               <Stack className="min-w-0 grow" gap="tight">
                 <Text voice="label">Allow background work</Text>
@@ -272,7 +276,7 @@ function AvailableConnectionEditorBody({
                 busy={busy}
                 onOverride={(row, value): void => patch({ declared: withDeclaredOverride(declared, row, value) })}
                 onReset={(row): void => patch({ declared: withoutDeclaredOverride(declared, row) })}
-                rows={capabilityFactRows(capabilityView.capability, declared)}
+                rows={capabilityFactRows(capabilityView.capability, declared, capabilityView.baseline)}
               />
             </Stack>
             <QuirksBlock
@@ -280,6 +284,7 @@ function AvailableConnectionEditorBody({
               declared={declared}
               onOverride={(row, value): void => patch({ declared: withDeclaredOverride(declared, row, value) })}
               onReset={(row): void => patch({ declared: withoutDeclaredOverride(declared, row) })}
+              ownServer={provider.auth === "endpoint"}
               providerFeatures={provider.features}
               providerLabel={providerLabel}
             />
@@ -376,36 +381,6 @@ function overrideBadge(count: number): string | undefined {
 /** Diagnostics reads "N set", never "overridden": an Extras row and a transport map are ADDITIONS. */
 function setBadge(count: number): string | undefined {
   return count === 0 ? undefined : `${String(count)} set`;
-}
-
-function QuirksBlock({
-  providerFeatures,
-  declared,
-  providerLabel,
-  busy,
-  onOverride,
-  onReset,
-}: {
-  readonly providerFeatures: Parameters<typeof quirkFactRows>[0];
-  readonly declared: DeclaredCapability | null;
-  readonly providerLabel: string;
-  readonly busy: boolean;
-  readonly onOverride: (row: FactRow, value: unknown) => void;
-  readonly onReset: (row: FactRow) => void;
-}): ReactElement | null {
-  const rows = quirkFactRows(providerFeatures, declared?.features, providerLabel);
-  if (rows.length === 0) {
-    return null;
-  }
-  return (
-    <Stack gap="tight">
-      <Text voice="label">Endpoint quirks</Text>
-      <Text voice="gloss">
-        How this kind of server behaves, and where each answer came from. Read-only — override a line only when this box differs from the others of its kind.
-      </Text>
-      <FactRowList busy={busy} onOverride={onOverride} onReset={onReset} rows={rows} />
-    </Stack>
-  );
 }
 
 function ExtrasBlock({

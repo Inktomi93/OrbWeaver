@@ -116,7 +116,7 @@ function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
     const provider = requireProvider(ctx, ownerId, params.providerId);
     const api = params.api ?? "auto";
     requireApi(provider, api);
-    requireBaseUrl(ctx, provider, params.baseUrl);
+    await requireBaseUrl(ctx, provider, params.baseUrl);
     await requireCredential(ctx, ownerId, params.credentialId);
     const model = requireModelId(params.model);
     requireCatalogModel(ctx, ownerId, provider, model);
@@ -170,7 +170,7 @@ async function validatedPatch(
   const api = patch.api ?? row.api;
   requireApi(provider, api);
   const baseUrl = patch.baseUrl ?? row.baseUrl;
-  requireBaseUrl(ctx, provider, baseUrl);
+  await requireBaseUrl(ctx, provider, baseUrl);
   const credentialId = patch.credentialId ?? row.credentialId;
   await requireCredential(ctx, ownerId, credentialId);
   const model = patch.model === undefined ? row.model : requireModelId(patch.model);

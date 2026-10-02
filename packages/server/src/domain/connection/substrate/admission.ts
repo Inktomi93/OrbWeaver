@@ -6,9 +6,13 @@
 import type { ProviderDef } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
+import { effectiveHttpPort } from "@orb/kit/http-endpoint";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
+import { parseIp } from "@orb/kit/ip";
 import { ProviderUnknownError } from "../contract/errors.ts";
 import type { ConnectionContext } from "../contract/service.ts";
+
+const LOCALHOST = "localhost";
 
 /** The registry row `ownerId` may use (D147: a plugin row only for the owner of an enabled install that
  *  contributes it). A plugin provider's `baseUrl` is its author's host, so this refusal is what keeps one
@@ -22,8 +26,8 @@ export function requireProvider(ctx: ConnectionContext, ownerId: UserId, provide
 }
 
 /** The base-URL rule: an `auth: endpoint` row NEEDS one (parsed, admitted); every other provider fixes its
- *  own and the row must not carry one. */
-export function requireBaseUrl(ctx: ConnectionContext, provider: ProviderDef, baseUrl: string | null): void {
+ *  own and the row must not carry one. A refusal names the exact authority the owner's Admit writes down. */
+export async function requireBaseUrl(ctx: ConnectionContext, provider: ProviderDef, baseUrl: string | null): Promise<void> {
   if (provider.auth !== "endpoint") {
     if (baseUrl !== null) {
       throw new DomainOperationError(CONNECTION_OP_CODES.baseUrlShape, `${provider.label} has a fixed endpoint; a connection may not name one.`);
@@ -33,12 +37,19 @@ export function requireBaseUrl(ctx: ConnectionContext, provider: ProviderDef, ba
   if (baseUrl === null) {
     throw new DomainOperationError(CONNECTION_OP_CODES.baseUrlShape, `${provider.label} is your own server — a base URL is required.`);
   }
-  const admission = ctx.endpointAdmission(baseUrl);
+  const admission = await ctx.endpointAdmission(baseUrl);
   if (admission === "invalid") {
     throw new DomainOperationError(CONNECTION_OP_CODES.baseUrlInvalid, `"${baseUrl}" is not an http(s) URL.`);
   }
   if (admission === "refused") {
-    throw new DomainOperationError(CONNECTION_OP_CODES.baseUrlRefused, `"${new URL(baseUrl).host}" is a private address this deployment does not admit.`);
+    const url = new URL(baseUrl);
+    const authority = `${url.hostname}:${String(effectiveHttpPort(url.protocol, url.port))}`;
+    // A bracketed IPv6 literal parses too once unbracketed; a name is the case the resolver refused.
+    const named = parseIp(url.hostname.replace(/^\[|\]$/gu, "")) === null && url.hostname !== LOCALHOST;
+    throw new DomainOperationError(
+      CONNECTION_OP_CODES.baseUrlRefused,
+      `"${authority}" ${named ? "resolves to" : "is"} a private address this deployment does not admit.`,
+    );
   }
 }
 

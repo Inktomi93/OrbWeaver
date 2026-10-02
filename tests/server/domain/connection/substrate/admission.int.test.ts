@@ -23,8 +23,8 @@ test("requireBaseUrl refuses a fixed-endpoint provider carrying a base URL, and 
   const h = await makeHarness(db);
   const owner = await seedOwner(db);
   const provider = requireProvider(h.ctx, owner.userId, "openrouter");
-  expect(() => requireBaseUrl(h.ctx, provider, "http://example.test/v1")).toThrow(expect.objectContaining({ code: CONNECTION_OP_CODES.baseUrlShape }));
-  expect(() => requireBaseUrl(h.ctx, provider, null)).not.toThrow();
+  await expect(requireBaseUrl(h.ctx, provider, "http://example.test/v1")).rejects.toMatchObject({ code: CONNECTION_OP_CODES.baseUrlShape });
+  await expect(requireBaseUrl(h.ctx, provider, null)).resolves.toBeUndefined();
 });
 
 test("requireBaseUrl on an endpoint provider requires a URL and admits or refuses it by the deployment's rule", async () => {
@@ -35,10 +35,26 @@ test("requireBaseUrl on an endpoint provider requires a URL and admits or refuse
   const admitted = await makeHarness(db, { admission: () => "admitted" });
   const provider = requireProvider(admitted.ctx, owner.userId, BYO_PROVIDER);
 
-  expect(() => requireBaseUrl(admitted.ctx, provider, null)).toThrow(expect.objectContaining({ code: CONNECTION_OP_CODES.baseUrlShape }));
-  expect(() => requireBaseUrl(invalid.ctx, provider, "ftp://example.test")).toThrow(expect.objectContaining({ code: CONNECTION_OP_CODES.baseUrlInvalid }));
-  expect(() => requireBaseUrl(refused.ctx, provider, BYO_BASE_URL)).toThrow(expect.objectContaining({ code: CONNECTION_OP_CODES.baseUrlRefused }));
-  expect(() => requireBaseUrl(admitted.ctx, provider, BYO_BASE_URL)).not.toThrow();
+  await expect(requireBaseUrl(admitted.ctx, provider, null)).rejects.toMatchObject({ code: CONNECTION_OP_CODES.baseUrlShape });
+  await expect(requireBaseUrl(invalid.ctx, provider, "ftp://example.test")).rejects.toMatchObject({ code: CONNECTION_OP_CODES.baseUrlInvalid });
+  await expect(requireBaseUrl(refused.ctx, provider, BYO_BASE_URL)).rejects.toMatchObject({ code: CONNECTION_OP_CODES.baseUrlRefused });
+  await expect(requireBaseUrl(admitted.ctx, provider, BYO_BASE_URL)).resolves.toBeUndefined();
+});
+
+// The refusal names the exact `host:port` the owner's Admit writes down, the scheme's port included.
+test("a refused endpoint is named by the authority the Admit entry needs", async () => {
+  const db = await freshDb();
+  const owner = await seedOwner(db);
+  const refused = await makeHarness(db, { admission: () => Promise.resolve("refused") });
+  const provider = requireProvider(refused.ctx, owner.userId, BYO_PROVIDER);
+
+  await expect(requireBaseUrl(refused.ctx, provider, "http://ollama.lan:11434/v1")).rejects.toMatchObject({
+    code: CONNECTION_OP_CODES.baseUrlRefused,
+    message: expect.stringContaining('"ollama.lan:11434"'),
+  });
+  await expect(requireBaseUrl(refused.ctx, provider, "http://10.0.0.5/v1")).rejects.toMatchObject({
+    message: expect.stringContaining('"10.0.0.5:80"'),
+  });
 });
 
 test("requireCredential passes a null id, an owned id, and refuses a foreign one as the same not-yours verdict", async () => {

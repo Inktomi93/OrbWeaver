@@ -18,7 +18,7 @@ import type {
   Task,
   UserConnection,
 } from "@orb/contracts/inference";
-import { agentSdkModelSchema, connectionTasks, modelCatalogEntrySchema } from "@orb/contracts/inference";
+import { agentSdkModelSchema, connectionTasks, foldFeatures, modelCatalogEntrySchema } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { UserId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -247,7 +247,17 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       () =>
         provider.wire === "google-generative-ai"
           ? fetchGoogleModels({ baseUrl, secret, secrets, label: "Google models" }, fetchImpl)
-          : fetchEndpointModels({ fetch: fetchImpl, baseUrl, secret, headers: connection.transport?.headers, secrets }),
+          : fetchEndpointModels({
+              fetch: fetchImpl,
+              baseUrl,
+              secret,
+              headers: connection.transport?.headers,
+              secrets,
+              modelInfoApi: foldFeatures(provider.features, connection.declared?.features).modelInfoApi,
+              warn: (message) => {
+                deps.log.warn({ providerId: provider.id }, message);
+              },
+            }),
       secrets,
     );
   };

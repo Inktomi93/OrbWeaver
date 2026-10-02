@@ -41,7 +41,7 @@ import type {
 import type { BindingView, CatalogRefreshOutcome, ConnectionCapabilityView, ConnectionView, CredentialHealth, ProviderAvailability } from "./results.ts";
 
 /** The F12 admission verdict for an endpoint `baseUrl` at WRITE time (the fetch guard re-judges at connect):
- *  `public` = not a private address (the SSRF guard judges it as any host); `admitted` = private and on the
+ *  `public` = not a private address, a hostname resolved (one that does not resolve yet is judged at connect); `admitted` = private and on the
  *  deployment allowlist; `refused` = private and NOT admitted (the pane's inline "Admit `<host>`" affordance);
  *  `invalid` = not an http(s) URL. */
 export type EndpointAdmission = (typeof ENDPOINT_ADMISSIONS)[number];
@@ -62,8 +62,8 @@ export interface ConnectionContext {
   /** The tasks this plugin routes through its own grant (`pluginGrantTasks` of its declared capabilities),
    *  or `null` when the plugin is not the caller's or does not exist (collapsed). Bound to the plugin row. */
   readonly pluginGrantTasksOf: (pluginId: PluginId, userId: UserId) => Promise<readonly RoutableTask[] | null>;
-  /** The F12 write-time admission read (infra/network, over the published allowlist). */
-  readonly endpointAdmission: (baseUrl: string) => EndpointAdmission;
+  /** The F12 write-time admission read (infra/network, over the published allowlist); a hostname is resolved. */
+  readonly endpointAdmission: (baseUrl: string) => Promise<EndpointAdmission>;
   /** The ROW half of a probe (credentials domain): revoke / strike / clear + the throttle window. */
   readonly recordProbeOutcome: (args: {
     readonly principal: Principal;

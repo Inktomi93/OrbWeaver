@@ -25,6 +25,8 @@ export const embeddingCapabilitySchema = z.object({
   /** The model supports retrieval task types through a native embedding API. */
   retrievalTaskType: z.boolean().optional(),
   windowEstimated: z.boolean().optional(),
+  /** `dims` is the kind floor's guess: no tier above it stated a width, so the space fit is unproven. */
+  dimsEstimated: z.boolean().optional(),
 });
 export type EmbeddingCapability = z.infer<typeof embeddingCapabilitySchema>;
 

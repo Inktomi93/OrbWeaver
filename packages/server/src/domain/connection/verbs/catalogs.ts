@@ -40,7 +40,7 @@ function createDraftCatalogModels(ctx: ConnectionContext): ConnectionService["dr
     const provider = requireProvider(ctx, params.principal.userId, params.providerId);
     const baseUrl = params.baseUrl ?? null;
     const credentialId = params.credentialId ?? null;
-    requireBaseUrl(ctx, provider, baseUrl);
+    await requireBaseUrl(ctx, provider, baseUrl);
     await requireCredential(ctx, params.principal.userId, credentialId);
     return ctx.runtime.catalogs.models({
       principal: params.principal,

@@ -83,7 +83,9 @@ function SignInCheckBlock({
   return (
     <Stack data-slot="connection-sign-in" gap="tight">
       <Text voice="label">Claude sign-in</Text>
-      <Text voice="gloss">Sends a one-word request on this subscription to confirm the sign-in works. It spends a little of the plan's allowance.</Text>
+      <Text voice="gloss">
+        Sends a one-word request on this subscription to confirm the sign-in works. It counts a little against your plan's usage limits, like any request here.
+      </Text>
       {verdict === null ? null : <SignInVerdictLines verdict={verdict} />}
       <Row gap="field">
         <Button
