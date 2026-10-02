@@ -559,12 +559,12 @@ describe("canon-mutator stats deltas (stats.md — the delete/edit push)", () =>
     expect(canon?.characterId).toBe(charA);
     expect(canon?.assistantTurns).toBe(-1);
     expect(canon?.assistantWords).toBe(-3);
-    expect(canon?.contentBytes).toBe(-"three words here".length);
+    expect(canon?.contentChars).toBe(-"three words here".length);
     expect(swipe?.swipes).toBe(-1);
     expect(swipe?.swipeWords).toBe(-3);
   });
 
-  test("editMessage pushes the NET word/byte diff bucketed on the slot's original day", async () => {
+  test("editMessage pushes the NET word/code-unit diff bucketed on the slot's original day", async () => {
     const { member, chatId } = await seedRoom();
     const { messageId } = await seedMessage(db, chatId, 1, {
       role: "user",
@@ -589,7 +589,7 @@ describe("canon-mutator stats deltas (stats.md — the delete/edit push)", () =>
     expect(deltas).toHaveLength(1);
     expect(deltas[0]?.userWords).toBe(2); // 4 − 2
     expect(deltas[0]?.assistantWords).toBe(0);
-    expect(deltas[0]?.contentBytes).toBe("one two three four".length - "one two".length);
+    expect(deltas[0]?.contentChars).toBe("one two three four".length - "one two".length);
     expect(deltas[0]?.characterId).toBeNull(); // per-char grain is assistant-only
   });
 });

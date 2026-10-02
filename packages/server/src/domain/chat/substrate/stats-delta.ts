@@ -150,7 +150,7 @@ export function assistantTurnDelta(params: {
     provider,
     assistantTurns: 1,
     assistantWords: wordCount(e.content),
-    contentBytes: e.content.length,
+    contentChars: e.content.length,
     genSamples: typeof e.genTimeMs === "number" ? 1 : 0,
     ...(hasReasoning ? { reasoningGenerations: 1 } : {}),
     ...(reasoningMs > 0 ? { reasoningMs } : {}),
@@ -183,7 +183,7 @@ export function userMessageDelta(params: {
     provider: null,
     userTurns: 1,
     userWords: wordCount(params.content),
-    contentBytes: params.content.length,
+    contentChars: params.content.length,
     lastAt: params.now,
     now: params.now,
   };
@@ -311,7 +311,7 @@ export function canonMessageDelta(params: { readonly ownerId: UserId; readonly r
     userWords: isUser ? words : 0,
     // Non-user (assistant + system) words land in assistantWords.
     assistantWords: isUser ? 0 : words,
-    contentBytes: (row.content?.length ?? 0) * sign,
+    contentChars: (row.content?.length ?? 0) * sign,
     tokensIn,
     tokensOut,
     dailyTokensIn: tokensIn,
@@ -405,7 +405,7 @@ export function swipeVariantDelta(params: { readonly ownerId: UserId; readonly r
     provider: creditsModel ? provider : null,
     swipes: sign,
     swipeWords: wordCount(row.content ?? "") * sign,
-    contentBytes: (row.content?.length ?? 0) * sign,
+    contentChars: (row.content?.length ?? 0) * sign,
     tokensIn,
     tokensOut,
     ...tokenSampleSlice({ prefix: "", provenance: row.tokenProvenance, tokensIn: row.tokensIn, tokensOut: row.tokensOut, sign }),
@@ -490,7 +490,7 @@ export function seatChatDelta(params: {
 
 /**
  * The net contribution of an in-place content edit: `words(new) − words(old)` on the role bucket + the
- * byte diff, bucketed on the slot's original day (the rebuild folds by `createdAt`, not the edit time).
+ * UTF-16 code-unit diff, bucketed on the slot's original day (the rebuild folds by `createdAt`, not the edit time).
  */
 export function editMessageDelta(params: {
   readonly ownerId: UserId;
@@ -504,7 +504,7 @@ export function editMessageDelta(params: {
   const isUser = params.role === "user";
   const isAssistant = params.role === "assistant";
   const wordsDiff = wordCount(params.newContent) - wordCount(params.oldContent);
-  const bytesDiff = params.newContent.length - params.oldContent.length;
+  const charsDiff = params.newContent.length - params.oldContent.length;
   return {
     ownerId: params.ownerId,
     characterId: isAssistant ? params.characterId : null,
@@ -513,7 +513,7 @@ export function editMessageDelta(params: {
     provider: null,
     userWords: isUser ? wordsDiff : 0,
     assistantWords: isUser ? 0 : wordsDiff,
-    contentBytes: bytesDiff,
+    contentChars: charsDiff,
     lastAt: params.now,
     now: params.now,
   };

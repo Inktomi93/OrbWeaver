@@ -130,7 +130,7 @@ describe("reconcileStats", () => {
 
     expect(res.characters).toBe(2);
     const row = (await db.select().from(characterStats).where(eq(characterStats.characterId, silent)))[0];
-    expect(row).toMatchObject({ chats: 1, firstChatAt: T0, assistantTurns: 0, swipes: 0, contentBytes: 0, tokensIn: 0 });
+    expect(row).toMatchObject({ chats: 1, firstChatAt: T0, assistantTurns: 0, swipes: 0, contentChars: 0, tokensIn: 0 });
     // The seat contributes nothing to the OWNER grain beyond the library count it already had — the room is
     // still one room, and the silent seat authored no economics.
     const owner = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
@@ -294,7 +294,7 @@ describe("reconcileStats", () => {
     const next = (await db.select().from(characterStats).where(eq(characterStats.characterId, nextCharacterId)))[0];
     // The re-attributed-away character KEEPS its census row — it still holds a seat in the room (#1147);
     // what moved is the ECONOMICS, and a zeroed row is the sharper proof of that than an absent one.
-    expect(previous).toMatchObject({ chats: 1, assistantTurns: 0, swipes: 0, contentBytes: 0 });
+    expect(previous).toMatchObject({ chats: 1, assistantTurns: 0, swipes: 0, contentChars: 0 });
     expect(next?.assistantTurns).toBe(1);
     expect(next?.swipes).toBe(1);
     expect(held.snapshotCalls()).toBe(4);

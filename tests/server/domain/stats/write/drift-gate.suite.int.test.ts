@@ -46,7 +46,7 @@ let chatId: ChatId;
 // ── The ONE canon (economics shared by the seed AND the live replay — single source of truth). ──
 // The character-assistant turn: full economics + reasoning + a context window + a swipe.
 const CHAR_ASSIST = {
-  content: "I am here",
+  content: "hé😀e\u0301",
   model: "gpt",
   provider: "openrouter",
   tokensIn: 10,
@@ -61,7 +61,7 @@ const CHAR_ASSIST = {
   reasoningDuration: 40,
 } as const;
 const CHAR_SWIPE = {
-  content: "alt take",
+  content: "别👩‍💻",
   model: "gpt",
   provider: "openrouter",
   tokensIn: 2,
@@ -95,6 +95,7 @@ const ESTIMATED_ASSIST = {
   tokenProvenance: "estimated",
 } as const;
 const USER_TEXT = "hello world";
+const SYSTEM_TEXT = "Room rule 🧭";
 // biome-ignore lint/style/useNamingConvention: the json_extract('$.reasoning_duration') read path key.
 const CHAR_META = { reasoning_duration: CHAR_ASSIST.reasoningDuration } as const;
 
@@ -141,6 +142,7 @@ beforeEach(async () => {
     createdAt: T0,
     variants: [{ ...ESTIMATED_ASSIST }],
   });
+  await seedMessage(db, { chatId, seq: 5, role: "system", createdAt: T0, variants: [{ content: SYSTEM_TEXT }] });
 });
 
 /** The live-writer replay of the seeded canon: the exact deltas the production builders emit for these
@@ -261,6 +263,32 @@ function liveDeltas(): StatsDelta[] {
         variantCount: 1,
       },
     }),
+    canonMessageDelta({
+      ownerId,
+      sign: 1,
+      now: T0,
+      row: {
+        characterId: null,
+        role: "system",
+        createdAt: T0,
+        content: SYSTEM_TEXT,
+        tokensIn: null,
+        tokensOut: null,
+        tokenProvenance: "unrecorded",
+        costUsd: null,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+        contextWindow: null,
+        genStartedAt: null,
+        genFinishedAt: null,
+        model: null,
+        provider: null,
+        reasoning: null,
+        metadata: null,
+        selectedIdx: null,
+        variantCount: 1,
+      },
+    }),
     // The character's swipe (the NON-selected variant).
     swipeVariantDelta({
       ownerId,
@@ -351,8 +379,22 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
     // Guard against a false green from two identical EMPTIES (a canon that silently dropped the rows would
     // still `toEqual`): pin the agent's contribution is actually present — the host counts BOTH assistant
     // turns, and no character_stats row was minted for the agent.
-    expect(live.owner).toMatchObject({ assistantTurns: 3, tokensIn: 19, tokensOut: 38 });
+    expect(live.owner).toMatchObject({ assistantTurns: 3, systemTurns: 1, tokensIn: 19, tokensOut: 38 });
+    expect(live.days[0]?.["systemTurns"]).toBe(1);
     expect(live.chars).toHaveLength(1);
+    expect(CHAR_ASSIST.content.length).toBe(6);
+    expect(CHAR_SWIPE.content.length).toBe(6);
+    expect(Buffer.byteLength(CHAR_ASSIST.content, "utf8")).toBe(10);
+    expect(Buffer.byteLength(CHAR_SWIPE.content, "utf8")).toBe(14);
+    expect(live.owner?.["contentChars"]).toBe(
+      USER_TEXT.length +
+        SYSTEM_TEXT.length +
+        CHAR_ASSIST.content.length +
+        AGENT_ASSIST.content.length +
+        ESTIMATED_ASSIST.content.length +
+        CHAR_SWIPE.content.length,
+    );
+    expect(live.chars[0]?.["contentChars"]).toBe(CHAR_ASSIST.content.length + ESTIMATED_ASSIST.content.length + CHAR_SWIPE.content.length);
     // …and the PROVENANCE split is real on both sides: the estimated turn lands in the estimated columns
     // only (a runtime-built key that missed would leave these at 0 while `toEqual` above stayed green,
     // because both writers would have missed it the same way ONLY if they shared the typo — they don't).

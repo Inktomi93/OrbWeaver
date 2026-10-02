@@ -41,6 +41,7 @@ test("a MESSAGE delta carries the scalar + daily + model slices together and rou
     now: NOW_MS,
     assistantTurns: 1,
     assistantWords: 42,
+    contentChars: 6,
     tokensIn: 1200,
     tokensOut: 800,
     // daily slice — a message credits the daily timeseries
@@ -129,6 +130,7 @@ test("maintenance extrema (firstAt/lastAt/maxContextTokens) accept nulls; increm
     maxContextTokens: null,
     // a delete delta walks the totals back down — negative is intentional, not rejected.
     assistantTurns: -1,
+    contentChars: -6,
     tokensOut: -800,
   };
   expect(statsDeltaSchema.parse(value)).toEqual(value);

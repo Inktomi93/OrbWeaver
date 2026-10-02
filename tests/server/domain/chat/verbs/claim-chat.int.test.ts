@@ -325,6 +325,6 @@ describe("claimChat — the per-character room census (#1147)", () => {
       { characterId: String(b), chats: 1, firstChatAt: FROZEN_AT },
     ]);
     const [silent] = await db.select().from(characterStats).where(eq(characterStats.characterId, b));
-    expect(silent).toMatchObject({ assistantTurns: 0, contentBytes: 0 });
+    expect(silent).toMatchObject({ assistantTurns: 0, contentChars: 0 });
   });
 });

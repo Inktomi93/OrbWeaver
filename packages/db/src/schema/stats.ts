@@ -123,7 +123,7 @@ export const ownerStats = sqliteTable("owner_stats", {
   activeIdxSum: integer("active_idx_sum").notNull().default(0),
   variantMessages: integer("variant_messages").notNull().default(0),
   forkedChats: integer("forked_chats").notNull().default(0),
-  contentBytes: integer("content_bytes").notNull().default(0),
+  contentChars: integer("content_chars").notNull().default(0),
   // Cache economics — OWNER + MODEL grain only (esoteric #5); live-only (0 on ST imports).
   cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
   cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
@@ -172,7 +172,7 @@ export const characterStats = sqliteTable(
     activeIdxSum: integer("active_idx_sum").notNull().default(0),
     variantMessages: integer("variant_messages").notNull().default(0),
     forkedChats: integer("forked_chats").notNull().default(0),
-    contentBytes: integer("content_bytes").notNull().default(0),
+    contentChars: integer("content_chars").notNull().default(0),
     // Extrema (epoch-ms numbers) — MIN/MAX-merged (esoteric #6).
     firstChatAt: integer("first_chat_at"),
     lastActivityAt: integer("last_activity_at"),
