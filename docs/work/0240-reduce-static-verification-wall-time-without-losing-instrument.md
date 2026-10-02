@@ -1,8 +1,8 @@
 ---
 kind: tooling
 status: blocked
-updated: 2026-10-01
-priority: P1
+updated: 2026-10-02
+priority: P3
 area: verification
 blocked: owner
 ---

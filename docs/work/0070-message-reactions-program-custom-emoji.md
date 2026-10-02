@@ -2,7 +2,7 @@
 kind: work
 status: blocked
 updated: 2026-10-02
-priority: P2
+priority: P3
 area: client
 blocked: owner
 plan: message-reactions

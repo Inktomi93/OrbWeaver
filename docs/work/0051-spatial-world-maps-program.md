@@ -1,8 +1,8 @@
 ---
 kind: work
 status: blocked
-updated: 2026-09-23
-priority: P1
+updated: 2026-10-02
+priority: P3
 area: rpg
 blocked: owner
 plan: spatial-maps

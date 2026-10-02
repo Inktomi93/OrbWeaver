@@ -1,8 +1,9 @@
 ---
 kind: adr
-status: active
-updated: 2026-09-23
+status: superseded
+updated: 2026-10-02
 supersedes: docs/adr/0164-docs-plans-adrs.md
+superseded-by: docs/adr/0283-docs-lifecycle-and-publication-editorial-corrections.md
 ---
 
 # Docs, plans and ADRs are markdown with one structural writer

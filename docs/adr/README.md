@@ -137,7 +137,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D150 | [the CONTEXT pane is ONE chrome, the CONTEXT BRACKET, in every room and every tabs section: HEAD band → optional STATE rail → VIEWPORT → GROUND → META rail pinned to the pane's foot — rendered by the shell, never by a section or a claimant](0150-the-context-pane-is-one-chrome-the-context.md) | active |
 | D151 | [the room's actor vocabulary is CLOSED: characters, personas, host/members — no new named entity kinds](0151-the-room-s-actor-vocabulary-is-closed-characters.md) | active |
 | D152 | [an in-turn chat TOOL executes under the resolved HOST Principal; there is no per-speaker authority swap at the tool seam, so a mutating tool attached to a non-human speak turn is host-authority execution with zero human in the loop and must never ship](0152-an-in-turn-chat-tool-executes-under-the.md) | active |
-| D153 | [the persona PIN/ACTIVE resolution semantics are owner-gated; the persona SURFACES are not](0153-the-persona-pin-active-resolution-semantics-are-owner.md) | active |
+| D153 | [the persona PIN/ACTIVE resolution semantics are owner-gated; the persona SURFACES are not](0153-the-persona-pin-active-resolution-semantics-are-owner.md) | superseded by [0284-persona-resolution-proof-allows-publication-anonymization.md](0284-persona-resolution-proof-allows-publication-anonymization.md) |
 | D154 | [generation settings belong to the USER'S PRESET: global, never per-conversation, and a feature may RECOMMEND but never force-set one](0154-generation-settings-belong-to-the-user-s-preset.md) | active |
 | D155 | [spend policing is not this product's job: no $ ceilings, no spend envelopes, no spend-confirm gates — and their ABSENCE is never a finding](0155-spend-policing-is-not-this-product-s-job.md) | active |
 | D156 | [`customParameters` passthrough exists for endpoints we cannot model, never as a second sampling surface for one we own](0156-customparameters-passthrough-exists-for-endpoints-we-cannot-model.md) | active |
@@ -195,7 +195,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D219 | [The cast read axis is renamed to the chat identity axis](0219-cast-axis-renamed-to-identity-axis.md) | active |
 | D220 | [Rejected neo-derived and report-only enforcement proposals](0220-rejected-neo-and-report-only-gates.md) | rejected |
 | D221 | [Resource-policy contract: alternatives rejected](0221-resource-policy-contract-rejected-alternatives.md) | active |
-| D222 | [Docs, plans and ADRs are markdown with one structural writer](0222-docs-plans-adrs-no-archive.md) | active |
+| D222 | [Docs, plans and ADRs are markdown with one structural writer](0222-docs-plans-adrs-no-archive.md) | superseded by [0283-docs-lifecycle-and-publication-editorial-corrections.md](0283-docs-lifecycle-and-publication-editorial-corrections.md) |
 | D223 | [Pre-commit runs the static tier over the working change](0223-scoped-static-at-commit.md) | superseded by [0273-pre-commit-runs-the-static-tier-over-the-staged-change.md](0273-pre-commit-runs-the-static-tier-over-the-staged-change.md) |
 | D250 | [The anchor human's persona binds prompt-config {{user}}](0250-anchor-human-binds-preset-user.md) | active |
 | D251 | [Prompt sections keep their prompt-order position on every model](0251-prompt-sections-keep-prompt-order.md) | active |
@@ -230,3 +230,5 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D280 | [Supported plugin install sources share one bundle funnel](0280-plugin-supported-install-sources.md) | active |
 | D281 | [RPG profiles follow live rulesets](0281-rpg-profiles-follow-live-rulesets.md) | active |
 | D282 | [User docs live in the GitHub wiki](0282-user-docs-live-in-the-github-wiki.md) | active |
+| D283 | [Documentation lifecycle permits bounded publication editorial corrections](0283-docs-lifecycle-and-publication-editorial-corrections.md) | active |
+| D284 | [Persona resolution proof permits identity-only publication anonymization](0284-persona-resolution-proof-allows-publication-anonymization.md) | active |

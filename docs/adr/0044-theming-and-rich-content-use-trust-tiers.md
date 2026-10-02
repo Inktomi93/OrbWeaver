@@ -1,14 +1,14 @@
 ---
 kind: adr
 status: active
-updated: 2026-09-23
+updated: 2026-10-02
 ---
 
 # Theming and rich content use trust tiers
 
 ## Context
 
-SillyTavern lets users style chats with custom CSS (global and per character), rich HTML cards and inline media, and users expect that expressiveness. ST contains untrusted CSS by string rewriting (renaming classes to a `.custom-` prefix and stripping `://`), which is bypassable. The chat content model, composer and assembly all depend on this decision, so it was ruled before chat assembled any content.
+SillyTavern lets users style chats with custom CSS (global and per character), rich HTML cards and inline media, and users expect that expressiveness. ST filters untrusted CSS by string rewriting (renaming classes to a `.custom-` prefix and stripping `://`); this is filtering, not browser isolation. The chat content model, composer and assembly all depend on this decision, so it was ruled before chat assembled any content.
 
 ## Decision
 
@@ -20,7 +20,7 @@ A theme is a token value set, never a structural mode. Per-character styling cov
 
 ## Alternatives rejected
 
-- Regex sanitize and scope, as ST does: which filters rather than isolates; isolation must be a browser boundary.
+- Regex sanitize and scope, as ST does: this filters rather than isolates; isolation must be a browser boundary.
 - Shadow DOM for Tier B: it gives composability, not isolation. Script in a shadow tree has full page access and custom properties pierce it.
 - DOMPurify as a second pass: Streamdown's own `rehype-sanitize` and `rehype-harden` already sanitize inside the pipeline; a second pass outside it adds nothing.
 - `react-shadow` or a generic isolation library: built for design-system encapsulation, and a security boundary we depend on should be the small owned `sandbox-frame` whose `sandbox` and CSP attributes we control.

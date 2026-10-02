@@ -1,7 +1,7 @@
 ---
 kind: work
 status: blocked
-updated: 2026-09-29
+updated: 2026-10-02
 priority: P1
 area: plugin
 blocked: owner
