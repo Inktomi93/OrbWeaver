@@ -16,7 +16,7 @@
 // The client wave landed: `packages/client/src/features/plugin` is the install/list/grant pane and it calls
 // `trpc.plugin.*` for real. `upgrade`/`setGrant`/`setEnabled`/`uninstall` are PROBED by the cross-tenant sweep
 // as a stranger holding another user's real pluginId; `install`/`list` are exempt there because neither takes
-// a foreign id (install mints the caller's own row, list takes no input at all). #0081's unpacked/Git
+// a foreign id (install mints the caller's own row, list takes no input at all). #0081's Git
 // self-scoped procedures are classified beside them; the stored-Git upgrade is probed like stored-URL.
 //
 // The UI-surface READ side: `getSurfaceState`/`invokeUiAction` join the PROBED set
@@ -106,9 +106,7 @@ function decodeBundle(bundleBase64: string): Uint8Array {
  *  string; the REAL SSRF wall is the server-side egress guard (`safeFetch` ANY_HOST — https-only + private-range
  *  denial + byte cap), never this parse. The length cap keeps an unbounded string out of the log/error path. */
 const URL_MAX = 2048;
-const LOCAL_PLUGIN_DIRECTORY_MAX = 4096;
 const bundleUrlSchema = z.url().max(URL_MAX);
-const localPluginDirectorySchema = z.string().min(1).max(LOCAL_PLUGIN_DIRECTORY_MAX);
 const gitCommitSchema = z.string().regex(/^[0-9a-f]{40}$/u);
 
 export const pluginRouter = t.router({
@@ -144,16 +142,7 @@ export const pluginRouter = t.router({
       ctx.services.plugin.installFromUrl({ caller: ctx.auth, url: input.url, expectedBundleHash: input.expectedBundleHash, grant: input.grant }),
     ),
 
-  // #0081's additional source doors. `installUnpacked` is server-gated off before filesystem I/O unless the
-  // process is in development and the Principal came through the peer-gated local fallback. Git preview/
-  // install are mutations because each performs guarded server egress;
-  // `pluginGitSource` routes every smart-HTTP request through safeFetch, then the domain uses the same bundle
-  // parse/install funnel above. All three are self-scoped: no foreign row id; an install mints the caller's row.
-  installUnpacked: authedProcedure
-    .input(z.object({ directory: localPluginDirectorySchema, grant: grantSchema }))
-    .output(pluginViewSchema)
-    .mutation(({ ctx, input }) => ctx.services.plugin.installUnpacked({ caller: ctx.auth, directory: input.directory, grant: input.grant })),
-
+  // Git preview and install perform guarded server egress, then reuse the same bundle funnel and consent.
   previewFromGit: authedProcedure
     .input(z.object({ url: bundleUrlSchema }))
     .output(pluginGitPreviewSchema)

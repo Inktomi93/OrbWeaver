@@ -25,6 +25,7 @@ import { publishChatEvent } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
+import { consumeServerReady } from "../_support.ts";
 
 // MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
 const ID = {
@@ -87,6 +88,7 @@ async function openChatRoom(ctx: Context, opts: { readonly chatId?: ChatId; read
   await call.stream.attach({ socketId, ref: { channel: "chat", chatId }, ...(opts.sinceSeq === undefined ? {} : { sinceSeq: opts.sinceSeq }) });
   const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
   const iterator = socket[Symbol.asyncIterator]();
+  await consumeServerReady(iterator);
   const ack = await iterator.next();
   expect(frameOf(ack.value)).toEqual({ channel: "control", type: "attached", ref: { channel: "chat", chatId } });
   return iterator;
@@ -617,7 +619,9 @@ describe("§5.5 two rooms on one socket — the per-room verdict, and the produc
     await call.stream.attach({ socketId, ref: { channel: "chat", chatId: DeceptionChat } });
     await call.stream.attach({ socketId, ref: { channel: "chat", chatId: PlainChat } });
     const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
-    return { socketId, iterator: socket[Symbol.asyncIterator]() };
+    const iterator = socket[Symbol.asyncIterator]();
+    await consumeServerReady(iterator);
+    return { socketId, iterator };
   }
 
   /** Drain `count` frames, running `drive` once the pumps are up (the setup slice is synchronous, so the
@@ -730,6 +734,7 @@ describe("§5.5 two rooms on one socket — the per-room verdict, and the produc
     // resume truth instead of the server's delivered cursor.
     const socket = (await caller(ctx).stream.connect({ socketId })) as AsyncIterable<unknown>;
     const resumed = socket[Symbol.asyncIterator]();
+    await consumeServerReady(resumed);
     const announce = caller(ctx);
     await announce.stream.attach({ socketId, ref: { channel: "chat", chatId: DeceptionChat } });
     await announce.stream.attach({ socketId, ref: { channel: "chat", chatId: PlainChat } });

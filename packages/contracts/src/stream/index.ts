@@ -103,8 +103,10 @@ export type StreamErrorCode = (typeof STREAM_ERROR_CODES)[number];
 
 /** The socket's own out-of-band vocabulary — lifecycle acks + the two per-room degradations. `roomLagged`
  *  and `roomFailed` are why the multiplex is strictly better than N sockets: one room's backpressure or
- *  fault is a frame, not a teardown of every other room sharing the connection. */
+ *  fault is a frame, not a teardown of every other room sharing the connection. `serverReady` identifies
+ *  the process, not a credential: reconnecting to that same process is not completed restart recovery. */
 export type StreamControlFrame = { readonly channel: "control" } & (
+  | { readonly type: "serverReady"; readonly serverInstanceId: string }
   | { readonly type: "attached"; readonly ref: StreamRoomRef }
   | { readonly type: "detached"; readonly ref: StreamRoomRef }
   /** The socket queue overflowed for this room; `cursor` is the last durable seq it delivered (`null` for a

@@ -1,7 +1,6 @@
 // Shared test harness for the domain/plugin slice (NOT a test file — no `.test` suffix). Builds a real-db
 // `PluginContext` with fakes at the edges per "fake at the edges, inject at the root". Ordinary plugin authority
-// is the OWNER-SCOPED ROW LOAD (D147); local-filesystem source admission reads the Principal's peer-gated
-// `via` signal before touching the injected packer. Also: a real assets fake that writes an `assets` row so the
+// is the OWNER-SCOPED ROW LOAD (D147). Also: a real assets fake that writes an `assets` row so the
 // `plugins.bundle_asset_id` FK resolves + a reference-aware `reapOrphans` (mirrors `reapIfOrphan` — never reaps
 // a still-referenced bundle), the frozen clock + seeded ids, and a scriptable `PluginHostPort` fake. A separate
 // `makeSandboxPort` wires the REAL P1 `infra/plugin-host` `Sandbox` for the determinism-floor round-trip.
@@ -185,8 +184,6 @@ export function makePluginHarness(
     /** The URL-install bundle fetch (U8 seam 15). Default REJECTS — a URL-install/upgrade suite injects its own
      *  (returning a bundle, or throwing to simulate an SSRF block), and every other suite never reaches it. */
     readonly fetchBundle?: PluginContext["fetchBundle"];
-    readonly development?: boolean;
-    readonly packPluginDirectory?: PluginContext["packPluginDirectory"];
     readonly gitSource?: PluginContext["gitSource"];
     /** The SHOWCASE bundles the build "ships" (#1740). Default: SHIPS NOTHING — every suite that predates the
      *  showcase update path keeps projecting `updateSource: null` for its upload-origin rows, and a suite that
@@ -277,8 +274,6 @@ export function makePluginHarness(
     // The URL-install bundle fetch (U8 seam 15). Default REJECTS: a suite exercising previewFromUrl/installFromUrl/
     // upgradeFromUrl injects its own (a bundle, or a throw simulating an SSRF block), and no other suite reaches it.
     fetchBundle: overrides.fetchBundle ?? (() => Promise.reject(new Error("test: fetchBundle not wired"))),
-    development: overrides.development ?? false,
-    packPluginDirectory: overrides.packPluginDirectory ?? (() => Promise.reject(new Error("test: packPluginDirectory not wired"))),
     gitSource:
       overrides.gitSource ??
       ({

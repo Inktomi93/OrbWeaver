@@ -104,6 +104,7 @@ import {
   span,
   superviseDetached,
 } from "#foundation/observability";
+import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import { versionIdentity } from "#foundation/version";
 import { createPasswordHasher } from "#infra/auth";
 import type { SecretBox } from "#infra/crypto";
@@ -261,6 +262,7 @@ export const NO_SHARE_RELAY: ShareComposeDeps = {
  *  unsupervised before it reaches `restart`, which throws if anything ever does. */
 export const UNSUPERVISED_RESTART: ServerRestartPort = {
   supervised: false,
+  serverInstanceId: SERVER_INSTANCE_ID,
   restart: (): void => {
     throw new Error("compose: nothing supervises this process, so nothing may restart it");
   },

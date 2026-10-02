@@ -30,6 +30,7 @@ import { createSocketRegistry, publishAutomationEvent, publishUserEvent } from "
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
+import { consumeServerReady } from "../_support.ts";
 
 // MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
 const ID = {
@@ -73,6 +74,7 @@ async function openAutomationRoom(ctx: Context, opts: { readonly sinceSeq?: numb
   await call.stream.attach({ socketId, ref: { channel: "automation", chatId: CHAT }, ...(opts.sinceSeq === undefined ? {} : { sinceSeq: opts.sinceSeq }) });
   const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
   const iterator = socket[Symbol.asyncIterator]();
+  await consumeServerReady(iterator);
   const ack = await iterator.next();
   expect(frameOf(ack.value)).toEqual({ channel: "control", type: "attached", ref: { channel: "automation", chatId: CHAT } });
   return iterator;
@@ -168,6 +170,7 @@ describe("the pump re-runs the gate, and its throw is one room's fault", () => {
 
     const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
     const iterator = socket[Symbol.asyncIterator]();
+    await consumeServerReady(iterator);
     const frames: StreamFrame[] = [];
     const first = iterator.next();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -230,6 +233,7 @@ describe("the authority tier follows a role change mid-subscription (#1407)", ()
 
     const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
     const iterator = socket[Symbol.asyncIterator]();
+    await consumeServerReady(iterator);
     const frames: StreamFrame[] = [];
     const first = iterator.next();
     await new Promise((resolve) => setTimeout(resolve, 0));

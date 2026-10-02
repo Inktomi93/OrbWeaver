@@ -14,9 +14,7 @@
 // deliberately no "an admin may manage any row" branch. The reason is not tidiness: enabling a plugin RUNS
 // its untrusted guest bundle as the ENABLING caller (the bridge closes over `caller.userId`, the PL-C ceiling
 // resolves that caller's own room role, `llm.quiet` spends that caller's credential), so a cross-owner
-// management path would be a confused-deputy escalation. The development-only unpacked-directory authoring
-// door is separate source admission: it reads the server's local filesystem and therefore requires the
-// identity spine's peer-gated local fallback Principal before I/O; a remote owner role is insufficient.
+// management path would be a confused-deputy escalation.
 //
 // THE SERVER-WIDE INSTALL IS BUILT (2026-08-24 — this header used to say UNBUILT with an open design), and it
 // is NOT a shared row: an admin PUBLISHES a bundle (`installForAllUsers`) and the server fans out one ordinary
@@ -59,7 +57,6 @@ export {
   PluginNotFoundError,
   PluginNotShowcaseError,
   PluginSnippetBusyError,
-  PluginUnpackedUnavailableError,
 } from "./contract/errors.ts";
 export type {
   NotifyFloor,
@@ -85,7 +82,6 @@ export type {
   InstallForAllUsersParams,
   InstallFromGitParams,
   InstallPluginParams,
-  InstallUnpackedPluginParams,
   InvokeUiActionParams,
   ListDisplayTransformsParams,
   ListDistributedPluginsParams,

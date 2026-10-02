@@ -77,8 +77,8 @@ export const adminRouter = t.router({
 
   // Owner-only at the verb; the confirm is the input, so a call without `confirm: true` never reaches it. The
   // restart bucket in `entry/rate-limit-gate.ts` is durable, so it still counts after the process it ended.
-  restart: adminProcedure.input(z.object({ confirm: z.literal(true) })).mutation(async ({ ctx, input }) => {
-    await ctx.services.admin.restart({ principal: ctx.auth, confirm: input.confirm });
+  restart: adminProcedure.input(z.object({ confirm: z.literal(true), expectedServerInstanceId: z.uuid() })).mutation(async ({ ctx, input }) => {
+    await ctx.services.admin.restart({ principal: ctx.auth, confirm: input.confirm, expectedServerInstanceId: input.expectedServerInstanceId });
     return { restarting: true } as const;
   }),
 

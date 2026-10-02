@@ -16,15 +16,17 @@
 import type { StreamChannel, StreamFrameFor, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 import { useEffect, useRef } from "react";
-import type { SinceSeqSource } from "./room-registry.ts";
+import type { RoomSubscriber, SinceSeqSource } from "./room-registry.ts";
 import { roomRegistry } from "./room-registry.ts";
 
 /** What a room's consumer wants, narrowed to that channel's own frame arm. */
 export interface BusRoomHandlers<C extends StreamChannel> {
   readonly onEvent: (frame: StreamFrameFor<C>) => void;
-  /** Every transition into a LIVE socket (first connect AND reconnect) and on a `roomLagged` — the ONE
-   *  gap-heal edge each hook already had, now fanned out from the socket. */
+  /** The room's gap-heal: a reconnect, rejoin or lag after its first live episode. */
   readonly onSocketLive?: (() => void) | undefined;
+  readonly onSocketReconnect?: RoomSubscriber["onSocketReconnect"];
+  readonly onSocketConnected?: RoomSubscriber["onSocketConnected"];
+  readonly onServerReady?: RoomSubscriber["onServerReady"];
   /** THIS ROOM's typed failure (`roomFailed`, or an announce that gave up). NOT a socket-level fault —
    *  that is one cause for the whole tab and `useOrbSocket` tells it once (#222). */
   readonly onError?: ((message: string) => void) | undefined;
@@ -55,6 +57,9 @@ export function useBusRoom<C extends StreamChannel>(ref: Extract<StreamRoomRef, 
         latest.current.handlers.onEvent(frame as StreamFrameFor<C>);
       },
       onSocketLive: () => latest.current.handlers.onSocketLive?.(),
+      onSocketReconnect: () => latest.current.handlers.onSocketReconnect?.(),
+      onSocketConnected: () => latest.current.handlers.onSocketConnected?.(),
+      onServerReady: (id) => latest.current.handlers.onServerReady?.(id),
       onError: (message) => latest.current.handlers.onError?.(message),
       // A THUNK over the CURRENT render's handler, so a reconnect re-announce reads today's replay request
       // (the client's high-water mark), never the one this room happened to join with.

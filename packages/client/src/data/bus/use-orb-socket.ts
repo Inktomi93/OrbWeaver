@@ -52,6 +52,10 @@ function routeFrame(payload: SocketPayload): void {
     roomRegistry.deliver(payload);
     return;
   }
+  if (payload.type === "serverReady") {
+    roomRegistry.serverReady(payload.serverInstanceId);
+    return;
+  }
   if (payload.type === "roomFailed") {
     roomRegistry.failed(payload.message, payload.ref);
     return;

@@ -32,6 +32,7 @@ import { publishNotification, publishUserEvent, ROOM_SOURCES } from "@orb/server
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
+import { consumeServerReady } from "../_support.ts";
 
 const RECIPIENT = castId<UserId>("user_recipient");
 
@@ -137,6 +138,7 @@ async function openInboxRoom(ctx: Context, opts: { readonly sinceSeq?: number } 
   await call.stream.attach({ socketId, ref: { channel: "notifications" }, ...(opts.sinceSeq === undefined ? {} : { sinceSeq: opts.sinceSeq }) });
   const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
   const iterator = socket[Symbol.asyncIterator]();
+  await consumeServerReady(iterator);
   const ack = await iterator.next();
   expect(frameOf(ack.value)).toEqual({ channel: "control", type: "attached", ref: { channel: "notifications" } });
   return iterator;
@@ -220,6 +222,7 @@ describe("the notifications room — authed is the whole gate (#1627)", () => {
 
     const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
     const iterator = socket[Symbol.asyncIterator]();
+    await consumeServerReady(iterator);
     const ack = await iterator.next();
     const secondAck = await iterator.next();
     const pending = iterator.next();
@@ -255,6 +258,7 @@ describe("the notifications room — a failing durable replay is a TYPED per-roo
 
     const socket = (await call.stream.connect({ socketId })) as AsyncIterable<unknown>;
     const iterator = socket[Symbol.asyncIterator]();
+    await consumeServerReady(iterator);
     const frames: StreamFrame[] = [];
     const first = iterator.next();
     await new Promise((resolve) => setTimeout(resolve, 0));

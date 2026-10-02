@@ -4,9 +4,7 @@
 // (typed return → a missing/renamed verb fails `tsc`). The context (db + injected clock/id seams + the CAS
 // ops + the `PluginHostPort` runtime + the `PluginHostOps` op bundle + the belts) is built at the entry
 // composition root and passed in — plugin sideways-imports nothing. Every PER-ROW management verb's authority
-// is the owner-scoped row load, not a role gate (D147 clause (a)). The local-filesystem source door is admitted
-// only for a development request whose Principal came through the peer-gated fallback path, before I/O. The
-// other exception is the DISTRIBUTION trio (`installForAllUsers`/`uninstallForAllUsers`/
+// is the owner-scoped row load, not a role gate (D147 clause (a)). The exception is the DISTRIBUTION trio (`installForAllUsers`/`uninstallForAllUsers`/
 // `listDistributedPlugins`, D147 clause (d)), whose question is
 // global — "may this caller publish to the deployment" — and whose gate therefore arrives in a SEPARATE
 // `PluginDistributionDeps` parameter rather than in the context every verb shares.
@@ -27,7 +25,6 @@ import { createGitSource } from "./verbs/git-source.ts";
 import { createInstall } from "./verbs/install.ts";
 import { createInstallForAllUsers } from "./verbs/install-for-all-users.ts";
 import { createInstallFromUrl } from "./verbs/install-from-url.ts";
-import { createInstallUnpacked } from "./verbs/install-unpacked.ts";
 import { createInvokeUiAction } from "./verbs/invoke-ui-action.ts";
 import { createInvokeUiCommand } from "./verbs/invoke-ui-command.ts";
 import { createListBundleAssets } from "./verbs/list-bundle-assets.ts";
@@ -85,7 +82,6 @@ export function createPluginService(ctx: PluginContext, distribution: PluginDist
   return {
     install,
     upgrade,
-    installUnpacked: createInstallUnpacked(ctx, { install, upgrade }),
     ...gitSource,
     // U8 seam 15 — the URL-install/update funnel. `previewFromUrl` returns the consent manifest plus exact-byte
     // identity; `installFromUrl`/`upgradeFromUrl` require that identity, re-fetch through the egress guard, and

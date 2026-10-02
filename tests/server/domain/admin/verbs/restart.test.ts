@@ -13,6 +13,8 @@ import { expect, test } from "../../../../support/fixtures.ts";
 import { principal } from "../_support.ts";
 
 const AT = 1_750_000_000_000;
+const CURRENT_INSTANCE = "20000000-0000-4000-8000-000000000002";
+const PREVIOUS_INSTANCE = "20000000-0000-4000-8000-000000000001";
 
 function harness(supervised: boolean): {
   readonly restart: ReturnType<typeof createRestart>;
@@ -29,6 +31,7 @@ function harness(supervised: boolean): {
     },
     serverRestart: {
       supervised,
+      serverInstanceId: CURRENT_INSTANCE,
       restart: (): void => {
         restarts += 1;
       },
@@ -44,7 +47,19 @@ function caller(role: UserRole): ReturnType<typeof principal> {
 describe("admin.restart", () => {
   test("control: the owner of a supervised server restarts it once, audited", async () => {
     const h = harness(true);
-    await h.restart({ principal: caller("owner"), confirm: true });
+    await h.restart({ principal: caller("owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE });
+    expect(h.restarts()).toBe(1);
+    expect(h.audits.map((a) => a.action)).toEqual(["admin.restart"]);
+  });
+
+  test("an expected old process is refused before audit or latch, then a fresh explicit request can restart", async () => {
+    const h = harness(true);
+    await expect(h.restart({ principal: caller("owner"), confirm: true, expectedServerInstanceId: PREVIOUS_INSTANCE })).rejects.toMatchObject({
+      code: "restart_instance_changed",
+    });
+    expect(h.restarts()).toBe(0);
+    expect(h.audits).toEqual([]);
+    await h.restart({ principal: caller("owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE });
     expect(h.restarts()).toBe(1);
     expect(h.audits.map((a) => a.action)).toEqual(["admin.restart"]);
   });
@@ -52,14 +67,16 @@ describe("admin.restart", () => {
   test("an admin or a user is refused and nothing restarts", async () => {
     const h = harness(true);
     for (const role of ["admin", "user"] as const) {
-      await expect(h.restart({ principal: caller(role), confirm: true }), role).rejects.toBeInstanceOf(DomainForbiddenError);
+      await expect(h.restart({ principal: caller(role), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE }), role).rejects.toBeInstanceOf(
+        DomainForbiddenError,
+      );
     }
     expect(h.restarts()).toBe(0);
   });
 
   test("without a supervisor the owner is refused with a coded error and nothing restarts", async () => {
     const h = harness(false);
-    const refusal = h.restart({ principal: caller("owner"), confirm: true });
+    const refusal = h.restart({ principal: caller("owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE });
     await expect(refusal).rejects.toBeInstanceOf(DomainOperationError);
     await expect(refusal).rejects.toMatchObject({ code: "restart_unsupervised" });
     expect(h.restarts()).toBe(0);
@@ -69,12 +86,14 @@ describe("admin.restart", () => {
   test("a second call while one is in flight is refused, even when both start together", async () => {
     const h = harness(true);
     const [first, second] = await Promise.allSettled([
-      h.restart({ principal: caller("owner"), confirm: true }),
-      h.restart({ principal: caller("owner"), confirm: true }),
+      h.restart({ principal: caller("owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE }),
+      h.restart({ principal: caller("owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE }),
     ]);
     expect(first.status).toBe("fulfilled");
     expect(second.status === "rejected" ? second.reason : second).toBeInstanceOf(DomainConflictError);
-    await expect(h.restart({ principal: caller("owner"), confirm: true })).rejects.toBeInstanceOf(DomainConflictError);
+    await expect(h.restart({ principal: caller("owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE })).rejects.toBeInstanceOf(
+      DomainConflictError,
+    );
     expect(h.restarts()).toBe(1);
   });
 });

@@ -67,13 +67,6 @@ export class PluginBundlePreviewStaleError extends DomainConflictError {
   }
 }
 
-/** The local-directory door is deliberately absent outside a development server. */
-export class PluginUnpackedUnavailableError extends DomainOperationError {
-  constructor() {
-    super("plugin_unpacked_unavailable", "unpacked plugin loading is available only in development");
-  }
-}
-
 export class PluginNoGitSourceError extends DomainOperationError {
   constructor(pluginId: PluginId) {
     super("plugin_no_git_source", `plugin ${pluginId} was not installed from Git — choose an update source that matches its provenance`);

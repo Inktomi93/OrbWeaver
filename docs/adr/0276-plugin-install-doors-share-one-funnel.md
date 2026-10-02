@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-09-29
+status: superseded
+updated: 2026-10-02
+superseded-by: docs/adr/0280-plugin-supported-install-sources.md
 ---
 
 # Every plugin install door lands through the one bundle funnel

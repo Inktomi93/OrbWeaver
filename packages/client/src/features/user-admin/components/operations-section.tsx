@@ -13,7 +13,7 @@
 import type { AppSettings, LogLevel } from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
@@ -24,6 +24,7 @@ import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.t
 import { LOG_LEVEL_ITEMS } from "../lib/log-level-items.ts";
 import { OPERATIONS_SUBCATEGORY } from "../lib/system-config-nav.ts";
 import { AdminOverrideResetRow, AdminOverrideSelect, AdminOverrideSwitch } from "./admin-override-field.tsx";
+import { RestartServerControl } from "./restart-server-control.tsx";
 
 /** The section's own suspense/error boundary — it reads for itself, so it must recover for itself. */
 export function OperationsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
@@ -42,7 +43,9 @@ export function OperationsSection({ sectionId }: { readonly sectionId: string })
 function OperationsBody({ sectionId }: { readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
+  const [{ data }, { data: viewer }] = useSuspenseQueries({
+    queries: [trpc.settings.getAppSettingsWithOverrides.queryOptions(), trpc.sessions.me.queryOptions()],
+  });
   const save = useUpdateAppOverrides({ trpc, invalidation });
 
   const resolved = data.resolved;
@@ -59,7 +62,7 @@ function OperationsBody({ sectionId }: { readonly sectionId: string }): ReactEle
   return (
     <Section className="@container" divider={true} heading={OPERATIONS_SUBCATEGORY.label} id={configAnchorId("admin", OPERATIONS_SUBCATEGORY.id)}>
       <Stack gap="field">
-        <Text voice="gloss">Deployment operations. Both apply live — no restart.</Text>
+        <Text voice="gloss">Indexing and log level apply live — no restart needed.</Text>
         <AdminOverrideSwitch
           label="Background corpus indexing"
           hint="Keep the library's embedding index up to date in the background as content changes."
@@ -83,6 +86,7 @@ function OperationsBody({ sectionId }: { readonly sectionId: string }): ReactEle
           errored={save.error !== null}
           onReset={(): void => write({ corpusAutoindex: null, logLevel: null })}
         />
+        {viewer.globalRole === "owner" ? <RestartServerControl /> : null}
       </Stack>
     </Section>
   );
