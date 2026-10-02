@@ -32,6 +32,7 @@
 
 import type { AutomationAction } from "@orb/contracts/automation";
 import { ANALYSIS_REWRITE_ISSUE_MAX, ANALYSIS_REWRITE_MAX, ANALYSIS_SCORE_MAX } from "@orb/contracts/automation";
+import type { UpsertLoreEntryInput } from "@orb/contracts/world-info";
 import type { AutomationRuleId, ChatId, MessageId, MessageVariantId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import { projectJsonSchema } from "@orb/kit/json-schema";
@@ -397,10 +398,8 @@ export function mergeAnalysisState(current: AnalysisState, payload: AnalysisPayl
  *  final bytes (rendered host text from the arm, or neutralized + span-stamped model text from the
  *  analysis route — each caller's own half). Consumed structurally by every caller (they build literals),
  *  so it is deliberately NOT exported — the exported carriers are `RuleLoreWriteArgs`/`AnalysisConfirmAct`. */
-interface RuleLoreEntry {
+interface RuleLoreEntry extends Pick<UpsertLoreEntryInput, "keys" | "content" | "span"> {
   readonly entryKey: string;
-  readonly keys: readonly string[];
-  readonly content: string;
 }
 
 export interface RuleLoreWriteArgs {

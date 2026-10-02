@@ -74,6 +74,7 @@ async function writeUnderTheBelts(deps: Pick<ArmExecutorDeps, "db" | "ops">, arg
       title: titles[i] ?? ruleLoreTitle(args.ruleId, entry.entryKey),
       keys: [...entry.keys],
       content: entry.content,
+      ...(entry.span === undefined ? {} : { span: entry.span }),
     })),
   });
   return { ok: true };

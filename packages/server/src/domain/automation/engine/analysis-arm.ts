@@ -62,6 +62,7 @@ import type {
   AnalysisRoutes,
   AnalysisState,
   AnalysisWindowRow,
+  RuleLoreWriteArgs,
   RunAnalysisAction,
 } from "../contract/analysis.ts";
 import {
@@ -217,8 +218,8 @@ function spanStampedKey(spanStart: number, key: string): string {
 interface PassResolution {
   readonly payload: AnalysisPayload;
   readonly action: RunAnalysisAction;
-  /** The settled span's bounds this pass covered (`null` = no lore read this pass). */
-  readonly span: { readonly start: number; readonly end: number } | null;
+  /** Coverage/title bounds and actual read provenance differ on a capped cold start. */
+  readonly span: { readonly start: number; readonly end: number; readonly provenance: NonNullable<RuleLoreWriteArgs["entries"][number]["span"]> } | null;
   /** C3 — the reply this pass audited (`null` = no rewrite route, or nothing auditable). Carried onto the
    *  RESOLUTION rather than re-read at apply time on purpose: the card must pin the variant the MODEL saw,
    *  not whatever is selected by the time the applier runs. */
@@ -274,10 +275,12 @@ const ROUTE_APPLIERS: Record<AnalysisOutputClass, RouteApplier> = {
       // so the next pass reads on from here rather than re-reading a span the model already judged empty.
       return { ok: true, watermark: pass.span.end };
     }
+    const span = pass.span;
     const entries = lore.map((entry) => ({
-      entryKey: spanStampedKey(pass.span?.start ?? 0, neutralizeMacros(entry.key)),
+      entryKey: spanStampedKey(span.start, neutralizeMacros(entry.key)),
       keys: entry.keys.map((k) => neutralizeMacros(k)),
       content: neutralizeMacros(entry.content),
+      span: span.provenance,
     }));
     if (route.apply === "confirm") {
       raiseAnalysisCard(deps, frame, {
@@ -448,9 +451,14 @@ async function readPassInputs(deps: ArmExecutorDeps, action: RunAnalysisAction, 
     limit: ANALYSIS_SETTLED_SLICE_MAX,
     slice: cold ? "newest" : "earliest",
   });
-  const lastRead = settled.at(-1)?.seq ?? through;
-  const end = cold ? through : lastRead;
-  return { state, fresh, settled, span: settled.length > 0 ? { start: state.settledThroughSeq, end } : null, audited };
+  const firstRead = settled[0];
+  const lastRead = settled.at(-1);
+  // The exclusive lower bound describes returned rows, not the coverage cursor or contiguous seqs.
+  const span =
+    firstRead === undefined || lastRead === undefined
+      ? null
+      : { start: state.settledThroughSeq, end: cold ? through : lastRead.seq, provenance: { fromSeq: firstRead.seq - 1, toSeq: lastRead.seq } };
+  return { state, fresh, settled, span, audited };
 }
 
 /** A rule whose state row has never recorded a covered span — a COLD analysis start (`EMPTY_ANALYSIS_STATE`

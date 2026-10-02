@@ -69,12 +69,14 @@ describe("upsertEntries", () => {
     const result = await svc.upsertEntries({
       principal: principal(owner),
       bookId: book.id,
-      entries: [{ title: "Fact", keys: ["k"], content: "machine rewrite", span: SPAN }],
+      entries: [{ title: "Fact", keys: ["new"], content: "machine rewrite", span: { fromSeq: 40, toSeq: 80 } }],
     });
 
     expect(result).toEqual({ inserted: 0, updated: 0, skippedHandEdited: 1 });
     const after = await svc.listEntries({ principal: principal(owner), bookId: book.id });
     expect(after[0]?.content).toBe("the HOST's careful wording");
+    expect(after[0]?.keys).toEqual(["k"]);
+    expect(after[0]?.metadata?.provenance).toEqual(entry.metadata?.provenance);
   });
 
   // `title` IS the upsert key within the book (contracts/world-info, the UpsertLoreEntryInput doc), so two
