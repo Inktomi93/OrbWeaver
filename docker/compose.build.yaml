@@ -1,0 +1,17 @@
+# ── overlay: build the image from THIS checkout instead of pulling the stable release ─────────────────
+#
+#   docker compose -f docker-compose.yaml -f docker/compose.build.yaml up -d --build
+#   → http://localhost:8788 — the same app, built from whatever this checkout holds (main, or your changes)
+#
+# The base compose pulls the published release image. This overlay builds the Dockerfile's `runtime` target
+# under its own local name, so a source build never masquerades as the registry's `latest` and a later
+# `docker compose pull` of the base file cannot replace it. The image's version stamp reads this checkout's
+# git refs, so a main build reports `X.Y.Z-dev+<commit>` and checks main for updates. Stack it before any
+# other overlay: `-f docker-compose.yaml -f docker/compose.build.yaml -f docker/compose.secrets.yaml`.
+services:
+  orbweaver:
+    image: ${ORB_IMAGE:-orbweaver:local}
+    pull_policy: build
+    build:
+      context: .                              # compose resolves an overlay's paths from the project directory
+      target: runtime

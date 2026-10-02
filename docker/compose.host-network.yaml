@@ -1,6 +1,6 @@
 # ── overlay: single-user, no login, via host networking ─────────────────────────────────────────────
 #
-#   docker compose -f docker-compose.yaml -f docker/compose.host-network.yaml up -d --build
+#   docker compose -f docker-compose.yaml -f docker/compose.host-network.yaml up -d
 #   → http://localhost:8788 — you are the owner, no password.
 #
 # WHY host networking: `single-user` grants the owner ONLY to a request whose TCP peer is loopback (the

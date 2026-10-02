@@ -17,7 +17,7 @@ import {
 import { createThemeInputSchema, promoteThemeInputSchema, updateThemeInputSchema } from "@orb/contracts/theme";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
-import { updateCheckSchema, upstreamHeadSchema, versionIdentitySchema } from "@orb/kit/version-identity";
+import { updateCheckSchema, versionIdentitySchema } from "@orb/kit/version-identity";
 import { z } from "zod";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 
@@ -31,9 +31,7 @@ export const settingsRouter = t.router({
   //    per-user rate bucket the authed ladder already debits is the limiter on the update check's one
   //    outbound GET (`entry/rate-limit-gate.ts`'s `general` scope) — no second bucket exists to add. ──
   getVersion: authedProcedure.output(versionIdentitySchema.strict()).query(({ ctx }) => ctx.services.settings.getVersion()),
-  checkForUpdate: authedProcedure
-    .output(updateCheckSchema.extend({ remote: upstreamHeadSchema.strict().nullable() }).strict())
-    .query(({ ctx }) => ctx.services.settings.checkForUpdate()),
+  checkForUpdate: authedProcedure.output(updateCheckSchema).query(({ ctx }) => ctx.services.settings.checkForUpdate()),
 
   getUserSettings: authedProcedure.output(userSettingsViewSchema).query(({ ctx }) => ctx.services.settings.getUserSettings({ principal: ctx.auth })),
 

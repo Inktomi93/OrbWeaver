@@ -19,6 +19,7 @@ import {
   buildVersionStamp,
   readGitCommit,
   readPackageVersion,
+  readReleaseChannel,
   readVersionIdentity,
   readVersionStamp,
   VERSION_STAMP_FILE,
@@ -100,6 +101,7 @@ describe("readVersionIdentity", () => {
       commit: COMMIT,
       short: "823d76f4343a",
       source: "checkout",
+      channel: "main",
     });
   });
 
@@ -120,13 +122,18 @@ describe("readVersionIdentity", () => {
     // Both present, disagreeing on purpose: a stale or throwaway .git can sit beside a real stamp, and the
     // stamp is the only one that knows the real commit.
     await gitDir({ head: `ref: ${BRANCH}\n` });
-    await writeFile(join(root, VERSION_STAMP_FILE), JSON.stringify({ version: "1.4.2", commit: COMMIT, builtAt: "2026-09-18T09:30:00Z" }), "utf8");
+    await writeFile(
+      join(root, VERSION_STAMP_FILE),
+      JSON.stringify({ version: "1.4.2", commit: COMMIT, builtAt: "2026-09-18T09:30:00Z", channel: "stable" }),
+      "utf8",
+    );
     expect(readVersionIdentity(root)).toEqual({
       version: "1.4.2",
       commit: COMMIT,
       short: "823d76f4343a",
       builtAt: "2026-09-18T09:30:00Z",
       source: "container",
+      channel: "stable",
     });
   });
 
@@ -141,22 +148,29 @@ describe("readVersionIdentity", () => {
   test("a stamp MISSING a required field is refused, not half-read", async () => {
     await writeFile(join(root, VERSION_STAMP_FILE), JSON.stringify({ version: "1.4.2", commit: COMMIT }), "utf8");
     expect(readVersionStamp(root)).toBeNull();
+    // A stamp with no channel would leave an image unable to say which upstream to compare with.
+    await writeFile(join(root, VERSION_STAMP_FILE), JSON.stringify({ version: "1.4.2", commit: COMMIT, builtAt: "2026-09-18T09:30:00Z" }), "utf8");
+    expect(readVersionStamp(root)).toBeNull();
   });
 
   test("no manifest and no .git still answers — `unknown` on both halves", async () => {
     await rm(join(root, "package.json"));
     expect(readPackageVersion(root)).toBeNull();
-    expect(readVersionIdentity(root)).toEqual({ version: "unknown", commit: "unknown", short: "unknown", source: "checkout" });
+    expect(readVersionIdentity(root)).toEqual({ version: "unknown", commit: "unknown", short: "unknown", source: "checkout", channel: "main" });
   });
 
   test("a root the process may not read answers `unknown` instead of throwing — the plugin broker's case", async () => {
-    await writeFile(join(root, VERSION_STAMP_FILE), JSON.stringify({ version: "1.4.2", commit: COMMIT, builtAt: "2026-09-30T00:00:00.000Z" }), "utf8");
+    await writeFile(
+      join(root, VERSION_STAMP_FILE),
+      JSON.stringify({ version: "1.4.2", commit: COMMIT, builtAt: "2026-09-30T00:00:00.000Z", channel: "stable" }),
+      "utf8",
+    );
     await gitDir({ head: `ref: ${BRANCH}\n`, looseRef: `${COMMIT}\n` });
     // A search-denied directory makes every stat beneath it fail with EACCES, the same wall a path outside the broker's
     // permission-model grants hits.
     await chmod(root, 0o000);
     try {
-      expect(readVersionIdentity(root)).toEqual({ version: "unknown", commit: "unknown", short: "unknown", source: "checkout" });
+      expect(readVersionIdentity(root)).toEqual({ version: "unknown", commit: "unknown", short: "unknown", source: "checkout", channel: "main" });
     } finally {
       await chmod(root, 0o700);
     }
@@ -168,7 +182,7 @@ describe("buildVersionStamp — the CONTENT the image build writes to version.js
   // the content contract separately, so launcher reachability and stamp semantics each fail at their owner.
   test("derives the SAME version+commit the reader would, with the build instant passed IN (never an ambient clock)", async () => {
     await gitDir({ head: `ref: ${BRANCH}\n`, looseRef: `${COMMIT}\n` });
-    expect(buildVersionStamp(root, "2026-09-18T09:30:00Z")).toEqual({ version: "1.4.2", commit: COMMIT, builtAt: "2026-09-18T09:30:00Z" });
+    expect(buildVersionStamp(root, "2026-09-18T09:30:00Z")).toEqual({ version: "1.4.2", commit: COMMIT, builtAt: "2026-09-18T09:30:00Z", channel: "main" });
   });
 
   test("a stamp built where git cannot answer records `unknown` rather than refusing the build", () => {
@@ -181,6 +195,59 @@ describe("buildVersionStamp — the CONTENT the image build writes to version.js
     await writeFile(join(root, VERSION_STAMP_FILE), JSON.stringify(stamp), "utf8");
     expect(readVersionStamp(root)).toEqual(stamp);
     expect(readVersionIdentity(root)).toEqual({ ...stamp, short: "823d76f4343a", source: "container" });
+  });
+});
+
+describe("the release channel — stable only when the build IS the commit its own `v<version>` tag names", () => {
+  const tag = "refs/tags/v1.4.2";
+
+  async function looseTag(name: string, oid: string): Promise<void> {
+    await mkdir(join(root, ".git", "refs", "tags"), { recursive: true });
+    await writeFile(join(root, ".git", name), `${oid}\n`, "utf8");
+  }
+
+  test("a checkout of the release tag (detached, as a clone of the tag or CI leaves it) is stable", async () => {
+    await gitDir({ head: `${COMMIT}\n` });
+    await looseTag(tag, COMMIT);
+    expect(readVersionIdentity(root).channel).toBe("stable");
+  });
+
+  test("the release branch at its tagged head is stable, with the tag only in packed-refs as a clone leaves it", async () => {
+    await gitDir({ head: "ref: refs/heads/release\n", packedRefs: `${COMMIT} refs/heads/release\n${COMMIT} ${tag}\n` });
+    expect(readVersionIdentity(root).channel).toBe("stable");
+  });
+
+  test("a packed ANNOTATED tag counts through its peeled commit", async () => {
+    await gitDir({ head: `${COMMIT}\n`, packedRefs: `${OTHER_COMMIT} ${tag}\n^${COMMIT}\n` });
+    expect(readVersionIdentity(root).channel).toBe("stable");
+  });
+
+  test("main past the release — the tag names an older commit — is main", async () => {
+    await gitDir({ head: `ref: ${BRANCH}\n`, looseRef: `${COMMIT}\n` });
+    await looseTag(tag, OTHER_COMMIT);
+    expect(readVersionIdentity(root).channel).toBe("main");
+  });
+
+  test("an untagged checkout is main", async () => {
+    await gitDir({ head: `ref: ${BRANCH}\n`, looseRef: `${COMMIT}\n` });
+    expect(readVersionIdentity(root).channel).toBe("main");
+  });
+
+  test("a manifest version that would walk out of the git dir is never turned into a path", async () => {
+    // `refs/tags/v/../../../HEAD` would otherwise read `.git/HEAD`, which here holds the commit itself.
+    await gitDir({ head: `${COMMIT}\n` });
+    expect(readReleaseChannel(root, "/../../../HEAD", COMMIT)).toBe("main");
+    expect(readReleaseChannel(root, "1.4.2", COMMIT)).toBe("main");
+  });
+
+  test("the stamp records the channel the build derived, and the reader hands it back", async () => {
+    await gitDir({ head: `${COMMIT}\n` });
+    await looseTag(tag, COMMIT);
+    const stamp = buildVersionStamp(root, "2026-09-18T09:30:00Z");
+    expect(stamp.channel).toBe("stable");
+    await rm(join(root, ".git"), { recursive: true });
+    await writeFile(join(root, VERSION_STAMP_FILE), JSON.stringify(stamp), "utf8");
+    expect(readVersionIdentity(root).channel).toBe("stable");
   });
 });
 

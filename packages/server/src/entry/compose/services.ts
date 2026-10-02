@@ -151,7 +151,7 @@ import { buildSearchDiscovery } from "./search-discovery.ts";
 import { createSessionEntryWriter } from "./session-entries.ts";
 import { createEnableShareSeating } from "./share-seating.ts";
 import { buildSideGenParams } from "./side-gen-params.ts";
-import { createProbeUpstreamHead } from "./update-check.ts";
+import { createUpstreamProbes } from "./update-check.ts";
 import { buildWorkloadContributions } from "./workload-contributions.ts";
 import { buildWorldInfo } from "./world-info.ts";
 
@@ -412,7 +412,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     versionIdentity,
     // The manual update check's one GET. Wired here (never imported by the domain) so the egress belt stays
     // on this side of the tier line, exactly like `materializeBackground` above it.
-    probeUpstreamHead: createProbeUpstreamHead({ localVersion: () => versionIdentity().version }),
+    probeUpstream: createUpstreamProbes({ localVersion: () => versionIdentity().version }),
     publishPrivateEndpointAllowlist,
   };
   // The workload contribution registry is assembled LAST (it spans every owning domain, chat included) but

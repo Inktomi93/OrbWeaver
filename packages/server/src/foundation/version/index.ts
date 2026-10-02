@@ -20,6 +20,10 @@
 // one directory up. Both halves are proven: a stamp beside a `.git` still wins, and a HEAD naming a branch
 // with no refs behind it (the no-`.git` shape) resolves to `unknown` rather than throwing.
 //
+// THE RELEASE CHANNEL is one more ref read: the build is `stable` when the tag `v<version>` resolves to the
+// commit HEAD resolves to (`@orb/kit/version-identity` states the rule). The image build stamps the channel it
+// derived here, because the runtime image has no `.git` to read the tag from.
+//
 // EVERY FAILURE IS AN ANSWER, NEVER A THROW. A missing `package.json`, a missing `.git`, a corrupt stamp —
 // each degrades to a named `unknown` that the surfaces render as such. A boot that dies because it could not
 // find its own version number would be the worst possible trade.
@@ -28,8 +32,18 @@ import type { Stats } from "node:fs";
 import { readFileSync, statSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
-import type { GitRefFiles, VersionIdentity, VersionStamp } from "@orb/kit/version-identity";
-import { gitDirRedirect, headRefName, resolveCommit, shortCommit, UNKNOWN_COMMIT, versionStampSchema } from "@orb/kit/version-identity";
+import type { GitRefFiles, ReleaseChannel, VersionIdentity, VersionStamp } from "@orb/kit/version-identity";
+import {
+  gitDirRedirect,
+  headRefName,
+  releaseChannelOf,
+  releaseTagRef,
+  resolveCommit,
+  resolveRef,
+  shortCommit,
+  UNKNOWN_COMMIT,
+  versionStampSchema,
+} from "@orb/kit/version-identity";
 
 /** The stamp the image build writes beside the runtime file set, relative to the process root. */
 export const VERSION_STAMP_FILE = "version.json";
@@ -37,9 +51,10 @@ export const VERSION_STAMP_FILE = "version.json";
 /** The honest stand-in when the root `package.json` could not be read — same posture as `UNKNOWN_COMMIT`. */
 const UNKNOWN_VERSION = "unknown";
 
-/** A ref name we are willing to turn into a path. HEAD is our own file, but it is still a file: a name with
- *  `..` in it would walk the reader out of the git directory, so the shape is pinned instead of trusted. */
-const SAFE_REF_RE = /^refs\/[A-Za-z0-9._\-/]+$/u;
+/** A ref name we are willing to turn into a path. HEAD is our own file and the release tag is built from our
+ *  own manifest's version, but both are still file contents: a name with `..` in it would walk the reader out
+ *  of the git directory, so the shape is pinned instead of trusted. Git itself refuses `..` in a ref name. */
+const SAFE_REF_RE = /^refs\/(?!.*\.\.)[A-Za-z0-9._\-/]+$/u;
 
 /** A path's stat, or `null` when it is absent or the process may not look at it. A permission wall throws from the
  *  stat itself: an unsearchable directory, and every path outside the plugin broker's permission-model grants. */
@@ -110,24 +125,41 @@ function redirectedGitDir(root: string, dotGit: string): string | null {
 function readGitRefFiles(location: GitLocation): GitRefFiles {
   const head = readText(join(location.gitDir, "HEAD"));
   const ref = headRefName(head);
+  return { head, headRef: ref === null ? null : readLooseRef(location, ref), packedRefs: readFirst(location, "packed-refs") };
+}
+
+/** One file under the git dirs, the worktree's own first and then the shared common dir. */
+function readFirst(location: GitLocation, ...segments: readonly string[]): string | null {
   const dirs = location.gitDir === location.commonDir ? [location.gitDir] : [location.gitDir, location.commonDir];
-  const readFirst = (...segments: readonly string[]): string | null => {
-    for (const dir of dirs) {
-      const text = readText(join(dir, ...segments));
-      if (text !== null) {
-        return text;
-      }
+  for (const dir of dirs) {
+    const text = readText(join(dir, ...segments));
+    if (text !== null) {
+      return text;
     }
-    return null;
-  };
-  const headRef = ref !== null && SAFE_REF_RE.test(ref) ? readFirst(...ref.split("/")) : null;
-  return { head, headRef, packedRefs: readFirst("packed-refs") };
+  }
+  return null;
+}
+
+/** A loose ref file's text, or `null` when the name is not a safe ref path or the file is absent. */
+function readLooseRef(location: GitLocation, ref: string): string | null {
+  return SAFE_REF_RE.test(ref) ? readFirst(location, ...ref.split("/")) : null;
 }
 
 /** The commit a checkout is on, or `null` — no git binary, no objects, just the ref files. */
 export function readGitCommit(root: string): string | null {
   const location = gitLocationOf(root);
   return location === null ? null : resolveCommit(readGitRefFiles(location));
+}
+
+/** The checkout's release channel: `stable` when the tag for `version` names `commit`. A missing version, a
+ *  missing commit or a missing `.git` is `main` — a build that cannot prove it is the release is not one. */
+export function readReleaseChannel(root: string, version: string | null, commit: string | null): ReleaseChannel {
+  const location = gitLocationOf(root);
+  if (location === null || version === null) {
+    return "main";
+  }
+  const tag = releaseTagRef(version);
+  return releaseChannelOf(commit, resolveRef(tag, readLooseRef(location, tag), readFirst(location, "packed-refs")));
 }
 
 /** The root `package.json`'s `version` field — the release number the owner bumps and tags. */
@@ -177,15 +209,25 @@ export function readVersionIdentity(root: string): VersionIdentity {
       short: shortCommit(stamp.commit),
       builtAt: stamp.builtAt,
       source: "container",
+      channel: stamp.channel,
     });
   }
-  const commit = readGitCommit(root) ?? UNKNOWN_COMMIT;
+  const checkout = readCheckout(root);
   return Object.freeze({
-    version: readPackageVersion(root) ?? UNKNOWN_VERSION,
-    commit,
-    short: shortCommit(commit),
+    version: checkout.version,
+    commit: checkout.commit,
+    short: shortCommit(checkout.commit),
     source: "checkout",
+    channel: checkout.channel,
   });
+}
+
+/** The three facts a checkout answers from its own files, shared by the boot reader and the image stamp so
+ *  the two can never derive them differently. */
+function readCheckout(root: string): Pick<VersionIdentity, "version" | "commit" | "channel"> {
+  const version = readPackageVersion(root);
+  const commit = readGitCommit(root);
+  return { version: version ?? UNKNOWN_VERSION, commit: commit ?? UNKNOWN_COMMIT, channel: readReleaseChannel(root, version, commit) };
 }
 
 let cached: VersionIdentity | null = null;
@@ -204,9 +246,5 @@ export function versionIdentity(): VersionIdentity {
  *  `builtAt` is a PARAMETER, not `new Date()`: production source reads time from the injected clock
  *  (`no-raw-clock`), and the build's wall instant is supplied by the build script that knows it. */
 export function buildVersionStamp(root: string, builtAt: string): VersionStamp {
-  return {
-    version: readPackageVersion(root) ?? UNKNOWN_VERSION,
-    commit: readGitCommit(root) ?? UNKNOWN_COMMIT,
-    builtAt,
-  };
+  return { ...readCheckout(root), builtAt };
 }

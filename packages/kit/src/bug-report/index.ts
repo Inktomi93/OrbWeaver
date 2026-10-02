@@ -39,7 +39,7 @@ export interface BugReportRecord {
   /** The correlation id — also the file stem's tail, so a bundle and its files name each other. */
   readonly id: string;
   /** WHAT THIS BOX IS — the first header field of the envelope, deliberately ahead of everything but the id
-   *  (owner ask 2026-09-18). A report is triaged by someone who was not there; `v0.4.1 (a1b2c3d4e5f6)` is
+   *  (owner ask 2026-09-18). A report is triaged by someone who was not there; `0.4.1-dev+a1b2c3d4e5f6` is
    *  the field that decides whether the behavior is even reproducible on today's tree. Derived by
    *  `@orb/server`'s `foundation/version` — plain-file, no git binary, and the same block `/healthz`,
    *  the boot line and Settings → About report. */
