@@ -5,7 +5,7 @@
 
 import type { ChatSettings } from "@orb/contracts/settings";
 import { STREAM_SCROLL_MODES } from "@orb/contracts/settings";
-import type { SelectOption } from "@orb/ui/select";
+import type { SelectOption } from "@orb/ui/select/items";
 import type { ConfigSubcategory } from "#state";
 
 const STREAM_SCROLL_MODE_LABELS: Record<ChatSettings["streamScrollMode"], string> = {

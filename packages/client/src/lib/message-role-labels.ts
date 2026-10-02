@@ -5,7 +5,7 @@
 
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import type { SelectItems } from "@orb/ui/select";
+import type { SelectItems } from "@orb/ui/select/items";
 
 export const MESSAGE_ROLE_LABELS: Record<MessageRole, string> = {
   system: "System",

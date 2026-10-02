@@ -93,6 +93,7 @@ COPY --chown=node:node docker/entrypoint.sh /app/docker/entrypoint.sh
 # node runs — the app process is never root. `docker run --user` / compose `user:` still works (the
 # entrypoint then skips the chown).
 RUN mkdir -p /app/data /app/.cache && chown node:node /app/data /app/.cache
+RUN node packages/server/src/entry/check-media.ts
 EXPOSE 8788
 STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \

@@ -6,6 +6,15 @@ import type { CapabilityOverrideInput } from "@orb/contracts/inference";
 
 export const openaiRows = [
   {
+    match: { model: "^(openai/)?gpt-(4\\.1|5\\.4-mini|5\\.5)(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$", wire: "openai-compat", api: "chat-completions" },
+    generation: { imageDetail: true },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-02",
+      cite: "https://openrouter.ai/blog/insights/image-detail-low-cost/ documents image_url.detail low/auto on gpt-4.1, gpt-5.4-mini, gpt-5.5; other models require their own evidence or declared capability",
+    },
+  },
+  {
     match: {
       model: "^(openai/)?(gpt-|o[13]|chatgpt)",
     },

@@ -107,6 +107,8 @@ export interface ConfigSettingLeaf {
    *  fallbacks apply (On/Off · None · the number). An option-LIST value (an array key, `blurSurfaces`)
    *  maps every member through the same table. */
   readonly options?: readonly ConfigSettingOption[];
+  /** Display an owned composite value in its controls' vocabulary; writes retain the raw value. */
+  readonly formatValue?: (value: unknown) => string;
 }
 
 /** A subcategory = one anchored section inside a group; each stamps a stable anchor node the spy reads and

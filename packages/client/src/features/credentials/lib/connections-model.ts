@@ -5,7 +5,7 @@
 
 import type { ProviderAuth, ProviderAvailability, ProviderDef, RoutableTask, Task } from "@orb/contracts/inference";
 import { bindingTaskOf, canFund, providerDisplayLabel } from "@orb/contracts/inference";
-import type { SelectItems, SelectOptionGroup } from "@orb/ui/select";
+import type { SelectItems, SelectOptionGroup } from "@orb/ui/select/items";
 // Direct, not through `#lib`: this module stays barrel-free because node-side CT specs import it.
 import { ROLE_ROWS_ORDERED } from "../../../lib/connection-roles.ts";
 

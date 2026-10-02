@@ -5,10 +5,13 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { PROSE_SLOT_IDS, proseOverridesSchema } from "@orb/contracts/prose";
 import { regexScriptCardSchema } from "@orb/contracts/regex";
 import { chatRpgPointerSchema, RPG_PROFILE_FREEFORM, rpgTrackerValueSchema } from "@orb/contracts/rpg";
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { UserSettingsView } from "@orb/contracts/settings";
+import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
 import type { WorkloadRowAnyKind } from "@orb/contracts/workloads";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
+import type { SettingsService } from "@orb/server/domain/settings";
 import type { WorkloadService } from "@orb/server/domain/workloads";
 import { z } from "zod";
 import { appRouter } from "../../../../../packages/server/src/transport/trpc/router.ts";
@@ -154,6 +157,7 @@ const nestedCases = [
   { route: "preset.get", path: ["config", "sections", "[]", 0, "inject"], value: { depth: 0 } },
   { route: "settings.getUserSettings", path: ["config", "chat"], value: DEFAULT_USER_SETTINGS.chat },
   { route: "settings.getUserSettings", path: ["config", "chat", "autoSwipe"], value: DEFAULT_USER_SETTINGS.chat.autoSwipe },
+  { route: "settings.getUserSettings", path: ["config", "chat", "attachmentQuality"], value: DEFAULT_USER_SETTINGS.chat.attachmentQuality },
   { route: "settings.getUserSettings", path: ["config", "groupDefaults"], value: DEFAULT_USER_SETTINGS.groupDefaults },
   { route: "settings.getUserSettings", path: ["config", "prose", "[*]"], value: { text: "a custom instruction", baseVersion: 1 } },
   { route: "preset.get", path: ["config", "prose", "[*]"], value: { text: "a custom instruction", baseVersion: 1 } },
@@ -230,6 +234,25 @@ test("the real clean-workload caller refuses nested scope additions while poison
     updatedAt: 1,
   };
   expect(schemaAt("workloads.listSchedules", ["[]"]).parse(schedule)).toEqual(schedule);
+});
+
+test("the real settings caller preserves attachment quality and refuses a typed nested field addition", async () => {
+  const auth = principal("user", { userId: newId<UserId>() });
+  const quality = { imageDetail: "high", videoMaxResolution: "480" } as const;
+  const valid: UserSettingsView = {
+    userId: auth.userId,
+    schemaVersion: USER_SETTINGS_SCHEMA_VERSION,
+    config: { ...DEFAULT_USER_SETTINGS, chat: { ...DEFAULT_USER_SETTINGS.chat, attachmentQuality: quality } },
+    updatedAt: 0,
+    configUnreadable: null,
+  };
+  let result = valid;
+  const getUserSettings: SettingsService["getUserSettings"] = async () => result;
+  const ctx = makeContext({ auth, services: { settings: { getUserSettings } } });
+  await expect(caller(ctx).settings.getUserSettings()).resolves.toEqual(valid);
+  const widened = { ...quality, privateTypedField: "secret" };
+  result = { ...valid, config: { ...valid.config, chat: { ...valid.config.chat, attachmentQuality: widened } } };
+  await expect(caller(ctx).settings.getUserSettings()).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
 });
 
 test("typed carried regex output validates normalized data without changing foreign input polarity", () => {

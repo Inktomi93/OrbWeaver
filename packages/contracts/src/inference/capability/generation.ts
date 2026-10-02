@@ -195,6 +195,7 @@ export const generationCapabilitySchema = z.object({
   }),
   /** Image-GENERATION input arms: an init/reference image on the call (`edit-image`, `generate-picture`). */
   imageEdit: z.boolean().optional(),
+  imageDetail: z.boolean().optional(),
   imageReferences: z.boolean().optional(),
   /** `window` = usable context in tokens. `windowEstimated` marks a FALLBACK GUESS (cold catalog, no
    *  declared window) — the history FIT still runs against it, but a "used / window" surface must say so. */

@@ -18,7 +18,7 @@ import type { IpCertificateSetting } from "#identity";
 import { ipCertificateSettingSchema } from "#identity";
 import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
-import { PROMPT_CACHE_DEPTH_CEIL } from "#inference";
+import { attachmentQualitySchema, PROMPT_CACHE_DEPTH_CEIL } from "#inference";
 import { legacyProseOverrides, proseOverridesSchema, proseOverridesViewSchema, resolveProseText } from "#prose";
 import type { StructuredOutputVehicle } from "#role-clients";
 import { structuredOutputVehicleSchema } from "#role-clients";
@@ -552,6 +552,7 @@ export const STREAM_SCROLL_MODES = SCROLL_MODES;
 
 const chatSchema = z
   .object({
+    attachmentQuality: attachmentQualitySchema,
     // Client-honored (composer keydown): Enter sends by default; off → Enter is a newline and ⌘/Ctrl+Enter sends.
     enterSends: z.boolean().catch(true).default(true),
     autoContinue: z.boolean().catch(false).default(false),
@@ -1087,7 +1088,10 @@ const userSettingsOutputSchema = userSettingsSchema.strict().extend({
     chunk: databankSchema.unwrap().shape.chunk.unwrap().strict(),
     retrieval: databankSchema.unwrap().shape.retrieval.unwrap().strict(),
   }),
-  chat: chatSchema.unwrap().strict().extend({ autoSwipe: chatSchema.unwrap().shape.autoSwipe.unwrap().strict() }),
+  chat: chatSchema.unwrap().strict().extend({
+    autoSwipe: chatSchema.unwrap().shape.autoSwipe.unwrap().strict(),
+    attachmentQuality: attachmentQualitySchema.unwrap().strict(),
+  }),
   library: librarySchema.unwrap().strict(),
   imagery: imagerySchema.unwrap().strict().extend({
     templates: imagerySchema.unwrap().shape.templates.unwrap().strict(),

@@ -25,6 +25,7 @@ export { useStopTurn } from "./hooks/use-stop-turn.ts";
 export { appearanceAvatarsSection } from "./lib/appearance-avatars-section.tsx";
 export { appearanceMessageDetailsSection } from "./lib/appearance-message-details-section.tsx";
 export { appearanceMessageStyleSection } from "./lib/appearance-message-style-section.tsx";
+export { chatAttachmentQualitySection } from "./lib/chat-attachment-quality-section.tsx";
 export { chatMessageHandlingSection } from "./lib/chat-behavior-message-handling-section.tsx";
 export { chatStreamingSection } from "./lib/chat-behavior-streaming-section.tsx";
 export { makeChatControlsContribution } from "./lib/chat-controls-contribution.tsx";

@@ -77,6 +77,7 @@
     "./scatter": "./src/charts/scatter/index.ts",
     "./scroll-area": "./src/primitives/scroll-area/index.ts",
     "./select": "./src/primitives/select/index.ts",
+    "./select/items": "./src/primitives/select/items.ts",
     "./selection-bar": "./src/primitives/selection-bar/index.ts",
     "./separator": "./src/primitives/separator/index.ts",
     "./series-row": "./src/primitives/series-row/index.ts",

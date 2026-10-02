@@ -7,7 +7,7 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { EmbeddingModelV4, ImageModelV4, LanguageModelV4 } from "@ai-sdk/provider";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import type { Dialect } from "@orb/contracts/inference";
+import type { Dialect, ImageDetail } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { wrapLanguageModel } from "ai";
 import type { WireCaptureSink } from "../../contract/backend.ts";
@@ -39,6 +39,7 @@ export interface TransportDeps {
 
 /** Everything one call needs the hooks to know. `plan` is null on the non-chat surfaces (no re-attach). */
 export interface ModelCall {
+  readonly imageDetail?: ImageDetail | undefined;
   readonly connection: Resolved;
   readonly deps: TransportDeps;
   readonly label: string;
@@ -73,6 +74,7 @@ function shapeArgs(call: ModelCall, dialect: Dialect): ShapeArgs {
     prefillAllowed: call.prefillAllowed,
     foldSameRole: call.foldSameRole,
     replyImages: call.replyImages,
+    imageDetail: call.imageDetail,
     warnings: call.warnings,
   };
 }

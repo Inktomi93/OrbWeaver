@@ -228,7 +228,7 @@ const WIRE_PART_HANDLERS: { readonly [K in ContentSpanKind]: WirePartHandler<K> 
   // wire:"drop" — ATTACHMENT-ONLY (owner ruling, ST parity): a non-attachment image is DISPLAY-ONLY and
   // collapses to its short marker; an attachment resolves-or-drops-to-alt gated by the asset's media kind
   // (`input.vision` for images, `input.video` for mp4/webm/animated-gif — #317). The KIND is only known
-  // after resolve (it is the asset row's stored fact), so the kind-gate runs on the resolver's answer.
+  // after resolve; URL preparation waits until the kind-gate admits the resolver's answer.
   image: async (span, env, row) => {
     if (!ridesAsModelMedia(span, row, env.inlineReply)) {
       // DISPLAY-ONLY, unconditionally — not a capability drop, so it never flags `imageDropped` (the
@@ -245,17 +245,20 @@ const WIRE_PART_HANDLERS: { readonly [K in ContentSpanKind]: WirePartHandler<K> 
     if (resolved === null) {
       return { droppedAlt: span.alt, droppedMedia: "image" };
     }
+    const admitted = { image: env.visionOk, video: env.videoOk } satisfies Readonly<Record<ResolvedMediaRef["media"], boolean>>;
+    if (!admitted[resolved.media]) {
+      return { droppedAlt: span.alt, droppedMedia: resolved.media };
+    }
+    const url = typeof resolved.url === "string" ? resolved.url : await resolved.url();
     if (resolved.media === "video") {
-      return env.videoOk ? { type: "video", url: resolved.url } : { droppedAlt: span.alt, droppedMedia: "video" };
+      return { type: "video", url };
     }
     const assetId = span.ref.kind === "asset" ? span.ref.assetId : undefined;
     const signature =
       row.role === "assistant" && row.messageId !== undefined
         ? env.contentSignatures?.get(row.messageId)?.images.find((image) => image.assetId === assetId)?.thoughtSignature
         : undefined;
-    return env.visionOk
-      ? { type: "image", url: resolved.url, ...(signature === undefined ? {} : { thoughtSignature: signature }) }
-      : { droppedAlt: span.alt, droppedMedia: "image" };
+    return { type: "image", url, ...(signature === undefined ? {} : { thoughtSignature: signature }) };
   },
 };
 

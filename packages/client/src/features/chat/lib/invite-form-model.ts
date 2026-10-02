@@ -13,7 +13,7 @@ import { SIGNUP_MAX_TTL_DAYS, SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/co
 import type { AuthConfigShare } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { SelectItems } from "@orb/ui/select";
+import type { SelectItems } from "@orb/ui/select/items";
 
 /** Expiry presets — a picker, not a datetime field (the mint is an interrupt, not a scheduler).
  *  Declared ONCE as a tuple, the union derived (§7.5); both stay file-local (§7.4 homes exported

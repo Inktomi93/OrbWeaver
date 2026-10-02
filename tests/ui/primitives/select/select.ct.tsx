@@ -4,7 +4,7 @@ import { Field } from "@orb/ui/field";
 import { Select } from "@orb/ui/select";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { RenderValueStory } from "./select.fixtures.tsx";
+import { LinkedLabelStory, RenderValueStory } from "./select.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;
 
@@ -309,4 +309,54 @@ test("a glossed desktop popup stops at the reading measure instead of spanning t
   });
   expect(geometry.measure, "the reading-measure token resolves in the popup's own font context").toBeGreaterThan(0);
   expect(geometry.width, "the popup itself is capped, not only its option prose").toBeLessThanOrEqual(geometry.measure + 1);
+});
+
+for (const mode of ["field", "label", "aria", "linked"] as const) {
+  test(`opened listbox carries its ${mode} field name, not its selected option`, async ({ mount, page }) => {
+    const stories = {
+      field: (
+        <Field label="Model">
+          <Select aria-label="Wrong name" items={ITEMS} defaultValue="alpha" />
+        </Field>
+      ),
+      label: <Select label="Country" items={ITEMS} defaultValue="alpha" />,
+      aria: <Select aria-label="Model picker" items={ITEMS} defaultValue="alpha" />,
+      linked: <LinkedLabelStory />,
+    };
+    await mount(stories[mode]);
+    const name = { field: "Model", label: "Country", aria: "Model picker", linked: "Region" }[mode];
+    const trigger = page.getByRole("combobox", { name, exact: true });
+    await trigger.press("ArrowDown");
+    await expect(page.getByRole("listbox")).toHaveAccessibleName(name);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("listbox")).toBeHidden();
+    await trigger.click();
+    await expect(page.getByRole("listbox")).toHaveAccessibleName(name);
+    await page.getByRole("option", { name: "Beta", exact: true }).click();
+    await expect(trigger).toContainText("Beta");
+  });
+}
+
+test("default-open listbox tracks a live author name change without changing its value", async ({ mount, page }) => {
+  const component = await mount(<Select aria-label="First model" items={ITEMS} defaultValue="alpha" defaultOpen={true} />);
+  await expect(page.getByRole("listbox")).toHaveAccessibleName("First model");
+  await component.update(<Select aria-label="Second model" items={ITEMS} defaultValue="alpha" defaultOpen={true} />);
+  await expect(page.getByRole("listbox")).toHaveAccessibleName("Second model");
+  await expect(page.getByRole("combobox", { name: "Second model", exact: true })).toContainText("Alpha");
+});
+
+test("independent Selects with shared option values keep their own popup names", async ({ mount, page }) => {
+  await mount(
+    <>
+      <Select aria-label="Primary model" items={ITEMS} value="alpha" />
+      <Select aria-label="Secondary model" items={ITEMS} value="alpha" />
+    </>,
+  );
+  for (const name of ["Primary model", "Secondary model"]) {
+    await page.getByRole("combobox", { name, exact: true }).click();
+    await expect(page.getByRole("listbox")).toHaveAccessibleName(name);
+    await expect(page.getByRole("option", { name: "Alpha", exact: true })).toHaveAttribute("aria-selected", "true");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("listbox")).toBeHidden();
+  }
 });

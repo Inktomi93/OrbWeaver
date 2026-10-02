@@ -13,6 +13,10 @@
   "imports": {
     "#*": "./src/*/index.ts"
   },
+  "scripts": {
+    "check:media": "node src/entry/check-media.ts",
+    "postinstall": "pnpm check:media"
+  },
   "dependencies": {
     "@orb/kit": "workspace:*",
     "@orb/contracts": "workspace:*",
@@ -38,6 +42,7 @@
     "isomorphic-git": "catalog:",
     "jose": "catalog:",
     "minisearch": "catalog:",
+    "node-av": "catalog:",
     "openid-client": "catalog:",
     "pdfjs-dist": "catalog:",
     "pino": "catalog:",

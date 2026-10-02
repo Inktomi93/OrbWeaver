@@ -15,6 +15,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import {
   characterBooks,
@@ -43,7 +44,8 @@ import type {
   WorldEntryId,
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createTurnPersonaResolver, voicePersonaFor } from "@orb/server/entry/compose";
+import type { ImageRefAssets } from "@orb/server/entry/compose";
+import { createTurnPersonaResolver, resolveImageRefToUrl, voicePersonaFor } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import { cardOf, loadOwnedCharacterRow } from "../../../../../packages/server/src/domain/character/persistence/queries.ts";
@@ -141,6 +143,42 @@ async function seedRoom(key: string, host: UserId): Promise<ChatId> {
   await seedParticipant(db, { chatId, key: `${key}_c`, characterId: charA });
   return chatId;
 }
+
+test("assembly and context-fit previews preserve host quality and drop unsupported animated GIF without preparation", async () => {
+  const host = await seedUser(db, castId<Handle>("preview_quality"));
+  const chatId = await seedRoom("preview_quality", host);
+  const assetId = mintTypeId(ID_PREFIX.asset);
+  const ref = { kind: "asset", assetId } as const;
+  await seedMessage(db, chatId, 1, { role: "user", content: `Inspect ![picture](asset:${assetId}).` });
+  const quality = { imageDetail: "high", videoMaxResolution: "480" } as const;
+  const prepareVideo = vi.fn<ImageRefAssets["prepareVideo"]>(() => Promise.reject(new Error("An image-only preview must not prepare motion")));
+  const assets: ImageRefAssets = {
+    assetCasRefById: () => Promise.resolve({ ownerId: host, mime: "image/gif" }),
+    loadAssetBytes: () => Promise.resolve(Uint8Array.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])),
+    frameCount: () => Promise.resolve(2),
+    prepareVideo,
+  };
+  const resolveImageUrl = vi.fn<ChatContext["resolveImageUrl"]>((params) => resolveImageRefToUrl(assets, () => Promise.resolve(false), false, params));
+  const read = createRead(
+    makeChatContext(db, { resolveImageUrl }),
+    makeDeps({
+      resolveConnection: () => Promise.resolve(makeResolved({ generation: makeGenerationCapability({ input: ["text", "image"] }) })),
+      resolveForeignInputs: () =>
+        Promise.resolve({
+          promptConfig: DEFAULT_PROMPT_CONFIG,
+          personas: { anchor: null, active: null },
+          globalRegexScripts: [],
+          scanDepth: 6,
+          injectionTokenBudget: 0,
+          chatBehavior: { ...DEFAULT_USER_SETTINGS.chat, attachmentQuality: quality },
+        }),
+    }),
+  );
+  await read.previewAssembly({ principal: principal(host), chatId });
+  fitOf(await read.previewContextFit({ principal: principal(host), chatId }));
+  expect(resolveImageUrl.mock.calls).toEqual([[{ ownerId: host, chatId, ref, quality }], [{ ownerId: host, chatId, ref, quality }]]);
+  expect(prepareVideo).not.toHaveBeenCalled();
+});
 
 // ── #1742 — `listEffectiveRegex`, the room's Regex section's body ───────────────────────────────────────
 describe("read — listEffectiveRegex (host-only, #1742)", () => {

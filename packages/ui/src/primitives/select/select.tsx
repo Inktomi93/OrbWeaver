@@ -7,6 +7,7 @@ import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, usePortalContainer } from "#lib";
 import { Check, ChevronDown, Icon } from "#primitives/icons";
+import type { SelectItems, SelectOption, SelectOptionGroup } from "./items.ts";
 import { selectVariants } from "./variants.ts";
 
 // Breathing room between trigger and popup.
@@ -27,41 +28,6 @@ interface AttributeSettable {
 const CHEVRON_ICON: ReactElement = <Icon icon={ChevronDown} size="xs" />;
 
 const CHECK_ICON: ReactElement = <Icon icon={Check} size="xs" />;
-
-export interface SelectOption<Value = string> {
-  label: string;
-  value: Value;
-  disabled?: boolean;
-  /**
-   * A one-line gloss rendered UNDER the label inside the option row.
-   *
-   * It sits OUTSIDE `Select.ItemText` on purpose: `Select.Value` mirrors the selected option's
-   * `ItemText` onto the closed trigger, so a gloss folded into that node would paint on the trigger too
-   * and break the app-wide single-line-trigger convention (`value: min-w-0 truncate`).
-   *
-   * The slot exists because a legend living in the Field's `description` is OCCLUDED by the popup the
-   * moment the select opens — the reader cannot see the explanation while making the choice it explains
-   * (side-eye 2026-08-16, the chat-display modes).
-   */
-  description?: string;
-  /**
-   * Inline style for the option's LABEL text (`ItemText`) — the "seen, not read" slot (#866 §7.8): a
-   * FONT option renders its label in its own typeface (`{ fontFamily: value }`), so the choice is seen
-   * at the moment of choosing. Because `Select.Value` mirrors `ItemText`, the closed trigger inherits
-   * the picked option's style too — deliberate (the chosen font shows itself). Style, not a className:
-   * the value IS the datum (a derived `fontFamily`), never a second vocabulary.
-   */
-  labelStyle?: CSSProperties;
-}
-
-/** A labeled group of options — renders a `Select.GroupLabel` above its items. */
-export interface SelectOptionGroup<Value = string> {
-  label: string;
-  items: readonly SelectOption<Value>[];
-}
-
-/** Flat options or grouped options — the seal renders `Select.Group` for the grouped shape. */
-export type SelectItems<Value = string> = readonly SelectOption<Value>[] | readonly SelectOptionGroup<Value>[];
 
 function isGrouped<Value>(items: SelectItems<Value>): items is readonly SelectOptionGroup<Value>[] {
   const first = items[0];
@@ -227,6 +193,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
 
   // The visually hidden input Base UI generates for form submission gets flagged by axe-core as an
   // unlabeled interactive element; give it a fallback accessible name.
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const hiddenInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (hiddenInputRef.current) {
@@ -248,6 +215,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
           // Aria props spread conditionally: mergeProps is rightmost-wins, so an explicit undefined
           // would beat the context-injected aria-labelledby from Field.Control.
           <BaseSelect.Trigger
+            ref={triggerRef}
             {...(ariaDescribedby !== undefined ? { "aria-describedby": ariaDescribedby } : {})}
             {...(ariaLabel !== undefined ? { "aria-label": ariaLabel } : {})}
             {...((ariaLabelledby ?? labelId) !== undefined ? { "aria-labelledby": ariaLabelledby ?? labelId } : {})}
@@ -282,7 +250,35 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
                 {CHEVRON_ICON}
               </BaseSelect.ScrollUpArrow>
             ) : null}
-            <BaseSelect.List data-slot="select-list">{renderItems(items, optionIdPrefix)}</BaseSelect.List>
+            <BaseSelect.List
+              data-slot="select-list"
+              ref={(list): (() => void) | undefined => {
+                if (list === null) {
+                  return;
+                }
+                const trigger = triggerRef.current;
+                if (trigger === null) {
+                  return;
+                }
+                // Field.Control owns the resolved label; the popup mirrors it without reading private vendor context.
+                const syncName = (): void => {
+                  for (const attribute of ["aria-labelledby", "aria-label"]) {
+                    const value = trigger.getAttribute(attribute);
+                    if (value === null) {
+                      list.removeAttribute(attribute);
+                    } else {
+                      list.setAttribute(attribute, value);
+                    }
+                  }
+                };
+                syncName();
+                const observer = new MutationObserver(syncName);
+                observer.observe(trigger, { attributes: true, attributeFilter: ["aria-labelledby", "aria-label"] });
+                return (): void => observer.disconnect();
+              }}
+            >
+              {renderItems(items, optionIdPrefix)}
+            </BaseSelect.List>
             {scrollArrows ? (
               <BaseSelect.ScrollDownArrow className={cn(slots.scrollArrow(), "bottom-0")} data-slot="select-scroll-down-arrow">
                 {CHEVRON_ICON}

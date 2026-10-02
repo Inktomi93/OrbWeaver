@@ -3,7 +3,7 @@
 // the WHEN (which listener, which suppression window — `config-jump.ts`); this file owns the WHAT: where
 // the reader is, how a jumped-to section announces itself, and the one-frame wait every scroll here needs.
 
-import { prefersReducedMotionNow, scrollBehavior } from "@orb/ui/lib";
+import { scrollBehavior } from "@orb/ui/lib";
 
 // The flash ring is an inset box-shadow (not outline) so it clips to the section's border-box; applied
 // via the class contract in client styles/globals.css (not inline style) so tokens remain the value source.
@@ -94,20 +94,24 @@ export function computeVisibleSettings(container: HTMLElement, prefix: string): 
 
 /** Scroll a jumped-to section to the top of the pane and flash its inset ring, so the eye lands on the
  *  thing the jump named instead of hunting a silently-repositioned page. */
-export function flashAnchor(el: HTMLElement): void {
-  el.classList.add(FLASH_BASE_CLASS, FLASH_LIT_CLASS);
-  el.scrollIntoView({ block: "start", behavior: scrollBehavior() });
-  globalThis.setTimeout(() => {
-    el.classList.remove(FLASH_LIT_CLASS);
-    // Reduced motion REMOVES the transition (the imported UI globals floor sets `transition-property: none`),
-    // so `transitionend` never arrives — and the base class carries the ring's padding/margin pair, so
-    // leaving it on would permanently re-pad the section. Drop it with the light instead.
-    if (prefersReducedMotionNow()) {
-      el.classList.remove(FLASH_BASE_CLASS);
-      return;
-    }
-    el.addEventListener("transitionend", () => el.classList.remove(FLASH_BASE_CLASS), {
-      once: true,
-    });
-  }, FLASH_MS);
+export function createAnchorFlasher(scheduleTimeout: (run: () => void, ms: number) => () => void): (el: HTMLElement) => void {
+  const pendingFlashes = new WeakMap<HTMLElement, () => void>();
+  return (el): void => {
+    pendingFlashes.get(el)?.();
+    el.classList.add(FLASH_BASE_CLASS, FLASH_LIT_CLASS);
+    el.scrollIntoView({ block: "start", behavior: scrollBehavior() });
+    pendingFlashes.set(
+      el,
+      scheduleTimeout(() => {
+        el.classList.remove(FLASH_BASE_CLASS, FLASH_LIT_CLASS);
+        pendingFlashes.delete(el);
+      }, FLASH_MS),
+    );
+  };
 }
+
+/** Scroll to an anchor and retain its static inset cue until the renewed hold expires. */
+export const flashAnchor = createAnchorFlasher((run, ms): (() => void) => {
+  const timer = globalThis.setTimeout(run, ms);
+  return (): void => globalThis.clearTimeout(timer);
+});

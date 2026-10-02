@@ -11,6 +11,7 @@ import {
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const populated: ChatSettings = {
+  attachmentQuality: { imageDetail: "high", videoMaxResolution: "original" },
   // B1: NON-default (the section owns it now) — a projection that dropped it would echo the default back.
   offerChoices: true,
   // B7: both NON-default for the same reason (schema defaults are OFF and ON respectively).
@@ -102,6 +103,7 @@ test("list text: blank lines + surrounding whitespace are trimmed away", () => {
 
 test("the defaults round-trip unchanged (minus the keys this section does not own)", () => {
   const {
+    attachmentQuality: _attachmentQuality,
     smoothStream: _smooth,
     smoothStreamCps: _cps,
     streamScrollMode: _mode,

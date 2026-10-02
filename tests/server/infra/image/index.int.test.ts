@@ -56,6 +56,23 @@ beforeAll(async () => {
   );
 });
 
+test("decoded GIF frame count distinguishes a static image from motion", async () => {
+  const width = 16;
+  const height = 16;
+  const still = await sharp({ create: { width, height, channels: 3, background: { r: 255, g: 0, b: 0 } } })
+    .gif()
+    .toBuffer();
+  const raw = Buffer.alloc(width * height * 2 * 3);
+  for (let pixel = 0; pixel < width * height * 2; pixel += 1) {
+    raw[pixel * 3 + (pixel < width * height ? 0 : 2)] = 255;
+  }
+  const motion = await sharp(raw, { raw: { width, height: height * 2, channels: 3, pageHeight: height } })
+    .gif({ loop: 0, delay: [100, 100] })
+    .toBuffer();
+  expect(await adapter.frameCount(still)).toBe(1);
+  expect(await adapter.frameCount(motion)).toBe(2);
+});
+
 describe("resize → variant", () => {
   test("transform resizes to the requested width and outputs webp by default", async () => {
     const out = await adapter.transform(pngSource, { width: VARIANT_WIDTH });

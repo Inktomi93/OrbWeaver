@@ -42,6 +42,7 @@ function toArrayWireChatRequest(input: ChatTurnInput, api: Exclude<ChatApi, "age
     api,
     connection: input.connection,
     params: input.params,
+    attachmentQuality: input.attachmentQuality,
     systemPrompt: { static: input.systemPrompt.static, dynamic: input.systemPrompt.dynamic },
     history: input.history,
     // The cache breakpoint DEPTH (role switches from the end — `backends/kit/cache-control.ts` owns the axis).

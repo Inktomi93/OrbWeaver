@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-01
+updated: 2026-10-02
 ---
 
 # Orbweaver — `@orb/inference`: the provider runtime (wires · providers · resolution · execution)
@@ -114,6 +114,10 @@ This split matters: `ResolvedConnectionView` must stay importable by a bus contr
 The caller that owns a workload supplies `funderUserId`. Chat turns derive it from the room host seat and freeze it with `runAsUserId` at the turn boundary (D18/D19); `triggeredBy` never selects a connection. Owner-scoped background workloads keep their explicit owner funder.
 
 ## 8. Capability synthesis
+
+Attachment quality lives in `UserSettings.chat.attachmentQuality`. The frozen room host's settings pass through `ForeignInputs` into turn preparation. Stored originals remain unchanged. The authorized media resolver reads GIF frame counts through the sharp adapter. Static GIFs remain images; animated GIFs use video preparation. The injected FFmpeg adapter resizes motion before data-URI encoding. `generation.imageDetail` admits image detail on the OpenAI-compatible request. Curated model rows and declared overrides own that capability; other connections receive no application-authored detail field.
+
+Motion preparation uses the packaged CLI from `node-av/ffmpeg`, not an executable found on `PATH`. `packages/server/src/entry/check-media.ts` rejects missing or unrunnable binaries after install, before build, and after production assembly. The pinned installer selects Linux, macOS and Windows binaries for x64 and arm64. Linux requires glibc; the installer provides no 32-bit or musl-specific asset. Runtime execution is verified on Linux amd64. The other targets have installer source coverage, not physical runtime verification.
 
 ONE fold in `EVIDENCE_TIERS` order — `declared → measured → advertised → curated → family-floor → kind-floor` (`packages/contracts/src/inference/evidence.ts`, folded by `packages/inference/src/capability/synthesize.ts`). Each tier is a PARTIAL that overrides only the fields it states; `family-floor` ORs in and never subtracts; `sampling` REPLACES because it is the stated SET a tier vouches for and a patch grammar cannot express a measured absence. `declared` wins over a dated measurement with a `declared_overrides_measured` warning naming the field — the user's box is the truth about the user's box.
 
