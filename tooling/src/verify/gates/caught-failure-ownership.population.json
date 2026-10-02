@@ -436,7 +436,7 @@
       "reason": "null is the caller's own \"not parsing yet\" signal (previewEmptyTextOf renders \"That JSON doesn't parse yet — fix it to preview.\") — a rendered teaching state, not a swallow. Ends if the caller stops distinguishing null from a real parsed value."
     },
     {
-      "siteId": "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx::StartSessionDoor::openRefinery::1",
+      "siteId": "packages/client/src/features/refinery/components/start-session-door.tsx::StartSessionDoor::openRefinery::1",
       "verdict": "deliberate-absorb",
       "reason": "useOpenRefinery's own errorToast surfaces the failure. Ends if useOpenRefinery drops its errorToast."
     },
