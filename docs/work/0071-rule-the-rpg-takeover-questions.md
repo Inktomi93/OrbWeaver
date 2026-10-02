@@ -1,9 +1,10 @@
 ---
 kind: decision
-status: open
-updated: 2026-09-23
+status: blocked
+updated: 2026-10-02
 priority: P3
 area: rpg
+blocked: owner
 plan: rpg
 ---
 
@@ -11,7 +12,7 @@ plan: rpg
 
 ## What
 
-The owner rules the four open takeover questions listed in `docs/plans/rpg/design.md`: an optional stone-and-parchment theme; pool orbs by definition order or an explicit pin control; the live encounter block inside Status or a transient encounter tab; the Injections tab in full games or all steering through the GM console.
+Keep the existing resource-orb presentation. Do not add a stone-and-parchment theme. Encounter placement stays unchanged pending an owner decision. Full-game steering stays parked with the RPG program. The remaining choices live in `docs/plans/rpg/design.md`.
 
 ## Why
 
@@ -23,4 +24,4 @@ Each question has a ruling recorded in the rpg plan or an ADR, and any build wor
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The owner rejected the optional theme and retained the existing resource orbs. Encounter placement and full-game steering remain deferred. Resume only when the owner requests those decisions.

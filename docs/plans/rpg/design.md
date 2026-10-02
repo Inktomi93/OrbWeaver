@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-09-29
+updated: 2026-10-02
 ---
 
 # RPG: the game engines beyond the lite substrate
@@ -30,7 +30,7 @@ The standing design (D58, D86):
 
 - Which remaining engines stay in the program, and in what order: `docs/work/0050-rpg-domain-program-remaining-scope.md`.
 - Human and agent GM seats depend on the agent-principal ruling (`docs/plans/agent-principals/design.md`).
-- Takeover questions: an optional stone-and-parchment theme; pool orbs by definition order or an explicit pin control; the live encounter block inside Status or a transient encounter tab; the Injections tab in full games or all steering through the GM console.
+- Keep the existing resource orbs and omit the stone-and-parchment theme. Encounter placement stays unchanged pending an owner decision. Full-game steering remains parked.
 
 ## Rejected
 

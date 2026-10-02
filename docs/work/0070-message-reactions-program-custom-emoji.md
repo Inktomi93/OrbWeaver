@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-09-23
+status: doing
+updated: 2026-10-02
 priority: P2
 area: client
+lane: wt/agent-launch-ui
 plan: message-reactions
 ---
 
