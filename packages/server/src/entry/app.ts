@@ -19,7 +19,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { ExportService } from "#domain/export";
-
+import type { ImportCardScripts } from "#domain/regex";
 import { allowedHostsInput, env, resolveAllowedHosts } from "#foundation/env";
 import type { MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
 import { observability, observabilityErrorHandler, registerDebugRoutes, securityEvent } from "#foundation/observability";
@@ -200,6 +200,8 @@ export interface AppDeps {
   readonly character: ImportCharacterPort;
   readonly portability: PortabilityRegistry;
   readonly importWorldInfo: ImportWorldInfoPort;
+  /** The card regex-script lift the Characters import dialog's door threads, so no door drops a card's scripts. */
+  readonly importCardScripts: ImportCardScripts;
   readonly exportService: ExportService;
   readonly sessions: AuthSessionsPort;
   readonly isShuttingDown: () => boolean;
@@ -412,6 +414,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     character: deps.character,
     tag: deps.services.tag,
     worldInfo: deps.importWorldInfo,
+    importCardScripts: deps.importCardScripts,
     databank: deps.services.databank,
     maxImageBytes: () => deps.services.settings.getEffectiveConfig().maxImageBytes,
     maxDatabankBytes: () => deps.services.settings.getEffectiveConfig().maxDatabankBytes,

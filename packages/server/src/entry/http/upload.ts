@@ -18,6 +18,7 @@ import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { AssetContentRejectedError } from "#domain/assets";
 import type { DatabankService } from "#domain/databank";
+import type { ImportCardScripts } from "#domain/regex";
 import { hasCsrfHeader } from "#infra/auth";
 import type { ImportAssetPort, ImportCharacterPort, ImportFile, ImportTagPort, ImportWorldInfoPort, ProfileImportResult } from "../import/index.ts";
 import { runCardLorebookRestore, runProfileImport } from "../import/index.ts";
@@ -63,6 +64,8 @@ export interface UploadDeps {
   readonly tag: ImportTagPort;
   /** So an imported card's `character_book` actually lands (without it embedded books are dropped). */
   readonly worldInfo: ImportWorldInfoPort;
+  /** So an imported card's embedded regex scripts land as attached library rows (without it they are dropped). */
+  readonly importCardScripts: ImportCardScripts;
   /** The databank producer's binary front door (bytes → extract → chunk). */
   readonly databank: Pick<DatabankService, "upload">;
   /** The admin-tunable effective `maxImageBytes` — the asset route clamps an IMAGE-kind upload to the tighter
@@ -235,6 +238,7 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
       assets: deps.assets,
       tag: deps.tag,
       worldInfo: deps.worldInfo,
+      importCardScripts: deps.importCardScripts,
       files,
     });
     return c.json(result);

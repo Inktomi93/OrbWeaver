@@ -1,6 +1,6 @@
 # ── overlay: a named Cloudflare Tunnel on your own hostname, in its own container ───────────────────
 #
-#   CLOUDFLARE_TUNNEL_TOKEN=<your tunnel token> docker compose -f docker-compose.yaml -f docker/compose.cloudflared.yaml up -d --build
+#   CLOUDFLARE_TUNNEL_TOKEN=<your tunnel token> docker compose -f docker-compose.yaml -f docker/compose.cloudflared.yaml up -d
 #
 # The tunnel dials OUT to Cloudflare; nothing is published and no router port is opened. In the Cloudflare
 # dashboard (Zero Trust → Networks → Tunnels) create a tunnel, copy its token, and add a public hostname whose

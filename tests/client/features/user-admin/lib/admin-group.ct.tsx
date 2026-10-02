@@ -122,7 +122,13 @@ function stub(page: Page, viewer: TrpcWireOutput<"sessions.me">): Promise<TrpcRe
     "share.status": () => ({ relay: { state: "off" as const }, liveSocketCount: 0, publicAddresses: [], certificate: { state: "off" as const } }),
     // About (last at this anchor) suspends on the version identity — unfed, its boundary renders the error
     // state and its anchor never lands, which reads as a short pane rather than as a missing stub.
-    "settings.getVersion": () => ({ version: "0.4.1", commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d", short: "823d76f4343a", source: "checkout" }),
+    "settings.getVersion": () => ({
+      version: "0.4.1",
+      commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d",
+      short: "823d76f4343a",
+      source: "checkout",
+      channel: "main",
+    }),
     "settings.getAppSettings": () => EFFECTIVE_APP_SETTINGS,
     "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED_APP),
     // The plain-viewer arm lands on the default `appearance` pane, whose sections read the user settings.

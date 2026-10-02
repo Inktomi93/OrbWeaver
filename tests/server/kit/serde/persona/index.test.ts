@@ -6,8 +6,15 @@
 
 import type { PortableParse } from "@orb/contracts/portability";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { PersonaBackup } from "@orb/server/kit/serde/persona";
-import { buildPersonaBackup, PERSONA_SCHEMA_KIND, parsePersonaBackup } from "@orb/server/kit/serde/persona";
+import type { PersonaBackup, PersonaCandidate, PersonaIdentity } from "@orb/server/kit/serde/persona";
+import {
+  buildPersonaBackup,
+  findDuplicatePersona,
+  PERSONA_SCHEMA_KIND,
+  parsePersonaBackup,
+  personaContentKey,
+  personaPlacementOf,
+} from "@orb/server/kit/serde/persona";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -142,5 +149,46 @@ describe("round-trip", () => {
   test("parse->build->parse preserves the canonical shape (FULL)", () => {
     const canonical = must(parsePersonaBackup(buildPersonaBackup(FULL)));
     expect(must(parsePersonaBackup(buildPersonaBackup(canonical)))).toEqual(canonical);
+  });
+});
+
+describe("the persona content identity", () => {
+  const identity = (over: Partial<PersonaIdentity> = {}): PersonaIdentity => ({
+    name: "Alex",
+    title: null,
+    description: "the one who asks why",
+    placement: null,
+    artHash: null,
+    ...over,
+  });
+
+  test("folds the name and strips a free-name count: 'Alex', ' alex ' and 'Alex 2' with equal content are one persona", () => {
+    const base = personaContentKey(identity());
+    expect(personaContentKey(identity({ name: " alex " }))).toBe(base);
+    expect(personaContentKey(identity({ name: "Alex 2" }))).toBe(base);
+  });
+
+  test("a different name, description, title, placement or art keys DIFFERENTLY", () => {
+    const base = personaContentKey(identity());
+    expect(personaContentKey(identity({ name: "Eve" }))).not.toBe(base);
+    expect(personaContentKey(identity({ description: "another" }))).not.toBe(base);
+    expect(personaContentKey(identity({ title: "Captain" }))).not.toBe(base);
+    expect(personaContentKey(identity({ placement: { descriptionPosition: "at_depth" } }))).not.toBe(base);
+    expect(personaContentKey(identity({ artHash: "a".repeat(64) }))).not.toBe(base);
+  });
+
+  test("placement reads the knobs that change the prompt and ignores provenance", () => {
+    expect(personaPlacementOf(null)).toBeNull();
+    expect(personaPlacementOf({ seededDefault: true })).toBeNull();
+    expect(personaPlacementOf({ swapMacros: true, seededDefault: true })).toEqual({ swapMacros: true });
+  });
+
+  test("findDuplicatePersona answers the content-equal candidate with the name it carries, else null", () => {
+    const candidates: PersonaCandidate[] = [
+      { ...identity({ name: "Alex 2" }), id: mintTypeId(ID_PREFIX.persona) },
+      { ...identity({ description: "another" }), id: mintTypeId(ID_PREFIX.persona) },
+    ];
+    expect(findDuplicatePersona(identity(), candidates)?.name).toBe("Alex 2");
+    expect(findDuplicatePersona(identity({ description: "a third" }), candidates)).toBeNull();
   });
 });

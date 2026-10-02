@@ -10,7 +10,8 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CollectedTheme, ImportContext, ImportProfileDeps } from "@orb/server/domain/import";
-import { createImportService, stThemeFromJson } from "@orb/server/domain/import";
+import { createImportService } from "@orb/server/domain/import";
+import { stThemeFromJson } from "@orb/server/kit/serde/theme";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -50,6 +51,7 @@ function ctxWith(importTheme: ImportProfileDeps["importTheme"]): ImportContext {
     findByHandle: unused,
     findByName: unused,
     storeAsset: unused,
+    attachImportedArt: unused,
     attachCardTag: unused,
     profile: {
       now: () => 1_700_000_000_000,

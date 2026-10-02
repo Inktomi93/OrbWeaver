@@ -1,5 +1,6 @@
 import type { PromptConfig } from "@orb/contracts/preset";
 import { promptConfigConfig } from "@orb/contracts/preset";
+import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
 import { requireIntactStoredConfig } from "#kit/stored-config";
 import { OWNED_PRESET_KIND, SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
@@ -16,7 +17,6 @@ import {
   readablePreset,
   updatePresetRow,
 } from "../persistence/queries.ts";
-import { uniquePresetName } from "../substrate/names.ts";
 import { toPresetDetail } from "../substrate/views.ts";
 
 // verb: update — patch an OWNED preset, or copy-on-write the system default. When the target is
@@ -65,7 +65,7 @@ interface ForkMint {
 
 /** Mint a NEW owned fork of the system default carrying the submission, under `desiredName`.
  *
- *  The name is de-collided at the WRITE with `uniquePresetName` — the same mint-time numbering the derived
+ *  The name is de-collided at the WRITE with `nextFreeName` — the same mint-time numbering the derived
  *  "Default (edited)" and the client's Duplicate use (`substrate/names.ts`, visual-blech F5), so the name the
  *  owner sees is the name the row carries. It deliberately does NOT follow `verbs/import.ts`'s merge-on-name:
  *  the import is idempotent by (ownerId, name) so re-importing one backup file can't duplicate a row, whereas
@@ -84,7 +84,7 @@ async function mintFork(
   // the owner would get a fork that does not match the base they think they forked.
   const config = params.config ?? requireIntactStoredConfig(promptConfigConfig.parseOutcome(base.config, base.schemaVersion), `presets.config for ${base.id}`);
   const forkId = ctx.newPresetId();
-  const name = uniquePresetName(desiredName, await listOwnedPresetNames(ctx.db, params.userId));
+  const name = nextFreeName(desiredName, await listOwnedPresetNames(ctx.db, params.userId));
   const row = {
     id: forkId,
     ownerId: params.userId,

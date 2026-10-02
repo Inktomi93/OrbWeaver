@@ -11,7 +11,7 @@ import { users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { UpstreamHeadProbe, VersionIdentity } from "@orb/kit/version-identity";
+import type { UpstreamProbes, VersionIdentity } from "@orb/kit/version-identity";
 import { requireAdmin, requireOwner } from "@orb/server/domain/admin";
 import type { SettingsServiceDeps, ThemeView } from "@orb/server/domain/settings";
 import { createSettingsService } from "@orb/server/domain/settings";
@@ -71,11 +71,22 @@ export function principal(userId: UserId, role: UserRole, handle: Handle = castI
 
 /** The identity the harness reports — a FIXED block, never a read of the checkout under test: a spec that
  *  asserted this box's real commit would pass on one machine and fail on the next. */
-export const HARNESS_VERSION: VersionIdentity = { version: "9.9.9", commit: "a".repeat(40), short: "a".repeat(12), source: "checkout" };
+export const HARNESS_VERSION: VersionIdentity = { version: "9.9.9", commit: "a".repeat(40), short: "a".repeat(12), source: "checkout", channel: "main" };
+
+/** Both probes REFUSE: no settings test may reach the network, and the refusal is itself a real verdict arm
+ *  (`unknown` + reason). The update-check spec injects its own probes per case. */
+const OFFLINE_PROBES: UpstreamProbes = {
+  main: () => Promise.resolve({ ok: false, reason: "no network in tests" }),
+  stable: () => Promise.resolve({ ok: false, reason: "no network in tests" }),
+};
 
 export function makeHarness(
   db: Db,
-  overrides: { readonly materializeBackground?: MaterializeBackgroundOp; readonly probeUpstreamHead?: UpstreamHeadProbe } = {},
+  overrides: {
+    readonly materializeBackground?: MaterializeBackgroundOp;
+    readonly probeUpstream?: UpstreamProbes;
+    readonly versionIdentity?: VersionIdentity;
+  } = {},
 ): SettingsHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const audits: AuditCall[] = [];
@@ -106,10 +117,8 @@ export function makeHarness(
       entryCounter += 1;
       return `bg_entry_${entryCounter}`;
     },
-    versionIdentity: (): VersionIdentity => HARNESS_VERSION,
-    // Default REFUSES: no settings test may reach the network, and the refusal is itself a real verdict arm
-    // (`unknown` + reason). The update-check spec injects its own probe per case.
-    probeUpstreamHead: overrides.probeUpstreamHead ?? ((): ReturnType<UpstreamHeadProbe> => Promise.resolve({ ok: false, reason: "no network in tests" })),
+    versionIdentity: (): VersionIdentity => overrides.versionIdentity ?? HARNESS_VERSION,
+    probeUpstream: overrides.probeUpstream ?? OFFLINE_PROBES,
     publishPrivateEndpointAllowlist: (entries): void => {
       published.push(entries);
     },

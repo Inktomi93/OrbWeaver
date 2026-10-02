@@ -7,7 +7,7 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
-import type { UpdateCheck, UpstreamHeadProbe, VersionIdentity } from "@orb/kit/version-identity";
+import type { UpdateCheck, UpstreamProbes, VersionIdentity } from "@orb/kit/version-identity";
 import type { RequireAdmin, RequireOwner } from "#domain/admin";
 import type { AuditEntry } from "#foundation/observability";
 import type {
@@ -17,6 +17,7 @@ import type {
   GetAppSettingsParams,
   GetThemeParams,
   GetUserSettingsParams,
+  ImportThemeFileParams,
   ListThemesParams,
   PromoteThemeParams,
   RemoveThemeParams,
@@ -25,6 +26,7 @@ import type {
   UpdateThemeParams,
   UpdateUserSettingsSectionParams,
 } from "./params.ts";
+import type { ImportThemeFileOutcome } from "./portability.ts";
 import type { GlobalSettingView, ThemeView, UserSettingsView } from "./views.ts";
 
 /** The DI bundle every verb closes over, wired at the composition root. */
@@ -51,10 +53,10 @@ export interface SettingsContext {
   /** This process's frozen build identity (`#foundation/version` at the root). Injected rather than imported
    *  so the update-check verdict table is drivable from a spec without a checkout on disk. */
   readonly versionIdentity: () => VersionIdentity;
-  /** ONE unauthenticated GET of the upstream branch head, wired at the composition root over the SSRF-safe
-   *  egress belt. Returns a typed refusal instead of throwing, so this domain branches on it without
-   *  importing an infra error class. */
-  readonly probeUpstreamHead: UpstreamHeadProbe;
+  /** ONE unauthenticated GET per release channel (main's head commit, the latest GitHub Release), wired at the
+   *  composition root over the SSRF-safe egress belt. Each returns a typed refusal instead of throwing, so this
+   *  domain branches on it without importing an infra error class. */
+  readonly probeUpstream: UpstreamProbes;
 }
 
 /** What the entry composition root supplies to stand up the domain. */
@@ -70,7 +72,7 @@ export interface SettingsServiceDeps {
   readonly materializeBackground: MaterializeBackgroundOp;
   readonly newBackgroundEntryId: () => string;
   readonly versionIdentity: () => VersionIdentity;
-  readonly probeUpstreamHead: UpstreamHeadProbe;
+  readonly probeUpstream: UpstreamProbes;
   /** Hands the resolved private-endpoint allowlist to the egress guard after every reload, boot included. The
    *  guard keeps its own copy, so a save that only rebuilt the cache would leave a host refused until a restart. */
   readonly publishPrivateEndpointAllowlist: (entries: readonly string[]) => void;
@@ -99,10 +101,10 @@ export interface SettingsService {
   /** The lenient typed-blob loader for cross-feature callers (raw `userId`, not a gated user-facing verb). */
   readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
 
-  /** WHAT THIS BOX IS — version + commit + where the answer came from, frozen at boot. Deployment-global and
+  /** WHAT THIS BOX IS — version + commit + channel + where the answer came from, frozen at boot. Deployment-global and
    *  principal-less by construction: every authed caller reads the same block, and there is no id to accept. */
   readonly getVersion: () => VersionIdentity;
-  /** The MANUAL update check: one click, one unauthenticated GET of the upstream branch head, one verdict
+  /** The MANUAL update check: one click, one unauthenticated GET of this build's channel upstream, one verdict
    *  (`up-to-date` | `behind` | `unknown` + reason). No polling, no timer, no persisted state — and nothing
    *  about this deployment is sent upstream. */
   readonly checkForUpdate: () => Promise<UpdateCheck>;
@@ -147,4 +149,7 @@ export interface SettingsService {
   readonly updateTheme: (params: UpdateThemeParams) => Promise<ThemeView>;
   /** Delete an OWNED theme (never a seed). Throws `ThemeNotFoundError` when unowned/missing/a seed. */
   readonly removeTheme: (params: RemoveThemeParams) => Promise<void>;
+  /** The single-theme import door: an orb export, an orb backup or a raw SillyTavern theme, through the same
+   *  op the bundle restore calls. Never throws for a malformed file; the refusal is what the door renders. */
+  readonly importThemeFile: (params: ImportThemeFileParams) => Promise<ImportThemeFileOutcome>;
 }

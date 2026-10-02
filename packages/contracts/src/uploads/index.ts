@@ -84,6 +84,11 @@ export interface UploadCaps {
   readonly databankUpload: number;
   /** The per-request import bundle / bare-card cap. */
   readonly importTotal: number;
+  /** The folder-import caps: one upload's total bytes, one file's bytes, and one upload's file count. The
+   *  folder picker plans its uploads against these before any request. */
+  readonly importTreeTotal: number;
+  readonly importTreeFile: number;
+  readonly importTreeFiles: number;
 }
 
 /** The client fallback when `/api/auth/config` hasn't landed yet — byte-identical to the server defaults.
@@ -94,6 +99,9 @@ export const DEFAULT_UPLOAD_CAPS: UploadCaps = {
   image: ASSET_UPLOAD_MAX_BYTES,
   databankUpload: DATABANK_UPLOAD_MAX_BYTES,
   importTotal: IMPORT_MAX_TOTAL_BYTES,
+  importTreeTotal: IMPORT_TREE_MAX_TOTAL_BYTES,
+  importTreeFile: IMPORT_TREE_MAX_FILE_BYTES,
+  importTreeFiles: IMPORT_TREE_MAX_FILES,
 };
 
 /** The admin-tunable effective caps the served block clamps against. Each is the effective-config value; the
@@ -115,5 +123,8 @@ export function resolveUploadCaps(overrides: EffectiveUploadOverrides): UploadCa
     image: Math.min(ASSET_UPLOAD_MAX_BYTES, overrides.maxImageBytes),
     databankUpload: Math.min(DATABANK_UPLOAD_MAX_BYTES, overrides.maxDatabankBytes),
     importTotal: IMPORT_MAX_TOTAL_BYTES,
+    importTreeTotal: IMPORT_TREE_MAX_TOTAL_BYTES,
+    importTreeFile: IMPORT_TREE_MAX_FILE_BYTES,
+    importTreeFiles: IMPORT_TREE_MAX_FILES,
   };
 }

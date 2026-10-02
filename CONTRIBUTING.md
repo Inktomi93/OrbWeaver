@@ -8,7 +8,8 @@ Two ways, and the first one is better because it carries the state:
    recent console errors, appearance axes) alongside your note. Settings → Admin → **About this
    install** has a Copy button for the version line if you are filing by hand.
 2. **GitHub issues** — <https://github.com/Inktomi93/orbweaver/issues>. Quote the version line
-   (`v0.0.0 (<commit>, <source>)`) from About this install; without it we cannot tell what you ran.
+   (`vX.Y.Z` for a release, `X.Y.Z-dev+<commit>` for anything else) from About this install; without it we
+   cannot tell what you ran.
 
 ## Developing
 

@@ -239,6 +239,7 @@ function fakes(): Fakes {
       return Promise.resolve(id === undefined ? null : { characterId: id });
     },
     findByName: () => Promise.resolve([]),
+    attachImportedArt: () => Promise.resolve(false),
   };
 
   const storeAvatar: ImportAssetPort["store"] = ({ bytes, maxBytes }) => {
@@ -375,7 +376,14 @@ function deps(
       if (!replaced) {
         f.standaloneBooks.push(book.name);
       }
-      return Promise.resolve({ worldBookId: castId<WorldBookId>("wb_00000000000000000000000000"), entryCount: book.entries.length, replaced });
+      return Promise.resolve({
+        worldBookId: castId<WorldBookId>("wb_00000000000000000000000000"),
+        entryCount: book.entries.length,
+        replaced: false,
+        created: !replaced,
+        name: book.name,
+        renamedFrom: null,
+      });
     },
     enqueueBackfill: ({ ownerId }): Promise<boolean> => {
       f.backfills.push(ownerId);

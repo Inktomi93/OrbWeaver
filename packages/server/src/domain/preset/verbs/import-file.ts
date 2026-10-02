@@ -1,8 +1,8 @@
 // verb: importFile — the SINGLE-preset import door (redesign §16.1 G6), and nothing more than a door. It
 // DELEGATES to `createImport` (verbs/import.ts), the same `ImportPreset` arm the whole-profile portability
 // bundle uses, so the single-file path inherits the bundle's semantics BY CONSTRUCTION rather than restating
-// them: strict parse with a contained per-file error, idempotent on `(ownerId, name)` (a same-named preset is
-// MERGED in place, else created under kind `roleplay`), lift-walk from the file's own schemaVersion, and the
+// them: strict parse with a contained per-file error, additive by content (an equal preset is reused, a
+// same-named different one lands beside it under kind `roleplay`), lift-walk from the file's own schemaVersion, and the
 // `presetsChanged` emit. A second serde or a second collision rule here would be the banned parallel path.
 //
 // The door's only work is text → bytes: an `orb.preset` file IS UTF-8 JSON text, and the verb's first act is

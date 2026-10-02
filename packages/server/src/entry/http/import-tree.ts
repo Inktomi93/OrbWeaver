@@ -20,6 +20,7 @@ import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
+import { isStSecretsFile } from "@orb/contracts/import";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_FILES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
@@ -173,12 +174,17 @@ function orbOnlyDirNames(registry: PortabilityRegistry): Set<string> {
 }
 
 /** Collect + validate the multipart parts fail-closed: count, per-file bytes, path sanitization. Throws
- *  {@link TreeRejected} (nothing staged) on the first breach. */
+ *  {@link TreeRejected} (nothing staged) on the first breach. A `secrets.json` part is dropped, never staged. */
 async function collectParts(form: FormData): Promise<UploadPart[]> {
-  const files = form.getAll(UPLOAD_FIELD).filter((e): e is File => e instanceof File);
+  const received = form.getAll(UPLOAD_FIELD).filter((e): e is File => e instanceof File);
+  // The browser never sends the credentials file; this guard holds for a caller that is not our browser.
+  const files = received.filter((f) => !isStSecretsFile(f.name));
   // DIAGNOSTIC: how many parts the server actually received + their total bytes. Locates a truncated
   // whole-folder upload (client/browser vs server body cap) — a real ST library is hundreds of cards.
-  getLog().info({ receivedFiles: files.length, totalBytes: files.reduce((n, f) => n + f.size, 0) }, "import-tree: multipart parts received");
+  getLog().info(
+    { receivedFiles: received.length, droppedSecrets: received.length - files.length, totalBytes: files.reduce((n, f) => n + f.size, 0) },
+    "import-tree: multipart parts received",
+  );
   if (files.length === 0) {
     throw new TreeRejected(BAD_REQUEST, `no "${UPLOAD_FIELD}" uploads`);
   }

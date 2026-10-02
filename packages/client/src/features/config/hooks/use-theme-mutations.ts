@@ -13,6 +13,18 @@ export const useCreateTheme = createEntityMutation<CreateThemeInput, Theme>({
   errorToast: "Couldn't create the theme.",
 });
 
+/** The single-theme import door: the file's TEXT (an Orbweaver export, an Orbweaver backup or a raw
+ *  SillyTavern theme) plus its name, through the same server op the backup restore calls. The server's
+ *  refusal reason is what the caller renders. */
+export const useImportThemeFile = createEntityMutation<
+  { readonly fileText: string; readonly filename: string },
+  { readonly created: boolean; readonly name: string; readonly renamedFrom: string | null }
+>({
+  options: (trpc) => trpc.settings.importThemeFile.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't import the theme.",
+});
+
 export interface DuplicateThemeVars {
   readonly id: ThemeId;
   readonly name?: string;

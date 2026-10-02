@@ -4,6 +4,9 @@ import {
   DEFAULT_UPLOAD_CAPS,
   IMPORT_MAX_DECOMPRESSED_BYTES,
   IMPORT_MAX_TOTAL_BYTES,
+  IMPORT_TREE_MAX_FILE_BYTES,
+  IMPORT_TREE_MAX_FILES,
+  IMPORT_TREE_MAX_TOTAL_BYTES,
   resolveUploadCaps,
 } from "@orb/contracts/uploads";
 import { expect, test } from "../../support/fixtures.ts";
@@ -25,6 +28,9 @@ test("DEFAULT_UPLOAD_CAPS mirrors the raw constants exactly", () => {
     image: ASSET_UPLOAD_MAX_BYTES,
     databankUpload: DATABANK_UPLOAD_MAX_BYTES,
     importTotal: IMPORT_MAX_TOTAL_BYTES,
+    importTreeTotal: IMPORT_TREE_MAX_TOTAL_BYTES,
+    importTreeFile: IMPORT_TREE_MAX_FILE_BYTES,
+    importTreeFiles: IMPORT_TREE_MAX_FILES,
   });
 });
 

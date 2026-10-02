@@ -1,13 +1,14 @@
 // verb: import — the orb-native preset backup import: parse an untrusted orb.preset upload via
-// parsePresetFile, then write the preset domain's own presets table directly. Idempotent on (ownerId, name):
-// an existing same-named preset is merged in place; otherwise a fresh one is created. Never throws for a
-// malformed file — returns { ok:false, error } so one bad file can't abort a bundle import.
+// parsePresetFile, then write the preset domain's own presets table ADDITIVELY (owner ruling): an owned
+// preset with equal content is reused; a different one under the same name keeps its row and the file lands
+// under the next free name. Never throws for a malformed file — returns { ok:false, error }.
 
-import { parsePresetFile } from "@orb/contracts/preset";
+import { parsePresetFile, presetContentKey } from "@orb/contracts/preset";
+import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
 import type { PresetContext } from "../context.ts";
 import type { ImportPreset, PresetImportOutcome } from "../contract/portability.ts";
-import { findOwnedPresetByName, insertPreset, replacePresetConfig } from "../persistence/queries.ts";
+import { insertPreset, listOwned } from "../persistence/queries.ts";
 
 const PRESET_IMPORT = "preset.import";
 const PRESET_ENTITY = "preset";
@@ -34,35 +35,22 @@ export function createImport(ctx: PresetContext): ImportPreset {
       return { ok: false, error: parsed.error };
     }
 
-    const { name, config } = parsed;
+    const { config } = parsed;
     const at = ctx.now();
-    const existingId = await findOwnedPresetByName(ctx.db, ownerId, name);
-
-    if (existingId !== null) {
-      // `replacePresetConfig`, not `updatePresetRow`: the new content is the uploaded FILE's config
-      // (strictly parsed by `parsePresetFile`) and never descends from the row it lands on — so the #471
-      // refusal does not apply, and re-importing a backup over a preset the current build cannot read is
-      // exactly the recovery the guard exists to leave open (#1026).
-      await replacePresetConfig(ctx.db, existingId, ownerId, {
-        config,
-        schemaVersion: config.schemaVersion,
-        updatedAt: at,
-      });
-      await ctx.audit(
-        {
-          actorUserId: ownerId,
-          action: PRESET_IMPORT,
-          entityType: PRESET_ENTITY,
-          entityId: existingId,
-          metadata: { name, merged: true },
-        },
-        at,
-      );
-      ctx.emitUserEvent(ownerId, { type: "presetsChanged", presetId: existingId });
-      getLog().info({ userId: ownerId, presetId: existingId }, "preset: imported (merged)");
-      return { ok: true, created: false, presetId: existingId };
+    const owned = await listOwned(ctx.db, ownerId);
+    // The stored blob is compared as stored: a row this build cannot read never equals a readable file, so
+    // the file lands beside it and the unreadable row stays for the owner to delete.
+    const key = presetContentKey(config);
+    const same = owned.find((row) => presetContentKey(row.config) === key);
+    if (same !== undefined) {
+      getLog().info({ userId: ownerId, presetId: same.id }, "preset: import reused an equal preset");
+      return { ok: true, created: false, presetId: same.id, name: same.name, renamedFrom: null };
     }
 
+    const name = nextFreeName(
+      parsed.name,
+      owned.map((row) => row.name),
+    );
     const presetId = ctx.newPresetId();
     await insertPreset(ctx.db, {
       id: presetId,
@@ -83,12 +71,12 @@ export function createImport(ctx: PresetContext): ImportPreset {
         action: PRESET_IMPORT,
         entityType: PRESET_ENTITY,
         entityId: presetId,
-        metadata: { name, merged: false },
+        metadata: { name, renamedFrom: name === parsed.name ? null : parsed.name },
       },
       at,
     );
     ctx.emitUserEvent(ownerId, { type: "presetsChanged", presetId });
     getLog().info({ userId: ownerId, presetId }, "preset: imported (created)");
-    return { ok: true, created: true, presetId };
+    return { ok: true, created: true, presetId, name, renamedFrom: name === parsed.name ? null : parsed.name };
   };
 }

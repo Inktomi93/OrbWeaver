@@ -1,7 +1,6 @@
-// The one home for the orb-native theme-backup serde: both directions over one canonical shape. Pure:
-// zero I/O, zero db, zero id-resolution — it maps a `ThemeBackup` (a per-owner set of theme rows, id-less
-// and owner-less) to/from the orb-native .json interchange bytes. orb-native only: SillyTavern has no
-// shareable theme-library format, so there is no ST-compat adapter here.
+// The one home for the theme serde: both directions over one canonical shape, the three grammars a theme
+// file can arrive in (the orb backup envelope, the single-theme export, a raw SillyTavern theme), and the
+// theme content identity. Pure: zero I/O, zero db, zero id-resolution.
 //
 // Security: the `override` token-set is run through `themeOverrideSchema` on both build and parse — the
 // wire clamp (color values pass isSafeColor, fonts allowlist, enums enumerate). The `css` field is
@@ -10,16 +9,20 @@
 //
 // Round-trip drift guard: buildThemeBackup(parseThemeBackup(buildThemeBackup(x))) deep-equals
 // buildThemeBackup(x).
-//
-// Defined through `#kit/serde/lib` — the envelope, the JSON decode, the version gate and the drop-bad-rows
-// loop are the spine's; this file owns only the canonical shape and its row schema.
 
-import type { PortableParse } from "@orb/contracts/portability";
+import type { PortableParse, PortableParseFailure } from "@orb/contracts/portability";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { THEME_CSS_MAX, THEME_NAME_MAX, themeOverrideSchema } from "@orb/contracts/theme";
+import { isPlainObject } from "@orb/kit/guards";
+import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
 import type { EmptyJsonHeader } from "#kit/serde/lib";
-import { defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader } from "#kit/serde/lib";
+import { decodePortableObject, defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader } from "#kit/serde/lib";
+import type { ParsedStTheme } from "./st.ts";
+import { stThemeFromJson } from "./st.ts";
+
+export type { ParsedStTheme, StThemeParse } from "./st.ts";
+export { stThemeFromJson, stThemeName } from "./st.ts";
 
 export const THEME_SCHEMA_KIND = "orb.theme";
 export const THEME_SCHEMA_VERSION = 1;
@@ -86,4 +89,51 @@ export function buildThemeBackup(backup: ThemeBackup): Uint8Array {
  *  Resilient within a valid file: a single malformed row is dropped, never fatal. */
 export function parseThemeBackup(bytes: Uint8Array): PortableParse<ThemeBackup> {
   return themeSerde.parse(bytes);
+}
+
+// ── The three grammars one theme FILE can arrive in ──────────────────────────────────────────────────
+
+/** A theme file's parse. `stTheme` is set when the file was a raw SillyTavern theme (its unmapped keys are
+ *  the report's). A refusal carries the typed reason plus, when the ST grammar refused it, that grammar's
+ *  own sentence. */
+export type ThemeFileParse =
+  | { readonly ok: true; readonly value: ThemeBackup; readonly stTheme: ParsedStTheme | null }
+  | { readonly ok: false; readonly reason: PortableParseFailure; readonly detail: string | null };
+
+/** The single-theme export the Looks section writes: the row's own `{name, override, css}` with no envelope. */
+function isSingleThemeExport(raw: Record<string, unknown>): boolean {
+  return isPlainObject(raw["override"]);
+}
+
+/** Parse one theme file in any of its grammars: the `orb.theme` backup envelope, the envelope-less
+ *  single-theme export (`{name, override, css}`), or a raw SillyTavern theme (mapped through
+ *  {@link stThemeFromJson}, named from its own `name` else `fallbackName`). A JSON object in none of the
+ *  three is refused with the ST grammar's reason, so the door can say why. */
+export function parseThemeFile(bytes: Uint8Array, fallbackName: string): ThemeFileParse {
+  const decoded = decodePortableObject(bytes);
+  if (!decoded.ok) {
+    return { ok: false, reason: decoded.reason, detail: null };
+  }
+  const raw = decoded.value;
+  if (raw["schemaKind"] !== undefined) {
+    const backup = themeSerde.parse(bytes);
+    return backup.ok ? { ok: true, value: backup.value, stTheme: null } : { ok: false, reason: backup.reason, detail: null };
+  }
+  if (isSingleThemeExport(raw)) {
+    const row = wireThemeSchema.safeParse(raw);
+    return row.success ? { ok: true, value: { themes: [row.data] }, stTheme: null } : { ok: false, reason: "malformed", detail: null };
+  }
+  const st = stThemeFromJson(raw, fallbackName);
+  if (!st.ok) {
+    return { ok: false, reason: "foreign-kind", detail: st.reason };
+  }
+  return { ok: true, value: { themes: [{ name: st.parsed.name, override: st.parsed.override, css: null }] }, stTheme: st.parsed };
+}
+
+// ── The theme content identity ───────────────────────────────────────────────────────────────────────
+
+/** The content identity of a theme: its clamped override and css under a stable key order. Two themes with
+ *  equal keys are one theme for import dedup, whatever their names. */
+export function themeContentKey(theme: Pick<CanonicalTheme, "override" | "css">): string {
+  return stableStringify({ override: themeOverrideSchema.parse(theme.override), css: theme.css });
 }

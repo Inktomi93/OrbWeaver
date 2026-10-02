@@ -15,6 +15,13 @@
 // server's boot-time reader (`@orb/server/foundation/version`), the container build stamp
 // (`docker/assemble-runtime.sh`), and a spec driving a fixture `.git` with no repository at all.
 //
+// TWO RELEASE CHANNELS (owner ruling). `main` is integration and development; the `release`
+// branch is stable, and release-please tags each stable release `v<version>` there. A build is `stable`
+// exactly when its commit IS the commit its own release tag names; everything else (main, a lane worktree, a
+// source build of an untagged commit, the release branch between a promotion and its release PR) is `main`.
+// The test fails toward `main`, never toward `stable`: a build that cannot prove it is the tagged release
+// never claims to be one. The channel decides the version line and which upstream the update check asks.
+//
 // `dirty` IS DELIBERATELY ABSENT. Whether the working tree matches its commit cannot be answered without
 // hashing the index against every tracked file — i.e. without git. A field that is always `false` would be a
 // lie in exactly the case a bug report needs the truth, so this shape does not carry one. The bug-report
@@ -22,10 +29,15 @@
 // fact with a separate honesty story, not a duplicate of this one.
 
 import { z } from "zod";
+import { compareSemver } from "#semver";
 
 /** Where the identity came from. `checkout` = derived from `.git` plain files at boot; `container` = read
  *  from the `version.json` the image build stamped (an image ships no `.git`, so nothing else could answer). */
 export const VERSION_SOURCES = ["checkout", "container"] as const;
+
+/** Which line of development a build belongs to (see the header). */
+export const RELEASE_CHANNELS = ["stable", "main"] as const;
+export type ReleaseChannel = (typeof RELEASE_CHANNELS)[number];
 
 /** The honest stand-in for a commit that could not be derived — an image without a stamp, a zip download, a
  *  throwaway `git init` whose HEAD names a ref that does not exist. Never a fabricated sha, never a throw. */
@@ -41,13 +53,15 @@ const OBJECT_ID_RE = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/u;
 const SYMBOLIC_HEAD_RE = /^ref:\s*(?<ref>\S+)$/u;
 /** One `packed-refs` row: `<oid> <refname>`. Peeled rows (`^<oid>`) and comments (`#`) never match. */
 const PACKED_REF_RE = /^(?<oid>[0-9a-f]{40}(?:[0-9a-f]{24})?)\s+(?<ref>\S+)$/u;
+/** The row that follows an annotated tag in `packed-refs`: `^<oid>`, the commit the tag object points at. */
+const PEELED_ROW_RE = /^\^(?<oid>[0-9a-f]{40}(?:[0-9a-f]{24})?)$/u;
 /** `gitdir: /abs/path/.git/worktrees/x` — the `.git` FILE a linked worktree carries instead of a directory. */
 const GITDIR_FILE_RE = /^gitdir:\s*(?<dir>.+)$/u;
 
 /** The identity of one running Orbweaver. The wire shape of `settings.getVersion`, the `/healthz` `version`
  *  block, and the first header field of a bug-report bundle — one shape, everywhere a human looks. */
 export const versionIdentitySchema = z.object({
-  /** The root `package.json` `version` — the release number the owner bumps and tags. */
+  /** The root `package.json` `version` — the number release-please bumps on the `release` branch. */
   version: z.string().min(1),
   /** The full commit sha, or {@link UNKNOWN_COMMIT}. */
   commit: z.string().min(1),
@@ -56,16 +70,18 @@ export const versionIdentitySchema = z.object({
   /** ISO-8601 of the image build. Present only on the `container` arm — a checkout has no build instant. */
   builtAt: z.string().min(1).optional(),
   source: z.enum(VERSION_SOURCES),
+  channel: z.enum(RELEASE_CHANNELS),
 });
 export type VersionIdentity = z.infer<typeof versionIdentitySchema>;
 
 /** The `version.json` an image build stamps beside the runtime file set. A SUBSET of the identity — `short`
  *  and `source` are DERIVED at read time rather than stored, so a hand-edited stamp cannot disagree with
- *  itself. */
+ *  itself. The channel IS stored: an image carries no `.git` to re-derive it from. */
 export const versionStampSchema = z.object({
   version: z.string().min(1),
   commit: z.string().min(1),
   builtAt: z.string().min(1),
+  channel: z.enum(RELEASE_CHANNELS),
 });
 export type VersionStamp = z.infer<typeof versionStampSchema>;
 
@@ -118,25 +134,47 @@ export function resolveCommit(files: GitRefFiles): string | null {
   if (ref === null) {
     return null;
   }
-  const loose = files.headRef?.trim() ?? "";
-  if (OBJECT_ID_RE.test(loose)) {
-    return loose;
-  }
-  return packedRefCommit(files.packedRefs, ref);
+  return resolveRef(ref, files.headRef, files.packedRefs);
 }
 
-/** Scan `packed-refs` for one ref name. Peeled-tag rows (`^<oid>`) carry no name and never match. */
+/** The commit one ref names: its loose file when that holds a sha, else its `packed-refs` row. A packed
+ *  ANNOTATED tag is followed by a `^<oid>` peeled row, and that peeled commit is the answer — the row's own
+ *  oid is the tag object. A LOOSE annotated tag holds only the tag object's id, which cannot be peeled
+ *  without the object store, so it never equals a commit; the channel test reads that as `main`, the safe
+ *  direction. (release-please creates its tags through the GitHub release API, which makes lightweight tags.) */
+export function resolveRef(ref: string, loose: string | null, packedRefs: string | null): string | null {
+  const looseOid = loose?.trim() ?? "";
+  if (OBJECT_ID_RE.test(looseOid)) {
+    return looseOid;
+  }
+  return packedRefCommit(packedRefs, ref);
+}
+
+/** Scan `packed-refs` for one ref name. Peeled-tag rows (`^<oid>`) carry no name and never match; the one
+ *  directly after a matched row replaces that row's oid. */
 function packedRefCommit(packedRefs: string | null, ref: string): string | null {
   if (packedRefs === null) {
     return null;
   }
-  for (const line of packedRefs.split("\n")) {
-    const groups = PACKED_REF_RE.exec(line.trim())?.groups;
+  const lines = packedRefs.split("\n").map((line) => line.trim());
+  for (const [index, line] of lines.entries()) {
+    const groups = PACKED_REF_RE.exec(line)?.groups;
     if (groups !== undefined && groups["ref"] === ref) {
-      return groups["oid"] ?? null;
+      return PEELED_ROW_RE.exec(lines[index + 1] ?? "")?.groups?.["oid"] ?? groups["oid"] ?? null;
     }
   }
   return null;
+}
+
+/** The tag release-please puts on the stable release of `version`: `include-v-in-tag`, no component prefix
+ *  (`release-please-config.json`). */
+export function releaseTagRef(version: string): string {
+  return `refs/tags/v${version}`;
+}
+
+/** A build is `stable` exactly when its commit is the commit its own release tag names (see the header). */
+export function releaseChannelOf(commit: string | null, releaseTagCommit: string | null): ReleaseChannel {
+  return commit !== null && commit === releaseTagCommit ? "stable" : "main";
 }
 
 /** The printable short form. {@link UNKNOWN_COMMIT} passes through unchanged — truncating the word "unknown"
@@ -145,9 +183,17 @@ export function shortCommit(commit: string): string {
   return commit === UNKNOWN_COMMIT ? UNKNOWN_COMMIT : commit.slice(0, SHORT_COMMIT_LENGTH);
 }
 
-/** The one-line human form both the boot log and the About surface print: `v0.4.1 (a1b2c3d4e5f6, checkout)`. */
+/** The version line per channel: a release is its tag, a development build is semver with a pre-release
+ *  `dev` and the short commit as build metadata, so the two can never be mistaken for each other. */
+const VERSION_LINES: Record<ReleaseChannel, (identity: VersionIdentity) => string> = {
+  stable: (identity) => `v${identity.version}`,
+  main: (identity) => `${identity.version}-dev+${identity.short}`,
+};
+
+/** The one-line human form the boot log, the bug bundle and the About surface print: `v0.4.1` for a stable
+ *  release, `0.4.1-dev+a1b2c3d4e5f6` for anything else. */
 export function formatVersionIdentity(identity: VersionIdentity): string {
-  return `v${identity.version} (${identity.short}, ${identity.source})`;
+  return VERSION_LINES[identity.channel](identity);
 }
 
 // ── the manual update check ──────────────────────────────────────────────────────────────────────────
@@ -157,42 +203,56 @@ export function formatVersionIdentity(identity: VersionIdentity): string {
  *  (that needs the object graph, i.e. a fetch). Counting would mean guessing. */
 export const UPDATE_CHECK_STATUSES = ["up-to-date", "behind", "unknown"] as const;
 
-/** What the upstream probe found: the branch head's sha and when it was committed. */
-export const upstreamHeadSchema = z.object({
-  commit: z.string().min(1),
-  short: z.string().min(1),
-  /** ISO-8601 commit date, or `null` when the payload carried none. */
-  committedAt: z.string().min(1).nullable(),
-});
-export type UpstreamHead = z.infer<typeof upstreamHeadSchema>;
+/** What the upstream probe found, per channel. A `main` build is compared with main's head commit; a
+ *  `stable` build with the latest published GitHub Release. */
+export const upstreamSchema = z.discriminatedUnion("channel", [
+  z.strictObject({
+    channel: z.literal("main"),
+    commit: z.string().min(1),
+    short: z.string().min(1),
+    /** ISO-8601 commit date, or `null` when the payload carried none. */
+    committedAt: z.string().min(1).nullable(),
+  }),
+  z.strictObject({
+    channel: z.literal("stable"),
+    /** The release's version, its `v` tag prefix removed. */
+    version: z.string().min(1),
+    /** ISO-8601 publication date, or `null` when the payload carried none. */
+    publishedAt: z.string().min(1).nullable(),
+  }),
+]);
+export type Upstream = z.infer<typeof upstreamSchema>;
+/** The upstream arm one channel is compared against. */
+export type UpstreamOf<C extends ReleaseChannel> = Extract<Upstream, { readonly channel: C }>;
 
 /** What ONE upstream probe found. A failure is a RETURNED reason, never a throw, so the domain verb that
  *  consumes it branches without importing an infra error class (the `MaterializeBackgroundResult` precedent). */
-export type UpstreamProbeResult = { readonly ok: true; readonly head: UpstreamHead } | { readonly ok: false; readonly reason: string };
+export type UpstreamProbeResult<T extends Upstream> = { readonly ok: true; readonly upstream: T } | { readonly ok: false; readonly reason: string };
 
-/** The injected op the update check runs on: one unauthenticated GET, wired at the composition root over the
- *  SSRF-safe egress belt. Declared here so the domain names the TYPE and never the network. */
-export type UpstreamHeadProbe = () => Promise<UpstreamProbeResult>;
+/** The injected ops the update check runs on, one unauthenticated GET per channel, wired at the composition
+ *  root over the SSRF-safe egress belt. Declared here so the domain names the TYPE and never the network. */
+export type UpstreamProbes = { readonly [C in ReleaseChannel]: () => Promise<UpstreamProbeResult<UpstreamOf<C>>> };
 
 /** The whole verdict, as the About surface renders it. `reason` is non-null EXACTLY on the `unknown` arm —
  *  an unknown that cannot say WHY (offline? no local commit? rate-limited?) is the same useless empty the
  *  named-empty rule exists to forbid. */
-export const updateCheckSchema = z.object({
+export const updateCheckSchema = z.strictObject({
   status: z.enum(UPDATE_CHECK_STATUSES),
-  /** The local commit this verdict compared — `unknown` when the process could not derive one. */
+  /** What this verdict compared on the local side: the commit on `main` (`unknown` when the process could not
+   *  derive one), the version on `stable`. */
   local: z.string().min(1),
-  remote: upstreamHeadSchema.nullable(),
+  remote: upstreamSchema.nullable(),
   reason: z.string().min(1).nullable(),
 });
 export type UpdateCheck = z.infer<typeof updateCheckSchema>;
 
-/** Decide the verdict. PURE — the probe's I/O happens above this, so the whole verdict table is driven by a
+/** The `main` verdict. PURE — the probe's I/O happens above this, so the whole verdict table is driven by a
  *  spec with no network.
  *
  *  An UNRESOLVED local commit is `unknown`, never `behind`: a container built from a zip, or a checkout with
  *  no `.git`, genuinely cannot be compared, and reporting "an update is available" to a box that may already
  *  be current is worse than saying so. */
-export function compareToUpstream(local: string, remote: UpstreamHead | null, failure: string | null): UpdateCheck {
+export function compareToMainHead(local: string, remote: UpstreamOf<"main"> | null, failure: string | null): UpdateCheck {
   if (remote === null) {
     return { status: "unknown", local, remote: null, reason: failure ?? "the upstream head could not be read" };
   }
@@ -200,4 +260,13 @@ export function compareToUpstream(local: string, remote: UpstreamHead | null, fa
     return { status: "unknown", local, remote, reason: "this build carries no commit, so it cannot be compared to upstream" };
   }
   return { status: local === remote.commit ? "up-to-date" : "behind", local, remote, reason: null };
+}
+
+/** The `stable` verdict. A newer latest release is `behind`; an equal one is `up-to-date`, and so is an
+ *  OLDER one, because a stable build ahead of the latest release has nothing newer to take. */
+export function compareToLatestRelease(local: string, remote: UpstreamOf<"stable"> | null, failure: string | null): UpdateCheck {
+  if (remote === null) {
+    return { status: "unknown", local, remote: null, reason: failure ?? "the latest release could not be read" };
+  }
+  return { status: compareSemver(remote.version, local) > 0 ? "behind" : "up-to-date", local, remote, reason: null };
 }

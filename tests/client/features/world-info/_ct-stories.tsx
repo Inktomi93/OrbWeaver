@@ -126,6 +126,26 @@ const STORY_ENTRY: EntryView = {
   metadata: { scopeMode: "keyword", position: "after", extra: "keep-me" },
 };
 
+/** An entry as a SillyTavern import leaves it: the activation fields orb stores inert ride `metadata`
+ *  untouched beside the applied ones. */
+const INERT_ENTRY: EntryView = {
+  ...STORY_ENTRY,
+  id: castId<WorldEntryId>("world_entry_ctinert0001"),
+  title: "Harbor",
+  metadata: { scopeMode: "keyword", position: "after", keysecondary: ["dock", "pier"], probability: 50, useProbability: true, scanDepth: 3, sticky: 0 },
+};
+
+/** The entry editor over an ST-imported entry: the kept-but-inert list must render beside the form. */
+export function EntryEditorInertStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 560, padding: 16 }}>
+        <EntryEditor entry={INERT_ENTRY} onDeleted={(): void => undefined} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** The entry editor over the real data layer (updateEntry/removeEntry stubbed in the `.ct.tsx`). */
 export function EntryEditorStory(): ReactElement {
   const [deleted, setDeleted] = useState("none");

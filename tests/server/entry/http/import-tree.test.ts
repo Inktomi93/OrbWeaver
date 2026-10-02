@@ -220,6 +220,28 @@ describe("registerImportTree — fail-closed path sanitization (nothing staged, 
   });
 });
 
+describe("registerImportTree — secrets.json never stages", () => {
+  test("a secrets.json part is dropped before staging; the rest of the profile imports", async () => {
+    const form = formOf(fileOf("default-user/secrets.json"), fileOf("default-user/characters/Aria.png"), fileOf("default-user/settings.json"));
+    const res = await handler()(makeCtx(OWNER, form));
+    expect(res.status).toBe(202);
+    const call = startSpy.mock.calls[0]?.[0];
+    const token = call?.input.params["stagedDir"] as string;
+    const roots = await readdir(join(ownerStagingRoot(), token), { withFileTypes: true });
+    const profile = roots.find((e) => e.isDirectory())?.name ?? "";
+    const staged = await readdir(join(ownerStagingRoot(), token, profile));
+    expect(staged).toEqual(expect.arrayContaining(["characters", "settings.json"]));
+    expect(staged).not.toContain("secrets.json");
+  });
+
+  test("a secrets.json alone is no upload at all (400, nothing staged)", async () => {
+    const res = await handler()(makeCtx(OWNER, formOf(fileOf("default-user/secrets.json"))));
+    expect(res.status).toBe(400);
+    expect(startSpy).not.toHaveBeenCalled();
+    expect(await stagedSubdirs()).toHaveLength(0);
+  });
+});
+
 describe("registerImportTree — DoS caps", () => {
   test("a file over the 64 MiB per-file cap → 413, nothing staged", async () => {
     const big = fileOf("wrap/characters/big.png", new Uint8Array(64 * 1024 * 1024 + 1));

@@ -76,6 +76,16 @@ type LinkCarriedBooksOp = (args: {
   readonly refs: readonly AttachedBookRef[];
 }) => Promise<{ readonly linked: number; readonly skipped: number }>;
 
+/** Character-owned: give the owner's character its art when it has NONE, re-keying the row's import identity
+ *  to the with-art hash in the same write. False when the row already has art: the card is then an alt-art
+ *  version, a separate character (owner ruling). */
+type AttachImportedArt = (args: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly avatarAssetId: AssetId;
+  readonly importHash: string;
+}) => Promise<boolean>;
+
 /** Enqueues one memory-backfill workload for the owner, once per import run when a chat was written. Returns
  *  whether a row actually entered the queue: the workloads door can REFUSE the enqueue (#156 — memory is off
  *  for this owner, so the sweep could only land a vacuous 0/0), and an already-active run is the benign
@@ -155,6 +165,7 @@ export interface ImportContext {
   readonly findByHandle: FindCharacterByHandle;
   readonly findByName: FindCharacterByName;
   readonly storeAsset: StoreImportAsset;
+  readonly attachImportedArt: AttachImportedArt;
   readonly attachCardTag: AttachImportedCardTag;
   readonly importLorebook?: BulkImportLorebookOp;
   /** The #1598 skip oracle — see {@link HasPrimaryBookOp}. Travels with `importLorebook`. */

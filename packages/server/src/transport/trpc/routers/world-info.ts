@@ -27,6 +27,7 @@ import { authedProcedure, t } from "../trpc.ts";
 
 // A lorebook is the biggest orb-native JSON artifact people share; the cap only fences a hostile upload.
 const MAX_BOOK_FILE_CHARS = 8_000_000;
+const MAX_FILENAME_CHARS = 512;
 const DEC = new TextDecoder();
 
 export const worldInfoRouter = t.router({
@@ -83,15 +84,22 @@ export const worldInfoRouter = t.router({
     return { filename: file.filename, fileText: DEC.decode(file.bytes) };
   }),
 
-  importFile: authedProcedure.input(z.object({ fileText: z.string().max(MAX_BOOK_FILE_CHARS) })).mutation(async ({ ctx, input }) => {
-    const outcome = await ctx.services.worldInfo.importFile({ principal: ctx.auth, fileText: input.fileText });
-    if (!outcome.ok) {
-      // The refusal REASON reaches the user as words — a book written by a newer orbweaver no longer reads
-      // as "not a valid file". The import dialog renders this message.
-      throw new TRPCError({ code: "BAD_REQUEST", message: outcome.error ?? "That file isn't a valid world-info book." });
-    }
-    return { created: outcome.created === true };
-  }),
+  // `filename` names a raw SillyTavern world file (the book takes its stem); an orb export carries its own.
+  importFile: authedProcedure
+    .input(z.object({ fileText: z.string().max(MAX_BOOK_FILE_CHARS), filename: z.string().max(MAX_FILENAME_CHARS).optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const outcome = await ctx.services.worldInfo.importFile({
+        principal: ctx.auth,
+        fileText: input.fileText,
+        ...(input.filename === undefined ? {} : { filename: input.filename }),
+      });
+      if (!outcome.ok) {
+        // The refusal REASON reaches the user as words — a book written by a newer orbweaver no longer reads
+        // as "not a valid file". The import dialog renders this message.
+        throw new TRPCError({ code: "BAD_REQUEST", message: outcome.error ?? "That file isn't a valid world-info book." });
+      }
+      return { created: outcome.created === true, name: outcome.name ?? null, renamedFrom: outcome.renamedFrom ?? null };
+    }),
 
   listEntries: authedProcedure
     .output(z.array(entryViewSchema))

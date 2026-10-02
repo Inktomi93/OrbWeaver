@@ -4,6 +4,9 @@
 // logger, no fs — it maps an already-JSON-parsed card object into/out of the canonical contracts/character
 // shape and hashes a canonical card's semantic fields. `cardContentHash` is the single home of the hash;
 // the IN/OUT halves hash-mirror so a re-import of an app-emitted card hashes identically to the original.
+// `cardImportHash` is the IMPORT identity (owner ruling): the parsed content PLUS the art, so one text under
+// two pictures is two characters (an alt-art version). The one exception, a JSON card followed by its PNG,
+// is the import verb's: the row takes the art when it has none.
 //
 // Character-Card V2 AND V3 are read first-class into the ONE canonical model: V3 is a strict SUPERSET of V2,
 // so the shared `data.*` reads cover both, and cardFromJson captures the source `spec` so buildCardV3
@@ -23,10 +26,11 @@ import type { AttachedBookRef, CardDepthPrompt, CardSpec, CharacterCard, Charact
 import { ATTACHED_BOOKS_WIRE_KEY, CHARA_CARD_V2_SPEC, CHARA_CARD_V3_SPEC, characterCardV3Schema } from "@orb/contracts/character";
 import type { AttachedRegexScriptRef, RegexScriptCard } from "@orb/contracts/regex";
 import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, regexScriptCardSchema, toRegexScriptCardWire } from "@orb/contracts/regex";
+import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import { isPlainObject } from "@orb/kit/guards";
 import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
-import { resolveEntryInjection, resolveEntryKeyMode, resolveEntryScope } from "@orb/kit/world-info";
+import { inertActivationFields, resolveEntryInjection, resolveEntryKeyMode, resolveEntryScope } from "@orb/kit/world-info";
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
@@ -375,11 +379,43 @@ function semanticFields(card: CharacterCard): Record<string, unknown> {
   return Object.fromEntries(CARD_IDENTITY_FIELDS.map((field) => [field, card[field]]));
 }
 
-/** sha-256 hex of the stable-stringified semantic fields — the card's `content_hash` + the re-import
- *  content-dedup key (distinct from the whole-file `importHash`). */
+/** sha-256 hex of the stable-stringified semantic fields — the card's `content_hash` (the stale-basis key). */
 export function cardContentHash(card: CharacterCard): string {
   return createHash("sha256")
     .update(stableStringify(semanticFields(card)))
+    .digest("hex");
+}
+
+/** What a card IS for import identity: the whole parsed card (its scripts ride inside it), its embedded
+ *  book and its ART — never the file bytes, so a re-saved PNG or a re-ordered JSON of one card is one
+ *  character, and one text under a different picture is another. Tags are an overlay plane the library
+ *  attaches by name, not card content, so a card exported without them re-imports as itself. */
+export interface CardImportIdentity {
+  readonly card: CharacterCard;
+  readonly book: BulkImportLorebookInput | null;
+  /** sha-256 hex of the card's art (the PNG minus its card chunks), null for a card that carries none. */
+  readonly artHash: string | null;
+}
+
+/** sha-256 hex over the normalized parsed content — the import dedup key stored as `characters.importHash`.
+ *  Two files that parse to the same card hash the same; two cards that differ anywhere (a note, a script, a
+ *  book entry, the art) do not, even when they share a name; a tag set is not identity. Two things that are NOT identity: a script's
+ *  `id` (ST's client-minted id on the way in, the library row id on the way out) and the wire `spec` (a V2
+ *  card re-saved as V3 is the same character, and the row keeps no spec), so an export re-imports as itself. */
+export function cardImportHash(identity: CardImportIdentity): string {
+  const { regexScripts, spec: _spec, ...card } = identity.card;
+  const scripts = (regexScripts ?? []).map(({ id: _id, ...behavior }) => behavior);
+  // The book by its entry identities (order-independent, residue-free), so an export's book is its import's.
+  const book =
+    identity.book === null
+      ? null
+      : {
+          name: identity.book.name,
+          description: identity.book.description,
+          entries: identity.book.entries.map((entry) => stableStringify(loreEntryIdentity(entry))).sort(),
+        };
+  return createHash("sha256")
+    .update(stableStringify({ card, scripts, book, art: identity.artHash }))
     .digest("hex");
 }
 
@@ -395,6 +431,9 @@ export function cardContentHash(card: CharacterCard): string {
  *  synthesized/app-authored card) can omit it. */
 export interface ExportCardFields {
   readonly name: string;
+  /** The embedded book's own name (`character_book.name`), so a re-import names it as it is here, not by
+   *  the import's fallback. Absent or null emits the entries without a name. */
+  readonly bookName?: string | null;
   readonly description: string | null;
   readonly personality: string | null;
   readonly scenario: string | null;
@@ -458,6 +497,54 @@ const SPEC_VERSION_BY_SPEC = { [CHARA_CARD_V2_SPEC]: "2.0", [CHARA_CARD_V3_SPEC]
  * heuristic vanilla ST needs to fire a keyless entry). This is the ONE place the at-depth encoding is
  * written (load-bearing — preserve it).
  */
+/** The typed columns of one lore entry, as every identity reads them. */
+export interface LoreEntryIdentityInput {
+  readonly title: string;
+  readonly description: string | null;
+  readonly content: string;
+  readonly keys: readonly string[] | null;
+  readonly enabled: boolean;
+  readonly priority: number;
+  readonly ignoreBudget: boolean;
+  readonly metadata: unknown;
+}
+
+/** The metadata keys that are identity on their own: the engine's, never the lossless residue of the source. */
+const ENTRY_IDENTITY_METADATA_KEYS = ["scopeMode", "keyMode", "position", "inject"] as const;
+
+/** One lore entry reduced to what decides identity: the typed columns, the engine's own metadata keys, and
+ *  the SillyTavern activation fields the entry keeps inert (`inertActivationFields`, which answers only a
+ *  field set to a non-default value, so a missing field equals its ST default and an export that writes the
+ *  default does not change the hash). The rest of the stored metadata is the lossless residue of the raw
+ *  entry, and an export writes the normalized spellings of fields the source never carried (`enabled`,
+ *  `constant`, `use_regex`, `extensions`), so a residue-keyed identity would make every export a different
+ *  book; `keys` collapses empty→null the way the writer's column does. The embedded-book half of
+ *  `cardImportHash` and the world-info dedup both read this. */
+export function loreEntryIdentity(entry: LoreEntryIdentityInput): Record<string, unknown> {
+  const raw = isPlainObject(entry.metadata) ? entry.metadata : {};
+  const metadata: Record<string, unknown> = {};
+  for (const key of ENTRY_IDENTITY_METADATA_KEYS) {
+    if (raw[key] !== undefined) {
+      metadata[key] = raw[key];
+    }
+  }
+  // A kept ST activation value is the owner's data (it is shown as kept, not active): an edit to it in
+  // SillyTavern is a different book.
+  for (const { field, value } of inertActivationFields(raw)) {
+    metadata[field] = value;
+  }
+  return {
+    title: entry.title,
+    description: entry.description,
+    content: entry.content,
+    keys: entry.keys !== null && entry.keys.length > 0 ? [...entry.keys] : null,
+    enabled: entry.enabled,
+    priority: entry.priority,
+    ignoreBudget: entry.ignoreBudget,
+    metadata: Object.keys(metadata).length > 0 ? metadata : null,
+  };
+}
+
 export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown> {
   const meta = isPlainObject(entry.metadata) ? entry.metadata : {};
   const scope = resolveEntryScope(meta, entry.keys.length > 0);
@@ -704,6 +791,22 @@ function v3Promotions(fields: ExportCardFields): Record<string, unknown> {
   return out;
 }
 
+/** The `character_book` wire: the entries under the book's own name when it has one; nothing for a card
+ *  without entries. Bracket-assigned so the snake_case wire name needs no `useNamingConvention` suppression. */
+function embeddedBookWire(fields: ExportCardFields, entries: ExportWorldEntry[]): Record<string, unknown> {
+  if (entries.length === 0) {
+    return {};
+  }
+  const book: Record<string, unknown> = {};
+  if (fields.bookName !== undefined && fields.bookName !== null) {
+    book["name"] = fields.bookName;
+  }
+  book["entries"] = entries.map(exportBookEntry);
+  const out: Record<string, unknown> = {};
+  out["character_book"] = book;
+  return out;
+}
+
 export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[]): CharacterCardV3 {
   const { depth_prompt: _staleDepthPrompt, regex_scripts: _staleRegexScripts, fav: _staleFav, ...baseExtensions } = fields.extensions ?? {};
   const extensions: Record<string, unknown> = {
@@ -737,7 +840,7 @@ export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[
       .map((g) => g.text),
     tags: fields.tags,
     extensions,
-    ...(entries.length > 0 ? { character_book: { entries: entries.map(exportBookEntry) } } : {}),
+    ...embeddedBookWire(fields, entries),
     ...attachedBooksWire(fields.attachedBooks),
     ...attachedRegexScriptsWire(fields.attachedRegexScripts),
   };

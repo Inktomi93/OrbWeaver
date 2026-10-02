@@ -57,7 +57,8 @@ export function createWorldInfoService(ctx: WorldInfoContext): WorldInfoService 
   const importBook = createImport({ importStandalone: createImportStandaloneLorebook(ctx) });
   return {
     exportBook: ({ principal, bookId }) => exportBook({ ownerId: principal.userId, bookId }),
-    importFile: ({ principal, fileText }) => importBook({ ownerId: principal.userId, bytes: new TextEncoder().encode(fileText) }),
+    importFile: ({ principal, fileText, filename }) =>
+      importBook({ ownerId: principal.userId, bytes: new TextEncoder().encode(fileText), ...(filename === undefined ? {} : { filename }) }),
     listBooks: createListBooks(ctx),
     listBooksWithUsage: createListBooksWithUsage(ctx),
     getBook: createGetBook(ctx),

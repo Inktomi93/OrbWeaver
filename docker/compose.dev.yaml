@@ -20,7 +20,6 @@
 services:
   orbweaver:
     image: node:26-bookworm@sha256:0353e48e0e8a993db87b720c242f54b207059d1bcc0106534896e8a11054c837
-    build: !reset null
     container_name: orbweaver-dev
     hostname: orbweaver-dev
     network_mode: host

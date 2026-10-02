@@ -10,6 +10,7 @@
 import { regexScripts } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { SubstituteFindRegex } from "@orb/kit/regex";
 import { createRegexService } from "@orb/server/domain/regex";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -54,6 +55,24 @@ describe("the single-entity doors on the service", () => {
     expect(outcome).toEqual({ created: true });
     const [landed] = await db.select().from(regexScripts).where(eq(regexScripts.ownerId, receiver));
     expect(landed?.name).toBe("shared");
+  });
+
+  test("importScriptFile reads a raw SillyTavern regex export through the SAME door, under the caller", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createRegexService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    // ST's own spelling: `scriptName`, an integer placement, `disabled`, and the older boolean substitute form.
+    const stExport =
+      '{"id":"1a2b","scriptName":"Trim ellipsis","findRegex":"/\\\\.{3}/g","replaceString":"…","placement":[2],"disabled":true,"substituteRegex":true}';
+
+    const outcome = await svc.importScriptFile({ principal: principal(owner), fileText: stExport });
+
+    expect(outcome).toEqual({ created: true });
+    const [landed] = await db.select().from(regexScripts).where(eq(regexScripts.ownerId, owner));
+    expect(landed?.name).toBe("Trim ellipsis");
+    expect(landed?.behavior.placement).toEqual(["AI_OUTPUT"]);
+    expect(landed?.behavior.substituteRegex).toBe(SubstituteFindRegex.raw);
   });
 
   test("a file this build cannot read is refused with the serde's OWN reason, in words", async () => {

@@ -193,6 +193,15 @@ const ST_REGEX_PLACEMENT_BY_NUMBER: Readonly<Record<number, RegexPlacement>> = {
  *  wholesale and the lift silently dropped it (measured: all 15 corpus preset scripts). Ours wins when
  *  both spellings are present (the enabled/disabled precedent above); an unmapped placement NUMBER is
  *  stringified so the lenient filter drops the MEMBER, never the script. */
+/** ST's older BOOLEAN spelling of `substituteRegex`: `true` substituted macros into the pattern raw, `false`
+ *  did not. Any other value is the current enum form and passes through to the schema. */
+function stSubstituteRegex(value: unknown): unknown {
+  if (typeof value !== "boolean") {
+    return value;
+  }
+  return value ? SubstituteFindRegex.raw : SubstituteFindRegex.none;
+}
+
 function normalizeStScriptWire(raw: unknown): unknown {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     return raw;
@@ -202,10 +211,12 @@ function normalizeStScriptWire(raw: unknown): unknown {
   const placement = Array.isArray(obj["placement"])
     ? obj["placement"].map((member) => (typeof member === "number" ? (ST_REGEX_PLACEMENT_BY_NUMBER[member] ?? String(member)) : member))
     : obj["placement"];
+  const substituteRegex = stSubstituteRegex(obj["substituteRegex"]);
   return {
     ...obj,
     ...(name === undefined ? {} : { name }),
     ...(placement === undefined ? {} : { placement }),
+    ...(substituteRegex === undefined ? {} : { substituteRegex }),
   };
 }
 

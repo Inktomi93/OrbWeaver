@@ -4,6 +4,7 @@ export { cardContentHash } from "#kit/serde/card";
 export type { ImportContext } from "./context.ts";
 export type { ImportCardErrorCode, ProfileImportLimitErrorCode } from "./contract/errors.ts";
 export { ImportCardError, ImportInfraFailureError, ProfileImportLimitError } from "./contract/errors.ts";
+export type { CardIdentityHashes, FindCharacterByHash, ImportedCharacterMatch } from "./contract/identity.ts";
 export type { ImportCardInput, ImportCharacterInput, RestoreCharacterBookInput } from "./contract/params.ts";
 export type {
   ImportCharacterResult,
@@ -47,13 +48,12 @@ export type {
   ImportSkippedGroupMember,
   ImportThemeNote,
   ImportUnresolvedPinnedPersona,
-  ParsedStTheme,
-  StThemeParse,
+  ImportWorldNote,
 } from "./contract/views.ts";
 export type { BackfillTokenUsage, ImportTokenUsageBackfillDeps, ImportWorkloadDeps } from "./contract/workloads.ts";
 export { collectBundlesFromDir } from "./loader/collect.ts";
 export { createImportService } from "./service.ts";
-export { importFileHash, parseCardJson, parseCardPng } from "./substrate/card.ts";
+export { findImportedCharacter, importFileHash, parseCardJson, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "./substrate/card.ts";
 export { buildGroupChatInput } from "./substrate/chat-input.ts";
 export { parseStGroupFile } from "./substrate/group.ts";
 export {
@@ -66,6 +66,5 @@ export {
   stPresetName,
 } from "./substrate/preset.ts";
 export { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "./substrate/staging.ts";
-export { parseStThemeFile, ST_THEME_DIR, stThemeFromJson, stThemeName } from "./substrate/theme.ts";
 export { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
 export { createImportWorkloadContributions } from "./workload-contributions.ts";

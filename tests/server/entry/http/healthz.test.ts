@@ -9,7 +9,7 @@ import { registerHealthz } from "@orb/server/entry/http";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
-const IDENTITY: VersionIdentity = { version: "1.2.3", commit: "a".repeat(40), short: "a".repeat(12), source: "checkout" };
+const IDENTITY: VersionIdentity = { version: "1.2.3", commit: "a".repeat(40), short: "a".repeat(12), source: "checkout", channel: "main" };
 const LOOPBACK = "127.0.0.1";
 
 interface MockBody {

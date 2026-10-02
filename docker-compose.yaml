@@ -1,7 +1,7 @@
 # ── Orbweaver — docker compose ───────────────────────────────────────────────────────────────────────
 #
-#   git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
-#   docker compose up -d --build          # builds the image from this checkout (a few minutes the first time)
+#   git clone --branch release https://github.com/Inktomi93/orbweaver && cd orbweaver
+#   docker compose up -d                  # pulls the latest stable release image (no build step)
 #   → http://localhost:8788                 no login by default; under AUTH_MODE=local the first boot prints one (docker compose logs orbweaver)
 #
 # ONE service, the app only. Models are yours: paste a cloud API key in Settings, or point a connection at a
@@ -9,6 +9,7 @@
 # http://host.docker.internal:<port>. Settings live in docker/orbweaver.env (the shipped defaults, tracked)
 # and docker/orbweaver.local.env (yours, gitignored). The overlays under docker/ change the SHAPE, not the
 # settings — stack them with -f:
+#   -f docker-compose.yaml -f docker/compose.build.yaml          build the image from this checkout instead (main, or your own changes)
 #   -f docker-compose.yaml -f docker/compose.host-network.yaml   single-user, no login, via host networking (Linux/Podman)
 #   -f docker-compose.yaml -f docker/compose.secrets.yaml        secrets as mounted files, never env values
 #   -f docker-compose.yaml -f docker/compose.dev.yaml            the DEVELOPMENT stack from this checkout (hot reload)
@@ -17,17 +18,14 @@
 # Interpolated knobs (shell env, or a `.env` file beside this compose file):
 #   ORB_PORT   host port                     default 8788
 #   ORB_BIND   host interface                default 127.0.0.1 — read "LAN and HTTPS" in docker/README.md before 0.0.0.0
-#   ORB_IMAGE  the image name/tag to build+run    default orbweaver:local (built from this checkout — no registry)
+#   ORB_IMAGE  the image to pull and run          default ghcr.io/inktomi93/orbweaver:latest (the latest stable release)
 # Full guide: docker/README.md.
 
 name: orbweaver
 
 services:
   orbweaver:
-    image: ${ORB_IMAGE:-orbweaver:local}
-    build:
-      context: .
-      target: runtime
+    image: ${ORB_IMAGE:-ghcr.io/inktomi93/orbweaver:latest}
     container_name: orbweaver
     hostname: orbweaver
     init: true                                # tini as PID 1: signals + zombie reaping

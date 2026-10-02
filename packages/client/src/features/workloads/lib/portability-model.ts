@@ -4,7 +4,8 @@
 
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_KINDS } from "@orb/contracts/portability";
-import type { CardImportResult } from "#data";
+import type { CardImportResult, TreeImportPlan } from "#data";
+import { skippedByReason } from "#data";
 
 const LIBRARY_EXPORT_PATH = "/api/export/library";
 // Blobs always travel so exported entities keep their media; never a user-facing checkbox.
@@ -68,17 +69,39 @@ export interface BundleCounts {
   readonly notes: readonly string[];
 }
 
-/** Narrow an `unknown` workload-succeeded result into the bundle counts. */
+/** Narrow an `unknown` workload-succeeded result into the bundle counts. An `import-st` run reports the
+ *  maintenance-pass shape (`scanned`/`changed`/`failed`) instead of `imported`/`skipped`: its new canon is
+ *  what landed and the rest of what it examined is what it already had or set aside. */
 export function asBundleCounts(result: unknown): BundleCounts {
   const record = typeof result === "object" && result !== null ? (result as Record<string, unknown>) : {};
   const count = (value: unknown): number => (typeof value === "number" ? value : 0);
   const notes = record["notes"];
+  const failed = count(record["failed"]);
+  const imported = record["imported"] === undefined ? count(record["changed"]) : count(record["imported"]);
+  const skipped = record["skipped"] === undefined ? Math.max(0, count(record["scanned"]) - imported - failed) : count(record["skipped"]);
   return {
-    imported: count(record["imported"]),
-    skipped: count(record["skipped"]),
-    failed: count(record["failed"]),
+    imported,
+    skipped,
+    failed,
     notes: Array.isArray(notes) ? notes.filter((note): note is string => typeof note === "string") : [],
   };
+}
+
+/** Sum two uploads' counts — a planned folder import is several sequential workloads reporting one result. */
+export function sumBundleCounts(a: BundleCounts, b: BundleCounts): BundleCounts {
+  return { imported: a.imported + b.imported, skipped: a.skipped + b.skipped, failed: a.failed + b.failed, notes: [...a.notes, ...b.notes] };
+}
+
+/** The plan's own lines, for the preflight AND the summary: what stays on your disk and why, and how many
+ *  uploads the folder takes. One builder, so the two surfaces cannot disagree. */
+export function planNotes(plan: TreeImportPlan): string[] {
+  const lines = skippedByReason(plan.skipped).map(({ reason, files }) => `${String(files)} file${files === 1 ? "" : "s"} will stay on your disk — ${reason}.`);
+  if (plan.batches.length > 1) {
+    lines.push(
+      `The folder is over the per-upload cap, so it is sent as ${String(plan.batches.length)} uploads, one after another. Each one imports on its own.`,
+    );
+  }
+  return lines;
 }
 
 /** Normalize a finished bundle workload's counts into the summary view (no per-file outcomes). */

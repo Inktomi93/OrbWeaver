@@ -8,7 +8,7 @@
 import type { CardDepthPrompt } from "@orb/contracts/character";
 import { cardDepthPromptSchema } from "@orb/contracts/character";
 import { tagStatusSchema } from "@orb/contracts/tag";
-import { assets, characterBooks, characters, characterTags, tags, worldEntries } from "@orb/db";
+import { assets, characterBooks, characters, characterTags, tags, worldBooks, worldEntries } from "@orb/db";
 import { fetchOwned, parseRecord, parseStringArray, parseStringArrayColumn } from "@orb/db/kit";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
@@ -82,22 +82,34 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
       .where(and(eq(characterTags.characterId, characterId), eq(characterTags.status, ACCEPTED_STATUS)));
     const acceptedTags = tagRows.map((row) => row.name);
 
-    // Walk the character's attached books (primary + auxiliary) → their entries. De-duped by entry id (a
-    // book attached twice must not double an entry).
-    const entryRows = await ctx.db
-      .select({
-        id: worldEntries.id,
-        content: worldEntries.content,
-        keys: worldEntries.keys,
-        enabled: worldEntries.enabled,
-        priority: worldEntries.priority,
-        title: worldEntries.title,
-        ignoreBudget: worldEntries.ignoreBudget,
-        metadata: worldEntries.metadata,
-      })
-      .from(characterBooks)
-      .innerJoin(worldEntries, eq(characterBooks.worldBookId, worldEntries.worldBookId))
-      .where(eq(characterBooks.characterId, characterId));
+    // The embedded clone is the PRIMARY book only, under its own name: an auxiliary book is a library
+    // reference (`attachedBooks` below), not part of the card, and a card that merged every attached book
+    // would re-import as a different character. De-duped by entry id below.
+    const primaryBook =
+      (
+        await ctx.db
+          .select({ worldBookId: characterBooks.worldBookId, name: worldBooks.name })
+          .from(characterBooks)
+          .innerJoin(worldBooks, eq(characterBooks.worldBookId, worldBooks.id))
+          .where(and(eq(characterBooks.characterId, characterId), eq(characterBooks.role, "primary")))
+          .limit(1)
+      )[0] ?? null;
+    const entryRows =
+      primaryBook === null
+        ? []
+        : await ctx.db
+            .select({
+              id: worldEntries.id,
+              content: worldEntries.content,
+              keys: worldEntries.keys,
+              enabled: worldEntries.enabled,
+              priority: worldEntries.priority,
+              title: worldEntries.title,
+              ignoreBudget: worldEntries.ignoreBudget,
+              metadata: worldEntries.metadata,
+            })
+            .from(worldEntries)
+            .where(eq(worldEntries.worldBookId, primaryBook.worldBookId));
 
     // Bundle the attached-book REFERENCES (`{worldBookId, role}` per junction row) — carried so a
     // same-install re-import restores the EXACT book links + roles (the embedded `character_book` above is a
@@ -164,6 +176,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
         attachedRegexScripts: cardScripts.carried.map((regexScriptId) => ({ regexScriptId })),
         depthPrompt: parseDepthPrompt(charRow.depthPrompt),
         attachedBooks,
+        bookName: primaryBook?.name ?? null,
       },
       entries,
     );

@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 # ── Orbweaver — the ONE production image (app only; engines are yours to run) ────────────────────────
 #
-#   docker compose up -d --build                       # builds this target and runs it (docker/README.md)
-#   docker build --target runtime -t orbweaver:dev .   # bare build
+#   docker compose -f docker-compose.yaml -f docker/compose.build.yaml up -d --build   # builds this target and runs it
+#   docker build --target runtime -t orbweaver:dev .   # bare build (the release workflow publishes this target to GHCR)
 #
 # WHAT SHIPS: the server as SOURCE (node 26 runs .ts directly — the image CMD is the same
 # `node packages/server/src/entry/index.ts` that `pnpm stack up-fg prod` runs on bare metal), the built

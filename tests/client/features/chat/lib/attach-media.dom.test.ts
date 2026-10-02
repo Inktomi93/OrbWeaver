@@ -19,7 +19,15 @@ const KIB = 1024;
 // point of the admin-tunable `maxImageBytes`), so a file between them must pass as video and fail as image.
 // (databankUpload/importTotal belong to other routes and are deliberately absurd here — the triage must
 // never reach for a cap that is not its own.)
-const CAPS: UploadCaps = { assetUpload: 100 * KIB, image: 10 * KIB, databankUpload: 1, importTotal: 1 };
+const CAPS: UploadCaps = {
+  assetUpload: 100 * KIB,
+  image: 10 * KIB,
+  databankUpload: 1,
+  importTotal: 1,
+  importTreeTotal: 1,
+  importTreeFile: 1,
+  importTreeFiles: 1,
+};
 
 function fileOf(name: string, type: string, bytes: number): File {
   return new File([new Uint8Array(bytes)], name, { type });

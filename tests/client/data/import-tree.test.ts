@@ -59,3 +59,21 @@ test("throws with the server message on a non-OK response (e.g. the 400 unrecogn
   );
   await expect(importTree([pickedFile("wrap/notes/todo.txt")])).rejects.toThrow("unrecognized");
 });
+
+// ── secrets.json never leaves the browser, from the POST helper itself ───────────────────────────────
+test("importTree drops a secrets.json part whatever the caller passed", async () => {
+  let form: FormData | undefined;
+  vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
+    form = init.body as FormData;
+    return Promise.resolve(new Response(JSON.stringify({ workloadId: "workload_ct_2" }), { status: 202 }));
+  });
+
+  await importTree([
+    pickedFile("default-user/secrets.json", '{"api_key":"never"}'),
+    pickedFile("default-user/characters/Aria.png"),
+    pickedFile("default-user/settings.json"),
+  ]);
+
+  const names = form?.getAll("file").map((f) => (f as File).name) ?? [];
+  expect(names).toEqual(["default-user/characters/Aria.png", "default-user/settings.json"]);
+});

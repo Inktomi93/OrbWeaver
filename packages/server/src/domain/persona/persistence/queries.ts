@@ -9,9 +9,11 @@ import type { Db } from "@orb/db";
 import { assets, characterPersonas, characters, personas } from "@orb/db";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, inArray } from "drizzle-orm";
+import type { PersonaCandidate } from "#kit/serde/persona";
+import { foldPersonaName, personaPlacementOf } from "#kit/serde/persona";
 import { AssetNotFoundError, PersonaCharacterNotFoundError, PersonaNotFoundError } from "../contract/errors.ts";
 import type { ConnectedCharacterView, PersonaDetail, PersonaListView } from "../contract/views.ts";
-import { dedupPersonaName, indexByDedupName } from "../substrate/dedup-name.ts";
+import { indexByDedupName } from "../substrate/dedup-name.ts";
 
 const LIMIT_ONE = 1;
 
@@ -78,7 +80,7 @@ export async function listOwnedPersonasWithAvatar(db: Db, ownerId: UserId): Prom
   return rows;
 }
 
-/** Every owned persona id keyed by its DEDUP-FOLDED name ({@link dedupPersonaName}) — the `(ownerId, name)`
+/** Every owned persona id keyed by its DEDUP-FOLDED name ({@link foldPersonaName}) — the `(ownerId, name)`
  *  import dedup index, built once per call.
  *
  *  It is a map read in JS rather than a `WHERE name = ?`, and that is the point: the BULK import door has
@@ -94,9 +96,51 @@ export async function loadOwnedPersonaIdsByDedupName(db: Db, ownerId: UserId): P
   return indexByDedupName(rows);
 }
 
+/** Every owned persona as an import-identity candidate (`findDuplicatePersona`), newest first, each with its
+ *  avatar's content hash (the asset store's own). */
+export async function loadOwnedPersonaCandidates(db: Db, ownerId: UserId): Promise<PersonaCandidate[]> {
+  const rows = await db
+    .select({
+      id: personas.id,
+      name: personas.name,
+      title: personas.title,
+      description: personas.description,
+      metadata: personas.metadata,
+      artHash: assets.hash,
+    })
+    .from(personas)
+    .leftJoin(assets, eq(personas.avatarAssetId, assets.id))
+    .where(eq(personas.ownerId, ownerId))
+    .orderBy(desc(personas.createdAt));
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    title: row.title,
+    description: row.description,
+    placement: personaPlacementOf(personaMetadataSchema.nullable().catch(null).parse(row.metadata)),
+    artHash: row.artHash ?? null,
+  }));
+}
+
+/** The content hash of each of the owner's assets in `ids`, as `(id, hash)` rows; an unowned or missing id is
+ *  absent. */
+export async function loadOwnedAssetHashes(
+  db: Db,
+  ownerId: UserId,
+  ids: readonly AssetId[],
+): Promise<readonly { readonly id: AssetId; readonly hash: string }[]> {
+  if (ids.length === 0) {
+    return [];
+  }
+  return await db
+    .select({ id: assets.id, hash: assets.hash })
+    .from(assets)
+    .where(and(eq(assets.ownerId, ownerId), inArray(assets.id, [...ids])));
+}
+
 /** The caller's existing owned persona whose name DEDUPS to `name`, or null. Newest wins when names collide. */
 export async function findOwnedPersonaByName(db: Db, ownerId: UserId, name: string): Promise<PersonaId | null> {
-  return (await loadOwnedPersonaIdsByDedupName(db, ownerId)).get(dedupPersonaName(name)) ?? null;
+  return (await loadOwnedPersonaIdsByDedupName(db, ownerId)).get(foldPersonaName(name)) ?? null;
 }
 
 /** Personas connected to a character (via `character_personas`), owner-scoped, newest first. */

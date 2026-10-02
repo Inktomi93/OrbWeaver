@@ -9,13 +9,14 @@ import type { AttachedBookRef, CharacterCard, CreateCharacterInput } from "@orb/
 import { ATTACHED_BOOKS_WIRE_KEY, attachedBookRefSchema, createCharacterSchema, repairImportedCardInput } from "@orb/contracts/character";
 import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, attachedRegexScriptRefSchema } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
-import type { AssetId, RegexScriptId } from "@orb/kit/ids";
-import { readCardChunk } from "@orb/kit/png-card-chunk";
+import type { AssetId, CharacterId, RegexScriptId } from "@orb/kit/ids";
+import { readCardChunk, stripCardChunks } from "@orb/kit/png-card-chunk";
 import { slugifyHandle } from "@orb/kit/slug";
 import { z } from "zod";
 import { sha256Hex } from "#kit/content-hash";
-import { cardFromJson, extractLorebook, loreEntryColumns, loreEntryMetadata, selectBestCharacterBook } from "#kit/serde/card";
+import { cardFromJson, cardImportHash, extractLorebook, loreEntryColumns, loreEntryMetadata, selectBestCharacterBook } from "#kit/serde/card";
 import { ImportCardError } from "../contract/errors.ts";
+import type { CardIdentityHashes, FindCharacterByHash, ImportedCharacterMatch } from "../contract/identity.ts";
 
 // UTF-8 BOM codepoint — Windows exports + some editors prepend one and `JSON.parse` rejects it.
 const UTF8_BOM = 0xfe_ff;
@@ -31,6 +32,8 @@ interface ParsedCard {
   /** D121-E twin of `attachedBooks`: carried attached-SCRIPT references (`{regexScriptId}`), re-linked by id
    *  on a same-install re-import. Empty for a foreign ST card — the by-value `card.regexScripts` lifts then. */
   readonly attachedRegexScripts: readonly RegexScriptId[];
+  /** sha-256 hex of the PNG minus its card chunks (the art), null for a JSON card. Part of the identity. */
+  readonly artHash: string | null;
 }
 
 const DEFAULT_BOOK_NAME = "Imported World Book";
@@ -128,7 +131,7 @@ function extractCardTags(raw: unknown): string[] {
   return candidate.filter((entry): entry is string => typeof entry === "string");
 }
 
-function fromText(text: string, fallbackName: string): ParsedCard | null {
+function fromText(text: string, fallbackName: string, artHash: string | null): ParsedCard | null {
   // @orb-waive caught-failure-ownership(catch): pure `JSON.parse` over untrusted import text —
   // no infra I/O in this try. A malformed card degrades to the consumed `null` result the caller checks.
   // Ends if this call gains a real infra step (then the infra half must escalate separately).
@@ -143,6 +146,7 @@ function fromText(text: string, fallbackName: string): ParsedCard | null {
       book: extractBulkImportLorebook(parsed),
       attachedBooks: extractAttachedBooks(parsed),
       attachedRegexScripts: extractAttachedRegexScripts(parsed),
+      artHash,
     };
   } catch {
     return null;
@@ -156,16 +160,47 @@ export async function parseCardPng(bytes: Uint8Array, fallbackName: string): Pro
   if (decoded === null) {
     return null;
   }
-  return fromText(decoded, fallbackName);
+  return fromText(decoded, fallbackName, sha256Hex(stripCardChunks(bytes)));
 }
 
 export function parseCardJson(input: Uint8Array | string, fallbackName: string): ParsedCard | null {
-  return fromText(toText(input), fallbackName);
+  return fromText(toText(input), fallbackName, null);
 }
 
-/** Distinct from cardContentHash: a re-encoded identical card hashes the same content but a different file. */
+/** The whole-file hash a chat transcript dedups by, and the legacy character key: rows imported before the
+ *  content identity landed carry this, so a character lookup tries it after the content hash misses. */
 export function importFileHash(bytes: Uint8Array): string {
   return sha256Hex(bytes);
+}
+
+/** The character import identity (`characters.importHash`): the parsed card, its embedded book and its art
+ *  through the serde's one hash, so a re-saved PNG or a re-ordered JSON of one card dedups. */
+export function parsedCardImportHash(parsed: ParsedCard): string {
+  return cardImportHash({ card: parsed.card, book: parsed.book, artHash: parsed.artHash });
+}
+
+/** The identity with the art left out — what a JSON card of the same text hashes to. */
+export function parsedCardTextHash(parsed: ParsedCard): string {
+  return cardImportHash({ card: parsed.card, book: parsed.book, artHash: null });
+}
+
+/** The owner's character an equal card already landed as, in ONE lookup order for every door. */
+export async function findImportedCharacter(
+  find: FindCharacterByHash,
+  hashes: CardIdentityHashes,
+): Promise<{ readonly characterId: CharacterId; readonly match: ImportedCharacterMatch } | null> {
+  const byContent = await find(hashes.importHash);
+  if (byContent !== null) {
+    return { characterId: byContent, match: "content" };
+  }
+  if (hashes.textHash !== hashes.importHash) {
+    const byText = await find(hashes.textHash);
+    if (byText !== null) {
+      return { characterId: byText, match: "text" };
+    }
+  }
+  const byFile = await find(importFileHash(hashes.bytes));
+  return byFile === null ? null : { characterId: byFile, match: "file" };
 }
 
 /** @throws {@link ImportCardError} card_invalid when the normalized card fails the canonical schema. */

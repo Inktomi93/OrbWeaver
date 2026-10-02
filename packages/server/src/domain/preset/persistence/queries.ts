@@ -117,7 +117,7 @@ export async function listOwned(db: Db, userId: UserId): Promise<PresetRow[]> {
   return await db.select().from(presets).where(eq(presets.ownerId, userId)).orderBy(asc(presets.createdAt));
 }
 
-/** Every name the caller's OWN rows carry — the mint-time de-collision scan (`uniquePresetName`). Names
+/** Every name the caller's OWN rows carry — the mint-time de-collision scan (`nextFreeName`). Names
  *  only: the numbering decision needs no config blobs, so this never reads the heavy rows. */
 export async function listOwnedPresetNames(db: Db, userId: UserId): Promise<string[]> {
   const rows = await db.select({ name: presets.name }).from(presets).where(eq(presets.ownerId, userId));

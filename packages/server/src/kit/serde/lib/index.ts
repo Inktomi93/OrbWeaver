@@ -137,6 +137,12 @@ function decodeObject(bytes: Uint8Array): PortableParse<Record<string, unknown>>
   return isPlainObject(raw) ? { ok: true, value: raw } : refuse("not-json");
 }
 
+/** The bytes as a plain JSON object, or the typed reason they are not one — for a family that must look at
+ *  the raw object to tell a native file from a foreign (SillyTavern) one before choosing a grammar. */
+export function decodePortableObject(bytes: Uint8Array): PortableParse<Record<string, unknown>> {
+  return decodeObject(bytes);
+}
+
 /** The declared version of a decoded file: `schemaVersion`, else the first present legacy key, else (only
  *  for an envelope-less legacy file) the implied v1. */
 function readVersion(raw: Record<string, unknown>, spec: EnvelopeSpec, hasKind: boolean): number | null {

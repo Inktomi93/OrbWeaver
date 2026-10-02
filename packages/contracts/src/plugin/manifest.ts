@@ -8,6 +8,7 @@
 
 import type { Branded } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
+import { SEMVER_RE } from "@orb/kit/semver";
 import { z } from "zod";
 import type { ProviderDef } from "../inference/provider-schema.ts";
 import { isPluginProviderId, pluginNameOfProviderId, providerDefSchema } from "../inference/provider-schema.ts";
@@ -165,8 +166,6 @@ export type PluginSlug = Branded<"PluginSlug">;
  *  that takes a slug (`plugin.uninstallForAllUsers`) validates with the ONE rule rather than re-spelling a
  *  length cap that would drift from it. Same regex object, so the two can never disagree. */
 export const pluginSlugSchema = z.string().regex(SLUG_RE).pipe(brandedId<PluginSlug>()) satisfies z.ZodType<PluginSlug, string>;
-/** The plugin's OWN semver (display + upgrade ordering) — distinct from `hostVersion` (the membrane major). */
-const PLUGIN_SEMVER_RE = /^\d+\.\d+\.\d+$/;
 /** An exact hostname `net.fetch` may reach (the SSRF posture; the per-request enforcer is `validateUrl`
  *  in the egress module, see below).
  *
@@ -362,7 +361,8 @@ export const pluginManifestSchema = z
   .object({
     id: z.string().regex(SLUG_RE),
     name: z.string().min(1).max(NAME_MAX),
-    version: z.string().regex(PLUGIN_SEMVER_RE),
+    // The plugin's OWN semver (display + upgrade ordering), distinct from `hostVersion` (the membrane major).
+    version: z.string().regex(SEMVER_RE),
     hostVersion: z.number().int().positive(), // structural major; lifecycle parsing checks the served tuple
     entry: z.literal(PLUGIN_MAIN_ENTRY), // ONE fixed entry file in the bundle (the guest has no module loader)
     /** The OPTIONAL Tier-C client entry. Present ⇒ the bundle carries a third

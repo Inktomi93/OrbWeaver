@@ -69,7 +69,7 @@ describe("createExport", () => {
     }
     expect(result.filename).toBe("aria-s-world.json");
 
-    const parsed = parseWorldBookFile(result.bytes);
+    const parsed = parseWorldBookFile(result.bytes, "fallback");
     if (!parsed.ok) {
       throw new Error(`export bytes did not re-parse: ${parsed.reason}`);
     }

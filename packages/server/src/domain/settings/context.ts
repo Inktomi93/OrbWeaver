@@ -45,7 +45,7 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
     materializeBackground: deps.materializeBackground,
     newBackgroundEntryId: deps.newBackgroundEntryId,
     versionIdentity: deps.versionIdentity,
-    probeUpstreamHead: deps.probeUpstreamHead,
+    probeUpstream: deps.probeUpstream,
     getEffectiveConfig,
     reloadEffectiveConfig: async (): Promise<EffectiveAppConfig> => {
       const resolved = await reloadEffectiveConfig(deps.db);

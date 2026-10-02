@@ -22,7 +22,7 @@ import type { ImportContext } from "../context.ts";
 import type { RestoreCharacterBookInput } from "../contract/params.ts";
 import type { RestoreCharacterBookResult } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
-import { importFileHash, parseCardJson, parseCardPng } from "../substrate/card.ts";
+import { findImportedCharacter, parseCardJson, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "../substrate/card.ts";
 
 const FALLBACK_NAME = "Imported Character";
 
@@ -41,9 +41,14 @@ export function createRestoreCharacterBook(ctx: ImportContext): Pick<ImportServi
     if (ctx.importLorebook === undefined) {
       return { ok: false, error: "World book writes are not wired into this import composition" };
     }
-    const characterId = await ctx.findByImportHash({ ownerId: ctx.ownerId, importHash: importFileHash(bytes) });
+    const found = await findImportedCharacter((importHash) => ctx.findByImportHash({ ownerId: ctx.ownerId, importHash }), {
+      importHash: parsedCardImportHash(parsed),
+      textHash: parsedCardTextHash(parsed),
+      bytes,
+    });
+    const characterId = found?.characterId ?? null;
     if (characterId === null) {
-      return { ok: false, error: "No character of yours was imported from this exact card file, so there is no book to restore onto" };
+      return { ok: false, error: "No character of yours was imported from this card, so there is no book to restore onto" };
     }
     const result = await ctx.importLorebook({ ownerId: ctx.ownerId, characterId, book: parsed.book });
     return { ok: true, characterId, worldBookId: result.worldBookId, entryCount: result.entryCount, replaced: result.replaced };

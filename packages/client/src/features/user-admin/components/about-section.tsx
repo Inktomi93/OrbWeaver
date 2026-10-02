@@ -4,8 +4,8 @@
 //
 // THE VERSION LINE IS THE PRODUCT HERE. Everything else on this section serves it: it is the string a bug
 // report quotes, so it is selectable, copyable in one click, and spelled exactly the way the issue form asks
-// for it (`v0.0.0 (823d76f4343a, checkout)`). The commit is SHORT (12) because that is what someone pastes
-// into `git show`; the full sha rides the copy, never the eye.
+// for it: `v0.1.0` for a stable release, `0.1.0-dev+823d76f4343a` for a main build. The commit is SHORT (12)
+// because that is what someone pastes into `git show`; the full sha rides the copy, never the eye.
 //
 // THE UPDATE CHECK IS MANUAL, AND THAT IS THE FEATURE. `enabled: false` + an explicit `refetch()` is the
 // whole mechanism: no mount-time fetch, no poll, no timer, no persisted verdict. The box talks to GitHub
@@ -16,7 +16,7 @@
 // the failure mode that matters is someone glancing at a green line and concluding they are up to date on a
 // box that could not reach the network at all.
 
-import type { UpdateCheck, VersionIdentity } from "@orb/kit/version-identity";
+import type { UpdateCheck, Upstream, VersionIdentity } from "@orb/kit/version-identity";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -100,26 +100,40 @@ function AboutBody(): ReactElement {
   );
 }
 
+/** The `up-to-date` sentence: a stable build is on the latest release, a main build on main's newest commit. */
+function currentLine(remote: Upstream | null): string {
+  return remote?.channel === "stable" ? "This is the latest release." : "This box is on the newest commit on main.";
+}
+
+/** The `behind` sentence, naming what is newer and when it landed so the reader can go look at it. */
+function behindLine(remote: Upstream | null): string {
+  if (remote === null) {
+    return "GitHub has a newer build. Pull and rebuild to take it.";
+  }
+  if (remote.channel === "stable") {
+    const published = remote.publishedAt === null ? "" : `, published ${timeLib.formatDate(Date.parse(remote.publishedAt))}`;
+    return `Release v${remote.version} is out${published}. Pull it and restart to take it.`;
+  }
+  const committed = remote.committedAt === null ? "" : `, committed ${timeLib.formatDate(Date.parse(remote.committedAt))}`;
+  return `main is on ${remote.short}${committed}. Pull and rebuild to take it.`;
+}
+
 /** One verdict, rendered as a badge plus the sentence that makes it actionable. The THREE arms are visibly
- *  different on purpose: `behind` names the upstream commit and its date so the reader can go look at it. */
+ *  different on purpose: `behind` names the newer release or commit and its date. */
 function UpdateVerdict({ check }: { readonly check: UpdateCheck }): ReactElement {
   if (check.status === "up-to-date") {
     return (
       <Row align="center" gap="row" data-testid={testId("aboutUpdateVerdict")}>
         <Badge intent="success">Up to date</Badge>
-        <Text voice="gloss">This box is on the newest commit on GitHub.</Text>
+        <Text voice="gloss">{currentLine(check.remote)}</Text>
       </Row>
     );
   }
   if (check.status === "behind") {
-    const committed = check.remote?.committedAt;
     return (
       <Row align="center" gap="row" data-testid={testId("aboutUpdateVerdict")}>
         <Badge intent="warning">Update available</Badge>
-        <Text voice="gloss">
-          GitHub is on {check.remote?.short ?? "a newer commit"}
-          {committed === undefined || committed === null ? "" : `, committed ${timeLib.formatDate(Date.parse(committed))}`}. Pull and rebuild to take it.
-        </Text>
+        <Text voice="gloss">{behindLine(check.remote)}</Text>
       </Row>
     );
   }

@@ -76,6 +76,7 @@ import type { ExportService } from "#domain/export";
 import { createImportService } from "#domain/import";
 import { createPluginMacroRegistry } from "#domain/plugin";
 import { createCopyPresetToUser, PresetNotFoundError } from "#domain/preset";
+import type { ImportCardScripts } from "#domain/regex";
 import type { RpgTraceRecorder } from "#domain/rpg";
 import { createExportRpgGame, createRpgTraceRecorder } from "#domain/rpg";
 import type { SessionsService } from "#domain/sessions";
@@ -151,7 +152,7 @@ import { buildSearchDiscovery } from "./search-discovery.ts";
 import { createSessionEntryWriter } from "./session-entries.ts";
 import { createEnableShareSeating } from "./share-seating.ts";
 import { buildSideGenParams } from "./side-gen-params.ts";
-import { createProbeUpstreamHead } from "./update-check.ts";
+import { createUpstreamProbes } from "./update-check.ts";
 import { buildWorkloadContributions } from "./workload-contributions.ts";
 import { buildWorldInfo } from "./world-info.ts";
 
@@ -287,6 +288,8 @@ export interface ServicesResult {
   readonly exportService: ExportService;
   readonly portability: PortabilityRegistry;
   readonly importWorldInfo: ImportWorldInfoPort;
+  /** The card regex-script lift, for the HTTP card door (the same op every other import door threads). */
+  readonly importCardScripts: ImportCardScripts;
   readonly eventBus: DomainEventBus;
   /** The kind-keyed workload contribution registry (the retired runner-env's replacement) — the worker
    *  driver dispatches through it. */
@@ -412,7 +415,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     versionIdentity,
     // The manual update check's one GET. Wired here (never imported by the domain) so the egress belt stays
     // on this side of the tier line, exactly like `materializeBackground` above it.
-    probeUpstreamHead: createProbeUpstreamHead({ localVersion: () => versionIdentity().version }),
+    probeUpstream: createUpstreamProbes({ localVersion: () => versionIdentity().version }),
     publishPrivateEndpointAllowlist,
   };
   // The workload contribution registry is assembled LAST (it spans every owning domain, chat included) but
@@ -1435,6 +1438,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     exportService,
     portability,
     importWorldInfo,
+    importCardScripts: regexCompose.importCardScripts,
     eventBus,
     workloadContributions,
     databankIngest,

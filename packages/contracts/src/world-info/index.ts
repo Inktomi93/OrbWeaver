@@ -252,11 +252,16 @@ export interface BulkImportLorebookInput {
 }
 
 /** The result of one lorebook bulk-import run. `replaced` = an existing primary book's entries were swapped
- *  in place (a D28 re-import); false = a fresh book was created + primary-attached. */
+ *  in place (the restore door); `created` = a fresh book row was minted. Both false = the book content-matched
+ *  an owned book and that row was reused. `name` is the name the book landed under; `renamedFrom` is the
+ *  file's own name when the landed name took a collision suffix. */
 export interface BulkImportLorebookResult {
   readonly worldBookId: WorldBookId;
   readonly entryCount: number;
   readonly replaced: boolean;
+  readonly created: boolean;
+  readonly name: string;
+  readonly renamedFrom: string | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
