@@ -73,10 +73,16 @@ describe("rerankPick — the rules over injected scores", () => {
     expect((await pick({ reranker: unit.op })).speakers).toEqual([ref("aria")]);
   });
 
-  test("the last speaker sits out when the round bans it, and may answer when it does not", async () => {
+  test("the last speaker sits out of a reply to its own line when the round bans it, and may answer when it does not", async () => {
     const scores = fakeReranker({ aria: 5, bran: 1, cara: 0 });
-    expect((await pick({ reranker: scores.op, lastSpeaker: ref("aria") })).speakers).toEqual([ref("bran")]);
-    expect((await pick({ reranker: scores.op, lastSpeaker: ref("aria"), banLast: false })).speakers).toEqual([ref("aria")]);
+    const own = line("Where does the road lead?", "Aria", cid("aria"));
+    expect((await pick({ reranker: scores.op, lastLine: own, lastSpeaker: ref("aria") })).speakers).toEqual([ref("bran")]);
+    expect((await pick({ reranker: scores.op, lastLine: own, lastSpeaker: ref("aria"), banLast: false })).speakers).toEqual([ref("aria")]);
+  });
+
+  test("after a human line the last speaker stays in the ranking: they are often exactly who was asked", async () => {
+    const scores = fakeReranker({ aria: 5, bran: 1, cara: 0 });
+    expect((await pick({ reranker: scores.op, lastLine: line("Who can treat this wound?"), lastSpeaker: ref("aria") })).speakers).toEqual([ref("aria")]);
   });
 
   test("a character named in the last line wins over the ranking and the ban, whoever wrote the line", async () => {
@@ -185,7 +191,7 @@ describe("rerankPick — an ambiguous or common-word name does not win outright"
     expect(scores.sent.at(-1)).toHaveLength(4);
   });
 
-  test("the last speaker sits out of an ambiguous name's field when the round bans it", async () => {
+  test("after a human line the last speaker stays in an ambiguous name's field", async () => {
     const scores = fakeReranker({ hale: 1, rook: 9, will: 0, aria: 0 });
     const out = await pick({
       reranker: scores.op,
@@ -194,7 +200,7 @@ describe("rerankPick — an ambiguous or common-word name does not win outright"
       lastLine: line("Captain, what now?"),
       lastSpeaker: ref("rook"),
     });
-    expect(out.speakers).toEqual([ref("hale")]);
+    expect(out.speakers).toEqual([ref("rook")]);
   });
 });
 

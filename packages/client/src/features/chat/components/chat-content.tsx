@@ -13,7 +13,7 @@ import { useState } from "react";
 import type { ChatBusDeps } from "#data";
 import { useChatBusDeps } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, NotifyAction, NotifyNotice, ToolRenderer } from "#lib";
-import { notify, turnAbortNotice } from "#lib";
+import { MODEL_ROLES_PATH, notify, RERANK_ROLE_DOOR, turnAbortNotice, UTILITY_ROLE_DOOR } from "#lib";
 import { chatDeletedFromList, isLanding, openConfigTo, openNewChatPicker, useActiveChatHandle } from "#state";
 import { createWarningSurface } from "../lib/turn-warning-surface.ts";
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface.tsx";
@@ -45,6 +45,21 @@ const OPEN_CONNECTIONS: NotifyAction = {
   },
 };
 
+// A Smart pick that fell back is fixed where its picker model is bound: the same doors the Group tab offers.
+const OPEN_MODEL_ROLES = `Open ${MODEL_ROLES_PATH.leaf}`;
+const OPEN_UTILITY_MODEL: NotifyAction = {
+  label: OPEN_MODEL_ROLES,
+  onClick: (): void => {
+    openConfigTo(UTILITY_ROLE_DOOR.group, UTILITY_ROLE_DOOR.sub, UTILITY_ROLE_DOOR.setting);
+  },
+};
+const OPEN_RERANK_MODEL: NotifyAction = {
+  label: OPEN_MODEL_ROLES,
+  onClick: (): void => {
+    openConfigTo(RERANK_ROLE_DOOR.group, RERANK_ROLE_DOOR.sub, RERANK_ROLE_DOOR.setting);
+  },
+};
+
 // The honest-degrade seam: a domain `warning` bus event surfaces through the injected callbacks — `data/` may
 // not import `features/`, so the cadence and the code→copy mapper are wired HERE, in the feature. It's a WARN
 // notice: the turn still produced a result, but something the user asked for did not happen.
@@ -56,7 +71,14 @@ export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentP
   const handle = useActiveChatHandle();
   const baseBusDeps = useChatBusDeps();
   // One cadence per mounted Chats body: it remembers the last turn's drops per connection across room switches.
-  const [warningSurface] = useState(() => createWarningSurface({ warn: warnNotice, openConnections: OPEN_CONNECTIONS }));
+  const [warningSurface] = useState(() =>
+    createWarningSurface({
+      warn: warnNotice,
+      openConnections: OPEN_CONNECTIONS,
+      openUtilityModel: OPEN_UTILITY_MODEL,
+      openRerankModel: OPEN_RERANK_MODEL,
+    }),
+  );
   // `chatDeletedFromList` is a no-op unless the deleted chat IS the active one, so wiring it here is the
   // whole transition: a host delete elsewhere, a husk reap, or the TTL sweep firing against this very tab all
   // land the reader on the landing surface instead of a room whose row is gone (R3 — the verifier's R1-3).

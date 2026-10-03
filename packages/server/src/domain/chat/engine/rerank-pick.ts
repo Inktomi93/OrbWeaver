@@ -1,7 +1,7 @@
 // domain/chat/engine/rerank-pick — Smart's default speaker pick over the funder's bound RERANK role. The
 // last line is the query and each eligible character's `Name: line` is a document. Every character the line
 // addresses as a name answers, ordered by rank; a line with an ambiguous name, or one naming nobody, gets one
-// top-ranked pick, with the last speaker out when the round bans it. Picks by RANK ORDER within the one call:
+// top-ranked pick, with the last speaker out of a reply to its own line. Picks by RANK ORDER within the one call:
 // scores are family-specific (logits, [0,1], anything), so no threshold is ever compared. An unbound or failing role degrades with `degraded:true`, which the turn
 // verb surfaces as a warning.
 
@@ -187,9 +187,13 @@ function fieldOf(
   return { addressed: groups.some((g) => g.length > 1) ? [] : [...ids], pool };
 }
 
-/** The best-ranked character, the last speaker out when the round bans it (restored if that empties it). */
+/** The best-ranked character, the last speaker out when the round bans it and the line is that speaker's own
+ *  (restored if that empties it). Once a human or another character has spoken, the last speaker is often exactly
+ *  who was asked, so the ban holds only on a self-response, as it does for the Utility arbiter. */
 function topAllowed(params: RerankPickParams, named: readonly NamedCandidate[], ranked: readonly string[]): SpeakerRef | undefined {
-  const lastKey = params.lastSpeaker === null || params.banLast === false ? null : speakerKey(params.lastSpeaker);
+  const last = params.lastSpeaker;
+  const selfResponse = last !== null && params.banLast !== false && params.lastLine?.characterId === last.characterId;
+  const lastKey = selfResponse ? speakerKey(last) : null;
   const unbanned = named.filter((c) => speakerKey(c.ref) !== lastKey);
   const allowed = new Set((unbanned.length > 0 ? unbanned : named).map((c) => speakerKey(c.ref)));
   const top = ranked.find((key) => allowed.has(key));

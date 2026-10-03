@@ -279,6 +279,27 @@ test("a structured call asks Ollama not to stream, sends the schema as `format`,
   expect(JSON.parse(result.items[0]?.text ?? "{}")).toEqual({ city: "Paris" });
 });
 
+test("a side-generation call with reasoning off sends `think: false` to a model Ollama says thinks, keeping the visible cap", async () => {
+  const posted: RecordedRequest[] = [];
+  // What the advertised tier states for a model whose `/api/show` capabilities include `thinking`.
+  const thinker = capability({ reasoning: { mode: "effort", enabled: true } });
+  const connection = fakeResolved({ task: "structured", providerId: "ollama", model: "gemma4:e4b", capability: thinker, baseUrl: BASE_URL });
+  const schema = wireSchema({ type: "object", properties: { city: { type: "string" } }, required: ["city"], additionalProperties: false });
+  await runOpenAiCompatStructured(
+    {
+      connection,
+      inputs: [{ systemPrompt: "Extract.", userPrompt: "France." }],
+      responseFormat: { name: "capital", schema, vehicle: "response-format" },
+      effort: "none",
+      maxTokens: 128,
+      signal: undefined,
+    },
+    batchDeps(posted),
+  );
+  expect(posted[0]?.body["think"]).toBe(false);
+  expect(posted[0]?.body["options"]).toMatchObject({ num_predict: 128 });
+});
+
 test("an image URL refused while the body is translated reaches the caller as the readable ProviderError", async () => {
   const posted: RecordedRequest[] = [];
   const req = request({

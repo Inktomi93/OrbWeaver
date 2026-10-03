@@ -1088,7 +1088,8 @@ describe("send — the smart arbiter runs on the funder's Utility preset (D299)"
     });
 
     expect(baseline.seen.map((call) => call.opts)).toEqual([SIDE_GEN_POSTURES.arbiter]);
-    expect(withPreset.seen.map((call) => call.opts)).toEqual([{ temperature: 0.9, maxOutputTokens: 64 }]);
+    // The preset says nothing about reasoning, so the posture's off floor stands.
+    expect(withPreset.seen.map((call) => call.opts)).toEqual([{ temperature: 0.9, maxOutputTokens: 64, effort: "none" }]);
     expect(withPreset.seen.map((call) => call.inputs.map((input) => input.systemPrompt))).toEqual(
       baseline.seen.map((call) => call.inputs.map((input) => input.systemPrompt)),
     );

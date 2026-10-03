@@ -365,6 +365,27 @@ test("native 2.5 positive budgets clamp per model and utility calls choose off o
   }
 });
 
+test("utility calls pay for mandatory thinking in maxOutputTokens; an off call keeps its visible cap", async () => {
+  const cap = 128;
+  for (const [model, budget, maxOutputTokens] of [
+    ["gemini-2.5-pro", 128, cap + 128],
+    ["gemini-2.5-flash", 0, cap],
+  ] as const) {
+    const bodies: Record<string, unknown>[] = [];
+    const native = backend((_url, init) => {
+      bodies.push(z.record(z.string(), z.unknown()).parse(JSON.parse(String(init?.body))));
+      return Promise.resolve(Response.json({ candidates: [{ content: { parts: [{ text: "ok" }] }, finishReason: "STOP" }] }));
+    });
+    await native.summarize({
+      connection: connection("summarize", model),
+      inputs: [{ systemPrompt: "Pick", userPrompt: "text" }],
+      effort: "none",
+      maxTokens: cap,
+    });
+    expect(bodies[0]?.["generationConfig"], model).toMatchObject({ maxOutputTokens, thinkingConfig: { thinkingBudget: budget } });
+  }
+});
+
 test("native cached-content references and implicit cache usage keep the shared accounting shape", async () => {
   for (const cachedContent of [undefined, "cachedContents/test-reference"]) {
     let body: Record<string, unknown> = {};

@@ -130,6 +130,32 @@ test("D299: a role preset's effort governs side-generation reasoning in place of
   expect(body["output_config"]).toMatchObject({ effort: "high" });
 });
 
+const ARBITER_CAP = 128;
+
+async function cappedBody(model: string, effort: "none" | "high" | undefined): Promise<Record<string, unknown>> {
+  const recorded: RecordedRequest[] = [];
+  await runAnthropicSummarize(
+    { connection: connectionFor("summarize", model), inputs: INPUTS, ...(effort !== undefined ? { effort } : {}), maxTokens: ARBITER_CAP, signal: undefined },
+    batchDeps(recorded, []),
+  );
+  return recorded[0]?.body ?? {};
+}
+
+test("thinking is paid out of max_tokens: a preset's effort, or a mandatory clamp, grows the cap past the visible answer", async () => {
+  const chosen = await cappedBody("claude-opus-5", "high");
+  expect(chosen["output_config"]).toMatchObject({ effort: "high" });
+  expect(chosen["max_tokens"]).toBeGreaterThan(ARBITER_CAP + 4096);
+  const clamped = await cappedBody("claude-opus-5-5", "none");
+  expect(clamped["output_config"]).toMatchObject({ effort: "low" });
+  expect(clamped["max_tokens"]).toBeGreaterThan(ARBITER_CAP + 1024);
+});
+
+test("an off posture keeps the visible cap: no thinking runs, so none is paid for", async () => {
+  const off = await cappedBody("claude-opus-5", "none");
+  expect(off["thinking"]).toEqual({ type: "disabled" });
+  expect(off["max_tokens"]).toBe(ARBITER_CAP);
+});
+
 test("a model whose off is `between_tools` keeps the side-generation posture off with that spelling, never a clamp", async () => {
   const { body, lines } = await summarizeBody("claude-sonnet-5-5");
   expect(body["thinking"]).toEqual({ type: "between_tools" });

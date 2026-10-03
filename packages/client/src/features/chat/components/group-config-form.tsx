@@ -24,6 +24,7 @@ import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { RerankModelDoor, UtilityModelDoor, useRerankModel, useUtilityModel } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms/editor";
@@ -57,7 +58,10 @@ function policyItemsFor(output: GroupOutput): SelectItems<string> {
 // Clear names never need the picker model, so they still answer while it is missing.
 const NO_PICKER_FALLBACK = "named characters still answer, Natural makes any other pick, and you're told once per session.";
 
-const RERANKER_SMART_HELP = `Smart picks who replies with your ${SMART_PICKER_LABELS.reranker}. When every name in the last message is clear, the characters it names reply. If a name is shared, by two characters or by a character and a player, Smart makes one pick: among the characters named, or among everyone when a player shares the name. If no ${SMART_PICKER_LABELS.reranker} is available, ${NO_PICKER_FALLBACK}`;
+const RERANKER_SMART_HELP = `Smart picks who replies with your ${SMART_PICKER_LABELS.reranker}. Characters the last message names clearly reply. When a name could mean more than one person, Smart picks one. If no ${SMART_PICKER_LABELS.reranker} is available, ${NO_PICKER_FALLBACK}`;
+
+/** Said once a switch to Narrator has turned this room's Smart into Natural; switching back does not restore it. */
+const NARRATOR_HEALED_SMART = "Smart needs Per-speaker, so this room now uses Natural.";
 
 // The help under each control states what the server does with it (`engine/select-speakers.ts`,
 // `engine/round.ts`), per policy, so the Rooms guide never has to restate it. Smart's help depends on the
@@ -70,24 +74,39 @@ const POLICY_HELP: Record<Exclude<GroupPolicy, "smart">, string> = {
   manual: "Nobody replies on their own. Mention a character with @, or pick one from Generate reply. A Narrator room still narrates every message.",
 };
 
+// A Narrator room voices everyone in every message, so these policies pick no speaker there: they only keep a
+// chain of character replies going (`engine/auto-mode.ts` asks for one speaker per beat, and each always finds one).
+const NARRATOR_CHAIN_HELP =
+  "Narrator voices everyone in every message, so this only matters when characters reply to each other: the replies keep coming until the turn limit.";
+const NARRATOR_POLICY_HELP: Record<Exclude<GroupPolicy, "smart">, string> = {
+  natural: NARRATOR_CHAIN_HELP,
+  list: NARRATOR_CHAIN_HELP,
+  pooled: NARRATOR_CHAIN_HELP,
+  manual: POLICY_HELP.manual,
+};
+
+// The Utility branches state where the pick runs; what it costs is said once, under the switch that turns it on.
 function smartHelp(utility: UtilityModel, usesUtility: boolean): string {
   if (!usesUtility) {
     return RERANKER_SMART_HELP;
   }
   if (utility.kind === "ready") {
-    return `${SMART_POLICY_COST_SENTENCE} It runs on ${utility.label}. If it can't decide, Natural picks and you're told once per session.`;
+    return `Smart picks who replies with ${utility.label}. If it can't decide, Natural picks and you're told once per session.`;
   }
   if (utility.kind === "unset") {
-    return `${SMART_POLICY_COST_SENTENCE} No Utility model is set, so ${NO_PICKER_FALLBACK}`;
+    return `No Utility model is set, so ${NO_PICKER_FALLBACK}`;
   }
   if (utility.kind === "blocked") {
-    return `${SMART_POLICY_COST_SENTENCE} Your Utility model is set but not running: ${utility.cause}. Until it runs, ${NO_PICKER_FALLBACK}`;
+    return `Your Utility model is set but not running: ${utility.cause}. Until it runs, ${NO_PICKER_FALLBACK}`;
   }
-  return `${SMART_POLICY_COST_SENTENCE} If it can't decide, Natural picks and you're told once per session.`;
+  return "Smart picks who replies with your Utility model. If it can't decide, Natural picks and you're told once per session.";
 }
 
-function policyHelp(policy: GroupPolicy, utility: UtilityModel, usesUtility: boolean): string {
-  return policy === "smart" ? smartHelp(utility, usesUtility) : POLICY_HELP[policy];
+function policyHelp(policy: GroupPolicy, output: GroupOutput, utility: UtilityModel, usesUtility: boolean): string {
+  if (policy === "smart") {
+    return smartHelp(utility, usesUtility);
+  }
+  return output === "narrator" ? NARRATOR_POLICY_HELP[policy] : POLICY_HELP[policy];
 }
 
 // The Utility door is the fix only when this room's Smart actually picks with the Utility model.
@@ -103,6 +122,16 @@ function needsRerankDoor(policy: GroupPolicy, rerank: RerankModel, usesUtility: 
 /** The speaker-order control. Mounted only when Advanced opens, so the role reads run only then. */
 function PolicyField({ children }: { readonly children: (utility: UtilityModel, rerank: RerankModel) => ReactElement }): ReactElement {
   return children(useUtilityModel(), useRerankModel());
+}
+
+/** The Utility door under the switch that asks for the model, shown when that model is missing or not running. */
+function UtilityDoorUnderSwitch({ usesUtility }: { readonly usesUtility: boolean }): ReactElement | null {
+  const utility = useUtilityModel();
+  return needsUtilityDoor("smart", utility, usesUtility) ? (
+    <Row>
+      <UtilityModelDoor />
+    </Row>
+  ) : null;
 }
 
 const SPEAKER_TAGS_HELP: Record<GroupOutput, string> = {
@@ -167,6 +196,8 @@ const GroupConfigFormBoundary = createAutosaveEntityForm<GroupConfigFormValues>(
  */
 export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): ReactElement {
   const factorySave = (values: GroupConfigFormValues): Promise<unknown> => save(fromGroupConfigForm(values));
+  // Which room's switch to Narrator turned Smart into Natural; keyed by room so a chat switch never carries it over.
+  const [healedSmartIn, setHealedSmartIn] = useState<string | null>(null);
 
   return (
     <GroupConfigFormBoundary entityId={entityId} serverValues={toGroupConfigForm(config)} save={factorySave}>
@@ -185,8 +216,10 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                       field.handleChange(output);
                       form.setFieldValue("speakerTags", defaultSpeakerTags(output));
                       // A Narrator room cannot hold Smart: it becomes Natural, and switching back does not restore it.
-                      if (output === "narrator") {
-                        form.setFieldValue("policy", narratorPolicyOf(form.getFieldValue("policy")));
+                      const policy = form.getFieldValue("policy");
+                      if (output === "narrator" && policy !== narratorPolicyOf(policy)) {
+                        form.setFieldValue("policy", narratorPolicyOf(policy));
+                        setHealedSmartIn(entityId);
                       }
                     }
                   }}
@@ -200,6 +233,11 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                     ? "One message voices everyone — you can't swipe individuals."
                     : "Each character replies in their own message — swipe them individually."}
                 </Text>
+                {healedSmartIn === entityId ? (
+                  <Text data-slot="narrator-healed-smart" role="status" voice="gloss">
+                    {NARRATOR_HEALED_SMART}
+                  </Text>
+                ) : null}
               </Stack>
             )}
           </form.AppField>
@@ -238,13 +276,8 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                                     <field.SelectField
                                       label="Who speaks each round"
                                       items={policyItemsFor(output)}
-                                      description={policyHelp(field.state.value, utility, usesUtility)}
+                                      description={policyHelp(field.state.value, output, utility, usesUtility)}
                                     />
-                                    {needsUtilityDoor(field.state.value, utility, usesUtility) ? (
-                                      <Row>
-                                        <UtilityModelDoor />
-                                      </Row>
-                                    ) : null}
                                     {needsRerankDoor(field.state.value, rerank, usesUtility) ? (
                                       <Row>
                                         <RerankModelDoor />
@@ -265,7 +298,12 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                     {(picks): ReactElement | null =>
                       picks ? (
                         <form.AppField name="smartUsesUtility">
-                          {(field): ReactElement => <field.SwitchField label={SMART_UTILITY_SWITCH_LABEL} description={SMART_POLICY_COST_SENTENCE} />}
+                          {(field): ReactElement => (
+                            <Stack gap="field">
+                              <field.SwitchField label={SMART_UTILITY_SWITCH_LABEL} description={SMART_POLICY_COST_SENTENCE} />
+                              <UtilityDoorUnderSwitch usesUtility={field.state.value} />
+                            </Stack>
+                          )}
                         </form.AppField>
                       ) : null
                     }

@@ -24,6 +24,7 @@ import { CARRY_REASONING_DEFAULT, QUALITY_EFFORT, QUALITY_LEVELS, QUALITY_SAMPLI
 import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "../contract/resolve.ts";
 import { ADAPTIVE_DEFAULT_EFFORT } from "../contract/resolve.ts";
 import type { TaskSampling } from "../contract/roles.ts";
+import type { SideGenReasoning } from "../contract/side-gen.ts";
 
 const EFFORT_OFF = "none";
 const ADAPTIVE_BUDGET_WARNING = "reasoning budget ignored: adaptive model takes effort only (an explicit budget 400s the model)";
@@ -250,14 +251,17 @@ export function resolveCarryReasoning(params: UserIntent, capability: Generation
  *  worth thinking tokens). Both resolve through the SAME on/off decision and mandatory clamp a chat turn takes,
  *  never spelled `disabled` straight at the wire: a model whose reasoning is mandatory (Fable, Opus 5.5) 400s
  *  that, so it runs at its minimum effort or budget with `reasoning_mandatory_clamp`. No display is resolved —
- *  a batch reads only the reply text. */
+ *  a batch reads only the reply text. An explicit `none` (a posture's floor) is the same off.
+ *
+ *  Reasoning that runs is paid out of the output cap on every wire this serves, so the cap grows by the room the
+ *  thinking may take ({@link sideGenOutputCap}); a cap sized for the answer alone ends in an empty reply. */
 export function resolveSideGenReasoning(
   capability: GenerationCapability,
   warnings: ResolvedWarning[],
   wanted: Pick<TaskSampling, "effort" | "thinkingBudgetTokens" | "maxTokens"> = {},
-): ResolvedReasoning {
+): SideGenReasoning {
   const r = capability.reasoning;
-  const presetGoverns = wanted.effort !== undefined || wanted.thinkingBudgetTokens !== undefined;
+  const presetGoverns = (wanted.effort !== undefined && wanted.effort !== EFFORT_OFF) || wanted.thinkingBudgetTokens !== undefined;
   const params: UserIntent = presetGoverns
     ? {
         ...(wanted.effort !== undefined ? { effort: wanted.effort } : {}),
@@ -267,8 +271,28 @@ export function resolveSideGenReasoning(
         effort: EFFORT_OFF,
         ...(r.mode === "budget" && r.mandatory === true && r.budgetRange !== undefined ? { thinkingBudgetTokens: r.budgetRange.min } : {}),
       };
-  const { display: _display, ...resolved } = resolveReasoning(params, capability, presetGoverns ? wanted.maxTokens : undefined, warnings);
-  return resolved;
+  // A budget may take what the model's own cap leaves beside the visible answer.
+  const room = capability.output.maxTokens.max - (wanted.maxTokens ?? 0);
+  const { display: _display, ...reasoning } = resolveReasoning(params, capability, room, warnings);
+  return { reasoning, maxTokens: sideGenOutputCap(capability, reasoning, wanted.maxTokens) };
+}
+
+// The thinking room for an effort level on a model that states no budget range: Anthropic's documented budget
+// range, which the effort ladder maps onto the same way a budget model's own range does.
+const REASONING_ALLOWANCE_RANGE: Range = { min: 1024, max: 32_000 };
+// An effort-mode model that names no default effort reasons at a level the wire does not say: size for high.
+const UNSTATED_ALLOWANCE_EFFORT: EffortLevel = "high";
+
+/** The output cap a side-generation call sends: its visible budget, plus the room its reasoning may take when
+ *  reasoning runs (the budget itself, else the effort's share of the model's budget range), within the model's
+ *  own output cap. A call that does not reason keeps its visible budget as-is. */
+export function sideGenOutputCap(capability: GenerationCapability, reasoning: ResolvedReasoning, visible: number | undefined): number | undefined {
+  if (visible === undefined || !reasoning.enabled) {
+    return visible;
+  }
+  const effort = reasoning.effort ?? effectiveEffort({}, capability) ?? UNSTATED_ALLOWANCE_EFFORT;
+  const allowance = reasoning.budgetTokens ?? budgetForEffort(effort, capability.reasoning.budgetRange ?? REASONING_ALLOWANCE_RANGE);
+  return Math.min(capability.output.maxTokens.max, visible + allowance);
 }
 
 // The off turn: no effort, display or budget rides it, so the model's off spelling (`between-tools` takes no other

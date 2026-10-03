@@ -120,6 +120,7 @@ test("the self-response switch shows with auto mode off and saves", async ({ mou
 const SMART_OPTION = { name: GROUP_POLICY_LABELS.smart };
 const POLICY_COMBOBOX = { name: "Who speaks each round" };
 const UTILITY_UPGRADE = { name: SMART_UTILITY_SWITCH_LABEL };
+const HEALED_STATUS = '[data-slot="narrator-healed-smart"]';
 
 test("Smart can be chosen with no Utility model, and offers no door until the Utility opt-in is on", async ({ mount, page }) => {
   await routeTrpc(page, { ...UTILITY_RUNNING_ROUTES, "connection.listBindings": withRunningRerank(utilityBindings("unset")) });
@@ -151,10 +152,15 @@ test("with a running Rerank model Smart can be chosen, and the choice saves", as
 test("switching a Smart room to Narrator saves Natural and disables Smart; switching back does not restore it", async ({ mount, page }) => {
   await routeTrpc(page, { ...UTILITY_RUNNING_ROUTES, "connection.listBindings": withRunningRerank(utilityBindings("running")) });
   const component = await mount(<GroupConfigFormStory config={groupConfigSchema.parse({ output: "per-speaker", policy: "smart" })} />);
+  const healed = component.locator(HEALED_STATUS);
+  await expect(healed).toHaveCount(0);
 
   await component.getByRole("button", { name: "Narrator" }).click();
   await expect(component.locator(SAVED)).toContainText('"output":"narrator"');
   await expect(component.locator(SAVED)).toContainText('"policy":"natural"');
+  // The heal is said, not silent: a status line under the output toggle.
+  await expect(healed).toBeVisible();
+  await expect(healed).toHaveAttribute("role", "status");
 
   await component.getByRole("button", { name: "Advanced" }).click();
   await component.getByRole("combobox", POLICY_COMBOBOX).click();
@@ -179,7 +185,12 @@ test("a per-speaker room already on Smart's Utility opt-in with no Utility model
   const component = await mount(<GroupConfigFormStory config={groupConfigSchema.parse({ output: "per-speaker", policy: "smart", smartPicker: "utility" })} />);
 
   await component.getByRole("button", { name: "Advanced" }).click();
-  await expect(component.getByRole("button", { name: MODEL_ROLES_DOOR })).toBeVisible();
+  const door = component.getByRole("button", { name: MODEL_ROLES_DOOR });
+  await expect(door).toBeVisible();
+  // The door sits under the switch that asks for the Utility model, not under the speaker-order select.
+  const switchBox = await component.getByRole("switch", UTILITY_UPGRADE).boundingBox();
+  const doorBox = await door.boundingBox();
+  expect(doorBox?.y ?? 0).toBeGreaterThan(switchBox?.y ?? Number.POSITIVE_INFINITY);
 });
 
 // F1 SWITCH pin (stickler review 2026-07-16-merge-block-28523122): this form mounts under
