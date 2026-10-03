@@ -17,7 +17,7 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
-import type { EffortLevel as ModelEffortLevel } from "#inference";
+import type { EffortLevel as ModelEffortLevel, SamplerKnob } from "#inference";
 import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, SAMPLER_KNOBS, samplerOrderSchema, userRoleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
 import type { ProseOverrides, ProseSlotId } from "#prose-slot";
 import { hasProseToken, proseOverridesSchema, proseOverridesViewSchema } from "#prose-slot";
@@ -522,18 +522,11 @@ export type UserIntent = z.infer<typeof userIntentSchema>;
 
 // What a non-chat model role takes from its preset (D299): generation params only, never prompt structure.
 // The two tuples partition `UserIntent`'s keys (pinned by `tests/contracts/preset/index.test-d.ts`),
-// so a new intent field reaches background tasks only after someone lists it here. Every sampler knob is a
-// role field, which keeps the sampler catalog the one place a new knob is declared.
-export const ROLE_PRESET_FIELDS = [
-  ...SAMPLER_KNOBS,
-  "samplerOrder",
-  "maxOutputTokens",
-  "effort",
-  "thinkingBudgetTokens",
-] as const satisfies readonly (keyof UserIntent)[];
-export type RolePresetField = (typeof ROLE_PRESET_FIELDS)[number];
-/** Chat-turn-only intent: reasoning display and carry, context and compaction policy, reply shape, and the
- *  message-handling escape hatch. A background task never reads these. */
+// so a new intent field reaches background tasks only after someone lists it here. A sampler knob is a role
+// field unless it is listed chat-only, which keeps the sampler catalog the one place a new knob is declared.
+/** Chat-turn-only intent: reasoning display and carry, context and compaction policy, reply shape, the
+ *  message-handling escape hatch, and `banEos` (forcing every reply to its output cap would make a name pick
+ *  ramble and pad a structured or summary reply). A background task never reads these. */
 export const CHAT_ONLY_INTENT_FIELDS = [
   "quality",
   "thinkingDisplay",
@@ -544,8 +537,20 @@ export const CHAT_ONLY_INTENT_FIELDS = [
   "replyMedia",
   "compaction",
   "advanced",
+  "banEos",
 ] as const satisfies readonly (keyof UserIntent)[];
 export type ChatOnlyIntentField = (typeof CHAT_ONLY_INTENT_FIELDS)[number];
+type RoleSamplerKnob = Exclude<SamplerKnob, ChatOnlyIntentField>;
+const CHAT_ONLY_FIELD_SET: ReadonlySet<string> = new Set(CHAT_ONLY_INTENT_FIELDS);
+const ROLE_SAMPLER_KNOBS = SAMPLER_KNOBS.filter((knob): knob is RoleSamplerKnob => !CHAT_ONLY_FIELD_SET.has(knob));
+export const ROLE_PRESET_FIELDS = [
+  ...ROLE_SAMPLER_KNOBS,
+  "samplerOrder",
+  "maxOutputTokens",
+  "effort",
+  "thinkingBudgetTokens",
+] as const satisfies readonly (keyof UserIntent)[];
+export type RolePresetField = (typeof ROLE_PRESET_FIELDS)[number];
 export type RolePresetParams = Pick<UserIntent, RolePresetField>;
 
 /** Project a preset's `params` to the fields a non-chat role takes. Absent fields stay absent. */

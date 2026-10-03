@@ -29,7 +29,6 @@ test("every generation param a role takes reaches the task, not just temperature
     adaptiveTarget: 0.6,
     minKeep: 2,
     bannedStrings: ["ministrations"],
-    banEos: true,
     effort: "low",
     thinkingBudgetTokens: 2048,
   };
@@ -47,6 +46,7 @@ test("a preset with chat-only intent leaves the task's sampling exactly as task 
     providerContextCompression: true,
     quality: "deep",
     advanced: { squashSystemMessages: true, parallelToolCalls: false },
+    banEos: true,
   };
   expect(resolveSideGenSampling(SIDE_GEN_POSTURES.memory_digest, chatOnly)).toEqual(resolveSideGenSampling(SIDE_GEN_POSTURES.memory_digest));
 });
