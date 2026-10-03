@@ -177,9 +177,10 @@ function refusalFor(nodeEnv: string, bindHost: string): string {
   );
 }
 
-// The one sentence both single-user messages end with: how other devices get a login on this install.
+// The one instruction both single-user messages end with: how other devices get a login on this install.
 function otherDevicesSentence(inContainer: boolean): string {
-  return `To let other devices sign in, ${settingInstruction(inContainer, signInModeEnvLines(PASSWORD_MODE, inContainer ? "container" : "bare-metal"))} (a session secret is generated for you).`;
+  const lines = signInModeEnvLines(PASSWORD_MODE, inContainer ? "container" : "bare-metal");
+  return `To let other devices sign in (a session secret is generated for you), ${settingInstruction(inContainer, lines)}`;
 }
 
 function singleUserRefusal(inContainer: boolean): string {

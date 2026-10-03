@@ -110,8 +110,12 @@ describe("hostAllowlist", () => {
   test("the refusal carries the install shape's fix for the refused host, and not the other shape's", async () => {
     for (const inContainer of [true, false]) {
       const body = await (await harness({ inContainer }).send("/", { host: REBOUND })).text();
-      expect(body, String(inContainer)).toContain(settingInstruction(inContainer, [[ALLOWED_HOSTS_KEY, REBOUND]]));
-      expect(body, String(inContainer)).not.toContain(settingInstruction(!inContainer, [[ALLOWED_HOSTS_KEY, REBOUND]]));
+      // The page sets each line of the fix in its own paragraph, the env line apart from the sentence around it.
+      const lead = (shape: boolean): string => settingInstruction(shape, [[ALLOWED_HOSTS_KEY, REBOUND]]).split("\n")[0] ?? "";
+      for (const line of settingInstruction(inContainer, [[ALLOWED_HOSTS_KEY, REBOUND]]).split("\n")) {
+        expect(body, String(inContainer)).toContain(`${line.trim()}</p>`);
+      }
+      expect(body, String(inContainer)).not.toContain(lead(!inContainer));
     }
   });
 });

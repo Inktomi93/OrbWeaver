@@ -23,9 +23,9 @@ export interface HostAllowlistDeps {
   readonly notice: HostNotAllowedNotice;
 }
 
-// The fix for this install, as one sentence. `host` is canonical and length-capped by `refusedHost`.
+// The fix for this install, its env line on a line of its own. `host` is canonical and length-capped by `refusedHost`.
 function fixSentence(host: string, inContainer: boolean): string {
-  return `If ${host} is how you reach this server, ${settingInstruction(inContainer, [[ALLOWED_HOSTS_KEY, host]])}.`;
+  return `If ${host} is how you reach this server, ${settingInstruction(inContainer, [[ALLOWED_HOSTS_KEY, host]])}`;
 }
 
 // Every interpolation goes through hono's `html` tag, which HTML-escapes it: the host is attacker-chosen.
@@ -36,7 +36,10 @@ function refusalPage(host: string, inContainer: boolean): ReturnType<typeof html
 <body>
 <h1>This address is not allowed</h1>
 <p>Orbweaver refused a request for <code>${host}</code>. It answers to localhost, IP addresses and the names it knows, which <code>${ALLOWED_HOSTS_KEY}</code> extends.</p>
-<p>${fixSentence(host, inContainer)} Separate several names with commas.</p>
+${fixSentence(host, inContainer)
+  .split("\n")
+  .map((line) => html`<p>${line.trim()}</p>`)}
+<p>Separate several names with commas.</p>
 <p>If you do not recognise this name, do not add it. A web page can point its own name at this server to reach it through your browser.</p>
 </body>
 </html>`;

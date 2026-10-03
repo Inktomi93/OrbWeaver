@@ -940,6 +940,25 @@ describe("the sign-in helper: AUTH_MODE's source and the printed switch lines", 
     expect(mod.authModeSource()).toBe("process-env");
   });
 
+  // Listed and declared, but the process holds another value: the file did not supply what the server runs.
+  test("a listed key whose value differs from the file's reads as the process's", async () => {
+    const mod = await reimportEnvIn(
+      dirWithEnvFile("AUTH_MODE=single-user\n"),
+      { AUTH_MODE: "local", ORB_ENV_NO_OVERRIDE: "1", [ENV_FROM_FILE_KEY]: "AUTH_MODE" },
+      { vitest: false },
+    );
+    expect(mod.env.AUTH_MODE).toBe("local");
+    expect(mod.authModeSource()).toBe("process-env");
+  });
+
+  // `--share` on a just-me box runs this launch in the local sign-in mode: the mode comes from the flag, not the file.
+  test("--share over a single-user .env runs local, and the mode reads as the launch's, not the file's", async () => {
+    const text = "AUTH_MODE=single-user\n";
+    const mod = await launchedIn(dirWithEnvFile(text), text, { port: null, share: true }, {});
+    expect(mod.env.AUTH_MODE).toBe("local");
+    expect(mod.authModeSource()).toBe("process-env");
+  });
+
   test.each(SIGN_IN_TARGET_MODES)("bare metal: the %s lines in .env boot a production server in that mode", async (mode) => {
     const lines = signInModeEnvLines(mode, "bare-metal");
     expect(lines.map(([key]) => key)).not.toContain("AUTH_FALLBACK");

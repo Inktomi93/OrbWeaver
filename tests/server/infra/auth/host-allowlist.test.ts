@@ -153,7 +153,7 @@ describe("createHostNotAllowedNotice", () => {
     let at = T0;
     const spy = vi.spyOn(logger, "warn");
     return {
-      notice: createHostNotAllowedNotice(() => at),
+      notice: createHostNotAllowedNotice(() => at, false),
       advance: (ms): void => {
         at += ms;
       },
@@ -195,7 +195,7 @@ describe("the relay host registry", () => {
     const registry = createRelayHostRegistry();
     // The env list is empty: only the relay registry can admit a relay name.
     const allowed = allowedHostsReader(NONE, registry.hosts);
-    const notice = createHostNotAllowedNotice(() => T0);
+    const notice = createHostNotAllowedNotice(() => T0, false);
     return {
       registry,
       // One request as the middleware judges it: the reader is read per request, and a refusal takes the throttled notice.

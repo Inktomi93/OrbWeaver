@@ -10,8 +10,8 @@ import {
   COMPOSE_UP_COMMAND,
   CONTAINER_ENV_FILE,
   CONTAINER_LOGIN_FALLBACK_ENV,
+  ENVIRONMENT_BLOCK_WINS,
   envFileText,
-  HOST_NETWORK_OVERLAY,
   SETUP_COMMAND,
   SETUP_FRIENDS_ANSWER,
   SIGN_IN_MODE_KEYS,
@@ -77,23 +77,11 @@ const fallbackKeys = (
   </>
 );
 
-/** Any compose `environment:` block wins over the env files, an overlay's included; the share card says the same. The
- *  server cannot see which compose files started it, so the overlay that pins the no-login pair is named outright. */
-export function EnvironmentBlockWins(): ReactElement {
-  return (
-    <>
-      A key in any compose <ShareCode>environment:</ShareCode> block wins over that file: <ShareCode>{COMPOSE_FILE}</ShareCode>, or an overlay such as{" "}
-      <ShareCode>{HOST_NETWORK_OVERLAY}</ShareCode>, which sets <ShareCode>{`${AUTH_MODE_KEY}: single-user`}</ShareCode> and{" "}
-      <ShareCode>{`${CONTAINER_LOGIN_FALLBACK_ENV[0][0]}: owner`}</ShareCode>. Remove those lines there, or start without that overlay.
-    </>
-  );
-}
-
 const CHANGE_STEP: Record<InstallKind, ReactNode> = {
   container: (
     <>
       To switch, put the lines for that mode in <ShareCode>{CONTAINER_ENV_FILE}</ShareCode>, then run <ShareCode>{COMPOSE_UP_COMMAND}</ShareCode>, which
-      recreates the container with them. <EnvironmentBlockWins />
+      recreates the container with them. {ENVIRONMENT_BLOCK_WINS}
     </>
   ),
   "bare-metal": (
