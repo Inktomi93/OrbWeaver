@@ -1,7 +1,7 @@
 // verb: previewEmbedSpaceChange — would a pending embedder change move the caller to a new embedding generation,
 // and what would the rebuild cover? A new generation deletes the old index at once and re-embeds it, so the pane
 // asks before writing. Read-only: nothing here writes, resolves a secret into the answer, or touches another
-// owner's rows. A role that resolves to nothing after the change moves no generation, so it deletes nothing.
+// owner's rows. Clearing a role moves no generation, so it deletes nothing; a row that cannot resolve yet still warns.
 
 import type { VectorScope } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
@@ -74,17 +74,29 @@ async function rebindScopes(ctx: ConnectionContext, principal: Principal, rebind
     const connectionId = rebind.get(task) ?? null;
     return connectionId === null ? null : await vectorResolutionOf(ctx, principal, task, connectionId);
   };
+  // A row that cannot resolve today (a revoked or missing key) still moves the generation the moment it can, and that
+  // resolve deletes the old index without asking. So a re-point to such a row warns; only a true unbind may not.
+  const unresolvable = async (task: VectorTask, after: Resolution): Promise<boolean> => {
+    const connectionId = rebind.get(task) ?? null;
+    if (after !== null || connectionId === null) {
+      return false;
+    }
+    return (await lookupBinding(ctx.db, { actorKind: "user", actorId: principal.userId }, task))?.connectionId !== connectionId;
+  };
   const textNow = await vectorResolutionOf(ctx, principal, "embed");
   const imageNow = await vectorResolutionOf(ctx, principal, "imageEmbed");
   const textAfter = await resolveAfter("embed", textNow);
   const imageAfter = await resolveAfter("imageEmbed", imageNow);
+  const textUnknown = await unresolvable("embed", textAfter);
+  const imageUnknown = await unresolvable("imageEmbed", imageAfter);
   const scopes: VectorScope[] = [];
-  if (textAfter !== null && spaceMoved(textNow?.space, textAfter.space)) {
+  if (textUnknown || (textAfter !== null && spaceMoved(textNow?.space, textAfter.space))) {
     scopes.push(...VECTOR_SCOPES_BY_TASK.embed);
   }
   const picturesNow = imageSpaceOf(imageNow, textNow);
   const picturesAfter = imageSpaceOf(imageAfter, textAfter);
-  if (picturesAfter !== null && (picturesNow?.via !== picturesAfter.via || spaceMoved(picturesNow.space, picturesAfter.space))) {
+  const picturesUnknown = imageUnknown || (textUnknown && picturesAfter?.via !== "imageEmbed");
+  if (picturesUnknown || (picturesAfter !== null && (picturesNow?.via !== picturesAfter.via || spaceMoved(picturesNow.space, picturesAfter.space)))) {
     scopes.push(...VECTOR_SCOPES_BY_TASK.imageEmbed);
   }
   return scopes;

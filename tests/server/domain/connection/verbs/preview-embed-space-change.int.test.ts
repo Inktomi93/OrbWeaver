@@ -2,11 +2,13 @@
 // when the change moves the caller to a new embedding generation, count what that rebuild covers, and write
 // nothing.
 
-import { characterEmbeddings, characters, embedGenerations } from "@orb/db";
-import type { CharacterEmbeddingId, CharacterHandle, CharacterId, EmbedGenerationId, UserConnectionId } from "@orb/kit/ids";
+import { characterEmbeddings, characters, embedGenerations, userCredentials } from "@orb/db";
+import { DomainNoCredentialError } from "@orb/kit/errors";
+import type { CharacterEmbeddingId, CharacterHandle, CharacterId, EmbedGenerationId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { makeResolvedSecret } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import type { ConnectionHarness } from "../_support.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../_support.ts";
@@ -153,5 +155,39 @@ describe("previewEmbedSpaceChange", () => {
     expect(fixture.h.embedSpaceChanges).toHaveLength(changesBefore);
     const bindings = await fixture.h.svc.listBindings({ principal: fixture.owner.principal });
     expect(bindings.find((view) => view.task === "embed")?.binding?.connectionId).toBe(fixture.bound);
+  });
+
+  // A row that cannot resolve today (its key is revoked) still moves the generation once the key comes back, and
+  // that resolve deletes the old index. Only a real unbind may skip the warning.
+  test("binding, or using for everything, a row whose key is revoked still says rebuild", async () => {
+    const db = await freshDb();
+    const credentialId = castId<UserCredentialId>("user_credential_preview_revoked");
+    const h = await makeHarness(db, {
+      resolveCredential: ({ credentialId: id, providerId }) =>
+        id === null ? Promise.resolve(makeResolvedSecret()) : Promise.reject(new DomainNoCredentialError(providerId)),
+    });
+    const owner = await seedOwner(db);
+    await db.insert(userCredentials).values({ id: credentialId, ownerId: owner.userId, provider: BYO_PROVIDER, ciphertext: "x", iv: "x", tag: "x" });
+    const create = async (model: string, credential: UserCredentialId | null): Promise<UserConnectionId> =>
+      (
+        await h.svc.create({
+          principal: owner.principal,
+          providerId: BYO_PROVIDER,
+          credentialId: credential,
+          baseUrl: BYO_BASE_URL,
+          model,
+          allowBackground: true,
+        })
+      ).id;
+    const bound = await create("nomic-embed-text", null);
+    const revoked = await create("embeddinggemma", credentialId);
+    await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: bound });
+    await storeCardVectors(db, { h, owner, bound, other: revoked }, 2);
+
+    const bind = await h.svc.previewEmbedSpaceChange({ principal: owner.principal, change: { kind: "bind", task: "embed", connectionId: revoked } });
+    const everywhere = await h.svc.previewEmbedSpaceChange({ principal: owner.principal, change: { kind: "everywhere", connectionId: revoked } });
+
+    expect(bind).toMatchObject({ reindex: true, stored: { cards: 2 } });
+    expect(everywhere).toMatchObject({ reindex: true, stored: { cards: 2 } });
   });
 });

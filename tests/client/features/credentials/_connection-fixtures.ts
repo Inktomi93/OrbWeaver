@@ -15,6 +15,7 @@ import type { Locator, Page } from "@playwright/test";
 import { ADD_DIALOG_COPY } from "../../../../packages/client/src/features/credentials/lib/add-connection-form-model.ts";
 import type { TrpcInput, TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../support/node/user-settings-view.ts";
 
 export type ConnectionRow = TrpcWireOutput<"connection.list">[number];
 export type CredentialRow = TrpcWireOutput<"credentials.list">[number];
@@ -182,6 +183,9 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     "connection.catalogModels": opts.catalogModels ?? catalogOf([]),
     "connection.draftCatalogModels": opts.draftCatalogModels ?? catalogOf([]),
     "connection.useForEverything": [],
+    // The pane's Model roles section reads the Utility preset picker and the memory settings.
+    "preset.list": () => [],
+    "settings.getUserSettings": () => userSettingsView(),
     // An embedder change first asks whether it would rebuild the index; by default these rows back no stored index.
     "connection.embedSpaceChangePreview": () =>
       opts.reindexPreview ?? { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0 },
