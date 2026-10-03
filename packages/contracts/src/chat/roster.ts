@@ -27,9 +27,7 @@ import { participantKindSchema } from "./participants.ts";
 
 /** The `participantRoleSchema` Zod enum over the ONE-HOME `host|member` axis. ONE HOME: the tuple +
  *  `ParticipantRole` type are DEFINED in `@orb/contracts/identity` (`can()` reads them; identity is the DAG
- *  root) — every consumer imports them from there (no second name, no alias); this only derives the schema.
- *
- *  @public twin: PARTICIPANT_ROLES — drives the chat_participants role enum + CHECK (cross-package PUBLIC). */
+ *  root) — every consumer imports them from there (no second name, no alias); this only derives the schema. */
 export const participantRoleSchema = z.enum(PARTICIPANT_ROLES) satisfies z.ZodType<ParticipantRole>;
 
 /** How much history a (re)joining member sees: `full` (the whole room canon — the COLUMN DEFAULT, owner

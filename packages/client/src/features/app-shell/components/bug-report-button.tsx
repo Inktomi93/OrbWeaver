@@ -55,7 +55,7 @@ function failedStatus(error: unknown): Status {
   return { kind: "failed", reason: error instanceof Error ? error.message : String(error) };
 }
 
-export interface BugReportButtonProps {
+interface BugReportButtonProps {
   /** Offer the developer capture to `bug-reports/` beside the public outputs. */
   readonly devCapture: boolean;
   /** Read the server's version and diagnostics. A half that fails resolves to `null`, never a throw. */
@@ -78,8 +78,9 @@ function reportFor(prepared: PreparedBugReport | null, note: string, when: (type
   });
 }
 
-/** The top-rail bug-report affordance. Exported for its chrome entry AND for its CT, which mounts it directly
- *  (a CT's production build cannot reach the dev-gated capture — see the header). */
+/** The top-rail bug-report affordance. Its chrome entry below wires the real server reads; the CT mounts it
+ *  directly (a CT's production build cannot reach the dev-gated capture — see the header).
+ *  @public Test-anchored module surface; the CT fixtures mount it with each `devCapture` arm. */
 export function BugReportButton({ devCapture, loadServerFacts }: BugReportButtonProps): ReactElement {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");

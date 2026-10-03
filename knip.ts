@@ -14,7 +14,7 @@ import type { KnipConfig } from "knip";
 //
 // A LITERAL negative pattern (`!path`, no glob character) must name a git-tracked file; knip's own hints
 // never report a negation that matches nothing. `pnpm check:knip-negative-liveness` enforces it.
-const config = {
+export const config = {
   tags: ["-@public"],
   // The trailing ! applies only in production mode: tooling stays fully checked by the default run,
   // while developer tools must not keep application exports alive in the shippable-only view.
@@ -155,6 +155,7 @@ const config = {
     },
     "packages/server": {
       // Entry auto-detected from package.json exports (`./*` → src/*/index.ts, covers src/entry/index.ts).
+      // The shipped script entries are added for the production view below (PRODUCTION_SCRIPT_ENTRIES).
       project: ["src/**/*.ts!"],
     },
     "packages/client": {
@@ -168,5 +169,40 @@ const config = {
   },
 } satisfies KnipConfig;
 
+// SHIPPED SCRIPT ENTRIES. knip's production view reads only a workspace's `start` script, so a file that
+// ships through another script is invisible to it: `check-media.ts` runs on `postinstall` and again in the
+// final image (Dockerfile). The default view already sees it through the script, where naming it again is a
+// redundant-entry hint, so it is added for production alone.
+const PRODUCTION_SCRIPT_ENTRIES = { "packages/server": ["src/entry/check-media.ts!"] } as const;
+
+/** The CLI flags knip hands a function config (`--production`, and `--strict`, which implies it). */
+interface KnipModeArgs {
+  readonly production?: boolean;
+  readonly strict?: boolean;
+}
+
+// `KnipConfig` also admits the function form this file's default export takes; the object arm carries workspaces.
+type WorkspaceConfig = NonNullable<Exclude<KnipConfig, (...args: never) => unknown>["workspaces"]>[string];
+
+/** knip accepts a pattern list as one string or an array. */
+function patternList(patterns: string | readonly string[] | undefined): readonly string[] {
+  if (patterns === undefined) {
+    return [];
+  }
+  return typeof patterns === "string" ? [patterns] : patterns;
+}
+
+function configFor({ production = false, strict = false }: KnipModeArgs): KnipConfig {
+  if (!(production || strict)) {
+    return config;
+  }
+  const workspaces: Record<string, WorkspaceConfig> = { ...config.workspaces };
+  for (const [name, entries] of Object.entries(PRODUCTION_SCRIPT_ENTRIES)) {
+    const workspace = workspaces[name] ?? {};
+    workspaces[name] = { ...workspace, entry: [...patternList(workspace.entry), ...entries] };
+  }
+  return { ...config, workspaces };
+}
+
 // knip's config loader requires the default export; biome.json's config-file block admits it for this file.
-export default config;
+export default configFor;

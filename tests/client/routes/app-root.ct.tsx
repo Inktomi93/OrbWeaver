@@ -30,6 +30,7 @@ import type { Locator, Page } from "@playwright/test";
 import { testId } from "../../../packages/client/src/lib/test-ids.ts";
 import type { TrpcFixtureOutput, TrpcRoutes, TrpcWireOutput } from "../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../support/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "../../support/node/utility-role.ts";
 import { STREAM_MUTATION_ROUTES } from "../data/bus/fixtures.ts";
 import { makeCharacterSummary } from "../features/character/fixtures.ts";
 import { CHAT_AMBIENT_ROUTES, chatListResponder, makeChatSummary } from "../features/chat/fixtures.ts";
@@ -792,8 +793,11 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
   | "tag.listPendingSuggestions"
   | "tag.listAttachedEntities"
   | "worldInfo.listBooksWithUsage"
+  | keyof typeof UTILITY_RUNNING_ROUTES
 > = {
   ...HOME_AMBIENT_ROUTES,
+  // The Corpus understanding-pass door reads the Utility role on mount.
+  ...UTILITY_RUNNING_ROUTES,
   "worldInfo.listBooksWithUsage": [],
   "chat.listChats": chatListResponder(CENSUS_CHATS),
   "character.list": NO_CHARACTERS,

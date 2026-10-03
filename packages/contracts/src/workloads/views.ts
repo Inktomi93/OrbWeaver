@@ -272,4 +272,5 @@ export const workloadScheduleViewSchema = z.strictObject({
   createdAt: z.number(),
   updatedAt: z.number(),
 });
+/** @public twin: workloadScheduleViewSchema */
 export type WorkloadScheduleView = z.output<typeof workloadScheduleViewSchema>;

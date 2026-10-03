@@ -5,7 +5,7 @@
 //
 // There is no autosave section-patch here any more. The library is ROWS, so the surface issues real CRUD.
 
-import type { CreateRegexScriptInput, RegexScriptRow, UpdateRegexScriptInput } from "@orb/contracts/regex";
+import type { CreateRegexScriptInput, ImportScriptFileResult, RegexScriptRow, UpdateRegexScriptInput } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
 import type { RegexPlacement } from "@orb/kit/regex";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -96,7 +96,7 @@ export const useBulkRemoveRegexScripts = createEntityMutation<RegexBulkArgs, Reg
 /** The single-entity IMPORT door's mutation (REGX2 · D121-D `band=Import`) — the file's TEXT, through the
  *  same thin-arm verb the backup bundle calls. `created:false` ⇒ it deduped onto a script already in the
  *  library, which is a success, not a failure. */
-export const useImportRegexScriptFile = createEntityMutation<{ readonly fileText: string }, { readonly created: boolean }>({
+export const useImportRegexScriptFile = createEntityMutation<{ readonly fileText: string }, ImportScriptFileResult>({
   options: (trpc) => trpc.regex.importScriptFile.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't import that script.",

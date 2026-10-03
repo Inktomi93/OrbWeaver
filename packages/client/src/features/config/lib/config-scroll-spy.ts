@@ -93,7 +93,8 @@ export function computeVisibleSettings(container: HTMLElement, prefix: string): 
 }
 
 /** Scroll a jumped-to section to the top of the pane and flash its inset ring, so the eye lands on the
- *  thing the jump named instead of hunting a silently-repositioned page. */
+ *  thing the jump named instead of hunting a silently-repositioned page.
+ *  @public Test-anchored module surface; the CT story injects a controlled timer through it. */
 export function createAnchorFlasher(scheduleTimeout: (run: () => void, ms: number) => () => void): (el: HTMLElement) => void {
   const pendingFlashes = new WeakMap<HTMLElement, () => void>();
   return (el): void => {

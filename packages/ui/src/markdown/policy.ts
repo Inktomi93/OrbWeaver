@@ -70,7 +70,8 @@ export const TIER_A_UNTRUSTED_ELEMENTS: readonly string[] = TIER_A_ELEMENTS.filt
 const OWN_ORIGIN_PROBE = new URL("https://own-origin.invalid");
 
 /** True when `url` resolves on the page's own origin (a path, a query or a fragment). A protocol-relative
- *  or backslash-led url and every absolute url resolve elsewhere. */
+ *  or backslash-led url and every absolute url resolve elsewhere.
+ *  @public Test-anchored module surface; the policy suite pins it against off-origin spellings. */
 export function resolvesOnOwnOrigin(url: string): boolean {
   return URL.canParse(url, OWN_ORIGIN_PROBE) && new URL(url, OWN_ORIGIN_PROBE).origin === OWN_ORIGIN_PROBE.origin;
 }
