@@ -11,13 +11,14 @@ import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clien
 import type { Db } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { parseIanaTimeZone } from "@orb/kit/time";
 import type { ChatUserMacroDefs } from "@orb/server/domain/chat";
 import { createExtractQuiet } from "@orb/server/domain/chat";
 import { describe } from "vitest";
 import type { SummarizeOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
+import { FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 interface SummarizeCall {
   readonly inputs: readonly SummarizeInput[];
@@ -71,6 +72,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
+      now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveChatPresetParams: () => Promise.resolve({}),
@@ -104,6 +106,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
+      now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveChatPresetParams: () => Promise.resolve({}),
@@ -124,6 +127,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
+      now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveChatPresetParams: () => Promise.resolve({}),
@@ -148,6 +152,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
+      now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveChatPresetParams: () => Promise.resolve({}),
@@ -175,6 +180,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
+      now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveChatPresetParams: () => Promise.resolve({}),
@@ -201,6 +207,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
+      now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveChatPresetParams: () => Promise.resolve({}),
@@ -219,6 +226,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
+      now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveChatPresetParams: () => Promise.resolve({}),
@@ -238,6 +246,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
+      now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveChatPresetParams: () => Promise.resolve({}),
@@ -249,6 +258,33 @@ describe("createExtractQuiet", () => {
     // The builtin still resolves; the undeclared macro is untouched (kit's unknown-macro posture), and the
     // build took the null fast path — no per-call registry allocated for a chat that declared nothing.
     expect(calls[0]?.inputs[0]?.systemPrompt).toBe("Describe Aria, {{house_style}}.");
+  });
+
+  test("the template's time macros read the viewer's zone on the injected clock, and UTC with no viewer", async () => {
+    const db = await freshDb();
+    const chatId = await seedRoom(db);
+    const kathmandu = parseIanaTimeZone("Asia/Kathmandu");
+    if (kathmandu === null) {
+      throw new Error("the platform must know Asia/Kathmandu");
+    }
+    // 20:00 UTC on Thursday the 15th is 01:45 on Friday the 16th in Kathmandu (+5:45).
+    const at = Date.UTC(2026, 0, 15, 20, 0, 0);
+
+    const calls: SummarizeCall[] = [];
+    const extractQuiet = createExtractQuiet({
+      db,
+      now: () => at,
+      summarize: fakeSummarize(calls),
+      getCard: fakeGetCard("Aria"),
+      resolveChatPresetParams: () => Promise.resolve({}),
+      resolveUserMacroDefs: NO_USER_MACROS,
+    });
+    const instruction = "{{weekday}} {{date}} {{time}}";
+
+    await extractQuiet({ chatId, instruction, historyFloorSeq: historyFloor(0), funderUserId: HOST_ID, timeZone: kathmandu });
+    await extractQuiet({ chatId, instruction, historyFloorSeq: historyFloor(0), funderUserId: HOST_ID });
+
+    expect(calls.map((c) => c.inputs[0]?.systemPrompt)).toEqual(["Friday 2026-01-16 01:45:00", "Thursday 2026-01-15 20:00:00"]);
   });
 
   // ── The PROMPT-ELIGIBILITY plane (#1463 items 3+4) ────────────────────────────────────────────────────
@@ -266,6 +302,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
+      now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveChatPresetParams: () => Promise.resolve({}),
@@ -293,6 +330,7 @@ describe("createExtractQuiet", () => {
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
       db,
+      now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveChatPresetParams: () => Promise.resolve({}),

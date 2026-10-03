@@ -13,6 +13,7 @@ import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { BindingActor, Resolved } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
+import type { IanaTimeZone } from "@orb/kit/time";
 import type { EditImageParams, ExtractionMode, ExtractPromptParams, GeneratePictureParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
 import type { ExtractedPrompt, GeneratedPicture, GenerationProvenance, ImageryWarning } from "./results.ts";
 
@@ -47,6 +48,8 @@ interface ResolvePromptArgs {
   readonly chatId?: ChatId | undefined;
   readonly mode: Exclude<PromptTemplateMode, "free">;
   readonly subjectCharacterId: CharacterId | undefined;
+  /** The initiating viewer's zone for the extraction template's time macros; absent ⇒ chat reads UTC. */
+  readonly timeZone: IanaTimeZone | undefined;
 }
 /** The shared prompt resolution the extractPrompt verb + generatePicture step 3 both close over. */
 export type ResolvePrompt = (args: ResolvePromptArgs) => Promise<ResolvedPrompt>;
@@ -145,6 +148,7 @@ export interface ImageryContext {
     readonly chatId: ChatId;
     readonly instruction: string;
     readonly subjectCharacterId?: CharacterId | undefined;
+    readonly timeZone?: IanaTimeZone | undefined;
   }) => Promise<{ readonly text: string; readonly costUsd: number | null }>;
   /** ⑫ — the caller's per-mode EXTRACTION instruction: `UserSettings.imagery.templates[mode]` override ⊕ the
    *  shipped `@orb/contracts/imagery` catalog default (unset ⇒ byte-identical). Wired at compose off

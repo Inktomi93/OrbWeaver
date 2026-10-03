@@ -7,6 +7,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ExtractionMode as CatalogExtractionMode, MultimodalCaptionMode, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { BindingActor } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId } from "@orb/kit/ids";
+import type { IanaTimeZone } from "@orb/kit/time";
 
 // The mode SUBSETS home in `@orb/contracts/imagery` (the canonical `EXTRACTION_MODES`/`MULTIMODAL_MODES`
 // tuples the default catalog keys on, Phase B ⑫) — re-exported here under the domain's local names so the
@@ -65,6 +66,9 @@ export interface GeneratePictureParams {
   /** Join every returned picture to the caller's gallery under this character. Absent = no auto-add. Kept
    *  apart from `subjectCharacterId`, which also drives the portrait reuse gate and the extraction subject. */
   readonly gallery?: GalleryCuration | undefined;
+  /** The initiating viewer's zone for an extraction template's time macros. Absent ⇒ UTC: automation, a
+   *  plugin and a model tool call have no viewer. */
+  readonly timeZone?: IanaTimeZone | undefined;
 }
 
 /** `readProvenance` — read a generated image's durable provenance by its asset (owner-scoped through the
@@ -81,6 +85,8 @@ export interface ExtractPromptParams {
   readonly chatId: ChatId;
   readonly mode: Exclude<PromptTemplateMode, "free">;
   readonly subjectCharacterId?: CharacterId | undefined;
+  /** The viewer's reported zone for the extraction template's time macros; absent ⇒ UTC. */
+  readonly timeZone?: IanaTimeZone | undefined;
 }
 
 /** The edit source (doc 01 §3.2): an OWNED asset (owner-gated by `readAsset`) or uploaded bytes the transport

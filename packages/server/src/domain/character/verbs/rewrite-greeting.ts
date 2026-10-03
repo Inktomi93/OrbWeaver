@@ -12,7 +12,7 @@ import { cardOf, loadOwnedCharacterRow } from "../persistence/queries.ts";
 import { buildGreetingPrompt, composeGreetingSteer } from "../substrate/greeting-studio.ts";
 
 export function createRewriteGreeting(ctx: CharacterContext): CharacterService["rewriteGreeting"] {
-  return async ({ principal, characterId, greeting, steer, transforms }: RewriteGreetingParams) => {
+  return async ({ principal, characterId, greeting, steer, transforms, timeZone }: RewriteGreetingParams) => {
     // OWNER GATE FIRST — a non-owner (or missing) row collapses to a leak-free NOT_FOUND before any preset
     // read or LLM spend (the cross-tenant sweep's owner-gate probe path).
     const row = await loadOwnedCharacterRow(ctx.db, principal.userId, characterId);
@@ -20,7 +20,13 @@ export function createRewriteGreeting(ctx: CharacterContext): CharacterService["
       throw new CharacterNotFoundError(characterId);
     }
     const { template, prose } = await ctx.resolveGreetingTemplate({ caller: principal, kind: "greeting_rewrite" });
-    const prompt = buildGreetingPrompt({ card: cardOf(row), template, steer: composeGreetingSteer(transforms, steer, prose), base: greeting });
+    const prompt = buildGreetingPrompt({
+      card: cardOf(row),
+      template,
+      steer: composeGreetingSteer(transforms, steer, prose),
+      clock: { timeZone, nowMs: ctx.now() },
+      base: greeting,
+    });
     return ctx.generateGreetingText({ caller: principal, prompt });
   };
 }

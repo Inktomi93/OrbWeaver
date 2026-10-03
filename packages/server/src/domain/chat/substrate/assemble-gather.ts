@@ -59,9 +59,10 @@ const DATABANK_QUERY_MAX_CHARS = 1000;
  *  2500-char chunks ≈ 3.1k tokens) while capping a pathological huge-chunk config. */
 const DATABANK_SLOT_TOKEN_BUDGET = 4096;
 
-// The zone an assembly's time macros read: the one its caller names, else UTC. The ONE home of the no-viewer
-// clock; an unset zone would hand the macro engine its own fallback, the server's zone, which no user is in.
-function assemblyTimeZone(timeZone: IanaTimeZone | undefined): IanaTimeZone {
+/** The zone a chat render's time macros read: the one its caller names, else UTC. The ONE home of the
+ *  no-viewer clock; an unset zone would hand the macro engine its own fallback, the server's zone, which no
+ *  user is in. */
+export function assemblyTimeZone(timeZone: IanaTimeZone | undefined): IanaTimeZone {
   return timeZone ?? UTC_TIME_ZONE;
 }
 

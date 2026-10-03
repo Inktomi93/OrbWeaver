@@ -1506,6 +1506,16 @@ describe("the viewer's zone — each turn and rendered-preview procedure require
       stub: (previewActionTemplates) => ({ previewActionTemplates }),
       call: (c, timeZone) => c.chat.previewActionTemplates({ chatId: CHAT, presetId: ID.presetBound, timeZone }),
     },
+    {
+      path: "generateImage",
+      stub: (generateImage) => ({ generateImage }),
+      call: (c, timeZone) => c.chat.generateImage({ chatId: CHAT, mode: "scenario", timeZone }),
+    },
+    {
+      path: "getMemberCard",
+      stub: (getMemberCard) => ({ getMemberCard }),
+      call: (c, timeZone) => c.chat.getMemberCard({ chatId: CHAT, characterId: ID.characterAria, timeZone }),
+    },
   ];
   // @orb-waive no-test-fabrication(unknown): the refusal under test is a body the client types forbid, so the typed caller must be handed one. Ends when the caller accepts unknown input directly.
   const notAZone = 545 as unknown as string;
