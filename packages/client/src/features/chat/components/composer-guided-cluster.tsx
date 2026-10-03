@@ -177,54 +177,52 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             </Row>
           }
           primary={
-            <>
-              <Row aria-label="Guided actions" className="shrink-0" gap="field" role="group">
-                <Row aria-label="Your message" className="shrink-0" data-slot="composer-you-actions" gap="field" role="group">
-                  <ImpersonateGuidedButton
-                    disabled={!idle}
-                    hasText={hasText}
-                    onPick={fireImpersonate}
-                    reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)}
-                    refusalStatedBy={offStatedBy}
-                  />
-                  {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
-                </Row>
-                <Row aria-label="Their reply" className="min-w-0 shrink-0" data-slot="composer-them-actions" gap="field" role="group">
-                  <GuidedIconButton
-                    icon={RotateCcw}
-                    label={hasText ? "Try another reply with this direction" : "Try another reply"}
-                    steerCue={STEER_CUE_SWIPE}
-                    hasText={hasText}
-                    disabled={!(canTargetTail && idle)}
-                    reason={reasonFor(SWIPE_NEEDS_REPLY)}
-                    buttonTestId="composerGuidedSwipe"
-                    refusalStatedBy={offStatedBy}
-                    onFire={(): void => guided.fireSwipe(trimmed)}
-                  />
-                  <ResponseGuidedButton
-                    hasText={hasText}
-                    idle={idle}
-                    characters={characters}
-                    onFire={fireResponse}
-                    disabledReason={persistentOffReason}
-                    refusalStatedBy={offStatedBy}
-                  />
-                  <GuidedIconButton
-                    icon={FastForward}
-                    label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
-                    steerCue={STEER_CUE_CONTINUE}
-                    hasText={hasText}
-                    disabled={!(canTargetTail && idle)}
-                    reason={reasonFor(SWIPE_NEEDS_REPLY)}
-                    buttonTestId="composerGuidedContinue"
-                    refusalStatedBy={offStatedBy}
-                    onFire={(): void => fireAndClear(guided.fireContinue)}
-                  />
-                </Row>
+            <Row aria-label="Guided actions" className="shrink-0" gap="field" role="group">
+              <Row aria-label="Your message" className="shrink-0" data-slot="composer-you-actions" gap="field" role="group">
+                <ImpersonateGuidedButton
+                  disabled={!idle}
+                  hasText={hasText}
+                  onPick={fireImpersonate}
+                  reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)}
+                  refusalStatedBy={offStatedBy}
+                />
+                {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
               </Row>
-              {actionContributions}
-            </>
+              <Row aria-label="Their reply" className="min-w-0 shrink-0" data-slot="composer-them-actions" gap="field" role="group">
+                <GuidedIconButton
+                  icon={RotateCcw}
+                  label={hasText ? "Try another reply with this direction" : "Try another reply"}
+                  steerCue={STEER_CUE_SWIPE}
+                  hasText={hasText}
+                  disabled={!(canTargetTail && idle)}
+                  reason={reasonFor(SWIPE_NEEDS_REPLY)}
+                  buttonTestId="composerGuidedSwipe"
+                  refusalStatedBy={offStatedBy}
+                  onFire={(): void => guided.fireSwipe(trimmed)}
+                />
+                <ResponseGuidedButton
+                  hasText={hasText}
+                  idle={idle}
+                  characters={characters}
+                  onFire={fireResponse}
+                  disabledReason={persistentOffReason}
+                  refusalStatedBy={offStatedBy}
+                />
+                <GuidedIconButton
+                  icon={FastForward}
+                  label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
+                  steerCue={STEER_CUE_CONTINUE}
+                  hasText={hasText}
+                  disabled={!(canTargetTail && idle)}
+                  reason={reasonFor(SWIPE_NEEDS_REPLY)}
+                  buttonTestId="composerGuidedContinue"
+                  refusalStatedBy={offStatedBy}
+                  onFire={(): void => fireAndClear(guided.fireContinue)}
+                />
+              </Row>
+            </Row>
           }
+          fill={actionContributions}
           trailing={
             <Row aria-label="Send controls" gap="field" role="group">
               {sendControl}
