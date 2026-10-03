@@ -4,6 +4,8 @@
 // of a silent, confidently-wrong `0` for a room that does not exist.
 
 import type { AutomationCelEnv } from "@orb/contracts/automation";
+import type { IanaTimeZone } from "@orb/kit/time";
+import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
 import { renderArmTemplate } from "../../../../../packages/server/src/domain/automation/substrate/macro-render.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -14,6 +16,7 @@ const CHAT_ENV: AutomationCelEnv = {
   global: { streak: "3" },
   chat: { id: "chat_x", messageCount: 5 },
   now: { epochMs: 1000, hour: 0, dayOfWeek: 0 },
+  timeZone: UTC_TIME_ZONE,
 };
 
 describe("renderArmTemplate", () => {
@@ -60,5 +63,18 @@ describe("renderArmTemplate", () => {
       macroEnv: { draft: "hello" },
     });
     expect(result).toEqual({ text: "was:[hello]" });
+  });
+
+  test("{{date}} and {{time}} render on the rule's own clock, never the server's zone", () => {
+    const kathmandu = parseIanaTimeZone("Asia/Kathmandu");
+    if (kathmandu === null) {
+      throw new Error("the platform must know Asia/Kathmandu");
+    }
+    // 2026-01-15T17:20:00Z is 23:05 the same day in Kathmandu (+5:45).
+    const nowMs = Date.UTC(2026, 0, 15, 17, 20);
+    const render = (timeZone: IanaTimeZone): ReturnType<typeof renderArmTemplate> =>
+      renderArmTemplate({ template: "{{date}} {{time}}", env: { ...CHAT_ENV, timeZone }, nowMs, prng: () => 0.5, chatScoped: true });
+    expect(render(kathmandu)).toEqual({ text: "2026-01-15 23:05:00" });
+    expect(render(UTC_TIME_ZONE)).toEqual({ text: "2026-01-15 17:20:00" });
   });
 });

@@ -18,7 +18,8 @@ import type { AssembleContext, ChatInjection, MacroFreezeRecord, MemoryRecallSli
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
-import { humanizeDuration } from "@orb/kit/time";
+import type { IanaTimeZone } from "@orb/kit/time";
+import { humanizeDuration, UTC_TIME_ZONE } from "@orb/kit/time";
 import { buildAssembleContext } from "../assembly/context.ts";
 import type { ChatContext } from "../context.ts";
 
@@ -57,6 +58,12 @@ const DATABANK_QUERY_MAX_CHARS = 1000;
  *  turn supplies it via `foreign.databankSlotTokenBudget`. Sized to seat the default retrieval (k=5 ×
  *  2500-char chunks ≈ 3.1k tokens) while capping a pathological huge-chunk config. */
 const DATABANK_SLOT_TOKEN_BUDGET = 4096;
+
+// The zone an assembly's time macros read: the one its caller names, else UTC. The ONE home of the no-viewer
+// clock; an unset zone would hand the macro engine its own fallback, the server's zone, which no user is in.
+function assemblyTimeZone(timeZone: IanaTimeZone | undefined): IanaTimeZone {
+  return timeZone ?? UTC_TIME_ZONE;
+}
 
 /** Build the retrieval query: the pending user text + the last 2 committed turns, most-recent-first, capped.
  *  The pending message is the strongest signal; the recent turns restore the context a bare "tell me more
@@ -353,6 +360,9 @@ export async function gatherAssembleContext(
      *  Absent ⇒ the pure build falls back to the process singletons (byte-identical non-user-macro turn). */
     readonly macroRegistry?: MacroRegistry | undefined;
     readonly freezeMacroRegistry?: MacroRegistry | undefined;
+    /** The zone `{{date}}`/`{{time}}`/`{{weekday}}` read in: the viewer's reported zone, or the caller's ruled
+     *  one for a turn with no viewer. Absent ⇒ UTC. */
+    readonly timeZone?: IanaTimeZone | undefined;
   },
   foreign: ForeignInputs,
   out?: SendRegexSink,
@@ -504,9 +514,7 @@ export async function gatherAssembleContext(
       // commit). Absent on preview/aux turns (no pending composer text to freeze there).
       ...(args.prng !== undefined ? { prng: args.prng } : {}),
       ...(roomOverrides !== undefined ? { roomOverrides } : {}),
-      // FLAG[timezone-per-request]: {{time}}/{{date}} render server-side, but the timezone is the
-      // caller's browser zone, supplied per-request — not a host setting. Unset ⇒ macro engine falls
-      // back to server-local.
+      timezone: assemblyTimeZone(args.timeZone),
       ...(lastMessage !== undefined ? { lastMessage } : {}),
       ...(lastUserMessage !== undefined ? { lastUserMessage } : {}),
       ...(lastCharMessage !== undefined ? { lastCharMessage } : {}),

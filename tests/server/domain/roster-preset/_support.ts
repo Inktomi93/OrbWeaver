@@ -18,6 +18,8 @@ import type { Db } from "@orb/db";
 import { characters, personas } from "@orb/db";
 import type { AutomationRuleId, CharacterId, ChatId, ChatParticipantId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { IanaTimeZone } from "@orb/kit/time";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { and, eq, inArray } from "drizzle-orm";
 import { RuleValidationError } from "../../../../packages/server/src/domain/automation/contract/errors.ts";
 import { RULE_PRESETS } from "../../../../packages/server/src/domain/automation/contract/presets.ts";
@@ -63,6 +65,7 @@ interface RuleMintCall {
   readonly chatId: ChatId | null;
   readonly rulePresetId: RulePresetId;
   readonly knobs: RulePresetKnobValues;
+  readonly timeZone: IanaTimeZone;
 }
 
 interface RuleEnableCall {
@@ -131,6 +134,7 @@ export function seededRuleView(args: {
     suggestOnRefusal: true,
     cooldownSeconds: 0,
     maxFiresPerHour: 30,
+    timeZone: UTC_TIME_ZONE,
     lastError: null,
     lastFiredAt: null,
     createdAt: args.createdAt ?? FROZEN_AT_MS,
@@ -246,14 +250,14 @@ export function makeHarness(db: Db, overrides: Partial<RosterPresetContext> = {}
         ruleListReads.count += 1;
         return Promise.resolve([...roomRules]);
       },
-      createRuleFromPreset: ({ chatId, presetId: rulePresetId, knobs: overrideKnobs }): Promise<RuleView[]> => {
+      createRuleFromPreset: ({ chatId, presetId: rulePresetId, knobs: overrideKnobs, timeZone }): Promise<RuleView[]> => {
         const refusal = refuseMints.get(rulePresetId);
         if (refusal !== undefined) {
           // The planted consent-class refusal (automation's OWN error class — what the catch narrows on).
           return Promise.reject(new RuleValidationError("unattached_book", refusal));
         }
         const resolved = resolveChatRulePresetKnobs(rulePresetId, overrideKnobs ?? {});
-        ruleMints.push({ chatId, rulePresetId, knobs: resolved });
+        ruleMints.push({ chatId, rulePresetId, knobs: resolved, timeZone });
         const minted: RuleView[] = [];
         for (let index = 0; index < RULE_PRESETS[rulePresetId].ruleCount; index += 1) {
           const view = seededRuleView({

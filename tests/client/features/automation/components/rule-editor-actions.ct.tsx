@@ -3,6 +3,7 @@ import { AUTOMATION_ACTION_TYPES, automationActionSchema, automationRuleCreateSc
 import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ruleActionExamples } from "../../../../support/factories/automation-rule-actions.ts";
 import { createSeededIds } from "../../../../support/ids.ts";
@@ -47,6 +48,7 @@ for (const type of AUTOMATION_ACTION_TYPES) {
       rulePresetKnobs: null,
       matchAutomationEvents: true,
       suggestOnRefusal: true,
+      timeZone: UTC_TIME_ZONE,
       cooldownSeconds: 60,
       maxFiresPerHour: 0,
       lastError: null,
@@ -110,6 +112,7 @@ test("custom draft-transform controls produce canonical actions and leave enabli
         rulePresetId: null,
         rulePresetKnobs: null,
         suggestOnRefusal: true,
+        timeZone: UTC_TIME_ZONE,
         lastError: null,
         lastFiredAt: null,
         createdAt: 1,

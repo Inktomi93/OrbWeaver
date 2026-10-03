@@ -21,6 +21,7 @@ import {
   AUTOMATION_FIRES_LIST_MAX_LIMIT,
   automationRuleCreateSchema,
   automationRuleReorderSchema,
+  automationRuleTimeZoneSchema,
   automationRuleToolsSchema,
   automationRuleUpdateSchema,
   ownerBudgetViewSchema,
@@ -90,12 +91,19 @@ export const automationRouter = t.router({
   // DISAGREES with the named preset's own declared scope, in both directions.
   createRuleFromPreset: authedProcedure
     .output(z.array(ruleViewSchema))
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat).nullable(), presetId: rulePresetIdSchema, knobs: rulePresetKnobValuesSchema.optional() }))
+    .input(
+      automationRuleTimeZoneSchema.extend({
+        chatId: typeIdSchema(ID_PREFIX.chat).nullable(),
+        presetId: rulePresetIdSchema,
+        knobs: rulePresetKnobValuesSchema.optional(),
+      }),
+    )
     .mutation(({ ctx, input }) =>
       ctx.services.automation.createRuleFromPreset({
         principal: ctx.auth,
         chatId: input.chatId,
         presetId: input.presetId,
+        timeZone: input.timeZone,
         ...(input.knobs === undefined ? {} : { knobs: input.knobs }),
       }),
     ),

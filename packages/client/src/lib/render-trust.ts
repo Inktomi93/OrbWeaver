@@ -1,8 +1,8 @@
 // The render-trust resolver — pure, zero-I/O, the one place the per-message render trust tier +
 // external-media gate are decided. trust="trusted" iff the message is the viewer's own input, or the
 // authoring character sits above the floor on the server-resolved renderPolicy.htmlTrust LADDER (the ONE
-// ordered axis, contracts/chat: untrusted < trusted < interactive); else "untrusted" (the
-// safe default for assistant/LLM, other-participant, and system content). External media is a separate
+// ordered axis, contracts/chat: untrusted < trusted < interactive); else "untrusted" (another user's
+// input, a character on the untrusted step, and any row with no resolved policy). External media is a separate
 // axis. Both read the server-resolved ParticipantView.renderPolicy; absent ⇒ fail closed.
 //
 // Homed in lib/ (the cross-cutting display seams, beside `message-render`) rather than features/chat:
@@ -16,7 +16,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
 type RenderTrust = "trusted" | "untrusted";
-/** The D44 §12.2 card render tiers. `tierA` = the DEFAULT inert sanitized allowlist in the main DOM;
+/** The D294 §12.2 card render tiers. `tierA` = the inert sanitized allowlist in the main DOM;
  *  `tierB` = the sandboxed `ImmersiveCard` mini-UI that may carry the card's own CSS. */
 type CardTier = "tierA" | "tierB";
 
@@ -43,7 +43,7 @@ export interface RowRenderPolicy {
    *  read (the `lenientCards` precedent) rather than a parallel prop down four render helpers. Default ON —
    *  it matches the contract default, so a mount that threads no pref renders what the settings say. */
   readonly colorQuotes: boolean;
-  /** The CARD render tier (D44 §12.2), resolved HERE because it has TWO independent consent axes and this
+  /** The CARD render tier (D294 §12.2), resolved HERE because it has TWO independent consent axes and this
    *  file is the one trust authority — a second spelling elsewhere would be a second spelling of a security
    *  verdict, the same reason `trust` itself lives here.
    *
@@ -84,8 +84,8 @@ export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowR
     allowExternal: !policy.forbidExternalMedia,
     lenientCards,
     colorQuotes: input.colorQuotedSpeech !== false,
-    // EITHER consent grants the sandboxed tier — see the field doc. Note both are HOST actions (a character
-    // opt-in, or the room's immersive-HTML switch); neither is anything the MODEL can assert about itself.
+    // EITHER consent grants the sandboxed tier — see the field doc. Both come from the host or the box (the
+    // character's resolved step, or the room's immersive-HTML switch); neither is anything the MODEL can assert.
     cardTier: trust === "trusted" || lenientCards ? "tierB" : "tierA",
   };
 }

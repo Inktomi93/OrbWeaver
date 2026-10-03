@@ -12,12 +12,13 @@
 //     (D170) they never touched. Without this assertion nothing in the tree
 //     would notice that regression.
 
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "../_support.ts";
 
 test("a rule is born OFFERING (the F4 default) and the verb flips it durably, announcing the change", async () => {
   const { host, chatId, svc, events } = await ruleFixture();
-  const rule = await svc.createRule({ principal: principal(host), chatId, name: "r", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "r", trigger: MSG_COMMITTED, actions: [SET_VAR] });
   // The ruling's default — landing an OPT-OUT must leave every existing rule exactly where it was.
   expect(rule.suggestOnRefusal).toBe(true);
 
@@ -35,7 +36,7 @@ test("a rule is born OFFERING (the F4 default) and the verb flips it durably, an
 
 test("the flip is idempotent and reversible — turning the offer back ON restores the default", async () => {
   const { host, chatId, svc } = await ruleFixture();
-  const rule = await svc.createRule({ principal: principal(host), chatId, name: "r", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "r", trigger: MSG_COMMITTED, actions: [SET_VAR] });
 
   await svc.setRuleSuggestOnRefusal({ principal: principal(host), ruleId: rule.id, suggestOnRefusal: false });
   await svc.setRuleSuggestOnRefusal({ principal: principal(host), ruleId: rule.id, suggestOnRefusal: false });
@@ -48,7 +49,7 @@ test("the flip is idempotent and reversible — turning the offer back ON restor
 test("the flip does NOT touch the rule's mint provenance — the whole reason it is not part of the PUT", async () => {
   const { host, chatId, svc } = await ruleFixture();
   // `pacingNudge` mints ONE rule carrying a `trigger_turn` (SPEND) arm — the exact class this knob governs.
-  const minted = await svc.createRuleFromPreset({ principal: principal(host), chatId, presetId: "pacingNudge" });
+  const minted = await svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, presetId: "pacingNudge" });
   const rule = minted[0];
   if (rule === undefined) {
     throw new Error("createRuleFromPreset minted no rules");

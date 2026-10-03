@@ -17,6 +17,7 @@
 
 import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/_shared/ports";
 import { expect, test } from "@playwright/test";
 import type { ActorClient } from "./support/actors.ts";
@@ -218,13 +219,13 @@ test("D16 from-join: a member's list + durable replay carry NO row below their o
     const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [characterId] });
     const chatId = started.chat.id;
     // seq 1 = the greeting; seq 2/3 are planted BEFORE the member is seated (model-free commits).
-    await host.mutation("chat.commitMessage", { chatId, content: PRE_JOIN });
-    await host.mutation("chat.commitMessage", { chatId, content: AT_JOIN });
+    await host.mutation("chat.commitMessage", { chatId, timeZone: UTC_TIME_ZONE, content: PRE_JOIN });
+    await host.mutation("chat.commitMessage", { chatId, timeZone: UTC_TIME_ZONE, content: AT_JOIN });
 
     const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
     // `redeemInvite` stamps joinSeq = the canon head at redeem (seq 3 — the AT_JOIN row).
-    await host.mutation("chat.commitMessage", { chatId, content: POST_JOIN });
+    await host.mutation("chat.commitMessage", { chatId, timeZone: UTC_TIME_ZONE, content: POST_JOIN });
 
     // ── The DEFAULT arm FIRST (D121-B): `joinHistoryVisibility` defaults to `full`, so an invited member
     // sees the whole admitted history. That is the DESIGN — and asserting it here means the clamped arm
@@ -309,7 +310,7 @@ test("EXPORT: the chat transcript download 404s for a seated MEMBER and 200s for
   try {
     const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [characterId] });
     const chatId = started.chat.id;
-    await host.mutation("chat.commitMessage", { chatId, content: PRE_JOIN });
+    await host.mutation("chat.commitMessage", { chatId, timeZone: UTC_TIME_ZONE, content: PRE_JOIN });
 
     const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
@@ -379,7 +380,7 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
     // `{{user}}` are the host's. The member is PRESENT, so D122 already puts their persona in the shared prompt,
     // but only as a headed people-block entry after the voice part, never as `{{user}}`. This is the honest
     // baseline for the pin, and exactly what a DEAD pin would look like after it.
-    const unpinned = await host.query<AssemblyPreview & PreviewBudget>("chat.previewAssembly", { chatId });
+    const unpinned = await host.query<AssemblyPreview & PreviewBudget>("chat.previewAssembly", { chatId, timeZone: UTC_TIME_ZONE });
     const unpinnedBytes = JSON.stringify(unpinned);
     expect(unpinnedBytes).toContain(MEMBER_PERSONA_NAME);
     expect(unpinnedBytes).toContain(MEMBER_PERSONA_DESCRIPTION);
@@ -396,7 +397,7 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
     // persona marker (ADR 0250 — the anchor human's seat persona binds `{{user}}`) and its description still
     // rides (owner ruling 2 — the presentation surface enters the shared prompt unconditionally, no toggle).
     // Pre-D122 the resolver read personas under the host's ownership, so a member-owned anchor resolved NULL.
-    const pinned = await host.query<AssemblyPreview & PreviewBudget>("chat.previewAssembly", { chatId });
+    const pinned = await host.query<AssemblyPreview & PreviewBudget>("chat.previewAssembly", { chatId, timeZone: UTC_TIME_ZONE });
     expect(JSON.stringify(pinned)).toContain(MEMBER_PERSONA_DESCRIPTION);
     expect(personaRowLabels(pinned)[0]).toContain(MEMBER_PERSONA_NAME);
 
@@ -418,7 +419,7 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
     // stops resolving and their persona leaves the room's prompt entirely: not the voice part, not the people
     // block, not the card's `{{user}}`. The pinned arm above is this arm's positive control.
     await member.mutation("invites.selfLeave", { chatId });
-    const departedBytes = JSON.stringify(await host.query<AssemblyPreview>("chat.previewAssembly", { chatId }));
+    const departedBytes = JSON.stringify(await host.query<AssemblyPreview>("chat.previewAssembly", { chatId, timeZone: UTC_TIME_ZONE }));
     expect(departedBytes).not.toContain(MEMBER_PERSONA_NAME);
     expect(departedBytes).not.toContain(MEMBER_PERSONA_DESCRIPTION);
     const departedCard = await host.query<MemberCard>("chat.getMemberCard", { chatId, characterId });
@@ -497,7 +498,7 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
 
     // The MEMBER fires the turn. The anchor is deliberately UNSET, so the only way their persona can reach
     // the prompt is the trigger-plane resolution D122 widened.
-    await member.mutation("chat.send", { chatId, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
+    await member.mutation("chat.send", { chatId, timeZone: UTC_TIME_ZONE, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
     // The presence socket must have SEEN the reply: a timed-out socket means the host was offline for part of
     // the turn, and the proof below would then describe a deferred turn rather than a live one.
     requireSatisfied(await hostSocket, "host presence socket");

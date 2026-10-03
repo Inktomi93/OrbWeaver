@@ -14,6 +14,7 @@ import type { Resolved } from "@orb/inference";
 import { rowIndexAtCacheDepth } from "@orb/inference";
 import type { Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createTurnPersonaResolver } from "@orb/server/entry/compose";
 import { parseWorldBookFile } from "@orb/server/kit/serde/world-info";
 import { and, eq } from "drizzle-orm";
@@ -337,7 +338,7 @@ describe("F3 — the system block speaks for the anchor human, whoever presses s
     await setSeatPersona(scn, scn.host, steve);
 
     await scn.send("hi", { principal: scn.principal() });
-    await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: scn.host, automationDepth: 1 });
+    await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: scn.host, automationDepth: 1, timeZone: UTC_TIME_ZONE });
 
     const human = requestAt(scn, 0);
     const auto = requestAt(scn, 1);
@@ -356,7 +357,7 @@ describe("F3 — the system block speaks for the anchor human, whoever presses s
     await seedMessage(scn.db, scn.chatId, 2, { role: "assistant", characterId: scn.chars[0] ?? null, content: "a reply" });
 
     await scn.send("hi", { principal: scn.principal() });
-    await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: scn.host, automationDepth: 1 });
+    await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: scn.host, automationDepth: 1, timeZone: UTC_TIME_ZONE });
 
     expect(userTexts(requestAt(scn, 1))[0]).toBe(userTexts(requestAt(scn, 0))[0]);
     expectHistoryPrefixKept(requestAt(scn, 0), requestAt(scn, 1));

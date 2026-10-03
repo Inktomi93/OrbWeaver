@@ -27,6 +27,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -2969,7 +2970,7 @@ describe("requestTurn — the non-human turn seam (walls: depth · authority)", 
     const attribution = triggeredBySpyRpg();
     const h = harness(db, names, { rpg: attribution.rpg });
 
-    const outcome = await h.requestTurn({ chatId, initiator: "automation", triggeredBy: author, automationDepth: 2 });
+    const outcome = await h.requestTurn({ chatId, initiator: "automation", triggeredBy: author, automationDepth: 2, timeZone: UTC_TIME_ZONE });
 
     // FIRES — one assistant reply committed; a non-human turn adds NO user line.
     expect(outcome.aborted).toBe(false);
@@ -2991,7 +2992,9 @@ describe("requestTurn — the non-human turn seam (walls: depth · authority)", 
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
 
-    await expect(h.requestTurn({ chatId, initiator: "automation", triggeredBy: host, automationDepth: AUTOMATION_DEPTH_HARD_CAP + 1 })).rejects.toMatchObject({
+    await expect(
+      h.requestTurn({ chatId, initiator: "automation", triggeredBy: host, automationDepth: AUTOMATION_DEPTH_HARD_CAP + 1, timeZone: UTC_TIME_ZONE }),
+    ).rejects.toMatchObject({
       code: "cascade_depth_exceeded",
     });
     expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
@@ -3002,7 +3005,7 @@ describe("requestTurn — the non-human turn seam (walls: depth · authority)", 
     const stranger = await seedUser(db, castId<Handle>("stranger")); // a real user, but NOT a participant of this chat
     const h = harness(db, names);
 
-    await expect(h.requestTurn({ chatId, initiator: "automation", triggeredBy: stranger, automationDepth: 1 })).rejects.toMatchObject({
+    await expect(h.requestTurn({ chatId, initiator: "automation", triggeredBy: stranger, automationDepth: 1, timeZone: UTC_TIME_ZONE })).rejects.toMatchObject({
       name: "ChatNotFoundError",
     });
     expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
@@ -3016,11 +3019,11 @@ describe("requestTurn — the non-human turn seam (walls: depth · authority)", 
     const h = harness(db, names);
 
     // The plugin membrane calls this exact shape (installer as initiator, cascade depth from the invocation).
-    const outcome = await h.requestTurn({ chatId, initiator: "plugin", triggeredBy: host, automationDepth: 1 });
+    const outcome = await h.requestTurn({ chatId, initiator: "plugin", triggeredBy: host, automationDepth: 1, timeZone: UTC_TIME_ZONE });
     const replyId = outcome.messages[0]?.id;
     expect(replyId !== undefined ? await loadTurnOrigin(db, chatId, replyId) : null).toEqual({ initiator: "plugin", automationDepth: 1 });
 
-    await expect(h.requestTurn({ chatId, initiator: "human", triggeredBy: host, automationDepth: 0 })).rejects.toMatchObject({
+    await expect(h.requestTurn({ chatId, initiator: "human", triggeredBy: host, automationDepth: 0, timeZone: UTC_TIME_ZONE })).rejects.toMatchObject({
       code: "forbidden_override",
     });
   });

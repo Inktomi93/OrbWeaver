@@ -16,6 +16,7 @@
 
 import process from "node:process";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, PersonaId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, E2E_LOCAL_ENGINE_LABEL, SINGLE_USER } from "./modes.ts";
 
 // The vite front door (the specs' baseURL). Every consumer of this module is a single-user-project spec, so
@@ -220,7 +221,7 @@ export async function sendTurn(chatId: ChatId, content: string, maxContextTokens
   if (compaction !== undefined) {
     intent["compaction"] = compaction;
   }
-  await trpcMutation("chat.send", { chatId, content, ...(Object.keys(intent).length === 0 ? {} : { intent }) });
+  await trpcMutation("chat.send", { chatId, timeZone: UTC_TIME_ZONE, content, ...(Object.keys(intent).length === 0 ? {} : { intent }) });
 }
 
 interface CharacterListPage {
@@ -566,18 +567,18 @@ const GROUP_TURN_MAX_OUTPUT_TOKENS = 32;
  *  spec's knob leaks into the other. Resolves after the WHOLE round commits — including every extra speaker
  *  a multi-speaker round drove and any auto-mode chain. */
 export function sendGroupTurn(chatId: ChatId, content: string): Promise<unknown> {
-  return trpcMutation("chat.send", { chatId, content, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
+  return trpcMutation("chat.send", { chatId, timeZone: UTC_TIME_ZONE, content, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
 }
 
 /** Host-summon one present character to speak next (`chat.forceCharacterTurn`) — the hard override that
  *  bypasses the policy entirely (and still reaches a MUTED seat: mute is passive arbitration exclusion). */
 export function forceCharacterTurn(chatId: ChatId, characterId: CharacterId): Promise<unknown> {
-  return trpcMutation("chat.forceCharacterTurn", { chatId, characterId, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
+  return trpcMutation("chat.forceCharacterTurn", { chatId, timeZone: UTC_TIME_ZONE, characterId, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
 }
 
 /** Regenerate ONE message slot (`chat.swipe`) — the per-speaker "individually swipeable" prover. */
 export function swipeMessage(chatId: ChatId, messageId: MessageId): Promise<unknown> {
-  return trpcMutation("chat.swipe", { chatId, messageId, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
+  return trpcMutation("chat.swipe", { chatId, timeZone: UTC_TIME_ZONE, messageId, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
 }
 
 /** One variant's identity + position (`chat.listMessageVariants`) — idx-ordered, NO content. The pointer
@@ -612,7 +613,7 @@ export async function firstVariantId(chatId: ChatId, messageId: MessageId): Prom
 /** Move a slot's SELECTED-variant pointer (`chat.selectVariant`) — a pure pointer move (no generation),
  *  so stepping back to idx 0 proves the original variant survived a rewrite intact. */
 export function selectVariant(chatId: ChatId, messageId: MessageId, variantId: string): Promise<unknown> {
-  return trpcMutation("chat.selectVariant", { chatId, messageId, variantId });
+  return trpcMutation("chat.selectVariant", { chatId, timeZone: UTC_TIME_ZONE, messageId, variantId });
 }
 
 /** The chat's ASSISTANT canon rows in seq order — the arbitration transcript every mode assertion reads
@@ -661,7 +662,7 @@ export interface GuidedSteerInput {
  *  SAME gather→build a real turn runs (`chat.previewAssembly` — host-only; single-user AUTH_MODE is host).
  *  The pre-turn "did the steer shape the assembly" instrument (no generation, nothing persists). */
 export function previewAssembly(chatId: ChatId, guided?: GuidedSteerInput): Promise<AssemblyPreview> {
-  return trpcQuery<AssemblyPreview>("chat.previewAssembly", { chatId, ...(guided === undefined ? {} : { guided }) });
+  return trpcQuery<AssemblyPreview>("chat.previewAssembly", { chatId, timeZone: UTC_TIME_ZONE, ...(guided === undefined ? {} : { guided }) });
 }
 
 /** The whole assembled prompt text (static + dynamic + every in-chat injection's content) as ONE string —
@@ -1078,7 +1079,7 @@ export function revealHidden(chatId: ChatId): Promise<RevealView> {
  *  in a real canon row so the render + reveal + strip seams are exercised without depending on the 8B emitting
  *  the exact grammar. The message stays a real durable row (reveal derives from stored bodies). */
 export function editMessage(chatId: ChatId, messageId: MessageId, content: string): Promise<unknown> {
-  return trpcMutation("chat.editMessage", { chatId, messageId, content });
+  return trpcMutation("chat.editMessage", { chatId, timeZone: UTC_TIME_ZONE, messageId, content });
 }
 
 // ── P5 wand steer (parity-plus §6.2). The composer wand fires a game steer by KIND (`guided.gameSteer=<kind>`);
@@ -1094,7 +1095,13 @@ export function editMessage(chatId: ChatId, messageId: MessageId, content: strin
  *  HISTORY, so it lands in the vLLM `messages` array — NOT the previewAssembly prefix fields (which is why the
  *  wire capture, not previewAssembly, is the honest instrument for the steer's live-state resolution). */
 export function sendGameSteerTurn(chatId: ChatId, kind: string): Promise<unknown> {
-  return trpcMutation("chat.send", { chatId, content: "Continue.", intent: { maxOutputTokens: 24 }, guided: { action: "response", gameSteer: kind } });
+  return trpcMutation("chat.send", {
+    chatId,
+    timeZone: UTC_TIME_ZONE,
+    content: "Continue.",
+    intent: { maxOutputTokens: 24 },
+    guided: { action: "response", gameSteer: kind },
+  });
 }
 
 /** Flatten a vLLM wire capture's `messages` array to ONE searchable string (openai-compat content join). */

@@ -2,6 +2,7 @@
 // through orb's real chat verbs, and read each provider call's usage off the assistant rows the verbs return.
 // It registers every row it creates for removal.
 import { errorMessage } from "@orb/kit/error-message";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AppRouter } from "@orb/server/transport/trpc";
 import { createTRPCClient, httpLink } from "@trpc/client";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -79,13 +80,15 @@ type TurnStep = Extract<ProbeStep, { kind: "send" | "continue" | "generate" }>;
 
 async function runTurn(api: OrbApi, chatId: ChatId, step: TurnStep): Promise<TurnOutcome> {
   const intent = { maxOutputTokens: REPLY_MAX_TOKENS };
+  // One fixed clock zone, so a probe's prompt bytes never vary with the box the tool runs on.
+  const timeZone = UTC_TIME_ZONE;
   if (step.kind === "send") {
-    return await api.chat.send.mutate({ chatId, content: step.content, intent });
+    return await api.chat.send.mutate({ chatId, content: step.content, intent, timeZone });
   }
   if (step.kind === "continue") {
-    return await api.chat.continueTurn.mutate({ chatId, messageId: await lastReplyId(api, chatId), intent });
+    return await api.chat.continueTurn.mutate({ chatId, messageId: await lastReplyId(api, chatId), intent, timeZone });
   }
-  return await api.chat.generate.mutate({ chatId, intent });
+  return await api.chat.generate.mutate({ chatId, intent, timeZone });
 }
 
 async function runStep(api: OrbApi, chatId: ChatId, step: ProbeStep): Promise<CaseRun> {
@@ -94,7 +97,7 @@ async function runStep(api: OrbApi, chatId: ChatId, step: ProbeStep): Promise<Ca
     return NO_RUN;
   }
   if (step.kind === "commit") {
-    await api.chat.commitMessage.mutate({ chatId, content: step.content });
+    await api.chat.commitMessage.mutate({ chatId, content: step.content, timeZone: UTC_TIME_ZONE });
     return NO_RUN;
   }
   const outcome = await runTurn(api, chatId, step);

@@ -14,6 +14,7 @@ import type {
 } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
 import type { AutomationRuleCreationId, AutomationRuleId, AutomationSuggestionId, ChatId } from "@orb/kit/ids";
+import type { IanaTimeZone } from "@orb/kit/time";
 import type { RulePresetKnobOverrides } from "./presets.ts";
 
 /** Common to every global-variable verb: the acting principal whose `userId` scopes the plane. */
@@ -51,6 +52,8 @@ interface RuleEditableParams extends Readonly<Omit<AutomationRuleEditableInput, 
   /** AUTHORED arms (the schema's INPUT — defaulted fields optional). The verb PARSES them and persists
    *  the parsed result, so a caller never spells a default it did not choose. */
   readonly actions: readonly AutomationActionInput[];
+  /** The saver's zone; every write stamps it, so the rule's clock follows whoever last saved it. */
+  readonly timeZone: IanaTimeZone;
 }
 
 /** Mint provenance (the §3-S3 flip shape) — WHICH rule preset a mint came from, with the COMPLETE
@@ -90,6 +93,8 @@ export interface CreateRuleFromPresetParams extends AutomationActorParams {
   readonly chatId: ChatId | null;
   readonly presetId: RulePresetId;
   readonly knobs?: RulePresetKnobOverrides;
+  /** The minting caller's zone, stamped on every rule of the set (an hours knob means the caller's hours). */
+  readonly timeZone: IanaTimeZone;
 }
 
 export interface SetRuleEnabledParams extends AutomationActorParams {

@@ -5,6 +5,7 @@
 
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { can } from "@orb/server/domain/admin";
 import { describe } from "vitest";
 import { AutomationChatNotFoundError, RuleNotFoundError } from "../../../../packages/server/src/domain/automation/contract/errors.ts";
@@ -21,6 +22,7 @@ async function seedRule(
 ): Promise<AutomationRuleId> {
   const id = mintTypeId("automation_rule");
   await insertRule(fixture.db, {
+    timeZone: UTC_TIME_ZONE,
     id,
     ownerId,
     creationRequestId: null,

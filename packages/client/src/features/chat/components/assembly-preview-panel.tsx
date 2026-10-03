@@ -32,6 +32,7 @@ import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
+import { viewerTimeZone } from "#lib";
 import { AssemblyPreviewDiagnostics } from "./assembly-preview-diagnostics.tsx";
 
 export interface AssemblyPreviewPanelProps {
@@ -56,7 +57,7 @@ function PreviewBody({ chatId }: AssemblyPreviewPanelProps): ReactElement {
   // Plural useSuspenseQueries so previewAssembly + getShapeTrace fire in PARALLEL — two sequential
   // useSuspenseQuery calls waterfall the second read behind the first.
   const [{ data }, { data: shapeTrace }] = useSuspenseQueries({
-    queries: [trpc.chat.previewAssembly.queryOptions({ chatId }), trpc.chat.getShapeTrace.queryOptions({ chatId })],
+    queries: [trpc.chat.previewAssembly.queryOptions({ chatId, timeZone: viewerTimeZone() }), trpc.chat.getShapeTrace.queryOptions({ chatId })],
   });
   const { prompt, trace, budget } = data;
   const gameState = budget.sources.find((source) => source.source === "game-state");

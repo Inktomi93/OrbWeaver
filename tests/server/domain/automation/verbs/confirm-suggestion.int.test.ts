@@ -17,6 +17,7 @@ import type { VariableWriteResult } from "@orb/contracts/chat";
 import { automationFires, chatParticipants } from "@orb/db";
 import type { AutomationRuleId, AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AutomationOps, AutomationTurnRequest, ExecutePluginSuggestion } from "@orb/server/domain/automation";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -112,6 +113,7 @@ async function suggestFixture(): Promise<{
 /** Mint + enable a confirm-first `trigger_turn` rule on the fixture's chat. */
 async function enableConfirmFirstRule(fx: Awaited<ReturnType<typeof ruleFixture>>): Promise<string> {
   const rule = await fx.svc.createRule({
+    timeZone: UTC_TIME_ZONE,
     principal: principal(fx.host),
     chatId: fx.chatId,
     name: "recap",
@@ -150,6 +152,7 @@ async function continuationFixture(): Promise<{
  *  direct `set_variable` behind it — #1553's own worked example. */
 async function enableMixedRule(fx: Awaited<ReturnType<typeof ruleFixture>>): Promise<string> {
   const rule = await fx.svc.createRule({
+    timeZone: UTC_TIME_ZONE,
     principal: principal(fx.host),
     chatId: fx.chatId,
     name: "mixed",
@@ -219,7 +222,9 @@ describe("the confirm-first card", () => {
     expect(fixture.events.filter((e) => e.type === "suggestionResolved" && e.suggestionId === ask?.id)).toHaveLength(1);
     // THE IDENTITY LAW: the frame that executed is the AUTHOR's, with the author's steer, at the rule's own
     // cascade depth — the confirmer authorized it, they did not become its author.
-    expect(turns).toEqual([{ authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, guided: "Recap the scene." }]);
+    expect(turns).toEqual([
+      { authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, timeZone: UTC_TIME_ZONE, guided: "Recap the scene." },
+    ]);
     const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId: castId(ruleId) });
     expect(fires).toHaveLength(1);
     expect(fires[0]?.outcome).toBe("fired");
@@ -263,7 +268,9 @@ describe("the confirm-first card", () => {
 
     // BOTH remaining arms ran, IN ORDER: the confirmed trigger_turn, then the continuation's set_variable.
     expect(result).toEqual({ ran: "stashed-arm", outcome: "fired" });
-    expect(turns).toEqual([{ authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, guided: "Recap the scene." }]);
+    expect(turns).toEqual([
+      { authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, timeZone: UTC_TIME_ZONE, guided: "Recap the scene." },
+    ]);
     expect(varWrites).toEqual(["before=1", "after=2"]);
     // ONE fire row for the confirm, naming the CONFIRMED arm (the continuation shares its terminal, exactly
     // as a fresh dispatch's `finalizeRule` writes one row for a whole rule's arm sequence).
@@ -377,6 +384,7 @@ describe("the rate-refusal invitation (RULED F4)", () => {
   /** Enable a SPEND rule with its fire-rate ceiling slammed shut. */
   async function enableRateCappedSpendRule(fx: Awaited<ReturnType<typeof ruleFixture>>): Promise<AutomationRuleId> {
     const rule = await fx.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(fx.host),
       chatId: fx.chatId,
       name: "pacing",
@@ -416,12 +424,15 @@ describe("the rate-refusal invitation (RULED F4)", () => {
 
     expect(result).toEqual({ ran: "fresh-run", outcome: "fired" });
     // The arm really ran, as the AUTHOR, at depth 0's child depth.
-    expect(turns).toEqual([{ authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, guided: "Nudge the pacing." }]);
+    expect(turns).toEqual([
+      { authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, timeZone: UTC_TIME_ZONE, guided: "Nudge the pacing." },
+    ]);
   });
 
   test("a NON-spend rule's refusal raises NO invitation (F4 is ON for spend arms, and only those)", async () => {
     const { fixture } = await suggestFixture();
     const rule = await fixture.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(fixture.host),
       chatId: fixture.chatId,
       name: "bookkeeping",
@@ -659,6 +670,7 @@ describe('S5 — an ANALYSIS-origin confirm (the {via:"analysis"} payload arm)',
     const { fixture } = await suggestFixture();
     // An enabled analysis rule (the state row's FK parent + the liveness re-check's subject).
     const rule = await fixture.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(fixture.host),
       chatId: fixture.chatId,
       name: "analysis",
@@ -803,6 +815,7 @@ describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", (
     // TWO rules on one chat: an ordinary arm to hold the lane with, and the confirm-first arm that raises the
     // card. Both fire off the same `chatOpened`, in position order.
     const holder = await fixture.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(fixture.host),
       chatId: fixture.chatId,
       name: "bookkeeping",
@@ -810,6 +823,7 @@ describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", (
       actions: [{ type: "set_variable", scope: "chat", key: "beats", op: "inc" }],
     });
     const asker = await fixture.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(fixture.host),
       chatId: fixture.chatId,
       name: "recap",

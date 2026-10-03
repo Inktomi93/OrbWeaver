@@ -2,6 +2,7 @@ import { automationRuleEditableSchema, automationRuleUpdateSchema } from "@orb/c
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ruleEditorValues } from "../../../../../packages/client/src/features/automation/lib/rule-editor-model.ts";
 import { createSeededIds } from "../../../../support/ids.ts";
@@ -57,6 +58,7 @@ for (const scenario of cases) {
       rulePresetId: null,
       rulePresetKnobs: null,
       suggestOnRefusal: true,
+      timeZone: UTC_TIME_ZONE,
       lastError: null,
       lastFiredAt: null,
       createdAt: 1,

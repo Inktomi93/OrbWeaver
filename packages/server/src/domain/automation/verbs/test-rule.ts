@@ -12,7 +12,7 @@ import { countChatMessages } from "../persistence/canon-reads.ts";
 import { insertFire } from "../persistence/fires.ts";
 import { listGlobalVariables } from "../persistence/queries.ts";
 import { toRuleView } from "../persistence/rules.ts";
-import { emptyDryRunEnv, evaluatePredicate, renderArmPreview, synthFact } from "../substrate/dry-run.ts";
+import { emptyDryRunEnv, evaluatePredicate, renderArmPreview, ruleClock, synthFact } from "../substrate/dry-run.ts";
 
 export function createTestRule(ctx: AutomationContext): AutomationService["testRule"] {
   return async ({ principal, ruleId, sampleEvent }: TestRuleParams): Promise<TestRunResult> => {
@@ -31,7 +31,7 @@ export function createTestRule(ctx: AutomationContext): AutomationService["testR
     ]);
     const global = Object.fromEntries(globalViews.map((v) => [v.key, v.value]));
     const event = sampleEvent ?? synthFact(view.trigger, chatId);
-    const env = emptyDryRunEnv({ chatId, messageCount, global, event, nowMs });
+    const env = emptyDryRunEnv({ chatId, messageCount, global, event, clock: ruleClock(nowMs, rule.timeZone) });
 
     const predicate = evaluatePredicate(view.predicateCel, env, chatScoped);
     const arms = view.actions.map((action) => renderArmPreview(action, { env, chatScoped, nowMs, prng: ctx.prng }));

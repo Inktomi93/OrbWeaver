@@ -1,6 +1,7 @@
 import { automationRuleCreateSchema, automationRuleUpdateSchema } from "@orb/contracts/automation";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { editableRule } from "../../../../../packages/client/src/features/automation/lib/rule-save-session.ts";
 import { createSeededIds } from "../../../../support/ids.ts";
@@ -30,6 +31,7 @@ const initial: Parameters<typeof editableRule>[0] = {
   rulePresetKnobs: null,
   matchAutomationEvents: false,
   suggestOnRefusal: true,
+  timeZone: UTC_TIME_ZONE,
   cooldownSeconds: 0,
   maxFiresPerHour: 30,
   lastError: null,

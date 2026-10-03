@@ -29,7 +29,7 @@ import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { createEntityMutation, useInvalidation, useTRPC, useTRPCClient } from "#data";
-import { GENERATION_FAILED_DETAIL, isSilencedTurnAbort, turnMutationToast } from "#lib";
+import { GENERATION_FAILED_DETAIL, isSilencedTurnAbort, turnMutationToast, viewerTimeZone } from "#lib";
 import { pushFiredSteer } from "#state";
 import { notifyImpersonateFailure } from "../lib/guided-failure-notices.ts";
 
@@ -47,6 +47,7 @@ interface GuidedSteerInput {
 
 interface GuidedTurnVars {
   readonly chatId: ChatId;
+  readonly timeZone: string;
   readonly guided?: GuidedSteerInput | undefined;
   /** F5 — a steer + a chosen speaker in ONE `chat.generate` (a targeted nudge in a multi-character room);
    *  null/omitted ⇒ arbitration picks. The verb has always accepted both fields together. */
@@ -59,6 +60,7 @@ interface GuidedTurnVars {
 
 interface GuidedSlotVars {
   readonly chatId: ChatId;
+  readonly timeZone: string;
   readonly messageId: MessageId;
   readonly guided?: GuidedSteerInput | undefined;
 }
@@ -233,36 +235,39 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
         setStopImpersonation(null);
         finish();
       };
-      const handle = trpcClient.chat.impersonateStream.subscribe(guided === undefined ? { chatId: targetChatId } : { chatId: targetChatId, guided }, {
-        // The yields are `tracked()` envelopes: the payload rides `envelope.data` — a `{ delta }` chunk OR the
-        // typed `__subscriptionError` terminal frame `withSubscriptionErrors` emits for a domain error (the
-        // participant gate / a provider fault), which we surface as a rejection rather than a silent stall. Its
-        // `message` is the CURATED domain message, so it rides through as the toast detail (the same treatment
-        // `use-chat-bus` gives its own terminal frame).
-        onData: (envelope) => {
-          const payload = envelope.data;
-          if ("__subscriptionError" in payload) {
-            settle(() => reject(new Error(payload.message)));
-            return;
-          }
-          accumulated += payload.delta;
-          fill(accumulated);
+      const handle = trpcClient.chat.impersonateStream.subscribe(
+        { chatId: targetChatId, timeZone: viewerTimeZone(), ...(guided === undefined ? {} : { guided }) },
+        {
+          // The yields are `tracked()` envelopes: the payload rides `envelope.data` — a `{ delta }` chunk OR the
+          // typed `__subscriptionError` terminal frame `withSubscriptionErrors` emits for a domain error (the
+          // participant gate / a provider fault), which we surface as a rejection rather than a silent stall. Its
+          // `message` is the CURATED domain message, so it rides through as the toast detail (the same treatment
+          // `use-chat-bus` gives its own terminal frame).
+          onData: (envelope) => {
+            const payload = envelope.data;
+            if ("__subscriptionError" in payload) {
+              settle(() => reject(new Error(payload.message)));
+              return;
+            }
+            accumulated += payload.delta;
+            fill(accumulated);
+          },
+          onComplete: () => settle(resolve),
+          // A link-level throw (a non-retryable code / a dead EventSource) carries framework text, never user
+          // copy — the caller's toast uses the generic detail and the raw error rides `cause` for the console.
+          onError: (error) => settle(() => reject(new Error(GENERATION_FAILED_DETAIL, { cause: error }))),
+          // The retry-instead-of-fail arm (see the doc comment): `connecting` WITH an error means the link is
+          // about to silently re-open the stream. Terminal ONLY when the error carries a tRPC error SHAPE
+          // (`.data`) — i.e. the SERVER reported the failure and the link chose to retry it. A shapeless error
+          // is the socket dropping (`TRPCClientError.from(<DOM Event>)`, message "Unknown error"), which stays
+          // on tRPC's own reconnect path.
+          onConnectionStateChange: (state) => {
+            if (state.error !== null && state.error.data !== undefined) {
+              settle(() => reject(new Error(GENERATION_FAILED_DETAIL, { cause: state.error })));
+            }
+          },
         },
-        onComplete: () => settle(resolve),
-        // A link-level throw (a non-retryable code / a dead EventSource) carries framework text, never user
-        // copy — the caller's toast uses the generic detail and the raw error rides `cause` for the console.
-        onError: (error) => settle(() => reject(new Error(GENERATION_FAILED_DETAIL, { cause: error }))),
-        // The retry-instead-of-fail arm (see the doc comment): `connecting` WITH an error means the link is
-        // about to silently re-open the stream. Terminal ONLY when the error carries a tRPC error SHAPE
-        // (`.data`) — i.e. the SERVER reported the failure and the link chose to retry it. A shapeless error
-        // is the socket dropping (`TRPCClientError.from(<DOM Event>)`, message "Unknown error"), which stays
-        // on tRPC's own reconnect path.
-        onConnectionStateChange: (state) => {
-          if (state.error !== null && state.error.data !== undefined) {
-            settle(() => reject(new Error(GENERATION_FAILED_DETAIL, { cause: state.error })));
-          }
-        },
-      });
+      );
       close = (): void => handle.unsubscribe();
       // The user's Stop: unsubscribe + resolve. A cancel is NOT a failure — resolving means no toast fires and
       // the D57 steer-restore never runs, so the drafted text the user chose to keep survives untouched.
@@ -280,7 +285,8 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       // The Response icon passes `afterAssistant` when the tail is an assistant turn — the server appends the
       // `responseNudge` so a reply after the model's own line isn't rudderless (a user-tail Response omits it).
       const nudgeAfterAssistant = respOpts?.afterAssistant === true;
-      let vars: GuidedTurnVars = guided === undefined ? { chatId } : { chatId, guided };
+      const timeZone = viewerTimeZone();
+      let vars: GuidedTurnVars = guided === undefined ? { chatId, timeZone } : { chatId, timeZone, guided };
       if (speaker !== null) {
         vars = { ...vars, speakerCharacterId: speaker };
       }
@@ -291,17 +297,14 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
     },
     fireGameSteer: (kind): void => {
       // No perFire: the steer is a picked KIND, not recoverable composer text — nothing to restore/recall.
-      generate.mutate({ chatId, guided: { action: "response", gameSteer: kind } });
+      generate.mutate({ chatId, timeZone: viewerTimeZone(), guided: { action: "response", gameSteer: kind } });
     },
     fireSwipe: (input): void => {
       if (tailAssistantMessageId === null) {
         return;
       }
       const guided = steerFor("swipe", input);
-      swipe.mutate(
-        guided === undefined ? { chatId, messageId: tailAssistantMessageId } : { chatId, messageId: tailAssistantMessageId, guided },
-        perFire(input),
-      );
+      swipe.mutate({ chatId, messageId: tailAssistantMessageId, timeZone: viewerTimeZone(), ...(guided === undefined ? {} : { guided }) }, perFire(input));
     },
     fireContinue: (input): void => {
       if (tailAssistantMessageId === null) {
@@ -309,7 +312,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       }
       const guided = steerFor("continue", input);
       continueTurn.mutate(
-        guided === undefined ? { chatId, messageId: tailAssistantMessageId } : { chatId, messageId: tailAssistantMessageId, guided },
+        { chatId, messageId: tailAssistantMessageId, timeZone: viewerTimeZone(), ...(guided === undefined ? {} : { guided }) },
         perFire(input),
       );
     },
@@ -332,7 +335,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       };
       // `perFire` records the TYPED text into the recovery ring — the picked kinds are chips the modal keeps
       // (D57 state ownership), so there is nothing of them to lose or restore.
-      rewrite.mutate({ chatId, messageId: tailAssistantMessageId, guided }, perFire(input));
+      rewrite.mutate({ chatId, messageId: tailAssistantMessageId, timeZone: viewerTimeZone(), guided }, perFire(input));
     },
     fireImpersonate: (input, person, onDrafted): void => {
       const guided = steerFor("impersonate", input, person);

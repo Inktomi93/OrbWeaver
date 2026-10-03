@@ -6,6 +6,7 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import { automationRules } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createCas } from "@orb/server/infra/storage";
 import { eq } from "drizzle-orm";
 import { createApp } from "../../../../../packages/server/src/entry/app.ts";
@@ -14,6 +15,7 @@ import { principal } from "../../../domain/automation/_support.ts";
 import { seedChat, seedParticipant } from "../../../domain/chat/_support.ts";
 
 const body = {
+  timeZone: UTC_TIME_ZONE,
   name: "custom",
   trigger: { bus: "chat" as const, type: "messageCommitted" as const },
   actions: [{ type: "set_variable" as const, scope: "chat" as const, key: "mood", op: "set" as const, value: "grim" }],
@@ -39,6 +41,40 @@ test("owner-local global requests and reorder cannot recover or write another ow
   await ownerCaller.automation.reorderRules({ chatId: null, orderedIds: [own.id] });
   expect(await otherCaller.automation.listOwnerRules()).toEqual([foreign]);
   expect(await ownerCaller.automation.listOwnerRules()).toEqual([own]);
+});
+
+test("a save's zone lands canonical, and a zone the server does not know is stored as UTC instead of blocking the save", async ({ db, ownerCaller }) => {
+  const chatId = await seedChat(db, "zones", { id: mintTypeId(ID_PREFIX.chat) });
+  await seedParticipant(db, { chatId, key: "zones-host", userId: OWNER_USER_ID, role: "host" });
+  const birth = (timeZone: string): Parameters<typeof ownerCaller.automation.createRule>[0] => ({
+    ...body,
+    timeZone,
+    chatId,
+    creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation),
+  });
+  expect((await ownerCaller.automation.createRule(birth("Etc/Unknown"))).timeZone).toBe("UTC");
+  expect((await ownerCaller.automation.createRule(birth("+05:45"))).timeZone).toBe("UTC");
+  const minted = await ownerCaller.automation.createRuleFromPreset({ chatId, presetId: "pacingNudge", timeZone: "Mars/Olympus_Mons" });
+  expect(minted.map((mintedRule) => mintedRule.timeZone)).toEqual(["UTC"]);
+
+  const rule = await ownerCaller.automation.createRule(birth("asia/kathmandu"));
+  expect(rule.timeZone).toBe("Asia/Kathmandu");
+  expect((await ownerCaller.automation.updateRule({ ...body, timeZone: "Etc/Unknown", ruleId: rule.id })).timeZone).toBe("UTC");
+});
+
+test("a stored zone the server no longer knows still lists, so the host can reopen the rule and re-save it", async ({ db, ownerCaller }) => {
+  const chatId = await seedChat(db, "stale-zone", { id: mintTypeId(ID_PREFIX.chat) });
+  await seedParticipant(db, { chatId, key: "stale-zone-host", userId: OWNER_USER_ID, role: "host" });
+  const rule = await ownerCaller.automation.createRule({ ...body, chatId, creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation) });
+  // A zone this ICU never knew stands in for one a future ICU drops.
+  await db
+    .update(automationRules)
+    .set({ timeZone: "Mars/Olympus_Mons" as typeof automationRules.$inferSelect.timeZone })
+    .where(eq(automationRules.id, rule.id));
+
+  expect((await ownerCaller.automation.listRules({ chatId })).map((row) => row.timeZone)).toEqual(["Mars/Olympus_Mons"]);
+  const saved = await ownerCaller.automation.updateRule({ ...body, timeZone: "Asia/Kathmandu", ruleId: rule.id });
+  expect(saved.timeZone).toBe("Asia/Kathmandu");
 });
 
 test("strict mounted authoring creates disabled, updates losslessly without birth metadata, then reorders", async ({

@@ -14,12 +14,12 @@
 import type { AutomationCelEnv } from "@orb/contracts/automation";
 import { automationActionsSchema } from "@orb/contracts/automation";
 import type { PromptTransform } from "@orb/contracts/chat";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
 import type { PromptTransformIndex, PromptTransformIndexDeps, RuleRow } from "../contract/ops.ts";
 import { countChatMessages } from "../persistence/canon-reads.ts";
 import { loadEnabledTurnStartedRules, recordRuleError } from "../persistence/rules.ts";
 import { authorGlobals } from "../substrate/cel-env.ts";
-import { evaluatePredicate, nowFields } from "../substrate/dry-run.ts";
+import { evaluatePredicate, ruleClock } from "../substrate/dry-run.ts";
 import { renderArmTemplate } from "../substrate/macro-render.ts";
 
 /** The `PromptTransform.id` namespace for automation-registered transforms (`automation:<ruleId>:<armIndex>` —
@@ -37,18 +37,13 @@ const DRAFT_MACRO_KEY = "draft";
  *  live dispatch env carries, MINUS `event` (a transform applies inside the pipeline; there is no trigger fact
  *  synchronously — the `{{expr::…}}` posture). `vars` is the pipeline-supplied runtime fold-cache
  *  snapshot (read-only); choice/global/messageCount are read fresh so a predicate over them sees turn-time truth. */
-async function buildTransformEnv(
-  deps: PromptTransformIndexDeps,
-  chatId: ChatId,
-  authorUserId: UserId,
-  vars: Record<string, string>,
-): Promise<AutomationCelEnv> {
+async function buildTransformEnv(deps: PromptTransformIndexDeps, chatId: ChatId, rule: RuleRow, vars: Record<string, string>): Promise<AutomationCelEnv> {
   const [choice, global, messageCount] = await Promise.all([
     deps.ops.chat.readChoicePicks(chatId),
-    authorGlobals(deps.db, authorUserId),
+    authorGlobals(deps.db, rule.ownerId),
     countChatMessages(deps.db, chatId),
   ]);
-  return { vars, choice, global, chat: { id: chatId, messageCount }, now: nowFields(deps.now()) };
+  return { vars, choice, global, chat: { id: chatId, messageCount }, ...ruleClock(deps.now(), rule.timeZone) };
 }
 
 /** One `transform_draft` arm resolved to its pipeline coordinates — the chat it guards, its fixed point, the
@@ -99,7 +94,7 @@ function buildRuleTransform(deps: PromptTransformIndexDeps, rule: RuleRow, spec:
       if (env.chatId !== spec.chatId) {
         return draft;
       }
-      const celEnv = await buildTransformEnv(deps, spec.chatId, rule.ownerId, env.vars);
+      const celEnv = await buildTransformEnv(deps, spec.chatId, rule, env.vars);
       const verdict = evaluatePredicate(rule.predicateCel, celEnv, true);
       if (verdict !== true) {
         // A FALSE predicate is the rule working — it is the whole point of having one, and recording it would
@@ -112,7 +107,8 @@ function buildRuleTransform(deps: PromptTransformIndexDeps, rule: RuleRow, spec:
       const rendered = renderArmTemplate({
         env: celEnv,
         chatScoped: true,
-        nowMs: deps.now(),
+        // The instant the predicate read, so the template and the predicate agree on one clock.
+        nowMs: celEnv.now.epochMs,
         prng: deps.prng,
         template: spec.template,
         macroEnv: { [DRAFT_MACRO_KEY]: draft },

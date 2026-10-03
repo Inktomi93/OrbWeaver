@@ -167,9 +167,8 @@ function analysisBeatPredicate(everyN: number): string {
  *  at mint, so which shape is built is decided once, here, rather than by a CEL expression that has to
  *  compute it on every event. Law 2's `int()` rides `now.hour` for the same reason it rides everything else.
  *
- *  THE HOURS ARE UTC, and that is a real limitation rather than an implicit convention: `now.hour` is
- *  `getUTCHours()` (`substrate/dry-run.ts::nowFields`) — the dispatch env carries no timezone, and inventing
- *  one for this preset would be a second clock the engine does not have. The knob help says so out loud. */
+ *  The hours are the minting host's: the mint stamps the caller's zone on the rule and `now.hour` reads in it
+ *  (`substrate/dry-run.ts::ruleClock`). The preset needs no clock of its own. */
 function awakeHoursPredicate(fromHour: number, untilHour: number): string | null {
   if (fromHour === untilHour) {
     return null;
@@ -1091,15 +1090,15 @@ const ASYNC_TABLE_NUDGE = defineRulePreset({
     },
     quietFromHour: {
       kind: "number",
-      label: "Quiet hours start (UTC)",
-      help: "No notifications from this hour. Set both bounds to the same hour for none. Hours are UTC — the engine's clock has no timezone.",
+      label: "Quiet hours start",
+      help: "No notifications from this hour, on your local clock. Set both bounds to the same hour for none.",
       default: 23,
       min: HOUR_MIN,
       max: HOUR_MAX,
     },
     quietUntilHour: {
       kind: "number",
-      label: "Quiet hours end (UTC)",
+      label: "Quiet hours end",
       help: "Notifications resume from this hour.",
       default: 8,
       min: HOUR_MIN,

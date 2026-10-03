@@ -45,6 +45,7 @@ import type {
   WorldBookId,
 } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import type { IanaTimeZone } from "@orb/kit/time";
 import type { ResolveViewerVisibility } from "#domain/chat";
 import type { AnalysisConfirmAct } from "./analysis.ts";
 import type { CreateRuleParams } from "./params.ts";
@@ -79,6 +80,7 @@ export interface PlannedRuleInsert {
   readonly matchAutomationEvents: boolean;
   readonly cooldownSeconds: number;
   readonly maxFiresPerHour: number;
+  readonly timeZone: IanaTimeZone;
   readonly createdAt: number;
   readonly updatedAt: number;
 }
@@ -172,6 +174,9 @@ export interface AutomationTurnRequest {
   readonly speakerCharacterId?: CharacterId | undefined;
   /** The macro-RENDERED guided steer (the arm renders `guidedTemplate` first). Absent ⇒ no steer. */
   readonly guided?: string | undefined;
+  /** The rule's own clock (`automationRuleClockZone`): an autonomous turn has no viewer, so its time macros read
+   *  the zone its author's browser stamped on the rule, the same clock its predicate and templates read. */
+  readonly timeZone: IanaTimeZone;
 }
 
 // ── the `run_tool` arm's seam onto the ONE tool registry (D146) ───────────────────────────────────────

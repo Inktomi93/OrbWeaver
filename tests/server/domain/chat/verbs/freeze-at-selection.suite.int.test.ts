@@ -24,6 +24,7 @@ import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
 import type { Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { parseIanaTimeZone } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
 import { createEdit } from "../../../../../packages/server/src/domain/chat/verbs/edit.ts";
 import { scenario, tape } from "../../../../support/chat/index.ts";
@@ -181,4 +182,28 @@ test("a DISABLED member drops from the greeting re-bake's foreign-input consent 
 
   expect(presentHumanUserIds).toContain(scn.host);
   expect(presentHumanUserIds).not.toContain(member);
+});
+
+test("a baked clock is the viewer's: the first user line and a later selection freeze `{{time}}` in the zone each request carried", async () => {
+  const kathmandu = parseIanaTimeZone("Asia/Kathmandu");
+  if (kathmandu === null) {
+    throw new Error("the platform must know Asia/Kathmandu");
+  }
+  // 20:00 UTC is 01:45 the next morning in Kathmandu (+5:45).
+  const scn = await scenario.chat(tape(), { characters: ["aria"], ctx: { now: () => Date.UTC(2026, 0, 15, 20, 0) } });
+  const greeting = await seedMessage(scn.db, scn.chatId, 1, { role: "assistant", characterId: scn.chars[0] ?? null, content: "Selected at {{time}}" });
+  const alternateId = await seedAlternate(scn.db, greeting.messageId, "Alternate at {{time}}");
+  const edit = createEdit(scn.ctx, {
+    emit: () => Promise.resolve(),
+    resolveForeignInputs: foreignInputsStub,
+    claimChat: (): Promise<void> => Promise.resolve(),
+    prng: () => 0.5,
+  });
+
+  // A post-without-generate line closes the window exactly as a send does, and bakes in its sender's zone.
+  await scn.turn.commitMessage({ principal: scn.principal(), chatId: scn.chatId, content: "hello", timeZone: kathmandu });
+  expect((await readProvenance(scn.db, greeting.variantId)).content).toBe("Selected at 01:45:00");
+
+  await edit.selectVariant({ principal: scn.principal(), chatId: scn.chatId, messageId: greeting.messageId, variantId: alternateId, timeZone: kathmandu });
+  expect((await readProvenance(scn.db, alternateId)).content).toBe("Alternate at 01:45:00");
 });

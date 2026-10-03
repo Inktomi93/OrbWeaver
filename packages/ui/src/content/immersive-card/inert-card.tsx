@@ -1,8 +1,8 @@
 // The INERT card — the Tier-A presentation of an `html-card` block.
 //
-// WHY THIS EXISTS. D44 §12.2 splits card rendering in two: Tier B (the opt-in per-character trust tier) is
-// the sandboxed `SandboxFrame` mini-UI with the card's own CSS; Tier A is the DEFAULT inert sanitized
-// allowlist in the main DOM, and it FORBIDS `<style>` and inline `style=`. So a Tier-A card is a card whose
+// WHY THIS EXISTS. D294 §12.2 splits card rendering in two: Tier B (a trusted author, or a room that turned
+// immersive HTML on) is the sandboxed `SandboxFrame` mini-UI with the card's own CSS; Tier A is the inert
+// sanitized allowlist in the main DOM for every other row, and it FORBIDS `<style>` and inline `style=`. So a Tier-A card is a card whose
 // styling has been discarded by law — structurally intact, visually nothing.
 //
 // Before this component, that case rendered the sanitized body straight into the prose flow with no frame

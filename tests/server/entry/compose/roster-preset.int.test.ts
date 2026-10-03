@@ -12,6 +12,7 @@ import { chatParticipants, chats, rosterPresets, rpgGames } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { describe } from "vitest";
 import { principal } from "../../../support/factories/principal.ts";
@@ -44,7 +45,7 @@ describe("roster-preset applyToChat — composed-real (createServices)", () => {
       },
     });
 
-    const result = await services.rosterPreset.applyToChat({ principal: hostP, presetId: preset.id, chatId });
+    const result = await services.rosterPreset.applyToChat({ timeZone: UTC_TIME_ZONE, principal: hostP, presetId: preset.id, chatId });
     expect(result.added).toEqual([c2, c3]);
     expect(result.alreadyPresent).toEqual([c1]);
     expect(result.skipped).toEqual([]);
@@ -67,7 +68,7 @@ describe("roster-preset applyToChat — composed-real (createServices)", () => {
     expect(config).toMatchObject({ output: "narrator", policy: "list", speakerTags: true });
 
     // Re-apply: chat's present-seat floor holds — no duplicate seats, classification flips.
-    const again = await services.rosterPreset.applyToChat({ principal: hostP, presetId: preset.id, chatId });
+    const again = await services.rosterPreset.applyToChat({ timeZone: UTC_TIME_ZONE, principal: hostP, presetId: preset.id, chatId });
     expect(again.added).toEqual([]);
     expect(again.alreadyPresent).toEqual([c2, c1, c3]); // position order, all live
     const seatsAfter = await db
@@ -92,12 +93,14 @@ describe("roster-preset applyToChat — composed-real (createServices)", () => {
     const book = await services.worldInfo.createBook({ principal: hostP, input: { name: "Rules-rider annals" } });
     await services.worldInfo.attachToChat({ principal: hostP, chatId: roomA, bookId: book.id });
     const veilRules = await services.automation.createRuleFromPreset({
+      timeZone: UTC_TIME_ZONE,
       principal: hostP,
       chatId: roomA,
       presetId: "sceneVeil",
       knobs: { veilWord: "((curtain))" },
     });
     const loreRules = await services.automation.createRuleFromPreset({
+      timeZone: UTC_TIME_ZONE,
       principal: hostP,
       chatId: roomA,
       presetId: "autoAddLore",
@@ -133,7 +136,7 @@ describe("roster-preset applyToChat — composed-real (createServices)", () => {
     // Room B — the TARGET: fresh, NO book attached. The veil re-mints + enables; the lore preset's own
     // consent gate (the REAL `validateRuleInput` book probe) refuses into `rulesSkipped`.
     const roomB = (await services.chat.startChat({ principal: hostP, characterIds: [c1], opening: "none" })).chat.id;
-    const applied = await services.rosterPreset.applyToChat({ principal: hostP, presetId: cast.id, chatId: roomB });
+    const applied = await services.rosterPreset.applyToChat({ timeZone: UTC_TIME_ZONE, principal: hostP, presetId: cast.id, chatId: roomB });
     expect(applied.rulesMinted).toEqual(["sceneVeil"]);
     expect(applied.rulesSkipped).toHaveLength(1);
     expect(applied.rulesSkipped[0]?.rulePresetId).toBe("autoAddLore");
@@ -147,7 +150,7 @@ describe("roster-preset applyToChat — composed-real (createServices)", () => {
     expect(roomBRules[0]?.predicateCel).toContain("((curtain))"); // the knob substituted into the REAL mint
 
     // Re-apply: the complete knob-equal group classifies alreadyPresent — no duplicate set.
-    const again = await services.rosterPreset.applyToChat({ principal: hostP, presetId: cast.id, chatId: roomB });
+    const again = await services.rosterPreset.applyToChat({ timeZone: UTC_TIME_ZONE, principal: hostP, presetId: cast.id, chatId: roomB });
     expect(again.rulesMinted).toEqual([]);
     expect(again.rulesAlreadyPresent).toEqual(["sceneVeil"]);
     expect(await services.automation.listRules({ principal: hostP, chatId: roomB })).toHaveLength(1);
@@ -173,7 +176,9 @@ describe("roster-preset applyToChat — composed-real (createServices)", () => {
       input: { name: "Invaders", description: "", members: [{ kind: "character", characterId: sc, position: 0 }] },
     });
 
-    await expect(services.rosterPreset.applyToChat({ principal: strangerP, presetId: theirPreset.id, chatId })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(services.rosterPreset.applyToChat({ timeZone: UTC_TIME_ZONE, principal: strangerP, presetId: theirPreset.id, chatId })).rejects.toBeInstanceOf(
+      DomainNotFoundError,
+    );
 
     // The room is byte-untouched: still exactly the founding seat, no config written.
     const seats = await db
@@ -217,7 +222,7 @@ describe("starting a campaign roster — composed-real (createServices)", () => 
       title: roster.name,
       ...(roster.game === null ? {} : { startAsGame: roster.game }),
     });
-    await services.rosterPreset.applyToChat({ principal: hostP, presetId: roster.id, chatId: started.chat.id });
+    await services.rosterPreset.applyToChat({ timeZone: UTC_TIME_ZONE, principal: hostP, presetId: roster.id, chatId: started.chat.id });
 
     expect(await db.select({ id: chats.id }).from(chats)).toEqual([{ id: started.chat.id }]);
     const games = await db.select().from(rpgGames);

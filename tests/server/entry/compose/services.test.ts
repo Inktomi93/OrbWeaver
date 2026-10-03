@@ -38,6 +38,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
 import type { CharacterService } from "@orb/server/domain/character";
@@ -306,7 +307,7 @@ describe("user seed wiring", () => {
       title: campaign.name,
       ...(campaign.game === null ? {} : { startAsGame: campaign.game }),
     });
-    await result.services.rosterPreset.applyToChat({ principal: actor, presetId: campaign.id, chatId: started.chat.id });
+    await result.services.rosterPreset.applyToChat({ timeZone: UTC_TIME_ZONE, principal: actor, presetId: campaign.id, chatId: started.chat.id });
 
     expect(await db.select({ id: chats.id }).from(chats)).toEqual([{ id: started.chat.id }]);
     const games = await db.select().from(rpgGames);
@@ -938,6 +939,7 @@ describe("automation generate_image forwards diffusion params through the compos
     });
 
     const rule = await result.services.automation.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: actor,
       chatId,
       name: "draw on open",

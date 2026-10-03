@@ -12,6 +12,8 @@ import type { PromptTransform, PromptTransformEnv, PromptTransformPoint } from "
 import { automationRules } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { IanaTimeZone } from "@orb/kit/time";
+import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { AutomationService } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
@@ -45,9 +47,13 @@ async function setup(): Promise<Fixture> {
 }
 
 /** Create + enable a transform_draft rule; returns its id. */
-async function armTransform(f: Fixture, opts: { actions: readonly AutomationAction[]; predicateCel?: string | null }): Promise<AutomationRuleId> {
+async function armTransform(
+  f: Fixture,
+  opts: { actions: readonly AutomationAction[]; predicateCel?: string | null; timeZone?: IanaTimeZone },
+): Promise<AutomationRuleId> {
   const p = principal(f.host);
   const rule = await f.svc.createRule({
+    timeZone: opts.timeZone ?? UTC_TIME_ZONE,
     principal: p,
     chatId: f.chatId,
     name: "xf",
@@ -109,7 +115,7 @@ describe("A7 prompt-transform registration lifecycle", () => {
     expect(await (f.registry.list()[0] as PromptTransform).apply("x", envFor(f.chatId))).toBe("OLD x");
 
     // Edit the template — reload must REPLACE the transform by id (a stale closure would keep rendering "OLD").
-    await f.svc.updateRule({ principal: p, ruleId, name: "xf", trigger: TURN_STARTED, actions: [transformArm("NEW {{draft}}")] });
+    await f.svc.updateRule({ timeZone: UTC_TIME_ZONE, principal: p, ruleId, name: "xf", trigger: TURN_STARTED, actions: [transformArm("NEW {{draft}}")] });
 
     const after = f.registry.list();
     expect(after).toHaveLength(1);
@@ -150,6 +156,19 @@ describe("A7 prompt-transform apply", () => {
 
     expect(await t.apply("keep me", envFor(f.chatId, { mood: "happy" }))).toBe("keep me");
     expect(await t.apply("rewrite me", envFor(f.chatId, { mood: "grim" }))).toBe("REWRITTEN");
+  });
+
+  test("the predicate and {{time}} read the rule's own clock, not UTC", async () => {
+    const f = await setup();
+    const kathmandu = parseIanaTimeZone("Asia/Kathmandu");
+    if (kathmandu === null) {
+      throw new Error("the platform must know Asia/Kathmandu");
+    }
+    // The harness clock is 22:13:20 UTC, 03:58:20 the next morning in Kathmandu.
+    await armTransform(f, { actions: [transformArm("[{{time}}] {{draft}}")], predicateCel: "int(now.hour) == 3", timeZone: kathmandu });
+    const t = f.registry.list()[0] as PromptTransform;
+
+    expect(await t.apply("early", envFor(f.chatId))).toBe("[03:58:20] early");
   });
 
   test("a render error passes the draft through UNCHANGED (a broken rule never eats the turn)", async () => {

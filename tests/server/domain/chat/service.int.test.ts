@@ -77,7 +77,7 @@ function makeService(
     mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: castId<CharacterId>("character_group") }),
     resolveUserPublics: () => Promise.resolve(null),
     // ONE seat-decoration read (D44 §12.0/§12.1/§12.5 + the card name loadParticipantViews reads): a CHARACTER
-    // seat opts into trusted HTML + carries a raw theme override + resolves its card name; a human/agent seat
+    // seat resolves to trusted HTML + carries a raw theme override + resolves its card name; a human/agent seat
     // (characterId null) resolves to the untrusted floor + no override + a null card. Proves the resolved
     // policy + RAW (unmerged) theme are threaded onto ParticipantView (the client reads them, never re-resolves).
     resolveSeatDeco: ({ characterId }) =>
@@ -253,8 +253,9 @@ describe("createChatService — assembly", () => {
     const charRow = roster.find((p) => p.characterId !== null);
     expect(hostRow?.role).toBe("host");
     expect(charRow?.displayName).toBe("aria"); // resolved via ctx.resolveSeatDeco
-    // D44 §12.0 — the RESOLVED render policy is threaded onto each ParticipantView (the client reads it,
-    // never re-resolves): the opted-in character carries trusted; the human seat the untrusted floor.
+    // D294 §12.2 — the RESOLVED render policy is threaded onto each ParticipantView (the client reads it,
+    // never re-resolves): the character carries the policy this test's seat stub resolved (trusted); the
+    // human seat the untrusted floor.
     expect(charRow?.renderPolicy).toEqual({ htmlTrust: "trusted", forbidExternalMedia: false });
     expect(hostRow?.renderPolicy).toEqual({ htmlTrust: "untrusted", forbidExternalMedia: true });
     // D44 §12.1/§12.5 — the RAW theme override is threaded onto each ParticipantView (unmerged: the

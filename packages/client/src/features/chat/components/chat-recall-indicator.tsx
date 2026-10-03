@@ -24,6 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE } from "#components";
 import { useTRPC } from "#data";
+import { viewerTimeZone } from "#lib";
 import type { RecallState } from "#state";
 import { useRecallState } from "#state";
 import { MemoryRecallDetail } from "./memory-recall-detail.tsx";
@@ -153,7 +154,7 @@ function RecallSummary({ recall }: { readonly recall: RecallState | null }): Rea
  *  popup children) and gated on host, so a member never fires the `requireHost` read. */
 function RecallHostDetail({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
-  const { data, isPending, isError } = useQuery(trpc.chat.previewAssembly.queryOptions({ chatId }));
+  const { data, isPending, isError } = useQuery(trpc.chat.previewAssembly.queryOptions({ chatId, timeZone: viewerTimeZone() }));
   if (isPending) {
     return <Text voice="gloss">Loading recall detail…</Text>;
   }

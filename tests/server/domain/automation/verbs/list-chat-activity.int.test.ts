@@ -5,6 +5,7 @@
 
 import type { Db } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, ChatId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { insertFire } from "../../../../../packages/server/src/domain/automation/persistence/fires.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedParticipant } from "../../chat/_support.ts";
@@ -36,8 +37,8 @@ async function seedFire(db: Db, seed: FireSeed): Promise<void> {
 
 test("listChatActivity merges fires across the chat's rules, newest first", async () => {
   const { host, chatId, svc, ctx, db } = await ruleFixture();
-  const ruleA = await svc.createRule({ principal: principal(host), chatId, name: "a", trigger: MSG_COMMITTED, actions: [SET_VAR] });
-  const ruleB = await svc.createRule({ principal: principal(host), chatId, name: "b", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const ruleA = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "a", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const ruleB = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "b", trigger: MSG_COMMITTED, actions: [SET_VAR] });
 
   // Two rules' fires interleaved in time — the read must ORDER by firedAt, not group by rule.
   await seedFire(db, { id: ctx.newFireId(), ruleId: ruleA.id, chatId, firedAt: 1000 });
@@ -52,7 +53,7 @@ test("listChatActivity merges fires across the chat's rules, newest first", asyn
 
 test("listChatActivity carries the confirmer stamp a confirmed suggestion recorded", async () => {
   const { host, chatId, svc, ctx, db } = await ruleFixture();
-  const rule = await svc.createRule({ principal: principal(host), chatId, name: "r", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "r", trigger: MSG_COMMITTED, actions: [SET_VAR] });
   // A confirmed-suggestion fire is an ordinary `fired` row whose `detail` names who authorized it
   // (confirm-suggestion.ts stamps `confirmedByUserId`) — the Activity tab reads it to mark human-confirmed cards.
   await seedFire(db, { id: ctx.newFireId(), ruleId: rule.id, chatId, firedAt: 5000, detail: { confirmedByUserId: host, armType: "run_analysis" } });
@@ -63,12 +64,19 @@ test("listChatActivity carries the confirmer stamp a confirmed suggestion record
 
 test("listChatActivity is scoped to the asked chat — another room's fires never leak in", async () => {
   const { host, chatId, svc, ctx, db } = await ruleFixture();
-  const mine = await svc.createRule({ principal: principal(host), chatId, name: "mine", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const mine = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "mine", trigger: MSG_COMMITTED, actions: [SET_VAR] });
   await seedFire(db, { id: ctx.newFireId(), ruleId: mine.id, chatId, firedAt: 1000 });
 
   // A SECOND room the same host owns, with its own rule + fire — it must not bleed into the first room's read.
   const otherChat = await seedHostChat(db, host, "other");
-  const otherRule = await svc.createRule({ principal: principal(host), chatId: otherChat, name: "other", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const otherRule = await svc.createRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: principal(host),
+    chatId: otherChat,
+    name: "other",
+    trigger: MSG_COMMITTED,
+    actions: [SET_VAR],
+  });
   await seedFire(db, { id: ctx.newFireId(), ruleId: otherRule.id, chatId: otherChat, firedAt: 9000 });
 
   const activity = await svc.listChatActivity({ principal: principal(host), chatId });

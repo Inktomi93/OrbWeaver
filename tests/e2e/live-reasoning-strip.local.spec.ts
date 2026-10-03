@@ -25,6 +25,7 @@
 
 import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/_shared/ports";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
@@ -104,7 +105,7 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
     const hostLive = collectChatRoomFrames({ baseUrl: origin, headers: host.headers, chatId, until: sawReply, timeoutMs: STREAM_TIMEOUT_MS });
     // Give both sockets a beat to go live before the turn (the room's live listener attaches on connect).
     await new Promise((r) => setTimeout(r, 1500));
-    await host.mutation("chat.send", { chatId, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
+    await host.mutation("chat.send", { chatId, timeZone: UTC_TIME_ZONE, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
 
     // Both collections must have SEEN the reply commit: the member's arm below is all absence assertions, which a
     // timed-out empty stream would pass without delivering a byte.

@@ -1,6 +1,7 @@
 import type { AutomationRuleCreateInput, AutomationRuleEditable, AutomationRuleUpdateInput } from "@orb/contracts/automation";
 import { automationRuleEditableSchema } from "@orb/contracts/automation";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createRuleSaveSession } from "../../../../../packages/client/src/features/automation/lib/rule-save-session.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { createSeededIds } from "../../../../support/ids.ts";
@@ -39,6 +40,7 @@ function row(value: Body): Rule {
     rulePresetId: null,
     rulePresetKnobs: null,
     suggestOnRefusal: true,
+    timeZone: UTC_TIME_ZONE,
     lastError: null,
     lastFiredAt: null,
     createdAt: 1,
@@ -52,6 +54,7 @@ test("queued edits and teardown-equivalent duplicates share one birth and promot
   const writes: string[] = [];
   const acknowledgments: string[] = [];
   const { save } = createRuleSaveSession({
+    timeZone: () => UTC_TIME_ZONE,
     chatId,
     requestId,
     ruleId: null,
@@ -85,6 +88,7 @@ test("an ambiguous create failure retains its request key, then explicitly updat
   const updates: AutomationRuleUpdateInput[] = [];
   const recovered = { ...row(body("committed A")), enabled: true, position: 7 };
   const { save } = createRuleSaveSession({
+    timeZone: () => UTC_TIME_ZONE,
     chatId,
     requestId,
     ruleId: null,
@@ -105,7 +109,7 @@ test("an ambiguous create failure retains its request key, then explicitly updat
   await expect(save(body("committed A"))).rejects.toThrow("response lost");
   await save(body("newer B"));
   expect(births.map((input) => input.creationRequestId)).toEqual([requestId, requestId]);
-  expect(updates).toEqual([{ ...body("newer B"), ruleId }]);
+  expect(updates).toEqual([{ ...body("newer B"), timeZone: UTC_TIME_ZONE, ruleId }]);
   expect(recovered.enabled).toBe(true);
   expect(recovered.position).toBe(7);
 });
@@ -114,6 +118,7 @@ test("acknowledged deletion and failed PUT never reopen creation", async () => {
   let births = 0;
   const updates: string[] = [];
   const { save } = createRuleSaveSession({
+    timeZone: () => UTC_TIME_ZONE,
     chatId,
     requestId,
     ruleId: null,
@@ -142,6 +147,7 @@ test("account switch during creation prevents acknowledgment and every queued wr
   let updates = 0;
   let acknowledgments = 0;
   const { save } = createRuleSaveSession({
+    timeZone: () => UTC_TIME_ZONE,
     chatId,
     requestId,
     ruleId: null,
@@ -175,6 +181,7 @@ test("account switch during creation prevents acknowledgment and every queued wr
 test("a new authoritative row invalidates duplicate suppression for the previously saved body", async () => {
   const updates: string[] = [];
   const queue = createRuleSaveSession({
+    timeZone: () => UTC_TIME_ZONE,
     chatId,
     requestId: null,
     ruleId,
@@ -190,4 +197,38 @@ test("a new authoritative row invalidates duplicate suppression for the previous
   queue.observe(row(body("Remote C")));
   await queue.save(body("Local A"));
   expect(updates).toEqual(["Local A", "Local A"]);
+});
+
+test("every write stamps the saver's zone as it is when the write leaves, and opening stamps nothing", async () => {
+  let zone = "Asia/Kathmandu";
+  const births: (string | undefined)[] = [];
+  const updates: (string | undefined)[] = [];
+  const acknowledged: string[] = [];
+  const queue = createRuleSaveSession({
+    timeZone: () => zone,
+    chatId,
+    requestId,
+    ruleId: null,
+    assertOwner: () => undefined,
+    create: (input) => {
+      births.push(input.timeZone);
+      return Promise.resolve(row(body(input.name)));
+    },
+    update: (input) => {
+      updates.push(input.timeZone);
+      return Promise.resolve(row(body(input.name)));
+    },
+    acknowledge: (_row, sentZone) => {
+      acknowledged.push(sentZone);
+    },
+  });
+  queue.observe(row(body("Opened")));
+  expect([births, updates]).toEqual([[], []]);
+  await queue.save(body("Born"));
+  zone = "America/New_York";
+  await queue.save(body("Edited after travel"));
+  expect(births).toEqual(["Asia/Kathmandu"]);
+  expect(updates).toEqual(["America/New_York"]);
+  // Each acknowledgment names the zone its own write sent, so the editor can tell a UTC fallback apart.
+  expect(acknowledged).toEqual(["Asia/Kathmandu", "America/New_York"]);
 });

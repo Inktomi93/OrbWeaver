@@ -1,6 +1,7 @@
 import { automationActionSchema, automationRuleUpdateSchema } from "@orb/contracts/automation";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { ruleActionExamples } from "../../../../support/factories/automation-rule-actions.ts";
@@ -54,6 +55,7 @@ test("action and quick-reply ordering preserve parallel identities with keyboard
     rulePresetKnobs: null,
     matchAutomationEvents: false,
     suggestOnRefusal: true,
+    timeZone: UTC_TIME_ZONE,
     cooldownSeconds: 0,
     maxFiresPerHour: 30,
     lastError: null,

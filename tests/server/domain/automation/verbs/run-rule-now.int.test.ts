@@ -12,6 +12,7 @@
 
 import { chatParticipants } from "@orb/db";
 import type { AutomationRuleId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AutomationOps, AutomationTurnRequest } from "@orb/server/domain/automation";
 import { and, eq, isNull } from "drizzle-orm";
 import { describe } from "vitest";
@@ -57,6 +58,7 @@ async function runNowFixture(): Promise<{ fixture: Awaited<ReturnType<typeof rul
 /** `maxFiresPerHour: 0` slams the rule's own fire-rate cap shut, so every bus-driven fire is `budget_refused`. */
 async function enableRule(fx: Awaited<ReturnType<typeof ruleFixture>>, predicateCel: string | null, maxFiresPerHour?: number): Promise<AutomationRuleId> {
   const rule = await fx.svc.createRule({
+    timeZone: UTC_TIME_ZONE,
     principal: principal(fx.host),
     chatId: fx.chatId,
     name: "vote",
@@ -82,7 +84,9 @@ describe("what a manual run LIFTS", () => {
     const result = await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId });
 
     expect(result).toEqual({ outcome: "fired" });
-    expect(turns).toEqual([{ authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, guided: "Do the thing." }]);
+    expect(turns).toEqual([
+      { authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, timeZone: UTC_TIME_ZONE, guided: "Do the thing." },
+    ]);
   });
 
   test("a rate-capped rule RUNS (without this, confirming an F4 invitation would refuse identically)", async () => {
@@ -197,6 +201,7 @@ describe("what a manual run KEEPS", () => {
 test("a manual run of a CONFIRM-FIRST rule still ASKS (the arm's authored posture is not overridden)", async () => {
   const { fixture, turns } = await runNowFixture();
   const rule = await fixture.svc.createRule({
+    timeZone: UTC_TIME_ZONE,
     principal: principal(fixture.host),
     chatId: fixture.chatId,
     name: "recap",

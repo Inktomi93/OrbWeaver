@@ -22,6 +22,7 @@ import { chatParticipants, chats, personaBooks, personas, worldBooks, worldEntri
 import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { activePersonaIdFor, createTurnPersonaResolver } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
 import type { ResolveForeignInputsOp } from "../../../../packages/server/src/domain/chat/contract/foreign.ts";
@@ -306,7 +307,7 @@ async function runStep(room: Room, step: Step): Promise<string | null> {
       return step.personaId === undefined ? `${step.who} sends` : `${step.who} sends (explicit persona)`;
     }
     case "auto":
-      await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: room.alice, automationDepth: 1 });
+      await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: room.alice, automationDepth: 1, timeZone: UTC_TIME_ZONE });
       return "auto turn";
     case "impersonate":
       for await (const _delta of scn.turn.impersonateStream({ principal: scn.principal(step.who === "alice" ? room.alice : room.bob), chatId: scn.chatId })) {

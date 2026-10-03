@@ -30,6 +30,7 @@ import type { Db } from "@orb/db";
 import { automationRules, chatParticipants, chats } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { RuleValidationError } from "@orb/server/domain/automation";
 import { loadPresentRole } from "@orb/server/domain/chat";
 import type { PluginToolHandle } from "@orb/server/domain/tool-use";
@@ -103,6 +104,7 @@ async function seedScene(db: Db): Promise<Scene> {
 async function mintEnabledRule(app: ServicesResult, author: UserId, chatId: ChatId | null, action: AutomationActionInput): Promise<AutomationRuleId> {
   const actor = principal(author);
   const rule = await app.automation.createRule({
+    timeZone: UTC_TIME_ZONE,
     principal: actor,
     chatId,
     name: "moodwatch",
@@ -154,6 +156,7 @@ test("host handoff edits use stored-author tool admission, while birth recovery 
   const own = installTool(app, db, author, "author");
   await seedParticipant(db, { chatId, key: "successor", userId: stranger, role: "member" });
   const birth = {
+    timeZone: UTC_TIME_ZONE,
     principal: principal(author),
     chatId,
     creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation),
@@ -254,6 +257,7 @@ test("a tool the author never installed is refused at the MINT — the rule is n
 
   await expect(
     app.automation.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(author),
       chatId,
       name: "moodwatch",
@@ -298,6 +302,7 @@ test("C5: a global rule cannot capture into a CHAT variable, and its chat-less f
   // The admission matrix's `run_tool` row: the `chat` plane is one room's fold and this rule has no room.
   await expect(
     app.automation.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(author),
       chatId: null,
       name: "moodwatch",

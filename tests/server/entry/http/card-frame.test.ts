@@ -320,7 +320,8 @@ describe("card-frame — the served document", () => {
 // ── THE INTERACTIVE-CARD GRANT (#111 legs 1+3) ───────────────────────────────────────────────────────────
 // Leg 1 made the per-card SELECTION real while both postures emitted the same hash. The leg-3 security pass
 // granted the capability: an interactive document's `script-src` is `'unsafe-inline'` and the card's own
-// scripts run. Two consents are required — the host's per-character opt-in AND the deployment ceiling — and
+// scripts run. The character must resolve to `interactive` (an explicit step, or "Inherit default" under the
+// ceiling, D294) AND the deployment ceiling must be up AND the viewer must allow card scripts — and
 // the ceiling is re-applied HERE as well as inside `resolveRenderPolicy`, so these test the boundary's own
 // belt rather than the resolver's (the roster fixture hands this route an ALREADY-RESOLVED `interactive`
 // rung; if this route trusted that alone, the `deployInteractive: false` arms below would leak).
@@ -341,9 +342,9 @@ describe("card-frame — the interactive-card grant", () => {
 
   const scriptSrcOf = (csp: string): string | undefined => csp.split("; ").find((directive) => directive.startsWith("script-src "));
 
-  test("an opted-in character mints through the INTERACTIVE arm; every other selector stays static", async () => {
+  test("a character resolved to interactive mints through the INTERACTIVE arm; every other selector stays static", async () => {
     expect((await grantedFor(INTERACTIVE)).interactive).toBe(true);
-    // The default (never opted in), the trusted-but-not-interactive card, and an unknown character.
+    // An untrusted card, the trusted-but-not-interactive card, and an unknown character.
     expect((await grantedFor(UNTRUSTED)).interactive).toBe(false);
     expect((await grantedFor(TRUSTED)).interactive).toBe(false);
     expect((await grantedFor(GHOST)).interactive).toBe(false);

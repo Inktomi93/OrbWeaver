@@ -3,6 +3,7 @@
 
 import { automationRules } from "@orb/db";
 import { mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "../_support.ts";
@@ -10,7 +11,7 @@ import { FIXED_NOW_MS, MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "..
 describe("listRules", () => {
   test("lists the host's rules in position order", async () => {
     const { host, chatId, svc } = await ruleFixture();
-    await svc.createRule({ principal: principal(host), chatId, name: "first", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+    await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "first", trigger: MSG_COMMITTED, actions: [SET_VAR] });
     const listed = await svc.listRules({ principal: principal(host), chatId });
     expect(listed.map((r) => r.name)).toEqual(["first"]);
     expect(listed[0]?.actions).toEqual([SET_VAR]);
@@ -18,7 +19,14 @@ describe("listRules", () => {
 
   test("is lazy-parse fault-isolated — a corrupt actions blob degrades to [] and never nukes the list", async () => {
     const { db, host, chatId, svc } = await ruleFixture();
-    const good = await svc.createRule({ principal: principal(host), chatId, name: "good", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+    const good = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
+      principal: principal(host),
+      chatId,
+      name: "good",
+      trigger: MSG_COMMITTED,
+      actions: [SET_VAR],
+    });
     await db.insert(automationRules).values({
       id: mintTypeId("automation_rule"),
       ownerId: host,

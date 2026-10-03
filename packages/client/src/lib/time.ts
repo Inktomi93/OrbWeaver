@@ -1,11 +1,12 @@
 // The client date/time seam: the wire is always epoch-ms UTC; localization happens exactly once, at the
-// display edge, through @orb/kit/time's display factory. Never store or send a formatted date or a tz.
+// display edge, through @orb/kit/time's display factory. Never store or send a formatted date. A zone is
+// sent only through `viewerTimeZone`, for a clock the server evaluates on the viewer's behalf.
 // PROBE-MODE formatRelative: wall-clock-relative text ("13h ago") churns every minute, the single
 // biggest source of false positives in snapshot diffing — the fixed-placeholder swap wraps here at the
 // singleton so every render site inherits it structurally.
 
 import type { TimeLib } from "@orb/kit/time";
-import { createTimeLib } from "@orb/kit/time";
+import { createTimeLib, hostTimeZone } from "@orb/kit/time";
 import { isProbeMode } from "./probe-mode.ts";
 
 const PROBE_RELATIVE_PLACEHOLDER = "some time ago";
@@ -25,3 +26,10 @@ export const timeLib: TimeLib = {
   formatRelativeCompact: (epochMs): string => (isProbeMode() ? PROBE_RELATIVE_COMPACT_PLACEHOLDER : baseTimeLib.formatRelativeCompact(epochMs)),
   formatRelativeAgo: (epochMs): string => (isProbeMode() ? PROBE_RELATIVE_AGO_PLACEHOLDER : baseTimeLib.formatRelativeAgo(epochMs)),
 };
+
+/** The viewer's IANA zone — the zone {@link timeLib} renders in. Sent with a request whose server-side
+ *  evaluation must run on the viewer's wall clock (an automation rule's `now.hour`, a chat turn's `{{time}}`),
+ *  never with a timestamp. */
+export function viewerTimeZone(): string {
+  return hostTimeZone();
+}
