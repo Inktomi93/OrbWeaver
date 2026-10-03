@@ -9,7 +9,7 @@
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import type { EffortLevel, GenerationCapability, Range, Verbosity } from "@orb/contracts/inference";
-import { bindsThinkingToPrefix, EFFORT_LEVELS, reasoningReplayOf, survivesPrefixEdit } from "@orb/contracts/inference";
+import { bindsThinkingToPrefix, EFFORT_LEVELS, reasoningOffModeOf, reasoningReplayOf, survivesPrefixEdit } from "@orb/contracts/inference";
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { CARRY_REASONING_DEFAULT, QUALITY_EFFORT, QUALITY_LEVELS, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "../contract/resolve.ts";
@@ -250,6 +250,16 @@ export function resolveSideGenReasoning(capability: GenerationCapability, warnin
   return resolved;
 }
 
+// The off turn: no effort, display or budget rides it, so the model's off spelling (`between-tools` takes no other
+// field) is legal whatever the caller's other knobs said. A model that cannot reason has no off to spell.
+function offReasoning(capability: GenerationCapability, effort: UserIntent["effort"]): ResolvedReasoning {
+  const r = capability.reasoning;
+  if (!r.enabled) {
+    return { mode: r.mode, enabled: false };
+  }
+  return { mode: r.mode, enabled: false, offMode: reasoningOffModeOf(capability), ...(effort === EFFORT_OFF ? { offChosen: true } : {}) };
+}
+
 function resolveReasoning(
   params: UserIntent,
   capability: GenerationCapability,
@@ -259,7 +269,7 @@ function resolveReasoning(
   const r = capability.reasoning;
   const { enabled, effort } = reasoningEnabledFor(params, capability, warnings);
   if (!enabled) {
-    return { mode: r.mode, enabled: false, ...(effort === EFFORT_OFF && r.enabled ? { offChosen: true } : {}) };
+    return offReasoning(capability, effort);
   }
   const display = resolveDisplay(params.thinkingDisplay, r.displayModes, warnings) ?? defaultDisplay(r);
   const displayPart = display !== undefined ? { display } : {};

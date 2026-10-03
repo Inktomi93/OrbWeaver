@@ -1,14 +1,14 @@
 // capability/sources/curated/anthropic — the table pins over the Claude cells on the DIRECT wire, folded exactly
 // as `resolve-task.ts` folds an `anthropic` row (curated rows → `synthesizeCapability`, no OR advertisement).
-// The SDK's own capability table is the direct wire's truth (`@ai-sdk/anthropic/dist/index.js:5943-5963` —
+// The SDK's own capability table is the direct wire's truth (`@ai-sdk/anthropic` 4.0.71 `dist/index.js:5148-5232` —
 // it strips before sending), and A8 was measured live (`req_011CfEBkabcoxXWyouHdYDxY`: fable + thinking disabled
 // → 400). A6: the structured-output VEHICLE is `resolveVehicle` (role-clients.ts) — `auto` picks the enforcing
 // `response-format` iff `output.structured === true`, else the forced tool Fable rejects; the input to that
 // decision is what these cells must state.
 //
 // #2575: Opus 5.5 is its own row (mandatory thinking — under the opus-5 row alone a reasoning-off intent sent
-// `thinking: disabled`, a 400 there), and the three models that 400 a forced
-// `tool_choice` (Fable 5.1, Mythos 5.1, Opus 5.5) keep a deployment-forced structured call on `response-format`.
+// `thinking: disabled`, a 400 there), and the models that 400 a forced
+// `tool_choice` (Fable 5.1, Mythos 5.1, Opus 5.5, Sonnet 5.5) keep a deployment-forced structured call on `response-format`.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { AgentSdkModel, GenerationCapability, ModelCatalogEntry, ProviderId } from "@orb/contracts/inference";
@@ -116,7 +116,16 @@ function direct(model: string): GenerationCapability {
 }
 
 /** The ids the SDK table marks `rejectsSamplingParameters: true` (+ `supportsAdaptiveThinking`, `supportsXhighEffort`). */
-const REJECTS_SAMPLING = ["claude-opus-5", "claude-opus-4-8", "claude-opus-4-7", "claude-fable-5-1", "claude-fable-5", "claude-mythos-5", "claude-sonnet-5"];
+const REJECTS_SAMPLING = [
+  "claude-opus-5",
+  "claude-opus-4-8",
+  "claude-opus-4-7",
+  "claude-fable-5-1",
+  "claude-fable-5",
+  "claude-mythos-5",
+  "claude-sonnet-5",
+  "claude-sonnet-5-5",
+];
 
 test("B3 (direct): every SDK-table id states an EMPTY sampling set on the direct wire; a preset knob drops loudly", () => {
   for (const model of REJECTS_SAMPLING) {
@@ -185,6 +194,7 @@ const REJECTS_FORCED_TOOL = [
   { providerId: "anthropic", model: "claude-fable-5-1" },
   { providerId: "anthropic", model: "claude-mythos-5-1" },
   { providerId: "anthropic", model: "claude-opus-5-5" },
+  { providerId: "anthropic", model: "claude-sonnet-5-5" },
 ] as const;
 
 test("#2575: Opus 5.5 is MANDATORY — reasoning off resolves enabled at the lowest level, and the unset default is the house `high`", () => {
@@ -205,6 +215,48 @@ test("#2575: Opus 5.5 is MANDATORY — reasoning off resolves enabled at the low
 });
 
 const AGENT_SDK_ROUTE = { providerId: castId<ProviderId>("claude-sub"), wire: "agent-sdk", api: "agent-sdk" } as const;
+
+// Sonnet 5.5 (OR-14, scripts/probes/openrouter/RESULTS.md): `thinking: disabled` 400s and names `between_tools`
+// (req_011CfeUA7wctvT9Pa9oaZnHD); `between_tools` returns 200 at low, medium, high and with no effort
+// (req_011CfeUA8jVZwQNGQKWPTq2N) and 400s at xhigh; a 523-token prefix cached and a 465-token one did not.
+test("sonnet-5-5: reasoning off is between-tools on the direct wire, never a clamp; the 5.5 facts refine the sonnet-5 row", () => {
+  const gen = direct("claude-sonnet-5-5");
+  expect(gen.reasoning).toMatchObject({
+    mode: "adaptive",
+    enabled: true,
+    defaultEnabled: true,
+    effortLevels: ["low", "medium", "high", "xhigh", "max"],
+    offMode: "between-tools",
+    prefixBound: true,
+  });
+  expect(gen.reasoning.mandatory).toBeUndefined();
+  expect(gen.tools).toEqual({ parallel: true, forcedChoice: false });
+  expect(gen.turns?.cacheMinTokens).toBe(512);
+  const off = resolveChat({ effort: "none" }, gen);
+  expect(off.reasoning).toEqual({ mode: "adaptive", enabled: false, offChosen: true, offMode: "between-tools" });
+  expect(off.warnings).toEqual([]);
+  // An explicit level, xhigh included, runs adaptive: between-tools only ever spells an off turn.
+  expect(resolveChat({ effort: "xhigh" }, gen).reasoning).toMatchObject({ mode: "adaptive", enabled: true, effort: "xhigh", display: "summarized" });
+  // PLANTED CONTROL: Sonnet 5 keeps its own cells, `disabled` among them.
+  const sonnet5 = direct("claude-sonnet-5");
+  expect(sonnet5.reasoning.offMode).toBeUndefined();
+  expect(resolveChat({ effort: "none" }, sonnet5).reasoning).toEqual({ mode: "adaptive", enabled: false, offChosen: true, offMode: "disabled" });
+  expect(sonnet5.tools?.forcedChoice).toBeUndefined();
+  expect(sonnet5.turns?.cacheMinTokens).toBe(1024);
+  expect(sonnet5.reasoning.prefixBound).toBeUndefined();
+});
+
+// The Claude Agent SDK's `ThinkingConfig` has no `between_tools` arm, so the runtime can only be asked for
+// `disabled`, which Sonnet 5.5 refuses. Until the runtime spells it, an off turn there clamps up instead.
+test("sonnet-5-5 on the agent-sdk runtime is mandatory: reasoning off clamps to the lowest effort, loudly", () => {
+  const gen = onRoute(AGENT_SDK_ROUTE, "claude-sonnet-5-5");
+  expect(gen.reasoning.mandatory).toBe(true);
+  const off = resolveChat({ effort: "none" }, gen);
+  expect(off.reasoning).toMatchObject({ mode: "adaptive", enabled: true, effort: "low" });
+  expect(off.warnings.map((w) => [w.code, w.appliedEffort])).toEqual([["reasoning_mandatory_clamp", "low"]]);
+  // PLANTED CONTROL: Sonnet 5 on the same runtime still switches off.
+  expect(resolveChat({ effort: "none" }, onRoute(AGENT_SDK_ROUTE, "claude-sonnet-5")).reasoning.enabled).toBe(false);
+});
 
 // Owner ruling: no effort set ⇒ adaptive thinking at `high` wherever the model supports adaptive thinking. The
 // matrix measured the same preset sending thinking disabled on direct opus-5 and opus-4-8
@@ -273,7 +325,16 @@ test("no Claude route claims assistant prefill: a continue by prefill returns no
 // adaptive thinking only (opus-5 req_011CfKrpkFiR5L4pT2WAm3oB … sonnet-5 req_011CfKrpqBszB95ktdqBoGas); haiku-4-5
 // states 200,000 / 64,000, budget (`enabled`) thinking and no effort (req_011CfKrpqx2Hs1U4Rg1DZ9C6). The runtime
 // behind the subscription reports the same 1M window (claude-opus-5 session d382e036-cf6b-4ce1-a4dc-69e94550e014).
-const CURRENT_CLAUDE = ["claude-opus-5", "claude-opus-5-5", "claude-opus-4-8", "claude-opus-4-7", "claude-fable-5", "claude-fable-5-1", "claude-sonnet-5"];
+const CURRENT_CLAUDE = [
+  "claude-opus-5",
+  "claude-opus-5-5",
+  "claude-opus-4-8",
+  "claude-opus-4-7",
+  "claude-fable-5",
+  "claude-fable-5-1",
+  "claude-sonnet-5",
+  "claude-sonnet-5-5",
+];
 
 // The agent-sdk runtime is spawned with `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` (`backends/agent-sdk/env.ts`), and with it
 // the runtime reports a 200k window (claude-opus-5 session 00e4fcde-278d-4b8a-b81b-bd1d38275462,
@@ -365,7 +426,7 @@ test("the default-off Claude ids count an unset effort as reasoning off; sonnet-
 // API to drop it. This key's account predates that (an edited-prefix replay returned 200: req_011CfKs6JMgTb3Y9up4Y1F3N);
 // the `drop_block` request itself is accepted with the beta (req_011CfKs6a4VLio7HdQpBMWwz).
 test("prefixBound: stated for opus-5-5 and the 5.1 point releases, not for the ids that allow an edited prefix", () => {
-  for (const model of ["claude-opus-5-5", "claude-fable-5-1", "claude-mythos-5-1"]) {
+  for (const model of ["claude-opus-5-5", "claude-fable-5-1", "claude-mythos-5-1", "claude-sonnet-5-5"]) {
     expect(direct(model).reasoning.prefixBound, model).toBe(true);
   }
   for (const model of ["claude-opus-5", "claude-fable-5", "claude-opus-4-8"]) {
@@ -499,7 +560,7 @@ function turnsOn(route: typeof DIRECT | typeof OPENROUTER | typeof AGENT_SDK, mo
 
 // The tail fact is set by whether the model OBEYED an override in a tail system row, not by a 200: opus-4-8 and
 // sonnet-5 accept the row and ignore it, so a trailing system row folds to user text on them.
-const OBEYS_TAIL_SYSTEM = ["claude-opus-5", "claude-opus-5-5", "claude-fable-5", "claude-fable-5-1"];
+const OBEYS_TAIL_SYSTEM = ["claude-opus-5", "claude-opus-5-5", "claude-fable-5", "claude-fable-5-1", "claude-sonnet-5-5"];
 const IGNORES_TAIL_SYSTEM = ["claude-sonnet-5", "claude-opus-4-8"];
 
 test("the measured Claude ids take a mid-array system row on the direct wire and floor at slotted; only the obeying ids keep the tail row", () => {
@@ -530,7 +591,7 @@ test("haiku-4-5 400s any system row, and an unmeasured id stays fail-closed", ()
 });
 
 test("OpenRouter matches the direct wire, except opus-5 takes no mid-array system row", () => {
-  for (const model of ["anthropic/claude-opus-5.5", "anthropic/claude-fable-5", "anthropic/claude-fable-5.1"]) {
+  for (const model of ["anthropic/claude-opus-5.5", "anthropic/claude-fable-5", "anthropic/claude-fable-5.1", "anthropic/claude-sonnet-5.5"]) {
     expect(turnsOn(OPENROUTER, model), model).toStrictEqual([true, true, "slotted"]);
   }
   for (const model of ["anthropic/claude-sonnet-5", "anthropic/claude-opus-4.8"]) {

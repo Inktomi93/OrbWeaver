@@ -239,6 +239,49 @@ test("default effort: a non-adaptive reasoning model keeps its catalog-advertise
   expect(resolveChat({} satisfies UserIntent, offByDefault).reasoning.enabled).toBe(false);
 });
 
+// ── reasoning OFF and how the model spells it (`reasoning.offMode`) ────────────────────────────────────────
+// Claude Sonnet 5.5 refuses `thinking: disabled`; its off is `between_tools`, which is legal only at effort high or
+// below and takes no display and no block binding. An off turn carries no effort, display or carry, so the wire
+// sends the bare type and the API runs it at its own default effort (high).
+
+const BETWEEN_TOOLS: GenerationCapability["reasoning"] = {
+  mode: "adaptive",
+  enabled: true,
+  effortLevels: [...EFFORT_LADDER],
+  displayModes: ["summarized"],
+  replay: "signed",
+  prefixBound: true,
+  prefixEditSafe: true,
+  offMode: "between-tools",
+};
+
+test("off mode: a chosen off resolves the model's off spelling with no effort, display or carry, and no warning", () => {
+  const knobs = resolveChat({ effort: "none", thinkingDisplay: "summarized" } satisfies UserIntent, generation({ reasoning: BETWEEN_TOOLS }));
+  expect(knobs.reasoning).toEqual({ mode: "adaptive", enabled: false, offChosen: true, offMode: "between-tools" });
+  expect(knobs.carryReasoning).toBe("off");
+  expect(knobs.warnings).toEqual([]);
+  // A model that states no off mode turns reasoning off with `disabled`.
+  const plain = resolveChat(
+    { effort: "none" } satisfies UserIntent,
+    generation({ reasoning: { mode: "adaptive", enabled: true, effortLevels: [...EFFORT_LADDER] } }),
+  );
+  expect(plain.reasoning).toEqual({ mode: "adaptive", enabled: false, offChosen: true, offMode: "disabled" });
+});
+
+test("off mode: every level above off, xhigh and max included, runs adaptive and never meets between-tools", () => {
+  for (const effort of EFFORT_LADDER) {
+    const knobs = resolveChat({ effort } satisfies UserIntent, generation({ reasoning: BETWEEN_TOOLS }));
+    expect(knobs.reasoning, effort).toEqual({ mode: "adaptive", enabled: true, effort, display: "summarized" });
+    expect(knobs.warnings, effort).toEqual([]);
+  }
+});
+
+test("off mode: a route where the model is mandatory clamps off up, and the off mode never reaches the turn", () => {
+  const knobs = resolveChat({ effort: "none" } satisfies UserIntent, generation({ reasoning: { ...BETWEEN_TOOLS, mandatory: true } }));
+  expect(knobs.reasoning).toEqual({ mode: "adaptive", enabled: true, effort: "low", display: "summarized" });
+  expect(knobs.warnings.map((w) => [w.code, w.appliedEffort])).toEqual([["reasoning_mandatory_clamp", "low"]]);
+});
+
 // A budget-mode model with no explicit budget used to get the range MAX for any effort — `low` on haiku-4-5 sent
 // `budget_tokens: 63000`. The effort now picks a point in the range, low < medium < high, `max` at the top.
 test("budget mode: the effort level picks the budget when none is set, and an explicit budget still wins", () => {

@@ -238,12 +238,12 @@ function reasoningPartsOf(acc: Accumulator): readonly ReasoningContentPart[] {
  * `acc.finish === undefined` below is the honest truncation guard — and on the openai-compat wire it is
  * STRUCTURALLY UNREACHABLE, because both of that wire's providers manufacture a `finish` part on FLUSH
  * whether or not the upstream ever sent one:
- *   · `@ai-sdk/openai-compatible@3.0.53` — `dist/index.js:1410` initialises
- *     `finishReason = { unified: "other", raw: undefined }` and `:1467-1477`'s `flush(controller)` enqueues
+ *   · `@ai-sdk/openai-compatible@3.0.62` — `dist/index.js:1065` initialises
+ *     `finishReason = { unified: "other", raw: undefined }` and `:1130-1140`'s `flush(controller)` enqueues
  *     it unconditionally with `convertOpenAICompatibleCompletionUsage(undefined)` (an all-`undefined` usage).
  *   · `@openrouter/ai-sdk-provider@3.1.0` — the same initialiser at `dist/index.js:4583` / `:5386`, emitted
  *     from its own flush at `:5036` / `:5485`.
- * (The direct `@ai-sdk/anthropic@4.0.58` wire does NOT do this: `dist/index.js:5886` enqueues `finish` only
+ * (The direct `@ai-sdk/anthropic@4.0.71` wire does NOT do this: `dist/index.js:5092` enqueues `finish` only
  * inside the `message_stop` case, so a truncated Anthropic stream genuinely has no finish part and the
  * `undefined` guard fires. That asymmetry is exactly what made this invisible — one wire failed closed and
  * looked like proof the class was handled.)

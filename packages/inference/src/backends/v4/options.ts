@@ -104,7 +104,7 @@ export function toolChoiceOf(choice: ToolChoice): LanguageModelV4ToolChoice {
 }
 
 /** THE FORCED-TOOL DOWNGRADE (#2575). A model whose capability says `tools.forcedChoice: false` answers a forced
- *  choice (`required` / a named `tool`) with a 400 — Claude Fable 5.1 / Mythos 5.1 / Opus 5.5 on the Messages,
+ *  choice (`required` / a named `tool`) with a 400 — Claude Fable 5.1 / Mythos 5.1 / Opus 5.5 / Sonnet 5.5 on the Messages,
  *  Batches and count_tokens endpoints alike. The choice goes out as `auto` over the SAME tools (their `strict`
  *  flags untouched, so schema-valid arguments survive) and the drop is LOUD, because `auto` no longer guarantees
  *  a call and a caller that relied on the guarantee must be able to see why it lapsed. Keyed on the capability,

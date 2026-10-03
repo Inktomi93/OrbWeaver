@@ -185,12 +185,13 @@ const RATE_HEADERS = {
 
 const ADAPTIVE_REASONING: GenerationCapability["reasoning"] = { mode: "adaptive", enabled: true, effortLevels: ["low", "medium", "high", "xhigh", "max"] };
 
-/** A Fable-shaped request: effort `none` on an adaptive cell, mandatory or not. */
-function fableRequest(mandatory: boolean): AnthropicChatRequest {
+/** Effort `none` on an adaptive cell, mandatory or not. The SDK rewrites `disabled` by model id on the ids that
+ *  refuse it, so the non-mandatory control names an id it leaves alone. */
+function fableRequest(mandatory: boolean, model = "claude-fable-5-1"): AnthropicChatRequest {
   const connection = fakeResolved({
     task: "chat",
     providerId: "anthropic",
-    model: "claude-fable-5-1",
+    model,
     capability: generationCapability({ reasoning: mandatory ? { ...ADAPTIVE_REASONING, mandatory: true } : ADAPTIVE_REASONING }),
     baseUrl: "https://api.anthropic.com",
     secret: fakeApiKeySecret("sk-ant-probe-not-a-real-key"),
@@ -227,7 +228,7 @@ test("A8/B1: a MANDATORY cell clamps effort `none` up — the body carries adapt
 });
 
 test("B1 (control): a non-mandatory adaptive cell turns thinking OFF for effort `none` — the body says disabled, the record says `none`", async () => {
-  const { turn, body } = await recordedTurn(fableRequest(false), anthropicTextStream("ok"));
+  const { turn, body } = await recordedTurn(fableRequest(false, "claude-sonnet-5"), anthropicTextStream("ok"));
   expect(thinkingTypeOf(body)).toBe("disabled");
   expect(turn.appliedEffort).toBe("none");
 });
@@ -260,13 +261,13 @@ test("parallelToolCalls false sends disable_parallel_tool_use; unset sends none"
   expect(JSON.stringify(unset.body?.body ?? {})).not.toContain("disable_parallel_tool_use");
 });
 
-// #2575: Fable 5.1, Mythos 5.1 and Opus 5.5 answer a forced `tool_choice` (`any` / `tool`) with a 400
+// #2575: Fable 5.1, Mythos 5.1, Opus 5.5 and Sonnet 5.5 answer a forced `tool_choice` (`any` / `tool`) with a 400
 // ("tool_choice: type "tool" and "any" are not supported for this model"). The rpg state round sends
 // `required`; on those models the wire must send `auto` instead and SAY so, never the request that 400s.
 const FORCED_CHOICES = [{ mode: "required" }, { mode: "tool", name: "get_weather" }] as const;
 
 test("#2575: a forced tool_choice on a model that rejects it goes out as `auto`, loudly", async () => {
-  for (const model of ["claude-fable-5-1", "claude-mythos-5-1", "claude-opus-5-5"]) {
+  for (const model of ["claude-fable-5-1", "claude-mythos-5-1", "claude-opus-5-5", "claude-sonnet-5-5"]) {
     for (const toolChoice of FORCED_CHOICES) {
       const { turn, body } = await recordedTurn(turnRequest({ connection: curatedConnection(model), toolChoice }), anthropicTextStream("ok"));
       expect(body?.body["tool_choice"], `${model} · ${toolChoice.mode}`).toMatchObject({ type: "auto" });
@@ -296,6 +297,29 @@ test("#2575: Opus 5.5 with reasoning OFF never sends `thinking: disabled` — it
   expect(body?.body["output_config"]).toMatchObject({ effort: "low" });
   expect(turn.appliedEffort).toBe("low");
   expect(eventCodes(turn)).toContain("reasoning_mandatory_clamp");
+});
+
+// Sonnet 5.5 refuses `thinking: disabled` (400 naming `between_tools`, req_011CfeUA7wctvT9Pa9oaZnHD) and refuses
+// any other field beside `between_tools` (`display`: req_011CfeUAVGH3K5Qg7ufuZvif), so an off turn carries the bare
+// type and no effort: the API then runs its own default, high, where `between_tools` is legal (OR-14).
+test("Sonnet 5.5 with reasoning OFF sends the bare `between_tools` thinking type and no effort, and records `none`", async () => {
+  const { turn, body } = await recordedTurn(
+    turnRequest({ connection: curatedConnection("claude-sonnet-5-5"), params: { effort: "none", carryReasoning: "conversation" }, tools: undefined }),
+    anthropicTextStream("ok"),
+  );
+  expect(body?.body["thinking"]).toEqual({ type: "between_tools" });
+  expect(body?.body["output_config"]).toBeUndefined();
+  expect(turn.appliedEffort).toBe("none");
+  // The carry drops (an off turn has no thinking to carry) and nothing else warns: the SDK rewrites a `disabled` on
+  // this id itself and says so, so its silence is what proves the wire spelled the request before the SDK saw it.
+  expect(eventCodes(turn)).toEqual(["sampling_knob_dropped"]);
+  // An explicit level on the same model is adaptive thinking at that level, xhigh included.
+  const xhigh = await recordedTurn(
+    turnRequest({ connection: curatedConnection("claude-sonnet-5-5"), params: { effort: "xhigh" }, tools: undefined }),
+    anthropicTextStream("ok"),
+  );
+  expect(xhigh.body?.body["thinking"]).toMatchObject({ type: "adaptive", display: "summarized" });
+  expect(xhigh.body?.body["output_config"]).toMatchObject({ effort: "xhigh" });
 });
 
 test("B6 + B7: the Anthropic rate-limit headers become the snapshot (tightest axis = tokens) and the msg_ id is the generationId", async () => {
@@ -380,7 +404,7 @@ test("PLANTED CONTROL: the same row WITHOUT the carry sends prose only — no th
 // ── the TOOL doors, against the real converter (audit C1 + C4) ───────────────────────────────────────────
 // §15c-1: a spec type permitting a shape is not a converter emitting it. `LanguageModelV4FunctionTool` has
 // carried `strict`, `inputExamples` and per-tool `providerOptions` all along; what these pin is that the
-// 4.0.58 Anthropic converter turns ours into `strict` / `input_examples` / `cache_control` on the WIRE.
+// 4.0.71 Anthropic converter turns ours into `strict` / `input_examples` / `cache_control` on the WIRE.
 
 function toolsOf(recorded: RecordedRequest | undefined): readonly Record<string, unknown>[] {
   const tools = recorded?.body["tools"];

@@ -8,8 +8,8 @@ import type { Modality } from "../modalities.ts";
 import type { CapabilityRequirement } from "../tasks.ts";
 import type { Capability } from "./capability.ts";
 import type { EmbeddingCapability } from "./embedding.ts";
-import type { GenerationCapability, ReasoningReplayMode, RoleHandling, UserRoleHandling } from "./generation.ts";
-import { CACHE_MIN_FLOOR, REASONING_REPLAY_FLOOR, ROLE_HANDLING, TURNS_FLOOR, USER_ROLE_HANDLING } from "./generation.ts";
+import type { GenerationCapability, ReasoningOffMode, ReasoningReplayMode, RoleHandling, UserRoleHandling } from "./generation.ts";
+import { CACHE_MIN_FLOOR, REASONING_OFF_DEFAULT, REASONING_REPLAY_FLOOR, ROLE_HANDLING, TURNS_FLOOR, USER_ROLE_HANDLING } from "./generation.ts";
 import type { RerankCapability } from "./rerank.ts";
 
 /** Does this generation model accept/produce a modality on the named side? */
@@ -69,6 +69,11 @@ export function acceptsAssistantPrefill(capability: GenerationCapability): boole
  *  block it might reject. */
 export function reasoningReplayOf(capability: GenerationCapability): ReasoningReplayMode {
   return capability.reasoning.replay ?? REASONING_REPLAY_FLOOR;
+}
+
+/** How this model turns reasoning off (`reasoning.offMode`). Absent ⇒ {@link REASONING_OFF_DEFAULT}. */
+export function reasoningOffModeOf(capability: GenerationCapability): ReasoningOffMode {
+  return capability.reasoning.offMode ?? REASONING_OFF_DEFAULT;
 }
 
 /** Is a replayed thinking block valid only while everything before it is unchanged (`reasoning.prefixBound`)?

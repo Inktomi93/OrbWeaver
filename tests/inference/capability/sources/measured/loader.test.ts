@@ -120,6 +120,22 @@ test("OR Claude with nothing set runs adaptive at high, even where the catalog s
   }
 });
 
+// OR-14 (scripts/probes/openrouter/RESULTS.md): OpenRouter answers both `{effort:"none"}` and `{enabled:false}` on
+// Sonnet 5.5 with "Reasoning is mandatory for this endpoint and cannot be disabled", and its chat body has no
+// `between_tools` spelling, so the measured row outranks a catalog that does not say so.
+test("OR sonnet-5.5 is mandatory whatever the catalog says: reasoning off clamps to low, loudly", () => {
+  const reasoning = { mandatory: false, defaultEnabled: true, supportedEfforts: CLAUDE_LADDER, defaultEffort: "high" };
+  const gen = viaOpenRouterCatalog(orReasoningEntry("anthropic/claude-sonnet-5.5", reasoning), "anthropic");
+  expect(gen.reasoning.mandatory).toBe(true);
+  expect(gen.tools?.forcedChoice).toBe(false);
+  const off = resolveChat({ effort: "none" }, gen);
+  expect(off.reasoning).toMatchObject({ mode: "adaptive", enabled: true, effort: "low" });
+  expect(off.warnings.map((w) => [w.code, w.appliedEffort])).toEqual([["reasoning_mandatory_clamp", "low"]]);
+  // PLANTED CONTROL: Sonnet 5 under the same catalog shape still switches off.
+  const sonnet5 = viaOpenRouterCatalog(orReasoningEntry("anthropic/claude-sonnet-5", reasoning), "anthropic");
+  expect(resolveChat({ effort: "none" }, sonnet5).reasoning.enabled).toBe(false);
+});
+
 test("OR OpenAI / Gemini keep the catalog's own default: gpt-5.4-mini stays off, gemini-3.5-flash stays at medium", () => {
   const gpt = viaOpenRouterCatalog(
     orReasoningEntry("openai/gpt-5.4-mini", {

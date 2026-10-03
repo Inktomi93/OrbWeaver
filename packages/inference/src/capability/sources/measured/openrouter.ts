@@ -59,4 +59,22 @@ export const measuredOpenRouterRows = [
       cite: 'wire-fixes-or-echo.mjs, reasoning.effort "high" + debug.echo_upstream_body, upstream thinking {type:"adaptive",display:"summarized"} + output_config.effort "high" on every id: opus-5 gen-1790141847-svcaPqDtmlhF34sxweVp, opus-5.5 gen-1790141848-AAT0DrIn490dia4WrPeZ, fable-5 gen-1790141850-miDQ7EvBTSfb094Vfizh, fable-5.1 gen-1790141854-B8vCTCWKmFmNVeTy79fm, sonnet-5 gen-1790141857-ck66LEE8k2VXqYoS3f6i, opus-4.8 gen-1790141839-NIM1Oo4iEXg70CSFDnfh, opus-4.7 gen-1790141840-K2jBVGtiQQxYNsqWgpf7',
     },
   },
+  // OpenRouter's chat body has no spelling for Sonnet 5.5's `between_tools`, and it refuses every off it does have,
+  // so an off turn on this route clamps up to the lowest effort instead of spending a request on the 400.
+  {
+    match: {
+      provider: "openrouter",
+      model: "^anthropic/claude-sonnet-5[-.]5(?![0-9])",
+    },
+    generation: {
+      reasoning: {
+        mandatory: true,
+      },
+    },
+    evidence: {
+      tier: "measured",
+      dated: "2026-10-03",
+      cite: 'OR-14 (scripts/probes/openrouter/or14-sonnet-5-5-thinking-off.ts, RESULTS.md), Anthropic pinned: reasoning {effort:"none"} and {enabled:false} both -> 400 "Reasoning is mandatory for this endpoint and cannot be disabled"; control reasoning.effort "high" -> 200 with upstream thinking {type:"adaptive",display:"summarized"} + output_config.effort "high" (gen-1790992425-FFU2VVqASPD1EKOpi6RQ); tool_choice "required" -> upstream 400 "tool_choice: type tool and any are not supported for this model" (req_011CfeUBBXSm15nSnRHEqM1Y); the catalog agrees (GET /api/v1/models 2026-10-03: reasoning.mandatory true). OpenRouter\'s Messages endpoint (/api/v1/messages) does take thinking between_tools (gen-1790993688-wJirlq1BbjQ0C7PB0zwh), but this route is chat completions',
+    },
+  },
 ] as const satisfies readonly CapabilityOverrideInput[];

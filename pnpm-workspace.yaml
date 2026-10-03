@@ -229,14 +229,15 @@ catalog:
   # wire-capture byte pins under `tests/inference/backends/{anthropic-messages,openai-compat}/chat.test.ts`
   # before it is trusted. `ai` is the peer the OpenRouter provider requires (`^7.0.0`); the
   # `@ai-sdk/provider` pin must satisfy every provider
-  # package's own `@ai-sdk/provider` dependency at install (4.0.17 on 2026-09-19).
+  # package's own `@ai-sdk/provider` dependency at install (4.0.21 on 2026-10-03), so the stack moves together:
+  # @ai-sdk/anthropic 4.0.67 is the first with `claude-sonnet-5-5` and the `between_tools` thinking type.
   # @openrouter/ai-sdk-provider 3.1.0 cleared the 24h minimumReleaseAge floor on 2026-09-20; the exact
   # per-transport byte pins guard its request conversion alongside the Vercel SDK providers.
-  ai: 7.0.107
-  "@ai-sdk/provider": 4.0.17
-  "@ai-sdk/openai-compatible": 3.0.53
-  "@ai-sdk/google": 4.0.77
-  "@ai-sdk/anthropic": 4.0.58
+  ai: 7.0.127
+  "@ai-sdk/provider": 4.0.21
+  "@ai-sdk/openai-compatible": 3.0.62
+  "@ai-sdk/google": 4.0.87
+  "@ai-sdk/anthropic": 4.0.71
   "@openrouter/ai-sdk-provider": 3.1.0
   # @huggingface/transformers: the in-process local-light tier (transformers.js/ONNX, CPU+CUDA) — the
   # "any box" embed/rerank/imageEmbed path (D39). Pulls onnxruntime-node (native; allowBuilds-approved).

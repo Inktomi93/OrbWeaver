@@ -36,8 +36,8 @@ import { z } from "zod";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 
-/** The keys a connection's `extras` may carry on this wire, each validated against the 4.0.58 dist's own
- *  `anthropicLanguageModelOptions` shape (`index.d.ts:219-360`). Open enums stay `z.string()` where the dist
+/** The keys a connection's `extras` may carry on this wire, each validated against the 4.0.71 dist's own
+ *  `anthropicLanguageModelOptions` shape (`index.d.ts:245-392`). Open enums stay `z.string()` where the dist
  *  models an open one and are pinned where it models a closed one. */
 const ANTHROPIC_EXTRAS_SCHEMAS = {
   /** `fast | standard` — the latency/price tier. */

@@ -41,6 +41,16 @@ export const REASONING_REPLAY_MODES = ["signed", "text", "none"] as const;
 export type ReasoningReplayMode = (typeof REASONING_REPLAY_MODES)[number];
 export const reasoningReplayModeSchema = z.enum(REASONING_REPLAY_MODES) satisfies z.ZodType<ReasoningReplayMode>;
 
+/** How a model turns reasoning OFF. `disabled` runs no thinking at all. `between-tools` is the off of a model that
+ *  refuses `disabled` (Claude Sonnet 5.5): no thinking before the reply, only short progress notes between tool
+ *  calls, legal at effort `high` or below and with no other thinking field beside it. Read through
+ *  `reasoningOffModeOf`, never re-spelled. */
+export const REASONING_OFF_MODES = ["disabled", "between-tools"] as const;
+export type ReasoningOffMode = (typeof REASONING_OFF_MODES)[number];
+export const reasoningOffModeSchema = z.enum(REASONING_OFF_MODES) satisfies z.ZodType<ReasoningOffMode>;
+/** The off spelling of a model that states none: every model took `disabled` before one refused it. */
+export const REASONING_OFF_DEFAULT = "disabled" as const satisfies ReasoningOffMode;
+
 /** The Anthropic-only reasoning-display knob. */
 export const REASONING_DISPLAY_MODES = ["summarized", "omitted"] as const;
 export type ReasoningDisplayMode = (typeof REASONING_DISPLAY_MODES)[number];
@@ -118,6 +128,9 @@ export const reasoningCapabilitySchema = z.object({
   displayModes: z.array(reasoningDisplayModeSchema).optional(),
   /** Reasoning cannot be disabled — an `effort:'none'` intent is CLAMPED up at the funnel, never a 400. */
   mandatory: z.boolean().optional(),
+  /** How an off turn is spelled on this model ({@link REASONING_OFF_MODES}). Absent ⇒ `disabled`. A `mandatory`
+   *  route never reaches it: its off clamps up first. */
+  offMode: reasoningOffModeSchema.optional(),
   /** The catalog's own default (OpenRouter `default_enabled` / `default_effort`). It fills an unset effort only
    *  on a NON-adaptive model; an adaptive model takes the house default instead (`ADAPTIVE_DEFAULT_EFFORT`,
    *  `@orb/inference`'s resolve contract). */

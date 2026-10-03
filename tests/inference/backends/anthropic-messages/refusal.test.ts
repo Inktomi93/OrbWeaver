@@ -1,5 +1,5 @@
 // backends/anthropic-messages/refusal — the classifier-block fold onto the EXISTING `refusal` ChatEvent (A5).
-// Shapes are the SDK's own (`mapAnthropicStopDetails`, `@ai-sdk/anthropic/dist/index.js:6140-6150`; the
+// Shapes are the SDK's own (`mapAnthropicStopDetails`, `@ai-sdk/anthropic` 4.0.71 `dist/index.js:6134-6142`; the
 // `iterations` map at :5862-5875): a Fable safety block is a 200 with the V4 finish `content-filter`,
 // `stopDetails` when the API attached one, and a `fallback_message` iteration when `fallbacks` retried
 // server-side. The fold branches on the FINISH REASON (the vendored doc's rule: the API may refuse with no

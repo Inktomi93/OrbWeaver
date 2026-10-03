@@ -7,16 +7,16 @@ import type { CapabilityOverrideInput } from "@orb/contracts/inference";
 /** The Claude ids measured to take a `system` row inside `messages` (matrix §7, handling (b)): a tail row and a
  *  legal mid-array row both return 200 on the direct wire. Anchored so an unmeasured sibling (a point release, a
  *  dated snapshot) stays on the fail-closed family cell. haiku-4-5 is absent: it 400s any system row. */
-const SYSTEM_ROW_MODELS = "^(anthropic/)?claude[-/](opus-5([-.]5)?|fable-5([-.]1)?|sonnet-5|opus-4[-.]8)$";
+const SYSTEM_ROW_MODELS = "^(anthropic/)?claude[-/](opus-5([-.]5)?|fable-5([-.]1)?|sonnet-5([-.]5)?|opus-4[-.]8)$";
 
 /** The subset of {@link SYSTEM_ROW_MODELS} measured to OBEY a tail system row, not only accept it: sonnet-5 and
  *  opus-4-8 return 200 and ignore the row's instruction, so their trailing system rows fold to user text. */
-const TAIL_SYSTEM_MODELS = "^(anthropic/)?claude[-/](opus-5([-.]5)?|fable-5([-.]1)?)$";
+const TAIL_SYSTEM_MODELS = "^(anthropic/)?claude[-/](opus-5([-.]5)?|fable-5([-.]1)?|sonnet-5[-.]5)$";
 
 /** The Claude generations released before preserved thinking became the rule for new models, which run no prefix
  *  check: an exact generation, optionally a snapshot dated before 2026-10-01 and an OpenRouter `:variant`. Every
  *  other Claude id is prefix-bound by the row that reads this, so a later release fails closed to `drop_block`.
- *  Opus 5.5 and Fable 5.1 are absent: they run the check and state it on their own rows. */
+ *  Opus 5.5, Fable 5.1 and Sonnet 5.5 are absent: they run the check and state it on their own rows. */
 const UNCHECKED_GENERATIONS = "(instant|[123])([-.].*)?|opus-4([-.][015678])?|sonnet-4([-.][056])?|haiku-4[-.]5|(opus|sonnet|fable|mythos)-5";
 const UNCHECKED_MODELS = `(${UNCHECKED_GENERATIONS})(-20(1[0-9]|2[0-5])[0-9]{4}|-20260[0-9]{3})?(:[a-z-]+)?$`;
 
@@ -103,7 +103,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-23",
-      cite: "@ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5943-5953): supportsAdaptiveThinking, supportsXhighEffort, rejectsSamplingParameters: true; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (opus-5 req_011CfKrpkFiR5L4pT2WAm3oB, opus-5-5 req_011CfKrpmWsQRi4sLnPujdx9); cacheMinTokens 512 = a 555-token prefix cached and a 504-token one did not (opus-5 req_011CfKrvqD3Be1mTJTWssMeJ / req_011CfKrudXJBP64sXedecYct, opus-5-5 req_011CfKrw9dKMDf2PWQv4YasA / req_011CfKruzHTfrbWs8aMaoosm)",
+      cite: "@ai-sdk/anthropic 4.0.71 getModelCapabilities (dist/index.js:5173-5184): supportsAdaptiveThinking, supportsXhighEffort, rejectsSamplingParameters: true; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (opus-5 req_011CfKrpkFiR5L4pT2WAm3oB, opus-5-5 req_011CfKrpmWsQRi4sLnPujdx9); cacheMinTokens 512 = a 555-token prefix cached and a 504-token one did not (opus-5 req_011CfKrvqD3Be1mTJTWssMeJ / req_011CfKrudXJBP64sXedecYct, opus-5-5 req_011CfKrw9dKMDf2PWQv4YasA / req_011CfKruzHTfrbWs8aMaoosm)",
     },
   },
   {
@@ -161,7 +161,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-23",
-      cite: "chat-models.ts Opus 4.8 entry; turns.ts OPUS_48_MIN; sampling {} = @ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (req_011CfKrpnME92ak8htGAZfQK)",
+      cite: "chat-models.ts Opus 4.8 entry; turns.ts OPUS_48_MIN; sampling {} = @ai-sdk/anthropic 4.0.71 getModelCapabilities (dist/index.js:5209-5220) rejectsSamplingParameters: true; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (req_011CfKrpnME92ak8htGAZfQK)",
     },
   },
   {
@@ -192,7 +192,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-23",
-      cite: "turns.ts OPUS_47_MIN; sampling {} = @ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (req_011CfKrpo1QuJJXt5KDz6ZRQ)",
+      cite: "turns.ts OPUS_47_MIN; sampling {} = @ai-sdk/anthropic 4.0.71 getModelCapabilities (dist/index.js:5209-5220) rejectsSamplingParameters: true; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (req_011CfKrpo1QuJJXt5KDz6ZRQ)",
     },
   },
   {
@@ -267,7 +267,38 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-23",
-      cite: "@ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true for claude-sonnet-5; :5964-5973 false for sonnet-4-6; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (req_011CfKrpqBszB95ktdqBoGas); thinking default On for Sonnet 5: platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting per-model table (fetched 2026-09-25); Sonnet 5 effort includes xhigh: platform.claude.com/docs/en/build-with-claude/effort levels table and supported models (fetched 2026-09-25)",
+      cite: "@ai-sdk/anthropic 4.0.71 getModelCapabilities (dist/index.js:5209-5220) rejectsSamplingParameters: true for claude-sonnet-5; :5221-5232 false for sonnet-4-6; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (req_011CfKrpqBszB95ktdqBoGas); thinking default On for Sonnet 5: platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting per-model table (fetched 2026-09-25); Sonnet 5 effort includes xhigh: platform.claude.com/docs/en/build-with-claude/effort levels table and supported models (fetched 2026-09-25)",
+    },
+  },
+  // The sonnet-5 row above ALSO matches `sonnet-5-5` and states facts it shares (adaptive on by default, the full
+  // effort ladder, no sampling knobs, 1M / 128k). This row states what differs; anchored so `sonnet-5` keeps its own.
+  {
+    match: {
+      model: "^(anthropic/)?claude[-/].*sonnet-5[-.]5(?![0-9])",
+    },
+    generation: {
+      reasoning: {
+        // `thinking: {type:"disabled"}` 400s; off is `between_tools` (no thinking before the reply, progress notes
+        // between tool calls), legal only at effort high or below and with no other thinking field. An off turn
+        // sends no effort, so the API default (high) keeps it legal.
+        offMode: "between-tools",
+        // Preserved thinking: a replayed block is bound to its conversation prefix (and to the account that made it).
+        prefixBound: true,
+      },
+      // Forced `tool_choice` (`any` / `tool`) 400s, token counting included; Sonnet 5 accepts both.
+      // A `tools` cell restates `parallel`: a sub-fact alone is refused at parse (the cell means "accepts tools[]").
+      tools: {
+        parallel: true,
+        forcedChoice: false,
+      },
+      turns: {
+        cacheMinTokens: 512,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-03",
+      cite: 'live direct claude-sonnet-5-5 (OR-14, scripts/probes/openrouter/RESULTS.md): thinking.type disabled -> 400 "To turn thinking off on this model, send thinking between_tools" (req_011CfeUA7wctvT9Pa9oaZnHD); between_tools 200 with effort unset (req_011CfeUA8jVZwQNGQKWPTq2N), low (req_011CfeUADxX1jd8kEmts1woo), medium (req_011CfeUAK4cL9oHczQzQGGwD), high (req_011CfeUAPwJC8aZtaoUikmQR); between_tools + effort xhigh -> 400 (req_011CfeUAUbLStUnuvrv1mHRB); between_tools + display -> 400 "Extra inputs are not permitted" (req_011CfeUAVGH3K5Qg7ufuZvif); tool_choice any -> 400 (req_011CfeUAVwCQFMLuBvdJ93kp); a 523-token cached prefix wrote the cache and a 465-token one did not (req_011CfeUAucVJZ9Q7cc81vNBs / req_011CfeUAqn4QL24j2g3tAKU2). Docs: platform.claude.com/docs/en/models/sonnet-5-5/migration-guide (fetched 2026-10-03) "Turn off up-front thinking", "Forced tool use is not supported", "Thinking blocks are tied to the model and the conversation" (prefix-bound on accounts created from 2026-08-31, account-bound everywhere), prompt-caching minimum 512; platform.claude.com/docs/en/models/sonnet-5-5/overview: 1M context, 128K output, default effort high',
     },
   },
   {
@@ -357,7 +388,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-23",
-      cite: "Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (fable-5 req_011CfKrpofqzmcm2uuqUF1FC, fable-5-1 req_011CfKrppViCfcxQkR1Qiurp); turns.ts FABLE_MYTHOS_MIN; mandatory = direct claude-fable-5-1 thinking.type: disabled → 400 'not supported for this model' (2026-09-19 req_011CfE8JTmHYvCZudukFufdG; 2026-09-20 rec-probe.mjs anth-fable-disabled req_011CfEBkabcoxXWyouHdYDxY), OpenRouter 'Reasoning is mandatory for this endpoint' (2026-09-19); sampling {} = @ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true",
+      cite: "Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (fable-5 req_011CfKrpofqzmcm2uuqUF1FC, fable-5-1 req_011CfKrppViCfcxQkR1Qiurp); turns.ts FABLE_MYTHOS_MIN; mandatory = direct claude-fable-5-1 thinking.type: disabled → 400 'not supported for this model' (2026-09-19 req_011CfE8JTmHYvCZudukFufdG; 2026-09-20 rec-probe.mjs anth-fable-disabled req_011CfEBkabcoxXWyouHdYDxY), OpenRouter 'Reasoning is mandatory for this endpoint' (2026-09-19); sampling {} = @ai-sdk/anthropic 4.0.71 getModelCapabilities (dist/index.js:5185-5208) rejectsSamplingParameters: true",
     },
   },
   {
@@ -419,6 +450,23 @@ export const anthropicRows = [
       cite: "turns.ts anthropicMidConvSystem: wire-tested, only Opus 4.8 on the anthropic-cli shape; the tail row rides the hook (obeyed 2/2). Floor slotted so the level keeps it (SHAPING-MATRIX §3, §5)",
     },
   },
+  // The Claude runtime cannot spell Sonnet 5.5's off: an off turn there clamps up instead of sending `disabled`.
+  {
+    match: {
+      model: "^(anthropic/)?claude[-/].*sonnet-5[-.]5(?![0-9])",
+      wire: "agent-sdk",
+    },
+    generation: {
+      reasoning: {
+        mandatory: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-03",
+      cite: "docs-derived, not live-probed (fail closed): @anthropic-ai/claude-agent-sdk 0.3.280 sdk.d.ts:9310 ThinkingConfig = ThinkingAdaptive | ThinkingEnabled | ThinkingDisabled has no between_tools arm, so backends/agent-sdk/translate.ts can only send disabled for an off turn, and platform.claude.com/docs/en/models/sonnet-5-5/migration-guide (fetched 2026-10-03): on Claude Sonnet 5.5, disabled returns a 400 invalid_request_error",
+    },
+  },
   {
     match: {
       model: "^(anthropic/)?claude[-/]",
@@ -450,7 +498,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-27",
-      cite: "the direct wire sends thinking.block_binding.prefix_mismatch_behavior drop_block beside adaptive thinking on every carry above off (backends/anthropic-messages/chat.ts withBlockBinding); @ai-sdk/anthropic 4.0.58 dist/index.js:1062-1065 admits blockBinding in the adaptive arm, :4152-4177 maps it to block_binding, :4395-4396 adds thinking-binding-controls-2026-08-01, and the enabled/disabled arms carry no blockBinding, so the SDK strips it there. Live: drop_block accepted on opus-5-5 (req_011CfKs6a4VLio7HdQpBMWwz) and fable-5-1 (req_011CfKs7QaWYrtm7Zhq5SnGE); OR-10 (scripts/probes/openrouter/RESULTS.md): each prefix_binding_mismatch drop returned 200",
+      cite: "the direct wire sends thinking.block_binding.prefix_mismatch_behavior drop_block beside adaptive thinking on every carry above off (backends/anthropic-messages/chat.ts withBlockBinding); @ai-sdk/anthropic 4.0.71 dist/index.js:884 admits blockBinding in the adaptive arm, :3697 and :3713 map it to block_binding, :3867 adds thinking-binding-controls-2026-08-01, and the enabled, disabled and between_tools arms carry no blockBinding, so the SDK strips it there. Live: drop_block accepted on opus-5-5 (req_011CfKs6a4VLio7HdQpBMWwz) and fable-5-1 (req_011CfKs7QaWYrtm7Zhq5SnGE); OR-10 (scripts/probes/openrouter/RESULTS.md): each prefix_binding_mismatch drop returned 200",
     },
   },
   {
@@ -482,7 +530,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-23",
-      cite: "live direct, beta mid-conversation-system-clear-at-2026-08-21: a clear_at system row is gone at the next user message (reply NONE) on opus-5 (req_011CfKVUJD3ipkDBURp19sXj), opus-5-5 (req_011CfKVV2k9iHSqTPHcwRNSD), opus-4-8 (req_011CfKVVYX44YTjbwoAKYo99), fable-5 (req_011CfKVWNKfLpeGjNyZnEYbX), fable-5-1 (req_011CfKVY2ydLzekGz4ukQwLX), sonnet-5 (req_011CfKVYxTo2sfGmeVp7nPQx); the same row without clear_at stays visible (req_011CfKVUr4Dc8kxdC8cnp66P). Other Claude ids are unmeasured and stay off",
+      cite: "live direct, beta mid-conversation-system-clear-at-2026-08-21: a clear_at system row is gone at the next user message (reply NONE) on opus-5 (req_011CfKVUJD3ipkDBURp19sXj), opus-5-5 (req_011CfKVV2k9iHSqTPHcwRNSD), opus-4-8 (req_011CfKVVYX44YTjbwoAKYo99), fable-5 (req_011CfKVWNKfLpeGjNyZnEYbX), fable-5-1 (req_011CfKVY2ydLzekGz4ukQwLX), sonnet-5 (req_011CfKVYxTo2sfGmeVp7nPQx), sonnet-5-5 (2026-10-03 OR-14: req_011CfeVdmrHrKtduD5GVqjo1); the same row without clear_at stays visible (req_011CfKVUr4Dc8kxdC8cnp66P; sonnet-5-5 req_011CfeVdqBhcB4PRV9Cfhnca). Other Claude ids are unmeasured and stay off",
     },
   },
   {
@@ -499,7 +547,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-24",
-      cite: "SHAPING-MATRIX §7 handling (b), direct, n=3 per cell: a tail system row and a legal-slot [u,S,a] row return 200 on opus-5 (req_011CfKhAEdeEh6hy5HbSgemF…), opus-5-5 (req_011CfKhJ4rzXWr39mUEhXSKo…), fable-5 (req_011CfKhJ4omUcAHiNHB3tvWb…), fable-5-1 (req_011CfKhJ4omHQU8PuX1mRUEn…), sonnet-5 (req_011CfKhYub3yrLNLnBRDfNb4…), opus-4-8 (req_011CfKhYuVMPxhZ1UbNk9JiX…); an illegal [a,S,u] slot 400s (req_011CfKZSZSFUfW1Jdarpf5Cb), so the floor is slotted. haiku-4-5 400s any system row (req_011CfKhZ8ALv97q91yH4eqep) and is not on this row. Obeyed, not only accepted (OR-11, 2026-09-24, an override in a depth-2 [u,S,a,u] row, unrelated question): sonnet-5 5/6 (req_011CfNXR4GKK4kk4M38AEE5h…), opus-4-8 5/5 (req_011CfNXSh1w73PuN9rFBMZ1W…), control opus-5-5 5/5 (req_011CfNXU8pF5RGPWKi63ZvEu…); the same note folded to user text in a framed block after it: sonnet-5 1/5, opus-4-8 0/5; the shipped bare fold before the user text carries it 12/15 and 15/15 (OR-11 leg 2), about as well as the row. The tail fact is the TAIL_SYSTEM_MODELS rows'",
+      cite: "SHAPING-MATRIX §7 handling (b), direct, n=3 per cell: a tail system row and a legal-slot [u,S,a] row return 200 on opus-5 (req_011CfKhAEdeEh6hy5HbSgemF…), opus-5-5 (req_011CfKhJ4rzXWr39mUEhXSKo…), fable-5 (req_011CfKhJ4omUcAHiNHB3tvWb…), fable-5-1 (req_011CfKhJ4omHQU8PuX1mRUEn…), sonnet-5 (req_011CfKhYub3yrLNLnBRDfNb4…), opus-4-8 (req_011CfKhYuVMPxhZ1UbNk9JiX…), sonnet-5-5 (2026-10-03 OR-14, n=5: a legal [u,S,a,u] row 200 and obeyed 5/5, req_011CfeVd2QMtYA1exFrnYvM5…); an illegal [a,S,u] slot 400s (req_011CfKZSZSFUfW1Jdarpf5Cb; sonnet-5-5 req_011CfeVdm98SFU7fZYvwh6cm), so the floor is slotted. haiku-4-5 400s any system row (req_011CfKhZ8ALv97q91yH4eqep) and is not on this row. Obeyed, not only accepted (OR-11, 2026-09-24, an override in a depth-2 [u,S,a,u] row, unrelated question): sonnet-5 5/6 (req_011CfNXR4GKK4kk4M38AEE5h…), opus-4-8 5/5 (req_011CfNXSh1w73PuN9rFBMZ1W…), control opus-5-5 5/5 (req_011CfNXU8pF5RGPWKi63ZvEu…); the same note folded to user text in a framed block after it: sonnet-5 1/5, opus-4-8 0/5; the shipped bare fold before the user text carries it 12/15 and 15/15 (OR-11 leg 2), about as well as the row. The tail fact is the TAIL_SYSTEM_MODELS rows'",
     },
   },
   {
@@ -516,7 +564,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-23",
-      cite: "SHAPING-MATRIX §7: OpenRouter keeps a legal-slot system row as a `system` message in place (gen-1790135915-ad0nXVocOBSoE6gyplfQ, gen-1790135918-wkRaFfoNuh31C0pxEMFf) and folds an illegal one into bare user text with no signal (gen-1790135916-nTEe5GaIsluqhqHSU4sW), so the floor is slotted",
+      cite: "SHAPING-MATRIX §7: OpenRouter keeps a legal-slot system row as a `system` message in place (gen-1790135915-ad0nXVocOBSoE6gyplfQ, gen-1790135918-wkRaFfoNuh31C0pxEMFf; sonnet-5.5 2026-10-03 OR-14 upstream roles user,system,assistant,user and obeyed 5/5, gen-1790993578-Tt1V1mNCJJeAXqumEEad…) and folds an illegal one into bare user text with no signal (gen-1790135916-nTEe5GaIsluqhqHSU4sW), so the floor is slotted",
     },
   },
   // The tail fact is whether the model OBEYED an override instruction in a system row after the latest user turn
@@ -534,7 +582,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-23",
-      cite: "live direct, honoured opus-5 3/3 (req_011CfKZA5nPzm8UMcE9gn1ov), opus-5-5 3/3 (req_011CfKZACppARNHcU5QUtXk6), fable-5 3/4 (req_011CfKZAQBgV6fL2cZ3f2hCy), fable-5-1 3/4 (req_011CfKZAsYUbXLdNZCgZ3Ujc); opus-4-8 0/4 (req_011CfKZAKVezEiWgKAUZjeDe), sonnet-5 0/3 (req_011CfKZBMXif9wUiDrAE3bUt) accept the row and ignore it",
+      cite: "live direct, honoured opus-5 3/3 (req_011CfKZA5nPzm8UMcE9gn1ov), opus-5-5 3/3 (req_011CfKZACppARNHcU5QUtXk6), fable-5 3/4 (req_011CfKZAQBgV6fL2cZ3f2hCy), fable-5-1 3/4 (req_011CfKZAsYUbXLdNZCgZ3Ujc), sonnet-5-5 7/8 (2026-10-03 OR-14: 2/3 req_011CfeVUnS1QSCeD4qCcpQm8…, then 5/5 req_011CfeVcwqXcgGUn4mgfZvzd…); opus-4-8 0/4 (req_011CfKZAKVezEiWgKAUZjeDe), sonnet-5 0/3 (req_011CfKZBMXif9wUiDrAE3bUt) accept the row and ignore it",
     },
   },
   {
@@ -550,7 +598,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-23",
-      cite: "live OpenRouter (stream + debug.echo_upstream_body: the upstream body keeps the system row in place), honoured opus-5 3/3 (gen-1790129235-qZ8dni2ZjbXMAn8Y6V7W), opus-5.5 7/8 (gen-1790129413-rLSOAgrJgMUZMtBby6AR), fable-5 3/3 (gen-1790129245-NNVQceOZNZ9zACP08CyZ), fable-5.1 6/8 (gen-1790129408-sMw4RW5KgWQgQzzqToKQ); opus-4.8 0/3, sonnet-5 0/3 (gen-1790129243-FxXqdQ3HtspW8xJjY2D6) accept the row and ignore it",
+      cite: "live OpenRouter (stream + debug.echo_upstream_body: the upstream body keeps the system row in place), honoured opus-5 3/3 (gen-1790129235-qZ8dni2ZjbXMAn8Y6V7W), opus-5.5 7/8 (gen-1790129413-rLSOAgrJgMUZMtBby6AR), fable-5 3/3 (gen-1790129245-NNVQceOZNZ9zACP08CyZ), fable-5.1 6/8 (gen-1790129408-sMw4RW5KgWQgQzzqToKQ), sonnet-5.5 5/5 (2026-10-03 OR-14, upstream roles user,system: gen-1790993576-PwQB7e404vRdtuohtvYF…); opus-4.8 0/3, sonnet-5 0/3 (gen-1790129243-FxXqdQ3HtspW8xJjY2D6) accept the row and ignore it",
     },
   },
   {

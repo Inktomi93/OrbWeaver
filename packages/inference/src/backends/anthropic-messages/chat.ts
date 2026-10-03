@@ -16,8 +16,15 @@
 // would not align here even if the block were legal.)
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
-import type { GenerationCapability } from "@orb/contracts/inference";
-import { acceptsAssistantPrefill, acceptsTurnScopedSystem, bindsThinkingToPrefix, cacheMinTokensOf, scrubWireSchema } from "@orb/contracts/inference";
+import type { GenerationCapability, ReasoningOffMode } from "@orb/contracts/inference";
+import {
+  acceptsAssistantPrefill,
+  acceptsTurnScopedSystem,
+  bindsThinkingToPrefix,
+  cacheMinTokensOf,
+  REASONING_OFF_DEFAULT,
+  scrubWireSchema,
+} from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { AnthropicChatRequest, ChatHistoryMessage, ChatResult } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
@@ -138,11 +145,21 @@ function placeCache(args: {
   return { patches: placed.patches, written: { historyDepths: placed.historyDepths, systemBlocks: placed.systemBlocks, toolBlocks } };
 }
 
+/** The off `thinking` block per the model's off mode. `between_tools` takes no other thinking field: a `display`
+ *  or `block_binding` beside it is a 400. */
+const OFF_THINKING: Readonly<Record<ReasoningOffMode, JSONObject>> = {
+  disabled: { type: "disabled" },
+  "between-tools": { type: "between_tools" },
+};
+
+/** The thinking types that run no thinking before the reply; a turn that sent one ran with reasoning off. */
+const OFF_THINKING_TYPES: readonly unknown[] = Object.values(OFF_THINKING).map((thinking) => thinking["type"]);
+
 /** The `thinking` block per the resolved reasoning MODE — the policy already ran in the funnel. The batch
  *  tasks (`batch.ts`) spell their side-generation posture through this same function. */
 export function thinkingOf(reasoning: ResolvedReasoning): JSONObject {
   if (!reasoning.enabled) {
-    return { type: "disabled" };
+    return OFF_THINKING[reasoning.offMode ?? REASONING_OFF_DEFAULT];
   }
   const display = reasoning.display !== undefined ? { display: reasoning.display } : {};
   if (reasoning.mode === "budget") {
@@ -241,12 +258,13 @@ function isJsonObject(value: unknown): value is JSONObject {
 }
 
 /** B1: the effort THIS request carried, read off the OPTIONS the builder produced (never recomputed from the
- *  knobs): thinking spelled OFF ⇒ `none`; a spelled SDK effort ⇒ that word; neither (a `minimal` the SDK vocabulary
- *  dropped, an adaptive turn with no dial) ⇒ `null` — the model reasoned at its own default, which is unrecorded. */
+ *  knobs): thinking spelled OFF (either off spelling) ⇒ `none`; a spelled SDK effort ⇒ that word; neither (a
+ *  `minimal` the SDK vocabulary dropped, an adaptive turn with no dial) ⇒ `null` — the model reasoned at its own
+ *  default, which is unrecorded. */
 function appliedEffortOf(options: Pick<LanguageModelV4CallOptions, "providerOptions">): EffortLevel | null {
   const anthropic = options.providerOptions?.[ANTHROPIC_KEY];
   const thinking = anthropic?.["thinking"];
-  if (isJsonObject(thinking) && thinking["type"] === "disabled") {
+  if (isJsonObject(thinking) && OFF_THINKING_TYPES.includes(thinking["type"])) {
     return "none";
   }
   return effortWordOf(anthropic?.["effort"]);

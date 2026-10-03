@@ -3,7 +3,7 @@
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
-import type { EffortLevel, ReasoningDisplayMode, ReasoningMode, Verbosity } from "@orb/contracts/inference";
+import type { EffortLevel, ReasoningDisplayMode, ReasoningMode, ReasoningOffMode, Verbosity } from "@orb/contracts/inference";
 import { effortLevelSchema } from "@orb/contracts/inference";
 import type { CarryReasoning } from "@orb/contracts/preset";
 import { z } from "zod";
@@ -109,6 +109,9 @@ export interface ResolvedReasoning {
   /** Present only when the caller chose off (`effort: "none"`) on a model that can turn reasoning off. A disabled
    *  turn without it left effort unset, so a wire sends no reasoning field and the model runs at its own default. */
   readonly offChosen?: true | undefined;
+  /** Present only on a disabled turn of a model that can reason: how the wire spells reasoning off there. The off
+   *  turn carries no effort, display or carry, which is what keeps `between-tools` legal (no other field rides). */
+  readonly offMode?: ReasoningOffMode | undefined;
   readonly effort?: EffortLevel | undefined;
   /** Present only for budget mode — dropped for adaptive (sending enabled+budget_tokens 400s some models). */
   readonly budgetTokens?: number | undefined;

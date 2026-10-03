@@ -700,3 +700,43 @@ The repeat runs' ids are in `results/or12.jsonl` under their `runId`.
 - **Direct OpenAI has an 8192-token estimated window.** OpenAI's model list carries no context length, and no curated row states one, so the resolver gives `gpt-4.1-mini` (and `gpt-5.4-mini`) `window: 8192, windowEstimated: true`. Without a declared window, the history fit trims this chat to the newest rows. Every turn then moves the head, which misses the cache for a reason unrelated to placement. The first smoke call (18-line rows, no declaration) sent 9 of its 33 history rows. The probe declares the real window.
 - **The curated OpenAI family row marks `gpt-4.1-mini` as a reasoning model** (`reasoning: {mode: "effort", enabled: true}`), and it takes none. The calls here returned 200 with no reasoning tokens, so the wire does not send an effort that 400s. The row is still wrong for the 4.x ids.
 - **A 200-token output cap empties sonnet-5 replies with adaptive thinking on** (run `197c2330`: 3 of 18 replies empty, 200 output tokens each). The cache numbers are unaffected, and the shipped cap is 2048. It matters only to a preset that sets a small cap.
+
+## OR-14 — Claude Sonnet 5.5: reasoning off, forced tools, the cache minimum and system rows
+
+**Run:** 2026-10-03. Evidence: `results/or14.jsonl` · probe: `or14-sonnet-5-5-thinking-off.ts` · wires: Anthropic Messages direct (`claude-sonnet-5-5`), OpenRouter chat completions and OpenRouter Messages (`anthropic/claude-sonnet-5.5`, Anthropic pinned) · spend under $0.01 on OpenRouter plus about 5k direct tokens.
+
+The question: Sonnet 5.5 refuses `thinking: disabled`, and its documented off is `thinking: {type: "between_tools"}` (platform.claude.com/docs/en/models/sonnet-5-5/migration-guide). Which off spellings does each route take, at which efforts, and do the other Sonnet 5.5 cells (forced tools, cache minimum, system rows) match the docs?
+
+### Results
+
+| route | arm | status | id |
+| - | - | - | - |
+| direct | `thinking: disabled` | 400, "send thinking between_tools instead" | req_011CfeUA7wctvT9Pa9oaZnHD |
+| direct | `between_tools`, effort unset | 200 | req_011CfeUA8jVZwQNGQKWPTq2N |
+| direct | `between_tools` at low / medium / high | 200 / 200 / 200 | req_011CfeUADxX1jd8kEmts1woo, req_011CfeUAK4cL9oHczQzQGGwD, req_011CfeUAPwJC8aZtaoUikmQR |
+| direct | `between_tools` at xhigh | 400, "effort 'xhigh' is not supported when thinking is disabled" | req_011CfeUAUbLStUnuvrv1mHRB |
+| direct | `between_tools` + `display` | 400, "Extra inputs are not permitted" | req_011CfeUAVGH3K5Qg7ufuZvif |
+| direct | `tool_choice: any` | 400 | req_011CfeUAVwCQFMLuBvdJ93kp |
+| direct | cache-marked prefix, 465 / 523 / 581 tokens | write 0 / 523 / 581 | req_011CfeUAqn4QL24j2g3tAKU2, req_011CfeUAucVJZ9Q7cc81vNBs, req_011CfeUAzgbQ3AkiVzb6SUuQ |
+| direct | tail system row, codeword asked | 200, obeyed 7 of 8 | req_011CfeVcwqXcgGUn4mgfZvzd and four more |
+| direct | legal [u,S,a,u] system row | 200, obeyed 8 of 8 | req_011CfeVd2QMtYA1exFrnYvM5 and seven more |
+| direct | illegal [u,a,S,u] system row | 400 | req_011CfeVdm98SFU7fZYvwh6cm |
+| direct | `clear_at: next_user_message` / control | reply NONE / reply ZEBRA | req_011CfeVdmrHrKtduD5GVqjo1 / req_011CfeVdqBhcB4PRV9Cfhnca |
+| OpenRouter chat | `reasoning: {effort: "none"}`, `{enabled: false}` | 400, "Reasoning is mandatory for this endpoint and cannot be disabled" | refused before routing |
+| OpenRouter chat | `reasoning: {effort: "high"}` | 200, upstream `thinking: adaptive, display: summarized`, `output_config.effort: high` | gen-1790992425-FFU2VVqASPD1EKOpi6RQ |
+| OpenRouter chat | `tool_choice: "required"` | 400 upstream, sent as `tool_choice: any` | req_011CfeUBBXSm15nSnRHEqM1Y |
+| OpenRouter chat | tail system row | 200, kept in place upstream, obeyed 5 of 5 | gen-1790993576-PwQB7e404vRdtuohtvYF and four more |
+| OpenRouter chat | legal [u,S,a,u] system row | 200, kept in place upstream, obeyed 5 of 5 | gen-1790993578-Tt1V1mNCJJeAXqumEEad and four more |
+| OpenRouter Messages | `thinking: between_tools` | 200, text only | gen-1790993688-wJirlq1BbjQ0C7PB0zwh |
+| OpenRouter Messages | `thinking: disabled` | 400, "Reasoning is mandatory" | refused before routing |
+
+The between_tools tool loop (hop 1 strict tool, hop 2 with and without hop 1's thinking blocks) returned 200 three times, but hop 1 wrote its note as `text` with no thinking block, so the drop arm has nothing to drop and measures nothing. The OpenRouter tail arms first ran at a 64-token cap that adaptive thinking used up (empty replies); the counts above are the 600-token rerun.
+
+### Verdict
+
+1. **Direct: off is `between_tools`, legal only at effort high or below and with no other thinking field.** Orbweaver's off turn sends no effort, so the API default (high) applies and the request is legal. `disabled` is a 400.
+2. **OpenRouter chat completions cannot turn Sonnet 5.5's thinking off.** Both off spellings are refused, and the catalog lists the model as `reasoning.mandatory: true`. The route clamps an off turn to the lowest effort.
+3. **OpenRouter's Messages endpoint does take `between_tools`.** Orbweaver's OpenRouter transport is chat completions, so this is a finding, not a fix.
+4. **Forced tool choice is a 400 on both routes**, so the wire downgrades it to `auto`.
+5. **The cache minimum is 512**, between the 465-token miss and the 523-token write.
+6. **Sonnet 5.5 takes and obeys system rows in the history on both routes, and clear_at on the direct wire.** Unlike Sonnet 5, it obeys a tail row, so its trailing system rows stay system rows.

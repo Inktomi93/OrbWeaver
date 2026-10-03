@@ -118,6 +118,15 @@ test("#2575 (control): a model that can switch reasoning off keeps the side-gene
   }
 });
 
+test("a model whose off is `between_tools` keeps the side-generation posture off with that spelling, never a clamp", async () => {
+  const { body, lines } = await summarizeBody("claude-sonnet-5-5");
+  expect(body["thinking"]).toEqual({ type: "between_tools" });
+  expect(body["output_config"]).toBeUndefined();
+  // No warning of any kind: the SDK also rewrites a `disabled` on this id, and says so, so a quiet log is what
+  // proves the request was spelled right before the SDK saw it.
+  expect(lines.filter((line) => line.level === "warn").map((line) => line.fields["event"])).toEqual([]);
+});
+
 test("#2575: a forced-tool structured call on a model that rejects forced tool use goes out as `auto`, loudly", async () => {
   for (const model of STRICT_MODELS) {
     const { body, lines } = await structuredBody(model);
