@@ -11,8 +11,11 @@ import type { Db } from "@orb/db";
 import { characters, chatDigestSpeakers, chatDigests, chatParticipants, chatSegments, embedGenerations, userConnections } from "@orb/db";
 import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { EmbeddingsService } from "@orb/server/domain/embeddings";
+import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { and, eq, isNull } from "drizzle-orm";
 import type {
+  ChatContext,
   EmbeddingsStoreOp,
   EmbeddingsStoreSegmentsOp,
   StoreDigestParams,
@@ -20,7 +23,9 @@ import type {
   SummarizeOp,
 } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { MemoryScope } from "../../../../../packages/server/src/domain/chat/memory/types.ts";
-import { seedMessage } from "../_support.ts";
+import type { StoreHarness } from "../../embeddings/_support.ts";
+import { EMBED_DIM, EMBED_MODEL, makeStoreHarness } from "../../embeddings/_support.ts";
+import { makeChatContext, seedMessage } from "../_support.ts";
 
 export const MODEL = "test-embed-1024";
 const DIM = 1024;
@@ -276,4 +281,88 @@ export function fakeSearchDigests(result: readonly (BlockKey | ScoredBlock)[]): 
     return Promise.resolve(scored);
   };
   return { fn, calls };
+}
+
+/** The memory sweep over the REAL embeddings write path and ledger, as compose wires it: one embed connection for
+ *  `host`, whose generation every segment and digest lands in. `overrides` swaps any chat op, such as the summarizer. */
+export async function realMemoryWiring(
+  db: Db,
+  host: UserId,
+  overrides: Partial<ChatContext> = {},
+): Promise<{ ctx: ChatContext; embeddings: EmbeddingsService; resolved: NonNullable<Awaited<ReturnType<StoreHarness["roleClients"]["resolved"]>>> }> {
+  const harness = makeStoreHarness(db);
+  const resolved = await harness.roleClients.resolved("embed");
+  if (resolved === null) {
+    throw new Error("expected test embed connection");
+  }
+  await db
+    .insert(userConnections)
+    .values({
+      id: resolved.connectionId,
+      ownerId: host,
+      label: "memory backfill embed",
+      providerId: resolved.providerId,
+      model: resolved.model,
+    })
+    .onConflictDoNothing();
+  const embeddings = createEmbeddingsService(harness.ctx);
+  const ctx = makeChatContext(db, {
+    summarize: fakeSummarize().op,
+    resolveMemoryEmbedSpace: async (ownerId) => {
+      const generation = await embeddings.resolveGeneration(ownerId, "embed");
+      if (generation === null) {
+        throw new Error("expected test embed generation");
+      }
+      return { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
+    },
+    embeddingsStore: async (params) => {
+      const result = await embeddings.store({
+        kind: "chat-block",
+        lens: "digest",
+        ownerId: host,
+        chatId: params.key.chatId,
+        scopedCharacterId: params.key.scopedCharacterId,
+        isGroup: params.isGroup,
+        tier: params.key.tier,
+        blockIdx: params.key.blockIdx,
+        text: params.text,
+        topicAnchor: params.topicAnchor,
+        keywords: params.keywords,
+        speakerCharacterIds: params.speakerCharacterIds,
+        contentHash: params.contentHash,
+        model: EMBED_MODEL,
+        dim: EMBED_DIM,
+      });
+      if (result.generationId === undefined || result.generationEpoch === undefined) {
+        throw new Error("expected generation receipt");
+      }
+      return { ownerId: host, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch };
+    },
+    embeddingsStoreSegments: async (params) => {
+      const results = await embeddings.storeSegments(
+        params.map((p) => ({
+          kind: "chat-block" as const,
+          lens: "segment" as const,
+          ownerId: host,
+          chatId: p.chatId,
+          blockIdx: p.blockIdx,
+          chunkIdx: p.chunkIdx,
+          seqStart: p.seqStart,
+          seqEnd: p.seqEnd,
+          text: p.text,
+          contentHash: p.contentHash,
+          model: EMBED_MODEL,
+          dim: EMBED_DIM,
+        })),
+      );
+      return results.map((result) => {
+        if (result.generationId === undefined || result.generationEpoch === undefined) {
+          throw new Error("expected generation receipt");
+        }
+        return { ownerId: host, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch };
+      });
+    },
+    ...overrides,
+  });
+  return { ctx, embeddings, resolved };
 }

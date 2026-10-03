@@ -107,10 +107,10 @@ const TRAILING_DIGITS = /\d+$/u;
 const TRAILING_HYPHENS = /-+$/u;
 const SPEC_WRAPPER = /^main-(.+)-spec-v\d+$/u;
 
-/** The card handles a chat directory's handle may belong to when no card carries it exactly: the handle minus
+/** The card slugs a chat directory's slug may belong to when no card carries it exactly: the slug minus
  *  an ST folder-name decoration (a trailing number, the `main-<name>-spec-v2` wrapper), in the order the
  *  pairing tries them. The browser planner and the server collector pair by this ONE rule. */
-export function chatDirCardCandidates(handle: string): string[] {
-  const candidates = [handle.replace(TRAILING_DIGITS, "").replace(TRAILING_HYPHENS, ""), SPEC_WRAPPER.exec(handle)?.[1]];
-  return candidates.filter((c): c is string => c !== undefined && c.length > 0 && c !== handle);
+export function chatDirCardCandidates(slug: string): string[] {
+  const candidates = [slug.replace(TRAILING_DIGITS, "").replace(TRAILING_HYPHENS, ""), SPEC_WRAPPER.exec(slug)?.[1]];
+  return candidates.filter((c): c is string => c !== undefined && c.length > 0 && c !== slug);
 }

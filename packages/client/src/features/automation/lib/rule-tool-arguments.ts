@@ -1,6 +1,7 @@
 import type { AutomationRuleToolView } from "@orb/contracts/automation";
 import { liftJsonSchema } from "@orb/kit/json-schema";
 import { scanMacroRuns } from "@orb/kit/macro";
+import { z } from "zod";
 
 /** Advisory only: runtime renders the real event and validates against the live registered tool. */
 export function ruleToolArgumentGuidance(source: string, tool: AutomationRuleToolView | undefined, rendered = false): string {
@@ -13,9 +14,7 @@ export function ruleToolArgumentGuidance(source: string, tool: AutomationRuleToo
   // @orb-waive caught-failure-ownership(error): RuleToolFields and saved Test render the returned validation failure inline; no tool executes here. Ends if callers stop rendering this guidance.
   try {
     const result = liftJsonSchema(tool.parameters).safeParse(JSON.parse(source));
-    return result.success
-      ? `${rendered ? "Rendered" : "Literal"} arguments match the current tool schema.`
-      : result.error.issues.map((issue) => `${issue.path.join(".") || "Arguments"}: ${issue.message}`).join("; ");
+    return result.success ? `${rendered ? "Rendered" : "Literal"} arguments match the current tool schema.` : z.prettifyError(result.error);
   } catch (error) {
     return error instanceof SyntaxError
       ? "Arguments are not a valid JSON document yet."

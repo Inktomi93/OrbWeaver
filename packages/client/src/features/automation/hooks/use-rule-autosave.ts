@@ -30,6 +30,8 @@ export function useRuleAutosave(deps: {
   const create = useCreateRule({ trpc, invalidation });
   const update = useUpdateRule({ trpc, invalidation });
   const [acknowledged, setAcknowledged] = useState<Rule | null>(null);
+  // One slot for the save, not a merge of the two mutations' sticky errors: a later successful save clears it.
+  const [failure, setFailure] = useState<Error | null>(null);
   const [queue] = useState(() =>
     createRuleSaveSession({
       chatId: deps.chatId,
@@ -51,10 +53,17 @@ export function useRuleAutosave(deps: {
       queue.observe(deps.rule);
     }
   }, [queue, deps.rule]);
-  const failure = update.error ?? create.error;
   return {
     acknowledged,
-    failure: failure instanceof Error ? failure : null,
-    save: (values: RuleEditorValues): Promise<void> => queue.save(ruleEditable(values)),
+    failure,
+    save: async (values: RuleEditorValues): Promise<void> => {
+      try {
+        await queue.save(ruleEditable(values));
+      } catch (error) {
+        setFailure(error instanceof Error ? error : null);
+        throw error;
+      }
+      setFailure(null);
+    },
   };
 }

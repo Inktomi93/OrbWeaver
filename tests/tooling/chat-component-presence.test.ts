@@ -79,6 +79,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     why: "CardBlock is the shared card mount extracted from MessageContent; message-content.ct drives tierA/tierB, CSP media policy, srcdoc rendering, raw/expand/collapse, and truncated-card arms. ghost-message-row.ct separately drives the same mount during streaming.",
   },
   "member-row": { coveredBy: "members-panel", why: "MembersPanel renders MemberRow; the members-panel CT drives its rows end-to-end." },
+  "memory-on-confirm": {
+    coveredBy: "memory-settings-section",
+    why: "MemorySettingsSection opens MemoryOnConfirm when Memory turns on; memory-settings-section.ct drives the confirm's yes with and without the backfill opt-in, its cancel, and the no-confirm off flip.",
+  },
   "member-row-menu": { coveredBy: "members-panel", why: "buildMenuItems is exercised via the real row menu in members-panel.ct." },
   "talkativeness-popover": { coveredBy: "members-panel", why: "the Talkativeness… popover (commit/re-seed/snap-back) is driven through members-panel.ct." },
   "message-row-parts": { coveredBy: "message-row", why: "the row parts render only inside MessageRow; message-row.ct mounts the real row." },

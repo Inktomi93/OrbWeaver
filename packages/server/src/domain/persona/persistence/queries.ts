@@ -80,17 +80,10 @@ export async function listOwnedPersonasWithAvatar(db: Db, ownerId: UserId): Prom
   return rows;
 }
 
-/** Every owned persona id keyed by its DEDUP-FOLDED name ({@link foldPersonaName}) — the `(ownerId, name)`
- *  import dedup index, built once per call.
- *
- *  It is a map read in JS rather than a `WHERE name = ?`, and that is the point: the BULK import door has
- *  always folded the name in JS over its own owner-scoped pre-fetch, so a SQL-side fold here would be a
- *  SECOND normalisation with different Unicode rules (SQLite's `lower()` is ASCII-only) — and two doors
- *  disagreeing about what "the same persona" means is the defect this replaced. One fold, one language.
- *
- *  NEWEST WINS on a collision (`ORDER BY createdAt DESC`, first write into the map): the same rule the
- *  single-file door has always documented, now the rule for both doors. */
-export async function loadOwnedPersonaIdsByDedupName(db: Db, ownerId: UserId): Promise<Map<string, PersonaId>> {
+// Every owned persona id keyed by its dedup-folded name (`foldPersonaName`). The fold runs in JS, not as a
+// `WHERE name = ?`: SQLite's `lower()` is ASCII-only, so a SQL-side fold would disagree with the serde's.
+// Newest wins on a collision (`ORDER BY createdAt DESC`, first write into the map).
+async function loadOwnedPersonaIdsByDedupName(db: Db, ownerId: UserId): Promise<Map<string, PersonaId>> {
   // NEWEST FIRST, and the ordering is the collision rule: `indexByDedupName` keeps the first row it sees.
   const rows = await db.select({ id: personas.id, name: personas.name }).from(personas).where(eq(personas.ownerId, ownerId)).orderBy(desc(personas.createdAt));
   return indexByDedupName(rows);

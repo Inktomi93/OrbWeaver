@@ -30,11 +30,16 @@ export function providerDependentConnectionReads(trpc: Trpc): readonly ReturnTyp
   return [trpc.connection.pathFilter()];
 }
 
-/** The resident contribution catalogs every lifecycle transition must reconcile together. */
+/** The resident contribution catalogs every lifecycle transition must reconcile together, including the
+ *  rule editor's tool catalog, which lists the tools the caller's enabled plugins register. */
 function pluginContributionCatalogReads(
   trpc: Trpc,
-): readonly [ReturnType<Trpc["plugin"]["listSurfaces"]["queryFilter"]>, ReturnType<Trpc["plugin"]["listCommands"]["queryFilter"]>] {
-  return [trpc.plugin.listSurfaces.queryFilter(), trpc.plugin.listCommands.queryFilter()];
+): readonly [
+  ReturnType<Trpc["plugin"]["listSurfaces"]["queryFilter"]>,
+  ReturnType<Trpc["plugin"]["listCommands"]["queryFilter"]>,
+  ReturnType<Trpc["automation"]["listRuleTools"]["queryFilter"]>,
+] {
+  return [trpc.plugin.listSurfaces.queryFilter(), trpc.plugin.listCommands.queryFilter(), trpc.automation.listRuleTools.queryFilter()];
 }
 
 /** The server's own refusal sentence when it threw one, else `fallback`. The lifecycle taxonomy

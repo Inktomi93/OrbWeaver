@@ -303,8 +303,9 @@ the composed posture at boot and warns per open exposure.
 ## Troubleshooting
 
 - **`docker compose up` cannot pull `ghcr.io/inktomi93/orbweaver`** — no stable release has been published
-  yet, or this machine cannot reach `ghcr.io`. Build from the checkout instead with the build overlay
-  ("Quick start").
+  yet, the published package is still private (an `unauthorized` or `denied` error; the owner sets it Public
+  once, after the first release), or this machine cannot reach `ghcr.io`. Build from the checkout instead with
+  the build overlay ("Quick start").
 - **Everything answers 401** in `single-user` — `AUTH_FALLBACK_TRUSTED_PEERS` was emptied or your docker
   network uses a range outside the shipped list (`docker network inspect` → add it), or you are on a custom
   network outside the shipped ranges (`10.0.0.0/8` covers Podman's default `10.88.0.0/16`). The reason is under "Login modes".

@@ -176,8 +176,13 @@ cannot be derived without git, and a field that is always `false` would lie exac
    root `package.json` bump, and the release notes built from the conventional commits since the last
    release.
 3. Merge the release PR. The same workflow tags `v<version>`, publishes the GitHub Release, builds the image
-   from the tag, checks that it reports itself as that stable release, and pushes `:<version>` and `:latest`.
-4. Merge `release` back into `main`, so dev builds report the new version (`0.2.0-dev+<commit>`).
+   from the tag, checks that it reports itself as that stable release, pushes `:<version>` and `:latest`, and
+   then pulls the image without credentials.
+4. First release only: GHCR publishes a new package as private, and linking it to the repository does not
+   change that, so the anonymous pull fails the run. Open the package's settings on GitHub, use **Danger Zone →
+   Change visibility**, set it to **Public**, and re-run the failed image job. Later releases keep the
+   visibility.
+5. Merge `release` back into `main`, so dev builds report the new version (`0.2.0-dev+<commit>`).
 
 The GitHub Release page is the changelog's one home; nothing in this repository duplicates it.
 
