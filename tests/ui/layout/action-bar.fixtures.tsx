@@ -15,12 +15,16 @@ function PrimaryCounter(): ReactElement {
 
 export function ActionBarFixture(): ReactElement {
   const [extra, setExtra] = useState(false);
+  const [placed, setPlaced] = useState(false);
   const [refSlot, setRefSlot] = useState("");
   const root = useRef<HTMLDivElement>(null);
   return (
     <div>
       <button type="button" onClick={(): void => setExtra(!extra)}>
         Toggle extra
+      </button>
+      <button type="button" onClick={(): void => setPlaced(!placed)}>
+        Toggle placed
       </button>
       <button type="button" onClick={(): void => setRefSlot(root.current?.dataset["slot"] ?? "missing")}>
         Read ref
@@ -57,6 +61,15 @@ export function ActionBarFixture(): ReactElement {
                 </Button>
               ) : null}
             </Row>
+          }
+          fill={
+            placed ? (
+              <Row aria-label="Placed actions" className="flex-1" gap="field" role="group">
+                <Button aria-label="Placed" intent="ghost" size="icon">
+                  A
+                </Button>
+              </Row>
+            ) : null
           }
           trailing={
             <Button aria-label="Send" intent="primary" size="icon">
