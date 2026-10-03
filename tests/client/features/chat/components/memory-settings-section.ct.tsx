@@ -6,7 +6,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { MEMORY_EXISTING_CHATS_NOTE } from "../../../../../packages/client/src/features/chat/lib/memory-settings-section-nav.ts";
+import { MEMORY_EXISTING_CHATS_NOTE, MEMORY_IMPORTED_CHATS_NOTE } from "../../../../../packages/client/src/features/chat/lib/memory-settings-section-nav.ts";
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { UTILITY_ROW, utilityBindings } from "../../../../support/node/utility-role.ts";
@@ -83,6 +83,8 @@ test("turning ON asks first: nothing is written until the confirm says yes, and 
   await expect(confirm).toBeVisible();
   // SETTLED: the opt-in has painted, so the estimate landed while nothing was written.
   await expect(confirm.getByRole("checkbox")).toBeVisible();
+  // The import path is a cost the yes also agrees to: an import while Memory is on queues the backfill at once.
+  await expect(confirm.getByText(MEMORY_IMPORTED_CHATS_NOTE)).toBeVisible();
   // @orb-waive ct-no-oneshot-live-read-assert(expect): a zero count after a settled barrier (the opt-in painted from the landed estimate); the only write path is the confirm's yes, not yet pressed, so a poll would pass at t=0 and prove less.
   expect(trpc.count(UPDATE_PROC)).toBe(0);
 

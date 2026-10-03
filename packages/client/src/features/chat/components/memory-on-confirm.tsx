@@ -1,19 +1,22 @@
 // The confirm turning Memory on passes through: what it costs, which model pays, and what happens to existing chats
 // (each builds at its next reply, or all of them now through the Memory backfill job, sized by the server's own
-// count of its model calls). Memory is off by default, so this moment is the one place to say it.
+// count of its model calls; an import builds at once). Memory is off by default, so this moment is the place to say it.
 
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, SettingCheckboxRow, UtilityModelDoor, useUtilityModel } from "#components";
 import { useGatedQuery, useTRPC } from "#data";
 import { MEMORY_COST_SENTENCE } from "#lib";
-import { MEMORY_EXISTING_CHATS_NOTE } from "../lib/memory-settings-section-nav.ts";
+import { MEMORY_EXISTING_CHATS_NOTE, MEMORY_IMPORTED_CHATS_NOTE } from "../lib/memory-settings-section-nav.ts";
 
 const BACKFILL_ESTIMATE = { input: { kind: "memory-backfill", params: {} }, mode: "singular" } as const;
 
+/** When summaries can run: an existing chat at its next reply, an imported one at once. */
+const WHEN_CHATS_BUILD = `${MEMORY_EXISTING_CHATS_NOTE} ${MEMORY_IMPORTED_CHATS_NOTE}`;
+
 function utilitySentence(utility: ReturnType<typeof useUtilityModel>): string {
   if (utility.kind === "ready") {
-    return `Summaries run on your Utility model, ${utility.label}. ${MEMORY_EXISTING_CHATS_NOTE}`;
+    return `Summaries run on your Utility model, ${utility.label}. ${WHEN_CHATS_BUILD}`;
   }
   if (utility.kind === "unset") {
     return "No Utility model is set yet, so summaries wait until you set one.";
@@ -21,7 +24,7 @@ function utilitySentence(utility: ReturnType<typeof useUtilityModel>): string {
   if (utility.kind === "blocked") {
     return `Your Utility model is set but not running: ${utility.cause}. Summaries wait until it runs.`;
   }
-  return MEMORY_EXISTING_CHATS_NOTE;
+  return WHEN_CHATS_BUILD;
 }
 
 export interface MemoryOnConfirmProps {

@@ -16,6 +16,7 @@ import { useId, useState } from "react";
 import { useSetBinding, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { connectionSummary, MEMORY_COST_SENTENCE } from "#lib";
+import { CLAUDE_SUBSCRIPTION_NOTICE, isClaudeSubscription } from "../lib/add-connection-form-model.ts";
 
 type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 
@@ -37,10 +38,14 @@ const CHOICE_NOTES: Record<UtilityChoice, string> = {
   later: "Until you pick one under Model roles, memory summaries, captions and extraction wait.",
 };
 
-/** A connection just added for the role is the pick; else this one when it can do the job; else adding one. */
-function initialChoice(picked: string | null, canUseSame: boolean): UtilityChoice {
+/** A connection just added for the role is the pick; else none for a subscription, whose plan the background work
+ *  would spend; else this one when it can do the job; else adding one. */
+function initialChoice(picked: string | null, subscription: boolean, canUseSame: boolean): UtilityChoice {
   if (picked !== null) {
     return "existing";
+  }
+  if (subscription) {
+    return "later";
   }
   return canUseSame ? "same" : "add";
 }
@@ -61,13 +66,17 @@ export function FirstModelSetup({ chat, picked, onAddUtility, onDone, trpc, inva
   const setBinding = useSetBinding(deps);
   const update = useUpdateConnection(deps);
   const { data: connections } = useSuspenseQuery(trpc.connection.list.queryOptions());
+  const { data: available } = useSuspenseQuery(trpc.connection.providersAvailable.queryOptions());
+  const chatProvider = available.find((row) => row.provider.id === chat.providerId)?.provider;
+  const subscription = chatProvider !== undefined && isClaudeSubscription(chatProvider);
   const others = connections.filter((connection) => connection.id !== chat.id && connection.tasks.includes(UTILITY_TASK));
   const canUseSame = chat.tasks.includes(UTILITY_TASK);
-  const [choice, setChoice] = useState<UtilityChoice>(initialChoice(picked, canUseSame));
+  const [choice, setChoice] = useState<UtilityChoice>(initialChoice(picked, subscription, canUseSame));
   const [otherId, setOtherId] = useState<string>(picked ?? others[0]?.id ?? "");
   const [failure, setFailure] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const labelId = useId();
+  const reasonId = useId();
   const name = connectionSummary(chat);
 
   const utilityRow = (): ConnectionListItem | undefined => {
@@ -114,8 +123,14 @@ export function FirstModelSetup({ chat, picked, onAddUtility, onDone, trpc, inva
         <Text prose={true} voice="gloss">
           {`Memory summaries, image captions and extraction run in the background on a Utility model, and a cheaper model is fine for it. ${MEMORY_COST_SENTENCE}`}
         </Text>
+        {subscription ? (
+          <Text id={reasonId} prose={true} voice="gloss">
+            {CLAUDE_SUBSCRIPTION_NOTICE.utility}
+          </Text>
+        ) : null}
       </Stack>
       <RadioGroup
+        aria-describedby={subscription ? reasonId : undefined}
         aria-labelledby={labelId}
         disabled={saving}
         onValueChange={(value): void => {

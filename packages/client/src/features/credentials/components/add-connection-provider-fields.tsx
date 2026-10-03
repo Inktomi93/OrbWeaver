@@ -18,6 +18,7 @@ import type { useAddConnectionForm } from "../hooks/use-add-connection-form.ts";
 import {
   acceptsKey,
   CONNECTION_FORM_COPY,
+  isClaudeSubscription,
   KEY_STORAGE_OFF_COPY,
   keyStorageBlocks,
   listsOnDemand,
@@ -124,7 +125,7 @@ export function ProviderFields({
       {needsBaseUrl(provider) && refusedAuthority !== null ? (
         <AdmitPrivateHost authority={refusedAuthority} invalidation={invalidation} onAdmitted={onAdmitted} trpc={trpc} />
       ) : null}
-      {provider.auth === "oauthToken" ? <ClaudeSubscriptionNotice /> : null}
+      {isClaudeSubscription(provider) ? <ClaudeSubscriptionNotice /> : null}
       {provider.auth === "oauthToken" && held === null ? <SetupTokenCommand /> : null}
       <KeyField form={form} provider={provider} held={held} keyStorage={keyStorage} />
       {listsOnDemand(provider) ? (

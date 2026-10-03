@@ -14,7 +14,8 @@
 //   • THE PERSONAS: OpenRouter in one pass then "use for everything"; the subscription row refused inline by
 //     a background role; the endpoint listed or typed; the built-in keyless add.
 //   • THE FIRST CHAT MODEL opens the first-model step: Chat binds to it, and the Utility role takes it, another
-//     connection, a new one added with background work on, or nothing for now.
+//     connection, a new one added with background work on, or nothing for now. A Claude subscription starts at
+//     nothing for now, with the reason on the choice, so first-run never spends the plan on background work.
 //   • THE STATE MATRIX at 870, 486 and a phone: loading, empty, refusal, error, unavailable provider, and the
 //     typed fallback — each asserted as what the user sees, with the dialog inside the viewport.
 
@@ -859,6 +860,8 @@ test("the first chat model: 'Use the same one' turns its background work on, the
   const setup = firstModelSetup(page);
   await expect(setup).toBeVisible();
   await expect(setup.getByRole("radio", { name: /Use the same one/ })).toBeChecked();
+  // A pay-per-call row carries no subscription reason on the choice.
+  await expect(setup.getByRole("radiogroup", { name: "Utility model" })).toHaveAccessibleDescription("");
   await setup.getByRole("button", { name: "Finish" }).click();
   await expect(setup).toBeHidden();
 
@@ -871,6 +874,29 @@ test("the first chat model: 'Use the same one' turns its background work on, the
       { task: "chat", connectionId: created },
       { task: "summarize", connectionId: created },
     ]);
+});
+
+test("the first chat model on a Claude subscription starts at 'Not now', with the reason on the choice, and binds Chat alone", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page);
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "Claude subscription");
+  await dialog.getByLabel("Setup token", { exact: true }).fill(SECRET);
+  await dialog.getByRole("textbox", { name: "Model" }).fill("claude-sonnet-5");
+  await submit(dialog);
+
+  const setup = firstModelSetup(page);
+  await expect(setup).toBeVisible();
+  // Same-one stays offered; it is only not the default.
+  await expect(setup.getByRole("radio", { name: /Use the same one/ })).not.toBeChecked();
+  await expect(setup.getByRole("radio", { name: "Not now" })).toBeChecked();
+  await expect(setup.getByRole("radiogroup", { name: "Utility model" })).toHaveAccessibleDescription(/\S/);
+  await setup.getByRole("button", { name: "Finish" }).click();
+  await expect(setup).toBeHidden();
+
+  await expect.poll(() => trpc.inputs("connection.setBinding")).toEqual([{ task: "chat", connectionId: "user_connection_ctcreated01" }]);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the step has closed, which happens only after its writes settled; "Not now" has no update to wait for, so a poll would pass at t=0 and prove less.
+  expect(trpc.count("connection.update")).toBe(0);
 });
 
 test("the first chat model: 'Not now' binds Chat alone and leaves the Utility role and background work untouched", async ({ mount, page }) => {

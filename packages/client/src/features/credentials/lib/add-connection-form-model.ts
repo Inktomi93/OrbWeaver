@@ -25,7 +25,15 @@ export const CLAUDE_SUBSCRIPTION_NOTICE = {
     "Past those limits, Anthropic may bill requests as usage credits at API rates if you have usage credits turned on. Check Settings > Usage on claude.ai before long sessions.",
   terms:
     "Anthropic's terms reserve subscription sign-ins for its own apps and ordinary individual use, and do not permit third-party developers to route requests through Free, Pro or Max plan credentials. Using your subscription here may fall outside those terms, and Anthropic can limit or end access. For predictable billing and terms, use an Anthropic API key instead.",
+  /** Why the first-model step does not put a subscription on background work by default (`first-model-setup.tsx`). */
+  utility: "This starts at Not now because background summaries on a subscription would draw on your plan's usage limits.",
 } as const;
+
+/** A Claude subscription row: the provider whose sign-in is a pasted `claude setup-token`. Every place that warns
+ *  about spending the plan's usage limits asks this, so the warnings cannot disagree about which rows they cover. */
+export function isClaudeSubscription(provider: Pick<ProviderDef, "auth">): boolean {
+  return provider.auth === "oauthToken";
+}
 
 /** What the setup-token copy button names as its subject: `Copy <this>`. */
 export const CLAUDE_SETUP_TOKEN_COPY_SUBJECT = `the command ${CLAUDE_SETUP_TOKEN_COMMAND}`;

@@ -53,6 +53,7 @@ import { useId, useState } from "react";
 import { QueryBoundary, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
+import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
 import { capabilityFactRows } from "../lib/connection-capability-fact-model.ts";
 import type { ExtraRow } from "../lib/connection-editor-model.ts";
 import {
@@ -184,7 +185,7 @@ function AvailableConnectionEditorBody({
                 value={connection.baseUrl}
               />
             )}
-            {provider.auth === "oauthToken" ? <ClaudeSubscriptionNotice /> : null}
+            {isClaudeSubscription(provider) ? <ClaudeSubscriptionNotice /> : null}
             <ModelField
               busy={busy}
               connectionId={connectionId}
