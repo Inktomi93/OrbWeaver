@@ -25,7 +25,7 @@ The closed backend-key tuple, the deriveRunner (api, source) matrix, the provide
 
 **The tuples are the truth, not this prose.** Read `WIRES` for the sealed backends. Tasks today: `chat` · `agent` · `summarize` · `structured` · `generateImage` · `embed` · `imageEmbed` · `rerank`. Read the tuple, never a list in a doc.
 
-**`vllm` is a PROVIDER ROW, not a module** (D7): an `auth: endpoint` row on the `openai-compat` wire whose `features` carry the prefill/sleep/rerank knobs. The only surviving runtime slice is `packages/inference/src/backends/openai-compat/reachability.ts`, keyed on the folded `features.sleep` and never on a provider id. LM Studio, Ollama and the BYO row are the same shape — a server's quirks are `features`, never a code path (`packages/contracts/src/inference/features.ts`).
+**`vllm` is a PROVIDER ROW, not a module** (D7): an `auth: endpoint` row on the `openai-compat` wire whose `features` carry the prefill/sleep/rerank knobs. The only surviving runtime slice is `packages/inference/src/backends/openai-compat/reachability.ts`, keyed on the folded `features.sleep` and never on a provider id. LM Studio, Ollama and the BYO row are the same shape — a server's quirks are `features`, never a code path (`packages/contracts/src/inference/features.ts`). D296 narrows this for one route: a row's `features.nativeChat` sends its chat calls to the server's own chat API through one translator, and the row stays on the `openai-compat` wire.
 
 ## 2. Dispatch
 

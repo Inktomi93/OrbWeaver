@@ -134,6 +134,20 @@ test("transport include/exclude is the endpoint's final word, applied after extr
   expect(out["reasoning_effort"]).toBeUndefined();
 });
 
+// The editor's promise for "Fields to add or replace": a key there replaces the one we send, an extra's too,
+// shallowly (a nested object is replaced whole), and an exclusion still drops a key the overrides set.
+test("transport includeBody replaces a modelled field and an extra, whole, and an exclusion still wins", () => {
+  const out = shapeOutboundBody(
+    { ...RAW, stop: ["</s>"] },
+    args({ extras: { top_k: 40 }, transport: { includeBody: { temperature: 0.1, top_k: 10, stop: { replaced: true }, seed: 7 }, excludeBody: ["seed"] } }),
+  );
+  expect(out["temperature"]).toBe(0.1);
+  expect(out["top_k"]).toBe(10);
+  expect(out["stop"]).toEqual({ replaced: true });
+  expect(Object.hasOwn(out, "seed")).toBe(false);
+  expect(out["messages"]).toEqual(RAW.messages);
+});
+
 function plan(rows: WirePlan["rows"], extras: Partial<Pick<WirePlan, "names" | "assistantMedia" | "endsOnAssistant">> = {}): WirePlan {
   return { prompt: [], names: new Map(), assistantMedia: new Map(), rows, toolResultErrorDropped: false, endsOnAssistant: false, ...extras };
 }

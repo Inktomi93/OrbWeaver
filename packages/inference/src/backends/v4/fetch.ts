@@ -62,7 +62,8 @@ export interface WrapFetchArgs {
   readonly label: string;
   readonly responseMap: ResponseMap | undefined;
   readonly reasoningKeys: readonly string[] | undefined;
-  /** The openrouter transport's body shaper (the openai-compatible transport shapes in `transformRequestBody`). */
+  /** The openrouter transport's body shaper, and a native chat route's translation (`ollama-native.ts`); the
+   *  openai-compatible transport shapes in `transformRequestBody`. */
   readonly shapeBody?: ((body: Record<string, unknown>) => Record<string, unknown>) | undefined;
   readonly capture?:
     | {

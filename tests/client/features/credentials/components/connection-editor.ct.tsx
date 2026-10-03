@@ -944,7 +944,7 @@ test("a local server's stated tool calls and image input read as reported, with 
   const component = await mount(<ConnectionEditorStory />);
   await tier(page, "Advanced").click();
 
-  const tools = component.locator('[data-fact="generation.tools.parallel"]');
+  const tools = component.locator('[data-fact="generation.tools"]');
   await expect(tools).toHaveAttribute("data-overridden", "false");
   await expect(tools.getByText("yes, one at a time", { exact: true })).toBeVisible();
   await expect(tools.getByText("what this server and model report", { exact: true })).toBeVisible();
@@ -963,5 +963,109 @@ test("a modality list the posture guessed reads assumed, never as something the 
   const takes = component.locator('[data-fact="generation.input"]');
   await expect(takes.getByText("text, image, video (assumed)", { exact: true })).toBeVisible();
   await expect(takes.getByText("what this server and model report", { exact: true })).toHaveCount(0);
-  await expect(component.locator('[data-fact="generation.tools.parallel"]').getByText("not stated", { exact: true })).toBeVisible();
+  await expect(component.locator('[data-fact="generation.tools"]').getByText("not stated", { exact: true })).toBeVisible();
+});
+
+// ── an override restates the reported value it replaced (the capabilities baseline) ───────────────────────
+
+test("an overridden window shows the reported value it replaced, and Reset writes only that override away", async ({ mount, page }) => {
+  const declared = { features: { strictJson: "declared-only" as const }, generation: { context: { window: 65_536 } } };
+  const recorder = await stubEditor(page, {
+    connection: connectionRow({ declared }),
+    capabilities: {
+      ...CONNECTION_CAPABILITIES,
+      capability: { kind: "generation", generation: { ...GENERATION_CAPABILITY.generation, context: { window: 65_536 } } },
+    },
+  });
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Advanced").click();
+
+  const windowRow = component.locator('[data-fact="generation.context.window"]');
+  await expect(windowRow).toHaveAttribute("data-overridden", "true");
+  await expect(windowRow.getByText("65,536 tokens", { exact: true })).toBeVisible();
+  await expect(windowRow.getByText("your override — it was 32,768 tokens", { exact: true })).toBeVisible();
+  await windowRow.getByRole("button", { name: "Reset context window" }).click();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({ connectionId: CONNECTION_ID, patch: { declared: { features: { strictJson: "declared-only" } } } });
+});
+
+// ── tool calls can be declared off over a reported yes ─────────────────────────────────────────────────────
+
+test("tool calls offer a no, which writes the declared absence", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, {
+    capabilities: { capability: LOCAL_SERVER_CAPABILITY, baseline: LOCAL_SERVER_CAPABILITY, warnings: [], tasks: ["chat", "agent", "summarize", "structured"] },
+  });
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Advanced").click();
+
+  await component.getByRole("button", { name: "Override tool calls" }).click();
+  await component.getByRole("combobox", { name: "tool calls — your value" }).click();
+  await page.getByRole("option", { name: "no", exact: true }).click();
+  await component.getByRole("button", { name: "Save your tool calls" }).click();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({ connectionId: CONNECTION_ID, patch: { declared: { features: { strictJson: "declared-only" }, generation: { tools: null } } } });
+});
+
+/** The fold of a declared no: the reported capability with its `tools` block gone. */
+function toolsDropped(capability: typeof LOCAL_SERVER_CAPABILITY): typeof LOCAL_SERVER_CAPABILITY {
+  if (capability.kind !== "generation") {
+    return capability;
+  }
+  const { tools: _reported, ...generation } = capability.generation;
+  return { kind: "generation", generation };
+}
+
+test("a declared no reads as the override over the reported yes, and Reset returns to the report", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, {
+    connection: connectionRow({ declared: { features: { strictJson: "declared-only" }, generation: { tools: null } } }),
+    capabilities: {
+      capability: toolsDropped(LOCAL_SERVER_CAPABILITY),
+      baseline: LOCAL_SERVER_CAPABILITY,
+      warnings: [],
+      tasks: ["chat", "summarize"],
+    },
+  });
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Advanced").click();
+
+  const tools = component.locator('[data-fact="generation.tools"]');
+  await expect(tools).toHaveAttribute("data-overridden", "true");
+  await expect(tools.getByText("no", { exact: true })).toBeVisible();
+  await expect(tools.getByText("your override — it was yes, one at a time", { exact: true })).toBeVisible();
+  await tools.getByRole("button", { name: "Reset tool calls" }).click();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({ connectionId: CONNECTION_ID, patch: { declared: { features: { strictJson: "declared-only" } } } });
+});
+
+// ── request-body overrides (`transport.includeBody`) ───────────────────────────────────────────────────────
+
+const SHAPED_TRANSPORT = { headers: { ["X-Tenant"]: "lab" }, excludeBody: ["seed"], responseMap: { contentPath: "result.text" } };
+
+test("request-body overrides save over the other transport fields, refuse invalid JSON unsaved, and clear", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, { connection: connectionRow({ transport: SHAPED_TRANSPORT }) });
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Diagnostics").click();
+
+  const overrides = component.getByLabel("Fields to add or replace");
+  await overrides.fill('{ "top_k": 10 }');
+  await overrides.blur();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({ connectionId: CONNECTION_ID, patch: { transport: { ...SHAPED_TRANSPORT, includeBody: { ["top_k"]: 10 } } } });
+  const saved = recorder.count("connection.update");
+
+  await overrides.fill('{ "top_k": ');
+  await overrides.blur();
+  await expect(component.locator('[data-slot="field-error"]')).toBeVisible();
+  await expect.poll(() => recorder.count("connection.update"), { intervals: [20, 50, 100] }).toBe(saved);
+
+  await overrides.fill("");
+  await overrides.blur();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({ connectionId: CONNECTION_ID, patch: { transport: SHAPED_TRANSPORT } });
+  await expect(component.locator('[data-slot="field-error"]')).toHaveCount(0);
 });
