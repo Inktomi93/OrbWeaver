@@ -378,12 +378,23 @@ test("an id-only list states no modalities, so the posture still widens the row 
 // alone, whichever connection warmed first would decide what the other resolves to: a custom-openai row would
 // inherit Ollama's text-only + tools, or an Ollama row the permissive guess D292 removes.
 
+/** A Custom row that reads its server's bare `/v1/models` list instead of detecting the server behind it. */
+const LIST_ONLY = { features: { detectServer: false } };
+
 async function sharedServer(order: readonly ("ollama" | "custom-openai")[]): Promise<Record<string, GenerationCapability>> {
   const stores = memoryStores();
   const rows = order.map((providerId) => {
     const ownerId = newUserId();
-    // moondream: no curated row matches it, so every stated fact below comes from the reader or the posture.
-    const row = fakeConnection({ ownerId, providerId, model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1", allowBackground: true });
+    // moondream: no curated row matches it, so every stated fact below comes from the reader or the posture. The
+    // custom row turns detection off, so it reads the bare list (detection is `behave-as.test.ts`).
+    const row = fakeConnection({
+      ownerId,
+      providerId,
+      model: "moondream:latest",
+      baseUrl: "http://127.0.0.1:1/v1",
+      allowBackground: true,
+      declared: providerId === "custom-openai" ? LIST_ONLY : null,
+    });
     stores.connections.rows.set(row.id, row);
     return { providerId, ownerId, row };
   });
@@ -474,7 +485,7 @@ test("invalidateEndpoint forgets ONE connection's (URL × reader) mirror in memo
   const stores = memoryStores();
   const ownerId = newUserId();
   const ollama = fakeConnection({ ownerId, providerId: "ollama", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
-  const custom = fakeConnection({ ownerId, providerId: "custom-openai", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
+  const custom = fakeConnection({ ownerId, providerId: "custom-openai", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1", declared: LIST_ONLY });
   stores.connections.rows.set(ollama.id, ollama);
   stores.connections.rows.set(custom.id, custom);
   const seen: string[] = [];

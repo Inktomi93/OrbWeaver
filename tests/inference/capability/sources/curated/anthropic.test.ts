@@ -22,7 +22,7 @@ import type { Mirror } from "../../../../../packages/inference/src/catalog/mirro
 import { fetchOpenRouterCatalog } from "../../../../../packages/inference/src/catalog/openrouter.ts";
 import type { ProviderExecutor } from "../../../../../packages/inference/src/contract/backend.ts";
 import type { StructuredRequest } from "../../../../../packages/inference/src/contract/roles.ts";
-import type { EndpointModel } from "../../../../../packages/inference/src/contract/runtime.ts";
+import type { DetectedServer, EndpointModel } from "../../../../../packages/inference/src/contract/runtime.ts";
 import { resolveChat } from "../../../../../packages/inference/src/funnel/resolve-chat.ts";
 import { createProviderRegistry } from "../../../../../packages/inference/src/registry/providers.ts";
 import type { ResolverContext } from "../../../../../packages/inference/src/resolve/resolve-task.ts";
@@ -96,6 +96,8 @@ async function selectedStructuredVehicle(
     warmOpenRouter: () => Promise.resolve(),
     warmEndpoint: () => Promise.resolve(),
     warmAgentSdk: () => Promise.resolve(),
+    detectedServer: () => emptyMirror<DetectedServer>(),
+    warmDetect: () => Promise.resolve(),
   };
   const principal: Principal = { userId: ownerId, role: "owner", handle: castId<Handle>("owner"), externalId: null, via: "fallback" };
   const calls: StructuredRequest[] = [];
