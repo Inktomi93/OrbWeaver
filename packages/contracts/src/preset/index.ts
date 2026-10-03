@@ -189,55 +189,61 @@ export const SIDE_GEN_KINDS = [
 export type SideGenKind = (typeof SIDE_GEN_KINDS)[number];
 
 /** A side-generation floor posture — the sampling knobs a side-gen call runs at ABSENT a preset
- *  override. Both fields optional: an ABSENT field means "the runner/backend default stands" (caption's
+ *  override. Every field optional: an ABSENT field means "the runner/backend default stands" (caption's
  *  empty posture is the honest encoding of a call that passed nothing). `maxOutputTokens` (not `maxTokens`)
- *  matches the `userIntentSchema` vocabulary, which the summarize role's options also speak. */
+ *  matches the `userIntentSchema` vocabulary, which the summarize role's options also speak. `effort` is the
+ *  reasoning floor: it stands only when the preset sets neither effort nor a thinking budget. */
 export interface SideGenPosture {
   readonly temperature?: number;
   readonly maxOutputTokens?: number;
+  readonly effort?: EffortLevel;
 }
+
+// Thinking is paid out of the output cap, so a short classify or extract budget pins reasoning off: a model that
+// thinks first spends the whole cap and returns nothing.
+const NO_REASONING = "none" satisfies EffortLevel;
 
 export const SIDE_GEN_POSTURES = {
   // Smart arbitration: a deterministic-ish classify (pick ONE next speaker). The budget is one name plus a margin:
   // a reasoning or verbose model emptied out at 24 (the roster-validating parse + fallback stay strict).
-  arbiter: { temperature: 0.2, maxOutputTokens: 128 },
+  arbiter: { temperature: 0.2, maxOutputTokens: 128, effort: NO_REASONING },
   // Quiet (non-canon) generation: near-deterministic + bounded — a summary/marker is not creative writing.
   quiet_generate: { temperature: 0.3, maxOutputTokens: 1024 },
   // Imagery quiet keyword-extraction: low temp for a near-deterministic extraction, a budget sized for a
   // keyword list, not prose.
-  extract_quiet: { temperature: 0.4, maxOutputTokens: 320 },
+  extract_quiet: { temperature: 0.4, maxOutputTokens: 320, effort: NO_REASONING },
   // Managed-compaction marker: low-temp + bounded (a faithful summary, not creative writing). Historically
   // this passed ONLY a temperature (the output length floored through quiet_generate, which it rides) — so
   // the encoding carries NO `maxOutputTokens`, and the quiet_generate floor still supplies the length.
   compaction: { temperature: 0.3 },
   // Library distillation (card → filterable facets): near-deterministic guided decode, a budget sized for
   // the compact structured payload.
-  distill: { temperature: 0.2, maxOutputTokens: 512 },
+  distill: { temperature: 0.2, maxOutputTokens: 512, effort: NO_REASONING },
   // Library analysis (compare narrative + askCard answer): a grounded read over a precomputed diff / recent
   // scenes — a short, grounded structured answer. Both analyze calls share this posture (identical today:
   // 0.3 / 400 out for each); if the two budgets ever diverge, split into two kinds.
-  analyze: { temperature: 0.3, maxOutputTokens: 400 },
+  analyze: { temperature: 0.3, maxOutputTokens: 400, effort: NO_REASONING },
   // Greeting studio bounded completion: a bounded transform of a base greeting, not an open creative turn —
   // mirrors the quiet_generate floor (temp 0.3, 1024 out).
   greeting_studio: { temperature: 0.3, maxOutputTokens: 1024 },
   // Automation /autobg background pick: a deterministic classify (pick ONE background name from a list) —
   // a tiny output budget because we want a name, nothing else.
-  autobg: { temperature: 0.2, maxOutputTokens: 32 },
+  autobg: { temperature: 0.2, maxOutputTokens: 32, effort: NO_REASONING },
   // Automation `run_analysis` quiet pass (S5/C1): a bounded schema-constrained analysis payload (arc/twists/
   // guidance/lore ops), not creative prose — the quiet_generate floor's class (temp 0.3, 1024 out).
   rule_analysis: { temperature: 0.3, maxOutputTokens: 1024 },
   // Vision caption / avatar analysis: near-deterministic classification with a budget sized for the
   // sentence plus sixteen short structured fields. Originally empty (backend defaults stood); the avatar
   // analysis call hardcoded its own floor — this IS that floor, promoted to its canonical home (#2243).
-  caption: { temperature: 0.2, maxOutputTokens: 512 },
+  caption: { temperature: 0.2, maxOutputTokens: 512, effort: NO_REASONING },
   // ── Refinery stage postures (R1; study §5.3's values). The caller is always the card owner, so the owner's
   //    Utility-role preset always applies (no mixed-owner batch arm here). ──
   // Score: near-deterministic critique, budgeted for the per-field payload (bigger than distill's facets).
-  refine_score: { temperature: 0.2, maxOutputTokens: 768 },
+  refine_score: { temperature: 0.2, maxOutputTokens: 768, effort: NO_REASONING },
   // Rewrite: the one CREATIVE stage — card prose, the largest budget of the three.
   refine_rewrite: { temperature: 0.7, maxOutputTokens: 2048 },
   // Analyze: a grounded drift comparison — short, structured, near-deterministic.
-  refine_analyze: { temperature: 0.3, maxOutputTokens: 512 },
+  refine_analyze: { temperature: 0.3, maxOutputTokens: 512, effort: NO_REASONING },
   // Schema DESIGN (refinery SF — the NL design §4.6): a near-deterministic structural artifact, never
   // prose. The budget is 2 048, not the pre-task-#36 768: the design language emits one verbose ROW per
   // leaf field, and the hosted wire serves it in the all-required shape (every unset knob an explicit
@@ -245,7 +251,7 @@ export const SIDE_GEN_POSTURES = {
   // `finish_reason:"length"`, i.e. a failed forge that looked like a bad model.
   schema_forge: { temperature: 0.2, maxOutputTokens: 2048 },
   // Theme-cluster naming (discovery): a two-to-four-word label for a keyword set — deterministic-ish, tiny.
-  theme_name: { temperature: 0.3, maxOutputTokens: 24 },
+  theme_name: { temperature: 0.3, maxOutputTokens: 24, effort: NO_REASONING },
   // Memory digest and consolidation: a bounded summary. The token guard reserves this same output budget when
   // it fits the input, so the request and the fit cannot disagree. Temperature stays the model's default.
   memory_digest: { maxOutputTokens: 1024 },

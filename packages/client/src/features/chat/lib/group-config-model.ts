@@ -7,6 +7,7 @@
 // form — that retired key died 2026-08-08).
 
 import type { GroupConfig, GroupPolicy, MemberCardVisibility } from "@orb/contracts/chat";
+import { narratorPolicyOf } from "@orb/contracts/chat";
 
 type GroupOutput = GroupConfig["output"];
 
@@ -51,7 +52,6 @@ export function toGroupConfigForm(config: GroupConfig): GroupConfigFormValues {
 
 export function fromGroupConfigForm(values: GroupConfigFormValues): GroupConfig {
   const shared = {
-    policy: values.policy,
     smartPicker: values.smartUsesUtility ? "utility" : "reranker",
     speakerTags: values.speakerTags,
     groupNudge: values.groupNudge,
@@ -62,6 +62,6 @@ export function fromGroupConfigForm(values: GroupConfigFormValues): GroupConfig 
     memberCardVisibility: values.memberCardVisibility,
   } as const;
   return values.output === "narrator"
-    ? { output: "narrator", ...shared }
-    : { output: "per-speaker", cardScope: values.scopedCards ? "scoped" : "merged", ...shared };
+    ? { output: "narrator", policy: narratorPolicyOf(values.policy), ...shared }
+    : { output: "per-speaker", policy: values.policy, cardScope: values.scopedCards ? "scoped" : "merged", ...shared };
 }

@@ -105,6 +105,9 @@ export {
  *  binds it as the `listCorpusOwners` op BOTH this domain's analytics passes and embeddings' `index` sweep
  *  close over (event-bus coverage survey §2.5/F6). */
 export { distinctCorpusOwners } from "./persistence/embed-store-reads.ts";
+/** Chat's speaker pick describes each character by its distilled pitch; the composition root binds this read
+ *  as chat's `resolveCharacterDistillates` op, so chat never reads discovery's table. */
+export { readOwnedDistillates } from "./persistence/summary-reads.ts";
 export { createDiscoveryService } from "./service.ts";
 export { CSLS_K, HUBNESS_DENSE_MAX } from "./substrate/hub-math.ts";
 export { computeThemes } from "./themes/generate.ts";

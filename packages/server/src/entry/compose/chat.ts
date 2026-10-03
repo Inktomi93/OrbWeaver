@@ -9,7 +9,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { resolveRenderPolicy, SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
 import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
-import { EMBED_SPACE_DIMS, RERANK_FLOOR } from "@orb/contracts/inference";
+import { acceptsNamedToolChoice, EMBED_SPACE_DIMS, RERANK_FLOOR } from "@orb/contracts/inference";
 import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -83,6 +83,7 @@ import {
   getRoomOverrides,
 } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
+import { readOwnedDistillates } from "#domain/discovery";
 import type { EmbeddingsService } from "#domain/embeddings";
 import { createHandoffRestampStatements } from "#domain/embeddings";
 import type { ImageryService } from "#domain/imagery";
@@ -760,6 +761,27 @@ export function createGeneratePictureOp(generatePicture: ImageryService["generat
 }
 
 /**
+ * Smart's Utility arbiter on the funder's bound row, or null when that row cannot answer it. The arbiter is
+ * structured output only, so the row must serve a vehicle: schema-constrained output, or a forced named tool on a
+ * model that takes `tools[]` at all. Null is the round's visible degrade, never a free-text call. The vehicle
+ * itself is `rc.structured`'s choice.
+ *
+ * @public Test-anchored module surface; the three routes are pinned at `tests/server/entry/compose/speaker-arbiter.test.ts`.
+ */
+export async function speakerArbiterFor(roles: Pick<RoleClientsWithSignal, "resolved" | "structured">): ReturnType<ChatContext["resolveSpeakerArbiter"]> {
+  const view = await roles.resolved("structured");
+  if (view?.capability.kind !== "generation") {
+    return null;
+  }
+  const generation = view.capability.generation;
+  const forcedTool = generation.tools !== undefined && acceptsNamedToolChoice(generation);
+  if (generation.output.structured !== true && !forcedTool) {
+    return null;
+  }
+  return { structured: (inputs, opts) => roles.structured(inputs, opts), contextTokens: generation.context.window };
+}
+
+/**
  * Construct the chat `ChatService` + its bus, wiring every {@link ChatContext} op + {@link ChatServiceDeps}
  * collaborator. Returns the service AND the bus emit.
  */
@@ -1016,6 +1038,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // was handed. A shape drift on either side is now a `tsc` error rather than a silent no-op.
     maybeRevokeOnAuthFailed: input.maybeRevokeOnAuthFailed,
     getCard: ({ ownerId, characterId }) => input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
+    resolveCharacterDistillates: async (ownerId, characterIds) =>
+      new Map((await readOwnedDistillates(db, ownerId, characterIds)).map((row) => [row.characterId, row] as const)),
     // ── HOST-HANDOFF COPY (stickler 2026-08-03 §5; the regex arm is #1739) — the four OWNING-domain write
     // factories the accepted property offer executes. Each lives in the domain that owns its tables and is
     // injected here, so chat never writes a `characters`, `world_books`, `regex_scripts` or `chat_digests`
@@ -1205,6 +1229,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       const capability = view.capability.kind === "rerank" ? view.capability.rerank : RERANK_FLOOR;
       return { capability, rerank: (query, documents, opts) => roles.rerank(query, documents, opts) };
     },
+    // The arbiter is structured output only: a row whose model has neither a response-format nor a named
+    // forced-tool vehicle cannot serve it, so the round degrades visibly instead of reading free text.
+    resolveSpeakerArbiter: async (funderUserId) => await speakerArbiterFor(await input.roleClientsFor(funderUserId)),
     summarizerContextTokens: taskWindows.summarize,
     summarizeAvailability: async (funderUserId) => await input.connection.availability({ task: "summarize", principal: await realHostPrincipal(funderUserId) }),
     // The embed model's input cap off the resolved EMBEDDING capability (was the vLLM launch window) — the

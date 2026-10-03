@@ -362,6 +362,7 @@ function ollamaFacts(show: z.infer<typeof ollamaShowSchema> | null, contextFloor
     kind,
     input: modalitiesOf({ vision: capabilities.includes("vision") }),
     tools: capabilities.includes("tools") ? { parallel: false } : undefined,
+    ...(capabilities.includes("thinking") ? { thinks: true } : {}),
   };
 }
 

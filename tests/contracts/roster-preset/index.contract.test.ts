@@ -4,8 +4,16 @@
 // groupConfig field refuses a stray key at the boundary (chat's strict arms ride through).
 
 import { RULE_PRESET_IDS } from "@orb/contracts/automation";
-import { createRosterPresetSchema, ROSTER_PRESET_MEMBER_MAX, rosterPresetMembersSchema, rosterPresetRulesSchema } from "@orb/contracts/roster-preset";
+import {
+  createRosterPresetSchema,
+  ROSTER_PRESET_MEMBER_MAX,
+  rosterPresetMembersSchema,
+  rosterPresetRulesSchema,
+  rosterPresetViewSchema,
+} from "@orb/contracts/roster-preset";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
+import { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
 
 const CHAR_A = "character_01j0000000000000000000a01a";
@@ -65,6 +73,27 @@ describe("roster-preset wire", () => {
       members: [{ kind: "character", characterId: CHAR_A, position: 0 }],
     });
     expect(ok.groupConfig).toMatchObject({ output: "per-speaker", cardScope: "merged", policy: "natural" });
+  });
+
+  test("a stored narrator preset holding Smart reads back as Natural in its view, still sparse", () => {
+    const view = rosterPresetViewSchema.parse({
+      id: mintTypeId(ID_PREFIX.rosterPreset),
+      name: "P",
+      description: "",
+      anchorPersonaId: null,
+      groupConfig: { output: "narrator", policy: "smart", smartPicker: "utility" },
+      game: null,
+      members: [],
+      rules: [],
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    expect(view.groupConfig).toEqual({ output: "narrator", policy: "natural", smartPicker: "utility" });
+  });
+
+  test("the view heals with a transform, so it projects to JSON Schema only as input, never as output", () => {
+    expect(() => z.toJSONSchema(rosterPresetViewSchema, { io: "input" })).not.toThrow();
+    expect(() => z.toJSONSchema(rosterPresetViewSchema, { io: "output" })).toThrow(/Transforms cannot be represented/u);
   });
 
   test("the RULES rider (B10): absent defaults to [], the id is the CLOSED catalogue enum, one instance per preset, knobs default {}", () => {
