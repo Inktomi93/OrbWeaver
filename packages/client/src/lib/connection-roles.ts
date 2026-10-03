@@ -182,7 +182,8 @@ export function utilityReadsImages(capability: Capability): boolean {
 export const MEMORY_COST_SENTENCE = `Memory makes about one extra summary call on your Utility model for every ${DEFAULT_MEMORY_DEFAULTS.blockSize} messages once a chat grows long.`;
 
 /** What the Smart speaker order costs, said wherever a host picks it. */
-export const SMART_POLICY_COST_SENTENCE = "Smart makes one extra call on your Utility model every round to pick who replies.";
+export const SMART_POLICY_COST_SENTENCE =
+  "Smart makes one extra call on your Utility model to pick who replies, except when every name in the last message is clear: then the characters it names reply.";
 
 /** The inline refusal a Model-roles row shows BEFORE writing a binding (§5.3a — the slot is the first
  *  enforcement point): a background task on a row with `allowBackground` off. `null` = bindable. */

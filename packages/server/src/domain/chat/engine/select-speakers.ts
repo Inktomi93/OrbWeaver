@@ -328,6 +328,20 @@ function phraseAt(words: readonly string[], seq: readonly string[]): number {
   return words.findIndex((_, start) => seq.every((w, k) => words[start + k] === w));
 }
 
+/** Every start index where `seq` occurs as consecutive words of `words`. */
+function phraseStarts(words: readonly string[], seq: readonly string[]): number[] {
+  if (seq.length === 0) {
+    return [];
+  }
+  return words.flatMap((_, start) => (seq.every((w, k) => words[start + k] === w) ? [start] : []));
+}
+
+// A text word is written as a name when it is capitalized, or when the card spells that name word lowercase too:
+// "Will, come here" names Will, "we will find it" does not.
+function writtenAsName(textWord: string, cardWord: string | undefined): boolean {
+  return startsUpper(textWord) || (cardWord !== undefined && !startsUpper(cardWord));
+}
+
 /**
  * Characters a trigger text names. `natural`'s mention activation passes a human post's body only; Smart's
  * reranker pick (`rerank-pick.ts`) passes the last line whoever wrote it, since a character handing the floor
@@ -361,10 +375,7 @@ function mentionHits(rawText: readonly string[], candidates: readonly SpeakerCan
     const written = keys.size > 0 ? hitIdx : [at];
     // A word counts toward `hits` only when it is written as a name, so an ordinary lowercase "hook" cannot
     // break a tie between characters the text addresses by another word.
-    const asName = written.filter((i) => {
-      const nameWord = rawName[nameWords.indexOf(text[i] ?? "")];
-      return startsUpper(rawText[i] ?? "") || (nameWord !== undefined && !startsUpper(nameWord));
-    });
+    const asName = written.filter((i) => writtenAsName(rawText[i] ?? "", rawName[nameWords.indexOf(text[i] ?? "")]));
     const strong = asName.length > 0;
     const phraseHits = strong ? nameWords.length : 0;
     const hits = keys.size > 0 ? new Set(asName.map((i) => text[i])).size : phraseHits;
@@ -380,7 +391,8 @@ export const MAX_SMART_RESPONDERS = 3;
 /** The word indices of `text` a human player's name occupies, outside any character's whole name spelled out
  *  there. "Rook, your move." to the player Rook is an address to the human; "Rook the Bard" is the character. A
  *  whole name made only of a human's words ("Grace" for the player Grace, "Bran" for the player Bran Stark) could
- *  be either, so it shields nothing and the picker decides. */
+ *  be either, so it shields nothing, and when it is written as a name the picker decides; "move with grace" is
+ *  an ordinary word and no address at all. */
 function humanWordIndices(
   rawText: readonly string[],
   speakerCandidates: readonly SpeakerCandidate[],
@@ -391,12 +403,14 @@ function humanWordIndices(
   const characterSpans = new Set<number>();
   let ambiguous = false;
   for (const c of speakerCandidates) {
-    const nameWords = rawWordsOf(c.name).map((w) => w.toLowerCase());
-    const at = phraseAt(text, nameWords);
-    if (at !== -1 && nameWords.every((w) => human.has(w))) {
-      ambiguous = true;
+    const rawName = rawWordsOf(c.name);
+    const nameWords = rawName.map((w) => w.toLowerCase());
+    if (nameWords.length > 0 && nameWords.every((w) => human.has(w))) {
+      const asName = phraseStarts(text, nameWords).some((start) => rawName.some((w, k) => writtenAsName(rawText[start + k] ?? "", w)));
+      ambiguous ||= asName;
       continue;
     }
+    const at = phraseAt(text, nameWords);
     for (let k = 0; at !== -1 && k < nameWords.length; k += 1) {
       characterSpans.add(at + k);
     }

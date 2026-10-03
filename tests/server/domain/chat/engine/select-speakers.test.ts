@@ -7,7 +7,7 @@ import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { ArbiterCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
+import type { ArbiterCandidate, TranscriptLine } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
 import {
   addressedGroups,
   humanPlayerNames,
@@ -579,6 +579,21 @@ describe("addressedGroups — who a line addresses, for the Smart pickers", () =
       groups: [[cid("bran")]],
       humanAmbiguous: false,
     });
+  });
+
+  test("a human's name written as an ordinary lowercase word is no ambiguity; written as a name it is", () => {
+    const roster = [
+      { ref: charRef("mara"), name: "Mara" },
+      { ref: charRef("grace"), name: "Grace" },
+      { ref: charRef("will"), name: "Will" },
+    ];
+    const seats = [seat("mara"), seat("grace"), seat("will")];
+    const byNate = (text: string): TranscriptLine => ({ speakerName: "Alex", text, characterId: null });
+    expect(addressedGroups(byNate("Mara, move with grace."), seats, roster, ["Alex", "Grace"])).toEqual({ groups: [[cid("mara")]], humanAmbiguous: false });
+    expect(addressedGroups(byNate("Mara, I will hold the door."), seats, roster, ["Alex", "Will"])).toEqual({ groups: [[cid("mara")]], humanAmbiguous: false });
+    // A later capitalized use is still found, past an earlier lowercase one.
+    expect(addressedGroups(byNate("Move with grace, Grace."), seats, roster, ["Alex", "Grace"])).toEqual({ groups: [], humanAmbiguous: true });
+    expect(addressedGroups(byNate("Mara, Grace, go."), seats, roster, ["Alex", "Grace"])).toEqual({ groups: [[cid("mara")]], humanAmbiguous: true });
   });
 
   test("Natural's mention read is unchanged: a bare shared word still names the character there", () => {

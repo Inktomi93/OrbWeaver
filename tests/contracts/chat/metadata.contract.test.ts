@@ -41,6 +41,9 @@ test("a narrator room cannot hold Smart: a write or a stored blob with it reads 
   // A per-speaker room keeps it, and a narrator room keeps every other policy.
   expect(groupConfigSchema.parse({ output: "per-speaker", policy: "smart" }).policy).toBe("smart");
   expect(groupConfigSchema.parse({ output: "narrator", policy: "manual" }).policy).toBe("manual");
+  // The raw input plane normalizes the same way and stays sparse.
+  expect(groupConfigInputSchema.parse({ output: "narrator", policy: "smart" })).toEqual({ output: "narrator", policy: "natural" });
+  expect(groupConfigInputSchema.parse({ output: "per-speaker", policy: "smart" })).toEqual({ output: "per-speaker", policy: "smart" });
 });
 
 // ═══ groupConfigSchema — memberCardVisibility default sheet (D22) ════════════════

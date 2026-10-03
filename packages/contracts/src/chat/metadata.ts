@@ -229,9 +229,15 @@ const groupInputFields = {
   memberCardVisibility: memberCardVisibilityField.memberCardVisibility.unwrap().unwrap().optional(),
 };
 
-/** Validates the raw input plane without applying the parsed room defaults or corruption heals. */
+/** Validates the raw input plane without applying the parsed room defaults or corruption heals. The one
+ *  normalization it shares with the room parse is the narrator arm's {@link narratorPolicyOf}, so no reader of a
+ *  stored input (a roster preset's view) ever shows a narrator room holding Smart. */
 export const groupConfigInputSchema = z.discriminatedUnion("output", [
-  z.strictObject({ output: narratorGroupSchema.shape.output, ...groupInputFields }),
+  z.strictObject({
+    output: narratorGroupSchema.shape.output,
+    ...groupInputFields,
+    policy: groupInputFields.policy.unwrap().transform(narratorPolicyOf).optional(),
+  }),
   z.strictObject({
     output: perSpeakerGroupSchema.shape.output,
     ...groupInputFields,

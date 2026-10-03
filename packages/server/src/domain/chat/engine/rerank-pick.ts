@@ -111,7 +111,8 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
   }
   const eligible = params.candidates.filter((c) => isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }));
   const nameByKey = new Map(params.speakerCandidates.map((n) => [speakerKey(n.ref), n.name] as const));
-  const named: NamedCandidate[] = eligible.map((c) => ({ ref: c.ref, name: nameByKey.get(speakerKey(c.ref)) ?? "" })).filter((c) => c.name.length > 0);
+  // A blank name cannot be described or addressed, so that seat is never ranked; it still speaks through `natural`.
+  const named: NamedCandidate[] = eligible.map((c) => ({ ref: c.ref, name: (nameByKey.get(speakerKey(c.ref)) ?? "").trim() })).filter((c) => c.name.length > 0);
   if (named.length <= 1) {
     return { speakers: named.map((c) => c.ref), degraded: false, aborted: false };
   }

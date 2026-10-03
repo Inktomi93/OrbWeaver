@@ -54,7 +54,7 @@ function policyItemsFor(output: GroupOutput): SelectItems<string> {
   return output === "narrator" ? NARRATOR_POLICY_ITEMS : POLICY_ITEMS;
 }
 
-const RERANKER_SMART_HELP = `Smart ranks the characters against the last message with your ${SMART_PICKER_LABELS.reranker}. A character plainly named in that message replies first; when several share the name, Smart ranks only those. If no ${SMART_PICKER_LABELS.reranker} is available, Natural picks and you're told once per session.`;
+const RERANKER_SMART_HELP = `Smart picks who replies with your ${SMART_PICKER_LABELS.reranker}. When every name in the last message is clear, the characters it names reply. If a name is shared, by two characters or by a character and a player, Smart makes one pick: among the characters named, or among everyone when a player shares the name. If no ${SMART_PICKER_LABELS.reranker} is available, Natural picks and you're told once per session.`;
 
 // The help under each control states what the server does with it (`engine/select-speakers.ts`,
 // `engine/round.ts`), per policy, so the Rooms guide never has to restate it. Smart's help depends on the

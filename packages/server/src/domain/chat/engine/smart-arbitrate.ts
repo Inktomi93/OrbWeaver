@@ -74,22 +74,26 @@ interface Named {
 }
 
 /**
- * Each roster seat's label for the round, keyed by `speakerKey`: its name, or, when an earlier seat already holds
- * that name, the name numbered "(2)", "(3)" and on to the first label no seat's name or label uses. Computed once
- * over the whole roster in roster order, before mute and ban-last, so a character keeps one label all round and
- * the response enum maps each label back to exactly one ref.
+ * Each roster seat's label for the round, keyed by `speakerKey`: its trimmed name, or, when an earlier seat already
+ * holds that name (compared case-insensitively), the name numbered "(2)", "(3)" and on to the first label no seat's
+ * name or label uses. Computed once over the whole roster in roster order, before mute and ban-last, so a character
+ * keeps one label all round and the response enum maps each label back to exactly one ref. A seat with a blank name
+ * gets no label: it cannot be described or addressed, so it is no candidate (it still speaks through `natural`).
  */
 function rosterLabels(speakerCandidates: readonly SpeakerCandidate[]): ReadonlyMap<string, string> {
-  const names = new Set(speakerCandidates.map((c) => c.name));
+  // Labels are per round: a roster change can renumber a seat, which only this round's prompt ever sees.
+  const sameAs = (label: string): string => label.toLowerCase();
+  const named = speakerCandidates.map((c) => ({ ref: c.ref, name: c.name.trim() })).filter((c) => c.name.length > 0);
+  const names = new Set(named.map((c) => sameAs(c.name)));
   const used = new Set<string>();
   const labels = new Map<string, string>();
-  for (const c of speakerCandidates) {
+  for (const c of named) {
     let label = c.name;
     // A numbered label another seat already carries as its own name is taken too.
-    for (let n = 2; used.has(label) || (label !== c.name && names.has(label)); n += 1) {
+    for (let n = 2; used.has(sameAs(label)) || (label !== c.name && names.has(sameAs(label))); n += 1) {
       label = `${c.name} (${n})`;
     }
-    used.add(label);
+    used.add(sameAs(label));
     labels.set(speakerKey(c.ref), label);
   }
   return labels;
@@ -102,8 +106,8 @@ const picked = (speakers: readonly SpeakerRef[]): SmartArbitrationResult => ({ s
 
 /**
  * Smart's Utility-model pick: the round's responders in order, at most {@link MAX_SMART_RESPONDERS}. Characters
- * the last line names answer without a call, as does a lone eligible character. `[]` only when NO character is
- * eligible.
+ * the last line names answer without a call only when every name in that line is unambiguous; a lone eligible
+ * character answers without one too. `[]` only when NO character is eligible.
  */
 export async function smartArbitrate(params: SmartArbitrateParams): Promise<SmartArbitrationResult> {
   // Read the signal through a CALL: `signal.aborted` flips asynchronously, so a narrowed read would go stale.
@@ -258,7 +262,10 @@ function buildArbiterPrompt(
       i === transcript.length - 1
         ? clipHead(line.text, Math.floor(safeTokenWindow(contextTokens) * LAST_LINE_WINDOW_SHARE))
         : clip(line.text, OLDER_LINE_TOKENS);
-    return line.speakerName === null ? text : `${line.speakerName}: ${text}`;
+    // A character's line rides under its round label, so two characters sharing a name stay attributable.
+    const speaker =
+      line.characterId === null ? line.speakerName : (roster.get(speakerKey({ kind: "character", characterId: line.characterId })) ?? line.speakerName);
+    return speaker === null ? text : `${speaker}: ${text}`;
   });
   return [
     ...(scene === null ? [] : [`Scene: ${scene}`]),

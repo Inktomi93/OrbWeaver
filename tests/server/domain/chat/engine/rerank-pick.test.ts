@@ -256,6 +256,42 @@ describe("rerankPick — several characters addressed", () => {
     expect(scores.sent).toHaveLength(1);
   });
 
+  test("a player's name written as an ordinary word is no address: the named character answers with no ranking", async () => {
+    const scores = fakeReranker({ aria: 1, bran: 4, cara: 9 });
+    const grace = [
+      { ref: ref("aria"), name: "Mara" },
+      { ref: ref("bran"), name: "Grace" },
+      { ref: ref("cara"), name: "Cara" },
+    ];
+    const withGrace = await pick({ reranker: scores.op, speakerCandidates: grace, humanNames: ["Sam", "Grace"], lastLine: line("Mara, move with grace.") });
+    expect(withGrace).toEqual({ speakers: [ref("aria")], degraded: false, aborted: false });
+    const will = [
+      { ref: ref("aria"), name: "Mara" },
+      { ref: ref("bran"), name: "Will" },
+      { ref: ref("cara"), name: "Cara" },
+    ];
+    const withWill = await pick({ reranker: scores.op, speakerCandidates: will, humanNames: ["Sam", "Will"], lastLine: line("Mara, I will hold the door.") });
+    expect(withWill).toEqual({ speakers: [ref("aria")], degraded: false, aborted: false });
+    expect(scores.sent).toHaveLength(0);
+
+    // Written as a name, the shared name is ambiguous: one pick ranked over everyone.
+    const addressed = await pick({ reranker: scores.op, speakerCandidates: grace, humanNames: ["Sam", "Grace"], lastLine: line("Mara, Grace, go.") });
+    expect(addressed.speakers).toEqual([ref("cara")]);
+    expect(scores.sent).toHaveLength(1);
+  });
+
+  test("a seat with a blank name is never ranked", async () => {
+    const scores = fakeReranker({ aria: 9, bran: 1, cara: 4 });
+    const blank = [
+      { ref: ref("aria"), name: "  " },
+      { ref: ref("bran"), name: "Bran" },
+      { ref: ref("cara"), name: "Cara" },
+    ];
+    const out = await pick({ reranker: scores.op, speakerCandidates: blank });
+    expect(out).toEqual({ speakers: [ref("cara")], degraded: false, aborted: false });
+    expect(scores.sent.map((docs) => docs.map((d) => d.id))).toEqual([["c:character_bran", "c:character_cara"]]);
+  });
+
   test("a failing role still answers the addressed characters, in mention order, and says so", async () => {
     const out = await pick({ reranker: () => Promise.reject(new Error("rerank down")), lastLine: line("Cara, Aria: now.") });
     expect(out).toEqual({ speakers: [ref("cara"), ref("aria")], degraded: true, aborted: false });

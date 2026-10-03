@@ -297,6 +297,60 @@ describe("smartArbitrate — the structured reply", () => {
       expect(enums).toEqual([["Ann", "Ann (2)", "Ann (3)"]]);
     }
   });
+
+  test("names differing only by case or spacing are numbered like duplicates, and each stays pickable", async () => {
+    const roster = [
+      { ref: charRef("aria"), name: "Ann " },
+      { ref: charRef("bran"), name: "Ann" },
+      { ref: charRef("cara"), name: "ann" },
+    ];
+    for (const [label, key] of [
+      ["Ann", "aria"],
+      ["Ann (2)", "bran"],
+      ["ann (3)", "cara"],
+    ] as const) {
+      const structured = arbiterAnswering({ responders: [label] });
+      const out = await arbitrate({ structured, speakerCandidates: roster });
+      expect(out.speakers, label).toEqual([charRef(key)]);
+      const enums = nodesOf(callOf(structured)[1].responseFormat.schema).flatMap((n) => (Array.isArray(n["enum"]) ? [n["enum"]] : []));
+      expect(enums).toEqual([["Ann", "Ann (2)", "ann (3)"]]);
+    }
+  });
+
+  test("older transcript lines carry the round labels, so two Anns' lines stay attributable", async () => {
+    const structured = arbiterAnswering({ responders: ["Bo"] });
+    await arbitrate({
+      structured,
+      speakerCandidates: annRoster,
+      transcript: [
+        { speakerName: "Ann", text: "First.", characterId: cid("aria") },
+        { speakerName: "Ann", text: "Second.", characterId: cid("bran") },
+        human("Sam", "and?"),
+      ],
+    });
+    const prompt = promptOf(structured);
+    expect(prompt).toMatch(/^Ann: First\.$/mu);
+    expect(prompt).toMatch(/^Ann \(2\): Second\.$/mu);
+    expect(prompt).toMatch(/^Sam: and\?$/mu);
+  });
+
+  test("a seat with a blank name is no candidate and is never numbered; it can still speak through Natural", async () => {
+    const roster = [
+      { ref: charRef("aria"), name: "" },
+      { ref: charRef("bran"), name: "  " },
+      { ref: charRef("cara"), name: "Cara" },
+      { ref: charRef("dov"), name: "Dov" },
+    ];
+    const structured = arbiterAnswering({ responders: ["Dov"] });
+    const seats = [...CANDIDATES, candidate("dov")];
+    const out = await arbitrate({ structured, speakerCandidates: roster, candidates: seats });
+    expect(out.speakers).toEqual([charRef("dov")]);
+    const enums = nodesOf(callOf(structured)[1].responseFormat.schema).flatMap((n) => (Array.isArray(n["enum"]) ? [n["enum"]] : []));
+    expect(enums).toEqual([["Cara", "Dov"]]);
+    // The degrade still draws from every eligible seat, nameless ones included.
+    const fallback = await arbitrate({ arbiter: () => Promise.resolve(null), speakerCandidates: roster, candidates: seats, mentionedIds: [cid("aria")] });
+    expect(fallback).toEqual({ speakers: [charRef("aria")], degraded: true, aborted: false });
+  });
 });
 
 describe("smartArbitrate — the line being answered fits the bound model", () => {
@@ -420,6 +474,40 @@ describe("smartArbitrate — short-circuits (no model call)", () => {
     const out = await arbitrate({ structured, speakerCandidates: grace, humanNames: ["Grace"], transcript: [said("cara", "Grace, Bryn, help me.")] });
     expect(structured).toHaveBeenCalledTimes(1);
     expect(out.speakers).toEqual([charRef("cara")]);
+  });
+
+  test("a player's name written as an ordinary word is no address: the named character answers with no call", async () => {
+    const structured = arbiterAnswering({ responders: ["Cara"] });
+    const grace = [
+      { ref: charRef("aria"), name: "Mara" },
+      { ref: charRef("bran"), name: "Grace" },
+      { ref: charRef("cara"), name: "Cara" },
+    ];
+    const withGrace = await arbitrate({
+      structured,
+      speakerCandidates: grace,
+      humanNames: ["Sam", "Grace"],
+      transcript: [human("Sam", "Mara, move with grace.")],
+    });
+    expect(withGrace).toEqual({ speakers: [charRef("aria")], degraded: false, aborted: false });
+    const will = [
+      { ref: charRef("aria"), name: "Mara" },
+      { ref: charRef("bran"), name: "Will" },
+      { ref: charRef("cara"), name: "Cara" },
+    ];
+    const withWill = await arbitrate({
+      structured,
+      speakerCandidates: will,
+      humanNames: ["Sam", "Will"],
+      transcript: [human("Sam", "Mara, I will hold the door.")],
+    });
+    expect(withWill).toEqual({ speakers: [charRef("aria")], degraded: false, aborted: false });
+    expect(structured).not.toHaveBeenCalled();
+
+    // Written as a name, the shared name is still ambiguous and the model decides.
+    const addressed = await arbitrate({ structured, speakerCandidates: grace, humanNames: ["Sam", "Grace"], transcript: [human("Sam", "Mara, Grace, go.")] });
+    expect(addressed.speakers).toEqual([charRef("cara")]);
+    expect(structured).toHaveBeenCalledTimes(1);
   });
 });
 
