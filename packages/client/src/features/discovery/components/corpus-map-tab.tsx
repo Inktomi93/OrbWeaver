@@ -16,7 +16,7 @@ import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { selectCorpusCharacter } from "#state";
 import { toGenreSeries } from "../lib/corpus-charts.ts";
 import { facetLabel } from "../lib/corpus-vocabulary.ts";
-import { CorpusDistillEmptyState } from "./corpus-distill-empty-state.tsx";
+import { CorpusRunJobEmptyState } from "./corpus-run-job-empty-state.tsx";
 
 const SKELETON_ROW_COUNT = 3;
 
@@ -39,13 +39,11 @@ function MapBody(): ReactElement {
 
   if (points.length === 0) {
     return (
-      <CorpusDistillEmptyState
+      <CorpusRunJobEmptyState
         title="No map yet"
-        // TRUTH-REPAIR (#164's rider from the #154 lane): the projection is a PCA over CARD EMBEDDINGS —
-        // `corpusProjection` reads the index, not `character_summaries`. Distillation only colours the points
-        // by genre; a fully indexed, undistilled library still has a map. Saying "distill your library, then
-        // come back" sent a user to the wrong pass to fix an empty chart.
-        description="The semantic map projects your indexed cards. Run the image and card index, then come back — distilling colours the points by genre."
+        // The projection is a PCA over CARD EMBEDDINGS: `corpusProjection` reads the index, not
+        // `character_summaries`, so the job that fills it is the index. Distillation only colours the points.
+        description="The map places your cards by their text index. Run Index (embeddings) to build it. Distill characters then colors the points by genre."
       />
     );
   }

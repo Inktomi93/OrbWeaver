@@ -132,7 +132,7 @@ function OverviewBody(): ReactElement {
         <RecomputeButton />
       </Row>
 
-      <Section heading="Year in review">
+      <Section heading="All-time totals">
         <Stack gap="block">
           {/* A real grid, not flex-wrap (side-eye rail-analytics 2026-08-19 Taste): intrinsic-width figures
               in a `flex-wrap` left uneven voids and arbitrary wraps. `cols="cell"` tiles even 1fr tracks at a

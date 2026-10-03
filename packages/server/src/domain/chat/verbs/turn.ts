@@ -18,7 +18,7 @@ import type {
   SpeakerRef,
   UserMacroDraws,
 } from "@orb/contracts/chat";
-import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
+import { AUTOMATION_DEPTH_HARD_CAP, buildIdentityNameContext, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { GenerationType, GuidedImpersonatePerson, UserIntent, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
@@ -27,6 +27,7 @@ import type { BindingActor, Resolved, WireTool } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, UserMacroDef } from "@orb/kit/macro";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
@@ -73,6 +74,7 @@ import {
   insertMessageAssetStatements,
   setVariantContentStatement,
 } from "../persistence/canon-write.ts";
+import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentRole } from "../persistence/participants-read.ts";
@@ -92,6 +94,7 @@ import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { humanSeatPersonasOf, memberPersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
+import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access.ts";
@@ -300,17 +303,32 @@ function joinedCandidateName(speakerCandidates: readonly SpeakerCandidate[]): st
     .join(", ");
 }
 
-/** The last-assistant speaker (ban-last seed) + a recent transcript the `smart` arbiter reads. */
-async function canonFacts(ctx: ChatContext, chatId: ChatId): Promise<{ lastSpeaker: SpeakerRef | null; recentHistory: string }> {
+/** The last-assistant speaker (ban-last seed) + the trailing canon rows the `smart` arbiter reads. */
+async function canonFacts(ctx: ChatContext, chatId: ChatId): Promise<{ lastSpeaker: SpeakerRef | null; recentRows: readonly MessageView[] }> {
   // @orb-waive chat-viewer-plane-canon-reads(loadCanonHistory): turn assembly for `send` — the prompt is the ROOM's. A turn is one shared utterance broadcast to every member, so per-reader assembly is incoherent; the reply's BYTES reach each member through the clamped bus/read paths.
   const canon = await loadCanonHistory(ctx.db, chatId);
   return {
     lastSpeaker: lastSpeakerRef(canon.findLast((m) => m.role === "assistant")),
-    recentHistory: canon
-      .slice(-RECENT_TRANSCRIPT)
-      .map((m) => m.content)
-      .join("\n"),
+    recentRows: canon.slice(-RECENT_TRANSCRIPT),
   };
+}
+
+/** The `smart` arbiter's transcript: each row under its speaker's name. A per-speaker reply is persisted with its
+ *  own name label stripped (`cleanPerSpeakerReply`), so the content alone cannot say who spoke. Names resolve
+ *  from each row's own stamp through the room's message-stamp identity producer, so a character who has left
+ *  keeps its name. A user row with no resolvable persona reads under the default persona name, the same name
+ *  `{{user}}` falls back to; an unnamed assistant or system row stays bare. */
+async function arbiterTranscript(ctx: ChatContext, rows: readonly MessageView[]): Promise<string> {
+  if (rows.length === 0) {
+    return "";
+  }
+  const names = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { messages: rows }));
+  return projectRpgTranscript(rows, names)
+    .map((line) => {
+      const speaker = line.speakerName ?? (line.role === "user" ? DEFAULT_PERSONA_NAME : null);
+      return speaker === null ? line.content : `${speaker}: ${line.content}`;
+    })
+    .join("\n");
 }
 
 /** The ban-last speaker ref for the last assistant row: its characterId or its authorUserId; null when there
@@ -863,7 +881,8 @@ async function arbitrate(
      *  inverted). Default TRUE. It rides BESIDE `lastSpeaker` rather than nulling it because the two are
      *  different questions: the ban is ELIGIBILITY, `lastSpeaker` is also the `pooled` ROTATION ORIGIN. */
     readonly banLast?: boolean | undefined;
-    readonly recentHistory: string;
+    /** The trailing canon rows the `smart` arbiter reads; named into a transcript only on that arm. */
+    readonly recentRows: readonly MessageView[];
     readonly maxSpeakers?: number | undefined;
     /** The turn's abort signal — threaded into the `smart` side-LLM call so a non-responsive arbiter box
      *  can't hang the turn. Absent on the paths that never reach the side-LLM. */
@@ -887,7 +906,7 @@ async function arbitrate(
       summarize: (inputs, opts) => ctx.summarize(args.funderUserId, inputs, opts),
       candidates: args.candidates,
       speakerCandidates: args.speakerCandidates,
-      recentHistory: args.recentHistory,
+      recentHistory: await arbiterTranscript(ctx, args.recentRows),
       lastSpeaker: args.lastSpeaker,
       ...(args.banLast !== undefined ? { banLast: args.banLast } : {}),
       rng: deps.prng,
@@ -998,7 +1017,7 @@ async function runChain(
         // chain becomes one character monologuing under a control that promises a rotation.
         lastSpeaker: last,
         banLast: !args.group.allowSelfResponses,
-        recentHistory: facts.recentHistory,
+        recentRows: facts.recentRows,
         maxSpeakers: 1,
         signal: args.signal,
       });
@@ -1086,7 +1105,7 @@ async function runAiRound(
     speakerCandidates: args.room.speakerCandidates,
     forcedIds: args.forcedIds,
     lastSpeaker: facts.lastSpeaker,
-    recentHistory: facts.recentHistory,
+    recentRows: facts.recentRows,
     signal: args.signal,
   });
   // CANCELLED mid-arbitration: the caller stopped the turn while the `smart` side-LLM was deciding. End here
@@ -2358,7 +2377,7 @@ async function arbitrateGenerateSpeaker(
     candidates: args.room.candidates,
     speakerCandidates: args.room.speakerCandidates,
     lastSpeaker: facts.lastSpeaker,
-    recentHistory: facts.recentHistory,
+    recentRows: facts.recentRows,
     maxSpeakers: 1,
     signal: args.signal,
   });

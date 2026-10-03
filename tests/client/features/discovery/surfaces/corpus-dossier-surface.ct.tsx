@@ -52,6 +52,22 @@ const NO_KEYWORD_PROFILE = /No keyword profile/;
 // back, over a percent column that visibly does not descend. Same two facts, ordered so the sentence
 // survives its own evidence — the CLAIM under test is unchanged (the list states its own sort).
 const SORT_STATED = /Ranked by distinctive similarity/;
+/** The unavailable dossier's two exits: back to the list, and the job that writes a dossier. */
+const BACK_DOOR = /^Back to /;
+const RUN_JOB_DOOR = /Run a job/;
+const JOBS_LANDING = "section:config target:workloads/jobs";
+
+// A null dossier is an undistilled card, which the Distill characters JOB fills. Its door opens Settings →
+// Jobs (it used to open the Refinery, which rewrites a card's text and writes no dossier), and Back stays.
+test("an UNAVAILABLE dossier keeps Back and its door lands on Settings → Jobs", async ({ mount, page }) => {
+  await routeDossier(page, IDLE_ANSWER, null);
+  const component = await mount(<CorpusDossierSurfaceStory />);
+
+  await component.getByRole("button", { name: BACK_DOOR }).click();
+  await expect(component.getByTestId("ct-dossier-backs")).toHaveText("1");
+  await component.getByRole("button", { name: RUN_JOB_DOOR }).click();
+  await expect(component.getByTestId("ct-door-landing")).toHaveText(JOBS_LANDING);
+});
 
 test("a GROUNDED answer badges the model's own claim", async ({ mount, page }) => {
   await routeDossier(page, {

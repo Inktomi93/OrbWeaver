@@ -26,6 +26,7 @@ import type { CharacterId, ChatId, Handle, MessageId, PersonaId, UserId, WorldBo
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -870,6 +871,31 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
     expect(assistants.map((m) => m.characterId)).toEqual([chars[1]]);
     expect(chosen.calls()).toBe(1);
     expect(warnings(h.events)).toHaveLength(0);
+  });
+
+  // A per-speaker reply is persisted WITHOUT its own name label (`cleanPerSpeakerReply` strips it), so the
+  // stored content alone cannot say who spoke. The arbiter must still read each line's speaker, resolved
+  // from the row's own character or persona stamp.
+  test("the arbiter reads each untagged line under its speaker's name", async () => {
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const hostPersona = await seedPersona(host, "host_pov");
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, personaId: hostPersona, content: "Anyone awake?" });
+    await seedMessage(db, chatId, 2, { role: "assistant", characterId: chars[0] ?? null, content: "I never sleep." });
+    await seedMessage(db, chatId, 3, { role: "assistant", characterId: chars[1] ?? null, content: "Speak for yourself." });
+    const prompts: string[] = [];
+    const h = harness(db, names, {
+      summarize: (_funderUserId, inputs): Promise<SummarizeResult> => {
+        prompts.push(inputs[0]?.userPrompt ?? "");
+        return Promise.resolve({ items: [{ text: "aria", usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+      },
+    });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]).toContain(
+      `Recent conversation:\nhost_pov: Anyone awake?\naria: I never sleep.\nbryn: Speak for yourself.\n${DEFAULT_PERSONA_NAME}: who's up?\n\n`,
+    );
   });
 
   test("a THROWING arbiter (outage) still commits a turn, chosen by the natural math, with a warning", async () => {
