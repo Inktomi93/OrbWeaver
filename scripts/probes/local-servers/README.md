@@ -59,5 +59,5 @@ Evidence: `results/<arm>.jsonl`, one row per step, append-only.
 - The app keeps one mirror per server URL and reader (`catalog:endpoint:<url>#<reader>`), persisted for a
   week. A server restarted without its projector, or without `--jinja`, keeps its earlier facts until the
   mirror forgets them. Two user actions do that for the connection, in memory and in the persisted row:
-  saving the connection (any field) and **Inspect endpoint** under its Diagnostics. The week-old ceiling
+  a change to any field of the connection, and **Send a test request** under its Diagnostics. The week-old ceiling
   re-reads on its own. The admin catalog refresh button and the daily refresh job cover OpenRouter only.
