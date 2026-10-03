@@ -8,13 +8,16 @@
 // off by exactly the rows the page could not see.
 
 import { DATABANK_LIST_DEFAULT_LIMIT, STALE_INGEST_MS } from "@orb/contracts/databank";
+import { documents } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { inArray } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../_support.ts";
 
 const INGEST_TIMEOUT_MS = 30_000;
+const OLDER_EXTRACTOR = "textlike-0";
 
 test("counts the WHOLE bank by phase — including the documents past the first page", async () => {
   const db = await freshDb();
@@ -66,5 +69,33 @@ test("an empty bank is all zeros, not an absent census", async () => {
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   const health = await h.service.bankHealth({ principal: principalFor(owner) });
-  expect(health).toEqual({ byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, total: 0 });
+  expect(health).toEqual({ byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, staleExtraction: 0, total: 0 });
+});
+
+// The re-extract banner's census. It must name exactly the set the owner-wide re-extract sweep rewrites, so
+// the closing assertion runs that sweep and expects zero: a count the sweep cannot drain is a banner that
+// never goes away.
+test("staleExtraction counts the caller's re-extractable documents from an older extractor, and the sweep drains it", async () => {
+  const db = await freshDb();
+  const h = makeDatabankHarness(db);
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const other = await seedUser(db, { handle: castId<Handle>("other") });
+  const principal = principalFor(owner);
+  const bytes = new TextEncoder().encode("# Field notes\n\nThe tide came in twice.");
+
+  const upload = await h.service.upload({ principal, bytes, mime: "text/markdown", name: "notes.md" });
+  const pasted = await h.service.createFromText({ principal, name: "pasted.md", text: "no source file behind this" });
+  const foreign = await h.service.upload({ principal: principalFor(other), bytes, mime: "text/markdown", name: "theirs.md" });
+  expect((await h.service.bankHealth({ principal })).staleExtraction).toBe(0);
+
+  // An older extractor's stamp on every row. Only the caller's uploaded row is re-extractable: pasted text
+  // has no bytes to re-extract from, and the foreign row is another bank.
+  await db
+    .update(documents)
+    .set({ extractorVersion: OLDER_EXTRACTOR })
+    .where(inArray(documents.id, [upload.document.id, pasted.document.id, foreign.document.id]));
+  expect((await h.service.bankHealth({ principal })).staleExtraction).toBe(1);
+
+  await h.ingest.reindex({ ownerId: owner, scope: { kind: "owner" }, mode: "re-extract", signal: AbortSignal.timeout(INGEST_TIMEOUT_MS) });
+  expect((await h.service.bankHealth({ principal })).staleExtraction).toBe(0);
 });

@@ -437,6 +437,8 @@ export const actionBarVariants = tv({
     leading: "min-w-0 max-w-full shrink-0",
     primary: "min-w-0 max-w-full shrink-0",
     primaryContent: "flex w-max max-w-full flex-wrap items-center gap-field",
+    // The control-width floor is the fill's declared minimum, the only part of it the fit measurement counts.
+    fill: "flex min-w-control-md flex-1 items-center gap-field empty:hidden",
     trailing: "ms-auto shrink-0",
   },
   variants: { stacked: { true: { primary: "basis-full" } } },

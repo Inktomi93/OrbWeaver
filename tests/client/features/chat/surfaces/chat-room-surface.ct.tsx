@@ -15,15 +15,16 @@ import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_FORK_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { waitFrames } from "../../../../support/browser/weave-drive.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
-import { ChatRoomEntryStory, ChatRoomGreetingWindowStory, ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories.tsx";
+import { ChatRoomEntryStory, ChatRoomGreetingWindowStory, ChatRoomSurfaceStory, ChatSurfaceContributorStory, ChatsSectionRoomStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 // The divider's present-tense preview. Every map stubs it with a VALID resolved shape — the
@@ -357,6 +358,31 @@ test("a fake thread-flank contribution with `when:false` paints NO flank column 
   // contributor happens to be registered) and carries `empty:hidden`, so the contract this row has always
   // asserted — no flank column in the layout — is now spelled as "out of layout" rather than "absent".
   await expect(page.locator('[data-slot="chat-thread-flank"]')).toBeHidden();
+});
+
+// Forking lands the reader in the new branch. Driven through the real chats section; the transcript is
+// keyed by chat id, so the fork's own row on screen is the proof the open room changed.
+test("Fork chat here switches the open room to the new fork", async ({ mount, page }) => {
+  const forkChatId = mintTypeId(ID_PREFIX.chat);
+  const forkReply = "The branch picks up from here.";
+  const forkCanon = [makeMessageView({ id: mintTypeId(ID_PREFIX.message), chatId: forkChatId, role: "assistant", content: forkReply, seq: 1 })];
+  const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...ROSTER_STUB,
+    "chat.listMessages": (input) => makeMessagesPage(input.chatId === forkChatId ? forkCanon : CANON),
+    "chat.forkChat": () => ({ chat: { id: forkChatId } }),
+  });
+
+  await mount(<ChatsSectionRoomStory />);
+  const reply = page.locator('[data-slot="message-row"]', { hasText: "Well met, traveller." });
+  await reply.hover();
+  await reply.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME }).click();
+  await page.getByRole("menuitem", { name: MESSAGE_FORK_NAME }).click();
+
+  await expect.poll(() => trpc.lastInput("chat.forkChat")).toMatchObject({ chatId: CHAT_ID, throughSeq: 2 });
+  await expect(page.getByText(forkReply)).toBeVisible();
+  await expect(page.getByText("Hi Aria")).toHaveCount(0);
+  expect(trpc.unstubbed()).toEqual([]);
 });
 
 // ── #680: THE FLANK WRAPPER MUST BE LAYOUT-NEUTRAL ON BOTH AXES, AT BOTH ARMS ─────────────────────────

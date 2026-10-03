@@ -285,18 +285,6 @@ export const useResyncFromStory = createEntityMutation<inferInput<Trpc["rpg"]["r
   refusal: resyncRefusal,
 });
 
-/** `chat.reattributePersona` — the CHAT stamp verb, used here for the resync dialog's opt-in "restamp my
- *  messages first" arm (the `{kind:"mine"}` bulk scope). Declared in this feature's own hook home rather than
- *  imported from the persona feature: a feature never imports another feature (D70), and the shared surface a
- *  cross-feature write goes through is the WIRE. Bus-driven — the verb emits one `messageEdited` per restamped
- *  slot, which the open chat's reads already cover. The rpg rebuild that runs after it carries its own
- *  invalidates (`useResyncFromStory`). */
-export const useReattributePersona = createEntityMutation<inferInput<Trpc["chat"]["reattributePersona"]>, unknown>({
-  options: (trpc) => trpc.chat.reattributePersona.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't restamp your messages — the game state was left alone.",
-});
-
 /** The born-state round's verdict read off the wire, never re-spelled (the hand-door precedent). */
 type PopulateVerdict = inferOutput<Trpc["rpg"]["populateFromCharacter"]>;
 

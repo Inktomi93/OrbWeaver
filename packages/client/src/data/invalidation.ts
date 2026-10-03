@@ -294,11 +294,13 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // change (a spare stale mark), and a CHATLESS image generation (`imagery.editImage` with no `chatId`) does
   // write cost stats with no chat event — that dashboard catches up on the next chat activity. Closing the
   // latter needs a stats-grain producer event, not a wider chat one.
+  // `getChatLineage` rides both arms: a membership change in ANY chat can open or close a fork's parent.
   chatsChanged: (e, trpc) =>
     e.chatId === undefined
-      ? [trpc.chat.listChats.pathFilter(), trpc.character.list.pathFilter(), trpc.stats.pathFilter()]
+      ? [trpc.chat.listChats.pathFilter(), trpc.chat.getChatLineage.pathFilter(), trpc.character.list.pathFilter(), trpc.stats.pathFilter()]
       : [
           trpc.chat.listChats.pathFilter(),
+          trpc.chat.getChatLineage.pathFilter(),
           trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
           trpc.character.list.pathFilter(),
           trpc.stats.pathFilter(),

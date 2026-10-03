@@ -122,6 +122,13 @@ export interface ChatListPage {
   readonly viewerLastTurnAt: number | null;
 }
 
+/** The fork-lineage chain (`chat.getChatLineage`): the chat's ancestors then the chat itself, oldest root
+ *  first. Each ancestor is gated independently (a fork grants no parent membership, D27), so an ancestor the
+ *  caller is not a present member of is omitted and the chain may be sparse. */
+export interface ChatLineageView {
+  readonly chain: readonly ChatSummary[];
+}
+
 /** One sibling variant's identity + position (listMessageVariants) — NO content, just enough to resolve an
  *  idx to its variant id. Ordered by `idx` ascending. The swipe strip's step-target resolver: `MessageView`
  *  carries only the SELECTED variant per slot (D26), so reaching an idx this session hasn't rendered
@@ -281,6 +288,9 @@ export const chatListPageSchema = z.strictObject({
   totalCount: z.number(),
   viewerLastTurnAt: z.number().nullable(),
 }) satisfies z.ZodType<ChatListPage>;
+export const chatLineageViewSchema = z.strictObject({
+  chain: z.array(chatSummarySchema).readonly(),
+}) satisfies z.ZodType<ChatLineageView>;
 export const messageVariantSummarySchema = z.strictObject({
   variantId: typeIdSchema(ID_PREFIX.messageVariant),
   idx: z.number(),

@@ -33,9 +33,9 @@ const BANK = {
   nextCursor: null,
   totalCount: 4,
 };
-const HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 4, stalled: 0 }, chunks: 48, passages: 48, total: 4 };
+const HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 4, stalled: 0 }, chunks: 48, passages: 48, staleExtraction: 0, total: 4 };
 const EMPTY_BANK = { items: [], nextCursor: null, totalCount: 0 };
-const EMPTY_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, total: 0 };
+const EMPTY_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, staleExtraction: 0, total: 0 };
 
 /** The roster library every new account is seeded with, so the Rosters tile renders the rows a real house shows.
  *  An empty library drops the tile and hides the height it adds to its column. */

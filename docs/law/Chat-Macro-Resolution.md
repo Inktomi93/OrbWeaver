@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-23
+updated: 2026-10-03
 ---
 
 # Chat macro/persona resolution — the one home
@@ -205,11 +205,13 @@ The block changes only on a join, a leave (`leftSeq`), a persona swap, a descrip
 
 - `reattributeMessages` (host) — re-stamps a slot's `characterId` (the `{{char}}`/speaker axis). BUILT.
 - **persona reattribution** (author-or-host; re-stamp user messages' `personaId`, per-row) — BUILT
-  (`createReattributePersona`, `domain/chat/verbs/edit.ts`; `chat.reattributePersona` route; client
-  `useReattributePersona` + `persona-this-chat-section.tsx`). Takes an explicit `messageIds` selection,
-  gated per row (author-or-host + persona-ownership per author). No server bulk restamp exists. The
-  deliberate lever to fix history attribution after a switch. Re-stamp → the
-  producer re-resolves the name → BOTH consumers update; the content is never touched.
+  (`createReattributePersona`, `domain/chat/verbs/edit.ts`; `chat.reattributePersona` route). Its scope
+  is either an explicit `messageIds` selection or the server-resolved `mine` arm: every user row the
+  caller authored in the chat, optionally floored at an inclusive `fromSeq`. Every targeted row is gated
+  (author-or-host + persona-ownership per author). Clients: the persona panel and the game tab restamp
+  all of the caller's lines (`mine`); a user line's message menu offers "Reattribute from here" (`mine`
+  with that line's `fromSeq`). The deliberate lever to fix history attribution after a switch. Re-stamp →
+  the producer re-resolves the name → BOTH consumers update; the content is never touched.
 
 ## 6. Parity is enforced, not hoped
 

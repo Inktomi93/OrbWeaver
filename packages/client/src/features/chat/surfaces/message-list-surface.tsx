@@ -83,13 +83,12 @@ function estimateMessageRow(item: { readonly kind: "message" | "ghost"; readonly
 export interface MessageListSurfaceProps {
   readonly chatId: ChatId;
   readonly busDeps: ChatBusDeps;
-  readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
   readonly toolRenderers: ContributorRegistry<ToolRenderer>;
 }
 
 /** The scrolling chat transcript for one chat. */
-export function MessageListSurface({ chatId, busDeps, onChatForked, surfaceContributors, toolRenderers }: MessageListSurfaceProps): ReactElement {
+export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolRenderers }: MessageListSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
@@ -137,7 +136,6 @@ export function MessageListSurface({ chatId, busDeps, onChatForked, surfaceContr
               <ChatThread
                 chatId={chatId}
                 chatStyle={chatStyle}
-                onChatForked={onChatForked}
                 surfaceContributors={surfaceContributors}
                 toolRenderers={toolRenderers}
                 messagesPage={messagesPage}
@@ -154,7 +152,6 @@ export function MessageListSurface({ chatId, busDeps, onChatForked, surfaceContr
 interface ChatThreadProps {
   readonly chatId: ChatId;
   readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
-  readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
   readonly toolRenderers: ContributorRegistry<ToolRenderer>;
 }
@@ -166,7 +163,6 @@ type AnchoredPage = inferOutput<Trpc["chat"]["getMessageWindow"]>;
 function ChatThread({
   chatId,
   chatStyle,
-  onChatForked,
   surfaceContributors,
   toolRenderers,
   messagesPage,
@@ -366,7 +362,6 @@ function ChatThread({
         anchorPersonaId={chatDetail.anchorPersonaId}
         viewerUserId={viewerUserId}
         lenientHtmlCards={lenientHtmlCards}
-        onChatForked={onChatForked}
         enterMotion={newArrivalKeys.has(item.view.id)}
         surfaceContributors={surfaceContributors}
         toolRenderers={toolRenderers}

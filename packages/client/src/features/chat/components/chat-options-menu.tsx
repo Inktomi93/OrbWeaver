@@ -11,12 +11,13 @@
 // the room did not have. The room has one from the creation click, so every item is simply available and the
 // #8 grey-out apparatus — the `committed` prop, the `draftKey` prop, the disabled Delete twin — is gone. The
 // owner's show-everything ruling is UNCHANGED and still binds: nothing here hides, it just no longer has a
-// phase to hide from. ONE EXCEPTION, owner-ruled: a character's gallery row appears only for a character the
-// viewer owns. A gallery add is owner-only, so a non-owner's row could only open a gallery whose every add fails.
+// phase to hide from. TWO EXCEPTIONS, both owner-ruled permission omits: a character's gallery row appears only
+// for a character the viewer owns (a gallery add is owner-only, so a non-owner's row could only open a gallery
+// whose every add fails), and "Back to parent chat" appears only on a fork whose parent the viewer can open.
 
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { Icon, LayoutGrid, ListChecks, Menu as MenuIcon, MessagesSquare, Pencil, Swords, X } from "@orb/ui/icons";
+import { ArrowLeft, Icon, LayoutGrid, ListChecks, Menu as MenuIcon, MessagesSquare, Pencil, Swords, X } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
@@ -35,8 +36,10 @@ import {
   onGameModeStarted,
   onGameModeStopped,
   openCharacterGallery,
+  selectChat,
 } from "#state";
 import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
+import { BACK_TO_PARENT_CHAT_LABEL } from "../lib/chat-options-names.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
 // The #40 GAME front-door mutations — the ⋯ menu's start/stop rides the rpg procs DIRECTLY
@@ -155,6 +158,27 @@ function GameMenuSection({ chatId }: { readonly chatId: ChatId }): ReactElement 
   );
 }
 
+/** "Back to parent chat" on a fork. Offered only when the lineage read names the parent: lineage is gated per
+ *  ancestor (D27, a fork grants no parent membership), so a parent this viewer cannot open is absent from the
+ *  chain and the item is a permission omit, never a dead door. */
+function ParentChatItem({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
+  const trpc = useTRPC();
+  const detailQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  // Optional-chained like the game section: the CT harness answers an unlisted proc with `null`.
+  const parentChatId = detailQuery.data?.parentChatId ?? null;
+  const lineageQuery = useGatedQuery(parentChatId === null ? null : chatId, (id) => trpc.chat.getChatLineage.queryOptions({ chatId: id }));
+  const readable = lineageQuery.data?.chain.some((summary) => summary.id === parentChatId) === true;
+  if (parentChatId === null || !readable) {
+    return null;
+  }
+  return (
+    <MenuItem onClick={(): void => selectChat(parentChatId)}>
+      <Icon icon={ArrowLeft} size="sm" />
+      {BACK_TO_PARENT_CHAT_LABEL}
+    </MenuItem>
+  );
+}
+
 interface ChatOptionsCharacter {
   readonly characterId: CharacterId;
   readonly name: string;
@@ -216,6 +240,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters }
           onConfirm: confirmDelete,
         }}
       >
+        <ParentChatItem chatId={chatId} />
         {characterIds.length > 0 ? (
           <MenuItem onClick={(): void => void startChat({ characterIds })}>
             <Icon icon={MessagesSquare} size="sm" />

@@ -15,12 +15,13 @@
 //
 // The chunk half rides the same injected op the list's phase lens uses (`chunkCountsByOwner`) — databank
 // never reads `document_chunks` (D20 / Knowledge-Cluster inv 1-2; verbs/list.ts carries the declared limit
-// and its escalation path). A read: no audit.
+// and its escalation path). `staleExtraction` is the extractor-upgrade census: the documents an owner-wide
+// re-extract would rewrite, which the databank header turns into its re-extract banner. A read: no audit.
 
 import type { BankHealthView, IngestPhase } from "@orb/contracts/databank";
 import type { BankHealthParams } from "../contract/params.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
-import { countOwnedDocuments } from "../persistence/queries.ts";
+import { countOwnedDocuments, countStaleExtractionDocuments } from "../persistence/queries.ts";
 import { activeSpaceModel } from "../substrate/active-space.ts";
 
 export function createBankHealth(ctx: DatabankContext): DatabankService["bankHealth"] {
@@ -40,14 +41,15 @@ export function createBankHealth(ctx: DatabankContext): DatabankService["bankHea
     // cannot produce it — the day it can, this needs no edit, and skipping it would be a second place that
     // knows the arm is empty.
     const countOf = async (phase: IngestPhase): Promise<number> => countOwnedDocuments(ctx.db, principal.userId, { phase: { chunkedIds, nowMs, phase } });
-    const [empty, indexing, embedding, ready, stalled, total] = await Promise.all([
+    const [empty, indexing, embedding, ready, stalled, total, staleExtraction] = await Promise.all([
       countOf("empty"),
       countOf("indexing"),
       countOf("embedding"),
       countOf("ready"),
       countOf("stalled"),
       countOwnedDocuments(ctx.db, principal.userId, {}),
+      countStaleExtractionDocuments(ctx.db, principal.userId, ctx.extractorVersion),
     ]);
-    return { byPhase: { embedding, empty, indexing, ready, stalled }, chunks, passages: chunks, total };
+    return { byPhase: { embedding, empty, indexing, ready, stalled }, chunks, passages: chunks, staleExtraction, total };
   };
 }
