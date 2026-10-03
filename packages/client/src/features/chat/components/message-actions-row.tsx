@@ -30,7 +30,7 @@
 // gate's census, so a THIRD door would land silently — and a third door on any of these three is the drift
 // the budget exists to red on.
 
-import type { MessageView } from "@orb/contracts/chat";
+import type { ForkResult, MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Code, Copy, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, SmilePlus, Undo2 } from "@orb/ui/icons";
@@ -85,7 +85,7 @@ const useDeleteMutation = createEntityMutation<DeleteVars, unknown>({
   errorToast: "Couldn't delete that message.",
 });
 
-const useForkMutation = createEntityMutation<ForkVars, { chat: { id: ChatId } }>({
+const useForkMutation = createEntityMutation<ForkVars, ForkResult>({
   options: (trpc) => trpc.chat.forkChat.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't fork this chat.",
