@@ -92,8 +92,10 @@ describe("workloads.estimateModelCalls", () => {
   test("a retry estimate of a POISON row answers null: there are no params to count", async () => {
     const db = await freshDb();
     await seedUser(db, "user_alice");
-    const { contributions, modelCalls } = withDistillEstimate();
-    const s = makeService(db, contributions);
+    // The poisoned kind has an estimator, so only the poison branch keeps it from being asked.
+    const base = fakeContributions();
+    const modelCalls = vi.fn(async () => SINGULAR_CALLS);
+    const s = makeService(db, { ...base, "compute-themes": { ...base["compute-themes"], modelCalls } });
     const id = await seedWorkloadRow(db, {
       id: "workload_poison",
       kind: "compute-themes",

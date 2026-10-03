@@ -97,6 +97,9 @@ describe("rule-creation store", () => {
     const drafted = state.beginRuleCreation(chatId, ALICE);
     const unacknowledged = state.beginRuleCreation(chatId, ALICE);
     const elsewhere = state.beginRuleCreation(otherChat, ALICE);
+    // A reload whose mirror is gone recovers from the checkpoint alone, so it is not a completed session.
+    const checkpointed = state.beginRuleCreation(chatId, ALICE);
+    state.acknowledgeRuleCreation(checkpointed.requestId, otherRule, ALICE, checkpoint);
     state.acknowledgeRuleCreation(completed.requestId, ruleId, ALICE, null);
     state.acknowledgeRuleCreation(drafted.requestId, otherRule, ALICE, null);
     state.acknowledgeRuleCreation(elsewhere.requestId, ruleId, ALICE, null);
@@ -108,6 +111,7 @@ describe("rule-creation store", () => {
     // A create that may have landed keeps its request identity whatever its draft says.
     expect(state.readRuleCreation(unacknowledged.requestId)).toEqual(unacknowledged);
     expect(state.readRuleCreation(elsewhere.requestId)?.ruleId).toBe(ruleId);
+    expect(state.readRuleCreation(checkpointed.requestId)?.checkpoint).toEqual(checkpoint);
 
     await state.bindDurableLocalToUser(BOB);
     expect(() => state.pruneCompletedRuleCreations(chatId, ALICE, () => false)).toThrow(ENDED);

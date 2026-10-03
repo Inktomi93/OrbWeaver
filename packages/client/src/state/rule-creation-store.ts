@@ -90,13 +90,16 @@ export function clearRuleRecoveryCheckpoint(requestId: AutomationRuleCreationId,
   );
 }
 
-/** Forget one scope's acknowledged sessions that hold no draft: the rule exists and nothing local is left to
- *  recover. An unacknowledged session keeps its key whatever its draft says, because its create may have landed. */
+/** Forget one scope's acknowledged sessions that hold no draft and no recovery checkpoint: the rule exists and
+ *  nothing local is left to recover. A checkpoint is a draft too, the one a reload restores when the mirror is gone.
+ *  An unacknowledged session keeps its key whatever its draft says, because its create may have landed. */
 export function pruneCompletedRuleCreations(chatId: ChatId | null, owner: UserId, hasDraft: (requestId: AutomationRuleCreationId) => boolean): void {
   assertRuleDraftOwner(owner);
+  const completed = (session: RuleCreation): boolean =>
+    session.chatId === chatId && session.ruleId !== null && session.checkpoint === null && !hasDraft(session.requestId);
   useRuleCreationStore.setState(
     (state) => ({
-      sessions: state.sessions.filter((session) => session.chatId !== chatId || session.ruleId === null || hasDraft(session.requestId)),
+      sessions: state.sessions.filter((session) => !completed(session)),
     }),
     false,
     "rule-creation/prune",

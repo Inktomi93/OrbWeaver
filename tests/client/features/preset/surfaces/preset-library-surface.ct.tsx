@@ -234,7 +234,8 @@ test("0459 an unreadable preset is marked on its LIST row, by cause, and intact 
     "settings.getUserSettings": () => ({ userId: "user_ct_preset", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
   });
   const component = await mount(<PresetLibrarySurfaceStory />);
-  const rowOf = (name: string): Locator => component.locator(LIST_ROW_ROOT, { hasText: name });
+  // By the EXACT title: "Default (edited)" is a substring of "Default (edited) 2".
+  const rowOf = (name: string): Locator => component.locator(LIST_ROW_ROOT).filter({ has: page.locator(TITLE).getByText(name, { exact: true }) });
   const warning = '[data-slot="badge"][data-intent="warning"]';
 
   await expect(rowOf(EDITED_ONE_NAME).locator(warning)).toHaveText(PRESET_UNREADABLE_ROW_MARKER.corrupt);

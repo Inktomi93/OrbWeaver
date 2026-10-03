@@ -1,9 +1,9 @@
-// The D36 memory opt-out on the BUILD side — a cross-cutting property suite spanning `engine/engine.ts` +
+// The D293 memory opt-out on the BUILD side — a cross-cutting property suite spanning `engine/engine.ts` +
 // `memory/generate/{digests,segments}.ts` + the `TurnPrep.memoryConfig` threading (hence `.suite.int` — it
 // mirrors no single source module). .int: real libSQL + the REAL memory build wired as the composition root
 // does. TASK #54: the engine's post-turn digest build was passing NO config → `resolveCfg(undefined)` →
 // baked `mixC` ON, so a host who set `memory.enabled=false` still paid the summarizer + embed every turn
-// (recall honored the opt-out; the build did not — D36 violated on the build side). This pins the fix:
+// (recall honored the opt-out; the build did not — D293 violated on the build side). This pins the fix:
 // `prep.memoryConfig` is threaded from the one resolved source, and the engine SKIPS the whole §3a build when
 // `mode:"off"` (no summarizer call, no digest rows) — while an enabled turn still builds. Drives the REAL
 // engine + REAL `generateDigests`/`generateSegments` (not fixture twins).
@@ -123,7 +123,7 @@ async function groupHarness(): Promise<{
   return { chatId, synthetic, summarize, engine };
 }
 
-describe("createTurnEngine — D36 memory opt-out on the BUILD side (TASK #54)", () => {
+describe("createTurnEngine — D293 memory opt-out on the BUILD side (TASK #54)", () => {
   test("memory.enabled=false (mode:off) → a completed group turn does ZERO build work (no summarizer, no digest rows)", async () => {
     const h = await groupHarness();
 

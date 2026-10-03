@@ -39,7 +39,7 @@ const facet = (anchor: string, kw: string): string => `${anchor}\nkeywords: ${kw
 const joinBlocks = (...blocks: string[]): string => blocks.join("\n\n");
 
 describe("memory/recall — the 5 modes + the mode-switch union + witnessing", () => {
-  test("#1 off → empty string (D36)", async () => {
+  test("#1 off → empty string (D293)", async () => {
     const chatId = await seedChat(db, "off");
     await seedDigest(db, { chatId, tier: 0, blockIdx: 0 });
     const ctx = makeChatContext(db);
