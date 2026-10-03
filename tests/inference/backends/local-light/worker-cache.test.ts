@@ -85,7 +85,7 @@ test("vectors, scores and bytes cross the thread boundary intact", async () => {
       [4, 1, 2],
     ]);
     expect(vectors[0]).toBeInstanceOf(Float32Array);
-    await expect(cache.scorePairs(MODEL, "q", ["a", "b", "c"])).resolves.toEqual([0, 1, 2]);
+    await expect(cache.scorePairs(MODEL, "q", ["a", "b", "c"], { maxInputTokens: 512, onnx: undefined })).resolves.toEqual([0, 1, 2]);
     const images = await cache.embedImages(MODEL, [Uint8Array.from([1, 2, 3]), Uint8Array.from([5, 6])]);
     expect(images.map((row) => [...row])).toEqual([
       [1, 3],
@@ -211,7 +211,7 @@ test("a model id that is not a Hub owner/repo is refused as invalid on every cal
         cache.embedTexts(modelId, ["a"]),
         cache.embedClipTexts(modelId, ["a"]),
         cache.embedImages(modelId, [Uint8Array.from([1])]),
-        cache.scorePairs(modelId, "q", ["a"]),
+        cache.scorePairs(modelId, "q", ["a"], { maxInputTokens: 512, onnx: undefined }),
         cache.preload("embed", modelId),
       ];
       for (const outcome of await Promise.allSettled(calls)) {

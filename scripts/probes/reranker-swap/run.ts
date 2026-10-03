@@ -11,7 +11,7 @@ import type { RerankOnnx } from "@orb/contracts/inference";
 import { modelIdSchema } from "@orb/contracts/inference";
 import type { InferenceLog } from "@orb/inference";
 import { localLightCpuThreads } from "../../../packages/inference/src/backends/local-light/cpu-budget.ts";
-import { createModelCache } from "../../../packages/inference/src/backends/local-light/model-cache.ts";
+import { createModelCache, fitPairToWindow } from "../../../packages/inference/src/backends/local-light/model-cache.ts";
 import { localLightRows } from "../../../packages/inference/src/capability/sources/curated/local-light.ts";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -33,6 +33,20 @@ const EXIT_MISUSE = 3;
 const SPECIAL_TOKENS = 4;
 const FLAG_AFFIXES = "--=".length;
 
+// The verifier's clamp inputs: each one undercounts badly under a character estimate. Repeat counts are sized so each
+// document runs far past any served window.
+const REPEAT_SHORT = 400;
+const REPEAT = 1000;
+const REPEAT_LONG = 3000;
+const REPEAT_HUGE = 100_000;
+const HOSTILE: Readonly<Record<string, readonly [string, string]>> = {
+  digits: ["9 8 7 6 5 4 3 2 1 0 ".repeat(REPEAT_SHORT), "0 1 2 3 4 5 6 7 8 9 ".repeat(REPEAT)],
+  csv: ["What did she promise?", "a,1,b,2,c,3,".repeat(REPEAT_LONG)],
+  emojiZwj: ["q", "\u{1F469}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}".repeat(REPEAT)],
+  cjk: ["火星は何色ですか", "火星は赤い惑星として知られている。".repeat(REPEAT)],
+  hugeQuery: ["x ".repeat(REPEAT_HUGE), "Mars is red."],
+};
+
 // The ettin model cards' example; the 32m card prints [6.21875, 10.8125, 8.5625, 9.875] (bf16, GPU).
 const GOLDEN_QUERY = "Which planet is known as the Red Planet?";
 const GOLDEN_PASSAGES = [
@@ -45,8 +59,8 @@ const GOLDEN_PASSAGES = [
 const silentLog: InferenceLog = { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined };
 
 interface ProbeTokenizer {
-  encode: (text: string, opts: { add_special_tokens: boolean }) => number[];
-  decode: (ids: readonly number[], opts: { skip_special_tokens: boolean }) => string;
+  encode: (text: string, opts?: { text_pair?: string | null; add_special_tokens?: boolean }) => number[];
+  decode: (ids: number[], opts: { skip_special_tokens: boolean }) => string;
 }
 
 interface Case {
@@ -159,28 +173,34 @@ async function loadTokenizer(model: string): Promise<ProbeTokenizer> {
   return await lib.AutoTokenizer.from_pretrained(model);
 }
 
-/** The model's curated `rerank.onnx`, or with `--file=<stem>` that file at fp32 on this architecture (how the
- *  quantized 17m was measured). */
-function onnxFor(model: string): RerankOnnx | undefined {
+/** The model's curated serving: its window and `rerank.onnx`. `--file=<stem>` swaps in that file at fp32 on this
+ *  architecture (how the quantized 17m was measured). */
+function curatedServing(model: string): { readonly window: number; readonly onnx: RerankOnnx | undefined } {
   const row = localLightRows.find((candidate) => candidate.kind === "rerank" && (candidate.match.ids as readonly string[]).includes(model));
-  const curated = row?.kind === "rerank" && "onnx" in row.rerank ? (row.rerank.onnx as RerankOnnx) : undefined;
+  if (row?.kind !== "rerank") {
+    throw new Error(`no curated local-light rerank row for ${model}`);
+  }
+  const curated = "onnx" in row.rerank ? (row.rerank.onnx as RerankOnnx) : undefined;
   const file = argValue("file");
-  return file === undefined ? curated : { head: curated?.head ?? "sentence-transformers", dtype: "fp32", files: { [process.arch]: file } };
+  const onnx: RerankOnnx | undefined =
+    file === undefined ? curated : { ...(curated ?? { head: "sentence-transformers" }), dtype: "fp32", files: { [process.arch]: file } };
+  return { window: row.rerank.maxInputTokens, onnx };
 }
 
+/** Scores one call with every pair cut to `window` tokens, as the shipped task does. */
 interface Scorer {
-  readonly scorePairs: (query: string, documents: readonly string[]) => Promise<number[]>;
+  readonly scorePairs: (query: string, documents: readonly string[], window?: number) => Promise<number[]>;
 }
 
 const median = (samples: readonly number[]): number => Math.round(samples.toSorted((a, b) => a - b)[Math.floor(samples.length / MIDDLE)] ?? 0);
 
 /** Median wall time of one `scorePairs` call over RUNS, after one warm-up pair. */
-async function timeCall(scorer: Scorer, query: string, docs: readonly string[]): Promise<number> {
-  await scorer.scorePairs(query, docs.slice(0, 1));
+async function timeCall(scorer: Scorer, query: string, docs: readonly string[], window?: number): Promise<number> {
+  await scorer.scorePairs(query, docs.slice(0, 1), window);
   const samples: number[] = [];
   for (let run = 0; run < RUNS; run += 1) {
     const started = performance.now();
-    await scorer.scorePairs(query, docs);
+    await scorer.scorePairs(query, docs, window);
     samples.push(performance.now() - started);
   }
   return median(samples);
@@ -193,7 +213,7 @@ async function measureWorkloads(scorer: Scorer, textOf: (tokens: number, salt: s
     const queryTokens = Math.min(w.queryTokens, Math.floor(served / MIDDLE));
     const docTokens = Math.min(w.docTokens, served - queryTokens - SPECIAL_TOKENS);
     const docs = Array.from({ length: w.docs }, (_, i) => textOf(docTokens, `doc ${i}`));
-    rows.push({ name: w.name, docs: w.docs, queryTokens, docTokens, msPerTurnMedian: await timeCall(scorer, textOf(queryTokens, "query"), docs) });
+    rows.push({ name: w.name, docs: w.docs, queryTokens, docTokens, msPerTurnMedian: await timeCall(scorer, textOf(queryTokens, "query"), docs, served) });
   }
   return rows;
 }
@@ -208,7 +228,8 @@ async function measureLatency(scorer: Scorer, { textOf, countTokens }: Sizer, le
   for (const pairTokens of lengths) {
     const query = "Which line in this scene reveals what the narrator is afraid of?";
     const docs = Array.from({ length: batch }, (_, i) => textOf(pairTokens - countTokens(query) - SPECIAL_TOKENS, String(i)));
-    rows.push({ pairTokens, msPerPairMedian: Math.round((await timeCall(scorer, query, docs)) / batch), after: memory() });
+    // Served at exactly the pair's length, so the clamp leaves the measured pair whole.
+    rows.push({ pairTokens, msPerPairMedian: Math.round((await timeCall(scorer, query, docs, pairTokens)) / batch), after: memory() });
   }
   return rows;
 }
@@ -224,9 +245,11 @@ async function measure(): Promise<void> {
   const cacheDir = argValue("cache") ?? path.join(REPO, "data/cache/models/transformers");
   const batch = Number(argValue("batch") ?? DEFAULT_BATCH);
   const baseline = memory();
-  const onnx = onnxFor(model);
+  const { window: curatedWindow, onnx } = curatedServing(model);
   const cache = createModelCache({ device: "cpu", cacheDir, allowRemoteModels: !process.argv.includes("--offline"), log: silentLog, detach: () => undefined });
-  const scorer: Scorer = { scorePairs: (query, documents) => cache.scorePairs(model, query, documents, onnx) };
+  const scorer: Scorer = {
+    scorePairs: (query, documents, served = curatedWindow) => cache.scorePairs(model, query, documents, { maxInputTokens: served, onnx }),
+  };
 
   const loadStarted = performance.now();
   await cache.preload("rerank", model, onnx);
@@ -246,6 +269,13 @@ async function measure(): Promise<void> {
   }
   const golden = await scorer.scorePairs(GOLDEN_QUERY, GOLDEN_PASSAGES);
 
+  // The shipped clamp over hostile inputs, counted in this model's real tokens.
+  const clamp = Object.entries(HOSTILE).map(([name, [query, doc]]) => {
+    const fitted = fitPairToWindow(tok, query, doc, curatedWindow);
+    const pairTokens = tok.encode(fitted.query, { text_pair: fitted.document }).length;
+    return { case: name, pairTokens, window: curatedWindow, ok: pairTokens <= curatedWindow };
+  });
+
   const window = argValue("window");
   const workloads = window === undefined ? [] : await measureWorkloads(scorer, textOf, Number(window));
   const lengthsArg = argValue("lengths");
@@ -263,6 +293,7 @@ async function measure(): Promise<void> {
     rss: { baselineMib: baseline.rssMib, afterLoadMib: loaded.rssMib, peakMib: peak, peakOverBaselineMib: peak - baseline.rssMib },
     sanity,
     golden,
+    clamp,
     window: window === undefined ? null : Number(window),
     workloads,
     latency,
@@ -271,7 +302,7 @@ async function measure(): Promise<void> {
   mkdirSync(RESULTS_DIR, { recursive: true });
   writeFileSync(path.join(RESULTS_DIR, `${label}.json`), `${JSON.stringify(row, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify(row)}\n`);
-  if (![...golden, ...sanity.flatMap((c) => [c.relevant, c.irrelevant])].every(Number.isFinite)) {
+  if (!(clamp.every((c) => c.ok) && [...golden, ...sanity.flatMap((c) => [c.relevant, c.irrelevant])].every(Number.isFinite))) {
     process.stderr.write("a score is not finite: the head or the weights are broken\n");
     process.exitCode = 1;
   }

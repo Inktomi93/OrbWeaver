@@ -10,11 +10,14 @@ type RepoFileReader = (file: string) => Promise<Uint8Array>;
 interface DenseLayer {
   readonly weight: Float32Array;
   readonly bias: Float32Array | undefined;
+  readonly inDim: number;
   readonly outDim: number;
   readonly activation: (x: number) => number;
 }
 
 export interface StHead {
+  /** The hidden size the head reads: the encoder's `hidden_size` must equal it. */
+  readonly inputDim: number;
   readonly dense: DenseLayer;
   readonly normWeight: Float32Array;
   readonly normBias: Float32Array;
@@ -26,6 +29,8 @@ const F32_BYTES = 4;
 // sentence-transformers builds its LayerNorm module as torch.nn.LayerNorm(dimension), so the eps is torch's default.
 const LAYER_NORM_EPS = 1e-5;
 const HALF = 0.5;
+// Hidden states are [rows, sequence, hidden].
+const HIDDEN_RANK = 3;
 // Abramowitz & Stegun 7.1.26: |error| < 1.5e-7, far below the encoder's own quantization noise.
 const ERF_P = 0.327_591_1;
 const ERF_A1 = 0.254_829_592;
@@ -94,11 +99,22 @@ async function readDense(read: RepoFileReader, module: string): Promise<DenseLay
   if (activation === undefined) {
     throw headError(`${module} uses the unsupported activation ${String(config["activation_function"])}`);
   }
+  const inDim = config["in_features"];
+  const outDim = config["out_features"];
+  if (typeof inDim !== "number" || typeof outDim !== "number" || !Number.isInteger(inDim) || !Number.isInteger(outDim) || inDim < 1 || outDim < 1) {
+    throw headError(`${module}/config.json does not state integer in_features and out_features`);
+  }
   const tensors = parseSafetensors(weights);
-  return { weight: tensor(tensors, "linear.weight", module), bias: tensors.get("linear.bias"), outDim: Number(config["out_features"]), activation };
+  const weight = tensor(tensors, "linear.weight", module);
+  const bias = tensors.get("linear.bias");
+  if (weight.length !== inDim * outDim || (bias !== undefined && bias.length !== outDim)) {
+    throw headError(`${module} weights do not match its ${String(inDim)}→${String(outDim)} config`);
+  }
+  return { weight, bias, inDim, outDim, activation };
 }
 
-/** Load the head the repo's `modules.json` chain describes. Anything but CLS pooling is refused, not approximated. */
+/** Load the fixed CrossEncoder head layout (`1_Pooling`, `2_Dense`, `3_LayerNorm`, `4_Dense`). Anything it cannot
+ *  reproduce exactly (another pooling, an unknown activation, mismatched shapes, more than one score) is refused. */
 export async function loadStHead(read: RepoFileReader): Promise<StHead> {
   const pooling = await readJson(read, "1_Pooling/config.json");
   if (pooling["pooling_mode"] !== "cls") {
@@ -106,11 +122,19 @@ export async function loadStHead(read: RepoFileReader): Promise<StHead> {
   }
   const [dense, norm, score] = await Promise.all([readDense(read, "2_Dense"), read("3_LayerNorm/model.safetensors"), readDense(read, "4_Dense")]);
   const normTensors = parseSafetensors(norm);
-  return { dense, normWeight: tensor(normTensors, "norm.weight", "3_LayerNorm"), normBias: tensor(normTensors, "norm.bias", "3_LayerNorm"), score };
+  const normWeight = tensor(normTensors, "norm.weight", "3_LayerNorm");
+  const normBias = tensor(normTensors, "norm.bias", "3_LayerNorm");
+  if (normWeight.length !== dense.outDim || normBias.length !== dense.outDim) {
+    throw headError(`3_LayerNorm has ${String(normWeight.length)} weights for a ${String(dense.outDim)}-wide 2_Dense output`);
+  }
+  if (score.inDim !== dense.outDim || score.outDim !== 1) {
+    throw headError(`4_Dense maps ${String(score.inDim)}→${String(score.outDim)}; it must map ${String(dense.outDim)}→1`);
+  }
+  return { inputDim: dense.inDim, dense, normWeight, normBias, score };
 }
 
 function applyDense(layer: DenseLayer, input: Float32Array): Float32Array {
-  const inDim = input.length;
+  const { inDim } = layer;
   const out = new Float32Array(layer.outDim);
   for (let o = 0; o < layer.outDim; o += 1) {
     let sum = layer.bias?.[o] ?? 0;
@@ -132,6 +156,9 @@ function layerNorm(x: Float32Array, weight: Float32Array, bias: Float32Array): F
 /** One score per row of a `[rows, seq, dim]` hidden-state tensor, from each row's first (CLS) token. */
 export function scoreHiddenStates(head: StHead, hidden: Float32Array, dims: readonly number[]): number[] {
   const [rows = 0, seq = 0, dim = 0] = dims;
+  if (dims.length !== HIDDEN_RANK || dim !== head.inputDim || hidden.length !== rows * seq * dim) {
+    throw headError(`hidden states shaped [${dims.join(", ")}] do not feed a ${String(head.inputDim)}-wide head`);
+  }
   return Array.from({ length: rows }, (_, row) => {
     const cls = hidden.subarray(row * seq * dim, row * seq * dim + dim);
     const normed = layerNorm(applyDense(head.dense, cls), head.normWeight, head.normBias);

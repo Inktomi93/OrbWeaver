@@ -9,12 +9,16 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
+import type { RerankOnnx } from "@orb/contracts/inference";
+import { modelIdSchema } from "@orb/contracts/inference";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { InferenceLog } from "@orb/inference";
 import { DEFAULT_RERANK_MODEL } from "../../../packages/inference/src/backends/local-light/index.ts";
 import { createModelCache } from "../../../packages/inference/src/backends/local-light/model-cache.ts";
+import { localLightRows } from "../../../packages/inference/src/capability/sources/curated/local-light.ts";
+import type { LocalLightRerankServing } from "../../../packages/inference/src/contract/local-light-worker.ts";
 import type { ArbiterCandidate, SpeakerCandidate } from "../../../packages/server/src/domain/chat/contract/arbitration.ts";
 import { resolveNameMentions, selectSpeakers } from "../../../packages/server/src/domain/chat/engine/select-speakers.ts";
 import { smartArbitrate } from "../../../packages/server/src/domain/chat/engine/smart-arbitrate.ts";
@@ -364,12 +368,23 @@ function percentile(sorted: readonly number[], p: number): number {
 const RERANK_VARIANTS = ["window", "trigger", "trigger-banlast", "mention-then-trigger"] as const;
 type RerankVariant = (typeof RERANK_VARIANTS)[number];
 
+/** The curated local-light serving for a reranker id: the window and ONNX serving the shipped task passes. */
+function curatedRerankServing(model: string): LocalLightRerankServing {
+  const row = localLightRows.find((candidate) => candidate.kind === "rerank" && (candidate.match.ids as readonly string[]).includes(model));
+  if (row?.kind !== "rerank") {
+    throw new Error(`no curated local-light rerank row for ${model}`);
+  }
+  return { maxInputTokens: row.rerank.maxInputTokens, onnx: "onnx" in row.rerank ? (row.rerank.onnx as RerankOnnx) : undefined };
+}
+
 async function runRerank(all: readonly Case[], label: string): Promise<void> {
   const cacheDir = argValue("cache") ?? path.join(REPO, ".cache/speaker-pick/transformers");
   const rssBefore = process.memoryUsage().rss;
   const cache = createModelCache({ device: "cpu", cacheDir, allowRemoteModels: false, log: silentLog, detach: () => undefined });
   const loadStarted = performance.now();
-  await cache.preload("rerank", DEFAULT_RERANK_MODEL);
+  const reranker = modelIdSchema.parse(argValue("reranker") ?? DEFAULT_RERANK_MODEL);
+  const serving = curatedRerankServing(reranker);
+  await cache.preload("rerank", reranker, serving.onnx);
   const loadMs = Math.round(performance.now() - loadStarted);
   const picks = new Map<RerankVariant, PickRow[]>(RERANK_VARIANTS.map((v) => [v, []]));
   const timings: number[] = [];
@@ -378,7 +393,7 @@ async function runRerank(all: readonly Case[], label: string): Promise<void> {
     const documents = c.room.characters.map((ch) => `${ch.name}: ${ch.persona}`);
     const score = async (query: string): Promise<{ scores: Map<string, number>; ms: number }> => {
       const started = performance.now();
-      const raw = await cache.scorePairs(DEFAULT_RERANK_MODEL, query, documents);
+      const raw = await cache.scorePairs(reranker, query, documents, serving);
       const ms = performance.now() - started;
       timings.push(ms);
       return { scores: new Map(names.map((n, i) => [n, raw[i] ?? Number.NEGATIVE_INFINITY])), ms: Math.round(ms) };
@@ -618,7 +633,9 @@ async function main(): Promise<void> {
       report(fixtureCases);
       return;
     default:
-      console.log("usage: run.ts reference | arbiter-openrouter [--model=] | arbiter-local --label= [--base=] | rerank [--label=] [--cache=] | report");
+      console.log(
+        "usage: run.ts reference | arbiter-openrouter [--model=] | arbiter-local --label= [--base=] | rerank [--label=] [--cache=] [--reranker=<hub id>] | report",
+      );
       process.exitCode = EXIT_MISUSE;
   }
 }

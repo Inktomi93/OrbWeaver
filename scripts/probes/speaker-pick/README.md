@@ -18,7 +18,7 @@ The arms reuse production code wherever the production path exists:
 | `natural` | `selectSpeakers` with policy `natural` and the human trigger's plain-word mentions, as `turn.ts` sends them. Random, so the report gives its expected agreement over 4,000 seeded draws per cut. |
 | `natural-any-mention` | the same, with the mentions resolved from the trigger whoever wrote it. |
 | `arbiter-<model>` | `smartArbitrate` itself, with the shipped `chat.arbiter.system` prompt, the `arbiter` side-gen posture (`SIDE_GEN_POSTURES.arbiter`), the roster-validating parse and the `natural` fallback. Only the `summarize` op is the probe's: an OpenRouter or llama.cpp chat completion. |
-| `rerank-<cores>-<variant>` | the local-light `createModelCache().scorePairs` over `Xenova/ms-marco-MiniLM-L-6-v2`, the op the shipped rerank task calls. Documents are `Name: persona`. Variants: `window` (query = the ten-line window), `trigger` (query = the last line), `trigger-banlast` (the last character speaker excluded), `mention-then-trigger` (a character named in the last line wins, else `trigger-banlast`). |
+| `rerank-<cores>-<variant>` | the local-light `createModelCache().scorePairs` with the reranker's curated serving (window and ONNX file), the op the shipped rerank task calls. The reranker is the built-in default unless `--reranker=<hub id>` names another curated one; the committed results ran on `Xenova/ms-marco-MiniLM-L-6-v2`, the default at the time. Documents are `Name: persona`. Variants: `window` (query = the ten-line window), `trigger` (query = the last line), `trigger-banlast` (the last character speaker excluded), `mention-then-trigger` (a character named in the last line wins, else `trigger-banlast`). |
 
 The reference is Claude Sonnet 5 on OpenRouter (Anthropic pinned, temperature 0) with the cast's personas,
 asked for its best pick and every plausible pick as JSON. It is not the shipped prompt.
@@ -28,8 +28,9 @@ asked for its best pick and every plausible pick as JSON. It is not the shipped 
 ```sh
 # reranker: weights from the dev model cache, read with remote loads off
 mkdir -p .cache/speaker-pick/transformers
-cp -r data/cache/models/transformers/Xenova .cache/speaker-pick/transformers/
+cp -r data/cache/models/transformers/Xenova data/cache/models/transformers/cross-encoder .cache/speaker-pick/transformers/
 taskset -c 0-3 node scripts/probes/speaker-pick/run.ts rerank --label=rerank-4c
+taskset -c 0-3 node scripts/probes/speaker-pick/run.ts rerank --reranker=Xenova/ms-marco-MiniLM-L-6-v2 --label=rerank-minilm-4c
 taskset -c 0 node scripts/probes/speaker-pick/run.ts rerank --label=rerank-1c
 
 # paid: OPENROUTER_API_KEY from the environment or the repo .env (about $0.06 and $0.03)

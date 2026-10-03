@@ -14,12 +14,15 @@ serving, one model per process so the RSS high-water mark is that model's alone.
   documents identically);
 - **golden:** the ettin model cards' four-passage Red Planet example (the 32m card prints
   `[6.21875, 10.8125, 8.5625, 9.875]`, bf16 on GPU);
-- **latency:** per-pair time at the `--lengths=` pair sizes, `--batch=` pairs per call;
+- **clamp:** the shipped real-token pair fit over hostile inputs (digits, CSV, ZWJ emoji, CJK, a 200,000-character
+  query), counted in the model's own tokenizer against its curated window;
+- **latency:** per-pair time at the `--lengths=` pair sizes, `--batch=` pairs per call, each served at exactly its
+  own length so the clamp leaves it whole;
 - **workloads:** with `--window=<served window>`, one call per turn shape cut to that window: Smart with 4 × 500
   and 6 × 1,500-token personas, recall with 8 × 400 and 8 × 1,024-token digest arcs (`retrieveK` is 8, and a digest
   is at most the summarizer's 1,024 output tokens).
 
-The run exits non-zero if any sanity or golden score is not finite.
+The run exits non-zero if any sanity or golden score is not finite, or any clamped pair exceeds its window.
 
 ## Running it
 

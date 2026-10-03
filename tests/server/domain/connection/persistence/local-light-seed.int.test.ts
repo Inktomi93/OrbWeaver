@@ -6,10 +6,10 @@
 // minters, so the assertions are deterministic.
 
 import { LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
-import { connectionBindings, userConnections } from "@orb/db";
+import { connectionBindings, settings, userConnections } from "@orb/db";
 import type { ConnectionBindingId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 import { seedLocalLightConnections } from "../../../../../packages/server/src/domain/connection/persistence/local-light-seed.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -229,17 +229,14 @@ test("a user's own unbound row on the seed's model is never adopted or renamed",
   expect(kept?.seedSlot).toBeNull();
 });
 
-/** Rewrite the seeded reranker row as an earlier release left it: on that release's model, last written at `updatedAt`. */
-async function onEarlierReranker(
+/** Rewrite the seeded reranker row as a release that seeded an earlier reranker left it: on that model, last written at
+ *  `updatedAt`, optionally from before seed slots existed, and with no move latch (that release never wrote one). */
+async function asEarlierRelease(
   db: Awaited<ReturnType<typeof freshDb>>,
   owner: Awaited<ReturnType<typeof seedUser>>,
-  updatedAt: number,
+  shape: { readonly updatedAt: number; readonly preSlot?: boolean },
 ): Promise<UserConnectionId> {
   const [, reranker] = LOCAL_LIGHT_SEED_ROWS;
-  await db
-    .update(userConnections)
-    .set({ model: testModelId(reranker.earlierModels[0]), updatedAt })
-    .where(and(eq(userConnections.ownerId, owner), eq(userConnections.seedSlot, reranker.task)));
   const row = (
     await db
       .select()
@@ -249,39 +246,77 @@ async function onEarlierReranker(
   if (row === undefined) {
     throw new Error("the seed wrote no reranker row");
   }
+  await db
+    .update(userConnections)
+    .set({
+      model: testModelId(reranker.earlierModels[0]),
+      updatedAt: shape.updatedAt,
+      ...(shape.preSlot === true ? { seedSlot: null, label: "local-light · reranker" } : {}),
+    })
+    .where(eq(userConnections.id, row.id));
+  await db.delete(settings).where(like(settings.key, "local-light-seed:moved:%"));
   return row.id;
 }
 
-// An install upgraded from a release that seeded another reranker moves to today's default in place, so the bound
-// rerank role follows without a rebind.
-test("an unedited reranker row on an earlier seed model moves to today's model, keeping its id and binding", async () => {
-  const db = await freshDb();
-  const owner = await seedUser(db, "user_a");
-  await seedLocalLightConnections(seedDeps(db), owner);
-  const id = await onEarlierReranker(db, owner, FROZEN_AT_MS);
+async function rowModel(db: Awaited<ReturnType<typeof freshDb>>, id: UserConnectionId): Promise<string | undefined> {
+  return (await db.select().from(userConnections).where(eq(userConnections.id, id))).at(0)?.model;
+}
 
-  expect((await seedLocalLightConnections(seedDeps(db, 1), owner)).inserted).toBe(0);
-
-  const row = (await db.select().from(userConnections).where(eq(userConnections.id, id))).at(0);
-  expect(row?.model).toBe(LOCAL_LIGHT_SEED_ROWS[1].model);
-  const rerank = (
+async function rerankBinding(db: Awaited<ReturnType<typeof freshDb>>, owner: Awaited<ReturnType<typeof seedUser>>): Promise<string | null | undefined> {
+  return (
     await db
       .select()
       .from(connectionBindings)
       .where(and(eq(connectionBindings.userId, owner), eq(connectionBindings.task, "rerank")))
-  ).at(0);
-  expect(rerank?.connectionId).toBe(id);
-});
+  ).at(0)?.connectionId;
+}
 
-// The earlier model stays in the catalog as the light option, so a user who picked it keeps it on every later boot.
-test("a reranker row the user edited onto an earlier seed model is left alone", async () => {
+// An install upgraded from a release that seeded another reranker moves to today's default in place, so the bound
+// rerank role follows without a rebind.
+test("an earlier release's reranker row moves to today's model, keeping its id and binding", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, "user_a");
   await seedLocalLightConnections(seedDeps(db), owner);
-  const id = await onEarlierReranker(db, owner, FROZEN_AT_MS + 1);
+  const id = await asEarlierRelease(db, owner, { updatedAt: FROZEN_AT_MS });
+
+  expect((await seedLocalLightConnections(seedDeps(db, 1), owner)).inserted).toBe(0);
+
+  expect(await rowModel(db, id)).toBe(LOCAL_LIGHT_SEED_ROWS[1].model);
+  expect(await rerankBinding(db, owner)).toBe(id);
+});
+
+// Before this release the earlier model was the only built-in reranker, so a row the seed adopted or the user
+// relabeled still never chose it; it moves once. After that, a pick of the earlier model (still in the catalog) stays.
+test("a row written after it was seeded moves once, and a later pick of the earlier model is kept on every boot", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, "user_a");
+  await seedLocalLightConnections(seedDeps(db), owner);
+  const id = await asEarlierRelease(db, owner, { updatedAt: FROZEN_AT_MS + 1 });
 
   await seedLocalLightConnections(seedDeps(db, 1), owner);
+  expect(await rowModel(db, id)).toBe(LOCAL_LIGHT_SEED_ROWS[1].model);
+
+  await db
+    .update(userConnections)
+    .set({ model: testModelId(LOCAL_LIGHT_SEED_ROWS[1].earlierModels[0]), updatedAt: FROZEN_AT_MS + 2 })
+    .where(eq(userConnections.id, id));
+  await seedLocalLightConnections(seedDeps(db, 2), owner);
+  expect(await rowModel(db, id)).toBe(LOCAL_LIGHT_SEED_ROWS[1].earlierModels[0]);
+});
+
+// An install from before seed slots holds an unslotted row on the earlier model, bound to rerank, whose label is not
+// today's. It is adopted into the slot and moved, rather than left bound while a second reranker row appears beside it.
+test("a pre-slot row on the earlier model is adopted and moved, and no second reranker row is added", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, "user_a");
+  await seedLocalLightConnections(seedDeps(db), owner);
+  const id = await asEarlierRelease(db, owner, { updatedAt: FROZEN_AT_MS, preSlot: true });
+
+  expect((await seedLocalLightConnections(seedDeps(db, 1), owner)).inserted).toBe(0);
 
   const row = (await db.select().from(userConnections).where(eq(userConnections.id, id))).at(0);
-  expect(row?.model).toBe(LOCAL_LIGHT_SEED_ROWS[1].earlierModels[0]);
+  expect(row?.seedSlot).toBe("rerank");
+  expect(row?.model).toBe(LOCAL_LIGHT_SEED_ROWS[1].model);
+  expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, owner))).toHaveLength(2);
+  expect(await rerankBinding(db, owner)).toBe(id);
 });

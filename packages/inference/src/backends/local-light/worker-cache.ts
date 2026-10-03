@@ -225,8 +225,8 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
     embedClipTexts: (modelId, texts): Promise<Float32Array[]> => (texts.length === 0 ? Promise.resolve([]) : vectors({ op: "embedClipTexts", modelId, texts })),
     embedImages: async (modelId, images): Promise<Float32Array[]> =>
       images.length === 0 ? [] : await vectors({ op: "embedImages", modelId, images: images.map(requireImageBytes) }),
-    scorePairs: async (modelId, query, documents, onnx): Promise<number[]> =>
-      documents.length === 0 ? [] : ((await call({ op: "scorePairs", modelId, query, documents, onnx })) as number[]),
+    scorePairs: async (modelId, query, documents, serving): Promise<number[]> =>
+      documents.length === 0 ? [] : ((await call({ op: "scorePairs", modelId, query, documents, serving })) as number[]),
     preload: async (slot, modelId, onnx): Promise<void> => {
       await call({ op: "preload", modelId, slot, onnx });
     },

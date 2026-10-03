@@ -17,7 +17,7 @@ import type { ImageInput } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
 import { l2Normalize } from "@orb/kit/vector-math";
 import { ProviderError } from "../../contract/errors.ts";
-import type { LocalLightLoadProgress } from "../../contract/local-light-worker.ts";
+import type { LocalLightLoadProgress, LocalLightRerankServing } from "../../contract/local-light-worker.ts";
 import type { EmbedRequest } from "../../contract/roles.ts";
 import type { LocalLightModelSlot } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
@@ -38,8 +38,9 @@ function loadTransformers(): Promise<TransformersModule> {
 
 const DEFAULT_DEVICE: DeviceType = "auto";
 const CPU_DEVICE: DeviceType = "cpu";
-/** How a reranker whose capability names no `onnx` serving runs: the transformers.js export convention. */
-const DEFAULT_RERANK_ONNX: RerankOnnx = { head: "sequence-classification", dtype: "q8" };
+/** How a reranker whose capability names no `onnx` serving runs: the transformers.js export convention at fp32,
+ *  exactly as every reranker ran before servings existed (an offline box may hold only `onnx/model.onnx`). */
+const DEFAULT_RERANK_ONNX: RerankOnnx = { head: "sequence-classification", dtype: "fp32" };
 /** The encoder's own dtype axis (#2417): the ENCODER is quantized (fp32 is 3.455 GB; q8 874 MB). */
 const DEFAULT_EMBED_DTYPE: DataType = "q8";
 const DEVICE_TYPES: readonly DeviceType[] = ["auto", "gpu", "cpu", "wasm", "webgpu", "cuda", "dml", "webnn", "webnn-npu", "webnn-gpu", "webnn-cpu"];
@@ -83,8 +84,8 @@ function toLoadProgress(info: TransformersProgressInfo): LocalLightLoadProgress 
 /** The inference seam the task files depend on — raw un-normalized vectors; task files own L2 + MRL. */
 export interface LocalLightModelCache {
   readonly embedTexts: (modelId: ModelId, texts: readonly string[], inputType?: EmbedRequest["inputType"]) => Promise<Float32Array[]>;
-  /** `onnx` is the reranker's capability `rerank.onnx`: which head scores it and which file and dtype to load. */
-  readonly scorePairs: (modelId: ModelId, query: string, documents: readonly string[], onnx?: RerankOnnx) => Promise<number[]>;
+  /** Every pair is cut to `serving.maxInputTokens` real tokens; `serving.onnx` picks the head, file and dtype. */
+  readonly scorePairs: (modelId: ModelId, query: string, documents: readonly string[], serving: LocalLightRerankServing) => Promise<number[]>;
   readonly embedImages: (modelId: ModelId, images: readonly ImageInput[]) => Promise<Float32Array[]>;
   readonly embedClipTexts: (modelId: ModelId, texts: readonly string[]) => Promise<Float32Array[]>;
   /** Warm a slot's memos WITHOUT running inference — the prefetch's whole surface. `onnx` as in `scorePairs`. */
@@ -103,6 +104,8 @@ export interface ModelCacheConfig {
   readonly log: InferenceLog;
   /** Owned fire-and-forget for a model disposal. */
   readonly detach: (name: string, fn: () => Promise<void>) => void;
+  /** Replaces the lib's dynamic import. Only tests set it, to drive the rerank servings without model weights. */
+  readonly __loadTransformersForTest?: (() => Promise<TransformersModule>) | undefined;
 }
 
 export function normalizeVector(v: Float32Array): Float32Array<ArrayBuffer> {
@@ -187,9 +190,13 @@ function requireTensor(out: Record<string, unknown>, key: string, modelId: Model
 const RERANK_BATCH_TOKENS = 2048;
 
 /** Document indexes grouped into forward passes under {@link RERANK_BATCH_TOKENS}, shortest first so a batch
- *  pads to a similar length. A pair longer than the budget runs alone. */
-export function rerankBatches(pairLengths: readonly number[]): number[][] {
+ *  pads to a similar length. A pair longer than the budget runs alone, and so does every pair of a dynamically
+ *  quantized file, whose activation scales come from the whole batch and would make a score depend on its neighbours. */
+export function rerankBatches(pairLengths: readonly number[], dynamicQuantized = false): number[][] {
   const order = pairLengths.map((_, i) => i).sort((a, b) => (pairLengths[a] ?? 0) - (pairLengths[b] ?? 0));
+  if (dynamicQuantized) {
+    return order.map((index) => [index]);
+  }
   const batches: number[][] = [];
   let current: number[] = [];
   for (const index of order) {
@@ -284,6 +291,9 @@ interface ModelMemo<T> {
   withLease: <R>(id: string, use: (value: T) => Promise<R>) => Promise<R>;
   /** Whether the id's most recent load rejected, until a later load of it succeeds. */
   failed: (id: string) => boolean;
+  /** Record that a loaded entry cannot serve (its outputs do not match its serving) and drop it, so the
+   *  availability verdict says so and the next call loads afresh. */
+  markFailed: (id: string) => void;
 }
 
 /** The lease-counted single-flight memo every model slot below is built from. */
@@ -351,6 +361,15 @@ function createMemo<T>(
     }
   };
   memo.failed = (id: string): boolean => failedIds.has(id);
+  memo.markFailed = (id: string): void => {
+    failedIds.add(id);
+    const entry = entries.get(id);
+    if (entry !== undefined) {
+      entries.delete(id);
+      entry.evictionPending = true;
+      disposeEntry(entry);
+    }
+  };
   return memo;
 }
 
@@ -386,38 +405,61 @@ async function ensureCacheDir(dir: string, log: InferenceLog): Promise<void> {
   });
 }
 
+/** The tokenizer surface the pair fit needs; the lib's tokenizer satisfies it. */
+export interface PairTokenizer {
+  readonly encode: (text: string, options?: { text_pair?: string | null; add_special_tokens?: boolean }) => number[];
+  readonly decode: (ids: number[], options: { skip_special_tokens: boolean }) => string;
+}
+
+/** Cut one query/document pair to `maxTokens` real tokens: the query to at most half of what the special tokens
+ *  leave, the document to the rest. The tokenizer's own truncation would instead cut the joined pair's tail, and at
+ *  the model's full length rather than the served window. The batch call still passes `max_length`, so a re-encode
+ *  that drifts by a token can never exceed the window. */
+export function fitPairToWindow(tok: PairTokenizer, query: string, document: string, maxTokens: number): { query: string; document: string } {
+  const plain = { add_special_tokens: false };
+  const specials = tok.encode("a", { text_pair: "b" }).length - tok.encode("a", plain).length - tok.encode("b", plain).length;
+  const budget = Math.max(0, maxTokens - specials);
+  const cut = (text: string, limit: number): string => {
+    const ids = tok.encode(text, plain);
+    return ids.length <= limit ? text : tok.decode(ids.slice(0, limit), { skip_special_tokens: true });
+  };
+  const fittedQuery = cut(query, Math.floor(budget / 2));
+  return { query: fittedQuery, document: cut(document, budget - tok.encode(fittedQuery, plain).length) };
+}
+
 function rerankLoadError(modelId: string, detail: string): ProviderError {
   return new ProviderError({ kind: "invalid", retryable: false, message: `local-light reranker "${modelId}": ${detail}` });
 }
 
 /** The lib options a reranker's ONNX serving selects. An architecture the row names no file for is refused: serving
  *  another architecture's quantized kernels, or silently the fp32 file, is a different model on this box. */
-function rerankFileOptions(modelId: string, onnx: RerankOnnx): { dtype: DataType; model_file_name?: string } {
+function rerankFileOptions(modelId: string, onnx: RerankOnnx): { dtype: DataType; model_file_name?: string; revision?: string } {
   const dtype = DATA_TYPES.find((candidate) => candidate === onnx.dtype);
   if (dtype === undefined) {
     throw rerankLoadError(modelId, `the dtype "${onnx.dtype}" is not one this backend loads`);
   }
+  const revision = onnx.revision === undefined ? {} : { revision: onnx.revision };
   if (onnx.files === undefined) {
-    return { dtype };
+    return { dtype, ...revision };
   }
   const file = onnx.files[process.arch];
   if (file === undefined) {
     throw rerankLoadError(modelId, `no ONNX file is listed for this CPU architecture (${process.arch})`);
   }
-  return { dtype, model_file_name: file };
+  return { dtype, model_file_name: file, ...revision };
 }
 
-/** Read one file of a model repo through the lib's own cache layout (`<cacheDir>/<id>/<file>`), downloading it from
- *  the lib's configured host when remote models are allowed. The head modules are files the lib never fetches. */
-async function readRepoFile(mod: TransformersModule, modelId: string, file: string): Promise<Uint8Array> {
-  const cached = mod.env.cacheDir === null ? null : join(mod.env.cacheDir, modelId, file);
+/** Read one file of a model repo through the lib's own cache layout (`<cacheDir>/<id>/[<revision>/]<file>`),
+ *  downloading it at that revision when remote models are allowed. The head modules are files the lib never fetches. */
+async function readRepoFile(mod: TransformersModule, modelId: string, revision: string | undefined, file: string): Promise<Uint8Array> {
+  const cached = mod.env.cacheDir === null ? null : join(mod.env.cacheDir, modelId, ...(revision === undefined ? [] : [revision]), file);
   if (cached !== null && existsSync(cached)) {
     return await readFile(cached);
   }
   if (!mod.env.allowRemoteModels) {
     throw rerankLoadError(modelId, `${file} is not in the model cache and remote models are off`);
   }
-  const url = `${mod.env.remoteHost}${mod.env.remotePathTemplate.replace("{model}", modelId).replace("{revision}", "main")}${file}`;
+  const url = `${mod.env.remoteHost}${mod.env.remotePathTemplate.replace("{model}", modelId).replace("{revision}", revision ?? "main")}${file}`;
   // The lib's own transport, so these files take the same path (and the same egress rules) as the weights do.
   const res = (await mod.env.fetch(url)) as Response;
   if (!res.ok) {
@@ -437,16 +479,31 @@ async function readRepoFile(mod: TransformersModule, modelId: string, file: stri
 
 type RerankModel = Awaited<ReturnType<TransformersModule["AutoModel"]["from_pretrained"]>>;
 
-function hiddenStateScores(head: StHead, hidden: Tensor, modelId: ModelId): number[] {
-  if (!(hidden.data instanceof Float32Array)) {
-    throw new ProviderError({ kind: "server", retryable: false, message: `local-light model "${modelId}" produced non-f32 hidden states` });
-  }
-  return scoreHiddenStates(head, hidden.data, hidden.dims);
-}
-
 type LoadedReranker =
   | { readonly head: "sequence-classification"; readonly model: RerankModel }
   | { readonly head: "sentence-transformers"; readonly model: RerankModel; readonly scorer: StHead };
+
+/** One score per batch row, read the way the serving's head says. A missing or misshapen output throws. */
+function readScores(loaded: LoadedReranker, out: Record<string, unknown>, modelId: ModelId, TensorCtor: TransformersModule["Tensor"]): number[] {
+  if (loaded.head === "sequence-classification") {
+    return tensorRows(requireTensor(out, "logits", modelId, TensorCtor)).map((row) => row.at(-1) ?? 0);
+  }
+  const hidden = requireTensor(out, "last_hidden_state", modelId, TensorCtor);
+  if (!(hidden.data instanceof Float32Array)) {
+    throw new ProviderError({ kind: "server", retryable: false, message: `local-light model "${modelId}" produced non-f32 hidden states` });
+  }
+  return scoreHiddenStates(loaded.scorer, hidden.data, hidden.dims);
+}
+
+interface RerankServingKey {
+  readonly modelId: ModelId;
+  readonly onnx: RerankOnnx;
+}
+
+/** The memo key for one serving of one model: two servings of an id never share a loaded session. */
+function servingKey(modelId: ModelId, onnx: RerankOnnx): string {
+  return `${modelId}\n${JSON.stringify(onnx)}`;
+}
 
 export function createModelCache(config: ModelCacheConfig): LocalLightModelCache {
   const sessionOptions = { intraOpNumThreads: localLightCpuThreads(), interOpNumThreads: 1 };
@@ -454,7 +511,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
   const embedDtype = resolveEmbedDtype(config.embedDtype);
   const cacheDir = config.cacheDir === undefined ? undefined : resolve(config.cacheDir);
   const configure = async (): Promise<TransformersModule> => {
-    const mod = await loadTransformers();
+    const mod = await (config.__loadTransformersForTest ?? loadTransformers)();
     if (config.allowRemoteModels !== undefined) {
       mod.env.allowRemoteModels = config.allowRemoteModels;
     }
@@ -504,17 +561,24 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     config.detach,
     "local-light.model.dispose:jina",
   );
-  // The serving each reranker id was first asked for. One id has one capability row, so the memos stay keyed by the
-  // bare id and `loadFailed` keeps answering per model.
-  const rerankOnnx = new Map<string, RerankOnnx>();
-  const noteRerankOnnx = (modelId: ModelId, onnx: RerankOnnx | undefined): void => {
-    if (!rerankOnnx.has(modelId)) {
-      rerankOnnx.set(modelId, onnx ?? DEFAULT_RERANK_ONNX);
+  // Every reranker serving this cache has been asked for, by memo key; `loadFailed` reads them per model id.
+  const servings = new Map<string, RerankServingKey>();
+  const servingOf = (modelId: ModelId, onnx: RerankOnnx | undefined): string => {
+    const resolved = onnx ?? DEFAULT_RERANK_ONNX;
+    const key = servingKey(modelId, resolved);
+    servings.set(key, { modelId, onnx: resolved });
+    return key;
+  };
+  const servingFor = (key: string): RerankServingKey => {
+    const serving = servings.get(key);
+    if (serving === undefined) {
+      throw new ProviderError({ kind: "server", retryable: false, message: "local-light: a reranker load ran for an unregistered serving" });
     }
+    return serving;
   };
   const reranker = createMemo(
-    async (id): Promise<LoadedReranker> => {
-      const onnx = rerankOnnx.get(id) ?? DEFAULT_RERANK_ONNX;
+    async (key): Promise<LoadedReranker> => {
+      const { modelId: id, onnx } = servingFor(key);
       const files = rerankFileOptions(id, onnx);
       const mod = await transformers();
       const opts = { ...files, session_options: sessionOptions, ...loadOpts };
@@ -524,8 +588,13 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
       }
       const [model, scorer] = await Promise.all([
         loadWithCpuFallback(device, log, (dev) => mod.AutoModel.from_pretrained(id, { ...opts, device: dev })),
-        loadStHead((file) => readRepoFile(mod, id, file)),
+        loadStHead((file) => readRepoFile(mod, id, onnx.revision, file)),
       ]);
+      const hiddenSize: unknown = (model.config as { hidden_size?: unknown }).hidden_size;
+      if (hiddenSize !== scorer.inputDim) {
+        await model.dispose();
+        throw rerankLoadError(id, `the encoder's hidden size ${String(hiddenSize)} does not feed the ${String(scorer.inputDim)}-wide scoring head`);
+      }
       return { head: onnx.head, model, scorer };
     },
     async (loaded) => {
@@ -535,9 +604,10 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     "local-light.model.dispose:reranker",
   );
   const tokenizer = createMemo(
-    async (id) => {
+    async (key) => {
+      const { modelId, onnx } = servingFor(key);
       const { AutoTokenizer } = await transformers();
-      return await AutoTokenizer.from_pretrained(id, loadOpts);
+      return await AutoTokenizer.from_pretrained(modelId, { ...loadOpts, ...(onnx.revision === undefined ? {} : { revision: onnx.revision }) });
     },
     () => Promise.resolve(),
     config.detach,
@@ -564,44 +634,52 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
 
   const slotLoaders: { readonly [K in LocalLightModelSlot]: (modelId: ModelId, onnx: RerankOnnx | undefined) => Promise<void> } = {
     rerank: async (modelId, onnx) => {
-      noteRerankOnnx(modelId, onnx);
-      await Promise.all([tokenizer(modelId), reranker(modelId)]);
+      const key = servingOf(modelId, onnx);
+      await Promise.all([tokenizer(key), reranker(key)]);
     },
     embed: async (modelId) => {
       await Promise.all([processor(modelId), jinaEmbedder(modelId)]);
     },
   };
 
-  const modelParts: readonly Pick<ModelMemo<unknown>, "failed">[] = [jinaEmbedder, reranker, tokenizer, processor];
+  const modelParts: readonly Pick<ModelMemo<unknown>, "failed">[] = [jinaEmbedder, processor];
+  const rerankFailed = (modelId: ModelId): boolean =>
+    [...servings].some(([key, serving]) => serving.modelId === modelId && (reranker.failed(key) || tokenizer.failed(key)));
 
   return {
     async preload(slot, modelId, onnx): Promise<void> {
       await slotLoaders[slot](modelId, onnx);
     },
-    loadFailed: (modelId): boolean => modelParts.some((part) => part.failed(modelId)),
+    loadFailed: (modelId): boolean => modelParts.some((part) => part.failed(modelId)) || rerankFailed(modelId),
     embedTexts(modelId, texts): Promise<Float32Array[]> {
       return texts.length === 0 ? Promise.resolve([]) : embedJinaTexts(modelId, texts);
     },
-    async scorePairs(modelId, query, documents, onnx): Promise<number[]> {
+    async scorePairs(modelId, query, documents, serving): Promise<number[]> {
       if (documents.length === 0) {
         return [];
       }
-      noteRerankOnnx(modelId, onnx);
-      return await tokenizer.withLease(modelId, (tok) =>
-        reranker.withLease(modelId, async (loaded) => {
+      const key = servingOf(modelId, serving.onnx);
+      const maxLength = serving.maxInputTokens;
+      return await tokenizer.withLease(key, (tok) =>
+        reranker.withLease(key, async (loaded) => {
           const { Tensor: TensorCtor } = await transformers();
-          const lengths = documents.map((doc) => Math.min(tok.encode(query, { text_pair: doc }).length, tok.model_max_length));
+          const pairs = documents.map((doc) => fitPairToWindow(tok, query, doc, maxLength));
+          const lengths = pairs.map((pair) => Math.min(tok.encode(pair.query, { text_pair: pair.document }).length, maxLength));
           const scores = new Array<number>(documents.length).fill(0);
-          for (const batch of rerankBatches(lengths)) {
+          for (const batch of rerankBatches(lengths, serving.onnx?.dynamicQuantized === true)) {
             const inputs = tok(
-              batch.map(() => query),
-              { text_pair: batch.map((i) => documents[i] ?? ""), padding: true, truncation: true },
+              batch.map((i) => pairs[i]?.query ?? ""),
+              { text_pair: batch.map((i) => pairs[i]?.document ?? ""), padding: true, truncation: true, max_length: maxLength },
             );
             const out: Record<string, unknown> = await loaded.model(inputs);
-            const batchScores =
-              loaded.head === "sequence-classification"
-                ? tensorRows(requireTensor(out, "logits", modelId, TensorCtor)).map((row) => row.at(-1) ?? 0)
-                : hiddenStateScores(loaded.scorer, requireTensor(out, "last_hidden_state", modelId, TensorCtor), modelId);
+            let batchScores: number[];
+            try {
+              batchScores = readScores(loaded, out, modelId, TensorCtor);
+            } catch (err) {
+              // The session loaded but cannot serve: report it unavailable rather than failing every rerank silently.
+              reranker.markFailed(key);
+              throw err;
+            }
             batch.forEach((docIndex, row) => {
               scores[docIndex] = batchScores[row] ?? 0;
             });

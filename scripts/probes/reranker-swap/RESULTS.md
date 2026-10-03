@@ -3,14 +3,16 @@
 **Run:** 2026-10-03, x64, every run pinned to 4 cores (`taskset -c 0-3`, so `localLightCpuThreads()` = 4).
 Evidence: `results/*.json`. Method: [`README.md`](README.md). The host was loaded throughout (load average 15
 to 22 on 24 cores, sibling lanes running), so repeated cells vary by about ±30% and every time is an upper bound.
-The `shipped-*` rows ran through the final code: curated `rerank.onnx`, the window clamp and the micro-batching.
+The `shipped-*-r1`/`-r2` rows ran twice through the final code: the curated serving (pinned revision, the 32m one
+pair per forward pass), the real-token window clamp, and the micro-batching.
 
 ## Decision
 
-- **Default:** `cross-encoder/ettin-reranker-32m-v1`, `model_quint8_avx2.onnx` (arm64: `model_qint8_arm64.onnx`,
-  untested), served window **2048**.
-- **Light option:** `cross-encoder/ettin-reranker-17m-v1` at **fp32**. Its quantized file fails quality (below).
-- **Kept selectable:** `Xenova/ms-marco-MiniLM-L-6-v2` (window 512), now served at q8.
+- **Default:** `cross-encoder/ettin-reranker-32m-v1` at revision `b33e5ceb`, `model_quint8_avx2.onnx` (arm64:
+  `model_qint8_arm64.onnx`, untested), served window **2048**, one pair per forward pass (below).
+- **Light option:** `cross-encoder/ettin-reranker-17m-v1` at revision `9e4aa353`, **fp32**. Its quantized file fails
+  quality (below).
+- **Kept selectable:** `Xenova/ms-marco-MiniLM-L-6-v2` (window 512), served exactly as before (fp32 `model.onnx`).
 - **Rejected:** `Alibaba-NLP/gte-reranker-modernbert-base` costs 4 to 8 times the 32m per turn for no measured
   gain; `jinaai/jina-reranker-v1-{tiny,turbo}-en` fail the long-range fact; `ettin-68m` costs about twice the 32m.
 
@@ -37,9 +39,33 @@ filler. Golden: the card's four passages; the correct order is Mars > Saturn > J
 | gte-modernbert q8 | pass | pass (thin: 1.75 vs 1.57) | pass | 1.16, 2.42, 1.86, 2.04 | right |
 | jina-v1-tiny / turbo q8 | pass | pass / pass | **fail** / **fail** | not run | |
 | MiniLM q8 | pass | pass | **tie** (both documents truncated to the same 512 tokens) | -6.86, 9.70, 6.82, 6.68 | wrong (Jupiter over Saturn) |
+| MiniLM fp32 (as served) | pass | pass | **tie** | -6.52, 9.69, 6.92, 6.67 | wrong (Jupiter over Saturn) |
 
 The 32m fp32 golden matches the card to two decimals, which pins the head arithmetic in
-`backends/local-light/st-head.ts`.
+`backends/local-light/st-head.ts`. Served one pair per pass, the shipped 32m quint8 golden is 6.15, 10.69, 8.57, 9.26
+(right order) in both rounds.
+
+### One pair per pass for the quantized 32m
+
+`model_quint8_avx2.onnx` quantizes activations dynamically, with scales taken over the whole batch, so a pair's score
+moved with its batch neighbours (one passage scored 7.37 batched against 6.15 alone). The curated row says
+`dynamicQuantized: true`, and `scorePairs` then runs every pair in its own forward pass. The per-turn numbers below
+are measured that way.
+
+## The window clamp, in real tokens
+
+The worker cuts each pair in the model's own tokens: the query to at most half of what the special tokens leave, the
+document to the rest, and the batch call passes `max_length` as the hard ceiling. A character estimate had let real
+pairs reach 2,871 (digits), 3,686 (ZWJ emoji) and 5,716 (CSV) tokens against a 2,048 window. With the real ettin
+tokenizer every hostile input now lands at or under the window (`clamp` in the `shipped-*` rows):
+
+| input | ettin pair tokens (window 2,048) | MiniLM pair tokens (window 512) |
+| - | - | - |
+| digits | 2,048 | 512 |
+| CSV | 2,048 | 512 |
+| ZWJ emoji | 2,048 | 5 (the emoji are one unknown token) |
+| CJK | 2,048 | 423 |
+| 200,000-char query | 1,030 (the query takes half; the document keeps the rest) | 261 |
 
 ## Per pair (batch 1, 4 cores)
 
@@ -51,6 +77,7 @@ The 32m fp32 golden matches the card to two decimals, which pins the head arithm
 | gte-modernbert q8 | 560 ms | 3.3 s | 18 s, peak 3.1 GB | 151 MB |
 | gte-modernbert fp32 | 2.1 s | 9.8 s | not run | 599 MB |
 | MiniLM q8 | 37–117 ms | (truncated to 512) | | 23 MB |
+| MiniLM fp32 (as served) | 68 ms | (truncated to 512) | | 91 MB |
 
 Ranges are repeated runs on the loaded host. Batch 8 at 2,048 tokens without micro-batching peaked at 5.9 GB on
 gte, which is why `scorePairs` now caps a forward pass at 2,048 token cells.
@@ -59,11 +86,15 @@ gte, which is why `scorePairs` now caps a forward pass at 2,048 token cells.
 
 | model (window) | Smart 4 × 500 | Smart 6 × 1,500 | recall 8 × 400 | recall 8 × 1,024 | peak RSS at the served window |
 | - | - | - | - | - | - |
-| **ettin-32m (2048)** | 0.4–0.6 s | 3.2–5.0 s | 1.4–2.5 s | 3.5–5.4 s | about 0.72 GB process, 0.6 GB over baseline |
-| **ettin-17m fp32 (2048)** | 0.16–0.31 s | 1.2–2.1 s | 0.5–1.1 s | 1.8–2.5 s | about 0.62 GB process |
+| **ettin-32m (2048), one pair per pass, as shipped** | 0.38–0.51 s | 3.3–3.6 s | 2.0–2.6 s | 5.3–6.2 s | about 0.77 GB process, 0.65 GB over baseline |
+| ettin-32m (2048), batched (first round, no longer served) | 0.4–0.6 s | 3.2–5.0 s | 1.4–2.5 s | 3.5–5.4 s | about 0.72 GB |
+| **ettin-17m fp32 (2048), as shipped** | 0.21–0.23 s | 1.4–1.6 s | 0.6–0.7 s | 1.8–2.3 s | about 0.65 GB process |
 | ettin-68m (2048) | 1.0 s | 11.2 s | 6.2 s | 14.9 s | 0.74 GB |
 | gte q8 (2048) | 2.4 s | 18.1 s | 8.0 s | 23.7 s | 0.95 GB |
-| MiniLM q8 (512) | 0.15–0.23 s | 0.25–0.34 s | 0.30–0.63 s | 0.33–0.47 s | 0.47 GB |
+| MiniLM fp32 (512), as served | 0.29–0.33 s | 0.41–0.49 s | 0.55–0.61 s | 0.55–0.57 s | 0.56–0.58 GB |
+
+Running the 32m one pair per pass costs nothing on the short turns and about 15% more at the top of the worst
+recall turn (5.3–6.2 s against 3.5–5.4 s batched; host load average 15 to 18 during both rounds).
 
 The process baseline is about 105 MB (an idle Node process). Real dev personas run 75 to 2,841 characters (about
 20 to 700 tokens), so Smart usually sits in the 4 × 500 column. Recall reranks `retrieveK` = 8 digests; the dev
@@ -73,6 +104,6 @@ database held no digests, so the arc sizes bracket the summarizer's 1,024-token 
 
 The built-in reranker is now `ettin-reranker-32m-v1`: a 37 MB download (the quantized ONNX plus tokenizer and
 head), about 150 MB resident once loaded, and up to about 0.6 GB more while it scores a turn at its 2,048-token
-window on CPU. A typical turn takes 0.5 to 2.5 s on 4 cores; the worst case (8 long memory arcs) is about
-5 s. On a small box, pick `ettin-reranker-17m-v1` (67 MB, roughly half the time) or the older
-`ms-marco-MiniLM-L-6-v2` (23 MB, under 0.5 s a turn, but it reads only the first 512 tokens of each pair).
+window on CPU. A typical turn takes 0.4 to 2.6 s on 4 cores; the worst case (8 long memory arcs) is about
+6 s. On a small box, pick `ettin-reranker-17m-v1` (67 MB, about a third of the time) or the older
+`ms-marco-MiniLM-L-6-v2` (91 MB, about 0.5 s a turn, but it reads only the first 512 tokens of each pair).

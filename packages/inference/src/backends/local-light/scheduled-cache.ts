@@ -153,7 +153,7 @@ export function createScheduledCache(cache: LocalLightModelCache): LocalLightMod
     embedTexts: (modelId, texts, inputType) => text("embedTexts", modelId, texts, inputType === "query"),
     embedClipTexts: (modelId, texts) => text("embedClipTexts", modelId, texts),
     embedImages: (modelId, images) => admit(() => enqueue(() => cache.embedImages(modelId, images))),
-    scorePairs: (modelId, query, documents, onnx) => admit(() => enqueue(() => cache.scorePairs(modelId, query, documents, onnx))),
+    scorePairs: (modelId, query, documents, serving) => admit(() => enqueue(() => cache.scorePairs(modelId, query, documents, serving))),
     preload: (slot, modelId, onnx) => admit(() => enqueue(() => cache.preload(slot, modelId, onnx))),
     loadFailed: cache.loadFailed,
   };

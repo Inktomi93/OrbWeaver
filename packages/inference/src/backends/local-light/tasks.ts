@@ -7,7 +7,7 @@ import { LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult, RerankResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, ImageInput, RerankQuery } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
-import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
+import { clampToTokenBudget } from "@orb/kit/tokens";
 import { ProviderError } from "../../contract/errors.ts";
 import type { EmbedRequest, ImageEmbedRequest, RerankRequest } from "../../contract/roles.ts";
 import type { LocalLightModelCache } from "./model-cache.ts";
@@ -94,15 +94,9 @@ function rerankQueryText(query: RerankQuery): string {
   return (typeof query === "string" ? query : (query.text ?? "")).trim();
 }
 
-/** Cut the pair to the served window: the query to at most half the estimator-safe budget, each document to what
- *  the query left. The tokenizer's own truncation cuts the pair's tail instead, which drops the whole document
- *  behind a long query, and its limit is the model's full window, whose cost on CPU grows faster than linearly. */
-function fitPairsToWindow(query: string, documents: readonly string[], windowTokens: number): { query: string; documents: string[] } {
-  const budget = safeTokenWindow(windowTokens);
-  const fittedQuery = clampToTokenBudget(query, Math.floor(budget / 2));
-  const docBudget = budget - estimateTokens(fittedQuery);
-  return { query: fittedQuery, documents: documents.map((doc) => clampToTokenBudget(doc, docBudget)) };
-}
+// A cheap first pass only: the worker cuts each pair to the window in the model's own tokens. This bound just keeps
+// the tokenizer from encoding a huge input whole, so it is loose enough never to cut what the window could hold.
+const PRETRIM_ESTIMATED_TOKENS_PER_WINDOW_TOKEN = 4;
 
 export function createLocalLightRerank(cache: LocalLightModelCache): (req: RerankRequest) => Promise<RerankResult> {
   return async (req) => {
@@ -125,12 +119,17 @@ export function createLocalLightRerank(cache: LocalLightModelCache): (req: Reran
     if (kept.length === 0) {
       return { hits: [], model: modelId, usage: { totalTokens: null } };
     }
-    const fitted = fitPairsToWindow(
-      query,
-      kept.map((doc) => doc.text ?? ""),
-      capability.rerank.maxInputTokens,
+    const { maxInputTokens, onnx } = capability.rerank;
+    const pretrim = (text: string): string => clampToTokenBudget(text, maxInputTokens * PRETRIM_ESTIMATED_TOKENS_PER_WINDOW_TOKEN);
+    const scores = await abortableWait(
+      cache.scorePairs(
+        modelId,
+        pretrim(query),
+        kept.map((doc) => pretrim(doc.text ?? "")),
+        { maxInputTokens, onnx },
+      ),
+      req.signal,
     );
-    const scores = await abortableWait(cache.scorePairs(modelId, fitted.query, fitted.documents, capability.rerank.onnx), req.signal);
     throwIfAborted(req.signal);
     const hits = kept.map((doc, i) => ({ id: doc.id, score: scores[i] ?? 0 })).sort((a, b) => b.score - a.score);
     return { hits: req.topN === undefined ? hits : hits.slice(0, Math.max(0, req.topN)), model: modelId, usage: { totalTokens: null } };

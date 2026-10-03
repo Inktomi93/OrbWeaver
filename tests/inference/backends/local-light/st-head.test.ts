@@ -29,10 +29,10 @@ const json = (value: unknown): Uint8Array => new TextEncoder().encode(JSON.strin
 function repo(overrides: Record<string, Uint8Array> = {}): (file: string) => Promise<Uint8Array> {
   const files: Record<string, Uint8Array> = {
     "1_Pooling/config.json": json({ pooling_mode: "cls" }),
-    "2_Dense/config.json": json({ out_features: 3, activation_function: GELU }),
+    "2_Dense/config.json": json({ in_features: 3, out_features: 3, activation_function: GELU }),
     "2_Dense/model.safetensors": safetensors({ "linear.weight": [0.5, -1.0, 0.25, 1.5, 0.0, -0.5, -0.75, 2.0, 1.0] }),
     "3_LayerNorm/model.safetensors": safetensors({ "norm.weight": [1.0, 0.5, 2.0], "norm.bias": [0.1, -0.2, 0.0] }),
-    "4_Dense/config.json": json({ out_features: 1, activation_function: IDENTITY }),
+    "4_Dense/config.json": json({ in_features: 3, out_features: 1, activation_function: IDENTITY }),
     "4_Dense/model.safetensors": safetensors({ "linear.weight": [0.3, -0.6, 0.9], "linear.bias": [0.05] }),
     ...overrides,
   };
@@ -54,7 +54,23 @@ test("scores each row from its CLS token through Dense+GELU, LayerNorm and the s
 
 test("a head it cannot reproduce exactly is refused at load, not approximated", async () => {
   await expect(loadStHead(repo({ "1_Pooling/config.json": json({ pooling_mode: "mean" }) }))).rejects.toThrow("pooling mode mean");
-  await expect(loadStHead(repo({ "2_Dense/config.json": json({ out_features: 3, activation_function: "torch.nn.modules.activation.Tanh" }) }))).rejects.toThrow(
-    "unsupported activation",
+  await expect(
+    loadStHead(repo({ "2_Dense/config.json": json({ in_features: 3, out_features: 3, activation_function: "torch.nn.modules.activation.Tanh" }) })),
+  ).rejects.toThrow("unsupported activation");
+});
+
+// A head that loads with the wrong shapes would index past its weights and score silently with zeros.
+test("a head whose shapes disagree, with its config or with the encoder, is refused loudly", async () => {
+  await expect(loadStHead(repo({ "2_Dense/config.json": json({ in_features: 4, out_features: 3, activation_function: GELU }) }))).rejects.toThrow(
+    "2_Dense weights do not match",
   );
+  await expect(loadStHead(repo({ "3_LayerNorm/model.safetensors": safetensors({ "norm.weight": [1, 1], "norm.bias": [0, 0] }) }))).rejects.toThrow(
+    "3_LayerNorm",
+  );
+  await expect(loadStHead(repo({ "4_Dense/config.json": json({ in_features: 3, out_features: 2, activation_function: IDENTITY }) }))).rejects.toThrow(
+    "4_Dense",
+  );
+  await expect(loadStHead(repo({ "2_Dense/config.json": json({ activation_function: GELU }) }))).rejects.toThrow("in_features and out_features");
+  const head = await loadStHead(repo());
+  expect(() => scoreHiddenStates(head, new Float32Array(8), [1, 2, 4])).toThrow("do not feed a 3-wide head");
 });

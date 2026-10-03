@@ -3,7 +3,7 @@
 
 import type { LocalLightSeedSlot, ProviderId, RoutableTask } from "@orb/contracts/inference";
 import { builtinProvider, LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
-import { connectionBindings, userConnections } from "@orb/db";
+import { connectionBindings, settings, userConnections } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type { UserId } from "@orb/kit/ids";
 import { and, eq, inArray, isNull, notExists, or } from "drizzle-orm";
@@ -28,8 +28,8 @@ const SEED_BINDINGS = [
 const SEED_TASKS: readonly RoutableTask[] = SEED_BINDINGS.map((binding) => binding.task);
 const taken = alias(userConnections, "seed_slot_taken");
 
-/** Give each empty slot the user's pre-slot seeded row for it: the unslotted local-light row on the seed's model
- *  that their binding for the task points at. Skipped when the slot is filled or today's label is already in use. */
+/** Give each empty slot the user's pre-slot seeded row for it: the unslotted local-light row on the seed's model (or an
+ *  earlier seed model) that their binding for the task points at. Skipped when the slot is filled or today's label is already in use. */
 async function adoptEarlierSeedRows(deps: LocalLightSeedDeps, ownerId: UserId, now: number): Promise<void> {
   const { db } = deps;
   const adoptions = LOCAL_LIGHT_SEED_ROWS.map((seed) => {
@@ -49,7 +49,11 @@ async function adoptEarlierSeedRows(deps: LocalLightSeedDeps, ownerId: UserId, n
           and(
             eq(userConnections.ownerId, ownerId),
             eq(userConnections.providerId, LOCAL_LIGHT_PROVIDER_ID),
-            eq(userConnections.model, modelIdSchema.parse(seed.model)),
+            // A pre-slot row on an earlier seed model is adopted too; the move below then puts it on today's model.
+            inArray(
+              userConnections.model,
+              [seed.model, ...seed.earlierModels].map((model) => modelIdSchema.parse(model)),
+            ),
             isNull(userConnections.seedSlot),
             inArray(userConnections.id, boundRow),
             notExists(slotOrLabelInUse),
@@ -60,34 +64,45 @@ async function adoptEarlierSeedRows(deps: LocalLightSeedDeps, ownerId: UserId, n
   await db.batch(batchMany(adoptions));
 }
 
-/** Move each slot row still on a model an earlier release seeded onto today's seed model. Only a row the user never
- *  edited moves (`updated_at = created_at`), so a deliberate pick of an earlier model survives every later boot.
+/** The seed's one-shot record that it moved this owner's slot row off the earlier models onto `model`. It lives in
+ *  the shared `settings` KV, keyed per owner and per seed model, so the next default change gets a fresh one. */
+function movedLatchKey(seed: (typeof LOCAL_LIGHT_SEED_ROWS)[number], ownerId: UserId): string {
+  return `local-light-seed:moved:${seed.task}:${seed.model}:${ownerId}`;
+}
+
+/** Move each slot row on a model an earlier release seeded onto today's seed model, ONCE per owner. Before this
+ *  release the earlier model was the only built-in choice, so no row on it was a pick of it over today's, whatever its
+ *  timestamps say. After the move the latch holds, so a later pick of the earlier model (still in the catalog) stays.
  *  The binding points at the row, so a bound role follows it. */
-async function moveUneditedSeedRows(deps: LocalLightSeedDeps, ownerId: UserId, now: number): Promise<void> {
+async function moveSeedRowsOffEarlierModels(deps: LocalLightSeedDeps, ownerId: UserId, now: number): Promise<void> {
   const { db } = deps;
-  const moves = LOCAL_LIGHT_SEED_ROWS.flatMap((seed) =>
-    seed.earlierModels.length === 0
-      ? []
-      : [
-          batchStmt(
-            db
-              .update(userConnections)
-              .set({ model: modelIdSchema.parse(seed.model), updatedAt: now })
-              .where(
-                and(
-                  eq(userConnections.ownerId, ownerId),
-                  eq(userConnections.providerId, LOCAL_LIGHT_PROVIDER_ID),
-                  eq(userConnections.seedSlot, seed.task),
-                  inArray(
-                    userConnections.model,
-                    seed.earlierModels.map((model) => modelIdSchema.parse(model)),
-                  ),
-                  eq(userConnections.updatedAt, userConnections.createdAt),
-                ),
+  const moves = LOCAL_LIGHT_SEED_ROWS.flatMap((seed) => {
+    if (seed.earlierModels.length === 0) {
+      return [];
+    }
+    const key = movedLatchKey(seed, ownerId);
+    const latched = db.select({ key: settings.key }).from(settings).where(eq(settings.key, key));
+    return [
+      batchStmt(
+        db
+          .update(userConnections)
+          .set({ model: modelIdSchema.parse(seed.model), updatedAt: now })
+          .where(
+            and(
+              eq(userConnections.ownerId, ownerId),
+              eq(userConnections.providerId, LOCAL_LIGHT_PROVIDER_ID),
+              eq(userConnections.seedSlot, seed.task),
+              inArray(
+                userConnections.model,
+                seed.earlierModels.map((model) => modelIdSchema.parse(model)),
               ),
+              notExists(latched),
+            ),
           ),
-        ],
-  );
+      ),
+      batchStmt(db.insert(settings).values({ key, value: true, updatedAt: now }).onConflictDoNothing()),
+    ];
+  });
   await db.batch(batchMany(moves));
 }
 
@@ -97,7 +112,7 @@ export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerI
   const { db } = deps;
   const now = deps.now();
   await adoptEarlierSeedRows(deps, ownerId, now);
-  await moveUneditedSeedRows(deps, ownerId, now);
+  await moveSeedRowsOffEarlierModels(deps, ownerId, now);
   const inserted = await db
     .insert(userConnections)
     .values(

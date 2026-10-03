@@ -43,6 +43,8 @@ export const localLightRows = [
         // The quantized files are named per instruction set, not by the dtype suffix, so the file picks the precision.
         dtype: "fp32",
         files: { x64: "model_quint8_avx2", arm64: "model_qint8_arm64" },
+        revision: "b33e5ceb5110773ea9cf5e00c9bedc83a8c2afdd",
+        dynamicQuantized: true,
       },
     },
     evidence: {
@@ -62,7 +64,7 @@ export const localLightRows = [
       input: ["text"],
       instructionAware: false,
       // fp32 on purpose: the quantized 17m mis-ranks the probe's persona and long-range cases.
-      onnx: { head: "sentence-transformers", dtype: "fp32" },
+      onnx: { head: "sentence-transformers", dtype: "fp32", revision: "9e4aa35321a6dd1a43ca313f500c4b4f7cfb5cc6" },
     },
     evidence: {
       tier: "curated",
@@ -80,12 +82,11 @@ export const localLightRows = [
       maxInputTokens: 512,
       input: ["text"],
       instructionAware: false,
-      onnx: { head: "sequence-classification", dtype: "q8" },
     },
     evidence: {
       tier: "curated",
       dated: "2026-10-03",
-      cite: "the earlier default, still selectable; the window is its tokenizer's model_max_length; q8 ranks the probe's cases as fp32 does (scripts/probes/reranker-swap/RESULTS.md)",
+      cite: "the earlier default, still selectable and served exactly as before (fp32 model.onnx); the window is its tokenizer's model_max_length",
     },
   },
 ] as const satisfies readonly CapabilityOverrideInput[];
