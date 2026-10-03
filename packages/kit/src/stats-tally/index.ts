@@ -5,10 +5,8 @@
 // PURE HALF ONLY: the `StatsDelta` payload type and the `applyStatsDelta` upsert (which touch the
 // stats db schema) live in the stats domain, NOT here — kit stays I/O-free.
 
-import { CALENDAR_BUCKET_MS, calendarBucketStart } from "#time";
+import { calendarBucketStart } from "#time";
 
-/** The `daily_stats` timeline grain: the calendar bucket the client folds onto the viewer's calendar. */
-export const STATS_BUCKET_MS = CALENDAR_BUCKET_MS;
 // Sentinel provider bucket when a model row carries no provider.
 /** The sole non-registry provider bucket, used only by the non-null `model_stats.provider` natural key. */
 export const MODEL_PROVIDER_UNKNOWN = "(unknown)" as const;
@@ -18,8 +16,8 @@ export function wordCount(s: string | null | undefined): number {
   return s !== null && s !== undefined && s !== "" ? (s.match(/\b\w+\b/g)?.length ?? 0) : 0;
 }
 
-/** The start (epoch-ms) of the {@link STATS_BUCKET_MS} bucket an epoch-ms instant falls in — the
- *  `daily_stats` key. */
+/** The `daily_stats` key: the start (epoch-ms) of the `@orb/kit/time` calendar bucket an epoch-ms instant
+ *  falls in, which the client folds onto the viewer's calendar. */
 export function statsBucketStart(ms: number): number {
   return calendarBucketStart(ms);
 }

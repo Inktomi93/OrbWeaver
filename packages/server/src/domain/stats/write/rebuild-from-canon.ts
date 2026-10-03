@@ -13,8 +13,9 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
 import type { CharacterId, ModelId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { MODEL_PROVIDER_UNKNOWN, STATS_BUCKET_MS, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
+import { MODEL_PROVIDER_UNKNOWN, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
 import { eq, sql } from "drizzle-orm";
+import { calendarBucketStartSql } from "#kit/calendar-bucket-sql";
 import type { ReconcileStatsResult } from "../contract/results.ts";
 import { ownerChatIds } from "../substrate/owner-chat-scope.ts";
 
@@ -685,10 +686,9 @@ async function loadChatMeta(db: Db, ownerId: string): Promise<ChatMeta> {
     GROUP BY cp.character_id
   `);
   const chatByChar = new Map(chatAgg.map((r) => [r.cid, r]));
-  // The bucket is computed in SQL with the same floor `statsBucketStart` applies to a message: the CAST
-  // keeps the division integral whatever numeric type the driver binds the width as.
+  // The bucket is computed in SQL with the same floor `statsBucketStart` applies to a message.
   const chatBuckets = await db.all<{ bucketStart: number; n: number }>(sql`
-    SELECT CAST(ch.created_at / ${STATS_BUCKET_MS} AS INTEGER) * ${STATS_BUCKET_MS} AS bucketStart, COUNT(DISTINCT ch.id) AS n
+    SELECT ${calendarBucketStartSql(sql`ch.created_at`)} AS bucketStart, COUNT(DISTINCT ch.id) AS n
     FROM chats ch WHERE ch.id IN (${ownerChatIds(ownerId)}) GROUP BY bucketStart
   `);
   const chatsCreatedByBucket = new Map(chatBuckets.map((r) => [r.bucketStart, r.n]));

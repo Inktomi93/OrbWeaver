@@ -20,9 +20,9 @@ import {
   themeClusters,
 } from "@orb/db";
 import type { AssetId, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, ThemeClusterId, UserId } from "@orb/kit/ids";
-import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, max, min, notInArray, sql } from "drizzle-orm";
+import { calendarBucketStartSql } from "#kit/calendar-bucket-sql";
 import { ownedRealCharacters } from "./character-scope.ts";
 
 interface DigestKeywordRow {
@@ -563,8 +563,7 @@ export async function readThemeClusterMembers(
 /** An assignment's story-time UTC calendar bucket: the floor `calendarBucketStart` applies, in SQL. Story time
  *  ships as buckets, never as a SQL-formatted month, so the client folds them into the viewer's months. */
 export function storyTimeBucketStart(): SQL<number> {
-  // The CAST keeps the division integral.
-  return sql<number>`CAST(${digestThemeAssignments.msgMidAt} / ${CALENDAR_BUCKET_MS} AS INTEGER) * ${CALENDAR_BUCKET_MS}`;
+  return calendarBucketStartSql(digestThemeAssignments.msgMidAt);
 }
 
 /** A theme cluster's story-time timeline — assigned-digest count per UTC calendar bucket, ascending. */
