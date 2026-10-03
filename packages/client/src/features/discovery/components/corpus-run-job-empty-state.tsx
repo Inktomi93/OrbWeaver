@@ -10,14 +10,13 @@
 // dialog here is unspellable by design — and it would be a second home for the same verb anyway.
 //
 // CALLERS NAME THE JOBS BY THEIR RENDERED LABELS (`WORKLOAD_KIND_LABELS`: "Distill characters",
-// "Compute themes") so the instruction and the picker the door opens agree word for word.
-//
-// Distinct from `CorpusDistillEmptyState`, which routes to the REFINERY: that one is about rewriting a
-// character's own text, this one is about running the library-wide analysis passes.
+// "Index (embeddings)") so the instruction and the picker the door opens agree word for word. Every corpus
+// pane is filled by one of those jobs; the Refinery rewrites a character's own text and fills none of them.
 
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Sparkles } from "@orb/ui/icons";
+import { Row } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { openConfigTo } from "#state";
 
@@ -34,24 +33,25 @@ export interface CorpusRunJobEmptyStateProps {
    * @defaultValue true
    */
   readonly offerDoor?: boolean;
+  /** A way back out, rendered before the door (the dossier's Back). */
+  readonly secondaryAction?: ReactNode;
 }
 
-export function CorpusRunJobEmptyState({ title, description, offerDoor = true }: CorpusRunJobEmptyStateProps): ReactElement {
-  return (
-    <EmptyState
-      icon={<Icon icon={Sparkles} size="lg" />}
-      title={title}
-      description={description}
-      {...(offerDoor
-        ? {
-            action: (
-              <Button intent="primary" size="sm" onClick={(): void => openConfigTo("workloads", "jobs")}>
-                <Icon icon={Sparkles} size="sm" />
-                Run a job…
-              </Button>
-            ),
-          }
-        : {})}
-    />
-  );
+export function CorpusRunJobEmptyState({ title, description, offerDoor = true, secondaryAction }: CorpusRunJobEmptyStateProps): ReactElement {
+  const door = offerDoor ? (
+    <Button intent="primary" size="sm" onClick={(): void => openConfigTo("workloads", "jobs")}>
+      <Icon icon={Sparkles} size="sm" />
+      Run a job…
+    </Button>
+  ) : null;
+  const action =
+    secondaryAction === undefined ? (
+      door
+    ) : (
+      <Row align="center" gap="field">
+        {secondaryAction}
+        {door}
+      </Row>
+    );
+  return <EmptyState icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} {...(action === null ? {} : { action })} />;
 }

@@ -1,7 +1,8 @@
 // domain/chat/substrate/rpg-transcript — the PURE canon → rpg-transcript projection (crunchy-cluster §1.3).
 // Zero I/O. The ONE shared builder both the ENGINE (`fireRpgTurnCompleted`'s in-turn thread) and the
 // `resolveCanonWindow` chat op (the `resyncFromStory` deep window) project through, so the two feeds can never
-// drift — the state round and the resync read the story the SAME way. Projects a name-stamped, token-measured
+// drift — the state round and the resync read the story the SAME way. The `smart` speaker arbiter names its
+// transcript through it too (`verbs/turn.ts`). Projects a name-stamped, token-measured
 // `RpgTurnTranscriptMessage[]`, oldest→newest; hidden-class spans stay INTACT (the round is model-plane, the
 // model always reads its own lies, D110 §3.6 — the member never sees this read). System rows are kept (the rpg
 // consumer decides — the window knob is rpg's). The name-stamp resolves against the caller's `HistoryMacroNames`

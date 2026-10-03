@@ -174,9 +174,23 @@ test("COMMITTED trust=trusted still renders a raw HTML <img> — the resolved-tr
   // `trusted` (own-user input / a character that opted into rich HTML) still renders permissively. Raw
   // HTML `<img>` is literal text to the D51 tokenizer (not the `![]()` media grammar), so it reaches the
   // trusted markdown seal and renders — proving the two tiers stay distinct and the settled side didn't
-  // regress to untrusted.
-  const component = await mount(<MessageContentSpansStory trust="trusted" content='hi <img src="https://cdn.example/ok.png"> bye' />);
+  // regress to untrusted. External media is allowed here: a trusted row that forbids it drops the image (below).
+  const component = await mount(<MessageContentSpansStory trust="trusted" allowExternal={true} content='hi <img src="https://cdn.example/ok.png"> bye' />);
   await expect(component.locator("img")).toHaveCount(1);
+});
+
+test("GUARDRAIL: trust=trusted with allowExternal=false drops an off-origin raw <img> and keeps an own-origin one", async ({ mount }) => {
+  // The trusted markdown seal must honor the ROW's external-media verdict: the app CSP admits https: images
+  // whenever the box allows them, so a character that forbids external media relies on the seal alone.
+  const component = await mount(
+    <MessageContentSpansStory
+      trust="trusted"
+      allowExternal={false}
+      content='hi <img src="https://tracker.example/pixel.png"> and <img src="/own.png" alt="own"> bye'
+    />,
+  );
+  await expect(component.locator('img[alt="own"]')).toHaveCount(1);
+  await expect(component.locator('img[src*="tracker.example"]')).toHaveCount(0);
 });
 
 test("COMMITTED trust=untrusted drops the same raw HTML <img> (fail-closed floor)", async ({ mount }) => {

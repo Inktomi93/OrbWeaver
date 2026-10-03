@@ -15,6 +15,7 @@ import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { EXTRACTION_CONTEXT_LABEL } from "../../../../../packages/client/src/features/rpg/lib/host-console-labels.ts";
 import { ariaTreeFindings } from "../../../../support/browser/accessible-names.ts";
 import { hitBoxes, resolveSpacingPx, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
@@ -2381,7 +2382,7 @@ test("the Game tab's numeric knobs write through the config door — the reminde
   await expect.poll(() => trpc.lastInput("rpg.updateConfig")).toMatchObject({ patch: { extractionWindowTokens: 4608, recentBeatsKeepLast: 5 } });
 
   // `beat` has no window to budget — the field is ABSENT, never a disabled twin ([no-separate-reduced-modes]).
-  await component.getByRole("button", { name: "beat", exact: true }).click();
+  await component.getByRole("group", { name: "Extraction context" }).getByRole("button", { name: EXTRACTION_CONTEXT_LABEL.beat, exact: true }).click();
   await expect(component.getByRole("textbox", { name: "Window budget (tokens)" })).toHaveCount(0);
 });
 

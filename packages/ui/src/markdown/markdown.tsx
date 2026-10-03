@@ -7,7 +7,14 @@ import { DIALOGUE_COMPONENTS } from "./dialogue-paragraph.tsx";
 import { MARKDOWN_LIST_COMPONENTS } from "./list-components.tsx";
 import { MARKDOWN_MATH_PLUGIN } from "./math.ts";
 import { MARKDOWN_MERMAID_OPTIONS } from "./mermaid.tsx";
-import { MARKDOWN_REMARK_PLUGINS, TIER_A_UNTRUSTED_ELEMENTS, TRUSTED_ALLOWED_TAGS, TRUSTED_LITERAL_TAG_CONTENT, untrustedUrlTransform } from "./policy.ts";
+import {
+  MARKDOWN_REMARK_PLUGINS,
+  ownOriginMediaOnly,
+  TIER_A_UNTRUSTED_ELEMENTS,
+  TRUSTED_ALLOWED_TAGS,
+  TRUSTED_LITERAL_TAG_CONTENT,
+  untrustedUrlTransform,
+} from "./policy.ts";
 import { createRevealPlugin } from "./reveal-plugin.ts";
 import { MARKDOWN_RULE_COMPONENTS } from "./rule-component.tsx";
 import { MARKDOWN_SHIKI_PLUGIN } from "./shiki-plugin.ts";
@@ -55,6 +62,12 @@ export interface MarkdownProps {
    * `appearance.colorQuotedSpeech` pref through.
    */
   readonly colorQuotes?: boolean;
+  /**
+   * Whether this content may load off-origin media. Read under `trusted` only; `untrusted` drops every
+   * image. Off by default: a trusted caller passes its row's resolved external-media verdict, and off keeps
+   * own-origin images while dropping every off-origin `img` and every `source`.
+   */
+  readonly allowExternalMedia?: boolean;
 }
 
 interface BoundaryProps {
@@ -112,14 +125,16 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
  * unused, see the render comments). Two trust policies, untrusted by default: `untrusted` applies
  * the Tier-A element allowlist + url gate, drops `<speaker>`, and withholds Mermaid; `trusted`
  * restores Streamdown's permissive defaults (and, having no streaming consumer, gets no reveal
- * fade — the `allowedTags` schema merge is identity-gated on the default rehype pipeline).
+ * fade — the `allowedTags` schema merge is identity-gated on the default rehype pipeline), minus
+ * off-origin media unless `allowExternalMedia` admits it.
  * Streamdown runs rehype-sanitize + rehype-harden by default under both policies. A pathologically
  * large input falls back to a plain `<pre>`. Streaming input additionally passes the seal-owned M1
  * tail-hold pre-pass (`tail-hold.ts`) before Streamdown parses it.
  */
-export function Markdown({ trust, mode, children, className, colorQuotes = false }: MarkdownProps): ReactElement {
+export function Markdown({ trust, mode, children, className, colorQuotes = false, allowExternalMedia = false }: MarkdownProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
   const untrusted = trust === "untrusted";
+  const ownOriginMedia = !(untrusted || allowExternalMedia);
   // Withhold Mermaid under untrusted: a ```mermaid fence renders arbitrary diagram DSL through a
   // heavy lazy engine (a resource-abuse surface), so it's passed only for trusted content. KaTeX
   // stays for both tiers — rehype-katex defaults trust:false, so it's math-only and inert.
@@ -231,6 +246,9 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
   return (
     <MarkdownErrorBoundary resetKeys={[body, mode, trust]}>
       <Streamdown
+        // Streamdown's Block memo compares content, components and plugins, never the element filters, so a
+        // settled block would keep media the verdict no longer admits. A verdict flip remounts instead.
+        key={ownOriginMedia ? "own-origin-media" : "any-media"}
         mode={mode}
         dir="auto"
         remarkPlugins={MARKDOWN_REMARK_PLUGINS}
@@ -271,6 +289,7 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
           : {
               allowedTags: TRUSTED_ALLOWED_TAGS,
               literalTagContent: [...TRUSTED_LITERAL_TAG_CONTENT],
+              ...(ownOriginMedia ? { allowElement: ownOriginMediaOnly } : {}),
             })}
       >
         {body}

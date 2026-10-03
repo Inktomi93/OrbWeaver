@@ -79,7 +79,7 @@ test("catalog failure, recovery and disappearance preserve the selected tool; Te
   await expect(page.getByText("count — required, integer. Records to inspect", { exact: true })).toBeVisible();
   await expect(page.getByText(/This template contains macros/u)).toBeVisible();
   await page.getByRole("button", { name: "Test Tool rule", exact: true }).click();
-  await expect(page.getByRole("status", { name: "Test result for Tool rule", exact: true })).toContainText("count:");
+  await expect(page.getByRole("status", { name: "Test result for Tool rule", exact: true })).toContainText("→ at count");
   await expect(page.getByRole("status", { name: "Test result for Tool rule", exact: true })).toContainText("No tool was invoked or result captured.");
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the completed dry-run status is rendered and no Run now action was requested; this negative checks the settled Test command. Ends if this assertion moves before that barrier.
   expect(recorder.count("automation.runRuleNow")).toBe(0);

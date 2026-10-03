@@ -2,10 +2,10 @@ import { automationRuleCreateSchema, automationRuleUpdateSchema } from "@orb/con
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { editableRule } from "../../../packages/client/src/features/automation/lib/rule-save-session.ts";
-import { createSeededIds } from "../../support/ids.ts";
-import type { TrpcRoutes } from "../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError, trpcHold } from "../../support/node/route-trpc.ts";
+import type { editableRule } from "../../../../../packages/client/src/features/automation/lib/rule-save-session.ts";
+import { createSeededIds } from "../../../../support/ids.ts";
+import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { RuleMutationEchoStory } from "./_rule-echo-stories.tsx";
 
 const ids = createSeededIds();

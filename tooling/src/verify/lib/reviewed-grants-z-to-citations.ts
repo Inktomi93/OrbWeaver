@@ -244,6 +244,14 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
   },
   {
+    id: "query-freshness-coverage:automation-listruletools",
+    policyId: "query-freshness-coverage",
+    subject: "automation.listRuleTools",
+    operation: "uncovered-query-freshness",
+    why: "writer-local, the same class as `plugin.listCommands` above — the rule editor's tool catalog (features/automation/components/rule-tool-fields.tsx and rule-row.tsx's Test result) is the caller's drivable tool set (`toolUse.listDrivableToolNames` in entry/compose/automation-plugin.ts). The built-in tools (chat, rpg, imagery) register once at boot and never move within a process; the only movers are the caller's own plugins' tool registrations, collected by activation and dropped by deactivate. Those move only on the plugin lifecycle writes that change what a plugin runs (setEnabled, setGrant, uninstall, the three upgrade doors, the admin withdraw, and a reported UI crash), and every one of them carries trpc.automation.listRuleTools.queryFilter() through `pluginContributionCatalogReads` in features/plugin/lib/plugin-mutations.ts. (An install lands the row `disabled` with nothing resident, so the covering setEnabled is the one that matters.) The ownership single-writer argument is plugin.list's: there is no admin any-row branch, so the only principal who can move this set is the one reading it, in the tab that issued the write. Proven by tests/server/entry/compose/automation-plugin.int.test.ts (a registered tool appears for its owner only, and leaves when its registration is dropped).",
+    endsWhen: "the query gains reachable seam coverage, is no longer consumed, or a tool registration starts moving without a plugin lifecycle write",
+  },
+  {
     id: "query-freshness-coverage:plugin-listdistributed",
     policyId: "query-freshness-coverage",
     subject: "plugin.listDistributed",

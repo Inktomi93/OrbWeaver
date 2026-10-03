@@ -7,7 +7,14 @@
 // (browser package; @orb/ui is not node-resolvable) like shiki-theme.test.ts.
 
 import { describe } from "vitest";
-import { TIER_A_ELEMENTS, TIER_A_UNTRUSTED_ELEMENTS, UNTRUSTED_ALLOWED_PREFIXES, untrustedUrlTransform } from "../../../packages/ui/src/markdown/policy.ts";
+import {
+  ownOriginMediaOnly,
+  resolvesOnOwnOrigin,
+  TIER_A_ELEMENTS,
+  TIER_A_UNTRUSTED_ELEMENTS,
+  UNTRUSTED_ALLOWED_PREFIXES,
+  untrustedUrlTransform,
+} from "../../../packages/ui/src/markdown/policy.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 // Streamdown's UrlTransform is called with (url, key, node); `untrustedUrlTransform` reads ONLY the url,
@@ -157,5 +164,42 @@ describe("element allowlists — the img-drop is the untrusted↔trusted differe
       expect(TIER_A_ELEMENTS).toContain(tag);
       expect(TIER_A_UNTRUSTED_ELEMENTS).toContain(tag);
     }
+  });
+});
+
+// The trusted-tier gate for a row that forbids external media. The CSP follows only the box-wide setting, so
+// this gate is the only thing that keeps a trusted character's off-origin image from loading.
+describe("ownOriginMediaOnly — trusted content on a row that forbids external media", () => {
+  const admits = (tagName: string, properties: Record<string, string> = {}): boolean =>
+    // @orb-waive no-test-fabrication(never): a hast element literal; `hast` does not resolve from the test program, so the gate's parameter type is unreachable here. Ends when the test program resolves `hast`.
+    ownOriginMediaOnly({ type: "element", tagName, properties, children: [] } as never, 0, undefined) === true;
+
+  test.each([
+    ["an absolute https url", "https://tracker.example/pixel.png"],
+    ["an absolute http url", "http://tracker.example/pixel.png"],
+    ["a protocol-relative url", "//tracker.example/pixel.png"],
+    ["a backslash-led url the browser reads as protocol-relative", "/\\tracker.example/pixel.png"],
+    ["a url with leading whitespace", "  https://tracker.example/pixel.png"],
+  ])("drops an img whose src is %s", (_label, src) => {
+    expect(admits("img", { src })).toBe(false);
+  });
+
+  test("drops an img with no src, and every picture source (its srcset picks among several urls)", () => {
+    expect(admits("img")).toBe(false);
+    expect(admits("source", { srcSet: "/own.png 1x" })).toBe(false);
+  });
+
+  test("keeps an own-origin img and every non-media element (positive control)", () => {
+    expect(admits("img", { src: "/blob/abc123" })).toBe(true);
+    expect(admits("img", { src: "assets/own.png" })).toBe(true);
+    expect(admits("picture")).toBe(true);
+    expect(admits("a", { href: "https://elsewhere.example" })).toBe(true);
+  });
+
+  test("resolvesOnOwnOrigin reads a url the way the browser resolves it against the page", () => {
+    expect(resolvesOnOwnOrigin("/path?q=1#frag")).toBe(true);
+    expect(resolvesOnOwnOrigin("#frag")).toBe(true);
+    expect(resolvesOnOwnOrigin("//host.example/x")).toBe(false);
+    expect(resolvesOnOwnOrigin("/\\host.example/x")).toBe(false);
   });
 });

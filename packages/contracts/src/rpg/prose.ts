@@ -571,12 +571,12 @@ For example, a three-line sign is enough:
   "rpg.extract.tool.updateInventory": {
     id: "rpg.extract.tool.updateInventory",
     home: "preset",
-    // v4 — the FIRST-ACQUISITION rule, ported from `rpg.extract.plane.inventory` v4 (#118). The plane fragment
+    // The FIRST-ACQUISITION rule, ported from `rpg.extract.plane.inventory` v4 (#118). The plane fragment
     // reaches only the vehicles that compose an extraction SYSTEM PROMPT; the DEFAULT `folded` mode composes
     // none, so this description is the fold's ONLY write-surface teaching. Compressed (a description budget is
     // tighter than a system prompt's): the plane clause's "calls update_inventory with an add" collapses to
     // "calls add" inside the tool's own description, and "exactly what add exists for" loses the adverb.
-    version: 4,
+    version: 5,
     text:
       "Items and coin on an actor. add: new items — ALWAYS give a `description` and a `location` (where it's " +
       "carried: 'belt pouch', 'sheathed'), plus quantity. A beat where anyone buys, takes, pockets, receives, or " +

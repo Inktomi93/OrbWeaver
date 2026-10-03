@@ -12,7 +12,7 @@ import { promptConfigConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
-import { and, asc, desc, eq, isNull, notExists, or, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, notExists, or, sql } from "drizzle-orm";
 import { requireIntactStoredConfig } from "#kit/stored-config";
 import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
 
@@ -135,18 +135,6 @@ export async function findOwnedForkOf(db: Db, userId: UserId, sourceId: PresetId
     .orderBy(asc(presets.createdAt), asc(presets.id))
     .limit(1);
   return rows.at(0);
-}
-
-/** The caller's existing owned preset with this exact `name`, or null — the import dedup key. Newest wins
- *  when names collide. */
-export async function findOwnedPresetByName(db: Db, userId: UserId, name: string): Promise<PresetId | null> {
-  const rows = await db
-    .select({ id: presets.id })
-    .from(presets)
-    .where(and(eq(presets.ownerId, userId), eq(presets.name, name)))
-    .orderBy(desc(presets.createdAt))
-    .limit(1);
-  return rows[0]?.id ?? null;
 }
 
 /** Patch an OWNED row (scoped on `ownerId = userId` — never matches the null-owner system default),

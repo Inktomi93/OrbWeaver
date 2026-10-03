@@ -67,6 +67,8 @@ describe("convergence: chat-behavior message handling", () => {
       // B7: both NON-default (schema defaults are OFF and ON respectively) — same fixed-point argument.
       charactersCanReact: true,
       reactionsEnabled: false,
+      // NON-default (schema default ON), for the same fixed-point argument.
+      runCardScripts: false,
       enterSends: false,
       continueOnSend: false,
       generateOnEmptySend: false,

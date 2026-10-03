@@ -16,7 +16,10 @@ export interface CardIdentityHashes {
   readonly bytes: Uint8Array;
 }
 
+// In lookup order: `findImportedCharacter` tries each key in this order.
+const IMPORTED_CHARACTER_MATCHES = ["content", "text", "file"] as const;
+
 /** How a found character matched: its full identity, its text alone (the row landed from a JSON card and this
  *  is its PNG — only a candidate; the caller decides whether the row may take the art), or the whole-file
  *  hash a row imported before the content identity carries. */
-export type ImportedCharacterMatch = "content" | "text" | "file";
+export type ImportedCharacterMatch = (typeof IMPORTED_CHARACTER_MATCHES)[number];

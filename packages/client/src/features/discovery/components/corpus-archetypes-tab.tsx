@@ -20,7 +20,7 @@ import { toFaceItems } from "../lib/corpus-faces.ts";
 import { openCorpusOverview } from "../lib/corpus-overview-door.ts";
 import { facetLabel, sentenceCase } from "../lib/corpus-vocabulary.ts";
 import { ParamSelect } from "./corpus-controls.tsx";
-import { CorpusDistillEmptyState } from "./corpus-distill-empty-state.tsx";
+import { CorpusRunJobEmptyState } from "./corpus-run-job-empty-state.tsx";
 
 /** The member shape as the verb ACTUALLY returns it — derived, never re-spelled: the tab's own narrower
  *  copy of it is exactly how the portrait went missing on this surface. */
@@ -111,6 +111,7 @@ export function CorpusArchetypesTab(): ReactElement {
             members: v.members,
           }))}
           emptyLabel="No art archetypes computed yet."
+          emptyHint="Art archetypes group your indexed character portraits, and need more of them than the cluster count. Run Index (embeddings) with Images as the source to read new portraits."
           chartLabel="Art cluster sizes"
         />
       </Section>
@@ -125,6 +126,9 @@ export function CorpusArchetypesTab(): ReactElement {
             destination: { kind: "cluster" as const, cluster, visual: false, k: k === AUTO ? null : Number(k), title: cluster.label },
           }))}
           emptyLabel="No writing archetypes computed yet."
+          emptyHint="Writing archetypes group your indexed cards, and need more of them than the cluster count. Run Index (embeddings) to index new cards."
+          // One door per screen: when the art section above already offers it, this one states its emptiness only.
+          offerDoor={visual.data === undefined || visual.data.length > 0}
           chartLabel="Writing cluster sizes"
         />
       </Section>
@@ -138,6 +142,8 @@ function ClusterView({
   onRetry,
   clusters,
   emptyLabel,
+  emptyHint,
+  offerDoor = true,
   chartLabel,
 }: {
   readonly isPending: boolean;
@@ -145,6 +151,9 @@ function ClusterView({
   readonly onRetry: () => void;
   readonly clusters: readonly ArchetypeCard[];
   readonly emptyLabel: string;
+  /** Names the job that fills this section, by its picker label. */
+  readonly emptyHint: string;
+  readonly offerDoor?: boolean;
   readonly chartLabel: string;
 }): ReactElement {
   if (isPending) {
@@ -154,7 +163,7 @@ function ClusterView({
     return <QueryErrorState label="archetypes" onRetry={onRetry} />;
   }
   if (clusters.length === 0) {
-    return <CorpusDistillEmptyState title={emptyLabel} description="Archetypes cluster your distilled, indexed cards. Distill your library, then come back." />;
+    return <CorpusRunJobEmptyState title={emptyLabel} description={emptyHint} offerDoor={offerDoor} />;
   }
   // ONE NAME PER CLUSTER, resolved ONCE (side-eye corpus re-pass B6). The bar and the card below it are two
   // views of the same cluster, so they must not disambiguate independently — and the labeller repeats itself

@@ -63,7 +63,7 @@ test("literal tool arguments, invalid JSON, schema errors and macros have differ
   };
   expect(ruleToolArgumentGuidance('{"count":2}', tool)).toBe("Literal arguments match the current tool schema.");
   expect(ruleToolArgumentGuidance('{"count":', tool)).toContain("not a valid JSON");
-  expect(ruleToolArgumentGuidance('{"count":"two"}', tool)).toContain("count:");
+  expect(ruleToolArgumentGuidance('{"count":"two"}', tool)).toContain("→ at count");
   expect(ruleToolArgumentGuidance('{"count":{{getvar::count}}}', tool)).toContain("contains macros");
   expect(ruleToolArgumentGuidance("{}", undefined)).toContain("metadata is unavailable");
 });

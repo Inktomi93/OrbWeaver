@@ -53,6 +53,14 @@ export const REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX: readonly ReviewedGateGrant[]
     endsWhen: "the structured plane and its tool stop sharing one schema, at which point the two texts no longer have to agree.",
   },
   {
+    id: "zod-error-issues-home:rule-editor-commit",
+    policyId: "zod-error-issues-home",
+    subject: "packages/client/src/features/automation/lib/contract/rule-editor.ts",
+    operation: "error-issues-read",
+    why: "a write-guard RE-EMIT, not a message render: `ruleEditorCommitSchema`'s superRefine forwards each `automationRuleEditableSchema` issue as `ctx.addIssue({code:'custom', path, message})` so the form resolver lands it on the offending field. It keeps `path`, which `prettifyError` cannot — that returns a STRING and would collapse every field error into one opaque message.",
+    endsWhen: "the commit schema stops re-emitting inner issues (the editable schema is composed directly into the draft schema).",
+  },
+  {
     id: "zod-error-issues-home:schema-forge",
     policyId: "zod-error-issues-home",
     subject: "packages/server/src/domain/refinery/substrate/schema-forge.ts",

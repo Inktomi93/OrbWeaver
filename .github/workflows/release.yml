@@ -90,3 +90,14 @@ jobs:
         run: |
           docker push "$IMAGE:$VERSION"
           docker push "$IMAGE:latest"
+
+      # GHCR publishes a new package as private, and docker-compose.yaml pulls with no login. Pull through an
+      # empty Docker config so a private package fails the release here instead of every user's first pull.
+      - name: Prove the image pulls without credentials
+        run: |
+          export DOCKER_CONFIG="$RUNNER_TEMP/anonymous-docker"
+          mkdir -p "$DOCKER_CONFIG"
+          if ! docker pull "$IMAGE:$VERSION"; then
+            echo "::error::$IMAGE:$VERSION does not pull without credentials, so the GHCR package is private. Set it Public (package settings, Danger Zone, Change visibility), then re-run this job."
+            exit 1
+          fi

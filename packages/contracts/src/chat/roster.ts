@@ -175,8 +175,9 @@ export interface DeploymentRenderPolicy {
    *  scripts in a viewer's browser at all. FLOOR IS TRUE (owner ruling: interactive cards are on by default
    *  for every character). It plays two parts in {@link resolveRenderPolicy}: the DEFAULT rung of a card
    *  that inherits, and an absolute CEILING (an AND, never `override ??`) that no per-character answer can
-   *  rise above. Switching it off is the revocation: it is the only control over the WebRTC/STUN beacon no
-   *  CSP directive in Chromium can close (`@orb/kit/card-frame` residual R1). */
+   *  rise above. Switching it off is the revocation: it is the only box-wide control over the WebRTC/STUN
+   *  beacon no CSP directive in Chromium can close (`@orb/kit/card-frame` residual R1). A viewer's own
+   *  `UserSettings.chat.runCardScripts` closes it for that viewer, at the card-frame mint. */
   readonly allowInteractiveCards: boolean;
 }
 

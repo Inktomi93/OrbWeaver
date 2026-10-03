@@ -108,7 +108,7 @@ Under `forward-header`, end every tunnel or port-forward at your auth proxy, nev
 
 Under `forward-header`, the proxy's handle for a user is that user's identity, and a handle in `OWNER_HANDLES` is the owner. Use this mode only with an identity provider whose registration is closed, or anyone who registers the owner's handle there becomes the owner here.
 
-Under `oidc`, a box whose owner has not signed in yet prints a one-time owner claim URL at every boot (`docker compose logs orbweaver`). Sign in as the owner through that URL. A login whose handle matches `OWNER_HANDLES` claims the owner only through it, from this machine's own browser, or as a member of `OWNER_GROUP` (ADR 0258). A reverse proxy on the same host must send `X-Forwarded-For`, as the standard nginx and Caddy configurations do. Without it, every login through the proxy counts as this machine's own browser and can claim the owner.
+Under `oidc`, a box whose owner has not signed in yet writes a one-time owner claim URL to `data/secrets/owner_claim_url` at every boot. The log never carries the URL; it prints the command that reads the file: `docker compose exec orbweaver cat /app/data/secrets/owner_claim_url`. Sign in as the owner through that URL. A login whose handle matches `OWNER_HANDLES` claims the owner only through it, from this machine's own browser, or as a member of `OWNER_GROUP` (ADR 0258). A reverse proxy on the same host must send `X-Forwarded-For`, as the standard nginx and Caddy configurations do. Without it, every login through the proxy counts as this machine's own browser and can claim the owner.
 
 ## LAN and HTTPS
 
@@ -303,8 +303,9 @@ the composed posture at boot and warns per open exposure.
 ## Troubleshooting
 
 - **`docker compose up` cannot pull `ghcr.io/inktomi93/orbweaver`** — no stable release has been published
-  yet, or this machine cannot reach `ghcr.io`. Build from the checkout instead with the build overlay
-  ("Quick start").
+  yet, the published package is still private (an `unauthorized` or `denied` error; the owner sets it Public
+  once, after the first release), or this machine cannot reach `ghcr.io`. Build from the checkout instead with
+  the build overlay ("Quick start").
 - **Everything answers 401** in `single-user` — `AUTH_FALLBACK_TRUSTED_PEERS` was emptied or your docker
   network uses a range outside the shipped list (`docker network inspect` → add it), or you are on a custom
   network outside the shipped ranges (`10.0.0.0/8` covers Podman's default `10.88.0.0/16`). The reason is under "Login modes".

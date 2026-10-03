@@ -373,6 +373,13 @@ test("UserSettings.chat.reasoningAutoCollapse defaults ON (today's behavior) and
   expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, chat: { reasoningAutoCollapse: "nope" } }).chat.reasoningAutoCollapse).toBe(true);
 });
 
+test("UserSettings.chat.runCardScripts defaults ON, keeps an explicit OFF, and reads a damaged value as OFF", () => {
+  expect(parseUserSettings({}).chat.runCardScripts).toBe(true);
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, chat: { runCardScripts: false } }).chat.runCardScripts).toBe(false);
+  // A consent switch fails closed: a value that is not a boolean must never run card scripts.
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, chat: { runCardScripts: "yes" } }).chat.runCardScripts).toBe(false);
+});
+
 test("UserSettings.chat.streamScrollMode defaults to follow (byte-identical) and accepts pin-prompt", () => {
   expect(parseUserSettings({}).chat.streamScrollMode).toBe("follow");
   expect(DEFAULT_USER_SETTINGS.chat.streamScrollMode).toBe("follow");

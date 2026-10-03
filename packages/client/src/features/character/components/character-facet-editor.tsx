@@ -38,6 +38,8 @@ export interface CharacterFacetEditorProps {
   readonly characterId: CharacterId;
   readonly facetId: CharacterFacetId;
   readonly trusted: boolean;
+  /** The resolved external-media verdict for this character's content, from the same combine as `trusted`. */
+  readonly allowExternalMedia: boolean;
   /** The read-only provenance tail (import/refinery) — rendered under the Provenance facet's form fields. */
   readonly readOnly: CharacterProvenanceSectionProps;
   readonly onBack: () => void;
@@ -47,7 +49,7 @@ function spoilerClass(blur: boolean): string | undefined {
   return blur ? "select-none blur-md" : undefined;
 }
 
-export function CharacterFacetEditor({ form, characterId, facetId, trusted, readOnly, onBack }: CharacterFacetEditorProps): ReactElement {
+export function CharacterFacetEditor({ form, characterId, facetId, trusted, allowExternalMedia, readOnly, onBack }: CharacterFacetEditorProps): ReactElement {
   const facet = facetById(facetId);
   // Move focus to Back on mount — else it drops to `<body>` when the facet row unmounts.
   const backRef = useRef<HTMLButtonElement>(null);
@@ -71,7 +73,7 @@ export function CharacterFacetEditor({ form, characterId, facetId, trusted, read
         <Text voice="gloss">{facet.subtitle}</Text>
       </Stack>
 
-      <FacetBody form={form} characterId={characterId} facetId={facetId} trusted={trusted} readOnly={readOnly} />
+      <FacetBody form={form} characterId={characterId} facetId={facetId} trusted={trusted} allowExternalMedia={allowExternalMedia} readOnly={readOnly} />
     </Stack>
   );
 }
@@ -80,6 +82,7 @@ interface FacetBodyProps {
   readonly form: CardForm;
   readonly characterId: CharacterId;
   readonly trusted: boolean;
+  readonly allowExternalMedia: boolean;
   readonly readOnly: CharacterProvenanceSectionProps;
   readonly spoilerBlur: boolean;
   /** MACU-2 — the `{{ }}` catalog these fields complete against: the builtins UNION the active preset's user
@@ -127,8 +130,8 @@ const FACET_BODY_RENDERERS: Record<CharacterFacetId, (props: FacetBodyProps) => 
       rows={16}
     />
   ),
-  exampleMessages: ({ form, trusted, spoilerBlur, suggestions }) => (
-    <ExampleMessagesField form={form} trusted={trusted} spoilerBlur={spoilerBlur} suggestions={suggestions} />
+  exampleMessages: ({ form, trusted, allowExternalMedia, spoilerBlur, suggestions }) => (
+    <ExampleMessagesField form={form} trusted={trusted} allowExternalMedia={allowExternalMedia} spoilerBlur={spoilerBlur} suggestions={suggestions} />
   ),
   creatorNotes: ({ form, suggestions }) => (
     <form.AppField name="creatorNotes">
@@ -169,18 +172,20 @@ function FacetBody({
   characterId,
   facetId,
   trusted,
+  allowExternalMedia,
   readOnly,
 }: {
   readonly form: CardForm;
   readonly characterId: CharacterId;
   readonly facetId: CharacterFacetId;
   readonly trusted: boolean;
+  readonly allowExternalMedia: boolean;
   readonly readOnly: CharacterProvenanceSectionProps;
 }): ReactElement {
   const spoilerBlur = useSpoilerBlur();
   const suggestions = usePromptMacroSuggestions();
   const render = FACET_BODY_RENDERERS[facetId];
-  return render({ form, characterId, trusted, readOnly, spoilerBlur, suggestions });
+  return render({ form, characterId, trusted, allowExternalMedia, readOnly, spoilerBlur, suggestions });
 }
 
 /** One macro-aware field; the whole container blurs at rest when the spoiler eye is on. Per-field token
@@ -264,11 +269,13 @@ function ProvenanceFacet({ form, readOnly }: { readonly form: CardForm; readonly
 function ExampleMessagesField({
   form,
   trusted,
+  allowExternalMedia,
   spoilerBlur,
   suggestions,
 }: {
   readonly form: CardForm;
   readonly trusted: boolean;
+  readonly allowExternalMedia: boolean;
   readonly spoilerBlur: boolean;
   readonly suggestions: readonly MacroSuggestion[];
 }): ReactElement {
@@ -289,7 +296,7 @@ function ExampleMessagesField({
           </form.AppField>
         ) : (
           <form.Subscribe selector={(s): string => s.values.exampleMessages}>
-            {(value): ReactElement => <ExampleTranscript value={value} trusted={trusted} />}
+            {(value): ReactElement => <ExampleTranscript value={value} trusted={trusted} allowExternalMedia={allowExternalMedia} />}
           </form.Subscribe>
         )}
       </Stack>
@@ -301,7 +308,15 @@ function ExampleMessagesField({
 }
 
 /** One Markdown block per parsed `<START>` segment. */
-function ExampleTranscript({ value, trusted }: { readonly value: string; readonly trusted: boolean }): ReactElement {
+function ExampleTranscript({
+  value,
+  trusted,
+  allowExternalMedia,
+}: {
+  readonly value: string;
+  readonly trusted: boolean;
+  readonly allowExternalMedia: boolean;
+}): ReactElement {
   // QUOTE-1: example messages ARE transcript prose — they read with the same quoted-speech tint a chat row gets.
   const colorQuotes = useColorQuotedSpeech();
   const blocks = parseExampleBlocks(value);
@@ -318,7 +333,7 @@ function ExampleTranscript({ value, trusted }: { readonly value: string; readonl
           padding="field"
           className="rounded-base border border-border"
         >
-          <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes}>
+          <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
             {block}
           </Markdown>
         </Stack>

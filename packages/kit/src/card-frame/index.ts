@@ -88,7 +88,8 @@
 // reach the session, storage, the app DOM, or another card. THE ONLY CONTROL IS NOT SERVING THE POSTURE —
 // which is why the deployment ceiling below is a precondition of the grant rather than a convenience. Its
 // floor is ON by owner ruling (interactive cards are the default for every character), so R1 is open on a
-// default deployment and the ceiling is the revocation an operator uses to close it.
+// default deployment and the ceiling is the revocation an operator uses to close it. Each viewer can also
+// close it for their own browser (`UserSettings.chat.runCardScripts`, honored at the server mint).
 //
 // ── THE COOKIE CEILING (measured in the same probe; corrects a claim that stood in two docs) ──────────────
 // An opaque-origin document's same-origin subresource fetch is `Sec-Fetch-Site: cross-site`, so a

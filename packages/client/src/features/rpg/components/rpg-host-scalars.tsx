@@ -8,9 +8,11 @@
 // section ORDER inside this form is the tail of the mock's console order (game.html) — the array/record
 // sub-editors render before it in rpg-game-tab.tsx.
 
-import type { RpgConfigView, RpgDateMode, RpgExtractionContext, RpgExtractionMode } from "@orb/contracts/rpg";
+import type { RpgConfigView, RpgCyoaChoiceBehavior, RpgDateMode, RpgExtractionContext, RpgExtractionMode } from "@orb/contracts/rpg";
 import {
   RPG_CARD_KEEP_LAST_DEFAULT,
+  RPG_CYOA_CHOICE_BEHAVIORS,
+  RPG_DATE_MODES,
   RPG_EXTRACTION_CONTEXTS,
   RPG_EXTRACTION_MODES,
   RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT,
@@ -32,6 +34,7 @@ import { createAutosaveEntityForm } from "#forms/editor";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 import type { HostConsoleFormValues } from "../lib/host-console-form-model.ts";
 import { EMPTY_HOST_CONSOLE_FORM, fromHostConsoleForm, toHostConsoleForm } from "../lib/host-console-form-model.ts";
+import { CHOICE_BEHAVIOR_LABEL, DATE_MODE_LABEL, EXTRACTION_CONTEXT_LABEL, EXTRACTION_MODE_LABEL } from "../lib/host-console-labels.ts";
 import { Kicker } from "./rpg-kicker.tsx";
 
 /** The honest one-line consequence per delivery mode (the mock's fact — the same freshness posture the
@@ -41,17 +44,16 @@ const EXTRACTION_CONSEQUENCE: Readonly<Record<RpgExtractionMode, string>> = {
   cheap: "a second pass records state with tools after the turn — two model calls; recommended for local models",
 };
 
-/** The mode axis, rendered in order — derived from the closed tuple so a new delivery mode cannot be silently
- *  missing from the picker (a hardcoded pair once was, and the host had no way to reach the new arm). */
-const EXTRACTION_MODE_OPTIONS: readonly RpgExtractionMode[] = RPG_EXTRACTION_MODES;
+// Every segmented toggle renders its options from the closed contracts tuple, so a new member cannot be
+// silently missing from its picker (a hardcoded pair once was, and the host had no way to reach the new arm).
 
 /** The segmented toggle hands back raw strings; narrow to the closed axis before writing the field. */
-function asExtractionMode(value: string | undefined): RpgExtractionMode | null {
-  return EXTRACTION_MODE_OPTIONS.find((mode) => mode === value) ?? null;
+function pickOption<T extends string>(options: readonly T[], value: string | undefined): T | null {
+  return options.find((option) => option === value) ?? null;
 }
 
 /** The CYOA choice-click consequence per behavior (the P5 knob the Scene echo + transcript obey). */
-const CHOICE_BEHAVIOR_CONSEQUENCE: Readonly<Record<RpgConfigView["cyoaChoiceBehavior"], string>> = {
+const CHOICE_BEHAVIOR_CONSEQUENCE: Readonly<Record<RpgCyoaChoiceBehavior, string>> = {
   compose: "a pick drops into the composer — edit before sending",
   send: "a pick sends immediately as your turn",
 };
@@ -63,15 +65,6 @@ const EXTRACTION_CONTEXT_CONSEQUENCE: Readonly<Record<RpgExtractionContext, stri
   window: "the recent arc, up to the budget below — relationships and quests evolve instead of resetting",
   full: "the whole thread — the most inference, and the largest prompt every single beat",
 };
-
-/** The context axis in order, derived from the closed tuple (the delivery-picker precedent — a new arm cannot
- *  be silently missing from the segmented control). */
-const EXTRACTION_CONTEXT_OPTIONS: readonly RpgExtractionContext[] = RPG_EXTRACTION_CONTEXTS;
-
-/** The segmented toggle hands back raw strings; narrow to the closed axis before writing the field. */
-function asExtractionContext(value: string | undefined): RpgExtractionContext | null {
-  return EXTRACTION_CONTEXT_OPTIONS.find((context) => context === value) ?? null;
-}
 
 /** The #9 date-mode consequence lines (the choice-behavior segmented-toggle precedent). */
 const DATE_MODE_CONSEQUENCE: Readonly<Record<RpgDateMode, string>> = {
@@ -128,14 +121,17 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
                           aria-label="Choice click behavior"
                           value={[field.state.value]}
                           onValueChange={(next): void => {
-                            const picked = next[0];
-                            if (picked === "compose" || picked === "send") {
+                            const picked = pickOption(RPG_CYOA_CHOICE_BEHAVIORS, next[0]);
+                            if (picked !== null) {
                               field.handleChange(picked);
                             }
                           }}
                         >
-                          <Toggle value="compose">compose</Toggle>
-                          <Toggle value="send">send</Toggle>
+                          {RPG_CYOA_CHOICE_BEHAVIORS.map((behavior) => (
+                            <Toggle key={behavior} value={behavior}>
+                              {CHOICE_BEHAVIOR_LABEL[behavior]}
+                            </Toggle>
+                          ))}
                         </ToggleGroup>
                         <Text voice="gloss" className="min-w-0 flex-1">
                           {CHOICE_BEHAVIOR_CONSEQUENCE[field.state.value]}
@@ -156,14 +152,17 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
                     aria-label="Ambient date mode"
                     value={[field.state.value]}
                     onValueChange={(next): void => {
-                      const picked = next[0];
-                      if (picked === "narrated" || picked === "structured") {
+                      const picked = pickOption(RPG_DATE_MODES, next[0]);
+                      if (picked !== null) {
                         field.handleChange(picked);
                       }
                     }}
                   >
-                    <Toggle value="narrated">narrated</Toggle>
-                    <Toggle value="structured">structured</Toggle>
+                    {RPG_DATE_MODES.map((mode) => (
+                      <Toggle key={mode} value={mode}>
+                        {DATE_MODE_LABEL[mode]}
+                      </Toggle>
+                    ))}
                   </ToggleGroup>
                   <Text voice="gloss" className="min-w-0 flex-1">
                     {DATE_MODE_CONSEQUENCE[field.state.value]}
@@ -302,15 +301,15 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
                     aria-label="Delivery model"
                     value={[field.state.value]}
                     onValueChange={(next): void => {
-                      const picked = asExtractionMode(next[0]);
+                      const picked = pickOption(RPG_EXTRACTION_MODES, next[0]);
                       if (picked !== null) {
                         field.handleChange(picked);
                       }
                     }}
                   >
-                    {EXTRACTION_MODE_OPTIONS.map((mode) => (
+                    {RPG_EXTRACTION_MODES.map((mode) => (
                       <Toggle key={mode} value={mode}>
-                        {mode}
+                        {EXTRACTION_MODE_LABEL[mode]}
                       </Toggle>
                     ))}
                   </ToggleGroup>
@@ -374,15 +373,15 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
                             aria-label="Extraction context"
                             value={[field.state.value]}
                             onValueChange={(next): void => {
-                              const picked = asExtractionContext(next[0]);
+                              const picked = pickOption(RPG_EXTRACTION_CONTEXTS, next[0]);
                               if (picked !== null) {
                                 field.handleChange(picked);
                               }
                             }}
                           >
-                            {EXTRACTION_CONTEXT_OPTIONS.map((context) => (
+                            {RPG_EXTRACTION_CONTEXTS.map((context) => (
                               <Toggle key={context} value={context}>
-                                {context}
+                                {EXTRACTION_CONTEXT_LABEL[context]}
                               </Toggle>
                             ))}
                           </ToggleGroup>
