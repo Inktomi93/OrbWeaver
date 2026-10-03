@@ -30,7 +30,7 @@ import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS, testId, useFocusOnMount } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter, setActiveSection } from "#state";
 import { CharacterAvatar } from "../components/character-avatar.tsx";
-import { CorpusDistillEmptyState } from "../components/corpus-distill-empty-state.tsx";
+import { CorpusRunJobEmptyState } from "../components/corpus-run-job-empty-state.tsx";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
 import { percent } from "../lib/corpus-vocabulary.ts";
@@ -85,9 +85,11 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
 
   if (dossier === null) {
     return (
-      <CorpusDistillEmptyState
+      // A null dossier is a card with no distilled summary row: Distill characters writes it, and skips a card
+      // that carries nothing but a name (the distill content floor).
+      <CorpusRunJobEmptyState
         title="Dossier unavailable"
-        description="This character has no readable distilled dossier. Check the character in the Refinery, or return to Explore."
+        description="This character has not been distilled yet. Run Distill characters to build its dossier. A card with only a name has nothing to distill, so give it a description first."
         secondaryAction={
           <Button intent="secondary" size="sm" onClick={onBack}>
             <Icon icon={ArrowLeft} size="sm" />
@@ -133,8 +135,8 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
           //
           // AND THE SENTENCE NOW CARRIES ITS DOOR (side-eye corpus re-pass B8). It named two verbs — the
           // library score sweep and a Refinery session — beside zero controls, which is a section that
-          // exists only to tell you what you cannot do from here. Both verbs live in one place, so one door
-          // is the honest count (`corpus-distill-empty-state.tsx`'s "Go to Refinery", same route).
+          // exists only to tell you what you cannot do from here. Both verbs live in the Refinery, so one door
+          // is the honest count.
           <Stack align="start" gap="field">
             {/* THE SAME MEASURE CAP ITS SIBLINGS GOT (side-eye corpus re-pass #3, P3-E). This sentence was
                 the one paragraph on the surface that escaped the 65-75ch reading law — 78.6ch at

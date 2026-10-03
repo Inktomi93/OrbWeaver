@@ -740,3 +740,38 @@ The between_tools tool loop (hop 1 strict tool, hop 2 with and without hop 1's t
 4. **Forced tool choice is a 400 on both routes**, so the wire downgrades it to `auto`.
 5. **The cache minimum is 512**, between the 465-token miss and the 523-token write.
 6. **Sonnet 5.5 takes and obeys system rows in the history on both routes, and clear_at on the direct wire.** Unlike Sonnet 5, it obeys a tail row, so its trailing system rows stay system rows.
+
+## OR-15 — the OpenRouter Messages endpoint against ADR 0174's losses
+
+**Run:** 2026-10-03. Evidence: `results/or15.jsonl` · probe: `or15-messages-endpoint-parity.ts` · model `anthropic/claude-sonnet-5.5` on `https://openrouter.ai/api/v1/messages`, unpinned unless an arm sets `provider` · spend $0.0007.
+
+The question: ADR 0174 rejects OpenRouter's Anthropic endpoint because it "loses provider routing, model fallback and OpenRouter cost fields". Does the endpoint lose them, and does the anthropic-messages backend run against it unchanged?
+
+### Results
+
+| arm | status | served by (`/generation` lookup) | id |
+| - | - | - | - |
+| auth `x-api-key` (the SDK's `apiKey`) | 200 | Claude Platform on AWS | gen-1790995403-7zXTomF1V64KcO9Sv1DG |
+| auth `Authorization: Bearer` | 200 | Claude Platform on AWS | gen-1790995404-ujD9DIUYRl9EuLsa8fbB |
+| `provider.only: [anthropic]` | 200 | Anthropic | gen-1790995406-Ixi7md8QRf4VSLGsZnHF |
+| `provider.only: [google-vertex]` | 200 | Google | gen-1790995407-8coSGnWC3YnNLJ2XmkOu |
+| `provider.only: [amazon-bedrock]` | 200 | Amazon Bedrock | gen-1790995408-thtfBV9bTz21FspqRHfk |
+| `provider.ignore: [anthropic]` | 200 | Claude Platform on AWS | gen-1790995409-DkA7HY2D1IQoCFGjzN5e |
+| `models: [sonnet-5.5, openai/gpt-4.1-mini]` under `provider.only: [openai]` | 200, served `openai/gpt-4.1-mini` | OpenAI | gen-1790995410-oXotUhb763enUVvDQC80 |
+| control: the same `provider.only` with no `models` | 404, "No allowed providers" | - | - |
+| `thinking: between_tools` | 200 | Claude Platform on AWS | gen-1790995411-83cQblVYaBDhEAHlOofc |
+| streamed | 200, Anthropic SSE events then `data: [DONE]` | Claude Platform on AWS | gen-1790995412-twAfHqicEcSpTekm7pfP |
+| backend, effort `none` | ok, sent `thinking: {type: between_tools}`, appliedEffort `none` | Claude Platform on AWS | gen-1790995414-Ih1ruhYeJkV9zopiCePA |
+| backend, effort `low` | ok, sent `thinking: adaptive, display: summarized` | Claude Platform on AWS | gen-1790995416-2SGfuJVuO0XsXckHVYEI |
+| backend, tool hop 1 / hop 2, effort `none` | ok, 1 tool call / final text | Claude Platform on AWS | gen-1790995417-qbib3TkFxoNJP6eGolaf / gen-1790995419-cyXGI5YGEKrAvoeIW8Ld |
+
+Every 200 carries `usage.cost`, `usage.is_byok` and `usage.cost_details` in the Anthropic-shaped usage block, on the JSON body and on the stream. The response `id` is the OpenRouter `gen-…` id, and `GET /generation?id=` resolves it with the same `total_cost` after a lag of several minutes. The response headers are `x-generation-id` and `request-id`, both the `gen-…` id. A chat-completions control on the same key returns `x-generation-id` and no `x-openrouter-*` header either (gen-1790995324-qW2W1pVxwh9JXTUtwN7c), and the same `models` fallback arm served `openai/gpt-4.1-mini` there too (gen-1790995340-fsZHPWf9XT0J33UU0zAP).
+
+The backend arms ran the unmodified `runAnthropicChatTurn` with a `Resolved` on the `openrouter` provider, wire `anthropic-messages`, base URL `https://openrouter.ai/api/v1` and the key as `apiKey`.
+
+### Verdict
+
+1. **The endpoint loses none of ADR 0174's three facts.** It honors `provider` routing and the `models` fallback chain, and it returns OpenRouter's billed cost and the `gen-…` id.
+2. **Auth needs no change.** The SDK's `x-api-key` and `Bearer` both pass.
+3. **The anthropic-messages backend runs against it unchanged**, `between_tools` off, adaptive and a tool loop included. The SDK's stream reader tolerates the trailing `[DONE]`.
+4. **The backend drops all three facts.** It sends no `provider` block, so a turn loses the Anthropic pin and lands on whichever provider OpenRouter picks (every backend arm went to Claude Platform on AWS). It reads cost only from the openrouter provider metadata, so `measuredCost` is null on every backend arm. The connection diagnostics dispatch on the resolved wire, and the anthropic-messages backend has no credits, generation-cost, inspect or verify-auth method. Keeping each fact needs code that exists only for this route.

@@ -20,7 +20,7 @@ import { corpusGroupingProvenance } from "../../../../support/node/corpus-source
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusArchetypesTabStory } from "../_ct-stories.tsx";
@@ -29,6 +29,30 @@ const SABLE_HASH = "cccc3333";
 
 /** The invitation's door, as a locator pattern (top-level: a regex literal inside a test body is lint-RED). */
 const RUN_DOOR = /Show Explore overview/;
+/** The empty-state door to Settings → Jobs, and the story readout once it has landed. */
+const RUN_JOB_DOOR = /Run a job/;
+const JOBS_LANDING = "section:config target:workloads/jobs";
+const ART_HEADING = "Art archetypes";
+const WRITING_HEADING = "Writing archetypes";
+
+/** One of the tab's two archetype sections, found by its heading. */
+function archetypeSection(page: Page, heading: string): Locator {
+  return page.locator("section").filter({ has: page.getByRole("heading", { name: heading, exact: true }) });
+}
+
+/** One visual family, so the art half is populated while the writing half is empty. */
+const VISUAL_FAMILY = {
+  ...corpusGroupingProvenance("noir"),
+  label: "noir",
+  genre: null,
+  tone: null,
+  artStyle: null,
+  palette: null,
+  mood: null,
+  size: 1,
+  members: [{ characterId: "character_vale", name: "Vale", avatarHash: null }],
+  model: "Qwen/Qwen3-VL-Embedding-2B",
+};
 
 /** One writing archetype: a member the CAS can serve a portrait for, and TWO it cannot. The second faceless
  *  member exists for the hue arm below — the fallback seeds its colour off the member's NAME, so before #154
@@ -160,4 +184,41 @@ test("with the understanding pass un-run the tab points to Explore without dupli
   await expect(page.locator('[data-slot="avatar-stack-item"]')).toHaveCount(0);
   // Not the cluster knob either — a control over data the surface is refusing to show.
   await expect(component.getByText("Clusters")).toHaveCount(0);
+});
+
+// Distilled but unclustered: both halves are filled by the index job, so their empty states open Settings →
+// Jobs, never the Refinery (which rewrites a card's text and fills neither). One door per screen.
+test("with both archetype halves empty the tab offers ONE door, and it lands on Settings → Jobs", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "settings.getUserSettings": { userId: "user_ct_archetypes", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
+    "discovery.archetypes": [],
+    "discovery.catalog": catalog(2),
+    "discovery.visualArchetypes": [],
+  });
+  const component = await mount(<CorpusArchetypesTabStory />);
+
+  await expect(component.getByRole("button", { name: RUN_JOB_DOOR })).toHaveCount(1);
+  // The surviving door is the art half's: the section the family map's drill-out lands the reader on.
+  const artDoor = archetypeSection(page, ART_HEADING).getByRole("button", { name: RUN_JOB_DOOR });
+  await expect(artDoor).toBeVisible();
+  await artDoor.click();
+  await expect(component.getByTestId("ct-door-landing")).toHaveText(JOBS_LANDING);
+});
+
+test("an empty writing half beside populated art families keeps its own door", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "settings.getUserSettings": { userId: "user_ct_archetypes", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 },
+    "discovery.archetypes": [],
+    "discovery.catalog": catalog(2),
+    "discovery.visualArchetypes": [VISUAL_FAMILY],
+  });
+  const component = await mount(<CorpusArchetypesTabStory />);
+
+  // Settled on the populated art half, which offers no door of its own.
+  await expect(page.locator('[data-slot="avatar-stack-item"]')).toHaveCount(VISUAL_FAMILY.members.length);
+  await expect(archetypeSection(page, ART_HEADING).getByRole("button", { name: RUN_JOB_DOOR })).toHaveCount(0);
+  const writingDoor = archetypeSection(page, WRITING_HEADING).getByRole("button", { name: RUN_JOB_DOOR });
+  await expect(writingDoor).toBeVisible();
+  await writingDoor.click();
+  await expect(component.getByTestId("ct-door-landing")).toHaveText(JOBS_LANDING);
 });
