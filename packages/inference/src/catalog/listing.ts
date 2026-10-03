@@ -104,7 +104,15 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
     const secret = "key" in draft.secret ? draft.secret.key : (await credentialFor(draft, provider, draft.secret.credentialId)).secret;
     const secrets = resolvedScrubSet({ credential: { secret }, transport: draft.headers === undefined ? null : { headers: draft.headers } });
     try {
-      const rows = await fetchEndpointModels({ fetch: deps.fetch, baseUrl, secret, headers: draft.headers, secrets });
+      // The provider row's reader (a draft has no `declared` block yet), so an Ollama embedder lists as one.
+      const rows = await fetchEndpointModels({
+        fetch: deps.fetch,
+        baseUrl,
+        secret,
+        headers: draft.headers,
+        secrets,
+        modelInfoApi: provider.features?.modelInfoApi,
+      });
       return listingOf(rows.map((row) => bareCatalogEntry(row)));
       // @orb-waive caught-failure-ownership(err): optional model discovery owns refusal as `listed:false` with the scrubbed reason; the pane offers a typed id. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog.
     } catch (err) {

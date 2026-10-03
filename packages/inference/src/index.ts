@@ -11,6 +11,7 @@ import type {
   EmbeddingCapability,
   GenerationCapability,
   ModelCatalogEntry,
+  ModelInfoApi,
   ModelListing,
   ProviderAvailability,
   ProviderDef,
@@ -18,7 +19,7 @@ import type {
   Task,
   UserConnection,
 } from "@orb/contracts/inference";
-import { agentSdkModelSchema, connectionTasks, foldFeatures, modelCatalogEntrySchema } from "@orb/contracts/inference";
+import { agentSdkModelSchema, connectionTasks, modelCatalogEntrySchema } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { UserId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -47,7 +48,7 @@ import type { ProviderRegistry } from "./registry/providers.ts";
 import { createProviderRegistry } from "./registry/providers.ts";
 import { checkAvailability, loadVerdict } from "./resolve/availability.ts";
 import type { ResolveArgs, ResolveOutcome, ResolverContext } from "./resolve/resolve-task.ts";
-import { connectionNotFoundMessage, resolveTask, resolveTaskWithBaseline } from "./resolve/resolve-task.ts";
+import { connectionNotFoundMessage, modelInfoApiOf, resolveTask, resolveTaskWithBaseline } from "./resolve/resolve-task.ts";
 import { createProviderDiagnostics } from "./roles/diagnostics.ts";
 import { createProviderExecutor } from "./roles/executor.ts";
 import { createRoleClientsFor } from "./roles/role-clients.ts";
@@ -104,7 +105,11 @@ export { runStructuredTurn } from "./roles/structured-turn.ts";
 
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
 const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";
-const endpointCatalogKey = (baseUrl: string): string => `catalog:endpoint:${baseUrl}`;
+/** One mirror per (reader × URL): a native reader states facts the bare list lacks, so two rows on one URL
+ *  through different readers must never share a snapshot (the first warm would decide the other's kind,
+ *  modalities and tools). The key family is new on purpose: a snapshot written under the old URL-only key
+ *  carries no native facts and is never read again. */
+const endpointCatalogKey = (baseUrl: string, modelInfoApi: ModelInfoApi | undefined): string => `catalog:endpoint:${modelInfoApi ?? "list"}:${baseUrl}`;
 
 export interface CapabilityRead extends SynthesizedCapability {
   /** The same evidence fold with this row's declaration omitted. */
@@ -213,15 +218,24 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
 
   const openRouterCatalog = createMirror<ModelCatalogEntry[]>({ key: OPENROUTER_CATALOG_KEY, schema: z.array(modelCatalogEntrySchema), deps: mirrorDeps });
   const agentSdkCatalog = createMirror<AgentSdkModel[]>({ key: AGENT_SDK_CATALOG_KEY, schema: z.array(agentSdkModelSchema), deps: mirrorDeps });
-  const endpointMirrors = new Map<string, Mirror<EndpointModel[]>>();
-  const endpointModels = (baseUrl: string): Mirror<EndpointModel[]> => {
-    const existing = endpointMirrors.get(baseUrl);
+  const endpointMirrors = new Map<string, { readonly baseUrl: string; readonly mirror: Mirror<EndpointModel[]> }>();
+  const endpointModels = (baseUrl: string, modelInfoApi: ModelInfoApi | undefined): Mirror<EndpointModel[]> => {
+    const key = endpointCatalogKey(baseUrl, modelInfoApi);
+    const existing = endpointMirrors.get(key);
     if (existing !== undefined) {
-      return existing;
+      return existing.mirror;
     }
-    const created = createMirror<EndpointModel[]>({ key: endpointCatalogKey(baseUrl), schema: endpointModelsSchema, deps: mirrorDeps });
-    endpointMirrors.set(baseUrl, created);
-    return created;
+    const mirror = createMirror<EndpointModel[]>({ key, schema: endpointModelsSchema, deps: mirrorDeps });
+    endpointMirrors.set(key, { baseUrl, mirror });
+    return mirror;
+  };
+
+  const invalidateEndpointMirrors = (baseUrl: string | undefined): void => {
+    for (const entry of endpointMirrors.values()) {
+      if (baseUrl === undefined || entry.baseUrl === baseUrl) {
+        entry.mirror.invalidate();
+      }
+    }
   };
 
   const openRouterBaseUrl = (): string => {
@@ -243,7 +257,8 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       return;
     }
     const secrets = resolvedScrubSet({ credential: { secret }, transport: connection.transport });
-    await endpointModels(baseUrl).warm(
+    const modelInfoApi = modelInfoApiOf(provider, connection);
+    await endpointModels(baseUrl, modelInfoApi).warm(
       () =>
         provider.wire === "google-generative-ai"
           ? fetchGoogleModels({ baseUrl, secret, secrets, label: "Google models" }, fetchImpl)
@@ -253,7 +268,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
               secret,
               headers: connection.transport?.headers,
               secrets,
-              modelInfoApi: foldFeatures(provider.features, connection.declared?.features).modelInfoApi,
+              modelInfoApi,
               warn: (message) => {
                 deps.log.warn({ providerId: provider.id }, message);
               },
@@ -344,14 +359,9 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
           agentSdkCatalog.invalidate();
           return { models: null };
         }
-        if (provider.baseUrl !== undefined) {
-          endpointMirrors.get(provider.baseUrl)?.invalidate();
-          return { models: null };
-        }
-        // An endpoint provider has no fixed URL: every connection's own mirror on it is invalidated.
-        for (const mirror of endpointMirrors.values()) {
-          mirror.invalidate();
-        }
+        // A fixed URL names its mirrors across every reader; an endpoint provider has no fixed URL, so every
+        // connection's own mirror is invalidated.
+        invalidateEndpointMirrors(provider.baseUrl);
         return { models: null };
       },
     },

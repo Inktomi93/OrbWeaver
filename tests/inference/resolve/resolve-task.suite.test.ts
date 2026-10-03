@@ -8,7 +8,7 @@ import { createInferenceRuntime, DEFAULT_EMBED_MODEL, NoConnectionError } from "
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { openRouterCatalogFetch } from "../_openrouter-catalog.ts";
-import { fakeConnection, fakeDeps, memoryStores, newRuleId, newUserId } from "../_support.ts";
+import { FROZEN_NOW, fakeConnection, fakeDeps, memoryStores, newRuleId, newUserId } from "../_support.ts";
 import { localServerFetch } from "../catalog/_local-servers-fetch.ts";
 
 test("structured resolves through the actor's summarize binding before the funder's summarize binding", async () => {
@@ -371,4 +371,64 @@ test("an id-only list states no modalities, so the posture still widens the row 
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: idOnlyModelList() }));
   const { capability } = (await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved;
   expect(generationOf(capability)).toMatchObject({ input: ["text", "image", "video"], modalitiesEstimated: true });
+});
+
+// ── the endpoint mirror is per (URL × reader): one server, two users, two providers ──────────────────────
+// A native reader states kind, modalities and tools the bare list lacks. If the mirror were keyed on the URL
+// alone, whichever connection warmed first would decide what the other resolves to: a custom-openai row would
+// inherit Ollama's text-only + tools, or an Ollama row the permissive guess D292 removes.
+
+async function sharedServer(order: readonly ("ollama" | "custom-openai")[]): Promise<Record<string, GenerationCapability>> {
+  const stores = memoryStores();
+  const rows = order.map((providerId) => {
+    const ownerId = newUserId();
+    // moondream: no curated row matches it, so every stated fact below comes from the reader or the posture.
+    const row = fakeConnection({ ownerId, providerId, model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1", allowBackground: true });
+    stores.connections.rows.set(row.id, row);
+    return { providerId, ownerId, row };
+  });
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: localServerFetch("ollama") }));
+  const out: Record<string, GenerationCapability> = {};
+  for (const { providerId, ownerId, row } of rows) {
+    out[providerId] = generationOf((await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved.capability);
+  }
+  expect([...stores.snapshotStore.entries.keys()].filter((key) => key.startsWith("catalog:endpoint:")).sort()).toEqual(
+    order.map((providerId) => `catalog:endpoint:${providerId === "ollama" ? "ollama" : "list"}:http://127.0.0.1:1/v1`).sort(),
+  );
+  return out;
+}
+
+for (const order of [
+  ["ollama", "custom-openai"],
+  ["custom-openai", "ollama"],
+] as const) {
+  test(`two users on one server resolve per their own provider's reader (warm order: ${order.join(" then ")})`, async () => {
+    const out = await sharedServer(order);
+    expect(out["ollama"]).toMatchObject({ input: ["text", "image"], output: { structured: true } });
+    expect(out["ollama"]?.modalitiesEstimated).toBeUndefined();
+    expect(out["ollama"]?.tools).toBeUndefined();
+    expect(out["custom-openai"]).toMatchObject({ input: ["text", "image", "video"], modalitiesEstimated: true });
+    expect(out["custom-openai"]?.tools).toBeUndefined();
+    expect(out["custom-openai"]?.output.structured).toBeUndefined();
+  });
+}
+
+test("a snapshot written under the old URL-only key carries no native facts and is never read again", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const row = fakeConnection({ ownerId, providerId: "ollama", model: "qwen2.5:0.5b", baseUrl: "http://127.0.0.1:1/v1" });
+  stores.connections.rows.set(row.id, row);
+  // The pre-upgrade shape: ids and windows only, persisted a moment ago under the old key.
+  stores.snapshotStore.entries.set(
+    "catalog:endpoint:http://127.0.0.1:1/v1",
+    JSON.stringify({ fetchedAt: FROZEN_NOW, value: [{ id: "qwen2.5:0.5b", contextLength: 4096 }] }),
+  );
+  const seen: string[] = [];
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: localServerFetch("ollama", {}, seen) }));
+  const capability = generationOf((await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved.capability);
+  expect(
+    seen.some((url) => url.endsWith("/api/show")),
+    "the reader dialed the server instead of trusting the old snapshot",
+  ).toBe(true);
+  expect(capability).toMatchObject({ input: ["text"], tools: { parallel: false } });
 });

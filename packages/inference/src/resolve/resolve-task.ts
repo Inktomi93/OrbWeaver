@@ -19,6 +19,7 @@ import type {
   Capability,
   EndpointFeatures,
   ModelCatalogEntry,
+  ModelInfoApi,
   ModelKind,
   ProviderDef,
   RequirementVerdict,
@@ -63,7 +64,8 @@ export interface ResolverContext {
   readonly deps: InferenceDeps;
   readonly registry: ProviderRegistry;
   readonly openRouterCatalog: Mirror<ModelCatalogEntry[]>;
-  readonly endpointModels: (baseUrl: string) => Mirror<EndpointModel[]>;
+  /** The endpoint mirror for one (URL × reader) — a reader's facts never leak into another reader's rows. */
+  readonly endpointModels: (baseUrl: string, modelInfoApi: ModelInfoApi | undefined) => Mirror<EndpointModel[]>;
   readonly agentSdkCatalog: Mirror<AgentSdkModel[]>;
   readonly warmOpenRouter: () => Promise<void>;
   readonly warmEndpoint: (connection: UserConnection, provider: ProviderDef, secret: string | null) => Promise<void>;
@@ -101,15 +103,7 @@ function kindOf(
     catalogKind = ctx.openRouterCatalog.get()?.find((entry) => entry.id === connection.model)?.kind;
   } else if (provider.wire === "google-generative-ai" || provider.wire === "openai-compat") {
     // Native discovery (Google's method list, a local server's model-info API) states a kind the generic list lacks.
-    const baseUrl = provider.baseUrl ?? connection.baseUrl;
-    const catalogId = provider.wire === "google-generative-ai" ? googleModelId(connection.model) : connection.model;
-    catalogKind =
-      baseUrl === null
-        ? undefined
-        : ctx
-            .endpointModels(baseUrl)
-            .get()
-            ?.find((entry) => entry.id === catalogId)?.kind;
+    catalogKind = endpointEntryFor(ctx, { provider, connection, model: connection.model })?.kind;
   }
   return (
     (args.includeDeclared === false ? undefined : connection.declared?.kind) ??
@@ -156,9 +150,14 @@ function endpointEntryFor(
   }
   const catalogId = provider.wire === "google-generative-ai" ? googleModelId(model) : model;
   return ctx
-    .endpointModels(baseUrl)
+    .endpointModels(baseUrl, modelInfoApiOf(provider, connection))
     .get()
     ?.find((candidate) => candidate.id === catalogId);
+}
+
+/** The reader this row dials beside `/v1/models`: the folded `features.modelInfoApi` (wire ← provider ← declared). */
+export function modelInfoApiOf(provider: ProviderDef, connection: UserConnection): ModelInfoApi | undefined {
+  return foldFeatures(provider.features, connection.declared?.features).modelInfoApi;
 }
 
 function googleAdvertised(entry: EndpointModel | undefined, provider: ProviderDef, model: ModelId): Evidence["advertised"] {

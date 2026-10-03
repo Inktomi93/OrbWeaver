@@ -133,6 +133,9 @@ export const BUILTIN_PROVIDER_ROWS = [
     dialect: "openai-compatible",
     auth: "endpoint",
     apis: ["chat-completions"],
+    // The reader states tools from `/props` `chat_template_caps`, which the server reports even under
+    // `--no-jinja` while refusing `tools[]` with "tools param requires --jinja flag"; the chat backend maps
+    // that refusal to a readable error, and the user can set tool calls to no under Advanced.
     features: {
       prefill: "none",
       modelInfoApi: "llama-cpp",
