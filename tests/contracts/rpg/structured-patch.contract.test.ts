@@ -552,3 +552,56 @@ test("a per-actor split teaches every actor's values, each with the actor it bel
   // An unsplit tool reads exactly as before.
   expect(describePatchFields(party(REFS))).toContain("targetRef (one of Mira | Corvin)");
 });
+
+// ── several update_scene calls in one round: the shared fold merges them field by field ────────────────────────
+
+const sceneCall = (args: Record<string, unknown>): RpgToolCall => ({ name: "update_scene", arguments: JSON.stringify(args) });
+
+test("a structured reply that splits one scene update across calls lands every field, not just the last call's", () => {
+  const decoded = decode([
+    entry("update_scene", 0, "location", "the inn"),
+    entry("update_scene", 1, "timeOfDay", "evening"),
+    entry("update_scene", 2, "plot.title", "The Long Night"),
+    entry("update_scene", 2, "recentEvent", "Mira lit the lamps."),
+  ]);
+
+  expect(toolCallsToExtraction(decoded?.calls ?? []).scene).toEqual({
+    location: "the inn",
+    timeOfDay: "evening",
+    plot: { title: "The Long Night" },
+    recentEvent: "Mira lit the lamps.",
+  });
+  expect(recordToolCalls(decoded?.calls ?? []).map((call) => call.verdict)).toEqual(["applied", "applied", "applied"]);
+});
+
+test("the tool round folds repeated update_scene calls the same way: nested objects by key, lists appended", () => {
+  const calls = [
+    sceneCall({ location: "the inn", plot: { act: 2 }, presentUpsert: [{ name: "Oren" }], presentRemove: ["Corvin"] }),
+    sceneCall({ weather: { type: "rain" }, plot: { actTitle: "Storm" }, presentUpsert: [{ name: "Vesna", mood: "wary" }] }),
+    sceneCall({ presentRemove: ["Mira"] }),
+  ];
+
+  expect(toolCallsToExtraction(calls).scene).toEqual({
+    location: "the inn",
+    weather: { type: "rain" },
+    plot: { act: 2, actTitle: "Storm" },
+    presentUpsert: [{ name: "Oren" }, { name: "Vesna", mood: "wary" }],
+    presentRemove: ["Corvin", "Mira"],
+  });
+  expect(recordToolCalls(calls).map((call) => call.verdict)).toEqual(["applied", "applied", "applied"]);
+});
+
+test("a scene field restated with a different value keeps the later one and records the replaced value on the earlier call", () => {
+  const calls = [
+    sceneCall({ location: "the inn", timeOfDay: "evening" }),
+    sceneCall({ location: "the road", timeOfDay: "evening", weather: { type: "rain" } }),
+    sceneCall({ weather: { type: "fog" } }),
+  ];
+
+  expect(toolCallsToExtraction(calls).scene).toEqual({ location: "the road", timeOfDay: "evening", weather: { type: "fog" } });
+  const record = recordToolCalls(calls);
+  expect(record.map((call) => call.verdict)).toEqual(["salvaged", "salvaged", "applied"]);
+  // The path half is schema words; the replaced value rides the sent half. Restating the same value is no conflict.
+  expect(record[0]?.issues).toEqual([expect.stringMatching(/^location: .* — sent "the inn"$/u)]);
+  expect(record[1]?.issues).toEqual([expect.stringMatching(/^weather\.type: .* — sent "rain"$/u)]);
+});

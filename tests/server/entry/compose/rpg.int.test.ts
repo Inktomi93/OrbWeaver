@@ -3384,6 +3384,24 @@ test("0511: a patch reply naming a prototype key drops that field by name and st
   warn.mockRestore();
 });
 
+test("0511: a structured reply that splits one scene update across calls lands every field on the panel", async ({ app, db }) => {
+  const reply = JSON.stringify({
+    changes: [
+      { plane: "update_scene", call: 0, field: "location", item: 0, value: "the inn" },
+      { plane: "update_scene", call: 1, field: "weather.type", item: 0, value: "rain" },
+      { plane: "update_scene", call: 2, field: "recentEvent", item: 0, value: "Mira lit the lamps." },
+    ],
+  });
+  const rpgCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: reply, cannedToolCalls: [] });
+  const { chatId, hostId, messageId, variantId } = await cheapGame(db, rpgCompose, "split-scene");
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.claudeNoForce));
+
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.ambient).toMatchObject({ location: "the inn", weather: expect.objectContaining({ type: "rain" }) });
+  expect(view.recentBeats).toContain("Mira lit the lamps.");
+});
+
 test("0511: a patch reply naming only tools the round does not offer has no usable call, so the round fails", async ({ app, db }) => {
   const reply = JSON.stringify({ changes: [{ plane: "hack_db", call: 0, field: "x", item: 0, value: "y" }] });
   const rpgCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: reply, cannedToolCalls: [] });

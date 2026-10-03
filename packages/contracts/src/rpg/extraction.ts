@@ -42,6 +42,7 @@
 // a structured-output JSON Schema without throwing (the contract test pins it, mirroring the tools pin).
 import { z } from "zod";
 import { dropNullValues } from "#inference";
+import type { UpdateSceneArgs } from "./tools.ts";
 import {
   addJournalEntryArgsSchema,
   setTrackerArgsSchema,
@@ -511,7 +512,8 @@ type ToolRoundArrayArmByKey = {
 
 // The ARRAY-plane tool name → { schema, extraction field } — authored once as a kind-correlated mapped
 // contract, then indexed as a Map because tool names arrive as untrusted string values. The `scene` plane is
-// handled separately (single, last-wins, not an array). `no_changes`/unknown names are absent ⇒ no contribution.
+// handled separately (one scene, merged field by field across calls). `no_changes`/unknown names are absent ⇒ no
+// contribution.
 const TOOL_ROUND_ARRAY_ARM_DEFS = {
   party: { name: "update_party", schema: updatePartyArgsSchema, field: "party" },
   inventory: { name: "update_inventory", schema: updateInventoryArgsSchema, field: "inventory" },
@@ -533,8 +535,9 @@ const TOOL_ROUND_ARRAY_ARMS: ReadonlyMap<string, ToolRoundArrayRuntimeArm> = new
  * Fold a tool round's PARALLEL tool calls into ONE `RpgExtraction` — each call's args are re-validated against
  * its own arg schema (a malformed/unknown call is DROPPED, errors-as-data), and same-plane calls accumulate
  * (several `update_party` calls in one round → several `party` entries, exactly like the model firing them
- * sequentially). `no_changes` (and any unknown name) contributes nothing. `scene` is single (last `update_scene`
- * wins — one scene per turn). The result feeds the SAME `extractionToStateDelta` fold the structured arm uses.
+ * sequentially). `no_changes` (and any unknown name) contributes nothing. `scene` is ONE per turn, and several
+ * `update_scene` calls merge into it field by field ({@link mergeSceneArgs}): a model that splits one scene update
+ * across calls loses none of it. The result feeds the SAME `extractionToStateDelta` fold the structured arm uses.
  */
 export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtraction {
   const out: RpgExtraction = { party: [], inventory: [], trackers: [], quests: [], journal: [] };
@@ -544,9 +547,9 @@ export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtract
       continue;
     }
     if (call.name === "update_scene") {
-      const salvaged = salvageArgs(updateSceneArgsSchema, args);
-      if (salvaged !== null) {
-        out.scene = salvaged.data; // last-wins: one scene per turn
+      const scene = foldSceneCall(out.scene, args);
+      if (scene !== undefined) {
+        out.scene = scene;
       }
       continue;
     }
@@ -563,6 +566,34 @@ export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtract
     }
   }
   return out;
+}
+
+/** The turn's scene after one more `update_scene` call: unchanged when the call salvages nothing. */
+function foldSceneCall(scene: UpdateSceneArgs | undefined, args: unknown): UpdateSceneArgs | undefined {
+  const salvaged = salvageArgs(updateSceneArgsSchema, args);
+  if (salvaged === null) {
+    return scene;
+  }
+  // Each part already parsed, so the merge parses too; the re-parse is what types it.
+  const merged = scene === undefined ? null : updateSceneArgsSchema.safeParse(mergeSceneArgs(scene, salvaged.data));
+  return merged?.success === true ? merged.data : salvaged.data;
+}
+
+/** One `update_scene` call's parsed args folded over the turn's scene so far: a list appends (as repeated array-plane
+ *  calls accumulate), an object merges key by key, and any other field takes the later call's value. A field a
+ *  later call does not state keeps the earlier one. */
+function mergeSceneArgs(into: unknown, next: unknown): unknown {
+  if (Array.isArray(into) && Array.isArray(next)) {
+    return [...into, ...next];
+  }
+  if (isPlainObject(into) && isPlainObject(next)) {
+    const out: Record<string, unknown> = { ...into };
+    for (const [key, value] of Object.entries(next)) {
+      out[key] = Object.hasOwn(out, key) ? mergeSceneArgs(out[key], value) : value;
+    }
+    return out;
+  }
+  return next;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1001,16 +1032,50 @@ export interface RpgRecordedToolCall {
  *  rule this section exists for: the verdicts still come from those two functions, never from a third copy of
  *  their logic. Cost is one extra `parseArgs` per call over a turn's handful of calls. */
 export function recordToolCalls(calls: readonly RpgToolCall[]): readonly RpgRecordedToolCall[] {
-  return calls.map((call): RpgRecordedToolCall => {
+  const replaced = replacedSceneValues(calls);
+  return calls.map((call, index): RpgRecordedToolCall => {
     const [dropped] = malformedToolCallDetails([call]);
     if (dropped !== undefined) {
       return { name: call.name, args: call.arguments, verdict: "dropped", issues: dropped.issues };
     }
-    const fields = salvagedToolCallFields([call]);
-    return fields.length > 0
-      ? { name: call.name, args: call.arguments, verdict: "salvaged", issues: fields }
-      : { name: call.name, args: call.arguments, verdict: "applied", issues: [] };
+    const issues = [...salvagedToolCallFields([call]), ...(replaced.get(index) ?? [])];
+    return { name: call.name, args: call.arguments, verdict: issues.length > 0 ? "salvaged" : "applied", issues };
   });
+}
+
+const SCENE_VALUE_REPLACED = "a later update_scene this turn set this field again, so this value was replaced";
+
+/** Every scalar a scene payload states, by dotted path. Lists append across calls, so they never conflict. */
+function sceneScalars(value: unknown, prefix: string, out: [string, unknown][]): [string, unknown][] {
+  if (isPlainObject(value)) {
+    for (const [key, entry] of Object.entries(value)) {
+      sceneScalars(entry, prefix === "" ? key : `${prefix}.${key}`, out);
+    }
+  } else if (!Array.isArray(value)) {
+    out.push([prefix, value]);
+  }
+  return out;
+}
+
+/** The scene values a LATER `update_scene` in the same turn restated differently, as issue lines keyed by the
+ *  index of the call that sent them. The fold keeps the later value ({@link mergeSceneArgs}); this keeps the
+ *  replaced one visible. The path half is the parsed schema's own keys; the replaced value rides the sent half. */
+function replacedSceneValues(calls: readonly RpgToolCall[]): ReadonlyMap<number, readonly string[]> {
+  const latest = new Map<string, { readonly index: number; readonly value: unknown }>();
+  const replaced = new Map<number, string[]>();
+  for (const [index, call] of calls.entries()) {
+    const args = call.name === "update_scene" ? parseToolCallArgs(call.arguments) : null;
+    const parsed = args === null ? null : salvageArgs(updateSceneArgsSchema, args);
+    for (const [path, value] of parsed === null ? [] : sceneScalars(parsed.data, "", [])) {
+      const prior = latest.get(path);
+      if (prior !== undefined && JSON.stringify(prior.value) !== JSON.stringify(value)) {
+        const line = `${path}: ${SCENE_VALUE_REPLACED}${SENT_VALUE_MARKER}${sentValueAtPath(prior.value, [])}`;
+        replaced.set(prior.index, [...(replaced.get(prior.index) ?? []), line]);
+      }
+      latest.set(path, { index, value });
+    }
+  }
+  return replaced;
 }
 
 /** One thing the model sent that could not even be assembled into a call's arguments, with why. */
