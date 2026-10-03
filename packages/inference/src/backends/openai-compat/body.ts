@@ -2,17 +2,18 @@
 // before serialisation (§8.1). Applied through `transformRequestBody` on the `openai-compatible` transport
 // and inside `wrapFetch` on the `openrouter` transport (the OR provider exposes no post-convert hook, so its
 // body is parsed once there); the RULES are identical, only the hook differs:
-//   1. `extras` merge (D143(b)/D156, MODELLED WINS): a belt-owned key (`BELT_OWNED_BODY_KEYS`) or a key that
-//      collides with a modelled param is DROPPED with `custom_parameters_ignored{key}`; the openrouter
-//      transport reads only its two modelled keys (`provider`, `models`) off extras and drops the rest.
+//   1. `extras` merge, USER WINS: every key merges over the SDK's body, a modelled param or a preset knob
+//      included, except a belt-owned key (`BELT_OWNED_BODY_KEYS`), which is DROPPED with
+//      `custom_parameters_ignored{key}`; the openrouter transport reads only its modelled keys off extras
+//      and drops the rest loudly.
 //   2. `transport.includeBody` / `excludeBody` — the endpoint's final word, applied AFTER extras (§8.1).
 //   3. the assistant-image re-attachment (§8.0, verify4 H1): both converters drop an assistant `file` part.
 //   4. the per-participant `name` (neither converter forwards it).
 //   5. the prefill pair (`continue_final_message` + `add_generation_prompt: false`) when the row's folded
 //      `features.prefill` is `continue-final-message`, the capability says `assistantPrefill`, and the array
 //      actually ends on an assistant row; `prefillSuppressesThinking` strips the thinking toggle then.
-//   5b. `chat_template_kwargs.enable_thinking: false` on a reasoning-off turn when `features.thinkingOff` names
-//      the kwarg, merged into whatever kwargs extras or `includeBody` set.
+//   5b. `chat_template_kwargs.enable_thinking` set to the turn's template thinking state when `features.thinkingOff`
+//      names the kwarg, merged into whatever kwargs extras or `includeBody` set.
 //   6. `modalities: ["text","image"]` when the funnel resolved `replyImages` (§6.7).
 //   7. the effort spelling: `features.effort: "none"` strips the SDK's `reasoning_effort` with `effort_dropped`.
 //   8. the output-cap spelling: `features.outputCapField: "max_completion_tokens"` renames the SDK's `max_tokens`
@@ -29,6 +30,9 @@
 //      part per row, each row's marker still on its own last part. SHAPE keeps the stored rows of a run apart on
 //      such a wire, so a marked row keeps its bytes and its end when the run grows; this fold keeps the wire
 //      alternating without joining their text. It adds and removes no row, so the tail is whatever SHAPE sent.
+// Rules 5 to 8 compute their keys after the user's own body (rules 1 and 2) and never over it: a top-level key
+// an admitted `extras` entry, `includeBody` or `excludeBody` settled stays as the user set it, and so does a
+// `chat_template_kwargs.enable_thinking` the user stated.
 // Warnings are collected on a per-call sink the caller folds into the turn's `warning` events (D41).
 
 import type { Dialect, EndpointFeatures, ImageDetail } from "@orb/contracts/inference";
@@ -77,8 +81,8 @@ export interface ShapeArgs {
   /** Rule 10 runs: the turn caches by explicit Anthropic block markers (`cachesByAnthropicMarkers`). */
   readonly foldSameRole: boolean;
   readonly replyImages: boolean;
-  /** The turn runs with reasoning chosen off, so rule 5b may tell the template not to think. */
-  readonly thinkingOff: boolean;
+  /** What rule 5b tells the template's thinking switch (`templateThinkingFor`); `undefined` sends nothing. */
+  readonly templateThinking: boolean | undefined;
   readonly imageDetail?: ImageDetail | undefined;
   readonly warnings: ResolvedWarning[];
 }
@@ -112,10 +116,7 @@ function mergeExtras(body: Record<string, unknown>, args: ShapeArgs): Record<str
       args.warnings.push({ code: "custom_parameters_ignored", key, message: `extras key "${key}" ignored: the wire owns it` });
       continue;
     }
-    if (key in body && body[key] !== undefined) {
-      args.warnings.push({ code: "custom_parameters_ignored", key, message: `extras key "${key}" ignored: the modelled value wins (D143(b))` });
-      continue;
-    }
+    // The user's own body wins over every computed field, a preset knob included: it merges over the SDK's body.
     admitted[key] = value;
   }
   return deepMergeRequestBody(body, admitted);
@@ -160,13 +161,28 @@ function reattachRows(body: Record<string, unknown>, plan: WirePlan, warnings: R
   return { ...body, messages: messages.map((message: unknown, index: number) => patchRow(message, plan.names.get(index), plan.assistantMedia.get(index))) };
 }
 
-/** Rule 5: the prefill pair, and the measured vLLM interlock (`prefillSuppressesThinking`, §8.1). */
-function applyPrefill(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
+/** The user's own body already decides the template's thinking: their kwargs state `enable_thinking`, or
+ *  they excluded `chat_template_kwargs` altogether. */
+function userDecidesThinking(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): boolean {
+  if (args.transport?.excludeBody?.includes(CHAT_TEMPLATE_KWARGS_KEY) === true) {
+    return true;
+  }
+  const kwargs = body[CHAT_TEMPLATE_KWARGS_KEY];
+  return owned.has(CHAT_TEMPLATE_KWARGS_KEY) && isRecord(kwargs) && ENABLE_THINKING_KEY in kwargs;
+}
+
+/** Rule 5: the prefill pair, and the measured vLLM interlock (`prefillSuppressesThinking`, §8.1). A key the
+ *  user's own body set stays theirs, the interlock's thinking switch included. */
+function applyPrefill(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
   if (args.plan === null || args.features.prefill !== "continue-final-message" || !args.prefillAllowed || !args.plan.endsOnAssistant) {
     return body;
   }
-  const out: Record<string, unknown> = { ...body, [CONTINUE_FINAL_MESSAGE_KEY]: true, [ADD_GENERATION_PROMPT_KEY]: false };
-  if (args.features.prefillSuppressesThinking !== true) {
+  const out: Record<string, unknown> = {
+    ...body,
+    ...(owned.has(CONTINUE_FINAL_MESSAGE_KEY) ? {} : { [CONTINUE_FINAL_MESSAGE_KEY]: true }),
+    ...(owned.has(ADD_GENERATION_PROMPT_KEY) ? {} : { [ADD_GENERATION_PROMPT_KEY]: false }),
+  };
+  if (args.features.prefillSuppressesThinking !== true || userDecidesThinking(out, args, owned)) {
     return out;
   }
   const kwargs = out[CHAT_TEMPLATE_KWARGS_KEY];
@@ -182,18 +198,28 @@ function applyPrefill(body: Record<string, unknown>, args: ShapeArgs): Record<st
   return out;
 }
 
-/** Rule 5b: the template-level off switch, kept beside the user's own kwargs. */
-function applyThinkingOff(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
-  if (!args.thinkingOff || args.features.thinkingOff !== CHAT_TEMPLATE_KWARGS_KEY) {
+/** Rule 5b: the template-level thinking switch, beside the user's own kwargs and never over them. A switch the
+ *  user's body already decides stays theirs, and so does rule 5's interlock off. */
+function applyTemplateThinking(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
+  if (args.templateThinking === undefined || args.features.thinkingOff !== CHAT_TEMPLATE_KWARGS_KEY || userDecidesThinking(body, args, owned)) {
     return body;
   }
-  const kwargs = body[CHAT_TEMPLATE_KWARGS_KEY];
-  return { ...body, [CHAT_TEMPLATE_KWARGS_KEY]: { ...(isRecord(kwargs) ? kwargs : {}), [ENABLE_THINKING_KEY]: false } };
+  const kwargs = isRecord(body[CHAT_TEMPLATE_KWARGS_KEY]) ? (body[CHAT_TEMPLATE_KWARGS_KEY] as Record<string, unknown>) : {};
+  if (kwargs[ENABLE_THINKING_KEY] === false) {
+    return body;
+  }
+  return { ...body, [CHAT_TEMPLATE_KWARGS_KEY]: { ...kwargs, [ENABLE_THINKING_KEY]: args.templateThinking } };
 }
 
-/** Rule 7: an effort the SDK spelled onto a server whose row says it has no effort field. */
-function applyEffortSpelling(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
-  if (args.dialect === "openrouter" || args.features.effort === "reasoning_effort" || body[REASONING_EFFORT_KEY] === undefined) {
+/** Rule 7: an effort the SDK spelled onto a server whose row says it has no effort field. One the user's own
+ *  body set stays. */
+function applyEffortSpelling(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
+  if (
+    args.dialect === "openrouter" ||
+    args.features.effort === "reasoning_effort" ||
+    body[REASONING_EFFORT_KEY] === undefined ||
+    owned.has(REASONING_EFFORT_KEY)
+  ) {
     return body;
   }
   args.warnings.push({ code: "effort_dropped", message: "effort ignored: this endpoint's row spells no reasoning-effort field" });
@@ -202,9 +228,9 @@ function applyEffortSpelling(body: Record<string, unknown>, args: ShapeArgs): Re
 }
 
 /** Rule 8: the output cap under the word the server takes. The SDK always writes `max_tokens`; a row that
- *  declares `max_completion_tokens` gets it renamed, nothing else is touched. */
-function applyOutputCapSpelling(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
-  if (args.dialect === "openrouter" || args.features.outputCapField !== MAX_COMPLETION_TOKENS_KEY || !(MAX_TOKENS_KEY in body)) {
+ *  declares `max_completion_tokens` gets it renamed, nothing else is touched; a `max_tokens` the user's own body set stays. */
+function applyOutputCapSpelling(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
+  if (args.dialect === "openrouter" || args.features.outputCapField !== MAX_COMPLETION_TOKENS_KEY || !(MAX_TOKENS_KEY in body) || owned.has(MAX_TOKENS_KEY)) {
     return body;
   }
   const { [MAX_TOKENS_KEY]: cap, ...rest } = body;
@@ -283,19 +309,35 @@ function applySameRoleFold(body: Record<string, unknown>, args: ShapeArgs): Reco
   return out.length === messages.length ? body : { ...body, messages: out };
 }
 
+/** The top-level keys the user's own body settles: an admitted `extras` key, an `includeBody` key, or an
+ *  `excludeBody` key. The rules after the merge compute their keys first and
+ *  leave every one of these as the user set it. */
+function userOwnedKeys(args: ShapeArgs): ReadonlySet<string> {
+  const owned = new Set<string>([...Object.keys(args.transport?.includeBody ?? {}), ...(args.transport?.excludeBody ?? [])]);
+  if (args.dialect !== "openrouter") {
+    for (const key of Object.keys(args.extras ?? {})) {
+      if (!isBeltOwnedBodyKey(key)) {
+        owned.add(key);
+      }
+    }
+  }
+  return owned;
+}
+
 /** The whole shaper, in rule order. Pure: returns a new object, never mutates the SDK's argument. */
 export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
+  const owned = userOwnedKeys(args);
   let body = mergeExtras(raw, args);
   body = applyIncludeExclude(body, args.transport?.includeBody ?? null, args.transport?.excludeBody ?? null);
   if (args.plan !== null) {
     body = reattachRows(body, args.plan, args.warnings);
   }
   body = applyImageDetail(body, args.imageDetail);
-  body = applyThinkingOff(applyPrefill(body, args), args);
-  if (args.replyImages) {
+  body = applyTemplateThinking(applyPrefill(body, args, owned), args, owned);
+  if (args.replyImages && !owned.has(MODALITIES_KEY)) {
     body = { ...body, [MODALITIES_KEY]: [...REPLY_MODALITIES] };
   }
-  return applySameRoleFold(applyCacheMarkerSpelling(applyOutputCapSpelling(applyEffortSpelling(body, args), args), args), args);
+  return applySameRoleFold(applyCacheMarkerSpelling(applyOutputCapSpelling(applyEffortSpelling(body, args, owned), args, owned), args), args);
 }
 
 function applyImageDetail(body: Record<string, unknown>, detail: ImageDetail | undefined): Record<string, unknown> {

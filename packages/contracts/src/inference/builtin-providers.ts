@@ -197,9 +197,10 @@ export const BUILTIN_PROVIDER_ROWS = [
     dialect: "openai-compatible",
     auth: "endpoint",
     apis: ["chat-completions"],
-    // No `thinkingOff`: a Custom endpoint is likely a proxy, and a strict one refuses unknown fields such as
-    // `chat_template_kwargs`. A Custom connection recognized as a local server takes that server's row instead.
-    features: { detectServer: true },
+    // The template thinking switch rides here too. A proxy that refuses `chat_template_kwargs` is answered by the
+    // connection itself: `excludeBody` drops the key, its own body sets another value, or a declared
+    // `thinkingOff: "none"` sends nothing. The user's body always wins over the switch (`openai-compat/body.ts`).
+    features: { detectServer: true, thinkingOff: "chat_template_kwargs" },
     catalog: "url",
     metered: false,
   },

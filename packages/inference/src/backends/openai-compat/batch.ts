@@ -110,7 +110,7 @@ function runBatch(req: BatchRequest, deps: BatchDeps): Promise<SummarizeResult> 
     plan: null,
     prefillAllowed: false,
     // Side generation runs with reasoning off (the funnel's side-gen posture), so the template is told too.
-    thinkingOff: true,
+    templateThinking: false,
     foldSameRole: false,
     replyImages: false,
     warnings: [],

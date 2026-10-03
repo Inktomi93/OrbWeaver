@@ -72,6 +72,50 @@ Once the transcript is fixed, they agree. vLLM shows 66/100 against 65/100. Gree
 beat on both servers. The 8/10 against 2/10 gap in the first run was sampling at temperature 1.0 over a different
 reminder per run.
 
+## Re-measure with the thinking state sent explicitly
+
+The app now sends the template's thinking state on every row with a thinking switch (`features.thinkingOff`).
+A folded RPG turn with reasoning unset sends `chat_template_kwargs.enable_thinking: false`. The recorded
+requests in `app-requests-explicit/` differ from `app-requests/` by that one key and nothing else. Replies
+are in `replay-explicit/`. Ten repeats per beat per mode give 100 replies per cell and mode.
+
+| Cell | Mode | B1 | B2 | B3 | B4 | B5 | B6 | B7 | B8 | B9 | B10 | Both | 95% CI | Prose only | Tools only | Empty | Leaks | Errors | Length cut |
+| - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - | - |
+| explicit-llamacpp-default-preserve-off-per-request | nonstream | 7/10 | 9/10 | 6/10 | 8/10 | 10/10 | 7/10 | 8/10 | 9/10 | 8/10 | 9/10 | 81/100 | 72–87% | 14 | 5 | 0 | 0 | 0 | 0 |
+| explicit-llamacpp-default-preserve-off-per-request | stream | 8/10 | 9/10 | 9/10 | 7/10 | 7/10 | 9/10 | 8/10 | 8/10 | 10/10 | 7/10 | 82/100 | 73–88% | 5 | 13 | 0 | 0 | 0 | 0 |
+| explicit-llamacpp-default | nonstream | 6/10 | 5/10 | 2/10 | 2/10 | 2/10 | 4/10 | 1/10 | 0/10 | 3/10 | 0/10 | 25/100 | 18–34% | 69 | 5 | 1 | 0 | 0 | 0 |
+| explicit-llamacpp-default | stream | 2/10 | 8/10 | 3/10 | 2/10 | 0/10 | 1/10 | 2/10 | 2/10 | 1/10 | 1/10 | 22/100 | 15–31% | 72 | 6 | 0 | 0 | 0 | 0 |
+| explicit-llamacpp-no-reasoning-preserve | nonstream | 6/10 | 4/10 | 7/10 | 9/10 | 10/10 | 9/10 | 9/10 | 7/10 | 9/10 | 8/10 | 78/100 | 69–85% | 15 | 7 | 0 | 0 | 0 | 0 |
+| explicit-llamacpp-no-reasoning-preserve | stream | 9/10 | 7/10 | 8/10 | 9/10 | 10/10 | 9/10 | 8/10 | 9/10 | 9/10 | 8/10 | 86/100 | 78–91% | 11 | 3 | 0 | 0 | 0 | 0 |
+| explicit-vllm | nonstream | 3/10 | 10/10 | 4/10 | 5/10 | 4/10 | 9/10 | 2/10 | 2/10 | 10/10 | 3/10 | 52/100 | 42–62% | 12 | 36 | 0 | 0 | 0 | 0 |
+| explicit-vllm | stream | 5/10 | 7/10 | 5/10 | 3/10 | 9/10 | 10/10 | 9/10 | 1/10 | 10/10 | 7/10 | 66/100 | 56–75% | 11 | 23 | 0 | 0 | 0 | 0 |
+
+- `explicit-vllm` is vLLM 0.29.0 on GPU 1, launched as before (the owner's thinking-off default). Its
+  request did not change in effect: 66/100 streaming matches the first replay (66/100). The non-streaming
+  52/100 against the first replay's 65/100 is run-to-run sampling at temperature 1.0. The intervals overlap
+  (42–62% against 55–74%).
+- `explicit-llamacpp-default` is llama.cpp on GPU 0 with its default flags. Sending thinking off removes the
+  thinking-on failure (it was 1–4% co-emission, 96–99% tools-only). Reasoning preserve still holds the rate at
+  22–25%, mostly prose-only.
+- `explicit-llamacpp-default-preserve-off-per-request` is the same server with
+  `chat_template_kwargs.preserve_reasoning: false` added to the request: 81–82%.
+- `explicit-llamacpp-no-reasoning-preserve` is llama.cpp started with `--no-reasoning-preserve`: 78–86%.
+- No cell had an empty reply, an error or a leak beyond one empty llama.cpp default reply.
+
+### llama.cpp reasoning preserve has a per-request knob
+
+`chat_template_kwargs.preserve_reasoning` is read per request. llama.cpp merges the request's
+`chat_template_kwargs` over its launch defaults (`tools/server/server-common.cpp:1356-1359`, HEAD a55e952).
+`common/chat.cpp:940-942` then applies the boolean, which sets the template's
+`preserve_thinking` / `clear_thinking` / `drop_thinking` variables (`common/jinja/caps.cpp:22-27`).
+`--no-reasoning-preserve` only changes the launch default of the same kwarg (`common/arg.cpp:3735-3746`). On
+the recorded turn-10 request, `/apply-template` renders 11 empty think blocks by default, and 1 (the
+generation prompt) with `preserve_reasoning: false`. The template's own `preserve_thinking` kwarg does not
+override llama.cpp's setting. The measured effect equals the launch flag (81–82% against 78–86%).
+
+The app does not send `preserve_reasoning` today. Sending it is a new key, and the brief ruled out a new knob
+in this leg. It is listed for the owner's call.
+
 ## Is there a bar to set
 
 Not per (model × server). The rate moves from about 3% to 80% for the same model on the same server, on
@@ -88,9 +132,9 @@ Recommendation, for the owner to rule:
 
 1. Do not write `silencesProse: false` from these rows yet. A row keyed on (model × server) would be wrong
    whenever thinking is on, and it is on by default on llama.cpp and in any vLLM launch without the owner's flag.
-2. If folded turns run with reasoning off, the app should send that explicitly
-   (`chat_template_kwargs.enable_thinking: false`) instead of trusting the server's default. Then the measured
-   condition is the condition at run time. That is a code change outside this item.
+2. The app now sends the thinking state explicitly (the re-measure above), so the measured condition is the
+   condition at run time for thinking. llama.cpp's reasoning preserve still decides its rate, and only a
+   launch flag or a per-request `preserve_reasoning: false` the app does not send yet changes it.
 3. With that in place, a defensible bar is a lower 95% bound of at least 50% co-emission, over at least 100
    replies per stream mode, on the app's recorded request. vLLM thinking off (56–75%) and llama.cpp thinking off
    without preserve (71–87% streaming) clear it. llama.cpp with its default preserve (13–33%) and every

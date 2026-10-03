@@ -9,6 +9,8 @@ turns are in `<cell>.<mode>.r<rep>.json`, the per-run summaries in `cells.jsonl`
 
 ## Verdict
 
+For folded RPG on llama.cpp, start the server with `--no-reasoning-preserve`. With its default, an empty think block before every earlier reply holds co-emission near 22–25% ([INVESTIGATION.md](INVESTIGATION.md)).
+
 Qwen3.8-27B co-emits prose and tool calls on vLLM, llama.cpp, Ollama, and KoboldCpp with `--jinja_tools`.
 No 27B turn came back empty, errored, or leaked call markup into the prose. The rate varies by turn
 (20% to 80% of turns per cell), and the misses split into tools-only and prose-only turns, which the app

@@ -51,8 +51,8 @@ export interface ModelCall {
   readonly chatId?: ChatId | undefined;
   readonly plan: WirePlan | null;
   readonly prefillAllowed: boolean;
-  /** Reasoning is chosen off for this call (body rule 5b). */
-  readonly thinkingOff: boolean;
+  /** What body rule 5b tells the template's thinking switch; `undefined` leaves the server's default. */
+  readonly templateThinking: boolean | undefined;
   /** Fold consecutive plain same-role rows into one message of parts (`body.ts` rule 10). */
   readonly foldSameRole: boolean;
   readonly replyImages: boolean;
@@ -78,7 +78,7 @@ function shapeArgs(call: ModelCall, dialect: Dialect): ShapeArgs {
     transport: call.connection.transport,
     dialect,
     prefillAllowed: call.prefillAllowed,
-    thinkingOff: call.thinkingOff,
+    templateThinking: call.templateThinking,
     foldSameRole: call.foldSameRole,
     replyImages: call.replyImages,
     imageDetail: call.imageDetail,

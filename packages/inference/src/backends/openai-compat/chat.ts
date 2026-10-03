@@ -20,7 +20,7 @@ import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../.
 import type { Resolved } from "../../contract/resolved.ts";
 import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
-import { resolveChat } from "../../funnel/resolve-chat.ts";
+import { resolveChat, templateThinkingFor } from "../../funnel/resolve-chat.ts";
 import { effortWordOf } from "../kit/applied-effort.ts";
 import type { ExplicitCachePlan, OpenRouterRouting } from "../kit/cache-control.ts";
 import { cachesByAnthropicMarkers, effectiveProviderRouting, explicitCachePlan, isAnthropicModel, placeExplicitCacheMarkers } from "../kit/cache-control.ts";
@@ -659,7 +659,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           chatId: req.chatId,
           plan,
           prefillAllowed: acceptsAssistantPrefill(generation) && req.tools === undefined,
-          thinkingOff: !knobs.reasoning.enabled && req.params.effort === REASONING_OFF,
+          templateThinking: templateThinkingFor(req.params, generation, req.terminalToolsAttached === true),
           foldSameRole: cachesByAnthropicMarkers(connection, generation),
           replyImages: knobs.replyImages,
           ...(generation.imageDetail === true ? { imageDetail: req.attachmentQuality?.imageDetail ?? DEFAULT_ATTACHMENT_QUALITY.imageDetail } : {}),
