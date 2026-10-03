@@ -29,6 +29,7 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createTimeLib } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { corpusGroupingProvenance } from "../../../../support/node/corpus-source.ts";
@@ -1220,4 +1221,34 @@ test("#536: the overview's prose is capped at the reading measure (P3-1)", async
     { maxChars: READING_MEASURE_CH, minChars: PROSE_TEXT_MIN_CHARS },
   );
   expect(overrun, "prose past the reading measure is the 145-chars/line finding").toEqual([]);
+});
+
+// ── STORY-THEME DRIFT IS FOLDED ON THE VIEWER'S CALENDAR ──────────────────────────────────────────────
+// The read ships UTC calendar buckets; the month is the viewer's. 02:00 UTC on Feb 1 is still Jan 31 in New
+// York, so both buckets below are ONE January row there — a UTC month grouping would print a February row,
+// and the old read printed its raw `YYYY-MM` key.
+const DRIFT_ZONE = "America/New_York";
+const JAN_15 = Date.UTC(2024, 0, 15, 12, 0);
+const FEB_1_UTC_JAN_31_NEW_YORK = Date.UTC(2024, 1, 1, 2, 0);
+const DRIFT: TrpcWireOutput<"discovery.themeDrift"> = [
+  { bucketStart: JAN_15, themes: [{ clusterIdx: 0, themeName: "The long road", count: 1 }] },
+  { bucketStart: FEB_1_UTC_JAN_31_NEW_YORK, themes: [{ clusterIdx: 0, themeName: "The long road", count: 1 }] },
+];
+
+test.describe("story-theme drift in New York", () => {
+  test.use({ timezoneId: DRIFT_ZONE });
+
+  test("an instant that is Feb 1 in UTC lands in the viewer's January, named through the time seam", async ({ mount, page }) => {
+    await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...ANALYSED, "discovery.themeDrift": DRIFT });
+    const component = await mount(<CorpusHomeDefaultPaneStory />);
+    await settled(page);
+
+    // The seam's own rendering in the CT's pinned locale and zone, never a hand-spelled month.
+    const seam = createTimeLib({ locale: "en-US", timeZone: DRIFT_ZONE });
+    const january = seam.formatMonthYear(JAN_15);
+    await expect(component.getByText(january, { exact: true })).toBeVisible();
+    await expect(component.getByText(seam.formatMonthYear(Date.UTC(2024, 1, 15)), { exact: true })).toHaveCount(0);
+    await expect(component.getByText("The long road (2)", { exact: true })).toBeVisible();
+    await expect(component.getByText(/^\d{4}-\d{2}$/u)).toHaveCount(0);
+  });
 });

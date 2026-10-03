@@ -1,8 +1,10 @@
 import type { CorpusDestination } from "@orb/client/lib";
 import type { EmbedGenerationId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createTimeLib } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource } from "../../../../support/node/corpus-source.ts";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusArtifactReaderStory, CorpusEmbeddedResultsStory } from "../_ct-stories.tsx";
 
@@ -63,6 +65,58 @@ test("a different theme at the same cluster index cannot replace the selected th
   await expect(component.getByRole("status").filter({ hasText: "Its selected identity is retained" })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Selected story theme" })).toBeVisible();
   await expect(component.getByText("Replacement story theme", { exact: true })).toHaveCount(0);
+});
+
+// The theme's timeline arrives as UTC calendar buckets and reads as the viewer's months. In New York the
+// Feb 1 02:00 UTC bucket is January, so two buckets make ONE month bar holding both digests.
+test.describe("the story-time timeline in New York", () => {
+  const zone = "America/New_York";
+  test.use({ timezoneId: zone });
+  const row = {
+    id: mintTypeId(ID_PREFIX.themeCluster),
+    clusterIdx: 1,
+    name: "Timed story theme",
+    level: "scene" as const,
+    model: "distiller",
+    computedAt: 0,
+    size: 3,
+  };
+  type ThemeDetailWire = NonNullable<TrpcWireOutput<"discovery.themeDetail">>;
+  const detail = (timeline: ThemeDetailWire["timeline"]): ThemeDetailWire => ({
+    ...row,
+    members: [],
+    sources: [],
+    sourceLimit: 20,
+    timeline,
+  });
+  const histogram = "Digests per story-time month";
+
+  test("renders the viewer's months, named through the time seam", async ({ mount, page }) => {
+    const january = Date.UTC(2024, 0, 15, 12, 0);
+    const timeline = [
+      { bucketStart: january, count: 1 },
+      { bucketStart: Date.UTC(2024, 1, 1, 2, 0), count: 1 },
+      { bucketStart: Date.UTC(2024, 2, 10, 12, 0), count: 1 },
+    ];
+    await routeTrpc(page, { "discovery.themeDetail": detail(timeline) });
+    const component = await mount(<CorpusArtifactReaderStory destination={{ kind: "theme", row }} />);
+    await component.getByRole("button", { name: "Select evidence" }).click();
+
+    const seam = createTimeLib({ locale: "en-US", timeZone: zone });
+    const table = component.getByRole("table", { name: histogram });
+    await expect(component.getByRole("heading", { name: "Story time" })).toBeVisible();
+    await expect(table.getByRole("rowheader")).toHaveText([seam.formatMonthYear(january), seam.formatMonthYear(Date.UTC(2024, 2, 10, 12, 0))]);
+    await expect(table.getByRole("cell")).toHaveText(["2", "1"]);
+  });
+
+  test("is absent when the theme has no timed digests", async ({ mount, page }) => {
+    await routeTrpc(page, { "discovery.themeDetail": detail([]) });
+    const component = await mount(<CorpusArtifactReaderStory destination={{ kind: "theme", row }} />);
+    await component.getByRole("button", { name: "Select evidence" }).click();
+    await expect(component.getByText("3 digests · scene")).toBeVisible();
+    await expect(component.getByRole("heading", { name: "Story time" })).toHaveCount(0);
+    await expect(component.getByRole("table", { name: histogram })).toHaveCount(0);
+  });
 });
 
 for (const width of [360, 720]) {
