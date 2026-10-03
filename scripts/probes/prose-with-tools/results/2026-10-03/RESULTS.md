@@ -117,10 +117,12 @@ Templates: `served` is `chat_template.served.jinja`, byte-identical to
 Ollama Modelfile shows `TEMPLATE {{ .Prompt }}`, and `ollama show --template` prints the GGUF's embedded
 Unsloth jinja, which is what rendered; Ollama reported `tools` and `thinking` capabilities for it.
 
-Request bodies: thinking off in every cell, as the app sends it with no effort set (vLLM through the launch
-default, llama.cpp through `chat_template_kwargs.enable_thinking: false`, KoboldCpp through
-`--jinjathink false`, Ollama through `reasoning_effort: "none"`). The Ollama cells used
-`/v1/chat/completions`; the app's Ollama row talks to `/api/chat`, which runs the same model parser.
+Request bodies: thinking off in every cell, forced by the probe (vLLM through the launch default, llama.cpp
+through `chat_template_kwargs.enable_thinking: false`, KoboldCpp through `--jinjathink false`, Ollama through
+`reasoning_effort: "none"`). The app sends thinking off only on a folded turn whose preset leaves effort unset,
+or when the preset chooses off: `chat_template_kwargs.enable_thinking: false` on vLLM, llama.cpp and KoboldCpp,
+and `think: false` on Ollama. The Ollama cells used `/v1/chat/completions`; the app's Ollama row talks to
+`/api/chat`, which runs the same model parser.
 
 ## Not run
 

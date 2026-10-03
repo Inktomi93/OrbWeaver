@@ -114,8 +114,10 @@ export const EFFORT_SPELLINGS = ["reasoning_effort", "none"] as const;
 
 /** How a turn tells the server's chat template whether to think. `chat_template_kwargs` = `enable_thinking`
  *  in the template kwargs, `false` on a reasoning-off turn and `true` on a reasoning-on one (Qwen3-style
- *  templates on vLLM, llama.cpp and KoboldCpp under `--jinja`); `none` = no switch beyond the effort field. */
-export const THINKING_OFF_SPELLINGS = ["chat_template_kwargs", "none"] as const;
+ *  templates on vLLM, llama.cpp and KoboldCpp under `--jinja`); `reasoning_effort` = the effort field is the
+ *  switch, so a turn the template must not think on sends `reasoning_effort: "none"` even with the preset unset
+ *  (Ollama, which reads it as `think: false`); `none` = no switch beyond the effort field. */
+export const THINKING_OFF_SPELLINGS = ["chat_template_kwargs", "reasoning_effort", "none"] as const;
 
 /** Which image-generation arm the server exposes: the images API (`imageModel(id)` against
  *  `/v1/images/generations` + `/edits`) or chat-with-image-output (`modalities: ["text","image"]`). */

@@ -144,5 +144,5 @@ Recommendation, for the owner to rule:
 
 ## Not covered
 
-Ollama and KoboldCpp were not re-measured; their first-run cells forced thinking off, which the app does not send.
+Ollama and KoboldCpp were not re-measured; their first-run cells forced thinking off on every turn, where the app sends it only on a folded turn or a preset's chosen off.
 The capture recorded the vLLM and llama.cpp request shapes only.

@@ -174,22 +174,21 @@ function userDecidesThinking(body: Record<string, unknown>, args: ShapeArgs, own
 
 /** Rule 5: the prefill pair, and the measured vLLM interlock (`prefillSuppressesThinking`, §8.1). A key the
  *  user's own body set stays theirs, the interlock's thinking switch included. A `messages` array the user set
- *  replaced the plan this rule reads, so neither the pair nor the interlock runs. */
+ *  replaced the plan this rule reads, and a prefill key the user set or excluded is their prefill decision, so
+ *  in either case neither the pair nor the interlock runs. */
 function applyPrefill(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
   if (
     args.plan === null ||
     owned.has(MESSAGES_KEY) ||
+    owned.has(CONTINUE_FINAL_MESSAGE_KEY) ||
+    owned.has(ADD_GENERATION_PROMPT_KEY) ||
     args.features.prefill !== "continue-final-message" ||
     !args.prefillAllowed ||
     !args.plan.endsOnAssistant
   ) {
     return body;
   }
-  const out: Record<string, unknown> = {
-    ...body,
-    ...(owned.has(CONTINUE_FINAL_MESSAGE_KEY) ? {} : { [CONTINUE_FINAL_MESSAGE_KEY]: true }),
-    ...(owned.has(ADD_GENERATION_PROMPT_KEY) ? {} : { [ADD_GENERATION_PROMPT_KEY]: false }),
-  };
+  const out: Record<string, unknown> = { ...body, [CONTINUE_FINAL_MESSAGE_KEY]: true, [ADD_GENERATION_PROMPT_KEY]: false };
   if (args.features.prefillSuppressesThinking !== true || userDecidesThinking(out, args, owned)) {
     return out;
   }

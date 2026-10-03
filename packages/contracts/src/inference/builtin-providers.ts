@@ -126,8 +126,10 @@ export const BUILTIN_PROVIDER_ROWS = [
     apis: ["chat-completions"],
     features: {
       prefill: "none",
-      // Ollama reads `reasoning_effort` as `think` on both chat routes (off for `none`).
+      // Ollama reads `reasoning_effort` as `think` on both chat routes (off for `none`); with no `think` a
+      // thinking model thinks, so the effort field is also the template switch.
       effort: "reasoning_effort",
+      thinkingOff: "reasoning_effort",
       modelInfoApi: "ollama",
       nativeChat: "ollama",
       // The `/api/chat` `options` spelling (api/types.go `Options`).

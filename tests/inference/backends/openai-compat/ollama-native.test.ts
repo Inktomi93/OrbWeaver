@@ -160,6 +160,23 @@ test("recorded thinking comes back as reasoning, apart from the answer", async (
   expect(result.reply).toBe("2 + 3 = 5.");
 });
 
+test("a folded turn with reasoning unset sends think false; unfolded, the server's default stands", async () => {
+  // With no `think` field Ollama runs a thinking model's default, and a template that thinks answers a folded turn
+  // with the state calls alone.
+  const thinking = capability({ reasoning: { mode: "effort", enabled: true } });
+  const thinkSent = async (params: UserIntent, terminalToolsAttached: boolean): Promise<unknown> => {
+    const { recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text], {
+      connection: fakeResolved({ task: "chat", providerId: "ollama", model: "qwen3:0.6b", capability: thinking, baseUrl: BASE_URL }),
+      params,
+      ...(terminalToolsAttached ? { terminalToolsAttached } : {}),
+    });
+    return recorded[0]?.body["think"];
+  };
+  expect(await thinkSent({}, true)).toBe(false);
+  expect(await thinkSent({}, false)).toBeUndefined();
+  expect(await thinkSent({ effort: "high" }, true)).toBe(true);
+});
+
 test("think: a model with named effort levels (gpt-oss) gets the level, any other model on/off, and none turns it off", () => {
   const body = (effort: string): Record<string, unknown> => ({ messages: [{ role: "user", content: "hi" }], ["reasoning_effort"]: effort });
   const args = { numCtx: undefined, samplerKeys: OLLAMA_SAMPLER_KEYS, label: "t" };

@@ -284,18 +284,24 @@ test("rule 5: the prefill interlock turns the template off but keeps the user's 
   expect(fromInclude["reasoning_effort"]).toBe("medium");
 });
 
-test("rule 5: the prefill pair leaves the user's own continue_final_message and add_generation_prompt", () => {
+test("rule 5: a user who sets or excludes either prefill key decides the prefill: no pair, no interlock, no warning", () => {
   const ends = plan([{ role: "assistant", toolExchange: false, text: "…" }], { endsOnAssistant: true });
-  const out = shapeOutboundBody(
-    RAW,
-    args({ plan: ends, features: CONTINUE, prefillAllowed: true, transport: { includeBody: { continue_final_message: false, add_generation_prompt: true } } }),
-  );
-  expect([out["continue_final_message"], out["add_generation_prompt"]]).toEqual([false, true]);
-  const excluded = shapeOutboundBody(
-    RAW,
-    args({ plan: ends, features: CONTINUE, prefillAllowed: true, transport: { excludeBody: ["continue_final_message"] } }),
-  );
-  expect(["continue_final_message" in excluded, excluded["add_generation_prompt"]]).toEqual([false, false]);
+  const transports = [
+    { includeBody: { continue_final_message: false } },
+    { includeBody: { add_generation_prompt: true } },
+    { excludeBody: ["continue_final_message"] },
+    { excludeBody: ["add_generation_prompt"] },
+  ];
+  for (const transport of transports) {
+    const a = args({ plan: ends, features: { ...CONTINUE, thinkingOff: "chat_template_kwargs" }, prefillAllowed: true, templateThinking: true, transport });
+    const out = shapeOutboundBody(RAW, a);
+    const label = JSON.stringify(transport);
+    expect(out["continue_final_message"], label).toBe(transport.includeBody?.continue_final_message);
+    expect(out["add_generation_prompt"], label).toBe(transport.includeBody?.add_generation_prompt);
+    // The interlock's off did not run, so the turn's own on reaches the template, and the effort stays.
+    expect([out["chat_template_kwargs"], out["reasoning_effort"]], label).toEqual([{ enable_thinking: true }, "high"]);
+    expect(a.warnings, label).toEqual([]);
+  }
 });
 
 test("rule 6: modalities the user excluded stay off a replyImages turn", () => {
