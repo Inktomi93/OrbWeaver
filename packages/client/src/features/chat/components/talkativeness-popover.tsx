@@ -12,13 +12,12 @@ import { Slider } from "@orb/ui/slider";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
-import { talkativenessAccessibleName, talkativenessLevel } from "#lib";
+import { talkativenessAccessibleName, talkativenessPercent, talkativenessReadout } from "#lib";
 import type { MemberCharacterRow } from "../lib/member-rows.ts";
 
-// THE NUMBER IS A RELATIVE WEIGHT, AND IT MUST NOT WEAR A PERCENT SIGN (#490) — the dial's scale, its
-// rounding and its spelled-out accessible name now live in ONE home, `#lib`'s `talkativeness.ts`, because
-// the saved-roster editor renders the same seat knob and spelled it `0.5` (side-eye 2026-08-29 P2-5); a
-// feature may not import another feature, so the seam sits on the tier-4 floor. The reasoning is there.
+// The percent, its rounding and the spelled-out accessible name live in ONE home, `#lib`'s
+// `talkativeness.ts`, because the saved-roster editor renders the same seat knob; a feature may not import
+// another feature, so the seam sits on the tier-4 floor. Why it is a percent is said there.
 
 /** The single-thumb scalar from a slider value (ours is single-thumb; a range carries an array). */
 function firstThumb(value: number | readonly number[]): number {
@@ -57,8 +56,8 @@ export function TalkativenessPopover({
             // WCAG 2.5.3 Label in Name (UI-Primitives-and-Reuse §13.10): the chip READS "Talks 50%", so
             // "talks" has to be IN the name or a voice-control user saying what they see misses it. The
             // stable identity still leads (`Talkativeness: <who>`) and the live LEVEL stays suffixed, so
-            // a role+name lookup on the stable prefix survives every value change. #490 spelled the unit
-            // out here ("level N of 100") because an aria-label has room for what a two-glyph chip does not.
+            // a role+name lookup on the stable prefix survives every value change. The name also says what
+            // the percent is a chance of, which the chip has no room to spell.
             aria-label={talkativenessAccessibleName(row.displayName, row.talkativeness)}
           >
             {/* Labeled value — a bare number fails the cold read:
@@ -70,7 +69,7 @@ export function TalkativenessPopover({
               Talks
             </Text>
             <Text as="span" voice="datum">
-              {talkativenessLevel(weight)}
+              {talkativenessPercent(weight)}
             </Text>
           </Button>
         }
@@ -87,10 +86,9 @@ export function TalkativenessPopover({
       >
         <Stack gap="field" className="min-w-48">
           <Row gap="field" align="center">
-            {/* The popover names the unit the chip cannot spell in two glyphs: a RELATIVE weight over the
-                other speakers, which is why three members can all sit at 50 and nothing sums to 100. */}
+            {/* The popover spells what the chip's percent is a chance OF, live with the thumb. */}
             <Text as="span" voice="label">
-              Talks relative to the others
+              {talkativenessReadout(weight)}
             </Text>
             <Stack ref={initialFocusRef} tabIndex={-1} className="flex-1 outline-none">
               <Slider
@@ -107,9 +105,12 @@ export function TalkativenessPopover({
               />
             </Stack>
           </Row>
-          {/* When the weight applies is `engine/select-speakers.ts`: only the natural order and Smart's
-              fallback read it, and a zero weight is floored so the character still speaks, last. */}
-          <Text voice="gloss">Counts only when Orbweaver picks who speaks: Natural, and Smart when it can't decide. At 0 a character still replies, last.</Text>
+          {/* When the chance applies is `engine/select-speakers.ts`: only the natural order and Smart's
+              fallback roll it. */}
+          <Text voice="gloss">
+            Counts in a Natural room, where anyone you name replies anyway. At 0% a character replies only when named, or when no one above 0% is left to pick.
+            Smart uses it only when it can't decide.
+          </Text>
         </Stack>
       </PopoverPopup>
     </Popover>
