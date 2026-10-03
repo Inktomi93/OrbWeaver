@@ -2,6 +2,7 @@
 kind: adr
 status: active
 updated: 2026-10-03
+supersedes: docs/adr/0286-import-identity-and-additive-doors.md
 ---
 
 # Import identity and additive doors, across split uploads and art attach

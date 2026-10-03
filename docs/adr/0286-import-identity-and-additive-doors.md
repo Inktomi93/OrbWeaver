@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-10-02
+status: superseded
+updated: 2026-10-03
+superseded-by: docs/adr/0290-import-identity-keeps-its-keys-across-doors-and-uploads.md
 ---
 
 # Import identity and additive doors
