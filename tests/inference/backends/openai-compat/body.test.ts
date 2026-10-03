@@ -324,6 +324,35 @@ test("rules 3 and 4 and image detail: a messages array the user set gets no name
   expect(out["messages"]).toEqual(theirs);
 });
 
+test("rules 5 and 5b: kwargs the user set to a non-object stay as set, under the switch and the prefill interlock", () => {
+  const ends = plan([{ role: "assistant", toolExchange: false, text: "…" }], { endsOnAssistant: true });
+  for (const value of [null, "none", 0, []]) {
+    for (const own of [{ extras: { chat_template_kwargs: value } }, { transport: { includeBody: { chat_template_kwargs: value } } }]) {
+      for (const templateThinking of [false, true]) {
+        expect(shapeOutboundBody(RAW, args({ ...own, features: KWARGS_OFF, templateThinking }))["chat_template_kwargs"]).toEqual(value);
+      }
+      const interlock = args({ ...own, plan: ends, features: { ...CONTINUE, thinkingOff: "chat_template_kwargs" }, prefillAllowed: true });
+      const out = shapeOutboundBody(RAW, interlock);
+      expect([out["chat_template_kwargs"], out["reasoning_effort"]]).toEqual([value, "high"]);
+      expect(interlock.warnings).toEqual([]);
+    }
+  }
+});
+
+test("rule 5: a messages array the user set takes no prefill pair and no interlock from the app's plan", () => {
+  const ends = plan([{ role: "assistant", toolExchange: false, text: "…" }], { endsOnAssistant: true });
+  const theirs = [{ role: "user", content: "a" }];
+  const a = args({ plan: ends, features: CONTINUE, prefillAllowed: true, transport: { includeBody: { messages: theirs } } });
+  const out = shapeOutboundBody(RAW, a);
+  expect(["continue_final_message" in out, "add_generation_prompt" in out, "chat_template_kwargs" in out, out["reasoning_effort"]]).toEqual([
+    false,
+    false,
+    false,
+    "high",
+  ]);
+  expect(a.warnings).toEqual([]);
+});
+
 test("rule 10: a messages array the user set is not folded", () => {
   const plainRun = [
     { role: "user", content: "a" },

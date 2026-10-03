@@ -162,20 +162,27 @@ function reattachRows(body: Record<string, unknown>, plan: WirePlan, warnings: R
   return { ...body, messages: messages.map((message: unknown, index: number) => patchRow(message, plan.names.get(index), plan.assistantMedia.get(index))) };
 }
 
-/** The user's own body already decides the template's thinking: their kwargs state `enable_thinking`, or
- *  they excluded `chat_template_kwargs` altogether. */
+/** The user's own body already decides the template's thinking: they excluded `chat_template_kwargs`, set it
+ *  to something other than an object (nothing of ours can merge into it), or their kwargs state `enable_thinking`. */
 function userDecidesThinking(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): boolean {
   if (args.transport?.excludeBody?.includes(CHAT_TEMPLATE_KWARGS_KEY) === true) {
     return true;
   }
   const kwargs = body[CHAT_TEMPLATE_KWARGS_KEY];
-  return owned.has(CHAT_TEMPLATE_KWARGS_KEY) && isRecord(kwargs) && ENABLE_THINKING_KEY in kwargs;
+  return owned.has(CHAT_TEMPLATE_KWARGS_KEY) && (!isRecord(kwargs) || ENABLE_THINKING_KEY in kwargs);
 }
 
 /** Rule 5: the prefill pair, and the measured vLLM interlock (`prefillSuppressesThinking`, §8.1). A key the
- *  user's own body set stays theirs, the interlock's thinking switch included. */
+ *  user's own body set stays theirs, the interlock's thinking switch included. A `messages` array the user set
+ *  replaced the plan this rule reads, so neither the pair nor the interlock runs. */
 function applyPrefill(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
-  if (args.plan === null || args.features.prefill !== "continue-final-message" || !args.prefillAllowed || !args.plan.endsOnAssistant) {
+  if (
+    args.plan === null ||
+    owned.has(MESSAGES_KEY) ||
+    args.features.prefill !== "continue-final-message" ||
+    !args.prefillAllowed ||
+    !args.plan.endsOnAssistant
+  ) {
     return body;
   }
   const out: Record<string, unknown> = {
