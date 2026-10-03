@@ -1872,6 +1872,15 @@ export const TEMPLATE_DEFS = [
     cluster: "round",
   },
   {
+    id: "rpg.extract.patchRoundFrame",
+    kind: "extract",
+    label: "Patch-list frame",
+    fires: "Frames the state round as a flat list of field changes for a model with tight structured-output limits",
+    caps: [],
+    defaultSlot: "rpg.extract.patchRoundFrame",
+    cluster: "round",
+  },
+  {
     id: "rpg.extract.userPrompt.latestBeatLabel",
     kind: "extract",
     label: "Latest-beat label",

@@ -60,7 +60,14 @@ export { createRpgService } from "./service.ts";
 export { createRpgStagingStore } from "./staging.ts";
 // The pure honest-arms derivation (§4.6) — W1c wires it with the connection resolve + game config into the
 // `RpgResolveStateDelivery` injected op (the mode→axis mapping stays rpg's law).
-export { answersStateRoundStructured, deriveTrackersReadOnly, hasStructuredWriter, hasToolWriter } from "./substrate/readonly-axis.ts";
+export {
+  deriveTrackersReadOnly,
+  fallbackStateRound,
+  hasStructuredWriter,
+  hasToolWriter,
+  primaryStateRound,
+  structuredShapeFits,
+} from "./substrate/readonly-axis.ts";
 // The extraction fold (§4.6) — converts a parsed `RpgExtraction` (arrays of cheap-mode tool args)
 // into the `RpgStateDelta` the accumulator flushes. Every vehicle's impl consumes it; the SAME appliers
 // the cheap-mode tools use (the shared-plane proof). Deterministic — the caller injects the id mints.

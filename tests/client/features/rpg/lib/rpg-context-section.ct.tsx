@@ -239,6 +239,7 @@ function configView(
     recentBeatsKeepLast: 6,
     // The §1.3 extraction-depth trio the scalar form now edits (`toHostConsoleForm` reads all three).
     extractionContext: "window",
+    stateCaptureVehicle: "auto",
     extractionWindowTokens: 4096,
     reconcileEveryBeats: 10,
     // The P4/P5 knobs the scalar form projects (`toHostConsoleForm`).
@@ -581,6 +582,19 @@ test("a DANGLING pick shows as its own degraded option, never silently as the de
   const trigger = component.locator('[data-slot="rpg-gm-voice"]').getByRole("combobox", { name: "GM voice preset" });
   await expect(trigger).toContainText("preset_gone_ct");
   await expect(trigger).not.toContainText("Your own preset");
+});
+
+// 0511: the state-capture vehicle knob — the stored `auto` shows pressed, and a pick autosaves through the same
+// `updateConfig` patch every scalar rides.
+test("the state-capture knob shows the game's vehicle and a pick autosaves it through updateConfig", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+
+  const knob = component.getByRole("group", { name: "State capture" });
+  await expect(knob.getByRole("button", { name: "Automatic" })).toHaveAttribute("aria-pressed", "true");
+  await knob.getByRole("button", { name: "Structured reply" }).click();
+  await expect.poll(() => trpc.lastInput("rpg.updateConfig")).toMatchObject({ patch: { stateCaptureVehicle: "structured" } });
 });
 
 test("the GM console BAND toggle fires updateConfig (host) — the mutation COUNT", async ({ mount, page }) => {

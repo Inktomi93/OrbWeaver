@@ -8,7 +8,7 @@
 // section ORDER inside this form is the tail of the mock's console order (game.html) — the array/record
 // sub-editors render before it in rpg-game-tab.tsx.
 
-import type { RpgConfigView, RpgCyoaChoiceBehavior, RpgDateMode, RpgExtractionContext, RpgExtractionMode } from "@orb/contracts/rpg";
+import type { RpgConfigView } from "@orb/contracts/rpg";
 import {
   RPG_CARD_KEEP_LAST_DEFAULT,
   RPG_CYOA_CHOICE_BEHAVIORS,
@@ -21,6 +21,7 @@ import {
   RPG_RECENT_BEATS_KEEP_DEFAULT,
   RPG_RECONCILE_EVERY_BEATS_DEFAULT,
   RPG_RECONCILE_EVERY_BEATS_MAX,
+  RPG_STATE_CAPTURE_VEHICLES,
   RPG_STEERING_NOTE_MAX,
 } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
@@ -34,15 +35,19 @@ import { createAutosaveEntityForm } from "#forms/editor";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 import type { HostConsoleFormValues } from "../lib/host-console-form-model.ts";
 import { EMPTY_HOST_CONSOLE_FORM, fromHostConsoleForm, toHostConsoleForm } from "../lib/host-console-form-model.ts";
-import { CHOICE_BEHAVIOR_LABEL, DATE_MODE_LABEL, EXTRACTION_CONTEXT_LABEL, EXTRACTION_MODE_LABEL } from "../lib/host-console-labels.ts";
+import {
+  CHOICE_BEHAVIOR_CONSEQUENCE,
+  CHOICE_BEHAVIOR_LABEL,
+  DATE_MODE_CONSEQUENCE,
+  DATE_MODE_LABEL,
+  EXTRACTION_CONSEQUENCE,
+  EXTRACTION_CONTEXT_CONSEQUENCE,
+  EXTRACTION_CONTEXT_LABEL,
+  EXTRACTION_MODE_LABEL,
+  STATE_CAPTURE_VEHICLE_CONSEQUENCE,
+  STATE_CAPTURE_VEHICLE_LABEL,
+} from "../lib/host-console-labels.ts";
 import { Kicker } from "./rpg-kicker.tsx";
-
-/** The honest one-line consequence per delivery mode (the mock's fact — the same freshness posture the
- *  band cue renders), keyed over the closed mode axis. */
-const EXTRACTION_CONSEQUENCE: Readonly<Record<RpgExtractionMode, string>> = {
-  folded: "the reply records its own state — ONE model call, fastest and cheapest (recommended)",
-  cheap: "a second pass records state with tools after the turn — two model calls; recommended for local models",
-};
 
 // Every segmented toggle renders its options from the closed contracts tuple, so a new member cannot be
 // silently missing from its picker (a hardcoded pair once was, and the host had no way to reach the new arm).
@@ -51,26 +56,6 @@ const EXTRACTION_CONSEQUENCE: Readonly<Record<RpgExtractionMode, string>> = {
 function pickOption<T extends string>(options: readonly T[], value: string | undefined): T | null {
   return options.find((option) => option === value) ?? null;
 }
-
-/** The CYOA choice-click consequence per behavior (the P5 knob the Scene echo + transcript obey). */
-const CHOICE_BEHAVIOR_CONSEQUENCE: Readonly<Record<RpgCyoaChoiceBehavior, string>> = {
-  compose: "a pick drops into the composer — edit before sending",
-  send: "a pick sends immediately as your turn",
-};
-
-/** The extraction-CONTEXT consequence per arm — how much of the turn's own story the state round reads
- *  as evidence. Keyed over the closed axis, so a new context arm cannot ship without its honest cost line. */
-const EXTRACTION_CONTEXT_CONSEQUENCE: Readonly<Record<RpgExtractionContext, string>> = {
-  beat: "only the latest beat — the cheapest read, and the one most likely to miss what set the scene up",
-  window: "the recent arc, up to the budget below — relationships and quests evolve instead of resetting",
-  full: "the whole thread — the most inference, and the largest prompt every single beat",
-};
-
-/** The #9 date-mode consequence lines (the choice-behavior segmented-toggle precedent). */
-const DATE_MODE_CONSEQUENCE: Readonly<Record<RpgDateMode, string>> = {
-  narrated: "The story narrates the date as free text — no day counter.",
-  structured: "A running day counter shows beside the time of day.",
-};
 
 // The autosave scalar form (§13.4). Module scope (stable identity); keys its Session by `entityId` (the
 // chatId) so a chat switch with the Game tab open is a full remount seeded from the new game's config.
@@ -331,6 +316,35 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
                   </Text>
                 ) : null
               }
+            </form.AppField>
+          </Stack>
+
+          <Stack gap="field">
+            <Kicker>How the state is asked for</Kicker>
+            <form.AppField name="stateCaptureVehicle">
+              {(field): ReactElement => (
+                <Row gap="block" align="center">
+                  <ToggleGroup
+                    aria-label="State capture"
+                    value={[field.state.value]}
+                    onValueChange={(next): void => {
+                      const picked = pickOption(RPG_STATE_CAPTURE_VEHICLES, next[0]);
+                      if (picked !== null) {
+                        field.handleChange(picked);
+                      }
+                    }}
+                  >
+                    {RPG_STATE_CAPTURE_VEHICLES.map((vehicle) => (
+                      <Toggle key={vehicle} value={vehicle}>
+                        {STATE_CAPTURE_VEHICLE_LABEL[vehicle]}
+                      </Toggle>
+                    ))}
+                  </ToggleGroup>
+                  <Text voice="gloss" className="min-w-0 flex-1">
+                    {STATE_CAPTURE_VEHICLE_CONSEQUENCE[field.state.value]}
+                  </Text>
+                </Row>
+              )}
             </form.AppField>
           </Stack>
 

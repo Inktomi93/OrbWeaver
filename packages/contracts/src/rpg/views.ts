@@ -282,6 +282,8 @@ export interface RpgConfigView {
   /** The §1.3 extraction-depth knobs (host editor) — how much story the state round reads, the `window` arm's
    *  token budget, and the reconcile cadence (0 = off). */
   readonly extractionContext: RpgGameConfig["extractionContext"];
+  /** How the dedicated state round asks for the beat's changes (host editor). */
+  readonly stateCaptureVehicle: RpgGameConfig["stateCaptureVehicle"];
   readonly extractionWindowTokens: RpgGameConfig["extractionWindowTokens"];
   readonly reconcileEveryBeats: RpgGameConfig["reconcileEveryBeats"];
   /** The #9 ambient-date mode knob (host editor). */
@@ -477,6 +479,7 @@ export const rpgConfigViewSchema = rpgGameConfigSchema
     ruleset: true,
     extractionMode: true,
     extractionContext: true,
+    stateCaptureVehicle: true,
     extractionWindowTokens: true,
     reconcileEveryBeats: true,
     dateMode: true,

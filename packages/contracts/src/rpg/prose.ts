@@ -736,6 +736,23 @@ For example, a three-line sign is enough:
     title: "Structured-round frame",
     fires: "Follows the tool-round header when the model cannot be forced to call a tool and answers the state round as one JSON object instead.",
   },
+  "rpg.extract.patchRoundFrame": {
+    id: "rpg.extract.patchRoundFrame",
+    home: "preset",
+    version: 1,
+    text:
+      "Answer with ONE JSON object and nothing else. Its `changes` array holds one entry per field you change: " +
+      '`{"plane": <tool name>, "field": <one of that tool\'s arguments>, "value": <the value as text; JSON for a ' +
+      "number, list or object>}`. List one call's fields together, and name the tool again to start a second call " +
+      "(another character, another item). A field you leave out keeps its current value. A beat that changed " +
+      'NOTHING trackable is the single entry `{"plane": "no_changes"}`. The tools and their arguments:',
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Patch-list frame",
+    fires:
+      "Follows the tool-round header when the state round answers as a flat list of field changes, the shape a model with tight structured-output limits can take.",
+  },
   "rpg.extract.reconcilePass": {
     id: "rpg.extract.reconcilePass",
     home: "preset",

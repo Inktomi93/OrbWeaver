@@ -525,6 +525,13 @@ interface ToolRoundArrayRuntimeArm {
   readonly field: ExtractionArrayPlane;
 }
 
+/** Every state tool's own argument schema by wire name (`no_changes` writes nothing and has none). The structured
+ *  round's patch-list shape derives its field vocabulary from these and decodes each value through them. */
+export const RPG_STATE_TOOL_ARGS: ReadonlyMap<string, z.ZodObject> = new Map<string, z.ZodObject>([
+  ["update_scene", updateSceneArgsSchema],
+  ...Object.values(TOOL_ROUND_ARRAY_ARM_DEFS).map((arm): [string, z.ZodObject] => [arm.name, arm.schema]),
+]);
+
 const TOOL_ROUND_ARRAY_ARMS: ReadonlyMap<string, ToolRoundArrayRuntimeArm> = new Map(
   Object.values(TOOL_ROUND_ARRAY_ARM_DEFS).map((arm) => [arm.name, arm] as const),
 );

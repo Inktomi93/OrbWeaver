@@ -18,7 +18,8 @@
 
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { acceptsRequiredToolChoice, fitsEveryWire } from "@orb/contracts/inference";
-import type { RpgEffectiveDelivery, RpgExtractionMode } from "@orb/contracts/rpg";
+import type { RpgEffectiveDelivery, RpgExtractionMode, RpgStateCaptureVehicle, RpgStructuredRoundShape, RpgToolCall } from "@orb/contracts/rpg";
+import { malformedToolCalls, RPG_STRUCTURED_ROUND_SHAPES } from "@orb/contracts/rpg";
 
 /** The per-mode WRITER-capability predicate. A mapped Record, not a switch — a new `RpgExtractionMode` member
  *  without a row is a tsc error (§5.5 string-union dispatch discipline), so the honest-arms verdict can never
@@ -77,11 +78,54 @@ export function hasStructuredWriter(capability: GenerationCapability | null): bo
   return capability !== null && capability.output.structured === true;
 }
 
-/** Does the post-commit state round answer as ONE schema-constrained reply instead of tool calls? Where a row
- *  cannot force a tool call (`requiredChoice: false`) the round's `required` goes out as `auto`, and state capture
- *  would hang on the model choosing to call one; a row that also constrains its output gets the same seven tools
- *  as a discriminated-union `schema` instead, which it cannot answer outside of. A schema past the row's stated
- *  grammar ceilings would 400 every round, so that row keeps the tool round and its loud downgrade. */
-export function answersStateRoundStructured(capability: GenerationCapability, schema: Record<string, unknown>): boolean {
-  return !acceptsRequiredToolChoice(capability) && hasStructuredWriter(capability) && fitsEveryWire([schema], capability.output.structuredLimitsFrom).fits;
+/** Which structured shapes fit this row's grammar ceilings (`output.structuredLimitsFrom`), keyed by shape. A
+ *  THUNK at the call sites below, so a row that never needs a structured round never builds its schemas. */
+type StructuredShapeFits = () => Readonly<Record<RpgStructuredRoundShape, boolean>>;
+
+/** Which of the round's two structured schemas fit the row's grammar ceilings on every wire it might ride. A row
+ *  that names no ceiling (`output.structuredLimitsFrom` absent) fits both. */
+export function structuredShapeFits(
+  capability: GenerationCapability,
+  schemas: Readonly<Record<RpgStructuredRoundShape, Record<string, unknown>>>,
+): Readonly<Record<RpgStructuredRoundShape, boolean>> {
+  const limitsFrom = capability.output.structuredLimitsFrom;
+  return { union: fitsEveryWire([schemas.union], limitsFrom).fits, patch: fitsEveryWire([schemas.patch], limitsFrom).fits };
+}
+
+/** The first shape the row's grammar fits, or `null` (no structured output, or nothing fits). */
+function fittingShape(capability: GenerationCapability, fits: StructuredShapeFits): RpgStructuredRoundShape | null {
+  if (!hasStructuredWriter(capability)) {
+    return null;
+  }
+  const fit = fits();
+  return RPG_STRUCTURED_ROUND_SHAPES.find((shape) => fit[shape]) ?? null;
+}
+
+/** The dedicated state round's PRIMARY vehicle: a structured shape, or `null` for the tool round. Per the game's
+ *  knob ({@link RpgStateCaptureVehicle}): `tools` never leaves tools; `structured` takes whichever shape fits;
+ *  `auto` takes the structured round only where the row cannot be forced to call a tool AND the round's tools fit
+ *  its grammar verbatim (the union shape). A row whose grammar needs the flattened patch list keeps its tool round
+ *  under `auto`, and reaches the patch list only through {@link fallbackStateRound} or an explicit `structured`. */
+export function primaryStateRound(
+  vehicle: RpgStateCaptureVehicle,
+  capability: GenerationCapability,
+  fits: StructuredShapeFits,
+): RpgStructuredRoundShape | null {
+  if (vehicle === "tools") {
+    return null;
+  }
+  if (vehicle === "structured") {
+    return fittingShape(capability, fits);
+  }
+  return !acceptsRequiredToolChoice(capability) && fittingShape(capability, fits) === "union" ? "union" : null;
+}
+
+/** The structured RETRY after a tool round, or `null`: only where the round's `required` went out as `auto` (the
+ *  row cannot be forced) and it came back with no usable call, so state capture would otherwise hang on a model
+ *  that chose not to call. Never after a real `no_changes`: that is the model answering, not ignoring. */
+export function fallbackStateRound(capability: GenerationCapability, calls: readonly RpgToolCall[], fits: StructuredShapeFits): RpgStructuredRoundShape | null {
+  if (acceptsRequiredToolChoice(capability) || malformedToolCalls(calls).length < calls.length) {
+    return null;
+  }
+  return fittingShape(capability, fits);
 }

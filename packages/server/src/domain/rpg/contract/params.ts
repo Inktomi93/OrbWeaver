@@ -20,6 +20,7 @@ import type {
   RpgQuestStatus,
   RpgRuleset,
   RpgSnapshotState,
+  RpgStateCaptureVehicle,
   RpgStatProfile,
   RpgTrackerDef,
   RpgTrackerView,
@@ -211,6 +212,8 @@ export interface UpdateConfigParams {
         // The §1.3 extraction-depth knobs (how much story the state round reads + its token budget + the
         // reconcile cadence) — omit keeps (MA-4 patch semantics).
         readonly extractionContext?: RpgExtractionContext | undefined;
+        // How the dedicated state round asks for the beat's changes — omit keeps.
+        readonly stateCaptureVehicle?: RpgStateCaptureVehicle | undefined;
         readonly extractionWindowTokens?: number | undefined;
         readonly reconcileEveryBeats?: number | undefined;
         // WAVE MU (owner ruling #20's game half): the GAME's authored user macros — the whole set in ONE

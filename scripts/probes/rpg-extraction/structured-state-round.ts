@@ -6,7 +6,9 @@
 //   PROBE_LIVE=1     sends it as `response_format` to OpenRouter, both as projected and strict-compatible (what the
 //                    hosted openai-compat batch sends), and writes each reply to results/;
 //   PROBE_OLLAMA=url posts it as Ollama `/api/chat` `format` (stream off, the structured batch's request) and prints
-//                    the raw reply, which is what the recorded test fixture holds.
+//                    the raw reply, which is what the recorded test fixture holds;
+//   PROBE_PATCH=1    sends the PATCH-LIST shape (strict-compatible, as the hosted batch would) to OpenRouter and writes
+//                    the reply to results/ — the shape a Claude row's empty-round retry takes.
 //
 // The tool list is re-spelled from `buildToolRoundWireTools` (compose/rpg.ts, private): the same projection of
 // `rpgExtractionSchema`, constrained by the same refs, described by the same prose.
@@ -27,7 +29,9 @@ import {
   RPG_NO_CHANGES_TOOL,
   rpgExtractionSchema,
   rpgGameConfigSchema,
+  patchChangesToToolCalls,
   stateRoundChangesSchema,
+  stateRoundPatchSchema,
   structuredChangesToToolCalls,
 } from "@orb/contracts/rpg";
 import { projectJsonSchema } from "@orb/kit/json-schema";
@@ -147,3 +151,42 @@ if (process.env["PROBE_LIVE"] === "1") {
   }
 }
 
+if (process.env["PROBE_PATCH"] === "1") {
+  const key = readEnvKey("OPENROUTER_PROBE_KEY");
+  const model = process.env["PROBE_MODELS"] ?? "anthropic/claude-sonnet-5.5";
+  const patch = scrubWireSchema(projectJsonSchema(stateRoundPatchSchema(tools)), "strict-compatible").schema;
+  console.log(JSON.stringify({ patch: structuredSchemaComplexity(patch) }));
+  const patchSystem = [
+    resolveProseText("rpg.extract.toolRoundHeader", {}),
+    [
+      resolveProseText("rpg.extract.patchRoundFrame", {}),
+      ...tools.map((tool) => `${tool.name}: ${tool.description}\n${JSON.stringify(tool.parameters["properties"] ?? {})}`),
+    ].join("\n"),
+  ].join("\n\n");
+  const res = await fetch(OR_URL, {
+    method: "POST",
+    headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+    body: JSON.stringify({
+      model,
+      max_tokens: 2048,
+      provider: { order: ["Anthropic"], allow_fallbacks: false },
+      messages: [
+        { role: "system", content: patchSystem },
+        { role: "user", content: user },
+      ],
+      response_format: { type: "json_schema", json_schema: { name: "rpg_state_changes", schema: patch, strict: true } },
+    }),
+  });
+  const body = (await res.json()) as { choices?: { message?: { content?: string | null } }[] };
+  const text = body.choices?.[0]?.message?.content ?? "";
+  let decoded: unknown = null;
+  try {
+    decoded = patchChangesToToolCalls(JSON.parse(text));
+  } catch {
+    decoded = null;
+  }
+  fs.mkdirSync(path.join(DIR, "results"), { recursive: true });
+  const file = path.join(DIR, "results", `structured-state-round-${model.replaceAll("/", "_")}-patch.json`);
+  fs.writeFileSync(file, `${JSON.stringify({ model, shape: "patch", status: res.status, response: body, decoded }, null, 2)}\n`);
+  console.log(JSON.stringify({ model, shape: "patch", status: res.status, decoded, file }, null, 2));
+}

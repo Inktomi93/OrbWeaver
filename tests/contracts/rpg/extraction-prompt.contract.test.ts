@@ -208,8 +208,8 @@ test("the GAME-FREE baseline descriptions are byte-identical, and the tracker-fr
 test("every extraction slot is PRESET-homed with macros:none — the tokens are data, never the macro engine", () => {
   const cohort = PROSE_SLOT_IDS.filter((id) => id.startsWith("rpg.extract."));
   // 40 at S4 + census row 27 (`stateTrackingGuide`, 2026-08-08) + the LATEST BEAT label + `roll_dice` (#578) + the structured
-  // state round's frame.
-  expect(cohort.length).toBe(44);
+  // state round's two frames.
+  expect(cohort.length).toBe(45);
   for (const id of cohort) {
     expect(PROSE_SLOTS[id].home, id).toBe("preset");
     // An extraction prompt is not a character context: there is no `{{user}}`/`{{char}}` binding to resolve,

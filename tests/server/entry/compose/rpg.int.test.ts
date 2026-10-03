@@ -58,6 +58,7 @@ import { OLLAMA_NATIVE_RECORDINGS } from "../../../inference/backends/openai-com
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
+import { ANTHROPIC_PATCH_ROUND_200 } from "./_structured-state-round-recordings.ts";
 
 const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_compose_1");
 
@@ -3170,7 +3171,8 @@ test("0511: Claude (5.5 and 4.x), OpenAI and plain tool rows send the forced too
       // @orb-waive no-test-fabrication(unknown): minimal ChatResult double — the round reads toolCalls and the economics fields only.
       return Promise.resolve({
         reply: "",
-        toolCalls: [],
+        // A real quiet beat, so the downgraded Claude 5.5 round does not take its empty-round retry here.
+        toolCalls: [{ name: "no_changes", arguments: "{}" }],
         usage: { model: "m", tokensIn: 1, tokensOut: 1, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: null, costUsd: null },
         durationApiMs: 1,
         finishReason: "tool_calls",
@@ -3211,4 +3213,135 @@ test("0511: the folded mount on a Claude 5.5 row is byte-identical to main", asy
 
   expect(folded?.terminalTools?.map((t) => t.name)).toEqual([...RPG_TOOL_ROUND_TOOL_NAMES].filter((n) => n !== "set_tracker"));
   expect(requestFingerprint(folded?.terminalTools)).toBe(MAIN_FOLDED_MOUNT_FINGERPRINT);
+});
+
+// ── 0511 (expansion): the empty-round retry and the per-game vehicle knob ─────────────────────────────────────────
+
+/** Claude Sonnet 5.5's recorded patch-list answer to one beat (OpenRouter, pinned to Anthropic). */
+const PATCH_REPLY = ANTHROPIC_PATCH_ROUND_200.content;
+
+async function cheapGame(
+  db: Db,
+  rpgCompose: ReturnType<typeof buildRpg>,
+  key: string,
+  vehicle?: "auto" | "tools" | "structured",
+): Promise<{ readonly chatId: ChatId; readonly hostId: UserId; readonly messageId: MessageId; readonly variantId: MessageVariantId }> {
+  const { chatId, hostId } = await seedHostGameChat(db, key);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({
+    principal: hostPrincipal(hostId),
+    chatId,
+    extractionMode: "cheap",
+    ...(vehicle === undefined ? {} : { patch: { stateCaptureVehicle: vehicle } }),
+  });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They flee into the cave." });
+  return { chatId, hostId, messageId, variantId };
+}
+
+test("0511: a downgraded Claude 5.5 round that comes back EMPTY is retried once as a patch-list round, and its changes land", async ({ app, db }) => {
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: PATCH_REPLY, cannedToolCalls: [] });
+  const { chatId, hostId, messageId, variantId } = await cheapGame(db, rpgCompose, "fb-empty");
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.claudeNoForce));
+
+  // The tool round ran first (unchanged), then exactly one structured call in the flat shape Claude's grammar fits.
+  expect(spy.chatTurns).toHaveLength(1);
+  expect(spy.vehicles).toEqual(["response-format"]);
+  expect(JSON.stringify(spy.schemas[0])).toContain('"plane"');
+  expect(spy.systemPrompts[1]).toContain("`changes` array holds one entry per field");
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.ambient?.location).toBe("cave by the river");
+  const [record] = await findTurnToolCallsByVariant(db, variantId);
+  expect(record?.calls.map((call) => call.name)).toEqual(["update_party", "update_scene", "add_journal_entry"]);
+});
+
+test("0511: the retry never fires after a real `no_changes`, nor on a row whose `required` was not downgraded", async ({ app, db }) => {
+  const quietSpy = emptySpy();
+  const quiet = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: quietSpy,
+    cannedText: PATCH_REPLY,
+    cannedToolCalls: [{ name: "no_changes", arguments: "{}" }],
+  });
+  const a = await cheapGame(db, quiet, "fb-quiet");
+  await quiet.chatOps.onTurnCompleted(a.chatId, a.messageId, a.variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.claudeNoForce));
+  expect(quietSpy.summarizeModels).toEqual([]);
+
+  const forcedSpy = emptySpy();
+  const forced = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: forcedSpy, cannedText: PATCH_REPLY, cannedToolCalls: [] });
+  const b = await cheapGame(db, forced, "fb-forced");
+  await forced.chatOps.onTurnCompleted(b.chatId, b.messageId, b.variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.claudeForced));
+  expect(forcedSpy.summarizeModels).toEqual([]);
+  expect(await findSnapshotByVariant(db, b.variantId)).toBeUndefined();
+});
+
+test("0511: a retry the provider refuses surfaces as the round's failure, never as a quiet beat", async ({ app, db }) => {
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: PATCH_REPLY,
+    cannedToolCalls: [],
+    structuredThrows: new Error("upstream 400 from the retry"),
+  });
+  const { chatId, messageId, variantId } = await cheapGame(db, rpgCompose, "fb-fail");
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.claudeNoForce));
+
+  const [record] = await findTurnToolCallsByVariant(db, variantId);
+  expect(record?.failure).toContain("upstream 400 from the retry");
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+});
+
+test("0511: the `tools` knob keeps a no-force local row on its tool round; `structured` puts a forcible row on the union round", async ({ app, db }) => {
+  const toolsSpy = emptySpy();
+  const toolsOnly = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: toolsSpy,
+    cannedText: RECORDED_STATE_ROUND_REPLY,
+    cannedToolCalls: [{ name: "no_changes", arguments: "{}" }],
+  });
+  const a = await cheapGame(db, toolsOnly, "knob-tools", "tools");
+  await toolsOnly.chatOps.onTurnCompleted(a.chatId, a.messageId, a.variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.local));
+  expect(toolsSpy.chatTurns).toHaveLength(1);
+  expect(toolsSpy.summarizeModels).toEqual([]);
+
+  const structuredSpy = emptySpy();
+  const structured = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: structuredSpy, cannedText: RECORDED_STATE_ROUND_REPLY });
+  const b = await cheapGame(db, structured, "knob-structured", "structured");
+  await structured.chatOps.onTurnCompleted(b.chatId, b.messageId, b.variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.openai));
+  expect(structuredSpy.chatTurns).toEqual([]);
+  expect(structuredSpy.vehicles).toEqual(["response-format"]);
+  expect(JSON.stringify(structuredSpy.schemas[0])).toContain('"tool"');
+  const [record] = await findTurnToolCallsByVariant(db, b.variantId);
+  expect(record?.calls.map((call) => call.name)).toEqual(["update_party", "update_inventory"]);
+});
+
+test("0511: a host resync on a downgraded Claude 5.5 row that comes back empty takes the same patch-list retry", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "fb-resync");
+  const principal = hostPrincipal(hostId);
+  const spy = emptySpy();
+  const compose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy,
+    cannedText: PATCH_REPLY,
+    cannedToolCalls: [],
+    capability: STATE_ROUND_ROWS.claudeNoForce,
+  });
+  await compose.service.createGame({ principal, chatId, mode: "lite" });
+
+  const verdict = await compose.service.resyncFromStory({ principal, chatId });
+
+  expect(verdict.ok).toBe(true);
+  expect(spy.chatTurns).toHaveLength(1);
+  expect(spy.vehicles).toEqual(["response-format"]);
+  expect((await panelState(compose, hostId, chatId)).location).toBe("cave by the river");
 });

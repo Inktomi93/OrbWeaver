@@ -33,9 +33,9 @@
 
 import { randomInt } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
-import type { ChatApi } from "@orb/contracts/inference";
+import type { ChatApi, GenerationCapability } from "@orb/contracts/inference";
 import { coEmitsProseWithTools, scrubWireSchema } from "@orb/contracts/inference";
-import type { ProseOverrides } from "@orb/contracts/prose";
+import type { ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type {
@@ -46,6 +46,8 @@ import type {
   RpgSheet,
   RpgSnapshotState,
   RpgStateRoundTool,
+  RpgStructuredChanges,
+  RpgStructuredRoundShape,
   RpgToolCall,
   RpgTrackerCarrier,
 } from "@orb/contracts/rpg";
@@ -61,6 +63,7 @@ import {
   gameTrackerWriteKeys,
   healedJournalTypes,
   malformedToolCallDetails,
+  patchChangesToToolCalls,
   RPG_NO_CHANGES_TOOL,
   RPG_STATE_ROUND_FAILED_SUMMARY,
   recordToolCalls,
@@ -71,6 +74,7 @@ import {
   salvageExtraction,
   salvagePopulate,
   stateRoundChangesSchema,
+  stateRoundPatchSchema,
   strippedToolCallKeys,
   structuredChangesToToolCalls,
   toolCallsToExtraction,
@@ -104,7 +108,6 @@ import type {
 } from "#domain/rpg";
 import {
   actorCarrier,
-  answersStateRoundStructured,
   buildActorRefIndex,
   createImportRpgGame,
   createRpgChatOps,
@@ -113,14 +116,17 @@ import {
   createRpgStagingStore,
   deriveTrackersReadOnly,
   extractionToStateDelta,
+  fallbackStateRound,
   findGameByChat,
   ghostTargetRefs,
   hasStructuredWriter,
   hasToolWriter,
   listSheets,
+  primaryStateRound,
   publishRpgEvent,
   reachableActorRefs,
   rpgToolDefinitions,
+  structuredShapeFits,
 } from "#domain/rpg";
 import type { ToolUseService } from "#domain/tool-use";
 import { logger } from "#foundation/observability";
@@ -1191,6 +1197,24 @@ async function runInventoryAudit(args: {
   }
 }
 
+/** The round's calls plus the selective inventory pass's, when {@link needsInventoryAudit} says the beat earned one. */
+async function withInventoryAudit(args: {
+  readonly deps: RpgComposeDeps;
+  readonly round: ForcedToolRoundInput;
+  readonly prose: ProseOverrides;
+  readonly wireTools: ForcedToolRoundInput["tools"];
+  readonly turnId: ChatTurnId;
+  readonly baseState: RpgSnapshotState;
+  readonly transcript: readonly RpgTurnTranscriptMessage[];
+  readonly calls: readonly RpgToolCall[];
+}): Promise<readonly RpgToolCall[]> {
+  if (!needsInventoryAudit(args.baseState, args.transcript, args.calls)) {
+    return args.calls;
+  }
+  const tools = args.wireTools.filter((tool) => tool.name === "update_inventory" || tool.name === RPG_NO_CHANGES_TOOL);
+  return [...args.calls, ...(await runInventoryAudit({ deps: args.deps, round: args.round, prose: args.prose, tools, turnId: args.turnId }))];
+}
+
 /** Build the cheap-mode `runToolRound` op — the parallel-tool-call state round (the sibling of
  *  `runExtraction`). Rides the CHARACTER turn's ALREADY-RESOLVED connection + consent verdict
  *  (`input.turnConnection` — stickler F1: no re-resolve, no force-stamped consent); the vehicle is wire tools +
@@ -1225,9 +1249,12 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     const userPrompt = buildExtractionUserPrompt(turnConnection.transcript, baseState, config, prose);
     const history = [{ role: "user" as const, content: [{ type: "text" as const, text: userPrompt }] }];
     const wireTools = buildToolRoundWireTools(refs, config, prose);
-    const format = stateChangesFormat(conn, refs, wireTools);
-    if (format !== null) {
-      return await runStructuredStateRound(deps, { input, refs, format, systemPrompt: structuredRoundSystem(inputs, wireTools), userPrompt });
+    const generation = generationOf(conn);
+    const shapes = structuredShapes(generation, refs, wireTools);
+    const primary = primaryStateRound(config.stateCaptureVehicle, generation, shapes.fits);
+    if (primary !== null) {
+      const structured = structuredRound(primary, shapes.schemas(), inputs, wireTools);
+      return await runStructuredStateRound(deps, { input, refs, round: structured, userPrompt, priorCalls: [] });
     }
     const round: ForcedToolRoundInput = {
       connection: conn,
@@ -1262,11 +1289,14 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
       return { ...empty, failure: roundFailure(err) };
     }
     deps.trace?.({ phase: "tool", chatId, turnId, vehicle: "cheap tool round", calls: recordToolCalls(calls) });
-    if (needsInventoryAudit(baseState, turnConnection.transcript, calls)) {
-      const auditTools = wireTools.filter((tool) => tool.name === "update_inventory" || tool.name === RPG_NO_CHANGES_TOOL);
-      calls = [...calls, ...(await runInventoryAudit({ deps, round, prose, tools: auditTools, turnId }))];
+    const fallback = fallbackStateRound(generation, calls, shapes.fits);
+    if (fallback !== null) {
+      logStructuredFallback({ chatId, model: conn.model, api: conn.api, shape: fallback, calls: calls.length, event: "rpg.toolround.structured_fallback" });
+      const structured = structuredRound(fallback, shapes.schemas(), inputs, wireTools);
+      return await runStructuredStateRound(deps, { input, refs, round: structured, userPrompt, priorCalls: calls });
     }
-    return await foldRoundCalls(deps, { chatId, conn, baseState, refs, calls, vehicle: "cheap tool round" });
+    const audited = await withInventoryAudit({ deps, round, prose, wireTools, turnId, baseState, transcript: turnConnection.transcript, calls });
+    return await foldRoundCalls(deps, { chatId, conn, baseState, refs, calls: audited, vehicle: "cheap tool round" });
   };
 }
 
@@ -1283,10 +1313,11 @@ async function foldRoundCalls(
     readonly refs: ExtractionRefs;
     readonly calls: readonly RpgToolCall[];
     readonly vehicle: string;
+    readonly events?: { readonly unparseable: string; readonly stripped: string } | undefined;
   },
 ): Promise<RpgStateDelta> {
   const { chatId, conn, baseState, refs, calls } = args;
-  logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls, vehicle: args.vehicle });
+  logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls, vehicle: args.vehicle, events: args.events });
   const extraction = toolCallsToExtraction(calls);
   const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
   const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
@@ -1303,72 +1334,166 @@ async function foldRoundCalls(
   return { ...delta, recordedToolCalls: recordToolCalls(calls) };
 }
 
-/** The STRUCTURED state round's response format, or `null` where the round rides tools
- *  ({@link answersStateRoundStructured} decides off the turn's capability). The schema is generated from the
- *  round's own wire tools, so both vehicles offer one write surface. */
-function stateChangesFormat(conn: Resolved<"chat">, refs: ExtractionRefs, tools: readonly RpgStateRoundTool[]): ResponseFormat | null {
-  const schema = stateRoundChangesSchema(constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs), tools);
-  return answersStateRoundStructured(generationOf(conn), schema) ? { name: STATE_CHANGES_SCHEMA_NAME, schema, vehicle: "response-format" } : null;
+/** A built structured state round: the shape, what goes on the wire, and the prompt that frames it. */
+interface StructuredRound {
+  readonly shape: RpgStructuredRoundShape;
+  readonly format: ResponseFormat;
+  readonly systemPrompt: string;
 }
 
-/** The structured round's system prompt: the tool round's own (header, plane teaching, refs), then the frame
- *  that turns "call a tool" into "list the call", then each tool with its description. The descriptions ride the
- *  prompt because a grammar-only wire (Ollama `format`) never shows the model the schema. */
-function structuredRoundSystem(inputs: PromptInputs, tools: readonly RpgStateRoundTool[]): string {
-  const toolLines = tools.map((tool) => `${tool.name}: ${tool.description}`);
-  return [toolRoundSystem(inputs), [resolveProseText("rpg.extract.structuredRoundFrame", inputs.prose), ...toolLines].join("\n")].join("\n\n");
+/** How each shape's reply decodes back to tool calls — a mapped Record, so a new shape without a decoder fails tsc. */
+const STRUCTURED_DECODERS: Readonly<Record<RpgStructuredRoundShape, (value: unknown) => RpgStructuredChanges | null>> = {
+  union: structuredChangesToToolCalls,
+  patch: patchChangesToToolCalls,
+};
+
+/** Each shape's frame slot: the union lists whole calls, the patch list single fields. */
+const STRUCTURED_FRAMES: Readonly<Record<RpgStructuredRoundShape, ProseSlotId>> = {
+  union: "rpg.extract.structuredRoundFrame",
+  patch: "rpg.extract.patchRoundFrame",
+};
+
+/** The round's two structured schemas and which ones the row's grammar fits, both built at most once and only when
+ *  a caller asks: a tool row that never needs a structured round never projects either schema. */
+function structuredShapes(
+  generation: GenerationCapability,
+  refs: ExtractionRefs,
+  tools: readonly RpgStateRoundTool[],
+): { readonly schemas: () => Readonly<Record<RpgStructuredRoundShape, WireReady>>; readonly fits: () => Readonly<Record<RpgStructuredRoundShape, boolean>> } {
+  let schemas: Readonly<Record<RpgStructuredRoundShape, WireReady>> | undefined;
+  const built = (): Readonly<Record<RpgStructuredRoundShape, WireReady>> => {
+    schemas ??= {
+      union: stateRoundChangesSchema(constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs), tools),
+      patch: projectJsonSchema(stateRoundPatchSchema(tools)),
+    };
+    return schemas;
+  };
+  return { schemas: built, fits: () => structuredShapeFits(generation, built()) };
 }
 
-/** The cheap round on a row that cannot force a tool call but constrains its output: ONE structured call whose
- *  reply decodes to the same tool calls a tool round returns, then the shared tail. A provider throw and an
- *  unreadable reply both fail LOUDLY (the warn + `failure`), the tool round's posture; a cancel is not a failure. */
+/** Build the structured round in `shape`. The system prompt is the tool round's own (header, plane teaching, refs)
+ *  plus the shape's frame and every tool with its description — and, for the patch list, the argument shapes its
+ *  values must take. They ride the prompt because a grammar-only wire (Ollama `format`) never shows the schema. */
+function structuredRound(
+  shape: RpgStructuredRoundShape,
+  schemas: Readonly<Record<RpgStructuredRoundShape, WireReady>>,
+  inputs: PromptInputs,
+  tools: readonly RpgStateRoundTool[],
+): StructuredRound {
+  const toolLines = tools.map((tool) =>
+    shape === "patch" ? `${tool.name}: ${tool.description}\n${JSON.stringify(tool.parameters["properties"] ?? {})}` : `${tool.name}: ${tool.description}`,
+  );
+  const frame = [resolveProseText(STRUCTURED_FRAMES[shape], inputs.prose), ...toolLines].join("\n");
+  return {
+    shape,
+    format: { name: STATE_CHANGES_SCHEMA_NAME, schema: schemas[shape], vehicle: "response-format" },
+    systemPrompt: [toolRoundSystem(inputs), frame].join("\n\n"),
+  };
+}
+
+/** The structured-fallback line: a tool round whose `required` went out as `auto` came back with nothing usable,
+ *  so the beat is asked again as a structured round. A WARN, because it is a second billed call. */
+function logStructuredFallback(args: {
+  readonly chatId: ChatId;
+  readonly model: string;
+  readonly api: ChatApi | null;
+  readonly shape: RpgStructuredRoundShape;
+  readonly calls: number;
+  readonly event: string;
+}): void {
+  logger.warn(
+    { event: args.event, chatId: args.chatId, model: args.model, api: args.api, shape: args.shape, toolCalls: args.calls },
+    "rpg state round: the downgraded tool round returned no usable call — retrying once as a structured round",
+  );
+}
+
+/** What one structured state call came back with. */
+type StructuredCalls =
+  | { readonly kind: "calls"; readonly calls: readonly RpgToolCall[] }
+  | { readonly kind: "failed"; readonly err: unknown }
+  | { readonly kind: "cancelled" };
+
+/** Ask for one structured state reply and decode it to tool calls. A provider throw and a reply outside the shape
+ *  are both `failed` (logged on the caller's own events); a cancel read off the signal is not a failure. Entries that
+ *  were not a change and patch values their tool's schema refused are warned about by name and left out. */
+async function requestStructuredCalls(
+  deps: RpgComposeDeps,
+  args: {
+    readonly conn: Resolved<"chat">;
+    readonly chatId: ChatId;
+    readonly signal: AbortSignal | undefined;
+    readonly userPrompt: string;
+    readonly round: StructuredRound;
+    readonly events: { readonly failed: string; readonly unparseable: string };
+  },
+): Promise<StructuredCalls> {
+  const { conn, chatId, signal, round } = args;
+  const line = { chatId, model: conn.model, api: conn.api, vehicle: STRUCTURED_ROUND_VEHICLE, shape: round.shape };
+  let text: string;
+  // @orb-waive caught-failure-ownership(err): errors-as-data — returned as `failed` and warned on the caller's own
+  // event, the tool round's posture; a cancel is read off the signal. Ends if the warn is removed.
+  try {
+    text = await runStructuredChat(deps.executor, {
+      connection: conn,
+      chatId,
+      systemPrompt: round.systemPrompt,
+      userPrompt: args.userPrompt,
+      responseFormat: round.format,
+      signal,
+    });
+  } catch (err) {
+    if (signal !== undefined && isCancelled(signal)) {
+      logCancelled({ chatId, model: conn.model, api: conn.api, vehicle: STRUCTURED_ROUND_VEHICLE, preflight: false });
+      return { kind: "cancelled" };
+    }
+    logger.warn({ event: args.events.failed, ...line, err }, "rpg structured state round failed");
+    return { kind: "failed", err };
+  }
+  const changes = STRUCTURED_DECODERS[round.shape](safeJson(text));
+  if (changes === null) {
+    logger.warn({ event: args.events.unparseable, ...line }, "rpg structured state round: the reply was not a list of changes — nothing applied");
+    return { kind: "failed", err: new Error(STRUCTURED_REPLY_UNREADABLE) };
+  }
+  if (changes.unreadable > 0 || changes.dropped.length > 0) {
+    logger.warn(
+      { event: args.events.unparseable, ...line, unreadableEntries: changes.unreadable, droppedFields: changes.dropped },
+      "rpg structured state round: entries that were not a change, or values their tool's schema refused, were DROPPED (every other change still applies)",
+    );
+  }
+  return { kind: "calls", calls: changes.calls };
+}
+
+/** The cheap round as ONE structured call (the primary vehicle, or the retry after an empty downgraded tool round),
+ *  then the shared tail. `priorCalls` are the retried round's own calls, kept on the record beside the new ones. */
 async function runStructuredStateRound(
   deps: RpgComposeDeps,
   args: {
     readonly input: Parameters<RpgRunToolRound>[0];
     readonly refs: ExtractionRefs;
-    readonly format: ResponseFormat;
-    readonly systemPrompt: string;
+    readonly round: StructuredRound;
     readonly userPrompt: string;
+    readonly priorCalls: readonly RpgToolCall[];
   },
 ): Promise<RpgStateDelta> {
   const { chatId, turnId, baseState, turnConnection, signal } = args.input;
   const conn = turnConnection.connection;
-  const empty = { statePatch: {}, journal: [] };
-  const line = { chatId, model: conn.model, api: conn.api, vehicle: STRUCTURED_ROUND_VEHICLE };
-  let text: string;
-  // @orb-waive caught-failure-ownership(err): errors-as-data — the tool round's twin: a cancel is read off the
-  // signal and returns `empty`; any other failure is the warn below plus the returned `failure`. Ends if the warn is removed.
-  try {
-    text = await runStructuredChat(deps.executor, {
-      connection: conn,
-      chatId,
-      systemPrompt: args.systemPrompt,
-      userPrompt: args.userPrompt,
-      responseFormat: args.format,
-      signal,
-    });
-  } catch (err) {
-    if (isCancelled(signal)) {
-      logCancelled({ ...line, preflight: false });
-      return empty;
-    }
-    logger.warn({ event: "rpg.toolround.failed", ...line, err }, "rpg structured state round failed");
-    return { ...empty, failure: roundFailure(err) };
+  const result = await requestStructuredCalls(deps, {
+    conn,
+    chatId,
+    signal,
+    userPrompt: args.userPrompt,
+    round: args.round,
+    events: { failed: "rpg.toolround.failed", unparseable: "rpg.toolround.unparseable" },
+  });
+  if (result.kind === "cancelled") {
+    return { statePatch: {}, journal: [] };
   }
-  const changes = structuredChangesToToolCalls(safeJson(text));
-  if (changes === null) {
-    logger.warn({ event: "rpg.toolround.unparseable", ...line }, "rpg structured state round: the reply was not a list of changes — nothing applied");
-    return { ...empty, failure: roundFailure(new Error(STRUCTURED_REPLY_UNREADABLE)) };
+  if (result.kind === "failed") {
+    return { statePatch: {}, journal: [], failure: roundFailure(result.err) };
   }
-  if (changes.unreadable > 0) {
-    logger.warn(
-      { event: "rpg.extraction.unparseable", ...line, unreadableEntries: changes.unreadable },
-      "rpg structured state round: change entries without a tool name were DROPPED (every other change still applies)",
-    );
-  }
-  deps.trace?.({ phase: "tool", chatId, turnId, vehicle: STRUCTURED_ROUND_VEHICLE, calls: recordToolCalls(changes.calls) });
-  return await foldRoundCalls(deps, { chatId, conn, baseState, refs: args.refs, calls: changes.calls, vehicle: STRUCTURED_ROUND_VEHICLE });
+  deps.trace?.({ phase: "tool", chatId, turnId, vehicle: STRUCTURED_ROUND_VEHICLE, calls: recordToolCalls(result.calls) });
+  const calls = [...args.priorCalls, ...result.calls];
+  return await foldRoundCalls(deps, { chatId, conn, baseState, refs: args.refs, calls, vehicle: STRUCTURED_ROUND_VEHICLE });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1497,8 +1622,15 @@ const RESYNC_FAILED_REASON = "the model call failed, so nothing was rebuilt:";
 // (`carriesForcedToolRound` — the terminal-tools channel is a CHAT-pipeline mount, not a state-round vehicle)
 // rides the structured extraction with the projected schema. Same delta either way — the shared-plane proof.
 
+/** The resync's own log namespace for every round it drives, so a catch-up's losses stay on the resync's trail. */
+const RESYNC_EVENTS = { unparseable: "rpg.resync.unparseable", stripped: "rpg.resync.stripped", failed: "rpg.resync.failed" } as const;
+
+type ResyncRoundResult = { readonly ok: true; readonly delta: RpgStateDelta } | { readonly ok: false; readonly reason: string };
+
 /** The resync's TOOL-ROUND arm: one state-only turn, the 7 per-plane tools, `tool_choice:"required"`. Errors
- *  are DATA (the RESYNC-OR grammar): a throw becomes the host's sentence, never a silent empty rebuild. */
+ *  are DATA (the RESYNC-OR grammar): a throw becomes the host's sentence, never a silent empty rebuild. The game's
+ *  state-capture vehicle picks a structured round instead where it asks for one, and a downgraded round that
+ *  came back empty is retried once as a structured round, exactly as the in-turn round does. */
 async function resyncViaToolRound(
   deps: RpgComposeDeps,
   args: {
@@ -1510,9 +1642,16 @@ async function resyncViaToolRound(
     readonly inputs: PromptInputs;
     readonly userPrompt: string;
   },
-): Promise<{ readonly ok: true; readonly delta: RpgStateDelta } | { readonly ok: false; readonly reason: string }> {
-  const { chatId, conn, baseState, inputs, userPrompt } = args;
+): Promise<ResyncRoundResult> {
+  const { chatId, conn, inputs, userPrompt } = args;
   const { refs, config, prose } = inputs;
+  const tools = buildToolRoundWireTools(refs, config, prose);
+  const generation = generationOf(conn);
+  const shapes = structuredShapes(generation, refs, tools);
+  const primary = primaryStateRound(config.stateCaptureVehicle, generation, shapes.fits);
+  if (primary !== null) {
+    return await resyncViaStructuredRound(deps, { ...args, round: structuredRound(primary, shapes.schemas(), inputs, tools), priorCalls: [] });
+  }
   let calls: readonly RpgToolCall[];
   try {
     const result = await deps.executor.runChatTurn(
@@ -1523,37 +1662,46 @@ async function resyncViaToolRound(
         chatId,
         systemPrompt: toolRoundSystem(inputs),
         history: [{ role: "user", content: [{ type: "text", text: userPrompt }] }],
-        tools: buildToolRoundWireTools(refs, config, prose),
+        tools,
       }),
     );
     logToolRoundUsage({ chatId, api: conn.api, pass: "resync", result });
     calls = result.toolCalls ?? [];
   } catch (err) {
-    logger.warn({ event: "rpg.resync.failed", chatId, model: conn.model, api: conn.api, err }, "rpg resync tool round failed");
+    logger.warn({ event: RESYNC_EVENTS.failed, chatId, model: conn.model, api: conn.api, err }, "rpg resync tool round failed");
     return { ok: false, reason: `${RESYNC_FAILED_REASON} ${errorMessage(err)}` };
   }
+  const fallback = fallbackStateRound(generation, calls, shapes.fits);
+  if (fallback !== null) {
+    logStructuredFallback({ chatId, model: conn.model, api: conn.api, shape: fallback, calls: calls.length, event: "rpg.resync.structured_fallback" });
+    return await resyncViaStructuredRound(deps, { ...args, round: structuredRound(fallback, shapes.schemas(), inputs, tools), priorCalls: calls });
+  }
   // The SAME loss log both in-turn tool vehicles run, in the resync's own event namespace.
-  logToolCallLosses({
-    chatId,
-    model: conn.model,
-    api: conn.api,
-    calls,
-    vehicle: "resync tool round",
-    events: { unparseable: "rpg.resync.unparseable", stripped: "rpg.resync.stripped" },
-  });
-  const extraction = toolCallsToExtraction(calls);
-  const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-  const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
-  logExtractionOutcome({
-    chatId,
-    model: conn.model,
-    api: conn.api,
-    actorRefs: refs.actorRefs.length,
-    base: baseState,
-    participantIndex,
-    parsed: extraction,
-    delta,
-  });
+  return { ok: true, delta: await foldRoundCalls(deps, { ...args, refs, calls, vehicle: "resync tool round", events: RESYNC_EVENTS }) };
+}
+
+/** The resync as ONE structured round (its primary vehicle, or the retry after an empty downgraded tool round). A
+ *  failure is the host's sentence, the RESYNC-OR grammar. */
+async function resyncViaStructuredRound(
+  deps: RpgComposeDeps,
+  args: {
+    readonly chatId: ChatId;
+    readonly conn: Resolved<"chat">;
+    readonly baseState: RpgSnapshotState;
+    readonly inputs: PromptInputs;
+    readonly userPrompt: string;
+    readonly round: StructuredRound;
+    readonly priorCalls: readonly RpgToolCall[];
+  },
+): Promise<ResyncRoundResult> {
+  const { chatId, conn, round } = args;
+  // A HOST DOOR has no cancellation to inherit (see `resyncViaStructured`).
+  const result = await requestStructuredCalls(deps, { conn, chatId, signal: undefined, userPrompt: args.userPrompt, round, events: RESYNC_EVENTS });
+  if (result.kind !== "calls") {
+    return { ok: false, reason: `${RESYNC_FAILED_REASON} ${result.kind === "failed" ? errorMessage(result.err) : ""}`.trimEnd() };
+  }
+  const calls = [...args.priorCalls, ...result.calls];
+  const delta = await foldRoundCalls(deps, { ...args, refs: args.inputs.refs, calls, vehicle: STRUCTURED_ROUND_VEHICLE, events: RESYNC_EVENTS });
   return { ok: true, delta };
 }
 

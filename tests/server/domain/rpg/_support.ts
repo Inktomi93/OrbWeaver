@@ -74,6 +74,7 @@ export function liteConfig(): RpgGameConfig {
     lite: { steeringNote: "" },
     extractionMode: "folded", // the BORN default (owner ruling 2026-08-01) — the fixture mirrors a real game
 
+    stateCaptureVehicle: "auto",
     extractionContext: "window",
     extractionWindowTokens: 4096,
     reconcileEveryBeats: 10,

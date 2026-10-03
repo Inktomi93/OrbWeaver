@@ -540,6 +540,10 @@
       "version": 1,
       "sha256": "9ba5896e6d0b9f94e4be4fa218ef9b7a15fbc53788287528d001c909fbcb46cb"
     },
+    "rpg.extract.patchRoundFrame": {
+      "version": 1,
+      "sha256": "4d5302ebd5b046e4b2a75d046381daf9808fa6ed004855086ed8f6928c67e88e"
+    },
     "rpg.extract.reconcilePass": {
       "version": 1,
       "sha256": "e427d5b24c2e4df81ce75fdb204633e7dc189d97bd4a3427b5721cfeb5ae5cf3"
