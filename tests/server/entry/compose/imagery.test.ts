@@ -30,11 +30,11 @@ import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import { imageryToolDefinitions } from "../../../../packages/server/src/domain/imagery/index.ts";
 import type { ImageryComposeDeps } from "../../../../packages/server/src/entry/compose/imagery.ts";
-import { buildImagery } from "../../../../packages/server/src/entry/compose/imagery.ts";
+import { buildImagery, createCharacterSeated } from "../../../../packages/server/src/entry/compose/imagery.ts";
 import { freshDb } from "../../../support/db.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { seedChat, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
+import { seedCharacter, seedChat, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 const CALLER = principal(castId<UserId>("usr_caller"), { handle: castId<Handle>("caller") });
 const HOST = castId<UserId>("usr_host");
@@ -57,6 +57,8 @@ interface Fakes {
   readonly register: Mock<(def: { name: string }) => void>;
   readonly roleClientsFor: Mock<(funderUserId: UserId) => Promise<{ summarize: Fakes["summarize"] }>>;
   readonly resolveChatHostUserId: Mock<(chatId: ChatId) => Promise<UserId | null>>;
+  readonly isCharacterSeated: Mock<(chatId: ChatId, characterId: CharacterId) => Promise<boolean>>;
+  readonly cardGetCard: Mock<(args: { principal: Principal; characterId: CharacterId }) => Promise<{ name: string }>>;
 }
 
 function fakes(): Fakes {
@@ -79,6 +81,8 @@ function fakes(): Fakes {
       Promise.resolve({ bytes: new Uint8Array([7, 7]), mime: "image/png" }),
     ),
     register: vi.fn<(def: { name: string }) => void>(),
+    isCharacterSeated: vi.fn<(chatId: ChatId, characterId: CharacterId) => Promise<boolean>>(() => Promise.resolve(true)),
+    cardGetCard: vi.fn<(args: { principal: Principal; characterId: CharacterId }) => Promise<{ name: string }>>(() => Promise.resolve({ name: "Aria" })),
   };
 }
 
@@ -91,9 +95,10 @@ function build(f: Fakes, db: Db | Record<string, never> = {}): ReturnType<typeof
     connection: { resolveRole: vi.fn() },
     executor: { generateImage: vi.fn() },
     assets: { store: vi.fn(), readOwnedAssetBytes: f.readOwnedAssetBytes },
-    character: { getCard: vi.fn(), get: f.characterGet },
+    character: { getCard: f.cardGetCard, get: f.characterGet },
     roleClientsFor: f.roleClientsFor,
     resolveChatHostUserId: f.resolveChatHostUserId,
+    isCharacterSeated: f.isCharacterSeated,
     resolveHostPrincipal: (userId: UserId) => Promise.resolve(principal(userId)),
     resolveUserPresetParams: f.resolveUserPresetParams,
     resolveChatPresetParams: vi.fn(() => Promise.resolve({})),
@@ -259,6 +264,56 @@ describe("buildImagery — a member's preview in a host's room runs as the host 
     expect(f.resolveViewerVisibility.mock.calls.every(([room, viewer]) => room === chatId && viewer === member)).toBe(true);
     expect(f.loadUserSettings.mock.calls).toEqual([[host]]);
     expect(f.roleClientsFor.mock.calls).toEqual([[host]]);
+  });
+});
+
+describe("buildImagery — a room preview's subject comes from the room roster", () => {
+  async function seedRoom(): Promise<{
+    readonly db: Db;
+    readonly member: UserId;
+    readonly chatId: ChatId;
+    readonly seated: CharacterId;
+    readonly offRoom: CharacterId;
+  }> {
+    const db = await freshDb();
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const seated = await seedCharacter(db, host, "seated");
+    const offRoom = await seedCharacter(db, host, "off-room");
+    const chatId = await seedChat(db, "room");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "member", userId: member, role: "member" });
+    await seedParticipant(db, { chatId, key: "seated", characterId: seated });
+    return { db, member, chatId, seated, offRoom };
+  }
+
+  function roomFakes(db: Db): Fakes {
+    const f = fakes();
+    f.isCharacterSeated.mockImplementation(createCharacterSeated(db));
+    return f;
+  }
+
+  for (const mode of ["character", "character_multimodal"] as const) {
+    test(`a member naming a host character outside the room is refused before any card read or spend (${mode})`, async () => {
+      const room = await seedRoom();
+      const f = roomFakes(room.db);
+
+      await expect(
+        build(f, room.db).extractPrompt({ caller: principal(room.member), chatId: room.chatId, mode, subjectCharacterId: room.offRoom }),
+      ).rejects.toMatchObject({ name: "DomainNotFoundError" });
+      expect(f.cardGetCard).not.toHaveBeenCalled();
+      expect(f.characterGet).not.toHaveBeenCalled();
+      expect(f.summarize).not.toHaveBeenCalled();
+    });
+  }
+
+  test("a subject seated in the room still previews", async () => {
+    const room = await seedRoom();
+    const f = roomFakes(room.db);
+
+    await build(f, room.db).extractPrompt({ caller: principal(room.member), chatId: room.chatId, mode: "character", subjectCharacterId: room.seated });
+
+    expect(f.summarize).toHaveBeenCalledTimes(1);
   });
 });
 

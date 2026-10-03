@@ -91,7 +91,7 @@ export function createExtractPrompt(ctx: ImageryContext, deps: { readonly resolv
   return async (p: ExtractPromptParams): Promise<ExtractedPrompt> => {
     const resolved = await deps.resolvePrompt({
       caller: p.caller,
-      runAs: await ctx.resolveRoomRunAs(p.caller, p.chatId),
+      runAs: await ctx.resolveRoomRunAs(p.caller, p.chatId, p.subjectCharacterId),
       chatId: p.chatId,
       mode: p.mode,
       subjectCharacterId: p.subjectCharacterId,

@@ -15,11 +15,13 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { UserSettings } from "@orb/contracts/settings";
 import { resolveImageryCaption, resolveImageryTemplate } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
+import { chatParticipants } from "@orb/db";
 import type { ProviderExecutor, Resolved, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import { generationOf, resolveSideGenSampling } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { and, eq, isNull } from "drizzle-orm";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { ChatUserMacroDefs, ResolveViewerVisibility } from "#domain/chat";
@@ -58,6 +60,8 @@ export interface ImageryComposeDeps {
   readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "summarize">>;
   /** The chat's present host: the room a preview runs as (D298). */
   readonly resolveChatHostUserId: (chatId: ChatId) => Promise<UserId | null>;
+  /** Is the character a present character seat of the chat? A preview's subject must be (`createCharacterSeated`). */
+  readonly isCharacterSeated: (chatId: ChatId, characterId: CharacterId) => Promise<boolean>;
   /** The row-derived host Principal (`createHostPrincipalResolver`), so a run-as principal carries its real role. */
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
   /** The run-as principal's default-preset generation params (the side-gen sampling ladder's middle rung — caption). */
@@ -76,6 +80,25 @@ export interface ImageryComposeDeps {
    *  `extractQuiet` gate — never during boot. */
   readonly resolveViewerVisibility: ResolveViewerVisibility;
   readonly toolUse: Pick<ToolUseService, "register">;
+}
+
+/** Is `characterId` a present character seat of `chatId`? The roster a room preview's subject must come from. */
+export function createCharacterSeated(db: Db): (chatId: ChatId, characterId: CharacterId) => Promise<boolean> {
+  return async (chatId, characterId) => {
+    const rows = await db
+      .select({ id: chatParticipants.id })
+      .from(chatParticipants)
+      .where(
+        and(
+          eq(chatParticipants.chatId, chatId),
+          eq(chatParticipants.kind, "character"),
+          eq(chatParticipants.characterId, characterId),
+          isNull(chatParticipants.leftSeq),
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
+  };
 }
 
 export function buildImagery(deps: ImageryComposeDeps): ImageryService {
@@ -117,9 +140,14 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     // D298: a preview runs as the room host. The visibility gate runs first, so a caller the room does
     // not admit reaches no host read and spends nothing of the host's; the turn identity is the one home of
     // "the host funds and runs as".
-    resolveRoomRunAs: async (caller, chatId) => {
+    resolveRoomRunAs: async (caller, chatId, subjectCharacterId) => {
       if ((await deps.resolveViewerVisibility(chatId, caller.userId)) === null) {
         throw new DomainNotFoundError("chat", chatId);
+      }
+      // The host's card reads and Utility spend follow the subject, so it must be one of this room's
+      // characters: otherwise a member could name, or caption, any character the host owns.
+      if (subjectCharacterId !== undefined && !(await deps.isCharacterSeated(chatId, subjectCharacterId))) {
+        throw new DomainNotFoundError("character", subjectCharacterId);
       }
       const hostUserId = await deps.resolveChatHostUserId(chatId);
       if (hostUserId === null) {

@@ -144,8 +144,9 @@ export interface ImageryContext {
    *  resolved the id; this op only loads it. */
   readonly resolveRunAs: (runAsUserId: UserId) => Promise<Principal>;
   /** The principal a chat-scoped preview runs as: the room host (D298). Refuses a caller the room does
-   *  not admit with the leak-free not-found BEFORE any host read. */
-  readonly resolveRoomRunAs: (caller: Principal, chatId: ChatId) => Promise<Principal>;
+   *  not admit, and a subject that is not a present character seat of the room, with the leak-free
+   *  not-found BEFORE any host read, card read or spend. */
+  readonly resolveRoomRunAs: (caller: Principal, chatId: ChatId, subjectCharacterId: CharacterId | undefined) => Promise<Principal>;
   /** The sealed `infra/providers` generateImage executor role (bound at compose). */
   readonly generateImage: (req: ImageGenerateRequest) => Promise<ImageGenerateResult>;
   /** Download a provider-returned generated-image URL to bytes through the SSRF-safe egress wrapper. `null`
