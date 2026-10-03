@@ -5,11 +5,15 @@
 
 import type { Capability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
+import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
+import type { BatchDeps } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
+import { runOpenAiCompatStructured, runOpenAiCompatSummarize } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
 import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
 import { ollamaNativeFetch, toOllamaChat } from "../../../../packages/inference/src/backends/openai-compat/ollama-native.ts";
 import type { ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { wireSchema } from "../../../support/wire-ready.ts";
 import { fakeResolved } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { generationCapability } from "../_hosted-support.ts";
@@ -185,6 +189,89 @@ test("a recorded non-streaming answer (the structured path) reads back as one Op
     choices: [{ message: { role: "assistant", content: '{\n  "city": "Paris"\n}' }, ["finish_reason"]: "stop" }],
     usage: { ["prompt_tokens"]: 37, ["completion_tokens"]: 10, ["prompt_tokens_details"]: { ["cached_tokens"]: 24 } },
   });
+});
+
+/** An Ollama `/api/chat`: it streams NDJSON unless the body says `stream: false`, which gets one JSON object. */
+function ollamaServer(posted: RecordedRequest[]): typeof fetch {
+  return (input, init): Promise<Response> => {
+    const body = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown>;
+    posted.push({ url: String(input), body });
+    const recording = body["stream"] === false ? OLLAMA_NATIVE_RECORDINGS.format : OLLAMA_NATIVE_RECORDINGS.text;
+    return Promise.resolve(new Response(recording.body, { status: recording.status, headers: { "content-type": recording.contentType } }));
+  };
+}
+
+function batchDeps(posted: RecordedRequest[]): BatchDeps {
+  return {
+    now: () => NOW,
+    log: silentLog(),
+    transport: { fetch: ollamaServer(posted), app: { name: "t", url: "http://localhost:0" } },
+    normalize: passthroughImageNormalizer,
+  };
+}
+
+const PARIS = '{\n  "city": "Paris"\n}';
+
+// The batch tasks call the SDK's non-streaming generate, which sends no `stream` key, and Ollama streams unless
+// told not to.
+test("a summarize call asks Ollama not to stream and reads the one JSON answer", async () => {
+  const posted: RecordedRequest[] = [];
+  const connection = fakeResolved({ task: "summarize", providerId: "ollama", model: "qwen2.5:0.5b", capability: capability(), baseUrl: BASE_URL });
+  const result = await runOpenAiCompatSummarize(
+    { connection, inputs: [{ systemPrompt: "Summarize.", userPrompt: "A long text." }], signal: undefined },
+    batchDeps(posted),
+  );
+  expect(posted[0]?.body["stream"]).toBe(false);
+  expect(result.items[0]).toMatchObject({ text: PARIS, usage: { tokensIn: 37, tokensOut: 10 } });
+});
+
+test("a structured call asks Ollama not to stream, sends the schema as `format`, and reads the answer", async () => {
+  const posted: RecordedRequest[] = [];
+  const connection = fakeResolved({ task: "structured", providerId: "ollama", model: "qwen2.5:0.5b", capability: capability(), baseUrl: BASE_URL });
+  const schema = wireSchema({ type: "object", properties: { city: { type: "string" } }, required: ["city"], additionalProperties: false });
+  const result = await runOpenAiCompatStructured(
+    {
+      connection,
+      inputs: [{ systemPrompt: "Extract.", userPrompt: "France." }],
+      responseFormat: { name: "capital", schema, vehicle: "response-format" },
+      signal: undefined,
+    },
+    batchDeps(posted),
+  );
+  expect(posted[0]?.body["stream"]).toBe(false);
+  expect(posted[0]?.body["format"]).toMatchObject({ type: "object", properties: { city: { type: "string" } } });
+  expect(JSON.parse(result.items[0]?.text ?? "{}")).toEqual({ city: "Paris" });
+});
+
+test("an image URL refused while the body is translated reaches the caller as the readable ProviderError", async () => {
+  const posted: RecordedRequest[] = [];
+  const req = request({
+    history: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "What colour?" },
+          { type: "image", url: "https://cas.test/a.png" },
+        ],
+      },
+    ],
+    connection: fakeResolved({
+      task: "chat",
+      providerId: "ollama",
+      model: "moondream:latest",
+      capability: capability({ input: ["text", "image"] }),
+      baseUrl: BASE_URL,
+    }),
+  });
+  const failed = runOpenAiCompatChatTurn(req, {
+    now: () => NOW,
+    log: silentLog(),
+    transport: { fetch: ollamaServer(posted), app: { name: "t", url: "http://localhost:0" } },
+  });
+  await expect(failed).rejects.toThrow(/takes inline images only/u);
+  await expect(failed).rejects.toBeInstanceOf(ProviderError);
+  // Refused in the body translation, before anything reached the server.
+  expect(posted).toHaveLength(0);
 });
 
 test("cancelling the translated stream cancels Ollama's stream, so an abort reaches the socket", async () => {

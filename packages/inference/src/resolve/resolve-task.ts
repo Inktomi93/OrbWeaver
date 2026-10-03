@@ -317,9 +317,12 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
     curated: curatedRows(rowQuery),
   };
   const synthesized = synthesizeCapability(kind, family, evidence);
+  // The trained maximum rides the server's catalog entry. With no entry (a cold mirror the warm could not
+  // fill, a model the list does not carry, a native read that failed) it is unknown, so the window stays as
+  // declared or folded: there is no number to clamp to.
+  const entry = endpointEntryFor(ctx, { provider, connection, model });
   // D292: the row's own declaration or its server's advertisement states what a turn may carry; only a row
   // nobody described gets the permissive posture.
-  const entry = endpointEntryFor(ctx, { provider, connection, model });
   const advertisedInput = advertisedStatesInput(entry);
   const capability = withLocalLightEmbedDtype(
     clampToTrainedWindow(

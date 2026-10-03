@@ -178,6 +178,8 @@ export function toOllamaChat(body: Json, args: { readonly numCtx: number | undef
   const think = thinkOf(body["reasoning_effort"]);
   return {
     ...rest,
+    // `/api/chat` streams unless told otherwise, and the SDK's non-streaming generate sends no `stream` key.
+    stream: body["stream"] === true,
     messages: nativeMessages(body["messages"], args.label),
     ...(format !== undefined ? { format } : {}),
     ...(think !== undefined ? { think } : {}),
