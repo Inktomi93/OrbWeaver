@@ -2251,6 +2251,21 @@ export function ChatSurfaceContributorStory({ anchor, visible, silent = false, g
   );
 }
 
+/** The REAL `chats` section content open on {@link CHAT_ID} with no surface contributors: the production
+ *  room path a room-changing action (Fork chat here) is driven through. */
+export function ChatsSectionRoomStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtDataProviders>
+      <CtChatContributorSectionRegistry surfaceContributors={NO_SURFACE_CONTRIBUTORS}>
+        <ChatContentHarness />
+      </CtChatContributorSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 // Mounts the chats section's CONTENT through the real registry (`registry.get("chats").content()`) — the
 // same call the shell's `SectionContent` makes — so the surface-anchor CT drives the production path.
 function ChatContentHarness(): ReactElement {

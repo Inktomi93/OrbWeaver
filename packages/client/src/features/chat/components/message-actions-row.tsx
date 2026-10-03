@@ -41,7 +41,7 @@ import { useRef, useState } from "react";
 import { ROW_ACTION_INLINE, RowActionsMenu } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
-import { startEditingMessage } from "#state";
+import { selectChat, startEditingMessage } from "#state";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME, MESSAGE_REACTION_ADD_NAME } from "../lib/message-action-names.ts";
 import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
@@ -127,8 +127,6 @@ function renderGenerationCredit(show: boolean, message: MessageView): ReactEleme
 
 export interface MessageActionsRowProps {
   readonly message: MessageView;
-  /** Optional — a caller without it still forks + notifies, just doesn't switch the active chat. */
-  readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   readonly messageActions?: "expanded" | "hover" | undefined;
   /** B7/MR3 — the room's PRESENT CHARACTER-NAME set (`speakerThemesByName`'s keys, threaded from the row). The
    *  picker's segment-target list parses the CANON body with these under the narrator-voice gate — the
@@ -147,7 +145,6 @@ export interface MessageActionsRowProps {
 
 export function MessageActionsRow({
   message,
-  onChatForked,
   messageActions,
   viewerIsHost = false,
   generationCredit = false,
@@ -229,7 +226,9 @@ export function MessageActionsRow({
     // @orb-waive caught-failure-ownership(catch): the fork mutation's sticky error + global errorToast already surfaced the failure. Ends if the mutation drops its errorToast.
     try {
       const result = await fork.mutateAsync({ chatId, throughSeq: message.seq });
-      onChatForked?.(result.chat.id);
+      // Forking always lands the reader in the new branch. The notice stays because the fork's transcript
+      // is a copy of the parent's, so without it the switch is invisible.
+      selectChat(result.chat.id);
       notify.success("Forked to a new chat.");
     } catch {
       // The sticky mutation error + the global errorToast already surfaced the failure.

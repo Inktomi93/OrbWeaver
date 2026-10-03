@@ -13,7 +13,6 @@
 // message-row-variants.ts) and routed by `placeRowHeader` below.
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -267,7 +266,6 @@ export function renderRowActions(args: {
   readonly editing: boolean;
   readonly selecting: boolean;
   readonly message: MessageView;
-  readonly onChatForked: ((chatId: ChatId) => void) | undefined;
   readonly messageActions: "expanded" | "hover" | undefined;
   /** WIREBTN — gates the kebab's host-only "View wire trace…" item (see `MessageActionsRow`). */
   readonly viewerIsHost: boolean | undefined;
@@ -282,7 +280,6 @@ export function renderRowActions(args: {
   return (
     <MessageActionsRow
       message={args.message}
-      onChatForked={args.onChatForked}
       messageActions={args.messageActions}
       viewerIsHost={args.viewerIsHost}
       generationCredit={args.generationCredit}
