@@ -59,6 +59,12 @@ jobs:
 
       # A path context, not the action's default git context: only the checkout carries the ref files the
       # version stamp reads.
+      # The layer cache lives in the GitHub Actions cache between releases (docs.docker.com/build/cache/backends/gha),
+      # so a release whose lockfile did not change reuses the store fetch, the bulk of the dependency download. The
+      # stages after it re-run, because every release changes package.json's version and the source. `max` exports
+      # the intermediate stages too, which is where the fetch layer is. The cache mounts are not carried (the
+      # Dockerfile's `deps` stage says why that is safe). A failed cache export must not cost the release, so it
+      # is ignored; the next release just builds colder.
       - name: Build the runtime image
         uses: docker/build-push-action@v7
         with:
@@ -66,6 +72,8 @@ jobs:
           target: runtime
           platforms: linux/amd64
           load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,ignore-error=true
           tags: |
             ${{ env.IMAGE }}:${{ env.VERSION }}
             ${{ env.IMAGE }}:latest
