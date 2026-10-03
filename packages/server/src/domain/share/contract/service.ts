@@ -3,6 +3,8 @@
 
 import type {
   AuthMode,
+  AuthModeSource,
+  InstallKind,
   IpCertificateRefusal,
   IpCertificateSetting,
   IpCertificateStatus,
@@ -11,9 +13,10 @@ import type {
   ShareRefusalNotice,
   ShareRelayKind,
   ShareStatus,
+  SignInModeView,
 } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
-import type { RequireOwner } from "#domain/admin";
+import type { RequireAdmin, RequireOwner } from "#domain/admin";
 import type { AuditEntry } from "#foundation/observability";
 import type { AcmeIssuer, CertificateStore } from "#infra/acme";
 import type { RelayHostWriter } from "#infra/auth";
@@ -129,6 +132,11 @@ export interface ShareServiceDeps extends ShareFacts, CertificateFacts {
    *  that puts back exactly what it changed, which a start runs when the relay fails to start. */
   readonly enableSeating: () => Promise<RestoreSeating>;
   readonly requireOwner: RequireOwner;
+  /** Admits the owner and a delegated admin: the sign-in mode read is shown to both. */
+  readonly requireAdmin: RequireAdmin;
+  /** Where the running sign-in mode came from (`authModeSource` in `foundation/env`). */
+  readonly authModeSource: AuthModeSource;
+  readonly install: InstallKind;
   /** The live stream sockets on the box, or one user's alone when `userId` is given. */
   readonly liveSocketCount: (userId?: UserId) => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
@@ -161,4 +169,6 @@ export interface ShareService {
   readonly disableIpCertificate: (params: ShareParams) => Promise<ShareStatus>;
   /** The boot start of a stored IP certificate choice, after the listener binds; the same preconditions run first. */
   readonly resumeIpCertificate: () => Promise<CertificateBootOutcome>;
+  /** Owner or admin: the running sign-in mode, its source, the install shape, and the share refusal per target mode. */
+  readonly signInMode: (params: ShareParams) => Promise<SignInModeView>;
 }

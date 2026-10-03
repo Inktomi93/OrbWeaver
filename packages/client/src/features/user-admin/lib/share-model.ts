@@ -15,6 +15,14 @@ import type {
 import { IP_CERTIFICATE_REFUSALS, RELAY_BINARY_REFUSALS, SHARE_MODE_REFUSAL, SHARE_REFUSALS } from "@orb/contracts/identity";
 import { trpcErrorReason } from "#lib";
 
+/** How a visitor signs in under each mode, in the words the mode row and the Multi-user sign-in helper both use. */
+export const MODE_NAME: Record<AuthMode, string> = {
+  "single-user": "single-user, no sign-in",
+  local: "handle and password",
+  oidc: "your identity provider",
+  "forward-header": "your reverse proxy",
+};
+
 // The rows the card shows before a share starts, in the order the server checks them.
 const SHARE_PRECONDITIONS = ["mode", "owner", "seating", "relay"] as const;
 type SharePrecondition = (typeof SHARE_PRECONDITIONS)[number];

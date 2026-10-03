@@ -3,7 +3,7 @@
 // The seating confirm stays mounted above its row: its write unmounts the row, so a confirm hands focus to Start.
 
 import type { AuthMode } from "@orb/contracts/identity";
-import { SETUP_COMMAND } from "@orb/contracts/identity";
+import { BARE_METAL_ENV_FILE, COMPOSE_FILE, COMPOSE_UP_COMMAND, SETUP_COMMAND } from "@orb/contracts/identity";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -17,18 +17,11 @@ import { ConfirmDialog } from "#components";
 import { SkeletonRows } from "#data";
 import { CONTAINER_LOGIN_LINES } from "../lib/container-login.ts";
 import type { PreconditionRow, ShareStartFailure } from "../lib/share-model.ts";
-import { canStartSharing, refusalRow, sharePreconditions } from "../lib/share-model.ts";
+import { canStartSharing, MODE_NAME, refusalRow, sharePreconditions } from "../lib/share-model.ts";
 import { ShareCode, ShareProse } from "./share-prose.tsx";
 
 /** The launcher command that starts this box in the local sign-in mode with a relay, without writing `.env`. */
 const SHARE_COMMAND = "pnpm start --share";
-
-const MODE_NAME: Record<AuthMode, string> = {
-  "single-user": "single-user, no sign-in",
-  local: "handle and password",
-  oidc: "your identity provider",
-  "forward-header": "your reverse proxy",
-};
 
 const MODE_UNMET: Record<AuthMode, string> = {
   "single-user": "Single-user mode has no sign-in, so this server would refuse every friend who comes through the link.",
@@ -251,12 +244,12 @@ function ModeFix({ mode }: { readonly mode: AuthMode }): ReactElement {
         <CollapsiblePanel>
           <Stack gap="tight">
             <ShareProse>
-              <ShareCode>{SHARE_COMMAND}</ShareCode> uses the local sign-in mode for that run only and leaves <ShareCode>.env</ShareCode> as it is.{" "}
-              <ShareCode>{SETUP_COMMAND}</ShareCode>, under Who can sign in, changes the mode for every run.
+              <ShareCode>{SHARE_COMMAND}</ShareCode> uses the local sign-in mode for that run only and leaves <ShareCode>{BARE_METAL_ENV_FILE}</ShareCode> as it
+              is. <ShareCode>{SETUP_COMMAND}</ShareCode>, under Who can sign in, changes the mode for every run.
             </ShareProse>
             <ShareProse>
-              In Docker, set the lines below in the <ShareCode>environment:</ShareCode> block of <ShareCode>docker-compose.yaml</ShareCode>, then run{" "}
-              <ShareCode>docker compose up -d</ShareCode>.
+              In Docker, set the lines below in the <ShareCode>environment:</ShareCode> block of <ShareCode>{COMPOSE_FILE}</ShareCode>, then run{" "}
+              <ShareCode>{COMPOSE_UP_COMMAND}</ShareCode>.
             </ShareProse>
             <CopyButton text={CONTAINER_LOGIN_LINES} what="the docker-compose environment lines">
               <Text voice="label" className="min-w-0 font-mono whitespace-pre-wrap wrap-anywhere">

@@ -3,15 +3,12 @@
 // through `settingInstruction`, so the two shapes' fix text has one home.
 
 import { existsSync } from "node:fs";
-import { SETUP_COMMAND } from "@orb/contracts/identity";
+import { BARE_METAL_ENV_FILE, COMPOSE_FILE, CONTAINER_ENV_FILE, SETUP_COMMAND } from "@orb/contracts/identity";
 
 /** The marker files a container runtime writes: Docker (Engine and Desktop), then Podman. containerd and CRI-O write
  *  neither, which is why the image also declares itself. */
 export const CONTAINER_MARKER_FILES = ["/.dockerenv", "/run/.containerenv"] as const;
 
-const BARE_METAL_ENV_FILE = ".env";
-const COMPOSE_FILE = "docker-compose.yaml";
-const CONTAINER_ENV_FILE = "docker/orbweaver.local.env";
 // The service name in the shipped `docker-compose.yaml`; the entrypoint's first-boot banner names it too.
 const COMPOSE_SERVICE = "orbweaver";
 

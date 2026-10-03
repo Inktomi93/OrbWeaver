@@ -10,7 +10,7 @@ import { hostname } from "node:os";
 import { resolve } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
-import type { AUTH_MODES } from "@orb/contracts/identity";
+import type { AUTH_MODES, AuthModeSource, InstallKind } from "@orb/contracts/identity";
 import { authModeSchema, shareRelayKindSchema } from "@orb/contracts/identity";
 import { AGENT_SDK_CONCURRENCY_MAX, LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
@@ -156,6 +156,9 @@ const UTF8_BOM = "﻿";
  *  `.env` with `override:true` and computes byte-identical contents, so there is no cross-replica state to
  *  reconcile — it is boot-constant deployment provenance, not runtime accumulator state. */
 const envFileKeys = new Set<string>();
+// The keys whose value the file actually put in `process.env`: a declared key the process already held stays the
+// process's under no-override, so declaring is not supplying. Written once at load, like `envFileKeys`.
+const envFileSuppliedKeys = new Set<string>();
 
 function loadEnvFileWithOverride(override: boolean): void {
   // ORB_ENV_NO_FILE — skip the file ENTIRELY (not merely the override direction). Set globally by
@@ -179,6 +182,7 @@ function loadEnvFileWithOverride(override: boolean): void {
       envFileKeys.add(key);
       if (override || process.env[key] === undefined) {
         process.env[key] = value;
+        envFileSuppliedKeys.add(key);
       }
     }
   }
@@ -221,6 +225,17 @@ function refuseLaunchOnlyEnvFileKeys(ctx: z.RefinementCtx): void {
 // invocation that wants its own shell vars honored.
 const skipOverride = process.env["VITEST"] !== undefined || process.env["ORB_ENV_NO_OVERRIDE"] !== undefined;
 loadEnvFileWithOverride(!skipOverride);
+
+// A value present right after the load and not put there by the file came with the process.
+function sourceAfterLoad(key: string): AuthModeSource {
+  if (envFileSuppliedKeys.has(key)) {
+    return "env-file";
+  }
+  return process.env[key] === undefined ? "default" : "process-env";
+}
+
+// Read once, before anything can scrub or rewrite `process.env`.
+const AUTH_MODE_SOURCE = sourceAfterLoad("AUTH_MODE");
 
 /** A boolean knob's env codec — ONE home for the posture, so no site can drift.
  *
@@ -856,6 +871,16 @@ export function diagnosticsPostureInput(): DiagnosticsPostureInput {
  *  reader; `entry/lifecycle` composes it into the auth seam, which owns no copy of the rule. */
 export function ownerFallbackCredentialInput(): OwnerFallbackCredentialInput {
   return { nodeEnv: env.NODE_ENV, authFallback: env.AUTH_FALLBACK, fallbackWidened: resolveOwnerFallbackPeers(ownerFallbackPeerInput()).widened };
+}
+
+/** Where the running `AUTH_MODE` came from, fixed at load. Only the source travels; the value is `env.AUTH_MODE`. */
+export function authModeSource(): AuthModeSource {
+  return AUTH_MODE_SOURCE;
+}
+
+/** The install shape, from the image's own declaration or the runtime's marker files. */
+export function installKind(): InstallKind {
+  return runsInContainer(env.ORB_CONTAINER) ? "container" : "bare-metal";
 }
 
 /** Was this process started by the launcher that respawns it on the restart exit code (`@orb/kit/supervisor`)? The
