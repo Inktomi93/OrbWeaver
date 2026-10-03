@@ -16,7 +16,7 @@ The Utility role carries a preset choice beside its connection, stored as `seeds
 
 ## Consequences
 
-AppSettings v10 drops `memorySummarizer` and the residue engine-launch and vLLM-concurrency keys. UserSettings v10 adds `seeds.summarizePreset`, so existing users get task defaults. Compaction and quiet generation run on the chat connection and keep the active preset.
+AppSettings v10 drops `memorySummarizer` and the residue engine-launch and vLLM-concurrency keys. UserSettings v10 adds `seeds.summarizePreset`, so existing users get task defaults. Compaction and quiet generation run on the chat connection and take only temperature, topP and output cap from the host's active preset. The memory digest's output cap is clamped to half the summarizer window so a block always fits.
 
 ## Alternatives rejected
 

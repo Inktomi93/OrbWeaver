@@ -11,6 +11,7 @@ import { beforeEach, describe } from "vitest";
 import type { EmbeddingsStoreOp, StoreDigestParams } from "../../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/generate/digests.ts";
 import { consolidationSystemPrompt } from "../../../../../../packages/server/src/domain/chat/memory/generate/substrate/prompts.ts";
+import { SUMMARIZER_OUTPUT_RESERVE_MAX_FRACTION } from "../../../../../../packages/server/src/domain/chat/memory/generate/substrate/token-guard.ts";
 import { blockHash } from "../../../../../../packages/server/src/domain/chat/memory/generate/substrate/transcript.ts";
 import { loadDigestsForScope, loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import type { MemoryLogEntry, MsgRow } from "../../../../../../packages/server/src/domain/chat/memory/types.ts";
@@ -233,6 +234,28 @@ describe("memory/generate/digests", () => {
     expect(sum.optsSeen.length).toBeGreaterThan(0);
     for (const opts of sum.optsSeen) {
       expect(opts).toEqual({ maxOutputTokens: SIDE_GEN_POSTURES.memory_digest.maxOutputTokens });
+    }
+  });
+
+  test("a Utility output cap as large as the window still leaves the block room: the reserve clamps to half the window", async () => {
+    const window = 32_000;
+    const chatId = await seedChat(db, "sampling-huge-cap");
+    await seedTurns(db, chatId, aria, 2);
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    const ctx = makeChatContext(db, {
+      summarize: sum.op,
+      embeddingsStore: store.store,
+      embeddingsStoreSegments: store.storeSegments,
+      summarizerContextTokens: () => Promise.resolve(window),
+      resolveUtilityPresetParams: utilityPresetResolver({ maxOutputTokens: window }),
+    });
+
+    const counts = await generateDigests(ctx, { scope: sharedScope(chatId), config: { blockSize: 2, verbatimWindow: 0 }, funderUserId: owner });
+
+    expect(counts.written).toBeGreaterThan(0);
+    for (const opts of sum.optsSeen) {
+      expect(opts).toEqual({ maxOutputTokens: window * SUMMARIZER_OUTPUT_RESERVE_MAX_FRACTION });
     }
   });
 

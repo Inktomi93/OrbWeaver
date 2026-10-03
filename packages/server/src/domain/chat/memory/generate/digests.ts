@@ -25,7 +25,13 @@ import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers
 import type { BlockSpan, DigestRow, MemoryConfig, MemoryEmbedSpace, MemoryPassCounts, MemoryScope, WitnessInterval } from "../types.ts";
 import { parseDigest } from "./substrate/parse.ts";
 import { consolidationSystemPrompt, consolidationUserPrompt, digestSystemPrompt, digestUserPrompt } from "./substrate/prompts.ts";
-import { DEFAULT_OUTPUT_RESERVE_TOKENS, fitBlockToBudget, fitConsolidationChildren, SUMMARIZER_CONTEXT_FLOOR } from "./substrate/token-guard.ts";
+import {
+  clampOutputReserve,
+  DEFAULT_OUTPUT_RESERVE_TOKENS,
+  fitBlockToBudget,
+  fitConsolidationChildren,
+  SUMMARIZER_CONTEXT_FLOOR,
+} from "./substrate/token-guard.ts";
 import { blockHash, blockSpeakerIds, consolidationHash, EMPTY_MACRO_NAMES, renderTranscript, sliceBlocks } from "./substrate/transcript.ts";
 import { spanWitnessed } from "./substrate/witnessing.ts";
 
@@ -48,7 +54,9 @@ interface GenerateDigestsArgs {
  *  `memory_digest` posture (D299). The posture always carries an output cap, which hard-caps a looping model and
  *  is the SAME value `outputReserve` fits the input against. Read per call, so a changed choice applies next. */
 async function summarizerOpts(ctx: ChatContext, funderUserId: UserId): Promise<SummarizeOptions> {
-  return resolveSideGenSampling(SIDE_GEN_POSTURES.memory_digest, await ctx.resolveUtilityPresetParams(funderUserId));
+  const resolved = resolveSideGenSampling(SIDE_GEN_POSTURES.memory_digest, await ctx.resolveUtilityPresetParams(funderUserId));
+  const requested = resolved.maxOutputTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS;
+  return { ...resolved, maxOutputTokens: clampOutputReserve(requested, await ctx.summarizerContextTokens(funderUserId)) };
 }
 
 /**

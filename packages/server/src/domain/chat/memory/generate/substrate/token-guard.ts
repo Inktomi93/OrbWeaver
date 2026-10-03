@@ -19,6 +19,16 @@ import { renderRowLine, renderTranscript } from "./transcript.ts";
  *  preset over the `memory_digest` posture, which this value is — so the fit and the request can't diverge. */
 export const DEFAULT_OUTPUT_RESERVE_TOKENS = SIDE_GEN_POSTURES.memory_digest.maxOutputTokens;
 
+/** The largest share of the summarizer's window the output reserve may claim. A Utility preset's output cap can
+ *  be as large as the window itself; reserving all of it would leave no room for the block, so every block would
+ *  skip. Half the window keeps a block fittable while still honouring a generous cap. */
+export const SUMMARIZER_OUTPUT_RESERVE_MAX_FRACTION = 0.5;
+
+/** The summarize request's output cap, clamped so the input always keeps its share of the window. */
+export function clampOutputReserve(requested: number, contextTokens: number): number {
+  return Math.min(requested, Math.floor(contextTokens * SUMMARIZER_OUTPUT_RESERVE_MAX_FRACTION));
+}
+
 /** The §10 config-time floor: below this resolved summarizer context, even a small block + output is risky →
  *  emit the soft-warning at build start (the degrade is visible, never silent). */
 export const SUMMARIZER_CONTEXT_FLOOR = 4096;
