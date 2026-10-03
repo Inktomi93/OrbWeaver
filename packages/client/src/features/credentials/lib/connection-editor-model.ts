@@ -8,7 +8,16 @@
 // write path) is the other half, at `connection-fact-model.ts` — split at the `component-size` cap, and the
 // honesty rules that govern what a source line may say live in THAT file's header.
 
-import type { Capability, ConnectionTransportDoc, DeclaredCapability, ModelCatalogEntry, ModelKind, RoutableTask, Task } from "@orb/contracts/inference";
+import type {
+  Capability,
+  CatalogStrategy,
+  ConnectionTransportDoc,
+  DeclaredCapability,
+  ModelCatalogEntry,
+  ModelKind,
+  RoutableTask,
+  Task,
+} from "@orb/contracts/inference";
 import { BELT_OWNED_BODY_KEYS, connectionTransportSchema, EMBED_SPACE_DIMS, requirementMet, spaceMisfitReason, taskDef } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { effectiveHttpPort } from "@orb/kit/http-endpoint";
@@ -32,16 +41,25 @@ export const KIND_VERDICT_ITEMS: readonly { readonly label: string; readonly val
   { label: "Reranking search results", value: "rerank" },
 ];
 
+/** The models the editor's picker offers a saved row. Only a built-in catalog states every entry's kind, so only
+ *  there is the list narrowed to the row's kind, since another kind would break the roles the row is bound to.
+ *  Elsewhere the row's kind can be the `"generation"` fallback for an embedder its own list names, so the whole
+ *  list is offered. The row's saved model is always offered. The add-model dialog never narrows: a new row takes
+ *  any kind. */
+export function editorPickerModels<T extends Pick<ModelCatalogEntry, "id" | "kind">>(
+  models: readonly T[],
+  row: { readonly catalog: CatalogStrategy; readonly kind: ModelKind; readonly savedModel: string },
+): T[] {
+  if (row.catalog !== "builtin") {
+    return [...models];
+  }
+  return models.filter((entry) => entry.id === row.savedModel || entry.kind === undefined || entry.kind === row.kind);
+}
+
 /** The row's kind, from the SERVER'S OWN verdict rather than a second client copy of the id heuristic: the
  *  domain already folded `declared.kind ?? curatedKind(...) ?? "generation"` into `ConnectionView.tasks`
  *  (`domain/connection/substrate/kind.ts`), and `tasksOfKind` partitions the three kinds disjointly. A row
  *  the server could not classify lists generation tasks, which is the same `"generation"` fallback. */
-/** The models a saved row may move to: its own kind, and every entry the list states no kind for (most lists state
- *  none). Another kind would break the role the row is bound to; a new row (the add-model dialog) takes any kind. */
-export function modelsOfKind<T extends Pick<ModelCatalogEntry, "kind">>(models: readonly T[], kind: ModelKind): T[] {
-  return models.filter((entry) => entry.kind === undefined || entry.kind === kind);
-}
-
 export function inferredKindOf(tasks: readonly Task[]): ModelKind {
   if (tasks.includes("rerank")) {
     return "rerank";

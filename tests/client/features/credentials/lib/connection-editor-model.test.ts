@@ -14,12 +14,12 @@ import {
   beltKeyGloss,
   capabilityBadges,
   declaredOverrideCount,
+  editorPickerModels,
   endpointAuthorityOf,
   endpointNamedInAllowlist,
   extrasFromRows,
   includeBodyText,
   inferredKindOf,
-  modelsOfKind,
   parseIncludeBody,
   purposeNotes,
   rowsFromExtras,
@@ -294,14 +294,26 @@ describe("the capability rail", () => {
   });
 });
 
-// The row's model list is the provider's whole catalog (the add-model dialog needs every kind); the editor's own
-// picker changes this row's model, and a model of another kind would break the role it is bound to.
-test("a saved row's picker keeps its own kind and the entries that state none", () => {
+// The row's model list is the provider's whole catalog (the add-model dialog needs every kind). Only a built-in
+// catalog states every entry's kind, so only there may the editor's picker narrow to the row's kind; elsewhere a
+// row's kind can be the "generation" fallback for an embedder its own list names.
+describe("the editor's model picker", () => {
   const rerank = { id: "cross-encoder/ettin-reranker-32m-v1", kind: "rerank" as const };
-  const embed = { id: "jinaai/jina-clip-v2", kind: "embedding" as const };
-  const kindless = { id: "qwen3", kind: undefined };
-  expect(modelsOfKind([rerank, embed, kindless], "rerank")).toEqual([rerank, kindless]);
-  expect(modelsOfKind([rerank, embed, kindless], "embedding")).toEqual([embed, kindless]);
+  const encoder = { id: "jinaai/jina-clip-v2", kind: "embedding" as const };
+  const embedder = { id: "bge-m3", kind: "embedding" as const };
+  const chat = { id: "llama3.2", kind: "generation" as const };
+
+  test("a built-in row offers its own kind only", () => {
+    expect(editorPickerModels([rerank, encoder], { catalog: "builtin", kind: "rerank", savedModel: rerank.id })).toEqual([rerank]);
+  });
+
+  test("any other row offers the whole list, even when its kind is only the generation fallback", () => {
+    expect(editorPickerModels([embedder, chat], { catalog: "url", kind: "generation", savedModel: embedder.id })).toEqual([embedder, chat]);
+  });
+
+  test("the row's own saved model is never filtered out", () => {
+    expect(editorPickerModels([rerank, encoder], { catalog: "builtin", kind: "rerank", savedModel: encoder.id })).toEqual([rerank, encoder]);
+  });
 });
 
 describe("the extras rows", () => {
