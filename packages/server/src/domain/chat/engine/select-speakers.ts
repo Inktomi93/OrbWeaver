@@ -350,12 +350,16 @@ export function nameMentionsOf(triggerText: string, candidates: readonly Speaker
       return [];
     }
     const hitIdx = text.flatMap((w, i) => (keys.has(w) ? [i] : []));
-    const hits = keys.size > 0 ? new Set(hitIdx.map((i) => text[i])).size : nameWords.length;
     const written = keys.size > 0 ? hitIdx : [at];
-    const strong = written.some((i) => {
+    // A word counts toward `hits` only when it is written as a name, so an ordinary lowercase "hook" cannot
+    // break a tie between characters the text addresses by another word.
+    const asName = written.filter((i) => {
       const nameWord = rawName[nameWords.indexOf(text[i] ?? "")];
       return startsUpper(rawText[i] ?? "") || (nameWord !== undefined && !startsUpper(nameWord));
     });
+    const strong = asName.length > 0;
+    const phraseHits = strong ? nameWords.length : 0;
+    const hits = keys.size > 0 ? new Set(asName.map((i) => text[i])).size : phraseHits;
     return [{ id: c.ref.characterId, at, rosterIdx, hits, strong }];
   });
   return found.sort((a, b) => a.at - b.at || a.rosterIdx - b.rosterIdx).map(({ id, hits, strong }) => ({ id, hits, strong }));

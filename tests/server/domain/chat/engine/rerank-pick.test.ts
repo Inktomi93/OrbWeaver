@@ -128,6 +128,24 @@ describe("rerankPick — an ambiguous or common-word name does not win outright"
     expect(scores.sent[0]?.map((d) => d.text?.split(":")[0])).toEqual(["Captain Hale", "Captain Rook"]);
   });
 
+  test("a word written as an ordinary lowercase word does not break a tie between characters addressed by another word", async () => {
+    const crew = [
+      { ref: ref("hook"), name: "Captain Hook" },
+      { ref: ref("nemo"), name: "Captain Nemo" },
+      { ref: ref("smee"), name: "Smee" },
+    ];
+    const scores = fakeReranker({ hook: 1, nemo: 9, smee: 100 });
+    const out = await pick({
+      reranker: scores.op,
+      candidates: ["hook", "nemo", "smee"].map(candidate),
+      speakerCandidates: crew,
+      personas: new Map(["hook", "nemo", "smee"].map((k) => [cid(k), `${k} persona`] as const)),
+      lastLine: line("Captain, grab the hook."),
+    });
+    expect(out.speakers).toEqual([ref("nemo")]);
+    expect(scores.sent[0]?.map((d) => d.text?.split(":")[0])).toEqual(["Captain Hook", "Captain Nemo"]);
+  });
+
   test("the fuller name still wins outright, and so does a unique capitalised name", async () => {
     const scores = fakeReranker({ hale: 0, rook: 9, will: 9, aria: 9 });
     expect((await castPick(scores.op, "Captain Hale, what now?")).speakers).toEqual([ref("hale")]);

@@ -95,8 +95,8 @@ export const CONTAINER_LOGIN_FALLBACK_ENV = [
   ["AUTH_FALLBACK_TRUSTED_PEERS", ""],
 ] as const satisfies readonly EnvLine[];
 
-/** The keys the host-network overlay pins in its own `environment:` block, so the only keys a container fix can
- *  find overridden there. */
+/** The sign-in keys the host-network overlay pins in its own `environment:` block (it also pins BIND_HOST and PORT,
+ *  which no container fix here sets), so the only sign-in keys a container fix can find overridden there. */
 export const OVERLAY_PINNED_KEYS: readonly string[] = [AUTH_MODE_KEY, ...CONTAINER_LOGIN_FALLBACK_ENV.map(([key]) => key)];
 
 /** Why a container switch of {@link OVERLAY_PINNED_KEYS} can fail to take: any compose `environment:` block wins over

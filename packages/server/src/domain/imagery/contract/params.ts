@@ -32,7 +32,7 @@ interface GalleryCuration {
 }
 
 /** `generatePicture` — the orchestrator's params. `caller` is the requesting human: the extraction viewer and
- *  the subject-card reader. The run-as principal (`runAsUserId`, else `caller`) funds, styles and owns the
+ *  the reader of the subject card for the reuse and avatar-reference gates. The run-as principal (`runAsUserId`, else `caller`) funds, styles and owns the
  *  picture. `chatId` is provenance + the extraction-shaper's history scope (REQUIRED unless `mode:"free"`
  *  with a `prompt`); `prompt` present OR `mode:"free"` skips extraction (used verbatim);
  *  `subjectCharacterId` focuses the char macro / picks the avatar for character/face + multimodal modes. */

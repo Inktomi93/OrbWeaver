@@ -92,6 +92,12 @@ export function createMirror<T>(args: {
       const at = deps.now();
       seed(value, at);
       await deps.snapshotStore.write(key, JSON.stringify({ fetchedAt: at, value }));
+      if (epoch !== startedAt) {
+        // Invalidated while the write was in flight: the invalidation's snapshot delete may have run first, so
+        // this write would outlive it and a later failed fetch would serve it. Take our own write back.
+        await deps.snapshotStore.deletePrefix(key);
+        return { ok: true, value };
+      }
       deps.addSpanEvent?.("cache.warm", { cache: key, outcome: "fetch" });
       return { ok: true, value };
     } catch (err) {
