@@ -78,8 +78,12 @@ export const ID_PREFIX = {
   ownerStat: "owner_stat",
   dailyStat: "daily_stat",
   modelStat: "model_stat",
+  // One priced compaction pass (`compaction_spend`) — the canon the stats rebuild re-derives that spend from.
+  compactionSpend: "compaction_spend",
   notification: "notification",
   imageryGeneration: "imagery_generation",
+  // One image-provider call: every picture a fanned-out call returns carries the same id (no table of its own).
+  imageryCall: "imagery_call",
   galleryItem: "gallery_item",
   // `global_variables` deliberately has NO TypeID — the natural key (ownerId, key) IS the identity.
   automationRule: "automation_rule",
@@ -182,6 +186,7 @@ export type RegexScriptId = TypeIdOf<"regex_script">;
 export type TagId = TypeIdOf<"tag">;
 export type AssetId = TypeIdOf<"asset">;
 export type ImageryGenerationId = TypeIdOf<"imagery_generation">;
+export type ImageryCallId = TypeIdOf<"imagery_call">;
 export type GalleryItemId = TypeIdOf<"gallery_item">;
 /** A saved party template (`roster_presets`, D61 B6) — library data, distinct from the generation
  *  `PresetId` one line up in spirit: this names a CAST, never params. */
@@ -231,6 +236,7 @@ export type ThemeClusterId = TypeIdOf<"theme_cluster">;
 export type CharacterStatId = TypeIdOf<"character_stat">;
 export type DailyStatId = TypeIdOf<"daily_stat">;
 export type ModelStatId = TypeIdOf<"model_stat">;
+export type CompactionSpendId = TypeIdOf<"compaction_spend">;
 
 // --- Automation (rules + the fire log) ----------------------------------
 export type AutomationRuleId = TypeIdOf<"automation_rule">;

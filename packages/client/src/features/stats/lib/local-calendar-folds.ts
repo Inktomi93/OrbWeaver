@@ -5,7 +5,8 @@
 import type { TokenProvenance } from "@orb/contracts/chat";
 import { combineTokenProvenance } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
-import type { CalendarPosition } from "@orb/kit/time";
+import type { CalendarMonth, CalendarPosition } from "@orb/kit/time";
+import { groupByCalendarMonth } from "@orb/kit/time";
 import { WEEKDAY_LABELS } from "./analytics-view-model.ts";
 
 const HOURS_PER_DAY = 24;
@@ -136,13 +137,6 @@ export function rhythmOf(days: readonly LocalDay[]): Rhythm {
   return { activeDays: active.length, longestStreakDays, busiestDay };
 }
 
-/** One of the viewer's calendar months: the `YYYY-MM` sort key, and an instant inside it so the time seam
- *  can name it (`timeLib.formatMonthYear`) — the key itself is never shown. */
-export interface LocalMonth {
-  readonly key: string;
-  readonly start: number;
-}
-
 /** One character's replies in the two compared months. */
 export interface MomentumRow {
   readonly characterId: CharacterId;
@@ -155,16 +149,14 @@ export interface MomentumRow {
 /** Rising and falling characters between the viewer's two most recent months with replies. */
 export interface LocalMomentum {
   /** `null` when fewer than two months have replies. */
-  readonly latest: LocalMonth | null;
-  readonly prev: LocalMonth | null;
+  readonly latest: CalendarMonth | null;
+  readonly prev: CalendarMonth | null;
   readonly rising: readonly MomentumRow[];
   readonly falling: readonly MomentumRow[];
 }
 
 /** How many characters each momentum column lists. */
 const MOMENTUM_LIMIT = 10;
-/** `YYYY-MM` is the first seven characters of a `YYYY-MM-DD` day. */
-const MONTH_KEY_LENGTH = 7;
 
 /** Fold the per-character UTC quarter-hour reply timeline into the viewer's months and rank the swing
  *  between the two most recent months with replies. Anchored to the data's months, not to wall-clock now,
@@ -173,36 +165,31 @@ export function localMomentum(
   buckets: readonly { readonly characterId: CharacterId; readonly name: string; readonly bucketStart: number; readonly replies: number }[],
   position: (epochMs: number) => CalendarPosition,
 ): LocalMomentum {
-  const months = new Map<string, LocalMonth>();
-  const counts = new Map<string, Map<CharacterId, number>>();
-  const names = new Map<CharacterId, string>();
-  for (const bucket of buckets) {
-    const key = position(bucket.bucketStart).day.slice(0, MONTH_KEY_LENGTH);
-    const month = months.get(key);
-    if (month === undefined || bucket.bucketStart < month.start) {
-      months.set(key, { key, start: bucket.bucketStart });
-    }
-    const perCharacter = counts.get(key) ?? new Map<CharacterId, number>();
-    perCharacter.set(bucket.characterId, (perCharacter.get(bucket.characterId) ?? 0) + bucket.replies);
-    counts.set(key, perCharacter);
-    names.set(bucket.characterId, bucket.name);
-  }
-  const ordered = [...months.values()].toSorted((a, b) => a.key.localeCompare(b.key));
+  const ordered = groupByCalendarMonth(buckets, (bucket) => bucket.bucketStart, position);
   const latest = ordered.at(-1);
   const prev = ordered.at(-2);
   if (latest === undefined || prev === undefined) {
     return { latest: null, prev: null, rising: [], falling: [] };
   }
-  const current = counts.get(latest.key) ?? new Map<CharacterId, number>();
-  const before = counts.get(prev.key) ?? new Map<CharacterId, number>();
+  const names = new Map<CharacterId, string>();
+  const repliesBy = (monthBuckets: typeof latest.rows): Map<CharacterId, number> => {
+    const perCharacter = new Map<CharacterId, number>();
+    for (const bucket of monthBuckets) {
+      perCharacter.set(bucket.characterId, (perCharacter.get(bucket.characterId) ?? 0) + bucket.replies);
+      names.set(bucket.characterId, bucket.name);
+    }
+    return perCharacter;
+  };
+  const current = repliesBy(latest.rows);
+  const before = repliesBy(prev.rows);
   const rows = [...new Set([...current.keys(), ...before.keys()])].map((characterId): MomentumRow => {
     const now = current.get(characterId) ?? 0;
     const then = before.get(characterId) ?? 0;
     return { characterId, name: names.get(characterId) ?? "", current: now, prev: then, delta: now - then };
   });
   return {
-    latest,
-    prev,
+    latest: latest.month,
+    prev: prev.month,
     rising: rows
       .filter((row) => row.delta > 0)
       .toSorted((a, b) => b.delta - a.delta)

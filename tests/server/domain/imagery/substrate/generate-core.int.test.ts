@@ -79,7 +79,7 @@ describe("runGeneration", () => {
     await expect(runGeneration(ctx, REQ, { ...PROV, caller: principal(owner) })).rejects.toThrow(GenerationFailedError);
   });
 
-  test("a fanned-out (n>1) generation shares ONE createdAt across every provenance row", async () => {
+  test("a fanned-out (n>1) generation shares ONE createdAt and ONE call id across every provenance row", async () => {
     const db = await freshDb();
     const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const base64 = Buffer.from(PNG_BYTES).toString("base64");
@@ -100,13 +100,20 @@ describe("runGeneration", () => {
 
     expect(outcome.images).toHaveLength(2);
     const rows = await db
-      .select({ createdAt: imageryGenerations.createdAt, provider: imageryGenerations.provider, connectionId: imageryGenerations.connectionId })
+      .select({
+        createdAt: imageryGenerations.createdAt,
+        callId: imageryGenerations.callId,
+        provider: imageryGenerations.provider,
+        connectionId: imageryGenerations.connectionId,
+      })
       .from(imageryGenerations);
     expect(rows).toHaveLength(2);
     expect(new Set(rows.map((r) => r.createdAt)).size).toBe(1);
+    // The call id is what the stats rebuild counts one priced generation by.
+    expect(rows[0]?.callId).not.toBeNull();
     expect(rows).toEqual([
-      { createdAt: rows[0]?.createdAt, provider: REQ.connection.providerId, connectionId: REQ.connection.connectionId },
-      { createdAt: rows[0]?.createdAt, provider: REQ.connection.providerId, connectionId: REQ.connection.connectionId },
+      { createdAt: rows[0]?.createdAt, callId: rows[0]?.callId, provider: REQ.connection.providerId, connectionId: REQ.connection.connectionId },
+      { createdAt: rows[0]?.createdAt, callId: rows[0]?.callId, provider: REQ.connection.providerId, connectionId: REQ.connection.connectionId },
     ]);
   });
 });

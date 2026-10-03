@@ -3,7 +3,7 @@
 //
 // WHY IT EXISTS. The CONTEXT band names the drilled character (§6.3 N4/P4 — the Content ↔ Context bind),
 // which reads as a claim that everything below it is that character's. Two of the three dimension tabs
-// cannot honour that claim: `model_stats` is owner+model grain and `daily_stats` is owner+day grain, so
+// cannot honour that claim: `model_stats` is owner+model grain and `daily_stats` is owner+quarter-hour grain, so
 // neither carries a character axis to narrow on. The measured result was the drilled character's face
 // above the whole library's numbers — including two different latency values for "the same" metric on
 // screen simultaneously.

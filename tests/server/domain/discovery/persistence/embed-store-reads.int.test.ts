@@ -261,7 +261,8 @@ describe("readThemeCluster* — owner-scoped (#1480 item 6)", () => {
     await db.insert(digestThemeAssignments).values({
       digestId: castId<ChatDigestId>("chat_digest_t1"),
       themeClusterId: cluster,
-      msgMidAt: Date.UTC(2024, 0, 10),
+      // Seven minutes into a calendar bucket: the timeline floors it to the bucket's start.
+      msgMidAt: Date.UTC(2024, 0, 10, 0, 7),
       computedAt: FROZEN_AT,
     });
 
@@ -271,6 +272,6 @@ describe("readThemeCluster* — owner-scoped (#1480 item 6)", () => {
 
     // POSITIVE ARM, AS THE OWNER — the same id, and both reads answer.
     expect(await readThemeClusterMembers(db, owner, cluster, MEMBER_LIMIT)).toEqual([{ characterId: hero, name: "Hero", count: 1 }]);
-    expect(await readThemeClusterTimeline(db, owner, cluster)).toEqual([{ bucket: "2024-01", count: 1 }]);
+    expect(await readThemeClusterTimeline(db, owner, cluster)).toEqual([{ bucketStart: Date.UTC(2024, 0, 10), count: 1 }]);
   });
 });
