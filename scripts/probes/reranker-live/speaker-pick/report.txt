@@ -1,0 +1,206 @@
+cases 30, hand-judged 26; reference best hits the hand judgment on 25/26; reference spend $0.0573
+
+| arm | agrees with reference best | in reference plausible set | hand-judged hit | degraded | tokens in / out (median) | latency median / max ms | cost per round |
+| - | - | - | - | - | - | - | - |
+| natural (expected over 4000 draws) | 36% | 68% | 43% | 0 | 0 / 0 | under 1 / under 1 | free |
+| natural-any-mention (expected over 4000 draws) | 50% | 75% | 57% | 0 | 0 / 0 | under 1 / under 1 | free |
+| arbiter-claude-sonnet-5 | 76% | 97% | 88% | 1 | 415 / 6 | 930 / 1929 | $0.000833 |
+| arbiter-qwen2.5-0.5b | 14% | 63% | 23% | 0 | 281 / 4 | 2481 / 3980 (server prompt 2388 + gen 73) | - |
+| arbiter-qwen2.5-1.5b | 38% | 73% | 46% | 5 | 281 / 3 | 4291 / 10537 (server prompt 4133 + gen 150) | - |
+| rerank-1c-mention-then-trigger | 66% | 97% | 73% | 0 | - / - | 89 / 152 | - |
+| rerank-1c-trigger | 52% | 73% | 65% | 0 | - / - | 89 / 152 | - |
+| rerank-1c-trigger-banlast | 55% | 87% | 62% | 0 | - / - | 89 / 152 | - |
+| rerank-1c-window | 10% | 70% | 27% | 0 | - / - | 473 / 780 | - |
+| rerank-4c-mention-then-trigger | 66% | 97% | 73% | 0 | - / - | 46 / 117 | - |
+| rerank-4c-trigger | 52% | 73% | 65% | 0 | - / - | 46 / 117 | - |
+| rerank-4c-trigger-banlast | 55% | 87% | 62% | 0 | - / - | 46 / 117 | - |
+| rerank-4c-window | 10% | 70% | 27% | 0 | - / - | 242 / 336 | - |
+| rerank-ettin32m-4c-mention-then-trigger | 72% | 93% | 81% | 0 | - / - | 35 / 149 | - |
+| rerank-ettin32m-4c-trigger | 69% | 83% | 85% | 0 | - / - | 35 / 149 | - |
+| rerank-ettin32m-4c-trigger-banlast | 62% | 93% | 69% | 0 | - / - | 35 / 149 | - |
+| rerank-ettin32m-4c-window | 31% | 60% | 42% | 0 | - / - | 176 / 700 | - |
+
+| arm | role addressed | reply to last | named by character | named by user |
+| - | - | - | - | - |
+| natural | 34% of 10 | 34% of 4 | 39% of 6 | 67% of 6 |
+| natural-any-mention | 34% of 10 | 34% of 4 | 100% of 6 | 67% of 6 |
+| arbiter-claude-sonnet-5 | 70% of 10 | 100% of 4 | 100% of 6 | 100% of 6 |
+| arbiter-qwen2.5-0.5b | 40% of 10 | 0% of 4 | 0% of 6 | 33% of 6 |
+| arbiter-qwen2.5-1.5b | 40% of 10 | 0% of 4 | 67% of 6 | 67% of 6 |
+| rerank-1c-mention-then-trigger | 50% of 10 | 50% of 4 | 100% of 6 | 100% of 6 |
+| rerank-1c-trigger | 50% of 10 | 50% of 4 | 67% of 6 | 100% of 6 |
+| rerank-1c-trigger-banlast | 50% of 10 | 25% of 4 | 100% of 6 | 67% of 6 |
+| rerank-1c-window | 50% of 10 | 0% of 4 | 0% of 6 | 33% of 6 |
+| rerank-4c-mention-then-trigger | 50% of 10 | 50% of 4 | 100% of 6 | 100% of 6 |
+| rerank-4c-trigger | 50% of 10 | 50% of 4 | 67% of 6 | 100% of 6 |
+| rerank-4c-trigger-banlast | 50% of 10 | 25% of 4 | 100% of 6 | 67% of 6 |
+| rerank-4c-window | 50% of 10 | 0% of 4 | 0% of 6 | 33% of 6 |
+| rerank-ettin32m-4c-mention-then-trigger | 60% of 10 | 75% of 4 | 100% of 6 | 100% of 6 |
+| rerank-ettin32m-4c-trigger | 80% of 10 | 50% of 4 | 100% of 6 | 100% of 6 |
+| rerank-ettin32m-4c-trigger-banlast | 60% of 10 | 50% of 4 | 100% of 6 | 67% of 6 |
+| rerank-ettin32m-4c-window | 60% of 10 | 0% of 4 | 67% of 6 | 17% of 6 |
+
+| arm | cut | kind | pick | accepted | note |
+| - | - | - | - | - | - |
+| arbiter-claude-sonnet-5 | caravan@5 | role-addressed | Liesel | Maelis |  |
+| arbiter-claude-sonnet-5 | caravan@16 | role-addressed | Quill | Maelis |  |
+| arbiter-claude-sonnet-5 | starship@5 | role-addressed | Okafor | Reyes |  |
+| arbiter-qwen2.5-0.5b | caravan@5 | role-addressed | Brannoc | Maelis |  |
+| arbiter-qwen2.5-0.5b | caravan@8 | reply-to-last | Brannoc | Liesel |  |
+| arbiter-qwen2.5-0.5b | caravan@11 | named-by-character | Brannoc | Quill |  |
+| arbiter-qwen2.5-0.5b | caravan@16 | role-addressed | Brannoc | Maelis |  |
+| arbiter-qwen2.5-0.5b | starship@5 | role-addressed | Okafor | Reyes |  |
+| arbiter-qwen2.5-0.5b | starship@7 | named-by-character | Okafor | Jett, Reyes |  |
+| arbiter-qwen2.5-0.5b | starship@11 | named-by-character | Okafor | Varga |  |
+| arbiter-qwen2.5-0.5b | starship@14 | named-by-user | Okafor | Reyes |  |
+| arbiter-qwen2.5-0.5b | precinct@7 | named-by-user | Hollis | Gus |  |
+| arbiter-qwen2.5-0.5b | precinct@10 | role-addressed | Gus | Priya |  |
+| arbiter-qwen2.5-0.5b | precinct@13 | reply-to-last | Hollis | Celeste |  |
+| arbiter-qwen2.5-0.5b | precinct@18 | named-by-character | Hollis | Priya |  |
+| arbiter-qwen2.5-0.5b | cafe@3 | named-by-character | Hana | Dmitri |  |
+| arbiter-qwen2.5-0.5b | cafe@7 | named-by-user | Dmitri | Theo |  |
+| arbiter-qwen2.5-0.5b | expedition@4 | named-by-user | Eldridge | Corin |  |
+| arbiter-qwen2.5-0.5b | expedition@6 | role-addressed | Nayeli | Eldridge |  |
+| arbiter-qwen2.5-0.5b | expedition@9 | reply-to-last | Nayeli | Ada |  |
+| arbiter-qwen2.5-0.5b | expedition@10 | named-by-character | Nayeli | Corin |  |
+| arbiter-qwen2.5-0.5b | expedition@13 | role-addressed | Eldridge | Nayeli |  |
+| arbiter-qwen2.5-0.5b | expedition@15 | reply-to-last | Eldridge | Nayeli, Ada, Corin |  |
+| arbiter-qwen2.5-1.5b | caravan@5 | role-addressed | Brannoc | Maelis |  |
+| arbiter-qwen2.5-1.5b | caravan@8 | reply-to-last | Brannoc | Liesel |  |
+| arbiter-qwen2.5-1.5b | caravan@11 | named-by-character | Liesel | Quill |  |
+| arbiter-qwen2.5-1.5b | caravan@13 | named-by-user | Maelis | Brannoc |  |
+| arbiter-qwen2.5-1.5b | caravan@16 | role-addressed | Quill | Maelis |  |
+| arbiter-qwen2.5-1.5b | starship@5 | role-addressed | Okafor | Reyes |  |
+| arbiter-qwen2.5-1.5b | starship@14 | named-by-user | Okafor | Reyes |  |
+| arbiter-qwen2.5-1.5b | precinct@13 | reply-to-last | Hollis | Celeste |  |
+| arbiter-qwen2.5-1.5b | precinct@18 | named-by-character | Hollis | Priya |  |
+| arbiter-qwen2.5-1.5b | cafe@15 | role-addressed | Albright | Theo, Dmitri, Hana | degraded |
+| arbiter-qwen2.5-1.5b | expedition@6 | role-addressed | Corin | Eldridge |  |
+| arbiter-qwen2.5-1.5b | expedition@9 | reply-to-last | Corin | Ada |  |
+| arbiter-qwen2.5-1.5b | expedition@13 | role-addressed | Eldridge | Nayeli |  |
+| arbiter-qwen2.5-1.5b | expedition@15 | reply-to-last | Eldridge | Nayeli, Ada, Corin |  |
+| rerank-1c-mention-then-trigger | caravan@5 | role-addressed | Quill | Maelis |  |
+| rerank-1c-mention-then-trigger | caravan@8 | reply-to-last | Brannoc | Liesel |  |
+| rerank-1c-mention-then-trigger | caravan@16 | role-addressed | Brannoc | Maelis |  |
+| rerank-1c-mention-then-trigger | starship@5 | role-addressed | Okafor | Reyes |  |
+| rerank-1c-mention-then-trigger | precinct@13 | reply-to-last | Gus | Celeste |  |
+| rerank-1c-mention-then-trigger | cafe@15 | role-addressed | Albright | Theo, Dmitri, Hana |  |
+| rerank-1c-mention-then-trigger | expedition@13 | role-addressed | Corin | Nayeli |  |
+| rerank-1c-trigger | caravan@5 | role-addressed | Brannoc | Maelis |  |
+| rerank-1c-trigger | caravan@11 | named-by-character | Maelis | Quill |  |
+| rerank-1c-trigger | caravan@16 | role-addressed | Brannoc | Maelis |  |
+| rerank-1c-trigger | starship@5 | role-addressed | Okafor | Reyes |  |
+| rerank-1c-trigger | starship@7 | named-by-character | Okafor | Jett, Reyes |  |
+| rerank-1c-trigger | precinct@13 | reply-to-last | Hollis | Celeste |  |
+| rerank-1c-trigger | cafe@15 | role-addressed | Albright | Theo, Dmitri, Hana |  |
+| rerank-1c-trigger | expedition@13 | role-addressed | Corin | Nayeli |  |
+| rerank-1c-trigger | expedition@15 | reply-to-last | Eldridge | Nayeli, Ada, Corin |  |
+| rerank-1c-trigger-banlast | caravan@5 | role-addressed | Quill | Maelis |  |
+| rerank-1c-trigger-banlast | caravan@8 | reply-to-last | Brannoc | Liesel |  |
+| rerank-1c-trigger-banlast | caravan@16 | role-addressed | Brannoc | Maelis |  |
+| rerank-1c-trigger-banlast | starship@5 | role-addressed | Okafor | Reyes |  |
+| rerank-1c-trigger-banlast | precinct@13 | reply-to-last | Gus | Celeste |  |
+| rerank-1c-trigger-banlast | cafe@7 | named-by-user | Dmitri | Theo |  |
+| rerank-1c-trigger-banlast | cafe@15 | role-addressed | Albright | Theo, Dmitri, Hana |  |
+| rerank-1c-trigger-banlast | expedition@4 | named-by-user | Eldridge | Corin |  |
+| rerank-1c-trigger-banlast | expedition@9 | reply-to-last | Eldridge | Ada |  |
+| rerank-1c-trigger-banlast | expedition@13 | role-addressed | Corin | Nayeli |  |
+| rerank-1c-window | caravan@5 | role-addressed | Brannoc | Maelis |  |
+| rerank-1c-window | caravan@8 | reply-to-last | Brannoc | Liesel |  |
+| rerank-1c-window | caravan@11 | named-by-character | Brannoc | Quill |  |
+| rerank-1c-window | caravan@16 | role-addressed | Liesel | Maelis |  |
+| rerank-1c-window | starship@5 | role-addressed | Okafor | Reyes |  |
+| rerank-1c-window | starship@7 | named-by-character | Okafor | Jett, Reyes |  |
+| rerank-1c-window | starship@11 | named-by-character | Reyes | Varga |  |
+| rerank-1c-window | starship@14 | named-by-user | Varga | Reyes |  |
+| rerank-1c-window | precinct@7 | named-by-user | Hollis | Gus |  |
+| rerank-1c-window | precinct@10 | role-addressed | Hollis | Priya |  |
+| rerank-1c-window | precinct@13 | reply-to-last | Hollis | Celeste |  |
+| rerank-1c-window | precinct@18 | named-by-character | Hollis | Priya |  |
+| rerank-1c-window | cafe@3 | named-by-character | Hana | Dmitri |  |
+| rerank-1c-window | cafe@7 | named-by-user | Hana | Theo |  |
+| rerank-1c-window | expedition@4 | named-by-user | Eldridge | Corin |  |
+| rerank-1c-window | expedition@9 | reply-to-last | Eldridge | Ada |  |
+| rerank-1c-window | expedition@10 | named-by-character | Nayeli | Corin |  |
+| rerank-1c-window | expedition@13 | role-addressed | Corin | Nayeli |  |
+| rerank-1c-window | expedition@15 | reply-to-last | Eldridge | Nayeli, Ada, Corin |  |
+| rerank-4c-mention-then-trigger | caravan@5 | role-addressed | Quill | Maelis |  |
+| rerank-4c-mention-then-trigger | caravan@8 | reply-to-last | Brannoc | Liesel |  |
+| rerank-4c-mention-then-trigger | caravan@16 | role-addressed | Brannoc | Maelis |  |
+| rerank-4c-mention-then-trigger | starship@5 | role-addressed | Okafor | Reyes |  |
+| rerank-4c-mention-then-trigger | precinct@13 | reply-to-last | Gus | Celeste |  |
+| rerank-4c-mention-then-trigger | cafe@15 | role-addressed | Albright | Theo, Dmitri, Hana |  |
+| rerank-4c-mention-then-trigger | expedition@13 | role-addressed | Corin | Nayeli |  |
+| rerank-4c-trigger | caravan@5 | role-addressed | Brannoc | Maelis |  |
+| rerank-4c-trigger | caravan@11 | named-by-character | Maelis | Quill |  |
+| rerank-4c-trigger | caravan@16 | role-addressed | Brannoc | Maelis |  |
+| rerank-4c-trigger | starship@5 | role-addressed | Okafor | Reyes |  |
+| rerank-4c-trigger | starship@7 | named-by-character | Okafor | Jett, Reyes |  |
+| rerank-4c-trigger | precinct@13 | reply-to-last | Hollis | Celeste |  |
+| rerank-4c-trigger | cafe@15 | role-addressed | Albright | Theo, Dmitri, Hana |  |
+| rerank-4c-trigger | expedition@13 | role-addressed | Corin | Nayeli |  |
+| rerank-4c-trigger | expedition@15 | reply-to-last | Eldridge | Nayeli, Ada, Corin |  |
+| rerank-4c-trigger-banlast | caravan@5 | role-addressed | Quill | Maelis |  |
+| rerank-4c-trigger-banlast | caravan@8 | reply-to-last | Brannoc | Liesel |  |
+| rerank-4c-trigger-banlast | caravan@16 | role-addressed | Brannoc | Maelis |  |
+| rerank-4c-trigger-banlast | starship@5 | role-addressed | Okafor | Reyes |  |
+| rerank-4c-trigger-banlast | precinct@13 | reply-to-last | Gus | Celeste |  |
+| rerank-4c-trigger-banlast | cafe@7 | named-by-user | Dmitri | Theo |  |
+| rerank-4c-trigger-banlast | cafe@15 | role-addressed | Albright | Theo, Dmitri, Hana |  |
+| rerank-4c-trigger-banlast | expedition@4 | named-by-user | Eldridge | Corin |  |
+| rerank-4c-trigger-banlast | expedition@9 | reply-to-last | Eldridge | Ada |  |
+| rerank-4c-trigger-banlast | expedition@13 | role-addressed | Corin | Nayeli |  |
+| rerank-4c-window | caravan@5 | role-addressed | Brannoc | Maelis |  |
+| rerank-4c-window | caravan@8 | reply-to-last | Brannoc | Liesel |  |
+| rerank-4c-window | caravan@11 | named-by-character | Brannoc | Quill |  |
+| rerank-4c-window | caravan@16 | role-addressed | Liesel | Maelis |  |
+| rerank-4c-window | starship@5 | role-addressed | Okafor | Reyes |  |
+| rerank-4c-window | starship@7 | named-by-character | Okafor | Jett, Reyes |  |
+| rerank-4c-window | starship@11 | named-by-character | Reyes | Varga |  |
+| rerank-4c-window | starship@14 | named-by-user | Varga | Reyes |  |
+| rerank-4c-window | precinct@7 | named-by-user | Hollis | Gus |  |
+| rerank-4c-window | precinct@10 | role-addressed | Hollis | Priya |  |
+| rerank-4c-window | precinct@13 | reply-to-last | Hollis | Celeste |  |
+| rerank-4c-window | precinct@18 | named-by-character | Hollis | Priya |  |
+| rerank-4c-window | cafe@3 | named-by-character | Hana | Dmitri |  |
+| rerank-4c-window | cafe@7 | named-by-user | Hana | Theo |  |
+| rerank-4c-window | expedition@4 | named-by-user | Eldridge | Corin |  |
+| rerank-4c-window | expedition@9 | reply-to-last | Eldridge | Ada |  |
+| rerank-4c-window | expedition@10 | named-by-character | Nayeli | Corin |  |
+| rerank-4c-window | expedition@13 | role-addressed | Corin | Nayeli |  |
+| rerank-4c-window | expedition@15 | reply-to-last | Eldridge | Nayeli, Ada, Corin |  |
+| rerank-ettin32m-4c-mention-then-trigger | caravan@8 | reply-to-last | Brannoc | Liesel |  |
+| rerank-ettin32m-4c-mention-then-trigger | starship@5 | role-addressed | Okafor | Reyes |  |
+| rerank-ettin32m-4c-mention-then-trigger | precinct@16 | role-addressed | Celeste | Gus, Hollis |  |
+| rerank-ettin32m-4c-mention-then-trigger | cafe@15 | role-addressed | Albright | Theo, Dmitri, Hana |  |
+| rerank-ettin32m-4c-mention-then-trigger | expedition@13 | role-addressed | Ada | Nayeli |  |
+| rerank-ettin32m-4c-trigger | starship@5 | role-addressed | Okafor | Reyes |  |
+| rerank-ettin32m-4c-trigger | precinct@13 | reply-to-last | Hollis | Celeste |  |
+| rerank-ettin32m-4c-trigger | precinct@16 | role-addressed | Celeste | Gus, Hollis |  |
+| rerank-ettin32m-4c-trigger | expedition@15 | reply-to-last | Eldridge | Nayeli, Ada, Corin |  |
+| rerank-ettin32m-4c-trigger-banlast | caravan@8 | reply-to-last | Brannoc | Liesel |  |
+| rerank-ettin32m-4c-trigger-banlast | starship@5 | role-addressed | Okafor | Reyes |  |
+| rerank-ettin32m-4c-trigger-banlast | precinct@16 | role-addressed | Celeste | Gus, Hollis |  |
+| rerank-ettin32m-4c-trigger-banlast | cafe@7 | named-by-user | Hana | Theo |  |
+| rerank-ettin32m-4c-trigger-banlast | cafe@15 | role-addressed | Albright | Theo, Dmitri, Hana |  |
+| rerank-ettin32m-4c-trigger-banlast | expedition@4 | named-by-user | Nayeli | Corin |  |
+| rerank-ettin32m-4c-trigger-banlast | expedition@9 | reply-to-last | Nayeli | Ada |  |
+| rerank-ettin32m-4c-trigger-banlast | expedition@13 | role-addressed | Ada | Nayeli |  |
+| rerank-ettin32m-4c-window | caravan@5 | role-addressed | Brannoc | Maelis |  |
+| rerank-ettin32m-4c-window | caravan@8 | reply-to-last | Brannoc | Liesel |  |
+| rerank-ettin32m-4c-window | caravan@13 | named-by-user | Liesel | Brannoc |  |
+| rerank-ettin32m-4c-window | caravan@16 | role-addressed | Liesel | Maelis |  |
+| rerank-ettin32m-4c-window | starship@5 | role-addressed | Okafor | Reyes |  |
+| rerank-ettin32m-4c-window | starship@7 | named-by-character | Okafor | Jett, Reyes |  |
+| rerank-ettin32m-4c-window | starship@14 | named-by-user | Okafor | Reyes |  |
+| rerank-ettin32m-4c-window | precinct@13 | reply-to-last | Priya | Celeste |  |
+| rerank-ettin32m-4c-window | cafe@7 | named-by-user | Dmitri | Theo |  |
+| rerank-ettin32m-4c-window | cafe@12 | named-by-user | Theo | Dmitri, Hana |  |
+| rerank-ettin32m-4c-window | expedition@4 | named-by-user | Eldridge | Corin |  |
+| rerank-ettin32m-4c-window | expedition@9 | reply-to-last | Eldridge | Ada |  |
+| rerank-ettin32m-4c-window | expedition@10 | named-by-character | Eldridge | Corin |  |
+| rerank-ettin32m-4c-window | expedition@13 | role-addressed | Corin | Nayeli |  |
+| rerank-ettin32m-4c-window | expedition@15 | reply-to-last | Eldridge | Nayeli, Ada, Corin |  |
+{"arm":"rerank-1c-meta","threads":1,"loadMs":493,"scorePairsCalls":60,"p50Ms":150,"p95Ms":702,"maxMs":780,"rssDeltaMb":206}
+{"arm":"rerank-4c-meta","threads":4,"loadMs":530,"scorePairsCalls":60,"p50Ms":107,"p95Ms":301,"maxMs":336,"rssDeltaMb":214}
+{"arm":"rerank-ettin32m-4c-meta","threads":4,"loadMs":539,"scorePairsCalls":60,"p50Ms":105,"p95Ms":575,"maxMs":700,"rssDeltaMb":107}
