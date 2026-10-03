@@ -11,6 +11,7 @@ import type {
   EmbeddingCapability,
   GenerationCapability,
   ModelCatalogEntry,
+  ModelInfoApi,
   ModelListing,
   ProviderAvailability,
   ProviderDef,
@@ -18,7 +19,7 @@ import type {
   Task,
   UserConnection,
 } from "@orb/contracts/inference";
-import { agentSdkModelSchema, connectionTasks, foldFeatures, modelCatalogEntrySchema } from "@orb/contracts/inference";
+import { agentSdkModelSchema, connectionTasks, modelCatalogEntrySchema } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { UserId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -47,7 +48,7 @@ import type { ProviderRegistry } from "./registry/providers.ts";
 import { createProviderRegistry } from "./registry/providers.ts";
 import { checkAvailability, loadVerdict } from "./resolve/availability.ts";
 import type { ResolveArgs, ResolveOutcome, ResolverContext } from "./resolve/resolve-task.ts";
-import { connectionNotFoundMessage, resolveTask, resolveTaskWithBaseline } from "./resolve/resolve-task.ts";
+import { connectionNotFoundMessage, modelInfoApiOf, resolveTask, resolveTaskWithBaseline } from "./resolve/resolve-task.ts";
 import { createProviderDiagnostics } from "./roles/diagnostics.ts";
 import { createProviderExecutor } from "./roles/executor.ts";
 import { createRoleClientsFor } from "./roles/role-clients.ts";
@@ -104,7 +105,14 @@ export { runStructuredTurn } from "./roles/structured-turn.ts";
 
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
 const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";
-const endpointCatalogKey = (baseUrl: string): string => `catalog:endpoint:${baseUrl}`;
+/** One mirror per (URL × reader): a native reader states facts the bare list lacks, so two rows on one URL
+ *  through different readers must never share a snapshot (the first warm would decide the other's kind,
+ *  modalities and tools). URL first, reader last, so one URL's mirrors share a prefix an invalidation can
+ *  delete. The `#` family is new on purpose: a snapshot written under the old URL-only key carries no native
+ *  facts and is never read again. */
+const ENDPOINT_CATALOG_PREFIX = "catalog:endpoint:";
+const endpointCatalogPrefix = (baseUrl: string): string => `${ENDPOINT_CATALOG_PREFIX}${baseUrl}#`;
+const endpointCatalogKey = (baseUrl: string, modelInfoApi: ModelInfoApi | undefined): string => `${endpointCatalogPrefix(baseUrl)}${modelInfoApi ?? "list"}`;
 
 export interface CapabilityRead extends SynthesizedCapability {
   /** The same evidence fold with this row's declaration omitted. */
@@ -144,6 +152,10 @@ export interface InferenceRuntime {
      *  count when one was warmed, `null` when the strategy has no process-wide mirror. An operator path with
      *  no principal, so it reaches deployment-wide rows only — never a plugin row. */
     readonly refresh: (providerId: string) => Promise<{ readonly models: number | null }>;
+    /** Forget what one connection's server last advertised, in memory and in the persisted snapshot, so its
+     *  next resolve dials the server again — the hook a save or an endpoint inspection runs, because a server
+     *  restarted without its projector or `--jinja` keeps its earlier facts until something asks again. */
+    readonly invalidateEndpoint: (connection: UserConnection) => Promise<void>;
   };
   readonly diagnostics: ProviderDiagnostics;
   readonly providers: {
@@ -213,15 +225,39 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
 
   const openRouterCatalog = createMirror<ModelCatalogEntry[]>({ key: OPENROUTER_CATALOG_KEY, schema: z.array(modelCatalogEntrySchema), deps: mirrorDeps });
   const agentSdkCatalog = createMirror<AgentSdkModel[]>({ key: AGENT_SDK_CATALOG_KEY, schema: z.array(agentSdkModelSchema), deps: mirrorDeps });
-  const endpointMirrors = new Map<string, Mirror<EndpointModel[]>>();
-  const endpointModels = (baseUrl: string): Mirror<EndpointModel[]> => {
-    const existing = endpointMirrors.get(baseUrl);
+  const endpointMirrors = new Map<string, { readonly baseUrl: string; readonly mirror: Mirror<EndpointModel[]> }>();
+  const endpointModels = (baseUrl: string, modelInfoApi: ModelInfoApi | undefined): Mirror<EndpointModel[]> => {
+    const key = endpointCatalogKey(baseUrl, modelInfoApi);
+    const existing = endpointMirrors.get(key);
     if (existing !== undefined) {
-      return existing;
+      return existing.mirror;
     }
-    const created = createMirror<EndpointModel[]>({ key: endpointCatalogKey(baseUrl), schema: endpointModelsSchema, deps: mirrorDeps });
-    endpointMirrors.set(baseUrl, created);
-    return created;
+    const mirror = createMirror<EndpointModel[]>({ key, schema: endpointModelsSchema, deps: mirrorDeps });
+    endpointMirrors.set(key, { baseUrl, mirror });
+    return mirror;
+  };
+
+  /** Every reader's mirror on one URL (or every endpoint mirror), in memory AND in the store: a mirror that
+   *  only forgot its cache would read the persisted row back on the next restart. */
+  const invalidateEndpointMirrors = async (baseUrl: string | undefined): Promise<void> => {
+    for (const entry of endpointMirrors.values()) {
+      if (baseUrl === undefined || entry.baseUrl === baseUrl) {
+        entry.mirror.invalidate();
+      }
+    }
+    await deps.snapshotStore.deletePrefix(baseUrl === undefined ? ENDPOINT_CATALOG_PREFIX : endpointCatalogPrefix(baseUrl));
+  };
+  /** ONE connection's (URL × reader) mirror, in memory and in the store; a sibling reader's facts on the same
+   *  URL are another row's and stay. */
+  const invalidateEndpoint = async (connection: UserConnection): Promise<void> => {
+    const provider = registry.get(connection.providerId, connection.ownerId);
+    const baseUrl = provider?.baseUrl ?? connection.baseUrl;
+    if (provider === undefined || baseUrl === null) {
+      return;
+    }
+    const modelInfoApi = modelInfoApiOf(provider, connection);
+    endpointModels(baseUrl, modelInfoApi).invalidate();
+    await deps.snapshotStore.deletePrefix(endpointCatalogKey(baseUrl, modelInfoApi));
   };
 
   const openRouterBaseUrl = (): string => {
@@ -243,7 +279,8 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       return;
     }
     const secrets = resolvedScrubSet({ credential: { secret }, transport: connection.transport });
-    await endpointModels(baseUrl).warm(
+    const modelInfoApi = modelInfoApiOf(provider, connection);
+    await endpointModels(baseUrl, modelInfoApi).warm(
       () =>
         provider.wire === "google-generative-ai"
           ? fetchGoogleModels({ baseUrl, secret, secrets, label: "Google models" }, fetchImpl)
@@ -253,7 +290,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
               secret,
               headers: connection.transport?.headers,
               secrets,
-              modelInfoApi: foldFeatures(provider.features, connection.declared?.features).modelInfoApi,
+              modelInfoApi,
               warn: (message) => {
                 deps.log.warn({ providerId: provider.id }, message);
               },
@@ -292,6 +329,9 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     registry,
     resolveCredential: deps.resolveCredential,
     fetch: fetchImpl,
+    warn: (fields, message) => {
+      deps.log.warn(fields, message);
+    },
     warmOpenRouter: warmOpenRouterCatalog,
     get warmAgentSdk(): typeof warmAgentSdkCatalog | undefined {
       return built.agentSdk === undefined ? undefined : warmAgentSdkCatalog;
@@ -344,16 +384,12 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
           agentSdkCatalog.invalidate();
           return { models: null };
         }
-        if (provider.baseUrl !== undefined) {
-          endpointMirrors.get(provider.baseUrl)?.invalidate();
-          return { models: null };
-        }
-        // An endpoint provider has no fixed URL: every connection's own mirror on it is invalidated.
-        for (const mirror of endpointMirrors.values()) {
-          mirror.invalidate();
-        }
+        // A fixed URL names its mirrors across every reader; an endpoint provider has no fixed URL, so every
+        // connection's own mirror is invalidated.
+        await invalidateEndpointMirrors(provider.baseUrl);
         return { models: null };
       },
+      invalidateEndpoint,
     },
     diagnostics,
     providers: {

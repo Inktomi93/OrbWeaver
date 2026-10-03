@@ -49,3 +49,25 @@ test("a NON-string value in the shared settings table reads as `null`, never as 
   await db.insert(settings).values({ key: KEY, value: { notASnapshot: true }, updatedAt: 0 });
   expect(await store.read(KEY)).toBeNull();
 });
+
+test("deletePrefix drops every key under the prefix and nothing beside it, and reads a URL's `_` and `%` literally", async () => {
+  const db = await freshDb();
+  const store = createSnapshotStore(db, () => 0);
+  await store.write("catalog:endpoint:http://box_1/v1#ollama", "a");
+  await store.write("catalog:endpoint:http://box_1/v1#list", "b");
+  await store.write("catalog:endpoint:http://box_1/v1", "old-family");
+  await store.write("catalog:endpoint:http://boxX1/v1#list", "other-host");
+  await store.write(KEY, "openrouter");
+  await store.deletePrefix("catalog:endpoint:http://box_1/v1#");
+  expect(await store.read("catalog:endpoint:http://box_1/v1#ollama")).toBeNull();
+  expect(await store.read("catalog:endpoint:http://box_1/v1#list")).toBeNull();
+  // The `#` family prefix does not reach the old URL-only key, and `_` is not a one-character wildcard.
+  expect(await store.read("catalog:endpoint:http://box_1/v1")).toBe("old-family");
+  expect(await store.read("catalog:endpoint:http://boxX1/v1#list")).toBe("other-host");
+  expect(await store.read(KEY)).toBe("openrouter");
+  // A real setting under an unrelated key is untouched by a sweep of the whole endpoint family.
+  await db.insert(settings).values({ key: "app:theme", value: { dark: true }, updatedAt: 0 });
+  await store.deletePrefix("catalog:endpoint:");
+  expect(await store.read("catalog:endpoint:http://box_1/v1")).toBeNull();
+  expect(await db.select().from(settings).where(eq(settings.key, "app:theme"))).toHaveLength(1);
+});

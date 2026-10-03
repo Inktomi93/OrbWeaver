@@ -38,6 +38,8 @@ const ACCEPTANCE: ReadonlyMap<string, KindAcceptance> = new Map([
   ["vllm", OPENAI_COMPAT_OPEN],
   ["lm-studio", OPENAI_COMPAT_OPEN],
   ["ollama", OPENAI_COMPAT_OPEN],
+  ["llama-cpp", OPENAI_COMPAT_OPEN],
+  ["koboldcpp", OPENAI_COMPAT_OPEN],
   ["custom-openai", OPENAI_COMPAT_OPEN],
   // The in-process runtime serves vectors and reranking, never generation.
   ["local-light", { generation: [], embedding: ["embed", "imageEmbed"], rerank: ["rerank"] }],

@@ -38,9 +38,11 @@ export const IMAGE_ARMS = ["images-api", "chat-modalities"] as const;
  *  declares it and the body shaper renames. Absent ⇒ the SDK's spelling stands. */
 export const OUTPUT_CAP_FIELDS = ["max_tokens", "max_completion_tokens"] as const;
 
-/** A server's native per-model info API, read beside `/v1/models` for facts that list lacks: `ollama` =
- *  `GET /api/ps` + `POST /api/show` (the window the server truncates at, an embedder's width). */
-export const MODEL_INFO_APIS = ["ollama"] as const;
+/** A server's native model-info API, read beside `/v1/models` for facts that list lacks: the window the
+ *  server runs, an embedder's width, and what each model takes (tools, image input, its kind). `ollama` =
+ *  `GET /api/version` + `GET /api/ps` + `POST /api/show`; `llama-cpp` = `GET /props` + the list's `meta`;
+ *  `koboldcpp` = `GET /api/extra/version` + `GET /props`. The readers live in `@orb/inference`'s endpoint catalog. */
+export const MODEL_INFO_APIS = ["ollama", "llama-cpp", "koboldcpp"] as const;
 export type ModelInfoApi = (typeof MODEL_INFO_APIS)[number];
 
 export const endpointFeaturesSchema = z.object({

@@ -2,13 +2,14 @@
 // missing-provider refusal, the prompt-cache settings fold, and which id the capability rows read on the
 // OpenRouter route — all through the real runtime fold.
 
-import type { GenerationCapability } from "@orb/contracts/inference";
+import type { Capability, GenerationCapability } from "@orb/contracts/inference";
 import { GENERATION_FLOOR, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, NoConnectionError } from "@orb/inference";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { openRouterCatalogFetch } from "../_openrouter-catalog.ts";
-import { fakeConnection, fakeDeps, memoryStores, newRuleId, newUserId } from "../_support.ts";
+import { FROZEN_NOW, fakeConnection, fakeDeps, memoryStores, newRuleId, newUserId } from "../_support.ts";
+import { localServerFetch } from "../catalog/_local-servers-fetch.ts";
 
 test("structured resolves through the actor's summarize binding before the funder's summarize binding", async () => {
   const stores = memoryStores();
@@ -324,4 +325,172 @@ test("Gemini explicit caching defaults off and a saved opt-in survives the real 
   expect(implicit.resolved.promptCache).toMatchObject({ enabled: false, ttl: "5m" });
   expect(implicit.resolved.capability).toMatchObject({ generation: { turns: { fixedCacheTtl: "5m", assistantPrefill: true } } });
   expect(explicit.resolved.promptCache.enabled).toBe(true);
+});
+
+// ── a local server's own model info reaches the fold as advertised evidence (D292) ───────────────────────
+// The resolve runs the REAL endpoint reader over what the rig's Ollama answered (scripts/probes/local-servers),
+// so the kind, the modalities and the tools fold exactly as they do against a live box.
+
+async function ollamaResolved(model: string, task: "chat" | "embed"): Promise<Capability> {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const row = fakeConnection({ ownerId, providerId: "ollama", model, baseUrl: "http://127.0.0.1:1/v1", allowBackground: true });
+  stores.connections.rows.set(row.id, row);
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: localServerFetch("ollama") }));
+  return (await runtime.resolve({ task, principal: principal(ownerId), connectionId: row.id })).resolved.capability;
+}
+
+function generationOf(capability: Capability): GenerationCapability {
+  if (capability.kind !== "generation") {
+    throw new Error(`expected a generation capability, got ${capability.kind}`);
+  }
+  return capability.generation;
+}
+
+test("an Ollama tool model folds tools and text-only input from `/api/show`, and the posture keeps the stated list", async () => {
+  const qwen = generationOf(await ollamaResolved("qwen2.5:0.5b", "chat"));
+  expect(qwen).toMatchObject({ input: ["text"], tools: { parallel: false, silencesProse: true }, output: { structured: true } });
+  expect(qwen.modalitiesEstimated).toBeUndefined();
+  const moondream = generationOf(await ollamaResolved("moondream:latest", "chat"));
+  expect(moondream.input).toEqual(["text", "image"]);
+  expect(moondream.tools).toBeUndefined();
+});
+
+test("an Ollama embedder resolves as an embedder from `/api/show` alone, with the width it states", async () => {
+  await expect(ollamaResolved("nomic-embed-text:latest", "embed")).resolves.toMatchObject({ kind: "embedding", embedding: { dims: 768 } });
+  // The kind is the server's statement, not the task's fallback: the same row cannot serve a chat turn.
+  await expect(ollamaResolved("nomic-embed-text:latest", "chat")).rejects.toThrow(/cannot serve "chat"/u);
+});
+
+// PLANTED CONTROL: a server that states no modalities still gets the permissive posture (D143(c) as amended).
+test("an id-only list states no modalities, so the posture still widens the row with modalitiesEstimated", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const row = fakeConnection({ ownerId, providerId: "custom-openai", model: "listed-model", baseUrl: "http://silent.test/v1" });
+  stores.connections.rows.set(row.id, row);
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: idOnlyModelList() }));
+  const { capability } = (await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved;
+  expect(generationOf(capability)).toMatchObject({ input: ["text", "image", "video"], modalitiesEstimated: true });
+});
+
+// ── the endpoint mirror is per (URL × reader): one server, two users, two providers ──────────────────────
+// A native reader states kind, modalities and tools the bare list lacks. If the mirror were keyed on the URL
+// alone, whichever connection warmed first would decide what the other resolves to: a custom-openai row would
+// inherit Ollama's text-only + tools, or an Ollama row the permissive guess D292 removes.
+
+async function sharedServer(order: readonly ("ollama" | "custom-openai")[]): Promise<Record<string, GenerationCapability>> {
+  const stores = memoryStores();
+  const rows = order.map((providerId) => {
+    const ownerId = newUserId();
+    // moondream: no curated row matches it, so every stated fact below comes from the reader or the posture.
+    const row = fakeConnection({ ownerId, providerId, model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1", allowBackground: true });
+    stores.connections.rows.set(row.id, row);
+    return { providerId, ownerId, row };
+  });
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: localServerFetch("ollama") }));
+  const out: Record<string, GenerationCapability> = {};
+  for (const { providerId, ownerId, row } of rows) {
+    out[providerId] = generationOf((await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved.capability);
+  }
+  expect([...stores.snapshotStore.entries.keys()].filter((key) => key.startsWith("catalog:endpoint:")).sort()).toEqual(
+    order.map((providerId) => `catalog:endpoint:http://127.0.0.1:1/v1#${providerId === "ollama" ? "ollama" : "list"}`).sort(),
+  );
+  return out;
+}
+
+for (const order of [
+  ["ollama", "custom-openai"],
+  ["custom-openai", "ollama"],
+] as const) {
+  test(`two users on one server resolve per their own provider's reader (warm order: ${order.join(" then ")})`, async () => {
+    const out = await sharedServer(order);
+    expect(out["ollama"]).toMatchObject({ input: ["text", "image"], output: { structured: true } });
+    expect(out["ollama"]?.modalitiesEstimated).toBeUndefined();
+    expect(out["ollama"]?.tools).toBeUndefined();
+    expect(out["custom-openai"]).toMatchObject({ input: ["text", "image", "video"], modalitiesEstimated: true });
+    expect(out["custom-openai"]?.tools).toBeUndefined();
+    expect(out["custom-openai"]?.output.structured).toBeUndefined();
+  });
+}
+
+test("a snapshot written under the old URL-only key carries no native facts and is never read again", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const row = fakeConnection({ ownerId, providerId: "ollama", model: "qwen2.5:0.5b", baseUrl: "http://127.0.0.1:1/v1" });
+  stores.connections.rows.set(row.id, row);
+  // The pre-upgrade shape: ids and windows only, persisted a moment ago under the old key.
+  stores.snapshotStore.entries.set(
+    "catalog:endpoint:http://127.0.0.1:1/v1",
+    JSON.stringify({ fetchedAt: FROZEN_NOW, value: [{ id: "qwen2.5:0.5b", contextLength: 4096 }] }),
+  );
+  const seen: string[] = [];
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: localServerFetch("ollama", {}, seen) }));
+  const capability = generationOf((await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved.capability);
+  expect(
+    seen.some((url) => url.endsWith("/api/show")),
+    "the reader dialed the server instead of trusting the old snapshot",
+  ).toBe(true);
+  expect(capability).toMatchObject({ input: ["text"], tools: { parallel: false } });
+});
+
+// ── invalidation outlives the process ────────────────────────────────────────────────────────────────────
+// A mirror that only forgot its cache reads the persisted row back on the next cold warm, so a refresh in one
+// process left the next process answering from the row the refresh meant to drop.
+
+function countingFetch(seen: string[]): typeof fetch {
+  return localServerFetch("ollama", {}, seen);
+}
+
+function showDials(seen: readonly string[]): number {
+  return seen.filter((url) => url.endsWith("/api/show")).length;
+}
+
+test("a catalog refresh in one runtime drops the persisted snapshot, so a later runtime on the same store dials the server", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const row = fakeConnection({ ownerId, providerId: "ollama", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
+  stores.connections.rows.set(row.id, row);
+  const seenA: string[] = [];
+  const runtimeA = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seenA) }));
+  await runtimeA.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  expect(showDials(seenA)).toBeGreaterThan(0);
+  expect([...stores.snapshotStore.entries.keys()]).toContain("catalog:endpoint:http://127.0.0.1:1/v1#ollama");
+
+  // PLANTED CONTROL: a fresh runtime on the same store answers from the snapshot with zero dials.
+  const seenB: string[] = [];
+  const runtimeB = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seenB) }));
+  await runtimeB.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  expect(showDials(seenB)).toBe(0);
+
+  await runtimeB.catalogs.refresh("ollama");
+  expect([...stores.snapshotStore.entries.keys()].filter((key) => key.startsWith("catalog:endpoint:"))).toEqual([]);
+  const seenC: string[] = [];
+  const runtimeC = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seenC) }));
+  await runtimeC.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  expect(showDials(seenC)).toBeGreaterThan(0);
+});
+
+test("invalidateEndpoint forgets ONE connection's (URL × reader) mirror in memory and in the store, and leaves a sibling reader's", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const ollama = fakeConnection({ ownerId, providerId: "ollama", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
+  const custom = fakeConnection({ ownerId, providerId: "custom-openai", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
+  stores.connections.rows.set(ollama.id, ollama);
+  stores.connections.rows.set(custom.id, custom);
+  const seen: string[] = [];
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seen) }));
+  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: ollama.id });
+  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: custom.id });
+  const listDials = seen.filter((url) => url.endsWith("/v1/models")).length;
+  const before = showDials(seen);
+  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: ollama.id });
+  expect(showDials(seen), "a warm mirror answers without a dial").toBe(before);
+
+  await runtime.catalogs.invalidateEndpoint(ollama);
+  expect(stores.snapshotStore.entries.has("catalog:endpoint:http://127.0.0.1:1/v1#ollama")).toBe(false);
+  expect(stores.snapshotStore.entries.has("catalog:endpoint:http://127.0.0.1:1/v1#list"), "the sibling reader's row stays").toBe(true);
+  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: ollama.id });
+  expect(showDials(seen), "the forgotten mirror dials again").toBeGreaterThan(before);
+  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: custom.id });
+  expect(seen.filter((url) => url.endsWith("/v1/models")).length - listDials, "the sibling's mirror was not touched: only the ollama re-warm listed").toBe(1);
 });
