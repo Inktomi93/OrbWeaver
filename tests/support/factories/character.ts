@@ -21,6 +21,9 @@ import { seedUser } from "./user.ts";
 /** The full flat `characters` row (derived from the live schema — the factory `X`). */
 export type CharacterRow = typeof characters.$inferSelect;
 
+/** The columns {@link seedCharacterAtBaseline} writes: the required, default-less set since `0000_baseline`. */
+type BaselineCharacterRow = Pick<CharacterRow, "id" | "handle" | "ownerId" | "name" | "contentHash">;
+
 const ids = createSeededIds();
 
 /** Pure builder: a fully-valid flat card row. `ownerId` defaults to a MINTED (dangling) id — inserting
@@ -105,11 +108,9 @@ export async function seedCharacter(db: Db, overrides: Partial<CharacterRow> = {
  *  column of the LIVE schema, so it fails on a db that predates a later `ADD COLUMN`. This raw insert names
  *  only the NOT NULL columns without a default, which every migration since `0000_baseline` carries; the
  *  rest take their schema defaults. */
-export async function seedCharacterAtBaseline(db: Db, overrides: Partial<CharacterRow> = {}): Promise<CharacterRow> {
+export async function seedCharacterAtBaseline(db: Db, overrides: Partial<BaselineCharacterRow> = {}): Promise<BaselineCharacterRow> {
   const ownerId = overrides.ownerId ?? (await seedUser(db)).id;
-  const row = makeCharacter({ ...overrides, ownerId });
-  await db.run(
-    sql`INSERT INTO characters (id, handle, owner_id, content_hash, name) VALUES (${row.id}, ${row.handle}, ${row.ownerId}, ${row.contentHash}, ${row.name})`,
-  );
-  return row;
+  const { id, handle, contentHash, name } = makeCharacter({ ...overrides, ownerId });
+  await db.run(sql`INSERT INTO characters (id, handle, owner_id, content_hash, name) VALUES (${id}, ${handle}, ${ownerId}, ${contentHash}, ${name})`);
+  return { id, handle, ownerId, contentHash, name };
 }

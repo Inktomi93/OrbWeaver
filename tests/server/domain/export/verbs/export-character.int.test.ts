@@ -102,8 +102,8 @@ describe("exportCharacter", () => {
     const svc = createExportService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner });
-    const primary = await seedWorldBook(db, owner, "world_book_0000000000000000000000000c");
-    const aux = await seedWorldBook(db, owner, "world_book_0000000000000000000000000d");
+    const primary = await seedWorldBook(db, owner, "world_book_0000000000000000000000000c", "Dragon Lore");
+    const aux = await seedWorldBook(db, owner, "world_book_0000000000000000000000000d", "Elf Lore");
     await seedWorldEntry(db, {
       worldBookId: primary,
       title: "Dragons",
@@ -125,7 +125,7 @@ describe("exportCharacter", () => {
       characterId: character,
     });
     const card = characterCardV3Schema.parse(await readCard(result?.bytes ?? new Uint8Array()));
-    expect(card.data.character_book?.["name"]).toBe("Book");
+    expect(card.data.character_book?.["name"]).toBe("Dragon Lore");
     expect(card.data.character_book?.entries.map((entry) => entry.content)).toEqual(["they breathe fire"]);
   });
 

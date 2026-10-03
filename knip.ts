@@ -181,15 +181,27 @@ interface KnipModeArgs {
   readonly strict?: boolean;
 }
 
+// `KnipConfig` also admits the function form this file's default export takes; the object arm carries workspaces.
+type WorkspaceConfig = NonNullable<Exclude<KnipConfig, (...args: never) => unknown>["workspaces"]>[string];
+
+/** knip accepts a pattern list as one string or an array. */
+function patternList(patterns: string | readonly string[] | undefined): readonly string[] {
+  if (patterns === undefined) {
+    return [];
+  }
+  return typeof patterns === "string" ? [patterns] : patterns;
+}
+
 function configFor({ production = false, strict = false }: KnipModeArgs): KnipConfig {
   if (!(production || strict)) {
     return config;
   }
-  const server = config.workspaces["packages/server"];
-  return {
-    ...config,
-    workspaces: { ...config.workspaces, "packages/server": { ...server, entry: [...PRODUCTION_SCRIPT_ENTRIES["packages/server"]] } },
-  };
+  const workspaces: Record<string, WorkspaceConfig> = { ...config.workspaces };
+  for (const [name, entries] of Object.entries(PRODUCTION_SCRIPT_ENTRIES)) {
+    const workspace = workspaces[name] ?? {};
+    workspaces[name] = { ...workspace, entry: [...patternList(workspace.entry), ...entries] };
+  }
+  return { ...config, workspaces };
 }
 
 // knip's config loader requires the default export; biome.json's config-file block admits it for this file.

@@ -13,7 +13,7 @@
 // the settings shell owns containment + focus-on-mount, so it is not itself a surface (extracted-fragment
 // precedent; client-structure + surface-a11y-focus therefore do not apply).
 
-import type { WorkloadId } from "@orb/kit/ids";
+import type { WorkloadRef } from "@orb/contracts/workloads";
 import { Button } from "@orb/ui/button";
 import { ExternalLink, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -43,7 +43,7 @@ const useSetMemoryEnabled = createEntityMutation<MemoryPatchVars, unknown>({
 });
 
 /** The Memory backfill over the viewer's own chats, the opt-in the turn-on confirm offers. */
-const useStartMemoryBackfill = createEntityMutation<inferInput<Trpc["workloads"]["start"]>, { readonly id: WorkloadId }>({
+const useStartMemoryBackfill = createEntityMutation<inferInput<Trpc["workloads"]["start"]>, WorkloadRef>({
   options: (trpc) => trpc.workloads.start.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.list.pathFilter()],
   errorToast: "Memory is on, but the backfill over your existing chats didn't start. Run Memory backfill under Jobs.",

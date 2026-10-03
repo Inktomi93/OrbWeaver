@@ -188,12 +188,12 @@ export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): 
   return id;
 }
 
-export async function seedWorldBook(db: Db, ownerId: UserId, id = "world_book_b"): Promise<WorldBookId> {
+export async function seedWorldBook(db: Db, ownerId: UserId, id = "world_book_b", name = "Book"): Promise<WorldBookId> {
   const bookId = castId<WorldBookId>(id);
   await db.insert(worldBooks).values({
     id: bookId,
     ownerId,
-    name: "Book",
+    name,
     description: null,
     createdAt: FROZEN_AT,
   });
