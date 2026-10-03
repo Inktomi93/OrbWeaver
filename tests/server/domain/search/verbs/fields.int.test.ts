@@ -11,7 +11,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { FIELD_INDEX_TTL_MS } from "../../../../../packages/server/src/domain/search/substrate/field-index.ts";
+import { evictFieldIndex, FIELD_INDEX_TTL_MS } from "../../../../../packages/server/src/domain/search/substrate/field-index.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -50,6 +50,13 @@ describe("fields", () => {
     await db.delete(characters).where(eq(characters.id, gone));
     const after = await svc.fields({ ownerId: owner, query: "dragon", topN: 5 });
     expect(after.hits.map((h) => h.characterId)).toEqual([kept]);
+
+    // The delete's `charactersChanged` evicts the owner's index at compose; the next search's counts then
+    // agree with the live card set instead of the cached one.
+    evictFieldIndex(owner);
+    const rebuilt = await svc.fields({ ownerId: owner, query: "dragon", topN: 5 });
+    expect(rebuilt.hits.map((h) => h.characterId)).toEqual([kept]);
+    expect(rebuilt.coverage).toEqual({ requestLimit: 5, indexedCharacters: 1, matchingCharacters: 1 });
   });
 
   test("returns the lexically matching card", async () => {

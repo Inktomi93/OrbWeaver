@@ -1,4 +1,4 @@
-// CT: the About group's sections (Settings → About) — the build identity a bug report quotes, its copy
+// CT: the About group's sections (Settings → This install) — the build identity a bug report quotes, its copy
 // affordance, and the admin's MANUAL update check.
 //
 // Every assertion here is a user-visible affordance: the rendered version line, the button's accessible

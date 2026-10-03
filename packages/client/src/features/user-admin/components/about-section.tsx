@@ -1,4 +1,4 @@
-// The About group's two section bodies (Settings → About): what this box IS, which every member can read,
+// The About group's two section bodies (Settings → This install): what this box IS, which every member can read,
 // and the admin's one button that asks GitHub whether it is still current.
 //
 // THE VERSION LINE IS THE PRODUCT HERE. Everything else on this section serves it: it is the string a bug

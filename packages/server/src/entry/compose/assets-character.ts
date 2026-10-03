@@ -38,6 +38,7 @@ import { migrateSeededRoomBackgrounds } from "#domain/chat";
 import type { PersonaService } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import { PresetNotFoundError } from "#domain/preset";
+import { evictFieldIndex } from "#domain/search";
 import type { DefaultBackgroundSeeder, SeededPlateAsset, SettingsService } from "#domain/settings";
 import { createDefaultBackgroundSeeder, migrateSeededBackgroundPicks } from "#domain/settings";
 import { bumpStatsCanonVersion } from "#domain/stats";
@@ -304,7 +305,14 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
 
     audit: deps.audit,
     emit: deps.emit,
-    emitUserEvent: publishUserEvent,
+    // Every card write also drops the owner's lexical index, so the next text search rebuilds over the live
+    // card set: a deleted card leaves both the hits and the coverage counts.
+    emitUserEvent: (userId, event): void => {
+      if (event.type === "charactersChanged") {
+        evictFieldIndex(userId);
+      }
+      publishUserEvent(userId, event);
+    },
     // F-P0-2: a `kind:"external"` carried card background is materialized into an owned CAS asset at update.
     materializeBackground: deps.materializeBackground,
     // Best-effort: remove/bulk-remove wrap it in try/catch, so a reap failure never fails the delete —

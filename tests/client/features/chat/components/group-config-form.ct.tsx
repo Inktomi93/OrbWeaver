@@ -13,8 +13,11 @@ import { UTILITY_RUNNING_ROUTES, utilityBindings } from "../../../../support/nod
 import { CommittedGroupConfigTabStory, GroupConfigFormStory, GroupConfigSwitchStory } from "../_ct-stories.tsx";
 
 const SAVED = '[data-testid="group-config-saved"]';
-/** The per-speaker reason the disabled switch is described by. */
-const NARRATOR_ONLY = /Only used by Narrator/u;
+/** Escapes an id for an exact token match inside a space-separated `aria-describedby` list. */
+const REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/gu;
+function idTokenPattern(id: string): RegExp {
+  return new RegExp(`(^|\\s)${id.replace(REGEX_SPECIALS, "\\$&")}(\\s|$)`, "u");
+}
 const MODEL_ROLES_DOOR = "Open Model roles";
 
 test("renders the output discriminator + the always-visible toggles (seeded from config)", async ({ mount }) => {
@@ -38,14 +41,18 @@ test("switching output to narrator rebuilds the arm + re-derives the coupled spe
   await expect(component.locator(SAVED)).not.toContainText("cardScope");
 });
 
-// `speakerTags` only reaches the narrator round's nudge, so a per-speaker room shows the switch disabled with
-// its reason as the described-by text, and the narrator arm hands it back.
+// `speakerTags` only reaches the narrator round's nudge, so a per-speaker room shows the switch disabled and
+// wired to its field's own description (the reason), and the narrator arm hands it back.
 test("Label each speaker is disabled and explained in a per-speaker room, and live in a narrator room", async ({ mount }) => {
   const component = await mount(<GroupConfigFormStory />);
   const labelSpeakers = component.getByRole("switch", { name: "Label each speaker" });
 
   await expect(labelSpeakers).toBeDisabled();
-  await expect(labelSpeakers).toHaveAccessibleDescription(NARRATOR_ONLY);
+  const description = component.locator('[data-slot="field-root"]', { has: labelSpeakers }).locator('[data-slot="field-description"]');
+  await expect(description).toBeVisible();
+  const descriptionId = (await description.getAttribute("id")) ?? "";
+  expect(descriptionId).not.toBe("");
+  await expect(labelSpeakers).toHaveAttribute("aria-describedby", idTokenPattern(descriptionId));
 
   await component.getByRole("button", { name: "Narrator" }).click();
   await expect(labelSpeakers).toBeEnabled();

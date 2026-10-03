@@ -156,7 +156,7 @@ in four places, so a bug report can always say what it is running:
 
 | Where | What it shows |
 | - | - |
-| **Settings → About** | the version line + a Copy button for every member, and a manual "Check for updates" for an admin |
+| **Settings → This install** | the version line + a Copy button for every member, and a manual "Check for updates" for an admin |
 | `GET /healthz` | the same block on every arm, 200 and 503 alike |
 | the boot log's FIRST line | `boot: orbweaver <version line>` |
 | a captured bug report (`pnpm bug:reports`) | the first header field of the bundle |

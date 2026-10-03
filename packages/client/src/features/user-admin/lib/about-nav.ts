@@ -8,7 +8,7 @@ export const ABOUT_SUBCATEGORY: ConfigSubcategory = {
   id: "version",
   label: "About this install",
   navLabel: "Version",
-  keywords: ["version", "build", "commit", "sha", "release", "bug report"],
+  keywords: ["about", "version", "build", "commit", "sha", "release", "bug report"],
   teach: {
     summary: "Which Orbweaver this install runs: the release number and the exact commit it was built from. Copy the version line into any bug report.",
     affects: ["nothing; this section only reports"],

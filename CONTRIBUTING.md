@@ -5,7 +5,7 @@
 Two ways, and the first one is better because it carries the state:
 
 1. **In the app** — the bug-report button on the dev top rail captures a bundle (route, build identity,
-   recent console errors, appearance axes) alongside your note. Settings → **About** has a Copy button for the version line if you are filing by hand.
+   recent console errors, appearance axes) alongside your note. Settings → **This install** has a Copy button for the version line if you are filing by hand.
 2. **GitHub issues** — <https://github.com/Inktomi93/orbweaver/issues>. Quote the version line
    (`vX.Y.Z` for a release, `X.Y.Z-dev+<commit>` for anything else) from About this install; without it we
    cannot tell what you ran.
