@@ -45,6 +45,8 @@ export const SETUP_COMMAND = "pnpm start --setup";
 export const BARE_METAL_ENV_FILE = ".env";
 export const CONTAINER_ENV_FILE = "docker/orbweaver.local.env";
 export const COMPOSE_FILE = "docker-compose.yaml";
+/** The overlay whose own `environment:` block pins single-user and the owner fallback over both env files. */
+export const HOST_NETWORK_OVERLAY = "docker/compose.host-network.yaml";
 /** Recreates the container with changed env files; a plain restart keeps the environment it was created with. */
 export const COMPOSE_UP_COMMAND = "docker compose up -d";
 
@@ -254,8 +256,9 @@ export const shareStatusSchema = z.strictObject({
 export type ShareStatus = z.infer<typeof shareStatusSchema>;
 
 /** `share.signInMode`: the running sign-in mode, where it came from and the install shape, all fixed at boot, and per
- *  target mode the refusal Start sharing would meet under it (null where a relayed visitor can sign in). Strict, so no
- *  env value beyond the mode itself reaches the browser. */
+ *  target mode the refusal Start sharing would meet under it (null where a relayed visitor can sign in). Strict, so the
+ *  only env values that reach the browser are the mode and, on an oidc box, the public origins of `OIDC_REDIRECT_URIS`
+ *  its oidc refusal names; never a secret. */
 export const signInModeViewSchema = z.strictObject({
   mode: authModeSchema,
   source: z.enum(AUTH_MODE_SOURCES),

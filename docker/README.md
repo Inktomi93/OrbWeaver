@@ -115,8 +115,9 @@ Under `oidc`, a box whose owner has not signed in yet writes a one-time owner cl
 The port is published on `127.0.0.1` only. To reach the app from your phone or another computer:
 
 1. Switch to a login: add these lines to `docker/orbweaver.local.env`. Settings > Admin > Multi-user, under
-   Who can sign in, shows the same lines for each mode with a copy button. An `AUTH_MODE` in the `environment:`
-   block of `docker-compose.yaml` wins over the file, so remove it there if you set it:
+   Who can sign in, shows the same lines for each mode with a copy button. A key in any compose `environment:`
+   block wins over the file, including the `docker/compose.host-network.yaml` overlay, which sets single-user and
+   the owner fallback; remove those lines there, or start without that overlay:
 
    ```ini
    AUTH_MODE=local
@@ -144,17 +145,15 @@ The port is published on `127.0.0.1` only. To reach the app from your phone or a
    proxy, so allowlist the proxy's address, not your laptop's.
 
 **Reaching it by name.** An IP address (`http://192.168.1.20:8788`) and `localhost` always work. Any other
-name people type in the browser must be in `ALLOWED_HOSTS`, in the `environment:` block of
-`docker-compose.yaml` (step 1): a NAS or PC name (`nas.local`), a proxy's hostname, a tunnel hostname. In a
+name people type in the browser must be in `ALLOWED_HOSTS`, in `docker/orbweaver.local.env` (step 1): a NAS or PC name (`nas.local`), a proxy's hostname, a tunnel hostname. In a
 container the app cannot see your machine's name, so add it too. Separate names with commas; a leading dot
 admits the name and every subdomain (`.example.com`), but never a whole top-level domain such as `.com` or
 `.lan`. The hosts in `OIDC_REDIRECT_URIS` are added for you. The app refuses every other name with a page that
 names the host and the line to add. That refusal is what stops a web page from reaching the app through your
 browser by pointing its own name at your machine (DNS rebinding), so add only names you use.
 
-```yaml
-    environment:
-      ALLOWED_HOSTS: nas.local,orbweaver.example.com
+```ini
+ALLOWED_HOSTS=nas.local,orbweaver.example.com
 ```
 
 **No TLS on your LAN?** Skip step 2 and sign in at `http://192.168.1.20:8788`. The session cookie is then
@@ -174,7 +173,7 @@ lines from step 1 of "LAN and HTTPS", but keep `ORB_BIND` on `127.0.0.1`: the tu
 
 ### Share with one press
 
-Switch to `AUTH_MODE: local` (step 1 of "LAN and HTTPS"), sign in as the owner, and press **Start sharing** in
+Switch to `AUTH_MODE=local` (step 1 of "LAN and HTTPS"), sign in as the owner, and press **Start sharing** in
 Admin → Multi-user. The first share downloads the pinned `cloudflared` release, checks its sha256 and keeps it
 in `cache/relay/` in the data volume, so later shares download nothing. The container needs outbound HTTPS to
 `github.com` for that one download. The link is a random `trycloudflare.com` name that changes on every start,
@@ -184,7 +183,7 @@ and a container restart ends the share. Nothing else to run: no second container
 
 1. In the Cloudflare dashboard (Zero Trust → Networks → Tunnels), create a tunnel and copy its token.
 2. Add a public hostname to the tunnel whose service is `http://orbweaver:8788`, and allow that hostname:
-   `ALLOWED_HOSTS: <the public hostname>` in the `environment:` block. Use a dot-led suffix only for a domain
+   `ALLOWED_HOSTS=<the public hostname>` in `docker/orbweaver.local.env`. Use a dot-led suffix only for a domain
    whose DNS you control.
 3. Start the app with the tunnel overlay, which runs `cloudflared` as a second container:
 
@@ -201,8 +200,8 @@ Cloudflare Access in front is optional and adds its own login before the app's.
 With Tailscale on this machine, `tailscale serve --bg 8788` publishes `https://<machine>.<tailnet>.ts.net`
 to your tailnet and proxies it to `127.0.0.1:8788`. Serve sends `X-Forwarded-Proto: https`, so a login mode
 gets a `Secure` cookie. `tailscale funnel --bg 8788` publishes the same address to the internet, and
-`tailscale serve reset` removes it. Allow the name in the `environment:` block:
-`ALLOWED_HOSTS: <machine>.<tailnet>.ts.net`, or `.<tailnet>.ts.net` for every machine in your tailnet. A tailnet
+`tailscale serve reset` removes it. Allow the name in `docker/orbweaver.local.env`:
+`ALLOWED_HOSTS=<machine>.<tailnet>.ts.net`, or `.<tailnet>.ts.net` for every machine in your tailnet. A tailnet
 address (`100.x.y.z`) needs no entry.
 
 **Tailnet identity instead of passwords.** Serve removes any incoming `Tailscale-User-*` header and sets
@@ -313,7 +312,7 @@ the composed posture at boot and warns per open exposure.
   Through a proxy or tunnel, single-user always answers 401: a relayed request is never the owner. Use a login
   mode there ("From the internet: a tunnel").
 - **"This address is not allowed" (HTTP 421)** — you reached the app by a name it does not know. If the name
-  is yours, add it to `ALLOWED_HOSTS` in the `environment:` block and restart ("Reaching it by name").
+  is yours, add it to `ALLOWED_HOSTS` in `docker/orbweaver.local.env` and run `docker compose up -d` ("Reaching it by name").
   Behind a proxy that rewrites `Host` to its upstream (`orbweaver`), pass the browser's `Host` through instead.
 - **"REFUSING to boot … published on ORB_BIND="** — you opened the port to your network in the no-login
   mode; switch to `AUTH_MODE=local` as described under "LAN and HTTPS".

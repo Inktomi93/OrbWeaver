@@ -2,7 +2,7 @@
 // network, and single-user (no login) serves this machine only. The parse-time enforcement of `refusal` is
 // pinned in index.test.ts.
 
-import type { AuthMode } from "@orb/contracts/identity";
+import { signInModeEnvLines } from "@orb/contracts/identity";
 import { bindPostureWarnings, loopbackCompanion, loopbackOrigin, resolveBindPosture, settingInstruction } from "@orb/server/foundation/env";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -122,7 +122,9 @@ describe("resolveBindPosture — single-user serves this machine only, in every 
   });
 
   test.each([true, false])("inContainer=%s: the notice and the refusal carry that install shape's fix", (inContainer) => {
-    const fix = settingInstruction(inContainer, "AUTH_MODE", "local" satisfies AuthMode);
+    const fix = settingInstruction(inContainer, signInModeEnvLines("local", inContainer ? "container" : "bare-metal"));
+    // A container must override the shipped no-login pair; bare metal must keep the launch-only key out of `.env`.
+    expect(fix.includes("AUTH_FALLBACK=deny")).toBe(inContainer);
     expect(resolveBindPosture({ ...SINGLE_USER, inContainer, nodeEnv: "production", bindHost: undefined }).notice).toContain(fix);
     expect(resolveBindPosture({ ...SINGLE_USER, inContainer, nodeEnv: "production", bindHost: "0.0.0.0" }).refusal).toContain(fix);
   });

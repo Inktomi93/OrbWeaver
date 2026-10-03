@@ -3,16 +3,7 @@
 // The seating confirm stays mounted above its row: its write unmounts the row, so a confirm hands focus to Start.
 
 import type { AuthMode } from "@orb/contracts/identity";
-import {
-  AUTH_MODE_KEY,
-  BARE_METAL_ENV_FILE,
-  COMPOSE_FILE,
-  COMPOSE_UP_COMMAND,
-  CONTAINER_ENV_FILE,
-  envFileText,
-  SETUP_COMMAND,
-  signInModeEnvLines,
-} from "@orb/contracts/identity";
+import { BARE_METAL_ENV_FILE, COMPOSE_UP_COMMAND, CONTAINER_ENV_FILE, envFileText, SETUP_COMMAND, signInModeEnvLines } from "@orb/contracts/identity";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -27,6 +18,7 @@ import { SkeletonRows } from "#data";
 import type { PreconditionRow, ShareStartFailure } from "../lib/share-model.ts";
 import { canStartSharing, MODE_NAME, refusalRow, sharePreconditions } from "../lib/share-model.ts";
 import { ShareCode, ShareProse } from "./share-prose.tsx";
+import { EnvironmentBlockWins } from "./sharing-posture.tsx";
 
 /** The lines that switch a container to the one mode a relayed visitor can sign in under. */
 const CONTAINER_LOCAL_LINES = envFileText(signInModeEnvLines("local", "container"));
@@ -259,9 +251,8 @@ function ModeFix({ mode }: { readonly mode: AuthMode }): ReactElement {
               is. <ShareCode>{SETUP_COMMAND}</ShareCode>, under Who can sign in, changes the mode for every run.
             </ShareProse>
             <ShareProse>
-              In Docker, put the lines below in <ShareCode>{CONTAINER_ENV_FILE}</ShareCode>, then run <ShareCode>{COMPOSE_UP_COMMAND}</ShareCode>. An{" "}
-              <ShareCode>{AUTH_MODE_KEY}</ShareCode> in the <ShareCode>environment:</ShareCode> block of <ShareCode>{COMPOSE_FILE}</ShareCode> wins over that
-              file, so remove it there if you set it.
+              In Docker, put the lines below in <ShareCode>{CONTAINER_ENV_FILE}</ShareCode>, then run <ShareCode>{COMPOSE_UP_COMMAND}</ShareCode>.{" "}
+              <EnvironmentBlockWins />
             </ShareProse>
             <CopyButton text={CONTAINER_LOCAL_LINES} what="the container env file lines">
               <Text voice="label" className="min-w-0 font-mono whitespace-pre-wrap wrap-anywhere">

@@ -52,13 +52,13 @@
 // re-spelled here rather than reused from `infra/network/ip-ranges` because foundation sits BELOW infra — an
 // upward import is physics-illegal (§2).
 
-import type { AuthMode } from "@orb/contracts/identity";
+import type { AuthMode, SignInTargetMode } from "@orb/contracts/identity";
+import { signInModeEnvLines } from "@orb/contracts/identity";
 import type { NodeEnvironment } from "../../kit/node-environment.ts";
 import { settingInstruction } from "./container.ts";
 
-const AUTH_MODE_KEY = "AUTH_MODE";
 /** The login mode that opens a single-user box to other devices. */
-const PASSWORD_MODE: AuthMode = "local";
+const PASSWORD_MODE: SignInTargetMode = "local";
 
 /** Non-production default: the loopback interface, and nothing else. */
 const LOOPBACK_HOST = "127.0.0.1";
@@ -179,7 +179,7 @@ function refusalFor(nodeEnv: string, bindHost: string): string {
 
 // The one sentence both single-user messages end with: how other devices get a login on this install.
 function otherDevicesSentence(inContainer: boolean): string {
-  return `To let other devices sign in, ${settingInstruction(inContainer, AUTH_MODE_KEY, PASSWORD_MODE)} (a session secret is generated for you).`;
+  return `To let other devices sign in, ${settingInstruction(inContainer, signInModeEnvLines(PASSWORD_MODE, inContainer ? "container" : "bare-metal"))} (a session secret is generated for you).`;
 }
 
 function singleUserRefusal(inContainer: boolean): string {

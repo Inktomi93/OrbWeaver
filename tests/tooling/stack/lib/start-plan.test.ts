@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseEnv } from "node:util";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
+import { ENV_FROM_FILE_KEY } from "@orb/kit/env-file";
 import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/_shared/server-entry";
 import {
   decideStartBuild,
@@ -65,6 +66,8 @@ test("a --port override wins over .env for this launch only, and every other .en
   expect(plan.env["AUTH_MODE"]).toBe("local");
   expect(plan.env["ORB_ENV_NO_OVERRIDE"]).toBeDefined();
   expect(plan.env["PATH"]).toBe("/bin");
+  // The keys it restated from the file, and only those: an overridden key came from the flag, not the file.
+  expect(plan.env[ENV_FROM_FILE_KEY]).toBe("AUTH_MODE");
 });
 
 test("the build decision: a missing or stale bundle builds itself, a fresh one is skipped, and the flags win both ways", () => {

@@ -6,6 +6,7 @@
 // ambient env }` rather than read from the ambient process, so the win32 answer is unit-provable on Linux.
 
 import { SETUP_COMMAND, SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
+import { ENV_FROM_FILE_KEY } from "@orb/kit/env-file";
 import { START_SUPERVISOR, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { MAX_TCP_PORT } from "../../_shared/ports.ts";
 import type {
@@ -148,13 +149,15 @@ export function singleUserFallbackEnv(
  *
  *  `.env` loads with override:true, so a value in the file would beat the same key on the child env. The overlay turns
  *  the override off for this launch and restates every `.env` value on the child env, so the file still wins over the
- *  shell for every key except the overridden ones. */
+ *  shell for every key except the overridden ones. It also names the restated keys, so the server still reports them
+ *  as set in `.env`. */
 export function restateFileEnv(
   fileEnv: Readonly<Record<string, string | undefined>>,
   overrides: Readonly<Record<string, string>>,
 ): Readonly<Record<string, string>> {
-  const restated = Object.entries(fileEnv).flatMap(([key, value]) => (value === undefined ? [] : [[key, value] as const]));
-  return Object.fromEntries([...restated, ...Object.entries(overrides), [ENV_NO_OVERRIDE, "1"]]);
+  const restated = Object.entries(fileEnv).flatMap(([key, value]) => (value === undefined || key in overrides ? [] : [[key, value] as const]));
+  const fromFile = restated.map(([key]) => key).join(",");
+  return Object.fromEntries([...restated, ...Object.entries(overrides), [ENV_NO_OVERRIDE, "1"], [ENV_FROM_FILE_KEY, fromFile]]);
 }
 
 // The refusals `--share` answers with itself: the sign-in modes that already sign people in their own way, which a

@@ -14,6 +14,7 @@ import type { AUTH_MODES, AuthModeSource, InstallKind } from "@orb/contracts/ide
 import { authModeSchema, shareRelayKindSchema } from "@orb/contracts/identity";
 import { AGENT_SDK_CONCURRENCY_MAX, LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
+import { ENV_FROM_FILE_KEY, envFromFileKeys } from "@orb/kit/env-file";
 import { isSupervised, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { z } from "zod";
 import { DEFAULT_DATA_DIR, resolveDataLayout } from "#foundation/data-layout";
@@ -226,9 +227,11 @@ function refuseLaunchOnlyEnvFileKeys(ctx: z.RefinementCtx): void {
 const skipOverride = process.env["VITEST"] !== undefined || process.env["ORB_ENV_NO_OVERRIDE"] !== undefined;
 loadEnvFileWithOverride(!skipOverride);
 
-// A value present right after the load and not put there by the file came with the process.
+// A value present right after the load and not put there by the file came with the process, unless the launcher says
+// it restated that key from the file (`pnpm start --share` / `--port` re-send `.env` with the override off). The file
+// must also declare the key, so a stray list in a shell cannot claim a value `.env` never held.
 function sourceAfterLoad(key: string): AuthModeSource {
-  if (envFileSuppliedKeys.has(key)) {
+  if (envFileSuppliedKeys.has(key) || (envFileKeys.has(key) && envFromFileKeys(process.env[ENV_FROM_FILE_KEY]).has(key))) {
     return "env-file";
   }
   return process.env[key] === undefined ? "default" : "process-env";

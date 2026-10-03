@@ -110,8 +110,8 @@ describe("hostAllowlist", () => {
   test("the refusal carries the install shape's fix for the refused host, and not the other shape's", async () => {
     for (const inContainer of [true, false]) {
       const body = await (await harness({ inContainer }).send("/", { host: REBOUND })).text();
-      expect(body, String(inContainer)).toContain(settingInstruction(inContainer, ALLOWED_HOSTS_KEY, REBOUND));
-      expect(body, String(inContainer)).not.toContain(settingInstruction(!inContainer, ALLOWED_HOSTS_KEY, REBOUND));
+      expect(body, String(inContainer)).toContain(settingInstruction(inContainer, [[ALLOWED_HOSTS_KEY, REBOUND]]));
+      expect(body, String(inContainer)).not.toContain(settingInstruction(!inContainer, [[ALLOWED_HOSTS_KEY, REBOUND]]));
     }
   });
 });

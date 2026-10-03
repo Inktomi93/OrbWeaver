@@ -3,7 +3,8 @@
 // through `settingInstruction`, so the two shapes' fix text has one home.
 
 import { existsSync } from "node:fs";
-import { BARE_METAL_ENV_FILE, COMPOSE_FILE, CONTAINER_ENV_FILE, SETUP_COMMAND } from "@orb/contracts/identity";
+import type { EnvLine } from "@orb/contracts/identity";
+import { BARE_METAL_ENV_FILE, COMPOSE_UP_COMMAND, CONTAINER_ENV_FILE, envFileText, SETUP_COMMAND } from "@orb/contracts/identity";
 
 /** The marker files a container runtime writes: Docker (Engine and Desktop), then Podman. containerd and CRI-O write
  *  neither, which is why the image also declares itself. */
@@ -19,12 +20,14 @@ export function runsInContainer(declared: boolean, exists: (path: string) => boo
   return declared || CONTAINER_MARKER_FILES.some((path) => exists(path));
 }
 
-/** How to set `key` to `value` on this install, as one clause ending in the restart. A container leads with the
- *  compose `environment:` block (the container reads no `.env` from the checkout); bare metal leads with setup. */
-export function settingInstruction(inContainer: boolean, key: string, value: string): string {
+/** How to set `lines` on this install, as one clause ending in the restart. A container takes them in its own env
+ *  file (it reads no `.env` from the checkout) and needs `docker compose up -d`, because a plain restart keeps the
+ *  environment the container was created with; bare metal leads with setup. */
+export function settingInstruction(inContainer: boolean, lines: readonly EnvLine[]): string {
+  const text = envFileText(lines).replaceAll("\n", ", ");
   return inContainer
-    ? `add ${key}: ${value} under environment: in ${COMPOSE_FILE} (or ${key}=${value} in ${CONTAINER_ENV_FILE}), then restart the container`
-    : `run ${SETUP_COMMAND}, or set ${key}=${value} in ${BARE_METAL_ENV_FILE}, then restart`;
+    ? `add ${text} to ${CONTAINER_ENV_FILE}, then run ${COMPOSE_UP_COMMAND}`
+    : `run ${SETUP_COMMAND}, or set ${text} in ${BARE_METAL_ENV_FILE}, then restart`;
 }
 
 /** The shell command that prints the file at absolute `path` on this install. A boot secret is named by this

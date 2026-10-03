@@ -18,14 +18,14 @@ export interface HostAllowlistDeps {
   /** The configured names (`resolveAllowedHosts`) and the relay registry's (`allowedHostsReader`), read on every
    *  request because a relay host arrives after boot; localhost and IP literals pass without an entry. */
   readonly allowedHosts: AllowedHostsReader;
-  /** Picks the fix the refusal names (`settingInstruction`): the compose `environment:` block, or setup and `.env`. */
+  /** Picks the fix the refusal names (`settingInstruction`): the container's env file, or setup and `.env`. */
   readonly inContainer: boolean;
   readonly notice: HostNotAllowedNotice;
 }
 
 // The fix for this install, as one sentence. `host` is canonical and length-capped by `refusedHost`.
 function fixSentence(host: string, inContainer: boolean): string {
-  return `If ${host} is how you reach this server, ${settingInstruction(inContainer, ALLOWED_HOSTS_KEY, host)}.`;
+  return `If ${host} is how you reach this server, ${settingInstruction(inContainer, [[ALLOWED_HOSTS_KEY, host]])}.`;
 }
 
 // Every interpolation goes through hono's `html` tag, which HTML-escapes it: the host is attacker-chosen.
