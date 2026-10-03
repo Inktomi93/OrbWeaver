@@ -8,8 +8,9 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { GenerationCapability } from "@orb/contracts/inference";
-import type { StatsDelta } from "@orb/contracts/stats";
+import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { BindingActor, Resolved } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import type { EditImageParams, ExtractionMode, ExtractPromptParams, GeneratePictureParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
@@ -172,7 +173,9 @@ export interface ImageryContext {
    * `CharacterDetail` satisfies this at compose; imagery never imports the
    *  character DOMAIN view (`CharacterCard` carries no `contentHash` — it lives on the flat row). */
   readonly getCard: (caller: Principal, characterId: CharacterId) => Promise<ImageryCard>;
-  readonly recordStats: (delta: StatsDelta) => Promise<void>;
+  /** stats' rollup upsert, pushed into the batch that writes the provenance rows: those rows are the canon the
+   *  stats rebuild re-derives image spend from, so the two commit together or neither does. */
+  readonly applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db>;
   /** Does `ownerId` own `characterId`? The auto-curation gate, read before any spend so a picture made in a
    *  shared room never targets another principal's character. Wired to the same owner-scoped `characters`
    *  read the gallery add verb gates on. */

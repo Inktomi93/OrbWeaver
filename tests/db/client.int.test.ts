@@ -259,6 +259,25 @@ test("the 0004 migration gives characters a nullable import_text_hash beside imp
   ]);
 });
 
+test("the 0006 migration adds the compaction_spend ledger, owner-restricted and indexed on (owner, time)", async () => {
+  const db = await createDb(":memory:");
+  await runMigrations(db, MIGRATIONS_DIR);
+  expect(await db.all(sql.raw("select name, type, \"notnull\" as required, pk from pragma_table_info('compaction_spend') order by cid"))).toEqual([
+    { name: "id", type: "TEXT", required: 1, pk: 1 },
+    { name: "owner_id", type: "TEXT", required: 1, pk: 0 },
+    { name: "cost_usd", type: "REAL", required: 1, pk: 0 },
+    { name: "created_at", type: "INTEGER", required: 1, pk: 0 },
+  ]);
+  expect(await db.all(sql.raw('select "table", "from", "to", on_delete as onDelete from pragma_foreign_key_list(\'compaction_spend\')'))).toEqual([
+    { table: "users", from: "owner_id", to: "id", onDelete: "RESTRICT" },
+  ]);
+  expect(await db.all(sql.raw("select name from pragma_index_info('compaction_spend_owner_idx') order by seqno"))).toEqual([
+    { name: "owner_id" },
+    { name: "created_at" },
+  ]);
+  await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
+});
+
 test("runMigrations restores foreign_keys ON afterward (the finally-restore contract)", async () => {
   // runMigrations toggles FK enforcement OFF for the table-rebuild, then restores ON in finally. If a
   // future migration left it OFF, every subsequent write would bypass FK enforcement silently.

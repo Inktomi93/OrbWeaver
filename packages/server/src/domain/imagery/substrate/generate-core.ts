@@ -1,21 +1,21 @@
 // The shared generation tail both `generatePicture` (I1/I3) and `editImage` (I4) run: ONE `generateImage(req)`
 // call (the provider fans out `n`, never a per-image loop) → materialize per image (base64 decode or SSRF-safe
-// URL download) → store-then-provenance per image → economics → surface the runner's edit-strip warnings. The
+// URL download) → store per image → provenance + economics in one batch → surface the runner's edit-strip warnings. The
 // verb-specific parts (prompt resolution, reuse gate, the B3/edit capability gates, the request build) live in
 // each verb; this is the spend-and-persist core, so the store-then-provenance GC ordering has ONE home.
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
-import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import { modelIdSchema } from "@orb/contracts/inference";
-import type { StatsDelta } from "@orb/contracts/stats";
+import { imageGenerationSpendDelta } from "@orb/contracts/stats";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type { AssetId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
-import { statsBucketStart } from "@orb/kit/stats-tally";
 import { GenerationFailedError } from "../contract/errors.ts";
 import type { GeneratedPictureImage, GenerationOutcome, GenerationProvenanceInput } from "../contract/results.ts";
 import type { GeneratedImage, ImageGenerateRequest, ImageryContext } from "../contract/service.ts";
-import { insertGeneration } from "../persistence/queries.ts";
+import { insertGenerationStatement } from "../persistence/queries.ts";
 
 /** The media block's `alt` is the prompt, truncated (a full 2k-char prompt is not alt text). */
 const ALT_MAX_CHARS = 300;
@@ -49,10 +49,10 @@ export function buildBlock(assetId: AssetId, prompt: string): MessageContentBloc
   return { kind: "media", media: "image", src: { kind: "asset", assetId }, alt: prompt.slice(0, ALT_MAX_CHARS) };
 }
 
-/** Store the bytes (kind `"generated"`) then write the provenance row (order matters — a crash between leaves
- *  an unreferenced CAS blob the assets GC reaps benignly, never a provenance row pointing at nothing) and
- *  return the render-ready image. */
-async function persistImage(
+/** Store the bytes (kind `"generated"`) and build the provenance row's insert for the caller's batch (order
+ *  matters — a crash before that batch leaves an unreferenced CAS blob the assets GC reaps benignly, never a
+ *  provenance row pointing at nothing) beside the render-ready image. */
+async function storeImage(
   ctx: ImageryContext,
   prov: GenerationProvenanceInput,
   gen: {
@@ -63,14 +63,14 @@ async function persistImage(
     readonly createdAt: number;
     readonly img: DecodedImage;
   },
-): Promise<GeneratedPictureImage> {
+): Promise<{ readonly image: GeneratedPictureImage; readonly provenance: BatchStmt }> {
   // Derive the claimed mime from the bytes via the shared `@orb/kit/image-sniff` table — the same one assets'
   // `enforceMagic` re-checks against. On the unrecognized sentinel, fall back to the provider mediaType then PNG.
   const sniffed = sniffMime(gen.img.bytes);
   const mime = sniffed === OCTET_STREAM ? (gen.img.mediaType ?? DEFAULT_IMAGE_MIME) : sniffed;
   const stored = await ctx.storeAsset(prov.caller, gen.img.bytes, "generated", mime);
   const generationId = ctx.newGenerationId();
-  await insertGeneration(ctx.db, {
+  const provenance = insertGenerationStatement(ctx.db, {
     id: generationId,
     assetId: stored.assetId,
     chatId: prov.chatId,
@@ -86,29 +86,7 @@ async function persistImage(
     edited: prov.edited,
     createdAt: gen.createdAt,
   });
-  return { assetId: stored.assetId, generationId, block: buildBlock(stored.assetId, prov.prompt) };
-}
-
-/** The generation's economics delta — attributed to `caller` as owner, one model bucket, `count` generations. */
-function buildDelta(args: {
-  readonly caller: Principal;
-  readonly model: ModelId;
-  readonly providerId: ProviderId;
-  readonly costUsd: number | null;
-  readonly count: number;
-  readonly now: number;
-}): StatsDelta {
-  return {
-    ownerId: args.caller.userId,
-    characterId: null,
-    bucketStart: statsBucketStart(args.now),
-    model: args.model,
-    provider: args.providerId,
-    modelGenerations: args.count,
-    modelGenSamples: args.count,
-    now: args.now,
-    ...(args.costUsd !== null ? { costUsd: args.costUsd, modelCostUsd: args.costUsd } : {}),
-  };
+  return { image: { assetId: stored.assetId, generationId, block: buildBlock(stored.assetId, prov.prompt) }, provenance };
 }
 
 /** Null-propagating sum (doc 02 §8): any unknown component ⇒ null (a fabricated partial total is worse than an
@@ -129,27 +107,33 @@ export async function runGeneration(ctx: ImageryContext, req: ImageGenerateReque
   // generation by that timestamp.
   const createdAt = ctx.now();
   const images: GeneratedPictureImage[] = [];
+  const stmts: BatchStmt[] = [];
   for (const img of decoded) {
-    images.push(
-      await persistImage(ctx, prov, {
-        model,
-        providerId: req.connection.providerId,
-        connectionId: req.connection.connectionId,
-        costUsd: result.usage.costUsd,
-        createdAt,
-        img,
-      }),
-    );
-  }
-  await ctx.recordStats(
-    buildDelta({
-      caller: prov.caller,
+    const stored = await storeImage(ctx, prov, {
       model,
       providerId: req.connection.providerId,
+      connectionId: req.connection.connectionId,
+      costUsd: result.usage.costUsd,
+      createdAt,
+      img,
+    });
+    images.push(stored.image);
+    stmts.push(stored.provenance);
+  }
+  // THE SPEND DELTA IS BUILT FROM WHAT THE ROWS RECORD: the stats rebuild groups these rows by their shared
+  // `createdAt` and calls this same builder, so the live write and a "Recompute now" cannot disagree.
+  ctx.applyStatsDelta(
+    stmts,
+    ctx.db,
+    imageGenerationSpendDelta({
+      ownerId: prov.caller.userId,
+      model,
+      provider: req.connection.providerId,
       costUsd: result.usage.costUsd,
       count: images.length,
       now: createdAt,
     }),
   );
+  await ctx.db.batch(batchMany(stmts));
   return { images, model, costUsd: result.usage.costUsd, warnings: result.warnings };
 }

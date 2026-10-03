@@ -1,5 +1,6 @@
 // domain/imagery/persistence/queries — all imagery_generations db access. Store-then-provenance order
 // (verb): a crash between leaves a benign unreferenced blob, never a provenance row pointing at nothing.
+// The provenance rows are also the stats rebuild's image-spend canon, so they commit with the spend delta.
 // Ownership is NOT a column on this table (D20) — it DERIVES via `asset_id → assets.ownerId`; the reuse
 // lookup + the provenance read both JOIN `assets` and gate on `ownerId` (no cross-owner leak, no ownerId dup).
 
@@ -7,6 +8,7 @@ import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { assets, imageryGenerations } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { and, desc, eq } from "drizzle-orm";
 import type { GenerationProvenance, ReuseRow } from "../contract/results.ts";
@@ -28,8 +30,10 @@ interface InsertGenerationInput {
   readonly createdAt: number;
 }
 
-export async function insertGeneration(db: Db, input: InsertGenerationInput): Promise<void> {
-  await db.insert(imageryGenerations).values({
+/** The provenance row's INSERT, unexecuted: the caller commits it in one batch with the generation's stats
+ *  delta, because this row is the canon the stats rebuild re-derives image spend from. */
+export function insertGenerationStatement(db: Db, input: InsertGenerationInput): BatchStmt {
+  return db.insert(imageryGenerations).values({
     id: input.id,
     assetId: input.assetId,
     chatId: input.chatId,

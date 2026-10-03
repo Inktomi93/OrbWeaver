@@ -143,9 +143,9 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
     resolveCaptionInstruction: (_caller, mode) => Promise.resolve(DEFAULT_CAPTION_INSTRUCTIONS[mode]),
     // PROSE-1 census 88 — no user override ⇒ the shipped catalog base, the same bytes the verb shipped before.
     resolveNegativeBase: () => Promise.resolve(PROSE_SLOTS[IMAGERY_NEGATIVE_SLOT_ID].text),
-    recordStats: (delta) => {
+    // Records the delta and enqueues nothing: the provenance rows still commit in the caller's batch.
+    applyStatsDelta: (_batch, _db, delta) => {
       recordedStats.push(delta);
-      return Promise.resolve();
     },
     // The real owner-scoped `characters` read compose wires, so the auto-add gate is exercised for real.
     ownsCharacter: async (ownerId, characterId) => {

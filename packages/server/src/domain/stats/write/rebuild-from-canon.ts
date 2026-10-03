@@ -1,5 +1,6 @@
 // Full RECONCILE: a memory-bounded streaming rebuild of the four rollup tables for one owner (or every
 // owner) from canon — the backfill/post-import/drift-repair path (rollups are maintained live elsewhere).
+// Canon is the message stream plus the two spend ledgers (`imagery_generations`, `compaction_spend`).
 // Keyset-paged streams over messages + swipe variants (bounded peak memory); per-character/model/bucket
 // accumulator Maps; atomic per-owner replace-write (one db.batch) so a read never sees a half-rebuilt owner.
 // Owner-scoping is membership-derived: the owner's chats are those with a character participant they own.
@@ -7,8 +8,10 @@
 import type { TokenProvenance } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
+import type { SpendDelta, SpendDeltaField } from "@orb/contracts/stats";
+import { compactionSpendDelta, imageGenerationSpendDelta, SPEND_DELTA_FIELDS } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import { assets, characterStats, compactionSpend, dailyStats, imageryGenerations, modelStats, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
 import type { CharacterId, ModelId, UserId } from "@orb/kit/ids";
@@ -335,8 +338,9 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
 
 /** Rebuild ONLY the `daily_stats` timeline of every owner whose `owner_stats` row records activity but whose
  *  timeline is empty: the state a timeline re-grain migration leaves. The other rollups are left untouched,
- *  because they also carry non-canon spend (imagery, compaction) that a canon rebuild cannot re-derive. A
- *  live write always lands both rows, so the predicate is idempotent. Returns the owners rebuilt. */
+ *  because they can hold compaction spend recorded before its `compaction_spend` ledger existed, which no
+ *  canon re-derives. A live write always lands both rows, so the predicate is idempotent. Returns the owners
+ *  rebuilt. */
 export async function reconcileOwnersMissingTimeline(db: Db, now: () => number): Promise<number> {
   const owners = await db.all<{ ownerId: string }>(sql`
     SELECT o.owner_id AS ownerId FROM owner_stats o
@@ -658,6 +662,93 @@ async function scanSwipes(db: Db, ownerId: string, a: Accums): Promise<void> {
   }
 }
 
+// ── Spend outside the message canon ──────────────────────────────────────────────────────────────────────
+// An image generation and a compaction pass spend money without writing a message. Each live writer records
+// a canon row (`imagery_generations`, `compaction_spend`) in the same batch as its stats delta, and builds
+// that delta with a shared `@orb/contracts/stats` builder. The rebuild calls the SAME builder over the same
+// recorded fields, then folds the delta onto the grains `applyStatsDelta` writes it to.
+
+/** The accumulators one spend delta lands on: the owner, its timeline bucket, and its model row (none for a
+ *  model-less delta — `applyStatsDelta` skips `model_stats` then). */
+interface SpendGrains {
+  owner: OwnerAccum;
+  bucket: BucketAccum;
+  model: ModelAccum | null;
+}
+
+function addToModel(model: ModelAccum | null, key: "generations" | "genSamples" | "costUsd", v: number): void {
+  if (model !== null) {
+    model[key] += v;
+  }
+}
+
+/** Where each spend key lands — `applyStatsDelta`'s column mapping, one arm per {@link SPEND_DELTA_FIELDS}. */
+const SPEND_FOLD: Readonly<Record<SpendDeltaField, (g: SpendGrains, v: number) => void>> = {
+  costUsd: (g, v) => {
+    g.owner.costUsd += v;
+    g.bucket.costUsd += v;
+  },
+  costSamples: (g, v) => {
+    g.owner.costSamples += v;
+    g.bucket.costSamples += v;
+  },
+  modelGenerations: (g, v) => addToModel(g.model, "generations", v),
+  modelGenSamples: (g, v) => addToModel(g.model, "genSamples", v),
+  modelCostUsd: (g, v) => addToModel(g.model, "costUsd", v),
+  lastAt: (g, v) => {
+    g.owner.lastActivityAt = Math.max(g.owner.lastActivityAt, v);
+  },
+};
+
+/** Fold one spend delta. The timeline bucket (and the model row) exists even for a zero-valued delta,
+ *  because the live upsert writes those rows whatever the increments are. */
+function foldSpend(d: SpendDelta, a: Accums): void {
+  const { model, provider } = d;
+  const grains: SpendGrains = {
+    owner: a.owner,
+    bucket: get(a.bucketMap, d.bucketStart, freshBucket),
+    model: model === null ? null : get(a.modelMap, modelMapKey(model, provider), () => ({ model, provider, acc: freshModel() })).acc,
+  };
+  for (const field of SPEND_DELTA_FIELDS) {
+    const v = d[field];
+    if (typeof v === "number") {
+      SPEND_FOLD[field](grains, v);
+    }
+  }
+}
+
+/** The owner's image generations, one row per provider call: the pictures of one fanned-out call share
+ *  `createdAt`, model, provider, connection and the call's total cost, so the group is the call and its row
+ *  count is the picture count. Owner-scoped through the asset, which `imagery_generations` derives from. */
+async function scanImageSpend(db: Db, ownerId: string, a: Accums): Promise<void> {
+  const calls = await db
+    .select({
+      model: imageryGenerations.model,
+      provider: imageryGenerations.provider,
+      costUsd: imageryGenerations.costUsd,
+      createdAt: imageryGenerations.createdAt,
+      count: sql<number>`count(*)`,
+    })
+    .from(imageryGenerations)
+    .innerJoin(assets, eq(assets.id, imageryGenerations.assetId))
+    .where(eq(assets.ownerId, castId<UserId>(ownerId)))
+    .groupBy(imageryGenerations.createdAt, imageryGenerations.model, imageryGenerations.provider, imageryGenerations.connectionId, imageryGenerations.costUsd);
+  for (const call of calls) {
+    foldSpend(imageGenerationSpendDelta({ ownerId: castId<UserId>(ownerId), ...call, now: call.createdAt }), a);
+  }
+}
+
+/** The owner's priced compaction passes. */
+async function scanCompactionSpend(db: Db, ownerId: string, a: Accums): Promise<void> {
+  const passes = await db
+    .select({ costUsd: compactionSpend.costUsd, createdAt: compactionSpend.createdAt })
+    .from(compactionSpend)
+    .where(eq(compactionSpend.ownerId, castId<UserId>(ownerId)));
+  for (const pass of passes) {
+    foldSpend(compactionSpendDelta({ ownerId: castId<UserId>(ownerId), costUsd: pass.costUsd, now: pass.createdAt }), a);
+  }
+}
+
 interface CharChatMeta {
   chats: number;
   forkedChats: number;
@@ -898,6 +989,8 @@ async function foldOwnerCanon(db: Db, ownerId: string): Promise<{ a: Accums; met
   };
   await scanMessages(db, ownerId, a);
   await scanSwipes(db, ownerId, a);
+  await scanImageSpend(db, ownerId, a);
+  await scanCompactionSpend(db, ownerId, a);
   const meta = await loadChatMeta(db, ownerId);
   return { a, meta };
 }

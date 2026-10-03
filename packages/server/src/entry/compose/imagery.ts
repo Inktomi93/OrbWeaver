@@ -15,8 +15,6 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { UserSettings } from "@orb/contracts/settings";
 import { resolveImageryCaption, resolveImageryTemplate } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
-import { batchMany } from "@orb/db/kit";
 import type { ProviderExecutor, Resolved, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import { generationOf, resolveSideGenSampling } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -173,13 +171,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     addToGallery: async (caller, assetId, subjectCharacterId): Promise<void> => {
       await assets.addToGallery({ principal: caller, assetId, subjectCharacterId });
     },
-    recordStats: async (delta): Promise<void> => {
-      const batch: BatchStmt[] = [];
-      applyStatsDelta(batch, db, delta);
-      if (batch.length > 0) {
-        await db.batch(batchMany(batch));
-      }
-    },
+    applyStatsDelta,
   });
 
   // The D48 `generate_image` tool — registered into the SAME one registry buddy joined

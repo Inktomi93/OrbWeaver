@@ -78,6 +78,8 @@ export const ID_PREFIX = {
   ownerStat: "owner_stat",
   dailyStat: "daily_stat",
   modelStat: "model_stat",
+  // One priced compaction pass (`compaction_spend`) — the canon the stats rebuild re-derives that spend from.
+  compactionSpend: "compaction_spend",
   notification: "notification",
   imageryGeneration: "imagery_generation",
   galleryItem: "gallery_item",
@@ -231,6 +233,7 @@ export type ThemeClusterId = TypeIdOf<"theme_cluster">;
 export type CharacterStatId = TypeIdOf<"character_stat">;
 export type DailyStatId = TypeIdOf<"daily_stat">;
 export type ModelStatId = TypeIdOf<"model_stat">;
+export type CompactionSpendId = TypeIdOf<"compaction_spend">;
 
 // --- Automation (rules + the fire log) ----------------------------------
 export type AutomationRuleId = TypeIdOf<"automation_rule">;
