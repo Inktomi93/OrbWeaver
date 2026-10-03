@@ -379,8 +379,9 @@ interface BuildAssembleContextInput {
   readonly guided?: GuidedSteer | undefined;
   readonly variableValues: Record<string, string>;
   readonly generationType?: GenerationType | undefined;
-  /** Per-request browser IANA zone for `{{time}}`/`{{date}}`, not a stored setting; absent falls back to
-   *  server-local. */
+  /** The IANA zone `{{time}}`/`{{date}}` read in: the viewer's per-request browser zone, not a stored setting.
+   *  The gather always sets it (UTC for a turn with no viewer); absent here, the macro engine reads the
+   *  server's zone. */
   readonly timezone?: string | undefined;
   readonly nowMs?: number | undefined;
   /** Seeded turn PRNG — never ambient Math.random; drives the SEND volatile-macro freeze so a committed

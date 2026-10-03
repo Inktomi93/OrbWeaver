@@ -9,6 +9,7 @@ import type { Db } from "@orb/db";
 import { automationRules, chatBooks, worldBooks } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { parseIanaTimeZone } from "@orb/kit/time";
 import type { AnalysisConfirmAct } from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
 import type {
   AnalysisConfirmDeps,
@@ -141,8 +142,13 @@ test("PLANTED CONTROL — the attach gate bites AT CONFIRM: a book detached afte
 test("a confirmed suggestTurn runs the room's guided turn in the AUTHOR frame at the raising dispatch's depth", async () => {
   const { db, host, chatId, rule, pending, captured } = await setup();
   const act: AnalysisConfirmAct = { kind: "suggestTurn", steerText: "Cut to the chase.", automationDepth: 2 };
-  await runAnalysisConfirm(makeDeps(db, captured), pending, rule, act);
-  expect(captured.turns).toEqual([{ authorUserId: host, ruleId: rule.id, chatId, automationDepth: 2, guided: "Cut to the chase." }]);
+  // The turn has no viewer, so its time macros read the clock the author's browser stamped on the rule.
+  const timeZone = parseIanaTimeZone("Asia/Kathmandu");
+  if (timeZone === null) {
+    throw new Error("the platform must know Asia/Kathmandu");
+  }
+  await runAnalysisConfirm(makeDeps(db, captured), pending, { ...rule, timeZone }, act);
+  expect(captured.turns).toEqual([{ authorUserId: host, ruleId: rule.id, chatId, automationDepth: 2, guided: "Cut to the chase.", timeZone }]);
 });
 
 test("C3: a confirmed REWRITE forwards the card's variant pin + content hash VERBATIM, in the author frame", async () => {

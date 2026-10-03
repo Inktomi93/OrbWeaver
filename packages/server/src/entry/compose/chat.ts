@@ -1496,8 +1496,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         // (the GM redirect's on a game chat) instead of falling back to the viewer's own active preset.
         presetName,
         personas: turnPersonas,
-        // FLAG[timezone-per-request]: {{time}}/{{date}} use the caller's per-request browser zone; the
-        // macro engine falls back to server-local until the turn request carries it.
         scanDepth: us.worldInfo.scanDepth,
         injectionTokenBudget: us.worldInfo.tokenBudget,
         memoryConfig,

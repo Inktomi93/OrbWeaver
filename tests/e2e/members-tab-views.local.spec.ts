@@ -18,6 +18,7 @@
 
 import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/test";
 import { STORY_SHOT_DIR } from "../support/node/story-shot.ts";
 import type { ActorClient } from "./support/actors.ts";
@@ -98,7 +99,7 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
     await addMemberToChat(api, memberApi, chatId, LOCAL_MEMBER.handle);
     // A committed room (the Members tab's `phase === "committed"` arm) — the greeting alone leaves the chat
     // in its founding state on some paths, so plant one durable user row.
-    await api.mutation("chat.commitMessage", { chatId, content: "Both of you, on me." });
+    await api.mutation("chat.commitMessage", { chatId, timeZone: UTC_TIME_ZONE, content: "Both of you, on me." });
 
     const hostView = await openBrowserActor(browser, origin, castId<Handle>(LOCAL_OWNER.handle), LOCAL_OWNER.password);
     const memberView = await openBrowserActor(browser, origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);

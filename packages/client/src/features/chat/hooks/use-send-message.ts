@@ -12,7 +12,7 @@ import type { UserIntent } from "@orb/contracts/preset";
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import { useState } from "react";
 import { createEntityMutation, useInvalidation, useTRPC, useUploadAsset } from "#data";
-import { turnMutationToast } from "#lib";
+import { turnMutationToast, viewerTimeZone } from "#lib";
 import { subscribeUserMessageCommitted } from "#state";
 
 interface SendVars {
@@ -20,6 +20,7 @@ interface SendVars {
   readonly content: string;
   readonly intent?: Partial<UserIntent> | undefined;
   readonly attachmentAssetIds?: AssetId[] | undefined;
+  readonly timeZone: string;
 }
 
 // TData is `unknown` — the sent turn is bus-driven (messageCommitted/turnStarted/...), never read back.
@@ -74,6 +75,7 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
       await sendMutation.mutateAsync({
         chatId: opts.chatId,
         content: trimmed,
+        timeZone: viewerTimeZone(),
         ...(hasIntent ? { intent: opts.intent } : {}),
         ...(attachmentAssetIds.length > 0 ? { attachmentAssetIds } : {}),
       });

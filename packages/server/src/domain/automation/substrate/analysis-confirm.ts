@@ -12,6 +12,7 @@
 // class (§3-S5.5: advanced on successful apply; a dismissed/expired card leaves it unmoved so the next pass
 // re-covers the span — the retryability contract, confirm-shaped).
 
+import { automationRuleClockZone } from "@orb/contracts/automation";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import type { AnalysisConfirmAct } from "../contract/analysis.ts";
 import type { AnalysisConfirmDeps, PendingSuggestion, RuleRow } from "../contract/ops.ts";
@@ -64,7 +65,14 @@ export async function runAnalysisConfirm(deps: AnalysisConfirmDeps, pending: Pen
     case "suggestTurn": {
       // The same seam trigger_turn rides — cascade depth, initiator membership, and frozen host funding all
       // resolve INSIDE requestTurn; the author frame holds (§3-S4's identity law).
-      await deps.ops.chat.requestTurn({ authorUserId, ruleId, chatId, automationDepth: act.automationDepth, guided: act.steerText });
+      await deps.ops.chat.requestTurn({
+        authorUserId,
+        ruleId,
+        chatId,
+        automationDepth: act.automationDepth,
+        guided: act.steerText,
+        timeZone: automationRuleClockZone(rule.timeZone),
+      });
       return;
     }
     default: {

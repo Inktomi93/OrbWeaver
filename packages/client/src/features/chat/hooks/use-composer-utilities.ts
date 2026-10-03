@@ -16,11 +16,12 @@
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { turnMutationToast } from "#lib";
+import { turnMutationToast, viewerTimeZone } from "#lib";
 
 interface CommitMessageVars {
   readonly chatId: ChatId;
   readonly content: string;
+  readonly timeZone: string;
 }
 interface ContinueRestoreVars {
   readonly chatId: ChatId;
@@ -66,7 +67,7 @@ export function useComposerUtilities(chatId: ChatId | null): UseComposerUtilitie
       if (chatId === null || content.trim().length === 0) {
         return;
       }
-      commit.mutate({ chatId, content }, { onSuccess: onDone });
+      commit.mutate({ chatId, content, timeZone: viewerTimeZone() }, { onSuccess: onDone });
     },
     undoContinue: (messageId): void => {
       if (chatId === null) {

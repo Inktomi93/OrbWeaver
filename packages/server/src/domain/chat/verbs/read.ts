@@ -60,6 +60,7 @@ import type { CharacterId, ChatId, MessageId, PersonaId, PresetId, UserId } from
 import type { MacroRegistry, RowMacroNameContext } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
+import type { IanaTimeZone } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
@@ -647,7 +648,13 @@ async function buildPreviewContext(
   ctx: ChatContext,
   inputs: PreviewInputs,
   chatId: ChatId,
-  opts: { readonly deps: ReadDeps; readonly registry: MacroRegistry | null; readonly guided?: GuidedSteer | undefined },
+  opts: {
+    readonly deps: ReadDeps;
+    readonly registry: MacroRegistry | null;
+    readonly guided?: GuidedSteer | undefined;
+    /** The viewer's zone, for a preview that hands rendered text back (it must read the clock the turn will). */
+    readonly timeZone?: IanaTimeZone | undefined;
+  },
 ): Promise<{ assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>; cardKeepLastX: number | undefined }> {
   const participants = await opts.deps.loadParticipantViews(chatId);
   // The host `steeringNote`'s identity binding, resolved CHAT-SIDE exactly as the turn path does: `{{user}}` =
@@ -683,6 +690,7 @@ async function buildPreviewContext(
       multiHuman: inputs.multiHuman,
       ...gather.fields,
       ...(opts.guided !== undefined ? { guided: opts.guided } : {}),
+      timeZone: opts.timeZone,
       // The preview render registry (WAVE MU) — absent ⇒ the pure build's singleton fallback (byte-identical).
       ...(opts.registry !== null ? { macroRegistry: opts.registry } : {}),
     },
@@ -1312,7 +1320,7 @@ function historyBudgetRow(fitted: ReturnType<typeof fitHistory>): HistoryBudgetI
  *  `previewActionTemplates` rides, with the same safety (compose resolves it owned-or-system UNDER THE HOST and
  *  degrades to the host's own default on a stale/unowned id). Absent ⇒ byte-identical to every prior preview. */
 function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["previewAssembly"] {
-  return async ({ principal, chatId, speakerCharacterId, guided, presetOverride }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
+  return async ({ principal, chatId, speakerCharacterId, guided, presetOverride, timeZone }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
@@ -1320,7 +1328,7 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
       ...(presetOverride === undefined ? {} : { presetOverride }),
     });
     const registry = buildPreviewRegistry(inputs);
-    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry, guided });
+    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry, guided, timeZone });
     const { prompt, slices } = buildPromptWithSlices(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
     const { canon, shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt });
     const { fitted } = await fitShapedHistory({
@@ -1586,14 +1594,14 @@ function actionTemplateText(config: PromptConfig, id: TemplateDefId): string {
  *  the whole registry makes the readout's row selection a pure client pick — one query per (chat, preset),
  *  one freshness row, no per-row round trip. Nothing persists (the `previewSection` dry-run frame). */
 function createPreviewActionTemplates(ctx: ChatContext, deps: ReadDeps): ChatService["previewActionTemplates"] {
-  return async ({ principal, chatId, presetId }: PreviewActionTemplatesParams): Promise<ActionTemplatesPreview> => {
+  return async ({ principal, chatId, presetId, timeZone }: PreviewActionTemplatesParams): Promise<ActionTemplatesPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
       presetOverride: presetId,
     });
     const registry = buildPreviewRegistry(inputs);
-    const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
+    const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry, timeZone });
     const config = inputs.foreign.promptConfig;
     return {
       // The bindings this render actually USED — read off the same resolved ctx, so the readout's gloss can

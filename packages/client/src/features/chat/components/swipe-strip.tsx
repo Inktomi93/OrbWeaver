@@ -24,7 +24,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { cn, turnMutationToast } from "#lib";
+import { cn, turnMutationToast, viewerTimeZone } from "#lib";
 import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";
 import { VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "../lib/message-action-names.ts";
@@ -33,12 +33,14 @@ import { PAGER_CHIP, PAGER_CHIP_COMPACT, PAGER_COUNTER, PAGER_LABEL_QUIET_WHEN_T
 interface SwipeVars {
   readonly chatId: ChatId;
   readonly messageId: MessageId;
+  readonly timeZone: string;
 }
 
 interface SelectVariantVars {
   readonly chatId: ChatId;
   readonly messageId: MessageId;
   readonly variantId: MessageVariantId;
+  readonly timeZone: string;
 }
 
 // The ONE turn-error mapper (`lib/turn-abort-notice.ts`), not a bare string: a swipe refused for CONTENTION
@@ -97,7 +99,7 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
     if (busy || prevVariantId === undefined) {
       return;
     }
-    selectVariant.mutate({ chatId, messageId, variantId: prevVariantId });
+    selectVariant.mutate({ chatId, messageId, variantId: prevVariantId, timeZone: viewerTimeZone() });
   };
 
   const goNext = (): void => {
@@ -105,10 +107,10 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
       return;
     }
     if (nextVariantId !== undefined) {
-      selectVariant.mutate({ chatId, messageId, variantId: nextVariantId });
+      selectVariant.mutate({ chatId, messageId, variantId: nextVariantId, timeZone: viewerTimeZone() });
       return;
     }
-    swipe.mutate({ chatId, messageId });
+    swipe.mutate({ chatId, messageId, timeZone: viewerTimeZone() });
   };
 
   useSwipeKeyboardNav({ onPrev: goPrev, onNext: goNext });

@@ -222,7 +222,9 @@ describe("the confirm-first card", () => {
     expect(fixture.events.filter((e) => e.type === "suggestionResolved" && e.suggestionId === ask?.id)).toHaveLength(1);
     // THE IDENTITY LAW: the frame that executed is the AUTHOR's, with the author's steer, at the rule's own
     // cascade depth — the confirmer authorized it, they did not become its author.
-    expect(turns).toEqual([{ authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, guided: "Recap the scene." }]);
+    expect(turns).toEqual([
+      { authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, timeZone: UTC_TIME_ZONE, guided: "Recap the scene." },
+    ]);
     const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId: castId(ruleId) });
     expect(fires).toHaveLength(1);
     expect(fires[0]?.outcome).toBe("fired");
@@ -266,7 +268,9 @@ describe("the confirm-first card", () => {
 
     // BOTH remaining arms ran, IN ORDER: the confirmed trigger_turn, then the continuation's set_variable.
     expect(result).toEqual({ ran: "stashed-arm", outcome: "fired" });
-    expect(turns).toEqual([{ authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, guided: "Recap the scene." }]);
+    expect(turns).toEqual([
+      { authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, timeZone: UTC_TIME_ZONE, guided: "Recap the scene." },
+    ]);
     expect(varWrites).toEqual(["before=1", "after=2"]);
     // ONE fire row for the confirm, naming the CONFIRMED arm (the continuation shares its terminal, exactly
     // as a fresh dispatch's `finalizeRule` writes one row for a whole rule's arm sequence).
@@ -420,7 +424,9 @@ describe("the rate-refusal invitation (RULED F4)", () => {
 
     expect(result).toEqual({ ran: "fresh-run", outcome: "fired" });
     // The arm really ran, as the AUTHOR, at depth 0's child depth.
-    expect(turns).toEqual([{ authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, guided: "Nudge the pacing." }]);
+    expect(turns).toEqual([
+      { authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, timeZone: UTC_TIME_ZONE, guided: "Nudge the pacing." },
+    ]);
   });
 
   test("a NON-spend rule's refusal raises NO invitation (F4 is ON for spend arms, and only those)", async () => {

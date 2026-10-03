@@ -27,8 +27,9 @@ export const timeLib: TimeLib = {
   formatRelativeAgo: (epochMs): string => (isProbeMode() ? PROBE_RELATIVE_AGO_PLACEHOLDER : baseTimeLib.formatRelativeAgo(epochMs)),
 };
 
-/** The viewer's IANA zone — the zone {@link timeLib} renders in. Sent with a save whose server-side
- *  evaluation must run on the viewer's wall clock (an automation rule's `now.hour`), never with a timestamp. */
+/** The viewer's IANA zone — the zone {@link timeLib} renders in. Sent with a request whose server-side
+ *  evaluation must run on the viewer's wall clock (an automation rule's `now.hour`, a chat turn's `{{time}}`),
+ *  never with a timestamp. */
 export function viewerTimeZone(): string {
   return hostTimeZone();
 }

@@ -43,6 +43,7 @@ import type { MacroFreeze } from "@orb/kit/macro";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
+import type { IanaTimeZone } from "@orb/kit/time";
 import { sha256Hex } from "@orb/server/kit/content-hash";
 import type { ChatContext } from "../context.ts";
 import type { ClaimChatOp } from "../contract/context.ts";
@@ -217,6 +218,8 @@ async function applyRunOnEditRegex(
     /** #1742 — the room's regex levers, off the chat row the caller already holds. A runOnEdit re-apply must
      *  run the SAME set a live turn would, so a tier this room switched off is switched off here too. */
     readonly regexAllow: HostTierRegexAllow;
+    /** The editor's zone, for a `{{time}}` in a script's replacement. */
+    readonly timeZone: IanaTimeZone | undefined;
   },
 ): Promise<string> {
   const placement = editPlacementFor(args.slot.role);
@@ -255,7 +258,11 @@ async function applyRunOnEditRegex(
   if (scripts.length === 0) {
     return args.content;
   }
-  const assembleContext = await gatherAssembleContext(ctx, { chatId, runAsUserId: hostUserId, model, characterIds, personaIds }, foreign);
+  const assembleContext = await gatherAssembleContext(
+    ctx,
+    { chatId, runAsUserId: hostUserId, model, characterIds, personaIds, timeZone: args.timeZone },
+    foreign,
+  );
   return executeRegexScripts({
     text: args.content,
     scripts,
@@ -390,6 +397,8 @@ async function freezeSelectedVariant(
     readonly anchorPersonaId: PersonaId | null;
     readonly selectorUserId: UserId;
     readonly selectorPersonaId: PersonaId | null;
+    /** The selector's zone: a clock macro the bake resolves is written into canon as their time. */
+    readonly timeZone: IanaTimeZone | undefined;
   },
 ): Promise<{ readonly statement: ReturnType<typeof freezeVariantContentStatement>; readonly content: string } | null> {
   const hostUserId = hostUserIdOf(args.participants);
@@ -426,7 +435,14 @@ async function freezeSelectedVariant(
   });
   const assembleContext = await gatherAssembleContext(
     ctx,
-    { chatId: args.chatId, runAsUserId: hostUserId, model, characterIds, personaIds: args.selectorPersonaId !== null ? [args.selectorPersonaId] : [] },
+    {
+      chatId: args.chatId,
+      runAsUserId: hostUserId,
+      model,
+      characterIds,
+      personaIds: args.selectorPersonaId !== null ? [args.selectorPersonaId] : [],
+      timeZone: args.timeZone,
+    },
     foreign,
   );
   const freezes: MacroFreeze[] = [];
@@ -452,7 +468,7 @@ async function freezeSelectedVariant(
  *  and why it is a no-op everywhere else. */
 function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["selectVariant"] {
   const emit = deps.emit;
-  return async ({ principal, chatId, messageId, variantId }: SelectVariantParams) => {
+  return async ({ principal, chatId, messageId, variantId, timeZone }: SelectVariantParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     const owner = await loadVariantMessageId(ctx.db, variantId);
@@ -486,6 +502,7 @@ function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["sel
             anchorPersonaId: membership.chat.anchorPersonaId,
             selectorUserId: principal.userId,
             selectorPersonaId: membership.activePersonaId,
+            timeZone,
           });
     if (baked !== null) {
       statements.push(baked.statement);
@@ -524,7 +541,7 @@ function createSelectVariant(ctx: ChatContext, deps: EditDeps): ChatService["sel
  *  Persist order: canon-purity strip, then the runOnEdit receive-tier regex re-apply, then the write.
  *  Emits messageEdited. */
 function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editMessage"] {
-  return async ({ principal, chatId, messageId, content }: EditMessageParams) => {
+  return async ({ principal, chatId, messageId, content, timeZone }: EditMessageParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     const participants = await loadParticipants(ctx.db, chatId);
@@ -540,6 +557,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
       editorPersonaId: membership.activePersonaId,
       content: purified,
       regexAllow: regexAllowOf(membership.chat.metadata),
+      timeZone,
     });
     const now = ctx.now();
     const statements = editMessageContentStatements(ctx.db, {

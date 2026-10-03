@@ -28,6 +28,7 @@
 
 import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, loginLocal, ownerActor } from "./support/actors.ts";
 import { LOCAL_MEMBER } from "./support/modes.ts";
@@ -80,7 +81,7 @@ test("P3 member-strip: a MEMBER's wire payload is byte-clean of the planted lie;
     const greeting = canon.messages.find((m) => m.role === "assistant");
     expect(greeting).toBeDefined();
     const greetingId = greeting?.id ?? "";
-    await host.mutation("chat.editMessage", { chatId, messageId: greetingId, content: `"Just a traveller," he says. ${LIE_TAG}` });
+    await host.mutation("chat.editMessage", { chatId, timeZone: UTC_TIME_ZONE, messageId: greetingId, content: `"Just a traveller," he says. ${LIE_TAG}` });
 
     // MEMBER: log in + join the chat (createInvite → redeemInvite).
     const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);

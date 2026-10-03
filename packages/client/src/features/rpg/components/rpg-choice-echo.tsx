@@ -20,6 +20,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { viewerTimeZone } from "#lib";
 import { isLiveTurnPhase, requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useSendChoice } from "../hooks/use-rpg-mutations.ts";
@@ -72,7 +73,7 @@ export function RpgChoiceEcho({ state }: RpgChoiceEchoProps): ReactElement | nul
 
   const pick = (text: string): void => {
     if (behavior === "send") {
-      sendChoice.mutate({ chatId, content: text });
+      sendChoice.mutate({ chatId, content: text, timeZone: viewerTimeZone() });
       return;
     }
     setComposerDraft(chatId, text);

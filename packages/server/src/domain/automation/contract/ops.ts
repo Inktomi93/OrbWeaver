@@ -174,6 +174,9 @@ export interface AutomationTurnRequest {
   readonly speakerCharacterId?: CharacterId | undefined;
   /** The macro-RENDERED guided steer (the arm renders `guidedTemplate` first). Absent ⇒ no steer. */
   readonly guided?: string | undefined;
+  /** The rule's own clock (`automationRuleClockZone`): an autonomous turn has no viewer, so its time macros read
+   *  the zone its author's browser stamped on the rule, the same clock its predicate and templates read. */
+  readonly timeZone: IanaTimeZone;
 }
 
 // ── the `run_tool` arm's seam onto the ONE tool registry (D146) ───────────────────────────────────────

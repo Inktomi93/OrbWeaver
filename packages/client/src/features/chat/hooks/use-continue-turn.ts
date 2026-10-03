@@ -19,14 +19,16 @@
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { turnMutationToast } from "#lib";
+import { turnMutationToast, viewerTimeZone } from "#lib";
 
 interface ContinueTurnVars {
   readonly chatId: ChatId;
   readonly messageId: MessageId;
+  readonly timeZone: string;
 }
 interface GenerateVars {
   readonly chatId: ChatId;
+  readonly timeZone: string;
 }
 
 const useContinueTurnMutation = createEntityMutation<ContinueTurnVars, unknown>({
@@ -55,8 +57,8 @@ export function useContinueTurn(): UseContinueTurnResult {
   const mutation = useContinueTurnMutation({ trpc, invalidation });
   const generate = useGenerateMutation({ trpc, invalidation });
   return {
-    continueTurn: (chatId, messageId): void => mutation.mutate({ chatId, messageId }),
-    generateReply: (chatId): void => generate.mutate({ chatId }),
+    continueTurn: (chatId, messageId): void => mutation.mutate({ chatId, messageId, timeZone: viewerTimeZone() }),
+    generateReply: (chatId): void => generate.mutate({ chatId, timeZone: viewerTimeZone() }),
     isPending: mutation.isPending || generate.isPending,
   };
 }
