@@ -38,6 +38,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useTRPC } from "#data";
+import { viewerTimeZone } from "#lib";
 import { selectPresetSection } from "#state";
 import { isPlainMarkerSection, sectionKind } from "../../lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "../../lib/format-count.ts";
@@ -108,7 +109,7 @@ function BoundPromptReadout({
   readonly selectedSectionId: string | null;
 }): ReactElement {
   const trpc = useTRPC();
-  const preview = useQuery(trpc.chat.previewAssembly.queryOptions({ chatId, presetOverride: presetId }));
+  const preview = useQuery(trpc.chat.previewAssembly.queryOptions({ chatId, presetOverride: presetId, timeZone: viewerTimeZone() }));
   const budget = preview.data?.budget;
   const costs = budget === undefined ? null : new Map(budget.sections.map((cost) => [cost.sectionId, cost]));
   return <PromptReadoutBody costs={costs} sections={sections} selectedSectionId={selectedSectionId} status={pendingStatus(costs, preview.isError)} />;

@@ -33,6 +33,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import type { AdminService } from "#domain/admin";
 import { can } from "#domain/admin";
@@ -264,6 +265,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         initiator: "automation",
         triggeredBy: req.authorUserId,
         automationDepth: req.automationDepth,
+        timeZone: req.timeZone,
         // The rule is the binding actor: a connection its author bound to it is spent before their own role.
         actor: { kind: "automation-rule", ruleId: req.ruleId },
         ...(req.speakerCharacterId !== undefined ? { speakerCharacterId: req.speakerCharacterId } : {}),
@@ -555,6 +557,8 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
           initiator: "plugin",
           triggeredBy,
           automationDepth,
+          // A plugin's turn has no viewer and its installer stamped no clock, so it reads the no-viewer zone.
+          timeZone: UTC_TIME_ZONE,
           ...(speakerCharacterId !== undefined ? { speakerCharacterId: castId<CharacterId>(speakerCharacterId) } : {}),
           ...(guided !== undefined ? { guided: { action: "response", input: guided } } : {}),
         });

@@ -44,6 +44,7 @@ import type {
   WorldEntryId,
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { parseIanaTimeZone } from "@orb/kit/time";
 import type { ImageRefAssets } from "@orb/server/entry/compose";
 import { createTurnPersonaResolver, resolveImageRefToUrl, voicePersonaFor } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
@@ -1827,6 +1828,36 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const plain = await previewAssembly({ principal: principal(me), chatId });
     expect(plain.trace.guidedInstructionIncluded).toBe(false);
     expect([plain.prompt.dynamic, ...plain.prompt.afterHistory.map((inj) => inj.content)].join("\n")).not.toContain("be dramatic");
+  });
+
+  test("the rendered previews read the clock in the viewer's zone, the zone the next turn renders in", async () => {
+    const me = await seedUser(db, castId<Handle>("tz_host"));
+    const chatId = await seedRoom("tz_room", me);
+    const kathmandu = parseIanaTimeZone("Asia/Kathmandu");
+    if (kathmandu === null) {
+      throw new Error("the platform must know Asia/Kathmandu");
+    }
+    // 20:00 UTC on Thursday the 15th is 01:45 on Friday the 16th in Kathmandu (+5:45).
+    const ctx = makeChatContext(db, { now: () => Date.UTC(2026, 0, 15, 20, 0) });
+    const clock = "{{date}} {{time}} {{weekday}}";
+    const promptConfig: PromptConfig = {
+      ...DEFAULT_PROMPT_CONFIG,
+      sections: [{ type: "literal", id: "clock", name: "clock", role: "system", content: `CLOCK ${clock}`, enabled: true }, ...DEFAULT_PROMPT_CONFIG.sections],
+      guidedActions: { ...DEFAULT_GUIDED_ACTIONS, response: { ...DEFAULT_GUIDED_ACTIONS.response, prompt: clock } },
+    };
+    const { previewAssembly, previewActionTemplates } = createRead(
+      ctx,
+      makeDeps({
+        resolveForeignInputs: () => Promise.resolve({ promptConfig, personas: { anchor: null, active: null }, scanDepth: 6, injectionTokenBudget: 0 }),
+      }),
+    );
+
+    const assembled = await previewAssembly({ principal: principal(me), chatId, timeZone: kathmandu });
+    expect(assembled.prompt.static).toContain("CLOCK 2026-01-16 01:45:00 Friday");
+    const templates = await previewActionTemplates({ principal: principal(me), chatId, presetId: castId<PresetId>("preset_tz"), timeZone: kathmandu });
+    expect(templates.templates.find((t) => t.id === "response")?.resolved).toBe("2026-01-16 01:45:00 Friday");
+    // A preview with no viewer zone reads UTC, never the server's own zone.
+    expect((await previewAssembly({ principal: principal(me), chatId })).prompt.static).toContain("CLOCK 2026-01-15 20:00:00 Thursday");
   });
 
   test("previewAssembly's BUDGET partitions the next turn's context by source (D-4)", async () => {

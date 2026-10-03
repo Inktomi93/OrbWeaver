@@ -355,6 +355,7 @@ async function runTriggerTurn(deps: ArmExecutorDeps, action: Extract<AutomationA
       ruleId: frame.origin.ruleId,
       chatId,
       automationDepth: frame.origin.automationDepth,
+      timeZone: frame.env.timeZone,
       ...(action.speakerCharacterId !== undefined ? { speakerCharacterId: action.speakerCharacterId } : {}),
       ...(guided !== undefined ? { guided } : {}),
     });

@@ -16,7 +16,8 @@ import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
-import { UTC_TIME_ZONE } from "@orb/kit/time";
+import type { IanaTimeZone } from "@orb/kit/time";
+import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import type {
   ArmDispatch,
   ArmExecutorDeps,
@@ -177,6 +178,8 @@ function makeFrame(args: {
    *  the actor (`post_notification`'s actor-excluding recipient) sees the honest "no human act" shape unless
    *  a test hands it a message-bearing fact. */
   fact?: TriggerFact;
+  /** The rule's clock. Default UTC, the clock of a rule no browser stamped. */
+  timeZone?: IanaTimeZone;
 }): DispatchFrame {
   const env: AutomationCelEnv = {
     vars: args.vars ?? {},
@@ -184,7 +187,7 @@ function makeFrame(args: {
     global: {},
     chat: { id: args.chatId, messageCount: 0 },
     now: { epochMs: FIXED_NOW_MS, hour: 22, dayOfWeek: 2 },
-    timeZone: UTC_TIME_ZONE,
+    timeZone: args.timeZone ?? UTC_TIME_ZONE,
   };
   const fact: TriggerFact = args.fact ?? { type: "chatOpened", bus: "chat", chatId: args.chatId };
   return {
@@ -587,10 +590,14 @@ test("generate_image threads quiet through to the op (F1 — quiet:true generate
 });
 
 // ── 1.6 trigger_turn (the autonomous chat turn — WIRED to requestTurn) ─────────────────────────────────
-test("trigger_turn dispatches requestTurn with the author/chat/depth + rendered guided steer", async () => {
+test("trigger_turn dispatches requestTurn with the author/chat/depth, the rule's clock + rendered guided steer", async () => {
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db);
-  const frame = makeFrame({ chatId, authorUserId: host }); // origin.automationDepth = 1
+  const kathmandu = parseIanaTimeZone("Asia/Kathmandu");
+  if (kathmandu === null) {
+    throw new Error("the platform must know Asia/Kathmandu");
+  }
+  const frame = makeFrame({ chatId, authorUserId: host, timeZone: kathmandu }); // origin.automationDepth = 1
   const speaker = mintTypeId(ID_PREFIX.character);
   const action: AutomationActionInput = { type: "trigger_turn", speakerCharacterId: speaker, guidedTemplate: "steer-{{roll:1}}" };
 
@@ -600,11 +607,13 @@ test("trigger_turn dispatches requestTurn with the author/chat/depth + rendered 
   expect(captured.turns).toHaveLength(1);
   // The funder = the rule AUTHOR (→ triggeredBy); the cascade depth is the origin CHILD-depth; the steer is
   // macro-rendered (the arm renders `guidedTemplate` before the op). initiator is fixed at compose (not here).
+  // The turn has no viewer, so its time macros read the rule's own clock.
   expect(captured.turns[0]).toEqual({
     authorUserId: host,
     ruleId: frame.origin.ruleId,
     chatId,
     automationDepth: 1,
+    timeZone: kathmandu,
     speakerCharacterId: speaker,
     guided: "steer-1",
   });
@@ -618,7 +627,7 @@ test("trigger_turn with no steer / no forced speaker omits both fields (normal a
   const outcome = await dispatch(arm({ type: "trigger_turn" }), frame);
 
   expect(outcome).toEqual({ ok: true });
-  expect(captured.turns[0]).toEqual({ authorUserId: host, ruleId: frame.origin.ruleId, chatId, automationDepth: 1 });
+  expect(captured.turns[0]).toEqual({ authorUserId: host, ruleId: frame.origin.ruleId, chatId, automationDepth: 1, timeZone: UTC_TIME_ZONE });
 });
 
 test("trigger_turn maps a requestTurn refusal (consent/authority/depth throw) to a typed arm_error, no fabricated success", async () => {

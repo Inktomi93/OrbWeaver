@@ -43,7 +43,7 @@ import { Heading, Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { testId } from "#lib";
+import { testId, viewerTimeZone } from "#lib";
 import { useSelectedPresetTemplateId } from "#state";
 import { openSectionInPrompt } from "../../lib/preset-nav.ts";
 import type { TemplateRow } from "../../lib/template-rows.ts";
@@ -182,7 +182,7 @@ function UnboundPreview({ row, templateText }: { readonly row: TemplateRow; read
  *  in one round trip, so switching the selected row re-projects a cached answer instead of refetching. */
 function BoundPreview({ chatId, presetId, row }: { readonly chatId: ChatId; readonly presetId: PresetId; readonly row: TemplateRow }): ReactElement {
   const trpc = useTRPC();
-  const preview = useQuery(trpc.chat.previewActionTemplates.queryOptions({ chatId, presetId }));
+  const preview = useQuery(trpc.chat.previewActionTemplates.queryOptions({ chatId, presetId, timeZone: viewerTimeZone() }));
   const resolved = preview.data?.templates.find((template) => template.id === row.def.id)?.resolved;
   if (resolved === undefined) {
     return <Text voice="gloss">{preview.isError ? "This chat cannot be inspected — its host resolves the prompt, and you are not it." : "Resolving…"}</Text>;

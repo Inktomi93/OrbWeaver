@@ -14,6 +14,7 @@
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../../../../packages/client/src/lib/test-ids.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../../support/node/route-trpc.ts";
@@ -178,7 +179,7 @@ test("BOUND — the Actions preview resolves identity for REAL and keeps the fir
   // The read is aimed at BOTH the bound chat and the INSPECTED preset — that pairing IS the presetOverride
   // (assemble this room as if this preset were active), and getting either half wrong yields a preview of
   // the wrong thing while looking perfectly fine.
-  await expect.poll(() => trpc.inputs("chat.previewActionTemplates")).toEqual([{ chatId: CHAT, presetId: PRESET }]);
+  await expect.poll(() => trpc.inputs("chat.previewActionTemplates")).toEqual([{ chatId: CHAT, presetId: PRESET, timeZone: UTC_TIME_ZONE }]);
 
   // The panel NAMES which template it is showing. Without it a resolved block is prose with no subject, and
   // the echo of the row you selected is unreadable. The name lives on the panel's own HEADER since side-eye
@@ -234,7 +235,7 @@ test("PROMPT + BOUND — the rack is priced by the bound chat, and the selected 
 
   // The read is aimed at BOTH the bound chat and the INSPECTED preset — that pairing IS the presetOverride
   // (price this room as if this preset were active); either half wrong prices the wrong thing, convincingly.
-  await expect.poll(() => trpc.inputs("chat.previewAssembly")).toEqual([{ chatId: CHAT, presetOverride: PRESET }]);
+  await expect.poll(() => trpc.inputs("chat.previewAssembly")).toEqual([{ chatId: CHAT, presetOverride: PRESET, timeZone: UTC_TIME_ZONE }]);
 
   // THE DEFECT THIS CLOSES: the conversation carrier's bar read "cost not counted" — the honest unbound floor
   // — while a real chat was open. Bound, it reports what the conversation ACTUALLY costs. The assertion goes

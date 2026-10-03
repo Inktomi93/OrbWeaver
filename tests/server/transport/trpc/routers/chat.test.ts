@@ -11,6 +11,7 @@ import type { ChatBusEvent, ChatIdentity, ChatReactionsView, MessageView, StartC
 import { CHAT_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { ChatService } from "@orb/server/domain/chat";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "@orb/server/domain/chat";
 import { describe, vi } from "vitest";
@@ -270,14 +271,11 @@ describe("chat.selectVariant — the swipe strip's step-BACK verb (task #19 wire
       services: { chat: { selectVariant } },
     });
 
-    const result = await caller(ctx).chat.selectVariant({
-      chatId: CHAT,
-      messageId: MESSAGE.id,
-      variantId,
-    });
+    const result = await caller(ctx).chat.selectVariant({ timeZone: UTC_TIME_ZONE, chatId: CHAT, messageId: MESSAGE.id, variantId });
 
     expect(selectVariant).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: MEMBER }),
+      timeZone: UTC_TIME_ZONE,
       chatId: CHAT,
       messageId: MESSAGE.id,
       variantId,
@@ -293,7 +291,9 @@ describe("chat.selectVariant — the swipe strip's step-BACK verb (task #19 wire
       services: { chat: { selectVariant } },
     });
 
-    await expect(caller(ctx).chat.selectVariant({ chatId: CHAT, messageId: MESSAGE.id, variantId })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(ctx).chat.selectVariant({ timeZone: UTC_TIME_ZONE, chatId: CHAT, messageId: MESSAGE.id, variantId })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
   });
 });
 
@@ -313,14 +313,11 @@ describe("chat.continueTurn — the guided-continue verb (composer wand wire-thr
     });
 
     const guided = { action: "continue" as const, input: "steer it darker" };
-    const result = await caller(ctx).chat.continueTurn({
-      chatId: CHAT,
-      messageId: MESSAGE.id,
-      guided,
-    });
+    const result = await caller(ctx).chat.continueTurn({ timeZone: UTC_TIME_ZONE, chatId: CHAT, messageId: MESSAGE.id, guided });
 
     expect(continueTurn).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: MEMBER }),
+      timeZone: UTC_TIME_ZONE,
       chatId: CHAT,
       messageId: MESSAGE.id,
       guided,
@@ -335,7 +332,7 @@ describe("chat.continueTurn — the guided-continue verb (composer wand wire-thr
       services: { chat: { continueTurn } },
     });
 
-    await expect(caller(ctx).chat.continueTurn({ chatId: CHAT, messageId: MESSAGE.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(ctx).chat.continueTurn({ timeZone: UTC_TIME_ZONE, chatId: CHAT, messageId: MESSAGE.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
 
@@ -412,6 +409,7 @@ describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_RE
 
     await expect(
       caller(ctx).chat.send({
+        timeZone: UTC_TIME_ZONE,
         chatId: CHAT,
         content: "hi",
         // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — an unknown action is the exact 500 vector F6 closes.
@@ -428,6 +426,7 @@ describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_RE
 
     await expect(
       caller(ctx).chat.swipe({
+        timeZone: UTC_TIME_ZONE,
         chatId: CHAT,
         messageId: MESSAGE.id,
         // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — a non-string input is the `.trim()` 500 vector.
@@ -444,6 +443,7 @@ describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_RE
 
     await expect(
       caller(ctx).chat.continueTurn({
+        timeZone: UTC_TIME_ZONE,
         chatId: CHAT,
         messageId: MESSAGE.id,
         // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — a junk role must not reach the provider wire.
@@ -459,9 +459,9 @@ describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_RE
     const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { generate } } });
 
     const guided = { action: "response" as const, input: "hint at the letter", placement: { kind: "system" as const } };
-    await caller(ctx).chat.generate({ chatId: CHAT, guided });
+    await caller(ctx).chat.generate({ timeZone: UTC_TIME_ZONE, chatId: CHAT, guided });
 
-    expect(generate).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: MEMBER }), chatId: CHAT, guided });
+    expect(generate).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: MEMBER }), timeZone: UTC_TIME_ZONE, chatId: CHAT, guided });
   });
 });
 
@@ -498,7 +498,7 @@ describe("chat.impersonateStream — the NON-PERSISTING, STREAMING guided-impers
       input: "ask about the ruins",
       person: "third" as const,
     };
-    const sub = await caller(ctx).chat.impersonateStream({ chatId: CHAT, guided });
+    const sub = await caller(ctx).chat.impersonateStream({ timeZone: UTC_TIME_ZONE, chatId: CHAT, guided });
     // The router wraps each `{ delta }` in a `tracked()` envelope: `[id, data, symbol]`, data at index 1.
     const deltas: string[] = [];
     for await (const yielded of sub as AsyncIterable<unknown>) {
@@ -527,7 +527,7 @@ describe("chat.impersonateStream — the NON-PERSISTING, STREAMING guided-impers
     // The verb's gate throws on the first `.next()`; `withSubscriptionErrors` (router) catches the domain
     // NOT_FOUND and yields a typed `__subscriptionError` terminal frame (code NOT_FOUND) rather than tearing
     // the stream down with an opaque 500 — the client surfaces the code instead of an untyped error.
-    const sub = await caller(ctx).chat.impersonateStream({ chatId: CHAT });
+    const sub = await caller(ctx).chat.impersonateStream({ timeZone: UTC_TIME_ZONE, chatId: CHAT });
     const frames: unknown[] = [];
     for await (const yielded of sub as AsyncIterable<unknown>) {
       frames.push(dataOf(yielded));
@@ -548,10 +548,11 @@ describe("chat.generate — the guided-response verb (composer wand wire-through
     });
 
     const guided = { action: "response" as const, input: "hint at the letter" };
-    const result = await caller(ctx).chat.generate({ chatId: CHAT, guided });
+    const result = await caller(ctx).chat.generate({ timeZone: UTC_TIME_ZONE, chatId: CHAT, guided });
 
     expect(generate).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: MEMBER }),
+      timeZone: UTC_TIME_ZONE,
       chatId: CHAT,
       guided,
     });
@@ -565,7 +566,7 @@ describe("chat.generate — the guided-response verb (composer wand wire-through
       services: { chat: { generate } },
     });
 
-    await expect(caller(ctx).chat.generate({ chatId: CHAT })).rejects.toMatchObject({
+    await expect(caller(ctx).chat.generate({ timeZone: UTC_TIME_ZONE, chatId: CHAT })).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
   });
@@ -584,14 +585,11 @@ describe("chat.editMessage — edit-in-place's save verb (chat-surface lane wire
       services: { chat: { editMessage } },
     });
 
-    const result = await caller(ctx).chat.editMessage({
-      chatId: CHAT,
-      messageId: MESSAGE.id,
-      content: "edited content",
-    });
+    const result = await caller(ctx).chat.editMessage({ timeZone: UTC_TIME_ZONE, chatId: CHAT, messageId: MESSAGE.id, content: "edited content" });
 
     expect(editMessage).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: MEMBER }),
+      timeZone: UTC_TIME_ZONE,
       chatId: CHAT,
       messageId: MESSAGE.id,
       content: "edited content",
@@ -606,7 +604,9 @@ describe("chat.editMessage — edit-in-place's save verb (chat-surface lane wire
       services: { chat: { editMessage } },
     });
 
-    await expect(caller(ctx).chat.editMessage({ chatId: CHAT, messageId: MESSAGE.id, content: "x" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(ctx).chat.editMessage({ timeZone: UTC_TIME_ZONE, chatId: CHAT, messageId: MESSAGE.id, content: "x" })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
   });
 });
 
@@ -878,10 +878,11 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
       services: { chat: { previewAssembly } },
     });
 
-    const result = await caller(ctx).chat.previewAssembly({ chatId: CHAT });
+    const result = await caller(ctx).chat.previewAssembly({ timeZone: UTC_TIME_ZONE, chatId: CHAT });
 
     expect(previewAssembly).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: MEMBER }),
+      timeZone: UTC_TIME_ZONE,
       chatId: CHAT,
     });
     expect(result).toEqual(Preview);
@@ -891,16 +892,17 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
     const previewAssembly = vi.fn<ChatService["previewAssembly"]>(async () => Preview);
     const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { previewAssembly } } });
 
-    await caller(ctx).chat.previewAssembly({ chatId: CHAT, presetOverride: ID.presetBound });
+    await caller(ctx).chat.previewAssembly({ timeZone: UTC_TIME_ZONE, chatId: CHAT, presetOverride: ID.presetBound });
     expect(previewAssembly).toHaveBeenLastCalledWith({
       principal: expect.objectContaining({ userId: MEMBER }),
+      timeZone: UTC_TIME_ZONE,
       chatId: CHAT,
       presetOverride: ID.presetBound,
     });
 
     // Omitted ⇒ the key never reaches the verb, so every pre-existing caller assembles the room's OWN preset.
-    await caller(ctx).chat.previewAssembly({ chatId: CHAT });
-    expect(previewAssembly).toHaveBeenLastCalledWith({ principal: expect.objectContaining({ userId: MEMBER }), chatId: CHAT });
+    await caller(ctx).chat.previewAssembly({ timeZone: UTC_TIME_ZONE, chatId: CHAT });
+    expect(previewAssembly).toHaveBeenLastCalledWith({ principal: expect.objectContaining({ userId: MEMBER }), timeZone: UTC_TIME_ZONE, chatId: CHAT });
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (the host-only debug-surface gate)", async () => {
@@ -910,7 +912,7 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
       services: { chat: { previewAssembly } },
     });
 
-    await expect(caller(ctx).chat.previewAssembly({ chatId: CHAT })).rejects.toMatchObject({
+    await expect(caller(ctx).chat.previewAssembly({ timeZone: UTC_TIME_ZONE, chatId: CHAT })).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
   });
@@ -1189,13 +1191,11 @@ describe("chat.forceCharacterTurn — the host summons a member to speak next (t
       services: { chat: { forceCharacterTurn } },
     });
 
-    const result = await caller(ctx).chat.forceCharacterTurn({
-      chatId: CHAT,
-      characterId: CHARACTER,
-    });
+    const result = await caller(ctx).chat.forceCharacterTurn({ timeZone: UTC_TIME_ZONE, chatId: CHAT, characterId: CHARACTER });
 
     expect(forceCharacterTurn).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: MEMBER }),
+      timeZone: UTC_TIME_ZONE,
       chatId: CHAT,
       characterId: CHARACTER,
     });
@@ -1209,7 +1209,9 @@ describe("chat.forceCharacterTurn — the host summons a member to speak next (t
       services: { chat: { forceCharacterTurn } },
     });
 
-    await expect(caller(ctx).chat.forceCharacterTurn({ chatId: CHAT, characterId: CHARACTER })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(ctx).chat.forceCharacterTurn({ timeZone: UTC_TIME_ZONE, chatId: CHAT, characterId: CHARACTER })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
   });
 });
 
@@ -1450,5 +1452,77 @@ describe("chat output declarations", () => {
     await expect(caller(ctx).chat.listReactions({ chatId: CHAT })).resolves.toEqual(view);
     listReactions.mockResolvedValue({ ...view, groups: view.groups.map((group) => ({ ...group, privateReactorUserId: NON_MEMBER })) });
     await expect(caller(ctx).chat.listReactions({ chatId: CHAT })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+  });
+});
+
+// UI-Gates §11.5: every procedure whose assembly renders `{{date}}`/`{{time}}`/`{{weekday}}` carries the viewer's
+// browser zone. The wire refuses a non-string and reads a zone this server does not know as UTC, so the verb only
+// ever sees a zone the macro engine can render. The verb is stubbed to record its params and refuse.
+describe("the viewer's zone — each turn and rendered-preview procedure requires it and hands the verb a known zone", () => {
+  type Caller = ReturnType<typeof caller>;
+  type ZoneVerb = (params: { readonly timeZone?: string | undefined }) => never;
+  interface ZoneCase {
+    readonly path: string;
+    readonly stub: (verb: ZoneVerb) => Partial<ChatService>;
+    readonly call: (c: Caller, timeZone: string) => Promise<unknown>;
+  }
+  const cases: readonly ZoneCase[] = [
+    { path: "send", stub: (send) => ({ send }), call: (c, timeZone) => c.chat.send({ chatId: CHAT, content: "hi", timeZone }) },
+    {
+      path: "commitMessage",
+      stub: (commitMessage) => ({ commitMessage }),
+      call: (c, timeZone) => c.chat.commitMessage({ chatId: CHAT, content: "hi", timeZone }),
+    },
+    { path: "swipe", stub: (swipe) => ({ swipe }), call: (c, timeZone) => c.chat.swipe({ chatId: CHAT, messageId: MESSAGE.id, timeZone }) },
+    {
+      path: "selectVariant",
+      stub: (selectVariant) => ({ selectVariant }),
+      call: (c, timeZone) => c.chat.selectVariant({ chatId: CHAT, messageId: MESSAGE.id, variantId: ID.messageVariant2, timeZone }),
+    },
+    {
+      path: "continueTurn",
+      stub: (continueTurn) => ({ continueTurn }),
+      call: (c, timeZone) => c.chat.continueTurn({ chatId: CHAT, messageId: MESSAGE.id, timeZone }),
+    },
+    {
+      path: "impersonateStream",
+      stub: (impersonateStream) => ({ impersonateStream }),
+      call: (c, timeZone) => c.chat.impersonateStream({ chatId: CHAT, timeZone }),
+    },
+    { path: "generate", stub: (generate) => ({ generate }), call: (c, timeZone) => c.chat.generate({ chatId: CHAT, timeZone }) },
+    {
+      path: "forceCharacterTurn",
+      stub: (forceCharacterTurn) => ({ forceCharacterTurn }),
+      call: (c, timeZone) => c.chat.forceCharacterTurn({ chatId: CHAT, characterId: ID.characterAria, timeZone }),
+    },
+    {
+      path: "editMessage",
+      stub: (editMessage) => ({ editMessage }),
+      call: (c, timeZone) => c.chat.editMessage({ chatId: CHAT, messageId: MESSAGE.id, content: "x", timeZone }),
+    },
+    { path: "previewAssembly", stub: (previewAssembly) => ({ previewAssembly }), call: (c, timeZone) => c.chat.previewAssembly({ chatId: CHAT, timeZone }) },
+    {
+      path: "previewActionTemplates",
+      stub: (previewActionTemplates) => ({ previewActionTemplates }),
+      call: (c, timeZone) => c.chat.previewActionTemplates({ chatId: CHAT, presetId: ID.presetBound, timeZone }),
+    },
+  ];
+  // @orb-waive no-test-fabrication(unknown): the refusal under test is a body the client types forbid, so the typed caller must be handed one. Ends when the caller accepts unknown input directly.
+  const notAZone = 545 as unknown as string;
+
+  /** Call `path` with `timeZone` behind a recording verb; resolves to the zones the verb received. */
+  async function zonesReceived(zoneCase: ZoneCase, timeZone: string): Promise<readonly (string | undefined)[]> {
+    const verb = vi.fn<ZoneVerb>(() => {
+      throw new ChatNotFoundError(CHAT);
+    });
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: zoneCase.stub(verb) } });
+    await expect(zoneCase.call(caller(ctx), timeZone)).rejects.toMatchObject({ code: timeZone === notAZone ? "BAD_REQUEST" : "NOT_FOUND" });
+    return verb.mock.calls.map(([params]) => params.timeZone);
+  }
+
+  test.each(cases)("$path: a known zone reaches the verb, an unknown one reaches it as UTC, a non-string never reaches it", async (zoneCase) => {
+    expect(await zonesReceived(zoneCase, "Asia/Kathmandu")).toEqual(["Asia/Kathmandu"]);
+    expect(await zonesReceived(zoneCase, "Etc/Unknown")).toEqual([UTC_TIME_ZONE]);
+    expect(await zonesReceived(zoneCase, notAZone)).toEqual([]);
   });
 });
