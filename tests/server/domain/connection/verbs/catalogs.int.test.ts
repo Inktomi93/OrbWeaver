@@ -214,17 +214,17 @@ describe("catalogModels", () => {
     expect(h.requests, "the builtin strategy must not dial anything").toEqual([]);
   });
 
-  // A model of another kind cannot serve the row's task: picking the encoder on a reranker row breaks the rerank role.
-  test("a saved row lists only models of its own kind, each the built-in catalog describes", async () => {
+  // The same list feeds "Add another model on this key", which adds a NEW row of any kind: from the encoder row it
+  // must offer the rerankers, which a closed built-in catalog cannot take typed. Only the editor's own picker narrows.
+  test("a saved row lists the whole catalog, every kind and every entry described", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     const owner = await seedOwner(db);
-    const [, reranker] = LOCAL_LIGHT_SEED_ROWS;
-    const row = await h.svc.create({ principal: owner.principal, providerId: "local-light", credentialId: null, baseUrl: null, model: reranker.model });
+    const [encoder, reranker] = LOCAL_LIGHT_SEED_ROWS;
+    const row = await h.svc.create({ principal: owner.principal, providerId: "local-light", credentialId: null, baseUrl: null, model: encoder.model });
     const result = await h.svc.catalogModels({ principal: owner.principal, connectionId: row.id });
     const models = result.listed ? result.models : [];
-    expect(models.map((entry) => entry.id)).toEqual(expect.arrayContaining([reranker.model, ...reranker.earlierModels]));
-    expect(models.every((entry) => entry.kind === "rerank")).toBe(true);
+    expect(models.map((entry) => entry.id)).toEqual(expect.arrayContaining([encoder.model, reranker.model, ...reranker.earlierModels]));
     expect(models.filter((entry) => (entry.description ?? "") === "").map((entry) => entry.id)).toEqual([]);
   });
 });

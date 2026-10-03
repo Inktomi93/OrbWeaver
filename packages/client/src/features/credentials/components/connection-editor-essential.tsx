@@ -2,7 +2,7 @@
 // Board A): the saved-on-blur text field the URL and the auto-minted name both use, and the MODEL field over
 // the shared ModelPicker. Split out of `connection-editor.tsx` at the `component-size` cap.
 
-import type { ModelCheck, ProviderDef } from "@orb/contracts/inference";
+import type { ModelCheck, ModelKind, ProviderDef } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
@@ -13,6 +13,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useTRPC } from "#data";
 import { modelIdExample } from "../lib/add-connection-form-model.ts";
+import { modelsOfKind } from "../lib/connection-editor-model.ts";
 import { failedCatalogSource, modelCheckOf, modelListSource, typedModelAllowed } from "../lib/model-picker-model.ts";
 import type { ModelPickerProps } from "./model-picker.tsx";
 import { ModelPicker } from "./model-picker.tsx";
@@ -57,6 +58,7 @@ export function SavedTextField({
  *  corrected, and a failed read corrects nothing: it is not a check. */
 export function ModelField({
   connectionId,
+  kind,
   model,
   modelCheck,
   listOwner,
@@ -65,6 +67,8 @@ export function ModelField({
   onCommit,
 }: {
   readonly connectionId: UserConnectionId;
+  /** The row's kind: the list is narrowed to it, since a model of another kind would break the row's roles. */
+  readonly kind: ModelKind;
   readonly model: string;
   readonly modelCheck: ModelCheck;
   /** Whose list this is, in the user's words — an endpoint's host, or the provider's label. */
@@ -80,7 +84,7 @@ export function ModelField({
   const recheck = (): void => {
     catalog.refetch().catch(() => undefined); // the query's own error state carries the failure
   };
-  const source = catalogSource(catalog, recheck);
+  const source = catalogSource(catalog, recheck, kind);
   const checkNow = modelCheckOf(source, model);
   // The searchable list is on screen; an empty answer renders the typed field instead.
   const listShown = source.status === "listed" && source.models.length > 0;
@@ -148,13 +152,17 @@ export function ModelField({
   );
 }
 
-/** The saved row's list read as the picker's source. */
+/** The saved row's list read as the picker's source, narrowed to the row's kind. */
 function catalogSource(
   catalog: { readonly isError: boolean; readonly error: unknown; readonly data: Parameters<typeof modelListSource>[0] | undefined },
   retry: () => void,
+  kind: ModelKind,
 ): ModelPickerProps["source"] {
   if (catalog.isError) {
     return failedCatalogSource(catalog.error, retry);
   }
-  return catalog.data === undefined ? { status: "loading" } : modelListSource(catalog.data, retry);
+  if (catalog.data === undefined) {
+    return { status: "loading" };
+  }
+  return modelListSource(catalog.data.listed ? { listed: true, models: modelsOfKind(catalog.data.models, kind) } : catalog.data, retry);
 }
