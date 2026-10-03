@@ -6,7 +6,7 @@
 // re-derives the coupled speakerTags default), the scopedCards↔cardScope mapping seam, the narrator arm
 // omits cardScope, and the Advanced disclosure reveals policy / member-visibility / auto-mode.
 
-import { DEFAULT_GROUP_CONFIG, GROUP_POLICY_LABELS, SMART_UTILITY_SWITCH_LABEL } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, GROUP_POLICY_LABELS, groupConfigSchema, SMART_UTILITY_SWITCH_LABEL } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { UTILITY_RUNNING_ROUTES, utilityBindings, withRunningRerank } from "../../../../support/node/utility-role.ts";
@@ -120,6 +120,7 @@ test("the self-response switch shows with auto mode off and saves", async ({ mou
 const SMART_OPTION = { name: GROUP_POLICY_LABELS.smart };
 const POLICY_COMBOBOX = { name: "Who speaks each round" };
 const UTILITY_UPGRADE = { name: SMART_UTILITY_SWITCH_LABEL };
+const HEALED_STATUS = '[data-slot="narrator-healed-smart"]';
 
 test("Smart can be chosen with no Utility model, and offers no door until the Utility opt-in is on", async ({ mount, page }) => {
   await routeTrpc(page, { ...UTILITY_RUNNING_ROUTES, "connection.listBindings": withRunningRerank(utilityBindings("unset")) });
@@ -148,9 +149,36 @@ test("with a running Rerank model Smart can be chosen, and the choice saves", as
   await expect(component.getByRole("button", { name: MODEL_ROLES_DOOR })).toHaveCount(0);
 });
 
+test("switching a Smart room to Narrator saves Natural and disables Smart; switching back does not restore it", async ({ mount, page }) => {
+  await routeTrpc(page, { ...UTILITY_RUNNING_ROUTES, "connection.listBindings": withRunningRerank(utilityBindings("running")) });
+  const component = await mount(<GroupConfigFormStory config={groupConfigSchema.parse({ output: "per-speaker", policy: "smart" })} />);
+  // The live region is mounted empty before the heal, so assistive tech is watching it when the text lands.
+  const healed = component.getByRole("status").and(component.locator(HEALED_STATUS));
+  await expect(healed).toHaveCount(1);
+  await expect(healed).toBeEmpty();
+
+  await component.getByRole("button", { name: "Narrator" }).click();
+  await expect(component.locator(SAVED)).toContainText('"output":"narrator"');
+  await expect(component.locator(SAVED)).toContainText('"policy":"natural"');
+  // The heal is said, not silent: a status line under the output toggle.
+  await expect(healed).not.toBeEmpty();
+  await expect(healed).toBeVisible();
+
+  await component.getByRole("button", { name: "Advanced" }).click();
+  await component.getByRole("combobox", POLICY_COMBOBOX).click();
+  await expect(page.getByRole("option", SMART_OPTION)).toBeDisabled();
+  await page.keyboard.press("Escape");
+
+  await component.getByRole("button", { name: "Per-speaker" }).click();
+  await expect(component.locator(SAVED)).toContainText('"output":"per-speaker"');
+  await expect(component.locator(SAVED)).toContainText('"policy":"natural"');
+  // Back on Per-speaker the heal no longer describes the room, so the status line clears.
+  await expect(healed).toBeEmpty();
+});
+
 test("Smart's default Rerank picker with no Rerank model bound offers the door to Model roles", async ({ mount, page }) => {
   await routeTrpc(page, UTILITY_RUNNING_ROUTES);
-  const component = await mount(<GroupConfigFormStory config={{ ...DEFAULT_GROUP_CONFIG, policy: "smart" }} />);
+  const component = await mount(<GroupConfigFormStory config={groupConfigSchema.parse({ output: "per-speaker", policy: "smart" })} />);
 
   await component.getByRole("button", { name: "Advanced" }).click();
   await expect(component.getByRole("button", { name: MODEL_ROLES_DOOR })).toBeVisible();
@@ -158,10 +186,15 @@ test("Smart's default Rerank picker with no Rerank model bound offers the door t
 
 test("a per-speaker room already on Smart's Utility opt-in with no Utility model offers the door to Model roles", async ({ mount, page }) => {
   await routeTrpc(page, { ...UTILITY_RUNNING_ROUTES, "connection.listBindings": utilityBindings("unset") });
-  const component = await mount(<GroupConfigFormStory config={{ ...DEFAULT_GROUP_CONFIG, policy: "smart", smartPicker: "utility" }} />);
+  const component = await mount(<GroupConfigFormStory config={groupConfigSchema.parse({ output: "per-speaker", policy: "smart", smartPicker: "utility" })} />);
 
   await component.getByRole("button", { name: "Advanced" }).click();
-  await expect(component.getByRole("button", { name: MODEL_ROLES_DOOR })).toBeVisible();
+  const door = component.getByRole("button", { name: MODEL_ROLES_DOOR });
+  await expect(door).toBeVisible();
+  // The door sits under the switch that asks for the Utility model, not under the speaker-order select.
+  const switchBox = await component.getByRole("switch", UTILITY_UPGRADE).boundingBox();
+  const doorBox = await door.boundingBox();
+  expect(doorBox?.y ?? 0).toBeGreaterThan(switchBox?.y ?? Number.POSITIVE_INFINITY);
 });
 
 // F1 SWITCH pin (stickler review 2026-07-16-merge-block-28523122): this form mounts under

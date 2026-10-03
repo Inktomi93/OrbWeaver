@@ -14,9 +14,10 @@
 // direct import (which would be RED).
 
 import { runAutoMode } from "../engine/auto-mode.ts";
-import { personaSummaryOf, rerankPick } from "../engine/rerank-pick.ts";
+import { characterLine } from "../engine/character-line.ts";
+import { rerankPick } from "../engine/rerank-pick.ts";
 import { driveRound } from "../engine/round.ts";
-import { resolveMentions, resolveNameMentions, selectSpeakers } from "../engine/select-speakers.ts";
+import { humanPlayerNames, resolveMentions, resolveNameMentions, selectSpeakers } from "../engine/select-speakers.ts";
 import { smartArbitrate } from "../engine/smart-arbitrate.ts";
 import { resolveTurnIdentity } from "../engine/turn-identity.ts";
 
@@ -40,15 +41,20 @@ export function resolveNameMentionsVia(...args: Parameters<typeof resolveNameMen
   return resolveNameMentions(...args);
 }
 
-/** 7b side-LLM arbitration (the `smart` policy) — one chosen speaker, roster-validating, with a `natural`
- *  fallback the result flags (`degraded`) so the caller can surface it. */
+/** The human players' names both Smart pickers read: the room's personas plus the named human lines. PURE. */
+export function humanPlayerNamesVia(...args: Parameters<typeof humanPlayerNames>): ReturnType<typeof humanPlayerNames> {
+  return humanPlayerNames(...args);
+}
+
+/** Smart's Utility-model pick — the round's responders, roster-validating, with a `natural` fallback the result
+ *  flags (`degraded`) so the caller can surface it. */
 export function smartArbitrateVia(...args: Parameters<typeof smartArbitrate>): ReturnType<typeof smartArbitrate> {
   return smartArbitrate(...args);
 }
 
-/** A card's persona text as Smart's reranker documents read it. PURE. */
-export function personaSummaryOfVia(...args: Parameters<typeof personaSummaryOf>): ReturnType<typeof personaSummaryOf> {
-  return personaSummaryOf(...args);
+/** A character's "who is this" line, the one both Smart pickers describe it with. PURE. */
+export function characterLineVia(...args: Parameters<typeof characterLine>): ReturnType<typeof characterLine> {
+  return characterLine(...args);
 }
 
 /** Smart's default pick over the funder's bound rerank role, with a `natural` fallback the result flags. */

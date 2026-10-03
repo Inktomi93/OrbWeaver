@@ -7,8 +7,15 @@ import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { ArbiterCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
-import { NAME_STOPWORDS, resolveMentions, resolveNameMentions, selectSpeakers } from "../../../../../packages/server/src/domain/chat/engine/select-speakers.ts";
+import type { ArbiterCandidate, TranscriptLine } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
+import {
+  addressedGroups,
+  humanPlayerNames,
+  NAME_STOPWORDS,
+  resolveMentions,
+  resolveNameMentions,
+  selectSpeakers,
+} from "../../../../../packages/server/src/domain/chat/engine/select-speakers.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A seeded Park-Miller (MINSTD) LCG — the INJECTED PRNG stand-in (D46; no `Math.random`, no bitwise). */
@@ -197,7 +204,7 @@ describe("selectSpeakers — natural activation (mentions, talkativeness rolls, 
     expect(keys(out)).toEqual(keys([charRef("a"), charRef("b"), charRef("c")]));
   });
 
-  test("the smart arm reached without the side-LLM (narrator room) activates exactly like natural", () => {
+  test("the smart arm, reached without a picker, activates exactly like natural", () => {
     const rolls = [...IN_ORDER, 0.4, 0.6, 0.5] as const;
     const natural = selectSpeakers({ candidates: trio, policy: "natural", lastSpeaker: null, mentionedIds: [cid("b")], rng: scripted(...rolls) });
     const smart = selectSpeakers({ candidates: trio, policy: "smart", lastSpeaker: null, mentionedIds: [cid("b")], rng: scripted(...rolls) });
@@ -515,5 +522,102 @@ describe("resolveMentions — @mention extraction (human-authored text only)", (
       // The long name wins its own span; the short one must NOT also fire off the prefix inside it.
       expect(resolveMentions("@Анятолия смотрит", world)).toEqual([cid("cyrlong")]);
     });
+  });
+});
+
+describe("addressedGroups — who a line addresses, for the Smart pickers", () => {
+  const seat = (k: string): ArbiterCandidate => ({ ref: charRef(k), talkativeness: 0.5, disabled: false, leftSeq: null });
+  const byBryn = (text: string): { speakerName: string; text: string; characterId: CharacterId } => ({ speakerName: "Bryn", text, characterId: cid("bryn") });
+  const rook = [
+    { ref: charRef("bard"), name: "Rook the Bard" },
+    { ref: charRef("bryn"), name: "Bryn" },
+  ];
+
+  test("a word a human player's name shares addresses the human, not the character", () => {
+    expect(addressedGroups(byBryn("Rook, your move."), [seat("bard"), seat("bryn")], rook, ["Rook"])).toEqual({ groups: [], humanAmbiguous: false });
+  });
+
+  test("the character's whole name, or a word no human shares, still addresses it", () => {
+    expect(addressedGroups(byBryn("Rook the Bard, your move."), [seat("bard"), seat("bryn")], rook, ["Rook"])).toEqual({
+      groups: [[cid("bard")]],
+      humanAmbiguous: false,
+    });
+    expect(addressedGroups(byBryn("Bard, your move."), [seat("bard"), seat("bryn")], rook, ["Rook"])).toEqual({
+      groups: [[cid("bard")]],
+      humanAmbiguous: false,
+    });
+  });
+
+  test("a whole name spelled out wins its words: the longest whole name, never the shorter one inside it", () => {
+    const knights = [
+      { ref: charRef("k"), name: "The Knight" },
+      { ref: charRef("bk"), name: "The Black Knight" },
+    ];
+    const seats = [seat("k"), seat("bk")];
+    expect(addressedGroups(byBryn("The Black Knight, hold the gate."), seats, knights, [])).toEqual({ groups: [[cid("bk")]], humanAmbiguous: false });
+    // A bare shared word stays ambiguous, for the picker to settle.
+    expect(addressedGroups(byBryn("Knight, hold the gate."), seats, knights, [])).toEqual({ groups: [[cid("k"), cid("bk")]], humanAmbiguous: false });
+  });
+
+  test("a whole name made only of a human's words could be either, so nobody short-circuits", () => {
+    const grace = [
+      { ref: charRef("grace"), name: "Grace" },
+      { ref: charRef("bryn"), name: "Bryn" },
+    ];
+    const seats = [seat("grace"), seat("bryn")];
+    // Human "Grace" and character "Grace": the bare name is ambiguous.
+    expect(addressedGroups(byBryn("Grace, help me lift this."), seats, grace, ["Grace"])).toEqual({ groups: [], humanAmbiguous: true });
+    const bran = [
+      { ref: charRef("bran"), name: "Bran" },
+      { ref: charRef("bryn"), name: "Bryn" },
+    ];
+    // Human "Bran Stark" and character "Bran", addressed as "Bran": also ambiguous.
+    expect(addressedGroups(byBryn("Bran, your move."), [seat("bran"), seat("bryn")], bran, ["Bran Stark"])).toEqual({ groups: [], humanAmbiguous: true });
+    // With no such human, the same lines still address the character.
+    expect(addressedGroups(byBryn("Grace, help me lift this."), seats, grace, ["Sam"])).toEqual({ groups: [[cid("grace")]], humanAmbiguous: false });
+    expect(addressedGroups(byBryn("Bran, your move."), [seat("bran"), seat("bryn")], bran, ["Sam"])).toEqual({
+      groups: [[cid("bran")]],
+      humanAmbiguous: false,
+    });
+  });
+
+  test("a human's name written as an ordinary lowercase word is no ambiguity; written as a name it is", () => {
+    const roster = [
+      { ref: charRef("mara"), name: "Mara" },
+      { ref: charRef("grace"), name: "Grace" },
+      { ref: charRef("will"), name: "Will" },
+    ];
+    const seats = [seat("mara"), seat("grace"), seat("will")];
+    const byNate = (text: string): TranscriptLine => ({ speakerName: "Alex", text, characterId: null });
+    expect(addressedGroups(byNate("Mara, move with grace."), seats, roster, ["Alex", "Grace"])).toEqual({ groups: [[cid("mara")]], humanAmbiguous: false });
+    expect(addressedGroups(byNate("Mara, I will hold the door."), seats, roster, ["Alex", "Will"])).toEqual({ groups: [[cid("mara")]], humanAmbiguous: false });
+    // A later capitalized use is still found, past an earlier lowercase one.
+    expect(addressedGroups(byNate("Move with grace, Grace."), seats, roster, ["Alex", "Grace"])).toEqual({ groups: [], humanAmbiguous: true });
+    expect(addressedGroups(byNate("Mara, Grace, go."), seats, roster, ["Alex", "Grace"])).toEqual({ groups: [[cid("mara")]], humanAmbiguous: true });
+  });
+
+  test("a character's whole name spelled out is no ambiguity, even when a shorter character name inside it is a player's", () => {
+    const roster = [
+      { ref: charRef("rook"), name: "Rook" },
+      { ref: charRef("bard"), name: "Rook the Bard" },
+      { ref: charRef("mara"), name: "Mara" },
+    ];
+    const seats = [seat("rook"), seat("bard"), seat("mara")];
+    const byNate = (text: string): TranscriptLine => ({ speakerName: "Alex", text, characterId: null });
+    expect(addressedGroups(byNate("Rook the Bard, sing."), seats, roster, ["Alex", "Rook"])).toEqual({ groups: [[cid("bard")]], humanAmbiguous: false });
+    expect(addressedGroups(byNate("Rook, sing."), seats, roster, ["Alex", "Rook"])).toEqual({ groups: [], humanAmbiguous: true });
+  });
+
+  test("Natural's mention read is unchanged: a bare shared word still names the character there", () => {
+    expect(resolveNameMentions("Rook, your move.", rook)).toEqual([cid("bard")]);
+  });
+
+  test("the human players are the room's personas plus the named human lines, deduped", () => {
+    const lines = [
+      { speakerName: "jun", text: "hi", characterId: null },
+      { speakerName: "Bryn", text: "hey", characterId: cid("bryn") },
+      { speakerName: null, text: "(system)", characterId: null },
+    ];
+    expect(humanPlayerNames(["Sam", undefined, "Jun"], lines)).toEqual(["Sam", "Jun"]);
   });
 });

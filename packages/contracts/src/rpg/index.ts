@@ -62,6 +62,7 @@ export {
 export type { RpgClockTime, RpgWeather, RpgWeatherType, TimeOfDay } from "./ambient.ts";
 export {
   clockTimeOfDay,
+  RPG_SCENE_LINE_LABEL,
   RPG_WEATHER_TYPES,
   rpgClockTimeSchema,
   rpgWeatherLabelSchema,

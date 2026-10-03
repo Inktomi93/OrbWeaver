@@ -258,6 +258,19 @@ describe("setGroupConfig — host-only metadata write", () => {
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
   });
 
+  test("a write of narrator + Smart is normalized: the room is stored and returned as narrator + Natural", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const participants = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
+
+    const result = await participants.setGroupConfig({ principal: principal(host), chatId, config: { output: "narrator", policy: "smart" } });
+
+    expect(result).toMatchObject({ output: "narrator", policy: "natural" });
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.metadata?.group).toMatchObject({ output: "narrator", policy: "natural" });
+  });
+
   test("a plain member is refused with not_host", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const member = await seedUser(db, castId<Handle>("member"));

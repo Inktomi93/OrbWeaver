@@ -59,6 +59,7 @@ import {
   attributeReading,
   clockTimeOfDay,
   RPG_NPC_GUIDE_FIELDS,
+  RPG_SCENE_LINE_LABEL,
   rpgWeatherText,
   sortTrackers,
   trackerReading,
@@ -501,7 +502,7 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   if (view.ambient !== null) {
     const line = ambientLine(view.ambient, input.dateMode);
     if (line !== "") {
-      stateLines.push(`Scene: ${line}`);
+      stateLines.push(`${RPG_SCENE_LINE_LABEL}${line}`);
     }
   }
   // The P5 plot spine — where the story stands on the campaign scale, so the prose stays on-act.

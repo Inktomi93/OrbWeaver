@@ -89,16 +89,16 @@ export const CHAT_PROSE_SLOTS = {
   "chat.arbiter.system": {
     id: "chat.arbiter.system",
     home: "user",
-    version: 2,
-    // v2 is a VOCABULARY fix, not a behavior change: the default text called the model a "turn director"
-    // while every control, id and symbol around it says ARBITER (`chat.arbiter.system`, `ArbiterCandidate`,
-    // `smartArbitrate`, the slot's own "Turn-arbiter prompt" title). Model-facing bytes are still bytes, so
-    // the change rides the lawful re-version path (D132(A)/§4.4) rather than a silent edit that would strand
-    // every host's `baseVersion` stamp.
+    version: 4,
+    // Re-versioned (D132(A)/§4.4) because the bytes changed: the arbiter answers through a structured-output
+    // schema whose enum holds only the round's candidates, so the text carries no output format and no
+    // "never choose the humans" rule; the schema enforces both. It stays short on purpose: small Utility models
+    // lose a long instruction.
     text:
-      "You are a turn arbiter for a multi-character roleplay. Read the recent conversation and the list of " +
-      "characters who may speak next, then choose the single character who should speak next. Respond with " +
-      "ONLY that character's exact name from the list — no punctuation, no explanation.",
+      "You choose who speaks next in a group roleplay. The human players write their own lines. Choose the " +
+      "character the last message is addressed to, by name or by role (a question about the road goes to the " +
+      "guide), or else whoever would most naturally answer. Usually choose one. Choose several only when several " +
+      "are addressed directly or each has a strong, immediate reason to respond.",
     macros: "none",
     requiredMacros: [],
     requiredTokens: [],

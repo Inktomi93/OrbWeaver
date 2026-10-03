@@ -19,7 +19,7 @@
 // it remains.
 
 import type { ChatBusEvent, ChatIdentity, GroupConfig } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { messageWindowTargetSchema } from "@orb/contracts/search";
 import type { StreamFrame } from "@orb/contracts/stream";
@@ -1522,7 +1522,7 @@ const NARRATOR_ROSTER_STUB: TrpcRoutes<"chat.getChat"> = {
     participants: [],
     anchorPersonaId: null,
     identities: [],
-    group: { ...DEFAULT_GROUP_CONFIG, output: "narrator" },
+    group: groupConfigSchema.parse({ output: "narrator" }),
   }),
 };
 

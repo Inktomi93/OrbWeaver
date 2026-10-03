@@ -250,6 +250,15 @@ test("Ollama: a build without `capabilities` states no kind, modalities or tools
   expect(silent.find((row) => row.id === "qwen2.5:0.5b")?.structured).toBeUndefined();
 });
 
+test("Ollama: a model whose capabilities include `thinking` states that it thinks; the others state nothing about it", async () => {
+  const { rows } = readArm("ollama", "ollama", {
+    "api-show-qwen2.5-0.5b": { model_info: { "qwen2.context_length": 32_768 }, capabilities: ["completion", "tools", "thinking"] },
+  });
+  const listed = await rows;
+  expect(listed.find((row) => row.id === "qwen2.5:0.5b")?.thinks).toBe(true);
+  expect(listed.filter((row) => row.id !== "qwen2.5:0.5b").map((row) => row.thinks)).toEqual([undefined, undefined]);
+});
+
 test("llama.cpp: `/props` states the loaded modalities and the template's tool support for the one model it serves", async () => {
   expect(pinned(await readArm("llamacpp-chat", "llama-cpp").rows)).toEqual([
     {
