@@ -282,6 +282,15 @@ test("the 0006 migration adds the compaction_spend ledger and the image provider
   await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
 });
 
+test("the 0007 migration gives automation rules a nullable time_zone, so rules saved before it read as zone-less", async () => {
+  const db = await createDb(":memory:");
+  await runMigrations(db, MIGRATIONS_DIR);
+  const columns = await db.all<{ name: string; notnull: number; defaultValue: string | null }>(
+    sql.raw("select name, \"notnull\", dflt_value as defaultValue from pragma_table_info('automation_rules') where name = 'time_zone'"),
+  );
+  expect(columns).toEqual([{ name: "time_zone", notnull: 0, defaultValue: null }]);
+});
+
 test("runMigrations restores foreign_keys ON afterward (the finally-restore contract)", async () => {
   // runMigrations toggles FK enforcement OFF for the table-rebuild, then restores ON in finally. If a
   // future migration left it OFF, every subsequent write would bypass FK enforcement silently.

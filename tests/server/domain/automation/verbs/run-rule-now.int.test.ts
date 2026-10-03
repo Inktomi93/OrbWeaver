@@ -12,6 +12,7 @@
 
 import { chatParticipants } from "@orb/db";
 import type { AutomationRuleId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AutomationOps, AutomationTurnRequest } from "@orb/server/domain/automation";
 import { and, eq, isNull } from "drizzle-orm";
 import { describe } from "vitest";
@@ -57,6 +58,7 @@ async function runNowFixture(): Promise<{ fixture: Awaited<ReturnType<typeof rul
 /** `maxFiresPerHour: 0` slams the rule's own fire-rate cap shut, so every bus-driven fire is `budget_refused`. */
 async function enableRule(fx: Awaited<ReturnType<typeof ruleFixture>>, predicateCel: string | null, maxFiresPerHour?: number): Promise<AutomationRuleId> {
   const rule = await fx.svc.createRule({
+    timeZone: UTC_TIME_ZONE,
     principal: principal(fx.host),
     chatId: fx.chatId,
     name: "vote",
@@ -197,6 +199,7 @@ describe("what a manual run KEEPS", () => {
 test("a manual run of a CONFIRM-FIRST rule still ASKS (the arm's authored posture is not overridden)", async () => {
   const { fixture, turns } = await runNowFixture();
   const rule = await fixture.svc.createRule({
+    timeZone: UTC_TIME_ZONE,
     principal: principal(fixture.host),
     chatId: fixture.chatId,
     name: "recap",

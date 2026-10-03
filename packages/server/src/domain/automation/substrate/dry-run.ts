@@ -1,6 +1,6 @@
 // domain/automation/substrate/dry-run — the `testRule` engine: build the CEL activation, evaluate
 // the predicate, and MACRO-RENDER each arm's template — executing NOTHING (no injected op, no budget). The
-// same `toCelBindings`/`nowFields` helpers the dispatch engine reuses to build its live env; here they run
+// same `toCelBindings`/`ruleClock` helpers the dispatch engine reuses to build its live env; here they run
 // over a host-supplied sample. Determinism: the injected clock + prng feed the macro engine (test-determinism).
 //
 // `run_tool` previews its RENDERED ARGS (`argsTemplate`) and nothing else, which is this engine's whole
@@ -9,18 +9,23 @@
 // answer is the D146-d PAUSE terminal a host sees from "Run now". Answering it here through `ArmPreview.error`
 // would read as a template bug and would be a lie about what broke.
 
-import type { AutomationAction, AutomationCelEnv, AutomationTrigger, TriggerFact } from "@orb/contracts/automation";
+import type { AutomationAction, AutomationCelClock, AutomationCelEnv, AutomationTrigger, TriggerFact } from "@orb/contracts/automation";
+import { automationRuleClockZone } from "@orb/contracts/automation";
 import type { CelBindings } from "@orb/kit/cel";
 import { CelEvalError, evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
 import type { ChatId } from "@orb/kit/ids";
+import type { IanaTimeZone } from "@orb/kit/time";
+import { calendarPositionIn } from "@orb/kit/time";
 import type { ArmTemplateRender } from "../contract/ops.ts";
 import type { ArmPreview } from "../contract/results.ts";
 import { renderArmTemplate } from "./macro-render.ts";
 
-/** The `now` projection CEL binds — UTC hour + day-of-week off the injected epoch (deterministic). */
-export function nowFields(epochMs: number): AutomationCelEnv["now"] {
-  const d = new Date(epochMs);
-  return { epochMs, hour: d.getUTCHours(), dayOfWeek: d.getUTCDay() };
+/** A rule's clock: the injected epoch read on the rule's own wall clock (its stored zone, UTC for a rule saved
+ *  before rules carried one). Every env builder takes its `now` from here, so every path reads the same clock. */
+export function ruleClock(epochMs: number, storedZone: IanaTimeZone | null): AutomationCelClock {
+  const timeZone = automationRuleClockZone(storedZone);
+  const { hour, weekday } = calendarPositionIn(epochMs, timeZone);
+  return { now: { epochMs, hour, dayOfWeek: weekday }, timeZone };
 }
 
 /** Flatten the env into the CEL activation's named bindings. `event` is present only for a predicate (a
@@ -119,7 +124,8 @@ export function emptyDryRunEnv(parts: {
   messageCount: number;
   global: Record<string, string>;
   event: TriggerFact;
-  nowMs: number;
+  /** The tested rule's own clock ({@link ruleClock}), so a dry run reads the hours the live dispatch would. */
+  clock: AutomationCelClock;
 }): AutomationCelEnv {
   return {
     event: parts.event,
@@ -127,6 +133,6 @@ export function emptyDryRunEnv(parts: {
     choice: {},
     global: parts.global,
     chat: { id: parts.chatId ?? "", messageCount: parts.messageCount },
-    now: nowFields(parts.nowMs),
+    ...parts.clock,
   };
 }

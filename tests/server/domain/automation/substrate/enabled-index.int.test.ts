@@ -4,6 +4,7 @@
 
 import type { AutomationRuleId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
 import { insertRule, setRuleEnabledRow } from "../../../../../packages/server/src/domain/automation/persistence/rules.ts";
 import { createEnabledRuleIndex } from "../../../../../packages/server/src/domain/automation/substrate/enabled-index.ts";
@@ -13,6 +14,7 @@ import { FIXED_NOW_MS, ruleFixture } from "../_support.ts";
 async function seedEnabledChatRule(fixture: Awaited<ReturnType<typeof ruleFixture>>): Promise<AutomationRuleId> {
   const id = mintTypeId("automation_rule");
   await insertRule(fixture.db, {
+    timeZone: UTC_TIME_ZONE,
     id,
     ownerId: fixture.host,
     creationRequestId: null,
@@ -66,6 +68,7 @@ describe("createEnabledRuleIndex", () => {
     expect(index.hasDomainRules()).toBe(false);
     const id = mintTypeId("automation_rule");
     await insertRule(fixture.db, {
+      timeZone: UTC_TIME_ZONE,
       id,
       ownerId: fixture.host,
       creationRequestId: null,

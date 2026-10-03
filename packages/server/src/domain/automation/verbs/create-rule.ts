@@ -68,6 +68,7 @@ export function createPlanRule(ctx: AutomationContext): PlanRule {
       matchAutomationEvents: params.matchAutomationEvents ?? false,
       cooldownSeconds,
       maxFiresPerHour,
+      timeZone: params.timeZone,
       createdAt: now,
       updatedAt: now,
     };

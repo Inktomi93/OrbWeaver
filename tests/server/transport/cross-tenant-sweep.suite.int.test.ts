@@ -61,6 +61,7 @@ import type {
   WorkloadId,
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AutomationService } from "@orb/server/domain/automation";
 import { loadPresentRole } from "@orb/server/domain/chat";
 import type { ConnectionService } from "@orb/server/domain/connection";
@@ -654,7 +655,7 @@ const PROBES: readonly Probe[] = [
   {
     // Scope 1: A's preset (+ A's chat) — the preset-ownership arm must refuse before anything room-shaped.
     path: "rosterPreset.applyToChat",
-    call: (c, i) => c.rosterPreset.applyToChat({ presetId: i.rosterPresetId, chatId: i.chatId }),
+    call: (c, i) => c.rosterPreset.applyToChat({ timeZone: UTC_TIME_ZONE, presetId: i.rosterPresetId, chatId: i.chatId }),
     requireNotFound: true,
   },
   {
@@ -667,7 +668,7 @@ const PROBES: readonly Probe[] = [
       const myParty = await c.rosterPreset.create({
         input: { name: "StrangerParty", description: "", members: [{ kind: "character", characterId: myChar.id, position: 0 }] },
       });
-      return c.rosterPreset.applyToChat({ presetId: myParty.id, chatId: i.chatId });
+      return c.rosterPreset.applyToChat({ timeZone: UTC_TIME_ZONE, presetId: myParty.id, chatId: i.chatId });
     },
     requireNotFound: true,
   },
@@ -1313,6 +1314,7 @@ const PROBES: readonly Probe[] = [
     path: "automation.createRule",
     call: (c, i) =>
       c.automation.createRule({
+        timeZone: UTC_TIME_ZONE,
         chatId: i.chatId,
         creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation),
         name: ATTACKER_TEXT,
@@ -1325,6 +1327,7 @@ const PROBES: readonly Probe[] = [
     path: "automation.updateRule",
     call: (c, i) =>
       c.automation.updateRule({
+        timeZone: UTC_TIME_ZONE,
         ruleId: i.automationRuleId,
         name: ATTACKER_TEXT,
         trigger: { bus: "chat", type: "messageCommitted" },
@@ -1369,7 +1372,7 @@ const PROBES: readonly Probe[] = [
   // and into the host gate, which is the arm under test.
   {
     path: "automation.createRuleFromPreset",
-    call: (c, i) => c.automation.createRuleFromPreset({ chatId: i.chatId, presetId: "autoAddLore", knobs: { bookId: i.bookId } }),
+    call: (c, i) => c.automation.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, chatId: i.chatId, presetId: "autoAddLore", knobs: { bookId: i.bookId } }),
   },
   { path: "automation.listFires", call: (c, i) => c.automation.listFires({ ruleId: i.automationRuleId }) },
   // B11 — the room Activity read is chat-scoped like `listRules`: `requireChatHost(chatId)`
@@ -1397,6 +1400,7 @@ const PROBES: readonly Probe[] = [
     path: "automation.updateRule",
     call: (c, i) =>
       c.automation.updateRule({
+        timeZone: UTC_TIME_ZONE,
         ruleId: i.automationOwnerRuleId,
         name: ATTACKER_TEXT,
         trigger: { bus: "domain", type: "character.updated" },
@@ -2327,6 +2331,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
 
     // Seed the ordinary composed domain front door; the strict mounted authoring wrappers are probed above.
     const automationRule = await automation.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: automationPrincipal(OWNER_USER_ID),
       chatId,
       name: MARK.automationRule,
@@ -2342,6 +2347,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     //    seed, rather than quietly leaving the probes below with no row to aim at. Born disabled like every
     //    rule, which is the baseline the stranger's setRuleEnabled probe must not move.
     const automationOwnerRule = await automation.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: automationPrincipal(OWNER_USER_ID),
       chatId: null,
       name: MARK.automationOwnerRule,

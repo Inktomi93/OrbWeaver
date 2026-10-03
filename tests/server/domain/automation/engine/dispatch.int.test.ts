@@ -19,6 +19,7 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { AutomationRuleId, UserId, WorldBookId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AutomationOps, AutomationToolOutcome, AutomationToolRequest } from "@orb/server/domain/automation";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -121,6 +122,7 @@ async function pauseFixture(): Promise<{ fixture: Fixture; gate: ToolGate; varOp
 /** Mint + enable a rule whose arms are `run_tool` plus (optionally) a bookkeeping `set_variable` BEFORE it. */
 async function enableToolRule(fx: Fixture, withSideEffectArm = false): Promise<AutomationRuleId> {
   const rule = await fx.svc.createRule({
+    timeZone: UTC_TIME_ZONE,
     principal: principal(fx.host),
     chatId: fx.chatId,
     name: "mood watch",
@@ -289,7 +291,15 @@ function mintGlobal(
   actions: readonly AutomationActionInput[],
   predicateCel: string | null = null,
 ): ReturnType<AutomationService["createRule"]> {
-  return f.svc.createRule({ principal: principal(f.host), chatId: null, name: "library rule", trigger: C5_DOMAIN_TRIGGER, predicateCel, actions });
+  return f.svc.createRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: principal(f.host),
+    chatId: null,
+    name: "library rule",
+    trigger: C5_DOMAIN_TRIGGER,
+    predicateCel,
+    actions,
+  });
 }
 
 /** A capturing imagery op — the arm's real executor runs, the provider does not. */
@@ -338,6 +348,7 @@ describe("C5 dispatch — the owner's test", () => {
     const { svc, reload } = wireRealArms(f, requests);
 
     const rule = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(f.host),
       chatId: null,
       name: "living library",
@@ -372,6 +383,7 @@ describe("C5 dispatch — the owner's test", () => {
     const character = await seedCharacter(f.db, { ownerId: f.host, name: "Mira" });
     const { svc, reload } = wireRealArms(f, requests);
     const rule = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(f.host),
       chatId: null,
       name: "living library",
@@ -402,6 +414,7 @@ describe("C5 dispatch — the owner's test", () => {
     const theirCharacter = await seedCharacter(f.db, { ownerId: stranger, name: "Not mine" });
     const { svc, reload } = wireRealArms(f, requests);
     const rule = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(f.host),
       chatId: null,
       name: "living library",
@@ -483,6 +496,7 @@ describe("C5 belts — the owner rate ceiling and the book-ownership gate", () =
     // which is what makes these two different questions rather than one weakened for the global lane.
     const roomCode = await refusalCode(
       f.svc.createRule({
+        timeZone: UTC_TIME_ZONE,
         principal: principal(f.host),
         chatId: f.chatId,
         name: "room rule",
@@ -505,7 +519,14 @@ describe("C5 engine — the chat plane is UNBOUND on a global frame, never faked
       chatId: null,
       authorUserId: f.host,
       fact: { type: "character.updated", bus: "domain", chatId: null },
-      env: { vars: {}, choice: {}, global: { note: "kept" }, chat: { id: "", messageCount: 0 }, now: { epochMs: 0, hour: 0, dayOfWeek: 0 } },
+      env: {
+        vars: {},
+        choice: {},
+        global: { note: "kept" },
+        chat: { id: "", messageCount: 0 },
+        now: { epochMs: 0, hour: 0, dayOfWeek: 0 },
+        timeZone: UTC_TIME_ZONE,
+      },
       origin: { ruleId: mintTypeId(ID_PREFIX.automationRule), automationDepth: 1 },
       now: 0,
     };
@@ -548,6 +569,7 @@ describe("#1419 a confirm-first arm stops the chain", () => {
     const ctx: AutomationContext = { ...base.ctx, runArm: chainDispatch(seen, askAt) };
     const fixture: Fixture = { ...base, ctx, svc: createAutomationService(ctx) };
     const rule = await fixture.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(fixture.host),
       chatId: fixture.chatId,
       name: "mixed postures",
@@ -614,6 +636,7 @@ describe("the fire reservation admits exactly one of two overlapping dispatches"
     };
     const svc = createAutomationService(ctx);
     const rule = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(base.host),
       chatId: base.chatId,
       name: "reserved",

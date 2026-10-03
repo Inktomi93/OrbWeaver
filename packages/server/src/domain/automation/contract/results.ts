@@ -56,6 +56,11 @@ export interface RuleView {
   readonly suggestOnRefusal: boolean;
   readonly cooldownSeconds: number;
   readonly maxFiresPerHour: number;
+  /** The STORED zone the rule's clock reads in, or NULL for a rule saved before rules carried one (it reads
+   *  UTC — `automationRuleClockZone`). The editor shows it; the next save replaces it with the saver's zone.
+   *  Plain text on purpose: a stored zone the server's ICU stops knowing must still list, or the host could
+   *  never reopen the editor to re-save it. Saves are gated on input (`automationRuleTimeZoneSchema`). */
+  readonly timeZone: string | null;
   readonly lastError: string | null;
   readonly lastFiredAt: number | null;
   readonly createdAt: number;
@@ -123,6 +128,7 @@ export const ruleViewSchema = z.strictObject({
   suggestOnRefusal: z.boolean(),
   cooldownSeconds: z.number(),
   maxFiresPerHour: z.number(),
+  timeZone: z.string().nullable(),
   lastError: z.string().nullable(),
   lastFiredAt: z.number().nullable(),
   createdAt: z.number(),

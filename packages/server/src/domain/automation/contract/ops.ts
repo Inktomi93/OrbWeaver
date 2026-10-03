@@ -45,6 +45,7 @@ import type {
   WorldBookId,
 } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import type { IanaTimeZone } from "@orb/kit/time";
 import type { ResolveViewerVisibility } from "#domain/chat";
 import type { AnalysisConfirmAct } from "./analysis.ts";
 import type { CreateRuleParams } from "./params.ts";
@@ -79,6 +80,7 @@ export interface PlannedRuleInsert {
   readonly matchAutomationEvents: boolean;
   readonly cooldownSeconds: number;
   readonly maxFiresPerHour: number;
+  readonly timeZone: IanaTimeZone;
   readonly createdAt: number;
   readonly updatedAt: number;
 }

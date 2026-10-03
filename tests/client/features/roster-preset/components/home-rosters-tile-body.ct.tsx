@@ -87,7 +87,7 @@ test("one press starts the room with the roster's cast in order, then applies th
       anchorPersonaId: null,
       title: "The Ashen Spire",
     });
-  await expect.poll(() => trpc.lastInput("rosterPreset.applyToChat")).toEqual({ presetId: SPIRE.id, chatId: "chat_started_ct" });
+  await expect.poll(() => trpc.lastInput("rosterPreset.applyToChat")).toEqual({ presetId: SPIRE.id, chatId: "chat_started_ct", timeZone: "UTC" });
 });
 
 test("a campaign roster says it starts a game, and its press hands the game to the room's creation", async ({ mount, page }) => {

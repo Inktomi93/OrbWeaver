@@ -3,6 +3,7 @@
 
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
 import {
   applyReorder,
@@ -42,6 +43,7 @@ function plannedRule(opts: { ownerId: UserId; chatId: ChatId | null; name: strin
     matchAutomationEvents: false,
     cooldownSeconds: 0,
     maxFiresPerHour: 30,
+    timeZone: UTC_TIME_ZONE,
     createdAt: FIXED_NOW_MS,
     updatedAt: FIXED_NOW_MS,
   };

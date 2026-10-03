@@ -59,6 +59,9 @@ export function createUpdateRule(ctx: AutomationContext): AutomationService["upd
       matchAutomationEvents: params.matchAutomationEvents ?? false,
       cooldownSeconds,
       maxFiresPerHour,
+      // The save that edits the rule is the one that moves its clock: a rule saved before rules carried a
+      // zone takes the editor's zone here, and nowhere else.
+      timeZone: params.timeZone,
       updatedAt: ctx.now(),
     });
     const row = await selectRuleRow(ctx.db, params.ruleId);

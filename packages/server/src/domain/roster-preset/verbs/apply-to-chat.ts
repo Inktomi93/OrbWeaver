@@ -41,6 +41,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { RosterPresetRuleSkip } from "@orb/contracts/roster-preset";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { IanaTimeZone } from "@orb/kit/time";
 import type { RuleView } from "#domain/automation";
 import type { RosterPresetContext } from "../context.ts";
 import { RosterPresetNotFoundError } from "../contract/errors.ts";
@@ -73,6 +74,8 @@ async function reassertEnabled(ctx: RosterPresetContext, principal: Principal, g
 interface CastRuleDrive {
   readonly principal: Principal;
   readonly chatId: ChatId;
+  /** The applying host's zone, stamped on every re-minted rule's clock. */
+  readonly timeZone: IanaTimeZone;
   readonly castRule: CastRuleWrite;
   readonly group: readonly RuleView[];
 }
@@ -83,11 +86,11 @@ interface CastRuleDrive {
  *  delete+re-mint edit path moves it. Enabling runs AFTER the whole set minted, so a mid-mint failure
  *  leaves an inert born-disabled half set (the safety posture survives — header). */
 async function replaceAndMint(ctx: RosterPresetContext, drive: CastRuleDrive): Promise<void> {
-  const { principal, chatId, castRule, group } = drive;
+  const { principal, chatId, timeZone, castRule, group } = drive;
   for (const rule of group) {
     await ctx.automation.deleteRule({ principal, ruleId: rule.id });
   }
-  const minted = await ctx.automation.createRuleFromPreset({ principal, chatId, presetId: castRule.rulePresetId, knobs: castRule.knobs });
+  const minted = await ctx.automation.createRuleFromPreset({ principal, chatId, presetId: castRule.rulePresetId, knobs: castRule.knobs, timeZone });
   for (const rule of minted) {
     await ctx.automation.setRuleEnabled({ principal, ruleId: rule.id, enabled: true });
   }
@@ -118,9 +121,9 @@ async function applyOneCastRule(ctx: RosterPresetContext, drive: CastRuleDrive, 
  *  collecting the three result arms. Zero automation ops for a sans-rules cast — the caller guards. */
 async function applyCastRules(
   ctx: RosterPresetContext,
-  args: { readonly principal: Principal; readonly chatId: ChatId; readonly castRules: readonly CastRuleWrite[] },
+  args: { readonly principal: Principal; readonly chatId: ChatId; readonly timeZone: IanaTimeZone; readonly castRules: readonly CastRuleWrite[] },
 ): Promise<{ minted: RulePresetId[]; alreadyPresent: RulePresetId[]; skipped: RosterPresetRuleSkip[] }> {
-  const { principal, chatId, castRules } = args;
+  const { principal, chatId, timeZone, castRules } = args;
   const minted: RulePresetId[] = [];
   const alreadyPresent: RulePresetId[] = [];
   const skipped: RosterPresetRuleSkip[] = [];
@@ -132,7 +135,7 @@ async function applyCastRules(
   const roomRules = await ctx.automation.listRules({ principal, chatId });
   for (const castRule of castRules) {
     const group = roomRules.filter((rule) => rule.rulePresetId === castRule.rulePresetId);
-    const outcome = await applyOneCastRule(ctx, { principal, chatId, castRule, group }, catalogue.get(castRule.rulePresetId));
+    const outcome = await applyOneCastRule(ctx, { principal, chatId, timeZone, castRule, group }, catalogue.get(castRule.rulePresetId));
     if (outcome.kind === "minted") {
       minted.push(castRule.rulePresetId);
     } else if (outcome.kind === "alreadyPresent") {
@@ -145,7 +148,7 @@ async function applyCastRules(
 }
 
 export function createApplyToChat(ctx: RosterPresetContext): RosterPresetService["applyToChat"] {
-  return async ({ principal, presetId, chatId }: ApplyRosterPresetParams) => {
+  return async ({ principal, presetId, chatId, timeZone }: ApplyRosterPresetParams) => {
     const ownerId = principal.userId;
     const preset = await loadOwnedPresetRow(ctx.db, ownerId, presetId);
     if (preset === undefined) {
@@ -197,7 +200,7 @@ export function createApplyToChat(ctx: RosterPresetContext): RosterPresetService
     const castRules = await loadCastRuleRows(ctx.db, [presetId]);
     const ruleResults =
       castRules.length > 0
-        ? await applyCastRules(ctx, { principal, chatId, castRules })
+        ? await applyCastRules(ctx, { principal, chatId, timeZone, castRules })
         : { minted: [] as RulePresetId[], alreadyPresent: [] as RulePresetId[], skipped: [] as RosterPresetRuleSkip[] };
 
     await ctx.audit(

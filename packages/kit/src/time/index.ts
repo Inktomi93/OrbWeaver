@@ -13,6 +13,8 @@
 // exposes luxon's format-token vocabulary to users as a documented contract — that is a user-data
 // spec, not an implementation detail, and Temporal has no token formatter to preserve it with.
 
+import { z } from "zod";
+
 // Values ≥ this are already milliseconds; smaller positive values are epoch seconds. (1e12 ms =
 // 2001; no real chat timestamp is before that, and 1e12 s would be year 33658 — unambiguous.)
 const MS_THRESHOLD = 1e12;
@@ -166,6 +168,37 @@ export function msToWallClock(
     return null;
   }
 }
+
+declare const ianaTimeZoneBrand: unique symbol;
+/** An IANA zone name the platform resolved through {@link parseIanaTimeZone}. A stored evaluation clock holds
+ *  only this, so a server-side wall-clock read never meets an unknown zone. */
+export type IanaTimeZone = string & { readonly [ianaTimeZoneBrand]: true };
+
+/** The zone a clock with no recorded zone reads in. */
+export const UTC_TIME_ZONE = "UTC" as IanaTimeZone;
+
+// A fixed-offset zone id: Temporal resolves `+05:45`, and an ISO string carrying only an offset, to one.
+const OFFSET_ZONE_ID = /^[+-]/;
+
+/** `value` as the platform's canonical IANA zone id, or null when the platform does not know it. A fixed
+ *  offset (`+05:45`) is refused: it is not an IANA name and carries no daylight-saving rules, so a clock
+ *  stored in one would drift an hour from its owner twice a year. */
+export function parseIanaTimeZone(value: string): IanaTimeZone | null {
+  // @orb-waive caught-failure-ownership(catch): documented in the JSDoc — null when the platform does not
+  // know the zone, part of this function's stated contract. Ends if a caller stops treating null as "unknown zone".
+  try {
+    const id = Temporal.Instant.fromEpochMilliseconds(0).toZonedDateTimeISO(value).timeZoneId;
+    return OFFSET_ZONE_ID.test(id) ? null : (id as IanaTimeZone);
+  } catch {
+    return null;
+  }
+}
+
+/** The wire form of a zone a browser reports: its canonical IANA id, or {@link UTC_TIME_ZONE} when this
+ *  platform does not know it (`Etc/Unknown`, a zone newer than the server's ICU, a fixed offset). It never
+ *  refuses, because a refusal would block every save from that browser; the caller sees the fallback by
+ *  reading the stored zone back. */
+export const reportedTimeZoneSchema: z.ZodType<IanaTimeZone, string> = z.string().transform((value): IanaTimeZone => parseIanaTimeZone(value) ?? UTC_TIME_ZONE);
 
 // ─── The DISPLAY half (the client edge) ────────────────────────────────────────────────────────────
 // Localization happens exactly ONCE, at the display edge, through this factory (UI-Gates §11.5 —
@@ -366,6 +399,18 @@ function relativeSpan(deltaMs: number): { readonly count: number; readonly unit:
   return { count: Math.sign(deltaMs) * count, unit };
 }
 
+function positionInZone(epochMs: number, zone: string): CalendarPosition {
+  const zoned = Temporal.Instant.fromEpochMilliseconds(Math.trunc(epochMs)).toZonedDateTimeISO(zone);
+  // Temporal's ISO weekday runs 1 = Monday … 7 = Sunday; the modulo folds Sunday to 0.
+  return { day: zoned.toPlainDate().toString(), weekday: zoned.dayOfWeek % DAYS_PER_WEEK, hour: zoned.hour };
+}
+
+/** Where an instant falls on the calendar of `zone` — the server's wall-clock read for a clock its owner
+ *  set (an automation rule's), the same fold the display factory's `calendarPosition` uses. */
+export function calendarPositionIn(epochMs: number, zone: IanaTimeZone): CalendarPosition {
+  return positionInZone(epochMs, zone);
+}
+
 export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
   const now = config.now ?? ((): number => Date.now());
   const locale = config.locale;
@@ -401,11 +446,7 @@ export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
 
   return {
     now,
-    calendarPosition: (epochMs): CalendarPosition => {
-      const zoned = Temporal.Instant.fromEpochMilliseconds(Math.trunc(epochMs)).toZonedDateTimeISO(zone);
-      // Temporal's ISO weekday runs 1 = Monday … 7 = Sunday; the modulo folds Sunday to 0.
-      return { day: zoned.toPlainDate().toString(), weekday: zoned.dayOfWeek % DAYS_PER_WEEK, hour: zoned.hour };
-    },
+    calendarPosition: (epochMs): CalendarPosition => positionInZone(epochMs, zone),
     // A plain date resolves to the zone's start of day, which is the first existing instant when a DST jump
     // skips that zone's midnight.
     monthStart: (year, month): number => Temporal.PlainDate.from({ year, month, day: 1 }, { overflow: "reject" }).toZonedDateTime(zone).epochMilliseconds,

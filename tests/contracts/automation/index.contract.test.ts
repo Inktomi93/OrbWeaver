@@ -479,7 +479,7 @@ describe("custom rule authored wire boundary", () => {
   });
 
   test("requires a distinct birth key and explicit scope, and forbids lifecycle/authority/provenance fields", () => {
-    const birth = { ...editable, chatId: null, creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation) };
+    const birth = { ...editable, timeZone: "UTC", chatId: null, creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation) };
     expect(automationRuleCreateSchema.parse(birth)).toMatchObject({ chatId: null, cooldownSeconds: 0, maxFiresPerHour: 30, matchAutomationEvents: false });
     for (const key of ["ownerId", "enabled", "position", "id", "rulePresetId", "rulePresetKnobs", "consecutiveErrors", "creation_request_id"]) {
       expect(automationRuleCreateSchema.safeParse({ ...birth, [key]: "forged" }).success, key).toBe(false);
@@ -491,6 +491,19 @@ describe("custom rule authored wire boundary", () => {
       automationRuleUpdateSchema.safeParse({ ...editable, ruleId: mintTypeId(ID_PREFIX.automationRule), creationRequestId: birth.creationRequestId }).success,
     ).toBe(false);
     expect(automationRuleReorderSchema.safeParse({ chatId: null, orderedIds: [birth.creationRequestId] }).success).toBe(false);
+  });
+
+  test("every save carries the saver's zone beside the authored body, never inside it", () => {
+    const ruleId = mintTypeId(ID_PREFIX.automationRule);
+    const birth = { ...editable, chatId: null, creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation) };
+    expect(automationRuleCreateSchema.safeParse(birth).success).toBe(false);
+    expect(automationRuleUpdateSchema.safeParse({ ...editable, ruleId }).success).toBe(false);
+    expect(automationRuleCreateSchema.parse({ ...birth, timeZone: "asia/kathmandu" }).timeZone).toBe("Asia/Kathmandu");
+    expect(automationRuleUpdateSchema.parse({ ...editable, ruleId, timeZone: "America/New_York" }).timeZone).toBe("America/New_York");
+    // A zone the platform does not know stores UTC rather than blocking the save.
+    expect(automationRuleUpdateSchema.parse({ ...editable, ruleId, timeZone: "+05:45" }).timeZone).toBe("UTC");
+    // The draft body an editor holds has no zone, so opening a rule can never dirty it with one.
+    expect(automationRuleEditableSchema.safeParse({ ...editable, timeZone: "UTC" }).success).toBe(false);
   });
 
   test("preserves null/empty/false/zero values, bounds the actual 120-character name and rejects fractional controls", () => {

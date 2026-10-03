@@ -35,7 +35,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, SettingSwitchRow } from "#components";
 import { QueryErrorState, useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { notify, viewerTimeZone } from "#lib";
 import { closeModal, openModal } from "#state";
 import { useApplyRosterPreset, useCreateRosterPreset, useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import type { CapturedRosterRule, RosterRuleCapture } from "../hooks/use-saved-rosters.ts";
@@ -306,7 +306,7 @@ export function RosterPicker(): ReactElement {
       return;
     }
     apply
-      .mutateAsync({ presetId: roster.id, chatId: active.chatId })
+      .mutateAsync({ presetId: roster.id, chatId: active.chatId, timeZone: viewerTimeZone() })
       .then((result) => {
         reportApply(roster, result);
         closeModal();

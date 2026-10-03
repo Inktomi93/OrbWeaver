@@ -14,6 +14,7 @@
 // does not exist.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
@@ -52,6 +53,7 @@ const GLOBAL_RULE = {
   rulePresetKnobs: null,
   matchAutomationEvents: false,
   suggestOnRefusal: true,
+  timeZone: UTC_TIME_ZONE,
   cooldownSeconds: 0,
   maxFiresPerHour: 30,
   lastError: null,

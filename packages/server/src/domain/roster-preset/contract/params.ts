@@ -7,6 +7,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { CreateRosterPresetInput } from "@orb/contracts/roster-preset";
 import type { ChatId, RosterPresetId } from "@orb/kit/ids";
+import type { IanaTimeZone } from "@orb/kit/time";
 
 /** The acting caller — every surface is ownership-scoped off `principal.userId`. */
 interface RosterPresetActorParams {
@@ -36,4 +37,6 @@ export interface GetRosterPresetParams extends RosterPresetActorParams {
 export interface ApplyRosterPresetParams extends RosterPresetActorParams {
   readonly presetId: RosterPresetId;
   readonly chatId: ChatId;
+  /** The applying host's zone: every cast rule this apply mints reads its clock in it. */
+  readonly timeZone: IanaTimeZone;
 }

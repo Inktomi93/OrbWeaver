@@ -1,0 +1,1 @@
+ALTER TABLE `automation_rules` ADD `time_zone` text;

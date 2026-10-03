@@ -24,6 +24,7 @@ import { chatBooks, rpgGames, worldBooks, worldEntries } from "@orb/db";
 import type { AutomationRuleId, AutomationSuggestionId, ChatId, MessageId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { ZWSP } from "@orb/kit/macro";
+import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { sha256Hex } from "@orb/server/kit/content-hash";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -242,7 +243,7 @@ function nth(views: readonly RuleView[], index: number): RuleView {
 /** Mint a preset and ENABLE every rule it created. Returns the minted views in mint order. */
 async function mintAndEnable(f: Fixture, presetId: Parameters<AutomationService["createRuleFromPreset"]>[0]["presetId"], knobs = {}): Promise<RuleView[]> {
   const p = principal(f.host);
-  const views = await f.svc.createRuleFromPreset({ principal: p, chatId: f.chatId, presetId, knobs });
+  const views = await f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: p, chatId: f.chatId, presetId, knobs });
   const enable = async (index: number): Promise<void> => {
     const view = views[index];
     if (view === undefined) {
@@ -282,6 +283,7 @@ describe("createRuleFromPreset — the mint", () => {
   test("mints a single-rule preset under its bare title, born DISABLED, with the knobs substituted", async () => {
     const f = await setup();
     const [view] = await f.svc.createRuleFromPreset({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(f.host),
       chatId: f.chatId,
       presetId: "pacingNudge",
@@ -299,7 +301,7 @@ describe("createRuleFromPreset — the mint", () => {
 
   test("mints a two-rule preset as an ORDERED, (i/n)-titled set at ascending positions", async () => {
     const f = await setup();
-    const views = await f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
+    const views = await f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
 
     expect(views.map((v) => v.name)).toEqual(["Clock fires when full (1/2)", "Clock fires when full (2/2)"]);
     // Position order IS the same-batch mechanism: the counter must dispatch before the threshold.
@@ -310,6 +312,17 @@ describe("createRuleFromPreset — the mint", () => {
     expect(views[1]?.maxFiresPerHour).toBe(30);
   });
 
+  test("every rule of a minted set reads its clock in the minting host's zone", async () => {
+    const f = await setup();
+    const kathmandu = parseIanaTimeZone("Asia/Kathmandu");
+    if (kathmandu === null) {
+      throw new Error("the platform must know Asia/Kathmandu");
+    }
+    const views = await f.svc.createRuleFromPreset({ timeZone: kathmandu, principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
+
+    expect(views.map((view) => view.timeZone)).toEqual(["Asia/Kathmandu", "Asia/Kathmandu"]);
+  });
+
   // #1427 — a preset SET is one act. It used to commit rule-by-rule through the whole `createRule` verb, so
   // an n-rule preset emitted n `rulesChanged` for one host click (and allocated n positions from n separate
   // read-then-write pairs). It is now planned whole, then committed in ONE batch, and announced ONCE.
@@ -317,7 +330,7 @@ describe("createRuleFromPreset — the mint", () => {
     const f = await setup();
     f.bus.length = 0;
 
-    const views = await f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
+    const views = await f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
 
     expect(views).toHaveLength(2);
     expect(f.bus.filter((event) => event.type === "rulesChanged")).toEqual([{ type: "rulesChanged", chatId: f.chatId }]);
@@ -326,9 +339,16 @@ describe("createRuleFromPreset — the mint", () => {
   test("the set lands at CONTIGUOUS ascending positions, continuing the chat's existing order", async () => {
     const f = await setup();
     // A hand-authored rule already holds position 0 in this scope.
-    await f.svc.createRule({ principal: principal(f.host), chatId: f.chatId, name: "hand-authored", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+    await f.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
+      principal: principal(f.host),
+      chatId: f.chatId,
+      name: "hand-authored",
+      trigger: MSG_COMMITTED,
+      actions: [SET_VAR],
+    });
 
-    const views = await f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
+    const views = await f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
 
     // Allocated inside the batch, off one snapshot: 1 then 2, with no gap and no collision with the 0.
     expect(views.map((v) => v.position)).toEqual([1, 2]);
@@ -339,7 +359,7 @@ describe("createRuleFromPreset — the mint", () => {
   test("refuses a bad knob with a typed validation error and stores NOTHING", async () => {
     const f = await setup();
     await expect(
-      f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "pacingNudge", knobs: { everyN: 5000 } }),
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "pacingNudge", knobs: { everyN: 5000 } }),
     ).rejects.toThrow(BAD_KNOB);
     expect(await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId })).toEqual([]);
   });
@@ -347,14 +367,22 @@ describe("createRuleFromPreset — the mint", () => {
   test("is HOST-gated through the same guard as createRule — a non-member never learns the chat exists", async () => {
     const f = await setup();
     const stranger = await seedUser(f.db, "user_stranger");
-    await expect(f.svc.createRuleFromPreset({ principal: principal(stranger), chatId: f.chatId, presetId: "cutaways" })).rejects.toThrow();
+    await expect(
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(stranger), chatId: f.chatId, presetId: "cutaways" }),
+    ).rejects.toThrow();
     expect(await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId })).toEqual([]);
   });
 
   test("stamps MINT PROVENANCE on every rule of the set — the id + the COMPLETE resolved bag, not the partial overrides (§3-S3 flip shape)", async () => {
     const f = await setup();
     // Partial overrides: `steer` rides its descriptor default, so the stored bag must carry BOTH keys.
-    const views = await f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "clockFires", knobs: { n: 6 } });
+    const views = await f.svc.createRuleFromPreset({
+      timeZone: UTC_TIME_ZONE,
+      principal: principal(f.host),
+      chatId: f.chatId,
+      presetId: "clockFires",
+      knobs: { n: 6 },
+    });
     expect(views).toHaveLength(2);
     for (const view of views) {
       expect(view.rulePresetId).toBe("clockFires");
@@ -372,6 +400,7 @@ describe("createRuleFromPreset — the mint", () => {
   test("a HAND-authored rule carries the NULL provenance pair (the biconditional's other side)", async () => {
     const f = await setup();
     const view = await f.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(f.host),
       chatId: f.chatId,
       name: "hand-made",
@@ -609,7 +638,9 @@ describe("§4 #3 auto-add lore entries (confirm-first BY DEFAULT)", () => {
 
   test("REFUSES at mint without a book — the knob has no usable default and the refusal is typed", async () => {
     const f = await setup();
-    await expect(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "autoAddLore", knobs: {} })).rejects.toThrow(NO_BOOK);
+    await expect(
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "autoAddLore", knobs: {} }),
+    ).rejects.toThrow(NO_BOOK);
   });
 
   test("#630: a REAL book that is not attached to THIS chat still refuses at mint, one step later", async () => {
@@ -620,9 +651,9 @@ describe("§4 #3 auto-add lore entries (confirm-first BY DEFAULT)", () => {
     const bookId = mintTypeId(ID_PREFIX.worldBook);
     await f.db.insert(worldBooks).values({ id: bookId, ownerId: f.host, name: "detached lore" });
 
-    await expect(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "autoAddLore", knobs: { bookId } })).rejects.toThrow(
-      UNATTACHED_BOOK,
-    );
+    await expect(
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "autoAddLore", knobs: { bookId } }),
+    ).rejects.toThrow(UNATTACHED_BOOK);
   });
 });
 
@@ -669,7 +700,7 @@ test("listRulePresets projects every committed preset in catalogue order and car
 
   expect(views.map((v) => v.id)).toEqual([...RULE_PRESET_IDS]);
   // Each declared ruleCount is the count the MINT actually produces — the picker's "(i/n)" promise.
-  const clock = await f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
+  const clock = await f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
   expect(clock).toHaveLength(views.find((v) => v.id === "clockFires")?.ruleCount ?? 0);
   expect(JSON.stringify(views)).not.toContain("vars.");
 });
@@ -728,9 +759,9 @@ describe("§4 #15 story pacing analysis (C1 — RULED F7 direct steer)", () => {
       status: "active",
       config: rpgGameConfigSchema.parse({}),
     });
-    await expect(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "storyPacing" })).rejects.toThrow(
-      "directs its own story",
-    );
+    await expect(
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "storyPacing" }),
+    ).rejects.toThrow("directs its own story");
     expect(await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId })).toEqual([]);
   });
 });
@@ -846,9 +877,9 @@ describe("§4 #11 distill lore (C2 — confirm-first, the settled-span watermark
     const f = await setup();
     const bookId = mintTypeId(ID_PREFIX.worldBook);
     await f.db.insert(worldBooks).values({ id: bookId, ownerId: f.host, name: "detached lore" }); // exists, NOT attached
-    await expect(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "distillLore", knobs: { bookId } })).rejects.toThrow(
-      UNATTACHED_BOOK,
-    );
+    await expect(
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "distillLore", knobs: { bookId } }),
+    ).rejects.toThrow(UNATTACHED_BOOK);
     expect(await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId })).toEqual([]);
   });
 
@@ -875,7 +906,9 @@ describe("§4 #11 distill lore (C2 — confirm-first, the settled-span watermark
 
   test("REFUSES at mint without a book — the entityRef knob has no usable default and the refusal is typed", async () => {
     const f = await setup();
-    await expect(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "distillLore", knobs: {} })).rejects.toThrow(NO_BOOK);
+    await expect(
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "distillLore", knobs: {} }),
+    ).rejects.toThrow(NO_BOOK);
   });
 });
 
@@ -922,6 +955,7 @@ describe("§4 #16 the needle (the score → meter + backdrop pair)", () => {
   test("the stored set is the needle shape: a vars-ONLY analysis read, then the threshold backdrop rule — born disabled", async () => {
     const f = await setup();
     const views = await f.svc.createRuleFromPreset({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(f.host),
       chatId: f.chatId,
       presetId: "theNeedle",
@@ -1038,9 +1072,9 @@ describe("§4 #16 the needle (the score → meter + backdrop pair)", () => {
       status: "active",
       config: rpgGameConfigSchema.parse({}),
     });
-    await expect(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "theNeedle" })).rejects.toThrow(
-      "directs its own story",
-    );
+    await expect(
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "theNeedle" }),
+    ).rejects.toThrow("directs its own story");
     expect(await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId })).toEqual([]);
   });
 });
@@ -1303,9 +1337,9 @@ describe("§4 #14 spotlight balance", () => {
       status: "active",
       config: rpgGameConfigSchema.parse({}),
     });
-    await expect(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "spotlightBalance" })).rejects.toThrow(
-      "directs its own story",
-    );
+    await expect(
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "spotlightBalance" }),
+    ).rejects.toThrow("directs its own story");
   });
 });
 
