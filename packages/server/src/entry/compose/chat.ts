@@ -741,6 +741,7 @@ export function createGeneratePictureOp(generatePicture: ImageryService["generat
   return async (p) => {
     const picture = await generatePicture({
       caller: p.caller,
+      runAsUserId: p.runAsUserId,
       chatId: p.chatId,
       mode: p.mode,
       ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),

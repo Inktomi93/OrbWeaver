@@ -4,6 +4,7 @@
 // can't edit — doc 03 §3) → steps 8-12 the shared generation tail (`runGeneration`). The store-then-provenance
 // GC ordering + materialization live in `generate-core` (one home, shared with `editImage`).
 
+import type { Principal } from "@orb/contracts/identity";
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { acceptsImageEdit } from "@orb/contracts/inference";
 import type { CharacterId } from "@orb/kit/ids";
@@ -23,15 +24,13 @@ const DEFAULT_IMAGE_COUNT = 1;
 
 /** Resolve the generateImage role + the capability of the SAME model the request will hit (one resolution so
  *  the B3 gate and the request build read the same model). A resolve failure wraps into `ImageryNotConfiguredError`. */
-async function resolveGenerateImageOrThrow(
-  ctx: ImageryContext,
-  caller: GeneratePictureParams["caller"],
-  actor?: GeneratePictureParams["actor"],
-): Promise<ResolvedGenerateImage> {
+async function resolveGenerateImageOrThrow(ctx: ImageryContext, p: GeneratePictureParams, runAs: Principal): Promise<ResolvedGenerateImage> {
   try {
-    return await (actor === undefined ? ctx.resolveGenerateImage(caller) : ctx.resolveGenerateImage(caller, actor));
+    return await (p.actor === undefined ? ctx.resolveGenerateImage(runAs) : ctx.resolveGenerateImage(runAs, p.actor));
   } catch (err) {
-    const error = new ImageryNotConfiguredError("imagery: no generateImage role is configured for this caller");
+    // A member cannot fix the host's connection, so the refusal names whose connection is missing.
+    const whose = runAs.userId === p.caller.userId ? "this caller" : "the room host";
+    const error = new ImageryNotConfiguredError(`imagery: no generateImage role is configured for ${whose}`);
     error.cause = err;
     throw error;
   }
@@ -90,6 +89,7 @@ function composeEdit(reference: AvatarReference | undefined): ImageGenerateReque
 async function orchestratorPrompt(
   resolvePrompt: ResolvePrompt,
   p: GeneratePictureParams,
+  runAs: Principal,
 ): Promise<{ readonly prompt: string; readonly source: "user" | "extracted" | "captioned"; readonly costUsd: number | null }> {
   const userPrompt = p.prompt?.trim() ?? "";
   if (p.mode === "free") {
@@ -109,6 +109,7 @@ async function orchestratorPrompt(
   // branch (`extract-prompt.ts::extractText`), where it can name the mode that actually needs a room.
   return await resolvePrompt({
     caller: p.caller,
+    runAs,
     ...(p.chatId === undefined ? {} : { chatId: p.chatId }),
     mode: p.mode,
     subjectCharacterId: p.subjectCharacterId,
@@ -139,6 +140,7 @@ function reusedResult(mode: GeneratePictureParams["mode"], hits: readonly ReuseR
 async function reuseGate(
   ctx: ImageryContext,
   p: GeneratePictureParams,
+  runAs: Principal,
   subjectCharacterId: CharacterId | null,
 ): Promise<{ readonly identityHash: string | null; readonly hit: GeneratedPicture | null }> {
   const hasPromptOverride = (p.prompt?.trim() ?? "").length > 0;
@@ -150,7 +152,10 @@ async function reuseGate(
   if ((p.reuse ?? "prefer") === "never") {
     return { identityHash, hit: null };
   }
-  const hits = await findReusableGeneration(ctx.db, { ownerId: p.caller.userId, subjectCharacterId, mode: p.mode, identityHash });
+  // Reuse searches the run-as principal's generations across every chat. A member's room picture never
+  // reaches this lookup: chat's picture op carries no subject. A room path that adds one must scope this
+  // lookup to its chat, or a member could pull the host's picture from another room into this one.
+  const hits = await findReusableGeneration(ctx.db, { ownerId: runAs.userId, subjectCharacterId, mode: p.mode, identityHash });
   const first = hits[0];
   return { identityHash, hit: first !== undefined ? reusedResult(p.mode, hits, first) : null };
 }
@@ -163,52 +168,60 @@ function provenanceHash(gateHash: string | null, p: GeneratePictureParams): stri
   return gateHash ?? (p.mode === "free" ? (p.identityHash ?? null) : null);
 }
 
-/** Step 1 — the gallery the pictures join: the requested character when the caller owns it, else none. Runs
- *  before any spend. The picture's owner is the generator, so a character someone else owns (a shared room's
- *  host's) yields the picture and no gallery row, never a row in another principal's gallery. */
-async function galleryTarget(ctx: ImageryContext, p: GeneratePictureParams): Promise<CharacterId | null> {
+/** Step 1 — the gallery the pictures join: the requested character when the picture's owner (the run-as
+ *  principal) owns it, else none. Runs before any spend, so a picture never lands in the gallery of a
+ *  character its owner does not hold. */
+async function galleryTarget(ctx: ImageryContext, p: GeneratePictureParams, runAs: Principal): Promise<CharacterId | null> {
   if (p.gallery === undefined) {
     return null;
   }
-  const owned = await ctx.ownsCharacter(p.caller.userId, p.gallery.subjectCharacterId);
+  const owned = await ctx.ownsCharacter(runAs.userId, p.gallery.subjectCharacterId);
   return owned ? p.gallery.subjectCharacterId : null;
 }
 
-/** The last step — join each returned picture to the caller's gallery. Sequential: `n` is at most four, and
+/** The last step — join each returned picture to its owner's gallery. Sequential: `n` is at most four, and
  *  each add is an idempotent upsert on the picture and the character. */
-async function curate(ctx: ImageryContext, p: GeneratePictureParams, target: CharacterId | null, picture: GeneratedPicture): Promise<GeneratedPicture> {
+async function curate(ctx: ImageryContext, runAs: Principal, target: CharacterId | null, picture: GeneratedPicture): Promise<GeneratedPicture> {
   if (target === null) {
     return picture;
   }
   for (const image of picture.images) {
-    await ctx.addToGallery(p.caller, image.assetId, target);
+    await ctx.addToGallery(runAs, image.assetId, target);
   }
   return picture;
 }
 
+/** The principal the picture runs as (D298): the room host chat named, else the caller. It funds, styles
+ *  and owns the picture; the caller stays the subject-card reader and the extraction viewer. The caller's own
+ *  id skips the row read, so a host's own picture keeps its request Principal. */
+async function runAsFor(ctx: ImageryContext, p: GeneratePictureParams): Promise<Principal> {
+  return p.runAsUserId === undefined || p.runAsUserId === p.caller.userId ? p.caller : await ctx.resolveRunAs(p.runAsUserId);
+}
+
 export function createGeneratePicture(ctx: ImageryContext, deps: { readonly resolvePrompt: ResolvePrompt }): ImageryService["generatePicture"] {
   return async (p: GeneratePictureParams): Promise<GeneratedPicture> => {
-    const target = await galleryTarget(ctx, p);
+    const runAs = await runAsFor(ctx, p);
+    const target = await galleryTarget(ctx, p, runAs);
     // The subject the reuse gate + the provenance columns key on — only for a portrait mode carrying a subject.
     const subjectCharacterId = isPortraitMode(p.mode) && p.subjectCharacterId !== undefined ? p.subjectCharacterId : null;
     // Step 2: B2 reuse gate — a hit short-circuits before any provider call.
-    const gate = await reuseGate(ctx, p, subjectCharacterId);
+    const gate = await reuseGate(ctx, p, runAs, subjectCharacterId);
     if (gate.hit !== null) {
-      return await curate(ctx, p, target, gate.hit);
+      return await curate(ctx, runAs, target, gate.hit);
     }
     const identityHash = provenanceHash(gate.identityHash, p);
 
     // Step 3: resolve the prompt (user | captioned | extracted).
-    const resolved = await orchestratorPrompt(deps.resolvePrompt, p);
+    const resolved = await orchestratorPrompt(deps.resolvePrompt, p, runAs);
     // Step 4: prefix belt — re-assert the mode's required opening on an extracted/captioned prompt; a user's
     // literal words are used verbatim.
     const prompt = resolved.source === "user" ? resolved.prompt : ensurePrefix(resolved.prompt, p.mode);
     // Step 5: compose negative (DEFAULT_NEGATIVE + user's, appended) + size (preset or the mode default).
-    const negativePrompt = composeNegative(await ctx.resolveNegativeBase(p.caller), p.negative);
+    const negativePrompt = composeNegative(await ctx.resolveNegativeBase(runAs), p.negative);
     const size = SIZE_PRESETS[p.size ?? defaultSizeFor(p.mode)];
 
     // Step 6: resolve role + capability (one resolution — the B3 gate + the request build read the same model).
-    const resolution = await resolveGenerateImageOrThrow(ctx, p.caller, p.actor);
+    const resolution = await resolveGenerateImageOrThrow(ctx, p, runAs);
     // Step 7: B3 avatar-reference gate — an init image (or a drop-with-warning when the model can't edit).
     const reference = await avatarReferenceGate(ctx, p, { model: resolution.connection.model, capability: resolution.capability }, subjectCharacterId);
     const edit = composeEdit(reference.edit);
@@ -219,7 +232,7 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
       {
         connection: resolution.connection,
         model: resolution.connection.model,
-        owner: p.caller.userId,
+        owner: runAs.userId,
         prompt,
         n: p.n ?? DEFAULT_IMAGE_COUNT,
         negativePrompt,
@@ -230,7 +243,7 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
         capability: resolution.capability,
       },
       {
-        caller: p.caller,
+        owner: runAs,
         chatId: p.chatId ?? null,
         mode: p.mode,
         subjectCharacterId,
@@ -240,7 +253,7 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
         edited: reference.edit !== undefined,
       },
     );
-    return await curate(ctx, p, target, {
+    return await curate(ctx, runAs, target, {
       images: outcome.images,
       prompt,
       promptSource: resolved.source,

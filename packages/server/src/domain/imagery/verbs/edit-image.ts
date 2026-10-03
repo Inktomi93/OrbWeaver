@@ -66,7 +66,7 @@ export function createEditImage(ctx: ImageryContext): ImageryService["editImage"
         capability: resolution.capability,
       },
       {
-        caller: p.caller,
+        owner: p.caller,
         chatId: p.chatId ?? null,
         mode: "free",
         subjectCharacterId: null,

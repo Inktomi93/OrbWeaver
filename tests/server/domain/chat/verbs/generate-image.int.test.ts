@@ -216,6 +216,56 @@ describe("generateImage", () => {
     expect(refs.map((ref) => ref.assetId)).toEqual([generatedAssetId]);
   });
 
+  // D298: a room picture runs as the host. The host funds, styles and owns it; the member authored it.
+  test("a member's room picture runs as the host, lands in the room, and is attributed to the member", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const chatId = await seedChat(db, "member-picture");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "member", userId: member, role: "member" });
+    const calls: Parameters<ChatContext["generatePicture"]>[0][] = [];
+    const ctx = makeChatContext(db, {
+      generatePicture: async (p) => {
+        calls.push(p);
+        // Imagery stores the bytes under the principal it ran as.
+        return { images: [{ assetId: await seedGeneratedAsset(p.runAsUserId, "room-picture") }], warnings: [] };
+      },
+    });
+    const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
+
+    const view = await generateImage({ principal: principal(member), chatId, mode: "scenario" });
+
+    expect(calls.map((c) => ({ caller: c.caller.userId, runAsUserId: c.runAsUserId }))).toEqual([{ caller: member, runAsUserId: host }]);
+    expect(view.authorUserId).toBe(member);
+    const links = await db.select().from(messageAssets).where(eq(messageAssets.messageId, view.id));
+    expect(links.map(({ assetId, origin }) => ({ assetId, origin }))).toEqual([{ assetId: "asset_room-picture", origin: "generated-post" }]);
+  });
+
+  test("the member sees the host-owned room picture only through the room", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const chatId = await seedChat(db, "room");
+    const otherRoom = await seedChat(db, "other-room");
+    for (const room of [chatId, otherRoom]) {
+      await seedParticipant(db, { chatId: room, key: `host-${room}`, userId: host, role: "host" });
+      await seedParticipant(db, { chatId: room, key: `member-${room}`, userId: member, role: "member" });
+    }
+    const ctx = makeChatContext(db, {
+      generatePicture: async (p) => ({ images: [{ assetId: await seedGeneratedAsset(p.runAsUserId, "room-only") }], warnings: [] }),
+    });
+    const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
+    await generateImage({ principal: principal(member), chatId, mode: "free", prompt: "a lantern" });
+    const picture = castId<AssetId>("asset_room-only");
+    const harness = await makeAssetsHarness(db);
+    onTestFinished(harness.cleanup);
+    const assetsService = createAssetsService(harness.ctx);
+
+    expect((await assetsService.resolveChatAssetRefs(member, chatId, [picture])).map((ref) => ref.assetId)).toEqual([picture]);
+    // Not the member's own asset, and not reachable from another room both principals share.
+    expect(await assetsService.resolveOwnedAssetRefs(member, [picture])).toEqual([]);
+    expect(await assetsService.resolveChatAssetRefs(member, otherRoom, [picture])).toEqual([]);
+  });
+
   test("a non-participant is refused (leak-free NOT_FOUND) and never calls the op", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const outsider = await seedUser(db, castId<Handle>("outsider"));

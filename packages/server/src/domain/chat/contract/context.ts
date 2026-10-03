@@ -366,7 +366,7 @@ type ReadReactionDefaultsOp = (userId: UserId) => Promise<Pick<ChatBehaviorInput
  *  cards resolve under the chat HOST's ownership, and imagery already gated the caller's chat membership. */
 export interface ExtractQuietParams {
   readonly chatId: ChatId;
-  /** The CALLER — whose summarize connection the extraction spends (§8.5b: the human who triggered the image). */
+  /** Whose summarize connection the extraction spends: the run-as principal, the room host in a room (D298). */
   readonly funderUserId: UserId;
   /** The mode template with its char/user macros unresolved — chat resolves them. */
   readonly instruction: string;
@@ -1045,13 +1045,17 @@ type GmSeatHolderKind = { readonly kind: "human" } | { readonly kind: "agent"; r
 /** The injected image-generation op. Chat holds message-write authority; imagery is caller-blind (returns
  *  blocks, never posts). */
 export type GeneratePictureOp = (p: {
+  /** The requesting member: the extraction viewer and the message author. */
   readonly caller: Principal;
+  /** The room host the picture runs as (D298): its connection, templates, negative base, Utility
+   *  funder, asset store and gallery. */
+  readonly runAsUserId: UserId;
   readonly chatId: ChatId;
   readonly mode: PromptTemplateMode;
   readonly prompt?: string | undefined;
   readonly n?: number | undefined;
   readonly size?: SizePresetName | undefined;
-  /** The character whose gallery each picture joins; imagery adds it only when the caller owns that character. */
+  /** The character whose gallery each picture joins; imagery adds it only when the run-as host owns it. */
   readonly gallery?: { readonly subjectCharacterId: CharacterId } | undefined;
   /** The viewer's zone an extraction template's time macros read; absent ⇒ UTC. */
   readonly timeZone?: IanaTimeZone | undefined;

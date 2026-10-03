@@ -73,7 +73,7 @@ import { TEST_PROVIDER_ID } from "../../support/factories/resolved-connection.ts
 import type { AppCaller } from "../../support/fixtures.ts";
 import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../support/fixtures.ts";
 import { principal as automationPrincipal } from "../domain/automation/_support.ts";
-import { seedChat, seedMessage, seedParticipant } from "../domain/chat/_support.ts";
+import { seedCharacter, seedChat, seedMessage, seedParticipant } from "../domain/chat/_support.ts";
 import { seedTurns } from "../domain/chat/memory/_support.ts";
 
 // ── Owner A's distinctive marker names — these strings exist ONLY in A's owned rows, so their appearance in
@@ -3109,3 +3109,71 @@ describe("cross-tenant IDOR sweep — an import's memory scope handle", () => {
     expect(JSON.stringify(started)).not.toContain(room);
   });
 });
+
+/** A minimal PNG signature the CAS store accepts as an avatar's bytes. */
+const STRANGER_AVATAR_PNG = Uint8Array.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+]);
+
+// A room preview's run-as gate (D298). `imagery.extractPrompt` runs as the room host, so a stranger slipping
+// past `resolveRoomRunAs` would caption on A's Utility connection. A caption mode never reaches extractQuiet's
+// own gate, so this probe pins the run-as gate alone: B owns the subject and its avatar, the subject sits in
+// A's room so the roster check passes, and only the visibility gate stands between B and A's connection.
+const captionProbeFetches: string[] = [];
+const captionProbe = test.extend<{ providerFetch: typeof fetch }>({
+  providerFetch: async ({}, use): Promise<void> => {
+    captionProbeFetches.length = 0;
+    await use((input) => {
+      captionProbeFetches.push(String(input));
+      return Promise.resolve(new Response("refused", { status: 500 }));
+    });
+  },
+});
+
+captionProbe(
+  "cross-tenant IDOR sweep — a stranger cannot caption in owner A's room on A's Utility connection",
+  async ({ db, services, ownerCaller, otherCaller }) => {
+    // The owner fixture seeds A's user row, which the room seat and the connection reference.
+    expect(ownerCaller).toBeDefined();
+    const room = await seedChat(db, "alpha_caption_room", { id: mintTypeId(ID_PREFIX.chat) });
+    await seedParticipant(db, { chatId: room, key: "alpha_caption_host", userId: OWNER_USER_ID, role: "host" });
+    const alphaUtility = mintTypeId(ID_PREFIX.userConnection);
+    await db.insert(userConnections).values({
+      id: alphaUtility,
+      ownerId: OWNER_USER_ID,
+      label: "alpha utility",
+      providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
+      credentialId: null,
+      baseUrl: "https://alpha-utility.example/v1",
+      model: castId<ModelId>("alpha-utility-model"),
+    });
+    await db.insert(connectionBindings).values({
+      id: mintTypeId(ID_PREFIX.connectionBinding),
+      actorKind: "user",
+      userId: OWNER_USER_ID,
+      ruleId: null,
+      pluginId: null,
+      task: "summarize",
+      connectionId: alphaUtility,
+    });
+    const avatar = await services.assets.store({
+      principal: automationPrincipal(OTHER_USER_ID),
+      bytes: STRANGER_AVATAR_PNG,
+      kind: "avatar",
+      mime: "image/png",
+    });
+    const strangersCharacter = await seedCharacter(db, OTHER_USER_ID, "stranger-caption", {
+      id: mintTypeId(ID_PREFIX.character),
+      avatarAssetId: avatar.assetId,
+    });
+    await seedParticipant(db, { chatId: room, key: "stranger_caption_char", characterId: strangersCharacter });
+
+    const verdict = await leakVerdict(
+      "imagery.extractPrompt",
+      () => otherCaller.imagery.extractPrompt({ chatId: room, mode: "character_multimodal", subjectCharacterId: strangersCharacter, timeZone: UTC_TIME_ZONE }),
+      true,
+    );
+    expect(captionProbeFetches).toEqual([]);
+    expect(verdict).toBeNull();
+  },
+);

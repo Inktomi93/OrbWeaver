@@ -693,3 +693,86 @@ describe("generatePicture — gallery auto-add", () => {
     expect(galleryAdds).toEqual([{ ownerId: owner, assetId: first.images[0]?.assetId, subjectCharacterId: ARIA }]);
   });
 });
+
+describe("generatePicture — a room picture runs as the room host (D298)", () => {
+  /** Which principal each funding and styling op was keyed on, in call order. */
+  interface KeyedOn {
+    readonly connection: UserId[];
+    readonly template: UserId[];
+    readonly negative: UserId[];
+    readonly extraction: { readonly viewer: UserId; readonly funder: UserId }[];
+  }
+
+  function keyedHarness(): { readonly harness: ReturnType<typeof makeHarness>; readonly keyedOn: KeyedOn } {
+    const keyedOn: KeyedOn = { connection: [], template: [], negative: [], extraction: [] };
+    const base = makeHarness(db);
+    const harness = makeHarness(db, {
+      resolveGenerateImage: (runAs) => {
+        keyedOn.connection.push(runAs.userId);
+        return base.ctx.resolveGenerateImage(runAs);
+      },
+      resolvePromptTemplate: (runAs, mode) => {
+        keyedOn.template.push(runAs.userId);
+        return base.ctx.resolvePromptTemplate(runAs, mode);
+      },
+      resolveNegativeBase: (runAs) => {
+        keyedOn.negative.push(runAs.userId);
+        return base.ctx.resolveNegativeBase(runAs);
+      },
+      extractQuiet: (p) => {
+        keyedOn.extraction.push({ viewer: p.caller.userId, funder: p.funderUserId });
+        return Promise.resolve({ text: "keyword one", costUsd: 0.001 });
+      },
+    });
+    return { harness, keyedOn };
+  }
+
+  async function seedRoom(): Promise<{ readonly host: UserId; readonly member: UserId }> {
+    const host = await seedGenerationOwner(db, castId<Handle>("host"));
+    const member = await seedOwner(db, castId<Handle>("member"));
+    await db.insert(characters).values(makeCharacter({ id: ARIA, ownerId: host }));
+    await seedChat();
+    return { host, member };
+  }
+
+  test("a member's /imagine extraction uses the host's connection, template, negative base and Utility funder", async () => {
+    const { host, member } = await seedRoom();
+    const { harness, keyedOn } = keyedHarness();
+
+    await createImageryService(harness.ctx).generatePicture({
+      caller: principal(member),
+      runAsUserId: host,
+      chatId: CHAT,
+      mode: "scenario",
+      gallery: { subjectCharacterId: ARIA },
+    });
+
+    expect(keyedOn).toEqual({ connection: [host], template: [host], negative: [host], extraction: [{ viewer: member, funder: host }] });
+    expect(harness.generateRequests.map((req) => req.owner)).toEqual([host]);
+    // The bytes, the spend and the gallery row are the host's; the member owns nothing new.
+    expect((await db.select().from(assets)).map((row) => row.ownerId)).toEqual([host]);
+    expect(harness.recordedStats.map((delta) => delta.ownerId)).toEqual([host]);
+    expect(harness.galleryAdds.map((add) => add.ownerId)).toEqual([host]);
+  });
+
+  test("a member's free-mode reply picture uses the host's connection and negative base, and spends no extraction", async () => {
+    const { host, member } = await seedRoom();
+    const { harness, keyedOn } = keyedHarness();
+
+    await createImageryService(harness.ctx).generatePicture({ caller: principal(member), runAsUserId: host, chatId: CHAT, mode: "free", prompt: "a lantern" });
+
+    expect(keyedOn).toEqual({ connection: [host], template: [], negative: [host], extraction: [] });
+    expect((await db.select().from(assets)).map((row) => row.ownerId)).toEqual([host]);
+  });
+
+  test("outside a room the picture stays the caller's", async () => {
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
+    const { harness, keyedOn } = keyedHarness();
+
+    await createImageryService(harness.ctx).generatePicture({ caller: principal(owner), mode: "free", prompt: "a lantern" });
+
+    expect(keyedOn).toEqual({ connection: [owner], template: [], negative: [owner], extraction: [] });
+    expect((await db.select().from(assets)).map((row) => row.ownerId)).toEqual([owner]);
+    expect(harness.recordedStats.map((delta) => delta.ownerId)).toEqual([owner]);
+  });
+});
