@@ -72,6 +72,22 @@ test("the scopedCards toggle maps to the per-speaker cardScope arm", async ({ mo
   await expect(component.locator(SAVED)).toContainText('"cardScope":"scoped"');
 });
 
+// Self-responses govern every round the app picks speakers for, not only the auto-mode chain, so the switch
+// stands on its own with auto mode off (the default) and still saves.
+test("the self-response switch shows with auto mode off and saves", async ({ mount, page }) => {
+  await routeTrpc(page, UTILITY_RUNNING_ROUTES);
+  const component = await mount(<GroupConfigFormStory />);
+
+  await component.getByRole("button", { name: "Advanced" }).click();
+  await expect(component.getByRole("switch", { name: "Let characters reply to each other" })).toHaveAttribute("aria-checked", "false");
+  const selfResponses = component.getByRole("switch", { name: "Let a character reply to itself" });
+  await expect(selfResponses).toBeVisible();
+
+  await selfResponses.click();
+  await expect(component.locator(SAVED)).toContainText('"allowSelfResponses":true');
+  await expect(component.locator(SAVED)).toContainText('"autoMode":false');
+});
+
 // Smart costs a Utility-model call every round, so it is an opt-in that needs that model running: with none
 // set the option cannot be chosen, and a room already on Smart offers the door to Model roles.
 const SMART_OPTION = { name: GROUP_POLICY_LABELS.smart };

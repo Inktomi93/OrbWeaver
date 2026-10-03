@@ -258,14 +258,22 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                                 <field.SliderField label="Delay between turns" min={DELAY_MS_MIN} max={DELAY_MS_MAX} step={DELAY_MS_STEP} />
                               )}
                             </form.AppField>
-                            <form.AppField name="allowSelfResponses">
-                              {(field): ReactElement => <field.SwitchField label="Let a character reply to itself" />}
-                            </form.AppField>
                           </Stack>
                         ) : null
                       }
                     </form.Subscribe>
                   </Stack>
+
+                  {/* Not an auto-mode knob: `verbs/turn.ts::banLastFor` reads it on every round the app picks
+                      speakers for. The form mounts only in a room with more than one character. */}
+                  <form.AppField name="allowSelfResponses">
+                    {(field): ReactElement => (
+                      <field.SwitchField
+                        label="Let a character reply to itself"
+                        description="Off, whoever spoke last sits out of every round the app picks speakers for. Under Natural, a character you name can always answer."
+                      />
+                    )}
+                  </form.AppField>
                 </Stack>
               </AccordionPanel>
             </AccordionItem>
