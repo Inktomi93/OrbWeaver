@@ -85,14 +85,14 @@ describe("bus golden — the turn lifecycle (send/swipe/continue) exact sequence
   });
 
   test("auto-mode chain: each chained iteration re-opens the slot — … turnCompleted → turnAccepted → turnStarted …", async () => {
-    // A natural-policy 2-character room: the human round's ONE arbitration drives its selected speakers (both,
-    // here) under a single `turnAccepted`; then the autoMode chain runs one AI→AI continuation whose OWN
+    // A `list` 2-character room (every eligible seat speaks, so the round's size is fixed): the human round's
+    // ONE arbitration drives its selected speakers (both) under a single `turnAccepted`; then the autoMode chain runs one AI→AI continuation whose OWN
     // arbitration emits its OWN `turnAccepted` (so Stop renders through a chain-arbitration hang). The
     // load-bearing pin: the chain boundary reads turnCompleted → turnAccepted → turnStarted — the slot RE-OPENS
     // for the continuation instead of staying idle after the human round (the chain-window Stop-affordance fix).
     const chat = await scenario.chat(tape().reply("one").reply("two").reply("three").reply("four"), {
       characters: ["aria", "bryn"],
-      policy: "natural",
+      policy: "list",
       autoMode: true,
       autoModeMaxTurns: 1,
     });

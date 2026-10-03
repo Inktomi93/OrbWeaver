@@ -6,12 +6,14 @@
 // re-derives the coupled speakerTags default), the scopedCards↔cardScope mapping seam, the narrator arm
 // omits cardScope, and the Advanced disclosure reveals policy / member-visibility / auto-mode.
 
-import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, GROUP_POLICY_LABELS } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES, utilityBindings } from "../../../../support/node/utility-role.ts";
 import { CommittedGroupConfigTabStory, GroupConfigFormStory, GroupConfigSwitchStory } from "../_ct-stories.tsx";
 
 const SAVED = '[data-testid="group-config-saved"]';
+const MODEL_ROLES_DOOR = "Open Model roles";
 
 test("renders the output discriminator + the always-visible toggles (seeded from config)", async ({ mount }) => {
   const component = await mount(<GroupConfigFormStory />);
@@ -42,7 +44,9 @@ test("toggling group-nudge commits the whole config", async ({ mount }) => {
   await expect(component.locator(SAVED)).toContainText('"groupNudge":false');
 });
 
-test("the Advanced disclosure reveals policy · member-visibility · auto-mode", async ({ mount }) => {
+test("the Advanced disclosure reveals policy · member-visibility · auto-mode", async ({ mount, page }) => {
+  // The speaker-order control reads the Utility role once Advanced opens.
+  await routeTrpc(page, UTILITY_RUNNING_ROUTES);
   const component = await mount(<GroupConfigFormStory />);
 
   // Hidden at rest (progressive disclosure).
@@ -57,7 +61,8 @@ test("the Advanced disclosure reveals policy · member-visibility · auto-mode",
   await expect(component.getByRole("switch", { name: "Each character sees only their own card" })).toBeVisible();
 });
 
-test("the scopedCards toggle maps to the per-speaker cardScope arm", async ({ mount }) => {
+test("the scopedCards toggle maps to the per-speaker cardScope arm", async ({ mount, page }) => {
+  await routeTrpc(page, UTILITY_RUNNING_ROUTES);
   const component = await mount(<GroupConfigFormStory />);
 
   await component.getByRole("button", { name: "Advanced" }).click();
@@ -65,6 +70,41 @@ test("the scopedCards toggle maps to the per-speaker cardScope arm", async ({ mo
 
   // The flat `scopedCards` boolean projects back onto the wire `cardScope: "scoped"` (per-speaker arm).
   await expect(component.locator(SAVED)).toContainText('"cardScope":"scoped"');
+});
+
+// Smart costs a Utility-model call every round, so it is an opt-in that needs that model running: with none
+// set the option cannot be chosen, and a room already on Smart offers the door to Model roles.
+const SMART_OPTION = { name: GROUP_POLICY_LABELS.smart };
+const POLICY_COMBOBOX = { name: "Who speaks each round" };
+
+test("Smart cannot be chosen while no Utility model runs", async ({ mount, page }) => {
+  await routeTrpc(page, { ...UTILITY_RUNNING_ROUTES, "connection.listBindings": utilityBindings("unset") });
+  const component = await mount(<GroupConfigFormStory />);
+
+  await component.getByRole("button", { name: "Advanced" }).click();
+  await component.getByRole("combobox", POLICY_COMBOBOX).click();
+  await expect(page.getByRole("option", SMART_OPTION)).toBeDisabled();
+  await expect(page.getByRole("option", { name: GROUP_POLICY_LABELS.list })).toBeEnabled();
+});
+
+test("with a running Utility model Smart can be chosen, and the choice saves", async ({ mount, page }) => {
+  await routeTrpc(page, UTILITY_RUNNING_ROUTES);
+  const component = await mount(<GroupConfigFormStory />);
+
+  await component.getByRole("button", { name: "Advanced" }).click();
+  await component.getByRole("combobox", POLICY_COMBOBOX).click();
+  await page.getByRole("option", SMART_OPTION).click();
+  await expect(component.locator(SAVED)).toContainText('"policy":"smart"');
+  // Ready: nothing to fix, so no door.
+  await expect(component.getByRole("button", { name: MODEL_ROLES_DOOR })).toHaveCount(0);
+});
+
+test("a per-speaker room already on Smart with no Utility model offers the door to Model roles", async ({ mount, page }) => {
+  await routeTrpc(page, { ...UTILITY_RUNNING_ROUTES, "connection.listBindings": utilityBindings("unset") });
+  const component = await mount(<GroupConfigFormStory config={{ ...DEFAULT_GROUP_CONFIG, policy: "smart" }} />);
+
+  await component.getByRole("button", { name: "Advanced" }).click();
+  await expect(component.getByRole("button", { name: MODEL_ROLES_DOOR })).toBeVisible();
 });
 
 // F1 SWITCH pin (stickler review 2026-07-16-merge-block-28523122): this form mounts under

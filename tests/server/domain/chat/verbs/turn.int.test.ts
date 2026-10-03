@@ -840,6 +840,26 @@ describe("send — the group round (N speakers via driveRound)", () => {
     expect(assistants).toHaveLength(1);
     expect(assistants[0]?.characterId).toBe(chars[1]);
   });
+
+  // `natural` activates speakers rather than ordering everyone: a prng of 0.99 fails every 0.5 roll, so who
+  // speaks is decided by the message alone (a plain name) or by the one-random fallback (the last chatty seat).
+  test("a natural room answers with the ONE fallback speaker when nobody is named and every roll fails", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria", "bryn", "cara"]);
+    const h = harness(db, names, { prng: () => 0.99 });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "hello, everyone" });
+
+    expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[2]]);
+  });
+
+  test("a natural room answers the character the human names as a plain word (no @)", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria", "bryn", "cara"]);
+    const h = harness(db, names, { prng: () => 0.99 });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "Bryn, what do you make of this?" });
+
+    expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[1]]);
+  });
 });
 
 // The `smart` policy routes the round through the side-LLM turn arbiter (`engine/smart-arbitrate`) BEFORE

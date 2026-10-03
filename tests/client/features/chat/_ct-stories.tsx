@@ -99,6 +99,7 @@ import type { QuickReplyMode } from "@orb/contracts/automation";
 import type {
   CardTrust,
   ChatIdentity,
+  GroupConfig,
   HandoffOffer,
   JoinHistoryVisibility,
   MemoryRecallSlice,
@@ -2316,9 +2317,9 @@ export function RegexSectionStory({ isHost = true }: { readonly isHost?: boolean
 }
 
 /** The group-config form (group-config-form.tsx, P3) as the PURE component it is — seeded with
- *  `DEFAULT_GROUP_CONFIG`, the `.ct.tsx` drives controls and reads the last saved config off the
+ *  `DEFAULT_GROUP_CONFIG` (or `config`), the `.ct.tsx` drives controls and reads the last saved config off the
  *  `group-config-saved` readout (immediate-commit; no network). */
-export function GroupConfigFormStory(): ReactElement {
+export function GroupConfigFormStory({ config = DEFAULT_GROUP_CONFIG }: { readonly config?: GroupConfig }): ReactElement {
   const [saved, setSaved] = useState("");
   return (
     <CtDataProviders>
@@ -2326,9 +2327,9 @@ export function GroupConfigFormStory(): ReactElement {
         <div data-testid="group-config-saved">{saved}</div>
         <GroupConfigForm
           entityId="group-config:ct"
-          config={DEFAULT_GROUP_CONFIG}
-          save={(config): Promise<void> => {
-            setSaved(JSON.stringify(config));
+          config={config}
+          save={(next): Promise<void> => {
+            setSaved(JSON.stringify(next));
             return Promise.resolve();
           }}
         />

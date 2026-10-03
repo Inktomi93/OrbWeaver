@@ -15,7 +15,7 @@ import { useRef, useState } from "react";
 import { talkativenessAccessibleName, talkativenessLevel } from "#lib";
 import type { MemberCharacterRow } from "../lib/member-rows.ts";
 
-// THE NUMBER IS A RELATIVE WEIGHT, AND IT MUST NOT WEAR A PERCENT SIGN (#490) — the dial's scale, its
+// THE NUMBER IS A DIAL LEVEL, AND IT MUST NOT WEAR A PERCENT SIGN (#490) — the dial's scale, its
 // rounding and its spelled-out accessible name now live in ONE home, `#lib`'s `talkativeness.ts`, because
 // the saved-roster editor renders the same seat knob and spelled it `0.5` (side-eye 2026-08-29 P2-5); a
 // feature may not import another feature, so the seam sits on the tier-4 floor. The reasoning is there.
@@ -108,8 +108,11 @@ export function TalkativenessPopover({
             </Stack>
           </Row>
           {/* When the weight applies is `engine/select-speakers.ts`: only the natural order and Smart's
-              fallback read it, and a zero weight is floored so the character still speaks, last. */}
-          <Text voice="gloss">Counts only when Orbweaver picks who speaks: Natural, and Smart when it can't decide. At 0 a character still replies, last.</Text>
+              fallback read it, as each character's chance to reply unprompted. */}
+          <Text voice="gloss">
+            In a Natural room, this is the chance a character replies without being named. At 0 they reply only when you name them, or when every character is
+            at 0. Smart uses it only when it can't decide.
+          </Text>
         </Stack>
       </PopoverPopup>
     </Popover>

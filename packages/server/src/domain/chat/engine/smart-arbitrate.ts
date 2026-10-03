@@ -21,6 +21,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
 import type { RoleClientsWithSignal } from "@orb/inference";
+import type { CharacterId } from "@orb/kit/ids";
 import { includesWholeName } from "@orb/kit/speaker-label";
 import type { ArbiterCandidate, SmartArbitrationResult, SpeakerCandidate } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
@@ -41,7 +42,10 @@ interface SmartArbitrateParams {
   /** Whether the fallback bans the last speaker (the room's `allowSelfResponses`, inverted). Default TRUE —
    *  forwarded verbatim to `selectSpeakers`, which keeps the ban and the rotation origin separate. */
   readonly banLast?: boolean | undefined;
-  /** The injected PRNG (D46) — drives the `natural` fallback's weighted pick. */
+  /** Characters the human trigger text named as a plain word — forwarded to the `natural` fallback, so a
+   *  degraded round still answers the character the human addressed. */
+  readonly mentionedIds?: readonly CharacterId[] | undefined;
+  /** The injected PRNG (D46) — drives the `natural` fallback's pick. */
   readonly rng: () => number;
   /** The ROOM HOST's prose overrides (PROSE-1 census row 75, `chat.arbiter.system`), resolved by the caller
    *  off `ctx.resolveChatProse`. Empty ⇒ the shipped arbiter prompt, byte-identical. */
@@ -87,6 +91,7 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
       policy: "natural",
       lastSpeaker: params.lastSpeaker,
       ...(params.banLast !== undefined ? { banLast: params.banLast } : {}),
+      mentionedIds: params.mentionedIds,
       rng: params.rng,
       maxSpeakers: 1,
     }),

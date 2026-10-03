@@ -8,11 +8,11 @@
 // It lives HERE and not in either feature because a feature may never import another feature
 // (`client-features-no-cross`), and the ROOM is where the value is edited while the SAVED ROSTER only displays it.
 //
-// THE NUMBER IS A RELATIVE WEIGHT, AND IT MUST NOT WEAR A PERCENT SIGN (#490). `talkativeness` feeds
-// `selectSpeakers`' weighted sample — a relative weight over the eligible pool, not a probability and not a
-// share of the room. Rendered as "Talks 50%" it read as a share, so a three-character room showed 50% ·
-// 50% · 50% and invited arithmetic that sums to 150 and means nothing. The dial keeps its familiar 0–100
-// domain (it IS the slider's own position) and loses the sign.
+// THE NUMBER IS A DIAL LEVEL, AND IT MUST NOT WEAR A PERCENT SIGN (#490). `talkativeness` is each
+// character's own chance to reply unprompted in a `natural` round (`selectSpeakers`), never a share of the
+// room. Rendered as "Talks 50%" it read as a share, so a three-character room showed 50% · 50% · 50% and
+// invited arithmetic that sums to 150 and means nothing. The dial keeps its familiar 0–100 domain (it IS
+// the slider's own position) and loses the sign.
 
 /** Display factor for the 0–1 weight — the slider's position on a 0–100 dial, NOT a percentage. Deliberately
  *  module-private: both readings of the dial are functions here, so no consumer multiplies it themselves. */

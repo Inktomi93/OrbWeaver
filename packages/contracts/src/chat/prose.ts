@@ -104,7 +104,7 @@ export const CHAT_PROSE_SLOTS = {
     title: "Turn-arbiter prompt",
     // Editor copy is read as PLAIN TEXT (no markdown pass), so it carries no backticks and no internal
     // nouns — the room's own control label and the model-role slot name instead of "`smart` policy" / "rail".
-    fires: 'Every group round while the room\'s speaker order is "Smart (side-LLM)" — the pick runs on the Summarize model.',
+    fires: 'Every group round while the room\'s speaker order is "Smart (Utility model)" — the pick runs on the Utility model.',
   },
   "chat.compaction.system": {
     id: "chat.compaction.system",

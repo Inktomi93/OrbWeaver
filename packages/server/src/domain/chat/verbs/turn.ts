@@ -97,7 +97,15 @@ import { humanSeatPersonasOf, memberPersonaIdsOf, presentAndEnabledHumanUserIdsO
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
-import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access.ts";
+import {
+  driveRoundVia,
+  resolveMentionsVia,
+  resolveNameMentionsVia,
+  resolveTurnIdentityVia,
+  runAutoModeVia,
+  selectSpeakersVia,
+  smartArbitrateVia,
+} from "../substrate/turn-access.ts";
 
 /** SEND USER_INPUT regex out-param sink: `buildAssembleContext` writes the post-regex user text here so the
  *  verb persists that (the haystack and the stored row never diverge). Also receives the round-level recall
@@ -876,6 +884,8 @@ async function arbitrate(
     readonly candidates: readonly ArbiterCandidate[];
     readonly speakerCandidates: readonly SpeakerCandidate[];
     readonly forcedIds?: readonly CharacterId[] | undefined;
+    /** Characters the human's message names as a plain word — `natural`'s soft activation (send only). */
+    readonly mentionedIds?: readonly CharacterId[] | undefined;
     readonly lastSpeaker: SpeakerRef | null;
     /** Whether the last speaker is banned from this round's pool (the room's `allowSelfResponses`,
      *  inverted). Default TRUE. It rides BESIDE `lastSpeaker` rather than nulling it because the two are
@@ -909,6 +919,7 @@ async function arbitrate(
       recentHistory: await arbiterTranscript(ctx, args.recentRows),
       lastSpeaker: args.lastSpeaker,
       ...(args.banLast !== undefined ? { banLast: args.banLast } : {}),
+      mentionedIds: args.mentionedIds,
       rng: deps.prng,
       sampling: arbiterSampling,
       // PROSE-1 census 75 — the arbiter prompt is the room HOST's slot, resolved beside its sampling.
@@ -929,6 +940,7 @@ async function arbitrate(
       lastSpeaker: args.lastSpeaker,
       ...(args.banLast !== undefined ? { banLast: args.banLast } : {}),
       forcedIds: forced,
+      mentionedIds: args.mentionedIds,
       rng: deps.prng,
       maxSpeakers: args.maxSpeakers,
     });
@@ -1073,6 +1085,8 @@ async function runAiRound(
     /** Human `@mention` hard-override (send only). A drained turn re-arbitrates naturally — the pending row
      *  carries no message text to parse. */
     readonly forcedIds?: readonly CharacterId[] | undefined;
+    /** Characters the human's message names as a plain word (send only) — `natural`'s soft activation. */
+    readonly mentionedIds?: readonly CharacterId[] | undefined;
     /** Whether to run the auto-mode AI→AI chain after the human-triggered round. Absent/true for a human send
      *  or drain (the host's autoMode setting governs). A non-human `requestTurn` passes `false` — an autonomous
      *  trigger is ONE injected beat, never a chain (bounded spend; the room's autoMode is a human affordance). */
@@ -1104,6 +1118,7 @@ async function runAiRound(
     candidates: args.room.candidates,
     speakerCandidates: args.room.speakerCandidates,
     forcedIds: args.forcedIds,
+    mentionedIds: args.mentionedIds,
     lastSpeaker: facts.lastSpeaker,
     recentRows: facts.recentRows,
     signal: args.signal,
@@ -1637,6 +1652,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       room,
       signal: handle.signal,
       forcedIds: resolveMentionsVia(content, room.speakerCandidates),
+      mentionedIds: resolveNameMentionsVia(content, room.speakerCandidates),
     });
     // §3.6 RETURN PROJECTION: the assistant reply in `round.messages` carries the model's hidden spans; a
     // NON-HOST member who ran this turn must not receive the truth bytes in the HTTP return (the bus + list

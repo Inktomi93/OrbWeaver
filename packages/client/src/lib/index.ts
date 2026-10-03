@@ -59,6 +59,7 @@ export {
   roleReadout,
   roleRequirementVerdicts,
   roleStatus,
+  SMART_POLICY_COST_SENTENCE,
   UTILITY_ROLE_DOOR,
   utilityReadsImages,
 } from "./connection-roles.ts";

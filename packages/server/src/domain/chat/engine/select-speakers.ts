@@ -12,17 +12,19 @@
 //      rather than empty). A solo roster falls out here: the pool empties → restores → re-speaks. SKIPPED
 //      when `banLast:false` (the room's `allowSelfResponses`): that toggle governs ELIGIBILITY only, and
 //      step 4 still reads `lastSpeaker` as its rotation origin.
-//   4. Policy — order/subset the pool: `list` (roster order, all), `natural` (talkativeness-weighted
-//      sample order, Efraimidis-Spirakis), `pooled` (ROUND-ROBIN — least-recently-spoken first: the roster
-//      rotated to start at the seat after the last speaker), `manual` (none — only forced drives it),
-//      `smart` (the side-LLM path lives in `engine/smart-arbitrate`; this file sees `smart` only where the
-//      turn verb did not route there — see `applyPolicy`).
-//   5. Cap — `maxSpeakers` (optional) truncates the ordered result; default = all eligible.
+//   4. Policy — order/subset the pool: `list` (roster order, all), `natural` (ACTIVATION: the pool members
+//      the human named as a plain word first, then every member whose talkativeness roll passes, in a
+//      shuffled order; nobody activated ⇒ one random member — see `naturalOrder`), `pooled` (ROUND-ROBIN —
+//      least-recently-spoken first: the roster rotated to start at the seat after the last speaker),
+//      `manual` (none — only forced drives it), `smart` (the side-LLM path lives in `engine/smart-arbitrate`;
+//      this file sees `smart` only where the turn verb did not route there — see `applyPolicy`).
+//   5. Dedupe, then cap — `maxSpeakers` (optional) truncates the ordered result; default = all activated.
 
 import type { GroupConfig, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { NAME_END_BOUNDARY } from "@orb/kit/speaker-label";
+import { UNICODE_WORD_CHARS } from "@orb/kit/strings";
 import type { ArbiterCandidate, SpeakerCandidate } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
 
@@ -44,26 +46,53 @@ interface SelectSpeakersParams {
   /** Human-authored forced/`@-mention` targets — the hard override; empty ⇒ run the policy. `@mention`
    *  is character-only. */
   readonly forcedIds?: readonly CharacterId[] | undefined;
-  /** The injected PRNG — `() => number` in [0,1). Drives `natural`'s weighted sample. */
+  /** Characters the human-authored trigger text names as a plain word ({@link resolveNameMentions}), in
+   *  mention order. A SOFT activation read by `natural` only: unlike `forcedIds` it runs inside the policy, so
+   *  ban-last and the eligible set still apply and the talkativeness rolls still add speakers after them. */
+  readonly mentionedIds?: readonly CharacterId[] | undefined;
+  /** The injected PRNG — `() => number` in [0,1). Drives `natural`'s shuffle, rolls and fallback pick. */
   readonly rng: () => number;
-  /** Optional per-round speaker cap. Undefined ⇒ all eligible. */
+  /** Optional per-round speaker cap. Undefined ⇒ all activated. */
   readonly maxSpeakers?: number | undefined;
 }
 
-/** The smallest positive weight a zero/negative talkativeness collapses to (so a 0-weight member sorts last
- *  but still participates in the sample rather than dividing by zero). */
-const WEIGHT_FLOOR = 1e-9;
+/** A uniform shuffle off the injected rng: one random sort key per item (index breaks a tie). */
+function shuffled<T>(items: readonly T[], rng: () => number): T[] {
+  return items
+    .map((item, idx) => ({ item, idx, key: rng() }))
+    .toSorted((a, b) => a.key - b.key || a.idx - b.idx)
+    .map((k) => k.item);
+}
 
-/** Talkativeness-weighted sample without replacement (Efraimidis-Spirakis): key = u^(1/weight), sorted
- *  desc — a higher weight pulls the key toward 1, so heavier talkers tend to speak earlier. */
-function weightedOrder(pool: readonly ArbiterCandidate[], rng: () => number): ArbiterCandidate[] {
-  const keyed = pool.map((c, idx) => {
-    const u = Math.min(Math.max(rng(), WEIGHT_FLOOR), 1);
-    const weight = Math.max(c.talkativeness, WEIGHT_FLOOR);
-    return { c, idx, key: u ** (1 / weight) };
+/**
+ * `natural` — who is ACTIVATED this round, not an order over everyone:
+ *   a. the pool members the human named as a plain word, in mention order;
+ *   b. then, walking the pool in a shuffled order, each member whose roll passes (`talkativeness >= rng()`),
+ *      so talkativeness is each member's chance to speak up on their own;
+ *   c. nobody activated ⇒ ONE random member, drawn from those with talkativeness above 0 when any exist.
+ * A member both named and rolled appears twice here; the caller's dedupe keeps the first (the mention).
+ */
+function naturalOrder(pool: readonly ArbiterCandidate[], mentionedIds: readonly CharacterId[], rng: () => number): ArbiterCandidate[] {
+  const byKey = new Map(pool.map((c) => [speakerKey(c.ref), c] as const));
+  const mentioned = mentionedIds.flatMap((characterId) => {
+    const c = byKey.get(speakerKey({ kind: "character", characterId }));
+    return c === undefined ? [] : [c];
   });
-  keyed.sort((a, b) => b.key - a.key || a.idx - b.idx);
-  return keyed.map((k) => k.c);
+  const rolled: ArbiterCandidate[] = [];
+  for (const c of shuffled(pool, rng)) {
+    if (c.talkativeness >= rng()) {
+      rolled.push(c);
+    }
+  }
+  const activated = [...mentioned, ...rolled];
+  if (activated.length > 0) {
+    return activated;
+  }
+  const chatty = pool.filter((c) => c.talkativeness > 0);
+  const from = chatty.length > 0 ? chatty : pool;
+  // An empty pool (everyone muted or gone) draws `undefined` here and schedules nobody.
+  const pick = from[Math.floor(rng() * from.length)];
+  return pick === undefined ? [] : [pick];
 }
 
 /**
@@ -94,11 +123,11 @@ export function selectSpeakers(params: SelectSpeakersParams): SpeakerRef[] {
     }
   }
 
-  const ordered = applyPolicy(pool, params.policy, params.rng, { eligible, lastSpeaker: params.lastSpeaker });
-  return cap(
-    ordered.map((c) => c.ref),
-    params.maxSpeakers,
-  );
+  const ordered = applyPolicy(pool, params.policy, params.rng, {
+    rotation: { eligible, lastSpeaker: params.lastSpeaker },
+    mentionedIds: params.mentionedIds ?? [],
+  });
+  return cap(dedupe(ordered.map((c) => c.ref)), params.maxSpeakers);
 }
 
 /** What `pooled` needs beyond the (already ban-last-filtered) pool: the full eligible roster in join order
@@ -135,7 +164,7 @@ function applyPolicy(
   pool: readonly ArbiterCandidate[],
   policy: GroupConfig["policy"],
   rng: () => number,
-  rotation: RotationState,
+  state: { readonly rotation: RotationState; readonly mentionedIds: readonly CharacterId[] },
 ): readonly ArbiterCandidate[] {
   switch (policy) {
     case "natural":
@@ -143,15 +172,15 @@ function applyPolicy(
     // smart round to — so this arm is reached only where it did NOT: a `smart` room whose human `@mention`
     // resolved to nobody eligible (the named seat is muted/left), and a NARRATOR room, where the arbiter
     // call is short-circuited because its verdict governs nothing. No model was consulted in either case, so
-    // this is a plain `natural` order, not the degrade path (the model FAILING is the degrade path, emitted
-    // as `smart_arbitration_degraded` by the caller).
+    // this is a plain `natural` activation, not the degrade path (the model FAILING is the degrade path,
+    // emitted as `smart_arbitration_degraded` by the caller).
     case "smart":
-      return weightedOrder(pool, rng);
+      return naturalOrder(pool, state.mentionedIds, rng);
     // `list` — roster order, all of them, every round (no rotation: that is `pooled`).
     case "list":
       return pool;
     case "pooled":
-      return pooledOrder(pool, rotation);
+      return pooledOrder(pool, state.rotation);
     // `manual` schedules no one automatically — only a forced/@mention target speaks (handled above).
     case "manual":
       return [];
@@ -229,4 +258,30 @@ export function resolveMentions(triggerText: string, candidates: readonly Speake
     found.push({ id: member.characterId, at: first.at });
   }
   return dedupeIds(found.sort((a, b) => a.at - b.at).map((f) => f.id));
+}
+
+/** One word: a run of the shared Unicode word class, so `Аня` and `結衣` split the way `Bran` does. */
+const WORD = new RegExp(`[${UNICODE_WORD_CHARS}]+`, "gu");
+
+function wordsOf(text: string): string[] {
+  return text.toLowerCase().match(WORD) ?? [];
+}
+
+/**
+ * Characters a human-authored trigger text names as a plain word — `natural`'s mention activation (the
+ * caller must pass a human post's body, never an AI reply). A character is named when any word of the text
+ * equals any word of their display name, case-insensitive, so "Aria" and "stormborn" both name
+ * `Aria Stormborn`, and one word shared by two names names both. Ordered by the first word that names each.
+ */
+export function resolveNameMentions(triggerText: string, candidates: readonly SpeakerCandidate[]): CharacterId[] {
+  const named = candidates.map((c) => ({ characterId: c.ref.characterId, words: new Set(wordsOf(c.name)) }));
+  const found: CharacterId[] = [];
+  for (const word of wordsOf(triggerText)) {
+    for (const member of named) {
+      if (member.words.has(word)) {
+        found.push(member.characterId);
+      }
+    }
+  }
+  return dedupeIds(found);
 }
