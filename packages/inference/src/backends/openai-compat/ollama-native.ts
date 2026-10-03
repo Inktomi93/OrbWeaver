@@ -138,9 +138,16 @@ function formatOf(responseFormat: unknown): unknown {
   return responseFormat["type"] === "json_schema" && isRecord(responseFormat["json_schema"]) ? responseFormat["json_schema"]["schema"] : undefined;
 }
 
-/** `reasoning_effort` as Ollama's `think`: off for `none`, on for any level. */
-function thinkOf(effort: unknown): boolean | undefined {
-  return typeof effort === "string" ? effort !== REASONING_OFF : undefined;
+/** `reasoning_effort` as Ollama's `think`: off for `none`. A model whose capability names effort levels (gpt-oss:
+ *  low/medium/high) takes the level itself, which Ollama's harmony renderer reads; any other model takes `true`. */
+function thinkOf(effort: unknown, namedLevels: boolean): boolean | string | undefined {
+  if (typeof effort !== "string") {
+    return;
+  }
+  if (effort === REASONING_OFF) {
+    return false;
+  }
+  return namedLevels ? effort : true;
 }
 
 /**
@@ -157,6 +164,7 @@ export function toOllamaChat(
     readonly numCtx: number | undefined;
     readonly samplerKeys: ReadonlySet<string>;
     readonly label: string;
+    readonly namedThinkLevels?: boolean | undefined;
     readonly keepAlive?: string | undefined;
     readonly numBatch?: number | undefined;
   },
@@ -173,7 +181,7 @@ export function toOllamaChat(
     }
   }
   const format = formatOf(body["response_format"]);
-  const think = thinkOf(body["reasoning_effort"]);
+  const think = thinkOf(body["reasoning_effort"], args.namedThinkLevels === true);
   return {
     ...rest,
     // `/api/chat` streams unless told otherwise, and the SDK's non-streaming generate sends no `stream` key.

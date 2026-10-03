@@ -157,6 +157,12 @@ function nativeWindow(call: ModelCall): number | undefined {
   return capability.kind === "generation" ? capability.generation.context.window : undefined;
 }
 
+/** The model states named effort levels, so Ollama's `think` carries the level rather than `true`. */
+function namedThinkLevels(call: ModelCall): boolean {
+  const capability = call.connection.capability;
+  return capability.kind === "generation" && (capability.generation.reasoning.effortLevels?.length ?? 0) > 0;
+}
+
 /** A row whose folded `features.nativeChat` is `ollama` (D296): the same SDK and the same body shaping, with
  *  the request translated to `/api/chat` in `shapeBody` (so the capture holds the native body) and the reply
  *  translated back underneath `wrapFetch`. */
@@ -171,6 +177,7 @@ function ollamaNativeProvider(call: ModelCall): ReturnType<typeof createOpenAICo
       numCtx: nativeWindow(call),
       samplerKeys,
       label: call.label,
+      namedThinkLevels: namedThinkLevels(call),
       keepAlive: connection.features.keepAlive,
       numBatch: connection.features.numBatch,
     });

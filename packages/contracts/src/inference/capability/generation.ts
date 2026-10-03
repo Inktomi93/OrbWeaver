@@ -283,6 +283,16 @@ export const turnsCapabilitySchema = z.object({
 });
 export type TurnsCapability = z.infer<typeof turnsCapabilitySchema>;
 
+/** The `turns` cells a preset's message handling and a continue read, whose provenance synthesis records
+ *  (`turnsEstimated`): an unmeasured model must not clamp a user's choice to a guess. */
+export const ESTIMABLE_TURNS = [
+  "assistantPrefill",
+  "midConversationSystem",
+  "historySystemRows",
+  "roleHandlingFloor",
+] as const satisfies readonly (keyof TurnsCapability)[];
+export type EstimableTurn = (typeof ESTIMABLE_TURNS)[number];
+
 export const generationCapabilitySchema = z.object({
   reasoning: reasoningCapabilitySchema,
   sampling: samplingCapabilitySchema,
@@ -299,12 +309,20 @@ export const generationCapabilitySchema = z.object({
    *  prose on this (model × wire) — local vLLM's Qwen3-VL wrote 0 chars on 36/36 tool-attached turns. Absent
    *  `silencesProse` ⇒ the wire CO-EMITS (the hosted 6/6). Read through `coEmitsProseWithTools`.
    *
-   *  `forcedChoice: false` = the model REJECTS a forced tool choice (`required`/`tool` — Anthropic's `any`/`tool`)
-   *  with a 400, so a wire downgrades it to `auto` and the structured vehicle avoids the forced tool. Absent ⇒
-   *  ACCEPTED, deliberately not fail-closed: `required` is live-verified and load-bearing on the vLLM and
-   *  OpenRouter routes (the rpg state round), and only a documented model-specific refusal states `false`.
-   *  Read through `acceptsForcedToolChoice`. */
-  tools: z.object({ parallel: z.boolean(), silencesProse: z.boolean().optional(), forcedChoice: z.boolean().optional() }).optional(),
+   *  `requiredChoice: false` / `namedChoice: false` = a forced tool choice of that form (`required`, or a named
+   *  function — Anthropic's `any` / `tool`) does not reach the model as forced: Anthropic answers both with a
+   *  400, llama.cpp runs a named choice as `auto`, Ollama and KoboldCpp take neither. A wire downgrades that
+   *  form to `auto` loudly, and the structured vehicle avoids the named tool. Absent ⇒ ACCEPTED, deliberately not
+   *  fail-closed: `required` is live-verified and load-bearing on the vLLM and OpenRouter routes (the rpg state
+   *  round). Read through `acceptsRequiredToolChoice` / `acceptsNamedToolChoice`. */
+  tools: z
+    .object({
+      parallel: z.boolean(),
+      silencesProse: z.boolean().optional(),
+      requiredChoice: z.boolean().optional(),
+      namedChoice: z.boolean().optional(),
+    })
+    .optional(),
   output: z.object({
     maxTokens: rangeSchema,
     /** `maxTokens` is the kind floor's guess: no tier above it stated a cap. A surface showing it must say so. */
@@ -326,6 +344,10 @@ export const generationCapabilitySchema = z.object({
   modalitiesEstimated: z.boolean().optional(),
   moderated: z.boolean().optional(),
   turns: turnsCapabilitySchema.optional(),
+  /** The `turns` cells no evidence tier stated, so they hold {@link TURNS_FLOOR}'s fail-closed guess. A preset's
+   *  role handling is clamped only against a STATED floor (`turnsLevelFor`), and an estimated prefill cell does
+   *  not block a continue. Absent ⇒ every cell was stated. */
+  turnsEstimated: z.array(z.enum(ESTIMABLE_TURNS)).optional(),
 });
 export type GenerationCapability = z.infer<typeof generationCapabilitySchema>;
 

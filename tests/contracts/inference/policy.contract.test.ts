@@ -96,9 +96,9 @@ test("foldFeatures: connection > provider row > wire default, field-wise", () =>
   expect(folded.prefill).toBe("none");
   expect(folded.strictJson).toBe(vllm.features?.strictJson);
   expect(folded.sleep).toEqual(vllm.features?.sleep);
-  // A bare custom row gets the wire default.
+  // A bare custom row gets the wire default plus its one knob: detect the server behind it.
   const custom = foldFeatures(provider("custom-openai").features, undefined);
-  expect(custom).toEqual(WIRE_DEFAULT_FEATURES);
+  expect(custom).toEqual({ ...WIRE_DEFAULT_FEATURES, detectServer: true });
   const override: EndpointFeatures = { effort: "reasoning_effort" };
   expect(foldFeatures(undefined, override).effort).toBe("reasoning_effort");
 });

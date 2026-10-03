@@ -4,7 +4,7 @@
 // the floor) and squash system notes (a Switch bound to `params.advanced.squashSystemMessages`).
 
 import type { GenerationCapability, RoleHandling, UserRoleHandling } from "@orb/contracts/inference";
-import { isStricterRoleHandling, ROLE_HANDLING, USER_ROLE_HANDLING, userRoleHandlingOptions } from "@orb/contracts/inference";
+import { isStricterRoleHandling, isTurnEstimated, ROLE_HANDLING, USER_ROLE_HANDLING, userRoleHandlingOptions } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { Badge } from "@orb/ui/badge";
 import { Field, FieldLayout } from "@orb/ui/field";
@@ -58,6 +58,9 @@ function roleHandlingItems(floor: RoleHandling | undefined): SelectItems<string>
   ];
 }
 
+/** Shown when the pick is looser than a floor nobody measured: the turn sends it as chosen. */
+const UNMEASURED_FLOOR_NOTE = "This model's limits aren't known; if the server rejects it, choose a stricter level.";
+
 /** A stored pick from a preset authored against a looser model, below this model's floor. */
 function isBelowFloor(pick: UserRoleHandling | undefined, floor: RoleHandling): boolean {
   return pick !== undefined && isStricterRoleHandling(floor, pick);
@@ -74,7 +77,11 @@ export function MessageHandlingSection({
   readonly form: AssemblyForm;
   readonly capability: GenerationCapability | undefined;
 }): ReactElement {
-  const floor = capability?.turns?.roleHandlingFloor;
+  // An ESTIMATED floor (no tier measured this model) clamps nothing at send, so it neither filters the choices
+  // nor announces a constraint; a pick looser than the guess gets the quiet note instead.
+  const estimated = capability !== undefined && isTurnEstimated(capability, "roleHandlingFloor");
+  const guessedFloor = capability?.turns?.roleHandlingFloor;
+  const floor = estimated ? undefined : guessedFloor;
 
   // NO ORPHANED LEDE (side-eye F-33): the sentence is what the CLUSTER is, so it belongs to the cluster's own
   // kicker, where it reads as the group's gloss and both rows sit under it.
@@ -108,6 +115,11 @@ export function MessageHandlingSection({
                     </Badge>
                   ) : null}
                 </Row>
+              ) : null}
+              {estimated && guessedFloor !== undefined && isBelowFloor(roleHandling, guessedFloor) ? (
+                <Text data-slot="role-handling-unmeasured" voice="gloss">
+                  {UNMEASURED_FLOOR_NOTE}
+                </Text>
               ) : null}
             </Field>
           )}

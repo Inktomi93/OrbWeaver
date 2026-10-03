@@ -154,9 +154,19 @@ test("recorded thinking comes back as reasoning, apart from the answer", async (
     connection: fakeResolved({ task: "chat", providerId: "ollama", model: "qwen3:0.6b", capability: thinking, baseUrl: BASE_URL }),
     params: { effort: "low" },
   });
-  expect(recorded[0]?.body["think"]).toBe(true);
+  // The capability names effort levels, so `think` carries the level (Ollama reads any named level as "think").
+  expect(recorded[0]?.body["think"]).toBe("low");
   expect(result.reasoning).toBe("Okay, the");
   expect(result.reply).toBe("2 + 3 = 5.");
+});
+
+test("think: a model with named effort levels (gpt-oss) gets the level, any other model on/off, and none turns it off", () => {
+  const body = (effort: string): Record<string, unknown> => ({ messages: [{ role: "user", content: "hi" }], ["reasoning_effort"]: effort });
+  const args = { numCtx: undefined, samplerKeys: OLLAMA_SAMPLER_KEYS, label: "t" };
+  expect(toOllamaChat(body("high"), { ...args, namedThinkLevels: true })["think"]).toBe("high");
+  expect(toOllamaChat(body("high"), args)["think"]).toBe(true);
+  expect(toOllamaChat(body("none"), { ...args, namedThinkLevels: true })["think"]).toBe(false);
+  expect(toOllamaChat({ messages: [] }, { ...args, namedThinkLevels: true })["think"]).toBeUndefined();
 });
 
 test("an image part travels as base64 in `images`, and an image URL is refused before the send", () => {

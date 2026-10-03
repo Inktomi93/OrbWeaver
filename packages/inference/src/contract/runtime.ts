@@ -4,7 +4,7 @@
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { BindingActorKind, ConnectionBinding, ProviderDef, ProviderId, RoutableTask, UserConnection } from "@orb/contracts/inference";
-import { modalitySchema, modelCatalogEntrySchema } from "@orb/contracts/inference";
+import { MODEL_INFO_APIS, modalitySchema, modelCatalogEntrySchema, PREFILL_MODES } from "@orb/contracts/inference";
 import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
 import type { AutomationRuleId, PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -72,8 +72,30 @@ const endpointModelSchema = z.object({
   tools: z.object({ parallel: z.boolean() }).optional(),
   /** The server's version is at or past the build that added JSON-schema constrained output. Absent ⇒ not stated. */
   structured: z.boolean().optional(),
+  /** Which forced tool choices the SERVER honours: `required`, and a named function. The two map one-to-one onto
+   *  the capability's per-mode tool-choice facts. Absent ⇒ not stated. */
+  toolChoice: z.object({ required: z.boolean(), named: z.boolean() }).optional(),
+  /** Whether the server continues a delivered trailing assistant row as sent today: `deliver` = it continues,
+   *  `none` = it closes the turn and starts a new one. Measured per model where the server can render a prompt. */
+  prefill: z.enum(PREFILL_MODES).optional(),
+  /** The server's sampler defaults for an unset knob, in the server's own key spelling (llama.cpp
+   *  `/props` `default_generation_settings.params`, an Ollama Modelfile's `PARAMETER` lines). Data only. */
+  serverDefaults: z.record(z.string(), z.union([z.number(), z.string(), z.boolean(), z.array(z.string())])).optional(),
+  /** llama.cpp's `chat_template_caps`: what the loaded chat template can render. */
+  templateCaps: z.record(z.string(), z.boolean()).optional(),
+  /** The chat template text the server renders with (KoboldCpp `/props`). */
+  chatTemplate: z.string().optional(),
+  /** The reply length the server uses when a request sets none (KoboldCpp `--defaultgenamt`). */
+  defaultReplyTokens: z.number().int().positive().optional(),
+  /** The server renders chat through the model's jinja template (KoboldCpp `--jinja`) rather than an adapter. */
+  jinja: z.boolean().optional(),
 });
 export type EndpointModel = z.infer<typeof endpointModelSchema>;
+
+/** A detecting row's cached server probe: the server it identified as, or `null` for a server that answered
+ *  and is none of the known local servers. */
+export const detectedServerSchema = z.object({ modelInfoApi: z.enum(MODEL_INFO_APIS).nullable() });
+export type DetectedServer = z.infer<typeof detectedServerSchema>;
 export const endpointModelsSchema = z.array(endpointModelSchema) satisfies z.ZodType<EndpointModel[]>;
 
 export type RoleClientsFor = (funder: Principal, actor?: BindingActor) => RoleClientsWithSignal;

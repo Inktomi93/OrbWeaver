@@ -18,6 +18,15 @@
 #   kobold-chat      28116  KoboldCpp, Qwen2.5-0.5B-Instruct + nomic embedder, --jinja --jinjatools
 #   kobold-vision    28117  KoboldCpp, SmolVLM-256M-Instruct + mmproj
 #   kobold-universal 28118  KoboldCpp, Qwen2.5-0.5B-Instruct, its own tool injection (no --jinjatools)
+#   llamacpp-embed-nopool 28119  llama.cpp server, nomic-embed-text-v1.5, --embedding --pooling none
+#   llamacpp-rerank  28120  llama.cpp server, nomic-embed-text-v1.5, --reranking (the handler's guards, not a real ranker)
+#   kobold-embed     28121  KoboldCpp, nomic-embed-text-v1.5 only (no text model)
+#   llamacpp-noprefill 28122  llama.cpp server, Qwen2.5-0.5B-Instruct, --jinja --no-prefill-assistant
+#   llamacpp-stock   28123  llama.cpp server, Qwen2.5-0.5B-Instruct rendering Qwen3.8's stock template
+#   llamacpp-27b     28124  llama.cpp server, Qwen3.8-27B with the served template (needs LOCAL_RIG_MEMORY ≥ 24g)
+#   kobold-27b       28125  KoboldCpp, Qwen3.8-27B, --jinja (needs LOCAL_RIG_MEMORY ≥ 24g)
+#
+# The Qwen3.8 arms mount `LOCAL_RIG_QWEN38` (default the owner's GGUF directory) read-only.
 #
 # `LOCAL_RIG_OLLAMA_CTX=<n>` starts the Ollama arm with `OLLAMA_CONTEXT_LENGTH` set. `stop <arm>` removes the
 # container and keeps the Ollama volume, so a restart does not pull again.
@@ -39,6 +48,8 @@ QWEN="qwen2.5-0.5b-instruct-q4_k_m.gguf"
 SMOLVLM="SmolVLM-256M-Instruct-Q8_0.gguf"
 SMOLVLM_MMPROJ="mmproj-SmolVLM-256M-Instruct-Q8_0.gguf"
 NOMIC="nomic-embed-text-v1.5.Q8_0.gguf"
+QWEN38_DIR="${LOCAL_RIG_QWEN38:-/media/inktomi/Data/vllm-models/gguf/Qwen3.8-27B}"
+QWEN38="Qwen3.8-27B-UD-Q4_K_M.gguf"
 
 HF="https://huggingface.co"
 declare -A MODEL_URLS=(
@@ -48,7 +59,7 @@ declare -A MODEL_URLS=(
   ["$NOMIC"]="$HF/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/$NOMIC"
 )
 
-ARMS=(ollama llamacpp-chat llamacpp-vision llamacpp-embed llamacpp-router kobold-chat kobold-vision kobold-universal)
+ARMS=(ollama llamacpp-chat llamacpp-vision llamacpp-embed llamacpp-router kobold-chat kobold-vision kobold-universal llamacpp-embed-nopool llamacpp-rerank kobold-embed llamacpp-noprefill llamacpp-stock llamacpp-27b kobold-27b)
 
 port_of() {
   case "$1" in
@@ -60,6 +71,13 @@ port_of() {
     kobold-chat) echo 28116 ;;
     kobold-vision) echo 28117 ;;
     kobold-universal) echo 28118 ;;
+    llamacpp-embed-nopool) echo 28119 ;;
+    llamacpp-rerank) echo 28120 ;;
+    kobold-embed) echo 28121 ;;
+    llamacpp-noprefill) echo 28122 ;;
+    llamacpp-stock) echo 28123 ;;
+    llamacpp-27b) echo 28124 ;;
+    kobold-27b) echo 28125 ;;
     *) echo "unknown arm: $1" >&2; exit 3 ;;
   esac
 }
@@ -145,6 +163,31 @@ up() {
     kobold-universal)
       run_common "$arm" "$port" 5001 -e KCPP_DONT_TUNNEL=true \
         -e KCPP_ARGS="--model /models/$QWEN --host 0.0.0.0 --port 5001 --contextsize 4096 --threads $CPUS --quiet" \
+        "$KOBOLD_IMAGE"
+      ;;
+    llamacpp-embed-nopool)
+      run_common "$arm" "$port" 8080 "$LLAMACPP_IMAGE" -m "/models/$NOMIC" --embedding --pooling none --host 0.0.0.0 --port 8080 -c 2048 -t "$CPUS" --no-webui
+      ;;
+    llamacpp-rerank)
+      run_common "$arm" "$port" 8080 "$LLAMACPP_IMAGE" -m "/models/$NOMIC" --reranking --host 0.0.0.0 --port 8080 -c 2048 -t "$CPUS" --no-webui
+      ;;
+    llamacpp-stock)
+      run_common "$arm" "$port" 8080 -v "$QWEN38_DIR:/qwen38:ro" "$LLAMACPP_IMAGE" -m "/models/$QWEN" --chat-template-file /qwen38/chat_template.stock.jinja --host 0.0.0.0 --port 8080 --jinja -c 4096 -t "$CPUS" --no-webui
+      ;;
+    llamacpp-27b)
+      run_common "$arm" "$port" 8080 -v "$QWEN38_DIR:/qwen38:ro" "$LLAMACPP_IMAGE" -m "/qwen38/$QWEN38" --chat-template-file /qwen38/chat_template.served.jinja --host 0.0.0.0 --port 8080 --jinja -c 4096 -t "$CPUS" --no-webui
+      ;;
+    kobold-27b)
+      run_common "$arm" "$port" 5001 -v "$QWEN38_DIR:/qwen38:ro" -e KCPP_DONT_TUNNEL=true \
+        -e KCPP_ARGS="--model /qwen38/$QWEN38 --host 0.0.0.0 --port 5001 --contextsize 4096 --threads $CPUS --jinja --quiet" \
+        "$KOBOLD_IMAGE"
+      ;;
+    llamacpp-noprefill)
+      run_common "$arm" "$port" 8080 "$LLAMACPP_IMAGE" -m "/models/$QWEN" --host 0.0.0.0 --port 8080 --jinja --no-prefill-assistant -c 4096 -t "$CPUS" --no-webui
+      ;;
+    kobold-embed)
+      run_common "$arm" "$port" 5001 -e KCPP_DONT_TUNNEL=true \
+        -e KCPP_ARGS="--embeddingsmodel /models/$NOMIC --host 0.0.0.0 --port 5001 --contextsize 2048 --threads $CPUS --quiet" \
         "$KOBOLD_IMAGE"
       ;;
   esac

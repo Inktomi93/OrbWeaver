@@ -133,6 +133,7 @@ function ConnectionEditorBody({ connectionId, onDone, onRemoved, removalFinalFoc
       invalidation={invalidation}
       onDone={onDone}
       provider={provider}
+      providers={available.map((row) => row.provider)}
       trpc={trpc}
     />
   );
@@ -143,12 +144,17 @@ function AvailableConnectionEditorBody({
   connectionId,
   onDone,
   provider,
+  providers,
   trpc,
   invalidation,
-}: ConnectionEditorProps & { readonly connection: ConnectionView; readonly provider: ProviderDef }): ReactElement {
+}: ConnectionEditorProps & { readonly connection: ConnectionView; readonly provider: ProviderDef; readonly providers: readonly ProviderDef[] }): ReactElement {
   const { data: capabilityView } = useSuspenseQuery(trpc.connection.capabilities.queryOptions({ connectionId }));
   const update = useUpdateConnection({ trpc, invalidation });
   const providerLabel = providerDisplayLabel(provider);
+  // A detecting row (`features.detectServer`) reads the quirks of the server it found; its own knob stays listed.
+  const detected = providers.find((row) => row.id === capabilityView.detectedProviderId);
+  const quirkFeatures = detected === undefined ? provider.features : { ...provider.features, ...detected.features };
+  const quirkLabel = detected === undefined ? providerLabel : providerDisplayLabel(detected);
   const declared = connection.declared;
   const busy = update.isPending;
 
@@ -171,6 +177,11 @@ function AvailableConnectionEditorBody({
               <Text data-slot="connection-editor-provider" voice="datum">
                 {providerLabel}
               </Text>
+              {detected === undefined ? null : (
+                <Text data-slot="connection-editor-detected" voice="gloss">
+                  Detected: {quirkLabel}
+                </Text>
+              )}
             </Field>
             {connection.baseUrl === null ? (
               <Field description="Stored once and never shown again. Replace or revoke it under Saved keys." label="API key">
@@ -286,8 +297,8 @@ function AvailableConnectionEditorBody({
               onOverride={(row, value): void => patch({ declared: withDeclaredOverride(declared, row, value) })}
               onReset={(row): void => patch({ declared: withoutDeclaredOverride(declared, row) })}
               ownServer={provider.auth === "endpoint"}
-              providerFeatures={provider.features}
-              providerLabel={providerLabel}
+              providerFeatures={quirkFeatures}
+              providerLabel={quirkLabel}
             />
           </Stack>
         </EditorTier>

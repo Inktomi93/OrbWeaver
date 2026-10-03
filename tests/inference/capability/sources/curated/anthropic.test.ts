@@ -22,7 +22,7 @@ import type { Mirror } from "../../../../../packages/inference/src/catalog/mirro
 import { fetchOpenRouterCatalog } from "../../../../../packages/inference/src/catalog/openrouter.ts";
 import type { ProviderExecutor } from "../../../../../packages/inference/src/contract/backend.ts";
 import type { StructuredRequest } from "../../../../../packages/inference/src/contract/roles.ts";
-import type { EndpointModel } from "../../../../../packages/inference/src/contract/runtime.ts";
+import type { DetectedServer, EndpointModel } from "../../../../../packages/inference/src/contract/runtime.ts";
 import { resolveChat } from "../../../../../packages/inference/src/funnel/resolve-chat.ts";
 import { createProviderRegistry } from "../../../../../packages/inference/src/registry/providers.ts";
 import type { ResolverContext } from "../../../../../packages/inference/src/resolve/resolve-task.ts";
@@ -96,6 +96,8 @@ async function selectedStructuredVehicle(
     warmOpenRouter: () => Promise.resolve(),
     warmEndpoint: () => Promise.resolve(),
     warmAgentSdk: () => Promise.resolve(),
+    detectedServer: () => emptyMirror<DetectedServer>(),
+    warmDetect: () => Promise.resolve(),
   };
   const principal: Principal = { userId: ownerId, role: "owner", handle: castId<Handle>("owner"), externalId: null, via: "fallback" };
   const calls: StructuredRequest[] = [];
@@ -230,7 +232,7 @@ test("sonnet-5-5: reasoning off is between-tools on the direct wire, never a cla
     prefixBound: true,
   });
   expect(gen.reasoning.mandatory).toBeUndefined();
-  expect(gen.tools).toEqual({ parallel: true, forcedChoice: false });
+  expect(gen.tools).toEqual({ parallel: true, requiredChoice: false, namedChoice: false });
   expect(gen.turns?.cacheMinTokens).toBe(512);
   const off = resolveChat({ effort: "none" }, gen);
   expect(off.reasoning).toEqual({ mode: "adaptive", enabled: false, offChosen: true, offMode: "between-tools" });
@@ -241,7 +243,8 @@ test("sonnet-5-5: reasoning off is between-tools on the direct wire, never a cla
   const sonnet5 = direct("claude-sonnet-5");
   expect(sonnet5.reasoning.offMode).toBeUndefined();
   expect(resolveChat({ effort: "none" }, sonnet5).reasoning).toEqual({ mode: "adaptive", enabled: false, offChosen: true, offMode: "disabled" });
-  expect(sonnet5.tools?.forcedChoice).toBeUndefined();
+  expect(sonnet5.tools?.requiredChoice).toBeUndefined();
+  expect(sonnet5.tools?.namedChoice).toBeUndefined();
   expect(sonnet5.turns?.cacheMinTokens).toBe(1024);
   expect(sonnet5.reasoning.prefixBound).toBeUndefined();
 });

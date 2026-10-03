@@ -92,12 +92,14 @@ async function openRouterCapability(model: string): Promise<unknown> {
 
 test("#2575: OpenRouter's advertised `tools` cell no longer erases the curated forced-choice refusal", async () => {
   for (const model of ["anthropic/claude-fable-5.1", "anthropic/claude-opus-5.5"]) {
-    await expect(openRouterCapability(model), model).resolves.toMatchObject({ generation: { tools: { parallel: true, forcedChoice: false } } });
+    await expect(openRouterCapability(model), model).resolves.toMatchObject({
+      generation: { tools: { parallel: true, requiredChoice: false, namedChoice: false } },
+    });
   }
   // PLANTED CONTROL: a Claude that accepts forced tool use states no refusal on the same route.
   const opus5 = await openRouterCapability("anthropic/claude-opus-5");
   expect(opus5).toMatchObject({ generation: { tools: { parallel: true } } });
-  expect(opus5).not.toMatchObject({ generation: { tools: { forcedChoice: false } } });
+  expect(opus5).not.toMatchObject({ generation: { tools: { requiredChoice: false, namedChoice: false } } });
 });
 
 test("#2575: a `:batch` variant takes its base model's curated facts (the catalog pairs them by canonical slug)", async () => {
@@ -105,17 +107,17 @@ test("#2575: a `:batch` variant takes its base model's curated facts (the catalo
   await expect(openRouterCapability("openai/o4-mini:batch")).resolves.toMatchObject({ generation: { reasoning: { mandatory: true } } });
   await expect(openRouterCapability("openai/o4-mini")).resolves.toMatchObject({ generation: { reasoning: { mandatory: true } } });
   await expect(openRouterCapability("anthropic/claude-fable-5.1:batch")).resolves.toMatchObject({
-    generation: { tools: { forcedChoice: false }, reasoning: { mandatory: true } },
+    generation: { tools: { requiredChoice: false, namedChoice: false }, reasoning: { mandatory: true } },
   });
 });
 
 test("#2575: a floating `~…-latest` alias folds as the target its catalog row names, and only then", async () => {
   await expect(openRouterCapability("~anthropic/claude-fable-latest")).resolves.toMatchObject({
-    generation: { tools: { forcedChoice: false }, reasoning: { mandatory: true } },
+    generation: { tools: { requiredChoice: false, namedChoice: false }, reasoning: { mandatory: true } },
   });
   // PLANTED CONTROL: an alias whose row names no target is left unmatched — no Claude row, no guessed facts.
   const mystery = await openRouterCapability("~anthropic/claude-mystery-latest");
-  expect(mystery).not.toMatchObject({ generation: { tools: { forcedChoice: false } } });
+  expect(mystery).not.toMatchObject({ generation: { tools: { requiredChoice: false, namedChoice: false } } });
   expect(mystery).not.toMatchObject({ generation: { reasoning: { mode: "adaptive" } } });
 });
 
@@ -378,12 +380,23 @@ test("an id-only list states no modalities, so the posture still widens the row 
 // alone, whichever connection warmed first would decide what the other resolves to: a custom-openai row would
 // inherit Ollama's text-only + tools, or an Ollama row the permissive guess D292 removes.
 
+/** A Custom row that reads its server's bare `/v1/models` list instead of detecting the server behind it. */
+const LIST_ONLY = { features: { detectServer: false } };
+
 async function sharedServer(order: readonly ("ollama" | "custom-openai")[]): Promise<Record<string, GenerationCapability>> {
   const stores = memoryStores();
   const rows = order.map((providerId) => {
     const ownerId = newUserId();
-    // moondream: no curated row matches it, so every stated fact below comes from the reader or the posture.
-    const row = fakeConnection({ ownerId, providerId, model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1", allowBackground: true });
+    // moondream: no curated row matches it, so every stated fact below comes from the reader or the posture. The
+    // custom row turns detection off, so it reads the bare list (detection is `behave-as.test.ts`).
+    const row = fakeConnection({
+      ownerId,
+      providerId,
+      model: "moondream:latest",
+      baseUrl: "http://127.0.0.1:1/v1",
+      allowBackground: true,
+      declared: providerId === "custom-openai" ? LIST_ONLY : null,
+    });
     stores.connections.rows.set(row.id, row);
     return { providerId, ownerId, row };
   });
@@ -474,7 +487,7 @@ test("invalidateEndpoint forgets ONE connection's (URL × reader) mirror in memo
   const stores = memoryStores();
   const ownerId = newUserId();
   const ollama = fakeConnection({ ownerId, providerId: "ollama", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
-  const custom = fakeConnection({ ownerId, providerId: "custom-openai", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
+  const custom = fakeConnection({ ownerId, providerId: "custom-openai", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1", declared: LIST_ONLY });
   stores.connections.rows.set(ollama.id, ollama);
   stores.connections.rows.set(custom.id, custom);
   const seen: string[] = [];
