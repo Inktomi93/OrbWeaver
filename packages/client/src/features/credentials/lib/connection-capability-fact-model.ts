@@ -30,7 +30,9 @@ const GENERATION_LEAVES: readonly FactLeaf[] = [
     format: tokens,
     estimatedBy: "generation.output.maxTokensEstimated",
   },
-  { path: "generation.input", name: "takes", edit: { kind: "list" } },
+  // The endpoint posture widens an undescribed row to image + video and marks the guess; a server that states
+  // its modalities (D292) clears the mark, so the row reads reported only when something reported it.
+  { path: "generation.input", name: "takes", edit: { kind: "list" }, estimatedBy: "generation.modalitiesEstimated" },
   { path: "generation.output.modalities", name: "gives back", edit: { kind: "list" } },
   { path: "generation.reasoning.enabled", name: "thinking", edit: { kind: "boolean" } },
   { path: "generation.reasoning.mode", name: "thinking dial", edit: { kind: "enum", options: REASONING_MODES } },

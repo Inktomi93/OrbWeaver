@@ -1,0 +1,3 @@
+# Raw probe evidence stays on disk; RESULTS.md carries the verdicts and the rows they rest on, and the recorded
+# advertisements live in tests/inference/catalog/_local-servers-fixtures.ts.
+results/

@@ -29,7 +29,8 @@ import type {
   SnapshotStore,
 } from "../../packages/inference/src/deps.ts";
 
-const FROZEN_NOW = 1_700_000_000_000;
+/** The frozen clock every fake dep reads; a persisted snapshot stamped with it is fresh by construction. */
+export const FROZEN_NOW = 1_700_000_000_000;
 
 /** The brand's ONLY producer is the credentials domain's resolve factory; a test mints one through the same
  *  cast the chat scenario support uses for `ResolvedCredential` (the seam is the point of the brand). */
@@ -200,6 +201,14 @@ export function memoryStores(): MemoryStores {
       read: (k) => Promise.resolve(entries.get(k) ?? null),
       write: (k, v): Promise<void> => {
         entries.set(k, v);
+        return Promise.resolve();
+      },
+      deletePrefix: (prefix): Promise<void> => {
+        for (const entryKey of [...entries.keys()]) {
+          if (entryKey.startsWith(prefix)) {
+            entries.delete(entryKey);
+          }
+        }
         return Promise.resolve();
       },
     },

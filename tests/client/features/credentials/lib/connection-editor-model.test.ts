@@ -321,3 +321,22 @@ test("another port on the same host does not hide admission of this endpoint", (
   expect(endpointNamedInAllowlist("127.0.0.1:8000", ["127.0.0.1:8001"])).toBe(false);
   expect(endpointNamedInAllowlist("127.0.0.1:8000", ["127.0.0.1:8000"])).toBe(true);
 });
+
+// A local server that states its modalities (D292) reads as reported; a row the posture widened reads as the
+// guess it is. Without the mark, the permissive image + video guess read as "what this server and model report".
+describe("the takes row is honest about a guessed modality list", () => {
+  test("a widened list reads assumed and names the override; a stated list reads reported", () => {
+    const widened: Capability = {
+      kind: "generation",
+      generation: { ...LOCAL_FLOOR.generation, input: ["text", "image", "video"], modalitiesEstimated: true },
+    };
+    expect(rowFor(capabilityFactRows(widened, null), "generation.input")).toMatchObject({
+      value: "text, image, video (assumed)",
+      source: "assumed — the server doesn't report it. Override it with your server's real value.",
+    });
+    const stated: Capability = { kind: "generation", generation: { ...LOCAL_FLOOR.generation, input: ["text", "image"], tools: { parallel: false } } };
+    const rows = capabilityFactRows(stated, null);
+    expect(rowFor(rows, "generation.input")).toMatchObject({ value: "text, image", source: "what this server and model report" });
+    expect(rowFor(rows, "generation.tools.parallel")).toMatchObject({ value: "yes, one at a time", source: "what this server and model report" });
+  });
+});

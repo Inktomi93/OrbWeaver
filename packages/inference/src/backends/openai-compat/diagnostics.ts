@@ -6,6 +6,7 @@
 
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import type { ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
+import { foldFeatures } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost } from "@orb/contracts/providers";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
@@ -136,6 +137,8 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
               secret: connection.credential.secret,
               headers: connection.transport?.headers,
               secrets,
+              // The provider row's reader: a catalog target carries the row, not the folded features.
+              modelInfoApi: foldFeatures(connection.provider.features).modelInfoApi,
               ...(req.signal !== undefined ? { signal: req.signal } : {}),
             })
           ).map((row) => bareCatalogEntry(row));
