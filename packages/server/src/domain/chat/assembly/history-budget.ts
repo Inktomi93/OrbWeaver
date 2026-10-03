@@ -70,8 +70,8 @@ function inputRoom(budget: HistoryBudget): number {
   return Math.min(hardRoom, softRoom);
 }
 
-/** The trim chunk as a fraction of the input room (system + history, after the output reserve and the hard
- *  window's estimator discount).
+/** The trim chunk as a fraction of `ceiling − reserveOutputTokens`, before the hard window's estimator discount:
+ *  a larger chunk moves the cut, and so breaks the cached prefix, less often.
  *
  *  @remarks The prompt cache is an exact prefix, so a fit that drops one row per turn rewrites the whole kept
  *  history every turn. The cut snaps to a grid of chunks counted from the history's start instead, so
@@ -83,9 +83,9 @@ function inputRoom(budget: HistoryBudget): number {
  */
 export const HISTORY_TRIM_CHUNK_FRACTION = 0.1;
 
-// The chunk the cut snaps to. Stable per chat: it reads only the window, the soft cap and the output reserve.
-function trimChunkTokens(room: number): number {
-  return Math.max(1, Math.round(HISTORY_TRIM_CHUNK_FRACTION * room));
+// The chunk the cut snaps to. Stable per chat: it reads only the ceiling and the output reserve.
+function trimChunkTokens(ceiling: number, reserveOutputTokens: number): number {
+  return Math.max(1, Math.round(HISTORY_TRIM_CHUNK_FRACTION * (ceiling - reserveOutputTokens)));
 }
 
 // The first row at or after `minimalCut` that starts on a chunk boundary, where a row's start is the summed cost
@@ -199,7 +199,7 @@ export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: Hist
     return { history: [...history], droppedCount: 0, earliestKeptMessageId: null, usedTokens: used, ceilingTokens: ceiling };
   }
   // The irreducible tail still wins over the grid: the cut never passes the newest id-bearing turn.
-  const cut = Math.min(chunkAlignedCut(history, keepFrom, trimChunkTokens(room)), irreducibleFrom);
+  const cut = Math.min(chunkAlignedCut(history, keepFrom, trimChunkTokens(ceiling, budget.reserveOutputTokens)), irreducibleFrom);
   const kept = history.slice(cut);
   return {
     history: kept,

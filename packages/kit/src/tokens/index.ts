@@ -32,6 +32,15 @@ const CHARS_PER_TOKEN = 4;
 export const TOKENIZER_HEADROOM_FACTOR = 0.7;
 
 /**
+ * The most tokens {@link safeTokenWindow} holds back from one window. The proportional discount sizes the
+ * slack below the crossover (`TOKEN_HEADROOM_SLACK_CAP / (1 − TOKENIZER_HEADROOM_FACTOR)`); above it the slack
+ * stays at this cap, so a large window keeps nearly all of itself (a 200k window keeps about 96%). Above the
+ * crossover the tolerated estimate error falls below the measured ratio, by owner ruling: a large window trades
+ * that margin for context.
+ */
+export const TOKEN_HEADROOM_SLACK_CAP = 8192;
+
+/**
  * Generic token estimate for one string. Model-agnostic (see file header). Returns 0 for empty.
  *
  * `for…of` iterates Unicode codepoints (surrogate pairs handled), so a non-ASCII codepoint — an
@@ -52,8 +61,9 @@ export function estimateTokens(text: string): number {
 }
 
 /**
- * The largest ESTIMATED-token budget that is safe to measure against a hard model window of `windowTokens`
- * (see {@link TOKENIZER_HEADROOM_FACTOR}). Every caller that cuts content to fit a real engine window — the
+ * The largest ESTIMATED-token budget that is safe to measure against a hard model window of `windowTokens`:
+ * the window minus a slack of `min(window × (1 − TOKENIZER_HEADROOM_FACTOR), TOKEN_HEADROOM_SLACK_CAP)` (see
+ * {@link TOKENIZER_HEADROOM_FACTOR} and {@link TOKEN_HEADROOM_SLACK_CAP}). Every caller that cuts content to fit a real engine window — the
  * embed clamp, the memory segment chunker — sizes against THIS, never the raw window, so the discount has one
  * home and cannot drift between them.
  */
@@ -66,7 +76,7 @@ export function safeTokenWindow(windowTokens: number): number {
   if (!Number.isFinite(windowTokens)) {
     throw new RangeError(`safeTokenWindow: windowTokens must be finite, got ${windowTokens}`);
   }
-  return Math.max(0, Math.floor(windowTokens * TOKENIZER_HEADROOM_FACTOR));
+  return Math.max(0, Math.floor(windowTokens * TOKENIZER_HEADROOM_FACTOR), windowTokens - TOKEN_HEADROOM_SLACK_CAP);
 }
 
 /** The effective integer budget for a cut. A FRACTIONAL `maxTokens` breaks the "every piece fits" bound

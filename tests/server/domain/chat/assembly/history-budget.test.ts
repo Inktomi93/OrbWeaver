@@ -96,9 +96,9 @@ describe("fitHistoryToWindow", () => {
   // The prompt cache is an exact prefix, so the trim snaps to a chunk grid instead of dropping one row per turn.
   describe("the chunked trim", () => {
     const budget = { windowTokens: 2000, reserveOutputTokens: 200, systemTokens: 300 };
-    const inputRoom = safeTokenWindow(budget.windowTokens - budget.reserveOutputTokens);
-    const room = inputRoom - budget.systemTokens;
-    const chunk = Math.round(HISTORY_TRIM_CHUNK_FRACTION * inputRoom);
+    const room = safeTokenWindow(budget.windowTokens - budget.reserveOutputTokens) - budget.systemTokens;
+    // The chunk reads the undiscounted room: a fixed function of the window and reserve, never of the rows.
+    const chunk = Math.round(HISTORY_TRIM_CHUNK_FRACTION * (budget.windowTokens - budget.reserveOutputTokens));
     // Uneven row sizes, so a chunk boundary rarely falls exactly on a row start.
     const rows = Array.from({ length: 240 }, (_, i) => turn(`${i} `.concat("w".repeat(20 + ((i * 37) % 120)))));
     const starts = rows.reduce<number[]>((acc, row) => [...acc, (acc.at(-1) ?? 0) + historyTurnTokens(row)], [0]);
@@ -130,6 +130,22 @@ describe("fitHistoryToWindow", () => {
       const trimmedGrowth = startOf(rows.length) - startOf(fits.findIndex((fit) => fit.droppedCount > 0) + 1);
       expect(moves).toBeGreaterThan(0);
       expect(moves).toBeLessThanOrEqual(Math.ceil(trimmedGrowth / chunk));
+    });
+
+    // A cut is on the grid when its first kept row is the first row to start at or past some chunk multiple.
+    const onChunkGrid = (cut: number): boolean => Math.floor(startOf(cut) / chunk) > Math.floor(startOf(cut - 1) / chunk);
+    const keepsPrefix = (earlier: (typeof fits)[number], later: (typeof fits)[number]): boolean =>
+      JSON.stringify(later.history.slice(0, earlier.history.length)) === JSON.stringify(earlier.history);
+
+    test("turn over turn the kept history stays a byte-identical prefix until the cut lands on the next chunk boundary", () => {
+      const pairs = fits.slice(1).map((later, i) => ({ turn: i + 2, earlier: fits[i] ?? later, later }));
+      const prefixBreaks = pairs.filter((p) => p.later.droppedCount === p.earlier.droppedCount && !keepsPrefix(p.earlier, p.later));
+      const moves = pairs.filter((p) => p.later.droppedCount !== p.earlier.droppedCount);
+      expect(prefixBreaks.map((p) => p.turn)).toEqual([]);
+      expect(moves.length).toBeGreaterThan(0);
+      expect(moves.filter((p) => !onChunkGrid(p.later.droppedCount)).map((p) => ({ turn: p.turn, cut: p.later.droppedCount }))).toEqual([]);
+      // Far fewer moves than turns: the cut does not slide with every arriving row.
+      expect(moves.length * 4).toBeLessThan(pairs.filter((p) => p.earlier.droppedCount > 0).length);
     });
   });
 });
@@ -213,10 +229,10 @@ describe("the output reserve against a direct hosted model's resolved output cap
     });
     expect(budget.reserveOutputTokens).toBe(cap);
 
-    const chat = Array.from({ length: 20 }, (_, i) => turn(`row ${i} `.concat("r".repeat(12_000))));
+    const chat = Array.from({ length: 30 }, (_, i) => turn(`row ${i} `.concat("r".repeat(12_000))));
     expect(fitHistoryToWindow(chat, budget).droppedCount).toBe(0);
     // PLANTED CONTROL: reserving the raw ask out of the same window drops most of that chat.
-    expect(fitHistoryToWindow(chat, { ...budget, reserveOutputTokens: askAboveCap }).droppedCount).toBeGreaterThan(10);
+    expect(fitHistoryToWindow(chat, { ...budget, reserveOutputTokens: askAboveCap }).droppedCount).toBeGreaterThan(20);
   });
 
   test("an unset ask reserves the shared response default, never the cap", () => {
