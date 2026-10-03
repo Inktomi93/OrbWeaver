@@ -2,11 +2,11 @@
 // Existing bindings, including explicit null choices, are never overwritten.
 
 import type { LocalLightSeedSlot, ProviderId, RoutableTask } from "@orb/contracts/inference";
-import { builtinProvider, LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
-import { connectionBindings, settings, userConnections } from "@orb/db";
+import { builtinProvider, LOCAL_LIGHT_SEED_ROWS, modelIdSchema, taskDef } from "@orb/contracts/inference";
+import { connectionBindings, userConnections, userSeedLedger } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type { UserId } from "@orb/kit/ids";
-import { and, eq, inArray, isNull, notExists, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { LocalLightSeedDeps } from "../contract/params.ts";
 import type { LocalLightSeedResult } from "../contract/results.ts";
@@ -64,29 +64,39 @@ async function adoptEarlierSeedRows(deps: LocalLightSeedDeps, ownerId: UserId, n
   await db.batch(batchMany(adoptions));
 }
 
-/** The seed's one-shot record that it moved this owner's slot row off the earlier models onto `model`. It lives in
- *  the shared `settings` KV, keyed per owner and per seed model, so the next default change gets a fresh one. */
-function movedLatchKey(seed: (typeof LOCAL_LIGHT_SEED_ROWS)[number], ownerId: UserId): string {
-  return `local-light-seed:moved:${seed.task}:${seed.model}:${ownerId}`;
+/** The seed's one-shot record that it moved this owner's slot row off the earlier models onto `model`. It is a row
+ *  in the account's seed ledger, so it goes with the account (the ledger cascades on the user), and it names the
+ *  seed model, so the next default change gets a fresh one. */
+function movedLedgerKey(seed: (typeof LOCAL_LIGHT_SEED_ROWS)[number]): string {
+  return `local-light:moved:${seed.task}:${seed.model}`;
 }
 
 /** Move each slot row on a model an earlier release seeded onto today's seed model, ONCE per owner. Before this
  *  release the earlier model was the only built-in choice, so no row on it was a pick of it over today's, whatever its
- *  timestamps say. After the move the latch holds, so a later pick of the earlier model (still in the catalog) stays.
- *  The binding points at the row, so a bound role follows it. */
+ *  timestamps say. After the move the ledger row holds, so a later pick of the earlier model (still in the catalog)
+ *  stays. The binding points at the row, so a bound role follows it. The row's declared rerank facts described the
+ *  earlier model (a 512 window, say), so they are dropped with the move rather than constraining the new one. */
 async function moveSeedRowsOffEarlierModels(deps: LocalLightSeedDeps, ownerId: UserId, now: number): Promise<void> {
   const { db } = deps;
   const moves = LOCAL_LIGHT_SEED_ROWS.flatMap((seed) => {
     if (seed.earlierModels.length === 0) {
       return [];
     }
-    const key = movedLatchKey(seed, ownerId);
-    const latched = db.select({ key: settings.key }).from(settings).where(eq(settings.key, key));
+    const itemKey = movedLedgerKey(seed);
+    const recorded = db
+      .select({ key: userSeedLedger.itemKey })
+      .from(userSeedLedger)
+      .where(and(eq(userSeedLedger.userId, ownerId), eq(userSeedLedger.itemKey, itemKey)));
     return [
       batchStmt(
         db
           .update(userConnections)
-          .set({ model: modelIdSchema.parse(seed.model), updatedAt: now })
+          .set({
+            model: modelIdSchema.parse(seed.model),
+            // The capability block a declared override states facts under is named by the task's model kind.
+            declared: sql`json_remove(${userConnections.declared}, ${`$.${taskDef(seed.task).kind}`})`,
+            updatedAt: now,
+          })
           .where(
             and(
               eq(userConnections.ownerId, ownerId),
@@ -96,11 +106,11 @@ async function moveSeedRowsOffEarlierModels(deps: LocalLightSeedDeps, ownerId: U
                 userConnections.model,
                 seed.earlierModels.map((model) => modelIdSchema.parse(model)),
               ),
-              notExists(latched),
+              notExists(recorded),
             ),
           ),
       ),
-      batchStmt(db.insert(settings).values({ key, value: true, updatedAt: now }).onConflictDoNothing()),
+      batchStmt(db.insert(userSeedLedger).values({ userId: ownerId, itemKey, seededAt: now }).onConflictDoNothing()),
     ];
   });
   await db.batch(batchMany(moves));

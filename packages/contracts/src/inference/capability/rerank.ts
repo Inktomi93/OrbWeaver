@@ -39,6 +39,10 @@ export const rerankCapabilitySchema = z.object({
 });
 export type RerankCapability = z.infer<typeof rerankCapabilitySchema>;
 
+/** The smallest window a resolved reranker is given, whatever a row or a declared block states: room for a pair's
+ *  special tokens plus a few tokens of query and of document. A smaller one leaves a side nothing to score. */
+export const RERANK_MIN_WINDOW_TOKENS = 16;
+
 export const RERANK_FLOOR: RerankCapability = {
   maxInputTokens: 512,
   input: ["text"],

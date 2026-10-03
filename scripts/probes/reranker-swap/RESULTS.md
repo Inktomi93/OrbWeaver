@@ -26,10 +26,10 @@ raising it is a one-number change once a box can afford it.
 
 ## Quality
 
-Sanity: relevant beats irrelevant on a short Q&A, a persona pick, and a fact placed after 1,200 tokens of shared
+Sanity: relevant beats irrelevant on a short Q\&A, a persona pick, and a fact placed after 1,200 tokens of shared
 filler. Golden: the card's four passages; the correct order is Mars > Saturn > Jupiter > Venus.
 
-| model and file | short Q&A | persona | fact past 1,200 tokens | golden scores (Venus, Mars, Jupiter, Saturn) | golden order |
+| model and file | short Q\&A | persona | fact past 1,200 tokens | golden scores (Venus, Mars, Jupiter, Saturn) | golden order |
 | - | - | - | - | - | - |
 | ettin-32m fp32 | pass | pass | pass | 6.21, 10.82, 8.55, 9.86 (card: 6.22, 10.81, 8.56, 9.88) | right |
 | **ettin-32m quint8_avx2 (default)** | pass | pass | pass | 6.93, 10.64, 8.34, 9.40 | right |
@@ -63,21 +63,21 @@ tokenizer every hostile input now lands at or under the window (`clamp` in the `
 | - | - | - |
 | digits | 2,048 | 512 |
 | CSV | 2,048 | 512 |
-| ZWJ emoji | 2,048 | 5 (the emoji are one unknown token) |
-| CJK | 2,048 | 423 |
+| ZWJ emoji | 2,048 | 5 (the run has no spaces, so WordPiece reads it as one over-long word: one \[UNK], as the tokenizer's own truncation also gives) |
+| CJK | 2,048 | 512, with all 91 \[UNK] kept (the tokenizer's own truncation gives the same 512 and 91) |
 | 200,000-char query | 1,030 (the query takes half; the document keeps the rest) | 261 |
 
 ## Per pair (batch 1, 4 cores)
 
-| model | 512 tokens | 2,048 | 4,096 | weights on disk |
+| model | 512 tokens | 2,048 | 4,096 | full download as served (ONNX, tokenizer, configs, head) |
 | - | - | - | - | - |
-| ettin-17m fp32 | 33–60 ms | 306–576 ms | 1.0–2.0 s, peak 1.3 GB | 67 MB |
-| ettin-32m quint8 | 74–130 ms | 0.74–1.2 s | 3.1–3.9 s, peak 1.7 GB | 32 MB |
-| ettin-68m quint8 | 213 ms | 1.7 s | 5.8 s, peak 1.9 GB | 69 MB |
-| gte-modernbert q8 | 560 ms | 3.3 s | 18 s, peak 3.1 GB | 151 MB |
-| gte-modernbert fp32 | 2.1 s | 9.8 s | not run | 599 MB |
-| MiniLM q8 | 37–117 ms | (truncated to 512) | | 23 MB |
-| MiniLM fp32 (as served) | 68 ms | (truncated to 512) | | 91 MB |
+| ettin-17m fp32 | 33–60 ms | 306–576 ms | 1.0–2.0 s, peak 1.3 GB | 71.2 MB |
+| ettin-32m quint8 | 74–130 ms | 0.74–1.2 s | 3.1–3.9 s, peak 1.7 GB | 36.6 MB |
+| ettin-68m quint8 | 213 ms | 1.7 s | 5.8 s, peak 1.9 GB | 69 MB (ONNX file only) |
+| gte-modernbert q8 | 560 ms | 3.3 s | 18 s, peak 3.1 GB | 151 MB (ONNX file only) |
+| gte-modernbert fp32 | 2.1 s | 9.8 s | not run | 599 MB (ONNX file only) |
+| MiniLM q8 | 37–117 ms | (truncated to 512) | | 23 MB (ONNX file only) |
+| MiniLM fp32 (as served) | 68 ms | (truncated to 512) | | 91.7 MB |
 
 Ranges are repeated runs on the loaded host. Batch 8 at 2,048 tokens without micro-batching peaked at 5.9 GB on
 gte, which is why `scorePairs` now caps a forward pass at 2,048 token cells.
@@ -102,8 +102,8 @@ database held no digests, so the arc sizes bracket the summarizer's 1,024-token 
 
 ## For the wiki (Install and Connect-a-Model)
 
-The built-in reranker is now `ettin-reranker-32m-v1`: a 37 MB download (the quantized ONNX plus tokenizer and
-head), about 150 MB resident once loaded, and up to about 0.6 GB more while it scores a turn at its 2,048-token
+The built-in reranker is now `ettin-reranker-32m-v1`: a 37 MB download (the quantized ONNX plus tokenizer, configs
+and head), about 150 MB resident once loaded, and up to about 0.6 GB more while it scores a turn at its 2,048-token
 window on CPU. A typical turn takes 0.4 to 2.6 s on 4 cores; the worst case (8 long memory arcs) is about
-6 s. On a small box, pick `ettin-reranker-17m-v1` (67 MB, about a third of the time) or the older
-`ms-marco-MiniLM-L-6-v2` (91 MB, about 0.5 s a turn, but it reads only the first 512 tokens of each pair).
+6 s. On a small box, pick `ettin-reranker-17m-v1` (a 71 MB download, about a third of the time) or the older
+`ms-marco-MiniLM-L-6-v2` (a 92 MB download, about 0.5 s a turn, but it reads only the first 512 tokens of each pair).

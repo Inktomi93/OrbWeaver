@@ -6,8 +6,9 @@
 // loads at import time. This module runs inside the local-light worker (`model-worker.ts`); deferring the import
 // to the first model load keeps a thread that never runs a model from loading the binding at all.
 
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import type { DataType, DeviceType, Tensor } from "@huggingface/transformers";
@@ -413,18 +414,35 @@ export interface PairTokenizer {
 
 /** Cut one query/document pair to `maxTokens` real tokens: the query to at most half of what the special tokens
  *  leave, the document to the rest. The tokenizer's own truncation would instead cut the joined pair's tail, and at
- *  the model's full length rather than the served window. The batch call still passes `max_length`, so a re-encode
- *  that drifts by a token can never exceed the window. */
+ *  the model's full length rather than the served window. A cut decodes with special tokens KEPT: skipping them would
+ *  delete every unknown-token piece (`[UNK]`) from the text, and the pair would under-fill its window. The batch call
+ *  still passes `max_length`, so a re-encode that drifts by a token can never exceed the window. */
 export function fitPairToWindow(tok: PairTokenizer, query: string, document: string, maxTokens: number): { query: string; document: string } {
   const plain = { add_special_tokens: false };
   const specials = tok.encode("a", { text_pair: "b" }).length - tok.encode("a", plain).length - tok.encode("b", plain).length;
   const budget = Math.max(0, maxTokens - specials);
   const cut = (text: string, limit: number): string => {
+    if (limit <= 0) {
+      return "";
+    }
     const ids = tok.encode(text, plain);
-    return ids.length <= limit ? text : tok.decode(ids.slice(0, limit), { skip_special_tokens: true });
+    return ids.length <= limit ? text : tok.decode(ids.slice(0, limit), { skip_special_tokens: false });
   };
   const fittedQuery = cut(query, Math.floor(budget / 2));
   return { query: fittedQuery, document: cut(document, budget - tok.encode(fittedQuery, plain).length) };
+}
+
+function tokenizerError(modelId: ModelId, cause: unknown): ProviderError {
+  return new ProviderError({ kind: "server", retryable: false, message: `local-light reranker "${modelId}": tokenizing the pairs failed`, cause });
+}
+
+/** Run tokenizer work, surfacing a failure as a typed provider error naming the model. */
+function tokenizeBatch<T>(modelId: ModelId, run: () => T): T {
+  try {
+    return run();
+  } catch (err) {
+    throw tokenizerError(modelId, err);
+  }
 }
 
 function rerankLoadError(modelId: string, detail: string): ProviderError {
@@ -451,9 +469,16 @@ function rerankFileOptions(modelId: string, onnx: RerankOnnx): { dtype: DataType
 
 /** Read one file of a model repo through the lib's own cache layout (`<cacheDir>/<id>/[<revision>/]<file>`),
  *  downloading it at that revision when remote models are allowed. The head modules are files the lib never fetches. */
-async function readRepoFile(mod: TransformersModule, modelId: string, revision: string | undefined, file: string): Promise<Uint8Array> {
+async function readRepoFile(
+  mod: TransformersModule,
+  repo: { readonly modelId: string; readonly revision: string | undefined },
+  file: string,
+  onCacheHit: (path: string) => void,
+): Promise<Uint8Array> {
+  const { modelId, revision } = repo;
   const cached = mod.env.cacheDir === null ? null : join(mod.env.cacheDir, modelId, ...(revision === undefined ? [] : [revision]), file);
   if (cached !== null && existsSync(cached)) {
+    onCacheHit(cached);
     return await readFile(cached);
   }
   if (!mod.env.allowRemoteModels) {
@@ -471,10 +496,35 @@ async function readRepoFile(mod: TransformersModule, modelId: string, revision: 
   }
   const bytes = new Uint8Array(await res.arrayBuffer());
   if (cached !== null) {
+    // Write beside the target and rename over it, as the lib's own file cache does, so a crash mid-write can never
+    // leave a half file that reads as cached.
     await mkdir(dirname(cached), { recursive: true });
-    await writeFile(cached, bytes);
+    const partial = `${cached}.${String(process.pid)}.${randomUUID()}.part`;
+    await writeFile(partial, bytes);
+    await rename(partial, cached);
   }
   return bytes;
+}
+
+/** Load a CrossEncoder head, repairing a damaged cache once: when a head built from cached files fails to parse or
+ *  to fit, those files are deleted and fetched again before the load is reported failed. */
+async function loadHeadRepairing(
+  mod: TransformersModule,
+  repo: { readonly modelId: string; readonly revision: string | undefined },
+  log: InferenceLog,
+): Promise<StHead> {
+  const cachedFiles = new Set<string>();
+  const read = (file: string): Promise<Uint8Array> => readRepoFile(mod, repo, file, (path) => cachedFiles.add(path));
+  try {
+    return await loadStHead(read);
+  } catch (err) {
+    if (cachedFiles.size === 0 || !mod.env.allowRemoteModels) {
+      throw err;
+    }
+    log.warn({ modelId: repo.modelId, err: String(err) }, "local-light: a cached reranker head did not load; fetching its files again");
+    await Promise.all([...cachedFiles].map((path) => rm(path, { force: true })));
+    return await loadStHead((file) => readRepoFile(mod, repo, file, () => undefined));
+  }
 }
 
 type RerankModel = Awaited<ReturnType<TransformersModule["AutoModel"]["from_pretrained"]>>;
@@ -588,7 +638,7 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
       }
       const [model, scorer] = await Promise.all([
         loadWithCpuFallback(device, log, (dev) => mod.AutoModel.from_pretrained(id, { ...opts, device: dev })),
-        loadStHead((file) => readRepoFile(mod, id, onnx.revision, file)),
+        loadHeadRepairing(mod, { modelId: id, revision: onnx.revision }, log),
       ]);
       const hiddenSize: unknown = (model.config as { hidden_size?: unknown }).hidden_size;
       if (hiddenSize !== scorer.inputDim) {
@@ -663,13 +713,15 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
       return await tokenizer.withLease(key, (tok) =>
         reranker.withLease(key, async (loaded) => {
           const { Tensor: TensorCtor } = await transformers();
-          const pairs = documents.map((doc) => fitPairToWindow(tok, query, doc, maxLength));
-          const lengths = pairs.map((pair) => Math.min(tok.encode(pair.query, { text_pair: pair.document }).length, maxLength));
+          const pairs = tokenizeBatch(modelId, () => documents.map((doc) => fitPairToWindow(tok, query, doc, maxLength)));
+          const lengths = tokenizeBatch(modelId, () => pairs.map((pair) => Math.min(tok.encode(pair.query, { text_pair: pair.document }).length, maxLength)));
           const scores = new Array<number>(documents.length).fill(0);
           for (const batch of rerankBatches(lengths, serving.onnx?.dynamicQuantized === true)) {
-            const inputs = tok(
-              batch.map((i) => pairs[i]?.query ?? ""),
-              { text_pair: batch.map((i) => pairs[i]?.document ?? ""), padding: true, truncation: true, max_length: maxLength },
+            const inputs = tokenizeBatch(modelId, () =>
+              tok(
+                batch.map((i) => pairs[i]?.query ?? ""),
+                { text_pair: batch.map((i) => pairs[i]?.document ?? ""), padding: true, truncation: true, max_length: maxLength },
+              ),
             );
             const out: Record<string, unknown> = await loaded.model(inputs);
             let batchScores: number[];

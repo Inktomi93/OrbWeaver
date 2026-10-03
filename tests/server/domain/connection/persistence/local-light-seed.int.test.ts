@@ -5,8 +5,9 @@
 // row gets it back on the next seed without duplicating the other one. Every id comes from the injected
 // minters, so the assertions are deterministic.
 
+import type { DeclaredCapability } from "@orb/contracts/inference";
 import { LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
-import { connectionBindings, settings, userConnections } from "@orb/db";
+import { connectionBindings, userConnections, userSeedLedger, users } from "@orb/db";
 import type { ConnectionBindingId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, like } from "drizzle-orm";
@@ -234,7 +235,7 @@ test("a user's own unbound row on the seed's model is never adopted or renamed",
 async function asEarlierRelease(
   db: Awaited<ReturnType<typeof freshDb>>,
   owner: Awaited<ReturnType<typeof seedUser>>,
-  shape: { readonly updatedAt: number; readonly preSlot?: boolean },
+  shape: { readonly updatedAt: number; readonly preSlot?: boolean; readonly declared?: DeclaredCapability },
 ): Promise<UserConnectionId> {
   const [, reranker] = LOCAL_LIGHT_SEED_ROWS;
   const row = (
@@ -252,9 +253,10 @@ async function asEarlierRelease(
       model: testModelId(reranker.earlierModels[0]),
       updatedAt: shape.updatedAt,
       ...(shape.preSlot === true ? { seedSlot: null, label: "local-light · reranker" } : {}),
+      ...(shape.declared === undefined ? {} : { declared: shape.declared }),
     })
     .where(eq(userConnections.id, row.id));
-  await db.delete(settings).where(like(settings.key, "local-light-seed:moved:%"));
+  await db.delete(userSeedLedger).where(and(eq(userSeedLedger.userId, owner), like(userSeedLedger.itemKey, "local-light:moved:%")));
   return row.id;
 }
 
@@ -319,4 +321,33 @@ test("a pre-slot row on the earlier model is adopted and moved, and no second re
   expect(row?.model).toBe(LOCAL_LIGHT_SEED_ROWS[1].model);
   expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, owner))).toHaveLength(2);
   expect(await rerankBinding(db, owner)).toBe(id);
+});
+
+// A window the user declared for the earlier model described that model; carried over, a 512 declared on MiniLM
+// would cap the new default at a quarter of its window. The move drops the declared rerank facts and keeps the rest.
+test("the move drops declared rerank facts that described the earlier model, and keeps the rest of the block", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, "user_a");
+  await seedLocalLightConnections(seedDeps(db), owner);
+  const id = await asEarlierRelease(db, owner, { updatedAt: FROZEN_AT_MS, declared: { kind: "rerank", rerank: { maxInputTokens: 512 } } });
+
+  await seedLocalLightConnections(seedDeps(db, 1), owner);
+
+  const row = (await db.select().from(userConnections).where(eq(userConnections.id, id))).at(0);
+  expect(row?.model).toBe(LOCAL_LIGHT_SEED_ROWS[1].model);
+  expect(row?.declared).toEqual({ kind: "rerank" });
+});
+
+// The one-shot record is a row in the account's seed ledger, which cascades with the account, so a deleted user leaves
+// nothing behind in shared tables.
+test("the move's one-shot record goes with the account", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, "user_a");
+  await seedLocalLightConnections(seedDeps(db), owner);
+  const recorded = async (): Promise<number> => (await db.select().from(userSeedLedger).where(like(userSeedLedger.itemKey, "local-light:moved:%"))).length;
+  expect(await recorded()).toBe(1);
+
+  await db.delete(users).where(eq(users.id, owner));
+
+  expect(await recorded()).toBe(0);
 });
