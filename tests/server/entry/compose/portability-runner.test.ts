@@ -36,7 +36,7 @@ import type { StartWorkloadParams, WorkloadService } from "@orb/server/domain/wo
 import { subscribeUserEvents } from "@orb/server/transport/trpc";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import type { PortabilityRunnerComposeDeps } from "../../../../packages/server/src/entry/compose/portability-runner.ts";
-import { buildPortabilityRunner, createEnqueueImportBackfill } from "../../../../packages/server/src/entry/compose/portability-runner.ts";
+import { buildPortabilityRunner, createEnqueueImportIndex } from "../../../../packages/server/src/entry/compose/portability-runner.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -137,7 +137,7 @@ describe("buildPortabilityRunner — quiet mode wraps the bulk runs without swal
 
     // 0/0/0 here is the HONEST answer for an empty tree — the point is that a value came back at all
     // (a `withQuietBulkFanout` that dropped the return would surface `undefined`).
-    expect(counts).toStrictEqual({ imported: 0, skipped: 0, failed: 0, notes: [] });
+    expect(counts).toStrictEqual({ imported: 0, skipped: 0, failed: 0, notes: [], memoryChatIds: [] });
   });
 
   // #1710 — through the WORKLOAD door (`runStagedDirImport`, not the verb directly): a card whose character
@@ -204,13 +204,11 @@ describe("buildPortabilityRunner — the terminal library fan (#23) reaches ONLY
   });
 });
 
-// ── THE POST-IMPORT EMBED DAG SURVIVES AN ADMISSION CONFLICT ──────────────────────────────────────────────
-// The chain is `index` (embed the characters) → `memory-backfill` (embed the chats), and the second must
-// WAIT for the first: they compete for the same embed engine and the memory pass searches what the index
-// pass wrote. The conflict path used to break exactly that edge — `startEmbed` swallowed the single-active
-// `DomainConflictError` and returned `undefined`, the caller spread `dependsOn` only when a WorkloadId came
-// back, so a conflict silently enqueued the memory pass as an INDEPENDENT root that could run first.
-describe("createEnqueueImportBackfill — the dependency edge, including on the conflict path", () => {
+// ── AN IMPORT ENQUEUES NOTHING PAID ─────────────────────────────────────────────────────────────────────
+// `memory-backfill` spends the Utility model on every imported chat, and a paid run starts only behind the
+// model-run confirm. The import's own enqueue is the free text `index` pass; the memory build is the client's
+// offer over the result's `memoryChatIds`.
+describe("createEnqueueImportIndex — the post-import enqueue is the free index pass alone", () => {
   /** A workloads door that answers like the real one: the single-active unique index refuses a second
    *  enqueue of the same unit, UNLESS the caller asks to adopt the run already holding the slot. */
   function fakeWorkloads(activeIndexId: WorkloadId | null): {
@@ -218,7 +216,6 @@ describe("createEnqueueImportBackfill — the dependency edge, including on the 
     readonly workloads: Pick<WorkloadService, "start">;
   } {
     const calls: StartWorkloadParams[] = [];
-    let minted = 0;
     return {
       calls,
       workloads: {
@@ -230,65 +227,26 @@ describe("createEnqueueImportBackfill — the dependency edge, including on the 
             }
             return Promise.resolve({ id: activeIndexId });
           }
-          minted += 1;
-          return Promise.resolve({ id: castId<WorkloadId>(`wl_minted_${String(minted)}`) });
+          return Promise.resolve({ id: castId<WorkloadId>("wl_minted") });
         },
       },
     };
   }
 
-  test("with no conflict the memory pass depends on the index pass this call created", async () => {
+  test("the only row an import enqueues is the owner's text index pass — never a memory-backfill", async () => {
     const door = fakeWorkloads(null);
-    expect(await createEnqueueImportBackfill(door.workloads)({ ownerId: OWNER })).toBe(true);
+    await createEnqueueImportIndex(door.workloads)({ ownerId: OWNER });
 
-    const memory = door.calls.find((c) => c.input.kind === "memory-backfill");
-    expect(memory?.dependsOn).toStrictEqual(["wl_minted_1"]);
+    expect(door.calls.map((call) => ({ input: call.input, ownerId: call.ownerId }))).toStrictEqual([
+      { input: { kind: "index", params: { source: "text" } }, ownerId: OWNER },
+    ]);
   });
 
-  test("an index-pass CONFLICT still yields a memory pass carrying the ACTIVE run as its dependency", async () => {
-    const active = castId<WorkloadId>("wl_already_running");
-    const door = fakeWorkloads(active);
+  test("an index pass already running is adopted, so the import does not fail on the conflict", async () => {
+    const door = fakeWorkloads(castId<WorkloadId>("wl_already_running"));
 
-    expect(await createEnqueueImportBackfill(door.workloads)({ ownerId: OWNER })).toBe(true);
-
-    const memory = door.calls.find((c) => c.input.kind === "memory-backfill");
-    // The edge is the whole point: a memory pass with no dependency races the index pass it must follow.
-    expect(memory?.dependsOn).toStrictEqual([active]);
-  });
-
-  // ── THE TWO PASSES ASK DIFFERENT QUESTIONS, SO ONLY ONE OF THEM ADOPTS ────────────────────────────────
-  // The INDEX pass is a DEPENDENCY TARGET: any active run of the same admission unit is exactly the thing
-  // to wait on, so adopting it is the right answer and the edge survives. The MEMORY pass is a COVERAGE
-  // CLAIM — this function's boolean is what the import report renders as "the memory pass entered the
-  // queue for this import" — and an ADOPTED memory run was admitted under someone else's `dependsOn`
-  // (`workloads/contract/params.ts`: an adopted row necessarily drops the caller's). It carries no edge to
-  // this import's index pass and may already be past the rows we just wrote, so reporting `true` for it
-  // would make the report claim a coverage it cannot have. It reports `false`, exactly as the pre-adopt
-  // code did — the same arm the #156 memory-off refusal already lands on.
-  test("a MEMORY-pass conflict reports false — an adopted memory run is not coverage for THIS import", async () => {
-    const activeMemory = castId<WorkloadId>("wl_someone_elses_memory_run");
-    const calls: StartWorkloadParams[] = [];
-    // FAITHFUL to the real door on BOTH arms: a caller that asks to adopt GETS the active run's id (which is
-    // precisely how reporting `true` for it became possible), and one that does not gets the conflict.
-    const door: Pick<WorkloadService, "start"> = {
-      start: (params: StartWorkloadParams): Promise<{ id: WorkloadId }> => {
-        calls.push(params);
-        if (params.input.kind !== "memory-backfill") {
-          return Promise.resolve({ id: castId<WorkloadId>("wl_index") });
-        }
-        if (params.adoptActive === true) {
-          return Promise.resolve({ id: activeMemory });
-        }
-        return Promise.reject(new DomainConflictError('That "memory-backfill" run is already in progress'));
-      },
-    };
-
-    expect(await createEnqueueImportBackfill(door)({ ownerId: OWNER })).toBe(false);
-
-    // …and it never asked to adopt one: the request that would have produced an edgeless memory row was
-    // never made, so there is no `dependsOn`-less memory workload anywhere for a reader to trust.
-    const memory = calls.find((c) => c.input.kind === "memory-backfill");
-    expect(memory?.adoptActive).toBeUndefined();
+    await expect(createEnqueueImportIndex(door.workloads)({ ownerId: OWNER })).resolves.toBeUndefined();
+    expect(door.calls.map((call) => call.adoptActive)).toStrictEqual([true]);
   });
 });
 

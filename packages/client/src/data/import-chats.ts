@@ -5,6 +5,7 @@
 // THAT, never from the uploaded filenames. A non-200 (whole-batch rejection) throws.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { ChatId } from "@orb/kit/ids";
 import { throwHttpError } from "./http-error.ts";
 
 const IMPORT_URL = "/api/import/chat";
@@ -26,6 +27,8 @@ interface FailedChatResult {
 export interface ChatImportResult {
   readonly imported: readonly ImportedChatResult[];
   readonly failed: readonly FailedChatResult[];
+  /** The real conversations the batch wrote — the scope of the "Build memory for imported chats" offer. */
+  readonly memoryChatIds: readonly ChatId[];
 }
 
 /** POST picked `.jsonl` transcripts to the chat-import route and return the server's real per-file result.

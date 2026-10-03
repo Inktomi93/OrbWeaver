@@ -15,7 +15,7 @@
 
 import type { PortabilityRegistry, PortableEntity, PortableImportOutcome, PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
-import type { UserId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ExtractOptions, StagedArchive } from "#infra/storage";
 import { extractZip } from "#infra/storage";
 
@@ -35,6 +35,8 @@ export interface BundleImportFileOutcome {
    *  behind (#1688). Absent ⇒ the entity restored whole. Carried per file rather than tallied: a note names a
    *  plane of ONE file, and a count would tell the operator a campaign was dropped without saying which. */
   readonly notes?: readonly string[];
+  /** The descriptor's own {@link PortableImportOutcome.memoryChatIds}; absent ⇒ the file wrote no real conversation. */
+  readonly memoryChatIds?: readonly ChatId[];
   /** Set when the driver never even TRIED this file — the run was aborted before reaching it. It is a SKIP,
    *  not a failure: nothing was attempted, so nothing failed. Before this the unreached files vanished from
    *  the report entirely and a cancelled half-import read as a complete one. */
@@ -66,6 +68,12 @@ export interface BundleImportDeps {
  *  itself, so a new note-carrying entity plane is visible everywhere without a second traversal to update. */
 export function bundleImportNotes(report: BundleImportReport): readonly string[] {
   return report.outcomes.flatMap((outcome) => outcome.notes ?? []);
+}
+
+/** Every real conversation the bundle wrote, in file order — the ONE derivation of the memory-build offer's
+ *  scope, on the {@link bundleImportNotes} precedent. */
+export function bundleImportMemoryChatIds(report: BundleImportReport): readonly ChatId[] {
+  return report.outcomes.flatMap((outcome) => outcome.memoryChatIds ?? []);
 }
 
 /** The leading directory of an archive path, including the trailing slash, or null for a top-level file. */
@@ -111,6 +119,20 @@ function notAttemptedFrom(entity: PortableEntity, files: readonly StagedFile[]):
   }));
 }
 
+/** One descriptor answer as the report's file outcome. The two lists are forwarded only when the descriptor
+ *  said something: an empty list on every clean file would bury the one file that has a note. */
+function fileOutcome(entity: PortableEntity, path: string, result: PortableImportOutcome): BundleImportFileOutcome {
+  return {
+    kind: entity.kind,
+    path,
+    ok: result.ok,
+    ...(result.created !== undefined ? { created: result.created } : {}),
+    ...(result.error !== undefined ? { error: result.error } : {}),
+    ...(result.notes !== undefined && result.notes.length > 0 ? { notes: result.notes } : {}),
+    ...(result.memoryChatIds !== undefined && result.memoryChatIds.length > 0 ? { memoryChatIds: result.memoryChatIds } : {}),
+  };
+}
+
 /** Import every file routed to one entity, isolating per-file failures into outcomes. */
 async function importEntity(
   entity: PortableEntity,
@@ -132,17 +154,7 @@ async function importEntity(
     // file never aborts the batch. Ends if `outcomes` stops being read by the caller.
     try {
       const bytes = await staged.read();
-      const result = await entity.importFile(ownerId, { filename: staged.filename, bytes });
-      outcomes.push({
-        kind: entity.kind,
-        path,
-        ok: result.ok,
-        ...(result.created !== undefined ? { created: result.created } : {}),
-        ...(result.error !== undefined ? { error: result.error } : {}),
-        // Forwarded only when the descriptor said something: an empty list on every clean file would bury the
-        // one file that has a note.
-        ...(result.notes !== undefined && result.notes.length > 0 ? { notes: result.notes } : {}),
-      });
+      outcomes.push(fileOutcome(entity, path, await entity.importFile(ownerId, { filename: staged.filename, bytes })));
     } catch (err) {
       outcomes.push({
         kind: entity.kind,

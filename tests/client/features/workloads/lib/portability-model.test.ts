@@ -5,6 +5,7 @@
 // card batch → per-file; caption elision of zero tallies).
 
 import type { PortableKind } from "@orb/contracts/portability";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 // Deep import the PURE module (NOT the "@orb/client/..." barrel): a barrel import drags browser TSX into
 // the dom-less node typecheck:graph program (the 2026-06-28 dom-lib incident).
 import {
@@ -12,6 +13,7 @@ import {
   buildLibraryExportHref,
   EXPORTABLE_KINDS,
   PORTABLE_KIND_LABELS,
+  sumBundleCounts,
   summarizeBundleCounts,
   summarizeCardImport,
   summaryCaption,
@@ -47,10 +49,11 @@ test("asBundleCounts narrows the `unknown` workload result, defaulting missing/g
     skipped: 1,
     failed: 2,
     notes: [],
+    memoryChatIds: [],
   });
-  expect(asBundleCounts({ imported: 5 })).toEqual({ imported: 5, skipped: 0, failed: 0, notes: [] });
-  expect(asBundleCounts(null)).toEqual({ imported: 0, skipped: 0, failed: 0, notes: [] });
-  expect(asBundleCounts("boom")).toEqual({ imported: 0, skipped: 0, failed: 0, notes: [] });
+  expect(asBundleCounts({ imported: 5 })).toEqual({ imported: 5, skipped: 0, failed: 0, notes: [], memoryChatIds: [] });
+  expect(asBundleCounts(null)).toEqual({ imported: 0, skipped: 0, failed: 0, notes: [], memoryChatIds: [] });
+  expect(asBundleCounts("boom")).toEqual({ imported: 0, skipped: 0, failed: 0, notes: [], memoryChatIds: [] });
 });
 
 // #1710 — the flattened per-file notes a bundle import's workload result carries. A garbage/non-string
@@ -61,18 +64,34 @@ test("asBundleCounts carries the flattened `notes` array through, filtering out 
     skipped: 0,
     failed: 0,
     notes: ["book kept: primary already exists"],
+    memoryChatIds: [],
   });
   expect(asBundleCounts({ imported: 1, skipped: 0, failed: 0, notes: ["ok", 7, null] })).toEqual({
     imported: 1,
     skipped: 0,
     failed: 0,
     notes: ["ok"],
+    memoryChatIds: [],
   });
 });
 
+// The memory-build offer's scope: the chats an import wrote ride its workload result (both the bundle and the
+// import-st shape), a folder's sequential uploads sum into one scope, and anything that is not a chat id is
+// dropped rather than handed to the backfill.
+test("asBundleCounts carries the written chats; sumBundleCounts joins a folder's uploads into one scope", () => {
+  const first = mintTypeId(ID_PREFIX.chat);
+  const second = mintTypeId(ID_PREFIX.chat);
+  const bundle = asBundleCounts({ imported: 1, skipped: 0, failed: 0, notes: [], memoryChatIds: [first, "character_x", 7] });
+  const profile = asBundleCounts({ scanned: 3, changed: 2, failed: 0, dryRun: false, memoryChatIds: [second] });
+
+  expect(bundle.memoryChatIds).toEqual([first]);
+  expect(profile.memoryChatIds).toEqual([second]);
+  expect(sumBundleCounts(bundle, profile).memoryChatIds).toEqual([first, second]);
+});
+
 test("summarizeBundleCounts carries the counts + notes with an empty per-file list", () => {
-  const summary = summarizeBundleCounts({ imported: 4, skipped: 0, failed: 1, notes: ["book kept: primary already exists"] });
-  expect(summary).toEqual({ imported: 4, skipped: 0, failed: 1, notes: ["book kept: primary already exists"], outcomes: [] });
+  const summary = summarizeBundleCounts({ imported: 4, skipped: 0, failed: 1, notes: ["book kept: primary already exists"], memoryChatIds: [] });
+  expect(summary).toEqual({ imported: 4, skipped: 0, failed: 1, notes: ["book kept: primary already exists"], memoryChatIds: [], outcomes: [] });
 });
 
 test("summarizeCardImport maps the server's REAL result — created→imported, deduped→skipped", () => {
@@ -88,6 +107,7 @@ test("summarizeCardImport maps the server's REAL result — created→imported, 
     skipped: 1,
     failed: 0,
     notes: [],
+    memoryChatIds: [],
     outcomes: [
       { path: "elara.png", ok: true, detail: "Character card" },
       { path: "kai.json", ok: true, detail: "Already imported" },
@@ -128,6 +148,6 @@ test("summarizeCardImport surfaces a server `failed` entry as a FAILURE with its
 });
 
 test("summaryCaption shows only the non-zero tallies", () => {
-  expect(summaryCaption({ imported: 3, skipped: 0, failed: 0, outcomes: [], notes: [] })).toBe("3 imported");
-  expect(summaryCaption({ imported: 3, skipped: 1, failed: 2, outcomes: [], notes: [] })).toBe("3 imported · 1 skipped · 2 failed");
+  expect(summaryCaption({ imported: 3, skipped: 0, failed: 0, outcomes: [], notes: [], memoryChatIds: [] })).toBe("3 imported");
+  expect(summaryCaption({ imported: 3, skipped: 1, failed: 2, outcomes: [], notes: [], memoryChatIds: [] })).toBe("3 imported · 1 skipped · 2 failed");
 });

@@ -93,12 +93,12 @@ function ctxWith(written: Written, opts: { readonly throws?: boolean } = {}): Im
           messagesImported: chats.reduce((n, c) => n + c.messages.length, 0),
           variantsImported: 0,
           branchesLinked: 0,
-          realConversationWritten: true,
+          realConversationsWritten: [],
           chatsPersonaHealed: 0,
         });
       },
       bulkImportPersonas: unused,
-      enqueueBackfill: () => Promise.resolve(true),
+      enqueueImportIndex: () => Promise.resolve(),
       reconcileStats: () => Promise.resolve(),
     },
   };

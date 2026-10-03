@@ -134,7 +134,7 @@ function registry(i: Injected): readonly PortableEntity[] {
     findPersonaByName: vi.fn(),
     attachChatTagByName: vi.fn(),
     importRpgGame: vi.fn(),
-    enqueueBackfill: vi.fn(),
+    enqueueImportIndex: vi.fn(),
     reconcileImportStats: vi.fn(),
     resolveOwnerPrincipal: i.resolveOwnerPrincipal,
   } as unknown as PortabilityDeps;

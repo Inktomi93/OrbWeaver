@@ -25,7 +25,7 @@ import type { SummarizeInput } from "@orb/contracts/role-clients";
 import { chatParticipants, chats } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import { isAborted } from "#kit/abort";
 import type { ChatContext } from "../context.ts";
@@ -49,10 +49,12 @@ import { resolveGroupBucketCharacterId } from "./group-bucket.ts";
 import { hostUserIdOf } from "./participants-host.ts";
 
 /** The sweep universe (temporary chats included; they are live rooms until reaped). `ownerId` scopes to
- *  the chats that user hosts (a present, non-departed host participant); omitted/null = every chat. */
-export async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | null): Promise<ChatId[]> {
+ *  the chats that user hosts (a present, non-departed host participant); omitted/null = every chat. `only`
+ *  narrows that universe to the listed chats — an intersection, so an id outside the host scope matches nothing. */
+export async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | null, only?: readonly ChatId[] | null): Promise<ChatId[]> {
+  const narrowed = only === undefined || only === null ? undefined : inArray(chats.id, [...only]);
   if (hostUserId === undefined || hostUserId === null) {
-    const rows = await ctx.db.select({ id: chats.id }).from(chats);
+    const rows = await ctx.db.select({ id: chats.id }).from(chats).where(narrowed);
     return rows.map((r) => r.id);
   }
   const rows = await ctx.db
@@ -67,8 +69,17 @@ export async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | nul
         eq(chatParticipants.userId, hostUserId),
         isNull(chatParticipants.leftSeq),
       ),
-    );
+    )
+    .where(narrowed);
   return rows.map((r) => r.id);
+}
+
+/** The memory sweep's scope: the host scope (`ownerId`, omitted/null = every chat), narrowed to `chatIds` when set. */
+interface MemorySweepArgs {
+  readonly signal: AbortSignal;
+  readonly ownerId?: UserId | null;
+  readonly chatIds?: readonly ChatId[] | null;
+  readonly funderUserId: UserId;
 }
 
 /** A chat's present characters + its host + the projected macro-name context (the summarizer transcript labels
@@ -223,11 +234,7 @@ async function digestsDerivableFor(ctx: ChatContext, funderUserId: UserId): Prom
 /** PHASE 1 — plan every (chat × scope) bucket corpus-wide (segments + tier-0 collect; NO summarize). One
  *  poisoned chat is counted + logged, never kills the sweep (#41 — every EXPECTED branch returns without
  *  throwing, so a throw landing in the catch is a genuine unexpected fault). */
-async function planAllBuckets(
-  ctx: ChatContext,
-  args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null; readonly funderUserId: UserId },
-  resolveMemoryConfig: ResolveBackfillMemoryConfig,
-): Promise<PlanSweep> {
+async function planAllBuckets(ctx: ChatContext, args: MemorySweepArgs, resolveMemoryConfig: ResolveBackfillMemoryConfig): Promise<PlanSweep> {
   const sweep: PlanSweep = { plans: [], segments: [], segmentsScanned: 0, digestsScanned: 0, failed: 0, spaces: new Map() };
   const deps: PlanDeps = {
     signal: args.signal,
@@ -235,7 +242,7 @@ async function planAllBuckets(
     funderUserId: args.funderUserId,
     digestsDerivable: await digestsDerivableFor(ctx, args.funderUserId),
   };
-  for (const chatId of await loadAllChatIds(ctx, args.ownerId)) {
+  for (const chatId of await loadAllChatIds(ctx, args.ownerId, args.chatIds)) {
     if (args.signal.aborted) {
       break; // cooperative abort between chats — every completed unit is durable + idempotent
     }
@@ -537,7 +544,7 @@ async function commitAllPlans(
  */
 export async function backfillMemory(
   ctx: ChatContext,
-  args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null; readonly funderUserId: UserId },
+  args: MemorySweepArgs,
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<MemoryBackfillSweepCounts> {
   const sweep = await planAllBuckets(ctx, args, resolveMemoryConfig);

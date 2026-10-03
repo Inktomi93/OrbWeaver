@@ -9,7 +9,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PortableEntity, PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
 import type { Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ImportChatDeps } from "@orb/server/entry/http";
 import { registerImportChat } from "@orb/server/entry/http";
 import { describe } from "vitest";
@@ -120,6 +120,7 @@ function spyRegistry(outcome: PortableImportOutcome | ((file: PortableFile) => P
 interface RouteBody {
   readonly imported: readonly { readonly filename: string; readonly created: boolean }[];
   readonly failed: readonly { readonly filename: string; readonly error: string }[];
+  readonly memoryChatIds: readonly string[];
 }
 
 describe("registerImportChat — registration + belts", () => {
@@ -265,5 +266,24 @@ describe("registerImportChat — the thin arm over the chat descriptor", () => {
     expect(body.imported.map((row) => row.filename)).toEqual(["good.jsonl", "also-good.jsonl"]);
     expect(body.failed.map((row) => row.filename)).toEqual(["bad.jsonl"]);
     expect(spy.calls.map((call) => call.file.filename)).toEqual(["good.jsonl", "bad.jsonl", "also-good.jsonl"]);
+  });
+
+  // The import enqueues no memory build; the body carries every real conversation the batch wrote, in file order,
+  // which is the whole scope the client's "Build memory for imported chats" offer hands to the backfill.
+  test("the batch's written conversations ride back as ONE memory scope, in file order, failures contributing none", async () => {
+    const aria = mintTypeId(ID_PREFIX.chat);
+    const bee = mintTypeId(ID_PREFIX.chat);
+    const spy = spyRegistry((file) => {
+      if (file.filename === "bad.jsonl") {
+        return { ok: false, error: "not a valid chat .jsonl file" };
+      }
+      return { ok: true, created: true, memoryChatIds: [file.filename === "aria.jsonl" ? aria : bee] };
+    });
+    const form = new FormData();
+    form.append("file", fileOf("aria.jsonl", transcript("Aria")));
+    form.append("file", fileOf("bad.jsonl", "garbage\n"));
+    form.append("file", fileOf("bee.jsonl", transcript("Bee")));
+    const body = (await (await handlerFor(spy.deps)(makeCtx(OWNER, form))).json()) as RouteBody;
+    expect(body.memoryChatIds).toEqual([aria, bee]);
   });
 });

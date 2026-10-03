@@ -10,10 +10,8 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
-import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
-import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
-import type { PersonaId, UserId, WorkloadId } from "@orb/kit/ids";
+import type { PersonaId, UserId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { BulkImportChats } from "#domain/chat";
@@ -33,13 +31,13 @@ import { createApplyImportedAppearance, createImportTheme } from "#domain/settin
 import { bumpStatsCanonVersion, reconcileStats } from "#domain/stats";
 import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
-import { WORKLOAD_NOT_ADMISSIBLE } from "#domain/workloads";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import { stageDirectory } from "#infra/storage";
 import { publishChatChanged, publishUserEvent, withQuietBulkFanout } from "../../transport/trpc/index.ts";
 import { writeImportReport } from "../import/import-report.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import {
+  bundleImportMemoryChatIds,
   bundleImportNotes,
   createNodeFsImportPort,
   IMPORT_MAX_DECOMPRESSED_BYTES,
@@ -104,63 +102,20 @@ export interface PortabilityRunnerComposeResult {
   readonly importWorkloads: ImportWorkloadDeps;
 }
 
-/** The post-import embed DAG, shared by the zip-bundle portability descriptors AND the ST profile-directory
- *  importer — built ONCE. It runs in order and only AFTER the whole import: embed CHARACTERS (the corpus
- *  `index` pass) first, then embed CHATS (`memory-backfill`) gated on it via `dependsOn`. Chaining (not two
- *  independent enqueues) is deliberate — embeddings never run mid-import, and the chat memory pass does not
- *  compete with the character pass for the embed engine.
+/** The post-import index pass, shared by the zip-bundle portability descriptors AND the ST profile-directory
+ *  importer — built ONCE. It embeds the owner's text corpus AFTER the import and calls no Utility model.
  *
- *  RETURNS A COVERAGE CLAIM, not a queue count: `true` means a memory pass that WILL cover this import
- *  entered the queue behind this import's index pass. Two outcomes report `false` rather than throwing,
- *  because neither is an import failure — the workloads door REFUSING the pass (#156: this owner has memory
- *  off, so the sweep skips every one of their chats and could only land a vacuous 0/0 success), and a memory
- *  pass already being in flight for this owner (that run holds no edge to the index pass above and may
- *  already be past the rows just written, so it is not coverage for THIS import). The character `index` pass
- *  is unconditional — it is what memory recall would search, and it stands on its own.
+ *  AN IMPORT NEVER ENQUEUES `memory-backfill`. That build spends the Utility model once per aged-out block of
+ *  every imported chat, and a paid run starts only behind the model-run confirm. Each import result carries
+ *  `memoryChatIds` instead, and the client offers "Build memory for imported chats" over exactly those chats.
+ *
+ *  THE INDEX PASS ADOPTS: any active run of the same admission unit is idempotent and hash-gated, so it
+ *  already covers the freshly imported rows, and a second enqueue would only conflict.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export function createEnqueueImportBackfill(workloads: Pick<WorkloadService, "start">): (args: { readonly ownerId: UserId }) => Promise<boolean> {
-  const startEmbed = async (
-    ownerId: UserId,
-    input: StartWorkloadInput,
-    options: { readonly adoptActive?: true; readonly dependsOnId?: WorkloadId } = {},
-  ): Promise<WorkloadId> => {
-    const { id } = await workloads.start({
-      input,
-      caller: null,
-      mode: "singular",
-      ownerId,
-      ...(options.adoptActive === true ? { adoptActive: true } : {}),
-      ...(options.dependsOnId !== undefined ? { dependsOn: [options.dependsOnId] } : {}),
-    });
-    return id;
-  };
-  return async ({ ownerId }: { readonly ownerId: UserId }): Promise<boolean> => {
-    // THE INDEX PASS ADOPTS. It is a DEPENDENCY TARGET, and any active run of the same admission unit is
-    // exactly the thing to wait on — that run is idempotent + hash-gated, so it already covers the freshly
-    // imported rows, but the dependent still has to WAIT for it. Swallowing the conflict and losing the id
-    // (what this did before `adoptActive`) dropped the `dependsOn` edge on precisely that path, so the memory
-    // pass was enqueued as an INDEPENDENT root that could run before the index pass it must follow.
-    const embedChars = await startEmbed(ownerId, { kind: "index", params: { source: "text" } }, { adoptActive: true });
-    try {
-      // THE MEMORY PASS DOES NOT ADOPT, and the asymmetry is the point. This function's boolean is a COVERAGE
-      // CLAIM — the import report renders it as "the memory pass entered the queue for this import" — while
-      // an ADOPTED memory run was admitted under someone else's `dependsOn` (`workloads/contract/params.ts`:
-      // an adopted row necessarily drops the caller's). It carries no edge to the index pass above and may
-      // already be past the rows this import just wrote, so reporting `true` for it would make the report
-      // claim a coverage it cannot have. A conflict is reported as `false` — the same honest arm the #156
-      // memory-off refusal lands on, and the same answer this returned before adoption existed.
-      await startEmbed(ownerId, { kind: "memory-backfill", params: {} }, { dependsOnId: embedChars });
-      return true;
-    } catch (err) {
-      if (err instanceof DomainConflictError) {
-        return false;
-      }
-      if (err instanceof DomainOperationError && err.code === WORKLOAD_NOT_ADMISSIBLE) {
-        return false;
-      }
-      throw err;
-    }
+export function createEnqueueImportIndex(workloads: Pick<WorkloadService, "start">): (args: { readonly ownerId: UserId }) => Promise<void> {
+  return async ({ ownerId }: { readonly ownerId: UserId }): Promise<void> => {
+    await workloads.start({ input: { kind: "index", params: { source: "text" } }, caller: null, mode: "singular", ownerId, adoptActive: true });
   };
 }
 
@@ -168,7 +123,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
   const { db, now, workloads } = deps;
 
   type ImportOwnerOp = (args: { readonly ownerId: UserId }) => Promise<void>;
-  const enqueueImportBackfill = createEnqueueImportBackfill(workloads);
+  const enqueueImportIndex = createEnqueueImportIndex(workloads);
   const reconcileImportStats: ImportOwnerOp = async ({ ownerId }) => {
     await reconcileStats(db, { ownerId, now });
   };
@@ -183,7 +138,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     importCardScripts: deps.importCardScripts,
     bulkImportChats: deps.bulkImportChats,
     bulkImportPersonas: deps.bulkImportPersonas,
-    enqueueBackfill: enqueueImportBackfill,
+    enqueueImportIndex,
     reconcileImportStats,
     // R6 — the orb-native chat bundle's three cross-domain re-links (persona by name, the chat-tag overlay,
     // the rpg campaign). Shared by both consumers exactly like the rest of this slice.
@@ -262,7 +217,13 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
         });
         // A real run writes the "what landed / what didn't" report to disk; a dry run writes nothing.
         const reportPath = dryRun ? undefined : await writeImportReport(report, now(), deps.importReportsDir);
-        return { scanned: report.scanned, changed: report.changed, failed: report.skippedCards.length, ...(reportPath !== undefined ? { reportPath } : {}) };
+        return {
+          scanned: report.scanned,
+          changed: report.changed,
+          failed: report.skippedCards.length,
+          memoryChatIds: report.memoryChatIds,
+          ...(reportPath !== undefined ? { reportPath } : {}),
+        };
       }),
     runBundleImport: async ({ archive, ownerId, stagingRoot: root, signal }) =>
       await withQuietBulkFanout(async () => {
@@ -275,12 +236,24 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
         });
         // #1710 — carry what #1688 already put on the report (a kept edited lorebook, a dropped overlay) into
         // the BACKGROUND workload's own result, not only the descriptor-level report a sync door would read.
-        return { imported: report.imported, skipped: report.skipped, failed: report.failed, notes: bundleImportNotes(report) };
+        return {
+          imported: report.imported,
+          skipped: report.skipped,
+          failed: report.failed,
+          notes: bundleImportNotes(report),
+          memoryChatIds: bundleImportMemoryChatIds(report),
+        };
       }),
     runStagedDirImport: async ({ stagedPath, ownerId, signal }) =>
       await withQuietBulkFanout(async () => {
         const report = await importStagedArchive({ registry: portability, ownerId, staged: await stageDirectory(stagedPath), signal });
-        return { imported: report.imported, skipped: report.skipped, failed: report.failed, notes: bundleImportNotes(report) };
+        return {
+          imported: report.imported,
+          skipped: report.skipped,
+          failed: report.failed,
+          notes: bundleImportNotes(report),
+          memoryChatIds: bundleImportMemoryChatIds(report),
+        };
       }),
     reconcileImportStats,
     // #23: the terminal "your library changed" fan for a background import. `chatsChanged` (chatId absent)

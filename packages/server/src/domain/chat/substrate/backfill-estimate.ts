@@ -62,18 +62,19 @@ async function chatCalls(ctx: ChatContext, chatId: ChatId, resolveMemoryConfig: 
   return calls;
 }
 
-/** The Utility-model calls a memory backfill over `ownerId`'s hosted chats (`null` = every chat) would make for
- *  `funderUserId`. Zero when the funder has no Utility model: the sweep then builds no digests at all. */
+/** The Utility-model calls a memory backfill over `ownerId`'s hosted chats (`null` = every chat), narrowed to
+ *  `chatIds` when set, would make for `funderUserId`. Zero when the funder has no Utility model: the sweep then
+ *  builds no digests at all. */
 export async function estimateMemoryBackfillCalls(
   ctx: ChatContext,
-  args: { readonly ownerId: UserId | null; readonly funderUserId: UserId },
+  args: { readonly ownerId: UserId | null; readonly funderUserId: UserId; readonly chatIds: readonly ChatId[] | null },
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<number> {
   if (!(await digestsDerivable(ctx, args.funderUserId))) {
     return 0;
   }
   let calls = 0;
-  for (const chatId of await loadAllChatIds(ctx, args.ownerId)) {
+  for (const chatId of await loadAllChatIds(ctx, args.ownerId, args.chatIds)) {
     calls += await chatCalls(ctx, chatId, resolveMemoryConfig);
   }
   return calls;

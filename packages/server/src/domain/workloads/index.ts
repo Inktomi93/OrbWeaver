@@ -5,7 +5,6 @@
 // rather than through this door (the bus PRODUCER, `emitWorkloadEvent`, is still ours).
 
 export type { AnyWorkloadContribution, WorkloadContribution, WorkloadContributions } from "./contract/contribution.ts";
-export { WORKLOAD_NOT_ADMISSIBLE } from "./contract/contribution.ts";
 export type {
   CancelWorkloadParams,
   CancelWorkloadResult,

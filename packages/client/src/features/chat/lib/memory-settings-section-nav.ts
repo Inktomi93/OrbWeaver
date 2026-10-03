@@ -18,7 +18,7 @@ export const MEMORY_SETTINGS_SUBCATEGORY: ConfigSubcategory = {
 /** What happens to a chat that already exists when Memory goes on: the build every reply runs covers its history. */
 export const MEMORY_EXISTING_CHATS_NOTE = "A chat you already have builds its memory the next time it gets a reply.";
 
-/** What an import does while Memory is on: the server queues the Memory backfill job after each import, admitted
- *  only for an owner with Memory on (`createEnqueueImportBackfill` in the server's portability runner), so the cost
- *  lands at the import, not at a reply. */
-export const MEMORY_IMPORTED_CHATS_NOTE = "Chats you import while Memory is on build their memory right away, in the background.";
+/** What an import does while Memory is on: it enqueues no memory build of its own (`createEnqueueImportIndex` in the
+ *  server's portability runner); the import's report offers the build for exactly the chats it wrote, behind the
+ *  model-run confirm. */
+export const MEMORY_IMPORTED_CHATS_NOTE = "After an import, you can build memory for the imported chats right away, or let each build at its next reply.";

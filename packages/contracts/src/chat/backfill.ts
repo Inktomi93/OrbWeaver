@@ -1,9 +1,18 @@
-// `@orb/contracts/chat` — the terminal results of chat's two corpus-sweep workloads (the workloads
-// junk-drawer exit: a workload's result shape is domain↔domain wire, authored by the OWNING domain).
-// `memory-backfill` sweeps the memory subsystem's segments/digests; `group-character-backfill` mints the
-// synthetic group character for every >1-character room that lacks one (D38).
+// `@orb/contracts/chat` — the params and terminal results of chat's two corpus-sweep workloads (the workloads
+// junk-drawer exit: a workload's params and result shapes are domain↔domain wire, authored by the OWNING
+// domain). `memory-backfill` sweeps the memory subsystem's segments/digests; `group-character-backfill` mints
+// the synthetic group character for every >1-character room that lacks one (D38).
 
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+
+/** memory-backfill: `chatIds` narrows the sweep to those chats inside the row's enumeration scope (absent =
+ *  every chat in scope). An import's "Build memory for imported chats" offer sends the chats that import
+ *  wrote, so the run and its model-call count cover those chats and nothing else. A foreign id outside the
+ *  scope matches nothing; the sweep intersects, never widens. */
+export const memoryBackfillWorkloadParams = z.object({ chatIds: z.array(typeIdSchema(ID_PREFIX.chat)).min(1).readonly().optional() });
+export type MemoryBackfillWorkloadParams = z.infer<typeof memoryBackfillWorkloadParams>;
+
 /** A backfill sweep's counts: rows examined, rows changed. Shared by both sweeps. */
 export interface BackfillPassResult {
   readonly scanned: number;

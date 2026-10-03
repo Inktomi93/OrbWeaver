@@ -58,7 +58,7 @@ const SUCCEEDED_ROW = {
   createdAt: 1_750_000_000_000,
   updatedAt: 1_750_000_000_000,
   params: { token: "bundle-ct.zip" },
-  result: { imported: 3, skipped: 0, failed: 0, notes: [] },
+  result: { imported: 3, skipped: 0, failed: 0, notes: [], memoryChatIds: [] },
   poison: false,
 } satisfies TrpcWireOutput<"workloads.get">;
 

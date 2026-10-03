@@ -4,6 +4,8 @@
 
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_KINDS } from "@orb/contracts/portability";
+import type { ChatId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { CardImportResult, TreeImportPlan } from "#data";
 import { skippedByReason } from "#data";
 
@@ -58,6 +60,8 @@ export interface ImportSummary {
   readonly failed: number;
   readonly outcomes: readonly ImportOutcomeView[];
   readonly notes: readonly string[];
+  /** The real conversations the import wrote — the scope of the "Build memory for imported chats" offer. */
+  readonly memoryChatIds: readonly ChatId[];
 }
 
 /** The counts + flattened notes a finished `import-bundle` workload reports (no per-file list — #1710's
@@ -67,7 +71,10 @@ export interface BundleCounts {
   readonly skipped: number;
   readonly failed: number;
   readonly notes: readonly string[];
+  readonly memoryChatIds: readonly ChatId[];
 }
+
+const chatIdSchema = typeIdSchema(ID_PREFIX.chat);
 
 /** Narrow an `unknown` workload-succeeded result into the bundle counts. An `import-st` run reports the
  *  maintenance-pass shape (`scanned`/`changed`/`failed`) instead of `imported`/`skipped`: its new canon is
@@ -76,6 +83,7 @@ export function asBundleCounts(result: unknown): BundleCounts {
   const record = typeof result === "object" && result !== null ? (result as Record<string, unknown>) : {};
   const count = (value: unknown): number => (typeof value === "number" ? value : 0);
   const notes = record["notes"];
+  const memoryChatIds = record["memoryChatIds"];
   const failed = count(record["failed"]);
   const imported = record["imported"] === undefined ? count(record["changed"]) : count(record["imported"]);
   const skipped = record["skipped"] === undefined ? Math.max(0, count(record["scanned"]) - imported - failed) : count(record["skipped"]);
@@ -84,12 +92,24 @@ export function asBundleCounts(result: unknown): BundleCounts {
     skipped,
     failed,
     notes: Array.isArray(notes) ? notes.filter((note): note is string => typeof note === "string") : [],
+    memoryChatIds: Array.isArray(memoryChatIds)
+      ? memoryChatIds.flatMap((id: unknown) => {
+          const parsed = chatIdSchema.safeParse(id);
+          return parsed.success ? [parsed.data] : [];
+        })
+      : [],
   };
 }
 
 /** Sum two uploads' counts — a planned folder import is several sequential workloads reporting one result. */
 export function sumBundleCounts(a: BundleCounts, b: BundleCounts): BundleCounts {
-  return { imported: a.imported + b.imported, skipped: a.skipped + b.skipped, failed: a.failed + b.failed, notes: [...a.notes, ...b.notes] };
+  return {
+    imported: a.imported + b.imported,
+    skipped: a.skipped + b.skipped,
+    failed: a.failed + b.failed,
+    notes: [...a.notes, ...b.notes],
+    memoryChatIds: [...a.memoryChatIds, ...b.memoryChatIds],
+  };
 }
 
 /** The plan's own lines, for the preflight AND the summary: what stays on your disk and why, and how many
@@ -125,6 +145,8 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
     skipped: deduped.length,
     failed: result.failed.length,
     notes: [],
+    // A bare card writes no chat, so it offers no memory build.
+    memoryChatIds: [],
     outcomes: [
       ...created.map((card) => ({
         path: card.filename ?? UNNAMED_CARD,

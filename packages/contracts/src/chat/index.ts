@@ -78,9 +78,10 @@ export {
   shapeTraceSchema,
   variantWireViewSchema,
 } from "./assemble.ts";
-// The two corpus-sweep workload results chat OWNS (the junk-drawer exit: a workload's result shape is
-// authored by the OWNING domain) — `memory-backfill` + `group-character-backfill`.
-export type { BackfillPassResult, MemoryBackfillResult } from "./backfill.ts";
+// The two corpus-sweep workloads' params + results chat OWNS (the junk-drawer exit: a workload's wire shapes
+// are authored by the OWNING domain) — `memory-backfill` + `group-character-backfill`.
+export type { BackfillPassResult, MemoryBackfillResult, MemoryBackfillWorkloadParams } from "./backfill.ts";
+export { memoryBackfillWorkloadParams } from "./backfill.ts";
 export type {
   BulkImportChatInput,
   BulkImportChatsResult,

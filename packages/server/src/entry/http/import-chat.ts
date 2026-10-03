@@ -14,7 +14,7 @@
 
 import type { PortabilityRegistry, PortableEntity } from "@orb/contracts/portability";
 import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
-import type { UserId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import { bodyLimit } from "hono/body-limit";
 import { hasCsrfHeader } from "#infra/auth";
 import type { registerImportBundle } from "./import.ts";
@@ -54,6 +54,8 @@ interface FailedChat {
 export interface ChatImportResult {
   readonly imported: readonly ImportedChat[];
   readonly failed: readonly FailedChat[];
+  /** The real conversations the batch wrote — the scope of the client's "Build memory for imported chats" offer. */
+  readonly memoryChatIds: readonly ChatId[];
 }
 
 /**
@@ -64,17 +66,19 @@ export interface ChatImportResult {
 async function importAll(chat: PortableEntity, ownerId: UserId, files: readonly File[]): Promise<ChatImportResult> {
   const imported: ImportedChat[] = [];
   const failed: FailedChat[] = [];
+  const memoryChatIds: ChatId[] = [];
   await files.reduce<Promise<void>>(async (chain, file) => {
     await chain;
     const bytes = new Uint8Array(await file.arrayBuffer());
     const outcome = await chat.importFile(ownerId, { filename: file.name, bytes });
     if (outcome.ok) {
       imported.push({ filename: file.name, created: outcome.created === true });
+      memoryChatIds.push(...(outcome.memoryChatIds ?? []));
     } else {
       failed.push({ filename: file.name, error: outcome.error ?? IMPORT_FAILED });
     }
   }, Promise.resolve());
-  return { imported, failed };
+  return { imported, failed, memoryChatIds };
 }
 
 /** Register `POST /api/import/chat` on `app`: auth → CSRF → body cap → per-file delegate to the registry's
